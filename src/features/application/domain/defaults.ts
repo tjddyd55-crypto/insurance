@@ -1,0 +1,44 @@
+import type { InsuranceApplicationFormData } from './types'
+
+export const EMPTY_APPLICATION_FORM: InsuranceApplicationFormData = {
+  branchName: '',
+  staffName: '',
+  expiryDate: '',
+  contractType: '',
+  usageType: '',
+  previousInsurer: '',
+  ownerName: '',
+  ownerPhone: '',
+  ownerResidentNumber: '',
+  ownerAddress: '',
+  payerSameAsOwner: false,
+  payerName: '',
+  payerPhone: '',
+  payerResidentNumber: '',
+  payerAddress: '',
+  vehicleNumber: '',
+  vehicleModel: '',
+  vehicleYear: '',
+  mileageYn: '',
+  blackboxYn: '',
+  bankAccount: '',
+  extraAccessories: '',
+  propertyDamage: '',
+  personalInjury: '',
+  uninsuredMotorist: '',
+  ownVehicleDamage: '',
+  emergencyAssist: '',
+  driverScope: '',
+  driverAge: '',
+  designatedDriverName: '',
+  designatedDriverResidentNumber: '',
+  spouseOrMinDriverName: '',
+  spouseOrMinDriverResidentNumber: '',
+  career1: '',
+  career2: '',
+  memo: '',
+}
+
+export function createEmptyApplicationForm(): InsuranceApplicationFormData {
+  return { ...EMPTY_APPLICATION_FORM }
+}
