@@ -244,54 +244,64 @@ body {
   width: 794px;
   margin: 0;
   height: 1122.67px;
-  padding: 42.67px 21.33px 0;
+  padding: 10px 0 0;
   overflow: hidden;
   background: #ffffff;
   color: #121212;
   font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
 }
 
-.insurance-header {
-  font-size: 13px;
-  line-height: 1.05;
-  margin-bottom: 0;
+.form-container {
+  width: 794px;
+  margin: 0 auto;
 }
 
-.insurance-top-rule {
-  width: 731.53px;
-  height: 2px;
-  background: #a5a5a5;
-  margin: 6px 0 2px 11.73px;
+.form-title {
+  text-align: center;
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  letter-spacing: 4px;
+}
+
+.form-header {
+  margin-bottom: 10px;
+  font-size: 14px;
+  width: 100%;
+  text-align: left;
 }
 
 .insurance-note {
-  margin: 1px 0 1px 10.33px;
+  margin: 0;
   font-size: 12px;
   color: #d10000;
   text-align: right;
-  width: 731.53px;
 }
 
-.insurance-table {
+.insurance-table,
+.form-container table {
   border-collapse: collapse;
-  width: 731.53px;
+  width: 100%;
   table-layout: fixed;
-  margin-bottom: 1px;
+  margin: 0;
+  border: 2px solid #000;
 }
 
 .insurance-table th,
-.insurance-table td {
+.insurance-table td,
+.form-container td {
   border: 1px solid #000;
-  padding: 0 3px;
+  padding: 4px 6px;
   font-size: 13px;
-  vertical-align: top;
+  vertical-align: middle;
   word-break: break-word;
   text-align: center;
-  line-height: 1.26;
+  line-height: 1.15;
 }
 
 .insurance-table th {
-  font-weight: 500;
+  background: #f3f3f3;
+  font-weight: bold;
 }
 
 .insurance-table .left {
@@ -306,33 +316,9 @@ body {
   white-space: pre-wrap;
 }
 
-.bg-major {
-  background: #d8d8d8;
-}
-
-.bg-minor {
-  background: #f2f2f2;
-}
-
-.section-cell {
-  border-right-width: 3px !important;
-}
-
 .value-large {
   font-size: 12px;
   font-weight: 700;
-}
-
-.indent {
-  padding-left: 24px !important;
-}
-
-.indent-sm {
-  padding-left: 14px !important;
-}
-
-.indent-xs {
-  padding-left: 8px !important;
 }
 
 .text-small {
@@ -353,15 +339,35 @@ body {
 
 .option {
   display: inline-block;
-  border: 2px solid transparent;
+  text-align: center;
+}
+
+.option-yn {
+  width: 20px;
+}
+
+.circle {
+  border: 2px solid red;
   border-radius: 50%;
-  padding: 0 3px;
-  line-height: 1.1;
-  transform: translateY(1px);
+  padding: 1px 4px;
+  display: inline-block;
+  line-height: 1;
 }
 
 .option.selected {
   border: 2px solid red;
+}
+
+.label {
+  text-align: left !important;
+  font-weight: bold;
+  padding-left: 8px !important;
+}
+
+.section-title {
+  text-align: center !important;
+  font-weight: bold;
+  background: #f3f3f3;
 }
 
 .h-basic-1 > th,
@@ -428,73 +434,9 @@ body {
   height: 124.67px;
 }
 
-.basic-info-table {
-  margin-left: 11.73px;
-  border: 3px solid #000;
-}
-
-.basic-info-table tr > :first-child {
-  border-left-width: 3px;
-}
-
-.basic-info-table tr > :last-child {
-  border-right-width: 3px;
-}
-
-.basic-info-table tr:first-child > * {
-  border-top-width: 3px;
-}
-
-.basic-info-table tr:last-child > * {
-  border-bottom-width: 3px;
-}
-
-.personal-info-table {
-  margin-left: 9.07px;
-}
-
-.personal-info-table tr > :last-child {
-  border-right-width: 3px;
-}
-
-.personal-info-table tr:first-child > :not(.section-cell) {
-  border-top-width: 3px;
-}
-
-.personal-info-table tr:last-child > * {
-  border-bottom-width: 3px;
-}
-
-.vehicle-info-table {
-  margin-left: 9.07px;
-}
-
-.vehicle-info-table tr > :last-child {
-  border-right-width: 3px;
-}
-
-.vehicle-info-table tr:first-child > :not(.section-cell) {
-  border-top-width: 3px;
-}
-
-.vehicle-info-table .h-vehicle:nth-child(2) > * {
-  border-bottom-width: 3px;
-}
-
-.coverage-table {
-  margin-left: 10.33px;
-}
-
-.driver-table {
-  margin-left: 10.33px;
-}
-
-.memo-table {
-  margin-left: 10.33px;
-}
-
-.memo-table > tbody > tr:first-child > th {
-  height: 20px;
+.memo-box {
+  height: 140px;
+  vertical-align: top !important;
 }
 
 .result-file-name {
