@@ -4,7 +4,11 @@ import { InsuranceResultTemplate } from '../components/InsuranceResultTemplate'
 import { buildApplicationTitle } from '../domain/title'
 import type { InsuranceApplicationRecord } from '../domain/types'
 import { getApplicationById, saveApplication } from '../repository/applicationRepository'
-import { exportResultToJpg, exportResultToPdf } from '../services/exportService'
+import {
+  createResultJpgFile,
+  exportResultToJpg,
+  exportResultToPdf,
+} from '../services/exportService'
 import { shareResult } from '../services/shareService'
 
 export function ApplicationResultPage() {
@@ -74,10 +78,20 @@ export function ApplicationResultPage() {
   }
 
   const handleShare = async () => {
+    if (!resultRef.current) {
+      return
+    }
+
     try {
-      const shareMethod = await shareResult(record.id, record.title)
+      const fileForShare = await createResultJpgFile(resultRef.current, record.title)
+      const shareMethod = await shareResult(record.id, record.title, fileForShare)
       if (shareMethod === 'kakao') {
         setStatusText('카카오톡 공유 창을 열었습니다.')
+        return
+      }
+
+      if (shareMethod === 'web-share-file') {
+        setStatusText('카카오톡이 설치된 폰에서 공유 앱 선택 창을 열었습니다.')
         return
       }
 

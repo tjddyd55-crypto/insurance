@@ -32,7 +32,7 @@ declare global {
   }
 }
 
-type ShareMethod = 'kakao' | 'web-share' | 'clipboard'
+type ShareMethod = 'kakao' | 'web-share-file' | 'web-share' | 'clipboard'
 
 const KAKAO_SDK_URL = 'https://developers.kakao.com/sdk/js/kakao.min.js'
 
@@ -138,6 +138,35 @@ async function shareWithWebShare(
   return true
 }
 
+function canShareFiles(): boolean {
+  return typeof navigator.canShare === 'function'
+}
+
+async function shareWithWebShareFile(
+  recordId: string,
+  title: string,
+  description: string,
+  file: File,
+): Promise<boolean> {
+  if (!navigator.share || !canShareFiles()) {
+    return false
+  }
+
+  const shareUrl = buildResultUrl(recordId)
+  const isFileShareSupported = navigator.canShare({ files: [file] })
+  if (!isFileShareSupported) {
+    return false
+  }
+
+  await navigator.share({
+    title,
+    text: description,
+    url: shareUrl,
+    files: [file],
+  })
+  return true
+}
+
 async function copyLink(recordId: string): Promise<void> {
   const shareUrl = buildResultUrl(recordId)
   if (!navigator.clipboard) {
@@ -147,8 +176,24 @@ async function copyLink(recordId: string): Promise<void> {
   await navigator.clipboard.writeText(shareUrl)
 }
 
-export async function shareResult(recordId: string, title: string): Promise<ShareMethod> {
+export async function shareResult(
+  recordId: string,
+  title: string,
+  fileForShare?: File,
+): Promise<ShareMethod> {
   const description = '자동차 보험 신청서 결과문을 확인하세요.'
+
+  if (fileForShare) {
+    const sharedWithFile = await shareWithWebShareFile(
+      recordId,
+      title,
+      description,
+      fileForShare,
+    )
+    if (sharedWithFile) {
+      return 'web-share-file'
+    }
+  }
 
   const kakaoShared = await shareWithKakao(recordId, title, description)
   if (kakaoShared) {

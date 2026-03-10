@@ -13,20 +13,36 @@ function createSafeFileName(input: string): string {
     .slice(0, 80)
 }
 
-export async function exportResultToJpg(
-  targetElement: HTMLElement,
-  title: string,
-): Promise<void> {
+async function renderResultAsJpegDataUrl(targetElement: HTMLElement): Promise<string> {
   const width = targetElement.scrollWidth
   const height = targetElement.scrollHeight
 
-  const dataUrl = await toJpeg(targetElement, {
+  return toJpeg(targetElement, {
     pixelRatio: EXPORT_PIXEL_RATIO,
     canvasWidth: Math.max(A4_JPEG_WIDTH, width * EXPORT_PIXEL_RATIO),
     canvasHeight: Math.max(A4_JPEG_HEIGHT, height * EXPORT_PIXEL_RATIO),
     quality: 0.98,
     backgroundColor: '#ffffff',
   })
+}
+
+export async function createResultJpgFile(
+  targetElement: HTMLElement,
+  title: string,
+): Promise<File> {
+  const dataUrl = await renderResultAsJpegDataUrl(targetElement)
+  const blob = await (await fetch(dataUrl)).blob()
+
+  return new File([blob], `${createSafeFileName(title)}.jpg`, {
+    type: 'image/jpeg',
+  })
+}
+
+export async function exportResultToJpg(
+  targetElement: HTMLElement,
+  title: string,
+): Promise<void> {
+  const dataUrl = await renderResultAsJpegDataUrl(targetElement)
 
   const link = document.createElement('a')
   link.href = dataUrl
@@ -38,16 +54,7 @@ export async function exportResultToPdf(
   targetElement: HTMLElement,
   title: string,
 ): Promise<void> {
-  const width = targetElement.scrollWidth
-  const height = targetElement.scrollHeight
-
-  const dataUrl = await toJpeg(targetElement, {
-    pixelRatio: EXPORT_PIXEL_RATIO,
-    canvasWidth: Math.max(A4_JPEG_WIDTH, width * EXPORT_PIXEL_RATIO),
-    canvasHeight: Math.max(A4_JPEG_HEIGHT, height * EXPORT_PIXEL_RATIO),
-    quality: 0.98,
-    backgroundColor: '#ffffff',
-  })
+  const dataUrl = await renderResultAsJpegDataUrl(targetElement)
 
   const pdf = new jsPDF('p', 'mm', 'a4')
   const image = new Image()
