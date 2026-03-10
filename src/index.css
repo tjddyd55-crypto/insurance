@@ -254,12 +254,22 @@ body {
 .insurance-header {
   font-size: 13px;
   line-height: 1.05;
-  margin-bottom: 1px;
+  margin-bottom: 0;
+}
+
+.insurance-top-rule {
+  width: 731.53px;
+  height: 2px;
+  background: #a5a5a5;
+  margin: 6px 0 2px 11.73px;
 }
 
 .insurance-note {
-  margin: 1px 0;
+  margin: 1px 0 1px 10.33px;
   font-size: 12px;
+  color: #d10000;
+  text-align: right;
+  width: 731.53px;
 }
 
 .insurance-table {
@@ -271,33 +281,81 @@ body {
 
 .insurance-table th,
 .insurance-table td {
-  border: 2px solid #000;
-  padding: 4px 6px;
+  border: 1px solid #000;
+  padding: 0 3px;
   font-size: 13px;
-  vertical-align: middle;
+  vertical-align: top;
   word-break: break-word;
   text-align: center;
-  line-height: 1.05;
+  line-height: 1.26;
 }
 
 .insurance-table th {
-  background: #f3f3f3;
-  font-weight: bold;
+  font-weight: 500;
 }
 
 .insurance-table .left {
   text-align: left;
 }
 
+.insurance-table .right {
+  text-align: right;
+}
+
 .insurance-table .multiline {
   white-space: pre-wrap;
+}
+
+.bg-major {
+  background: #d8d8d8;
+}
+
+.bg-minor {
+  background: #f2f2f2;
+}
+
+.section-cell {
+  border-right-width: 3px !important;
+}
+
+.value-large {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.indent {
+  padding-left: 24px !important;
+}
+
+.indent-sm {
+  padding-left: 14px !important;
+}
+
+.indent-xs {
+  padding-left: 8px !important;
+}
+
+.text-small {
+  font-size: 11px !important;
+}
+
+.option-line {
+  display: inline;
+}
+
+.option-line__segment {
+  display: inline;
+}
+
+.option-line__sep {
+  letter-spacing: 0.2px;
 }
 
 .option {
   display: inline-block;
   border: 2px solid transparent;
   border-radius: 50%;
-  padding: 0 4px;
+  padding: 0 3px;
   line-height: 1.1;
   transform: translateY(1px);
 }
@@ -367,7 +425,76 @@ body {
 
 .h-memo > th,
 .h-memo > td {
-  height: 45.6px;
+  height: 124.67px;
+}
+
+.basic-info-table {
+  margin-left: 11.73px;
+  border: 3px solid #000;
+}
+
+.basic-info-table tr > :first-child {
+  border-left-width: 3px;
+}
+
+.basic-info-table tr > :last-child {
+  border-right-width: 3px;
+}
+
+.basic-info-table tr:first-child > * {
+  border-top-width: 3px;
+}
+
+.basic-info-table tr:last-child > * {
+  border-bottom-width: 3px;
+}
+
+.personal-info-table {
+  margin-left: 9.07px;
+}
+
+.personal-info-table tr > :last-child {
+  border-right-width: 3px;
+}
+
+.personal-info-table tr:first-child > :not(.section-cell) {
+  border-top-width: 3px;
+}
+
+.personal-info-table tr:last-child > * {
+  border-bottom-width: 3px;
+}
+
+.vehicle-info-table {
+  margin-left: 9.07px;
+}
+
+.vehicle-info-table tr > :last-child {
+  border-right-width: 3px;
+}
+
+.vehicle-info-table tr:first-child > :not(.section-cell) {
+  border-top-width: 3px;
+}
+
+.vehicle-info-table .h-vehicle:nth-child(2) > * {
+  border-bottom-width: 3px;
+}
+
+.coverage-table {
+  margin-left: 10.33px;
+}
+
+.driver-table {
+  margin-left: 10.33px;
+}
+
+.memo-table {
+  margin-left: 10.33px;
+}
+
+.memo-table > tbody > tr:first-child > th {
+  height: 20px;
 }
 
 .result-file-name {
