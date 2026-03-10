@@ -17,290 +17,273 @@ interface InsuranceResultTemplateProps {
   data: InsuranceApplicationFormData
 }
 
-interface InlineOptionsProps {
+interface OptionTextProps {
   options: readonly string[]
   selected: string
-  className?: string
 }
 
-function InlineOptions({ options, selected, className = '' }: InlineOptionsProps) {
+function OptionText({ options, selected }: OptionTextProps) {
   return (
-    <div className={`inline-options ${className}`.trim()}>
+    <span>
       {options.map((option, index) => (
-        <span key={option} className="inline-options__segment">
-          {index > 0 ? <span className="inline-options__slash"> / </span> : null}
+        <span key={option}>
+          {index > 0 ? <span> / </span> : null}
           <span
-            className={`inline-options__item ${
-              selected === option ? 'inline-options__item--selected' : ''
-            }`}
+            className={`option ${selected === option ? 'selected' : ''}`.trim()}
           >
             {option}
           </span>
         </span>
       ))}
-    </div>
+    </span>
   )
 }
 
 function valueText(input: string): string {
-  return input.trim() || ' '
+  return input.trim() || '\u00a0'
 }
 
 export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) {
   return (
-    <article className="result-template a4-page">
-      <p className="paper-top-line">F. 053-218-4273</p>
+    <article className="insurance-form result-template">
+      <header className="insurance-header">F. 053-218-4273</header>
 
-      <table className="paper-table paper-table--main">
+      <table className="insurance-table basic-info-table">
+        <colgroup>
+          <col style={{ width: '68.33px' }} />
+          <col style={{ width: '110.07px' }} />
+          <col style={{ width: '68.33px' }} />
+          <col style={{ width: '110.07px' }} />
+          <col style={{ width: '68.33px' }} />
+          <col style={{ width: '306.4px' }} />
+        </colgroup>
         <tbody>
-          <tr className="h-381">
-            <th className="w-1025 align-center v-center">지점명</th>
-            <td className="w-4327 align-center v-center">{valueText(data.branchName)}</td>
-            <th className="w-1025 align-center v-center">사원명</th>
-            <td className="w-4596 align-center v-center">{valueText(data.staffName)}</td>
+          <tr className="h-basic-1">
+            <th>지점명</th>
+            <td colSpan={3}>{valueText(data.branchName)}</td>
+            <th>사원명</th>
+            <td>{valueText(data.staffName)}</td>
           </tr>
-          <tr className="h-401">
-            <th className="w-1025 align-center v-center">만기일자</th>
-            <td className="w-1651 align-center v-center">{valueText(data.expiryDate)}</td>
-            <th className="w-1025 align-left v-center">종류</th>
-            <td className="w-1651 align-left v-center">
-              <InlineOptions options={CONTRACT_TYPES} selected={data.contractType} />
+          <tr className="h-basic-2">
+            <th>만기일자</th>
+            <td>{valueText(data.expiryDate)}</td>
+            <th>종류</th>
+            <td>
+              <OptionText options={CONTRACT_TYPES} selected={data.contractType} />
             </td>
-            <th className="w-1025 align-center v-center">용도</th>
-            <td className="w-4596 align-left v-center">
-              <InlineOptions options={USAGE_TYPES} selected={data.usageType} />
+            <th>용도</th>
+            <td colSpan={3}>
+              <OptionText options={USAGE_TYPES} selected={data.usageType} />
             </td>
           </tr>
-          <tr className="h-421">
-            <th className="w-1025 align-center v-center">전계약사</th>
-            <td className="w-9948 align-center v-center" colSpan={5}>
-              <InlineOptions
-                options={PREVIOUS_INSURERS}
-                selected={data.previousInsurer}
-              />
+          <tr className="h-basic-3">
+            <th>전계약사</th>
+            <td colSpan={5}>
+              <OptionText options={PREVIOUS_INSURERS} selected={data.previousInsurer} />
             </td>
           </tr>
         </tbody>
       </table>
 
-      <table className="paper-table paper-table--person">
+      <table className="insurance-table personal-info-table">
+        <colgroup>
+          <col style={{ width: '68.33px' }} />
+          <col style={{ width: '68.33px' }} />
+          <col style={{ width: '220.2px' }} />
+          <col style={{ width: '68.33px' }} />
+          <col style={{ width: '306.4px' }} />
+        </colgroup>
         <tbody>
-          <tr className="h-293">
-            <th className="w-1025 align-left v-center">인적사항</th>
-            <th className="w-9949 align-center v-center" colSpan={4}>
-              등록증상 소유자
-            </th>
+          <tr className="h-person-1">
+            <th rowSpan={6}>인적사항</th>
+            <th colSpan={4}>등록증상 소유자</th>
           </tr>
-          <tr className="h-421">
-            <td className="w-1025 align-left v-center" />
-            <th className="w-1025 align-center v-center">피보험자</th>
-            <td className="w-3303 align-center v-center">{valueText(data.ownerName)}</td>
-            <th className="w-1025 align-center v-center">휴대폰</th>
-            <td className="w-4596 align-center v-center">{valueText(data.ownerPhone)}</td>
+          <tr className="h-person-2">
+            <th>피보험자</th>
+            <td>{valueText(data.ownerName)}</td>
+            <th>휴대폰</th>
+            <td>{valueText(data.ownerPhone)}</td>
           </tr>
-          <tr className="h-704">
-            <td className="w-1025 align-left v-center" />
-            <th className="w-1025 align-center v-center">주민번호</th>
-            <td className="w-3303 align-center v-center">{valueText(data.ownerResidentNumber)}</td>
-            <th className="w-1025 align-center v-center">주소</th>
-            <td className="w-4596 multiline align-center">{valueText(data.ownerAddress)}</td>
+          <tr className="h-person-3">
+            <th>주민번호</th>
+            <td>{valueText(data.ownerResidentNumber)}</td>
+            <th>주소</th>
+            <td className="left multiline">{valueText(data.ownerAddress)}</td>
           </tr>
-          <tr className="h-313">
-            <td className="w-1025 align-left v-center" />
-            <th className="w-9949 align-center v-center" colSpan={4}>
-              보험료 납입자
-            </th>
+          <tr className="h-person-4">
+            <th colSpan={4}>보험료 납입자</th>
           </tr>
-          <tr className="h-421">
-            <td className="w-1025 align-left v-center" />
-            <th className="w-1025 align-center v-center">계약자</th>
-            <td className="w-3303 align-center v-center">{valueText(data.payerName)}</td>
-            <th className="w-1025 align-center v-center">휴대폰</th>
-            <td className="w-4596 align-center v-center">{valueText(data.payerPhone)}</td>
+          <tr className="h-person-5">
+            <th>계약자</th>
+            <td>{valueText(data.payerName)}</td>
+            <th>휴대폰</th>
+            <td>{valueText(data.payerPhone)}</td>
           </tr>
-          <tr className="h-684">
-            <td className="w-1025 align-left v-center" />
-            <th className="w-1025 align-center v-center">주민번호</th>
-            <td className="w-3303 align-center v-center">{valueText(data.payerResidentNumber)}</td>
-            <th className="w-1025 align-center v-center">주소</th>
-            <td className="w-4596 multiline align-center">{valueText(data.payerAddress)}</td>
+          <tr className="h-person-6">
+            <th>주민번호</th>
+            <td>{valueText(data.payerResidentNumber)}</td>
+            <th>주소</th>
+            <td className="left multiline">{valueText(data.payerAddress)}</td>
           </tr>
         </tbody>
       </table>
 
-      <table className="paper-table paper-table--vehicle">
+      <table className="insurance-table vehicle-info-table">
+        <colgroup>
+          <col style={{ width: '68.33px' }} />
+          <col style={{ width: '68.33px' }} />
+          <col style={{ width: '220.2px' }} />
+          <col style={{ width: '129.67px' }} />
+          <col style={{ width: '245.2px' }} />
+        </colgroup>
         <tbody>
-          <tr className="h-401">
-            <th className="w-1025 align-left v-center" rowSpan={4}>
-              차량사항
-            </th>
-            <th className="w-1025 align-center v-center">차량번호</th>
-            <td className="w-3303 align-center v-center">{valueText(data.vehicleNumber)}</td>
-            <th className="w-1945 align-center v-center">마일리지</th>
-            <td className="w-3678 align-right v-center">
-              <InlineOptions options={YES_NO_OPTIONS} selected={data.mileageYn} />
+          <tr className="h-vehicle">
+            <th rowSpan={4}>차량사항</th>
+            <th>차량번호</th>
+            <td>{valueText(data.vehicleNumber)}</td>
+            <th>마일리지</th>
+            <td>
+              <OptionText options={YES_NO_OPTIONS} selected={data.mileageYn} />
             </td>
           </tr>
-          <tr className="h-401">
-            <th className="w-1025 align-center v-center">차명</th>
-            <td className="w-3303 align-center v-center">{valueText(data.vehicleModel)}</td>
-            <th className="w-1945 align-center v-center">블박</th>
-            <td className="w-3678 align-right v-center">
-              <InlineOptions options={YES_NO_OPTIONS} selected={data.blackboxYn} />
+          <tr className="h-vehicle">
+            <th>차명</th>
+            <td>{valueText(data.vehicleModel)}</td>
+            <th>블박</th>
+            <td>
+              <OptionText options={YES_NO_OPTIONS} selected={data.blackboxYn} />
             </td>
           </tr>
-          <tr className="h-401">
-            <th className="w-1025 align-center v-center">연식</th>
-            <td className="w-3303 align-center v-center">{valueText(data.vehicleYear)}</td>
-            <th className="w-1945 align-center v-center">계좌번호</th>
-            <td className="w-3678 align-center v-center">{valueText(data.bankAccount)}</td>
+          <tr className="h-vehicle">
+            <th>연식</th>
+            <td>{valueText(data.vehicleYear)}</td>
+            <th>계좌번호</th>
+            <td>{valueText(data.bankAccount)}</td>
           </tr>
-          <tr className="h-421">
-            <th className="w-1025 align-center v-center">기타부속</th>
-            <td className="w-8926 multiline align-center" colSpan={3}>
+          <tr className="h-vehicle-last">
+            <th>기타부속</th>
+            <td className="left multiline" colSpan={3}>
               {valueText(data.extraAccessories)}
             </td>
           </tr>
         </tbody>
       </table>
 
-      <p className="paper-note">* 굵은선 안에 내용은 필히 기재해주셔야 합니다.</p>
+      <p className="insurance-note">* 굵은선 안에 내용은 필히 기재해주셔야 합니다.</p>
 
-      <table className="paper-table paper-table--coverage">
+      <table className="insurance-table coverage-table">
+        <colgroup>
+          <col style={{ width: '24%' }} />
+          <col style={{ width: '76%' }} />
+        </colgroup>
         <tbody>
-          <tr className="h-421">
-            <th className="w-10973 align-center v-center" colSpan={5}>
-              담보사항
-            </th>
+          <tr className="h-coverage">
+            <th colSpan={2}>담보사항</th>
           </tr>
-          <tr className="h-421">
-            <th className="w-2050 align-left v-center" colSpan={2}>
-              대인배상Ⅰ
-            </th>
-            <td className="w-8923 align-center v-center">
+          <tr className="h-coverage">
+            <th>대인배상Ⅰ</th>
+            <td className="left">
               가입필수 (사망 / 후유장애 최고 1.5억한도 / 부상 최고 3천 한도)
             </td>
           </tr>
-          <tr className="h-421">
-            <th className="w-2050 align-left v-center" colSpan={2}>
-              대인배상Ⅱ
-            </th>
-            <td className="w-8923 align-center v-center">무한</td>
+          <tr className="h-coverage">
+            <th>대인배상Ⅱ</th>
+            <td className="left">무한</td>
           </tr>
-          <tr className="h-421">
-            <th className="w-2050 align-left v-center" colSpan={2}>
-              대물배상
-            </th>
-            <td className="w-8923 align-center v-center">
-              <InlineOptions
-                options={PROPERTY_DAMAGE_OPTIONS}
-                selected={data.propertyDamage}
-              />
+          <tr className="h-coverage">
+            <th>대물배상</th>
+            <td className="left">
+              <OptionText options={PROPERTY_DAMAGE_OPTIONS} selected={data.propertyDamage} />
             </td>
           </tr>
-          <tr className="h-421">
-            <th className="w-2050 align-left v-center" colSpan={2}>
-              자손/자상
-            </th>
-            <td className="w-8923 align-left v-center">
-              <InlineOptions
-                options={PERSONAL_INJURY_OPTIONS}
-                selected={data.personalInjury}
-              />
+          <tr className="h-coverage">
+            <th>자손/자상</th>
+            <td className="left">
+              <OptionText options={PERSONAL_INJURY_OPTIONS} selected={data.personalInjury} />
             </td>
           </tr>
-          <tr className="h-421">
-            <th className="w-2050 align-left v-center" colSpan={2}>
-              무보험차상해
-            </th>
-            <td className="w-8923 align-center v-center">
-              <InlineOptions
+          <tr className="h-coverage">
+            <th>무보험차상해</th>
+            <td className="left">
+              <OptionText
                 options={UNINSURED_MOTORIST_OPTIONS}
                 selected={data.uninsuredMotorist}
               />
             </td>
           </tr>
-          <tr className="h-421">
-            <th className="w-2050 align-left v-center" colSpan={2}>
-              자기차량손해
-            </th>
-            <td className="w-8923 align-center v-center">
-              <InlineOptions
+          <tr className="h-coverage">
+            <th>자기차량손해</th>
+            <td className="left">
+              <OptionText
                 options={OWN_VEHICLE_DAMAGE_OPTIONS}
                 selected={data.ownVehicleDamage}
               />
             </td>
           </tr>
-          <tr className="h-421">
-            <th className="w-2050 align-left v-center" colSpan={2}>
-              긴급출동
-            </th>
-            <td className="w-8923 align-center v-center">
-              <InlineOptions
-                options={EMERGENCY_ASSIST_OPTIONS}
-                selected={data.emergencyAssist}
-              />
+          <tr className="h-coverage">
+            <th>긴급출동</th>
+            <td className="left">
+              <OptionText options={EMERGENCY_ASSIST_OPTIONS} selected={data.emergencyAssist} />
             </td>
           </tr>
-          <tr className="h-421">
-            <th className="w-1025 align-left v-center">운전범위</th>
-            <td className="w-9948 align-left v-center text-small" colSpan={4}>
-              <InlineOptions
-                options={DRIVER_SCOPE_OPTIONS}
-                selected={data.driverScope}
-                className="inline-options--tight"
-              />
+          <tr className="h-coverage">
+            <th>운전범위</th>
+            <td className="left">
+              <OptionText options={DRIVER_SCOPE_OPTIONS} selected={data.driverScope} />
             </td>
           </tr>
-          <tr className="h-421">
-            <th className="w-1025 align-left v-center">운전연령</th>
-            <td className="w-9948 align-left v-center" colSpan={4}>
-              <InlineOptions options={DRIVER_AGE_OPTIONS} selected={data.driverAge} />
+          <tr className="h-coverage">
+            <th>운전연령</th>
+            <td className="left">
+              <OptionText options={DRIVER_AGE_OPTIONS} selected={data.driverAge} />
             </td>
           </tr>
-          <tr className="h-421">
-            <th className="w-3701 align-left v-center" colSpan={3}>
-              지정 1인 운전자 이름 & 주민번호
-            </th>
-            <td className="w-7272 align-center v-center" colSpan={2}>
+        </tbody>
+      </table>
+
+      <table className="insurance-table driver-table">
+        <colgroup>
+          <col style={{ width: '38%' }} />
+          <col style={{ width: '62%' }} />
+        </colgroup>
+        <tbody>
+          <tr className="h-driver">
+            <th>지정 1인 운전자 이름 & 주민번호</th>
+            <td>
               {valueText(data.designatedDriverName)}
               {data.designatedDriverResidentNumber
                 ? ` / ${data.designatedDriverResidentNumber}`
                 : ''}
             </td>
           </tr>
-          <tr className="h-421">
-            <th className="w-3701 align-left v-center" colSpan={3}>
-              배우자 / 최저운전자 이름 & 주민번호
-            </th>
-            <td className="w-7272 align-center v-center" colSpan={2}>
+          <tr className="h-driver">
+            <th>배우자 / 최저운전자 이름 & 주민번호</th>
+            <td>
               {valueText(data.spouseOrMinDriverName)}
               {data.spouseOrMinDriverResidentNumber
                 ? ` / ${data.spouseOrMinDriverResidentNumber}`
                 : ''}
             </td>
           </tr>
-          <tr className="h-421">
-            <th className="w-2050 align-left v-center" colSpan={2}>
-              경력자지정
-            </th>
-            <th className="w-4327 align-left v-center" colSpan={2}>
-              경력1: {valueText(data.career1)}
-            </th>
-            <th className="w-4596 align-left v-center">경력2: {valueText(data.career2)}</th>
-          </tr>
-          <tr className="h-684">
-            <th className="w-2050 align-left v-center" colSpan={2}>
-              메모
-            </th>
-            <td className="w-8923 multiline align-left" colSpan={3}>
-              {valueText(data.memo)}
+          <tr className="h-driver">
+            <th>경력자지정</th>
+            <td>
+              경력1: {valueText(data.career1)} / 경력2: {valueText(data.career2)}
             </td>
           </tr>
         </tbody>
       </table>
 
-      <p className="paper-memo-label">MEMO</p>
+      <table className="insurance-table memo-table">
+        <tbody>
+          <tr className="h-driver">
+            <th>MEMO</th>
+          </tr>
+          <tr className="h-memo">
+            <td className="left multiline">{valueText(data.memo)}</td>
+          </tr>
+        </tbody>
+      </table>
     </article>
   )
 }

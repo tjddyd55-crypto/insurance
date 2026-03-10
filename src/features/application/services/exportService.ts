@@ -2,8 +2,8 @@ import { toJpeg } from 'html-to-image'
 import { jsPDF } from 'jspdf'
 
 const EXPORT_PIXEL_RATIO = 2
-const A4_JPEG_WIDTH = 2480
-const A4_JPEG_HEIGHT = 3508
+const RESULT_FORM_WIDTH = 794
+const A4_RATIO = 1.4142
 
 function createSafeFileName(input: string): string {
   return input
@@ -14,13 +14,15 @@ function createSafeFileName(input: string): string {
 }
 
 async function renderResultAsJpegDataUrl(targetElement: HTMLElement): Promise<string> {
-  const width = targetElement.scrollWidth
-  const height = targetElement.scrollHeight
+  const width = RESULT_FORM_WIDTH
+  const height = Math.max(Math.round(RESULT_FORM_WIDTH * A4_RATIO), targetElement.scrollHeight)
 
   return toJpeg(targetElement, {
     pixelRatio: EXPORT_PIXEL_RATIO,
-    canvasWidth: Math.max(A4_JPEG_WIDTH, width * EXPORT_PIXEL_RATIO),
-    canvasHeight: Math.max(A4_JPEG_HEIGHT, height * EXPORT_PIXEL_RATIO),
+    canvasWidth: width * EXPORT_PIXEL_RATIO,
+    canvasHeight: height * EXPORT_PIXEL_RATIO,
+    width,
+    height,
     quality: 0.98,
     backgroundColor: '#ffffff',
   })
@@ -56,7 +58,11 @@ export async function exportResultToPdf(
 ): Promise<void> {
   const dataUrl = await renderResultAsJpegDataUrl(targetElement)
 
-  const pdf = new jsPDF('p', 'mm', 'a4')
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'px',
+    format: 'a4',
+  })
   const image = new Image()
   image.src = dataUrl
 
@@ -67,6 +73,12 @@ export async function exportResultToPdf(
 
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
-  pdf.addImage(dataUrl, 'JPEG', 0, 0, pageWidth, pageHeight)
+  const ratio = Math.min(pageWidth / image.width, pageHeight / image.height)
+  const renderWidth = image.width * ratio
+  const renderHeight = image.height * ratio
+  const x = (pageWidth - renderWidth) / 2
+  const y = (pageHeight - renderHeight) / 2
+
+  pdf.addImage(dataUrl, 'JPEG', x, y, renderWidth, renderHeight)
   pdf.save(`${createSafeFileName(title)}.pdf`)
 }
