@@ -234,11 +234,7 @@ export function ApplicationFormPage() {
   }
 
   const handleViewResult = async () => {
-    if (recordId) {
-      navigate(`/form/result/${recordId}`)
-      return
-    }
-
+    // 결과보기 진입 전 현재 폼을 항상 저장해 유효한 id를 확보한다.
     const saved = await handleSave('current', { navigateToEdit: false })
     if (saved) {
       navigate(`/form/result/${saved.id}`)

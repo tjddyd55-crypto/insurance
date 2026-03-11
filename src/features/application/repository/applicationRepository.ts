@@ -4,7 +4,7 @@ import type {
   InsuranceApplicationFormData,
   InsuranceApplicationRecord,
 } from '../domain/types'
-import { apiRequest } from '../../../lib/apiClient'
+import { ApiError, apiRequest } from '../../../lib/apiClient'
 import {
   APPLICATION_DRAFT_STORAGE_KEY,
 } from './storageKeys'
@@ -75,12 +75,25 @@ export async function saveApplication(
   }
 
   if (id) {
-    const response = await apiRequest<InsuranceApplicationRecord>(`/api/forms/${id}`, {
-      method: 'PUT',
-      token,
-      body: JSON.stringify(body),
-    })
-    return mapRecord(response)
+    try {
+      const response = await apiRequest<InsuranceApplicationRecord>(`/api/forms/${id}`, {
+        method: 'PUT',
+        token,
+        body: JSON.stringify(body),
+      })
+      return mapRecord(response)
+    } catch (error) {
+      // 오래된 draft id 등으로 수정 대상이 없으면 신규 생성으로 복구한다.
+      if (error instanceof ApiError && error.status === 404) {
+        const created = await apiRequest<InsuranceApplicationRecord>('/api/forms', {
+          method: 'POST',
+          token,
+          body: JSON.stringify(body),
+        })
+        return mapRecord(created)
+      }
+      throw error
+    }
   }
 
   const response = await apiRequest<InsuranceApplicationRecord>('/api/forms', {
@@ -131,11 +144,16 @@ export function getDraft(userId?: string): ApplicationDraftPayload | null {
     return null
   }
 
-  if (!draft.userId || !userId || draft.userId === userId) {
+  if (!userId) {
     return draft
   }
 
-  return null
+  if (!draft.userId) {
+    // 레거시 draft(사용자 식별자 없음)는 잘못된 id 복원 위험이 있어 무시한다.
+    return null
+  }
+
+  return draft.userId === userId ? draft : null
 }
 
 export function clearDraft(): void {
