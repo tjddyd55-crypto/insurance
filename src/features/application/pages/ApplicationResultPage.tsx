@@ -4,28 +4,37 @@ import { InsuranceResultTemplate } from '../components/InsuranceResultTemplate'
 import { buildApplicationTitle } from '../domain/title'
 import type { InsuranceApplicationRecord } from '../domain/types'
 import { getApplicationById, saveApplication } from '../repository/applicationRepository'
-import {
-  createResultJpgFile,
-  exportResultToJpg,
-  exportResultToPdf,
-} from '../services/exportService'
-import { shareResult } from '../services/shareService'
+import { exportResultToJpg, exportResultToPdf } from '../services/exportService'
+import { useAuth } from '../../auth/AuthProvider'
 
 export function ApplicationResultPage() {
   const navigate = useNavigate()
   const { id } = useParams()
+  const { token } = useAuth()
   const resultRef = useRef<HTMLDivElement>(null)
   const [record, setRecord] = useState<InsuranceApplicationRecord | null>(null)
-  const [statusText, setStatusText] = useState('')
+  const [statusText, setStatusText] = useState('결과문을 불러오는 중입니다.')
 
   useEffect(() => {
-    if (!id) {
-      setRecord(null)
-      return
+    let active = true
+    async function loadResult() {
+      if (!id || !token) {
+        return
+      }
+
+      const loadedRecord = await getApplicationById(id, token)
+      if (!active) {
+        return
+      }
+      setRecord(loadedRecord)
+      setStatusText(loadedRecord ? '' : '결과문을 찾을 수 없습니다.')
     }
 
-    setRecord(getApplicationById(id))
-  }, [id])
+    void loadResult()
+    return () => {
+      active = false
+    }
+  }, [id, token])
 
   if (!record) {
     return (
@@ -46,9 +55,20 @@ export function ApplicationResultPage() {
   }
 
   const handleSave = () => {
-    const saved = saveApplication(record, record.id)
-    setRecord(saved)
-    setStatusText('신청서를 저장했습니다.')
+    if (!token) {
+      setStatusText('로그인이 필요합니다.')
+      return
+    }
+
+    void (async () => {
+      try {
+        const saved = await saveApplication(record, token, record.id)
+        setRecord(saved)
+        setStatusText('신청서를 저장했습니다.')
+      } catch (error) {
+        setStatusText(error instanceof Error ? error.message : '저장에 실패했습니다.')
+      }
+    })()
   }
 
   const handleExportJpg = async () => {
@@ -58,9 +78,9 @@ export function ApplicationResultPage() {
 
     try {
       await exportResultToJpg(resultRef.current, record.title)
-      setStatusText('JPG 파일을 생성했습니다.')
-    } catch {
-      setStatusText('JPG 생성에 실패했습니다. 다시 시도해 주세요.')
+      setStatusText('JPG 파일을 다운로드했습니다.')
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : 'JPG 생성에 실패했습니다.')
     }
   }
 
@@ -71,38 +91,9 @@ export function ApplicationResultPage() {
 
     try {
       await exportResultToPdf(resultRef.current, record.title)
-      setStatusText('PDF 파일을 생성했습니다.')
-    } catch {
-      setStatusText('PDF 생성에 실패했습니다. 다시 시도해 주세요.')
-    }
-  }
-
-  const handleShare = async () => {
-    if (!resultRef.current) {
-      return
-    }
-
-    try {
-      const fileForShare = await createResultJpgFile(resultRef.current, record.title)
-      const shareMethod = await shareResult(record.id, record.title, fileForShare)
-      if (shareMethod === 'kakao') {
-        setStatusText('카카오톡 공유 창을 열었습니다.')
-        return
-      }
-
-      if (shareMethod === 'web-share-file') {
-        setStatusText('카카오톡이 설치된 폰에서 공유 앱 선택 창을 열었습니다.')
-        return
-      }
-
-      if (shareMethod === 'web-share') {
-        setStatusText('기기 공유 시트를 열었습니다.')
-        return
-      }
-
-      setStatusText('카카오 SDK 미설정으로 링크를 복사했습니다.')
-    } catch {
-      setStatusText('공유 처리에 실패했습니다. 다시 시도해 주세요.')
+      setStatusText('PDF 파일을 다운로드했습니다.')
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : 'PDF 생성에 실패했습니다.')
     }
   }
 
@@ -112,7 +103,7 @@ export function ApplicationResultPage() {
     <main className="page page--result">
       <header className="page-header">
         <h1>신청서 결과문</h1>
-        <p>{statusText || '양식 미리보기에서 JPG/PDF/공유를 실행할 수 있습니다.'}</p>
+        <p>{statusText || '양식 미리보기에서 JPG/PDF 다운로드를 실행할 수 있습니다.'}</p>
       </header>
 
       <div className="result-wrapper">
@@ -125,7 +116,7 @@ export function ApplicationResultPage() {
         <button
           className="button"
           type="button"
-          onClick={() => navigate(`/applications/${record.id}/edit`)}
+          onClick={() => navigate(`/form/${record.id}/edit`)}
         >
           수정하기
         </button>
@@ -133,13 +124,10 @@ export function ApplicationResultPage() {
           저장
         </button>
         <button className="button" type="button" onClick={handleExportJpg}>
-          JPG 생성
+          JPG 다운로드
         </button>
         <button className="button" type="button" onClick={handleExportPdf}>
-          PDF 생성
-        </button>
-        <button className="button button--secondary" type="button" onClick={handleShare}>
-          카카오톡 공유
+          PDF 다운로드
         </button>
       </div>
 

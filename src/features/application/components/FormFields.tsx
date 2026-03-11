@@ -27,11 +27,13 @@ interface SelectInputProps extends BaseFieldProps {
   options: readonly string[]
   onChange: (nextValue: string) => void
   placeholder?: string
+  disabled?: boolean
 }
 
 interface CheckboxProps extends BaseFieldProps {
   checked: boolean
   onChange: (nextChecked: boolean) => void
+  disabled?: boolean
 }
 
 interface FieldContainerProps extends BaseFieldProps {
@@ -112,6 +114,7 @@ export function SelectInput({
   options,
   onChange,
   placeholder = '선택',
+  disabled,
 }: SelectInputProps) {
   return (
     <FieldContainer label={label} required={required} helperText={helperText}>
@@ -119,6 +122,7 @@ export function SelectInput({
         className="field__control"
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
       >
         <option value="">{placeholder}</option>
         {options.map((option) => (
@@ -136,6 +140,7 @@ export function CheckboxInput({
   helperText,
   checked,
   onChange,
+  disabled,
 }: CheckboxProps) {
   return (
     <label className="checkbox-field">
@@ -143,6 +148,7 @@ export function CheckboxInput({
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
+        disabled={disabled}
       />
       <span className="checkbox-field__content">
         <strong>{label}</strong>

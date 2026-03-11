@@ -67,6 +67,9 @@ export interface InsuranceApplicationFormData {
 
 export interface InsuranceApplicationRecord extends InsuranceApplicationFormData {
   id: string
+  userId?: string
+  customerName?: string
+  carNumber?: string
   title: string
   createdAt: string
   updatedAt: string

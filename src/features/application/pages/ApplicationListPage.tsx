@@ -1,32 +1,74 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import type { InsuranceApplicationRecord } from '../domain/types'
-import { listApplications } from '../repository/applicationRepository'
+import { deleteApplication, listApplications } from '../repository/applicationRepository'
 import { formatKoreanDateTime } from '../utils/date'
+import { useAuth } from '../../auth/AuthProvider'
 
 export function ApplicationListPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { token } = useAuth()
   const [records, setRecords] = useState<InsuranceApplicationRecord[]>([])
+  const [statusText, setStatusText] = useState('')
 
   useEffect(() => {
-    setRecords(listApplications())
-  }, [location.key])
+    let active = true
+
+    async function load() {
+      if (!token) {
+        return
+      }
+      try {
+        const result = await listApplications(token)
+        if (!active) {
+          return
+        }
+        setRecords(result)
+      } catch (error) {
+        if (!active) {
+          return
+        }
+        setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
+      }
+    }
+
+    void load()
+    return () => {
+      active = false
+    }
+  }, [location.key, token])
+
+  const handleDelete = async (id: string) => {
+    if (!token) {
+      return
+    }
+    try {
+      await deleteApplication(id, token)
+      setRecords((previous) => previous.filter((record) => record.id !== id))
+      setStatusText('신청서를 삭제했습니다.')
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : '삭제에 실패했습니다.')
+    }
+  }
 
   return (
     <main className="page">
       <header className="page-header">
-        <h1>자동차 보험 신청서</h1>
-        <p>모바일에서 작성하고, 저장/불러오기/공유까지 처리합니다.</p>
+        <h1>내 신청서 목록</h1>
+        <p>{statusText || '저장된 신청서를 불러오거나 수정/삭제할 수 있습니다.'}</p>
       </header>
 
       <div className="card card--actions">
         <button
           className="button button--primary button--full"
-          onClick={() => navigate('/applications/new')}
+          onClick={() => navigate('/form/create')}
           type="button"
         >
-          신규 작성
+          신규 신청서 작성
+        </button>
+        <button className="button button--full" type="button" onClick={() => navigate('/dashboard')}>
+          대시보드 이동
         </button>
       </div>
 
@@ -46,16 +88,23 @@ export function ApplicationListPage() {
                   <button
                     className="button button--secondary"
                     type="button"
-                    onClick={() => navigate(`/applications/${record.id}/edit`)}
+                    onClick={() => navigate(`/form/${record.id}/edit?mode=readonly`)}
                   >
                     불러오기
                   </button>
                   <button
                     className="button"
                     type="button"
-                    onClick={() => navigate(`/applications/${record.id}/result`)}
+                    onClick={() => navigate(`/form/${record.id}/edit`)}
                   >
-                    결과보기
+                    수정
+                  </button>
+                  <button
+                    className="button"
+                    type="button"
+                    onClick={() => void handleDelete(record.id)}
+                  >
+                    삭제
                   </button>
                 </div>
               </li>

@@ -1,14 +1,16 @@
 import { buildApplicationTitle } from '../domain/title'
+import { createEmptyApplicationForm } from '../domain/defaults'
 import type {
   InsuranceApplicationFormData,
   InsuranceApplicationRecord,
 } from '../domain/types'
+import { apiRequest } from '../../../lib/apiClient'
 import {
   APPLICATION_DRAFT_STORAGE_KEY,
-  APPLICATION_STORAGE_KEY,
 } from './storageKeys'
 
 interface ApplicationDraftPayload {
+  userId?: string
   id?: string
   data: InsuranceApplicationFormData
   savedAt: string
@@ -26,75 +28,90 @@ function safeParse<T>(raw: string | null, fallback: T): T {
   }
 }
 
-function readRecords(): InsuranceApplicationRecord[] {
-  const parsed = safeParse<InsuranceApplicationRecord[]>(
-    window.localStorage.getItem(APPLICATION_STORAGE_KEY),
-    [],
-  )
-
-  return [...parsed].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+function mapRecord(raw: InsuranceApplicationRecord): InsuranceApplicationRecord {
+  return {
+    ...raw,
+    title: raw.title || buildApplicationTitle(raw),
+  }
 }
 
-function writeRecords(records: InsuranceApplicationRecord[]): void {
-  window.localStorage.setItem(APPLICATION_STORAGE_KEY, JSON.stringify(records))
+function sanitizeFormData(payload: InsuranceApplicationFormData): InsuranceApplicationFormData {
+  const sanitized = createEmptyApplicationForm()
+  const keys = Object.keys(sanitized) as Array<keyof InsuranceApplicationFormData>
+  for (const key of keys) {
+    ;(sanitized as unknown as Record<string, string | boolean>)[key] =
+      payload[key] as string | boolean
+  }
+  return sanitized
 }
 
-export function listApplications(): InsuranceApplicationRecord[] {
-  return readRecords()
+export async function listApplications(token: string): Promise<InsuranceApplicationRecord[]> {
+  const response = await apiRequest<InsuranceApplicationRecord[]>('/api/forms', { token })
+  return response.map(mapRecord)
 }
 
-export function getApplicationById(id: string): InsuranceApplicationRecord | null {
-  return readRecords().find((record) => record.id === id) ?? null
+export async function getApplicationById(
+  id: string,
+  token: string,
+): Promise<InsuranceApplicationRecord | null> {
+  try {
+    const response = await apiRequest<InsuranceApplicationRecord>(`/api/forms/${id}`, { token })
+    return mapRecord(response)
+  } catch {
+    return null
+  }
 }
 
-export function saveApplication(
+export async function saveApplication(
   payload: InsuranceApplicationFormData,
+  token: string,
   id?: string,
-): InsuranceApplicationRecord {
-  const records = readRecords()
-  const now = new Date().toISOString()
+): Promise<InsuranceApplicationRecord> {
+  const formData = sanitizeFormData(payload)
+  const body = {
+    customerName: formData.ownerName,
+    carNumber: formData.vehicleNumber,
+    formData,
+  }
 
   if (id) {
-    const target = records.find((record) => record.id === id)
-    if (target) {
-      const updatedRecord: InsuranceApplicationRecord = {
-        ...target,
-        ...payload,
-        title: buildApplicationTitle(payload),
-        updatedAt: now,
-      }
-
-      const nextRecords = records.map((record) =>
-        record.id === id ? updatedRecord : record,
-      )
-      writeRecords(nextRecords)
-      return updatedRecord
-    }
+    const response = await apiRequest<InsuranceApplicationRecord>(`/api/forms/${id}`, {
+      method: 'PUT',
+      token,
+      body: JSON.stringify(body),
+    })
+    return mapRecord(response)
   }
 
-  const createdRecord: InsuranceApplicationRecord = {
-    ...payload,
-    id: crypto.randomUUID(),
-    title: buildApplicationTitle(payload),
-    createdAt: now,
-    updatedAt: now,
-  }
-
-  writeRecords([createdRecord, ...records])
-  return createdRecord
+  const response = await apiRequest<InsuranceApplicationRecord>('/api/forms', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(body),
+  })
+  return mapRecord(response)
 }
 
-export function saveApplicationAsNew(
+export async function saveApplicationAsNew(
   payload: InsuranceApplicationFormData,
-): InsuranceApplicationRecord {
-  return saveApplication(payload)
+  token: string,
+): Promise<InsuranceApplicationRecord> {
+  return saveApplication(payload, token)
+}
+
+export async function deleteApplication(id: string, token: string): Promise<void> {
+  await apiRequest<void>(`/api/forms/${id}`, {
+    method: 'DELETE',
+    token,
+  })
 }
 
 export function saveDraft(
   data: InsuranceApplicationFormData,
+  userId?: string,
   id?: string,
 ): ApplicationDraftPayload {
   const draft: ApplicationDraftPayload = {
+    userId,
     id,
     data,
     savedAt: new Date().toISOString(),
@@ -104,11 +121,21 @@ export function saveDraft(
   return draft
 }
 
-export function getDraft(): ApplicationDraftPayload | null {
-  return safeParse<ApplicationDraftPayload | null>(
+export function getDraft(userId?: string): ApplicationDraftPayload | null {
+  const draft = safeParse<ApplicationDraftPayload | null>(
     window.localStorage.getItem(APPLICATION_DRAFT_STORAGE_KEY),
     null,
   )
+
+  if (!draft) {
+    return null
+  }
+
+  if (!draft.userId || !userId || draft.userId === userId) {
+    return draft
+  }
+
+  return null
 }
 
 export function clearDraft(): void {
