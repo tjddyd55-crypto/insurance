@@ -50,6 +50,13 @@ export async function listApplications(token: string): Promise<InsuranceApplicat
   return response.map(mapRecord)
 }
 
+export async function listExpiringApplications(
+  token: string,
+): Promise<InsuranceApplicationRecord[]> {
+  const response = await apiRequest<InsuranceApplicationRecord[]>('/api/forms/expiring', { token })
+  return response.map(mapRecord)
+}
+
 export async function getApplicationById(
   id: string,
   token: string,

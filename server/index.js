@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS insurance_forms (
   user_id TEXT NOT NULL,
   customer_name TEXT NOT NULL,
   car_number TEXT NOT NULL,
+  expiry_date TEXT,
   form_data TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
@@ -68,7 +69,75 @@ CREATE TABLE IF NOT EXISTS insurance_forms (
 
 CREATE INDEX IF NOT EXISTS idx_insurance_forms_user_id
 ON insurance_forms (user_id, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_insurance_forms_expiry
+ON insurance_forms (user_id, expiry_date);
 `)
+
+function normalizeExpiryDate(value) {
+  if (typeof value !== 'string') {
+    return ''
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed
+  }
+
+  const parsed = new Date(trimmed)
+  if (Number.isNaN(parsed.getTime())) {
+    return ''
+  }
+
+  return parsed.toISOString().slice(0, 10)
+}
+
+function ensureInsuranceFormSchema() {
+  const columns = db.prepare('PRAGMA table_info(insurance_forms)').all()
+  const hasExpiryDate = columns.some((column) => column.name === 'expiry_date')
+  if (!hasExpiryDate) {
+    db.prepare('ALTER TABLE insurance_forms ADD COLUMN expiry_date TEXT').run()
+  }
+
+  const rowsToBackfill = db
+    .prepare(
+      `
+      SELECT id, form_data
+      FROM insurance_forms
+      WHERE expiry_date IS NULL OR expiry_date = ''
+      `,
+    )
+    .all()
+
+  if (rowsToBackfill.length === 0) {
+    return
+  }
+
+  const updateExpiryDate = db.prepare(
+    'UPDATE insurance_forms SET expiry_date = ? WHERE id = ?',
+  )
+  const transaction = db.transaction((rows) => {
+    for (const row of rows) {
+      try {
+        const parsed = JSON.parse(row.form_data)
+        const expiryDate = normalizeExpiryDate(parsed?.expiryDate ?? '')
+        if (expiryDate) {
+          updateExpiryDate.run(expiryDate, row.id)
+        }
+      } catch {
+        // 손상된 JSON은 백필 단계에서 건너뛴다.
+      }
+    }
+  })
+
+  transaction(rowsToBackfill)
+}
+
+ensureInsuranceFormSchema()
 
 const app = express()
 app.use(express.json({ limit: '2mb' }))
@@ -125,9 +194,11 @@ function mapFormRow(row) {
   const formData = JSON.parse(row.form_data)
   const customerName = row.customer_name || formData.ownerName || ''
   const carNumber = row.car_number || formData.vehicleNumber || ''
+  const expiryDate = normalizeExpiryDate(row.expiry_date ?? formData.expiryDate ?? '')
 
   return {
     ...formData,
+    expiryDate,
     id: row.id,
     userId: row.user_id,
     customerName,
@@ -253,10 +324,28 @@ apiRouter.get('/forms', requireAuth, (req, res) => {
   const rows = db
     .prepare(
       `
-      SELECT id, user_id, customer_name, car_number, form_data, created_at, updated_at
+      SELECT id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
       WHERE user_id = ?
       ORDER BY datetime(updated_at) DESC
+      `,
+    )
+    .all(req.user.id)
+
+  res.json(rows.map(mapFormRow))
+})
+
+apiRouter.get('/forms/expiring', requireAuth, (req, res) => {
+  const rows = db
+    .prepare(
+      `
+      SELECT id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      FROM insurance_forms
+      WHERE user_id = ?
+        AND expiry_date IS NOT NULL
+        AND expiry_date != ''
+        AND expiry_date BETWEEN date('now', 'localtime') AND date('now', 'localtime', '+30 day')
+      ORDER BY date(expiry_date) ASC, datetime(updated_at) DESC
       `,
     )
     .all(req.user.id)
@@ -280,18 +369,22 @@ apiRouter.post('/forms', requireAuth, (req, res) => {
     const carNumber = String(
       req.body.car_number ?? req.body.carNumber ?? formData.vehicleNumber ?? '',
     )
+    const expiryDate = normalizeExpiryDate(
+      req.body.expiry_date ?? req.body.expiryDate ?? formData.expiryDate ?? '',
+    )
 
     db.prepare(
       `
       INSERT INTO insurance_forms (
-        id, user_id, customer_name, car_number, form_data, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
     ).run(
       id,
       req.user.id,
       customerName,
       carNumber,
+      expiryDate,
       JSON.stringify(formData),
       now,
       now,
@@ -300,7 +393,7 @@ apiRouter.post('/forms', requireAuth, (req, res) => {
     const row = db
       .prepare(
         `
-        SELECT id, user_id, customer_name, car_number, form_data, created_at, updated_at
+        SELECT id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
         FROM insurance_forms
         WHERE id = ? AND user_id = ?
         `,
@@ -317,7 +410,7 @@ apiRouter.get('/forms/:id', requireAuth, (req, res) => {
   const row = db
     .prepare(
       `
-      SELECT id, user_id, customer_name, car_number, form_data, created_at, updated_at
+      SELECT id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
       WHERE id = ? AND user_id = ?
       `,
@@ -347,18 +440,22 @@ apiRouter.put('/forms/:id', requireAuth, (req, res) => {
     const carNumber = String(
       req.body.car_number ?? req.body.carNumber ?? formData.vehicleNumber ?? '',
     )
+    const expiryDate = normalizeExpiryDate(
+      req.body.expiry_date ?? req.body.expiryDate ?? formData.expiryDate ?? '',
+    )
 
     const result = db
       .prepare(
         `
         UPDATE insurance_forms
-        SET customer_name = ?, car_number = ?, form_data = ?, updated_at = ?
+        SET customer_name = ?, car_number = ?, expiry_date = ?, form_data = ?, updated_at = ?
         WHERE id = ? AND user_id = ?
         `,
       )
       .run(
         customerName,
         carNumber,
+        expiryDate,
         JSON.stringify(formData),
         now,
         req.params.id,
@@ -373,7 +470,7 @@ apiRouter.put('/forms/:id', requireAuth, (req, res) => {
     const row = db
       .prepare(
         `
-        SELECT id, user_id, customer_name, car_number, form_data, created_at, updated_at
+        SELECT id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
         FROM insurance_forms
         WHERE id = ? AND user_id = ?
         `,
