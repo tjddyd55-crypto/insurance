@@ -9,6 +9,7 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api': 'http://localhost:3001',
+      '/backend': 'http://localhost:3001',
     },
   },
   preview: {
