@@ -9,6 +9,9 @@ import { initDb } from './initDb.js'
 
 const PORT = Number(process.env.PORT ?? 3001)
 const JWT_SECRET = process.env.JWT_SECRET ?? 'change-this-in-production'
+const DEFAULT_JWT_SECRET = 'change-this-in-production'
+const RUNNING_IN_PRODUCTION =
+  process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT)
 const DIST_PATH = path.join(process.cwd(), 'dist')
 
 function normalizeExpiryDate(value) {
@@ -100,6 +103,10 @@ function extractFormData(body) {
 
 function handleDbError(error, res) {
   if (error?.code === '23505') {
+    if (error?.constraint === 'users_username_key') {
+      res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
+      return
+    }
     res.status(409).json({ message: '이미 존재하는 데이터입니다.' })
     return
   }
@@ -401,6 +408,14 @@ app.use((error, _req, res, _next) => {
 })
 
 async function startServer() {
+  if (JWT_SECRET === DEFAULT_JWT_SECRET && RUNNING_IN_PRODUCTION) {
+    console.error('='.repeat(70))
+    console.error('[DEPLOY-BLOCKER] JWT_SECRET이 기본값입니다.')
+    console.error('[DEPLOY-BLOCKER] 배포 전 Railway 환경변수 JWT_SECRET을 반드시 변경하세요.')
+    console.error('='.repeat(70))
+    throw new Error('보안 차단: 기본 JWT_SECRET 사용 금지')
+  }
+
   await initDb()
 
   app.listen(PORT, () => {
