@@ -15,7 +15,21 @@ function createSafeFileName(input: string): string {
     .slice(0, 80)
 }
 
+async function waitForStableRender(): Promise<void> {
+  if ('fonts' in document) {
+    await document.fonts.ready
+  }
+
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve())
+    })
+  })
+}
+
 async function renderResultAsJpegDataUrl(targetElement: HTMLElement): Promise<string> {
+  await waitForStableRender()
+
   const width = RESULT_FORM_WIDTH
   const height = Math.max(Math.round(RESULT_FORM_WIDTH * A4_RATIO), targetElement.scrollHeight)
   const horizontalMarginPx = Math.round(HORIZONTAL_MARGIN_CM * CM_TO_PX * EXPORT_PIXEL_RATIO)

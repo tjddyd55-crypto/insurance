@@ -50,11 +50,11 @@ function valueText(input: string): string {
 
 export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) {
   return (
-    <article className="form-container result-template">
-      <div className="form-title">자동차보험신청서</div>
+    <article className="form-container result-template insurance-form">
+      <div className="form-title insurance-form-title">자동차보험신청서</div>
       <div className="form-header">F.053-218-4273</div>
 
-      <table className="insurance-table basic-info-table">
+      <table className="insurance-table insurance-form-table basic-info-table">
         <colgroup>
           <col style={{ width: '68.33px' }} />
           <col style={{ width: '110.07px' }} />
@@ -91,7 +91,7 @@ export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) 
         </tbody>
       </table>
 
-      <table className="insurance-table personal-info-table">
+      <table className="insurance-table insurance-form-table personal-info-table">
         <colgroup>
           <col style={{ width: '68.33px' }} />
           <col style={{ width: '68.33px' }} />
@@ -101,40 +101,40 @@ export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) 
         </colgroup>
         <tbody>
           <tr className="h-person-1">
-            <th rowSpan={6} className="section-title">인적사항</th>
-            <th colSpan={4} className="section-title">등록증상 소유자</th>
+            <th rowSpan={6} className="section-title section-header">인적사항</th>
+            <th colSpan={4} className="section-title section-header">등록증상 소유자</th>
           </tr>
           <tr className="h-person-2">
-            <th className="label">피보험자</th>
+            <th className="label label-cell">피보험자</th>
             <td>{valueText(data.ownerName)}</td>
             <th className="label">휴대폰</th>
             <td>{valueText(data.ownerPhone)}</td>
           </tr>
           <tr className="h-person-3">
-            <th className="label">주민번호</th>
+            <th className="label label-cell">주민번호</th>
             <td>{valueText(data.ownerResidentNumber)}</td>
             <th className="label">주소</th>
-            <td className="left multiline">{valueText(data.ownerAddress)}</td>
+            <td className="left multiline wrap-text">{valueText(data.ownerAddress)}</td>
           </tr>
           <tr className="h-person-4">
-            <th colSpan={4} className="section-title">보험료 납입자</th>
+            <th colSpan={4} className="section-title section-header">보험료 납입자</th>
           </tr>
           <tr className="h-person-5">
-            <th className="label">계약자</th>
+            <th className="label label-cell">계약자</th>
             <td>{valueText(data.payerName)}</td>
             <th className="label">휴대폰</th>
             <td>{valueText(data.payerPhone)}</td>
           </tr>
           <tr className="h-person-6">
-            <th className="label">주민번호</th>
+            <th className="label label-cell">주민번호</th>
             <td>{valueText(data.payerResidentNumber)}</td>
             <th className="label">주소</th>
-            <td className="left multiline">{valueText(data.payerAddress)}</td>
+            <td className="left multiline wrap-text">{valueText(data.payerAddress)}</td>
           </tr>
         </tbody>
       </table>
 
-      <table className="insurance-table vehicle-info-table">
+      <table className="insurance-table insurance-form-table vehicle-info-table">
         <colgroup>
           <col style={{ width: '68.33px' }} />
           <col style={{ width: '68.33px' }} />
@@ -144,8 +144,8 @@ export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) 
         </colgroup>
         <tbody>
           <tr className="h-vehicle">
-            <th rowSpan={4} className="section-title">차량사항</th>
-            <th className="label">차량번호</th>
+            <th rowSpan={4} className="section-title section-header">차량사항</th>
+            <th className="label label-cell">차량번호</th>
             <td>{valueText(data.vehicleNumber)}</td>
             <th className="label">마일리지</th>
             <td className="right">
@@ -153,7 +153,7 @@ export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) 
             </td>
           </tr>
           <tr className="h-vehicle">
-            <th className="label">차명</th>
+            <th className="label label-cell">차명</th>
             <td>{valueText(data.vehicleModel)}</td>
             <th className="label">블박</th>
             <td className="right">
@@ -161,14 +161,14 @@ export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) 
             </td>
           </tr>
           <tr className="h-vehicle">
-            <th className="label">연식</th>
+            <th className="label label-cell">연식</th>
             <td>{valueText(data.vehicleYear)}</td>
             <th className="label">계좌번호</th>
             <td>{valueText(data.bankAccount)}</td>
           </tr>
           <tr className="h-vehicle-last">
             <th className="label">기타부속</th>
-            <td className="left multiline" colSpan={3}>
+            <td className="left multiline wrap-text" colSpan={3}>
               {valueText(data.extraAccessories)}
             </td>
           </tr>
@@ -177,7 +177,7 @@ export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) 
 
       <p className="insurance-note">* 굵은선 안에 내용은 필히 기재해주셔야 합니다.</p>
 
-      <table className="insurance-table coverage-table">
+      <table className="insurance-table insurance-form-table coverage-table">
         <colgroup>
           <col style={{ width: '68.33px' }} />
           <col style={{ width: '68.33px' }} />
@@ -187,7 +187,7 @@ export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) 
         </colgroup>
         <tbody>
           <tr className="h-coverage">
-            <th colSpan={5} className="section-title">담보사항</th>
+            <th colSpan={5} className="section-title section-header">담보사항</th>
           </tr>
           <tr className="h-coverage">
             <th colSpan={2} className="label">대인배상Ⅰ</th>
@@ -276,13 +276,13 @@ export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) 
         </tbody>
       </table>
 
-      <table className="insurance-table memo-table">
+      <table className="insurance-table insurance-form-table memo-table">
         <tbody>
           <tr>
             <th className="label">MEMO</th>
           </tr>
           <tr className="h-memo">
-            <td className="left multiline memo-box">{valueText(data.memo)}</td>
+            <td className="left multiline wrap-text memo-box memo-area">{valueText(data.memo)}</td>
           </tr>
         </tbody>
       </table>
