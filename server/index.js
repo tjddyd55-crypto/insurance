@@ -8,13 +8,39 @@ import path from 'node:path'
 
 const PORT = Number(process.env.PORT ?? 3001)
 const JWT_SECRET = process.env.JWT_SECRET ?? 'change-this-in-production'
-const DEFAULT_DB_DIR =
-  process.env.RAILWAY_VOLUME_MOUNT_PATH ??
-  process.env.TMPDIR ??
-  process.env.TEMP ??
-  path.join(process.cwd(), 'data')
-const DB_PATH = process.env.DB_PATH ?? path.join(DEFAULT_DB_DIR, 'insurance.db')
 const DIST_PATH = path.join(process.cwd(), 'dist')
+
+function resolveDbPath() {
+  if (process.env.DB_PATH) {
+    return process.env.DB_PATH
+  }
+
+  const candidateDirs = [
+    process.env.RAILWAY_VOLUME_MOUNT_PATH,
+    '/data',
+    path.join(process.cwd(), 'data'),
+    process.env.TMPDIR,
+    process.env.TEMP,
+  ].filter(Boolean)
+
+  for (const dir of candidateDirs) {
+    try {
+      fs.mkdirSync(dir, { recursive: true })
+      fs.accessSync(dir, fs.constants.W_OK)
+      return path.join(dir, 'insurance.db')
+    } catch {
+      // 다음 경로 후보를 확인한다.
+    }
+  }
+
+  return path.join(process.cwd(), 'data', 'insurance.db')
+}
+
+const DB_PATH = resolveDbPath()
+const RUNNING_ON_RAILWAY =
+  Boolean(process.env.RAILWAY_ENVIRONMENT) || Boolean(process.env.RAILWAY_SERVICE_NAME)
+const USING_EPHEMERAL_DB_PATH =
+  DB_PATH.startsWith('/tmp/') || DB_PATH.startsWith('/var/tmp/')
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
 
@@ -395,4 +421,14 @@ app.use((error, _req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`Insurance server listening on port ${PORT}`)
   console.log(`Insurance DB path: ${DB_PATH}`)
+  if (USING_EPHEMERAL_DB_PATH) {
+    console.warn(
+      'WARNING: DB_PATH가 임시 경로입니다. 컨테이너 재시작 시 회원/신청서 데이터가 초기화될 수 있습니다.',
+    )
+  }
+  if (RUNNING_ON_RAILWAY && !process.env.DB_PATH && !process.env.RAILWAY_VOLUME_MOUNT_PATH) {
+    console.warn(
+      'WARNING: Railway Volume이 감지되지 않았습니다. 영구 저장을 위해 DB_PATH 또는 RAILWAY_VOLUME_MOUNT_PATH를 설정하세요.',
+    )
+  }
 })
