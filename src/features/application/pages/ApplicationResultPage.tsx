@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { InsuranceResultTemplate } from '../components/InsuranceResultTemplate'
-import { buildApplicationTitle } from '../domain/title'
 import type { InsuranceApplicationRecord } from '../domain/types'
 import { getApplicationById, saveApplication } from '../repository/applicationRepository'
 import { exportResultToJpg, exportResultToPdf } from '../services/exportService'
 import { useAuth } from '../../auth/AuthProvider'
+
+function buildDownloadFileNameBase(record: InsuranceApplicationRecord): string {
+  const ownerName = record.ownerName.trim() || '이름없음'
+  const vehicleNumber = record.vehicleNumber.trim() || '차량번호없음'
+  return `${ownerName}_${vehicleNumber}`
+}
 
 export function ApplicationResultPage() {
   const navigate = useNavigate()
@@ -77,7 +82,7 @@ export function ApplicationResultPage() {
     }
 
     try {
-      await exportResultToJpg(resultRef.current, record.title)
+      await exportResultToJpg(resultRef.current, buildDownloadFileNameBase(record))
       setStatusText('JPG 파일을 다운로드했습니다.')
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : 'JPG 생성에 실패했습니다.')
@@ -90,14 +95,14 @@ export function ApplicationResultPage() {
     }
 
     try {
-      await exportResultToPdf(resultRef.current, record.title)
+      await exportResultToPdf(resultRef.current, buildDownloadFileNameBase(record))
       setStatusText('PDF 파일을 다운로드했습니다.')
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : 'PDF 생성에 실패했습니다.')
     }
   }
 
-  const fileTitle = buildApplicationTitle(record)
+  const fileTitle = buildDownloadFileNameBase(record)
 
   return (
     <main className="page page--result">
