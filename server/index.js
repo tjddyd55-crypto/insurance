@@ -141,11 +141,13 @@ function requireAuth(req, res, next) {
   }
 }
 
-app.get('/api/health', (_req, res) => {
+const apiRouter = express.Router()
+
+apiRouter.get('/health', (_req, res) => {
   res.json({ ok: true })
 })
 
-app.post('/api/register', async (req, res) => {
+apiRouter.post('/register', async (req, res) => {
   try {
     const { username, password } = req.body ?? {}
     const validationMessage = validateCredentials(username, password)
@@ -182,7 +184,7 @@ app.post('/api/register', async (req, res) => {
   }
 })
 
-app.post('/api/login', async (req, res) => {
+apiRouter.post('/login', async (req, res) => {
   const { username, password } = req.body ?? {}
   const validationMessage = validateCredentials(username, password)
   if (validationMessage) {
@@ -221,7 +223,7 @@ app.post('/api/login', async (req, res) => {
   })
 })
 
-app.get('/api/forms', requireAuth, (req, res) => {
+apiRouter.get('/forms', requireAuth, (req, res) => {
   const rows = db
     .prepare(
       `
@@ -236,7 +238,7 @@ app.get('/api/forms', requireAuth, (req, res) => {
   res.json(rows.map(mapFormRow))
 })
 
-app.post('/api/forms', requireAuth, (req, res) => {
+apiRouter.post('/forms', requireAuth, (req, res) => {
   try {
     const formData = extractFormData(req.body)
     if (!formData) {
@@ -285,7 +287,7 @@ app.post('/api/forms', requireAuth, (req, res) => {
   }
 })
 
-app.get('/api/forms/:id', requireAuth, (req, res) => {
+apiRouter.get('/forms/:id', requireAuth, (req, res) => {
   const row = db
     .prepare(
       `
@@ -304,7 +306,7 @@ app.get('/api/forms/:id', requireAuth, (req, res) => {
   res.json(mapFormRow(row))
 })
 
-app.put('/api/forms/:id', requireAuth, (req, res) => {
+apiRouter.put('/forms/:id', requireAuth, (req, res) => {
   try {
     const formData = extractFormData(req.body)
     if (!formData) {
@@ -358,7 +360,7 @@ app.put('/api/forms/:id', requireAuth, (req, res) => {
   }
 })
 
-app.delete('/api/forms/:id', requireAuth, (req, res) => {
+apiRouter.delete('/forms/:id', requireAuth, (req, res) => {
   try {
     const result = db
       .prepare('DELETE FROM insurance_forms WHERE id = ? AND user_id = ?')
@@ -375,9 +377,12 @@ app.delete('/api/forms/:id', requireAuth, (req, res) => {
   }
 })
 
+app.use('/api', apiRouter)
+app.use('/backend', apiRouter)
+
 if (fs.existsSync(DIST_PATH)) {
   app.use(express.static(DIST_PATH))
-  app.get(/^(?!\/api).*/, (_req, res) => {
+  app.get(/^(?!\/(api|backend)).*/, (_req, res) => {
     res.sendFile(path.join(DIST_PATH, 'index.html'))
   })
 }
