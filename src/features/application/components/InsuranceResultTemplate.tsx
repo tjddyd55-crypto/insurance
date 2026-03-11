@@ -148,7 +148,7 @@ export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) 
             <th className="label label-cell">차량번호</th>
             <td>{valueText(data.vehicleNumber)}</td>
             <th className="label">마일리지</th>
-            <td className="right">
+            <td>
               <OptionLine options={YES_NO_OPTIONS} selected={data.mileageYn} />
             </td>
           </tr>
@@ -156,7 +156,7 @@ export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) 
             <th className="label label-cell">차명</th>
             <td>{valueText(data.vehicleModel)}</td>
             <th className="label">블박</th>
-            <td className="right">
+            <td>
               <OptionLine options={YES_NO_OPTIONS} selected={data.blackboxYn} />
             </td>
           </tr>
@@ -207,7 +207,7 @@ export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) 
           </tr>
           <tr className="h-coverage">
             <th colSpan={2} className="label">자손/자상</th>
-            <td colSpan={3} className="left">
+            <td colSpan={3}>
               <OptionLine options={PERSONAL_INJURY_OPTIONS} selected={data.personalInjury} />
             </td>
           </tr>
@@ -240,8 +240,8 @@ export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) 
           </tr>
           <tr className="h-coverage">
             <th className="label">운전범위</th>
-            <td colSpan={4} className="left text-small">
-              <OptionLine options={DRIVER_SCOPE_OPTIONS} selected={data.driverScope} small />
+            <td colSpan={4}>
+              <OptionLine options={DRIVER_SCOPE_OPTIONS} selected={data.driverScope} />
             </td>
           </tr>
           <tr className="h-coverage">
