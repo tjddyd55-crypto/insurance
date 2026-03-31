@@ -621,6 +621,219 @@ body {
   color: #4e5968;
 }
 
+.contacts-page {
+  max-width: 1080px;
+  font-size: 18px;
+}
+
+.contacts-page .card {
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.contacts-page .field__control,
+.contacts-page .button {
+  font-size: 18px;
+}
+
+.contacts-header p {
+  font-size: 18px;
+}
+
+.contacts-toolbar {
+  display: grid;
+  gap: 12px;
+}
+
+.contacts-search {
+  display: grid;
+  gap: 8px;
+}
+
+.contacts-search span {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.contacts-toolbar__actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.contacts-admin-form h2 {
+  margin-bottom: 14px;
+}
+
+.contacts-admin-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.contacts-admin-actions {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.contacts-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.contacts-card {
+  border: 1px solid #d7deea;
+  border-radius: 12px;
+  background: #fff;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.contacts-company {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.contacts-manager {
+  margin: 0;
+  font-size: 18px;
+  color: #27303a;
+}
+
+.contacts-phone {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #102a63;
+}
+
+.contacts-card-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.contacts-updates-table {
+  min-width: 980px;
+}
+
+.insurance-print-page {
+  max-width: 980px;
+}
+
+.insurance-print-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.insurance-print-sheet {
+  width: 100%;
+  max-width: 794px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #c6ced9;
+  border-radius: 6px;
+  padding: 14px;
+}
+
+.insurance-print-header {
+  position: relative;
+  margin-bottom: 12px;
+  min-height: 50px;
+}
+
+.insurance-print-header h1 {
+  margin: 0;
+  text-align: center;
+  font-size: 28px;
+  letter-spacing: 1px;
+}
+
+.insurance-print-header p {
+  margin: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-size: 16px;
+}
+
+.insurance-print-top-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.insurance-print-section h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  text-align: center;
+  background: #e5ecf8;
+  border: 1px solid #2f4776;
+  padding: 6px;
+}
+
+.insurance-print-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.insurance-print-table th,
+.insurance-print-table td {
+  border: 1px solid #2f4776;
+  padding: 7px 6px;
+  font-size: 16px;
+  height: 34px;
+  text-align: center;
+}
+
+.insurance-print-table th {
+  background: #f0f4fb;
+  font-weight: 700;
+}
+
+.screen-only {
+  display: block;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .screen-only {
+    display: none !important;
+  }
+
+  .insurance-print-page {
+    padding: 0;
+    margin: 0;
+    max-width: none;
+  }
+
+  .insurance-print-sheet {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    max-width: 100%;
+  }
+}
+
 @media (min-width: 768px) {
   .sticky-actions {
     left: 50%;
@@ -632,6 +845,18 @@ body {
   }
 
   .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contacts-admin-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .contacts-card-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .insurance-print-top-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

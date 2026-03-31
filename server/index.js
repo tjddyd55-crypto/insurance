@@ -10,6 +10,8 @@ import { initDb } from './initDb.js'
 const PORT = Number(process.env.PORT ?? 3001)
 const JWT_SECRET = process.env.JWT_SECRET ?? 'change-this-in-production'
 const DEFAULT_JWT_SECRET = 'change-this-in-production'
+const INSURANCE_CONTACT_ADMIN_USERNAME =
+  process.env.INSURANCE_CONTACT_ADMIN_USERNAME ?? 'admin'
 const RUNNING_IN_PRODUCTION =
   process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT)
 const DIST_PATH = path.join(process.cwd(), 'dist')
@@ -92,6 +94,61 @@ function mapFormRow(row) {
   }
 }
 
+function normalizePhoneNumber(value) {
+  return String(value ?? '').replace(/\D/g, '')
+}
+
+function normalizeCategory(value) {
+  if (typeof value !== 'string') {
+    return ''
+  }
+  return value.trim().toUpperCase()
+}
+
+function mapContactRow(row) {
+  return {
+    id: String(row.id),
+    category: row.category,
+    companyName: row.company_name,
+    managerName: row.manager_name,
+    position: row.position ?? '',
+    phoneNumber: normalizePhoneNumber(row.phone_number),
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
+  }
+}
+
+function mapContactUpdateRow(row) {
+  return {
+    id: String(row.id),
+    contactId: row.contact_id ? String(row.contact_id) : null,
+    actionType: row.action_type,
+    category: row.category,
+    companyName: row.company_name,
+    managerName: row.manager_name,
+    position: row.position ?? '',
+    oldPhoneNumber: row.old_phone_number ?? '',
+    newPhoneNumber: row.new_phone_number ?? '',
+    description: row.description ?? '',
+    createdAt: toIsoString(row.created_at),
+  }
+}
+
+function createVCardContent(contact) {
+  const lines = [
+    'BEGIN:VCARD',
+    'VERSION:3.0',
+    `FN:${contact.manager_name}`,
+    `N:${contact.manager_name};;;`,
+    `ORG:${contact.company_name}`,
+    contact.position ? `TITLE:${contact.position}` : '',
+    `TEL;TYPE=CELL:${contact.phone_number}`,
+    'END:VCARD',
+  ].filter(Boolean)
+
+  return `${lines.join('\r\n')}\r\n`
+}
+
 function extractFormData(body) {
   const formData = body?.formData ?? body?.form_data
   if (!formData || typeof formData !== 'object' || Array.isArray(formData)) {
@@ -133,6 +190,40 @@ function requireAuth(req, res, next) {
   } catch {
     res.status(401).json({ message: '인증이 만료되었거나 유효하지 않습니다.' })
   }
+}
+
+function requireInsuranceContactAdmin(req, res, next) {
+  if (!req.user || req.user.username !== INSURANCE_CONTACT_ADMIN_USERNAME) {
+    res.status(403).json({ message: '원수사 연락처 관리 권한이 없습니다.' })
+    return
+  }
+  next()
+}
+
+async function withTransaction(task) {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const result = await task(client)
+    await client.query('COMMIT')
+    return result
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+async function touchContactLastUpdatedAt(client) {
+  await client.query(
+    `
+    INSERT INTO insurance_contact_meta (meta_key, meta_value, updated_at)
+    VALUES ('contact_last_updated_at', NOW()::text, NOW())
+    ON CONFLICT (meta_key)
+    DO UPDATE SET meta_value = NOW()::text, updated_at = NOW()
+    `,
+  )
 }
 
 const app = express()
@@ -224,6 +315,305 @@ apiRouter.post('/login', async (req, res) => {
         username: user.username,
       },
     })
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.get('/insurance/contacts', async (_req, res) => {
+  try {
+    const contactsResult = await pool.query(
+      `
+      SELECT id, category, company_name, manager_name, position, phone_number, created_at, updated_at
+      FROM insurance_contacts
+      ORDER BY
+        CASE category
+          WHEN 'LIFE' THEN 1
+          WHEN 'NON_LIFE' THEN 2
+          WHEN 'GENERAL' THEN 3
+          ELSE 4
+        END,
+        company_name ASC,
+        manager_name ASC
+      `,
+    )
+
+    const metaResult = await pool.query(
+      `
+      SELECT meta_value
+      FROM insurance_contact_meta
+      WHERE meta_key = 'contact_last_updated_at'
+      `,
+    )
+
+    const fallbackUpdatedAt =
+      contactsResult.rows.length > 0
+        ? contactsResult.rows.reduce((latest, row) => {
+            const candidate = toIsoString(row.updated_at)
+            return candidate > latest ? candidate : latest
+          }, '')
+        : ''
+
+    res.json({
+      lastUpdatedAt: metaResult.rows[0]?.meta_value
+        ? toIsoString(metaResult.rows[0].meta_value)
+        : fallbackUpdatedAt,
+      contacts: contactsResult.rows.map(mapContactRow),
+    })
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.get('/insurance/updates', async (_req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        contact_id,
+        action_type,
+        category,
+        company_name,
+        manager_name,
+        position,
+        old_phone_number,
+        new_phone_number,
+        description,
+        created_at
+      FROM insurance_contact_updates
+      ORDER BY created_at DESC
+      `,
+    )
+
+    res.json(result.rows.map(mapContactUpdateRow))
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.get('/insurance/contacts/:id/vcard', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT id, company_name, manager_name, position, phone_number
+      FROM insurance_contacts
+      WHERE id = $1
+      `,
+      [req.params.id],
+    )
+
+    if (result.rowCount === 0) {
+      res.status(404).json({ message: '연락처를 찾을 수 없습니다.' })
+      return
+    }
+
+    const contact = result.rows[0]
+    const safeName = `${contact.company_name}_${contact.manager_name}`
+      .replace(/[\\/:*?"<>|]/g, '_')
+      .replace(/\s+/g, '_')
+      .slice(0, 80)
+
+    res.setHeader('Content-Type', 'text/vcard; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.vcf"`)
+    res.send(createVCardContent(contact))
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.post('/admin/insurance/contacts', requireAuth, requireInsuranceContactAdmin, async (req, res) => {
+  try {
+    const category = normalizeCategory(req.body?.category)
+    const companyName = String(req.body?.companyName ?? req.body?.company_name ?? '').trim()
+    const managerName = String(req.body?.managerName ?? req.body?.manager_name ?? '').trim()
+    const position = String(req.body?.position ?? '').trim()
+    const phoneNumber = normalizePhoneNumber(req.body?.phoneNumber ?? req.body?.phone_number ?? '')
+    const description = String(req.body?.description ?? '연락처 등록').trim()
+
+    if (!['LIFE', 'NON_LIFE', 'GENERAL'].includes(category)) {
+      res.status(400).json({ message: '카테고리 값이 올바르지 않습니다.' })
+      return
+    }
+    if (!companyName || !managerName || !phoneNumber) {
+      res.status(400).json({ message: '보험사명, 담당자명, 전화번호는 필수입니다.' })
+      return
+    }
+
+    const inserted = await withTransaction(async (client) => {
+      const contactId = randomUUID()
+      const contactResult = await client.query(
+        `
+        INSERT INTO insurance_contacts (
+          id, category, company_name, manager_name, position, phone_number, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        RETURNING id, category, company_name, manager_name, position, phone_number, created_at, updated_at
+        `,
+        [contactId, category, companyName, managerName, position, phoneNumber],
+      )
+
+      await client.query(
+        `
+        INSERT INTO insurance_contact_updates (
+          id, contact_id, action_type, category, company_name, manager_name, position,
+          old_phone_number, new_phone_number, description, created_at
+        ) VALUES ($1, $2, 'CREATE', $3, $4, $5, $6, NULL, $7, $8, NOW())
+        `,
+        [randomUUID(), contactId, category, companyName, managerName, position, phoneNumber, description],
+      )
+
+      await touchContactLastUpdatedAt(client)
+      return contactResult.rows[0]
+    })
+
+    res.status(201).json(mapContactRow(inserted))
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireInsuranceContactAdmin, async (req, res) => {
+  try {
+    const contactId = req.params.id
+    const category = normalizeCategory(req.body?.category)
+    const companyName = String(req.body?.companyName ?? req.body?.company_name ?? '').trim()
+    const managerName = String(req.body?.managerName ?? req.body?.manager_name ?? '').trim()
+    const position = String(req.body?.position ?? '').trim()
+    const phoneNumber = normalizePhoneNumber(req.body?.phoneNumber ?? req.body?.phone_number ?? '')
+    const description = String(req.body?.description ?? '연락처 수정').trim()
+
+    if (!['LIFE', 'NON_LIFE', 'GENERAL'].includes(category)) {
+      res.status(400).json({ message: '카테고리 값이 올바르지 않습니다.' })
+      return
+    }
+    if (!companyName || !managerName || !phoneNumber) {
+      res.status(400).json({ message: '보험사명, 담당자명, 전화번호는 필수입니다.' })
+      return
+    }
+
+    const updatedContact = await withTransaction(async (client) => {
+      const existing = await client.query(
+        `
+        SELECT id, category, company_name, manager_name, position, phone_number
+        FROM insurance_contacts
+        WHERE id = $1
+        `,
+        [contactId],
+      )
+
+      if (existing.rowCount === 0) {
+        return null
+      }
+
+      const updated = await client.query(
+        `
+        UPDATE insurance_contacts
+        SET
+          category = $1,
+          company_name = $2,
+          manager_name = $3,
+          position = $4,
+          phone_number = $5,
+          updated_at = NOW()
+        WHERE id = $6
+        RETURNING id, category, company_name, manager_name, position, phone_number, created_at, updated_at
+        `,
+        [category, companyName, managerName, position, phoneNumber, contactId],
+      )
+
+      const prev = existing.rows[0]
+      await client.query(
+        `
+        INSERT INTO insurance_contact_updates (
+          id, contact_id, action_type, category, company_name, manager_name, position,
+          old_phone_number, new_phone_number, description, created_at
+        ) VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6, $7, $8, $9, NOW())
+        `,
+        [
+          randomUUID(),
+          contactId,
+          category,
+          companyName,
+          managerName,
+          position,
+          normalizePhoneNumber(prev.phone_number),
+          phoneNumber,
+          description,
+        ],
+      )
+
+      await touchContactLastUpdatedAt(client)
+      return updated.rows[0]
+    })
+
+    if (!updatedContact) {
+      res.status(404).json({ message: '수정할 연락처를 찾을 수 없습니다.' })
+      return
+    }
+
+    res.json(mapContactRow(updatedContact))
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.delete('/admin/insurance/contacts/:id', requireAuth, requireInsuranceContactAdmin, async (req, res) => {
+  try {
+    const contactId = req.params.id
+    const description = String(req.body?.description ?? '연락처 삭제').trim()
+
+    const deletedContact = await withTransaction(async (client) => {
+      const existing = await client.query(
+        `
+        SELECT id, category, company_name, manager_name, position, phone_number
+        FROM insurance_contacts
+        WHERE id = $1
+        `,
+        [contactId],
+      )
+
+      if (existing.rowCount === 0) {
+        return null
+      }
+
+      await client.query(
+        `
+        DELETE FROM insurance_contacts
+        WHERE id = $1
+        `,
+        [contactId],
+      )
+
+      const prev = existing.rows[0]
+      await client.query(
+        `
+        INSERT INTO insurance_contact_updates (
+          id, contact_id, action_type, category, company_name, manager_name, position,
+          old_phone_number, new_phone_number, description, created_at
+        ) VALUES ($1, $2, 'DELETE', $3, $4, $5, $6, $7, NULL, $8, NOW())
+        `,
+        [
+          randomUUID(),
+          contactId,
+          prev.category,
+          prev.company_name,
+          prev.manager_name,
+          prev.position ?? '',
+          normalizePhoneNumber(prev.phone_number),
+          description,
+        ],
+      )
+
+      await touchContactLastUpdatedAt(client)
+      return prev
+    })
+
+    if (!deletedContact) {
+      res.status(404).json({ message: '삭제할 연락처를 찾을 수 없습니다.' })
+      return
+    }
+
+    res.status(204).send()
   } catch (error) {
     handleDbError(error, res)
   }

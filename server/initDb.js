@@ -55,6 +55,78 @@ export async function initDb() {
     ON insurance_forms(user_id, updated_at DESC)
   `)
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS insurance_contacts (
+      id TEXT PRIMARY KEY,
+      category TEXT NOT NULL CHECK (category IN ('LIFE', 'NON_LIFE', 'GENERAL')),
+      company_name TEXT NOT NULL,
+      manager_name TEXT NOT NULL,
+      position TEXT NOT NULL DEFAULT '',
+      phone_number TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    ALTER TABLE insurance_contacts
+    ADD COLUMN IF NOT EXISTS category TEXT,
+    ADD COLUMN IF NOT EXISTS company_name TEXT,
+    ADD COLUMN IF NOT EXISTS manager_name TEXT,
+    ADD COLUMN IF NOT EXISTS position TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS phone_number TEXT,
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_insurance_contacts_category
+    ON insurance_contacts(category, company_name, manager_name)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS insurance_contact_updates (
+      id TEXT PRIMARY KEY,
+      contact_id TEXT,
+      action_type TEXT NOT NULL CHECK (action_type IN ('CREATE', 'UPDATE', 'DELETE')),
+      category TEXT NOT NULL CHECK (category IN ('LIFE', 'NON_LIFE', 'GENERAL')),
+      company_name TEXT NOT NULL,
+      manager_name TEXT NOT NULL,
+      position TEXT NOT NULL DEFAULT '',
+      old_phone_number TEXT,
+      new_phone_number TEXT,
+      description TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    ALTER TABLE insurance_contact_updates
+    ADD COLUMN IF NOT EXISTS contact_id TEXT,
+    ADD COLUMN IF NOT EXISTS action_type TEXT,
+    ADD COLUMN IF NOT EXISTS category TEXT,
+    ADD COLUMN IF NOT EXISTS company_name TEXT,
+    ADD COLUMN IF NOT EXISTS manager_name TEXT,
+    ADD COLUMN IF NOT EXISTS position TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS old_phone_number TEXT,
+    ADD COLUMN IF NOT EXISTS new_phone_number TEXT,
+    ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_insurance_contact_updates_created
+    ON insurance_contact_updates(created_at DESC)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS insurance_contact_meta (
+      meta_key TEXT PRIMARY KEY,
+      meta_value TEXT NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
   const updatedAtColumnCheck = await pool.query(
     `
     SELECT 1
