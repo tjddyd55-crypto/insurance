@@ -1,4 +1,42 @@
+import bcrypt from 'bcryptjs'
+import { randomUUID } from 'node:crypto'
 import pool from './db.js'
+
+function isProductionRuntime() {
+  return process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT)
+}
+
+/**
+ * 첫 기동 시 관리자 로그인용 사용자 1명을 자동 생성한다.
+ * - 비운영: 기본 아이디 admin / 비밀번호 1234 (계정이 이미 있으면 건너뜀)
+ * - 운영: INSURANCE_ENABLE_ADMIN_BOOTSTRAP=true 일 때만 생성 (실수로 약한 비번 노출 방지)
+ */
+async function ensureBootstrapAdminUser() {
+  const adminUsername = (process.env.INSURANCE_CONTACT_ADMIN_USERNAME ?? 'admin').trim()
+  const allowInProd = process.env.INSURANCE_ENABLE_ADMIN_BOOTSTRAP === 'true'
+  if (isProductionRuntime() && !allowInProd) {
+    return
+  }
+
+  const existing = await pool.query(`SELECT 1 FROM users WHERE username = $1`, [adminUsername])
+  if (existing.rowCount > 0) {
+    return
+  }
+
+  const password = process.env.INSURANCE_ADMIN_BOOTSTRAP_PASSWORD ?? '1234'
+  const passwordHash = await bcrypt.hash(password, 10)
+  const id = randomUUID()
+
+  await pool.query(
+    `
+    INSERT INTO users (id, username, password_hash)
+    VALUES ($1, $2, $3)
+    `,
+    [id, adminUsername, passwordHash],
+  )
+
+  console.log(`[initDb] 관리자 계정을 생성했습니다: username=${adminUsername}`)
+}
 
 export async function initDb() {
   await pool.query(`
@@ -157,4 +195,6 @@ export async function initDb() {
   ) {
     throw new Error('DB 점검 실패: idx_forms_user_updated 인덱스가 올바르지 않습니다.')
   }
+
+  await ensureBootstrapAdminUser()
 }
