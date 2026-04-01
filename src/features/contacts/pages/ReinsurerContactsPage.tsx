@@ -213,6 +213,9 @@ export function ReinsurerContactsPage() {
   return (
     <main className="page contacts-page">
       <nav className="contacts-public-auth" aria-label="계정">
+        <Link className="button button--small contacts-public-auth__link" to="/menu/company-registry">
+          보험사(마스터)
+        </Link>
         {isAuthenticated ? (
           <>
             <span className="contacts-public-auth__user">{user?.username}</span>

@@ -872,6 +872,108 @@ body {
   color: #4e5968;
 }
 
+.company-registry-page {
+  max-width: 720px;
+}
+
+.company-registry-form-card {
+  margin-bottom: 8px;
+}
+
+.company-registry-subtitle {
+  margin: 18px 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.company-registry-contact-editor-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.company-registry-contact-editor-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 600px) {
+  .company-registry-contact-editor-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.company-registry-output .company-registry-company-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.company-registry-company-block {
+  padding: 16px;
+}
+
+.company-registry-company-title {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+}
+
+.company-registry-dl {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 15px;
+}
+
+.company-registry-dl div {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 8px;
+}
+
+.company-registry-dl dt {
+  margin: 0;
+  color: #566171;
+  font-weight: 600;
+}
+
+.company-registry-dl dd {
+  margin: 0;
+}
+
+.company-registry-contact-display {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 10px 0 0;
+  border-top: 1px solid #e5e9ef;
+  display: grid;
+  gap: 4px;
+  font-size: 15px;
+}
+
+.company-registry-general-box {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e9ef;
+}
+
+.company-registry-general-box h4 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.company-registry-muted {
+  margin: 8px 0 0;
+  color: #8a96a8;
+  font-size: 14px;
+}
+
 .contacts-public-auth {
   display: flex;
   flex-wrap: wrap;

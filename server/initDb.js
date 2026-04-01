@@ -252,6 +252,50 @@ export async function initDb() {
     )
   `)
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS insurance_company_master (
+      id SERIAL PRIMARY KEY,
+      category TEXT NOT NULL DEFAULT '',
+      name TEXT NOT NULL DEFAULT '',
+      customer_center TEXT NOT NULL DEFAULT '',
+      system_phone TEXT NOT NULL DEFAULT '',
+      incall_number TEXT NOT NULL DEFAULT '',
+      visit_info TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS insurance_company_contacts (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER NOT NULL REFERENCES insurance_company_master(id) ON DELETE CASCADE,
+      name TEXT NOT NULL DEFAULT '',
+      position TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT ''
+    )
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS insurance_general_request (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER NOT NULL REFERENCES insurance_company_master(id) ON DELETE CASCADE,
+      description TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      fax TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT ''
+    )
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_insurance_company_contacts_company
+    ON insurance_company_contacts(company_id)
+  `)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_insurance_general_request_company
+    ON insurance_general_request(company_id)
+  `)
+
   const updatedAtColumnCheck = await pool.query(
     `
     SELECT 1

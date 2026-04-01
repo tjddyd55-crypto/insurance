@@ -6,6 +6,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import pool from './db.js'
 import { initDb } from './initDb.js'
+import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 
 const PORT = Number(process.env.PORT ?? 3001)
 const JWT_SECRET = process.env.JWT_SECRET ?? 'change-this-in-production'
@@ -203,6 +204,84 @@ function mapContactUpdateRow(row) {
     description: row.description ?? '',
     createdAt: toIsoString(row.created_at),
   }
+}
+
+function mapInsuranceCompanyMaster(row) {
+  return {
+    id: Number(row.id),
+    category: row.category ?? '',
+    name: row.name ?? '',
+    customerCenter: row.customer_center ?? '',
+    systemPhone: row.system_phone ?? '',
+    incallNumber: row.incall_number ?? '',
+    visitInfo: row.visit_info ?? '',
+    createdAt: toIsoString(row.created_at),
+  }
+}
+
+function mapInsuranceCompanyContact(row) {
+  return {
+    id: Number(row.id),
+    companyId: Number(row.company_id),
+    name: row.name ?? '',
+    position: row.position ?? '',
+    phone: row.phone ?? '',
+  }
+}
+
+function mapInsuranceGeneralRequest(row) {
+  if (!row) {
+    return null
+  }
+  return {
+    id: Number(row.id),
+    companyId: Number(row.company_id),
+    description: row.description ?? '',
+    phone: row.phone ?? '',
+    fax: row.fax ?? '',
+    email: row.email ?? '',
+  }
+}
+
+async function loadCompanyDirectoryNestedList() {
+  const masters = await pool.query(
+    `
+    SELECT *
+    FROM insurance_company_master
+    ORDER BY category ASC NULLS LAST, name ASC
+    `,
+  )
+  const contacts = await pool.query(
+    `
+    SELECT *
+    FROM insurance_company_contacts
+    ORDER BY company_id ASC, id ASC
+    `,
+  )
+  const generals = await pool.query(`SELECT * FROM insurance_general_request`)
+
+  const contactByCompany = new Map()
+  for (const c of contacts.rows) {
+    const cid = Number(c.company_id)
+    if (!contactByCompany.has(cid)) {
+      contactByCompany.set(cid, [])
+    }
+    contactByCompany.get(cid).push(mapInsuranceCompanyContact(c))
+  }
+
+  const generalByCompany = new Map()
+  for (const g of generals.rows) {
+    generalByCompany.set(Number(g.company_id), mapInsuranceGeneralRequest(g))
+  }
+
+  return masters.rows.map((m) => {
+    const id = Number(m.id)
+    return {
+      ...mapInsuranceCompanyMaster(m),
+      contacts: contactByCompany.get(id) ?? [],
+      general: generalByCompany.get(id) ?? null,
+    }
+  })
 }
 
 function createVCardContent(contact) {
@@ -490,6 +569,128 @@ apiRouter.post('/login', async (req, res) => {
       },
     })
   } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.get('/company/list', async (_req, res) => {
+  try {
+    const list = await loadCompanyDirectoryNestedList()
+    res.json(list)
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (req, res) => {
+  try {
+    const { company: co, contacts: contactsIn, general: genIn } = req.body ?? {}
+    const name = String(co?.name ?? '').trim()
+    if (!name) {
+      res.status(400).json({ message: '보험사명은 필수입니다.' })
+      return
+    }
+
+    const category = String(co?.category ?? '').trim()
+    const customerCenter = String(co?.customerCenter ?? co?.customer_center ?? '').trim()
+    const systemPhone = String(co?.systemPhone ?? co?.system_phone ?? '').trim()
+    const incallNumber = String(co?.incallNumber ?? co?.incall_number ?? '').trim()
+    const visitInfo = String(co?.visitInfo ?? co?.visit_info ?? '').trim()
+
+    const rawId = co?.id
+    const existingId =
+      rawId != null && rawId !== '' && Number.isInteger(Number(rawId)) && Number(rawId) > 0
+        ? Number(rawId)
+        : null
+
+    const contactsList = Array.isArray(contactsIn) ? contactsIn : []
+
+    const g = genIn && typeof genIn === 'object' && !Array.isArray(genIn) ? genIn : {}
+    const gDesc = String(g.description ?? '').trim()
+    const gPhone = String(g.phone ?? '').trim()
+    const gFax = String(g.fax ?? '').trim()
+    const gEmail = String(g.email ?? '').trim()
+
+    const companyId = await withTransaction(async (client) => {
+      let cid
+      if (existingId) {
+        const updated = await client.query(
+          `
+          UPDATE insurance_company_master
+          SET
+            category = $1,
+            name = $2,
+            customer_center = $3,
+            system_phone = $4,
+            incall_number = $5,
+            visit_info = $6
+          WHERE id = $7
+          RETURNING id
+          `,
+          [category, name, customerCenter, systemPhone, incallNumber, visitInfo, existingId],
+        )
+        if (updated.rowCount === 0) {
+          const err = new Error('해당 보험사를 찾을 수 없습니다.')
+          err.httpStatus = 404
+          throw err
+        }
+        cid = existingId
+        await client.query(`DELETE FROM insurance_company_contacts WHERE company_id = $1`, [cid])
+        await client.query(`DELETE FROM insurance_general_request WHERE company_id = $1`, [cid])
+      } else {
+        const inserted = await client.query(
+          `
+          INSERT INTO insurance_company_master (
+            category, name, customer_center, system_phone, incall_number, visit_info
+          )
+          VALUES ($1, $2, $3, $4, $5, $6)
+          RETURNING id
+          `,
+          [category, name, customerCenter, systemPhone, incallNumber, visitInfo],
+        )
+        cid = inserted.rows[0].id
+      }
+
+      for (const c of contactsList) {
+        const cn = String(c?.name ?? '').trim()
+        const cp = String(c?.position ?? '').trim()
+        const cph = String(c?.phone ?? '').trim()
+        if (!cn && !cp && !cph) {
+          continue
+        }
+        await client.query(
+          `
+          INSERT INTO insurance_company_contacts (company_id, name, position, phone)
+          VALUES ($1, $2, $3, $4)
+          `,
+          [cid, cn, cp, cph],
+        )
+      }
+
+      await client.query(
+        `
+        INSERT INTO insurance_general_request (company_id, description, phone, fax, email)
+        VALUES ($1, $2, $3, $4, $5)
+        `,
+        [cid, gDesc, gPhone, gFax, gEmail],
+      )
+
+      return cid
+    })
+
+    const list = await loadCompanyDirectoryNestedList()
+    const data = list.find((x) => x.id === companyId) ?? null
+
+    if (existingId) {
+      res.json({ success: true, data })
+      return
+    }
+    res.status(201).json({ success: true, data })
+  } catch (error) {
+    if (error.httpStatus === 404) {
+      res.status(404).json({ message: error.message })
+      return
+    }
     handleDbError(error, res)
   }
 })
@@ -1443,6 +1644,7 @@ async function startServer() {
   }
 
   await initDb()
+  await seedInsuranceCompanyDirectory()
   await logInsuranceFormsDbDiagnostics('startup')
 
   app.listen(PORT, () => {

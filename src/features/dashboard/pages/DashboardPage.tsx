@@ -46,6 +46,15 @@ export function DashboardPage() {
                   <button
                     className="button button--full"
                     type="button"
+                    onClick={() => navigate('/menu/company-registry')}
+                  >
+                    보험사 연락처(마스터)
+                  </button>
+                </li>
+                <li>
+                  <button
+                    className="button button--full"
+                    type="button"
                     onClick={() => navigate('/menu/insurance-updates')}
                   >
                     업데이트 현황
@@ -63,6 +72,15 @@ export function DashboardPage() {
                     onClick={() => navigate('/menu/reinsurer-contacts')}
                   >
                     연락처 관리
+                  </button>
+                </li>
+                <li>
+                  <button
+                    className="button button--full"
+                    type="button"
+                    onClick={() => navigate('/menu/company-registry')}
+                  >
+                    보험사 연락처(마스터)
                   </button>
                 </li>
                 <li>
@@ -95,6 +113,15 @@ export function DashboardPage() {
                     onClick={() => navigate('/menu/reinsurer-contacts')}
                   >
                     연락처 관리
+                  </button>
+                </li>
+                <li>
+                  <button
+                    className="button button--full"
+                    type="button"
+                    onClick={() => navigate('/menu/company-registry')}
+                  >
+                    보험사 연락처(마스터)
                   </button>
                 </li>
                 <li>
