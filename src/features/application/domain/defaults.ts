@@ -43,6 +43,7 @@ export const EMPTY_APPLICATION_FORM: InsuranceApplicationFormData = {
   career1: '',
   career2: '',
   memo: '',
+  customerId: 0,
 }
 
 export function createEmptyApplicationForm(): InsuranceApplicationFormData {

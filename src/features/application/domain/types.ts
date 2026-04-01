@@ -70,6 +70,8 @@ export interface InsuranceApplicationFormData {
   career1: string
   career2: string
   memo: string
+  /** DB 고객 행과 연결. 0이면 미연결 */
+  customerId: number
 }
 
 export interface InsuranceApplicationRecord extends InsuranceApplicationFormData {

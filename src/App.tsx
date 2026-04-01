@@ -10,6 +10,8 @@ import { InsurancePrintPage } from './features/contacts/pages/InsurancePrintPage
 import { InsuranceUpdatesPage } from './features/contacts/pages/InsuranceUpdatesPage'
 import { ReinsurerContactsPage } from './features/contacts/pages/ReinsurerContactsPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
+import CustomersPage from './features/customers/pages/CustomersPage'
+import CustomerCarPage from './features/customers/pages/CustomerCarPage'
 import { useAuth } from './features/auth/AuthProvider'
 
 function HomeRedirect() {
@@ -29,6 +31,9 @@ function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/application" element={<CarInsuranceDashboardPage />} />
+        <Route path="/customers" element={<CustomersPage />} />
+        <Route path="/customer-car" element={<CustomerCarPage />} />
         <Route path="/menu/car-insurance" element={<CarInsuranceDashboardPage />} />
         <Route path="/my-forms" element={<ApplicationListPage />} />
         <Route path="/form/create" element={<ApplicationFormPage />} />

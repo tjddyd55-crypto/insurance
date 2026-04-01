@@ -152,6 +152,30 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS car_number TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS car_model TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS car_year TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS renewal_date DATE
+  `)
+
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ
+  `)
+
+  await pool.query(`
+    ALTER TABLE insurance_forms
+    ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_forms_user_customer
+    ON insurance_forms(user_id, customer_id)
+    WHERE customer_id IS NOT NULL
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS insurance_contacts (
       id TEXT PRIMARY KEY,
       category TEXT NOT NULL CHECK (category IN ('LIFE', 'NON_LIFE', 'GENERAL')),

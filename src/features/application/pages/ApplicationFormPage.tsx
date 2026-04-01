@@ -35,13 +35,19 @@ import {
 } from '../components/FormFields'
 import { FormSection } from '../components/FormSection'
 
-type EditableField = keyof InsuranceApplicationFormData
+type EditableField = Exclude<keyof InsuranceApplicationFormData, 'customerId'>
 const AUTO_SAVE_INTERVAL_MS = 5000
 
 function normalizeFormData(source: Partial<InsuranceApplicationFormData>): InsuranceApplicationFormData {
   const normalized = createEmptyApplicationForm()
-  const keys = Object.keys(normalized) as EditableField[]
+  const keys = Object.keys(normalized) as Array<keyof InsuranceApplicationFormData>
   for (const key of keys) {
+    if (key === 'customerId') {
+      const raw = source.customerId
+      const n = typeof raw === 'number' ? raw : Number(raw)
+      normalized.customerId = Number.isInteger(n) && n > 0 ? n : 0
+      continue
+    }
     const nextValue = source[key]
     if (typeof nextValue !== 'undefined') {
       ;(normalized as unknown as Record<string, string | boolean>)[key] =
@@ -77,6 +83,16 @@ export function ApplicationFormPage() {
   const [lastSavedSignature, setLastSavedSignature] = useState('')
   const [customerQuery, setCustomerQuery] = useState('')
   const [customerHits, setCustomerHits] = useState<CustomerRecord[]>([])
+
+  const duplicateCustomerHitNames = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const c of customerHits) {
+      counts.set(c.name, (counts.get(c.name) ?? 0) + 1)
+    }
+    return new Set(
+      [...counts.entries()].filter(([, n]) => n > 1).map(([name]) => name),
+    )
+  }, [customerHits])
 
   useEffect(() => {
     let active = true
@@ -270,6 +286,7 @@ export function ApplicationFormPage() {
     setFormData((prev) => {
       const next: InsuranceApplicationFormData = {
         ...prev,
+        customerId: c.id,
         ownerName: c.name,
         ownerResidentNumber: c.ssn,
         ownerPhone: c.phone,
@@ -280,6 +297,10 @@ export function ApplicationFormPage() {
         job: c.job,
         driving: c.driving,
         medical: c.medical,
+        vehicleNumber: c.carNumber || prev.vehicleNumber,
+        vehicleModel: c.carModel || prev.vehicleModel,
+        vehicleYear: c.carYear || prev.vehicleYear,
+        expiryDate: c.renewalDate ? c.renewalDate : prev.expiryDate,
       }
       if (prev.payerSameAsOwner) {
         return syncPayerFields(next)
@@ -317,7 +338,7 @@ export function ApplicationFormPage() {
       return
     }
     try {
-      await saveCustomer(token, {
+      const created = await saveCustomer(token, {
         name,
         ssn: formData.ownerResidentNumber,
         phone: formData.ownerPhone,
@@ -329,6 +350,7 @@ export function ApplicationFormPage() {
         driving: formData.driving,
         medical: formData.medical,
       })
+      setFormData((prev) => ({ ...prev, customerId: created.id }))
       setStatusText('고객 DB에 저장했습니다.')
       const rows = await searchCustomers(token, customerQuery)
       setCustomerHits(rows)
@@ -392,7 +414,13 @@ export function ApplicationFormPage() {
             {customerHits.map((c) => (
               <li key={c.id} className="customer-hit-list__item">
                 <span className="customer-hit-list__meta">
-                  {c.name} · {c.phone || '전화 없음'}
+                  <span style={{ color: duplicateCustomerHitNames.has(c.name) ? '#c00' : 'inherit' }}>
+                    {c.name}
+                  </span>
+                  {' / '}
+                  {c.phone || '—'}
+                  {' / '}
+                  {c.ssn || '—'}
                 </span>
                 <div className="customer-hit-list__actions">
                   <button className="button button--secondary" type="button" disabled={isReadOnly} onClick={() => applyCustomer(c)}>

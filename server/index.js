@@ -79,9 +79,13 @@ function mapFormRow(row) {
   const customerName = row.customer_name || formData.ownerName || ''
   const carNumber = row.car_number || formData.vehicleNumber || ''
   const expiryDate = normalizeExpiryDate(row.expiry_date ?? formData.expiryDate ?? '')
+  const dbCid = row.customer_id != null ? Number(row.customer_id) : NaN
+  const customerId =
+    Number.isInteger(dbCid) && dbCid > 0 ? dbCid : Math.max(0, Number(formData.customerId) || 0)
 
   return {
     ...formData,
+    customerId,
     expiryDate,
     id: String(row.id),
     userId: String(row.user_id),
@@ -94,6 +98,12 @@ function mapFormRow(row) {
 }
 
 function mapCustomerRow(row) {
+  const renewalRaw = row.renewal_date ?? ''
+  const renewalDate =
+    renewalRaw instanceof Date
+      ? normalizeExpiryDate(renewalRaw.toISOString().slice(0, 10))
+      : normalizeExpiryDate(String(renewalRaw))
+
   return {
     id: Number(row.id),
     userId: String(row.user_id),
@@ -107,6 +117,10 @@ function mapCustomerRow(row) {
     job: row.job ?? '',
     driving: row.driving ?? '',
     medical: row.medical ?? '',
+    carNumber: row.car_number ?? '',
+    carModel: row.car_model ?? '',
+    carYear: row.car_year ?? '',
+    renewalDate,
     createdAt: toIsoString(row.created_at),
   }
 }
@@ -129,6 +143,37 @@ function normalizeUserRole(value) {
 
 function escapeIlikePattern(raw) {
   return String(raw ?? '').replace(/[\\%_]/g, (ch) => `\\${ch}`)
+}
+
+function resolveLinkedCustomerIdFromRequest(body, formData) {
+  const raw = body?.customer_id ?? body?.customerId ?? formData?.customerId
+  if (raw === undefined || raw === null || raw === '') {
+    return null
+  }
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 1) {
+    return null
+  }
+  return n
+}
+
+async function assertCustomerOwnedByUser(customerId, userId) {
+  if (customerId == null) {
+    return true
+  }
+  const r = await pool.query(`SELECT 1 FROM customers WHERE id = $1 AND user_id = $2`, [customerId, userId])
+  return r.rowCount > 0
+}
+
+async function assertCustomerActiveAndOwnedByUser(customerId, userId) {
+  if (customerId == null) {
+    return false
+  }
+  const r = await pool.query(
+    `SELECT 1 FROM customers WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+    [customerId, userId],
+  )
+  return r.rowCount > 0
 }
 
 function mapContactRow(row) {
@@ -757,7 +802,7 @@ apiRouter.get('/forms', requireAuth, async (req, res) => {
 
     const result = await pool.query(
       `
-      SELECT id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      SELECT id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
       WHERE user_id = $1
       ORDER BY created_at DESC, id DESC
@@ -780,7 +825,7 @@ apiRouter.get('/forms/expiring', requireAuth, async (req, res) => {
 
     const result = await pool.query(
       `
-      SELECT id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      SELECT id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
       WHERE user_id = $1
         AND expiry_date IS NOT NULL
@@ -811,25 +856,38 @@ apiRouter.post('/forms', requireAuth, async (req, res) => {
       return
     }
 
+    const linkedId = resolveLinkedCustomerIdFromRequest(req.body, formData)
+    let customerIdFk = null
+    if (linkedId != null) {
+      const usable = await assertCustomerActiveAndOwnedByUser(linkedId, userId)
+      if (!usable) {
+        res.status(400).json({ message: '유효하지 않은 고객 연결입니다.' })
+        return
+      }
+      customerIdFk = linkedId
+    }
+
+    const mergedForm = { ...formData, customerId: customerIdFk ?? 0 }
+
     const id = randomUUID()
     const customerName = String(
-      req.body.customer_name ?? req.body.customerName ?? formData.ownerName ?? '',
+      req.body.customer_name ?? req.body.customerName ?? mergedForm.ownerName ?? '',
     )
     const carNumber = String(
-      req.body.car_number ?? req.body.carNumber ?? formData.vehicleNumber ?? '',
+      req.body.car_number ?? req.body.carNumber ?? mergedForm.vehicleNumber ?? '',
     )
     const expiryDate = normalizeExpiryDate(
-      req.body.expiry_date ?? req.body.expiryDate ?? formData.expiryDate ?? '',
+      req.body.expiry_date ?? req.body.expiryDate ?? mergedForm.expiryDate ?? '',
     )
 
     const inserted = await pool.query(
       `
       INSERT INTO insurance_forms (
-        id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW(), NOW())
-      RETURNING id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+        id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW(), NOW())
+      RETURNING id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       `,
-      [id, userId, customerName, carNumber, expiryDate || null, JSON.stringify(formData)],
+      [id, userId, customerIdFk, customerName, carNumber, expiryDate || null, JSON.stringify(mergedForm)],
     )
 
     await logInsuranceFormsDbDiagnostics('post')
@@ -849,7 +907,7 @@ apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
 
     const result = await pool.query(
       `
-      SELECT id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      SELECT id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
       WHERE id = $1 AND user_id = $2
       `,
@@ -861,6 +919,9 @@ apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
       res.status(404).json({ message: '신청서를 찾을 수 없습니다.' })
       return
     }
+
+    const renewedCustomerId =
+      original.customer_id != null && original.customer_id !== '' ? Number(original.customer_id) : null
 
     let newExpiry = ''
     const rawExpiry = original.expiry_date ?? original.form_data?.expiryDate ?? ''
@@ -881,6 +942,11 @@ apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
         : {}
     if (newExpiry) {
       prevFormData.expiryDate = newExpiry
+    }
+    if (Number.isInteger(renewedCustomerId) && renewedCustomerId > 0) {
+      prevFormData.customerId = renewedCustomerId
+    } else {
+      prevFormData.customerId = 0
     }
 
     if (newExpiry) {
@@ -904,13 +970,14 @@ apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
     const insert = await pool.query(
       `
       INSERT INTO insurance_forms (
-        id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW(), NOW())
-      RETURNING id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+        id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW(), NOW())
+      RETURNING id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       `,
       [
         newId,
         userId,
+        Number.isInteger(renewedCustomerId) && renewedCustomerId > 0 ? renewedCustomerId : null,
         customerName,
         carNumber,
         newExpiry || null,
@@ -945,7 +1012,9 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
       INSERT INTO customers (
         user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      RETURNING id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical, created_at
+      RETURNING
+        id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        car_number, car_model, car_year, renewal_date, created_at
       `,
       [
         userId,
@@ -968,6 +1037,52 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
   }
 })
 
+apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+
+    const customerId = Number(req.params.id)
+    if (!Number.isInteger(customerId) || customerId < 1) {
+      res.status(400).json({ message: '잘못된 고객 ID입니다.' })
+      return
+    }
+
+    const data = req.body ?? {}
+    const carNumber = String(data.carNumber ?? data.car_number ?? '').trim()
+    const carModel = String(data.carModel ?? data.car_model ?? '').trim()
+    const carYear = String(data.carYear ?? data.car_year ?? '').trim()
+    const renewalDate = normalizeExpiryDate(String(data.renewalDate ?? data.renewal_date ?? ''))
+
+    const updated = await pool.query(
+      `
+      UPDATE customers
+      SET
+        car_number = $1,
+        car_model = $2,
+        car_year = $3,
+        renewal_date = $4
+      WHERE id = $5 AND user_id = $6 AND deleted_at IS NULL
+      RETURNING
+        id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        car_number, car_model, car_year, renewal_date, created_at
+      `,
+      [carNumber, carModel, carYear, renewalDate || null, customerId, userId],
+    )
+
+    if (updated.rowCount === 0) {
+      res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+      return
+    }
+
+    res.json({ success: true, data: mapCustomerRow(updated.rows[0]) })
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
 apiRouter.get('/customers/search', requireAuth, async (req, res) => {
   try {
     const userId = requireInsuranceFormUserId(req, res)
@@ -980,11 +1095,13 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
     if (!q) {
       result = await pool.query(
         `
-        SELECT id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical, created_at
+        SELECT
+          id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+          car_number, car_model, car_year, renewal_date, created_at
         FROM customers
-        WHERE user_id = $1
+        WHERE user_id = $1 AND deleted_at IS NULL
         ORDER BY created_at DESC
-        LIMIT 20
+        LIMIT 2000
         `,
         [userId],
       )
@@ -992,18 +1109,119 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
       const pattern = `%${escapeIlikePattern(q)}%`
       result = await pool.query(
         `
-        SELECT id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical, created_at
+        SELECT
+          id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+          car_number, car_model, car_year, renewal_date, created_at
         FROM customers
-        WHERE user_id = $1
+        WHERE user_id = $1 AND deleted_at IS NULL
           AND (name ILIKE $2 ESCAPE '\\' OR phone ILIKE $2 ESCAPE '\\')
         ORDER BY created_at DESC
-        LIMIT 20
+        LIMIT 2000
         `,
         [userId, pattern],
       )
     }
 
     res.json(result.rows.map(mapCustomerRow))
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.get('/customers', requireAuth, async (req, res) => {
+  try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+
+    const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 2000)
+    const result = await pool.query(
+      `
+      SELECT
+        id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        car_number, car_model, car_year, renewal_date, created_at
+      FROM customers
+      WHERE user_id = $1 AND deleted_at IS NULL
+      ORDER BY renewal_date ASC NULLS LAST, created_at DESC
+      LIMIT $2
+      `,
+      [userId, limit],
+    )
+
+    res.json(result.rows.map(mapCustomerRow))
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.get('/customers/:id/forms', requireAuth, async (req, res) => {
+  try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+
+    const customerId = Number(req.params.id)
+    if (!Number.isInteger(customerId) || customerId < 1) {
+      res.status(400).json({ message: '잘못된 고객 ID입니다.' })
+      return
+    }
+
+    const check = await pool.query(`SELECT 1 FROM customers WHERE id = $1 AND user_id = $2`, [
+      customerId,
+      userId,
+    ])
+
+    if (check.rowCount === 0) {
+      res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+      return
+    }
+
+    const forms = await pool.query(
+      `
+      SELECT id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      FROM insurance_forms
+      WHERE user_id = $1 AND customer_id = $2
+      ORDER BY created_at DESC
+      `,
+      [userId, customerId],
+    )
+
+    res.json(forms.rows.map(mapFormRow))
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.delete('/customers/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+
+    const customerId = Number(req.params.id)
+    if (!Number.isInteger(customerId) || customerId < 1) {
+      res.status(400).json({ message: '잘못된 고객 ID입니다.' })
+      return
+    }
+
+    const deleted = await pool.query(
+      `
+      UPDATE customers
+      SET deleted_at = NOW()
+      WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+      `,
+      [customerId, userId],
+    )
+
+    if (deleted.rowCount === 0) {
+      res.status(404).json({ message: '고객을 찾을 수 없거나 이미 삭제되었습니다.' })
+      return
+    }
+
+    res.json({ success: true })
   } catch (error) {
     handleDbError(error, res)
   }
@@ -1018,7 +1236,7 @@ apiRouter.get('/forms/:id', requireAuth, async (req, res) => {
 
     const result = await pool.query(
       `
-      SELECT id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      SELECT id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
       WHERE id = $1 AND user_id = $2
       `,
@@ -1051,28 +1269,70 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
       return
     }
 
+    const existingForm = await pool.query(
+      `SELECT customer_id FROM insurance_forms WHERE id = $1 AND user_id = $2`,
+      [req.params.id, userId],
+    )
+    if (existingForm.rowCount === 0) {
+      res.status(404).json({ message: '수정할 신청서를 찾을 수 없습니다.' })
+      return
+    }
+    const prevFormCustomerId =
+      existingForm.rows[0].customer_id != null && existingForm.rows[0].customer_id !== ''
+        ? Number(existingForm.rows[0].customer_id)
+        : null
+
+    const linkedId = resolveLinkedCustomerIdFromRequest(req.body, formData)
+    let customerIdFk = null
+    if (linkedId != null) {
+      const owned = await assertCustomerOwnedByUser(linkedId, userId)
+      if (!owned) {
+        res.status(400).json({ message: '유효하지 않은 고객 연결입니다.' })
+        return
+      }
+      const active = await assertCustomerActiveAndOwnedByUser(linkedId, userId)
+      if (!active) {
+        const sameAsBefore =
+          prevFormCustomerId != null && Number.isInteger(prevFormCustomerId) && prevFormCustomerId === linkedId
+        if (!sameAsBefore) {
+          res.status(400).json({ message: '삭제 처리된 고객에는 새로 연결할 수 없습니다.' })
+          return
+        }
+      }
+      customerIdFk = linkedId
+    }
+
+    const mergedForm = { ...formData, customerId: customerIdFk ?? 0 }
+
     const customerName = String(
-      req.body.customer_name ?? req.body.customerName ?? formData.ownerName ?? '',
+      req.body.customer_name ?? req.body.customerName ?? mergedForm.ownerName ?? '',
     )
     const carNumber = String(
-      req.body.car_number ?? req.body.carNumber ?? formData.vehicleNumber ?? '',
+      req.body.car_number ?? req.body.carNumber ?? mergedForm.vehicleNumber ?? '',
     )
     const expiryDate = normalizeExpiryDate(
-      req.body.expiry_date ?? req.body.expiryDate ?? formData.expiryDate ?? '',
+      req.body.expiry_date ?? req.body.expiryDate ?? mergedForm.expiryDate ?? '',
     )
 
     const updated = await pool.query(
       `
       UPDATE insurance_forms
-      SET customer_name = $1, car_number = $2, expiry_date = $3, form_data = $4::jsonb, updated_at = NOW()
-      WHERE id = $5 AND user_id = $6
-      RETURNING id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      SET
+        customer_id = $1,
+        customer_name = $2,
+        car_number = $3,
+        expiry_date = $4,
+        form_data = $5::jsonb,
+        updated_at = NOW()
+      WHERE id = $6 AND user_id = $7
+      RETURNING id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       `,
       [
+        customerIdFk,
         customerName,
         carNumber,
         expiryDate || null,
-        JSON.stringify(formData),
+        JSON.stringify(mergedForm),
         req.params.id,
         userId,
       ],

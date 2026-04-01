@@ -39,6 +39,11 @@ function sanitizeFormData(payload: InsuranceApplicationFormData): InsuranceAppli
   const sanitized = createEmptyApplicationForm()
   const keys = Object.keys(sanitized) as Array<keyof InsuranceApplicationFormData>
   for (const key of keys) {
+    if (key === 'customerId') {
+      const n = Number(payload.customerId)
+      sanitized.customerId = Number.isInteger(n) && n > 0 ? n : 0
+      continue
+    }
     ;(sanitized as unknown as Record<string, string | boolean>)[key] =
       payload[key] as string | boolean
   }
