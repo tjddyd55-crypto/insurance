@@ -141,6 +141,22 @@ export async function deleteApplication(id: string, token: string): Promise<void
   })
 }
 
+export async function renewApplication(
+  id: string,
+  token: string,
+): Promise<InsuranceApplicationRecord> {
+  requireBearerToken(token)
+  const payload = await apiRequest<{ success: boolean; data: InsuranceApplicationRecord }>(
+    `/api/forms/${id}/renew`,
+    {
+      method: 'POST',
+      token,
+      body: JSON.stringify({}),
+    },
+  )
+  return mapRecord(payload.data)
+}
+
 export function saveDraft(
   data: InsuranceApplicationFormData,
   userId?: string,

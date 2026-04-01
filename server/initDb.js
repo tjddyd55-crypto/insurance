@@ -20,7 +20,7 @@ async function maybeDebugResetAllUsers() {
 
 /**
  * INSURANCE_ENABLE_ADMIN_BOOTSTRAP=true 일 때만 동작.
- * admin 계정이 없으면 bcrypt 해시로 생성한다.
+ * 없으면 super_admin으로 생성하고, 이미 있으면 비밀번호·역할을 env 기준으로 갱신한다.
  */
 async function ensureBootstrapAdminUser() {
   if (process.env.INSURANCE_ENABLE_ADMIN_BOOTSTRAP !== 'true') {
@@ -29,24 +29,33 @@ async function ensureBootstrapAdminUser() {
 
   const username = String(process.env.INSURANCE_ADMIN_BOOTSTRAP_USERNAME || 'admin').trim()
   const password = process.env.INSURANCE_ADMIN_BOOTSTRAP_PASSWORD || '1234'
+  const hash = await bcrypt.hash(password, 10)
 
-  const existing = await pool.query(`SELECT * FROM users WHERE username = $1`, [username])
-  if (existing.rowCount > 0) {
-    console.log('[initDb] admin 이미 존재 → 생성 스킵:', username)
+  const existing = await pool.query(`SELECT id FROM users WHERE username = $1`, [username])
+
+  if (existing.rowCount === 0) {
+    console.log('[initDb] admin 계정 생성 시작:', username)
+    const id = randomUUID()
+    await pool.query(
+      `
+      INSERT INTO users (id, username, password_hash, role)
+      VALUES ($1, $2, $3, 'super_admin')
+      `,
+      [id, username, hash],
+    )
+    console.log('[initDb] admin 생성 완료')
     return
   }
 
-  console.log('[initDb] admin 계정 생성 시작:', username)
-  const hash = await bcrypt.hash(password, 10)
-  const id = randomUUID()
   await pool.query(
     `
-    INSERT INTO users (id, username, password_hash)
-    VALUES ($1, $2, $3)
+    UPDATE users
+    SET password_hash = $1, role = 'super_admin'
+    WHERE username = $2
     `,
-    [id, username, hash],
+    [hash, username],
   )
-  console.log('[initDb] admin 계정 생성 완료')
+  console.log('[initDb] admin 비밀번호·역할(super_admin) 업데이트 완료:', username)
 }
 
 export async function initDb() {
@@ -57,6 +66,11 @@ export async function initDb() {
       password_hash TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `)
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user'
   `)
 
   await pool.query(`
@@ -102,6 +116,39 @@ export async function initDb() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_forms_user_updated
     ON insurance_forms(user_id, updated_at DESC)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customers (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL DEFAULT '',
+      ssn TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      carrier TEXT NOT NULL DEFAULT '',
+      address TEXT NOT NULL DEFAULT '',
+      height TEXT NOT NULL DEFAULT '',
+      weight TEXT NOT NULL DEFAULT '',
+      job TEXT NOT NULL DEFAULT '',
+      driving TEXT NOT NULL DEFAULT '',
+      medical TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customers_user_search
+    ON customers(user_id, created_at DESC)
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customers_user_id
+    ON customers(user_id)
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customers_search
+    ON customers(user_id, name, phone)
   `)
 
   await pool.query(`

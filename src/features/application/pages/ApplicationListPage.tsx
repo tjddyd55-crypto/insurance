@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import type { InsuranceApplicationRecord } from '../domain/types'
-import { deleteApplication, listApplications } from '../repository/applicationRepository'
+import {
+  deleteApplication,
+  listApplications,
+  renewApplication,
+} from '../repository/applicationRepository'
 import { formatKoreanDateTime } from '../utils/date'
 import { useAuth } from '../../auth/AuthProvider'
 
@@ -38,6 +42,24 @@ export function ApplicationListPage() {
       active = false
     }
   }, [location.key, token])
+
+  const handleRenew = async (id: string) => {
+    if (!token) {
+      return
+    }
+    const ok = window.confirm(
+      '만기일(또는 만기일자 필드)을 기준으로 1년 연장한 새 신청서를 만듭니다. 계속할까요?',
+    )
+    if (!ok) {
+      return
+    }
+    try {
+      const created = await renewApplication(id, token)
+      navigate(`/form/${created.id}/edit`)
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : '갱신 신청서 생성에 실패했습니다.')
+    }
+  }
 
   const handleDelete = async (id: string) => {
     if (!token) {
@@ -98,6 +120,13 @@ export function ApplicationListPage() {
                     onClick={() => navigate(`/form/${record.id}/edit`)}
                   >
                     수정
+                  </button>
+                  <button
+                    className="button button--secondary"
+                    type="button"
+                    onClick={() => void handleRenew(record.id)}
+                  >
+                    갱신(1년)
                   </button>
                   <button
                     className="button"

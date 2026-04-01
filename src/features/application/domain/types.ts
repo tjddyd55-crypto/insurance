@@ -37,6 +37,13 @@ export interface InsuranceApplicationFormData {
   ownerPhone: string
   ownerResidentNumber: string
   ownerAddress: string
+  /** 통신사·카톡 복사용(고객 DB carrier와 동일) */
+  carrier: string
+  height: string
+  weight: string
+  job: string
+  driving: string
+  medical: string
   payerSameAsOwner: boolean
   payerName: string
   payerPhone: string

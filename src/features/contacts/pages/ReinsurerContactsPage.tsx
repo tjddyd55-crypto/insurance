@@ -16,9 +16,6 @@ import type {
 } from '../domain/types'
 import { formatPhoneNumber, normalizePhoneNumber } from '../utils/phone'
 
-const ADMIN_USERNAME =
-  (import.meta.env.VITE_INSURANCE_CONTACT_ADMIN_USERNAME as string | undefined) || 'admin'
-
 const CATEGORY_LABELS: Record<InsuranceContactCategory, string> = {
   LIFE: '생명보험',
   NON_LIFE: '손해보험',
@@ -60,7 +57,8 @@ function toPayload(form: ContactFormState): UpsertInsuranceContactPayload {
 export function ReinsurerContactsPage() {
   const navigate = useNavigate()
   const { user, token, isAuthenticated } = useAuth()
-  const isAdmin = isAuthenticated && user?.username === ADMIN_USERNAME
+  const isAdmin =
+    isAuthenticated && !!user && ['staff', 'super_admin'].includes(user.role)
   const [contacts, setContacts] = useState<InsuranceContact[]>([])
   const [lastUpdatedAt, setLastUpdatedAt] = useState('')
   const [searchText, setSearchText] = useState('')

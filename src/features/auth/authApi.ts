@@ -1,8 +1,11 @@
 import { ApiError, apiRequest } from '../../lib/apiClient'
 
+export type UserRole = 'super_admin' | 'staff' | 'user'
+
 export interface AuthUser {
   id: string
   username: string
+  role: UserRole
 }
 
 export interface LoginResponse {

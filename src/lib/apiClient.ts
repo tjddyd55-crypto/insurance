@@ -49,9 +49,15 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     return undefined as T
   }
 
-  const payload = (await response.json().catch(() => ({}))) as { message?: string }
+  const payload = (await response.json().catch(() => ({}))) as {
+    message?: string
+    error?: string
+  }
   if (!response.ok) {
-    throw new ApiError(payload.message ?? '요청 처리에 실패했습니다.', response.status)
+    throw new ApiError(
+      payload.message ?? payload.error ?? '요청 처리에 실패했습니다.',
+      response.status,
+    )
   }
 
   return payload as T

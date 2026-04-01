@@ -10,11 +10,7 @@ import { initDb } from './initDb.js'
 const PORT = Number(process.env.PORT ?? 3001)
 const JWT_SECRET = process.env.JWT_SECRET ?? 'change-this-in-production'
 const DEFAULT_JWT_SECRET = 'change-this-in-production'
-const INSURANCE_CONTACT_ADMIN_USERNAME = (
-  process.env.INSURANCE_CONTACT_ADMIN_USERNAME ||
-  process.env.INSURANCE_ADMIN_BOOTSTRAP_USERNAME ||
-  'admin'
-).trim()
+const VALID_USER_ROLES = ['super_admin', 'staff', 'user']
 const RUNNING_IN_PRODUCTION =
   process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT)
 const DIST_PATH = path.join(process.cwd(), 'dist')
@@ -97,6 +93,24 @@ function mapFormRow(row) {
   }
 }
 
+function mapCustomerRow(row) {
+  return {
+    id: Number(row.id),
+    userId: String(row.user_id),
+    name: row.name ?? '',
+    ssn: row.ssn ?? '',
+    phone: row.phone ?? '',
+    carrier: row.carrier ?? '',
+    address: row.address ?? '',
+    height: row.height ?? '',
+    weight: row.weight ?? '',
+    job: row.job ?? '',
+    driving: row.driving ?? '',
+    medical: row.medical ?? '',
+    createdAt: toIsoString(row.created_at),
+  }
+}
+
 function normalizePhoneNumber(value) {
   return String(value ?? '').replace(/\D/g, '')
 }
@@ -106,6 +120,15 @@ function normalizeCategory(value) {
     return ''
   }
   return value.trim().toUpperCase()
+}
+
+function normalizeUserRole(value) {
+  const r = typeof value === 'string' ? value.trim() : ''
+  return VALID_USER_ROLES.includes(r) ? r : 'user'
+}
+
+function escapeIlikePattern(raw) {
+  return String(raw ?? '').replace(/[\\%_]/g, (ch) => `\\${ch}`)
 }
 
 function mapContactRow(row) {
@@ -245,6 +268,7 @@ function requireAuth(req, res, next) {
     req.user = {
       id: String(userId),
       username: typeof decoded.username === 'string' ? decoded.username : '',
+      role: normalizeUserRole(decoded.role),
     }
 
     if (req.originalUrl?.includes('/forms')) {
@@ -259,8 +283,17 @@ function requireAuth(req, res, next) {
   }
 }
 
-function requireInsuranceContactAdmin(req, res, next) {
-  if (!req.user || req.user.username !== INSURANCE_CONTACT_ADMIN_USERNAME) {
+/** super_admin 전용 API(예: 계정/시스템 설정)에 그대로 연결하면 됩니다. */
+function requireSuperAdmin(req, res, next) {
+  if (!req.user || req.user.role !== 'super_admin') {
+    res.status(403).json({ message: '전체 관리자 권한이 필요합니다.' })
+    return
+  }
+  next()
+}
+
+function requireStaffOrAdmin(req, res, next) {
+  if (!req.user || !['staff', 'super_admin'].includes(req.user.role)) {
     res.status(403).json({ message: '원수사 연락처 관리 권한이 없습니다.' })
     return
   }
@@ -391,11 +424,13 @@ apiRouter.post('/login', async (req, res) => {
     }
 
     const uid = String(user.id)
+    const role = normalizeUserRole(user.role)
     const token = jwt.sign(
       {
         userId: user.id,
         sub: user.id,
         username: user.username,
+        role,
       },
       JWT_SECRET,
       { expiresIn: '7d' },
@@ -406,6 +441,7 @@ apiRouter.post('/login', async (req, res) => {
       user: {
         id: uid,
         username: user.username,
+        role,
       },
     })
   } catch (error) {
@@ -515,7 +551,7 @@ apiRouter.get('/insurance/contacts/:id/vcard', async (req, res) => {
   }
 })
 
-apiRouter.post('/admin/insurance/contacts', requireAuth, requireInsuranceContactAdmin, async (req, res) => {
+apiRouter.post('/admin/insurance/contacts', requireAuth, requireStaffOrAdmin, async (req, res) => {
   try {
     const category = normalizeCategory(req.body?.category)
     const companyName = String(req.body?.companyName ?? req.body?.company_name ?? '').trim()
@@ -565,7 +601,7 @@ apiRouter.post('/admin/insurance/contacts', requireAuth, requireInsuranceContact
   }
 })
 
-apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireInsuranceContactAdmin, async (req, res) => {
+apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireStaffOrAdmin, async (req, res) => {
   try {
     const contactId = req.params.id
     const category = normalizeCategory(req.body?.category)
@@ -650,7 +686,7 @@ apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireInsuranceCont
   }
 })
 
-apiRouter.delete('/admin/insurance/contacts/:id', requireAuth, requireInsuranceContactAdmin, async (req, res) => {
+apiRouter.delete('/admin/insurance/contacts/:id', requireAuth, requireStaffOrAdmin, async (req, res) => {
   try {
     const contactId = req.params.id
     const description = String(req.body?.description ?? '연락처 삭제').trim()
@@ -799,6 +835,175 @@ apiRouter.post('/forms', requireAuth, async (req, res) => {
     await logInsuranceFormsDbDiagnostics('post')
 
     res.status(201).json(mapFormRow(inserted.rows[0]))
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
+  try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+
+    const result = await pool.query(
+      `
+      SELECT id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      FROM insurance_forms
+      WHERE id = $1 AND user_id = $2
+      `,
+      [req.params.id, userId],
+    )
+
+    const original = result.rows[0]
+    if (!original) {
+      res.status(404).json({ message: '신청서를 찾을 수 없습니다.' })
+      return
+    }
+
+    let newExpiry = ''
+    const rawExpiry = original.expiry_date ?? original.form_data?.expiryDate ?? ''
+    const normalizedBase = normalizeExpiryDate(
+      rawExpiry instanceof Date ? rawExpiry.toISOString().slice(0, 10) : String(rawExpiry),
+    )
+    if (normalizedBase) {
+      const d = new Date(`${normalizedBase}T12:00:00.000Z`)
+      if (!Number.isNaN(d.getTime())) {
+        d.setUTCFullYear(d.getUTCFullYear() + 1)
+        newExpiry = d.toISOString().slice(0, 10)
+      }
+    }
+
+    const prevFormData =
+      original.form_data && typeof original.form_data === 'object' && !Array.isArray(original.form_data)
+        ? { ...original.form_data }
+        : {}
+    if (newExpiry) {
+      prevFormData.expiryDate = newExpiry
+    }
+
+    if (newExpiry) {
+      const check = await pool.query(
+        `
+        SELECT id FROM insurance_forms
+        WHERE user_id = $1 AND expiry_date = $2
+        `,
+        [userId, newExpiry],
+      )
+      if (check.rowCount > 0) {
+        res.status(400).json({ error: '이미 갱신된 신청서 있음' })
+        return
+      }
+    }
+
+    const newId = randomUUID()
+    const customerName = String(original.customer_name ?? prevFormData.ownerName ?? '')
+    const carNumber = String(original.car_number ?? prevFormData.vehicleNumber ?? '')
+
+    const insert = await pool.query(
+      `
+      INSERT INTO insurance_forms (
+        id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW(), NOW())
+      RETURNING id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      `,
+      [
+        newId,
+        userId,
+        customerName,
+        carNumber,
+        newExpiry || null,
+        JSON.stringify(prevFormData),
+      ],
+    )
+
+    await logInsuranceFormsDbDiagnostics('renew')
+
+    res.status(201).json({ success: true, data: mapFormRow(insert.rows[0]) })
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.post('/customers', requireAuth, async (req, res) => {
+  try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+
+    const data = req.body ?? {}
+    const name = String(data.name ?? '').trim()
+    if (!name) {
+      res.status(400).json({ message: '고객 이름은 필수입니다.' })
+      return
+    }
+
+    const inserted = await pool.query(
+      `
+      INSERT INTO customers (
+        user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical, created_at
+      `,
+      [
+        userId,
+        name,
+        String(data.ssn ?? '').trim(),
+        String(data.phone ?? '').trim(),
+        String(data.carrier ?? '').trim(),
+        String(data.address ?? '').trim(),
+        String(data.height ?? '').trim(),
+        String(data.weight ?? '').trim(),
+        String(data.job ?? '').trim(),
+        String(data.driving ?? '').trim(),
+        String(data.medical ?? '').trim(),
+      ],
+    )
+
+    res.status(201).json({ success: true, data: mapCustomerRow(inserted.rows[0]) })
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.get('/customers/search', requireAuth, async (req, res) => {
+  try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+
+    const q = String(req.query.q ?? '').trim()
+    let result
+    if (!q) {
+      result = await pool.query(
+        `
+        SELECT id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical, created_at
+        FROM customers
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT 20
+        `,
+        [userId],
+      )
+    } else {
+      const pattern = `%${escapeIlikePattern(q)}%`
+      result = await pool.query(
+        `
+        SELECT id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical, created_at
+        FROM customers
+        WHERE user_id = $1
+          AND (name ILIKE $2 ESCAPE '\\' OR phone ILIKE $2 ESCAPE '\\')
+        ORDER BY created_at DESC
+        LIMIT 20
+        `,
+        [userId, pattern],
+      )
+    }
+
+    res.json(result.rows.map(mapCustomerRow))
   } catch (error) {
     handleDbError(error, res)
   }

@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import { saveCustomer, searchCustomers } from '../../customers/api/customersApi'
+import type { CustomerRecord } from '../../customers/domain/types'
+import { generateCustomerText } from '../../customers/utils/customerText'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   CONTRACT_TYPES,
@@ -72,6 +75,8 @@ export function ApplicationFormPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isReadOnly, setIsReadOnly] = useState(false)
   const [lastSavedSignature, setLastSavedSignature] = useState('')
+  const [customerQuery, setCustomerQuery] = useState('')
+  const [customerHits, setCustomerHits] = useState<CustomerRecord[]>([])
 
   useEffect(() => {
     let active = true
@@ -125,6 +130,31 @@ export function ApplicationFormPage() {
       active = false
     }
   }, [id, location.search, token, user?.id])
+
+  useEffect(() => {
+    if (!token || isReadOnly) {
+      setCustomerHits([])
+      return
+    }
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void searchCustomers(token, customerQuery)
+        .then((rows) => {
+          if (!cancelled) {
+            setCustomerHits(rows)
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setCustomerHits([])
+          }
+        })
+    }, 300)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [customerQuery, token, isReadOnly])
 
   useEffect(() => {
     if (isLoading || isReadOnly || !token) {
@@ -233,6 +263,80 @@ export function ApplicationFormPage() {
     }
   }
 
+  const applyCustomer = (c: CustomerRecord) => {
+    if (isReadOnly) {
+      return
+    }
+    setFormData((prev) => {
+      const next: InsuranceApplicationFormData = {
+        ...prev,
+        ownerName: c.name,
+        ownerResidentNumber: c.ssn,
+        ownerPhone: c.phone,
+        ownerAddress: c.address,
+        carrier: c.carrier,
+        height: c.height,
+        weight: c.weight,
+        job: c.job,
+        driving: c.driving,
+        medical: c.medical,
+      }
+      if (prev.payerSameAsOwner) {
+        return syncPayerFields(next)
+      }
+      return {
+        ...next,
+        payerName: c.name,
+        payerPhone: c.phone,
+        payerResidentNumber: c.ssn,
+        payerAddress: c.address,
+      }
+    })
+    setStatusText(`고객 "${c.name}" 정보를 신청서에 적용했습니다.`)
+  }
+
+  const copyCustomerRecord = async (c: CustomerRecord) => {
+    const text = generateCustomerText(c)
+    try {
+      await navigator.clipboard.writeText(text)
+      window.alert('복사 완료 → 카톡 붙여넣기')
+      setStatusText('고객 정보를 클립보드에 복사했습니다.')
+    } catch {
+      setStatusText('클립보드 복사에 실패했습니다.')
+    }
+  }
+
+  const handleSaveCustomerFromForm = async () => {
+    if (!token || isReadOnly) {
+      setStatusText('로그인 후 저장할 수 있습니다.')
+      return
+    }
+    const name = formData.ownerName.trim()
+    if (!name) {
+      setStatusText('소유자 이름을 입력한 뒤 고객으로 저장할 수 있습니다.')
+      return
+    }
+    try {
+      await saveCustomer(token, {
+        name,
+        ssn: formData.ownerResidentNumber,
+        phone: formData.ownerPhone,
+        carrier: formData.carrier,
+        address: formData.ownerAddress,
+        height: formData.height,
+        weight: formData.weight,
+        job: formData.job,
+        driving: formData.driving,
+        medical: formData.medical,
+      })
+      setStatusText('고객 DB에 저장했습니다.')
+      const rows = await searchCustomers(token, customerQuery)
+      setCustomerHits(rows)
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : '고객 저장에 실패했습니다.')
+    }
+  }
+
   const handleViewResult = async () => {
     // 결과보기 진입 전 현재 폼을 항상 저장해 유효한 id를 확보한다.
     const saved = await handleSave('current', { navigateToEdit: false })
@@ -265,6 +369,44 @@ export function ApplicationFormPage() {
         <h1>{pageTitle}</h1>
         <p>{statusText}</p>
       </header>
+
+      <FormSection title="고객 DB (검색·불러오기)">
+        <TextInput
+          label="이름 또는 전화번호 검색"
+          value={customerQuery}
+          disabled={isReadOnly}
+          onChange={(value) => setCustomerQuery(value)}
+          helperText="입력 후 목록에서 신청서에 적용하거나 카톡용 문구를 복사합니다."
+        />
+        {!isReadOnly ? (
+          <div className="customer-db-actions">
+            <button className="button button--secondary" type="button" onClick={() => void handleSaveCustomerFromForm()}>
+              현재 소유자 정보를 고객으로 저장
+            </button>
+          </div>
+        ) : null}
+        {customerHits.length === 0 ? (
+          <p className="empty-state empty-state--inline">검색 결과가 없습니다.</p>
+        ) : (
+          <ul className="customer-hit-list">
+            {customerHits.map((c) => (
+              <li key={c.id} className="customer-hit-list__item">
+                <span className="customer-hit-list__meta">
+                  {c.name} · {c.phone || '전화 없음'}
+                </span>
+                <div className="customer-hit-list__actions">
+                  <button className="button button--secondary" type="button" disabled={isReadOnly} onClick={() => applyCustomer(c)}>
+                    신청서에 적용
+                  </button>
+                  <button className="button" type="button" onClick={() => void copyCustomerRecord(c)}>
+                    카톡 복사
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </FormSection>
 
       <FormSection title="기본 정보">
         <TextInput
@@ -335,6 +477,42 @@ export function ApplicationFormPage() {
           value={formData.ownerAddress}
           disabled={isReadOnly}
           onChange={(value) => updateField('ownerAddress', value)}
+        />
+        <TextInput
+          label="통신사 (고객 DB·카톡 복사용)"
+          value={formData.carrier}
+          disabled={isReadOnly}
+          onChange={(value) => updateField('carrier', value)}
+        />
+        <TextInput
+          label="키"
+          value={formData.height}
+          disabled={isReadOnly}
+          onChange={(value) => updateField('height', value)}
+        />
+        <TextInput
+          label="몸무게"
+          value={formData.weight}
+          disabled={isReadOnly}
+          onChange={(value) => updateField('weight', value)}
+        />
+        <TextInput
+          label="직업 / 회사명 / 하는 일 / 지역"
+          value={formData.job}
+          disabled={isReadOnly}
+          onChange={(value) => updateField('job', value)}
+        />
+        <TextInput
+          label="운전 여부"
+          value={formData.driving}
+          disabled={isReadOnly}
+          onChange={(value) => updateField('driving', value)}
+        />
+        <TextAreaInput
+          label="5년 이내 진단·수술·치료 여부 (건강 고지)"
+          value={formData.medical}
+          disabled={isReadOnly}
+          onChange={(value) => updateField('medical', value)}
         />
       </FormSection>
 
