@@ -172,6 +172,49 @@ function handleDbError(error, res) {
   res.status(500).json({ message: 'DB 처리 중 오류가 발생했습니다.' })
 }
 
+async function logInsuranceFormsDbDiagnostics(contextLabel) {
+  try {
+    const recent = await pool.query(
+      `
+      SELECT id, user_id, created_at
+      FROM insurance_forms
+      ORDER BY created_at DESC NULLS LAST, id DESC
+      LIMIT 5
+      `,
+    )
+    console.log(`[insurance_forms:${contextLabel}] DB 저장 확인:`, recent.rows)
+
+    const nullCheck = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM insurance_forms WHERE user_id IS NULL`,
+    )
+    console.log(
+      `[insurance_forms:${contextLabel}] user_id NULL 개수:`,
+      nullCheck.rows[0]?.count ?? 0,
+    )
+  } catch (error) {
+    console.error(`[insurance_forms:${contextLabel}] 진단 쿼리 실패:`, error)
+  }
+}
+
+function getAuthenticatedUserId(req) {
+  const raw = req.user?.id
+  if (raw === undefined || raw === null) {
+    return ''
+  }
+  return String(raw).trim()
+}
+
+/** @returns {string | null} userId 또는 실패 시 응답 전송 후 null */
+function requireInsuranceFormUserId(req, res) {
+  const userId = getAuthenticatedUserId(req)
+  if (!userId) {
+    console.error('userId 없음 - 저장 중단')
+    res.status(401).json({ message: 'userId 없음: 로그인 정보가 올바르지 않습니다.' })
+    return null
+  }
+  return userId
+}
+
 function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -179,12 +222,27 @@ function requireAuth(req, res, next) {
     return
   }
 
-  const token = authHeader.slice('Bearer '.length)
+  const token = authHeader.slice('Bearer '.length).trim()
+  if (!token) {
+    res.status(401).json({ message: '로그인이 필요합니다.' })
+    return
+  }
+
   try {
     const payload = jwt.verify(token, JWT_SECRET)
+    const userId = payload.userId ?? payload.sub
+    if (userId === undefined || userId === null || String(userId).trim() === '') {
+      res.status(401).json({ message: '토큰에 사용자 ID가 없습니다.' })
+      return
+    }
+
     req.user = {
-      id: payload.sub,
-      username: payload.username,
+      id: String(userId),
+      username: typeof payload.username === 'string' ? payload.username : '',
+    }
+
+    if (req.originalUrl?.includes('/forms')) {
+      console.log('로그인 user:', req.user)
     }
     next()
   } catch {
@@ -302,8 +360,9 @@ apiRouter.post('/login', async (req, res) => {
       return
     }
 
+    const uid = String(user.id)
     const token = jwt.sign(
-      { sub: String(user.id), username: user.username },
+      { sub: uid, userId: uid, username: user.username },
       JWT_SECRET,
       { expiresIn: '7d' },
     )
@@ -621,14 +680,19 @@ apiRouter.delete('/admin/insurance/contacts/:id', requireAuth, requireInsuranceC
 
 apiRouter.get('/forms', requireAuth, async (req, res) => {
   try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+
     const result = await pool.query(
       `
       SELECT id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
       WHERE user_id = $1
-      ORDER BY updated_at DESC
+      ORDER BY created_at DESC, id DESC
       `,
-      [req.user.id],
+      [userId],
     )
 
     res.json(result.rows.map(mapFormRow))
@@ -639,6 +703,11 @@ apiRouter.get('/forms', requireAuth, async (req, res) => {
 
 apiRouter.get('/forms/expiring', requireAuth, async (req, res) => {
   try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+
     const result = await pool.query(
       `
       SELECT id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
@@ -648,7 +717,7 @@ apiRouter.get('/forms/expiring', requireAuth, async (req, res) => {
         AND expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
       ORDER BY expiry_date ASC, updated_at DESC
       `,
-      [req.user.id],
+      [userId],
     )
 
     res.json(result.rows.map(mapFormRow))
@@ -659,6 +728,13 @@ apiRouter.get('/forms/expiring', requireAuth, async (req, res) => {
 
 apiRouter.post('/forms', requireAuth, async (req, res) => {
   try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+
+    console.log('저장 userId:', userId)
+
     const formData = extractFormData(req.body)
     if (!formData) {
       res.status(400).json({ message: 'form_data가 필요합니다.' })
@@ -683,8 +759,10 @@ apiRouter.post('/forms', requireAuth, async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, NOW(), NOW())
       RETURNING id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       `,
-      [id, req.user.id, customerName, carNumber, expiryDate || null, JSON.stringify(formData)],
+      [id, userId, customerName, carNumber, expiryDate || null, JSON.stringify(formData)],
     )
+
+    await logInsuranceFormsDbDiagnostics('post')
 
     res.status(201).json(mapFormRow(inserted.rows[0]))
   } catch (error) {
@@ -694,13 +772,18 @@ apiRouter.post('/forms', requireAuth, async (req, res) => {
 
 apiRouter.get('/forms/:id', requireAuth, async (req, res) => {
   try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+
     const result = await pool.query(
       `
       SELECT id, user_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
       WHERE id = $1 AND user_id = $2
       `,
-      [req.params.id, req.user.id],
+      [req.params.id, userId],
     )
 
     if (result.rowCount === 0) {
@@ -716,6 +799,13 @@ apiRouter.get('/forms/:id', requireAuth, async (req, res) => {
 
 apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
   try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+
+    console.log('저장 userId:', userId)
+
     const formData = extractFormData(req.body)
     if (!formData) {
       res.status(400).json({ message: 'form_data가 필요합니다.' })
@@ -745,7 +835,7 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
         expiryDate || null,
         JSON.stringify(formData),
         req.params.id,
-        req.user.id,
+        userId,
       ],
     )
 
@@ -753,6 +843,8 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
       res.status(404).json({ message: '수정할 신청서를 찾을 수 없습니다.' })
       return
     }
+
+    await logInsuranceFormsDbDiagnostics('put')
 
     res.json(mapFormRow(updated.rows[0]))
   } catch (error) {
@@ -762,13 +854,18 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
 
 apiRouter.delete('/forms/:id', requireAuth, async (req, res) => {
   try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+
     const deleted = await pool.query(
       `
       DELETE FROM insurance_forms
       WHERE id = $1 AND user_id = $2
       RETURNING id
       `,
-      [req.params.id, req.user.id],
+      [req.params.id, userId],
     )
 
     if (deleted.rowCount === 0) {
@@ -807,6 +904,7 @@ async function startServer() {
   }
 
   await initDb()
+  await logInsuranceFormsDbDiagnostics('startup')
 
   app.listen(PORT, () => {
     console.log(`Insurance server listening on port ${PORT}`)

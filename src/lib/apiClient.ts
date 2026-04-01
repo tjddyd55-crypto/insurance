@@ -29,13 +29,15 @@ function resolveApiUrl(path: string): string {
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { token, headers, ...rest } = options
+  const bearer =
+    typeof token === 'string' && token.trim() ? `Bearer ${token.trim()}` : ''
   let response: Response
   try {
     response = await fetch(resolveApiUrl(path), {
       ...rest,
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(bearer ? { Authorization: bearer } : {}),
         ...headers,
       },
     })

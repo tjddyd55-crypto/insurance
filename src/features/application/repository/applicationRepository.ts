@@ -45,7 +45,19 @@ function sanitizeFormData(payload: InsuranceApplicationFormData): InsuranceAppli
   return sanitized
 }
 
+function requireBearerToken(
+  token: string | null | undefined,
+): asserts token is string {
+  if (typeof token !== 'string' || !token.trim()) {
+    throw new ApiError(
+      '로그인이 필요합니다. Authorization Bearer 토큰을 보내지 않았습니다.',
+      401,
+    )
+  }
+}
+
 export async function listApplications(token: string): Promise<InsuranceApplicationRecord[]> {
+  requireBearerToken(token)
   const response = await apiRequest<InsuranceApplicationRecord[]>('/api/forms', { token })
   return response.map(mapRecord)
 }
@@ -53,6 +65,7 @@ export async function listApplications(token: string): Promise<InsuranceApplicat
 export async function listExpiringApplications(
   token: string,
 ): Promise<InsuranceApplicationRecord[]> {
+  requireBearerToken(token)
   const response = await apiRequest<InsuranceApplicationRecord[]>('/api/forms/expiring', { token })
   return response.map(mapRecord)
 }
@@ -61,6 +74,7 @@ export async function getApplicationById(
   id: string,
   token: string,
 ): Promise<InsuranceApplicationRecord | null> {
+  requireBearerToken(token)
   try {
     const response = await apiRequest<InsuranceApplicationRecord>(`/api/forms/${id}`, { token })
     return mapRecord(response)
@@ -74,6 +88,7 @@ export async function saveApplication(
   token: string,
   id?: string,
 ): Promise<InsuranceApplicationRecord> {
+  requireBearerToken(token)
   const formData = sanitizeFormData(payload)
   const body = {
     customerName: formData.ownerName,
@@ -119,6 +134,7 @@ export async function saveApplicationAsNew(
 }
 
 export async function deleteApplication(id: string, token: string): Promise<void> {
+  requireBearerToken(token)
   await apiRequest<void>(`/api/forms/${id}`, {
     method: 'DELETE',
     token,
