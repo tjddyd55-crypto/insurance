@@ -15,11 +15,12 @@ import CustomerCarPage from './features/customers/pages/CustomerCarPage'
 import CreateStaffPage from './features/admin/pages/CreateStaffPage'
 import CompanyRegistryPage from './features/company-registry/pages/CompanyRegistryPage'
 import GeneralRequestPage from './features/company-registry/pages/GeneralRequestPage'
+import InsuranceCompanyContactsViewPage from './features/company-registry/pages/InsuranceCompanyContactsViewPage'
 import { useAuth } from './features/auth/AuthProvider'
 
 function HomeRedirect() {
   const { isAuthenticated } = useAuth()
-  return <Navigate to={isAuthenticated ? '/dashboard' : '/menu/reinsurer-contacts'} replace />
+  return <Navigate to={isAuthenticated ? '/dashboard' : '/insurance/contacts'} replace />
 }
 
 function App() {
@@ -28,10 +29,13 @@ function App() {
       <Route path="/" element={<HomeRedirect />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route path="/menu/reinsurer-contacts" element={<ReinsurerContactsPage />} />
-      <Route path="/menu/company-registry" element={<CompanyRegistryPage />} />
+      <Route path="/insurance/contacts" element={<InsuranceCompanyContactsViewPage />} />
+      <Route path="/insurance/company-registry" element={<CompanyRegistryPage />} />
+      <Route path="/insurance/history" element={<InsuranceUpdatesPage />} />
       <Route path="/insurance/general-request" element={<GeneralRequestPage />} />
-      <Route path="/menu/insurance-updates" element={<InsuranceUpdatesPage />} />
+      <Route path="/menu/reinsurer-contacts" element={<ReinsurerContactsPage />} />
+      <Route path="/menu/company-registry" element={<Navigate to="/insurance/company-registry" replace />} />
+      <Route path="/menu/insurance-updates" element={<Navigate to="/insurance/history" replace />} />
       <Route path="/insurance/print" element={<InsurancePrintPage />} />
 
       <Route element={<ProtectedRoute />}>

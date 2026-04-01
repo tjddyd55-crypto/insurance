@@ -57,6 +57,9 @@ export function InsuranceUpdatesPage() {
 
       <section className="card contacts-toolbar">
         <div className="contacts-toolbar__actions">
+          <button className="button" type="button" onClick={() => navigate('/insurance/contacts')}>
+            보험사 연락처 조회
+          </button>
           <button className="button" type="button" onClick={() => navigate('/menu/reinsurer-contacts')}>
             원수사 연락처
           </button>

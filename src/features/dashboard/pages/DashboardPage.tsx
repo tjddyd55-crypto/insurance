@@ -5,6 +5,7 @@ export function DashboardPage() {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const role = user?.role
+  const isStaff = role === 'staff' || role === 'super_admin'
 
   return (
     <main className="page">
@@ -37,18 +38,9 @@ export function DashboardPage() {
                   <button
                     className="button button--full"
                     type="button"
-                    onClick={() => navigate('/menu/reinsurer-contacts')}
+                    onClick={() => navigate('/insurance/contacts')}
                   >
-                    원수사 연락처
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
-                    onClick={() => navigate('/menu/company-registry')}
-                  >
-                    보험사 연락처(마스터)
+                    연락처 조회
                   </button>
                 </li>
                 <li>
@@ -64,9 +56,18 @@ export function DashboardPage() {
                   <button
                     className="button button--full"
                     type="button"
-                    onClick={() => navigate('/menu/insurance-updates')}
+                    onClick={() => navigate('/insurance/history')}
                   >
                     업데이트 현황
+                  </button>
+                </li>
+                <li>
+                  <button
+                    className="button button--full"
+                    type="button"
+                    onClick={() => navigate('/menu/reinsurer-contacts')}
+                  >
+                    원수사 연락처(별도)
                   </button>
                 </li>
               </>
@@ -78,27 +79,36 @@ export function DashboardPage() {
                   <button
                     className="button button--primary button--full"
                     type="button"
-                    onClick={() => navigate('/menu/reinsurer-contacts')}
+                    onClick={() => navigate('/insurance/company-registry')}
                   >
-                    연락처 관리
+                    연락처 입력/관리
                   </button>
                 </li>
                 <li>
                   <button
                     className="button button--full"
                     type="button"
-                    onClick={() => navigate('/menu/company-registry')}
+                    onClick={() => navigate('/insurance/contacts')}
                   >
-                    보험사 연락처(마스터)
+                    연락처 조회
                   </button>
                 </li>
                 <li>
                   <button
                     className="button button--full"
                     type="button"
-                    onClick={() => navigate('/menu/insurance-updates')}
+                    onClick={() => navigate('/insurance/history')}
                   >
                     업데이트 현황
+                  </button>
+                </li>
+                <li>
+                  <button
+                    className="button button--full"
+                    type="button"
+                    onClick={() => navigate('/menu/reinsurer-contacts')}
+                  >
+                    원수사 연락처(별도)
                   </button>
                 </li>
               </>
@@ -119,18 +129,18 @@ export function DashboardPage() {
                   <button
                     className="button button--full"
                     type="button"
-                    onClick={() => navigate('/menu/reinsurer-contacts')}
+                    onClick={() => navigate('/insurance/company-registry')}
                   >
-                    연락처 관리
+                    연락처 입력/관리
                   </button>
                 </li>
                 <li>
                   <button
                     className="button button--full"
                     type="button"
-                    onClick={() => navigate('/menu/company-registry')}
+                    onClick={() => navigate('/insurance/contacts')}
                   >
-                    보험사 연락처(마스터)
+                    연락처 조회
                   </button>
                 </li>
                 <li>
@@ -143,6 +153,15 @@ export function DashboardPage() {
                   </button>
                 </li>
                 <li>
+                  <button
+                    className="button button--full"
+                    type="button"
+                    onClick={() => navigate('/insurance/history')}
+                  >
+                    업데이트 현황
+                  </button>
+                </li>
+                <li>
                   <button className="button button--full" type="button" onClick={() => navigate('/application')}>
                     자동차 신청서
                   </button>
@@ -151,9 +170,9 @@ export function DashboardPage() {
                   <button
                     className="button button--full"
                     type="button"
-                    onClick={() => navigate('/menu/insurance-updates')}
+                    onClick={() => navigate('/menu/reinsurer-contacts')}
                   >
-                    업데이트 현황
+                    원수사 연락처(별도)
                   </button>
                 </li>
               </>
@@ -161,9 +180,16 @@ export function DashboardPage() {
           </ul>
         </nav>
 
+        {isStaff ? (
+          <p className="dashboard-menu-note" style={{ marginTop: 12, fontSize: 14, color: '#5c6b7a' }}>
+            보험사 마스터는 「연락처 조회」에서 보고, 「연락처 입력/관리」에서만 저장·수정합니다.
+          </p>
+        ) : null}
+
         <button
           className="button button--secondary button--full"
           type="button"
+          style={{ marginTop: 16 }}
           onClick={() => {
             logout()
             navigate('/login', { replace: true })

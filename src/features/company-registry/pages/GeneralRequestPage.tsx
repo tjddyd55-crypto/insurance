@@ -5,9 +5,10 @@ import { listCompanyDirectory, saveGeneralRequest } from '../api/companyRegistry
 import { normalizeInsuranceCategory } from '../domain/categoryUtils'
 import type { InsuranceCategory } from '../domain/insuranceConstants'
 import {
-  INSURANCE_COMPANIES_BY_TYPE,
+  insuranceCompanyMap,
   INSURANCE_TYPE_LABELS,
   INSURANCE_TYPE_ORDER,
+  type InsuranceCompanyOption,
 } from '../domain/insuranceConstants'
 import type { CompanyDirectoryEntry, InsuranceGeneralDraft } from '../domain/types'
 
@@ -27,11 +28,11 @@ export default function GeneralRequestPage() {
   const [general, setGeneral] = useState<InsuranceGeneralDraft>({ ...EMPTY_GENERAL })
   const [isSaving, setIsSaving] = useState(false)
 
-  const companyNameOptions = useMemo(() => {
+  const companyOptions = useMemo((): InsuranceCompanyOption[] => {
     if (!selectedType) {
       return []
     }
-    return INSURANCE_COMPANIES_BY_TYPE[selectedType] ?? []
+    return insuranceCompanyMap[selectedType] ?? []
   }, [selectedType])
 
   const loadList = useCallback(async () => {
@@ -54,6 +55,9 @@ export default function GeneralRequestPage() {
   useEffect(() => {
     if (!selectedType || !selectedCompanyName) {
       setGeneral({ ...EMPTY_GENERAL })
+      return
+    }
+    if (typeof selectedCompanyName !== 'string') {
       return
     }
     const entry = list.find(
@@ -108,8 +112,11 @@ export default function GeneralRequestPage() {
         <button className="button button--small" type="button" onClick={() => navigate(-1)}>
           뒤로
         </button>
-        <Link className="button button--small contacts-public-auth__link" to="/menu/company-registry">
-          보험사 연락처
+        <Link className="button button--small contacts-public-auth__link" to="/insurance/company-registry">
+          연락처 입력/관리
+        </Link>
+        <Link className="button button--small contacts-public-auth__link" to="/insurance/contacts">
+          연락처 조회
         </Link>
         {isAuthenticated ? (
           <button className="button button--small" type="button" onClick={() => navigate('/dashboard')}>
@@ -157,13 +164,13 @@ export default function GeneralRequestPage() {
             <select
               className="field__control"
               value={selectedCompanyName}
-              onChange={(e) => setSelectedCompanyName(e.target.value)}
+              onChange={(e) => setSelectedCompanyName(String(e.target.value ?? ''))}
               disabled={!selectedType}
             >
               <option value="">선택</option>
-              {companyNameOptions.map((n) => (
-                <option key={n} value={n}>
-                  {n}
+              {companyOptions.map((row) => (
+                <option key={row.name} value={row.name}>
+                  {row.name}
                 </option>
               ))}
             </select>

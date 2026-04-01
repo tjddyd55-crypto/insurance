@@ -22,12 +22,13 @@ export function normalizeInsuranceCategory(raw: string | undefined | null): Insu
   return ''
 }
 
-export function insuranceCategoryLabel(cat: string): string {
-  const n = normalizeInsuranceCategory(cat)
+export function insuranceCategoryLabel(cat: string | undefined | null): string {
+  const raw = typeof cat === 'string' ? cat : String(cat ?? '')
+  const n = normalizeInsuranceCategory(raw)
   if (n && n in INSURANCE_TYPE_LABELS) {
     return INSURANCE_TYPE_LABELS[n]
   }
-  return cat || '—'
+  return raw || '—'
 }
 
 export function insuranceTypeSortRank(cat: string): number {

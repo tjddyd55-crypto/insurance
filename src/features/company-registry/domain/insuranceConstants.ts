@@ -68,12 +68,24 @@ export const INSURANCE_COMPANIES_BY_TYPE: Record<InsuranceCategory, string[]> = 
   GENERAL: insuranceCompanyMap.GENERAL.map((c) => c.name),
 }
 
+export function isInsuranceCategory(value: string): value is InsuranceCategory {
+  return (INSURANCE_TYPE_ORDER as readonly string[]).includes(value)
+}
+
 /** 맵에 있는 표준 고객센터 번호(없으면 빈 문자열 → 직접 입력 유도) */
-export function getInsuranceCompanyDefaultTel(category: InsuranceCategory, companyName: string): string {
-  const q = String(companyName ?? '').trim()
+export function getInsuranceCompanyDefaultTel(category: string, companyName: string): string {
+  const cat = String(category ?? '').trim()
+  if (!cat || !isInsuranceCategory(cat)) {
+    return ''
+  }
+  if (!companyName || typeof companyName !== 'string') {
+    return ''
+  }
+  const q = companyName.trim()
   if (!q) {
     return ''
   }
-  const row = insuranceCompanyMap[category]?.find((c) => c.name === q)
-  return String(row?.tel ?? '').trim()
+  const list = insuranceCompanyMap[cat] || []
+  const found = list.find((c) => c.name === q)
+  return found?.tel ? String(found.tel).trim() : ''
 }

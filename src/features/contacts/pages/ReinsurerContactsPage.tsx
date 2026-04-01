@@ -213,8 +213,11 @@ export function ReinsurerContactsPage() {
   return (
     <main className="page contacts-page">
       <nav className="contacts-public-auth" aria-label="계정">
-        <Link className="button button--small contacts-public-auth__link" to="/menu/company-registry">
-          보험사(마스터)
+        <Link className="button button--small contacts-public-auth__link" to="/insurance/contacts">
+          보험사 연락처 조회
+        </Link>
+        <Link className="button button--small contacts-public-auth__link" to="/insurance/company-registry">
+          연락처 입력/관리
         </Link>
         {isAuthenticated ? (
           <>
@@ -256,7 +259,7 @@ export function ReinsurerContactsPage() {
           />
         </label>
         <div className="contacts-toolbar__actions">
-          <button className="button" type="button" onClick={() => navigate('/menu/insurance-updates')}>
+          <button className="button" type="button" onClick={() => navigate('/insurance/history')}>
             업데이트 현황
           </button>
           <button className="button" type="button" onClick={() => navigate('/insurance/print')}>

@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { fullSaveCompanyDirectory, listCompanyDirectory } from '../api/companyRegistryApi'
-import { insuranceCategoryLabel, normalizeInsuranceCategory } from '../domain/categoryUtils'
+import { normalizeInsuranceCategory } from '../domain/categoryUtils'
 import type { InsuranceCategory } from '../domain/insuranceConstants'
 import {
   getInsuranceCompanyDefaultTel,
-  INSURANCE_COMPANIES_BY_TYPE,
+  insuranceCompanyMap,
   INSURANCE_TYPE_LABELS,
   INSURANCE_TYPE_ORDER,
+  isInsuranceCategory,
+  type InsuranceCompanyOption,
 } from '../domain/insuranceConstants'
 import type { CompanyDirectoryEntry, InsuranceCompanyContactDraft, InsuranceCompanyFormState } from '../domain/types'
-import { downloadContactVcard, toTelHref } from '../utils/contactActions'
-
 const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 'name'> = {
   customerCenter: '',
   systemPhone: '',
@@ -47,15 +47,15 @@ function entryContactsToDrafts(entry: CompanyDirectoryEntry): InsuranceCompanyCo
 
 export default function CompanyRegistryPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user, token, isAuthenticated } = useAuth()
   const canEdit = isAuthenticated && !!user && ['staff', 'super_admin'].includes(user.role)
 
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [statusText, setStatusText] = useState('')
 
   const [selectedType, setSelectedType] = useState<InsuranceCategory | ''>('')
-  const [selectedCompanyName, setSelectedCompanyName] = useState('')
+  const [selectedCompanyName, setSelectedCompanyName] = useState<string>('')
 
   const [company, setCompany] = useState<InsuranceCompanyFormState>({
     id: null,
@@ -66,12 +66,15 @@ export default function CompanyRegistryPage() {
   const [contacts, setContacts] = useState<InsuranceCompanyContactDraft[]>([{ ...EMPTY_CONTACT }])
   const [isSaving, setIsSaving] = useState(false)
 
-  const companyNameOptions = useMemo(() => {
+  const companyOptions = useMemo((): InsuranceCompanyOption[] => {
     if (!selectedType) {
       return []
     }
-    return INSURANCE_COMPANIES_BY_TYPE[selectedType] ?? []
+    return insuranceCompanyMap[selectedType] ?? []
   }, [selectedType])
+
+  const prevSelectionRef = useRef<{ type: string; company: string }>({ type: '', company: '' })
+  const lastAutoCustomerCenterKeyRef = useRef<string>('')
 
   const hasDirectoryEntryForSelection = useMemo(() => {
     if (!selectedType || !selectedCompanyName) {
@@ -94,15 +97,12 @@ export default function CompanyRegistryPage() {
   }, [hasDirectoryEntryForSelection, selectedCompanyName, selectedType])
 
   const loadList = useCallback(async () => {
-    setIsLoading(true)
     try {
       const rows = await listCompanyDirectory()
       setList(rows)
       setStatusText('')
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
-    } finally {
-      setIsLoading(false)
     }
   }, [])
 
@@ -111,7 +111,20 @@ export default function CompanyRegistryPage() {
   }, [loadList])
 
   useEffect(() => {
+    const t = searchParams.get('type')
+    const c = searchParams.get('company')
+    const name = c != null ? String(c).trim() : ''
+    if (t && isInsuranceCategory(t) && name) {
+      setSelectedType(t)
+      setSelectedCompanyName(name)
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
+
+  useEffect(() => {
     if (!selectedType || !selectedCompanyName) {
+      prevSelectionRef.current = { type: '', company: '' }
+      lastAutoCustomerCenterKeyRef.current = ''
       setCompany({
         id: null,
         category: selectedType || '',
@@ -122,58 +135,68 @@ export default function CompanyRegistryPage() {
       return
     }
 
+    if (typeof selectedCompanyName !== 'string') {
+      return
+    }
+
     const entry = list.find(
       (e) =>
         normalizeInsuranceCategory(e.category) === selectedType && e.name === selectedCompanyName,
     )
 
     if (entry) {
+      prevSelectionRef.current = { type: selectedType, company: selectedCompanyName }
       setCompany(entryToFormState(entry))
       setContacts(entryContactsToDrafts(entry))
       return
     }
 
-    setCompany({
-      id: null,
-      category: selectedType,
-      name: selectedCompanyName,
-      ...EMPTY_COMPANY_FIELDS,
-    })
-    setContacts([{ ...EMPTY_CONTACT }])
+    const selChanged =
+      prevSelectionRef.current.type !== selectedType ||
+      prevSelectionRef.current.company !== selectedCompanyName
+    prevSelectionRef.current = { type: selectedType, company: selectedCompanyName }
+
+    if (selChanged) {
+      lastAutoCustomerCenterKeyRef.current = ''
+      setCompany({
+        id: null,
+        category: selectedType,
+        name: selectedCompanyName,
+        ...EMPTY_COMPANY_FIELDS,
+        customerCenter: '',
+      })
+      setContacts([{ ...EMPTY_CONTACT }])
+    }
   }, [list, selectedType, selectedCompanyName])
 
-  const groupedForDisplay = useMemo(() => {
-    const byType = new Map<InsuranceCategory, CompanyDirectoryEntry[]>()
-    for (const t of INSURANCE_TYPE_ORDER) {
-      byType.set(t, [])
+  useEffect(() => {
+    if (!selectedType || !selectedCompanyName) {
+      return
     }
-    const uncategorized: CompanyDirectoryEntry[] = []
-    for (const row of list) {
-      const t = normalizeInsuranceCategory(row.category) as InsuranceCategory | ''
-      if (t && byType.has(t)) {
-        byType.get(t)!.push(row)
-      } else {
-        uncategorized.push(row)
-      }
+    if (typeof selectedCompanyName !== 'string') {
+      return
     }
-    const groups: Array<{ groupId: InsuranceCategory | 'uncategorized'; label: string; companies: CompanyDirectoryEntry[] }> =
-      INSURANCE_TYPE_ORDER.map((type) => ({
-        groupId: type,
-        label: INSURANCE_TYPE_LABELS[type],
-        companies: (byType.get(type) ?? [])
-          .slice()
-          .sort((a, b) => a.name.localeCompare(b.name, 'ko')),
-      })).filter((g) => g.companies.length > 0)
+    if (import.meta.env.DEV) {
+      console.log('selectedCompanyName:', selectedCompanyName, typeof selectedCompanyName)
+    }
 
-    if (uncategorized.length > 0) {
-      groups.push({
-        groupId: 'uncategorized',
-        label: '기타 (분류 미정)',
-        companies: uncategorized.slice().sort((a, b) => a.name.localeCompare(b.name, 'ko')),
-      })
+    const entry = list.find(
+      (e) =>
+        normalizeInsuranceCategory(e.category) === selectedType && e.name === selectedCompanyName,
+    )
+    if (entry) {
+      return
     }
-    return groups
-  }, [list])
+
+    const key = `${selectedType}::${selectedCompanyName}`
+    if (lastAutoCustomerCenterKeyRef.current === key) {
+      return
+    }
+    lastAutoCustomerCenterKeyRef.current = key
+
+    const defaultTel = getInsuranceCompanyDefaultTel(selectedType, selectedCompanyName)
+    setCompany((prev) => ({ ...prev, customerCenter: defaultTel || '' }))
+  }, [list, selectedType, selectedCompanyName])
 
   const addContactRow = () => {
     setContacts((prev) => [...prev, { ...EMPTY_CONTACT }])
@@ -227,13 +250,16 @@ export default function CompanyRegistryPage() {
   }
 
   return (
-    <main className="page company-registry-page">
+    <main className="page company-registry-page registry-form-touch">
       <nav className="contacts-public-auth" aria-label="이동">
         <button className="button button--small" type="button" onClick={() => navigate(-1)}>
           뒤로
         </button>
+        <Link className="button button--small contacts-public-auth__link" to="/insurance/contacts">
+          연락처 조회
+        </Link>
         <Link className="button button--small contacts-public-auth__link" to="/menu/reinsurer-contacts">
-          원수사 연락처(구)
+          원수사 연락처(별도)
         </Link>
         <Link className="button button--small contacts-public-auth__link" to="/insurance/general-request">
           일반화재 설계의뢰
@@ -250,16 +276,21 @@ export default function CompanyRegistryPage() {
       </nav>
 
       <header className="page-header">
-        <h1>보험사 연락처</h1>
+        <h1>연락처 입력/관리</h1>
         <p>
           {statusText ||
-            '보험 종류·보험사를 선택한 뒤 공통 정보와 담당자를 입력합니다. 목록은 보험 종류별로 묶어 표시합니다. 일반화재 설계의뢰는 별도 메뉴에서 등록합니다.'}
+            '보험 종류·보험사를 선택한 뒤 공통 정보와 담당자를 저장합니다. 등록된 목록은 「연락처 조회」 탭 화면에서 확인하세요. 일반화재 설계의뢰는 별도 메뉴입니다.'}
         </p>
       </header>
 
       {canEdit ? (
         <section className="card company-registry-form-card">
-          <h2 className="dashboard-section-title">입력 · 수정 (관리자)</h2>
+          <h2 className="dashboard-section-title">입력 · 수정 (staff / super_admin)</h2>
+          {company.id != null && selectedCompanyName ? (
+            <div className="edit-banner" role="status">
+              ✏ 수정 중입니다 — 저장 시 보험사·담당자 정보가 갱신됩니다.
+            </div>
+          ) : null}
 
           <label className="field">
             <span className="field__label">보험 종류 (필수)</span>
@@ -287,14 +318,14 @@ export default function CompanyRegistryPage() {
             <select
               className="field__control"
               value={selectedCompanyName}
-              onChange={(e) => setSelectedCompanyName(e.target.value)}
+              onChange={(e) => setSelectedCompanyName(String(e.target.value ?? ''))}
               disabled={!selectedType}
               required
             >
               <option value="">선택</option>
-              {companyNameOptions.map((n) => (
-                <option key={n} value={n}>
-                  {n}
+              {companyOptions.map((row) => (
+                <option key={row.name} value={row.name}>
+                  {row.name}
                 </option>
               ))}
             </select>
@@ -305,7 +336,11 @@ export default function CompanyRegistryPage() {
             <label className="field">
               <span className="field__label">고객센터</span>
               {customerCenterMapHint ? (
-                <p className="company-registry-field-hint">{customerCenterMapHint}</p>
+                <div className="hint">
+                  {getInsuranceCompanyDefaultTel(selectedType, selectedCompanyName)
+                    ? '✔ 표준 번호 자동 입력됨 (수정 가능)'
+                    : 'ℹ 표준 번호 없음 — 직접 입력해 주세요'}
+                </div>
               ) : null}
               <input
                 className="field__control"
@@ -385,98 +420,23 @@ export default function CompanyRegistryPage() {
             disabled={isSaving || !selectedType || !selectedCompanyName}
             onClick={() => void handleSave()}
           >
-            {isSaving ? '저장 중…' : '저장'}
+            {isSaving ? '저장 중…' : company.id != null ? '수정 저장' : '신규 저장'}
           </button>
         </section>
       ) : (
         <section className="card">
           <p className="empty-state">
             데이터 입력·수정은 <Link to="/login">로그인</Link> 후 staff / super_admin 권한이 필요합니다.{' '}
-            <Link to="/insurance/general-request">일반화재 설계의뢰</Link>도 같은 권한으로 저장할 수 있습니다.
+            <Link to="/insurance/contacts">연락처 조회</Link>는 로그인 없이도 볼 수 있습니다.{' '}
+            <Link to="/insurance/general-request">일반화재 설계의뢰</Link> 저장도 같은 권한입니다.
           </p>
         </section>
       )}
 
-      <section className="list-section company-registry-output" style={{ marginTop: 24 }}>
-        <h2>보험사별 보기</h2>
-        {isLoading ? (
-          <p>불러오는 중…</p>
-        ) : groupedForDisplay.length === 0 ? (
-          <p className="empty-state">등록된 보험사가 없습니다.</p>
-        ) : (
-          <div className="company-registry-type-groups">
-            {groupedForDisplay.map((group) => (
-              <section key={group.groupId} className="company-registry-type-section">
-                <h3 className="company-registry-type-heading">{group.label}</h3>
-                <ul className="company-registry-company-list">
-                  {group.companies.map((c) => (
-                    <li key={c.id} className="company-registry-company-block card">
-                      <h4 className="company-registry-company-title">{c.name}</h4>
-                      <p className="company-registry-meta-line">{insuranceCategoryLabel(c.category)}</p>
-                      <dl className="company-registry-dl company-registry-dl--read">
-                        <div>
-                          <dt>고객센터</dt>
-                          <dd>{c.customerCenter || '—'}</dd>
-                        </div>
-                        <div>
-                          <dt>전산문의</dt>
-                          <dd>{c.systemPhone || '—'}</dd>
-                        </div>
-                        <div>
-                          <dt>인콜번호</dt>
-                          <dd>{c.incallNumber || '—'}</dd>
-                        </div>
-                        <div>
-                          <dt>방문안내</dt>
-                          <dd>{c.visitInfo || '—'}</dd>
-                        </div>
-                      </dl>
-                      <div className="company-registry-contact-cards" aria-label="담당자">
-                        {c.contacts?.length ? (
-                          c.contacts.map((p, idx) => (
-                            <div key={p.id != null ? p.id : `new-${c.id}-${idx}`} className="company-registry-contact-card">
-                              <p className="company-registry-contact-card__position">{p.position || '—'}</p>
-                              <p className="company-registry-contact-card__name">{p.name || '—'}</p>
-                              <p className="company-registry-contact-card__phone">{p.phone || '—'}</p>
-                              <div className="company-registry-contact-card__actions">
-                                {p.phone?.trim() ? (
-                                  <a
-                                    className="button button--primary company-registry-tel-btn"
-                                    href={toTelHref(p.phone)}
-                                  >
-                                    전화하기
-                                  </a>
-                                ) : null}
-                                {p.phone?.trim() ? (
-                                  <button
-                                    className="button company-registry-vcf-btn"
-                                    type="button"
-                                    onClick={() =>
-                                      downloadContactVcard({
-                                        name: p.name,
-                                        phone: p.phone,
-                                        companyName: c.name,
-                                        position: p.position,
-                                      })
-                                    }
-                                  >
-                                    연락처 저장
-                                  </button>
-                                ) : null}
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="company-registry-muted">등록된 담당자 없음</p>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
-        )}
+      <section className="card" style={{ marginTop: 20 }}>
+        <p className="empty-state" style={{ margin: 0 }}>
+          <Link to="/insurance/contacts">→ 보험사 연락처 조회 (탭)</Link>
+        </p>
       </section>
     </main>
   )
