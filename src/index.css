@@ -1,13 +1,94 @@
+/* ========== 테마 (라이트 / 다크) — body.dark 로 전환 ========== */
 :root {
+  --bg: #f9fafb;
+  --card: #ffffff;
+  --text: #111827;
+  --subtext: #6b7280;
+  --border: #e5e7eb;
+  --primary: #2563eb;
+  --success: #22c55e;
+  --link: #2563eb;
+  --input-bg: #ffffff;
+  --placeholder: #6b7280;
+  --tab-inactive-bg: #f1f3f5;
+  --tab-inactive-text: #374151;
+  --btn-secondary-surface: #e5e7eb;
+  --btn-secondary-text: #1f2937;
+  --hint-bg: #ecfdf5;
+  --hint-border: #a7f3d0;
+  --hint-text: #065f46;
+  --edit-banner-bg: #3b82f6;
+  --edit-banner-text: #ffffff;
+  --status-warn: #c2410c;
+  --shadow-card: rgba(0, 0, 0, 0.06);
+  --btn-surface: #ffffff;
+  --btn-border: #7a8696;
+  --btn-text: #1f2a38;
+  --btn-hover-bg: #e8eefc;
+  --btn-hover-border: #6b7c94;
+  --primary-hover: #1d4ed8;
+  --secondary-bg: #fff8eb;
+  --secondary-border: #f0a106;
+  --secondary-text: #8a5b00;
+  --secondary-hover-bg: #fff4e0;
+  --danger-bg: #fff5f5;
+  --danger-border: #c53030;
+  --danger-text: #9b2c2c;
+  --danger-hover-bg: #ffe8e8;
+  --disabled-bg: #f5f7fa;
+  --disabled-text: #6d7783;
+  --checkbox-bg: #f8fafc;
+  --sticky-bar-bg: rgba(245, 248, 252, 0.97);
+
   font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
   line-height: 1.4;
   font-weight: 400;
-  color: #151515;
-  background-color: #f2f4f8;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body.dark {
+  --bg: #0f1115;
+  --card: #1a1d23;
+  --text: #f3f4f6;
+  --subtext: #9ca3af;
+  --border: #2a2f38;
+  --primary: #3b82f6;
+  --success: #22c55e;
+  --link: #60a5fa;
+  --input-bg: #1a1d23;
+  --placeholder: #6b7280;
+  --tab-inactive-bg: #2a2f38;
+  --tab-inactive-text: #9ca3af;
+  --btn-secondary-surface: #2a2f38;
+  --btn-secondary-text: #f3f4f6;
+  --hint-bg: #064e3b;
+  --hint-border: #047857;
+  --hint-text: #a7f3d0;
+  --edit-banner-bg: #2563eb;
+  --edit-banner-text: #ffffff;
+  --status-warn: #fb923c;
+  --shadow-card: rgba(0, 0, 0, 0.35);
+  --btn-surface: #252a32;
+  --btn-border: #4b5563;
+  --btn-text: #f3f4f6;
+  --btn-hover-bg: #374151;
+  --btn-hover-border: #6b7280;
+  --primary-hover: #60a5fa;
+  --secondary-bg: #422006;
+  --secondary-border: #d97706;
+  --secondary-text: #fde68a;
+  --secondary-hover-bg: #451a03;
+  --danger-bg: #450a0a;
+  --danger-border: #dc2626;
+  --danger-text: #fecaca;
+  --danger-hover-bg: #7f1d1d;
+  --disabled-bg: #1f2937;
+  --disabled-text: #9ca3af;
+  --checkbox-bg: #252a32;
+  --sticky-bar-bg: rgba(15, 17, 21, 0.96);
 }
 
 * {
@@ -21,10 +102,33 @@ button {
 body {
   margin: 0;
   min-width: 320px;
+  background: var(--bg);
+  color: var(--text);
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 #root {
   min-height: 100vh;
+  background: var(--bg);
+}
+
+.theme-toggle {
+  position: fixed;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 100;
+  min-height: 48px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 12px var(--shadow-card);
 }
 
 .page {
@@ -47,7 +151,7 @@ body {
 
 .auth-description {
   margin: 8px 0 0;
-  color: #566171;
+  color: var(--subtext);
   font-size: 14px;
 }
 
@@ -60,7 +164,7 @@ body {
 .auth-footer {
   margin-top: 14px;
   font-size: 14px;
-  color: #566171;
+  color: var(--subtext);
 }
 
 .auth-divider {
@@ -335,18 +439,19 @@ body {
   margin: 0;
   font-size: 24px;
   line-height: 1.3;
+  color: var(--text);
 }
 
 .page-header p {
   margin: 8px 0 0;
-  color: #4f5965;
+  color: var(--subtext);
   font-size: 14px;
 }
 
 .card {
   margin-top: 14px;
-  background: #ffffff;
-  border: 1px solid #dce2ea;
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 14px;
 }
@@ -362,10 +467,10 @@ body {
 
 .empty-state {
   padding: 18px;
-  border: 1px dashed #b8c1cc;
+  border: 1px dashed var(--border);
   border-radius: 12px;
-  background-color: #fff;
-  color: #586270;
+  background-color: var(--card);
+  color: var(--subtext);
 }
 
 .empty-state--inline {
@@ -441,8 +546,8 @@ body {
 
 .form-section {
   margin-top: 14px;
-  background: #ffffff;
-  border: 1px solid #dce2ea;
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 14px;
 }
@@ -468,7 +573,7 @@ body {
   align-items: center;
   gap: 4px;
   font-size: 14px;
-  color: #2a3442;
+  color: var(--text);
 }
 
 .field__required {
@@ -477,7 +582,7 @@ body {
 }
 
 .field__helper {
-  color: #697384;
+  color: var(--subtext);
   font-size: 12px;
 }
 
@@ -485,15 +590,20 @@ body {
   width: 100%;
   min-height: 46px;
   border-radius: 10px;
-  border: 1px solid #c8d0dc;
+  border: 1px solid var(--border);
   font-size: 16px;
   padding: 10px 12px;
-  background-color: #fff;
+  background-color: var(--input-bg);
+  color: var(--text);
+}
+
+.field__control::placeholder {
+  color: var(--placeholder);
 }
 
 .field__control:disabled {
-  background-color: #f5f7fa;
-  color: #6d7783;
+  background-color: var(--disabled-bg);
+  color: var(--disabled-text);
 }
 
 .field__control--textarea {
@@ -505,8 +615,8 @@ body {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  border: 1px solid #d7deea;
-  background-color: #f8fafc;
+  border: 1px solid var(--border);
+  background-color: var(--checkbox-bg);
   border-radius: 10px;
   padding: 12px;
 }
@@ -525,13 +635,13 @@ body {
 
 .button {
   min-height: 48px;
-  border: 1px solid #7a8696;
+  border: 1px solid var(--btn-border);
   border-radius: 10px;
   padding: 12px;
   font-size: 15px;
   font-weight: 700;
-  background: #ffffff;
-  color: #1f2a38;
+  background: var(--btn-surface);
+  color: var(--btn-text);
   cursor: pointer;
   transition:
     transform 0.15s ease,
@@ -541,8 +651,8 @@ body {
 }
 
 .button:hover:not(:disabled):not(:active) {
-  background-color: #e8eefc;
-  border-color: #6b7c94;
+  background-color: var(--btn-hover-bg);
+  border-color: var(--btn-hover-border);
 }
 
 .button:active:not(:disabled) {
@@ -556,36 +666,36 @@ body {
 }
 
 .button--primary {
-  border-color: #2b66f6;
-  background-color: #2b66f6;
+  border-color: var(--primary);
+  background-color: var(--primary);
   color: #ffffff;
 }
 
 .button--primary:hover:not(:disabled):not(:active) {
-  background-color: #2f5ed7;
-  border-color: #2f5ed7;
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 .button--secondary {
-  border-color: #f0a106;
-  background-color: #fff8eb;
-  color: #8a5b00;
+  border-color: var(--secondary-border);
+  background-color: var(--secondary-bg);
+  color: var(--secondary-text);
 }
 
 .button--secondary:hover:not(:disabled):not(:active) {
-  background-color: #fff4e0;
-  border-color: #e09900;
+  background-color: var(--secondary-hover-bg);
+  border-color: var(--secondary-border);
 }
 
 .button--danger {
-  border-color: #c53030;
-  background-color: #fff5f5;
-  color: #9b2c2c;
+  border-color: var(--danger-border);
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
 }
 
 .button--danger:hover:not(:disabled):not(:active) {
-  background-color: #ffe8e8;
-  border-color: #b12b2b;
+  background-color: var(--danger-hover-bg);
+  border-color: var(--danger-border);
 }
 
 .button--full {
@@ -607,8 +717,8 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
   padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-  background-color: rgba(245, 248, 252, 0.97);
-  border-top: 1px solid #ccd5e2;
+  background-color: var(--sticky-bar-bg);
+  border-top: 1px solid var(--border);
   z-index: 20;
 }
 
@@ -899,12 +1009,13 @@ body {
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.02em;
+  color: var(--text);
 }
 
 .insurance-contacts-status {
   margin: 0;
   font-size: 1rem;
-  color: #c2410c;
+  color: var(--status-warn);
 }
 
 .insurance-contacts-view .tabs {
@@ -919,16 +1030,16 @@ body {
   min-height: 48px;
   border: none;
   border-radius: 10px;
-  background: #f1f3f5;
+  background: var(--tab-inactive-bg);
   font-size: 1.05rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--tab-inactive-text);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
 .insurance-contacts-view .tabs button.active {
-  background: #2563eb;
+  background: var(--primary);
   color: #fff;
 }
 
@@ -943,9 +1054,14 @@ body {
   padding: 14px 16px;
   min-height: 48px;
   font-size: 1.05rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: #fff;
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.insurance-contacts-search__input::placeholder {
+  color: var(--placeholder);
 }
 
 .insurance-contacts-list-wrap {
@@ -964,12 +1080,12 @@ body {
 }
 
 .insurance-contacts-view .company-card {
-  background: #fff;
+  background: var(--card);
   border-radius: 14px;
   padding: 14px 16px;
   margin-bottom: 2px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px var(--shadow-card);
 }
 
 .company-card__title {
@@ -977,25 +1093,25 @@ body {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.3;
-  color: #111827;
+  color: var(--text);
 }
 
 .insurance-contacts-view .info {
   font-size: 0.95rem;
-  color: #4b5563;
+  color: var(--subtext);
   margin-top: 6px;
   line-height: 1.55;
 }
 
 .insurance-contacts-view .info__label {
   font-weight: 600;
-  color: #6b7280;
+  color: var(--subtext);
 }
 
 .insurance-contacts-view .contact-card {
   margin-top: 12px;
   padding: 12px 0 0;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border);
 }
 
 .insurance-contacts-view .contact-card--empty {
@@ -1004,21 +1120,21 @@ body {
 
 .insurance-contacts-view .contact-card .position {
   font-size: 0.95rem;
-  color: #777;
+  color: var(--subtext);
   margin-bottom: 4px;
 }
 
 .insurance-contacts-view .contact-card .name {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--text);
   margin-bottom: 6px;
 }
 
 .insurance-contacts-view .contact-card .phone {
-  font-size: 1.375rem;
+  font-size: 22px;
   font-weight: 700;
-  color: #2563eb;
+  color: var(--primary);
   letter-spacing: 0.02em;
   line-height: 1.35;
   word-break: break-all;
@@ -1043,7 +1159,7 @@ body {
   border-radius: 10px;
   font-weight: 600;
   font-size: 1rem;
-  background: #22c55e;
+  background: var(--success);
   color: #fff !important;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
@@ -1058,8 +1174,8 @@ body {
   border-radius: 10px;
   font-weight: 600;
   font-size: 1rem;
-  background: #e5e7eb;
-  color: #1f2937;
+  background: var(--btn-secondary-surface);
+  color: var(--btn-secondary-text);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -1067,18 +1183,18 @@ body {
 .insurance-contacts-footer-links {
   margin-top: 20px;
   padding-top: 14px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border);
   font-size: 0.95rem;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--subtext);
 }
 
 .insurance-contacts-footer-links a {
-  color: #2563eb;
+  color: var(--link);
   font-weight: 600;
 }
 
@@ -1104,6 +1220,13 @@ body {
   font-size: 1.05rem;
   padding: 12px 14px;
   border-radius: 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.registry-form-touch .field__control::placeholder {
+  color: var(--placeholder);
 }
 
 .registry-form-touch .company-registry-subtitle {
@@ -1130,23 +1253,23 @@ body {
   margin: 0 0 8px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
+  background: var(--hint-bg);
+  border: 1px solid var(--hint-border);
   font-size: 0.98rem;
   line-height: 1.45;
-  color: #065f46;
+  color: var(--hint-text);
   font-weight: 600;
 }
 
 .edit-banner {
   margin: 0 0 16px;
-  padding: 14px 16px;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--edit-banner-bg);
+  color: var(--edit-banner-text);
+  border: none;
+  border-radius: 10px;
   font-size: 1.05rem;
   font-weight: 700;
-  color: #9a3412;
 }
 
 .company-registry-form-card {
@@ -1259,7 +1382,7 @@ body {
 
 .company-registry-muted {
   margin: 8px 0 0;
-  color: #8a96a8;
+  color: var(--subtext);
   font-size: 14px;
 }
 

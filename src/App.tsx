@@ -16,6 +16,7 @@ import CreateStaffPage from './features/admin/pages/CreateStaffPage'
 import CompanyRegistryPage from './features/company-registry/pages/CompanyRegistryPage'
 import GeneralRequestPage from './features/company-registry/pages/GeneralRequestPage'
 import InsuranceCompanyContactsViewPage from './features/company-registry/pages/InsuranceCompanyContactsViewPage'
+import { ThemeToggle } from './components/ThemeToggle'
 import { useAuth } from './features/auth/AuthProvider'
 
 function HomeRedirect() {
@@ -25,7 +26,9 @@ function HomeRedirect() {
 
 function App() {
   return (
-    <Routes>
+    <>
+      <ThemeToggle />
+      <Routes>
       <Route path="/" element={<HomeRedirect />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
@@ -52,6 +55,7 @@ function App() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }
 
