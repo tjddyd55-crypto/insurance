@@ -12,6 +12,7 @@ import { ReinsurerContactsPage } from './features/contacts/pages/ReinsurerContac
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
 import CustomersPage from './features/customers/pages/CustomersPage'
 import CustomerCarPage from './features/customers/pages/CustomerCarPage'
+import CreateStaffPage from './features/admin/pages/CreateStaffPage'
 import { useAuth } from './features/auth/AuthProvider'
 
 function HomeRedirect() {
@@ -30,6 +31,7 @@ function App() {
       <Route path="/insurance/print" element={<InsurancePrintPage />} />
 
       <Route element={<ProtectedRoute />}>
+        <Route path="/admin/create-staff" element={<CreateStaffPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/application" element={<CarInsuranceDashboardPage />} />
         <Route path="/customers" element={<CustomersPage />} />

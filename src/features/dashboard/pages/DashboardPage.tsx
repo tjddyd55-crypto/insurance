@@ -83,7 +83,7 @@ export function DashboardPage() {
                   <button
                     className="button button--primary button--full"
                     type="button"
-                    onClick={() => navigate('/register')}
+                    onClick={() => navigate('/admin/create-staff')}
                   >
                     담당자 생성
                   </button>

@@ -14,6 +14,10 @@
   box-sizing: border-box;
 }
 
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -57,6 +61,21 @@ body {
   margin-top: 14px;
   font-size: 14px;
   color: #566171;
+}
+
+.auth-divider {
+  border: 0;
+  border-top: 1px solid #d8dee9;
+  margin: 22px 0;
+}
+
+.auth-signup-inline {
+  margin-top: 4px;
+}
+
+.auth-signup-inline__title {
+  font-size: 1.1rem;
+  margin: 0 0 4px;
 }
 
 .dashboard-card {
@@ -513,6 +532,27 @@ body {
   font-weight: 700;
   background: #ffffff;
   color: #1f2a38;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.button:hover:not(:disabled):not(:active) {
+  background-color: #e8eefc;
+  border-color: #6b7c94;
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.96);
+  opacity: 0.88;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .button--primary {
@@ -521,16 +561,31 @@ body {
   color: #ffffff;
 }
 
+.button--primary:hover:not(:disabled):not(:active) {
+  background-color: #2f5ed7;
+  border-color: #2f5ed7;
+}
+
 .button--secondary {
   border-color: #f0a106;
   background-color: #fff8eb;
   color: #8a5b00;
 }
 
+.button--secondary:hover:not(:disabled):not(:active) {
+  background-color: #fff4e0;
+  border-color: #e09900;
+}
+
 .button--danger {
   border-color: #c53030;
   background-color: #fff5f5;
   color: #9b2c2c;
+}
+
+.button--danger:hover:not(:disabled):not(:active) {
+  background-color: #ffe8e8;
+  border-color: #b12b2b;
 }
 
 .button--full {
@@ -815,6 +870,29 @@ body {
   margin-top: 12px;
   font-size: 12px;
   color: #4e5968;
+}
+
+.contacts-public-auth {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.contacts-public-auth__user {
+  font-size: 15px;
+  color: #4e5968;
+  margin-right: 4px;
+}
+
+a.contacts-public-auth__link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .contacts-page {

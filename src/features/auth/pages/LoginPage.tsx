@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthProvider'
-import { login as loginApi } from '../authApi'
+import { login as loginApi, register as registerApi } from '../authApi'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -69,9 +69,70 @@ export function LoginPage() {
         </form>
 
         <p className="auth-footer">
-          계정이 없으신가요? <Link to="/register">회원가입</Link>
+          계정이 없으신가요? <Link to="/register">회원가입 페이지</Link>
         </p>
+
+        <hr className="auth-divider" />
+
+        <LoginPageSignupSection />
       </section>
     </main>
+  )
+}
+
+function LoginPageSignupSection() {
+  const navigate = useNavigate()
+  const { login } = useAuth()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSignup = async (event: FormEvent) => {
+    event.preventDefault()
+    setErrorMessage('')
+    setIsSubmitting(true)
+    try {
+      await registerApi(username, password)
+      const session = await loginApi(username, password)
+      login(session)
+      navigate('/dashboard', { replace: true })
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : '회원가입에 실패했습니다.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="auth-signup-inline">
+      <h2 className="auth-signup-inline__title">회원가입</h2>
+      <p className="auth-description">아래에서 바로 가입 후 로그인됩니다.</p>
+      <form className="auth-form" onSubmit={(e) => void handleSignup(e)}>
+        <label className="field">
+          <span className="field__label">아이디</span>
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            required
+          />
+        </label>
+        <label className="field">
+          <span className="field__label">비밀번호</span>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            required
+          />
+        </label>
+        {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
+        <button className="button button--full" type="submit" disabled={isSubmitting}>
+          {isSubmitting ? '가입 중…' : '가입'}
+        </button>
+      </form>
+    </div>
   )
 }

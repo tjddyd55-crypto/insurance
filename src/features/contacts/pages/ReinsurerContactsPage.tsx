@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   createInsuranceContact,
@@ -212,6 +212,26 @@ export function ReinsurerContactsPage() {
 
   return (
     <main className="page contacts-page">
+      <nav className="contacts-public-auth" aria-label="계정">
+        {isAuthenticated ? (
+          <>
+            <span className="contacts-public-auth__user">{user?.username}</span>
+            <button className="button button--small" type="button" onClick={() => navigate('/dashboard')}>
+              메뉴
+            </button>
+          </>
+        ) : (
+          <>
+            <Link className="button button--small button--primary contacts-public-auth__link" to="/login">
+              로그인
+            </Link>
+            <Link className="button button--small contacts-public-auth__link" to="/register">
+              회원가입
+            </Link>
+          </>
+        )}
+      </nav>
+
       <header className="page-header contacts-header">
         <h1>원수사 연락처</h1>
         <p>

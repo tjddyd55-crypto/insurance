@@ -74,6 +74,11 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT ''
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS insurance_forms (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

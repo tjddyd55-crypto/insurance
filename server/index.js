@@ -596,6 +596,46 @@ apiRouter.get('/insurance/contacts/:id/vcard', async (req, res) => {
   }
 })
 
+apiRouter.post('/admin/create-staff', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const { username, password, name } = req.body ?? {}
+    const validationMessage = validateCredentials(username, password)
+    if (validationMessage) {
+      res.status(400).json({ message: validationMessage })
+      return
+    }
+
+    const normalizedUsername = String(username).trim()
+    const displayName = String(name ?? '').trim()
+    const passwordHash = await bcrypt.hash(password, 10)
+    const id = randomUUID()
+
+    await pool.query(
+      `
+      INSERT INTO users (id, username, password_hash, role, display_name)
+      VALUES ($1, $2, $3, 'staff', $4)
+      `,
+      [id, normalizedUsername, passwordHash, displayName],
+    )
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id,
+        username: normalizedUsername,
+        role: 'staff',
+        displayName,
+      },
+    })
+  } catch (error) {
+    if (error?.code === '23505') {
+      res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
+      return
+    }
+    handleDbError(error, res)
+  }
+})
+
 apiRouter.post('/admin/insurance/contacts', requireAuth, requireStaffOrAdmin, async (req, res) => {
   try {
     const category = normalizeCategory(req.body?.category)
