@@ -1,18 +1,19 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { fullSaveCompanyDirectory, listCompanyDirectory } from '../api/companyRegistryApi'
-import type {
-  CompanyDirectoryEntry,
-  InsuranceCompanyContactDraft,
-  InsuranceCompanyFormState,
-  InsuranceGeneralDraft,
-} from '../domain/types'
+import { insuranceCategoryLabel, normalizeInsuranceCategory } from '../domain/categoryUtils'
+import type { InsuranceCategory } from '../domain/insuranceConstants'
+import {
+  getInsuranceCompanyDefaultTel,
+  INSURANCE_COMPANIES_BY_TYPE,
+  INSURANCE_TYPE_LABELS,
+  INSURANCE_TYPE_ORDER,
+} from '../domain/insuranceConstants'
+import type { CompanyDirectoryEntry, InsuranceCompanyContactDraft, InsuranceCompanyFormState } from '../domain/types'
+import { downloadContactVcard, toTelHref } from '../utils/contactActions'
 
-const EMPTY_COMPANY: InsuranceCompanyFormState = {
-  id: null,
-  category: '',
-  name: '',
+const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 'name'> = {
   customerCenter: '',
   systemPhone: '',
   incallNumber: '',
@@ -21,12 +22,10 @@ const EMPTY_COMPANY: InsuranceCompanyFormState = {
 
 const EMPTY_CONTACT: InsuranceCompanyContactDraft = { name: '', position: '', phone: '' }
 
-const EMPTY_GENERAL: InsuranceGeneralDraft = { description: '', phone: '', fax: '', email: '' }
-
 function entryToFormState(entry: CompanyDirectoryEntry): InsuranceCompanyFormState {
   return {
     id: entry.id,
-    category: entry.category,
+    category: normalizeInsuranceCategory(entry.category) || entry.category,
     name: entry.name,
     customerCenter: entry.customerCenter,
     systemPhone: entry.systemPhone,
@@ -46,19 +45,6 @@ function entryContactsToDrafts(entry: CompanyDirectoryEntry): InsuranceCompanyCo
   }))
 }
 
-function entryGeneralToDraft(entry: CompanyDirectoryEntry): InsuranceGeneralDraft {
-  const g = entry.general
-  if (!g) {
-    return { ...EMPTY_GENERAL }
-  }
-  return {
-    description: g.description ?? '',
-    phone: g.phone ?? '',
-    fax: g.fax ?? '',
-    email: g.email ?? '',
-  }
-}
-
 export default function CompanyRegistryPage() {
   const navigate = useNavigate()
   const { user, token, isAuthenticated } = useAuth()
@@ -68,11 +54,44 @@ export default function CompanyRegistryPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [statusText, setStatusText] = useState('')
 
-  const [company, setCompany] = useState<InsuranceCompanyFormState>({ ...EMPTY_COMPANY })
+  const [selectedType, setSelectedType] = useState<InsuranceCategory | ''>('')
+  const [selectedCompanyName, setSelectedCompanyName] = useState('')
+
+  const [company, setCompany] = useState<InsuranceCompanyFormState>({
+    id: null,
+    category: '',
+    name: '',
+    ...EMPTY_COMPANY_FIELDS,
+  })
   const [contacts, setContacts] = useState<InsuranceCompanyContactDraft[]>([{ ...EMPTY_CONTACT }])
-  const [general, setGeneral] = useState<InsuranceGeneralDraft>({ ...EMPTY_GENERAL })
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('')
   const [isSaving, setIsSaving] = useState(false)
+
+  const companyNameOptions = useMemo(() => {
+    if (!selectedType) {
+      return []
+    }
+    return INSURANCE_COMPANIES_BY_TYPE[selectedType] ?? []
+  }, [selectedType])
+
+  const hasDirectoryEntryForSelection = useMemo(() => {
+    if (!selectedType || !selectedCompanyName) {
+      return false
+    }
+    return list.some(
+      (e) =>
+        normalizeInsuranceCategory(e.category) === selectedType && e.name === selectedCompanyName,
+    )
+  }, [list, selectedType, selectedCompanyName])
+
+  const customerCenterMapHint = useMemo(() => {
+    if (!selectedType || !selectedCompanyName || hasDirectoryEntryForSelection) {
+      return null
+    }
+    const tel = getInsuranceCompanyDefaultTel(selectedType, selectedCompanyName)
+    return tel
+      ? '표준 고객센터 번호를 넣었습니다. 필요 시 수정할 수 있습니다.'
+      : '전화번호 없음 (직접 입력)'
+  }, [hasDirectoryEntryForSelection, selectedCompanyName, selectedType])
 
   const loadList = useCallback(async () => {
     setIsLoading(true)
@@ -91,23 +110,70 @@ export default function CompanyRegistryPage() {
     void loadList()
   }, [loadList])
 
-  const applySelection = (value: string) => {
-    setSelectedCompanyId(value)
-    if (!value) {
-      setCompany({ ...EMPTY_COMPANY })
+  useEffect(() => {
+    if (!selectedType || !selectedCompanyName) {
+      setCompany({
+        id: null,
+        category: selectedType || '',
+        name: '',
+        ...EMPTY_COMPANY_FIELDS,
+      })
       setContacts([{ ...EMPTY_CONTACT }])
-      setGeneral({ ...EMPTY_GENERAL })
       return
     }
-    const id = Number(value)
-    const entry = list.find((x) => x.id === id)
-    if (!entry) {
+
+    const entry = list.find(
+      (e) =>
+        normalizeInsuranceCategory(e.category) === selectedType && e.name === selectedCompanyName,
+    )
+
+    if (entry) {
+      setCompany(entryToFormState(entry))
+      setContacts(entryContactsToDrafts(entry))
       return
     }
-    setCompany(entryToFormState(entry))
-    setContacts(entryContactsToDrafts(entry))
-    setGeneral(entryGeneralToDraft(entry))
-  }
+
+    setCompany({
+      id: null,
+      category: selectedType,
+      name: selectedCompanyName,
+      ...EMPTY_COMPANY_FIELDS,
+    })
+    setContacts([{ ...EMPTY_CONTACT }])
+  }, [list, selectedType, selectedCompanyName])
+
+  const groupedForDisplay = useMemo(() => {
+    const byType = new Map<InsuranceCategory, CompanyDirectoryEntry[]>()
+    for (const t of INSURANCE_TYPE_ORDER) {
+      byType.set(t, [])
+    }
+    const uncategorized: CompanyDirectoryEntry[] = []
+    for (const row of list) {
+      const t = normalizeInsuranceCategory(row.category) as InsuranceCategory | ''
+      if (t && byType.has(t)) {
+        byType.get(t)!.push(row)
+      } else {
+        uncategorized.push(row)
+      }
+    }
+    const groups: Array<{ groupId: InsuranceCategory | 'uncategorized'; label: string; companies: CompanyDirectoryEntry[] }> =
+      INSURANCE_TYPE_ORDER.map((type) => ({
+        groupId: type,
+        label: INSURANCE_TYPE_LABELS[type],
+        companies: (byType.get(type) ?? [])
+          .slice()
+          .sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+      })).filter((g) => g.companies.length > 0)
+
+    if (uncategorized.length > 0) {
+      groups.push({
+        groupId: 'uncategorized',
+        label: '기타 (분류 미정)',
+        companies: uncategorized.slice().sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+      })
+    }
+    return groups
+  }, [list])
 
   const addContactRow = () => {
     setContacts((prev) => [...prev, { ...EMPTY_CONTACT }])
@@ -126,9 +192,12 @@ export default function CompanyRegistryPage() {
       setStatusText('연락처 저장은 staff 또는 super_admin만 가능합니다.')
       return
     }
-    const name = company.name.trim()
-    if (!name) {
-      setStatusText('보험사명을 입력하세요.')
+    if (!selectedType) {
+      setStatusText('보험 종류를 선택하세요.')
+      return
+    }
+    if (!selectedCompanyName.trim()) {
+      setStatusText('보험사를 선택하세요.')
       return
     }
 
@@ -138,23 +207,18 @@ export default function CompanyRegistryPage() {
       const body = {
         company: {
           ...(company.id != null ? { id: company.id } : {}),
-          category: company.category.trim(),
-          name,
+          category: selectedType,
+          name: selectedCompanyName.trim(),
           customerCenter: company.customerCenter.trim(),
           systemPhone: company.systemPhone.trim(),
           incallNumber: company.incallNumber.trim(),
           visitInfo: company.visitInfo.trim(),
         },
         contacts,
-        general,
       }
       await fullSaveCompanyDirectory(body, token)
       window.alert('저장했습니다.')
       await loadList()
-      setSelectedCompanyId('')
-      setCompany({ ...EMPTY_COMPANY })
-      setContacts([{ ...EMPTY_CONTACT }])
-      setGeneral({ ...EMPTY_GENERAL })
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '저장에 실패했습니다.')
     } finally {
@@ -171,6 +235,9 @@ export default function CompanyRegistryPage() {
         <Link className="button button--small contacts-public-auth__link" to="/menu/reinsurer-contacts">
           원수사 연락처(구)
         </Link>
+        <Link className="button button--small contacts-public-auth__link" to="/insurance/general-request">
+          일반화재 설계의뢰
+        </Link>
         {isAuthenticated ? (
           <button className="button button--small" type="button" onClick={() => navigate('/dashboard')}>
             메뉴
@@ -183,10 +250,10 @@ export default function CompanyRegistryPage() {
       </nav>
 
       <header className="page-header">
-        <h1>보험사 연락처 (마스터)</h1>
+        <h1>보험사 연락처</h1>
         <p>
           {statusText ||
-            '보험사 공통정보 · 담당자(복수) · 일반화재 설계의뢰를 한 묶음으로 관리합니다. 목록은 누구나 조회할 수 있습니다.'}
+            '보험 종류·보험사를 선택한 뒤 공통 정보와 담당자를 입력합니다. 목록은 보험 종류별로 묶어 표시합니다. 일반화재 설계의뢰는 별도 메뉴에서 등록합니다.'}
         </p>
       </header>
 
@@ -195,16 +262,39 @@ export default function CompanyRegistryPage() {
           <h2 className="dashboard-section-title">입력 · 수정 (관리자)</h2>
 
           <label className="field">
-            <span className="field__label">보험사 선택</span>
+            <span className="field__label">보험 종류 (필수)</span>
             <select
               className="field__control"
-              value={selectedCompanyId}
-              onChange={(e) => applySelection(e.target.value)}
+              value={selectedType}
+              onChange={(e) => {
+                const v = e.target.value as InsuranceCategory | ''
+                setSelectedType(v)
+                setSelectedCompanyName('')
+              }}
+              required
             >
-              <option value="">신규 보험사</option>
-              {list.map((c) => (
-                <option key={c.id} value={String(c.id)}>
-                  [{c.category || '미분류'}] {c.name}
+              <option value="">선택</option>
+              {INSURANCE_TYPE_ORDER.map((v) => (
+                <option key={v} value={v}>
+                  {INSURANCE_TYPE_LABELS[v]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span className="field__label">보험사 선택 (필수)</span>
+            <select
+              className="field__control"
+              value={selectedCompanyName}
+              onChange={(e) => setSelectedCompanyName(e.target.value)}
+              disabled={!selectedType}
+              required
+            >
+              <option value="">선택</option>
+              {companyNameOptions.map((n) => (
+                <option key={n} value={n}>
+                  {n}
                 </option>
               ))}
             </select>
@@ -213,28 +303,16 @@ export default function CompanyRegistryPage() {
           <h3 className="company-registry-subtitle">공통정보</h3>
           <div className="field-grid-customers">
             <label className="field">
-              <span className="field__label">구분 (생명/손해 등)</span>
-              <input
-                className="field__control"
-                value={company.category}
-                onChange={(e) => setCompany({ ...company, category: e.target.value })}
-              />
-            </label>
-            <label className="field field--wide">
-              <span className="field__label">보험사명</span>
-              <input
-                className="field__control"
-                value={company.name}
-                onChange={(e) => setCompany({ ...company, name: e.target.value })}
-                required
-              />
-            </label>
-            <label className="field">
               <span className="field__label">고객센터</span>
+              {customerCenterMapHint ? (
+                <p className="company-registry-field-hint">{customerCenterMapHint}</p>
+              ) : null}
               <input
                 className="field__control"
                 value={company.customerCenter}
                 onChange={(e) => setCompany({ ...company, customerCenter: e.target.value })}
+                placeholder="고객센터 번호 (자동입력 / 수정가능)"
+                autoComplete="tel"
               />
             </label>
             <label className="field">
@@ -254,7 +332,7 @@ export default function CompanyRegistryPage() {
               />
             </label>
             <label className="field field--wide">
-              <span className="field__label">방문일 / 카톡 / 요일 (자유 입력)</span>
+              <span className="field__label">방문일 / 카톡 / 기타</span>
               <input
                 className="field__control"
                 value={company.visitInfo}
@@ -300,56 +378,21 @@ export default function CompanyRegistryPage() {
             담당자 추가
           </button>
 
-          <h3 className="company-registry-subtitle">일반화재 설계의뢰 (선택)</h3>
-          <div className="field-grid-customers">
-            <label className="field field--wide">
-              <span className="field__label">설명</span>
-              <input
-                className="field__control"
-                value={general.description}
-                onChange={(e) => setGeneral({ ...general, description: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span className="field__label">전화</span>
-              <input
-                className="field__control"
-                value={general.phone}
-                onChange={(e) => setGeneral({ ...general, phone: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span className="field__label">팩스</span>
-              <input
-                className="field__control"
-                value={general.fax}
-                onChange={(e) => setGeneral({ ...general, fax: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span className="field__label">이메일</span>
-              <input
-                className="field__control"
-                value={general.email}
-                onChange={(e) => setGeneral({ ...general, email: e.target.value })}
-              />
-            </label>
-          </div>
-
           <button
             className="button button--primary button--full"
             style={{ marginTop: 16 }}
             type="button"
-            disabled={isSaving}
+            disabled={isSaving || !selectedType || !selectedCompanyName}
             onClick={() => void handleSave()}
           >
-            {isSaving ? '저장 중…' : '통합 저장'}
+            {isSaving ? '저장 중…' : '저장'}
           </button>
         </section>
       ) : (
         <section className="card">
           <p className="empty-state">
-            데이터 입력·수정은 <Link to="/login">로그인</Link> 후 staff / super_admin 권한이 필요합니다.
+            데이터 입력·수정은 <Link to="/login">로그인</Link> 후 staff / super_admin 권한이 필요합니다.{' '}
+            <Link to="/insurance/general-request">일반화재 설계의뢰</Link>도 같은 권한으로 저장할 수 있습니다.
           </p>
         </section>
       )}
@@ -358,80 +401,81 @@ export default function CompanyRegistryPage() {
         <h2>보험사별 보기</h2>
         {isLoading ? (
           <p>불러오는 중…</p>
-        ) : list.length === 0 ? (
+        ) : groupedForDisplay.length === 0 ? (
           <p className="empty-state">등록된 보험사가 없습니다.</p>
         ) : (
-          <ul className="company-registry-company-list">
-            {list.map((c) => (
-              <li key={c.id} className="company-registry-company-block card">
-                <h3 className="company-registry-company-title">
-                  [{c.category || '—'}] {c.name}
-                </h3>
-                <dl className="company-registry-dl">
-                  <div>
-                    <dt>고객센터</dt>
-                    <dd>{c.customerCenter || '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>전산문의</dt>
-                    <dd>{c.systemPhone || '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>인콜번호</dt>
-                    <dd>{c.incallNumber || '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>방문일</dt>
-                    <dd>{c.visitInfo || '—'}</dd>
-                  </div>
-                </dl>
-
-                {c.contacts?.length ? (
-                  <ul className="company-registry-contact-display">
-                    {c.contacts.map((p) => (
-                      <li key={p.id}>
-                        {p.position ? `${p.position} ` : ''}
-                        {p.name}
-                        {p.phone ? ` · ${p.phone}` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="company-registry-muted">등록된 담당자 없음</p>
-                )}
-
-                <div className="company-registry-general-box">
-                  <h4>일반화재</h4>
-                  {c.general &&
-                  (c.general.description ||
-                    c.general.phone ||
-                    c.general.fax ||
-                    c.general.email) ? (
-                    <dl className="company-registry-dl">
-                      <div>
-                        <dt>설명</dt>
-                        <dd>{c.general.description || '—'}</dd>
+          <div className="company-registry-type-groups">
+            {groupedForDisplay.map((group) => (
+              <section key={group.groupId} className="company-registry-type-section">
+                <h3 className="company-registry-type-heading">{group.label}</h3>
+                <ul className="company-registry-company-list">
+                  {group.companies.map((c) => (
+                    <li key={c.id} className="company-registry-company-block card">
+                      <h4 className="company-registry-company-title">{c.name}</h4>
+                      <p className="company-registry-meta-line">{insuranceCategoryLabel(c.category)}</p>
+                      <dl className="company-registry-dl company-registry-dl--read">
+                        <div>
+                          <dt>고객센터</dt>
+                          <dd>{c.customerCenter || '—'}</dd>
+                        </div>
+                        <div>
+                          <dt>전산문의</dt>
+                          <dd>{c.systemPhone || '—'}</dd>
+                        </div>
+                        <div>
+                          <dt>인콜번호</dt>
+                          <dd>{c.incallNumber || '—'}</dd>
+                        </div>
+                        <div>
+                          <dt>방문안내</dt>
+                          <dd>{c.visitInfo || '—'}</dd>
+                        </div>
+                      </dl>
+                      <div className="company-registry-contact-cards" aria-label="담당자">
+                        {c.contacts?.length ? (
+                          c.contacts.map((p, idx) => (
+                            <div key={p.id != null ? p.id : `new-${c.id}-${idx}`} className="company-registry-contact-card">
+                              <p className="company-registry-contact-card__position">{p.position || '—'}</p>
+                              <p className="company-registry-contact-card__name">{p.name || '—'}</p>
+                              <p className="company-registry-contact-card__phone">{p.phone || '—'}</p>
+                              <div className="company-registry-contact-card__actions">
+                                {p.phone?.trim() ? (
+                                  <a
+                                    className="button button--primary company-registry-tel-btn"
+                                    href={toTelHref(p.phone)}
+                                  >
+                                    전화하기
+                                  </a>
+                                ) : null}
+                                {p.phone?.trim() ? (
+                                  <button
+                                    className="button company-registry-vcf-btn"
+                                    type="button"
+                                    onClick={() =>
+                                      downloadContactVcard({
+                                        name: p.name,
+                                        phone: p.phone,
+                                        companyName: c.name,
+                                        position: p.position,
+                                      })
+                                    }
+                                  >
+                                    연락처 저장
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="company-registry-muted">등록된 담당자 없음</p>
+                        )}
                       </div>
-                      <div>
-                        <dt>전화</dt>
-                        <dd>{c.general.phone || '—'}</dd>
-                      </div>
-                      <div>
-                        <dt>팩스</dt>
-                        <dd>{c.general.fax || '—'}</dd>
-                      </div>
-                      <div>
-                        <dt>이메일</dt>
-                        <dd>{c.general.email || '—'}</dd>
-                      </div>
-                    </dl>
-                  ) : (
-                    <p className="company-registry-muted">미등록</p>
-                  )}
-                </div>
-              </li>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
       </section>
     </main>

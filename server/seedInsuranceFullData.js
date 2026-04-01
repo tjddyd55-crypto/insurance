@@ -7,7 +7,7 @@ export const SEED_DATA = [
   // ================= DB생명 =================
   {
     company: {
-      category: 'life',
+      category: 'LIFE',
       name: 'DB생명',
       customer_center: '',
       system_phone: '02-6470-7911',
@@ -24,7 +24,7 @@ export const SEED_DATA = [
   // ================= 한화생명 =================
   {
     company: {
-      category: 'life',
+      category: 'LIFE',
       name: '한화생명',
       customer_center: '1588-6363',
       system_phone: '',
@@ -41,7 +41,7 @@ export const SEED_DATA = [
   // ================= IM라이프 =================
   {
     company: {
-      category: 'life',
+      category: 'LIFE',
       name: 'IM라이프',
       customer_center: '1588-4770',
       system_phone: '',
@@ -55,7 +55,7 @@ export const SEED_DATA = [
   // ================= 동양생명 =================
   {
     company: {
-      category: 'life',
+      category: 'LIFE',
       name: '동양생명',
       customer_center: '1577-1004',
       system_phone: '',
@@ -72,7 +72,7 @@ export const SEED_DATA = [
   // ================= 흥국생명 =================
   {
     company: {
-      category: 'life',
+      category: 'LIFE',
       name: '흥국생명',
       customer_center: '1588-2288',
       system_phone: '',
@@ -86,7 +86,7 @@ export const SEED_DATA = [
   // ================= 신한라이프 =================
   {
     company: {
-      category: 'life',
+      category: 'LIFE',
       name: '신한라이프',
       customer_center: '1588-5580',
       system_phone: '',
@@ -100,7 +100,7 @@ export const SEED_DATA = [
   // ================= 삼성화재 =================
   {
     company: {
-      category: 'nonlife',
+      category: 'NON_LIFE',
       name: '삼성화재',
       customer_center: '1588-5114',
       system_phone: '1899-5005',
@@ -122,7 +122,7 @@ export const SEED_DATA = [
   // ================= 현대해상 =================
   {
     company: {
-      category: 'nonlife',
+      category: 'NON_LIFE',
       name: '현대해상',
       customer_center: '1588-5656',
       system_phone: '',
@@ -136,7 +136,7 @@ export const SEED_DATA = [
   // ================= KB손해보험 =================
   {
     company: {
-      category: 'nonlife',
+      category: 'NON_LIFE',
       name: 'KB손해보험',
       customer_center: '1544-0114',
       system_phone: '',

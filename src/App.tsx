@@ -14,6 +14,7 @@ import CustomersPage from './features/customers/pages/CustomersPage'
 import CustomerCarPage from './features/customers/pages/CustomerCarPage'
 import CreateStaffPage from './features/admin/pages/CreateStaffPage'
 import CompanyRegistryPage from './features/company-registry/pages/CompanyRegistryPage'
+import GeneralRequestPage from './features/company-registry/pages/GeneralRequestPage'
 import { useAuth } from './features/auth/AuthProvider'
 
 function HomeRedirect() {
@@ -29,6 +30,7 @@ function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/menu/reinsurer-contacts" element={<ReinsurerContactsPage />} />
       <Route path="/menu/company-registry" element={<CompanyRegistryPage />} />
+      <Route path="/insurance/general-request" element={<GeneralRequestPage />} />
       <Route path="/menu/insurance-updates" element={<InsuranceUpdatesPage />} />
       <Route path="/insurance/print" element={<InsurancePrintPage />} />
 

@@ -55,6 +55,15 @@ export function DashboardPage() {
                   <button
                     className="button button--full"
                     type="button"
+                    onClick={() => navigate('/insurance/general-request')}
+                  >
+                    일반화재 설계의뢰
+                  </button>
+                </li>
+                <li>
+                  <button
+                    className="button button--full"
+                    type="button"
                     onClick={() => navigate('/menu/insurance-updates')}
                   >
                     업데이트 현황
@@ -122,6 +131,15 @@ export function DashboardPage() {
                     onClick={() => navigate('/menu/company-registry')}
                   >
                     보험사 연락처(마스터)
+                  </button>
+                </li>
+                <li>
+                  <button
+                    className="button button--full"
+                    type="button"
+                    onClick={() => navigate('/insurance/general-request')}
+                  >
+                    일반화재 설계의뢰
                   </button>
                 </li>
                 <li>

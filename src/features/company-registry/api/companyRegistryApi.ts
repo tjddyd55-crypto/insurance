@@ -1,9 +1,5 @@
 import { ApiError, apiRequest } from '../../../lib/apiClient'
-import type {
-  CompanyDirectoryEntry,
-  InsuranceCompanyContactDraft,
-  InsuranceGeneralDraft,
-} from '../domain/types'
+import type { CompanyDirectoryEntry, InsuranceCompanyContactDraft, InsuranceGeneralDraft } from '../domain/types'
 
 export async function listCompanyDirectory(): Promise<CompanyDirectoryEntry[]> {
   return apiRequest<CompanyDirectoryEntry[]>('/api/company/list')
@@ -12,7 +8,6 @@ export async function listCompanyDirectory(): Promise<CompanyDirectoryEntry[]> {
 export interface FullSaveCompanyBody {
   company: Record<string, unknown>
   contacts: InsuranceCompanyContactDraft[]
-  general: InsuranceGeneralDraft
 }
 
 export async function fullSaveCompanyDirectory(
@@ -23,6 +18,20 @@ export async function fullSaveCompanyDirectory(
     throw new ApiError('로그인이 필요합니다.', 401)
   }
   return apiRequest<{ success: boolean; data: CompanyDirectoryEntry | null }>('/api/company/full-save', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(body),
+  })
+}
+
+export async function saveGeneralRequest(
+  body: { company: { category: string; name: string }; general: InsuranceGeneralDraft },
+  token: string,
+): Promise<{ success: boolean }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  return apiRequest<{ success: boolean }>('/api/company/general-save', {
     method: 'POST',
     token,
     body: JSON.stringify(body),
