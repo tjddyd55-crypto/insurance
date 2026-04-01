@@ -10,8 +10,11 @@ import { initDb } from './initDb.js'
 const PORT = Number(process.env.PORT ?? 3001)
 const JWT_SECRET = process.env.JWT_SECRET ?? 'change-this-in-production'
 const DEFAULT_JWT_SECRET = 'change-this-in-production'
-const INSURANCE_CONTACT_ADMIN_USERNAME =
-  process.env.INSURANCE_CONTACT_ADMIN_USERNAME ?? 'admin'
+const INSURANCE_CONTACT_ADMIN_USERNAME = (
+  process.env.INSURANCE_CONTACT_ADMIN_USERNAME ||
+  process.env.INSURANCE_ADMIN_BOOTSTRAP_USERNAME ||
+  'admin'
+).trim()
 const RUNNING_IN_PRODUCTION =
   process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT)
 const DIST_PATH = path.join(process.cwd(), 'dist')
@@ -229,16 +232,19 @@ function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET)
-    const userId = payload.userId ?? payload.sub
-    if (userId === undefined || userId === null || String(userId).trim() === '') {
-      res.status(401).json({ message: '토큰에 사용자 ID가 없습니다.' })
+    const decoded = jwt.verify(token, JWT_SECRET)
+    const userId = decoded.userId || decoded.sub
+    if (!userId || String(userId).trim() === '') {
+      console.error('[requireAuth] JWT userId 없음', { keys: Object.keys(decoded) })
+      res
+        .status(401)
+        .json({ error: 'Unauthorized', message: '토큰에 사용자 ID가 없습니다.' })
       return
     }
 
     req.user = {
       id: String(userId),
-      username: typeof payload.username === 'string' ? payload.username : '',
+      username: typeof decoded.username === 'string' ? decoded.username : '',
     }
 
     if (req.originalUrl?.includes('/forms')) {
@@ -246,7 +252,10 @@ function requireAuth(req, res, next) {
     }
     next()
   } catch {
-    res.status(401).json({ message: '인증이 만료되었거나 유효하지 않습니다.' })
+    res.status(401).json({
+      error: 'Unauthorized',
+      message: '인증이 만료되었거나 유효하지 않습니다.',
+    })
   }
 }
 
@@ -339,9 +348,13 @@ apiRouter.post('/login', async (req, res) => {
     }
 
     const normalizedUsername = username.trim()
+    const loginDebug = process.env.INSURANCE_LOGIN_DEBUG === 'true'
+
+    console.log('로그인 시도 username:', normalizedUsername)
+
     const result = await pool.query(
       `
-      SELECT id, username, password_hash
+      SELECT *
       FROM users
       WHERE username = $1
       `,
@@ -349,20 +362,41 @@ apiRouter.post('/login', async (req, res) => {
     )
 
     const user = result.rows[0]
+    console.log('DB user:', user ? { id: user.id, username: user.username } : null)
+
     if (!user) {
-      res.status(401).json({ message: '아이디 또는 비밀번호가 올바르지 않습니다.' })
+      console.log('❌ 사용자 없음')
+      res.status(401).json({
+        error: 'Invalid credentials',
+        message: '아이디 또는 비밀번호가 올바르지 않습니다.',
+      })
       return
     }
 
-    const isValid = await bcrypt.compare(password, user.password_hash)
-    if (!isValid) {
-      res.status(401).json({ message: '아이디 또는 비밀번호가 올바르지 않습니다.' })
+    if (loginDebug) {
+      console.log('입력 비번:', password)
+      console.log('DB hash:', user.password_hash)
+    }
+
+    const match = await bcrypt.compare(password, user.password_hash)
+    console.log('비밀번호 일치 여부:', match)
+
+    if (!match) {
+      console.log('❌ 비밀번호 불일치')
+      res.status(401).json({
+        error: 'Invalid credentials',
+        message: '아이디 또는 비밀번호가 올바르지 않습니다.',
+      })
       return
     }
 
     const uid = String(user.id)
     const token = jwt.sign(
-      { sub: uid, userId: uid, username: user.username },
+      {
+        userId: user.id,
+        sub: user.id,
+        username: user.username,
+      },
       JWT_SECRET,
       { expiresIn: '7d' },
     )
@@ -370,7 +404,7 @@ apiRouter.post('/login', async (req, res) => {
     res.json({
       token,
       user: {
-        id: String(user.id),
+        id: uid,
         username: user.username,
       },
     })

@@ -2,40 +2,51 @@ import bcrypt from 'bcryptjs'
 import { randomUUID } from 'node:crypto'
 import pool from './db.js'
 
-function isProductionRuntime() {
-  return process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT)
+/**
+ * ⚠️ 디버그 전용: insurance_forms 등 user_id FK는 ON DELETE CASCADE 로 함께 정리됨.
+ * Railway 등에서 1회 사용 후 반드시 환경변수 제거.
+ */
+async function maybeDebugResetAllUsers() {
+  if (process.env.INSURANCE_DEBUG_RESET_ALL_USERS !== 'true') {
+    return
+  }
+
+  console.warn(
+    '[initDb] INSURANCE_DEBUG_RESET_ALL_USERS=true → 모든 users 삭제(CASCADE). 조치 후 변수를 꺼 주세요.',
+  )
+  await pool.query('DELETE FROM users')
+  console.log('[initDb] 기존 users 초기화 완료')
 }
 
 /**
- * 첫 기동 시 관리자 로그인용 사용자 1명을 자동 생성한다.
- * - 비운영: 기본 아이디 admin / 비밀번호 1234 (계정이 이미 있으면 건너뜀)
- * - 운영: INSURANCE_ENABLE_ADMIN_BOOTSTRAP=true 일 때만 생성 (실수로 약한 비번 노출 방지)
+ * INSURANCE_ENABLE_ADMIN_BOOTSTRAP=true 일 때만 동작.
+ * admin 계정이 없으면 bcrypt 해시로 생성한다.
  */
 async function ensureBootstrapAdminUser() {
-  const adminUsername = (process.env.INSURANCE_CONTACT_ADMIN_USERNAME ?? 'admin').trim()
-  const allowInProd = process.env.INSURANCE_ENABLE_ADMIN_BOOTSTRAP === 'true'
-  if (isProductionRuntime() && !allowInProd) {
+  if (process.env.INSURANCE_ENABLE_ADMIN_BOOTSTRAP !== 'true') {
     return
   }
 
-  const existing = await pool.query(`SELECT 1 FROM users WHERE username = $1`, [adminUsername])
+  const username = String(process.env.INSURANCE_ADMIN_BOOTSTRAP_USERNAME || 'admin').trim()
+  const password = process.env.INSURANCE_ADMIN_BOOTSTRAP_PASSWORD || '1234'
+
+  const existing = await pool.query(`SELECT * FROM users WHERE username = $1`, [username])
   if (existing.rowCount > 0) {
+    console.log('[initDb] admin 이미 존재 → 생성 스킵:', username)
     return
   }
 
-  const password = process.env.INSURANCE_ADMIN_BOOTSTRAP_PASSWORD ?? '1234'
-  const passwordHash = await bcrypt.hash(password, 10)
+  console.log('[initDb] admin 계정 생성 시작:', username)
+  const hash = await bcrypt.hash(password, 10)
   const id = randomUUID()
-
   await pool.query(
     `
     INSERT INTO users (id, username, password_hash)
     VALUES ($1, $2, $3)
     `,
-    [id, adminUsername, passwordHash],
+    [id, username, hash],
   )
-
-  console.log(`[initDb] 관리자 계정을 생성했습니다: username=${adminUsername}`)
+  console.log('[initDb] admin 계정 생성 완료')
 }
 
 export async function initDb() {
@@ -196,5 +207,6 @@ export async function initDb() {
     throw new Error('DB 점검 실패: idx_forms_user_updated 인덱스가 올바르지 않습니다.')
   }
 
+  await maybeDebugResetAllUsers()
   await ensureBootstrapAdminUser()
 }
