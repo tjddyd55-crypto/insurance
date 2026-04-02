@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { listCompanyDirectory } from '../api/companyRegistryApi'
-import { normalizeInsuranceCategory } from '../domain/categoryUtils'
+import { resolveTabCategory } from '../domain/categoryUtils'
 import {
   INSURANCE_TYPE_ORDER,
   isInsuranceCategory,
@@ -25,7 +25,7 @@ const TAB_TITLE: Record<InsuranceCategory, string> = {
 }
 
 function categoryForCompanyRow(row: CompanyDirectoryEntry, fallbackTab: InsuranceCategory): InsuranceCategory {
-  const n = normalizeInsuranceCategory(row.category)
+  const n = resolveTabCategory(row.category, row.name)
   if (n && isInsuranceCategory(n)) {
     return n
   }
@@ -68,7 +68,14 @@ export default function InsuranceCompanyContactsViewPage() {
   const filteredList = useMemo(() => {
     const q = keyword.trim().toLowerCase()
     const byTab = list
-      .filter((item) => normalizeInsuranceCategory(item.category) === activeTab)
+      .filter((item) => {
+        const tab = resolveTabCategory(item.category, item.name)
+        if (tab) {
+          return tab === activeTab
+        }
+        // DB 분류 없음·맵에도 없음 → 생명 탭에만 표시(누락 방지). 관리 화면에서 종류 지정 권장.
+        return activeTab === 'LIFE'
+      })
       .slice()
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
 

@@ -225,6 +225,20 @@ function normalizeInsuranceCompanyCategory(value) {
   if (lower === 'nonlife') {
     return 'NON_LIFE'
   }
+  const ko = s.replace(/\s+/g, '')
+  if (/^(생명|생명보험|생보)$/.test(ko) || ko === '생명보험') {
+    return 'LIFE'
+  }
+  if (
+    /^(손해|손해보험|손보|재산|화재)$/.test(ko) ||
+    ko === '손해보험' ||
+    ko === '손해보험사'
+  ) {
+    return 'NON_LIFE'
+  }
+  if (/^(일반|일반보험)$/.test(ko) || ko === '일반보험') {
+    return 'GENERAL'
+  }
   return ''
 }
 
