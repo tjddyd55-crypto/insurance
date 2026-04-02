@@ -1,159 +1,85 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+
+type MenuItem = { label: string; path: string }
+
+const USER_MENU: MenuItem[] = [
+  { label: '고객 관리', path: '/customers' },
+  { label: '자동차보험 신청서', path: '/application' },
+  { label: '원수사 연락처 조회', path: '/contacts' },
+]
+
+const STAFF_MENU: MenuItem[] = [
+  { label: '원수사 연락처 조회', path: '/contacts' },
+  { label: '원수사 연락처 관리', path: '/contacts/manage' },
+]
+
+function menuForRole(role: string | undefined): MenuItem[] {
+  if (role === 'user') {
+    return USER_MENU
+  }
+  if (role === 'staff') {
+    return STAFF_MENU
+  }
+  if (role === 'super_admin') {
+    return [{ label: '담당자 생성', path: '/admin/create-staff' }, ...STAFF_MENU]
+  }
+  return []
+}
+
+function pathIsActive(pathname: string, itemPath: string): boolean {
+  if (itemPath === '/contacts') {
+    return pathname === '/contacts' || pathname === '/insurance/contacts'
+  }
+  if (itemPath === '/contacts/manage') {
+    return pathname === '/contacts/manage' || pathname === '/insurance/company-registry'
+  }
+  return pathname === itemPath
+}
 
 export function DashboardPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, logout } = useAuth()
   const role = user?.role
   const isStaff = role === 'staff' || role === 'super_admin'
+  const menuItems = menuForRole(role)
+  const pathname = location.pathname
 
   return (
     <main className="page">
       <header className="page-header">
         <h1>메뉴</h1>
-        <p>{user?.username} 님, 사용할 기능 메뉴를 선택하세요.</p>
+        <p>{user?.username} 님, 사용할 기능을 선택하세요.</p>
       </header>
 
-      <section className="card dashboard-menu-card">
-        <h2 className="dashboard-section-title">업무 메뉴</h2>
-        <nav aria-label="주요 메뉴">
-          <ul className="dashboard-sidebar-list">
-            {role === 'user' ? (
-              <>
-                <li>
-                  <button
-                    className="button button--primary button--full"
-                    type="button"
-                    onClick={() => navigate('/application')}
-                  >
-                    자동차 신청서
-                  </button>
-                </li>
-                <li>
-                  <button className="button button--full" type="button" onClick={() => navigate('/customers')}>
-                    고객 관리
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
-                    onClick={() => navigate('/insurance/contacts')}
-                  >
-                    연락처 조회
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
-                    onClick={() => navigate('/insurance/company-registry')}
-                  >
-                    연락처 입력/관리
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
-                    onClick={() => navigate('/insurance/history')}
-                  >
-                    업데이트 현황
-                  </button>
-                </li>
-              </>
-            ) : null}
-
-            {role === 'staff' ? (
-              <>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
-                    onClick={() => navigate('/insurance/contacts')}
-                  >
-                    연락처 조회
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="button button--primary button--full"
-                    type="button"
-                    onClick={() => navigate('/insurance/company-registry')}
-                  >
-                    연락처 입력/관리
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
-                    onClick={() => navigate('/insurance/history')}
-                  >
-                    업데이트 현황
-                  </button>
-                </li>
-              </>
-            ) : null}
-
-            {role === 'super_admin' ? (
-              <>
-                <li>
-                  <button
-                    className="button button--primary button--full"
-                    type="button"
-                    onClick={() => navigate('/admin/create-staff')}
-                  >
-                    담당자 생성
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
-                    onClick={() => navigate('/insurance/contacts')}
-                  >
-                    연락처 조회
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
-                    onClick={() => navigate('/insurance/company-registry')}
-                  >
-                    연락처 입력/관리
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
-                    onClick={() => navigate('/insurance/history')}
-                  >
-                    업데이트 현황
-                  </button>
-                </li>
-                <li>
-                  <button className="button button--full" type="button" onClick={() => navigate('/application')}>
-                    자동차 신청서
-                  </button>
-                </li>
-              </>
-            ) : null}
-          </ul>
+      <section className="dashboard-menu-card">
+        <h2 className="dashboard-section-title visually-hidden">주요 메뉴</h2>
+        <nav className="menu-card" aria-label="주요 메뉴">
+          {menuItems.map((item) => {
+            const isActive = pathIsActive(pathname, item.path)
+            return (
+              <button
+                key={`${item.path}-${item.label}`}
+                type="button"
+                className={`menu-item${isActive ? ' active' : ''}`}
+                onClick={() => navigate(item.path)}
+              >
+                {item.label}
+              </button>
+            )
+          })}
         </nav>
 
         {isStaff ? (
           <p className="dashboard-menu-note">
-            보험사 마스터는 「연락처 조회」에서 보고, 「연락처 입력/관리」에서만 저장·수정합니다.
+            보험사 마스터는 「원수사 연락처 조회」에서 확인하고, 「원수사 연락처 관리」에서만 저장·수정합니다.
           </p>
         ) : null}
 
         <button
-          className="button button--secondary button--full"
+          className="button button--secondary button--full dashboard-logout"
           type="button"
-          style={{ marginTop: 16 }}
           onClick={() => {
             logout()
             navigate('/login', { replace: true })

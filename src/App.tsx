@@ -32,6 +32,9 @@ function App() {
       <Route path="/" element={<HomeRedirect />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/contacts" element={<Navigate to="/insurance/contacts" replace />} />
+      <Route path="/contacts/manage" element={<Navigate to="/insurance/company-registry" replace />} />
+      <Route path="/updates" element={<Navigate to="/insurance/history" replace />} />
       <Route path="/insurance/contacts" element={<InsuranceCompanyContactsViewPage />} />
       <Route path="/insurance/company-registry" element={<CompanyRegistryPage />} />
       <Route path="/insurance/history" element={<InsuranceUpdatesPage />} />

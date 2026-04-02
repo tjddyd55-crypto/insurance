@@ -223,7 +223,7 @@ export function ReinsurerContactsPage() {
             <Link className="button button--small button--primary contacts-public-auth__link" to="/login">
               로그인
             </Link>
-            <Link className="button button--small contacts-public-auth__link" to="/register">
+            <Link className="button button--small contacts-public-auth__link" to="/login?signup=1">
               회원가입
             </Link>
           </>

@@ -1,7 +1,7 @@
 import { ApiError, apiRequest } from '../../../lib/apiClient'
 import type {
   CompanyDirectoryEntry,
-  CompanyRecentUpdate,
+  CompanyUpdateHistoryItem,
   InsuranceCompanyContactDraft,
   InsuranceGeneralDraft,
 } from '../domain/types'
@@ -10,8 +10,8 @@ export async function listCompanyDirectory(): Promise<CompanyDirectoryEntry[]> {
   return apiRequest<CompanyDirectoryEntry[]>('/api/company/list')
 }
 
-export async function getCompanyRecentUpdates(): Promise<CompanyRecentUpdate[]> {
-  return apiRequest<CompanyRecentUpdate[]>('/api/company/recent-updates')
+export async function getCompanyRecentUpdates(): Promise<CompanyUpdateHistoryItem[]> {
+  return apiRequest<CompanyUpdateHistoryItem[]>('/api/company/recent-updates')
 }
 
 export interface FullSaveCompanyBody {

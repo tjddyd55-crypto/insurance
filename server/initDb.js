@@ -296,6 +296,24 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS insurance_company_update_log (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER REFERENCES insurance_company_master(id) ON DELETE SET NULL,
+      company_name TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT '',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_by_username TEXT NOT NULL DEFAULT '',
+      before_payload JSONB NOT NULL DEFAULT '{}',
+      after_payload JSONB NOT NULL DEFAULT '{}'
+    )
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_insurance_company_update_log_updated
+    ON insurance_company_update_log (updated_at DESC)
+  `)
+
+  await pool.query(`
     ALTER TABLE insurance_company_master
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ
   `)

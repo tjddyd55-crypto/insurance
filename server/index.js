@@ -503,6 +503,89 @@ async function withTransaction(task) {
   }
 }
 
+function emptyCompanySnapshot() {
+  return {
+    customerCenter: '',
+    system: '',
+    incall: '',
+    visitInfo: '',
+    contacts: [],
+  }
+}
+
+async function loadCompanySnapshot(client, companyId) {
+  const m = await client.query(
+    `
+    SELECT customer_center, system_phone, incall_number, visit_info
+    FROM insurance_company_master
+    WHERE id = $1
+    `,
+    [companyId],
+  )
+  if (m.rowCount === 0) {
+    return emptyCompanySnapshot()
+  }
+  const row = m.rows[0]
+  const c = await client.query(
+    `
+    SELECT name, position, phone
+    FROM insurance_company_contacts
+    WHERE company_id = $1
+    ORDER BY id ASC
+    `,
+    [companyId],
+  )
+  return {
+    customerCenter: String(row.customer_center ?? '').trim(),
+    system: String(row.system_phone ?? '').trim(),
+    incall: String(row.incall_number ?? '').trim(),
+    visitInfo: String(row.visit_info ?? '').trim(),
+    contacts: c.rows.map((r) => ({
+      name: String(r.name ?? '').trim(),
+      position: String(r.position ?? '').trim(),
+      phone: String(r.phone ?? '').trim(),
+    })),
+  }
+}
+
+function buildCompanySnapshotFromPayload(customerCenter, systemPhone, incallNumber, visitInfo, contactsIn) {
+  const contacts = []
+  const contactsList = Array.isArray(contactsIn) ? contactsIn : []
+  for (const c of contactsList) {
+    const cn = String(c?.name ?? '').trim()
+    const cp = String(c?.position ?? '').trim()
+    const cph = String(c?.phone ?? '').trim()
+    if (!cn && !cp && !cph) {
+      continue
+    }
+    contacts.push({ name: cn, position: cp, phone: cph })
+  }
+  return {
+    customerCenter: String(customerCenter ?? '').trim(),
+    system: String(systemPhone ?? '').trim(),
+    incall: String(incallNumber ?? '').trim(),
+    visitInfo: String(visitInfo ?? '').trim(),
+    contacts,
+  }
+}
+
+function normalizeHistoryPayload(payload) {
+  const p = payload && typeof payload === 'object' ? payload : {}
+  return {
+    customerCenter: String(p.customerCenter ?? '').trim(),
+    system: String(p.system ?? '').trim(),
+    incall: String(p.incall ?? '').trim(),
+    visitInfo: String(p.visitInfo ?? '').trim(),
+    contacts: Array.isArray(p.contacts)
+      ? p.contacts.map((c) => ({
+          name: String(c?.name ?? '').trim(),
+          position: String(c?.position ?? '').trim(),
+          phone: String(c?.phone ?? '').trim(),
+        }))
+      : [],
+  }
+}
+
 async function touchContactLastUpdatedAt(client) {
   await client.query(
     `
@@ -652,25 +735,31 @@ apiRouter.get('/company/recent-updates', async (_req, res) => {
       `
       SELECT
         id,
-        name AS company_name,
-        COALESCE(updated_at, created_at) AS sort_ts,
-        updated_by_username
-      FROM insurance_company_master
-      ORDER BY sort_ts DESC NULLS LAST, id DESC
-      LIMIT 100
+        company_id,
+        company_name,
+        category,
+        updated_at,
+        updated_by_username,
+        before_payload,
+        after_payload
+      FROM insurance_company_update_log
+      ORDER BY updated_at DESC NULLS LAST, id DESC
+      LIMIT 200
       `,
     )
     const rows = result.rows.map((row) => {
-      const ts = row.sort_ts
+      const ts = row.updated_at
       const d = ts instanceof Date ? ts : new Date(ts)
-      const dateStr = Number.isNaN(d.getTime())
-        ? ''
-        : d.toISOString().slice(0, 10)
+      const dateStr = Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
       return {
         id: String(row.id),
+        companyId: row.company_id != null ? String(row.company_id) : '',
         companyName: row.company_name ?? '',
+        category: row.category ?? '',
         updatedAt: dateStr,
         updatedBy: String(row.updated_by_username ?? '').trim() || '—',
+        before: normalizeHistoryPayload(row.before_payload),
+        after: normalizeHistoryPayload(row.after_payload),
       }
     })
     res.json(rows)
@@ -718,6 +807,11 @@ apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (re
         if (found.rowCount > 0) {
           existingId = Number(found.rows[0].id)
         }
+      }
+
+      let beforeSnap = emptyCompanySnapshot()
+      if (existingId) {
+        beforeSnap = await loadCompanySnapshot(client, existingId)
       }
 
       let cid
@@ -776,6 +870,24 @@ apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (re
           [cid, cn, cp, cph],
         )
       }
+
+      const afterSnap = buildCompanySnapshotFromPayload(
+        customerCenter,
+        systemPhone,
+        incallNumber,
+        visitInfo,
+        contactsList,
+      )
+
+      await client.query(
+        `
+        INSERT INTO insurance_company_update_log (
+          company_id, company_name, category, updated_by_username, before_payload, after_payload
+        )
+        VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)
+        `,
+        [cid, name, category, editor, JSON.stringify(beforeSnap), JSON.stringify(afterSnap)],
+      )
 
       return cid
     })

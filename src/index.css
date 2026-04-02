@@ -192,6 +192,32 @@ body {
   color: var(--subtext);
 }
 
+.switch-text {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--text-sub);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.switch-text__action {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.switch-text__action:hover {
+  color: var(--primary-hover);
+}
+
 .auth-divider {
   border: 0;
   border-top: 1px solid var(--divider-auth);
@@ -219,7 +245,46 @@ body {
 
 .dashboard-menu-card {
   display: grid;
+  gap: 16px;
+}
+
+.menu-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+}
+
+.menu-item {
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--bg-soft);
+  border: none;
+  text-align: center;
+  font: inherit;
+  font-weight: 500;
+  color: var(--text-main);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.menu-item:hover {
+  background: var(--primary);
+  color: var(--text-on-primary);
+}
+
+.menu-item.active {
+  background: var(--primary);
+  color: var(--text-on-primary);
+}
+
+.dashboard-logout {
+  margin-top: 4px;
 }
 
 .dashboard-sidebar-list {
@@ -1115,9 +1180,70 @@ body {
 }
 
 /* ——— 보험사 연락처 조회 (모바일·고령자 우선) ——— */
+.insurance-recent-updates-page .update-history {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.history-block + .history-block {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-muted);
+}
+
+.history-date {
+  font-size: 13px;
+  color: var(--text-sub);
+  margin: 12px 0 10px;
+  font-weight: 600;
+}
+
+.history-block:first-child .history-date {
+  margin-top: 0;
+}
+
+.company-card--diff .value.changed,
+.company-card--diff .changed {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 .insurance-contacts-view.insurance-contacts-view {
   max-width: 560px;
   padding-bottom: 24px;
+}
+
+.contact-header__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.insurance-contacts-header .contact-header__row h1 {
+  margin: 0;
+}
+
+.update-btn {
+  flex-shrink: 0;
+  background: var(--bg-soft);
+  color: var(--text-main);
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.update-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--primary);
 }
 
 .insurance-contacts-header h1 {
@@ -1126,6 +1252,11 @@ body {
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--text-main);
+}
+
+.contact-header.contact-header .insurance-contacts-header h1,
+.contact-header .contact-header__row h1 {
+  margin-bottom: 0;
 }
 
 .insurance-contacts-status {

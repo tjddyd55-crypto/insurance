@@ -21,12 +21,28 @@ export interface InsuranceGeneralDraft {
   email: string
 }
 
-export interface CompanyRecentUpdate {
+/** 원수사 마스터 저장 시 스냅샷(업데이트 현황 diff용) */
+export interface CompanyHistorySnapshot {
+  customerCenter: string
+  system: string
+  incall: string
+  visitInfo: string
+  contacts: Array<{ name: string; position: string; phone: string }>
+}
+
+export interface CompanyUpdateHistoryItem {
   id: string
+  companyId?: string
   companyName: string
+  category?: string
   updatedAt: string
   updatedBy: string
+  before: CompanyHistorySnapshot
+  after: CompanyHistorySnapshot
 }
+
+/** @deprecated API가 CompanyUpdateHistoryItem[] 반환 */
+export type CompanyRecentUpdate = CompanyUpdateHistoryItem
 
 export interface CompanyDirectoryEntry {
   id: number

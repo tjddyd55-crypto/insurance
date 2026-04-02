@@ -138,8 +138,19 @@ export default function InsuranceCompanyContactsViewPage() {
         )}
       </nav>
 
-      <header className="page-header insurance-contacts-header">
-        <h1>보험사 연락처</h1>
+      <header className="page-header insurance-contacts-header contact-header">
+        <div className="contact-header__row">
+          <h1>원수사 연락처</h1>
+          {!isStaff ? (
+            <button
+              type="button"
+              className="update-btn"
+              onClick={() => navigate('/updates')}
+            >
+              업데이트 현황
+            </button>
+          ) : null}
+        </div>
         {statusText ? <p className="insurance-contacts-status">{statusText}</p> : null}
       </header>
 
