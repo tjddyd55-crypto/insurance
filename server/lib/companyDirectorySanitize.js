@@ -9,6 +9,7 @@
  * 3) NON_LIFE·메리츠 다건 → 1건으로 병합 후 메리츠화재와 통합·이름 통일
  * 4) NON_LIFE·메리츠화재 다건 → 1건으로 dedupe
  * 5) NON_LIFE·심플손해보험 삭제 + 재보험(insurance_contacts) 정리
+ * 6) 마스터 category 레거시 값 '생명' → 'LIFE' 정규화
  */
 
 /** @param {import('pg').PoolClient} client */
@@ -26,6 +27,9 @@ const NORM_M = `regexp_replace(trim(COALESCE(m.name, '')), '\\s+', '', 'g')`
 
 /** insurance_contacts.company_name 정규화 */
 const NORM_IC = `regexp_replace(trim(COALESCE(company_name, '')), '\\s+', '', 'g')`
+
+/** 구 코드·엑셀 등에서 남은 한글 카테고리 (생명 = LIFE) */
+const LIFE_CATEGORY_SQL = `(m.category = 'LIFE' OR m.category = '생명')`
 
 /**
  * @param {import('pg').PoolClient} client
@@ -56,7 +60,7 @@ export async function runCompanyDirectorySanitize(client, log) {
   await runStep(client, log, 'deleteLifeMeritzMasters', async () => {
     const delLifeMeritz = await client.query(`
     DELETE FROM insurance_company_master m
-    WHERE m.category = 'LIFE'
+    WHERE ${LIFE_CATEGORY_SQL}
       AND ${NORM_M} = '메리츠화재'
     RETURNING m.id, m.name
   `)
@@ -90,7 +94,7 @@ export async function runCompanyDirectorySanitize(client, log) {
 
     const delLifeIc = await client.query(`
     DELETE FROM insurance_contacts
-    WHERE category = 'LIFE'
+    WHERE category IN ('LIFE', '생명')
       AND ${NORM_IC} = '메리츠화재'
     RETURNING id
   `)
@@ -105,6 +109,18 @@ export async function runCompanyDirectorySanitize(client, log) {
   `)
     if (upIc.rowCount > 0) {
       log('재보험 목록 손해·메리츠 → 메리츠화재 명칭 통일:', upIc.rowCount)
+    }
+  })
+
+  await runStep(client, log, 'normalizeLegacyLifeCategoryLabel', async () => {
+    const up = await client.query(`
+      UPDATE insurance_company_master
+      SET category = 'LIFE', updated_at = NOW()
+      WHERE category = '생명'
+      RETURNING id, name
+    `)
+    if (up.rowCount > 0) {
+      log('마스터 category 생명 → LIFE 정규화:', up.rowCount, up.rows)
     }
   })
 }
@@ -216,7 +232,7 @@ async function mergeDuplicateDbLifeMasters(client, log) {
   const masters = await client.query(`
     SELECT id, name
     FROM insurance_company_master m
-    WHERE m.category = 'LIFE'
+    WHERE ${LIFE_CATEGORY_SQL}
       AND lower(regexp_replace(trim(m.name), '\\s+', '', 'g')) = 'db생명'
     ORDER BY m.id
   `)
@@ -228,7 +244,7 @@ async function mergeDuplicateDbLifeMasters(client, log) {
     SELECT ic.company_id
     FROM insurance_company_contacts ic
     JOIN insurance_company_master m ON m.id = ic.company_id
-    WHERE m.category = 'LIFE'
+    WHERE ${LIFE_CATEGORY_SQL}
       AND lower(regexp_replace(trim(m.name), '\\s+', '', 'g')) = 'db생명'
       AND (
         (COALESCE(ic.name, '') || ' ' || COALESCE(ic.position, '')) ILIKE '%지점장 이덕용%'

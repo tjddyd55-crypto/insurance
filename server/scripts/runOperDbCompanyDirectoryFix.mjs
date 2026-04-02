@@ -84,9 +84,11 @@ function exitIfRailwayInternalFromLocalMachine(url) {
 
 const NORM_M = `regexp_replace(trim(COALESCE(m.name, '')), '\\s+', '', 'g')`
 
+const LIFE_CATEGORY_SQL = `(m.category = 'LIFE' OR m.category = '생명')`
+
 const MASTER_SCOPE_WHERE = `
 (
-  (m.category = 'LIFE' AND (
+  (${LIFE_CATEGORY_SQL} AND (
     lower(regexp_replace(trim(m.name), '\\s+', '', 'g')) = 'db생명'
     OR ${NORM_M} = '메리츠화재'
   ))
@@ -116,8 +118,12 @@ async function fetchMastersWithContacts(client) {
 
 async function fetchVerification(client) {
   const pairs = [
-    ['LIFE', 'db생명', `m.category = 'LIFE' AND lower(regexp_replace(trim(m.name), '\\s+', '', 'g')) = 'db생명'`],
-    ['LIFE', '메리츠화재', `m.category = 'LIFE' AND ${NORM_M} = '메리츠화재'`],
+    [
+      'LIFE',
+      'db생명',
+      `${LIFE_CATEGORY_SQL} AND lower(regexp_replace(trim(m.name), '\\s+', '', 'g')) = 'db생명'`,
+    ],
+    ['LIFE', '메리츠화재', `${LIFE_CATEGORY_SQL} AND ${NORM_M} = '메리츠화재'`],
     ['NON_LIFE', '메리츠', `m.category = 'NON_LIFE' AND ${NORM_M} = '메리츠'`],
     ['NON_LIFE', '메리츠화재', `m.category = 'NON_LIFE' AND ${NORM_M} = '메리츠화재'`],
     ['NON_LIFE', '심플손해보험', `m.category = 'NON_LIFE' AND ${NORM_M} = '심플손해보험'`],
