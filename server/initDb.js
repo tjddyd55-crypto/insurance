@@ -310,6 +310,11 @@ export async function initDb() {
     ON insurance_general_request(company_id)
   `)
 
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_insurance_company_master_category_name
+    ON insurance_company_master (category, name)
+  `)
+
   const updatedAtColumnCheck = await pool.query(
     `
     SELECT 1
