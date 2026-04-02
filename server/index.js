@@ -6,6 +6,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import pool from './db.js'
 import { initDb } from './initDb.js'
+import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 
 const PORT = Number(process.env.PORT ?? 3001)
@@ -688,7 +689,8 @@ apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (re
       return
     }
 
-    const category = normalizeInsuranceCompanyCategory(co?.category)
+    let category = normalizeInsuranceCompanyCategory(co?.category)
+    category = coerceMeritzFireToNonLifeCategory(category, name)
     if (!category || !['LIFE', 'NON_LIFE', 'GENERAL'].includes(category)) {
       res.status(400).json({ message: '보험 종류(생명/손해/일반)를 선택하세요.' })
       return
@@ -800,7 +802,8 @@ apiRouter.post('/company/general-save', requireAuth, requireStaffOrAdmin, async 
   try {
     const { company: co, general: g } = req.body ?? {}
     const name = String(co?.name ?? '').trim()
-    const category = normalizeInsuranceCompanyCategory(co?.category)
+    let category = normalizeInsuranceCompanyCategory(co?.category)
+    category = coerceMeritzFireToNonLifeCategory(category, name)
     if (!name || !category || !['LIFE', 'NON_LIFE', 'GENERAL'].includes(category)) {
       res.status(400).json({ message: '보험 종류와 보험사명이 필요합니다.' })
       return
@@ -988,8 +991,9 @@ apiRouter.post('/admin/create-staff', requireAuth, requireSuperAdmin, async (req
 
 apiRouter.post('/admin/insurance/contacts', requireAuth, requireStaffOrAdmin, async (req, res) => {
   try {
-    const category = normalizeCategory(req.body?.category)
     const companyName = String(req.body?.companyName ?? req.body?.company_name ?? '').trim()
+    let category = normalizeCategory(req.body?.category)
+    category = coerceMeritzFireToNonLifeCategory(category, companyName)
     const managerName = String(req.body?.managerName ?? req.body?.manager_name ?? '').trim()
     const position = String(req.body?.position ?? '').trim()
     const phoneNumber = normalizePhoneNumber(req.body?.phoneNumber ?? req.body?.phone_number ?? '')
@@ -1039,8 +1043,9 @@ apiRouter.post('/admin/insurance/contacts', requireAuth, requireStaffOrAdmin, as
 apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireStaffOrAdmin, async (req, res) => {
   try {
     const contactId = req.params.id
-    const category = normalizeCategory(req.body?.category)
     const companyName = String(req.body?.companyName ?? req.body?.company_name ?? '').trim()
+    let category = normalizeCategory(req.body?.category)
+    category = coerceMeritzFireToNonLifeCategory(category, companyName)
     const managerName = String(req.body?.managerName ?? req.body?.manager_name ?? '').trim()
     const position = String(req.body?.position ?? '').trim()
     const phoneNumber = normalizePhoneNumber(req.body?.phoneNumber ?? req.body?.phone_number ?? '')

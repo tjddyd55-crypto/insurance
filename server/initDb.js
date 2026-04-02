@@ -338,6 +338,64 @@ export async function initDb() {
     console.log('[initDb] 메리츠(화재) 분류 정정: LIFE → NON_LIFE', meritzRes.rowCount, '행')
   }
 
+  const meritzNameCond = `
+        l.name = '메리츠화재'
+        OR l.name = '메리츠 화재'
+        OR (l.name LIKE '메리츠%' AND l.name LIKE '%화재%')
+        OR l.name = '메리츠'
+  `
+
+  await pool.query(`
+    UPDATE insurance_company_contacts c
+    SET company_id = n.id
+    FROM insurance_company_master l
+    INNER JOIN insurance_company_master n
+      ON n.category = 'NON_LIFE'
+      AND l.category = 'LIFE'
+      AND TRIM(l.name) = TRIM(n.name)
+    WHERE c.company_id = l.id
+      AND (${meritzNameCond})
+  `)
+
+  await pool.query(`
+    DELETE FROM insurance_general_request g
+    USING insurance_company_master l
+    INNER JOIN insurance_company_master n
+      ON n.category = 'NON_LIFE'
+      AND l.category = 'LIFE'
+      AND TRIM(l.name) = TRIM(n.name)
+    WHERE g.company_id = l.id
+      AND (${meritzNameCond})
+  `)
+
+  const meritzDedup = await pool.query(`
+    DELETE FROM insurance_company_master l
+    USING insurance_company_master n
+    WHERE l.category = 'LIFE'
+      AND n.category = 'NON_LIFE'
+      AND TRIM(l.name) = TRIM(n.name)
+      AND (${meritzNameCond})
+    RETURNING l.id
+  `)
+  if (meritzDedup.rowCount > 0) {
+    console.log('[initDb] 메리츠 LIFE 중복 마스터 제거:', meritzDedup.rowCount, '행')
+  }
+
+  const meritzIc = await pool.query(`
+    UPDATE insurance_contacts
+    SET category = 'NON_LIFE'
+    WHERE category = 'LIFE'
+      AND (
+        TRIM(company_name) = '메리츠화재'
+        OR TRIM(company_name) = '메리츠 화재'
+        OR (TRIM(company_name) LIKE '메리츠%' AND TRIM(company_name) LIKE '%화재%')
+        OR TRIM(company_name) = '메리츠'
+      )
+  `)
+  if (meritzIc.rowCount > 0) {
+    console.log('[initDb] 재보험 연락처 메리츠 분류 정정: LIFE → NON_LIFE', meritzIc.rowCount, '행')
+  }
+
   const updatedAtColumnCheck = await pool.query(
     `
     SELECT 1

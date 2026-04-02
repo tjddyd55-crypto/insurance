@@ -12,9 +12,9 @@
  * node server/scripts/runCleanedExcelImport.mjs [엑셀경로] [--dry-run] [--sheet=시트명] [--skip-reinsurer-contacts]
  *
  * 환경:
- * - 프로젝트 루트 .env / .env.local 의 DATABASE_URL
- * - 또는 Railway/호스트에서 이미 주입된 DATABASE_URL·POSTGRES_URL 등
- * - 배포 DB와 동일한 URL로 로컬에서 넣으려면: `npm run import:cleaned-excel:railway` (railway login · link 후)
+ * - 로컬: .env 의 DATABASE_PUBLIC_URL(또는 Public Network 연결 문자열) 권장
+ * - DATABASE_URL 이 postgres.railway.internal 이면 로컬에서 실패 → Public URL로 교체
+ * - 배포 컨테이너 안(RAILWAY_ENVIRONMENT)에서는 사설 URL 사용 가능
  */
 
 import { randomUUID } from 'node:crypto'
@@ -22,6 +22,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import XLSX from 'xlsx'
+import { coerceMeritzFireToNonLifeCategory } from '../lib/insuranceCompanyCategoryRules.js'
 import { cleanPhone, parseManagerCell } from '../lib/partnerExcelParse.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -286,8 +287,9 @@ async function main() {
   const groups = new Map()
 
   for (const row of rows) {
-    const category = normalizeInsuranceCompanyCategory(row[COL_GUBUN])
+    let category = normalizeInsuranceCompanyCategory(row[COL_GUBUN])
     const name = String(row[COL_NAME] ?? '').trim()
+    category = coerceMeritzFireToNonLifeCategory(category, name)
     if (!category || !name) {
       console.warn('[skip] 구분/보험사명 없음:', row)
       continue
@@ -344,8 +346,9 @@ async function main() {
   /** 재보험사 연락처( flat 목록 ): 엑셀 한 행 = 한 연락처 */
   const reinsurerRows = []
   for (const row of rows) {
-    const category = normalizeInsuranceCompanyCategory(row[COL_GUBUN])
+    let category = normalizeInsuranceCompanyCategory(row[COL_GUBUN])
     const companyName = String(row[COL_NAME] ?? '').trim()
+    category = coerceMeritzFireToNonLifeCategory(category, companyName)
     if (!category || !companyName) {
       continue
     }
