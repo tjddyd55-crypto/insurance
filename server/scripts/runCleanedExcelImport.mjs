@@ -3,6 +3,7 @@
  * 엑셀 파일과 서버를 실시간 연동하지 않고, 1회 읽어서 테이블에 INSERT/UPDATE 한 뒤 끝입니다.
  *
  * 예) 구분=LIFE, 보험사명=삼성생명, 담당자=홍길동 지점장, 연락처=01022221382 한 행은
+ *     담당자 열은 웹 폼과 같이 이름/직책 입력칸으로 분리(parseManagerCell).
  *     - `/company/full-save`와 동일처럼 insurance_company_master / insurance_company_contacts
  *     - 재보험사 연락처 화면과 동일처럼 insurance_contacts (manager/position/phone 분리 규칙 동일)
  *     에 들어갑니다. 인콜·전산문의 열은 같은 보험사 마스터 필드에 반영됩니다.
@@ -323,15 +324,18 @@ async function main() {
 
     const contacts = []
     for (const row of g.userRows) {
-      const nameCell = String(row[COL_MANAGER] ?? '')
+      const mgrRaw = String(row[COL_MANAGER] ?? '')
         .replace(/\s+/g, ' ')
         .trim()
       const phoneRaw = String(row[COL_PHONE] ?? '').trim()
       const phone = normalizeStoredPhone(phoneRaw)
-      if (!nameCell && !phone) {
+      if (!mgrRaw && !phone) {
         continue
       }
-      contacts.push({ name: nameCell || '담당자', position: '', phone })
+      const { name: parsedName, position } = parseManagerCell(mgrRaw)
+      const cn = (parsedName || mgrRaw || '').trim() || '담당자'
+      const cp = String(position ?? '').trim()
+      contacts.push({ name: cn, position: cp, phone })
     }
 
     companies.push({

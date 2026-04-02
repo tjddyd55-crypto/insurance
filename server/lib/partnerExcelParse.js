@@ -80,6 +80,7 @@ const TITLE_HINTS = new Set([
 
 /**
  * "이덕용 지점장" → name / position
+ * "지점장 홍길동" (직책 앞, 단어 2개) → 같은 규칙
  * @param {string} raw
  */
 export function parseManagerCell(raw) {
@@ -92,6 +93,18 @@ export function parseManagerCell(raw) {
   const parts = t.split(' ')
   if (parts.length === 1) {
     return { name: parts[0], position: '' }
+  }
+  const first = parts[0]
+  if (parts.length === 2) {
+    if (
+      TITLE_HINTS.has(first) ||
+      first.endsWith('장') ||
+      first.endsWith('무') ||
+      first.endsWith('팀장') ||
+      first === '문의'
+    ) {
+      return { name: parts[1], position: first }
+    }
   }
   const last = parts[parts.length - 1]
   if (
