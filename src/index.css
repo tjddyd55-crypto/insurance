@@ -1,3 +1,5 @@
+@import 'tailwindcss';
+
 /* ========== 테마 — 사진관 톤 팔레트 (--bg-main …) + body.dark ========== */
 :root {
   /* 최종 컬러 컨셉 (라이트: 동일 계층 구조의 밝은 톤) */
@@ -1322,6 +1324,25 @@ body {
   .insurance-contacts-view .company-card:hover {
     transform: none;
   }
+}
+
+.insurance-contacts-view .company-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.insurance-contacts-view .company-card__header .company-card__title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.insurance-contacts-view .company-card__edit {
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .company-card__title {

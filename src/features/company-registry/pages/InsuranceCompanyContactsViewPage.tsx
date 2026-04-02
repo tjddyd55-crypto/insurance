@@ -196,7 +196,18 @@ export default function InsuranceCompanyContactsViewPage() {
 
               return (
                 <article key={c.id} className="company-card">
-                  <h3 className="company-card__title">{c.name}</h3>
+                  <div className="company-card__header">
+                    <h3 className="company-card__title">{c.name}</h3>
+                    {isStaff ? (
+                      <button
+                        type="button"
+                        className="button button--small company-card__edit"
+                        onClick={() => openCompanyRegistryEdit(c)}
+                      >
+                        수정
+                      </button>
+                    ) : null}
+                  </div>
 
                   <div className="company-info-block">
                     <div className="info-row">
@@ -274,15 +285,6 @@ export default function InsuranceCompanyContactsViewPage() {
                               {phoneRaw ? (
                                 <button type="button" onClick={() => copy(phoneRaw)} aria-label="담당자 번호 복사">
                                   📋
-                                </button>
-                              ) : null}
-                              {isStaff ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openCompanyRegistryEdit(c)}
-                                  aria-label={`${c.name} 연락처 수정`}
-                                >
-                                  ✏
                                 </button>
                               ) : null}
                             </div>

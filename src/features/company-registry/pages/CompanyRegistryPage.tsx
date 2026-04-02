@@ -2,56 +2,32 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { fullSaveCompanyDirectory, listCompanyDirectory } from '../api/companyRegistryApi'
-import {
-  insuranceCategoryLabel,
-  insuranceTypeSortRank,
-  normalizeInsuranceCategory,
-  resolveTabCategory,
-} from '../domain/categoryUtils'
+import { insuranceCategoryLabel, insuranceTypeSortRank, resolveTabCategory } from '../domain/categoryUtils'
 import type { InsuranceCategory } from '../domain/insuranceConstants'
 import {
-  getInsuranceCompanyDefaultTel,
   insuranceCompanyMap,
   INSURANCE_TYPE_LABELS,
   INSURANCE_TYPE_ORDER,
   isInsuranceCategory,
   type InsuranceCompanyOption,
 } from '../domain/insuranceConstants'
-import type { CompanyDirectoryEntry, InsuranceCompanyContactDraft, InsuranceCompanyFormState } from '../domain/types'
+import {
+  EMPTY_CONTACT,
+  findSavedEntryForSelection,
+  formStateFromDirectoryEntry,
+  loadCompanyData,
+} from '../domain/loadCompanyData'
+import type {
+  CompanyDirectoryEntry,
+  InsuranceCompanyContactDraft,
+  InsuranceCompanyFormState,
+} from '../domain/types'
+
 const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 'name'> = {
   customerCenter: '',
   systemPhone: '',
   incallNumber: '',
   visitInfo: '',
-}
-
-const EMPTY_CONTACT: InsuranceCompanyContactDraft = { name: '', position: '', phone: '' }
-
-function entryToFormState(entry: CompanyDirectoryEntry): InsuranceCompanyFormState {
-  const resolved =
-    resolveTabCategory(entry.category, entry.name) ||
-    normalizeInsuranceCategory(entry.category) ||
-    entry.category
-  return {
-    id: entry.id,
-    category: resolved,
-    name: entry.name,
-    customerCenter: entry.customerCenter,
-    systemPhone: entry.systemPhone,
-    incallNumber: entry.incallNumber,
-    visitInfo: entry.visitInfo,
-  }
-}
-
-function entryContactsToDrafts(entry: CompanyDirectoryEntry): InsuranceCompanyContactDraft[] {
-  if (!entry.contacts?.length) {
-    return [{ ...EMPTY_CONTACT }]
-  }
-  return entry.contacts.map((c) => ({
-    name: c.name ?? '',
-    position: c.position ?? '',
-    phone: c.phone ?? '',
-  }))
 }
 
 export default function CompanyRegistryPage() {
@@ -74,6 +50,8 @@ export default function CompanyRegistryPage() {
   })
   const [contacts, setContacts] = useState<InsuranceCompanyContactDraft[]>([{ ...EMPTY_CONTACT }])
   const [isSaving, setIsSaving] = useState(false)
+  /** 목록만 갱신됐을 때 사용자가 이미 칸을 수정 중이면 폼을 덮어쓰지 않음 */
+  const pendingLocalEditRef = useRef(false)
 
   const companyOptions = useMemo((): InsuranceCompanyOption[] => {
     if (!selectedType) {
@@ -109,26 +87,21 @@ export default function CompanyRegistryPage() {
   }, [list])
 
   const prevSelectionRef = useRef<{ type: string; company: string }>({ type: '', company: '' })
-  const lastAutoCustomerCenterKeyRef = useRef<string>('')
+  const prevListForSyncRef = useRef(list)
+
+  /** 보험 종류·보험사 선택 — 목록 클릭·드롭다운 모두 이후 loadCompanyData 이펙트로 폼 동기화 */
+  const commitDirectorySelection = useCallback((type: InsuranceCategory | '', companyName: string) => {
+    pendingLocalEditRef.current = false
+    setSelectedType(type)
+    setSelectedCompanyName(companyName)
+  }, [])
 
   const hasDirectoryEntryForSelection = useMemo(() => {
     if (!selectedType || !selectedCompanyName) {
       return false
     }
-    return list.some(
-      (e) => resolveTabCategory(e.category, e.name) === selectedType && e.name === selectedCompanyName,
-    )
+    return findSavedEntryForSelection(list, selectedType, selectedCompanyName) != null
   }, [list, selectedType, selectedCompanyName])
-
-  const customerCenterMapHint = useMemo(() => {
-    if (!selectedType || !selectedCompanyName || hasDirectoryEntryForSelection) {
-      return null
-    }
-    const tel = getInsuranceCompanyDefaultTel(selectedType, selectedCompanyName)
-    return tel
-      ? '표준 고객센터 번호를 넣었습니다. 필요 시 수정할 수 있습니다.'
-      : '전화번호 없음 (직접 입력)'
-  }, [hasDirectoryEntryForSelection, selectedCompanyName, selectedType])
 
   const loadList = useCallback(async () => {
     try {
@@ -149,123 +122,78 @@ export default function CompanyRegistryPage() {
     const c = searchParams.get('company')
     const name = c != null ? String(c).trim() : ''
     if (t && isInsuranceCategory(t) && name) {
-      setSelectedType(t)
-      setSelectedCompanyName(name)
+      commitDirectorySelection(t, name)
       setSearchParams({}, { replace: true })
     }
-  }, [searchParams, setSearchParams])
+  }, [searchParams, setSearchParams, commitDirectorySelection])
 
   useEffect(() => {
-    if (!selectedCompanyName.trim()) {
-      prevSelectionRef.current = { type: '', company: '' }
-      lastAutoCustomerCenterKeyRef.current = ''
-      setCompany({
-        id: null,
-        category: selectedType || '',
-        name: '',
-        ...EMPTY_COMPANY_FIELDS,
-      })
-      setContacts([{ ...EMPTY_CONTACT }])
-      return
-    }
-
-    if (!selectedType) {
-      return
-    }
-
     if (typeof selectedCompanyName !== 'string') {
       return
     }
 
-    const entry = list.find(
-      (e) => resolveTabCategory(e.category, e.name) === selectedType && e.name === selectedCompanyName,
-    )
-
-    if (entry) {
-      prevSelectionRef.current = { type: selectedType, company: selectedCompanyName }
-      setCompany(entryToFormState(entry))
-      setContacts(entryContactsToDrafts(entry))
+    const listIdentityChanged = prevListForSyncRef.current !== list
+    prevListForSyncRef.current = list
+    if (listIdentityChanged && pendingLocalEditRef.current) {
       return
     }
 
-    const selChanged =
-      prevSelectionRef.current.type !== selectedType ||
-      prevSelectionRef.current.company !== selectedCompanyName
-    prevSelectionRef.current = { type: selectedType, company: selectedCompanyName }
+    const result = loadCompanyData(list, selectedType, selectedCompanyName, prevSelectionRef.current)
+    if (!result) {
+      return
+    }
 
-    if (selChanged) {
-      lastAutoCustomerCenterKeyRef.current = ''
-      setCompany({
-        id: null,
-        category: selectedType,
-        name: selectedCompanyName,
-        ...EMPTY_COMPANY_FIELDS,
-        customerCenter: '',
+    prevSelectionRef.current = result.prevSelection
+    if (result.syncForm) {
+      pendingLocalEditRef.current = false
+      setCompany(result.company)
+      setContacts(result.contacts)
+    } else {
+      const name = selectedCompanyName.trim()
+      const category = selectedType
+      setCompany((prev) => {
+        if (prev.name === name && prev.category === category) {
+          return prev
+        }
+        return { ...prev, name, category }
       })
-      setContacts([{ ...EMPTY_CONTACT }])
     }
   }, [list, selectedType, selectedCompanyName])
 
-  useEffect(() => {
-    if (!selectedType || !selectedCompanyName) {
-      return
-    }
-    if (typeof selectedCompanyName !== 'string') {
-      return
-    }
-    if (import.meta.env.DEV) {
-      console.log('selectedCompanyName:', selectedCompanyName, typeof selectedCompanyName)
-    }
-
-    const entry = list.find(
-      (e) => resolveTabCategory(e.category, e.name) === selectedType && e.name === selectedCompanyName,
-    )
-    if (entry) {
-      return
-    }
-
-    const key = `${selectedType}::${selectedCompanyName}`
-    if (lastAutoCustomerCenterKeyRef.current === key) {
-      return
-    }
-    lastAutoCustomerCenterKeyRef.current = key
-
-    const defaultTel = getInsuranceCompanyDefaultTel(selectedType, selectedCompanyName)
-    setCompany((prev) => ({ ...prev, customerCenter: defaultTel || '' }))
-  }, [list, selectedType, selectedCompanyName])
-
+  /**
+   * 등록 목록 클릭: 분류 확정 시에는 드롭다운과 같이 선택값만 바꾸고,
+   * 폼/연락처 반영은 loadCompanyData 동기화 useEffect 한 경로에서 처리합니다.
+   */
   const applyDirectoryEntry = useCallback((entry: CompanyDirectoryEntry) => {
+    const nameTrim = entry.name.trim()
     const cat = resolveTabCategory(entry.category, entry.name)
     if (!cat || !isInsuranceCategory(cat)) {
+      const { company: loaded, contacts: nextContacts } = formStateFromDirectoryEntry(entry)
       setStatusText(
         '보험 종류를 자동 인식하지 못했습니다. 아래에서「보험 종류」를 선택하면 같은 이름의 등록 데이터와 맞춰집니다.',
       )
-      setSelectedType('')
-      setSelectedCompanyName(entry.name)
-      prevSelectionRef.current = { type: '', company: entry.name }
-      lastAutoCustomerCenterKeyRef.current = ''
-      setCompany(entryToFormState(entry))
-      setContacts(entryContactsToDrafts(entry))
+      commitDirectorySelection('', nameTrim)
+      prevSelectionRef.current = { type: '', company: nameTrim }
+      setCompany({ ...loaded, name: nameTrim })
+      setContacts(nextContacts)
       return
     }
     setStatusText('')
-    setSelectedType(cat)
-    setSelectedCompanyName(entry.name)
-    prevSelectionRef.current = { type: cat, company: entry.name }
-    lastAutoCustomerCenterKeyRef.current = `${cat}::${entry.name}`
-    setCompany(entryToFormState(entry))
-    setContacts(entryContactsToDrafts(entry))
-  }, [])
+    commitDirectorySelection(cat, nameTrim)
+  }, [commitDirectorySelection])
 
   const addContactRow = () => {
+    pendingLocalEditRef.current = true
     setContacts((prev) => [...prev, { ...EMPTY_CONTACT }])
   }
 
   const removeContactRow = (index: number) => {
+    pendingLocalEditRef.current = true
     setContacts((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)))
   }
 
   const updateContact = (index: number, patch: Partial<InsuranceCompanyContactDraft>) => {
+    pendingLocalEditRef.current = true
     setContacts((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)))
   }
 
@@ -274,11 +202,11 @@ export default function CompanyRegistryPage() {
       setStatusText('연락처 저장은 staff 또는 super_admin만 가능합니다.')
       return
     }
-    if (!selectedType) {
+    if (!isInsuranceCategory(company.category)) {
       setStatusText('보험 종류를 선택하세요.')
       return
     }
-    if (!selectedCompanyName.trim()) {
+    if (!company.name.trim()) {
       setStatusText('보험사를 선택하세요.')
       return
     }
@@ -289,8 +217,8 @@ export default function CompanyRegistryPage() {
       const body = {
         company: {
           ...(company.id != null ? { id: company.id } : {}),
-          category: selectedType,
-          name: selectedCompanyName.trim(),
+          category: company.category,
+          name: company.name.trim(),
           customerCenter: company.customerCenter.trim(),
           systemPhone: company.systemPhone.trim(),
           incallNumber: company.incallNumber.trim(),
@@ -300,6 +228,7 @@ export default function CompanyRegistryPage() {
       }
       await fullSaveCompanyDirectory(body, token)
       window.alert('저장했습니다.')
+      pendingLocalEditRef.current = false
       await loadList()
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '저장에 실패했습니다.')
@@ -335,7 +264,7 @@ export default function CompanyRegistryPage() {
         <h1>연락처 입력/관리</h1>
         <p>
           {statusText ||
-            '보험 종류·보험사를 선택한 뒤 공통 정보와 담당자를 저장합니다. 등록된 목록은 「연락처 조회」에서 확인할 수 있습니다.'}
+            '보험 종류·보험사를 선택하면 이미 저장된 동일 보험사 데이터가 있으면 자동으로 불러옵니다. 등록된 목록은 「연락처 조회」에서 확인할 수 있습니다.'}
         </p>
       </header>
 
@@ -343,7 +272,7 @@ export default function CompanyRegistryPage() {
         <section className="card company-registry-directory-card">
           <h2 className="dashboard-section-title">등록된 보험사</h2>
           <p className="company-registry-field-hint" style={{ marginTop: 0 }}>
-            항목을 누르면 아래 입력 폼에 불러와 바로 수정할 수 있습니다.
+            항목을 누르면 아래 폼에 불러옵니다. 바로 입력·저장할 수 있습니다.
           </p>
           {list.length === 0 ? (
             <p className="company-registry-muted">아직 등록된 보험사가 없습니다.</p>
@@ -371,13 +300,8 @@ export default function CompanyRegistryPage() {
       ) : null}
 
       {canEdit ? (
-        <section className="card company-registry-form-card">
+        <section className="card company-registry-form-card" aria-busy={isSaving}>
           <h2 className="dashboard-section-title">입력 · 수정 (staff / super_admin)</h2>
-          {company.id != null && selectedCompanyName ? (
-            <div className="edit-banner" role="status">
-              ✏ 수정 중입니다 — 저장 시 보험사·담당자 정보가 갱신됩니다.
-            </div>
-          ) : null}
 
           <label className="field">
             <span className="field__label">보험 종류 (필수)</span>
@@ -386,8 +310,7 @@ export default function CompanyRegistryPage() {
               value={selectedType}
               onChange={(e) => {
                 const v = e.target.value as InsuranceCategory | ''
-                setSelectedType(v)
-                setSelectedCompanyName('')
+                commitDirectorySelection(v, '')
               }}
               required
             >
@@ -405,7 +328,9 @@ export default function CompanyRegistryPage() {
             <select
               className="field__control"
               value={selectedCompanyName}
-              onChange={(e) => setSelectedCompanyName(String(e.target.value ?? ''))}
+              onChange={(e) => {
+                commitDirectorySelection(selectedType, String(e.target.value ?? ''))
+              }}
               disabled={!selectedType}
               required
             >
@@ -418,22 +343,28 @@ export default function CompanyRegistryPage() {
             </select>
           </label>
 
+          {hasDirectoryEntryForSelection ? (
+            <p className="company-registry-field-hint" style={{ margin: '0 0 10px' }}>
+              ✓ 저장된 동일 보험사 데이터를 불러왔습니다. 수정 후 저장하면 갱신됩니다.
+            </p>
+          ) : selectedType && selectedCompanyName.trim() ? (
+            <p className="company-registry-field-hint" style={{ margin: '0 0 10px' }}>
+              ℹ 등록된 데이터가 없습니다. 공통정보·담당자는 비어 있는 상태에서 입력할 수 있습니다.
+            </p>
+          ) : null}
+
           <h3 className="company-registry-subtitle">공통정보</h3>
           <div className="field-grid-customers">
             <label className="field">
               <span className="field__label">고객센터</span>
-              {customerCenterMapHint ? (
-                <div className="hint">
-                  {getInsuranceCompanyDefaultTel(selectedType, selectedCompanyName)
-                    ? '✔ 표준 번호 자동 입력됨 (수정 가능)'
-                    : 'ℹ 표준 번호 없음 — 직접 입력해 주세요'}
-                </div>
-              ) : null}
               <input
                 className="field__control"
                 value={company.customerCenter}
-                onChange={(e) => setCompany({ ...company, customerCenter: e.target.value })}
-                placeholder="고객센터 번호 (자동입력 / 수정가능)"
+                onChange={(e) => {
+                  pendingLocalEditRef.current = true
+                  setCompany({ ...company, customerCenter: e.target.value })
+                }}
+                placeholder="고객센터 번호 (직접 입력)"
                 autoComplete="tel"
               />
             </label>
@@ -442,7 +373,10 @@ export default function CompanyRegistryPage() {
               <input
                 className="field__control"
                 value={company.systemPhone}
-                onChange={(e) => setCompany({ ...company, systemPhone: e.target.value })}
+                onChange={(e) => {
+                  pendingLocalEditRef.current = true
+                  setCompany({ ...company, systemPhone: e.target.value })
+                }}
               />
             </label>
             <label className="field">
@@ -450,7 +384,10 @@ export default function CompanyRegistryPage() {
               <input
                 className="field__control"
                 value={company.incallNumber}
-                onChange={(e) => setCompany({ ...company, incallNumber: e.target.value })}
+                onChange={(e) => {
+                  pendingLocalEditRef.current = true
+                  setCompany({ ...company, incallNumber: e.target.value })
+                }}
               />
             </label>
             <label className="field field--wide">
@@ -458,7 +395,10 @@ export default function CompanyRegistryPage() {
               <input
                 className="field__control"
                 value={company.visitInfo}
-                onChange={(e) => setCompany({ ...company, visitInfo: e.target.value })}
+                onChange={(e) => {
+                  pendingLocalEditRef.current = true
+                  setCompany({ ...company, visitInfo: e.target.value })
+                }}
               />
             </label>
           </div>
