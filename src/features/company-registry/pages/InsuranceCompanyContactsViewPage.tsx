@@ -226,49 +226,56 @@ export default function InsuranceCompanyContactsViewPage() {
                     <div className="info-row">
                       <span className="label">고객센터</span>
                       <span className="value">{customerCenter ? formatPhone(customerCenter) : '—'}</span>
-                      {customerCenter ? (
-                        <div className="actions-mini">
-                          <a href={telHref(customerCenter)} aria-label="고객센터 전화">
-                            📞
-                          </a>
-                          <button type="button" onClick={() => copy(customerCenter)} aria-label="고객센터 번호 복사">
-                            📋
-                          </button>
-                        </div>
-                      ) : null}
+                      <div className="info-row-actions">
+                        {customerCenter ? (
+                          <div className="actions-mini">
+                            <a href={telHref(customerCenter)} aria-label="고객센터 전화">
+                              📞
+                            </a>
+                            <button type="button" onClick={() => copy(customerCenter)} aria-label="고객센터 번호 복사">
+                              📋
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
 
                     <div className="info-row">
                       <span className="label">전산문의</span>
                       <span className="value">{systemPhone ? formatPhone(systemPhone) : '—'}</span>
-                      {systemPhone ? (
-                        <div className="actions-mini">
-                          <a href={telHref(systemPhone)} aria-label="전산문의 전화">
-                            📞
-                          </a>
-                          <button type="button" onClick={() => copy(systemPhone)} aria-label="전산문의 번호 복사">
-                            📋
-                          </button>
-                        </div>
-                      ) : null}
+                      <div className="info-row-actions">
+                        {systemPhone ? (
+                          <div className="actions-mini">
+                            <a href={telHref(systemPhone)} aria-label="전산문의 전화">
+                              📞
+                            </a>
+                            <button type="button" onClick={() => copy(systemPhone)} aria-label="전산문의 번호 복사">
+                              📋
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
 
                     <div className="info-row">
                       <span className="label">인콜</span>
                       <span className="value">{incallNumber ? formatPhone(incallNumber) : '—'}</span>
-                      {incallNumber ? (
-                        <div className="actions-mini">
-                          <button type="button" onClick={() => copy(incallNumber)} aria-label="인콜 번호 복사">
-                            📋
-                          </button>
-                        </div>
-                      ) : null}
+                      <div className="info-row-actions">
+                        {incallNumber ? (
+                          <div className="actions-mini">
+                            <button type="button" onClick={() => copy(incallNumber)} aria-label="인콜 번호 복사">
+                              📋
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
 
                     {visitInfo ? (
                       <div className="info-row">
                         <span className="label">방문일</span>
                         <span className="value">{visitInfo}</span>
+                        <div className="info-row-actions" aria-hidden="true" />
                       </div>
                     ) : null}
                   </div>
@@ -279,17 +286,15 @@ export default function InsuranceCompanyContactsViewPage() {
                         const name = p.name?.trim() ?? ''
                         const position = p.position?.trim() ?? ''
                         const phoneRaw = p.phone?.trim() ?? ''
-                        const contactText = [position, name].filter(Boolean).join(' ') || '—'
 
                         return (
                           <div key={p.id != null ? p.id : `new-${c.id}-${idx}`} className="contact-row">
-                            <span className="contact-text">{contactText}</span>
-                            {phoneRaw ? (
-                              <span className="contact-phone">{formatPhone(phoneRaw)}</span>
-                            ) : (
-                              <span className="contact-phone contact-phone--empty">—</span>
-                            )}
-                            <div className="actions-mini">
+                            <div className="position">{position || '—'}</div>
+                            <div className="name">{name || '—'}</div>
+                            <div className={phoneRaw ? 'phone' : 'phone phone--empty'}>
+                              {phoneRaw ? formatPhone(phoneRaw) : '—'}
+                            </div>
+                            <div className="actions actions-mini">
                               {phoneRaw ? (
                                 <a href={telHref(phoneRaw)} aria-label={`${formatPhone(phoneRaw)} 전화`}>
                                   📞

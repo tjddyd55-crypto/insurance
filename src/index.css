@@ -1392,32 +1392,40 @@ body {
   margin-top: 8px;
 }
 
-.insurance-contacts-view .info-row {
-  display: flex;
+/* 원수사 카드 — 회사 정보 / 담당자 행: 컬럼 정렬 고정 (조회·히스토리 공통) */
+.company-card .info-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 60px;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-top: 6px;
   min-height: 32px;
 }
 
-.insurance-contacts-view .info-row:first-child {
+.company-card .info-row:first-child {
   margin-top: 0;
 }
 
-.insurance-contacts-view .info-row .label {
-  flex: 0 0 70px;
-  width: 70px;
+.company-card .info-row .label {
   font-size: 13px;
   color: var(--text-sub);
   font-weight: 600;
+  min-width: 0;
 }
 
-.insurance-contacts-view .info-row .value {
-  flex: 1;
+.company-card .info-row .value {
   min-width: 0;
   font-size: 14px;
   color: var(--text-main);
-  word-break: break-all;
+  word-break: break-word;
+}
+
+.company-card .info-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
 }
 
 .insurance-contacts-view .company-contacts-block {
@@ -1426,51 +1434,70 @@ body {
   border-top: 1px solid var(--border);
 }
 
-.insurance-contacts-view .contact-row {
-  display: flex;
+.company-card .contact-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 140px 60px;
   align-items: center;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 6px;
+  margin-top: 0;
   min-height: 36px;
 }
 
-.insurance-contacts-view .contact-row:first-child {
+.company-card .contact-row + .contact-row {
+  margin-top: 4px;
+}
+
+.company-card .contact-row:first-child {
   margin-top: 0;
 }
 
-.insurance-contacts-view .contact-text {
-  font-size: 14px;
-  min-width: 120px;
-  max-width: 42%;
-  color: var(--text-main);
-  line-height: 1.35;
+.company-card .contact-row .position {
+  color: var(--text-sub);
+  font-size: 13px;
+  min-width: 0;
 }
 
-.insurance-contacts-view .contact-phone {
-  flex: 1;
+.company-card .contact-row .name {
+  font-size: 15px;
+  font-weight: 600;
   min-width: 0;
-  font-size: 16px;
-  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.company-card .contact-row .phone {
+  font-size: 15px;
+  font-weight: 600;
   color: var(--primary);
   font-variant-numeric: tabular-nums;
-  word-break: break-all;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.insurance-contacts-view .contact-phone--empty {
+.company-card .contact-row .phone.phone--empty {
   color: var(--text-sub);
   font-weight: 600;
-  font-size: 14px;
 }
 
-.insurance-contacts-view .actions-mini {
+.company-card .contact-row .actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+  align-items: center;
+  min-width: 0;
+}
+
+.company-card .actions-mini {
   display: flex;
   flex-shrink: 0;
-  gap: 6px;
+  gap: 4px;
   align-items: center;
 }
 
-.insurance-contacts-view .actions-mini button,
-.insurance-contacts-view .actions-mini a {
+.company-card .actions-mini button,
+.company-card .actions-mini a {
   width: 28px;
   height: 28px;
   padding: 0;
@@ -1490,7 +1517,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-.insurance-contacts-view .actions-mini button:disabled {
+.company-card .actions-mini button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -1556,33 +1583,26 @@ body {
   padding-top: 8px;
 }
 
-.company-directory-read-ui .contact-row {
-  margin-top: 6px;
+.company-directory-read-ui .company-card .contact-row {
   min-height: 32px;
 }
 
-.company-directory-read-ui .contact-row:first-child {
-  margin-top: 0;
-}
-
-.company-directory-read-ui .contact-text {
+.company-directory-read-ui .company-card .contact-row .name,
+.company-directory-read-ui .company-card .contact-row .phone {
   font-size: 16px;
-  font-weight: 600;
-  line-height: 1.3;
 }
 
-.company-directory-read-ui .contact-phone {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.company-directory-read-ui .contact-phone--empty {
+.company-directory-read-ui .company-card .contact-row .phone.phone--empty {
   font-size: 15px;
   font-weight: 600;
 }
 
-.company-directory-read-ui .actions-mini button,
-.company-directory-read-ui .actions-mini a {
+.company-directory-read-ui .company-card .contact-row .position {
+  font-size: 14px;
+}
+
+.company-directory-read-ui .company-card .actions-mini button,
+.company-directory-read-ui .company-card .actions-mini a {
   width: 28px;
   height: 28px;
   font-size: 13px;

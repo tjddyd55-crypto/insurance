@@ -63,16 +63,18 @@ export function CompanyCardDiff({ companyName, before, after }: CompanyCardDiffP
           >
             {customerCenter ? formatPhone(customerCenter) : '—'}
           </span>
-          {customerCenter ? (
-            <div className="actions-mini">
-              <a href={telHref(customerCenter)} aria-label="고객센터 전화">
-                📞
-              </a>
-              <button type="button" onClick={() => copy(customerCenter)} aria-label="고객센터 번호 복사">
-                📋
-              </button>
-            </div>
-          ) : null}
+          <div className="info-row-actions">
+            {customerCenter ? (
+              <div className="actions-mini">
+                <a href={telHref(customerCenter)} aria-label="고객센터 전화">
+                  📞
+                </a>
+                <button type="button" onClick={() => copy(customerCenter)} aria-label="고객센터 번호 복사">
+                  📋
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="info-row">
@@ -80,16 +82,18 @@ export function CompanyCardDiff({ companyName, before, after }: CompanyCardDiffP
           <span className={`value${isFieldChanged(before.system, after.system) ? ' changed' : ''}`}>
             {systemPhone ? formatPhone(systemPhone) : '—'}
           </span>
-          {systemPhone ? (
-            <div className="actions-mini">
-              <a href={telHref(systemPhone)} aria-label="전산문의 전화">
-                📞
-              </a>
-              <button type="button" onClick={() => copy(systemPhone)} aria-label="전산문의 번호 복사">
-                📋
-              </button>
-            </div>
-          ) : null}
+          <div className="info-row-actions">
+            {systemPhone ? (
+              <div className="actions-mini">
+                <a href={telHref(systemPhone)} aria-label="전산문의 전화">
+                  📞
+                </a>
+                <button type="button" onClick={() => copy(systemPhone)} aria-label="전산문의 번호 복사">
+                  📋
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         <div className="info-row">
@@ -97,13 +101,15 @@ export function CompanyCardDiff({ companyName, before, after }: CompanyCardDiffP
           <span className={`value${isFieldChanged(before.incall, after.incall) ? ' changed' : ''}`}>
             {incallNumber ? formatPhone(incallNumber) : '—'}
           </span>
-          {incallNumber ? (
-            <div className="actions-mini">
-              <button type="button" onClick={() => copy(incallNumber)} aria-label="인콜 번호 복사">
-                📋
-              </button>
-            </div>
-          ) : null}
+          <div className="info-row-actions">
+            {incallNumber ? (
+              <div className="actions-mini">
+                <button type="button" onClick={() => copy(incallNumber)} aria-label="인콜 번호 복사">
+                  📋
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {visitInfo || before.visitInfo?.trim() ? (
@@ -112,6 +118,7 @@ export function CompanyCardDiff({ companyName, before, after }: CompanyCardDiffP
             <span className={`value${isFieldChanged(before.visitInfo, after.visitInfo) ? ' changed' : ''}`}>
               {visitInfo || '—'}
             </span>
+            <div className="info-row-actions" aria-hidden="true" />
           </div>
         ) : null}
       </div>
@@ -129,24 +136,19 @@ export function CompanyCardDiff({ companyName, before, after }: CompanyCardDiffP
             const position = hasAfter ? a.position : b.position
             const name = hasAfter ? a.name : b.name
             const phoneRaw = hasAfter ? a.phone : b.phone
-            const contactText = [position, name].filter(Boolean).join(' ') || '—'
             const posCh = isFieldChanged(b.position, a.position)
             const nameCh = isFieldChanged(b.name, a.name)
             const phoneCh = isFieldChanged(b.phone, a.phone)
+            const rowKey = `diff-${idx}-${position}-${name}-${phoneRaw}`
 
             return (
-              <div key={`diff-${idx}-${contactText}-${phoneRaw}`} className="contact-row">
-                <span className="contact-text">
-                  <span className={posCh ? 'changed' : undefined}>{position}</span>
-                  {position && name ? ' ' : null}
-                  <span className={nameCh ? 'changed' : undefined}>{name}</span>
-                </span>
-                {phoneRaw ? (
-                  <span className={`contact-phone${phoneCh ? ' changed' : ''}`}>{formatPhone(phoneRaw)}</span>
-                ) : (
-                  <span className={`contact-phone contact-phone--empty${phoneCh ? ' changed' : ''}`}>—</span>
-                )}
-                <div className="actions-mini">
+              <div key={rowKey} className="contact-row">
+                <div className={`position${posCh ? ' changed' : ''}`}>{position || '—'}</div>
+                <div className={`name${nameCh ? ' changed' : ''}`}>{name || '—'}</div>
+                <div className={`phone${phoneRaw ? '' : ' phone--empty'}${phoneCh ? ' changed' : ''}`}>
+                  {phoneRaw ? formatPhone(phoneRaw) : '—'}
+                </div>
+                <div className="actions actions-mini">
                   {phoneRaw ? (
                     <a href={telHref(phoneRaw)} aria-label={`${formatPhone(phoneRaw)} 전화`}>
                       📞
