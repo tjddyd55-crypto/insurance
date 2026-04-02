@@ -59,7 +59,7 @@ function loadEnvFileIfPresent(root, filename = '.env') {
 loadEnvFileIfPresent(projectRoot, '.env')
 loadEnvFileIfPresent(projectRoot, '.env.local')
 
-/** .env 예시 자리값 제외, Railway 등은 POSTGRES_URL만 줄 수 있음 */
+/** .env 예시 자리값 제외. 로컬 PC에서는 Railway Public URL을 우선(사설 *.railway.internal 는 DNS 실패) */
 function ensureDatabaseUrl() {
   const isUsable = (v) => {
     const s = String(v ?? '').trim()
@@ -68,7 +68,9 @@ function ensureDatabaseUrl() {
     }
     return s
   }
-  let url = isUsable(process.env.DATABASE_URL)
+  let url = isUsable(process.env.DATABASE_PUBLIC_URL)
+  if (!url) url = isUsable(process.env.PUBLIC_DATABASE_URL)
+  if (!url) url = isUsable(process.env.DATABASE_URL)
   if (!url) url = isUsable(process.env.POSTGRES_URL)
   if (!url) url = isUsable(process.env.POSTGRES_PRISMA_URL)
   if (!url) url = isUsable(process.env.DATABASE_PRIVATE_URL)
@@ -80,6 +82,34 @@ function ensureDatabaseUrl() {
   ) {
     delete process.env.DATABASE_URL
   }
+}
+
+/** @param {string | undefined} url */
+function isRailwayInternalDatabaseUrl(url) {
+  return /\.railway\.internal\b/i.test(String(url ?? ''))
+}
+
+/**
+ * 배포된 앱 컨테이너 안이 아니면 postgres.railway.internal 은 쓸 수 없음(로컬 ENOTFOUND)
+ * @param {string} url
+ */
+function exitIfRailwayInternalFromLocalMachine(url) {
+  if (!url || !isRailwayInternalDatabaseUrl(url)) {
+    return
+  }
+  if (process.env.RAILWAY_ENVIRONMENT) {
+    return
+  }
+  console.error(`
+[cleaned-import] DB 주소가 Railway 사설 호스트(.railway.internal)입니다.
+로컬 PC에서 npm으로 실행하면 이 호스트 이름을 찾을 수 없어 ENOTFOUND가 납니다.
+
+해결:
+  Railway 웹 → 해당 Postgres → Connect(연결) → "Public Network"의 URL을 복사해
+  .env 에 넣으세요. 변수 이름 예: DATABASE_PUBLIC_URL=... 또는 DATABASE_URL=...
+  (Variables에만 있는 기본 DATABASE_URL이 사설용이면 Public 탭 값을 따로 복사해야 합니다.)
+`)
+  process.exit(1)
 }
 
 ensureDatabaseUrl()
@@ -360,6 +390,8 @@ async function main() {
     )
     process.exit(1)
   }
+
+  exitIfRailwayInternalFromLocalMachine(String(process.env.DATABASE_URL))
 
   const { default: pool } = await import('../db.js')
   const client = await pool.connect()
