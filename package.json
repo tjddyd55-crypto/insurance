@@ -12,7 +12,8 @@
     "start": "node server/index.js",
     "seed:insurance": "node server/runSeedInsurance.js",
     "import:partner-excel": "node server/scripts/runPartnerExcelImport.mjs",
-    "import:cleaned-excel": "node server/scripts/runCleanedExcelImport.mjs"
+    "import:cleaned-excel": "node server/scripts/runCleanedExcelImport.mjs",
+    "import:cleaned-excel:railway": "railway run -- node server/scripts/runCleanedExcelImport.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

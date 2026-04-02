@@ -6,7 +6,10 @@
  *
  * node server/scripts/runCleanedExcelImport.mjs [엑셀경로] [--dry-run] [--sheet=시트명] [--skip-reinsurer-contacts]
  *
- * 환경: 프로젝트 루트 .env 의 DATABASE_URL (또는 이미 설정된 환경변수)
+ * 환경:
+ * - 프로젝트 루트 .env / .env.local 의 DATABASE_URL
+ * - 또는 Railway/호스트에서 이미 주입된 DATABASE_URL·POSTGRES_URL 등
+ * - 배포 DB와 동일한 URL로 로컬에서 넣으려면: `npm run import:cleaned-excel:railway` (railway login · link 후)
  */
 
 import { randomUUID } from 'node:crypto'
@@ -19,8 +22,8 @@ import { cleanPhone, parseManagerCell } from '../lib/partnerExcelParse.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(__dirname, '..', '..')
 
-function loadEnvFileIfPresent(root) {
-  const p = path.join(root, '.env')
+function loadEnvFileIfPresent(root, filename = '.env') {
+  const p = path.join(root, filename)
   if (!fs.existsSync(p)) {
     return
   }
@@ -48,7 +51,33 @@ function loadEnvFileIfPresent(root) {
   }
 }
 
-loadEnvFileIfPresent(projectRoot)
+loadEnvFileIfPresent(projectRoot, '.env')
+loadEnvFileIfPresent(projectRoot, '.env.local')
+
+/** .env 예시 자리값 제외, Railway 등은 POSTGRES_URL만 줄 수 있음 */
+function ensureDatabaseUrl() {
+  const isUsable = (v) => {
+    const s = String(v ?? '').trim()
+    if (!s || s.includes('user:password@host')) {
+      return ''
+    }
+    return s
+  }
+  let url = isUsable(process.env.DATABASE_URL)
+  if (!url) url = isUsable(process.env.POSTGRES_URL)
+  if (!url) url = isUsable(process.env.POSTGRES_PRISMA_URL)
+  if (!url) url = isUsable(process.env.DATABASE_PRIVATE_URL)
+  if (url) {
+    process.env.DATABASE_URL = url
+  } else if (
+    !String(process.env.DATABASE_URL ?? '').trim() ||
+    String(process.env.DATABASE_URL).includes('user:password@host')
+  ) {
+    delete process.env.DATABASE_URL
+  }
+}
+
+ensureDatabaseUrl()
 
 /** @param {unknown} value */
 function normalizeInsuranceCompanyCategory(value) {
@@ -319,8 +348,11 @@ async function main() {
     process.exit(0)
   }
 
-  if (!process.env.DATABASE_URL) {
-    console.error('DATABASE_URL 이 없습니다. .env 또는 환경변수를 설정하세요.')
+  ensureDatabaseUrl()
+  if (!String(process.env.DATABASE_URL ?? '').trim()) {
+    console.error(
+      'DATABASE_URL 이 없습니다. .env에 Railway Variables의 DATABASE_URL(또는 POSTGRES_URL)을 넣거나, `npm run import:cleaned-excel:railway` 로 실행하세요.',
+    )
     process.exit(1)
   }
 
