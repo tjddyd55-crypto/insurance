@@ -401,11 +401,79 @@ body {
   margin: 6px 0;
 }
 
-.customer-expand-detail__actions {
+.customer-edit-banner {
+  background: var(--primary);
+  color: white;
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.customer-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  margin-top: 10px;
+}
+
+.customer-actions button {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  font-size: 13px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.customer-actions .kakao-btn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.customer-actions .car-btn {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.customer-actions .edit-btn {
+  background: var(--bg-soft);
+  color: var(--text-main);
+}
+
+.customer-actions .delete-btn {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.customer-edit-actions {
+  display: flex;
+  gap: 8px;
   margin-top: 12px;
+}
+
+.customer-edit-actions button {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  font-size: 13px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.customer-edit-actions .button-save {
+  background: var(--primary);
+  color: #fff;
+}
+
+.customer-edit-actions .button-cancel {
+  background: var(--bg-soft);
+  color: var(--text-main);
 }
 
 .customer-dday {

@@ -52,10 +52,13 @@ export interface UpdateCustomerCarPayload {
   renewalDate: string
 }
 
-export async function updateCustomerCar(
+/** 프로필·차량 필드 중 전달한 키만 서버에서 갱신 */
+export type UpdateCustomerPayload = Partial<SaveCustomerPayload> & Partial<UpdateCustomerCarPayload>
+
+export async function updateCustomer(
   token: string,
   customerId: number,
-  payload: UpdateCustomerCarPayload,
+  payload: UpdateCustomerPayload,
 ): Promise<CustomerRecord> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
@@ -66,6 +69,19 @@ export async function updateCustomerCar(
     body: JSON.stringify(payload),
   })
   return body.data
+}
+
+export async function updateCustomerCar(
+  token: string,
+  customerId: number,
+  payload: UpdateCustomerCarPayload,
+): Promise<CustomerRecord> {
+  return updateCustomer(token, customerId, {
+    carNumber: payload.carNumber,
+    carModel: payload.carModel,
+    carYear: payload.carYear,
+    renewalDate: payload.renewalDate,
+  })
 }
 
 export async function deleteCustomer(token: string, customerId: number): Promise<void> {

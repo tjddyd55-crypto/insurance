@@ -1441,25 +1441,74 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
     }
 
     const data = req.body ?? {}
-    const carNumber = String(data.carNumber ?? data.car_number ?? '').trim()
-    const carModel = String(data.carModel ?? data.car_model ?? '').trim()
-    const carYear = String(data.carYear ?? data.car_year ?? '').trim()
-    const renewalDate = normalizeExpiryDate(String(data.renewalDate ?? data.renewal_date ?? ''))
+    const hasKey = (k) => Object.prototype.hasOwnProperty.call(data, k)
 
+    const parts = []
+    const vals = []
+    let n = 1
+
+    if (hasKey('name')) {
+      const name = String(data.name ?? '').trim()
+      if (!name) {
+        res.status(400).json({ message: '고객 이름은 필수입니다.' })
+        return
+      }
+      parts.push(`name = $${n++}`)
+      vals.push(name)
+    }
+
+    const stringCols = [
+      ['ssn', 'ssn'],
+      ['phone', 'phone'],
+      ['carrier', 'carrier'],
+      ['address', 'address'],
+      ['height', 'height'],
+      ['weight', 'weight'],
+      ['job', 'job'],
+      ['driving', 'driving'],
+      ['medical', 'medical'],
+    ]
+    for (const [key, col] of stringCols) {
+      if (hasKey(key)) {
+        parts.push(`${col} = $${n++}`)
+        vals.push(String(data[key] ?? '').trim())
+      }
+    }
+
+    if (hasKey('carNumber') || hasKey('car_number')) {
+      parts.push(`car_number = $${n++}`)
+      vals.push(String(data.carNumber ?? data.car_number ?? '').trim())
+    }
+    if (hasKey('carModel') || hasKey('car_model')) {
+      parts.push(`car_model = $${n++}`)
+      vals.push(String(data.carModel ?? data.car_model ?? '').trim())
+    }
+    if (hasKey('carYear') || hasKey('car_year')) {
+      parts.push(`car_year = $${n++}`)
+      vals.push(String(data.carYear ?? data.car_year ?? '').trim())
+    }
+    if (hasKey('renewalDate') || hasKey('renewal_date')) {
+      const renewalDate = normalizeExpiryDate(String(data.renewalDate ?? data.renewal_date ?? ''))
+      parts.push(`renewal_date = $${n++}`)
+      vals.push(renewalDate || null)
+    }
+
+    if (parts.length === 0) {
+      res.status(400).json({ message: '수정할 필드가 없습니다.' })
+      return
+    }
+
+    vals.push(customerId, userId)
     const updated = await pool.query(
       `
       UPDATE customers
-      SET
-        car_number = $1,
-        car_model = $2,
-        car_year = $3,
-        renewal_date = $4
-      WHERE id = $5 AND user_id = $6 AND deleted_at IS NULL
+      SET ${parts.join(', ')}
+      WHERE id = $${n++} AND user_id = $${n++} AND deleted_at IS NULL
       RETURNING
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date, created_at
       `,
-      [carNumber, carModel, carYear, renewalDate || null, customerId, userId],
+      vals,
     )
 
     if (updated.rowCount === 0) {
