@@ -1572,6 +1572,63 @@ body {
   font-weight: 700;
 }
 
+.company-registry-directory-card {
+  margin-bottom: 14px;
+}
+
+.company-registry-pick-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+}
+
+.company-registry-pick-list__btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: 0;
+  border: 1px solid var(--border, #e5eaf0);
+  border-radius: 10px;
+  background: var(--card-bg, var(--bg-soft));
+  color: var(--text-main);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.company-registry-pick-list__btn:hover {
+  border-color: var(--primary, #2563eb);
+  background: var(--tab-inactive-bg, #eef2f7);
+}
+
+.company-registry-pick-list__btn:focus-visible {
+  outline: 2px solid var(--primary, #2563eb);
+  outline-offset: 2px;
+}
+
+.company-registry-pick-list__badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--primary, #2563eb);
+  color: #fff;
+}
+
+.company-registry-pick-list__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
 .company-registry-form-card {
   margin-bottom: 8px;
 }

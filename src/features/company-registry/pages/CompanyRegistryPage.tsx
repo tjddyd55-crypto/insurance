@@ -2,7 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { fullSaveCompanyDirectory, listCompanyDirectory } from '../api/companyRegistryApi'
-import { normalizeInsuranceCategory } from '../domain/categoryUtils'
+import {
+  insuranceCategoryLabel,
+  insuranceTypeSortRank,
+  normalizeInsuranceCategory,
+  resolveTabCategory,
+} from '../domain/categoryUtils'
 import type { InsuranceCategory } from '../domain/insuranceConstants'
 import {
   getInsuranceCompanyDefaultTel,
@@ -23,9 +28,13 @@ const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 
 const EMPTY_CONTACT: InsuranceCompanyContactDraft = { name: '', position: '', phone: '' }
 
 function entryToFormState(entry: CompanyDirectoryEntry): InsuranceCompanyFormState {
+  const resolved =
+    resolveTabCategory(entry.category, entry.name) ||
+    normalizeInsuranceCategory(entry.category) ||
+    entry.category
   return {
     id: entry.id,
-    category: normalizeInsuranceCategory(entry.category) || entry.category,
+    category: resolved,
     name: entry.name,
     customerCenter: entry.customerCenter,
     systemPhone: entry.systemPhone,
@@ -70,8 +79,34 @@ export default function CompanyRegistryPage() {
     if (!selectedType) {
       return []
     }
-    return insuranceCompanyMap[selectedType] ?? []
-  }, [selectedType])
+    const fromMap = insuranceCompanyMap[selectedType] ?? []
+    const mapNames = new Set(fromMap.map((o) => o.name))
+    const extras: InsuranceCompanyOption[] = []
+    for (const e of list) {
+      if (resolveTabCategory(e.category, e.name) !== selectedType) {
+        continue
+      }
+      if (mapNames.has(e.name)) {
+        continue
+      }
+      extras.push({ name: e.name, tel: e.customerCenter || '' })
+    }
+    extras.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+    return [...fromMap, ...extras]
+  }, [selectedType, list])
+
+  const sortedDirectoryList = useMemo(() => {
+    return [...list].sort((a, b) => {
+      const ra = resolveTabCategory(a.category, a.name)
+      const rb = resolveTabCategory(b.category, b.name)
+      const sa = insuranceTypeSortRank(ra || '')
+      const sb = insuranceTypeSortRank(rb || '')
+      if (sa !== sb) {
+        return sa - sb
+      }
+      return a.name.localeCompare(b.name, 'ko')
+    })
+  }, [list])
 
   const prevSelectionRef = useRef<{ type: string; company: string }>({ type: '', company: '' })
   const lastAutoCustomerCenterKeyRef = useRef<string>('')
@@ -81,8 +116,7 @@ export default function CompanyRegistryPage() {
       return false
     }
     return list.some(
-      (e) =>
-        normalizeInsuranceCategory(e.category) === selectedType && e.name === selectedCompanyName,
+      (e) => resolveTabCategory(e.category, e.name) === selectedType && e.name === selectedCompanyName,
     )
   }, [list, selectedType, selectedCompanyName])
 
@@ -122,7 +156,7 @@ export default function CompanyRegistryPage() {
   }, [searchParams, setSearchParams])
 
   useEffect(() => {
-    if (!selectedType || !selectedCompanyName) {
+    if (!selectedCompanyName.trim()) {
       prevSelectionRef.current = { type: '', company: '' }
       lastAutoCustomerCenterKeyRef.current = ''
       setCompany({
@@ -135,13 +169,16 @@ export default function CompanyRegistryPage() {
       return
     }
 
+    if (!selectedType) {
+      return
+    }
+
     if (typeof selectedCompanyName !== 'string') {
       return
     }
 
     const entry = list.find(
-      (e) =>
-        normalizeInsuranceCategory(e.category) === selectedType && e.name === selectedCompanyName,
+      (e) => resolveTabCategory(e.category, e.name) === selectedType && e.name === selectedCompanyName,
     )
 
     if (entry) {
@@ -181,8 +218,7 @@ export default function CompanyRegistryPage() {
     }
 
     const entry = list.find(
-      (e) =>
-        normalizeInsuranceCategory(e.category) === selectedType && e.name === selectedCompanyName,
+      (e) => resolveTabCategory(e.category, e.name) === selectedType && e.name === selectedCompanyName,
     )
     if (entry) {
       return
@@ -197,6 +233,29 @@ export default function CompanyRegistryPage() {
     const defaultTel = getInsuranceCompanyDefaultTel(selectedType, selectedCompanyName)
     setCompany((prev) => ({ ...prev, customerCenter: defaultTel || '' }))
   }, [list, selectedType, selectedCompanyName])
+
+  const applyDirectoryEntry = useCallback((entry: CompanyDirectoryEntry) => {
+    const cat = resolveTabCategory(entry.category, entry.name)
+    if (!cat || !isInsuranceCategory(cat)) {
+      setStatusText(
+        '보험 종류를 자동 인식하지 못했습니다. 아래에서「보험 종류」를 선택하면 같은 이름의 등록 데이터와 맞춰집니다.',
+      )
+      setSelectedType('')
+      setSelectedCompanyName(entry.name)
+      prevSelectionRef.current = { type: '', company: entry.name }
+      lastAutoCustomerCenterKeyRef.current = ''
+      setCompany(entryToFormState(entry))
+      setContacts(entryContactsToDrafts(entry))
+      return
+    }
+    setStatusText('')
+    setSelectedType(cat)
+    setSelectedCompanyName(entry.name)
+    prevSelectionRef.current = { type: cat, company: entry.name }
+    lastAutoCustomerCenterKeyRef.current = `${cat}::${entry.name}`
+    setCompany(entryToFormState(entry))
+    setContacts(entryContactsToDrafts(entry))
+  }, [])
 
   const addContactRow = () => {
     setContacts((prev) => [...prev, { ...EMPTY_CONTACT }])
@@ -279,6 +338,37 @@ export default function CompanyRegistryPage() {
             '보험 종류·보험사를 선택한 뒤 공통 정보와 담당자를 저장합니다. 등록된 목록은 「연락처 조회」에서 확인할 수 있습니다.'}
         </p>
       </header>
+
+      {canEdit ? (
+        <section className="card company-registry-directory-card">
+          <h2 className="dashboard-section-title">등록된 보험사</h2>
+          <p className="company-registry-field-hint" style={{ marginTop: 0 }}>
+            항목을 누르면 아래 입력 폼에 불러와 바로 수정할 수 있습니다.
+          </p>
+          {list.length === 0 ? (
+            <p className="company-registry-muted">아직 등록된 보험사가 없습니다.</p>
+          ) : (
+            <ul className="company-registry-pick-list">
+              {sortedDirectoryList.map((e) => {
+                const tabCat = resolveTabCategory(e.category, e.name)
+                const label = tabCat ? insuranceCategoryLabel(tabCat) : '분류 미정'
+                return (
+                  <li key={e.id}>
+                    <button
+                      type="button"
+                      className="company-registry-pick-list__btn"
+                      onClick={() => applyDirectoryEntry(e)}
+                    >
+                      <span className="company-registry-pick-list__badge">{label}</span>
+                      <span className="company-registry-pick-list__name">{e.name}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </section>
+      ) : null}
 
       {canEdit ? (
         <section className="card company-registry-form-card">
