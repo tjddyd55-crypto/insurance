@@ -1,16 +1,20 @@
 /**
  * 구분·보험사명·인콜·전산문의·담당자·연락처 표 엑셀 → DB 반영
  *
- * node server/scripts/runCleanedExcelImport.mjs [엑셀경로] [--dry-run] [--sheet=시트명]
+ * - insurance_company_master / insurance_company_contacts (보험사 주소록·조회 화면)
+ * - insurance_contacts (재보험사 연락처 메뉴) — 기존 행 전부 삭제 후 엑셀 행과 동일하게 재구성
+ *
+ * node server/scripts/runCleanedExcelImport.mjs [엑셀경로] [--dry-run] [--sheet=시트명] [--skip-reinsurer-contacts]
  *
  * 환경: 프로젝트 루트 .env 의 DATABASE_URL (또는 이미 설정된 환경변수)
  */
 
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import XLSX from 'xlsx'
-import { cleanPhone } from '../lib/partnerExcelParse.js'
+import { cleanPhone, parseManagerCell } from '../lib/partnerExcelParse.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(__dirname, '..', '..')
@@ -112,11 +116,66 @@ function normalizeStoredPhone(raw) {
   return orig
 }
 
+/** API /insurance/contacts 와 동일: 저장·표시용 숫자만 */
+function normalizePhoneNumberDigits(value) {
+  return String(value ?? '').replace(/\D/g, '')
+}
+
+async function touchContactLastUpdatedAt(client) {
+  await client.query(
+    `
+    INSERT INTO insurance_contact_meta (meta_key, meta_value, updated_at)
+    VALUES ('contact_last_updated_at', NOW()::text, NOW())
+    ON CONFLICT (meta_key)
+    DO UPDATE SET meta_value = NOW()::text, updated_at = NOW()
+    `,
+  )
+}
+
+/**
+ * 재보험사 연락처 목록을 엑셀과 일치시킴 (기존 insurance_contacts 전량 교체)
+ * @param {import('pg').PoolClient} client
+ * @param {Array<{ category: string, companyName: string, managerName: string, position: string, phoneDigits: string }>} list
+ */
+async function replaceReinsurerContactsFromExcel(client, list) {
+  await client.query(`DELETE FROM insurance_contacts`)
+
+  const desc = '엑셀 일괄 반영'
+
+  for (const r of list) {
+    const contactId = randomUUID()
+    await client.query(
+      `
+      INSERT INTO insurance_contacts (
+        id, category, company_name, manager_name, position, phone_number, created_at, updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+      `,
+      [contactId, r.category, r.companyName, r.managerName, r.position, r.phoneDigits],
+    )
+
+    await client.query(
+      `
+      INSERT INTO insurance_contact_updates (
+        id, contact_id, action_type, category, company_name, manager_name, position,
+        old_phone_number, new_phone_number, description, created_at
+      )
+      VALUES ($1, $2, 'CREATE', $3, $4, $5, $6, NULL, $7, $8, NOW())
+      `,
+      [randomUUID(), contactId, r.category, r.companyName, r.managerName, r.position, r.phoneDigits, desc],
+    )
+  }
+
+  await touchContactLastUpdatedAt(client)
+}
+
 function parseArgs(argv) {
-  const args = { paths: [], dryRun: false, sheet: '' }
+  const args = { paths: [], dryRun: false, sheet: '', skipReinsurerContacts: false }
   for (const a of argv) {
     if (a === '--dry-run') {
       args.dryRun = true
+    } else if (a === '--skip-reinsurer-contacts') {
+      args.skipReinsurerContacts = true
     } else if (a.startsWith('--sheet=')) {
       args.sheet = a.slice('--sheet='.length)
     } else if (!a.startsWith('-')) {
@@ -218,6 +277,34 @@ async function main() {
     })
   }
 
+  /** 재보험사 연락처( flat 목록 ): 엑셀 한 행 = 한 연락처 */
+  const reinsurerRows = []
+  for (const row of rows) {
+    const category = normalizeInsuranceCompanyCategory(row[COL_GUBUN])
+    const companyName = String(row[COL_NAME] ?? '').trim()
+    if (!category || !companyName) {
+      continue
+    }
+    const mgrRaw = String(row[COL_MANAGER] ?? '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    const phoneRaw = String(row[COL_PHONE] ?? '').trim()
+    const { name: parsedName, position } = parseManagerCell(mgrRaw)
+    const managerName = (parsedName || mgrRaw || '').trim() || '담당자'
+    const phoneDigits = normalizePhoneNumberDigits(normalizeStoredPhone(phoneRaw))
+    if (!phoneDigits) {
+      console.warn('[skip reinsurer] 연락처 전화번호 없음:', { companyName, managerName })
+      continue
+    }
+    reinsurerRows.push({
+      category,
+      companyName,
+      managerName,
+      position,
+      phoneDigits,
+    })
+  }
+
   console.log('[cleaned-import] file:', excelPath)
   console.log('[cleaned-import] sheet:', sheetName)
   console.log('[cleaned-import] source rows:', rows.length)
@@ -226,6 +313,7 @@ async function main() {
     '[cleaned-import] contacts:',
     companies.reduce((n, c) => n + c.contacts.length, 0),
   )
+  console.log('[cleaned-import] reinsurer flat rows:', reinsurerRows.length)
 
   if (args.dryRun) {
     process.exit(0)
@@ -281,6 +369,14 @@ async function main() {
         )
       }
     }
+
+    if (!args.skipReinsurerContacts) {
+      await replaceReinsurerContactsFromExcel(client, reinsurerRows)
+      console.log('[cleaned-import] insurance_contacts 재보험사 목록 교체:', reinsurerRows.length, '건')
+    } else {
+      console.log('[cleaned-import] --skip-reinsurer-contacts: insurance_contacts 생략')
+    }
+
     await client.query('COMMIT')
     console.log('[cleaned-import] DB 반영 완료')
   } catch (e) {
