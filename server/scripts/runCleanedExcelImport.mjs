@@ -1,8 +1,13 @@
 /**
- * 구분·보험사명·인콜·전산문의·담당자·연락처 표 엑셀 → DB 반영
+ * 엑셀 내용을 "웹에서 직접 입력·저장"했을 때와 같은 DB 항목에 일괄 반영하는 도구입니다.
+ * 엑셀 파일과 서버를 실시간 연동하지 않고, 1회 읽어서 테이블에 INSERT/UPDATE 한 뒤 끝입니다.
  *
- * - insurance_company_master / insurance_company_contacts (보험사 주소록·조회 화면)
- * - insurance_contacts (재보험사 연락처 메뉴) — 기존 행 전부 삭제 후 엑셀 행과 동일하게 재구성
+ * 예) 구분=LIFE, 보험사명=삼성생명, 담당자=홍길동 지점장, 연락처=01022221382 한 행은
+ *     - `/company/full-save`와 동일처럼 insurance_company_master / insurance_company_contacts
+ *     - 재보험사 연락처 화면과 동일처럼 insurance_contacts (manager/position/phone 분리 규칙 동일)
+ *     에 들어갑니다. 인콜·전산문의 열은 같은 보험사 마스터 필드에 반영됩니다.
+ *
+ * 열: 구분, 보험사명, 인콜, 전산문의, 담당자, 연락처
  *
  * node server/scripts/runCleanedExcelImport.mjs [엑셀경로] [--dry-run] [--sheet=시트명] [--skip-reinsurer-contacts]
  *
