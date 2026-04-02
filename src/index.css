@@ -299,6 +299,48 @@ body {
   width: 100%;
 }
 
+/* 고객 관리 — 등록/조회 탭·검색 */
+.customers-page .tab-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.customers-page .tab-container button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.customers-page .tab-container button.active {
+  background: var(--primary);
+  color: var(--text-on-primary, white);
+  border-color: var(--primary);
+}
+
+.customers-page .search-input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  margin-bottom: 10px;
+  box-sizing: border-box;
+  font: inherit;
+  background: var(--bg);
+  color: var(--text-main);
+}
+
+.customers-page ul.customer-list.record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .field-grid-customers {
   display: grid;
   gap: 12px;

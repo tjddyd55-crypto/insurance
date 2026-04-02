@@ -87,6 +87,8 @@ export default function CustomersPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
+  const [tab, setTab] = useState<'create' | 'list'>('create')
+  const [keyword, setKeyword] = useState('')
 
   const duplicateCustomerNames = useMemo(() => {
     const counts = new Map<string, number>()
@@ -101,6 +103,19 @@ export default function CustomersPage() {
       [...counts.entries()].filter(([, n]) => n > 1).map(([name]) => name),
     )
   }, [customers])
+
+  const filteredCustomers = useMemo(() => {
+    const q = keyword.trim()
+    if (!q) {
+      return customers
+    }
+    return customers.filter((c) => c.name.includes(q) || (c.phone ?? '').includes(q))
+  }, [customers, keyword])
+
+  const sortedCustomers = useMemo(
+    () => [...filteredCustomers].sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+    [filteredCustomers],
+  )
 
   const loadCustomers = useCallback(async () => {
     if (!token || user?.role !== 'user') {
@@ -283,6 +298,231 @@ export default function CustomersPage() {
     }
   }
 
+  function CustomerCard({ data: c }: { data: CustomerRecord }) {
+    return (
+      <li className="record-card customer-expand-card">
+        <button
+          type="button"
+          className="customer-expand-summary"
+          aria-expanded={expandedId === c.id}
+          onClick={() => setExpandedId((prev) => (prev === c.id ? null : c.id))}
+        >
+          <span className="customer-expand-summary__title">
+            <span
+              className={
+                duplicateCustomerNames.has(c.name.trim()) ? 'customer-hit-name--duplicate' : undefined
+              }
+            >
+              {c.name}
+            </span>
+            {' / '}
+            {c.phone || '—'}
+            {' / '}
+            {c.ssn || '—'} <CustomerDDayBadge renewalDate={c.renewalDate} />
+          </span>
+          <span className="customer-expand-summary__hint">{expandedId === c.id ? '접기' : '펼치기'}</span>
+        </button>
+
+        {expandedId === c.id ? (
+          <div className="customer-expand-detail">
+            {editingId === c.id && editForm ? (
+              <>
+                <div className="customer-edit-banner" role="status">
+                  ✏ 고객 정보 수정 중
+                </div>
+                <div className="field-grid-customers">
+                  <label className="field">
+                    <span className="field__label">이름</span>
+                    <input
+                      className="field__control"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">주민번호</span>
+                    <input
+                      className="field__control"
+                      value={editForm.ssn}
+                      onChange={(e) => setEditForm({ ...editForm, ssn: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">전화번호</span>
+                    <input
+                      className="field__control"
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">통신사</span>
+                    <input
+                      className="field__control"
+                      value={editForm.carrier}
+                      onChange={(e) => setEditForm({ ...editForm, carrier: e.target.value })}
+                    />
+                  </label>
+                  <label className="field field--wide">
+                    <span className="field__label">주소</span>
+                    <input
+                      className="field__control"
+                      value={editForm.address}
+                      onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">키</span>
+                    <input
+                      className="field__control"
+                      value={editForm.height}
+                      onChange={(e) => setEditForm({ ...editForm, height: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">몸무게</span>
+                    <input
+                      className="field__control"
+                      value={editForm.weight}
+                      onChange={(e) => setEditForm({ ...editForm, weight: e.target.value })}
+                    />
+                  </label>
+                  <label className="field field--wide">
+                    <span className="field__label">직업 / 회사명 등</span>
+                    <input
+                      className="field__control"
+                      value={editForm.job}
+                      onChange={(e) => setEditForm({ ...editForm, job: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">운전 여부</span>
+                    <input
+                      className="field__control"
+                      value={editForm.driving}
+                      onChange={(e) => setEditForm({ ...editForm, driving: e.target.value })}
+                    />
+                  </label>
+                  <label className="field field--wide">
+                    <span className="field__label">건강 고지</span>
+                    <textarea
+                      className="field__control"
+                      rows={3}
+                      value={editForm.medical}
+                      onChange={(e) => setEditForm({ ...editForm, medical: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">차량번호</span>
+                    <input
+                      className="field__control"
+                      value={editForm.carNumber}
+                      onChange={(e) => setEditForm({ ...editForm, carNumber: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">차종</span>
+                    <input
+                      className="field__control"
+                      value={editForm.carModel}
+                      onChange={(e) => setEditForm({ ...editForm, carModel: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">연식</span>
+                    <input
+                      className="field__control"
+                      value={editForm.carYear}
+                      onChange={(e) => setEditForm({ ...editForm, carYear: e.target.value })}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field__label">만기(갱신)일</span>
+                    <input
+                      className="field__control"
+                      type="date"
+                      value={editForm.renewalDate ? editForm.renewalDate.slice(0, 10) : ''}
+                      onChange={(e) => setEditForm({ ...editForm, renewalDate: e.target.value })}
+                    />
+                  </label>
+                </div>
+                <div className="customer-edit-actions">
+                  <button className="button-save" type="button" onClick={() => void handleUpdateCustomer()}>
+                    수정 저장
+                  </button>
+                  <button className="button-cancel" type="button" onClick={cancelEdit}>
+                    취소
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p>
+                  <strong>주민번호:</strong> {c.ssn || '—'}
+                </p>
+                <p>
+                  <strong>주소:</strong> {c.address || '—'}
+                </p>
+                <p>
+                  <strong>차량번호:</strong> {c.carNumber || '—'}
+                </p>
+                <p>
+                  <strong>차종·연식:</strong> {c.carModel || '—'} / {c.carYear || '—'}
+                </p>
+                <p>
+                  <strong>만기(갱신)일:</strong> {c.renewalDate || '—'}
+                </p>
+                <div className="customer-actions">
+                  <button className="kakao-btn" type="button" onClick={() => void copyCustomer(c)}>
+                    카톡 복사
+                  </button>
+                  <button className="car-btn" type="button" onClick={() => goToCarEdit(c)}>
+                    자동차 입력
+                  </button>
+                  <button className="edit-btn" type="button" onClick={() => startEdit(c)}>
+                    ✏ 수정
+                  </button>
+                  <button className="delete-btn" type="button" onClick={() => void handleDeleteCustomer(c)}>
+                    삭제
+                  </button>
+                </div>
+              </>
+            )}
+
+            <div className="customer-form-history">
+              <h3 className="customer-form-history__title">연결된 신청서</h3>
+              {historyLoading ? (
+                <p className="customer-form-history__status">불러오는 중…</p>
+              ) : historyForms.length === 0 ? (
+                <p className="customer-form-history__status">이 고객 ID로 연결된 신청서가 없습니다.</p>
+              ) : (
+                <ul className="customer-form-history__list">
+                  {historyForms.map((row) => (
+                    <li key={row.id} className="customer-form-history__item">
+                      <div>
+                        <strong>{row.title}</strong>
+                        <span className="customer-form-history__meta">
+                          저장: {formatKoreanDateTime(row.updatedAt)} · 만기 {row.expiryDate || '—'}
+                        </span>
+                      </div>
+                      <button
+                        className="button button--secondary"
+                        type="button"
+                        onClick={() => navigate(`/form/${row.id}/edit`)}
+                      >
+                        열기
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </li>
+    )
+  }
+
   if (user?.role !== 'user') {
     return (
       <main className="page">
@@ -298,7 +538,7 @@ export default function CustomersPage() {
   }
 
   return (
-    <main className="page">
+    <main className="page customers-page">
       <header className="page-header">
         <h1>고객 관리</h1>
         <p>{statusText || '고객을 등록하고 목록에서 카톡용 문구를 복사할 수 있습니다.'}</p>
@@ -310,7 +550,29 @@ export default function CustomersPage() {
         </button>
       </nav>
 
-      <section className="card" style={{ marginTop: 14 }}>
+      <div className="tab-container" role="tablist" aria-label="고객 관리 구역">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'create'}
+          className={tab === 'create' ? 'active' : ''}
+          onClick={() => setTab('create')}
+        >
+          고객 등록
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'list'}
+          className={tab === 'list' ? 'active' : ''}
+          onClick={() => setTab('list')}
+        >
+          고객 조회
+        </button>
+      </div>
+
+      {tab === 'create' ? (
+      <section className="card" style={{ marginTop: 0 }}>
         <h2 className="dashboard-section-title">신규 고객</h2>
         <div className="field-grid-customers">
           <label className="field">
@@ -409,249 +671,33 @@ export default function CustomersPage() {
           저장
         </button>
       </section>
-
-      <section className="list-section" style={{ marginTop: 18 }}>
-        <h2>저장된 고객</h2>
+      ) : (
+      <section className="list-section" style={{ marginTop: 0 }}>
+        <h2 className="dashboard-section-title">저장된 고객</h2>
+        <input
+          className="search-input"
+          type="search"
+          placeholder="이름 / 전화번호 검색"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          autoComplete="off"
+          aria-label="이름 또는 전화번호 검색"
+        />
         {isLoading ? (
           <p>불러오는 중…</p>
         ) : customers.length === 0 ? (
           <p className="empty-state">등록된 고객이 없습니다.</p>
+        ) : sortedCustomers.length === 0 ? (
+          <p className="empty-state">검색과 일치하는 고객이 없습니다.</p>
         ) : (
-          <ul className="record-list customer-expand-list">
-            {customers.map((c) => (
-              <li key={c.id} className="record-card customer-expand-card">
-                <button
-                  type="button"
-                  className="customer-expand-summary"
-                  aria-expanded={expandedId === c.id}
-                  onClick={() => setExpandedId((prev) => (prev === c.id ? null : c.id))}
-                >
-                  <span className="customer-expand-summary__title">
-                    <span
-                      className={
-                        duplicateCustomerNames.has(c.name.trim()) ? 'customer-hit-name--duplicate' : undefined
-                      }
-                    >
-                      {c.name}
-                    </span>
-                    {' / '}
-                    {c.phone || '—'}
-                    {' / '}
-                    {c.ssn || '—'}{' '}
-                    <CustomerDDayBadge renewalDate={c.renewalDate} />
-                  </span>
-                  <span className="customer-expand-summary__hint">{expandedId === c.id ? '접기' : '펼치기'}</span>
-                </button>
-
-                {expandedId === c.id ? (
-                  <div className="customer-expand-detail">
-                    {editingId === c.id && editForm ? (
-                      <>
-                        <div className="customer-edit-banner" role="status">
-                          ✏ 고객 정보 수정 중
-                        </div>
-                        <div className="field-grid-customers">
-                          <label className="field">
-                            <span className="field__label">이름</span>
-                            <input
-                              className="field__control"
-                              value={editForm.name}
-                              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            <span className="field__label">주민번호</span>
-                            <input
-                              className="field__control"
-                              value={editForm.ssn}
-                              onChange={(e) => setEditForm({ ...editForm, ssn: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            <span className="field__label">전화번호</span>
-                            <input
-                              className="field__control"
-                              value={editForm.phone}
-                              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            <span className="field__label">통신사</span>
-                            <input
-                              className="field__control"
-                              value={editForm.carrier}
-                              onChange={(e) => setEditForm({ ...editForm, carrier: e.target.value })}
-                            />
-                          </label>
-                          <label className="field field--wide">
-                            <span className="field__label">주소</span>
-                            <input
-                              className="field__control"
-                              value={editForm.address}
-                              onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            <span className="field__label">키</span>
-                            <input
-                              className="field__control"
-                              value={editForm.height}
-                              onChange={(e) => setEditForm({ ...editForm, height: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            <span className="field__label">몸무게</span>
-                            <input
-                              className="field__control"
-                              value={editForm.weight}
-                              onChange={(e) => setEditForm({ ...editForm, weight: e.target.value })}
-                            />
-                          </label>
-                          <label className="field field--wide">
-                            <span className="field__label">직업 / 회사명 등</span>
-                            <input
-                              className="field__control"
-                              value={editForm.job}
-                              onChange={(e) => setEditForm({ ...editForm, job: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            <span className="field__label">운전 여부</span>
-                            <input
-                              className="field__control"
-                              value={editForm.driving}
-                              onChange={(e) => setEditForm({ ...editForm, driving: e.target.value })}
-                            />
-                          </label>
-                          <label className="field field--wide">
-                            <span className="field__label">건강 고지</span>
-                            <textarea
-                              className="field__control"
-                              rows={3}
-                              value={editForm.medical}
-                              onChange={(e) => setEditForm({ ...editForm, medical: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            <span className="field__label">차량번호</span>
-                            <input
-                              className="field__control"
-                              value={editForm.carNumber}
-                              onChange={(e) => setEditForm({ ...editForm, carNumber: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            <span className="field__label">차종</span>
-                            <input
-                              className="field__control"
-                              value={editForm.carModel}
-                              onChange={(e) => setEditForm({ ...editForm, carModel: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            <span className="field__label">연식</span>
-                            <input
-                              className="field__control"
-                              value={editForm.carYear}
-                              onChange={(e) => setEditForm({ ...editForm, carYear: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            <span className="field__label">만기(갱신)일</span>
-                            <input
-                              className="field__control"
-                              type="date"
-                              value={editForm.renewalDate ? editForm.renewalDate.slice(0, 10) : ''}
-                              onChange={(e) => setEditForm({ ...editForm, renewalDate: e.target.value })}
-                            />
-                          </label>
-                        </div>
-                        <div className="customer-edit-actions">
-                          <button
-                            className="button-save"
-                            type="button"
-                            onClick={() => void handleUpdateCustomer()}
-                          >
-                            수정 저장
-                          </button>
-                          <button className="button-cancel" type="button" onClick={cancelEdit}>
-                            취소
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <p>
-                          <strong>주민번호:</strong> {c.ssn || '—'}
-                        </p>
-                        <p>
-                          <strong>주소:</strong> {c.address || '—'}
-                        </p>
-                        <p>
-                          <strong>차량번호:</strong> {c.carNumber || '—'}
-                        </p>
-                        <p>
-                          <strong>차종·연식:</strong> {c.carModel || '—'} / {c.carYear || '—'}
-                        </p>
-                        <p>
-                          <strong>만기(갱신)일:</strong> {c.renewalDate || '—'}
-                        </p>
-                        <div className="customer-actions">
-                          <button className="kakao-btn" type="button" onClick={() => void copyCustomer(c)}>
-                            카톡 복사
-                          </button>
-                          <button className="car-btn" type="button" onClick={() => goToCarEdit(c)}>
-                            자동차 입력
-                          </button>
-                          <button className="edit-btn" type="button" onClick={() => startEdit(c)}>
-                            ✏ 수정
-                          </button>
-                          <button
-                            className="delete-btn"
-                            type="button"
-                            onClick={() => void handleDeleteCustomer(c)}
-                          >
-                            삭제
-                          </button>
-                        </div>
-                      </>
-                    )}
-
-                    <div className="customer-form-history">
-                      <h3 className="customer-form-history__title">연결된 신청서</h3>
-                      {historyLoading ? (
-                        <p className="customer-form-history__status">불러오는 중…</p>
-                      ) : historyForms.length === 0 ? (
-                        <p className="customer-form-history__status">이 고객 ID로 연결된 신청서가 없습니다.</p>
-                      ) : (
-                        <ul className="customer-form-history__list">
-                          {historyForms.map((row) => (
-                            <li key={row.id} className="customer-form-history__item">
-                              <div>
-                                <strong>{row.title}</strong>
-                                <span className="customer-form-history__meta">
-                                  저장: {formatKoreanDateTime(row.updatedAt)} · 만기 {row.expiryDate || '—'}
-                                </span>
-                              </div>
-                              <button
-                                className="button button--secondary"
-                                type="button"
-                                onClick={() => navigate(`/form/${row.id}/edit`)}
-                              >
-                                열기
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </div>
-                ) : null}
-              </li>
+          <ul className="record-list customer-expand-list customer-list">
+            {sortedCustomers.map((c) => (
+              <CustomerCard key={c.id} data={c} />
             ))}
           </ul>
         )}
       </section>
+      )}
     </main>
   )
 }
