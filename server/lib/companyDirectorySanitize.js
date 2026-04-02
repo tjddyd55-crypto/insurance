@@ -3,12 +3,12 @@
  *
  * insurance_company_contacts 실제 컬럼: name, position, phone
  *
- * - 생명(LIFE)·메리츠화재(공백 무시) 마스터 삭제
- * - 손해(NON_LIFE)·메리츠 + 메리츠화재 동시 존재: 메리츠 id에 연락처 합친 뒤 화재 마스터 삭제, 메리츠 이름을 메리츠화재로
- * - 손해·메리츠만 있으면 이름을 메리츠화재로
- * - 손해·심플손해보험 삭제 + 재보험(insurance_contacts) 정리
- * - 재보험: LIFE·메리츠화재 명칭 삭제, 손해·메리츠 → 메리츠화재
- * - LIFE·DB생명(공백 무시) 중복: 이덕용+지점장 연락처(name/position) 기준 마스터만 유지
+ * 실행 순서 (운영 DB 정리 요구와 정합):
+ * 1) LIFE·DB생명 중복 정리 (이덕용+지점장 연락 기준 1건 유지)
+ * 2) LIFE·메리츠화재(normalize) 삭제
+ * 3) NON_LIFE·메리츠 다건 → 1건으로 병합 후 메리츠화재와 통합·이름 통일
+ * 4) NON_LIFE·메리츠화재 다건 → 1건으로 dedupe
+ * 5) NON_LIFE·심플손해보험 삭제 + 재보험(insurance_contacts) 정리
  */
 
 /** @param {import('pg').PoolClient} client */
@@ -30,94 +30,182 @@ const NORM_IC = `regexp_replace(trim(COALESCE(company_name, '')), '\\s+', '', 'g
 /**
  * @param {import('pg').PoolClient} client
  * @param {(msg: string, ...args: unknown[]) => void} log
+ * @param {string} stepName
+ * @param {() => Promise<void>} fn
+ */
+async function runStep(client, log, stepName, fn) {
+  try {
+    await fn()
+    log('[step OK]', stepName)
+  } catch (e) {
+    const err = e instanceof Error ? e : new Error(String(e))
+    err.cleanupStep = stepName
+    throw err
+  }
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {(msg: string, ...args: unknown[]) => void} log
  */
 export async function runCompanyDirectorySanitize(client, log) {
-  const delLifeMeritz = await client.query(`
+  await runStep(client, log, 'mergeDuplicateDbLifeMasters', () =>
+    mergeDuplicateDbLifeMasters(client, log),
+  )
+
+  await runStep(client, log, 'deleteLifeMeritzMasters', async () => {
+    const delLifeMeritz = await client.query(`
     DELETE FROM insurance_company_master m
     WHERE m.category = 'LIFE'
       AND ${NORM_M} = '메리츠화재'
     RETURNING m.id, m.name
   `)
-  if (delLifeMeritz.rowCount > 0) {
-    log('생명 메리츠화재 마스터 삭제:', delLifeMeritz.rowCount, delLifeMeritz.rows)
-  }
+    if (delLifeMeritz.rowCount > 0) {
+      log('생명 메리츠화재 마스터 삭제:', delLifeMeritz.rowCount, delLifeMeritz.rows)
+    }
+  })
 
-  const rMeritz = await client.query(`
-    SELECT m.id FROM insurance_company_master m
-    WHERE m.category = 'NON_LIFE' AND ${NORM_M} = '메리츠'
-    ORDER BY m.id ASC
-    LIMIT 1
-  `)
-  const rHw = await client.query(`
-    SELECT m.id FROM insurance_company_master m
-    WHERE m.category = 'NON_LIFE' AND ${NORM_M} = '메리츠화재'
-    ORDER BY m.id ASC
-    LIMIT 1
-  `)
+  await runStep(client, log, 'mergeNonLifeMeritzHwajeUnified', () =>
+    mergeNonLifeMeritzHwajeUnified(client, log),
+  )
 
-  if (rMeritz.rowCount > 0 && rHw.rowCount > 0) {
-    const keepId = rMeritz.rows[0].id
-    const dropId = rHw.rows[0].id
-    const mv = await client.query(
-      `UPDATE insurance_company_contacts SET company_id = $1 WHERE company_id = $2`,
-      [keepId, dropId],
-    )
-    log('손해 메리츠화재 → 메리츠로 연락처 이전:', mv.rowCount, '행')
-    await client.query(`DELETE FROM insurance_general_request WHERE company_id = $1`, [dropId])
-    await client.query(`DELETE FROM insurance_company_master WHERE id = $1`, [dropId])
-    log('손해 기존 메리츠화재 마스터 삭제 id=', dropId)
-    await client.query(
-      `UPDATE insurance_company_master SET name = '메리츠화재', updated_at = NOW() WHERE id = $1`,
-      [keepId],
-    )
-    log('손해 메리츠 → 이름 메리츠화재로 변경 id=', keepId)
-  } else if (rMeritz.rowCount > 0) {
-    const keepId = rMeritz.rows[0].id
-    await client.query(
-      `UPDATE insurance_company_master SET name = '메리츠화재', updated_at = NOW() WHERE id = $1`,
-      [keepId],
-    )
-    log('손해 메리츠만 존재 → 이름 메리츠화재로 변경 id=', keepId)
-  }
-
-  const delSimple = await client.query(`
+  await runStep(client, log, 'deleteSimpleAndReinsurance', async () => {
+    const delSimple = await client.query(`
     DELETE FROM insurance_company_master m
     WHERE m.category = 'NON_LIFE' AND ${NORM_M} = '심플손해보험'
     RETURNING m.id
   `)
-  if (delSimple.rowCount > 0) {
-    log('심플손해보험 마스터 삭제:', delSimple.rowCount)
-  }
+    if (delSimple.rowCount > 0) {
+      log('심플손해보험 마스터 삭제:', delSimple.rowCount)
+    }
 
-  const delSimpleIc = await client.query(`
+    const delSimpleIc = await client.query(`
     DELETE FROM insurance_contacts
     WHERE ${NORM_IC} = '심플손해보험'
     RETURNING id
   `)
-  if (delSimpleIc.rowCount > 0) {
-    log('재보험 목록 심플손해보험 행 삭제:', delSimpleIc.rowCount)
-  }
+    if (delSimpleIc.rowCount > 0) {
+      log('재보험 목록 심플손해보험 행 삭제:', delSimpleIc.rowCount)
+    }
 
-  const delLifeIc = await client.query(`
+    const delLifeIc = await client.query(`
     DELETE FROM insurance_contacts
     WHERE category = 'LIFE'
       AND ${NORM_IC} = '메리츠화재'
     RETURNING id
   `)
-  if (delLifeIc.rowCount > 0) {
-    log('재보험 목록 생명·메리츠화재 삭제:', delLifeIc.rowCount)
-  }
+    if (delLifeIc.rowCount > 0) {
+      log('재보험 목록 생명·메리츠화재 삭제:', delLifeIc.rowCount)
+    }
 
-  const upIc = await client.query(`
+    const upIc = await client.query(`
     UPDATE insurance_contacts
     SET company_name = '메리츠화재', updated_at = NOW()
     WHERE category = 'NON_LIFE' AND ${NORM_IC} = '메리츠'
   `)
-  if (upIc.rowCount > 0) {
-    log('재보험 목록 손해·메리츠 → 메리츠화재 명칭 통일:', upIc.rowCount)
+    if (upIc.rowCount > 0) {
+      log('재보험 목록 손해·메리츠 → 메리츠화재 명칭 통일:', upIc.rowCount)
+    }
+  })
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {(msg: string, ...args: unknown[]) => void} log
+ */
+async function consolidateMultipleNonLifeMeritz(client, log) {
+  const rows = await client.query(`
+    SELECT m.id FROM insurance_company_master m
+    WHERE m.category = 'NON_LIFE' AND ${NORM_M} = '메리츠'
+    ORDER BY m.id ASC
+  `)
+  if (rows.rowCount <= 1) {
+    return
+  }
+  const keepId = rows.rows[0].id
+  for (let i = 1; i < rows.rowCount; i++) {
+    const dropId = rows.rows[i].id
+    const mv = await client.query(
+      `UPDATE insurance_company_contacts SET company_id = $1 WHERE company_id = $2`,
+      [keepId, dropId],
+    )
+    log('손해 메리츠 중복: 연락처 이전', mv.rowCount, '행', dropId, '→', keepId)
+    await client.query(`DELETE FROM insurance_general_request WHERE company_id = $1`, [dropId])
+    await client.query(`DELETE FROM insurance_company_master WHERE id = $1`, [dropId])
+    log('손해 메리츠 중복 마스터 삭제 id=', dropId)
+  }
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {(msg: string, ...args: unknown[]) => void} log
+ */
+async function dedupeNonLifeMeritzHwajeMasters(client, log) {
+  const rows = await client.query(`
+    SELECT m.id FROM insurance_company_master m
+    WHERE m.category = 'NON_LIFE' AND ${NORM_M} = '메리츠화재'
+    ORDER BY m.id ASC
+  `)
+  if (rows.rowCount <= 1) {
+    return
+  }
+  const keepId = rows.rows[0].id
+  for (let i = 1; i < rows.rowCount; i++) {
+    const dropId = rows.rows[i].id
+    const mv = await client.query(
+      `UPDATE insurance_company_contacts SET company_id = $1 WHERE company_id = $2`,
+      [keepId, dropId],
+    )
+    log('손해 메리츠화재 중복: 연락처 이전', mv.rowCount, '행', dropId, '→', keepId)
+    await client.query(`DELETE FROM insurance_general_request WHERE company_id = $1`, [dropId])
+    await client.query(`DELETE FROM insurance_company_master WHERE id = $1`, [dropId])
+    log('손해 메리츠화재 중복 마스터 삭제 id=', dropId, '유지 id=', keepId)
+  }
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {(msg: string, ...args: unknown[]) => void} log
+ */
+async function mergeNonLifeMeritzHwajeUnified(client, log) {
+  await consolidateMultipleNonLifeMeritz(client, log)
+
+  const meritzOnly = await client.query(`
+    SELECT m.id FROM insurance_company_master m
+    WHERE m.category = 'NON_LIFE' AND ${NORM_M} = '메리츠'
+    ORDER BY m.id ASC
+    LIMIT 1
+  `)
+  const allHw = await client.query(`
+    SELECT m.id FROM insurance_company_master m
+    WHERE m.category = 'NON_LIFE' AND ${NORM_M} = '메리츠화재'
+    ORDER BY m.id ASC
+  `)
+
+  if (meritzOnly.rowCount > 0) {
+    const keepId = meritzOnly.rows[0].id
+    for (const row of allHw.rows) {
+      const dropId = row.id
+      if (dropId === keepId) {
+        continue
+      }
+      const mv = await client.query(
+        `UPDATE insurance_company_contacts SET company_id = $1 WHERE company_id = $2`,
+        [keepId, dropId],
+      )
+      log('손해 메리츠화재 → 메리츠 측으로 연락처 이전:', mv.rowCount, '행, 삭제 master id=', dropId)
+      await client.query(`DELETE FROM insurance_general_request WHERE company_id = $1`, [dropId])
+      await client.query(`DELETE FROM insurance_company_master WHERE id = $1`, [dropId])
+      log('손해 기존 메리츠화재 마스터 삭제 id=', dropId, '통합 유지 id=', keepId)
+    }
+    await client.query(
+      `UPDATE insurance_company_master SET name = '메리츠화재', updated_at = NOW() WHERE id = $1`,
+      [keepId],
+    )
+    log('손해 메리츠 통일: 최종 명칭 메리츠화재 id=', keepId)
   }
 
-  await mergeDuplicateDbLifeMasters(client, log)
+  await dedupeNonLifeMeritzHwajeMasters(client, log)
 }
 
 /**
@@ -143,16 +231,19 @@ async function mergeDuplicateDbLifeMasters(client, log) {
     WHERE m.category = 'LIFE'
       AND lower(regexp_replace(trim(m.name), '\\s+', '', 'g')) = 'db생명'
       AND (
-        (
+        (COALESCE(ic.name, '') || ' ' || COALESCE(ic.position, '')) ILIKE '%지점장 이덕용%'
+        OR (COALESCE(ic.position, '') || ' ' || COALESCE(ic.name, '')) ILIKE '%지점장 이덕용%'
+        OR (
+          (COALESCE(ic.name, '') || ' ' || COALESCE(ic.position, '')) ILIKE '%이덕용%'
+          AND (COALESCE(ic.name, '') || ' ' || COALESCE(ic.position, '')) ILIKE '%지점장%'
+        )
+        OR (
           regexp_replace(trim(COALESCE(ic.name, '')), '\\s+', '', 'g') = '이덕용'
           AND COALESCE(ic.position, '') ILIKE '%지점장%'
         )
         OR (
-          ic.name ILIKE '%이덕용%'
-          AND (
-            ic.name ILIKE '%지점장%'
-            OR COALESCE(ic.position, '') ILIKE '%지점장%'
-          )
+          COALESCE(ic.position, '') ILIKE '%지점장%'
+          AND regexp_replace(trim(COALESCE(ic.name, '')), '\\s+', '', 'g') = '이덕용'
         )
       )
     ORDER BY ic.company_id
@@ -160,7 +251,7 @@ async function mergeDuplicateDbLifeMasters(client, log) {
   `)
   if (keeper.rowCount === 0) {
     log(
-      'DB생명 중복 마스터가 있으나 이덕용+지점장 기준 유지 행을 찾지 못해 건너뜀 (수동 확인)',
+      'DB생명 중복 마스터가 있으나 이덕용/지점장 기준 유지 행을 찾지 못해 건너뜀 (수동 확인)',
       masters.rows,
     )
     return
