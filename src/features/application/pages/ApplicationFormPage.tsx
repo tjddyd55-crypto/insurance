@@ -414,7 +414,11 @@ export function ApplicationFormPage() {
             {customerHits.map((c) => (
               <li key={c.id} className="customer-hit-list__item">
                 <span className="customer-hit-list__meta">
-                  <span style={{ color: duplicateCustomerHitNames.has(c.name) ? '#c00' : 'inherit' }}>
+                  <span
+                    className={
+                      duplicateCustomerHitNames.has(c.name) ? 'customer-hit-name--duplicate' : undefined
+                    }
+                  >
                     {c.name}
                   </span>
                   {' / '}

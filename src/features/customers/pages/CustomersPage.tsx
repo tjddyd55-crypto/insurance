@@ -427,7 +427,11 @@ export default function CustomersPage() {
                   onClick={() => setExpandedId((prev) => (prev === c.id ? null : c.id))}
                 >
                   <span className="customer-expand-summary__title">
-                    <span style={{ color: duplicateCustomerNames.has(c.name.trim()) ? '#c00' : 'inherit' }}>
+                    <span
+                      className={
+                        duplicateCustomerNames.has(c.name.trim()) ? 'customer-hit-name--duplicate' : undefined
+                      }
+                    >
                       {c.name}
                     </span>
                     {' / '}

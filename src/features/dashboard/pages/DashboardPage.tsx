@@ -145,7 +145,7 @@ export function DashboardPage() {
         </nav>
 
         {isStaff ? (
-          <p className="dashboard-menu-note" style={{ marginTop: 12, fontSize: 14, color: '#5c6b7a' }}>
+          <p className="dashboard-menu-note">
             보험사 마스터는 「연락처 조회」에서 보고, 「연락처 입력/관리」에서만 저장·수정합니다.
           </p>
         ) : null}
