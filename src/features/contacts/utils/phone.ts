@@ -1,9 +1,15 @@
-export function normalizePhoneNumber(raw: string): string {
-  return raw.replace(/\D/g, '')
+/** DB·JSON에서 숫자/null로 올 수 있는 필드 공통 (trim 전용) */
+export function asTrimmedText(value: string | number | null | undefined): string {
+  return String(value ?? '').trim()
+}
+
+/** DB·JSON에서 숫자/null로 올 수 있음 → 항상 문자열로 처리 */
+export function normalizePhoneNumber(raw: string | number | null | undefined): string {
+  return String(raw ?? '').replace(/\D/g, '')
 }
 
 /** tel: 등에 쓰는 숫자만 추출 */
-export function cleanPhone(phone: string): string {
+export function cleanPhone(phone: string | number | null | undefined): string {
   return normalizePhoneNumber(phone)
 }
 
@@ -18,11 +24,11 @@ function preferRawPhoneDisplay(raw: string): boolean {
 /**
  * 보험사 연락처 카드 표시용. 하이픈이 있으면 원문 유지, 숫자만이면 패턴별 분절.
  */
-export function formatPhone(phone: string): string {
-  if (!phone) {
+export function formatPhone(phone: string | number | null | undefined): string {
+  const trimmed = String(phone ?? '').trim()
+  if (!trimmed) {
     return ''
   }
-  const trimmed = phone.trim()
   if (preferRawPhoneDisplay(trimmed)) {
     return trimmed
   }
@@ -76,7 +82,7 @@ export function formatPhone(phone: string): string {
   return digits
 }
 
-export function formatPhoneNumber(raw: string): string {
+export function formatPhoneNumber(raw: string | number | null | undefined): string {
   const trimmed = String(raw ?? '').trim()
   if (!trimmed) {
     return ''

@@ -1478,7 +1478,7 @@ body {
 
 .company-card .contact-row {
   display: grid;
-  grid-template-columns: 70px 1fr 140px 60px;
+  grid-template-columns: 70px minmax(0, 1fr) minmax(108px, 140px) 60px;
   align-items: center;
   gap: 6px;
   margin-top: 0;
@@ -1503,9 +1503,11 @@ body {
   font-size: 15px;
   font-weight: 600;
   min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: keep-all;
+  line-height: 1.35;
 }
 
 .company-card .contact-row .phone {

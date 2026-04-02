@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../auth/AuthProvider'
+import { CompanyCard } from '../../company-registry/components/CompanyCard'
 import { getCompanyRecentUpdates } from '../../company-registry/api/companyRegistryApi'
-import { CompanyCardDiff } from '../../company-registry/components/CompanyCardDiff'
 import type { CompanyUpdateHistoryItem } from '../../company-registry/domain/types'
 
 function formatHistoryDate(isoDate: string): string {
@@ -32,8 +31,6 @@ function groupHistoryByDate(items: CompanyUpdateHistoryItem[]) {
 
 export function InsuranceUpdatesPage() {
   const navigate = useNavigate()
-  const { user, isAuthenticated } = useAuth()
-  const isStaff = isAuthenticated && !!user && ['staff', 'super_admin'].includes(user.role)
   const [list, setList] = useState<CompanyUpdateHistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [statusText, setStatusText] = useState('')
@@ -69,7 +66,13 @@ export function InsuranceUpdatesPage() {
   const grouped = useMemo(() => groupHistoryByDate(list), [list])
 
   return (
-    <main className="page contacts-page insurance-recent-updates-page company-directory-read-ui">
+    <main className="page contacts-page insurance-recent-updates-page insurance-contacts-view company-directory-read-ui">
+      <nav className="contacts-public-auth contacts-public-auth--compact" aria-label="이동">
+        <button className="button button--small touch-nav-btn" type="button" onClick={() => navigate(-1)}>
+          뒤로
+        </button>
+      </nav>
+
       <header className="page-header">
         <h1>업데이트 현황</h1>
         <p>
@@ -78,33 +81,13 @@ export function InsuranceUpdatesPage() {
         </p>
       </header>
 
-      <section className="card contacts-toolbar">
-        <div className="contacts-toolbar__actions">
-          <button className="button" type="button" onClick={() => navigate('/insurance/contacts')}>
-            연락처 조회
-          </button>
-          {isStaff ? (
-            <button className="button" type="button" onClick={() => navigate('/insurance/company-registry')}>
-              연락처 입력/관리
-            </button>
-          ) : null}
-          <button className="button" type="button" onClick={() => navigate('/dashboard')}>
-            메뉴
-          </button>
-        </div>
-      </section>
-
-      <section className="card" aria-live="polite">
+      <section className="insurance-contacts-list-wrap" aria-live="polite">
         <h2 className="dashboard-section-title visually-hidden">변경 히스토리</h2>
         {isLoading ? (
           <p className="dashboard-empty">불러오는 중입니다…</p>
         ) : list.length === 0 ? (
           <div className="empty-box" role="status">
             📭 표시할 업데이트가 없습니다
-            <br />
-            {isStaff
-              ? '연락처 관리 화면에서 저장하면 여기에 기록됩니다'
-              : '담당자가 연락처를 저장하면 여기에 기록됩니다'}
           </div>
         ) : (
           <div className="update-history">
@@ -113,8 +96,9 @@ export function InsuranceUpdatesPage() {
                 <div className="history-date">{formatHistoryDate(block.date)}</div>
                 <div className="insurance-contacts-cards">
                   {block.items.map((item) => (
-                    <CompanyCardDiff
+                    <CompanyCard
                       key={item.id}
+                      variant="history"
                       companyName={item.companyName}
                       before={item.before}
                       after={item.after}

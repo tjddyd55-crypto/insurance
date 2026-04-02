@@ -8,9 +8,8 @@ import {
   isInsuranceCategory,
   type InsuranceCategory,
 } from '../domain/insuranceConstants'
-import { cleanPhone, formatPhone } from '../../contacts/utils/phone'
+import { CompanyCard } from '../components/CompanyCard'
 import type { CompanyDirectoryEntry } from '../domain/types'
-import { copyToClipboard } from '../utils/clipboard'
 
 const TAB_SHORT_LABEL: Record<InsuranceCategory, string> = {
   LIFE: '생명',
@@ -30,11 +29,6 @@ function categoryForCompanyRow(row: CompanyDirectoryEntry, fallbackTab: Insuranc
     return n
   }
   return fallbackTab
-}
-
-function telHref(raw: string): string {
-  const d = cleanPhone(raw)
-  return d ? `tel:${d}` : '#'
 }
 
 export default function InsuranceCompanyContactsViewPage() {
@@ -109,10 +103,6 @@ export default function InsuranceCompanyContactsViewPage() {
     navigate(
       `/insurance/company-registry?type=${encodeURIComponent(cat)}&company=${encodeURIComponent(row.name)}`,
     )
-  }
-
-  const copy = (text: string) => {
-    copyToClipboard(text)
   }
 
   return (
@@ -201,127 +191,15 @@ export default function InsuranceCompanyContactsViewPage() {
           </div>
         ) : (
           <div className="insurance-contacts-cards">
-            {filteredList.map((c) => {
-              const customerCenter = c.customerCenter?.trim() ?? ''
-              const systemPhone = c.systemPhone?.trim() ?? ''
-              const incallNumber = c.incallNumber?.trim() ?? ''
-              const visitInfo = c.visitInfo?.trim() ?? ''
-
-              return (
-                <article key={c.id} className="company-card">
-                  <div className="company-card__header">
-                    <h3 className="company-card__title">{c.name}</h3>
-                    {isStaff ? (
-                      <button
-                        type="button"
-                        className="button button--small company-card__edit"
-                        onClick={() => openCompanyRegistryEdit(c)}
-                      >
-                        수정
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <div className="company-info-block">
-                    <div className="info-row">
-                      <span className="label">고객센터</span>
-                      <span className="value">{customerCenter ? formatPhone(customerCenter) : '—'}</span>
-                      <div className="info-row-actions">
-                        {customerCenter ? (
-                          <div className="actions-mini">
-                            <a href={telHref(customerCenter)} aria-label="고객센터 전화">
-                              📞
-                            </a>
-                            <button type="button" onClick={() => copy(customerCenter)} aria-label="고객센터 번호 복사">
-                              📋
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="info-row">
-                      <span className="label">전산문의</span>
-                      <span className="value">{systemPhone ? formatPhone(systemPhone) : '—'}</span>
-                      <div className="info-row-actions">
-                        {systemPhone ? (
-                          <div className="actions-mini">
-                            <a href={telHref(systemPhone)} aria-label="전산문의 전화">
-                              📞
-                            </a>
-                            <button type="button" onClick={() => copy(systemPhone)} aria-label="전산문의 번호 복사">
-                              📋
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="info-row">
-                      <span className="label">인콜</span>
-                      <span className="value">{incallNumber ? formatPhone(incallNumber) : '—'}</span>
-                      <div className="info-row-actions">
-                        {incallNumber ? (
-                          <div className="actions-mini">
-                            <button type="button" onClick={() => copy(incallNumber)} aria-label="인콜 번호 복사">
-                              📋
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    {visitInfo ? (
-                      <div className="info-row">
-                        <span className="label">방문일</span>
-                        <span className="value">{visitInfo}</span>
-                        <div className="info-row-actions" aria-hidden="true" />
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {c.contacts?.length ? (
-                    <div className="company-contacts-block">
-                      {c.contacts.map((p, idx) => {
-                        const name = p.name?.trim() ?? ''
-                        const position = p.position?.trim() ?? ''
-                        const phoneRaw = p.phone?.trim() ?? ''
-
-                        return (
-                          <div key={p.id != null ? p.id : `new-${c.id}-${idx}`} className="contact-row">
-                            <div className="position">{position || '—'}</div>
-                            <div className="name">{name || '—'}</div>
-                            <div className={phoneRaw ? 'phone' : 'phone phone--empty'}>
-                              {phoneRaw ? formatPhone(phoneRaw) : '—'}
-                            </div>
-                            <div className="actions actions-mini">
-                              {phoneRaw ? (
-                                <a href={telHref(phoneRaw)} aria-label={`${formatPhone(phoneRaw)} 전화`}>
-                                  📞
-                                </a>
-                              ) : null}
-                              {phoneRaw ? (
-                                <button type="button" onClick={() => copy(phoneRaw)} aria-label="담당자 번호 복사">
-                                  📋
-                                </button>
-                              ) : null}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div className="contact-card--empty">
-                      <div className="empty-box contact-card--empty-msg" role="status">
-                        📭 등록된 담당자가 없습니다
-                        <br />
-                        담당자에게 등록 요청하세요
-                      </div>
-                    </div>
-                  )}
-                </article>
-              )
-            })}
+            {filteredList.map((c) => (
+              <CompanyCard
+                key={c.id}
+                variant="directory"
+                entry={c}
+                showEditButton={isStaff}
+                onEdit={openCompanyRegistryEdit}
+              />
+            ))}
           </div>
         )}
       </section>
