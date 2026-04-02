@@ -15,6 +15,7 @@ import type {
   UpsertInsuranceContactPayload,
 } from '../domain/types'
 import { formatPhoneNumber, normalizePhoneNumber } from '../utils/phone'
+import { openVCardInContactsApp } from '../utils/vcard'
 
 const CATEGORY_LABELS: Record<InsuranceContactCategory, string> = {
   LIFE: '생명보험',
@@ -192,19 +193,10 @@ export function ReinsurerContactsPage() {
     try {
       const response = await fetch(getVCardDownloadUrl(contact.id))
       if (!response.ok) {
-        throw new Error('vCard 다운로드 실패')
+        throw new Error('vCard를 불러오지 못했습니다')
       }
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
-      const safeName = `${contact.companyName}_${contact.managerName}`
-        .replace(/[\\/:*?"<>|]/g, '_')
-        .replace(/\s+/g, '_')
-        .slice(0, 80)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `${safeName}.vcf`
-      link.click()
-      URL.revokeObjectURL(url)
+      const text = await response.text()
+      openVCardInContactsApp(text)
     } catch {
       downloadVCardFallback(contact)
     }
@@ -373,7 +365,11 @@ export function ReinsurerContactsPage() {
           <section key={category} className="card contacts-section">
             <h2 className="dashboard-section-title">{CATEGORY_LABELS[category]}</h2>
             {groupedContacts[category].length === 0 ? (
-              <p className="dashboard-empty">해당 구분 연락처가 없습니다.</p>
+              <div className="empty-box" role="status">
+                📭 등록된 연락처가 없습니다
+                <br />
+                담당자에게 등록 요청하세요
+              </div>
             ) : (
               <ul className="contacts-card-list">
                 {groupedContacts[category].map((contact) => (

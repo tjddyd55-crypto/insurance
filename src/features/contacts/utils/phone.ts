@@ -2,6 +2,16 @@ export function normalizePhoneNumber(raw: string): string {
   return raw.replace(/\D/g, '')
 }
 
+/**
+ * 화면 표시용 (formatPhoneNumber와 동일 계열). 010-0000-0000 등 가독성 우선.
+ */
+export function formatPhone(phone: string): string {
+  if (!phone) {
+    return ''
+  }
+  return formatPhoneNumber(phone)
+}
+
 export function formatPhoneNumber(raw: string): string {
   const digits = normalizePhoneNumber(raw)
   if (!digits) {

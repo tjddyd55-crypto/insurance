@@ -21,6 +21,13 @@ export interface InsuranceGeneralDraft {
   email: string
 }
 
+export interface CompanyRecentUpdate {
+  id: string
+  companyName: string
+  updatedAt: string
+  updatedBy: string
+}
+
 export interface CompanyDirectoryEntry {
   id: number
   category: string
@@ -30,6 +37,8 @@ export interface CompanyDirectoryEntry {
   incallNumber: string
   visitInfo: string
   createdAt?: string
+  updatedAt?: string
+  updatedBy?: string
   contacts: Array<
     InsuranceCompanyContactDraft & {
       id: number

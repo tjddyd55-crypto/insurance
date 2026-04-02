@@ -258,11 +258,8 @@ export default function CompanyRegistryPage() {
         <Link className="button button--small contacts-public-auth__link" to="/insurance/contacts">
           연락처 조회
         </Link>
-        <Link className="button button--small contacts-public-auth__link" to="/menu/reinsurer-contacts">
-          원수사 연락처(별도)
-        </Link>
-        <Link className="button button--small contacts-public-auth__link" to="/insurance/general-request">
-          일반화재 설계의뢰
+        <Link className="button button--small contacts-public-auth__link" to="/insurance/history">
+          업데이트 현황
         </Link>
         {isAuthenticated ? (
           <button className="button button--small" type="button" onClick={() => navigate('/dashboard')}>
@@ -279,7 +276,7 @@ export default function CompanyRegistryPage() {
         <h1>연락처 입력/관리</h1>
         <p>
           {statusText ||
-            '보험 종류·보험사를 선택한 뒤 공통 정보와 담당자를 저장합니다. 등록된 목록은 「연락처 조회」 탭 화면에서 확인하세요. 일반화재 설계의뢰는 별도 메뉴입니다.'}
+            '보험 종류·보험사를 선택한 뒤 공통 정보와 담당자를 저장합니다. 등록된 목록은 「연락처 조회」에서 확인할 수 있습니다.'}
         </p>
       </header>
 
@@ -427,8 +424,7 @@ export default function CompanyRegistryPage() {
         <section className="card">
           <p className="empty-state">
             데이터 입력·수정은 <Link to="/login">로그인</Link> 후 staff / super_admin 권한이 필요합니다.{' '}
-            <Link to="/insurance/contacts">연락처 조회</Link>는 로그인 없이도 볼 수 있습니다.{' '}
-            <Link to="/insurance/general-request">일반화재 설계의뢰</Link> 저장도 같은 권한입니다.
+            <Link to="/insurance/contacts">연락처 조회</Link>는 로그인 없이도 볼 수 있습니다.
           </p>
         </section>
       )}

@@ -1,40 +1,29 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getInsuranceUpdates } from '../api/contactsApi'
-import type { InsuranceContactUpdate } from '../domain/types'
-import { formatPhoneNumber } from '../utils/phone'
-
-function getActionLabel(actionType: InsuranceContactUpdate['actionType']) {
-  if (actionType === 'CREATE') {
-    return '등록'
-  }
-  if (actionType === 'UPDATE') {
-    return '수정'
-  }
-  return '삭제'
-}
+import { getCompanyRecentUpdates } from '../../company-registry/api/companyRegistryApi'
+import type { CompanyRecentUpdate } from '../../company-registry/domain/types'
 
 export function InsuranceUpdatesPage() {
   const navigate = useNavigate()
-  const [updates, setUpdates] = useState<InsuranceContactUpdate[]>([])
+  const [list, setList] = useState<CompanyRecentUpdate[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [statusText, setStatusText] = useState('')
 
   useEffect(() => {
     let active = true
 
-    async function loadUpdates() {
+    async function load() {
       try {
-        const result = await getInsuranceUpdates()
+        const result = await getCompanyRecentUpdates()
         if (!active) {
           return
         }
-        setUpdates(result)
+        setList(result)
       } catch (error) {
         if (!active) {
           return
         }
-        setStatusText(error instanceof Error ? error.message : '업데이트 이력을 불러오지 못했습니다.')
+        setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
       } finally {
         if (active) {
           setIsLoading(false)
@@ -42,26 +31,28 @@ export function InsuranceUpdatesPage() {
       }
     }
 
-    void loadUpdates()
+    void load()
     return () => {
       active = false
     }
   }, [])
 
   return (
-    <main className="page contacts-page">
+    <main className="page contacts-page insurance-recent-updates-page">
       <header className="page-header">
         <h1>업데이트 현황</h1>
-        <p>{statusText || '연락처 등록/수정/삭제 이력을 최신순으로 표시합니다.'}</p>
+        <p>
+          {statusText || '보험사 연락처(마스터)가 최근 저장·갱신된 순입니다. 등록 시각 기준입니다.'}
+        </p>
       </header>
 
       <section className="card contacts-toolbar">
         <div className="contacts-toolbar__actions">
           <button className="button" type="button" onClick={() => navigate('/insurance/contacts')}>
-            보험사 연락처 조회
+            연락처 조회
           </button>
-          <button className="button" type="button" onClick={() => navigate('/menu/reinsurer-contacts')}>
-            원수사 연락처
+          <button className="button" type="button" onClick={() => navigate('/insurance/company-registry')}>
+            연락처 입력/관리
           </button>
           <button className="button" type="button" onClick={() => navigate('/dashboard')}>
             메뉴
@@ -69,43 +60,33 @@ export function InsuranceUpdatesPage() {
         </div>
       </section>
 
-      <section className="card">
+      <section className="card" aria-live="polite">
+        <h2 className="dashboard-section-title">최근 업데이트</h2>
         {isLoading ? (
-          <p className="dashboard-empty">업데이트 이력을 불러오는 중입니다...</p>
-        ) : updates.length === 0 ? (
-          <p className="dashboard-empty">업데이트 이력이 없습니다.</p>
-        ) : (
-          <div className="dashboard-table-wrap">
-            <table className="dashboard-table contacts-updates-table">
-              <thead>
-                <tr>
-                  <th>날짜</th>
-                  <th>보험사</th>
-                  <th>담당자</th>
-                  <th>직책</th>
-                  <th>변경유형</th>
-                  <th>변경내용</th>
-                  <th>설명</th>
-                </tr>
-              </thead>
-              <tbody>
-                {updates.map((update) => (
-                  <tr key={update.id}>
-                    <td>{new Date(update.createdAt).toLocaleString('ko-KR')}</td>
-                    <td>{update.companyName}</td>
-                    <td>{update.managerName}</td>
-                    <td>{update.position || '-'}</td>
-                    <td>{getActionLabel(update.actionType)}</td>
-                    <td>
-                      {formatPhoneNumber(update.oldPhoneNumber || '') || '-'} →{' '}
-                      {formatPhoneNumber(update.newPhoneNumber || '') || '-'}
-                    </td>
-                    <td>{update.description || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <p className="dashboard-empty">불러오는 중입니다…</p>
+        ) : list.length === 0 ? (
+          <div className="empty-box" role="status">
+            📭 표시할 업데이트가 없습니다
+            <br />
+            연락처를 저장하면 최근 순으로 나타납니다
           </div>
+        ) : (
+          <ul className="recent-updates-list">
+            {list.map((item) => (
+              <li key={item.id} className="record-card recent-updates-list__item">
+                <div className="recent-updates-list__title">{item.companyName}</div>
+                <div className="recent-updates-list__meta">
+                  <span className="recent-updates-list__date">{item.updatedAt}</span>
+                  {item.updatedBy ? (
+                    <>
+                      <span aria-hidden="true"> · </span>
+                      <span>{item.updatedBy}</span>
+                    </>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </main>

@@ -230,6 +230,7 @@ function normalizeInsuranceCompanyCategory(value) {
 
 function mapInsuranceCompanyMaster(row) {
   const normalized = normalizeInsuranceCompanyCategory(row.category)
+  const updatedRaw = row.updated_at ?? row.created_at
   return {
     id: Number(row.id),
     category: normalized || row.category || '',
@@ -239,6 +240,8 @@ function mapInsuranceCompanyMaster(row) {
     incallNumber: row.incall_number ?? '',
     visitInfo: row.visit_info ?? '',
     createdAt: toIsoString(row.created_at),
+    updatedAt: updatedRaw ? toIsoString(updatedRaw) : undefined,
+    updatedBy: row.updated_by_username ?? '',
   }
 }
 
@@ -331,14 +334,14 @@ async function loadCompanyDirectoryNestedList() {
 }
 
 function createVCardContent(contact) {
+  const tel = normalizePhoneNumber(contact.phone_number)
   const lines = [
     'BEGIN:VCARD',
     'VERSION:3.0',
     `FN:${contact.manager_name}`,
-    `N:${contact.manager_name};;;`,
     `ORG:${contact.company_name}`,
     contact.position ? `TITLE:${contact.position}` : '',
-    `TEL;TYPE=CELL:${contact.phone_number}`,
+    tel ? `TEL:${tel}` : '',
     'END:VCARD',
   ].filter(Boolean)
 
@@ -628,8 +631,42 @@ apiRouter.get('/company/list', async (_req, res) => {
   }
 })
 
+apiRouter.get('/company/recent-updates', async (_req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        name AS company_name,
+        COALESCE(updated_at, created_at) AS sort_ts,
+        updated_by_username
+      FROM insurance_company_master
+      ORDER BY sort_ts DESC NULLS LAST, id DESC
+      LIMIT 100
+      `,
+    )
+    const rows = result.rows.map((row) => {
+      const ts = row.sort_ts
+      const d = ts instanceof Date ? ts : new Date(ts)
+      const dateStr = Number.isNaN(d.getTime())
+        ? ''
+        : d.toISOString().slice(0, 10)
+      return {
+        id: String(row.id),
+        companyName: row.company_name ?? '',
+        updatedAt: dateStr,
+        updatedBy: String(row.updated_by_username ?? '').trim() || '—',
+      }
+    })
+    res.json(rows)
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
 apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (req, res) => {
   try {
+    const editor = String(req.user?.username ?? '').trim() || 'staff'
     const { company: co, contacts: contactsIn } = req.body ?? {}
     const name = String(co?.name ?? '').trim()
     if (!name) {
@@ -678,11 +715,13 @@ apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (re
             customer_center = $3,
             system_phone = $4,
             incall_number = $5,
-            visit_info = $6
-          WHERE id = $7
+            visit_info = $6,
+            updated_at = NOW(),
+            updated_by_username = $7
+          WHERE id = $8
           RETURNING id
           `,
-          [category, name, customerCenter, systemPhone, incallNumber, visitInfo, existingId],
+          [category, name, customerCenter, systemPhone, incallNumber, visitInfo, editor, existingId],
         )
         if (updated.rowCount === 0) {
           const err = new Error('해당 보험사를 찾을 수 없습니다.')
@@ -695,12 +734,13 @@ apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (re
         const inserted = await client.query(
           `
           INSERT INTO insurance_company_master (
-            category, name, customer_center, system_phone, incall_number, visit_info
+            category, name, customer_center, system_phone, incall_number, visit_info,
+            updated_at, updated_by_username
           )
-          VALUES ($1, $2, $3, $4, $5, $6)
+          VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
           RETURNING id
           `,
-          [category, name, customerCenter, systemPhone, incallNumber, visitInfo],
+          [category, name, customerCenter, systemPhone, incallNumber, visitInfo, editor],
         )
         cid = inserted.rows[0].id
       }

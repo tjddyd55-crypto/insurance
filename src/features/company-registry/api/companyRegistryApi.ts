@@ -1,8 +1,17 @@
 import { ApiError, apiRequest } from '../../../lib/apiClient'
-import type { CompanyDirectoryEntry, InsuranceCompanyContactDraft, InsuranceGeneralDraft } from '../domain/types'
+import type {
+  CompanyDirectoryEntry,
+  CompanyRecentUpdate,
+  InsuranceCompanyContactDraft,
+  InsuranceGeneralDraft,
+} from '../domain/types'
 
 export async function listCompanyDirectory(): Promise<CompanyDirectoryEntry[]> {
   return apiRequest<CompanyDirectoryEntry[]>('/api/company/list')
+}
+
+export async function getCompanyRecentUpdates(): Promise<CompanyRecentUpdate[]> {
+  return apiRequest<CompanyRecentUpdate[]>('/api/company/recent-updates')
 }
 
 export interface FullSaveCompanyBody {

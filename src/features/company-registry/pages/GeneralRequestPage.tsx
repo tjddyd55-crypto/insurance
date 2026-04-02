@@ -118,6 +118,9 @@ export default function GeneralRequestPage() {
         <Link className="button button--small contacts-public-auth__link" to="/insurance/contacts">
           연락처 조회
         </Link>
+        <Link className="button button--small contacts-public-auth__link" to="/insurance/history">
+          업데이트 현황
+        </Link>
         {isAuthenticated ? (
           <button className="button button--small" type="button" onClick={() => navigate('/dashboard')}>
             메뉴

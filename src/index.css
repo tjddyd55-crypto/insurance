@@ -1,27 +1,36 @@
-/* ========== 테마 (라이트 / 다크) — body.dark 로 전환 ========== */
+/* ========== 테마 — 사진관 톤 팔레트 (--bg-main …) + body.dark ========== */
 :root {
-  --bg: #f9fafb;
-  --card: #ffffff;
-  --text: #111827;
-  --subtext: #6b7280;
-  --border: #e5e7eb;
+  /* 최종 컬러 컨셉 (라이트: 동일 계층 구조의 밝은 톤) */
+  --bg-main: #f4f4f5;
+  --bg-card: #fafafa;
+  --bg-soft: #e4e4e7;
+  --text-main: #18181b;
+  --text-sub: #71717a;
   --primary: #2563eb;
   --success: #22c55e;
-  --link: #2563eb;
-  --input-bg: #ffffff;
-  --placeholder: #6b7280;
-  --tab-inactive-bg: #f1f3f5;
-  --tab-inactive-text: #374151;
-  --btn-secondary-surface: #e5e7eb;
-  --btn-secondary-text: #1f2937;
+  --border: #d4d4d8;
+  --shadow-elevated: 0 2px 6px rgba(0, 0, 0, 0.12);
+
+  /* 하위호환 · 기존 코드용 별칭 */
+  --bg: var(--bg-main);
+  --card: var(--bg-card);
+  --text: var(--text-main);
+  --subtext: var(--text-sub);
+  --link: var(--primary);
+  --input-bg: var(--bg-card);
+  --placeholder: #71717a;
+  --tab-inactive-bg: var(--bg-soft);
+  --tab-inactive-text: var(--text-sub);
+  --btn-secondary-surface: var(--bg-soft);
+  --btn-secondary-text: var(--text-main);
   --hint-bg: #ecfdf5;
   --hint-border: #a7f3d0;
   --hint-text: #065f46;
   --edit-banner-bg: #3b82f6;
   --edit-banner-text: #ffffff;
   --status-warn: #c2410c;
-  --shadow-card: rgba(0, 0, 0, 0.06);
-  --btn-surface: #ffffff;
+  --shadow-card: rgba(0, 0, 0, 0.08);
+  --btn-surface: var(--bg-card);
   --btn-border: #7a8696;
   --btn-text: #1f2a38;
   --btn-hover-bg: #e8eefc;
@@ -35,10 +44,10 @@
   --danger-border: #c53030;
   --danger-text: #9b2c2c;
   --danger-hover-bg: #ffe8e8;
-  --disabled-bg: #f5f7fa;
-  --disabled-text: #6d7783;
-  --checkbox-bg: #f8fafc;
-  --sticky-bar-bg: rgba(245, 248, 252, 0.97);
+  --disabled-bg: #f4f4f5;
+  --disabled-text: #71717a;
+  --checkbox-bg: #f4f4f5;
+  --sticky-bar-bg: rgba(244, 244, 245, 0.97);
 
   font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
   line-height: 1.4;
@@ -50,20 +59,27 @@
 }
 
 body.dark {
-  --bg: #0f1115;
-  --card: #1a1d23;
-  --text: #f3f4f6;
-  --subtext: #9ca3af;
-  --border: #2a2f38;
+  --bg-main: #0f1115;
+  --bg-card: #1a1d23;
+  --bg-soft: #22262e;
+  --text-main: #f3f4f6;
+  --text-sub: #9ca3af;
   --primary: #3b82f6;
   --success: #22c55e;
+  --border: #2a2f38;
+  --shadow-elevated: 0 2px 6px rgba(0, 0, 0, 0.35);
+
+  --bg: var(--bg-main);
+  --card: var(--bg-card);
+  --text: var(--text-main);
+  --subtext: var(--text-sub);
   --link: #60a5fa;
-  --input-bg: #1a1d23;
+  --input-bg: var(--bg-card);
   --placeholder: #6b7280;
-  --tab-inactive-bg: #2a2f38;
-  --tab-inactive-text: #9ca3af;
-  --btn-secondary-surface: #2a2f38;
-  --btn-secondary-text: #f3f4f6;
+  --tab-inactive-bg: var(--bg-soft);
+  --tab-inactive-text: var(--text-sub);
+  --btn-secondary-surface: var(--bg-soft);
+  --btn-secondary-text: var(--text-main);
   --hint-bg: #064e3b;
   --hint-border: #047857;
   --hint-text: #a7f3d0;
@@ -102,8 +118,8 @@ button {
 body {
   margin: 0;
   min-width: 320px;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--bg-main);
+  color: var(--text-main);
   transition:
     background-color 0.2s ease,
     color 0.2s ease;
@@ -111,7 +127,122 @@ body {
 
 #root {
   min-height: 100vh;
-  background: var(--bg);
+  background: var(--bg-main);
+}
+
+/* ——— 공통 확인 모달 ——— */
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.modal {
+  background: var(--bg-card);
+  padding: 20px;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: modal-fade-in 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal {
+    animation: none;
+  }
+}
+
+.modal h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  color: var(--text-main);
+}
+
+.modal-body {
+  font-size: 14px;
+  color: var(--text-sub);
+  line-height: 1.6;
+}
+
+.modal-body p {
+  margin: 0;
+}
+
+.modal-body-text strong {
+  font-size: 17px;
+  color: var(--text-main);
+}
+
+.modal-meta {
+  display: block;
+  font-size: 13px;
+  color: var(--text-sub);
+  margin-top: 2px;
+}
+
+.modal-phone-emphasis {
+  display: block;
+  margin-top: 6px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.modal-actions button {
+  flex: 1;
+  padding: 12px 10px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-elevated, 0 2px 6px rgba(0, 0, 0, 0.15));
+}
+
+.modal-actions .modal-cancel {
+  background: var(--bg-soft);
+  color: var(--text-main);
+}
+
+.modal-actions .confirm {
+  background: var(--primary);
+  color: #fff;
+  border-color: transparent;
+}
+
+.modal-actions button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .theme-toggle {
@@ -123,8 +254,8 @@ body {
   padding: 12px 16px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--text);
+  background: var(--bg-card);
+  color: var(--text-main);
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;
@@ -439,18 +570,18 @@ body {
   margin: 0;
   font-size: 24px;
   line-height: 1.3;
-  color: var(--text);
+  color: var(--text-main);
 }
 
 .page-header p {
   margin: 8px 0 0;
-  color: var(--subtext);
+  color: var(--text-sub);
   font-size: 14px;
 }
 
 .card {
   margin-top: 14px;
-  background: var(--card);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 14px;
@@ -466,11 +597,21 @@ body {
 }
 
 .empty-state {
-  padding: 18px;
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  background-color: var(--card);
-  color: var(--subtext);
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-soft);
+  color: var(--text-sub);
+}
+
+.empty-box {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-sub);
+  line-height: 1.6;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
 }
 
 .empty-state--inline {
@@ -521,8 +662,8 @@ body {
 }
 
 .record-card {
-  background-color: #fff;
-  border: 1px solid #dce2ea;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 12px;
   padding: 12px;
 }
@@ -530,12 +671,13 @@ body {
 .record-card__title {
   margin: 0;
   font-weight: 700;
+  color: var(--text-main);
 }
 
 .record-card__meta {
   margin: 8px 0 12px;
   font-size: 13px;
-  color: #5a6370;
+  color: var(--text-sub);
 }
 
 .record-card__actions {
@@ -546,7 +688,7 @@ body {
 
 .form-section {
   margin-top: 14px;
-  background: var(--card);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 14px;
@@ -1009,7 +1151,7 @@ body {
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: var(--text);
+  color: var(--text-main);
 }
 
 .insurance-contacts-status {
@@ -1030,17 +1172,19 @@ body {
   min-height: 48px;
   border: none;
   border-radius: 10px;
-  background: var(--tab-inactive-bg);
+  background: var(--bg-soft);
   font-size: 1.05rem;
   font-weight: 600;
-  color: var(--tab-inactive-text);
+  color: var(--text-sub);
   cursor: pointer;
+  box-shadow: var(--shadow-elevated);
   -webkit-tap-highlight-color: transparent;
 }
 
 .insurance-contacts-view .tabs button.active {
   background: var(--primary);
   color: #fff;
+  box-shadow: var(--shadow-elevated);
 }
 
 .insurance-contacts-search {
@@ -1057,7 +1201,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--input-bg);
-  color: var(--text);
+  color: var(--text-main);
 }
 
 .insurance-contacts-search__input::placeholder {
@@ -1073,6 +1217,10 @@ body {
   font-size: 1.05rem;
 }
 
+.insurance-contacts-view .insurance-contacts-empty {
+  text-align: center;
+}
+
 .insurance-contacts-cards {
   display: flex;
   flex-direction: column;
@@ -1080,12 +1228,32 @@ body {
 }
 
 .insurance-contacts-view .company-card {
-  background: var(--card);
+  background: var(--bg-card);
   border-radius: 14px;
   padding: 14px 16px;
   margin-bottom: 2px;
   border: 1px solid var(--border);
   box-shadow: 0 1px 3px var(--shadow-card);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+@media (hover: hover) {
+  .insurance-contacts-view .company-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow-card);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .insurance-contacts-view .company-card {
+    transition: none;
+  }
+
+  .insurance-contacts-view .company-card:hover {
+    transform: none;
+  }
 }
 
 .company-card__title {
@@ -1093,41 +1261,84 @@ body {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.3;
-  color: var(--text);
+  color: var(--text-main);
 }
 
 .insurance-contacts-view .info {
   font-size: 0.95rem;
-  color: var(--subtext);
+  color: var(--text-sub);
   margin-top: 6px;
   line-height: 1.55;
 }
 
 .insurance-contacts-view .info__label {
   font-weight: 600;
-  color: var(--subtext);
+  color: var(--text-sub);
+}
+
+.insurance-contacts-view .company-info__row {
+  margin-bottom: 10px;
+}
+
+.insurance-contacts-view .company-info__row:last-child {
+  margin-bottom: 0;
+}
+
+.insurance-contacts-view .actions-mini {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.insurance-contacts-view .actions-mini button,
+.insurance-contacts-view .actions-mini a {
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--btn-secondary-surface);
+  color: var(--btn-secondary-text);
+  font-size: 12px;
+  border: 1px solid var(--border);
+  text-decoration: none;
+  cursor: pointer;
+  line-height: 1.2;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.insurance-contacts-view .actions-mini a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
 }
 
 .insurance-contacts-view .contact-card {
-  margin-top: 12px;
-  padding: 12px 0 0;
-  border-top: 1px solid var(--border);
+  background: var(--bg-soft);
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
 }
 
 .insurance-contacts-view .contact-card--empty {
-  padding-top: 12px;
+  background: var(--bg-soft);
+  color: var(--text-sub);
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
 }
 
 .insurance-contacts-view .contact-card .position {
   font-size: 0.95rem;
-  color: var(--subtext);
+  color: var(--text-sub);
   margin-bottom: 4px;
 }
 
 .insurance-contacts-view .contact-card .name {
   font-size: 1.125rem;
   font-weight: 600;
-  color: var(--text);
+  color: var(--text-main);
   margin-bottom: 6px;
 }
 
@@ -1140,6 +1351,34 @@ body {
   word-break: break-all;
 }
 
+.insurance-contacts-view .contact-card a.phone-link,
+.insurance-contacts-view .contact-card button.phone-link {
+  display: block;
+  width: 100%;
+  padding: 6px 0;
+  text-decoration: none;
+  text-align: inherit;
+  font: inherit;
+  background: none;
+  border: none;
+  color: var(--primary) !important;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.insurance-contacts-view .contact-card .phone--muted {
+  color: var(--text-sub);
+  font-weight: 600;
+  font-size: 1.125rem;
+  padding: 6px 0;
+}
+
+.insurance-contacts-view .contact-card--empty .empty-box {
+  background: transparent;
+  border: none;
+  padding: 12px 8px;
+}
+
 .insurance-contacts-view .actions {
   display: flex;
   flex-wrap: wrap;
@@ -1147,7 +1386,7 @@ body {
   margin-top: 12px;
 }
 
-.insurance-contacts-view .actions .tel-action {
+.insurance-contacts-view .actions .call-btn {
   flex: 1;
   min-width: 0;
   min-height: 48px;
@@ -1155,27 +1394,30 @@ body {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 10px 12px;
+  padding: 12px;
   border-radius: 10px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 1rem;
   background: var(--success);
   color: #fff !important;
   text-decoration: none;
+  box-shadow: var(--shadow-elevated);
+  border: none;
   -webkit-tap-highlight-color: transparent;
 }
 
-.insurance-contacts-view .actions .btn-secondary {
+.insurance-contacts-view .actions .save-btn {
   flex: 1;
   min-width: 0;
   min-height: 48px;
-  padding: 10px 12px;
+  padding: 12px;
   border: none;
   border-radius: 10px;
   font-weight: 600;
   font-size: 1rem;
-  background: var(--btn-secondary-surface);
-  color: var(--btn-secondary-text);
+  background: var(--bg-soft);
+  color: var(--text-main);
+  box-shadow: var(--shadow-elevated);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -1190,7 +1432,33 @@ body {
   gap: 8px;
   align-items: center;
   justify-content: center;
-  color: var(--subtext);
+  color: var(--text-sub);
+}
+
+.recent-updates-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.recent-updates-list__item {
+  margin-bottom: 10px;
+}
+
+.recent-updates-list__title {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 1.05rem;
+}
+
+.recent-updates-list__meta {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  color: var(--text-sub);
+}
+
+.recent-updates-list__date {
+  font-variant-numeric: tabular-nums;
 }
 
 .insurance-contacts-footer-links a {
@@ -1389,22 +1657,23 @@ body {
 .company-registry-contact-cards {
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid #e5e9ef;
+  border-top: 1px solid var(--border);
   display: grid;
   gap: 14px;
 }
 
 .company-registry-contact-card {
   padding: 16px 18px;
-  background: #f4f7fb;
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-soft);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-elevated);
 }
 
 .company-registry-contact-card__position {
   margin: 0 0 6px;
   font-size: 16px;
-  color: #666;
+  color: var(--text-sub);
 }
 
 .company-registry-contact-card__name {
@@ -1412,6 +1681,7 @@ body {
   font-size: 18px;
   font-weight: 600;
   line-height: 1.3;
+  color: var(--text-main);
 }
 
 .company-registry-contact-card__phone {
@@ -1421,6 +1691,7 @@ body {
   letter-spacing: 0.02em;
   line-height: 1.35;
   word-break: break-all;
+  color: var(--primary);
 }
 
 .company-registry-contact-card__actions {
@@ -1448,7 +1719,7 @@ body {
 
 .contacts-public-auth__user {
   font-size: 15px;
-  color: #4e5968;
+  color: var(--text-sub);
   margin-right: 4px;
 }
 

@@ -47,9 +47,9 @@ export function DashboardPage() {
                   <button
                     className="button button--full"
                     type="button"
-                    onClick={() => navigate('/insurance/general-request')}
+                    onClick={() => navigate('/insurance/company-registry')}
                   >
-                    일반화재 설계의뢰
+                    연락처 입력/관리
                   </button>
                 </li>
                 <li>
@@ -61,20 +61,20 @@ export function DashboardPage() {
                     업데이트 현황
                   </button>
                 </li>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
-                    onClick={() => navigate('/menu/reinsurer-contacts')}
-                  >
-                    원수사 연락처(별도)
-                  </button>
-                </li>
               </>
             ) : null}
 
             {role === 'staff' ? (
               <>
+                <li>
+                  <button
+                    className="button button--full"
+                    type="button"
+                    onClick={() => navigate('/insurance/contacts')}
+                  >
+                    연락처 조회
+                  </button>
+                </li>
                 <li>
                   <button
                     className="button button--primary button--full"
@@ -88,27 +88,9 @@ export function DashboardPage() {
                   <button
                     className="button button--full"
                     type="button"
-                    onClick={() => navigate('/insurance/contacts')}
-                  >
-                    연락처 조회
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
                     onClick={() => navigate('/insurance/history')}
                   >
                     업데이트 현황
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
-                    onClick={() => navigate('/menu/reinsurer-contacts')}
-                  >
-                    원수사 연락처(별도)
                   </button>
                 </li>
               </>
@@ -129,15 +111,6 @@ export function DashboardPage() {
                   <button
                     className="button button--full"
                     type="button"
-                    onClick={() => navigate('/insurance/company-registry')}
-                  >
-                    연락처 입력/관리
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
                     onClick={() => navigate('/insurance/contacts')}
                   >
                     연락처 조회
@@ -147,9 +120,9 @@ export function DashboardPage() {
                   <button
                     className="button button--full"
                     type="button"
-                    onClick={() => navigate('/insurance/general-request')}
+                    onClick={() => navigate('/insurance/company-registry')}
                   >
-                    일반화재 설계의뢰
+                    연락처 입력/관리
                   </button>
                 </li>
                 <li>
@@ -164,15 +137,6 @@ export function DashboardPage() {
                 <li>
                   <button className="button button--full" type="button" onClick={() => navigate('/application')}>
                     자동차 신청서
-                  </button>
-                </li>
-                <li>
-                  <button
-                    className="button button--full"
-                    type="button"
-                    onClick={() => navigate('/menu/reinsurer-contacts')}
-                  >
-                    원수사 연락처(별도)
                   </button>
                 </li>
               </>

@@ -292,6 +292,20 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    ALTER TABLE insurance_company_master
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ
+  `)
+  await pool.query(`
+    ALTER TABLE insurance_company_master
+    ADD COLUMN IF NOT EXISTS updated_by_username TEXT NOT NULL DEFAULT ''
+  `)
+  await pool.query(`
+    UPDATE insurance_company_master
+    SET updated_at = created_at
+    WHERE updated_at IS NULL
+  `)
+
+  await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_insurance_general_request_company
     ON insurance_general_request(company_id)
   `)

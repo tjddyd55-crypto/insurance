@@ -5,7 +5,7 @@ import type {
   InsuranceContactUpdate,
   UpsertInsuranceContactPayload,
 } from '../domain/types'
-import { createVCardContent } from '../utils/vcard'
+import { createVCardContent, openVCardInContactsApp } from '../utils/vcard'
 
 const API_BASE_PATH =
   (import.meta.env.VITE_API_BASE_PATH as string | undefined)?.replace(/\/$/, '') || '/backend'
@@ -58,17 +58,5 @@ export async function deleteInsuranceContact(
 }
 
 export function downloadVCardFallback(contact: InsuranceContact) {
-  const content = createVCardContent(contact)
-  const blob = new Blob([content], { type: 'text/vcard;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const safeName = `${contact.companyName}_${contact.managerName}`
-    .replace(/[\\/:*?"<>|]/g, '_')
-    .replace(/\s+/g, '_')
-    .slice(0, 80)
-
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `${safeName}.vcf`
-  link.click()
-  URL.revokeObjectURL(url)
+  openVCardInContactsApp(createVCardContent(contact))
 }

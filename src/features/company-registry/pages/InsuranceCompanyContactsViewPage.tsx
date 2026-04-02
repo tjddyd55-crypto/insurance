@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import ConfirmModal from '../../../components/common/ConfirmModal'
 import { useAuth } from '../../auth/AuthProvider'
 import { listCompanyDirectory } from '../api/companyRegistryApi'
 import { normalizeInsuranceCategory } from '../domain/categoryUtils'
@@ -8,8 +9,17 @@ import {
   isInsuranceCategory,
   type InsuranceCategory,
 } from '../domain/insuranceConstants'
+import { formatPhone } from '../../contacts/utils/phone'
 import type { CompanyDirectoryEntry } from '../domain/types'
-import { downloadContactVcard, toTelHref } from '../utils/contactActions'
+import { copyToClipboard } from '../utils/clipboard'
+import { openCompanyContactVcard, toTelHref } from '../utils/contactActions'
+
+type PendingContactAction = {
+  name: string
+  phone: string
+  companyName: string
+  position?: string
+}
 
 const TAB_SHORT_LABEL: Record<InsuranceCategory, string> = {
   LIFE: '생명',
@@ -41,6 +51,9 @@ export default function InsuranceCompanyContactsViewPage() {
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [statusText, setStatusText] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalType, setModalType] = useState<'call' | 'save' | null>(null)
+  const [pendingContact, setPendingContact] = useState<PendingContactAction | null>(null)
 
   const loadList = useCallback(async () => {
     setIsLoading(true)
@@ -97,6 +110,76 @@ export default function InsuranceCompanyContactsViewPage() {
       `/insurance/company-registry?type=${encodeURIComponent(cat)}&company=${encodeURIComponent(row.name)}`,
     )
   }
+
+  const copy = (text: string) => {
+    copyToClipboard(text)
+  }
+
+  const closeConfirmModal = useCallback(() => {
+    setModalOpen(false)
+    setModalType(null)
+    setPendingContact(null)
+  }, [])
+
+  const openCallConfirm = (ctx: PendingContactAction) => {
+    setPendingContact(ctx)
+    setModalType('call')
+    setModalOpen(true)
+  }
+
+  const openSaveConfirm = (ctx: PendingContactAction) => {
+    setPendingContact(ctx)
+    setModalType('save')
+    setModalOpen(true)
+  }
+
+  const confirmModalAction = () => {
+    if (!pendingContact || !modalType) {
+      closeConfirmModal()
+      return
+    }
+    const ctx = pendingContact
+    const type = modalType
+    navigator.vibrate?.(50)
+    if (type === 'call') {
+      window.location.href = toTelHref(ctx.phone)
+    } else {
+      openCompanyContactVcard({
+        name: ctx.name,
+        phone: ctx.phone,
+        companyName: ctx.companyName,
+        position: ctx.position,
+      })
+    }
+    closeConfirmModal()
+  }
+
+  const saveMetaLine = [pendingContact?.companyName, pendingContact?.position?.trim()].filter(Boolean).join(' · ')
+
+  const modalMessage =
+    pendingContact && modalType === 'save' ? (
+      <p className="modal-body-text">
+        <strong>{pendingContact.name}</strong>
+        {saveMetaLine ? (
+          <>
+            <br />
+            <span className="modal-meta">{saveMetaLine}</span>
+          </>
+        ) : null}
+        <br />
+        <span className="modal-phone-emphasis">{formatPhone(pendingContact.phone)}</span>
+        <br />
+        연락처를 저장하시겠습니까?
+      </p>
+    ) : pendingContact ? (
+      <p className="modal-body-text">
+        <strong>{pendingContact.name}</strong>
+        <br />
+        <span className="modal-phone-emphasis">{formatPhone(pendingContact.phone)}</span>
+        <br />
+        전화를 거시겠습니까?
+      </p>
+    ) : null
 
   return (
     <main className="page company-registry-page insurance-contacts-view">
@@ -158,30 +241,71 @@ export default function InsuranceCompanyContactsViewPage() {
         {isLoading ? (
           <p className="insurance-contacts-loading">불러오는 중…</p>
         ) : filteredList.length === 0 ? (
-          <p className="empty-state insurance-contacts-empty">
-            {keyword.trim() ? '검색 결과가 없습니다.' : '이 분류에 등록된 보험사가 없습니다.'}
-          </p>
+          <div className="empty-box insurance-contacts-empty" role="status">
+            {keyword.trim() ? (
+              '검색 결과가 없습니다.'
+            ) : (
+              <>
+                📭 이 분류에 등록된 보험사가 없습니다.
+                <br />
+                담당자에게 등록 요청하세요
+              </>
+            )}
+          </div>
         ) : (
           <div className="insurance-contacts-cards">
             {filteredList.map((c) => (
               <article key={c.id} className="company-card">
                 <h3 className="company-card__title">{c.name}</h3>
 
-                <div className="info">
-                  <div>
-                    <span className="info__label">고객센터</span>{' '}
-                    <span className="info__value">{c.customerCenter || '—'}</span>
+                <div className="company-info info">
+                  <div className="company-info__row">
+                    <div>
+                      <span className="info__label">고객센터</span>{' '}
+                      <span className="info__value">{c.customerCenter?.trim() || '—'}</span>
+                      {c.customerCenter?.trim() ? (
+                        <div className="actions-mini">
+                          <a href={toTelHref(c.customerCenter)} aria-label="고객센터 전화">
+                            📞
+                          </a>
+                          <button type="button" onClick={() => copy(c.customerCenter)} aria-label="고객센터 번호 복사">
+                            📋
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                  <div>
-                    <span className="info__label">전산문의</span>{' '}
-                    <span className="info__value">{c.systemPhone || '—'}</span>
+                  <div className="company-info__row">
+                    <div>
+                      <span className="info__label">전산문의</span>{' '}
+                      <span className="info__value">{c.systemPhone?.trim() || '—'}</span>
+                      {c.systemPhone?.trim() ? (
+                        <div className="actions-mini">
+                          <a href={toTelHref(c.systemPhone)} aria-label="전산문의 전화">
+                            📞
+                          </a>
+                          <button type="button" onClick={() => copy(c.systemPhone)} aria-label="전산문의 번호 복사">
+                            📋
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
-                  <div>
-                    <span className="info__label">인콜</span>{' '}
-                    <span className="info__value">{c.incallNumber || '—'}</span>
+                  <div className="company-info__row">
+                    <div>
+                      <span className="info__label">인콜</span>{' '}
+                      <span className="info__value">{c.incallNumber?.trim() || '—'}</span>
+                      {c.incallNumber?.trim() ? (
+                        <div className="actions-mini">
+                          <button type="button" onClick={() => copy(c.incallNumber)} aria-label="인콜 번호 복사">
+                            📋 복사
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                   {c.visitInfo?.trim() ? (
-                    <div>
+                    <div className="company-info__row">
                       <span className="info__label">방문·기타</span>{' '}
                       <span className="info__value">{c.visitInfo}</span>
                     </div>
@@ -193,27 +317,53 @@ export default function InsuranceCompanyContactsViewPage() {
                     <div key={p.id != null ? p.id : `new-${c.id}-${idx}`} className="contact-card">
                       <div className="position">{p.position?.trim() || '—'}</div>
                       <div className="name">{p.name?.trim() || '—'}</div>
-                      <div className="phone">{p.phone?.trim() || '—'}</div>
+                      {p.phone?.trim() ? (
+                        <button
+                          type="button"
+                          className="phone phone-link"
+                          aria-label={`${formatPhone(p.phone)} 전화 걸기`}
+                          onClick={() =>
+                            openCallConfirm({
+                              name: p.name?.trim() || '담당자',
+                              phone: p.phone,
+                              companyName: c.name,
+                              position: p.position,
+                            })
+                          }
+                        >
+                          {formatPhone(p.phone)}
+                        </button>
+                      ) : (
+                        <div className="phone phone--muted">—</div>
+                      )}
 
                       <div className="actions">
                         {p.phone?.trim() ? (
-                          <a
-                            className="tel-action"
-                            href={toTelHref(p.phone)}
+                          <button
+                            type="button"
+                            className="tel-action call-btn"
                             aria-label={`${p.name ?? '담당자'}에게 전화`}
+                            onClick={() =>
+                              openCallConfirm({
+                                name: p.name?.trim() || '담당자',
+                                phone: p.phone,
+                                companyName: c.name,
+                                position: p.position,
+                              })
+                            }
                           >
                             📞 전화
-                          </a>
+                          </button>
                         ) : (
                           <span className="actions__spacer" />
                         )}
                         {p.phone?.trim() ? (
                           <button
                             type="button"
-                            className="btn-secondary"
+                            className="btn-secondary save-btn"
                             onClick={() =>
-                              downloadContactVcard({
-                                name: p.name,
+                              openSaveConfirm({
+                                name: p.name?.trim() || '담당자',
                                 phone: p.phone,
                                 companyName: c.name,
                                 position: p.position,
@@ -224,7 +374,11 @@ export default function InsuranceCompanyContactsViewPage() {
                           </button>
                         ) : null}
                         {isStaff ? (
-                          <button type="button" className="btn-secondary" onClick={() => openCompanyRegistryEdit(c)}>
+                          <button
+                            type="button"
+                            className="btn-secondary save-btn"
+                            onClick={() => openCompanyRegistryEdit(c)}
+                          >
                             ✏ 수정
                           </button>
                         ) : null}
@@ -233,7 +387,11 @@ export default function InsuranceCompanyContactsViewPage() {
                   ))
                 ) : (
                   <div className="contact-card contact-card--empty">
-                    <p className="company-registry-muted">등록된 담당자 없음</p>
+                    <div className="empty-box contact-card--empty-msg" role="status">
+                      📭 등록된 담당자가 없습니다
+                      <br />
+                      담당자에게 등록 요청하세요
+                    </div>
                   </div>
                 )}
               </article>
@@ -243,10 +401,16 @@ export default function InsuranceCompanyContactsViewPage() {
       </section>
 
       <footer className="insurance-contacts-footer-links">
-        <Link to="/insurance/general-request">일반화재 설계의뢰</Link>
-        <span aria-hidden="true">·</span>
-        <Link to="/menu/reinsurer-contacts">원수사 연락처</Link>
+        <Link to="/insurance/history">업데이트 현황</Link>
       </footer>
+
+      <ConfirmModal
+        open={modalOpen}
+        title={modalType === 'save' ? '연락처 저장' : '전화'}
+        message={modalMessage}
+        onCancel={closeConfirmModal}
+        onConfirm={confirmModalAction}
+      />
     </main>
   )
 }
