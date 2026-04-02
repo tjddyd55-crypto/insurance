@@ -315,6 +315,29 @@ export async function initDb() {
     ON insurance_company_master (category, name)
   `)
 
+  // 메리츠(화재)는 손해보험사: 잘못 LIFE로 들어간 행을 NON_LIFE로 정정 (중복 없을 때만)
+  const meritzRes = await pool.query(`
+    UPDATE insurance_company_master icm
+    SET category = 'NON_LIFE'
+    WHERE icm.category = 'LIFE'
+      AND (
+        icm.name = '메리츠화재'
+        OR icm.name = '메리츠 화재'
+        OR (icm.name LIKE '메리츠%' AND icm.name LIKE '%화재%')
+        OR icm.name = '메리츠'
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM insurance_company_master x
+        WHERE x.category = 'NON_LIFE'
+          AND TRIM(x.name) = TRIM(icm.name)
+          AND x.id <> icm.id
+      )
+  `)
+  if (meritzRes.rowCount > 0) {
+    console.log('[initDb] 메리츠(화재) 분류 정정: LIFE → NON_LIFE', meritzRes.rowCount, '행')
+  }
+
   const updatedAtColumnCheck = await pool.query(
     `
     SELECT 1

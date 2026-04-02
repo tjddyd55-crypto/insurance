@@ -47,6 +47,7 @@ export const insuranceCompanyMap: Record<InsuranceCategory, InsuranceCompanyOpti
     { name: '라이나손보', tel: '' },
     { name: '롯데손보', tel: '' },
     { name: '메리츠', tel: '15777711' },
+    { name: '메리츠화재', tel: '15777711' },
     { name: '삼성화재', tel: '15660553' },
     { name: '하나손보', tel: '16604590' },
     { name: '한화손보', tel: '16701882' },
