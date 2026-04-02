@@ -2,14 +2,26 @@ export function normalizePhoneNumber(raw: string): string {
   return raw.replace(/\D/g, '')
 }
 
+/** tel: 등에 쓰는 숫자만 추출 */
+export function cleanPhone(phone: string): string {
+  return normalizePhoneNumber(phone)
+}
+
 /**
- * 화면 표시용 (formatPhoneNumber와 동일 계열). 010-0000-0000 등 가독성 우선.
+ * 보험사 연락처 카드 표시용 (11·10자리 하이픈 위주). 그 외는 원문 유지.
  */
 export function formatPhone(phone: string): string {
   if (!phone) {
     return ''
   }
-  return formatPhoneNumber(phone)
+  const cleaned = phone.replace(/[^0-9]/g, '')
+  if (cleaned.length === 11) {
+    return cleaned.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3')
+  }
+  if (cleaned.length === 10) {
+    return cleaned.replace(/(\d{2,3})(\d{3,4})(\d{4})/, '$1-$2-$3')
+  }
+  return phone.trim() || ''
 }
 
 export function formatPhoneNumber(raw: string): string {
