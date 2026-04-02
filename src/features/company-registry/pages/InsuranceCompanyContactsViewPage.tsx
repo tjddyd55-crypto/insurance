@@ -116,17 +116,19 @@ export default function InsuranceCompanyContactsViewPage() {
   }
 
   return (
-    <main className="page company-registry-page insurance-contacts-view">
+    <main className="page company-registry-page insurance-contacts-view company-directory-read-ui">
       <nav className="contacts-public-auth contacts-public-auth--compact" aria-label="이동">
         <button className="button button--small touch-nav-btn" type="button" onClick={() => navigate(-1)}>
           뒤로
         </button>
-        <Link
-          className="button button--small contacts-public-auth__link touch-nav-btn"
-          to="/insurance/company-registry"
-        >
-          관리
-        </Link>
+        {isStaff ? (
+          <Link
+            className="button button--small contacts-public-auth__link touch-nav-btn"
+            to="/insurance/company-registry"
+          >
+            관리
+          </Link>
+        ) : null}
         {isAuthenticated ? (
           <button className="button button--small touch-nav-btn" type="button" onClick={() => navigate('/dashboard')}>
             메뉴

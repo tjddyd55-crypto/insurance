@@ -112,9 +112,11 @@ export default function GeneralRequestPage() {
         <button className="button button--small" type="button" onClick={() => navigate(-1)}>
           뒤로
         </button>
-        <Link className="button button--small contacts-public-auth__link" to="/insurance/company-registry">
-          연락처 입력/관리
-        </Link>
+        {canEdit ? (
+          <Link className="button button--small contacts-public-auth__link" to="/insurance/company-registry">
+            연락처 입력/관리
+          </Link>
+        ) : null}
         <Link className="button button--small contacts-public-auth__link" to="/insurance/contacts">
           연락처 조회
         </Link>

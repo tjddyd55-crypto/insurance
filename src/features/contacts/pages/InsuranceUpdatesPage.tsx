@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../auth/AuthProvider'
 import { getCompanyRecentUpdates } from '../../company-registry/api/companyRegistryApi'
 import { CompanyCardDiff } from '../../company-registry/components/CompanyCardDiff'
 import type { CompanyUpdateHistoryItem } from '../../company-registry/domain/types'
@@ -31,6 +32,8 @@ function groupHistoryByDate(items: CompanyUpdateHistoryItem[]) {
 
 export function InsuranceUpdatesPage() {
   const navigate = useNavigate()
+  const { user, isAuthenticated } = useAuth()
+  const isStaff = isAuthenticated && !!user && ['staff', 'super_admin'].includes(user.role)
   const [list, setList] = useState<CompanyUpdateHistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [statusText, setStatusText] = useState('')
@@ -66,7 +69,7 @@ export function InsuranceUpdatesPage() {
   const grouped = useMemo(() => groupHistoryByDate(list), [list])
 
   return (
-    <main className="page contacts-page insurance-recent-updates-page">
+    <main className="page contacts-page insurance-recent-updates-page company-directory-read-ui">
       <header className="page-header">
         <h1>업데이트 현황</h1>
         <p>
@@ -80,9 +83,11 @@ export function InsuranceUpdatesPage() {
           <button className="button" type="button" onClick={() => navigate('/insurance/contacts')}>
             연락처 조회
           </button>
-          <button className="button" type="button" onClick={() => navigate('/insurance/company-registry')}>
-            연락처 입력/관리
-          </button>
+          {isStaff ? (
+            <button className="button" type="button" onClick={() => navigate('/insurance/company-registry')}>
+              연락처 입력/관리
+            </button>
+          ) : null}
           <button className="button" type="button" onClick={() => navigate('/dashboard')}>
             메뉴
           </button>
@@ -97,7 +102,9 @@ export function InsuranceUpdatesPage() {
           <div className="empty-box" role="status">
             📭 표시할 업데이트가 없습니다
             <br />
-            연락처 관리 화면에서 저장하면 여기에 기록됩니다
+            {isStaff
+              ? '연락처 관리 화면에서 저장하면 여기에 기록됩니다'
+              : '담당자가 연락처를 저장하면 여기에 기록됩니다'}
           </div>
         ) : (
           <div className="update-history">

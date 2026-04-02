@@ -1510,6 +1510,89 @@ body {
   padding: 8px 4px;
 }
 
+/* 원수사 조회·업데이트 히스토리 카드 — 글자 크기 ↑, 행 간격 ↓ */
+.company-directory-read-ui .insurance-contacts-cards {
+  gap: 8px;
+}
+
+.company-directory-read-ui .company-card {
+  font-size: 15px;
+  padding: 14px;
+}
+
+.company-directory-read-ui .company-card__header {
+  margin-bottom: 4px;
+}
+
+.company-directory-read-ui .company-card .company-card__title {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.company-directory-read-ui .company-info-block {
+  margin-top: 4px;
+}
+
+.company-directory-read-ui .info-row {
+  margin-top: 4px;
+  min-height: 28px;
+}
+
+.company-directory-read-ui .info-row:first-child {
+  margin-top: 0;
+}
+
+.company-directory-read-ui .info-row .label {
+  font-size: 14px;
+}
+
+.company-directory-read-ui .info-row .value {
+  font-size: 15px;
+}
+
+.company-directory-read-ui .company-contacts-block {
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.company-directory-read-ui .contact-row {
+  margin-top: 6px;
+  min-height: 32px;
+}
+
+.company-directory-read-ui .contact-row:first-child {
+  margin-top: 0;
+}
+
+.company-directory-read-ui .contact-text {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.company-directory-read-ui .contact-phone {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.company-directory-read-ui .contact-phone--empty {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.company-directory-read-ui .actions-mini button,
+.company-directory-read-ui .actions-mini a {
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+}
+
+.company-directory-read-ui .contact-card--empty {
+  margin-top: 8px;
+  padding: 8px 10px;
+}
+
 .insurance-contacts-footer-links {
   margin-top: 20px;
   padding-top: 14px;

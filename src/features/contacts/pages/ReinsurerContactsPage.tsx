@@ -208,9 +208,11 @@ export function ReinsurerContactsPage() {
         <Link className="button button--small contacts-public-auth__link" to="/insurance/contacts">
           보험사 연락처 조회
         </Link>
-        <Link className="button button--small contacts-public-auth__link" to="/insurance/company-registry">
-          연락처 입력/관리
-        </Link>
+        {isAdmin ? (
+          <Link className="button button--small contacts-public-auth__link" to="/insurance/company-registry">
+            연락처 입력/관리
+          </Link>
+        ) : null}
         {isAuthenticated ? (
           <>
             <span className="contacts-public-auth__user">{user?.username}</span>
