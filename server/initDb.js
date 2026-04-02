@@ -1,6 +1,10 @@
 import bcrypt from 'bcryptjs'
 import { randomUUID } from 'node:crypto'
 import pool from './db.js'
+import {
+  runCompanyDirectorySanitize,
+  touchContactLastUpdatedAt,
+} from './lib/companyDirectorySanitize.js'
 
 /**
  * ⚠️ 디버그 전용: insurance_forms 등 user_id FK는 ON DELETE CASCADE 로 함께 정리됨.
@@ -394,6 +398,21 @@ export async function initDb() {
   `)
   if (meritzIc.rowCount > 0) {
     console.log('[initDb] 재보험 연락처 메리츠 분류 정정: LIFE → NON_LIFE', meritzIc.rowCount, '행')
+  }
+
+  const directoryClient = await pool.connect()
+  try {
+    await directoryClient.query('BEGIN')
+    await runCompanyDirectorySanitize(directoryClient, (msg, ...args) =>
+      console.log('[initDb][company-directory]', msg, ...args),
+    )
+    await touchContactLastUpdatedAt(directoryClient)
+    await directoryClient.query('COMMIT')
+  } catch (e) {
+    await directoryClient.query('ROLLBACK')
+    console.error('[initDb] 보험사 디렉터리 자동 정리 실패(서버는 계속 기동):', e)
+  } finally {
+    directoryClient.release()
   }
 
   const updatedAtColumnCheck = await pool.query(
