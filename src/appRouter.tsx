@@ -6,9 +6,12 @@ import { ApplicationListPage } from './features/application/pages/ApplicationLis
 import { ApplicationResultPage } from './features/application/pages/ApplicationResultPage'
 import { CarInsuranceDashboardPage } from './features/application/pages/CarInsuranceDashboardPage'
 import CreateStaffPage from './features/admin/pages/CreateStaffPage'
+import GaCreatePage from './features/admin/pages/GaCreatePage'
+import UserManagementPage from './features/admin/pages/UserManagementPage'
 import { LoginPage } from './features/auth/pages/LoginPage'
 import { RegisterPage } from './features/auth/pages/RegisterPage'
 import { ProtectedRoute } from './features/auth/ProtectedRoute'
+import { GaCarInsuranceRoute } from './features/auth/GaCarInsuranceRoute'
 import { StaffRoute } from './features/auth/StaffRoute'
 import { InsurancePrintPage } from './features/contacts/pages/InsurancePrintPage'
 import { InsuranceUpdatesPage } from './features/contacts/pages/InsuranceUpdatesPage'
@@ -24,7 +27,10 @@ import { TemplateEditorPage } from './features/consent/admin/pages/TemplateEdito
 import { TemplateListPage } from './features/consent/admin/pages/TemplateListPage'
 import { ConsentFormPage } from './features/consent/pages/ConsentFormPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
+import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
+import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
 import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
+import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
 
 export const appRouter = createBrowserRouter([
   {
@@ -34,7 +40,7 @@ export const appRouter = createBrowserRouter([
       { index: true, element: <PublicHomeEntry /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
-      { path: 'signup', element: <Navigate to="/login?signup=1" replace /> },
+      { path: 'signup', element: <Navigate to="/register" replace /> },
       { path: 'privacy', element: <PrivacyPolicyPage /> },
       { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /customer/external-create + ref 검증 */
@@ -43,15 +49,32 @@ export const appRouter = createBrowserRouter([
         element: <ProtectedRoute />,
         children: [
           { path: 'dashboard', element: <DashboardPage /> },
-          { path: 'application', element: <CarInsuranceDashboardPage /> },
-          { path: 'application/write', element: <ApplicationFormPage /> },
+          {
+            element: <GaCarInsuranceRoute />,
+            children: [
+              { path: 'application', element: <CarInsuranceDashboardPage /> },
+              { path: 'application/write', element: <ApplicationFormPage /> },
+              { path: 'my-forms', element: <ApplicationListPage /> },
+              { path: 'form/create', element: <ApplicationFormPage /> },
+              { path: 'form/:id/edit', element: <ApplicationFormPage /> },
+              { path: 'form/result/:id', element: <ApplicationResultPage /> },
+            ],
+          },
           { path: 'customers', element: <CustomersPage /> },
           { path: 'customer-car', element: <CustomerCarPage /> },
-          { path: 'my-forms', element: <ApplicationListPage /> },
-          { path: 'form/create', element: <ApplicationFormPage /> },
-          { path: 'form/:id/edit', element: <ApplicationFormPage /> },
-          { path: 'form/result/:id', element: <ApplicationResultPage /> },
+          { path: 'admin/create-ga', element: <GaCreatePage /> },
           { path: 'admin/create-staff', element: <CreateStaffPage /> },
+          { path: 'admin/users', element: <UserManagementPage /> },
+          { path: 'feature-request', element: <FeatureRequestPage /> },
+          {
+            element: <SuperAdminRoute />,
+            children: [
+              {
+                path: 'internal/admin/feature-requests',
+                element: <FeatureRequestsAdminPage />,
+              },
+            ],
+          },
           {
             element: <StaffRoute />,
             children: [

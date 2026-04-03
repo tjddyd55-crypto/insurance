@@ -36,7 +36,7 @@ export default function CustomerCarPage() {
   }, [])
 
   async function handleSaveCar() {
-    if (!token || user?.role !== 'user' || !form) {
+    if (!token || user?.role !== 'USER' || !form) {
       setStatusText('저장할 수 없습니다.')
       return
     }
@@ -55,7 +55,7 @@ export default function CustomerCarPage() {
     }
   }
 
-  if (user?.role !== 'user') {
+  if (user?.role !== 'USER') {
     return (
       <main className="page page--with-back">
         <PageBackButton />

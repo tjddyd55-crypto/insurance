@@ -1,4 +1,4 @@
-/** initDb 시드용 — 프론트 mock consentTemplateRegistry와 ID 동기화 */
+/** initDb 시드용 — 보험사(insurance_company_id)별 기본 템플릿. ga_id는 DB의 YJASSET 행으로 채움 */
 
 export const DEFAULT_CONSENT_FIELD_LAYOUT = Object.freeze([
   { type: 'text', key: 'name', x: 120, y: 720, fontSize: 12, page: 0 },
@@ -10,42 +10,26 @@ export const DEFAULT_CONSENT_FIELD_LAYOUT = Object.freeze([
 export const SEEDED_CONSENT_TEMPLATES = Object.freeze([
   {
     id: 'a1000000-0000-4000-8000-000000000001',
-    gaId: 1,
     insuranceCompanyId: 'life-samsung',
   },
   {
     id: 'a1000000-0000-4000-8000-000000000002',
-    gaId: 1,
     insuranceCompanyId: 'life-hanwha',
   },
   {
     id: 'a1000000-0000-4000-8000-000000000003',
-    gaId: 1,
     insuranceCompanyId: 'life-kyobo',
   },
   {
     id: 'a1000000-0000-4000-8000-000000000004',
-    gaId: 1,
     insuranceCompanyId: 'nonlife-samsung',
   },
   {
     id: 'a1000000-0000-4000-8000-000000000005',
-    gaId: 1,
     insuranceCompanyId: 'nonlife-db',
   },
   {
     id: 'a1000000-0000-4000-8000-000000000006',
-    gaId: 1,
     insuranceCompanyId: 'nonlife-meritz',
-  },
-  {
-    id: 'b2000000-0000-4000-8000-000000000001',
-    gaId: 2,
-    insuranceCompanyId: 'life-samsung',
-  },
-  {
-    id: 'b2000000-0000-4000-8000-000000000002',
-    gaId: 2,
-    insuranceCompanyId: 'life-hanwha',
   },
 ])

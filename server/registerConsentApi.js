@@ -66,43 +66,84 @@ function buildPdfResponseUrl(req, jwtToken) {
  * @param {object} ctx
  * @param {import('pg').Pool} ctx.pool
  * @param {Function} ctx.requireAuth
- * @param {Function} ctx.requireStaffOrAdmin
+ * @param {Function} ctx.requireGaAdminOrSuper
+ * @param {Function} ctx.isSuperAdminRole
+ * @param {Function} ctx.effectiveTenantGaId
+ * @param {Function} ctx.parseGaId
  * @param {Function} ctx.handleDbError
  * @param {string} ctx.JWT_SECRET
  */
 export function registerConsentApi(apiRouter, ctx) {
-  const { pool, requireAuth, requireStaffOrAdmin, handleDbError, JWT_SECRET } = ctx
+  const {
+    pool,
+    requireAuth,
+    requireGaAdminOrSuper,
+    isSuperAdminRole,
+    effectiveTenantGaId,
+    parseGaId,
+    handleDbError,
+    JWT_SECRET,
+  } = ctx
 
-  apiRouter.get('/admin/consent-templates', requireAuth, requireStaffOrAdmin, async (_req, res) => {
+  /** @param {import('express').Request} req */
+  function templateGaScope(req) {
+    if (isSuperAdminRole(req.user?.role)) {
+      const raw = req.body?.ga_id ?? req.query?.ga_id
+      const fromAdmin = parseGaId(raw)
+      if (fromAdmin != null) {
+        return fromAdmin
+      }
+    }
+    return parseGaId(req.user?.gaId)
+  }
+
+  apiRouter.get('/admin/consent-templates', requireAuth, requireGaAdminOrSuper, async (req, res) => {
     try {
-      const r = await pool.query(
-        `
+      const g = effectiveTenantGaId(req)
+      if (g == null) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
+      let sql = `
         SELECT id, ga_id, insurance_company_id, fax_number, pdf_storage_key, fields, created_at, updated_at
         FROM consent_templates
-        ORDER BY ga_id ASC, insurance_company_id ASC
-        `,
-      )
+      `
+      const params = []
+      if (!isSuperAdminRole(req.user?.role)) {
+        sql += ` WHERE ga_id = $1 `
+        params.push(g)
+      }
+      sql += ` ORDER BY ga_id ASC, insurance_company_id ASC `
+      const r = await pool.query(sql, params)
       res.json(r.rows)
     } catch (error) {
       handleDbError(error, res)
     }
   })
 
-  apiRouter.get('/admin/consent-template/:id', requireAuth, requireStaffOrAdmin, async (req, res) => {
+  apiRouter.get('/admin/consent-template/:id', requireAuth, requireGaAdminOrSuper, async (req, res) => {
     try {
       const id = String(req.params.id ?? '').trim()
       if (!id) {
         res.status(400).json({ message: 'id가 필요합니다.' })
         return
       }
-      const r = await pool.query(
-        `
+      const tenantG = effectiveTenantGaId(req)
+      let sql = `
         SELECT id, ga_id, insurance_company_id, fax_number, pdf_storage_key, fields, created_at, updated_at
         FROM consent_templates
         WHERE id = $1
-        `,
-        [id],
-      )
+      `
+      const params = [id]
+      if (!isSuperAdminRole(req.user?.role)) {
+        if (tenantG == null) {
+          res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+          return
+        }
+        sql += ` AND ga_id = $2 `
+        params.push(tenantG)
+      }
+      const r = await pool.query(sql, params)
       if (r.rowCount === 0) {
         res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
         return
@@ -113,14 +154,25 @@ export function registerConsentApi(apiRouter, ctx) {
     }
   })
 
-  apiRouter.get('/admin/consent-template/:id/pdf', requireAuth, requireStaffOrAdmin, async (req, res) => {
+  apiRouter.get('/admin/consent-template/:id/pdf', requireAuth, requireGaAdminOrSuper, async (req, res) => {
     try {
       const id = String(req.params.id ?? '').trim()
       if (!id) {
         res.status(400).json({ message: 'id가 필요합니다.' })
         return
       }
-      const r = await pool.query(`SELECT pdf_storage_key FROM consent_templates WHERE id = $1`, [id])
+      const tenantG = effectiveTenantGaId(req)
+      let sql = `SELECT pdf_storage_key FROM consent_templates WHERE id = $1`
+      const params = [id]
+      if (!isSuperAdminRole(req.user?.role)) {
+        if (tenantG == null) {
+          res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+          return
+        }
+        sql += ` AND ga_id = $2`
+        params.push(tenantG)
+      }
+      const r = await pool.query(sql, params)
       if (r.rowCount === 0) {
         res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
         return
@@ -138,9 +190,9 @@ export function registerConsentApi(apiRouter, ctx) {
 
   apiRouter.get('/consent/templates', requireAuth, async (req, res) => {
     try {
-      const gaId = Number(req.query.ga_id)
-      if (!Number.isInteger(gaId) || gaId < 0) {
-        res.status(400).json({ message: 'ga_id가 필요합니다.' })
+      const gaId = effectiveTenantGaId(req)
+      if (gaId == null) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
         return
       }
       const r = await pool.query(
@@ -161,7 +213,7 @@ export function registerConsentApi(apiRouter, ctx) {
   apiRouter.post(
     '/admin/consent-template',
     requireAuth,
-    requireStaffOrAdmin,
+    requireGaAdminOrSuper,
     (req, res, next) => {
       uploadPdf.single('pdf')(req, res, (err) => {
         if (err) {
@@ -173,8 +225,8 @@ export function registerConsentApi(apiRouter, ctx) {
     },
     async (req, res) => {
       try {
-        const gaId = Number(req.body.ga_id)
-        if (!Number.isInteger(gaId)) {
+        const gaId = templateGaScope(req)
+        if (gaId == null || !Number.isInteger(gaId)) {
           res.status(400).json({ message: 'ga_id가 필요합니다.' })
           return
         }
@@ -194,6 +246,14 @@ export function registerConsentApi(apiRouter, ctx) {
         if (!Array.isArray(fields)) {
           res.status(400).json({ message: 'fields는 배열이어야 합니다.' })
           return
+        }
+
+        if (!isSuperAdminRole(req.user?.role)) {
+          const ug = parseGaId(req.user?.gaId)
+          if (ug == null || ug !== gaId) {
+            res.status(403).json({ message: '해당 GA에 대한 권한이 없습니다.' })
+            return
+          }
         }
 
         const existing = await pool.query(
@@ -251,6 +311,8 @@ export function registerConsentApi(apiRouter, ctx) {
         return
       }
 
+      const userGa = parseGaId(req.user?.gaId)
+
       const consentTemplateId = String(req.body.consent_template_id ?? '').trim()
       if (!consentTemplateId) {
         res.status(400).json({ message: 'consent_template_id가 필요합니다.' })
@@ -268,7 +330,7 @@ export function registerConsentApi(apiRouter, ctx) {
 
       const rowQ = await pool.query(
         `
-        SELECT id, fields, pdf_storage_key
+        SELECT id, ga_id, fields, pdf_storage_key
         FROM consent_templates
         WHERE id = $1
         `,
@@ -279,6 +341,14 @@ export function registerConsentApi(apiRouter, ctx) {
         return
       }
       const row = rowQ.rows[0]
+      const templateGa = parseGaId(row.ga_id)
+
+      if (!isSuperAdminRole(req.user?.role)) {
+        if (userGa == null || templateGa == null || userGa !== templateGa) {
+          res.status(403).json({ message: '이 템플릿에 접근할 수 없습니다.' })
+          return
+        }
+      }
 
       const templateBytes = await consentGetBuffer(row.pdf_storage_key)
       const filledPdf = await fillConsentPdf(templateBytes, row.fields, formData, signatureBuf)

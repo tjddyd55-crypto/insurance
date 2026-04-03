@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { isInsuranceOpsRole } from '../../auth/roleGuards'
 import { PageBackButton } from '../../../components/common/PageBackButton'
 import { listCompanyDirectory } from '../api/companyRegistryApi'
 import { resolveTabCategory } from '../domain/categoryUtils'
@@ -35,7 +36,7 @@ function categoryForCompanyRow(row: CompanyDirectoryEntry, fallbackTab: Insuranc
 export default function InsuranceCompanyContactsViewPage() {
   const navigate = useNavigate()
   const { user, token, isAuthenticated } = useAuth()
-  const isStaff = isAuthenticated && !!user && ['staff', 'super_admin'].includes(user.role)
+  const isStaff = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
 
   const [activeTab, setActiveTab] = useState<InsuranceCategory>('LIFE')
   const [keyword, setKeyword] = useState('')

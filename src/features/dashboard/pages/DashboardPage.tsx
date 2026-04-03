@@ -1,27 +1,31 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
-type MenuItem = { label: string; path: string }
+import { isGaTenantStaffRole } from '../../auth/roleGuards'
+import {
+  buildGaTenantMenu,
+  GA_STAFF_EXTRA_MENU,
+  type GaTenantMenuItem,
+} from '../gaTenantMenu'
 
-const USER_MENU: MenuItem[] = [
-  { label: '고객 관리', path: '/customers?mode=list' },
-  { label: '자동차보험 신청서', path: '/application' },
-  { label: '원수사 연락처 조회', path: '/contacts' },
+type MenuItem = GaTenantMenuItem
+
+const SUPER_ADMIN_MENU: MenuItem[] = [
+  { label: 'GA 생성', path: '/admin/create-ga' },
+  { label: '담당자 생성', path: '/admin/create-staff' },
+  { label: '유저 관리', path: '/admin/users' },
+  { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
 ]
 
-const STAFF_MENU: MenuItem[] = [
-  { label: '원수사 연락처 조회', path: '/contacts' },
-  { label: '원수사 연락처 관리', path: '/contacts/manage' },
-]
-
-function menuForRole(role: string | undefined): MenuItem[] {
-  if (role === 'user') {
-    return USER_MENU
+function menuForSession(role: string | undefined, gaCode: string | undefined): MenuItem[] {
+  if (role === 'SUPER_ADMIN') {
+    return SUPER_ADMIN_MENU
   }
-  if (role === 'staff') {
-    return STAFF_MENU
+  const tenantBase = buildGaTenantMenu(gaCode)
+  if (role === 'GA_ADMIN' || role === 'GA_STAFF') {
+    return [...tenantBase, ...GA_STAFF_EXTRA_MENU]
   }
-  if (role === 'super_admin') {
-    return [{ label: '담당자 생성', path: '/admin/create-staff' }, ...STAFF_MENU]
+  if (role === 'USER') {
+    return tenantBase
   }
   return []
 }
@@ -36,7 +40,30 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath.startsWith('/customers')) {
     return pathname === '/customers'
   }
+  if (itemPath === '/application') {
+    return pathname === '/application' || pathname.startsWith('/application/')
+  }
+  if (itemPath === '/feature-request') {
+    return pathname === '/feature-request'
+  }
+  if (itemPath.startsWith('/internal/admin/')) {
+    return pathname === itemPath
+  }
   return pathname === itemPath
+}
+
+function attemptAppExit(navigate: ReturnType<typeof useNavigate>) {
+  if (!window.confirm('앱을 종료하시겠습니까?')) {
+    return
+  }
+  window.close()
+  window.setTimeout(() => {
+    if (typeof window.history.go === 'function' && window.history.length > 2) {
+      window.history.go(-2)
+    } else {
+      navigate('/', { replace: true })
+    }
+  }, 120)
 }
 
 export function DashboardPage() {
@@ -44,8 +71,8 @@ export function DashboardPage() {
   const location = useLocation()
   const { user, logout } = useAuth()
   const role = user?.role
-  const isStaff = role === 'staff' || role === 'super_admin'
-  const menuItems = menuForRole(role)
+  const showStaffDirectoryNote = isGaTenantStaffRole(role)
+  const menuItems = menuForSession(role, user?.gaCode)
   const pathname = location.pathname
 
   return (
@@ -73,9 +100,22 @@ export function DashboardPage() {
             })}
           </nav>
 
-          {isStaff ? (
+          <div className="dashboard-menu-footer" role="group" aria-label="서비스 안내">
+            <p className="dashboard-menu-static" aria-disabled="true">
+              추가 기능 개발 중
+            </p>
+            <button
+              type="button"
+              className={`menu-item${pathIsActive(pathname, '/feature-request') ? ' active' : ''}`}
+              onClick={() => navigate('/feature-request')}
+            >
+              추가 기능 요청하기
+            </button>
+          </div>
+
+          {showStaffDirectoryNote ? (
             <p className="dashboard-menu-note">
-              보험사 마스터는 「원수사 연락처 조회」에서 확인하고, 「원수사 연락처 관리」에서만 저장·수정합니다.
+              보험사 마스터는 「원수사 연락처」에서 확인하고, 「원수사 연락처 관리」에서만 저장·수정합니다.
             </p>
           ) : null}
 
@@ -90,6 +130,16 @@ export function DashboardPage() {
             로그아웃
           </button>
         </section>
+
+        <div className="dashboard-app-exit-wrap">
+          <button
+            type="button"
+            className="button button--secondary dashboard-app-exit"
+            onClick={() => attemptAppExit(navigate)}
+          >
+            앱 종료
+          </button>
+        </div>
       </div>
     </main>
   )

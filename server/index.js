@@ -13,7 +13,14 @@ import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 const PORT = Number(process.env.PORT ?? 3001)
 const JWT_SECRET = process.env.JWT_SECRET ?? 'change-this-in-production'
 const DEFAULT_JWT_SECRET = 'change-this-in-production'
-const VALID_USER_ROLES = ['super_admin', 'staff', 'user']
+const VALID_USER_ROLES = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF', 'USER']
+const GA_DELEGATE_ROLES = ['GA_ADMIN', 'GA_STAFF']
+const FEATURE_REQUEST_STATUSES = ['pending', 'reviewed', 'done']
+const LEGACY_USER_ROLE_MAP = {
+  super_admin: 'SUPER_ADMIN',
+  staff: 'GA_ADMIN',
+  user: 'USER',
+}
 const RUNNING_IN_PRODUCTION =
   process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT)
 const DIST_PATH = path.join(process.cwd(), 'dist')
@@ -255,7 +262,44 @@ function normalizeCategory(value) {
 
 function normalizeUserRole(value) {
   const r = typeof value === 'string' ? value.trim() : ''
-  return VALID_USER_ROLES.includes(r) ? r : 'user'
+  if (VALID_USER_ROLES.includes(r)) {
+    return r
+  }
+  if (Object.prototype.hasOwnProperty.call(LEGACY_USER_ROLE_MAP, r)) {
+    return LEGACY_USER_ROLE_MAP[r]
+  }
+  return 'USER'
+}
+
+function isSuperAdminRole(role) {
+  return normalizeUserRole(role) === 'SUPER_ADMIN'
+}
+
+function isGaAdminOrSuper(role) {
+  const n = normalizeUserRole(role)
+  return n === 'SUPER_ADMIN' || n === 'GA_ADMIN' || n === 'GA_STAFF'
+}
+
+function parseGaId(value) {
+  const n = Number(value)
+  if (!Number.isInteger(n) || n < 1) {
+    return null
+  }
+  return n
+}
+
+/** @returns {number | null} */
+function effectiveTenantGaId(req) {
+  if (!req.user) {
+    return null
+  }
+  if (isSuperAdminRole(req.user.role)) {
+    const q = parseGaId(req.query?.ga_id ?? req.query?.gaId)
+    if (q != null) {
+      return q
+    }
+  }
+  return parseGaId(req.user.gaId)
 }
 
 function escapeIlikePattern(raw) {
@@ -399,22 +443,37 @@ function mapInsuranceGeneralRequest(row) {
   }
 }
 
-async function loadCompanyDirectoryNestedList() {
+async function loadCompanyDirectoryNestedList(gaId) {
+  const g = parseGaId(gaId)
+  if (g == null) {
+    throw new Error('loadCompanyDirectoryNestedList: gaId 필요')
+  }
   const masters = await pool.query(
     `
     SELECT *
     FROM insurance_company_master
+    WHERE ga_id = $1
     ORDER BY category ASC NULLS LAST, name ASC
     `,
+    [g],
   )
   const contacts = await pool.query(
     `
-    SELECT *
-    FROM insurance_company_contacts
-    ORDER BY company_id ASC, id ASC
+    SELECT ic.*
+    FROM insurance_company_contacts ic
+    INNER JOIN insurance_company_master m ON m.id = ic.company_id AND m.ga_id = $1
+    ORDER BY ic.company_id ASC, ic.id ASC
     `,
+    [g],
   )
-  const generals = await pool.query(`SELECT * FROM insurance_general_request`)
+  const generals = await pool.query(
+    `
+    SELECT gr.*
+    FROM insurance_general_request gr
+    INNER JOIN insurance_company_master m ON m.id = gr.company_id AND m.ga_id = $1
+    `,
+    [g],
+  )
 
   const contactByCompany = new Map()
   for (const c of contacts.rows) {
@@ -568,10 +627,25 @@ function requireAuth(req, res, next) {
       return
     }
 
+    const role = normalizeUserRole(decoded.role)
+    const gaFromJwt = parseGaId(decoded.gaId ?? decoded.ga_id)
+    const gaCodeRaw = decoded.gaCode ?? decoded.ga_code
+    const gaCode =
+      typeof gaCodeRaw === 'string' && gaCodeRaw.trim() ? gaCodeRaw.trim().toUpperCase() : ''
     req.user = {
       id: String(userId),
       username: typeof decoded.username === 'string' ? decoded.username : '',
-      role: normalizeUserRole(decoded.role),
+      role,
+      gaId: gaFromJwt,
+      gaCode,
+    }
+
+    if (role !== 'SUPER_ADMIN' && gaFromJwt == null) {
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: '세션에 GA 정보가 없습니다. 다시 로그인해 주세요.',
+      })
+      return
     }
 
     if (req.originalUrl?.includes('/forms')) {
@@ -586,17 +660,18 @@ function requireAuth(req, res, next) {
   }
 }
 
-/** super_admin 전용 API(예: 계정/시스템 설정)에 그대로 연결하면 됩니다. */
+/** SUPER_ADMIN 전용 */
 function requireSuperAdmin(req, res, next) {
-  if (!req.user || req.user.role !== 'super_admin') {
+  if (!req.user || !isSuperAdminRole(req.user.role)) {
     res.status(403).json({ message: '전체 관리자 권한이 필요합니다.' })
     return
   }
   next()
 }
 
-function requireStaffOrAdmin(req, res, next) {
-  if (!req.user || !['staff', 'super_admin'].includes(req.user.role)) {
+/** GA_ADMIN · GA_STAFF · SUPER_ADMIN (템플릿·원수사 디렉터리 등) */
+function requireGaAdminOrSuper(req, res, next) {
+  if (!req.user || !isGaAdminOrSuper(req.user.role)) {
     res.status(403).json({ message: '원수사 연락처 관리 권한이 없습니다.' })
     return
   }
@@ -628,14 +703,16 @@ function emptyCompanySnapshot() {
   }
 }
 
-async function loadCompanySnapshot(client, companyId) {
+async function loadCompanySnapshot(client, companyId, gaId) {
+  const g = parseGaId(gaId)
   const m = await client.query(
     `
     SELECT customer_center, system_phone, incall_number, visit_info
     FROM insurance_company_master
     WHERE id = $1
+      AND ga_id = $2
     `,
-    [companyId],
+    [companyId, g],
   )
   if (m.rowCount === 0) {
     return emptyCompanySnapshot()
@@ -701,14 +778,19 @@ function normalizeHistoryPayload(payload) {
   }
 }
 
-async function touchContactLastUpdatedAt(client) {
+async function touchContactLastUpdatedAt(client, gaId = null) {
+  const key =
+    gaId != null && Number.isInteger(Number(gaId)) && Number(gaId) > 0
+      ? `contact_last_updated_at:${Number(gaId)}`
+      : 'contact_last_updated_at'
   await client.query(
     `
     INSERT INTO insurance_contact_meta (meta_key, meta_value, updated_at)
-    VALUES ('contact_last_updated_at', NOW()::text, NOW())
+    VALUES ($1, NOW()::text, NOW())
     ON CONFLICT (meta_key)
     DO UPDATE SET meta_value = NOW()::text, updated_at = NOW()
     `,
+    [key],
   )
 }
 
@@ -720,7 +802,10 @@ const apiRouter = express.Router()
 registerConsentApi(apiRouter, {
   pool,
   requireAuth,
-  requireStaffOrAdmin,
+  requireGaAdminOrSuper,
+  isSuperAdminRole,
+  effectiveTenantGaId,
+  parseGaId,
   handleDbError,
   JWT_SECRET,
 })
@@ -729,9 +814,21 @@ apiRouter.get('/health', (_req, res) => {
   res.json({ ok: true })
 })
 
-apiRouter.post('/register', async (req, res) => {
+async function handleRegister(req, res) {
   try {
-    const { username, password } = req.body ?? {}
+    const { username, password, ga_id: gaIdRaw, gaId: gaIdBody } = req.body ?? {}
+    const gaId = parseGaId(gaIdRaw ?? gaIdBody)
+    if (gaId == null) {
+      res.status(400).json({ message: 'ga_id가 필요합니다.' })
+      return
+    }
+
+    const gaCheck = await pool.query(`SELECT id FROM ga_companies WHERE id = $1`, [gaId])
+    if (gaCheck.rowCount === 0) {
+      res.status(400).json({ message: '유효하지 않은 GA입니다.' })
+      return
+    }
+
     const validationMessage = validateCredentials(username, password)
     if (validationMessage) {
       res.status(400).json({ message: validationMessage })
@@ -744,16 +841,17 @@ apiRouter.post('/register', async (req, res) => {
 
     const inserted = await pool.query(
       `
-      INSERT INTO users (id, username, password_hash)
-      VALUES ($1, $2, $3)
+      INSERT INTO users (id, username, password_hash, role, ga_id)
+      VALUES ($1, $2, $3, 'USER', $4)
       RETURNING created_at
       `,
-      [id, normalizedUsername, passwordHash],
+      [id, normalizedUsername, passwordHash, gaId],
     )
 
     res.status(201).json({
       id,
       username: normalizedUsername,
+      ga_id: gaId,
       createdAt: toIsoString(inserted.rows[0].created_at),
     })
   } catch (error) {
@@ -763,9 +861,9 @@ apiRouter.post('/register', async (req, res) => {
     }
     handleDbError(error, res)
   }
-})
+}
 
-apiRouter.post('/login', async (req, res) => {
+async function handleLogin(req, res) {
   try {
     const { username, password } = req.body ?? {}
     const validationMessage = validateCredentials(username, password)
@@ -819,12 +917,27 @@ apiRouter.post('/login', async (req, res) => {
 
     const uid = String(user.id)
     const role = normalizeUserRole(user.role)
+    const gaId = parseGaId(user.ga_id)
+    if (role !== 'SUPER_ADMIN' && gaId == null) {
+      res.status(500).json({ message: '계정에 GA가 연결되지 않았습니다. 관리자에게 문의하세요.' })
+      return
+    }
+
+    let gaCode = ''
+    if (gaId != null) {
+      const gRow = await pool.query(`SELECT code FROM ga_companies WHERE id = $1`, [gaId])
+      const rawCode = gRow.rows[0]?.code
+      gaCode = typeof rawCode === 'string' ? rawCode.trim().toUpperCase() : ''
+    }
+
     const token = jwt.sign(
       {
         userId: user.id,
         sub: user.id,
         username: user.username,
         role,
+        gaId,
+        gaCode,
       },
       JWT_SECRET,
       { expiresIn: '7d' },
@@ -836,24 +949,283 @@ apiRouter.post('/login', async (req, res) => {
         id: uid,
         username: user.username,
         role,
+        ga_id: gaId,
+        ga_code: gaCode,
       },
+    })
+  } catch (error) {
+    handleDbError(error, res)
+  }
+}
+
+apiRouter.post('/register', handleRegister)
+apiRouter.post('/auth/register', handleRegister)
+
+apiRouter.post('/login', handleLogin)
+apiRouter.post('/auth/login', handleLogin)
+
+apiRouter.get('/admin/ga', async (_req, res) => {
+  try {
+    const r = await pool.query(
+      `
+      SELECT id, name, code, created_at
+      FROM ga_companies
+      ORDER BY id ASC
+      `,
+    )
+    res.json(r.rows)
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.post('/admin/ga', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const name = String(req.body?.name ?? '').trim()
+    const code = String(req.body?.code ?? '').trim().toUpperCase()
+    if (!name || !code) {
+      res.status(400).json({ message: 'name과 code가 필요합니다.' })
+      return
+    }
+    if (!/^[A-Z0-9_]{2,32}$/.test(code)) {
+      res.status(400).json({ message: 'code는 2~32자의 영문 대문자·숫자·밑줄만 사용할 수 있습니다.' })
+      return
+    }
+    const ins = await pool.query(
+      `
+      INSERT INTO ga_companies (name, code)
+      VALUES ($1, $2)
+      ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
+      RETURNING id, name, code, created_at
+      `,
+      [name, code],
+    )
+    res.status(201).json(ins.rows[0])
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const filterGa = parseGaId(req.query.ga_id ?? req.query.gaId)
+    const params = []
+    let whereClause = 'TRUE'
+    if (filterGa != null) {
+      params.push(filterGa)
+      whereClause = `u.ga_id = $${params.length}`
+    }
+    const r = await pool.query(
+      `
+      SELECT g.name AS ga_company_name, u.username, u.role, u.created_at
+      FROM users u
+      INNER JOIN ga_companies g ON g.id = u.ga_id
+      WHERE ${whereClause}
+      ORDER BY g.name ASC, u.username ASC
+      `,
+      params,
+    )
+    const rows = r.rows.map((row) => ({
+      ga_company_name: row.ga_company_name,
+      username: row.username,
+      role: normalizeUserRole(row.role),
+      created_at: toIsoString(row.created_at),
+    }))
+    res.json(rows)
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+async function postAdminCreateDelegateUser(req, res) {
+  try {
+    const { username, password, name, ga_id: gaRaw, gaId: gaBody, role: roleRaw } = req.body ?? {}
+    const targetGaId = parseGaId(gaRaw ?? gaBody)
+    if (targetGaId == null) {
+      res.status(400).json({ message: 'ga_id가 필요합니다.' })
+      return
+    }
+    const gaOk = await pool.query(`SELECT 1 FROM ga_companies WHERE id = $1`, [targetGaId])
+    if (gaOk.rowCount === 0) {
+      res.status(400).json({ message: '유효하지 않은 GA입니다.' })
+      return
+    }
+
+    const roleNorm = typeof roleRaw === 'string' ? roleRaw.trim().toUpperCase() : ''
+    const targetRole = GA_DELEGATE_ROLES.includes(roleNorm) ? roleNorm : null
+    if (!targetRole) {
+      res.status(400).json({ message: 'role은 GA_ADMIN 또는 GA_STAFF 여야 합니다.' })
+      return
+    }
+
+    const validationMessage = validateCredentials(username, password)
+    if (validationMessage) {
+      res.status(400).json({ message: validationMessage })
+      return
+    }
+
+    const normalizedUsername = String(username).trim()
+    const displayName = String(name ?? '').trim()
+    const passwordHash = await bcrypt.hash(password, 10)
+    const id = randomUUID()
+
+    await pool.query(
+      `
+      INSERT INTO users (id, username, password_hash, role, display_name, ga_id)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      `,
+      [id, normalizedUsername, passwordHash, targetRole, displayName, targetGaId],
+    )
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id,
+        username: normalizedUsername,
+        role: targetRole,
+        ga_id: targetGaId,
+        displayName,
+      },
+    })
+  } catch (error) {
+    if (error?.code === '23505') {
+      res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
+      return
+    }
+    handleDbError(error, res)
+  }
+}
+
+apiRouter.post('/admin/user', requireAuth, requireSuperAdmin, postAdminCreateDelegateUser)
+
+apiRouter.post('/feature-request', requireAuth, async (req, res) => {
+  try {
+    const gaId = parseGaId(req.user?.gaId)
+    const userId = req.user?.id
+    if (gaId == null || !userId) {
+      res.status(400).json({ message: '세션 정보가 올바르지 않습니다.' })
+      return
+    }
+    const content = String(req.body?.content ?? '').trim()
+    if (!content) {
+      res.status(400).json({ message: '내용을 입력해 주세요.' })
+      return
+    }
+    if (content.length > 8000) {
+      res.status(400).json({ message: '내용은 8000자 이하로 입력해 주세요.' })
+      return
+    }
+    const ins = await pool.query(
+      `
+      INSERT INTO feature_requests (ga_id, user_id, content)
+      VALUES ($1, $2, $3)
+      RETURNING id, created_at
+      `,
+      [gaId, userId, content],
+    )
+    res.status(201).json({
+      id: ins.rows[0].id,
+      created_at: toIsoString(ins.rows[0].created_at),
     })
   } catch (error) {
     handleDbError(error, res)
   }
 })
 
-apiRouter.get('/company/list', requireAuth, async (_req, res) => {
+apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
-    const list = await loadCompanyDirectoryNestedList()
+    const r = await pool.query(
+      `
+      SELECT
+        fr.id,
+        fr.ga_id,
+        g.name AS ga_name,
+        u.username,
+        fr.content,
+        fr.status,
+        fr.created_at
+      FROM feature_requests fr
+      INNER JOIN ga_companies g ON g.id = fr.ga_id
+      INNER JOIN users u ON u.id = fr.user_id
+      ORDER BY fr.created_at DESC
+      LIMIT 500
+      `,
+    )
+    const rows = r.rows.map((row) => ({
+      id: row.id,
+      ga_id: row.ga_id,
+      ga_name: row.ga_name,
+      username: row.username,
+      content: row.content,
+      status: row.status,
+      created_at: toIsoString(row.created_at),
+    }))
+    res.json(rows)
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.patch('/admin/feature-requests/:id', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id < 1) {
+      res.status(400).json({ message: '잘못된 ID입니다.' })
+      return
+    }
+    const status = String(req.body?.status ?? '').trim()
+    if (!FEATURE_REQUEST_STATUSES.includes(status)) {
+      res.status(400).json({ message: 'status는 pending, reviewed, done 중 하나여야 합니다.' })
+      return
+    }
+    const upd = await pool.query(
+      `
+      UPDATE feature_requests
+      SET status = $1
+      WHERE id = $2
+      RETURNING id, ga_id, user_id, content, status, created_at
+      `,
+      [status, id],
+    )
+    if (upd.rowCount === 0) {
+      res.status(404).json({ message: '요청을 찾을 수 없습니다.' })
+      return
+    }
+    const row = upd.rows[0]
+    res.json({
+      id: row.id,
+      ga_id: row.ga_id,
+      user_id: row.user_id,
+      content: row.content,
+      status: row.status,
+      created_at: toIsoString(row.created_at),
+    })
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.get('/company/list', requireAuth, async (req, res) => {
+  try {
+    const gaId = effectiveTenantGaId(req)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const list = await loadCompanyDirectoryNestedList(gaId)
     res.json(list)
   } catch (error) {
     handleDbError(error, res)
   }
 })
 
-apiRouter.get('/company/recent-updates', requireAuth, async (_req, res) => {
+apiRouter.get('/company/recent-updates', requireAuth, async (req, res) => {
   try {
+    const gaId = effectiveTenantGaId(req)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
     const result = await pool.query(
       `
       SELECT
@@ -866,9 +1238,11 @@ apiRouter.get('/company/recent-updates', requireAuth, async (_req, res) => {
         before_payload,
         after_payload
       FROM insurance_company_update_log
+      WHERE ga_id = $1
       ORDER BY updated_at DESC NULLS LAST, id DESC
       LIMIT 200
       `,
+      [gaId],
     )
     const rows = result.rows.map((row) => {
       const ts = row.updated_at
@@ -891,8 +1265,14 @@ apiRouter.get('/company/recent-updates', requireAuth, async (_req, res) => {
   }
 })
 
-apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (req, res) => {
+apiRouter.post('/company/full-save', requireAuth, requireGaAdminOrSuper, async (req, res) => {
   try {
+    const tenantGa = effectiveTenantGaId(req)
+    if (tenantGa == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+
     const editor = String(req.user?.username ?? '').trim() || 'staff'
     const { company: co, contacts: contactsIn } = req.body ?? {}
     const name = String(co?.name ?? '').trim()
@@ -924,8 +1304,8 @@ apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (re
     const companyId = await withTransaction(async (client) => {
       if (!existingId) {
         const found = await client.query(
-          `SELECT id FROM insurance_company_master WHERE category = $1 AND name = $2`,
-          [category, name],
+          `SELECT id FROM insurance_company_master WHERE ga_id = $3 AND category = $1 AND name = $2`,
+          [category, name, tenantGa],
         )
         if (found.rowCount > 0) {
           existingId = Number(found.rows[0].id)
@@ -934,7 +1314,7 @@ apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (re
 
       let beforeSnap = emptyCompanySnapshot()
       if (existingId) {
-        beforeSnap = await loadCompanySnapshot(client, existingId)
+        beforeSnap = await loadCompanySnapshot(client, existingId, tenantGa)
       }
 
       let cid
@@ -951,10 +1331,20 @@ apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (re
             visit_info = $6,
             updated_at = NOW(),
             updated_by_username = $7
-          WHERE id = $8
+          WHERE id = $8 AND ga_id = $9
           RETURNING id
           `,
-          [category, name, customerCenter, systemPhone, incallNumber, visitInfo, editor, existingId],
+          [
+            category,
+            name,
+            customerCenter,
+            systemPhone,
+            incallNumber,
+            visitInfo,
+            editor,
+            existingId,
+            tenantGa,
+          ],
         )
         if (updated.rowCount === 0) {
           const err = new Error('해당 보험사를 찾을 수 없습니다.')
@@ -967,13 +1357,13 @@ apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (re
         const inserted = await client.query(
           `
           INSERT INTO insurance_company_master (
-            category, name, customer_center, system_phone, incall_number, visit_info,
+            ga_id, category, name, customer_center, system_phone, incall_number, visit_info,
             updated_at, updated_by_username
           )
-          VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
           RETURNING id
           `,
-          [category, name, customerCenter, systemPhone, incallNumber, visitInfo, editor],
+          [tenantGa, category, name, customerCenter, systemPhone, incallNumber, visitInfo, editor],
         )
         cid = inserted.rows[0].id
       }
@@ -1005,17 +1395,25 @@ apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (re
       await client.query(
         `
         INSERT INTO insurance_company_update_log (
-          company_id, company_name, category, updated_by_username, before_payload, after_payload
+          ga_id, company_id, company_name, category, updated_by_username, before_payload, after_payload
         )
-        VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb)
+        VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
         `,
-        [cid, name, category, editor, JSON.stringify(beforeSnap), JSON.stringify(afterSnap)],
+        [
+          tenantGa,
+          cid,
+          name,
+          category,
+          editor,
+          JSON.stringify(beforeSnap),
+          JSON.stringify(afterSnap),
+        ],
       )
 
       return cid
     })
 
-    const list = await loadCompanyDirectoryNestedList()
+    const list = await loadCompanyDirectoryNestedList(tenantGa)
     const data = list.find((x) => x.id === companyId) ?? null
 
     const wasUpdate = Boolean(existingId)
@@ -1033,8 +1431,14 @@ apiRouter.post('/company/full-save', requireAuth, requireStaffOrAdmin, async (re
   }
 })
 
-apiRouter.post('/company/general-save', requireAuth, requireStaffOrAdmin, async (req, res) => {
+apiRouter.post('/company/general-save', requireAuth, requireGaAdminOrSuper, async (req, res) => {
   try {
+    const tenantGa = effectiveTenantGaId(req)
+    if (tenantGa == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+
     const { company: co, general: g } = req.body ?? {}
     const name = String(co?.name ?? '').trim()
     let category = normalizeInsuranceCompanyCategory(co?.category)
@@ -1045,8 +1449,8 @@ apiRouter.post('/company/general-save', requireAuth, requireStaffOrAdmin, async 
     }
 
     const found = await pool.query(
-      `SELECT id FROM insurance_company_master WHERE category = $1 AND name = $2`,
-      [category, name],
+      `SELECT id FROM insurance_company_master WHERE ga_id = $3 AND category = $1 AND name = $2`,
+      [category, name, tenantGa],
     )
     if (found.rowCount === 0) {
       res.status(404).json({
@@ -1082,12 +1486,18 @@ apiRouter.post('/company/general-save', requireAuth, requireStaffOrAdmin, async 
   }
 })
 
-apiRouter.get('/insurance/contacts', requireAuth, async (_req, res) => {
+apiRouter.get('/insurance/contacts', requireAuth, async (req, res) => {
   try {
+    const gaId = effectiveTenantGaId(req)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
     const contactsResult = await pool.query(
       `
       SELECT id, category, company_name, manager_name, position, phone_number, created_at, updated_at
       FROM insurance_contacts
+      WHERE ga_id = $1
       ORDER BY
         CASE category
           WHEN 'LIFE' THEN 1
@@ -1098,14 +1508,16 @@ apiRouter.get('/insurance/contacts', requireAuth, async (_req, res) => {
         company_name ASC,
         manager_name ASC
       `,
+      [gaId],
     )
 
     const metaResult = await pool.query(
       `
       SELECT meta_value
       FROM insurance_contact_meta
-      WHERE meta_key = 'contact_last_updated_at'
+      WHERE meta_key = $1
       `,
+      [`contact_last_updated_at:${gaId}`],
     )
 
     const fallbackUpdatedAt =
@@ -1127,8 +1539,13 @@ apiRouter.get('/insurance/contacts', requireAuth, async (_req, res) => {
   }
 })
 
-apiRouter.get('/insurance/updates', requireAuth, async (_req, res) => {
+apiRouter.get('/insurance/updates', requireAuth, async (req, res) => {
   try {
+    const gaId = effectiveTenantGaId(req)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
     const result = await pool.query(
       `
       SELECT
@@ -1144,8 +1561,10 @@ apiRouter.get('/insurance/updates', requireAuth, async (_req, res) => {
         description,
         created_at
       FROM insurance_contact_updates
+      WHERE ga_id = $1
       ORDER BY created_at DESC
       `,
+      [gaId],
     )
 
     res.json(result.rows.map(mapContactUpdateRow))
@@ -1156,13 +1575,18 @@ apiRouter.get('/insurance/updates', requireAuth, async (_req, res) => {
 
 apiRouter.get('/insurance/contacts/:id/vcard', requireAuth, async (req, res) => {
   try {
+    const gaId = effectiveTenantGaId(req)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
     const result = await pool.query(
       `
       SELECT id, company_name, manager_name, position, phone_number
       FROM insurance_contacts
-      WHERE id = $1
+      WHERE id = $1 AND ga_id = $2
       `,
-      [req.params.id],
+      [req.params.id, gaId],
     )
 
     if (result.rowCount === 0) {
@@ -1184,48 +1608,20 @@ apiRouter.get('/insurance/contacts/:id/vcard', requireAuth, async (req, res) => 
   }
 })
 
+/** 하위 호환: 항상 GA_ADMIN으로 생성 (신규 연동은 POST /admin/user 사용) */
 apiRouter.post('/admin/create-staff', requireAuth, requireSuperAdmin, async (req, res) => {
-  try {
-    const { username, password, name } = req.body ?? {}
-    const validationMessage = validateCredentials(username, password)
-    if (validationMessage) {
-      res.status(400).json({ message: validationMessage })
-      return
-    }
-
-    const normalizedUsername = String(username).trim()
-    const displayName = String(name ?? '').trim()
-    const passwordHash = await bcrypt.hash(password, 10)
-    const id = randomUUID()
-
-    await pool.query(
-      `
-      INSERT INTO users (id, username, password_hash, role, display_name)
-      VALUES ($1, $2, $3, 'staff', $4)
-      `,
-      [id, normalizedUsername, passwordHash, displayName],
-    )
-
-    res.status(201).json({
-      success: true,
-      data: {
-        id,
-        username: normalizedUsername,
-        role: 'staff',
-        displayName,
-      },
-    })
-  } catch (error) {
-    if (error?.code === '23505') {
-      res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
-      return
-    }
-    handleDbError(error, res)
-  }
+  req.body = { ...(req.body ?? {}), role: 'GA_ADMIN' }
+  return postAdminCreateDelegateUser(req, res)
 })
 
-apiRouter.post('/admin/insurance/contacts', requireAuth, requireStaffOrAdmin, async (req, res) => {
+apiRouter.post('/admin/insurance/contacts', requireAuth, requireGaAdminOrSuper, async (req, res) => {
   try {
+    const tenantGa = effectiveTenantGaId(req)
+    if (tenantGa == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+
     const companyName = String(req.body?.companyName ?? req.body?.company_name ?? '').trim()
     let category = normalizeCategory(req.body?.category)
     category = coerceMeritzFireToNonLifeCategory(category, companyName)
@@ -1248,24 +1644,34 @@ apiRouter.post('/admin/insurance/contacts', requireAuth, requireStaffOrAdmin, as
       const contactResult = await client.query(
         `
         INSERT INTO insurance_contacts (
-          id, category, company_name, manager_name, position, phone_number, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+          id, ga_id, category, company_name, manager_name, position, phone_number, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
         RETURNING id, category, company_name, manager_name, position, phone_number, created_at, updated_at
         `,
-        [contactId, category, companyName, managerName, position, phoneNumber],
+        [contactId, tenantGa, category, companyName, managerName, position, phoneNumber],
       )
 
       await client.query(
         `
         INSERT INTO insurance_contact_updates (
-          id, contact_id, action_type, category, company_name, manager_name, position,
+          id, ga_id, contact_id, action_type, category, company_name, manager_name, position,
           old_phone_number, new_phone_number, description, created_at
-        ) VALUES ($1, $2, 'CREATE', $3, $4, $5, $6, NULL, $7, $8, NOW())
+        ) VALUES ($1, $2, $3, 'CREATE', $4, $5, $6, $7, NULL, $8, $9, NOW())
         `,
-        [randomUUID(), contactId, category, companyName, managerName, position, phoneNumber, description],
+        [
+          randomUUID(),
+          tenantGa,
+          contactId,
+          category,
+          companyName,
+          managerName,
+          position,
+          phoneNumber,
+          description,
+        ],
       )
 
-      await touchContactLastUpdatedAt(client)
+      await touchContactLastUpdatedAt(client, tenantGa)
       return contactResult.rows[0]
     })
 
@@ -1275,8 +1681,14 @@ apiRouter.post('/admin/insurance/contacts', requireAuth, requireStaffOrAdmin, as
   }
 })
 
-apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireStaffOrAdmin, async (req, res) => {
+apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireGaAdminOrSuper, async (req, res) => {
   try {
+    const tenantGa = effectiveTenantGaId(req)
+    if (tenantGa == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+
     const contactId = req.params.id
     const companyName = String(req.body?.companyName ?? req.body?.company_name ?? '').trim()
     let category = normalizeCategory(req.body?.category)
@@ -1300,9 +1712,9 @@ apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireStaffOrAdmin,
         `
         SELECT id, category, company_name, manager_name, position, phone_number
         FROM insurance_contacts
-        WHERE id = $1
+        WHERE id = $1 AND ga_id = $2
         `,
-        [contactId],
+        [contactId, tenantGa],
       )
 
       if (existing.rowCount === 0) {
@@ -1319,22 +1731,23 @@ apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireStaffOrAdmin,
           position = $4,
           phone_number = $5,
           updated_at = NOW()
-        WHERE id = $6
+        WHERE id = $6 AND ga_id = $7
         RETURNING id, category, company_name, manager_name, position, phone_number, created_at, updated_at
         `,
-        [category, companyName, managerName, position, phoneNumber, contactId],
+        [category, companyName, managerName, position, phoneNumber, contactId, tenantGa],
       )
 
       const prev = existing.rows[0]
       await client.query(
         `
         INSERT INTO insurance_contact_updates (
-          id, contact_id, action_type, category, company_name, manager_name, position,
+          id, ga_id, contact_id, action_type, category, company_name, manager_name, position,
           old_phone_number, new_phone_number, description, created_at
-        ) VALUES ($1, $2, 'UPDATE', $3, $4, $5, $6, $7, $8, $9, NOW())
+        ) VALUES ($1, $2, $3, 'UPDATE', $4, $5, $6, $7, $8, $9, $10, NOW())
         `,
         [
           randomUUID(),
+          tenantGa,
           contactId,
           category,
           companyName,
@@ -1346,7 +1759,7 @@ apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireStaffOrAdmin,
         ],
       )
 
-      await touchContactLastUpdatedAt(client)
+      await touchContactLastUpdatedAt(client, tenantGa)
       return updated.rows[0]
     })
 
@@ -1361,8 +1774,14 @@ apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireStaffOrAdmin,
   }
 })
 
-apiRouter.delete('/admin/insurance/contacts/:id', requireAuth, requireStaffOrAdmin, async (req, res) => {
+apiRouter.delete('/admin/insurance/contacts/:id', requireAuth, requireGaAdminOrSuper, async (req, res) => {
   try {
+    const tenantGa = effectiveTenantGaId(req)
+    if (tenantGa == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+
     const contactId = req.params.id
     const description = String(req.body?.description ?? '연락처 삭제').trim()
 
@@ -1371,9 +1790,9 @@ apiRouter.delete('/admin/insurance/contacts/:id', requireAuth, requireStaffOrAdm
         `
         SELECT id, category, company_name, manager_name, position, phone_number
         FROM insurance_contacts
-        WHERE id = $1
+        WHERE id = $1 AND ga_id = $2
         `,
-        [contactId],
+        [contactId, tenantGa],
       )
 
       if (existing.rowCount === 0) {
@@ -1383,21 +1802,22 @@ apiRouter.delete('/admin/insurance/contacts/:id', requireAuth, requireStaffOrAdm
       await client.query(
         `
         DELETE FROM insurance_contacts
-        WHERE id = $1
+        WHERE id = $1 AND ga_id = $2
         `,
-        [contactId],
+        [contactId, tenantGa],
       )
 
       const prev = existing.rows[0]
       await client.query(
         `
         INSERT INTO insurance_contact_updates (
-          id, contact_id, action_type, category, company_name, manager_name, position,
+          id, ga_id, contact_id, action_type, category, company_name, manager_name, position,
           old_phone_number, new_phone_number, description, created_at
-        ) VALUES ($1, $2, 'DELETE', $3, $4, $5, $6, $7, NULL, $8, NOW())
+        ) VALUES ($1, $2, $3, 'DELETE', $4, $5, $6, $7, $8, NULL, $9, NOW())
         `,
         [
           randomUUID(),
+          tenantGa,
           contactId,
           prev.category,
           prev.company_name,
@@ -1408,7 +1828,7 @@ apiRouter.delete('/admin/insurance/contacts/:id', requireAuth, requireStaffOrAdm
         ],
       )
 
-      await touchContactLastUpdatedAt(client)
+      await touchContactLastUpdatedAt(client, tenantGa)
       return prev
     })
 
@@ -1429,15 +1849,20 @@ apiRouter.get('/forms', requireAuth, async (req, res) => {
     if (!userId) {
       return
     }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
 
     const result = await pool.query(
       `
       SELECT id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
-      WHERE user_id = $1
+      WHERE user_id = $1 AND ga_id = $2
       ORDER BY created_at DESC, id DESC
       `,
-      [userId],
+      [userId, gaId],
     )
 
     res.json(result.rows.map(mapFormRow))
@@ -1452,17 +1877,22 @@ apiRouter.get('/forms/expiring', requireAuth, async (req, res) => {
     if (!userId) {
       return
     }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
 
     const result = await pool.query(
       `
       SELECT id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
-      WHERE user_id = $1
+      WHERE user_id = $1 AND ga_id = $2
         AND expiry_date IS NOT NULL
         AND expiry_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
       ORDER BY expiry_date ASC, updated_at DESC
       `,
-      [userId],
+      [userId, gaId],
     )
 
     res.json(result.rows.map(mapFormRow))
@@ -1475,6 +1905,11 @@ apiRouter.post('/forms', requireAuth, async (req, res) => {
   try {
     const userId = requireInsuranceFormUserId(req, res)
     if (!userId) {
+      return
+    }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
     }
 
@@ -1513,11 +1948,20 @@ apiRouter.post('/forms', requireAuth, async (req, res) => {
     const inserted = await pool.query(
       `
       INSERT INTO insurance_forms (
-        id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW(), NOW())
+        id, user_id, ga_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW(), NOW())
       RETURNING id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       `,
-      [id, userId, customerIdFk, customerName, carNumber, expiryDate || null, JSON.stringify(mergedForm)],
+      [
+        id,
+        userId,
+        gaId,
+        customerIdFk,
+        customerName,
+        carNumber,
+        expiryDate || null,
+        JSON.stringify(mergedForm),
+      ],
     )
 
     await logInsuranceFormsDbDiagnostics('post')
@@ -1535,13 +1979,19 @@ apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
       return
     }
 
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+
     const result = await pool.query(
       `
-      SELECT id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      SELECT id, user_id, ga_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1 AND user_id = $2 AND ga_id = $3
       `,
-      [req.params.id, userId],
+      [req.params.id, userId, gaId],
     )
 
     const original = result.rows[0]
@@ -1583,9 +2033,9 @@ apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
       const check = await pool.query(
         `
         SELECT id FROM insurance_forms
-        WHERE user_id = $1 AND expiry_date = $2
+        WHERE user_id = $1 AND ga_id = $3 AND expiry_date = $2
         `,
-        [userId, newExpiry],
+        [userId, newExpiry, gaId],
       )
       if (check.rowCount > 0) {
         res.status(400).json({ error: '이미 갱신된 신청서 있음' })
@@ -1597,16 +2047,19 @@ apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
     const customerName = String(original.customer_name ?? prevFormData.ownerName ?? '')
     const carNumber = String(original.car_number ?? prevFormData.vehicleNumber ?? '')
 
+    const formGaId = parseGaId(original.ga_id) ?? gaId
+
     const insert = await pool.query(
       `
       INSERT INTO insurance_forms (
-        id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, NOW(), NOW())
+        id, user_id, ga_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW(), NOW())
       RETURNING id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       `,
       [
         newId,
         userId,
+        formGaId,
         Number.isInteger(renewedCustomerId) && renewedCustomerId > 0 ? renewedCustomerId : null,
         customerName,
         carNumber,
@@ -1627,6 +2080,11 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
   try {
     const userId = requireInsuranceFormUserId(req, res)
     if (!userId) {
+      return
+    }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
     }
 
@@ -1664,9 +2122,9 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
     const inserted = await pool.query(
       `
       INSERT INTO customers (
-        user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        user_id, ga_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         gender, insurance_age, next_age_date, is_driver, car_type, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb)
       RETURNING
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
@@ -1675,6 +2133,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
       `,
       [
         userId,
+        gaId,
         name,
         ssn,
         String(data.phone ?? '').trim(),
@@ -1709,13 +2168,18 @@ apiRouter.post('/customer/external-create', async (req, res) => {
       return
     }
 
-    const userRow = await pool.query(`SELECT id, role FROM users WHERE id = $1`, [refUserId])
+    const userRow = await pool.query(`SELECT id, role, ga_id FROM users WHERE id = $1`, [refUserId])
     if (userRow.rowCount === 0) {
       res.status(400).json({ message: '유효하지 않은 소개 링크입니다.' })
       return
     }
-    if (normalizeUserRole(userRow.rows[0].role) !== 'user') {
+    if (normalizeUserRole(userRow.rows[0].role) !== 'USER') {
       res.status(400).json({ message: '고객 정보를 받을 수 있는 계정이 아닙니다.' })
+      return
+    }
+    const refGaId = parseGaId(userRow.rows[0].ga_id)
+    if (refGaId == null) {
+      res.status(400).json({ message: '소개 계정에 GA가 연결되지 않았습니다.' })
       return
     }
 
@@ -1752,9 +2216,9 @@ apiRouter.post('/customer/external-create', async (req, res) => {
     const inserted = await pool.query(
       `
       INSERT INTO customers (
-        user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        user_id, ga_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         gender, insurance_age, next_age_date, is_driver, car_type, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb)
       RETURNING
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
@@ -1763,6 +2227,7 @@ apiRouter.post('/customer/external-create', async (req, res) => {
       `,
       [
         refUserId,
+        refGaId,
         name,
         ssn,
         String(data.phone ?? '').trim(),

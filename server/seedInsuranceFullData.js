@@ -156,17 +156,24 @@ export async function seedAll(pool) {
   try {
     await client.query('BEGIN')
 
+    const gaRes = await client.query(`SELECT id FROM ga_companies WHERE code = 'YJASSET' LIMIT 1`)
+    const seedGaId = gaRes.rows[0]?.id
+    if (seedGaId == null) {
+      throw new Error('[seed] YJASSET GA 가 없습니다. initDb를 먼저 실행하세요.')
+    }
+
     for (const item of SEED_DATA) {
       const co = item.company
       const result = await client.query(
         `
         INSERT INTO insurance_company_master (
-          category, name, customer_center, system_phone, incall_number, visit_info
+          ga_id, category, name, customer_center, system_phone, incall_number, visit_info
         )
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id
         `,
         [
+          seedGaId,
           co.category ?? '',
           co.name ?? '',
           co.customer_center ?? '',

@@ -35,6 +35,12 @@ async function ensureBootstrapAdminUser() {
   const password = process.env.INSURANCE_ADMIN_BOOTSTRAP_PASSWORD || '1234'
   const hash = await bcrypt.hash(password, 10)
 
+  const gaRes = await pool.query(`SELECT id FROM ga_companies WHERE code = 'YJASSET' LIMIT 1`)
+  const gaId = gaRes.rows[0]?.id
+  if (gaId == null) {
+    throw new Error('[initDb] YJASSET GA 가 없어 bootstrap 관리자를 만들 수 없습니다.')
+  }
+
   const existing = await pool.query(`SELECT id FROM users WHERE username = $1`, [username])
 
   if (existing.rowCount === 0) {
@@ -42,10 +48,10 @@ async function ensureBootstrapAdminUser() {
     const id = randomUUID()
     await pool.query(
       `
-      INSERT INTO users (id, username, password_hash, role)
-      VALUES ($1, $2, $3, 'super_admin')
+      INSERT INTO users (id, username, password_hash, role, ga_id)
+      VALUES ($1, $2, $3, 'SUPER_ADMIN', $4)
       `,
-      [id, username, hash],
+      [id, username, hash, gaId],
     )
     console.log('[initDb] admin 생성 완료')
     return
@@ -54,12 +60,12 @@ async function ensureBootstrapAdminUser() {
   await pool.query(
     `
     UPDATE users
-    SET password_hash = $1, role = 'super_admin'
+    SET password_hash = $1, role = 'SUPER_ADMIN', ga_id = $3
     WHERE username = $2
     `,
-    [hash, username],
+    [hash, username, gaId],
   )
-  console.log('[initDb] admin 비밀번호·역할(super_admin) 업데이트 완료:', username)
+  console.log('[initDb] admin 비밀번호·역할(SUPER_ADMIN)·ga_id 업데이트 완료:', username)
 }
 
 export async function initDb() {
@@ -80,6 +86,77 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT ''
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ga_companies (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      code TEXT NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(
+    `
+    INSERT INTO ga_companies (name, code)
+    VALUES ('영진에셋', 'YJASSET')
+    ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
+    `,
+  )
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+
+  await pool.query(`
+    UPDATE users u
+    SET ga_id = g.id
+    FROM ga_companies g
+    WHERE g.code = 'YJASSET' AND u.ga_id IS NULL
+  `)
+
+  await pool.query(`
+    UPDATE users SET role = CASE role
+      WHEN 'super_admin' THEN 'SUPER_ADMIN'
+      WHEN 'staff' THEN 'GA_ADMIN'
+      WHEN 'user' THEN 'USER'
+      WHEN 'SUPER_ADMIN' THEN 'SUPER_ADMIN'
+      WHEN 'GA_ADMIN' THEN 'GA_ADMIN'
+      WHEN 'GA_STAFF' THEN 'GA_STAFF'
+      WHEN 'USER' THEN 'USER'
+      ELSE 'USER'
+    END
+  `)
+
+  const nullGaUsers = await pool.query(`SELECT COUNT(*)::int AS c FROM users WHERE ga_id IS NULL`)
+  if ((nullGaUsers.rows[0]?.c ?? 0) > 0) {
+    throw new Error('[initDb] users.ga_id 가 비어 있는 행이 있습니다.')
+  }
+
+  await pool.query(`
+    ALTER TABLE users ALTER COLUMN ga_id SET NOT NULL
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feature_requests (
+      id SERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      content TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT feature_requests_status_check CHECK (status IN ('pending', 'reviewed', 'done'))
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_feature_requests_created
+    ON feature_requests(created_at DESC)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_feature_requests_ga
+    ON feature_requests(ga_id)
   `)
 
   await pool.query(`
@@ -162,6 +239,26 @@ export async function initDb() {
 
   await pool.query(`
     ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+  await pool.query(`
+    UPDATE customers c
+    SET ga_id = u.ga_id
+    FROM users u
+    WHERE c.user_id = u.id AND c.ga_id IS NULL
+  `)
+  const nullCust = await pool.query(`SELECT COUNT(*)::int AS c FROM customers WHERE ga_id IS NULL`)
+  if ((nullCust.rows[0]?.c ?? 0) > 0) {
+    throw new Error('[initDb] customers.ga_id NULL')
+  }
+  await pool.query(`ALTER TABLE customers ALTER COLUMN ga_id SET NOT NULL`)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customers_ga
+    ON customers(ga_id)
+  `)
+
+  await pool.query(`
+    ALTER TABLE customers
     ADD COLUMN IF NOT EXISTS car_number TEXT NOT NULL DEFAULT '',
     ADD COLUMN IF NOT EXISTS car_model TEXT NOT NULL DEFAULT '',
     ADD COLUMN IF NOT EXISTS car_year TEXT NOT NULL DEFAULT '',
@@ -195,6 +292,26 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    ALTER TABLE insurance_forms
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+  await pool.query(`
+    UPDATE insurance_forms f
+    SET ga_id = u.ga_id
+    FROM users u
+    WHERE f.user_id = u.id AND f.ga_id IS NULL
+  `)
+  const nullForms = await pool.query(`SELECT COUNT(*)::int AS c FROM insurance_forms WHERE ga_id IS NULL`)
+  if ((nullForms.rows[0]?.c ?? 0) > 0) {
+    throw new Error('[initDb] insurance_forms.ga_id NULL')
+  }
+  await pool.query(`ALTER TABLE insurance_forms ALTER COLUMN ga_id SET NOT NULL`)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_insurance_forms_ga
+    ON insurance_forms(ga_id)
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS insurance_contacts (
       id TEXT PRIMARY KEY,
       category TEXT NOT NULL CHECK (category IN ('LIFE', 'NON_LIFE', 'GENERAL')),
@@ -221,6 +338,26 @@ export async function initDb() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_insurance_contacts_category
     ON insurance_contacts(category, company_name, manager_name)
+  `)
+
+  await pool.query(`
+    ALTER TABLE insurance_contacts
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+  await pool.query(`
+    UPDATE insurance_contacts c
+    SET ga_id = g.id
+    FROM ga_companies g
+    WHERE g.code = 'YJASSET' AND c.ga_id IS NULL
+  `)
+  const nullIcGa = await pool.query(`SELECT COUNT(*)::int AS c FROM insurance_contacts WHERE ga_id IS NULL`)
+  if ((nullIcGa.rows[0]?.c ?? 0) > 0) {
+    throw new Error('[initDb] insurance_contacts.ga_id NULL')
+  }
+  await pool.query(`ALTER TABLE insurance_contacts ALTER COLUMN ga_id SET NOT NULL`)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_insurance_contacts_ga
+    ON insurance_contacts(ga_id)
   `)
 
   await pool.query(`
@@ -257,6 +394,28 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_insurance_contact_updates_created
     ON insurance_contact_updates(created_at DESC)
   `)
+
+  await pool.query(`
+    ALTER TABLE insurance_contact_updates
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+  await pool.query(`
+    UPDATE insurance_contact_updates u
+    SET ga_id = c.ga_id
+    FROM insurance_contacts c
+    WHERE u.contact_id = c.id AND u.ga_id IS NULL
+  `)
+  await pool.query(`
+    UPDATE insurance_contact_updates u
+    SET ga_id = g.id
+    FROM ga_companies g
+    WHERE g.code = 'YJASSET' AND u.ga_id IS NULL
+  `)
+  const nullIcuGa = await pool.query(`SELECT COUNT(*)::int AS c FROM insurance_contact_updates WHERE ga_id IS NULL`)
+  if ((nullIcuGa.rows[0]?.c ?? 0) > 0) {
+    throw new Error('[initDb] insurance_contact_updates.ga_id NULL')
+  }
+  await pool.query(`ALTER TABLE insurance_contact_updates ALTER COLUMN ga_id SET NOT NULL`)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS insurance_contact_meta (
@@ -338,13 +497,51 @@ export async function initDb() {
   `)
 
   await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_insurance_general_request_company
-    ON insurance_general_request(company_id)
+    ALTER TABLE insurance_company_master
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
   `)
+  await pool.query(`
+    UPDATE insurance_company_master m
+    SET ga_id = g.id
+    FROM ga_companies g
+    WHERE g.code = 'YJASSET' AND m.ga_id IS NULL
+  `)
+  const nullM = await pool.query(`SELECT COUNT(*)::int AS c FROM insurance_company_master WHERE ga_id IS NULL`)
+  if ((nullM.rows[0]?.c ?? 0) > 0) {
+    throw new Error('[initDb] insurance_company_master.ga_id NULL')
+  }
+  await pool.query(`DROP INDEX IF EXISTS uq_insurance_company_master_category_name`)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_insurance_company_master_ga_category_name
+    ON insurance_company_master (ga_id, category, name)
+  `)
+  await pool.query(`ALTER TABLE insurance_company_master ALTER COLUMN ga_id SET NOT NULL`)
 
   await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS uq_insurance_company_master_category_name
-    ON insurance_company_master (category, name)
+    ALTER TABLE insurance_company_update_log
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+  await pool.query(`
+    UPDATE insurance_company_update_log l
+    SET ga_id = m.ga_id
+    FROM insurance_company_master m
+    WHERE l.company_id = m.id AND l.ga_id IS NULL
+  `)
+  await pool.query(`
+    UPDATE insurance_company_update_log l
+    SET ga_id = g.id
+    FROM ga_companies g
+    WHERE g.code = 'YJASSET' AND l.ga_id IS NULL
+  `)
+  const nullLog = await pool.query(`SELECT COUNT(*)::int AS c FROM insurance_company_update_log WHERE ga_id IS NULL`)
+  if ((nullLog.rows[0]?.c ?? 0) > 0) {
+    throw new Error('[initDb] insurance_company_update_log.ga_id NULL')
+  }
+  await pool.query(`ALTER TABLE insurance_company_update_log ALTER COLUMN ga_id SET NOT NULL`)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_insurance_general_request_company
+    ON insurance_general_request(company_id)
   `)
 
   // 메리츠(화재)는 손해보험사: 잘못 LIFE로 들어간 행을 NON_LIFE로 정정 (중복 없을 때만)
@@ -364,6 +561,7 @@ export async function initDb() {
         WHERE x.category = 'NON_LIFE'
           AND TRIM(x.name) = TRIM(icm.name)
           AND x.id <> icm.id
+          AND x.ga_id = icm.ga_id
       )
   `)
   if (meritzRes.rowCount > 0) {
@@ -385,6 +583,7 @@ export async function initDb() {
       ON n.category = 'NON_LIFE'
       AND l.category = 'LIFE'
       AND TRIM(l.name) = TRIM(n.name)
+      AND n.ga_id = l.ga_id
     WHERE c.company_id = l.id
       AND (${meritzNameCond})
   `)
@@ -396,6 +595,7 @@ export async function initDb() {
       ON n.category = 'NON_LIFE'
       AND l.category = 'LIFE'
       AND TRIM(l.name) = TRIM(n.name)
+      AND n.ga_id = l.ga_id
     WHERE g.company_id = l.id
       AND (${meritzNameCond})
   `)
@@ -406,6 +606,7 @@ export async function initDb() {
     WHERE l.category = 'LIFE'
       AND n.category = 'NON_LIFE'
       AND TRIM(l.name) = TRIM(n.name)
+      AND l.ga_id = n.ga_id
       AND (${meritzNameCond})
     RETURNING l.id
   `)
@@ -428,13 +629,17 @@ export async function initDb() {
     console.log('[initDb] 재보험 연락처 메리츠 분류 정정: LIFE → NON_LIFE', meritzIc.rowCount, '행')
   }
 
+  const yjGaRes = await pool.query(`SELECT id FROM ga_companies WHERE code = 'YJASSET' LIMIT 1`)
+  const yjGaId = yjGaRes.rows[0]?.id
+
   const directoryClient = await pool.connect()
   try {
     await directoryClient.query('BEGIN')
     await runCompanyDirectorySanitize(directoryClient, (msg, ...args) =>
       console.log('[initDb][company-directory]', msg, ...args),
+      yjGaId,
     )
-    await touchContactLastUpdatedAt(directoryClient)
+    await touchContactLastUpdatedAt(directoryClient, yjGaId)
     await directoryClient.query('COMMIT')
   } catch (e) {
     await directoryClient.query('ROLLBACK')
@@ -496,6 +701,26 @@ export async function initDb() {
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   `)
 
+  const yjConsentGa = await pool.query(`SELECT id FROM ga_companies WHERE code = 'YJASSET' LIMIT 1`)
+  const yjConsentGaId = yjConsentGa.rows[0]?.id
+  if (yjConsentGaId != null) {
+    await pool.query(`UPDATE consent_templates SET ga_id = $1 WHERE ga_id IS DISTINCT FROM $1`, [
+      yjConsentGaId,
+    ])
+    await pool.query(`
+      DELETE FROM consent_templates a
+      USING consent_templates b
+      WHERE a.ga_id = b.ga_id
+        AND a.insurance_company_id = b.insurance_company_id
+        AND a.id::text > b.id::text
+    `)
+  }
+  await pool.query(`ALTER TABLE consent_templates DROP CONSTRAINT IF EXISTS fk_consent_templates_ga`)
+  await pool.query(`
+    ALTER TABLE consent_templates
+    ADD CONSTRAINT fk_consent_templates_ga FOREIGN KEY (ga_id) REFERENCES ga_companies(id)
+  `)
+
   await maybeDebugResetAllUsers()
   await ensureBootstrapAdminUser()
   await seedConsentTemplatesIfNeeded()
@@ -513,10 +738,16 @@ async function seedConsentTemplatesIfNeeded() {
     doc.addPage([595.28, 841.89])
     const blank = Buffer.from(await doc.save())
 
+    const gaRow = await pool.query(`SELECT id FROM ga_companies WHERE code = 'YJASSET' LIMIT 1`)
+    const seedGaId = gaRow.rows[0]?.id
+    if (seedGaId == null) {
+      throw new Error('[initDb] consent 시드: YJASSET GA 없음')
+    }
+
     for (const row of SEEDED_CONSENT_TEMPLATES) {
       const exists = await pool.query(
         `SELECT 1 FROM consent_templates WHERE ga_id = $1 AND insurance_company_id = $2`,
-        [row.gaId, row.insuranceCompanyId],
+        [seedGaId, row.insuranceCompanyId],
       )
       if (exists.rowCount > 0) {
         continue
@@ -528,7 +759,7 @@ async function seedConsentTemplatesIfNeeded() {
         INSERT INTO consent_templates (id, ga_id, insurance_company_id, fax_number, fields, pdf_storage_key)
         VALUES ($1, $2, $3, $4, $5::jsonb, $6)
         `,
-        [row.id, row.gaId, row.insuranceCompanyId, '', JSON.stringify(DEFAULT_CONSENT_FIELD_LAYOUT), key],
+        [row.id, seedGaId, row.insuranceCompanyId, '', JSON.stringify(DEFAULT_CONSENT_FIELD_LAYOUT), key],
       )
     }
     console.log('[initDb] consent_templates 시드 검사 완료')

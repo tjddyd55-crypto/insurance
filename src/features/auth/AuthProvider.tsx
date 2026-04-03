@@ -13,7 +13,8 @@ interface AuthUser {
   id: string
   username: string
   role: UserRole
-  gaId?: number
+  gaId: number
+  gaCode: string
 }
 
 interface AuthSession {
@@ -30,11 +31,39 @@ interface AuthContextValue {
 }
 
 const AUTH_STORAGE_KEY = 'insurance.auth.session'
-const ALLOWED_ROLES: UserRole[] = ['super_admin', 'staff', 'user']
+
+const VALID_CANONICAL: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF', 'USER']
+
+const LEGACY_TO_ROLE: Record<string, UserRole> = {
+  super_admin: 'SUPER_ADMIN',
+  staff: 'GA_ADMIN',
+  user: 'USER',
+}
+
+function normalizeRole(value: unknown): UserRole | null {
+  if (typeof value !== 'string') {
+    return null
+  }
+  const t = value.trim()
+  if (VALID_CANONICAL.includes(t as UserRole)) {
+    return t as UserRole
+  }
+  return LEGACY_TO_ROLE[t] ?? null
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-function isValidRole(value: unknown): value is UserRole {
-  return typeof value === 'string' && ALLOWED_ROLES.includes(value as UserRole)
+function parseGaId(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return value
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value)
+    if (Number.isInteger(n) && n > 0) {
+      return n
+    }
+  }
+  return null
 }
 
 function readStoredSession(): AuthSession | null {
@@ -49,27 +78,31 @@ function readStoredSession(): AuthSession | null {
       return null
     }
 
-    if (!isValidRole(parsed.user.role)) {
+    const role = normalizeRole(parsed.user.role)
+    if (role == null) {
       console.warn('role 없음 → 재로그인 필요')
       window.localStorage.removeItem(AUTH_STORAGE_KEY)
       return null
     }
 
-    const gaRaw = (parsed.user as { gaId?: unknown }).gaId
-    const gaId =
-      typeof gaRaw === 'number' && Number.isFinite(gaRaw)
-        ? gaRaw
-        : typeof gaRaw === 'string' && gaRaw.trim() !== '' && Number.isFinite(Number(gaRaw))
-          ? Number(gaRaw)
-          : undefined
+    const gaId = parseGaId((parsed.user as { gaId?: unknown }).gaId)
+    if (gaId == null) {
+      console.warn('gaId 없음 → 재로그인 필요')
+      window.localStorage.removeItem(AUTH_STORAGE_KEY)
+      return null
+    }
+
+    const u = parsed.user as { gaCode?: unknown }
+    const gaCode = typeof u.gaCode === 'string' ? u.gaCode.trim().toUpperCase() : ''
 
     return {
       token: parsed.token,
       user: {
         id: String(parsed.user.id),
         username: String(parsed.user.username ?? ''),
-        role: parsed.user.role,
-        ...(gaId !== undefined ? { gaId } : {}),
+        role,
+        gaId,
+        gaCode,
       },
     }
   } catch {
@@ -87,23 +120,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     (nextSession: AuthSession) => {
-      if (!isValidRole(nextSession.user?.role)) {
+      const role = normalizeRole(nextSession.user?.role)
+      if (role == null) {
         console.warn('role 없음 → 재로그인 필요')
         logout()
         return
       }
-      const gaRaw = (nextSession.user as { gaId?: unknown }).gaId
-      const normalizedUser = {
-        ...nextSession.user,
-        ...(typeof gaRaw === 'number' && Number.isFinite(gaRaw)
-          ? { gaId: gaRaw }
-          : typeof gaRaw === 'string' && gaRaw.trim() !== '' && Number.isFinite(Number(gaRaw))
-            ? { gaId: Number(gaRaw) }
-            : {}),
+      const gaId = parseGaId(nextSession.user?.gaId)
+      if (role !== 'SUPER_ADMIN' && gaId == null) {
+        console.warn('gaId 없음')
+        logout()
+        return
       }
-      const toStore = { ...nextSession, user: normalizedUser }
-      setSession(toStore)
-      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(toStore))
+      if (role === 'SUPER_ADMIN' && gaId == null) {
+        console.warn('SUPER_ADMIN gaId 없음')
+        logout()
+        return
+      }
+      const gaCode =
+        typeof nextSession.user.gaCode === 'string' ? nextSession.user.gaCode.trim().toUpperCase() : ''
+
+      const normalized: AuthSession = {
+        token: nextSession.token,
+        user: {
+          id: String(nextSession.user.id),
+          username: String(nextSession.user.username ?? ''),
+          role,
+          gaId: gaId as number,
+          gaCode,
+        },
+      }
+      setSession(normalized)
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(normalized))
     },
     [logout],
   )
@@ -112,8 +160,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!session?.user) {
       return
     }
-    if (!session.user.role) {
-      console.warn('role 없음 → 재로그인 필요')
+    if (!session.user.role || session.user.gaId == null) {
+      console.warn('세션 불완전 → 재로그인 필요')
       logout()
     }
   }, [session, logout])

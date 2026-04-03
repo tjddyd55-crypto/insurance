@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { formatKoreanDateTime } from '../../application/utils/date'
 import type { InsuranceApplicationRecord } from '../../application/domain/types'
 import {
@@ -98,6 +99,7 @@ export default function CustomersPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { user, token } = useAuth()
+  const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [statusText, setStatusText] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -144,7 +146,7 @@ export default function CustomersPage() {
     allVisibleIds.length > 0 && allVisibleIds.every((id) => selectedCustomerIds.includes(id))
 
   const loadCustomers = useCallback(async () => {
-    if (!token || user?.role !== 'user') {
+    if (!token || user?.role !== 'USER') {
       setIsLoading(false)
       return
     }
@@ -160,7 +162,7 @@ export default function CustomersPage() {
   }, [token, user?.role])
 
   useEffect(() => {
-    if (user?.role !== 'user') {
+    if (user?.role !== 'USER') {
       setIsLoading(false)
       return
     }
@@ -176,6 +178,10 @@ export default function CustomersPage() {
 
   useEffect(() => {
     if (expandedId == null) {
+      setHistoryForms([])
+      return
+    }
+    if (!carFeatureEnabled) {
       setHistoryForms([])
       return
     }
@@ -205,7 +211,7 @@ export default function CustomersPage() {
     return () => {
       cancelled = true
     }
-  }, [expandedId, token])
+  }, [expandedId, token, carFeatureEnabled])
 
   useEffect(() => {
     const el = selectAllRef.current
@@ -275,7 +281,7 @@ export default function CustomersPage() {
   }
 
   async function handleUpdateCustomer() {
-    if (!token || user?.role !== 'user' || editingId == null || !editForm) {
+    if (!token || user?.role !== 'USER' || editingId == null || !editForm) {
       return
     }
     const name = editForm.name.trim()
@@ -390,7 +396,7 @@ export default function CustomersPage() {
   }
 
   async function handleDeleteCustomer(c: CustomerRecord) {
-    if (!token || user?.role !== 'user') {
+    if (!token || user?.role !== 'USER') {
       return
     }
     if (
@@ -760,34 +766,36 @@ export default function CustomersPage() {
               </>
             )}
 
-            <div className="customer-form-history">
-              <h3 className="customer-form-history__title">연결된 신청서</h3>
-              {historyLoading ? (
-                <p className="customer-form-history__status">불러오는 중…</p>
-              ) : historyForms.length === 0 ? (
-                <p className="customer-form-history__status">이 고객 ID로 연결된 신청서가 없습니다.</p>
-              ) : (
-                <ul className="customer-form-history__list">
-                  {historyForms.map((row) => (
-                    <li key={row.id} className="customer-form-history__item">
-                      <div>
-                        <strong>{row.title}</strong>
-                        <span className="customer-form-history__meta">
-                          저장: {formatKoreanDateTime(row.updatedAt)} · 만기 {row.expiryDate || '—'}
-                        </span>
-                      </div>
-                      <button
-                        className="button button--secondary"
-                        type="button"
-                        onClick={() => navigate(`/form/${row.id}/edit`)}
-                      >
-                        열기
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            {carFeatureEnabled ? (
+              <div className="customer-form-history">
+                <h3 className="customer-form-history__title">연결된 신청서</h3>
+                {historyLoading ? (
+                  <p className="customer-form-history__status">불러오는 중…</p>
+                ) : historyForms.length === 0 ? (
+                  <p className="customer-form-history__status">이 고객 ID로 연결된 신청서가 없습니다.</p>
+                ) : (
+                  <ul className="customer-form-history__list">
+                    {historyForms.map((row) => (
+                      <li key={row.id} className="customer-form-history__item">
+                        <div>
+                          <strong>{row.title}</strong>
+                          <span className="customer-form-history__meta">
+                            저장: {formatKoreanDateTime(row.updatedAt)} · 만기 {row.expiryDate || '—'}
+                          </span>
+                        </div>
+                        <button
+                          className="button button--secondary"
+                          type="button"
+                          onClick={() => navigate(`/form/${row.id}/edit`)}
+                        >
+                          열기
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
           </div>
         ) : null}
         </div>
@@ -795,7 +803,7 @@ export default function CustomersPage() {
     )
   }
 
-  if (user?.role !== 'user') {
+  if (user?.role !== 'USER') {
     return (
       <main className="page page--with-back">
         <PageBackButton />

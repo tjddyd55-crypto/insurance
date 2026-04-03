@@ -1067,6 +1067,43 @@ body {
   max-width: 100%;
 }
 
+.dashboard-menu-footer {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.dashboard-menu-static {
+  margin: 0;
+  padding: 12px 10px;
+  font-size: 14px;
+  color: var(--text-sub);
+  text-align: center;
+  background: var(--bg-soft);
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+  cursor: default;
+  user-select: none;
+}
+
+.dashboard-app-exit-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 20px;
+  padding: 0 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+
+.dashboard-app-exit {
+  min-width: min(280px, 100%);
+  max-width: 100%;
+}
+
 .customer-hit-name--duplicate {
   color: var(--danger);
 }

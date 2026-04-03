@@ -1,15 +1,14 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from './AuthProvider'
-import { canUseStaffRoutes } from './roleGuards'
 
-/** GA_ADMIN · GA_STAFF · SUPER_ADMIN 전용 (동의서 템플릿 관리 등) */
-export function StaffRoute() {
+/** SUPER_ADMIN 전용 */
+export function SuperAdminRoute() {
   const { user, isAuthenticated } = useAuth()
 
   if (!isAuthenticated) {
     return <Navigate to="/login?required=1" replace />
   }
-  if (!user || !canUseStaffRoutes(user.role)) {
+  if (user?.role !== 'SUPER_ADMIN') {
     return <Navigate to="/dashboard" replace />
   }
   return <Outlet />

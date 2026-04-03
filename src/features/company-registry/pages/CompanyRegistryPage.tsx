@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { isInsuranceOpsRole } from '../../auth/roleGuards'
 import { PageBackButton } from '../../../components/common/PageBackButton'
 import { fullSaveCompanyDirectory, listCompanyDirectory } from '../api/companyRegistryApi'
 import { insuranceCategoryLabel, insuranceTypeSortRank, resolveTabCategory } from '../domain/categoryUtils'
@@ -34,7 +35,7 @@ const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 
 export default function CompanyRegistryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { user, token, isAuthenticated } = useAuth()
-  const canEdit = isAuthenticated && !!user && ['staff', 'super_admin'].includes(user.role)
+  const canEdit = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
 
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
   const [statusText, setStatusText] = useState('')
@@ -202,7 +203,7 @@ export default function CompanyRegistryPage() {
 
   const handleSave = async () => {
     if (!canEdit || !token) {
-      setStatusText('연락처 저장은 staff 또는 super_admin만 가능합니다.')
+      setStatusText('연락처 저장은 GA 관리자 이상만 가능합니다.')
       return
     }
     if (!isInsuranceCategory(company.category)) {
@@ -298,7 +299,7 @@ export default function CompanyRegistryPage() {
 
       {canEdit ? (
         <section className="card company-registry-form-card" aria-busy={isSaving}>
-          <h2 className="dashboard-section-title">입력 · 수정 (staff / super_admin)</h2>
+          <h2 className="dashboard-section-title">입력 · 수정 (GA_ADMIN / SUPER_ADMIN)</h2>
 
           <label className="field">
             <span className="field__label">보험 종류 (필수)</span>
@@ -450,7 +451,7 @@ export default function CompanyRegistryPage() {
       ) : (
         <section className="card">
           <p className="empty-state">
-            데이터 입력·수정은 <Link to="/login">로그인</Link> 후 staff / super_admin 권한이 필요합니다.{' '}
+            데이터 입력·수정은 <Link to="/login">로그인</Link> 후 GA 관리자 이상 권한이 필요합니다.{' '}
             <Link to="/insurance/contacts">연락처 조회</Link>는 로그인 없이도 볼 수 있습니다.
           </p>
         </section>

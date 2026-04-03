@@ -15,7 +15,8 @@
     "import:cleaned-excel": "node server/scripts/runCleanedExcelImport.mjs",
     "import:cleaned-excel:railway": "railway run -- node server/scripts/runCleanedExcelImport.mjs",
     "cleanup:company-directory": "node server/scripts/runCompanyDirectoryCleanup.mjs",
-    "cleanup:company-directory:railway": "railway run -- node server/scripts/runCompanyDirectoryCleanup.mjs"
+    "cleanup:company-directory:railway": "railway run -- node server/scripts/runCompanyDirectoryCleanup.mjs",
+    "verify:multitenant-db": "node server/scripts/runMultitenantDbCheck.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1023.0",

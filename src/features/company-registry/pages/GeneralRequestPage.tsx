@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { isInsuranceOpsRole } from '../../auth/roleGuards'
 import { PageBackButton } from '../../../components/common/PageBackButton'
 import { listCompanyDirectory, saveGeneralRequest } from '../api/companyRegistryApi'
 import { normalizeInsuranceCategory } from '../domain/categoryUtils'
@@ -17,7 +18,7 @@ const EMPTY_GENERAL: InsuranceGeneralDraft = { description: '', phone: '', fax: 
 
 export default function GeneralRequestPage() {
   const { user, token, isAuthenticated } = useAuth()
-  const canEdit = isAuthenticated && !!user && ['staff', 'super_admin'].includes(user.role)
+  const canEdit = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
 
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -83,7 +84,7 @@ export default function GeneralRequestPage() {
 
   const handleSave = async () => {
     if (!canEdit || !token) {
-      setStatusText('저장은 staff 또는 super_admin만 가능합니다.')
+      setStatusText('저장은 GA 관리자 이상만 가능합니다.')
       return
     }
     if (!selectedType || !selectedCompanyName.trim()) {
@@ -227,7 +228,7 @@ export default function GeneralRequestPage() {
       ) : (
         <section className="card">
           <p className="empty-state">
-            저장은 <Link to="/login">로그인</Link> 후 staff / super_admin 권한이 필요합니다.
+            저장은 <Link to="/login">로그인</Link> 후 GA 관리자(GA_ADMIN) 이상 권한이 필요합니다.
           </p>
         </section>
       )}

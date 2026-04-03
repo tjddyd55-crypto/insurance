@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { isInsuranceOpsRole } from '../../auth/roleGuards'
 import {
   createInsuranceContact,
   deleteInsuranceContact,
@@ -60,7 +61,7 @@ export function ReinsurerContactsPage() {
   const navigate = useNavigate()
   const { user, token, isAuthenticated } = useAuth()
   const isAdmin =
-    isAuthenticated && !!user && ['staff', 'super_admin'].includes(user.role)
+    isAuthenticated && !!user && isInsuranceOpsRole(user.role)
   const [contacts, setContacts] = useState<InsuranceContact[]>([])
   const [lastUpdatedAt, setLastUpdatedAt] = useState('')
   const [searchText, setSearchText] = useState('')

@@ -2,13 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { PageBackButton } from '../../../../components/common/PageBackButton'
 import { useAuth } from '../../../auth/AuthProvider'
+import { listGaCompanies, type GaCompanyRow } from '../../../auth/authApi'
 import { ApiError } from '../../../../lib/apiClient'
-import {
-  ALL_INSURER_OPTIONS,
-  GA_OPTIONS,
-  gaLabel,
-  insurerLabel,
-} from '../consentAdminMeta'
+import { ALL_INSURER_OPTIONS, gaLabel, insurerLabel } from '../consentAdminMeta'
 import {
   fetchAdminConsentTemplatePdf,
   getAdminConsentTemplate,
@@ -94,10 +90,12 @@ function normalizeLoadedField(raw: unknown, clientId: string): EditorField | nul
 export function TemplateEditorPage() {
   const { id: routeId } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const isEdit = Boolean(routeId?.trim())
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'
 
-  const [gaId, setGaId] = useState(GA_OPTIONS[0]?.id ?? 1)
+  const [gaOptions, setGaOptions] = useState<GaCompanyRow[]>([])
+  const [gaId, setGaId] = useState(user?.gaId ?? 1)
   const [insuranceCompanyId, setInsuranceCompanyId] = useState(ALL_INSURER_OPTIONS[0]?.id ?? '')
   const [faxNumber, setFaxNumber] = useState('')
   const [pdfFile, setPdfFile] = useState<File | null>(null)
@@ -164,6 +162,36 @@ export function TemplateEditorPage() {
   useEffect(() => {
     void loadDetail()
   }, [loadDetail])
+
+  useEffect(() => {
+    let c = false
+    ;(async () => {
+      try {
+        const list = await listGaCompanies()
+        if (!c) {
+          setGaOptions(list)
+        }
+      } catch {
+        if (!c) {
+          setError('GA 목록을 불러오지 못했습니다.')
+        }
+      }
+    })()
+    return () => {
+      c = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isEdit || gaOptions.length === 0) {
+      return
+    }
+    if (!isSuperAdmin && user?.gaId != null) {
+      setGaId(user.gaId)
+      return
+    }
+    setGaId(gaOptions[0].id)
+  }, [gaOptions, isEdit, isSuperAdmin, user?.gaId])
 
   useEffect(() => {
     if (!pdfFile) {
@@ -284,12 +312,12 @@ export function TemplateEditorPage() {
                 GA
                 <select
                   value={gaId}
-                  disabled={isEdit}
+                  disabled={isEdit || !isSuperAdmin}
                   onChange={(e) => setGaId(Number(e.target.value))}
                 >
-                  {GA_OPTIONS.map((g) => (
+                  {gaOptions.map((g: GaCompanyRow) => (
                     <option key={g.id} value={g.id}>
-                      {g.name} (id: {g.id})
+                      {g.name} ({g.code}) · {gaLabel(g.id)}
                     </option>
                   ))}
                 </select>

@@ -1,23 +1,59 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
+import { apiRequest } from '../../../lib/apiClient'
 import { PageBackButton } from '../../../components/common/PageBackButton'
 import { CompanyList } from '../components/CompanyList'
-import {
-  getConsentGaIdForUser,
-  MOCK_CONSENT_GA_ID,
-  resolveConsentTemplateId,
-} from '../domain/consentTemplateRegistry'
+import { consentTemplatesByCompanyId } from '../domain/consentTemplateRegistry'
 import { MOCK_LIFE_INSURERS, MOCK_NON_LIFE_INSURERS } from '../domain/mockCompanies'
 import type { ConsentCompanyItem } from '../domain/types'
 import '../consent.css'
 
+interface ConsentTemplateRow {
+  id: string
+  insurance_company_id: string
+}
+
 export function ConsentCompanyPage() {
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const gaId = getConsentGaIdForUser(user)
+  const { user, token } = useAuth()
+  const gaId = user?.gaId
+  const [templates, setTemplates] = useState<ConsentTemplateRow[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    if (!token?.trim() || gaId == null) {
+      return
+    }
+    setLoadError(null)
+    try {
+      const rows = await apiRequest<ConsentTemplateRow[]>('/api/consent/templates', {
+        method: 'GET',
+        token,
+      })
+      setTemplates(rows)
+    } catch (e) {
+      setTemplates([])
+      setLoadError(e instanceof ApiError ? e.message : '템플릿 목록을 불러오지 못했습니다.')
+    }
+  }, [token, gaId])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const byCompany = useMemo(() => consentTemplatesByCompanyId(templates), [templates])
 
   const handleSelect = (item: ConsentCompanyItem) => {
-    const consentTemplateId = resolveConsentTemplateId(gaId, item.id)
+    if (gaId == null) {
+      return
+    }
+    const consentTemplateId = byCompany.get(item.id)
+    if (!consentTemplateId) {
+      setLoadError(`이 보험사(${item.name})에 대한 동의서 템플릿이 아직 등록되지 않았습니다.`)
+      return
+    }
     navigate('/internal/consent/form', {
       state: {
         gaId,
@@ -28,14 +64,29 @@ export function ConsentCompanyPage() {
     })
   }
 
+  if (gaId == null) {
+    return (
+      <main className="consent-flow">
+        <PageBackButton />
+        <div className="consent-flow__inner">
+          <p>로그인 세션에 GA 정보가 없습니다. 다시 로그인해 주세요.</p>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="consent-flow">
       <PageBackButton />
       <div className="consent-flow__inner">
         <h1 className="consent-flow__title">보험사 선택</h1>
         <p className="consent-flow__ga-context">
-          GA 기준 템플릿 · ga_id: <strong>{gaId}</strong>
-          {user?.gaId == null ? ` (로그인 세션에 ga_id 없음 → 임시 ${MOCK_CONSENT_GA_ID})` : null}
+          GA · <strong>#{gaId}</strong>
+          {loadError ? (
+            <span style={{ display: 'block', color: 'var(--consent-err, #c00)', marginTop: 8 }}>
+              {loadError}
+            </span>
+          ) : null}
         </p>
         <div className="consent-company-columns">
           <div className="consent-company-column">
