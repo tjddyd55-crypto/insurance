@@ -5,6 +5,7 @@ import { PageBackButton } from '../../../components/common/PageBackButton'
 
 export default function FeatureRequestPage() {
   const { token } = useAuth()
+  const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [statusText, setStatusText] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -23,7 +24,8 @@ export default function FeatureRequestPage() {
     setStatusText('')
     setIsSubmitting(true)
     try {
-      await submitFeatureRequest(token, trimmed)
+      await submitFeatureRequest(token, { title: title.trim(), content: trimmed })
+      setTitle('')
       setContent('')
       setStatusText('요청이 접수되었습니다. 검토 후 반영 여부는 별도 안내가 어려울 수 있습니다.')
     } catch (err) {
@@ -46,6 +48,17 @@ export default function FeatureRequestPage() {
 
       <section className="card auth-card" style={{ maxWidth: 560, margin: '0 auto' }}>
         <form className="auth-form" onSubmit={(ev) => void handleSubmit(ev)}>
+          <label className="field">
+            <span className="field__label">요청 제목 (선택)</span>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={200}
+              placeholder="한 줄로 요약해 주세요. 비워 두면 내용 앞부분이 제목으로 저장됩니다."
+              autoComplete="off"
+            />
+          </label>
           <label className="field">
             <span className="field__label">내용</span>
             <textarea

@@ -160,6 +160,17 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    ALTER TABLE feature_requests
+    ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT ''
+  `)
+  await pool.query(`
+    UPDATE feature_requests
+    SET title = LEFT(TRIM(content), 120)
+    WHERE COALESCE(TRIM(title), '') = ''
+      AND TRIM(content) <> ''
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS insurance_forms (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -271,6 +271,32 @@ function normalizeUserRole(value) {
   return 'USER'
 }
 
+/** PATCH /admin/users 등: user / admin / super_admin 별칭 허용 */
+function parseAdminPatchRole(raw) {
+  if (raw == null) {
+    return null
+  }
+  const s = String(raw).trim()
+  if (!s) {
+    return null
+  }
+  const lower = s.toLowerCase().replace(/-/g, '_')
+  const alias = {
+    user: 'USER',
+    admin: 'GA_ADMIN',
+    ga_admin: 'GA_ADMIN',
+    staff: 'GA_STAFF',
+    ga_staff: 'GA_STAFF',
+    super_admin: 'SUPER_ADMIN',
+    superadmin: 'SUPER_ADMIN',
+  }
+  if (Object.prototype.hasOwnProperty.call(alias, lower)) {
+    return alias[lower]
+  }
+  const up = s.toUpperCase()
+  return VALID_USER_ROLES.includes(up) ? up : null
+}
+
 function isSuperAdminRole(role) {
   return normalizeUserRole(role) === 'SUPER_ADMIN'
 }
@@ -1017,7 +1043,7 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
     }
     const r = await pool.query(
       `
-      SELECT g.name AS ga_company_name, u.username, u.role, u.created_at
+      SELECT u.id, u.ga_id, g.name AS ga_company_name, u.username, u.role, u.created_at
       FROM users u
       INNER JOIN ga_companies g ON g.id = u.ga_id
       WHERE ${whereClause}
@@ -1026,12 +1052,69 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
       params,
     )
     const rows = r.rows.map((row) => ({
+      id: String(row.id),
+      ga_id: row.ga_id,
       ga_company_name: row.ga_company_name,
       username: row.username,
       role: normalizeUserRole(row.role),
       created_at: toIsoString(row.created_at),
     }))
     res.json(rows)
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.patch('/admin/users/:id', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const targetId = String(req.params.id ?? '').trim()
+    if (!targetId) {
+      res.status(400).json({ message: '잘못된 사용자 ID입니다.' })
+      return
+    }
+    const gaId = parseGaId(req.body?.ga_id ?? req.body?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'ga_id가 필요합니다.' })
+      return
+    }
+    const gaOk = await pool.query(`SELECT 1 FROM ga_companies WHERE id = $1`, [gaId])
+    if (gaOk.rows.length === 0) {
+      res.status(400).json({ message: '유효하지 않은 GA입니다.' })
+      return
+    }
+    const roleNorm = parseAdminPatchRole(req.body?.role)
+    if (!roleNorm) {
+      res.status(400).json({
+        message: 'role이 올바르지 않습니다. (USER, GA_ADMIN, GA_STAFF, SUPER_ADMIN 또는 user, admin, super_admin)',
+      })
+      return
+    }
+
+    const exists = await pool.query(`SELECT id FROM users WHERE id = $1`, [targetId])
+    if (exists.rows.length === 0) {
+      res.status(404).json({ message: '사용자를 찾을 수 없습니다.' })
+      return
+    }
+
+    const upd = await pool.query(
+      `
+      UPDATE users
+      SET ga_id = $1, role = $2
+      WHERE id = $3
+      RETURNING id, username, ga_id, role, created_at
+      `,
+      [gaId, roleNorm, targetId],
+    )
+    const row = upd.rows[0]
+    const g = await pool.query(`SELECT name FROM ga_companies WHERE id = $1`, [row.ga_id])
+    res.json({
+      id: String(row.id),
+      username: row.username,
+      ga_id: row.ga_id,
+      ga_company_name: g.rows[0]?.name ?? '',
+      role: normalizeUserRole(row.role),
+      created_at: toIsoString(row.created_at),
+    })
   } catch (error) {
     handleDbError(error, res)
   }
@@ -1115,18 +1198,56 @@ apiRouter.post('/feature-request', requireAuth, async (req, res) => {
       res.status(400).json({ message: '내용은 8000자 이하로 입력해 주세요.' })
       return
     }
+    let title = String(req.body?.title ?? '').trim()
+    if (title.length > 200) {
+      res.status(400).json({ message: '제목은 200자 이하로 입력해 주세요.' })
+      return
+    }
+    if (!title) {
+      title = content.length > 120 ? `${content.slice(0, 117)}...` : content
+    }
     const ins = await pool.query(
       `
-      INSERT INTO feature_requests (ga_id, user_id, content)
-      VALUES ($1, $2, $3)
+      INSERT INTO feature_requests (ga_id, user_id, title, content)
+      VALUES ($1, $2, $3, $4)
       RETURNING id, created_at
       `,
-      [gaId, userId, content],
+      [gaId, userId, title, content],
     )
     res.status(201).json({
       id: ins.rows[0].id,
       created_at: toIsoString(ins.rows[0].created_at),
     })
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.get('/feature-requests/my', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user?.id
+    if (!userId) {
+      res.status(401).json({ message: '로그인이 필요합니다.' })
+      return
+    }
+    const r = await pool.query(
+      `
+      SELECT id, title, content, status, created_at
+      FROM feature_requests
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT 200
+      `,
+      [userId],
+    )
+    const rows = r.rows.map((row) => ({
+      id: row.id,
+      title: String(row.title ?? ''),
+      content: row.content,
+      status: row.status,
+      created_at: toIsoString(row.created_at),
+    }))
+    res.json(rows)
   } catch (error) {
     handleDbError(error, res)
   }
@@ -1141,6 +1262,7 @@ apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (
         fr.ga_id,
         g.name AS ga_name,
         u.username,
+        COALESCE(fr.title, '') AS title,
         fr.content,
         fr.status,
         fr.created_at
@@ -1156,6 +1278,7 @@ apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (
       ga_id: row.ga_id,
       ga_name: row.ga_name,
       username: row.username,
+      title: String(row.title ?? ''),
       content: row.content,
       status: row.status,
       created_at: toIsoString(row.created_at),
@@ -1183,7 +1306,7 @@ apiRouter.patch('/admin/feature-requests/:id', requireAuth, requireSuperAdmin, a
       UPDATE feature_requests
       SET status = $1
       WHERE id = $2
-      RETURNING id, ga_id, user_id, content, status, created_at
+      RETURNING id, ga_id, user_id, title, content, status, created_at
       `,
       [status, id],
     )
@@ -1196,6 +1319,7 @@ apiRouter.patch('/admin/feature-requests/:id', requireAuth, requireSuperAdmin, a
       id: row.id,
       ga_id: row.ga_id,
       user_id: row.user_id,
+      title: String(row.title ?? ''),
       content: row.content,
       status: row.status,
       created_at: toIsoString(row.created_at),

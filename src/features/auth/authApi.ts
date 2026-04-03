@@ -119,6 +119,8 @@ export async function createStaffAccount(
 }
 
 export interface AdminUserRow {
+  id: string
+  ga_id: number
   ga_company_name: string
   username: string
   role: UserRole
@@ -128,6 +130,21 @@ export interface AdminUserRow {
 export async function listAdminUsers(token: string, gaId?: number): Promise<AdminUserRow[]> {
   const qs = gaId != null && Number.isInteger(gaId) ? `?ga_id=${encodeURIComponent(String(gaId))}` : ''
   return apiRequest<AdminUserRow[]>(`/api/admin/users${qs}`, { method: 'GET', token })
+}
+
+export async function patchAdminUser(
+  token: string,
+  userId: string,
+  body: { ga_id: number; role: string },
+) {
+  return apiRequest<AdminUserRow>(`/api/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({
+      ga_id: body.ga_id,
+      role: body.role,
+    }),
+  })
 }
 
 export async function createGaCompany(token: string, payload: { name: string; code: string }) {
@@ -145,17 +162,38 @@ export interface FeatureRequestAdminRow {
   ga_id: number
   ga_name: string
   username: string
+  title: string
   content: string
   status: FeatureRequestStatus
   created_at: string
 }
 
-export async function submitFeatureRequest(token: string, content: string) {
+export async function submitFeatureRequest(
+  token: string,
+  payload: { content: string; title?: string },
+) {
+  const title = String(payload.title ?? '').trim()
+  const content = String(payload.content ?? '').trim()
   return apiRequest<{ id: number; created_at: string }>('/api/feature-request', {
     method: 'POST',
     token,
-    body: JSON.stringify({ content: content.trim() }),
+    body: JSON.stringify({
+      content,
+      ...(title ? { title } : {}),
+    }),
   })
+}
+
+export interface MyFeatureRequestRow {
+  id: number
+  title: string
+  content: string
+  status: FeatureRequestStatus
+  created_at: string
+}
+
+export async function listMyFeatureRequests(token: string): Promise<MyFeatureRequestRow[]> {
+  return apiRequest<MyFeatureRequestRow[]>('/api/feature-requests/my', { method: 'GET', token })
 }
 
 export async function listFeatureRequestsAdmin(token: string): Promise<FeatureRequestAdminRow[]> {
@@ -171,6 +209,7 @@ export async function updateFeatureRequestStatus(
     id: number
     ga_id: number
     user_id: string
+    title: string
     content: string
     status: FeatureRequestStatus
     created_at: string

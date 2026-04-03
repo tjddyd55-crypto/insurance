@@ -29,6 +29,7 @@ import { ConsentFormPage } from './features/consent/pages/ConsentFormPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
+import MyFeatureRequestsPage from './features/feature-request/pages/MyFeatureRequestsPage'
 import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
 import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
 
@@ -66,6 +67,7 @@ export const appRouter = createBrowserRouter([
           { path: 'admin/create-staff', element: <CreateStaffPage /> },
           { path: 'admin/users', element: <UserManagementPage /> },
           { path: 'feature-request', element: <FeatureRequestPage /> },
+          { path: 'feature-requests/my', element: <MyFeatureRequestsPage /> },
           {
             element: <SuperAdminRoute />,
             children: [

@@ -96,7 +96,7 @@ export default function FeatureRequestsAdminPage() {
         <table
           style={{
             width: '100%',
-            minWidth: 720,
+            minWidth: 840,
             borderCollapse: 'collapse',
             fontSize: '14px',
           }}
@@ -105,6 +105,7 @@ export default function FeatureRequestsAdminPage() {
             <tr style={{ borderBottom: '2px solid var(--border)' }}>
               <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600 }}>GA</th>
               <th style={{ textAlign: 'left', padding: '10px 8px', fontWeight: 600 }}>아이디</th>
+              <th style={{ textAlign: 'left', padding: '10px 8px', fontWeight: 600 }}>제목</th>
               <th style={{ textAlign: 'left', padding: '10px 8px', fontWeight: 600 }}>내용</th>
               <th style={{ textAlign: 'left', padding: '10px 8px', fontWeight: 600 }}>상태</th>
               <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: 600 }}>생성일</th>
@@ -113,7 +114,7 @@ export default function FeatureRequestsAdminPage() {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ padding: '20px 12px', color: 'var(--text-sub)' }}>
+                <td colSpan={6} style={{ padding: '20px 12px', color: 'var(--text-sub)' }}>
                   등록된 요청이 없습니다.
                 </td>
               </tr>
@@ -122,7 +123,10 @@ export default function FeatureRequestsAdminPage() {
                 <tr key={r.id} style={{ borderBottom: '1px solid var(--border)', verticalAlign: 'top' }}>
                   <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>{r.ga_name}</td>
                   <td style={{ padding: '10px 8px', wordBreak: 'break-all' }}>{r.username}</td>
-                  <td style={{ padding: '10px 8px', maxWidth: 360, wordBreak: 'break-word' }}>
+                  <td style={{ padding: '10px 8px', maxWidth: 160, wordBreak: 'break-word' }}>
+                    {r.title || '—'}
+                  </td>
+                  <td style={{ padding: '10px 8px', maxWidth: 280, wordBreak: 'break-word' }}>
                     {r.content}
                   </td>
                   <td style={{ padding: '10px 8px' }}>

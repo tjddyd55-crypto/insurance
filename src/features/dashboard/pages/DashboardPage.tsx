@@ -30,6 +30,10 @@ function menuForSession(role: string | undefined, gaCode: string | undefined): M
   return []
 }
 
+function showFeatureRequestSection(role: string | undefined): boolean {
+  return role === 'USER' || role === 'GA_STAFF'
+}
+
 function pathIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === '/contacts') {
     return pathname === '/contacts' || pathname === '/insurance/contacts'
@@ -45,6 +49,9 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   }
   if (itemPath === '/feature-request') {
     return pathname === '/feature-request'
+  }
+  if (itemPath === '/feature-requests/my') {
+    return pathname === '/feature-requests/my'
   }
   if (itemPath.startsWith('/internal/admin/')) {
     return pathname === itemPath
@@ -72,6 +79,7 @@ export function DashboardPage() {
   const { user, logout } = useAuth()
   const role = user?.role
   const showStaffDirectoryNote = isGaTenantStaffRole(role)
+  const showFeatureFooter = showFeatureRequestSection(role)
   const menuItems = menuForSession(role, user?.gaCode)
   const pathname = location.pathname
 
@@ -100,18 +108,27 @@ export function DashboardPage() {
             })}
           </nav>
 
-          <div className="dashboard-menu-footer" role="group" aria-label="서비스 안내">
-            <p className="dashboard-menu-static" aria-disabled="true">
-              추가 기능 개발 중
-            </p>
-            <button
-              type="button"
-              className={`menu-item${pathIsActive(pathname, '/feature-request') ? ' active' : ''}`}
-              onClick={() => navigate('/feature-request')}
-            >
-              추가 기능 요청하기
-            </button>
-          </div>
+          {showFeatureFooter ? (
+            <div className="dashboard-menu-footer" role="group" aria-label="서비스 안내">
+              <p className="dashboard-menu-static" aria-disabled="true">
+                추가 기능 개발 중
+              </p>
+              <button
+                type="button"
+                className={`menu-item${pathIsActive(pathname, '/feature-request') ? ' active' : ''}`}
+                onClick={() => navigate('/feature-request')}
+              >
+                추가 기능 요청하기
+              </button>
+              <button
+                type="button"
+                className={`menu-item${pathIsActive(pathname, '/feature-requests/my') ? ' active' : ''}`}
+                onClick={() => navigate('/feature-requests/my')}
+              >
+                내 기능 요청
+              </button>
+            </div>
+          ) : null}
 
           {showStaffDirectoryNote ? (
             <p className="dashboard-menu-note">
