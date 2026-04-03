@@ -545,6 +545,136 @@ body {
   overflow: hidden;
 }
 
+.customer-expand-card--select-mode {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.customer-expand-card__select {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px 8px 12px;
+  background: var(--surface-expand);
+  border-right: 1px solid var(--border-muted);
+}
+
+.customer-expand-card__select input[type='checkbox'] {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  cursor: pointer;
+}
+
+.customer-expand-card__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.customers-excel-toolbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 160;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  background: var(--sticky-bar-bg);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 10px var(--shadow-card);
+}
+
+.customers-excel-toolbar__status {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.customers-excel-toolbar__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.customers-excel-toolbar .customers-excel-toolbar__row .button {
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.customers-excel-toolbar label.customers-excel-toolbar__select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+  margin: 0;
+}
+
+.customers-excel-toolbar__select-all input {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+}
+
+.list-section-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.list-section-header-row .dashboard-section-title {
+  margin: 0;
+}
+
+.customers-page--excel-toolbar-pad {
+  padding-top: calc(88px + env(safe-area-inset-top, 0px));
+}
+
+.modal.modal-excel-columns {
+  max-width: 380px;
+  text-align: left;
+}
+
+.modal-excel-columns__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: min(55vh, 340px);
+  overflow-y: auto;
+}
+
+.modal-excel-columns__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.modal-excel-columns__item input {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  flex-shrink: 0;
+}
+
 .customer-expand-summary {
   width: 100%;
   display: flex;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { formatKoreanDateTime } from '../../application/utils/date'
@@ -14,6 +14,7 @@ import { storeSelectedCustomer } from '../storage/selectedCustomerStorage'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
 import { generateCustomerText } from '../utils/customerText'
 import { NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
+import { EXCEL_COLUMN_META, exportCustomersExcel } from '../utils/exportCustomersExcel'
 import {
   CustomerForm,
   DetailInsurance,
@@ -106,6 +107,11 @@ export default function CustomersPage() {
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
   const [tab, setTab] = useState<'create' | 'list'>('create')
   const [keyword, setKeyword] = useState('')
+  const [isSelectMode, setIsSelectMode] = useState(false)
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([])
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([])
+  const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false)
+  const selectAllRef = useRef<HTMLInputElement>(null)
 
   const duplicateCustomerNames = useMemo(() => {
     const counts = new Map<string, number>()
@@ -131,6 +137,10 @@ export default function CustomersPage() {
     () => [...filteredCustomers].sort((a, b) => a.name.localeCompare(b.name, 'ko')),
     [filteredCustomers],
   )
+
+  const allVisibleIds = useMemo(() => sortedCustomers.map((c) => String(c.id)), [sortedCustomers])
+  const allVisibleSelected =
+    allVisibleIds.length > 0 && allVisibleIds.every((id) => selectedCustomerIds.includes(id))
 
   const loadCustomers = useCallback(async () => {
     if (!token || user?.role !== 'user') {
@@ -195,6 +205,24 @@ export default function CustomersPage() {
       cancelled = true
     }
   }, [expandedId, token])
+
+  useEffect(() => {
+    const el = selectAllRef.current
+    if (!el) {
+      return
+    }
+    const n = selectedCustomerIds.filter((id) => allVisibleIds.includes(id)).length
+    el.indeterminate = n > 0 && n < allVisibleIds.length
+  }, [selectedCustomerIds, allVisibleIds])
+
+  useEffect(() => {
+    if (tab !== 'list' && isSelectMode) {
+      setIsSelectMode(false)
+      setSelectedCustomerIds([])
+      setSelectedColumns([])
+      setIsColumnPickerOpen(false)
+    }
+  }, [tab, isSelectMode])
 
   function addNoteDraft(
     draft: string,
@@ -295,6 +323,51 @@ export default function CustomersPage() {
     }
   }
 
+  function enterExcelSelectMode() {
+    setExpandedId(null)
+    setEditingId(null)
+    setEditForm(null)
+    setIsSelectMode(true)
+    setSelectedCustomerIds([])
+    setSelectedColumns(['name'])
+    setIsColumnPickerOpen(false)
+    setStatusText('')
+  }
+
+  function exitExcelSelectMode() {
+    setIsSelectMode(false)
+    setSelectedCustomerIds([])
+    setSelectedColumns([])
+    setIsColumnPickerOpen(false)
+  }
+
+  function runExport(rows: CustomerRecord[]) {
+    try {
+      exportCustomersExcel(rows, selectedColumns)
+      setStatusText('엑셀 파일을 저장했습니다.')
+    } catch (e) {
+      setStatusText(e instanceof Error ? e.message : '다운로드에 실패했습니다.')
+    }
+  }
+
+  function handleDownloadSelected() {
+    if (selectedCustomerIds.length === 0) {
+      setStatusText('다운로드할 고객을 선택해 주세요.')
+      return
+    }
+    const idSet = new Set(selectedCustomerIds)
+    const rows = sortedCustomers.filter((c) => idSet.has(String(c.id)))
+    runExport(rows)
+  }
+
+  function handleDownloadAll() {
+    runExport([...customers])
+  }
+
+  function toggleExcelColumn(id: string) {
+    setSelectedColumns((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
   async function copyExternalInputLink() {
     if (!user?.id) {
       return
@@ -336,13 +409,32 @@ export default function CustomersPage() {
 
   function CustomerCard({ data: c }: { data: CustomerRecord }) {
     return (
-      <li className="record-card customer-expand-card">
-        <button
-          type="button"
-          className="customer-expand-summary"
-          aria-expanded={expandedId === c.id}
-          onClick={() => setExpandedId((prev) => (prev === c.id ? null : c.id))}
-        >
+      <li
+        className={`record-card customer-expand-card${isSelectMode ? ' customer-expand-card--select-mode' : ''}`}
+      >
+        {isSelectMode ? (
+          <div className="customer-expand-card__select">
+            <input
+              type="checkbox"
+              checked={selectedCustomerIds.includes(String(c.id))}
+              onChange={() => {
+                const id = String(c.id)
+                setSelectedCustomerIds((prev) =>
+                  prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+                )
+              }}
+              onClick={(e) => e.stopPropagation()}
+              aria-label={`${c.name} 선택`}
+            />
+          </div>
+        ) : null}
+        <div className="customer-expand-card__main">
+          <button
+            type="button"
+            className="customer-expand-summary"
+            aria-expanded={expandedId === c.id}
+            onClick={() => setExpandedId((prev) => (prev === c.id ? null : c.id))}
+          >
           <span className="customer-expand-summary__title">
             <span
               className={duplicateCustomerNames.has(c.name.trim()) ? 'customer-hit-name--duplicate' : undefined}
@@ -355,7 +447,7 @@ export default function CustomersPage() {
             {c.ssn || '—'} <CustomerDDayBadge renewalDate={c.renewalDate} />
           </span>
           <span className="customer-expand-summary__hint">{expandedId === c.id ? '접기' : '펼치기'}</span>
-        </button>
+          </button>
 
         {expandedId === c.id ? (
           <div className="customer-expand-detail">
@@ -690,6 +782,7 @@ export default function CustomersPage() {
             </div>
           </div>
         ) : null}
+        </div>
       </li>
     )
   }
@@ -707,7 +800,47 @@ export default function CustomersPage() {
   }
 
   return (
-    <main className="page customers-page">
+    <main
+      className={`page customers-page${isSelectMode && tab === 'list' ? ' customers-page--excel-toolbar-pad' : ''}`}
+    >
+      {isSelectMode && tab === 'list' ? (
+        <div className="customers-excel-toolbar" role="region" aria-label="엑셀 다운로드 선택">
+          <p className="customers-excel-toolbar__status">엑셀 다운로드 모드 — 고객을 선택한 뒤 다운로드하세요</p>
+          <div className="customers-excel-toolbar__row">
+            <label className="customers-excel-toolbar__select-all">
+              <input
+                ref={selectAllRef}
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={() => {
+                  if (allVisibleSelected) {
+                    setSelectedCustomerIds((prev) => prev.filter((id) => !allVisibleIds.includes(id)))
+                  } else {
+                    setSelectedCustomerIds((prev) => [...new Set([...prev, ...allVisibleIds])])
+                  }
+                }}
+              />
+              전체 선택
+            </label>
+            <button
+              type="button"
+              className="button button--secondary"
+              onClick={() => setIsColumnPickerOpen(true)}
+            >
+              컬럼 선택
+            </button>
+            <button type="button" className="button button--primary" onClick={handleDownloadSelected}>
+              선택 다운로드
+            </button>
+            <button type="button" className="button button--secondary" onClick={handleDownloadAll}>
+              전체 다운로드
+            </button>
+            <button type="button" className="button button--secondary" onClick={exitExcelSelectMode}>
+              취소
+            </button>
+          </div>
+        </div>
+      ) : null}
       <header className="page-header">
         <div className="page-title-with-action">
           <h1>고객 관리</h1>
@@ -748,7 +881,14 @@ export default function CustomersPage() {
         </section>
       ) : (
         <section className="list-section" style={{ marginTop: 0 }}>
-          <h2 className="dashboard-section-title">저장된 고객</h2>
+          <div className="list-section-header-row">
+            <h2 className="dashboard-section-title">저장된 고객</h2>
+            {!isSelectMode ? (
+              <button type="button" className="button button--secondary" onClick={enterExcelSelectMode}>
+                엑셀 다운로드
+              </button>
+            ) : null}
+          </div>
           <input
             className="search-input"
             type="search"
@@ -773,6 +913,50 @@ export default function CustomersPage() {
           )}
         </section>
       )}
+
+      {isColumnPickerOpen ? (
+        <div
+          className="modal-overlay"
+          role="presentation"
+          onClick={() => setIsColumnPickerOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setIsColumnPickerOpen(false)
+            }
+          }}
+        >
+          <div
+            className="modal modal-excel-columns"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="excel-columns-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="excel-columns-title">엑셀에 포함할 항목</h3>
+            <div className="modal-body">
+              <ul className="modal-excel-columns__list">
+                {EXCEL_COLUMN_META.map((col) => (
+                  <li key={col.id} className="modal-excel-columns__item">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={selectedColumns.includes(col.id)}
+                        onChange={() => toggleExcelColumn(col.id)}
+                      />
+                      {col.label}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="confirm" onClick={() => setIsColumnPickerOpen(false)}>
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }
