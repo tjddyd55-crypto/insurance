@@ -718,6 +718,16 @@ export async function initDb() {
   const yjConsentGa = await pool.query(`SELECT id FROM ga_companies WHERE code = 'YJASSET' LIMIT 1`)
   const yjConsentGaId = yjConsentGa.rows[0]?.id
   if (yjConsentGaId != null) {
+    await pool.query(
+      `
+      DELETE FROM consent_templates a
+      USING consent_templates b
+      WHERE a.ga_id IS DISTINCT FROM $1
+        AND b.ga_id = $1
+        AND a.insurance_company_id = b.insurance_company_id
+      `,
+      [yjConsentGaId],
+    )
     await pool.query(`UPDATE consent_templates SET ga_id = $1 WHERE ga_id IS DISTINCT FROM $1`, [
       yjConsentGaId,
     ])
@@ -772,7 +782,8 @@ async function seedConsentTemplatesIfNeeded() {
         `
         INSERT INTO consent_templates (id, ga_id, insurance_company_id, fax_number, fields, pdf_storage_key)
         VALUES ($1, $2, $3, $4, $5::jsonb, $6)
-        ON CONFLICT (ga_id, insurance_company_id) DO NOTHING
+        ON CONFLICT (ga_id, insurance_company_id)
+        DO UPDATE SET updated_at = NOW()
         `,
         [row.id, seedGaId, row.insuranceCompanyId, '', JSON.stringify(DEFAULT_CONSENT_FIELD_LAYOUT), key],
       )
