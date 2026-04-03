@@ -371,6 +371,23 @@ body {
   cursor: not-allowed;
 }
 
+.auth-page .field.field--checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-main);
+}
+
+.auth-page .field.field--checkbox input[type='checkbox'] {
+  width: auto;
+  min-height: unset;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
 .auth-footer {
   margin-top: 14px;
   font-size: 14px;

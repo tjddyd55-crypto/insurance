@@ -39,11 +39,25 @@ export async function listGaCompanies(token: string): Promise<GaCompanyRow[]> {
   return apiRequest<GaCompanyRow[]>('/api/admin/ga', { method: 'GET', token })
 }
 
+/** 서버와 동일 규칙(3~30자, 공백 불가) 충족 시 사용 가능 여부 */
+export async function checkUsernameAvailability(username: string): Promise<boolean> {
+  const u = username.trim()
+  if (u.length < 3 || u.length > 30 || /\s/.test(u)) {
+    return false
+  }
+  const r = await apiRequest<{ available: boolean }>(
+    `/api/auth/username-availability?username=${encodeURIComponent(u)}`,
+    { method: 'GET' },
+  )
+  return Boolean(r.available)
+}
+
 export async function register(payload: {
   username: string
   password: string
   inviteCode: string
   name: string
+  phoneNumber: string
 }) {
   try {
     return await apiRequest<{ id: string; username: string; ga_id: number; createdAt: string }>(
@@ -55,6 +69,7 @@ export async function register(payload: {
           password: payload.password,
           invite_code: payload.inviteCode.trim(),
           name: payload.name.trim(),
+          phone_number: payload.phoneNumber,
         }),
       },
     )
@@ -148,6 +163,78 @@ export interface AdminUserRow {
   created_at: string
 }
 
+/** 슈퍼 관리자 — GA 담당자(GA_ADMIN/GA_STAFF) 전용. 비밀번호는 관리 목적 평문(일반 유저와 무관). */
+export interface GaDelegateRow {
+  id: string
+  ga_id: number
+  gaCode: string
+  gaName: string
+  username: string
+  password: string
+  role: GaDelegateRole
+  status: EntityStatus
+  /** ACTIVE | BLOCKED | INACTIVE 표기 */
+  statusLabel: string
+  created_at: string
+}
+
+export async function listGaDelegates(token: string): Promise<GaDelegateRow[]> {
+  return apiRequest<GaDelegateRow[]>('/api/admin/delegates', { method: 'GET', token })
+}
+
+export async function createGaDelegate(
+  token: string,
+  payload: { gaId: number; username: string; password: string; name?: string; role: GaDelegateRole },
+) {
+  try {
+    return await apiRequest<GaDelegateRow>('/api/admin/delegates', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({
+        ga_id: payload.gaId,
+        username: payload.username,
+        password: payload.password,
+        name: payload.name ?? '',
+        role: payload.role,
+      }),
+    })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      throw new Error('이미 사용 중인 아이디입니다.')
+    }
+    throw error
+  }
+}
+
+export async function patchGaDelegate(
+  token: string,
+  id: string,
+  body: { username?: string; password?: string; status?: EntityStatus },
+) {
+  try {
+    const payload: Record<string, unknown> = {}
+    if (body.username != null) {
+      payload.username = body.username
+    }
+    if (body.password != null && body.password.trim() !== '') {
+      payload.password = body.password
+    }
+    if (body.status != null) {
+      payload.status = body.status
+    }
+    return await apiRequest<GaDelegateRow>(`/api/admin/delegates/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(payload),
+    })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      throw new Error('이미 사용 중인 아이디입니다.')
+    }
+    throw error
+  }
+}
+
 export async function listAdminUsers(token: string, gaId?: number): Promise<AdminUserRow[]> {
   const qs = gaId != null && Number.isInteger(gaId) ? `?ga_id=${encodeURIComponent(String(gaId))}` : ''
   return apiRequest<AdminUserRow[]>(`/api/admin/users${qs}`, { method: 'GET', token })
@@ -183,11 +270,18 @@ export async function deleteAdminUser(token: string, userId: string): Promise<vo
 }
 
 export async function createGaCompany(token: string, payload: { name: string; code: string }) {
-  return apiRequest<GaCompanyRow>('/api/admin/ga', {
-    method: 'POST',
-    token,
-    body: JSON.stringify({ name: payload.name.trim(), code: payload.code.trim().toUpperCase() }),
-  })
+  try {
+    return await apiRequest<GaCompanyRow>('/api/admin/ga', {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ name: payload.name.trim(), code: payload.code.trim().toUpperCase() }),
+    })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      throw new Error('이미 존재하는 코드입니다')
+    }
+    throw error
+  }
 }
 
 export async function patchGaCompany(
@@ -195,11 +289,18 @@ export async function patchGaCompany(
   id: number,
   body: { name?: string; code?: string; status?: EntityStatus },
 ) {
-  return apiRequest<GaCompanyRow>(`/api/admin/ga/${id}`, {
-    method: 'PATCH',
-    token,
-    body: JSON.stringify(body),
-  })
+  try {
+    return await apiRequest<GaCompanyRow>(`/api/admin/ga/${id}`, {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(body),
+    })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      throw new Error('이미 존재하는 코드입니다')
+    }
+    throw error
+  }
 }
 
 export async function deleteGaCompany(token: string, id: number): Promise<void> {

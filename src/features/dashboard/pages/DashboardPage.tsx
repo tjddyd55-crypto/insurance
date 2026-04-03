@@ -1,31 +1,23 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { isGaTenantStaffRole } from '../../auth/roleGuards'
-import {
-  buildGaTenantMenu,
-  GA_STAFF_EXTRA_MENU,
-  type GaTenantMenuItem,
-} from '../gaTenantMenu'
+import { GA_TENANT_ESSENTIAL_MENU, type GaTenantMenuItem } from '../gaTenantMenu'
 
 type MenuItem = GaTenantMenuItem
 
 const SUPER_ADMIN_MENU: MenuItem[] = [
   { label: 'GA 관리', path: '/admin/ga' },
-  { label: '담당자 생성', path: '/admin/create-staff' },
+  { label: '담당자 관리', path: '/admin/delegates' },
   { label: '유저 관리', path: '/admin/users' },
   { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
 ]
 
-function menuForSession(role: string | undefined, gaCode: string | undefined): MenuItem[] {
+function menuForSession(role: string | undefined): MenuItem[] {
   if (role === 'SUPER_ADMIN') {
     return SUPER_ADMIN_MENU
   }
-  const tenantBase = buildGaTenantMenu(gaCode)
-  if (role === 'GA_ADMIN' || role === 'GA_STAFF') {
-    return [...tenantBase, ...GA_STAFF_EXTRA_MENU]
-  }
-  if (role === 'USER') {
-    return tenantBase
+  if (role === 'GA_ADMIN' || role === 'GA_STAFF' || role === 'USER') {
+    return [...GA_TENANT_ESSENTIAL_MENU]
   }
   return []
 }
@@ -53,17 +45,20 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === '/feature-requests/my') {
     return pathname === '/feature-requests/my'
   }
+  if (itemPath === '/account/reset') {
+    return pathname === '/account/reset'
+  }
   if (itemPath.startsWith('/internal/admin/')) {
     return pathname === itemPath
   }
   if (itemPath === '/admin/ga') {
     return pathname === '/admin/ga' || pathname === '/admin/create-ga'
   }
-  if (itemPath === '/portal/newsletters') {
-    return pathname === '/portal/newsletters' || pathname.startsWith('/portal/newsletters/')
+  if (itemPath === '/admin/delegates') {
+    return pathname === '/admin/delegates' || pathname === '/admin/create-staff'
   }
-  if (itemPath === '/portal/insurer-news/login') {
-    return pathname.startsWith('/portal/insurer-news')
+  if (itemPath === '/insurer-managers') {
+    return pathname === '/insurer-managers'
   }
   return pathname === itemPath
 }
@@ -89,7 +84,7 @@ export function DashboardPage() {
   const role = user?.role
   const showStaffDirectoryNote = isGaTenantStaffRole(role)
   const showFeatureFooter = showFeatureRequestSection(role)
-  const menuItems = menuForSession(role, user?.gaCode)
+  const menuItems = menuForSession(role)
   const pathname = location.pathname
 
   return (
@@ -136,12 +131,21 @@ export function DashboardPage() {
               >
                 내 기능 요청
               </button>
+              {role === 'USER' ? (
+                <button
+                  type="button"
+                  className={`menu-item${pathIsActive(pathname, '/account/reset') ? ' active' : ''}`}
+                  onClick={() => navigate('/account/reset')}
+                >
+                  계정 및 데이터 초기화
+                </button>
+              ) : null}
             </div>
           ) : null}
 
           {showStaffDirectoryNote ? (
             <p className="dashboard-menu-note">
-              보험사 마스터는 「원수사 연락처」에서 확인하고, 「원수사 연락처 관리」에서만 저장·수정합니다.
+              보험사 마스터는 「원수사 연락처 관리」에서만 저장·수정합니다.
             </p>
           ) : null}
 

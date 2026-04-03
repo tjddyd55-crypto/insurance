@@ -1,0 +1,15 @@
+export type InsurerManagerType = 'LIFE' | 'NON_LIFE'
+
+export type InsurerManagerStatus = 'ACTIVE' | 'BLOCKED'
+
+export interface InsurerManager {
+  id: string
+  gaCode: string
+  insurerType: InsurerManagerType
+  insurerName: string
+  username: string
+  /** 관리 화면 표시용 평문(로그인은 password_hash 사용) */
+  password: string
+  status: InsurerManagerStatus
+  createdAt: string
+}

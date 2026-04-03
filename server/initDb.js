@@ -137,7 +137,84 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE users
     ADD CONSTRAINT users_status_check
-    CHECK (status IN ('active', 'blocked', 'inactive'))
+    CHECK (status IN ('active', 'blocked', 'inactive', 'reset'))
+  `)
+
+  /* 휴대폰 유니크는 운영 정책 확정 후 ADD CONSTRAINT ... UNIQUE (phone_number) 등으로 붙일 수 있음 */
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20)
+  `)
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS last_sms_requested_at TIMESTAMPTZ
+  `)
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS sms_request_count INTEGER NOT NULL DEFAULT 0
+  `)
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS sms_request_window_start TIMESTAMPTZ
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sms_verification_codes (
+      id SERIAL PRIMARY KEY,
+      purpose VARCHAR(50) NOT NULL,
+      user_id TEXT NULL,
+      username VARCHAR(100) NULL,
+      phone_number VARCHAR(20) NOT NULL,
+      code VARCHAR(10) NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      verified_at TIMESTAMPTZ NULL,
+      used BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_verification_phone_purpose
+    ON sms_verification_codes (phone_number, purpose)
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_verification_user_purpose
+    ON sms_verification_codes (user_id, purpose)
+  `)
+
+  await pool.query(`
+    ALTER TABLE sms_verification_codes
+    ADD COLUMN IF NOT EXISTS attempt_count INTEGER NOT NULL DEFAULT 0
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sms_verification_logs (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NULL,
+      phone_number VARCHAR(20) NOT NULL,
+      purpose VARCHAR(50) NOT NULL,
+      success BOOLEAN NOT NULL,
+      ip TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_verification_logs_created
+    ON sms_verification_logs (created_at DESC)
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_sms_verification_logs_user_created
+    ON sms_verification_logs (user_id, created_at DESC)
+    WHERE user_id IS NOT NULL
+  `)
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS delegate_password_plaintext TEXT
   `)
 
   await pool.query(`
@@ -784,6 +861,48 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE consent_templates
     ADD CONSTRAINT fk_consent_templates_ga FOREIGN KEY (ga_id) REFERENCES ga_companies(id)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS insurer_managers (
+      id TEXT PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      insurer_type TEXT NOT NULL,
+      insurer_name TEXT NOT NULL,
+      username VARCHAR(50) NOT NULL,
+      password_hash TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'ACTIVE',
+      is_deleted BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`ALTER TABLE insurer_managers DROP CONSTRAINT IF EXISTS insurer_managers_insurer_type_check`)
+  await pool.query(`
+    ALTER TABLE insurer_managers
+    ADD CONSTRAINT insurer_managers_insurer_type_check
+    CHECK (insurer_type IN ('LIFE', 'NON_LIFE'))
+  `)
+  await pool.query(`ALTER TABLE insurer_managers DROP CONSTRAINT IF EXISTS insurer_managers_status_check`)
+  await pool.query(`
+    ALTER TABLE insurer_managers
+    ADD CONSTRAINT insurer_managers_status_check
+    CHECK (status IN ('ACTIVE', 'BLOCKED'))
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_insurer_managers_username_active
+    ON insurer_managers (username)
+    WHERE is_deleted = false
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_insurer_managers_ga_insurer_active
+    ON insurer_managers (ga_id, insurer_name)
+    WHERE is_deleted = false
+  `)
+
+  await pool.query(`
+    ALTER TABLE insurer_managers
+    ADD COLUMN IF NOT EXISTS password_plaintext TEXT
   `)
 
   await maybeDebugResetAllUsers()

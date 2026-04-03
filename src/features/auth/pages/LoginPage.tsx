@@ -1,12 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { useAuth } from '../AuthProvider'
 import { login as loginApi } from '../authApi'
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const { isAuthenticated, login } = useAuth()
+  const flash = (location.state ?? {}) as { passwordReset?: boolean; accountReset?: boolean }
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -44,6 +46,16 @@ export function LoginPage() {
             로그인이 필요합니다.
           </p>
         ) : null}
+        {flash.passwordReset ? (
+          <p className="auth-notice" role="status">
+            비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.
+          </p>
+        ) : null}
+        {flash.accountReset ? (
+          <p className="auth-notice" role="status">
+            계정이 초기화되었습니다. 서비스 이용이 필요하면 소속 GA에 새 계정 발급을 요청해 주세요.
+          </p>
+        ) : null}
         <p className="auth-description">아이디와 비밀번호로 신청서를 관리합니다.</p>
 
         <form className="auth-form" onSubmit={(e) => void handleLogin(e)}>
@@ -79,6 +91,13 @@ export function LoginPage() {
           계정이 없으신가요?
           <Link to="/register" className="switch-text__action">
             회원가입
+          </Link>
+        </div>
+
+        <div className="switch-text">
+          비밀번호를 잊으셨나요?
+          <Link to="/password-reset" className="switch-text__action">
+            비밀번호 재설정
           </Link>
         </div>
 

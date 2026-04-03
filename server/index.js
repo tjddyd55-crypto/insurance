@@ -7,6 +7,8 @@ import path from 'node:path'
 import pool from './db.js'
 import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import { initDb } from './initDb.js'
+import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
+import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
 import { registerConsentApi } from './registerConsentApi.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
@@ -77,6 +79,81 @@ function validateCredentials(username, password) {
   }
 
   return null
+}
+
+/** users + insurer_managers 비삭제 행 기준 전역 아이디 중복 여부 */
+async function isUsernameTakenGlobally(executor, username, options = {}) {
+  const normalized = String(username ?? '').trim()
+  const excludeUserId = String(options.excludeUserId ?? '').trim()
+  const excludeInsurerManagerId = String(options.excludeInsurerManagerId ?? '').trim()
+  const uParams = [normalized]
+  let uSql = `SELECT 1 FROM users WHERE username = $1 AND is_deleted = false`
+  if (excludeUserId) {
+    uSql += ` AND id <> $2`
+    uParams.push(excludeUserId)
+  }
+  uSql += ' LIMIT 1'
+  const u = await systemQuery(executor, uSql, uParams)
+  if (u.rowCount > 0) {
+    return true
+  }
+  const imParams = [normalized]
+  let imSql = `SELECT 1 FROM insurer_managers WHERE username = $1 AND is_deleted = false`
+  if (excludeInsurerManagerId) {
+    imSql += ` AND id <> $2`
+    imParams.push(excludeInsurerManagerId)
+  }
+  imSql += ' LIMIT 1'
+  const im = await systemQuery(executor, imSql, imParams)
+  return im.rowCount > 0
+}
+
+function parseInsurerManagerType(raw) {
+  const u = String(raw ?? '').trim().toUpperCase()
+  return u === 'LIFE' || u === 'NON_LIFE' ? u : null
+}
+
+function parseInsurerManagerStatusDb(raw) {
+  const u = String(raw ?? '').trim().toUpperCase()
+  return u === 'ACTIVE' || u === 'BLOCKED' ? u : null
+}
+
+function mapInsurerManagerRow(row) {
+  const code = row.ga_code ?? ''
+  const st = String(row.status ?? 'ACTIVE').toUpperCase()
+  return {
+    id: String(row.id),
+    gaCode: typeof code === 'string' ? code.trim().toUpperCase() : '',
+    insurerType: row.insurer_type,
+    insurerName: String(row.insurer_name ?? '').trim(),
+    username: String(row.username ?? '').trim(),
+    password: String(row.password_plaintext ?? ''),
+    status: st === 'BLOCKED' ? 'BLOCKED' : 'ACTIVE',
+    createdAt: toIsoString(row.created_at),
+  }
+}
+
+function mapGaDelegateAdminRow(row) {
+  const st = String(row.status ?? 'active').toLowerCase()
+  let statusLabel = 'ACTIVE'
+  if (st === 'blocked') {
+    statusLabel = 'BLOCKED'
+  } else if (st === 'inactive') {
+    statusLabel = 'INACTIVE'
+  }
+  const code = row.ga_code ?? ''
+  return {
+    id: String(row.id),
+    ga_id: row.ga_id,
+    gaCode: typeof code === 'string' ? code.trim().toUpperCase() : '',
+    gaName: String(row.ga_name ?? '').trim(),
+    username: String(row.username ?? '').trim(),
+    password: String(row.delegate_password_plaintext ?? ''),
+    role: normalizeUserRole(row.role),
+    status: st,
+    statusLabel,
+    created_at: toIsoString(row.created_at),
+  }
 }
 
 function buildFormTitle(customerName, carNumber, updatedAt) {
@@ -891,6 +968,15 @@ registerConsentApi(apiRouter, {
   JWT_SECRET,
 })
 
+registerAuthAccountSmsApi(apiRouter, {
+  pool,
+  bcrypt,
+  validateCredentials,
+  handleDbError,
+  RUNNING_IN_PRODUCTION,
+  requireAuth,
+})
+
 apiRouter.get('/health', (_req, res) => {
   res.json({ ok: true })
 })
@@ -911,10 +997,18 @@ async function handleRegister(req, res) {
       inviteCode: inviteAlt,
       name: nameRaw,
       display_name: displayNameRaw,
+      phone_number: phoneSnake,
+      phoneNumber: phoneCamel,
     } = req.body ?? {}
     const displayName = String(nameRaw ?? displayNameRaw ?? '').trim()
     if (!displayName) {
       res.status(400).json({ message: '이름을 입력해 주세요.' })
+      return
+    }
+    const phoneNorm = normalizeKrMobile(phoneSnake ?? phoneCamel)
+    const phoneValidationError = validateKrMobileDigits(phoneNorm)
+    if (phoneValidationError) {
+      res.status(400).json({ message: phoneValidationError })
       return
     }
     const code = normalizeInviteCode(inviteRaw ?? inviteAlt ?? '')
@@ -950,16 +1044,20 @@ async function handleRegister(req, res) {
     }
 
     const normalizedUsername = username.trim()
+    if (await isUsernameTakenGlobally(pool, normalizedUsername)) {
+      res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
+      return
+    }
     const passwordHash = await bcrypt.hash(password, 10)
     const id = randomUUID()
 
     const inserted = await safeQuery(pool,
       `
-      INSERT INTO users (id, username, password_hash, role, ga_id, display_name)
-      VALUES ($1, $2, $3, 'USER', $4, $5)
+      INSERT INTO users (id, username, password_hash, role, ga_id, display_name, phone_number)
+      VALUES ($1, $2, $3, 'USER', $4, $5, $6)
       RETURNING created_at
       `,
-      [id, normalizedUsername, passwordHash, gaId, displayName],
+      [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm],
     )
 
     res.status(201).json({
@@ -1105,6 +1203,272 @@ apiRouter.post('/auth/register', handleRegister)
 apiRouter.post('/login', handleLogin)
 apiRouter.post('/auth/login', handleLogin)
 
+apiRouter.get('/auth/username-availability', async (req, res) => {
+  try {
+    const raw = String(req.query.username ?? '').trim()
+    if (!raw || raw.length < 3 || raw.length > 30 || /\s/.test(raw)) {
+      res.json({ available: false })
+      return
+    }
+    const taken = await isUsernameTakenGlobally(pool, raw)
+    res.json({ available: !taken })
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.get('/insurer-managers', requireAuth, requireGaAdminOrSuper, async (req, res) => {
+  try {
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const r = await safeQuery(
+      pool,
+      `
+      SELECT im.id, im.insurer_type, im.insurer_name, im.username, im.password_plaintext, im.status, im.created_at, g.code AS ga_code
+      FROM insurer_managers im
+      INNER JOIN ga_companies g ON g.id = im.ga_id
+      WHERE im.ga_id = $1 AND im.is_deleted = false
+      ORDER BY im.created_at DESC
+      `,
+      [gaId],
+    )
+    res.json(r.rows.map(mapInsurerManagerRow))
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.post('/insurer-managers', requireAuth, requireGaAdminOrSuper, async (req, res) => {
+  try {
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const body = req.body ?? {}
+    const typeNorm = parseInsurerManagerType(body.insurer_type ?? body.insurerType)
+    const nameNorm = String(body.insurer_name ?? body.insurerName ?? '').trim()
+    const { username, password } = body
+    if (!typeNorm || !nameNorm) {
+      res.status(400).json({ message: '보험사 유형과 보험회사를 입력해 주세요.' })
+      return
+    }
+    const validationMessage = validateCredentials(username, password)
+    if (validationMessage) {
+      res.status(400).json({ message: validationMessage })
+      return
+    }
+    const normalizedUsername = String(username).trim()
+    if (await isUsernameTakenGlobally(pool, normalizedUsername)) {
+      res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
+      return
+    }
+    const dupGaInsurer = await safeQuery(
+      pool,
+      `
+      SELECT 1 FROM insurer_managers
+      WHERE ga_id = $1 AND insurer_name = $2 AND is_deleted = false
+      LIMIT 1
+      `,
+      [gaId, nameNorm],
+    )
+    if (dupGaInsurer.rowCount > 0) {
+      res.status(409).json({ message: '해당 보험사에 이미 등록된 담당자 계정이 있습니다.' })
+      return
+    }
+    const id = randomUUID()
+    const plainPw = String(password)
+    const passwordHash = await bcrypt.hash(plainPw, 10)
+    const ins = await safeQuery(
+      pool,
+      `
+      INSERT INTO insurer_managers (id, ga_id, insurer_type, insurer_name, username, password_hash, password_plaintext, status, is_deleted)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'ACTIVE', false)
+      RETURNING id, insurer_type, insurer_name, username, password_plaintext, status, created_at
+      `,
+      [id, gaId, typeNorm, nameNorm, normalizedUsername, passwordHash, plainPw],
+    )
+    const g0 = await systemQuery(pool, `SELECT code FROM ga_companies WHERE id = $1`, [gaId])
+    res.status(201).json(
+      mapInsurerManagerRow({
+        ...ins.rows[0],
+        ga_code: g0.rows[0]?.code ?? '',
+      }),
+    )
+  } catch (error) {
+    if (error?.code === '23505') {
+      res.status(409).json({ message: '이미 사용 중인 아이디이거나 동일 보험사에 계정이 있습니다.' })
+      return
+    }
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.patch('/insurer-managers/:id', requireAuth, requireGaAdminOrSuper, async (req, res) => {
+  try {
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const targetId = String(req.params.id ?? '').trim()
+    if (!targetId) {
+      res.status(400).json({ message: '잘못된 ID입니다.' })
+      return
+    }
+    const exist = await safeQuery(
+      pool,
+      `
+      SELECT id, username, insurer_type, insurer_name, status
+      FROM insurer_managers
+      WHERE id = $1 AND ga_id = $2 AND is_deleted = false
+      `,
+      [targetId, gaId],
+    )
+    if (exist.rowCount === 0) {
+      res.status(404).json({ message: '담당자를 찾을 수 없습니다.' })
+      return
+    }
+    const cur = exist.rows[0]
+    const body = req.body ?? {}
+
+    let newUsername = null
+    if (Object.prototype.hasOwnProperty.call(body, 'username')) {
+      newUsername = String(body.username ?? '').trim()
+      if (!newUsername || newUsername.length < 3 || newUsername.length > 30) {
+        res.status(400).json({ message: '아이디는 3~30자여야 합니다.' })
+        return
+      }
+    }
+    let newInsurerName = null
+    if (
+      Object.prototype.hasOwnProperty.call(body, 'insurer_name') ||
+      Object.prototype.hasOwnProperty.call(body, 'insurerName')
+    ) {
+      newInsurerName = String(body.insurer_name ?? body.insurerName ?? '').trim()
+      if (!newInsurerName) {
+        res.status(400).json({ message: '보험회사명을 입력해 주세요.' })
+        return
+      }
+    }
+    let newType = null
+    if (
+      Object.prototype.hasOwnProperty.call(body, 'insurer_type') ||
+      Object.prototype.hasOwnProperty.call(body, 'insurerType')
+    ) {
+      newType = parseInsurerManagerType(body.insurer_type ?? body.insurerType)
+      if (!newType) {
+        res.status(400).json({ message: '보험사 유형이 올바르지 않습니다.' })
+        return
+      }
+    }
+    let newStatus = null
+    if (Object.prototype.hasOwnProperty.call(body, 'status')) {
+      newStatus = parseInsurerManagerStatusDb(body.status)
+      if (!newStatus) {
+        res.status(400).json({ message: 'status는 ACTIVE 또는 BLOCKED 여야 합니다.' })
+        return
+      }
+    }
+    let passwordUpdate = null
+    if (Object.prototype.hasOwnProperty.call(body, 'password')) {
+      const p = body.password
+      if (typeof p === 'string' && p.trim() !== '') {
+        if (p.length < 4 || p.length > 100) {
+          res.status(400).json({ message: '비밀번호는 4~100자여야 합니다.' })
+          return
+        }
+        passwordUpdate = p
+      }
+    }
+
+    if (newUsername != null && newUsername !== cur.username) {
+      if (await isUsernameTakenGlobally(pool, newUsername, { excludeInsurerManagerId: targetId })) {
+        res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
+        return
+      }
+    }
+
+    const effectiveName = newInsurerName ?? cur.insurer_name
+    if (newInsurerName != null && effectiveName !== cur.insurer_name) {
+      const dup = await safeQuery(
+        pool,
+        `
+        SELECT 1 FROM insurer_managers
+        WHERE ga_id = $1 AND TRIM(insurer_name) = TRIM($2) AND is_deleted = false AND id <> $3
+        LIMIT 1
+        `,
+        [gaId, effectiveName, targetId],
+      )
+      if (dup.rowCount > 0) {
+        res.status(409).json({ message: '해당 보험사에 이미 등록된 담당자 계정이 있습니다.' })
+        return
+      }
+    }
+
+    const setParts = []
+    const vals = []
+    let n = 1
+    if (newType != null) {
+      setParts.push(`insurer_type = $${n++}`)
+      vals.push(newType)
+    }
+    if (newInsurerName != null) {
+      setParts.push(`insurer_name = $${n++}`)
+      vals.push(effectiveName)
+    }
+    if (newUsername != null) {
+      setParts.push(`username = $${n++}`)
+      vals.push(newUsername)
+    }
+    if (newStatus != null) {
+      setParts.push(`status = $${n++}`)
+      vals.push(newStatus)
+    }
+    if (passwordUpdate != null) {
+      setParts.push(`password_hash = $${n++}`)
+      vals.push(await bcrypt.hash(passwordUpdate, 10))
+      setParts.push(`password_plaintext = $${n++}`)
+      vals.push(passwordUpdate)
+    }
+
+    if (setParts.length === 0) {
+      res.status(400).json({ message: '수정할 필드가 없습니다.' })
+      return
+    }
+    setParts.push('updated_at = NOW()')
+    const idPos = n
+    const gaPos = n + 1
+    vals.push(targetId, gaId)
+    const upd = await safeQuery(
+      pool,
+      `
+      UPDATE insurer_managers
+      SET ${setParts.join(', ')}
+      WHERE id = $${idPos} AND ga_id = $${gaPos} AND is_deleted = false
+      RETURNING id, insurer_type, insurer_name, username, password_plaintext, status, created_at
+      `,
+      vals,
+    )
+    const g0 = await systemQuery(pool, `SELECT code FROM ga_companies WHERE id = $1`, [gaId])
+    res.json(
+      mapInsurerManagerRow({
+        ...upd.rows[0],
+        ga_code: g0.rows[0]?.code ?? '',
+      }),
+    )
+  } catch (error) {
+    if (error?.code === '23505') {
+      res.status(409).json({ message: '이미 사용 중인 아이디이거나 동일 보험사에 계정이 있습니다.' })
+      return
+    }
+    handleDbError(error, res)
+  }
+})
+
 apiRouter.get('/admin/ga', requireAuth, async (req, res) => {
   try {
     if (isSuperAdminRole(req.user.role)) {
@@ -1157,13 +1521,16 @@ apiRouter.post('/admin/ga', requireAuth, requireSuperAdmin, async (req, res) => 
       `
       INSERT INTO ga_companies (name, code, status, is_deleted)
       VALUES ($1, $2, 'active', false)
-      ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
       RETURNING id, name, code, status, created_at
       `,
       [name, code],
     )
     res.status(201).json(ins.rows[0])
   } catch (error) {
+    if (error?.code === '23505') {
+      res.status(409).json({ message: '이미 존재하는 코드입니다' })
+      return
+    }
     handleDbError(error, res)
   }
 })
@@ -1203,6 +1570,19 @@ apiRouter.patch('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, res
         res.status(400).json({ message: 'code는 2~32자의 영문 대문자·숫자·밑줄만 사용할 수 있습니다.' })
         return
       }
+      const dupCode = await systemQuery(
+        pool,
+        `
+        SELECT 1 FROM ga_companies
+        WHERE code = $1 AND id <> $2 AND is_deleted = false
+        LIMIT 1
+        `,
+        [code, id],
+      )
+      if (dupCode.rowCount > 0) {
+        res.status(409).json({ message: '이미 존재하는 코드입니다' })
+        return
+      }
       parts.push(`code = $${n++}`)
       vals.push(code)
     }
@@ -1234,6 +1614,10 @@ apiRouter.patch('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, res
     )
     res.json(upd.rows[0])
   } catch (error) {
+    if (error?.code === '23505') {
+      res.status(409).json({ message: '이미 존재하는 코드입니다' })
+      return
+    }
     handleDbError(error, res)
   }
 })
@@ -1367,6 +1751,9 @@ apiRouter.patch('/admin/users/:id', requireAuth, requireSuperAdmin, async (req, 
     if (roleNorm) {
       parts.push(`role = $${n++}`)
       vals.push(roleNorm)
+      if (roleNorm !== 'GA_ADMIN' && roleNorm !== 'GA_STAFF') {
+        parts.push('delegate_password_plaintext = NULL')
+      }
     }
     if (statusNorm) {
       parts.push(`status = $${n++}`)
@@ -1426,70 +1813,82 @@ apiRouter.delete('/admin/users/:id', requireAuth, requireSuperAdmin, async (req,
   }
 })
 
+/**
+ * GA 담당자(GA_ADMIN/GA_STAFF) 계정 생성 공통 검증·삽입.
+ * @returns {{ ok: true, id: string, username: string, role: string, ga_id: number, displayName: string } | { ok: false, status: number, message: string }}
+ */
+async function tryCreateGaDelegateFromRequest(req) {
+  const isSuper = isSuperAdminRole(req.user?.role)
+  const actorGaId = parseGaId(req.user?.gaId)
+  if (!isSuper && actorGaId == null) {
+    return { ok: false, status: 400, message: 'GA 컨텍스트가 없습니다.' }
+  }
+  const { username, password, name, ga_id: gaRaw, gaId: gaBody, role: roleRaw } = req.body ?? {}
+  const targetGaId = parseGaId(gaRaw ?? gaBody)
+  if (targetGaId == null) {
+    return { ok: false, status: 400, message: 'ga_id가 필요합니다.' }
+  }
+  if (!isSuper && targetGaId !== actorGaId) {
+    return { ok: false, status: 403, message: '자신이 속한 GA에만 사용자를 생성할 수 있습니다.' }
+  }
+  const gaOk = await systemQuery(
+    pool,
+    `
+    SELECT 1 FROM ga_companies
+    WHERE id = $1 AND is_deleted = false AND status = 'active'
+    `,
+    [targetGaId],
+  )
+  if (gaOk.rowCount === 0) {
+    return { ok: false, status: 400, message: '유효하지 않은 GA입니다.' }
+  }
+
+  const roleNorm = typeof roleRaw === 'string' ? roleRaw.trim().toUpperCase() : ''
+  const targetRole = GA_DELEGATE_ROLES.includes(roleNorm) ? roleNorm : null
+  if (!targetRole) {
+    return { ok: false, status: 400, message: 'role은 GA_ADMIN 또는 GA_STAFF 여야 합니다.' }
+  }
+
+  const validationMessage = validateCredentials(username, password)
+  if (validationMessage) {
+    return { ok: false, status: 400, message: validationMessage }
+  }
+
+  const normalizedUsername = String(username).trim()
+  const displayName = String(name ?? '').trim()
+  if (await isUsernameTakenGlobally(pool, normalizedUsername)) {
+    return { ok: false, status: 409, message: '이미 사용 중인 아이디입니다.' }
+  }
+  const plainPassword = String(password)
+  const passwordHash = await bcrypt.hash(plainPassword, 10)
+  const id = randomUUID()
+
+  await safeQuery(pool,
+    `
+    INSERT INTO users (id, username, password_hash, role, display_name, ga_id, delegate_password_plaintext)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `,
+    [id, normalizedUsername, passwordHash, targetRole, displayName, targetGaId, plainPassword],
+  )
+
+  return { ok: true, id, username: normalizedUsername, role: targetRole, ga_id: targetGaId, displayName }
+}
+
 async function postAdminCreateDelegateUser(req, res) {
   try {
-    const actorGaId = parseGaId(req.user?.gaId)
-    if (actorGaId == null) {
-      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+    const result = await tryCreateGaDelegateFromRequest(req)
+    if (!result.ok) {
+      res.status(result.status).json({ message: result.message })
       return
     }
-    const { username, password, name, ga_id: gaRaw, gaId: gaBody, role: roleRaw } = req.body ?? {}
-    const targetGaId = parseGaId(gaRaw ?? gaBody)
-    if (targetGaId == null) {
-      res.status(400).json({ message: 'ga_id가 필요합니다.' })
-      return
-    }
-    if (targetGaId !== actorGaId) {
-      res.status(403).json({ message: '자신이 속한 GA에만 사용자를 생성할 수 있습니다.' })
-      return
-    }
-    const gaOk = await systemQuery(
-      pool,
-      `
-      SELECT 1 FROM ga_companies
-      WHERE id = $1 AND is_deleted = false AND status = 'active'
-      `,
-      [targetGaId],
-    )
-    if (gaOk.rowCount === 0) {
-      res.status(400).json({ message: '유효하지 않은 GA입니다.' })
-      return
-    }
-
-    const roleNorm = typeof roleRaw === 'string' ? roleRaw.trim().toUpperCase() : ''
-    const targetRole = GA_DELEGATE_ROLES.includes(roleNorm) ? roleNorm : null
-    if (!targetRole) {
-      res.status(400).json({ message: 'role은 GA_ADMIN 또는 GA_STAFF 여야 합니다.' })
-      return
-    }
-
-    const validationMessage = validateCredentials(username, password)
-    if (validationMessage) {
-      res.status(400).json({ message: validationMessage })
-      return
-    }
-
-    const normalizedUsername = String(username).trim()
-    const displayName = String(name ?? '').trim()
-    const passwordHash = await bcrypt.hash(password, 10)
-    const id = randomUUID()
-
-    await safeQuery(pool,
-      `
-      INSERT INTO users (id, username, password_hash, role, display_name, ga_id)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      `,
-      [id, normalizedUsername, passwordHash, targetRole, displayName, targetGaId],
-    )
-
     res.status(201).json({
       success: true,
       data: {
-        id,
-        username: normalizedUsername,
-        role: targetRole,
-        ga_id: targetGaId,
-        displayName,
+        id: result.id,
+        username: result.username,
+        role: result.role,
+        ga_id: result.ga_id,
+        displayName: result.displayName,
       },
     })
   } catch (error) {
@@ -1502,6 +1901,194 @@ async function postAdminCreateDelegateUser(req, res) {
 }
 
 apiRouter.post('/admin/user', requireAuth, requireSuperAdmin, postAdminCreateDelegateUser)
+
+apiRouter.get('/admin/delegates', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const r = await systemQuery(
+      pool,
+      `
+      SELECT
+        u.id,
+        u.username,
+        u.role,
+        u.status,
+        u.created_at,
+        u.ga_id,
+        u.delegate_password_plaintext,
+        g.name AS ga_name,
+        g.code AS ga_code
+      FROM users u
+      INNER JOIN ga_companies g ON g.id = u.ga_id
+      WHERE u.is_deleted = false
+        AND g.is_deleted = false
+        AND u.role IN ('GA_ADMIN', 'GA_STAFF')
+      ORDER BY g.name ASC, u.username ASC
+      `,
+    )
+    res.json(r.rows.map(mapGaDelegateAdminRow))
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.post('/admin/delegates', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const result = await tryCreateGaDelegateFromRequest(req)
+    if (!result.ok) {
+      res.status(result.status).json({ message: result.message })
+      return
+    }
+    const rowQ = await systemQuery(
+      pool,
+      `
+      SELECT
+        u.id,
+        u.username,
+        u.role,
+        u.status,
+        u.created_at,
+        u.ga_id,
+        u.delegate_password_plaintext,
+        g.name AS ga_name,
+        g.code AS ga_code
+      FROM users u
+      INNER JOIN ga_companies g ON g.id = u.ga_id
+      WHERE u.id = $1
+      `,
+      [result.id],
+    )
+    res.status(201).json(mapGaDelegateAdminRow(rowQ.rows[0]))
+  } catch (error) {
+    if (error?.code === '23505') {
+      res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
+      return
+    }
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.patch('/admin/delegates/:id', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const targetId = String(req.params.id ?? '').trim()
+    if (!targetId) {
+      res.status(400).json({ message: '잘못된 ID입니다.' })
+      return
+    }
+    const curQ = await systemQuery(
+      pool,
+      `
+      SELECT id, username, role, status, ga_id, delegate_password_plaintext
+      FROM users
+      WHERE id = $1 AND is_deleted = false
+      `,
+      [targetId],
+    )
+    if (curQ.rowCount === 0) {
+      res.status(404).json({ message: '담당자를 찾을 수 없습니다.' })
+      return
+    }
+    const cur = curQ.rows[0]
+    const roleNorm = normalizeUserRole(cur.role)
+    if (roleNorm !== 'GA_ADMIN' && roleNorm !== 'GA_STAFF') {
+      res.status(400).json({ message: 'GA 담당자 계정만 수정할 수 있습니다.' })
+      return
+    }
+
+    const body = req.body ?? {}
+    let newUsername = null
+    if (Object.prototype.hasOwnProperty.call(body, 'username')) {
+      newUsername = String(body.username ?? '').trim()
+      if (!newUsername || newUsername.length < 3 || newUsername.length > 30) {
+        res.status(400).json({ message: '아이디는 3~30자여야 합니다.' })
+        return
+      }
+    }
+    let newStatus = null
+    if (Object.prototype.hasOwnProperty.call(body, 'status')) {
+      newStatus = parseEntityStatus(body.status)
+      if (!newStatus) {
+        res.status(400).json({ message: 'status는 active, blocked, inactive 중 하나여야 합니다.' })
+        return
+      }
+    }
+    let passwordUpdate = null
+    if (Object.prototype.hasOwnProperty.call(body, 'password')) {
+      const p = body.password
+      if (typeof p === 'string' && p.trim() !== '') {
+        if (p.length < 4 || p.length > 100) {
+          res.status(400).json({ message: '비밀번호는 4~100자여야 합니다.' })
+          return
+        }
+        passwordUpdate = p
+      }
+    }
+
+    if (newUsername != null && newUsername !== cur.username) {
+      if (await isUsernameTakenGlobally(pool, newUsername, { excludeUserId: targetId })) {
+        res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
+        return
+      }
+    }
+
+    const setParts = []
+    const vals = []
+    let n = 1
+    if (newUsername != null && newUsername !== cur.username) {
+      setParts.push(`username = $${n++}`)
+      vals.push(newUsername)
+    }
+    const curStatus = String(cur.status ?? 'active').toLowerCase()
+    if (newStatus != null && newStatus !== curStatus) {
+      setParts.push(`status = $${n++}`)
+      vals.push(newStatus)
+    }
+    if (passwordUpdate != null) {
+      setParts.push(`password_hash = $${n++}`)
+      vals.push(await bcrypt.hash(passwordUpdate, 10))
+      setParts.push(`delegate_password_plaintext = $${n++}`)
+      vals.push(passwordUpdate)
+    }
+    if (setParts.length > 0) {
+      vals.push(targetId)
+      await safeQuery(
+        pool,
+        `
+        UPDATE users
+        SET ${setParts.join(', ')}
+        WHERE id = $${n} AND is_deleted = false
+        RETURNING id
+        `,
+        vals,
+      )
+    }
+    const rowQ = await systemQuery(
+      pool,
+      `
+      SELECT
+        u.id,
+        u.username,
+        u.role,
+        u.status,
+        u.created_at,
+        u.ga_id,
+        u.delegate_password_plaintext,
+        g.name AS ga_name,
+        g.code AS ga_code
+      FROM users u
+      INNER JOIN ga_companies g ON g.id = u.ga_id
+      WHERE u.id = $1
+      `,
+      [targetId],
+    )
+    res.json(mapGaDelegateAdminRow(rowQ.rows[0]))
+  } catch (error) {
+    if (error?.code === '23505') {
+      res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
+      return
+    }
+    handleDbError(error, res)
+  }
+})
 
 apiRouter.post('/feature-request', requireAuth, async (req, res) => {
   try {

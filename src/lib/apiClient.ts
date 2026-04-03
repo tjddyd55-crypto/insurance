@@ -1,10 +1,14 @@
 export class ApiError extends Error {
   status: number
+  retryAfterSec?: number
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, opts?: { retryAfterSec?: number }) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    if (opts?.retryAfterSec != null && Number.isFinite(opts.retryAfterSec)) {
+      this.retryAfterSec = Math.max(1, Math.floor(opts.retryAfterSec))
+    }
   }
 }
 
@@ -62,11 +66,13 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const payload = (await response.json().catch(() => ({}))) as {
     message?: string
     error?: string
+    retryAfterSec?: number
   }
   if (!response.ok) {
     throw new ApiError(
       payload.message ?? payload.error ?? '요청 처리에 실패했습니다.',
       response.status,
+      { retryAfterSec: payload.retryAfterSec },
     )
   }
 

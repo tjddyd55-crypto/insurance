@@ -20,7 +20,7 @@ export function AppLayout() {
   const { user, isAuthenticated } = useAuth()
   const location = useLocation()
 
-  const hideBarPaths = new Set(['/login', '/register', '/customer/input'])
+  const hideBarPaths = new Set(['/login', '/register', '/password-reset', '/customer/input'])
   const showGaBar =
     Boolean(isAuthenticated && user?.gaId != null) && !hideBarPaths.has(location.pathname)
 

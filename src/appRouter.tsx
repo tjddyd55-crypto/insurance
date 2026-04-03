@@ -5,10 +5,13 @@ import { ApplicationFormPage } from './features/application/pages/ApplicationFor
 import { ApplicationListPage } from './features/application/pages/ApplicationListPage'
 import { ApplicationResultPage } from './features/application/pages/ApplicationResultPage'
 import { CarInsuranceDashboardPage } from './features/application/pages/CarInsuranceDashboardPage'
-import CreateStaffPage from './features/admin/pages/CreateStaffPage'
+import GaDelegateManagementPage from './features/admin/pages/GaDelegateManagementPage'
+import InsurerManagersPage from './features/insurer-managers/pages/InsurerManagersPage'
 import GaManagementPage from './features/admin/pages/GaManagementPage'
 import UserManagementPage from './features/admin/pages/UserManagementPage'
+import { AccountResetPage } from './features/account/pages/AccountResetPage'
 import { LoginPage } from './features/auth/pages/LoginPage'
+import { PasswordResetPage } from './features/auth/pages/PasswordResetPage'
 import { RegisterPage } from './features/auth/pages/RegisterPage'
 import { ProtectedRoute } from './features/auth/ProtectedRoute'
 import { GaCarInsuranceRoute } from './features/auth/GaCarInsuranceRoute'
@@ -53,6 +56,7 @@ export const appRouter = createBrowserRouter([
       { index: true, element: <PublicHomeEntry /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
+      { path: 'password-reset', element: <PasswordResetPage /> },
       { path: 'signup', element: <Navigate to="/register" replace /> },
       { path: 'privacy', element: <PrivacyPolicyPage /> },
       { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
@@ -105,11 +109,14 @@ export const appRouter = createBrowserRouter([
             ],
           },
           { path: 'customers', element: <CustomersPage /> },
+          { path: 'insurer-managers', element: <InsurerManagersPage /> },
           { path: 'customer-car', element: <CustomerCarPage /> },
           { path: 'admin/ga', element: <GaManagementPage /> },
           { path: 'admin/create-ga', element: <Navigate to="/admin/ga" replace /> },
-          { path: 'admin/create-staff', element: <CreateStaffPage /> },
+          { path: 'admin/delegates', element: <GaDelegateManagementPage /> },
+          { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },
           { path: 'admin/users', element: <UserManagementPage /> },
+          { path: 'account/reset', element: <AccountResetPage /> },
           { path: 'feature-request', element: <FeatureRequestPage /> },
           { path: 'feature-requests/my', element: <MyFeatureRequestsPage /> },
           {
