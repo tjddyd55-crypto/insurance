@@ -45,7 +45,9 @@ export async function runAccountResetDataOnClient(client, { userId, newUsername,
       delegate_password_plaintext = NULL,
       last_sms_requested_at = NULL,
       sms_request_count = 0,
-      sms_request_window_start = NULL
+      sms_request_window_start = NULL,
+      sms_auth_failure_count = 0,
+      sms_blocked_until = NULL
     WHERE id = $1 AND role = 'USER' AND is_deleted = false
     `,
     [uid, hash, uname],

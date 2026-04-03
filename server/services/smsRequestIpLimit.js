@@ -24,6 +24,15 @@ export function getClientIp(req) {
   return typeof ra === 'string' && ra.trim() ? ra.trim() : 'unknown'
 }
 
+/** 감사 로그용 User-Agent (길이 제한) */
+export function getClientUserAgent(req) {
+  const h = req.headers?.['user-agent']
+  if (typeof h === 'string' && h.trim()) {
+    return h.trim().slice(0, 512)
+  }
+  return ''
+}
+
 /**
  * @returns {{ ok: true } | { ok: false, message: string, retryAfterSec: number }}
  */

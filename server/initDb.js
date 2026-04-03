@@ -160,6 +160,15 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS sms_blocked_until TIMESTAMPTZ
+  `)
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS sms_auth_failure_count INTEGER NOT NULL DEFAULT 0
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS sms_verification_codes (
       id SERIAL PRIMARY KEY,
       purpose VARCHAR(50) NOT NULL,
@@ -210,6 +219,11 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_sms_verification_logs_user_created
     ON sms_verification_logs (user_id, created_at DESC)
     WHERE user_id IS NOT NULL
+  `)
+
+  await pool.query(`
+    ALTER TABLE sms_verification_logs
+    ADD COLUMN IF NOT EXISTS user_agent TEXT NOT NULL DEFAULT ''
   `)
 
   await pool.query(`

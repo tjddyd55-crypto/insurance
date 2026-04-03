@@ -49,6 +49,7 @@ export async function insertSmsVerificationLog(executor, {
   purpose,
   success,
   ip = '',
+  userAgent = '',
 }) {
   const phone = String(phoneNumber ?? '').trim()
   const p = String(purpose ?? '').trim()
@@ -57,13 +58,14 @@ export async function insertSmsVerificationLog(executor, {
   }
   const uid = userId != null && String(userId).trim() !== '' ? String(userId).trim() : null
   const ipStr = String(ip ?? '').trim().slice(0, 128)
+  const uaStr = String(userAgent ?? '').trim().slice(0, 512)
   await systemQuery(
     executor,
     `
-    INSERT INTO sms_verification_logs (user_id, phone_number, purpose, success, ip)
-    VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO sms_verification_logs (user_id, phone_number, purpose, success, ip, user_agent)
+    VALUES ($1, $2, $3, $4, $5, $6)
     `,
-    [uid, phone, p, Boolean(success), ipStr || 'unknown'],
+    [uid, phone, p, Boolean(success), ipStr || 'unknown', uaStr],
   )
 }
 
@@ -81,7 +83,9 @@ export async function clearUserSmsRequestQuota(executor, userId) {
     `
     UPDATE users SET
       sms_request_count = 0,
-      sms_request_window_start = NULL
+      sms_request_window_start = NULL,
+      sms_auth_failure_count = 0,
+      sms_blocked_until = NULL
     WHERE id = $1
     `,
     [uid],
