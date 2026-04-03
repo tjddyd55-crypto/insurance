@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { formatKoreanDateTime } from '../../application/utils/date'
 import type { InsuranceApplicationRecord } from '../../application/domain/types'
@@ -96,6 +96,7 @@ function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
 
 export default function CustomersPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user, token } = useAuth()
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [statusText, setStatusText] = useState('')
@@ -105,9 +106,8 @@ export default function CustomersPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
-  const [tab, setTab] = useState<'create' | 'list'>('list')
+  const tab = searchParams.get('mode') === 'create' ? 'create' : 'list'
   const [keyword, setKeyword] = useState('')
-  const [isCreateExitModalOpen, setIsCreateExitModalOpen] = useState(false)
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([])
   const [selectedColumns, setSelectedColumns] = useState<string[]>([])
@@ -809,8 +809,11 @@ export default function CustomersPage() {
 
   return (
     <main
-      className={`page customers-page${isSelectMode && tab === 'list' ? ' customers-page--excel-toolbar-pad' : ''}`}
+      className={`page customers-page page--with-back${
+        isSelectMode && tab === 'list' ? ' customers-page--excel-toolbar-pad' : ''
+      }`}
     >
+      <PageBackButton />
       {isSelectMode && tab === 'list' ? (
         <div className="customers-excel-toolbar" role="region" aria-label="엑셀 다운로드 선택">
           <p className="customers-excel-toolbar__status">
@@ -863,15 +866,6 @@ export default function CustomersPage() {
 
       {tab === 'create' ? (
         <>
-          <div className="customers-create-exit-row">
-            <button
-              type="button"
-              className="link-btn customers-create-back-btn"
-              onClick={() => setIsCreateExitModalOpen(true)}
-            >
-              ← 뒤로가기
-            </button>
-          </div>
           <section className="card" style={{ marginTop: 0 }}>
             <CustomerForm
               onStatusMessage={setStatusText}
@@ -886,7 +880,11 @@ export default function CustomersPage() {
             <div className="list-section-header-actions">
               {!isSelectMode ? (
                 <>
-                  <button type="button" className="button button--primary" onClick={() => setTab('create')}>
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    onClick={() => setSearchParams({ mode: 'create' })}
+                  >
                     고객 등록
                   </button>
                   <button type="button" className="button button--secondary" onClick={enterExcelSelectMode}>
@@ -965,38 +963,6 @@ export default function CustomersPage() {
         </div>
       ) : null}
 
-      {isCreateExitModalOpen ? (
-        <div
-          className="modal-overlay"
-          role="presentation"
-          onClick={() => setIsCreateExitModalOpen(false)}
-        >
-          <div
-            className="modal app-exit-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="customers-create-exit-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="customers-create-exit-title">고객 등록을 중지하시겠습니까?</h3>
-            <div className="modal-actions app-exit-modal__actions">
-              <button type="button" className="modal-cancel" onClick={() => setIsCreateExitModalOpen(false)}>
-                취소
-              </button>
-              <button
-                type="button"
-                className="confirm"
-                onClick={() => {
-                  setIsCreateExitModalOpen(false)
-                  setTab('list')
-                }}
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </main>
   )
 }

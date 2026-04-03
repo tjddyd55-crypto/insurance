@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 import type { InsuranceApplicationRecord } from '../domain/types'
 import {
   listApplications,
@@ -32,7 +33,7 @@ function getExpiryBadgeClassName(expiryDate: string): string {
 
 export function CarInsuranceDashboardPage() {
   const navigate = useNavigate()
-  const { token, logout } = useAuth()
+  const { token } = useAuth()
   const [expiringRecords, setExpiringRecords] = useState<InsuranceApplicationRecord[]>([])
   const [recentRecords, setRecentRecords] = useState<InsuranceApplicationRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -81,7 +82,8 @@ export function CarInsuranceDashboardPage() {
   )
 
   return (
-    <main className="page">
+    <main className="page page--with-back">
+      <PageBackButton />
       <header className="page-header">
         <h1>자동차보험신청서</h1>
         {statusText ? <p>{statusText}</p> : null}
@@ -92,22 +94,12 @@ export function CarInsuranceDashboardPage() {
         <button
           className="button button--primary button--full"
           type="button"
-          onClick={() => navigate('/form/create')}
+          onClick={() => navigate('/application/write')}
         >
           신청서 작성
         </button>
         <button className="button button--full" type="button" onClick={() => navigate('/my-forms')}>
           내 신청서 목록
-        </button>
-        <button
-          className="button button--secondary button--full"
-          type="button"
-          onClick={() => {
-            logout()
-            navigate('/login', { replace: true })
-          }}
-        >
-          로그아웃
         </button>
       </section>
 

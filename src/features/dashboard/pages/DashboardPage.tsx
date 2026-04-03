@@ -1,9 +1,10 @@
 import { useNavigate, useLocation } from 'react-router-dom'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 import { useAuth } from '../../auth/AuthProvider'
 type MenuItem = { label: string; path: string }
 
 const USER_MENU: MenuItem[] = [
-  { label: '고객 관리', path: '/customers' },
+  { label: '고객 관리', path: '/customers?mode=list' },
   { label: '자동차보험 신청서', path: '/application' },
   { label: '원수사 연락처 조회', path: '/contacts' },
 ]
@@ -33,6 +34,9 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === '/contacts/manage') {
     return pathname === '/contacts/manage' || pathname === '/insurance/company-registry'
   }
+  if (itemPath.startsWith('/customers')) {
+    return pathname === '/customers'
+  }
   return pathname === itemPath
 }
 
@@ -46,7 +50,8 @@ export function DashboardPage() {
   const pathname = location.pathname
 
   return (
-    <main className="page dashboard-page--centered">
+    <main className="page dashboard-page--centered page--with-back">
+      <PageBackButton />
       <header className="page-header">
         <h1>메뉴</h1>
       </header>

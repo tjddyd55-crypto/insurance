@@ -46,6 +46,7 @@ export const appRouter = createBrowserRouter([
           { path: 'admin/create-staff', element: <CreateStaffPage /> },
           { path: 'dashboard', element: <DashboardPage /> },
           { path: 'application', element: <CarInsuranceDashboardPage /> },
+          { path: 'application/write', element: <ApplicationFormPage /> },
           { path: 'customers', element: <CustomersPage /> },
           { path: 'customer-car', element: <CustomerCarPage /> },
           { path: 'menu/car-insurance', element: <CarInsuranceDashboardPage /> },

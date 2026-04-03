@@ -49,7 +49,7 @@ export default function CustomerCarPage() {
       })
       window.alert('차량 정보 저장 완료')
       clearSelectedCustomer()
-      navigate('/customers', { replace: true })
+      navigate('/customers?mode=list', { replace: true })
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '저장에 실패했습니다.')
     }

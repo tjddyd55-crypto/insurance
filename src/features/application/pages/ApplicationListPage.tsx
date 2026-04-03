@@ -86,7 +86,7 @@ export function ApplicationListPage() {
       <div className="card card--actions">
         <button
           className="button button--primary button--full"
-          onClick={() => navigate('/form/create')}
+          onClick={() => navigate('/application/write')}
           type="button"
         >
           신규 신청서 작성
