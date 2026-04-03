@@ -69,45 +69,107 @@ async function ensureBootstrapAdminUser() {
   console.log('[initDb] admin 비밀번호·역할(SUPER_ADMIN)·ga_id 업데이트 완료:', username)
 }
 
+function isPgUniqueViolation(err) {
+  return Boolean(err && err.code === '23505')
+}
+
+/**
+ * (ga_id, category, name) 유니크 충돌 시 보수 병합: 연락처·일반의뢰를 유지 행으로 옮기고 중복 행 삭제.
+ */
+async function mergeInsuranceCompanyMasterCategoryConflict(client, row, nextCategory) {
+  const dup = await client.query(
+    `
+    SELECT id
+    FROM insurance_company_master
+    WHERE ga_id = $1
+      AND category = $2
+      AND TRIM(name) = TRIM($3)
+      AND id <> $4
+    LIMIT 1
+    `,
+    [row.ga_id, nextCategory, row.name, row.id],
+  )
+  if (dup.rowCount === 0) {
+    return { merged: false, keepId: row.id, dropId: null }
+  }
+  const otherId = Number(dup.rows[0].id)
+  const keepId = otherId
+  const dropId = Number(row.id)
+  console.warn('[보험사 category 충돌 병합]', {
+    name: row.name,
+    ga_id: row.ga_id,
+    keepId,
+    dropId,
+    category: nextCategory,
+  })
+  await client.query(`UPDATE insurance_company_contacts SET company_id = $1 WHERE company_id = $2`, [
+    keepId,
+    dropId,
+  ])
+  await client.query(
+    `UPDATE insurance_general_request SET company_id = $1 WHERE company_id = $2`,
+    [keepId, dropId],
+  )
+  await client.query(`DELETE FROM insurance_company_master WHERE id = $1`, [dropId])
+  return { merged: true, keepId, dropId }
+}
+
 /**
  * insurance_company_master.category를 LIFE|NON_LIFE|GENERAL로 맞추고 CHECK 제약을 둔다.
- * 추론 불가 시 GENERAL(로그). UNIQUE(ga_id,category,name) 충돌 시 해당 행은 스킵(에러 로그).
  */
 async function ensureInsuranceCompanyMasterCategoryNormalized(pool) {
-  const { rows } = await pool.query(
+  const client = await pool.connect()
+  const { rows } = await client.query(
     `SELECT id, ga_id, name, category FROM insurance_company_master ORDER BY id`,
   )
+  const deletedIds = new Set()
   let updated = 0
   let fallbackGeneral = 0
-  for (const row of rows) {
-    let next = resolveInsuranceCategoryForApi(row.category, row.name)
-    if (!next || !['LIFE', 'NON_LIFE', 'GENERAL'].includes(next)) {
-      next = 'GENERAL'
-      fallbackGeneral += 1
-      console.warn('[initDb] 보험사 category 추론 불가 → GENERAL', {
-        id: row.id,
-        name: row.name,
-        categoryWas: row.category,
-      })
+  try {
+    for (const row of rows) {
+      if (deletedIds.has(Number(row.id))) {
+        continue
+      }
+      let next = resolveInsuranceCategoryForApi(row.category, row.name)
+      if (!next || !['LIFE', 'NON_LIFE', 'GENERAL'].includes(next)) {
+        next = 'GENERAL'
+        fallbackGeneral += 1
+        console.warn('[initDb] 보험사 category 추론 불가 → GENERAL', {
+          id: row.id,
+          name: row.name,
+          categoryWas: row.category,
+        })
+      }
+      if (next === row.category) {
+        continue
+      }
+      try {
+        await client.query(`UPDATE insurance_company_master SET category = $1 WHERE id = $2`, [
+          next,
+          row.id,
+        ])
+        updated += 1
+      } catch (e) {
+        if (!isPgUniqueViolation(e)) {
+          console.error('[initDb] insurance_company_master category UPDATE 실패', {
+            id: row.id,
+            ga_id: row.ga_id,
+            name: row.name,
+            next,
+            message: e instanceof Error ? e.message : String(e),
+          })
+          continue
+        }
+        console.warn('[보험사 category 충돌]', row.name, 'ga_id', row.ga_id)
+        const { merged, dropId } = await mergeInsuranceCompanyMasterCategoryConflict(client, row, next)
+        if (merged && dropId != null) {
+          deletedIds.add(dropId)
+        }
+        updated += 1
+      }
     }
-    if (next === row.category) {
-      continue
-    }
-    try {
-      await pool.query(`UPDATE insurance_company_master SET category = $1 WHERE id = $2`, [
-        next,
-        row.id,
-      ])
-      updated += 1
-    } catch (e) {
-      console.error('[initDb] insurance_company_master category UPDATE 실패', {
-        id: row.id,
-        ga_id: row.ga_id,
-        name: row.name,
-        next,
-        message: e instanceof Error ? e.message : String(e),
-      })
-    }
+  } finally {
+    client.release()
   }
   if (updated > 0) {
     console.log('[initDb] insurance_company_master category 정규화 반영:', updated, '행')
@@ -119,6 +181,10 @@ async function ensureInsuranceCompanyMasterCategoryNormalized(pool) {
   await pool.query(`
     ALTER TABLE insurance_company_master
     DROP CONSTRAINT IF EXISTS insurance_company_master_category_check
+  `)
+  await pool.query(`
+    ALTER TABLE insurance_company_master
+    DROP CONSTRAINT IF EXISTS category_check
   `)
   await pool.query(`
     ALTER TABLE insurance_company_master
@@ -707,6 +773,21 @@ export async function initDb() {
     ON insurance_company_master (ga_id, category, name)
   `)
   await pool.query(`ALTER TABLE insurance_company_master ALTER COLUMN ga_id SET NOT NULL`)
+
+  await pool.query(`
+    ALTER TABLE insurance_company_master
+    ADD COLUMN IF NOT EXISTS company_code VARCHAR(20)
+  `)
+  await pool.query(`
+    UPDATE insurance_company_master
+    SET company_code = 'INS' || LPAD(id::text, 6, '0')
+    WHERE company_code IS NULL OR BTRIM(company_code) = ''
+  `)
+  await pool.query(`DROP INDEX IF EXISTS uq_insurance_company_master_company_code`)
+  await pool.query(`
+    CREATE UNIQUE INDEX uq_insurance_company_master_company_code
+    ON insurance_company_master (company_code)
+  `)
 
   await pool.query(`
     ALTER TABLE insurance_company_update_log

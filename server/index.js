@@ -478,11 +478,27 @@ function mapContactUpdateRow(row) {
   }
 }
 
+function formatInsCompanyCode(id) {
+  return `INS${String(Number(id)).padStart(6, '0')}`
+}
+
+async function ensureMasterCompanyCode(client, masterId) {
+  const code = formatInsCompanyCode(masterId)
+  await safeQuery(client,
+    `UPDATE insurance_company_master SET company_code = $1 WHERE id = $2`,
+    [code, masterId],
+  )
+}
+
 function mapInsuranceCompanyMaster(row) {
   const category = resolveInsuranceCategoryForApi(row.category, row.name) || ''
   const updatedRaw = row.updated_at ?? row.created_at
+  const id = Number(row.id)
   return {
-    id: Number(row.id),
+    id,
+    companyCode: row.company_code != null && String(row.company_code).trim() !== ''
+      ? String(row.company_code).trim()
+      : formatInsCompanyCode(id),
     // API: DB 정규화 후 이름 추론·메리츠 보정까지 반영한 LIFE | NON_LIFE | GENERAL | ''
     category,
     name: row.name ?? '',
@@ -2342,16 +2358,18 @@ apiRouter.post('/company/full-save', requireAuth, requireGaAdminOrSuper, async (
         ? Number(rawId)
         : null
 
+    const codeIn = String(co?.companyCode ?? co?.company_code ?? '').trim()
+
     const contactsList = Array.isArray(contactsIn) ? contactsIn : []
 
     const companyId = await withTransaction(async (client) => {
-      if (!existingId) {
-        const found = await safeQuery(client,
-          `SELECT id FROM insurance_company_master WHERE ga_id = $3 AND category = $1 AND name = $2`,
-          [category, name, tenantGa],
+      if (!existingId && /^INS\d+$/.test(codeIn)) {
+        const foundByCode = await safeQuery(client,
+          `SELECT id FROM insurance_company_master WHERE ga_id = $1 AND company_code = $2`,
+          [tenantGa, codeIn],
         )
-        if (found.rowCount > 0) {
-          existingId = Number(found.rows[0].id)
+        if (foundByCode.rowCount > 0) {
+          existingId = Number(foundByCode.rows[0].id)
         }
       }
 
@@ -2395,6 +2413,7 @@ apiRouter.post('/company/full-save', requireAuth, requireGaAdminOrSuper, async (
           throw err
         }
         cid = existingId
+        await ensureMasterCompanyCode(client, cid)
         await safeQuery(
           client,
           `
@@ -2405,18 +2424,84 @@ apiRouter.post('/company/full-save', requireAuth, requireGaAdminOrSuper, async (
           [cid, tenantGa],
         )
       } else {
-        const inserted = await safeQuery(client,
-          `
-          INSERT INTO insurance_company_master (
-            ga_id, category, name, customer_center, system_phone, incall_number, visit_info,
-            updated_at, updated_by_username
+        let inserted
+        try {
+          inserted = await safeQuery(client,
+            `
+            INSERT INTO insurance_company_master (
+              ga_id, category, name, customer_center, system_phone, incall_number, visit_info,
+              updated_at, updated_by_username
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
+            RETURNING id
+            `,
+            [tenantGa, category, name, customerCenter, systemPhone, incallNumber, visitInfo, editor],
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8)
-          RETURNING id
-          `,
-          [tenantGa, category, name, customerCenter, systemPhone, incallNumber, visitInfo, editor],
-        )
-        cid = inserted.rows[0].id
+        } catch (e) {
+          if (e.code !== '23505') {
+            throw e
+          }
+          const dedupe = await safeQuery(client,
+            `
+            SELECT id
+            FROM insurance_company_master
+            WHERE ga_id = $1 AND category = $2 AND TRIM(name) = TRIM($3)
+            LIMIT 1
+            `,
+            [tenantGa, category, name],
+          )
+          if (dedupe.rowCount === 0) {
+            throw e
+          }
+          existingId = Number(dedupe.rows[0].id)
+          beforeSnap = await loadCompanySnapshot(client, existingId, tenantGa)
+          const updatedIns = await safeQuery(client,
+            `
+            UPDATE insurance_company_master
+            SET
+              category = $1,
+              name = $2,
+              customer_center = $3,
+              system_phone = $4,
+              incall_number = $5,
+              visit_info = $6,
+              updated_at = NOW(),
+              updated_by_username = $7
+            WHERE id = $8 AND ga_id = $9
+            RETURNING id
+            `,
+            [
+              category,
+              name,
+              customerCenter,
+              systemPhone,
+              incallNumber,
+              visitInfo,
+              editor,
+              existingId,
+              tenantGa,
+            ],
+          )
+          if (updatedIns.rowCount === 0) {
+            throw e
+          }
+          cid = existingId
+          await ensureMasterCompanyCode(client, cid)
+          await safeQuery(
+            client,
+            `
+            DELETE FROM insurance_company_contacts ic
+            USING insurance_company_master m
+            WHERE ic.company_id = m.id AND ic.company_id = $1 AND m.ga_id = $2
+            `,
+            [cid, tenantGa],
+          )
+          inserted = null
+        }
+        if (inserted) {
+          cid = inserted.rows[0].id
+          await ensureMasterCompanyCode(client, cid)
+        }
       }
 
       for (const c of contactsList) {
@@ -2493,16 +2578,15 @@ apiRouter.post('/company/general-save', requireAuth, requireGaAdminOrSuper, asyn
     }
 
     const { company: co, general: g } = req.body ?? {}
-    const name = String(co?.name ?? '').trim()
-    const category = resolveInsuranceCategoryForApi(co?.category, name)
-    if (!name || !category || !['LIFE', 'NON_LIFE', 'GENERAL'].includes(category)) {
-      res.status(400).json({ message: '보험 종류와 보험사명이 필요합니다.' })
+    const code = String(co?.companyCode ?? co?.company_code ?? '').trim()
+    if (!code || !/^INS\d+$/.test(code)) {
+      res.status(400).json({ message: '보험사 코드(companyCode)가 필요합니다.' })
       return
     }
 
     const found = await safeQuery(pool,
-      `SELECT id FROM insurance_company_master WHERE ga_id = $3 AND category = $1 AND name = $2`,
-      [category, name, tenantGa],
+      `SELECT id, category, name FROM insurance_company_master WHERE ga_id = $1 AND company_code = $2`,
+      [tenantGa, code],
     )
     if (found.rowCount === 0) {
       res.status(404).json({

@@ -19,7 +19,11 @@ export async function listCompanyDirectory(token: string): Promise<CompanyDirect
       rowCount: rows.length,
       distinctCategoryCount: distinctCategories.length,
       distinctCategories,
-      sample: rows.slice(0, 8).map((r) => ({ name: r.name, category: r.category })),
+      sample: rows.slice(0, 8).map((r) => ({
+        companyCode: r.companyCode,
+        name: r.name,
+        category: r.category,
+      })),
     })
   }
   return rows
@@ -49,7 +53,10 @@ export async function fullSaveCompanyDirectory(
 }
 
 export async function saveGeneralRequest(
-  body: { company: { category: string; name: string }; general: InsuranceGeneralDraft },
+  body: {
+    company: { category: string; name: string; companyCode: string }
+    general: InsuranceGeneralDraft
+  },
   token: string,
 ): Promise<{ success: boolean }> {
   if (!token?.trim()) {

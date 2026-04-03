@@ -1,5 +1,7 @@
 export interface InsuranceCompanyFormState {
   id: number | null
+  /** 원수사 식별(등록 후 INS + 6자리). 미등록 맵 선택 시 STATIC:… */
+  companyCode: string
   category: string
   name: string
   customerCenter: string
@@ -46,6 +48,7 @@ export type CompanyRecentUpdate = CompanyUpdateHistoryItem
 
 export interface CompanyDirectoryEntry {
   id: number
+  companyCode: string
   category: string
   name: string
   customerCenter: string

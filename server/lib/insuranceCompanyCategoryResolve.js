@@ -163,8 +163,6 @@ export function inferInsuranceCategoryFromCompanyName(companyName) {
  * @param {string | null | undefined} companyName
  */
 export function resolveInsuranceCategoryForApi(rawCategory, companyName) {
-  const dbCategoryMissing = !String(rawCategory ?? '').trim()
-
   let n = normalizeInsuranceCompanyCategory(rawCategory)
   if (!n) {
     n = inferInsuranceCategoryFromCompanyName(companyName)
@@ -172,10 +170,10 @@ export function resolveInsuranceCategoryForApi(rawCategory, companyName) {
   const out = coerceMeritzFireToNonLifeCategory(n, companyName)
 
   if (!VALID_CATEGORIES.has(out)) {
-    if (dbCategoryMissing) {
-      const nameLog = String(companyName ?? '').trim() || '(이름 없음)'
-      console.warn('[보험사 카테고리 추론 실패]', 'name:', nameLog)
-    }
+    console.warn('[보험사 카테고리 추론 실패]', {
+      name: String(companyName ?? '').trim() || '(이름 없음)',
+      rawCategory: rawCategory ?? '',
+    })
   }
 
   return out

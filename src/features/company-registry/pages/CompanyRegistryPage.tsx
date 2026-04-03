@@ -19,6 +19,7 @@ import {
   type InsuranceCompanyOption,
 } from '../domain/insuranceConstants'
 import {
+  buildStaticCompanyCode,
   EMPTY_CONTACT,
   findSavedEntryForSelection,
   formStateFromDirectoryEntry,
@@ -30,7 +31,7 @@ import type {
   InsuranceCompanyFormState,
 } from '../domain/types'
 
-const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 'name'> = {
+const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 'name' | 'companyCode'> = {
   customerCenter: '',
   systemPhone: '',
   incallNumber: '',
@@ -46,10 +47,11 @@ export default function CompanyRegistryPage() {
   const [statusText, setStatusText] = useState('')
 
   const [selectedType, setSelectedType] = useState<InsuranceCategory | ''>('')
-  const [selectedCompanyName, setSelectedCompanyName] = useState<string>('')
+  const [selectedCompanyCode, setSelectedCompanyCode] = useState<string>('')
 
   const [company, setCompany] = useState<InsuranceCompanyFormState>({
     id: null,
+    companyCode: '',
     category: '',
     name: '',
     ...EMPTY_COMPANY_FIELDS,
@@ -78,10 +80,19 @@ export default function CompanyRegistryPage() {
       if (mapNames.has(e.name)) {
         continue
       }
-      extras.push({ name: e.name, tel: e.customerCenter || '' })
+      extras.push({
+        companyCode: e.companyCode,
+        name: e.name,
+        tel: e.customerCenter || '',
+      })
     }
     extras.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-    const merged = [...fromMap, ...extras]
+    const mergedFromMap: InsuranceCompanyOption[] = fromMap.map((o) => ({
+      companyCode: buildStaticCompanyCode(filterKey, o.name),
+      name: o.name,
+      tel: o.tel,
+    }))
+    const merged = [...mergedFromMap, ...extras]
     if (import.meta.env.DEV) {
       /* eslint-disable no-console -- 드롭다운 필터 전/후 진단(타입 불일치·API 행 수) */
       console.log('전체 보험사(목록):', list)
@@ -114,22 +125,22 @@ export default function CompanyRegistryPage() {
     })
   }, [list])
 
-  const prevSelectionRef = useRef<{ type: string; company: string }>({ type: '', company: '' })
+  const prevSelectionRef = useRef<{ type: string; companyCode: string }>({ type: '', companyCode: '' })
   const prevListForSyncRef = useRef(list)
 
   /** 보험 종류·보험사 선택 — 목록 클릭·드롭다운 모두 이후 loadCompanyData 이펙트로 폼 동기화 */
-  const commitDirectorySelection = useCallback((type: InsuranceCategory | '', companyName: string) => {
+  const commitDirectorySelection = useCallback((type: InsuranceCategory | '', companyCode: string) => {
     pendingLocalEditRef.current = false
     setSelectedType(type)
-    setSelectedCompanyName(companyName)
+    setSelectedCompanyCode(companyCode)
   }, [])
 
   const hasDirectoryEntryForSelection = useMemo(() => {
-    if (!selectedType || !selectedCompanyName) {
+    if (!selectedType || !selectedCompanyCode) {
       return false
     }
-    return findSavedEntryForSelection(list, selectedType, selectedCompanyName) != null
-  }, [list, selectedType, selectedCompanyName])
+    return findSavedEntryForSelection(list, selectedType, selectedCompanyCode) != null
+  }, [list, selectedType, selectedCompanyCode])
 
   const loadList = useCallback(async () => {
     if (!token) {
@@ -150,16 +161,20 @@ export default function CompanyRegistryPage() {
 
   useEffect(() => {
     const t = searchParams.get('type')
-    const c = searchParams.get('company')
-    const name = c != null ? String(c).trim() : ''
-    if (t && isInsuranceCategory(t) && name) {
-      commitDirectorySelection(t, name)
+    const code = searchParams.get('code') != null ? String(searchParams.get('code')).trim() : ''
+    const legacyCompany = searchParams.get('company') != null ? String(searchParams.get('company')).trim() : ''
+    if (t && isInsuranceCategory(t) && (code || legacyCompany)) {
+      const resolvedCode =
+        code || (legacyCompany ? buildStaticCompanyCode(t, legacyCompany) : '')
+      if (resolvedCode) {
+        commitDirectorySelection(t, resolvedCode)
+      }
       setSearchParams({}, { replace: true })
     }
   }, [searchParams, setSearchParams, commitDirectorySelection])
 
   useEffect(() => {
-    if (typeof selectedCompanyName !== 'string') {
+    if (typeof selectedCompanyCode !== 'string') {
       return
     }
 
@@ -169,7 +184,7 @@ export default function CompanyRegistryPage() {
       return
     }
 
-    const result = loadCompanyData(list, selectedType, selectedCompanyName, prevSelectionRef.current)
+    const result = loadCompanyData(list, selectedType, selectedCompanyCode, prevSelectionRef.current)
     if (!result) {
       return
     }
@@ -180,16 +195,16 @@ export default function CompanyRegistryPage() {
       setCompany(result.company)
       setContacts(result.contacts)
     } else {
-      const name = selectedCompanyName.trim()
+      const c = selectedCompanyCode.trim()
       const category = selectedType
       setCompany((prev) => {
-        if (prev.name === name && prev.category === category) {
+        if (prev.companyCode === c && prev.category === category) {
           return prev
         }
-        return { ...prev, name, category }
+        return { ...prev, companyCode: c, category }
       })
     }
-  }, [list, selectedType, selectedCompanyName])
+  }, [list, selectedType, selectedCompanyCode])
 
   /**
    * 등록 목록 클릭: 분류 확정 시에는 드롭다운과 같이 선택값만 바꾸고,
@@ -203,14 +218,14 @@ export default function CompanyRegistryPage() {
       setStatusText(
         '보험 종류를 자동 인식하지 못했습니다. 아래에서「보험 종류」를 선택하면 같은 이름의 등록 데이터와 맞춰집니다.',
       )
-      commitDirectorySelection('', nameTrim)
-      prevSelectionRef.current = { type: '', company: nameTrim }
-      setCompany({ ...loaded, name: nameTrim })
+      commitDirectorySelection('', entry.companyCode || nameTrim)
+      prevSelectionRef.current = { type: '', companyCode: entry.companyCode || nameTrim }
+      setCompany({ ...loaded, name: nameTrim, companyCode: loaded.companyCode || entry.companyCode })
       setContacts(nextContacts)
       return
     }
     setStatusText('')
-    commitDirectorySelection(cat, nameTrim)
+    commitDirectorySelection(cat, entry.companyCode)
   }, [commitDirectorySelection])
 
   const addContactRow = () => {
@@ -248,6 +263,7 @@ export default function CompanyRegistryPage() {
       const body = {
         company: {
           ...(company.id != null ? { id: company.id } : {}),
+          companyCode: company.companyCode.trim(),
           category: company.category,
           name: company.name.trim(),
           customerCenter: company.customerCenter.trim(),
@@ -352,7 +368,7 @@ export default function CompanyRegistryPage() {
             <span className="field__label">보험사 선택 (필수)</span>
             <select
               className="field__control"
-              value={selectedCompanyName}
+              value={selectedCompanyCode}
               onChange={(e) => {
                 commitDirectorySelection(selectedType, String(e.target.value ?? ''))
               }}
@@ -361,7 +377,7 @@ export default function CompanyRegistryPage() {
             >
               <option value="">선택</option>
               {companyOptions.map((row) => (
-                <option key={row.name} value={row.name}>
+                <option key={row.companyCode} value={row.companyCode}>
                   {row.name}
                 </option>
               ))}
@@ -372,7 +388,7 @@ export default function CompanyRegistryPage() {
             <p className="company-registry-field-hint" style={{ margin: '0 0 10px' }}>
               ✓ 저장된 동일 보험사 데이터를 불러왔습니다. 수정 후 저장하면 갱신됩니다.
             </p>
-          ) : selectedType && selectedCompanyName.trim() ? (
+          ) : selectedType && selectedCompanyCode.trim() ? (
             <p className="company-registry-field-hint" style={{ margin: '0 0 10px' }}>
               ℹ 등록된 데이터가 없습니다. 공통정보·담당자는 비어 있는 상태에서 입력할 수 있습니다.
             </p>
@@ -469,7 +485,7 @@ export default function CompanyRegistryPage() {
             className="button button--primary button--full"
             style={{ marginTop: 16 }}
             type="button"
-            disabled={isSaving || !selectedType || !selectedCompanyName}
+            disabled={isSaving || !selectedType || !selectedCompanyCode}
             onClick={() => void handleSave()}
           >
             {isSaving ? '저장 중…' : company.id != null ? '수정 저장' : '신규 저장'}

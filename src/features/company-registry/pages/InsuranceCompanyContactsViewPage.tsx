@@ -106,7 +106,7 @@ export default function InsuranceCompanyContactsViewPage() {
   const openCompanyRegistryEdit = (row: CompanyDirectoryEntry) => {
     const cat = categoryForCompanyRow(row, activeTab)
     navigate(
-      `/insurance/company-registry?type=${encodeURIComponent(cat)}&company=${encodeURIComponent(row.name)}`,
+      `/insurance/company-registry?type=${encodeURIComponent(cat)}&code=${encodeURIComponent(row.companyCode)}`,
     )
   }
 

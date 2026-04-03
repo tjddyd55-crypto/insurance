@@ -4,14 +4,16 @@ import { useAuth } from '../../auth/AuthProvider'
 import { isInsuranceOpsRole } from '../../auth/roleGuards'
 import { PageBackButton } from '../../../components/common/PageBackButton'
 import { listCompanyDirectory, saveGeneralRequest } from '../api/companyRegistryApi'
-import { normalizeInsuranceCategory } from '../domain/categoryUtils'
+import { canonicalInsuranceCategoryForFilter } from '../domain/categoryUtils'
 import type { InsuranceCategory } from '../domain/insuranceConstants'
 import {
   insuranceCompanyMap,
   INSURANCE_TYPE_LABELS,
   INSURANCE_TYPE_ORDER,
+  isInsuranceCategory,
   type InsuranceCompanyOption,
 } from '../domain/insuranceConstants'
+import { buildStaticCompanyCode } from '../domain/loadCompanyData'
 import type { CompanyDirectoryEntry, InsuranceGeneralDraft } from '../domain/types'
 
 const EMPTY_GENERAL: InsuranceGeneralDraft = { description: '', phone: '', fax: '', email: '' }
@@ -25,16 +27,38 @@ export default function GeneralRequestPage() {
   const [statusText, setStatusText] = useState('')
 
   const [selectedType, setSelectedType] = useState<InsuranceCategory | ''>('')
-  const [selectedCompanyName, setSelectedCompanyName] = useState('')
+  const [selectedCompanyCode, setSelectedCompanyCode] = useState('')
   const [general, setGeneral] = useState<InsuranceGeneralDraft>({ ...EMPTY_GENERAL })
   const [isSaving, setIsSaving] = useState(false)
 
   const companyOptions = useMemo((): InsuranceCompanyOption[] => {
-    if (!selectedType) {
+    if (!selectedType || !isInsuranceCategory(selectedType)) {
       return []
     }
-    return insuranceCompanyMap[selectedType] ?? []
-  }, [selectedType])
+    const filterKey = canonicalInsuranceCategoryForFilter(selectedType)
+    if (!filterKey) {
+      return []
+    }
+    const fromMap = insuranceCompanyMap[filterKey] ?? []
+    const registered = list
+      .filter((e) => canonicalInsuranceCategoryForFilter(e.category, e.name) === filterKey)
+      .map((e) => ({
+        companyCode: e.companyCode,
+        name: e.name,
+        tel: e.customerCenter || '',
+      }))
+    const regNames = new Set(registered.map((r) => r.name.trim().normalize('NFKC')))
+    const staticExtras: InsuranceCompanyOption[] = fromMap
+      .filter((o) => !regNames.has(o.name.trim().normalize('NFKC')))
+      .map((o) => ({
+        companyCode: buildStaticCompanyCode(selectedType, o.name),
+        name: o.name,
+        tel: o.tel,
+      }))
+    const merged = [...registered, ...staticExtras]
+    merged.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+    return merged
+  }, [selectedType, list])
 
   const loadList = useCallback(async () => {
     if (!token) {
@@ -58,17 +82,11 @@ export default function GeneralRequestPage() {
   }, [loadList])
 
   useEffect(() => {
-    if (!selectedType || !selectedCompanyName) {
+    if (!selectedType || !selectedCompanyCode) {
       setGeneral({ ...EMPTY_GENERAL })
       return
     }
-    if (typeof selectedCompanyName !== 'string') {
-      return
-    }
-    const entry = list.find(
-      (e) =>
-        normalizeInsuranceCategory(e.category) === selectedType && e.name === selectedCompanyName,
-    )
+    const entry = list.find((e) => e.companyCode === selectedCompanyCode)
     const g = entry?.general
     if (g) {
       setGeneral({
@@ -80,24 +98,34 @@ export default function GeneralRequestPage() {
     } else {
       setGeneral({ ...EMPTY_GENERAL })
     }
-  }, [list, selectedType, selectedCompanyName])
+  }, [list, selectedType, selectedCompanyCode])
 
   const handleSave = async () => {
     if (!canEdit || !token) {
       setStatusText('저장은 GA 관리자 이상만 가능합니다.')
       return
     }
-    if (!selectedType || !selectedCompanyName.trim()) {
+    if (!selectedType || !selectedCompanyCode.trim()) {
       setStatusText('보험 종류와 보험사를 선택하세요.')
       return
     }
+    if (!/^INS\d+$/.test(selectedCompanyCode.trim())) {
+      setStatusText('일반화재 설계의뢰는 먼저 「연락처 입력/관리」에서 해당 보험사를 저장해 코드(INS…)를 받은 뒤 선택해 주세요.')
+      return
+    }
+
+    const row = list.find((e) => e.companyCode === selectedCompanyCode.trim())
 
     setIsSaving(true)
     setStatusText('')
     try {
       await saveGeneralRequest(
         {
-          company: { category: selectedType, name: selectedCompanyName.trim() },
+          company: {
+            category: selectedType,
+            name: row?.name.trim() ?? '',
+            companyCode: selectedCompanyCode.trim(),
+          },
           general,
         },
         token,
@@ -137,7 +165,7 @@ export default function GeneralRequestPage() {
         <h1>일반화재 설계의뢰</h1>
         <p>
           {statusText ||
-            '해당 보험사가 「보험사 연락처」에 먼저 등록되어 있어야 합니다. 설명·전화·팩스·이메일은 선택 입력입니다.'}
+            '저장에는 보험사 코드(INS…)가 필요합니다. 미등록 항목은 먼저 연락처 관리에서 저장하세요.'}
         </p>
       </header>
 
@@ -152,7 +180,7 @@ export default function GeneralRequestPage() {
               value={selectedType}
               onChange={(e) => {
                 setSelectedType(e.target.value as InsuranceCategory | '')
-                setSelectedCompanyName('')
+                setSelectedCompanyCode('')
               }}
             >
               <option value="">선택</option>
@@ -167,14 +195,15 @@ export default function GeneralRequestPage() {
             <span className="field__label">보험사</span>
             <select
               className="field__control"
-              value={selectedCompanyName}
-              onChange={(e) => setSelectedCompanyName(String(e.target.value ?? ''))}
+              value={selectedCompanyCode}
+              onChange={(e) => setSelectedCompanyCode(String(e.target.value ?? ''))}
               disabled={!selectedType}
             >
               <option value="">선택</option>
               {companyOptions.map((row) => (
-                <option key={row.name} value={row.name}>
+                <option key={row.companyCode} value={row.companyCode}>
                   {row.name}
+                  {!/^INS\d+$/.test(row.companyCode) ? ' (등록 후 저장 필요)' : ''}
                 </option>
               ))}
             </select>
@@ -219,7 +248,7 @@ export default function GeneralRequestPage() {
           <button
             className="button button--primary button--full"
             type="button"
-            disabled={isSaving || !selectedType || !selectedCompanyName}
+            disabled={isSaving || !selectedType || !selectedCompanyCode}
             onClick={() => void handleSave()}
           >
             {isSaving ? '저장 중…' : '저장'}

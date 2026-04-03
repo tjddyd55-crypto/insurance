@@ -1,8 +1,9 @@
+import { canonicalInsuranceCategoryForFilter, normalizeInsuranceCategory, resolveTabCategory } from './categoryUtils'
 import {
-  canonicalInsuranceCategoryForFilter,
-  normalizeInsuranceCategory,
-  resolveTabCategory,
-} from './categoryUtils'
+  buildStaticCompanyCode,
+  isInsCompanyCode,
+  parseStaticCompanyCode,
+} from './companyCode'
 import type { InsuranceCategory } from './insuranceConstants'
 import type {
   CompanyDirectoryEntry,
@@ -10,7 +11,7 @@ import type {
   InsuranceCompanyFormState,
 } from './types'
 
-const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 'name'> = {
+const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 'name' | 'companyCode'> = {
   customerCenter: '',
   systemPhone: '',
   incallNumber: '',
@@ -26,6 +27,7 @@ function entryToFormState(entry: CompanyDirectoryEntry): InsuranceCompanyFormSta
     entry.category
   return {
     id: entry.id,
+    companyCode: entry.companyCode,
     category: resolved,
     name: entry.name,
     customerCenter: entry.customerCenter,
@@ -57,25 +59,40 @@ export function formStateFromDirectoryEntry(entry: CompanyDirectoryEntry): {
   }
 }
 
-/** 목록 로드 지연·공백·DB category만 있는 경우까지 동일 보험사 매칭 */
+/**
+ * 선택 companyCode(INS… 또는 STATIC:…)와 목록 행 매칭.
+ * STATIC → 동일 표준명으로 이미 저장된 행이 있으면 반환(최초 등록 전에는 undefined).
+ */
 export function findSavedEntryForSelection(
   rows: CompanyDirectoryEntry[],
   selectedType: InsuranceCategory,
-  companyName: string,
+  selectedCompanyCode: string,
 ): CompanyDirectoryEntry | undefined {
-  const q = companyName.trim().normalize('NFKC')
-  if (!q) {
+  const code = selectedCompanyCode.trim()
+  if (!code) {
     return undefined
   }
   const want = canonicalInsuranceCategoryForFilter(selectedType)
   if (!want) {
     return undefined
   }
-  return rows.find(
-    (e) =>
-      e.name.trim().normalize('NFKC') === q &&
-      canonicalInsuranceCategoryForFilter(e.category, e.name ?? '') === want,
-  )
+  if (isInsCompanyCode(code)) {
+    return rows.find(
+      (e) =>
+        e.companyCode === code &&
+        canonicalInsuranceCategoryForFilter(e.category, e.name ?? '') === want,
+    )
+  }
+  const st = parseStaticCompanyCode(code)
+  if (st && st.category === want) {
+    const q = st.name.trim().normalize('NFKC')
+    return rows.find(
+      (e) =>
+        e.name.trim().normalize('NFKC') === q &&
+        canonicalInsuranceCategoryForFilter(e.category, e.name ?? '') === want,
+    )
+  }
+  return undefined
 }
 
 export type LoadCompanyDataResult =
@@ -83,37 +100,35 @@ export type LoadCompanyDataResult =
       syncForm: true
       company: InsuranceCompanyFormState
       contacts: InsuranceCompanyContactDraft[]
-      prevSelection: { type: string; company: string }
+      prevSelection: { type: string; companyCode: string }
     }
   | {
       syncForm: false
-      prevSelection: { type: string; company: string }
+      prevSelection: { type: string; companyCode: string }
     }
 
 /**
- * 보험 종류·보험사 선택과 서버 목록을 기준으로 폼에 반영할 데이터를 계산합니다.
- * - 저장된 동일 보험사가 있으면 DB 그대로
- * - 없고 선택이 바뀌었면 빈 행(자동 채움 없음)
- * - 선택이 같고 DB에 없으면 폼은 그대로(prevSelection만 정합)
+ * 보험 종류·보험사 선택(companyCode)과 서버 목록을 기준으로 폼에 반영할 데이터를 계산합니다.
  */
 export function loadCompanyData(
   list: CompanyDirectoryEntry[],
   selectedType: InsuranceCategory | '',
-  selectedCompanyName: string,
-  prevSelection: { type: string; company: string },
+  selectedCompanyCode: string,
+  prevSelection: { type: string; companyCode: string },
 ): LoadCompanyDataResult | null {
-  const nameTrim = selectedCompanyName.trim()
-  if (!nameTrim) {
+  const codeTrim = selectedCompanyCode.trim()
+  if (!codeTrim) {
     return {
       syncForm: true,
       company: {
         id: null,
+        companyCode: '',
         category: selectedType || '',
         name: '',
         ...EMPTY_COMPANY_FIELDS,
       },
       contacts: [{ ...EMPTY_CONTACT }],
-      prevSelection: { type: '', company: '' },
+      prevSelection: { type: '', companyCode: '' },
     }
   }
 
@@ -121,8 +136,8 @@ export function loadCompanyData(
     return null
   }
 
-  const entry = findSavedEntryForSelection(list, selectedType, selectedCompanyName)
-  const nextPrev = { type: selectedType, company: nameTrim }
+  const entry = findSavedEntryForSelection(list, selectedType, selectedCompanyCode)
+  const nextPrev = { type: selectedType, companyCode: codeTrim }
 
   if (entry) {
     const { company: loaded, contacts } = formStateFromDirectoryEntry(entry)
@@ -130,7 +145,8 @@ export function loadCompanyData(
       syncForm: true,
       company: {
         ...loaded,
-        name: nameTrim,
+        companyCode: loaded.companyCode || codeTrim,
+        name: loaded.name,
         category: selectedType,
       },
       contacts,
@@ -138,15 +154,18 @@ export function loadCompanyData(
     }
   }
 
-  const selChanged = prevSelection.type !== selectedType || prevSelection.company !== nameTrim
+  const selChanged = prevSelection.type !== selectedType || prevSelection.companyCode !== codeTrim
 
   if (selChanged) {
+    const st = parseStaticCompanyCode(codeTrim)
+    const displayName = st?.name ?? ''
     return {
       syncForm: true,
       company: {
         id: null,
+        companyCode: codeTrim,
         category: selectedType,
-        name: nameTrim,
+        name: displayName,
         ...EMPTY_COMPANY_FIELDS,
         customerCenter: '',
       },
@@ -160,3 +179,5 @@ export function loadCompanyData(
     prevSelection: nextPrev,
   }
 }
+
+export { buildStaticCompanyCode, isInsCompanyCode, parseStaticCompanyCode }
