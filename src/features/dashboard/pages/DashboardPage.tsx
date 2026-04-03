@@ -3,7 +3,11 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { fetchInsurerManagersHealth, type InsurerManagersHealth } from '../../auth/authApi'
 import { useAuth } from '../../auth/AuthProvider'
 import { isGaTenantStaffRole } from '../../auth/roleGuards'
-import { GA_TENANT_ESSENTIAL_MENU, type GaTenantMenuItem } from '../gaTenantMenu'
+import {
+  GA_TENANT_ESSENTIAL_MENU,
+  INSURER_MANAGER_MENU,
+  type GaTenantMenuItem,
+} from '../gaTenantMenu'
 
 type MenuItem = GaTenantMenuItem
 
@@ -18,6 +22,9 @@ function menuForSession(role: string | undefined): MenuItem[] {
   if (role === 'SUPER_ADMIN') {
     return SUPER_ADMIN_MENU
   }
+  if (role === 'INSURER_MANAGER') {
+    return [...INSURER_MANAGER_MENU]
+  }
   if (role === 'GA_ADMIN' || role === 'GA_STAFF' || role === 'USER') {
     return [...GA_TENANT_ESSENTIAL_MENU]
   }
@@ -29,7 +36,7 @@ function showFeatureRequestSection(role: string | undefined): boolean {
 }
 
 function showInsurerManagerHealthBanner(role: string | undefined): boolean {
-  return role === 'SUPER_ADMIN' || role === 'GA_ADMIN' || role === 'GA_STAFF'
+  return role === 'SUPER_ADMIN' || role === 'GA_ADMIN'
 }
 
 function pathIsActive(pathname: string, itemPath: string): boolean {
@@ -54,8 +61,8 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === '/account/reset') {
     return pathname === '/account/reset'
   }
-  if (itemPath.startsWith('/internal/admin/')) {
-    return pathname === itemPath
+  if (itemPath.startsWith('/internal/')) {
+    return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
   }
   if (itemPath === '/admin/ga') {
     return pathname === '/admin/ga' || pathname === '/admin/create-ga'

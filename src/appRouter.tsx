@@ -35,6 +35,7 @@ import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRe
 import MyFeatureRequestsPage from './features/feature-request/pages/MyFeatureRequestsPage'
 import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
 import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
+import { RequireNotInsurerManagerRoute } from './features/auth/RequireNotInsurerManagerRoute'
 import { InsurerNewsAdminProvider } from './features/insurer-news/InsurerNewsAdminContext'
 import { InsurerListPage } from './features/insurer-news/pages/InsurerListPage'
 import { InsurerNewsAdminDashboardPage } from './features/insurer-news/pages/InsurerNewsAdminDashboardPage'
@@ -86,68 +87,72 @@ export const appRouter = createBrowserRouter([
         element: <ProtectedRoute />,
         children: [
           { path: 'dashboard', element: <DashboardPage /> },
-          {
-            path: 'portal/newsletters',
-            element: <NewsletterPortalLayout />,
-            children: [
-              { index: true, element: <NewsletterHubPage /> },
-              { path: 'recent', element: <NewsletterRecentPage /> },
-              { path: 'insurers', element: <InsurerListPage /> },
-              { path: 'insurers/:insurerSlug', element: <InsurerNewsletterListPage /> },
-              { path: ':newsletterId', element: <NewsletterDetailPage /> },
-            ],
-          },
-          {
-            element: <GaCarInsuranceRoute />,
-            children: [
-              { path: 'application', element: <CarInsuranceDashboardPage /> },
-              { path: 'application/write', element: <ApplicationFormPage /> },
-              { path: 'my-forms', element: <ApplicationListPage /> },
-              { path: 'form/create', element: <ApplicationFormPage /> },
-              { path: 'form/:id/edit', element: <ApplicationFormPage /> },
-              { path: 'form/result/:id', element: <ApplicationResultPage /> },
-            ],
-          },
-          { path: 'customers', element: <CustomersPage /> },
-          { path: 'insurer-managers', element: <InsurerManagersPage /> },
-          { path: 'customer-car', element: <CustomerCarPage /> },
-          { path: 'admin/ga', element: <GaManagementPage /> },
-          { path: 'admin/create-ga', element: <Navigate to="/admin/ga" replace /> },
-          { path: 'admin/delegates', element: <GaDelegateManagementPage /> },
-          { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },
-          { path: 'admin/users', element: <UserManagementPage /> },
-          { path: 'account/reset', element: <AccountResetPage /> },
-          { path: 'feature-request', element: <FeatureRequestPage /> },
-          { path: 'feature-requests/my', element: <MyFeatureRequestsPage /> },
-          {
-            element: <SuperAdminRoute />,
-            children: [
-              {
-                path: 'internal/admin/feature-requests',
-                element: <FeatureRequestsAdminPage />,
-              },
-            ],
-          },
-          {
-            element: <StaffRoute />,
-            children: [
-              { path: 'internal/admin/consent-template', element: <TemplateListPage /> },
-              { path: 'internal/admin/consent-template/edit', element: <TemplateEditorPage /> },
-              { path: 'internal/admin/consent-template/edit/:id', element: <TemplateEditorPage /> },
-            ],
-          },
-          { path: 'contacts', element: <Navigate to="/insurance/contacts" replace /> },
           { path: 'contacts/manage', element: <Navigate to="/insurance/company-registry" replace /> },
           { path: 'updates', element: <Navigate to="/insurance/history" replace /> },
-          { path: 'insurance/contacts', element: <InsuranceCompanyContactsViewPage /> },
           { path: 'insurance/company-registry', element: <CompanyRegistryPage /> },
           { path: 'insurance/history', element: <InsuranceUpdatesPage /> },
-          { path: 'insurance/general-request', element: <GeneralRequestPage /> },
-          { path: 'reinsurer-contacts', element: <ReinsurerContactsPage /> },
-          { path: 'insurance/print', element: <InsurancePrintPage /> },
-          /* 내부 전용: 메인 메뉴 비노출, URL 직접 접근 */
           { path: 'internal/consent', element: <ConsentCompanyPage /> },
           { path: 'internal/consent/form', element: <ConsentFormPage /> },
+          {
+            element: <RequireNotInsurerManagerRoute />,
+            children: [
+              {
+                path: 'portal/newsletters',
+                element: <NewsletterPortalLayout />,
+                children: [
+                  { index: true, element: <NewsletterHubPage /> },
+                  { path: 'recent', element: <NewsletterRecentPage /> },
+                  { path: 'insurers', element: <InsurerListPage /> },
+                  { path: 'insurers/:insurerSlug', element: <InsurerNewsletterListPage /> },
+                  { path: ':newsletterId', element: <NewsletterDetailPage /> },
+                ],
+              },
+              {
+                element: <GaCarInsuranceRoute />,
+                children: [
+                  { path: 'application', element: <CarInsuranceDashboardPage /> },
+                  { path: 'application/write', element: <ApplicationFormPage /> },
+                  { path: 'my-forms', element: <ApplicationListPage /> },
+                  { path: 'form/create', element: <ApplicationFormPage /> },
+                  { path: 'form/:id/edit', element: <ApplicationFormPage /> },
+                  { path: 'form/result/:id', element: <ApplicationResultPage /> },
+                ],
+              },
+              { path: 'customers', element: <CustomersPage /> },
+              { path: 'insurer-managers', element: <InsurerManagersPage /> },
+              { path: 'customer-car', element: <CustomerCarPage /> },
+              { path: 'admin/ga', element: <GaManagementPage /> },
+              { path: 'admin/create-ga', element: <Navigate to="/admin/ga" replace /> },
+              { path: 'admin/delegates', element: <GaDelegateManagementPage /> },
+              { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },
+              { path: 'admin/users', element: <UserManagementPage /> },
+              { path: 'account/reset', element: <AccountResetPage /> },
+              { path: 'feature-request', element: <FeatureRequestPage /> },
+              { path: 'feature-requests/my', element: <MyFeatureRequestsPage /> },
+              {
+                element: <SuperAdminRoute />,
+                children: [
+                  {
+                    path: 'internal/admin/feature-requests',
+                    element: <FeatureRequestsAdminPage />,
+                  },
+                ],
+              },
+              {
+                element: <StaffRoute />,
+                children: [
+                  { path: 'internal/admin/consent-template', element: <TemplateListPage /> },
+                  { path: 'internal/admin/consent-template/edit', element: <TemplateEditorPage /> },
+                  { path: 'internal/admin/consent-template/edit/:id', element: <TemplateEditorPage /> },
+                ],
+              },
+              { path: 'contacts', element: <Navigate to="/insurance/contacts" replace /> },
+              { path: 'insurance/contacts', element: <InsuranceCompanyContactsViewPage /> },
+              { path: 'insurance/general-request', element: <GeneralRequestPage /> },
+              { path: 'reinsurer-contacts', element: <ReinsurerContactsPage /> },
+              { path: 'insurance/print', element: <InsurancePrintPage /> },
+            ],
+          },
           { path: '*', element: <Navigate to="/dashboard" replace /> },
         ],
       },

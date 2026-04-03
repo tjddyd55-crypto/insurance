@@ -11,6 +11,9 @@ export interface AuthUser {
   gaCode: string
   /** ga_companies.name (표시용). 구세션에는 없을 수 있음 */
   gaName: string
+  /** insurance_company_master.id — INSURER_MANAGER 에서만 필수 */
+  companyId: number | null
+  displayName: string
 }
 
 export interface LoginResponse {
@@ -22,6 +25,8 @@ export interface LoginResponse {
     ga_id: number | null
     ga_code?: string
     ga_name?: string
+    company_id?: number | null
+    display_name?: string | null
   }
 }
 
@@ -110,6 +115,13 @@ export async function login(username: string, password: string) {
     typeof raw.user.ga_id === 'number' && Number.isInteger(raw.user.ga_id) && raw.user.ga_id > 0
       ? raw.user.ga_id
       : 0
+  const rawCid = raw.user.company_id
+  const companyId =
+    typeof rawCid === 'number' && Number.isInteger(rawCid) && rawCid > 0 ? rawCid : null
+  const displayName =
+    typeof raw.user.display_name === 'string'
+      ? raw.user.display_name.trim()
+      : String(raw.user.username ?? '').trim()
   return {
     token: raw.token,
     user: {
@@ -119,6 +131,8 @@ export async function login(username: string, password: string) {
       gaId,
       gaCode,
       gaName,
+      companyId: raw.user.role === 'INSURER_MANAGER' ? companyId : null,
+      displayName,
     },
   } satisfies { token: string; user: AuthUser }
 }

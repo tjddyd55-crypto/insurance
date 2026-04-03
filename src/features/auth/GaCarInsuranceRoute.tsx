@@ -12,6 +12,9 @@ export function GaCarInsuranceRoute() {
   if (!isAuthenticated || !user) {
     return <Navigate to="/login?required=1" replace />
   }
+  if (user.role === 'INSURER_MANAGER') {
+    return <Navigate to="/dashboard" replace />
+  }
   if (user.role === 'SUPER_ADMIN') {
     return <Outlet />
   }

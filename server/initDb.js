@@ -1218,6 +1218,21 @@ export async function initDb() {
     )
   `)
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS security_audit_logs (
+      id BIGSERIAL PRIMARY KEY,
+      actor_user_id TEXT NOT NULL,
+      actor_role TEXT NOT NULL,
+      action TEXT NOT NULL,
+      target_type TEXT,
+      target_id TEXT,
+      ga_id INTEGER,
+      company_id INTEGER,
+      meta JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
   await ensureInsurerManagerCompanyFkConstraint(pool)
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS uq_insurer_manager_unique

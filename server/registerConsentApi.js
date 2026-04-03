@@ -68,7 +68,11 @@ function buildPdfResponseUrl(req, jwtToken) {
  * @param {import('pg').Pool} ctx.pool
  * @param {Function} ctx.requireAuth
  * @param {Function} ctx.requireGaAdminOrSuper
+ * @param {Function} ctx.requireGaTenantAdmin
+ * @param {Function} ctx.resolveTenantGaIdForRequest
  * @param {Function} ctx.isSuperAdminRole
+ * @param {Function} ctx.isInsurerManagerRole
+ * @param {Function} ctx.parseCompanyScopeId
  * @param {Function} ctx.effectiveTenantGaId
  * @param {Function} ctx.parseGaId
  * @param {Function} ctx.handleDbError
@@ -79,7 +83,11 @@ export function registerConsentApi(apiRouter, ctx) {
     pool,
     requireAuth,
     requireGaAdminOrSuper,
+    requireGaTenantAdmin,
+    resolveTenantGaIdForRequest,
     isSuperAdminRole,
+    isInsurerManagerRole,
+    parseCompanyScopeId,
     effectiveTenantGaId,
     parseGaId,
     handleDbError,
@@ -170,11 +178,40 @@ export function registerConsentApi(apiRouter, ctx) {
 
   apiRouter.get('/consent/templates', requireAuth, async (req, res) => {
     try {
-      const gaId = effectiveTenantGaId(req)
+      const gaId = await resolveTenantGaIdForRequest(pool, req)
       if (gaId == null) {
         res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
         return
       }
+
+      if (isInsurerManagerRole(req.user?.role)) {
+        const cid = parseCompanyScopeId(req.user?.companyId)
+        if (cid == null) {
+          res.status(403).json({ message: '담당자 계정에 연결된 보험사가 없습니다.' })
+          return
+        }
+        const master = await safeQuery(pool,
+          `SELECT company_code FROM insurance_company_master WHERE id = $1 AND ga_id = $2`,
+          [cid, gaId],
+        )
+        if (master.rowCount === 0 || master.rows[0].company_code == null || String(master.rows[0].company_code).trim() === '') {
+          res.status(403).json({ message: '해당 보험사 정보를 확인할 수 없습니다.' })
+          return
+        }
+        const code = String(master.rows[0].company_code).trim()
+        const r = await safeQuery(pool,
+          `
+          SELECT id, ga_id, insurance_company_id, fax_number, created_at, updated_at
+          FROM consent_templates
+          WHERE ga_id = $1 AND insurance_company_id = $2
+          ORDER BY insurance_company_id
+          `,
+          [gaId, code],
+        )
+        res.json(r.rows)
+        return
+      }
+
       const r = await safeQuery(pool,
         `
         SELECT id, ga_id, insurance_company_id, fax_number, created_at, updated_at
@@ -193,7 +230,7 @@ export function registerConsentApi(apiRouter, ctx) {
   apiRouter.post(
     '/admin/consent-template',
     requireAuth,
-    requireGaAdminOrSuper,
+    requireGaTenantAdmin,
     (req, res, next) => {
       uploadPdf.single('pdf')(req, res, (err) => {
         if (err) {
@@ -291,8 +328,8 @@ export function registerConsentApi(apiRouter, ctx) {
         return
       }
 
-      const userGa = parseGaId(req.user?.gaId)
-      if (userGa == null) {
+      const tenantGa = await resolveTenantGaIdForRequest(pool, req)
+      if (tenantGa == null) {
         res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
         return
       }
@@ -314,17 +351,36 @@ export function registerConsentApi(apiRouter, ctx) {
 
       const rowQ = await safeQuery(pool,
         `
-        SELECT id, ga_id, fields, pdf_storage_key
+        SELECT id, ga_id, insurance_company_id, fields, pdf_storage_key
         FROM consent_templates
         WHERE id = $1 AND ga_id = $2
         `,
-        [consentTemplateId, userGa],
+        [consentTemplateId, tenantGa],
       )
       if (rowQ.rowCount === 0) {
         res.status(404).json({ message: '동의서 템플릿을 찾을 수 없습니다.' })
         return
       }
       const row = rowQ.rows[0]
+
+      if (isInsurerManagerRole(req.user?.role)) {
+        const cid = parseCompanyScopeId(req.user?.companyId)
+        if (cid == null) {
+          res.status(403).json({ message: '담당자 계정에 연결된 보험사가 없습니다.' })
+          return
+        }
+        const master = await safeQuery(pool,
+          `SELECT company_code FROM insurance_company_master WHERE id = $1 AND ga_id = $2`,
+          [cid, tenantGa],
+        )
+        if (
+          master.rowCount === 0 ||
+          String(master.rows[0].company_code ?? '') !== String(row.insurance_company_id ?? '')
+        ) {
+          res.status(403).json({ message: '해당 동의서 템플릿에 접근할 수 없습니다.' })
+          return
+        }
+      }
 
       const templateBytes = await consentGetBuffer(row.pdf_storage_key)
       const filledPdf = await fillConsentPdf(templateBytes, row.fields, formData, signatureBuf)

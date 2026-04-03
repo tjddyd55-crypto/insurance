@@ -91,9 +91,12 @@ export default function InsurerManagersPage() {
 
   const masterChoices = useMemo(() => {
     return companyDirectory
-      .filter((c) => canonicalInsuranceCategoryForFilter(c.category, c.name) === form.insurerType)
+      .filter(
+        (c: any) =>
+          canonicalInsuranceCategoryForFilter(c.category, c.name) === form.insurerType,
+      )
       .slice()
-      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+      .sort((a: any, b: any) => a.name.localeCompare(b.name, 'ko'))
   }, [companyDirectory, form.insurerType])
 
   const submitCreate = async (e: FormEvent) => {

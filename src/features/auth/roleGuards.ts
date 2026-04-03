@@ -7,11 +7,22 @@ export function isInsuranceOpsRole(role: string | undefined): role is UserRole {
   return role != null && (INSURANCE_OPS_ROLES as readonly string[]).includes(role)
 }
 
-/** 동의서 템플릿 등 StaffRoute 하위 */
-export const STAFF_ROUTE_ROLES: UserRole[] = ['GA_ADMIN', 'GA_STAFF', 'SUPER_ADMIN']
+/** 동의서 템플릿 관리(등록/수정) — GA_STAFF 제외 */
+export const CONSENT_TEMPLATE_ADMIN_ROLES: UserRole[] = ['GA_ADMIN', 'SUPER_ADMIN']
+
+export function canUseConsentTemplateAdminRoutes(role: string | undefined): boolean {
+  return role != null && (CONSENT_TEMPLATE_ADMIN_ROLES as readonly string[]).includes(role)
+}
+
+/** @deprecated 내부 동의서 관리 경로 전용 — canUseConsentTemplateAdminRoutes 사용 */
+export const STAFF_ROUTE_ROLES = CONSENT_TEMPLATE_ADMIN_ROLES
 
 export function canUseStaffRoutes(role: string | undefined): boolean {
-  return role != null && (STAFF_ROUTE_ROLES as readonly string[]).includes(role)
+  return canUseConsentTemplateAdminRoutes(role)
+}
+
+export function isInsurerManagerRole(role: string | undefined): role is UserRole {
+  return role === 'INSURER_MANAGER'
 }
 
 /** 대시보드에서 원수사 안내 문구(일반 GA 소속 담당자) */

@@ -11,6 +11,13 @@ export const GA_TENANT_ESSENTIAL_MENU: GaTenantMenuItem[] = [
   { label: '원수사 담당자 관리', path: '/insurer-managers' },
 ]
 
+/** 원수사 담당자 — 서버에서 company_id 범위로만 노출·수정 허용 */
+export const INSURER_MANAGER_MENU: GaTenantMenuItem[] = [
+  { label: '원수사 연락처 관리', path: '/contacts/manage' },
+  { label: '동의서 작성', path: '/internal/consent' },
+  { label: '업데이트 이력', path: '/insurance/history' },
+]
+
 /** @deprecated 호환용 — 내용은 GA_TENANT_ESSENTIAL_MENU 와 동일 */
 export const BASE_GA_MENU: GaTenantMenuItem[] = []
 

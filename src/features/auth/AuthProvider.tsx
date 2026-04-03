@@ -16,6 +16,8 @@ interface AuthUser {
   gaId: number
   gaCode: string
   gaName: string
+  companyId: number | null
+  displayName: string
 }
 
 interface AuthSession {
@@ -67,6 +69,19 @@ function parseGaId(value: unknown): number | null {
   return null
 }
 
+function parseCompanyScopeId(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return value
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const n = Number(value)
+    if (Number.isInteger(n) && n > 0) {
+      return n
+    }
+  }
+  return null
+}
+
 function readStoredSession(): AuthSession | null {
   try {
     const raw = window.localStorage.getItem(AUTH_STORAGE_KEY)
@@ -93,9 +108,18 @@ function readStoredSession(): AuthSession | null {
       return null
     }
 
-    const u = parsed.user as { gaCode?: unknown; gaName?: unknown }
+    const u = parsed.user as { gaCode?: unknown; gaName?: unknown; companyId?: unknown; displayName?: unknown }
     const gaCode = typeof u.gaCode === 'string' ? u.gaCode.trim().toUpperCase() : ''
     const gaName = typeof u.gaName === 'string' ? u.gaName.trim() : ''
+    const companyIdRaw = parseCompanyScopeId(u.companyId)
+    const displayNameRaw =
+      typeof u.displayName === 'string' ? u.displayName.trim() : String(parsed.user.username ?? '').trim()
+
+    if (role === 'INSURER_MANAGER' && companyIdRaw == null) {
+      console.warn('INSURER_MANAGER companyId 없음 → 재로그인 필요')
+      window.localStorage.removeItem(AUTH_STORAGE_KEY)
+      return null
+    }
 
     return {
       token: parsed.token,
@@ -106,6 +130,8 @@ function readStoredSession(): AuthSession | null {
         gaId,
         gaCode,
         gaName,
+        companyId: role === 'INSURER_MANAGER' ? companyIdRaw : null,
+        displayName: displayNameRaw,
       },
     }
   } catch {
@@ -144,6 +170,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         typeof nextSession.user.gaCode === 'string' ? nextSession.user.gaCode.trim().toUpperCase() : ''
       const gaName =
         typeof nextSession.user.gaName === 'string' ? nextSession.user.gaName.trim() : ''
+      const companyId =
+        role === 'INSURER_MANAGER' ? parseCompanyScopeId(nextSession.user.companyId) : null
+      if (role === 'INSURER_MANAGER' && companyId == null) {
+        console.warn('INSURER_MANAGER companyId 없음')
+        logout()
+        return
+      }
+      const displayName =
+        typeof nextSession.user.displayName === 'string' && nextSession.user.displayName.trim()
+          ? nextSession.user.displayName.trim()
+          : String(nextSession.user.username ?? '').trim()
 
       const normalized: AuthSession = {
         token: nextSession.token,
@@ -154,6 +191,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           gaId: gaId as number,
           gaCode,
           gaName,
+          companyId,
+          displayName,
         },
       }
       setSession(normalized)
@@ -168,6 +207,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     if (!session.user.role || session.user.gaId == null) {
       console.warn('세션 불완전 → 재로그인 필요')
+      logout()
+      return
+    }
+    if (
+      session.user.role === 'INSURER_MANAGER' &&
+      (session.user.companyId == null || session.user.companyId < 1)
+    ) {
+      console.warn('원수사 담당자 세션에 companyId 없음 → 재로그인 필요')
       logout()
     }
   }, [session, logout])

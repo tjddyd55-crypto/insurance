@@ -49,7 +49,7 @@ export async function patchInsurerManagerApi(
     if (payload.insurerType != null) {
       body.insurerType = payload.insurerType
     }
-    if (payload.companyId != null) {
+    if (payload.companyId != null && Number.isFinite(payload.companyId)) {
       body.companyId = payload.companyId
     }
     if (payload.username != null) {

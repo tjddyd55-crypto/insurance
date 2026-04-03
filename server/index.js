@@ -12,6 +12,13 @@ import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.
 import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
 import { parseGaId } from './lib/parseGaId.js'
+import {
+  isGaTenantAdminRole,
+  isInsurerManagerRole,
+  parseCompanyScopeId,
+  resolveTenantGaIdForRequest,
+} from './lib/rbacScope.js'
+import { writeSecurityAudit } from './lib/securityAudit.js'
 import { registerConsentApi } from './registerConsentApi.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 
@@ -648,7 +655,7 @@ function mapInsuranceGeneralRequest(row) {
   }
 }
 
-async function loadCompanyDirectoryNestedList(gaId) {
+async function loadCompanyDirectoryNestedList(gaId, options = {}) {
   const g = parseGaId(gaId)
   if (g == null) {
     throw new Error('loadCompanyDirectoryNestedList: gaId 필요')
@@ -704,6 +711,11 @@ async function loadCompanyDirectoryNestedList(gaId) {
   })
 
   items.sort((a, b) => String(a.name).localeCompare(String(b.name), 'ko'))
+  const onlyId =
+    options && options.onlyCompanyId != null ? Number(options.onlyCompanyId) : null
+  if (onlyId != null && Number.isInteger(onlyId) && onlyId > 0) {
+    return items.filter((x) => Number(x.id) === onlyId)
+  }
   return items
 }
 
@@ -819,6 +831,9 @@ async function requireAuth(req, res, next) {
       typeof gaCodeRaw === 'string' && gaCodeRaw.trim() ? gaCodeRaw.trim().toUpperCase() : ''
     const gaNameRaw = decoded.gaName ?? decoded.ga_name
     const gaName = typeof gaNameRaw === 'string' ? gaNameRaw.trim() : ''
+    const companyIdJwt = parseCompanyScopeId(decoded.companyId ?? decoded.company_id)
+    const displayNameRaw = decoded.displayName ?? decoded.display_name ?? ''
+    const displayName = typeof displayNameRaw === 'string' ? displayNameRaw.trim() : ''
     req.user = {
       id: String(userId),
       username: typeof decoded.username === 'string' ? decoded.username : '',
@@ -826,6 +841,8 @@ async function requireAuth(req, res, next) {
       gaId: gaFromJwt,
       gaCode,
       gaName,
+      companyId: companyIdJwt,
+      displayName,
     }
 
     if (role !== 'SUPER_ADMIN' && gaFromJwt == null) {
@@ -840,7 +857,7 @@ async function requireAuth(req, res, next) {
       const stIm = await safeQuery(
         pool,
         `
-        SELECT im.status AS im_status, im.is_deleted AS im_deleted,
+        SELECT im.status AS im_status, im.is_deleted AS im_deleted, im.company_id,
                g.status AS ga_status, g.is_deleted AS ga_deleted
         FROM insurer_managers im
         INNER JOIN ga_companies g ON g.id = im.ga_id
@@ -855,12 +872,20 @@ async function requireAuth(req, res, next) {
         return
       }
       const ir = stIm.rows[0]
+      const coId = ir.company_id != null ? Number(ir.company_id) : null
+      if (Number.isInteger(coId) && coId > 0) {
+        req.user.companyId = coId
+      }
       if (ir.im_deleted || String(ir.im_status ?? '').toUpperCase() !== 'ACTIVE') {
         res.status(403).json({ message: '접근이 제한된 계정입니다' })
         return
       }
       if (ir.ga_deleted || String(ir.ga_status ?? '').toLowerCase() !== 'active') {
         res.status(403).json({ message: '해당 GA는 현재 사용이 제한되었습니다' })
+        return
+      }
+      if (!req.user.companyId || req.user.companyId < 1) {
+        res.status(403).json({ message: '담당자 계정에 보험사(마스터)가 연결되지 않았습니다.' })
         return
       }
       next()
@@ -931,6 +956,45 @@ function requireSuperAdmin(req, res, next) {
 function requireGaAdminOrSuper(req, res, next) {
   if (!req.user || !isGaAdminOrSuper(req.user.role)) {
     res.status(403).json({ message: '원수사 연락처 관리 권한이 없습니다.' })
+    return
+  }
+  next()
+}
+
+/** 보험사 마스터 쓰기·원수사 담당자 생성 등: SUPER_ADMIN · GA_ADMIN 만 */
+function requireGaTenantAdmin(req, res, next) {
+  if (!req.user || !isGaTenantAdminRole(req.user.role)) {
+    res.status(403).json({ message: 'GA 관리자 권한이 필요합니다.' })
+    return
+  }
+  next()
+}
+
+/** 담당자 정합성 헬스: SUPER_ADMIN · GA_ADMIN 만 */
+function requireInsurerHealthReader(req, res, next) {
+  if (!req.user) {
+    res.status(401).json({ message: '로그인이 필요합니다.' })
+    return
+  }
+  const r = normalizeUserRole(req.user.role)
+  if (r === 'INSURER_MANAGER' || r === 'GA_STAFF' || r === 'USER') {
+    res.status(403).json({ message: '이 API에 접근할 권한이 없습니다.' })
+    return
+  }
+  if (r !== 'SUPER_ADMIN' && r !== 'GA_ADMIN') {
+    res.status(403).json({ message: '이 API에 접근할 권한이 없습니다.' })
+    return
+  }
+  next()
+}
+
+function forbidInsurerManagerApi(req, res, next) {
+  if (!req.user) {
+    res.status(401).json({ message: '로그인이 필요합니다.' })
+    return
+  }
+  if (isInsurerManagerRole(req.user.role)) {
+    res.status(403).json({ message: '원수사 담당자 계정은 이 API를 사용할 수 없습니다.' })
     return
   }
   next()
@@ -1064,7 +1128,11 @@ registerConsentApi(apiRouter, {
   pool,
   requireAuth,
   requireGaAdminOrSuper,
+  requireGaTenantAdmin,
+  resolveTenantGaIdForRequest,
   isSuperAdminRole,
+  isInsurerManagerRole,
+  parseCompanyScopeId,
   effectiveTenantGaId,
   parseGaId,
   handleDbError,
@@ -1178,6 +1246,20 @@ async function handleRegister(req, res) {
   }
 }
 
+async function auditLoginFailure(pool, username, reason) {
+  try {
+    await writeSecurityAudit(pool, {
+      actorUserId: String(username ?? '').slice(0, 120),
+      actorRole: 'anonymous',
+      action: 'login_failed',
+      targetType: 'auth',
+      meta: { reason },
+    })
+  } catch (e) {
+    console.error('[security_audit login_failed]', e)
+  }
+}
+
 async function handleLogin(req, res) {
   try {
     const { username, password } = req.body ?? {}
@@ -1218,6 +1300,7 @@ async function handleLogin(req, res) {
       const im = imRes.rows[0]
       if (!im) {
         console.log('❌ 사용자 없음')
+        await auditLoginFailure(pool, normalizedUsername, 'unknown_user')
         res.status(401).json({
           error: 'Invalid credentials',
           message: '아이디 또는 비밀번호가 올바르지 않습니다.',
@@ -1230,6 +1313,7 @@ async function handleLogin(req, res) {
       }
       const imMatch = await bcrypt.compare(password, im.password_hash)
       if (!imMatch) {
+        await auditLoginFailure(pool, normalizedUsername, 'invalid_password_insurer_manager')
         res.status(401).json({
           error: 'Invalid credentials',
           message: '아이디 또는 비밀번호가 올바르지 않습니다.',
@@ -1237,17 +1321,29 @@ async function handleLogin(req, res) {
         return
       }
       if (String(im.status ?? '').toUpperCase() !== 'ACTIVE') {
+        await auditLoginFailure(pool, normalizedUsername, 'insurer_manager_inactive')
         res.status(401).json({ message: '접근이 제한된 계정입니다' })
         return
       }
       if (im.ga_deleted === true || String(im.ga_status ?? '').toLowerCase() !== 'active') {
+        await auditLoginFailure(pool, normalizedUsername, 'ga_restricted_insurer')
         res.status(401).json({ message: '해당 GA는 현재 사용이 제한되었습니다' })
+        return
+      }
+      const cidCheck = Number(im.company_id)
+      if (!Number.isInteger(cidCheck) || cidCheck < 1) {
+        await auditLoginFailure(pool, normalizedUsername, 'insurer_missing_company_id')
+        res.status(403).json({
+          message: '담당자 계정에 보험사(마스터)가 연결되지 않았습니다. 관리자에게 문의하세요.',
+        })
         return
       }
       const imGaCode =
         typeof im.ga_code === 'string' && im.ga_code.trim() ? im.ga_code.trim().toUpperCase() : ''
       const imGaName = typeof im.ga_name === 'string' ? im.ga_name.trim() : ''
       const imGaId = parseGaId(im.ga_id)
+      const imCompanyId = Number(im.company_id)
+      const displayName = String(im.insurer_name ?? '').trim()
       const imToken = jwt.sign(
         {
           userId: im.id,
@@ -1257,6 +1353,9 @@ async function handleLogin(req, res) {
           gaId: imGaId,
           gaCode: imGaCode,
           gaName: imGaName,
+          companyId:
+            Number.isInteger(imCompanyId) && imCompanyId > 0 ? imCompanyId : undefined,
+          displayName,
         },
         JWT_SECRET,
         { expiresIn: '7d' },
@@ -1270,6 +1369,9 @@ async function handleLogin(req, res) {
           ga_id: imGaId,
           ga_code: imGaCode,
           ga_name: imGaName,
+          company_id:
+            Number.isInteger(imCompanyId) && imCompanyId > 0 ? imCompanyId : undefined,
+          display_name: displayName,
         },
       })
       return
@@ -1285,6 +1387,7 @@ async function handleLogin(req, res) {
 
     if (!match) {
       console.log('❌ 비밀번호 불일치')
+      await auditLoginFailure(pool, normalizedUsername, 'invalid_password_user')
       res.status(401).json({
         error: 'Invalid credentials',
         message: '아이디 또는 비밀번호가 올바르지 않습니다.',
@@ -1332,6 +1435,7 @@ async function handleLogin(req, res) {
       gaName = typeof g0?.name === 'string' ? g0.name.trim() : ''
     }
 
+    const userDisplayName = String(user.display_name ?? user.username ?? '').trim()
     const token = jwt.sign(
       {
         userId: user.id,
@@ -1341,6 +1445,7 @@ async function handleLogin(req, res) {
         gaId,
         gaCode,
         gaName,
+        displayName: userDisplayName,
       },
       JWT_SECRET,
       { expiresIn: '7d' },
@@ -1355,6 +1460,7 @@ async function handleLogin(req, res) {
         ga_id: gaId,
         ga_code: gaCode,
         ga_name: gaName,
+        display_name: userDisplayName,
       },
     })
   } catch (error) {
@@ -1382,7 +1488,7 @@ apiRouter.get('/auth/username-availability', async (req, res) => {
   }
 })
 
-apiRouter.get('/admin/health/insurer-managers', requireAuth, requireGaAdminOrSuper, async (req, res) => {
+apiRouter.get('/admin/health/insurer-managers', requireAuth, requireInsurerHealthReader, async (req, res) => {
   try {
     const gaIdFilter = isSuperAdminRole(req.user?.role) ? null : parseGaId(req.user?.gaId)
     if (!isSuperAdminRole(req.user?.role) && gaIdFilter == null) {
@@ -1405,7 +1511,7 @@ apiRouter.get('/admin/health/insurer-managers', requireAuth, requireGaAdminOrSup
 
 apiRouter.get('/insurer-managers', requireAuth, requireGaAdminOrSuper, async (req, res) => {
   try {
-    const gaId = parseGaId(req.user?.gaId)
+    const gaId = await resolveTenantGaIdForRequest(pool, req)
     if (gaId == null) {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
@@ -1427,9 +1533,9 @@ apiRouter.get('/insurer-managers', requireAuth, requireGaAdminOrSuper, async (re
   }
 })
 
-apiRouter.post('/insurer-managers', requireAuth, requireGaAdminOrSuper, async (req, res) => {
+apiRouter.post('/insurer-managers', requireAuth, requireGaTenantAdmin, async (req, res) => {
   try {
-    const gaId = parseGaId(req.user?.gaId)
+    const gaId = await resolveTenantGaIdForRequest(pool, req)
     if (gaId == null) {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
@@ -1488,6 +1594,20 @@ apiRouter.post('/insurer-managers', requireAuth, requireGaAdminOrSuper, async (r
       [id, gaId, link.master.id, typeNorm, nameNorm, normalizedUsername, passwordHash, plainPw],
     )
     const g0 = await systemQuery(pool, `SELECT code FROM ga_companies WHERE id = $1`, [gaId])
+    try {
+      await writeSecurityAudit(pool, {
+        actorUserId: req.user.id,
+        actorRole: req.user.role,
+        action: 'insurer_manager_create',
+        targetType: 'insurer_manager',
+        targetId: id,
+        gaId,
+        companyId: link.master.id,
+        meta: { username: normalizedUsername },
+      })
+    } catch (auditErr) {
+      console.error('[audit insurer_manager_create]', auditErr)
+    }
     res.status(201).json(
       mapInsurerManagerRow({
         ...ins.rows[0],
@@ -1503,9 +1623,9 @@ apiRouter.post('/insurer-managers', requireAuth, requireGaAdminOrSuper, async (r
   }
 })
 
-apiRouter.patch('/insurer-managers/:id', requireAuth, requireGaAdminOrSuper, async (req, res) => {
+apiRouter.patch('/insurer-managers/:id', requireAuth, requireGaTenantAdmin, async (req, res) => {
   try {
-    const gaId = parseGaId(req.user?.gaId)
+    const gaId = await resolveTenantGaIdForRequest(pool, req)
     if (gaId == null) {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
@@ -1667,6 +1787,26 @@ apiRouter.patch('/insurer-managers/:id', requireAuth, requireGaAdminOrSuper, asy
       vals,
     )
     const g0 = await systemQuery(pool, `SELECT code FROM ga_companies WHERE id = $1`, [gaId])
+    const prevCompanyId = Number(cur.company_id)
+    try {
+      await writeSecurityAudit(pool, {
+        actorUserId: req.user.id,
+        actorRole: req.user.role,
+        action: 'insurer_manager_update',
+        targetType: 'insurer_manager',
+        targetId,
+        gaId,
+        companyId: nextCompanyId,
+        meta: {
+          companyIdChanged: nextCompanyId !== prevCompanyId,
+          prevCompanyId,
+          statusTouched: newStatus != null,
+          usernameTouched: newUsername != null,
+        },
+      })
+    } catch (auditErr) {
+      console.error('[audit insurer_manager_update]', auditErr)
+    }
     res.json(
       mapInsurerManagerRow({
         ...upd.rows[0],
@@ -2500,12 +2640,21 @@ apiRouter.patch('/admin/feature-requests/:id', requireAuth, requireSuperAdmin, a
 
 apiRouter.get('/company/list', requireAuth, async (req, res) => {
   try {
-    const gaId = effectiveTenantGaId(req)
+    const gaId = await resolveTenantGaIdForRequest(pool, req)
     if (gaId == null) {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
     }
-    const list = await loadCompanyDirectoryNestedList(gaId)
+    let scope = {}
+    if (isInsurerManagerRole(req.user?.role)) {
+      const cid = parseCompanyScopeId(req.user?.companyId)
+      if (cid == null) {
+        res.status(403).json({ message: '담당자 계정에 연결된 보험사가 없습니다.' })
+        return
+      }
+      scope = { onlyCompanyId: cid }
+    }
+    const list = await loadCompanyDirectoryNestedList(gaId, scope)
     res.json(list)
   } catch (error) {
     handleDbError(error, res)
@@ -2514,10 +2663,21 @@ apiRouter.get('/company/list', requireAuth, async (req, res) => {
 
 apiRouter.get('/company/recent-updates', requireAuth, async (req, res) => {
   try {
-    const gaId = effectiveTenantGaId(req)
+    const gaId = await resolveTenantGaIdForRequest(pool, req)
     if (gaId == null) {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
+    }
+    const params = [gaId]
+    let extra = ''
+    if (isInsurerManagerRole(req.user?.role)) {
+      const cid = parseCompanyScopeId(req.user?.companyId)
+      if (cid == null) {
+        res.status(403).json({ message: '담당자 계정에 연결된 보험사가 없습니다.' })
+        return
+      }
+      params.push(cid)
+      extra = ' AND company_id = $2'
     }
     const result = await safeQuery(pool,
       `
@@ -2531,11 +2691,11 @@ apiRouter.get('/company/recent-updates', requireAuth, async (req, res) => {
         before_payload,
         after_payload
       FROM insurance_company_update_log
-      WHERE ga_id = $1
+      WHERE ga_id = $1${extra}
       ORDER BY updated_at DESC NULLS LAST, id DESC
       LIMIT 200
       `,
-      [gaId],
+      params,
     )
     const rows = result.rows.map((row) => {
       const ts = row.updated_at
@@ -2558,9 +2718,9 @@ apiRouter.get('/company/recent-updates', requireAuth, async (req, res) => {
   }
 })
 
-apiRouter.post('/company/full-save', requireAuth, requireGaAdminOrSuper, async (req, res) => {
+apiRouter.post('/company/full-save', requireAuth, requireGaTenantAdmin, async (req, res) => {
   try {
-    const tenantGa = effectiveTenantGaId(req)
+    const tenantGa = await resolveTenantGaIdForRequest(pool, req)
     if (tenantGa == null) {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
@@ -2802,9 +2962,9 @@ apiRouter.post('/company/full-save', requireAuth, requireGaAdminOrSuper, async (
   }
 })
 
-apiRouter.post('/company/general-save', requireAuth, requireGaAdminOrSuper, async (req, res) => {
+apiRouter.post('/company/general-save', requireAuth, requireGaTenantAdmin, async (req, res) => {
   try {
-    const tenantGa = effectiveTenantGaId(req)
+    const tenantGa = await resolveTenantGaIdForRequest(pool, req)
     if (tenantGa == null) {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
@@ -2859,6 +3019,10 @@ apiRouter.post('/company/general-save', requireAuth, requireGaAdminOrSuper, asyn
 
 apiRouter.get('/insurance/contacts', requireAuth, async (req, res) => {
   try {
+    if (isInsurerManagerRole(req.user?.role)) {
+      res.status(403).json({ message: '원수사 담당자는 이 목록에 접근할 수 없습니다.' })
+      return
+    }
     const gaId = effectiveTenantGaId(req)
     if (gaId == null) {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
