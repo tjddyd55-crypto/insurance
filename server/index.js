@@ -99,6 +99,81 @@ function mapFormRow(row) {
   }
 }
 
+function calculateInsuranceInfoFromRrn(rrnRaw) {
+  const digits = String(rrnRaw ?? '').replace(/\D/g, '')
+  if (digits.length < 7) {
+    return { age: null, nextAgeDate: null }
+  }
+  const birth = digits.slice(0, 6)
+  const genderCode = digits[6]
+  let yearPrefix = '19'
+  if (genderCode === '3' || genderCode === '4') {
+    yearPrefix = '20'
+  }
+  const year = parseInt(yearPrefix + birth.substring(0, 2), 10)
+  const month = parseInt(birth.substring(2, 4), 10)
+  const day = parseInt(birth.substring(4, 6), 10)
+  const birthDate = new Date(year, month - 1, day)
+  if (Number.isNaN(birthDate.getTime())) {
+    return { age: null, nextAgeDate: null }
+  }
+  const today = new Date()
+  let age = today.getFullYear() - year
+  const thisYearBirthday = new Date(today.getFullYear(), month - 1, day)
+  const nextAgeDate = new Date(thisYearBirthday)
+  nextAgeDate.setMonth(nextAgeDate.getMonth() + 6)
+  if (today >= nextAgeDate) {
+    age += 1
+  }
+  return { age, nextAgeDate }
+}
+
+function nextAgeDateToSqlDate(d) {
+  if (!d || Number.isNaN(d.getTime())) {
+    return null
+  }
+  const y = d.getFullYear()
+  const mo = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${mo}-${day}`
+}
+
+function normalizeCustomerNotesInput(raw) {
+  if (raw == null || !Array.isArray(raw)) {
+    return []
+  }
+  const out = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') {
+      continue
+    }
+    const id = String(item.id ?? '').trim()
+    const content = String(item.content ?? '').trim()
+    const createdAt = String(item.createdAt ?? new Date().toISOString()).trim()
+    if (!id || !content) {
+      continue
+    }
+    out.push({ id, content, createdAt })
+  }
+  return out
+}
+
+function mapCustomerNotesJson(raw) {
+  if (raw == null) {
+    return []
+  }
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => ({
+        id: String(item?.id ?? '').trim(),
+        content: String(item?.content ?? '').trim(),
+        createdAt: String(item?.createdAt ?? '').trim(),
+      }))
+      .filter((n) => n.id && n.content && n.createdAt)
+  }
+  return []
+}
+
 function mapCustomerRow(row) {
   const renewalRaw = row.renewal_date ?? ''
   const renewalDate =
@@ -106,11 +181,39 @@ function mapCustomerRow(row) {
       ? normalizeExpiryDate(renewalRaw.toISOString().slice(0, 10))
       : normalizeExpiryDate(String(renewalRaw))
 
+  const g = String(row.gender ?? '').trim()
+  const gender = g === 'male' || g === 'female' ? g : null
+
+  let isDriver = null
+  if (row.is_driver === true) {
+    isDriver = true
+  } else if (row.is_driver === false) {
+    isDriver = false
+  }
+
+  const nextRaw = row.next_age_date ?? null
+  let nextAgeDate = null
+  if (nextRaw instanceof Date) {
+    nextAgeDate = normalizeExpiryDate(nextRaw.toISOString().slice(0, 10))
+  } else if (nextRaw) {
+    nextAgeDate = normalizeExpiryDate(String(nextRaw).slice(0, 10))
+  }
+
+  const insRaw = row.insurance_age
+  const insuranceAge =
+    insRaw != null && insRaw !== '' && Number.isFinite(Number(insRaw)) ? Number(insRaw) : null
+
   return {
     id: Number(row.id),
     userId: String(row.user_id),
     name: row.name ?? '',
     ssn: row.ssn ?? '',
+    gender,
+    insuranceAge,
+    nextAgeDate: nextAgeDate || null,
+    isDriver,
+    carType: row.car_type ?? '',
+    notes: mapCustomerNotesJson(row.notes),
     phone: row.phone ?? '',
     carrier: row.carrier ?? '',
     address: row.address ?? '',
@@ -1514,27 +1617,59 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
       return
     }
 
+    let isDriver = null
+    if (data.isDriver === true || data.is_driver === true) {
+      isDriver = true
+    } else if (data.isDriver === false || data.is_driver === false) {
+      isDriver = false
+    }
+    const carType = String(data.carType ?? data.car_type ?? '').trim()
+    if (isDriver === true && !carType) {
+      res.status(400).json({ message: '차종을 입력해주세요.' })
+      return
+    }
+
+    const ssn = String(data.ssn ?? '').trim()
+    const { age: insuranceAge, nextAgeDate: nextAgeDateObj } = calculateInsuranceInfoFromRrn(ssn)
+    const nextAgeSql = nextAgeDateToSqlDate(nextAgeDateObj)
+
+    const genderRaw = String(data.gender ?? '').trim()
+    const gender = genderRaw === 'male' || genderRaw === 'female' ? genderRaw : ''
+
+    const notes = normalizeCustomerNotesInput(data.notes)
+    const driving =
+      isDriver === true ? '운전함' : isDriver === false ? '운전 안함' : String(data.driving ?? '').trim()
+
     const inserted = await pool.query(
       `
       INSERT INTO customers (
-        user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        gender, insurance_age, next_age_date, is_driver, car_type, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb)
       RETURNING
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
-        car_number, car_model, car_year, renewal_date, created_at
+        car_number, car_model, car_year, renewal_date,
+        gender, insurance_age, next_age_date, is_driver, car_type, notes,
+        created_at
       `,
       [
         userId,
         name,
-        String(data.ssn ?? '').trim(),
+        ssn,
         String(data.phone ?? '').trim(),
         String(data.carrier ?? '').trim(),
         String(data.address ?? '').trim(),
         String(data.height ?? '').trim(),
         String(data.weight ?? '').trim(),
         String(data.job ?? '').trim(),
-        String(data.driving ?? '').trim(),
+        driving,
         String(data.medical ?? '').trim(),
+        gender,
+        insuranceAge,
+        nextAgeSql,
+        isDriver,
+        carType,
+        JSON.stringify(notes),
       ],
     )
 
@@ -1610,6 +1745,55 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       vals.push(renewalDate || null)
     }
 
+    if (hasKey('gender')) {
+      const genderRaw = String(data.gender ?? '').trim()
+      const gender = genderRaw === 'male' || genderRaw === 'female' ? genderRaw : ''
+      parts.push(`gender = $${n++}`)
+      vals.push(gender)
+    }
+
+    if (hasKey('isDriver') || hasKey('is_driver')) {
+      const v = hasKey('isDriver') ? data.isDriver : data.is_driver
+      let isDriver = null
+      if (v === true) {
+        isDriver = true
+      } else if (v === false) {
+        isDriver = false
+      }
+      parts.push(`is_driver = $${n++}`)
+      vals.push(isDriver)
+    }
+
+    if (hasKey('carType') || hasKey('car_type')) {
+      parts.push(`car_type = $${n++}`)
+      vals.push(String(data.carType ?? data.car_type ?? '').trim())
+    }
+
+    if (hasKey('notes')) {
+      parts.push(`notes = $${n++}::jsonb`)
+      vals.push(JSON.stringify(normalizeCustomerNotesInput(data.notes)))
+    }
+
+    if (hasKey('ssn')) {
+      const ssnVal = String(data.ssn ?? '').trim()
+      const { age: insuranceAge, nextAgeDate: nextAgeDateObj } = calculateInsuranceInfoFromRrn(ssnVal)
+      parts.push(`insurance_age = $${n++}`)
+      vals.push(insuranceAge)
+      parts.push(`next_age_date = $${n++}`)
+      vals.push(nextAgeDateToSqlDate(nextAgeDateObj))
+    }
+
+    const setsDriverTrue =
+      (hasKey('isDriver') && data.isDriver === true) || (hasKey('is_driver') && data.is_driver === true)
+    if (
+      setsDriverTrue &&
+      (hasKey('carType') || hasKey('car_type')) &&
+      !String(data.carType ?? data.car_type ?? '').trim()
+    ) {
+      res.status(400).json({ message: '차종을 입력해주세요.' })
+      return
+    }
+
     if (parts.length === 0) {
       res.status(400).json({ message: '수정할 필드가 없습니다.' })
       return
@@ -1623,7 +1807,9 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       WHERE id = $${n++} AND user_id = $${n++} AND deleted_at IS NULL
       RETURNING
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
-        car_number, car_model, car_year, renewal_date, created_at
+        car_number, car_model, car_year, renewal_date,
+        gender, insurance_age, next_age_date, is_driver, car_type, notes,
+        created_at
       `,
       vals,
     )
@@ -1653,7 +1839,9 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
         `
         SELECT
           id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
-          car_number, car_model, car_year, renewal_date, created_at
+          car_number, car_model, car_year, renewal_date,
+          gender, insurance_age, next_age_date, is_driver, car_type, notes,
+          created_at
         FROM customers
         WHERE user_id = $1 AND deleted_at IS NULL
         ORDER BY created_at DESC
@@ -1667,7 +1855,9 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
         `
         SELECT
           id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
-          car_number, car_model, car_year, renewal_date, created_at
+          car_number, car_model, car_year, renewal_date,
+          gender, insurance_age, next_age_date, is_driver, car_type, notes,
+          created_at
         FROM customers
         WHERE user_id = $1 AND deleted_at IS NULL
           AND (name ILIKE $2 ESCAPE '\\' OR phone ILIKE $2 ESCAPE '\\')
@@ -1696,7 +1886,9 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
       `
       SELECT
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
-        car_number, car_model, car_year, renewal_date, created_at
+        car_number, car_model, car_year, renewal_date,
+        gender, insurance_age, next_age_date, is_driver, car_type, notes,
+        created_at
       FROM customers
       WHERE user_id = $1 AND deleted_at IS NULL
       ORDER BY renewal_date ASC NULLS LAST, created_at DESC

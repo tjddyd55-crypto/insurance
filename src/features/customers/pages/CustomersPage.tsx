@@ -10,23 +10,17 @@ import {
   saveCustomer,
   updateCustomer,
 } from '../api/customersApi'
-import type { CustomerRecord } from '../domain/types'
+import type { CustomerNote, CustomerRecord } from '../domain/types'
 import { storeSelectedCustomer } from '../storage/selectedCustomerStorage'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
 import { generateCustomerText } from '../utils/customerText'
-
-type CustomerFormState = {
-  name: string
-  ssn: string
-  phone: string
-  carrier: string
-  address: string
-  height: string
-  weight: string
-  job: string
-  driving: string
-  medical: string
-}
+import {
+  NOTE_MAX_LENGTH,
+  calculateInsuranceInfo,
+  formatDateYmdInput,
+  formatRrnInput,
+  nextAgeDateToIsoString,
+} from '../utils/insuranceInfo'
 
 function CustomerDDayBadge({ renewalDate }: { renewalDate: string }) {
   const dday = getDDay(renewalDate)
@@ -36,43 +30,133 @@ function CustomerDDayBadge({ renewalDate }: { renewalDate: string }) {
   return <span className={getDDayBadgeClass(dday)}>{`D-${dday}`}</span>
 }
 
-const EMPTY_FORM: CustomerFormState = {
-  name: '',
-  ssn: '',
-  phone: '',
-  carrier: '',
-  address: '',
-  height: '',
-  weight: '',
-  job: '',
-  driving: '',
-  medical: '',
+type CustomerFormCore = {
+  name: string
+  gender: 'male' | 'female' | null
+  rrn: string
+  isDriver: boolean | null
+  carType: string
+  notes: CustomerNote[]
+  noteDraft: string
 }
 
-type CustomerEditFormState = CustomerFormState & {
+type CustomerFormState = CustomerFormCore
+
+type CustomerEditFormState = CustomerFormCore & {
   carNumber: string
   carModel: string
   carYear: string
   renewalDate: string
 }
 
+const EMPTY_FORM: CustomerFormState = {
+  name: '',
+  gender: null,
+  rrn: '',
+  isDriver: null,
+  carType: '',
+  notes: [],
+  noteDraft: '',
+}
+
 function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
   return {
     name: c.name ?? '',
-    ssn: c.ssn ?? '',
-    phone: c.phone ?? '',
-    carrier: c.carrier ?? '',
-    address: c.address ?? '',
-    height: c.height ?? '',
-    weight: c.weight ?? '',
-    job: c.job ?? '',
-    driving: c.driving ?? '',
-    medical: c.medical ?? '',
+    gender: c.gender ?? null,
+    rrn: c.ssn ?? '',
+    isDriver: c.isDriver ?? null,
+    carType: c.carType ?? '',
+    notes: Array.isArray(c.notes) ? [...c.notes] : [],
+    noteDraft: '',
     carNumber: c.carNumber ?? '',
     carModel: c.carModel ?? '',
     carYear: c.carYear ?? '',
     renewalDate: c.renewalDate ?? '',
   }
+}
+
+function drivingText(isDriver: boolean | null): string {
+  if (isDriver === true) {
+    return '운전함'
+  }
+  if (isDriver === false) {
+    return '운전 안함'
+  }
+  return ''
+}
+
+function NotesEditor({
+  notes,
+  noteDraft,
+  onDraftChange,
+  onAdd,
+  onDelete,
+}: {
+  notes: CustomerNote[]
+  noteDraft: string
+  onDraftChange: (v: string) => void
+  onAdd: () => void
+  onDelete: (id: string) => void
+}) {
+  return (
+    <div className="field field--wide">
+      <span className="field__label">메모 (최대 {NOTE_MAX_LENGTH}자, Enter로 추가)</span>
+      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          className="field__control"
+          style={{ flex: '1 1 200px' }}
+          placeholder="메모 입력"
+          value={noteDraft}
+          maxLength={NOTE_MAX_LENGTH}
+          onChange={(e) => onDraftChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              onAdd()
+            }
+          }}
+        />
+        <button className="button button--secondary" type="button" onClick={onAdd}>
+          + 추가
+        </button>
+      </div>
+      <div className="mt-4 space-y-2" style={{ marginTop: '12px' }}>
+        {notes.map((note) => (
+          <div key={note.id} className="border rounded p-3" style={{ border: '1px solid #ccc', borderRadius: 8, padding: 12 }}>
+            <div>{note.content}</div>
+            <div className="text-sm text-gray-500 mt-1" style={{ fontSize: '0.85rem', opacity: 0.8, marginTop: 4 }}>
+              {new Date(note.createdAt).toLocaleString('ko-KR')}
+            </div>
+            <button type="button" className="delete-btn" style={{ marginTop: 8 }} onClick={() => onDelete(note.id)}>
+              삭제
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function InsuranceDisplay({ rrn }: { rrn: string }) {
+  const { age, nextAgeDate } = useMemo(() => calculateInsuranceInfo(rrn), [rrn])
+  const ymd = nextAgeDateToIsoString(nextAgeDate)
+  if (age != null && ymd) {
+    return (
+      <p>
+        <strong>보험나이:</strong> {age}세 (상령일: {formatDateYmdInput(ymd)})
+      </p>
+    )
+  }
+  return (
+    <>
+      <p>
+        <strong>보험나이:</strong> 계산 불가
+      </p>
+      <p>
+        <strong>상령일:</strong> 계산 불가
+      </p>
+    </>
+  )
 }
 
 export default function CustomersPage() {
@@ -90,6 +174,12 @@ export default function CustomersPage() {
   const [tab, setTab] = useState<'create' | 'list'>('create')
   const [keyword, setKeyword] = useState('')
 
+  const createInsurance = useMemo(() => calculateInsuranceInfo(form.rrn), [form.rrn])
+  const createNextYmd = useMemo(
+    () => nextAgeDateToIsoString(createInsurance.nextAgeDate),
+    [createInsurance.nextAgeDate],
+  )
+
   const duplicateCustomerNames = useMemo(() => {
     const counts = new Map<string, number>()
     for (const c of customers) {
@@ -99,9 +189,7 @@ export default function CustomersPage() {
       }
       counts.set(key, (counts.get(key) ?? 0) + 1)
     }
-    return new Set(
-      [...counts.entries()].filter(([, n]) => n > 1).map(([name]) => name),
-    )
+    return new Set([...counts.entries()].filter(([, n]) => n > 1).map(([name]) => name))
   }, [customers])
 
   const filteredCustomers = useMemo(() => {
@@ -181,6 +269,29 @@ export default function CustomersPage() {
     }
   }, [expandedId, token])
 
+  function addNoteCore(
+    draft: string,
+    setNotes: (fn: (prev: CustomerNote[]) => CustomerNote[]) => void,
+    clearDraft: () => void,
+  ) {
+    const content = draft.trim()
+    if (!content) {
+      return
+    }
+    if (content.length > NOTE_MAX_LENGTH) {
+      setStatusText(`메모는 ${NOTE_MAX_LENGTH}자 이하로 입력해주세요.`)
+      return
+    }
+    const newNote: CustomerNote = {
+      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      content,
+      createdAt: new Date().toISOString(),
+    }
+    setNotes((prev) => [newNote, ...prev])
+    clearDraft()
+    setStatusText('')
+  }
+
   async function handleSaveCustomer() {
     if (!token || user?.role !== 'user') {
       return
@@ -190,18 +301,39 @@ export default function CustomersPage() {
       setStatusText('이름은 필수입니다.')
       return
     }
+    if (form.gender == null) {
+      setStatusText('성별을 선택해주세요.')
+      return
+    }
+    const rrnDigits = form.rrn.replace(/\D/g, '')
+    if (rrnDigits.length < 7) {
+      setStatusText('주민번호 앞 7자리 이상 입력해주세요.')
+      return
+    }
+    if (form.isDriver == null) {
+      setStatusText('운전 여부를 선택해주세요.')
+      return
+    }
+    if (form.isDriver === true && !form.carType.trim()) {
+      setStatusText('차종을 입력해주세요.')
+      return
+    }
     try {
       await saveCustomer(token, {
         name,
-        ssn: form.ssn,
-        phone: form.phone,
-        carrier: form.carrier,
-        address: form.address,
-        height: form.height,
-        weight: form.weight,
-        job: form.job,
-        driving: form.driving,
-        medical: form.medical,
+        ssn: formatRrnInput(form.rrn),
+        gender: form.gender,
+        isDriver: form.isDriver,
+        carType: form.isDriver === true ? form.carType.trim() : '',
+        notes: form.notes,
+        phone: '',
+        carrier: '',
+        address: '',
+        height: '',
+        weight: '',
+        job: '',
+        driving: drivingText(form.isDriver),
+        medical: '',
       })
       window.alert('저장 완료')
       setForm(EMPTY_FORM)
@@ -247,18 +379,32 @@ export default function CustomersPage() {
       setStatusText('이름은 필수입니다.')
       return
     }
+    if (editForm.gender == null) {
+      setStatusText('성별을 선택해주세요.')
+      return
+    }
+    const rrnDigits = editForm.rrn.replace(/\D/g, '')
+    if (rrnDigits.length < 7) {
+      setStatusText('주민번호 앞 7자리 이상 입력해주세요.')
+      return
+    }
+    if (editForm.isDriver == null) {
+      setStatusText('운전 여부를 선택해주세요.')
+      return
+    }
+    if (editForm.isDriver === true && !editForm.carType.trim()) {
+      setStatusText('차종을 입력해주세요.')
+      return
+    }
     try {
       await updateCustomer(token, editingId, {
         name,
-        ssn: editForm.ssn,
-        phone: editForm.phone,
-        carrier: editForm.carrier,
-        address: editForm.address,
-        height: editForm.height,
-        weight: editForm.weight,
-        job: editForm.job,
-        driving: editForm.driving,
-        medical: editForm.medical,
+        ssn: formatRrnInput(editForm.rrn),
+        gender: editForm.gender,
+        isDriver: editForm.isDriver,
+        carType: editForm.isDriver === true ? editForm.carType.trim() : '',
+        notes: editForm.notes,
+        driving: drivingText(editForm.isDriver),
         carNumber: editForm.carNumber,
         carModel: editForm.carModel,
         carYear: editForm.carYear,
@@ -309,9 +455,7 @@ export default function CustomersPage() {
         >
           <span className="customer-expand-summary__title">
             <span
-              className={
-                duplicateCustomerNames.has(c.name.trim()) ? 'customer-hit-name--duplicate' : undefined
-              }
+              className={duplicateCustomerNames.has(c.name.trim()) ? 'customer-hit-name--duplicate' : undefined}
             >
               {c.name}
             </span>
@@ -339,79 +483,108 @@ export default function CustomersPage() {
                       onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                     />
                   </label>
+                  <div className="field field--wide">
+                    <span className="field__label">성별</span>
+                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                      <label>
+                        <input
+                          type="radio"
+                          name={`gender-edit-${c.id}`}
+                          checked={editForm.gender === 'male'}
+                          onChange={() => setEditForm({ ...editForm, gender: 'male' })}
+                        />{' '}
+                        남
+                      </label>
+                      <label>
+                        <input
+                          type="radio"
+                          name={`gender-edit-${c.id}`}
+                          checked={editForm.gender === 'female'}
+                          onChange={() => setEditForm({ ...editForm, gender: 'female' })}
+                        />{' '}
+                        여
+                      </label>
+                    </div>
+                  </div>
                   <label className="field">
                     <span className="field__label">주민번호</span>
                     <input
                       className="field__control"
-                      value={editForm.ssn}
-                      onChange={(e) => setEditForm({ ...editForm, ssn: e.target.value })}
+                      placeholder="000000-0000000"
+                      value={editForm.rrn}
+                      onChange={(e) => setEditForm({ ...editForm, rrn: formatRrnInput(e.target.value) })}
                     />
                   </label>
-                  <label className="field">
-                    <span className="field__label">전화번호</span>
-                    <input
-                      className="field__control"
-                      value={editForm.phone}
-                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field__label">통신사</span>
-                    <input
-                      className="field__control"
-                      value={editForm.carrier}
-                      onChange={(e) => setEditForm({ ...editForm, carrier: e.target.value })}
-                    />
-                  </label>
-                  <label className="field field--wide">
-                    <span className="field__label">주소</span>
-                    <input
-                      className="field__control"
-                      value={editForm.address}
-                      onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field__label">키</span>
-                    <input
-                      className="field__control"
-                      value={editForm.height}
-                      onChange={(e) => setEditForm({ ...editForm, height: e.target.value })}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field__label">몸무게</span>
-                    <input
-                      className="field__control"
-                      value={editForm.weight}
-                      onChange={(e) => setEditForm({ ...editForm, weight: e.target.value })}
-                    />
-                  </label>
-                  <label className="field field--wide">
-                    <span className="field__label">직업 / 회사명 등</span>
-                    <input
-                      className="field__control"
-                      value={editForm.job}
-                      onChange={(e) => setEditForm({ ...editForm, job: e.target.value })}
-                    />
-                  </label>
-                  <label className="field">
+                  <div className="field field--wide">
+                    {(() => {
+                      const { age, nextAgeDate } = calculateInsuranceInfo(editForm.rrn)
+                      const ymd = nextAgeDateToIsoString(nextAgeDate)
+                      if (age != null && ymd) {
+                        return (
+                          <p style={{ margin: 0 }}>
+                            <strong>보험나이:</strong> {age}세 (상령일: {formatDateYmdInput(ymd)})
+                          </p>
+                        )
+                      }
+                      return (
+                        <p style={{ margin: 0 }}>
+                          <strong>보험나이:</strong> 계산 불가 · <strong>상령일:</strong> 계산 불가
+                        </p>
+                      )
+                    })()}
+                  </div>
+                  <div className="field field--wide">
                     <span className="field__label">운전 여부</span>
-                    <input
-                      className="field__control"
-                      value={editForm.driving}
-                      onChange={(e) => setEditForm({ ...editForm, driving: e.target.value })}
-                    />
-                  </label>
-                  <label className="field field--wide">
-                    <span className="field__label">건강 고지</span>
-                    <textarea
-                      className="field__control"
-                      rows={3}
-                      value={editForm.medical}
-                      onChange={(e) => setEditForm({ ...editForm, medical: e.target.value })}
-                    />
-                  </label>
+                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                      <label>
+                        <input
+                          type="radio"
+                          name={`driver-edit-${c.id}`}
+                          checked={editForm.isDriver === true}
+                          onChange={() => setEditForm({ ...editForm, isDriver: true })}
+                        />{' '}
+                        운전함
+                      </label>
+                      <label>
+                        <input
+                          type="radio"
+                          name={`driver-edit-${c.id}`}
+                          checked={editForm.isDriver === false}
+                          onChange={() => setEditForm({ ...editForm, isDriver: false, carType: '' })}
+                        />{' '}
+                        운전 안함
+                      </label>
+                    </div>
+                  </div>
+                  {editForm.isDriver === true ? (
+                    <label className="field field--wide">
+                      <span className="field__label">차종</span>
+                      <input
+                        className="field__control"
+                        type="text"
+                        placeholder="예: SUV, 1톤 트럭"
+                        value={editForm.carType}
+                        onChange={(e) => setEditForm({ ...editForm, carType: e.target.value })}
+                      />
+                    </label>
+                  ) : null}
+                  <NotesEditor
+                    notes={editForm.notes}
+                    noteDraft={editForm.noteDraft}
+                    onDraftChange={(v) =>
+                      setEditForm({ ...editForm, noteDraft: v.slice(0, NOTE_MAX_LENGTH) })
+                    }
+                    onAdd={() =>
+                      addNoteCore(
+                        editForm.noteDraft,
+                        (fn) => setEditForm((prev) => (prev ? { ...prev, notes: fn(prev.notes) } : prev)),
+                        () => setEditForm((prev) => (prev ? { ...prev, noteDraft: '' } : prev)),
+                      )
+                    }
+                    onDelete={(id) =>
+                      setEditForm((prev) => (prev ? { ...prev, notes: prev.notes.filter((n) => n.id !== id) } : prev))
+                    }
+                  />
                   <label className="field">
                     <span className="field__label">차량번호</span>
                     <input
@@ -421,7 +594,7 @@ export default function CustomersPage() {
                     />
                   </label>
                   <label className="field">
-                    <span className="field__label">차종</span>
+                    <span className="field__label">차종(등록차량)</span>
                     <input
                       className="field__control"
                       value={editForm.carModel}
@@ -458,10 +631,20 @@ export default function CustomersPage() {
             ) : (
               <>
                 <p>
-                  <strong>주민번호:</strong> {c.ssn || '—'}
+                  <strong>성별:</strong>{' '}
+                  {c.gender === 'male' ? '남' : c.gender === 'female' ? '여' : '—'}
+                </p>
+                <InsuranceDisplay rrn={c.ssn} />
+                <p>
+                  <strong>운전여부:</strong>{' '}
+                  {c.isDriver === true
+                    ? `운전함${c.carType ? ` (${c.carType})` : ''}`
+                    : c.isDriver === false
+                      ? '운전 안함'
+                      : c.driving || '—'}
                 </p>
                 <p>
-                  <strong>주소:</strong> {c.address || '—'}
+                  <strong>주민번호:</strong> {c.ssn || '—'}
                 </p>
                 <p>
                   <strong>차량번호:</strong> {c.carNumber || '—'}
@@ -472,6 +655,16 @@ export default function CustomersPage() {
                 <p>
                   <strong>만기(갱신)일:</strong> {c.renewalDate || '—'}
                 </p>
+                {c.notes && c.notes.length > 0 ? (
+                  <div style={{ marginTop: 12 }}>
+                    <strong>메모</strong>
+                    <ul>
+                      {c.notes.map((n) => (
+                        <li key={n.id}>{n.content}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
                 <div className="customer-actions">
                   <button className="kakao-btn" type="button" onClick={() => void copyCustomer(c)}>
                     카톡 복사
@@ -572,131 +765,140 @@ export default function CustomersPage() {
       </div>
 
       {tab === 'create' ? (
-      <section className="card" style={{ marginTop: 0 }}>
-        <h2 className="dashboard-section-title">신규 고객</h2>
-        <div className="field-grid-customers">
-          <label className="field">
-            <span className="field__label">이름</span>
-            <input
-              className="field__control"
-              placeholder="이름"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+        <section className="card" style={{ marginTop: 0 }}>
+          <h2 className="dashboard-section-title">신규 고객</h2>
+          <div className="field-grid-customers">
+            <label className="field">
+              <span className="field__label">이름</span>
+              <input
+                className="field__control"
+                placeholder="이름"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </label>
+            <div className="field field--wide">
+              <span className="field__label">성별</span>
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                <label>
+                  <input
+                    type="radio"
+                    name="gender-create"
+                    checked={form.gender === 'male'}
+                    onChange={() => setForm({ ...form, gender: 'male' })}
+                  />{' '}
+                  남
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="gender-create"
+                    checked={form.gender === 'female'}
+                    onChange={() => setForm({ ...form, gender: 'female' })}
+                  />{' '}
+                  여
+                </label>
+              </div>
+            </div>
+            <label className="field">
+              <span className="field__label">주민번호</span>
+              <input
+                className="field__control"
+                placeholder="000000-0000000"
+                value={form.rrn}
+                onChange={(e) => setForm({ ...form, rrn: formatRrnInput(e.target.value) })}
+              />
+            </label>
+            <div className="field field--wide">
+              {createInsurance.age != null && createNextYmd ? (
+                <p style={{ margin: 0 }}>
+                  <strong>보험나이:</strong> {createInsurance.age}세 (상령일: {formatDateYmdInput(createNextYmd)})
+                </p>
+              ) : (
+                <p style={{ margin: 0 }}>
+                  <strong>보험나이:</strong> 계산 불가 · <strong>상령일:</strong> 계산 불가
+                </p>
+              )}
+            </div>
+            <div className="field field--wide">
+              <span className="field__label">운전 여부</span>
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                <label>
+                  <input
+                    type="radio"
+                    name="driver-create"
+                    checked={form.isDriver === true}
+                    onChange={() => setForm({ ...form, isDriver: true })}
+                  />{' '}
+                  운전함
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="driver-create"
+                    checked={form.isDriver === false}
+                    onChange={() => setForm({ ...form, isDriver: false, carType: '' })}
+                  />{' '}
+                  운전 안함
+                </label>
+              </div>
+            </div>
+            {form.isDriver === true ? (
+              <label className="field field--wide">
+                <span className="field__label">차종</span>
+                <input
+                  className="field__control"
+                  type="text"
+                  placeholder="예: SUV, 1톤 트럭"
+                  value={form.carType}
+                  onChange={(e) => setForm({ ...form, carType: e.target.value })}
+                />
+              </label>
+            ) : null}
+            <NotesEditor
+              notes={form.notes}
+              noteDraft={form.noteDraft}
+              onDraftChange={(v) => setForm({ ...form, noteDraft: v.slice(0, NOTE_MAX_LENGTH) })}
+              onAdd={() =>
+                addNoteCore(
+                  form.noteDraft,
+                  (fn) => setForm((prev) => ({ ...prev, notes: fn(prev.notes) })),
+                  () => setForm((prev) => ({ ...prev, noteDraft: '' })),
+                )
+              }
+              onDelete={(id) => setForm((prev) => ({ ...prev, notes: prev.notes.filter((n) => n.id !== id) }))}
             />
-          </label>
-          <label className="field">
-            <span className="field__label">주민번호</span>
-            <input
-              className="field__control"
-              placeholder="주민번호"
-              value={form.ssn}
-              onChange={(e) => setForm({ ...form, ssn: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span className="field__label">전화번호</span>
-            <input
-              className="field__control"
-              placeholder="전화번호"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span className="field__label">통신사</span>
-            <input
-              className="field__control"
-              placeholder="통신사"
-              value={form.carrier}
-              onChange={(e) => setForm({ ...form, carrier: e.target.value })}
-            />
-          </label>
-          <label className="field field--wide">
-            <span className="field__label">주소</span>
-            <input
-              className="field__control"
-              placeholder="주소"
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span className="field__label">키</span>
-            <input
-              className="field__control"
-              placeholder="키"
-              value={form.height}
-              onChange={(e) => setForm({ ...form, height: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span className="field__label">몸무게</span>
-            <input
-              className="field__control"
-              placeholder="몸무게"
-              value={form.weight}
-              onChange={(e) => setForm({ ...form, weight: e.target.value })}
-            />
-          </label>
-          <label className="field field--wide">
-            <span className="field__label">직업 / 회사명 / 하는 일 / 지역</span>
-            <input
-              className="field__control"
-              placeholder="직업·회사 등"
-              value={form.job}
-              onChange={(e) => setForm({ ...form, job: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span className="field__label">운전 여부</span>
-            <input
-              className="field__control"
-              placeholder="운전 여부"
-              value={form.driving}
-              onChange={(e) => setForm({ ...form, driving: e.target.value })}
-            />
-          </label>
-          <label className="field field--wide">
-            <span className="field__label">5년 이내 진단·수술·치료 (건강 고지)</span>
-            <textarea
-              className="field__control"
-              rows={3}
-              placeholder="내용"
-              value={form.medical}
-              onChange={(e) => setForm({ ...form, medical: e.target.value })}
-            />
-          </label>
-        </div>
-        <button className="button button--primary button--full" type="button" onClick={() => void handleSaveCustomer()}>
-          저장
-        </button>
-      </section>
+          </div>
+          <button className="button button--primary button--full" type="button" onClick={() => void handleSaveCustomer()}>
+            저장
+          </button>
+        </section>
       ) : (
-      <section className="list-section" style={{ marginTop: 0 }}>
-        <h2 className="dashboard-section-title">저장된 고객</h2>
-        <input
-          className="search-input"
-          type="search"
-          placeholder="이름 / 전화번호 검색"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          autoComplete="off"
-          aria-label="이름 또는 전화번호 검색"
-        />
-        {isLoading ? (
-          <p>불러오는 중…</p>
-        ) : customers.length === 0 ? (
-          <p className="empty-state">등록된 고객이 없습니다.</p>
-        ) : sortedCustomers.length === 0 ? (
-          <p className="empty-state">검색과 일치하는 고객이 없습니다.</p>
-        ) : (
-          <ul className="record-list customer-expand-list customer-list">
-            {sortedCustomers.map((c) => (
-              <CustomerCard key={c.id} data={c} />
-            ))}
-          </ul>
-        )}
-      </section>
+        <section className="list-section" style={{ marginTop: 0 }}>
+          <h2 className="dashboard-section-title">저장된 고객</h2>
+          <input
+            className="search-input"
+            type="search"
+            placeholder="이름 / 전화번호 검색"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            autoComplete="off"
+            aria-label="이름 또는 전화번호 검색"
+          />
+          {isLoading ? (
+            <p>불러오는 중…</p>
+          ) : customers.length === 0 ? (
+            <p className="empty-state">등록된 고객이 없습니다.</p>
+          ) : sortedCustomers.length === 0 ? (
+            <p className="empty-state">검색과 일치하는 고객이 없습니다.</p>
+          ) : (
+            <ul className="record-list customer-expand-list customer-list">
+              {sortedCustomers.map((c) => (
+                <CustomerCard key={c.id} data={c} />
+              ))}
+            </ul>
+          )}
+        </section>
       )}
     </main>
   )

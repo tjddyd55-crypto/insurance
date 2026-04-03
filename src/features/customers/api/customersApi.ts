@@ -1,6 +1,6 @@
 import type { InsuranceApplicationRecord } from '../../application/domain/types'
 import { ApiError, apiRequest } from '../../../lib/apiClient'
-import type { CustomerRecord } from '../domain/types'
+import type { CustomerNote, CustomerRecord } from '../domain/types'
 
 export async function listCustomers(token: string, limit = 500): Promise<CustomerRecord[]> {
   if (!token?.trim()) {
@@ -35,6 +35,10 @@ export async function searchCustomers(token: string, q: string): Promise<Custome
 export interface SaveCustomerPayload {
   name: string
   ssn?: string
+  gender?: 'male' | 'female' | '' | null
+  isDriver?: boolean | null
+  carType?: string
+  notes?: CustomerNote[]
   phone?: string
   carrier?: string
   address?: string

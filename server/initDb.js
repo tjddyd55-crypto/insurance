@@ -174,6 +174,16 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS gender TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS insurance_age INTEGER,
+    ADD COLUMN IF NOT EXISTS next_age_date DATE,
+    ADD COLUMN IF NOT EXISTS is_driver BOOLEAN,
+    ADD COLUMN IF NOT EXISTS car_type TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS notes JSONB NOT NULL DEFAULT '[]'::jsonb
+  `)
+
+  await pool.query(`
     ALTER TABLE insurance_forms
     ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
   `)
