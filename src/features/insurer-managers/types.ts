@@ -4,6 +4,8 @@ export type InsurerManagerStatus = 'ACTIVE' | 'BLOCKED'
 
 export interface InsurerManager {
   id: string
+  /** insurance_company_master.id */
+  companyId: number
   gaCode: string
   insurerType: InsurerManagerType
   insurerName: string

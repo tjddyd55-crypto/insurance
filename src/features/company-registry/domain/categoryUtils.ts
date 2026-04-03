@@ -1,5 +1,4 @@
 import {
-  insuranceCompanyMap,
   INSURANCE_COMPANY_NAME_CATEGORY_OVERRIDES,
   INSURANCE_TYPE_LABELS,
   INSURANCE_TYPE_ORDER,
@@ -97,25 +96,6 @@ export function inferInsuranceCategoryFromNameHeuristics(companyName: string): I
   return ''
 }
 
-/**
- * DB category가 비어 있어도 insuranceCompanyMap(2차 드롭다운)에 이름이 있으면 구분 추론.
- */
-export function inferInsuranceCategoryFromKnownCompanies(companyName: string): InsuranceCategory | '' {
-  const q = String(companyName ?? '')
-    .trim()
-    .normalize('NFKC')
-  if (!q) {
-    return ''
-  }
-  for (const cat of INSURANCE_TYPE_ORDER) {
-    const options = insuranceCompanyMap[cat] ?? []
-    if (options.some((o) => o.name.trim().normalize('NFKC') === q)) {
-      return cat
-    }
-  }
-  return ''
-}
-
 /** 연락처 조회 탭 매칭: 정규화 → 맵 매칭. 여전히 없으면 '' (호출부에서 생명 탭 폴백 가능). */
 export function resolveTabCategory(
   rawCategory: string | undefined | null,
@@ -146,7 +126,7 @@ function canonicalTabSelectionCategory(selected: string | undefined | null): Ins
 
 /**
  * - 인자 1개: 1차(생명/손해/일반) 탭 값 정규화.
- * - 인자 2개: 목록 행 — category 정규화 후 없으면 보험사명으로 추론(맵·별칭·휴리스틱).
+ * - 인자 2개: 목록 행 — category 정규화 후 없으면 보험사명으로 추론(별칭 JSON·휴리스틱).
  */
 export function canonicalInsuranceCategoryForFilter(
   categoryOrSelected: string | undefined | null,
@@ -163,8 +143,7 @@ export function canonicalInsuranceCategoryForFilter(
     if (!n) {
       return ''
     }
-    const inferred =
-      inferInsuranceCategoryFromKnownCompanies(n) || inferInsuranceCategoryFromNameHeuristics(n)
+    const inferred = inferInsuranceCategoryFromNameHeuristics(n)
     return inferred
   }
   return canonicalTabSelectionCategory(categoryOrSelected)

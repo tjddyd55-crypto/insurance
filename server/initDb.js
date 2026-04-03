@@ -73,8 +73,45 @@ function isPgUniqueViolation(err) {
   return Boolean(err && err.code === '23505')
 }
 
+function assertSafePgIdentifier(name) {
+  const s = String(name)
+  if (!/^[a-z][a-z0-9_]*$/i.test(s)) {
+    throw new Error(`[initDb] 병합 FK 갱신: 허용되지 않는 식별자 "${s}"`)
+  }
+}
+
 /**
- * (ga_id, category, name) 유니크 충돌 시 보수 병합: 연락처·일반의뢰를 유지 행으로 옮기고 중복 행 삭제.
+ * insurance_company_master(id)를 company_id로 참조하는 public 테이블(pg_catalog).
+ * information_schema로 열 목록만 조회하면 마스터 비참조 company_id까지 섞일 수 있어 FK 메타데이터로 한정한다.
+ */
+async function listChildTablesReferencingMasterCompanyId(client) {
+  const { rows } = await client.query(`
+    SELECT DISTINCT c.relname AS table_name
+    FROM pg_constraint co
+    JOIN pg_class c ON c.oid = co.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_attribute a ON a.attrelid = co.conrelid AND a.attnum = co.conkey[1]
+    WHERE co.contype = 'f'
+      AND co.confrelid = 'insurance_company_master'::regclass
+      AND n.nspname = 'public'
+      AND c.relname <> 'insurance_company_master'
+      AND a.attname = 'company_id'
+      AND co.conkey IS NOT NULL
+      AND array_length(co.conkey, 1) = 1
+    ORDER BY 1
+  `)
+  const names = rows.map((r) => String(r.table_name))
+  if (names.length === 0) {
+    throw new Error(
+      '[initDb] insurance_company_master 참조 company_id 자식 테이블이 0개입니다. 병합을 중단합니다.',
+    )
+  }
+  return names
+}
+
+/**
+ * (ga_id, category, name) 유니크 충돌 시 보수 병합: FK(company_id)를 유지 행으로 옮기고 중복 마스터 행 삭제.
+ * 전 구간 단일 트랜잭션 — 중간 실패 시 ROLLBACK.
  */
 async function mergeInsuranceCompanyMasterCategoryConflict(client, row, nextCategory) {
   const dup = await client.query(
@@ -102,15 +139,30 @@ async function mergeInsuranceCompanyMasterCategoryConflict(client, row, nextCate
     dropId,
     category: nextCategory,
   })
-  await client.query(`UPDATE insurance_company_contacts SET company_id = $1 WHERE company_id = $2`, [
-    keepId,
-    dropId,
-  ])
-  await client.query(
-    `UPDATE insurance_general_request SET company_id = $1 WHERE company_id = $2`,
-    [keepId, dropId],
-  )
-  await client.query(`DELETE FROM insurance_company_master WHERE id = $1`, [dropId])
+
+  const childTables = await listChildTablesReferencingMasterCompanyId(client)
+  await client.query('BEGIN')
+  try {
+    for (const tableName of childTables) {
+      assertSafePgIdentifier(tableName)
+      await client.query(
+        `UPDATE "${tableName}" SET company_id = $1 WHERE company_id = $2`,
+        [keepId, dropId],
+      )
+    }
+    await client.query(
+      `
+      INSERT INTO insurance_company_merge_logs (keep_id, drop_id, name, category, ga_id)
+      VALUES ($1, $2, $3, $4, $5)
+      `,
+      [keepId, dropId, String(row.name ?? ''), nextCategory, row.ga_id ?? null],
+    )
+    await client.query(`DELETE FROM insurance_company_master WHERE id = $1`, [dropId])
+    await client.query('COMMIT')
+  } catch (e) {
+    await client.query('ROLLBACK')
+    throw e
+  }
   return { merged: true, keepId, dropId }
 }
 
@@ -190,6 +242,34 @@ async function ensureInsuranceCompanyMasterCategoryNormalized(pool) {
     ALTER TABLE insurance_company_master
     ADD CONSTRAINT insurance_company_master_category_check
     CHECK (category IN ('LIFE', 'NON_LIFE', 'GENERAL'))
+  `)
+}
+
+/** company_id → insurance_company_master FK: 컬럼 REFERENCES 만 있고 이름 없는 경우에만 추가 */
+async function ensureInsurerManagerCompanyFkConstraint(client) {
+  const { rows } = await client.query(`
+    SELECT c.conname
+    FROM pg_constraint c
+    JOIN pg_class cl ON c.conrelid = cl.oid
+    JOIN pg_namespace n ON n.oid = cl.relnamespace
+    WHERE n.nspname = 'public'
+      AND cl.relname = 'insurer_managers'
+      AND c.contype = 'f'
+      AND c.confrelid = 'insurance_company_master'::regclass
+      AND c.conkey IS NOT NULL
+      AND array_length(c.conkey, 1) = 1
+      AND EXISTS (
+        SELECT 1 FROM pg_attribute a
+        WHERE a.attrelid = c.conrelid AND a.attnum = c.conkey[1] AND a.attname = 'company_id'
+      )
+  `)
+  if (rows.length > 0) {
+    return
+  }
+  await client.query(`
+    ALTER TABLE insurer_managers
+    ADD CONSTRAINT fk_insurer_managers_insurance_company_master
+    FOREIGN KEY (company_id) REFERENCES insurance_company_master(id)
   `)
 }
 
@@ -740,6 +820,22 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS insurance_company_merge_logs (
+      id SERIAL PRIMARY KEY,
+      keep_id INTEGER NOT NULL,
+      drop_id INTEGER NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      category TEXT,
+      ga_id INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_insurance_company_merge_logs_created
+    ON insurance_company_merge_logs (created_at DESC)
+  `)
+
+  await pool.query(`
     ALTER TABLE insurance_company_master
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ
   `)
@@ -887,6 +983,24 @@ export async function initDb() {
   }
 
   await ensureInsuranceCompanyMasterCategoryNormalized(pool)
+
+  await pool.query(`
+    UPDATE insurance_company_master
+    SET company_code = 'INS' || LPAD(id::text, 6, '0')
+    WHERE company_code IS NULL OR BTRIM(company_code) = ''
+  `)
+  const nullCompanyCode = await pool.query(`
+    SELECT COUNT(*)::int AS c
+    FROM insurance_company_master
+    WHERE company_code IS NULL OR BTRIM(company_code) = ''
+  `)
+  if ((nullCompanyCode.rows[0]?.c ?? 0) > 0) {
+    throw new Error('[initDb] insurance_company_master.company_code가 비어 있어 NOT NULL을 적용할 수 없습니다.')
+  }
+  await pool.query(`
+    ALTER TABLE insurance_company_master
+    ALTER COLUMN company_code SET NOT NULL
+  `)
 
   const meritzIc = await pool.query(`
     UPDATE insurance_contacts
@@ -1059,6 +1173,56 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE insurer_managers
     ADD COLUMN IF NOT EXISTS password_plaintext TEXT
+  `)
+
+  await pool.query(`
+    ALTER TABLE insurer_managers
+    ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES insurance_company_master(id)
+  `)
+  await pool.query(`
+    UPDATE insurer_managers im
+    SET company_id = m.id
+    FROM insurance_company_master m
+    WHERE im.company_id IS NULL
+      AND im.ga_id = m.ga_id
+      AND TRIM(im.insurer_name) = TRIM(m.name)
+  `)
+  await pool.query(`DROP INDEX IF EXISTS uq_insurer_managers_ga_insurer_active`)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_insurer_managers_ga_company_active
+    ON insurer_managers (ga_id, company_id)
+    WHERE is_deleted = false AND company_id IS NOT NULL
+  `)
+  const imOrphan = await pool.query(`
+    SELECT COUNT(*)::int AS c FROM insurer_managers WHERE company_id IS NULL
+  `)
+  if ((imOrphan.rows[0]?.c ?? 0) > 0) {
+    throw new Error(
+      '[initDb] insurer_managers.company_id 미설정 행이 있습니다. 보험사 마스터와 수동 연결 후 다시 실행하세요.',
+    )
+  }
+  await pool.query(`
+    ALTER TABLE insurer_managers
+    ALTER COLUMN company_id SET NOT NULL
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS insurer_manager_recovery_logs (
+      id SERIAL PRIMARY KEY,
+      manager_id TEXT,
+      old_company_id INTEGER,
+      new_company_id INTEGER,
+      recovery_type TEXT NOT NULL,
+      reason TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await ensureInsurerManagerCompanyFkConstraint(pool)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_insurer_manager_unique
+    ON insurer_managers (ga_id, company_id, username)
+    WHERE is_deleted = false
   `)
 
   await maybeDebugResetAllUsers()

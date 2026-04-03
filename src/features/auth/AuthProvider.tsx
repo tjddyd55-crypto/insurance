@@ -33,7 +33,7 @@ interface AuthContextValue {
 
 const AUTH_STORAGE_KEY = 'insurance.auth.session'
 
-const VALID_CANONICAL: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF', 'USER']
+const VALID_CANONICAL: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF', 'USER', 'INSURER_MANAGER']
 
 const LEGACY_TO_ROLE: Record<string, UserRole> = {
   super_admin: 'SUPER_ADMIN',

@@ -1,6 +1,6 @@
 import { ApiError, apiRequest } from '../../lib/apiClient'
 
-export type UserRole = 'SUPER_ADMIN' | 'GA_ADMIN' | 'GA_STAFF' | 'USER'
+export type UserRole = 'SUPER_ADMIN' | 'GA_ADMIN' | 'GA_STAFF' | 'USER' | 'INSURER_MANAGER'
 
 export interface AuthUser {
   id: string
@@ -37,6 +37,23 @@ export interface GaCompanyRow {
 
 export async function listGaCompanies(token: string): Promise<GaCompanyRow[]> {
   return apiRequest<GaCompanyRow[]>('/api/admin/ga', { method: 'GET', token })
+}
+
+/** 원수사 담당자 ↔ 보험사 마스터 정합성(감시용). SUPER_ADMIN 은 전체, 그 외는 소속 GA 만 */
+export interface InsurerManagersHealth {
+  total: number
+  broken: number
+  invalidCategory: number
+  nullCompany: number
+  fkBroken: number
+  gaMismatch: number
+}
+
+export async function fetchInsurerManagersHealth(token: string): Promise<InsurerManagersHealth> {
+  return apiRequest<InsurerManagersHealth>('/api/admin/health/insurer-managers', {
+    method: 'GET',
+    token,
+  })
 }
 
 /** 서버와 동일 규칙(3~30자, 공백 불가) 충족 시 사용 가능 여부 */

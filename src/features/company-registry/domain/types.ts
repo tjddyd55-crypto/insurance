@@ -46,6 +46,13 @@ export interface CompanyUpdateHistoryItem {
 /** @deprecated API가 CompanyUpdateHistoryItem[] 반환 */
 export type CompanyRecentUpdate = CompanyUpdateHistoryItem
 
+/** 2차 드롭다운 옵션(SSOT: DB 목록에서만 구성) */
+export interface InsuranceCompanyOption {
+  companyCode: string
+  name: string
+  tel: string
+}
+
 export interface CompanyDirectoryEntry {
   id: number
   companyCode: string

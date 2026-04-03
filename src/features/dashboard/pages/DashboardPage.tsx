@@ -1,4 +1,6 @@
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { fetchInsurerManagersHealth, type InsurerManagersHealth } from '../../auth/authApi'
 import { useAuth } from '../../auth/AuthProvider'
 import { isGaTenantStaffRole } from '../../auth/roleGuards'
 import { GA_TENANT_ESSENTIAL_MENU, type GaTenantMenuItem } from '../gaTenantMenu'
@@ -24,6 +26,10 @@ function menuForSession(role: string | undefined): MenuItem[] {
 
 function showFeatureRequestSection(role: string | undefined): boolean {
   return role === 'USER' || role === 'GA_STAFF'
+}
+
+function showInsurerManagerHealthBanner(role: string | undefined): boolean {
+  return role === 'SUPER_ADMIN' || role === 'GA_ADMIN' || role === 'GA_STAFF'
 }
 
 function pathIsActive(pathname: string, itemPath: string): boolean {
@@ -80,12 +86,31 @@ function attemptAppExit(navigate: ReturnType<typeof useNavigate>) {
 export function DashboardPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, logout } = useAuth()
+  const { user, logout, token } = useAuth()
   const role = user?.role
   const showStaffDirectoryNote = isGaTenantStaffRole(role)
   const showFeatureFooter = showFeatureRequestSection(role)
+  const showImHealth = showInsurerManagerHealthBanner(role)
   const menuItems = menuForSession(role)
   const pathname = location.pathname
+  const [imHealthErr, setImHealthErr] = useState('')
+  const [imHealth, setImHealth] = useState<InsurerManagersHealth | null>(null)
+
+  const loadImHealth = useCallback(async () => {
+    if (!showImHealth || !token?.trim()) {
+      return
+    }
+    setImHealthErr('')
+    try {
+      setImHealth(await fetchInsurerManagersHealth(token))
+    } catch {
+      setImHealthErr('원수사 담당자 정합성 상태를 확인하지 못했습니다.')
+    }
+  }, [showImHealth, token])
+
+  useEffect(() => {
+    void loadImHealth()
+  }, [loadImHealth])
 
   return (
     <main className="page dashboard-page--centered">
@@ -93,6 +118,30 @@ export function DashboardPage() {
         <header className="page-header dashboard-page__header">
           <h1>메뉴</h1>
         </header>
+
+        {imHealthErr ? (
+          <p className="status status--error" style={{ maxWidth: 420, margin: '0 auto 12px' }}>
+            {imHealthErr}
+          </p>
+        ) : null}
+        {imHealth && imHealth.broken > 0 ? (
+          <div
+            className="status status--error"
+            role="alert"
+            style={{ maxWidth: 420, margin: '0 auto 12px', padding: '12px 14px', textAlign: 'left' }}
+          >
+            <strong>담당자 데이터 정합성 오류</strong>
+            <p style={{ margin: '8px 0 0', fontSize: 14 }}>
+              원수사 담당자 {imHealth.total}명 중 {imHealth.broken}명에 company_id·분류·GA 불일치 등이
+              있습니다. DB 복구 스크립트(<code>recover:insurer-managers</code>)와{' '}
+              <code>audit-insurer-manager-company.sql</code>로 점검해 주세요.
+            </p>
+            <p style={{ margin: '6px 0 0', fontSize: 13, opacity: 0.95 }}>
+              null·무효 company_id: {imHealth.nullCompany}, FK 깨짐: {imHealth.fkBroken}, GA 불일치:{' '}
+              {imHealth.gaMismatch}, 분류 불일치: {imHealth.invalidCategory}
+            </p>
+          </div>
+        ) : null}
 
         <section className="dashboard-menu-card">
           <h2 className="dashboard-section-title visually-hidden">주요 메뉴</h2>

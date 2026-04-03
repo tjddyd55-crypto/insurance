@@ -9,7 +9,7 @@ export async function createInsurerManagerApi(
   token: string,
   payload: {
     insurerType: InsurerManagerType
-    insurerName: string
+    companyId: number
     username: string
     password: string
   },
@@ -20,7 +20,7 @@ export async function createInsurerManagerApi(
       token,
       body: JSON.stringify({
         insurerType: payload.insurerType,
-        insurerName: payload.insurerName.trim(),
+        companyId: payload.companyId,
         username: payload.username.trim(),
         password: payload.password,
       }),
@@ -38,7 +38,7 @@ export async function patchInsurerManagerApi(
   id: string,
   payload: {
     insurerType?: InsurerManagerType
-    insurerName?: string
+    companyId?: number
     username?: string
     password?: string
     status?: InsurerManagerStatus
@@ -49,8 +49,8 @@ export async function patchInsurerManagerApi(
     if (payload.insurerType != null) {
       body.insurerType = payload.insurerType
     }
-    if (payload.insurerName != null) {
-      body.insurerName = payload.insurerName.trim()
+    if (payload.companyId != null) {
+      body.companyId = payload.companyId
     }
     if (payload.username != null) {
       body.username = payload.username.trim()

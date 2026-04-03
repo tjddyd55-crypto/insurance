@@ -1,12 +1,14 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { PageBackButton } from '../../../components/common/PageBackButton'
+import { listCompanyDirectory } from '../../company-registry/api/companyRegistryApi'
+import { canonicalInsuranceCategoryForFilter } from '../../company-registry/domain/categoryUtils'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   createInsurerManagerApi,
   listInsurerManagersApi,
   patchInsurerManagerApi,
 } from '../insurerManagerApi'
-import { insurersForType } from '../mock/insuranceCompanies'
 import type { InsurerManager, InsurerManagerStatus, InsurerManagerType } from '../types'
 
 const STATUS_OPTIONS: { value: InsurerManagerStatus; label: string }[] = [
@@ -41,13 +43,13 @@ function StatusBadge({ status }: { status: InsurerManagerStatus }) {
 
 function emptyForm(): {
   insurerType: InsurerManagerType
-  insurerName: string
+  companyId: number
   username: string
   password: string
 } {
   return {
     insurerType: 'NON_LIFE',
-    insurerName: '',
+    companyId: 0,
     username: '',
     password: '',
   }
@@ -81,7 +83,18 @@ export default function InsurerManagersPage() {
     void reload()
   }, [reload])
 
-  const companyOptions = insurersForType(form.insurerType)
+  const { data: companyDirectory = [] } = useQuery({
+    queryKey: ['company-directory', token, gaCode],
+    queryFn: () => listCompanyDirectory(token!),
+    enabled: Boolean(token && gaCode),
+  })
+
+  const masterChoices = useMemo(() => {
+    return companyDirectory
+      .filter((c) => canonicalInsuranceCategoryForFilter(c.category, c.name) === form.insurerType)
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
+  }, [companyDirectory, form.insurerType])
 
   const submitCreate = async (e: FormEvent) => {
     e.preventDefault()
@@ -89,18 +102,17 @@ export default function InsurerManagersPage() {
     if (!gaCode || !token) {
       return
     }
-    const name = form.insurerName.trim()
     const u = form.username.trim()
     const password = form.password
-    if (!name || !u || !password) {
-      setFormErr('보험회사, 아이디, 비밀번호를 모두 입력하세요.')
+    if (!form.companyId || !u || !password) {
+      setFormErr('보험사(마스터), 아이디, 비밀번호를 모두 입력하세요.')
       return
     }
     setSaving(true)
     try {
       await createInsurerManagerApi(token, {
         insurerType: form.insurerType,
-        insurerName: name,
+        companyId: form.companyId,
         username: u,
         password,
       })
@@ -120,17 +132,16 @@ export default function InsurerManagersPage() {
     if (!gaCode || !token || !editing) {
       return
     }
-    const name = form.insurerName.trim()
     const u = form.username.trim()
-    if (!name || !u) {
-      setFormErr('보험회사와 아이디를 입력하세요.')
+    if (!form.companyId || !u) {
+      setFormErr('보험사(마스터)와 아이디를 입력하세요.')
       return
     }
     setSaving(true)
     try {
       await patchInsurerManagerApi(token, editing.id, {
         insurerType: form.insurerType,
-        insurerName: name,
+        companyId: form.companyId,
         username: u,
         ...(form.password.trim() !== '' ? { password: form.password } : {}),
       })
@@ -159,10 +170,11 @@ export default function InsurerManagersPage() {
 
   const openEdit = (row: InsurerManager) => {
     setFormErr('')
+    setRegisterOpen(false)
     setEditing(row)
     setForm({
       insurerType: row.insurerType,
-      insurerName: row.insurerName,
+      companyId: row.companyId,
       username: row.username,
       password: '',
     })
@@ -206,6 +218,7 @@ export default function InsurerManagersPage() {
           className="button button--primary"
           onClick={() => {
             setFormErr('')
+            setEditing(null)
             setForm(emptyForm())
             setRegisterOpen(true)
           }}
@@ -338,11 +351,10 @@ export default function InsurerManagersPage() {
                   value={form.insurerType}
                   onChange={(e) => {
                     const t = e.target.value as InsurerManagerType
-                    const opts = insurersForType(t)
                     setForm((f) => ({
                       ...f,
                       insurerType: t,
-                      insurerName: opts.includes(f.insurerName) ? f.insurerName : '',
+                      companyId: 0,
                     }))
                   }}
                 >
@@ -354,17 +366,19 @@ export default function InsurerManagersPage() {
                 </select>
               </label>
               <label className="field admin-modal-field">
-                <span className="field__label">보험회사</span>
+                <span className="field__label">보험회사 (DB 마스터)</span>
                 <select
                   className="admin-form-input"
                   required
-                  value={form.insurerName}
-                  onChange={(e) => setForm((f) => ({ ...f, insurerName: e.target.value }))}
+                  value={form.companyId || ''}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))
+                  }
                 >
                   <option value="">선택</option>
-                  {companyOptions.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
+                  {masterChoices.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
                     </option>
                   ))}
                 </select>
@@ -428,11 +442,10 @@ export default function InsurerManagersPage() {
                   value={form.insurerType}
                   onChange={(e) => {
                     const t = e.target.value as InsurerManagerType
-                    const opts = insurersForType(t)
                     setForm((f) => ({
                       ...f,
                       insurerType: t,
-                      insurerName: opts.includes(f.insurerName) ? f.insurerName : '',
+                      companyId: 0,
                     }))
                   }}
                 >
@@ -444,17 +457,19 @@ export default function InsurerManagersPage() {
                 </select>
               </label>
               <label className="field admin-modal-field">
-                <span className="field__label">보험회사</span>
+                <span className="field__label">보험회사 (DB 마스터)</span>
                 <select
                   className="admin-form-input"
                   required
-                  value={form.insurerName}
-                  onChange={(e) => setForm((f) => ({ ...f, insurerName: e.target.value }))}
+                  value={form.companyId || ''}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))
+                  }
                 >
                   <option value="">선택</option>
-                  {insurersForType(form.insurerType).map((n) => (
-                    <option key={n} value={n}>
-                      {n}
+                  {masterChoices.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
                     </option>
                   ))}
                 </select>

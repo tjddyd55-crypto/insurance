@@ -11,13 +11,8 @@ import {
   resolveTabCategory,
 } from '../domain/categoryUtils'
 import type { InsuranceCategory } from '../domain/insuranceConstants'
-import {
-  insuranceCompanyMap,
-  INSURANCE_TYPE_LABELS,
-  INSURANCE_TYPE_ORDER,
-  isInsuranceCategory,
-  type InsuranceCompanyOption,
-} from '../domain/insuranceConstants'
+import { INSURANCE_TYPE_LABELS, INSURANCE_TYPE_ORDER, isInsuranceCategory } from '../domain/insuranceConstants'
+import type { InsuranceCompanyOption } from '../domain/types'
 import {
   buildStaticCompanyCode,
   EMPTY_CONTACT,
@@ -69,45 +64,17 @@ export default function CompanyRegistryPage() {
     if (!filterKey || !isInsuranceCategory(filterKey)) {
       return []
     }
-    const fromMap = insuranceCompanyMap[filterKey] ?? []
-    const mapNames = new Set(fromMap.map((o) => o.name))
-    const extras: InsuranceCompanyOption[] = []
-    for (const e of list) {
-      const rowKey = canonicalInsuranceCategoryForFilter(e.category, e.name ?? '')
-      if (rowKey !== filterKey) {
-        continue
-      }
-      if (mapNames.has(e.name)) {
-        continue
-      }
-      extras.push({
+    const merged = list
+      .filter((e) => canonicalInsuranceCategoryForFilter(e.category, e.name ?? '') === filterKey)
+      .map((e) => ({
         companyCode: e.companyCode,
         name: e.name,
         tel: e.customerCenter || '',
-      })
-    }
-    extras.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-    const mergedFromMap: InsuranceCompanyOption[] = fromMap.map((o) => ({
-      companyCode: buildStaticCompanyCode(filterKey, o.name),
-      name: o.name,
-      tel: o.tel,
-    }))
-    const merged = [...mergedFromMap, ...extras]
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
     if (import.meta.env.DEV) {
-      /* eslint-disable no-console -- 드롭다운 필터 전/후 진단(타입 불일치·API 행 수) */
-      console.log('전체 보험사(목록):', list)
-      console.log('선택 타입:', selectedType, '| 정규화:', filterKey)
-      console.log('필터 결과(2차 옵션):', merged)
-      console.log('[company-registry] 2차 드롭다운 상세', {
-        fromMapCount: fromMap.length,
-        extrasCount: extras.length,
-        sampleListCategories: list.slice(0, 12).map((r) => ({
-          name: r.name,
-          categoryRaw: r.category,
-          resolved: resolveTabCategory(r.category, r.name),
-        })),
-      })
-      /* eslint-enable no-console */
+      // eslint-disable-next-line no-console -- SSOT 목록 크기 확인
+      console.log('[company-registry] 2차 옵션(DB만)', { filterKey, count: merged.length })
     }
     return merged
   }, [selectedType, list])
@@ -382,6 +349,33 @@ export default function CompanyRegistryPage() {
                 </option>
               ))}
             </select>
+          </label>
+
+          <label className="field">
+            <span className="field__label">보험사명</span>
+            <input
+              className="field__control"
+              value={company.name}
+              onChange={(e) => {
+                pendingLocalEditRef.current = true
+                const name = e.target.value
+                setCompany((prev) => {
+                  const next = { ...prev, name }
+                  if (
+                    prev.id == null &&
+                    selectedType &&
+                    isInsuranceCategory(selectedType) &&
+                    name.trim()
+                  ) {
+                    next.companyCode = buildStaticCompanyCode(selectedType, name.trim())
+                  }
+                  return next
+                })
+              }}
+              placeholder="목록에서 선택하거나 신규명을 직접 입력"
+              disabled={!selectedType}
+              autoComplete="organization"
+            />
           </label>
 
           {hasDirectoryEntryForSelection ? (

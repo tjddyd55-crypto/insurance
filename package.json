@@ -18,7 +18,11 @@
     "cleanup:company-directory:railway": "railway run -- node server/scripts/runCompanyDirectoryCleanup.mjs",
     "verify:multitenant-db": "node server/scripts/runMultitenantDbCheck.mjs",
     "purge:sms-verification-logs": "node server/scripts/runPurgeSmsVerificationLogs.mjs",
-    "purge:sms-verification-logs:railway": "railway run -- node server/scripts/runPurgeSmsVerificationLogs.mjs"
+    "purge:sms-verification-logs:railway": "railway run -- node server/scripts/runPurgeSmsVerificationLogs.mjs",
+    "recover:insurer-managers": "node server/scripts/runInsurerManagerCompanyRecovery.mjs",
+    "recover:insurer-managers:apply": "node server/scripts/runInsurerManagerCompanyRecovery.mjs --apply",
+    "recover:insurer-managers:railway": "railway run -- node server/scripts/runInsurerManagerCompanyRecovery.mjs --apply",
+    "recover:insurer-managers:cron": "node server/scripts/runInsurerManagerCompanyRecovery.mjs --fail-on-broken"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1023.0",

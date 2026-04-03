@@ -6,15 +6,8 @@ import { PageBackButton } from '../../../components/common/PageBackButton'
 import { listCompanyDirectory, saveGeneralRequest } from '../api/companyRegistryApi'
 import { canonicalInsuranceCategoryForFilter } from '../domain/categoryUtils'
 import type { InsuranceCategory } from '../domain/insuranceConstants'
-import {
-  insuranceCompanyMap,
-  INSURANCE_TYPE_LABELS,
-  INSURANCE_TYPE_ORDER,
-  isInsuranceCategory,
-  type InsuranceCompanyOption,
-} from '../domain/insuranceConstants'
-import { buildStaticCompanyCode } from '../domain/loadCompanyData'
-import type { CompanyDirectoryEntry, InsuranceGeneralDraft } from '../domain/types'
+import { INSURANCE_TYPE_LABELS, INSURANCE_TYPE_ORDER, isInsuranceCategory } from '../domain/insuranceConstants'
+import type { CompanyDirectoryEntry, InsuranceCompanyOption, InsuranceGeneralDraft } from '../domain/types'
 
 const EMPTY_GENERAL: InsuranceGeneralDraft = { description: '', phone: '', fax: '', email: '' }
 
@@ -39,23 +32,13 @@ export default function GeneralRequestPage() {
     if (!filterKey) {
       return []
     }
-    const fromMap = insuranceCompanyMap[filterKey] ?? []
-    const registered = list
+    const merged = list
       .filter((e) => canonicalInsuranceCategoryForFilter(e.category, e.name) === filterKey)
       .map((e) => ({
         companyCode: e.companyCode,
         name: e.name,
         tel: e.customerCenter || '',
       }))
-    const regNames = new Set(registered.map((r) => r.name.trim().normalize('NFKC')))
-    const staticExtras: InsuranceCompanyOption[] = fromMap
-      .filter((o) => !regNames.has(o.name.trim().normalize('NFKC')))
-      .map((o) => ({
-        companyCode: buildStaticCompanyCode(selectedType, o.name),
-        name: o.name,
-        tel: o.tel,
-      }))
-    const merged = [...registered, ...staticExtras]
     merged.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
     return merged
   }, [selectedType, list])
