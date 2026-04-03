@@ -9,56 +9,30 @@ export type BackNavigationBlock = {
   message: string
 }
 
-function customerModeFromSearch(search: string): 'create' | 'list' {
-  const q = search.startsWith('?') ? search.slice(1) : search
-  return new URLSearchParams(q).get('mode') === 'create' ? 'create' : 'list'
-}
-
-function isApplicationFormEditPath(pathname: string): boolean {
-  return /^\/form\/[^/]+\/edit$/.test(pathname)
-}
-
-function isApplicationReadOnly(search: string): boolean {
-  const q = search.startsWith('?') ? search.slice(1) : search
-  return new URLSearchParams(q).get('mode') === 'readonly'
+/** 자동차보험 신청서 메인 허브(뒤로 UI 시 메인 메뉴로 고정 이동) */
+export function isCarInsuranceMainHub(pathname: string): boolean {
+  return pathname === '/application'
 }
 
 /**
- * 현재 URL 기준으로 뒤로 이동(POP) 전 사용자 확인이 필요한지 판별합니다.
- * - 고객 목록(조회): 차단 없음
- * - 고객 등록(mode=create): 등록 중지 확인
- * - 신청서 작성(/application/write, /form/create, 편집 모드 /form/:id/edit): 작성 중지 확인 (readonly 제외)
- * - 메인 허브(/dashboard, /application, /menu, /menu/car-insurance): 앱 종료 확인
+ * POP / PageBackButton 확인 모달이 필요한 경우만 true.
+ * - 메인 메뉴(/dashboard)만 앱 종료 확인
+ * - /customers + mode=create 만 등록 중지 확인
+ * - /application/write 만 신청 작성 중지 확인
  */
 export function getBackNavigationBlock(pathname: string, search: string): BackNavigationBlock {
   const path = pathname
 
-  if (path.startsWith('/customers')) {
-    if (customerModeFromSearch(search) === 'list') {
-      return { shouldBlock: false, message: '' }
-    }
+  if (path === '/dashboard') {
+    return { shouldBlock: true, message: MSG_APP_EXIT }
+  }
+
+  if (path.startsWith('/customers') && search.includes('mode=create')) {
     return { shouldBlock: true, message: MSG_CUSTOMER_CREATE_EXIT }
   }
 
   if (path.startsWith('/application/write')) {
     return { shouldBlock: true, message: MSG_APPLICATION_WRITE_EXIT }
-  }
-
-  if (path === '/form/create') {
-    return { shouldBlock: true, message: MSG_APPLICATION_WRITE_EXIT }
-  }
-
-  if (isApplicationFormEditPath(path) && !isApplicationReadOnly(search)) {
-    return { shouldBlock: true, message: MSG_APPLICATION_WRITE_EXIT }
-  }
-
-  if (
-    path === '/dashboard' ||
-    path === '/menu' ||
-    path === '/application' ||
-    path === '/menu/car-insurance'
-  ) {
-    return { shouldBlock: true, message: MSG_APP_EXIT }
   }
 
   return { shouldBlock: false, message: '' }

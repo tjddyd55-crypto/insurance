@@ -124,7 +124,7 @@ export function InsurancePrintPage() {
     <main className="page page--with-back insurance-print-page">
       <PageBackButton />
       <div className="screen-only insurance-print-controls">
-        <button className="button" type="button" onClick={() => navigate('/menu/reinsurer-contacts')}>
+        <button className="button" type="button" onClick={() => navigate('/reinsurer-contacts')}>
           원수사 연락처로 이동
         </button>
         <button className="button button--primary" type="button" onClick={() => window.print()}>

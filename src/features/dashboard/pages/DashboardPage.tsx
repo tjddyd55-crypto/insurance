@@ -1,5 +1,4 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { useAuth } from '../../auth/AuthProvider'
 type MenuItem = { label: string; path: string }
 
@@ -50,47 +49,48 @@ export function DashboardPage() {
   const pathname = location.pathname
 
   return (
-    <main className="page dashboard-page--centered page--with-back">
-      <PageBackButton />
-      <header className="page-header">
-        <h1>메뉴</h1>
-      </header>
+    <main className="page dashboard-page--centered">
+      <div className="dashboard-menu-shell">
+        <header className="page-header dashboard-page__header">
+          <h1>메뉴</h1>
+        </header>
 
-      <section className="dashboard-menu-card">
-        <h2 className="dashboard-section-title visually-hidden">주요 메뉴</h2>
-        <nav className="menu-card" aria-label="주요 메뉴">
-          {menuItems.map((item) => {
-            const isActive = pathIsActive(pathname, item.path)
-            return (
-              <button
-                key={`${item.path}-${item.label}`}
-                type="button"
-                className={`menu-item${isActive ? ' active' : ''}`}
-                onClick={() => navigate(item.path)}
-              >
-                {item.label}
-              </button>
-            )
-          })}
-        </nav>
+        <section className="dashboard-menu-card">
+          <h2 className="dashboard-section-title visually-hidden">주요 메뉴</h2>
+          <nav className="menu-card" aria-label="주요 메뉴">
+            {menuItems.map((item) => {
+              const isActive = pathIsActive(pathname, item.path)
+              return (
+                <button
+                  key={`${item.path}-${item.label}`}
+                  type="button"
+                  className={`menu-item${isActive ? ' active' : ''}`}
+                  onClick={() => navigate(item.path)}
+                >
+                  {item.label}
+                </button>
+              )
+            })}
+          </nav>
 
-        {isStaff ? (
-          <p className="dashboard-menu-note">
-            보험사 마스터는 「원수사 연락처 조회」에서 확인하고, 「원수사 연락처 관리」에서만 저장·수정합니다.
-          </p>
-        ) : null}
+          {isStaff ? (
+            <p className="dashboard-menu-note">
+              보험사 마스터는 「원수사 연락처 조회」에서 확인하고, 「원수사 연락처 관리」에서만 저장·수정합니다.
+            </p>
+          ) : null}
 
-        <button
-          className="button button--secondary button--full dashboard-logout"
-          type="button"
-          onClick={() => {
-            logout()
-            navigate('/login', { replace: true })
-          }}
-        >
-          로그아웃
-        </button>
-      </section>
+          <button
+            className="button button--secondary button--full dashboard-logout"
+            type="button"
+            onClick={() => {
+              logout()
+              navigate('/login', { replace: true })
+            }}
+          >
+            로그아웃
+          </button>
+        </section>
+      </div>
     </main>
   )
 }

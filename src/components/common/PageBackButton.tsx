@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { getBackNavigationBlock } from '../../navigation/backNavigationPolicy'
+import { getBackNavigationBlock, isCarInsuranceMainHub } from '../../navigation/backNavigationPolicy'
 
 export function PageBackButton() {
   const navigate = useNavigate()
@@ -8,6 +8,10 @@ export function PageBackButton() {
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null)
 
   const handleClick = () => {
+    if (isCarInsuranceMainHub(pathname)) {
+      navigate('/dashboard')
+      return
+    }
     const { shouldBlock, message } = getBackNavigationBlock(pathname, search)
     if (!shouldBlock) {
       navigate(-1)

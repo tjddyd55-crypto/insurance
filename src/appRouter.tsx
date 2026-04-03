@@ -36,9 +36,7 @@ export const appRouter = createBrowserRouter([
       { path: 'insurance/company-registry', element: <CompanyRegistryPage /> },
       { path: 'insurance/history', element: <InsuranceUpdatesPage /> },
       { path: 'insurance/general-request', element: <GeneralRequestPage /> },
-      { path: 'menu/reinsurer-contacts', element: <ReinsurerContactsPage /> },
-      { path: 'menu/company-registry', element: <Navigate to="/insurance/company-registry" replace /> },
-      { path: 'menu/insurance-updates', element: <Navigate to="/insurance/history" replace /> },
+      { path: 'reinsurer-contacts', element: <ReinsurerContactsPage /> },
       { path: 'insurance/print', element: <InsurancePrintPage /> },
       {
         element: <ProtectedRoute />,
@@ -49,7 +47,6 @@ export const appRouter = createBrowserRouter([
           { path: 'application/write', element: <ApplicationFormPage /> },
           { path: 'customers', element: <CustomersPage /> },
           { path: 'customer-car', element: <CustomerCarPage /> },
-          { path: 'menu/car-insurance', element: <CarInsuranceDashboardPage /> },
           { path: 'my-forms', element: <ApplicationListPage /> },
           { path: 'form/create', element: <ApplicationFormPage /> },
           { path: 'form/:id/edit', element: <ApplicationFormPage /> },
