@@ -226,6 +226,21 @@ body {
   color: var(--text-main);
 }
 
+.customer-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 20px;
+  background: var(--bg-card);
+}
+
+.customer-title {
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 10px;
+  color: var(--text-main);
+}
+
 .auth-page {
   min-height: 100vh;
   display: grid;
