@@ -13,6 +13,7 @@ interface AuthUser {
   id: string
   username: string
   role: UserRole
+  gaId?: number
 }
 
 interface AuthSession {
@@ -54,12 +55,21 @@ function readStoredSession(): AuthSession | null {
       return null
     }
 
+    const gaRaw = (parsed.user as { gaId?: unknown }).gaId
+    const gaId =
+      typeof gaRaw === 'number' && Number.isFinite(gaRaw)
+        ? gaRaw
+        : typeof gaRaw === 'string' && gaRaw.trim() !== '' && Number.isFinite(Number(gaRaw))
+          ? Number(gaRaw)
+          : undefined
+
     return {
       token: parsed.token,
       user: {
         id: String(parsed.user.id),
         username: String(parsed.user.username ?? ''),
         role: parsed.user.role,
+        ...(gaId !== undefined ? { gaId } : {}),
       },
     }
   } catch {
@@ -82,8 +92,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         logout()
         return
       }
-      setSession(nextSession)
-      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession))
+      const gaRaw = (nextSession.user as { gaId?: unknown }).gaId
+      const normalizedUser = {
+        ...nextSession.user,
+        ...(typeof gaRaw === 'number' && Number.isFinite(gaRaw)
+          ? { gaId: gaRaw }
+          : typeof gaRaw === 'string' && gaRaw.trim() !== '' && Number.isFinite(Number(gaRaw))
+            ? { gaId: Number(gaRaw) }
+            : {}),
+      }
+      const toStore = { ...nextSession, user: normalizedUser }
+      setSession(toStore)
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(toStore))
     },
     [logout],
   )

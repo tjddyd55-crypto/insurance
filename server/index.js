@@ -7,6 +7,7 @@ import path from 'node:path'
 import pool from './db.js'
 import { initDb } from './initDb.js'
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
+import { registerConsentApi } from './registerConsentApi.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 
 const PORT = Number(process.env.PORT ?? 3001)
@@ -712,9 +713,17 @@ async function touchContactLastUpdatedAt(client) {
 }
 
 const app = express()
-app.use(express.json({ limit: '2mb' }))
+app.use(express.json({ limit: '12mb' }))
 
 const apiRouter = express.Router()
+
+registerConsentApi(apiRouter, {
+  pool,
+  requireAuth,
+  requireStaffOrAdmin,
+  handleDbError,
+  JWT_SECRET,
+})
 
 apiRouter.get('/health', (_req, res) => {
   res.json({ ok: true })

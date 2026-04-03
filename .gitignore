@@ -15,6 +15,9 @@ dist-ssr
 data/*.db
 data/*.db-*
 
+# 로컬 동의서/R2 대체 스토리지
+server-data/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

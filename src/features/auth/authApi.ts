@@ -6,6 +6,8 @@ export interface AuthUser {
   id: string
   username: string
   role: UserRole
+  /** GA(대리점) ID — 서버가 내려줄 때만 존재. 없으면 동의서 등에서 mock 기본값 사용 */
+  gaId?: number
 }
 
 export interface LoginResponse {

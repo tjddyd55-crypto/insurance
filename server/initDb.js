@@ -474,6 +474,65 @@ export async function initDb() {
     throw new Error('DB 점검 실패: idx_forms_user_updated 인덱스가 올바르지 않습니다.')
   }
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS consent_templates (
+      id TEXT PRIMARY KEY,
+      ga_id INTEGER NOT NULL,
+      insurance_company_id TEXT NOT NULL,
+      fax_number TEXT NOT NULL DEFAULT '',
+      fields JSONB NOT NULL DEFAULT '[]'::jsonb,
+      pdf_storage_key TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_consent_templates_ga_insurer
+    ON consent_templates(ga_id, insurance_company_id)
+  `)
+
+  await pool.query(`
+    ALTER TABLE consent_templates
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  `)
+
   await maybeDebugResetAllUsers()
   await ensureBootstrapAdminUser()
+  await seedConsentTemplatesIfNeeded()
+}
+
+async function seedConsentTemplatesIfNeeded() {
+  try {
+    const { PDFDocument } = await import('pdf-lib')
+    const { consentPutObject } = await import('./lib/consentStorage.js')
+    const { DEFAULT_CONSENT_FIELD_LAYOUT, SEEDED_CONSENT_TEMPLATES } = await import(
+      './consentSeedData.js'
+    )
+
+    const doc = await PDFDocument.create()
+    doc.addPage([595.28, 841.89])
+    const blank = Buffer.from(await doc.save())
+
+    for (const row of SEEDED_CONSENT_TEMPLATES) {
+      const exists = await pool.query(
+        `SELECT 1 FROM consent_templates WHERE ga_id = $1 AND insurance_company_id = $2`,
+        [row.gaId, row.insuranceCompanyId],
+      )
+      if (exists.rowCount > 0) {
+        continue
+      }
+      const key = `consent-templates/${row.id}.pdf`
+      await consentPutObject(key, blank, 'application/pdf')
+      await pool.query(
+        `
+        INSERT INTO consent_templates (id, ga_id, insurance_company_id, fax_number, fields, pdf_storage_key)
+        VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+        `,
+        [row.id, row.gaId, row.insuranceCompanyId, '', JSON.stringify(DEFAULT_CONSENT_FIELD_LAYOUT), key],
+      )
+    }
+    console.log('[initDb] consent_templates 시드 검사 완료')
+  } catch (e) {
+    console.error('[initDb] consent_templates 시드 실패:', e)
+  }
 }

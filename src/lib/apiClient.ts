@@ -15,7 +15,7 @@ interface RequestOptions extends RequestInit {
 const API_BASE_PATH =
   (import.meta.env.VITE_API_BASE_PATH as string | undefined)?.replace(/\/$/, '') || '/backend'
 
-function resolveApiUrl(path: string): string {
+export function resolveApiUrl(path: string): string {
   if (/^https?:\/\//.test(path)) {
     return path
   }
