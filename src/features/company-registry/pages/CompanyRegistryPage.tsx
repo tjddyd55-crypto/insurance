@@ -4,7 +4,12 @@ import { useAuth } from '../../auth/AuthProvider'
 import { isInsuranceOpsRole } from '../../auth/roleGuards'
 import { PageBackButton } from '../../../components/common/PageBackButton'
 import { fullSaveCompanyDirectory, listCompanyDirectory } from '../api/companyRegistryApi'
-import { insuranceCategoryLabel, insuranceTypeSortRank, resolveTabCategory } from '../domain/categoryUtils'
+import {
+  canonicalInsuranceCategoryForFilter,
+  insuranceCategoryLabel,
+  insuranceTypeSortRank,
+  resolveTabCategory,
+} from '../domain/categoryUtils'
 import type { InsuranceCategory } from '../domain/insuranceConstants'
 import {
   insuranceCompanyMap,
@@ -58,11 +63,16 @@ export default function CompanyRegistryPage() {
     if (!selectedType) {
       return []
     }
-    const fromMap = insuranceCompanyMap[selectedType] ?? []
+    const filterKey = canonicalInsuranceCategoryForFilter(selectedType)
+    if (!filterKey || !isInsuranceCategory(filterKey)) {
+      return []
+    }
+    const fromMap = insuranceCompanyMap[filterKey] ?? []
     const mapNames = new Set(fromMap.map((o) => o.name))
     const extras: InsuranceCompanyOption[] = []
     for (const e of list) {
-      if (resolveTabCategory(e.category, e.name) !== selectedType) {
+      const rowKey = canonicalInsuranceCategoryForFilter(resolveTabCategory(e.category, e.name))
+      if (rowKey !== filterKey) {
         continue
       }
       if (mapNames.has(e.name)) {
@@ -71,7 +81,24 @@ export default function CompanyRegistryPage() {
       extras.push({ name: e.name, tel: e.customerCenter || '' })
     }
     extras.sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-    return [...fromMap, ...extras]
+    const merged = [...fromMap, ...extras]
+    if (import.meta.env.DEV) {
+      /* eslint-disable no-console -- 드롭다운 필터 전/후 진단(타입 불일치·API 행 수) */
+      console.log('전체 보험사(목록):', list)
+      console.log('선택 타입:', selectedType, '| 정규화:', filterKey)
+      console.log('필터 결과(2차 옵션):', merged)
+      console.log('[company-registry] 2차 드롭다운 상세', {
+        fromMapCount: fromMap.length,
+        extrasCount: extras.length,
+        sampleListCategories: list.slice(0, 12).map((r) => ({
+          name: r.name,
+          categoryRaw: r.category,
+          resolved: resolveTabCategory(r.category, r.name),
+        })),
+      })
+      /* eslint-enable no-console */
+    }
+    return merged
   }, [selectedType, list])
 
   const sortedDirectoryList = useMemo(() => {

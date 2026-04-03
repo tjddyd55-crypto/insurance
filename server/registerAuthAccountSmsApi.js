@@ -1,4 +1,5 @@
 import { randomInt, randomUUID } from 'node:crypto'
+import { parseGaId } from './lib/parseGaId.js'
 import { systemQuery } from './utils/dbSafeQuery.js'
 import { sendVerificationCode } from './services/smsService.js'
 import { consumeSmsVerificationCode } from './services/consumeSmsVerificationCode.js'
@@ -39,7 +40,7 @@ async function loadActiveUserByUsername(pool, normalizedUsername) {
   const r = await systemQuery(
     pool,
     `
-    SELECT id, username, phone_number, role, status, is_deleted, sms_blocked_until
+    SELECT id, username, phone_number, role, status, is_deleted, sms_blocked_until, ga_id
     FROM users
     WHERE username = $1 AND is_deleted = false
     `,
@@ -95,7 +96,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       const lockR = await client.query(
         `
         SELECT
-          id, username, phone_number, role, status, is_deleted,
+          id, username, phone_number, role, status, is_deleted, ga_id,
           last_sms_requested_at, sms_request_count, sms_request_window_start,
           sms_blocked_until
         FROM users
@@ -115,6 +116,13 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         await client.query('ROLLBACK')
         logSmsEvent('password_reset_request_mismatch', { username: usernameNorm })
         res.status(400).json({ message: '아이디와 등록된 휴대폰 정보가 일치하지 않습니다.' })
+        return
+      }
+
+      const userGa = parseGaId(user.ga_id)
+      if (userGa == null) {
+        await client.query('ROLLBACK')
+        res.status(500).json({ message: '계정 GA 정보가 올바르지 않습니다.' })
         return
       }
 
@@ -156,7 +164,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         [SMS_PURPOSE_PASSWORD_RESET, user.id, usernameNorm, phoneNorm, code],
       )
 
-      await applyUserSmsRequestAfterSend(client, user.id, quota)
+      await applyUserSmsRequestAfterSend(client, user.id, quota, userGa)
       await client.query('COMMIT')
 
       await sendVerificationCode({
@@ -234,6 +242,12 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         return
       }
 
+      const userGa = parseGaId(user.ga_id)
+      if (userGa == null) {
+        res.status(500).json({ message: '계정 GA 정보가 올바르지 않습니다.' })
+        return
+      }
+
       const acctLockPre = assertNotSmsAccountLocked(user)
       if (!acctLockPre.ok) {
         res.status(429).json({
@@ -263,7 +277,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
           phoneNumber: phoneNorm,
           purpose: SMS_PURPOSE_PASSWORD_RESET,
         })
-        await recordUserSmsVerificationFailure(pool, user.id)
+        await recordUserSmsVerificationFailure(pool, user.id, userGa)
         await insertSmsVerificationLog(pool, {
           userId: user.id,
           phoneNumber: phoneNorm,
@@ -277,8 +291,11 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         return
       }
 
-      await client.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [passwordHash, user.id])
-      await clearUserSmsRequestQuota(client, user.id)
+      await client.query(
+        `UPDATE users SET password_hash = $1 WHERE id = $2 AND ga_id = $3 AND is_deleted = false`,
+        [passwordHash, user.id, userGa],
+      )
+      await clearUserSmsRequestQuota(client, user.id, userGa)
       await client.query('COMMIT')
 
       void insertSmsVerificationLog(pool, {
@@ -315,6 +332,11 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       }
 
       const userId = String(req.user?.id ?? '').trim()
+      const actorGaId = parseGaId(req.user?.gaId)
+      if (actorGaId == null) {
+        res.status(400).json({ message: '세션 GA 정보가 올바르지 않습니다.' })
+        return
+      }
       const phoneNorm = normalizeKrMobile(req.body?.phoneNumber ?? req.body?.phone_number)
       const phoneErr = validateKrMobileDigits(phoneNorm)
       if (phoneErr) {
@@ -330,10 +352,10 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
           last_sms_requested_at, sms_request_count, sms_request_window_start,
           sms_blocked_until
         FROM users
-        WHERE id = $1 AND is_deleted = false
+        WHERE id = $1 AND ga_id = $2 AND is_deleted = false
         FOR UPDATE
         `,
-        [userId],
+        [userId, actorGaId],
       )
       const u = uR.rows[0]
       if (!u || String(u.role ?? '').toUpperCase() !== 'USER') {
@@ -388,7 +410,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         [SMS_PURPOSE_ACCOUNT_RESET, userId, phoneNorm, code],
       )
 
-      await applyUserSmsRequestAfterSend(client, userId, quota)
+      await applyUserSmsRequestAfterSend(client, userId, quota, actorGaId)
       await client.query('COMMIT')
 
       await sendVerificationCode({
@@ -423,6 +445,11 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
     const client = await pool.connect()
     try {
       const userId = String(req.user?.id ?? '').trim()
+      const actorGaId = parseGaId(req.user?.gaId)
+      if (actorGaId == null) {
+        res.status(400).json({ message: '세션 GA 정보가 올바르지 않습니다.' })
+        return
+      }
       const phoneNorm = normalizeKrMobile(req.body?.phoneNumber ?? req.body?.phone_number)
       const codeRaw = String(req.body?.code ?? '').trim()
       const confirmReset = req.body?.confirmReset === true
@@ -453,9 +480,9 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         `
         SELECT id, username, phone_number, role, status, sms_blocked_until
         FROM users
-        WHERE id = $1 AND is_deleted = false
+        WHERE id = $1 AND ga_id = $2 AND is_deleted = false
         `,
-        [userId],
+        [userId, actorGaId],
       )
       const u = uR.rows[0]
       if (!u || String(u.role ?? '').toUpperCase() !== 'USER') {
@@ -502,7 +529,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
           phoneNumber: phoneNorm,
           purpose: SMS_PURPOSE_ACCOUNT_RESET,
         })
-        await recordUserSmsVerificationFailure(pool, userId)
+        await recordUserSmsVerificationFailure(pool, userId, actorGaId)
         await insertSmsVerificationLog(pool, {
           userId,
           phoneNumber: phoneNorm,
@@ -518,6 +545,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
 
       await runAccountResetDataOnClient(client, {
         userId,
+        gaId: actorGaId,
         newUsername,
         passwordHash: randomPwdHash,
       })

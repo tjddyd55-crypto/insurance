@@ -1,4 +1,8 @@
-import { normalizeInsuranceCategory, resolveTabCategory } from './categoryUtils'
+import {
+  canonicalInsuranceCategoryForFilter,
+  normalizeInsuranceCategory,
+  resolveTabCategory,
+} from './categoryUtils'
 import type { InsuranceCategory } from './insuranceConstants'
 import type {
   CompanyDirectoryEntry,
@@ -59,24 +63,33 @@ export function findSavedEntryForSelection(
   selectedType: InsuranceCategory,
   companyName: string,
 ): CompanyDirectoryEntry | undefined {
-  const q = companyName.trim()
+  const q = companyName.trim().normalize('NFKC')
   if (!q) {
     return undefined
   }
-  const resolved = rows.find(
-    (e) => resolveTabCategory(e.category, e.name) === selectedType && e.name.trim() === q,
-  )
+  const want = canonicalInsuranceCategoryForFilter(selectedType)
+  if (!want) {
+    return undefined
+  }
+  const resolved = rows.find((e) => {
+    const rowCat = resolveTabCategory(e.category, e.name)
+    const rowWant = canonicalInsuranceCategoryForFilter(rowCat)
+    return rowWant === want && e.name.trim().normalize('NFKC') === q
+  })
   if (resolved) {
     return resolved
   }
   return rows.find(
     (e) =>
-      e.name.trim() === q &&
-      (normalizeInsuranceCategory(e.category) === selectedType ||
-        String(e.category ?? '')
-          .trim()
-          .toUpperCase()
-          .replace(/-/g, '_') === selectedType),
+      e.name.trim().normalize('NFKC') === q &&
+      (canonicalInsuranceCategoryForFilter(normalizeInsuranceCategory(e.category) || e.category) ===
+        want ||
+        canonicalInsuranceCategoryForFilter(
+          String(e.category ?? '')
+            .trim()
+            .toUpperCase()
+            .replace(/-/g, '_'),
+        ) === want),
   )
 }
 

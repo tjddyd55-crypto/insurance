@@ -10,6 +10,7 @@ import { initDb } from './initDb.js'
 import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
+import { parseGaId } from './lib/parseGaId.js'
 import { registerConsentApi } from './registerConsentApi.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 
@@ -385,14 +386,6 @@ function isGaAdminOrSuper(role) {
   return n === 'SUPER_ADMIN' || n === 'GA_ADMIN' || n === 'GA_STAFF'
 }
 
-function parseGaId(value) {
-  const n = Number(value)
-  if (!Number.isInteger(n) || n < 1) {
-    return null
-  }
-  return n
-}
-
 function parseEntityStatus(raw) {
   const s = String(raw ?? '').trim().toLowerCase()
   return ENTITY_STATUSES.includes(s) ? s : null
@@ -482,7 +475,9 @@ function mapContactUpdateRow(row) {
 }
 
 function normalizeInsuranceCompanyCategory(value) {
-  const s = String(value ?? '').trim()
+  const s = String(value ?? '')
+    .trim()
+    .normalize('NFKC')
   if (!s) {
     return ''
   }
@@ -522,7 +517,8 @@ function mapInsuranceCompanyMaster(row) {
   const updatedRaw = row.updated_at ?? row.created_at
   return {
     id: Number(row.id),
-    category: normalized || row.category || '',
+    // API는 항상 LIFE | NON_LIFE | GENERAL | '' 만 내려보냄(미분류는 프론트에서 맵·이름으로 추론)
+    category: normalized || '',
     name: row.name ?? '',
     customerCenter: row.customer_center ?? '',
     systemPhone: row.system_phone ?? '',
@@ -777,8 +773,10 @@ async function requireAuth(req, res, next) {
       FROM users u
       INNER JOIN ga_companies g ON g.id = u.ga_id
       WHERE u.id = $1
+        AND u.is_deleted = false
+        AND ($2::int IS NULL OR u.ga_id = $2::int)
       `,
-      [req.user.id],
+      [req.user.id, gaFromJwt],
     )
     if (st.rowCount === 0) {
       res.status(401).json({ error: 'Unauthorized', message: '로그인 정보가 올바르지 않습니다.' })
@@ -1735,9 +1733,17 @@ apiRouter.patch('/admin/users/:id', requireAuth, requireSuperAdmin, async (req, 
       }
     }
 
-    const exists = await safeQuery(pool, `SELECT id FROM users WHERE id = $1 AND is_deleted = false`, [targetId])
-    if (exists.rows.length === 0) {
+    const before = await systemQuery(pool,
+      `SELECT id, ga_id FROM users WHERE id = $1 AND is_deleted = false`,
+      [targetId],
+    )
+    if (before.rows.length === 0) {
       res.status(404).json({ message: '사용자를 찾을 수 없습니다.' })
+      return
+    }
+    const prevGaId = parseGaId(before.rows[0].ga_id)
+    if (prevGaId == null) {
+      res.status(400).json({ message: '사용자 GA 정보가 올바르지 않습니다.' })
       return
     }
 
@@ -1760,16 +1766,20 @@ apiRouter.patch('/admin/users/:id', requireAuth, requireSuperAdmin, async (req, 
       vals.push(statusNorm)
     }
 
-    vals.push(targetId)
+    vals.push(targetId, prevGaId)
     const upd = await safeQuery(pool,
       `
       UPDATE users
       SET ${parts.join(', ')}
-      WHERE id = $${n} AND is_deleted = false
+      WHERE id = $${n} AND ga_id = $${n + 1} AND is_deleted = false
       RETURNING id, username, ga_id, display_name, role, status, created_at
       `,
       vals,
     )
+    if (upd.rowCount === 0) {
+      res.status(404).json({ message: '사용자를 찾을 수 없습니다.' })
+      return
+    }
     const row = upd.rows[0]
     const g = await systemQuery(pool, `SELECT name FROM ga_companies WHERE id = $1`, [row.ga_id])
     res.json({
@@ -1794,14 +1804,27 @@ apiRouter.delete('/admin/users/:id', requireAuth, requireSuperAdmin, async (req,
       res.status(400).json({ message: '잘못된 사용자 ID입니다.' })
       return
     }
+    const scope = await systemQuery(pool,
+      `SELECT ga_id FROM users WHERE id = $1 AND is_deleted = false`,
+      [targetId],
+    )
+    if (scope.rowCount === 0) {
+      res.status(404).json({ message: '사용자를 찾을 수 없습니다.' })
+      return
+    }
+    const delGaId = parseGaId(scope.rows[0].ga_id)
+    if (delGaId == null) {
+      res.status(400).json({ message: '사용자 GA 정보가 올바르지 않습니다.' })
+      return
+    }
     const upd = await safeQuery(pool,
       `
       UPDATE users
       SET is_deleted = true
-      WHERE id = $1 AND is_deleted = false
+      WHERE id = $1 AND ga_id = $2 AND is_deleted = false
       RETURNING id
       `,
-      [targetId],
+      [targetId, delGaId],
     )
     if (upd.rowCount === 0) {
       res.status(404).json({ message: '사용자를 찾을 수 없습니다.' })
@@ -2049,13 +2072,18 @@ apiRouter.patch('/admin/delegates/:id', requireAuth, requireSuperAdmin, async (r
       vals.push(passwordUpdate)
     }
     if (setParts.length > 0) {
-      vals.push(targetId)
+      const curGaId = parseGaId(cur.ga_id)
+      if (curGaId == null) {
+        res.status(400).json({ message: '담당자 GA 정보가 올바르지 않습니다.' })
+        return
+      }
+      vals.push(targetId, curGaId)
       await safeQuery(
         pool,
         `
         UPDATE users
         SET ${setParts.join(', ')}
-        WHERE id = $${n} AND is_deleted = false
+        WHERE id = $${n} AND ga_id = $${n + 1} AND is_deleted = false
         RETURNING id
         `,
         vals,

@@ -6,7 +6,9 @@ import {
 } from './insuranceConstants'
 
 export function normalizeInsuranceCategory(raw: string | undefined | null): InsuranceCategory | '' {
-  const s = String(raw ?? '').trim()
+  const s = String(raw ?? '')
+    .trim()
+    .normalize('NFKC')
   if (!s) {
     return ''
   }
@@ -64,7 +66,35 @@ export function resolveTabCategory(
   rawCategory: string | undefined | null,
   companyName: string | undefined | null,
 ): InsuranceCategory | '' {
-  return normalizeInsuranceCategory(rawCategory) || inferInsuranceCategoryFromKnownCompanies(companyName ?? '')
+  const name = String(companyName ?? '')
+    .trim()
+    .normalize('NFKC')
+  return (
+    normalizeInsuranceCategory(rawCategory) || inferInsuranceCategoryFromKnownCompanies(name)
+  )
+}
+
+/**
+ * 1차(생명/손해/일반) 선택값과 목록 행이 같은 보험 구분인지 — 정규화 후 비교.
+ * selected는 드롭다운 값(LIFE | NON_LIFE | GENERAL) 또는 일부 레거시 한글 라벨.
+ */
+export function canonicalInsuranceCategoryForFilter(
+  selected: string | undefined | null,
+): InsuranceCategory | '' {
+  const s = String(selected ?? '')
+    .trim()
+    .normalize('NFKC')
+  if (!s) {
+    return ''
+  }
+  const fromNorm = normalizeInsuranceCategory(s)
+  if (fromNorm) {
+    return fromNorm
+  }
+  if ((INSURANCE_TYPE_ORDER as readonly string[]).includes(s)) {
+    return s as InsuranceCategory
+  }
+  return ''
 }
 
 export function insuranceCategoryLabel(cat: string | undefined | null): string {

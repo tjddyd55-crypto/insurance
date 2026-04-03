@@ -1,3 +1,4 @@
+import { parseGaId } from '../lib/parseGaId.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 
 /** 인증코드 행당 허용 오입력 횟수 (이후 코드 무효) */
@@ -73,9 +74,10 @@ export async function insertSmsVerificationLog(executor, {
  * 인증 성공 후 SMS 발송 요청 쿼터만 초기화 (발송 횟수 한도 리셋).
  * @param {import('pg').Pool|import('pg').PoolClient} executor
  */
-export async function clearUserSmsRequestQuota(executor, userId) {
+export async function clearUserSmsRequestQuota(executor, userId, gaId) {
   const uid = String(userId ?? '').trim()
-  if (!uid) {
+  const gid = parseGaId(gaId)
+  if (!uid || gid == null) {
     return
   }
   await systemQuery(
@@ -86,8 +88,8 @@ export async function clearUserSmsRequestQuota(executor, userId) {
       sms_request_window_start = NULL,
       sms_auth_failure_count = 0,
       sms_blocked_until = NULL
-    WHERE id = $1
+    WHERE id = $1 AND ga_id = $2 AND is_deleted = false
     `,
-    [uid],
+    [uid, gid],
   )
 }

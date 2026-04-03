@@ -7,7 +7,18 @@ import type {
 } from '../domain/types'
 
 export async function listCompanyDirectory(token: string): Promise<CompanyDirectoryEntry[]> {
-  return apiRequest<CompanyDirectoryEntry[]>('/api/company/list', { token })
+  const rows = await apiRequest<CompanyDirectoryEntry[]>('/api/company/list', { token })
+  if (import.meta.env.DEV) {
+    const distinctCategories = [...new Set(rows.map((r) => r.category))].sort()
+    // eslint-disable-next-line no-console -- 서버가 목록을 잘라 주는지·category 원문 분포 확인
+    console.log('[company-registry] GET /api/company/list', {
+      rowCount: rows.length,
+      distinctCategoryCount: distinctCategories.length,
+      distinctCategories,
+      sample: rows.slice(0, 8).map((r) => ({ name: r.name, category: r.category })),
+    })
+  }
+  return rows
 }
 
 export async function getCompanyRecentUpdates(token: string): Promise<CompanyUpdateHistoryItem[]> {

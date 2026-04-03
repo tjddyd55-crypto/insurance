@@ -53,9 +53,14 @@ export function evaluateUserSmsRequestQuota(row) {
  * @param {import('pg').PoolClient} client
  * @param {string} userId
  * @param {{ nextCount: number, resetWindow: boolean }} quota
+ * @param {number} gaId
  */
-export async function applyUserSmsRequestAfterSend(client, userId, quota) {
+export async function applyUserSmsRequestAfterSend(client, userId, quota, gaId) {
   const uid = String(userId ?? '').trim()
+  const gid = Number(gaId)
+  if (!uid || !Number.isInteger(gid) || gid < 1) {
+    throw new Error('applyUserSmsRequestAfterSend: userId and gaId required')
+  }
   if (quota.resetWindow) {
     await client.query(
       `
@@ -63,9 +68,9 @@ export async function applyUserSmsRequestAfterSend(client, userId, quota) {
         last_sms_requested_at = NOW(),
         sms_request_count = $1,
         sms_request_window_start = NOW()
-      WHERE id = $2
+      WHERE id = $2 AND ga_id = $3 AND is_deleted = false
       `,
-      [quota.nextCount, uid],
+      [quota.nextCount, uid, gid],
     )
   } else {
     await client.query(
@@ -73,9 +78,9 @@ export async function applyUserSmsRequestAfterSend(client, userId, quota) {
       UPDATE users SET
         last_sms_requested_at = NOW(),
         sms_request_count = $1
-      WHERE id = $2
+      WHERE id = $2 AND ga_id = $3 AND is_deleted = false
       `,
-      [quota.nextCount, uid],
+      [quota.nextCount, uid, gid],
     )
   }
 }
