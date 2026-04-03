@@ -904,7 +904,19 @@ function normalizeInviteCode(raw) {
 
 async function handleRegister(req, res) {
   try {
-    const { username, password, invite_code: inviteRaw, inviteCode: inviteAlt } = req.body ?? {}
+    const {
+      username,
+      password,
+      invite_code: inviteRaw,
+      inviteCode: inviteAlt,
+      name: nameRaw,
+      display_name: displayNameRaw,
+    } = req.body ?? {}
+    const displayName = String(nameRaw ?? displayNameRaw ?? '').trim()
+    if (!displayName) {
+      res.status(400).json({ message: '이름을 입력해 주세요.' })
+      return
+    }
     const code = normalizeInviteCode(inviteRaw ?? inviteAlt ?? '')
     if (!code) {
       res.status(400).json({ message: '초대 코드(invite_code)를 입력해 주세요.' })
@@ -943,11 +955,11 @@ async function handleRegister(req, res) {
 
     const inserted = await safeQuery(pool,
       `
-      INSERT INTO users (id, username, password_hash, role, ga_id)
-      VALUES ($1, $2, $3, 'USER', $4)
+      INSERT INTO users (id, username, password_hash, role, ga_id, display_name)
+      VALUES ($1, $2, $3, 'USER', $4, $5)
       RETURNING created_at
       `,
-      [id, normalizedUsername, passwordHash, gaId],
+      [id, normalizedUsername, passwordHash, gaId, displayName],
     )
 
     res.status(201).json({

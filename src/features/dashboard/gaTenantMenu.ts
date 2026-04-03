@@ -9,6 +9,7 @@ export type GaTenantMenuItem = { label: string; path: string }
 export const BASE_GA_MENU: GaTenantMenuItem[] = [
   { label: '고객 관리', path: '/customers?mode=list' },
   { label: '원수사 연락처', path: '/contacts' },
+  { label: '원수사 소식지', path: '/portal/newsletters' },
 ]
 
 /**
@@ -22,6 +23,7 @@ export const GA_CUSTOM_MENU: Record<string, GaTenantMenuItem[]> = {
 /** GA 담당자(관리·스태프)만 노출 — 원수사 연락처는 GA 공용 데이터 편집 */
 export const GA_STAFF_EXTRA_MENU: GaTenantMenuItem[] = [
   { label: '원수사 연락처 관리', path: '/contacts/manage' },
+  { label: '원수사 소식지 관리', path: '/portal/insurer-news/login' },
 ]
 
 export function normalizeGaMenuCode(raw: string | undefined): string {

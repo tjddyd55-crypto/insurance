@@ -1,4 +1,4 @@
-import { Navigate, createBrowserRouter } from 'react-router-dom'
+import { Navigate, Outlet, createBrowserRouter } from 'react-router-dom'
 import { AppLayout } from './AppLayout'
 import { PublicHomeEntry } from './HomeRedirect'
 import { ApplicationFormPage } from './features/application/pages/ApplicationFormPage'
@@ -32,6 +32,18 @@ import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRe
 import MyFeatureRequestsPage from './features/feature-request/pages/MyFeatureRequestsPage'
 import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
 import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
+import { InsurerNewsAdminProvider } from './features/insurer-news/InsurerNewsAdminContext'
+import { InsurerListPage } from './features/insurer-news/pages/InsurerListPage'
+import { InsurerNewsAdminDashboardPage } from './features/insurer-news/pages/InsurerNewsAdminDashboardPage'
+import { InsurerNewsAdminLoginPage } from './features/insurer-news/pages/InsurerNewsAdminLoginPage'
+import { InsurerNewsAdminProtectedLayout } from './features/insurer-news/pages/InsurerNewsAdminProtectedLayout'
+import { InsurerNewsEditPage } from './features/insurer-news/pages/InsurerNewsEditPage'
+import { InsurerNewsletterListPage } from './features/insurer-news/pages/InsurerNewsletterListPage'
+import { InsurerNewsNewPage } from './features/insurer-news/pages/InsurerNewsNewPage'
+import { NewsletterDetailPage } from './features/insurer-news/pages/NewsletterDetailPage'
+import { NewsletterHubPage } from './features/insurer-news/pages/NewsletterHubPage'
+import { NewsletterPortalLayout } from './features/insurer-news/pages/NewsletterPortalLayout'
+import { NewsletterRecentPage } from './features/insurer-news/pages/NewsletterRecentPage'
 
 export const appRouter = createBrowserRouter([
   {
@@ -47,9 +59,40 @@ export const appRouter = createBrowserRouter([
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /customer/external-create + ref 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },
       {
+        path: 'portal/insurer-news',
+        element: (
+          <InsurerNewsAdminProvider>
+            <Outlet />
+          </InsurerNewsAdminProvider>
+        ),
+        children: [
+          { index: true, element: <Navigate to="login" replace /> },
+          { path: 'login', element: <InsurerNewsAdminLoginPage /> },
+          {
+            element: <InsurerNewsAdminProtectedLayout />,
+            children: [
+              { path: 'dashboard', element: <InsurerNewsAdminDashboardPage /> },
+              { path: 'new', element: <InsurerNewsNewPage /> },
+              { path: ':newsletterId/edit', element: <InsurerNewsEditPage /> },
+            ],
+          },
+        ],
+      },
+      {
         element: <ProtectedRoute />,
         children: [
           { path: 'dashboard', element: <DashboardPage /> },
+          {
+            path: 'portal/newsletters',
+            element: <NewsletterPortalLayout />,
+            children: [
+              { index: true, element: <NewsletterHubPage /> },
+              { path: 'recent', element: <NewsletterRecentPage /> },
+              { path: 'insurers', element: <InsurerListPage /> },
+              { path: 'insurers/:insurerSlug', element: <InsurerNewsletterListPage /> },
+              { path: ':newsletterId', element: <NewsletterDetailPage /> },
+            ],
+          },
           {
             element: <GaCarInsuranceRoute />,
             children: [

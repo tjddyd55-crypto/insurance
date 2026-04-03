@@ -39,16 +39,22 @@ export async function listGaCompanies(token: string): Promise<GaCompanyRow[]> {
   return apiRequest<GaCompanyRow[]>('/api/admin/ga', { method: 'GET', token })
 }
 
-export async function register(username: string, password: string, inviteCode: string) {
+export async function register(payload: {
+  username: string
+  password: string
+  inviteCode: string
+  name: string
+}) {
   try {
     return await apiRequest<{ id: string; username: string; ga_id: number; createdAt: string }>(
       '/api/auth/register',
       {
         method: 'POST',
         body: JSON.stringify({
-          username,
-          password,
-          invite_code: inviteCode.trim(),
+          username: payload.username.trim(),
+          password: payload.password,
+          invite_code: payload.inviteCode.trim(),
+          name: payload.name.trim(),
         }),
       },
     )

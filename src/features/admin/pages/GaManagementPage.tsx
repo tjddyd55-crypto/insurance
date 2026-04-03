@@ -185,6 +185,92 @@ export default function GaManagementPage() {
     }
   }
 
+  const renderGaRow = (r: GaCompanyRow) => {
+    const st = normalizeStatus(r.status as string)
+    return (
+      <tr key={r.id}>
+        <td>{r.name}</td>
+        <td>{r.code}</td>
+        <td>
+          <StatusBadge status={st} />
+        </td>
+        <td>{formatCreatedAt(r.created_at)}</td>
+        <td className="admin-table-cell--actions">
+          <div className="admin-table-actions">
+            <select
+              className="admin-form-input"
+              style={{ width: 'auto', minWidth: 100 }}
+              value={st}
+              onChange={(e) => void applyStatus(r, e.target.value as EntityStatus)}
+              disabled={isLoading}
+              aria-label={`${r.name} 상태`}
+            >
+              {STATUS_SELECT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
+              수정
+            </button>
+            <button type="button" className="button button--secondary" onClick={() => void confirmDelete(r)} disabled={isLoading}>
+              삭제
+            </button>
+          </div>
+        </td>
+      </tr>
+    )
+  }
+
+  const renderGaCard = (r: GaCompanyRow) => {
+    const st = normalizeStatus(r.status as string)
+    return (
+      <article key={r.id} className="admin-ga-card">
+        <div className="admin-ga-card__row">
+          <span className="admin-ga-card__label">GA 이름</span>
+          <span className="admin-ga-card__value">{r.name}</span>
+        </div>
+        <div className="admin-ga-card__row">
+          <span className="admin-ga-card__label">GA 코드</span>
+          <span className="admin-ga-card__value">{r.code}</span>
+        </div>
+        <div className="admin-ga-card__row">
+          <span className="admin-ga-card__label">상태</span>
+          <span className="admin-ga-card__value">
+            <StatusBadge status={st} />
+          </span>
+        </div>
+        <div className="admin-ga-card__row">
+          <span className="admin-ga-card__label">생성일</span>
+          <span className="admin-ga-card__value">{formatCreatedAt(r.created_at)}</span>
+        </div>
+        <div className="admin-ga-card__actions">
+          <select
+            className="admin-form-input"
+            style={{ flex: '1 1 120px', minWidth: 0 }}
+            value={st}
+            onChange={(e) => void applyStatus(r, e.target.value as EntityStatus)}
+            disabled={isLoading}
+            aria-label={`${r.name} 상태`}
+          >
+            {STATUS_SELECT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
+            수정
+          </button>
+          <button type="button" className="button button--secondary" onClick={() => void confirmDelete(r)} disabled={isLoading}>
+            삭제
+          </button>
+        </div>
+      </article>
+    )
+  }
+
   if (user?.role !== 'SUPER_ADMIN') {
     return (
       <main className="page page--with-back">
@@ -206,7 +292,7 @@ export default function GaManagementPage() {
       </header>
 
       <section
-        className="admin-ga-management__toolbar card auth-card"
+        className="admin-toolbar admin-ga-management__toolbar card auth-card"
         style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
       >
         <button
@@ -223,110 +309,45 @@ export default function GaManagementPage() {
         {isLoading ? <span style={{ fontSize: 14, color: 'var(--text-sub)' }}>불러오는 중…</span> : null}
       </section>
 
-      <div
-        className="admin-ga-management__table-wrap card"
-        style={{
-          maxWidth: 960,
-          margin: '16px auto 0',
-          padding: 0,
-          overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch',
-        }}
-      >
-        <table
-          style={{
-            width: '100%',
-            minWidth: 640,
-            borderCollapse: 'collapse',
-            fontSize: 14,
-          }}
-        >
-          <thead>
-            <tr style={{ borderBottom: '2px solid var(--border)' }}>
-              <th style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600, whiteSpace: 'nowrap' }}>GA 이름</th>
-              <th style={{ textAlign: 'left', padding: '12px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>GA 코드</th>
-              <th style={{ textAlign: 'left', padding: '12px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>상태</th>
-              <th style={{ textAlign: 'left', padding: '12px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>생성일</th>
-              <th style={{ textAlign: 'left', padding: '12px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}>관리</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && !isLoading ? (
+      <div className="card admin-ga-management__table-wrap" style={{ maxWidth: 960, margin: '16px auto 0', padding: 0 }}>
+        <div className="table-container table-container--desktop">
+          <table className="admin-data-table">
+            <thead>
               <tr>
-                <td colSpan={5} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
-                  등록된 GA가 없습니다.
-                </td>
+                <th>GA 이름</th>
+                <th>GA 코드</th>
+                <th>상태</th>
+                <th>생성일</th>
+                <th className="admin-table-cell--actions">관리</th>
               </tr>
-            ) : (
-              rows.map((r) => {
-                const st = normalizeStatus(r.status as string)
-                return (
-                  <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '12px 14px', verticalAlign: 'middle' }}>{r.name}</td>
-                    <td
-                      style={{ padding: '12px 10px', verticalAlign: 'middle', wordBreak: 'break-all', fontVariantNumeric: 'tabular-nums' }}
-                    >
-                      {r.code}
-                    </td>
-                    <td style={{ padding: '12px 10px', verticalAlign: 'middle' }}>
-                      <StatusBadge status={st} />
-                    </td>
-                    <td style={{ padding: '12px 10px', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums' }}>
-                      {formatCreatedAt(r.created_at)}
-                    </td>
-                    <td style={{ padding: '12px 10px', verticalAlign: 'middle' }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          gap: 8,
-                          alignItems: 'center',
-                        }}
-                      >
-                        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
-                          <span className="visually-hidden">상태 변경</span>
-                          <select
-                            value={st}
-                            onChange={(e) => void applyStatus(r, e.target.value as EntityStatus)}
-                            disabled={isLoading}
-                            aria-label={`${r.name} 상태`}
-                          >
-                            {STATUS_SELECT_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <button type="button" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
-                          수정
-                        </button>
-                        <button type="button" className="button button--secondary" onClick={() => void confirmDelete(r)} disabled={isLoading}>
-                          삭제
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.length === 0 && !isLoading ? (
+                <tr>
+                  <td colSpan={5} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
+                    등록된 GA가 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                rows.map((r) => renderGaRow(r))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="admin-responsive-card-list" style={{ padding: 12 }}>
+          {rows.length === 0 && !isLoading ? (
+            <p style={{ margin: 0, color: 'var(--text-sub)', padding: '8px 4px' }}>등록된 GA가 없습니다.</p>
+          ) : (
+            rows.map((r) => renderGaCard(r))
+          )}
+        </div>
       </div>
 
       {createOpen ? (
         <div
+          className="admin-modal-backdrop"
           role="presentation"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.45)',
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            padding: 16,
-            zIndex: 1000,
-          }}
           onClick={() => {
             if (!createBusy) {
               setCreateOpen(false)
@@ -334,46 +355,51 @@ export default function GaManagementPage() {
           }}
         >
           <form
-            className="card auth-card"
+            className="admin-modal-panel"
             role="dialog"
             aria-labelledby="ga-create-title"
-            style={{
-              width: '100%',
-              maxWidth: 420,
-              marginBottom: 'env(safe-area-inset-bottom, 0)',
-            }}
             onClick={(e) => e.stopPropagation()}
             onSubmit={submitCreate}
           >
             <h2 id="ga-create-title" style={{ marginTop: 0 }}>
               GA 등록
             </h2>
-            {createErr ? <p style={{ color: 'var(--danger, #c0392b)', marginTop: 0 }}>{createErr}</p> : null}
-            <label className="field">
-              <span className="field__label">GA 이름</span>
-              <input value={createName} onChange={(e) => setCreateName(e.target.value)} required disabled={createBusy} />
-            </label>
-            <label className="field">
-              <span className="field__label">GA 코드</span>
-              <input
-                value={createCode}
-                onChange={(e) => setCreateCode(e.target.value.toUpperCase())}
-                required
-                disabled={createBusy}
-                autoComplete="off"
-              />
-            </label>
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+            <div className="admin-modal-content">
+              {createErr ? (
+                <p className="status status--error" style={{ margin: 0 }}>
+                  {createErr}
+                </p>
+              ) : null}
+              <label className="field admin-modal-field">
+                <span className="field__label">GA 이름</span>
+                <input
+                  className="admin-form-input"
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  placeholder="예: 영진에셋"
+                  required
+                  disabled={createBusy}
+                />
+              </label>
+              <label className="field admin-modal-field">
+                <span className="field__label">GA 코드</span>
+                <input
+                  className="admin-form-input"
+                  value={createCode}
+                  onChange={(e) => setCreateCode(e.target.value.toUpperCase())}
+                  placeholder="영문 대문자·숫자·밑줄 2~32자"
+                  required
+                  disabled={createBusy}
+                  autoComplete="off"
+                />
+              </label>
+            </div>
+            <div className="admin-modal-actions">
+              <button type="button" className="button button--secondary" disabled={createBusy} onClick={() => setCreateOpen(false)}>
+                취소
+              </button>
               <button type="submit" className="button button--primary" disabled={createBusy}>
                 {createBusy ? '저장 중…' : '저장'}
-              </button>
-              <button
-                type="button"
-                className="button button--secondary"
-                disabled={createBusy}
-                onClick={() => setCreateOpen(false)}
-              >
-                취소
               </button>
             </div>
           </form>
@@ -382,17 +408,8 @@ export default function GaManagementPage() {
 
       {editing ? (
         <div
+          className="admin-modal-backdrop"
           role="presentation"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.45)',
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            padding: 16,
-            zIndex: 1000,
-          }}
           onClick={() => {
             if (!editBusy) {
               setEditing(null)
@@ -400,42 +417,50 @@ export default function GaManagementPage() {
           }}
         >
           <form
-            className="card auth-card"
+            className="admin-modal-panel"
             role="dialog"
             aria-labelledby="ga-edit-title"
-            style={{
-              width: '100%',
-              maxWidth: 420,
-              maxHeight: '90vh',
-              overflow: 'auto',
-              marginBottom: 'env(safe-area-inset-bottom, 0)',
-            }}
             onClick={(e) => e.stopPropagation()}
             onSubmit={submitEdit}
           >
             <h2 id="ga-edit-title" style={{ marginTop: 0 }}>
               GA 수정
             </h2>
-            {editErr ? <p style={{ color: 'var(--danger, #c0392b)', marginTop: 0 }}>{editErr}</p> : null}
-            <label className="field">
-              <span className="field__label">GA 이름</span>
-              <input value={editName} onChange={(e) => setEditName(e.target.value)} required disabled={editBusy} />
-            </label>
-            <label className="field">
-              <span className="field__label">GA 코드</span>
-              <input
-                value={editCode}
-                onChange={(e) => setEditCode(e.target.value.toUpperCase())}
-                required
-                disabled={editBusy}
-              />
-            </label>
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-              <button type="submit" className="button button--primary" disabled={editBusy}>
-                {editBusy ? '저장 중…' : '저장'}
-              </button>
+            <div className="admin-modal-content">
+              {editErr ? (
+                <p className="status status--error" style={{ margin: 0 }}>
+                  {editErr}
+                </p>
+              ) : null}
+              <label className="field admin-modal-field">
+                <span className="field__label">GA 이름</span>
+                <input
+                  className="admin-form-input"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="GA 이름"
+                  required
+                  disabled={editBusy}
+                />
+              </label>
+              <label className="field admin-modal-field">
+                <span className="field__label">GA 코드</span>
+                <input
+                  className="admin-form-input"
+                  value={editCode}
+                  onChange={(e) => setEditCode(e.target.value.toUpperCase())}
+                  placeholder="GA 코드"
+                  required
+                  disabled={editBusy}
+                />
+              </label>
+            </div>
+            <div className="admin-modal-actions">
               <button type="button" className="button button--secondary" disabled={editBusy} onClick={() => setEditing(null)}>
                 취소
+              </button>
+              <button type="submit" className="button button--primary" disabled={editBusy}>
+                {editBusy ? '저장 중…' : '저장'}
               </button>
             </div>
           </form>

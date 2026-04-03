@@ -7,6 +7,7 @@ export function RegisterPage() {
   const navigate = useNavigate()
   const { isAuthenticated, login } = useAuth()
   const [inviteCode, setInviteCode] = useState('')
+  const [name, setName] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -23,8 +24,27 @@ export function RegisterPage() {
     event.preventDefault()
     setErrorMessage('')
     const code = inviteCode.trim()
+    const nameTrim = name.trim()
+    const userTrim = username.trim()
+
     if (!code) {
-      setErrorMessage('초대 코드를 입력하세요.')
+      setErrorMessage('GA 코드(초대 코드)를 입력하세요.')
+      return
+    }
+    if (!nameTrim) {
+      setErrorMessage('이름을 입력하세요.')
+      return
+    }
+    if (!userTrim) {
+      setErrorMessage('아이디를 입력하세요.')
+      return
+    }
+    if (!password) {
+      setErrorMessage('비밀번호를 입력하세요.')
+      return
+    }
+    if (!confirmPassword) {
+      setErrorMessage('비밀번호 확인을 입력하세요.')
       return
     }
     if (password !== confirmPassword) {
@@ -33,8 +53,13 @@ export function RegisterPage() {
     }
     setIsSubmitting(true)
     try {
-      await registerApi(username, password, code)
-      const session = await loginApi(username, password)
+      await registerApi({
+        username: userTrim,
+        password,
+        inviteCode: code,
+        name: nameTrim,
+      })
+      const session = await loginApi(userTrim, password)
       login(session)
       navigate('/dashboard', { replace: true })
     } catch (error) {
@@ -48,13 +73,11 @@ export function RegisterPage() {
     <main className="auth-page">
       <section className="card auth-card">
         <h1>회원가입</h1>
-        <p className="auth-description">
-          소속 GA에서 안내받은 초대 코드와 아이디·비밀번호를 등록합니다.
-        </p>
+        <p className="auth-description">소속 GA에서 안내받은 초대 코드로 가입합니다.</p>
 
         <form className="auth-form" onSubmit={(e) => void handleSignup(e)}>
           <label className="field">
-            <span className="field__label">초대 코드 (invite_code)</span>
+            <span className="field__label">GA 코드 (invite_code)</span>
             <input
               value={inviteCode}
               onChange={(e) => setInviteCode(e.target.value)}
@@ -65,11 +88,23 @@ export function RegisterPage() {
           </label>
 
           <label className="field">
+            <span className="field__label">이름</span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoComplete="name"
+              placeholder="실명 또는 표시 이름"
+              required
+            />
+          </label>
+
+          <label className="field">
             <span className="field__label">아이디</span>
             <input
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               autoComplete="username"
+              placeholder="로그인에 사용할 아이디"
               required
             />
           </label>
@@ -81,6 +116,7 @@ export function RegisterPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="new-password"
+              placeholder="비밀번호"
               required
             />
           </label>
@@ -92,6 +128,7 @@ export function RegisterPage() {
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               autoComplete="new-password"
+              placeholder="비밀번호 다시 입력"
               required
             />
           </label>

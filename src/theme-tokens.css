@@ -114,6 +114,13 @@
   --divider-auth: var(--border);
   --auth-input-border: #cbd5e1;
 
+  /* 폼·관리 화면 공통 의미 토큰 (별칭) */
+  --border-default: var(--border);
+  --bg-input: var(--input-bg);
+  --text-primary: var(--text-main);
+  --bg-elevated: var(--bg-card);
+  --brand-primary: var(--primary);
+
   /* 인쇄·결과 양식(종이 느낌 유지 — 변수로만 참조) */
   --result-paper-bg: #ffffff;
   --result-paper-text: #121212;
@@ -251,6 +258,12 @@ body.dark {
 
   --divider-auth: var(--border);
   --auth-input-border: rgb(255 255 255 / 0.22);
+
+  --border-default: var(--border);
+  --bg-input: var(--input-bg);
+  --text-primary: var(--text-main);
+  --bg-elevated: var(--bg-card);
+  --brand-primary: var(--primary);
 
   /* 다크에서도 인쇄 미리보기는 밝은 종이 유지 */
   --result-paper-bg: #ffffff;

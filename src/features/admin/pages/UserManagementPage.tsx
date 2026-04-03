@@ -122,6 +122,7 @@ export default function UserManagementPage() {
     setEditing(r)
     setEditGaId(r.ga_id)
     setEditRole(r.role)
+    setEditStatus(normalizeUserStatus(r.status as string))
   }
 
   const closeEdit = () => {
@@ -204,6 +205,104 @@ export default function UserManagementPage() {
     }
   }
 
+  const renderRowCells = (r: AdminUserRow) => {
+    const st = normalizeUserStatus(r.status as string)
+    const displayName = String(r.display_name ?? '').trim()
+    return (
+      <>
+        <td>{r.ga_company_name}</td>
+        <td>{displayName || '—'}</td>
+        <td>{r.username}</td>
+        <td>{r.role}</td>
+        <td>
+          <StatusBadge status={st} />
+        </td>
+        <td className="admin-table-cell--actions">
+          <div className="admin-table-actions">
+            <select
+              className="admin-form-input"
+              style={{ width: 'auto', minWidth: 100 }}
+              value={st}
+              onChange={(e) => void applyUserStatus(r, e.target.value as EntityStatus)}
+              disabled={isLoading}
+              aria-label={`${r.username} 상태 변경`}
+            >
+              {STATUS_SELECT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <button type="button" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
+              수정
+            </button>
+            <button
+              type="button"
+              className="button button--secondary"
+              onClick={() => void confirmDeleteUser(r)}
+              disabled={isLoading}
+            >
+              삭제
+            </button>
+          </div>
+        </td>
+      </>
+    )
+  }
+
+  const renderUserCard = (r: AdminUserRow) => {
+    const st = normalizeUserStatus(r.status as string)
+    const displayName = String(r.display_name ?? '').trim()
+    return (
+      <article key={r.id} className="admin-user-card">
+        <div className="admin-user-card__row">
+          <span className="admin-user-card__label">GA</span>
+          <span className="admin-user-card__value">{r.ga_company_name}</span>
+        </div>
+        <div className="admin-user-card__row">
+          <span className="admin-user-card__label">이름</span>
+          <span className="admin-user-card__value">{displayName || '—'}</span>
+        </div>
+        <div className="admin-user-card__row">
+          <span className="admin-user-card__label">아이디</span>
+          <span className="admin-user-card__value">{r.username}</span>
+        </div>
+        <div className="admin-user-card__row">
+          <span className="admin-user-card__label">역할</span>
+          <span className="admin-user-card__value">{r.role}</span>
+        </div>
+        <div className="admin-user-card__row">
+          <span className="admin-user-card__label">상태</span>
+          <span className="admin-user-card__value">
+            <StatusBadge status={st} />
+          </span>
+        </div>
+        <div className="admin-user-card__actions">
+          <select
+            className="admin-form-input"
+            style={{ flex: '1 1 120px', minWidth: 0 }}
+            value={st}
+            onChange={(e) => void applyUserStatus(r, e.target.value as EntityStatus)}
+            disabled={isLoading}
+            aria-label={`${r.username} 상태`}
+          >
+            {STATUS_SELECT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <button type="button" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
+            수정
+          </button>
+          <button type="button" className="button button--secondary" onClick={() => void confirmDeleteUser(r)} disabled={isLoading}>
+            삭제
+          </button>
+        </div>
+      </article>
+    )
+  }
+
   if (user?.role !== 'SUPER_ADMIN') {
     return (
       <main className="page page--with-back">
@@ -224,10 +323,11 @@ export default function UserManagementPage() {
         <p>{loadError || saveOk || 'GA별로 사용자를 조회합니다.'}</p>
       </header>
 
-      <section className="admin-user-management__toolbar card auth-card" style={{ maxWidth: 960, margin: '0 auto' }}>
-        <label className="field" style={{ marginBottom: 0 }}>
+      <section className="admin-toolbar admin-user-management__toolbar card auth-card" style={{ maxWidth: 960, margin: '0 auto' }}>
+        <label className="field admin-modal-field" style={{ marginBottom: 0 }}>
           <span className="field__label">GA 선택</span>
           <select
+            className="admin-form-input"
             value={gaFilter === 'all' ? '' : String(gaFilter)}
             onChange={(e) => {
               setSaveOk('')
@@ -247,223 +347,111 @@ export default function UserManagementPage() {
         </label>
       </section>
 
-      <div
-        className="admin-user-management__table-wrap card"
-        style={{
-          maxWidth: 960,
-          margin: '16px auto 0',
-          padding: 0,
-          overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch',
-        }}
-      >
-        <table
-          className="admin-user-table"
-          style={{
-            width: '100%',
-            minWidth: '720px',
-            borderCollapse: 'collapse',
-            fontSize: '14px',
-          }}
-        >
-          <thead>
-            <tr style={{ borderBottom: '2px solid var(--border)' }}>
-              <th
-                scope="col"
-                style={{ textAlign: 'left', padding: '12px 14px', fontWeight: 600, whiteSpace: 'nowrap' }}
-              >
-                이름
-              </th>
-              <th
-                scope="col"
-                style={{ textAlign: 'left', padding: '12px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}
-              >
-                아이디
-              </th>
-              <th
-                scope="col"
-                style={{ textAlign: 'left', padding: '12px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}
-              >
-                GA
-              </th>
-              <th
-                scope="col"
-                style={{ textAlign: 'left', padding: '12px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}
-              >
-                역할
-              </th>
-              <th
-                scope="col"
-                style={{ textAlign: 'left', padding: '12px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}
-              >
-                상태
-              </th>
-              <th
-                scope="col"
-                style={{ textAlign: 'left', padding: '12px 10px', fontWeight: 600, whiteSpace: 'nowrap' }}
-              >
-                관리
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && !isLoading ? (
+      <div className="card admin-user-management__table-wrap" style={{ maxWidth: 960, margin: '16px auto 0', padding: 0 }}>
+        <div className="table-container table-container--desktop">
+          <table className="admin-user-table admin-data-table">
+            <thead>
               <tr>
-                <td colSpan={6} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
-                  표시할 사용자가 없습니다.
-                </td>
+                <th scope="col">GA</th>
+                <th scope="col">이름</th>
+                <th scope="col">아이디</th>
+                <th scope="col">역할</th>
+                <th scope="col">상태</th>
+                <th scope="col" className="admin-table-cell--actions">
+                  관리
+                </th>
               </tr>
-            ) : (
-              rows.map((r) => {
-                const st = normalizeUserStatus(r.status as string)
-                const displayName = String(r.display_name ?? '').trim()
-                return (
-                  <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '12px 14px', verticalAlign: 'middle' }}>
-                      {displayName || '—'}
-                    </td>
-                    <td style={{ padding: '12px 10px', verticalAlign: 'middle', wordBreak: 'break-all' }}>
-                      {r.username}
-                    </td>
-                    <td style={{ padding: '12px 10px', verticalAlign: 'middle' }}>{r.ga_company_name}</td>
-                    <td style={{ padding: '12px 10px', verticalAlign: 'middle' }}>{r.role}</td>
-                    <td style={{ padding: '12px 10px', verticalAlign: 'middle' }}>
-                      <StatusBadge status={st} />
-                    </td>
-                    <td style={{ padding: '12px 10px', verticalAlign: 'middle' }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-                        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
-                          <span className="visually-hidden">상태 변경</span>
-                          <select
-                            value={st}
-                            onChange={(e) => void applyUserStatus(r, e.target.value as EntityStatus)}
-                            disabled={isLoading}
-                            aria-label={`${r.username} 상태`}
-                          >
-                            {STATUS_SELECT_OPTIONS.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <button
-                          type="button"
-                          className="button button--secondary"
-                          onClick={() => openEdit(r)}
-                          disabled={isLoading}
-                        >
-                          수정
-                        </button>
-                        <button
-                          type="button"
-                          className="button button--secondary"
-                          onClick={() => void confirmDeleteUser(r)}
-                          disabled={isLoading}
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.length === 0 && !isLoading ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
+                    표시할 사용자가 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                rows.map((r) => <tr key={r.id}>{renderRowCells(r)}</tr>)
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="admin-responsive-card-list" style={{ padding: 12 }}>
+          {rows.length === 0 && !isLoading ? (
+            <p style={{ margin: 0, color: 'var(--text-sub)', padding: '8px 4px' }}>표시할 사용자가 없습니다.</p>
+          ) : (
+            rows.map((r) => renderUserCard(r))
+          )}
+        </div>
       </div>
 
       {editing ? (
-        <div
-          className="admin-user-edit-backdrop"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.45)',
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'center',
-            padding: '16px',
-            zIndex: 1000,
-          }}
-          role="presentation"
-          onClick={closeEdit}
-        >
-          <div
-            className="card auth-card"
-            role="dialog"
-            aria-labelledby="user-edit-title"
-            style={{
-              width: '100%',
-              maxWidth: 420,
-              maxHeight: '90vh',
-              overflow: 'auto',
-              marginBottom: 'env(safe-area-inset-bottom, 0)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="admin-modal-backdrop" role="presentation" onClick={closeEdit}>
+          <div className="admin-modal-panel" role="dialog" aria-labelledby="user-edit-title" onClick={(e) => e.stopPropagation()}>
             <h2 id="user-edit-title" style={{ marginTop: 0 }}>
               유저 수정
             </h2>
-            <p style={{ marginTop: 0, wordBreak: 'break-all' }}>
-              <strong>{editing.username}</strong>
-            </p>
-            {saveError ? (
-              <p style={{ color: 'var(--danger, #c0392b)', marginTop: 0 }}>{saveError}</p>
-            ) : null}
-            <label className="field">
-              <span className="field__label">GA 회사</span>
-              <select
-                value={String(editGaId)}
-                onChange={(e) => setEditGaId(Number(e.target.value))}
-                disabled={isSaving}
-              >
-                {gaList.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span className="field__label">역할</span>
-              <select
-                value={editRole}
-                onChange={(e) => setEditRole(e.target.value as UserRole)}
-                disabled={isSaving}
-              >
-                {EDIT_ROLE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span className="field__label">상태</span>
-              <select
-                value={editStatus}
-                onChange={(e) => setEditStatus(e.target.value as EntityStatus)}
-                disabled={isSaving}
-              >
-                {STATUS_SELECT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="button button--primary"
-                onClick={() => void submitEdit()}
-                disabled={isSaving}
-              >
-                {isSaving ? '저장 중…' : '저장'}
-              </button>
+            <div className="admin-modal-content">
+              <p style={{ margin: 0, wordBreak: 'break-all', fontSize: 14 }}>
+                <strong>{editing.username}</strong>
+              </p>
+              {saveError ? (
+                <p className="status status--error" style={{ margin: 0 }}>
+                  {saveError}
+                </p>
+              ) : null}
+              <label className="field admin-modal-field">
+                <span className="field__label">GA 회사</span>
+                <select
+                  className="admin-form-input"
+                  value={String(editGaId)}
+                  onChange={(e) => setEditGaId(Number(e.target.value))}
+                  disabled={isSaving}
+                >
+                  {gaList.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field admin-modal-field">
+                <span className="field__label">역할</span>
+                <select
+                  className="admin-form-input"
+                  value={editRole}
+                  onChange={(e) => setEditRole(e.target.value as UserRole)}
+                  disabled={isSaving}
+                >
+                  {EDIT_ROLE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field admin-modal-field">
+                <span className="field__label">상태</span>
+                <select
+                  className="admin-form-input"
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as EntityStatus)}
+                  disabled={isSaving}
+                >
+                  {STATUS_SELECT_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="admin-modal-actions">
               <button type="button" className="button button--secondary" onClick={closeEdit} disabled={isSaving}>
                 취소
+              </button>
+              <button type="button" className="button button--primary" onClick={() => void submitEdit()} disabled={isSaving}>
+                {isSaving ? '저장 중…' : '저장'}
               </button>
             </div>
           </div>

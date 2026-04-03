@@ -59,6 +59,12 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === '/admin/ga') {
     return pathname === '/admin/ga' || pathname === '/admin/create-ga'
   }
+  if (itemPath === '/portal/newsletters') {
+    return pathname === '/portal/newsletters' || pathname.startsWith('/portal/newsletters/')
+  }
+  if (itemPath === '/portal/insurer-news/login') {
+    return pathname.startsWith('/portal/insurer-news')
+  }
   return pathname === itemPath
 }
 
