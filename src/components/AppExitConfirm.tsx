@@ -13,8 +13,9 @@ export function AppExitConfirm() {
       if (!isAuthenticated || historyAction !== 'POP') {
         return false
       }
-      const { pathname: p, search: s } = currentLocation
-      return getBackNavigationBlock(p, s).shouldBlock
+      const path = currentLocation.pathname
+      const search = currentLocation.search ?? ''
+      return getBackNavigationBlock(path, search).shouldBlock
     },
     [isAuthenticated],
   )

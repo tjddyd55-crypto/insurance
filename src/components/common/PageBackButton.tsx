@@ -29,6 +29,10 @@ export function PageBackButton() {
     setConfirmMessage(null)
   }
 
+  if (pathname === '/dashboard') {
+    return null
+  }
+
   return (
     <>
       <button
