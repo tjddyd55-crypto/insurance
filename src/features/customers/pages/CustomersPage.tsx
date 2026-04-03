@@ -225,7 +225,7 @@ export default function CustomersPage() {
       await navigator.clipboard.writeText(text)
       window.alert('복사되었습니다')
     } catch {
-      setStatusText('클립보드 복사에 실패했습니다.')
+      setStatusText('복사에 실패했습니다.')
     }
   }
 
@@ -304,7 +304,7 @@ export default function CustomersPage() {
       await navigator.clipboard.writeText(link)
       window.alert('복사되었습니다')
     } catch {
-      setStatusText('클립보드 복사에 실패했습니다.')
+      setStatusText('복사에 실패했습니다.')
     }
   }
 

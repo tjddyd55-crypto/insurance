@@ -2,13 +2,18 @@ import { useCallback } from 'react'
 import { useBlocker, type BlockerFunction } from 'react-router'
 import { useAuth } from '../features/auth/AuthProvider'
 
-/** 로그인 후 ‘허브’에서 시스템/브라우저 뒤로가기(POP) 시에만 확인 */
-const HUB_PATHS = new Set([
-  '/dashboard',
-  '/application',
-  '/menu/car-insurance',
-  '/customers',
-])
+/** 로그인 후 허브에서 브라우저/시스템 뒤로가기(POP) 시 확인 */
+const HUB_PATHS = ['/dashboard', '/application', '/menu', '/customers'] as const
+
+function isHubPath(pathname: string): boolean {
+  if (HUB_PATHS.includes(pathname as (typeof HUB_PATHS)[number])) {
+    return true
+  }
+  if (pathname.startsWith('/menu/')) {
+    return true
+  }
+  return false
+}
 
 export function AppExitConfirm() {
   const { isAuthenticated } = useAuth()
@@ -17,7 +22,7 @@ export function AppExitConfirm() {
       if (!isAuthenticated || historyAction !== 'POP') {
         return false
       }
-      return HUB_PATHS.has(currentLocation.pathname)
+      return isHubPath(currentLocation.pathname)
     },
     [isAuthenticated],
   )
@@ -35,7 +40,7 @@ export function AppExitConfirm() {
         aria-modal="true"
         aria-labelledby="app-exit-confirm-title"
       >
-        <h3 id="app-exit-confirm-title">종료하시겠습니까?</h3>
+        <h3 id="app-exit-confirm-title">앱을 종료하시겠습니까?</h3>
         <div className="modal-actions app-exit-modal__actions">
           <button type="button" className="modal-cancel" onClick={() => blocker.reset()}>
             취소
