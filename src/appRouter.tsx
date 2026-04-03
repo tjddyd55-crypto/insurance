@@ -19,6 +19,7 @@ import CompanyRegistryPage from './features/company-registry/pages/CompanyRegist
 import GeneralRequestPage from './features/company-registry/pages/GeneralRequestPage'
 import InsuranceCompanyContactsViewPage from './features/company-registry/pages/InsuranceCompanyContactsViewPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
+import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
 
 export const appRouter = createBrowserRouter([
   {
@@ -28,6 +29,8 @@ export const appRouter = createBrowserRouter([
       { index: true, element: <HomeRedirect /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
+      { path: 'privacy', element: <PrivacyPolicyPage /> },
+      { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
       { path: 'customer/input', element: <CustomerInputPage /> },
       { path: 'contacts', element: <Navigate to="/insurance/contacts" replace /> },
       { path: 'contacts/manage', element: <Navigate to="/insurance/company-registry" replace /> },

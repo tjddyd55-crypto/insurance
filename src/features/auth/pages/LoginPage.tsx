@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../AuthProvider'
 import { login as loginApi, register as registerApi } from '../authApi'
 
@@ -105,6 +105,12 @@ export function LoginPage() {
                 회원가입
               </button>
             </div>
+
+            <p className="auth-legal-links">
+              <Link to="/privacy" className="auth-legal-links__a" target="_blank" rel="noopener noreferrer">
+                개인정보처리방침
+              </Link>
+            </p>
           </>
         ) : (
           <>
@@ -146,6 +152,12 @@ export function LoginPage() {
                 로그인
               </button>
             </div>
+
+            <p className="auth-legal-links">
+              <Link to="/privacy" className="auth-legal-links__a" target="_blank" rel="noopener noreferrer">
+                개인정보처리방침
+              </Link>
+            </p>
           </>
         )}
       </section>
