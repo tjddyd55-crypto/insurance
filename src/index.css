@@ -642,6 +642,26 @@ body {
   margin: 0;
 }
 
+.list-section-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.customers-create-exit-row {
+  margin: 0 0 12px;
+}
+
+.customers-create-back-btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .customers-page--excel-toolbar-pad {
   padding-top: calc(88px + env(safe-area-inset-top, 0px));
 }

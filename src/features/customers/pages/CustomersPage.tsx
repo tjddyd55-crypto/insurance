@@ -105,8 +105,9 @@ export default function CustomersPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
-  const [tab, setTab] = useState<'create' | 'list'>('create')
+  const [tab, setTab] = useState<'create' | 'list'>('list')
   const [keyword, setKeyword] = useState('')
+  const [isCreateExitModalOpen, setIsCreateExitModalOpen] = useState(false)
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([])
   const [selectedColumns, setSelectedColumns] = useState<string[]>([])
@@ -860,43 +861,40 @@ export default function CustomersPage() {
         {statusText ? <p>{statusText}</p> : null}
       </header>
 
-      <div className="tab-container" role="tablist" aria-label="고객 관리 구역">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'create'}
-          className={tab === 'create' ? 'active' : ''}
-          onClick={() => setTab('create')}
-        >
-          고객 등록
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === 'list'}
-          className={tab === 'list' ? 'active' : ''}
-          onClick={() => setTab('list')}
-        >
-          고객 조회
-        </button>
-      </div>
-
       {tab === 'create' ? (
-        <section className="card" style={{ marginTop: 0 }}>
-          <CustomerForm
-            onStatusMessage={setStatusText}
-            onInternalSaveSuccess={() => void loadCustomers()}
-          />
-        </section>
+        <>
+          <div className="customers-create-exit-row">
+            <button
+              type="button"
+              className="link-btn customers-create-back-btn"
+              onClick={() => setIsCreateExitModalOpen(true)}
+            >
+              ← 뒤로가기
+            </button>
+          </div>
+          <section className="card" style={{ marginTop: 0 }}>
+            <CustomerForm
+              onStatusMessage={setStatusText}
+              onInternalSaveSuccess={() => void loadCustomers()}
+            />
+          </section>
+        </>
       ) : (
         <section className="list-section" style={{ marginTop: 0 }}>
           <div className="list-section-header-row">
             <h2 className="dashboard-section-title">저장된 고객</h2>
-            {!isSelectMode ? (
-              <button type="button" className="button button--secondary" onClick={enterExcelSelectMode}>
-                엑셀 다운로드
-              </button>
-            ) : null}
+            <div className="list-section-header-actions">
+              {!isSelectMode ? (
+                <>
+                  <button type="button" className="button button--primary" onClick={() => setTab('create')}>
+                    고객 등록
+                  </button>
+                  <button type="button" className="button button--secondary" onClick={enterExcelSelectMode}>
+                    엑셀 다운로드
+                  </button>
+                </>
+              ) : null}
+            </div>
           </div>
           <input
             className="search-input"
@@ -961,6 +959,39 @@ export default function CustomersPage() {
             <div className="modal-actions">
               <button type="button" className="confirm" onClick={() => setIsColumnPickerOpen(false)}>
                 닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isCreateExitModalOpen ? (
+        <div
+          className="modal-overlay"
+          role="presentation"
+          onClick={() => setIsCreateExitModalOpen(false)}
+        >
+          <div
+            className="modal app-exit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="customers-create-exit-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="customers-create-exit-title">고객 등록을 중지하시겠습니까?</h3>
+            <div className="modal-actions app-exit-modal__actions">
+              <button type="button" className="modal-cancel" onClick={() => setIsCreateExitModalOpen(false)}>
+                취소
+              </button>
+              <button
+                type="button"
+                className="confirm"
+                onClick={() => {
+                  setIsCreateExitModalOpen(false)
+                  setTab('list')
+                }}
+              >
+                확인
               </button>
             </div>
           </div>
