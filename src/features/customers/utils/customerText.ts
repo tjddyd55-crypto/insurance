@@ -1,20 +1,25 @@
 import type { CustomerRecord } from '../domain/types'
-import { calculateInsuranceInfo, formatDateYmdInput } from './insuranceInfo'
+import { calculateInsuranceInfo, formatDateYmdInput, formatInsuranceUiDate } from './insuranceInfo'
 
-function resolveInsuranceSnapshot(data: Partial<CustomerRecord>) {
+function resolveInsuranceForCopy(data: Partial<CustomerRecord>) {
   const storedAge = data.insuranceAge
   const storedNext = data.nextAgeDate
   if (storedAge != null && storedNext) {
-    return { age: storedAge, nextYmd: formatDateYmdInput(storedNext) }
+    return {
+      age: storedAge,
+      dateLabel: formatDateYmdInput(storedNext),
+      ok: true,
+    }
   }
   const fromRrn = calculateInsuranceInfo(String(data.ssn ?? ''))
-  const ymd = fromRrn.nextAgeDate
-    ? `${fromRrn.nextAgeDate.getFullYear()}-${fromRrn.nextAgeDate.getMonth() + 1}-${fromRrn.nextAgeDate.getDate()}`
-    : null
-  if (fromRrn.age != null && ymd) {
-    return { age: fromRrn.age, nextYmd: ymd }
+  if (fromRrn.age != null && fromRrn.nextAgeDate) {
+    return {
+      age: fromRrn.age,
+      dateLabel: formatInsuranceUiDate(fromRrn.nextAgeDate),
+      ok: true,
+    }
   }
-  return { age: null as number | null, nextYmd: null as string | null }
+  return { age: null as number | null, dateLabel: '', ok: false }
 }
 
 function genderLabel(g: CustomerRecord['gender']): string {
@@ -37,12 +42,10 @@ export function generateCustomerText(data: Partial<CustomerRecord> | Record<stri
   const isDriver = (data as Partial<CustomerRecord>).isDriver
   const carType = String((data as Partial<CustomerRecord>).carType ?? '').trim()
 
-  const { age, nextYmd } = resolveInsuranceSnapshot(data as Partial<CustomerRecord>)
-
-  const insuranceLine =
-    age != null && nextYmd
-      ? `${age}세 (상령일: ${formatDateYmdInput(nextYmd)})`
-      : '확인 필요'
+  const ins = resolveInsuranceForCopy(data as Partial<CustomerRecord>)
+  const insuranceLine = ins.ok
+    ? `보험나이: ${ins.age}세 · 상령일: ${ins.dateLabel}`
+    : '보험나이: 확인 필요 · 상령일: 확인 필요'
 
   const driverLine =
     isDriver === true
@@ -56,7 +59,7 @@ export function generateCustomerText(data: Partial<CustomerRecord> | Record<stri
   const text = `
 이름: ${name}
 성별: ${genderLabel(gender ?? null)}
-보험나이: ${insuranceLine}
+${insuranceLine}
 운전여부: ${driverLine}
 
 [메모]

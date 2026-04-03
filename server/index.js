@@ -100,32 +100,43 @@ function mapFormRow(row) {
 }
 
 function calculateInsuranceInfoFromRrn(rrnRaw) {
-  const digits = String(rrnRaw ?? '').replace(/\D/g, '')
-  if (digits.length < 7) {
+  const clean = String(rrnRaw ?? '').replace(/[^0-9]/g, '')
+  if (clean.length < 7) {
     return { age: null, nextAgeDate: null }
   }
-  const birth = digits.slice(0, 6)
-  const genderCode = digits[6]
-  let yearPrefix = '19'
+  const birth = clean.substring(0, 6)
+  const genderCode = clean[6]
+  let yearPrefix = null
+  if (genderCode === '1' || genderCode === '2') {
+    yearPrefix = '19'
+  }
   if (genderCode === '3' || genderCode === '4') {
     yearPrefix = '20'
+  }
+  if (!yearPrefix) {
+    return { age: null, nextAgeDate: null }
   }
   const year = parseInt(yearPrefix + birth.substring(0, 2), 10)
   const month = parseInt(birth.substring(2, 4), 10)
   const day = parseInt(birth.substring(4, 6), 10)
   const birthDate = new Date(year, month - 1, day)
-  if (Number.isNaN(birthDate.getTime())) {
+  if (
+    Number.isNaN(birthDate.getTime()) ||
+    birthDate.getFullYear() !== year ||
+    birthDate.getMonth() !== month - 1 ||
+    birthDate.getDate() !== day
+  ) {
     return { age: null, nextAgeDate: null }
   }
   const today = new Date()
-  let age = today.getFullYear() - year
+  let insuranceAge = today.getFullYear() - year
   const thisYearBirthday = new Date(today.getFullYear(), month - 1, day)
-  const nextAgeDate = new Date(thisYearBirthday)
-  nextAgeDate.setMonth(nextAgeDate.getMonth() + 6)
-  if (today >= nextAgeDate) {
-    age += 1
+  const thisYearUpperDate = new Date(thisYearBirthday)
+  thisYearUpperDate.setMonth(thisYearUpperDate.getMonth() + 6)
+  if (today >= thisYearUpperDate) {
+    insuranceAge += 1
   }
-  return { age, nextAgeDate }
+  return { age: insuranceAge, nextAgeDate: thisYearUpperDate }
 }
 
 function nextAgeDateToSqlDate(d) {
