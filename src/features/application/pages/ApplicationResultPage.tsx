@@ -44,7 +44,8 @@ export function ApplicationResultPage() {
 
   if (!record) {
     return (
-      <main className="page">
+      <main className="page page--with-back">
+        <PageBackButton />
         <header className="page-header">
           <h1>결과문을 찾을 수 없습니다.</h1>
           <p>저장된 신청서에서 다시 불러와 주세요.</p>
