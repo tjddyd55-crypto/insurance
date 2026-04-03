@@ -352,6 +352,7 @@ export default function CustomersPage() {
 
   function handleDownloadSelected() {
     if (selectedCustomerIds.length === 0) {
+      window.alert('고객을 선택해주세요')
       setStatusText('다운로드할 고객을 선택해 주세요.')
       return
     }
@@ -360,8 +361,14 @@ export default function CustomersPage() {
     runExport(rows)
   }
 
-  function handleDownloadAll() {
-    runExport([...customers])
+  /** 현재 검색·정렬된 목록 전체 (필터 반영) */
+  function handleDownloadListAll() {
+    if (sortedCustomers.length === 0) {
+      window.alert('다운로드할 고객이 없습니다.')
+      setStatusText('목록에 표시된 고객이 없습니다.')
+      return
+    }
+    runExport([...sortedCustomers])
   }
 
   function toggleExcelColumn(id: string) {
@@ -805,7 +812,9 @@ export default function CustomersPage() {
     >
       {isSelectMode && tab === 'list' ? (
         <div className="customers-excel-toolbar" role="region" aria-label="엑셀 다운로드 선택">
-          <p className="customers-excel-toolbar__status">엑셀 다운로드 모드 — 고객을 선택한 뒤 다운로드하세요</p>
+          <p className="customers-excel-toolbar__status">
+            엑셀 선택 중 —「선택 다운로드」는 체크한 고객,「목록 전체 다운로드」는 지금 검색·정렬된 목록만
+          </p>
           <div className="customers-excel-toolbar__row">
             <label className="customers-excel-toolbar__select-all">
               <input
@@ -832,8 +841,8 @@ export default function CustomersPage() {
             <button type="button" className="button button--primary" onClick={handleDownloadSelected}>
               선택 다운로드
             </button>
-            <button type="button" className="button button--secondary" onClick={handleDownloadAll}>
-              전체 다운로드
+            <button type="button" className="button button--secondary" onClick={handleDownloadListAll}>
+              목록 전체 다운로드
             </button>
             <button type="button" className="button button--secondary" onClick={exitExcelSelectMode}>
               취소

@@ -64,14 +64,16 @@ export function exportCustomersExcel(rows: CustomerRecord[], columnIds: string[]
   const header = ids.map((id) => EXCEL_COLUMN_META.find((m) => m.id === id)!.label)
   const dataRows = rows.map((c) => ids.map((id) => cellValue(c, id)))
   const sheet = XLSX.utils.aoa_to_sheet([header, ...dataRows])
+  sheet['!cols'] = ids.map(() => ({ wch: 20 }))
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, sheet, '고객')
-  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
-  const stamp = new Date().toISOString().slice(0, 10)
+  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array', cellStyles: true })
+  const today = new Date().toISOString().slice(0, 10)
+  const filename = `${baseFilename}_${today}.xlsx`
   saveAs(
     new Blob([out], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     }),
-    `${baseFilename}_${stamp}.xlsx`,
+    filename,
   )
 }

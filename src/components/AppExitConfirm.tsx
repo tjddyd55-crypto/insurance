@@ -6,13 +6,7 @@ import { useAuth } from '../features/auth/AuthProvider'
 const HUB_PATHS = ['/dashboard', '/application', '/menu', '/customers'] as const
 
 function isHubPath(pathname: string): boolean {
-  if (HUB_PATHS.includes(pathname as (typeof HUB_PATHS)[number])) {
-    return true
-  }
-  if (pathname.startsWith('/menu/')) {
-    return true
-  }
-  return false
+  return HUB_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 }
 
 export function AppExitConfirm() {
