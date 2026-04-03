@@ -71,7 +71,7 @@ export default function CompanyRegistryPage() {
     const mapNames = new Set(fromMap.map((o) => o.name))
     const extras: InsuranceCompanyOption[] = []
     for (const e of list) {
-      const rowKey = canonicalInsuranceCategoryForFilter(resolveTabCategory(e.category, e.name))
+      const rowKey = canonicalInsuranceCategoryForFilter(e.category, e.name ?? '')
       if (rowKey !== filterKey) {
         continue
       }

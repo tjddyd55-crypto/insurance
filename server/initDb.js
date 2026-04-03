@@ -5,6 +5,7 @@ import {
   runCompanyDirectorySanitize,
   touchContactLastUpdatedAt,
 } from './lib/companyDirectorySanitize.js'
+import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
 
 /**
  * ⚠️ 디버그 전용: insurance_forms 등 user_id FK는 ON DELETE CASCADE 로 함께 정리됨.
@@ -66,6 +67,64 @@ async function ensureBootstrapAdminUser() {
     [hash, username, gaId],
   )
   console.log('[initDb] admin 비밀번호·역할(SUPER_ADMIN)·ga_id 업데이트 완료:', username)
+}
+
+/**
+ * insurance_company_master.category를 LIFE|NON_LIFE|GENERAL로 맞추고 CHECK 제약을 둔다.
+ * 추론 불가 시 GENERAL(로그). UNIQUE(ga_id,category,name) 충돌 시 해당 행은 스킵(에러 로그).
+ */
+async function ensureInsuranceCompanyMasterCategoryNormalized(pool) {
+  const { rows } = await pool.query(
+    `SELECT id, ga_id, name, category FROM insurance_company_master ORDER BY id`,
+  )
+  let updated = 0
+  let fallbackGeneral = 0
+  for (const row of rows) {
+    let next = resolveInsuranceCategoryForApi(row.category, row.name)
+    if (!next || !['LIFE', 'NON_LIFE', 'GENERAL'].includes(next)) {
+      next = 'GENERAL'
+      fallbackGeneral += 1
+      console.warn('[initDb] 보험사 category 추론 불가 → GENERAL', {
+        id: row.id,
+        name: row.name,
+        categoryWas: row.category,
+      })
+    }
+    if (next === row.category) {
+      continue
+    }
+    try {
+      await pool.query(`UPDATE insurance_company_master SET category = $1 WHERE id = $2`, [
+        next,
+        row.id,
+      ])
+      updated += 1
+    } catch (e) {
+      console.error('[initDb] insurance_company_master category UPDATE 실패', {
+        id: row.id,
+        ga_id: row.ga_id,
+        name: row.name,
+        next,
+        message: e instanceof Error ? e.message : String(e),
+      })
+    }
+  }
+  if (updated > 0) {
+    console.log('[initDb] insurance_company_master category 정규화 반영:', updated, '행')
+  }
+  if (fallbackGeneral > 0) {
+    console.warn('[initDb] insurance_company_master GENERAL 폴백:', fallbackGeneral, '행 → 데이터 점검 권장')
+  }
+
+  await pool.query(`
+    ALTER TABLE insurance_company_master
+    DROP CONSTRAINT IF EXISTS insurance_company_master_category_check
+  `)
+  await pool.query(`
+    ALTER TABLE insurance_company_master
+    ADD CONSTRAINT insurance_company_master_category_check
+    CHECK (category IN ('LIFE', 'NON_LIFE', 'GENERAL'))
+  `)
 }
 
 export async function initDb() {
@@ -745,6 +804,8 @@ export async function initDb() {
   if (meritzDedup.rowCount > 0) {
     console.log('[initDb] 메리츠 LIFE 중복 마스터 제거:', meritzDedup.rowCount, '행')
   }
+
+  await ensureInsuranceCompanyMasterCategoryNormalized(pool)
 
   const meritzIc = await pool.query(`
     UPDATE insurance_contacts

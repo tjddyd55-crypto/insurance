@@ -9,6 +9,10 @@ import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import { initDb } from './initDb.js'
 import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
+import {
+  normalizeInsuranceCompanyCategory,
+  resolveInsuranceCategoryForApi,
+} from './lib/insuranceCompanyCategoryResolve.js'
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
 import { parseGaId } from './lib/parseGaId.js'
 import { registerConsentApi } from './registerConsentApi.js'
@@ -474,51 +478,13 @@ function mapContactUpdateRow(row) {
   }
 }
 
-function normalizeInsuranceCompanyCategory(value) {
-  const s = String(value ?? '')
-    .trim()
-    .normalize('NFKC')
-  if (!s) {
-    return ''
-  }
-  const u = s.toUpperCase().replace(/-/g, '_')
-  if (u === 'NONLIFE') {
-    return 'NON_LIFE'
-  }
-  if (u === 'LIFE' || u === 'NON_LIFE' || u === 'GENERAL') {
-    return u
-  }
-  const lower = s.toLowerCase()
-  if (lower === 'life') {
-    return 'LIFE'
-  }
-  if (lower === 'nonlife') {
-    return 'NON_LIFE'
-  }
-  const ko = s.replace(/\s+/g, '')
-  if (/^(생명|생명보험|생보)$/.test(ko) || ko === '생명보험') {
-    return 'LIFE'
-  }
-  if (
-    /^(손해|손해보험|손보|재산|화재)$/.test(ko) ||
-    ko === '손해보험' ||
-    ko === '손해보험사'
-  ) {
-    return 'NON_LIFE'
-  }
-  if (/^(일반|일반보험)$/.test(ko) || ko === '일반보험') {
-    return 'GENERAL'
-  }
-  return ''
-}
-
 function mapInsuranceCompanyMaster(row) {
-  const normalized = normalizeInsuranceCompanyCategory(row.category)
+  const category = resolveInsuranceCategoryForApi(row.category, row.name) || ''
   const updatedRaw = row.updated_at ?? row.created_at
   return {
     id: Number(row.id),
-    // API는 항상 LIFE | NON_LIFE | GENERAL | '' 만 내려보냄(미분류는 프론트에서 맵·이름으로 추론)
-    category: normalized || '',
+    // API: DB 정규화 후 이름 추론·메리츠 보정까지 반영한 LIFE | NON_LIFE | GENERAL | ''
+    category,
     name: row.name ?? '',
     customerCenter: row.customer_center ?? '',
     systemPhone: row.system_phone ?? '',
@@ -2359,8 +2325,7 @@ apiRouter.post('/company/full-save', requireAuth, requireGaAdminOrSuper, async (
       return
     }
 
-    let category = normalizeInsuranceCompanyCategory(co?.category)
-    category = coerceMeritzFireToNonLifeCategory(category, name)
+    const category = resolveInsuranceCategoryForApi(co?.category, name)
     if (!category || !['LIFE', 'NON_LIFE', 'GENERAL'].includes(category)) {
       res.status(400).json({ message: '보험 종류(생명/손해/일반)를 선택하세요.' })
       return
@@ -2529,8 +2494,7 @@ apiRouter.post('/company/general-save', requireAuth, requireGaAdminOrSuper, asyn
 
     const { company: co, general: g } = req.body ?? {}
     const name = String(co?.name ?? '').trim()
-    let category = normalizeInsuranceCompanyCategory(co?.category)
-    category = coerceMeritzFireToNonLifeCategory(category, name)
+    const category = resolveInsuranceCategoryForApi(co?.category, name)
     if (!name || !category || !['LIFE', 'NON_LIFE', 'GENERAL'].includes(category)) {
       res.status(400).json({ message: '보험 종류와 보험사명이 필요합니다.' })
       return

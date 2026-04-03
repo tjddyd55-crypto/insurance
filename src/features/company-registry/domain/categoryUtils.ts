@@ -1,5 +1,6 @@
 import {
   insuranceCompanyMap,
+  INSURANCE_COMPANY_NAME_CATEGORY_OVERRIDES,
   INSURANCE_TYPE_LABELS,
   INSURANCE_TYPE_ORDER,
   type InsuranceCategory,
@@ -44,17 +45,71 @@ export function normalizeInsuranceCategory(raw: string | undefined | null): Insu
   return ''
 }
 
+function compactCompanyName(name: string): string {
+  return name.replace(/\s+/g, '')
+}
+
+/** 메리츠 화재 계열 — 서버 `coerceMeritzFireToNonLifeCategory`와 동일 조건 */
+function isMeritzFireCompanyName(name: string): boolean {
+  const n = String(name ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .normalize('NFKC')
+  return (
+    n === '메리츠' ||
+    n === '메리츠화재' ||
+    n === '메리츠 화재' ||
+    (n.startsWith('메리츠') && n.includes('화재'))
+  )
+}
+
+/**
+ * 맵 정확 일차 외: 별칭·접미/키워드로 LIFE | NON_LIFE | GENERAL 추론.
+ */
+export function inferInsuranceCategoryFromNameHeuristics(companyName: string): InsuranceCategory | '' {
+  const raw = String(companyName ?? '')
+    .trim()
+    .normalize('NFKC')
+  if (!raw) {
+    return ''
+  }
+  if (isMeritzFireCompanyName(raw)) {
+    return 'NON_LIFE'
+  }
+
+  const fromOverride =
+    INSURANCE_COMPANY_NAME_CATEGORY_OVERRIDES[raw] ??
+    INSURANCE_COMPANY_NAME_CATEGORY_OVERRIDES[compactCompanyName(raw)]
+  if (fromOverride) {
+    return fromOverride
+  }
+
+  const compact = compactCompanyName(raw)
+  if (/일반/.test(compact) && (/(화재|해상|손보|손해)/.test(compact) || /^DB|^KB|^MG/.test(compact))) {
+    return 'GENERAL'
+  }
+  if (/(생명|생보|라이프)$/.test(compact) || compact.endsWith('연금') || /라이프$/i.test(raw)) {
+    return 'LIFE'
+  }
+  if (/(화재|해상|손보|손해|손해보험|재보험)/.test(compact)) {
+    return 'NON_LIFE'
+  }
+  return ''
+}
+
 /**
  * DB category가 비어 있어도 insuranceCompanyMap(2차 드롭다운)에 이름이 있으면 구분 추론.
  */
 export function inferInsuranceCategoryFromKnownCompanies(companyName: string): InsuranceCategory | '' {
-  const q = String(companyName ?? '').trim()
+  const q = String(companyName ?? '')
+    .trim()
+    .normalize('NFKC')
   if (!q) {
     return ''
   }
   for (const cat of INSURANCE_TYPE_ORDER) {
     const options = insuranceCompanyMap[cat] ?? []
-    if (options.some((o) => o.name === q)) {
+    if (options.some((o) => o.name.trim().normalize('NFKC') === q)) {
       return cat
     }
   }
@@ -66,21 +121,13 @@ export function resolveTabCategory(
   rawCategory: string | undefined | null,
   companyName: string | undefined | null,
 ): InsuranceCategory | '' {
-  const name = String(companyName ?? '')
-    .trim()
-    .normalize('NFKC')
-  return (
-    normalizeInsuranceCategory(rawCategory) || inferInsuranceCategoryFromKnownCompanies(name)
-  )
+  return canonicalInsuranceCategoryForFilter(rawCategory, String(companyName ?? ''))
 }
 
 /**
- * 1차(생명/손해/일반) 선택값과 목록 행이 같은 보험 구분인지 — 정규화 후 비교.
- * selected는 드롭다운 값(LIFE | NON_LIFE | GENERAL) 또는 일부 레거시 한글 라벨.
+ * 1차 탭 선택값만 정규화 (이름 미사용).
  */
-export function canonicalInsuranceCategoryForFilter(
-  selected: string | undefined | null,
-): InsuranceCategory | '' {
+function canonicalTabSelectionCategory(selected: string | undefined | null): InsuranceCategory | '' {
   const s = String(selected ?? '')
     .trim()
     .normalize('NFKC')
@@ -95,6 +142,32 @@ export function canonicalInsuranceCategoryForFilter(
     return s as InsuranceCategory
   }
   return ''
+}
+
+/**
+ * - 인자 1개: 1차(생명/손해/일반) 탭 값 정규화.
+ * - 인자 2개: 목록 행 — category 정규화 후 없으면 보험사명으로 추론(맵·별칭·휴리스틱).
+ */
+export function canonicalInsuranceCategoryForFilter(
+  categoryOrSelected: string | undefined | null,
+  companyName?: string | null,
+): InsuranceCategory | '' {
+  if (companyName !== undefined) {
+    const fromCat = normalizeInsuranceCategory(categoryOrSelected)
+    if (fromCat) {
+      return isMeritzFireCompanyName(String(companyName ?? '')) ? 'NON_LIFE' : fromCat
+    }
+    const n = String(companyName ?? '')
+      .trim()
+      .normalize('NFKC')
+    if (!n) {
+      return ''
+    }
+    const inferred =
+      inferInsuranceCategoryFromKnownCompanies(n) || inferInsuranceCategoryFromNameHeuristics(n)
+    return inferred
+  }
+  return canonicalTabSelectionCategory(categoryOrSelected)
 }
 
 export function insuranceCategoryLabel(cat: string | undefined | null): string {

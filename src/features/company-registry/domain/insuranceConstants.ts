@@ -1,3 +1,5 @@
+import insuranceCompanyCategoryAliases from '@insurance-shared/insuranceCompanyCategoryAliases.json'
+
 export const INSURANCE_TYPE_ORDER = ['LIFE', 'NON_LIFE', 'GENERAL'] as const
 
 export type InsuranceCategory = (typeof INSURANCE_TYPE_ORDER)[number]
@@ -71,6 +73,14 @@ export const INSURANCE_COMPANIES_BY_TYPE: Record<InsuranceCategory, string[]> = 
   NON_LIFE: insuranceCompanyMap.NON_LIFE.map((c) => c.name),
   GENERAL: insuranceCompanyMap.GENERAL.map((c) => c.name),
 }
+
+/**
+ * 보험사명 별칭 → 구분. 서버는 동일 JSON을 로드(`INSURANCE_COMPANY_CATEGORY_ALIASES`). 수정 시 `shared/insuranceCompanyCategoryAliases.json`만 변경.
+ */
+export const INSURANCE_COMPANY_NAME_CATEGORY_OVERRIDES = insuranceCompanyCategoryAliases as Record<
+  string,
+  InsuranceCategory
+>
 
 export function isInsuranceCategory(value: string): value is InsuranceCategory {
   return (INSURANCE_TYPE_ORDER as readonly string[]).includes(value)

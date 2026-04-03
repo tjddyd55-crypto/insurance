@@ -71,25 +71,10 @@ export function findSavedEntryForSelection(
   if (!want) {
     return undefined
   }
-  const resolved = rows.find((e) => {
-    const rowCat = resolveTabCategory(e.category, e.name)
-    const rowWant = canonicalInsuranceCategoryForFilter(rowCat)
-    return rowWant === want && e.name.trim().normalize('NFKC') === q
-  })
-  if (resolved) {
-    return resolved
-  }
   return rows.find(
     (e) =>
       e.name.trim().normalize('NFKC') === q &&
-      (canonicalInsuranceCategoryForFilter(normalizeInsuranceCategory(e.category) || e.category) ===
-        want ||
-        canonicalInsuranceCategoryForFilter(
-          String(e.category ?? '')
-            .trim()
-            .toUpperCase()
-            .replace(/-/g, '_'),
-        ) === want),
+      canonicalInsuranceCategoryForFilter(e.category, e.name ?? '') === want,
   )
 }
 
