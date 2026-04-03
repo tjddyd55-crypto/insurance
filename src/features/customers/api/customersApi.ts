@@ -112,3 +112,15 @@ export async function saveCustomer(
   })
   return body.data
 }
+
+/** 로그인 없이 ref(담당자 user id) 계정으로 고객 저장 (외부 입력 전용) */
+export async function saveCustomerExternal(
+  refUserId: string,
+  payload: SaveCustomerPayload,
+): Promise<CustomerRecord> {
+  const body = await apiRequest<{ success: boolean; data: CustomerRecord }>('/api/customer/external-create', {
+    method: 'POST',
+    body: JSON.stringify({ refUserId, ...payload }),
+  })
+  return body.data
+}

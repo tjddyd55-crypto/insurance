@@ -1690,6 +1690,93 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
   }
 })
 
+apiRouter.post('/customer/external-create', async (req, res) => {
+  try {
+    const data = req.body ?? {}
+    const refUserId = String(data.refUserId ?? data.ref_user_id ?? '').trim()
+    if (!refUserId) {
+      res.status(400).json({ message: '소개 링크 정보가 없습니다.' })
+      return
+    }
+
+    const userRow = await pool.query(`SELECT id, role FROM users WHERE id = $1`, [refUserId])
+    if (userRow.rowCount === 0) {
+      res.status(400).json({ message: '유효하지 않은 소개 링크입니다.' })
+      return
+    }
+    if (normalizeUserRole(userRow.rows[0].role) !== 'user') {
+      res.status(400).json({ message: '고객 정보를 받을 수 있는 계정이 아닙니다.' })
+      return
+    }
+
+    const name = String(data.name ?? '').trim()
+    if (!name) {
+      res.status(400).json({ message: '고객 이름은 필수입니다.' })
+      return
+    }
+
+    let isDriver = null
+    if (data.isDriver === true || data.is_driver === true) {
+      isDriver = true
+    } else if (data.isDriver === false || data.is_driver === false) {
+      isDriver = false
+    }
+    const carType = String(data.carType ?? data.car_type ?? '').trim()
+    if (isDriver === true && !carType) {
+      res.status(400).json({ message: '차종을 입력해주세요.' })
+      return
+    }
+
+    const ssn = String(data.ssn ?? '').trim()
+    const { age: insuranceAge, nextAgeDate: nextAgeDateObj } = calculateInsuranceInfoFromRrn(ssn)
+    const nextAgeSql = nextAgeDateToSqlDate(nextAgeDateObj)
+
+    const genderRaw = String(data.gender ?? '').trim()
+    const gender = genderRaw === 'male' || genderRaw === 'female' ? genderRaw : ''
+
+    const notes = normalizeCustomerNotesInput(data.notes)
+    const driving =
+      isDriver === true ? '운전함' : isDriver === false ? '운전 안함' : String(data.driving ?? '').trim()
+
+    const inserted = await pool.query(
+      `
+      INSERT INTO customers (
+        user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        gender, insurance_age, next_age_date, is_driver, car_type, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb)
+      RETURNING
+        id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        car_number, car_model, car_year, renewal_date,
+        gender, insurance_age, next_age_date, is_driver, car_type, notes,
+        created_at
+      `,
+      [
+        refUserId,
+        name,
+        ssn,
+        String(data.phone ?? '').trim(),
+        String(data.carrier ?? '').trim(),
+        String(data.address ?? '').trim(),
+        String(data.height ?? '').trim(),
+        String(data.weight ?? '').trim(),
+        String(data.job ?? '').trim(),
+        driving,
+        String(data.medical ?? '').trim(),
+        gender,
+        insuranceAge,
+        nextAgeSql,
+        isDriver,
+        carType,
+        JSON.stringify(notes),
+      ],
+    )
+
+    res.status(201).json({ success: true, data: mapCustomerRow(inserted.rows[0]) })
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
 apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
   try {
     const userId = requireInsuranceFormUserId(req, res)

@@ -12,6 +12,7 @@ import { ReinsurerContactsPage } from './features/contacts/pages/ReinsurerContac
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
 import CustomersPage from './features/customers/pages/CustomersPage'
 import CustomerCarPage from './features/customers/pages/CustomerCarPage'
+import CustomerInputPage from './features/customers/pages/CustomerInputPage'
 import CreateStaffPage from './features/admin/pages/CreateStaffPage'
 import CompanyRegistryPage from './features/company-registry/pages/CompanyRegistryPage'
 import GeneralRequestPage from './features/company-registry/pages/GeneralRequestPage'
@@ -32,6 +33,7 @@ function App() {
       <Route path="/" element={<HomeRedirect />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/customer/input" element={<CustomerInputPage />} />
       <Route path="/contacts" element={<Navigate to="/insurance/contacts" replace />} />
       <Route path="/contacts/manage" element={<Navigate to="/insurance/company-registry" replace />} />
       <Route path="/updates" element={<Navigate to="/insurance/history" replace />} />

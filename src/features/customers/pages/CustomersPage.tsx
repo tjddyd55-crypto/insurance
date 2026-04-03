@@ -7,18 +7,19 @@ import {
   deleteCustomer,
   listCustomerForms,
   listCustomers,
-  saveCustomer,
   updateCustomer,
 } from '../api/customersApi'
 import type { CustomerNote, CustomerRecord } from '../domain/types'
 import { storeSelectedCustomer } from '../storage/selectedCustomerStorage'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
 import { generateCustomerText } from '../utils/customerText'
+import { NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
 import {
-  NOTE_MAX_LENGTH,
-  calculateInsuranceInfo,
-  formatInsuranceUiDate,
-} from '../utils/insuranceInfo'
+  CustomerForm,
+  DetailInsurance,
+  InsuranceInline,
+  drivingText,
+} from '../../../components/customer/CustomerForm'
 
 function CustomerDDayBadge({ renewalDate }: { renewalDate: string }) {
   const dday = getDDay(renewalDate)
@@ -26,16 +27,6 @@ function CustomerDDayBadge({ renewalDate }: { renewalDate: string }) {
     return null
   }
   return <span className={getDDayBadgeClass(dday)}>{`D-${dday}`}</span>
-}
-
-function drivingText(isDriver: boolean | null): string {
-  if (isDriver === true) {
-    return '운전함'
-  }
-  if (isDriver === false) {
-    return '운전 안함'
-  }
-  return ''
 }
 
 function inferIsDriverFromDriving(driving: string): boolean | null {
@@ -66,22 +57,6 @@ type CustomerFormState = {
   medical: string
   notes: CustomerNote[]
   noteDraft: string
-}
-
-const EMPTY_FORM: CustomerFormState = {
-  name: '',
-  gender: null,
-  ssn: '',
-  phone: '',
-  address: '',
-  height: '',
-  weight: '',
-  job: '',
-  isDriver: null,
-  carType: '',
-  medical: '',
-  notes: [],
-  noteDraft: '',
 }
 
 type CustomerEditFormState = CustomerFormState & {
@@ -117,47 +92,10 @@ function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
   }
 }
 
-function InsuranceInline({ ssn }: { ssn: string }) {
-  const { age, nextAgeDate } = useMemo(() => calculateInsuranceInfo(ssn), [ssn])
-  const ok = age != null && nextAgeDate != null && !Number.isNaN(nextAgeDate.getTime())
-  return (
-    <div className="field field--wide">
-      <span className="field__label">보험나이 · 상령일 (자동)</span>
-      <p className="customer-insurance-hint" style={{ margin: '4px 0 0' }}>
-        {ok ? (
-          <>
-            보험나이: {age}세 · 상령일: {formatInsuranceUiDate(nextAgeDate)}
-          </>
-        ) : (
-          <>보험나이: 계산 불가 · 상령일: 계산 불가</>
-        )}
-      </p>
-    </div>
-  )
-}
-
-function DetailInsurance({ ssn }: { ssn: string }) {
-  const { age, nextAgeDate } = useMemo(() => calculateInsuranceInfo(ssn), [ssn])
-  const ok = age != null && nextAgeDate != null && !Number.isNaN(nextAgeDate.getTime())
-  if (ok) {
-    return (
-      <p>
-        <strong>보험나이 · 상령일:</strong> {age}세 · {formatInsuranceUiDate(nextAgeDate)}
-      </p>
-    )
-  }
-  return (
-    <p>
-      <strong>보험나이 · 상령일:</strong> 계산 불가 · 계산 불가
-    </p>
-  )
-}
-
 export default function CustomersPage() {
   const navigate = useNavigate()
   const { user, token } = useAuth()
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
-  const [form, setForm] = useState<CustomerFormState>(EMPTY_FORM)
   const [statusText, setStatusText] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -280,53 +218,6 @@ export default function CustomersPage() {
     setStatusText('')
   }
 
-  async function handleSaveCustomer() {
-    if (!token || user?.role !== 'user') {
-      return
-    }
-    const name = form.name.trim()
-    if (!name) {
-      setStatusText('이름은 필수입니다.')
-      return
-    }
-    if (form.gender == null) {
-      setStatusText('성별을 선택해주세요.')
-      return
-    }
-    if (form.isDriver == null) {
-      setStatusText('운전 여부를 선택해주세요.')
-      return
-    }
-    if (form.isDriver === true && !form.carType.trim()) {
-      setStatusText('차종을 입력해주세요.')
-      return
-    }
-    try {
-      await saveCustomer(token, {
-        name,
-        ssn: form.ssn,
-        phone: form.phone,
-        carrier: '',
-        address: form.address,
-        height: form.height,
-        weight: form.weight,
-        job: form.job,
-        driving: drivingText(form.isDriver),
-        medical: form.medical,
-        gender: form.gender,
-        isDriver: form.isDriver,
-        carType: form.isDriver === true ? form.carType.trim() : '',
-        notes: form.notes,
-      })
-      window.alert('저장 완료')
-      setForm(EMPTY_FORM)
-      setStatusText('저장했습니다.')
-      await loadCustomers()
-    } catch (error) {
-      setStatusText(error instanceof Error ? error.message : '저장에 실패했습니다.')
-    }
-  }
-
   async function copyCustomer(rec: CustomerRecord) {
     const text = generateCustomerText(rec)
     try {
@@ -400,6 +291,19 @@ export default function CustomersPage() {
       await loadCustomers()
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '수정에 실패했습니다.')
+    }
+  }
+
+  async function copyExternalInputLink() {
+    if (!user?.id) {
+      return
+    }
+    const link = `${window.location.origin}/customer/input?ref=${encodeURIComponent(user.id)}`
+    try {
+      await navigator.clipboard.writeText(link)
+      window.alert('링크가 복사되었습니다')
+    } catch {
+      setStatusText('클립보드 복사에 실패했습니다.')
     }
   }
 
@@ -814,6 +718,14 @@ export default function CustomersPage() {
         <button className="button button--secondary button--full" type="button" onClick={() => navigate('/dashboard')}>
           메뉴
         </button>
+        <button
+          className="button button--secondary button--full"
+          type="button"
+          style={{ marginTop: 8 }}
+          onClick={() => void copyExternalInputLink()}
+        >
+          링크 보내기
+        </button>
       </nav>
 
       <div className="tab-container" role="tablist" aria-label="고객 관리 구역">
@@ -839,209 +751,11 @@ export default function CustomersPage() {
 
       {tab === 'create' ? (
         <section className="card" style={{ marginTop: 0 }}>
-          <h2 className="dashboard-section-title">신규 고객</h2>
-          <div className="field-grid-customers">
-            <label className="field">
-              <span className="field__label">이름</span>
-              <input
-                className="field__control"
-                placeholder="이름"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-              />
-            </label>
-            <div className="field field--wide">
-              <span className="field__label">성별</span>
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
-                <label>
-                  <input
-                    type="radio"
-                    name="gender-create"
-                    checked={form.gender === 'male'}
-                    onChange={() => setForm({ ...form, gender: 'male' })}
-                  />{' '}
-                  남
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="gender-create"
-                    checked={form.gender === 'female'}
-                    onChange={() => setForm({ ...form, gender: 'female' })}
-                  />{' '}
-                  여
-                </label>
-              </div>
-            </div>
-            <label className="field">
-              <span className="field__label">주민번호</span>
-              <input
-                className="field__control"
-                placeholder="주민번호"
-                value={form.ssn}
-                onChange={(e) => setForm({ ...form, ssn: e.target.value })}
-              />
-            </label>
-            <InsuranceInline ssn={form.ssn} />
-            <label className="field">
-              <span className="field__label">전화번호</span>
-              <input
-                className="field__control"
-                placeholder="전화번호"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              />
-            </label>
-            <label className="field field--wide">
-              <span className="field__label">주소</span>
-              <input
-                className="field__control"
-                placeholder="주소"
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span className="field__label">키</span>
-              <input
-                className="field__control"
-                placeholder="키"
-                value={form.height}
-                onChange={(e) => setForm({ ...form, height: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span className="field__label">몸무게</span>
-              <input
-                className="field__control"
-                placeholder="몸무게"
-                value={form.weight}
-                onChange={(e) => setForm({ ...form, weight: e.target.value })}
-              />
-            </label>
-            <label className="field field--wide">
-              <span className="field__label">직업 / 회사명 / 하는 일 / 지역</span>
-              <input
-                className="field__control"
-                placeholder="직업·회사 등"
-                value={form.job}
-                onChange={(e) => setForm({ ...form, job: e.target.value })}
-              />
-            </label>
-            <div className="field field--wide">
-              <span className="field__label">운전 여부</span>
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
-                <label>
-                  <input
-                    type="radio"
-                    name="driver-create"
-                    checked={form.isDriver === true}
-                    onChange={() => setForm({ ...form, isDriver: true })}
-                  />{' '}
-                  운전함
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="driver-create"
-                    checked={form.isDriver === false}
-                    onChange={() => setForm({ ...form, isDriver: false, carType: '' })}
-                  />{' '}
-                  운전 안함
-                </label>
-              </div>
-            </div>
-            {form.isDriver === true ? (
-              <label className="field field--wide">
-                <span className="field__label">차종</span>
-                <input
-                  className="field__control"
-                  type="text"
-                  placeholder="예: 승용차, SUV, 1톤 트럭"
-                  value={form.carType}
-                  onChange={(e) => setForm({ ...form, carType: e.target.value })}
-                />
-              </label>
-            ) : null}
-            <label className="field field--wide">
-              <span className="field__label">5년 이내 진단·수술·치료 (건강 고지)</span>
-              <textarea
-                className="field__control"
-                rows={3}
-                placeholder="내용"
-                value={form.medical}
-                onChange={(e) => setForm({ ...form, medical: e.target.value })}
-              />
-            </label>
-            <div className="field field--wide">
-              <span className="field__label">메모 (최대 {NOTE_MAX_LENGTH}자, Enter로 추가)</span>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
-                <input
-                  className="field__control"
-                  style={{ flex: '1 1 220px' }}
-                  placeholder="메모 입력"
-                  value={form.noteDraft}
-                  maxLength={NOTE_MAX_LENGTH}
-                  onChange={(e) => setForm({ ...form, noteDraft: e.target.value.slice(0, NOTE_MAX_LENGTH) })}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      addNoteDraft(
-                        form.noteDraft,
-                        (fn) => setForm((prev) => ({ ...prev, notes: fn(prev.notes) })),
-                        () => setForm((prev) => ({ ...prev, noteDraft: '' })),
-                      )
-                    }
-                  }}
-                />
-                <button
-                  className="button button--secondary"
-                  type="button"
-                  onClick={() =>
-                    addNoteDraft(
-                      form.noteDraft,
-                      (fn) => setForm((prev) => ({ ...prev, notes: fn(prev.notes) })),
-                      () => setForm((prev) => ({ ...prev, noteDraft: '' })),
-                    )
-                  }
-                >
-                  추가
-                </button>
-              </div>
-              {form.notes.length > 0 ? (
-                <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
-                  {form.notes.map((note) => (
-                    <li
-                      key={note.id}
-                      style={{
-                        borderTop: '1px solid rgba(0,0,0,0.08)',
-                        padding: '8px 0',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        gap: 8,
-                        alignItems: 'flex-start',
-                      }}
-                    >
-                      <div>
-                        <div>{note.content}</div>
-                        <small style={{ opacity: 0.75 }}>{new Date(note.createdAt).toLocaleString('ko-KR')}</small>
-                      </div>
-                      <button
-                        type="button"
-                        className="delete-btn"
-                        onClick={() => setForm((prev) => ({ ...prev, notes: prev.notes.filter((n) => n.id !== note.id) }))}
-                      >
-                        삭제
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          </div>
-          <button className="button button--primary button--full" type="button" onClick={() => void handleSaveCustomer()}>
-            저장
-          </button>
+          <CustomerForm
+            mode="internal"
+            onStatusMessage={setStatusText}
+            onInternalSaveSuccess={() => void loadCustomers()}
+          />
         </section>
       ) : (
         <section className="list-section" style={{ marginTop: 0 }}>
