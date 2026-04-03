@@ -112,6 +112,7 @@
   --table-border: var(--border);
 
   --divider-auth: var(--border);
+  --auth-input-border: #cbd5e1;
 
   /* 인쇄·결과 양식(종이 느낌 유지 — 변수로만 참조) */
   --result-paper-bg: #ffffff;
@@ -249,6 +250,7 @@ body.dark {
   --table-border: var(--border);
 
   --divider-auth: var(--border);
+  --auth-input-border: rgb(255 255 255 / 0.22);
 
   /* 다크에서도 인쇄 미리보기는 밝은 종이 유지 */
   --result-paper-bg: #ffffff;

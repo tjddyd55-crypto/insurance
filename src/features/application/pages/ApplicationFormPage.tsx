@@ -322,8 +322,8 @@ export function ApplicationFormPage() {
     const text = generateCustomerText(c)
     try {
       await navigator.clipboard.writeText(text)
-      window.alert('복사 완료 → 카톡 붙여넣기')
-      setStatusText('고객 정보를 클립보드에 복사했습니다.')
+      window.alert('복사되었습니다')
+      setStatusText('복사되었습니다')
     } catch {
       setStatusText('클립보드 복사에 실패했습니다.')
     }

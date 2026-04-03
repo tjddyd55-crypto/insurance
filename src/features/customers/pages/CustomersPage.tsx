@@ -223,7 +223,7 @@ export default function CustomersPage() {
     const text = generateCustomerText(rec)
     try {
       await navigator.clipboard.writeText(text)
-      window.alert('복사 완료 → 카톡 붙여넣기')
+      window.alert('복사되었습니다')
     } catch {
       setStatusText('클립보드 복사에 실패했습니다.')
     }
@@ -302,7 +302,7 @@ export default function CustomersPage() {
     const link = `${window.location.origin}/customer/input?ref=${encodeURIComponent(user.id)}`
     try {
       await navigator.clipboard.writeText(link)
-      window.alert('링크가 복사되었습니다')
+      window.alert('복사되었습니다')
     } catch {
       setStatusText('클립보드 복사에 실패했습니다.')
     }

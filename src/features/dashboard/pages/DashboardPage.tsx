@@ -46,7 +46,7 @@ export function DashboardPage() {
   const pathname = location.pathname
 
   return (
-    <main className="page">
+    <main className="page dashboard-page--centered">
       <header className="page-header">
         <h1>메뉴</h1>
       </header>

@@ -17,6 +17,7 @@ import CreateStaffPage from './features/admin/pages/CreateStaffPage'
 import CompanyRegistryPage from './features/company-registry/pages/CompanyRegistryPage'
 import GeneralRequestPage from './features/company-registry/pages/GeneralRequestPage'
 import InsuranceCompanyContactsViewPage from './features/company-registry/pages/InsuranceCompanyContactsViewPage'
+import { AppExitConfirm } from './components/AppExitConfirm'
 import { ThemeToggle } from './components/ThemeToggle'
 import { useAuth } from './features/auth/AuthProvider'
 
@@ -28,6 +29,7 @@ function HomeRedirect() {
 function App() {
   return (
     <>
+      <AppExitConfirm />
       <ThemeToggle />
       <Routes>
       <Route path="/" element={<HomeRedirect />} />
