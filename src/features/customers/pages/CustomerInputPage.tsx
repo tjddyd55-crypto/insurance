@@ -104,13 +104,10 @@ export default function CustomerInputPage() {
       <PageBackButton />
       <header className="page-header">
         <h1>고객 정보 입력</h1>
-        <p>
-          {notice ||
-            '필수: 이름, 주민번호만. 나머지는 선택입니다. 각 카드마다 입력 후 맨 아래에서 고객을 추가·전송하세요.'}
-        </p>
+        {notice ? <p>{notice}</p> : <p className="page-header-hint">(필수: 이름, 주민번호)</p>}
       </header>
 
-      <section className="card" style={{ marginTop: 0 }}>
+      <div className="external-input-body">
         {customers.map((row, index) => (
           <div key={index} className="customer-card">
             <div className="customer-title">고객 {index + 1}</div>
@@ -149,7 +146,7 @@ export default function CustomerInputPage() {
         >
           {isSubmitting ? '전송 중…' : '전송'}
         </button>
-      </section>
+      </div>
     </main>
   )
 }

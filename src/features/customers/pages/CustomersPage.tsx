@@ -707,16 +707,15 @@ export default function CustomersPage() {
   }
 
   return (
-    <main className="page customers-page page--with-back">
-      <PageBackButton />
+    <main className="page customers-page">
       <header className="page-header">
         <div className="page-title-with-action">
           <h1>고객 관리</h1>
-          <button type="button" className="link-btn-small" onClick={() => void copyExternalInputLink()}>
+          <button type="button" className="link-btn" onClick={() => void copyExternalInputLink()}>
             링크
           </button>
         </div>
-        <p>{statusText || '고객을 등록하고 목록에서 카톡용 문구를 복사할 수 있습니다.'}</p>
+        {statusText ? <p>{statusText}</p> : null}
       </header>
 
       <div className="tab-container" role="tablist" aria-label="고객 관리 구역">

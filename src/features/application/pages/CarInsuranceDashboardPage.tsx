@@ -6,8 +6,6 @@ import {
   listExpiringApplications,
 } from '../repository/applicationRepository'
 import { useAuth } from '../../auth/AuthProvider'
-import { PageBackButton } from '../../../components/common/PageBackButton'
-
 function getDaysLeft(expiryDate: string): number {
   if (!expiryDate) {
     return Number.POSITIVE_INFINITY
@@ -34,7 +32,7 @@ function getExpiryBadgeClassName(expiryDate: string): string {
 
 export function CarInsuranceDashboardPage() {
   const navigate = useNavigate()
-  const { user, token, logout } = useAuth()
+  const { token, logout } = useAuth()
   const [expiringRecords, setExpiringRecords] = useState<InsuranceApplicationRecord[]>([])
   const [recentRecords, setRecentRecords] = useState<InsuranceApplicationRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -83,14 +81,10 @@ export function CarInsuranceDashboardPage() {
   )
 
   return (
-    <main className="page page--with-back">
-      <PageBackButton />
+    <main className="page">
       <header className="page-header">
         <h1>자동차보험신청서</h1>
-        <p>
-          {statusText ||
-            `${user?.username} 님, 만기 임박 보험과 최근 신청서를 확인하세요.`}
-        </p>
+        {statusText ? <p>{statusText}</p> : null}
       </header>
 
       <section className="card dashboard-card">

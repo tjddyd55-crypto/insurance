@@ -208,22 +208,31 @@ body {
   min-width: 0;
 }
 
-.link-btn-small {
+.link-btn {
   flex: 0 0 auto;
   margin: 0;
-  padding: 2px 6px;
+  padding: 4px 8px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   background: transparent;
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
+  opacity: 0.9;
 }
 
-.link-btn-small:hover {
+.link-btn:hover {
   color: var(--text-main);
+  opacity: 1;
+}
+
+.page-header-hint {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--text-sub);
 }
 
 .customer-card {
