@@ -159,7 +159,71 @@ body {
 .page {
   max-width: 760px;
   margin: 0 auto;
-  padding: 16px 16px 120px;
+  padding: 12px 12px 100px;
+}
+
+.page--with-back {
+  position: relative;
+}
+
+.page-back-btn {
+  position: absolute;
+  top: 10px;
+  left: 8px;
+  z-index: 2;
+  margin: 0;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-main);
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.page--with-back .page-header {
+  padding-left: 36px;
+}
+
+.page--with-back > .contacts-public-auth:first-of-type {
+  padding-top: 30px;
+}
+
+.page--with-back.insurance-print-page > .screen-only.insurance-print-controls:first-of-type {
+  padding-left: 36px;
+}
+
+.page-title-with-action {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.page-title-with-action h1 {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.link-btn-small {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-sub);
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link-btn-small:hover {
+  color: var(--text-main);
 }
 
 .auth-page {

@@ -34,6 +34,7 @@ import {
   TextInput,
 } from '../components/FormFields'
 import { FormSection } from '../components/FormSection'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 
 type EditableField = Exclude<keyof InsuranceApplicationFormData, 'customerId'>
 const AUTO_SAVE_INTERVAL_MS = 5000
@@ -377,7 +378,8 @@ export function ApplicationFormPage() {
 
   if (isLoading) {
     return (
-      <main className="page">
+      <main className="page page--with-back">
+        <PageBackButton />
         <header className="page-header">
           <h1>신청서 로딩 중</h1>
           <p>저장된 데이터를 확인하고 있습니다.</p>
@@ -387,7 +389,8 @@ export function ApplicationFormPage() {
   }
 
   return (
-    <main className="page">
+    <main className="page page--with-back">
+      <PageBackButton />
       <header className="page-header">
         <h1>{pageTitle}</h1>
         <p>{statusText}</p>
@@ -740,9 +743,6 @@ export function ApplicationFormPage() {
       <div className="sticky-actions">
         <button className="button" type="button" onClick={() => navigate('/my-forms')}>
           목록
-        </button>
-        <button className="button" type="button" onClick={() => navigate('/dashboard')}>
-          대시보드
         </button>
         <button className="button button--primary" type="button" onClick={() => void handleViewResult()}>
           결과보기

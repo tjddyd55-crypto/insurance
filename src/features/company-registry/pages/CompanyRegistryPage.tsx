@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 import { fullSaveCompanyDirectory, listCompanyDirectory } from '../api/companyRegistryApi'
 import { insuranceCategoryLabel, insuranceTypeSortRank, resolveTabCategory } from '../domain/categoryUtils'
 import type { InsuranceCategory } from '../domain/insuranceConstants'
@@ -31,7 +32,6 @@ const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 
 }
 
 export default function CompanyRegistryPage() {
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { user, token, isAuthenticated } = useAuth()
   const canEdit = isAuthenticated && !!user && ['staff', 'super_admin'].includes(user.role)
@@ -238,26 +238,20 @@ export default function CompanyRegistryPage() {
   }
 
   return (
-    <main className="page company-registry-page registry-form-touch">
+    <main className="page page--with-back company-registry-page registry-form-touch">
+      <PageBackButton />
       <nav className="contacts-public-auth" aria-label="이동">
-        <button className="button button--small" type="button" onClick={() => navigate(-1)}>
-          뒤로
-        </button>
         <Link className="button button--small contacts-public-auth__link" to="/insurance/contacts">
           연락처 조회
         </Link>
         <Link className="button button--small contacts-public-auth__link" to="/insurance/history">
           업데이트 현황
         </Link>
-        {isAuthenticated ? (
-          <button className="button button--small" type="button" onClick={() => navigate('/dashboard')}>
-            메뉴
-          </button>
-        ) : (
+        {!isAuthenticated ? (
           <Link className="button button--small button--primary contacts-public-auth__link" to="/login">
             로그인
           </Link>
-        )}
+        ) : null}
       </nav>
 
       <header className="page-header">

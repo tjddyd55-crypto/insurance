@@ -20,6 +20,7 @@ import {
   InsuranceInline,
   drivingText,
 } from '../../../components/customer/CustomerForm'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 
 function CustomerDDayBadge({ renewalDate }: { renewalDate: string }) {
   const dday = getDDay(renewalDate)
@@ -695,38 +696,28 @@ export default function CustomersPage() {
 
   if (user?.role !== 'user') {
     return (
-      <main className="page">
+      <main className="page page--with-back">
+        <PageBackButton />
         <header className="page-header">
           <h1>고객 관리</h1>
           <p>접근 권한 없음</p>
         </header>
-        <button className="button button--full" type="button" onClick={() => navigate('/dashboard')}>
-          메뉴로
-        </button>
       </main>
     )
   }
 
   return (
-    <main className="page customers-page">
+    <main className="page customers-page page--with-back">
+      <PageBackButton />
       <header className="page-header">
-        <h1>고객 관리</h1>
+        <div className="page-title-with-action">
+          <h1>고객 관리</h1>
+          <button type="button" className="link-btn-small" onClick={() => void copyExternalInputLink()}>
+            링크
+          </button>
+        </div>
         <p>{statusText || '고객을 등록하고 목록에서 카톡용 문구를 복사할 수 있습니다.'}</p>
       </header>
-
-      <nav className="card dashboard-menu-card" aria-label="고객 관리 내 네비게이션">
-        <button className="button button--secondary button--full" type="button" onClick={() => navigate('/dashboard')}>
-          메뉴
-        </button>
-        <button
-          className="button button--secondary button--full"
-          type="button"
-          style={{ marginTop: 8 }}
-          onClick={() => void copyExternalInputLink()}
-        >
-          링크 보내기
-        </button>
-      </nav>
 
       <div className="tab-container" role="tablist" aria-label="고객 관리 구역">
         <button
@@ -752,7 +743,6 @@ export default function CustomersPage() {
       {tab === 'create' ? (
         <section className="card" style={{ marginTop: 0 }}>
           <CustomerForm
-            mode="internal"
             onStatusMessage={setStatusText}
             onInternalSaveSuccess={() => void loadCustomers()}
           />

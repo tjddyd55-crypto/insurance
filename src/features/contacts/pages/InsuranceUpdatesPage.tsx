@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { CompanyCard } from '../../company-registry/components/CompanyCard'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 import { getCompanyRecentUpdates } from '../../company-registry/api/companyRegistryApi'
 import type { CompanyUpdateHistoryItem } from '../../company-registry/domain/types'
 
@@ -30,7 +30,6 @@ function groupHistoryByDate(items: CompanyUpdateHistoryItem[]) {
 }
 
 export function InsuranceUpdatesPage() {
-  const navigate = useNavigate()
   const [list, setList] = useState<CompanyUpdateHistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [statusText, setStatusText] = useState('')
@@ -66,12 +65,8 @@ export function InsuranceUpdatesPage() {
   const grouped = useMemo(() => groupHistoryByDate(list), [list])
 
   return (
-    <main className="page contacts-page insurance-recent-updates-page insurance-contacts-view company-directory-read-ui">
-      <nav className="contacts-public-auth contacts-public-auth--compact" aria-label="이동">
-        <button className="button button--small touch-nav-btn" type="button" onClick={() => navigate(-1)}>
-          뒤로
-        </button>
-      </nav>
+    <main className="page page--with-back contacts-page insurance-recent-updates-page insurance-contacts-view company-directory-read-ui">
+      <PageBackButton />
 
       <header className="page-header">
         <h1>업데이트 현황</h1>

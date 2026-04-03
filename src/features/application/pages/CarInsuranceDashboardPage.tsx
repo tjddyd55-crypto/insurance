@@ -6,6 +6,7 @@ import {
   listExpiringApplications,
 } from '../repository/applicationRepository'
 import { useAuth } from '../../auth/AuthProvider'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 
 function getDaysLeft(expiryDate: string): number {
   if (!expiryDate) {
@@ -82,7 +83,8 @@ export function CarInsuranceDashboardPage() {
   )
 
   return (
-    <main className="page">
+    <main className="page page--with-back">
+      <PageBackButton />
       <header className="page-header">
         <h1>자동차보험신청서</h1>
         <p>
@@ -90,6 +92,30 @@ export function CarInsuranceDashboardPage() {
             `${user?.username} 님, 만기 임박 보험과 최근 신청서를 확인하세요.`}
         </p>
       </header>
+
+      <section className="card dashboard-card">
+        <h2 className="dashboard-section-title">📌 새 신청서 작성</h2>
+        <button
+          className="button button--primary button--full"
+          type="button"
+          onClick={() => navigate('/form/create')}
+        >
+          신청서 작성
+        </button>
+        <button className="button button--full" type="button" onClick={() => navigate('/my-forms')}>
+          내 신청서 목록
+        </button>
+        <button
+          className="button button--secondary button--full"
+          type="button"
+          onClick={() => {
+            logout()
+            navigate('/login', { replace: true })
+          }}
+        >
+          로그아웃
+        </button>
+      </section>
 
       <section className="card dashboard-expiring-card">
         <h2 className="dashboard-section-title">{expiringTitle}</h2>
@@ -162,33 +188,6 @@ export function CarInsuranceDashboardPage() {
             ))}
           </ul>
         )}
-      </section>
-
-      <section className="card dashboard-card">
-        <h2 className="dashboard-section-title">📌 새 신청서 작성</h2>
-        <button
-          className="button button--primary button--full"
-          type="button"
-          onClick={() => navigate('/form/create')}
-        >
-          신청서 작성
-        </button>
-        <button className="button button--full" type="button" onClick={() => navigate('/my-forms')}>
-          내 신청서 목록
-        </button>
-        <button className="button button--full" type="button" onClick={() => navigate('/dashboard')}>
-          메뉴로 이동
-        </button>
-        <button
-          className="button button--secondary button--full"
-          type="button"
-          onClick={() => {
-            logout()
-            navigate('/login', { replace: true })
-          }}
-        >
-          로그아웃
-        </button>
       </section>
     </main>
   )

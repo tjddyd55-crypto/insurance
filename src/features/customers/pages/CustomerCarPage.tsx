@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { updateCustomerCar } from '../api/customersApi'
 import { clearSelectedCustomer, readSelectedCustomer } from '../storage/selectedCustomerStorage'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 
 type CarFormState = {
   id: number
@@ -56,21 +57,20 @@ export default function CustomerCarPage() {
 
   if (user?.role !== 'user') {
     return (
-      <main className="page">
+      <main className="page page--with-back">
+        <PageBackButton />
         <header className="page-header">
           <h1>자동차 정보 입력</h1>
           <p>접근 권한 없음</p>
         </header>
-        <button className="button button--full" type="button" onClick={() => navigate('/dashboard')}>
-          메뉴로
-        </button>
       </main>
     )
   }
 
   if (!form) {
     return (
-      <main className="page">
+      <main className="page page--with-back">
+        <PageBackButton />
         <header className="page-header">
           <h1>자동차 정보 입력</h1>
           <p>{statusText}</p>
@@ -83,7 +83,8 @@ export default function CustomerCarPage() {
   }
 
   return (
-    <main className="page">
+    <main className="page page--with-back">
+      <PageBackButton />
       <header className="page-header">
         <h1>자동차 정보 입력</h1>
         <p>{statusText || '차량 정보를 저장하면 고객 카드에 반영됩니다.'}</p>

@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 
 type MenuItem = { label: string; path: string }
 
@@ -47,7 +48,8 @@ export function DashboardPage() {
   const pathname = location.pathname
 
   return (
-    <main className="page">
+    <main className="page page--with-back">
+      <PageBackButton />
       <header className="page-header">
         <h1>메뉴</h1>
         <p>{user?.username} 님, 사용할 기능을 선택하세요.</p>

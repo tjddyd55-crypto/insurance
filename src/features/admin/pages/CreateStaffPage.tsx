@@ -1,10 +1,9 @@
 import { type FormEvent, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { createStaffAccount } from '../../auth/authApi'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 
 export default function CreateStaffPage() {
-  const navigate = useNavigate()
   const { user, token } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -14,14 +13,12 @@ export default function CreateStaffPage() {
 
   if (user?.role !== 'super_admin') {
     return (
-      <main className="page">
+      <main className="page page--with-back">
+        <PageBackButton />
         <header className="page-header">
           <h1>담당자 생성</h1>
           <p>전체 관리자만 접근할 수 있습니다.</p>
         </header>
-        <button className="button button--full" type="button" onClick={() => navigate('/dashboard')}>
-          메뉴로
-        </button>
       </main>
     )
   }
@@ -50,7 +47,8 @@ export default function CreateStaffPage() {
   }
 
   return (
-    <main className="page">
+    <main className="page page--with-back">
+      <PageBackButton />
       <header className="page-header">
         <h1>담당자 생성</h1>
         <p>{statusText || 'staff 역할 계정을 만듭니다. 아이디는 로그인에 사용됩니다.'}</p>
@@ -91,15 +89,6 @@ export default function CreateStaffPage() {
             {isSubmitting ? '처리 중…' : '생성'}
           </button>
         </form>
-
-        <button
-          className="button button--secondary button--full"
-          type="button"
-          style={{ marginTop: 12 }}
-          onClick={() => navigate('/dashboard')}
-        >
-          메뉴로
-        </button>
       </section>
     </main>
   )

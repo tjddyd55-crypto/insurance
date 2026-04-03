@@ -5,6 +5,7 @@ import type { InsuranceApplicationRecord } from '../domain/types'
 import { getApplicationById, saveApplication } from '../repository/applicationRepository'
 import { exportResultToJpg, exportResultToPdf } from '../services/exportService'
 import { useAuth } from '../../auth/AuthProvider'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 
 function buildDownloadFileNameBase(record: InsuranceApplicationRecord): string {
   const ownerName = record.ownerName.trim() || '이름없음'
@@ -105,7 +106,8 @@ export function ApplicationResultPage() {
   const fileTitle = buildDownloadFileNameBase(record)
 
   return (
-    <main className="page page--result">
+    <main className="page page--result page--with-back">
+      <PageBackButton />
       <header className="page-header">
         <h1>신청서 결과문</h1>
         <p>{statusText || '양식 미리보기에서 JPG/PDF 다운로드를 실행할 수 있습니다.'}</p>

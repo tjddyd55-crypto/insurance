@@ -21,6 +21,11 @@ function resolveApiUrl(path: string): string {
   }
 
   if (path.startsWith('/api/')) {
+    // 동일 출처: /backend + /customer/...  →  Express의 app.use('/backend', apiRouter)
+    // 절대 API 호스트: /api/... 경로를 그대로 이어 붙임 (잘못된 /customer/... 단독 경로 방지)
+    if (/^https?:\/\//.test(API_BASE_PATH)) {
+      return `${API_BASE_PATH}${path}`
+    }
     return `${API_BASE_PATH}${path.slice('/api'.length)}`
   }
 
@@ -31,9 +36,14 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const { token, headers, ...rest } = options
   const bearer =
     typeof token === 'string' && token.trim() ? `Bearer ${token.trim()}` : ''
+  const resolvedUrl = resolveApiUrl(path)
+  if (path === '/api/customer/external-create') {
+    console.log('[apiRequest] fetch', resolvedUrl, rest.method ?? 'GET')
+  }
+
   let response: Response
   try {
-    response = await fetch(resolveApiUrl(path), {
+    response = await fetch(resolvedUrl, {
       ...rest,
       headers: {
         'Content-Type': 'application/json',

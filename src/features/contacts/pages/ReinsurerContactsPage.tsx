@@ -16,6 +16,7 @@ import type {
 } from '../domain/types'
 import { formatPhoneNumber, normalizePhoneNumber } from '../utils/phone'
 import { openVCardInContactsApp } from '../utils/vcard'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 
 const CATEGORY_LABELS: Record<InsuranceContactCategory, string> = {
   LIFE: '생명보험',
@@ -203,7 +204,8 @@ export function ReinsurerContactsPage() {
   }
 
   return (
-    <main className="page contacts-page">
+    <main className="page page--with-back contacts-page">
+      <PageBackButton />
       <nav className="contacts-public-auth" aria-label="계정">
         <Link className="button button--small contacts-public-auth__link" to="/insurance/contacts">
           보험사 연락처 조회
@@ -214,12 +216,7 @@ export function ReinsurerContactsPage() {
           </Link>
         ) : null}
         {isAuthenticated ? (
-          <>
-            <span className="contacts-public-auth__user">{user?.username}</span>
-            <button className="button button--small" type="button" onClick={() => navigate('/dashboard')}>
-              메뉴
-            </button>
-          </>
+          <span className="contacts-public-auth__user">{user?.username}</span>
         ) : (
           <>
             <Link className="button button--small button--primary contacts-public-auth__link" to="/login">
@@ -259,15 +256,11 @@ export function ReinsurerContactsPage() {
           <button className="button" type="button" onClick={() => navigate('/insurance/print')}>
             출력
           </button>
-          {isAdmin ? (
-            <button className="button" type="button" onClick={() => navigate('/dashboard')}>
-              메뉴
-            </button>
-          ) : (
+          {!isAdmin ? (
             <button className="button" type="button" onClick={() => navigate('/login')}>
               관리자 로그인
             </button>
-          )}
+          ) : null}
         </div>
         {statusText ? <p className="status">{statusText}</p> : null}
       </section>

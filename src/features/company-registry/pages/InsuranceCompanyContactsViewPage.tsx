@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 import { listCompanyDirectory } from '../api/companyRegistryApi'
 import { resolveTabCategory } from '../domain/categoryUtils'
 import {
@@ -106,11 +107,9 @@ export default function InsuranceCompanyContactsViewPage() {
   }
 
   return (
-    <main className="page company-registry-page insurance-contacts-view company-directory-read-ui">
+    <main className="page page--with-back company-registry-page insurance-contacts-view company-directory-read-ui">
+      <PageBackButton />
       <nav className="contacts-public-auth contacts-public-auth--compact" aria-label="이동">
-        <button className="button button--small touch-nav-btn" type="button" onClick={() => navigate(-1)}>
-          뒤로
-        </button>
         {isStaff ? (
           <Link
             className="button button--small contacts-public-auth__link touch-nav-btn"
@@ -119,15 +118,11 @@ export default function InsuranceCompanyContactsViewPage() {
             관리
           </Link>
         ) : null}
-        {isAuthenticated ? (
-          <button className="button button--small touch-nav-btn" type="button" onClick={() => navigate('/dashboard')}>
-            메뉴
-          </button>
-        ) : (
+        {!isAuthenticated ? (
           <Link className="button button--small button--primary contacts-public-auth__link touch-nav-btn" to="/login">
             로그인
           </Link>
-        )}
+        ) : null}
       </nav>
 
       <header className="page-header insurance-contacts-header contact-header">

@@ -118,6 +118,7 @@ export async function saveCustomerExternal(
   refUserId: string,
   payload: SaveCustomerPayload,
 ): Promise<CustomerRecord> {
+  // 반드시 POST /api/customer/external-create 로 전송 (resolveApiUrl이 절대/상대 베이스 모두 처리)
   const body = await apiRequest<{ success: boolean; data: CustomerRecord }>('/api/customer/external-create', {
     method: 'POST',
     body: JSON.stringify({ refUserId, ...payload }),

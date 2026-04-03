@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { PageBackButton } from '../../../components/common/PageBackButton'
 import { listCompanyDirectory, saveGeneralRequest } from '../api/companyRegistryApi'
 import { normalizeInsuranceCategory } from '../domain/categoryUtils'
 import type { InsuranceCategory } from '../domain/insuranceConstants'
@@ -15,7 +16,6 @@ import type { CompanyDirectoryEntry, InsuranceGeneralDraft } from '../domain/typ
 const EMPTY_GENERAL: InsuranceGeneralDraft = { description: '', phone: '', fax: '', email: '' }
 
 export default function GeneralRequestPage() {
-  const navigate = useNavigate()
   const { user, token, isAuthenticated } = useAuth()
   const canEdit = isAuthenticated && !!user && ['staff', 'super_admin'].includes(user.role)
 
@@ -107,11 +107,9 @@ export default function GeneralRequestPage() {
   }
 
   return (
-    <main className="page company-registry-page">
+    <main className="page page--with-back company-registry-page">
+      <PageBackButton />
       <nav className="contacts-public-auth" aria-label="이동">
-        <button className="button button--small" type="button" onClick={() => navigate(-1)}>
-          뒤로
-        </button>
         {canEdit ? (
           <Link className="button button--small contacts-public-auth__link" to="/insurance/company-registry">
             연락처 입력/관리
@@ -123,15 +121,11 @@ export default function GeneralRequestPage() {
         <Link className="button button--small contacts-public-auth__link" to="/insurance/history">
           업데이트 현황
         </Link>
-        {isAuthenticated ? (
-          <button className="button button--small" type="button" onClick={() => navigate('/dashboard')}>
-            메뉴
-          </button>
-        ) : (
+        {!isAuthenticated ? (
           <Link className="button button--small button--primary contacts-public-auth__link" to="/login">
             로그인
           </Link>
-        )}
+        ) : null}
       </nav>
 
       <header className="page-header">
