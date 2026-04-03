@@ -20,10 +20,13 @@ export default function CreateStaffPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
+    if (!token?.trim() || user?.role !== 'SUPER_ADMIN') {
+      return
+    }
     let c = false
     ;(async () => {
       try {
-        const list = await listGaCompanies()
+        const list = await listGaCompanies(token)
         if (!c) {
           setGaList(list)
           if (list.length === 1) {
@@ -39,7 +42,7 @@ export default function CreateStaffPage() {
     return () => {
       c = true
     }
-  }, [])
+  }, [token, user?.role])
 
   if (user?.role !== 'SUPER_ADMIN') {
     return (

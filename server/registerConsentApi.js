@@ -87,13 +87,6 @@ export function registerConsentApi(apiRouter, ctx) {
 
   /** @param {import('express').Request} req */
   function templateGaScope(req) {
-    if (isSuperAdminRole(req.user?.role)) {
-      const raw = req.body?.ga_id ?? req.query?.ga_id
-      const fromAdmin = parseGaId(raw)
-      if (fromAdmin != null) {
-        return fromAdmin
-      }
-    }
     return parseGaId(req.user?.gaId)
   }
 
@@ -104,17 +97,13 @@ export function registerConsentApi(apiRouter, ctx) {
         res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
         return
       }
-      let sql = `
+      const sql = `
         SELECT id, ga_id, insurance_company_id, fax_number, pdf_storage_key, fields, created_at, updated_at
         FROM consent_templates
+        WHERE ga_id = $1
+        ORDER BY insurance_company_id ASC
       `
-      const params = []
-      if (!isSuperAdminRole(req.user?.role)) {
-        sql += ` WHERE ga_id = $1 `
-        params.push(g)
-      }
-      sql += ` ORDER BY ga_id ASC, insurance_company_id ASC `
-      const r = await pool.query(sql, params)
+      const r = await pool.query(sql, [g])
       res.json(r.rows)
     } catch (error) {
       handleDbError(error, res)
@@ -129,21 +118,16 @@ export function registerConsentApi(apiRouter, ctx) {
         return
       }
       const tenantG = effectiveTenantGaId(req)
-      let sql = `
+      if (tenantG == null) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
+      const sql = `
         SELECT id, ga_id, insurance_company_id, fax_number, pdf_storage_key, fields, created_at, updated_at
         FROM consent_templates
-        WHERE id = $1
+        WHERE id = $1 AND ga_id = $2
       `
-      const params = [id]
-      if (!isSuperAdminRole(req.user?.role)) {
-        if (tenantG == null) {
-          res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
-          return
-        }
-        sql += ` AND ga_id = $2 `
-        params.push(tenantG)
-      }
-      const r = await pool.query(sql, params)
+      const r = await pool.query(sql, [id, tenantG])
       if (r.rowCount === 0) {
         res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
         return
@@ -162,17 +146,12 @@ export function registerConsentApi(apiRouter, ctx) {
         return
       }
       const tenantG = effectiveTenantGaId(req)
-      let sql = `SELECT pdf_storage_key FROM consent_templates WHERE id = $1`
-      const params = [id]
-      if (!isSuperAdminRole(req.user?.role)) {
-        if (tenantG == null) {
-          res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
-          return
-        }
-        sql += ` AND ga_id = $2`
-        params.push(tenantG)
+      if (tenantG == null) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+        return
       }
-      const r = await pool.query(sql, params)
+      const sql = `SELECT pdf_storage_key FROM consent_templates WHERE id = $1 AND ga_id = $2`
+      const r = await pool.query(sql, [id, tenantG])
       if (r.rowCount === 0) {
         res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
         return

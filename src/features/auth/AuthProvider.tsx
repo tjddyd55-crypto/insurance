@@ -15,6 +15,7 @@ interface AuthUser {
   role: UserRole
   gaId: number
   gaCode: string
+  gaName: string
 }
 
 interface AuthSession {
@@ -92,8 +93,9 @@ function readStoredSession(): AuthSession | null {
       return null
     }
 
-    const u = parsed.user as { gaCode?: unknown }
+    const u = parsed.user as { gaCode?: unknown; gaName?: unknown }
     const gaCode = typeof u.gaCode === 'string' ? u.gaCode.trim().toUpperCase() : ''
+    const gaName = typeof u.gaName === 'string' ? u.gaName.trim() : ''
 
     return {
       token: parsed.token,
@@ -103,6 +105,7 @@ function readStoredSession(): AuthSession | null {
         role,
         gaId,
         gaCode,
+        gaName,
       },
     }
   } catch {
@@ -139,6 +142,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const gaCode =
         typeof nextSession.user.gaCode === 'string' ? nextSession.user.gaCode.trim().toUpperCase() : ''
+      const gaName =
+        typeof nextSession.user.gaName === 'string' ? nextSession.user.gaName.trim() : ''
 
       const normalized: AuthSession = {
         token: nextSession.token,
@@ -148,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role,
           gaId: gaId as number,
           gaCode,
+          gaName,
         },
       }
       setSession(normalized)

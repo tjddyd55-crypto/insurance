@@ -319,12 +319,6 @@ function effectiveTenantGaId(req) {
   if (!req.user) {
     return null
   }
-  if (isSuperAdminRole(req.user.role)) {
-    const q = parseGaId(req.query?.ga_id ?? req.query?.gaId)
-    if (q != null) {
-      return q
-    }
-  }
   return parseGaId(req.user.gaId)
 }
 
@@ -344,23 +338,34 @@ function resolveLinkedCustomerIdFromRequest(body, formData) {
   return n
 }
 
-async function assertCustomerOwnedByUser(customerId, userId) {
+async function assertCustomerOwnedByUser(customerId, userId, gaId) {
   if (customerId == null) {
     return true
   }
-  const r = await pool.query(`SELECT 1 FROM customers WHERE id = $1 AND user_id = $2`, [customerId, userId])
-  return r.rowCount > 0
-}
-
-async function assertCustomerActiveAndOwnedByUser(customerId, userId) {
-  if (customerId == null) {
+  const g = parseGaId(gaId)
+  if (g == null) {
     return false
   }
   const r = await pool.query(
-    `SELECT 1 FROM customers WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
-    [customerId, userId],
+    `SELECT 1 FROM customers WHERE id = $1 AND user_id = $2 AND ga_id = $3`,
+    [customerId, userId, g],
   )
-  return r.rowCount > 0
+  return r.rows.length > 0
+}
+
+async function assertCustomerActiveAndOwnedByUser(customerId, userId, gaId) {
+  if (customerId == null) {
+    return false
+  }
+  const g = parseGaId(gaId)
+  if (g == null) {
+    return false
+  }
+  const r = await pool.query(
+    `SELECT 1 FROM customers WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL`,
+    [customerId, userId, g],
+  )
+  return r.rows.length > 0
 }
 
 function mapContactRow(row) {
@@ -658,12 +663,15 @@ function requireAuth(req, res, next) {
     const gaCodeRaw = decoded.gaCode ?? decoded.ga_code
     const gaCode =
       typeof gaCodeRaw === 'string' && gaCodeRaw.trim() ? gaCodeRaw.trim().toUpperCase() : ''
+    const gaNameRaw = decoded.gaName ?? decoded.ga_name
+    const gaName = typeof gaNameRaw === 'string' ? gaNameRaw.trim() : ''
     req.user = {
       id: String(userId),
       username: typeof decoded.username === 'string' ? decoded.username : '',
       role,
       gaId: gaFromJwt,
       gaCode,
+      gaName,
     }
 
     if (role !== 'SUPER_ADMIN' && gaFromJwt == null) {
@@ -840,18 +848,30 @@ apiRouter.get('/health', (_req, res) => {
   res.json({ ok: true })
 })
 
+function normalizeInviteCode(raw) {
+  return String(raw ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '')
+}
+
 async function handleRegister(req, res) {
   try {
-    const { username, password, ga_id: gaIdRaw, gaId: gaIdBody } = req.body ?? {}
-    const gaId = parseGaId(gaIdRaw ?? gaIdBody)
-    if (gaId == null) {
-      res.status(400).json({ message: 'ga_id가 필요합니다.' })
+    const { username, password, invite_code: inviteRaw, inviteCode: inviteAlt } = req.body ?? {}
+    const code = normalizeInviteCode(inviteRaw ?? inviteAlt ?? '')
+    if (!code) {
+      res.status(400).json({ message: '초대 코드(invite_code)를 입력해 주세요.' })
       return
     }
 
-    const gaCheck = await pool.query(`SELECT id FROM ga_companies WHERE id = $1`, [gaId])
-    if (gaCheck.rowCount === 0) {
-      res.status(400).json({ message: '유효하지 않은 GA입니다.' })
+    const gaCheck = await pool.query(`SELECT id FROM ga_companies WHERE code = $1`, [code])
+    if (gaCheck.rows.length === 0) {
+      res.status(400).json({ message: '유효하지 않은 코드입니다' })
+      return
+    }
+    const gaId = parseGaId(gaCheck.rows[0].id)
+    if (gaId == null) {
+      res.status(400).json({ message: '유효하지 않은 코드입니다' })
       return
     }
 
@@ -950,10 +970,12 @@ async function handleLogin(req, res) {
     }
 
     let gaCode = ''
+    let gaName = ''
     if (gaId != null) {
-      const gRow = await pool.query(`SELECT code FROM ga_companies WHERE id = $1`, [gaId])
+      const gRow = await pool.query(`SELECT code, name FROM ga_companies WHERE id = $1`, [gaId])
       const rawCode = gRow.rows[0]?.code
       gaCode = typeof rawCode === 'string' ? rawCode.trim().toUpperCase() : ''
+      gaName = typeof gRow.rows[0]?.name === 'string' ? gRow.rows[0].name.trim() : ''
     }
 
     const token = jwt.sign(
@@ -964,6 +986,7 @@ async function handleLogin(req, res) {
         role,
         gaId,
         gaCode,
+        gaName,
       },
       JWT_SECRET,
       { expiresIn: '7d' },
@@ -977,6 +1000,7 @@ async function handleLogin(req, res) {
         role,
         ga_id: gaId,
         ga_code: gaCode,
+        ga_name: gaName,
       },
     })
   } catch (error) {
@@ -990,14 +1014,31 @@ apiRouter.post('/auth/register', handleRegister)
 apiRouter.post('/login', handleLogin)
 apiRouter.post('/auth/login', handleLogin)
 
-apiRouter.get('/admin/ga', async (_req, res) => {
+apiRouter.get('/admin/ga', requireAuth, async (req, res) => {
   try {
+    if (isSuperAdminRole(req.user.role)) {
+      const r = await pool.query(
+        `
+        SELECT id, name, code, created_at
+        FROM ga_companies
+        ORDER BY id ASC
+        `,
+      )
+      res.json(r.rows)
+      return
+    }
+    const gid = parseGaId(req.user?.gaId)
+    if (gid == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
     const r = await pool.query(
       `
       SELECT id, name, code, created_at
       FROM ga_companies
-      ORDER BY id ASC
+      WHERE id = $1
       `,
+      [gid],
     )
     res.json(r.rows)
   } catch (error) {
@@ -2048,7 +2089,7 @@ apiRouter.post('/forms', requireAuth, async (req, res) => {
     const linkedId = resolveLinkedCustomerIdFromRequest(req.body, formData)
     let customerIdFk = null
     if (linkedId != null) {
-      const usable = await assertCustomerActiveAndOwnedByUser(linkedId, userId)
+      const usable = await assertCustomerActiveAndOwnedByUser(linkedId, userId, gaId)
       if (!usable) {
         res.status(400).json({ message: '유효하지 않은 고객 연결입니다.' })
         return
@@ -2383,6 +2424,11 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
     if (!userId) {
       return
     }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
 
     const customerId = Number(req.params.id)
     if (!Number.isInteger(customerId) || customerId < 1) {
@@ -2497,12 +2543,12 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       return
     }
 
-    vals.push(customerId, userId)
+    vals.push(customerId, userId, gaId)
     const updated = await pool.query(
       `
       UPDATE customers
       SET ${parts.join(', ')}
-      WHERE id = $${n++} AND user_id = $${n++} AND deleted_at IS NULL
+      WHERE id = $${n++} AND user_id = $${n++} AND ga_id = $${n++} AND deleted_at IS NULL
       RETURNING
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
@@ -2646,6 +2692,11 @@ apiRouter.delete('/customers/:id', requireAuth, async (req, res) => {
     if (!userId) {
       return
     }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
 
     const customerId = Number(req.params.id)
     if (!Number.isInteger(customerId) || customerId < 1) {
@@ -2657,9 +2708,9 @@ apiRouter.delete('/customers/:id', requireAuth, async (req, res) => {
       `
       UPDATE customers
       SET deleted_at = NOW()
-      WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+      WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
       `,
-      [customerId, userId],
+      [customerId, userId, gaId],
     )
 
     if (deleted.rowCount === 0) {
@@ -2706,6 +2757,11 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
     if (!userId) {
       return
     }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
 
     console.log('저장 userId:', userId)
 
@@ -2716,8 +2772,8 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
     }
 
     const existingForm = await pool.query(
-      `SELECT customer_id FROM insurance_forms WHERE id = $1 AND user_id = $2`,
-      [req.params.id, userId],
+      `SELECT customer_id FROM insurance_forms WHERE id = $1 AND user_id = $2 AND ga_id = $3`,
+      [req.params.id, userId, gaId],
     )
     if (existingForm.rowCount === 0) {
       res.status(404).json({ message: '수정할 신청서를 찾을 수 없습니다.' })
@@ -2731,12 +2787,12 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
     const linkedId = resolveLinkedCustomerIdFromRequest(req.body, formData)
     let customerIdFk = null
     if (linkedId != null) {
-      const owned = await assertCustomerOwnedByUser(linkedId, userId)
+      const owned = await assertCustomerOwnedByUser(linkedId, userId, gaId)
       if (!owned) {
         res.status(400).json({ message: '유효하지 않은 고객 연결입니다.' })
         return
       }
-      const active = await assertCustomerActiveAndOwnedByUser(linkedId, userId)
+      const active = await assertCustomerActiveAndOwnedByUser(linkedId, userId, gaId)
       if (!active) {
         const sameAsBefore =
           prevFormCustomerId != null && Number.isInteger(prevFormCustomerId) && prevFormCustomerId === linkedId
@@ -2770,7 +2826,7 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
         expiry_date = $4,
         form_data = $5::jsonb,
         updated_at = NOW()
-      WHERE id = $6 AND user_id = $7
+      WHERE id = $6 AND user_id = $7 AND ga_id = $8
       RETURNING id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       `,
       [
@@ -2781,6 +2837,7 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
         JSON.stringify(mergedForm),
         req.params.id,
         userId,
+        gaId,
       ],
     )
 
@@ -2803,14 +2860,19 @@ apiRouter.delete('/forms/:id', requireAuth, async (req, res) => {
     if (!userId) {
       return
     }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
 
     const deleted = await pool.query(
       `
       DELETE FROM insurance_forms
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1 AND user_id = $2 AND ga_id = $3
       RETURNING id
       `,
-      [req.params.id, userId],
+      [req.params.id, userId, gaId],
     )
 
     if (deleted.rowCount === 0) {

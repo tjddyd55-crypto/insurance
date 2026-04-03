@@ -164,10 +164,13 @@ export function TemplateEditorPage() {
   }, [loadDetail])
 
   useEffect(() => {
+    if (!token?.trim()) {
+      return
+    }
     let c = false
     ;(async () => {
       try {
-        const list = await listGaCompanies()
+        const list = await listGaCompanies(token)
         if (!c) {
           setGaOptions(list)
         }
@@ -180,7 +183,7 @@ export function TemplateEditorPage() {
     return () => {
       c = true
     }
-  }, [])
+  }, [token])
 
   useEffect(() => {
     if (isEdit || gaOptions.length === 0) {

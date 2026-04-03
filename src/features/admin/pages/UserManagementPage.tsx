@@ -43,13 +43,13 @@ export default function UserManagementPage() {
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    if (user?.role !== 'SUPER_ADMIN') {
+    if (user?.role !== 'SUPER_ADMIN' || !token?.trim()) {
       return
     }
     let cancelled = false
     ;(async () => {
       try {
-        const gas = await listGaCompanies()
+        const gas = await listGaCompanies(token)
         if (!cancelled) {
           setGaList(gas)
         }
@@ -62,7 +62,7 @@ export default function UserManagementPage() {
     return () => {
       cancelled = true
     }
-  }, [user?.role])
+  }, [user?.role, token])
 
   const loadUsers = useCallback(async () => {
     if (!token?.trim() || user?.role !== 'SUPER_ADMIN') {

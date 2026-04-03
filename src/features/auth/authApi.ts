@@ -9,6 +9,8 @@ export interface AuthUser {
   gaId: number
   /** ga_companies.code (대문자). 구세션·JWT에는 없을 수 있음 → 빈 문자열 */
   gaCode: string
+  /** ga_companies.name (표시용). 구세션에는 없을 수 있음 */
+  gaName: string
 }
 
 export interface LoginResponse {
@@ -19,6 +21,7 @@ export interface LoginResponse {
     role: UserRole
     ga_id: number | null
     ga_code?: string
+    ga_name?: string
   }
 }
 
@@ -29,17 +32,21 @@ export interface GaCompanyRow {
   created_at: string
 }
 
-export async function listGaCompanies(): Promise<GaCompanyRow[]> {
-  return apiRequest<GaCompanyRow[]>('/api/admin/ga', { method: 'GET' })
+export async function listGaCompanies(token: string): Promise<GaCompanyRow[]> {
+  return apiRequest<GaCompanyRow[]>('/api/admin/ga', { method: 'GET', token })
 }
 
-export async function register(username: string, password: string, gaId: number) {
+export async function register(username: string, password: string, inviteCode: string) {
   try {
     return await apiRequest<{ id: string; username: string; ga_id: number; createdAt: string }>(
       '/api/auth/register',
       {
         method: 'POST',
-        body: JSON.stringify({ username, password, ga_id: gaId }),
+        body: JSON.stringify({
+          username,
+          password,
+          invite_code: inviteCode.trim(),
+        }),
       },
     )
   } catch (error) {
@@ -57,6 +64,7 @@ export async function login(username: string, password: string) {
   })
   const gaCode =
     typeof raw.user.ga_code === 'string' ? raw.user.ga_code.trim().toUpperCase() : ''
+  const gaName = typeof raw.user.ga_name === 'string' ? raw.user.ga_name.trim() : ''
   const gaId =
     typeof raw.user.ga_id === 'number' && Number.isInteger(raw.user.ga_id) && raw.user.ga_id > 0
       ? raw.user.ga_id
@@ -69,6 +77,7 @@ export async function login(username: string, password: string) {
       role: raw.user.role,
       gaId,
       gaCode,
+      gaName,
     },
   } satisfies { token: string; user: AuthUser }
 }

@@ -1,14 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { gaLabel } from '../../consent/admin/consentAdminMeta'
 import { useAuth } from '../AuthProvider'
-import { listGaCompanies, login as loginApi, register as registerApi, type GaCompanyRow } from '../authApi'
+import { login as loginApi, register as registerApi } from '../authApi'
 
 export function RegisterPage() {
   const navigate = useNavigate()
   const { isAuthenticated, login } = useAuth()
-  const [gaList, setGaList] = useState<GaCompanyRow[]>([])
-  const [gaId, setGaId] = useState<number | ''>('')
+  const [inviteCode, setInviteCode] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -21,33 +19,12 @@ export function RegisterPage() {
     }
   }, [isAuthenticated, navigate])
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const list = await listGaCompanies()
-        if (!cancelled) {
-          setGaList(list)
-          if (list.length === 1) {
-            setGaId(list[0].id)
-          }
-        }
-      } catch {
-        if (!cancelled) {
-          setErrorMessage('GA 목록을 불러오지 못했습니다. 네트워크를 확인해 주세요.')
-        }
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const handleSignup = async (event: FormEvent) => {
     event.preventDefault()
     setErrorMessage('')
-    if (gaId === '' || !Number.isInteger(Number(gaId))) {
-      setErrorMessage('소속 GA를 선택하세요.')
+    const code = inviteCode.trim()
+    if (!code) {
+      setErrorMessage('초대 코드를 입력하세요.')
       return
     }
     if (password !== confirmPassword) {
@@ -56,7 +33,7 @@ export function RegisterPage() {
     }
     setIsSubmitting(true)
     try {
-      await registerApi(username, password, Number(gaId))
+      await registerApi(username, password, code)
       const session = await loginApi(username, password)
       login(session)
       navigate('/dashboard', { replace: true })
@@ -71,23 +48,20 @@ export function RegisterPage() {
     <main className="auth-page">
       <section className="card auth-card">
         <h1>회원가입</h1>
-        <p className="auth-description">아이디·비밀번호와 소속 GA를 등록합니다.</p>
+        <p className="auth-description">
+          소속 GA에서 안내받은 초대 코드와 아이디·비밀번호를 등록합니다.
+        </p>
 
         <form className="auth-form" onSubmit={(e) => void handleSignup(e)}>
           <label className="field">
-            <span className="field__label">소속 GA</span>
-            <select
-              value={gaId === '' ? '' : String(gaId)}
-              onChange={(e) => setGaId(e.target.value === '' ? '' : Number(e.target.value))}
+            <span className="field__label">초대 코드 (invite_code)</span>
+            <input
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              autoComplete="off"
+              placeholder="예: YJASSET"
               required
-            >
-              <option value="">선택하세요</option>
-              {gaList.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name} ({g.code}) · {gaLabel(g.id)}
-                </option>
-              ))}
-            </select>
+            />
           </label>
 
           <label className="field">
