@@ -97,6 +97,21 @@ export async function initDb() {
     )
   `)
 
+  await pool.query(`
+    ALTER TABLE ga_companies
+    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'
+  `)
+  await pool.query(`
+    ALTER TABLE ga_companies
+    ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT false
+  `)
+  await pool.query(`ALTER TABLE ga_companies DROP CONSTRAINT IF EXISTS ga_companies_status_check`)
+  await pool.query(`
+    ALTER TABLE ga_companies
+    ADD CONSTRAINT ga_companies_status_check
+    CHECK (status IN ('active', 'blocked', 'inactive'))
+  `)
+
   await pool.query(
     `
     INSERT INTO ga_companies (name, code)
@@ -108,6 +123,21 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active'
+  `)
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT false
+  `)
+  await pool.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_status_check`)
+  await pool.query(`
+    ALTER TABLE users
+    ADD CONSTRAINT users_status_check
+    CHECK (status IN ('active', 'blocked', 'inactive'))
   `)
 
   await pool.query(`

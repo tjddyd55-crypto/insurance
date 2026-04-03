@@ -10,7 +10,7 @@ import {
 type MenuItem = GaTenantMenuItem
 
 const SUPER_ADMIN_MENU: MenuItem[] = [
-  { label: 'GA 생성', path: '/admin/create-ga' },
+  { label: 'GA 관리', path: '/admin/ga' },
   { label: '담당자 생성', path: '/admin/create-staff' },
   { label: '유저 관리', path: '/admin/users' },
   { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
@@ -55,6 +55,9 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   }
   if (itemPath.startsWith('/internal/admin/')) {
     return pathname === itemPath
+  }
+  if (itemPath === '/admin/ga') {
+    return pathname === '/admin/ga' || pathname === '/admin/create-ga'
   }
   return pathname === itemPath
 }

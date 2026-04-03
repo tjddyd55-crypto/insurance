@@ -6,7 +6,7 @@ import { ApplicationListPage } from './features/application/pages/ApplicationLis
 import { ApplicationResultPage } from './features/application/pages/ApplicationResultPage'
 import { CarInsuranceDashboardPage } from './features/application/pages/CarInsuranceDashboardPage'
 import CreateStaffPage from './features/admin/pages/CreateStaffPage'
-import GaCreatePage from './features/admin/pages/GaCreatePage'
+import GaManagementPage from './features/admin/pages/GaManagementPage'
 import UserManagementPage from './features/admin/pages/UserManagementPage'
 import { LoginPage } from './features/auth/pages/LoginPage'
 import { RegisterPage } from './features/auth/pages/RegisterPage'
@@ -63,7 +63,8 @@ export const appRouter = createBrowserRouter([
           },
           { path: 'customers', element: <CustomersPage /> },
           { path: 'customer-car', element: <CustomerCarPage /> },
-          { path: 'admin/create-ga', element: <GaCreatePage /> },
+          { path: 'admin/ga', element: <GaManagementPage /> },
+          { path: 'admin/create-ga', element: <Navigate to="/admin/ga" replace /> },
           { path: 'admin/create-staff', element: <CreateStaffPage /> },
           { path: 'admin/users', element: <UserManagementPage /> },
           { path: 'feature-request', element: <FeatureRequestPage /> },

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import jwt from 'jsonwebtoken'
 import multer from 'multer'
 import { fillConsentPdf } from './lib/consentPdfFill.js'
+import { safeQuery } from './utils/dbSafeQuery.js'
 import {
   consentGetBuffer,
   consentGetSignedDownloadUrl,
@@ -103,7 +104,7 @@ export function registerConsentApi(apiRouter, ctx) {
         WHERE ga_id = $1
         ORDER BY insurance_company_id ASC
       `
-      const r = await pool.query(sql, [g])
+      const r = await safeQuery(pool,sql, [g])
       res.json(r.rows)
     } catch (error) {
       handleDbError(error, res)
@@ -127,7 +128,7 @@ export function registerConsentApi(apiRouter, ctx) {
         FROM consent_templates
         WHERE id = $1 AND ga_id = $2
       `
-      const r = await pool.query(sql, [id, tenantG])
+      const r = await safeQuery(pool,sql, [id, tenantG])
       if (r.rowCount === 0) {
         res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
         return
@@ -151,7 +152,7 @@ export function registerConsentApi(apiRouter, ctx) {
         return
       }
       const sql = `SELECT pdf_storage_key FROM consent_templates WHERE id = $1 AND ga_id = $2`
-      const r = await pool.query(sql, [id, tenantG])
+      const r = await safeQuery(pool,sql, [id, tenantG])
       if (r.rowCount === 0) {
         res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
         return
@@ -174,7 +175,7 @@ export function registerConsentApi(apiRouter, ctx) {
         res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
         return
       }
-      const r = await pool.query(
+      const r = await safeQuery(pool,
         `
         SELECT id, ga_id, insurance_company_id, fax_number, created_at, updated_at
         FROM consent_templates
@@ -235,7 +236,7 @@ export function registerConsentApi(apiRouter, ctx) {
           }
         }
 
-        const existing = await pool.query(
+        const existing = await safeQuery(pool,
           `SELECT id, pdf_storage_key FROM consent_templates WHERE ga_id = $1 AND insurance_company_id = $2`,
           [gaId, insuranceCompanyId],
         )
@@ -257,7 +258,7 @@ export function registerConsentApi(apiRouter, ctx) {
           storageKey = String(existing.rows[0].pdf_storage_key)
         }
 
-        const inserted = await pool.query(
+        const inserted = await safeQuery(pool,
           `
           INSERT INTO consent_templates (id, ga_id, insurance_company_id, fax_number, fields, pdf_storage_key)
           VALUES ($1, $2, $3, $4, $5::jsonb, $6)
@@ -291,6 +292,10 @@ export function registerConsentApi(apiRouter, ctx) {
       }
 
       const userGa = parseGaId(req.user?.gaId)
+      if (userGa == null) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
 
       const consentTemplateId = String(req.body.consent_template_id ?? '').trim()
       if (!consentTemplateId) {
@@ -307,27 +312,19 @@ export function registerConsentApi(apiRouter, ctx) {
         typeof signatureRaw === 'string' ? signatureRaw : '',
       )
 
-      const rowQ = await pool.query(
+      const rowQ = await safeQuery(pool,
         `
         SELECT id, ga_id, fields, pdf_storage_key
         FROM consent_templates
-        WHERE id = $1
+        WHERE id = $1 AND ga_id = $2
         `,
-        [consentTemplateId],
+        [consentTemplateId, userGa],
       )
       if (rowQ.rowCount === 0) {
         res.status(404).json({ message: '동의서 템플릿을 찾을 수 없습니다.' })
         return
       }
       const row = rowQ.rows[0]
-      const templateGa = parseGaId(row.ga_id)
-
-      if (!isSuperAdminRole(req.user?.role)) {
-        if (userGa == null || templateGa == null || userGa !== templateGa) {
-          res.status(403).json({ message: '이 템플릿에 접근할 수 없습니다.' })
-          return
-        }
-      }
 
       const templateBytes = await consentGetBuffer(row.pdf_storage_key)
       const filledPdf = await fillConsentPdf(templateBytes, row.fields, formData, signatureBuf)

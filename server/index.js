@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import pool from './db.js'
+import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import { initDb } from './initDb.js'
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
 import { registerConsentApi } from './registerConsentApi.js'
@@ -16,6 +17,7 @@ const DEFAULT_JWT_SECRET = 'change-this-in-production'
 const VALID_USER_ROLES = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF', 'USER']
 const GA_DELEGATE_ROLES = ['GA_ADMIN', 'GA_STAFF']
 const FEATURE_REQUEST_STATUSES = ['pending', 'reviewed', 'done']
+const ENTITY_STATUSES = ['active', 'blocked', 'inactive']
 const LEGACY_USER_ROLE_MAP = {
   super_admin: 'SUPER_ADMIN',
   staff: 'GA_ADMIN',
@@ -314,6 +316,11 @@ function parseGaId(value) {
   return n
 }
 
+function parseEntityStatus(raw) {
+  const s = String(raw ?? '').trim().toLowerCase()
+  return ENTITY_STATUSES.includes(s) ? s : null
+}
+
 /** @returns {number | null} */
 function effectiveTenantGaId(req) {
   if (!req.user) {
@@ -346,7 +353,7 @@ async function assertCustomerOwnedByUser(customerId, userId, gaId) {
   if (g == null) {
     return false
   }
-  const r = await pool.query(
+  const r = await safeQuery(pool,
     `SELECT 1 FROM customers WHERE id = $1 AND user_id = $2 AND ga_id = $3`,
     [customerId, userId, g],
   )
@@ -361,7 +368,7 @@ async function assertCustomerActiveAndOwnedByUser(customerId, userId, gaId) {
   if (g == null) {
     return false
   }
-  const r = await pool.query(
+  const r = await safeQuery(pool,
     `SELECT 1 FROM customers WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL`,
     [customerId, userId, g],
   )
@@ -479,7 +486,7 @@ async function loadCompanyDirectoryNestedList(gaId) {
   if (g == null) {
     throw new Error('loadCompanyDirectoryNestedList: gaId 필요')
   }
-  const masters = await pool.query(
+  const masters = await safeQuery(pool,
     `
     SELECT *
     FROM insurance_company_master
@@ -488,7 +495,7 @@ async function loadCompanyDirectoryNestedList(gaId) {
     `,
     [g],
   )
-  const contacts = await pool.query(
+  const contacts = await safeQuery(pool,
     `
     SELECT ic.*
     FROM insurance_company_contacts ic
@@ -497,7 +504,7 @@ async function loadCompanyDirectoryNestedList(gaId) {
     `,
     [g],
   )
-  const generals = await pool.query(
+  const generals = await safeQuery(pool,
     `
     SELECT gr.*
     FROM insurance_general_request gr
@@ -593,7 +600,7 @@ function handleDbError(error, res) {
 
 async function logInsuranceFormsDbDiagnostics(contextLabel) {
   try {
-    const recent = await pool.query(
+    const recent = await systemQuery(pool,
       `
       SELECT id, user_id, created_at
       FROM insurance_forms
@@ -603,7 +610,7 @@ async function logInsuranceFormsDbDiagnostics(contextLabel) {
     )
     console.log(`[insurance_forms:${contextLabel}] DB 저장 확인:`, recent.rows)
 
-    const nullCheck = await pool.query(
+    const nullCheck = await systemQuery(pool,
       `SELECT COUNT(*)::int AS count FROM insurance_forms WHERE user_id IS NULL`,
     )
     console.log(
@@ -634,7 +641,7 @@ function requireInsuranceFormUserId(req, res) {
   return userId
 }
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401).json({ message: '로그인이 필요합니다.' })
@@ -682,15 +689,52 @@ function requireAuth(req, res, next) {
       return
     }
 
+    const st = await safeQuery(
+      pool,
+      `
+      SELECT
+        u.status AS user_status,
+        u.is_deleted AS user_deleted,
+        g.status AS ga_status,
+        g.is_deleted AS ga_deleted
+      FROM users u
+      INNER JOIN ga_companies g ON g.id = u.ga_id
+      WHERE u.id = $1
+      `,
+      [req.user.id],
+    )
+    if (st.rowCount === 0) {
+      res.status(401).json({ error: 'Unauthorized', message: '로그인 정보가 올바르지 않습니다.' })
+      return
+    }
+    const row = st.rows[0]
+    if (row.user_deleted) {
+      res.status(403).json({ message: '접근이 제한된 계정입니다' })
+      return
+    }
+    if (row.user_status !== 'active') {
+      res.status(403).json({ message: '접근이 제한된 계정입니다' })
+      return
+    }
+    if (row.ga_deleted || row.ga_status !== 'active') {
+      res.status(403).json({ message: '해당 GA는 현재 사용이 제한되었습니다' })
+      return
+    }
+
     if (req.originalUrl?.includes('/forms')) {
       console.log('로그인 user:', req.user)
     }
     next()
-  } catch {
-    res.status(401).json({
-      error: 'Unauthorized',
-      message: '인증이 만료되었거나 유효하지 않습니다.',
-    })
+  } catch (e) {
+    const name = e && typeof e === 'object' && 'name' in e ? String(e.name) : ''
+    if (name === 'JsonWebTokenError' || name === 'TokenExpiredError') {
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: '인증이 만료되었거나 유효하지 않습니다.',
+      })
+      return
+    }
+    next(e)
   }
 }
 
@@ -739,7 +783,7 @@ function emptyCompanySnapshot() {
 
 async function loadCompanySnapshot(client, companyId, gaId) {
   const g = parseGaId(gaId)
-  const m = await client.query(
+  const m = await safeQuery(client,
     `
     SELECT customer_center, system_phone, incall_number, visit_info
     FROM insurance_company_master
@@ -752,14 +796,15 @@ async function loadCompanySnapshot(client, companyId, gaId) {
     return emptyCompanySnapshot()
   }
   const row = m.rows[0]
-  const c = await client.query(
+  const c = await safeQuery(client,
     `
-    SELECT name, position, phone
-    FROM insurance_company_contacts
-    WHERE company_id = $1
-    ORDER BY id ASC
+    SELECT ic.name, ic.position, ic.phone
+    FROM insurance_company_contacts ic
+    INNER JOIN insurance_company_master m ON m.id = ic.company_id AND m.ga_id = $2
+    WHERE ic.company_id = $1
+    ORDER BY ic.id ASC
     `,
-    [companyId],
+    [companyId, g],
   )
   return {
     customerCenter: String(row.customer_center ?? '').trim(),
@@ -817,7 +862,8 @@ async function touchContactLastUpdatedAt(client, gaId = null) {
     gaId != null && Number.isInteger(Number(gaId)) && Number(gaId) > 0
       ? `contact_last_updated_at:${Number(gaId)}`
       : 'contact_last_updated_at'
-  await client.query(
+  await safeQuery(
+    client,
     `
     INSERT INTO insurance_contact_meta (meta_key, meta_value, updated_at)
     VALUES ($1, NOW()::text, NOW())
@@ -825,6 +871,7 @@ async function touchContactLastUpdatedAt(client, gaId = null) {
     DO UPDATE SET meta_value = NOW()::text, updated_at = NOW()
     `,
     [key],
+    { allowUnscoped: true },
   )
 }
 
@@ -864,12 +911,21 @@ async function handleRegister(req, res) {
       return
     }
 
-    const gaCheck = await pool.query(`SELECT id FROM ga_companies WHERE code = $1`, [code])
+    const gaCheck = await systemQuery(
+      pool,
+      `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
+      [code],
+    )
     if (gaCheck.rows.length === 0) {
       res.status(400).json({ message: '유효하지 않은 코드입니다' })
       return
     }
-    const gaId = parseGaId(gaCheck.rows[0].id)
+    const gaRow = gaCheck.rows[0]
+    if (String(gaRow.status ?? '').toLowerCase() !== 'active') {
+      res.status(400).json({ message: '가입할 수 없는 GA입니다' })
+      return
+    }
+    const gaId = parseGaId(gaRow.id)
     if (gaId == null) {
       res.status(400).json({ message: '유효하지 않은 코드입니다' })
       return
@@ -885,7 +941,7 @@ async function handleRegister(req, res) {
     const passwordHash = await bcrypt.hash(password, 10)
     const id = randomUUID()
 
-    const inserted = await pool.query(
+    const inserted = await safeQuery(pool,
       `
       INSERT INTO users (id, username, password_hash, role, ga_id)
       VALUES ($1, $2, $3, 'USER', $4)
@@ -923,11 +979,11 @@ async function handleLogin(req, res) {
 
     console.log('로그인 시도 username:', normalizedUsername)
 
-    const result = await pool.query(
+    const result = await systemQuery(pool,
       `
       SELECT *
       FROM users
-      WHERE username = $1
+      WHERE username = $1 AND is_deleted = false
       `,
       [normalizedUsername],
     )
@@ -961,6 +1017,16 @@ async function handleLogin(req, res) {
       return
     }
 
+    if (user.is_deleted === true) {
+      res.status(401).json({ message: '접근이 제한된 계정입니다' })
+      return
+    }
+    const userStatus = String(user.status ?? 'active').toLowerCase()
+    if (userStatus !== 'active') {
+      res.status(401).json({ message: '접근이 제한된 계정입니다' })
+      return
+    }
+
     const uid = String(user.id)
     const role = normalizeUserRole(user.role)
     const gaId = parseGaId(user.ga_id)
@@ -972,10 +1038,23 @@ async function handleLogin(req, res) {
     let gaCode = ''
     let gaName = ''
     if (gaId != null) {
-      const gRow = await pool.query(`SELECT code, name FROM ga_companies WHERE id = $1`, [gaId])
-      const rawCode = gRow.rows[0]?.code
+      const gRow = await systemQuery(
+        pool,
+        `SELECT code, name, status, is_deleted FROM ga_companies WHERE id = $1`,
+        [gaId],
+      )
+      const g0 = gRow.rows[0]
+      if (!g0 || g0.is_deleted === true) {
+        res.status(401).json({ message: '해당 GA는 현재 사용이 제한되었습니다' })
+        return
+      }
+      if (String(g0.status ?? '').toLowerCase() !== 'active') {
+        res.status(401).json({ message: '해당 GA는 현재 사용이 제한되었습니다' })
+        return
+      }
+      const rawCode = g0?.code
       gaCode = typeof rawCode === 'string' ? rawCode.trim().toUpperCase() : ''
-      gaName = typeof gRow.rows[0]?.name === 'string' ? gRow.rows[0].name.trim() : ''
+      gaName = typeof g0?.name === 'string' ? g0.name.trim() : ''
     }
 
     const token = jwt.sign(
@@ -1017,10 +1096,12 @@ apiRouter.post('/auth/login', handleLogin)
 apiRouter.get('/admin/ga', requireAuth, async (req, res) => {
   try {
     if (isSuperAdminRole(req.user.role)) {
-      const r = await pool.query(
+      const r = await systemQuery(
+        pool,
         `
-        SELECT id, name, code, created_at
+        SELECT id, name, code, status, created_at
         FROM ga_companies
+        WHERE is_deleted = false
         ORDER BY id ASC
         `,
       )
@@ -1029,14 +1110,15 @@ apiRouter.get('/admin/ga', requireAuth, async (req, res) => {
     }
     const gid = parseGaId(req.user?.gaId)
     if (gid == null) {
-      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      res.json([])
       return
     }
-    const r = await pool.query(
+    const r = await systemQuery(
+      pool,
       `
-      SELECT id, name, code, created_at
+      SELECT id, name, code, status, created_at
       FROM ga_companies
-      WHERE id = $1
+      WHERE id = $1 AND is_deleted = false
       `,
       [gid],
     )
@@ -1058,12 +1140,13 @@ apiRouter.post('/admin/ga', requireAuth, requireSuperAdmin, async (req, res) => 
       res.status(400).json({ message: 'code는 2~32자의 영문 대문자·숫자·밑줄만 사용할 수 있습니다.' })
       return
     }
-    const ins = await pool.query(
+    const ins = await systemQuery(
+      pool,
       `
-      INSERT INTO ga_companies (name, code)
-      VALUES ($1, $2)
+      INSERT INTO ga_companies (name, code, status, is_deleted)
+      VALUES ($1, $2, 'active', false)
       ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
-      RETURNING id, name, code, created_at
+      RETURNING id, name, code, status, created_at
       `,
       [name, code],
     )
@@ -1073,31 +1156,133 @@ apiRouter.post('/admin/ga', requireAuth, requireSuperAdmin, async (req, res) => 
   }
 })
 
+apiRouter.patch('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id < 1) {
+      res.status(400).json({ message: '잘못된 GA ID입니다.' })
+      return
+    }
+    const exists = await systemQuery(
+      pool,
+      `SELECT id FROM ga_companies WHERE id = $1 AND is_deleted = false`,
+      [id],
+    )
+    if (exists.rowCount === 0) {
+      res.status(404).json({ message: 'GA를 찾을 수 없습니다.' })
+      return
+    }
+
+    const parts = []
+    const vals = []
+    let n = 1
+    if (Object.prototype.hasOwnProperty.call(req.body ?? {}, 'name')) {
+      const name = String(req.body?.name ?? '').trim()
+      if (!name) {
+        res.status(400).json({ message: 'name이 비어 있을 수 없습니다.' })
+        return
+      }
+      parts.push(`name = $${n++}`)
+      vals.push(name)
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body ?? {}, 'code')) {
+      const code = String(req.body?.code ?? '').trim().toUpperCase()
+      if (!/^[A-Z0-9_]{2,32}$/.test(code)) {
+        res.status(400).json({ message: 'code는 2~32자의 영문 대문자·숫자·밑줄만 사용할 수 있습니다.' })
+        return
+      }
+      parts.push(`code = $${n++}`)
+      vals.push(code)
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body ?? {}, 'status')) {
+      const st = parseEntityStatus(req.body?.status)
+      if (!st) {
+        res.status(400).json({ message: 'status는 active, blocked, inactive 중 하나여야 합니다.' })
+        return
+      }
+      parts.push(`status = $${n++}`)
+      vals.push(st)
+    }
+
+    if (parts.length === 0) {
+      res.status(400).json({ message: '수정할 필드가 없습니다.' })
+      return
+    }
+
+    vals.push(id)
+    const upd = await systemQuery(
+      pool,
+      `
+      UPDATE ga_companies
+      SET ${parts.join(', ')}
+      WHERE id = $${n} AND is_deleted = false
+      RETURNING id, name, code, status, created_at
+      `,
+      vals,
+    )
+    res.json(upd.rows[0])
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
+apiRouter.delete('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id < 1) {
+      res.status(400).json({ message: '잘못된 GA ID입니다.' })
+      return
+    }
+    const upd = await systemQuery(
+      pool,
+      `
+      UPDATE ga_companies
+      SET is_deleted = true
+      WHERE id = $1 AND is_deleted = false
+      RETURNING id
+      `,
+      [id],
+    )
+    if (upd.rowCount === 0) {
+      res.status(404).json({ message: 'GA를 찾을 수 없습니다.' })
+      return
+    }
+    res.status(204).send()
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
 apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
     const filterGa = parseGaId(req.query.ga_id ?? req.query.gaId)
-    const params = []
-    let whereClause = 'TRUE'
-    if (filterGa != null) {
-      params.push(filterGa)
-      whereClause = `u.ga_id = $${params.length}`
-    }
-    const r = await pool.query(
+    const r = await safeQuery(pool,
       `
-      SELECT u.id, u.ga_id, g.name AS ga_company_name, u.username, u.role, u.created_at
+      SELECT
+        u.id,
+        u.ga_id,
+        u.display_name,
+        g.name AS ga_company_name,
+        u.username,
+        u.role,
+        u.status,
+        u.created_at
       FROM users u
       INNER JOIN ga_companies g ON g.id = u.ga_id
-      WHERE ${whereClause}
+      WHERE u.is_deleted = false AND g.is_deleted = false
+        AND ($1::int IS NULL OR u.ga_id = $1)
       ORDER BY g.name ASC, u.username ASC
       `,
-      params,
+      [filterGa],
     )
     const rows = r.rows.map((row) => ({
       id: String(row.id),
       ga_id: row.ga_id,
+      display_name: String(row.display_name ?? '').trim(),
       ga_company_name: row.ga_company_name,
       username: row.username,
       role: normalizeUserRole(row.role),
+      status: String(row.status ?? 'active').toLowerCase(),
       created_at: toIsoString(row.created_at),
     }))
     res.json(rows)
@@ -1113,47 +1298,89 @@ apiRouter.patch('/admin/users/:id', requireAuth, requireSuperAdmin, async (req, 
       res.status(400).json({ message: '잘못된 사용자 ID입니다.' })
       return
     }
-    const gaId = parseGaId(req.body?.ga_id ?? req.body?.gaId)
-    if (gaId == null) {
-      res.status(400).json({ message: 'ga_id가 필요합니다.' })
+
+    const body = req.body ?? {}
+    const hasGa = Object.prototype.hasOwnProperty.call(body, 'ga_id') || Object.prototype.hasOwnProperty.call(body, 'gaId')
+    const hasRole = Object.prototype.hasOwnProperty.call(body, 'role')
+    const hasStatus = Object.prototype.hasOwnProperty.call(body, 'status')
+
+    const gaId = hasGa ? parseGaId(body.ga_id ?? body.gaId) : null
+    const roleNorm = hasRole ? parseAdminPatchRole(body.role) : null
+    const statusNorm = hasStatus ? parseEntityStatus(body.status) : null
+
+    if (!hasGa && !hasRole && !hasStatus) {
+      res.status(400).json({ message: 'ga_id, role, status 중 하나 이상이 필요합니다.' })
       return
     }
-    const gaOk = await pool.query(`SELECT 1 FROM ga_companies WHERE id = $1`, [gaId])
-    if (gaOk.rows.length === 0) {
-      res.status(400).json({ message: '유효하지 않은 GA입니다.' })
+    if (hasGa && gaId == null) {
+      res.status(400).json({ message: 'ga_id가 올바르지 않습니다.' })
       return
     }
-    const roleNorm = parseAdminPatchRole(req.body?.role)
-    if (!roleNorm) {
+    if (hasRole && !roleNorm) {
       res.status(400).json({
         message: 'role이 올바르지 않습니다. (USER, GA_ADMIN, GA_STAFF, SUPER_ADMIN 또는 user, admin, super_admin)',
       })
       return
     }
+    if (hasStatus && !statusNorm) {
+      res.status(400).json({ message: 'status는 active, blocked, inactive 중 하나여야 합니다.' })
+      return
+    }
 
-    const exists = await pool.query(`SELECT id FROM users WHERE id = $1`, [targetId])
+    if (gaId != null) {
+      const gaOk = await systemQuery(
+        pool,
+        `SELECT 1 FROM ga_companies WHERE id = $1 AND is_deleted = false`,
+        [gaId],
+      )
+      if (gaOk.rows.length === 0) {
+        res.status(400).json({ message: '유효하지 않은 GA입니다.' })
+        return
+      }
+    }
+
+    const exists = await safeQuery(pool, `SELECT id FROM users WHERE id = $1 AND is_deleted = false`, [targetId])
     if (exists.rows.length === 0) {
       res.status(404).json({ message: '사용자를 찾을 수 없습니다.' })
       return
     }
 
-    const upd = await pool.query(
+    const parts = []
+    const vals = []
+    let n = 1
+    if (gaId != null) {
+      parts.push(`ga_id = $${n++}`)
+      vals.push(gaId)
+    }
+    if (roleNorm) {
+      parts.push(`role = $${n++}`)
+      vals.push(roleNorm)
+    }
+    if (statusNorm) {
+      parts.push(`status = $${n++}`)
+      vals.push(statusNorm)
+    }
+
+    vals.push(targetId)
+    const upd = await safeQuery(pool,
       `
       UPDATE users
-      SET ga_id = $1, role = $2
-      WHERE id = $3
-      RETURNING id, username, ga_id, role, created_at
+      SET ${parts.join(', ')}
+      WHERE id = $${n} AND is_deleted = false
+      RETURNING id, username, ga_id, display_name, role, status, created_at
       `,
-      [gaId, roleNorm, targetId],
+      vals,
     )
     const row = upd.rows[0]
-    const g = await pool.query(`SELECT name FROM ga_companies WHERE id = $1`, [row.ga_id])
+    const g = await systemQuery(pool, `SELECT name FROM ga_companies WHERE id = $1`, [row.ga_id])
     res.json({
       id: String(row.id),
       username: row.username,
+      display_name: String(row.display_name ?? '').trim(),
       ga_id: row.ga_id,
       ga_company_name: g.rows[0]?.name ?? '',
       role: normalizeUserRole(row.role),
+      status: String(row.status ?? 'active').toLowerCase(),
       created_at: toIsoString(row.created_at),
     })
   } catch (error) {
@@ -1161,15 +1388,57 @@ apiRouter.patch('/admin/users/:id', requireAuth, requireSuperAdmin, async (req, 
   }
 })
 
+apiRouter.delete('/admin/users/:id', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const targetId = String(req.params.id ?? '').trim()
+    if (!targetId) {
+      res.status(400).json({ message: '잘못된 사용자 ID입니다.' })
+      return
+    }
+    const upd = await safeQuery(pool,
+      `
+      UPDATE users
+      SET is_deleted = true
+      WHERE id = $1 AND is_deleted = false
+      RETURNING id
+      `,
+      [targetId],
+    )
+    if (upd.rowCount === 0) {
+      res.status(404).json({ message: '사용자를 찾을 수 없습니다.' })
+      return
+    }
+    res.status(204).send()
+  } catch (error) {
+    handleDbError(error, res)
+  }
+})
+
 async function postAdminCreateDelegateUser(req, res) {
   try {
+    const actorGaId = parseGaId(req.user?.gaId)
+    if (actorGaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
     const { username, password, name, ga_id: gaRaw, gaId: gaBody, role: roleRaw } = req.body ?? {}
     const targetGaId = parseGaId(gaRaw ?? gaBody)
     if (targetGaId == null) {
       res.status(400).json({ message: 'ga_id가 필요합니다.' })
       return
     }
-    const gaOk = await pool.query(`SELECT 1 FROM ga_companies WHERE id = $1`, [targetGaId])
+    if (targetGaId !== actorGaId) {
+      res.status(403).json({ message: '자신이 속한 GA에만 사용자를 생성할 수 있습니다.' })
+      return
+    }
+    const gaOk = await systemQuery(
+      pool,
+      `
+      SELECT 1 FROM ga_companies
+      WHERE id = $1 AND is_deleted = false AND status = 'active'
+      `,
+      [targetGaId],
+    )
     if (gaOk.rowCount === 0) {
       res.status(400).json({ message: '유효하지 않은 GA입니다.' })
       return
@@ -1193,7 +1462,7 @@ async function postAdminCreateDelegateUser(req, res) {
     const passwordHash = await bcrypt.hash(password, 10)
     const id = randomUUID()
 
-    await pool.query(
+    await safeQuery(pool,
       `
       INSERT INTO users (id, username, password_hash, role, display_name, ga_id)
       VALUES ($1, $2, $3, $4, $5, $6)
@@ -1247,7 +1516,7 @@ apiRouter.post('/feature-request', requireAuth, async (req, res) => {
     if (!title) {
       title = content.length > 120 ? `${content.slice(0, 117)}...` : content
     }
-    const ins = await pool.query(
+    const ins = await safeQuery(pool,
       `
       INSERT INTO feature_requests (ga_id, user_id, title, content)
       VALUES ($1, $2, $3, $4)
@@ -1267,19 +1536,24 @@ apiRouter.post('/feature-request', requireAuth, async (req, res) => {
 apiRouter.get('/feature-requests/my', requireAuth, async (req, res) => {
   try {
     const userId = req.user?.id
+    const gaId = parseGaId(req.user?.gaId)
     if (!userId) {
       res.status(401).json({ message: '로그인이 필요합니다.' })
       return
     }
-    const r = await pool.query(
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const r = await safeQuery(pool,
       `
       SELECT id, title, content, status, created_at
       FROM feature_requests
-      WHERE user_id = $1
+      WHERE user_id = $1 AND ga_id = $2
       ORDER BY created_at DESC
       LIMIT 200
       `,
-      [userId],
+      [userId, gaId],
     )
     const rows = r.rows.map((row) => ({
       id: row.id,
@@ -1296,7 +1570,12 @@ apiRouter.get('/feature-requests/my', requireAuth, async (req, res) => {
 
 apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
-    const r = await pool.query(
+    const actorGa = parseGaId(req.user?.gaId)
+    if (actorGa == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const r = await safeQuery(pool,
       `
       SELECT
         fr.id,
@@ -1310,9 +1589,11 @@ apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (
       FROM feature_requests fr
       INNER JOIN ga_companies g ON g.id = fr.ga_id
       INNER JOIN users u ON u.id = fr.user_id
+      WHERE fr.ga_id = $1
       ORDER BY fr.created_at DESC
       LIMIT 500
       `,
+      [actorGa],
     )
     const rows = r.rows.map((row) => ({
       id: row.id,
@@ -1342,14 +1623,19 @@ apiRouter.patch('/admin/feature-requests/:id', requireAuth, requireSuperAdmin, a
       res.status(400).json({ message: 'status는 pending, reviewed, done 중 하나여야 합니다.' })
       return
     }
-    const upd = await pool.query(
+    const actorGa = parseGaId(req.user?.gaId)
+    if (actorGa == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const upd = await safeQuery(pool,
       `
       UPDATE feature_requests
       SET status = $1
-      WHERE id = $2
+      WHERE id = $2 AND ga_id = $3
       RETURNING id, ga_id, user_id, title, content, status, created_at
       `,
-      [status, id],
+      [status, id, actorGa],
     )
     if (upd.rowCount === 0) {
       res.status(404).json({ message: '요청을 찾을 수 없습니다.' })
@@ -1391,7 +1677,7 @@ apiRouter.get('/company/recent-updates', requireAuth, async (req, res) => {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
     }
-    const result = await pool.query(
+    const result = await safeQuery(pool,
       `
       SELECT
         id,
@@ -1468,7 +1754,7 @@ apiRouter.post('/company/full-save', requireAuth, requireGaAdminOrSuper, async (
 
     const companyId = await withTransaction(async (client) => {
       if (!existingId) {
-        const found = await client.query(
+        const found = await safeQuery(client,
           `SELECT id FROM insurance_company_master WHERE ga_id = $3 AND category = $1 AND name = $2`,
           [category, name, tenantGa],
         )
@@ -1484,7 +1770,7 @@ apiRouter.post('/company/full-save', requireAuth, requireGaAdminOrSuper, async (
 
       let cid
       if (existingId) {
-        const updated = await client.query(
+        const updated = await safeQuery(client,
           `
           UPDATE insurance_company_master
           SET
@@ -1517,9 +1803,17 @@ apiRouter.post('/company/full-save', requireAuth, requireGaAdminOrSuper, async (
           throw err
         }
         cid = existingId
-        await client.query(`DELETE FROM insurance_company_contacts WHERE company_id = $1`, [cid])
+        await safeQuery(
+          client,
+          `
+          DELETE FROM insurance_company_contacts ic
+          USING insurance_company_master m
+          WHERE ic.company_id = m.id AND ic.company_id = $1 AND m.ga_id = $2
+          `,
+          [cid, tenantGa],
+        )
       } else {
-        const inserted = await client.query(
+        const inserted = await safeQuery(client,
           `
           INSERT INTO insurance_company_master (
             ga_id, category, name, customer_center, system_phone, incall_number, visit_info,
@@ -1540,12 +1834,14 @@ apiRouter.post('/company/full-save', requireAuth, requireGaAdminOrSuper, async (
         if (!cn && !cp && !cph) {
           continue
         }
-        await client.query(
+        await safeQuery(client,
           `
           INSERT INTO insurance_company_contacts (company_id, name, position, phone)
-          VALUES ($1, $2, $3, $4)
+          SELECT $1, $2, $3, $4
+          FROM insurance_company_master m
+          WHERE m.id = $1 AND m.ga_id = $5
           `,
-          [cid, cn, cp, cph],
+          [cid, cn, cp, cph, tenantGa],
         )
       }
 
@@ -1557,7 +1853,7 @@ apiRouter.post('/company/full-save', requireAuth, requireGaAdminOrSuper, async (
         contactsList,
       )
 
-      await client.query(
+      await safeQuery(client,
         `
         INSERT INTO insurance_company_update_log (
           ga_id, company_id, company_name, category, updated_by_username, before_payload, after_payload
@@ -1613,7 +1909,7 @@ apiRouter.post('/company/general-save', requireAuth, requireGaAdminOrSuper, asyn
       return
     }
 
-    const found = await pool.query(
+    const found = await safeQuery(pool,
       `SELECT id FROM insurance_company_master WHERE ga_id = $3 AND category = $1 AND name = $2`,
       [category, name, tenantGa],
     )
@@ -1631,10 +1927,12 @@ apiRouter.post('/company/general-save', requireAuth, requireGaAdminOrSuper, asyn
     const gFax = String(gen.fax ?? '').trim()
     const gEmail = String(gen.email ?? '').trim()
 
-    await pool.query(
+    await safeQuery(pool,
       `
       INSERT INTO insurance_general_request (company_id, description, phone, fax, email)
-      VALUES ($1, $2, $3, $4, $5)
+      SELECT $1, $2, $3, $4, $5
+      FROM insurance_company_master m
+      WHERE m.id = $1 AND m.ga_id = $6
       ON CONFLICT (company_id)
       DO UPDATE SET
         description = EXCLUDED.description,
@@ -1642,7 +1940,7 @@ apiRouter.post('/company/general-save', requireAuth, requireGaAdminOrSuper, asyn
         fax = EXCLUDED.fax,
         email = EXCLUDED.email
       `,
-      [companyId, gDesc, gPhone, gFax, gEmail],
+      [companyId, gDesc, gPhone, gFax, gEmail, tenantGa],
     )
 
     res.json({ success: true })
@@ -1658,7 +1956,7 @@ apiRouter.get('/insurance/contacts', requireAuth, async (req, res) => {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
     }
-    const contactsResult = await pool.query(
+    const contactsResult = await safeQuery(pool,
       `
       SELECT id, category, company_name, manager_name, position, phone_number, created_at, updated_at
       FROM insurance_contacts
@@ -1676,13 +1974,13 @@ apiRouter.get('/insurance/contacts', requireAuth, async (req, res) => {
       [gaId],
     )
 
-    const metaResult = await pool.query(
+    const metaResult = await safeQuery(pool,
       `
-      SELECT meta_value
+      SELECT meta_value, $2::int AS ga_id
       FROM insurance_contact_meta
       WHERE meta_key = $1
       `,
-      [`contact_last_updated_at:${gaId}`],
+      [`contact_last_updated_at:${gaId}`, gaId],
     )
 
     const fallbackUpdatedAt =
@@ -1711,7 +2009,7 @@ apiRouter.get('/insurance/updates', requireAuth, async (req, res) => {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
     }
-    const result = await pool.query(
+    const result = await safeQuery(pool,
       `
       SELECT
         id,
@@ -1745,7 +2043,7 @@ apiRouter.get('/insurance/contacts/:id/vcard', requireAuth, async (req, res) => 
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
     }
-    const result = await pool.query(
+    const result = await safeQuery(pool,
       `
       SELECT id, company_name, manager_name, position, phone_number
       FROM insurance_contacts
@@ -1806,7 +2104,7 @@ apiRouter.post('/admin/insurance/contacts', requireAuth, requireGaAdminOrSuper, 
 
     const inserted = await withTransaction(async (client) => {
       const contactId = randomUUID()
-      const contactResult = await client.query(
+      const contactResult = await safeQuery(client,
         `
         INSERT INTO insurance_contacts (
           id, ga_id, category, company_name, manager_name, position, phone_number, created_at, updated_at
@@ -1816,7 +2114,7 @@ apiRouter.post('/admin/insurance/contacts', requireAuth, requireGaAdminOrSuper, 
         [contactId, tenantGa, category, companyName, managerName, position, phoneNumber],
       )
 
-      await client.query(
+      await safeQuery(client,
         `
         INSERT INTO insurance_contact_updates (
           id, ga_id, contact_id, action_type, category, company_name, manager_name, position,
@@ -1873,7 +2171,7 @@ apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireGaAdminOrSupe
     }
 
     const updatedContact = await withTransaction(async (client) => {
-      const existing = await client.query(
+      const existing = await safeQuery(client,
         `
         SELECT id, category, company_name, manager_name, position, phone_number
         FROM insurance_contacts
@@ -1886,7 +2184,7 @@ apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireGaAdminOrSupe
         return null
       }
 
-      const updated = await client.query(
+      const updated = await safeQuery(client,
         `
         UPDATE insurance_contacts
         SET
@@ -1903,7 +2201,7 @@ apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireGaAdminOrSupe
       )
 
       const prev = existing.rows[0]
-      await client.query(
+      await safeQuery(client,
         `
         INSERT INTO insurance_contact_updates (
           id, ga_id, contact_id, action_type, category, company_name, manager_name, position,
@@ -1951,7 +2249,7 @@ apiRouter.delete('/admin/insurance/contacts/:id', requireAuth, requireGaAdminOrS
     const description = String(req.body?.description ?? '연락처 삭제').trim()
 
     const deletedContact = await withTransaction(async (client) => {
-      const existing = await client.query(
+      const existing = await safeQuery(client,
         `
         SELECT id, category, company_name, manager_name, position, phone_number
         FROM insurance_contacts
@@ -1964,7 +2262,7 @@ apiRouter.delete('/admin/insurance/contacts/:id', requireAuth, requireGaAdminOrS
         return null
       }
 
-      await client.query(
+      await safeQuery(client,
         `
         DELETE FROM insurance_contacts
         WHERE id = $1 AND ga_id = $2
@@ -1973,7 +2271,7 @@ apiRouter.delete('/admin/insurance/contacts/:id', requireAuth, requireGaAdminOrS
       )
 
       const prev = existing.rows[0]
-      await client.query(
+      await safeQuery(client,
         `
         INSERT INTO insurance_contact_updates (
           id, ga_id, contact_id, action_type, category, company_name, manager_name, position,
@@ -2020,7 +2318,7 @@ apiRouter.get('/forms', requireAuth, async (req, res) => {
       return
     }
 
-    const result = await pool.query(
+    const result = await safeQuery(pool,
       `
       SELECT id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
@@ -2048,7 +2346,7 @@ apiRouter.get('/forms/expiring', requireAuth, async (req, res) => {
       return
     }
 
-    const result = await pool.query(
+    const result = await safeQuery(pool,
       `
       SELECT id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
@@ -2110,7 +2408,7 @@ apiRouter.post('/forms', requireAuth, async (req, res) => {
       req.body.expiry_date ?? req.body.expiryDate ?? mergedForm.expiryDate ?? '',
     )
 
-    const inserted = await pool.query(
+    const inserted = await safeQuery(pool,
       `
       INSERT INTO insurance_forms (
         id, user_id, ga_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
@@ -2150,7 +2448,7 @@ apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
       return
     }
 
-    const result = await pool.query(
+    const result = await safeQuery(pool,
       `
       SELECT id, user_id, ga_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
@@ -2195,7 +2493,7 @@ apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
     }
 
     if (newExpiry) {
-      const check = await pool.query(
+      const check = await safeQuery(pool,
         `
         SELECT id FROM insurance_forms
         WHERE user_id = $1 AND ga_id = $3 AND expiry_date = $2
@@ -2214,7 +2512,7 @@ apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
 
     const formGaId = parseGaId(original.ga_id) ?? gaId
 
-    const insert = await pool.query(
+    const insert = await safeQuery(pool,
       `
       INSERT INTO insurance_forms (
         id, user_id, ga_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
@@ -2284,7 +2582,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
     const driving =
       isDriver === true ? '운전함' : isDriver === false ? '운전 안함' : String(data.driving ?? '').trim()
 
-    const inserted = await pool.query(
+    const inserted = await safeQuery(pool,
       `
       INSERT INTO customers (
         user_id, ga_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
@@ -2333,7 +2631,7 @@ apiRouter.post('/customer/external-create', async (req, res) => {
       return
     }
 
-    const userRow = await pool.query(`SELECT id, role, ga_id FROM users WHERE id = $1`, [refUserId])
+    const userRow = await systemQuery(pool, `SELECT id, role, ga_id FROM users WHERE id = $1`, [refUserId])
     if (userRow.rowCount === 0) {
       res.status(400).json({ message: '유효하지 않은 소개 링크입니다.' })
       return
@@ -2378,7 +2676,7 @@ apiRouter.post('/customer/external-create', async (req, res) => {
     const driving =
       isDriver === true ? '운전함' : isDriver === false ? '운전 안함' : String(data.driving ?? '').trim()
 
-    const inserted = await pool.query(
+    const inserted = await safeQuery(pool,
       `
       INSERT INTO customers (
         user_id, ga_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
@@ -2544,7 +2842,7 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
     }
 
     vals.push(customerId, userId, gaId)
-    const updated = await pool.query(
+    const updated = await safeQuery(pool,
       `
       UPDATE customers
       SET ${parts.join(', ')}
@@ -2575,11 +2873,16 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
     if (!userId) {
       return
     }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
 
     const q = String(req.query.q ?? '').trim()
     let result
     if (!q) {
-      result = await pool.query(
+      result = await safeQuery(pool,
         `
         SELECT
           id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
@@ -2587,15 +2890,15 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
           gender, insurance_age, next_age_date, is_driver, car_type, notes,
           created_at
         FROM customers
-        WHERE user_id = $1 AND deleted_at IS NULL
+        WHERE user_id = $1 AND ga_id = $2 AND deleted_at IS NULL
         ORDER BY created_at DESC
         LIMIT 2000
         `,
-        [userId],
+        [userId, gaId],
       )
     } else {
       const pattern = `%${escapeIlikePattern(q)}%`
-      result = await pool.query(
+      result = await safeQuery(pool,
         `
         SELECT
           id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
@@ -2603,12 +2906,12 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
           gender, insurance_age, next_age_date, is_driver, car_type, notes,
           created_at
         FROM customers
-        WHERE user_id = $1 AND deleted_at IS NULL
+        WHERE user_id = $1 AND ga_id = $3 AND deleted_at IS NULL
           AND (name ILIKE $2 ESCAPE '\\' OR phone ILIKE $2 ESCAPE '\\')
         ORDER BY created_at DESC
         LIMIT 2000
         `,
-        [userId, pattern],
+        [userId, pattern, gaId],
       )
     }
 
@@ -2624,9 +2927,14 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
     if (!userId) {
       return
     }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
 
     const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 2000)
-    const result = await pool.query(
+    const result = await safeQuery(pool,
       `
       SELECT
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
@@ -2634,11 +2942,11 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
         created_at
       FROM customers
-      WHERE user_id = $1 AND deleted_at IS NULL
+      WHERE user_id = $1 AND ga_id = $2 AND deleted_at IS NULL
       ORDER BY renewal_date ASC NULLS LAST, created_at DESC
-      LIMIT $2
+      LIMIT $3
       `,
-      [userId, limit],
+      [userId, gaId, limit],
     )
 
     res.json(result.rows.map(mapCustomerRow))
@@ -2653,6 +2961,11 @@ apiRouter.get('/customers/:id/forms', requireAuth, async (req, res) => {
     if (!userId) {
       return
     }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
 
     const customerId = Number(req.params.id)
     if (!Number.isInteger(customerId) || customerId < 1) {
@@ -2660,9 +2973,10 @@ apiRouter.get('/customers/:id/forms', requireAuth, async (req, res) => {
       return
     }
 
-    const check = await pool.query(`SELECT 1 FROM customers WHERE id = $1 AND user_id = $2`, [
+    const check = await safeQuery(pool, `SELECT 1 FROM customers WHERE id = $1 AND user_id = $2 AND ga_id = $3`, [
       customerId,
       userId,
+      gaId,
     ])
 
     if (check.rowCount === 0) {
@@ -2670,14 +2984,14 @@ apiRouter.get('/customers/:id/forms', requireAuth, async (req, res) => {
       return
     }
 
-    const forms = await pool.query(
+    const forms = await safeQuery(pool,
       `
       SELECT id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
-      WHERE user_id = $1 AND customer_id = $2
+      WHERE user_id = $1 AND customer_id = $2 AND ga_id = $3
       ORDER BY created_at DESC
       `,
-      [userId, customerId],
+      [userId, customerId, gaId],
     )
 
     res.json(forms.rows.map(mapFormRow))
@@ -2704,7 +3018,7 @@ apiRouter.delete('/customers/:id', requireAuth, async (req, res) => {
       return
     }
 
-    const deleted = await pool.query(
+    const deleted = await safeQuery(pool,
       `
       UPDATE customers
       SET deleted_at = NOW()
@@ -2730,14 +3044,19 @@ apiRouter.get('/forms/:id', requireAuth, async (req, res) => {
     if (!userId) {
       return
     }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
 
-    const result = await pool.query(
+    const result = await safeQuery(pool,
       `
       SELECT id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       FROM insurance_forms
-      WHERE id = $1 AND user_id = $2
+      WHERE id = $1 AND user_id = $2 AND ga_id = $3
       `,
-      [req.params.id, userId],
+      [req.params.id, userId, gaId],
     )
 
     if (result.rowCount === 0) {
@@ -2771,7 +3090,7 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
       return
     }
 
-    const existingForm = await pool.query(
+    const existingForm = await safeQuery(pool,
       `SELECT customer_id FROM insurance_forms WHERE id = $1 AND user_id = $2 AND ga_id = $3`,
       [req.params.id, userId, gaId],
     )
@@ -2816,7 +3135,7 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
       req.body.expiry_date ?? req.body.expiryDate ?? mergedForm.expiryDate ?? '',
     )
 
-    const updated = await pool.query(
+    const updated = await safeQuery(pool,
       `
       UPDATE insurance_forms
       SET
@@ -2866,7 +3185,7 @@ apiRouter.delete('/forms/:id', requireAuth, async (req, res) => {
       return
     }
 
-    const deleted = await pool.query(
+    const deleted = await safeQuery(pool,
       `
       DELETE FROM insurance_forms
       WHERE id = $1 AND user_id = $2 AND ga_id = $3

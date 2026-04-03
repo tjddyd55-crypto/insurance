@@ -25,10 +25,13 @@ export interface LoginResponse {
   }
 }
 
+export type EntityStatus = 'active' | 'blocked' | 'inactive'
+
 export interface GaCompanyRow {
   id: number
   name: string
   code: string
+  status: EntityStatus
   created_at: string
 }
 
@@ -130,9 +133,12 @@ export async function createStaffAccount(
 export interface AdminUserRow {
   id: string
   ga_id: number
+  /** 표시 이름 (없으면 빈 문자열) */
+  display_name: string
   ga_company_name: string
   username: string
   role: UserRole
+  status: EntityStatus
   created_at: string
 }
 
@@ -144,15 +150,29 @@ export async function listAdminUsers(token: string, gaId?: number): Promise<Admi
 export async function patchAdminUser(
   token: string,
   userId: string,
-  body: { ga_id: number; role: string },
+  body: { ga_id?: number; role?: string; status?: EntityStatus },
 ) {
+  const payload: Record<string, unknown> = {}
+  if (body.ga_id != null) {
+    payload.ga_id = body.ga_id
+  }
+  if (body.role != null) {
+    payload.role = body.role
+  }
+  if (body.status != null) {
+    payload.status = body.status
+  }
   return apiRequest<AdminUserRow>(`/api/admin/users/${encodeURIComponent(userId)}`, {
     method: 'PATCH',
     token,
-    body: JSON.stringify({
-      ga_id: body.ga_id,
-      role: body.role,
-    }),
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function deleteAdminUser(token: string, userId: string): Promise<void> {
+  await apiRequest<unknown>(`/api/admin/users/${encodeURIComponent(userId)}`, {
+    method: 'DELETE',
+    token,
   })
 }
 
@@ -161,6 +181,25 @@ export async function createGaCompany(token: string, payload: { name: string; co
     method: 'POST',
     token,
     body: JSON.stringify({ name: payload.name.trim(), code: payload.code.trim().toUpperCase() }),
+  })
+}
+
+export async function patchGaCompany(
+  token: string,
+  id: number,
+  body: { name?: string; code?: string; status?: EntityStatus },
+) {
+  return apiRequest<GaCompanyRow>(`/api/admin/ga/${id}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteGaCompany(token: string, id: number): Promise<void> {
+  await apiRequest<unknown>(`/api/admin/ga/${id}`, {
+    method: 'DELETE',
+    token,
   })
 }
 
