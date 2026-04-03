@@ -1,13 +1,21 @@
 export class ApiError extends Error {
   status: number
   retryAfterSec?: number
+  retryAfterMin?: number
 
-  constructor(message: string, status: number, opts?: { retryAfterSec?: number }) {
+  constructor(
+    message: string,
+    status: number,
+    opts?: { retryAfterSec?: number; retryAfterMin?: number },
+  ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     if (opts?.retryAfterSec != null && Number.isFinite(opts.retryAfterSec)) {
       this.retryAfterSec = Math.max(1, Math.floor(opts.retryAfterSec))
+    }
+    if (opts?.retryAfterMin != null && Number.isFinite(opts.retryAfterMin)) {
+      this.retryAfterMin = Math.max(1, Math.floor(opts.retryAfterMin))
     }
   }
 }
@@ -67,13 +75,17 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     message?: string
     error?: string
     retryAfterSec?: number
+    retryAfterMin?: number
   }
   if (!response.ok) {
-    throw new ApiError(
-      payload.message ?? payload.error ?? '요청 처리에 실패했습니다.',
-      response.status,
-      { retryAfterSec: payload.retryAfterSec },
-    )
+    const fallback =
+      response.status === 429
+        ? '요청이 많습니다. 잠시 후 다시 시도해 주세요.'
+        : '요청 처리에 실패했습니다.'
+    throw new ApiError(payload.message ?? payload.error ?? fallback, response.status, {
+      retryAfterSec: payload.retryAfterSec,
+      retryAfterMin: payload.retryAfterMin,
+    })
   }
 
   return payload as T

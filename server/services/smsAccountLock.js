@@ -13,21 +13,25 @@ export const SMS_ACCOUNT_LOCK_DURATION_MINUTES = 10
 
 /**
  * @param {{ sms_blocked_until?: Date|string|null }} userRow
- * @returns {{ ok: true } | { ok: false, message: string, retryAfterSec: number }}
+ * @returns {{ ok: true } | { ok: false, message: string, retryAfterSec: number, retryAfterMin: number }}
  */
 export function assertNotSmsAccountLocked(userRow) {
   const until = userRow?.sms_blocked_until
   if (until == null || until === '') {
     return { ok: true }
   }
+  const now = Date.now()
   const t = new Date(until).getTime()
-  if (Number.isNaN(t) || t <= Date.now()) {
+  if (Number.isNaN(t) || t <= now) {
     return { ok: true }
   }
+  const retryAfterSec = Math.max(1, Math.ceil((t - now) / 1000))
+  const retryAfterMin = Math.max(1, Math.ceil((t - now) / 60000))
   return {
     ok: false,
-    message: '인증 시도가 일시적으로 제한되었습니다. 잠시 후 다시 시도해 주세요.',
-    retryAfterSec: Math.max(1, Math.ceil((t - Date.now()) / 1000)),
+    message: `인증 시도가 많아 ${retryAfterMin}분 후 다시 시도해 주세요.`,
+    retryAfterSec,
+    retryAfterMin,
   }
 }
 

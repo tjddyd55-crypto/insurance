@@ -16,13 +16,14 @@
     "import:cleaned-excel:railway": "railway run -- node server/scripts/runCleanedExcelImport.mjs",
     "cleanup:company-directory": "node server/scripts/runCompanyDirectoryCleanup.mjs",
     "cleanup:company-directory:railway": "railway run -- node server/scripts/runCompanyDirectoryCleanup.mjs",
-    "verify:multitenant-db": "node server/scripts/runMultitenantDbCheck.mjs"
+    "verify:multitenant-db": "node server/scripts/runMultitenantDbCheck.mjs",
+    "purge:sms-verification-logs": "node server/scripts/runPurgeSmsVerificationLogs.mjs",
+    "purge:sms-verification-logs:railway": "railway run -- node server/scripts/runPurgeSmsVerificationLogs.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1023.0",
     "@aws-sdk/s3-request-presigner": "^3.1023.0",
     "@pdf-lib/fontkit": "^1.1.1",
-    "axios": "^1.14.0",
     "bcryptjs": "^3.0.3",
     "concurrently": "^9.2.1",
     "express": "^5.2.1",

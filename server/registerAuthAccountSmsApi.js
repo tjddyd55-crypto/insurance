@@ -121,7 +121,13 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       const acctLock = assertNotSmsAccountLocked(user)
       if (!acctLock.ok) {
         await client.query('ROLLBACK')
-        res.status(429).json({ message: acctLock.message, retryAfterSec: acctLock.retryAfterSec })
+        res
+          .status(429)
+          .json({
+            message: acctLock.message,
+            retryAfterSec: acctLock.retryAfterSec,
+            retryAfterMin: acctLock.retryAfterMin,
+          })
         return
       }
 
@@ -230,7 +236,11 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
 
       const acctLockPre = assertNotSmsAccountLocked(user)
       if (!acctLockPre.ok) {
-        res.status(429).json({ message: acctLockPre.message, retryAfterSec: acctLockPre.retryAfterSec })
+        res.status(429).json({
+          message: acctLockPre.message,
+          retryAfterSec: acctLockPre.retryAfterSec,
+          retryAfterMin: acctLockPre.retryAfterMin,
+        })
         return
       }
 
@@ -345,7 +355,11 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       const acctLockReq = assertNotSmsAccountLocked(u)
       if (!acctLockReq.ok) {
         await client.query('ROLLBACK')
-        res.status(429).json({ message: acctLockReq.message, retryAfterSec: acctLockReq.retryAfterSec })
+        res.status(429).json({
+          message: acctLockReq.message,
+          retryAfterSec: acctLockReq.retryAfterSec,
+          retryAfterMin: acctLockReq.retryAfterMin,
+        })
         return
       }
 
@@ -460,7 +474,11 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
 
       const acctLockPre = assertNotSmsAccountLocked(u)
       if (!acctLockPre.ok) {
-        res.status(429).json({ message: acctLockPre.message, retryAfterSec: acctLockPre.retryAfterSec })
+        res.status(429).json({
+          message: acctLockPre.message,
+          retryAfterSec: acctLockPre.retryAfterSec,
+          retryAfterMin: acctLockPre.retryAfterMin,
+        })
         return
       }
 
