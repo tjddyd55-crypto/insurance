@@ -34,7 +34,7 @@ function categoryForCompanyRow(row: CompanyDirectoryEntry, fallbackTab: Insuranc
 
 export default function InsuranceCompanyContactsViewPage() {
   const navigate = useNavigate()
-  const { user, isAuthenticated } = useAuth()
+  const { user, token, isAuthenticated } = useAuth()
   const isStaff = isAuthenticated && !!user && ['staff', 'super_admin'].includes(user.role)
 
   const [activeTab, setActiveTab] = useState<InsuranceCategory>('LIFE')
@@ -44,9 +44,12 @@ export default function InsuranceCompanyContactsViewPage() {
   const [statusText, setStatusText] = useState('')
 
   const loadList = useCallback(async () => {
+    if (!token) {
+      return
+    }
     setIsLoading(true)
     try {
-      const rows = await listCompanyDirectory()
+      const rows = await listCompanyDirectory(token)
       setList(rows)
       setStatusText('')
     } catch (error) {
@@ -54,7 +57,7 @@ export default function InsuranceCompanyContactsViewPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [token])
 
   useEffect(() => {
     void loadList()

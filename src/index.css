@@ -308,6 +308,16 @@ body {
   font-size: 14px;
 }
 
+.auth-notice {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.14);
+  color: var(--text-main);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
 .auth-form {
   display: grid;
   gap: 12px;

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CompanyCard } from '../../company-registry/components/CompanyCard'
 import { PageBackButton } from '../../../components/common/PageBackButton'
 import { getCompanyRecentUpdates } from '../../company-registry/api/companyRegistryApi'
+import { useAuth } from '../../auth/AuthProvider'
 import type { CompanyUpdateHistoryItem } from '../../company-registry/domain/types'
 
 function formatHistoryDate(isoDate: string): string {
@@ -30,6 +31,7 @@ function groupHistoryByDate(items: CompanyUpdateHistoryItem[]) {
 }
 
 export function InsuranceUpdatesPage() {
+  const { token } = useAuth()
   const [list, setList] = useState<CompanyUpdateHistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [statusText, setStatusText] = useState('')
@@ -38,8 +40,14 @@ export function InsuranceUpdatesPage() {
     let active = true
 
     async function load() {
+      if (!token) {
+        if (active) {
+          setIsLoading(false)
+        }
+        return
+      }
       try {
-        const result = await getCompanyRecentUpdates()
+        const result = await getCompanyRecentUpdates(token)
         if (!active) {
           return
         }
@@ -60,7 +68,7 @@ export function InsuranceUpdatesPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [token])
 
   const grouped = useMemo(() => groupHistoryByDate(list), [list])
 

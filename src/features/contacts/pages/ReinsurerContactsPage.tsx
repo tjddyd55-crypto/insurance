@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   createInsuranceContact,
   deleteInsuranceContact,
   downloadVCardFallback,
+  fetchInsuranceContactVCard,
   getInsuranceContacts,
-  getVCardDownloadUrl,
   updateInsuranceContact,
 } from '../api/contactsApi'
 import type {
@@ -69,9 +69,13 @@ export function ReinsurerContactsPage() {
   const [form, setForm] = useState<ContactFormState>(EMPTY_FORM)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const loadContacts = async () => {
+  const loadContacts = useCallback(async () => {
+    if (!token) {
+      setIsLoading(false)
+      return
+    }
     try {
-      const response = await getInsuranceContacts()
+      const response = await getInsuranceContacts(token)
       setContacts(response.contacts)
       setLastUpdatedAt(response.lastUpdatedAt)
     } catch (error) {
@@ -79,11 +83,11 @@ export function ReinsurerContactsPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [token])
 
   useEffect(() => {
     void loadContacts()
-  }, [])
+  }, [loadContacts])
 
   const filteredContacts = useMemo(() => {
     const keyword = searchText.trim().toLowerCase()
@@ -191,12 +195,12 @@ export function ReinsurerContactsPage() {
   }
 
   const handleDownloadVCard = async (contact: InsuranceContact) => {
+    if (!token) {
+      setStatusText('로그인이 필요합니다.')
+      return
+    }
     try {
-      const response = await fetch(getVCardDownloadUrl(contact.id))
-      if (!response.ok) {
-        throw new Error('vCard를 불러오지 못했습니다')
-      }
-      const text = await response.text()
+      const text = await fetchInsuranceContactVCard(contact.id, token)
       openVCardInContactsApp(text)
     } catch {
       downloadVCardFallback(contact)

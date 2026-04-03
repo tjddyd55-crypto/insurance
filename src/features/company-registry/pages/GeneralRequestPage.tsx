@@ -36,9 +36,13 @@ export default function GeneralRequestPage() {
   }, [selectedType])
 
   const loadList = useCallback(async () => {
+    if (!token) {
+      setIsLoading(false)
+      return
+    }
     setIsLoading(true)
     try {
-      const rows = await listCompanyDirectory()
+      const rows = await listCompanyDirectory(token)
       setList(rows)
       setStatusText('')
     } catch (error) {
@@ -46,7 +50,7 @@ export default function GeneralRequestPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [token])
 
   useEffect(() => {
     void loadList()

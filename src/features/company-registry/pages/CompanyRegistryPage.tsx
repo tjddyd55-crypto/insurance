@@ -104,14 +104,17 @@ export default function CompanyRegistryPage() {
   }, [list, selectedType, selectedCompanyName])
 
   const loadList = useCallback(async () => {
+    if (!token) {
+      return
+    }
     try {
-      const rows = await listCompanyDirectory()
+      const rows = await listCompanyDirectory(token)
       setList(rows)
       setStatusText('')
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
     }
-  }, [])
+  }, [token])
 
   useEffect(() => {
     void loadList()

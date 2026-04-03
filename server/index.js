@@ -834,7 +834,7 @@ apiRouter.post('/login', async (req, res) => {
   }
 })
 
-apiRouter.get('/company/list', async (_req, res) => {
+apiRouter.get('/company/list', requireAuth, async (_req, res) => {
   try {
     const list = await loadCompanyDirectoryNestedList()
     res.json(list)
@@ -843,7 +843,7 @@ apiRouter.get('/company/list', async (_req, res) => {
   }
 })
 
-apiRouter.get('/company/recent-updates', async (_req, res) => {
+apiRouter.get('/company/recent-updates', requireAuth, async (_req, res) => {
   try {
     const result = await pool.query(
       `
@@ -1073,7 +1073,7 @@ apiRouter.post('/company/general-save', requireAuth, requireStaffOrAdmin, async 
   }
 })
 
-apiRouter.get('/insurance/contacts', async (_req, res) => {
+apiRouter.get('/insurance/contacts', requireAuth, async (_req, res) => {
   try {
     const contactsResult = await pool.query(
       `
@@ -1118,7 +1118,7 @@ apiRouter.get('/insurance/contacts', async (_req, res) => {
   }
 })
 
-apiRouter.get('/insurance/updates', async (_req, res) => {
+apiRouter.get('/insurance/updates', requireAuth, async (_req, res) => {
   try {
     const result = await pool.query(
       `
@@ -1145,7 +1145,7 @@ apiRouter.get('/insurance/updates', async (_req, res) => {
   }
 })
 
-apiRouter.get('/insurance/contacts/:id/vcard', async (req, res) => {
+apiRouter.get('/insurance/contacts/:id/vcard', requireAuth, async (req, res) => {
   try {
     const result = await pool.query(
       `

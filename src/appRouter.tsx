@@ -1,6 +1,6 @@
 import { Navigate, createBrowserRouter } from 'react-router-dom'
 import { AppLayout } from './AppLayout'
-import { HomeRedirect } from './HomeRedirect'
+import { PublicHomeEntry } from './HomeRedirect'
 import { ApplicationFormPage } from './features/application/pages/ApplicationFormPage'
 import { ApplicationListPage } from './features/application/pages/ApplicationListPage'
 import { ApplicationResultPage } from './features/application/pages/ApplicationResultPage'
@@ -26,25 +26,17 @@ export const appRouter = createBrowserRouter([
     path: '/',
     element: <AppLayout />,
     children: [
-      { index: true, element: <HomeRedirect /> },
+      { index: true, element: <PublicHomeEntry /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
+      { path: 'signup', element: <Navigate to="/login?signup=1" replace /> },
       { path: 'privacy', element: <PrivacyPolicyPage /> },
       { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
+      /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /customer/external-create + ref 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },
-      { path: 'contacts', element: <Navigate to="/insurance/contacts" replace /> },
-      { path: 'contacts/manage', element: <Navigate to="/insurance/company-registry" replace /> },
-      { path: 'updates', element: <Navigate to="/insurance/history" replace /> },
-      { path: 'insurance/contacts', element: <InsuranceCompanyContactsViewPage /> },
-      { path: 'insurance/company-registry', element: <CompanyRegistryPage /> },
-      { path: 'insurance/history', element: <InsuranceUpdatesPage /> },
-      { path: 'insurance/general-request', element: <GeneralRequestPage /> },
-      { path: 'reinsurer-contacts', element: <ReinsurerContactsPage /> },
-      { path: 'insurance/print', element: <InsurancePrintPage /> },
       {
         element: <ProtectedRoute />,
         children: [
-          { path: 'admin/create-staff', element: <CreateStaffPage /> },
           { path: 'dashboard', element: <DashboardPage /> },
           { path: 'application', element: <CarInsuranceDashboardPage /> },
           { path: 'application/write', element: <ApplicationFormPage /> },
@@ -54,9 +46,19 @@ export const appRouter = createBrowserRouter([
           { path: 'form/create', element: <ApplicationFormPage /> },
           { path: 'form/:id/edit', element: <ApplicationFormPage /> },
           { path: 'form/result/:id', element: <ApplicationResultPage /> },
+          { path: 'admin/create-staff', element: <CreateStaffPage /> },
+          { path: 'contacts', element: <Navigate to="/insurance/contacts" replace /> },
+          { path: 'contacts/manage', element: <Navigate to="/insurance/company-registry" replace /> },
+          { path: 'updates', element: <Navigate to="/insurance/history" replace /> },
+          { path: 'insurance/contacts', element: <InsuranceCompanyContactsViewPage /> },
+          { path: 'insurance/company-registry', element: <CompanyRegistryPage /> },
+          { path: 'insurance/history', element: <InsuranceUpdatesPage /> },
+          { path: 'insurance/general-request', element: <GeneralRequestPage /> },
+          { path: 'reinsurer-contacts', element: <ReinsurerContactsPage /> },
+          { path: 'insurance/print', element: <InsurancePrintPage /> },
+          { path: '*', element: <Navigate to="/dashboard" replace /> },
         ],
       },
-      { path: '*', element: <Navigate to="/" replace /> },
     ],
   },
 ])

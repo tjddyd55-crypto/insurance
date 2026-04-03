@@ -6,12 +6,12 @@ import type {
   InsuranceGeneralDraft,
 } from '../domain/types'
 
-export async function listCompanyDirectory(): Promise<CompanyDirectoryEntry[]> {
-  return apiRequest<CompanyDirectoryEntry[]>('/api/company/list')
+export async function listCompanyDirectory(token: string): Promise<CompanyDirectoryEntry[]> {
+  return apiRequest<CompanyDirectoryEntry[]>('/api/company/list', { token })
 }
 
-export async function getCompanyRecentUpdates(): Promise<CompanyUpdateHistoryItem[]> {
-  return apiRequest<CompanyUpdateHistoryItem[]>('/api/company/recent-updates')
+export async function getCompanyRecentUpdates(token: string): Promise<CompanyUpdateHistoryItem[]> {
+  return apiRequest<CompanyUpdateHistoryItem[]>('/api/company/recent-updates', { token })
 }
 
 export interface FullSaveCompanyBody {

@@ -11,6 +11,7 @@ export function LoginPage() {
   const [showSignup, setShowSignup] = useState(() => searchParams.get('signup') === '1')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -28,6 +29,7 @@ export function LoginPage() {
 
   useEffect(() => {
     setErrorMessage('')
+    setConfirmPassword('')
   }, [showSignup])
 
   const handleLogin = async (event: FormEvent) => {
@@ -49,6 +51,10 @@ export function LoginPage() {
   const handleSignup = async (event: FormEvent) => {
     event.preventDefault()
     setErrorMessage('')
+    if (password !== confirmPassword) {
+      setErrorMessage('비밀번호가 일치하지 않습니다.')
+      return
+    }
     setIsSubmitting(true)
     try {
       await registerApi(username, password)
@@ -68,6 +74,11 @@ export function LoginPage() {
         {!showSignup ? (
           <>
             <h1>로그인</h1>
+            {searchParams.get('required') === '1' ? (
+              <p className="auth-notice" role="status">
+                로그인이 필요합니다.
+              </p>
+            ) : null}
             <p className="auth-description">아이디와 비밀번호로 신청서를 관리합니다.</p>
 
             <form className="auth-form" onSubmit={(e) => void handleLogin(e)}>
@@ -134,6 +145,17 @@ export function LoginPage() {
                   type="password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
+                  autoComplete="new-password"
+                  required
+                />
+              </label>
+
+              <label className="field">
+                <span className="field__label">비밀번호 확인</span>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
                   autoComplete="new-password"
                   required
                 />

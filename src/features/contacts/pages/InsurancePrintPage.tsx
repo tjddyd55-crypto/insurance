@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../auth/AuthProvider'
 import { getInsuranceContacts } from '../api/contactsApi'
 import type { InsuranceContact, InsuranceContactCategory } from '../domain/types'
 import { formatPhoneNumber } from '../utils/phone'
@@ -64,6 +65,7 @@ function PrintTable({ title, contacts, minRows, category }: PrintTableProps) {
 
 export function InsurancePrintPage() {
   const navigate = useNavigate()
+  const { token } = useAuth()
   const [contacts, setContacts] = useState<InsuranceContact[]>([])
   const [lastUpdatedAt, setLastUpdatedAt] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -73,8 +75,14 @@ export function InsurancePrintPage() {
     let active = true
 
     async function loadContacts() {
+      if (!token) {
+        if (active) {
+          setIsLoading(false)
+        }
+        return
+      }
       try {
-        const response = await getInsuranceContacts()
+        const response = await getInsuranceContacts(token)
         if (!active) {
           return
         }
@@ -96,7 +104,7 @@ export function InsurancePrintPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [token])
 
   const grouped = useMemo(() => {
     const map: Record<InsuranceContactCategory, InsuranceContact[]> = {
