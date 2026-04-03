@@ -692,6 +692,20 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    WITH ranked AS (
+      SELECT id,
+        ROW_NUMBER() OVER (
+          PARTITION BY ga_id, insurance_company_id
+          ORDER BY created_at ASC, id ASC
+        ) AS rn
+      FROM consent_templates
+    )
+    DELETE FROM consent_templates c
+    USING ranked r
+    WHERE c.id = r.id AND r.rn > 1
+  `)
+
+  await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS uq_consent_templates_ga_insurer
     ON consent_templates(ga_id, insurance_company_id)
   `)
@@ -746,10 +760,10 @@ async function seedConsentTemplatesIfNeeded() {
 
     for (const row of SEEDED_CONSENT_TEMPLATES) {
       const exists = await pool.query(
-        `SELECT 1 FROM consent_templates WHERE ga_id = $1 AND insurance_company_id = $2`,
+        `SELECT 1 FROM consent_templates WHERE ga_id = $1 AND insurance_company_id = $2 LIMIT 1`,
         [seedGaId, row.insuranceCompanyId],
       )
-      if (exists.rowCount > 0) {
+      if (exists.rows.length > 0) {
         continue
       }
       const key = `consent-templates/${row.id}.pdf`
@@ -758,6 +772,7 @@ async function seedConsentTemplatesIfNeeded() {
         `
         INSERT INTO consent_templates (id, ga_id, insurance_company_id, fax_number, fields, pdf_storage_key)
         VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+        ON CONFLICT (ga_id, insurance_company_id) DO NOTHING
         `,
         [row.id, seedGaId, row.insuranceCompanyId, '', JSON.stringify(DEFAULT_CONSENT_FIELD_LAYOUT), key],
       )
