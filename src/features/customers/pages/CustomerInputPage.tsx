@@ -22,6 +22,9 @@ export default function CustomerInputPage() {
 
   const addCustomerRow = useCallback(() => {
     setCustomers((prev) => [...prev, createEmptyCustomerForm()])
+    window.setTimeout(() => {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+    }, 100)
   }, [])
 
   const removeCustomerAt = useCallback((index: number) => {
@@ -40,7 +43,7 @@ export default function CustomerInputPage() {
       const msg = getCustomerFormValidationError(customers[i])
       if (msg) {
         setNotice(`${i + 1}번째 고객: ${msg}`)
-        window.alert(`${i + 1}번째 고객: ${msg}`)
+        window.alert(msg)
         return
       }
     }
@@ -103,15 +106,9 @@ export default function CustomerInputPage() {
         <h1>고객 정보 입력</h1>
         <p>
           {notice ||
-            '가족 등 여러 분의 정보를 각 블록에 입력한 뒤 전송해 주세요. (로그인 불필요) · 전송은 한 분씩 저장됩니다.'}
+            '필수: 이름, 주민번호만. 나머지는 선택입니다. 각 카드마다 입력 후 맨 아래에서 고객을 추가·전송하세요.'}
         </p>
       </header>
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-        <button className="button button--secondary" type="button" onClick={addCustomerRow}>
-          고객 추가
-        </button>
-      </div>
 
       <section className="card" style={{ marginTop: 0 }}>
         {customers.map((row, index) => (
@@ -136,6 +133,12 @@ export default function CustomerInputPage() {
             ) : null}
           </div>
         ))}
+
+        <div className="add-btn-wrap">
+          <button className="button button--secondary" type="button" onClick={addCustomerRow}>
+            + 고객 추가
+          </button>
+        </div>
 
         <button
           className="button button--primary button--full"

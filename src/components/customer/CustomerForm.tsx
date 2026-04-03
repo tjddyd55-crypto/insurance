@@ -192,38 +192,16 @@ export function createEmptyCustomerForm(): CustomerFormState {
 
 
 
-/** 저장/전송 전 검증 — 통과 시 null */
+/** 저장/전송 전 검증 — 통과 시 null (필수: 이름, 주민번호만) */
 
 export function getCustomerFormValidationError(form: CustomerFormState): string | null {
-
-  const name = form.name.trim()
-
-  if (!name) {
-
-    return '이름은 필수입니다.'
-
+  if (!form.name?.trim()) {
+    return '이름을 입력해주세요'
   }
-
-  if (form.gender == null) {
-
-    return '성별을 선택해주세요.'
-
+  if (!form.ssn?.trim()) {
+    return '주민번호를 입력해주세요'
   }
-
-  if (form.isDriver == null) {
-
-    return '운전 여부를 선택해주세요.'
-
-  }
-
-  if (form.isDriver === true && !form.carType.trim()) {
-
-    return '차종을 입력해주세요.'
-
-  }
-
   return null
-
 }
 
 

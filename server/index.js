@@ -1628,6 +1628,12 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
       return
     }
 
+    const ssn = String(data.ssn ?? '').trim()
+    if (!ssn) {
+      res.status(400).json({ message: '주민번호를 입력해주세요.' })
+      return
+    }
+
     let isDriver = null
     if (data.isDriver === true || data.is_driver === true) {
       isDriver = true
@@ -1635,12 +1641,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
       isDriver = false
     }
     const carType = String(data.carType ?? data.car_type ?? '').trim()
-    if (isDriver === true && !carType) {
-      res.status(400).json({ message: '차종을 입력해주세요.' })
-      return
-    }
 
-    const ssn = String(data.ssn ?? '').trim()
     const { age: insuranceAge, nextAgeDate: nextAgeDateObj } = calculateInsuranceInfoFromRrn(ssn)
     const nextAgeSql = nextAgeDateToSqlDate(nextAgeDateObj)
 
@@ -1715,6 +1716,12 @@ apiRouter.post('/customer/external-create', async (req, res) => {
       return
     }
 
+    const ssn = String(data.ssn ?? '').trim()
+    if (!ssn) {
+      res.status(400).json({ message: '주민번호를 입력해주세요.' })
+      return
+    }
+
     let isDriver = null
     if (data.isDriver === true || data.is_driver === true) {
       isDriver = true
@@ -1722,12 +1729,7 @@ apiRouter.post('/customer/external-create', async (req, res) => {
       isDriver = false
     }
     const carType = String(data.carType ?? data.car_type ?? '').trim()
-    if (isDriver === true && !carType) {
-      res.status(400).json({ message: '차종을 입력해주세요.' })
-      return
-    }
 
-    const ssn = String(data.ssn ?? '').trim()
     const { age: insuranceAge, nextAgeDate: nextAgeDateObj } = calculateInsuranceInfoFromRrn(ssn)
     const nextAgeSql = nextAgeDateToSqlDate(nextAgeDateObj)
 

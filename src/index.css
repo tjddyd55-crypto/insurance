@@ -241,6 +241,17 @@ body {
   color: var(--text-main);
 }
 
+.add-btn-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.add-btn-wrap .button {
+  width: 100%;
+  max-width: 400px;
+}
+
 .auth-page {
   min-height: 100vh;
   display: grid;
