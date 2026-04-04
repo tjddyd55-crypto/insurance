@@ -6,7 +6,8 @@
 const MIN_GAP_MS = 60_000
 const SEND_WINDOW_MS = 60 * 60_000
 const MAX_SENDS_PER_WINDOW = 5
-const VERIFY_LOCKOUT_MS = 15 * 60_000
+/** 동일 번호(+식별자)+IP: 인증 실패 5회 → 5분 차단 */
+const VERIFY_LOCKOUT_MS = 5 * 60_000
 const MAX_VERIFY_FAILS = 5
 
 /** @type {Map<string, { lastSendAt: number, windowStart: number, count: number }>} */
@@ -18,8 +19,8 @@ function sendKey(purpose, phoneDigits) {
   return `${String(purpose)}|${String(phoneDigits)}`
 }
 
-function verifyKey(purpose, phoneDigits, usernameOrUserId) {
-  return `${String(purpose)}|${String(phoneDigits)}|${String(usernameOrUserId ?? '')}`
+function verifyKey(purpose, phoneDigits, usernameOrUserId, clientIp = '') {
+  return `${String(purpose)}|${String(phoneDigits)}|${String(usernameOrUserId ?? '')}|${String(clientIp ?? '')}`
 }
 
 /**
@@ -59,8 +60,8 @@ export function assertCanRequestSmsCode(purpose, phoneDigits) {
 }
 
 /** 인증 실패 시 호출 */
-export function recordVerifyFailure(purpose, phoneDigits, usernameOrUserId) {
-  const key = verifyKey(purpose, phoneDigits, usernameOrUserId)
+export function recordVerifyFailure(purpose, phoneDigits, usernameOrUserId, clientIp = '') {
+  const key = verifyKey(purpose, phoneDigits, usernameOrUserId, clientIp)
   const now = Date.now()
   let v = verifyFailState.get(key)
   if (!v) {
@@ -77,8 +78,8 @@ export function recordVerifyFailure(purpose, phoneDigits, usernameOrUserId) {
   }
 }
 
-export function assertNotVerifyLocked(purpose, phoneDigits, usernameOrUserId) {
-  const key = verifyKey(purpose, phoneDigits, usernameOrUserId)
+export function assertNotVerifyLocked(purpose, phoneDigits, usernameOrUserId, clientIp = '') {
+  const key = verifyKey(purpose, phoneDigits, usernameOrUserId, clientIp)
   const v = verifyFailState.get(key)
   if (!v || v.lockedUntil <= Date.now()) {
     return { ok: true }
@@ -92,6 +93,6 @@ export function assertNotVerifyLocked(purpose, phoneDigits, usernameOrUserId) {
 }
 
 /** 인증 성공 시 실패 카운트 초기화 */
-export function clearVerifyFailures(purpose, phoneDigits, usernameOrUserId) {
-  verifyFailState.delete(verifyKey(purpose, phoneDigits, usernameOrUserId))
+export function clearVerifyFailures(purpose, phoneDigits, usernameOrUserId, clientIp = '') {
+  verifyFailState.delete(verifyKey(purpose, phoneDigits, usernameOrUserId, clientIp))
 }

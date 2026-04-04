@@ -5,6 +5,8 @@ import { sendVerificationCode } from './services/smsService.js'
 import { consumeSmsVerificationCode } from './services/consumeSmsVerificationCode.js'
 import { runAccountResetDataOnClient } from './services/accountResetService.js'
 import { assertNotVerifyLocked, recordVerifyFailure, clearVerifyFailures } from './services/smsRateLimit.js'
+import { assertPhoneSms10MinLimit, recordPhoneSms10MinSend } from './services/smsPhoneWindowLimit.js'
+import { logSmsVerifyFailure } from './services/smsStructuredLog.js'
 import { assertSmsRequestIpLimit, getClientIp, getClientUserAgent } from './services/smsRequestIpLimit.js'
 import { assertNotSmsAccountLocked, recordUserSmsVerificationFailure } from './services/smsAccountLock.js'
 import {
@@ -17,6 +19,13 @@ import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.
 
 const SMS_PURPOSE_PASSWORD_RESET = 'PASSWORD_RESET'
 const SMS_PURPOSE_ACCOUNT_RESET = 'ACCOUNT_RESET'
+
+/** 비밀번호 재설정 API — 계정 존재 여부 등 노출 방지 */
+const PUBLIC_AUTH_MSG = '요청을 처리할 수 없습니다.'
+
+function jsonPublicAuth(res, status, extra = {}) {
+  res.status(status).json({ message: PUBLIC_AUTH_MSG, ...extra })
+}
 
 function exposeSmsDebugCode(runningInProduction) {
   return (
@@ -72,6 +81,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
   const showDebugCode = exposeSmsDebugCode(RUNNING_IN_PRODUCTION)
 
   apiRouter.post('/auth/request-password-reset-code', async (req, res) => {
+    const clientIp = getClientIp(req)
     const client = await pool.connect()
     let phoneNorm = ''
     let code = ''
@@ -82,7 +92,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
     try {
       const ipLimit = assertSmsRequestIpLimit(req)
       if (!ipLimit.ok) {
-        res.status(429).json({ message: ipLimit.message, retryAfterSec: ipLimit.retryAfterSec })
+        jsonPublicAuth(res, 429, { retryAfterSec: ipLimit.retryAfterSec })
         return
       }
 
@@ -90,11 +100,17 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       phoneNorm = normalizeKrMobile(req.body?.phoneNumber ?? req.body?.phone_number)
       const phoneErr = validateKrMobileDigits(phoneNorm)
       if (phoneErr) {
-        res.status(400).json({ message: phoneErr })
+        jsonPublicAuth(res, 400)
         return
       }
       if (!usernameNorm || usernameNorm.length < 3) {
-        res.status(400).json({ message: '아이디를 입력해 주세요.' })
+        jsonPublicAuth(res, 400)
+        return
+      }
+
+      const burst = assertPhoneSms10MinLimit(phoneNorm)
+      if (!burst.ok) {
+        jsonPublicAuth(res, 429, { retryAfterSec: burst.retryAfterSec })
         return
       }
 
@@ -121,34 +137,31 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       if (!okUser) {
         await client.query('ROLLBACK')
         logSmsEvent('password_reset_request_mismatch', { username: usernameNorm })
-        res.status(400).json({ message: '아이디와 등록된 휴대폰 정보가 일치하지 않습니다.' })
+        jsonPublicAuth(res, 400)
         return
       }
 
       userGa = parseGaId(user.ga_id)
       if (userGa == null) {
         await client.query('ROLLBACK')
-        res.status(500).json({ message: '계정 GA 정보가 올바르지 않습니다.' })
+        jsonPublicAuth(res, 500)
         return
       }
 
       const acctLock = assertNotSmsAccountLocked(user)
       if (!acctLock.ok) {
         await client.query('ROLLBACK')
-        res
-          .status(429)
-          .json({
-            message: acctLock.message,
-            retryAfterSec: acctLock.retryAfterSec,
-            retryAfterMin: acctLock.retryAfterMin,
-          })
+        jsonPublicAuth(res, 429, {
+          retryAfterSec: acctLock.retryAfterSec,
+          retryAfterMin: acctLock.retryAfterMin,
+        })
         return
       }
 
       quota = evaluateUserSmsRequestQuota(user)
       if (!quota.ok) {
         await client.query('ROLLBACK')
-        res.status(429).json({ message: quota.message, retryAfterSec: quota.retryAfterSec })
+        jsonPublicAuth(res, 429, { retryAfterSec: quota.retryAfterSec })
         return
       }
 
@@ -179,7 +192,8 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       } catch {
         /* ignore */
       }
-      handleDbError(e, res)
+      console.error('[sms-auth] request-password-reset-code', e)
+      jsonPublicAuth(res, 500)
       return
     } finally {
       client.release()
@@ -189,17 +203,18 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       phoneNumber: phoneNorm,
       code,
       purpose: SMS_PURPOSE_PASSWORD_RESET,
+      clientIp,
     })
 
     if (!smsResult?.success) {
       if (newCodeRowId != null) {
         await pool.query('DELETE FROM sms_verification_codes WHERE id = $1', [newCodeRowId])
       }
-      res.status(503).json({
-        message: '문자 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.',
-      })
+      jsonPublicAuth(res, 503)
       return
     }
+
+    recordPhoneSms10MinSend(phoneNorm)
 
     const quotaClient = await pool.connect()
     try {
@@ -231,6 +246,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
 
   apiRouter.post('/auth/reset-password-by-sms', async (req, res) => {
     const client = await pool.connect()
+    const clientIp = getClientIp(req)
     try {
       const usernameNorm = String(req.body?.username ?? '').trim()
       const phoneNorm = normalizeKrMobile(req.body?.phoneNumber ?? req.body?.phone_number)
@@ -239,27 +255,33 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
 
       const phoneErr = validateKrMobileDigits(phoneNorm)
       if (phoneErr) {
-        res.status(400).json({ message: phoneErr })
+        jsonPublicAuth(res, 400)
         return
       }
       if (!usernameNorm) {
-        res.status(400).json({ message: '아이디를 입력해 주세요.' })
+        jsonPublicAuth(res, 400)
         return
       }
       if (!/^\d{6}$/.test(codeRaw)) {
-        res.status(400).json({ message: '인증번호 6자리를 입력해 주세요.' })
+        jsonPublicAuth(res, 400)
         return
       }
 
-      const lock = assertNotVerifyLocked(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm)
+      const lock = assertNotVerifyLocked(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm, clientIp)
       if (!lock.ok) {
-        res.status(429).json({ message: lock.message, retryAfterSec: lock.retryAfterSec })
+        logSmsVerifyFailure({
+          phone: phoneNorm,
+          ip: clientIp,
+          status: 'verify_locked',
+          purpose: SMS_PURPOSE_PASSWORD_RESET,
+        })
+        jsonPublicAuth(res, 429, { retryAfterSec: lock.retryAfterSec })
         return
       }
 
       const pwdMsg = validateCredentials(usernameNorm, newPassword)
       if (pwdMsg) {
-        res.status(400).json({ message: pwdMsg })
+        jsonPublicAuth(res, 400)
         return
       }
 
@@ -271,28 +293,33 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         normalizeKrMobile(user.phone_number) === phoneNorm
 
       if (!okUser) {
-        recordVerifyFailure(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm)
-        res.status(400).json({ message: '아이디와 등록된 휴대폰 정보가 일치하지 않습니다.' })
+        recordVerifyFailure(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm, clientIp)
+        logSmsVerifyFailure({
+          phone: phoneNorm,
+          ip: clientIp,
+          status: 'user_mismatch',
+          purpose: SMS_PURPOSE_PASSWORD_RESET,
+        })
+        jsonPublicAuth(res, 400)
         return
       }
 
       const userGa = parseGaId(user.ga_id)
       if (userGa == null) {
-        res.status(500).json({ message: '계정 GA 정보가 올바르지 않습니다.' })
+        jsonPublicAuth(res, 500)
         return
       }
 
       const acctLockPre = assertNotSmsAccountLocked(user)
       if (!acctLockPre.ok) {
-        res.status(429).json({
-          message: acctLockPre.message,
+        jsonPublicAuth(res, 429, {
           retryAfterSec: acctLockPre.retryAfterSec,
           retryAfterMin: acctLockPre.retryAfterMin,
         })
         return
       }
 
-      const auditIp = getClientIp(req)
+      const auditIp = clientIp
       const auditUa = getClientUserAgent(req)
       const passwordHash = await bcrypt.hash(String(newPassword), 10)
 
@@ -320,8 +347,14 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
           ip: auditIp,
           userAgent: auditUa,
         })
-        recordVerifyFailure(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm)
-        res.status(400).json({ message: '인증번호가 올바르지 않거나 이미 사용되었습니다.' })
+        recordVerifyFailure(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm, clientIp)
+        logSmsVerifyFailure({
+          phone: phoneNorm,
+          ip: clientIp,
+          status: 'code_invalid_or_used',
+          purpose: SMS_PURPOSE_PASSWORD_RESET,
+        })
+        jsonPublicAuth(res, 400)
         return
       }
 
@@ -341,7 +374,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         userAgent: auditUa,
       }).catch((err) => console.error('[sms-auth] audit log failed', err))
 
-      clearVerifyFailures(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm)
+      clearVerifyFailures(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm, clientIp)
       logSmsEvent('password_reset_complete', { userId: user.id })
       res.json({ ok: true, message: '비밀번호가 변경되었습니다.' })
     } catch (e) {
@@ -350,13 +383,15 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       } catch {
         /* ignore */
       }
-      handleDbError(e, res)
+      console.error('[sms-auth] reset-password-by-sms', e)
+      jsonPublicAuth(res, 500)
     } finally {
       client.release()
     }
   })
 
   apiRouter.post('/account/request-reset-account-code', requireAuth, requireEndUser, async (req, res) => {
+    const acctClientIp = getClientIp(req)
     const client = await pool.connect()
     let phoneNorm = ''
     let code = ''
@@ -367,7 +402,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
     try {
       const ipLimit = assertSmsRequestIpLimit(req)
       if (!ipLimit.ok) {
-        res.status(429).json({ message: ipLimit.message, retryAfterSec: ipLimit.retryAfterSec })
+        res.status(429).json({ message: PUBLIC_AUTH_MSG, retryAfterSec: ipLimit.retryAfterSec })
         return
       }
 
@@ -381,6 +416,12 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       const phoneErr = validateKrMobileDigits(phoneNorm)
       if (phoneErr) {
         res.status(400).json({ message: phoneErr })
+        return
+      }
+
+      const burstAcct = assertPhoneSms10MinLimit(phoneNorm)
+      if (!burstAcct.ok) {
+        res.status(429).json({ message: PUBLIC_AUTH_MSG, retryAfterSec: burstAcct.retryAfterSec })
         return
       }
 
@@ -469,17 +510,18 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       phoneNumber: phoneNorm,
       code,
       purpose: SMS_PURPOSE_ACCOUNT_RESET,
+      clientIp: acctClientIp,
     })
 
     if (!smsResultAcct?.success) {
       if (newCodeRowId != null) {
         await pool.query('DELETE FROM sms_verification_codes WHERE id = $1', [newCodeRowId])
       }
-      res.status(503).json({
-        message: '문자 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.',
-      })
+      res.status(503).json({ message: PUBLIC_AUTH_MSG })
       return
     }
+
+    recordPhoneSms10MinSend(phoneNorm)
 
     const quotaClientAcct = await pool.connect()
     try {
@@ -511,6 +553,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
 
   apiRouter.post('/account/reset-account-by-sms', requireAuth, requireEndUser, async (req, res) => {
     const client = await pool.connect()
+    const acctResetIp = getClientIp(req)
     try {
       const userId = String(req.user?.id ?? '').trim()
       const actorGaId = parseGaId(req.user?.gaId)
@@ -537,8 +580,14 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         return
       }
 
-      const lock = assertNotVerifyLocked(SMS_PURPOSE_ACCOUNT_RESET, `${phoneNorm}:${userId}`, userId)
+      const lock = assertNotVerifyLocked(SMS_PURPOSE_ACCOUNT_RESET, `${phoneNorm}:${userId}`, userId, acctResetIp)
       if (!lock.ok) {
+        logSmsVerifyFailure({
+          phone: phoneNorm,
+          ip: acctResetIp,
+          status: 'verify_locked',
+          purpose: SMS_PURPOSE_ACCOUNT_RESET,
+        })
         res.status(429).json({ message: lock.message, retryAfterSec: lock.retryAfterSec })
         return
       }
@@ -562,7 +611,13 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         return
       }
       if (normalizeKrMobile(u.phone_number) !== phoneNorm) {
-        recordVerifyFailure(SMS_PURPOSE_ACCOUNT_RESET, `${phoneNorm}:${userId}`, userId)
+        recordVerifyFailure(SMS_PURPOSE_ACCOUNT_RESET, `${phoneNorm}:${userId}`, userId, acctResetIp)
+        logSmsVerifyFailure({
+          phone: phoneNorm,
+          ip: acctResetIp,
+          status: 'phone_mismatch',
+          purpose: SMS_PURPOSE_ACCOUNT_RESET,
+        })
         res.status(400).json({ message: '계정에 등록된 휴대폰 번호와 일치하지 않습니다.' })
         return
       }
@@ -579,7 +634,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
 
       const newUsername = `__reset_${userId.replace(/-/g, '')}`
       const randomPwdHash = await bcrypt.hash(randomUUID(), 10)
-      const auditIp = getClientIp(req)
+      const auditIp = acctResetIp
       const auditUa = getClientUserAgent(req)
 
       await client.query('BEGIN')
@@ -606,7 +661,13 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
           ip: auditIp,
           userAgent: auditUa,
         })
-        recordVerifyFailure(SMS_PURPOSE_ACCOUNT_RESET, `${phoneNorm}:${userId}`, userId)
+        recordVerifyFailure(SMS_PURPOSE_ACCOUNT_RESET, `${phoneNorm}:${userId}`, userId, acctResetIp)
+        logSmsVerifyFailure({
+          phone: phoneNorm,
+          ip: acctResetIp,
+          status: 'code_invalid_or_used',
+          purpose: SMS_PURPOSE_ACCOUNT_RESET,
+        })
         res.status(400).json({ message: '인증번호가 올바르지 않거나 이미 사용되었습니다.' })
         return
       }
@@ -628,7 +689,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         userAgent: auditUa,
       }).catch((err) => console.error('[sms-auth] audit log failed', err))
 
-      clearVerifyFailures(SMS_PURPOSE_ACCOUNT_RESET, `${phoneNorm}:${userId}`, userId)
+      clearVerifyFailures(SMS_PURPOSE_ACCOUNT_RESET, `${phoneNorm}:${userId}`, userId, acctResetIp)
       logSmsEvent('account_reset_complete', { userId })
       res.json({
         ok: true,

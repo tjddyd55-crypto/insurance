@@ -1,12 +1,14 @@
 /**
- * SMS 인증 요청 IP 기반 간단 제한 (인메모리, 단일 인스턴스).
- * 60초 창당 최대 10회 (지시문 기준).
+ * SMS 인증 요청 IP 기반 제한 (인메모리, 단일 인스턴스).
+ * 1분당 최대 5회, 1시간당 최대 20회.
  */
 
-const WINDOW_MS = 60_000
-const MAX_PER_WINDOW = 10
+const MINUTE_MS = 60_000
+const MAX_PER_MINUTE = 5
+const HOUR_MS = 3_600_000
+const MAX_PER_HOUR = 20
 
-/** @type {Map<string, { count: number, start: number }>} */
+/** @type {Map<string, { minuteStart: number, minuteCount: number, hourStart: number, hourCount: number }>} */
 const ipStore = new Map()
 
 export function getClientIp(req) {
@@ -34,28 +36,40 @@ export function getClientUserAgent(req) {
 }
 
 /**
- * @returns {{ ok: true } | { ok: false, message: string, retryAfterSec: number }}
+ * @returns {{ ok: true } | { ok: false, retryAfterSec: number }}
  */
 export function assertSmsRequestIpLimit(req) {
   const ip = getClientIp(req)
   const now = Date.now()
-  let entry = ipStore.get(ip)
-  if (!entry) {
-    ipStore.set(ip, { count: 1, start: now })
-    return { ok: true }
+  let e = ipStore.get(ip)
+  if (!e) {
+    e = { minuteStart: now, minuteCount: 0, hourStart: now, hourCount: 0 }
+    ipStore.set(ip, e)
   }
-  if (now - entry.start > WINDOW_MS) {
-    ipStore.set(ip, { count: 1, start: now })
-    return { ok: true }
+
+  if (now - e.minuteStart >= MINUTE_MS) {
+    e.minuteStart = now
+    e.minuteCount = 0
   }
-  if (entry.count >= MAX_PER_WINDOW) {
-    const retryAfterSec = Math.max(1, Math.ceil((WINDOW_MS - (now - entry.start)) / 1000))
+  if (now - e.hourStart >= HOUR_MS) {
+    e.hourStart = now
+    e.hourCount = 0
+  }
+
+  if (e.minuteCount >= MAX_PER_MINUTE) {
     return {
       ok: false,
-      message: '요청이 너무 많습니다 (IP 제한).',
-      retryAfterSec,
+      retryAfterSec: Math.max(1, Math.ceil((MINUTE_MS - (now - e.minuteStart)) / 1000)),
     }
   }
-  entry.count += 1
+  if (e.hourCount >= MAX_PER_HOUR) {
+    return {
+      ok: false,
+      retryAfterSec: Math.max(1, Math.ceil((HOUR_MS - (now - e.hourStart)) / 1000)),
+    }
+  }
+
+  e.minuteCount += 1
+  e.hourCount += 1
   return { ok: true }
 }

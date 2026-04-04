@@ -8,6 +8,7 @@ import pool from './db.js'
 import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import { initDb } from './initDb.js'
 import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
+import { purgeExpiredSmsVerificationCodes } from './services/purgeExpiredSmsCodes.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
 import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
@@ -4590,6 +4591,12 @@ async function startServer() {
     console.log(`Insurance server listening on port ${PORT}`)
     console.log('Insurance DB engine: PostgreSQL')
   })
+
+  const SMS_CODE_PURGE_MS = 15 * 60 * 1000
+  void purgeExpiredSmsVerificationCodes(pool).catch((err) => console.error('[sms-cleanup] purge failed', err))
+  setInterval(() => {
+    void purgeExpiredSmsVerificationCodes(pool).catch((err) => console.error('[sms-cleanup] purge failed', err))
+  }, SMS_CODE_PURGE_MS)
 }
 
 startServer().catch((error) => {
