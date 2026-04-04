@@ -4,7 +4,6 @@ import { PageBackButton } from '../../../components/common/PageBackButton'
 import { listCompanyDirectory } from '../../company-registry/api/companyRegistryApi'
 import { canonicalInsuranceCategoryForFilter } from '../../company-registry/domain/categoryUtils'
 import { useAuth } from '../../auth/AuthProvider'
-import { isGaStaffReadOnlyUi } from '../../auth/roleGuards'
 import {
   createInsurerManagerApi,
   listInsurerManagersApi,
@@ -58,7 +57,6 @@ function emptyForm(): {
 
 export default function InsurerManagersPage() {
   const { user, token } = useAuth()
-  const readOnly = isGaStaffReadOnlyUi(user?.role)
   const gaCode = user?.gaCode?.trim() ?? ''
   const [rows, setRows] = useState<InsurerManager[]>([])
   const [loadErr, setLoadErr] = useState('')
@@ -103,9 +101,6 @@ export default function InsurerManagersPage() {
 
   const submitCreate = async (e: FormEvent) => {
     e.preventDefault()
-    if (readOnly) {
-      return
-    }
     setFormErr('')
     if (!gaCode || !token) {
       return
@@ -136,9 +131,6 @@ export default function InsurerManagersPage() {
 
   const submitEdit = async (e: FormEvent) => {
     e.preventDefault()
-    if (readOnly) {
-      return
-    }
     setFormErr('')
     if (!gaCode || !token || !editing) {
       return
@@ -167,7 +159,7 @@ export default function InsurerManagersPage() {
   }
 
   const applyStatus = async (row: InsurerManager, status: InsurerManagerStatus) => {
-    if (readOnly || !token || row.status === status) {
+    if (!token || row.status === status) {
       return
     }
     setLoadErr('')
@@ -218,33 +210,25 @@ export default function InsurerManagersPage() {
         <p style={{ color: 'var(--text-sub)', margin: 0 }}>보험사별 로그인 계정(아이디·비밀번호)을 관리합니다.</p>
       </header>
 
-      {readOnly ? (
-        <p className="status" role="status" style={{ maxWidth: 960, margin: '0 auto 12px' }}>
-          GA_STAFF는 <strong>읽기 전용</strong>입니다. 등록·수정·상태 변경은 GA 관리자 이상만 가능합니다.
-        </p>
-      ) : null}
-
       {loadErr ? <p className="status status--error">{loadErr}</p> : null}
 
-      {!readOnly ? (
-        <section
-          className="admin-toolbar card auth-card"
-          style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
+      <section
+        className="admin-toolbar card auth-card"
+        style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
+      >
+        <button
+          type="button"
+          className="button button--primary"
+          onClick={() => {
+            setFormErr('')
+            setEditing(null)
+            setForm(emptyForm())
+            setRegisterOpen(true)
+          }}
         >
-          <button
-            type="button"
-            className="button button--primary"
-            onClick={() => {
-              setFormErr('')
-              setEditing(null)
-              setForm(emptyForm())
-              setRegisterOpen(true)
-            }}
-          >
-            등록
-          </button>
-        </section>
-      ) : null}
+          등록
+        </button>
+      </section>
 
       <div className="card" style={{ maxWidth: 960, margin: '16px auto 0', padding: 0 }}>
         <div className="table-container table-container--desktop">
@@ -278,7 +262,6 @@ export default function InsurerManagersPage() {
                           className="admin-form-input"
                           style={{ width: 'auto', minWidth: 120 }}
                           value={r.status}
-                          disabled={readOnly}
                           onChange={(e) => void applyStatus(r, e.target.value as InsurerManagerStatus)}
                           aria-label={`${r.username} 상태`}
                         >
@@ -291,13 +274,9 @@ export default function InsurerManagersPage() {
                       </div>
                     </td>
                     <td className="admin-table-cell--actions">
-                      {!readOnly ? (
-                        <button type="button" className="button button--secondary" onClick={() => openEdit(r)}>
-                          수정
-                        </button>
-                      ) : (
-                        <span style={{ color: 'var(--text-sub)', fontSize: 13 }}>—</span>
-                      )}
+                      <button type="button" className="button button--secondary" onClick={() => openEdit(r)}>
+                        수정
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -335,7 +314,6 @@ export default function InsurerManagersPage() {
                     className="admin-form-input"
                     style={{ flex: '1 1 140px', minWidth: 0 }}
                     value={r.status}
-                    disabled={readOnly}
                     onChange={(e) => void applyStatus(r, e.target.value as InsurerManagerStatus)}
                   >
                     {STATUS_OPTIONS.map((o) => (
@@ -344,11 +322,9 @@ export default function InsurerManagersPage() {
                       </option>
                     ))}
                   </select>
-                  {!readOnly ? (
-                    <button type="button" className="button button--secondary" onClick={() => openEdit(r)}>
-                      수정
-                    </button>
-                  ) : null}
+                  <button type="button" className="button button--secondary" onClick={() => openEdit(r)}>
+                    수정
+                  </button>
                 </div>
               </article>
             ))
@@ -356,7 +332,7 @@ export default function InsurerManagersPage() {
         </div>
       </div>
 
-      {registerOpen && !readOnly ? (
+      {registerOpen ? (
         <div className="admin-modal-backdrop" role="presentation" onClick={closeModals}>
           <form
             className="admin-modal-panel"
@@ -444,7 +420,7 @@ export default function InsurerManagersPage() {
         </div>
       ) : null}
 
-      {editing && !readOnly ? (
+      {editing ? (
         <div className="admin-modal-backdrop" role="presentation" onClick={closeModals}>
           <form
             className="admin-modal-panel"

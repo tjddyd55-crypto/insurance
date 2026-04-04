@@ -42,6 +42,12 @@ export function isGaTenantAdminRole(role) {
   return n === 'SUPER_ADMIN' || n === 'GA_ADMIN'
 }
 
+/** 원수사 담당자(insurer_managers) 생성·수정·상태변경: SUPER_ADMIN · GA_ADMIN · GA_STAFF */
+export function isGaInsurerManagerMutatorRole(role) {
+  const n = normalizeRbacRole(role)
+  return n === 'SUPER_ADMIN' || n === 'GA_ADMIN' || n === 'GA_STAFF'
+}
+
 /** @param {unknown} v */
 export function parseCompanyScopeId(v) {
   const n = Number(v)

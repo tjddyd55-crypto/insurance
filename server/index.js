@@ -13,6 +13,7 @@ import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryRe
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
 import { parseGaId } from './lib/parseGaId.js'
 import {
+  isGaInsurerManagerMutatorRole,
   isGaTenantAdminRole,
   isInsurerManagerRole,
   parseCompanyScopeId,
@@ -970,10 +971,19 @@ function requireGaAdminOrSuper(req, res, next) {
   next()
 }
 
-/** 보험사 마스터 쓰기·원수사 담당자 생성 등: SUPER_ADMIN · GA_ADMIN 만 */
+/** 보험사 마스터 쓰기 등: SUPER_ADMIN · GA_ADMIN 만 */
 function requireGaTenantAdmin(req, res, next) {
   if (!req.user || !isGaTenantAdminRole(req.user.role)) {
     forbiddenResponse(req, res, 'GA 관리자 권한이 필요합니다.', { guard: 'requireGaTenantAdmin' })
+    return
+  }
+  next()
+}
+
+/** 원수사 담당자 API 쓰기: SUPER_ADMIN · GA_ADMIN · GA_STAFF */
+function requireGaInsurerManagerMutator(req, res, next) {
+  if (!req.user || !isGaInsurerManagerMutatorRole(req.user.role)) {
+    forbiddenResponse(req, res, '원수사 담당자 관리 권한이 필요합니다.', { guard: 'requireGaInsurerManagerMutator' })
     return
   }
   next()
@@ -1667,7 +1677,7 @@ apiRouter.get('/insurer-managers', requireAuth, requireGaAdminOrSuper, async (re
   }
 })
 
-apiRouter.post('/insurer-managers', requireAuth, requireGaTenantAdmin, async (req, res) => {
+apiRouter.post('/insurer-managers', requireAuth, requireGaInsurerManagerMutator, async (req, res) => {
   try {
     const gaId = await resolveTenantGaIdForRequest(pool, req)
     if (gaId == null) {
@@ -1757,7 +1767,7 @@ apiRouter.post('/insurer-managers', requireAuth, requireGaTenantAdmin, async (re
   }
 })
 
-apiRouter.patch('/insurer-managers/:id', requireAuth, requireGaTenantAdmin, async (req, res) => {
+apiRouter.patch('/insurer-managers/:id', requireAuth, requireGaInsurerManagerMutator, async (req, res) => {
   try {
     const gaId = await resolveTenantGaIdForRequest(pool, req)
     if (gaId == null) {
