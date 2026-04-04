@@ -67,3 +67,33 @@ export async function consumeSmsVerificationCode(client, p) {
     [userId, phoneNumber, code, purpose],
   )
 }
+
+/** 가입 전 SIGNUP 등: user_id 없이 phone + purpose + code만 매칭 */
+export async function consumeAnonymousSmsVerificationCode(client, p) {
+  const phoneNumber = String(p.phoneNumber ?? '').trim()
+  const code = String(p.code ?? '').trim()
+  const purpose = String(p.purpose ?? '').trim()
+
+  return client.query(
+    `
+    WITH picked AS (
+      SELECT id FROM sms_verification_codes
+      WHERE user_id IS NULL
+        AND phone_number = $1
+        AND code = $2
+        AND purpose = $3
+        AND used = FALSE
+        AND expires_at > NOW()
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED
+    )
+    UPDATE sms_verification_codes AS v
+    SET used = TRUE, verified_at = NOW()
+    FROM picked
+    WHERE v.id = picked.id
+    RETURNING v.id
+    `,
+    [phoneNumber, code, purpose],
+  )
+}

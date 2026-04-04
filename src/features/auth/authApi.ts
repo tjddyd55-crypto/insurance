@@ -117,6 +117,7 @@ export async function register(payload: {
   inviteCode: string
   name: string
   phoneNumber: string
+  signupPhoneProof: string
 }) {
   try {
     return await apiRequest<{ id: string; username: string; ga_id: number; createdAt: string }>(
@@ -129,15 +130,99 @@ export async function register(payload: {
           invite_code: payload.inviteCode.trim(),
           name: payload.name.trim(),
           phone_number: payload.phoneNumber,
+          signup_phone_proof: payload.signupPhoneProof.trim(),
         }),
       },
     )
   } catch (error) {
     if (error instanceof ApiError && error.status === 409) {
-      throw new Error('이미 사용 중인 아이디입니다.')
+      throw new Error(error.message || '이미 사용 중인 아이디입니다.')
     }
     throw error
   }
+}
+
+export async function sendSignupPhoneCode(payload: { inviteCode: string; phoneNumber: string }) {
+  return apiRequest<{ ok?: boolean; message?: string; debugCode?: string }>(
+    '/api/auth/send-signup-phone-code',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        invite_code: payload.inviteCode.trim(),
+        phone_number: payload.phoneNumber,
+      }),
+    },
+  )
+}
+
+export async function verifySignupPhoneCode(payload: {
+  inviteCode: string
+  phoneNumber: string
+  code: string
+}) {
+  return apiRequest<{
+    ok?: boolean
+    message?: string
+    signup_phone_proof: string
+  }>('/api/auth/verify-signup-phone-code', {
+    method: 'POST',
+    body: JSON.stringify({
+      invite_code: payload.inviteCode.trim(),
+      phone_number: payload.phoneNumber,
+      code: payload.code.trim(),
+    }),
+  })
+}
+
+export interface MeResponse {
+  id: string
+  username: string
+  display_name: string
+  phone_number: string
+  role: string
+  ga_id: number | null
+  status: string
+}
+
+export async function fetchMe(token: string): Promise<MeResponse> {
+  return apiRequest<MeResponse>('/api/me', { method: 'GET', token })
+}
+
+export async function patchMe(
+  token: string,
+  body: {
+    display_name?: string
+    phone_number?: string
+    phone_change_proof?: string
+  },
+): Promise<MeResponse> {
+  return apiRequest<MeResponse>('/api/me', {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify(body),
+  })
+}
+
+export async function sendPhoneChangeCode(token: string, phoneNumber: string) {
+  return apiRequest<{ ok?: boolean; message?: string; debugCode?: string }>(
+    '/api/me/send-phone-change-code',
+    {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ phone_number: phoneNumber }),
+    },
+  )
+}
+
+export async function verifyPhoneChangeCode(token: string, phoneNumber: string, code: string) {
+  return apiRequest<{ ok?: boolean; message?: string; phone_change_proof: string }>(
+    '/api/me/verify-phone-change-code',
+    {
+      method: 'POST',
+      token,
+      body: JSON.stringify({ phone_number: phoneNumber, code: code.trim() }),
+    },
+  )
 }
 
 export async function login(username: string, password: string) {

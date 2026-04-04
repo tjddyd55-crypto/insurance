@@ -77,6 +77,9 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === '/account/reset') {
     return pathname === '/account/reset'
   }
+  if (itemPath === '/profile') {
+    return pathname === '/profile'
+  }
   if (itemPath.startsWith('/internal/')) {
     return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
   }

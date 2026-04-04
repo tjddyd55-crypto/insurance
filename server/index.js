@@ -8,6 +8,8 @@ import pool from './db.js'
 import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import { initDb } from './initDb.js'
 import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
+import { registerUserProfileApi } from './registerUserProfileApi.js'
+import { verifySignupPhoneProof } from './lib/signupPhoneProof.js'
 import { purgeExpiredSmsVerificationCodes } from './services/purgeExpiredSmsCodes.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
 import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
@@ -1218,6 +1220,13 @@ registerInsurerNewsApi(apiRouter, {
   resolveTenantGaIdForRequest,
 })
 
+function normalizeInviteCode(raw) {
+  return String(raw ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '')
+}
+
 registerAuthAccountSmsApi(apiRouter, {
   pool,
   bcrypt,
@@ -1227,16 +1236,18 @@ registerAuthAccountSmsApi(apiRouter, {
   requireAuth,
 })
 
+registerUserProfileApi(apiRouter, {
+  pool,
+  JWT_SECRET,
+  handleDbError,
+  requireAuth,
+  RUNNING_IN_PRODUCTION,
+  normalizeInviteCode,
+})
+
 apiRouter.get('/health', (_req, res) => {
   res.json({ ok: true })
 })
-
-function normalizeInviteCode(raw) {
-  return String(raw ?? '')
-    .trim()
-    .toUpperCase()
-    .replace(/\s+/g, '')
-}
 
 async function handleRegister(req, res) {
   try {
@@ -1249,6 +1260,8 @@ async function handleRegister(req, res) {
       display_name: displayNameRaw,
       phone_number: phoneSnake,
       phoneNumber: phoneCamel,
+      signup_phone_proof: signupProofSnake,
+      signupPhoneProof: signupProofCamel,
     } = req.body ?? {}
     const displayName = String(nameRaw ?? displayNameRaw ?? '').trim()
     if (!displayName) {
@@ -1287,6 +1300,38 @@ async function handleRegister(req, res) {
       return
     }
 
+    let signupProof
+    try {
+      signupProof = verifySignupPhoneProof(String(signupProofSnake ?? signupProofCamel ?? '').trim(), JWT_SECRET)
+    } catch {
+      res.status(400).json({
+        message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
+      })
+      return
+    }
+    if (signupProof.phoneDigits !== phoneNorm) {
+      res.status(400).json({ message: '인증된 휴대폰 번호와 가입 폼의 번호가 일치하지 않습니다.' })
+      return
+    }
+    if (signupProof.inviteCodeNormalized !== code) {
+      res.status(400).json({ message: '인증 시점의 GA 코드와 현재 입력이 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
+      return
+    }
+    if (signupProof.gaId !== gaId) {
+      res.status(400).json({ message: 'GA 정보가 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
+      return
+    }
+
+    const phoneDup = await systemQuery(
+      pool,
+      `SELECT 1 FROM users WHERE phone_number = $1 AND is_deleted = false LIMIT 1`,
+      [phoneNorm],
+    )
+    if (phoneDup.rowCount > 0) {
+      res.status(409).json({ message: '이미 가입에 사용 중인 휴대폰 번호입니다.' })
+      return
+    }
+
     const validationMessage = validateCredentials(username, password)
     if (validationMessage) {
       res.status(400).json({ message: validationMessage })
@@ -1309,6 +1354,10 @@ async function handleRegister(req, res) {
       `,
       [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm],
     )
+
+    await pool.query(`DELETE FROM sms_verification_codes WHERE purpose = 'SIGNUP' AND phone_number = $1`, [
+      phoneNorm,
+    ])
 
     res.status(201).json({
       id,
@@ -1572,6 +1621,7 @@ async function handleLogin(req, res) {
 
 apiRouter.post('/register', handleRegister)
 apiRouter.post('/auth/register', handleRegister)
+apiRouter.post('/auth/signup', handleRegister)
 
 apiRouter.post('/login', handleLogin)
 apiRouter.post('/auth/login', handleLogin)
@@ -2320,41 +2370,52 @@ apiRouter.patch('/admin/users/:id', requireAuth, requireSuperAdmin, async (req, 
 })
 
 apiRouter.delete('/admin/users/:id', requireAuth, requireSuperAdmin, async (req, res) => {
+  const client = await pool.connect()
   try {
     const targetId = String(req.params.id ?? '').trim()
+    const actorId = String(req.user?.id ?? '').trim()
     if (!targetId) {
       res.status(400).json({ message: '잘못된 사용자 ID입니다.' })
       return
     }
+    if (actorId && targetId === actorId) {
+      res.status(400).json({ message: '자기 자신은 삭제할 수 없습니다.' })
+      return
+    }
+
     const scope = await systemQuery(pool,
-      `SELECT ga_id FROM users WHERE id = $1 AND is_deleted = false`,
+      `SELECT id, username FROM users WHERE id = $1 AND is_deleted = false`,
       [targetId],
     )
     if (scope.rowCount === 0) {
       res.status(404).json({ message: '사용자를 찾을 수 없습니다.' })
       return
     }
-    const delGaId = parseGaId(scope.rows[0].ga_id)
-    if (delGaId == null) {
-      res.status(400).json({ message: '사용자 GA 정보가 올바르지 않습니다.' })
+    const bootstrapUsername = String(process.env.INSURANCE_ADMIN_BOOTSTRAP_USERNAME || 'admin').trim()
+    if (String(scope.rows[0].username ?? '').trim() === bootstrapUsername) {
+      res.status(403).json({ message: '시스템에서 보호되는 관리자 계정은 삭제할 수 없습니다.' })
       return
     }
-    const upd = await safeQuery(pool,
-      `
-      UPDATE users
-      SET is_deleted = true
-      WHERE id = $1 AND ga_id = $2 AND is_deleted = false
-      RETURNING id
-      `,
-      [targetId, delGaId],
-    )
-    if (upd.rowCount === 0) {
+
+    await client.query('BEGIN')
+    await client.query(`DELETE FROM sms_verification_codes WHERE user_id = $1`, [targetId])
+    await client.query(`DELETE FROM sms_verification_logs WHERE user_id = $1`, [targetId])
+    const del = await client.query(`DELETE FROM users WHERE id = $1`, [targetId])
+    await client.query('COMMIT')
+    if (del.rowCount === 0) {
       res.status(404).json({ message: '사용자를 찾을 수 없습니다.' })
       return
     }
     res.status(204).send()
   } catch (error) {
+    try {
+      await client.query('ROLLBACK')
+    } catch {
+      /* ignore */
+    }
     handleDbError(error, res)
+  } finally {
+    client.release()
   }
 })
 

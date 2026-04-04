@@ -50,6 +50,7 @@ export function buildGaTenantDashboardMenu(
   }
   items.push(
     { label: '추가기능 요청하기', path: '/feature-request' },
+    { label: '프로필', path: '/profile' },
     { label: '계정 초기화', path: '/account/reset' },
   )
   return items

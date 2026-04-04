@@ -14,6 +14,7 @@ import { AccountResetPage } from './features/account/pages/AccountResetPage'
 import { LoginPage } from './features/auth/pages/LoginPage'
 import { PasswordResetPage } from './features/auth/pages/PasswordResetPage'
 import { RegisterPage } from './features/auth/pages/RegisterPage'
+import { ProfilePage } from './features/auth/pages/ProfilePage'
 import { ProtectedRoute } from './features/auth/ProtectedRoute'
 import { GaCarInsuranceRoute } from './features/auth/GaCarInsuranceRoute'
 import { StaffRoute } from './features/auth/StaffRoute'
@@ -119,6 +120,7 @@ export const appRouter = createBrowserRouter([
                 element: <AuditLogReaderRoute />,
                 children: [{ path: 'admin/audit-logs', element: <AuditLogsPage /> }],
               },
+              { path: 'profile', element: <ProfilePage /> },
               { path: 'account/reset', element: <AccountResetPage /> },
               { path: 'feature-request', element: <FeatureRequestPage /> },
               { path: 'feature-requests/my', element: <Navigate to="/feature-request" replace /> },
