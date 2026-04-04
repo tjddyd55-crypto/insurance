@@ -25,6 +25,7 @@ import { buildKakaoCustomerCopyText } from '../utils/customerText'
 import { calculateInsuranceAgeFromRrn, formatLocalYmd } from '../utils/insuranceAge'
 import { formatDateYmdInput, NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
 import { EXCEL_COLUMN_META, exportCustomersExcel } from '../utils/exportCustomersExcel'
+import { normalizeSsn, RRN_NORMALIZED_LENGTH } from '../utils/customerExcelUpload'
 import { CustomerExcelImportPanel } from '../components/CustomerExcelImportPanel'
 import {
   CustomerForm,
@@ -141,6 +142,37 @@ const EMPTY_ADVANCED_FILTERS: CustomerAdvancedFilters = {
   carExpireTo: '',
 }
 
+/** 주민번호(숫자 13자리) 중복 그룹마다 순환 적용하는 표시색 */
+const CUSTOMER_SSN_DUP_PALETTE = ['#c62828', '#1565c0', '#2e7d32', '#ef6c00', '#6a1b9a', '#00838f'] as const
+
+type CustomerSsnDupHighlight = {
+  groupLabel: number
+  color: string
+}
+
+function buildSsnDuplicateHighlightByCustomerId(rows: CustomerRecord[]): Map<number, CustomerSsnDupHighlight> {
+  const byNorm = new Map<string, CustomerRecord[]>()
+  for (const c of rows) {
+    const k = normalizeSsn(c.ssn ?? '')
+    if (k.length !== RRN_NORMALIZED_LENGTH) {
+      continue
+    }
+    const arr = byNorm.get(k) ?? []
+    arr.push(c)
+    byNorm.set(k, arr)
+  }
+  const dupEntries = [...byNorm.entries()].filter(([, arr]) => arr.length > 1)
+  dupEntries.sort(([a], [b]) => a.localeCompare(b))
+  const out = new Map<number, CustomerSsnDupHighlight>()
+  dupEntries.forEach(([, arr], idx) => {
+    const groupLabel = idx + 1
+    const color = CUSTOMER_SSN_DUP_PALETTE[idx % CUSTOMER_SSN_DUP_PALETTE.length]
+    for (const c of arr) {
+      out.set(c.id, { groupLabel, color })
+    }
+  })
+  return out
+}
 
 function parseOptionalInt(s: string): number | null {
   const t = s.trim()
@@ -312,7 +344,7 @@ function appendCustomerNoteToForm(
 
 type CustomerListCardProps = {
   customer: CustomerRecord
-  duplicateCustomerNames: Set<string>
+  ssnDupHighlight: CustomerSsnDupHighlight | undefined
   isSelectMode: boolean
   selectedCustomerIds: string[]
   setSelectedCustomerIds: Dispatch<SetStateAction<string[]>>
@@ -335,7 +367,7 @@ type CustomerListCardProps = {
 
 function CustomerListCard({
   customer: c,
-  duplicateCustomerNames,
+  ssnDupHighlight,
   isSelectMode,
   selectedCustomerIds,
   setSelectedCustomerIds,
@@ -385,8 +417,14 @@ function CustomerListCard({
         >
           <span className="customer-expand-summary__title">
             <span
-              className={duplicateCustomerNames.has(c.name.trim()) ? 'customer-hit-name--duplicate' : undefined}
+              className={ssnDupHighlight ? 'customer-name-ssn-dup' : undefined}
+              style={ssnDupHighlight ? { color: ssnDupHighlight.color } : undefined}
             >
+              {ssnDupHighlight ? (
+                <span className="customer-name-ssn-dup__badge" aria-label={`중복 그룹 ${ssnDupHighlight.groupLabel}`}>
+                  [{ssnDupHighlight.groupLabel}]
+                </span>
+              ) : null}
               {c.name}
             </span>
             {' / '}
@@ -854,17 +892,10 @@ export default function CustomersPage() {
   const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false)
   const selectAllRef = useRef<HTMLInputElement>(null)
 
-  const duplicateCustomerNames = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const c of customers) {
-      const key = c.name.trim()
-      if (!key) {
-        continue
-      }
-      counts.set(key, (counts.get(key) ?? 0) + 1)
-    }
-    return new Set([...counts.entries()].filter(([, n]) => n > 1).map(([name]) => name))
-  }, [customers])
+  const ssnDupHighlightByCustomerId = useMemo(
+    () => buildSsnDuplicateHighlightByCustomerId(customers),
+    [customers],
+  )
 
   const keywordFilteredCustomers = useMemo(() => {
     const q = keyword.trim()
@@ -1219,7 +1250,6 @@ export default function CustomersPage() {
     }
   }
 
-
   if (user?.role !== 'USER') {
     return (
       <main className="page page--with-back">
@@ -1482,7 +1512,7 @@ export default function CustomersPage() {
                 <CustomerListCard
                   key={c.id}
                   customer={c}
-                  duplicateCustomerNames={duplicateCustomerNames}
+                  ssnDupHighlight={ssnDupHighlightByCustomerId.get(c.id)}
                   isSelectMode={isSelectMode}
                   selectedCustomerIds={selectedCustomerIds}
                   setSelectedCustomerIds={setSelectedCustomerIds}
