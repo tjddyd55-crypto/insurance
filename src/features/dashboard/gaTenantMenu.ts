@@ -38,6 +38,8 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
 export function buildGaTenantDashboardMenu(
   gaCode: string | undefined,
   gaName: string | undefined,
+  /** 일반 설계사(USER)에게만 프로필 메뉴 노출 */
+  includeProfile = false,
 ): GaTenantMenuItem[] {
   const items: GaTenantMenuItem[] = [
     { label: '고객관리', path: '/customers' },
@@ -48,11 +50,11 @@ export function buildGaTenantDashboardMenu(
   if (carByName || isCarInsuranceFeatureEnabledForGa(gaCode)) {
     items.push({ label: '자동차 신청서', path: '/application' })
   }
-  items.push(
-    { label: '추가기능 요청하기', path: '/feature-request' },
-    { label: '프로필', path: '/profile' },
-    { label: '계정 초기화', path: '/account/reset' },
-  )
+  items.push({ label: '추가기능 요청하기', path: '/feature-request' })
+  if (includeProfile) {
+    items.push({ label: '프로필', path: '/profile' })
+  }
+  items.push({ label: '계정 초기화', path: '/account/reset' })
   return items
 }
 

@@ -7,6 +7,7 @@ import { insuranceLog } from '../lib/logger.js'
 const deliveryLog = insuranceLog.child({ domain: 'sms-delivery' })
 const verifyLog = insuranceLog.child({ domain: 'sms-verify' })
 const cleanupLog = insuranceLog.child({ domain: 'sms-cleanup' })
+const policyLog = insuranceLog.child({ domain: 'sms-policy' })
 
 export function maskPhoneForLog(phoneDigits) {
   const d = String(phoneDigits ?? '').replace(/\D/g, '')
@@ -47,6 +48,45 @@ export function logSmsVerifyFailure(p) {
 export function logExpiredSmsCodesPurged(deletedCount) {
   cleanupLog.info({
     deleted: deletedCount,
+    timestamp: new Date().toISOString(),
+  })
+}
+
+/**
+ * @param {{ kind: string, scope: string, phone?: string, ip?: string }} p
+ */
+export function logSmsRateLimitHit(p) {
+  policyLog.info({
+    event: 'rate_limit_hit',
+    kind: String(p.kind),
+    scope: String(p.scope),
+    phone: p.phone ? maskPhoneForLog(p.phone) : undefined,
+    ip: p.ip != null ? String(p.ip).slice(0, 64) : undefined,
+    timestamp: new Date().toISOString(),
+  })
+}
+
+/**
+ * @param {{ channel: string, purpose: string, attempt: number }} p
+ */
+export function logSmsRetry(p) {
+  deliveryLog.info({
+    event: 'sms_retry',
+    channel: String(p.channel),
+    purpose: String(p.purpose ?? ''),
+    attempt: p.attempt,
+    timestamp: new Date().toISOString(),
+  })
+}
+
+/**
+ * @param {{ backend: string, ttlSec: number }} p
+ */
+export function logSmsCircuitOpen(p) {
+  policyLog.info({
+    event: 'circuit_breaker_open',
+    backend: String(p.backend),
+    ttlSec: p.ttlSec,
     timestamp: new Date().toISOString(),
   })
 }

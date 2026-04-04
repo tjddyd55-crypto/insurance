@@ -1,7 +1,11 @@
 /**
- * SMS 인증 요청 IP 기반 제한 (인메모리, 단일 인스턴스).
- * 1분당 최대 5회, 1시간당 최대 20회.
+ * SMS 인증 요청 IP 기반 제한.
+ * Redis: sms:ip:{ip}:min, sms:ip:{ip}:hour — INCR + EXPIRE (다중 인스턴스 공통).
+ * REDIS_URL 없을 때 인메모리(단일 인스턴스).
  */
+
+import { getRedis } from '../lib/redisClient.js'
+import { logSmsRateLimitHit } from './smsStructuredLog.js'
 
 const MINUTE_MS = 60_000
 const MAX_PER_MINUTE = 5
@@ -10,6 +14,13 @@ const MAX_PER_HOUR = 20
 
 /** @type {Map<string, { minuteStart: number, minuteCount: number, hourStart: number, hourCount: number }>} */
 const ipStore = new Map()
+
+function ipKeySegment(ip) {
+  return String(ip ?? 'unknown')
+    .trim()
+    .replace(/:/g, '_')
+    .slice(0, 128)
+}
 
 export function getClientIp(req) {
   const xff = req.headers?.['x-forwarded-for']
@@ -35,10 +46,7 @@ export function getClientUserAgent(req) {
   return ''
 }
 
-/**
- * @returns {{ ok: true } | { ok: false, retryAfterSec: number }}
- */
-export function assertSmsRequestIpLimit(req) {
+function memoryAssert(req) {
   const ip = getClientIp(req)
   const now = Date.now()
   let e = ipStore.get(ip)
@@ -60,16 +68,73 @@ export function assertSmsRequestIpLimit(req) {
     return {
       ok: false,
       retryAfterSec: Math.max(1, Math.ceil((MINUTE_MS - (now - e.minuteStart)) / 1000)),
+      scope: 'ip:minute',
+      ip,
     }
   }
   if (e.hourCount >= MAX_PER_HOUR) {
     return {
       ok: false,
       retryAfterSec: Math.max(1, Math.ceil((HOUR_MS - (now - e.hourStart)) / 1000)),
+      scope: 'ip:hour',
+      ip,
     }
   }
 
   e.minuteCount += 1
   e.hourCount += 1
   return { ok: true }
+}
+
+/**
+ * @returns {Promise<{ ok: true } | { ok: false, retryAfterSec: number }>}
+ */
+export async function assertSmsRequestIpLimit(req) {
+  const ip = getClientIp(req)
+  const seg = ipKeySegment(ip)
+  const r = getRedis()
+
+  if (!r) {
+    const m = memoryAssert(req)
+    if (!m.ok && 'scope' in m) {
+      logSmsRateLimitHit({ kind: 'ip', scope: m.scope, ip: seg })
+    }
+    return m.ok ? { ok: true } : { ok: false, retryAfterSec: m.retryAfterSec }
+  }
+
+  try {
+    const minK = `sms:ip:${seg}:min`
+    const hourK = `sms:ip:${seg}:hour`
+    const minC = await r.incr(minK)
+    if (minC === 1) {
+      await r.expire(minK, 60)
+    }
+    if (minC > MAX_PER_MINUTE) {
+      await r.decr(minK)
+      const ttl = await r.ttl(minK)
+      logSmsRateLimitHit({ kind: 'ip', scope: 'ip:minute', ip: seg })
+      return { ok: false, retryAfterSec: Math.max(1, ttl > 0 ? ttl : 60) }
+    }
+
+    const hourC = await r.incr(hourK)
+    if (hourC === 1) {
+      await r.expire(hourK, 3600)
+    }
+    if (hourC > MAX_PER_HOUR) {
+      await r.decr(minK)
+      await r.decr(hourK)
+      const ttl = await r.ttl(hourK)
+      logSmsRateLimitHit({ kind: 'ip', scope: 'ip:hour', ip: seg })
+      return { ok: false, retryAfterSec: Math.max(1, ttl > 0 ? ttl : 3600) }
+    }
+
+    return { ok: true }
+  } catch (e) {
+    console.error('[smsRequestIpLimit] redis error, fallback memory:', e instanceof Error ? e.message : e)
+    const m = memoryAssert(req)
+    if (!m.ok && 'scope' in m) {
+      logSmsRateLimitHit({ kind: 'ip', scope: `${m.scope}:fallback`, ip: seg })
+    }
+    return m.ok ? { ok: true } : { ok: false, retryAfterSec: m.retryAfterSec }
+  }
 }

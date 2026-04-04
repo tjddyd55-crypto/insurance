@@ -17,6 +17,7 @@ import { insertSmsVerificationLog } from './services/smsVerificationAudit.js'
 import { applyUserSmsRequestAfterSend, evaluateUserSmsRequestQuota } from './services/smsUserDbRate.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
 import { logSmsVerifyFailure } from './services/smsStructuredLog.js'
+import { SMS_PUBLIC_DELAY_MESSAGE } from './services/smsPublicMessages.js'
 
 const SMS_PURPOSE_SIGNUP = 'SIGNUP'
 const SMS_PURPOSE_PHONE_CHANGE = 'PHONE_CHANGE'
@@ -58,8 +59,8 @@ export function registerUserProfileApi(apiRouter, ctx) {
   const showDebugCode = exposeSmsDebugCode(RUNNING_IN_PRODUCTION)
 
   function requireProfileUser(req, res, next) {
-    if (req.user?.role === 'INSURER_MANAGER') {
-      res.status(403).json({ message: '프로필 메뉴는 GA·설계사 계정에서만 이용할 수 있습니다.' })
+    if (req.user?.role !== 'USER') {
+      res.status(403).json({ message: '프로필은 일반 설계사(USER) 계정에서만 이용할 수 있습니다.' })
       return
     }
     next()
@@ -72,7 +73,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
     let newCodeRowId
     const client = await pool.connect()
     try {
-      const ipLimit = assertSmsRequestIpLimit(req)
+      const ipLimit = await assertSmsRequestIpLimit(req)
       if (!ipLimit.ok) {
         res.status(429).json({ message: '요청이 너무 많습니다.', retryAfterSec: ipLimit.retryAfterSec })
         return
@@ -111,13 +112,13 @@ export function registerUserProfileApi(apiRouter, ctx) {
         return
       }
 
-      const gap = assertCanRequestSmsCode(SMS_PURPOSE_SIGNUP, phoneNorm)
+      const gap = await assertCanRequestSmsCode(SMS_PURPOSE_SIGNUP, phoneNorm)
       if (!gap.ok) {
         res.status(429).json({ message: gap.message, retryAfterSec: gap.retryAfterSec })
         return
       }
 
-      const burst = assertPhoneSms10MinLimit(phoneNorm)
+      const burst = await assertPhoneSms10MinLimit(phoneNorm)
       if (!burst.ok) {
         res.status(429).json({ message: '요청이 너무 많습니다.', retryAfterSec: burst.retryAfterSec })
         return
@@ -167,11 +168,14 @@ export function registerUserProfileApi(apiRouter, ctx) {
       if (newCodeRowId != null) {
         await pool.query('DELETE FROM sms_verification_codes WHERE id = $1', [newCodeRowId])
       }
-      res.status(503).json({ message: '인증번호를 발송할 수 없습니다. 잠시 후 다시 시도해 주세요.' })
+      res.status(503).json({
+        message: smsResult.publicMessage ?? SMS_PUBLIC_DELAY_MESSAGE,
+        retryAfterSec: smsResult.retryAfterSec,
+      })
       return
     }
 
-    recordPhoneSms10MinSend(phoneNorm)
+    await recordPhoneSms10MinSend(phoneNorm)
 
     const payload = { ok: true, message: '인증번호가 발송되었습니다.' }
     if (showDebugCode) {
@@ -204,7 +208,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         return
       }
 
-      const lock = assertNotVerifyLocked(SMS_PURPOSE_SIGNUP, phoneNorm, inviteNorm, clientIp)
+      const lock = await assertNotVerifyLocked(SMS_PURPOSE_SIGNUP, phoneNorm, inviteNorm, clientIp)
       if (!lock.ok) {
         res.status(429).json({ message: lock.message, retryAfterSec: lock.retryAfterSec })
         return
@@ -242,7 +246,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
       })
       if (consumed.rowCount === 0) {
         await tx.query('ROLLBACK')
-        recordVerifyFailure(SMS_PURPOSE_SIGNUP, phoneNorm, inviteNorm, clientIp)
+        await recordVerifyFailure(SMS_PURPOSE_SIGNUP, phoneNorm, inviteNorm, clientIp)
         logSmsVerifyFailure({
           phone: phoneNorm,
           ip: clientIp,
@@ -276,7 +280,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         userAgent: clientUa,
       }).catch(() => {})
 
-      clearVerifyFailures(SMS_PURPOSE_SIGNUP, phoneNorm, inviteNorm, clientIp)
+      await clearVerifyFailures(SMS_PURPOSE_SIGNUP, phoneNorm, inviteNorm, clientIp)
 
       const signup_phone_proof = issueSignupPhoneProof({
         JWT_SECRET,
@@ -342,7 +346,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         res.status(400).json({ message: '잘못된 요청입니다.' })
         return
       }
-      if (gaId == null && req.user?.role !== 'SUPER_ADMIN') {
+      if (gaId == null) {
         res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
         return
       }
@@ -367,7 +371,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
       }
       const currentPhone = normalizeKrMobile(uR.rows[0].phone_number ?? '')
       const rowGa = parseGaId(uR.rows[0].ga_id)
-      if (req.user.role !== 'SUPER_ADMIN' && rowGa !== gaId) {
+      if (rowGa !== gaId) {
         res.status(403).json({ message: '권한이 없습니다.' })
         return
       }
@@ -454,34 +458,15 @@ export function registerUserProfileApi(apiRouter, ctx) {
         return
       }
 
-      vals.push(uid)
-      const scopeGa = rowGa != null ? rowGa : gaId
-
-      let upd
-      if (req.user.role === 'SUPER_ADMIN') {
-        upd = await client.query(
-          `
-          UPDATE users SET ${sets.join(', ')}
-          WHERE id = $${n} AND is_deleted = false
-          RETURNING id, username, display_name, phone_number, role, ga_id, status
-          `,
-          vals,
-        )
-      } else {
-        if (scopeGa == null) {
-          res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
-          return
-        }
-        vals.push(scopeGa)
-        upd = await client.query(
-          `
-          UPDATE users SET ${sets.join(', ')}
-          WHERE id = $${n} AND ga_id = $${n + 1} AND is_deleted = false
-          RETURNING id, username, display_name, phone_number, role, ga_id, status
-          `,
-          vals,
-        )
-      }
+      vals.push(uid, rowGa ?? gaId)
+      const upd = await client.query(
+        `
+        UPDATE users SET ${sets.join(', ')}
+        WHERE id = $${n} AND ga_id = $${n + 1} AND is_deleted = false
+        RETURNING id, username, display_name, phone_number, role, ga_id, status
+        `,
+        vals,
+      )
 
       if (upd.rowCount === 0) {
         res.status(404).json({ message: '사용자를 찾을 수 없습니다.' })
@@ -514,7 +499,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
     let actorGaId
     let quota
     try {
-      const ipLimit = assertSmsRequestIpLimit(req)
+      const ipLimit = await assertSmsRequestIpLimit(req)
       if (!ipLimit.ok) {
         res.status(429).json({ message: '요청이 너무 많습니다.', retryAfterSec: ipLimit.retryAfterSec })
         return
@@ -522,7 +507,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
 
       userId = String(req.user?.id ?? '').trim()
       actorGaId = parseGaId(req.user?.gaId)
-      if (actorGaId == null && req.user?.role !== 'SUPER_ADMIN') {
+      if (actorGaId == null) {
         res.status(400).json({ message: '세션 GA 정보가 올바르지 않습니다.' })
         return
       }
@@ -534,23 +519,24 @@ export function registerUserProfileApi(apiRouter, ctx) {
         return
       }
 
-      const burst = assertPhoneSms10MinLimit(phoneNorm)
+      const burst = await assertPhoneSms10MinLimit(phoneNorm)
       if (!burst.ok) {
         res.status(429).json({ message: '요청이 너무 많습니다.', retryAfterSec: burst.retryAfterSec })
         return
       }
 
       await client.query('BEGIN')
-      const lockSql =
-        req.user.role === 'SUPER_ADMIN'
-          ? `SELECT id, phone_number, role, status, is_deleted, ga_id,
-            last_sms_requested_at, sms_request_count, sms_request_window_start, sms_blocked_until
-            FROM users WHERE id = $1 AND is_deleted = false FOR UPDATE`
-          : `SELECT id, phone_number, role, status, is_deleted, ga_id,
-            last_sms_requested_at, sms_request_count, sms_request_window_start, sms_blocked_until
-            FROM users WHERE id = $1 AND ga_id = $2 AND is_deleted = false FOR UPDATE`
-      const lockParams = req.user.role === 'SUPER_ADMIN' ? [userId] : [userId, actorGaId]
-      const uR = await client.query(lockSql, lockParams)
+      const uR = await client.query(
+        `
+        SELECT
+          id, phone_number, role, status, is_deleted, ga_id,
+          last_sms_requested_at, sms_request_count, sms_request_window_start, sms_blocked_until
+        FROM users
+        WHERE id = $1 AND ga_id = $2 AND is_deleted = false
+        FOR UPDATE
+        `,
+        [userId, actorGaId],
+      )
       const u = uR.rows[0]
       if (!u) {
         await client.query('ROLLBACK')
@@ -629,11 +615,14 @@ export function registerUserProfileApi(apiRouter, ctx) {
       if (newCodeRowId != null) {
         await pool.query('DELETE FROM sms_verification_codes WHERE id = $1', [newCodeRowId])
       }
-      res.status(503).json({ message: '인증번호를 발송할 수 없습니다. 잠시 후 다시 시도해 주세요.' })
+      res.status(503).json({
+        message: smsOk.publicMessage ?? SMS_PUBLIC_DELAY_MESSAGE,
+        retryAfterSec: smsOk.retryAfterSec,
+      })
       return
     }
 
-    recordPhoneSms10MinSend(phoneNorm)
+    await recordPhoneSms10MinSend(phoneNorm)
 
     const quotaClient = await pool.connect()
     try {
@@ -669,7 +658,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
     try {
       const userId = String(req.user?.id ?? '').trim()
       const actorGaId = parseGaId(req.user?.gaId)
-      if (req.user?.role !== 'SUPER_ADMIN' && actorGaId == null) {
+      if (actorGaId == null) {
         res.status(400).json({ message: '세션 GA 정보가 올바르지 않습니다.' })
         return
       }
@@ -686,7 +675,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         return
       }
 
-      const lock = assertNotVerifyLocked(SMS_PURPOSE_PHONE_CHANGE, `${phoneNorm}:${userId}`, userId, clientIp)
+      const lock = await assertNotVerifyLocked(SMS_PURPOSE_PHONE_CHANGE, phoneNorm, userId, clientIp)
       if (!lock.ok) {
         res.status(429).json({ message: lock.message, retryAfterSec: lock.retryAfterSec })
         return
@@ -740,7 +729,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
       })
       if (consumed.rowCount === 0) {
         await tx.query('ROLLBACK')
-        recordVerifyFailure(SMS_PURPOSE_PHONE_CHANGE, `${phoneNorm}:${userId}`, userId, clientIp)
+        await recordVerifyFailure(SMS_PURPOSE_PHONE_CHANGE, phoneNorm, userId, clientIp)
         logSmsVerifyFailure({
           phone: phoneNorm,
           ip: clientIp,
@@ -766,7 +755,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         userAgent: clientUa,
       }).catch(() => {})
 
-      clearVerifyFailures(SMS_PURPOSE_PHONE_CHANGE, `${phoneNorm}:${userId}`, userId, clientIp)
+      await clearVerifyFailures(SMS_PURPOSE_PHONE_CHANGE, phoneNorm, userId, clientIp)
 
       const phone_change_proof = issuePhoneChangeProof({
         JWT_SECRET,

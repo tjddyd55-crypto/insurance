@@ -36,7 +36,7 @@ function menuForSession(
     return GA_STAFF_MENU
   }
   if (role === 'GA_ADMIN' || role === 'USER') {
-    const items = buildGaTenantDashboardMenu(gaCode, gaName)
+    const items = buildGaTenantDashboardMenu(gaCode, gaName, role === 'USER')
     if (role === 'GA_ADMIN') {
       items.push(AUDIT_MENU)
     }

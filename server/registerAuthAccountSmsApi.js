@@ -16,6 +16,7 @@ import {
 } from './services/smsVerificationAudit.js'
 import { applyUserSmsRequestAfterSend, evaluateUserSmsRequestQuota } from './services/smsUserDbRate.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
+import { SMS_PUBLIC_DELAY_MESSAGE } from './services/smsPublicMessages.js'
 
 const SMS_PURPOSE_PASSWORD_RESET = 'PASSWORD_RESET'
 const SMS_PURPOSE_ACCOUNT_RESET = 'ACCOUNT_RESET'
@@ -90,7 +91,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
     let quota
     let userGa
     try {
-      const ipLimit = assertSmsRequestIpLimit(req)
+      const ipLimit = await assertSmsRequestIpLimit(req)
       if (!ipLimit.ok) {
         jsonPublicAuth(res, 429, { retryAfterSec: ipLimit.retryAfterSec })
         return
@@ -108,7 +109,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         return
       }
 
-      const burst = assertPhoneSms10MinLimit(phoneNorm)
+      const burst = await assertPhoneSms10MinLimit(phoneNorm)
       if (!burst.ok) {
         jsonPublicAuth(res, 429, { retryAfterSec: burst.retryAfterSec })
         return
@@ -210,11 +211,14 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       if (newCodeRowId != null) {
         await pool.query('DELETE FROM sms_verification_codes WHERE id = $1', [newCodeRowId])
       }
-      jsonPublicAuth(res, 503)
+      jsonPublicAuth(res, 503, {
+        message: smsResult.publicMessage ?? SMS_PUBLIC_DELAY_MESSAGE,
+        retryAfterSec: smsResult.retryAfterSec,
+      })
       return
     }
 
-    recordPhoneSms10MinSend(phoneNorm)
+    await recordPhoneSms10MinSend(phoneNorm)
 
     const quotaClient = await pool.connect()
     try {
@@ -267,7 +271,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         return
       }
 
-      const lock = assertNotVerifyLocked(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm, clientIp)
+      const lock = await assertNotVerifyLocked(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm, clientIp)
       if (!lock.ok) {
         logSmsVerifyFailure({
           phone: phoneNorm,
@@ -293,7 +297,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         normalizeKrMobile(user.phone_number) === phoneNorm
 
       if (!okUser) {
-        recordVerifyFailure(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm, clientIp)
+        await recordVerifyFailure(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm, clientIp)
         logSmsVerifyFailure({
           phone: phoneNorm,
           ip: clientIp,
@@ -347,7 +351,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
           ip: auditIp,
           userAgent: auditUa,
         })
-        recordVerifyFailure(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm, clientIp)
+        await recordVerifyFailure(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm, clientIp)
         logSmsVerifyFailure({
           phone: phoneNorm,
           ip: clientIp,
@@ -374,7 +378,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         userAgent: auditUa,
       }).catch((err) => console.error('[sms-auth] audit log failed', err))
 
-      clearVerifyFailures(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm, clientIp)
+      await clearVerifyFailures(SMS_PURPOSE_PASSWORD_RESET, phoneNorm, usernameNorm, clientIp)
       logSmsEvent('password_reset_complete', { userId: user.id })
       res.json({ ok: true, message: '비밀번호가 변경되었습니다.' })
     } catch (e) {
@@ -400,7 +404,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
     let userId = ''
     let actorGaId
     try {
-      const ipLimit = assertSmsRequestIpLimit(req)
+      const ipLimit = await assertSmsRequestIpLimit(req)
       if (!ipLimit.ok) {
         res.status(429).json({ message: PUBLIC_AUTH_MSG, retryAfterSec: ipLimit.retryAfterSec })
         return
@@ -419,7 +423,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         return
       }
 
-      const burstAcct = assertPhoneSms10MinLimit(phoneNorm)
+      const burstAcct = await assertPhoneSms10MinLimit(phoneNorm)
       if (!burstAcct.ok) {
         res.status(429).json({ message: PUBLIC_AUTH_MSG, retryAfterSec: burstAcct.retryAfterSec })
         return
@@ -517,11 +521,14 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       if (newCodeRowId != null) {
         await pool.query('DELETE FROM sms_verification_codes WHERE id = $1', [newCodeRowId])
       }
-      res.status(503).json({ message: PUBLIC_AUTH_MSG })
+      res.status(503).json({
+        message: smsResultAcct.publicMessage ?? SMS_PUBLIC_DELAY_MESSAGE,
+        retryAfterSec: smsResultAcct.retryAfterSec,
+      })
       return
     }
 
-    recordPhoneSms10MinSend(phoneNorm)
+    await recordPhoneSms10MinSend(phoneNorm)
 
     const quotaClientAcct = await pool.connect()
     try {
@@ -580,7 +587,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         return
       }
 
-      const lock = assertNotVerifyLocked(SMS_PURPOSE_ACCOUNT_RESET, `${phoneNorm}:${userId}`, userId, acctResetIp)
+      const lock = await assertNotVerifyLocked(SMS_PURPOSE_ACCOUNT_RESET, phoneNorm, userId, acctResetIp)
       if (!lock.ok) {
         logSmsVerifyFailure({
           phone: phoneNorm,
@@ -611,7 +618,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         return
       }
       if (normalizeKrMobile(u.phone_number) !== phoneNorm) {
-        recordVerifyFailure(SMS_PURPOSE_ACCOUNT_RESET, `${phoneNorm}:${userId}`, userId, acctResetIp)
+        await recordVerifyFailure(SMS_PURPOSE_ACCOUNT_RESET, phoneNorm, userId, acctResetIp)
         logSmsVerifyFailure({
           phone: phoneNorm,
           ip: acctResetIp,
@@ -661,7 +668,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
           ip: auditIp,
           userAgent: auditUa,
         })
-        recordVerifyFailure(SMS_PURPOSE_ACCOUNT_RESET, `${phoneNorm}:${userId}`, userId, acctResetIp)
+        await recordVerifyFailure(SMS_PURPOSE_ACCOUNT_RESET, phoneNorm, userId, acctResetIp)
         logSmsVerifyFailure({
           phone: phoneNorm,
           ip: acctResetIp,
@@ -689,7 +696,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         userAgent: auditUa,
       }).catch((err) => console.error('[sms-auth] audit log failed', err))
 
-      clearVerifyFailures(SMS_PURPOSE_ACCOUNT_RESET, `${phoneNorm}:${userId}`, userId, acctResetIp)
+      await clearVerifyFailures(SMS_PURPOSE_ACCOUNT_RESET, phoneNorm, userId, acctResetIp)
       logSmsEvent('account_reset_complete', { userId })
       res.json({
         ok: true,

@@ -77,7 +77,7 @@ export function ProfilePage() {
     return <Navigate to="/login" replace />
   }
 
-  if (user.role === 'INSURER_MANAGER') {
+  if (user.role !== 'USER') {
     return <Navigate to="/dashboard" replace />
   }
 
