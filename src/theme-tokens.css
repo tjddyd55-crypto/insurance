@@ -120,6 +120,9 @@
   --text-primary: var(--text-main);
   --bg-elevated: var(--bg-card);
   --brand-primary: var(--primary);
+  --brand: var(--primary);
+  --brand-soft: rgb(59 130 246 / 0.14);
+  --text-default: var(--text-main);
 
   /* 인쇄·결과 양식(종이 느낌 유지 — 변수로만 참조) */
   --result-paper-bg: #ffffff;
@@ -264,6 +267,9 @@ body.dark {
   --text-primary: var(--text-main);
   --bg-elevated: var(--bg-card);
   --brand-primary: var(--primary);
+  --brand: var(--primary);
+  --brand-soft: rgb(96 165 250 / 0.18);
+  --text-default: var(--text-main);
 
   /* 다크에서도 인쇄 미리보기는 밝은 종이 유지 */
   --result-paper-bg: #ffffff;

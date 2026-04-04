@@ -1218,6 +1218,7 @@ export default function CustomersPage() {
     }
   }
 
+
   if (user?.role !== 'USER') {
     return (
       <main className="page page--with-back">
@@ -1258,20 +1259,16 @@ export default function CustomersPage() {
               />
               전체 선택
             </label>
-            <button
-              type="button"
-              className="button button--secondary"
-              onClick={() => setIsColumnPickerOpen(true)}
-            >
+            <button type="button" className="filter-button" onClick={() => setIsColumnPickerOpen(true)}>
               컬럼 선택
             </button>
-            <button type="button" className="button button--primary" onClick={handleDownloadSelected}>
+            <button type="button" className="cta-button" onClick={handleDownloadSelected}>
               선택 다운로드
             </button>
-            <button type="button" className="button button--secondary" onClick={handleDownloadListAll}>
+            <button type="button" className="cta-button" onClick={handleDownloadListAll}>
               목록 전체 다운로드
             </button>
-            <button type="button" className="button button--secondary" onClick={exitExcelSelectMode}>
+            <button type="button" className="filter-button" onClick={exitExcelSelectMode}>
               취소
             </button>
           </div>
@@ -1303,14 +1300,10 @@ export default function CustomersPage() {
             <div className="list-section-header-actions">
               {!isSelectMode ? (
                 <>
-                  <button
-                    type="button"
-                    className="button button--primary"
-                    onClick={() => setSearchParams({ mode: 'create' })}
-                  >
+                  <button type="button" className="cta-button" onClick={() => setSearchParams({ mode: 'create' })}>
                     고객 등록
                   </button>
-                  <button type="button" className="button button--secondary" onClick={enterExcelSelectMode}>
+                  <button type="button" className="cta-button" onClick={enterExcelSelectMode}>
                     엑셀 다운로드
                   </button>
                 </>
@@ -1340,24 +1333,24 @@ export default function CustomersPage() {
 
           <div className="customers-sort-row" role="group" aria-label="목록 정렬">
             <span className="customers-sort-row__label">정렬:</span>
-            <div className="customers-sort-row__buttons">
+            <div className="customers-sort-row__buttons filter-group">
               <button
                 type="button"
-                className={`button button--secondary${listSort === 'maturity_asc' ? ' customers-sort-row__btn--active' : ''}`}
+                className={`filter-button${listSort === 'maturity_asc' ? ' active' : ''}`}
                 onClick={() => setListSort('maturity_asc')}
               >
                 상령일 빠른순
               </button>
               <button
                 type="button"
-                className={`button button--secondary${listSort === 'car_expire_asc' ? ' customers-sort-row__btn--active' : ''}`}
+                className={`filter-button${listSort === 'car_expire_asc' ? ' active' : ''}`}
                 onClick={() => setListSort('car_expire_asc')}
               >
                 자동차 만기순
               </button>
               <button
                 type="button"
-                className={`button button--secondary${listSort === 'recent' ? ' customers-sort-row__btn--active' : ''}`}
+                className={`filter-button${listSort === 'recent' ? ' active' : ''}`}
                 onClick={() => setListSort('recent')}
               >
                 최근등록
@@ -1436,23 +1429,23 @@ export default function CustomersPage() {
                 />
               </label>
             </div>
-            <div className="customers-advanced-filters__quick">
-              <button type="button" className="button button--secondary" onClick={() => applyQuickFilter('AGE_UNDER_30_MALE')}>
+            <div className="customers-advanced-filters__quick filter-group">
+              <button type="button" className="filter-button" onClick={() => applyQuickFilter('AGE_UNDER_30_MALE')}>
                 30세 이하 남성
               </button>
-              <button type="button" className="button button--secondary" onClick={() => applyQuickFilter('AGE_OVER_40_FEMALE')}>
+              <button type="button" className="filter-button" onClick={() => applyQuickFilter('AGE_OVER_40_FEMALE')}>
                 40세 이상 여성
               </button>
-              <button type="button" className="button button--secondary" onClick={() => applyQuickFilter('MATURITY_30')}>
+              <button type="button" className="filter-button" onClick={() => applyQuickFilter('MATURITY_30')}>
                 상령일 30일 이내
               </button>
-              <button type="button" className="button button--secondary" onClick={() => applyQuickFilter('CAR_EXPIRE_30')}>
+              <button type="button" className="filter-button" onClick={() => applyQuickFilter('CAR_EXPIRE_30')}>
                 자동차 만기 30일 이내
               </button>
               {advancedFiltersActive ? (
                 <button
                   type="button"
-                  className="button button--secondary"
+                  className="filter-button"
                   onClick={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
                 >
                   필터 초기화

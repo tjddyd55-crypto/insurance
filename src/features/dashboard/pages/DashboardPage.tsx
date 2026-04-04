@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { isGaStaffReadOnlyUi } from '../../auth/roleGuards'
 import {
   buildGaTenantDashboardMenu,
+  GA_STAFF_MENU,
   INSURER_MANAGER_MENU,
   type GaTenantMenuItem,
 } from '../gaTenantMenu'
@@ -31,7 +32,10 @@ function menuForSession(
   if (role === 'INSURER_MANAGER') {
     return [...INSURER_MANAGER_MENU]
   }
-  if (role === 'GA_ADMIN' || role === 'GA_STAFF' || role === 'USER') {
+  if (role === 'GA_STAFF') {
+    return GA_STAFF_MENU
+  }
+  if (role === 'GA_ADMIN' || role === 'USER') {
     const items = buildGaTenantDashboardMenu(gaCode, gaName)
     if (role === 'GA_ADMIN') {
       items.push(AUDIT_MENU)
@@ -57,6 +61,9 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   }
   if (itemPath === '/contacts/manage') {
     return pathname === '/contacts/manage' || pathname === '/insurance/company-registry'
+  }
+  if (itemPath === '/insurance/company-registry') {
+    return pathname === '/insurance/company-registry' || pathname.startsWith('/insurance/company-registry/')
   }
   if (itemPath.startsWith('/customers')) {
     return pathname === '/customers'

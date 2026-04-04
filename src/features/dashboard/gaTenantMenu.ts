@@ -1,5 +1,6 @@
 /**
- * GA 테넌트 대시보드 메뉴(USER / GA_ADMIN / GA_STAFF).
+ * GA 테넌트 대시보드 메뉴(USER / GA_ADMIN).
+ * GA_STAFF 는 GA_STAFF_MENU 단독(원수사 관리 전용).
  * INSURER_MANAGER 는 INSURER_MANAGER_MENU 별도.
  */
 
@@ -18,6 +19,13 @@ export const GA_TENANT_ESSENTIAL_MENU: GaTenantMenuItem[] = [
 export const INSURER_MANAGER_MENU: GaTenantMenuItem[] = [
   { label: '원수사 소식지 조회', path: '/insurer/news' },
   { label: '원수사 소식지 업로드', path: '/insurer/news/upload' },
+]
+
+/** GA_STAFF 전용 — 원수사 관리만(다른 GA 메뉴와 merge 금지) */
+export const GA_STAFF_MENU: GaTenantMenuItem[] = [
+  { label: '원수사 연락처 관리', path: '/insurance/company-registry' },
+  { label: '원수사 담당자 관리', path: '/insurer-managers' },
+  { label: '추가기능 요청하기', path: '/feature-request' },
 ]
 
 /** @deprecated 호환용 */
@@ -54,9 +62,6 @@ export function buildGaTenantDashboardMenu(
 export const GA_CUSTOM_MENU: Record<string, GaTenantMenuItem[]> = {
   YJASSET: [{ label: '자동차 신청서', path: '/application' }],
 }
-
-/** @deprecated */
-export const GA_STAFF_EXTRA_MENU: GaTenantMenuItem[] = []
 
 export function normalizeGaMenuCode(raw: string | undefined): string {
   return String(raw ?? '')
