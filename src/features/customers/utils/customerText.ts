@@ -1,6 +1,37 @@
 import type { CustomerRecord } from '../domain/types'
 import { calculateInsuranceInfo, formatDateYmdInput, formatInsuranceUiDate } from './insuranceInfo'
 
+/** 고객 관리 · 카톡 붙여넣기용 (필요 필드만) */
+export function buildKakaoCustomerCopyText(data: CustomerRecord | Partial<CustomerRecord>) {
+  const c = data as Partial<CustomerRecord>
+  const name = String(c.name ?? '')
+  const ssn = String(c.ssn ?? '')
+  const phone = String(c.phone ?? '')
+  const address = String(c.address ?? '')
+  const height = String(c.height ?? '').trim()
+  const weight = String(c.weight ?? '').trim()
+  const job = String(c.job ?? '')
+  const isDriver = c.isDriver
+  const carType = String(c.carType ?? '').trim()
+  const drivingLine =
+    isDriver === true ? '운전함' : isDriver === false ? '운전 안함' : String(c.driving ?? '').trim() || '—'
+
+  const heightWeight =
+    height || weight ? `${height || '—'}/${weight || '—'}` : '—'
+
+  const lines = [
+    `이름: ${name}`,
+    `주민번호: ${ssn}`,
+    `핸드폰번호: ${phone}`,
+    `주소: ${address || '—'}`,
+    `키/몸무게: ${heightWeight}`,
+    `직업/회사명/하는일/지역: ${job || '—'}`,
+    `운전여부: ${drivingLine}`,
+    `차종: ${carType || '—'}`,
+  ]
+  return lines.join('\n').trim()
+}
+
 function resolveInsuranceForCopy(data: Partial<CustomerRecord>) {
   const storedAge = data.insuranceAge
   const storedNext = data.nextAgeDate

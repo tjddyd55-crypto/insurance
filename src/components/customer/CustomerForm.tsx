@@ -134,6 +134,15 @@ export type CustomerFormState = {
 
   carType: string
 
+  /** 차량번호·모델·연식·만기(갱신일) — 고객 테이블 car_* */
+  carNumber: string
+
+  carModel: string
+
+  carYear: string
+
+  renewalDate: string
+
   medical: string
 
   notes: CustomerNote[]
@@ -165,6 +174,14 @@ const EMPTY_FORM: CustomerFormState = {
   isDriver: null,
 
   carType: '',
+
+  carNumber: '',
+
+  carModel: '',
+
+  carYear: '',
+
+  renewalDate: '',
 
   medical: '',
 
@@ -237,6 +254,14 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
     isDriver: form.isDriver,
 
     carType: form.isDriver === true ? form.carType.trim() : '',
+
+    carNumber: form.carNumber.trim(),
+
+    carModel: form.carModel.trim(),
+
+    carYear: form.carYear.trim(),
+
+    renewalDate: form.renewalDate.trim(),
 
     notes: form.notes,
 
@@ -553,6 +578,84 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
         </label>
 
       ) : null}
+
+      <hr style={{ gridColumn: '1 / -1', border: 'none', borderTop: '1px solid rgba(0,0,0,0.12)', margin: '8px 0' }} />
+
+      <h3 className="dashboard-section-title" style={{ gridColumn: '1 / -1', margin: '4px 0 0', fontSize: '1rem' }}>
+        자동차 정보
+      </h3>
+
+      <label className="field">
+
+        <span className="field__label">차량번호</span>
+
+        <input
+
+          className="field__control"
+
+          placeholder="차량번호"
+
+          value={form.carNumber}
+
+          onChange={(e) => onFormChange({ ...form, carNumber: e.target.value })}
+
+        />
+
+      </label>
+
+      <label className="field">
+
+        <span className="field__label">차종(차명)</span>
+
+        <input
+
+          className="field__control"
+
+          placeholder="예: 그랜저, 카니발"
+
+          value={form.carModel}
+
+          onChange={(e) => onFormChange({ ...form, carModel: e.target.value })}
+
+        />
+
+      </label>
+
+      <label className="field">
+
+        <span className="field__label">연식</span>
+
+        <input
+
+          className="field__control"
+
+          placeholder="연식"
+
+          value={form.carYear}
+
+          onChange={(e) => onFormChange({ ...form, carYear: e.target.value })}
+
+        />
+
+      </label>
+
+      <label className="field">
+
+        <span className="field__label">만기(갱신)일</span>
+
+        <input
+
+          className="field__control"
+
+          type="date"
+
+          value={form.renewalDate ? form.renewalDate.slice(0, 10) : ''}
+
+          onChange={(e) => onFormChange({ ...form, renewalDate: e.target.value })}
+
+        />
+
+      </label>
 
       <label className="field field--wide">
 

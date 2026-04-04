@@ -47,6 +47,11 @@ export interface SaveCustomerPayload {
   job?: string
   driving?: string
   medical?: string
+  /** 등록 시 차량(고객 테이블 car_* 컬럼) — 선택 입력 */
+  carNumber?: string
+  carModel?: string
+  carYear?: string
+  renewalDate?: string
 }
 
 export interface UpdateCustomerCarPayload {

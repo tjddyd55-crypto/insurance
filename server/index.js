@@ -3890,12 +3890,20 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
     const driving =
       isDriver === true ? '운전함' : isDriver === false ? '운전 안함' : String(data.driving ?? '').trim()
 
+    const carNumber = String(data.carNumber ?? data.car_number ?? '').trim()
+    const carModel = String(data.carModel ?? data.car_model ?? '').trim()
+    const carYear = String(data.carYear ?? data.car_year ?? '').trim()
+    const renewalDateRaw = normalizeExpiryDate(String(data.renewalDate ?? data.renewal_date ?? ''))
+    const renewalDateSql = renewalDateRaw || null
+
     const inserted = await safeQuery(pool,
       `
       INSERT INTO customers (
         user_id, ga_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
-        gender, insurance_age, next_age_date, is_driver, car_type, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb)
+        gender, insurance_age, next_age_date, is_driver, car_type,
+        car_number, car_model, car_year, renewal_date,
+        notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22::jsonb)
       RETURNING
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
@@ -3920,6 +3928,10 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         nextAgeSql,
         isDriver,
         carType,
+        carNumber,
+        carModel,
+        carYear,
+        renewalDateSql,
         JSON.stringify(notes),
       ],
     )
@@ -3984,12 +3996,20 @@ apiRouter.post('/customer/external-create', async (req, res) => {
     const driving =
       isDriver === true ? '운전함' : isDriver === false ? '운전 안함' : String(data.driving ?? '').trim()
 
+    const carNumber = String(data.carNumber ?? data.car_number ?? '').trim()
+    const carModel = String(data.carModel ?? data.car_model ?? '').trim()
+    const carYear = String(data.carYear ?? data.car_year ?? '').trim()
+    const renewalDateRaw = normalizeExpiryDate(String(data.renewalDate ?? data.renewal_date ?? ''))
+    const renewalDateSql = renewalDateRaw || null
+
     const inserted = await safeQuery(pool,
       `
       INSERT INTO customers (
         user_id, ga_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
-        gender, insurance_age, next_age_date, is_driver, car_type, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb)
+        gender, insurance_age, next_age_date, is_driver, car_type,
+        car_number, car_model, car_year, renewal_date,
+        notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22::jsonb)
       RETURNING
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
@@ -4014,6 +4034,10 @@ apiRouter.post('/customer/external-create', async (req, res) => {
         nextAgeSql,
         isDriver,
         carType,
+        carNumber,
+        carModel,
+        carYear,
+        renewalDateSql,
         JSON.stringify(notes),
       ],
     )

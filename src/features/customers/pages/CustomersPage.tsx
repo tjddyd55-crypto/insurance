@@ -11,14 +11,12 @@ import {
   updateCustomer,
 } from '../api/customersApi'
 import type { CustomerNote, CustomerRecord } from '../domain/types'
-import { storeSelectedCustomer } from '../storage/selectedCustomerStorage'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
-import { generateCustomerText } from '../utils/customerText'
-import { NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
+import { buildKakaoCustomerCopyText } from '../utils/customerText'
+import { calculateInsuranceInfo, formatDateYmdInput, formatInsuranceUiDate, NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
 import { EXCEL_COLUMN_META, exportCustomersExcel } from '../utils/exportCustomersExcel'
 import {
   CustomerForm,
-  DetailInsurance,
   InsuranceInline,
   drivingText,
 } from '../../../components/customer/CustomerForm'
@@ -44,6 +42,33 @@ function inferIsDriverFromDriving(driving: string): boolean | null {
     return true
   }
   return null
+}
+
+function customerInsuranceDisplay(c: CustomerRecord): { ageText: string; dateText: string } {
+  if (c.insuranceAge != null && c.nextAgeDate) {
+    return {
+      ageText: `${c.insuranceAge}세`,
+      dateText: formatDateYmdInput(c.nextAgeDate),
+    }
+  }
+  const { age, nextAgeDate } = calculateInsuranceInfo(c.ssn ?? '')
+  if (age != null && nextAgeDate) {
+    return {
+      ageText: `${age}세`,
+      dateText: formatInsuranceUiDate(nextAgeDate),
+    }
+  }
+  return { ageText: '—', dateText: '—' }
+}
+
+function genderSummaryLabel(c: CustomerRecord): string {
+  if (c.gender === 'male') {
+    return '남'
+  }
+  if (c.gender === 'female') {
+    return '여'
+  }
+  return '—'
 }
 
 type CustomerFormState = {
@@ -255,18 +280,13 @@ export default function CustomersPage() {
   }
 
   async function copyCustomer(rec: CustomerRecord) {
-    const text = generateCustomerText(rec)
+    const text = buildKakaoCustomerCopyText(rec)
     try {
       await navigator.clipboard.writeText(text)
       window.alert('복사되었습니다')
     } catch {
       setStatusText('복사에 실패했습니다.')
     }
-  }
-
-  function goToCarEdit(c: CustomerRecord) {
-    storeSelectedCustomer(c)
-    navigate('/customer-car')
   }
 
   function startEdit(c: CustomerRecord) {
@@ -422,6 +442,7 @@ export default function CustomersPage() {
   }
 
   function CustomerCard({ data: c }: { data: CustomerRecord }) {
+    const ins = customerInsuranceDisplay(c)
     return (
       <li
         className={`record-card customer-expand-card${isSelectMode ? ' customer-expand-card--select-mode' : ''}`}
@@ -456,9 +477,11 @@ export default function CustomersPage() {
               {c.name}
             </span>
             {' / '}
-            {c.phone || '—'}
+            {genderSummaryLabel(c)}
             {' / '}
-            {c.ssn || '—'} <CustomerDDayBadge renewalDate={c.renewalDate} />
+            보험나이 {ins.ageText}
+            {' / '}
+            상령일 {ins.dateText}
           </span>
           <span className="customer-expand-summary__hint">{expandedId === c.id ? '접기' : '펼치기'}</span>
           </button>
@@ -711,50 +734,88 @@ export default function CustomersPage() {
               </>
             ) : (
               <>
-                <p>
-                  <strong>성별:</strong>{' '}
-                  {c.gender === 'male' ? '남' : c.gender === 'female' ? '여' : '—'}
-                </p>
-                <DetailInsurance ssn={c.ssn} />
-                <p>
-                  <strong>운전여부:</strong>{' '}
-                  {c.isDriver === true
-                    ? `운전함${c.carType ? ` (${c.carType})` : ''}`
-                    : c.isDriver === false
-                      ? '운전 안함'
-                      : c.driving || '—'}
-                </p>
-                <p>
-                  <strong>주민번호:</strong> {c.ssn || '—'}
-                </p>
-                <p>
-                  <strong>주소:</strong> {c.address || '—'}
-                </p>
-                <p>
-                  <strong>차량번호:</strong> {c.carNumber || '—'}
-                </p>
-                <p>
-                  <strong>차종·연식:</strong> {c.carModel || '—'} / {c.carYear || '—'}
-                </p>
-                <p>
-                  <strong>만기(갱신)일:</strong> {c.renewalDate || '—'}
-                </p>
-                {c.notes && c.notes.length > 0 ? (
-                  <div style={{ marginTop: 8 }}>
-                    <strong>메모</strong>
-                    <ul>
-                      {c.notes.map((n) => (
-                        <li key={n.id}>{n.content}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
+                <div className="customer-detail-read">
+                  <p>
+                    <strong>이름:</strong> {c.name}
+                  </p>
+                  <p>
+                    <strong>주민번호:</strong> {c.ssn || '—'}
+                  </p>
+                  <p style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px' }}>
+                    <span>
+                      <strong>보험나이:</strong> {ins.ageText}
+                    </span>
+                    <span>
+                      <strong>상령일:</strong> {ins.dateText}
+                    </span>
+                  </p>
+                  <p>
+                    <strong>핸드폰번호:</strong> {c.phone || '—'}
+                  </p>
+                  <p>
+                    <strong>주소:</strong> {c.address || '—'}
+                  </p>
+                  <p>
+                    <strong>키/몸무게:</strong>{' '}
+                    {c.height?.trim() || c.weight?.trim()
+                      ? `${c.height?.trim() || '—'}/${c.weight?.trim() || '—'}`
+                      : '—'}
+                  </p>
+                  <p>
+                    <strong>직업/회사명/하는일/지역:</strong> {c.job?.trim() || '—'}
+                  </p>
+                  <p>
+                    <strong>운전여부:</strong>{' '}
+                    {c.isDriver === true
+                      ? '운전함'
+                      : c.isDriver === false
+                        ? '운전 안함'
+                        : c.driving || '—'}
+                  </p>
+                  <p>
+                    <strong>차종:</strong> {c.carType.trim() || '—'}
+                  </p>
+                  <p>
+                    <strong>5년 이내 진단, 수술, 치료:</strong> {c.medical?.trim() || '—'}
+                  </p>
+                  <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
+                  <p style={{ marginBottom: 8 }}>
+                    <strong>[자동차정보]</strong>
+                  </p>
+                  <p>
+                    <strong>차량번호:</strong> {c.carNumber || '—'}
+                  </p>
+                  <p style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px' }}>
+                    <span>
+                      <strong>차종:</strong> {c.carModel || '—'}
+                    </span>
+                    <span>
+                      <strong>연식:</strong> {c.carYear || '—'}
+                    </span>
+                  </p>
+                  <p>
+                    <strong>만기(갱신일):</strong> {c.renewalDate || '—'}{' '}
+                    <CustomerDDayBadge renewalDate={c.renewalDate} />
+                  </p>
+                  <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
+                  {c.notes && c.notes.length > 0 ? (
+                    <div style={{ marginTop: 4 }}>
+                      <strong>메모</strong>
+                      <ul style={{ margin: '6px 0 0', paddingLeft: '1.2em' }}>
+                        {c.notes.map((n) => (
+                          <li key={n.id}>{n.content}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p>
+                      <strong>메모:</strong> —
+                    </p>
+                  )}
+                </div>
                 <div className="customer-actions">
                   <button className="kakao-btn" type="button" onClick={() => void copyCustomer(c)}>
                     카톡 복사
-                  </button>
-                  <button className="car-btn" type="button" onClick={() => goToCarEdit(c)}>
-                    자동차 입력
                   </button>
                   <button className="edit-btn" type="button" onClick={() => startEdit(c)}>
                     ✏ 수정
