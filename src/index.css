@@ -274,6 +274,98 @@ body {
   opacity: 1;
 }
 
+.link-btn--compact {
+  padding: 2px 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.page-header__title-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px 24px;
+  width: 100%;
+}
+
+.page-header__title-tools .page-title-with-action {
+  flex: 1 1 200px;
+}
+
+.customers-excel-import-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+
+.customers-excel-import-panel__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.customers-excel-import-panel__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.customers-excel-import-panel__fname {
+  font-size: 12px;
+  color: var(--text-sub);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.customers-excel-import-panel__upload-btn {
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.customers-excel-import-panel__status,
+.customers-excel-import-panel__summary {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-sub);
+}
+
+.customers-excel-import-panel__error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger);
+}
+
+.customers-excel-import-panel__failures {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--text-sub);
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.customers-excel-import-panel__failures-more {
+  list-style: none;
+  margin-left: -18px;
+}
+
+.customers-excel-import-panel__reset {
+  margin-top: 2px;
+}
+
 .page-header-hint {
   margin: 8px 0 0;
   font-size: 14px;

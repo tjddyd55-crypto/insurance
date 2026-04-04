@@ -25,6 +25,7 @@ import { buildKakaoCustomerCopyText } from '../utils/customerText'
 import { calculateInsuranceAgeFromRrn, formatLocalYmd } from '../utils/insuranceAge'
 import { formatDateYmdInput, NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
 import { EXCEL_COLUMN_META, exportCustomersExcel } from '../utils/exportCustomersExcel'
+import { CustomerExcelImportPanel } from '../components/CustomerExcelImportPanel'
 import {
   CustomerForm,
   InsuranceInline,
@@ -1275,11 +1276,16 @@ export default function CustomersPage() {
         </div>
       ) : null}
       <header className="page-header">
-        <div className="page-title-with-action">
-          <h1>고객 관리</h1>
-          <button type="button" className="link-btn" onClick={() => void copyExternalInputLink()}>
-            링크
-          </button>
+        <div className="page-header__title-tools">
+          <div className="page-title-with-action">
+            <h1>고객 관리</h1>
+            <button type="button" className="link-btn" onClick={() => void copyExternalInputLink()}>
+              링크
+            </button>
+          </div>
+          {user?.role === 'USER' && token ? (
+            <CustomerExcelImportPanel token={token} onUploadsFinished={() => void loadCustomers()} />
+          ) : null}
         </div>
         {statusText ? <p>{statusText}</p> : null}
       </header>
