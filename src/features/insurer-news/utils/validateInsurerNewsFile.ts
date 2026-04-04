@@ -1,8 +1,15 @@
-const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
-const PDF_TYPES = new Set(['application/pdf'])
+import {
+  INSURER_NEWS_ALLOWED_IMAGE_MIME,
+  INSURER_NEWS_ALLOWED_PDF_MIME,
+  INSURER_NEWS_MAX_IMAGE_BYTES,
+  INSURER_NEWS_MAX_PDF_BYTES,
+} from '../constants/attachmentUploadPolicy'
 
-const MAX_IMAGE_BYTES = 15 * 1024 * 1024
-const MAX_PDF_BYTES = 40 * 1024 * 1024
+const IMAGE_TYPES = new Set<string>(INSURER_NEWS_ALLOWED_IMAGE_MIME)
+const PDF_TYPES = new Set<string>(INSURER_NEWS_ALLOWED_PDF_MIME)
+
+const MAX_IMAGE_BYTES = INSURER_NEWS_MAX_IMAGE_BYTES
+const MAX_PDF_BYTES = INSURER_NEWS_MAX_PDF_BYTES
 
 export type InsurerNewsFileKind = 'image' | 'pdf'
 
@@ -20,13 +27,13 @@ export function validateInsurerNewsFile(file: File): ValidateInsurerNewsFileResu
   const type = file.type || ''
   if (IMAGE_TYPES.has(type)) {
     if (file.size > MAX_IMAGE_BYTES) {
-      return { ok: false, message: '이미지는 15MB 이하만 업로드할 수 있습니다.' }
+      return { ok: false, message: '이미지는 10MB 이하만 업로드할 수 있습니다.' }
     }
     return { ok: true, kind: 'image' }
   }
   if (PDF_TYPES.has(type)) {
     if (file.size > MAX_PDF_BYTES) {
-      return { ok: false, message: 'PDF는 40MB 이하만 업로드할 수 있습니다.' }
+      return { ok: false, message: 'PDF는 10MB 이하만 업로드할 수 있습니다.' }
     }
     return { ok: true, kind: 'pdf' }
   }

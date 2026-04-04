@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import {
+  getR2InsurerAttachmentsCacheControl,
   getR2PublicCdnBase,
   isConsentR2Enabled,
   r2DeleteObject,
@@ -11,6 +12,9 @@ import {
   isInsurerManagerRole,
   isSuperAdminRole,
 } from './lib/rbacScope.js'
+import { INSURER_R2_ACTIVE_CATEGORY } from './lib/insurerR2Layout.js'
+import { insurerNewsLog } from './lib/logger.js'
+/** 프론트 `attachmentUploadPolicy.ts` 와 동기화 */
 const ALLOWED_UPLOAD_MIME = new Set([
   'image/jpeg',
   'image/png',
@@ -18,8 +22,8 @@ const ALLOWED_UPLOAD_MIME = new Set([
   'image/gif',
   'application/pdf',
 ])
-const MAX_IMAGE_BYTES = 15 * 1024 * 1024
-const MAX_PDF_BYTES = 40 * 1024 * 1024
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+const MAX_PDF_BYTES = 10 * 1024 * 1024
 
 /** @param {string} code */
 function normalizeGaCodeForPath(code) {
@@ -131,7 +135,7 @@ function assertNewsObjectKeyScoped(objectKey, gaPath, companySlug) {
   if (parts.length < 6) {
     return false
   }
-  if (parts[0] !== 'insurer' || parts[1] !== gaPath || parts[2] !== 'news') {
+  if (parts[0] !== 'insurer' || parts[1] !== gaPath || parts[2] !== INSURER_R2_ACTIVE_CATEGORY) {
     return false
   }
   if (!/^\d{4}-\d{2}$/.test(parts[3])) {
@@ -170,11 +174,16 @@ function collectAttachmentObjectKeys(attachments) {
 
 async function rollbackUploadedOrphans(objectKeys) {
   for (const k of objectKeys) {
-    console.error('[orphan]', k)
+    insurerNewsLog.warn({ event: 'orphan', objectKey: k, phase: 'db-failed-cleanup' })
     try {
       await r2DeleteObject(k)
+      insurerNewsLog.info({ event: 'orphan-deleted', objectKey: k })
     } catch (err) {
-      console.error('[orphan-delete-failed]', k, err)
+      insurerNewsLog.error({
+        event: 'orphan-delete-failed',
+        objectKey: k,
+        err: err instanceof Error ? err.message : String(err),
+      })
     }
   }
 }
@@ -729,37 +738,175 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const sizeBytes = Number(body.sizeBytes ?? body.size ?? 0)
 
       if (!ALLOWED_UPLOAD_MIME.has(contentType)) {
+        insurerNewsLog.error({
+          event: 'upload-fail',
+          stage: 'presign',
+          reason: 'mime-not-allowed',
+          contentType,
+          userId: req.user?.id ?? null,
+        })
         res.status(400).json({ message: '허용되지 않은 파일 형식입니다.' })
         return
       }
       const maxB = maxBytesForMime(contentType)
       if (!Number.isFinite(sizeBytes) || sizeBytes < 1 || sizeBytes > maxB) {
+        insurerNewsLog.error({
+          event: 'upload-fail',
+          stage: 'presign',
+          reason: 'size-out-of-range',
+          contentType,
+          sizeBytes,
+          maxBytes: maxB,
+          userId: req.user?.id ?? null,
+        })
         res.status(400).json({ message: '파일 크기가 허용 범위를 벗어났습니다.' })
         return
       }
 
       const scope = await resolvePresignScope(req)
       if (!scope) {
+        insurerNewsLog.error({
+          event: 'upload-fail',
+          stage: 'presign',
+          reason: 'no-scope',
+          userId: req.user?.id ?? null,
+        })
         res.status(403).json({ message: '업로드 범위를 확인할 수 없습니다.' })
         return
       }
 
       const safeSeg = fileNameRaw.replace(/[^\w.\-()\u3131-\u318e\uac00-\ud7a3]/g, '_').slice(0, 120)
       const ym = new Date().toISOString().slice(0, 7)
-      const objectKey = `insurer/${scope.gaPath}/news/${ym}/${scope.companySlug}/${randomUUID()}-${safeSeg}`
+      const objectKey = `insurer/${scope.gaPath}/${INSURER_R2_ACTIVE_CATEGORY}/${ym}/${scope.companySlug}/${randomUUID()}-${safeSeg}`
 
-      const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType)
+      const cacheControl = getR2InsurerAttachmentsCacheControl()
+      const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
       if (!uploadUrl) {
+        insurerNewsLog.error({ event: 'upload-fail', stage: 'presign', reason: 'presign-null', objectKey })
         res.status(503).json({ message: '업로드 URL을 만들 수 없습니다.' })
         return
       }
-      res.json({ uploadUrl, objectKey })
+      insurerNewsLog.info({
+        event: 'presign',
+        objectKey,
+        contentType,
+        sizeBytes,
+        userId: req.user?.id ?? null,
+        role: req.user?.role ?? null,
+      })
+      const putHeaders = {}
+      if (cacheControl) {
+        putHeaders['Cache-Control'] = cacheControl
+      }
+      res.json({ uploadUrl, objectKey, putHeaders })
     } catch (e89) {
       if (e89 && typeof e89 === 'object' && 'httpStatus' in e89 && Number(e89.httpStatus) === 400) {
         res.status(400).json({ message: e89 instanceof Error ? e89.message : '요청이 올바르지 않습니다.' })
         return
       }
+      insurerNewsLog.error({
+        event: 'upload-fail',
+        stage: 'presign',
+        reason: 'exception',
+        message: e89 instanceof Error ? e89.message : String(e89),
+      })
       handleDbError(res, e89)
+    }
+  })
+
+  /**
+   * 클라이언트가 R2 PUT 직후 호출 — 업로드 성공률·presign 대비 완료율·orphan 후보 추적용.
+   * (DB 반영은 여전히 newsletter 저장 시점; 본 이벤트는 스토리지 단계 확정)
+   */
+  apiRouter.post('/insurer-news/attachments/upload-complete', requireAuth, requireNewsletterWriter, async (req, res) => {
+    try {
+      if (!isConsentR2Enabled()) {
+        res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+        return
+      }
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const objectKey = String(body.objectKey ?? '').trim()
+      const byteSize = Number(body.byteSize ?? body.sizeBytes ?? 0)
+      const contentType = String(body.contentType ?? '').trim()
+
+      if (!objectKey) {
+        insurerNewsLog.error({ event: 'upload-fail', stage: 'upload-complete', reason: 'missing-object-key' })
+        res.status(400).json({ message: 'objectKey가 필요합니다.' })
+        return
+      }
+
+      const scope = await resolvePresignScope(req)
+      if (!scope) {
+        insurerNewsLog.error({
+          event: 'upload-fail',
+          stage: 'upload-complete',
+          reason: 'no-scope',
+          objectKey,
+        })
+        res.status(403).json({ message: '업로드 범위를 확인할 수 없습니다.' })
+        return
+      }
+      if (!assertNewsObjectKeyScoped(objectKey, scope.gaPath, scope.companySlug)) {
+        insurerNewsLog.error({
+          event: 'upload-fail',
+          stage: 'upload-complete',
+          reason: 'key-out-of-scope',
+          objectKey,
+        })
+        res.status(400).json({ message: '허용되지 않은 저장 경로입니다.' })
+        return
+      }
+      if (contentType && !ALLOWED_UPLOAD_MIME.has(contentType)) {
+        insurerNewsLog.error({
+          event: 'upload-fail',
+          stage: 'upload-complete',
+          reason: 'mime-not-allowed',
+          objectKey,
+          contentType,
+        })
+        res.status(400).json({ message: '허용되지 않은 파일 형식입니다.' })
+        return
+      }
+      if (contentType && Number.isFinite(byteSize) && byteSize > 0) {
+        const maxB = maxBytesForMime(contentType)
+        if (byteSize > maxB) {
+          insurerNewsLog.error({
+            event: 'upload-fail',
+            stage: 'upload-complete',
+            reason: 'size-out-of-range',
+            objectKey,
+            byteSize,
+            maxBytes: maxB,
+          })
+          res.status(400).json({ message: '파일 크기가 허용 범위를 벗어났습니다.' })
+          return
+        }
+      }
+
+      insurerNewsLog.info({
+        event: 'upload-complete',
+        stage: 'r2-put',
+        objectKey,
+        byteSize: Number.isFinite(byteSize) && byteSize > 0 ? byteSize : undefined,
+        contentType: contentType || undefined,
+        userId: req.user?.id ?? null,
+        role: req.user?.role ?? null,
+      })
+      res.status(204).end()
+    } catch (eComplete) {
+      if (eComplete && typeof eComplete === 'object' && 'httpStatus' in eComplete && Number(eComplete.httpStatus) === 400) {
+        res.status(400).json({
+          message: eComplete instanceof Error ? eComplete.message : '요청이 올바르지 않습니다.',
+        })
+        return
+      }
+      insurerNewsLog.error({
+        event: 'upload-fail',
+        stage: 'upload-complete',
+        reason: 'exception',
+        message: eComplete instanceof Error ? eComplete.message : String(eComplete),
+      })
+      handleDbError(res, eComplete)
     }
   })
 
@@ -879,9 +1026,26 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           await insertAttachments(client, id, normalized)
         })
       } catch (err) {
+        insurerNewsLog.error({
+          event: 'upload-fail',
+          stage: 'db-commit',
+          op: 'newsletter-create',
+          newsletterId: id,
+          objectKeys: orphanKeys,
+          message: err instanceof Error ? err.message : String(err),
+        })
         await rollbackUploadedOrphans(orphanKeys)
         throw err
       }
+
+      insurerNewsLog.info({
+        event: 'upload-success',
+        stage: 'db-commit',
+        op: 'newsletter-create',
+        newsletterId: id,
+        attachmentCount: normalized.length,
+        objectKeys: orphanKeys,
+      })
 
       const nRes = await safeQuery(pool, `SELECT * FROM insurance_company_newsletters WHERE id = $1`, [id])
       const attRes = await safeQuery(
@@ -947,9 +1111,26 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           await insertAttachments(client, newsletterId, normalized)
         })
       } catch (err) {
+        insurerNewsLog.error({
+          event: 'upload-fail',
+          stage: 'db-commit',
+          op: 'newsletter-patch',
+          newsletterId,
+          objectKeys: orphanKeys,
+          message: err instanceof Error ? err.message : String(err),
+        })
         await rollbackUploadedOrphans(orphanKeys)
         throw err
       }
+
+      insurerNewsLog.info({
+        event: 'upload-success',
+        stage: 'db-commit',
+        op: 'newsletter-patch',
+        newsletterId,
+        attachmentCount: normalized.length,
+        objectKeys: orphanKeys,
+      })
 
       const fresh = await safeQuery(pool, `SELECT * FROM insurance_company_newsletters WHERE id = $1`, [newsletterId])
       const attRes = await safeQuery(
@@ -994,7 +1175,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         try {
           await r2DeleteObject(objectKey)
         } catch (errDel) {
-          console.error('[attachment-delete-r2]', objectKey, errDel)
+          insurerNewsLog.error({
+            event: 'attachment-delete-r2-fail',
+            objectKey,
+            err: errDel instanceof Error ? errDel.message : String(errDel),
+          })
           res.status(502).json({ message: '스토리지에서 파일을 삭제하지 못했습니다.' })
           return
         }

@@ -120,23 +120,38 @@ export async function consentGetSignedDownloadUrl(key, expiresSec = 900) {
   return getSignedUrl(client, command, { expiresIn: expiresSec })
 }
 
+/** 원수사 소식 첨부 등 불변 URL에 긴 캐시 (키에 UUID 포함으로 갱신 시 신규 객체). */
+export function getR2InsurerAttachmentsCacheControl() {
+  const raw = process.env.R2_INSURER_ATTACHMENTS_CACHE_CONTROL?.trim()
+  return raw || 'public, max-age=31536000'
+}
+
 /**
  * R2 업로드용 presigned PUT URL (원수사 소식 첨부 등).
+ * CacheControl 을 넣으면 클라이언트 PUT 시 동일한 Cache-Control 헤더를 반드시 보내야 합니다.
  * @param {string} key
  * @param {string} contentType
  * @param {number} expiresSec
+ * @param {{ cacheControl?: string | null }} [opts]
  */
-export async function r2GetPresignedPutUrl(key, contentType, expiresSec = 900) {
+export async function r2GetPresignedPutUrl(key, contentType, expiresSec = 900, opts = {}) {
   const c = r2Credentials()
   const client = getS3()
   if (!client || !c) {
     return null
   }
-  const command = new PutObjectCommand({
+  const cacheControl =
+    opts.cacheControl === undefined ? getR2InsurerAttachmentsCacheControl() : opts.cacheControl
+  /** @type {import('@aws-sdk/client-s3').PutObjectCommandInput} */
+  const input = {
     Bucket: c.bucket,
     Key: key,
     ContentType: contentType || 'application/octet-stream',
-  })
+  }
+  if (cacheControl) {
+    input.CacheControl = cacheControl
+  }
+  const command = new PutObjectCommand(input)
   return getSignedUrl(client, command, { expiresIn: expiresSec })
 }
 

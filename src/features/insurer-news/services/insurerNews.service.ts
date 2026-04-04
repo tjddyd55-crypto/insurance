@@ -146,27 +146,67 @@ export async function uploadNewsletterAttachments(
       if (presignInsurerCode) {
         presignBody.insurerCode = presignInsurerCode
       }
-      const presign = await apiRequest<{ uploadUrl: string; objectKey: string }>(
-        '/api/insurer-news/attachments/presign',
-        {
-          method: 'POST',
-          token,
-          body: JSON.stringify(presignBody),
-        },
-      )
+      const presign = await apiRequest<{
+        uploadUrl: string
+        objectKey: string
+        putHeaders?: Record<string, string>
+      }>('/api/insurer-news/attachments/presign', {
+        method: 'POST',
+        token,
+        body: JSON.stringify(presignBody),
+      })
+
+      const putHeaders: Record<string, string> = {
+        'Content-Type': contentType,
+        ...(presign.putHeaders ?? {}),
+      }
 
       const put = await fetch(presign.uploadUrl, {
         method: 'PUT',
-        headers: {
-          'Content-Type': contentType,
-        },
+        headers: putHeaders,
         body: item.file,
       })
 
       if (!put.ok) {
         const msg = `업로드 실패 (${put.status})`
+        // eslint-disable-next-line no-console -- R2 PUT 실패는 서버가 보지 못하므로 클라이언트에서만 1차 추적
+        console.error(
+          '[upload-fail]',
+          JSON.stringify({
+            stage: 'r2-put',
+            objectKey: presign.objectKey,
+            status: put.status,
+            at: new Date().toISOString(),
+          }),
+        )
         out.push({ ...item, status: 'failed', errorMessage: msg })
         continue
+      }
+
+      try {
+        const completeBody: Record<string, unknown> = {
+          objectKey: presign.objectKey,
+          byteSize: item.file.size,
+          contentType,
+        }
+        if (presignInsurerCode) {
+          completeBody.insurerCode = presignInsurerCode
+        }
+        await apiRequest<void>('/api/insurer-news/attachments/upload-complete', {
+          method: 'POST',
+          token,
+          body: JSON.stringify(completeBody),
+        })
+      } catch (completeErr) {
+        // eslint-disable-next-line no-console -- PUT 성공 후 서버 알림 실패(orphan 후보); drain과 별도로 브라우저 흔적
+        console.warn(
+          '[upload-complete-fail]',
+          JSON.stringify({
+            objectKey: presign.objectKey,
+            message: completeErr instanceof Error ? completeErr.message : String(completeErr),
+            at: new Date().toISOString(),
+          }),
+        )
       }
 
       const url = cdnUrlForObjectKey(presign.objectKey)
@@ -180,6 +220,11 @@ export async function uploadNewsletterAttachments(
       })
     } catch (e) {
       const msg = e instanceof Error ? e.message : '업로드에 실패했습니다.'
+      // eslint-disable-next-line no-console -- presign/API 예외는 서버 로그와 구분해 클라이언트에서 표시
+      console.error(
+        '[upload-fail]',
+        JSON.stringify({ stage: 'presign-or-network', message: msg, at: new Date().toISOString() }),
+      )
       out.push({ ...item, status: 'failed', errorMessage: msg })
     }
   }
