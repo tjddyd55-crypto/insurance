@@ -52,6 +52,23 @@ export async function fullSaveCompanyDirectory(
   })
 }
 
+/** 원수사 마스터 하드 삭제 — 소식지 등은 DB에서 company 연결만 끊고 스냅샷 유지 */
+export async function deleteHardCompanyMaster(
+  companyMasterId: number,
+  token: string,
+): Promise<{ success: boolean }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  if (!Number.isInteger(companyMasterId) || companyMasterId < 1) {
+    throw new ApiError('유효하지 않은 보험사 id입니다.', 400)
+  }
+  return apiRequest<{ success: boolean }>(`/api/company/masters/${companyMasterId}`, {
+    method: 'DELETE',
+    token,
+  })
+}
+
 export async function saveGeneralRequest(
   body: {
     company: { category: string; name: string; companyCode: string }

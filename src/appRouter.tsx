@@ -9,6 +9,7 @@ import GaDelegateManagementPage from './features/admin/pages/GaDelegateManagemen
 import InsurerManagersPage from './features/insurer-managers/pages/InsurerManagersPage'
 import GaManagementPage from './features/admin/pages/GaManagementPage'
 import UserManagementPage from './features/admin/pages/UserManagementPage'
+import AuditLogsPage from './features/admin/pages/AuditLogsPage'
 import { AccountResetPage } from './features/account/pages/AccountResetPage'
 import { LoginPage } from './features/auth/pages/LoginPage'
 import { PasswordResetPage } from './features/auth/pages/PasswordResetPage'
@@ -32,10 +33,11 @@ import { ConsentFormPage } from './features/consent/pages/ConsentFormPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
-import MyFeatureRequestsPage from './features/feature-request/pages/MyFeatureRequestsPage'
 import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
 import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
+import { InsurerManagerOnlyRoute } from './features/auth/InsurerManagerOnlyRoute'
 import { RequireNotInsurerManagerRoute } from './features/auth/RequireNotInsurerManagerRoute'
+import { AuditLogReaderRoute } from './features/auth/AuditLogReaderRoute'
 import { InsurerNewsAdminProvider } from './features/insurer-news/InsurerNewsAdminContext'
 import { InsurerListPage } from './features/insurer-news/pages/InsurerListPage'
 import { InsurerNewsAdminDashboardPage } from './features/insurer-news/pages/InsurerNewsAdminDashboardPage'
@@ -48,6 +50,9 @@ import { NewsletterDetailPage } from './features/insurer-news/pages/NewsletterDe
 import { NewsletterHubPage } from './features/insurer-news/pages/NewsletterHubPage'
 import { NewsletterPortalLayout } from './features/insurer-news/pages/NewsletterPortalLayout'
 import { NewsletterRecentPage } from './features/insurer-news/pages/NewsletterRecentPage'
+import { InsurerManagerNewsDetailPage } from './features/insurer-news/pages/InsurerManagerNewsDetailPage'
+import { InsurerManagerNewsListPage } from './features/insurer-news/pages/InsurerManagerNewsListPage'
+import { InsurerManagerNewsUploadPage } from './features/insurer-news/pages/InsurerManagerNewsUploadPage'
 
 export const appRouter = createBrowserRouter([
   {
@@ -89,13 +94,21 @@ export const appRouter = createBrowserRouter([
           { path: 'dashboard', element: <DashboardPage /> },
           { path: 'contacts/manage', element: <Navigate to="/insurance/company-registry" replace /> },
           { path: 'updates', element: <Navigate to="/insurance/history" replace /> },
-          { path: 'insurance/company-registry', element: <CompanyRegistryPage /> },
-          { path: 'insurance/history', element: <InsuranceUpdatesPage /> },
-          { path: 'internal/consent', element: <ConsentCompanyPage /> },
-          { path: 'internal/consent/form', element: <ConsentFormPage /> },
+          {
+            element: <InsurerManagerOnlyRoute />,
+            children: [
+              { path: 'insurer/news', element: <InsurerManagerNewsListPage /> },
+              { path: 'insurer/news/upload', element: <InsurerManagerNewsUploadPage /> },
+              { path: 'insurer/news/:newsletterId', element: <InsurerManagerNewsDetailPage /> },
+            ],
+          },
           {
             element: <RequireNotInsurerManagerRoute />,
             children: [
+              { path: 'insurance/company-registry', element: <CompanyRegistryPage /> },
+              { path: 'insurance/history', element: <InsuranceUpdatesPage /> },
+              { path: 'internal/consent', element: <ConsentCompanyPage /> },
+              { path: 'internal/consent/form', element: <ConsentFormPage /> },
               {
                 path: 'portal/newsletters',
                 element: <NewsletterPortalLayout />,
@@ -126,9 +139,13 @@ export const appRouter = createBrowserRouter([
               { path: 'admin/delegates', element: <GaDelegateManagementPage /> },
               { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },
               { path: 'admin/users', element: <UserManagementPage /> },
+              {
+                element: <AuditLogReaderRoute />,
+                children: [{ path: 'admin/audit-logs', element: <AuditLogsPage /> }],
+              },
               { path: 'account/reset', element: <AccountResetPage /> },
               { path: 'feature-request', element: <FeatureRequestPage /> },
-              { path: 'feature-requests/my', element: <MyFeatureRequestsPage /> },
+              { path: 'feature-requests/my', element: <Navigate to="/feature-request" replace /> },
               {
                 element: <SuperAdminRoute />,
                 children: [

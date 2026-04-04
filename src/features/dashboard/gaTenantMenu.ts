@@ -1,35 +1,61 @@
 /**
- * GA 테넌트(USER / GA_ADMIN / GA_STAFF) 메인 메뉴.
- * 최종 확정: 원수사 연락처 관리 + 원수사 담당자 관리 만 노출.
+ * GA 테넌트 대시보드 메뉴(USER / GA_ADMIN / GA_STAFF).
+ * INSURER_MANAGER 는 INSURER_MANAGER_MENU 별도.
  */
 
 export type GaTenantMenuItem = { label: string; path: string }
 
-/** GA 소속 계정 메뉴 — 항상 이 2개만 */
+/** @deprecated 대시보드는 buildGaTenantDashboardMenu 사용 */
 export const GA_TENANT_ESSENTIAL_MENU: GaTenantMenuItem[] = [
-  { label: '원수사 연락처 관리', path: '/contacts/manage' },
-  { label: '원수사 담당자 관리', path: '/insurer-managers' },
+  { label: '고객관리', path: '/customers' },
+  { label: '원수사 연락처 조회', path: '/insurance/contacts' },
+  { label: '원수사 소식지', path: '/portal/newsletters' },
+  { label: '추가기능 요청하기', path: '/feature-request' },
+  { label: '계정 초기화', path: '/account/reset' },
 ]
 
-/** 원수사 담당자 — 서버에서 company_id 범위로만 노출·수정 허용 */
+/** 원수사 담당자 — 본인 회사 소식지 */
 export const INSURER_MANAGER_MENU: GaTenantMenuItem[] = [
-  { label: '원수사 연락처 관리', path: '/contacts/manage' },
-  { label: '동의서 작성', path: '/internal/consent' },
-  { label: '업데이트 이력', path: '/insurance/history' },
+  { label: '원수사 소식지 조회', path: '/insurer/news' },
+  { label: '원수사 소식지 업로드', path: '/insurer/news/upload' },
 ]
 
-/** @deprecated 호환용 — 내용은 GA_TENANT_ESSENTIAL_MENU 와 동일 */
+/** @deprecated 호환용 */
 export const BASE_GA_MENU: GaTenantMenuItem[] = []
 
 /**
- * 대시보드 메뉴에는 포함하지 않음(GA_TENANT_ESSENTIAL_MENU 만 노출).
- * 자동차 신청 라우트 가드(GaCarInsuranceRoute)용으로만 참조.
+ * 대시보드 GA 메뉴.
+ * 자동차: 표시명「영진에셋」또는 GA_CUSTOM_MENU(YJASSET) — GaCarInsuranceRoute 와 동일하게 진입 가능하도록 맞춤.
+ */
+export function buildGaTenantDashboardMenu(
+  gaCode: string | undefined,
+  gaName: string | undefined,
+): GaTenantMenuItem[] {
+  const items: GaTenantMenuItem[] = [
+    { label: '고객관리', path: '/customers' },
+    { label: '원수사 연락처 조회', path: '/insurance/contacts' },
+    { label: '원수사 소식지', path: '/portal/newsletters' },
+  ]
+  const carByName = String(gaName ?? '').trim() === '영진에셋'
+  if (carByName || isCarInsuranceFeatureEnabledForGa(gaCode)) {
+    items.push({ label: '자동차 신청서', path: '/application' })
+  }
+  items.push(
+    { label: '추가기능 요청하기', path: '/feature-request' },
+    { label: '계정 초기화', path: '/account/reset' },
+  )
+  return items
+}
+
+/**
+ * 대시보드와 별개 — 자동차 신청 허브(GaCarInsuranceRoute) 판별용.
+ * 코드 YJASSET 기준(영진에셋 테넌트).
  */
 export const GA_CUSTOM_MENU: Record<string, GaTenantMenuItem[]> = {
   YJASSET: [{ label: '자동차 신청서', path: '/application' }],
 }
 
-/** @deprecated 빈 배열 — 메뉴는 GA_TENANT_ESSENTIAL_MENU 단일 소스 */
+/** @deprecated */
 export const GA_STAFF_EXTRA_MENU: GaTenantMenuItem[] = []
 
 export function normalizeGaMenuCode(raw: string | undefined): string {
@@ -38,15 +64,13 @@ export function normalizeGaMenuCode(raw: string | undefined): string {
     .toUpperCase()
 }
 
-/** @deprecated GA_TENANT_ESSENTIAL_MENU 사용 권장 */
-export function buildGaTenantMenu(_gaCode?: string | undefined): GaTenantMenuItem[] {
-  void _gaCode
-  return [...GA_TENANT_ESSENTIAL_MENU]
+/** @deprecated buildGaTenantDashboardMenu 사용 */
+export function buildGaTenantMenu(gaCode?: string | undefined, gaName?: string | undefined): GaTenantMenuItem[] {
+  return buildGaTenantDashboardMenu(gaCode, gaName)
 }
 
 /**
  * GA_CUSTOM_MENU에 자동차 신청 허브(`/application`)가 포함된 GA인지.
- * 대시보드 메뉴와는 별개(메뉴는 2개 고정).
  */
 export function isCarInsuranceFeatureEnabledForGa(gaCode: string | undefined): boolean {
   const code = normalizeGaMenuCode(gaCode)

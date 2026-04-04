@@ -61,6 +61,43 @@ export async function fetchInsurerManagersHealth(token: string): Promise<Insurer
   })
 }
 
+export interface SecurityAuditLogRow {
+  id: string | number
+  actor_user_id: string
+  actor_role: string
+  action: string
+  target_type: string | null
+  target_id: string | null
+  ga_id: number | null
+  company_id: number | null
+  meta: unknown
+  created_at: string
+}
+
+export async function fetchSecurityAuditLogs(
+  token: string,
+  params?: { limit?: number; action?: string; actor_user_id?: string; since?: string },
+): Promise<SecurityAuditLogRow[]> {
+  const q = new URLSearchParams()
+  if (params?.limit != null) {
+    q.set('limit', String(params.limit))
+  }
+  if (params?.action?.trim()) {
+    q.set('action', params.action.trim())
+  }
+  if (params?.actor_user_id?.trim()) {
+    q.set('actor_user_id', params.actor_user_id.trim())
+  }
+  if (params?.since?.trim()) {
+    q.set('since', params.since.trim())
+  }
+  const qs = q.toString()
+  return apiRequest<SecurityAuditLogRow[]>(`/api/admin/audit-logs${qs ? `?${qs}` : ''}`, {
+    method: 'GET',
+    token,
+  })
+}
+
 /** 서버와 동일 규칙(3~30자, 공백 불가) 충족 시 사용 가능 여부 */
 export async function checkUsernameAvailability(username: string): Promise<boolean> {
   const u = username.trim()

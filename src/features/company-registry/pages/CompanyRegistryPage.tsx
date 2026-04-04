@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
-import { isInsuranceOpsRole } from '../../auth/roleGuards'
+import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
 import { PageBackButton } from '../../../components/common/PageBackButton'
-import { fullSaveCompanyDirectory, listCompanyDirectory } from '../api/companyRegistryApi'
+import { deleteHardCompanyMaster, fullSaveCompanyDirectory, listCompanyDirectory } from '../api/companyRegistryApi'
 import {
   canonicalInsuranceCategoryForFilter,
   insuranceCategoryLabel,
@@ -36,7 +36,9 @@ const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 
 export default function CompanyRegistryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { user, token, isAuthenticated } = useAuth()
-  const canEdit = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
+  const isOps = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
+  const canMutate = isOps && canMutateInsuranceDirectory(user.role)
+  const readOnlyUi = isOps && !canMutate
 
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
   const [statusText, setStatusText] = useState('')
@@ -53,6 +55,7 @@ export default function CompanyRegistryPage() {
   })
   const [contacts, setContacts] = useState<InsuranceCompanyContactDraft[]>([{ ...EMPTY_CONTACT }])
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   /** 목록만 갱신됐을 때 사용자가 이미 칸을 수정 중이면 폼을 덮어쓰지 않음 */
   const pendingLocalEditRef = useRef(false)
 
@@ -196,22 +199,31 @@ export default function CompanyRegistryPage() {
   }, [commitDirectorySelection])
 
   const addContactRow = () => {
+    if (readOnlyUi) {
+      return
+    }
     pendingLocalEditRef.current = true
     setContacts((prev) => [...prev, { ...EMPTY_CONTACT }])
   }
 
   const removeContactRow = (index: number) => {
+    if (readOnlyUi) {
+      return
+    }
     pendingLocalEditRef.current = true
     setContacts((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)))
   }
 
   const updateContact = (index: number, patch: Partial<InsuranceCompanyContactDraft>) => {
+    if (readOnlyUi) {
+      return
+    }
     pendingLocalEditRef.current = true
     setContacts((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)))
   }
 
   const handleSave = async () => {
-    if (!canEdit || !token) {
+    if (!canMutate || !token) {
       setStatusText('연락처 저장은 GA 관리자 이상만 가능합니다.')
       return
     }
@@ -251,6 +263,46 @@ export default function CompanyRegistryPage() {
     }
   }
 
+  const handleHardDelete = async () => {
+    if (!canMutate || !token || company.id == null) {
+      setStatusText('삭제는 GA 관리자 이상만 가능하며, 이미 등록된 보험사만 삭제할 수 있습니다.')
+      return
+    }
+    const label = company.name.trim() || company.companyCode || `id ${company.id}`
+    if (
+      !window.confirm(
+        `「${label}」보험사를 완전히 삭제할까요?\n\n` +
+          '· 원수사 담당자 계정은 연결이 끊기고 비활성화됩니다.\n' +
+          '· 이 보험사의 연락처·일반의뢰 행은 삭제됩니다.\n' +
+          '· 소식지·업데이트 이력 등은 삭제되지 않으며, 소식지는 보험사명 스냅샷만 남습니다.',
+      )
+    ) {
+      return
+    }
+    setIsDeleting(true)
+    setStatusText('')
+    try {
+      await deleteHardCompanyMaster(company.id, token)
+      window.alert('삭제했습니다. 동일 이름으로 다시 등록할 수 있습니다.')
+      pendingLocalEditRef.current = false
+      await loadList()
+      commitDirectorySelection('', '')
+      prevSelectionRef.current = { type: '', companyCode: '' }
+      setCompany({
+        id: null,
+        companyCode: '',
+        category: '',
+        name: '',
+        ...EMPTY_COMPANY_FIELDS,
+      })
+      setContacts([{ ...EMPTY_CONTACT }])
+    } catch (error) {
+      setStatusText(error instanceof Error ? error.message : '삭제에 실패했습니다.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <main className="page page--with-back company-registry-page registry-form-touch">
       <PageBackButton />
@@ -276,7 +328,7 @@ export default function CompanyRegistryPage() {
         </p>
       </header>
 
-      {canEdit ? (
+      {isOps ? (
         <section className="card company-registry-directory-card">
           <h2 className="dashboard-section-title">등록된 보험사</h2>
           <p className="company-registry-field-hint" style={{ marginTop: 0 }}>
@@ -307,15 +359,23 @@ export default function CompanyRegistryPage() {
         </section>
       ) : null}
 
-      {canEdit ? (
-        <section className="card company-registry-form-card" aria-busy={isSaving}>
-          <h2 className="dashboard-section-title">입력 · 수정 (GA_ADMIN / SUPER_ADMIN)</h2>
+      {isOps ? (
+        <section className="card company-registry-form-card" aria-busy={isSaving || isDeleting}>
+          <h2 className="dashboard-section-title">
+            {readOnlyUi ? '조회 (GA_STAFF · 읽기 전용)' : '입력 · 수정 (GA_ADMIN / SUPER_ADMIN)'}
+          </h2>
+          {readOnlyUi ? (
+            <p className="company-registry-field-hint" style={{ marginTop: 0 }}>
+              변경·저장은 GA 관리자(GA_ADMIN) 이상만 가능합니다. 서버에서도 동일하게 차단됩니다.
+            </p>
+          ) : null}
 
           <label className="field">
             <span className="field__label">보험 종류 (필수)</span>
             <select
               className="field__control"
               value={selectedType}
+              disabled={readOnlyUi}
               onChange={(e) => {
                 const v = e.target.value as InsuranceCategory | ''
                 commitDirectorySelection(v, '')
@@ -339,7 +399,7 @@ export default function CompanyRegistryPage() {
               onChange={(e) => {
                 commitDirectorySelection(selectedType, String(e.target.value ?? ''))
               }}
-              disabled={!selectedType}
+              disabled={readOnlyUi || !selectedType}
               required
             >
               <option value="">선택</option>
@@ -373,7 +433,7 @@ export default function CompanyRegistryPage() {
                 })
               }}
               placeholder="목록에서 선택하거나 신규명을 직접 입력"
-              disabled={!selectedType}
+              disabled={readOnlyUi || !selectedType}
               autoComplete="organization"
             />
           </label>
@@ -401,6 +461,7 @@ export default function CompanyRegistryPage() {
                 }}
                 placeholder="고객센터 번호 (직접 입력)"
                 autoComplete="tel"
+                disabled={readOnlyUi}
               />
             </label>
             <label className="field">
@@ -412,6 +473,7 @@ export default function CompanyRegistryPage() {
                   pendingLocalEditRef.current = true
                   setCompany({ ...company, systemPhone: e.target.value })
                 }}
+                disabled={readOnlyUi}
               />
             </label>
             <label className="field">
@@ -423,6 +485,7 @@ export default function CompanyRegistryPage() {
                   pendingLocalEditRef.current = true
                   setCompany({ ...company, incallNumber: e.target.value })
                 }}
+                disabled={readOnlyUi}
               />
             </label>
             <label className="field field--wide">
@@ -434,6 +497,7 @@ export default function CompanyRegistryPage() {
                   pendingLocalEditRef.current = true
                   setCompany({ ...company, visitInfo: e.target.value })
                 }}
+                disabled={readOnlyUi}
               />
             </label>
           </div>
@@ -446,50 +510,69 @@ export default function CompanyRegistryPage() {
                   className="field__control"
                   placeholder="이름"
                   value={row.name}
+                  disabled={readOnlyUi}
                   onChange={(e) => updateContact(index, { name: e.target.value })}
                 />
                 <input
                   className="field__control"
                   placeholder="직책"
                   value={row.position}
+                  disabled={readOnlyUi}
                   onChange={(e) => updateContact(index, { position: e.target.value })}
                 />
                 <input
                   className="field__control"
                   placeholder="전화"
                   value={row.phone}
+                  disabled={readOnlyUi}
                   onChange={(e) => updateContact(index, { phone: e.target.value })}
                 />
                 <button
                   className="button button--small"
                   type="button"
                   onClick={() => removeContactRow(index)}
-                  disabled={contacts.length <= 1}
+                  disabled={readOnlyUi || contacts.length <= 1}
                 >
                   삭제
                 </button>
               </li>
             ))}
           </ul>
-          <button className="button button--secondary" type="button" onClick={addContactRow}>
-            담당자 추가
-          </button>
+          {!readOnlyUi ? (
+            <button className="button button--secondary" type="button" onClick={addContactRow}>
+              담당자 추가
+            </button>
+          ) : null}
 
-          <button
-            className="button button--primary button--full"
-            style={{ marginTop: 16 }}
-            type="button"
-            disabled={isSaving || !selectedType || !selectedCompanyCode}
-            onClick={() => void handleSave()}
-          >
-            {isSaving ? '저장 중…' : company.id != null ? '수정 저장' : '신규 저장'}
-          </button>
+          {!readOnlyUi ? (
+            <button
+              className="button button--primary button--full"
+              style={{ marginTop: 16 }}
+              type="button"
+              disabled={isSaving || isDeleting || !selectedType || !selectedCompanyCode}
+              onClick={() => void handleSave()}
+            >
+              {isSaving ? '저장 중…' : company.id != null ? '수정 저장' : '신규 저장'}
+            </button>
+          ) : null}
+
+          {!readOnlyUi && company.id != null ? (
+            <button
+              className="button button--full"
+              style={{ marginTop: 12, borderColor: 'var(--danger, #b42318)', color: 'var(--danger, #b42318)' }}
+              type="button"
+              disabled={isSaving || isDeleting}
+              onClick={() => void handleHardDelete()}
+            >
+              {isDeleting ? '삭제 중…' : '보험사 완전 삭제…'}
+            </button>
+          ) : null}
         </section>
       ) : (
         <section className="card">
           <p className="empty-state">
-            데이터 입력·수정은 <Link to="/login">로그인</Link> 후 GA 관리자 이상 권한이 필요합니다.{' '}
-            <Link to="/insurance/contacts">연락처 조회</Link>는 로그인 없이도 볼 수 있습니다.
+            연락처 관리 화면은 <Link to="/login">로그인</Link> 후 원수사 연락처 권한(GA 스태프 이상)이 필요합니다.{' '}
+            <Link to="/insurance/contacts">연락처 조회</Link>에서 공개 탭을 볼 수 있습니다.
           </p>
         </section>
       )}

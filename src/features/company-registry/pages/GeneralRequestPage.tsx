@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
-import { isInsuranceOpsRole } from '../../auth/roleGuards'
+import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
 import { PageBackButton } from '../../../components/common/PageBackButton'
 import { listCompanyDirectory, saveGeneralRequest } from '../api/companyRegistryApi'
 import { canonicalInsuranceCategoryForFilter } from '../domain/categoryUtils'
@@ -13,7 +13,9 @@ const EMPTY_GENERAL: InsuranceGeneralDraft = { description: '', phone: '', fax: 
 
 export default function GeneralRequestPage() {
   const { user, token, isAuthenticated } = useAuth()
-  const canEdit = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
+  const isOps = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
+  const canMutate = isOps && canMutateInsuranceDirectory(user.role)
+  const readOnlyUi = isOps && !canMutate
 
   const [list, setList] = useState<CompanyDirectoryEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -84,7 +86,7 @@ export default function GeneralRequestPage() {
   }, [list, selectedType, selectedCompanyCode])
 
   const handleSave = async () => {
-    if (!canEdit || !token) {
+    if (!canMutate || !token) {
       setStatusText('저장은 GA 관리자 이상만 가능합니다.')
       return
     }
@@ -126,7 +128,7 @@ export default function GeneralRequestPage() {
     <main className="page page--with-back company-registry-page">
       <PageBackButton />
       <nav className="contacts-public-auth" aria-label="이동">
-        {canEdit ? (
+        {isOps ? (
           <Link className="button button--small contacts-public-auth__link" to="/insurance/company-registry">
             연락처 입력/관리
           </Link>
@@ -154,13 +156,19 @@ export default function GeneralRequestPage() {
 
       {isLoading ? (
         <p>불러오는 중…</p>
-      ) : canEdit ? (
+      ) : isOps ? (
         <section className="card company-registry-form-card">
+          {readOnlyUi ? (
+            <p className="company-registry-field-hint" style={{ marginTop: 0 }}>
+              GA_STAFF는 <strong>읽기 전용</strong>입니다. 저장은 GA 관리자 이상만 가능합니다.
+            </p>
+          ) : null}
           <label className="field">
             <span className="field__label">보험 종류</span>
             <select
               className="field__control"
               value={selectedType}
+              disabled={readOnlyUi}
               onChange={(e) => {
                 setSelectedType(e.target.value as InsuranceCategory | '')
                 setSelectedCompanyCode('')
@@ -180,7 +188,7 @@ export default function GeneralRequestPage() {
               className="field__control"
               value={selectedCompanyCode}
               onChange={(e) => setSelectedCompanyCode(String(e.target.value ?? ''))}
-              disabled={!selectedType}
+              disabled={readOnlyUi || !selectedType}
             >
               <option value="">선택</option>
               {companyOptions.map((row) => (
@@ -199,6 +207,7 @@ export default function GeneralRequestPage() {
               <input
                 className="field__control"
                 value={general.description}
+                disabled={readOnlyUi}
                 onChange={(e) => setGeneral({ ...general, description: e.target.value })}
               />
             </label>
@@ -207,6 +216,7 @@ export default function GeneralRequestPage() {
               <input
                 className="field__control"
                 value={general.phone}
+                disabled={readOnlyUi}
                 onChange={(e) => setGeneral({ ...general, phone: e.target.value })}
               />
             </label>
@@ -215,6 +225,7 @@ export default function GeneralRequestPage() {
               <input
                 className="field__control"
                 value={general.fax}
+                disabled={readOnlyUi}
                 onChange={(e) => setGeneral({ ...general, fax: e.target.value })}
               />
             </label>
@@ -223,19 +234,22 @@ export default function GeneralRequestPage() {
               <input
                 className="field__control"
                 value={general.email}
+                disabled={readOnlyUi}
                 onChange={(e) => setGeneral({ ...general, email: e.target.value })}
               />
             </label>
           </div>
 
-          <button
-            className="button button--primary button--full"
-            type="button"
-            disabled={isSaving || !selectedType || !selectedCompanyCode}
-            onClick={() => void handleSave()}
-          >
-            {isSaving ? '저장 중…' : '저장'}
-          </button>
+          {!readOnlyUi ? (
+            <button
+              className="button button--primary button--full"
+              type="button"
+              disabled={isSaving || !selectedType || !selectedCompanyCode}
+              onClick={() => void handleSave()}
+            >
+              {isSaving ? '저장 중…' : '저장'}
+            </button>
+          ) : null}
         </section>
       ) : (
         <section className="card">

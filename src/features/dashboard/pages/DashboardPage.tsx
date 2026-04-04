@@ -2,14 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { fetchInsurerManagersHealth, type InsurerManagersHealth } from '../../auth/authApi'
 import { useAuth } from '../../auth/AuthProvider'
-import { isGaTenantStaffRole } from '../../auth/roleGuards'
+import { isGaStaffReadOnlyUi } from '../../auth/roleGuards'
 import {
-  GA_TENANT_ESSENTIAL_MENU,
+  buildGaTenantDashboardMenu,
   INSURER_MANAGER_MENU,
   type GaTenantMenuItem,
 } from '../gaTenantMenu'
 
 type MenuItem = GaTenantMenuItem
+
+const AUDIT_MENU: MenuItem = { label: '보안 감사 로그', path: '/admin/audit-logs' }
 
 const SUPER_ADMIN_MENU: MenuItem[] = [
   { label: 'GA 관리', path: '/admin/ga' },
@@ -18,21 +20,25 @@ const SUPER_ADMIN_MENU: MenuItem[] = [
   { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
 ]
 
-function menuForSession(role: string | undefined): MenuItem[] {
+function menuForSession(
+  role: string | undefined,
+  gaCode: string | undefined,
+  gaName: string | undefined,
+): MenuItem[] {
   if (role === 'SUPER_ADMIN') {
-    return SUPER_ADMIN_MENU
+    return [...SUPER_ADMIN_MENU, AUDIT_MENU]
   }
   if (role === 'INSURER_MANAGER') {
     return [...INSURER_MANAGER_MENU]
   }
   if (role === 'GA_ADMIN' || role === 'GA_STAFF' || role === 'USER') {
-    return [...GA_TENANT_ESSENTIAL_MENU]
+    const items = buildGaTenantDashboardMenu(gaCode, gaName)
+    if (role === 'GA_ADMIN') {
+      items.push(AUDIT_MENU)
+    }
+    return items
   }
   return []
-}
-
-function showFeatureRequestSection(role: string | undefined): boolean {
-  return role === 'USER' || role === 'GA_STAFF'
 }
 
 function showInsurerManagerHealthBanner(role: string | undefined): boolean {
@@ -42,6 +48,12 @@ function showInsurerManagerHealthBanner(role: string | undefined): boolean {
 function pathIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === '/contacts') {
     return pathname === '/contacts' || pathname === '/insurance/contacts'
+  }
+  if (itemPath === '/insurance/contacts') {
+    return pathname === '/insurance/contacts' || pathname === '/contacts'
+  }
+  if (itemPath === '/portal/newsletters') {
+    return pathname === '/portal/newsletters' || pathname.startsWith('/portal/newsletters/')
   }
   if (itemPath === '/contacts/manage') {
     return pathname === '/contacts/manage' || pathname === '/insurance/company-registry'
@@ -53,10 +65,7 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
     return pathname === '/application' || pathname.startsWith('/application/')
   }
   if (itemPath === '/feature-request') {
-    return pathname === '/feature-request'
-  }
-  if (itemPath === '/feature-requests/my') {
-    return pathname === '/feature-requests/my'
+    return pathname === '/feature-request' || pathname === '/feature-requests/my'
   }
   if (itemPath === '/account/reset') {
     return pathname === '/account/reset'
@@ -72,6 +81,18 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   }
   if (itemPath === '/insurer-managers') {
     return pathname === '/insurer-managers'
+  }
+  if (itemPath === '/insurer/news') {
+    if (pathname.startsWith('/insurer/news/upload')) {
+      return false
+    }
+    return pathname === '/insurer/news' || pathname.startsWith('/insurer/news/')
+  }
+  if (itemPath === '/insurer/news/upload') {
+    return pathname === '/insurer/news/upload'
+  }
+  if (itemPath === '/admin/audit-logs') {
+    return pathname === '/admin/audit-logs'
   }
   return pathname === itemPath
 }
@@ -95,10 +116,9 @@ export function DashboardPage() {
   const location = useLocation()
   const { user, logout, token } = useAuth()
   const role = user?.role
-  const showStaffDirectoryNote = isGaTenantStaffRole(role)
-  const showFeatureFooter = showFeatureRequestSection(role)
+  const showStaffReadOnlyNote = isGaStaffReadOnlyUi(role)
   const showImHealth = showInsurerManagerHealthBanner(role)
-  const menuItems = menuForSession(role)
+  const menuItems = menuForSession(role, user?.gaCode, user?.gaName)
   const pathname = location.pathname
   const [imHealthErr, setImHealthErr] = useState('')
   const [imHealth, setImHealth] = useState<InsurerManagersHealth | null>(null)
@@ -152,6 +172,12 @@ export function DashboardPage() {
 
         <section className="dashboard-menu-card">
           <h2 className="dashboard-section-title visually-hidden">주요 메뉴</h2>
+          {showStaffReadOnlyNote ? (
+            <p className="dashboard-menu-note" role="status">
+              GA_STAFF 계정은 연락처 관련 입력 화면 일부가 <strong>읽기 전용</strong>입니다. 저장·등록은 GA
+              관리자만 가능합니다.
+            </p>
+          ) : null}
           <nav className="menu-card" aria-label="주요 메뉴">
             {menuItems.map((item) => {
               const isActive = pathIsActive(pathname, item.path)
@@ -167,43 +193,6 @@ export function DashboardPage() {
               )
             })}
           </nav>
-
-          {showFeatureFooter ? (
-            <div className="dashboard-menu-footer" role="group" aria-label="서비스 안내">
-              <p className="dashboard-menu-static" aria-disabled="true">
-                추가 기능 개발 중
-              </p>
-              <button
-                type="button"
-                className={`menu-item${pathIsActive(pathname, '/feature-request') ? ' active' : ''}`}
-                onClick={() => navigate('/feature-request')}
-              >
-                추가 기능 요청하기
-              </button>
-              <button
-                type="button"
-                className={`menu-item${pathIsActive(pathname, '/feature-requests/my') ? ' active' : ''}`}
-                onClick={() => navigate('/feature-requests/my')}
-              >
-                내 기능 요청
-              </button>
-              {role === 'USER' ? (
-                <button
-                  type="button"
-                  className={`menu-item${pathIsActive(pathname, '/account/reset') ? ' active' : ''}`}
-                  onClick={() => navigate('/account/reset')}
-                >
-                  계정 및 데이터 초기화
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-
-          {showStaffDirectoryNote ? (
-            <p className="dashboard-menu-note">
-              보험사 마스터는 「원수사 연락처 관리」에서만 저장·수정합니다.
-            </p>
-          ) : null}
 
           <button
             className="button button--secondary button--full dashboard-logout"

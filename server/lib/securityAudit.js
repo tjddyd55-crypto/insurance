@@ -34,3 +34,12 @@ export async function writeSecurityAudit(executor, row) {
     ],
   )
 }
+
+/** 실패해도 요청 흐름을 막지 않는 래퍼 */
+export async function logSecurityEvent(executor, row) {
+  try {
+    await writeSecurityAudit(executor, row)
+  } catch (e) {
+    console.error('[logSecurityEvent]', e)
+  }
+}

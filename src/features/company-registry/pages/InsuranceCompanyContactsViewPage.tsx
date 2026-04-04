@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
-import { isInsuranceOpsRole } from '../../auth/roleGuards'
+import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
 import { PageBackButton } from '../../../components/common/PageBackButton'
 import { listCompanyDirectory } from '../api/companyRegistryApi'
 import { resolveTabCategory } from '../domain/categoryUtils'
@@ -37,6 +37,7 @@ export default function InsuranceCompanyContactsViewPage() {
   const navigate = useNavigate()
   const { user, token, isAuthenticated } = useAuth()
   const isStaff = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
+  const canEditFromCard = !!user && canMutateInsuranceDirectory(user.role)
 
   const [activeTab, setActiveTab] = useState<InsuranceCategory>('LIFE')
   const [keyword, setKeyword] = useState('')
@@ -195,7 +196,7 @@ export default function InsuranceCompanyContactsViewPage() {
                 key={c.id}
                 variant="directory"
                 entry={c}
-                showEditButton={isStaff}
+                showEditButton={canEditFromCard}
                 onEdit={openCompanyRegistryEdit}
               />
             ))}

@@ -245,9 +245,13 @@ async function ensureInsuranceCompanyMasterCategoryNormalized(pool) {
   `)
 }
 
-/** company_id → insurance_company_master FK: 컬럼 REFERENCES 만 있고 이름 없는 경우에만 추가 */
-async function ensureInsurerManagerCompanyFkConstraint(client) {
-  const { rows } = await client.query(`
+/**
+ * 원수사 마스터 삭제 시 담당자 행은 company_id 해제(소프트 삭제는 애플리케이션에서 처리).
+ * DB 레벨 안전망: ON DELETE SET NULL
+ * (ADD COLUMN … REFERENCES 로 생긴 이명 FK까지 제거 후 단일 제약으로 통일)
+ */
+async function ensureInsurerManagerCompanyFkOnDeleteSetNull(executor) {
+  const { rows } = await executor.query(`
     SELECT c.conname
     FROM pg_constraint c
     JOIN pg_class cl ON c.conrelid = cl.oid
@@ -256,20 +260,18 @@ async function ensureInsurerManagerCompanyFkConstraint(client) {
       AND cl.relname = 'insurer_managers'
       AND c.contype = 'f'
       AND c.confrelid = 'insurance_company_master'::regclass
-      AND c.conkey IS NOT NULL
-      AND array_length(c.conkey, 1) = 1
-      AND EXISTS (
-        SELECT 1 FROM pg_attribute a
-        WHERE a.attrelid = c.conrelid AND a.attnum = c.conkey[1] AND a.attname = 'company_id'
-      )
   `)
-  if (rows.length > 0) {
-    return
+  for (const r of rows) {
+    const name = String(r.conname ?? '').replace(/"/g, '')
+    if (!/^[a-z_][a-z0-9_]*$/i.test(name)) {
+      continue
+    }
+    await executor.query(`ALTER TABLE insurer_managers DROP CONSTRAINT IF EXISTS "${name}"`)
   }
-  await client.query(`
+  await executor.query(`
     ALTER TABLE insurer_managers
     ADD CONSTRAINT fk_insurer_managers_insurance_company_master
-    FOREIGN KEY (company_id) REFERENCES insurance_company_master(id)
+    FOREIGN KEY (company_id) REFERENCES insurance_company_master(id) ON DELETE SET NULL
   `)
 }
 
@@ -819,6 +821,31 @@ export async function initDb() {
     ON insurance_company_update_log (updated_at DESC)
   `)
 
+  /** 보험사(마스터) 삭제 후에도 콘텐츠 보존 — company_id 끊고 표시용 스냅샷 유지 */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS insurance_company_newsletters (
+      id TEXT PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      company_id INTEGER REFERENCES insurance_company_master(id) ON DELETE SET NULL,
+      company_name_snapshot TEXT NOT NULL DEFAULT '',
+      title TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'DRAFT',
+      body_text TEXT NOT NULL DEFAULT '',
+      payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_insurance_company_newsletters_ga
+    ON insurance_company_newsletters(ga_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_insurance_company_newsletters_company
+    ON insurance_company_newsletters(company_id)
+    WHERE company_id IS NOT NULL
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS insurance_company_merge_logs (
       id SERIAL PRIMARY KEY,
@@ -1193,17 +1220,9 @@ export async function initDb() {
     ON insurer_managers (ga_id, company_id)
     WHERE is_deleted = false AND company_id IS NOT NULL
   `)
-  const imOrphan = await pool.query(`
-    SELECT COUNT(*)::int AS c FROM insurer_managers WHERE company_id IS NULL
-  `)
-  if ((imOrphan.rows[0]?.c ?? 0) > 0) {
-    throw new Error(
-      '[initDb] insurer_managers.company_id 미설정 행이 있습니다. 보험사 마스터와 수동 연결 후 다시 실행하세요.',
-    )
-  }
   await pool.query(`
     ALTER TABLE insurer_managers
-    ALTER COLUMN company_id SET NOT NULL
+    ALTER COLUMN company_id DROP NOT NULL
   `)
 
   await pool.query(`
@@ -1233,7 +1252,7 @@ export async function initDb() {
     )
   `)
 
-  await ensureInsurerManagerCompanyFkConstraint(pool)
+  await ensureInsurerManagerCompanyFkOnDeleteSetNull(pool)
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS uq_insurer_manager_unique
     ON insurer_managers (ga_id, company_id, username)

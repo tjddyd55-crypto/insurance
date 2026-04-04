@@ -25,6 +25,20 @@ export function isInsurerManagerRole(role: string | undefined): role is UserRole
   return role === 'INSURER_MANAGER'
 }
 
+/** 원수사 연락처·일반화재·담당자 등 서버에서 GA_ADMIN·SUPER_ADMIN만 쓰기 허용 */
+export function canMutateInsuranceDirectory(role: string | undefined): boolean {
+  return role === 'GA_ADMIN' || role === 'SUPER_ADMIN'
+}
+
+export function isGaStaffReadOnlyUi(role: string | undefined): boolean {
+  return role === 'GA_STAFF'
+}
+
+/** 감사 로그 조회: SUPER_ADMIN · GA_ADMIN */
+export function canReadSecurityAuditLogs(role: string | undefined): boolean {
+  return role === 'SUPER_ADMIN' || role === 'GA_ADMIN'
+}
+
 /** 대시보드에서 원수사 안내 문구(일반 GA 소속 담당자) */
 export function isGaTenantStaffRole(role: string | undefined): boolean {
   return role === 'GA_ADMIN' || role === 'GA_STAFF'

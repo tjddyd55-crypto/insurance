@@ -1,3 +1,5 @@
+import { listCompanyDirectory } from '../../company-registry/api/companyRegistryApi'
+import { buildNewsletterContextFromCompany, isNewsletterInCompanyScope } from '../lib/insurerNewsCompanyScope'
 import { mockInsurersForGa } from '../mock/insurers'
 import { mockNewslettersPublishedForGa, toNewsletterItem } from '../mock/newsletters'
 import type { InsurerSummary, NewsletterDetail, NewsletterItem } from '../types'
@@ -42,4 +44,58 @@ export async function getAllPublishedForGa(gaCode: string): Promise<NewsletterIt
 /** TODO(insurer-news): 파일별 presign · 완료 콜백 — R2 연결 시 구현 */
 export async function uploadNewsletterAttachments(): Promise<never> {
   throw new Error('TODO(insurer-news): uploadNewsletterAttachments — presign 파이프라인')
+}
+
+/**
+ * 원수사 담당자: 디렉터리에서 본인 company_id 행을 조회한 뒤, 동일 GA·동일 원수사 소식지만 반환.
+ * TODO: GET /api/.../newsletters?companyId= 로 대체 시에도 서버에서 company_id 스코프 강제.
+ */
+export async function getNewslettersForInsurerManagerCompany(
+  token: string,
+  gaCode: string,
+  companyMasterId: number,
+): Promise<NewsletterItem[]> {
+  const rows = await listCompanyDirectory(token)
+  const entry = rows.find((r) => r.id === companyMasterId)
+  if (!entry) {
+    return []
+  }
+  const published = mockNewslettersPublishedForGa(gaCode)
+  const scoped = published.filter((n) => isNewsletterInCompanyScope(n, entry, gaCode))
+  return sortByPublishedDesc(scoped).map(toNewsletterItem)
+}
+
+export async function getNewsletterDetailForInsurerManager(
+  token: string,
+  gaCode: string,
+  companyMasterId: number,
+  newsletterId: string,
+): Promise<NewsletterDetail | null> {
+  const rows = await listCompanyDirectory(token)
+  const entry = rows.find((r) => r.id === companyMasterId)
+  if (!entry) {
+    return null
+  }
+  const row = mockNewslettersPublishedForGa(gaCode).find((n) => n.id === newsletterId)
+  if (!row || !isNewsletterInCompanyScope(row, entry, gaCode)) {
+    return null
+  }
+  return row
+}
+
+/** 업로드 폼용 — 로그인 세션 company_id 에 맞는 발행 컨텍스트 */
+export async function resolveInsurerManagerPublishContext(
+  token: string,
+  gaCode: string,
+  companyMasterId: number,
+): Promise<
+  | { gaCode: string; insurerCode: string; insurerName: string; insurerSlug: string }
+  | { error: string }
+> {
+  const rows = await listCompanyDirectory(token)
+  const entry = rows.find((r) => r.id === companyMasterId)
+  if (!entry) {
+    return { error: '소속 원수사 정보를 찾을 수 없습니다. GA 관리자에게 문의해 주세요.' }
+  }
+  return buildNewsletterContextFromCompany(gaCode, entry)
 }
