@@ -4,7 +4,7 @@ import { ApiError } from '../../../lib/apiClient'
 import { normalizeKrMobile, validateKrMobileDigits } from '../../../lib/phoneNormalize'
 import { requestPasswordResetCode, resetPasswordBySms } from '../services/passwordResetApi'
 
-const CODE_TTL_SEC = 300
+const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
 
 export function PasswordResetPage() {
@@ -176,7 +176,7 @@ export function PasswordResetPage() {
         ) : (
           <form className="auth-form" onSubmit={(e) => void onSubmitStep2(e)}>
             <p className="auth-notice" role="status">
-              인증번호 유효 시간 {mmss} (5분 이내 입력){secondsLeft === 0 ? ' — 만료되었습니다. 다시 요청하세요.' : ''}
+              인증번호 유효 시간 {mmss} (3분 이내 입력){secondsLeft === 0 ? ' — 만료되었습니다. 다시 요청하세요.' : ''}
             </p>
             <label className="field">
               <span className="field__label">인증번호 6자리</span>

@@ -73,6 +73,12 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
 
   apiRouter.post('/auth/request-password-reset-code', async (req, res) => {
     const client = await pool.connect()
+    let phoneNorm = ''
+    let code = ''
+    let newCodeRowId
+    let user
+    let quota
+    let userGa
     try {
       const ipLimit = assertSmsRequestIpLimit(req)
       if (!ipLimit.ok) {
@@ -81,7 +87,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       }
 
       const usernameNorm = String(req.body?.username ?? '').trim()
-      const phoneNorm = normalizeKrMobile(req.body?.phoneNumber ?? req.body?.phone_number)
+      phoneNorm = normalizeKrMobile(req.body?.phoneNumber ?? req.body?.phone_number)
       const phoneErr = validateKrMobileDigits(phoneNorm)
       if (phoneErr) {
         res.status(400).json({ message: phoneErr })
@@ -105,7 +111,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         `,
         [usernameNorm],
       )
-      const user = lockR.rows[0]
+      user = lockR.rows[0]
       const okUser =
         user &&
         String(user.role ?? '').toUpperCase() === 'USER' &&
@@ -119,7 +125,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         return
       }
 
-      const userGa = parseGaId(user.ga_id)
+      userGa = parseGaId(user.ga_id)
       if (userGa == null) {
         await client.query('ROLLBACK')
         res.status(500).json({ message: '계정 GA 정보가 올바르지 않습니다.' })
@@ -139,7 +145,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         return
       }
 
-      const quota = evaluateUserSmsRequestQuota(user)
+      quota = evaluateUserSmsRequestQuota(user)
       if (!quota.ok) {
         await client.query('ROLLBACK')
         res.status(429).json({ message: quota.message, retryAfterSec: quota.retryAfterSec })
@@ -154,35 +160,19 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         [SMS_PURPOSE_PASSWORD_RESET, user.id],
       )
 
-      const code = String(randomInt(100_000, 1_000_000))
-      await client.query(
+      code = String(randomInt(100_000, 1_000_000))
+      const ins = await client.query(
         `
         INSERT INTO sms_verification_codes
           (purpose, user_id, username, phone_number, code, expires_at)
-        VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '5 minutes')
+        VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '3 minutes')
+        RETURNING id
         `,
         [SMS_PURPOSE_PASSWORD_RESET, user.id, usernameNorm, phoneNorm, code],
       )
+      newCodeRowId = ins.rows[0]?.id
 
-      await applyUserSmsRequestAfterSend(client, user.id, quota, userGa)
       await client.query('COMMIT')
-
-      await sendVerificationCode({
-        phoneNumber: phoneNorm,
-        code,
-        purpose: SMS_PURPOSE_PASSWORD_RESET,
-      })
-
-      logSmsEvent('password_reset_code_issued', {
-        purpose: SMS_PURPOSE_PASSWORD_RESET,
-        userId: user.id,
-      })
-
-      const payload = { ok: true, message: '인증번호가 발송되었습니다. (SMS 미연동 시 문자는 수신되지 않을 수 있습니다)' }
-      if (showDebugCode) {
-        payload.debugCode = code
-      }
-      res.json(payload)
     } catch (e) {
       try {
         await client.query('ROLLBACK')
@@ -190,9 +180,53 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         /* ignore */
       }
       handleDbError(e, res)
+      return
     } finally {
       client.release()
     }
+
+    const smsResult = await sendVerificationCode({
+      phoneNumber: phoneNorm,
+      code,
+      purpose: SMS_PURPOSE_PASSWORD_RESET,
+    })
+
+    if (!smsResult?.success) {
+      if (newCodeRowId != null) {
+        await pool.query('DELETE FROM sms_verification_codes WHERE id = $1', [newCodeRowId])
+      }
+      res.status(503).json({
+        message: '문자 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+      })
+      return
+    }
+
+    const quotaClient = await pool.connect()
+    try {
+      await quotaClient.query('BEGIN')
+      await applyUserSmsRequestAfterSend(quotaClient, user.id, quota, userGa)
+      await quotaClient.query('COMMIT')
+    } catch (eq) {
+      try {
+        await quotaClient.query('ROLLBACK')
+      } catch {
+        /* ignore */
+      }
+      console.error('[sms-auth] password_reset quota after SMS failed', eq)
+    } finally {
+      quotaClient.release()
+    }
+
+    logSmsEvent('password_reset_code_issued', {
+      purpose: SMS_PURPOSE_PASSWORD_RESET,
+      userId: user.id,
+    })
+
+    const payload = { ok: true, message: '인증번호가 발송되었습니다.' }
+    if (showDebugCode) {
+      payload.debugCode = code
+    }
+    res.json(payload)
   })
 
   apiRouter.post('/auth/reset-password-by-sms', async (req, res) => {
@@ -324,6 +358,12 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
 
   apiRouter.post('/account/request-reset-account-code', requireAuth, requireEndUser, async (req, res) => {
     const client = await pool.connect()
+    let phoneNorm = ''
+    let code = ''
+    let newCodeRowId
+    let quota
+    let userId = ''
+    let actorGaId
     try {
       const ipLimit = assertSmsRequestIpLimit(req)
       if (!ipLimit.ok) {
@@ -331,13 +371,13 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         return
       }
 
-      const userId = String(req.user?.id ?? '').trim()
-      const actorGaId = parseGaId(req.user?.gaId)
+      userId = String(req.user?.id ?? '').trim()
+      actorGaId = parseGaId(req.user?.gaId)
       if (actorGaId == null) {
         res.status(400).json({ message: '세션 GA 정보가 올바르지 않습니다.' })
         return
       }
-      const phoneNorm = normalizeKrMobile(req.body?.phoneNumber ?? req.body?.phone_number)
+      phoneNorm = normalizeKrMobile(req.body?.phoneNumber ?? req.body?.phone_number)
       const phoneErr = validateKrMobileDigits(phoneNorm)
       if (phoneErr) {
         res.status(400).json({ message: phoneErr })
@@ -385,7 +425,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         return
       }
 
-      const quota = evaluateUserSmsRequestQuota(u)
+      quota = evaluateUserSmsRequestQuota(u)
       if (!quota.ok) {
         await client.query('ROLLBACK')
         res.status(429).json({ message: quota.message, retryAfterSec: quota.retryAfterSec })
@@ -400,35 +440,19 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         [SMS_PURPOSE_ACCOUNT_RESET, userId],
       )
 
-      const code = String(randomInt(100_000, 1_000_000))
-      await client.query(
+      code = String(randomInt(100_000, 1_000_000))
+      const insAcct = await client.query(
         `
         INSERT INTO sms_verification_codes
           (purpose, user_id, username, phone_number, code, expires_at)
         VALUES ($1, $2, NULL, $3, $4, NOW() + INTERVAL '5 minutes')
+        RETURNING id
         `,
         [SMS_PURPOSE_ACCOUNT_RESET, userId, phoneNorm, code],
       )
+      newCodeRowId = insAcct.rows[0]?.id
 
-      await applyUserSmsRequestAfterSend(client, userId, quota, actorGaId)
       await client.query('COMMIT')
-
-      await sendVerificationCode({
-        phoneNumber: phoneNorm,
-        code,
-        purpose: SMS_PURPOSE_ACCOUNT_RESET,
-      })
-
-      logSmsEvent('account_reset_code_issued', {
-        purpose: SMS_PURPOSE_ACCOUNT_RESET,
-        userId,
-      })
-
-      const payload = { ok: true, message: '인증번호가 발송되었습니다. (SMS 미연동 시 문자는 수신되지 않을 수 있습니다)' }
-      if (showDebugCode) {
-        payload.debugCode = code
-      }
-      res.json(payload)
     } catch (e) {
       try {
         await client.query('ROLLBACK')
@@ -436,9 +460,53 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         /* ignore */
       }
       handleDbError(e, res)
+      return
     } finally {
       client.release()
     }
+
+    const smsResultAcct = await sendVerificationCode({
+      phoneNumber: phoneNorm,
+      code,
+      purpose: SMS_PURPOSE_ACCOUNT_RESET,
+    })
+
+    if (!smsResultAcct?.success) {
+      if (newCodeRowId != null) {
+        await pool.query('DELETE FROM sms_verification_codes WHERE id = $1', [newCodeRowId])
+      }
+      res.status(503).json({
+        message: '문자 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+      })
+      return
+    }
+
+    const quotaClientAcct = await pool.connect()
+    try {
+      await quotaClientAcct.query('BEGIN')
+      await applyUserSmsRequestAfterSend(quotaClientAcct, userId, quota, actorGaId)
+      await quotaClientAcct.query('COMMIT')
+    } catch (eq) {
+      try {
+        await quotaClientAcct.query('ROLLBACK')
+      } catch {
+        /* ignore */
+      }
+      console.error('[sms-auth] account_reset quota after SMS failed', eq)
+    } finally {
+      quotaClientAcct.release()
+    }
+
+    logSmsEvent('account_reset_code_issued', {
+      purpose: SMS_PURPOSE_ACCOUNT_RESET,
+      userId,
+    })
+
+    const payload = { ok: true, message: '인증번호가 발송되었습니다.' }
+    if (showDebugCode) {
+      payload.debugCode = code
+    }
+    res.json(payload)
   })
 
   apiRouter.post('/account/reset-account-by-sms', requireAuth, requireEndUser, async (req, res) => {

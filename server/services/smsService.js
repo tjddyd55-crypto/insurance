@@ -5,6 +5,9 @@ const ALIGO_USER_ID = process.env.ALIGO_USER_ID
 const ALIGO_SENDER = process.env.ALIGO_SENDER
 const ALIGO_TEST_MODE = String(process.env.ALIGO_TEST_MODE ?? 'Y').trim().toUpperCase() || 'Y'
 
+/** 설정 시 JSON `{ phone, message }` POST로 전송 (예: EC2 중계 서버). Aligo·테스트모드보다 우선 */
+const SMS_HTTP_GATEWAY_URL = String(process.env.SMS_HTTP_GATEWAY_URL ?? '').trim()
+
 const ALIGO_URL = 'https://apis.aligo.in/send/'
 
 const IS_PRODUCTION =
@@ -19,6 +22,9 @@ function maskPhone(phoneDigits) {
 }
 
 export function isSmsProviderConfigured() {
+  if (SMS_HTTP_GATEWAY_URL) {
+    return true
+  }
   return Boolean(
     String(ALIGO_API_KEY ?? '').trim() &&
       String(ALIGO_USER_ID ?? '').trim() &&
@@ -33,7 +39,39 @@ export function isSmsProviderConfigured() {
 export async function sendVerificationCode({ phoneNumber, code, purpose }) {
   const receiver = String(phoneNumber ?? '').replace(/[^0-9]/g, '')
   const purposeNorm = String(purpose ?? '')
-  const message = `[인증번호] ${code} (5분 이내 입력해주세요)`
+  const messageGateway = `인증번호는 ${code} 입니다.`
+  const messageAligo = `[인증번호] ${code} (3분 이내 입력해주세요)`
+
+  if (SMS_HTTP_GATEWAY_URL) {
+    try {
+      const response = await axios.post(
+        SMS_HTTP_GATEWAY_URL,
+        { phone: receiver, message: messageGateway },
+        {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 20_000,
+          validateStatus: () => true,
+        },
+      )
+      if (response.status >= 200 && response.status < 300) {
+        return { success: true, sent: true, data: response.data }
+      }
+      console.error('[smsService] HTTP SMS gateway non-OK:', {
+        status: response.status,
+        data: response.data,
+        purpose: purposeNorm,
+        to: maskPhone(receiver),
+      })
+      return { success: false, sent: false, data: response.data }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.error('[smsService] HTTP SMS gateway error:', msg, {
+        purpose: purposeNorm,
+        to: maskPhone(receiver),
+      })
+      return { success: false, sent: false, error }
+    }
+  }
 
   if (ALIGO_TEST_MODE === 'Y') {
     if (IS_PRODUCTION) {
@@ -60,7 +98,7 @@ export async function sendVerificationCode({ phoneNumber, code, purpose }) {
       user_id: String(ALIGO_USER_ID),
       sender: String(ALIGO_SENDER),
       receiver,
-      msg: message,
+      msg: messageAligo,
       testmode_yn: ALIGO_TEST_MODE,
     })
     const response = await axios.post(ALIGO_URL, body.toString(), {
