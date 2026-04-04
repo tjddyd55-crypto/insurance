@@ -7,7 +7,7 @@ import { getAllPublishedForGa } from '../services/insurerNews.service'
 import type { NewsletterItem } from '../types'
 
 export function NewsletterRecentPage() {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const gaCode = user?.gaCode ?? ''
   const navigate = useNavigate()
   const [all, setAll] = useState<NewsletterItem[]>([])
@@ -19,7 +19,7 @@ export function NewsletterRecentPage() {
     }
     let cancelled = false
     ;(async () => {
-      const rows = await getAllPublishedForGa(gaCode)
+      const rows = await getAllPublishedForGa(gaCode, token)
       if (!cancelled) {
         setAll(rows)
       }
@@ -27,7 +27,7 @@ export function NewsletterRecentPage() {
     return () => {
       cancelled = true
     }
-  }, [gaCode])
+  }, [gaCode, token])
 
   if (!gaCode) {
     return null

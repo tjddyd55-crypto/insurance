@@ -847,6 +847,25 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS insurance_company_newsletter_attachments (
+      id TEXT PRIMARY KEY,
+      newsletter_id TEXT NOT NULL REFERENCES insurance_company_newsletters(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      url TEXT NOT NULL,
+      object_key TEXT NOT NULL,
+      file_name TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      size_bytes BIGINT NOT NULL DEFAULT 0,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_icn_att_newsletter
+    ON insurance_company_newsletter_attachments(newsletter_id)
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS insurance_company_merge_logs (
       id SERIAL PRIMARY KEY,
       keep_id INTEGER NOT NULL,

@@ -1,68 +1,283 @@
+import { apiRequest } from '../../../lib/apiClient'
 import { listCompanyDirectory } from '../../company-registry/api/companyRegistryApi'
-import { buildNewsletterContextFromCompany, isNewsletterInCompanyScope } from '../lib/insurerNewsCompanyScope'
-import { mockInsurersForGa } from '../mock/insurers'
-import { mockNewslettersPublishedForGa, toNewsletterItem } from '../mock/newsletters'
-import type { InsurerSummary, NewsletterDetail, NewsletterItem } from '../types'
+import { isNewsletterInCompanyScope } from '../lib/insurerNewsCompanyScope'
+import { cdnUrlForObjectKey } from '../lib/insurerNewsCdn'
+import { validateInsurerNewsFile } from '../utils/validateInsurerNewsFile'
+import type { InsurerSummary, LocalAttachmentDraft, NewsletterDetail, NewsletterItem } from '../types'
 
 function sortByPublishedDesc<T extends { publishedAt: string }>(rows: T[]): T[] {
   return [...rows].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
 }
 
-/** TODO(insurer-news): GET /api/.../newsletters/recent?ga= */
-export async function getRecentNewslettersByGa(gaCode: string, limit = 8): Promise<NewsletterItem[]> {
-  const rows = sortByPublishedDesc(mockNewslettersPublishedForGa(gaCode)).map(toNewsletterItem)
-  return rows.slice(0, limit)
+type PublishContextApi = {
+  gaCode: string
+  insurerCode: string
+  insurerName: string
+  insurerSlug: string
 }
 
-/** TODO(insurer-news): GET 목록 API */
+export type InsurerNewsFeedResponse = {
+  newsletters: NewsletterItem[]
+  insurers: InsurerSummary[]
+}
+
+async function fetchPublishContextApi(token: string): Promise<PublishContextApi> {
+  return apiRequest<PublishContextApi>('/api/insurer-news/manager/publish-context', { token })
+}
+
+async function fetchInsurerNewsFeed(
+  gaCode: string,
+  token: string,
+  opts?: { limit?: number; insurerSlug?: string },
+): Promise<InsurerNewsFeedResponse> {
+  const limit = opts?.limit ?? 500
+  const sp = new URLSearchParams({
+    gaCode: gaCode.trim(),
+    limit: String(limit),
+  })
+  if (opts?.insurerSlug?.trim()) {
+    sp.set('insurerSlug', opts.insurerSlug.trim().toLowerCase())
+  }
+  return apiRequest<InsurerNewsFeedResponse>(`/api/insurer-news/feed?${sp}`, { token })
+}
+
+export async function getRecentNewslettersByGa(gaCode: string, limit = 8, token?: string | null): Promise<NewsletterItem[]> {
+  if (!token?.trim()) {
+    return []
+  }
+  const { newsletters } = await fetchInsurerNewsFeed(gaCode, token, { limit: Math.max(limit, 50) })
+  return sortByPublishedDesc(newsletters).slice(0, limit)
+}
+
 export async function getNewslettersByInsurer(
   gaCode: string,
   insurerSlug: string,
+  token?: string | null,
 ): Promise<NewsletterItem[]> {
-  const rows = mockNewslettersPublishedForGa(gaCode).filter(
-    (n) => n.insurerSlug === insurerSlug.trim().toLowerCase(),
-  )
-  return sortByPublishedDesc(rows).map(toNewsletterItem)
+  if (!token?.trim()) {
+    return []
+  }
+  const { newsletters } = await fetchInsurerNewsFeed(gaCode, token, {
+    insurerSlug: insurerSlug.trim().toLowerCase(),
+    limit: 500,
+  })
+  return sortByPublishedDesc(newsletters)
 }
 
-/** TODO(insurer-news): GET 상세 API */
-export async function getNewsletterDetail(gaCode: string, newsletterId: string): Promise<NewsletterDetail | null> {
-  const row = mockNewslettersPublishedForGa(gaCode).find((n) => n.id === newsletterId)
-  return row ?? null
+export async function getNewsletterDetail(
+  gaCode: string,
+  newsletterId: string,
+  token?: string | null,
+): Promise<NewsletterDetail | null> {
+  if (!token?.trim()) {
+    return null
+  }
+  const q = new URLSearchParams({ gaCode })
+  try {
+    return await apiRequest<NewsletterDetail>(`/api/insurer-news/feed/${encodeURIComponent(newsletterId)}?${q}`, {
+      token,
+    })
+  } catch {
+    return null
+  }
 }
 
-/** TODO(insurer-news): GET /insurers */
-export async function getInsurersForGa(gaCode: string): Promise<InsurerSummary[]> {
-  return mockInsurersForGa(gaCode).sort((a, b) => a.insurerName.localeCompare(b.insurerName, 'ko'))
+export async function getInsurersForGa(gaCode: string, token?: string | null): Promise<InsurerSummary[]> {
+  if (!token?.trim()) {
+    return []
+  }
+  const { insurers } = await fetchInsurerNewsFeed(gaCode, token, { limit: 1 })
+  return [...insurers].sort((a, b) => a.insurerName.localeCompare(b.insurerName, 'ko'))
 }
 
-/** 검색·필터는 클라이언트에서 목록 받아 처리 — 추후 서버 검색으로 대체 */
-export async function getAllPublishedForGa(gaCode: string): Promise<NewsletterItem[]> {
-  return sortByPublishedDesc(mockNewslettersPublishedForGa(gaCode)).map(toNewsletterItem)
-}
-
-/** TODO(insurer-news): 파일별 presign · 완료 콜백 — R2 연결 시 구현 */
-export async function uploadNewsletterAttachments(): Promise<never> {
-  throw new Error('TODO(insurer-news): uploadNewsletterAttachments — presign 파이프라인')
+export async function getAllPublishedForGa(gaCode: string, token?: string | null): Promise<NewsletterItem[]> {
+  if (!token?.trim()) {
+    return []
+  }
+  const { newsletters } = await fetchInsurerNewsFeed(gaCode, token, { limit: 500 })
+  return sortByPublishedDesc(newsletters)
 }
 
 /**
- * 원수사 담당자: 디렉터리에서 본인 company_id 행을 조회한 뒤, 동일 GA·동일 원수사 소식지만 반환.
- * TODO: GET /api/.../newsletters?companyId= 로 대체 시에도 서버에서 company_id 스코프 강제.
+ * @param presignInsurerCode GA 스태프 등 세션 외 원수사 지정이 필요할 때 presign body에 포함
  */
+export async function uploadNewsletterAttachments(
+  token: string,
+  drafts: LocalAttachmentDraft[],
+  options?: { presignInsurerCode?: string },
+): Promise<LocalAttachmentDraft[]> {
+  const presignInsurerCode = options?.presignInsurerCode?.trim()
+  const out: LocalAttachmentDraft[] = []
+  for (const item of drafts) {
+    if (item.status === 'failed') {
+      out.push(item)
+      continue
+    }
+    if (item.cdnUrl && item.objectKey) {
+      out.push({ ...item, status: 'completed' })
+      continue
+    }
+    if (item.file.size === 0 && item.existingAttachmentId) {
+      if (!item.cdnUrl || !item.objectKey) {
+        out.push({
+          ...item,
+          status: 'failed',
+          errorMessage: '기존 첨부 메타가 없습니다. 페이지를 새로고침 후 다시 시도해 주세요.',
+        })
+        continue
+      }
+      out.push(item)
+      continue
+    }
+
+    const v = validateInsurerNewsFile(item.file)
+    if (!v.ok) {
+      out.push({ ...item, status: 'failed', errorMessage: v.message })
+      continue
+    }
+
+    const contentType = item.file.type || (v.kind === 'pdf' ? 'application/pdf' : 'image/jpeg')
+    try {
+      const presignBody: Record<string, unknown> = {
+        fileName: item.file.name || 'file',
+        contentType,
+        sizeBytes: item.file.size,
+      }
+      if (presignInsurerCode) {
+        presignBody.insurerCode = presignInsurerCode
+      }
+      const presign = await apiRequest<{ uploadUrl: string; objectKey: string }>(
+        '/api/insurer-news/attachments/presign',
+        {
+          method: 'POST',
+          token,
+          body: JSON.stringify(presignBody),
+        },
+      )
+
+      const put = await fetch(presign.uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': contentType,
+        },
+        body: item.file,
+      })
+
+      if (!put.ok) {
+        const msg = `업로드 실패 (${put.status})`
+        out.push({ ...item, status: 'failed', errorMessage: msg })
+        continue
+      }
+
+      const url = cdnUrlForObjectKey(presign.objectKey)
+      out.push({
+        ...item,
+        status: 'completed',
+        cdnUrl: url,
+        objectKey: presign.objectKey,
+        mimeType: contentType,
+        sizeBytes: item.file.size,
+      })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '업로드에 실패했습니다.'
+      out.push({ ...item, status: 'failed', errorMessage: msg })
+    }
+  }
+  return out
+}
+
+export async function createManagerNewsletter(token: string, draft: NewsletterDetail): Promise<NewsletterDetail> {
+  return apiRequest<NewsletterDetail>('/api/insurer-news/manager/newsletters', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({
+      title: draft.title,
+      bodyText: draft.bodyText,
+      status: draft.status,
+      gaCode: draft.gaCode,
+      insurerCode: draft.insurerCode,
+      insurerSlug: draft.insurerSlug,
+      insurerName: draft.insurerName,
+      summary: draft.summary,
+      publishedAt: draft.publishedAt,
+      attachments: draft.attachments.map((a) => ({
+        kind: a.kind,
+        url: a.url,
+        objectKey: a.objectKey,
+        fileName: a.fileName,
+        mimeType: a.mimeType,
+        size: a.size,
+        sortOrder: a.sortOrder,
+      })),
+    }),
+  })
+}
+
+export async function updateManagerNewsletter(
+  token: string,
+  newsletterId: string,
+  draft: NewsletterDetail,
+): Promise<NewsletterDetail> {
+  return apiRequest<NewsletterDetail>(`/api/insurer-news/manager/newsletters/${encodeURIComponent(newsletterId)}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({
+      title: draft.title,
+      bodyText: draft.bodyText,
+      status: draft.status,
+      gaCode: draft.gaCode,
+      insurerCode: draft.insurerCode,
+      insurerSlug: draft.insurerSlug,
+      insurerName: draft.insurerName,
+      summary: draft.summary,
+      publishedAt: draft.publishedAt,
+      attachments: draft.attachments.map((a) => ({
+        kind: a.kind,
+        url: a.url,
+        objectKey: a.objectKey,
+        fileName: a.fileName,
+        mimeType: a.mimeType,
+        size: a.size,
+        sortOrder: a.sortOrder,
+      })),
+    }),
+  })
+}
+
+export async function listManagerNewsletters(token: string): Promise<NewsletterItem[]> {
+  const rows = await apiRequest<NewsletterItem[]>('/api/insurer-news/manager/newsletters', { token })
+  return sortByPublishedDesc(rows)
+}
+
+export async function getManagerNewsletterDetail(token: string, id: string): Promise<NewsletterDetail | null> {
+  try {
+    return await apiRequest<NewsletterDetail>(`/api/insurer-news/manager/newsletters/${encodeURIComponent(id)}`, {
+      token,
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function deleteNewsletterAttachment(token: string, attachmentId: string): Promise<void> {
+  await apiRequest<void>(`/api/insurer-news/attachments/${encodeURIComponent(attachmentId)}`, {
+    method: 'DELETE',
+    token,
+  })
+}
+
 export async function getNewslettersForInsurerManagerCompany(
   token: string,
   gaCode: string,
   companyMasterId: number,
 ): Promise<NewsletterItem[]> {
-  const rows = await listCompanyDirectory(token)
-  const entry = rows.find((r) => r.id === companyMasterId)
+  const rows = await listManagerNewsletters(token)
+  const companies = await listCompanyDirectory(token)
+  const entry = companies.find((r) => r.id === companyMasterId)
   if (!entry) {
     return []
   }
-  const published = mockNewslettersPublishedForGa(gaCode)
-  const scoped = published.filter((n) => isNewsletterInCompanyScope(n, entry, gaCode))
-  return sortByPublishedDesc(scoped).map(toNewsletterItem)
+  return rows.filter((item) => isNewsletterInCompanyScope(item as NewsletterDetail, entry, gaCode))
 }
 
 export async function getNewsletterDetailForInsurerManager(
@@ -71,31 +286,43 @@ export async function getNewsletterDetailForInsurerManager(
   companyMasterId: number,
   newsletterId: string,
 ): Promise<NewsletterDetail | null> {
-  const rows = await listCompanyDirectory(token)
-  const entry = rows.find((r) => r.id === companyMasterId)
-  if (!entry) {
+  const detail = await getManagerNewsletterDetail(token, newsletterId)
+  if (!detail) {
     return null
   }
-  const row = mockNewslettersPublishedForGa(gaCode).find((n) => n.id === newsletterId)
-  if (!row || !isNewsletterInCompanyScope(row, entry, gaCode)) {
+  const companies = await listCompanyDirectory(token)
+  const entry = companies.find((r) => r.id === companyMasterId)
+  if (!entry || !isNewsletterInCompanyScope(detail, entry, gaCode)) {
     return null
   }
-  return row
+  return detail
 }
 
-/** 업로드 폼용 — 로그인 세션 company_id 에 맞는 발행 컨텍스트 */
 export async function resolveInsurerManagerPublishContext(
   token: string,
   gaCode: string,
   companyMasterId: number,
-): Promise<
-  | { gaCode: string; insurerCode: string; insurerName: string; insurerSlug: string }
-  | { error: string }
-> {
-  const rows = await listCompanyDirectory(token)
-  const entry = rows.find((r) => r.id === companyMasterId)
-  if (!entry) {
-    return { error: '소속 원수사 정보를 찾을 수 없습니다. GA 관리자에게 문의해 주세요.' }
+): Promise<PublishContextApi | { error: string }> {
+  try {
+    const apiCtx = await fetchPublishContextApi(token)
+    if (apiCtx.gaCode.toUpperCase() !== gaCode.trim().toUpperCase()) {
+      return { error: 'GA 정보가 일치하지 않습니다. 다시 로그인해 주세요.' }
+    }
+    const rows = await listCompanyDirectory(token)
+    const entry = rows.find((r) => r.id === companyMasterId)
+    if (!entry) {
+      return { error: '소속 원수사 정보를 찾을 수 없습니다. GA 관리자에게 문의해 주세요.' }
+    }
+    if (apiCtx.insurerCode.toUpperCase() !== entry.companyCode.trim().toUpperCase()) {
+      return { error: '원수사 정보가 일치하지 않습니다. GA 관리자에게 문의해 주세요.' }
+    }
+    return {
+      gaCode: apiCtx.gaCode.toUpperCase(),
+      insurerCode: apiCtx.insurerCode,
+      insurerName: apiCtx.insurerName,
+      insurerSlug: apiCtx.insurerSlug,
+    }
+  } catch {
+    return { error: '발행 컨텍스트를 불러오지 못했습니다. 다시 로그인해 주세요.' }
   }
-  return buildNewsletterContextFromCompany(gaCode, entry)
 }

@@ -7,7 +7,7 @@ import { getInsurersForGa, getRecentNewslettersByGa } from '../services/insurerN
 import type { InsurerSummary, NewsletterItem } from '../types'
 
 export function NewsletterHubPage() {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const gaCode = user?.gaCode ?? ''
   const navigate = useNavigate()
   const [recent, setRecent] = useState<NewsletterItem[]>([])
@@ -19,7 +19,10 @@ export function NewsletterHubPage() {
     }
     let cancelled = false
     ;(async () => {
-      const [r, ins] = await Promise.all([getRecentNewslettersByGa(gaCode, 6), getInsurersForGa(gaCode)])
+      const [r, ins] = await Promise.all([
+        getRecentNewslettersByGa(gaCode, 6, token),
+        getInsurersForGa(gaCode, token),
+      ])
       if (!cancelled) {
         setRecent(r)
         setInsurers(ins)
@@ -28,7 +31,7 @@ export function NewsletterHubPage() {
     return () => {
       cancelled = true
     }
-  }, [gaCode])
+  }, [gaCode, token])
 
   if (!gaCode) {
     return null

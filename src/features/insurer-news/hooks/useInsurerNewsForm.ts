@@ -5,11 +5,17 @@ import { useAttachmentUploadQueue } from './useAttachmentUploadQueue'
 function attachmentsToDrafts(attachments: NewsletterAttachment[]): LocalAttachmentDraft[] {
   return attachments.map((a) => ({
     localId: `existing-${a.id}`,
-    file: new File([], a.fileName, { type: a.kind === 'pdf' ? 'application/pdf' : 'image/png' }),
+    file: new File([], a.fileName, {
+      type: a.mimeType ?? (a.kind === 'pdf' ? 'application/pdf' : 'image/png'),
+    }),
     kind: a.kind,
     previewUrl: a.kind === 'image' ? a.url : null,
     status: 'completed' as const,
     existingAttachmentId: a.id,
+    cdnUrl: a.url,
+    objectKey: a.objectKey,
+    mimeType: a.mimeType,
+    sizeBytes: a.size,
   }))
 }
 

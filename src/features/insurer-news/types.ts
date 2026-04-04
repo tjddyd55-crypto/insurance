@@ -23,10 +23,12 @@ export interface InsurerSummary {
 export interface NewsletterAttachment {
   id: string
   kind: 'image' | 'pdf'
-  /** TODO(insurer-news): 실제 연결 후 서명 URL 또는 API 경로 */
   url: string
   fileName: string
   sortOrder: number
+  objectKey?: string
+  mimeType?: string
+  size?: number
 }
 
 /** 목록·카드용 소식지 행 */
@@ -52,27 +54,6 @@ export interface NewsletterDetail extends NewsletterItem {
   attachments: NewsletterAttachment[]
 }
 
-/** 원수사 관리자 계정 (이메일 필드 없음) */
-export interface InsurerManagerAccount {
-  id: string
-  gaCode: string
-  insurerCode: string
-  insurerName: string
-  username: string
-  /** 데모용 평문 비밀번호 — 실제 연결 시 제거 */
-  passwordPlain: string
-  status: 'ACTIVE' | 'DISABLED'
-  lastLoginAt?: string
-}
-
-export interface InsurerNewsAdminSession {
-  accountId: string
-  gaCode: string
-  insurerCode: string
-  insurerName: string
-  username: string
-}
-
 /** 업로드 큐 아이템 (폼 상태) */
 export interface LocalAttachmentDraft {
   localId: string
@@ -81,6 +62,11 @@ export interface LocalAttachmentDraft {
   previewUrl: string | null
   status: UploadStatus
   errorMessage?: string
-  /** 기존 첨부 수정 시 서버 id — mock 단계에서는 선택 */
+  /** 기존 첨부 수정 시 서버 id */
   existingAttachmentId?: string
+  /** R2 업로드 완료 후 CDN URL (저장용) */
+  cdnUrl?: string
+  objectKey?: string
+  mimeType?: string
+  sizeBytes?: number
 }

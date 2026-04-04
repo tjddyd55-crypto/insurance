@@ -21,6 +21,7 @@ import {
 } from './lib/rbacScope.js'
 import { logSecurityEvent, writeSecurityAudit } from './lib/securityAudit.js'
 import { registerConsentApi } from './registerConsentApi.js'
+import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 
 const PORT = Number(process.env.PORT ?? 3001)
@@ -1204,6 +1205,16 @@ registerConsentApi(apiRouter, {
   parseGaId,
   handleDbError,
   JWT_SECRET,
+})
+
+registerInsurerNewsApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+  withTransaction,
+  effectiveTenantGaId,
+  parseGaId,
+  resolveTenantGaIdForRequest,
 })
 
 registerAuthAccountSmsApi(apiRouter, {

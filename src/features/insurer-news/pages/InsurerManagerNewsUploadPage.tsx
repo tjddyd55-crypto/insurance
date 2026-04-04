@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { PageBackButton } from '../../../components/common/PageBackButton'
 import { useAuth } from '../../auth/AuthProvider'
 import { InsurerNewsForm } from '../components/InsurerNewsForm'
-import { createNewsletter } from '../services/insurerNewsAdmin.service'
-import { resolveInsurerManagerPublishContext } from '../services/insurerNews.service'
+import { createManagerNewsletter, resolveInsurerManagerPublishContext } from '../services/insurerNews.service'
 
 export function InsurerManagerNewsUploadPage() {
   const { user, token } = useAuth()
@@ -80,9 +79,10 @@ export function InsurerManagerNewsUploadPage() {
         mode="create"
         initial={null}
         context={context}
+        authToken={token}
         onCancel={() => navigate('/insurer/news')}
         onSubmit={async (draft) => {
-          await createNewsletter(draft)
+          await createManagerNewsletter(token!, draft)
           navigate('/insurer/news')
         }}
       />

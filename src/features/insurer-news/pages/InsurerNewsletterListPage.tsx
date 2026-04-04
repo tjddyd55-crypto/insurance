@@ -7,7 +7,7 @@ import type { NewsletterItem } from '../types'
 
 export function InsurerNewsletterListPage() {
   const { insurerSlug } = useParams<{ insurerSlug: string }>()
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const gaCode = user?.gaCode ?? ''
   const navigate = useNavigate()
   const [items, setItems] = useState<NewsletterItem[]>([])
@@ -19,9 +19,9 @@ export function InsurerNewsletterListPage() {
     }
     let cancelled = false
     ;(async () => {
-      const insurers = await getInsurersForGa(gaCode)
+      const insurers = await getInsurersForGa(gaCode, token)
       const match = insurers.find((x) => x.insurerSlug === insurerSlug)
-      const rows = await getNewslettersByInsurer(gaCode, insurerSlug)
+      const rows = await getNewslettersByInsurer(gaCode, insurerSlug, token)
       if (!cancelled) {
         setItems(rows)
         setInsurerName(match?.insurerName ?? '')
@@ -30,7 +30,7 @@ export function InsurerNewsletterListPage() {
     return () => {
       cancelled = true
     }
-  }, [gaCode, insurerSlug])
+  }, [gaCode, insurerSlug, token])
 
   if (!gaCode) {
     return null

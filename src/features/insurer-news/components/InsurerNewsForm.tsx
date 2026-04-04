@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useInsurerNewsForm } from '../hooks/useInsurerNewsForm'
 import type { LocalAttachmentDraft, NewsletterDetail } from '../types'
+import { uploadNewsletterAttachments } from '../services/insurerNews.service'
 import { InsurerNewsUploadDropzone } from './InsurerNewsUploadDropzone'
 
 const statusLabel: Record<string, string> = {
@@ -23,59 +25,47 @@ type Props = {
   }
   /** 수정 시 기존 id / 신규 시 undefined → 내부에서 생성 */
   newsletterId?: string
+  /** 저장 전 R2 업로드 후 CDN URL 기준으로 저장 */
+  authToken: string | null
 }
 
-function buildDraft(
+/** API 저장용 — 반드시 cdnUrl + objectKey (미리보기 blob 금지) */
+function buildDraftForApi(
   id: string,
   ctx: Props['context'],
   title: string,
   bodyText: string,
   attachmentItems: LocalAttachmentDraft[],
+  initial: NewsletterDetail | null,
 ): NewsletterDetail {
   const summary =
     bodyText.trim().slice(0, 160) || title.trim().slice(0, 160) || '요약 없음'
-  const images = attachmentItems.filter((a) => a.kind === 'image' && a.status !== 'failed')
-  const pdfs = attachmentItems.filter((a) => a.kind === 'pdf' && a.status !== 'failed')
-  const attachments = attachmentItems
-    .filter((a) => a.status !== 'failed')
-    .map((a, i) => {
-      if (a.existingAttachmentId && a.previewUrl && a.kind === 'image') {
-        return {
-          id: a.existingAttachmentId,
-          kind: 'image' as const,
-          url: a.previewUrl,
-          fileName: a.file.name || `image-${i}.webp`,
-          sortOrder: i,
-        }
-      }
-      if (a.existingAttachmentId && a.kind === 'pdf') {
-        return {
-          id: a.existingAttachmentId,
-          kind: 'pdf' as const,
-          url: '#',
-          fileName: a.file.name || `file-${i}.pdf`,
-          sortOrder: i,
-        }
-      }
-      if (a.kind === 'image' && a.previewUrl) {
-        return {
-          id: a.localId,
-          kind: 'image' as const,
-          url: a.previewUrl,
-          fileName: a.file.name,
-          sortOrder: i,
-        }
-      }
-      return {
-        id: a.localId,
-        kind: 'pdf' as const,
-        url: '#',
-        fileName: a.file.name,
-        sortOrder: i,
-      }
-    })
+  const ok = attachmentItems.filter((a) => a.status !== 'failed')
+  const images = ok.filter((a) => a.kind === 'image')
+  const pdfs = ok.filter((a) => a.kind === 'pdf')
 
-  const heroImageUrl = images[0]?.previewUrl ?? null
+  const attachments = ok.map((a, i) => {
+    const url = a.cdnUrl ?? ''
+    const objectKey = a.objectKey ?? ''
+    const mimeType =
+      a.mimeType ?? (a.kind === 'pdf' ? 'application/pdf' : a.file.type || 'application/octet-stream')
+    const size = a.sizeBytes ?? a.file.size
+    if (!url || !objectKey) {
+      throw new Error('첨부 업로드 정보가 없습니다. 다시 시도해 주세요.')
+    }
+    return {
+      id: a.existingAttachmentId ?? a.localId,
+      kind: a.kind,
+      url,
+      objectKey,
+      fileName: a.file.name || (a.kind === 'pdf' ? `file-${i}.pdf` : `image-${i}.webp`),
+      mimeType,
+      size,
+      sortOrder: i,
+    }
+  })
+
+  const heroImageUrl = images[0]?.cdnUrl ?? null
 
   return {
     id,
@@ -86,8 +76,8 @@ function buildDraft(
     title: title.trim(),
     summary,
     heroImageUrl,
-    publishedAt: new Date().toISOString(),
-    status: 'PUBLISHED',
+    publishedAt: initial?.publishedAt ?? new Date().toISOString(),
+    status: initial?.status ?? 'PUBLISHED',
     hasImages: images.length > 0,
     hasPdf: pdfs.length > 0,
     hasTextBody: bodyText.trim().length > 0,
@@ -96,17 +86,45 @@ function buildDraft(
   }
 }
 
-export function InsurerNewsForm({ mode, initial, onSubmit, onCancel, context, newsletterId }: Props) {
+export function InsurerNewsForm({
+  mode,
+  initial,
+  onSubmit,
+  onCancel,
+  context,
+  newsletterId,
+  authToken,
+}: Props) {
   const form = useInsurerNewsForm(initial)
+  const [submitError, setSubmitError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitError('')
     const id =
       newsletterId ??
       initial?.id ??
       `nl-${context.gaCode.toLowerCase()}-${context.insurerCode.toLowerCase()}-${Date.now()}`
-    const draft = buildDraft(id, context, form.title, form.bodyText, form.attachments)
-    await onSubmit(draft)
+
+    if (!authToken?.trim()) {
+      setSubmitError('로그인이 필요합니다.')
+      return
+    }
+    const uploaded = await uploadNewsletterAttachments(authToken, form.attachments, {
+      presignInsurerCode: context.insurerCode,
+    })
+    form.replaceAttachments(uploaded)
+    if (uploaded.some((a) => a.status === 'failed')) {
+      setSubmitError('일부 파일 업로드에 실패했습니다. 실패한 항목을 확인한 뒤 다시 시도해 주세요.')
+      return
+    }
+    try {
+      const draft = buildDraftForApi(id, context, form.title, form.bodyText, uploaded, initial)
+      await onSubmit(draft)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '저장에 실패했습니다.'
+      setSubmitError(msg)
+    }
   }
 
   return (
@@ -135,6 +153,12 @@ export function InsurerNewsForm({ mode, initial, onSubmit, onCancel, context, ne
           placeholder="본문을 입력하세요"
         />
       </label>
+
+      {submitError ? (
+        <p className="insurer-news-upload-row__status insurer-news-upload-row__status--err" style={{ marginBottom: 12 }}>
+          {submitError}
+        </p>
+      ) : null}
 
       <div className="field">
         <span className="field__label">파일</span>

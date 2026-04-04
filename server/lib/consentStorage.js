@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 const LOCAL_ROOT = path.join(process.cwd(), 'server-data', 'consent-storage')
@@ -43,6 +43,26 @@ export function isConsentR2Enabled() {
 }
 
 /** @param {Buffer} body */
+/**
+ * R2 객체 삭제 (lifecycle / orphan 정리). 로컬 스토리지 모드에서는 파일 삭제 생략.
+ * @param {string} key
+ * @returns {Promise<boolean>} R2에서 삭제 시도했으면 true
+ */
+export async function r2DeleteObject(key) {
+  const c = r2Credentials()
+  const client = getS3()
+  if (!client || !c) {
+    return false
+  }
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: c.bucket,
+      Key: key,
+    }),
+  )
+  return true
+}
+
 export async function consentPutObject(key, body, contentType = 'application/octet-stream') {
   const c = r2Credentials()
   const client = getS3()
@@ -98,4 +118,29 @@ export async function consentGetSignedDownloadUrl(key, expiresSec = 900) {
     Key: key,
   })
   return getSignedUrl(client, command, { expiresIn: expiresSec })
+}
+
+/**
+ * R2 업로드용 presigned PUT URL (원수사 소식 첨부 등).
+ * @param {string} key
+ * @param {string} contentType
+ * @param {number} expiresSec
+ */
+export async function r2GetPresignedPutUrl(key, contentType, expiresSec = 900) {
+  const c = r2Credentials()
+  const client = getS3()
+  if (!client || !c) {
+    return null
+  }
+  const command = new PutObjectCommand({
+    Bucket: c.bucket,
+    Key: key,
+    ContentType: contentType || 'application/octet-stream',
+  })
+  return getSignedUrl(client, command, { expiresIn: expiresSec })
+}
+
+/** 공개 CDN 베이스 (끝 슬래시 없음). R2 커스텀 도메인 또는 Workers. */
+export function getR2PublicCdnBase() {
+  return String(process.env.R2_PUBLIC_CDN_BASE ?? 'https://cdn.platform-assets.com').replace(/\/$/, '')
 }

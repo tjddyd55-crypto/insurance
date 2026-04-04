@@ -6,7 +6,7 @@ import { getInsurersForGa } from '../services/insurerNews.service'
 import type { InsurerSummary } from '../types'
 
 export function InsurerListPage() {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const gaCode = user?.gaCode ?? ''
   const navigate = useNavigate()
   const [insurers, setInsurers] = useState<InsurerSummary[]>([])
@@ -17,7 +17,7 @@ export function InsurerListPage() {
     }
     let cancelled = false
     ;(async () => {
-      const rows = await getInsurersForGa(gaCode)
+      const rows = await getInsurersForGa(gaCode, token)
       if (!cancelled) {
         setInsurers(rows)
       }
@@ -25,7 +25,7 @@ export function InsurerListPage() {
     return () => {
       cancelled = true
     }
-  }, [gaCode])
+  }, [gaCode, token])
 
   if (!gaCode) {
     return null

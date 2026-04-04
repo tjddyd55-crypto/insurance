@@ -9,7 +9,7 @@ import type { NewsletterDetail } from '../types'
 
 export function NewsletterDetailPage() {
   const { newsletterId } = useParams<{ newsletterId: string }>()
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const gaCode = user?.gaCode ?? ''
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
 
@@ -19,7 +19,7 @@ export function NewsletterDetailPage() {
     }
     let cancelled = false
     ;(async () => {
-      const row = await getNewsletterDetail(gaCode, newsletterId)
+      const row = await getNewsletterDetail(gaCode, newsletterId, token)
       if (!cancelled) {
         setDetail(row)
       }
@@ -27,7 +27,7 @@ export function NewsletterDetailPage() {
     return () => {
       cancelled = true
     }
-  }, [gaCode, newsletterId])
+  }, [gaCode, newsletterId, token])
 
   if (!gaCode) {
     return null
