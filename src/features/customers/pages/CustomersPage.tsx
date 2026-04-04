@@ -208,6 +208,34 @@ function customerPassesAdvancedFilters(c: CustomerRecord, filters: CustomerAdvan
   return true
 }
 
+/** 영업 연락 우선: 상령/만기 D-day가 이 값 이하이면 오늘 대상(경과 포함) */
+const CONTACT_TARGET_DDAY_MAX = 30
+
+function isYmdWithinContactDday(ymd: string | null): boolean {
+  if (!ymd) {
+    return false
+  }
+  const d = getDDay(ymd)
+  return d !== null && d <= CONTACT_TARGET_DDAY_MAX
+}
+
+function customerIsTodayContactTarget(c: CustomerRecord): boolean {
+  const mat = getCustomerListMetrics(c).maturityYmd
+  const car = customerRenewalYmd(c)
+  return isYmdWithinContactDday(mat) || isYmdWithinContactDday(car)
+}
+
+function ymdAscSortKey(ymd: string | null): string {
+  return ymd ?? '9999-12-31'
+}
+
+function parseCreatedAtMs(iso: string | undefined | null): number {
+  const t = Date.parse(String(iso ?? ''))
+  return Number.isFinite(t) ? t : 0
+}
+
+type CustomerListSort = 'maturity_asc' | 'car_expire_asc' | 'recent'
+
 type CustomerFormState = {
   name: string
   gender: 'male' | 'female' | null
@@ -815,6 +843,7 @@ export default function CustomersPage() {
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
   const tab = searchParams.get('mode') === 'create' ? 'create' : 'list'
   const [keyword, setKeyword] = useState('')
+  const [listSort, setListSort] = useState<CustomerListSort>('maturity_asc')
   const [advancedFilters, setAdvancedFilters] = useState<CustomerAdvancedFilters>(() => ({
     ...EMPTY_ADVANCED_FILTERS,
   }))
@@ -849,6 +878,11 @@ export default function CustomersPage() {
     [keywordFilteredCustomers, advancedFilters],
   )
 
+  const todayContactTargets = useMemo(
+    () => filteredCustomers.filter((c) => customerIsTodayContactTarget(c)),
+    [filteredCustomers],
+  )
+
   const advancedFiltersActive = useMemo(() => {
     const f = advancedFilters
     return !!(
@@ -862,10 +896,36 @@ export default function CustomersPage() {
     )
   }, [advancedFilters])
 
-  const sortedCustomers = useMemo(
-    () => [...filteredCustomers].sort((a, b) => a.name.localeCompare(b.name, 'ko')),
-    [filteredCustomers],
-  )
+  const sortedCustomers = useMemo(() => {
+    const copy = [...filteredCustomers]
+    const tieName = (a: CustomerRecord, b: CustomerRecord) => a.name.localeCompare(b.name, 'ko')
+
+    if (listSort === 'maturity_asc') {
+      copy.sort((a, b) => {
+        const ka = ymdAscSortKey(getCustomerListMetrics(a).maturityYmd)
+        const kb = ymdAscSortKey(getCustomerListMetrics(b).maturityYmd)
+        const cmp = ka.localeCompare(kb)
+        return cmp !== 0 ? cmp : tieName(a, b)
+      })
+    } else if (listSort === 'car_expire_asc') {
+      copy.sort((a, b) => {
+        const ka = ymdAscSortKey(customerRenewalYmd(a))
+        const kb = ymdAscSortKey(customerRenewalYmd(b))
+        const cmp = ka.localeCompare(kb)
+        return cmp !== 0 ? cmp : tieName(a, b)
+      })
+    } else {
+      copy.sort((a, b) => {
+        const ta = parseCreatedAtMs(a.createdAt)
+        const tb = parseCreatedAtMs(b.createdAt)
+        if (tb !== ta) {
+          return tb - ta
+        }
+        return tieName(a, b)
+      })
+    }
+    return copy
+  }, [filteredCustomers, listSort])
 
   const allVisibleIds = useMemo(() => sortedCustomers.map((c) => String(c.id)), [sortedCustomers])
   const allVisibleSelected =
@@ -1266,6 +1326,44 @@ export default function CustomersPage() {
             autoComplete="off"
             aria-label="이름 또는 전화번호 검색"
           />
+
+          {!isLoading && customers.length > 0 ? (
+            <div className="customers-today-targets" role="status">
+              <p className="customers-today-targets__title">
+                🔥 오늘 연락 대상 (<strong>{todayContactTargets.length}</strong>명)
+              </p>
+              <p className="customers-today-targets__hint">
+                상령일 또는 자동차 만기 D-{CONTACT_TARGET_DDAY_MAX} 이하(임박·경과) — 현재 검색·필터 범위 기준
+              </p>
+            </div>
+          ) : null}
+
+          <div className="customers-sort-row" role="group" aria-label="목록 정렬">
+            <span className="customers-sort-row__label">정렬:</span>
+            <div className="customers-sort-row__buttons">
+              <button
+                type="button"
+                className={`button button--secondary${listSort === 'maturity_asc' ? ' customers-sort-row__btn--active' : ''}`}
+                onClick={() => setListSort('maturity_asc')}
+              >
+                상령일 빠른순
+              </button>
+              <button
+                type="button"
+                className={`button button--secondary${listSort === 'car_expire_asc' ? ' customers-sort-row__btn--active' : ''}`}
+                onClick={() => setListSort('car_expire_asc')}
+              >
+                자동차 만기순
+              </button>
+              <button
+                type="button"
+                className={`button button--secondary${listSort === 'recent' ? ' customers-sort-row__btn--active' : ''}`}
+                onClick={() => setListSort('recent')}
+              >
+                최근등록
+              </button>
+            </div>
+          </div>
 
           <div className="customers-advanced-filters" role="search" aria-label="고급 검색">
             <div className="customers-advanced-filters__grid">
