@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+} from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
@@ -13,7 +22,8 @@ import {
 import type { CustomerNote, CustomerRecord } from '../domain/types'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
 import { buildKakaoCustomerCopyText } from '../utils/customerText'
-import { calculateInsuranceInfo, formatDateYmdInput, formatInsuranceUiDate, NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
+import { calculateInsuranceAgeFromRrn, formatLocalYmd } from '../utils/insuranceAge'
+import { formatDateYmdInput, NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
 import { EXCEL_COLUMN_META, exportCustomersExcel } from '../utils/exportCustomersExcel'
 import {
   CustomerForm,
@@ -30,6 +40,24 @@ function CustomerDDayBadge({ renewalDate }: { renewalDate: string }) {
   return <span className={getDDayBadgeClass(dday)}>{`D-${dday}`}</span>
 }
 
+/** 상령일까지 남은 일수 — 30일 이내 임박 시 강조 */
+function MaturityDdayBadge({ maturityYmd }: { maturityYmd: string | null }) {
+  if (!maturityYmd) {
+    return null
+  }
+  const dday = getDDay(maturityYmd)
+  if (dday === null) {
+    return null
+  }
+  const hot = dday >= 0 && dday <= 30
+  const label = hot ? `🔥 D-${dday}` : `D-${dday}`
+  return (
+    <span className={hot ? getDDayBadgeClass(dday) : 'customer-dday'} style={{ marginLeft: 4 }}>
+      ({label})
+    </span>
+  )
+}
+
 function inferIsDriverFromDriving(driving: string): boolean | null {
   const t = String(driving ?? '').trim()
   if (!t) {
@@ -44,21 +72,42 @@ function inferIsDriverFromDriving(driving: string): boolean | null {
   return null
 }
 
-function customerInsuranceDisplay(c: CustomerRecord): { ageText: string; dateText: string } {
+type CustomerListMetrics = {
+  insuranceAge: number | null
+  maturityYmd: string | null
+}
+
+function getCustomerListMetrics(c: CustomerRecord): CustomerListMetrics {
+  const computed = calculateInsuranceAgeFromRrn(c.ssn ?? '')
+  if (computed) {
+    return {
+      insuranceAge: computed.insuranceAge,
+      maturityYmd: formatLocalYmd(computed.maturityDate),
+    }
+  }
   if (c.insuranceAge != null && c.nextAgeDate) {
+    const ymd = formatDateYmdInput(c.nextAgeDate)
     return {
-      ageText: `${c.insuranceAge}세`,
-      dateText: formatDateYmdInput(c.nextAgeDate),
+      insuranceAge: c.insuranceAge,
+      maturityYmd: ymd !== '-' ? ymd : null,
     }
   }
-  const { age, nextAgeDate } = calculateInsuranceInfo(c.ssn ?? '')
-  if (age != null && nextAgeDate) {
-    return {
-      ageText: `${age}세`,
-      dateText: formatInsuranceUiDate(nextAgeDate),
-    }
+  return { insuranceAge: null, maturityYmd: null }
+}
+
+function customerInsuranceDisplay(c: CustomerRecord): {
+  ageText: string
+  dateText: string
+  maturityYmd: string | null
+  insuranceAgeNum: number | null
+} {
+  const m = getCustomerListMetrics(c)
+  return {
+    ageText: m.insuranceAge != null ? `${m.insuranceAge}세` : '—',
+    dateText: m.maturityYmd ?? '—',
+    maturityYmd: m.maturityYmd,
+    insuranceAgeNum: m.insuranceAge,
   }
-  return { ageText: '—', dateText: '—' }
 }
 
 function genderSummaryLabel(c: CustomerRecord): string {
@@ -69,6 +118,94 @@ function genderSummaryLabel(c: CustomerRecord): string {
     return '여'
   }
   return '—'
+}
+
+type CustomerAdvancedFilters = {
+  minInsuranceAge: string
+  maxInsuranceAge: string
+  gender: '' | 'male' | 'female'
+  maturityFrom: string
+  maturityTo: string
+  carExpireFrom: string
+  carExpireTo: string
+}
+
+const EMPTY_ADVANCED_FILTERS: CustomerAdvancedFilters = {
+  minInsuranceAge: '',
+  maxInsuranceAge: '',
+  gender: '',
+  maturityFrom: '',
+  maturityTo: '',
+  carExpireFrom: '',
+  carExpireTo: '',
+}
+
+
+function parseOptionalInt(s: string): number | null {
+  const t = s.trim()
+  if (!t) {
+    return null
+  }
+  const n = Number.parseInt(t, 10)
+  return Number.isFinite(n) ? n : null
+}
+
+function customerRenewalYmd(c: CustomerRecord): string | null {
+  const raw = (c.renewalDate ?? '').trim().slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null
+}
+
+function customerPassesAdvancedFilters(c: CustomerRecord, filters: CustomerAdvancedFilters): boolean {
+  const metrics = getCustomerListMetrics(c)
+
+  if (filters.gender === 'male' || filters.gender === 'female') {
+    if (c.gender !== filters.gender) {
+      return false
+    }
+  }
+
+  const minA = parseOptionalInt(filters.minInsuranceAge)
+  if (minA != null) {
+    if (metrics.insuranceAge == null || metrics.insuranceAge < minA) {
+      return false
+    }
+  }
+
+  const maxA = parseOptionalInt(filters.maxInsuranceAge)
+  if (maxA != null) {
+    if (metrics.insuranceAge == null || metrics.insuranceAge > maxA) {
+      return false
+    }
+  }
+
+  const matFrom = filters.maturityFrom.trim()
+  if (matFrom) {
+    if (!metrics.maturityYmd || metrics.maturityYmd < matFrom) {
+      return false
+    }
+  }
+  const matTo = filters.maturityTo.trim()
+  if (matTo) {
+    if (!metrics.maturityYmd || metrics.maturityYmd > matTo) {
+      return false
+    }
+  }
+
+  const renewalYmd = customerRenewalYmd(c)
+  const carFrom = filters.carExpireFrom.trim()
+  if (carFrom) {
+    if (!renewalYmd || renewalYmd < carFrom) {
+      return false
+    }
+  }
+  const carTo = filters.carExpireTo.trim()
+  if (carTo) {
+    if (!renewalYmd || renewalYmd > carTo) {
+      return false
+    }
+  }
+
+  return true
 }
 
 type CustomerFormState = {
@@ -120,6 +257,549 @@ function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
   }
 }
 
+function appendCustomerNoteToForm(
+  prev: CustomerEditFormState | null,
+  onStatusMessage: (msg: string) => void,
+): CustomerEditFormState | null {
+  if (!prev) {
+    return prev
+  }
+  const trimmed = prev.noteDraft.trim()
+  if (!trimmed) {
+    return prev
+  }
+  if (trimmed.length > NOTE_MAX_LENGTH) {
+    onStatusMessage(`메모는 ${NOTE_MAX_LENGTH}자 이하로 입력해주세요.`)
+    return prev
+  }
+  const newNote: CustomerNote = {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    content: trimmed,
+    createdAt: new Date().toISOString(),
+  }
+  onStatusMessage('')
+  return { ...prev, notes: [newNote, ...prev.notes], noteDraft: '' }
+}
+
+type CustomerListCardProps = {
+  customer: CustomerRecord
+  duplicateCustomerNames: Set<string>
+  isSelectMode: boolean
+  selectedCustomerIds: string[]
+  setSelectedCustomerIds: Dispatch<SetStateAction<string[]>>
+  expandedId: number | null
+  setExpandedId: Dispatch<SetStateAction<number | null>>
+  editingId: number | null
+  editForm: CustomerEditFormState | null
+  setEditForm: Dispatch<SetStateAction<CustomerEditFormState | null>>
+  onEditSubmit: (e: FormEvent<HTMLFormElement>) => void | Promise<void>
+  onStatusMessage: (msg: string) => void
+  carFeatureEnabled: boolean
+  historyLoading: boolean
+  historyForms: InsuranceApplicationRecord[]
+  onCopyCustomer: (c: CustomerRecord) => void
+  onStartEdit: (c: CustomerRecord) => void
+  onCancelEdit: () => void
+  onDeleteCustomer: (c: CustomerRecord) => void
+  onNavigateToFormEdit: (formId: string) => void
+}
+
+function CustomerListCard({
+  customer: c,
+  duplicateCustomerNames,
+  isSelectMode,
+  selectedCustomerIds,
+  setSelectedCustomerIds,
+  expandedId,
+  setExpandedId,
+  editingId,
+  editForm,
+  setEditForm,
+  onEditSubmit,
+  onStatusMessage,
+  carFeatureEnabled,
+  historyLoading,
+  historyForms,
+  onCopyCustomer,
+  onStartEdit,
+  onCancelEdit,
+  onDeleteCustomer,
+  onNavigateToFormEdit,
+}: CustomerListCardProps) {
+  const ins = customerInsuranceDisplay(c)
+  return (
+    <li
+      className={`record-card customer-expand-card${isSelectMode ? ' customer-expand-card--select-mode' : ''}`}
+    >
+      {isSelectMode ? (
+        <div className="customer-expand-card__select">
+          <input
+            type="checkbox"
+            checked={selectedCustomerIds.includes(String(c.id))}
+            onChange={() => {
+              const id = String(c.id)
+              setSelectedCustomerIds((prev) =>
+                prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+              )
+            }}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`${c.name} 선택`}
+          />
+        </div>
+      ) : null}
+      <div className="customer-expand-card__main">
+        <button
+          type="button"
+          className="customer-expand-summary"
+          aria-expanded={expandedId === c.id}
+          onClick={() => setExpandedId((prev) => (prev === c.id ? null : c.id))}
+        >
+          <span className="customer-expand-summary__title">
+            <span
+              className={duplicateCustomerNames.has(c.name.trim()) ? 'customer-hit-name--duplicate' : undefined}
+            >
+              {c.name}
+            </span>
+            {' / '}
+            {genderSummaryLabel(c)}
+            {' / '}
+            보험나이 {ins.ageText}
+            {' / '}
+            상령일 {ins.dateText}
+          </span>
+          <span className="customer-expand-summary__hint">{expandedId === c.id ? '접기' : '펼치기'}</span>
+        </button>
+
+        {expandedId === c.id ? (
+          <div className="customer-expand-detail">
+            {editingId === c.id && editForm ? (
+              <>
+                <div className="customer-edit-banner" role="status">
+                  ✏ 고객 정보 수정 중
+                </div>
+                <form
+                  className="customer-edit-form"
+                  onSubmit={(e) => {
+                    void onEditSubmit(e)
+                  }}
+                >
+                  <div className="field-grid-customers">
+                    <label className="field">
+                      <span className="field__label">이름</span>
+                      <input
+                        className="field__control"
+                        name="customer-name"
+                        autoComplete="name"
+                        value={editForm.name ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, name: e.target.value } : prev))
+                        }
+                      />
+                    </label>
+                    <div className="field field--wide">
+                      <span className="field__label">성별</span>
+                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
+                        <label>
+                          <input
+                            type="radio"
+                            name={`gender-edit-${c.id}`}
+                            checked={editForm.gender === 'male'}
+                            onChange={() =>
+                              setEditForm((prev) => (prev ? { ...prev, gender: 'male' } : prev))
+                            }
+                          />{' '}
+                          남
+                        </label>
+                        <label>
+                          <input
+                            type="radio"
+                            name={`gender-edit-${c.id}`}
+                            checked={editForm.gender === 'female'}
+                            onChange={() =>
+                              setEditForm((prev) => (prev ? { ...prev, gender: 'female' } : prev))
+                            }
+                          />{' '}
+                          여
+                        </label>
+                      </div>
+
+                    </div>
+                    <label className="field">
+                      <span className="field__label">주민번호</span>
+                      <input
+                        className="field__control"
+                        name="customer-ssn"
+                        autoComplete="off"
+                        value={editForm.ssn ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, ssn: e.target.value } : prev))
+                        }
+                      />
+                    </label>
+                    <InsuranceInline ssn={editForm.ssn ?? ''} />
+                    <label className="field">
+                      <span className="field__label">전화번호</span>
+                      <input
+                        className="field__control"
+                        name="customer-phone"
+                        autoComplete="tel"
+                        value={editForm.phone ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, phone: e.target.value } : prev))
+                        }
+                      />
+                    </label>
+                    <label className="field field--wide">
+                      <span className="field__label">주소</span>
+                      <input
+                        className="field__control"
+                        name="customer-address"
+                        autoComplete="street-address"
+                        value={editForm.address ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, address: e.target.value } : prev))
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span className="field__label">키</span>
+                      <input
+                        className="field__control"
+                        value={editForm.height ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, height: e.target.value } : prev))
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span className="field__label">몸무게</span>
+                      <input
+                        className="field__control"
+                        value={editForm.weight ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, weight: e.target.value } : prev))
+                        }
+                      />
+                    </label>
+                    <label className="field field--wide">
+                      <span className="field__label">직업 / 회사명 등</span>
+                      <input
+                        className="field__control"
+                        value={editForm.job ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, job: e.target.value } : prev))
+                        }
+                      />
+                    </label>
+                    <div className="field field--wide">
+                      <span className="field__label">운전 여부</span>
+                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
+                        <label>
+                          <input
+                            type="radio"
+                            name={`driver-edit-${c.id}`}
+                            checked={editForm.isDriver === true}
+                            onChange={() =>
+                              setEditForm((prev) => (prev ? { ...prev, isDriver: true } : prev))
+                            }
+                          />{' '}
+                          운전함
+                        </label>
+                        <label>
+                          <input
+                            type="radio"
+                            name={`driver-edit-${c.id}`}
+                            checked={editForm.isDriver === false}
+                            onChange={() =>
+                              setEditForm((prev) =>
+                                prev ? { ...prev, isDriver: false, carType: '' } : prev,
+                              )
+                            }
+                          />{' '}
+                          운전 안함
+                        </label>
+                      </div>
+                    </div>
+                    {editForm.isDriver === true ? (
+                      <label className="field field--wide">
+                        <span className="field__label">차종</span>
+                        <input
+                          className="field__control"
+                          type="text"
+                          placeholder="예: 승용차, SUV, 1톤 트럭"
+                          value={editForm.carType ?? ''}
+                          onChange={(e) =>
+                            setEditForm((prev) => (prev ? { ...prev, carType: e.target.value } : prev))
+                          }
+                        />
+                      </label>
+                    ) : null}
+                    <label className="field field--wide">
+                      <span className="field__label">5년 이내 진단·수술·치료 (건강 고지)</span>
+                      <textarea
+                        className="field__control"
+                        name="customer-medical"
+                        rows={3}
+                        value={editForm.medical ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, medical: e.target.value } : prev))
+                        }
+                      />
+                    </label>
+                    <div className="field field--wide">
+                      <span className="field__label">메모 (최대 {NOTE_MAX_LENGTH}자, Enter로 추가)</span>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
+                        <input
+                          className="field__control"
+                          style={{ flex: '1 1 220px' }}
+                          placeholder="메모 입력"
+                          value={editForm.noteDraft ?? ''}
+                          maxLength={NOTE_MAX_LENGTH}
+                          onChange={(e) =>
+                            setEditForm((prev) =>
+                              prev
+                                ? { ...prev, noteDraft: e.target.value.slice(0, NOTE_MAX_LENGTH) }
+                                : prev,
+                            )
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              setEditForm((prev) => appendCustomerNoteToForm(prev, onStatusMessage))
+                            }
+                          }}
+                        />
+                        <button
+                          className="button button--secondary"
+                          type="button"
+                          onClick={() =>
+                            setEditForm((prev) => appendCustomerNoteToForm(prev, onStatusMessage))
+                          }
+                        >
+                          추가
+                        </button>
+                      </div>
+                      {editForm.notes.length > 0 ? (
+                        <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
+                          {editForm.notes.map((note) => (
+                            <li
+                              key={note.id}
+                              style={{
+                                borderTop: '1px solid rgba(0,0,0,0.08)',
+                                padding: '8px 0',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                gap: 8,
+                                alignItems: 'flex-start',
+                              }}
+                            >
+                              <div>
+                                <div>{note.content}</div>
+                                <small style={{ opacity: 0.75 }}>
+                                  {new Date(note.createdAt).toLocaleString('ko-KR')}
+                                </small>
+                              </div>
+                              <button
+                                type="button"
+                                className="delete-btn"
+                                onClick={() =>
+                                  setEditForm((prev) =>
+                                    prev ? { ...prev, notes: prev.notes.filter((n) => n.id !== note.id) } : prev,
+                                  )
+                                }
+                              >
+                                삭제
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </div>
+                    <label className="field">
+                      <span className="field__label">차량번호</span>
+                      <input
+                        className="field__control"
+                        value={editForm.carNumber ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, carNumber: e.target.value } : prev))
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span className="field__label">차종</span>
+                      <input
+                        className="field__control"
+                        value={editForm.carModel ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, carModel: e.target.value } : prev))
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span className="field__label">연식</span>
+                      <input
+                        className="field__control"
+                        value={editForm.carYear ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, carYear: e.target.value } : prev))
+                        }
+                      />
+                    </label>
+                    <label className="field">
+                      <span className="field__label">만기(갱신)일</span>
+                      <input
+                        className="field__control"
+                        type="date"
+                        value={editForm.renewalDate ? editForm.renewalDate.slice(0, 10) : ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, renewalDate: e.target.value } : prev))
+                        }
+                      />
+                    </label>
+                  </div>
+                  <div className="customer-edit-actions">
+                    <button className="button-save" type="submit">
+                      수정 저장
+                    </button>
+                    <button className="button-cancel" type="button" onClick={onCancelEdit}>
+                      취소
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                <div className="customer-detail-read">
+                  <p>
+                    <strong>이름:</strong> {c.name}
+                  </p>
+                  <p>
+                    <strong>주민번호:</strong> {c.ssn || '—'}
+                  </p>
+                  <p style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px', alignItems: 'center' }}>
+                    <span>
+                      <strong>보험나이:</strong> {ins.ageText}
+                    </span>
+                    <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+                      <strong>상령일:</strong> {ins.dateText}
+                      <MaturityDdayBadge maturityYmd={ins.maturityYmd} />
+                    </span>
+                  </p>
+                  <p>
+                    <strong>핸드폰번호:</strong> {c.phone || '—'}
+                  </p>
+                  <p>
+                    <strong>주소:</strong> {c.address || '—'}
+                  </p>
+                  <p>
+                    <strong>키/몸무게:</strong>{' '}
+                    {c.height?.trim() || c.weight?.trim()
+                      ? `${c.height?.trim() || '—'}/${c.weight?.trim() || '—'}`
+                      : '—'}
+                  </p>
+                  <p>
+                    <strong>직업/회사명/하는일/지역:</strong> {c.job?.trim() || '—'}
+                  </p>
+                  <p>
+                    <strong>운전여부:</strong>{' '}
+                    {c.isDriver === true
+                      ? '운전함'
+                      : c.isDriver === false
+                        ? '운전 안함'
+                        : c.driving || '—'}
+                  </p>
+                  <p>
+                    <strong>차종:</strong> {c.carType.trim() || '—'}
+                  </p>
+                  <p>
+                    <strong>5년 이내 진단, 수술, 치료:</strong> {c.medical?.trim() || '—'}
+                  </p>
+                  <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
+                  <p style={{ marginBottom: 8 }}>
+                    <strong>[자동차정보]</strong>
+                  </p>
+                  <p>
+                    <strong>차량번호:</strong> {c.carNumber || '—'}
+                  </p>
+                  <p style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px' }}>
+                    <span>
+                      <strong>차종:</strong> {c.carModel || '—'}
+                    </span>
+                    <span>
+                      <strong>연식:</strong> {c.carYear || '—'}
+                    </span>
+                  </p>
+                  <p>
+                    <strong>만기(갱신일):</strong> {c.renewalDate || '—'}{' '}
+                    <CustomerDDayBadge renewalDate={c.renewalDate} />
+                  </p>
+                  <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
+                  {c.notes && c.notes.length > 0 ? (
+                    <div style={{ marginTop: 4 }}>
+                      <strong>메모</strong>
+                      <ul style={{ margin: '6px 0 0', paddingLeft: '1.2em' }}>
+                        {c.notes.map((n) => (
+                          <li key={n.id}>{n.content}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p>
+                      <strong>메모:</strong> —
+                    </p>
+                  )}
+                </div>
+                <div className="customer-actions">
+                  <button className="kakao-btn" type="button" onClick={() => void onCopyCustomer(c)}>
+                    카톡 복사
+                  </button>
+                  <button className="edit-btn" type="button" onClick={() => onStartEdit(c)}>
+                    ✏ 수정
+                  </button>
+                  <button className="delete-btn" type="button" onClick={() => void onDeleteCustomer(c)}>
+                    삭제
+                  </button>
+                </div>
+              </>
+            )}
+
+            {carFeatureEnabled ? (
+              <div className="customer-form-history">
+                <h3 className="customer-form-history__title">연결된 신청서</h3>
+                {historyLoading ? (
+                  <p className="customer-form-history__status">불러오는 중…</p>
+                ) : historyForms.length === 0 ? (
+                  <p className="customer-form-history__status">이 고객 ID로 연결된 신청서가 없습니다.</p>
+                ) : (
+                  <ul className="customer-form-history__list">
+                    {historyForms.map((row) => (
+                      <li key={row.id} className="customer-form-history__item">
+                        <div>
+                          <strong>{row.title}</strong>
+                          <span className="customer-form-history__meta">
+                            저장: {formatKoreanDateTime(row.updatedAt)} · 만기 {row.expiryDate || '—'}
+                          </span>
+                        </div>
+                        <button
+                          className="button button--secondary"
+                          type="button"
+                          onClick={() => onNavigateToFormEdit(row.id)}
+                        >
+                          열기
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </li>
+  )
+}
+
 export default function CustomersPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -135,6 +815,9 @@ export default function CustomersPage() {
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
   const tab = searchParams.get('mode') === 'create' ? 'create' : 'list'
   const [keyword, setKeyword] = useState('')
+  const [advancedFilters, setAdvancedFilters] = useState<CustomerAdvancedFilters>(() => ({
+    ...EMPTY_ADVANCED_FILTERS,
+  }))
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([])
   const [selectedColumns, setSelectedColumns] = useState<string[]>([])
@@ -153,13 +836,31 @@ export default function CustomersPage() {
     return new Set([...counts.entries()].filter(([, n]) => n > 1).map(([name]) => name))
   }, [customers])
 
-  const filteredCustomers = useMemo(() => {
+  const keywordFilteredCustomers = useMemo(() => {
     const q = keyword.trim()
     if (!q) {
       return customers
     }
     return customers.filter((c) => c.name.includes(q) || (c.phone ?? '').includes(q))
   }, [customers, keyword])
+
+  const filteredCustomers = useMemo(
+    () => keywordFilteredCustomers.filter((c) => customerPassesAdvancedFilters(c, advancedFilters)),
+    [keywordFilteredCustomers, advancedFilters],
+  )
+
+  const advancedFiltersActive = useMemo(() => {
+    const f = advancedFilters
+    return !!(
+      f.minInsuranceAge.trim() ||
+      f.maxInsuranceAge.trim() ||
+      f.gender ||
+      f.maturityFrom.trim() ||
+      f.maturityTo.trim() ||
+      f.carExpireFrom.trim() ||
+      f.carExpireTo.trim()
+    )
+  }, [advancedFilters])
 
   const sortedCustomers = useMemo(
     () => [...filteredCustomers].sort((a, b) => a.name.localeCompare(b.name, 'ko')),
@@ -256,29 +957,6 @@ export default function CustomersPage() {
     }
   }, [tab, isSelectMode])
 
-  function addNoteDraft(
-    draft: string,
-    setNotes: (fn: (prev: CustomerNote[]) => CustomerNote[]) => void,
-    clearDraft: () => void,
-  ) {
-    const trimmed = draft.trim()
-    if (!trimmed) {
-      return
-    }
-    if (trimmed.length > NOTE_MAX_LENGTH) {
-      setStatusText(`메모는 ${NOTE_MAX_LENGTH}자 이하로 입력해주세요.`)
-      return
-    }
-    const newNote: CustomerNote = {
-      id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      content: trimmed,
-      createdAt: new Date().toISOString(),
-    }
-    setNotes((prev) => [newNote, ...prev])
-    clearDraft()
-    setStatusText('')
-  }
-
   async function copyCustomer(rec: CustomerRecord) {
     const text = buildKakaoCustomerCopyText(rec)
     try {
@@ -286,6 +964,39 @@ export default function CustomersPage() {
       window.alert('복사되었습니다')
     } catch {
       setStatusText('복사에 실패했습니다.')
+    }
+  }
+
+  function applyQuickFilter(type: 'AGE_UNDER_30_MALE' | 'AGE_OVER_40_FEMALE' | 'MATURITY_30' | 'CAR_EXPIRE_30') {
+    const today = new Date()
+    const future30 = new Date(today)
+    future30.setDate(future30.getDate() + 30)
+    const fmt = formatLocalYmd
+
+    if (type === 'AGE_UNDER_30_MALE') {
+      setAdvancedFilters({
+        ...EMPTY_ADVANCED_FILTERS,
+        maxInsuranceAge: '30',
+        gender: 'male',
+      })
+    } else if (type === 'AGE_OVER_40_FEMALE') {
+      setAdvancedFilters({
+        ...EMPTY_ADVANCED_FILTERS,
+        minInsuranceAge: '40',
+        gender: 'female',
+      })
+    } else if (type === 'MATURITY_30') {
+      setAdvancedFilters({
+        ...EMPTY_ADVANCED_FILTERS,
+        maturityFrom: fmt(today),
+        maturityTo: fmt(future30),
+      })
+    } else {
+      setAdvancedFilters({
+        ...EMPTY_ADVANCED_FILTERS,
+        carExpireFrom: fmt(today),
+        carExpireTo: fmt(future30),
+      })
     }
   }
 
@@ -348,6 +1059,12 @@ export default function CustomersPage() {
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '수정에 실패했습니다.')
     }
+  }
+
+  async function handleEditFormSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    console.log('고객 수정 폼 submit', { editingId, name: editForm?.name })
+    await handleUpdateCustomer()
   }
 
   function enterExcelSelectMode() {
@@ -441,429 +1158,6 @@ export default function CustomersPage() {
     }
   }
 
-  function CustomerCard({ data: c }: { data: CustomerRecord }) {
-    const ins = customerInsuranceDisplay(c)
-    return (
-      <li
-        className={`record-card customer-expand-card${isSelectMode ? ' customer-expand-card--select-mode' : ''}`}
-      >
-        {isSelectMode ? (
-          <div className="customer-expand-card__select">
-            <input
-              type="checkbox"
-              checked={selectedCustomerIds.includes(String(c.id))}
-              onChange={() => {
-                const id = String(c.id)
-                setSelectedCustomerIds((prev) =>
-                  prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-                )
-              }}
-              onClick={(e) => e.stopPropagation()}
-              aria-label={`${c.name} 선택`}
-            />
-          </div>
-        ) : null}
-        <div className="customer-expand-card__main">
-          <button
-            type="button"
-            className="customer-expand-summary"
-            aria-expanded={expandedId === c.id}
-            onClick={() => setExpandedId((prev) => (prev === c.id ? null : c.id))}
-          >
-          <span className="customer-expand-summary__title">
-            <span
-              className={duplicateCustomerNames.has(c.name.trim()) ? 'customer-hit-name--duplicate' : undefined}
-            >
-              {c.name}
-            </span>
-            {' / '}
-            {genderSummaryLabel(c)}
-            {' / '}
-            보험나이 {ins.ageText}
-            {' / '}
-            상령일 {ins.dateText}
-          </span>
-          <span className="customer-expand-summary__hint">{expandedId === c.id ? '접기' : '펼치기'}</span>
-          </button>
-
-        {expandedId === c.id ? (
-          <div className="customer-expand-detail">
-            {editingId === c.id && editForm ? (
-              <>
-                <div className="customer-edit-banner" role="status">
-                  ✏ 고객 정보 수정 중
-                </div>
-                <div className="field-grid-customers">
-                  <label className="field">
-                    <span className="field__label">이름</span>
-                    <input
-                      className="field__control"
-                      value={editForm.name}
-                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    />
-                  </label>
-                  <div className="field field--wide">
-                    <span className="field__label">성별</span>
-                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
-                      <label>
-                        <input
-                          type="radio"
-                          name={`gender-edit-${c.id}`}
-                          checked={editForm.gender === 'male'}
-                          onChange={() => setEditForm({ ...editForm, gender: 'male' })}
-                        />{' '}
-                        남
-                      </label>
-                      <label>
-                        <input
-                          type="radio"
-                          name={`gender-edit-${c.id}`}
-                          checked={editForm.gender === 'female'}
-                          onChange={() => setEditForm({ ...editForm, gender: 'female' })}
-                        />{' '}
-                        여
-                      </label>
-                    </div>
-                  </div>
-                  <label className="field">
-                    <span className="field__label">주민번호</span>
-                    <input
-                      className="field__control"
-                      value={editForm.ssn}
-                      onChange={(e) => setEditForm({ ...editForm, ssn: e.target.value })}
-                    />
-                  </label>
-                  <InsuranceInline ssn={editForm.ssn} />
-                  <label className="field">
-                    <span className="field__label">전화번호</span>
-                    <input
-                      className="field__control"
-                      value={editForm.phone}
-                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                    />
-                  </label>
-                  <label className="field field--wide">
-                    <span className="field__label">주소</span>
-                    <input
-                      className="field__control"
-                      value={editForm.address}
-                      onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field__label">키</span>
-                    <input
-                      className="field__control"
-                      value={editForm.height}
-                      onChange={(e) => setEditForm({ ...editForm, height: e.target.value })}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field__label">몸무게</span>
-                    <input
-                      className="field__control"
-                      value={editForm.weight}
-                      onChange={(e) => setEditForm({ ...editForm, weight: e.target.value })}
-                    />
-                  </label>
-                  <label className="field field--wide">
-                    <span className="field__label">직업 / 회사명 등</span>
-                    <input
-                      className="field__control"
-                      value={editForm.job}
-                      onChange={(e) => setEditForm({ ...editForm, job: e.target.value })}
-                    />
-                  </label>
-                  <div className="field field--wide">
-                    <span className="field__label">운전 여부</span>
-                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
-                      <label>
-                        <input
-                          type="radio"
-                          name={`driver-edit-${c.id}`}
-                          checked={editForm.isDriver === true}
-                          onChange={() => setEditForm({ ...editForm, isDriver: true })}
-                        />{' '}
-                        운전함
-                      </label>
-                      <label>
-                        <input
-                          type="radio"
-                          name={`driver-edit-${c.id}`}
-                          checked={editForm.isDriver === false}
-                          onChange={() => setEditForm({ ...editForm, isDriver: false, carType: '' })}
-                        />{' '}
-                        운전 안함
-                      </label>
-                    </div>
-                  </div>
-                  {editForm.isDriver === true ? (
-                    <label className="field field--wide">
-                      <span className="field__label">차종</span>
-                      <input
-                        className="field__control"
-                        type="text"
-                        placeholder="예: 승용차, SUV, 1톤 트럭"
-                        value={editForm.carType}
-                        onChange={(e) => setEditForm({ ...editForm, carType: e.target.value })}
-                      />
-                    </label>
-                  ) : null}
-                  <label className="field field--wide">
-                    <span className="field__label">5년 이내 진단·수술·치료 (건강 고지)</span>
-                    <textarea
-                      className="field__control"
-                      rows={3}
-                      value={editForm.medical}
-                      onChange={(e) => setEditForm({ ...editForm, medical: e.target.value })}
-                    />
-                  </label>
-                  <div className="field field--wide">
-                    <span className="field__label">메모 (최대 {NOTE_MAX_LENGTH}자, Enter로 추가)</span>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
-                      <input
-                        className="field__control"
-                        style={{ flex: '1 1 220px' }}
-                        placeholder="메모 입력"
-                        value={editForm.noteDraft}
-                        maxLength={NOTE_MAX_LENGTH}
-                        onChange={(e) =>
-                          setEditForm({ ...editForm, noteDraft: e.target.value.slice(0, NOTE_MAX_LENGTH) })
-                        }
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            addNoteDraft(
-                              editForm.noteDraft,
-                              (fn) => setEditForm((prev) => (prev ? { ...prev, notes: fn(prev.notes) } : prev)),
-                              () => setEditForm((prev) => (prev ? { ...prev, noteDraft: '' } : prev)),
-                            )
-                          }
-                        }}
-                      />
-                      <button
-                        className="button button--secondary"
-                        type="button"
-                        onClick={() =>
-                          addNoteDraft(
-                            editForm.noteDraft,
-                            (fn) => setEditForm((prev) => (prev ? { ...prev, notes: fn(prev.notes) } : prev)),
-                            () => setEditForm((prev) => (prev ? { ...prev, noteDraft: '' } : prev)),
-                          )
-                        }
-                      >
-                        추가
-                      </button>
-                    </div>
-                    {editForm.notes.length > 0 ? (
-                      <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
-                        {editForm.notes.map((note) => (
-                          <li
-                            key={note.id}
-                            style={{
-                              borderTop: '1px solid rgba(0,0,0,0.08)',
-                              padding: '8px 0',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              gap: 8,
-                              alignItems: 'flex-start',
-                            }}
-                          >
-                            <div>
-                              <div>{note.content}</div>
-                              <small style={{ opacity: 0.75 }}>{new Date(note.createdAt).toLocaleString('ko-KR')}</small>
-                            </div>
-                            <button
-                              type="button"
-                              className="delete-btn"
-                              onClick={() =>
-                                setEditForm((prev) =>
-                                  prev ? { ...prev, notes: prev.notes.filter((n) => n.id !== note.id) } : prev,
-                                )
-                              }
-                            >
-                              삭제
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </div>
-                  <label className="field">
-                    <span className="field__label">차량번호</span>
-                    <input
-                      className="field__control"
-                      value={editForm.carNumber}
-                      onChange={(e) => setEditForm({ ...editForm, carNumber: e.target.value })}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field__label">차종</span>
-                    <input
-                      className="field__control"
-                      value={editForm.carModel}
-                      onChange={(e) => setEditForm({ ...editForm, carModel: e.target.value })}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field__label">연식</span>
-                    <input
-                      className="field__control"
-                      value={editForm.carYear}
-                      onChange={(e) => setEditForm({ ...editForm, carYear: e.target.value })}
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="field__label">만기(갱신)일</span>
-                    <input
-                      className="field__control"
-                      type="date"
-                      value={editForm.renewalDate ? editForm.renewalDate.slice(0, 10) : ''}
-                      onChange={(e) => setEditForm({ ...editForm, renewalDate: e.target.value })}
-                    />
-                  </label>
-                </div>
-                <div className="customer-edit-actions">
-                  <button className="button-save" type="button" onClick={() => void handleUpdateCustomer()}>
-                    수정 저장
-                  </button>
-                  <button className="button-cancel" type="button" onClick={cancelEdit}>
-                    취소
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="customer-detail-read">
-                  <p>
-                    <strong>이름:</strong> {c.name}
-                  </p>
-                  <p>
-                    <strong>주민번호:</strong> {c.ssn || '—'}
-                  </p>
-                  <p style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px' }}>
-                    <span>
-                      <strong>보험나이:</strong> {ins.ageText}
-                    </span>
-                    <span>
-                      <strong>상령일:</strong> {ins.dateText}
-                    </span>
-                  </p>
-                  <p>
-                    <strong>핸드폰번호:</strong> {c.phone || '—'}
-                  </p>
-                  <p>
-                    <strong>주소:</strong> {c.address || '—'}
-                  </p>
-                  <p>
-                    <strong>키/몸무게:</strong>{' '}
-                    {c.height?.trim() || c.weight?.trim()
-                      ? `${c.height?.trim() || '—'}/${c.weight?.trim() || '—'}`
-                      : '—'}
-                  </p>
-                  <p>
-                    <strong>직업/회사명/하는일/지역:</strong> {c.job?.trim() || '—'}
-                  </p>
-                  <p>
-                    <strong>운전여부:</strong>{' '}
-                    {c.isDriver === true
-                      ? '운전함'
-                      : c.isDriver === false
-                        ? '운전 안함'
-                        : c.driving || '—'}
-                  </p>
-                  <p>
-                    <strong>차종:</strong> {c.carType.trim() || '—'}
-                  </p>
-                  <p>
-                    <strong>5년 이내 진단, 수술, 치료:</strong> {c.medical?.trim() || '—'}
-                  </p>
-                  <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-                  <p style={{ marginBottom: 8 }}>
-                    <strong>[자동차정보]</strong>
-                  </p>
-                  <p>
-                    <strong>차량번호:</strong> {c.carNumber || '—'}
-                  </p>
-                  <p style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px' }}>
-                    <span>
-                      <strong>차종:</strong> {c.carModel || '—'}
-                    </span>
-                    <span>
-                      <strong>연식:</strong> {c.carYear || '—'}
-                    </span>
-                  </p>
-                  <p>
-                    <strong>만기(갱신일):</strong> {c.renewalDate || '—'}{' '}
-                    <CustomerDDayBadge renewalDate={c.renewalDate} />
-                  </p>
-                  <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-                  {c.notes && c.notes.length > 0 ? (
-                    <div style={{ marginTop: 4 }}>
-                      <strong>메모</strong>
-                      <ul style={{ margin: '6px 0 0', paddingLeft: '1.2em' }}>
-                        {c.notes.map((n) => (
-                          <li key={n.id}>{n.content}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : (
-                    <p>
-                      <strong>메모:</strong> —
-                    </p>
-                  )}
-                </div>
-                <div className="customer-actions">
-                  <button className="kakao-btn" type="button" onClick={() => void copyCustomer(c)}>
-                    카톡 복사
-                  </button>
-                  <button className="edit-btn" type="button" onClick={() => startEdit(c)}>
-                    ✏ 수정
-                  </button>
-                  <button className="delete-btn" type="button" onClick={() => void handleDeleteCustomer(c)}>
-                    삭제
-                  </button>
-                </div>
-              </>
-            )}
-
-            {carFeatureEnabled ? (
-              <div className="customer-form-history">
-                <h3 className="customer-form-history__title">연결된 신청서</h3>
-                {historyLoading ? (
-                  <p className="customer-form-history__status">불러오는 중…</p>
-                ) : historyForms.length === 0 ? (
-                  <p className="customer-form-history__status">이 고객 ID로 연결된 신청서가 없습니다.</p>
-                ) : (
-                  <ul className="customer-form-history__list">
-                    {historyForms.map((row) => (
-                      <li key={row.id} className="customer-form-history__item">
-                        <div>
-                          <strong>{row.title}</strong>
-                          <span className="customer-form-history__meta">
-                            저장: {formatKoreanDateTime(row.updatedAt)} · 만기 {row.expiryDate || '—'}
-                          </span>
-                        </div>
-                        <button
-                          className="button button--secondary"
-                          type="button"
-                          onClick={() => navigate(`/form/${row.id}/edit`)}
-                        >
-                          열기
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-        </div>
-      </li>
-    )
-  }
-
   if (user?.role !== 'USER') {
     return (
       <main className="page page--with-back">
@@ -886,7 +1180,7 @@ export default function CustomersPage() {
       {isSelectMode && tab === 'list' ? (
         <div className="customers-excel-toolbar" role="region" aria-label="엑셀 다운로드 선택">
           <p className="customers-excel-toolbar__status">
-            엑셀 선택 중 —「선택 다운로드」는 체크한 고객,「목록 전체 다운로드」는 지금 검색·정렬된 목록만
+            엑셀 선택 중 —「선택 다운로드」는 체크한 고객,「목록 전체 다운로드」는 지금 검색·필터·정렬된 목록만
           </p>
           <div className="customers-excel-toolbar__row">
             <label className="customers-excel-toolbar__select-all">
@@ -972,16 +1266,145 @@ export default function CustomersPage() {
             autoComplete="off"
             aria-label="이름 또는 전화번호 검색"
           />
+
+          <div className="customers-advanced-filters" role="search" aria-label="고급 검색">
+            <div className="customers-advanced-filters__grid">
+              <label className="customers-advanced-filters__field">
+                <span>보험나이 최소</span>
+                <input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={advancedFilters.minInsuranceAge}
+                  onChange={(e) => setAdvancedFilters((f) => ({ ...f, minInsuranceAge: e.target.value }))}
+                />
+              </label>
+              <label className="customers-advanced-filters__field">
+                <span>보험나이 최대</span>
+                <input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={advancedFilters.maxInsuranceAge}
+                  onChange={(e) => setAdvancedFilters((f) => ({ ...f, maxInsuranceAge: e.target.value }))}
+                />
+              </label>
+              <label className="customers-advanced-filters__field">
+                <span>성별</span>
+                <select
+                  value={advancedFilters.gender}
+                  onChange={(e) =>
+                    setAdvancedFilters((f) => ({
+                      ...f,
+                      gender: e.target.value as CustomerAdvancedFilters['gender'],
+                    }))
+                  }
+                >
+                  <option value="">전체</option>
+                  <option value="male">남</option>
+                  <option value="female">여</option>
+                </select>
+              </label>
+              <label className="customers-advanced-filters__field">
+                <span>상령일 시작</span>
+                <input
+                  type="date"
+                  value={advancedFilters.maturityFrom}
+                  onChange={(e) => setAdvancedFilters((f) => ({ ...f, maturityFrom: e.target.value }))}
+                />
+              </label>
+              <label className="customers-advanced-filters__field">
+                <span>상령일 종료</span>
+                <input
+                  type="date"
+                  value={advancedFilters.maturityTo}
+                  onChange={(e) => setAdvancedFilters((f) => ({ ...f, maturityTo: e.target.value }))}
+                />
+              </label>
+              <label className="customers-advanced-filters__field">
+                <span>자동차 만기 시작</span>
+                <input
+                  type="date"
+                  value={advancedFilters.carExpireFrom}
+                  onChange={(e) => setAdvancedFilters((f) => ({ ...f, carExpireFrom: e.target.value }))}
+                />
+              </label>
+              <label className="customers-advanced-filters__field">
+                <span>자동차 만기 종료</span>
+                <input
+                  type="date"
+                  value={advancedFilters.carExpireTo}
+                  onChange={(e) => setAdvancedFilters((f) => ({ ...f, carExpireTo: e.target.value }))}
+                />
+              </label>
+            </div>
+            <div className="customers-advanced-filters__quick">
+              <button type="button" className="button button--secondary" onClick={() => applyQuickFilter('AGE_UNDER_30_MALE')}>
+                30세 이하 남성
+              </button>
+              <button type="button" className="button button--secondary" onClick={() => applyQuickFilter('AGE_OVER_40_FEMALE')}>
+                40세 이상 여성
+              </button>
+              <button type="button" className="button button--secondary" onClick={() => applyQuickFilter('MATURITY_30')}>
+                상령일 30일 이내
+              </button>
+              <button type="button" className="button button--secondary" onClick={() => applyQuickFilter('CAR_EXPIRE_30')}>
+                자동차 만기 30일 이내
+              </button>
+              {advancedFiltersActive ? (
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
+                >
+                  필터 초기화
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {!isLoading && customers.length > 0 ? (
+            <p className="customers-filter-result" role="status">
+              검색·필터 결과: <strong>{sortedCustomers.length}</strong>명
+            </p>
+          ) : null}
+
           {isLoading ? (
             <p>불러오는 중…</p>
           ) : customers.length === 0 ? (
             <p className="empty-state">등록된 고객이 없습니다.</p>
           ) : sortedCustomers.length === 0 ? (
-            <p className="empty-state">검색과 일치하는 고객이 없습니다.</p>
+            <p className="empty-state">
+              {keyword.trim() || advancedFiltersActive
+                ? '검색·필터 조건에 맞는 고객이 없습니다.'
+                : '고객이 없습니다.'}
+            </p>
           ) : (
             <ul className="record-list customer-expand-list customer-list">
               {sortedCustomers.map((c) => (
-                <CustomerCard key={c.id} data={c} />
+                <CustomerListCard
+                  key={c.id}
+                  customer={c}
+                  duplicateCustomerNames={duplicateCustomerNames}
+                  isSelectMode={isSelectMode}
+                  selectedCustomerIds={selectedCustomerIds}
+                  setSelectedCustomerIds={setSelectedCustomerIds}
+                  expandedId={expandedId}
+                  setExpandedId={setExpandedId}
+                  editingId={editingId}
+                  editForm={editForm}
+                  setEditForm={setEditForm}
+                  onEditSubmit={handleEditFormSubmit}
+                  onStatusMessage={setStatusText}
+                  carFeatureEnabled={carFeatureEnabled}
+                  historyLoading={historyLoading}
+                  historyForms={historyForms}
+                  onCopyCustomer={copyCustomer}
+                  onStartEdit={startEdit}
+                  onCancelEdit={cancelEdit}
+                  onDeleteCustomer={handleDeleteCustomer}
+                  onNavigateToFormEdit={(formId) => navigate(`/form/${formId}/edit`)}
+                />
               ))}
             </ul>
           )}

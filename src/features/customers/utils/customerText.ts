@@ -11,6 +11,7 @@ export function buildKakaoCustomerCopyText(data: CustomerRecord | Partial<Custom
   const height = String(c.height ?? '').trim()
   const weight = String(c.weight ?? '').trim()
   const job = String(c.job ?? '')
+  const medical = String(c.medical ?? '').trim()
   const isDriver = c.isDriver
   const carType = String(c.carType ?? '').trim()
   const drivingLine =
@@ -28,6 +29,7 @@ export function buildKakaoCustomerCopyText(data: CustomerRecord | Partial<Custom
     `직업/회사명/하는일/지역: ${job || '—'}`,
     `운전여부: ${drivingLine}`,
     `차종: ${carType || '—'}`,
+    `5년 이내 진단, 수술, 치료: ${medical || '—'}`,
   ]
   return lines.join('\n').trim()
 }

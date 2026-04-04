@@ -1,3 +1,5 @@
+import { calculateInsuranceAgeFromRrn } from './insuranceAge'
+
 const NOTE_MAX_LENGTH = 200
 
 export function formatRrnInput(raw: string): string {
@@ -8,58 +10,13 @@ export function formatRrnInput(raw: string): string {
   return `${d.slice(0, 6)}-${d.slice(6)}`
 }
 
-/** 지시문 스펙: 1,2 → 1900년대, 3,4 → 2000년대, 그 외 코드는 계산 불가 */
+/** 주민번호 기준 보험나이·상령일 — `insuranceAge.ts` 단일 로직 */
 export function calculateInsuranceInfo(rrn: string): { age: number | null; nextAgeDate: Date | null } {
-  const clean = String(rrn ?? '').replace(/[^0-9]/g, '')
-
-  if (clean.length < 7) {
+  const r = calculateInsuranceAgeFromRrn(rrn, new Date())
+  if (!r) {
     return { age: null, nextAgeDate: null }
   }
-
-  const birth = clean.substring(0, 6)
-  const genderCode = clean[6]
-
-  let yearPrefix: string | null = null
-  if (genderCode === '1' || genderCode === '2') {
-    yearPrefix = '19'
-  }
-  if (genderCode === '3' || genderCode === '4') {
-    yearPrefix = '20'
-  }
-
-  if (!yearPrefix) {
-    return { age: null, nextAgeDate: null }
-  }
-
-  const year = Number(yearPrefix + birth.substring(0, 2))
-  const month = Number(birth.substring(2, 4))
-  const day = Number(birth.substring(4, 6))
-
-  const birthDate = new Date(year, month - 1, day)
-  if (
-    Number.isNaN(birthDate.getTime()) ||
-    birthDate.getFullYear() !== year ||
-    birthDate.getMonth() !== month - 1 ||
-    birthDate.getDate() !== day
-  ) {
-    return { age: null, nextAgeDate: null }
-  }
-
-  const today = new Date()
-  let insuranceAge = today.getFullYear() - year
-
-  const thisYearBirthday = new Date(today.getFullYear(), month - 1, day)
-  const thisYearUpperDate = new Date(thisYearBirthday)
-  thisYearUpperDate.setMonth(thisYearUpperDate.getMonth() + 6)
-
-  if (today >= thisYearUpperDate) {
-    insuranceAge += 1
-  }
-
-  return {
-    age: insuranceAge,
-    nextAgeDate: thisYearUpperDate,
-  }
+  return { age: r.insuranceAge, nextAgeDate: r.maturityDate }
 }
 
 export function formatInsuranceUiDate(d: Date | null): string {

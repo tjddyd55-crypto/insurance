@@ -609,6 +609,57 @@ body {
   color: var(--text-main);
 }
 
+.customers-advanced-filters {
+  margin-bottom: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  box-sizing: border-box;
+}
+
+.customers-advanced-filters__grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  margin-bottom: 10px;
+}
+
+.customers-advanced-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+.customers-advanced-filters__field span {
+  opacity: 0.9;
+}
+
+.customers-advanced-filters__field input,
+.customers-advanced-filters__field select {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  box-sizing: border-box;
+  font: inherit;
+  background: var(--bg);
+  color: var(--text-main);
+}
+
+.customers-advanced-filters__quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.customers-page .customers-filter-result {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+
 .customers-page ul.customer-list.record-list {
   display: flex;
   flex-direction: column;
