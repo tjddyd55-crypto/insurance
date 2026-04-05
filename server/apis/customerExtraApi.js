@@ -68,6 +68,7 @@ function parseCustomerIdParam(req, res) {
  */
 export function registerCustomerExtraApi(apiRouter, ctx) {
   const { pool, requireAuth, handleDbError } = ctx
+  console.log('customerExtraApi loaded')
 
   apiRouter.get('/customers/search/advanced', requireAuth, async (req, res) => {
     try {

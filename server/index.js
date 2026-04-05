@@ -1251,7 +1251,6 @@ registerUserProfileApi(apiRouter, {
   normalizeInviteCode,
 })
 
-registerCustomerExtraApi(apiRouter, { pool, requireAuth, handleDbError })
 registerTeamApi(apiRouter, { pool, requireAuth, handleDbError })
 
 apiRouter.get('/health', (_req, res) => {
@@ -4618,6 +4617,9 @@ apiRouter.delete('/forms/:id', requireAuth, async (req, res) => {
     handleDbError(error, req, res)
   }
 })
+
+/** 고객 상담/관계/고급검색 — apiRouter 부착 직전에 등록(다른 /customers 라우트 이후, 마운트 전 확인 용이) */
+registerCustomerExtraApi(apiRouter, { pool, requireAuth, handleDbError })
 
 app.use('/api', apiRouter)
 app.use('/backend', apiRouter)
