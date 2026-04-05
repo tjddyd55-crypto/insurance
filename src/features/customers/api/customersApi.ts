@@ -1,6 +1,6 @@
 import type { InsuranceApplicationRecord } from '../../application/domain/types'
 import { ApiError, apiRequest } from '../../../lib/apiClient'
-import type { CustomerNote, CustomerRecord } from '../domain/types'
+import type { CustomerNote, CustomerNotesBag, CustomerRecord } from '../domain/types'
 
 export async function listCustomers(token: string, limit = 500): Promise<CustomerRecord[]> {
   if (!token?.trim()) {
@@ -38,7 +38,8 @@ export interface SaveCustomerPayload {
   gender?: 'male' | 'female' | '' | null
   isDriver?: boolean | null
   carType?: string
-  notes?: CustomerNote[]
+  /** 레거시: 배열만 보내면 서버가 { items, insuranceHistory: '' }로 저장 */
+  notes?: CustomerNote[] | CustomerNotesBag
   phone?: string
   carrier?: string
   address?: string

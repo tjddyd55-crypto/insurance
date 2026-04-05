@@ -156,9 +156,9 @@ export function CustomerRelationsStrip({
   const innerRowStyle: CSSProperties = {
     display: 'inline-flex',
     flexWrap: 'nowrap',
-    gap: 10,
+    gap: 8,
     alignItems: 'center',
-    minHeight: 48,
+    minHeight: 36,
   }
 
   return (
@@ -191,9 +191,9 @@ export function CustomerRelationsStrip({
                   style={{
                     border: 'none',
                     borderRadius: 0,
-                    minHeight: 44,
-                    padding: '10px 12px',
-                    fontSize: '1rem',
+                    minHeight: 0,
+                    padding: '6px 10px',
+                    fontSize: '0.875rem',
                   }}
                   title={phoneTip}
                   onClick={() => onOpenCustomer(r.relatedCustomerId)}
@@ -208,10 +208,10 @@ export function CustomerRelationsStrip({
                   style={{
                     border: 'none',
                     borderRadius: 0,
-                    minWidth: 44,
-                    minHeight: 44,
-                    padding: 8,
-                    fontSize: '1.1rem',
+                    minWidth: 0,
+                    minHeight: 0,
+                    padding: '4px 8px',
+                    fontSize: '1rem',
                     lineHeight: 1,
                   }}
                   onClick={(e) => {
@@ -228,7 +228,7 @@ export function CustomerRelationsStrip({
             <button
               type="button"
               className="filter-button"
-              style={{ minHeight: 44, flexShrink: 0 }}
+              style={{ minHeight: 0, padding: '4px 10px', fontSize: '0.875rem', flexShrink: 0 }}
               onClick={() => setShowAllChips(true)}
             >
               +{moreCount} 더보기
@@ -238,7 +238,7 @@ export function CustomerRelationsStrip({
             <button
               type="button"
               className="link-btn"
-              style={{ flexShrink: 0, minHeight: 44 }}
+              style={{ flexShrink: 0, minHeight: 0, fontSize: '0.875rem' }}
               onClick={() => setShowAllChips(false)}
             >
               접기
@@ -246,8 +246,8 @@ export function CustomerRelationsStrip({
           ) : null}
           <button
             type="button"
-            className="cta-button"
-            style={{ minHeight: 44, flexShrink: 0, padding: '10px 16px', fontSize: '1rem' }}
+            className="filter-button"
+            style={{ minHeight: 0, flexShrink: 0, padding: '4px 10px', fontSize: '0.875rem' }}
             onClick={() => {
               setError('')
               setModalOpen(true)

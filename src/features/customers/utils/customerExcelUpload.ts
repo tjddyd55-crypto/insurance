@@ -2,6 +2,7 @@ import { saveAs } from 'file-saver'
 import * as XLSX from 'xlsx'
 
 import type { CustomerNote } from '../domain/types'
+import { normalizeCustomerNotesBag } from '../domain/types'
 import type { SaveCustomerPayload } from '../api/customersApi'
 import { saveCustomer } from '../api/customersApi'
 
@@ -273,7 +274,7 @@ function payloadToExportRecord(p: SaveCustomerPayload): Record<string, string> {
     carModel: p.carModel ?? '',
     carYear: p.carYear ?? '',
     renewalDate: p.renewalDate ?? '',
-    memo: (p.notes ?? []).map((n) => n.content).join(' / '),
+    memo: normalizeCustomerNotesBag(p.notes).items.map((n) => n.content).join(' / '),
   }
 }
 

@@ -145,6 +145,9 @@ export type CustomerFormState = {
 
   medical: string
 
+  /** 보험가입내역 — notes.jsonb.insuranceHistory 로 저장 */
+  insuranceHistory: string
+
   notes: CustomerNote[]
 
   noteDraft: string
@@ -184,6 +187,8 @@ const EMPTY_FORM: CustomerFormState = {
   renewalDate: '',
 
   medical: '',
+
+  insuranceHistory: '',
 
   notes: [],
 
@@ -263,7 +268,10 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
 
     renewalDate: form.renewalDate.trim(),
 
-    notes: form.notes,
+    notes: {
+      items: form.notes,
+      insuranceHistory: form.insuranceHistory.trim(),
+    },
 
   }
 
@@ -677,6 +685,26 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
       </label>
 
+      <label className="field field--wide">
+
+        <span className="field__label">보험가입내역</span>
+
+        <textarea
+
+          className="field__control"
+
+          rows={4}
+
+          placeholder="보험가입내역 입력"
+
+          value={form.insuranceHistory}
+
+          onChange={(e) => onFormChange({ ...form, insuranceHistory: e.target.value })}
+
+        />
+
+      </label>
+
       <div className="field field--wide">
 
         <span className="field__label">메모 (최대 {NOTE_MAX_LENGTH}자, Enter로 추가)</span>
@@ -717,9 +745,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
           <button
 
-            className="button button--secondary"
+            className="filter-button"
 
             type="button"
+
+            style={{ fontSize: '0.875rem', padding: '4px 10px' }}
 
             onClick={() => pushDraftNoteFixed(form.noteDraft)}
 

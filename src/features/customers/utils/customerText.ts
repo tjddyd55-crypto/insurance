@@ -1,4 +1,5 @@
 import type { CustomerRecord } from '../domain/types'
+import { normalizeCustomerNotesBag } from '../domain/types'
 import { calculateInsuranceInfo, formatDateYmdInput, formatInsuranceUiDate } from './insuranceInfo'
 
 /** 고객 관리 · 카톡 붙여넣기용 (필요 필드만) */
@@ -68,9 +69,8 @@ function genderLabel(g: CustomerRecord['gender']): string {
 export function generateCustomerText(data: Partial<CustomerRecord> | Record<string, unknown>) {
   const name = String(data.name ?? '')
   const gender = (data as Partial<CustomerRecord>).gender
-  const notes = Array.isArray((data as Partial<CustomerRecord>).notes)
-    ? ((data as Partial<CustomerRecord>).notes as CustomerRecord['notes'])
-    : []
+  const bag = normalizeCustomerNotesBag((data as Partial<CustomerRecord>).notes)
+  const notes = bag.items
 
   const isDriver = (data as Partial<CustomerRecord>).isDriver
   const carType = String((data as Partial<CustomerRecord>).carType ?? '').trim()

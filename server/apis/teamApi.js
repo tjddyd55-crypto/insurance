@@ -118,7 +118,7 @@ export function registerTeamApi(apiRouter, ctx) {
       } catch {
         /* ignore */
       }
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     } finally {
       client.release()
     }
@@ -183,7 +183,7 @@ export function registerTeamApi(apiRouter, ctx) {
       }
       res.json({ ok: true, teamId, name: String(team.name ?? ''), gaId })
     } catch (error) {
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     }
   })
 
@@ -247,7 +247,7 @@ export function registerTeamApi(apiRouter, ctx) {
         })),
       })
     } catch (error) {
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     }
   })
 }

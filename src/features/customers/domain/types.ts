@@ -4,6 +4,36 @@ export interface CustomerNote {
   createdAt: string
 }
 
+/** DB notes jsonb: 메모 목록 + 보험가입내역(긴 텍스트) */
+export interface CustomerNotesBag {
+  items: CustomerNote[]
+  insuranceHistory: string
+}
+
+export function normalizeCustomerNotesBag(raw: unknown): CustomerNotesBag {
+  if (Array.isArray(raw)) {
+    return { items: raw as CustomerNote[], insuranceHistory: '' }
+  }
+  if (raw && typeof raw === 'object') {
+    const o = raw as Record<string, unknown>
+    const items = Array.isArray(o.items) ? (o.items as CustomerNote[]) : []
+    const ih = o.insuranceHistory
+    return {
+      items,
+      insuranceHistory: typeof ih === 'string' ? ih : '',
+    }
+  }
+  return { items: [], insuranceHistory: '' }
+}
+
+export function customerNoteItems(c: Pick<CustomerRecord, 'notes'>): CustomerNote[] {
+  return normalizeCustomerNotesBag(c.notes).items
+}
+
+export function customerInsuranceHistoryText(c: Pick<CustomerRecord, 'notes'>): string {
+  return normalizeCustomerNotesBag(c.notes).insuranceHistory.trim()
+}
+
 export interface CustomerRecord {
   id: number
   userId: string
@@ -17,7 +47,7 @@ export interface CustomerRecord {
   isDriver: boolean | null
   /** 운전 시 차종 (자유 입력) */
   carType: string
-  notes: CustomerNote[]
+  notes: CustomerNotesBag
   phone: string
   /** 레거시: 신규 저장 시 사용 안 함 */
   carrier: string

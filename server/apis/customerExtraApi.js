@@ -151,7 +151,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       )
       res.json(result.rows.map(mapCustomerRow))
     } catch (error) {
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     }
   })
 
@@ -182,7 +182,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       }
       res.json({ counts })
     } catch (error) {
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     }
   })
 
@@ -248,7 +248,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : '',
       })
     } catch (error) {
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     }
   })
 
@@ -297,7 +297,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         })),
       )
     } catch (error) {
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     }
   })
 
@@ -340,7 +340,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       }
       res.json({ ok: true })
     } catch (error) {
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     }
   })
 
@@ -405,7 +405,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       } catch {
         /* ignore */
       }
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     } finally {
       client.release()
     }
@@ -459,7 +459,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         })),
       )
     } catch (error) {
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     }
   })
 
@@ -520,7 +520,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       } catch {
         /* ignore */
       }
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     } finally {
       client.release()
     }

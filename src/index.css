@@ -990,6 +990,22 @@ button.filter-button:focus-visible {
   border-radius: 10px;
 }
 
+.customer-icon-action {
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.88;
+}
+
+.customer-icon-action:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--text-main) 8%, transparent);
+}
+
 .customer-expand-card--select-mode {
   display: flex;
   flex-direction: row;

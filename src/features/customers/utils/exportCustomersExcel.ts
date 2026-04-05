@@ -1,6 +1,7 @@
 import { saveAs } from 'file-saver'
 import * as XLSX from 'xlsx'
 import type { CustomerRecord } from '../domain/types'
+import { customerNoteItems } from '../domain/types'
 
 export const EXCEL_COLUMN_META = [
   { id: 'name', label: '이름' },
@@ -50,7 +51,9 @@ function cellValue(c: CustomerRecord, col: ExcelColumnId): string {
     case 'carType':
       return c.carType ?? ''
     case 'memo':
-      return (c.notes ?? []).map((n) => n.content).join('\n')
+      return customerNoteItems(c)
+        .map((n) => n.content)
+        .join('\n')
     default:
       return ''
   }

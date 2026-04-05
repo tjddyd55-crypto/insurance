@@ -504,7 +504,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       } catch {
         /* ignore */
       }
-      handleDbError(e, res)
+      handleDbError(e, req, res)
       return
     } finally {
       client.release()
@@ -709,7 +709,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       } catch {
         /* ignore */
       }
-      handleDbError(e, res)
+      handleDbError(e, req, res)
     } finally {
       client.release()
     }

@@ -115,7 +115,7 @@ export function registerConsentApi(apiRouter, ctx) {
       const r = await safeQuery(pool,sql, [g])
       res.json(r.rows)
     } catch (error) {
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     }
   })
 
@@ -143,7 +143,7 @@ export function registerConsentApi(apiRouter, ctx) {
       }
       res.json(r.rows[0])
     } catch (error) {
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     }
   })
 
@@ -223,7 +223,7 @@ export function registerConsentApi(apiRouter, ctx) {
       )
       res.json(r.rows)
     } catch (error) {
-      handleDbError(error, res)
+      handleDbError(error, req, res)
     }
   })
 
@@ -315,7 +315,7 @@ export function registerConsentApi(apiRouter, ctx) {
           message: '동의서 템플릿이 저장되었습니다.',
         })
       } catch (error) {
-        handleDbError(error, res)
+        handleDbError(error, req, res)
       }
     },
   )

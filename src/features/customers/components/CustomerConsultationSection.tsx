@@ -112,9 +112,6 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
     if (!token?.trim()) {
       return
     }
-    if (!window.confirm('이 상담 기록을 삭제할까요?')) {
-      return
-    }
     setError('')
     try {
       await deleteCustomerConsultation(token, customerId, row.id)
@@ -125,10 +122,10 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
     }
   }
 
-  const touchBtn: CSSProperties = {
-    minHeight: 48,
-    padding: '10px 18px',
-    fontSize: '1rem',
+  const compactBtn: CSSProperties = {
+    fontSize: '0.875rem',
+    padding: '4px 10px',
+    minHeight: 0,
   }
 
   return (
@@ -165,9 +162,9 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
         ) : null}
         <button
           type="submit"
-          className="button button--secondary"
+          className="filter-button"
           disabled={saving}
-          style={{ marginTop: 12, ...touchBtn }}
+          style={{ marginTop: 10, ...compactBtn }}
         >
           {saving ? '저장 중…' : '저장'}
         </button>
@@ -203,16 +200,17 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
                 </div>
                 <button
                   type="button"
-                  className="delete-btn"
                   aria-label="상담 삭제"
                   title="삭제"
                   style={{
                     flexShrink: 0,
-                    minWidth: 44,
-                    minHeight: 44,
-                    padding: 8,
-                    fontSize: '1.15rem',
+                    padding: '2px 8px',
+                    fontSize: '1.1rem',
                     lineHeight: 1,
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: 'pointer',
+                    opacity: 0.8,
                   }}
                   onClick={() => void onDelete(r)}
                 >
@@ -228,7 +226,7 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
         <button
           type="button"
           className="filter-button"
-          style={{ marginTop: 12, ...touchBtn }}
+          style={{ marginTop: 10, ...compactBtn }}
           disabled={loading}
           onClick={() => void fetchPage(rows.length, true)}
         >

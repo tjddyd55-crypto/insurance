@@ -19,11 +19,12 @@ import {
   listCustomers,
   updateCustomer,
 } from '../api/customersApi'
-import type { CustomerNote, CustomerRecord } from '../domain/types'
+import type { CustomerRecord } from '../domain/types'
+import { customerNoteItems, normalizeCustomerNotesBag } from '../domain/types'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
 import { buildKakaoCustomerCopyText } from '../utils/customerText'
 import { calculateInsuranceAgeFromRrn, formatLocalYmd } from '../utils/insuranceAge'
-import { formatDateYmdInput, NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
+import { formatDateYmdInput } from '../utils/insuranceInfo'
 import { EXCEL_COLUMN_META, exportCustomersExcel } from '../utils/exportCustomersExcel'
 import { normalizeSsn, RRN_NORMALIZED_LENGTH } from '../utils/customerExcelUpload'
 import { CustomerExcelImportPanel } from '../components/CustomerExcelImportPanel'
@@ -35,6 +36,7 @@ import {
 import { PageBackButton } from '../../../components/common/PageBackButton'
 import { fetchConsultationCounts, searchCustomersAdvanced } from '../api/customerExtraApi'
 import { CustomerConsultationSection } from '../components/CustomerConsultationSection'
+import { CustomerInlineNotesSection } from '../components/CustomerInlineNotesSection'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 
 const RECENT_CUSTOMER_SEARCHES_KEY = 'insurance.customers.recentSearches.v1'
@@ -284,7 +286,7 @@ function parseCreatedAtMs(iso: string | undefined | null): number {
 
 type CustomerListSort = 'maturity_asc' | 'car_expire_asc' | 'recent'
 
-type CustomerFormState = {
+type CustomerEditFormState = {
   name: string
   gender: 'male' | 'female' | null
   ssn: string
@@ -296,11 +298,7 @@ type CustomerFormState = {
   isDriver: boolean | null
   carType: string
   medical: string
-  notes: CustomerNote[]
-  noteDraft: string
-}
-
-type CustomerEditFormState = CustomerFormState & {
+  insuranceHistory: string
   carNumber: string
   carModel: string
   carYear: string
@@ -324,37 +322,12 @@ function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
     isDriver,
     carType: c.carType ?? '',
     medical: c.medical ?? '',
-    notes: Array.isArray(c.notes) ? [...c.notes] : [],
-    noteDraft: '',
+    insuranceHistory: normalizeCustomerNotesBag(c.notes).insuranceHistory,
     carNumber: c.carNumber ?? '',
     carModel: c.carModel ?? '',
     carYear: c.carYear ?? '',
     renewalDate: c.renewalDate ?? '',
   }
-}
-
-function appendCustomerNoteToForm(
-  prev: CustomerEditFormState | null,
-  onStatusMessage: (msg: string) => void,
-): CustomerEditFormState | null {
-  if (!prev) {
-    return prev
-  }
-  const trimmed = prev.noteDraft.trim()
-  if (!trimmed) {
-    return prev
-  }
-  if (trimmed.length > NOTE_MAX_LENGTH) {
-    onStatusMessage(`메모는 ${NOTE_MAX_LENGTH}자 이하로 입력해주세요.`)
-    return prev
-  }
-  const newNote: CustomerNote = {
-    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    content: trimmed,
-    createdAt: new Date().toISOString(),
-  }
-  onStatusMessage('')
-  return { ...prev, notes: [newNote, ...prev.notes], noteDraft: '' }
 }
 
 type CustomerListCardProps = {
@@ -382,6 +355,7 @@ type CustomerListCardProps = {
   onOpenCustomer: (customerId: number) => void
   consultationCount: number
   onConsultationCountsInvalidate: () => void
+  onCustomerRecordUpdated: (record: CustomerRecord) => void
 }
 
 function CustomerListCard({
@@ -409,6 +383,7 @@ function CustomerListCard({
   onOpenCustomer,
   consultationCount,
   onConsultationCountsInvalidate,
+  onCustomerRecordUpdated,
 }: CustomerListCardProps) {
   const ins = customerInsuranceDisplay(c)
   return (
@@ -468,6 +443,53 @@ function CustomerListCard({
 
         {expandedId === c.id ? (
           <div className="customer-expand-detail">
+            <div
+              className="customer-detail-toolbar"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: '1.05rem', minWidth: 0 }}>{c.name}</div>
+              <div
+                className="customer-card-icon-actions"
+                style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}
+              >
+                <button
+                  type="button"
+                  className="customer-icon-action"
+                  title="카톡 복사"
+                  aria-label="카톡 복사"
+                  onClick={() => void onCopyCustomer(c)}
+                >
+                  📋
+                </button>
+                {editingId !== c.id ? (
+                  <button
+                    type="button"
+                    className="customer-icon-action"
+                    title="수정"
+                    aria-label="수정"
+                    onClick={() => onStartEdit(c)}
+                  >
+                    ✏️
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="customer-icon-action"
+                  title="삭제"
+                  aria-label="삭제"
+                  onClick={() => void onDeleteCustomer(c)}
+                >
+                  🗑
+                </button>
+              </div>
+            </div>
             {editingId === c.id && editForm ? (
               <>
                 <div className="customer-edit-banner" role="status">
@@ -642,75 +664,19 @@ function CustomerListCard({
                         }
                       />
                     </label>
-                    <div className="field field--wide">
-                      <span className="field__label">메모 (최대 {NOTE_MAX_LENGTH}자, Enter로 추가)</span>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
-                        <input
-                          className="field__control"
-                          style={{ flex: '1 1 220px' }}
-                          placeholder="메모 입력"
-                          value={editForm.noteDraft ?? ''}
-                          maxLength={NOTE_MAX_LENGTH}
-                          onChange={(e) =>
-                            setEditForm((prev) =>
-                              prev
-                                ? { ...prev, noteDraft: e.target.value.slice(0, NOTE_MAX_LENGTH) }
-                                : prev,
-                            )
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              setEditForm((prev) => appendCustomerNoteToForm(prev, onStatusMessage))
-                            }
-                          }}
-                        />
-                        <button
-                          className="button button--secondary"
-                          type="button"
-                          onClick={() =>
-                            setEditForm((prev) => appendCustomerNoteToForm(prev, onStatusMessage))
-                          }
-                        >
-                          추가
-                        </button>
-                      </div>
-                      {editForm.notes.length > 0 ? (
-                        <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
-                          {editForm.notes.map((note) => (
-                            <li
-                              key={note.id}
-                              style={{
-                                borderTop: '1px solid rgba(0,0,0,0.08)',
-                                padding: '8px 0',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                gap: 8,
-                                alignItems: 'flex-start',
-                              }}
-                            >
-                              <div>
-                                <div>{note.content}</div>
-                                <small style={{ opacity: 0.75 }}>
-                                  {new Date(note.createdAt).toLocaleString('ko-KR')}
-                                </small>
-                              </div>
-                              <button
-                                type="button"
-                                className="delete-btn"
-                                onClick={() =>
-                                  setEditForm((prev) =>
-                                    prev ? { ...prev, notes: prev.notes.filter((n) => n.id !== note.id) } : prev,
-                                  )
-                                }
-                              >
-                                삭제
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </div>
+                    <label className="field field--wide">
+                      <span className="field__label">보험가입내역</span>
+                      <textarea
+                        className="field__control"
+                        name="customer-insurance-history"
+                        rows={4}
+                        placeholder="보험가입내역 입력"
+                        value={editForm.insuranceHistory ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, insuranceHistory: e.target.value } : prev))
+                        }
+                      />
+                    </label>
                     <label className="field">
                       <span className="field__label">차량번호</span>
                       <input
@@ -776,9 +742,6 @@ function CustomerListCard({
               <>
                 <div className="customer-detail-read">
                   <p>
-                    <strong>이름:</strong> {c.name}
-                  </p>
-                  <p>
                     <strong>주민번호:</strong> {c.ssn || '—'}
                   </p>
                   <p style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px', alignItems: 'center' }}>
@@ -839,21 +802,30 @@ function CustomerListCard({
                     <CustomerDDayBadge renewalDate={c.renewalDate} />
                   </p>
                   <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-                  {c.notes && c.notes.length > 0 ? (
-                    <div style={{ marginTop: 4 }}>
-                      <strong>메모</strong>
-                      <ul style={{ margin: '6px 0 0', paddingLeft: '1.2em' }}>
-                        {c.notes.map((n) => (
-                          <li key={n.id}>{n.content}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : (
-                    <p>
-                      <strong>메모:</strong> —
-                    </p>
-                  )}
+                  <h3 className="customer-form-history__title" style={{ fontSize: '1rem', margin: '8px 0' }}>
+                    보험가입내역
+                  </h3>
+                  <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.95rem' }}>
+                    {normalizeCustomerNotesBag(c.notes).insuranceHistory?.trim()
+                      ? normalizeCustomerNotesBag(c.notes).insuranceHistory
+                      : '내용 없음'}
+                  </div>
                 </div>
+                {token ? (
+                  <CustomerInlineNotesSection
+                    customer={c}
+                    token={token}
+                    onUpdated={onCustomerRecordUpdated}
+                    onStatusMessage={onStatusMessage}
+                  />
+                ) : null}
+                {token ? (
+                  <CustomerConsultationSection
+                    customerId={c.id}
+                    token={token}
+                    onMutated={onConsultationCountsInvalidate}
+                  />
+                ) : null}
                 {token ? (
                   <CustomerRelationsStrip
                     customerId={c.id}
@@ -863,57 +835,38 @@ function CustomerListCard({
                     focusedCustomerId={expandedId}
                   />
                 ) : null}
-                <div className="customer-actions">
-                  <button className="kakao-btn" type="button" onClick={() => void onCopyCustomer(c)}>
-                    카톡 복사
-                  </button>
-                  <button className="edit-btn" type="button" onClick={() => onStartEdit(c)}>
-                    ✏ 수정
-                  </button>
-                  <button className="delete-btn" type="button" onClick={() => void onDeleteCustomer(c)}>
-                    삭제
-                  </button>
-                </div>
+                {carFeatureEnabled ? (
+                  <div className="customer-form-history">
+                    <h3 className="customer-form-history__title">연결된 신청서</h3>
+                    {historyLoading ? (
+                      <p className="customer-form-history__status">불러오는 중…</p>
+                    ) : historyForms.length === 0 ? (
+                      <p className="customer-form-history__status">이 고객 ID로 연결된 신청서가 없습니다.</p>
+                    ) : (
+                      <ul className="customer-form-history__list">
+                        {historyForms.map((row) => (
+                          <li key={row.id} className="customer-form-history__item">
+                            <div>
+                              <strong>{row.title}</strong>
+                              <span className="customer-form-history__meta">
+                                저장: {formatKoreanDateTime(row.updatedAt)} · 만기 {row.expiryDate || '—'}
+                              </span>
+                            </div>
+                            <button
+                              className="button button--secondary"
+                              type="button"
+                              onClick={() => onNavigateToFormEdit(row.id)}
+                            >
+                              열기
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ) : null}
               </>
             )}
-
-            {carFeatureEnabled ? (
-              <div className="customer-form-history">
-                <h3 className="customer-form-history__title">연결된 신청서</h3>
-                {historyLoading ? (
-                  <p className="customer-form-history__status">불러오는 중…</p>
-                ) : historyForms.length === 0 ? (
-                  <p className="customer-form-history__status">이 고객 ID로 연결된 신청서가 없습니다.</p>
-                ) : (
-                  <ul className="customer-form-history__list">
-                    {historyForms.map((row) => (
-                      <li key={row.id} className="customer-form-history__item">
-                        <div>
-                          <strong>{row.title}</strong>
-                          <span className="customer-form-history__meta">
-                            저장: {formatKoreanDateTime(row.updatedAt)} · 만기 {row.expiryDate || '—'}
-                          </span>
-                        </div>
-                        <button
-                          className="button button--secondary"
-                          type="button"
-                          onClick={() => onNavigateToFormEdit(row.id)}
-                        >
-                          열기
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            ) : null}
-            {token ? (
-              <CustomerConsultationSection
-                customerId={c.id}
-                token={token}
-                onMutated={onConsultationCountsInvalidate}
-              />
-            ) : null}
           </div>
         ) : null}
       </div>
@@ -1254,6 +1207,11 @@ export default function CustomersPage() {
     if (!token || user?.role !== 'USER' || editingId == null || !editForm) {
       return
     }
+    const base = customers.find((x) => x.id === editingId)
+    if (!base) {
+      setStatusText('고객 정보를 찾을 수 없습니다.')
+      return
+    }
     const name = editForm.name.trim()
     if (!name) {
       setStatusText('이름은 필수입니다.')
@@ -1286,7 +1244,10 @@ export default function CustomersPage() {
         gender: editForm.gender,
         isDriver: editForm.isDriver,
         carType: editForm.isDriver === true ? editForm.carType.trim() : '',
-        notes: editForm.notes,
+        notes: {
+          items: customerNoteItems(base),
+          insuranceHistory: editForm.insuranceHistory.trim(),
+        },
         carNumber: editForm.carNumber,
         carModel: editForm.carModel,
         carYear: editForm.carYear,
@@ -1302,7 +1263,6 @@ export default function CustomersPage() {
 
   async function handleEditFormSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    console.log('고객 수정 폼 submit', { editingId, name: editForm?.name })
     await handleUpdateCustomer()
   }
 
@@ -1752,6 +1712,9 @@ export default function CustomersPage() {
                   consultationCount={consultationCounts[c.id] ?? 0}
                   onConsultationCountsInvalidate={() => {
                     void refreshConsultationCounts()
+                  }}
+                  onCustomerRecordUpdated={(next) => {
+                    setCustomers((prev) => prev.map((x) => (x.id === next.id ? next : x)))
                   }}
                 />
               ))}

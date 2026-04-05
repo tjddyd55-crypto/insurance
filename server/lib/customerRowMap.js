@@ -30,20 +30,33 @@ export function toIsoString(value) {
   return parsed.toISOString()
 }
 
-export function mapCustomerNotesJson(raw) {
-  if (raw == null) {
+function normalizeNoteItemsFromDb(itemsRaw) {
+  if (!Array.isArray(itemsRaw)) {
     return []
   }
-  if (Array.isArray(raw)) {
-    return raw
-      .map((item) => ({
-        id: String(item?.id ?? '').trim(),
-        content: String(item?.content ?? '').trim(),
-        createdAt: String(item?.createdAt ?? '').trim(),
-      }))
-      .filter((n) => n.id && n.content && n.createdAt)
+  return itemsRaw
+    .map((item) => ({
+      id: String(item?.id ?? '').trim(),
+      content: String(item?.content ?? '').trim(),
+      createdAt: String(item?.createdAt ?? '').trim(),
+    }))
+    .filter((n) => n.id && n.content && n.createdAt)
+}
+
+/** API 응답: { items, insuranceHistory } — 레거시 배열도 수용 */
+export function mapCustomerNotesJson(raw) {
+  if (raw == null) {
+    return { items: [], insuranceHistory: '' }
   }
-  return []
+  if (Array.isArray(raw)) {
+    return { items: normalizeNoteItemsFromDb(raw), insuranceHistory: '' }
+  }
+  if (typeof raw === 'object') {
+    const insuranceHistory = String(raw.insuranceHistory ?? '').trim()
+    const items = normalizeNoteItemsFromDb(raw.items)
+    return { items, insuranceHistory }
+  }
+  return { items: [], insuranceHistory: '' }
 }
 
 export function mapCustomerRow(row) {

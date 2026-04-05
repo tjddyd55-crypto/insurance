@@ -367,12 +367,12 @@ function nextAgeDateToSqlDate(d) {
   return `${y}-${mo}-${day}`
 }
 
-function normalizeCustomerNotesInput(raw) {
-  if (raw == null || !Array.isArray(raw)) {
-    return []
-  }
+function normalizeCustomerNoteItemsArray(itemsRaw) {
   const out = []
-  for (const item of raw) {
+  if (!Array.isArray(itemsRaw)) {
+    return out
+  }
+  for (const item of itemsRaw) {
     if (!item || typeof item !== 'object') {
       continue
     }
@@ -387,20 +387,32 @@ function normalizeCustomerNotesInput(raw) {
   return out
 }
 
+/** DB jsonb 저장 형식: { items: Note[], insuranceHistory?: string } */
+function normalizeCustomerNotesInput(raw) {
+  const insuranceHistoryMax = 60000
+  let insuranceHistory = ''
+  let itemsRaw = raw
+  if (raw != null && typeof raw === 'object' && !Array.isArray(raw)) {
+    insuranceHistory = String(raw.insuranceHistory ?? '').trim().slice(0, insuranceHistoryMax)
+    itemsRaw = raw.items
+  }
+  const items = normalizeCustomerNoteItemsArray(itemsRaw)
+  return { items, insuranceHistory }
+}
+
 function mapCustomerNotesJson(raw) {
   if (raw == null) {
-    return []
+    return { items: [], insuranceHistory: '' }
   }
   if (Array.isArray(raw)) {
-    return raw
-      .map((item) => ({
-        id: String(item?.id ?? '').trim(),
-        content: String(item?.content ?? '').trim(),
-        createdAt: String(item?.createdAt ?? '').trim(),
-      }))
-      .filter((n) => n.id && n.content && n.createdAt)
+    return { items: normalizeCustomerNoteItemsArray(raw), insuranceHistory: '' }
   }
-  return []
+  if (typeof raw === 'object') {
+    const insuranceHistory = String(raw.insuranceHistory ?? '').trim()
+    const items = normalizeCustomerNoteItemsArray(raw.items)
+    return { items, insuranceHistory }
+  }
+  return { items: [], insuranceHistory: '' }
 }
 
 function mapCustomerRow(row) {
@@ -750,7 +762,11 @@ function extractFormData(body) {
   return formData
 }
 
-function handleDbError(error, res) {
+function handleDbError(error, req, res) {
+  if (!res || typeof res.status !== 'function') {
+    console.error('[FATAL] invalid res object', res)
+    return
+  }
   if (error?.code === '23505') {
     if (error?.constraint === 'users_username_key') {
       res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
@@ -760,29 +776,20 @@ function handleDbError(error, res) {
     return
   }
 
-  console.error(error)
-  res.status(500).json({ message: 'DB 처리 중 오류가 발생했습니다.' })
+  console.error('[DB ERROR]', error)
+  res.status(500).json({ success: false, message: 'DB_ERROR' })
 }
 
 async function logInsuranceFormsDbDiagnostics(contextLabel) {
   try {
-    const recent = await systemQuery(pool,
+    await systemQuery(pool,
       `
-      SELECT id, user_id, created_at
-      FROM insurance_forms
+      SELECT id FROM insurance_forms
       ORDER BY created_at DESC NULLS LAST, id DESC
-      LIMIT 5
+      LIMIT 1
       `,
     )
-    console.log(`[insurance_forms:${contextLabel}] DB 저장 확인:`, recent.rows)
-
-    const nullCheck = await systemQuery(pool,
-      `SELECT COUNT(*)::int AS count FROM insurance_forms WHERE user_id IS NULL`,
-    )
-    console.log(
-      `[insurance_forms:${contextLabel}] user_id NULL 개수:`,
-      nullCheck.rows[0]?.count ?? 0,
-    )
+    await systemQuery(pool, `SELECT COUNT(*)::int AS count FROM insurance_forms WHERE user_id IS NULL`)
   } catch (error) {
     console.error(`[insurance_forms:${contextLabel}] 진단 쿼리 실패:`, error)
   }
@@ -942,9 +949,6 @@ async function requireAuth(req, res, next) {
       return
     }
 
-    if (req.originalUrl?.includes('/forms')) {
-      console.log('로그인 user:', req.user)
-    }
     next()
   } catch (e) {
     const name = e && typeof e === 'object' && 'name' in e ? String(e.name) : ''
@@ -1375,7 +1379,7 @@ async function handleRegister(req, res) {
       res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
       return
     }
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 }
 
@@ -1405,8 +1409,6 @@ async function handleLogin(req, res) {
     const normalizedUsername = username.trim()
     const loginDebug = process.env.INSURANCE_LOGIN_DEBUG === 'true'
 
-    console.log('로그인 시도 username:', normalizedUsername)
-
     const result = await systemQuery(pool,
       `
       SELECT *
@@ -1417,7 +1419,6 @@ async function handleLogin(req, res) {
     )
 
     let user = result.rows[0]
-    console.log('DB user:', user ? { id: user.id, username: user.username } : null)
 
     if (!user) {
       const imRes = await systemQuery(
@@ -1432,7 +1433,6 @@ async function handleLogin(req, res) {
       )
       const im = imRes.rows[0]
       if (!im) {
-        console.log('❌ 사용자 없음')
         await auditLoginFailure(pool, normalizedUsername, 'unknown_user')
         res.status(401).json({
           error: 'Invalid credentials',
@@ -1527,10 +1527,8 @@ async function handleLogin(req, res) {
     }
 
     const match = await bcrypt.compare(password, user.password_hash)
-    console.log('비밀번호 일치 여부:', match)
 
     if (!match) {
-      console.log('❌ 비밀번호 불일치')
       await auditLoginFailure(pool, normalizedUsername, 'invalid_password_user')
       res.status(401).json({
         error: 'Invalid credentials',
@@ -1620,7 +1618,7 @@ async function handleLogin(req, res) {
       },
     })
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 }
 
@@ -1641,7 +1639,7 @@ apiRouter.get('/auth/username-availability', async (req, res) => {
     const taken = await isUsernameTakenGlobally(pool, raw)
     res.json({ available: !taken })
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -1662,7 +1660,7 @@ apiRouter.get('/admin/health/insurer-managers', requireAuth, requireInsurerHealt
       gaMismatch: summary.gaMismatch,
     })
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -1716,7 +1714,7 @@ apiRouter.get('/admin/audit-logs', requireAuth, requireAuditLogReader, async (re
     const r = await systemQuery(pool, sql, params)
     res.json(r.rows)
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -1740,7 +1738,7 @@ apiRouter.get('/insurer-managers', requireAuth, requireGaAdminOrSuper, async (re
     )
     res.json(r.rows.map(mapInsurerManagerRow))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -1830,7 +1828,7 @@ apiRouter.post('/insurer-managers', requireAuth, requireGaInsurerManagerMutator,
       res.status(409).json({ message: '이미 사용 중인 아이디이거나 동일 보험사에 계정이 있습니다.' })
       return
     }
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2040,7 +2038,7 @@ apiRouter.patch('/insurer-managers/:id', requireAuth, requireGaInsurerManagerMut
       res.status(409).json({ message: '이미 사용 중인 아이디이거나 동일 보험사에 계정이 있습니다.' })
       return
     }
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2075,7 +2073,7 @@ apiRouter.get('/admin/ga', requireAuth, async (req, res) => {
     )
     res.json(r.rows)
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2106,7 +2104,7 @@ apiRouter.post('/admin/ga', requireAuth, requireSuperAdmin, async (req, res) => 
       res.status(409).json({ message: '이미 존재하는 코드입니다' })
       return
     }
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2193,7 +2191,7 @@ apiRouter.patch('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, res
       res.status(409).json({ message: '이미 존재하는 코드입니다' })
       return
     }
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2220,7 +2218,7 @@ apiRouter.delete('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, re
     }
     res.status(204).send()
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2258,7 +2256,7 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
     }))
     res.json(rows)
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2370,7 +2368,7 @@ apiRouter.patch('/admin/users/:id', requireAuth, requireSuperAdmin, async (req, 
       created_at: toIsoString(row.created_at),
     })
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2418,7 +2416,7 @@ apiRouter.delete('/admin/users/:id', requireAuth, requireSuperAdmin, async (req,
     } catch {
       /* ignore */
     }
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   } finally {
     client.release()
   }
@@ -2507,7 +2505,7 @@ async function postAdminCreateDelegateUser(req, res) {
       res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
       return
     }
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 }
 
@@ -2538,7 +2536,7 @@ apiRouter.get('/admin/delegates', requireAuth, requireSuperAdmin, async (req, re
     )
     res.json(r.rows.map(mapGaDelegateAdminRow))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2574,7 +2572,7 @@ apiRouter.post('/admin/delegates', requireAuth, requireSuperAdmin, async (req, r
       res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
       return
     }
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2702,7 +2700,7 @@ apiRouter.patch('/admin/delegates/:id', requireAuth, requireSuperAdmin, async (r
       res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
       return
     }
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2744,7 +2742,7 @@ apiRouter.post('/feature-request', requireAuth, async (req, res) => {
       created_at: toIsoString(ins.rows[0].created_at),
     })
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2779,7 +2777,7 @@ apiRouter.get('/feature-requests/my', requireAuth, async (req, res) => {
     }))
     res.json(rows)
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2822,7 +2820,7 @@ apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (
     }))
     res.json(rows)
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2867,7 +2865,7 @@ apiRouter.patch('/admin/feature-requests/:id', requireAuth, requireSuperAdmin, a
       created_at: toIsoString(row.created_at),
     })
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2890,7 +2888,7 @@ apiRouter.get('/company/list', requireAuth, async (req, res) => {
     const list = await loadCompanyDirectoryNestedList(gaId, scope)
     res.json(list)
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -2949,7 +2947,7 @@ apiRouter.get('/company/recent-updates', requireAuth, async (req, res) => {
     })
     res.json(rows)
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -3193,7 +3191,7 @@ apiRouter.post('/company/full-save', requireAuth, requireGaTenantAdmin, async (r
       res.status(404).json({ message: error.message })
       return
     }
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -3280,7 +3278,7 @@ apiRouter.delete('/company/masters/:companyId', requireAuth, requireGaTenantAdmi
       res.status(403).json({ message: error.message })
       return
     }
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -3335,7 +3333,7 @@ apiRouter.post('/company/general-save', requireAuth, requireGaTenantAdmin, async
 
     res.json({ success: true })
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -3394,7 +3392,7 @@ apiRouter.get('/insurance/contacts', requireAuth, async (req, res) => {
       contacts: contactsResult.rows.map(mapContactRow),
     })
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -3428,7 +3426,7 @@ apiRouter.get('/insurance/updates', requireAuth, async (req, res) => {
 
     res.json(result.rows.map(mapContactUpdateRow))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -3463,7 +3461,7 @@ apiRouter.get('/insurance/contacts/:id/vcard', requireAuth, async (req, res) => 
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.vcf"`)
     res.send(createVCardContent(contact))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -3536,7 +3534,7 @@ apiRouter.post('/admin/insurance/contacts', requireAuth, requireGaAdminOrSuper, 
 
     res.status(201).json(mapContactRow(inserted))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -3629,7 +3627,7 @@ apiRouter.put('/admin/insurance/contacts/:id', requireAuth, requireGaAdminOrSupe
 
     res.json(mapContactRow(updatedContact))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -3698,7 +3696,7 @@ apiRouter.delete('/admin/insurance/contacts/:id', requireAuth, requireGaAdminOrS
 
     res.status(204).send()
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -3726,7 +3724,7 @@ apiRouter.get('/forms', requireAuth, async (req, res) => {
 
     res.json(result.rows.map(mapFormRow))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -3756,7 +3754,7 @@ apiRouter.get('/forms/expiring', requireAuth, async (req, res) => {
 
     res.json(result.rows.map(mapFormRow))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -3771,8 +3769,6 @@ apiRouter.post('/forms', requireAuth, async (req, res) => {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
     }
-
-    console.log('저장 userId:', userId)
 
     const formData = extractFormData(req.body)
     if (!formData) {
@@ -3827,7 +3823,7 @@ apiRouter.post('/forms', requireAuth, async (req, res) => {
 
     res.status(201).json(mapFormRow(inserted.rows[0]))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -3931,7 +3927,7 @@ apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
 
     res.status(201).json({ success: true, data: mapFormRow(insert.rows[0]) })
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -4026,7 +4022,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
 
     res.status(201).json({ success: true, data: mapCustomerRow(inserted.rows[0]) })
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -4132,7 +4128,7 @@ apiRouter.post('/customer/external-create', async (req, res) => {
 
     res.status(201).json({ success: true, data: mapCustomerRow(inserted.rows[0]) })
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -4283,7 +4279,7 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
 
     res.json({ success: true, data: mapCustomerRow(updated.rows[0]) })
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -4337,7 +4333,7 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
 
     res.json(result.rows.map(mapCustomerRow))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -4371,7 +4367,7 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
 
     res.json(result.rows.map(mapCustomerRow))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -4416,7 +4412,7 @@ apiRouter.get('/customers/:id/forms', requireAuth, async (req, res) => {
 
     res.json(forms.rows.map(mapFormRow))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -4454,7 +4450,7 @@ apiRouter.delete('/customers/:id', requireAuth, async (req, res) => {
 
     res.json({ success: true })
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -4486,7 +4482,7 @@ apiRouter.get('/forms/:id', requireAuth, async (req, res) => {
 
     res.json(mapFormRow(result.rows[0]))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -4501,8 +4497,6 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
     }
-
-    console.log('저장 userId:', userId)
 
     const formData = extractFormData(req.body)
     if (!formData) {
@@ -4589,7 +4583,7 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
 
     res.json(mapFormRow(updated.rows[0]))
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
@@ -4621,7 +4615,7 @@ apiRouter.delete('/forms/:id', requireAuth, async (req, res) => {
 
     res.status(204).send()
   } catch (error) {
-    handleDbError(error, res)
+    handleDbError(error, req, res)
   }
 })
 
