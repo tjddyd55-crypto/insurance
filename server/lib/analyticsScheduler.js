@@ -21,7 +21,8 @@ export async function tickAnalyticsAggregationScheduler(pool, state) {
   if (state.lastRunSeoulYmd === ymd) {
     return
   }
-  const yesterday = getSeoulYesterdayDateString(now)  try {
+  const yesterday = getSeoulYesterdayDateString(now)
+  try {
     await runAnalyticsAggregationForStatDate(pool, yesterday)
     state.lastRunSeoulYmd = ymd
     console.log(`[analytics] scheduled aggregation ok for ${yesterday} (tick ${ymd})`)
