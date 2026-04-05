@@ -4618,7 +4618,10 @@ apiRouter.delete('/forms/:id', requireAuth, async (req, res) => {
   }
 })
 
-/** 고객 상담/관계/고급검색 — apiRouter 부착 직전에 등록(다른 /customers 라우트 이후, 마운트 전 확인 용이) */
+/**
+ * 고객 상담/관계/고급검색 (GET·POST /customers/:id/consultations 등)
+ * 반드시 app.use 로 apiRouter 를 붙이기 **전에** 등록한다. (등록이 뒤에 가면 라우트가 붙지 않음)
+ */
 registerCustomerExtraApi(apiRouter, { pool, requireAuth, handleDbError })
 
 app.use('/api', apiRouter)
