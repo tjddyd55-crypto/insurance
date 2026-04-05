@@ -4349,22 +4349,36 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
     }
 
     const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 2000)
-    const result = await safeQuery(pool,
-      `
-      SELECT
-        id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
-        car_number, car_model, car_year, renewal_date,
-        gender, insurance_age, next_age_date, is_driver, car_type, notes,
-        created_at
-      FROM customers
-      WHERE user_id = $1 AND ga_id = $2 AND deleted_at IS NULL
-      ORDER BY renewal_date ASC NULLS LAST, created_at DESC
-      LIMIT $3
-      `,
-      [userId, gaId, limit],
-    )
+    const [result, countResult] = await Promise.all([
+      safeQuery(pool,
+        `
+        SELECT
+          id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+          car_number, car_model, car_year, renewal_date,
+          gender, insurance_age, next_age_date, is_driver, car_type, notes,
+          created_at
+        FROM customers
+        WHERE user_id = $1 AND ga_id = $2 AND deleted_at IS NULL
+        ORDER BY renewal_date ASC NULLS LAST, created_at DESC
+        LIMIT $3
+        `,
+        [userId, gaId, limit],
+      ),
+      safeQuery(pool,
+        `
+        SELECT COUNT(*)::bigint AS c
+        FROM customers
+        WHERE user_id = $1 AND ga_id = $2 AND deleted_at IS NULL
+        `,
+        [userId, gaId],
+      ),
+    ])
 
-    res.json(result.rows.map(mapCustomerRow))
+    const total = Number(countResult.rows[0]?.c ?? 0) || 0
+    res.json({
+      data: result.rows.map(mapCustomerRow),
+      total,
+    })
   } catch (error) {
     handleDbError(error, req, res)
   }

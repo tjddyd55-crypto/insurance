@@ -293,7 +293,7 @@ function parseCreatedAtMs(iso: string | undefined | null): number {
   return Number.isFinite(t) ? t : 0
 }
 
-type CustomerListSort = 'maturity_asc' | 'car_expire_asc' | 'recent'
+type CustomerSortType = 'age' | 'car' | 'recent' | null
 
 type CustomerEditFormState = {
   name: string
@@ -337,6 +337,19 @@ function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
     carYear: c.carYear ?? '',
     renewalDate: c.renewalDate ?? '',
   }
+}
+
+function normalizeCustomerEditCarYearForApi(raw: string | undefined): string {
+  return String(raw ?? '').replace(/\D/g, '')
+}
+
+function normalizeCustomerEditRenewalDateForApi(raw: string | undefined): string {
+  const s = String(raw ?? '').trim()
+  if (!s) {
+    return ''
+  }
+  const head = s.slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(head) ? head : ''
 }
 
 type CustomerListCardProps = {
@@ -914,6 +927,7 @@ export default function CustomersPage() {
   const { user, token } = useAuth()
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
+  const [customersTotalCount, setCustomersTotalCount] = useState(0)
   const customersRef = useRef<CustomerRecord[]>([])
   customersRef.current = customers
   const [statusText, setStatusText] = useState('')
@@ -927,7 +941,7 @@ export default function CustomersPage() {
   const [searchInput, setSearchInput] = useState('')
   const [keyword, setKeyword] = useState('')
   const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentCustomerSearches())
-  const [listSort, setListSort] = useState<CustomerListSort>('maturity_asc')
+  const [sortType, setSortType] = useState<CustomerSortType>(null)
   const [advancedFilters, setAdvancedFilters] = useState<CustomerAdvancedFilters>(() => ({
     ...EMPTY_ADVANCED_FILTERS,
   }))
@@ -996,14 +1010,16 @@ export default function CustomersPage() {
     const copy = [...filteredCustomers]
     const tieName = (a: CustomerRecord, b: CustomerRecord) => a.name.localeCompare(b.name, 'ko')
 
-    if (listSort === 'maturity_asc') {
+    if (sortType === null) {
+      copy.sort((a, b) => tieName(a, b))
+    } else if (sortType === 'age') {
       copy.sort((a, b) => {
         const ka = ymdAscSortKey(getCustomerListMetrics(a).maturityYmd)
         const kb = ymdAscSortKey(getCustomerListMetrics(b).maturityYmd)
         const cmp = ka.localeCompare(kb)
         return cmp !== 0 ? cmp : tieName(a, b)
       })
-    } else if (listSort === 'car_expire_asc') {
+    } else if (sortType === 'car') {
       copy.sort((a, b) => {
         const ka = ymdAscSortKey(customerRenewalYmd(a))
         const kb = ymdAscSortKey(customerRenewalYmd(b))
@@ -1021,7 +1037,7 @@ export default function CustomersPage() {
       })
     }
     return copy
-  }, [filteredCustomers, listSort])
+  }, [filteredCustomers, sortType])
 
   const allVisibleIds = useMemo(() => sortedCustomers.map((c) => String(c.id)), [sortedCustomers])
   const allVisibleSelected =
@@ -1074,6 +1090,19 @@ export default function CustomersPage() {
       setIsLoading(false)
     }
   }, [token, user?.role, refreshConsultationCounts])
+
+  /** 연계 고객 등: 검색어로 찾지 않고 목록에서 카드만 펼침 (검색·심층 검색 상태는 초기화) */
+  const openCustomerInList = useCallback((customerId: number) => {
+    setSearchInput('')
+    setKeyword('')
+    setAdvSearchHits(null)
+    setExpandedId(customerId)
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-customer-card-id="${customerId}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
+  }, [])
 
   useEffect(() => {
     const handle = window.setTimeout(() => setKeyword(searchInput), 300)
@@ -1259,31 +1288,59 @@ export default function CustomersPage() {
   }
 
   async function handleUpdateCustomer() {
-    if (!token || user?.role !== 'USER' || editingId == null || !editForm) {
+    if (!token?.trim()) {
+      const msg = '로그인이 필요합니다.'
+      setStatusText(msg)
+      window.alert(msg)
+      return
+    }
+    if (user?.role !== 'USER') {
+      const msg = '고객 정보를 수정할 권한이 없습니다.'
+      setStatusText(msg)
+      window.alert(msg)
+      return
+    }
+    if (editingId == null || !editForm) {
+      const msg = '수정 중인 고객이 없습니다.'
+      setStatusText(msg)
+      window.alert(msg)
       return
     }
     const base = customers.find((x) => x.id === editingId)
     if (!base) {
-      setStatusText('고객 정보를 찾을 수 없습니다.')
+      const msg = '고객 정보를 찾을 수 없습니다.'
+      setStatusText(msg)
+      window.alert(msg)
       return
     }
     const name = editForm.name.trim()
     if (!name) {
-      setStatusText('이름은 필수입니다.')
+      const msg = '이름은 필수입니다.'
+      setStatusText(msg)
+      window.alert(msg)
       return
     }
     if (editForm.gender == null) {
-      setStatusText('성별을 선택해주세요.')
+      const msg = '성별을 선택해주세요.'
+      setStatusText(msg)
+      window.alert(msg)
       return
     }
     if (editForm.isDriver == null) {
-      setStatusText('운전 여부를 선택해주세요.')
+      const msg = '운전 여부를 선택해주세요.'
+      setStatusText(msg)
+      window.alert(msg)
       return
     }
     if (editForm.isDriver === true && !editForm.carType.trim()) {
-      setStatusText('차종을 입력해주세요.')
+      const msg = '차종을 입력해주세요.'
+      setStatusText(msg)
+      window.alert(msg)
       return
     }
+    const isDriverBool: boolean = editForm.isDriver === true
+    const carYearForApi = normalizeCustomerEditCarYearForApi(editForm.carYear)
+    const renewalDateForApi = normalizeCustomerEditRenewalDateForApi(editForm.renewalDate)
     try {
       await updateCustomer(token, editingId, {
         name,
@@ -1294,10 +1351,10 @@ export default function CustomersPage() {
         height: editForm.height,
         weight: editForm.weight,
         job: editForm.job,
-        driving: drivingText(editForm.isDriver),
+        driving: drivingText(isDriverBool),
         medical: editForm.medical,
         gender: editForm.gender,
-        isDriver: editForm.isDriver,
+        isDriver: isDriverBool,
         carType: editForm.isDriver === true ? editForm.carType.trim() : '',
         notes: {
           items: customerNoteItems(base),
@@ -1305,19 +1362,22 @@ export default function CustomersPage() {
         },
         carNumber: editForm.carNumber,
         carModel: editForm.carModel,
-        carYear: editForm.carYear,
-        renewalDate: editForm.renewalDate,
+        carYear: carYearForApi,
+        renewalDate: renewalDateForApi,
       })
       setStatusText('고객 정보를 수정했습니다.')
       cancelEdit()
       await loadCustomers()
     } catch (error) {
-      setStatusText(error instanceof Error ? error.message : '수정에 실패했습니다.')
+      const msg = error instanceof Error ? error.message : '수정에 실패했습니다.'
+      setStatusText(msg)
+      window.alert(msg)
     }
   }
 
   async function handleEditFormSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
+    console.log('submit')
     await handleUpdateCustomer()
   }
 
@@ -1609,27 +1669,30 @@ export default function CustomersPage() {
                 </div>
               ) : null}
 
-              <div className="customers-sort-row" role="group" aria-label="목록 정렬">
-                <span className="customers-sort-row__label">정렬:</span>
+              <div className="customers-sort-row" role="group" aria-label="목록 정렬 (같은 버튼을 다시 누르면 해제되어 이름 가나다순)">
+                <span className="customers-sort-row__label">정렬</span>
                 <div className="customers-sort-row__buttons filter-group">
                   <button
                     type="button"
-                    className={`filter-button${listSort === 'maturity_asc' ? ' active' : ''}`}
-                    onClick={() => setListSort('maturity_asc')}
+                    className={`filter-button${sortType === 'age' ? ' active' : ''}`}
+                    aria-pressed={sortType === 'age'}
+                    onClick={() => setSortType((t) => (t === 'age' ? null : 'age'))}
                   >
                     상령일 빠른순
                   </button>
                   <button
                     type="button"
-                    className={`filter-button${listSort === 'car_expire_asc' ? ' active' : ''}`}
-                    onClick={() => setListSort('car_expire_asc')}
+                    className={`filter-button${sortType === 'car' ? ' active' : ''}`}
+                    aria-pressed={sortType === 'car'}
+                    onClick={() => setSortType((t) => (t === 'car' ? null : 'car'))}
                   >
                     자동차 만기순
                   </button>
                   <button
                     type="button"
-                    className={`filter-button${listSort === 'recent' ? ' active' : ''}`}
-                    onClick={() => setListSort('recent')}
+                    className={`filter-button${sortType === 'recent' ? ' active' : ''}`}
+                    aria-pressed={sortType === 'recent'}
+                    onClick={() => setSortType((t) => (t === 'recent' ? null : 'recent'))}
                   >
                     최근등록
                   </button>
@@ -1710,7 +1773,8 @@ export default function CustomersPage() {
 
           {!isLoading && customers.length > 0 ? (
             <p className="customers-filter-result" role="status">
-              검색·필터 결과: <strong>{sortedCustomers.length}</strong>명
+              검색·필터 결과:{' '}
+              <strong>{listIsNarrowed ? sortedCustomers.length : customersTotalCount}</strong>명
             </p>
           ) : null}
 
@@ -1755,14 +1819,7 @@ export default function CustomersPage() {
                   onDeleteCustomer={handleDeleteCustomer}
                   onNavigateToFormEdit={(formId) => navigate(`/form/${formId}/edit`)}
                   token={token}
-                  onOpenCustomer={(id) => {
-                    setExpandedId(id)
-                    window.requestAnimationFrame(() => {
-                      document
-                        .querySelector(`[data-customer-card-id="${id}"]`)
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-                    })
-                  }}
+                  onOpenCustomer={openCustomerInList}
                   consultationCount={consultationCounts[c.id] ?? 0}
                   lastConsultDateLabel={lastConsultDateMap[c.id] ?? null}
                   onConsultationCountsInvalidate={() => {

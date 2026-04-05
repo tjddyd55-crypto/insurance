@@ -693,7 +693,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
       res.json({ newsletters, insurers })
     } catch (e86) {
-      handleDbError(res, e86)
+      handleDbError(e86, req, res)
     }
   })
 
@@ -727,7 +727,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       )
       res.json(mapNewsletterDetail(nRes.rows[0], attRes.rows))
     } catch (e87) {
-      handleDbError(res, e87)
+      handleDbError(e87, req, res)
     }
   })
 
@@ -752,7 +752,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         insurerSlug: scope.companySlug,
       })
     } catch (e88) {
-      handleDbError(res, e88)
+      handleDbError(e88, req, res)
     }
   })
 
@@ -840,7 +840,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         reason: 'exception',
         message: e89 instanceof Error ? e89.message : String(e89),
       })
-      handleDbError(res, e89)
+      handleDbError(e89, req, res)
     }
   })
 
@@ -936,7 +936,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         reason: 'exception',
         message: eComplete instanceof Error ? eComplete.message : String(eComplete),
       })
-      handleDbError(res, eComplete)
+      handleDbError(eComplete, req, res)
     }
   })
 
@@ -993,7 +993,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const newsletters = nRes.rows.map((row) => mapNewsletterListRow(row, gaCodeUpper))
       res.json(newsletters)
     } catch (e90) {
-      handleDbError(res, e90)
+      handleDbError(e90, req, res)
     }
   })
 
@@ -1013,7 +1013,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       )
       res.json(mapNewsletterDetail(nRes.rows[0], attRes.rows))
     } catch (e91) {
-      handleDbError(res, e91)
+      handleDbError(e91, req, res)
     }
   })
 
@@ -1137,7 +1137,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(e92.httpStatus).json({ message: e92 instanceof Error ? e92.message : '요청을 처리할 수 없습니다.' })
         return
       }
-      handleDbError(res, e92)
+      handleDbError(e92, req, res)
     }
   })
 
@@ -1271,7 +1271,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(e93.httpStatus).json({ message: e93 instanceof Error ? e93.message : '요청을 처리할 수 없습니다.' })
         return
       }
-      handleDbError(res, e93)
+      handleDbError(e93, req, res)
     }
   })
 
@@ -1315,7 +1315,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       await safeQuery(pool, `DELETE FROM insurance_company_newsletter_attachments WHERE id = $1`, [attachmentId])
       res.status(204).end()
     } catch (e94) {
-      handleDbError(res, e94)
+      handleDbError(e94, req, res)
     }
   })
 }

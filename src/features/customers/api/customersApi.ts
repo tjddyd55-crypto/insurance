@@ -2,12 +2,30 @@ import type { InsuranceApplicationRecord } from '../../application/domain/types'
 import { ApiError, apiRequest } from '../../../lib/apiClient'
 import type { CustomerNote, CustomerNotesBag, CustomerRecord } from '../domain/types'
 
-export async function listCustomers(token: string, limit = 500): Promise<CustomerRecord[]> {
+export type ListCustomersResult = {
+  customers: CustomerRecord[]
+  /** 삭제 제외, 동일 user·GA 스코프의 DB 전체 건수 */
+  total: number
+}
+
+export async function listCustomers(token: string, limit = 500): Promise<ListCustomersResult> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
   const query = limit ? `?limit=${encodeURIComponent(String(limit))}` : ''
-  return apiRequest<CustomerRecord[]>(`/api/customers${query}`, { token })
+  const body = await apiRequest<{ data: CustomerRecord[]; total?: number } | CustomerRecord[]>(
+    `/api/customers${query}`,
+    { token },
+  )
+  if (Array.isArray(body)) {
+    return { customers: body, total: body.length }
+  }
+  const rows = body.data ?? []
+  const total = Number(body.total)
+  return {
+    customers: rows,
+    total: Number.isFinite(total) ? total : rows.length,
+  }
 }
 
 export async function listCustomerForms(

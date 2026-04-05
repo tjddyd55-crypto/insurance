@@ -152,7 +152,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
       } catch {
         /* ignore */
       }
-      handleDbError(e, res)
+      handleDbError(e, req, res)
       return
     } finally {
       client.release()
@@ -300,7 +300,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
       } catch {
         /* ignore */
       }
-      handleDbError(e, res)
+      handleDbError(e, req, res)
     } finally {
       tx.release()
     }
@@ -333,7 +333,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         status: String(row.status ?? 'active').toLowerCase(),
       })
     } catch (e) {
-      handleDbError(e, res)
+      handleDbError(e, req, res)
     }
   })
 
@@ -483,7 +483,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         status: String(row.status ?? 'active').toLowerCase(),
       })
     } catch (e) {
-      handleDbError(e, res)
+      handleDbError(e, req, res)
     } finally {
       client.release()
     }
@@ -599,7 +599,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
       } catch {
         /* ignore */
       }
-      handleDbError(e, res)
+      handleDbError(e, req, res)
       return
     } finally {
       client.release()
@@ -774,7 +774,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
       } catch {
         /* ignore */
       }
-      handleDbError(e, res)
+      handleDbError(e, req, res)
     } finally {
       tx.release()
     }
