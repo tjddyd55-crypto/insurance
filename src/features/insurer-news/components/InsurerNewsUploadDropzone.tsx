@@ -70,6 +70,9 @@ export function InsurerNewsUploadDropzone({ onFiles, disabled }: Props) {
         이미지 또는 PDF를 드래그하여 놓거나, 탭하여 선택하세요.
       </p>
       <p className="insurer-news-muted" style={{ fontSize: 12, marginTop: 8 }}>
+        PDF 업로드 시 이미지로 변환됩니다 (최대 20페이지)
+      </p>
+      <p className="insurer-news-muted" style={{ fontSize: 12, marginTop: 4 }}>
         JPG · PNG · WEBP · GIF · PDF (이미지 최대 15MB, PDF 최대 40MB)
       </p>
     </div>

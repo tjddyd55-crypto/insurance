@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ApiError } from '../../../lib/apiClient'
 import { useInsurerNewsForm } from '../hooks/useInsurerNewsForm'
 import type { LocalAttachmentDraft, NewsletterDetail } from '../types'
 import { uploadNewsletterAttachments } from '../services/insurerNews.service'
@@ -97,6 +98,7 @@ export function InsurerNewsForm({
 }: Props) {
   const form = useInsurerNewsForm(initial)
   const [submitError, setSubmitError] = useState('')
+  const [busyMessage, setBusyMessage] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -110,20 +112,30 @@ export function InsurerNewsForm({
       setSubmitError('로그인이 필요합니다.')
       return
     }
-    const uploaded = await uploadNewsletterAttachments(authToken, form.attachments, {
-      presignInsurerCode: context.insurerCode,
-    })
-    form.replaceAttachments(uploaded)
-    if (uploaded.some((a) => a.status === 'failed')) {
-      setSubmitError('일부 파일 업로드에 실패했습니다. 실패한 항목을 확인한 뒤 다시 시도해 주세요.')
-      return
-    }
+    const hasWorkingPdf = form.attachments.some((a) => a.kind === 'pdf' && a.status !== 'failed')
+    setBusyMessage(hasWorkingPdf ? 'PDF 변환 중...' : '저장 중...')
+
     try {
+      const uploaded = await uploadNewsletterAttachments(authToken, form.attachments, {
+        presignInsurerCode: context.insurerCode,
+      })
+      form.replaceAttachments(uploaded)
+      if (uploaded.some((a) => a.status === 'failed')) {
+        setSubmitError('일부 파일 업로드에 실패했습니다. 실패한 항목을 확인한 뒤 다시 시도해 주세요.')
+        return
+      }
       const draft = buildDraftForApi(id, context, form.title, form.bodyText, uploaded, initial)
       await onSubmit(draft)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '저장에 실패했습니다.'
+      const msg =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : '저장에 실패했습니다.'
       setSubmitError(msg)
+    } finally {
+      setBusyMessage(null)
     }
   }
 
@@ -154,15 +166,24 @@ export function InsurerNewsForm({
         />
       </label>
 
+      {busyMessage ? (
+        <p className="insurer-news-muted" style={{ marginBottom: 12 }}>
+          {busyMessage}
+        </p>
+      ) : null}
+
       {submitError ? (
-        <p className="insurer-news-upload-row__status insurer-news-upload-row__status--err" style={{ marginBottom: 12 }}>
+        <p
+          className="insurer-news-upload-row__status insurer-news-upload-row__status--err"
+          style={{ marginBottom: 12, whiteSpace: 'pre-line' }}
+        >
           {submitError}
         </p>
       ) : null}
 
       <div className="field">
         <span className="field__label">파일</span>
-        <InsurerNewsUploadDropzone onFiles={form.addAttachments} />
+        <InsurerNewsUploadDropzone onFiles={form.addAttachments} disabled={Boolean(busyMessage)} />
         <div className="insurer-news-upload-list">
           {form.attachments.map((row) => (
             <div key={row.localId} className="insurer-news-upload-row">
@@ -189,10 +210,10 @@ export function InsurerNewsForm({
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
-        <button type="button" className="button button--secondary" onClick={onCancel}>
+        <button type="button" className="button button--secondary" onClick={onCancel} disabled={Boolean(busyMessage)}>
           취소
         </button>
-        <button type="submit" className="button button--primary">
+        <button type="submit" className="button button--primary" disabled={Boolean(busyMessage)}>
           {mode === 'create' ? '등록' : '저장'}
         </button>
       </div>

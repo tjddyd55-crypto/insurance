@@ -15,6 +15,10 @@ import {
 import { INSURER_R2_ACTIVE_CATEGORY } from './lib/insurerR2Layout.js'
 import { insurerNewsLog } from './lib/logger.js'
 import { expandPdfAttachmentsForNewsletter } from './lib/insurerNewsPdfToImages.js'
+/** PDF 서버 변환 단계에서 사용자에게 노출할 고정 메시지 (세부 사유는 로그만) */
+const USER_PDF_PREP_FAILURE_MESSAGE =
+  'PDF 변환에 실패했습니다.\n파일 크기 또는 페이지 수를 확인해주세요.'
+
 /** 프론트 `attachmentUploadPolicy.ts` 와 동기화 */
 const ALLOWED_UPLOAD_MIME = new Set([
   'image/jpeg',
@@ -569,7 +573,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    * @param {ReturnType<typeof assertAttachmentInput>[]} normalized
    */
   /**
-   * PDF 첨부는 저장 직전에 페이지별 PNG 로 변환·업로드 후 이미지 행만 DB 에 넣습니다.
+   * PDF 첨부는 저장 직전에 페이지별 JPEG 로 변환·업로드 후 이미지 행만 DB 에 넣습니다.
    * @param {unknown[]} attIn
    * @param {{ gaPath: string, companySlug: string }} scope
    */
@@ -1033,14 +1037,31 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       } catch (prepErr) {
         if (prepErr && typeof prepErr === 'object' && 'httpStatus' in prepErr) {
           const st = Number(prepErr.httpStatus) || 400
-          res.status(st).json({
-            message:
-              prepErr instanceof Error
-                ? prepErr.message
-                : st === 503
-                  ? '파일 저장소가 구성되지 않았습니다.'
-                  : 'PDF 변환 실패',
+          insurerNewsLog.error({
+            event: 'pdf-prep-failed',
+            op: 'newsletter-create',
+            status: st,
+            detail: prepErr instanceof Error ? prepErr.message : String(prepErr),
           })
+          if (st === 503) {
+            res.status(503).json({
+              message:
+                prepErr instanceof Error
+                  ? prepErr.message
+                  : '파일 저장소가 구성되지 않았습니다.',
+            })
+            return
+          }
+          const clientMsg =
+            st === 400 &&
+            prepErr &&
+            typeof prepErr === 'object' &&
+            prepErr.pdfPrepFailure === true
+              ? USER_PDF_PREP_FAILURE_MESSAGE
+              : prepErr instanceof Error
+                ? prepErr.message
+                : '요청을 처리할 수 없습니다.'
+          res.status(st).json({ message: clientMsg })
           return
         }
         throw prepErr
@@ -1156,14 +1177,32 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       } catch (prepErr) {
         if (prepErr && typeof prepErr === 'object' && 'httpStatus' in prepErr) {
           const st = Number(prepErr.httpStatus) || 400
-          res.status(st).json({
-            message:
-              prepErr instanceof Error
-                ? prepErr.message
-                : st === 503
-                  ? '파일 저장소가 구성되지 않았습니다.'
-                  : 'PDF 변환 실패',
+          insurerNewsLog.error({
+            event: 'pdf-prep-failed',
+            op: 'newsletter-patch',
+            newsletterId,
+            status: st,
+            detail: prepErr instanceof Error ? prepErr.message : String(prepErr),
           })
+          if (st === 503) {
+            res.status(503).json({
+              message:
+                prepErr instanceof Error
+                  ? prepErr.message
+                  : '파일 저장소가 구성되지 않았습니다.',
+            })
+            return
+          }
+          const clientMsg =
+            st === 400 &&
+            prepErr &&
+            typeof prepErr === 'object' &&
+            prepErr.pdfPrepFailure === true
+              ? USER_PDF_PREP_FAILURE_MESSAGE
+              : prepErr instanceof Error
+                ? prepErr.message
+                : '요청을 처리할 수 없습니다.'
+          res.status(st).json({ message: clientMsg })
           return
         }
         throw prepErr
