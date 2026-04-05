@@ -985,6 +985,11 @@ button.filter-button:focus-visible {
   overflow: hidden;
 }
 
+.customer-expand-card--focal {
+  box-shadow: 0 0 0 2px var(--insurance-accent, #2563eb);
+  border-radius: 10px;
+}
+
 .customer-expand-card--select-mode {
   display: flex;
   flex-direction: row;

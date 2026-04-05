@@ -1,4 +1,5 @@
 import { ApiError, apiRequest } from '../../../lib/apiClient'
+import type { CustomerRecord } from '../domain/types'
 
 export type CustomerConsultationRow = {
   id: number
@@ -16,14 +17,34 @@ export type CustomerRelationRow = {
   createdAt: string
 }
 
+export type ConsultationCountsResponse = {
+  counts: Record<string, number>
+}
+
+export async function fetchConsultationCounts(token: string): Promise<ConsultationCountsResponse> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  return apiRequest<ConsultationCountsResponse>('/api/customers/consultations/counts', { token })
+}
+
 export async function listCustomerConsultations(
   token: string,
   customerId: number,
+  opts?: { limit?: number; offset?: number },
 ): Promise<CustomerConsultationRow[]> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  return apiRequest<CustomerConsultationRow[]>(`/api/customers/${customerId}/consultations`, {
+  const q = new URLSearchParams()
+  if (opts?.limit != null) {
+    q.set('limit', String(opts.limit))
+  }
+  if (opts?.offset != null) {
+    q.set('offset', String(opts.offset))
+  }
+  const suffix = q.toString() ? `?${q.toString()}` : ''
+  return apiRequest<CustomerConsultationRow[]>(`/api/customers/${customerId}/consultations${suffix}`, {
     token,
   })
 }
@@ -32,14 +53,34 @@ export async function createCustomerConsultation(
   token: string,
   customerId: number,
   body: string,
+  opts?: { consultationDate?: string },
 ): Promise<CustomerConsultationRow> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
+  const payload: { body: string; consultationDate?: string } = { body }
+  const d = opts?.consultationDate?.trim()
+  if (d) {
+    payload.consultationDate = d
+  }
   return apiRequest<CustomerConsultationRow>(`/api/customers/${customerId}/consultations`, {
     method: 'POST',
     token,
-    body: JSON.stringify({ body }),
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function deleteCustomerConsultation(
+  token: string,
+  customerId: number,
+  consultId: number,
+): Promise<{ ok: boolean }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  return apiRequest<{ ok: boolean }>(`/api/customers/${customerId}/consultations/${consultId}`, {
+    method: 'DELETE',
+    token,
   })
 }
 
@@ -69,4 +110,36 @@ export async function createCustomerRelation(
       body: JSON.stringify({ relatedCustomerId }),
     },
   )
+}
+
+export async function deleteCustomerRelation(
+  token: string,
+  customerId: number,
+  relatedCustomerId: number,
+): Promise<{ ok: boolean }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  return apiRequest<{ ok: boolean }>(`/api/customers/${customerId}/relations/${relatedCustomerId}`, {
+    method: 'DELETE',
+    token,
+  })
+}
+
+export async function searchCustomersAdvanced(
+  token: string,
+  opts: { q: string; includeRelations?: boolean; limit?: number },
+): Promise<CustomerRecord[]> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  const q = new URLSearchParams()
+  q.set('q', opts.q)
+  if (opts.includeRelations) {
+    q.set('includeRelations', '1')
+  }
+  if (opts.limit != null) {
+    q.set('limit', String(opts.limit))
+  }
+  return apiRequest<CustomerRecord[]>(`/api/customers/search/advanced?${q.toString()}`, { token })
 }

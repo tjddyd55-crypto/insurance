@@ -33,6 +33,21 @@ import {
   drivingText,
 } from '../../../components/customer/CustomerForm'
 import { PageBackButton } from '../../../components/common/PageBackButton'
+import { fetchConsultationCounts, searchCustomersAdvanced } from '../api/customerExtraApi'
+import { CustomerConsultationSection } from '../components/CustomerConsultationSection'
+import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
+
+const RECENT_CUSTOMER_SEARCHES_KEY = 'insurance.customers.recentSearches.v1'
+
+function readRecentCustomerSearches(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_CUSTOMER_SEARCHES_KEY)
+    const a = raw ? JSON.parse(raw) : []
+    return Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string').slice(0, 5) : []
+  } catch {
+    return []
+  }
+}
 
 function CustomerDDayBadge({ renewalDate }: { renewalDate: string }) {
   const dday = getDDay(renewalDate)
@@ -363,6 +378,10 @@ type CustomerListCardProps = {
   onCancelEdit: () => void
   onDeleteCustomer: (c: CustomerRecord) => void
   onNavigateToFormEdit: (formId: string) => void
+  token: string | null
+  onOpenCustomer: (customerId: number) => void
+  consultationCount: number
+  onConsultationCountsInvalidate: () => void
 }
 
 function CustomerListCard({
@@ -386,11 +405,18 @@ function CustomerListCard({
   onCancelEdit,
   onDeleteCustomer,
   onNavigateToFormEdit,
+  token,
+  onOpenCustomer,
+  consultationCount,
+  onConsultationCountsInvalidate,
 }: CustomerListCardProps) {
   const ins = customerInsuranceDisplay(c)
   return (
     <li
-      className={`record-card customer-expand-card${isSelectMode ? ' customer-expand-card--select-mode' : ''}`}
+      className={`record-card customer-expand-card${isSelectMode ? ' customer-expand-card--select-mode' : ''}${
+        expandedId === c.id ? ' customer-expand-card--focal' : ''
+      }`}
+      data-customer-card-id={c.id}
     >
       {isSelectMode ? (
         <div className="customer-expand-card__select">
@@ -426,6 +452,9 @@ function CustomerListCard({
                 </span>
               ) : null}
               {c.name}
+              {consultationCount > 0 ? (
+                <span style={{ fontWeight: 700, color: '#1d4ed8' }}>{` (상담 ${consultationCount}건)`}</span>
+              ) : null}
             </span>
             {' / '}
             {genderSummaryLabel(c)}
@@ -733,6 +762,15 @@ function CustomerListCard({
                     </button>
                   </div>
                 </form>
+                {token ? (
+                  <CustomerRelationsStrip
+                    customerId={c.id}
+                    customerName={c.name}
+                    token={token}
+                    onOpenCustomer={onOpenCustomer}
+                    focusedCustomerId={expandedId}
+                  />
+                ) : null}
               </>
             ) : (
               <>
@@ -816,6 +854,15 @@ function CustomerListCard({
                     </p>
                   )}
                 </div>
+                {token ? (
+                  <CustomerRelationsStrip
+                    customerId={c.id}
+                    customerName={c.name}
+                    token={token}
+                    onOpenCustomer={onOpenCustomer}
+                    focusedCustomerId={expandedId}
+                  />
+                ) : null}
                 <div className="customer-actions">
                   <button className="kakao-btn" type="button" onClick={() => void onCopyCustomer(c)}>
                     카톡 복사
@@ -860,6 +907,13 @@ function CustomerListCard({
                 )}
               </div>
             ) : null}
+            {token ? (
+              <CustomerConsultationSection
+                customerId={c.id}
+                token={token}
+                onMutated={onConsultationCountsInvalidate}
+              />
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -881,7 +935,9 @@ export default function CustomersPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
   const tab = searchParams.get('mode') === 'create' ? 'create' : 'list'
+  const [searchInput, setSearchInput] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentCustomerSearches())
   const [listSort, setListSort] = useState<CustomerListSort>('maturity_asc')
   const [advancedFilters, setAdvancedFilters] = useState<CustomerAdvancedFilters>(() => ({
     ...EMPTY_ADVANCED_FILTERS,
@@ -891,6 +947,11 @@ export default function CustomersPage() {
   const [selectedColumns, setSelectedColumns] = useState<string[]>([])
   const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false)
   const selectAllRef = useRef<HTMLInputElement>(null)
+  const [deepSearch, setDeepSearch] = useState(false)
+  const [advSearchHits, setAdvSearchHits] = useState<CustomerRecord[] | null>(null)
+  const [advSearchLoading, setAdvSearchLoading] = useState(false)
+  const [consultationCounts, setConsultationCounts] = useState<Record<number, number>>({})
+  const [onlyWithConsultations, setOnlyWithConsultations] = useState(false)
 
   const ssnDupHighlightByCustomerId = useMemo(
     () => buildSsnDuplicateHighlightByCustomerId(customers),
@@ -898,17 +959,23 @@ export default function CustomersPage() {
   )
 
   const keywordFilteredCustomers = useMemo(() => {
+    if (advSearchHits != null) {
+      return advSearchHits
+    }
     const q = keyword.trim()
     if (!q) {
       return customers
     }
     return customers.filter((c) => c.name.includes(q) || (c.phone ?? '').includes(q))
-  }, [customers, keyword])
+  }, [customers, keyword, advSearchHits])
 
-  const filteredCustomers = useMemo(
-    () => keywordFilteredCustomers.filter((c) => customerPassesAdvancedFilters(c, advancedFilters)),
-    [keywordFilteredCustomers, advancedFilters],
-  )
+  const filteredCustomers = useMemo(() => {
+    let list = keywordFilteredCustomers.filter((c) => customerPassesAdvancedFilters(c, advancedFilters))
+    if (onlyWithConsultations) {
+      list = list.filter((c) => (consultationCounts[c.id] ?? 0) > 0)
+    }
+    return list
+  }, [keywordFilteredCustomers, advancedFilters, onlyWithConsultations, consultationCounts])
 
   const todayContactTargets = useMemo(
     () => filteredCustomers.filter((c) => customerIsTodayContactTarget(c)),
@@ -963,6 +1030,26 @@ export default function CustomersPage() {
   const allVisibleSelected =
     allVisibleIds.length > 0 && allVisibleIds.every((id) => selectedCustomerIds.includes(id))
 
+  const refreshConsultationCounts = useCallback(async () => {
+    if (!token || user?.role !== 'USER') {
+      setConsultationCounts({})
+      return
+    }
+    try {
+      const { counts } = await fetchConsultationCounts(token)
+      const next: Record<number, number> = {}
+      for (const [k, v] of Object.entries(counts)) {
+        const id = Number(k)
+        if (Number.isFinite(id)) {
+          next[id] = Number(v) || 0
+        }
+      }
+      setConsultationCounts(next)
+    } catch {
+      setConsultationCounts({})
+    }
+  }, [token, user?.role])
+
   const loadCustomers = useCallback(async () => {
     if (!token || user?.role !== 'USER') {
       setIsLoading(false)
@@ -972,12 +1059,33 @@ export default function CustomersPage() {
     try {
       const rows = await listCustomers(token)
       setCustomers(rows)
+      await refreshConsultationCounts()
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
     } finally {
       setIsLoading(false)
     }
-  }, [token, user?.role])
+  }, [token, user?.role, refreshConsultationCounts])
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => setKeyword(searchInput), 300)
+    return () => window.clearTimeout(handle)
+  }, [searchInput])
+
+  useEffect(() => {
+    const q = keyword.trim()
+    if (!q) {
+      return
+    }
+    try {
+      const prev = readRecentCustomerSearches()
+      const next = [q, ...prev.filter((x) => x !== q)].slice(0, 5)
+      localStorage.setItem(RECENT_CUSTOMER_SEARCHES_KEY, JSON.stringify(next))
+      setRecentSearches(next)
+    } catch {
+      /* ignore */
+    }
+  }, [keyword])
 
   useEffect(() => {
     if (user?.role !== 'USER') {
@@ -986,6 +1094,45 @@ export default function CustomersPage() {
     }
     void loadCustomers()
   }, [user?.role, loadCustomers])
+
+  useEffect(() => {
+    if (!deepSearch || !token || user?.role !== 'USER') {
+      setAdvSearchHits(null)
+      setAdvSearchLoading(false)
+      return
+    }
+    const q = keyword.trim()
+    if (!q) {
+      setAdvSearchHits(null)
+      setAdvSearchLoading(false)
+      return
+    }
+    let cancelled = false
+    const handle = window.setTimeout(() => {
+      void (async () => {
+        setAdvSearchLoading(true)
+        try {
+          const rows = await searchCustomersAdvanced(token, { q, includeRelations: true, limit: 500 })
+          if (!cancelled) {
+            setAdvSearchHits(rows)
+          }
+        } catch (error) {
+          if (!cancelled) {
+            setStatusText(error instanceof Error ? error.message : '심층 검색에 실패했습니다.')
+            setAdvSearchHits(null)
+          }
+        } finally {
+          if (!cancelled) {
+            setAdvSearchLoading(false)
+          }
+        }
+      })()
+    }, 300)
+    return () => {
+      cancelled = true
+      window.clearTimeout(handle)
+    }
+  }, [deepSearch, keyword, token, user?.role])
 
   useEffect(() => {
     if (editingId != null && expandedId !== editingId) {
@@ -1350,11 +1497,71 @@ export default function CustomersPage() {
             className="search-input"
             type="search"
             placeholder="이름 / 전화번호 검색"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             autoComplete="off"
             aria-label="이름 또는 전화번호 검색"
           />
+          {recentSearches.length > 0 ? (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: 8,
+                marginTop: 8,
+                fontSize: '0.88rem',
+              }}
+              aria-label="최근 검색어"
+            >
+              <span style={{ color: '#555' }}>최근:</span>
+              {recentSearches.map((term) => (
+                <button
+                  key={term}
+                  type="button"
+                  className="filter-button"
+                  style={{ padding: '6px 10px', fontSize: '0.88rem' }}
+                  onClick={() => {
+                    setSearchInput(term)
+                    setKeyword(term)
+                  }}
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              marginTop: 8,
+              fontSize: '0.95rem',
+            }}
+          >
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={deepSearch}
+                onChange={(e) => setDeepSearch(e.target.checked)}
+              />
+              상담·연계 포함 검색 (서버 심층 검색)
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={onlyWithConsultations}
+                onChange={(e) => setOnlyWithConsultations(e.target.checked)}
+              />
+              상담 기록이 있는 고객만 보기
+            </label>
+          </div>
+          {advSearchLoading ? (
+            <p style={{ margin: '6px 0 0', fontSize: '0.9rem', color: '#555' }} role="status">
+              심층 검색 중…
+            </p>
+          ) : null}
 
           {!isLoading && customers.length > 0 ? (
             <div className="customers-today-targets" role="status">
@@ -1502,8 +1709,10 @@ export default function CustomersPage() {
             <p className="empty-state">등록된 고객이 없습니다.</p>
           ) : sortedCustomers.length === 0 ? (
             <p className="empty-state">
-              {keyword.trim() || advancedFiltersActive
-                ? '검색·필터 조건에 맞는 고객이 없습니다.'
+              {keyword.trim() || advancedFiltersActive || onlyWithConsultations
+                ? onlyWithConsultations && !keyword.trim() && !advancedFiltersActive
+                  ? '상담 기록이 있는 고객이 없습니다. 위의 「상담 기록이 있는 고객만 보기」를 해제해 보세요.'
+                  : '검색·필터 조건에 맞는 고객이 없습니다.'
                 : '고객이 없습니다.'}
             </p>
           ) : (
@@ -1531,6 +1740,19 @@ export default function CustomersPage() {
                   onCancelEdit={cancelEdit}
                   onDeleteCustomer={handleDeleteCustomer}
                   onNavigateToFormEdit={(formId) => navigate(`/form/${formId}/edit`)}
+                  token={token}
+                  onOpenCustomer={(id) => {
+                    setExpandedId(id)
+                    window.requestAnimationFrame(() => {
+                      document
+                        .querySelector(`[data-customer-card-id="${id}"]`)
+                        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                    })
+                  }}
+                  consultationCount={consultationCounts[c.id] ?? 0}
+                  onConsultationCountsInvalidate={() => {
+                    void refreshConsultationCounts()
+                  }}
                 />
               ))}
             </ul>

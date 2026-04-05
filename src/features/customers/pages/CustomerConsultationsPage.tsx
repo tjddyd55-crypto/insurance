@@ -10,17 +10,7 @@ import {
   type CustomerConsultationRow,
   type CustomerRelationRow,
 } from '../api/customerExtraApi'
-
-function formatDt(iso: string): string {
-  if (!iso) {
-    return '—'
-  }
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) {
-    return iso.slice(0, 16)
-  }
-  return d.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
-}
+import { localYmd, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
 
 export default function CustomerConsultationsPage() {
   const { id: idParam } = useParams()
@@ -29,6 +19,7 @@ export default function CustomerConsultationsPage() {
   const [rows, setRows] = useState<CustomerConsultationRow[]>([])
   const [relRows, setRelRows] = useState<CustomerRelationRow[]>([])
   const [body, setBody] = useState('')
+  const [consultDate, setConsultDate] = useState(() => localYmd())
   const [relatedId, setRelatedId] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -42,7 +33,7 @@ export default function CustomerConsultationsPage() {
     setError('')
     try {
       const [c, r] = await Promise.all([
-        listCustomerConsultations(token, customerId),
+        listCustomerConsultations(token, customerId, { limit: 100 }),
         listCustomerRelations(token, customerId),
       ])
       setRows(c)
@@ -94,6 +85,7 @@ export default function CustomerConsultationsPage() {
     try {
       await createCustomerRelation(token, customerId, n)
       setRelatedId('')
+      window.alert('고객을 연결했습니다.')
       await loadAll()
     } catch (err) {
       setError(err instanceof Error ? err.message : '연결에 실패했습니다.')
@@ -129,13 +121,17 @@ export default function CustomerConsultationsPage() {
       <section style={{ marginTop: 24 }}>
         <h2 style={{ fontSize: '1.05rem' }}>상담 기록</h2>
         <form onSubmit={onSubmitConsultation} style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', marginBottom: 8 }}>
+            상담 일자{' '}
+            <input type="date" value={consultDate} onChange={(ev) => setConsultDate(ev.target.value)} />
+          </label>
           <textarea
             value={body}
             onChange={(ev) => setBody(ev.target.value)}
             rows={4}
             style={{ width: '100%', padding: 8 }}
             placeholder="상담 내용"
-            maxLength={20000}
+            maxLength={19500}
           />
           <button type="submit" disabled={busy} style={{ marginTop: 8 }}>
             {busy ? '저장 중…' : '상담 추가'}
@@ -145,18 +141,21 @@ export default function CustomerConsultationsPage() {
           <p style={{ color: '#666' }}>등록된 상담이 없습니다.</p>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0 }}>
-            {rows.map((r) => (
-              <li
-                key={r.id}
-                style={{
-                  borderBottom: '1px solid #eee',
-                  padding: '12px 0',
-                }}
-              >
-                <div style={{ fontSize: '0.85rem', color: '#666' }}>{formatDt(r.createdAt)}</div>
-                <div style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{r.body}</div>
-              </li>
-            ))}
+            {rows.map((r) => {
+              const { dateLabel, text } = parseConsultationStoredBody(r.body, r.createdAt)
+              return (
+                <li
+                  key={r.id}
+                  style={{
+                    borderBottom: '1px solid #eee',
+                    padding: '12px 0',
+                  }}
+                >
+                  <div style={{ fontWeight: 600, marginBottom: 6 }}>{dateLabel}</div>
+                  <div style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{text || '—'}</div>
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>

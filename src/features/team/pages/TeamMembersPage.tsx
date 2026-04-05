@@ -12,9 +12,11 @@ export default function TeamMembersPage() {
   const [teamNameInput, setTeamNameInput] = useState('')
   const [joinIdInput, setJoinIdInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [pageLoading, setPageLoading] = useState(true)
 
   const load = useCallback(async () => {
     if (!token?.trim()) {
+      setPageLoading(false)
       return
     }
     setError('')
@@ -25,6 +27,8 @@ export default function TeamMembersPage() {
       setMembers(data.members)
     } catch (e) {
       setError(e instanceof Error ? e.message : '목록을 불러오지 못했습니다.')
+    } finally {
+      setPageLoading(false)
     }
   }, [token])
 
@@ -42,11 +46,24 @@ export default function TeamMembersPage() {
     try {
       await createTeam(token, teamNameInput.trim() || undefined)
       setTeamNameInput('')
+      window.alert('팀이 생성되었습니다.')
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : '팀 만들기에 실패했습니다.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const copyTeamId = async () => {
+    if (!teamId?.trim()) {
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(teamId)
+      window.alert('팀 ID가 복사되었습니다.')
+    } catch {
+      setError('클립보드 복사에 실패했습니다. 팀 ID를 직접 선택해 복사해 주세요.')
     }
   }
 
@@ -60,6 +77,7 @@ export default function TeamMembersPage() {
     try {
       await joinTeam(token, joinIdInput.trim())
       setJoinIdInput('')
+      window.alert('팀에 참여했습니다.')
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : '팀 참여에 실패했습니다.')
@@ -80,6 +98,11 @@ export default function TeamMembersPage() {
           {error}
         </p>
       ) : null}
+      {pageLoading ? (
+        <p style={{ marginTop: 12 }} role="status">
+          불러오는 중…
+        </p>
+      ) : null}
 
       <section style={{ marginTop: 20, padding: 16, border: '1px solid #e0e0e0', borderRadius: 8 }}>
         <h2 style={{ fontSize: '1.05rem', marginTop: 0 }}>내 팀</h2>
@@ -88,16 +111,41 @@ export default function TeamMembersPage() {
             <strong>{teamName || '팀'}</strong>
             <br />
             <span style={{ fontSize: '0.85rem', color: '#666' }}>팀 ID: {teamId}</span>
+            <br />
+            <button
+              type="button"
+              className="cta-button"
+              style={{ marginTop: 10, minHeight: 44, padding: '0 14px', fontSize: '0.95rem' }}
+              onClick={() => void copyTeamId()}
+            >
+              팀 ID 복사
+            </button>
           </p>
         ) : (
-          <p style={{ color: '#666' }}>아직 소속된 팀이 없습니다.</p>
+          <div
+            role="status"
+            style={{
+              marginTop: 8,
+              padding: '14px 16px',
+              borderRadius: 8,
+              border: '1px solid #ffcc80',
+              background: '#fff8e1',
+              color: '#5d4037',
+              fontSize: '0.95rem',
+              lineHeight: 1.5,
+            }}
+          >
+            <strong style={{ display: 'block', marginBottom: 6 }}>아직 소속된 팀이 없습니다</strong>
+            아래에서 팀을 새로 만들거나, 동료가 공유한 팀 ID로 참여하면 멤버 목록과 협업 기능을 쓸 수 있습니다.
+          </div>
         )}
       </section>
 
-      {!teamId ? (
+      {!teamId && !pageLoading ? (
         <div style={{ display: 'grid', gap: 20, marginTop: 20 }}>
           <form onSubmit={onCreate}>
             <h2 style={{ fontSize: '1.05rem' }}>팀 만들기</h2>
+            <p style={{ fontSize: '0.9rem', color: '#555', marginTop: 0 }}>[팀 생성]</p>
             <label style={{ display: 'block', marginBottom: 8 }}>
               팀 이름 (선택)
               <input
@@ -114,6 +162,7 @@ export default function TeamMembersPage() {
           </form>
           <form onSubmit={onJoin}>
             <h2 style={{ fontSize: '1.05rem' }}>팀 참여</h2>
+            <p style={{ fontSize: '0.9rem', color: '#555', marginTop: 0 }}>[팀 코드 입력 → 팀 연결]</p>
             <label style={{ display: 'block', marginBottom: 8 }}>
               팀 ID
               <input
@@ -131,7 +180,7 @@ export default function TeamMembersPage() {
       ) : null}
 
       <section style={{ marginTop: 24 }}>
-        <h2 style={{ fontSize: '1.05rem' }}>멤버 목록</h2>
+        <h2 style={{ fontSize: '1.05rem' }}>[팀원 목록]</h2>
         {members.length === 0 ? (
           <p style={{ color: '#666' }}>표시할 멤버가 없습니다.</p>
         ) : (
