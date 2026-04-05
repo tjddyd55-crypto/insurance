@@ -1,12 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../AuthProvider'
 import { login as loginApi } from '../authApi'
 
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [searchParams] = useSearchParams()
   const { isAuthenticated, login } = useAuth()
   const flash = (location.state ?? {}) as { passwordReset?: boolean; accountReset?: boolean }
 
@@ -41,11 +40,6 @@ export function LoginPage() {
     <main className="auth-page">
       <section className="card auth-card">
         <h1>로그인</h1>
-        {searchParams.get('required') === '1' ? (
-          <p className="auth-notice" role="status">
-            로그인이 필요합니다.
-          </p>
-        ) : null}
         {flash.passwordReset ? (
           <p className="auth-notice" role="status">
             비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.
@@ -56,9 +50,8 @@ export function LoginPage() {
             계정이 초기화되었습니다. 서비스 이용이 필요하면 소속 GA에 새 계정 발급을 요청해 주세요.
           </p>
         ) : null}
-        <p className="auth-description">아이디와 비밀번호로 신청서를 관리합니다.</p>
 
-        <form className="auth-form" onSubmit={(e) => void handleLogin(e)}>
+        <form className="auth-form" style={{ marginTop: '1rem' }} onSubmit={(e) => void handleLogin(e)}>
           <label className="field">
             <span className="field__label">아이디</span>
             <input

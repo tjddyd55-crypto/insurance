@@ -514,6 +514,57 @@ body {
   margin-top: 14px;
 }
 
+/* 회원가입: 입력·버튼 높이·폰트 통일 (h-10 / text-sm / px-3 에 해당) */
+.auth-page .auth-form--register .field input {
+  min-height: 40px;
+  height: 40px;
+  padding: 0 12px;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.auth-page .auth-form--register .register-field-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-top: 6px;
+}
+
+.auth-page .auth-form--register .register-field-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-top: 0;
+}
+
+.auth-page .auth-form--register .register-field-row .button {
+  flex-shrink: 0;
+  margin-top: 0;
+  align-self: stretch;
+}
+
+.auth-page .auth-form--register .register-phone-request-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.auth-page .auth-form--register .button {
+  min-height: 40px;
+  height: 40px;
+  padding: 0 12px;
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 600;
+  border-radius: 10px;
+  box-sizing: border-box;
+}
+
+.auth-page .auth-form--register .button.button--full {
+  width: 100%;
+}
+
 /* 로그인·회원가입: 입력 필드 가시성·터치 영역 (라이트/다크 공통 토큰 + 명시적 테두리) */
 .auth-page .field input {
   width: 100%;
