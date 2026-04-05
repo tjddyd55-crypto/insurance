@@ -558,14 +558,29 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     }
   }
 
+  /** 첨부 목록 — newsletter_id 와 소속 GA 로 한정 (멀티테넌트 조회 정책과 일치) */
+  const SQL_ATTACHMENTS_BY_NEWSLETTER_GA = `
+    SELECT a.*
+    FROM insurance_company_newsletter_attachments a
+    INNER JOIN insurance_company_newsletters n ON n.id = a.newsletter_id AND n.ga_id = $2
+    WHERE a.newsletter_id = $1
+    ORDER BY a.sort_order ASC
+  `
+
   /**
    * @param {import('pg').PoolClient} client
    * @param {string} newsletterId
+   * @param {number} gaId
    */
-  async function deleteAttachmentsForNewsletter(client, newsletterId) {
-    await client.query(`DELETE FROM insurance_company_newsletter_attachments WHERE newsletter_id = $1`, [
-      newsletterId,
-    ])
+  async function deleteAttachmentsForNewsletter(client, newsletterId, gaId) {
+    await client.query(
+      `
+      DELETE FROM insurance_company_newsletter_attachments a
+      USING insurance_company_newsletters n
+      WHERE a.newsletter_id = $1 AND n.id = a.newsletter_id AND n.ga_id = $2
+      `,
+      [newsletterId, gaId],
+    )
   }
 
   /**
@@ -649,6 +664,24 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
   }
 
+  /**
+   * insurance_company_newsletters 단건 SELECT·RLS용 ga_id
+   * (원수사 담당자: 매니저 스코프, GA 스태프: resolveTenantGaIdForRequest).
+   * @param {import('express').Request} req
+   * @returns {Promise<number|null>}
+   */
+  async function resolveNewsletterSelectGaId(req) {
+    if (isInsurerManagerRole(req.user.role)) {
+      const imScope = await loadInsurerManagerNewsScope(pool, req.user)
+      return imScope != null ? Number(imScope.gaId) : null
+    }
+    if (isGaInsurerManagerMutatorRole(req.user.role)) {
+      const tenantGa = await resolveTenantGaIdForRequest(pool, req)
+      return tenantGa == null ? null : Number(tenantGa)
+    }
+    return null
+  }
+
   apiRouter.get('/insurer-news/feed', requireAuth, forbidInsurerOnFeed, async (req, res) => {
     try {
       const gaCodeQuery = String(req.query.gaCode ?? '').trim()
@@ -718,15 +751,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(404).json({ message: '소식을 찾을 수 없습니다.' })
         return
       }
-      const attRes = await safeQuery(
-        pool,
-        `
-        SELECT * FROM insurance_company_newsletter_attachments
-        WHERE newsletter_id = $1
-        ORDER BY sort_order ASC
-        `,
-        [newsletterId],
-      )
+      const attRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [newsletterId, gaId])
       res.json(mapNewsletterDetail(nRes.rows[0], attRes.rows))
     } catch (e87) {
       handleDbError(e87, req, res)
@@ -1014,17 +1039,21 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   apiRouter.get('/insurer-news/manager/newsletters/:newsletterId', requireAuth, requireNewsletterWriter, async (req, res) => {
     try {
       const newsletterId = String(req.params.newsletterId ?? '')
-      const nRes = await safeQuery(pool, `SELECT * FROM insurance_company_newsletters WHERE id = $1`, [newsletterId])
+      const gaIdForSelect = await resolveNewsletterSelectGaId(req)
+      if (gaIdForSelect == null || !Number.isInteger(gaIdForSelect) || gaIdForSelect < 1) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
+      const nRes = await safeQuery(pool, `SELECT * FROM insurance_company_newsletters WHERE id = $1 AND ga_id = $2`, [
+        newsletterId,
+        gaIdForSelect,
+      ])
       if (nRes.rowCount === 0) {
         res.status(404).json({ message: '소식을 찾을 수 없습니다.' })
         return
       }
       await assertCanAccessNewsletterRow(nRes.rows[0], req)
-      const attRes = await safeQuery(
-        pool,
-        `SELECT * FROM insurance_company_newsletter_attachments WHERE newsletter_id = $1 ORDER BY sort_order ASC`,
-        [newsletterId],
-      )
+      const attRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [newsletterId, gaIdForSelect])
       res.json(mapNewsletterDetail(nRes.rows[0], attRes.rows))
     } catch (e91) {
       handleDbError(e91, req, res)
@@ -1084,13 +1113,16 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const orphanKeys = collectAttachmentObjectKeys(rowsToInsert)
 
       const id = randomUUID()
+      /** @type {Record<string, unknown> | null} */
+      let insertedNewsletterRow = null
       try {
         await withTransaction(async (client) => {
-          await client.query(
+          const insRes = await client.query(
             `
             INSERT INTO insurance_company_newsletters
               (id, ga_id, company_id, company_name_snapshot, title, status, body_text, payload, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW(), NOW())
+            RETURNING *
             `,
             [
               id,
@@ -1103,6 +1135,10 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
               JSON.stringify(payload),
             ],
           )
+          insertedNewsletterRow = insRes.rows[0] ?? null
+          if (!insertedNewsletterRow) {
+            throw Object.assign(new Error('소식 저장에 실패했습니다.'), { httpStatus: 500 })
+          }
           await insertAttachments(client, id, rowsToInsert)
         })
       } catch (err) {
@@ -1139,13 +1175,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         objectKeys: orphanKeys,
       })
 
-      const nRes = await safeQuery(pool, `SELECT * FROM insurance_company_newsletters WHERE id = $1`, [id])
-      const attRes = await safeQuery(
-        pool,
-        `SELECT * FROM insurance_company_newsletter_attachments WHERE newsletter_id = $1 ORDER BY sort_order ASC`,
-        [id],
-      )
-      res.status(201).json(mapNewsletterDetail(nRes.rows[0], attRes.rows))
+      const attRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [id, normalizedScope.gaId])
+      res.status(201).json(mapNewsletterDetail(insertedNewsletterRow, attRes.rows))
     } catch (e92) {
       if (e92 && typeof e92 === 'object' && 'httpStatus' in e92 && typeof e92.httpStatus === 'number') {
         res.status(e92.httpStatus).json({ message: e92 instanceof Error ? e92.message : '요청을 처리할 수 없습니다.' })
@@ -1159,7 +1190,15 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     const newsletterId = String(req.params.newsletterId ?? '')
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     try {
-      const nRes = await safeQuery(pool, `SELECT * FROM insurance_company_newsletters WHERE id = $1`, [newsletterId])
+      const gaIdForSelect = await resolveNewsletterSelectGaId(req)
+      if (gaIdForSelect == null || !Number.isInteger(gaIdForSelect) || gaIdForSelect < 1) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
+      const nRes = await safeQuery(pool, `SELECT * FROM insurance_company_newsletters WHERE id = $1 AND ga_id = $2`, [
+        newsletterId,
+        gaIdForSelect,
+      ])
       if (nRes.rowCount === 0) {
         res.status(404).json({ message: '소식을 찾을 수 없습니다.' })
         return
@@ -1231,12 +1270,12 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           await client.query(
             `
             UPDATE insurance_company_newsletters
-            SET company_name_snapshot = $2, title = $3, status = $4, body_text = $5, payload = $6::jsonb, updated_at = NOW()
-            WHERE id = $1
+            SET company_name_snapshot = $3, title = $4, status = $5, body_text = $6, payload = $7::jsonb, updated_at = NOW()
+            WHERE id = $1 AND ga_id = $2
             `,
-            [newsletterId, scope.companyName, title, status, bodyText, JSON.stringify(payload)],
+            [newsletterId, scope.gaId, scope.companyName, title, status, bodyText, JSON.stringify(payload)],
           )
-          await deleteAttachmentsForNewsletter(client, newsletterId)
+          await deleteAttachmentsForNewsletter(client, newsletterId, scope.gaId)
           await insertAttachments(client, newsletterId, rowsToInsert)
         })
       } catch (err) {
@@ -1273,12 +1312,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         objectKeys: orphanKeys,
       })
 
-      const fresh = await safeQuery(pool, `SELECT * FROM insurance_company_newsletters WHERE id = $1`, [newsletterId])
-      const attRes = await safeQuery(
-        pool,
-        `SELECT * FROM insurance_company_newsletter_attachments WHERE newsletter_id = $1 ORDER BY sort_order ASC`,
-        [newsletterId],
-      )
+      const fresh = await safeQuery(pool, `SELECT * FROM insurance_company_newsletters WHERE id = $1 AND ga_id = $2`, [
+        newsletterId,
+        scope.gaId,
+      ])
+      const attRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [newsletterId, scope.gaId])
       res.json(mapNewsletterDetail(fresh.rows[0], attRes.rows))
     } catch (e93) {
       if (e93 && typeof e93 === 'object' && 'httpStatus' in e93 && typeof e93.httpStatus === 'number') {
