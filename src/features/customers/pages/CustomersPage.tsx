@@ -1006,6 +1006,16 @@ export default function CustomersPage() {
     return !!(f.minInsuranceAge.trim() || f.maxInsuranceAge.trim() || f.gender)
   }, [advancedFilters])
 
+  const listIsNarrowed = useMemo(
+    () =>
+      keyword.trim() !== '' ||
+      advancedFiltersActive ||
+      onlyWithConsultations ||
+      filterNoRecentConsult ||
+      advSearchHits != null,
+    [keyword, advancedFiltersActive, onlyWithConsultations, filterNoRecentConsult, advSearchHits],
+  )
+
   const sortedCustomers = useMemo(() => {
     const copy = [...filteredCustomers]
     const tieName = (a: CustomerRecord, b: CustomerRecord) => a.name.localeCompare(b.name, 'ko')
@@ -1077,12 +1087,14 @@ export default function CustomersPage() {
   const loadCustomers = useCallback(async () => {
     if (!token || user?.role !== 'USER') {
       setIsLoading(false)
+      setCustomersTotalCount(0)
       return
     }
     setIsLoading(true)
     try {
-      const rows = await listCustomers(token)
+      const { customers: rows, total } = await listCustomers(token)
       setCustomers(rows)
+      setCustomersTotalCount(total)
       await refreshConsultationCounts(rows.map((r) => r.id))
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
