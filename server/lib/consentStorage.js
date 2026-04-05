@@ -9,13 +9,14 @@ function r2Credentials() {
   const accountId = process.env.R2_ACCOUNT_ID?.trim()
   const bucket = process.env.R2_BUCKET_NAME?.trim()
   const accessKey = process.env.R2_ACCESS_KEY_ID?.trim()
-  const secret = process.env.R2_SECRET_ACCESS_KEY?.trim()
-  if (!accountId || !bucket || !accessKey || !secret) {
+  const secretKey = process.env.R2_SECRET_ACCESS_KEY?.trim()
+  // presign·R2 전용 코드는 이 네 값이 모두 있어야 함. throw 대신 null → 로컬 폴더 폴백(동의서 등) 유지
+  if (!accountId || !accessKey || !secretKey || !bucket) {
     return null
   }
   const endpoint =
     process.env.R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`
-  return { accountId, bucket, accessKey, secret, endpoint }
+  return { accountId, bucket, accessKey, secret: secretKey, endpoint }
 }
 
 let s3Client = null
@@ -25,6 +26,7 @@ function getS3() {
   }
   const c = r2Credentials()
   if (!c) {
+    // throw 대신 null: R2 미설정 시 동의서 등은 로컬 디스크로 동작
     return null
   }
   s3Client = new S3Client({
@@ -36,6 +38,19 @@ function getS3() {
     },
   })
   return s3Client
+}
+
+/**
+ * R2 미구성(503) 원인 분기용. 하나라도 undefined/빈 값이면 환경변수, 모두 있으면 init·SDK·네트워크 측을 의심.
+ * 시크릿이 평문으로 로그에 남으므로 원인 확인 후 제거하거나 로깅 레벨을 제한할 것.
+ */
+export function logR2EnvDiagnosticCheck() {
+  console.log('R2 ENV CHECK', {
+    accountId: process.env.R2_ACCOUNT_ID,
+    accessKey: process.env.R2_ACCESS_KEY_ID,
+    secretKey: process.env.R2_SECRET_ACCESS_KEY,
+    bucket: process.env.R2_BUCKET_NAME,
+  })
 }
 
 export function isConsentR2Enabled() {

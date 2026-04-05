@@ -4,6 +4,7 @@ import {
   getR2InsurerAttachmentsCacheControl,
   getR2PublicCdnBase,
   isConsentR2Enabled,
+  logR2EnvDiagnosticCheck,
   r2DeleteObject,
   r2GetPresignedPutUrl,
 } from './lib/consentStorage.js'
@@ -586,6 +587,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       return { rows: normalized, pdfKeysToDeleteAfterCommit: [] }
     }
     if (!isConsentR2Enabled()) {
+      logR2EnvDiagnosticCheck()
       throw Object.assign(new Error('PDF 변환 및 저장을 위해 파일 저장소가 구성되어 있어야 합니다.'), {
         httpStatus: 503,
       })
@@ -769,6 +771,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   apiRouter.post('/insurer-news/attachments/presign', requireAuth, requireNewsletterWriter, async (req, res) => {
     try {
       if (!isConsentR2Enabled()) {
+        logR2EnvDiagnosticCheck()
         res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
         return
       }
@@ -861,6 +864,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   apiRouter.post('/insurer-news/attachments/upload-complete', requireAuth, requireNewsletterWriter, async (req, res) => {
     try {
       if (!isConsentR2Enabled()) {
+        logR2EnvDiagnosticCheck()
         res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
         return
       }
