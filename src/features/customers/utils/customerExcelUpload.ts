@@ -6,11 +6,14 @@ import { normalizeCustomerNotesBag } from '../domain/types'
 import type { SaveCustomerPayload } from '../api/customersApi'
 import { saveCustomer } from '../api/customersApi'
 
-/** 샘플·업로드 공통 헤더 순서 (1행) */
+/**
+ * 샘플·업로드 공통 헤더 순서 (1행)
+ * `CustomerForm` 입력 순서와 맞춤: 이름 → 성별 → 주민번호 → 연락·신체 → 직업 → 운전·차종 → 자동차 정보 → 건강 · 보험가입내역 → 메모
+ */
 export const CUSTOMER_EXCEL_UPLOAD_HEADERS = [
   'name',
-  'ssn',
   'gender',
+  'ssn',
   'phone',
   'address',
   'height',
@@ -18,11 +21,12 @@ export const CUSTOMER_EXCEL_UPLOAD_HEADERS = [
   'job',
   'isDriver',
   'carType',
-  'medical',
   'carNumber',
   'carModel',
   'carYear',
   'renewalDate',
+  'medical',
+  'insuranceHistory',
   'memo',
 ] as const
 
@@ -62,6 +66,8 @@ export type CustomerExcelParsedRow = {
   carModel: string
   carYear: string
   renewalDate: string
+  /** 보험가입내역 — notes.insuranceHistory */
+  insuranceHistory: string
   memoRaw: string
 }
 
@@ -250,6 +256,7 @@ function parsedRowToExportRecord(row: CustomerExcelParsedRow): Record<string, st
     carModel: row.carModel,
     carYear: row.carYear,
     renewalDate: row.renewalDate,
+    insuranceHistory: row.insuranceHistory,
     memo: row.memoRaw,
   }
 }
@@ -258,6 +265,7 @@ function payloadToExportRecord(p: SaveCustomerPayload): Record<string, string> {
   const g = p.gender === null || p.gender === undefined ? '' : String(p.gender)
   const d =
     p.isDriver === true ? 'TRUE' : p.isDriver === false ? 'FALSE' : ''
+  const bag = normalizeCustomerNotesBag(p.notes)
   return {
     name: p.name ?? '',
     ssn: String(p.ssn ?? ''),
@@ -274,7 +282,8 @@ function payloadToExportRecord(p: SaveCustomerPayload): Record<string, string> {
     carModel: p.carModel ?? '',
     carYear: p.carYear ?? '',
     renewalDate: p.renewalDate ?? '',
-    memo: normalizeCustomerNotesBag(p.notes).items.map((n) => n.content).join(' / '),
+    insuranceHistory: bag.insuranceHistory,
+    memo: bag.items.map((n) => n.content).join(' / '),
   }
 }
 
@@ -341,6 +350,7 @@ export function parseExcel(file: File): Promise<CustomerExcelParsedRow[]> {
             carModel: cellToString(row.carModel),
             carYear: cellToString(row.carYear),
             renewalDate: cellToString(row.renewalDate),
+            insuranceHistory: cellToString(row.insuranceHistory),
             memoRaw: cellToString(row.memo),
           })
         }
@@ -382,6 +392,7 @@ export function mergeRowsBySsn(rows: CustomerExcelParsedRow[]): CustomerExcelPar
       carModel: pickValue(prev.carModel, rowNorm.carModel),
       carYear: pickValue(prev.carYear, rowNorm.carYear),
       renewalDate: pickValue(prev.renewalDate, rowNorm.renewalDate),
+      insuranceHistory: pickValue(prev.insuranceHistory, rowNorm.insuranceHistory),
       memoRaw: mergeMemoPartsUnique(prev.memoRaw, rowNorm.memoRaw),
     }
     map.set(normalized, merged)
@@ -400,8 +411,9 @@ export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload |
   const gender = parseGender(row.genderRaw)
   const isDriver = row.isDriver
   const createdAt = new Date().toISOString()
-  const notes = memoToNotes(row.memoRaw, createdAt)
+  const noteItems = memoToNotes(row.memoRaw, createdAt)
   const carTypeTrim = row.carType.trim()
+  const insuranceHistory = row.insuranceHistory.trim()
   return {
     name,
     ssn,
@@ -420,7 +432,10 @@ export function transformRow(row: CustomerExcelParsedRow): SaveCustomerPayload |
     carYear: row.carYear.trim(),
     renewalDate: row.renewalDate.trim(),
     driving: drivingFromIsDriver(isDriver),
-    notes,
+    notes: {
+      items: noteItems,
+      insuranceHistory,
+    },
   }
 }
 
@@ -499,32 +514,34 @@ export async function prepareCustomerExcelImport(file: File): Promise<CustomerEx
 
 export function downloadCustomerUploadSampleXlsx(): void {
   const headers = [...CUSTOMER_EXCEL_UPLOAD_HEADERS]
+  /** 폼(고객 등록) 필드 순서와 동일: 이름·성별·주민번호·…·자동차 정보·건강고지·보험가입내역·메모 */
   const row1 = [
     '홍길동',
-    '8401011234567',
     'male',
+    '8001011234567',
     '01012341234',
-    '서울 광진구',
+    '서울 광진구 자양동 12-3',
     '175',
     '70',
-    '자영업',
+    '자영업(카페)',
     'TRUE',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '지인 소개 / VIP 고객',
+    '승용차',
+    '12가3456',
+    '그랜저',
+    '2022',
+    '2026-06-15',
+    '5년 이내 입원·수술 없음',
+    '실손의료비 2018년 가입(갱신형) / 자동차종합보험 다이렉트',
+    '지인 소개 / VIP 우대',
   ]
   const row2 = [
     '김영희',
-    '9002022234567',
     'female',
+    '9002022234567',
     '01056785678',
-    '서울 강남구',
+    '서울 강남구 역삼로 10길 5',
     '160',
-    '50',
+    '52',
     '회사원',
     'FALSE',
     '',
@@ -532,15 +549,29 @@ export function downloadCustomerUploadSampleXlsx(): void {
     '',
     '',
     '',
-    '',
-    '보험 상담 필요',
+    '특이사항 없음',
+    '암·뇌졸중 진단비 3천만원 (2021) / 변액유니버셜 5년납',
+    '보험 상담 예약',
   ]
   const descHeader = ['컬럼명', '설명']
-  const descRows = [
-    ['ssn', `숫자 ${RRN_NORMALIZED_LENGTH}자리만 유효(하이픈 무시). 그 외 길이·누락 행은 병합·업로드에서 제외`],
-    ['gender', 'male / female'],
-    ['isDriver', 'TRUE / FALSE'],
-    ['memo', '"/" 기준으로 notes 배열로 변환, 같은 문구는 중복 제거'],
+  const descRows: [string, string][] = [
+    ['name', '필수. 고객 이름 (폼「이름」)'],
+    ['gender', 'male 또는 female (폼「성별」과 동일)'],
+    ['ssn', `필수. 주민등록번호 숫자 ${RRN_NORMALIZED_LENGTH}자리(하이픈 없음). 길이 오류 행은 업로드 제외`],
+    ['phone', '전화번호 (폼「전화번호」)'],
+    ['address', '주소'],
+    ['height', '키(cm 등 자유)'],
+    ['weight', '몸무게(kg 등 자유)'],
+    ['job', '직업 / 회사명 / 하는 일 / 지역'],
+    ['isDriver', 'TRUE(운전함) / FALSE(운전 안함). 빈 칸은 미입력'],
+    ['carType', '운전함일 때 차종(예: 승용차, SUV). 운전 안함이면 비워도 됨'],
+    ['carNumber', '차량번호'],
+    ['carModel', '차종(차명) 예: 그랜저'],
+    ['carYear', '연식(예: 2022)'],
+    ['renewalDate', '만기(갱신)일 — YYYY-MM-DD 권장(폼 date와 동일)'],
+    ['medical', '5년 이내 진단·수술·치료(건강 고지)'],
+    ['insuranceHistory', '보험가입내역(긴 텍스트). 폼의「보험가입내역」과 동일하게 저장'],
+    ['memo', '메모(폼「메모」). "/" 로 구분 시 여러 메모 항목으로 나뉨, 중복 문구는 제거'],
   ]
   const sheet1 = XLSX.utils.aoa_to_sheet([headers, row1, row2])
   sheet1['!cols'] = headers.map(() => ({ wch: 14 }))
