@@ -1,5 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
+import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import { PageBackButton } from '../../../components/common/PageBackButton'
 import {
@@ -14,6 +15,7 @@ import { localYmd, parseConsultationStoredBody } from '../utils/consultationBody
 
 export default function CustomerConsultationsPage() {
   const { id: idParam } = useParams()
+  const navigate = useNavigate()
   const customerId = Number(idParam)
   const { token } = useAuth()
   const [rows, setRows] = useState<CustomerConsultationRow[]>([])
@@ -23,6 +25,7 @@ export default function CustomerConsultationsPage() {
   const [relatedId, setRelatedId] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [notFound, setNotFound] = useState(false)
 
   const validId = Number.isInteger(customerId) && customerId > 0
 
@@ -31,6 +34,7 @@ export default function CustomerConsultationsPage() {
       return
     }
     setError('')
+    setNotFound(false)
     try {
       const [c, r] = await Promise.all([
         listCustomerConsultations(token, customerId, { limit: 100 }),
@@ -39,6 +43,12 @@ export default function CustomerConsultationsPage() {
       setRows(c)
       setRelRows(r)
     } catch (e) {
+      if (e instanceof ApiError && e.status === 404) {
+        setNotFound(true)
+        setRows([])
+        setRelRows([])
+        return
+      }
       setError(e instanceof Error ? e.message : '불러오지 못했습니다.')
     }
   }, [token, customerId, validId])
@@ -99,6 +109,23 @@ export default function CustomerConsultationsPage() {
       <div className="page-shell" style={{ padding: '1rem' }}>
         <PageBackButton />
         <p>잘못된 고객 ID입니다.</p>
+      </div>
+    )
+  }
+
+  if (notFound) {
+    return (
+      <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
+        <PageBackButton />
+        <h1 style={{ marginTop: 12 }}>고객을 찾을 수 없음</h1>
+        <p style={{ color: '#666' }}>삭제되었거나 접근할 수 없는 고객입니다.</p>
+        <button
+          type="button"
+          style={{ marginTop: 12, padding: '0.5rem 1rem' }}
+          onClick={() => navigate('/customers')}
+        >
+          고객 목록으로
+        </button>
       </div>
     )
   }

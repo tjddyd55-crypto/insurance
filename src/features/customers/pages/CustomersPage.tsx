@@ -9,6 +9,7 @@ import {
   type SetStateAction,
 } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { formatKoreanDateTime } from '../../application/utils/date'
@@ -59,13 +60,20 @@ async function fetchLastConsultDatesByCustomerId(
     const chunk = customerIds.slice(i, i + LAST_CONSULT_FETCH_CONCURRENCY)
     const settled = await Promise.allSettled(
       chunk.map(async (cid) => {
-        const rows = await listCustomerConsultations(token, cid, { limit: 1 })
-        const first = rows[0]
-        if (!first) {
-          return { cid, dateLabel: null as string | null }
+        try {
+          const rows = await listCustomerConsultations(token, cid, { limit: 1 })
+          const first = rows[0]
+          if (!first) {
+            return { cid, dateLabel: null as string | null }
+          }
+          const { dateLabel } = parseConsultationStoredBody(first.body, first.createdAt)
+          return { cid, dateLabel }
+        } catch (e) {
+          if (e instanceof ApiError && e.status === 404) {
+            return { cid, dateLabel: null as string | null }
+          }
+          throw e
         }
-        const { dateLabel } = parseConsultationStoredBody(first.body, first.createdAt)
-        return { cid, dateLabel }
       }),
     )
     for (const s of settled) {
@@ -906,6 +914,8 @@ export default function CustomersPage() {
   const { user, token } = useAuth()
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
+  const customersRef = useRef<CustomerRecord[]>([])
+  customersRef.current = customers
   const [statusText, setStatusText] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -1017,25 +1027,29 @@ export default function CustomersPage() {
   const allVisibleSelected =
     allVisibleIds.length > 0 && allVisibleIds.every((id) => selectedCustomerIds.includes(id))
 
-  const refreshConsultationCounts = useCallback(async () => {
+  const refreshConsultationCounts = useCallback(async (activeCustomerIds?: number[]) => {
     if (!token || user?.role !== 'USER') {
       setConsultationCounts({})
       setLastConsultDateMap({})
       return
     }
+    const allowed = new Set(
+      activeCustomerIds ?? customersRef.current.map((c) => c.id),
+    )
     try {
       const { counts } = await fetchConsultationCounts(token)
       const next: Record<number, number> = {}
       for (const [k, v] of Object.entries(counts)) {
         const id = Number(k)
-        if (Number.isFinite(id)) {
-          next[id] = Number(v) || 0
+        if (!Number.isFinite(id) || !allowed.has(id)) {
+          continue
         }
+        next[id] = Number(v) || 0
       }
       setConsultationCounts(next)
       const idsWithConsult = Object.entries(next)
         .filter(([, n]) => n > 0)
-        .map(([id]) => Number(id))
+        .map(([idKey]) => Number(idKey))
       const dates = await fetchLastConsultDatesByCustomerId(token, idsWithConsult)
       setLastConsultDateMap(dates)
     } catch {
@@ -1053,7 +1067,7 @@ export default function CustomersPage() {
     try {
       const rows = await listCustomers(token)
       setCustomers(rows)
-      await refreshConsultationCounts()
+      await refreshConsultationCounts(rows.map((r) => r.id))
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
     } finally {
@@ -1088,6 +1102,23 @@ export default function CustomersPage() {
     }
     void loadCustomers()
   }, [user?.role, loadCustomers])
+
+  useEffect(() => {
+    if (expandedId == null) {
+      return
+    }
+    if (!customers.some((c) => c.id === expandedId)) {
+      setExpandedId(null)
+    }
+  }, [customers, expandedId])
+
+  useEffect(() => {
+    const valid = new Set(customers.map((c) => String(c.id)))
+    setSelectedCustomerIds((prev) => {
+      const next = prev.filter((id) => valid.has(id))
+      return next.length === prev.length ? prev : next
+    })
+  }, [customers])
 
   useEffect(() => {
     if (!deepSearch || !token || user?.role !== 'USER') {

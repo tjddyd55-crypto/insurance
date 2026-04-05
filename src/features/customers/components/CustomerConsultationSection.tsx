@@ -1,4 +1,5 @@
 import { type CSSProperties, type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { ApiError } from '../../../lib/apiClient'
 import {
   createCustomerConsultation,
   deleteCustomerConsultation,
@@ -47,9 +48,17 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
           setRows(page)
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : '상담 목록을 불러오지 못했습니다.')
-        if (!append) {
-          setRows([])
+        if (e instanceof ApiError && e.status === 404) {
+          setError('')
+          setHasMore(false)
+          if (!append) {
+            setRows([])
+          }
+        } else {
+          setError(e instanceof Error ? e.message : '상담 목록을 불러오지 못했습니다.')
+          if (!append) {
+            setRows([])
+          }
         }
       } finally {
         setLoading(false)
