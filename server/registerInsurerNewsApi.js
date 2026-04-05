@@ -15,10 +15,6 @@ import {
 } from './lib/rbacScope.js'
 import { INSURER_R2_ACTIVE_CATEGORY } from './lib/insurerR2Layout.js'
 import { insurerNewsLog } from './lib/logger.js'
-import { expandPdfAttachmentsForNewsletter } from './lib/insurerNewsPdfToImages.js'
-/** PDF 서버 변환 단계에서 사용자에게 노출할 고정 메시지 (세부 사유는 로그만) */
-const USER_PDF_PREP_FAILURE_MESSAGE =
-  'PDF 변환에 실패했습니다.\n파일 크기 또는 페이지 수를 확인해주세요.'
 
 /** 프론트 `attachmentUploadPolicy.ts` 와 동기화 */
 const ALLOWED_UPLOAD_MIME = new Set([
@@ -29,7 +25,7 @@ const ALLOWED_UPLOAD_MIME = new Set([
   'application/pdf',
 ])
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
-const MAX_PDF_BYTES = 20 * 1024 * 1024
+const MAX_PDF_BYTES = 10 * 1024 * 1024
 
 /** @param {string} code */
 function normalizeGaCodeForPath(code) {
@@ -345,18 +341,23 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     const payload = row.payload && typeof row.payload === 'object' ? row.payload : {}
     const attachments = [...attRows]
       .sort((a, b) => Number(a.sort_order) - Number(b.sort_order))
-      .map((a) => ({
-        id: String(a.id),
-        kind: String(a.mime_type) === 'application/pdf' ? 'pdf' : 'image',
-        url: String(a.url),
-        fileName: String(a.file_name),
-        sortOrder: Number(a.sort_order),
-        objectKey: String(a.object_key),
-        mimeType: String(a.mime_type),
-        size: Number(a.size_bytes),
-      }))
+      .map((a) => {
+        const mime = String(a.mime_type ?? '')
+        const dbKind = String(a.kind ?? '')
+        const isFile =
+          mime === 'application/pdf' || dbKind === 'file' || dbKind === 'pdf'
+        return {
+          id: String(a.id),
+          kind: isFile ? 'file' : 'image',
+          url: String(a.url),
+          fileName: String(a.file_name),
+          sortOrder: Number(a.sort_order),
+          objectKey: String(a.object_key),
+          mimeType: mime,
+          size: Number(a.size_bytes),
+        }
+      })
     const images = attachments.filter((x) => x.kind === 'image')
-    const pdfs = attachments.filter((x) => x.kind === 'pdf')
     const insurerCode = String(payload.insurerCode ?? '').trim()
     const insurerSlug = String(payload.insurerSlug ?? '').trim()
     const insurerName = String(payload.insurerName ?? row.company_name_snapshot ?? '').trim()
@@ -364,8 +365,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     const summary =
       String(payload.summary ?? '').trim() ||
       String(row.body_text ?? '').trim().slice(0, 160) ||
-      String(row.title ?? '').trim().slice(0, 160) ||
       '요약 없음'
+
+    const fileAttachments = attachments.filter((x) => x.kind === 'file')
 
     return {
       id: String(row.id),
@@ -373,13 +375,13 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       insurerCode: insurerCode || '—',
       insurerName: insurerName || String(row.company_name_snapshot ?? ''),
       insurerSlug: insurerSlug || 'insurer',
-      title: String(row.title ?? ''),
+      title: '',
       summary,
       heroImageUrl: images[0]?.url ?? null,
       publishedAt,
       status: String(row.status ?? 'DRAFT'),
       hasImages: images.length > 0,
-      hasPdf: pdfs.length > 0,
+      hasPdf: fileAttachments.length > 0,
       hasTextBody: String(row.body_text ?? '').trim().length > 0,
       bodyText: String(row.body_text ?? ''),
       attachments,
@@ -401,7 +403,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     if (!ALLOWED_UPLOAD_MIME.has(mimeType)) {
       throw Object.assign(new Error('허용되지 않은 첨부 형식입니다.'), { httpStatus: 400 })
     }
-    if (kind !== 'image' && kind !== 'pdf') {
+    if (kind !== 'image' && kind !== 'pdf' && kind !== 'file') {
       throw Object.assign(new Error('첨부 kind가 올바르지 않습니다.'), { httpStatus: 400 })
     }
     if (!objectKey || !url) {
@@ -413,7 +415,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     if (!assertCdnUrlMatchesKey(url, objectKey)) {
       throw Object.assign(new Error('첨부 URL이 objectKey와 일치하지 않습니다.'), { httpStatus: 400 })
     }
-    if (kind === 'pdf' && mimeType !== 'application/pdf') {
+    if ((kind === 'pdf' || kind === 'file') && mimeType !== 'application/pdf') {
       throw Object.assign(new Error('PDF 첨부의 MIME이 올바르지 않습니다.'), { httpStatus: 400 })
     }
     if (kind === 'image' && mimeType === 'application/pdf') {
@@ -427,7 +429,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
     return {
       id: randomUUID(),
-      kind: mimeType === 'application/pdf' ? 'pdf' : 'image',
+      kind: mimeType === 'application/pdf' ? 'file' : 'image',
       url,
       objectKey,
       fileName,
@@ -527,7 +529,6 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     const summary =
       String(payload.summary ?? '').trim() ||
       String(row.body_text ?? '').trim().slice(0, 160) ||
-      String(row.title ?? '').trim().slice(0, 160) ||
       '요약 없음'
 
     return {
@@ -536,7 +537,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       insurerCode: insurerCode || '—',
       insurerName: insurerName || String(row.company_name_snapshot ?? ''),
       insurerSlug: insurerSlug || 'insurer',
-      title: String(row.title ?? ''),
+      title: '',
       summary,
       heroImageUrl: row.hero_url ? String(row.hero_url) : null,
       publishedAt,
@@ -584,34 +585,15 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   }
 
   /**
-   * @param {import('pg').PoolClient} client
-   * @param {string} newsletterId
-   * @param {ReturnType<typeof assertAttachmentInput>[]} normalized
-   */
-  /**
-   * PDF 첨부는 저장 직전에 페이지별 JPEG 로 변환·업로드 후 이미지 행만 DB 에 넣습니다.
+   * 이미지·PDF 를 업로드 그대로 저장합니다 (PDF 를 이미지로 변환하지 않음).
    * @param {unknown[]} attIn
    * @param {{ gaPath: string, companySlug: string }} scope
+   * @returns {ReturnType<typeof assertAttachmentInput>[]}
    */
-  async function prepareAttachmentsForWrite(attIn, scope) {
-    const normalized = attIn.map((a) =>
+  function prepareAttachmentsForWrite(attIn, scope) {
+    return attIn.map((a) =>
       assertAttachmentInput(a, { gaPath: scope.gaPath, companySlug: scope.companySlug }),
     )
-    const hasPdf = normalized.some((x) => x.mimeType === 'application/pdf')
-    if (!hasPdf) {
-      return { rows: normalized, pdfKeysToDeleteAfterCommit: [] }
-    }
-    if (!isConsentR2Enabled()) {
-      logR2EnvDiagnosticCheck()
-      throw Object.assign(new Error('PDF 변환 및 저장을 위해 파일 저장소가 구성되어 있어야 합니다.'), {
-        httpStatus: 503,
-      })
-    }
-    const { attachments, pdfKeysToDeleteAfterCommit } = await expandPdfAttachmentsForNewsletter(
-      normalized,
-      scope,
-    )
-    return { rows: attachments, pdfKeysToDeleteAfterCommit }
   }
 
   async function insertAttachments(client, newsletterId, normalized) {
@@ -697,7 +679,16 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
 
-      const gaRow = await safeQuery(pool, `SELECT UPPER(TRIM(code)) AS c FROM ga_companies WHERE id = $1`, [gaId])
+      const gaRow = await safeQuery(
+        pool,
+        `
+        SELECT UPPER(TRIM(g.code)) AS c
+        FROM ga_companies g
+        WHERE g.id = $1
+          AND g.id = (SELECT u.ga_id FROM users u WHERE u.id = $2::text LIMIT 1)
+        `,
+        [gaId, String(req.user?.id ?? '')],
+      )
       const gaCodeUpper = gaRow.rowCount ? String(gaRow.rows[0].c ?? '') : gaCodeQuery.toUpperCase()
 
       const insurers = await buildInsurersListMerged(pool, gaId, gaCodeUpper)
@@ -720,7 +711,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         listSql += ` AND LOWER(TRIM(n.payload->>'insurerSlug')) = $2`
         params.push(insurerSlugFilter)
       }
-      listSql += ` ORDER BY n.updated_at DESC LIMIT $${params.length + 1}`
+      listSql += ` ORDER BY n.created_at DESC LIMIT $${params.length + 1}`
       params.push(limit)
 
       const nRes = await safeQuery(pool, listSql, params)
@@ -1004,7 +995,16 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           return
         }
         gaId = tenantGa
-        const gaRow = await safeQuery(pool, `SELECT UPPER(TRIM(code)) AS c FROM ga_companies WHERE id = $1`, [tenantGa])
+        const gaRow = await safeQuery(
+          pool,
+          `
+          SELECT UPPER(TRIM(g.code)) AS c
+          FROM ga_companies g
+          WHERE g.id = $1
+            AND g.id = (SELECT u.ga_id FROM users u WHERE u.id = $2::text LIMIT 1)
+          `,
+          [tenantGa, String(req.user?.id ?? '')],
+        )
         gaCodeUpper = gaRow.rowCount ? String(gaRow.rows[0].c ?? '') : ''
       }
 
@@ -1026,7 +1026,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         q += ` AND n.company_id = $2`
         params.push(companyIdFilter)
       }
-      q += ` ORDER BY n.updated_at DESC`
+      q += ` ORDER BY n.created_at DESC`
 
       const nRes = await safeQuery(pool, q, params)
       const newsletters = nRes.rows.map((row) => mapNewsletterListRow(row, gaCodeUpper))
@@ -1065,46 +1065,34 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     try {
       const normalizedScope = await resolveNewsWriteScope(req, body)
       const payload = buildPayloadFromBody(body, normalizedScope)
-      const title = String(body.title ?? '').trim()
+      const title = ''
       const bodyText = String(body.bodyText ?? '')
+      if (!bodyText.trim()) {
+        res.status(400).json({ message: '내용을 입력해 주세요.' })
+        return
+      }
       const statusRaw = String(body.status ?? 'DRAFT').toUpperCase()
       const status = statusRaw === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT'
 
       const attIn = Array.isArray(body.attachments) ? body.attachments : []
       let rowsToInsert
-      let pdfKeysToDeleteAfterCommit = []
       try {
-        const prepared = await prepareAttachmentsForWrite(attIn, normalizedScope)
-        rowsToInsert = prepared.rows
-        pdfKeysToDeleteAfterCommit = prepared.pdfKeysToDeleteAfterCommit
+        rowsToInsert = prepareAttachmentsForWrite(attIn, normalizedScope)
       } catch (prepErr) {
         if (prepErr && typeof prepErr === 'object' && 'httpStatus' in prepErr) {
           const st = Number(prepErr.httpStatus) || 400
           insurerNewsLog.error({
-            event: 'pdf-prep-failed',
+            event: 'attachment-prep-failed',
             op: 'newsletter-create',
             status: st,
             detail: prepErr instanceof Error ? prepErr.message : String(prepErr),
           })
-          if (st === 503) {
-            res.status(503).json({
+          res
+            .status(st)
+            .json({
               message:
-                prepErr instanceof Error
-                  ? prepErr.message
-                  : '파일 저장소가 구성되지 않았습니다.',
+                prepErr instanceof Error ? prepErr.message : '요청을 처리할 수 없습니다.',
             })
-            return
-          }
-          const clientMsg =
-            st === 400 &&
-            prepErr &&
-            typeof prepErr === 'object' &&
-            prepErr.pdfPrepFailure === true
-              ? USER_PDF_PREP_FAILURE_MESSAGE
-              : prepErr instanceof Error
-                ? prepErr.message
-                : '요청을 처리할 수 없습니다.'
-          res.status(st).json({ message: clientMsg })
           return
         }
         throw prepErr
@@ -1152,18 +1140,6 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         })
         await rollbackUploadedOrphans(orphanKeys)
         throw err
-      }
-
-      for (const pdfKey of pdfKeysToDeleteAfterCommit) {
-        try {
-          await r2DeleteObject(pdfKey)
-        } catch (delErr) {
-          insurerNewsLog.warn({
-            event: 'pdf-source-delete-fail',
-            objectKey: pdfKey,
-            message: delErr instanceof Error ? delErr.message : String(delErr),
-          })
-        }
       }
 
       insurerNewsLog.info({
@@ -1215,47 +1191,35 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       const payload = buildPayloadFromBody(body, scope)
-      const title = String(body.title ?? '').trim()
+      const title = ''
       const bodyText = String(body.bodyText ?? '')
+      if (!bodyText.trim()) {
+        res.status(400).json({ message: '내용을 입력해 주세요.' })
+        return
+      }
       const statusRaw = String(body.status ?? 'DRAFT').toUpperCase()
       const status = statusRaw === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT'
 
       const attIn = Array.isArray(body.attachments) ? body.attachments : []
       let rowsToInsert
-      let pdfKeysToDeleteAfterCommit = []
       try {
-        const prepared = await prepareAttachmentsForWrite(attIn, scope)
-        rowsToInsert = prepared.rows
-        pdfKeysToDeleteAfterCommit = prepared.pdfKeysToDeleteAfterCommit
+        rowsToInsert = prepareAttachmentsForWrite(attIn, scope)
       } catch (prepErr) {
         if (prepErr && typeof prepErr === 'object' && 'httpStatus' in prepErr) {
           const st = Number(prepErr.httpStatus) || 400
           insurerNewsLog.error({
-            event: 'pdf-prep-failed',
+            event: 'attachment-prep-failed',
             op: 'newsletter-patch',
             newsletterId,
             status: st,
             detail: prepErr instanceof Error ? prepErr.message : String(prepErr),
           })
-          if (st === 503) {
-            res.status(503).json({
+          res
+            .status(st)
+            .json({
               message:
-                prepErr instanceof Error
-                  ? prepErr.message
-                  : '파일 저장소가 구성되지 않았습니다.',
+                prepErr instanceof Error ? prepErr.message : '요청을 처리할 수 없습니다.',
             })
-            return
-          }
-          const clientMsg =
-            st === 400 &&
-            prepErr &&
-            typeof prepErr === 'object' &&
-            prepErr.pdfPrepFailure === true
-              ? USER_PDF_PREP_FAILURE_MESSAGE
-              : prepErr instanceof Error
-                ? prepErr.message
-                : '요청을 처리할 수 없습니다.'
-          res.status(st).json({ message: clientMsg })
           return
         }
         throw prepErr
@@ -1289,18 +1253,6 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         })
         await rollbackUploadedOrphans(orphanKeys)
         throw err
-      }
-
-      for (const pdfKey of pdfKeysToDeleteAfterCommit) {
-        try {
-          await r2DeleteObject(pdfKey)
-        } catch (delErr) {
-          insurerNewsLog.warn({
-            event: 'pdf-source-delete-fail',
-            objectKey: pdfKey,
-            message: delErr instanceof Error ? delErr.message : String(delErr),
-          })
-        }
       }
 
       insurerNewsLog.info({

@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
-import { NewsletterDetailHeader } from '../components/NewsletterDetailHeader'
 import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
 import { getNewsletterDetail } from '../services/insurerNews.service'
+import { formatInsurerNewsDateTime } from '../utils/formatInsurerNewsDate'
 import type { NewsletterDetail } from '../types'
 
 export function NewsletterDetailPage() {
@@ -41,21 +41,24 @@ export function NewsletterDetailPage() {
     )
   }
 
-  const imageUrls = detail.attachments.filter((a) => a.kind === 'image').sort((a, b) => a.sortOrder - b.sortOrder)
-  const galleryUrls = imageUrls.length ? imageUrls.map((a) => a.url) : detail.heroImageUrl ? [detail.heroImageUrl] : []
+  const imageRows = detail.attachments.filter((a) => a.kind === 'image').sort((a, b) => a.sortOrder - b.sortOrder)
+  const galleryUrls = imageRows.length ? imageRows.map((a) => a.url) : detail.heroImageUrl ? [detail.heroImageUrl] : []
 
   return (
     <article className="insurer-news-detail-article">
-      <div className="insurer-news-detail-text">
-        <NewsletterDetailHeader item={detail} />
-        <div className="insurer-news-detail-body">{detail.bodyText || '본문이 없습니다.'}</div>
+      <header style={{ marginBottom: 16 }}>
+        <p className="insurer-news-muted" style={{ margin: '0 0 4px', fontSize: 14 }}>
+          {detail.insurerName}
+        </p>
+        <time dateTime={detail.publishedAt} style={{ fontSize: '0.95rem' }}>
+          {formatInsurerNewsDateTime(detail.publishedAt)}
+        </time>
+      </header>
+      <div className="insurer-news-detail-body" style={{ marginBottom: 8 }}>
+        {detail.bodyText || '본문이 없습니다.'}
       </div>
-      {galleryUrls.length > 0 ? (
-        <NewsletterImageGallery imageUrls={galleryUrls} altBase={detail.title} />
-      ) : null}
-      <div className="insurer-news-detail-after">
-        <NewsletterAttachmentList attachments={detail.attachments} />
-      </div>
+      {galleryUrls.length > 0 ? <NewsletterImageGallery imageUrls={galleryUrls} altBase="소식지 이미지" /> : null}
+      <NewsletterAttachmentList attachments={detail.attachments} />
     </article>
   )
 }

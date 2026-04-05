@@ -1339,6 +1339,59 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_customer_relations_by_customer
     ON customer_relations(customer_id)
   `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS analytics_events (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      ga_id INTEGER REFERENCES ga_companies(id) ON DELETE SET NULL,
+      event_type TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_analytics_events_created_seoul
+    ON analytics_events ((created_at AT TIME ZONE 'Asia/Seoul')::date, event_type)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_analytics_events_ga_created
+    ON analytics_events (ga_id, created_at DESC)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_analytics_events_login_dau
+    ON analytics_events (event_type, ga_id, (created_at AT TIME ZONE 'Asia/Seoul')::date)
+    WHERE event_type = 'login'
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS analytics_daily_stats (
+      id BIGSERIAL PRIMARY KEY,
+      stat_date DATE NOT NULL,
+      scope_type TEXT NOT NULL CHECK (scope_type IN ('overall', 'ga')),
+      ga_id INTEGER REFERENCES ga_companies(id) ON DELETE CASCADE,
+      total_users INT NOT NULL DEFAULT 0,
+      daily_active_users INT NOT NULL DEFAULT 0,
+      weekly_active_users INT NOT NULL DEFAULT 0,
+      new_users INT NOT NULL DEFAULT 0,
+      customers_created INT NOT NULL DEFAULT 0,
+      documents_created INT NOT NULL DEFAULT 0,
+      team_messages_created INT NOT NULL DEFAULT 0
+    )
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_analytics_daily_overall
+    ON analytics_daily_stats(stat_date)
+    WHERE scope_type = 'overall'
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_analytics_daily_ga
+    ON analytics_daily_stats(stat_date, ga_id)
+    WHERE scope_type = 'ga'
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_analytics_daily_stat_date
+    ON analytics_daily_stats(stat_date)
+  `)
 }
 
 async function seedConsentTemplatesIfNeeded() {

@@ -38,6 +38,7 @@ import { ConsentFormPage } from './features/consent/pages/ConsentFormPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
+import AdminAnalyticsPage from './features/analytics/pages/AdminAnalyticsPage'
 import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
 import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
 import { InsurerManagerOnlyRoute } from './features/auth/InsurerManagerOnlyRoute'
@@ -138,6 +139,10 @@ export const appRouter = createBrowserRouter([
                   {
                     path: 'internal/admin/feature-requests',
                     element: <FeatureRequestsAdminPage />,
+                  },
+                  {
+                    path: 'admin/analytics',
+                    element: <AdminAnalyticsPage />,
                   },
                 ],
               },

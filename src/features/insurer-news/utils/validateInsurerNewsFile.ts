@@ -11,7 +11,7 @@ const PDF_TYPES = new Set<string>(INSURER_NEWS_ALLOWED_PDF_MIME)
 const MAX_IMAGE_BYTES = INSURER_NEWS_MAX_IMAGE_BYTES
 const MAX_PDF_BYTES = INSURER_NEWS_MAX_PDF_BYTES
 
-export type InsurerNewsFileKind = 'image' | 'pdf'
+export type InsurerNewsFileKind = 'image' | 'file'
 
 export interface ValidateInsurerNewsFileResult {
   ok: true
@@ -35,7 +35,7 @@ export function validateInsurerNewsFile(file: File): ValidateInsurerNewsFileResu
     if (file.size > MAX_PDF_BYTES) {
       return { ok: false, message: 'PDF는 10MB 이하만 업로드할 수 있습니다.' }
     }
-    return { ok: true, kind: 'pdf' }
+    return { ok: true, kind: 'file' }
   }
   return {
     ok: false,

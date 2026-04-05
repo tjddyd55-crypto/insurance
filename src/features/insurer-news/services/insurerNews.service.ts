@@ -5,15 +5,19 @@ import { cdnUrlForObjectKey } from '../lib/insurerNewsCdn'
 import { validateInsurerNewsFile } from '../utils/validateInsurerNewsFile'
 import type { InsurerSummary, LocalAttachmentDraft, NewsletterDetail, NewsletterItem } from '../types'
 
-function sortByPublishedDesc<T extends { publishedAt: string }>(rows: T[]): T[] {
-  return [...rows].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-}
-
 type PublishContextApi = {
   gaCode: string
   insurerCode: string
   insurerName: string
   insurerSlug: string
+}
+
+function sortByPublishedDesc(items: NewsletterItem[]): NewsletterItem[] {
+  return [...items].sort((a, b) => {
+    const ta = new Date(a.publishedAt).getTime()
+    const tb = new Date(b.publishedAt).getTime()
+    return (Number.isFinite(tb) ? tb : 0) - (Number.isFinite(ta) ? ta : 0)
+  })
 }
 
 export type InsurerNewsFeedResponse = {
@@ -136,7 +140,7 @@ export async function uploadNewsletterAttachments(
       continue
     }
 
-    const contentType = item.file.type || (v.kind === 'pdf' ? 'application/pdf' : 'image/jpeg')
+    const contentType = item.file.type || (v.kind === 'file' ? 'application/pdf' : 'image/jpeg')
     try {
       const presignBody: Record<string, unknown> = {
         fileName: item.file.name || 'file',
@@ -236,7 +240,6 @@ export async function createManagerNewsletter(token: string, draft: NewsletterDe
     method: 'POST',
     token,
     body: JSON.stringify({
-      title: draft.title,
       bodyText: draft.bodyText,
       status: draft.status,
       gaCode: draft.gaCode,
@@ -267,7 +270,6 @@ export async function updateManagerNewsletter(
     method: 'PATCH',
     token,
     body: JSON.stringify({
-      title: draft.title,
       bodyText: draft.bodyText,
       status: draft.status,
       gaCode: draft.gaCode,
@@ -290,8 +292,7 @@ export async function updateManagerNewsletter(
 }
 
 export async function listManagerNewsletters(token: string): Promise<NewsletterItem[]> {
-  const rows = await apiRequest<NewsletterItem[]>('/api/insurer-news/manager/newsletters', { token })
-  return sortByPublishedDesc(rows)
+  return apiRequest<NewsletterItem[]>('/api/insurer-news/manager/newsletters', { token })
 }
 
 export async function getManagerNewsletterDetail(token: string, id: string): Promise<NewsletterDetail | null> {

@@ -34,22 +34,20 @@ type Props = {
 function buildDraftForApi(
   id: string,
   ctx: Props['context'],
-  title: string,
   bodyText: string,
   attachmentItems: LocalAttachmentDraft[],
   initial: NewsletterDetail | null,
 ): NewsletterDetail {
-  const summary =
-    bodyText.trim().slice(0, 160) || title.trim().slice(0, 160) || '요약 없음'
+  const summary = bodyText.trim().slice(0, 160) || '요약 없음'
   const ok = attachmentItems.filter((a) => a.status !== 'failed')
   const images = ok.filter((a) => a.kind === 'image')
-  const pdfs = ok.filter((a) => a.kind === 'pdf')
+  const files = ok.filter((a) => a.kind === 'file')
 
   const attachments = ok.map((a, i) => {
     const url = a.cdnUrl ?? ''
     const objectKey = a.objectKey ?? ''
     const mimeType =
-      a.mimeType ?? (a.kind === 'pdf' ? 'application/pdf' : a.file.type || 'application/octet-stream')
+      a.mimeType ?? (a.kind === 'file' ? 'application/pdf' : a.file.type || 'application/octet-stream')
     const size = a.sizeBytes ?? a.file.size
     if (!url || !objectKey) {
       throw new Error('첨부 업로드 정보가 없습니다. 다시 시도해 주세요.')
@@ -59,7 +57,7 @@ function buildDraftForApi(
       kind: a.kind,
       url,
       objectKey,
-      fileName: a.file.name || (a.kind === 'pdf' ? `file-${i}.pdf` : `image-${i}.webp`),
+      fileName: a.file.name || (a.kind === 'file' ? `file-${i}.pdf` : `image-${i}.webp`),
       mimeType,
       size,
       sortOrder: i,
@@ -74,13 +72,13 @@ function buildDraftForApi(
     insurerCode: ctx.insurerCode,
     insurerName: ctx.insurerName,
     insurerSlug: ctx.insurerSlug,
-    title: title.trim(),
+    title: '',
     summary,
     heroImageUrl,
     publishedAt: initial?.publishedAt ?? new Date().toISOString(),
     status: initial?.status ?? 'PUBLISHED',
     hasImages: images.length > 0,
-    hasPdf: pdfs.length > 0,
+    hasPdf: files.length > 0,
     hasTextBody: bodyText.trim().length > 0,
     bodyText: bodyText.trim(),
     attachments,
@@ -112,8 +110,12 @@ export function InsurerNewsForm({
       setSubmitError('로그인이 필요합니다.')
       return
     }
-    const hasWorkingPdf = form.attachments.some((a) => a.kind === 'pdf' && a.status !== 'failed')
-    setBusyMessage(hasWorkingPdf ? 'PDF 변환 중...' : '저장 중...')
+    if (!form.bodyText.trim()) {
+      setSubmitError('내용을 입력해 주세요.')
+      return
+    }
+
+    setBusyMessage('저장 중...')
 
     try {
       const uploaded = await uploadNewsletterAttachments(authToken, form.attachments, {
@@ -124,7 +126,7 @@ export function InsurerNewsForm({
         setSubmitError('일부 파일 업로드에 실패했습니다. 실패한 항목을 확인한 뒤 다시 시도해 주세요.')
         return
       }
-      const draft = buildDraftForApi(id, context, form.title, form.bodyText, uploaded, initial)
+      const draft = buildDraftForApi(id, context, form.bodyText, uploaded, initial)
       await onSubmit(draft)
     } catch (err) {
       const msg =
@@ -144,21 +146,11 @@ export function InsurerNewsForm({
       <h1 style={{ marginTop: 0, fontSize: '1.25rem' }}>{mode === 'create' ? '새 소식지' : '소식지 수정'}</h1>
 
       <label className="field">
-        <span className="field__label">제목</span>
-        <input
-          value={form.title}
-          onChange={(e) => form.setTitle(e.target.value)}
-          required
-          className="admin-form-input"
-          placeholder="제목을 입력하세요"
-        />
-      </label>
-
-      <label className="field">
         <span className="field__label">내용</span>
         <textarea
           value={form.bodyText}
           onChange={(e) => form.setBodyText(e.target.value)}
+          required
           rows={8}
           className="admin-form-input"
           style={{ height: 'auto', minHeight: 160, paddingTop: 12, paddingBottom: 12 }}

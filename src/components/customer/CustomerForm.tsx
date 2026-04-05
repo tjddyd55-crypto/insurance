@@ -214,14 +214,11 @@ export function createEmptyCustomerForm(): CustomerFormState {
 
 
 
-/** 저장/전송 전 검증 — 통과 시 null (필수: 이름, 주민번호만) */
+/** 저장/전송 전 검증 — 통과 시 null (필수: 이름만) */
 
 export function getCustomerFormValidationError(form: CustomerFormState): string | null {
   if (!form.name?.trim()) {
-    return '이름을 입력해주세요'
-  }
-  if (!form.ssn?.trim()) {
-    return '주민번호를 입력해주세요'
+    return '이름은 필수입니다.'
   }
   return null
 }
@@ -258,7 +255,7 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
 
     isDriver: form.isDriver,
 
-    carType: form.isDriver === true ? form.carType.trim() : '',
+    carType: form.carType.trim(),
 
     carNumber: form.carNumber.trim(),
 
@@ -551,7 +548,7 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
               checked={form.isDriver === false}
 
-              onChange={() => onFormChange({ ...form, isDriver: false, carType: '' })}
+              onChange={() => onFormChange({ ...form, isDriver: false })}
 
             />{' '}
 
@@ -563,29 +560,25 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
       </div>
 
-      {form.isDriver === true ? (
+      <label className="field field--wide">
 
-        <label className="field field--wide">
+        <span className="field__label">차종 (운전 형태)</span>
 
-          <span className="field__label">차종</span>
+        <input
 
-          <input
+          className="field__control"
 
-            className="field__control"
+          type="text"
 
-            type="text"
+          placeholder="예: 승용차, SUV, 1톤 트럭"
 
-            placeholder="예: 승용차, SUV, 1톤 트럭"
+          value={form.carType}
 
-            value={form.carType}
+          onChange={(e) => onFormChange({ ...form, carType: e.target.value })}
 
-            onChange={(e) => onFormChange({ ...form, carType: e.target.value })}
+        />
 
-          />
-
-        </label>
-
-      ) : null}
+      </label>
 
       <hr style={{ gridColumn: '1 / -1', border: 'none', borderTop: '1px solid rgba(0,0,0,0.12)', margin: '8px 0' }} />
 

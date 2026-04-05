@@ -1,31 +1,25 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
-import { NewsletterCard } from '../components/NewsletterCard'
-import { InsurerSelectorGrid } from '../components/InsurerSelectorGrid'
-import { getInsurersForGa, getRecentNewslettersByGa } from '../services/insurerNews.service'
-import type { InsurerSummary, NewsletterItem } from '../types'
+import { NewsCard } from '../components/NewsCard'
+import { getAllPublishedForGa } from '../services/insurerNews.service'
+import type { NewsletterItem } from '../types'
 
 export function NewsletterHubPage() {
   const { user, token } = useAuth()
   const gaCode = user?.gaCode ?? ''
   const navigate = useNavigate()
-  const [recent, setRecent] = useState<NewsletterItem[]>([])
-  const [insurers, setInsurers] = useState<InsurerSummary[]>([])
+  const [items, setItems] = useState<NewsletterItem[] | null>(null)
 
   useEffect(() => {
-    if (!gaCode) {
+    if (!gaCode || !token?.trim()) {
       return
     }
     let cancelled = false
     ;(async () => {
-      const [r, ins] = await Promise.all([
-        getRecentNewslettersByGa(gaCode, 6, token),
-        getInsurersForGa(gaCode, token),
-      ])
+      const rows = await getAllPublishedForGa(gaCode, token)
       if (!cancelled) {
-        setRecent(r)
-        setInsurers(ins)
+        setItems(rows)
       }
     })()
     return () => {
@@ -37,37 +31,23 @@ export function NewsletterHubPage() {
     return null
   }
 
-  return (
-    <>
-      <section style={{ marginBottom: 28 }}>
-        <h2 className="insurer-news-hub__section-title">최근 소식</h2>
-        {recent.length === 0 ? (
-          <div className="insurer-news-empty">아직 등록된 소식지가 없습니다.</div>
-        ) : (
-          <div className="insurer-news-list-grid">
-            {recent.map((item) => (
-              <NewsletterCard key={item.id} item={item} onOpen={() => navigate(`/portal/newsletters/${item.id}`)} />
-            ))}
-          </div>
-        )}
-        <button
-          type="button"
-          className="button button--secondary"
-          style={{ marginTop: 12 }}
-          onClick={() => navigate('/portal/newsletters/recent')}
-        >
-          최근 소식 전체 보기
-        </button>
-      </section>
+  if (items === null) {
+    return <p className="insurer-news-muted">불러오는 중…</p>
+  }
 
-      <section>
-        <h2 className="insurer-news-hub__section-title">보험사별 바로가기</h2>
-        <InsurerSelectorGrid
-          insurers={insurers}
-          onSelect={(slug) => navigate(`/portal/newsletters/insurers/${slug}`)}
-          emptyMessage="연결된 보험사가 없습니다."
-        />
-      </section>
-    </>
+  if (items.length === 0) {
+    return (
+      <div className="insurer-news-empty" role="status">
+        아직 등록된 소식지가 없습니다.
+      </div>
+    )
+  }
+
+  return (
+    <div className="news-grid">
+      {items.map((item) => (
+        <NewsCard key={item.id} item={item} onOpen={() => navigate(`/portal/newsletters/${item.id}`)} />
+      ))}
+    </div>
   )
 }

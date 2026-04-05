@@ -18,6 +18,7 @@ const SUPER_ADMIN_MENU: MenuItem[] = [
   { label: 'GA 관리', path: '/admin/ga' },
   { label: '담당자 관리', path: '/admin/delegates' },
   { label: '유저 관리', path: '/admin/users' },
+  { label: '운영 통계', path: '/admin/analytics' },
   { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
 ]
 
@@ -82,6 +83,9 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   }
   if (itemPath.startsWith('/internal/')) {
     return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
+  }
+  if (itemPath === '/admin/analytics') {
+    return pathname === '/admin/analytics'
   }
   if (itemPath === '/admin/ga') {
     return pathname === '/admin/ga' || pathname === '/admin/create-ga'

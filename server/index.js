@@ -11,6 +11,10 @@ import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
 import { registerUserProfileApi } from './registerUserProfileApi.js'
 import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
 import { registerTeamApi } from './apis/teamApi.js'
+import { registerSuperAdminAnalyticsApi } from './registerSuperAdminAnalyticsApi.js'
+import { recordAnalyticsEvent } from './lib/analyticsEvents.js'
+import { ensureYesterdayAnalyticsAggregated } from './lib/analyticsAggregation.js'
+import { tickAnalyticsAggregationScheduler } from './lib/analyticsScheduler.js'
 import { verifySignupPhoneProof } from './lib/signupPhoneProof.js'
 import { purgeExpiredSmsVerificationCodes } from './services/purgeExpiredSmsCodes.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
@@ -1253,6 +1257,14 @@ registerUserProfileApi(apiRouter, {
 
 registerTeamApi(apiRouter, { pool, requireAuth, handleDbError })
 
+registerSuperAdminAnalyticsApi(apiRouter, {
+  pool,
+  requireAuth,
+  requireSuperAdmin,
+  handleDbError,
+  systemQuery,
+})
+
 apiRouter.get('/health', (_req, res) => {
   res.json({ ok: true })
 })
@@ -1503,6 +1515,11 @@ async function handleLogin(req, res) {
         companyId: Number.isInteger(imCompanyId) && imCompanyId > 0 ? imCompanyId : null,
         meta: { username: im.username },
       })
+      void recordAnalyticsEvent(pool, {
+        userId: String(im.id),
+        gaId: Number.isInteger(imGaId) ? imGaId : null,
+        eventType: 'login',
+      })
       res.json({
         token: imToken,
         user: {
@@ -1603,6 +1620,7 @@ async function handleLogin(req, res) {
       companyId: null,
       meta: { username: user.username },
     })
+    void recordAnalyticsEvent(pool, { userId: uid, gaId: gaIdInt, eventType: 'login' })
 
     res.json({
       token,
@@ -3820,6 +3838,7 @@ apiRouter.post('/forms', requireAuth, async (req, res) => {
 
     await logInsuranceFormsDbDiagnostics('post')
 
+    void recordAnalyticsEvent(pool, { userId, gaId, eventType: 'document_created' })
     res.status(201).json(mapFormRow(inserted.rows[0]))
   } catch (error) {
     handleDbError(error, req, res)
@@ -3924,6 +3943,7 @@ apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
 
     await logInsuranceFormsDbDiagnostics('renew')
 
+    void recordAnalyticsEvent(pool, { userId, gaId: formGaId, eventType: 'document_created' })
     res.status(201).json({ success: true, data: mapFormRow(insert.rows[0]) })
   } catch (error) {
     handleDbError(error, req, res)
@@ -3945,15 +3965,11 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
     const data = req.body ?? {}
     const name = String(data.name ?? '').trim()
     if (!name) {
-      res.status(400).json({ message: '고객 이름은 필수입니다.' })
+      res.status(400).json({ message: '이름은 필수입니다' })
       return
     }
 
     const ssn = String(data.ssn ?? '').trim()
-    if (!ssn) {
-      res.status(400).json({ message: '주민번호를 입력해주세요.' })
-      return
-    }
 
     let isDriver = null
     if (data.isDriver === true || data.is_driver === true) {
@@ -4019,6 +4035,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
       ],
     )
 
+    void recordAnalyticsEvent(pool, { userId, gaId, eventType: 'customer_created' })
     res.status(201).json({ success: true, data: mapCustomerRow(inserted.rows[0]) })
   } catch (error) {
     handleDbError(error, req, res)
@@ -4051,15 +4068,11 @@ apiRouter.post('/customer/external-create', async (req, res) => {
 
     const name = String(data.name ?? '').trim()
     if (!name) {
-      res.status(400).json({ message: '고객 이름은 필수입니다.' })
+      res.status(400).json({ message: '이름은 필수입니다' })
       return
     }
 
     const ssn = String(data.ssn ?? '').trim()
-    if (!ssn) {
-      res.status(400).json({ message: '주민번호를 입력해주세요.' })
-      return
-    }
 
     let isDriver = null
     if (data.isDriver === true || data.is_driver === true) {
@@ -4125,6 +4138,7 @@ apiRouter.post('/customer/external-create', async (req, res) => {
       ],
     )
 
+    void recordAnalyticsEvent(pool, { userId: refUserId, gaId: refGaId, eventType: 'customer_created' })
     res.status(201).json({ success: true, data: mapCustomerRow(inserted.rows[0]) })
   } catch (error) {
     handleDbError(error, req, res)
@@ -4159,7 +4173,7 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
     if (hasKey('name')) {
       const name = String(data.name ?? '').trim()
       if (!name) {
-        res.status(400).json({ message: '고객 이름은 필수입니다.' })
+        res.status(400).json({ message: '이름은 필수입니다' })
         return
       }
       parts.push(`name = $${n++}`)
@@ -4238,17 +4252,6 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       vals.push(insuranceAge)
       parts.push(`next_age_date = $${n++}`)
       vals.push(nextAgeDateToSqlDate(nextAgeDateObj))
-    }
-
-    const setsDriverTrue =
-      (hasKey('isDriver') && data.isDriver === true) || (hasKey('is_driver') && data.is_driver === true)
-    if (
-      setsDriverTrue &&
-      (hasKey('carType') || hasKey('car_type')) &&
-      !String(data.carType ?? data.car_type ?? '').trim()
-    ) {
-      res.status(400).json({ message: '차종을 입력해주세요.' })
-      return
     }
 
     if (parts.length === 0) {
@@ -4665,6 +4668,7 @@ async function startServer() {
   await initDb()
   await seedInsuranceCompanyDirectory()
   await logInsuranceFormsDbDiagnostics('startup')
+  await ensureYesterdayAnalyticsAggregated(pool)
 
   app.listen(PORT, () => {
     console.log(`Insurance server listening on port ${PORT}`)
@@ -4676,6 +4680,13 @@ async function startServer() {
   setInterval(() => {
     void purgeExpiredSmsVerificationCodes(pool).catch((err) => console.error('[sms-cleanup] purge failed', err))
   }, SMS_CODE_PURGE_MS)
+
+  const analyticsScheduleState = { lastRunSeoulYmd: null }
+  const ANALYTICS_TICK_MS = 60 * 60 * 1000
+  void tickAnalyticsAggregationScheduler(pool, analyticsScheduleState)
+  setInterval(() => {
+    void tickAnalyticsAggregationScheduler(pool, analyticsScheduleState)
+  }, ANALYTICS_TICK_MS)
 }
 
 startServer().catch((error) => {

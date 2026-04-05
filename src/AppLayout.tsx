@@ -23,11 +23,12 @@ export function AppLayout() {
   const hideBarPaths = new Set(['/login', '/register', '/password-reset', '/customer/input'])
   const showGaBar =
     Boolean(isAuthenticated && user?.gaId != null) && !hideBarPaths.has(location.pathname)
+  const showThemeToggle = location.pathname === '/'
 
   return (
     <>
       <AppExitConfirm />
-      <ThemeToggle />
+      {showThemeToggle ? <ThemeToggle /> : null}
       {showGaBar ? (
         <div className="app-tenant-ga-bar" role="status" aria-label="소속 GA">
           {formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')}

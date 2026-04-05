@@ -104,7 +104,7 @@ export default function CustomerInputPage() {
       <PageBackButton />
       <header className="page-header">
         <h1>고객 정보 입력</h1>
-        {notice ? <p>{notice}</p> : <p className="page-header-hint">(필수: 이름, 주민번호)</p>}
+        {notice ? <p>{notice}</p> : <p className="page-header-hint">(필수: 이름)</p>}
       </header>
 
       <div className="external-input-body">

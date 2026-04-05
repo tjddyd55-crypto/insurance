@@ -28,7 +28,6 @@ import { calculateInsuranceAgeFromRrn, formatLocalYmd } from '../utils/insurance
 import { formatDateYmdInput } from '../utils/insuranceInfo'
 import { EXCEL_COLUMN_META, exportCustomersExcel } from '../utils/exportCustomersExcel'
 import { normalizeSsn, RRN_NORMALIZED_LENGTH } from '../utils/customerExcelUpload'
-import { CustomerExcelImportPanel } from '../components/CustomerExcelImportPanel'
 import {
   CustomerForm,
   InsuranceInline,
@@ -414,9 +413,9 @@ function CustomerListCard({
     consultationCount > 0 ? lastConsultDateLabel ?? '—' : '—'
   return (
     <li
-      className={`record-card customer-expand-card${isSelectMode ? ' customer-expand-card--select-mode' : ''}${
-        expandedId === c.id ? ' customer-expand-card--focal' : ''
-      }`}
+      className={`record-card customer-card customer-expand-card${
+        isSelectMode ? ' customer-expand-card--select-mode' : ''
+      }${expandedId === c.id ? ' customer-expand-card--focal' : ''}`}
       data-customer-card-id={c.id}
     >
       {isSelectMode ? (
@@ -676,29 +675,25 @@ function CustomerListCard({
                             name={`driver-edit-${c.id}`}
                             checked={editForm.isDriver === false}
                             onChange={() =>
-                              setEditForm((prev) =>
-                                prev ? { ...prev, isDriver: false, carType: '' } : prev,
-                              )
+                              setEditForm((prev) => (prev ? { ...prev, isDriver: false } : prev))
                             }
                           />{' '}
                           운전 안함
                         </label>
                       </div>
                     </div>
-                    {editForm.isDriver === true ? (
-                      <label className="field field--wide">
-                        <span className="field__label">차종</span>
-                        <input
-                          className="field__control"
-                          type="text"
-                          placeholder="예: 승용차, SUV, 1톤 트럭"
-                          value={editForm.carType ?? ''}
-                          onChange={(e) =>
-                            setEditForm((prev) => (prev ? { ...prev, carType: e.target.value } : prev))
-                          }
-                        />
-                      </label>
-                    ) : null}
+                    <label className="field field--wide">
+                      <span className="field__label">차종 (운전 형태)</span>
+                      <input
+                        className="field__control"
+                        type="text"
+                        placeholder="예: 승용차, SUV, 1톤 트럭"
+                        value={editForm.carType ?? ''}
+                        onChange={(e) =>
+                          setEditForm((prev) => (prev ? { ...prev, carType: e.target.value } : prev))
+                        }
+                      />
+                    </label>
                     <label className="field field--wide">
                       <span className="field__label">5년 이내 진단·수술·치료 (건강 고지)</span>
                       <textarea
@@ -958,6 +953,16 @@ export default function CustomersPage() {
   const [onlyWithConsultations, setOnlyWithConsultations] = useState(false)
   const [filterNoRecentConsult, setFilterNoRecentConsult] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
+  const [showScrollToTop, setShowScrollToTop] = useState(false)
+
+  useEffect(() => {
+    function onScroll() {
+      setShowScrollToTop(window.scrollY > 300)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const ssnDupHighlightByCustomerId = useMemo(
     () => buildSsnDuplicateHighlightByCustomerId(customers),
@@ -1332,25 +1337,6 @@ export default function CustomersPage() {
       window.alert(msg)
       return
     }
-    if (editForm.gender == null) {
-      const msg = '성별을 선택해주세요.'
-      setStatusText(msg)
-      window.alert(msg)
-      return
-    }
-    if (editForm.isDriver == null) {
-      const msg = '운전 여부를 선택해주세요.'
-      setStatusText(msg)
-      window.alert(msg)
-      return
-    }
-    if (editForm.isDriver === true && !editForm.carType.trim()) {
-      const msg = '차종을 입력해주세요.'
-      setStatusText(msg)
-      window.alert(msg)
-      return
-    }
-    const isDriverBool: boolean = editForm.isDriver === true
     const carYearForApi = normalizeCustomerEditCarYearForApi(editForm.carYear)
     const renewalDateForApi = normalizeCustomerEditRenewalDateForApi(editForm.renewalDate)
     try {
@@ -1363,11 +1349,11 @@ export default function CustomersPage() {
         height: editForm.height,
         weight: editForm.weight,
         job: editForm.job,
-        driving: drivingText(isDriverBool),
+        driving: drivingText(editForm.isDriver),
         medical: editForm.medical,
         gender: editForm.gender,
-        isDriver: isDriverBool,
-        carType: editForm.isDriver === true ? editForm.carType.trim() : '',
+        isDriver: editForm.isDriver,
+        carType: editForm.carType.trim(),
         notes: {
           items: customerNoteItems(base),
           insuranceHistory: editForm.insuranceHistory.trim(),
@@ -1389,7 +1375,6 @@ export default function CustomersPage() {
 
   async function handleEditFormSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    console.log('submit')
     await handleUpdateCustomer()
   }
 
@@ -1443,19 +1428,6 @@ export default function CustomersPage() {
 
   function toggleExcelColumn(id: string) {
     setSelectedColumns((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
-  }
-
-  async function copyExternalInputLink() {
-    if (!user?.id) {
-      return
-    }
-    const link = `${window.location.origin}/customer/input?ref=${encodeURIComponent(user.id)}`
-    try {
-      await navigator.clipboard.writeText(link)
-      window.alert('복사되었습니다')
-    } catch {
-      setStatusText('복사에 실패했습니다.')
-    }
   }
 
   async function handleDeleteCustomer(c: CustomerRecord) {
@@ -1539,19 +1511,22 @@ export default function CustomersPage() {
           </div>
         </div>
       ) : null}
-      <header className="page-header">
-        <div className="page-header__title-tools">
-          <div className="page-title-with-action">
-            <h1>고객 관리</h1>
-            <button type="button" className="link-btn" onClick={() => void copyExternalInputLink()}>
-              링크
-            </button>
-          </div>
-          {user?.role === 'USER' && token ? (
-            <CustomerExcelImportPanel token={token} onUploadsFinished={() => void loadCustomers()} />
+      <header className="page-header customers-page__header">
+        <div className="customers-page__header-row">
+          <h1>고객 관리</h1>
+          {tab === 'list' ? (
+            <input
+              className="search-input customers-page__header-search"
+              type="search"
+              placeholder="이름 / 전화번호 검색"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              autoComplete="off"
+              aria-label="이름 또는 전화번호 검색"
+            />
           ) : null}
         </div>
-        {statusText ? <p>{statusText}</p> : null}
+        {statusText ? <p className="customers-page__status">{statusText}</p> : null}
       </header>
 
       {tab === 'create' ? (
@@ -1565,7 +1540,7 @@ export default function CustomersPage() {
         </>
       ) : (
         <section className="list-section" style={{ marginTop: 0 }}>
-          <div className="list-section-header-row">
+          <div className="list-section-header-row customers-page__list-toolbar">
             <h2 className="dashboard-section-title">저장된 고객</h2>
             <div className="list-section-header-actions">
               {!isSelectMode ? (
@@ -1580,15 +1555,6 @@ export default function CustomersPage() {
               ) : null}
             </div>
           </div>
-          <input
-            className="search-input"
-            type="search"
-            placeholder="이름 / 전화번호 검색"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            autoComplete="off"
-            aria-label="이름 또는 전화번호 검색"
-          />
           {recentSearches.length > 0 ? (
             <div
               style={{
@@ -1891,6 +1857,16 @@ export default function CustomersPage() {
         </div>
       ) : null}
 
+      {showScrollToTop ? (
+        <button
+          type="button"
+          className="scroll-to-top"
+          aria-label="맨 위로 스크롤"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        >
+          ↑
+        </button>
+      ) : null}
     </main>
   )
 }

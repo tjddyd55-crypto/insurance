@@ -1,6 +1,7 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { mapCustomerRow } from '../lib/customerRowMap.js'
+import { recordAnalyticsEvent } from '../lib/analyticsEvents.js'
 
 const CONSULTATION_BODY_MAX = 20000
 
@@ -240,6 +241,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         [customerId, userId, gaId, bodyToStore],
       )
       const row = ins.rows[0]
+      recordAnalyticsEvent(pool, { userId, gaId, eventType: 'team_message_created' })
       res.status(201).json({
         id: Number(row.id),
         customerId: Number(row.customer_id),

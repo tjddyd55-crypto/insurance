@@ -19,10 +19,10 @@ export interface InsurerSummary {
   lastPublishedAt: string | null
 }
 
-/** 첨부 (이미지 / PDF) */
+/** 첨부 (이미지 / 파일 — PDF 등 다운로드용) */
 export interface NewsletterAttachment {
   id: string
-  kind: 'image' | 'pdf'
+  kind: 'image' | 'file'
   url: string
   fileName: string
   sortOrder: number
@@ -58,7 +58,7 @@ export interface NewsletterDetail extends NewsletterItem {
 export interface LocalAttachmentDraft {
   localId: string
   file: File
-  kind: 'image' | 'pdf'
+  kind: 'image' | 'file'
   previewUrl: string | null
   status: UploadStatus
   errorMessage?: string

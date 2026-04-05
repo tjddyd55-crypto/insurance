@@ -6,7 +6,7 @@ function attachmentsToDrafts(attachments: NewsletterAttachment[]): LocalAttachme
   return attachments.map((a) => ({
     localId: `existing-${a.id}`,
     file: new File([], a.fileName, {
-      type: a.mimeType ?? (a.kind === 'pdf' ? 'application/pdf' : 'image/png'),
+      type: a.mimeType ?? (a.kind === 'file' ? 'application/pdf' : 'image/png'),
     }),
     kind: a.kind,
     previewUrl: a.kind === 'image' ? a.url : null,
@@ -20,7 +20,6 @@ function attachmentsToDrafts(attachments: NewsletterAttachment[]): LocalAttachme
 }
 
 export function useInsurerNewsForm(existing: NewsletterDetail | null) {
-  const [title, setTitle] = useState(existing?.title ?? '')
   const [bodyText, setBodyText] = useState(existing?.bodyText ?? '')
   const queue = useAttachmentUploadQueue(
     existing?.attachments?.length ? attachmentsToDrafts(existing.attachments) : [],
@@ -28,19 +27,18 @@ export function useInsurerNewsForm(existing: NewsletterDetail | null) {
 
   const isDirty = useMemo(() => {
     if (!existing) {
-      return Boolean(title.trim() || bodyText.trim() || queue.items.length)
+      return Boolean(bodyText.trim() || queue.items.length)
     }
-    if (title !== existing.title || bodyText !== existing.bodyText) {
+    if (bodyText !== existing.bodyText) {
       return true
     }
     if (queue.items.length !== existing.attachments.length) {
       return true
     }
     return false
-  }, [existing, title, bodyText, queue.items])
+  }, [existing, bodyText, queue.items])
 
   const reset = useCallback(() => {
-    setTitle(existing?.title ?? '')
     setBodyText(existing?.bodyText ?? '')
     queue.replaceAll(
       existing?.attachments?.length ? attachmentsToDrafts(existing.attachments) : [],
@@ -48,8 +46,6 @@ export function useInsurerNewsForm(existing: NewsletterDetail | null) {
   }, [existing, queue])
 
   return {
-    title,
-    setTitle,
     bodyText,
     setBodyText,
     attachments: queue.items,

@@ -1,5 +1,5 @@
 import type { NewsletterItem } from '../types'
-import { NewsletterCard } from './NewsletterCard'
+import { NewsCard } from './NewsCard'
 
 type Props = {
   items: NewsletterItem[]
@@ -18,9 +18,9 @@ export function NewsletterList({ items, emptyMessage, onOpenItem, noSearchResult
   }
 
   return (
-    <div className="insurer-news-list-grid">
+    <div className="news-grid">
       {items.map((item) => (
-        <NewsletterCard
+        <NewsCard
           key={item.id}
           item={item}
           onOpen={onOpenItem ? () => onOpenItem(item.id) : undefined}

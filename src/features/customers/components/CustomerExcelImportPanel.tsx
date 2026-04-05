@@ -1,5 +1,4 @@
 import { useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 
 import type { CustomerExcelPrepareResult, CustomerUploadBatchResult } from '../utils/customerExcelUpload'
 import {
@@ -323,10 +322,6 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
           제외 데이터 다운로드 (주민번호 오류 등)
         </button>
       ) : null}
-
-      <Link to="/account/reset" className="link-btn link-btn--compact customers-excel-import-panel__reset">
-        계정 초기화
-      </Link>
     </div>
   )
 }

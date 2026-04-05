@@ -386,10 +386,6 @@ body {
   margin-left: -18px;
 }
 
-.customers-excel-import-panel__reset {
-  margin-top: 2px;
-}
-
 .customers-excel-import-panel__preview {
   margin-top: 10px;
   padding: 12px 14px;
@@ -1170,6 +1166,124 @@ button.filter-button:focus-visible {
 
 .customers-page--excel-toolbar-pad {
   padding-top: calc(88px + env(safe-area-inset-top, 0px));
+}
+
+.scroll-to-top {
+  position: fixed;
+  right: 16px;
+  bottom: 80px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: white;
+  font-size: 20px;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 999;
+  cursor: pointer;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scroll-to-top:hover {
+  filter: brightness(1.06);
+}
+
+/* 고객 관리 — 넓은 폭, 단일 카드, 리스트 밀도 */
+.customers-page.page {
+  max-width: none;
+  width: 100%;
+  margin: 0 auto;
+  padding: 8px 10px 100px;
+  box-sizing: border-box;
+}
+
+.customers-page__header {
+  margin-bottom: 6px;
+}
+
+.customers-page__header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.customers-page__header-row h1 {
+  margin: 0;
+  font-size: 1.35rem;
+  flex: 0 0 auto;
+}
+
+.customers-page__header-search {
+  flex: 1 1 220px;
+  min-width: 0;
+  max-width: none;
+}
+
+.customers-page__status {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  color: var(--text-sub);
+}
+
+.customers-page__list-toolbar {
+  margin-bottom: 8px;
+}
+
+.customers-page__list-toolbar .dashboard-section-title {
+  font-size: 1rem;
+}
+
+.customers-page ul.customer-list.record-list {
+  gap: 0;
+}
+
+.customers-page .record-card.customer-card.customer-expand-card {
+  background: var(--bg-card);
+  border: none;
+  border-radius: 10px;
+  padding: 0;
+  margin-bottom: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+}
+
+.customers-page .customer-expand-card--focal {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.06),
+    0 0 0 2px var(--insurance-accent, #2563eb);
+}
+
+.customers-page .customer-expand-summary {
+  background: var(--bg-card);
+  padding: 10px 12px;
+  font-size: 0.9375rem;
+}
+
+.customers-page .customer-expand-summary__hint {
+  font-size: 12px;
+}
+
+.customers-page .customer-expand-detail {
+  padding: 10px 12px 12px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-muted);
+  font-size: 0.9375rem;
+}
+
+.customers-page .customer-expand-card__select {
+  background: var(--bg-card);
+  border-right: 1px solid var(--border-muted);
+  padding: 8px 10px;
+}
+
+.customers-page .field-grid-customers {
+  gap: 10px;
+  font-size: 0.9375rem;
 }
 
 .modal.modal-excel-columns {

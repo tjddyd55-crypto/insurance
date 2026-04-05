@@ -10,6 +10,7 @@ import {
   type MeResponse,
 } from '../authApi'
 import { useAuth } from '../AuthProvider'
+import { CustomerExcelImportPanel } from '../../customers/components/CustomerExcelImportPanel'
 
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
@@ -322,6 +323,21 @@ export function ProfilePage() {
             <span className="field__label">비밀번호</span>
             <Link to="/password-reset" className="button button--secondary" style={{ display: 'inline-block' }}>
               비밀번호 변경 (SMS 재설정)
+            </Link>
+          </div>
+
+          <div className="field">
+            <span className="field__label">고객 엑셀 업로드</span>
+            <p className="auth-description" style={{ marginTop: 4, fontSize: 13 }}>
+              샘플 다운로드·파일 선택·미리보기·일괄 등록은 프로필에서 진행합니다. 완료 후 고객 관리에서 목록을 확인하세요.
+            </p>
+            <CustomerExcelImportPanel token={token} onUploadsFinished={() => {}} />
+          </div>
+
+          <div className="field">
+            <span className="field__label">계정</span>
+            <Link to="/account/reset" className="button button--secondary" style={{ display: 'inline-block' }}>
+              계정 초기화
             </Link>
           </div>
 
