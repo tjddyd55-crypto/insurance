@@ -18,7 +18,7 @@ export function NewsletterList({ items, emptyMessage, onOpenItem, noSearchResult
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="insurer-news-list-grid">
       {items.map((item) => (
         <NewsletterCard
           key={item.id}

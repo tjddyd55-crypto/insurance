@@ -188,15 +188,29 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
                   borderBottom: '1px solid rgba(0,0,0,0.08)',
                   padding: '12px 0',
                   display: 'flex',
-                  gap: 10,
+                  gap: 8,
                   alignItems: 'flex-start',
                 }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>{dateLabel}</div>
-                  <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.95rem', wordBreak: 'break-word' }}>
-                    {text || '—'}
-                  </div>
+                <div
+                  style={{
+                    fontWeight: 700,
+                    flexShrink: 0,
+                    minWidth: '7.5rem',
+                  }}
+                >
+                  ● {dateLabel}
+                </div>
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    whiteSpace: 'pre-wrap',
+                    fontSize: '0.95rem',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {text || '—'}
                 </div>
                 <button
                   type="button"

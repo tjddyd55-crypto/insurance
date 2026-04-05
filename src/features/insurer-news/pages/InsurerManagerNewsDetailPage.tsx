@@ -71,11 +71,17 @@ export function InsurerManagerNewsDetailPage() {
   return (
     <main className="page page--with-back insurer-news-page">
       <PageBackButton />
-      <article>
-        <NewsletterDetailHeader item={detail} />
-        {galleryUrls.length ? <NewsletterImageGallery imageUrls={galleryUrls} altBase={detail.title} /> : null}
-        <div className="insurer-news-body">{detail.bodyText || '본문이 없습니다.'}</div>
-        <NewsletterAttachmentList attachments={detail.attachments} />
+      <article className="insurer-news-detail-article">
+        <div className="insurer-news-detail-text">
+          <NewsletterDetailHeader item={detail} />
+          <div className="insurer-news-detail-body">{detail.bodyText || '본문이 없습니다.'}</div>
+        </div>
+        {galleryUrls.length > 0 ? (
+          <NewsletterImageGallery imageUrls={galleryUrls} altBase={detail.title} />
+        ) : null}
+        <div className="insurer-news-detail-after">
+          <NewsletterAttachmentList attachments={detail.attachments} />
+        </div>
       </article>
     </main>
   )

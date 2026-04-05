@@ -44,7 +44,7 @@ export function NewsletterHubPage() {
         {recent.length === 0 ? (
           <div className="insurer-news-empty">아직 등록된 소식지가 없습니다.</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="insurer-news-list-grid">
             {recent.map((item) => (
               <NewsletterCard key={item.id} item={item} onOpen={() => navigate(`/portal/newsletters/${item.id}`)} />
             ))}

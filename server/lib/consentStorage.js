@@ -82,6 +82,33 @@ export async function consentPutObject(key, body, contentType = 'application/oct
   await writeFile(full, body)
 }
 
+/**
+ * 원수사 소식 첨부와 동일한 Cache-Control 을 쓰는 서버측 PUT (PDF→이미지 변환 후 업로드 등).
+ * @param {string} key
+ * @param {Buffer} body
+ * @param {string} contentType
+ */
+export async function consentPutInsurerAttachment(key, body, contentType) {
+  const c = r2Credentials()
+  const client = getS3()
+  const cacheControl = getR2InsurerAttachmentsCacheControl()
+  if (client && c) {
+    /** @type {import('@aws-sdk/client-s3').PutObjectCommandInput} */
+    const input = {
+      Bucket: c.bucket,
+      Key: key,
+      Body: body,
+      ContentType: contentType || 'application/octet-stream',
+    }
+    if (cacheControl) {
+      input.CacheControl = cacheControl
+    }
+    await client.send(new PutObjectCommand(input))
+    return
+  }
+  await consentPutObject(key, body, contentType)
+}
+
 export async function consentGetBuffer(key) {
   const c = r2Credentials()
   const client = getS3()

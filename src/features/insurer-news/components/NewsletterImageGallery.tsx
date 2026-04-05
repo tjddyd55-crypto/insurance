@@ -92,21 +92,23 @@ export function NewsletterImageGallery({ imageUrls, altBase = '소식지 이미�
   }
 
   return (
-    <div className="insurer-news-gallery insurer-news-gallery--vertical">
-      <nav className="insurer-news-gallery__pager" aria-label="이미지 페이지">
-        {imageUrls.map((_, idx) => (
-          <button
-            key={`p-${idx}`}
-            type="button"
-            className={`insurer-news-gallery__page-btn${idx === activeIndex ? ' insurer-news-gallery__page-btn--active' : ''}`}
-            aria-label={`${idx + 1}번째 이미지로 이동`}
-            aria-current={idx === activeIndex ? 'true' : undefined}
-            onClick={() => scrollToImage(idx)}
-          >
-            {idx + 1}
-          </button>
-        ))}
-      </nav>
+    <div className="insurer-news-gallery insurer-news-gallery--detail">
+      {n > 1 ? (
+        <nav className="insurer-news-gallery__pager" aria-label="이미지 페이지">
+          {imageUrls.map((_, idx) => (
+            <button
+              key={`p-${idx}`}
+              type="button"
+              className={`insurer-news-gallery__page-btn${idx === activeIndex ? ' insurer-news-gallery__page-btn--active' : ''}`}
+              aria-label={`${idx + 1}번째 이미지로 이동`}
+              aria-current={idx === activeIndex ? 'true' : undefined}
+              onClick={() => scrollToImage(idx)}
+            >
+              {idx + 1}
+            </button>
+          ))}
+        </nav>
+      ) : null}
       <div className="insurer-news-gallery__slides">
         {imageUrls.map((url, idx) => (
           <div
@@ -114,7 +116,7 @@ export function NewsletterImageGallery({ imageUrls, altBase = '소식지 이미�
             ref={(el) => {
               imageRefs.current[idx] = el
             }}
-            className="insurer-news-gallery__slide"
+            className={`insurer-news-gallery__slide${n > 1 ? ' insurer-news-gallery__slide--with-pager' : ''}`}
             data-index={idx}
           >
             <img

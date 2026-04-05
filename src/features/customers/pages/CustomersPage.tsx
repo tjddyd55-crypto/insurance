@@ -34,12 +34,48 @@ import {
   drivingText,
 } from '../../../components/customer/CustomerForm'
 import { PageBackButton } from '../../../components/common/PageBackButton'
-import { fetchConsultationCounts, searchCustomersAdvanced } from '../api/customerExtraApi'
+import {
+  fetchConsultationCounts,
+  listCustomerConsultations,
+  searchCustomersAdvanced,
+} from '../api/customerExtraApi'
+import { parseConsultationStoredBody } from '../utils/consultationBodyFormat'
 import { CustomerConsultationSection } from '../components/CustomerConsultationSection'
 import { CustomerInlineNotesSection } from '../components/CustomerInlineNotesSection'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 
 const RECENT_CUSTOMER_SEARCHES_KEY = 'insurance.customers.recentSearches.v1'
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+
+const LAST_CONSULT_FETCH_CONCURRENCY = 12
+
+async function fetchLastConsultDatesByCustomerId(
+  token: string,
+  customerIds: number[],
+): Promise<Record<number, string>> {
+  const out: Record<number, string> = {}
+  for (let i = 0; i < customerIds.length; i += LAST_CONSULT_FETCH_CONCURRENCY) {
+    const chunk = customerIds.slice(i, i + LAST_CONSULT_FETCH_CONCURRENCY)
+    const settled = await Promise.allSettled(
+      chunk.map(async (cid) => {
+        const rows = await listCustomerConsultations(token, cid, { limit: 1 })
+        const first = rows[0]
+        if (!first) {
+          return { cid, dateLabel: null as string | null }
+        }
+        const { dateLabel } = parseConsultationStoredBody(first.body, first.createdAt)
+        return { cid, dateLabel }
+      }),
+    )
+    for (const s of settled) {
+      if (s.status === 'fulfilled' && s.value.dateLabel) {
+        out[s.value.cid] = s.value.dateLabel
+      }
+    }
+  }
+  return out
+}
 
 function readRecentCustomerSearches(): string[] {
   try {
@@ -143,20 +179,12 @@ type CustomerAdvancedFilters = {
   minInsuranceAge: string
   maxInsuranceAge: string
   gender: '' | 'male' | 'female'
-  maturityFrom: string
-  maturityTo: string
-  carExpireFrom: string
-  carExpireTo: string
 }
 
 const EMPTY_ADVANCED_FILTERS: CustomerAdvancedFilters = {
   minInsuranceAge: '',
   maxInsuranceAge: '',
   gender: '',
-  maturityFrom: '',
-  maturityTo: '',
-  carExpireFrom: '',
-  carExpireTo: '',
 }
 
 /** 주민번호(숫자 13자리) 중복 그룹마다 순환 적용하는 표시색 */
@@ -224,33 +252,6 @@ function customerPassesAdvancedFilters(c: CustomerRecord, filters: CustomerAdvan
   const maxA = parseOptionalInt(filters.maxInsuranceAge)
   if (maxA != null) {
     if (metrics.insuranceAge == null || metrics.insuranceAge > maxA) {
-      return false
-    }
-  }
-
-  const matFrom = filters.maturityFrom.trim()
-  if (matFrom) {
-    if (!metrics.maturityYmd || metrics.maturityYmd < matFrom) {
-      return false
-    }
-  }
-  const matTo = filters.maturityTo.trim()
-  if (matTo) {
-    if (!metrics.maturityYmd || metrics.maturityYmd > matTo) {
-      return false
-    }
-  }
-
-  const renewalYmd = customerRenewalYmd(c)
-  const carFrom = filters.carExpireFrom.trim()
-  if (carFrom) {
-    if (!renewalYmd || renewalYmd < carFrom) {
-      return false
-    }
-  }
-  const carTo = filters.carExpireTo.trim()
-  if (carTo) {
-    if (!renewalYmd || renewalYmd > carTo) {
       return false
     }
   }
@@ -354,6 +355,7 @@ type CustomerListCardProps = {
   token: string | null
   onOpenCustomer: (customerId: number) => void
   consultationCount: number
+  lastConsultDateLabel: string | null
   onConsultationCountsInvalidate: () => void
   onCustomerRecordUpdated: (record: CustomerRecord) => void
 }
@@ -382,10 +384,13 @@ function CustomerListCard({
   token,
   onOpenCustomer,
   consultationCount,
+  lastConsultDateLabel,
   onConsultationCountsInvalidate,
   onCustomerRecordUpdated,
 }: CustomerListCardProps) {
   const ins = customerInsuranceDisplay(c)
+  const recentConsultText =
+    consultationCount > 0 ? lastConsultDateLabel ?? '—' : '—'
   return (
     <li
       className={`record-card customer-expand-card${isSelectMode ? ' customer-expand-card--select-mode' : ''}${
@@ -416,7 +421,17 @@ function CustomerListCard({
           aria-expanded={expandedId === c.id}
           onClick={() => setExpandedId((prev) => (prev === c.id ? null : c.id))}
         >
-          <span className="customer-expand-summary__title">
+          <span
+            className="customer-expand-summary__title"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 4,
+              minWidth: 0,
+              textAlign: 'left',
+            }}
+          >
             <span
               className={ssnDupHighlight ? 'customer-name-ssn-dup' : undefined}
               style={ssnDupHighlight ? { color: ssnDupHighlight.color } : undefined}
@@ -427,16 +442,27 @@ function CustomerListCard({
                 </span>
               ) : null}
               {c.name}
-              {consultationCount > 0 ? (
-                <span style={{ fontWeight: 700, color: '#1d4ed8' }}>{` (상담 ${consultationCount}건)`}</span>
-              ) : null}
             </span>
-            {' / '}
-            {genderSummaryLabel(c)}
-            {' / '}
-            보험나이 {ins.ageText}
-            {' / '}
-            상령일 {ins.dateText}
+            <span
+              style={{
+                fontSize: '0.86rem',
+                fontWeight: 400,
+                color: '#333',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '100%',
+              }}
+              title={`${genderSummaryLabel(c)} / 보험나이 ${ins.ageText} / 상령일 ${ins.dateText} / 최근 상담 ${recentConsultText}`}
+            >
+              {genderSummaryLabel(c)}
+              {' / '}
+              보험나이 {ins.ageText}
+              {' / '}
+              상령일 {ins.dateText}
+              {' / '}
+              최근 상담 {recentConsultText}
+            </span>
           </span>
           <span className="customer-expand-summary__hint">{expandedId === c.id ? '접기' : '펼치기'}</span>
         </button>
@@ -904,7 +930,10 @@ export default function CustomersPage() {
   const [advSearchHits, setAdvSearchHits] = useState<CustomerRecord[] | null>(null)
   const [advSearchLoading, setAdvSearchLoading] = useState(false)
   const [consultationCounts, setConsultationCounts] = useState<Record<number, number>>({})
+  const [lastConsultDateMap, setLastConsultDateMap] = useState<Record<number, string>>({})
   const [onlyWithConsultations, setOnlyWithConsultations] = useState(false)
+  const [filterNoRecentConsult, setFilterNoRecentConsult] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
 
   const ssnDupHighlightByCustomerId = useMemo(
     () => buildSsnDuplicateHighlightByCustomerId(customers),
@@ -927,8 +956,21 @@ export default function CustomersPage() {
     if (onlyWithConsultations) {
       list = list.filter((c) => (consultationCounts[c.id] ?? 0) > 0)
     }
+    if (filterNoRecentConsult) {
+      list = list.filter((c) => {
+        const last = lastConsultDateMap[c.id]
+        return !last || Date.now() - new Date(last).getTime() > THIRTY_DAYS_MS
+      })
+    }
     return list
-  }, [keywordFilteredCustomers, advancedFilters, onlyWithConsultations, consultationCounts])
+  }, [
+    keywordFilteredCustomers,
+    advancedFilters,
+    onlyWithConsultations,
+    consultationCounts,
+    filterNoRecentConsult,
+    lastConsultDateMap,
+  ])
 
   const todayContactTargets = useMemo(
     () => filteredCustomers.filter((c) => customerIsTodayContactTarget(c)),
@@ -937,15 +979,7 @@ export default function CustomersPage() {
 
   const advancedFiltersActive = useMemo(() => {
     const f = advancedFilters
-    return !!(
-      f.minInsuranceAge.trim() ||
-      f.maxInsuranceAge.trim() ||
-      f.gender ||
-      f.maturityFrom.trim() ||
-      f.maturityTo.trim() ||
-      f.carExpireFrom.trim() ||
-      f.carExpireTo.trim()
-    )
+    return !!(f.minInsuranceAge.trim() || f.maxInsuranceAge.trim() || f.gender)
   }, [advancedFilters])
 
   const sortedCustomers = useMemo(() => {
@@ -986,6 +1020,7 @@ export default function CustomersPage() {
   const refreshConsultationCounts = useCallback(async () => {
     if (!token || user?.role !== 'USER') {
       setConsultationCounts({})
+      setLastConsultDateMap({})
       return
     }
     try {
@@ -998,8 +1033,14 @@ export default function CustomersPage() {
         }
       }
       setConsultationCounts(next)
+      const idsWithConsult = Object.entries(next)
+        .filter(([, n]) => n > 0)
+        .map(([id]) => Number(id))
+      const dates = await fetchLastConsultDatesByCustomerId(token, idsWithConsult)
+      setLastConsultDateMap(dates)
     } catch {
       setConsultationCounts({})
+      setLastConsultDateMap({})
     }
   }, [token, user?.role])
 
@@ -1159,35 +1200,18 @@ export default function CustomersPage() {
     }
   }
 
-  function applyQuickFilter(type: 'AGE_UNDER_30_MALE' | 'AGE_OVER_40_FEMALE' | 'MATURITY_30' | 'CAR_EXPIRE_30') {
-    const today = new Date()
-    const future30 = new Date(today)
-    future30.setDate(future30.getDate() + 30)
-    const fmt = formatLocalYmd
-
+  function applyQuickFilter(type: 'AGE_UNDER_30_MALE' | 'AGE_OVER_40_FEMALE') {
     if (type === 'AGE_UNDER_30_MALE') {
       setAdvancedFilters({
         ...EMPTY_ADVANCED_FILTERS,
         maxInsuranceAge: '30',
         gender: 'male',
       })
-    } else if (type === 'AGE_OVER_40_FEMALE') {
+    } else {
       setAdvancedFilters({
         ...EMPTY_ADVANCED_FILTERS,
         minInsuranceAge: '40',
         gender: 'female',
-      })
-    } else if (type === 'MATURITY_30') {
-      setAdvancedFilters({
-        ...EMPTY_ADVANCED_FILTERS,
-        maturityFrom: fmt(today),
-        maturityTo: fmt(future30),
-      })
-    } else {
-      setAdvancedFilters({
-        ...EMPTY_ADVANCED_FILTERS,
-        carExpireFrom: fmt(today),
-        carExpireTo: fmt(future30),
       })
     }
   }
@@ -1491,171 +1515,167 @@ export default function CustomersPage() {
               ))}
             </div>
           ) : null}
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              marginTop: 8,
-              fontSize: '0.95rem',
-            }}
-          >
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="checkbox"
-                checked={deepSearch}
-                onChange={(e) => setDeepSearch(e.target.checked)}
-              />
-              상담·연계 포함 검색 (서버 심층 검색)
-            </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="checkbox"
-                checked={onlyWithConsultations}
-                onChange={(e) => setOnlyWithConsultations(e.target.checked)}
-              />
-              상담 기록이 있는 고객만 보기
-            </label>
+          <div style={{ marginTop: 10 }}>
+            <button
+              type="button"
+              className="filter-button"
+              aria-expanded={showFilters}
+              onClick={() => setShowFilters((v) => !v)}
+            >
+              {showFilters ? '필터 접기' : '필터 펼치기'}
+            </button>
           </div>
-          {advSearchLoading ? (
-            <p style={{ margin: '6px 0 0', fontSize: '0.9rem', color: '#555' }} role="status">
-              심층 검색 중…
-            </p>
-          ) : null}
-
-          {!isLoading && customers.length > 0 ? (
-            <div className="customers-today-targets" role="status">
-              <p className="customers-today-targets__title">
-                🔥 오늘 연락 대상 (<strong>{todayContactTargets.length}</strong>명)
-              </p>
-              <p className="customers-today-targets__hint">
-                상령일 또는 자동차 만기 D-{CONTACT_TARGET_DDAY_MAX} 이하(임박·경과) — 현재 검색·필터 범위 기준
-              </p>
-            </div>
-          ) : null}
-
-          <div className="customers-sort-row" role="group" aria-label="목록 정렬">
-            <span className="customers-sort-row__label">정렬:</span>
-            <div className="customers-sort-row__buttons filter-group">
-              <button
-                type="button"
-                className={`filter-button${listSort === 'maturity_asc' ? ' active' : ''}`}
-                onClick={() => setListSort('maturity_asc')}
+          {showFilters ? (
+            <>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  marginTop: 8,
+                  fontSize: '0.95rem',
+                }}
               >
-                상령일 빠른순
-              </button>
-              <button
-                type="button"
-                className={`filter-button${listSort === 'car_expire_asc' ? ' active' : ''}`}
-                onClick={() => setListSort('car_expire_asc')}
-              >
-                자동차 만기순
-              </button>
-              <button
-                type="button"
-                className={`filter-button${listSort === 'recent' ? ' active' : ''}`}
-                onClick={() => setListSort('recent')}
-              >
-                최근등록
-              </button>
-            </div>
-          </div>
-
-          <div className="customers-advanced-filters" role="search" aria-label="고급 검색">
-            <div className="customers-advanced-filters__grid">
-              <label className="customers-advanced-filters__field">
-                <span>보험나이 최소</span>
-                <input
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={advancedFilters.minInsuranceAge}
-                  onChange={(e) => setAdvancedFilters((f) => ({ ...f, minInsuranceAge: e.target.value }))}
-                />
-              </label>
-              <label className="customers-advanced-filters__field">
-                <span>보험나이 최대</span>
-                <input
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={advancedFilters.maxInsuranceAge}
-                  onChange={(e) => setAdvancedFilters((f) => ({ ...f, maxInsuranceAge: e.target.value }))}
-                />
-              </label>
-              <label className="customers-advanced-filters__field">
-                <span>성별</span>
-                <select
-                  value={advancedFilters.gender}
-                  onChange={(e) =>
-                    setAdvancedFilters((f) => ({
-                      ...f,
-                      gender: e.target.value as CustomerAdvancedFilters['gender'],
-                    }))
-                  }
-                >
-                  <option value="">전체</option>
-                  <option value="male">남</option>
-                  <option value="female">여</option>
-                </select>
-              </label>
-              <label className="customers-advanced-filters__field">
-                <span>상령일 시작</span>
-                <input
-                  type="date"
-                  value={advancedFilters.maturityFrom}
-                  onChange={(e) => setAdvancedFilters((f) => ({ ...f, maturityFrom: e.target.value }))}
-                />
-              </label>
-              <label className="customers-advanced-filters__field">
-                <span>상령일 종료</span>
-                <input
-                  type="date"
-                  value={advancedFilters.maturityTo}
-                  onChange={(e) => setAdvancedFilters((f) => ({ ...f, maturityTo: e.target.value }))}
-                />
-              </label>
-              <label className="customers-advanced-filters__field">
-                <span>자동차 만기 시작</span>
-                <input
-                  type="date"
-                  value={advancedFilters.carExpireFrom}
-                  onChange={(e) => setAdvancedFilters((f) => ({ ...f, carExpireFrom: e.target.value }))}
-                />
-              </label>
-              <label className="customers-advanced-filters__field">
-                <span>자동차 만기 종료</span>
-                <input
-                  type="date"
-                  value={advancedFilters.carExpireTo}
-                  onChange={(e) => setAdvancedFilters((f) => ({ ...f, carExpireTo: e.target.value }))}
-                />
-              </label>
-            </div>
-            <div className="customers-advanced-filters__quick filter-group">
-              <button type="button" className="filter-button" onClick={() => applyQuickFilter('AGE_UNDER_30_MALE')}>
-                30세 이하 남성
-              </button>
-              <button type="button" className="filter-button" onClick={() => applyQuickFilter('AGE_OVER_40_FEMALE')}>
-                40세 이상 여성
-              </button>
-              <button type="button" className="filter-button" onClick={() => applyQuickFilter('MATURITY_30')}>
-                상령일 30일 이내
-              </button>
-              <button type="button" className="filter-button" onClick={() => applyQuickFilter('CAR_EXPIRE_30')}>
-                자동차 만기 30일 이내
-              </button>
-              {advancedFiltersActive ? (
-                <button
-                  type="button"
-                  className="filter-button"
-                  onClick={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
-                >
-                  필터 초기화
-                </button>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={deepSearch}
+                    onChange={(e) => setDeepSearch(e.target.checked)}
+                  />
+                  상담·연계 포함 검색 (서버 심층 검색)
+                </label>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={onlyWithConsultations}
+                    onChange={(e) => setOnlyWithConsultations(e.target.checked)}
+                  />
+                  상담 기록이 있는 고객만 보기
+                </label>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={filterNoRecentConsult}
+                    onChange={(e) => setFilterNoRecentConsult(e.target.checked)}
+                  />
+                  최근 30일 상담 없음
+                </label>
+              </div>
+              {advSearchLoading ? (
+                <p style={{ margin: '6px 0 0', fontSize: '0.9rem', color: '#555' }} role="status">
+                  심층 검색 중…
+                </p>
               ) : null}
-            </div>
-          </div>
+
+              {!isLoading && customers.length > 0 ? (
+                <div className="customers-today-targets" role="status">
+                  <p className="customers-today-targets__title">
+                    🔥 오늘 연락 대상 (<strong>{todayContactTargets.length}</strong>명)
+                  </p>
+                  <p className="customers-today-targets__hint">
+                    상령일 또는 자동차 만기 D-{CONTACT_TARGET_DDAY_MAX} 이하(임박·경과) — 현재 검색·필터 범위 기준
+                  </p>
+                </div>
+              ) : null}
+
+              <div className="customers-sort-row" role="group" aria-label="목록 정렬">
+                <span className="customers-sort-row__label">정렬:</span>
+                <div className="customers-sort-row__buttons filter-group">
+                  <button
+                    type="button"
+                    className={`filter-button${listSort === 'maturity_asc' ? ' active' : ''}`}
+                    onClick={() => setListSort('maturity_asc')}
+                  >
+                    상령일 빠른순
+                  </button>
+                  <button
+                    type="button"
+                    className={`filter-button${listSort === 'car_expire_asc' ? ' active' : ''}`}
+                    onClick={() => setListSort('car_expire_asc')}
+                  >
+                    자동차 만기순
+                  </button>
+                  <button
+                    type="button"
+                    className={`filter-button${listSort === 'recent' ? ' active' : ''}`}
+                    onClick={() => setListSort('recent')}
+                  >
+                    최근등록
+                  </button>
+                </div>
+              </div>
+
+              <div className="customers-advanced-filters" role="search" aria-label="고급 검색">
+                <div className="customers-advanced-filters__grid">
+                  <label className="customers-advanced-filters__field">
+                    <span>보험나이 최소</span>
+                    <input
+                      type="number"
+                      min={0}
+                      inputMode="numeric"
+                      value={advancedFilters.minInsuranceAge}
+                      onChange={(e) =>
+                        setAdvancedFilters((f) => ({ ...f, minInsuranceAge: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <label className="customers-advanced-filters__field">
+                    <span>보험나이 최대</span>
+                    <input
+                      type="number"
+                      min={0}
+                      inputMode="numeric"
+                      value={advancedFilters.maxInsuranceAge}
+                      onChange={(e) =>
+                        setAdvancedFilters((f) => ({ ...f, maxInsuranceAge: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <label className="customers-advanced-filters__field">
+                    <span>성별</span>
+                    <select
+                      value={advancedFilters.gender}
+                      onChange={(e) =>
+                        setAdvancedFilters((f) => ({
+                          ...f,
+                          gender: e.target.value as CustomerAdvancedFilters['gender'],
+                        }))
+                      }
+                    >
+                      <option value="">전체</option>
+                      <option value="male">남</option>
+                      <option value="female">여</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="customers-advanced-filters__quick filter-group">
+                  <button
+                    type="button"
+                    className="filter-button"
+                    onClick={() => applyQuickFilter('AGE_UNDER_30_MALE')}
+                  >
+                    30세 이하 남성
+                  </button>
+                  <button
+                    type="button"
+                    className="filter-button"
+                    onClick={() => applyQuickFilter('AGE_OVER_40_FEMALE')}
+                  >
+                    40세 이상 여성
+                  </button>
+                  {advancedFiltersActive ? (
+                    <button
+                      type="button"
+                      className="filter-button"
+                      onClick={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
+                    >
+                      필터 초기화
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </>
+          ) : null}
 
           {!isLoading && customers.length > 0 ? (
             <p className="customers-filter-result" role="status">
@@ -1669,9 +1689,12 @@ export default function CustomersPage() {
             <p className="empty-state">등록된 고객이 없습니다.</p>
           ) : sortedCustomers.length === 0 ? (
             <p className="empty-state">
-              {keyword.trim() || advancedFiltersActive || onlyWithConsultations
-                ? onlyWithConsultations && !keyword.trim() && !advancedFiltersActive
-                  ? '상담 기록이 있는 고객이 없습니다. 위의 「상담 기록이 있는 고객만 보기」를 해제해 보세요.'
+              {keyword.trim() || advancedFiltersActive || onlyWithConsultations || filterNoRecentConsult
+                ? onlyWithConsultations &&
+                    !keyword.trim() &&
+                    !advancedFiltersActive &&
+                    !filterNoRecentConsult
+                  ? '상담 기록이 있는 고객이 없습니다. 필터에서 「상담 기록이 있는 고객만 보기」를 해제해 보세요.'
                   : '검색·필터 조건에 맞는 고객이 없습니다.'
                 : '고객이 없습니다.'}
             </p>
@@ -1710,6 +1733,7 @@ export default function CustomersPage() {
                     })
                   }}
                   consultationCount={consultationCounts[c.id] ?? 0}
+                  lastConsultDateLabel={lastConsultDateMap[c.id] ?? null}
                   onConsultationCountsInvalidate={() => {
                     void refreshConsultationCounts()
                   }}

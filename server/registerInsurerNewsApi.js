@@ -14,6 +14,7 @@ import {
 } from './lib/rbacScope.js'
 import { INSURER_R2_ACTIVE_CATEGORY } from './lib/insurerR2Layout.js'
 import { insurerNewsLog } from './lib/logger.js'
+import { expandPdfAttachmentsForNewsletter } from './lib/insurerNewsPdfToImages.js'
 /** 프론트 `attachmentUploadPolicy.ts` 와 동기화 */
 const ALLOWED_UPLOAD_MIME = new Set([
   'image/jpeg',
@@ -23,7 +24,7 @@ const ALLOWED_UPLOAD_MIME = new Set([
   'application/pdf',
 ])
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
-const MAX_PDF_BYTES = 10 * 1024 * 1024
+const MAX_PDF_BYTES = 20 * 1024 * 1024
 
 /** @param {string} code */
 function normalizeGaCodeForPath(code) {
@@ -567,6 +568,31 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    * @param {string} newsletterId
    * @param {ReturnType<typeof assertAttachmentInput>[]} normalized
    */
+  /**
+   * PDF 첨부는 저장 직전에 페이지별 PNG 로 변환·업로드 후 이미지 행만 DB 에 넣습니다.
+   * @param {unknown[]} attIn
+   * @param {{ gaPath: string, companySlug: string }} scope
+   */
+  async function prepareAttachmentsForWrite(attIn, scope) {
+    const normalized = attIn.map((a) =>
+      assertAttachmentInput(a, { gaPath: scope.gaPath, companySlug: scope.companySlug }),
+    )
+    const hasPdf = normalized.some((x) => x.mimeType === 'application/pdf')
+    if (!hasPdf) {
+      return { rows: normalized, pdfKeysToDeleteAfterCommit: [] }
+    }
+    if (!isConsentR2Enabled()) {
+      throw Object.assign(new Error('PDF 변환 및 저장을 위해 파일 저장소가 구성되어 있어야 합니다.'), {
+        httpStatus: 503,
+      })
+    }
+    const { attachments, pdfKeysToDeleteAfterCommit } = await expandPdfAttachmentsForNewsletter(
+      normalized,
+      scope,
+    )
+    return { rows: attachments, pdfKeysToDeleteAfterCommit }
+  }
+
   async function insertAttachments(client, newsletterId, normalized) {
     let order = 0
     for (const a of normalized) {
@@ -998,10 +1024,29 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const status = statusRaw === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT'
 
       const attIn = Array.isArray(body.attachments) ? body.attachments : []
-      const normalized = attIn.map((a) =>
-        assertAttachmentInput(a, { gaPath: normalizedScope.gaPath, companySlug: normalizedScope.companySlug }),
-      )
-      const orphanKeys = collectAttachmentObjectKeys(normalized)
+      let rowsToInsert
+      let pdfKeysToDeleteAfterCommit = []
+      try {
+        const prepared = await prepareAttachmentsForWrite(attIn, normalizedScope)
+        rowsToInsert = prepared.rows
+        pdfKeysToDeleteAfterCommit = prepared.pdfKeysToDeleteAfterCommit
+      } catch (prepErr) {
+        if (prepErr && typeof prepErr === 'object' && 'httpStatus' in prepErr) {
+          const st = Number(prepErr.httpStatus) || 400
+          res.status(st).json({
+            message:
+              prepErr instanceof Error
+                ? prepErr.message
+                : st === 503
+                  ? '파일 저장소가 구성되지 않았습니다.'
+                  : 'PDF 변환 실패',
+          })
+          return
+        }
+        throw prepErr
+      }
+
+      const orphanKeys = collectAttachmentObjectKeys(rowsToInsert)
 
       const id = randomUUID()
       try {
@@ -1023,7 +1068,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
               JSON.stringify(payload),
             ],
           )
-          await insertAttachments(client, id, normalized)
+          await insertAttachments(client, id, rowsToInsert)
         })
       } catch (err) {
         insurerNewsLog.error({
@@ -1038,12 +1083,24 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         throw err
       }
 
+      for (const pdfKey of pdfKeysToDeleteAfterCommit) {
+        try {
+          await r2DeleteObject(pdfKey)
+        } catch (delErr) {
+          insurerNewsLog.warn({
+            event: 'pdf-source-delete-fail',
+            objectKey: pdfKey,
+            message: delErr instanceof Error ? delErr.message : String(delErr),
+          })
+        }
+      }
+
       insurerNewsLog.info({
         event: 'upload-success',
         stage: 'db-commit',
         op: 'newsletter-create',
         newsletterId: id,
-        attachmentCount: normalized.length,
+        attachmentCount: rowsToInsert.length,
         objectKeys: orphanKeys,
       })
 
@@ -1090,10 +1147,29 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const status = statusRaw === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT'
 
       const attIn = Array.isArray(body.attachments) ? body.attachments : []
-      const normalized = attIn.map((a) =>
-        assertAttachmentInput(a, { gaPath: scope.gaPath, companySlug: scope.companySlug }),
-      )
-      const orphanKeys = collectAttachmentObjectKeys(normalized)
+      let rowsToInsert
+      let pdfKeysToDeleteAfterCommit = []
+      try {
+        const prepared = await prepareAttachmentsForWrite(attIn, scope)
+        rowsToInsert = prepared.rows
+        pdfKeysToDeleteAfterCommit = prepared.pdfKeysToDeleteAfterCommit
+      } catch (prepErr) {
+        if (prepErr && typeof prepErr === 'object' && 'httpStatus' in prepErr) {
+          const st = Number(prepErr.httpStatus) || 400
+          res.status(st).json({
+            message:
+              prepErr instanceof Error
+                ? prepErr.message
+                : st === 503
+                  ? '파일 저장소가 구성되지 않았습니다.'
+                  : 'PDF 변환 실패',
+          })
+          return
+        }
+        throw prepErr
+      }
+
+      const orphanKeys = collectAttachmentObjectKeys(rowsToInsert)
 
       // TODO: diff 기반 첨부 업데이트로 개선 예정 (현재는 전체 삭제 후 재삽입)
 
@@ -1108,7 +1184,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
             [newsletterId, scope.companyName, title, status, bodyText, JSON.stringify(payload)],
           )
           await deleteAttachmentsForNewsletter(client, newsletterId)
-          await insertAttachments(client, newsletterId, normalized)
+          await insertAttachments(client, newsletterId, rowsToInsert)
         })
       } catch (err) {
         insurerNewsLog.error({
@@ -1123,12 +1199,24 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         throw err
       }
 
+      for (const pdfKey of pdfKeysToDeleteAfterCommit) {
+        try {
+          await r2DeleteObject(pdfKey)
+        } catch (delErr) {
+          insurerNewsLog.warn({
+            event: 'pdf-source-delete-fail',
+            objectKey: pdfKey,
+            message: delErr instanceof Error ? delErr.message : String(delErr),
+          })
+        }
+      }
+
       insurerNewsLog.info({
         event: 'upload-success',
         stage: 'db-commit',
         op: 'newsletter-patch',
         newsletterId,
-        attachmentCount: normalized.length,
+        attachmentCount: rowsToInsert.length,
         objectKeys: orphanKeys,
       })
 

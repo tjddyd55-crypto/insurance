@@ -45,11 +45,17 @@ export function NewsletterDetailPage() {
   const galleryUrls = imageUrls.length ? imageUrls.map((a) => a.url) : detail.heroImageUrl ? [detail.heroImageUrl] : []
 
   return (
-    <article>
-      <NewsletterDetailHeader item={detail} />
-      <NewsletterImageGallery imageUrls={galleryUrls} altBase={detail.title} />
-      <div className="insurer-news-body">{detail.bodyText || '본문이 없습니다.'}</div>
-      <NewsletterAttachmentList attachments={detail.attachments} />
+    <article className="insurer-news-detail-article">
+      <div className="insurer-news-detail-text">
+        <NewsletterDetailHeader item={detail} />
+        <div className="insurer-news-detail-body">{detail.bodyText || '본문이 없습니다.'}</div>
+      </div>
+      {galleryUrls.length > 0 ? (
+        <NewsletterImageGallery imageUrls={galleryUrls} altBase={detail.title} />
+      ) : null}
+      <div className="insurer-news-detail-after">
+        <NewsletterAttachmentList attachments={detail.attachments} />
+      </div>
     </article>
   )
 }
