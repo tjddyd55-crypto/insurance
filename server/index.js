@@ -9,6 +9,8 @@ import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import { initDb } from './initDb.js'
 import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
 import { registerUserProfileApi } from './registerUserProfileApi.js'
+import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
+import { registerTeamApi } from './apis/teamApi.js'
 import { verifySignupPhoneProof } from './lib/signupPhoneProof.js'
 import { purgeExpiredSmsVerificationCodes } from './services/purgeExpiredSmsCodes.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
@@ -1244,6 +1246,9 @@ registerUserProfileApi(apiRouter, {
   RUNNING_IN_PRODUCTION,
   normalizeInviteCode,
 })
+
+registerCustomerExtraApi(apiRouter, { pool, requireAuth, handleDbError })
+registerTeamApi(apiRouter, { pool, requireAuth, handleDbError })
 
 apiRouter.get('/health', (_req, res) => {
   res.json({ ok: true })

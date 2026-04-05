@@ -55,6 +55,11 @@ export function buildGaTenantDashboardMenu(
     items.push({ label: '프로필', path: '/profile' })
   }
   items.push({ label: '계정 초기화', path: '/account/reset' })
+  items.push(
+    { label: '팀원', path: '/team/members' },
+    { label: '팀 게시판', path: '/team/posts' },
+    { label: '팀 자료', path: '/team/files' },
+  )
   return items
 }
 

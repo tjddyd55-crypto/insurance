@@ -1281,6 +1281,64 @@ export async function initDb() {
   await maybeDebugResetAllUsers()
   await ensureBootstrapAdminUser()
   await seedConsentTemplatesIfNeeded()
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS teams (
+      id TEXT PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      name TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_teams_ga ON teams(ga_id)
+  `)
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS team_id TEXT REFERENCES teams(id) ON DELETE SET NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_users_team ON users(team_id) WHERE team_id IS NOT NULL
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_consultations (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      body TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_consultations_customer_created
+    ON customer_consultations(customer_id, created_at DESC)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_consultations_user
+    ON customer_consultations(user_id)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_relations (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      related_customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT chk_customer_relations_distinct CHECK (customer_id <> related_customer_id)
+    )
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_customer_relations_pair
+    ON customer_relations(customer_id, related_customer_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_relations_by_customer
+    ON customer_relations(customer_id)
+  `)
 }
 
 async function seedConsentTemplatesIfNeeded() {

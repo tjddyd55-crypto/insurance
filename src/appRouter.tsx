@@ -24,6 +24,10 @@ import { ReinsurerContactsPage } from './features/contacts/pages/ReinsurerContac
 import CustomerCarPage from './features/customers/pages/CustomerCarPage'
 import CustomerInputPage from './features/customers/pages/CustomerInputPage'
 import CustomersPage from './features/customers/pages/CustomersPage'
+import CustomerConsultationsPage from './features/customers/pages/CustomerConsultationsPage'
+import TeamMembersPage from './features/team/pages/TeamMembersPage'
+import TeamPostsPage from './features/team/pages/TeamPostsPage'
+import TeamFilesPage from './features/team/pages/TeamFilesPage'
 import CompanyRegistryPage from './features/company-registry/pages/CompanyRegistryPage'
 import GeneralRequestPage from './features/company-registry/pages/GeneralRequestPage'
 import InsuranceCompanyContactsViewPage from './features/company-registry/pages/InsuranceCompanyContactsViewPage'
@@ -109,6 +113,10 @@ export const appRouter = createBrowserRouter([
                 ],
               },
               { path: 'customers', element: <CustomersPage /> },
+              { path: 'customers/:id/consultations', element: <CustomerConsultationsPage /> },
+              { path: 'team/members', element: <TeamMembersPage /> },
+              { path: 'team/posts', element: <TeamPostsPage /> },
+              { path: 'team/files', element: <TeamFilesPage /> },
               { path: 'insurer-managers', element: <InsurerManagersPage /> },
               { path: 'customer-car', element: <CustomerCarPage /> },
               { path: 'admin/ga', element: <GaManagementPage /> },
