@@ -742,11 +742,21 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(403).json({ message: '원수사 소식 발행 컨텍스트를 찾을 수 없습니다.' })
         return
       }
+      const { gaId } = req.user
+      const gaIdNum = Number(gaId)
+      if (!Number.isInteger(gaIdNum) || gaIdNum < 1) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
       res.json({
         gaCode: scope.gaCodeRaw.toUpperCase(),
         insurerCode: String(
-          (await safeQuery(pool, `SELECT company_code FROM insurance_company_master WHERE id = $1`, [scope.companyId]))
-            .rows[0]?.company_code ?? '',
+          (
+            await safeQuery(pool, `SELECT company_code FROM insurance_company_master WHERE id = $1 AND ga_id = $2`, [
+              scope.companyId,
+              gaIdNum,
+            ])
+          ).rows[0]?.company_code ?? '',
         ).trim(),
         insurerName: scope.companyName,
         insurerSlug: scope.companySlug,
