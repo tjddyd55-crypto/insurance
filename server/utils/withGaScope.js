@@ -15,6 +15,8 @@ export function withGaScope(baseQuery, user, nextParamIndex) {
   }
   const q = String(baseQuery).trimEnd()
   const hasWhere = /\bwhere\b/i.test(q)
-  const frag = hasWhere ? ` AND ga_id = $${nextParamIndex}` : ` WHERE ga_id = $${nextParamIndex}`
+  const frag = hasWhere
+    ? ` AND ga_id = $${nextParamIndex}::int`
+    : ` WHERE ga_id = $${nextParamIndex}::int`
   return { sql: `${q}${frag}`, gaId, paramIndex: nextParamIndex }
 }

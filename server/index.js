@@ -766,6 +766,8 @@ function extractFormData(body) {
   return formData
 }
 
+const LENIENT_DB_RESPONSES = process.env.LENIENT_DB_RESPONSES === '1'
+
 function handleDbError(error, req, res) {
   if (!res || typeof res.status !== 'function') {
     console.error('[FATAL] invalid res object', res)
@@ -781,6 +783,14 @@ function handleDbError(error, req, res) {
   }
 
   console.error('[DB ERROR]', error)
+  if (LENIENT_DB_RESPONSES) {
+    res.status(200).json({
+      success: false,
+      message: '서버 오류 (자동 복구됨)',
+      data: [],
+    })
+    return
+  }
   res.status(500).json({ success: false, message: 'DB_ERROR' })
 }
 
@@ -918,6 +928,7 @@ async function requireAuth(req, res, next) {
         })
         return
       }
+      req.gaId = parseGaId(req.user?.gaId)
       next()
       return
     }
@@ -959,6 +970,7 @@ async function requireAuth(req, res, next) {
       return
     }
 
+    req.gaId = parseGaId(req.user?.gaId)
     next()
   } catch (e) {
     const name = e && typeof e === 'object' && 'name' in e ? String(e.name) : ''

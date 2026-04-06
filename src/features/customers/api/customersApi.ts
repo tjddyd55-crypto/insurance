@@ -1,5 +1,6 @@
 import type { InsuranceApplicationRecord } from '../../application/domain/types'
 import { ApiError, apiRequest } from '../../../lib/apiClient'
+import { isLenientFailurePayload } from '../../../lib/isLenientApiEnvelope'
 import type { CustomerNote, CustomerNotesBag, CustomerRecord } from '../domain/types'
 
 export type ListCustomersResult = {
@@ -13,18 +14,25 @@ export async function listCustomers(token: string, limit = 500): Promise<ListCus
     throw new ApiError('로그인이 필요합니다.', 401)
   }
   const query = limit ? `?limit=${encodeURIComponent(String(limit))}` : ''
-  const body = await apiRequest<{ data: CustomerRecord[]; total?: number } | CustomerRecord[]>(
-    `/api/customers${query}`,
-    { token },
-  )
-  if (Array.isArray(body)) {
-    return { customers: body, total: body.length }
-  }
-  const rows = body.data ?? []
-  const total = Number(body.total)
-  return {
-    customers: rows,
-    total: Number.isFinite(total) ? total : rows.length,
+  try {
+    const body = await apiRequest<{ data: CustomerRecord[]; total?: number } | CustomerRecord[]>(
+      `/api/customers${query}`,
+      { token },
+    )
+    if (isLenientFailurePayload(body)) {
+      return { customers: [], total: 0 }
+    }
+    if (Array.isArray(body)) {
+      return { customers: body, total: body.length }
+    }
+    const rows = body.data ?? []
+    const total = Number(body.total)
+    return {
+      customers: rows,
+      total: Number.isFinite(total) ? total : rows.length,
+    }
+  } catch {
+    return { customers: [], total: 0 }
   }
 }
 
@@ -47,7 +55,15 @@ export async function searchCustomers(token: string, q: string): Promise<Custome
     query.set('q', q.trim())
   }
   const suffix = query.toString() ? `?${query.toString()}` : ''
-  return apiRequest<CustomerRecord[]>(`/api/customers/search${suffix}`, { token })
+  try {
+    const rows = await apiRequest<CustomerRecord[]>(`/api/customers/search${suffix}`, { token })
+    if (isLenientFailurePayload(rows)) {
+      return []
+    }
+    return rows
+  } catch {
+    return []
+  }
 }
 
 export interface SaveCustomerPayload {

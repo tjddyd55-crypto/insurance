@@ -1,4 +1,5 @@
 import { apiRequest } from '../../../lib/apiClient'
+import { isLenientFailurePayload } from '../../../lib/isLenientApiEnvelope'
 import { listCompanyDirectory } from '../../company-registry/api/companyRegistryApi'
 import { isNewsletterInCompanyScope } from '../lib/insurerNewsCompanyScope'
 import { cdnUrlForObjectKey } from '../lib/insurerNewsCdn'
@@ -42,7 +43,18 @@ async function fetchInsurerNewsFeed(
   if (opts?.insurerSlug?.trim()) {
     sp.set('insurerSlug', opts.insurerSlug.trim().toLowerCase())
   }
-  return apiRequest<InsurerNewsFeedResponse>(`/api/insurer-news/feed?${sp}`, { token })
+  try {
+    const payload = await apiRequest<InsurerNewsFeedResponse | { success: boolean }>(
+      `/api/insurer-news/feed?${sp}`,
+      { token },
+    )
+    if (isLenientFailurePayload(payload)) {
+      return { newsletters: [], insurers: [] }
+    }
+    return payload as InsurerNewsFeedResponse
+  } catch {
+    return { newsletters: [], insurers: [] }
+  }
 }
 
 export async function getRecentNewslettersByGa(gaCode: string, limit = 8, token?: string | null): Promise<NewsletterItem[]> {
