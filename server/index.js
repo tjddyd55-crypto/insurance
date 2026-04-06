@@ -844,6 +844,20 @@ async function requireAuth(req, res, next) {
 
     const role = normalizeUserRole(decoded.role)
     const gaFromJwt = parseGaId(decoded.gaId ?? decoded.ga_id)
+    if (role !== 'SUPER_ADMIN') {
+      if (gaFromJwt == null) {
+        console.error('[requireAuth] invalid gaId in token', {
+          role,
+          rawGa: decoded.gaId ?? decoded.ga_id,
+          userId: String(userId),
+        })
+        res.status(401).json({
+          error: 'invalid gaId',
+          message: '세션에 GA 정보가 없거나 올바르지 않습니다. 다시 로그인해 주세요.',
+        })
+        return
+      }
+    }
     const gaCodeRaw = decoded.gaCode ?? decoded.ga_code
     const gaCode =
       typeof gaCodeRaw === 'string' && gaCodeRaw.trim() ? gaCodeRaw.trim().toUpperCase() : ''
@@ -863,14 +877,6 @@ async function requireAuth(req, res, next) {
       displayName,
     }
 
-    if (role !== 'SUPER_ADMIN' && gaFromJwt == null) {
-      res.status(401).json({
-        error: 'Unauthorized',
-        message: '세션에 GA 정보가 없습니다. 다시 로그인해 주세요.',
-      })
-      return
-    }
-
     if (role === 'INSURER_MANAGER') {
       const stIm = await safeQuery(
         pool,
@@ -881,7 +887,7 @@ async function requireAuth(req, res, next) {
         INNER JOIN ga_companies g ON g.id = im.ga_id
         WHERE im.id = $1
           AND im.is_deleted = false
-          AND ($2 IS NULL OR im.ga_id = $2)
+          AND ($2::int IS NULL OR im.ga_id = $2::int)
         `,
         [req.user.id, gaFromJwt],
       )
@@ -928,7 +934,7 @@ async function requireAuth(req, res, next) {
       INNER JOIN ga_companies g ON g.id = u.ga_id
       WHERE u.id = $1
         AND u.is_deleted = false
-        AND ($2 IS NULL OR u.ga_id = $2)
+        AND ($2::int IS NULL OR u.ga_id = $2::int)
       `,
       [req.user.id, gaFromJwt],
     )
@@ -2256,7 +2262,7 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
       FROM users u
       INNER JOIN ga_companies g ON g.id = u.ga_id
       WHERE u.is_deleted = false AND g.is_deleted = false
-        AND ($1 IS NULL OR u.ga_id = $1)
+        AND ($1::int IS NULL OR u.ga_id = $1::int)
       ORDER BY g.name ASC, u.username ASC
       `,
       [filterGa],
