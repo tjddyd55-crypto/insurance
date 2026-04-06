@@ -8,6 +8,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type SetStateAction,
+  type TransitionEvent,
 } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
@@ -426,6 +427,24 @@ function CustomerListCard({
   onConsultationCountsInvalidate,
   onCustomerNotesPersisted,
 }: CustomerListCardProps) {
+  const validCustomerId =
+    c != null &&
+    typeof c === 'object' &&
+    typeof c.id === 'number' &&
+    Number.isFinite(c.id)
+      ? c.id
+      : null
+
+  const [detailClosing, setDetailClosing] = useState(false)
+
+  const isExpanded = validCustomerId != null && expandedId === validCustomerId
+
+  useEffect(() => {
+    if (!isExpanded) {
+      setDetailClosing(false)
+    }
+  }, [isExpanded])
+
   if (
     c == null ||
     typeof c !== 'object' ||
@@ -435,16 +454,46 @@ function CustomerListCard({
     console.error('[CustomerListCard] Invalid customer render:', c)
     return null
   }
+
   const ins = customerInsuranceDisplay(c)
   const recentConsultText =
     consultationCount > 0 ? lastConsultDateLabel ?? '—' : '—'
   const expanded = expandedId === c.id
+  const showExpandedChrome = expanded && !detailClosing
+
+  function finishCloseDetail() {
+    setDetailClosing(false)
+    setExpandedId(null)
+  }
+
   function toggleExpanded() {
     if (isSelectMode) {
       return
     }
-    setExpandedId((prev) => (prev === c.id ? null : c.id))
+    if (expanded) {
+      if (detailClosing) {
+        return
+      }
+      setDetailClosing(true)
+      return
+    }
+    setDetailClosing(false)
+    setExpandedId(c.id)
   }
+
+  function handleDetailTransitionEnd(e: TransitionEvent<HTMLDivElement>) {
+    if (e.target !== e.currentTarget) {
+      return
+    }
+    if (e.propertyName !== 'transform') {
+      return
+    }
+    if (!detailClosing || expandedId !== c.id) {
+      return
+    }
+    finishCloseDetail()
+  }
+
   function handleSummaryKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (isSelectMode) {
       return
@@ -456,9 +505,9 @@ function CustomerListCard({
   }
   return (
     <li
-      className={`record-card customer-card customer-expand-card${
+      className={`record-card customer-card customer-expand-card transition-all duration-200 ease-out${
         isSelectMode ? ' customer-expand-card--select-mode' : ''
-      }${expandedId === c.id ? ' customer-expand-card--focal' : ''}`}
+      }${expanded ? ' customer-expand-card--focal' : ''}`}
       data-customer-card-id={c.id}
     >
       {isSelectMode ? (
@@ -479,11 +528,13 @@ function CustomerListCard({
       ) : null}
       <div className="customer-expand-card__main">
         <div
-          className={`customer-expand-summary${isSelectMode ? '' : ' customer-expand-summary--toggle'}`}
+          className={`customer-expand-summary${isSelectMode ? '' : ' customer-expand-summary--toggle transition-transform duration-150 ease-out active:scale-[0.98]'}`}
           role={isSelectMode ? undefined : 'button'}
           tabIndex={isSelectMode ? undefined : 0}
-          aria-expanded={isSelectMode ? undefined : expanded}
-          aria-label={isSelectMode ? undefined : `${c.name} 상세 ${expanded ? '접기' : '펼치기'}`}
+          aria-expanded={isSelectMode ? undefined : showExpandedChrome}
+          aria-label={
+            isSelectMode ? undefined : `${c.name} 상세 ${showExpandedChrome ? '접기' : '펼치기'}`
+          }
           onClick={toggleExpanded}
           onKeyDown={handleSummaryKeyDown}
         >
@@ -508,12 +559,16 @@ function CustomerListCard({
             </span>
           </span>
           <span className="customer-expand-summary__hint" aria-hidden="true">
-            {expanded ? '▲' : '▼'}
+            {showExpandedChrome ? '▲' : '▼'}
           </span>
         </div>
 
         {expanded ? (
-          <div className="customer-expand-detail" onClick={(e) => e.stopPropagation()}>
+          <div
+            className={`customer-expand-detail${detailClosing ? ' customer-expand-detail--closing' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+            onTransitionEnd={handleDetailTransitionEnd}
+          >
             <div
               className="customer-detail-toolbar"
               style={{
@@ -1801,7 +1856,14 @@ export default function CustomersPage() {
           ) : null}
 
           {isLoading ? (
-            <p>불러오는 중…</p>
+            <div
+              className="customers-page__list-loading"
+              role="status"
+              aria-live="polite"
+              aria-busy="true"
+            >
+              <span className="customers-page__list-loading__text">로딩 중…</span>
+            </div>
           ) : customers.length === 0 ? (
             <p className="empty-state">등록된 고객이 없습니다.</p>
           ) : sortedCustomers.length === 0 ? (
