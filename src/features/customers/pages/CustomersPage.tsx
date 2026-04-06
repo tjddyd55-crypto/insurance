@@ -384,7 +384,7 @@ type CustomerListCardProps = {
   consultationCount: number
   lastConsultDateLabel: string | null
   onConsultationCountsInvalidate: () => void
-  onCustomerRecordUpdated: (record: CustomerRecord) => void
+  onCustomerNotesPersisted: () => void | Promise<void>
 }
 
 function CustomerListCard({
@@ -413,7 +413,7 @@ function CustomerListCard({
   consultationCount,
   lastConsultDateLabel,
   onConsultationCountsInvalidate,
-  onCustomerRecordUpdated,
+  onCustomerNotesPersisted,
 }: CustomerListCardProps) {
   const ins = customerInsuranceDisplay(c)
   const recentConsultText =
@@ -843,7 +843,7 @@ function CustomerListCard({
                   <CustomerInlineNotesSection
                     customer={c}
                     token={token}
-                    onUpdated={onCustomerRecordUpdated}
+                    onPersisted={onCustomerNotesPersisted}
                     onStatusMessage={onStatusMessage}
                   />
                 ) : null}
@@ -1793,8 +1793,8 @@ export default function CustomersPage() {
                   onConsultationCountsInvalidate={() => {
                     void refreshConsultationCounts()
                   }}
-                  onCustomerRecordUpdated={(next) => {
-                    setCustomers((prev) => prev.map((x) => (x.id === next.id ? next : x)))
+                  onCustomerNotesPersisted={() => {
+                    void loadCustomers()
                   }}
                 />
               ))}

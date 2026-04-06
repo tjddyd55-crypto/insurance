@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { updateCustomer } from '../api/customersApi'
 import type { CustomerNote, CustomerRecord } from '../domain/types'
 import { customerNoteItems, normalizeCustomerNotesBag } from '../domain/types'
@@ -7,13 +7,15 @@ import { NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
 type Props = {
   customer: CustomerRecord
   token: string | null
-  onUpdated: (record: CustomerRecord) => void
+  /** 메모 저장 API 성공 후 목록을 서버 기준으로 다시 불러올 때 호출 */
+  onPersisted: () => void | Promise<void>
   onStatusMessage: (msg: string) => void
 }
 
-export function CustomerInlineNotesSection({ customer, token, onUpdated, onStatusMessage }: Props) {
+export function CustomerInlineNotesSection({ customer, token, onPersisted, onStatusMessage }: Props) {
   const [draft, setDraft] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const savingLock = useRef(false)
 
   const items = customerNoteItems(customer)
   const insuranceHistory = normalizeCustomerNotesBag(customer.notes).insuranceHistory
@@ -22,24 +24,34 @@ export function CustomerInlineNotesSection({ customer, token, onUpdated, onStatu
     if (!token?.trim()) {
       return
     }
-    setBusy(true)
+    if (savingLock.current) {
+      return
+    }
+    savingLock.current = true
+    setSaving(true)
     onStatusMessage('')
     try {
-      const updated = await updateCustomer(token, customer.id, {
+      await updateCustomer(token, customer.id, {
         notes: {
           items: nextItems,
           insuranceHistory: insuranceHistory.trim(),
         },
       })
-      onUpdated(updated)
+      await Promise.resolve(onPersisted())
     } catch (e) {
-      onStatusMessage(e instanceof Error ? e.message : '메모 저장에 실패했습니다.')
+      const msg = e instanceof Error ? e.message : '메모 저장에 실패했습니다.'
+      onStatusMessage(msg)
+      window.alert(`저장 실패\n${msg}`)
     } finally {
-      setBusy(false)
+      savingLock.current = false
+      setSaving(false)
     }
   }
 
   function addNote() {
+    if (savingLock.current) {
+      return
+    }
     const trimmed = draft.trim()
     if (!trimmed) {
       return
@@ -58,6 +70,9 @@ export function CustomerInlineNotesSection({ customer, token, onUpdated, onStatu
   }
 
   function removeNote(id: string) {
+    if (savingLock.current) {
+      return
+    }
     void persistNotes(items.filter((n) => n.id !== id))
   }
 
@@ -73,7 +88,7 @@ export function CustomerInlineNotesSection({ customer, token, onUpdated, onStatu
           placeholder="메모 입력"
           value={draft}
           maxLength={NOTE_MAX_LENGTH}
-          disabled={busy}
+          disabled={saving}
           onChange={(e) => setDraft(e.target.value.slice(0, NOTE_MAX_LENGTH))}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
@@ -86,10 +101,10 @@ export function CustomerInlineNotesSection({ customer, token, onUpdated, onStatu
           type="button"
           className="filter-button"
           style={{ fontSize: '0.875rem', padding: '4px 10px', flexShrink: 0 }}
-          disabled={busy}
+          disabled={saving}
           onClick={() => addNote()}
         >
-          추가
+          {saving ? '저장 중...' : '추가'}
         </button>
       </div>
       {items.length === 0 ? (
@@ -117,12 +132,12 @@ export function CustomerInlineNotesSection({ customer, token, onUpdated, onStatu
                 type="button"
                 aria-label="메모 삭제"
                 title="삭제"
-                disabled={busy}
+                disabled={saving}
                 style={{
                   flexShrink: 0,
                   border: 'none',
                   background: 'transparent',
-                  cursor: busy ? 'default' : 'pointer',
+                  cursor: saving ? 'default' : 'pointer',
                   fontSize: '1.1rem',
                   lineHeight: 1,
                   padding: '2px 6px',

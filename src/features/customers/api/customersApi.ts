@@ -8,28 +8,72 @@ export type ListCustomersResult = {
   total: number
 }
 
+/** id가 있는 행만 유지해 렌더 단계의 undefined.id 크래시를 막는다 */
+function filterValidCustomerRows(raw: unknown[]): CustomerRecord[] {
+  const out: CustomerRecord[] = []
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') {
+      continue
+    }
+    const id = (row as { id?: unknown }).id
+    if (typeof id !== 'number' || !Number.isFinite(id)) {
+      continue
+    }
+    out.push(row as CustomerRecord)
+  }
+  return out
+}
+
+function assertCustomerDataRecord(data: unknown, context: string): CustomerRecord {
+  if (!data || typeof data !== 'object') {
+    throw new ApiError(`${context}: 응답 data가 없습니다.`, 500)
+  }
+  const id = (data as { id?: unknown }).id
+  if (typeof id !== 'number' || !Number.isFinite(id)) {
+    throw new ApiError(`${context}: 고객 id가 응답에 없습니다.`, 500)
+  }
+  return data as CustomerRecord
+}
+
 export async function listCustomers(token: string, limit = 500): Promise<ListCustomersResult> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
   const query = limit ? `?limit=${encodeURIComponent(String(limit))}` : ''
-  try {
-    const body = await apiRequest<{ data: CustomerRecord[]; total?: number } | CustomerRecord[]>(
-      `/api/customers${query}`,
-      { token },
-    )
-    if (Array.isArray(body)) {
-      return { customers: body, total: body.length }
+  const body = await apiRequest<{ data?: unknown; total?: unknown } | unknown[]>(`/api/customers${query}`, { token })
+
+  let rawRows: unknown[]
+  let totalFromBody: number | undefined
+
+  if (Array.isArray(body)) {
+    rawRows = body
+  } else {
+    if (!body || typeof body !== 'object') {
+      throw new ApiError('customers 응답 구조 오류입니다.', 500)
     }
-    const rows = body.data ?? []
-    const total = Number(body.total)
-    return {
-      customers: rows,
-      total: Number.isFinite(total) ? total : rows.length,
+    const data = (body as { data?: unknown }).data
+    if (!Array.isArray(data)) {
+      throw new ApiError('customers 응답 구조 오류: data가 배열이 아닙니다.', 500)
     }
-  } catch {
-    return { customers: [], total: 0 }
+    rawRows = data
+    const t = (body as { total?: unknown }).total
+    totalFromBody = typeof t === 'number' && Number.isFinite(t) ? t : undefined
   }
+
+  const customers = filterValidCustomerRows(rawRows)
+  if (import.meta.env.DEV) {
+    if (customers.length !== rawRows.length) {
+      console.warn('[listCustomers] 유효하지 않은 행 제거:', rawRows.length - customers.length)
+    }
+    console.log('[listCustomers] refreshed customers:', customers)
+  }
+
+  const total =
+    totalFromBody != null && Number.isFinite(totalFromBody)
+      ? totalFromBody
+      : customers.length
+
+  return { customers, total }
 }
 
 export async function listCustomerForms(
@@ -99,12 +143,12 @@ export async function updateCustomer(
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  const body = await apiRequest<{ success: boolean; data: CustomerRecord }>(`/api/customers/${customerId}`, {
+  const body = await apiRequest<{ success?: boolean; data?: unknown }>(`/api/customers/${customerId}`, {
     method: 'PUT',
     token,
     body: JSON.stringify(payload),
   })
-  return body.data
+  return assertCustomerDataRecord(body?.data, '고객 수정')
 }
 
 export async function updateCustomerCar(
@@ -137,12 +181,12 @@ export async function saveCustomer(
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  const body = await apiRequest<{ success: boolean; data: CustomerRecord }>('/api/customers', {
+  const body = await apiRequest<{ success?: boolean; data?: unknown }>('/api/customers', {
     method: 'POST',
     token,
     body: JSON.stringify(payload),
   })
-  return body.data
+  return assertCustomerDataRecord(body?.data, '고객 등록')
 }
 
 /** 로그인 없이 ref(담당자 user id) 계정으로 고객 저장 (외부 입력 전용) */
@@ -151,9 +195,9 @@ export async function saveCustomerExternal(
   payload: SaveCustomerPayload,
 ): Promise<CustomerRecord> {
   // 반드시 POST /api/customer/external-create 로 전송 (resolveApiUrl이 절대/상대 베이스 모두 처리)
-  const body = await apiRequest<{ success: boolean; data: CustomerRecord }>('/api/customer/external-create', {
+  const body = await apiRequest<{ success?: boolean; data?: unknown }>('/api/customer/external-create', {
     method: 'POST',
     body: JSON.stringify({ refUserId, ...payload }),
   })
-  return body.data
+  return assertCustomerDataRecord(body?.data, '외부 고객 등록')
 }
