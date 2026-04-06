@@ -74,6 +74,23 @@ textarea {
   opacity: 1;
 }
 
+/* FINAL UX — 폼·버튼 포커스 (키보드 탭·스크린리더 대비) */
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not(
+    [type='button']
+  ):not([type='reset']):not([type='image']):not([type='color']):focus:not(:disabled),
+select:focus:not(:disabled),
+textarea:focus:not(:disabled) {
+  outline: none;
+  border: 1px solid var(--brand-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 30%, transparent);
+}
+
+/* 버튼: 탭 포커스 시에만 링 (마우스 클릭만으로는 과한 링 방지 → :focus-visible) */
+button:focus-visible:not(:disabled) {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 40%, transparent);
+}
+
 .app-tenant-ga-bar {
   position: sticky;
   top: 0;
@@ -285,8 +302,10 @@ textarea {
 }
 
 .page-back-btn:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow:
+    0 1px 3px color-mix(in srgb, var(--shadow-card) 40%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--brand-primary) 40%, transparent);
 }
 
 .page-back-btn:active {
@@ -650,8 +669,8 @@ textarea {
 
 .auth-page .field input:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  border: 1px solid var(--brand-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 30%, transparent);
 }
 
 .auth-page .field input:disabled {
@@ -981,8 +1000,8 @@ button.cta-button:disabled {
 }
 
 button.cta-button:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 40%, transparent);
 }
 
 button.filter-button {
@@ -1023,8 +1042,8 @@ button.filter-button:disabled {
 }
 
 button.filter-button:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 40%, transparent);
 }
 
 @media (max-width: 480px) {
@@ -1400,8 +1419,8 @@ button.filter-button:focus-visible {
 }
 
 .customer-expand-summary:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 40%, transparent);
 }
 
 .customer-expand-summary__title {
@@ -2887,8 +2906,8 @@ button.filter-button:focus-visible {
 }
 
 .company-registry-pick-list__btn:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 40%, transparent);
 }
 
 .company-registry-pick-list__badge {
