@@ -1,4 +1,6 @@
 import { type CSSProperties, type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { Button } from '../../../components/ui/Button'
+import Modal from '../../../components/ui/Modal'
 import { ApiError } from '../../../lib/apiClient'
 import {
   createCustomerConsultation,
@@ -14,7 +16,6 @@ const CONTENT_MAX = 19500
 type Props = {
   customerId: number
   token: string
-  /** 상담 생성/삭제 후 목록 건수 등 상위 동기화 */
   onMutated?: () => void
 }
 
@@ -22,7 +23,9 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
   const [rows, setRows] = useState<CustomerConsultationRow[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [listError, setListError] = useState('')
+  const [modalError, setModalError] = useState('')
+  const [consultModalOpen, setConsultModalOpen] = useState(false)
   const [consultDate, setConsultDate] = useState(() => localYmd())
   const [draft, setDraft] = useState('')
   const [hasMore, setHasMore] = useState(false)
@@ -35,7 +38,7 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
         return
       }
       setLoading(true)
-      setError('')
+      setListError('')
       try {
         const page = await listCustomerConsultations(token, customerId, {
           limit: CONSULT_PREVIEW_LIMIT,
@@ -49,13 +52,13 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
         }
       } catch (e) {
         if (e instanceof ApiError && e.status === 404) {
-          setError('')
+          setListError('')
           setHasMore(false)
           if (!append) {
             setRows([])
           }
         } else {
-          setError(e instanceof Error ? e.message : '상담 목록을 불러오지 못했습니다.')
+          setListError(e instanceof Error ? e.message : '상담 목록을 불러오지 못했습니다.')
           if (!append) {
             setRows([])
           }
@@ -82,15 +85,30 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
     })
   }, [rows])
 
-  const onSubmit = async (e: FormEvent) => {
+  useEffect(() => {
+    if (!consultModalOpen) {
+      setDraft('')
+      setConsultDate(localYmd())
+      setModalError('')
+    }
+  }, [consultModalOpen])
+
+  function openConsultModal() {
+    setModalError('')
+    setConsultDate(localYmd())
+    setDraft('')
+    setConsultModalOpen(true)
+  }
+
+  const onModalSubmit = async (e: FormEvent) => {
     e.preventDefault()
     const content = draft.trim()
     if (!content) {
-      setError('상담 내용을 입력해 주세요.')
+      setModalError('상담 내용을 입력해 주세요.')
       return
     }
     if (content.length > CONTENT_MAX) {
-      setError(`내용은 ${CONTENT_MAX}자 이하로 입력해 주세요.`)
+      setModalError(`내용은 ${CONTENT_MAX}자 이하로 입력해 주세요.`)
       return
     }
     if (!token?.trim()) {
@@ -98,20 +116,21 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
     }
     const dateToUse = consultDate.trim() || localYmd()
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateToUse)) {
-      setError('상담 일자를 다시 선택해 주세요.')
+      setModalError('상담 일자를 다시 선택해 주세요.')
       return
     }
     setSaving(true)
-    setError('')
+    setModalError('')
     try {
       await createCustomerConsultation(token, customerId, content, { consultationDate: dateToUse })
+      setConsultModalOpen(false)
       setDraft('')
       setConsultDate(localYmd())
       pendingScrollRef.current = true
       await fetchPage(0, false)
       onMutated?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : '저장에 실패했습니다.')
+      setModalError(err instanceof Error ? err.message : '저장에 실패했습니다.')
     } finally {
       setSaving(false)
     }
@@ -121,13 +140,13 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
     if (!token?.trim()) {
       return
     }
-    setError('')
+    setListError('')
     try {
       await deleteCustomerConsultation(token, customerId, row.id)
       await fetchPage(0, false)
       onMutated?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : '삭제에 실패했습니다.')
+      setListError(err instanceof Error ? err.message : '삭제에 실패했습니다.')
     }
   }
 
@@ -139,55 +158,29 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
 
   return (
     <div className="customer-form-history customer-consultation-block" style={{ marginTop: 16 }}>
-      <form onSubmit={(ev) => void onSubmit(ev)} style={{ marginBottom: 16 }}>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>+ 상담 추가</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 8 }}>
-          <input
-            type="date"
-            className="field__control"
-            value={consultDate}
-            onChange={(e) => setConsultDate(e.target.value)}
-            aria-label="상담 일자"
-          />
-          <span className="text-[var(--text-secondary)]" style={{ fontSize: '0.85rem' }}>
-            비워 두면 오늘 날짜로 저장됩니다.
-          </span>
-        </div>
-        <textarea
-          className="field__control"
-          rows={4}
-          value={draft}
-          maxLength={CONTENT_MAX}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="상담 내용 (줄바꿈 유지)"
-          style={{
-            width: '100%',
-            boxSizing: 'border-box',
-            minHeight: '7.5rem',
-            lineHeight: 1.45,
-          }}
-        />
-        {error ? (
-          <p style={{ color: '#b00020', margin: '8px 0 0', fontSize: '0.9rem' }} role="alert">
-            {error}
-          </p>
-        ) : null}
-        <button
-          type="submit"
-          className="filter-button"
-          disabled={saving}
-          style={{ marginTop: 10, ...compactBtn }}
+      <div className="flex justify-between items-center mb-2 gap-2">
+        <div className="font-semibold text-[var(--text-primary)]">[상담 내역]</div>
+        <Button
+          type="button"
+          variant="secondary"
+          className="!px-3 !py-1.5 text-xs shrink-0"
+          disabled={!token?.trim()}
+          onClick={openConsultModal}
         >
-          {saving ? '저장 중…' : '저장'}
-        </button>
-      </form>
+          상담 추가
+        </Button>
+      </div>
 
-      <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
+      {listError && !consultModalOpen ? (
+        <p style={{ color: '#b00020', margin: '0 0 8px', fontSize: '0.9rem' }} role="alert">
+          {listError}
+        </p>
+      ) : null}
 
       {loading && rows.length === 0 ? (
         <p className="customer-form-history__status">불러오는 중…</p>
       ) : rows.length === 0 ? (
-        <p className="customer-form-history__status">등록된 상담이 없습니다.</p>
+        <div className="text-sm text-[var(--text-secondary)] mt-2">등록된 내용이 없습니다.</div>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {rows.map((r, idx) => {
@@ -259,6 +252,45 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
           {loading ? '불러오는 중…' : '이전 상담 더 보기'}
         </button>
       ) : null}
+
+      <Modal open={consultModalOpen} onClose={() => setConsultModalOpen(false)} ariaLabel="상담 입력">
+        <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">상담 입력</div>
+        <form onSubmit={(ev) => void onModalSubmit(ev)}>
+          <div className="mb-2">
+            <input
+              type="date"
+              className="field__control w-full box-border"
+              value={consultDate}
+              onChange={(e) => setConsultDate(e.target.value)}
+              aria-label="상담 일자"
+            />
+            <p className="text-[var(--text-secondary)] text-xs mt-1 mb-0">
+              비워 두면 오늘 날짜로 저장됩니다.
+            </p>
+          </div>
+          <textarea
+            className="field__control w-full box-border min-h-[120px] mb-2"
+            rows={4}
+            value={draft}
+            maxLength={CONTENT_MAX}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="상담 내용 (줄바꿈 유지)"
+          />
+          {modalError ? (
+            <p className="text-[var(--danger)] text-sm mb-2" role="alert">
+              {modalError}
+            </p>
+          ) : null}
+          <div className="flex gap-2 justify-end flex-wrap">
+            <Button type="button" variant="secondary" onClick={() => setConsultModalOpen(false)}>
+              취소
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? '저장 중…' : '확인'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

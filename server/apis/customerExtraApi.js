@@ -13,14 +13,14 @@ const CUSTOMER_SELECT_LIST = `
   c.id, c.user_id, c.name, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
   c.car_number, c.car_model, c.car_year, c.renewal_date,
   c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
-  c.created_at
+  c.is_favorite, c.created_at
 `
 
 const CUSTOMER_SELECT_LIST_NO_ALIAS = `
   id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
   car_number, car_model, car_year, renewal_date,
   gender, insurance_age, next_age_date, is_driver, car_type, notes,
-  created_at
+  is_favorite, created_at
 `
 
 /**

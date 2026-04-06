@@ -47,7 +47,11 @@ export function assertCustomerDataRecord(
       500,
     )
   }
-  return c as CustomerRecord
+  const withFlag = c as CustomerRecord & { isFavorite?: unknown }
+  return {
+    ...withFlag,
+    isFavorite: withFlag.isFavorite === true,
+  }
 }
 
 /**
@@ -163,6 +167,7 @@ export interface SaveCustomerPayload {
   carModel?: string
   carYear?: string
   renewalDate?: string
+  isFavorite?: boolean
 }
 
 export interface UpdateCustomerCarPayload {
@@ -221,6 +226,7 @@ export function customerRecordToUpdatePayload(
     carModel: customer.carModel,
     carYear: String(customer.carYear ?? '').replace(/\D/g, ''),
     renewalDate: normalizeCustomerRenewalDateForPut(customer.renewalDate),
+    isFavorite: customer.isFavorite === true,
   }
 }
 

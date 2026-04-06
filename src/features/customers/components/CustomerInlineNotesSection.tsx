@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from '../../../components/ui/Button'
+import Modal from '../../../components/ui/Modal'
 import { customerRecordToUpdatePayload, updateCustomer } from '../api/customersApi'
 import type { CustomerNote, CustomerRecord } from '../domain/types'
 import { customerNoteItems, normalizeCustomerNotesBag } from '../domain/types'
@@ -7,18 +9,30 @@ import { NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
 type Props = {
   customer: CustomerRecord
   token: string | null
-  /** 메모 저장 API 성공 후 목록을 서버 기준으로 다시 불러올 때 호출 */
   onPersisted: () => void | Promise<void>
   onStatusMessage: (msg: string) => void
 }
 
 export function CustomerInlineNotesSection({ customer, token, onPersisted, onStatusMessage }: Props) {
-  const [draft, setDraft] = useState('')
+  const [memoOpen, setMemoOpen] = useState(false)
+  const [modalDraft, setModalDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const savingLock = useRef(false)
 
-  const items = customerNoteItems(customer)
   const insuranceHistory = normalizeCustomerNotesBag(customer.notes).insuranceHistory
+
+  const sortedItems = useMemo(() => {
+    const raw = customerNoteItems(customer)
+    return [...raw].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+  }, [customer])
+
+  useEffect(() => {
+    if (!memoOpen) {
+      setModalDraft('')
+    }
+  }, [memoOpen])
 
   async function persistNotes(nextItems: CustomerNote[]) {
     if (!token?.trim()) {
@@ -55,11 +69,16 @@ export function CustomerInlineNotesSection({ customer, token, onPersisted, onSta
     }
   }
 
-  function addNote() {
+  function openMemoModal() {
+    setModalDraft('')
+    setMemoOpen(true)
+  }
+
+  function handleMemoSave() {
     if (savingLock.current) {
       return
     }
-    const trimmed = draft.trim()
+    const trimmed = modalDraft.trim()
     if (!trimmed) {
       return
     }
@@ -72,50 +91,38 @@ export function CustomerInlineNotesSection({ customer, token, onPersisted, onSta
       content: trimmed,
       createdAt: new Date().toISOString(),
     }
-    setDraft('')
-    void persistNotes([newNote, ...items])
+    const current = customerNoteItems(customer)
+    setMemoOpen(false)
+    void persistNotes([newNote, ...current])
   }
 
   function removeNote(id: string) {
     if (savingLock.current) {
       return
     }
-    void persistNotes(items.filter((n) => n.id !== id))
+    const current = customerNoteItems(customer)
+    void persistNotes(current.filter((n) => n.id !== id))
   }
 
   return (
     <div className="customer-inline-notes" style={{ marginTop: 12 }}>
-      <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 8, alignItems: 'center', overflow: 'hidden' }}>
-        <input
-          className="field__control"
-          style={{ flex: '1 1 160px', minWidth: 0, fontSize: '0.875rem' }}
-          placeholder="메모 입력"
-          value={draft}
-          maxLength={NOTE_MAX_LENGTH}
-          disabled={saving}
-          onChange={(e) => setDraft(e.target.value.slice(0, NOTE_MAX_LENGTH))}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault()
-              addNote()
-            }
-          }}
-        />
-        <button
+      <div className="flex justify-between items-center mb-2 gap-2">
+        <div className="font-semibold text-[var(--text-primary)]">[메모]</div>
+        <Button
           type="button"
-          className="filter-button"
-          style={{ fontSize: '0.875rem', padding: '4px 10px', flexShrink: 0 }}
-          disabled={saving}
-          onClick={() => addNote()}
+          variant="secondary"
+          className="!px-3 !py-1.5 text-xs shrink-0"
+          disabled={saving || !token?.trim()}
+          onClick={openMemoModal}
         >
-          {saving ? '저장 중...' : '추가'}
-        </button>
+          메모 추가
+        </Button>
       </div>
-      {items.length === 0 ? (
-        <p style={{ fontSize: '0.88rem', color: '#666', margin: '8px 0 0' }}>등록된 메모가 없습니다.</p>
+      {sortedItems.length === 0 ? (
+        <div className="text-sm text-[var(--text-secondary)] mt-2">등록된 내용이 없습니다.</div>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0 0' }}>
-          {items.map((note) => (
+        <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
+          {sortedItems.map((note) => (
             <li
               key={note.id}
               style={{
@@ -155,6 +162,25 @@ export function CustomerInlineNotesSection({ customer, token, onPersisted, onSta
           ))}
         </ul>
       )}
+
+      <Modal open={memoOpen} onClose={() => setMemoOpen(false)} ariaLabel="메모 입력">
+        <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">메모 입력</div>
+        <textarea
+          className="w-full border border-[var(--border-default)] rounded-lg p-2 mb-3 bg-[var(--bg-card)] text-[var(--text-primary)] box-border min-h-[120px]"
+          value={modalDraft}
+          maxLength={NOTE_MAX_LENGTH}
+          onChange={(e) => setModalDraft(e.target.value.slice(0, NOTE_MAX_LENGTH))}
+          placeholder="메모 내용"
+        />
+        <div className="flex gap-2 justify-end flex-wrap">
+          <Button type="button" variant="secondary" onClick={() => setMemoOpen(false)}>
+            취소
+          </Button>
+          <Button type="button" disabled={saving || !modalDraft.trim()} onClick={handleMemoSave}>
+            확인
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -1463,6 +1463,7 @@ button.filter-button:focus-visible {
 
 .customers-page__search-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -1698,24 +1699,39 @@ button.filter-button:focus-visible {
 .customers-page .customer-expand-detail {
   margin-top: 8px;
   padding: 12px;
-  border: 1px solid var(--border-default);
+  border: 2px solid var(--brand-primary);
   border-radius: 12px;
   background: var(--bg-elevated);
   font-size: 0.9375rem;
   box-sizing: border-box;
+  box-shadow:
+    0 4px 16px color-mix(in srgb, var(--shadow-card) 80%, transparent),
+    0 8px 28px color-mix(in srgb, var(--shadow-card) 50%, transparent);
   animation: customers-expand-detail-in 200ms ease-out forwards;
   transition: opacity 0.15s ease, transform 0.2s ease;
 }
 
 .customers-page .customer-expand-detail.customer-expand-detail--closing {
+  /* 입장 animation(forwards)과 동시에 적용되면 transition/computed가 꼬여 닫힘 transitionend가 안 뜨는 경우가 있음 */
+  animation: none;
   opacity: 0;
   transform: translateY(-4px);
 }
 
 .customers-page .customer-expand-card--focal .customer-expand-detail {
+  border-color: var(--brand-primary);
   background: var(--bg-elevated);
-  border-color: var(--border-default);
-  box-shadow: 0 2px 8px var(--shadow-card);
+  box-shadow:
+    0 4px 16px color-mix(in srgb, var(--shadow-card) 80%, transparent),
+    0 8px 28px color-mix(in srgb, var(--shadow-card) 50%, transparent);
+}
+
+.customers-page .customer-car-info-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 12px;
+  align-items: baseline;
+  max-width: 28rem;
 }
 
 .customers-page .customer-expand-card__select {

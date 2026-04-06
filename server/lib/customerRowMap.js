@@ -111,6 +111,7 @@ export function mapCustomerRow(row) {
     carModel: row.car_model ?? '',
     carYear: row.car_year ?? '',
     renewalDate,
+    isFavorite: row.is_favorite === true,
     createdAt: toIsoString(row.created_at),
   }
 }

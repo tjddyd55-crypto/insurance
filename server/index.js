@@ -471,6 +471,7 @@ function mapCustomerRow(row) {
     carModel: row.car_model ?? '',
     carYear: row.car_year ?? '',
     renewalDate,
+    isFavorite: row.is_favorite === true,
     createdAt: toIsoString(row.created_at),
   }
 }
@@ -2823,6 +2824,41 @@ apiRouter.get('/feature-requests/my', requireAuth, async (req, res) => {
   }
 })
 
+apiRouter.delete('/feature-requests/my/:id', requireAuth, async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id < 1) {
+      res.status(400).json({ message: '잘못된 ID입니다.' })
+      return
+    }
+    const userId = req.user?.id
+    const gaId = parseGaId(req.user?.gaId)
+    if (!userId) {
+      res.status(401).json({ message: '로그인이 필요합니다.' })
+      return
+    }
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const del = await safeQuery(
+      pool,
+      `
+      DELETE FROM feature_requests
+      WHERE id = $1 AND user_id = $2 AND ga_id = $3
+      `,
+      [id, userId, gaId],
+    )
+    if (del.rowCount === 0) {
+      res.status(404).json({ message: '요청을 찾을 수 없습니다.' })
+      return
+    }
+    res.status(204).send()
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
+
 apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (req, res) => {
   try {
     const actorGa = parseGaId(req.user?.gaId)
@@ -4032,7 +4068,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
-        created_at
+        is_favorite, created_at
       `,
       [
         userId,
@@ -4135,7 +4171,7 @@ apiRouter.post('/customer/external-create', async (req, res) => {
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
-        created_at
+        is_favorite, created_at
       `,
       [
         refUserId,
@@ -4265,6 +4301,12 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       vals.push(String(data.carType ?? data.car_type ?? '').trim())
     }
 
+    if (hasKey('isFavorite') || hasKey('is_favorite')) {
+      const v = hasKey('isFavorite') ? data.isFavorite : data.is_favorite
+      parts.push(`is_favorite = $${n++}`)
+      vals.push(v === true)
+    }
+
     if (hasKey('notes')) {
       parts.push(`notes = CAST($${n++} AS jsonb)`)
       vals.push(JSON.stringify(normalizeCustomerNotesInput(data.notes)))
@@ -4294,7 +4336,7 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
-        created_at
+        is_favorite, created_at
       `,
       vals,
     )
@@ -4331,7 +4373,7 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
           id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
           car_number, car_model, car_year, renewal_date,
           gender, insurance_age, next_age_date, is_driver, car_type, notes,
-          created_at
+          is_favorite, created_at
         FROM customers
         WHERE user_id = $1 AND ga_id = $2 AND deleted_at IS NULL
         ORDER BY created_at DESC
@@ -4347,7 +4389,7 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
           id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
           car_number, car_model, car_year, renewal_date,
           gender, insurance_age, next_age_date, is_driver, car_type, notes,
-          created_at
+          is_favorite, created_at
         FROM customers
         WHERE user_id = $1 AND ga_id = $3 AND deleted_at IS NULL
           AND (name ILIKE $2 ESCAPE '\\' OR phone ILIKE $2 ESCAPE '\\')
@@ -4384,7 +4426,7 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
           id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
           car_number, car_model, car_year, renewal_date,
           gender, insurance_age, next_age_date, is_driver, car_type, notes,
-          created_at
+          is_favorite, created_at
         FROM customers
         WHERE user_id = $1 AND ga_id = $2 AND deleted_at IS NULL
         ORDER BY renewal_date ASC NULLS LAST, created_at DESC

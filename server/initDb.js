@@ -620,6 +620,11 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT FALSE
+  `)
+
+  await pool.query(`
     ALTER TABLE insurance_forms
     ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
   `)

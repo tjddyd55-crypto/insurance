@@ -185,6 +185,14 @@ function genderSummaryLabel(c: CustomerRecord): string {
   return '—'
 }
 
+function customerPhoneHref(phone: string | undefined, scheme: 'tel' | 'sms'): string | null {
+  const digits = String(phone ?? '').replace(/\D/g, '')
+  if (digits.length < 8) {
+    return null
+  }
+  return `${scheme}:${digits}`
+}
+
 type CustomerAdvancedFilters = {
   minInsuranceAge: string
   maxInsuranceAge: string
@@ -397,6 +405,7 @@ type CustomerListCardProps = {
   lastConsultDateLabel: string | null
   onConsultationCountsInvalidate: () => void
   onCustomerNotesPersisted: () => void | Promise<void>
+  onToggleFavorite: (c: CustomerRecord) => void | Promise<void>
 }
 
 function CustomerListCard({
@@ -426,6 +435,7 @@ function CustomerListCard({
   lastConsultDateLabel,
   onConsultationCountsInvalidate,
   onCustomerNotesPersisted,
+  onToggleFavorite,
 }: CustomerListCardProps) {
   const validCustomerId =
     c != null &&
@@ -436,11 +446,13 @@ function CustomerListCard({
       : null
 
   const [detailClosing, setDetailClosing] = useState(false)
+  const closingCardIdRef = useRef<number | null>(null)
 
   const isExpanded = validCustomerId != null && expandedId === validCustomerId
 
   useEffect(() => {
     if (!isExpanded) {
+      closingCardIdRef.current = null
       setDetailClosing(false)
     }
   }, [isExpanded])
@@ -458,26 +470,30 @@ function CustomerListCard({
   const ins = customerInsuranceDisplay(c)
   const recentConsultText =
     consultationCount > 0 ? lastConsultDateLabel ?? '—' : '—'
+  const smsHref = customerPhoneHref(c.phone, 'sms')
+  const telHref = customerPhoneHref(c.phone, 'tel')
   const expanded = expandedId === c.id
   const showExpandedChrome = expanded && !detailClosing
 
   function finishCloseDetail() {
-    setDetailClosing(false)
+    closingCardIdRef.current = null
     setExpandedId(null)
+    setDetailClosing(false)
   }
 
   function toggleExpanded() {
     if (isSelectMode) {
       return
     }
-    /* 닫힘 transition 동안 연타로 상태가 꼬이지 않도록 */
     if (detailClosing) {
       return
     }
-    if (expanded) {
+    if (expandedId === c.id) {
+      closingCardIdRef.current = c.id
       setDetailClosing(true)
       return
     }
+    closingCardIdRef.current = null
     setDetailClosing(false)
     setExpandedId(c.id)
   }
@@ -489,7 +505,7 @@ function CustomerListCard({
     if (e.propertyName !== 'transform') {
       return
     }
-    if (!detailClosing || expandedId !== c.id) {
+    if (closingCardIdRef.current !== c.id) {
       return
     }
     finishCloseDetail()
@@ -539,28 +555,90 @@ function CustomerListCard({
           onClick={toggleExpanded}
           onKeyDown={handleSummaryKeyDown}
         >
-          <span className="customer-expand-summary__content">
-            <div className="customer-card-text-name">
-              <span
-                className={`customer-card-name-primary${ssnDupHighlight ? ' customer-name-ssn-dup' : ''}`}
-                style={ssnDupHighlight ? { color: ssnDupHighlight.color } : undefined}
-              >
-                {ssnDupHighlight ? (
-                  <span className="customer-name-ssn-dup__badge" aria-label={`중복 그룹 ${ssnDupHighlight.groupLabel}`}>
-                    [{ssnDupHighlight.groupLabel}]
+          <span className="customer-expand-summary__content w-full min-w-0">
+            <div className="flex justify-between items-start gap-2 w-full min-w-0">
+              <div className="min-w-0 flex-1">
+                <div className="customer-card-text-name flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span
+                    className={`customer-card-name-primary${ssnDupHighlight ? ' customer-name-ssn-dup' : ''}`}
+                    style={ssnDupHighlight ? { color: ssnDupHighlight.color } : undefined}
+                  >
+                    {ssnDupHighlight ? (
+                      <span
+                        className="customer-name-ssn-dup__badge"
+                        aria-label={`중복 그룹 ${ssnDupHighlight.groupLabel}`}
+                      >
+                        [{ssnDupHighlight.groupLabel}]
+                      </span>
+                    ) : null}
+                    {c.name}
                   </span>
-                ) : null}
-                {c.name}
-              </span>
-              <span className="customer-card-text-sub">{genderSummaryLabel(c)}</span>
-              <span className="customer-card-text-sub">보험나이 {ins.ageText}</span>
+                  <span className="customer-card-text-sub">{genderSummaryLabel(c)}</span>
+                  <span className="customer-card-text-sub">보험나이 {ins.ageText}</span>
+                </div>
+                <div className="customer-card-text-sub customer-card-summary-meta text-[var(--text-secondary)] mt-0.5">
+                  상령일: {ins.dateText} · 상담일: {recentConsultText}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <div
+                  className="flex items-center gap-2"
+                  role="presentation"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    className="text-lg leading-none p-0 border-0 bg-transparent cursor-pointer"
+                    aria-label={c.isFavorite ? '즐겨찾기 해제' : '즐겨찾기'}
+                    aria-pressed={c.isFavorite}
+                    disabled={!token?.trim()}
+                    onClick={() => void onToggleFavorite(c)}
+                  >
+                    {c.isFavorite ? (
+                      <span className="text-yellow-400" aria-hidden>
+                        ★
+                      </span>
+                    ) : (
+                      <span className="text-[var(--text-secondary)] opacity-70" aria-hidden>
+                        ☆
+                      </span>
+                    )}
+                  </button>
+                  {smsHref ? (
+                    <a
+                      href={smsHref}
+                      className="text-lg text-blue-500 leading-none"
+                      aria-label="문자 보내기"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      💬
+                    </a>
+                  ) : (
+                    <span className="text-lg opacity-35 grayscale" aria-hidden>
+                      💬
+                    </span>
+                  )}
+                  {telHref ? (
+                    <a
+                      href={telHref}
+                      className="text-lg text-green-600 leading-none"
+                      aria-label="전화 걸기"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      📞
+                    </a>
+                  ) : (
+                    <span className="text-lg opacity-35 grayscale" aria-hidden>
+                      📞
+                    </span>
+                  )}
+                </div>
+                <span className="customer-expand-summary__hint" aria-hidden="true">
+                  {showExpandedChrome ? '▲' : '▼'}
+                </span>
+              </div>
             </div>
-            <div className="customer-card-text-sub customer-card-summary-meta">
-              상령일: {ins.dateText} · 상담일: {recentConsultText}
-            </div>
-          </span>
-          <span className="customer-expand-summary__hint" aria-hidden="true">
-            {showExpandedChrome ? '▲' : '▼'}
           </span>
         </div>
 
@@ -906,27 +984,25 @@ function CustomerListCard({
                     <strong>5년 이내 진단, 수술, 치료:</strong> {c.medical?.trim() || '—'}
                   </p>
                   <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-                  <p style={{ marginBottom: 8 }}>
-                    <strong>[자동차정보]</strong>
-                  </p>
-                  <p>
-                    <strong>차량번호:</strong> {c.carNumber || '—'}
-                  </p>
-                  <p style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px' }}>
-                    <span>
-                      <strong>차종:</strong> {c.carModel || '—'}
-                    </span>
-                    <span>
-                      <strong>연식:</strong> {c.carYear || '—'}
-                    </span>
-                  </p>
-                  <p>
-                    <strong>만기(갱신일):</strong> {c.renewalDate || '—'}{' '}
-                    <CustomerDDayBadge renewalDate={c.renewalDate} />
-                  </p>
+                  <h3 className="customer-form-history__title" style={{ fontSize: '1rem', margin: '8px 0' }}>
+                    [자동차보험 정보]
+                  </h3>
+                  <div className="customer-car-info-grid text-sm text-[var(--text-primary)]">
+                    <div>차량번호:</div>
+                    <div>{c.carNumber || '—'}</div>
+                    <div>차종:</div>
+                    <div>{c.carModel || '—'}</div>
+                    <div>연식:</div>
+                    <div>{c.carYear || '—'}</div>
+                    <div>만기일:</div>
+                    <div>
+                      {c.renewalDate || '—'}{' '}
+                      <CustomerDDayBadge renewalDate={c.renewalDate} />
+                    </div>
+                  </div>
                   <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
                   <h3 className="customer-form-history__title" style={{ fontSize: '1rem', margin: '8px 0' }}>
-                    보험가입내역
+                    [보험가입내역]
                   </h3>
                   <div className="customer-insurance-history-body">
                     {normalizeCustomerNotesBag(c.notes).insuranceHistory?.trim()
@@ -963,7 +1039,7 @@ function CustomerListCard({
                 <div className="customer-expand-section-divider" role="presentation" />
                 {carFeatureEnabled ? (
                   <div className="customer-form-history">
-                    <h3 className="customer-form-history__title">연결된 신청서</h3>
+                    <h3 className="customer-form-history__title">[연결된 신청서]</h3>
                     {historyLoading ? (
                       <p className="customer-form-history__status">불러오는 중…</p>
                     ) : historyForms.length === 0 ? (
@@ -1043,6 +1119,7 @@ export default function CustomersPage() {
   const [lastConsultDateMap, setLastConsultDateMap] = useState<Record<number, string>>({})
   const [onlyWithConsultations, setOnlyWithConsultations] = useState(false)
   const [filterNoRecentConsult, setFilterNoRecentConsult] = useState(false)
+  const [favoriteOnly, setFavoriteOnly] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [showScrollToTop, setShowScrollToTop] = useState(false)
 
@@ -1082,6 +1159,9 @@ export default function CustomersPage() {
         return !last || Date.now() - new Date(last).getTime() > THIRTY_DAYS_MS
       })
     }
+    if (favoriteOnly) {
+      list = list.filter((c) => c.isFavorite)
+    }
     return list
   }, [
     keywordFilteredCustomers,
@@ -1090,6 +1170,7 @@ export default function CustomersPage() {
     consultationCounts,
     filterNoRecentConsult,
     lastConsultDateMap,
+    favoriteOnly,
   ])
 
   const todayContactTargets = useMemo(
@@ -1108,18 +1189,28 @@ export default function CustomersPage() {
       advancedFiltersActive ||
       onlyWithConsultations ||
       filterNoRecentConsult ||
+      favoriteOnly ||
       advSearchHits != null,
-    [keyword, advancedFiltersActive, onlyWithConsultations, filterNoRecentConsult, advSearchHits],
+    [keyword, advancedFiltersActive, onlyWithConsultations, filterNoRecentConsult, favoriteOnly, advSearchHits],
   )
 
   const sortedCustomers = useMemo(() => {
     const copy = [...filteredCustomers]
+    const favoriteFirst = (a: CustomerRecord, b: CustomerRecord) =>
+      Number(b.isFavorite) - Number(a.isFavorite)
     const tieName = (a: CustomerRecord, b: CustomerRecord) => a.name.localeCompare(b.name, 'ko')
 
     if (sortType === null) {
-      copy.sort((a, b) => tieName(a, b))
+      copy.sort((a, b) => {
+        const f = favoriteFirst(a, b)
+        return f !== 0 ? f : tieName(a, b)
+      })
     } else if (sortType === 'age') {
       copy.sort((a, b) => {
+        const f = favoriteFirst(a, b)
+        if (f !== 0) {
+          return f
+        }
         const ka = ymdAscSortKey(getCustomerListMetrics(a).maturityYmd)
         const kb = ymdAscSortKey(getCustomerListMetrics(b).maturityYmd)
         const cmp = ka.localeCompare(kb)
@@ -1127,6 +1218,10 @@ export default function CustomersPage() {
       })
     } else if (sortType === 'car') {
       copy.sort((a, b) => {
+        const f = favoriteFirst(a, b)
+        if (f !== 0) {
+          return f
+        }
         const ka = ymdAscSortKey(customerRenewalYmd(a))
         const kb = ymdAscSortKey(customerRenewalYmd(b))
         const cmp = ka.localeCompare(kb)
@@ -1134,6 +1229,10 @@ export default function CustomersPage() {
       })
     } else {
       copy.sort((a, b) => {
+        const f = favoriteFirst(a, b)
+        if (f !== 0) {
+          return f
+        }
         const ta = parseCreatedAtMs(a.createdAt)
         const tb = parseCreatedAtMs(b.createdAt)
         if (tb !== ta) {
@@ -1202,6 +1301,21 @@ export default function CustomersPage() {
       setIsLoading(false)
     }
   }, [token, user?.role, refreshConsultationCounts])
+
+  const handleToggleFavorite = useCallback(
+    async (c: CustomerRecord) => {
+      if (!token?.trim()) {
+        return
+      }
+      try {
+        await updateCustomer(token, c.id, { isFavorite: !c.isFavorite })
+        await loadCustomers()
+      } catch (error) {
+        setStatusText(error instanceof Error ? error.message : '즐겨찾기 변경에 실패했습니다.')
+      }
+    },
+    [token, loadCustomers],
+  )
 
   /** 연계 고객 등: 검색어로 찾지 않고 목록에서 카드만 펼침 (검색·심층 검색 상태는 초기화) */
   const openCustomerInList = useCallback((customerId: number) => {
@@ -1457,6 +1571,7 @@ export default function CustomersPage() {
         carModel: editForm.carModel,
         carYear: carYearForApi,
         renewalDate: renewalDateForApi,
+        isFavorite: base.isFavorite === true,
       })
       setStatusText('고객 정보를 수정했습니다.')
       cancelEdit()
@@ -1640,6 +1755,18 @@ export default function CustomersPage() {
                 autoComplete="off"
                 aria-label="이름 또는 전화번호 검색"
               />
+              <button
+                type="button"
+                className={`px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
+                  favoriteOnly
+                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white'
+                    : 'border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+                }`}
+                aria-pressed={favoriteOnly}
+                onClick={() => setFavoriteOnly((v) => !v)}
+              >
+                중요 고객
+              </button>
               <button
                 type="button"
                 className={`customers-page__filter-toggle${showFilters ? ' customers-page__filter-toggle--on' : ''}`}
@@ -1872,13 +1999,24 @@ export default function CustomersPage() {
             <p className="empty-state">등록된 고객이 없습니다.</p>
           ) : sortedCustomers.length === 0 ? (
             <p className="empty-state">
-              {keyword.trim() || advancedFiltersActive || onlyWithConsultations || filterNoRecentConsult
+              {keyword.trim() ||
+              advancedFiltersActive ||
+              onlyWithConsultations ||
+              filterNoRecentConsult ||
+              favoriteOnly
                 ? onlyWithConsultations &&
                     !keyword.trim() &&
                     !advancedFiltersActive &&
-                    !filterNoRecentConsult
+                    !filterNoRecentConsult &&
+                    !favoriteOnly
                   ? '상담 기록이 있는 고객이 없습니다. 필터에서 「상담 기록이 있는 고객만 보기」를 해제해 보세요.'
-                  : '검색·필터 조건에 맞는 고객이 없습니다.'
+                  : favoriteOnly &&
+                      !keyword.trim() &&
+                      !advancedFiltersActive &&
+                      !onlyWithConsultations &&
+                      !filterNoRecentConsult
+                    ? '중요 고객으로 표시된 고객이 없습니다. 카드의 ★로 추가해 보세요.'
+                    : '검색·필터 조건에 맞는 고객이 없습니다.'
                 : '고객이 없습니다.'}
             </p>
           ) : (
@@ -1916,6 +2054,7 @@ export default function CustomersPage() {
                   onCustomerNotesPersisted={() => {
                     void loadCustomers()
                   }}
+                  onToggleFavorite={handleToggleFavorite}
                 />
               ))}
             </ul>

@@ -504,6 +504,10 @@ export async function listMyFeatureRequests(token: string): Promise<MyFeatureReq
   return apiRequest<MyFeatureRequestRow[]>('/api/feature-requests/my', { method: 'GET', token })
 }
 
+export async function deleteMyFeatureRequest(token: string, id: number): Promise<void> {
+  await apiRequest<undefined>(`/api/feature-requests/my/${id}`, { method: 'DELETE', token })
+}
+
 export async function listFeatureRequestsAdmin(token: string): Promise<FeatureRequestAdminRow[]> {
   return apiRequest<FeatureRequestAdminRow[]>('/api/admin/feature-requests', { method: 'GET', token })
 }
