@@ -175,6 +175,55 @@ export interface UpdateCustomerCarPayload {
 /** 프로필·차량 필드 중 전달한 키만 서버에서 갱신 */
 export type UpdateCustomerPayload = Partial<SaveCustomerPayload> & Partial<UpdateCustomerCarPayload>
 
+function drivingTextFromIsDriver(isDriver: boolean | null): string {
+  if (isDriver === true) {
+    return '운전함'
+  }
+  if (isDriver === false) {
+    return '운전 안함'
+  }
+  return ''
+}
+
+function normalizeCustomerRenewalDateForPut(raw: string | undefined | null): string {
+  const s = String(raw ?? '').trim()
+  if (!s) {
+    return ''
+  }
+  const head = s.slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(head) ? head : ''
+}
+
+/**
+ * 메모 등 부분 UI에서도 편집 저장과 동일한 필드 구성으로 PUT해
+ * 게이트웨이·서버가 기대하는 본문 형태를 맞춘다.
+ */
+export function customerRecordToUpdatePayload(
+  customer: CustomerRecord,
+  notes: CustomerNotesBag,
+): UpdateCustomerPayload {
+  return {
+    name: customer.name.trim(),
+    ssn: customer.ssn,
+    phone: customer.phone,
+    carrier: '',
+    address: customer.address,
+    height: customer.height,
+    weight: customer.weight,
+    job: customer.job,
+    driving: drivingTextFromIsDriver(customer.isDriver),
+    medical: customer.medical,
+    gender: customer.gender,
+    isDriver: customer.isDriver,
+    carType: (customer.carType ?? '').trim(),
+    notes,
+    carNumber: customer.carNumber,
+    carModel: customer.carModel,
+    carYear: String(customer.carYear ?? '').replace(/\D/g, ''),
+    renewalDate: normalizeCustomerRenewalDateForPut(customer.renewalDate),
+  }
+}
+
 export async function updateCustomer(
   token: string,
   customerId: number,
@@ -182,6 +231,9 @@ export async function updateCustomer(
 ): Promise<CustomerRecord> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  if (!Number.isInteger(customerId) || customerId < 1) {
+    throw new ApiError('updateCustomer: 유효한 고객 id가 없습니다.', 400)
   }
   const raw = await apiRequest<unknown>(`/api/customers/${customerId}`, {
     method: 'PUT',

@@ -6,6 +6,7 @@ import {
   useState,
   type Dispatch,
   type FormEvent,
+  type KeyboardEvent,
   type SetStateAction,
 } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -437,6 +438,22 @@ function CustomerListCard({
   const ins = customerInsuranceDisplay(c)
   const recentConsultText =
     consultationCount > 0 ? lastConsultDateLabel ?? '—' : '—'
+  const expanded = expandedId === c.id
+  function toggleExpanded() {
+    if (isSelectMode) {
+      return
+    }
+    setExpandedId((prev) => (prev === c.id ? null : c.id))
+  }
+  function handleSummaryKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if (isSelectMode) {
+      return
+    }
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      toggleExpanded()
+    }
+  }
   return (
     <li
       className={`record-card customer-card customer-expand-card${
@@ -461,11 +478,14 @@ function CustomerListCard({
         </div>
       ) : null}
       <div className="customer-expand-card__main">
-        <button
-          type="button"
-          className="customer-expand-summary"
-          aria-expanded={expandedId === c.id}
-          onClick={() => setExpandedId((prev) => (prev === c.id ? null : c.id))}
+        <div
+          className={`customer-expand-summary${isSelectMode ? '' : ' customer-expand-summary--toggle'}`}
+          role={isSelectMode ? undefined : 'button'}
+          tabIndex={isSelectMode ? undefined : 0}
+          aria-expanded={isSelectMode ? undefined : expanded}
+          aria-label={isSelectMode ? undefined : `${c.name} 상세 ${expanded ? '접기' : '펼치기'}`}
+          onClick={toggleExpanded}
+          onKeyDown={handleSummaryKeyDown}
         >
           <span className="customer-expand-summary__content">
             <span className="customer-expand-summary__row customer-expand-summary__row--primary">
@@ -488,12 +508,12 @@ function CustomerListCard({
             </span>
           </span>
           <span className="customer-expand-summary__hint" aria-hidden="true">
-            {expandedId === c.id ? '▲' : '▼'}
+            {expanded ? '▲' : '▼'}
           </span>
-        </button>
+        </div>
 
-        {expandedId === c.id ? (
-          <div className="customer-expand-detail">
+        {expanded ? (
+          <div className="customer-expand-detail" onClick={(e) => e.stopPropagation()}>
             <div
               className="customer-detail-toolbar"
               style={{
@@ -925,6 +945,13 @@ export default function CustomersPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { user, token } = useAuth()
+  const externalRegistrationUrl = useMemo(() => {
+    if (!user?.id) {
+      return ''
+    }
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    return `${origin}/customer/input?ref=${encodeURIComponent(user.id)}`
+  }, [user?.id])
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [customersTotalCount, setCustomersTotalCount] = useState(0)
@@ -1470,8 +1497,7 @@ export default function CustomersPage() {
       <main className="page page--with-back">
         <PageBackButton />
         <header className="page-header">
-          <h1>고객 관리</h1>
-          <p>접근 권한 없음</p>
+          <p className="customers-page__denied">접근 권한 없음</p>
         </header>
       </main>
     )
@@ -1521,20 +1547,57 @@ export default function CustomersPage() {
         </div>
       ) : null}
       <header className="page-header customers-page__header">
-        <div className="customers-page__header-row">
-          <h1>고객 관리</h1>
-          {tab === 'list' ? (
-            <input
-              className="search-input customers-page__header-search"
-              type="search"
-              placeholder="이름 / 전화번호 검색"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              autoComplete="off"
-              aria-label="이름 또는 전화번호 검색"
-            />
-          ) : null}
-        </div>
+        {tab === 'list' ? (
+          <>
+            {!isSelectMode ? (
+              <div className="customers-page__action-row">
+                <button type="button" className="cta-button customers-page__action-btn" onClick={() => setSearchParams({ mode: 'create' })}>
+                  고객 등록
+                </button>
+                <button
+                  type="button"
+                  className="cta-button customers-page__action-btn"
+                  disabled={!externalRegistrationUrl}
+                  onClick={() => {
+                    if (externalRegistrationUrl) {
+                      window.open(externalRegistrationUrl, '_blank', 'noopener,noreferrer')
+                    }
+                  }}
+                >
+                  등록 링크
+                </button>
+                <button type="button" className="cta-button customers-page__action-btn" onClick={enterExcelSelectMode}>
+                  엑셀 다운로드
+                </button>
+              </div>
+            ) : null}
+            <div className="customers-page__search-row">
+              <input
+                className="search-input customers-page__search-input"
+                type="search"
+                placeholder="이름 / 전화번호 검색"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                autoComplete="off"
+                aria-label="이름 또는 전화번호 검색"
+              />
+              <button
+                type="button"
+                className={`customers-page__filter-toggle${showFilters ? ' customers-page__filter-toggle--on' : ''}`}
+                aria-expanded={showFilters}
+                onClick={() => setShowFilters((v) => !v)}
+              >
+                필터
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="customers-page__create-nav">
+            <button type="button" className="link-btn link-btn--compact" onClick={() => setSearchParams({})}>
+              ← 고객 목록
+            </button>
+          </div>
+        )}
         {statusText ? <p className="customers-page__status">{statusText}</p> : null}
       </header>
 
@@ -1549,60 +1612,26 @@ export default function CustomersPage() {
         </>
       ) : (
         <section className="list-section" style={{ marginTop: 0 }}>
-          <div className="list-section-header-row customers-page__list-toolbar">
-            <h2 className="dashboard-section-title">저장된 고객</h2>
-            <div className="list-section-header-actions">
-              {!isSelectMode ? (
-                <>
-                  <button type="button" className="cta-button" onClick={() => setSearchParams({ mode: 'create' })}>
-                    고객 등록
-                  </button>
-                  <button type="button" className="cta-button" onClick={enterExcelSelectMode}>
-                    엑셀 다운로드
-                  </button>
-                </>
-              ) : null}
-            </div>
-          </div>
           {recentSearches.length > 0 ? (
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                gap: 8,
-                marginTop: 8,
-                fontSize: '0.88rem',
-              }}
-              aria-label="최근 검색어"
-            >
-              <span className="text-[var(--text-secondary)]">최근:</span>
-              {recentSearches.map((term) => (
-                <button
-                  key={term}
-                  type="button"
-                  className="filter-button"
-                  style={{ padding: '6px 10px', fontSize: '0.88rem' }}
-                  onClick={() => {
-                    setSearchInput(term)
-                    setKeyword(term)
-                  }}
-                >
-                  {term}
-                </button>
-              ))}
-            </div>
+            <>
+              <p className="customers-page__recent-label">최근:</p>
+              <div className="customers-page__recent-chips" aria-label="최근 검색어">
+                {recentSearches.map((term) => (
+                  <button
+                    key={term}
+                    type="button"
+                    className="customers-page__recent-chip"
+                    onClick={() => {
+                      setSearchInput(term)
+                      setKeyword(term)
+                    }}
+                  >
+                    {term}
+                  </button>
+                ))}
+              </div>
+            </>
           ) : null}
-          <div style={{ marginTop: 10 }}>
-            <button
-              type="button"
-              className="filter-button"
-              aria-expanded={showFilters}
-              onClick={() => setShowFilters((v) => !v)}
-            >
-              {showFilters ? '필터 접기' : '필터 펼치기'}
-            </button>
-          </div>
           {showFilters ? (
             <>
               <div
@@ -1763,9 +1792,11 @@ export default function CustomersPage() {
           ) : null}
 
           {!isLoading && customers.length > 0 ? (
-            <p className="customers-filter-result" role="status">
+            <p className="customers-filter-result customers-page__result-count" role="status" aria-live="polite">
               검색·필터 결과:{' '}
-              <strong>{listIsNarrowed ? sortedCustomers.length : customersTotalCount}</strong>명
+              <span className="customers-page__result-count-strong">
+                <strong>{listIsNarrowed ? sortedCustomers.length : customersTotalCount}</strong>명
+              </span>
             </p>
           ) : null}
 
@@ -1785,7 +1816,7 @@ export default function CustomersPage() {
                 : '고객이 없습니다.'}
             </p>
           ) : (
-            <ul className="record-list customer-expand-list customer-list">
+            <ul className="record-list customer-expand-list customer-list customers-page__customer-list">
               {sortedCustomers.map((c) => (
                 <CustomerListCard
                   key={c.id}

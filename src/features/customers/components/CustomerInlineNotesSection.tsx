@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { updateCustomer } from '../api/customersApi'
+import { customerRecordToUpdatePayload, updateCustomer } from '../api/customersApi'
 import type { CustomerNote, CustomerRecord } from '../domain/types'
 import { customerNoteItems, normalizeCustomerNotesBag } from '../domain/types'
 import { NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
@@ -24,6 +24,10 @@ export function CustomerInlineNotesSection({ customer, token, onPersisted, onSta
     if (!token?.trim()) {
       return
     }
+    if (!Number.isFinite(customer.id) || customer.id < 1) {
+      onStatusMessage('고객 정보가 올바르지 않습니다.')
+      return
+    }
     if (savingLock.current) {
       return
     }
@@ -31,12 +35,15 @@ export function CustomerInlineNotesSection({ customer, token, onPersisted, onSta
     setSaving(true)
     onStatusMessage('')
     try {
-      await updateCustomer(token, customer.id, {
-        notes: {
-          items: nextItems,
-          insuranceHistory: insuranceHistory.trim(),
-        },
-      })
+      const notesBag = {
+        items: nextItems,
+        insuranceHistory: insuranceHistory.trim(),
+      }
+      const payload = customerRecordToUpdatePayload(customer, notesBag)
+      if (import.meta.env.DEV) {
+        console.log('[CustomerInlineNotesSection] update payload:', payload)
+      }
+      await updateCustomer(token, customer.id, payload)
       await Promise.resolve(onPersisted())
     } catch (e) {
       const msg = e instanceof Error ? e.message : '메모 저장에 실패했습니다.'
