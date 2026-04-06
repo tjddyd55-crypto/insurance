@@ -8,31 +8,46 @@ export type ListCustomersResult = {
   total: number
 }
 
-/** id가 있는 행만 유지해 렌더 단계의 undefined.id 크래시를 막는다 */
-function filterValidCustomerRows(raw: unknown[]): CustomerRecord[] {
-  const out: CustomerRecord[] = []
-  for (const row of raw) {
-    if (!row || typeof row !== 'object') {
-      continue
-    }
-    const id = (row as { id?: unknown }).id
-    if (typeof id !== 'number' || !Number.isFinite(id)) {
-      continue
-    }
-    out.push(row as CustomerRecord)
-  }
-  return out
+export type AssertCustomerDataOptions = {
+  /** 목록 파싱 시 에러·로그에 인덱스 포함 */
+  listIndex?: number
+  /** PUT/POST 등 API 문맥 */
+  context?: string
 }
 
-function assertCustomerDataRecord(data: unknown, context: string): CustomerRecord {
-  if (!data || typeof data !== 'object') {
-    throw new ApiError(`${context}: 응답 data가 없습니다.`, 500)
+/**
+ * 단일 고객 객체 무결성. null·비객체·id 누락 시 즉시 예외 (목록/상세 공통).
+ * 잘못된 행을 건너뛰지 않아 데이터 문제를 바로 드러낸다.
+ */
+export function assertCustomerDataRecord(
+  c: unknown,
+  options?: AssertCustomerDataOptions,
+): CustomerRecord {
+  const listIndex = options?.listIndex
+  const context = options?.context
+  const label =
+    listIndex != null && listIndex >= 0 ? `목록 인덱스 ${listIndex}` : context ? context : '고객 데이터'
+
+  if (!c || typeof c !== 'object') {
+    console.error('[customersApi] ❌ invalid customer object:', label, c)
+    throw new ApiError(
+      listIndex != null && listIndex >= 0
+        ? `고객 목록 ${listIndex}번째 항목이 유효하지 않습니다.`
+        : `유효하지 않은 고객 데이터입니다${context ? ` (${context})` : ''}.`,
+      500,
+    )
   }
-  const id = (data as { id?: unknown }).id
+  const id = (c as { id?: unknown }).id
   if (typeof id !== 'number' || !Number.isFinite(id)) {
-    throw new ApiError(`${context}: 고객 id가 응답에 없습니다.`, 500)
+    console.error('[customersApi] ❌ customer missing id:', label, c)
+    throw new ApiError(
+      listIndex != null && listIndex >= 0
+        ? `고객 목록 ${listIndex}번째 항목에 id가 없습니다.`
+        : `고객 id가 응답에 없습니다${context ? ` (${context})` : ''}.`,
+      500,
+    )
   }
-  return data as CustomerRecord
+  return c as CustomerRecord
 }
 
 export async function listCustomers(token: string, limit = 500): Promise<ListCustomersResult> {
@@ -60,11 +75,21 @@ export async function listCustomers(token: string, limit = 500): Promise<ListCus
     totalFromBody = typeof t === 'number' && Number.isFinite(t) ? t : undefined
   }
 
-  const customers = filterValidCustomerRows(rawRows)
+  /** DEV: 한 건라도 깨지면 즉시 실패. PROD: 무효 행만 건너뛰고 목록은 유지. */
+  const customers = import.meta.env.DEV
+    ? rawRows.map((row, idx) => assertCustomerDataRecord(row, { listIndex: idx }))
+    : rawRows
+        .map((row) => {
+          try {
+            return assertCustomerDataRecord(row)
+          } catch (e) {
+            console.error('[listCustomers] invalid row skipped', row, e)
+            return null
+          }
+        })
+        .filter((c): c is CustomerRecord => c != null)
+
   if (import.meta.env.DEV) {
-    if (customers.length !== rawRows.length) {
-      console.warn('[listCustomers] 유효하지 않은 행 제거:', rawRows.length - customers.length)
-    }
     console.log('[listCustomers] refreshed customers:', customers)
   }
 
@@ -148,7 +173,7 @@ export async function updateCustomer(
     token,
     body: JSON.stringify(payload),
   })
-  return assertCustomerDataRecord(body?.data, '고객 수정')
+  return assertCustomerDataRecord(body?.data, { context: '고객 수정' })
 }
 
 export async function updateCustomerCar(
@@ -186,7 +211,7 @@ export async function saveCustomer(
     token,
     body: JSON.stringify(payload),
   })
-  return assertCustomerDataRecord(body?.data, '고객 등록')
+  return assertCustomerDataRecord(body?.data, { context: '고객 등록' })
 }
 
 /** 로그인 없이 ref(담당자 user id) 계정으로 고객 저장 (외부 입력 전용) */
@@ -199,5 +224,5 @@ export async function saveCustomerExternal(
     method: 'POST',
     body: JSON.stringify({ refUserId, ...payload }),
   })
-  return assertCustomerDataRecord(body?.data, '외부 고객 등록')
+  return assertCustomerDataRecord(body?.data, { context: '외부 고객 등록' })
 }

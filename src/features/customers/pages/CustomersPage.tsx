@@ -15,6 +15,7 @@ import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { formatKoreanDateTime } from '../../application/utils/date'
 import type { InsuranceApplicationRecord } from '../../application/domain/types'
 import {
+  assertCustomerDataRecord,
   deleteCustomer,
   listCustomerForms,
   listCustomers,
@@ -358,6 +359,15 @@ function normalizeCustomerEditRenewalDateForApi(raw: string | undefined): string
   return /^\d{4}-\d{2}-\d{2}$/.test(head) ? head : ''
 }
 
+/** API 이후에도 상태에 깨진 행·undefined 슬롯이 들어가지 않도록 최종 방어 */
+function coerceCustomersStatePayload(rows: unknown): CustomerRecord[] {
+  if (!Array.isArray(rows)) {
+    console.error('[CustomersPage] ❌ customers is not an array:', rows)
+    throw new Error('Invalid customers response')
+  }
+  return rows.map((c, idx) => assertCustomerDataRecord(c, { listIndex: idx }))
+}
+
 type CustomerListCardProps = {
   customer: CustomerRecord
   ssnDupHighlight: CustomerSsnDupHighlight | undefined
@@ -415,6 +425,15 @@ function CustomerListCard({
   onConsultationCountsInvalidate,
   onCustomerNotesPersisted,
 }: CustomerListCardProps) {
+  if (
+    c == null ||
+    typeof c !== 'object' ||
+    typeof c.id !== 'number' ||
+    !Number.isFinite(c.id)
+  ) {
+    console.error('[CustomerListCard] Invalid customer render:', c)
+    return null
+  }
   const ins = customerInsuranceDisplay(c)
   const recentConsultText =
     consultationCount > 0 ? lastConsultDateLabel ?? '—' : '—'
@@ -1084,9 +1103,13 @@ export default function CustomersPage() {
     setIsLoading(true)
     try {
       const { customers: rows, total } = await listCustomers(token)
-      setCustomers(rows)
+      const safeData = coerceCustomersStatePayload(rows)
+      if (import.meta.env.DEV) {
+        console.log('[CustomersPage] customers after load:', safeData)
+      }
+      setCustomers(safeData)
       setCustomersTotalCount(total)
-      await refreshConsultationCounts(rows.map((r) => r.id))
+      await refreshConsultationCounts(safeData.map((r) => r.id))
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
     } finally {
@@ -1171,7 +1194,7 @@ export default function CustomersPage() {
         try {
           const rows = await searchCustomersAdvanced(token, { q, includeRelations: true, limit: 500 })
           if (!cancelled) {
-            setAdvSearchHits(rows)
+            setAdvSearchHits(coerceCustomersStatePayload(rows))
           }
         } catch (error) {
           if (!cancelled) {
