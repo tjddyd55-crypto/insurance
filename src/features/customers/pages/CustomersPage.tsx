@@ -448,50 +448,29 @@ function CustomerListCard({
           aria-expanded={expandedId === c.id}
           onClick={() => setExpandedId((prev) => (prev === c.id ? null : c.id))}
         >
-          <span
-            className="customer-expand-summary__title"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-start',
-              gap: 4,
-              minWidth: 0,
-              textAlign: 'left',
-            }}
-          >
-            <span
-              className={ssnDupHighlight ? 'customer-name-ssn-dup' : undefined}
-              style={ssnDupHighlight ? { color: ssnDupHighlight.color } : undefined}
-            >
-              {ssnDupHighlight ? (
-                <span className="customer-name-ssn-dup__badge" aria-label={`중복 그룹 ${ssnDupHighlight.groupLabel}`}>
-                  [{ssnDupHighlight.groupLabel}]
-                </span>
-              ) : null}
-              {c.name}
+          <span className="customer-expand-summary__content">
+            <span className="customer-expand-summary__row customer-expand-summary__row--primary">
+              <span
+                className={`customer-expand-summary__name${ssnDupHighlight ? ' customer-name-ssn-dup' : ''}`}
+                style={ssnDupHighlight ? { color: ssnDupHighlight.color } : undefined}
+              >
+                {ssnDupHighlight ? (
+                  <span className="customer-name-ssn-dup__badge" aria-label={`중복 그룹 ${ssnDupHighlight.groupLabel}`}>
+                    [{ssnDupHighlight.groupLabel}]
+                  </span>
+                ) : null}
+                {c.name}
+              </span>
+              <span className="customer-expand-summary__meta">{genderSummaryLabel(c)}</span>
+              <span className="customer-expand-summary__meta">보험나이 {ins.ageText}</span>
             </span>
-            <span
-              style={{
-                fontSize: '0.86rem',
-                fontWeight: 400,
-                color: 'var(--text-primary)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                maxWidth: '100%',
-              }}
-              title={`${genderSummaryLabel(c)} / 보험나이 ${ins.ageText} / 상령일 ${ins.dateText} / 최근 상담 ${recentConsultText}`}
-            >
-              {genderSummaryLabel(c)}
-              {' / '}
-              보험나이 {ins.ageText}
-              {' / '}
-              상령일 {ins.dateText}
-              {' / '}
-              최근 상담 {recentConsultText}
+            <span className="customer-expand-summary__row customer-expand-summary__row--secondary">
+              상령일 {ins.dateText} · 상담일 {recentConsultText}
             </span>
           </span>
-          <span className="customer-expand-summary__hint">{expandedId === c.id ? '접기' : '펼치기'}</span>
+          <span className="customer-expand-summary__hint" aria-hidden="true">
+            {expandedId === c.id ? '▲' : '▼'}
+          </span>
         </button>
 
         {expandedId === c.id ? (

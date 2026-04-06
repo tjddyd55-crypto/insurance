@@ -2,7 +2,12 @@ import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getBackNavigationBlock, isCarInsuranceMainHub } from '../../navigation/backNavigationPolicy'
 
-export function PageBackButton() {
+export type PageBackButtonProps = {
+  /** true이면 헤더 한 줄에 두고 absolute 뒤로가기 레이아웃을 쓰지 않습니다. */
+  inline?: boolean
+}
+
+export function PageBackButton({ inline = false }: PageBackButtonProps = {}) {
   const navigate = useNavigate()
   const { pathname, search } = useLocation()
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null)
@@ -37,7 +42,7 @@ export function PageBackButton() {
     <>
       <button
         type="button"
-        className="page-back-btn"
+        className={inline ? 'page-back-btn page-back-btn--inline' : 'page-back-btn'}
         onClick={handleClick}
         aria-label="뒤로 가기"
       >

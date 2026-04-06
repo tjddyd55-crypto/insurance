@@ -40,7 +40,12 @@ export function InsurerManagerNewsListPage() {
   if (!gaCode || companyId == null) {
     return (
       <main className="page page--with-back insurer-news-page">
-        <PageBackButton />
+        <header className="page-header page-header--has-inline-back">
+          <div className="page-header__title-row">
+            <PageBackButton inline />
+            <h1>원수사 소식지 조회</h1>
+          </div>
+        </header>
         <div className="insurer-news-empty">원수사 담당자 계정(소속 회사 정보 포함)으로 로그인한 후 이용할 수 있습니다.</div>
       </main>
     )
@@ -48,9 +53,11 @@ export function InsurerManagerNewsListPage() {
 
   return (
     <main className="page page--with-back insurer-news-page">
-      <PageBackButton />
-      <header className="page-header" style={{ marginBottom: 16 }}>
-        <h1 style={{ marginBottom: 8 }}>원수사 소식지 조회</h1>
+      <header className="page-header page-header--has-inline-back" style={{ marginBottom: 16 }}>
+        <div className="page-header__title-row">
+          <PageBackButton inline />
+          <h1>원수사 소식지 조회</h1>
+        </div>
         <p className="insurer-news-muted">소속 원수사에 등록된 소식지만 표시됩니다.</p>
       </header>
       {error ? <div className="insurer-news-empty">{error}</div> : null}
