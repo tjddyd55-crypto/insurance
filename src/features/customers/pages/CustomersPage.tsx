@@ -8,7 +8,6 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type SetStateAction,
-  type TransitionEvent,
 } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
@@ -37,6 +36,10 @@ import {
   drivingText,
 } from '../../../components/customer/CustomerForm'
 import { PageBackButton } from '../../../components/common/PageBackButton'
+import {
+  EXPANDABLE_CARD_INVALID_ID,
+  useExpandableCard,
+} from '../../../hooks/useExpandableCard'
 import {
   fetchConsultationCounts,
   listCustomerConsultations,
@@ -445,17 +448,19 @@ function CustomerListCard({
       ? c.id
       : null
 
-  const [detailClosing, setDetailClosing] = useState(false)
-  const closingCardIdRef = useRef<number | null>(null)
-
-  const isExpanded = validCustomerId != null && expandedId === validCustomerId
-
-  useEffect(() => {
-    if (!isExpanded) {
-      closingCardIdRef.current = null
-      setDetailClosing(false)
-    }
-  }, [isExpanded])
+  const expandableCardId = validCustomerId ?? EXPANDABLE_CARD_INVALID_ID
+  const {
+    expanded,
+    detailClosing,
+    showExpandedChrome,
+    toggleExpanded,
+    handleDetailTransitionEnd,
+  } = useExpandableCard({
+    cardId: expandableCardId,
+    expandedId,
+    setExpandedId,
+    interactionDisabled: isSelectMode,
+  })
 
   if (
     c == null ||
@@ -472,44 +477,6 @@ function CustomerListCard({
     consultationCount > 0 ? lastConsultDateLabel ?? '—' : '—'
   const smsHref = customerPhoneHref(c.phone, 'sms')
   const telHref = customerPhoneHref(c.phone, 'tel')
-  const expanded = expandedId === c.id
-  const showExpandedChrome = expanded && !detailClosing
-
-  function finishCloseDetail() {
-    closingCardIdRef.current = null
-    setExpandedId(null)
-    setDetailClosing(false)
-  }
-
-  function toggleExpanded() {
-    if (isSelectMode) {
-      return
-    }
-    if (detailClosing) {
-      return
-    }
-    if (expandedId === c.id) {
-      closingCardIdRef.current = c.id
-      setDetailClosing(true)
-      return
-    }
-    closingCardIdRef.current = null
-    setDetailClosing(false)
-    setExpandedId(c.id)
-  }
-
-  function handleDetailTransitionEnd(e: TransitionEvent<HTMLDivElement>) {
-    if (e.target !== e.currentTarget) {
-      return
-    }
-    if (e.propertyName !== 'transform') {
-      return
-    }
-    if (closingCardIdRef.current !== c.id) {
-      return
-    }
-    finishCloseDetail()
-  }
 
   function handleSummaryKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (isSelectMode) {

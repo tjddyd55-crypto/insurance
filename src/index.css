@@ -1709,7 +1709,8 @@ button.filter-button:focus-visible {
     0 4px 16px color-mix(in srgb, var(--shadow-card) 80%, transparent),
     0 8px 28px color-mix(in srgb, var(--shadow-card) 50%, transparent);
   animation: customers-expand-detail-in 200ms ease-out forwards;
-  transition: opacity 0.15s ease, transform 0.2s ease;
+  /* opacity/transform 0.2s → src/hooks/useExpandableCard.ts 의 EXPANDABLE_CARD_TRANSITION_MS */
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .customers-page .customer-expand-detail.customer-expand-detail--closing {
