@@ -546,6 +546,18 @@ function CustomerListCard({
                   <span className="text-sm text-[var(--text-secondary)] font-normal">
                     보험나이 {ins.ageText}
                   </span>
+                </div>
+                <div className="text-sm text-[var(--text-secondary)] customer-card-summary-meta mt-0.5">
+                  상령일: {ins.dateText} · 상담일: {recentConsultText}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <div
+                  className="flex items-center gap-2"
+                  role="presentation"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
                   <button
                     type="button"
                     className="text-lg leading-none p-0 border-0 bg-transparent cursor-pointer shrink-0"
@@ -567,18 +579,6 @@ function CustomerListCard({
                       </span>
                     )}
                   </button>
-                </div>
-                <div className="text-sm text-[var(--text-secondary)] customer-card-summary-meta mt-0.5">
-                  상령일: {ins.dateText} · 상담일: {recentConsultText}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <div
-                  className="flex items-center gap-2"
-                  role="presentation"
-                  onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
-                >
                   {smsHref ? (
                     <a
                       href={smsHref}
@@ -596,7 +596,7 @@ function CustomerListCard({
                   {telHref ? (
                     <a
                       href={telHref}
-                      className="text-xl text-green-500 leading-none"
+                      className="text-xl text-green-500 hover:text-green-400 active:text-green-600 leading-none transition-colors"
                       aria-label="전화 걸기"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -958,9 +958,9 @@ function CustomerListCard({
                     <strong>5년 이내 진단, 수술, 치료:</strong> {c.medical?.trim() || '—'}
                   </p>
                   <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-                  <h3 className="customer-form-history__title" style={{ fontSize: '1rem', margin: '8px 0' }}>
+                  <div className="border-l-2 border-blue-500 pl-3 mt-5 mb-2 text-blue-400 font-semibold">
                     [자동차보험 정보]
-                  </h3>
+                  </div>
                   <div className="customer-car-info-grid text-sm text-[var(--text-primary)]">
                     <div>차량번호:</div>
                     <div>{c.carNumber || '—'}</div>
@@ -975,9 +975,9 @@ function CustomerListCard({
                     </div>
                   </div>
                   <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-                  <h3 className="customer-form-history__title" style={{ fontSize: '1rem', margin: '8px 0' }}>
+                  <div className="border-l-2 border-blue-500 pl-3 mt-5 mb-2 text-blue-400 font-semibold">
                     [보험가입내역]
-                  </h3>
+                  </div>
                   <div className="customer-insurance-history-body">
                     {normalizeCustomerNotesBag(c.notes).insuranceHistory?.trim()
                       ? normalizeCustomerNotesBag(c.notes).insuranceHistory
@@ -1012,8 +1012,10 @@ function CustomerListCard({
                 ) : null}
                 <div className="customer-expand-section-divider" role="presentation" />
                 {carFeatureEnabled ? (
-                  <div className="customer-form-history">
-                    <h3 className="customer-form-history__title">[연결된 신청서]</h3>
+                  <div className="customer-form-history mt-5">
+                    <div className="border-l-2 border-blue-500 pl-3 mt-4 mb-2 text-blue-400 font-semibold">
+                      [연결된 신청서]
+                    </div>
                     {historyLoading ? (
                       <p className="customer-form-history__status">불러오는 중…</p>
                     ) : historyForms.length === 0 ? (
