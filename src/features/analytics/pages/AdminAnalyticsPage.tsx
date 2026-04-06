@@ -119,19 +119,19 @@ export default function AdminAnalyticsPage() {
       <PageBackButton />
       <header className="page-header">
         <h1>운영 통계</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-sm text-[var(--text-secondary)]">
           표시 데이터는 모두 <strong>전일(서울)</strong> 기준입니다. 당일 실시간 수치는 사용하지 않습니다.
         </p>
-        {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+        {error ? <p className="mt-2 text-sm text-[var(--danger)]">{error}</p> : null}
       </header>
 
-      <div className="mb-4 flex gap-2 border-b border-zinc-200 dark:border-zinc-700">
+      <div className="mb-4 flex gap-2 border-b border-[var(--border-default)]">
         <button
           type="button"
           className={`border-b-2 px-3 py-2 text-sm font-medium ${
             tab === 'board'
-              ? 'border-teal-600 text-teal-700 dark:border-teal-500 dark:text-teal-300'
-              : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+              ? 'border-[var(--brand)] text-[var(--brand)]'
+              : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
           onClick={() => setTab('board')}
         >
@@ -141,8 +141,8 @@ export default function AdminAnalyticsPage() {
           type="button"
           className={`border-b-2 px-3 py-2 text-sm font-medium ${
             tab === 'chart'
-              ? 'border-teal-600 text-teal-700 dark:border-teal-500 dark:text-teal-300'
-              : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+              ? 'border-[var(--brand)] text-[var(--brand)]'
+              : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
           }`}
           onClick={() => setTab('chart')}
         >
@@ -160,14 +160,16 @@ export default function AdminAnalyticsPage() {
           <UserHealthCards statDate={dash.statDate} overall={dash.overall} />
           <ActivitySummaryCards statDate={dash.statDate} overall={dash.overall} />
           <section>
-            <h2 className="mb-2 text-lg font-semibold">GA별 ({dash.statDate})</h2>
+            <h2 className="mb-2 text-lg font-semibold text-[var(--text-primary)]">
+              GA별 ({dash.statDate})
+            </h2>
             <GaStatusTable statDate={dash.statDate} rows={dash.gaRows} />
           </section>
         </div>
       ) : null}
 
       {tab === 'board' && !dash ? (
-        <p className="text-sm text-zinc-500">불러오는 중…</p>
+        <p className="text-sm text-[var(--text-secondary)]">불러오는 중…</p>
       ) : null}
 
       {tab === 'chart' ? (

@@ -118,7 +118,7 @@ export default function CustomerConsultationsPage() {
       <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
         <PageBackButton />
         <h1 style={{ marginTop: 12 }}>고객을 찾을 수 없음</h1>
-        <p style={{ color: '#666' }}>삭제되었거나 접근할 수 없는 고객입니다.</p>
+        <p style={{ color: 'var(--text-secondary)' }}>삭제되었거나 접근할 수 없는 고객입니다.</p>
         <button
           type="button"
           style={{ marginTop: 12, padding: '0.5rem 1rem' }}
@@ -134,13 +134,13 @@ export default function CustomerConsultationsPage() {
     <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
       <PageBackButton />
       <h1 style={{ marginTop: 12 }}>고객 상담 · 연결</h1>
-      <p style={{ color: '#666', fontSize: '0.95rem' }}>고객 #{customerId}</p>
-      <p style={{ fontSize: '0.9rem', color: '#555' }}>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>고객 #{customerId}</p>
+      <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
         보험 메모·인수 용도 메모는 기존 고객 상세의 <code>notes</code> JSON 필드를 그대로 쓰는 것을 권장합니다. 여기서는
         일정·통화 등 <strong>상담 이력</strong>과 다른 고객과의 <strong>연결</strong>만 다룹니다.
       </p>
       {error ? (
-        <p style={{ color: '#b00020' }} role="alert">
+        <p style={{ color: 'var(--danger)' }} role="alert">
           {error}
         </p>
       ) : null}
@@ -165,7 +165,7 @@ export default function CustomerConsultationsPage() {
           </button>
         </form>
         {rows.length === 0 ? (
-          <p style={{ color: '#666' }}>등록된 상담이 없습니다.</p>
+          <p style={{ color: 'var(--text-secondary)' }}>등록된 상담이 없습니다.</p>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {rows.map((r) => {
@@ -174,7 +174,7 @@ export default function CustomerConsultationsPage() {
                 <li
                   key={r.id}
                   style={{
-                    borderBottom: '1px solid #eee',
+                    borderBottom: '1px solid var(--border-default)',
                     padding: '12px 0',
                   }}
                 >
@@ -189,7 +189,7 @@ export default function CustomerConsultationsPage() {
 
       <section style={{ marginTop: 32 }}>
         <h2 style={{ fontSize: '1.05rem' }}>연결된 고객</h2>
-        <p style={{ fontSize: '0.9rem', color: '#555' }}>
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
           동일 GA·내 명의의 다른 고객 ID를 연결하면 양방향으로 조회됩니다.
         </p>
         <form onSubmit={onAddRelation} style={{ marginBottom: 16 }}>
@@ -214,7 +214,9 @@ export default function CustomerConsultationsPage() {
             {relRows.map((r) => (
               <li key={`${r.relatedCustomerId}-${r.createdAt}`} style={{ marginBottom: 8 }}>
                 <strong>#{r.relatedCustomerId}</strong> {r.relatedName}
-                <span style={{ color: '#666', marginLeft: 8, fontSize: '0.9rem' }}>{r.relatedPhone}</span>
+                <span style={{ color: 'var(--text-secondary)', marginLeft: 8, fontSize: '0.9rem' }}>
+                  {r.relatedPhone}
+                </span>
               </li>
             ))}
           </ul>

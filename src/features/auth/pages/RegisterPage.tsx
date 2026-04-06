@@ -248,7 +248,7 @@ export function RegisterPage() {
     }
     if (usernameCheck === 'available') {
       return (
-        <p className="status" style={{ color: '#15803d' }}>
+        <p className="status" style={{ color: 'var(--success)' }}>
           사용 가능한 아이디입니다.
         </p>
       )
@@ -412,7 +412,7 @@ export function RegisterPage() {
           </button>
 
           {isPhoneVerified ? (
-            <p className="status" style={{ color: '#15803d' }}>
+            <p className="status" style={{ color: 'var(--success)' }}>
               인증 완료
             </p>
           ) : null}

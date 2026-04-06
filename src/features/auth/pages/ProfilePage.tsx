@@ -311,7 +311,7 @@ export function ProfilePage() {
                 인증 확인
               </button>
               {phoneChangeProof ? (
-                <p className="status" style={{ color: '#15803d' }}>
+                <p className="status" style={{ color: 'var(--success)' }}>
                   인증 완료 — 저장 시 새 번호가 반영됩니다.
                 </p>
               ) : null}

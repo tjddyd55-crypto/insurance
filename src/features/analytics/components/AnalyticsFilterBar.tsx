@@ -1,4 +1,10 @@
 import type { AnalyticsChartMetric, AnalyticsGaOption } from '../adminAnalyticsApi'
+import {
+  analyticsFilterShell,
+  analyticsLabel,
+  analyticsMuted,
+  analyticsSelect,
+} from '../analyticsUiClasses'
 
 const METRIC_OPTIONS: { value: AnalyticsChartMetric; label: string }[] = [
   { value: 'daily_active_users', label: 'DAU' },
@@ -32,11 +38,10 @@ export function AnalyticsFilterBar({
   onGaIdChange,
 }: Props) {
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50 sm:flex-row sm:flex-wrap sm:items-end">
-      <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+    <div className={analyticsFilterShell}>
+      <label className={analyticsLabel}>
         지표
-        <select
-          className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+        <select className={analyticsSelect}
           value={metric}
           onChange={(e) => onMetricChange(e.target.value as AnalyticsChartMetric)}
         >
@@ -47,10 +52,10 @@ export function AnalyticsFilterBar({
           ))}
         </select>
       </label>
-      <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+      <label className={analyticsLabel}>
         범위
         <select
-          className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+          className={analyticsSelect}
           value={scope}
           onChange={(e) => onScopeChange(e.target.value as 'overall' | 'ga')}
         >
@@ -59,10 +64,9 @@ export function AnalyticsFilterBar({
         </select>
       </label>
       {scope === 'ga' ? (
-        <label className="flex flex-col gap-1 text-xs font-medium text-zinc-600 dark:text-zinc-300">
+        <label className={analyticsLabel}>
           GA
-          <select
-            className="rounded border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+          <select className={analyticsSelect}
             value={gaId === '' ? '' : String(gaId)}
             onChange={(e) => {
               const v = e.target.value
@@ -78,7 +82,7 @@ export function AnalyticsFilterBar({
           </select>
         </label>
       ) : null}
-      <p className="text-xs text-zinc-500 sm:ml-auto">
+      <p className={analyticsMuted}>
         차트 마지막 날짜는 전일까지(
         {statDateCap})로 제한됩니다.
       </p>

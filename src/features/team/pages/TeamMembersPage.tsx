@@ -90,11 +90,11 @@ export default function TeamMembersPage() {
     <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
       <PageBackButton />
       <h1 style={{ marginTop: 12 }}>팀원</h1>
-      <p style={{ color: '#555', fontSize: '0.95rem' }}>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
         같은 GA 소속 팀을 만들거나 참여한 뒤, 멤버 목록을 확인할 수 있습니다.
       </p>
       {error ? (
-        <p style={{ color: '#b00020', marginTop: 8 }} role="alert">
+        <p style={{ color: 'var(--danger)', marginTop: 8 }} role="alert">
           {error}
         </p>
       ) : null}
@@ -104,13 +104,15 @@ export default function TeamMembersPage() {
         </p>
       ) : null}
 
-      <section style={{ marginTop: 20, padding: 16, border: '1px solid #e0e0e0', borderRadius: 8 }}>
+      <section
+        style={{ marginTop: 20, padding: 16, border: '1px solid var(--border-default)', borderRadius: 8 }}
+      >
         <h2 style={{ fontSize: '1.05rem', marginTop: 0 }}>내 팀</h2>
         {teamId ? (
           <p>
             <strong>{teamName || '팀'}</strong>
             <br />
-            <span style={{ fontSize: '0.85rem', color: '#666' }}>팀 ID: {teamId}</span>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>팀 ID: {teamId}</span>
             <br />
             <button
               type="button"
@@ -128,9 +130,9 @@ export default function TeamMembersPage() {
               marginTop: 8,
               padding: '14px 16px',
               borderRadius: 8,
-              border: '1px solid #ffcc80',
-              background: '#fff8e1',
-              color: '#5d4037',
+              border: '1px solid var(--secondary-border)',
+              background: 'var(--secondary-bg)',
+              color: 'var(--secondary-text)',
               fontSize: '0.95rem',
               lineHeight: 1.5,
             }}
@@ -145,7 +147,7 @@ export default function TeamMembersPage() {
         <div style={{ display: 'grid', gap: 20, marginTop: 20 }}>
           <form onSubmit={onCreate}>
             <h2 style={{ fontSize: '1.05rem' }}>팀 만들기</h2>
-            <p style={{ fontSize: '0.9rem', color: '#555', marginTop: 0 }}>[팀 생성]</p>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: 0 }}>[팀 생성]</p>
             <label style={{ display: 'block', marginBottom: 8 }}>
               팀 이름 (선택)
               <input
@@ -162,7 +164,9 @@ export default function TeamMembersPage() {
           </form>
           <form onSubmit={onJoin}>
             <h2 style={{ fontSize: '1.05rem' }}>팀 참여</h2>
-            <p style={{ fontSize: '0.9rem', color: '#555', marginTop: 0 }}>[팀 코드 입력 → 팀 연결]</p>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: 0 }}>
+              [팀 코드 입력 → 팀 연결]
+            </p>
             <label style={{ display: 'block', marginBottom: 8 }}>
               팀 ID
               <input
@@ -182,13 +186,13 @@ export default function TeamMembersPage() {
       <section style={{ marginTop: 24 }}>
         <h2 style={{ fontSize: '1.05rem' }}>[팀원 목록]</h2>
         {members.length === 0 ? (
-          <p style={{ color: '#666' }}>표시할 멤버가 없습니다.</p>
+          <p style={{ color: 'var(--text-secondary)' }}>표시할 멤버가 없습니다.</p>
         ) : (
           <ul style={{ paddingLeft: 18 }}>
             {members.map((m) => (
               <li key={m.userId} style={{ marginBottom: 8 }}>
                 <strong>{m.displayName || m.username}</strong>
-                <span style={{ color: '#666', marginLeft: 8, fontSize: '0.9rem' }}>
+                <span style={{ color: 'var(--text-secondary)', marginLeft: 8, fontSize: '0.9rem' }}>
                   {m.role} · {m.username}
                 </span>
               </li>

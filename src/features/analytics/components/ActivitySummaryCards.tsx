@@ -1,4 +1,5 @@
 import type { AnalyticsOverall } from '../adminAnalyticsApi'
+import { analyticsCard, analyticsHealthMeta, analyticsKpiTitle } from '../analyticsUiClasses'
 
 type Props = {
   statDate: string
@@ -14,15 +15,12 @@ export function ActivitySummaryCards({ statDate, overall }: Props) {
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       {items.map((it) => (
-        <div
-          key={it.label}
-          className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
-        >
-          <div className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{it.label}</div>
-          <div className="mt-1 text-xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-50">
+        <div key={it.label} className={analyticsCard}>
+          <div className={analyticsKpiTitle}>{it.label}</div>
+          <div className="mt-1 text-xl font-semibold tabular-nums text-[var(--text-primary)]">
             {it.value.toLocaleString()}
           </div>
-          <div className="mt-1 text-xs text-zinc-400">전일 {statDate}</div>
+          <div className={analyticsHealthMeta}>전일 {statDate}</div>
         </div>
       ))}
     </div>

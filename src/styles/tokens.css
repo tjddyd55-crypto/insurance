@@ -1,0 +1,53 @@
+/**
+ * Phase 3 — Figma·코드 공통 SSOT (핵심 토큰)
+ * 다크 모드: document.documentElement[data-theme='dark']
+ * 상세·레거시 토큰은 theme-tokens.css → 이 파일에서 동일 이름 덮어씀
+ */
+
+:root {
+  /* BRAND */
+  --brand-primary: #2563eb;
+  --brand-secondary: #1d4ed8;
+
+  /* BACKGROUND */
+  --bg-main: #ffffff;
+  --bg-elevated: #f5f6f8;
+
+  /* TEXT */
+  --text-primary: #111111;
+  --text-secondary: #555555;
+
+  /* BORDER */
+  --border-default: #e5e7eb;
+
+  /* STATUS */
+  --success: #16a34a;
+  --danger: #dc2626;
+
+  /* theme-tokens·기존 코드 호환 */
+  --primary: var(--brand-primary);
+  --brand: var(--brand-primary);
+  --primary-hover: var(--brand-secondary);
+  --text-main: var(--text-primary);
+  --text-sub: var(--text-secondary);
+  --border: var(--border-default);
+}
+
+:root[data-theme='dark'] {
+  --bg-main: #0f1115;
+  --bg-elevated: #1a1d24;
+
+  --text-primary: #ffffff;
+  --text-secondary: #b0b7c3;
+
+  --border-default: #2a2f3a;
+
+  --brand-primary: #3b82f6;
+  --brand-secondary: #60a5fa;
+
+  --primary: var(--brand-primary);
+  --brand: var(--brand-primary);
+  --text-main: var(--text-primary);
+  --text-sub: var(--text-secondary);
+  --border: var(--border-default);
+}

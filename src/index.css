@@ -1,5 +1,9 @@
+@config '../tailwind.config.js';
 @import 'tailwindcss';
+
 @import './theme-tokens.css';
+@import './styles/tokens.css';
+@import './styles/typography.css';
 @import './features/admin/admin-ui.css';
 @import './features/insurer-news/insurer-news.css';
 
@@ -27,6 +31,30 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   background: var(--bg-main);
+}
+
+/* 상태·테이블 유틸 (토큰 전용) */
+.badge-success {
+  background: color-mix(in srgb, var(--success) 20%, transparent);
+  color: var(--success);
+}
+.badge-danger {
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  color: var(--danger);
+}
+.table-row {
+  border-bottom: 1px solid var(--border-default);
+}
+.table-row:hover {
+  background: var(--bg-elevated);
+}
+.table-row:last-child {
+  border-bottom-color: transparent;
+}
+
+/* 다크: 본문 링크 대비(--link 는 라이트/다크 공통 브랜드 톤) */
+[data-theme='dark'] main a {
+  color: var(--link);
 }
 
 /* 기본 폼 컨트롤 — 미지정 구간 대비(세부 화면에서 덮어씀) */

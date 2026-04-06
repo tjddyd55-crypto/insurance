@@ -195,7 +195,14 @@ const EMPTY_ADVANCED_FILTERS: CustomerAdvancedFilters = {
 }
 
 /** 주민번호(숫자 13자리) 중복 그룹마다 순환 적용하는 표시색 */
-const CUSTOMER_SSN_DUP_PALETTE = ['#c62828', '#1565c0', '#2e7d32', '#ef6c00', '#6a1b9a', '#00838f'] as const
+const CUSTOMER_SSN_DUP_PALETTE = [
+  'var(--distinct-hue-0)',
+  'var(--distinct-hue-1)',
+  'var(--distinct-hue-2)',
+  'var(--distinct-hue-3)',
+  'var(--distinct-hue-4)',
+  'var(--distinct-hue-5)',
+] as const
 
 type CustomerSsnDupHighlight = {
   groupLabel: number
@@ -467,7 +474,7 @@ function CustomerListCard({
               style={{
                 fontSize: '0.86rem',
                 fontWeight: 400,
-                color: '#333',
+                color: 'var(--text-primary)',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -1567,7 +1574,7 @@ export default function CustomersPage() {
               }}
               aria-label="최근 검색어"
             >
-              <span style={{ color: '#555' }}>최근:</span>
+              <span className="text-[var(--text-secondary)]">최근:</span>
               {recentSearches.map((term) => (
                 <button
                   key={term}
@@ -1631,7 +1638,11 @@ export default function CustomersPage() {
                 </label>
               </div>
               {advSearchLoading ? (
-                <p style={{ margin: '6px 0 0', fontSize: '0.9rem', color: '#555' }} role="status">
+                <p
+                  className="text-[var(--text-secondary)]"
+                  style={{ margin: '6px 0 0', fontSize: '0.9rem' }}
+                  role="status"
+                >
                   심층 검색 중…
                 </p>
               ) : null}

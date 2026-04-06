@@ -31,8 +31,10 @@ function StatusBadge({ status }: { status: InsurerManagerStatus }) {
         borderRadius: 999,
         fontSize: 12,
         fontWeight: 600,
-        color: active ? '#15803d' : '#b91c1c',
-        background: active ? 'rgba(22, 101, 52, 0.14)' : 'rgba(185, 28, 28, 0.14)',
+        color: active ? 'var(--success)' : 'var(--danger)',
+        background: active
+          ? 'color-mix(in srgb, var(--success) 20%, transparent)'
+          : 'color-mix(in srgb, var(--danger) 20%, transparent)',
         whiteSpace: 'nowrap',
       }}
     >

@@ -14,9 +14,21 @@ import {
 import { PageBackButton } from '../../../components/common/PageBackButton'
 
 const STATUS_META: Record<string, { label: string; fg: string; bg: string }> = {
-  ACTIVE: { label: 'ACTIVE', fg: '#15803d', bg: 'rgba(22, 101, 52, 0.14)' },
-  BLOCKED: { label: 'BLOCKED', fg: '#b91c1c', bg: 'rgba(185, 28, 28, 0.14)' },
-  INACTIVE: { label: 'INACTIVE', fg: '#4b5563', bg: 'rgba(75, 85, 99, 0.18)' },
+  ACTIVE: {
+    label: 'ACTIVE',
+    fg: 'var(--success)',
+    bg: 'color-mix(in srgb, var(--success) 20%, transparent)',
+  },
+  BLOCKED: {
+    label: 'BLOCKED',
+    fg: 'var(--danger)',
+    bg: 'color-mix(in srgb, var(--danger) 20%, transparent)',
+  },
+  INACTIVE: {
+    label: 'INACTIVE',
+    fg: 'var(--text-secondary)',
+    bg: 'color-mix(in srgb, var(--text-secondary) 18%, transparent)',
+  },
 }
 
 const STATUS_SELECT_OPTIONS: { value: EntityStatus; label: string }[] = [
