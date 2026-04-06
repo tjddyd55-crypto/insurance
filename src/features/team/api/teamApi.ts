@@ -38,7 +38,7 @@ export async function joinTeam(token: string, teamId: string): Promise<{ ok: boo
   }
   const id = String(teamId ?? '').trim()
   if (!id) {
-    throw new ApiError('팀 ID를 입력해 주세요.', 400)
+    throw new ApiError('팀 코드를 입력해 주세요.', 400)
   }
   return apiRequest<{ ok: boolean; teamId: string; name: string; gaId: number }>('/api/teams/join', {
     method: 'POST',

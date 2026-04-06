@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { normalizeKrMobile, validateKrMobileDigits } from '../../../lib/phoneNormalize'
+import { Button, Modal } from '../../../components/ui'
 import {
   fetchMe,
   patchMe,
@@ -11,6 +12,7 @@ import {
 } from '../authApi'
 import { useAuth } from '../AuthProvider'
 import { CustomerExcelImportPanel } from '../../customers/components/CustomerExcelImportPanel'
+import { createTeam, fetchTeamMembers, joinTeam } from '../../team/api/teamApi'
 
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
@@ -31,6 +33,86 @@ export function ProfilePage() {
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [resendLeft, setResendLeft] = useState(0)
   const [debugCodeHint, setDebugCodeHint] = useState('')
+
+  const [myTeamId, setMyTeamId] = useState<string | null>(null)
+  const [createTeamOpen, setCreateTeamOpen] = useState(false)
+  const [connectTeamOpen, setConnectTeamOpen] = useState(false)
+  const [teamNameInput, setTeamNameInput] = useState('')
+  const [joinTeamCodeInput, setJoinTeamCodeInput] = useState('')
+  const [teamBusy, setTeamBusy] = useState(false)
+  const [teamActionError, setTeamActionError] = useState('')
+
+  const loadMyTeamId = useCallback(async () => {
+    if (!token?.trim()) {
+      setMyTeamId(null)
+      return
+    }
+    try {
+      const data = await fetchTeamMembers(token)
+      setMyTeamId(data.teamId)
+    } catch {
+      setMyTeamId(null)
+    }
+  }, [token])
+
+  useEffect(() => {
+    void loadMyTeamId()
+  }, [loadMyTeamId])
+
+  const copyTeamCode = async () => {
+    if (!myTeamId?.trim()) {
+      window.alert('팀이 없습니다')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(myTeamId)
+      window.alert('팀 코드 복사됨')
+    } catch {
+      window.alert('복사에 실패했습니다.')
+    }
+  }
+
+  const onCreateTeamSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!token?.trim()) {
+      return
+    }
+    setTeamBusy(true)
+    setTeamActionError('')
+    try {
+      await createTeam(token, teamNameInput.trim() || undefined)
+      setTeamActionError('')
+      setTeamNameInput('')
+      setCreateTeamOpen(false)
+      window.alert('팀이 생성되었습니다.')
+      await loadMyTeamId()
+    } catch (err) {
+      setTeamActionError(err instanceof Error ? err.message : '팀 만들기에 실패했습니다.')
+    } finally {
+      setTeamBusy(false)
+    }
+  }
+
+  const onJoinTeamSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!token?.trim()) {
+      return
+    }
+    setTeamBusy(true)
+    setTeamActionError('')
+    try {
+      await joinTeam(token, joinTeamCodeInput.trim())
+      setTeamActionError('')
+      setJoinTeamCodeInput('')
+      setConnectTeamOpen(false)
+      window.alert('팀에 참여했습니다.')
+      await loadMyTeamId()
+    } catch (err) {
+      setTeamActionError(err instanceof Error ? err.message : '팀 참여에 실패했습니다.')
+    } finally {
+      setTeamBusy(false)
+    }
+  }
 
   useEffect(() => {
     if (secondsLeft <= 0) {
@@ -209,10 +291,6 @@ export function ProfilePage() {
     }
   }
 
-  const teamDev = () => {
-    window.alert('준비 중입니다.')
-  }
-
   if (loadError) {
     return (
       <main className="auth-page">
@@ -327,10 +405,27 @@ export function ProfilePage() {
           <div className="my-4 border-t border-[var(--border-default)]" role="presentation" />
 
           <div className="profile-page__team-row">
-            <button type="button" className="cta-button profile-page__team-btn" onClick={teamDev}>
+            <button
+              type="button"
+              className="cta-button profile-page__team-btn"
+              onClick={() => {
+                setTeamActionError('')
+                setCreateTeamOpen(true)
+              }}
+            >
               팀 생성
             </button>
-            <button type="button" className="cta-button profile-page__team-btn" onClick={teamDev}>
+            <button type="button" className="cta-button profile-page__team-btn" onClick={() => void copyTeamCode()}>
+              팀 코드 복사
+            </button>
+            <button
+              type="button"
+              className="cta-button profile-page__team-btn"
+              onClick={() => {
+                setTeamActionError('')
+                setConnectTeamOpen(true)
+              }}
+            >
               팀 연결
             </button>
           </div>
@@ -366,6 +461,89 @@ export function ProfilePage() {
             대시보드로
           </Link>
         </div>
+
+        <Modal
+          open={createTeamOpen}
+          onClose={() => {
+            setTeamActionError('')
+            setCreateTeamOpen(false)
+          }}
+          ariaLabel="팀 생성"
+        >
+          <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">팀 생성</div>
+          <form onSubmit={(ev) => void onCreateTeamSubmit(ev)}>
+            <label className="block text-sm text-[var(--text-secondary)] mb-2">
+              팀 이름 (선택)
+              <input
+                className="mt-1 w-full box-border border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
+                value={teamNameInput}
+                onChange={(ev) => setTeamNameInput(ev.target.value)}
+                maxLength={120}
+                placeholder="예: 강남1팀"
+                autoComplete="off"
+              />
+            </label>
+            {teamActionError ? (
+              <p className="text-[var(--danger)] text-sm mb-2" role="alert">
+                {teamActionError}
+              </p>
+            ) : null}
+            <div className="flex gap-2 flex-wrap mt-2">
+              <Button type="submit" disabled={teamBusy}>
+                {teamBusy ? '처리 중…' : '생성'}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={teamBusy}
+                onClick={() => setCreateTeamOpen(false)}
+              >
+                취소
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        <Modal
+          open={connectTeamOpen}
+          onClose={() => {
+            setTeamActionError('')
+            setConnectTeamOpen(false)
+          }}
+          ariaLabel="팀 연결"
+        >
+          <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">팀 연결</div>
+          <form onSubmit={(ev) => void onJoinTeamSubmit(ev)}>
+            <label className="block text-sm text-[var(--text-secondary)] mb-2">
+              팀 코드
+              <input
+                className="mt-1 w-full box-border border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
+                value={joinTeamCodeInput}
+                onChange={(ev) => setJoinTeamCodeInput(ev.target.value)}
+                placeholder="팀 코드 입력"
+                autoComplete="off"
+              />
+            </label>
+            {teamActionError ? (
+              <p className="text-[var(--danger)] text-sm mb-2" role="alert">
+                {teamActionError}
+              </p>
+            ) : null}
+            <div className="flex gap-2 flex-wrap mt-2">
+              <Button type="submit" disabled={teamBusy || !joinTeamCodeInput.trim()}>
+                {teamBusy ? '처리 중…' : '연결'}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={teamBusy}
+                onClick={() => setConnectTeamOpen(false)}
+              >
+                취소
+              </Button>
+            </div>
+          </form>
+        </Modal>
       </section>
     </main>
   )
