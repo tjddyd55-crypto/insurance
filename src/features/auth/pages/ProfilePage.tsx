@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { normalizeKrMobile, validateKrMobileDigits } from '../../../lib/phoneNormalize'
@@ -41,6 +41,16 @@ export function ProfilePage() {
   const [joinTeamCodeInput, setJoinTeamCodeInput] = useState('')
   const [teamBusy, setTeamBusy] = useState(false)
   const [teamActionError, setTeamActionError] = useState('')
+  const [teamCodeCopied, setTeamCodeCopied] = useState(false)
+  const [teamCopyNotice, setTeamCopyNotice] = useState('')
+  const teamCopyFeedbackTimerRef = useRef<number | null>(null)
+
+  const clearTeamCopyFeedbackTimer = () => {
+    if (teamCopyFeedbackTimerRef.current != null) {
+      window.clearTimeout(teamCopyFeedbackTimerRef.current)
+      teamCopyFeedbackTimerRef.current = null
+    }
+  }
 
   const loadMyTeamId = useCallback(async () => {
     if (!token?.trim()) {
@@ -59,33 +69,63 @@ export function ProfilePage() {
     void loadMyTeamId()
   }, [loadMyTeamId])
 
+  useEffect(() => {
+    return () => {
+      if (teamCopyFeedbackTimerRef.current != null) {
+        window.clearTimeout(teamCopyFeedbackTimerRef.current)
+      }
+    }
+  }, [])
+
+  const scheduleTeamCopyNotice = (message: string, ms: number) => {
+    clearTeamCopyFeedbackTimer()
+    setTeamCopyNotice(message)
+    teamCopyFeedbackTimerRef.current = window.setTimeout(() => {
+      setTeamCopyNotice('')
+      teamCopyFeedbackTimerRef.current = null
+    }, ms)
+  }
+
   const copyTeamCode = async () => {
+    clearTeamCopyFeedbackTimer()
+    setTeamCopyNotice('')
     if (!myTeamId?.trim()) {
-      window.alert('팀이 없습니다')
+      scheduleTeamCopyNotice('팀이 없습니다', 2000)
       return
     }
     try {
       await navigator.clipboard.writeText(myTeamId)
-      window.alert('팀 코드 복사됨')
+      setTeamCodeCopied(true)
+      teamCopyFeedbackTimerRef.current = window.setTimeout(() => {
+        setTeamCodeCopied(false)
+        teamCopyFeedbackTimerRef.current = null
+      }, 1500)
     } catch {
-      window.alert('복사에 실패했습니다.')
+      scheduleTeamCopyNotice('복사에 실패했습니다.', 2000)
     }
   }
 
   const onCreateTeamSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!token?.trim()) {
+    if (!token?.trim() || !user) {
+      return
+    }
+    if (user.teamId?.trim()) {
+      window.alert('이미 팀에 소속되어 있습니다')
       return
     }
     setTeamBusy(true)
     setTeamActionError('')
     try {
-      await createTeam(token, teamNameInput.trim() || undefined)
+      const created = await createTeam(token, teamNameInput.trim() || undefined)
+      setMyTeamId(created.teamId)
+      login({ token, user: { ...user, teamId: created.teamId } })
       setTeamActionError('')
       setTeamNameInput('')
       setCreateTeamOpen(false)
       window.alert('팀이 생성되었습니다.')
       await loadMyTeamId()
+      void load()
     } catch (err) {
       setTeamActionError(err instanceof Error ? err.message : '팀 만들기에 실패했습니다.')
     } finally {
@@ -95,18 +135,25 @@ export function ProfilePage() {
 
   const onJoinTeamSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!token?.trim()) {
+    if (!token?.trim() || !user) {
+      return
+    }
+    if (user.teamId?.trim()) {
+      window.alert('이미 팀에 소속되어 있습니다')
       return
     }
     setTeamBusy(true)
     setTeamActionError('')
     try {
-      await joinTeam(token, joinTeamCodeInput.trim())
+      const joined = await joinTeam(token, joinTeamCodeInput.trim())
+      setMyTeamId(joined.teamId)
+      login({ token, user: { ...user, teamId: joined.teamId } })
       setTeamActionError('')
       setJoinTeamCodeInput('')
       setConnectTeamOpen(false)
       window.alert('팀에 참여했습니다.')
       await loadMyTeamId()
+      void load()
     } catch (err) {
       setTeamActionError(err instanceof Error ? err.message : '팀 참여에 실패했습니다.')
     } finally {
@@ -155,6 +202,18 @@ export function ProfilePage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!token || !user || !me) {
+      return
+    }
+    const nextTid = me.team_id?.trim() ? me.team_id.trim() : null
+    const prevTid = user.teamId?.trim() ?? null
+    // me가 아직 팀 반영 전일 수 있어, null로 세션을 내리지 않음. 소속이 확인될 때만 동기화.
+    if (nextTid != null && prevTid !== nextTid) {
+      login({ token, user: { ...user, teamId: nextTid } })
+    }
+  }, [me, token, user, login])
 
   if (!isAuthenticated || !token || !user) {
     return <Navigate to="/login" replace />
@@ -277,6 +336,7 @@ export function ProfilePage() {
         user: {
           ...user,
           displayName: updated.display_name,
+          teamId: updated.team_id?.trim() ? updated.team_id.trim() : null,
         },
       })
       setInfoMessage('저장했습니다.')
@@ -315,6 +375,8 @@ export function ProfilePage() {
       </main>
     )
   }
+
+  const hasTeam = Boolean(user.teamId?.trim())
 
   return (
     <main className="auth-page profile-page">
@@ -407,8 +469,13 @@ export function ProfilePage() {
           <div className="profile-page__team-row">
             <button
               type="button"
-              className="cta-button profile-page__team-btn"
+              className={`cta-button profile-page__team-btn${hasTeam ? ' opacity-50 cursor-not-allowed' : ''}`}
+              aria-disabled={hasTeam}
               onClick={() => {
+                if (hasTeam) {
+                  window.alert('이미 팀에 소속되어 있습니다')
+                  return
+                }
                 setTeamActionError('')
                 setCreateTeamOpen(true)
               }}
@@ -416,12 +483,17 @@ export function ProfilePage() {
               팀 생성
             </button>
             <button type="button" className="cta-button profile-page__team-btn" onClick={() => void copyTeamCode()}>
-              팀 코드 복사
+              {teamCodeCopied ? '복사됨 ✓' : '팀 코드 복사'}
             </button>
             <button
               type="button"
-              className="cta-button profile-page__team-btn"
+              className={`cta-button profile-page__team-btn${hasTeam ? ' opacity-50 cursor-not-allowed' : ''}`}
+              aria-disabled={hasTeam}
               onClick={() => {
+                if (hasTeam) {
+                  window.alert('이미 팀에 소속되어 있습니다')
+                  return
+                }
                 setTeamActionError('')
                 setConnectTeamOpen(true)
               }}
@@ -429,6 +501,11 @@ export function ProfilePage() {
               팀 연결
             </button>
           </div>
+          {teamCopyNotice ? (
+            <p className="status text-sm" role="status" style={{ marginTop: 8 }}>
+              {teamCopyNotice}
+            </p>
+          ) : null}
 
           <div className="field profile-page__excel-field">
             <span className="field__label">연락처 업로드</span>

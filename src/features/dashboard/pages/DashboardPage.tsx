@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { fetchInsurerManagersHealth, type InsurerManagersHealth } from '../../auth/authApi'
+import { fetchTeamMembers } from '../../team/api/teamApi'
 import { useAuth } from '../../auth/AuthProvider'
 import { isGaStaffReadOnlyUi } from '../../auth/roleGuards'
 import {
@@ -113,6 +114,9 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === '/admin/audit-logs') {
     return pathname === '/admin/audit-logs'
   }
+  if (itemPath.startsWith('/team/')) {
+    return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
+  }
   return pathname === itemPath
 }
 
@@ -137,10 +141,10 @@ export function DashboardPage() {
   const role = user?.role
   const showStaffReadOnlyNote = isGaStaffReadOnlyUi(role)
   const showImHealth = showInsurerManagerHealthBanner(role)
-  const menuItems = menuForSession(role, user?.gaCode, user?.gaName)
   const pathname = location.pathname
   const [imHealthErr, setImHealthErr] = useState('')
   const [imHealth, setImHealth] = useState<InsurerManagersHealth | null>(null)
+  const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
 
   const loadImHealth = useCallback(async () => {
     if (!showImHealth || !token?.trim()) {
@@ -157,6 +161,50 @@ export function DashboardPage() {
   useEffect(() => {
     void loadImHealth()
   }, [loadImHealth])
+
+  useEffect(() => {
+    if (!token?.trim() || !user?.id) {
+      setTeamMenuManageVisible(false)
+      return
+    }
+    if (role !== 'USER' && role !== 'GA_ADMIN') {
+      setTeamMenuManageVisible(false)
+      return
+    }
+    let cancelled = false
+    void fetchTeamMembers(token)
+      .then((data) => {
+        if (cancelled) {
+          return
+        }
+        const oid = data.ownerId?.trim() ?? ''
+        setTeamMenuManageVisible(Boolean(oid && oid === user.id))
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTeamMenuManageVisible(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, user?.id, role])
+
+  const menuItems = useMemo(() => {
+    const base = menuForSession(role, user?.gaCode, user?.gaName)
+    if (!teamMenuManageVisible) {
+      return base
+    }
+    const out = [...base]
+    const filesIdx = out.findIndex((e) => e.type === 'link' && e.path === '/team/files')
+    const entry: MenuEntry = { type: 'link', label: '팀 메뉴 관리', path: '/team/menu-settings' }
+    if (filesIdx >= 0) {
+      out.splice(filesIdx + 1, 0, entry)
+    } else {
+      out.push(entry)
+    }
+    return out
+  }, [role, user?.gaCode, user?.gaName, teamMenuManageVisible])
 
   return (
     <main className="page dashboard-page--centered">

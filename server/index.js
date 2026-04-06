@@ -884,6 +884,9 @@ async function requireAuth(req, res, next) {
     const companyIdJwt = parseCompanyScopeId(decoded.companyId ?? decoded.company_id)
     const displayNameRaw = decoded.displayName ?? decoded.display_name ?? ''
     const displayName = typeof displayNameRaw === 'string' ? displayNameRaw.trim() : ''
+    const teamIdRaw = decoded.teamId ?? decoded.team_id
+    const teamId =
+      typeof teamIdRaw === 'string' && teamIdRaw.trim() ? teamIdRaw.trim() : null
     req.user = {
       id: String(userId),
       username: typeof decoded.username === 'string' ? decoded.username : '',
@@ -893,6 +896,7 @@ async function requireAuth(req, res, next) {
       gaName,
       companyId: companyIdJwt,
       displayName,
+      teamId,
     }
 
     if (role === 'INSURER_MANAGER') {
@@ -1527,6 +1531,7 @@ async function handleLogin(req, res) {
           companyId:
             Number.isInteger(imCompanyId) && imCompanyId > 0 ? imCompanyId : undefined,
           displayName,
+          teamId: null,
         },
         JWT_SECRET,
         { expiresIn: '7d' },
@@ -1558,6 +1563,7 @@ async function handleLogin(req, res) {
           company_id:
             Number.isInteger(imCompanyId) && imCompanyId > 0 ? imCompanyId : undefined,
           display_name: displayName,
+          team_id: null,
         },
       })
       return
@@ -1620,6 +1626,7 @@ async function handleLogin(req, res) {
     }
 
     const userDisplayName = String(user.display_name ?? user.username ?? '').trim()
+    const userTeamId = user.team_id != null ? String(user.team_id) : null
     const token = jwt.sign(
       {
         userId: user.id,
@@ -1630,6 +1637,7 @@ async function handleLogin(req, res) {
         gaCode,
         gaName,
         displayName: userDisplayName,
+        teamId: userTeamId,
       },
       JWT_SECRET,
       { expiresIn: '7d' },
@@ -1658,6 +1666,7 @@ async function handleLogin(req, res) {
         ga_code: gaCode,
         ga_name: gaName,
         display_name: userDisplayName,
+        team_id: userTeamId,
       },
     })
   } catch (error) {

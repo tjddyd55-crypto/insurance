@@ -312,7 +312,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
       const r = await systemQuery(
         pool,
         `
-        SELECT id, username, display_name, phone_number, role, ga_id, status
+        SELECT id, username, display_name, phone_number, role, ga_id, status, team_id
         FROM users
         WHERE id = $1 AND is_deleted = false
         `,
@@ -331,6 +331,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         role: String(row.role ?? ''),
         ga_id: row.ga_id,
         status: String(row.status ?? 'active').toLowerCase(),
+        team_id: row.team_id != null ? String(row.team_id) : null,
       })
     } catch (e) {
       handleDbError(e, req, res)
@@ -440,7 +441,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         const cur = await systemQuery(
           pool,
           `
-          SELECT id, username, display_name, phone_number, role, ga_id, status
+          SELECT id, username, display_name, phone_number, role, ga_id, status, team_id
           FROM users WHERE id = $1 AND is_deleted = false
           `,
           [uid],
@@ -454,6 +455,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
           role: String(row0.role ?? ''),
           ga_id: row0.ga_id,
           status: String(row0.status ?? 'active').toLowerCase(),
+          team_id: row0.team_id != null ? String(row0.team_id) : null,
         })
         return
       }
@@ -463,7 +465,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         `
         UPDATE users SET ${sets.join(', ')}
         WHERE id = $${n} AND ga_id = $${n + 1} AND is_deleted = false
-        RETURNING id, username, display_name, phone_number, role, ga_id, status
+        RETURNING id, username, display_name, phone_number, role, ga_id, status, team_id
         `,
         vals,
       )
@@ -481,6 +483,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         role: String(row.role ?? ''),
         ga_id: row.ga_id,
         status: String(row.status ?? 'active').toLowerCase(),
+        team_id: row.team_id != null ? String(row.team_id) : null,
       })
     } catch (e) {
       handleDbError(e, req, res)

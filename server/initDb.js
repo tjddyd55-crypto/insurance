@@ -1305,6 +1305,52 @@ export async function initDb() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_users_team ON users(team_id) WHERE team_id IS NOT NULL
   `)
+  await pool.query(`
+    ALTER TABLE teams
+    ADD COLUMN IF NOT EXISTS owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_teams_owner ON teams(owner_user_id) WHERE owner_user_id IS NOT NULL
+  `)
+  await pool.query(`
+    UPDATE teams t
+    SET owner_user_id = u.id
+    FROM (
+      SELECT DISTINCT ON (team_id) team_id, id
+      FROM users
+      WHERE team_id IS NOT NULL AND is_deleted = false
+      ORDER BY team_id, display_name ASC NULLS LAST, username ASC
+    ) u
+    WHERE t.id = u.team_id AND (t.owner_user_id IS NULL OR t.owner_user_id = '')
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS team_posts (
+      id TEXT PRIMARY KEY,
+      team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      author_user_id TEXT NOT NULL REFERENCES users(id),
+      title TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL DEFAULT '',
+      is_notice BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_team_posts_team_notice_created
+    ON team_posts(team_id, is_notice DESC, created_at DESC)
+  `)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS team_post_attachments (
+      id TEXT PRIMARY KEY,
+      post_id TEXT NOT NULL REFERENCES team_posts(id) ON DELETE CASCADE,
+      file_url TEXT NOT NULL,
+      file_name TEXT NOT NULL
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_team_post_attachments_post
+    ON team_post_attachments(post_id)
+  `)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_consultations (

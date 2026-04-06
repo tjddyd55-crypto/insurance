@@ -1,6 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
+import {
+  getR2InsurerAttachmentsCacheControl,
+  getR2PublicCdnBase,
+  isConsentR2Enabled,
+  logR2EnvDiagnosticCheck,
+  r2GetPresignedPutUrl,
+} from '../lib/consentStorage.js'
 
 function isInsurerManagerRole(role) {
   return String(role ?? '') === 'INSURER_MANAGER'
@@ -45,6 +52,35 @@ async function loadUserTeamContext(pool, userId) {
 }
 
 const TEAM_NAME_MAX = 120
+const TEAM_POST_TITLE_MAX = 200
+const TEAM_POST_CONTENT_MAX = 50000
+const TEAM_POST_ATTACH_MAX = 10
+const TEAM_POST_ALLOWED_MIME = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'application/pdf',
+])
+
+/** @param {string} contentType */
+function teamPostMaxBytesForMime(contentType) {
+  if (contentType === 'application/pdf') {
+    return 10 * 1024 * 1024
+  }
+  return 10 * 1024 * 1024
+}
+
+/**
+ * @param {string} objectKey
+ * @param {number} gaId
+ * @param {string} teamId
+ */
+function assertTeamPostAttachmentKey(objectKey, gaId, teamId) {
+  const prefix = `teams/${gaId}/${teamId}/attachments/`
+  const k = String(objectKey ?? '').trim()
+  return k.startsWith(prefix) && k.length > prefix.length + 4
+}
 
 /**
  * @param {import('express').Router} apiRouter
@@ -75,7 +111,7 @@ export function registerTeamApi(apiRouter, ctx) {
         return
       }
       if (ctxRow.teamId) {
-        res.status(409).json({ message: '이미 소속된 팀이 있습니다. 기존 팀을 정리한 뒤 다시 시도해 주세요.' })
+        res.status(409).json({ message: '이미 팀에 소속되어 있습니다' })
         return
       }
 
@@ -92,10 +128,10 @@ export function registerTeamApi(apiRouter, ctx) {
       await client.query('BEGIN')
       await client.query(
         `
-        INSERT INTO teams (id, ga_id, name)
-        VALUES ($1, $2, $3)
+        INSERT INTO teams (id, ga_id, name, owner_user_id)
+        VALUES ($1, $2, $3, $4)
         `,
-        [teamId, gaId, name],
+        [teamId, gaId, name, userId],
       )
       const upd = await client.query(
         `
@@ -167,13 +203,17 @@ export function registerTeamApi(apiRouter, ctx) {
         res.json({ ok: true, teamId, name: String(team.name ?? ''), gaId })
         return
       }
+      if (me.teamId) {
+        res.status(409).json({ message: '이미 팀에 소속되어 있습니다' })
+        return
+      }
 
       const upd = await safeQuery(
         pool,
         `
         UPDATE users
         SET team_id = $1
-        WHERE id = $2 AND ga_id = $3 AND is_deleted = false
+        WHERE id = $2 AND ga_id = $3 AND is_deleted = false AND team_id IS NULL
         `,
         [teamId, userId, gaId],
       )
@@ -205,17 +245,17 @@ export function registerTeamApi(apiRouter, ctx) {
         return
       }
       if (!me.teamId) {
-        res.json({ teamId: null, teamName: null, members: [] })
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
         return
       }
 
       const teamRes = await safeQuery(
         pool,
-        `SELECT id, name, ga_id FROM teams WHERE id = $1 LIMIT 1`,
+        `SELECT id, name, ga_id, owner_user_id FROM teams WHERE id = $1 LIMIT 1`,
         [me.teamId],
       )
       if (teamRes.rowCount === 0) {
-        res.json({ teamId: me.teamId, teamName: null, members: [] })
+        res.status(400).json({ message: '팀 정보를 찾을 수 없습니다. 소속을 다시 확인해 주세요.' })
         return
       }
       const teamRow = teamRes.rows[0]
@@ -224,6 +264,9 @@ export function registerTeamApi(apiRouter, ctx) {
         res.status(403).json({ message: '팀 정보가 GA와 일치하지 않습니다.' })
         return
       }
+
+      const ownerId =
+        teamRow.owner_user_id != null ? String(teamRow.owner_user_id) : null
 
       const members = await safeQuery(
         pool,
@@ -238,6 +281,7 @@ export function registerTeamApi(apiRouter, ctx) {
       res.json({
         teamId: String(teamRow.id),
         teamName: String(teamRow.name ?? ''),
+        ownerId,
         members: members.rows.map((row) => ({
           userId: String(row.id),
           username: String(row.username ?? ''),
@@ -248,6 +292,569 @@ export function registerTeamApi(apiRouter, ctx) {
       })
     } catch (error) {
       handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/teams/kick', requireAuth, async (req, res) => {
+    try {
+      const actorId = req.user?.id ? String(req.user.id) : ''
+      if (!actorId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+      const targetRaw = req.body?.userId ?? req.body?.user_id
+      const targetUserId = String(targetRaw ?? '').trim()
+      if (!targetUserId) {
+        res.status(400).json({ message: '대상 사용자를 지정해 주세요.' })
+        return
+      }
+
+      const me = await loadUserTeamContext(pool, actorId)
+      if (!me || me.gaId !== gaId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+      if (!me.teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
+        return
+      }
+
+      const teamRes = await safeQuery(
+        pool,
+        `SELECT id, ga_id, owner_user_id FROM teams WHERE id = $1 LIMIT 1`,
+        [me.teamId],
+      )
+      if (teamRes.rowCount === 0) {
+        res.status(400).json({ message: '팀 정보를 찾을 수 없습니다. 소속을 다시 확인해 주세요.' })
+        return
+      }
+      const team = teamRes.rows[0]
+      const teamGaId = Number(team.ga_id)
+      if (!Number.isFinite(teamGaId) || teamGaId !== gaId) {
+        res.status(403).json({ message: '팀 정보가 GA와 일치하지 않습니다.' })
+        return
+      }
+      const ownerId = team.owner_user_id != null ? String(team.owner_user_id) : ''
+      if (!ownerId || ownerId !== actorId) {
+        res.status(403).json({ message: '팀장만 강퇴할 수 있습니다.' })
+        return
+      }
+      if (targetUserId === actorId) {
+        res.status(400).json({ message: '본인은 강퇴할 수 없습니다. 나가기를 이용해 주세요.' })
+        return
+      }
+      if (targetUserId === ownerId) {
+        res.status(400).json({ message: '팀장은 강퇴할 수 없습니다.' })
+        return
+      }
+
+      const upd = await safeQuery(
+        pool,
+        `
+        UPDATE users
+        SET team_id = NULL
+        WHERE id = $1 AND team_id = $2 AND ga_id = $3 AND is_deleted = false
+        `,
+        [targetUserId, me.teamId, gaId],
+      )
+      if (upd.rowCount === 0) {
+        res.status(404).json({ message: '해당 팀원을 찾을 수 없습니다.' })
+        return
+      }
+      res.json({ ok: true })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/teams/leave', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+
+      const me = await loadUserTeamContext(pool, userId)
+      if (!me || me.gaId !== gaId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+      if (!me.teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
+        return
+      }
+
+      const teamRes = await safeQuery(
+        pool,
+        `SELECT id, ga_id, owner_user_id FROM teams WHERE id = $1 LIMIT 1`,
+        [me.teamId],
+      )
+      if (teamRes.rowCount === 0) {
+        res.status(400).json({ message: '팀 정보를 찾을 수 없습니다. 소속을 다시 확인해 주세요.' })
+        return
+      }
+      const team = teamRes.rows[0]
+      const teamGaId = Number(team.ga_id)
+      if (!Number.isFinite(teamGaId) || teamGaId !== gaId) {
+        res.status(403).json({ message: '팀 정보가 GA와 일치하지 않습니다.' })
+        return
+      }
+      const ownerId = team.owner_user_id != null ? String(team.owner_user_id) : ''
+      if (ownerId && ownerId === userId) {
+        res.status(403).json({ message: '팀장은 팀에서 나갈 수 없습니다.' })
+        return
+      }
+
+      const upd = await safeQuery(
+        pool,
+        `
+        UPDATE users
+        SET team_id = NULL
+        WHERE id = $1 AND team_id = $2 AND ga_id = $3 AND is_deleted = false
+        `,
+        [userId, me.teamId, gaId],
+      )
+      if (upd.rowCount === 0) {
+        res.status(409).json({ message: '팀 나가기에 실패했습니다.' })
+        return
+      }
+      res.json({ ok: true })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/teams/files', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+      const me = await loadUserTeamContext(pool, userId)
+      if (!me || me.gaId !== gaId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+      if (!me.teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
+        return
+      }
+
+      const teamCheck = await safeQuery(
+        pool,
+        `SELECT id, ga_id FROM teams WHERE id = $1 LIMIT 1`,
+        [me.teamId],
+      )
+      if (teamCheck.rowCount === 0) {
+        res.status(404).json({ message: '팀을 찾을 수 없습니다.' })
+        return
+      }
+      const tGa = Number(teamCheck.rows[0].ga_id)
+      if (!Number.isFinite(tGa) || tGa !== gaId) {
+        res.status(403).json({ message: '팀 정보가 GA와 일치하지 않습니다.' })
+        return
+      }
+
+      const r = await safeQuery(
+        pool,
+        `
+        SELECT a.id, a.file_url, a.file_name, a.post_id, p.title AS post_title, p.created_at AS post_created_at
+        FROM team_post_attachments a
+        INNER JOIN team_posts p ON p.id = a.post_id
+        WHERE p.team_id = $1
+        ORDER BY p.created_at DESC, a.id ASC
+        `,
+        [me.teamId],
+      )
+      res.json({
+        teamId: me.teamId,
+        files: r.rows.map((row) => ({
+          id: String(row.id),
+          fileUrl: String(row.file_url ?? ''),
+          fileName: String(row.file_name ?? ''),
+          postId: String(row.post_id ?? ''),
+          postTitle: String(row.post_title ?? ''),
+          postCreatedAt: row.post_created_at,
+        })),
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/teams/posts', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+      const me = await loadUserTeamContext(pool, userId)
+      if (!me || me.gaId !== gaId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+      if (!me.teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
+        return
+      }
+
+      const teamRes = await safeQuery(
+        pool,
+        `SELECT id, ga_id, owner_user_id FROM teams WHERE id = $1 LIMIT 1`,
+        [me.teamId],
+      )
+      if (teamRes.rowCount === 0) {
+        res.status(404).json({ message: '팀을 찾을 수 없습니다.' })
+        return
+      }
+      const teamRow = teamRes.rows[0]
+      const tGa = Number(teamRow.ga_id)
+      if (!Number.isFinite(tGa) || tGa !== gaId) {
+        res.status(403).json({ message: '팀 정보가 GA와 일치하지 않습니다.' })
+        return
+      }
+      const ownerId = teamRow.owner_user_id != null ? String(teamRow.owner_user_id) : null
+
+      const posts = await safeQuery(
+        pool,
+        `
+        SELECT p.id, p.title, p.content, p.is_notice, p.created_at, p.author_user_id,
+          u.username AS author_username, u.display_name AS author_display_name
+        FROM team_posts p
+        LEFT JOIN users u ON u.id = p.author_user_id
+        WHERE p.team_id = $1
+        ORDER BY p.is_notice DESC, p.created_at DESC
+        `,
+        [me.teamId],
+      )
+
+      const postIds = posts.rows.map((row) => String(row.id))
+      /** @type {Map<string, Array<{ id: string, fileUrl: string, fileName: string }>>} */
+      const attMap = new Map()
+      if (postIds.length > 0) {
+        const atts = await safeQuery(
+          pool,
+          `
+          SELECT id, post_id, file_url, file_name
+          FROM team_post_attachments
+          WHERE post_id = ANY($1::text[])
+          ORDER BY id ASC
+          `,
+          [postIds],
+        )
+        for (const row of atts.rows) {
+          const pid = String(row.post_id ?? '')
+          if (!attMap.has(pid)) {
+            attMap.set(pid, [])
+          }
+          attMap.get(pid).push({
+            id: String(row.id),
+            fileUrl: String(row.file_url ?? ''),
+            fileName: String(row.file_name ?? ''),
+          })
+        }
+      }
+
+      res.json({
+        teamId: me.teamId,
+        ownerId,
+        posts: posts.rows.map((row) => {
+          const pid = String(row.id)
+          return {
+            id: pid,
+            title: String(row.title ?? ''),
+            content: String(row.content ?? ''),
+            isNotice: Boolean(row.is_notice),
+            createdAt: row.created_at,
+            authorId: String(row.author_user_id ?? ''),
+            authorUsername: String(row.author_username ?? ''),
+            authorDisplayName: String(row.author_display_name ?? ''),
+            attachments: attMap.get(pid) ?? [],
+          }
+        }),
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/teams/posts/:postId', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+      const postId = String(req.params.postId ?? '').trim()
+      if (!postId) {
+        res.status(400).json({ message: '게시글을 찾을 수 없습니다.' })
+        return
+      }
+      const me = await loadUserTeamContext(pool, userId)
+      if (!me || me.gaId !== gaId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+      if (!me.teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
+        return
+      }
+
+      const postRes = await safeQuery(
+        pool,
+        `
+        SELECT p.id, p.team_id, p.title, p.content, p.is_notice, p.created_at, p.author_user_id,
+          u.username AS author_username, u.display_name AS author_display_name
+        FROM team_posts p
+        LEFT JOIN users u ON u.id = p.author_user_id
+        WHERE p.id = $1 AND p.team_id = $2
+        LIMIT 1
+        `,
+        [postId, me.teamId],
+      )
+      if (postRes.rowCount === 0) {
+        res.status(404).json({ message: '게시글을 찾을 수 없습니다.' })
+        return
+      }
+      const row = postRes.rows[0]
+      const atts = await safeQuery(
+        pool,
+        `SELECT id, file_url, file_name FROM team_post_attachments WHERE post_id = $1 ORDER BY id ASC`,
+        [postId],
+      )
+      res.json({
+        post: {
+          id: String(row.id),
+          teamId: String(row.team_id ?? ''),
+          title: String(row.title ?? ''),
+          content: String(row.content ?? ''),
+          isNotice: Boolean(row.is_notice),
+          createdAt: row.created_at,
+          authorId: String(row.author_user_id ?? ''),
+          authorUsername: String(row.author_username ?? ''),
+          authorDisplayName: String(row.author_display_name ?? ''),
+          attachments: atts.rows.map((a) => ({
+            id: String(a.id),
+            fileUrl: String(a.file_url ?? ''),
+            fileName: String(a.file_name ?? ''),
+          })),
+        },
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/teams/posts/attachments/presign', requireAuth, async (req, res) => {
+    try {
+      if (!isConsentR2Enabled()) {
+        logR2EnvDiagnosticCheck()
+        res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+        return
+      }
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+      const me = await loadUserTeamContext(pool, userId)
+      if (!me || me.gaId !== gaId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+      if (!me.teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
+        return
+      }
+
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const fileNameRaw = String(body.fileName ?? 'file').trim() || 'file'
+      const contentType = String(body.contentType ?? 'application/octet-stream').trim()
+      const sizeBytes = Number(body.sizeBytes ?? body.size ?? 0)
+
+      if (!TEAM_POST_ALLOWED_MIME.has(contentType)) {
+        res.status(400).json({ message: '허용되지 않은 파일 형식입니다.' })
+        return
+      }
+      const maxB = teamPostMaxBytesForMime(contentType)
+      if (!Number.isFinite(sizeBytes) || sizeBytes < 1 || sizeBytes > maxB) {
+        res.status(400).json({ message: '파일 크기가 허용 범위를 벗어났습니다.' })
+        return
+      }
+
+      const safeSeg = fileNameRaw.replace(/[^\w.\-()\u3131-\u318e\uac00-\ud7a3]/g, '_').slice(0, 120)
+      const objectKey = `teams/${gaId}/${me.teamId}/attachments/${randomUUID()}-${safeSeg}`
+
+      const cacheControl = getR2InsurerAttachmentsCacheControl()
+      const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
+      if (!uploadUrl) {
+        res.status(503).json({ message: '업로드 URL을 만들 수 없습니다.' })
+        return
+      }
+      const putHeaders = {}
+      if (cacheControl) {
+        putHeaders['Cache-Control'] = cacheControl
+      }
+      res.json({ uploadUrl, objectKey, putHeaders })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/teams/posts', requireAuth, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+      const me = await loadUserTeamContext(pool, userId)
+      if (!me || me.gaId !== gaId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+      if (!me.teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
+        return
+      }
+
+      const teamRes = await safeQuery(
+        pool,
+        `SELECT id, ga_id, owner_user_id FROM teams WHERE id = $1 LIMIT 1`,
+        [me.teamId],
+      )
+      if (teamRes.rowCount === 0) {
+        res.status(404).json({ message: '팀을 찾을 수 없습니다.' })
+        return
+      }
+      const team = teamRes.rows[0]
+      const tGa = Number(team.ga_id)
+      if (!Number.isFinite(tGa) || tGa !== gaId) {
+        res.status(403).json({ message: '팀 정보가 GA와 일치하지 않습니다.' })
+        return
+      }
+      const ownerId = team.owner_user_id != null ? String(team.owner_user_id) : ''
+
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      let title = String(body.title ?? '').trim()
+      let content = String(body.content ?? '').trim()
+      let isNotice = Boolean(body.isNotice ?? body.is_notice)
+      if (!title) {
+        res.status(400).json({ message: '제목을 입력해 주세요.' })
+        return
+      }
+      if (title.length > TEAM_POST_TITLE_MAX) {
+        res.status(400).json({ message: `제목은 ${TEAM_POST_TITLE_MAX}자 이하로 입력해 주세요.` })
+        return
+      }
+      if (!content) {
+        res.status(400).json({ message: '내용을 입력해 주세요.' })
+        return
+      }
+      if (content.length > TEAM_POST_CONTENT_MAX) {
+        res.status(400).json({ message: `내용은 ${TEAM_POST_CONTENT_MAX}자 이하로 입력해 주세요.` })
+        return
+      }
+      if (isNotice && ownerId !== userId) {
+        res.status(403).json({ message: '공지는 팀장만 등록할 수 있습니다.' })
+        return
+      }
+
+      const rawAtt = body.attachments
+      const attachments = Array.isArray(rawAtt) ? rawAtt : []
+      if (attachments.length > TEAM_POST_ATTACH_MAX) {
+        res.status(400).json({ message: `첨부는 ${TEAM_POST_ATTACH_MAX}개까지 가능합니다.` })
+        return
+      }
+
+      const base = getR2PublicCdnBase()
+      for (const a of attachments) {
+        const objectKey = String(a?.objectKey ?? '').trim()
+        const fileName = String(a?.fileName ?? 'file').trim() || 'file'
+        if (!objectKey || !assertTeamPostAttachmentKey(objectKey, gaId, me.teamId)) {
+          res.status(400).json({ message: '유효하지 않은 첨부입니다.' })
+          return
+        }
+        const expectedUrl = `${base}/${objectKey.replace(/^\//, '')}`
+        const fileUrl = String(a?.fileUrl ?? '').trim()
+        if (fileUrl !== expectedUrl) {
+          res.status(400).json({ message: '첨부 URL이 서명과 일치하지 않습니다.' })
+          return
+        }
+        if (fileName.length > 240) {
+          res.status(400).json({ message: '첨부 파일 이름이 너무 깁니다.' })
+          return
+        }
+      }
+
+      const postId = randomUUID()
+      await client.query('BEGIN')
+      await client.query(
+        `
+        INSERT INTO team_posts (id, team_id, author_user_id, title, content, is_notice)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        `,
+        [postId, me.teamId, userId, title, content, isNotice],
+      )
+      for (const a of attachments) {
+        const objectKey = String(a.objectKey ?? '').trim()
+        const fileName = String(a.fileName ?? 'file').trim() || 'file'
+        const fileUrl = `${base}/${objectKey.replace(/^\//, '')}`
+        const aid = randomUUID()
+        await client.query(
+          `
+          INSERT INTO team_post_attachments (id, post_id, file_url, file_name)
+          VALUES ($1, $2, $3, $4)
+          `,
+          [aid, postId, fileUrl, fileName],
+        )
+      }
+      await client.query('COMMIT')
+      res.status(201).json({
+        postId,
+        teamId: me.teamId,
+      })
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* ignore */
+      }
+      handleDbError(error, req, res)
+    } finally {
+      client.release()
     }
   })
 }

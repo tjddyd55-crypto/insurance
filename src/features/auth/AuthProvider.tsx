@@ -18,6 +18,8 @@ interface AuthUser {
   gaName: string
   companyId: number | null
   displayName: string
+  /** users.team_id. 구세션에 없으면 null */
+  teamId: string | null
 }
 
 interface AuthSession {
@@ -82,6 +84,13 @@ function parseCompanyScopeId(value: unknown): number | null {
   return null
 }
 
+function parseTeamIdField(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim()
+  }
+  return null
+}
+
 function readStoredSession(): AuthSession | null {
   try {
     const raw = window.localStorage.getItem(AUTH_STORAGE_KEY)
@@ -108,12 +117,19 @@ function readStoredSession(): AuthSession | null {
       return null
     }
 
-    const u = parsed.user as { gaCode?: unknown; gaName?: unknown; companyId?: unknown; displayName?: unknown }
+    const u = parsed.user as {
+      gaCode?: unknown
+      gaName?: unknown
+      companyId?: unknown
+      displayName?: unknown
+      teamId?: unknown
+    }
     const gaCode = typeof u.gaCode === 'string' ? u.gaCode.trim().toUpperCase() : ''
     const gaName = typeof u.gaName === 'string' ? u.gaName.trim() : ''
     const companyIdRaw = parseCompanyScopeId(u.companyId)
     const displayNameRaw =
       typeof u.displayName === 'string' ? u.displayName.trim() : String(parsed.user.username ?? '').trim()
+    const teamId = parseTeamIdField(u.teamId)
 
     if (role === 'INSURER_MANAGER' && companyIdRaw == null) {
       console.warn('INSURER_MANAGER companyId 없음 → 재로그인 필요')
@@ -132,6 +148,7 @@ function readStoredSession(): AuthSession | null {
         gaName,
         companyId: role === 'INSURER_MANAGER' ? companyIdRaw : null,
         displayName: displayNameRaw,
+        teamId,
       },
     }
   } catch {
@@ -181,6 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         typeof nextSession.user.displayName === 'string' && nextSession.user.displayName.trim()
           ? nextSession.user.displayName.trim()
           : String(nextSession.user.username ?? '').trim()
+      const teamId = parseTeamIdField(nextSession.user.teamId)
 
       const normalized: AuthSession = {
         token: nextSession.token,
@@ -193,6 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           gaName,
           companyId,
           displayName,
+          teamId,
         },
       }
       setSession(normalized)

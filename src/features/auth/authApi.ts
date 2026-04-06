@@ -14,6 +14,8 @@ export interface AuthUser {
   /** insurance_company_master.id — INSURER_MANAGER 에서만 필수 */
   companyId: number | null
   displayName: string
+  /** users.team_id (팀 소속). 미소속이면 null */
+  teamId: string | null
 }
 
 export interface LoginResponse {
@@ -27,6 +29,7 @@ export interface LoginResponse {
     ga_name?: string
     company_id?: number | null
     display_name?: string | null
+    team_id?: string | null
   }
 }
 
@@ -182,6 +185,7 @@ export interface MeResponse {
   role: string
   ga_id: number | null
   status: string
+  team_id: string | null
 }
 
 export async function fetchMe(token: string): Promise<MeResponse> {
@@ -244,6 +248,9 @@ export async function login(username: string, password: string) {
     typeof raw.user.display_name === 'string'
       ? raw.user.display_name.trim()
       : String(raw.user.username ?? '').trim()
+  const rawTeam = raw.user.team_id
+  const teamId =
+    typeof rawTeam === 'string' && rawTeam.trim() ? rawTeam.trim() : null
   return {
     token: raw.token,
     user: {
@@ -255,6 +262,7 @@ export async function login(username: string, password: string) {
       gaName,
       companyId: raw.user.role === 'INSURER_MANAGER' ? companyId : null,
       displayName,
+      teamId,
     },
   } satisfies { token: string; user: AuthUser }
 }

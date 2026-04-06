@@ -556,11 +556,11 @@ function CustomerListCard({
           onKeyDown={handleSummaryKeyDown}
         >
           <span className="customer-expand-summary__content w-full min-w-0">
-            <div className="flex justify-between items-start gap-2 w-full min-w-0">
+            <div className="flex justify-between items-center gap-2 w-full min-w-0">
               <div className="min-w-0 flex-1">
                 <div className="customer-card-text-name flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span
-                    className={`customer-card-name-primary${ssnDupHighlight ? ' customer-name-ssn-dup' : ''}`}
+                    className={`customer-card-name-primary font-semibold${ssnDupHighlight ? ' customer-name-ssn-dup' : ''}`}
                     style={ssnDupHighlight ? { color: ssnDupHighlight.color } : undefined}
                   >
                     {ssnDupHighlight ? (
@@ -573,10 +573,35 @@ function CustomerListCard({
                     ) : null}
                     {c.name}
                   </span>
-                  <span className="customer-card-text-sub">{genderSummaryLabel(c)}</span>
-                  <span className="customer-card-text-sub">보험나이 {ins.ageText}</span>
+                  <span className="text-sm text-[var(--text-secondary)] font-normal">
+                    {genderSummaryLabel(c)}
+                  </span>
+                  <span className="text-sm text-[var(--text-secondary)] font-normal">
+                    보험나이 {ins.ageText}
+                  </span>
+                  <button
+                    type="button"
+                    className="text-lg leading-none p-0 border-0 bg-transparent cursor-pointer shrink-0"
+                    aria-label={c.isFavorite ? '즐겨찾기 해제' : '즐겨찾기'}
+                    aria-pressed={c.isFavorite}
+                    disabled={!token?.trim()}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void onToggleFavorite(c)
+                    }}
+                  >
+                    {c.isFavorite ? (
+                      <span className="text-yellow-400" aria-hidden>
+                        ★
+                      </span>
+                    ) : (
+                      <span className="text-gray-400" aria-hidden>
+                        ☆
+                      </span>
+                    )}
+                  </button>
                 </div>
-                <div className="customer-card-text-sub customer-card-summary-meta text-[var(--text-secondary)] mt-0.5">
+                <div className="text-sm text-[var(--text-secondary)] customer-card-summary-meta mt-0.5">
                   상령일: {ins.dateText} · 상담일: {recentConsultText}
                 </div>
               </div>
@@ -587,24 +612,6 @@ function CustomerListCard({
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => e.stopPropagation()}
                 >
-                  <button
-                    type="button"
-                    className="text-lg leading-none p-0 border-0 bg-transparent cursor-pointer"
-                    aria-label={c.isFavorite ? '즐겨찾기 해제' : '즐겨찾기'}
-                    aria-pressed={c.isFavorite}
-                    disabled={!token?.trim()}
-                    onClick={() => void onToggleFavorite(c)}
-                  >
-                    {c.isFavorite ? (
-                      <span className="text-yellow-400" aria-hidden>
-                        ★
-                      </span>
-                    ) : (
-                      <span className="text-[var(--text-secondary)] opacity-70" aria-hidden>
-                        ☆
-                      </span>
-                    )}
-                  </button>
                   {smsHref ? (
                     <a
                       href={smsHref}
@@ -622,14 +629,14 @@ function CustomerListCard({
                   {telHref ? (
                     <a
                       href={telHref}
-                      className="text-lg text-green-600 leading-none"
+                      className="text-xl text-green-500 leading-none"
                       aria-label="전화 걸기"
                       onClick={(e) => e.stopPropagation()}
                     >
                       📞
                     </a>
                   ) : (
-                    <span className="text-lg opacity-35 grayscale" aria-hidden>
+                    <span className="text-xl opacity-35 grayscale leading-none" aria-hidden>
                       📞
                     </span>
                   )}
