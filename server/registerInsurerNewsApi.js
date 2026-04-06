@@ -678,16 +678,30 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
 
-      const gaRow = await safeQuery(
-        pool,
-        `
-        SELECT UPPER(TRIM(g.code)) AS c
-        FROM ga_companies g
-        WHERE g.id = $1
-          AND g.id = (SELECT u.ga_id FROM users u WHERE u.id = $2 LIMIT 1)
-        `,
-        [gaId, String(req.user?.id ?? '')],
-      )
+      const userId = String(req.user?.id ?? '')
+      const gaRow = isSuperAdminRole(req.user?.role)
+        ? await safeQuery(
+            pool,
+            `
+            SELECT UPPER(TRIM(g.code)) AS c
+            FROM ga_companies g
+            WHERE g.id = $1
+              AND g.is_deleted = false
+              AND g.status = 'active'
+            `,
+            [gaId],
+          )
+        : await safeQuery(
+            pool,
+            `
+            SELECT UPPER(TRIM(g.code)) AS c
+            FROM ga_companies g
+            INNER JOIN users u ON u.id = $2 AND u.ga_id = g.id
+            WHERE g.id = $1
+              AND g.is_deleted = false
+            `,
+            [gaId, userId],
+          )
       const gaCodeUpper = gaRow.rowCount ? String(gaRow.rows[0].c ?? '') : gaCodeQuery.toUpperCase()
 
       const insurers = await buildInsurersListMerged(pool, gaId, gaCodeUpper)

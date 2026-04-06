@@ -1,11 +1,11 @@
 /**
  * 일반 유저(USER) 계정 초기화 — 단일 트랜잭션.
  *
- * 삭제 범위 (user_id 기준, 현재 스키마 기준 점검 시점 동기화):
+ * 삭제 범위 (user_id + ga_id, 멀티테넌트 스코프 — 현재 스키마 기준):
  * - insurance_forms (자동차 신청서 — customers 보다 먼저 삭제: customer_id FK)
  * - customers
  * - feature_requests
- * - sms_verification_codes (해당 계정 발급·이력 전부)
+ * - sms_verification_codes (ga_id 컬럼 없음 — user_id만)
  *
  * 이후 users 행은 hard delete 대신 status=reset + 민감정보 제거 + 로그인 불가(무작위 비밀번호 해시).
  *
@@ -35,9 +35,9 @@ export async function runAccountResetDataOnClient(client, { userId, gaId, newUse
     throw new Error('newUsername and passwordHash required')
   }
 
-  await client.query('DELETE FROM insurance_forms WHERE user_id = $1', [uid])
-  await client.query('DELETE FROM customers WHERE user_id = $1', [uid])
-  await client.query('DELETE FROM feature_requests WHERE user_id = $1', [uid])
+  await client.query('DELETE FROM insurance_forms WHERE user_id = $1 AND ga_id = $2', [uid, gid])
+  await client.query('DELETE FROM customers WHERE user_id = $1 AND ga_id = $2', [uid, gid])
+  await client.query('DELETE FROM feature_requests WHERE user_id = $1 AND ga_id = $2', [uid, gid])
   await client.query('DELETE FROM sms_verification_codes WHERE user_id = $1', [uid])
 
   const up = await client.query(
