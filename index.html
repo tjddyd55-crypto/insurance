@@ -12,6 +12,17 @@
       content="보험 신청·고객 관리 서비스. 개인정보처리방침은 /privacy 에서 확인할 수 있습니다."
     />
     <title>보험 신청·고객관리</title>
+    <script>
+      ;(function () {
+        try {
+          var t = localStorage.getItem('theme') || localStorage.getItem('insurance-theme')
+          var dark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light')
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

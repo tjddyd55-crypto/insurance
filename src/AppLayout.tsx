@@ -23,7 +23,7 @@ export function AppLayout() {
   const hideBarPaths = new Set(['/login', '/register', '/password-reset', '/customer/input'])
   const showGaBar =
     Boolean(isAuthenticated && user?.gaId != null) && !hideBarPaths.has(location.pathname)
-  const showThemeToggle = location.pathname === '/'
+  const showThemeToggle = location.pathname === '/dashboard'
 
   return (
     <>

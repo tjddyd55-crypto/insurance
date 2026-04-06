@@ -1,21 +1,24 @@
 /**
- * 라이트: :root / 다크: body.dark (colorScheme.ts가 body에 토글)
+ * 라이트: :root / 다크: :root[data-theme='dark'] (colorScheme.ts가 동기화)
  * 컴포넌트·레이아웃 규칙에서는 var(--*) 만 사용합니다.
  */
 
 :root {
-  --bg-main: #f8fafc;
-  --bg-card: #ffffff;
+  --bg-main: #ffffff;
+  --bg-card: #f5f6f8;
   --bg-soft: #f1f5f9;
 
-  --text-main: #0f172a;
-  --text-sub: #64748b;
+  --text-main: #111111;
+  --text-sub: #555555;
+  --text-secondary: var(--text-sub);
 
-  --primary: #3b82f6;
-  --success: #22c55e;
-  --danger: #ef4444;
+  --primary: #2563eb;
+  --brand: var(--primary);
+  --success: #16a34a;
+  --danger: #dc2626;
 
-  --border: #e2e8f0;
+  --border: #e5e7eb;
+  --border-default: var(--border);
 
   --shadow: 0 2px 8px rgb(0 0 0 / 0.08);
   --shadow-dark: 0 2px 8px rgb(0 0 0 / 0.4);
@@ -23,7 +26,7 @@
   --shadow-card: rgb(0 0 0 / 0.08);
   --shadow-modal: var(--shadow-dark);
 
-  --primary-hover: #2563eb;
+  --primary-hover: #1d4ed8;
   --text-on-primary: #ffffff;
   --link: var(--primary);
 
@@ -34,7 +37,9 @@
   --card: var(--bg-card);
   --text: var(--text-main);
   --subtext: var(--text-sub);
-  --input-bg: var(--bg-card);
+  --text-primary: var(--text-main);
+  --bg-elevated: var(--bg-card);
+  --input-bg: var(--bg-main);
   --placeholder: var(--text-sub);
 
   --tab-inactive-bg: var(--bg-soft);
@@ -81,7 +86,7 @@
 
   /* 고객·대시보드 서브 UI */
   --surface-expand: var(--bg-soft);
-  --surface-list-row: var(--bg-card);
+  --surface-list-row: var(--bg-main);
   --border-muted: var(--border);
   --text-meta: var(--text-sub);
 
@@ -115,13 +120,9 @@
   --auth-input-border: #cbd5e1;
 
   /* 폼·관리 화면 공통 의미 토큰 (별칭) */
-  --border-default: var(--border);
   --bg-input: var(--input-bg);
-  --text-primary: var(--text-main);
-  --bg-elevated: var(--bg-card);
   --brand-primary: var(--primary);
-  --brand: var(--primary);
-  --brand-soft: rgb(59 130 246 / 0.14);
+  --brand-soft: rgb(37 99 235 / 0.14);
   --text-default: var(--text-main);
 
   /* 인쇄·결과 양식(종이 느낌 유지 — 변수로만 참조) */
@@ -153,19 +154,22 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-body.dark {
-  --bg-main: #0f172a;
-  --bg-card: #1e293b;
-  --bg-soft: #334155;
+:root[data-theme='dark'] {
+  --bg-main: #0f1115;
+  --bg-card: #1a1d24;
+  --bg-soft: #252a33;
 
-  --text-main: #f1f5f9;
-  --text-sub: #94a3b8;
+  --text-main: #ffffff;
+  --text-sub: #b0b7c3;
+  --text-secondary: var(--text-sub);
 
-  --primary: #60a5fa;
-  --success: #4ade80;
-  --danger: #f87171;
+  --primary: #3b82f6;
+  --brand: var(--primary);
+  --success: #22c55e;
+  --danger: #ef4444;
 
-  --border: #334155;
+  --border: #2a2f3a;
+  --border-default: var(--border);
 
   --shadow: 0 2px 8px rgb(0 0 0 / 0.35);
   --shadow-dark: 0 2px 8px rgb(0 0 0 / 0.5);
@@ -174,7 +178,7 @@ body.dark {
   --shadow-modal: var(--shadow-dark);
 
   --primary-hover: #93c5fd;
-  --text-on-primary: #0f172a;
+  --text-on-primary: #0f1115;
   --link: var(--primary);
 
   --overlay-backdrop: rgb(0 0 0 / 0.65);
@@ -262,13 +266,11 @@ body.dark {
   --divider-auth: var(--border);
   --auth-input-border: rgb(255 255 255 / 0.22);
 
-  --border-default: var(--border);
   --bg-input: var(--input-bg);
   --text-primary: var(--text-main);
   --bg-elevated: var(--bg-card);
   --brand-primary: var(--primary);
-  --brand: var(--primary);
-  --brand-soft: rgb(96 165 250 / 0.18);
+  --brand-soft: rgb(59 130 246 / 0.22);
   --text-default: var(--text-main);
 
   /* 다크에서도 인쇄 미리보기는 밝은 종이 유지 */
