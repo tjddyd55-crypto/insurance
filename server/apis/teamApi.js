@@ -13,6 +13,12 @@ function isInsurerManagerRole(role) {
   return String(role ?? '') === 'INSURER_MANAGER'
 }
 
+/** SUPER_ADMIN / GA_ADMIN — 팀 게시글 수정·삭제 시 작성자·팀장 외 예외 허용 */
+function isTeamPostElevatedRole(role) {
+  const r = String(role ?? '')
+  return r === 'SUPER_ADMIN' || r === 'GA_ADMIN'
+}
+
 function requireGaTenantForTeam(req, res) {
   if (isInsurerManagerRole(req.user?.role)) {
     res.status(403).json({ message: '팀 기능을 사용할 수 없는 계정입니다.' })
@@ -62,6 +68,69 @@ const TEAM_POST_ALLOWED_MIME = new Set([
   'image/gif',
   'application/pdf',
 ])
+
+const TEAM_POSTS_PAGE_DEFAULT = 20
+const TEAM_POSTS_PAGE_MAX = 50
+const TEAM_COMMENT_MAX = 8000
+
+/**
+ * @param {import('express').Request} req
+ */
+function parseTeamPostsPagination(req) {
+  const limitRaw = Number(req.query?.limit ?? TEAM_POSTS_PAGE_DEFAULT)
+  const pageRaw = Number(req.query?.page ?? 1)
+  const limit = Math.min(
+    TEAM_POSTS_PAGE_MAX,
+    Math.max(1, Number.isFinite(limitRaw) ? Math.floor(limitRaw) : TEAM_POSTS_PAGE_DEFAULT),
+  )
+  const page = Math.max(1, Number.isFinite(pageRaw) ? Math.floor(pageRaw) : 1)
+  return { limit, page, offset: (page - 1) * limit }
+}
+
+/**
+ * @param {{ query: Function }} executor
+ * @param {{ teamId: string, gaId: number, authorUserId: string, postId: string, title: string }} p
+ */
+async function notifyTeamMembersNewPost(executor, p) {
+  const members = await safeQuery(
+    executor,
+    `
+    SELECT id FROM users
+    WHERE team_id = $1 AND ga_id = $2 AND is_deleted = false AND id <> $3
+    `,
+    [p.teamId, p.gaId, p.authorUserId],
+  )
+  const msg = `새 팀 게시글: ${String(p.title ?? '').slice(0, 120)}`
+  for (const row of members.rows) {
+    await safeQuery(
+      executor,
+      `
+      INSERT INTO notifications (user_id, ga_id, team_id, type, reference_id, message)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      `,
+      [String(row.id), p.gaId, p.teamId, 'TEAM_POST_NEW', p.postId, msg],
+    )
+  }
+}
+
+/**
+ * @param {{ query: Function }} executor
+ */
+async function notifyPostAuthorNewComment(executor, args) {
+  const { gaId, teamId, postId, postAuthorId, actorUserId, snippet } = args
+  if (!postAuthorId || String(postAuthorId) === String(actorUserId)) {
+    return
+  }
+  const msg = `내 게시글에 댓글: ${String(snippet ?? '').slice(0, 120)}`
+  await safeQuery(
+    executor,
+    `
+    INSERT INTO notifications (user_id, ga_id, team_id, type, reference_id, message)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    `,
+    [String(postAuthorId), gaId, teamId, 'TEAM_POST_COMMENT', postId, msg],
+  )
+}
 
 /** @param {string} contentType */
 function teamPostMaxBytesForMime(contentType) {
@@ -475,10 +544,10 @@ export function registerTeamApi(apiRouter, ctx) {
         SELECT a.id, a.file_url, a.file_name, a.post_id, p.title AS post_title, p.created_at AS post_created_at
         FROM team_post_attachments a
         INNER JOIN team_posts p ON p.id = a.post_id
-        WHERE p.team_id = $1
+        WHERE p.team_id = $1 AND p.ga_id = $2 AND COALESCE(p.is_deleted, false) = false
         ORDER BY p.created_at DESC, a.id ASC
         `,
-        [me.teamId],
+        [me.teamId, gaId],
       )
       res.json({
         teamId: me.teamId,
@@ -534,32 +603,43 @@ export function registerTeamApi(apiRouter, ctx) {
       }
       const ownerId = teamRow.owner_user_id != null ? String(teamRow.owner_user_id) : null
 
+      const { limit, page, offset } = parseTeamPostsPagination(req)
+      const fetchLimit = limit + 1
+
+      /* 향후 users 비활성·삭제 정책이 명확해지면 AND u.is_deleted = false 등 JOIN 조건 보강 검토 */
       const posts = await safeQuery(
         pool,
         `
         SELECT p.id, p.title, p.content, p.is_notice, p.created_at, p.author_user_id,
           u.username AS author_username, u.display_name AS author_display_name
         FROM team_posts p
-        LEFT JOIN users u ON u.id = p.author_user_id
-        WHERE p.team_id = $1
+        LEFT JOIN users u ON u.id = p.author_user_id AND u.ga_id = p.ga_id
+        WHERE p.team_id = $1 AND p.ga_id = $2 AND COALESCE(p.is_deleted, false) = false
         ORDER BY p.is_notice DESC, p.created_at DESC
+        LIMIT $3 OFFSET $4
         `,
-        [me.teamId],
+        [me.teamId, gaId, fetchLimit, offset],
       )
 
-      const postIds = posts.rows.map((row) => String(row.id))
+      const hasNext = posts.rows.length > limit
+      const pageRows = hasNext ? posts.rows.slice(0, limit) : posts.rows
+      const postIds = pageRows.map((row) => String(row.id))
       /** @type {Map<string, Array<{ id: string, fileUrl: string, fileName: string }>>} */
       const attMap = new Map()
       if (postIds.length > 0) {
         const atts = await safeQuery(
           pool,
           `
-          SELECT id, post_id, file_url, file_name
-          FROM team_post_attachments
-          WHERE post_id = ANY($1::text[])
-          ORDER BY id ASC
+          SELECT a.id, a.post_id, a.file_url, a.file_name
+          FROM team_post_attachments a
+          INNER JOIN team_posts p ON p.id = a.post_id
+          WHERE a.post_id = ANY($1::text[])
+            AND p.ga_id = $2
+            AND p.team_id = $3
+            AND COALESCE(p.is_deleted, false) = false
+          ORDER BY a.id ASC
           `,
-          [postIds],
+          [postIds, gaId, me.teamId],
         )
         for (const row of atts.rows) {
           const pid = String(row.post_id ?? '')
@@ -577,7 +657,10 @@ export function registerTeamApi(apiRouter, ctx) {
       res.json({
         teamId: me.teamId,
         ownerId,
-        posts: posts.rows.map((row) => {
+        page,
+        limit,
+        hasNext,
+        posts: pageRows.map((row) => {
           const pid = String(row.id)
           return {
             id: pid,
@@ -629,11 +712,12 @@ export function registerTeamApi(apiRouter, ctx) {
         SELECT p.id, p.team_id, p.title, p.content, p.is_notice, p.created_at, p.author_user_id,
           u.username AS author_username, u.display_name AS author_display_name
         FROM team_posts p
-        LEFT JOIN users u ON u.id = p.author_user_id
-        WHERE p.id = $1 AND p.team_id = $2
+        LEFT JOIN users u ON u.id = p.author_user_id AND u.ga_id = p.ga_id
+        WHERE p.id = $1 AND p.team_id = $2 AND p.ga_id = $3
+          AND COALESCE(p.is_deleted, false) = false
         LIMIT 1
         `,
-        [postId, me.teamId],
+        [postId, me.teamId, gaId],
       )
       if (postRes.rowCount === 0) {
         res.status(404).json({ message: '게시글을 찾을 수 없습니다.' })
@@ -642,8 +726,15 @@ export function registerTeamApi(apiRouter, ctx) {
       const row = postRes.rows[0]
       const atts = await safeQuery(
         pool,
-        `SELECT id, file_url, file_name FROM team_post_attachments WHERE post_id = $1 ORDER BY id ASC`,
-        [postId],
+        `
+        SELECT a.id, a.file_url, a.file_name
+        FROM team_post_attachments a
+        INNER JOIN team_posts p ON p.id = a.post_id
+        WHERE a.post_id = $1 AND p.ga_id = $2 AND p.team_id = $3
+          AND COALESCE(p.is_deleted, false) = false
+        ORDER BY a.id ASC
+        `,
+        [postId, gaId, me.teamId],
       )
       res.json({
         post: {
@@ -663,6 +754,500 @@ export function registerTeamApi(apiRouter, ctx) {
           })),
         },
       })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.patch('/teams/posts/:postId', requireAuth, async (req, res) => {
+    let trxClient = null
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+      const postId = String(req.params.postId ?? '').trim()
+      if (!postId) {
+        res.status(400).json({ message: '게시글을 찾을 수 없습니다.' })
+        return
+      }
+      const me = await loadUserTeamContext(pool, userId)
+      if (!me || me.gaId !== gaId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+      if (!me.teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
+        return
+      }
+
+      const teamRes = await safeQuery(
+        pool,
+        `SELECT id, ga_id, owner_user_id FROM teams WHERE id = $1 LIMIT 1`,
+        [me.teamId],
+      )
+      if (teamRes.rowCount === 0) {
+        res.status(404).json({ message: '팀을 찾을 수 없습니다.' })
+        return
+      }
+      const teamRow = teamRes.rows[0]
+      const tGa = Number(teamRow.ga_id)
+      if (!Number.isFinite(tGa) || tGa !== gaId) {
+        res.status(403).json({ message: '팀 정보가 GA와 일치하지 않습니다.' })
+        return
+      }
+      const ownerId = teamRow.owner_user_id != null ? String(teamRow.owner_user_id) : ''
+
+      const existing = await safeQuery(
+        pool,
+        `
+        SELECT p.is_notice, p.author_user_id
+        FROM team_posts p
+        WHERE p.id = $1 AND p.ga_id = $2 AND p.team_id = $3
+          AND COALESCE(p.is_deleted, false) = false
+        LIMIT 1
+        `,
+        [postId, gaId, me.teamId],
+      )
+      if (existing.rowCount === 0) {
+        res.status(404).json({ message: '게시글을 찾을 수 없습니다.' })
+        return
+      }
+      const ex = existing.rows[0]
+
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const title = String(body.title ?? '').trim()
+      const content = String(body.content ?? '').trim()
+      const isNotice = Boolean(body.isNotice ?? body.is_notice)
+      if (!title) {
+        res.status(400).json({ message: '제목을 입력해 주세요.' })
+        return
+      }
+      if (title.length > TEAM_POST_TITLE_MAX) {
+        res.status(400).json({ message: `제목은 ${TEAM_POST_TITLE_MAX}자 이하로 입력해 주세요.` })
+        return
+      }
+      if (!content) {
+        res.status(400).json({ message: '내용을 입력해 주세요.' })
+        return
+      }
+      if (content.length > TEAM_POST_CONTENT_MAX) {
+        res.status(400).json({ message: `내용은 ${TEAM_POST_CONTENT_MAX}자 이하로 입력해 주세요.` })
+        return
+      }
+
+      const wasNotice = Boolean(ex.is_notice)
+      const elevNotice = isTeamPostElevatedRole(req.user?.role)
+      if (isNotice && ownerId !== userId && !elevNotice) {
+        res.status(403).json({ message: '공지로 지정할 수 있는 권한이 없습니다.' })
+        return
+      }
+      if (wasNotice && !isNotice && ownerId !== userId && !elevNotice) {
+        res.status(403).json({ message: '공지 해제는 팀장만 할 수 있습니다.' })
+        return
+      }
+
+      const isElevated = isTeamPostElevatedRole(req.user?.role)
+      const ownerParam = ownerId ? ownerId : null
+
+      if (isNotice) {
+        trxClient = await pool.connect()
+        await trxClient.query('BEGIN')
+        await safeQuery(
+          trxClient,
+          `
+          UPDATE team_posts
+          SET is_notice = false
+          WHERE team_id = $1 AND ga_id = $2 AND COALESCE(is_deleted, false) = false
+          `,
+          [me.teamId, gaId],
+        )
+      }
+
+      const exec = trxClient ?? pool
+      const upd = await safeQuery(
+        exec,
+        `
+        UPDATE team_posts
+        SET title = $1,
+            content = $2,
+            is_notice = $3,
+            updated_at = NOW()
+        WHERE id = $4
+          AND ga_id = $5
+          AND team_id = $6
+          AND COALESCE(is_deleted, false) = false
+          AND (
+            author_user_id = $7
+            OR ($8 IS NOT NULL AND $7 = $8)
+            OR $9 = true
+          )
+        `,
+        [title, content, isNotice, postId, gaId, me.teamId, userId, ownerParam, isElevated],
+      )
+      if (upd.rowCount === 0) {
+        if (trxClient) {
+          try {
+            await trxClient.query('ROLLBACK')
+          } catch {
+            /* ignore */
+          }
+        }
+        res.status(404).json({ message: '게시글을 찾을 수 없거나 수정 권한이 없습니다.' })
+        return
+      }
+      if (trxClient) {
+        await trxClient.query('COMMIT')
+      }
+
+      const postRes = await safeQuery(
+        pool,
+        `
+        SELECT p.id, p.team_id, p.title, p.content, p.is_notice, p.created_at, p.author_user_id,
+          u.username AS author_username, u.display_name AS author_display_name
+        FROM team_posts p
+        LEFT JOIN users u ON u.id = p.author_user_id AND u.ga_id = p.ga_id
+        WHERE p.id = $1 AND p.team_id = $2 AND p.ga_id = $3
+          AND COALESCE(p.is_deleted, false) = false
+        LIMIT 1
+        `,
+        [postId, me.teamId, gaId],
+      )
+      const row = postRes.rows[0]
+      const atts = await safeQuery(
+        pool,
+        `
+        SELECT a.id, a.file_url, a.file_name
+        FROM team_post_attachments a
+        INNER JOIN team_posts p ON p.id = a.post_id
+        WHERE a.post_id = $1 AND p.ga_id = $2 AND p.team_id = $3
+          AND COALESCE(p.is_deleted, false) = false
+        ORDER BY a.id ASC
+        `,
+        [postId, gaId, me.teamId],
+      )
+      res.json({
+        post: {
+          id: String(row.id),
+          teamId: String(row.team_id ?? ''),
+          title: String(row.title ?? ''),
+          content: String(row.content ?? ''),
+          isNotice: Boolean(row.is_notice),
+          createdAt: row.created_at,
+          authorId: String(row.author_user_id ?? ''),
+          authorUsername: String(row.author_username ?? ''),
+          authorDisplayName: String(row.author_display_name ?? ''),
+          attachments: atts.rows.map((a) => ({
+            id: String(a.id),
+            fileUrl: String(a.file_url ?? ''),
+            fileName: String(a.file_name ?? ''),
+          })),
+        },
+      })
+    } catch (error) {
+      if (trxClient) {
+        try {
+          await trxClient.query('ROLLBACK')
+        } catch {
+          /* ignore */
+        }
+      }
+      handleDbError(error, req, res)
+    } finally {
+      if (trxClient) {
+        trxClient.release()
+      }
+    }
+  })
+
+  /** TODO: 실제 운영에서 데이터 보존이 필요하면 DELETE 대신 is_deleted / deleted_at soft delete 로 전환 */
+  apiRouter.delete('/teams/posts/:postId', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+      const postId = String(req.params.postId ?? '').trim()
+      if (!postId) {
+        res.status(400).json({ message: '게시글을 찾을 수 없습니다.' })
+        return
+      }
+      const me = await loadUserTeamContext(pool, userId)
+      if (!me || me.gaId !== gaId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+      if (!me.teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
+        return
+      }
+
+      const teamRes = await safeQuery(
+        pool,
+        `SELECT id, ga_id, owner_user_id FROM teams WHERE id = $1 LIMIT 1`,
+        [me.teamId],
+      )
+      if (teamRes.rowCount === 0) {
+        res.status(404).json({ message: '팀을 찾을 수 없습니다.' })
+        return
+      }
+      const teamRow = teamRes.rows[0]
+      const tGa = Number(teamRow.ga_id)
+      if (!Number.isFinite(tGa) || tGa !== gaId) {
+        res.status(403).json({ message: '팀 정보가 GA와 일치하지 않습니다.' })
+        return
+      }
+      const ownerId = teamRow.owner_user_id != null ? String(teamRow.owner_user_id) : ''
+      const ownerParam = ownerId ? ownerId : null
+      const isElevated = isTeamPostElevatedRole(req.user?.role)
+
+      const del = await safeQuery(
+        pool,
+        `
+        DELETE FROM team_posts
+        WHERE id = $1
+          AND ga_id = $2
+          AND team_id = $3
+          AND COALESCE(is_deleted, false) = false
+          AND (
+            author_user_id = $4
+            OR ($5 IS NOT NULL AND $4 = $5)
+            OR $6 = true
+          )
+        `,
+        [postId, gaId, me.teamId, userId, ownerParam, isElevated],
+      )
+      if (del.rowCount === 0) {
+        res.status(404).json({ message: '게시글을 찾을 수 없습니다.' })
+        return
+      }
+      res.json({ ok: true })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/teams/posts/:postId/comments', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+      const postId = String(req.params.postId ?? '').trim()
+      if (!postId) {
+        res.status(400).json({ message: '게시글을 찾을 수 없습니다.' })
+        return
+      }
+      const me = await loadUserTeamContext(pool, userId)
+      if (!me || me.gaId !== gaId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+      if (!me.teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
+        return
+      }
+      const postOk = await safeQuery(
+        pool,
+        `
+        SELECT p.id FROM team_posts p
+        WHERE p.id = $1 AND p.ga_id = $2 AND p.team_id = $3 AND COALESCE(p.is_deleted, false) = false
+        LIMIT 1
+        `,
+        [postId, gaId, me.teamId],
+      )
+      if (postOk.rowCount === 0) {
+        res.status(404).json({ message: '게시글을 찾을 수 없습니다.' })
+        return
+      }
+      const r = await safeQuery(
+        pool,
+        `
+        SELECT c.id, c.post_id, c.content, c.created_at, c.author_user_id,
+          u.display_name AS author_display_name, u.username AS author_username
+        FROM team_post_comments c
+        INNER JOIN team_posts p ON p.id = c.post_id AND p.ga_id = c.ga_id AND p.team_id = c.team_id
+        LEFT JOIN users u ON u.id = c.author_user_id AND u.ga_id = c.ga_id
+        WHERE c.post_id = $1 AND c.ga_id = $2 AND c.team_id = $3
+          AND COALESCE(c.is_deleted, false) = false
+          AND COALESCE(p.is_deleted, false) = false
+        ORDER BY c.created_at ASC
+        `,
+        [postId, gaId, me.teamId],
+      )
+      res.json({
+        comments: r.rows.map((row) => ({
+          id: String(row.id),
+          postId: String(row.post_id ?? ''),
+          content: String(row.content ?? ''),
+          createdAt: row.created_at,
+          authorId: String(row.author_user_id ?? ''),
+          authorUsername: String(row.author_username ?? ''),
+          authorDisplayName: String(row.author_display_name ?? ''),
+        })),
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/teams/posts/:postId/comments', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+      const postId = String(req.params.postId ?? '').trim()
+      if (!postId) {
+        res.status(400).json({ message: '게시글을 찾을 수 없습니다.' })
+        return
+      }
+      const me = await loadUserTeamContext(pool, userId)
+      if (!me || me.gaId !== gaId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+      if (!me.teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
+        return
+      }
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const content = String(body.content ?? '').trim()
+      if (!content) {
+        res.status(400).json({ message: '댓글 내용을 입력해 주세요.' })
+        return
+      }
+      if (content.length > TEAM_COMMENT_MAX) {
+        res.status(400).json({ message: `댓글은 ${TEAM_COMMENT_MAX}자 이하로 입력해 주세요.` })
+        return
+      }
+      const postMeta = await safeQuery(
+        pool,
+        `
+        SELECT p.author_user_id
+        FROM team_posts p
+        WHERE p.id = $1 AND p.ga_id = $2 AND p.team_id = $3 AND COALESCE(p.is_deleted, false) = false
+        LIMIT 1
+        `,
+        [postId, gaId, me.teamId],
+      )
+      if (postMeta.rowCount === 0) {
+        res.status(404).json({ message: '게시글을 찾을 수 없습니다.' })
+        return
+      }
+      const postAuthorId = postMeta.rows[0].author_user_id
+      const ins = await safeQuery(
+        pool,
+        `
+        INSERT INTO team_post_comments (post_id, team_id, ga_id, author_user_id, content)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, post_id, content, created_at, author_user_id
+        `,
+        [postId, me.teamId, gaId, userId, content],
+      )
+      const row = ins.rows[0]
+      await notifyPostAuthorNewComment(pool, {
+        gaId,
+        teamId: me.teamId,
+        postId,
+        postAuthorId,
+        actorUserId: userId,
+        snippet: content,
+      })
+      res.status(201).json({
+        comment: {
+          id: String(row.id),
+          postId: String(row.post_id ?? ''),
+          content: String(row.content ?? ''),
+          createdAt: row.created_at,
+          authorId: String(row.author_user_id ?? ''),
+        },
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.delete('/teams/post-comments/:commentId', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+      const commentId = String(req.params.commentId ?? '').trim()
+      if (!commentId || !/^\d+$/.test(commentId)) {
+        res.status(400).json({ message: '댓글을 찾을 수 없습니다.' })
+        return
+      }
+      const me = await loadUserTeamContext(pool, userId)
+      if (!me || me.gaId !== gaId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+      if (!me.teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
+        return
+      }
+      const teamRes = await safeQuery(
+        pool,
+        `SELECT owner_user_id FROM teams WHERE id = $1 AND ga_id = $2 LIMIT 1`,
+        [me.teamId, gaId],
+      )
+      if (teamRes.rowCount === 0) {
+        res.status(404).json({ message: '팀을 찾을 수 없습니다.' })
+        return
+      }
+      const ownerId = teamRes.rows[0].owner_user_id != null ? String(teamRes.rows[0].owner_user_id) : ''
+      const ownerParam = ownerId ? ownerId : null
+      const isElevated = isTeamPostElevatedRole(req.user?.role)
+      const upd = await safeQuery(
+        pool,
+        `
+        UPDATE team_post_comments
+        SET is_deleted = true,
+            deleted_at = NOW()
+        WHERE id = $1::bigint
+          AND ga_id = $2
+          AND team_id = $3
+          AND COALESCE(is_deleted, false) = false
+          AND (
+            author_user_id = $4
+            OR ($5 IS NOT NULL AND $4 = $5)
+            OR $6 = true
+          )
+        `,
+        [commentId, gaId, me.teamId, userId, ownerParam, isElevated],
+      )
+      if (upd.rowCount === 0) {
+        res.status(404).json({ message: '댓글을 찾을 수 없거나 삭제 권한이 없습니다.' })
+        return
+      }
+      res.json({ ok: true })
     } catch (error) {
       handleDbError(error, req, res)
     }
@@ -766,6 +1351,11 @@ export function registerTeamApi(apiRouter, ctx) {
         return
       }
       const ownerId = team.owner_user_id != null ? String(team.owner_user_id) : ''
+      /** team_id·ga_id 불일치 INSERT 방지: 위에서 team.ga_id === 요청 GA 확인됨 */
+      if (!Number.isFinite(gaId) || !me.teamId) {
+        res.status(400).json({ message: '팀 또는 GA 정보가 올바르지 않습니다.' })
+        return
+      }
 
       const body = req.body && typeof req.body === 'object' ? req.body : {}
       let title = String(body.title ?? '').trim()
@@ -821,12 +1411,23 @@ export function registerTeamApi(apiRouter, ctx) {
 
       const postId = randomUUID()
       await client.query('BEGIN')
+      if (isNotice) {
+        await safeQuery(
+          client,
+          `
+          UPDATE team_posts
+          SET is_notice = false
+          WHERE team_id = $1 AND ga_id = $2 AND COALESCE(is_deleted, false) = false
+          `,
+          [me.teamId, gaId],
+        )
+      }
       await client.query(
         `
-        INSERT INTO team_posts (id, team_id, author_user_id, title, content, is_notice)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO team_posts (id, team_id, ga_id, author_user_id, title, content, is_notice, is_deleted)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, false)
         `,
-        [postId, me.teamId, userId, title, content, isNotice],
+        [postId, me.teamId, gaId, userId, title, content, isNotice],
       )
       for (const a of attachments) {
         const objectKey = String(a.objectKey ?? '').trim()
@@ -841,6 +1442,13 @@ export function registerTeamApi(apiRouter, ctx) {
           [aid, postId, fileUrl, fileName],
         )
       }
+      await notifyTeamMembersNewPost(client, {
+        teamId: me.teamId,
+        gaId,
+        authorUserId: userId,
+        postId,
+        title,
+      })
       await client.query('COMMIT')
       res.status(201).json({
         postId,

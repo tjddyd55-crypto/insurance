@@ -1336,9 +1336,61 @@ export async function initDb() {
     )
   `)
   await pool.query(`
+    ALTER TABLE team_posts
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+  await pool.query(`
+    UPDATE team_posts p
+    SET ga_id = t.ga_id
+    FROM teams t
+    WHERE p.team_id = t.id AND p.ga_id IS NULL
+  `)
+  await pool.query(`
+    ALTER TABLE team_posts ALTER COLUMN ga_id SET NOT NULL
+  `)
+  await pool.query(`
+    ALTER TABLE team_posts
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ
+  `)
+  await pool.query(`
+    UPDATE team_posts SET updated_at = created_at WHERE updated_at IS NULL
+  `)
+  await pool.query(`
+    ALTER TABLE team_posts ALTER COLUMN updated_at SET DEFAULT NOW()
+  `)
+  try {
+    await pool.query(`
+      ALTER TABLE team_posts ALTER COLUMN updated_at SET NOT NULL
+    `)
+  } catch (e) {
+    console.error(
+      '[initDb] team_posts.updated_at NOT NULL 설정 실패 — team_posts 수동 점검 후 패치 API가 동작하지 않을 수 있음:',
+      e instanceof Error ? e.message : e,
+    )
+  }
+  await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_team_posts_team_notice_created
     ON team_posts(team_id, is_notice DESC, created_at DESC)
   `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_team_posts_ga_team
+    ON team_posts(ga_id, team_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_team_posts_ga_team_created_at
+    ON team_posts (ga_id, team_id, created_at DESC)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_team_posts_ga_team_notice_created
+    ON team_posts (ga_id, team_id, is_notice DESC, created_at DESC)
+  `)
+  /*
+   * TODO(스키마 강화): team_posts(team_id, ga_id) → teams(id, ga_id) 복합 FK 는
+   * teams 에 UNIQUE (id, ga_id) 선행 후 가능. 현재는 앱 레벨에서 team·ga 정합성 검증.
+   *
+   * TODO(멀티테넌트): team_post_attachments 에 ga_id 비정규화 시 INSERT/UPDATE 도 동일 GA로 검증.
+   * 지금은 모든 첨부 조회를 team_posts 와 조인해 p.ga_id 로 제한한다.
+   */
   await pool.query(`
     CREATE TABLE IF NOT EXISTS team_post_attachments (
       id TEXT PRIMARY KEY,
@@ -1350,6 +1402,65 @@ export async function initDb() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_team_post_attachments_post
     ON team_post_attachments(post_id)
+  `)
+
+  await pool.query(`
+    ALTER TABLE team_posts
+    ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false
+  `)
+  await pool.query(`
+    UPDATE team_posts SET is_deleted = false WHERE is_deleted IS NULL
+  `)
+  try {
+    await pool.query(`
+      ALTER TABLE team_posts ALTER COLUMN is_deleted SET NOT NULL
+    `)
+    await pool.query(`
+      ALTER TABLE team_posts ALTER COLUMN is_deleted SET DEFAULT false
+    `)
+  } catch (e) {
+    console.error('[initDb] team_posts.is_deleted NOT NULL 설정 실패:', e instanceof Error ? e.message : e)
+  }
+  await pool.query(`
+    ALTER TABLE team_posts
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS team_post_comments (
+      id BIGSERIAL PRIMARY KEY,
+      post_id TEXT NOT NULL REFERENCES team_posts(id) ON DELETE CASCADE,
+      team_id TEXT NOT NULL,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      author_user_id TEXT NOT NULL REFERENCES users(id),
+      content TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ,
+      is_deleted BOOLEAN NOT NULL DEFAULT false,
+      deleted_at TIMESTAMPTZ
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_team_post_comments_post_ga_team_created
+    ON team_post_comments (post_id, ga_id, team_id, created_at DESC)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notifications (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      team_id TEXT,
+      type TEXT NOT NULL DEFAULT '',
+      reference_id TEXT,
+      message TEXT NOT NULL DEFAULT '',
+      is_read BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_notifications_user_ga_read_created
+    ON notifications (user_id, ga_id, is_read, created_at DESC)
   `)
 
   await pool.query(`

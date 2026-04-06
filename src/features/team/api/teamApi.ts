@@ -96,14 +96,25 @@ export type TeamPostRow = {
 export type TeamPostsListResponse = {
   teamId: string
   ownerId: string | null
+  /** 페이지네이션 (기본 page=1, limit=20) */
+  page?: number
+  limit?: number
+  hasNext?: boolean
   posts: TeamPostRow[]
 }
 
-export async function fetchTeamPosts(token: string): Promise<TeamPostsListResponse> {
+export async function fetchTeamPosts(
+  token: string,
+  opts?: { page?: number; limit?: number },
+): Promise<TeamPostsListResponse> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  return apiRequest<TeamPostsListResponse>('/api/teams/posts', { token })
+  const params = new URLSearchParams()
+  if (opts?.page != null && opts.page >= 1) params.set('page', String(Math.floor(opts.page)))
+  if (opts?.limit != null && opts.limit >= 1) params.set('limit', String(Math.floor(opts.limit)))
+  const q = params.toString()
+  return apiRequest<TeamPostsListResponse>(`/api/teams/posts${q ? `?${q}` : ''}`, { token })
 }
 
 export async function presignTeamPostAttachment(

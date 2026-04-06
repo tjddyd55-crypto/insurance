@@ -11,6 +11,7 @@ import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
 import { registerUserProfileApi } from './registerUserProfileApi.js'
 import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
 import { registerTeamApi } from './apis/teamApi.js'
+import { registerNotificationsApi } from './apis/notificationsApi.js'
 import { registerSuperAdminAnalyticsApi } from './registerSuperAdminAnalyticsApi.js'
 import { recordAnalyticsEvent } from './lib/analyticsEvents.js'
 import { ensureYesterdayAnalyticsAggregated } from './lib/analyticsAggregation.js'
@@ -1286,6 +1287,8 @@ registerUserProfileApi(apiRouter, {
 })
 
 registerTeamApi(apiRouter, { pool, requireAuth, handleDbError })
+
+registerNotificationsApi(apiRouter, { pool, requireAuth, handleDbError })
 
 registerSuperAdminAnalyticsApi(apiRouter, {
   pool,
