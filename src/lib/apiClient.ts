@@ -1,3 +1,5 @@
+import { safeApiResponse } from './safeApiResponse'
+
 export class ApiError extends Error {
   status: number
   retryAfterSec?: number
@@ -88,5 +90,5 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     })
   }
 
-  return payload as T
+  return safeApiResponse(payload) as T
 }

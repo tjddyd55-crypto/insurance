@@ -1,6 +1,5 @@
 import type { InsuranceApplicationRecord } from '../../application/domain/types'
 import { ApiError, apiRequest } from '../../../lib/apiClient'
-import { isLenientFailurePayload } from '../../../lib/isLenientApiEnvelope'
 import type { CustomerNote, CustomerNotesBag, CustomerRecord } from '../domain/types'
 
 export type ListCustomersResult = {
@@ -19,9 +18,6 @@ export async function listCustomers(token: string, limit = 500): Promise<ListCus
       `/api/customers${query}`,
       { token },
     )
-    if (isLenientFailurePayload(body)) {
-      return { customers: [], total: 0 }
-    }
     if (Array.isArray(body)) {
       return { customers: body, total: body.length }
     }
@@ -56,11 +52,7 @@ export async function searchCustomers(token: string, q: string): Promise<Custome
   }
   const suffix = query.toString() ? `?${query.toString()}` : ''
   try {
-    const rows = await apiRequest<CustomerRecord[]>(`/api/customers/search${suffix}`, { token })
-    if (isLenientFailurePayload(rows)) {
-      return []
-    }
-    return rows
+    return await apiRequest<CustomerRecord[]>(`/api/customers/search${suffix}`, { token })
   } catch {
     return []
   }

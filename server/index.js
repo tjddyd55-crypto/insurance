@@ -784,6 +784,13 @@ function handleDbError(error, req, res) {
 
   console.error('[DB ERROR]', error)
   if (LENIENT_DB_RESPONSES) {
+    console.error('[LENIENT MODE DB ERROR]', {
+      message: error?.message,
+      code: error?.code,
+      detail: error?.detail,
+      constraint: error?.constraint,
+      path: req?.originalUrl ?? req?.url,
+    })
     res.status(200).json({
       success: false,
       message: '서버 오류 (자동 복구됨)',

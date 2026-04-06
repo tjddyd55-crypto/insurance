@@ -99,9 +99,17 @@ export async function safeQuery(executor, text, params, options = {}) {
   }
 
   if (!allowUnscoped && !/\bga_id\b/i.test(sql)) {
+    console.warn('[GA FILTER MISSING]', { sql: sql.slice(0, 800).trim() })
     const msg = `GA 필터 없는 쿼리 실행 금지: ${sql.slice(0, 200).trim()}`
     if (lenient) {
-      console.error('[safeQuery]', msg)
+      if (LENIENT_ENV) {
+        console.error('[LENIENT MODE DB ERROR]', {
+          query: sql.slice(0, 2000),
+          params: values,
+          error: msg,
+        })
+      }
+      console.error('[safeQuery] unscoped (lenient)', msg)
       return { rows: [], rowCount: 0, safeQueryError: true, safeQueryErrorKind: 'unscoped' }
     }
     throw new Error(msg)
@@ -111,10 +119,19 @@ export async function safeQuery(executor, text, params, options = {}) {
     return await executor.query(sql, values)
   } catch (error) {
     if (lenient) {
-      console.error('[SAFE QUERY ERROR]', {
-        message: error instanceof Error ? error.message : String(error),
-        sql: sql.slice(0, 400),
-      })
+      const errMsg = error instanceof Error ? error.message : String(error)
+      if (LENIENT_ENV) {
+        console.error('[LENIENT MODE DB ERROR]', {
+          query: sql.slice(0, 2000),
+          params: values,
+          error: errMsg,
+        })
+      } else {
+        console.error('[SAFE QUERY ERROR]', {
+          message: errMsg,
+          sql: sql.slice(0, 400),
+        })
+      }
       return {
         rows: [],
         rowCount: 0,

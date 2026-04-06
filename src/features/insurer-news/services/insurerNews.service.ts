@@ -1,5 +1,4 @@
 import { apiRequest } from '../../../lib/apiClient'
-import { isLenientFailurePayload } from '../../../lib/isLenientApiEnvelope'
 import { listCompanyDirectory } from '../../company-registry/api/companyRegistryApi'
 import { isNewsletterInCompanyScope } from '../lib/insurerNewsCompanyScope'
 import { cdnUrlForObjectKey } from '../lib/insurerNewsCdn'
@@ -44,11 +43,11 @@ async function fetchInsurerNewsFeed(
     sp.set('insurerSlug', opts.insurerSlug.trim().toLowerCase())
   }
   try {
-    const payload = await apiRequest<InsurerNewsFeedResponse | { success: boolean }>(
+    const payload = await apiRequest<InsurerNewsFeedResponse | unknown[]>(
       `/api/insurer-news/feed?${sp}`,
       { token },
     )
-    if (isLenientFailurePayload(payload)) {
+    if (Array.isArray(payload)) {
       return { newsletters: [], insurers: [] }
     }
     return payload as InsurerNewsFeedResponse
