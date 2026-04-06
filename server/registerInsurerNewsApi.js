@@ -62,10 +62,9 @@ async function loadInsurerManagerNewsScope(pool, user) {
     FROM insurer_managers im
     INNER JOIN ga_companies g ON g.id = im.ga_id
     INNER JOIN insurance_company_master m ON m.id = im.company_id AND m.ga_id = im.ga_id
-    WHERE im.id = $1::text
-      AND im.is_deleted = false
-      AND im.company_id = $2::int
-      AND im.ga_id = $3::int
+    WHERE im.id = $1 AND im.is_deleted = false
+      AND im.company_id = $2
+      AND im.ga_id = $3
     `,
     [String(user.id), Number(user.companyId), Number(user.gaId)],
   )
@@ -210,7 +209,7 @@ async function buildInsurersListMerged(pool, gaId, gaCodeUpper) {
     pool,
     `
     SELECT company_id,
-      COUNT(*) FILTER (WHERE status = 'PUBLISHED')::int AS pub_cnt,
+      COUNT(*) FILTER (WHERE status = 'PUBLISHED') AS pub_cnt,
       MAX(updated_at) AS last_u
     FROM insurance_company_newsletters
     WHERE ga_id = $1 AND company_id IS NOT NULL
@@ -685,7 +684,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         SELECT UPPER(TRIM(g.code)) AS c
         FROM ga_companies g
         WHERE g.id = $1
-          AND g.id = (SELECT u.ga_id FROM users u WHERE u.id = $2::text LIMIT 1)
+          AND g.id = (SELECT u.ga_id FROM users u WHERE u.id = $2 LIMIT 1)
         `,
         [gaId, String(req.user?.id ?? '')],
       )
@@ -695,9 +694,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
       let listSql = `
         SELECT n.*, g.code AS ga_code_join,
-          (SELECT COUNT(*)::int FROM insurance_company_newsletter_attachments a
+          (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf') AS img_cnt,
-          (SELECT COUNT(*)::int FROM insurance_company_newsletter_attachments a
+          (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type = 'application/pdf') AS pdf_cnt,
           (SELECT a.url FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
@@ -1001,7 +1000,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           SELECT UPPER(TRIM(g.code)) AS c
           FROM ga_companies g
           WHERE g.id = $1
-            AND g.id = (SELECT u.ga_id FROM users u WHERE u.id = $2::text LIMIT 1)
+            AND g.id = (SELECT u.ga_id FROM users u WHERE u.id = $2 LIMIT 1)
           `,
           [tenantGa, String(req.user?.id ?? '')],
         )
@@ -1010,9 +1009,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
       let q = `
         SELECT n.*, g.code AS ga_code_join,
-          (SELECT COUNT(*)::int FROM insurance_company_newsletter_attachments a
+          (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf') AS img_cnt,
-          (SELECT COUNT(*)::int FROM insurance_company_newsletter_attachments a
+          (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type = 'application/pdf') AS pdf_cnt,
           (SELECT a.url FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
@@ -1109,7 +1108,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
             `
             INSERT INTO insurance_company_newsletters
               (id, ga_id, company_id, company_name_snapshot, title, status, body_text, payload, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW(), NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, CAST($8 AS jsonb), NOW(), NOW())
             RETURNING *
             `,
             [
@@ -1234,7 +1233,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           await client.query(
             `
             UPDATE insurance_company_newsletters
-            SET company_name_snapshot = $3, title = $4, status = $5, body_text = $6, payload = $7::jsonb, updated_at = NOW()
+            SET company_name_snapshot = $3, title = $4, status = $5, body_text = $6, payload = CAST($7 AS jsonb), updated_at = NOW()
             WHERE id = $1 AND ga_id = $2
             `,
             [newsletterId, scope.gaId, scope.companyName, title, status, bodyText, JSON.stringify(payload)],

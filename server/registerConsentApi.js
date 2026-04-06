@@ -298,7 +298,7 @@ export function registerConsentApi(apiRouter, ctx) {
         const inserted = await safeQuery(pool,
           `
           INSERT INTO consent_templates (id, ga_id, insurance_company_id, fax_number, fields, pdf_storage_key)
-          VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+          VALUES ($1, $2, $3, $4, CAST($5 AS jsonb), $6)
           ON CONFLICT (ga_id, insurance_company_id)
           DO UPDATE SET
             fax_number = EXCLUDED.fax_number,

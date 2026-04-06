@@ -44,7 +44,7 @@ export function registerSuperAdminAnalyticsApi(apiRouter, ctx) {
       const statDate = getSeoulYesterdayDateString()
       const gaCountRes = await systemQuery(
         pool,
-        `SELECT COUNT(*)::int AS c FROM ga_companies WHERE is_deleted = false`,
+        `SELECT COUNT(*) AS c FROM ga_companies WHERE is_deleted = false`,
       )
       const gaTotalCount = Number(gaCountRes.rows[0]?.c ?? 0)
 
@@ -55,7 +55,7 @@ export function registerSuperAdminAnalyticsApi(apiRouter, ctx) {
           total_users, daily_active_users, weekly_active_users, new_users,
           customers_created, documents_created, team_messages_created
         FROM analytics_daily_stats
-        WHERE stat_date = $1::date AND scope_type = 'overall'
+        WHERE stat_date = $1 AND scope_type = 'overall'
         LIMIT 1
         `,
         [statDate],
@@ -98,7 +98,7 @@ export function registerSuperAdminAnalyticsApi(apiRouter, ctx) {
           s.team_messages_created AS "teamMessagesCreated"
         FROM analytics_daily_stats s
         INNER JOIN ga_companies g ON g.id = s.ga_id
-        WHERE s.stat_date = $1::date AND s.scope_type = 'ga' AND g.is_deleted = false
+        WHERE s.stat_date = $1 AND s.scope_type = 'ga' AND g.is_deleted = false
         ORDER BY g.code ASC NULLS LAST, g.name ASC
         `,
         [statDate],
@@ -162,10 +162,10 @@ export function registerSuperAdminAnalyticsApi(apiRouter, ctx) {
               await systemQuery(
                 pool,
                 `
-                SELECT stat_date::text AS date, ${col}::float8 AS value
+                SELECT CAST(stat_date AS text) AS date, CAST(${col} AS double precision) AS value
                 FROM analytics_daily_stats
                 WHERE scope_type = 'overall'
-                  AND stat_date BETWEEN $1::date AND $2::date
+                  AND stat_date BETWEEN $1 AND $2
                 ORDER BY stat_date ASC
                 `,
                 [from, to],
@@ -175,10 +175,10 @@ export function registerSuperAdminAnalyticsApi(apiRouter, ctx) {
               await systemQuery(
                 pool,
                 `
-                SELECT stat_date::text AS date, ${col}::float8 AS value
+                SELECT CAST(stat_date AS text) AS date, CAST(${col} AS double precision) AS value
                 FROM analytics_daily_stats
                 WHERE scope_type = 'ga' AND ga_id = $3
-                  AND stat_date BETWEEN $1::date AND $2::date
+                  AND stat_date BETWEEN $1 AND $2
                 ORDER BY stat_date ASC
                 `,
                 [from, to, gaId],

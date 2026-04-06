@@ -793,7 +793,7 @@ async function logInsuranceFormsDbDiagnostics(contextLabel) {
       LIMIT 1
       `,
     )
-    await systemQuery(pool, `SELECT COUNT(*)::int AS count FROM insurance_forms WHERE user_id IS NULL`)
+    await systemQuery(pool, `SELECT COUNT(*) AS count FROM insurance_forms WHERE user_id IS NULL`)
   } catch (error) {
     console.error(`[insurance_forms:${contextLabel}] 진단 쿼리 실패:`, error)
   }
@@ -879,9 +879,9 @@ async function requireAuth(req, res, next) {
                g.status AS ga_status, g.is_deleted AS ga_deleted
         FROM insurer_managers im
         INNER JOIN ga_companies g ON g.id = im.ga_id
-        WHERE im.id = $1::text
+        WHERE im.id = $1
           AND im.is_deleted = false
-          AND ($2::int IS NULL OR im.ga_id = $2::int)
+          AND ($2 IS NULL OR im.ga_id = $2)
         `,
         [req.user.id, gaFromJwt],
       )
@@ -928,7 +928,7 @@ async function requireAuth(req, res, next) {
       INNER JOIN ga_companies g ON g.id = u.ga_id
       WHERE u.id = $1
         AND u.is_deleted = false
-        AND ($2::int IS NULL OR u.ga_id = $2::int)
+        AND ($2 IS NULL OR u.ga_id = $2)
       `,
       [req.user.id, gaFromJwt],
     )
@@ -1191,9 +1191,9 @@ async function touchContactLastUpdatedAt(client, gaId = null) {
     client,
     `
     INSERT INTO insurance_contact_meta (meta_key, meta_value, updated_at)
-    VALUES ($1, NOW()::text, NOW())
+    VALUES ($1, CAST(NOW() AS text), NOW())
     ON CONFLICT (meta_key)
-    DO UPDATE SET meta_value = NOW()::text, updated_at = NOW()
+    DO UPDATE SET meta_value = CAST(NOW() AS text), updated_at = NOW()
     `,
     [key],
     { allowUnscoped: true },
@@ -2256,7 +2256,7 @@ apiRouter.get('/admin/users', requireAuth, requireSuperAdmin, async (req, res) =
       FROM users u
       INNER JOIN ga_companies g ON g.id = u.ga_id
       WHERE u.is_deleted = false AND g.is_deleted = false
-        AND ($1::int IS NULL OR u.ga_id = $1)
+        AND ($1 IS NULL OR u.ga_id = $1)
       ORDER BY g.name ASC, u.username ASC
       `,
       [filterGa],
@@ -3178,7 +3178,7 @@ apiRouter.post('/company/full-save', requireAuth, requireGaTenantAdmin, async (r
         INSERT INTO insurance_company_update_log (
           ga_id, company_id, company_name, category, updated_by_username, before_payload, after_payload
         )
-        VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
+        VALUES ($1, $2, $3, $4, $5, CAST($6 AS jsonb), CAST($7 AS jsonb))
         `,
         [
           tenantGa,
@@ -3258,7 +3258,7 @@ apiRouter.delete('/company/masters/:companyId', requireAuth, requireGaTenantAdmi
         UPDATE insurance_company_newsletters
         SET
           company_id = NULL,
-          company_name_snapshot = COALESCE(NULLIF(TRIM(company_name_snapshot), ''), $3::text),
+          company_name_snapshot = COALESCE(NULLIF(TRIM(company_name_snapshot), ''), $3),
           updated_at = NOW()
         WHERE company_id = $1 AND ga_id = $2
         `,
@@ -3387,7 +3387,7 @@ apiRouter.get('/insurance/contacts', requireAuth, async (req, res) => {
 
     const metaResult = await safeQuery(pool,
       `
-      SELECT meta_value, $2::int AS ga_id
+      SELECT meta_value, $2 AS ga_id
       FROM insurance_contact_meta
       WHERE meta_key = $1
       `,
@@ -3821,7 +3821,7 @@ apiRouter.post('/forms', requireAuth, async (req, res) => {
       `
       INSERT INTO insurance_forms (
         id, user_id, ga_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW(), NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, CAST($8 AS jsonb), NOW(), NOW())
       RETURNING id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       `,
       [
@@ -3926,7 +3926,7 @@ apiRouter.post('/forms/:id/renew', requireAuth, async (req, res) => {
       `
       INSERT INTO insurance_forms (
         id, user_id, ga_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW(), NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, CAST($8 AS jsonb), NOW(), NOW())
       RETURNING id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at
       `,
       [
@@ -4002,7 +4002,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         gender, insurance_age, next_age_date, is_driver, car_type,
         car_number, car_model, car_year, renewal_date,
         notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22::jsonb)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb))
       RETURNING
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
@@ -4105,7 +4105,7 @@ apiRouter.post('/customer/external-create', async (req, res) => {
         gender, insurance_age, next_age_date, is_driver, car_type,
         car_number, car_model, car_year, renewal_date,
         notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22::jsonb)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb))
       RETURNING
         id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
@@ -4241,7 +4241,7 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
     }
 
     if (hasKey('notes')) {
-      parts.push(`notes = $${n++}::jsonb`)
+      parts.push(`notes = CAST($${n++} AS jsonb)`)
       vals.push(JSON.stringify(normalizeCustomerNotesInput(data.notes)))
     }
 
@@ -4369,7 +4369,7 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
       ),
       safeQuery(pool,
         `
-        SELECT COUNT(*)::bigint AS c
+        SELECT COUNT(*) AS c
         FROM customers
         WHERE user_id = $1 AND ga_id = $2 AND deleted_at IS NULL
         `,
@@ -4573,7 +4573,7 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
         customer_name = $2,
         car_number = $3,
         expiry_date = $4,
-        form_data = $5::jsonb,
+        form_data = CAST($5 AS jsonb),
         updated_at = NOW()
       WHERE id = $6 AND user_id = $7 AND ga_id = $8
       RETURNING id, user_id, customer_id, customer_name, car_number, expiry_date, form_data, created_at, updated_at

@@ -35,7 +35,7 @@ async function isPhoneUsedByActiveUser(pool, phoneDigits, excludeUserId = '') {
     `
     SELECT 1 FROM users
     WHERE phone_number = $1 AND is_deleted = false
-      AND ($2::text = '' OR id <> $2::text)
+      AND ($2 = '' OR id <> $2)
     LIMIT 1
     `,
     [phoneDigits, ex],

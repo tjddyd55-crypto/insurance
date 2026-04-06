@@ -1,7 +1,5 @@
 import { getSeoulYesterdayDateString, seoulYmdAddDays } from './analyticsDates.js'
 
-const ACTIVE_USER_STATUSES = ['active', 'reset']
-
 /**
  * 전일(또는 지정일) 기준일의 집계를 채운다. 동일 stat_date 기존 행은 삭제 후 재작성.
  *
@@ -13,7 +11,7 @@ export async function runAnalyticsAggregationForStatDate(pool, statDate) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
-    await client.query(`DELETE FROM analytics_daily_stats WHERE stat_date = $1::date`, [statDate])
+    await client.query(`DELETE FROM analytics_daily_stats WHERE stat_date = $1`, [statDate])
 
     const overall = await computeMetricsForScope(client, statDate, wauStart, null)
     await client.query(
@@ -22,7 +20,7 @@ export async function runAnalyticsAggregationForStatDate(pool, statDate) {
         stat_date, scope_type, ga_id,
         total_users, daily_active_users, weekly_active_users, new_users,
         customers_created, documents_created, team_messages_created
-      ) VALUES ($1::date, 'overall', NULL, $2, $3, $4, $5, $6, $7, $8)
+      ) VALUES ($1, 'overall', NULL, $2, $3, $4, $5, $6, $7, $8)
       `,
       [
         statDate,
@@ -56,7 +54,7 @@ export async function runAnalyticsAggregationForStatDate(pool, statDate) {
           stat_date, scope_type, ga_id,
           total_users, daily_active_users, weekly_active_users, new_users,
           customers_created, documents_created, team_messages_created
-        ) VALUES ($1::date, 'ga', $2, $3, $4, $5, $6, $7, $8, $9)
+        ) VALUES ($1, 'ga', $2, $3, $4, $5, $6, $7, $8, $9)
         `,
         [
           statDate,
@@ -92,22 +90,21 @@ async function computeMetricsForScope(client, statDate, wauStart, gaId) {
     gaId == null
       ? await client.query(
           `
-          SELECT COUNT(*)::int AS c
+          SELECT COUNT(*) AS c
           FROM users
           WHERE is_deleted = false
-            AND LOWER(COALESCE(status, 'active')) = ANY($1::text[])
+            AND LOWER(COALESCE(status, 'active')) IN ('active', 'reset')
           `,
-          [ACTIVE_USER_STATUSES],
         )
       : await client.query(
           `
-          SELECT COUNT(*)::int AS c
+          SELECT COUNT(*) AS c
           FROM users
           WHERE is_deleted = false
-            AND LOWER(COALESCE(status, 'active')) = ANY($2::text[])
+            AND LOWER(COALESCE(status, 'active')) IN ('active', 'reset')
             AND ga_id = $1
           `,
-          [gaId, ACTIVE_USER_STATUSES],
+          [gaId],
         )
   const total_users = Number(totalUsersRes.rows[0]?.c ?? 0)
 
@@ -115,17 +112,17 @@ async function computeMetricsForScope(client, statDate, wauStart, gaId) {
     gaId == null
       ? await client.query(
           `
-          SELECT COUNT(*)::int AS c FROM users
+          SELECT COUNT(*) AS c FROM users
           WHERE is_deleted = false
-            AND (created_at AT TIME ZONE 'Asia/Seoul')::date = $1::date
+            AND CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date) = $1
           `,
           [statDate],
         )
       : await client.query(
           `
-          SELECT COUNT(*)::int AS c FROM users
+          SELECT COUNT(*) AS c FROM users
           WHERE is_deleted = false AND ga_id = $2
-            AND (created_at AT TIME ZONE 'Asia/Seoul')::date = $1::date
+            AND CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date) = $1
           `,
           [statDate, gaId],
         )
@@ -135,17 +132,17 @@ async function computeMetricsForScope(client, statDate, wauStart, gaId) {
     gaId == null
       ? await client.query(
           `
-          SELECT COUNT(*)::int AS c FROM customers
+          SELECT COUNT(*) AS c FROM customers
           WHERE deleted_at IS NULL
-            AND (created_at AT TIME ZONE 'Asia/Seoul')::date = $1::date
+            AND CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date) = $1
           `,
           [statDate],
         )
       : await client.query(
           `
-          SELECT COUNT(*)::int AS c FROM customers
+          SELECT COUNT(*) AS c FROM customers
           WHERE deleted_at IS NULL AND ga_id = $2
-            AND (created_at AT TIME ZONE 'Asia/Seoul')::date = $1::date
+            AND CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date) = $1
           `,
           [statDate, gaId],
         )
@@ -155,16 +152,16 @@ async function computeMetricsForScope(client, statDate, wauStart, gaId) {
     gaId == null
       ? await client.query(
           `
-          SELECT COUNT(*)::int AS c FROM insurance_forms
-          WHERE (created_at AT TIME ZONE 'Asia/Seoul')::date = $1::date
+          SELECT COUNT(*) AS c FROM insurance_forms
+          WHERE CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date) = $1
           `,
           [statDate],
         )
       : await client.query(
           `
-          SELECT COUNT(*)::int AS c FROM insurance_forms
+          SELECT COUNT(*) AS c FROM insurance_forms
           WHERE ga_id = $2
-            AND (created_at AT TIME ZONE 'Asia/Seoul')::date = $1::date
+            AND CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date) = $1
           `,
           [statDate, gaId],
         )
@@ -174,16 +171,16 @@ async function computeMetricsForScope(client, statDate, wauStart, gaId) {
     gaId == null
       ? await client.query(
           `
-          SELECT COUNT(*)::int AS c FROM customer_consultations
-          WHERE (created_at AT TIME ZONE 'Asia/Seoul')::date = $1::date
+          SELECT COUNT(*) AS c FROM customer_consultations
+          WHERE CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date) = $1
           `,
           [statDate],
         )
       : await client.query(
           `
-          SELECT COUNT(*)::int AS c FROM customer_consultations
+          SELECT COUNT(*) AS c FROM customer_consultations
           WHERE ga_id = $2
-            AND (created_at AT TIME ZONE 'Asia/Seoul')::date = $1::date
+            AND CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date) = $1
           `,
           [statDate, gaId],
         )
@@ -193,17 +190,17 @@ async function computeMetricsForScope(client, statDate, wauStart, gaId) {
     gaId == null
       ? await client.query(
           `
-          SELECT COUNT(DISTINCT user_id)::int AS c FROM analytics_events
+          SELECT COUNT(DISTINCT user_id) AS c FROM analytics_events
           WHERE event_type = 'login'
-            AND (created_at AT TIME ZONE 'Asia/Seoul')::date = $1::date
+            AND CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date) = $1
           `,
           [statDate],
         )
       : await client.query(
           `
-          SELECT COUNT(DISTINCT user_id)::int AS c FROM analytics_events
+          SELECT COUNT(DISTINCT user_id) AS c FROM analytics_events
           WHERE event_type = 'login' AND ga_id = $2
-            AND (created_at AT TIME ZONE 'Asia/Seoul')::date = $1::date
+            AND CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date) = $1
           `,
           [statDate, gaId],
         )
@@ -213,17 +210,17 @@ async function computeMetricsForScope(client, statDate, wauStart, gaId) {
     gaId == null
       ? await client.query(
           `
-          SELECT COUNT(DISTINCT user_id)::int AS c FROM analytics_events
+          SELECT COUNT(DISTINCT user_id) AS c FROM analytics_events
           WHERE event_type = 'login'
-            AND (created_at AT TIME ZONE 'Asia/Seoul')::date BETWEEN $1::date AND $2::date
+            AND CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date) BETWEEN $1 AND $2
           `,
           [wauStart, statDate],
         )
       : await client.query(
           `
-          SELECT COUNT(DISTINCT user_id)::int AS c FROM analytics_events
+          SELECT COUNT(DISTINCT user_id) AS c FROM analytics_events
           WHERE event_type = 'login' AND ga_id = $3
-            AND (created_at AT TIME ZONE 'Asia/Seoul')::date BETWEEN $1::date AND $2::date
+            AND CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date) BETWEEN $1 AND $2
           `,
           [wauStart, statDate, gaId],
         )
@@ -246,7 +243,7 @@ export async function ensureYesterdayAnalyticsAggregated(pool) {
   const exists = await pool.query(
     `
     SELECT 1 FROM analytics_daily_stats
-    WHERE stat_date = $1::date AND scope_type = 'overall'
+    WHERE stat_date = $1 AND scope_type = 'overall'
     LIMIT 1
     `,
     [y],

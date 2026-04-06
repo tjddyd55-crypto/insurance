@@ -191,9 +191,9 @@ async function touchContactLastUpdatedAt(client) {
   await client.query(
     `
     INSERT INTO insurance_contact_meta (meta_key, meta_value, updated_at)
-    VALUES ('contact_last_updated_at', NOW()::text, NOW())
+    VALUES ('contact_last_updated_at', CAST(NOW() AS text), NOW())
     ON CONFLICT (meta_key)
-    DO UPDATE SET meta_value = NOW()::text, updated_at = NOW()
+    DO UPDATE SET meta_value = CAST(NOW() AS text), updated_at = NOW()
     `,
   )
 }

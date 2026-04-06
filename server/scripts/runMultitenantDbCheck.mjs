@@ -22,11 +22,11 @@ async function main() {
     }
     console.log('[multitenant-db] OK: 영진에셋 GA 존재', yj.rows[0])
 
-    const gaCount = await pool.query(`SELECT COUNT(*)::int AS c FROM ga_companies`)
+    const gaCount = await pool.query(`SELECT COUNT(*) AS c FROM ga_companies`)
     console.log('[multitenant-db] OK: 등록 GA 수', gaCount.rows[0]?.c ?? 0)
 
     const orphanUsers = await pool.query(`
-      SELECT COUNT(*)::int AS c
+      SELECT COUNT(*) AS c
       FROM users u
       LEFT JOIN ga_companies g ON g.id = u.ga_id
       WHERE g.id IS NULL

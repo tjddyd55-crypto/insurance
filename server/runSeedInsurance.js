@@ -8,7 +8,7 @@ import { seedAll } from './seedInsuranceFullData.js'
 
 async function main() {
   await initDb()
-  const countResult = await pool.query(`SELECT COUNT(*)::int AS c FROM insurance_company_master`)
+  const countResult = await pool.query(`SELECT COUNT(*) AS c FROM insurance_company_master`)
   if ((countResult.rows[0]?.c ?? 0) > 0) {
     console.log('[runSeedInsurance] insurance_company_master 에 이미 데이터가 있습니다. 삽입 생략.')
     await pool.end()

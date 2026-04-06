@@ -20,7 +20,7 @@ export async function writeSecurityAudit(executor, row) {
     INSERT INTO security_audit_logs (
       actor_user_id, actor_role, action, target_type, target_id, ga_id, company_id, meta
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, CAST($8 AS jsonb))
     `,
     [
       String(row.actorUserId ?? '').slice(0, 200),

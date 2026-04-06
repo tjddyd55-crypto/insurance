@@ -24,9 +24,9 @@ export async function touchContactLastUpdatedAt(client, gaId = null) {
   await client.query(
     `
     INSERT INTO insurance_contact_meta (meta_key, meta_value, updated_at)
-    VALUES ($1, NOW()::text, NOW())
+    VALUES ($1, CAST(NOW() AS text), NOW())
     ON CONFLICT (meta_key)
-    DO UPDATE SET meta_value = NOW()::text, updated_at = NOW()
+    DO UPDATE SET meta_value = CAST(NOW() AS text), updated_at = NOW()
     `,
     [key],
   )

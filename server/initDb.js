@@ -92,7 +92,7 @@ async function listChildTablesReferencingMasterCompanyId(client) {
     JOIN pg_namespace n ON n.oid = c.relnamespace
     JOIN pg_attribute a ON a.attrelid = co.conrelid AND a.attnum = co.conkey[1]
     WHERE co.contype = 'f'
-      AND co.confrelid = 'insurance_company_master'::regclass
+      AND co.confrelid = CAST('insurance_company_master' AS regclass)
       AND n.nspname = 'public'
       AND c.relname <> 'insurance_company_master'
       AND a.attname = 'company_id'
@@ -259,7 +259,7 @@ async function ensureInsurerManagerCompanyFkOnDeleteSetNull(executor) {
     WHERE n.nspname = 'public'
       AND cl.relname = 'insurer_managers'
       AND c.contype = 'f'
-      AND c.confrelid = 'insurance_company_master'::regclass
+      AND c.confrelid = CAST('insurance_company_master' AS regclass)
   `)
   for (const r of rows) {
     const name = String(r.conname ?? '').replace(/"/g, '')
@@ -458,7 +458,7 @@ export async function initDb() {
     END
   `)
 
-  const nullGaUsers = await pool.query(`SELECT COUNT(*)::int AS c FROM users WHERE ga_id IS NULL`)
+  const nullGaUsers = await pool.query(`SELECT COUNT(*) AS c FROM users WHERE ga_id IS NULL`)
   if ((nullGaUsers.rows[0]?.c ?? 0) > 0) {
     throw new Error('[initDb] users.ga_id 가 비어 있는 행이 있습니다.')
   }
@@ -517,7 +517,7 @@ export async function initDb() {
     ADD COLUMN IF NOT EXISTS customer_name TEXT NOT NULL DEFAULT '',
     ADD COLUMN IF NOT EXISTS car_number TEXT NOT NULL DEFAULT '',
     ADD COLUMN IF NOT EXISTS expiry_date DATE,
-    ADD COLUMN IF NOT EXISTS form_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    ADD COLUMN IF NOT EXISTS form_data JSONB NOT NULL DEFAULT CAST('{}' AS jsonb),
     ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   `)
@@ -586,7 +586,7 @@ export async function initDb() {
     FROM users u
     WHERE c.user_id = u.id AND c.ga_id IS NULL
   `)
-  const nullCust = await pool.query(`SELECT COUNT(*)::int AS c FROM customers WHERE ga_id IS NULL`)
+  const nullCust = await pool.query(`SELECT COUNT(*) AS c FROM customers WHERE ga_id IS NULL`)
   if ((nullCust.rows[0]?.c ?? 0) > 0) {
     throw new Error('[initDb] customers.ga_id NULL')
   }
@@ -616,7 +616,7 @@ export async function initDb() {
     ADD COLUMN IF NOT EXISTS next_age_date DATE,
     ADD COLUMN IF NOT EXISTS is_driver BOOLEAN,
     ADD COLUMN IF NOT EXISTS car_type TEXT NOT NULL DEFAULT '',
-    ADD COLUMN IF NOT EXISTS notes JSONB NOT NULL DEFAULT '[]'::jsonb
+    ADD COLUMN IF NOT EXISTS notes JSONB NOT NULL DEFAULT CAST('[]' AS jsonb)
   `)
 
   await pool.query(`
@@ -640,7 +640,7 @@ export async function initDb() {
     FROM users u
     WHERE f.user_id = u.id AND f.ga_id IS NULL
   `)
-  const nullForms = await pool.query(`SELECT COUNT(*)::int AS c FROM insurance_forms WHERE ga_id IS NULL`)
+  const nullForms = await pool.query(`SELECT COUNT(*) AS c FROM insurance_forms WHERE ga_id IS NULL`)
   if ((nullForms.rows[0]?.c ?? 0) > 0) {
     throw new Error('[initDb] insurance_forms.ga_id NULL')
   }
@@ -689,7 +689,7 @@ export async function initDb() {
     FROM ga_companies g
     WHERE g.code = 'YJASSET' AND c.ga_id IS NULL
   `)
-  const nullIcGa = await pool.query(`SELECT COUNT(*)::int AS c FROM insurance_contacts WHERE ga_id IS NULL`)
+  const nullIcGa = await pool.query(`SELECT COUNT(*) AS c FROM insurance_contacts WHERE ga_id IS NULL`)
   if ((nullIcGa.rows[0]?.c ?? 0) > 0) {
     throw new Error('[initDb] insurance_contacts.ga_id NULL')
   }
@@ -750,7 +750,7 @@ export async function initDb() {
     FROM ga_companies g
     WHERE g.code = 'YJASSET' AND u.ga_id IS NULL
   `)
-  const nullIcuGa = await pool.query(`SELECT COUNT(*)::int AS c FROM insurance_contact_updates WHERE ga_id IS NULL`)
+  const nullIcuGa = await pool.query(`SELECT COUNT(*) AS c FROM insurance_contact_updates WHERE ga_id IS NULL`)
   if ((nullIcuGa.rows[0]?.c ?? 0) > 0) {
     throw new Error('[initDb] insurance_contact_updates.ga_id NULL')
   }
@@ -831,7 +831,7 @@ export async function initDb() {
       title TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'DRAFT',
       body_text TEXT NOT NULL DEFAULT '',
-      payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+      payload JSONB NOT NULL DEFAULT CAST('{}' AS jsonb),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -905,7 +905,7 @@ export async function initDb() {
     FROM ga_companies g
     WHERE g.code = 'YJASSET' AND m.ga_id IS NULL
   `)
-  const nullM = await pool.query(`SELECT COUNT(*)::int AS c FROM insurance_company_master WHERE ga_id IS NULL`)
+  const nullM = await pool.query(`SELECT COUNT(*) AS c FROM insurance_company_master WHERE ga_id IS NULL`)
   if ((nullM.rows[0]?.c ?? 0) > 0) {
     throw new Error('[initDb] insurance_company_master.ga_id NULL')
   }
@@ -922,7 +922,7 @@ export async function initDb() {
   `)
   await pool.query(`
     UPDATE insurance_company_master
-    SET company_code = 'INS' || LPAD(id::text, 6, '0')
+    SET company_code = 'INS' || LPAD(CAST(id AS text), 6, '0')
     WHERE company_code IS NULL OR BTRIM(company_code) = ''
   `)
   await pool.query(`DROP INDEX IF EXISTS uq_insurance_company_master_company_code`)
@@ -947,7 +947,7 @@ export async function initDb() {
     FROM ga_companies g
     WHERE g.code = 'YJASSET' AND l.ga_id IS NULL
   `)
-  const nullLog = await pool.query(`SELECT COUNT(*)::int AS c FROM insurance_company_update_log WHERE ga_id IS NULL`)
+  const nullLog = await pool.query(`SELECT COUNT(*) AS c FROM insurance_company_update_log WHERE ga_id IS NULL`)
   if ((nullLog.rows[0]?.c ?? 0) > 0) {
     throw new Error('[initDb] insurance_company_update_log.ga_id NULL')
   }
@@ -1032,11 +1032,11 @@ export async function initDb() {
 
   await pool.query(`
     UPDATE insurance_company_master
-    SET company_code = 'INS' || LPAD(id::text, 6, '0')
+    SET company_code = 'INS' || LPAD(CAST(id AS text), 6, '0')
     WHERE company_code IS NULL OR BTRIM(company_code) = ''
   `)
   const nullCompanyCode = await pool.query(`
-    SELECT COUNT(*)::int AS c
+    SELECT COUNT(*) AS c
     FROM insurance_company_master
     WHERE company_code IS NULL OR BTRIM(company_code) = ''
   `)
@@ -1119,7 +1119,7 @@ export async function initDb() {
       ga_id INTEGER NOT NULL,
       insurance_company_id TEXT NOT NULL,
       fax_number TEXT NOT NULL DEFAULT '',
-      fields JSONB NOT NULL DEFAULT '[]'::jsonb,
+      fields JSONB NOT NULL DEFAULT CAST('[]' AS jsonb),
       pdf_storage_key TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -1170,7 +1170,7 @@ export async function initDb() {
       USING consent_templates b
       WHERE a.ga_id = b.ga_id
         AND a.insurance_company_id = b.insurance_company_id
-        AND a.id::text > b.id::text
+        AND CAST(a.id AS text) > CAST(b.id AS text)
     `)
   }
   await pool.query(`ALTER TABLE consent_templates DROP CONSTRAINT IF EXISTS fk_consent_templates_ga`)
@@ -1351,7 +1351,7 @@ export async function initDb() {
   `)
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_analytics_events_created_seoul
-    ON analytics_events ((created_at AT TIME ZONE 'Asia/Seoul')::date, event_type)
+    ON analytics_events (CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date), event_type)
   `)
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_analytics_events_ga_created
@@ -1359,7 +1359,7 @@ export async function initDb() {
   `)
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_analytics_events_login_dau
-    ON analytics_events (event_type, ga_id, (created_at AT TIME ZONE 'Asia/Seoul')::date)
+    ON analytics_events (event_type, ga_id, CAST((created_at AT TIME ZONE 'Asia/Seoul') AS date))
     WHERE event_type = 'login'
   `)
 
@@ -1425,7 +1425,7 @@ async function seedConsentTemplatesIfNeeded() {
       await pool.query(
         `
         INSERT INTO consent_templates (id, ga_id, insurance_company_id, fax_number, fields, pdf_storage_key)
-        VALUES ($1, $2, $3, $4, $5::jsonb, $6)
+        VALUES ($1, $2, $3, $4, CAST($5 AS jsonb), $6)
         ON CONFLICT (ga_id, insurance_company_id)
         DO UPDATE SET updated_at = NOW()
         `,

@@ -237,7 +237,7 @@ async function enforceConstraints(client, log) {
     WHERE n.nspname = 'public'
       AND cl.relname = 'insurer_managers'
       AND c.contype = 'f'
-      AND c.confrelid = 'insurance_company_master'::regclass
+      AND c.confrelid = CAST('insurance_company_master' AS regclass)
       AND c.conkey IS NOT NULL
       AND array_length(c.conkey, 1) = 1
       AND EXISTS (

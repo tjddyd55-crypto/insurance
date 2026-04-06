@@ -101,9 +101,9 @@ async function main() {
     if (dryRun) {
       const r = await pool.query(
         `
-        SELECT COUNT(*)::bigint AS c
+        SELECT COUNT(*) AS c
         FROM sms_verification_logs
-        WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')
+        WHERE created_at < NOW() - (CAST($1 AS integer) * INTERVAL '1 day')
         `,
         [days],
       )

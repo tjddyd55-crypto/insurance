@@ -24,7 +24,7 @@ export async function deleteSmsVerificationLogsOlderThan(executor, retentionDays
   const r = await executor.query(
     `
     DELETE FROM sms_verification_logs
-    WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')
+    WHERE created_at < NOW() - (CAST($1 AS integer) * INTERVAL '1 day')
     `,
     [days],
   )

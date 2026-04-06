@@ -171,7 +171,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const r = await safeQuery(
         pool,
         `
-        SELECT customer_id, COUNT(*)::int AS c
+        SELECT customer_id, COUNT(*) AS c
         FROM customer_consultations
         WHERE user_id = $1 AND ga_id = $2
         GROUP BY customer_id
