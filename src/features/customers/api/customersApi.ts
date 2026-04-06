@@ -50,6 +50,21 @@ export function assertCustomerDataRecord(
   return c as CustomerRecord
 }
 
+/**
+ * 고객 생성·수정 API: 서버는 `{ success, data: CustomerRecord }`를 주고,
+ * apiRequest → safeApiResponse 가 `data`만 펼친 경우도 있다. 둘 다 처리한다.
+ */
+function normalizeCustomerMutationResponse(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return raw
+  }
+  const o = raw as Record<string, unknown>
+  if ('success' in o && 'data' in o && o.data !== undefined) {
+    return o.data
+  }
+  return raw
+}
+
 export async function listCustomers(token: string, limit = 500): Promise<ListCustomersResult> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
@@ -168,12 +183,12 @@ export async function updateCustomer(
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  const body = await apiRequest<{ success?: boolean; data?: unknown }>(`/api/customers/${customerId}`, {
+  const raw = await apiRequest<unknown>(`/api/customers/${customerId}`, {
     method: 'PUT',
     token,
     body: JSON.stringify(payload),
   })
-  return assertCustomerDataRecord(body?.data, { context: '고객 수정' })
+  return assertCustomerDataRecord(normalizeCustomerMutationResponse(raw), { context: '고객 수정' })
 }
 
 export async function updateCustomerCar(
@@ -206,12 +221,12 @@ export async function saveCustomer(
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  const body = await apiRequest<{ success?: boolean; data?: unknown }>('/api/customers', {
+  const raw = await apiRequest<unknown>('/api/customers', {
     method: 'POST',
     token,
     body: JSON.stringify(payload),
   })
-  return assertCustomerDataRecord(body?.data, { context: '고객 등록' })
+  return assertCustomerDataRecord(normalizeCustomerMutationResponse(raw), { context: '고객 등록' })
 }
 
 /** 로그인 없이 ref(담당자 user id) 계정으로 고객 저장 (외부 입력 전용) */
@@ -220,9 +235,9 @@ export async function saveCustomerExternal(
   payload: SaveCustomerPayload,
 ): Promise<CustomerRecord> {
   // 반드시 POST /api/customer/external-create 로 전송 (resolveApiUrl이 절대/상대 베이스 모두 처리)
-  const body = await apiRequest<{ success?: boolean; data?: unknown }>('/api/customer/external-create', {
+  const raw = await apiRequest<unknown>('/api/customer/external-create', {
     method: 'POST',
     body: JSON.stringify({ refUserId, ...payload }),
   })
-  return assertCustomerDataRecord(body?.data, { context: '외부 고객 등록' })
+  return assertCustomerDataRecord(normalizeCustomerMutationResponse(raw), { context: '외부 고객 등록' })
 }
