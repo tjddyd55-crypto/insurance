@@ -163,12 +163,13 @@
 }
 
 :root[data-theme='dark'] {
+  /* 카드(bg-card)를 바닥보다 한 단 올려 대비; 호버용 bg-soft는 더 밝게 */
   --bg-main: #0f1115;
-  --bg-card: #1a1d24;
-  --bg-soft: #252a33;
+  --bg-card: #1e232c;
+  --bg-soft: #2a313c;
 
   --text-main: #ffffff;
-  --text-sub: #b0b7c3;
+  --text-sub: #c4cad4;
   --text-secondary: var(--text-sub);
 
   --primary: #3b82f6;
@@ -176,7 +177,7 @@
   --success: #22c55e;
   --danger: #ef4444;
 
-  --border: #2a2f3a;
+  --border: #3d4654;
   --border-default: var(--border);
 
   --shadow: 0 2px 8px rgb(0 0 0 / 0.35);

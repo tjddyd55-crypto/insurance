@@ -46,7 +46,8 @@ body {
   border-bottom: 1px solid var(--border-default);
 }
 .table-row:hover {
-  background: var(--bg-elevated);
+  /* 표는 보통 elevated 래퍼 위 → 호버는 bg-soft로만 구분 */
+  background: var(--bg-soft);
 }
 .table-row:last-child {
   border-bottom-color: transparent;
@@ -835,8 +836,9 @@ textarea {
 }
 
 .menu-item:hover {
-  background: var(--primary);
-  color: var(--text-on-primary);
+  /* 전면 색 반전 대신 브랜드 틴트만 (가독성·다크 모드 안정) */
+  background: color-mix(in srgb, var(--primary) 20%, var(--bg-soft));
+  color: var(--text-main);
 }
 
 .menu-item.active {
@@ -1314,13 +1316,13 @@ button.filter-button:focus-visible {
   border-radius: 10px;
   padding: 0;
   margin-bottom: 6px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px var(--shadow-card);
   box-sizing: border-box;
 }
 
 .customers-page .customer-expand-card--focal {
   box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.06),
+    0 2px 8px var(--shadow-card),
     0 0 0 2px var(--insurance-accent, #2563eb);
 }
 

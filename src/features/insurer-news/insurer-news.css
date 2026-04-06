@@ -74,7 +74,7 @@
   right: 0;
   padding: 8px;
   background: rgba(0, 0, 0, 0.4);
-  color: white;
+  color: var(--text-main);
   font-size: 12px;
   line-height: 1.35;
   box-sizing: border-box;
