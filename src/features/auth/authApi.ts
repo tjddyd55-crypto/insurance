@@ -119,22 +119,30 @@ export async function register(payload: {
   password: string
   inviteCode: string
   name: string
-  phoneNumber: string
-  signupPhoneProof: string
+  /** 완화 모드에서는 생략 가능 */
+  phoneNumber?: string
+  signupPhoneProof?: string
 }) {
   try {
+    const body: Record<string, string> = {
+      username: payload.username.trim(),
+      password: payload.password,
+      invite_code: payload.inviteCode.trim(),
+      name: payload.name.trim(),
+    }
+    const phone = payload.phoneNumber?.trim()
+    if (phone) {
+      body.phone_number = phone
+    }
+    const proof = payload.signupPhoneProof?.trim()
+    if (proof) {
+      body.signup_phone_proof = proof
+    }
     return await apiRequest<{ id: string; username: string; ga_id: number; createdAt: string }>(
       '/api/auth/register',
       {
         method: 'POST',
-        body: JSON.stringify({
-          username: payload.username.trim(),
-          password: payload.password,
-          invite_code: payload.inviteCode.trim(),
-          name: payload.name.trim(),
-          phone_number: payload.phoneNumber,
-          signup_phone_proof: payload.signupPhoneProof.trim(),
-        }),
+        body: JSON.stringify(body),
       },
     )
   } catch (error) {

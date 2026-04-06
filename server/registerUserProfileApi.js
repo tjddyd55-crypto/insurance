@@ -16,6 +16,7 @@ import { assertNotSmsAccountLocked } from './services/smsAccountLock.js'
 import { insertSmsVerificationLog } from './services/smsVerificationAudit.js'
 import { applyUserSmsRequestAfterSend, evaluateUserSmsRequestQuota } from './services/smsUserDbRate.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
+import { isSignupPhoneRelaxedMode } from './lib/signupPhoneRelaxed.js'
 import { logSmsVerifyFailure } from './services/smsStructuredLog.js'
 import { SMS_PUBLIC_DELAY_MESSAGE } from './services/smsPublicMessages.js'
 
@@ -107,9 +108,11 @@ export function registerUserProfileApi(apiRouter, ctx) {
         return
       }
 
-      if (await isPhoneUsedByActiveUser(pool, phoneNorm, '')) {
-        res.status(409).json({ message: '이미 가입에 사용 중인 휴대폰 번호입니다.' })
-        return
+      if (!isSignupPhoneRelaxedMode()) {
+        if (await isPhoneUsedByActiveUser(pool, phoneNorm, '')) {
+          res.status(409).json({ message: '이미 가입에 사용 중인 휴대폰 번호입니다.' })
+          return
+        }
       }
 
       const gap = await assertCanRequestSmsCode(SMS_PURPOSE_SIGNUP, phoneNorm)
@@ -233,9 +236,11 @@ export function registerUserProfileApi(apiRouter, ctx) {
         return
       }
 
-      if (await isPhoneUsedByActiveUser(pool, phoneNorm, '')) {
-        res.status(409).json({ message: '이미 가입에 사용 중인 휴대폰 번호입니다.' })
-        return
+      if (!isSignupPhoneRelaxedMode()) {
+        if (await isPhoneUsedByActiveUser(pool, phoneNorm, '')) {
+          res.status(409).json({ message: '이미 가입에 사용 중인 휴대폰 번호입니다.' })
+          return
+        }
       }
 
       await tx.query('BEGIN')

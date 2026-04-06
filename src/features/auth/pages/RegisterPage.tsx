@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { normalizeKrMobile, validateKrMobileDigits } from '../../../lib/phoneNormalize'
+import { isSignupPhoneRelaxedMode } from '../../../lib/signupPhoneRelaxed'
 import {
   checkUsernameAvailability,
   login as loginApi,
@@ -88,6 +89,7 @@ export function RegisterPage() {
 
   const phoneDigits = normalizeKrMobile(phone)
   const inviteTrim = inviteCode.trim()
+  const needsPhoneAuth = !isSignupPhoneRelaxedMode() || Boolean(phoneDigits)
 
   const requestSignupSms = async () => {
     setErrorMessage('')
@@ -172,7 +174,7 @@ export function RegisterPage() {
     event.preventDefault()
     setErrorMessage('')
 
-    if (!isPhoneVerified || !signupPhoneProof) {
+    if (needsPhoneAuth && (!isPhoneVerified || !signupPhoneProof)) {
       alert('휴대폰 인증을 완료해주세요.')
       return
     }
@@ -209,10 +211,18 @@ export function RegisterPage() {
       setErrorMessage('이름을 입력하세요.')
       return
     }
-    const phoneErr = validateKrMobileDigits(phoneDigits)
-    if (phoneErr) {
-      setErrorMessage(phoneErr)
-      return
+    if (!isSignupPhoneRelaxedMode()) {
+      const phoneErr = validateKrMobileDigits(phoneDigits)
+      if (phoneErr) {
+        setErrorMessage(phoneErr)
+        return
+      }
+    } else if (phoneDigits) {
+      const phoneErr = validateKrMobileDigits(phoneDigits)
+      if (phoneErr) {
+        setErrorMessage(phoneErr)
+        return
+      }
     }
 
     setIsSubmitting(true)
@@ -229,8 +239,8 @@ export function RegisterPage() {
         password,
         inviteCode: code,
         name: nameTrim,
-        phoneNumber: phoneDigits,
-        signupPhoneProof,
+        phoneNumber: phoneDigits || undefined,
+        signupPhoneProof: signupPhoneProof ?? undefined,
       })
       const session = await loginApi(userTrim, password)
       login(session)
@@ -264,7 +274,7 @@ export function RegisterPage() {
 
   const submitDisabled =
     isSubmitting ||
-    !isPhoneVerified ||
+    (needsPhoneAuth && (!isPhoneVerified || !signupPhoneProof)) ||
     usernameCheck === 'checking' ||
     usernameCheck === 'taken' ||
     usernameCheck === 'invalid'
@@ -284,7 +294,7 @@ export function RegisterPage() {
             <input
               value={inviteCode}
               onChange={(e) => {
-                setInviteCode(e.target.value)
+                setInviteCode(e.target.value.toUpperCase())
                 setIsPhoneVerified(false)
                 setSignupPhoneProof(null)
               }}
@@ -367,7 +377,7 @@ export function RegisterPage() {
               inputMode="numeric"
               autoComplete="tel"
               placeholder="01012345678 또는 010-1234-5678"
-              required
+              required={!isSignupPhoneRelaxedMode()}
             />
           </label>
 

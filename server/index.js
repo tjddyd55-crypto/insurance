@@ -19,6 +19,7 @@ import { tickAnalyticsAggregationScheduler } from './lib/analyticsScheduler.js'
 import { verifySignupPhoneProof } from './lib/signupPhoneProof.js'
 import { purgeExpiredSmsVerificationCodes } from './services/purgeExpiredSmsCodes.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
+import { isSignupPhoneRelaxedMode } from './lib/signupPhoneRelaxed.js'
 import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
 import { parseGaId } from './lib/parseGaId.js'
@@ -1288,8 +1289,6 @@ registerUserProfileApi(apiRouter, {
 
 registerTeamApi(apiRouter, { pool, requireAuth, handleDbError })
 
-registerNotificationsApi(apiRouter, { pool, requireAuth, handleDbError })
-
 registerSuperAdminAnalyticsApi(apiRouter, {
   pool,
   requireAuth,
@@ -1321,15 +1320,25 @@ async function handleRegister(req, res) {
       res.status(400).json({ message: '이름을 입력해 주세요.' })
       return
     }
-    const phoneNorm = normalizeKrMobile(phoneSnake ?? phoneCamel)
-    const phoneValidationError = validateKrMobileDigits(phoneNorm)
-    if (phoneValidationError) {
-      res.status(400).json({ message: phoneValidationError })
-      return
-    }
+
     const code = normalizeInviteCode(inviteRaw ?? inviteAlt ?? '')
     if (!code) {
-      res.status(400).json({ message: '초대 코드(invite_code)를 입력해 주세요.' })
+      res.status(400).json({ message: 'GA 코드 없음' })
+      return
+    }
+
+    const phoneRaw = phoneSnake ?? phoneCamel
+    const phoneTrim = String(phoneRaw ?? '').trim()
+    let phoneNorm = ''
+    if (phoneTrim) {
+      phoneNorm = normalizeKrMobile(phoneRaw)
+      const phoneValidationError = validateKrMobileDigits(phoneNorm)
+      if (phoneValidationError) {
+        res.status(400).json({ message: phoneValidationError })
+        return
+      }
+    } else if (!isSignupPhoneRelaxedMode()) {
+      res.status(400).json({ message: '휴대폰 번호를 입력해 주세요.' })
       return
     }
 
@@ -1353,36 +1362,40 @@ async function handleRegister(req, res) {
       return
     }
 
-    let signupProof
-    try {
-      signupProof = verifySignupPhoneProof(String(signupProofSnake ?? signupProofCamel ?? '').trim(), JWT_SECRET)
-    } catch {
-      res.status(400).json({
-        message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
-      })
-      return
-    }
-    if (signupProof.phoneDigits !== phoneNorm) {
-      res.status(400).json({ message: '인증된 휴대폰 번호와 가입 폼의 번호가 일치하지 않습니다.' })
-      return
-    }
-    if (signupProof.inviteCodeNormalized !== code) {
-      res.status(400).json({ message: '인증 시점의 GA 코드와 현재 입력이 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
-      return
-    }
-    if (signupProof.gaId !== gaId) {
-      res.status(400).json({ message: 'GA 정보가 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
-      return
+    if (phoneNorm) {
+      let signupProof
+      try {
+        signupProof = verifySignupPhoneProof(String(signupProofSnake ?? signupProofCamel ?? '').trim(), JWT_SECRET)
+      } catch {
+        res.status(400).json({
+          message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
+        })
+        return
+      }
+      if (signupProof.phoneDigits !== phoneNorm) {
+        res.status(400).json({ message: '인증된 휴대폰 번호와 가입 폼의 번호가 일치하지 않습니다.' })
+        return
+      }
+      if (signupProof.inviteCodeNormalized !== code) {
+        res.status(400).json({ message: '인증 시점의 GA 코드와 현재 입력이 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
+        return
+      }
+      if (signupProof.gaId !== gaId) {
+        res.status(400).json({ message: 'GA 정보가 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
+        return
+      }
     }
 
-    const phoneDup = await systemQuery(
-      pool,
-      `SELECT 1 FROM users WHERE phone_number = $1 AND is_deleted = false LIMIT 1`,
-      [phoneNorm],
-    )
-    if (phoneDup.rowCount > 0) {
-      res.status(409).json({ message: '이미 가입에 사용 중인 휴대폰 번호입니다.' })
-      return
+    if (!isSignupPhoneRelaxedMode() && phoneNorm) {
+      const phoneDup = await systemQuery(
+        pool,
+        `SELECT 1 FROM users WHERE phone_number = $1 AND is_deleted = false LIMIT 1`,
+        [phoneNorm],
+      )
+      if (phoneDup.rowCount > 0) {
+        res.status(409).json({ message: '이미 가입에 사용 중인 휴대폰 번호입니다.' })
+        return
+      }
     }
 
     const validationMessage = validateCredentials(username, password)
@@ -1405,12 +1418,14 @@ async function handleRegister(req, res) {
       VALUES ($1, $2, $3, 'USER', $4, $5, $6)
       RETURNING created_at
       `,
-      [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm],
+      [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm || null],
     )
 
-    await pool.query(`DELETE FROM sms_verification_codes WHERE purpose = 'SIGNUP' AND phone_number = $1`, [
-      phoneNorm,
-    ])
+    if (phoneNorm) {
+      await pool.query(`DELETE FROM sms_verification_codes WHERE purpose = 'SIGNUP' AND phone_number = $1`, [
+        phoneNorm,
+      ])
+    }
 
     res.status(201).json({
       id,
