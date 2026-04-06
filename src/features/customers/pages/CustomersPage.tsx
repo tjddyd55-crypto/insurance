@@ -470,10 +470,11 @@ function CustomerListCard({
     if (isSelectMode) {
       return
     }
+    /* 닫힘 transition 동안 연타로 상태가 꼬이지 않도록 */
+    if (detailClosing) {
+      return
+    }
     if (expanded) {
-      if (detailClosing) {
-        return
-      }
       setDetailClosing(true)
       return
     }
@@ -539,9 +540,9 @@ function CustomerListCard({
           onKeyDown={handleSummaryKeyDown}
         >
           <span className="customer-expand-summary__content">
-            <span className="customer-expand-summary__row customer-expand-summary__row--primary">
+            <div className="customer-card-text-name">
               <span
-                className={`customer-expand-summary__name${ssnDupHighlight ? ' customer-name-ssn-dup' : ''}`}
+                className={`customer-card-name-primary${ssnDupHighlight ? ' customer-name-ssn-dup' : ''}`}
                 style={ssnDupHighlight ? { color: ssnDupHighlight.color } : undefined}
               >
                 {ssnDupHighlight ? (
@@ -551,12 +552,12 @@ function CustomerListCard({
                 ) : null}
                 {c.name}
               </span>
-              <span className="customer-expand-summary__meta">{genderSummaryLabel(c)}</span>
-              <span className="customer-expand-summary__meta">보험나이 {ins.ageText}</span>
-            </span>
-            <span className="customer-expand-summary__row customer-expand-summary__row--secondary">
-              상령일 {ins.dateText} · 상담일 {recentConsultText}
-            </span>
+              <span className="customer-card-text-sub">{genderSummaryLabel(c)}</span>
+              <span className="customer-card-text-sub">보험나이 {ins.ageText}</span>
+            </div>
+            <div className="customer-card-text-sub customer-card-summary-meta">
+              상령일: {ins.dateText} · 상담일: {recentConsultText}
+            </div>
           </span>
           <span className="customer-expand-summary__hint" aria-hidden="true">
             {showExpandedChrome ? '▲' : '▼'}
@@ -927,12 +928,13 @@ function CustomerListCard({
                   <h3 className="customer-form-history__title" style={{ fontSize: '1rem', margin: '8px 0' }}>
                     보험가입내역
                   </h3>
-                  <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.95rem' }}>
+                  <div className="customer-insurance-history-body">
                     {normalizeCustomerNotesBag(c.notes).insuranceHistory?.trim()
                       ? normalizeCustomerNotesBag(c.notes).insuranceHistory
                       : '내용 없음'}
                   </div>
                 </div>
+                <div className="customer-expand-section-divider" role="presentation" />
                 {token ? (
                   <CustomerInlineNotesSection
                     customer={c}
@@ -948,6 +950,7 @@ function CustomerListCard({
                     onMutated={onConsultationCountsInvalidate}
                   />
                 ) : null}
+                <div className="customer-expand-section-divider" role="presentation" />
                 {token ? (
                   <CustomerRelationsStrip
                     customerId={c.id}
@@ -957,6 +960,7 @@ function CustomerListCard({
                     focusedCustomerId={expandedId}
                   />
                 ) : null}
+                <div className="customer-expand-section-divider" role="presentation" />
                 {carFeatureEnabled ? (
                   <div className="customer-form-history">
                     <h3 className="customer-form-history__title">연결된 신청서</h3>

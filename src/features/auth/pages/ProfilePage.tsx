@@ -210,7 +210,7 @@ export function ProfilePage() {
   }
 
   const teamDev = () => {
-    window.alert('개발중입니다.')
+    window.alert('준비 중입니다.')
   }
 
   if (loadError) {
@@ -239,10 +239,9 @@ export function ProfilePage() {
   }
 
   return (
-    <main className="auth-page">
+    <main className="auth-page profile-page">
       <section className="card auth-card">
         <h1>프로필</h1>
-        <p className="auth-description">이름·휴대폰을 관리하고 비밀번호 재설정으로 보안을 유지하세요.</p>
 
         <form className="auth-form" onSubmit={(e) => void onSubmit(e)}>
           <label className="field">
@@ -261,7 +260,7 @@ export function ProfilePage() {
           </label>
 
           <label className="field">
-            <span className="field__label">휴대폰 번호</span>
+            <span className="field__label">휴대폰번호</span>
             <input
               value={phoneEditDigits}
               onChange={(e) => {
@@ -320,39 +319,41 @@ export function ProfilePage() {
           ) : null}
 
           <div className="field">
-            <span className="field__label">비밀번호</span>
-            <Link to="/password-reset" className="button button--secondary" style={{ display: 'inline-block' }}>
-              비밀번호 변경 (SMS 재설정)
+            <Link to="/password-reset" className="button button--secondary button--full">
+              비밀번호 재설정
             </Link>
           </div>
 
-          <div className="field">
-            <span className="field__label">고객 엑셀 업로드</span>
-            <p className="auth-description" style={{ marginTop: 4, fontSize: 13 }}>
-              샘플 다운로드·파일 선택·미리보기·일괄 등록은 프로필에서 진행합니다. 완료 후 고객 관리에서 목록을 확인하세요.
-            </p>
-            <CustomerExcelImportPanel token={token} onUploadsFinished={() => {}} />
-          </div>
+          <div className="my-4 border-t border-[var(--border-default)]" role="presentation" />
 
-          <div className="field">
-            <span className="field__label">계정</span>
-            <Link to="/account/reset" className="button button--secondary" style={{ display: 'inline-block' }}>
-              계정 초기화
-            </Link>
-          </div>
-
-          <div className="field">
-            <span className="field__label">팀 연결</span>
-            <button type="button" className="button button--secondary" onClick={teamDev}>
+          <div className="profile-page__team-row">
+            <button type="button" className="cta-button profile-page__team-btn" onClick={teamDev}>
+              팀 생성
+            </button>
+            <button type="button" className="cta-button profile-page__team-btn" onClick={teamDev}>
               팀 연결
             </button>
           </div>
+
+          <div className="field profile-page__excel-field">
+            <span className="field__label">연락처 업로드</span>
+            <div className="profile-page__excel-toolbar">
+              <CustomerExcelImportPanel token={token} onUploadsFinished={() => {}} />
+            </div>
+          </div>
+
+          <Link
+            to="/account/reset"
+            className="button button--secondary button--full profile-page__account-reset"
+          >
+            계정 초기화
+          </Link>
 
           {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
           {infoMessage ? <p className="status">{infoMessage}</p> : null}
 
           <button
-            className="button button--primary button--full"
+            className="button button--primary button--full profile-page__submit"
             type="submit"
             disabled={savingProfile || (phoneChangedPending && !phoneChangeProof)}
           >

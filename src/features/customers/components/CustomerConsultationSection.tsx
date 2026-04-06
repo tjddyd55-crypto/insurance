@@ -139,16 +139,19 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
 
   return (
     <div className="customer-form-history customer-consultation-block" style={{ marginTop: 16 }}>
-      <h3 className="customer-form-history__title">상담 히스토리</h3>
-
       <form onSubmit={(ev) => void onSubmit(ev)} style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 600, marginBottom: 8 }}>+ 상담 추가</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 8 }}>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.9rem' }}>
-            상담 일자
-            <input type="date" value={consultDate} onChange={(e) => setConsultDate(e.target.value)} />
-          </label>
-          <span style={{ fontSize: '0.85rem', color: '#666' }}>비워 두면 오늘 날짜로 저장됩니다.</span>
+          <input
+            type="date"
+            className="field__control"
+            value={consultDate}
+            onChange={(e) => setConsultDate(e.target.value)}
+            aria-label="상담 일자"
+          />
+          <span className="text-[var(--text-secondary)]" style={{ fontSize: '0.85rem' }}>
+            비워 두면 오늘 날짜로 저장됩니다.
+          </span>
         </div>
         <textarea
           className="field__control"

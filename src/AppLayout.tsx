@@ -1,4 +1,4 @@
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AppExitConfirm } from './components/AppExitConfirm'
 import { ThemeToggle } from './components/ThemeToggle'
 import { useAuth } from './features/auth/AuthProvider'
@@ -19,6 +19,7 @@ function formatGaBannerLabel(gaName: string, gaCode: string): string {
 export function AppLayout() {
   const { user, isAuthenticated } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
 
   const hideBarPaths = new Set(['/login', '/register', '/password-reset', '/customer/input'])
   const showGaBar =
@@ -31,7 +32,18 @@ export function AppLayout() {
       {showThemeToggle ? <ThemeToggle /> : null}
       {showGaBar ? (
         <div className="app-tenant-ga-bar" role="status" aria-label="소속 GA">
-          {formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')}
+          <span className="app-tenant-ga-bar__name">
+            {formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')}
+          </span>
+          {user?.role === 'USER' ? (
+            <button
+              type="button"
+              className="app-tenant-ga-bar__profile"
+              onClick={() => navigate('/profile')}
+            >
+              프로필
+            </button>
+          ) : null}
         </div>
       ) : null}
       <Outlet />

@@ -6,6 +6,11 @@
 
 export type GaTenantMenuItem = { label: string; path: string }
 
+/** 대시보드 전용 — 구분선 포함 */
+export type GaTenantDashboardMenuEntry =
+  | { type: 'link'; label: string; path: string; disabled?: boolean }
+  | { type: 'divider' }
+
 /** @deprecated 대시보드는 buildGaTenantDashboardMenu 사용 */
 export const GA_TENANT_ESSENTIAL_MENU: GaTenantMenuItem[] = [
   { label: '고객관리', path: '/customers' },
@@ -38,28 +43,39 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
 export function buildGaTenantDashboardMenu(
   gaCode: string | undefined,
   gaName: string | undefined,
-  /** 일반 설계사(USER)에게만 프로필 메뉴 노출 */
-  includeProfile = false,
-): GaTenantMenuItem[] {
-  const items: GaTenantMenuItem[] = [
-    { label: '고객관리', path: '/customers' },
-    { label: '원수사 연락처 조회', path: '/insurance/contacts' },
-    { label: '원수사 소식지', path: '/portal/newsletters' },
+  /** @deprecated 프로필은 상단 GA 바에서 진입 */
+  _includeProfile = false,
+): GaTenantDashboardMenuEntry[] {
+  const items: GaTenantDashboardMenuEntry[] = [
+    { type: 'link', label: '고객 관리', path: '/customers' },
+    { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
+    { type: 'link', label: '원수사 소식지', path: '/portal/newsletters' },
+    { type: 'divider' },
   ]
   const carByName = String(gaName ?? '').trim() === '영진에셋'
   if (carByName || isCarInsuranceFeatureEnabledForGa(gaCode)) {
-    items.push({ label: '자동차 신청서', path: '/application' })
+    items.push({ type: 'link', label: '자동차 신청서', path: '/application' })
   }
-  items.push({ label: '추가기능 요청하기', path: '/feature-request' })
-  if (includeProfile) {
-    items.push({ label: '프로필', path: '/profile' })
-  }
-  items.push({ label: '계정 초기화', path: '/account/reset' })
+  items.push({
+    type: 'link',
+    label: '기타 신청서 (개발중)',
+    path: '/feature-request',
+    disabled: true,
+  })
+  items.push({ type: 'divider' })
   items.push(
-    { label: '팀원', path: '/team/members' },
-    { label: '팀 게시판', path: '/team/posts' },
-    { label: '팀 자료', path: '/team/files' },
+    { type: 'link', label: '팀원 리스트', path: '/team/members' },
+    { type: 'link', label: '팀 게시판', path: '/team/posts' },
+    { type: 'link', label: '팀 자료', path: '/team/files' },
+    {
+      type: 'link',
+      label: '기타 (개발중)',
+      path: '/feature-request',
+      disabled: true,
+    },
   )
+  items.push({ type: 'divider' })
+  items.push({ type: 'link', label: '문의 및 추가기능 요청', path: '/feature-request' })
   return items
 }
 
@@ -79,7 +95,11 @@ export function normalizeGaMenuCode(raw: string | undefined): string {
 
 /** @deprecated buildGaTenantDashboardMenu 사용 */
 export function buildGaTenantMenu(gaCode?: string | undefined, gaName?: string | undefined): GaTenantMenuItem[] {
-  return buildGaTenantDashboardMenu(gaCode, gaName)
+  return buildGaTenantDashboardMenu(gaCode, gaName).flatMap((e) =>
+    e.type === 'divider'
+      ? []
+      : [{ label: e.label, path: e.disabled ? '#' : e.path }],
+  )
 }
 
 /**

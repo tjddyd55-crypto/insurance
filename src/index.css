@@ -96,13 +96,50 @@ button:focus-visible:not(:disabled) {
   top: 0;
   z-index: 50;
   width: 100%;
+  box-sizing: border-box;
   padding: 10px 16px;
-  text-align: center;
+  padding-right: 5rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
   font-size: 0.95rem;
   font-weight: 600;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   color: var(--text-main);
+}
+
+.app-tenant-ga-bar__name {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.app-tenant-ga-bar__profile {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--brand-primary);
+  cursor: pointer;
+}
+
+.app-tenant-ga-bar__profile:hover {
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+}
+
+.app-tenant-ga-bar__profile:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 35%, transparent);
 }
 
 /* ——— 공통 확인 모달 ——— */
@@ -896,6 +933,72 @@ button:focus-visible:not(:disabled) {
   color: var(--text-on-primary);
 }
 
+.menu-item.menu-item--disabled {
+  opacity: 0.68;
+  cursor: default;
+}
+
+.menu-item.menu-item--disabled:hover {
+  background: var(--bg-soft);
+  color: var(--text-main);
+}
+
+.menu-card__divider {
+  flex-shrink: 0;
+  border-color: var(--border-default);
+}
+
+.profile-page__team-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.profile-page__team-btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.profile-page__excel-field {
+  margin-top: 16px;
+}
+
+.profile-page__excel-toolbar .customers-excel-import-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.profile-page__excel-toolbar .customers-excel-import-panel__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 220px;
+}
+
+.profile-page__account-reset {
+  margin-top: 16px;
+  display: block;
+  border: 1px solid var(--danger) !important;
+  color: var(--danger) !important;
+  background: transparent !important;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.profile-page__account-reset:hover {
+  background: color-mix(in srgb, var(--danger) 10%, transparent) !important;
+}
+
+.profile-page__submit {
+  margin-top: 16px;
+}
+
 .dashboard-logout {
   margin-top: 4px;
 }
@@ -1517,6 +1620,46 @@ button.filter-button:focus-visible {
   flex: 1;
   min-width: 0;
   text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.customers-page .customer-card-text-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.customers-page .customer-card-name-primary {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.customers-page .customer-card-text-sub {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-sub);
+}
+
+.customers-page .customer-card-summary-meta {
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.customers-page .customer-expand-section-divider {
+  margin: 8px 0;
+  border: none;
+  border-top: 1px solid var(--border-default);
+}
+
+.customers-page .customer-insurance-history-body {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .customers-page .customer-expand-summary__row--primary {
@@ -1553,10 +1696,13 @@ button.filter-button:focus-visible {
 }
 
 .customers-page .customer-expand-detail {
-  padding: 10px 12px 12px;
-  background: var(--bg-card);
-  border-top: 1px solid var(--border-muted);
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-elevated);
   font-size: 0.9375rem;
+  box-sizing: border-box;
   animation: customers-expand-detail-in 200ms ease-out forwards;
   transition: opacity 0.15s ease, transform 0.2s ease;
 }
@@ -1567,14 +1713,9 @@ button.filter-button:focus-visible {
 }
 
 .customers-page .customer-expand-card--focal .customer-expand-detail {
-  margin-top: 8px;
-  padding: 12px;
-  border: 2px solid var(--brand-primary);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--brand-primary) 5%, var(--bg-elevated));
-  box-shadow:
-    0 2px 8px var(--shadow-card),
-    0 10px 28px color-mix(in srgb, var(--shadow-card) 75%, transparent);
+  background: var(--bg-elevated);
+  border-color: var(--border-default);
+  box-shadow: 0 2px 8px var(--shadow-card);
 }
 
 .customers-page .customer-expand-card__select {

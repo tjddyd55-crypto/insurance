@@ -85,9 +85,6 @@ export function CustomerInlineNotesSection({ customer, token, onPersisted, onSta
 
   return (
     <div className="customer-inline-notes" style={{ marginTop: 12 }}>
-      <h3 className="customer-form-history__title" style={{ fontSize: '1rem', marginBottom: 8 }}>
-        메모
-      </h3>
       <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 8, alignItems: 'center', overflow: 'hidden' }}>
         <input
           className="field__control"

@@ -7,14 +7,19 @@ import {
   buildGaTenantDashboardMenu,
   GA_STAFF_MENU,
   INSURER_MANAGER_MENU,
+  type GaTenantDashboardMenuEntry,
   type GaTenantMenuItem,
 } from '../gaTenantMenu'
 
-type MenuItem = GaTenantMenuItem
+type MenuEntry = GaTenantDashboardMenuEntry
 
-const AUDIT_MENU: MenuItem = { label: '보안 감사 로그', path: '/admin/audit-logs' }
+function menuItemsToEntries(items: GaTenantMenuItem[]): MenuEntry[] {
+  return items.map((i) => ({ type: 'link' as const, label: i.label, path: i.path }))
+}
 
-const SUPER_ADMIN_MENU: MenuItem[] = [
+const AUDIT_MENU: GaTenantMenuItem = { label: '보안 감사 로그', path: '/admin/audit-logs' }
+
+const SUPER_ADMIN_MENU: GaTenantMenuItem[] = [
   { label: 'GA 관리', path: '/admin/ga' },
   { label: '담당자 관리', path: '/admin/delegates' },
   { label: '유저 관리', path: '/admin/users' },
@@ -26,20 +31,20 @@ function menuForSession(
   role: string | undefined,
   gaCode: string | undefined,
   gaName: string | undefined,
-): MenuItem[] {
+): MenuEntry[] {
   if (role === 'SUPER_ADMIN') {
-    return [...SUPER_ADMIN_MENU, AUDIT_MENU]
+    return [...menuItemsToEntries(SUPER_ADMIN_MENU), { type: 'link', label: AUDIT_MENU.label, path: AUDIT_MENU.path }]
   }
   if (role === 'INSURER_MANAGER') {
-    return [...INSURER_MANAGER_MENU]
+    return menuItemsToEntries(INSURER_MANAGER_MENU)
   }
   if (role === 'GA_STAFF') {
-    return GA_STAFF_MENU
+    return menuItemsToEntries(GA_STAFF_MENU)
   }
   if (role === 'GA_ADMIN' || role === 'USER') {
-    const items = buildGaTenantDashboardMenu(gaCode, gaName, role === 'USER')
+    const items = buildGaTenantDashboardMenu(gaCode, gaName)
     if (role === 'GA_ADMIN') {
-      items.push(AUDIT_MENU)
+      items.push({ type: 'divider' }, { type: 'link', label: AUDIT_MENU.label, path: AUDIT_MENU.path })
     }
     return items
   }
@@ -193,16 +198,34 @@ export function DashboardPage() {
             </p>
           ) : null}
           <nav className="menu-card" aria-label="주요 메뉴">
-            {menuItems.map((item) => {
-              const isActive = pathIsActive(pathname, item.path)
+            {menuItems.map((entry, idx) => {
+              if (entry.type === 'divider') {
+                return (
+                  <div
+                    key={`menu-divider-${idx}`}
+                    className="menu-card__divider my-3 border-t border-[var(--border-default)]"
+                    role="presentation"
+                  />
+                )
+              }
+              const isActive = !entry.disabled && pathIsActive(pathname, entry.path)
               return (
                 <button
-                  key={`${item.path}-${item.label}`}
+                  key={`${entry.path}-${entry.label}-${idx}`}
                   type="button"
-                  className={`menu-item${isActive ? ' active' : ''}`}
-                  onClick={() => navigate(item.path)}
+                  className={`menu-item${isActive ? ' active' : ''}${entry.disabled ? ' menu-item--disabled' : ''}`}
+                  onClick={() => {
+                    if (entry.disabled) {
+                      window.alert('준비 중입니다.')
+                      return
+                    }
+                    if (!entry.path.trim()) {
+                      return
+                    }
+                    navigate(entry.path)
+                  }}
                 >
-                  {item.label}
+                  {entry.label}
                 </button>
               )
             })}
