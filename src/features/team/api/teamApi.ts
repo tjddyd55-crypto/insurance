@@ -188,3 +188,61 @@ export async function fetchTeamFiles(token: string): Promise<{ teamId: string; f
   }
   return apiRequest<{ teamId: string; files: TeamFileRow[] }>('/api/teams/files', { token })
 }
+
+export type TeamPostCommentRow = {
+  id: string
+  postId: string
+  content: string
+  createdAt: string
+  authorId: string
+  authorUsername: string
+  authorDisplayName: string
+}
+
+export type TeamPostCommentsResponse = {
+  comments: TeamPostCommentRow[]
+}
+
+export async function fetchTeamPostComments(token: string, postId: string): Promise<TeamPostCommentsResponse> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  const id = String(postId ?? '').trim()
+  if (!id) {
+    throw new ApiError('게시글을 찾을 수 없습니다.', 400)
+  }
+  return apiRequest<TeamPostCommentsResponse>(`/api/teams/posts/${encodeURIComponent(id)}/comments`, { token })
+}
+
+export async function createTeamPostComment(token: string, postId: string, content: string): Promise<void> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  const id = String(postId ?? '').trim()
+  if (!id) {
+    throw new ApiError('게시글을 찾을 수 없습니다.', 400)
+  }
+  const body = String(content ?? '').trim()
+  if (!body) {
+    throw new ApiError('댓글 내용을 입력해 주세요.', 400)
+  }
+  await apiRequest(`/api/teams/posts/${encodeURIComponent(id)}/comments`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ content: body }),
+  })
+}
+
+export async function deleteTeamPostComment(token: string, commentId: string): Promise<void> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  const cid = String(commentId ?? '').trim()
+  if (!cid) {
+    throw new ApiError('댓글을 찾을 수 없습니다.', 400)
+  }
+  await apiRequest(`/api/teams/post-comments/${encodeURIComponent(cid)}`, {
+    method: 'DELETE',
+    token,
+  })
+}

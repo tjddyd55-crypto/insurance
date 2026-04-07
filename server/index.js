@@ -1289,6 +1289,8 @@ registerUserProfileApi(apiRouter, {
 
 registerTeamApi(apiRouter, { pool, requireAuth, handleDbError })
 
+registerNotificationsApi(apiRouter, { pool, requireAuth, handleDbError })
+
 registerSuperAdminAnalyticsApi(apiRouter, {
   pool,
   requireAuth,

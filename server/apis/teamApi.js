@@ -117,18 +117,31 @@ async function notifyTeamMembersNewPost(executor, p) {
  * @param {{ query: Function }} executor
  */
 async function notifyPostAuthorNewComment(executor, args) {
-  const { gaId, teamId, postId, postAuthorId, actorUserId, snippet } = args
+  const { gaId, teamId, postId, postAuthorId, actorUserId } = args
   if (!postAuthorId || String(postAuthorId) === String(actorUserId)) {
     return
   }
-  const msg = `내 게시글에 댓글: ${String(snippet ?? '').slice(0, 120)}`
+  const actorLabelRes = await safeQuery(
+    executor,
+    `
+    SELECT COALESCE(NULLIF(TRIM(display_name), ''), NULLIF(TRIM(username), ''), '') AS label
+    FROM users
+    WHERE id = $1 AND ga_id = $2 AND is_deleted = false
+    LIMIT 1
+    `,
+    [String(actorUserId), gaId],
+  )
+  const raw =
+    actorLabelRes.rowCount > 0 ? String(actorLabelRes.rows[0].label ?? '').trim() : ''
+  const who = raw || '사용자'
+  const message = `${who}님이 댓글을 남겼습니다`
   await safeQuery(
     executor,
     `
     INSERT INTO notifications (user_id, ga_id, team_id, type, reference_id, message)
     VALUES ($1, $2, $3, $4, $5, $6)
     `,
-    [String(postAuthorId), gaId, teamId, 'TEAM_POST_COMMENT', postId, msg],
+    [String(postAuthorId), gaId, teamId, 'comment', postId, message],
   )
 }
 
@@ -1179,7 +1192,6 @@ export function registerTeamApi(apiRouter, ctx) {
         postId,
         postAuthorId,
         actorUserId: userId,
-        snippet: content,
       })
       res.status(201).json({
         comment: {

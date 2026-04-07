@@ -2,6 +2,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AppExitConfirm } from './components/AppExitConfirm'
 import { ThemeToggle } from './components/ThemeToggle'
 import { useAuth } from './features/auth/AuthProvider'
+import { NotificationBell } from './features/notification/components/NotificationBell'
 
 function formatGaBannerLabel(gaName: string, gaCode: string): string {
   const n = gaName.trim()
@@ -35,14 +36,19 @@ export function AppLayout() {
           <span className="app-tenant-ga-bar__name">
             {formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')}
           </span>
-          {user?.role === 'USER' ? (
-            <button
-              type="button"
-              className="app-tenant-ga-bar__profile"
-              onClick={() => navigate('/profile')}
-            >
-              프로필
-            </button>
+          {user?.role !== 'INSURER_MANAGER' ? (
+            <div className="app-tenant-ga-bar__actions">
+              <NotificationBell />
+              {user?.role === 'USER' ? (
+                <button
+                  type="button"
+                  className="app-tenant-ga-bar__profile"
+                  onClick={() => navigate('/profile')}
+                >
+                  프로필
+                </button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}

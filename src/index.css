@@ -121,6 +121,46 @@ button:focus-visible:not(:disabled) {
   text-align: left;
 }
 
+.app-tenant-ga-bar__actions {
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-tenant-ga-bar__actions .app-tenant-ga-bar__profile {
+  position: static;
+  transform: none;
+  top: auto;
+  right: auto;
+}
+
+.app-tenant-ga-bar__notification-trigger {
+  position: relative;
+  margin: 0;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}
+
+.app-tenant-ga-bar__notification-trigger:hover {
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+}
+
+.app-tenant-ga-bar__notification-trigger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 35%, transparent);
+}
+
 .app-tenant-ga-bar__profile {
   position: absolute;
   right: 1rem;

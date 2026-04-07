@@ -31,6 +31,34 @@ const NOTIFICATIONS_LIST_LIMIT_MAX = 50
 export function registerNotificationsApi(apiRouter, ctx) {
   const { pool, requireAuth, handleDbError } = ctx
 
+  apiRouter.get('/notifications/unread-count', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaForNotifications(req, res)
+      if (gaId == null) {
+        return
+      }
+      const r = await safeQuery(
+        pool,
+        `
+        SELECT COUNT(*)::bigint AS c
+        FROM notifications
+        WHERE user_id = $1 AND ga_id = $2 AND is_read = false
+        `,
+        [userId, gaId],
+      )
+      const row = r.rows[0]
+      const count = row && row.c != null ? Number(row.c) : 0
+      res.json({ count: Number.isFinite(count) ? count : 0 })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
   apiRouter.get('/notifications', requireAuth, async (req, res) => {
     try {
       const userId = req.user?.id ? String(req.user.id) : ''

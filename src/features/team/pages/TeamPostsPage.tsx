@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { PageBackButton } from '../../../components/common/PageBackButton'
 import { useAuth } from '../../auth/AuthProvider'
 import { fetchTeamPosts, type TeamPostAttachment, type TeamPostRow } from '../api/teamApi'
+import { TeamPostComments } from '../../../components/team/TeamPostComments'
 import { TeamPostFormModal, type TeamPostModalInitialData } from '../components/TeamPostFormModal'
 
 function snippet(text: string, max = 120): string {
@@ -51,18 +52,53 @@ function PostCard({
   post,
   showEdit,
   onEdit,
+  expanded,
+  onToggleExpand,
+  token,
+  currentUserId,
+  commentCount,
+  onCommentCountChange,
+  highlighted,
+  commentScrollNonce,
 }: {
   post: TeamPostRow
   showEdit: boolean
   onEdit: (p: TeamPostRow) => void
+  expanded: boolean
+  onToggleExpand: () => void
+  token: string
+  currentUserId: string
+  /** 한 번이라도 댓글 영역을 불러온 뒤에만 숫자로 표시 */
+  commentCount?: number
+  onCommentCountChange?: (postId: string, count: number) => void
+  highlighted?: boolean
+  commentScrollNonce?: number
 }) {
   return (
-    <div className="p-3 border-b border-[var(--border-default)]">
+    <div
+      className={[
+        'p-3 border-b border-[var(--border-default)] rounded-md transition-colors duration-300',
+        highlighted ? 'bg-blue-900/20' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       {post.isNotice ? (
         <div className="text-xs text-amber-400 mb-1">공지</div>
       ) : null}
-      <div className="font-semibold text-[var(--text-primary)]">{post.title}</div>
-      <div className="text-sm text-[var(--text-secondary)] mt-1">{snippet(post.content)}</div>
+      <div className="font-semibold text-[var(--text-primary)] flex flex-wrap items-baseline gap-2">
+        {post.title}
+        {typeof commentCount === 'number' ? (
+          <span className="text-xs font-normal text-[var(--text-secondary)] opacity-90">댓글 {commentCount}개</span>
+        ) : null}
+      </div>
+      <div className="text-sm text-[var(--text-secondary)] mt-1">
+        {expanded ? (
+          <span className="whitespace-pre-wrap break-words">{post.content}</span>
+        ) : (
+          snippet(post.content)
+        )}
+      </div>
       <div className="text-xs text-[var(--text-secondary)] mt-2 opacity-80">{formatPostDate(post.createdAt)}</div>
       {post.attachments.length > 0 ? (
         <div className="mt-2 flex flex-col gap-1">
@@ -79,12 +115,24 @@ function PostCard({
           ))}
         </div>
       ) : null}
-      {showEdit ? (
-        <div className="mt-2">
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <button type="button" className="text-xs text-[var(--link)] underline" onClick={onToggleExpand}>
+          {expanded ? '접기' : '펼치기 · 댓글'}
+        </button>
+        {showEdit ? (
           <button type="button" className="text-xs text-[var(--link)] underline" onClick={() => onEdit(post)}>
             수정
           </button>
-        </div>
+        ) : null}
+      </div>
+      {expanded ? (
+        <TeamPostComments
+          postId={post.id}
+          currentUserId={currentUserId}
+          token={token}
+          onCommentCountChange={onCommentCountChange}
+          scrollSectionIntoViewNonce={commentScrollNonce}
+        />
       ) : null}
     </div>
   )
@@ -92,6 +140,8 @@ function PostCard({
 
 export default function TeamPostsPage() {
   const { token, user } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [posts, setPosts] = useState<TeamPostRow[]>([])
   const [ownerId, setOwnerId] = useState<string | null>(null)
   const [loadError, setLoadError] = useState('')
@@ -100,6 +150,15 @@ export default function TeamPostsPage() {
   const [postModalOpen, setPostModalOpen] = useState(false)
   const [postModalMode, setPostModalMode] = useState<'create' | 'edit'>('create')
   const [postModalInitial, setPostModalInitial] = useState<TeamPostModalInitialData | undefined>(undefined)
+  const [expandedPostId, setExpandedPostId] = useState<string | null>(null)
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({})
+  const [highlightPostId, setHighlightPostId] = useState<string | null>(null)
+  const [commentScrollNonceByPost, setCommentScrollNonceByPost] = useState<Record<string, number>>({})
+  const highlightClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleCommentCountChange = useCallback((postId: string, count: number) => {
+    setCommentCounts((prev) => ({ ...prev, [postId]: count }))
+  }, [])
 
   const canSetNotice = Boolean(ownerId && user?.id && ownerId === user.id)
 
@@ -125,6 +184,38 @@ export default function TeamPostsPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    return () => {
+      if (highlightClearTimerRef.current != null) {
+        clearTimeout(highlightClearTimerRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const st = location.state as {
+      focusPostId?: string
+      highlightFromNotification?: boolean
+    } | null
+    const id = st?.focusPostId?.trim()
+    if (!id) {
+      return
+    }
+    setExpandedPostId(id)
+    if (st?.highlightFromNotification) {
+      if (highlightClearTimerRef.current != null) {
+        clearTimeout(highlightClearTimerRef.current)
+      }
+      setHighlightPostId(id)
+      setCommentScrollNonceByPost((prev) => ({ ...prev, [id]: Date.now() }))
+      highlightClearTimerRef.current = setTimeout(() => {
+        setHighlightPostId(null)
+        highlightClearTimerRef.current = null
+      }, 2000)
+    }
+    navigate('.', { replace: true, state: null })
+  }, [location.state, navigate])
 
   function openCreateModal() {
     setPostModalMode('create')
@@ -189,6 +280,14 @@ export default function TeamPostsPage() {
                 post={p}
                 showEdit={canEditTeamPost(p, user?.id, ownerId, user?.role)}
                 onEdit={openEditModal}
+                expanded={expandedPostId === p.id}
+                onToggleExpand={() => setExpandedPostId((cur) => (cur === p.id ? null : p.id))}
+                token={token ?? ''}
+                currentUserId={user?.id ?? ''}
+                commentCount={commentCounts[p.id]}
+                onCommentCountChange={handleCommentCountChange}
+                highlighted={highlightPostId === p.id}
+                commentScrollNonce={commentScrollNonceByPost[p.id]}
               />
             ))
           )}
