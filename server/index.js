@@ -4292,27 +4292,142 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
   }
 })
 
+function logExternalCreateError(reason, details = {}) {
+  console.warn('[external-create-error]', { reason, ...details })
+}
+
 apiRouter.post('/customer/external-create', async (req, res) => {
   try {
     const data = req.body ?? {}
-    const refUserId = String(data.refUserId ?? data.ref_user_id ?? '').trim()
-    if (!refUserId) {
-      res.status(400).json({ message: '소개 링크 정보가 없습니다.' })
-      return
-    }
+    const refUsername = String(data.refUsername ?? '').trim()
+    const refUserIdLegacy = String(data.refUserId ?? data.ref_user_id ?? '').trim()
+    const gaFromBodyRaw = String(data.gaCode ?? data.ga ?? data.ga_code ?? '').trim()
 
-    const userRow = await systemQuery(pool, `SELECT id, role, ga_id FROM users WHERE id = $1`, [refUserId])
-    if (userRow.rowCount === 0) {
-      res.status(400).json({ message: '유효하지 않은 소개 링크입니다.' })
-      return
-    }
-    if (normalizeUserRole(userRow.rows[0].role) !== 'USER') {
-      res.status(400).json({ message: '고객 정보를 받을 수 있는 계정이 아닙니다.' })
-      return
-    }
-    const refGaId = parseGaId(userRow.rows[0].ga_id)
-    if (refGaId == null) {
-      res.status(400).json({ message: '소개 계정에 GA가 연결되지 않았습니다.' })
+    let refUserId = ''
+    let refGaId = null
+
+    if (refUsername) {
+      const gaCodeNorm = normalizeInviteCode(gaFromBodyRaw)
+      if (!gaCodeNorm) {
+        logExternalCreateError('MISSING_GA_CODE', { refUsername, gaCode: gaFromBodyRaw || null })
+        res.status(400).json({ message: '잘못된 접근입니다' })
+        return
+      }
+
+      const userByName = await systemQuery(
+        pool,
+        `SELECT id, role, ga_id FROM users WHERE username = $1 AND is_deleted = false`,
+        [refUsername],
+      )
+      if (userByName.rowCount === 0) {
+        logExternalCreateError('REF_USER_NOT_FOUND', { refUsername, gaCode: gaCodeNorm })
+        res.status(400).json({ message: '유효하지 않은 소개 링크입니다.' })
+        return
+      }
+      if (normalizeUserRole(userByName.rows[0].role) !== 'USER') {
+        logExternalCreateError('REF_USER_NOT_ALLOWED_ROLE', {
+          refUsername,
+          gaCode: gaCodeNorm,
+          refUserId: String(userByName.rows[0].id),
+          role: userByName.rows[0].role,
+        })
+        res.status(400).json({ message: '고객 정보를 받을 수 있는 계정이 아닙니다.' })
+        return
+      }
+      const userGaId = parseGaId(userByName.rows[0].ga_id)
+      if (userGaId == null) {
+        logExternalCreateError('REF_USER_NO_GA', { refUsername, gaCode: gaCodeNorm, refUserId: String(userByName.rows[0].id) })
+        res.status(400).json({ message: '소개 계정에 GA가 연결되지 않았습니다.' })
+        return
+      }
+
+      const gaRow = await systemQuery(
+        pool,
+        `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
+        [gaCodeNorm],
+      )
+      if (gaRow.rowCount === 0) {
+        logExternalCreateError('GA_CODE_UNKNOWN', { refUsername, gaCode: gaCodeNorm, refUserId: String(userByName.rows[0].id) })
+        res.status(400).json({ message: '잘못된 접근입니다' })
+        return
+      }
+      if (String(gaRow.rows[0].status ?? '').toLowerCase() !== 'active') {
+        logExternalCreateError('GA_INACTIVE', {
+          refUsername,
+          gaCode: gaCodeNorm,
+          refUserId: String(userByName.rows[0].id),
+          gaId: gaRow.rows[0].id,
+          status: gaRow.rows[0].status,
+        })
+        res.status(400).json({ message: '잘못된 접근입니다' })
+        return
+      }
+      const gaIdFromCode = parseGaId(gaRow.rows[0].id)
+      if (gaIdFromCode == null || gaIdFromCode !== userGaId) {
+        logExternalCreateError('GA_MISMATCH', {
+          refUsername,
+          gaCode: gaCodeNorm,
+          refUserId: String(userByName.rows[0].id),
+          userGaId,
+          gaIdFromCode: gaIdFromCode ?? null,
+        })
+        res.status(400).json({ message: '잘못된 접근입니다' })
+        return
+      }
+
+      refUserId = String(userByName.rows[0].id)
+      refGaId = gaIdFromCode
+    } else if (refUserIdLegacy) {
+      const userRow = await systemQuery(pool, `SELECT id, role, ga_id FROM users WHERE id = $1`, [refUserIdLegacy])
+      if (userRow.rowCount === 0) {
+        logExternalCreateError('REF_USER_ID_NOT_FOUND', { refUserId: refUserIdLegacy, gaCode: gaFromBodyRaw || null })
+        res.status(400).json({ message: '유효하지 않은 소개 링크입니다.' })
+        return
+      }
+      if (normalizeUserRole(userRow.rows[0].role) !== 'USER') {
+        logExternalCreateError('REF_USER_ID_NOT_ALLOWED_ROLE', {
+          refUserId: refUserIdLegacy,
+          gaCode: gaFromBodyRaw || null,
+          role: userRow.rows[0].role,
+        })
+        res.status(400).json({ message: '고객 정보를 받을 수 있는 계정이 아닙니다.' })
+        return
+      }
+      refGaId = parseGaId(userRow.rows[0].ga_id)
+      if (refGaId == null) {
+        logExternalCreateError('REF_USER_ID_NO_GA', { refUserId: refUserIdLegacy, gaCode: gaFromBodyRaw || null })
+        res.status(400).json({ message: '소개 계정에 GA가 연결되지 않았습니다.' })
+        return
+      }
+
+      if (gaFromBodyRaw) {
+        const gaFromBody = normalizeInviteCode(gaFromBodyRaw)
+        const gaRowRef = await systemQuery(
+          pool,
+          `
+          SELECT code FROM ga_companies
+          WHERE id = $1 AND is_deleted = false
+          LIMIT 1
+          `,
+          [refGaId],
+        )
+        const refCodeNorm = normalizeInviteCode(gaRowRef.rows[0]?.code ?? '')
+        if (!refCodeNorm || refCodeNorm !== gaFromBody) {
+          logExternalCreateError('LEGACY_GA_BODY_MISMATCH', {
+            refUserId: refUserIdLegacy,
+            gaCode: gaFromBody,
+            refGaId,
+            expectedCodeNorm: refCodeNorm || null,
+          })
+          res.status(400).json({ message: 'GA 정보가 초대 링크와 일치하지 않습니다.' })
+          return
+        }
+      }
+
+      refUserId = refUserIdLegacy
+    } else {
+      logExternalCreateError('MISSING_REF', { gaCode: gaFromBodyRaw || null })
+      res.status(400).json({ message: '소개 링크 정보가 없습니다.' })
       return
     }
 

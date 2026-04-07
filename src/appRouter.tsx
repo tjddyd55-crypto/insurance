@@ -24,6 +24,7 @@ import { InsuranceUpdatesPage } from './features/contacts/pages/InsuranceUpdates
 import { ReinsurerContactsPage } from './features/contacts/pages/ReinsurerContactsPage'
 import CustomerCarPage from './features/customers/pages/CustomerCarPage'
 import CustomerInputPage from './features/customers/pages/CustomerInputPage'
+import CustomerRegisterPage from './features/customers/pages/CustomerRegisterPage'
 import CustomersPage from './features/customers/pages/CustomersPage'
 import CustomerConsultationsPage from './features/customers/pages/CustomerConsultationsPage'
 import TeamMembersPage from './features/team/pages/TeamMembersPage'
@@ -67,8 +68,9 @@ export const appRouter = createBrowserRouter([
       { path: 'signup', element: <Navigate to="/register" replace /> },
       { path: 'privacy', element: <PrivacyPolicyPage /> },
       { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
-      /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /customer/external-create + ref 검증 */
+      /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /api/customer/external-create + ref·ga 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },
+      { path: 'customer/register', element: <CustomerRegisterPage /> },
       { path: 'portal/insurer-news', element: <Navigate to="/insurer/news" replace /> },
       { path: 'portal/insurer-news/*', element: <Navigate to="/insurer/news" replace /> },
       {

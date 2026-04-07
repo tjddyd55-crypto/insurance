@@ -12,7 +12,6 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
-import { fetchSignedInviteSignupUrl } from '../../auth/authApi'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { formatKoreanDateTime } from '../../application/utils/date'
 import type { InsuranceApplicationRecord } from '../../application/domain/types'
@@ -1094,9 +1093,6 @@ export default function CustomersPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { user, token } = useAuth()
-  const [registerInviteCopyHint, setRegisterInviteCopyHint] = useState<string | null>(null)
-  const [registerInviteButtonCopied, setRegisterInviteButtonCopied] = useState(false)
-  const registerInviteCopyTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [customersTotalCount, setCustomersTotalCount] = useState(0)
@@ -1140,14 +1136,6 @@ export default function CustomersPage() {
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      if (registerInviteCopyTimerRef.current != null) {
-        window.clearTimeout(registerInviteCopyTimerRef.current)
-      }
-    }
   }, [])
 
   const ssnDupHighlightByCustomerId = useMemo(
@@ -1745,58 +1733,33 @@ export default function CustomersPage() {
                   type="button"
                   className="cta-button customers-page__action-btn"
                   onClick={() => {
-                    const gaCode = (user?.gaCode ?? '').trim()
+                    const refUsername = (user?.username ?? '').trim()
+                    const gaCode = (user?.gaCode ?? '').trim().toUpperCase()
                     if (!gaCode) {
                       window.alert('GA 코드가 없습니다')
                       return
                     }
-                    if (!token?.trim()) {
+                    if (!refUsername) {
                       window.alert('로그인 정보가 없습니다.')
                       return
                     }
+                    const inviteUrl = `${window.location.origin}/customer/register?ref=${encodeURIComponent(refUsername)}&ga=${encodeURIComponent(gaCode)}`
                     void (async () => {
-                      let inviteUrl: string
-                      try {
-                        const { path } = await fetchSignedInviteSignupUrl(token)
-                        inviteUrl = `${window.location.origin}${path}`
-                      } catch {
-                        window.alert('가입 링크를 발급하지 못했습니다. 잠시 후 다시 시도해 주세요.')
-                        return
-                      }
                       try {
                         await navigator.clipboard.writeText(inviteUrl)
-                        if (registerInviteCopyTimerRef.current != null) {
-                          window.clearTimeout(registerInviteCopyTimerRef.current)
-                        }
-                        setRegisterInviteCopyHint('가입 링크를 복사했습니다.')
-                        setRegisterInviteButtonCopied(true)
-                        registerInviteCopyTimerRef.current = window.setTimeout(() => {
-                          setRegisterInviteCopyHint(null)
-                          setRegisterInviteButtonCopied(false)
-                          registerInviteCopyTimerRef.current = null
-                        }, 2800)
+                        window.alert('고객 등록 링크가 복사되었습니다')
                       } catch {
                         window.prompt('링크 복사', inviteUrl)
                       }
                     })()
                   }}
                 >
-                  {registerInviteButtonCopied ? '복사됨' : '등록 링크'}
+                  등록 링크
                 </button>
                 <button type="button" className="cta-button customers-page__action-btn" onClick={enterExcelSelectMode}>
                   엑셀 다운로드
                 </button>
               </div>
-            ) : null}
-            {registerInviteCopyHint ? (
-              <p
-                className="text-sm text-[var(--text-secondary)] customers-page__invite-copy-hint"
-                role="status"
-                aria-live="polite"
-                style={{ marginTop: 8 }}
-              >
-                {registerInviteCopyHint}
-              </p>
             ) : null}
             <div className="customers-page__search-row">
               <input

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
+import { resolveApiUrl } from '../../../lib/apiClient'
 import {
   createEmptyCustomerForm,
   CustomerFormFields,
@@ -11,7 +12,10 @@ import { PageBackButton } from '../../../components/common/PageBackButton'
 
 export default function CustomerInputPage() {
   const [searchParams] = useSearchParams()
-  const refUserId = useMemo(() => (searchParams.get('ref') ?? '').trim(), [searchParams])
+  const location = useLocation()
+  const refParam = useMemo(() => (searchParams.get('ref') ?? '').trim(), [searchParams])
+  const inviteGaCode = useMemo(() => (searchParams.get('ga') ?? '').trim().toUpperCase(), [searchParams])
+  const isRegisterPath = location.pathname.includes('/customer/register')
   const [notice, setNotice] = useState('')
   const [customers, setCustomers] = useState<CustomerFormState[]>(() => [createEmptyCustomerForm()])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -34,7 +38,7 @@ export default function CustomerInputPage() {
   async function handleSubmit() {
     console.log('전송 클릭됨')
 
-    if (!refUserId) {
+    if (!refParam) {
       window.alert('잘못된 접근입니다')
       return
     }
@@ -55,9 +59,26 @@ export default function CustomerInputPage() {
     try {
       for (let i = 0; i < customers.length; i += 1) {
         const payload = customerFormStateToSavePayload(customers[i])
-        const body = { refUserId, ...payload }
+        const body: Record<string, unknown> = { ...payload }
+        if (isRegisterPath) {
+          body.refUsername = refParam
+          body.gaCode = inviteGaCode
+          body.ga = inviteGaCode
+        } else if (/^\d+$/.test(refParam) || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(refParam)) {
+          body.refUserId = refParam
+          if (inviteGaCode) {
+            body.gaCode = inviteGaCode
+            body.ga = inviteGaCode
+          }
+        } else {
+          body.refUsername = refParam
+          if (inviteGaCode) {
+            body.gaCode = inviteGaCode
+            body.ga = inviteGaCode
+          }
+        }
 
-        const res = await fetch('/api/customer/external-create', {
+        const res = await fetch(resolveApiUrl('/api/customer/external-create'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -87,7 +108,7 @@ export default function CustomerInputPage() {
     }
   }
 
-  if (!refUserId) {
+  if (!refParam) {
     return (
       <main className="page page--with-back">
         <PageBackButton />
@@ -99,11 +120,28 @@ export default function CustomerInputPage() {
     )
   }
 
+  if (isRegisterPath && !inviteGaCode) {
+    return (
+      <main className="page page--with-back">
+        <PageBackButton />
+        <header className="page-header">
+          <h1>고객 정보 입력</h1>
+          <p>링크에 GA 코드(ga)가 없습니다. 담당자에게 링크를 다시 요청해 주세요.</p>
+        </header>
+      </main>
+    )
+  }
+
   return (
     <main className="page customers-page page--with-back">
       <PageBackButton />
       <header className="page-header">
         <h1>고객 정보 입력</h1>
+        {inviteGaCode ? (
+          <p className="page-header-hint" style={{ marginTop: 6 }}>
+            소속 GA 코드: <strong>{inviteGaCode}</strong>
+          </p>
+        ) : null}
         {notice ? <p>{notice}</p> : <p className="page-header-hint">(필수: 이름)</p>}
       </header>
 

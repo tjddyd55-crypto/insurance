@@ -22,7 +22,13 @@ export function AppLayout() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const hideBarPaths = new Set(['/login', '/register', '/password-reset', '/customer/input'])
+  const hideBarPaths = new Set([
+    '/login',
+    '/register',
+    '/password-reset',
+    '/customer/input',
+    '/customer/register',
+  ])
   const showGaBar =
     Boolean(isAuthenticated && user?.gaId != null) && !hideBarPaths.has(location.pathname)
   const showThemeToggle = location.pathname === '/dashboard'
