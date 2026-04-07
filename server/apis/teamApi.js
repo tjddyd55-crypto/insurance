@@ -853,7 +853,19 @@ export function registerTeamApi(apiRouter, ctx) {
       }
 
       const isElevated = isTeamPostElevatedRole(req.user?.role)
-      const ownerParam = ownerId ? ownerId : null
+      const authorId = String(ex.author_user_id ?? '')
+      const canEdit =
+        isElevated || authorId === userId || (Boolean(ownerId) && userId === ownerId)
+      if (!canEdit) {
+        res.status(403).json({ message: '게시글을 수정할 권한이 없습니다.' })
+        return
+      }
+
+      console.log('[update-post]', {
+        postId,
+        gaId,
+        teamId: me.teamId,
+      })
 
       if (isNotice) {
         trxClient = await pool.connect()
@@ -882,13 +894,8 @@ export function registerTeamApi(apiRouter, ctx) {
           AND ga_id = $5
           AND team_id = $6
           AND COALESCE(is_deleted, false) = false
-          AND (
-            author_user_id = $7
-            OR ($8 IS NOT NULL AND $7 = $8)
-            OR $9 = true
-          )
         `,
-        [title, content, isNotice, postId, gaId, me.teamId, userId, ownerParam, isElevated],
+        [title, content, isNotice, postId, gaId, me.teamId],
       )
       if (upd.rowCount === 0) {
         if (trxClient) {
