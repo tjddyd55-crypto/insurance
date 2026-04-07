@@ -196,6 +196,17 @@ function customerPhoneHref(phone: string | undefined, scheme: 'tel' | 'sms'): st
   return `${scheme}:${digits}`
 }
 
+/** 카드 상단: API가 phone / phoneNumber / phone_number 중 무엇으로 주든 통일 */
+function resolveCustomerListPhone(
+  customer: CustomerRecord & { phoneNumber?: unknown; phone_number?: unknown },
+): string {
+  const raw = customer.phoneNumber ?? customer.phone_number ?? customer.phone ?? ''
+  if (raw == null) {
+    return ''
+  }
+  return typeof raw === 'string' ? raw : String(raw)
+}
+
 type CustomerAdvancedFilters = {
   minInsuranceAge: string
   maxInsuranceAge: string
@@ -475,9 +486,15 @@ function CustomerListCard({
   const ins = customerInsuranceDisplay(c)
   const recentConsultText =
     consultationCount > 0 ? lastConsultDateLabel ?? '—' : '—'
-  const smsHref = customerPhoneHref(c.phone, 'sms')
-  const telHref = customerPhoneHref(c.phone, 'tel')
-  const hasDialablePhone = telHref != null
+  const phone = resolveCustomerListPhone(c)
+  const hasPhone = typeof phone === 'string' && phone.trim() !== ''
+  const smsHref = customerPhoneHref(phone, 'sms')
+  const telHref = customerPhoneHref(phone, 'tel')
+
+  if (import.meta.env.DEV) {
+    console.log('customer:', c)
+    console.log('phone:', phone, 'hasPhone:', hasPhone)
+  }
 
   function handleSummaryKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (isSelectMode) {
@@ -594,17 +611,29 @@ function CustomerListCard({
                       💬
                     </span>
                   )}
-                  {hasDialablePhone ? (
+                  {telHref ? (
                     <a
                       href={telHref}
-                      className="customer-card-tel-link text-xl leading-none"
+                      className="group inline-flex text-xl leading-none"
                       aria-label="전화 걸기"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      📞
+                      <span
+                        className="transition-colors !text-green-500 group-hover:!text-green-400 group-active:!text-green-600"
+                        aria-hidden
+                      >
+                        📞
+                      </span>
                     </a>
                   ) : (
-                    <span className="text-xl text-gray-400 leading-none transition-colors" aria-hidden>
+                    <span
+                      className={`transition-colors text-xl leading-none ${
+                        hasPhone
+                          ? '!text-green-500 hover:!text-green-400 active:!text-green-600'
+                          : 'text-gray-400'
+                      }`}
+                      aria-hidden
+                    >
                       📞
                     </span>
                   )}
