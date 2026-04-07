@@ -13,8 +13,6 @@ export type GaTenantDashboardMenuEntry =
       label: string
       path: string
       disabled?: boolean
-      /** 자동차 신청서 등 상위 항목 하위 표시 */
-      nested?: boolean
       /** true: 페이지 이동 없이 준비중 안내만 (path는 플레이스홀더) */
       preparing?: boolean
     }
@@ -68,7 +66,6 @@ export function buildGaTenantDashboardMenu(
       type: 'link',
       label: '다이렉트 자동차',
       path: '#',
-      nested: true,
       preparing: true,
     })
   }

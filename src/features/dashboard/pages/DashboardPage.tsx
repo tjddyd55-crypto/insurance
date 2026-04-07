@@ -4,6 +4,7 @@ import { fetchInsurerManagersHealth, type InsurerManagersHealth } from '../../au
 import { fetchTeamMembers } from '../../team/api/teamApi'
 import { useAuth } from '../../auth/AuthProvider'
 import { isGaStaffReadOnlyUi } from '../../auth/roleGuards'
+import { Button, Modal } from '../../../components/ui'
 import {
   buildGaTenantDashboardMenu,
   GA_STAFF_MENU,
@@ -145,6 +146,7 @@ export function DashboardPage() {
   const [imHealthErr, setImHealthErr] = useState('')
   const [imHealth, setImHealth] = useState<InsurerManagersHealth | null>(null)
   const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
+  const [preparingNoticeOpen, setPreparingNoticeOpen] = useState(false)
 
   const loadImHealth = useCallback(async () => {
     if (!showImHealth || !token?.trim()) {
@@ -266,16 +268,14 @@ export function DashboardPage() {
                 <button
                   key={`${entry.path}-${entry.label}-${idx}`}
                   type="button"
-                  className={`menu-item${isActive ? ' active' : ''}${entry.disabled ? ' menu-item--disabled' : ''}${
-                    entry.nested ? ' menu-item--nested' : ''
-                  }`}
+                  className={`menu-item${isActive ? ' active' : ''}${entry.disabled ? ' menu-item--disabled' : ''}`}
                   onClick={() => {
                     if (entry.preparing) {
-                      window.alert('준비중입니다')
+                      setPreparingNoticeOpen(true)
                       return
                     }
                     if (entry.disabled) {
-                      window.alert('준비 중입니다.')
+                      setPreparingNoticeOpen(true)
                       return
                     }
                     if (!entry.path.trim() || entry.path === '#') {
@@ -284,7 +284,7 @@ export function DashboardPage() {
                     navigate(entry.path)
                   }}
                 >
-                  {entry.nested ? `└ ${entry.label}` : entry.label}
+                  {entry.label}
                 </button>
               )
             })}
@@ -312,6 +312,17 @@ export function DashboardPage() {
           </button>
         </div>
       </div>
+
+      <Modal open={preparingNoticeOpen} onClose={() => setPreparingNoticeOpen(false)} ariaLabel="안내">
+        <div className="text-center text-base font-medium text-[var(--text-primary)] px-2 py-2">
+          준비중입니다.
+        </div>
+        <div className="mt-4 flex justify-center">
+          <Button type="button" variant="primary" className="min-w-[88px]" onClick={() => setPreparingNoticeOpen(false)}>
+            확인
+          </Button>
+        </div>
+      </Modal>
     </main>
   )
 }

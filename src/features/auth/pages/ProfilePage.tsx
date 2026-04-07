@@ -353,7 +353,7 @@ export function ProfilePage() {
 
   if (loadError) {
     return (
-      <main className="auth-page">
+      <main className="auth-page profile-page">
         <section className="card auth-card">
           <h1>프로필</h1>
           <p className="status status--error">{loadError}</p>
@@ -417,7 +417,7 @@ export function ProfilePage() {
           {phoneChangedPending ? (
             <div className="field">
               <span className="field__label">휴대폰 변경 인증</span>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <div className="profile-page__phone-verify-row">
                 <button
                   type="button"
                   className="button button--secondary"
