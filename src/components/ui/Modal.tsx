@@ -6,9 +6,17 @@ export type ModalProps = {
   children: ReactNode
   /** 접근성용 — 기본 "대화상자" */
   ariaLabel?: string
+  /** 패널에 추가할 클래스(폭 등). 예: max-w-2xl */
+  panelClassName?: string
 }
 
-export default function Modal({ open, onClose, children, ariaLabel = '대화상자' }: ModalProps) {
+export default function Modal({
+  open,
+  onClose,
+  children,
+  ariaLabel = '대화상자',
+  panelClassName = '',
+}: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -53,7 +61,7 @@ export default function Modal({ open, onClose, children, ariaLabel = '대화상�
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
-        className="customer-ui-modal-panel w-[90%] max-w-md rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 shadow-lg outline-none"
+        className={`customer-ui-modal-panel w-[90%] max-w-md rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 shadow-lg outline-none ${panelClassName}`}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

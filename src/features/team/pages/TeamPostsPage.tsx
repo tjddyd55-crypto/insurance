@@ -1,15 +1,9 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PageBackButton } from '../../../components/common/PageBackButton'
-import { cdnUrlForObjectKey } from '../../insurer-news/lib/insurerNewsCdn'
 import { useAuth } from '../../auth/AuthProvider'
-import {
-  createTeamPost,
-  fetchTeamPosts,
-  presignTeamPostAttachment,
-  type TeamPostAttachment,
-  type TeamPostRow,
-} from '../api/teamApi'
+import { fetchTeamPosts, type TeamPostAttachment, type TeamPostRow } from '../api/teamApi'
+import { TeamPostFormModal, type TeamPostModalInitialData } from '../components/TeamPostFormModal'
 
 function snippet(text: string, max = 120): string {
   const t = text.replace(/\s+/g, ' ').trim()
@@ -27,59 +21,41 @@ function formatPostDate(iso: string): string {
   return d.toLocaleString('ko-KR')
 }
 
-function guessContentType(file: File): string {
-  if (file.type) {
-    return file.type
-  }
-  const n = file.name.toLowerCase()
-  if (n.endsWith('.pdf')) {
-    return 'application/pdf'
-  }
-  if (n.endsWith('.png')) {
-    return 'image/png'
-  }
-  if (n.endsWith('.jpg') || n.endsWith('.jpeg')) {
-    return 'image/jpeg'
-  }
-  if (n.endsWith('.webp')) {
-    return 'image/webp'
-  }
-  if (n.endsWith('.gif')) {
-    return 'image/gif'
-  }
-  return 'application/octet-stream'
+function isTeamPostElevatedRole(role: string | undefined): boolean {
+  const r = String(role ?? '')
+  return r === 'SUPER_ADMIN' || r === 'GA_ADMIN'
 }
 
-async function uploadTeamPostFiles(
-  token: string,
-  files: File[],
-): Promise<{ objectKey: string; fileName: string; fileUrl: string }[]> {
-  const out: { objectKey: string; fileName: string; fileUrl: string }[] = []
-  for (const file of files) {
-    const contentType = guessContentType(file)
-    const presign = await presignTeamPostAttachment(token, {
-      fileName: file.name,
-      contentType,
-      sizeBytes: file.size,
-    })
-    const headers: Record<string, string> = {
-      'Content-Type': contentType,
-      ...(presign.putHeaders ?? {}),
-    }
-    const put = await fetch(presign.uploadUrl, { method: 'PUT', headers, body: file })
-    if (!put.ok) {
-      throw new Error('파일 업로드에 실패했습니다.')
-    }
-    out.push({
-      objectKey: presign.objectKey,
-      fileName: file.name,
-      fileUrl: cdnUrlForObjectKey(presign.objectKey),
-    })
+function canEditTeamPost(
+  post: TeamPostRow,
+  userId: string | undefined,
+  ownerId: string | null,
+  role: string | undefined,
+): boolean {
+  if (!userId) {
+    return false
   }
-  return out
+  if (isTeamPostElevatedRole(role)) {
+    return true
+  }
+  if (post.authorId === userId) {
+    return true
+  }
+  if (ownerId && ownerId === userId) {
+    return true
+  }
+  return false
 }
 
-function PostCard({ post }: { post: TeamPostRow }) {
+function PostCard({
+  post,
+  showEdit,
+  onEdit,
+}: {
+  post: TeamPostRow
+  showEdit: boolean
+  onEdit: (p: TeamPostRow) => void
+}) {
   return (
     <div className="p-3 border-b border-[var(--border-default)]">
       {post.isNotice ? (
@@ -103,6 +79,13 @@ function PostCard({ post }: { post: TeamPostRow }) {
           ))}
         </div>
       ) : null}
+      {showEdit ? (
+        <div className="mt-2">
+          <button type="button" className="text-xs text-[var(--link)] underline" onClick={() => onEdit(post)}>
+            수정
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -113,12 +96,10 @@ export default function TeamPostsPage() {
   const [ownerId, setOwnerId] = useState<string | null>(null)
   const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-  const [isNotice, setIsNotice] = useState(false)
-  const [files, setFiles] = useState<File[]>([])
-  const [submitError, setSubmitError] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+
+  const [postModalOpen, setPostModalOpen] = useState(false)
+  const [postModalMode, setPostModalMode] = useState<'create' | 'edit'>('create')
+  const [postModalInitial, setPostModalInitial] = useState<TeamPostModalInitialData | undefined>(undefined)
 
   const canSetNotice = Boolean(ownerId && user?.id && ownerId === user.id)
 
@@ -145,44 +126,25 @@ export default function TeamPostsPage() {
     void load()
   }, [load])
 
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!token?.trim()) {
-      return
-    }
-    setSubmitError('')
-    const titleTrim = title.trim()
-    const contentTrim = content.trim()
-    if (!titleTrim) {
-      setSubmitError('제목을 입력해 주세요.')
-      return
-    }
-    if (!contentTrim) {
-      setSubmitError('내용을 입력해 주세요.')
-      return
-    }
-    setSubmitting(true)
-    try {
-      let uploaded: { objectKey: string; fileName: string; fileUrl: string }[] = []
-      if (files.length > 0) {
-        uploaded = await uploadTeamPostFiles(token, files)
-      }
-      await createTeamPost(token, {
-        title: titleTrim,
-        content: contentTrim,
-        isNotice: canSetNotice && isNotice,
-        attachments: uploaded,
-      })
-      setTitle('')
-      setContent('')
-      setIsNotice(false)
-      setFiles([])
-      await load()
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : '등록에 실패했습니다.')
-    } finally {
-      setSubmitting(false)
-    }
+  function openCreateModal() {
+    setPostModalMode('create')
+    setPostModalInitial(undefined)
+    setPostModalOpen(true)
+  }
+
+  function openEditModal(post: TeamPostRow) {
+    setPostModalMode('edit')
+    setPostModalInitial({
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      is_notice: post.isNotice,
+    })
+    setPostModalOpen(true)
+  }
+
+  function closePostModal() {
+    setPostModalOpen(false)
   }
 
   return (
@@ -206,59 +168,12 @@ export default function TeamPostsPage() {
         </p>
       ) : null}
 
-      {!loadError && !loading ? (
-        <form className="mt-4 space-y-3 border border-[var(--border-default)] rounded-lg p-4" onSubmit={(ev) => void onSubmit(ev)}>
-          <div className="text-sm font-medium text-[var(--text-primary)]">글 작성</div>
-          <label className="block text-sm text-[var(--text-secondary)]">
-            제목
-            <input
-              className="mt-1 w-full box-border border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
-              value={title}
-              onChange={(ev) => setTitle(ev.target.value)}
-              maxLength={200}
-            />
-          </label>
-          <label className="block text-sm text-[var(--text-secondary)]">
-            내용
-            <textarea
-              className="mt-1 w-full min-h-[120px] box-border border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
-              value={content}
-              onChange={(ev) => setContent(ev.target.value)}
-              maxLength={50000}
-            />
-          </label>
-          <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
-            <input
-              type="checkbox"
-              checked={isNotice}
-              disabled={!canSetNotice}
-              onChange={(ev) => setIsNotice(ev.target.checked)}
-            />
-            공지로 등록 {canSetNotice ? null : <span className="text-xs text-[var(--text-secondary)]">(팀장만)</span>}
-          </label>
-          <label className="block text-sm text-[var(--text-secondary)]">
-            첨부 (이미지·PDF, 최대 10개)
-            <input
-              type="file"
-              className="mt-1 w-full text-sm"
-              accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
-              multiple
-              onChange={(ev) => setFiles(Array.from(ev.target.files ?? []))}
-            />
-          </label>
-          {submitError ? (
-            <p className="text-sm text-[var(--danger)]" role="alert">
-              {submitError}
-            </p>
-          ) : null}
-          <button
-            type="submit"
-            className="cta-button"
-            disabled={submitting}
-          >
-            {submitting ? '등록 중…' : '등록'}
+      {!loadError && !loading && token?.trim() ? (
+        <div className="mt-4">
+          <button type="button" className="cta-button" onClick={openCreateModal}>
+            글 작성
           </button>
-        </form>
+        </div>
       ) : null}
 
       {loading ? (
@@ -268,9 +183,28 @@ export default function TeamPostsPage() {
           {posts.length === 0 ? (
             <p className="py-6 text-sm text-[var(--text-secondary)]">등록된 글이 없습니다.</p>
           ) : (
-            posts.map((p) => <PostCard key={p.id} post={p} />)
+            posts.map((p) => (
+              <PostCard
+                key={p.id}
+                post={p}
+                showEdit={canEditTeamPost(p, user?.id, ownerId, user?.role)}
+                onEdit={openEditModal}
+              />
+            ))
           )}
         </div>
+      ) : null}
+
+      {token?.trim() ? (
+        <TeamPostFormModal
+          open={postModalOpen}
+          onClose={closePostModal}
+          mode={postModalMode}
+          initialData={postModalInitial}
+          token={token}
+          canSetNotice={canSetNotice}
+          onSuccess={() => void load()}
+        />
       ) : null}
     </div>
   )
