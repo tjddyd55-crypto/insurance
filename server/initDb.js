@@ -1306,6 +1306,27 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_users_team ON users(team_id) WHERE team_id IS NOT NULL
   `)
   await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS invited_by_user_id TEXT
+  `)
+  await pool.query(`
+    UPDATE users SET invited_by_user_id = id WHERE invited_by_user_id IS NULL
+  `)
+  await pool.query(`
+    ALTER TABLE users DROP CONSTRAINT IF EXISTS users_invited_by_user_id_fkey
+  `)
+  await pool.query(`
+    ALTER TABLE users
+    ADD CONSTRAINT users_invited_by_user_id_fkey
+    FOREIGN KEY (invited_by_user_id) REFERENCES users(id) ON DELETE RESTRICT
+  `)
+  await pool.query(`
+    ALTER TABLE users ALTER COLUMN invited_by_user_id SET NOT NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_users_invited_by ON users(invited_by_user_id)
+  `)
+  await pool.query(`
     ALTER TABLE teams
     ADD COLUMN IF NOT EXISTS owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
   `)

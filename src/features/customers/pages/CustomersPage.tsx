@@ -12,6 +12,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
+import { fetchSignedInviteSignupUrl } from '../../auth/authApi'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { formatKoreanDateTime } from '../../application/utils/date'
 import type { InsuranceApplicationRecord } from '../../application/domain/types'
@@ -329,23 +330,6 @@ function customerPassesAdvancedFilters(c: CustomerRecord, filters: CustomerAdvan
   }
 
   return true
-}
-
-/** 영업 연락 우선: 상령/만기 D-day가 이 값 이하이면 오늘 대상(경과 포함) */
-const CONTACT_TARGET_DDAY_MAX = 30
-
-function isYmdWithinContactDday(ymd: string | null): boolean {
-  if (!ymd) {
-    return false
-  }
-  const d = getDDay(ymd)
-  return d !== null && d <= CONTACT_TARGET_DDAY_MAX
-}
-
-function customerIsTodayContactTarget(c: CustomerRecord): boolean {
-  const mat = getCustomerListMetrics(c).maturityYmd
-  const car = customerRenewalYmd(c)
-  return isYmdWithinContactDday(mat) || isYmdWithinContactDday(car)
 }
 
 function ymdAscSortKey(ymd: string | null): string {
@@ -1110,13 +1094,9 @@ export default function CustomersPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { user, token } = useAuth()
-  const externalRegistrationUrl = useMemo(() => {
-    if (!user?.id) {
-      return ''
-    }
-    const origin = typeof window !== 'undefined' ? window.location.origin : ''
-    return `${origin}/customer/input?ref=${encodeURIComponent(user.id)}`
-  }, [user?.id])
+  const [registerInviteCopyHint, setRegisterInviteCopyHint] = useState<string | null>(null)
+  const [registerInviteButtonCopied, setRegisterInviteButtonCopied] = useState(false)
+  const registerInviteCopyTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [customersTotalCount, setCustomersTotalCount] = useState(0)
@@ -1162,6 +1142,14 @@ export default function CustomersPage() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (registerInviteCopyTimerRef.current != null) {
+        window.clearTimeout(registerInviteCopyTimerRef.current)
+      }
+    }
+  }, [])
+
   const ssnDupHighlightByCustomerId = useMemo(
     () => buildSsnDuplicateHighlightByCustomerId(customers),
     [customers],
@@ -1202,11 +1190,6 @@ export default function CustomersPage() {
     lastConsultDateMap,
     favoriteOnly,
   ])
-
-  const todayContactTargets = useMemo(
-    () => filteredCustomers.filter((c) => customerIsTodayContactTarget(c)),
-    [filteredCustomers],
-  )
 
   const advancedFiltersActive = useMemo(() => {
     const f = advancedFilters
@@ -1761,19 +1744,59 @@ export default function CustomersPage() {
                 <button
                   type="button"
                   className="cta-button customers-page__action-btn"
-                  disabled={!externalRegistrationUrl}
                   onClick={() => {
-                    if (externalRegistrationUrl) {
-                      window.open(externalRegistrationUrl, '_blank', 'noopener,noreferrer')
+                    const gaCode = (user?.gaCode ?? '').trim()
+                    if (!gaCode) {
+                      window.alert('GA 코드가 없습니다')
+                      return
                     }
+                    if (!token?.trim()) {
+                      window.alert('로그인 정보가 없습니다.')
+                      return
+                    }
+                    void (async () => {
+                      let inviteUrl: string
+                      try {
+                        const { path } = await fetchSignedInviteSignupUrl(token)
+                        inviteUrl = `${window.location.origin}${path}`
+                      } catch {
+                        window.alert('가입 링크를 발급하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+                        return
+                      }
+                      try {
+                        await navigator.clipboard.writeText(inviteUrl)
+                        if (registerInviteCopyTimerRef.current != null) {
+                          window.clearTimeout(registerInviteCopyTimerRef.current)
+                        }
+                        setRegisterInviteCopyHint('가입 링크를 복사했습니다.')
+                        setRegisterInviteButtonCopied(true)
+                        registerInviteCopyTimerRef.current = window.setTimeout(() => {
+                          setRegisterInviteCopyHint(null)
+                          setRegisterInviteButtonCopied(false)
+                          registerInviteCopyTimerRef.current = null
+                        }, 2800)
+                      } catch {
+                        window.prompt('링크 복사', inviteUrl)
+                      }
+                    })()
                   }}
                 >
-                  등록 링크
+                  {registerInviteButtonCopied ? '복사됨' : '등록 링크'}
                 </button>
                 <button type="button" className="cta-button customers-page__action-btn" onClick={enterExcelSelectMode}>
                   엑셀 다운로드
                 </button>
               </div>
+            ) : null}
+            {registerInviteCopyHint ? (
+              <p
+                className="text-sm text-[var(--text-secondary)] customers-page__invite-copy-hint"
+                role="status"
+                aria-live="polite"
+                style={{ marginTop: 8 }}
+              >
+                {registerInviteCopyHint}
+              </p>
             ) : null}
             <div className="customers-page__search-row">
               <input
@@ -1892,17 +1915,6 @@ export default function CustomersPage() {
                 >
                   심층 검색 중…
                 </p>
-              ) : null}
-
-              {!isLoading && customers.length > 0 ? (
-                <div className="customers-today-targets" role="status">
-                  <p className="customers-today-targets__title">
-                    🔥 오늘 연락 대상 (<strong>{todayContactTargets.length}</strong>명)
-                  </p>
-                  <p className="customers-today-targets__hint">
-                    상령일 또는 자동차 만기 D-{CONTACT_TARGET_DDAY_MAX} 이하(임박·경과) — 현재 검색·필터 범위 기준
-                  </p>
-                </div>
               ) : null}
 
               <div className="customers-sort-row" role="group" aria-label="목록 정렬 (같은 버튼을 다시 누르면 해제되어 이름 가나다순)">

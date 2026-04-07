@@ -114,10 +114,20 @@ export async function checkUsernameAvailability(username: string): Promise<boole
   return Boolean(r.available)
 }
 
+export async function fetchSignedInviteSignupUrl(token: string): Promise<{ path: string }> {
+  return apiRequest<{ path: string }>('/api/auth/invite-signup-url', { method: 'GET', token })
+}
+
 export async function register(payload: {
   username: string
   password: string
   inviteCode: string
+  /** 초대 담당자(users.id) — 서버에서 GA 일치 검증 */
+  refUserId: string
+  /** 서버 HMAC — 변조 방지 */
+  inviteSig: string
+  /** 링크 발급 시각(ms) — 만료 검증 */
+  inviteTs: string | number
   name: string
   /** 완화 모드에서는 생략 가능 */
   phoneNumber?: string
@@ -128,6 +138,9 @@ export async function register(payload: {
       username: payload.username.trim(),
       password: payload.password,
       invite_code: payload.inviteCode.trim(),
+      ref_user_id: payload.refUserId.trim(),
+      invite_sig: payload.inviteSig.trim(),
+      invite_ts: String(payload.inviteTs).trim(),
       name: payload.name.trim(),
     }
     const phone = payload.phoneNumber?.trim()

@@ -17,6 +17,7 @@ import { recordAnalyticsEvent } from './lib/analyticsEvents.js'
 import { ensureYesterdayAnalyticsAggregated } from './lib/analyticsAggregation.js'
 import { tickAnalyticsAggregationScheduler } from './lib/analyticsScheduler.js'
 import { verifySignupPhoneProof } from './lib/signupPhoneProof.js'
+import { signInviteSignup, verifyInviteSignupSignature } from './lib/inviteSignupSignature.js'
 import { purgeExpiredSmsVerificationCodes } from './services/purgeExpiredSmsCodes.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
 import { isSignupPhoneRelaxedMode } from './lib/signupPhoneRelaxed.js'
@@ -37,6 +38,8 @@ import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 
 const PORT = Number(process.env.PORT ?? 3001)
 const JWT_SECRET = process.env.JWT_SECRET ?? 'change-this-in-production'
+/** 초대 가입 링크 HMAC — 운영에서는 INVITE_SIGNUP_SECRET 별도 권장 */
+const INVITE_SIGNUP_SECRET = String(process.env.INVITE_SIGNUP_SECRET ?? JWT_SECRET)
 const DEFAULT_JWT_SECRET = 'change-this-in-production'
 const VALID_USER_ROLES = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF', 'USER', 'INSURER_MANAGER']
 const GA_DELEGATE_ROLES = ['GA_ADMIN', 'GA_STAFF']
@@ -1310,12 +1313,20 @@ async function handleRegister(req, res) {
       password,
       invite_code: inviteRaw,
       inviteCode: inviteAlt,
+      ref_user_id: refUserSnake,
+      refUserId: refUserCamel,
       name: nameRaw,
       display_name: displayNameRaw,
       phone_number: phoneSnake,
       phoneNumber: phoneCamel,
       signup_phone_proof: signupProofSnake,
       signupPhoneProof: signupProofCamel,
+      invite_sig: inviteSigSnake,
+      inviteSig: inviteSigCamel,
+      invite_ts: inviteTsSnake,
+      inviteTs: inviteTsCamel,
+      sig: sigLoose,
+      ts: tsLoose,
     } = req.body ?? {}
     const displayName = String(nameRaw ?? displayNameRaw ?? '').trim()
     if (!displayName) {
@@ -1361,6 +1372,63 @@ async function handleRegister(req, res) {
     const gaId = parseGaId(gaRow.id)
     if (gaId == null) {
       res.status(400).json({ message: '유효하지 않은 코드입니다' })
+      return
+    }
+
+    const refUserId = String(refUserSnake ?? refUserCamel ?? '').trim()
+    if (!refUserId) {
+      res.status(400).json({
+        message: '담당자 초대 정보가 없습니다. 배포된 가입 링크를 통해 다시 시도해 주세요.',
+      })
+      return
+    }
+
+    const refUserRes = await systemQuery(
+      pool,
+      `
+      SELECT id, role, ga_id, status, is_deleted
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [refUserId],
+    )
+    const refRow = refUserRes.rows[0]
+    if (!refRow || refRow.is_deleted) {
+      res.status(400).json({ message: '유효하지 않은 초대 링크입니다.' })
+      return
+    }
+    if (String(refRow.status ?? '').toLowerCase() !== 'active') {
+      res.status(400).json({ message: '초대를 받을 수 없는 계정 상태입니다.' })
+      return
+    }
+    if (normalizeUserRole(refRow.role) !== 'USER') {
+      res.status(400).json({ message: '일반 설계사(USER) 계정으로만 회원 초대가 가능합니다.' })
+      return
+    }
+    const refGaId = parseGaId(refRow.ga_id)
+    if (refGaId == null || refGaId !== gaId) {
+      res.status(400).json({ message: '소속 GA가 초대 담당자와 일치하지 않습니다.' })
+      return
+    }
+
+    const inviteSigRaw = String(
+      inviteSigSnake ?? inviteSigCamel ?? sigLoose ?? '',
+    ).trim()
+    const inviteTsRaw = inviteTsSnake ?? inviteTsCamel ?? tsLoose
+    const inviteTsMs = Number(inviteTsRaw)
+    const sigCheck = verifyInviteSignupSignature(INVITE_SIGNUP_SECRET, {
+      gaCodeNormalized: code,
+      refUserId,
+      tsMs: inviteTsMs,
+      sig: inviteSigRaw,
+    })
+    if (!sigCheck.ok) {
+      const msg =
+        sigCheck.reason === 'expired'
+          ? '초대 링크가 만료되었습니다. 담당자에게 새 링크를 요청해 주세요.'
+          : '유효하지 않거나 변조된 초대 링크입니다. 담당자가 공유한 링크로 다시 시도해 주세요.'
+      res.status(400).json({ message: msg })
       return
     }
 
@@ -1452,11 +1520,11 @@ async function handleRegister(req, res) {
 
     const inserted = await safeQuery(pool,
       `
-      INSERT INTO users (id, username, password_hash, role, ga_id, display_name, phone_number)
-      VALUES ($1, $2, $3, 'USER', $4, $5, $6)
+      INSERT INTO users (id, username, password_hash, role, ga_id, display_name, phone_number, invited_by_user_id)
+      VALUES ($1, $2, $3, 'USER', $4, $5, $6, $7)
       RETURNING created_at
       `,
-      [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm || null],
+      [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm || null, refUserId],
     )
 
     if (phoneNorm) {
@@ -1733,6 +1801,57 @@ async function handleLogin(req, res) {
 apiRouter.post('/register', handleRegister)
 apiRouter.post('/auth/register', handleRegister)
 apiRouter.post('/auth/signup', handleRegister)
+
+apiRouter.get('/auth/invite-signup-url', requireAuth, async (req, res) => {
+  try {
+    if (normalizeUserRole(req.user.role) !== 'USER') {
+      res
+        .status(403)
+        .json({ message: '초대 링크는 일반 설계사(USER) 계정에서만 발급할 수 있습니다.' })
+      return
+    }
+    let gaCode = normalizeInviteCode(req.user.gaCode ?? '')
+    if (!gaCode) {
+      const r = await systemQuery(
+        pool,
+        `
+        SELECT g.code
+        FROM users u
+        INNER JOIN ga_companies g ON g.id = u.ga_id
+        WHERE u.id = $1
+        LIMIT 1
+        `,
+        [req.user.id],
+      )
+      gaCode = normalizeInviteCode(r.rows[0]?.code ?? '')
+    }
+    if (!gaCode) {
+      res.status(400).json({ message: 'GA 코드를 확인할 수 없습니다.' })
+      return
+    }
+    const refUserId = String(req.user.id).trim()
+    const ts = Date.now()
+    let sig
+    try {
+      sig = signInviteSignup(INVITE_SIGNUP_SECRET, gaCode, refUserId, ts)
+    } catch (e) {
+      if (e?.message === 'invite_signup_missing_secret') {
+        res.status(500).json({ message: '서버 설정 오류입니다.' })
+        return
+      }
+      throw e
+    }
+    const q = new URLSearchParams({
+      ga: gaCode,
+      ref: refUserId,
+      ts: String(ts),
+      sig,
+    })
+    res.json({ path: `/register?${q.toString()}` })
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
 
 apiRouter.post('/login', handleLogin)
 apiRouter.post('/auth/login', handleLogin)
@@ -2580,12 +2699,17 @@ async function tryCreateGaDelegateFromRequest(req) {
   const passwordHash = await bcrypt.hash(plainPassword, 10)
   const id = randomUUID()
 
+  const invitedBy = String(req.user?.id ?? '').trim()
+  if (!invitedBy) {
+    return { ok: false, status: 401, message: '생성 주체를 확인할 수 없습니다.' }
+  }
+
   await safeQuery(pool,
     `
-    INSERT INTO users (id, username, password_hash, role, display_name, ga_id, delegate_password_plaintext)
-    VALUES ($1, $2, $3, $4, $5, $6, $7)
+    INSERT INTO users (id, username, password_hash, role, display_name, ga_id, delegate_password_plaintext, invited_by_user_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     `,
-    [id, normalizedUsername, passwordHash, targetRole, displayName, targetGaId, plainPassword],
+    [id, normalizedUsername, passwordHash, targetRole, displayName, targetGaId, plainPassword, invitedBy],
   )
 
   return { ok: true, id, username: normalizedUsername, role: targetRole, ga_id: targetGaId, displayName }

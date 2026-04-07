@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { normalizeKrMobile, validateKrMobileDigits } from '../../../lib/phoneNormalize'
 import { isSignupPhoneRelaxedMode } from '../../../lib/signupPhoneRelaxed'
@@ -19,8 +19,12 @@ const RESEND_COOLDOWN_SEC = 60
 
 export function RegisterPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { isAuthenticated, login } = useAuth()
   const [inviteCode, setInviteCode] = useState('')
+  const [inviteRefUserId, setInviteRefUserId] = useState('')
+  const [inviteSig, setInviteSig] = useState('')
+  const [inviteTs, setInviteTs] = useState('')
   const [name, setName] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -43,6 +47,19 @@ export function RegisterPage() {
       navigate('/dashboard', { replace: true })
     }
   }, [isAuthenticated, navigate])
+
+  useEffect(() => {
+    const ga = searchParams.get('ga')?.trim()
+    if (ga) {
+      setInviteCode((prev) => (prev.trim() !== '' ? prev : ga.toUpperCase()))
+    }
+    const ref = searchParams.get('ref')?.trim()
+    setInviteRefUserId(ref ?? '')
+    const sig = searchParams.get('sig')?.trim()
+    setInviteSig(sig ?? '')
+    const ts = searchParams.get('ts')?.trim()
+    setInviteTs(ts ?? '')
+  }, [searchParams])
 
   useEffect(() => {
     if (secondsLeft <= 0) {
@@ -90,6 +107,14 @@ export function RegisterPage() {
   const phoneDigits = normalizeKrMobile(phone)
   const inviteTrim = inviteCode.trim()
   const needsPhoneAuth = !isSignupPhoneRelaxedMode() || Boolean(phoneDigits)
+
+  const inviteLinkOk = useMemo(() => {
+    const refOk = inviteRefUserId.trim().length > 0
+    const sigOk = inviteSig.trim().length > 0
+    const tsNum = Number(inviteTs.trim())
+    const tsOk = Number.isFinite(tsNum) && tsNum > 0
+    return refOk && sigOk && tsOk
+  }, [inviteRefUserId, inviteSig, inviteTs])
 
   const requestSignupSms = async () => {
     setErrorMessage('')
@@ -182,7 +207,18 @@ export function RegisterPage() {
     const code = inviteTrim
     const nameTrim = name.trim()
     const userTrim = username.trim()
+    const refTrim = inviteRefUserId.trim()
 
+    if (!refTrim) {
+      setErrorMessage('담당자 초대 링크로 접속해 주세요. (주소에 ref 가 포함되어야 합니다)')
+      return
+    }
+    const sigTrim = inviteSig.trim()
+    const tsTrim = inviteTs.trim()
+    if (!sigTrim || !tsTrim) {
+      setErrorMessage('초대 링크가 불완전합니다. 담당자에게 다시 공유받은 링크로 접속해 주세요.')
+      return
+    }
     if (!code) {
       setErrorMessage('GA 코드를 입력하세요.')
       return
@@ -238,6 +274,9 @@ export function RegisterPage() {
         username: userTrim,
         password,
         inviteCode: code,
+        refUserId: refTrim,
+        inviteSig: sigTrim,
+        inviteTs: tsTrim,
         name: nameTrim,
         phoneNumber: phoneDigits || undefined,
         signupPhoneProof: signupPhoneProof ?? undefined,
@@ -274,6 +313,7 @@ export function RegisterPage() {
 
   const submitDisabled =
     isSubmitting ||
+    !inviteLinkOk ||
     (needsPhoneAuth && (!isPhoneVerified || !signupPhoneProof)) ||
     usernameCheck === 'checking' ||
     usernameCheck === 'taken' ||
@@ -286,9 +326,17 @@ export function RegisterPage() {
     <main className="auth-page">
       <section className="card auth-card">
         <h1>회원가입</h1>
-        <p className="auth-description">소속 GA에서 안내받은 초대 코드로 가입합니다.</p>
+        <p className="auth-description">소속 GA 담당자가 공유한 가입 링크로 접속해 주세요. (GA 코드와 담당자 정보가 함께 전달됩니다.)</p>
+        {!inviteLinkOk ? (
+          <p className="status status--error" role="alert">
+            정식 초대 링크가 아닙니다. 담당자가 복사한 주소(ts·sig 포함)로 다시 열어 주세요.
+          </p>
+        ) : null}
 
         <form className="auth-form auth-form--register" onSubmit={(e) => void handleSignup(e)}>
+          <input type="hidden" name="invite_ref_user_id" value={inviteRefUserId} aria-hidden />
+          <input type="hidden" name="invite_sig" value={inviteSig} aria-hidden />
+          <input type="hidden" name="invite_ts" value={inviteTs} aria-hidden />
           <label className="field">
             <span className="field__label">GA 코드</span>
             <input

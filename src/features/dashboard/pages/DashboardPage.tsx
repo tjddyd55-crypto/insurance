@@ -115,6 +115,9 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === '/admin/audit-logs') {
     return pathname === '/admin/audit-logs'
   }
+  if (itemPath === '/team/manage' || itemPath === '/team/menu-settings' || itemPath === '/team/admin') {
+    return pathname === '/team/members' || pathname === itemPath || pathname.startsWith('/team/members/')
+  }
   if (itemPath.startsWith('/team/')) {
     return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
   }
@@ -199,7 +202,7 @@ export function DashboardPage() {
     }
     const out = [...base]
     const filesIdx = out.findIndex((e) => e.type === 'link' && e.path === '/team/files')
-    const entry: MenuEntry = { type: 'link', label: '팀 메뉴 관리', path: '/team/menu-settings' }
+    const entry: MenuEntry = { type: 'link', label: '팀 관리', path: '/team/manage' }
     if (filesIdx >= 0) {
       out.splice(filesIdx + 1, 0, entry)
     } else {
