@@ -7,6 +7,7 @@ import {
   type Dispatch,
   type FormEvent,
   type KeyboardEvent,
+  type MouseEvent,
   type SetStateAction,
 } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -1732,7 +1733,9 @@ export default function CustomersPage() {
                 <button
                   type="button"
                   className="cta-button customers-page__action-btn"
-                  onClick={() => {
+                  onClick={(e: MouseEvent<HTMLButtonElement>) => {
+                    e.preventDefault()
+                    e.stopPropagation()
                     const refUsername = (user?.username ?? '').trim()
                     const gaCode = (user?.gaCode ?? '').trim().toUpperCase()
                     if (!gaCode) {
