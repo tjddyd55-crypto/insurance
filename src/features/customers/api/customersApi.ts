@@ -47,9 +47,16 @@ export function assertCustomerDataRecord(
       500,
     )
   }
+  const row = c as Record<string, unknown>
   const withFlag = c as CustomerRecord & { isFavorite?: unknown }
+  const phoneFromPrimary = typeof withFlag.phone === 'string' ? withFlag.phone.trim() : ''
+  const phoneFromSnake = typeof row.phone_number === 'string' ? row.phone_number.trim() : ''
+  const phoneFromCamel = typeof row.phoneNumber === 'string' ? row.phoneNumber.trim() : ''
+  const phone = phoneFromPrimary || phoneFromSnake || phoneFromCamel
+
   return {
     ...withFlag,
+    phone,
     isFavorite: withFlag.isFavorite === true,
   }
 }

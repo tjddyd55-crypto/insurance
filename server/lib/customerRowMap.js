@@ -99,7 +99,7 @@ export function mapCustomerRow(row) {
     isDriver,
     carType: row.car_type ?? '',
     notes: mapCustomerNotesJson(row.notes),
-    phone: row.phone ?? '',
+    phone: row.phone ?? row.phone_number ?? '',
     carrier: row.carrier ?? '',
     address: row.address ?? '',
     height: row.height ?? '',

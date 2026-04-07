@@ -159,7 +159,7 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
   return (
     <div className="customer-form-history customer-consultation-block mt-5">
       <div className="flex justify-between items-center mb-2 gap-2">
-        <div className="border-l-2 border-blue-500 pl-3 text-blue-400 font-semibold">[상담 내역]</div>
+        <div className="customer-section-title !mt-0">[상담 내역]</div>
         <Button
           type="button"
           variant="secondary"

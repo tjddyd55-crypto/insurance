@@ -163,7 +163,7 @@ export function CustomerRelationsStrip({
 
   return (
     <div className="customer-relations-strip mt-5" style={{ padding: '10px 0' }}>
-      <div className="border-l-2 border-blue-500 pl-3 mt-4 mb-2 text-blue-400 font-semibold">[연계 고객]</div>
+      <div className="customer-section-title !mt-0">[연계 고객]</div>
       {loading ? (
         <p style={{ fontSize: '0.9rem', color: '#666' }}>불러오는 중…</p>
       ) : error ? (

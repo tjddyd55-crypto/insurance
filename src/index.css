@@ -58,6 +58,32 @@ body {
   color: var(--link);
 }
 
+/* 고객 카드: 전화(tel) 링크는 초록 유지 — 위 규칙이 text-green 유틸을 덮어쓰는 것 방지 */
+.customer-card-tel-link {
+  color: rgb(34 197 94);
+  transition: color 0.15s ease;
+}
+.customer-card-tel-link:hover {
+  color: rgb(74 222 128);
+}
+.customer-card-tel-link:active {
+  color: rgb(22 163 74);
+}
+[data-theme='dark'] main a.customer-card-tel-link {
+  color: rgb(34 197 94);
+}
+[data-theme='dark'] main a.customer-card-tel-link:hover {
+  color: rgb(74 222 128);
+}
+[data-theme='dark'] main a.customer-card-tel-link:active {
+  color: rgb(22 163 74);
+}
+
+/* 고객 상세·메모 등 섹션 타이틀 (wrapper mt-5 는 각 블록에서 별도 지정) */
+.customer-section-title {
+  @apply border-l-2 border-blue-500 pl-3 mt-4 mb-2 font-semibold text-blue-400;
+}
+
 /* 기본 폼 컨트롤 — 미지정 구간 대비(세부 화면에서 덮어씀) */
 input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not(
     [type='button']

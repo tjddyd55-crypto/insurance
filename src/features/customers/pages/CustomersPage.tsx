@@ -477,6 +477,7 @@ function CustomerListCard({
     consultationCount > 0 ? lastConsultDateLabel ?? '—' : '—'
   const smsHref = customerPhoneHref(c.phone, 'sms')
   const telHref = customerPhoneHref(c.phone, 'tel')
+  const hasDialablePhone = telHref != null
 
   function handleSummaryKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (isSelectMode) {
@@ -593,17 +594,17 @@ function CustomerListCard({
                       💬
                     </span>
                   )}
-                  {telHref ? (
+                  {hasDialablePhone ? (
                     <a
                       href={telHref}
-                      className="text-xl text-green-500 hover:text-green-400 active:text-green-600 leading-none transition-colors"
+                      className="customer-card-tel-link text-xl leading-none"
                       aria-label="전화 걸기"
                       onClick={(e) => e.stopPropagation()}
                     >
                       📞
                     </a>
                   ) : (
-                    <span className="text-xl opacity-35 grayscale leading-none" aria-hidden>
+                    <span className="text-xl text-gray-400 leading-none transition-colors" aria-hidden>
                       📞
                     </span>
                   )}
@@ -958,9 +959,7 @@ function CustomerListCard({
                     <strong>5년 이내 진단, 수술, 치료:</strong> {c.medical?.trim() || '—'}
                   </p>
                   <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-                  <div className="border-l-2 border-blue-500 pl-3 mt-5 mb-2 text-blue-400 font-semibold">
-                    [자동차보험 정보]
-                  </div>
+                  <div className="customer-section-title !mt-5">[자동차보험 정보]</div>
                   <div className="customer-car-info-grid text-sm text-[var(--text-primary)]">
                     <div>차량번호:</div>
                     <div>{c.carNumber || '—'}</div>
@@ -975,9 +974,7 @@ function CustomerListCard({
                     </div>
                   </div>
                   <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-                  <div className="border-l-2 border-blue-500 pl-3 mt-5 mb-2 text-blue-400 font-semibold">
-                    [보험가입내역]
-                  </div>
+                  <div className="customer-section-title !mt-5">[보험가입내역]</div>
                   <div className="customer-insurance-history-body">
                     {normalizeCustomerNotesBag(c.notes).insuranceHistory?.trim()
                       ? normalizeCustomerNotesBag(c.notes).insuranceHistory
@@ -1013,9 +1010,7 @@ function CustomerListCard({
                 <div className="customer-expand-section-divider" role="presentation" />
                 {carFeatureEnabled ? (
                   <div className="customer-form-history mt-5">
-                    <div className="border-l-2 border-blue-500 pl-3 mt-4 mb-2 text-blue-400 font-semibold">
-                      [연결된 신청서]
-                    </div>
+                    <div className="customer-section-title">[연결된 신청서]</div>
                     {historyLoading ? (
                       <p className="customer-form-history__status">불러오는 중…</p>
                     ) : historyForms.length === 0 ? (
