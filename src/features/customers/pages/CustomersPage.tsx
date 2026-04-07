@@ -207,6 +207,39 @@ function resolveCustomerListPhone(
   return typeof raw === 'string' ? raw : String(raw)
 }
 
+/**
+ * 전화 아이콘 — 이모지(📞)는 OS/브라우저에서 멀티컬러 비트맵으로 그려져 `color`/`text-*`가
+ * 적용되지 않는 경우가 많음. SVG + currentColor로 테마·부모 링크와 분리해 색을 준다.
+ */
+function CustomerListTelSvg({
+  hasPhone,
+  withLinkHover,
+}: {
+  hasPhone: boolean
+  withLinkHover?: boolean
+}) {
+  const tone = hasPhone
+    ? withLinkHover
+      ? 'h-5 w-5 shrink-0 !text-green-500 transition-colors group-hover:!text-green-400 active:!text-green-600'
+      : 'h-5 w-5 shrink-0 !text-green-500 transition-colors'
+    : 'h-5 w-5 shrink-0 text-gray-400 transition-colors'
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={tone}
+      aria-hidden
+    >
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+  )
+}
+
 type CustomerAdvancedFilters = {
   minInsuranceAge: string
   maxInsuranceAge: string
@@ -492,12 +525,18 @@ function CustomerListCard({
   const telHref = customerPhoneHref(phone, 'tel')
 
   if (import.meta.env.DEV) {
-    console.log('customer:', c)
-    console.log('phone:', phone)
-    console.log('hasPhone:', hasPhone)
+    const row = c as CustomerRecord & { phoneNumber?: unknown; phone_number?: unknown }
+    const naivePhone = row.phoneNumber ?? row.phone_number ?? ''
+    console.log('[phone-debug]', {
+      id: c.id,
+      phoneNumber: row.phoneNumber,
+      phone_number: row.phone_number,
+      naiveResolved:
+        typeof naivePhone === 'string' ? naivePhone : naivePhone == null ? '' : String(naivePhone),
+      resolvedPhone: phone,
+      hasPhone,
+    })
   }
-
-  const telEmojiStyle = { color: hasPhone ? '#22c55e' : '#9ca3af' } as const
 
   function handleSummaryKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (isSelectMode) {
@@ -617,29 +656,15 @@ function CustomerListCard({
                   {telHref ? (
                     <a
                       href={telHref}
-                      className="inline-flex text-xl leading-none transition-colors hover:opacity-90 active:opacity-80"
+                      className="group inline-flex items-center justify-center leading-none transition-opacity hover:opacity-90 active:opacity-80"
                       aria-label="전화 걸기"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <span
-                        className="transition-colors !text-green-500 hover:!text-green-400 active:!text-green-600"
-                        style={telEmojiStyle}
-                        aria-hidden
-                      >
-                        📞
-                      </span>
+                      <CustomerListTelSvg hasPhone withLinkHover />
                     </a>
                   ) : (
-                    <span
-                      className={`transition-colors text-xl leading-none ${
-                        hasPhone
-                          ? '!text-green-500 hover:!text-green-400 active:!text-green-600'
-                          : 'text-gray-400'
-                      }`}
-                      style={telEmojiStyle}
-                      aria-hidden
-                    >
-                      📞
+                    <span className="inline-flex items-center justify-center leading-none" aria-hidden>
+                      <CustomerListTelSvg hasPhone={hasPhone} />
                     </span>
                   )}
                 </div>

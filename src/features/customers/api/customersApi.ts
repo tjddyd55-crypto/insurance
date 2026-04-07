@@ -57,6 +57,7 @@ export function assertCustomerDataRecord(
   return {
     ...withFlag,
     phone,
+    phoneNumber: phone,
     isFavorite: withFlag.isFavorite === true,
   }
 }

@@ -49,6 +49,11 @@ export interface CustomerRecord {
   carType: string
   notes: CustomerNotesBag
   phone: string
+  /**
+   * 목록/상세 파싱(`assertCustomerDataRecord`) 이후 `phone`과 동일한 정규화 값.
+   * API가 `phone_number` / `phoneNumber`만 줄 때도 UI·로그에서 camelCase로 읽기 위함.
+   */
+  phoneNumber?: string
   /** 레거시: 신규 저장 시 사용 안 함 */
   carrier: string
   address: string
