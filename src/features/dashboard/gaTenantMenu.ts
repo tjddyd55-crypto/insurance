@@ -8,7 +8,16 @@ export type GaTenantMenuItem = { label: string; path: string }
 
 /** 대시보드 전용 — 구분선 포함 */
 export type GaTenantDashboardMenuEntry =
-  | { type: 'link'; label: string; path: string; disabled?: boolean }
+  | {
+      type: 'link'
+      label: string
+      path: string
+      disabled?: boolean
+      /** 자동차 신청서 등 상위 항목 하위 표시 */
+      nested?: boolean
+      /** true: 페이지 이동 없이 준비중 안내만 (path는 플레이스홀더) */
+      preparing?: boolean
+    }
   | { type: 'divider' }
 
 /** @deprecated 대시보드는 buildGaTenantDashboardMenu 사용 */
@@ -55,6 +64,13 @@ export function buildGaTenantDashboardMenu(
   const carByName = String(gaName ?? '').trim() === '영진에셋'
   if (carByName || isCarInsuranceFeatureEnabledForGa(gaCode)) {
     items.push({ type: 'link', label: '자동차 신청서', path: '/application' })
+    items.push({
+      type: 'link',
+      label: '다이렉트 자동차',
+      path: '#',
+      nested: true,
+      preparing: true,
+    })
   }
   items.push({
     type: 'link',
@@ -98,7 +114,12 @@ export function buildGaTenantMenu(gaCode?: string | undefined, gaName?: string |
   return buildGaTenantDashboardMenu(gaCode, gaName).flatMap((e) =>
     e.type === 'divider'
       ? []
-      : [{ label: e.label, path: e.disabled ? '#' : e.path }],
+      : [
+          {
+            label: e.label,
+            path: e.disabled || e.preparing ? '#' : e.path,
+          },
+        ],
   )
 }
 

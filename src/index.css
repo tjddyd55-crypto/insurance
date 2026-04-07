@@ -948,6 +948,16 @@ button:focus-visible:not(:disabled) {
   color: var(--text-main);
 }
 
+/* 대시보드: 자동차 신청서 하위 등 */
+.menu-item.menu-item--nested {
+  margin-top: -6px;
+  padding: 12px 16px 14px;
+  padding-left: max(20px, calc(16px + 0.75rem));
+  font-size: 0.94rem;
+  text-align: left;
+  border-left: 3px solid color-mix(in srgb, #14b8a6 55%, var(--border-default));
+}
+
 .menu-card__divider {
   flex-shrink: 0;
   border-color: var(--border-default);

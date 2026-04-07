@@ -101,6 +101,13 @@ export function CarInsuranceDashboardPage() {
         <button className="button button--full" type="button" onClick={() => navigate('/my-forms')}>
           내 신청서 목록
         </button>
+        <button
+          className="button button--full"
+          type="button"
+          onClick={() => navigate('/application/direct-auto')}
+        >
+          다이렉트 자동차 — 설계요청
+        </button>
       </section>
 
       <section className="card dashboard-expiring-card">

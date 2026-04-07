@@ -5,6 +5,7 @@ import { ApplicationFormPage } from './features/application/pages/ApplicationFor
 import { ApplicationListPage } from './features/application/pages/ApplicationListPage'
 import { ApplicationResultPage } from './features/application/pages/ApplicationResultPage'
 import { CarInsuranceDashboardPage } from './features/application/pages/CarInsuranceDashboardPage'
+import { DirectAutoPage } from './features/application/pages/DirectAutoPage'
 import GaDelegateManagementPage from './features/admin/pages/GaDelegateManagementPage'
 import InsurerManagersPage from './features/insurer-managers/pages/InsurerManagersPage'
 import GaManagementPage from './features/admin/pages/GaManagementPage'
@@ -28,7 +29,6 @@ import CustomerConsultationsPage from './features/customers/pages/CustomerConsul
 import TeamMembersPage from './features/team/pages/TeamMembersPage'
 import TeamPostsPage from './features/team/pages/TeamPostsPage'
 import TeamFilesPage from './features/team/pages/TeamFilesPage'
-import TeamMenuManagePage from './features/team/pages/TeamMenuManagePage'
 import CompanyRegistryPage from './features/company-registry/pages/CompanyRegistryPage'
 import GeneralRequestPage from './features/company-registry/pages/GeneralRequestPage'
 import InsuranceCompanyContactsViewPage from './features/company-registry/pages/InsuranceCompanyContactsViewPage'
@@ -107,6 +107,7 @@ export const appRouter = createBrowserRouter([
                 element: <GaCarInsuranceRoute />,
                 children: [
                   { path: 'application', element: <CarInsuranceDashboardPage /> },
+                  { path: 'application/direct-auto', element: <DirectAutoPage /> },
                   { path: 'application/write', element: <ApplicationFormPage /> },
                   { path: 'my-forms', element: <ApplicationListPage /> },
                   { path: 'form/create', element: <ApplicationFormPage /> },
@@ -119,7 +120,6 @@ export const appRouter = createBrowserRouter([
               { path: 'team/members', element: <TeamMembersPage /> },
               { path: 'team/posts', element: <TeamPostsPage /> },
               { path: 'team/files', element: <TeamFilesPage /> },
-              { path: 'team/menu-settings', element: <TeamMenuManagePage /> },
               { path: 'insurer-managers', element: <InsurerManagersPage /> },
               { path: 'customer-car', element: <CustomerCarPage /> },
               { path: 'admin/ga', element: <GaManagementPage /> },

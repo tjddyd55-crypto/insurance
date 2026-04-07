@@ -256,24 +256,35 @@ export function DashboardPage() {
                   />
                 )
               }
-              const isActive = !entry.disabled && pathIsActive(pathname, entry.path)
+              const isActive =
+                !entry.disabled &&
+                !entry.preparing &&
+                Boolean(entry.path) &&
+                entry.path !== '#' &&
+                pathIsActive(pathname, entry.path)
               return (
                 <button
                   key={`${entry.path}-${entry.label}-${idx}`}
                   type="button"
-                  className={`menu-item${isActive ? ' active' : ''}${entry.disabled ? ' menu-item--disabled' : ''}`}
+                  className={`menu-item${isActive ? ' active' : ''}${entry.disabled ? ' menu-item--disabled' : ''}${
+                    entry.nested ? ' menu-item--nested' : ''
+                  }`}
                   onClick={() => {
+                    if (entry.preparing) {
+                      window.alert('준비중입니다')
+                      return
+                    }
                     if (entry.disabled) {
                       window.alert('준비 중입니다.')
                       return
                     }
-                    if (!entry.path.trim()) {
+                    if (!entry.path.trim() || entry.path === '#') {
                       return
                     }
                     navigate(entry.path)
                   }}
                 >
-                  {entry.label}
+                  {entry.nested ? `└ ${entry.label}` : entry.label}
                 </button>
               )
             })}
