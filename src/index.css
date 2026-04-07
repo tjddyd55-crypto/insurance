@@ -1179,7 +1179,8 @@ button:focus-visible:not(:disabled) {
   gap: 8px;
 }
 
-button.cta-button {
+button.cta-button,
+div.cta-button[role='button'] {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -1201,7 +1202,8 @@ button.cta-button {
     color 0.2s ease;
 }
 
-button.cta-button:hover:not(:disabled) {
+button.cta-button:hover:not(:disabled),
+div.cta-button[role='button']:hover {
   background: color-mix(in srgb, var(--brand-soft) 85%, var(--brand));
   border-color: color-mix(in srgb, var(--brand) 55%, transparent);
 }
@@ -1211,7 +1213,8 @@ button.cta-button:disabled {
   cursor: not-allowed;
 }
 
-button.cta-button:focus-visible {
+button.cta-button:focus-visible,
+div.cta-button[role='button']:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 40%, transparent);
 }
@@ -1259,7 +1262,8 @@ button.filter-button:focus-visible {
 }
 
 @media (max-width: 480px) {
-  button.cta-button {
+  button.cta-button,
+  div.cta-button[role='button'] {
     height: 34px;
     font-size: 13px;
     padding: 6px 12px;
@@ -1533,6 +1537,14 @@ button.filter-button:focus-visible {
 .customers-page__action-btn {
   flex: 1 1 0;
   min-width: 0;
+}
+
+/* 고객 초대 링크 복사 버튼 — 탭/선택 동작만 억제 (<a>로 감싸지 않을 것) */
+.customers-page__invite-copy-btn {
+  -webkit-user-select: none;
+  user-select: none;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .customers-page__create-nav {

@@ -9,6 +9,7 @@ import {
   type KeyboardEvent,
   type MouseEvent,
   type SetStateAction,
+  type TouchEvent,
 } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
@@ -54,6 +55,9 @@ import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 const RECENT_CUSTOMER_SEARCHES_KEY = 'insurance.customers.recentSearches.v1'
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+
+/** WebView: touchstart·mousedown·합성 click 연속 시 복사/알림 중복 방지 */
+const INVITE_COPY_POINTER_DEBOUNCE_MS = 450
 
 const LAST_CONSULT_FETCH_CONCURRENCY = 12
 
@@ -1129,6 +1133,8 @@ export default function CustomersPage() {
   const [favoriteOnly, setFavoriteOnly] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [showScrollToTop, setShowScrollToTop] = useState(false)
+  /** 터치→합성 mouse/click 등으로 초대 복사가 두 번 도는 것 방지 */
+  const inviteCopyPointerTsRef = useRef(0)
 
   useEffect(() => {
     function onScroll() {
@@ -1668,6 +1674,71 @@ export default function CustomersPage() {
     }
   }
 
+  /** 모바일 앱 WebView는 /customer/register 네비를 네이티브에서 막음 — 여기서는 복사만. */
+  const runCustomerRegisterInviteCopy = useCallback(async () => {
+    const refUsername = (user?.username ?? '').trim()
+    const gaCode = (user?.gaCode ?? '').trim().toUpperCase()
+    if (!gaCode) {
+      window.alert('GA 코드가 없습니다')
+      return
+    }
+    if (!refUsername) {
+      window.alert('로그인 정보가 없습니다.')
+      return
+    }
+    const inviteUrl = `${window.location.origin}/customer/register?ref=${encodeURIComponent(refUsername)}&ga=${encodeURIComponent(gaCode)}`
+    try {
+      await navigator.clipboard.writeText(inviteUrl)
+      alert('고객 등록 링크 복사 완료')
+    } catch {
+      window.prompt('링크 복사', inviteUrl)
+    }
+  }, [user?.username, user?.gaCode])
+
+  const invokeInviteCopyFromPointer = useCallback(() => {
+    const now = Date.now()
+    if (now - inviteCopyPointerTsRef.current < INVITE_COPY_POINTER_DEBOUNCE_MS) {
+      return
+    }
+    inviteCopyPointerTsRef.current = now
+    void runCustomerRegisterInviteCopy()
+  }, [runCustomerRegisterInviteCopy])
+
+  const onCustomerRegisterInviteCopyTouchStart = useCallback(
+    (e: TouchEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      e.stopPropagation()
+      invokeInviteCopyFromPointer()
+    },
+    [invokeInviteCopyFromPointer],
+  )
+
+  const onCustomerRegisterInviteCopyMouseDown = useCallback(
+    (e: MouseEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      e.stopPropagation()
+      invokeInviteCopyFromPointer()
+    },
+    [invokeInviteCopyFromPointer],
+  )
+
+  const onCustomerRegisterInviteCopyClick = useCallback((e: MouseEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const onCustomerRegisterInviteCopyKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>) => {
+      if (e.key !== 'Enter' && e.key !== ' ') {
+        return
+      }
+      e.preventDefault()
+      e.stopPropagation()
+      void runCustomerRegisterInviteCopy()
+    },
+    [runCustomerRegisterInviteCopy],
+  )
+
   if (user?.role !== 'USER') {
     return (
       <main className="page page--with-back">
@@ -1730,35 +1801,19 @@ export default function CustomersPage() {
                 <button type="button" className="cta-button customers-page__action-btn" onClick={() => setSearchParams({ mode: 'create' })}>
                   고객 등록
                 </button>
-                <button
-                  type="button"
-                  className="cta-button customers-page__action-btn"
-                  onClick={(e: MouseEvent<HTMLButtonElement>) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    const refUsername = (user?.username ?? '').trim()
-                    const gaCode = (user?.gaCode ?? '').trim().toUpperCase()
-                    if (!gaCode) {
-                      window.alert('GA 코드가 없습니다')
-                      return
-                    }
-                    if (!refUsername) {
-                      window.alert('로그인 정보가 없습니다.')
-                      return
-                    }
-                    const inviteUrl = `${window.location.origin}/customer/register?ref=${encodeURIComponent(refUsername)}&ga=${encodeURIComponent(gaCode)}`
-                    void (async () => {
-                      try {
-                        await navigator.clipboard.writeText(inviteUrl)
-                        window.alert('고객 등록 링크가 복사되었습니다')
-                      } catch {
-                        window.prompt('링크 복사', inviteUrl)
-                      }
-                    })()
-                  }}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="cta-button customers-page__action-btn customers-page__invite-copy-btn"
+                  style={{ touchAction: 'manipulation' }}
+                  aria-label="고객 등록 링크 복사"
+                  onTouchStart={onCustomerRegisterInviteCopyTouchStart}
+                  onMouseDown={onCustomerRegisterInviteCopyMouseDown}
+                  onClick={onCustomerRegisterInviteCopyClick}
+                  onKeyDown={onCustomerRegisterInviteCopyKeyDown}
                 >
                   등록 링크
-                </button>
+                </div>
                 <button type="button" className="cta-button customers-page__action-btn" onClick={enterExcelSelectMode}>
                   엑셀 다운로드
                 </button>
