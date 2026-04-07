@@ -22,6 +22,18 @@ function formatPostDate(iso: string): string {
   return d.toLocaleString('ko-KR')
 }
 
+function teamPostAuthorLabel(post: TeamPostRow): string {
+  const display = post.authorDisplayName?.trim()
+  if (display) {
+    return display
+  }
+  const login = post.authorUsername?.trim()
+  if (login) {
+    return login
+  }
+  return '알 수 없음'
+}
+
 function isTeamPostElevatedRole(role: string | undefined): boolean {
   const r = String(role ?? '')
   return r === 'SUPER_ADMIN' || r === 'GA_ADMIN'
@@ -86,20 +98,26 @@ function PostCard({
       {post.isNotice ? (
         <div className="text-xs text-amber-400 mb-1">공지</div>
       ) : null}
-      <div className="font-semibold text-[var(--text-primary)] flex flex-wrap items-baseline gap-2">
-        {post.title}
+      <div className="font-semibold text-[var(--text-primary)] flex flex-wrap items-baseline gap-2 min-w-0">
+        <span className="min-w-0 [overflow-wrap:anywhere]">{post.title}</span>
         {typeof commentCount === 'number' ? (
-          <span className="text-xs font-normal text-[var(--text-secondary)] opacity-90">댓글 {commentCount}개</span>
+          <span className="text-xs font-normal text-[var(--text-secondary)] opacity-90 shrink-0">댓글 {commentCount}개</span>
         ) : null}
       </div>
-      <div className="text-sm text-[var(--text-secondary)] mt-1">
+      <div className="text-xs text-[var(--text-secondary)] mt-1 opacity-85 min-w-0 break-words [overflow-wrap:anywhere]">
+        <span className="align-middle">{teamPostAuthorLabel(post)}</span>
+        <span className="mx-1 opacity-70">·</span>
+        <time className="tabular-nums align-middle" dateTime={post.createdAt}>
+          {formatPostDate(post.createdAt)}
+        </time>
+      </div>
+      <div className="text-sm text-[var(--text-secondary)] mt-2">
         {expanded ? (
           <span className="whitespace-pre-wrap break-words">{post.content}</span>
         ) : (
           snippet(post.content)
         )}
       </div>
-      <div className="text-xs text-[var(--text-secondary)] mt-2 opacity-80">{formatPostDate(post.createdAt)}</div>
       {post.attachments.length > 0 ? (
         <div className="mt-2 flex flex-col gap-1">
           {post.attachments.map((file: TeamPostAttachment) => (
