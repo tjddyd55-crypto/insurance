@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { deleteHardCompanyMaster, fullSaveCompanyDirectory, listCompanyDirectory } from '../api/companyRegistryApi'
 import {
   canonicalInsuranceCategoryForFilter,
@@ -305,7 +304,6 @@ export default function CompanyRegistryPage() {
 
   return (
     <main className="page page--with-back company-registry-page registry-form-touch">
-      <PageBackButton />
       <nav className="contacts-public-auth" aria-label="이동">
         <Link className="button button--small contacts-public-auth__link" to="/insurance/contacts">
           연락처 조회

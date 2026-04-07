@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import type { InsuranceApplicationRecord } from '../domain/types'
 import {
   listApplications,
@@ -83,7 +82,6 @@ export function CarInsuranceDashboardPage() {
 
   return (
     <main className="page page--with-back">
-      <PageBackButton />
       <header className="page-header">
         <h1>자동차보험신청서</h1>
         {statusText ? <p>{statusText}</p> : null}

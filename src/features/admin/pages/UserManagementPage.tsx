@@ -10,7 +10,6 @@ import {
   type GaCompanyRow,
   type UserRole,
 } from '../../auth/authApi'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 
 const STATUS_META: Record<EntityStatus, { label: string; fg: string; bg: string }> = {
   active: {
@@ -318,7 +317,6 @@ export default function UserManagementPage() {
   if (user?.role !== 'SUPER_ADMIN') {
     return (
       <main className="page page--with-back">
-        <PageBackButton />
         <header className="page-header">
           <h1>유저 관리</h1>
           <p>전체 관리자만 접근할 수 있습니다.</p>
@@ -329,7 +327,6 @@ export default function UserManagementPage() {
 
   return (
     <main className="page page--with-back admin-user-management">
-      <PageBackButton />
       <header className="page-header">
         <h1>유저 관리</h1>
         <p>{loadError || saveOk || 'GA별로 사용자를 조회합니다.'}</p>

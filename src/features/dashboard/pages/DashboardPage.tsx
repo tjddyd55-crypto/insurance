@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { fetchInsurerManagersHealth, type InsurerManagersHealth } from '../../auth/authApi'
 import { fetchTeamMembers } from '../../team/api/teamApi'
 import { useAuth } from '../../auth/AuthProvider'
@@ -122,20 +122,6 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
     return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
   }
   return pathname === itemPath
-}
-
-function attemptAppExit(navigate: ReturnType<typeof useNavigate>) {
-  if (!window.confirm('앱을 종료하시겠습니까?')) {
-    return
-  }
-  window.close()
-  window.setTimeout(() => {
-    if (typeof window.history.go === 'function' && window.history.length > 2) {
-      window.history.go(-2)
-    } else {
-      navigate('/', { replace: true })
-    }
-  }, 120)
 }
 
 export function DashboardPage() {
@@ -303,17 +289,12 @@ export function DashboardPage() {
           >
             로그아웃
           </button>
+          <p className="dashboard-privacy-link-wrap">
+            <Link to="/privacy" className="dashboard-privacy-link">
+              개인정보처리방침
+            </Link>
+          </p>
         </section>
-
-        <div className="dashboard-app-exit-wrap">
-          <button
-            type="button"
-            className="button button--secondary dashboard-app-exit"
-            onClick={() => attemptAppExit(navigate)}
-          >
-            앱 종료
-          </button>
-        </div>
       </div>
 
       <Modal open={preparingNoticeOpen} onClose={() => setPreparingNoticeOpen(false)} ariaLabel="안내">

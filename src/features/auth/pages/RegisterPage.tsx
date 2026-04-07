@@ -490,12 +490,6 @@ export function RegisterPage() {
             로그인
           </Link>
         </div>
-
-        <p className="auth-legal-links">
-          <Link to="/privacy" className="auth-legal-links__a" target="_blank" rel="noopener noreferrer">
-            개인정보처리방침
-          </Link>
-        </p>
       </section>
     </main>
   )

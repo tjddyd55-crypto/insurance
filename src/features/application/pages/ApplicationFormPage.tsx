@@ -34,7 +34,6 @@ import {
   TextInput,
 } from '../components/FormFields'
 import { FormSection } from '../components/FormSection'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 
 type EditableField = Exclude<keyof InsuranceApplicationFormData, 'customerId'>
 const AUTO_SAVE_INTERVAL_MS = 5000
@@ -379,7 +378,6 @@ export function ApplicationFormPage() {
   if (isLoading) {
     return (
       <main className="page page--with-back">
-        <PageBackButton />
         <header className="page-header">
           <h1>신청서 로딩 중</h1>
           <p>저장된 데이터를 확인하고 있습니다.</p>
@@ -390,7 +388,6 @@ export function ApplicationFormPage() {
 
   return (
     <main className="page page--with-back">
-      <PageBackButton />
       <header className="page-header">
         <h1>{pageTitle}</h1>
         <p>{statusText}</p>

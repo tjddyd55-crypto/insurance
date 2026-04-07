@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { listCompanyDirectory } from '../api/companyRegistryApi'
 import { resolveTabCategory } from '../domain/categoryUtils'
 import {
@@ -113,7 +112,6 @@ export default function InsuranceCompanyContactsViewPage() {
 
   return (
     <main className="page page--with-back company-registry-page insurance-contacts-view company-directory-read-ui">
-      <PageBackButton />
       <nav className="contacts-public-auth contacts-public-auth--compact" aria-label="이동">
         {isStaff ? (
           <Link

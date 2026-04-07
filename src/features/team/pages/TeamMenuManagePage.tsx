@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { Button } from '../../../components/ui'
 import { useAuth } from '../../auth/AuthProvider'
 import { fetchTeamMembers } from '../api/teamApi'
@@ -51,7 +50,6 @@ export default function TeamMenuManagePage() {
   if (loading) {
     return (
       <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
-        <PageBackButton />
         <p className="mt-4 text-sm text-[var(--text-secondary)]">불러오는 중…</p>
       </div>
     )
@@ -62,7 +60,6 @@ export default function TeamMenuManagePage() {
   if (loadError || !isOwner) {
     return (
       <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
-        <PageBackButton />
         <h1 className="text-[var(--text-primary)] mt-3 text-lg font-semibold">팀 메뉴 관리</h1>
         <p className="mt-3 text-sm text-[var(--text-secondary)]" role="status">
           {loadError ? loadError : '팀장만 이용할 수 있습니다.'}
@@ -73,7 +70,6 @@ export default function TeamMenuManagePage() {
 
   return (
     <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
-      <PageBackButton />
       <h1 className="text-[var(--text-primary)] mt-3 text-lg font-semibold">팀 메뉴 관리</h1>
 
       <div

@@ -5,10 +5,9 @@ import { RouterProvider } from 'react-router-dom'
 import './index.css'
 import { appRouter } from './appRouter'
 import { AuthProvider } from './features/auth/AuthProvider'
-import { initColorScheme, subscribeSystemColorScheme } from './theme/colorScheme'
+import { initColorScheme } from './theme/colorScheme'
 
 initColorScheme()
-subscribeSystemColorScheme()
 
 const queryClient = new QueryClient({
   defaultOptions: {

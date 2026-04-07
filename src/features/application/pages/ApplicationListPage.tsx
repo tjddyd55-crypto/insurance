@@ -8,7 +8,6 @@ import {
 } from '../repository/applicationRepository'
 import { formatKoreanDateTime } from '../utils/date'
 import { useAuth } from '../../auth/AuthProvider'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 
 export function ApplicationListPage() {
   const navigate = useNavigate()
@@ -77,7 +76,6 @@ export function ApplicationListPage() {
 
   return (
     <main className="page page--with-back">
-      <PageBackButton />
       <header className="page-header">
         <h1>내 신청서 목록</h1>
         <p>{statusText || '저장된 신청서를 불러오거나 수정/삭제할 수 있습니다.'}</p>

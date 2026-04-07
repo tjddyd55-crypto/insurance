@@ -1,5 +1,4 @@
 import { Outlet } from 'react-router-dom'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { useAuth } from '../../auth/AuthProvider'
 
 export function NewsletterPortalLayout() {
@@ -9,7 +8,6 @@ export function NewsletterPortalLayout() {
   if (!gaCode) {
     return (
       <main className="page page--with-back insurer-news-page">
-        <PageBackButton />
         <div className="insurer-news-empty">GA에 소속된 계정으로 로그인한 후 이용할 수 있습니다.</div>
       </main>
     )
@@ -17,7 +15,6 @@ export function NewsletterPortalLayout() {
 
   return (
     <main className="page page--with-back insurer-news-page">
-      <PageBackButton />
       <header className="page-header" style={{ marginBottom: 16 }}>
         <h1 style={{ marginBottom: 0 }}>원수사 소식지</h1>
       </header>

@@ -37,7 +37,6 @@ import {
   InsuranceInline,
   drivingText,
 } from '../../../components/customer/CustomerForm'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import {
   EXPANDABLE_CARD_INVALID_ID,
   useExpandableCard,
@@ -1689,7 +1688,7 @@ export default function CustomersPage() {
     const inviteUrl = `${window.location.origin}/customer/register?ref=${encodeURIComponent(refUsername)}&ga=${encodeURIComponent(gaCode)}`
     try {
       await navigator.clipboard.writeText(inviteUrl)
-      alert('고객 등록 링크 복사 완료')
+      alert('링크 복사 완료')
     } catch {
       window.prompt('링크 복사', inviteUrl)
     }
@@ -1742,7 +1741,6 @@ export default function CustomersPage() {
   if (user?.role !== 'USER') {
     return (
       <main className="page page--with-back">
-        <PageBackButton />
         <header className="page-header">
           <p className="customers-page__denied">접근 권한 없음</p>
         </header>
@@ -1756,7 +1754,6 @@ export default function CustomersPage() {
         isSelectMode && tab === 'list' ? ' customers-page--excel-toolbar-pad' : ''
       }`}
     >
-      <PageBackButton />
       {isSelectMode && tab === 'list' ? (
         <div className="customers-excel-toolbar" role="region" aria-label="엑셀 다운로드 선택">
           <p className="customers-excel-toolbar__status">

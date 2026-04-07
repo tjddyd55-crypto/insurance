@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { listCompanyDirectory } from '../../company-registry/api/companyRegistryApi'
 import { canonicalInsuranceCategoryForFilter } from '../../company-registry/domain/categoryUtils'
 import { useAuth } from '../../auth/AuthProvider'
@@ -195,7 +194,6 @@ export default function InsurerManagersPage() {
   if (!gaCode) {
     return (
       <main className="page page--with-back">
-        <PageBackButton />
         <header className="page-header">
           <h1>원수사 담당자 관리</h1>
           <p>GA에 소속된 계정으로 로그인한 후 이용할 수 있습니다.</p>
@@ -206,7 +204,6 @@ export default function InsurerManagersPage() {
 
   return (
     <main className="page page--with-back admin-user-management">
-      <PageBackButton />
       <header className="page-header">
         <h1>원수사 담당자 관리</h1>
         <p style={{ color: 'var(--text-sub)', margin: 0 }}>보험사별 로그인 계정(아이디·비밀번호)을 관리합니다.</p>

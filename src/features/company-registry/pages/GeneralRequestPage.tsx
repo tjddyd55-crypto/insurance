@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { listCompanyDirectory, saveGeneralRequest } from '../api/companyRegistryApi'
 import { canonicalInsuranceCategoryForFilter } from '../domain/categoryUtils'
 import type { InsuranceCategory } from '../domain/insuranceConstants'
@@ -126,7 +125,6 @@ export default function GeneralRequestPage() {
 
   return (
     <main className="page page--with-back company-registry-page">
-      <PageBackButton />
       <nav className="contacts-public-auth" aria-label="이동">
         {isOps ? (
           <Link className="button button--small contacts-public-auth__link" to="/insurance/company-registry">

@@ -1,4 +1,4 @@
-/** localStorage `theme` 우선, 레거시 `insurance-theme` 마이그레이션. 시스템 prefers-color-scheme 폴백. */
+/** 테마 저장·토글 유틸. 앱 부팅 시 `initColorScheme()`은 다크 고정으로 `data-theme`을 적용한다. */
 
 const STORAGE_KEY = 'theme'
 const LEGACY_STORAGE_KEY = 'insurance-theme'
@@ -27,10 +27,9 @@ export function isDarkPreferredBySystem(): boolean {
   return window.matchMedia('(prefers-color-scheme: dark)').matches
 }
 
+/** 앱 UI는 다크 테마 고정 (시스템·저장값과 무관). */
 export function initColorScheme(): void {
-  const stored = getStoredTheme()
-  const useDark = stored === 'dark' || (stored === null && isDarkPreferredBySystem())
-  applyThemeToDocument(useDark ? 'dark' : 'light')
+  applyThemeToDocument('dark')
 }
 
 /** 저장된 선호가 없을 때만 시스템 테마 변경을 반영 */

@@ -1,6 +1,5 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AppExitConfirm } from './components/AppExitConfirm'
-import { ThemeToggle } from './components/ThemeToggle'
 import { useAuth } from './features/auth/AuthProvider'
 import { NotificationBell } from './features/notification/components/NotificationBell'
 
@@ -31,12 +30,10 @@ export function AppLayout() {
   ])
   const showGaBar =
     Boolean(isAuthenticated && user?.gaId != null) && !hideBarPaths.has(location.pathname)
-  const showThemeToggle = location.pathname === '/dashboard'
 
   return (
     <>
       <AppExitConfirm />
-      {showThemeToggle ? <ThemeToggle /> : null}
       {showGaBar ? (
         <div className="app-tenant-ga-bar" role="status" aria-label="소속 GA">
           <span className="app-tenant-ga-bar__name">

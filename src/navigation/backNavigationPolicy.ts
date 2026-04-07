@@ -15,7 +15,7 @@ export function isCarInsuranceMainHub(pathname: string): boolean {
 }
 
 /**
- * useBlocker / PageBackButton 공통: 아래 세 경우만 확인.
+ * useBlocker(POP): 아래 세 경우만 확인.
  * 그 외 path는 shouldBlock === false (조회·/application 등 그뒤로 이동만).
  */
 export function getBackNavigationBlock(pathname: string, search: string): BackNavigationBlock {

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { useAuth } from '../../auth/AuthProvider'
 import { fetchTeamFiles, type TeamFileRow } from '../api/teamApi'
 
@@ -41,7 +40,6 @@ export default function TeamFilesPage() {
 
   return (
     <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
-      <PageBackButton />
       <h1 className="text-[var(--text-primary)]" style={{ marginTop: 12 }}>
         팀 자료
       </h1>

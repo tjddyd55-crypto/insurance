@@ -93,12 +93,6 @@ export function LoginPage() {
             비밀번호 재설정
           </Link>
         </div>
-
-        <p className="auth-legal-links">
-          <Link to="/privacy" className="auth-legal-links__a" target="_blank" rel="noopener noreferrer">
-            개인정보처리방침
-          </Link>
-        </p>
       </section>
     </main>
   )

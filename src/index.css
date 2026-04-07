@@ -1081,6 +1081,23 @@ button:focus-visible:not(:disabled) {
   margin-top: 4px;
 }
 
+.dashboard-privacy-link-wrap {
+  margin: 16px 0 0;
+  padding: 0;
+  text-align: center;
+  font-size: 14px;
+}
+
+.dashboard-privacy-link {
+  color: var(--text-sub);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.dashboard-privacy-link:hover {
+  color: var(--text-primary);
+}
+
 .dashboard-sidebar-list {
   list-style: none;
   margin: 0 0 12px;
@@ -1485,8 +1502,8 @@ button.filter-button:focus-visible {
 
 .scroll-to-top {
   position: fixed;
-  right: 16px;
-  bottom: 88px;
+  right: 20px;
+  bottom: 20px;
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -2227,20 +2244,6 @@ button.filter-button:focus-visible {
   border: 1px dashed var(--border);
   cursor: default;
   user-select: none;
-}
-
-.dashboard-app-exit-wrap {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  margin-top: 20px;
-  padding: 0 16px calc(12px + env(safe-area-inset-bottom, 0px));
-  box-sizing: border-box;
-}
-
-.dashboard-app-exit {
-  min-width: min(280px, 100%);
-  max-width: 100%;
 }
 
 .customer-hit-name--duplicate {

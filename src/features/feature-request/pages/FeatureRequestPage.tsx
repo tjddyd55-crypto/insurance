@@ -7,7 +7,6 @@ import {
   type MyFeatureRequestRow,
 } from '../../auth/authApi'
 import { useAuth } from '../../auth/AuthProvider'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { Button, Modal } from '../../../components/ui'
 
 function formatDate(iso: string): string {
@@ -121,7 +120,6 @@ export default function FeatureRequestPage() {
 
   return (
     <main className="page page--with-back">
-      <PageBackButton />
       <div style={{ maxWidth: 720, margin: '0 auto', width: '100%' }}>
         <div className="flex justify-between items-center mb-3">
           <h1 className="text-lg font-semibold">추가기능 요청하기</h1>

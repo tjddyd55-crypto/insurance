@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { useAuth } from '../../auth/AuthProvider'
 import { generateConsentPdf } from '../api/consentApi'
 import { ConsentForm } from '../components/ConsentForm'
@@ -114,7 +113,6 @@ export function ConsentFormPage() {
 
   return (
     <main className="consent-flow">
-      <PageBackButton />
       <div className="consent-flow__inner">
         <nav style={{ marginBottom: 16 }}>
           <button

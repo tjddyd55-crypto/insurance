@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 
 const FIELD_SHELL = 'rounded-xl border-2 border-[#14b8a6] bg-[var(--bg-main)] px-3 py-3 text-[var(--text-primary)]'
 
@@ -44,7 +43,6 @@ export function DirectAutoPage() {
 
   return (
     <main className="page page--with-back">
-      <PageBackButton />
       <header className="page-header">
         <h1>설계요청</h1>
         <p className="text-[var(--text-secondary)] text-sm mt-2 leading-relaxed">

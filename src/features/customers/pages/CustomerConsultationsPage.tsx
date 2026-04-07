@@ -2,7 +2,6 @@ import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import {
   createCustomerConsultation,
   createCustomerRelation,
@@ -107,7 +106,6 @@ export default function CustomerConsultationsPage() {
   if (!validId) {
     return (
       <div className="page-shell" style={{ padding: '1rem' }}>
-        <PageBackButton />
         <p>잘못된 고객 ID입니다.</p>
       </div>
     )
@@ -116,7 +114,6 @@ export default function CustomerConsultationsPage() {
   if (notFound) {
     return (
       <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
-        <PageBackButton />
         <h1 style={{ marginTop: 12 }}>고객을 찾을 수 없음</h1>
         <p style={{ color: 'var(--text-secondary)' }}>삭제되었거나 접근할 수 없는 고객입니다.</p>
         <button
@@ -132,7 +129,6 @@ export default function CustomerConsultationsPage() {
 
   return (
     <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
-      <PageBackButton />
       <h1 style={{ marginTop: 12 }}>고객 상담 · 연결</h1>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>고객 #{customerId}</p>
       <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>

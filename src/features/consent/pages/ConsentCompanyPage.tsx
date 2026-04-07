@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import { apiRequest } from '../../../lib/apiClient'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { CompanyList } from '../components/CompanyList'
 import { consentTemplatesByCompanyId } from '../domain/consentTemplateRegistry'
 import { MOCK_LIFE_INSURERS, MOCK_NON_LIFE_INSURERS } from '../domain/mockCompanies'
@@ -67,7 +66,6 @@ export function ConsentCompanyPage() {
   if (gaId == null) {
     return (
       <main className="consent-flow">
-        <PageBackButton />
         <div className="consent-flow__inner">
           <p>로그인 세션에 GA 정보가 없습니다. 다시 로그인해 주세요.</p>
         </div>
@@ -77,7 +75,6 @@ export function ConsentCompanyPage() {
 
   return (
     <main className="consent-flow">
-      <PageBackButton />
       <div className="consent-flow__inner">
         <h1 className="consent-flow__title">보험사 선택</h1>
         <p className="consent-flow__ga-context">

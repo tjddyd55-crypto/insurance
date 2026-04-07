@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { useAuth } from '../../auth/AuthProvider'
 import { NewsletterList } from '../components/NewsletterList'
 import { getNewslettersForInsurerManagerCompany } from '../services/insurerNews.service'
@@ -42,7 +41,6 @@ export function InsurerManagerNewsListPage() {
       <main className="page page--with-back insurer-news-page">
         <header className="page-header page-header--has-inline-back">
           <div className="page-header__title-row">
-            <PageBackButton inline />
             <h1>원수사 소식지 조회</h1>
           </div>
         </header>
@@ -55,7 +53,6 @@ export function InsurerManagerNewsListPage() {
     <main className="page page--with-back insurer-news-page">
       <header className="page-header page-header--has-inline-back" style={{ marginBottom: 16 }}>
         <div className="page-header__title-row">
-          <PageBackButton inline />
           <h1>원수사 소식지 조회</h1>
         </div>
         <p className="insurer-news-muted">소속 원수사에 등록된 소식지만 표시됩니다.</p>

@@ -17,7 +17,6 @@ import type {
 } from '../domain/types'
 import { formatPhoneNumber, normalizePhoneNumber } from '../utils/phone'
 import { openVCardInContactsApp } from '../utils/vcard'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 
 const CATEGORY_LABELS: Record<InsuranceContactCategory, string> = {
   LIFE: '생명보험',
@@ -210,7 +209,6 @@ export function ReinsurerContactsPage() {
 
   return (
     <main className="page page--with-back contacts-page">
-      <PageBackButton />
       <nav className="contacts-public-auth" aria-label="계정">
         <Link className="button button--small contacts-public-auth__link" to="/insurance/contacts">
           보험사 연락처 조회

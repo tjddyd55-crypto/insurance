@@ -4,7 +4,6 @@ import { useAuth } from '../../auth/AuthProvider'
 import { getInsuranceContacts } from '../api/contactsApi'
 import type { InsuranceContact, InsuranceContactCategory } from '../domain/types'
 import { formatPhoneNumber } from '../utils/phone'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 
 const CATEGORY_LABELS: Record<InsuranceContactCategory, string> = {
   LIFE: '생명보험',
@@ -130,7 +129,6 @@ export function InsurancePrintPage() {
 
   return (
     <main className="page page--with-back insurance-print-page">
-      <PageBackButton />
       <div className="screen-only insurance-print-controls">
         <button className="button" type="button" onClick={() => navigate('/reinsurer-contacts')}>
           원수사 연락처로 이동

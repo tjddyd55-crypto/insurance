@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { useAuth } from '../../auth/AuthProvider'
 import { fetchTeamPosts, type TeamPostAttachment, type TeamPostRow } from '../api/teamApi'
 import { TeamPostComments } from '../../../components/team/TeamPostComments'
@@ -258,7 +257,6 @@ export default function TeamPostsPage() {
 
   return (
     <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
-      <PageBackButton />
       <h1 className="text-[var(--text-primary)]" style={{ marginTop: 12 }}>
         팀 게시판
       </h1>

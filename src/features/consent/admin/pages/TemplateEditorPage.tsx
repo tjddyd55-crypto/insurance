@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { PageBackButton } from '../../../../components/common/PageBackButton'
 import { useAuth } from '../../../auth/AuthProvider'
 import { listGaCompanies, type GaCompanyRow } from '../../../auth/authApi'
 import { ApiError } from '../../../../lib/apiClient'
@@ -295,7 +294,6 @@ export function TemplateEditorPage() {
 
   return (
     <main className="consent-admin">
-      <PageBackButton />
       <div className="consent-admin__inner">
         <h1 className="consent-admin__title">{isEdit ? '템플릿 수정' : '템플릿 등록'}</h1>
         <div className="consent-admin__toolbar">

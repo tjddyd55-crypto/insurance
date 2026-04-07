@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CompanyCard } from '../../company-registry/components/CompanyCard'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { getCompanyRecentUpdates } from '../../company-registry/api/companyRegistryApi'
 import { useAuth } from '../../auth/AuthProvider'
 import type { CompanyUpdateHistoryItem } from '../../company-registry/domain/types'
@@ -74,7 +73,6 @@ export function InsuranceUpdatesPage() {
 
   return (
     <main className="page page--with-back contacts-page insurance-recent-updates-page insurance-contacts-view company-directory-read-ui">
-      <PageBackButton />
 
       <header className="page-header">
         <h1>업데이트 현황</h1>

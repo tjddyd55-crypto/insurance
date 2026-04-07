@@ -8,8 +8,6 @@ import {
   getCustomerFormValidationError,
   type CustomerFormState,
 } from '../../../components/customer/CustomerForm'
-import { PageBackButton } from '../../../components/common/PageBackButton'
-
 export default function CustomerInputPage() {
   const [searchParams] = useSearchParams()
   const location = useLocation()
@@ -111,7 +109,6 @@ export default function CustomerInputPage() {
   if (!refParam) {
     return (
       <main className="page page--with-back">
-        <PageBackButton />
         <header className="page-header">
           <h1>고객 정보 입력</h1>
           <p>유효한 링크로 접속해 주세요.</p>
@@ -123,7 +120,6 @@ export default function CustomerInputPage() {
   if (isRegisterPath && !inviteGaCode) {
     return (
       <main className="page page--with-back">
-        <PageBackButton />
         <header className="page-header">
           <h1>고객 정보 입력</h1>
           <p>링크에 GA 코드(ga)가 없습니다. 담당자에게 링크를 다시 요청해 주세요.</p>
@@ -134,7 +130,6 @@ export default function CustomerInputPage() {
 
   return (
     <main className="page customers-page page--with-back">
-      <PageBackButton />
       <header className="page-header">
         <h1>고객 정보 입력</h1>
         {inviteGaCode ? (

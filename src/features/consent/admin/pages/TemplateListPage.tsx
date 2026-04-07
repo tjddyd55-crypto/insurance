@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { PageBackButton } from '../../../../components/common/PageBackButton'
 import { useAuth } from '../../../auth/AuthProvider'
 import { ApiError } from '../../../../lib/apiClient'
 import { gaLabel, insurerLabel, pdfFileNameFromKey } from '../consentAdminMeta'
@@ -52,7 +51,6 @@ export function TemplateListPage() {
 
   return (
     <main className="consent-admin">
-      <PageBackButton />
       <div className="consent-admin__inner">
         <h1 className="consent-admin__title">동의서 템플릿</h1>
         <div className="consent-admin__toolbar">

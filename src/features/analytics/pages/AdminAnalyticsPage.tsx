@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   fetchAnalyticsChart,
@@ -105,7 +104,6 @@ export default function AdminAnalyticsPage() {
   if (user?.role !== 'SUPER_ADMIN') {
     return (
       <main className="page page--with-back">
-        <PageBackButton />
         <header className="page-header">
           <h1>통계</h1>
           <p>전체 관리자만 접근할 수 있습니다.</p>
@@ -116,7 +114,6 @@ export default function AdminAnalyticsPage() {
 
   return (
     <main className="page page--with-back">
-      <PageBackButton />
       <header className="page-header">
         <h1>운영 통계</h1>
         <p className="text-sm text-[var(--text-secondary)]">

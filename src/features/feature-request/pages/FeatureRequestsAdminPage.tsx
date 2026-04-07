@@ -6,7 +6,6 @@ import {
   type FeatureRequestStatus,
 } from '../../auth/authApi'
 import { useAuth } from '../../auth/AuthProvider'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 
 const STATUS_OPTIONS: { value: FeatureRequestStatus; label: string }[] = [
   { value: 'pending', label: '대기 (pending)' },
@@ -67,7 +66,6 @@ export default function FeatureRequestsAdminPage() {
   if (user?.role !== 'SUPER_ADMIN') {
     return (
       <main className="page page--with-back">
-        <PageBackButton />
         <header className="page-header">
           <h1>기능 요청 관리</h1>
           <p>전체 관리자만 접근할 수 있습니다.</p>
@@ -78,7 +76,6 @@ export default function FeatureRequestsAdminPage() {
 
   return (
     <main className="page page--with-back">
-      <PageBackButton />
       <header className="page-header">
         <h1>기능 요청 관리</h1>
         <p>{error || `총 ${rows.length}건 (최근 500건)`}</p>

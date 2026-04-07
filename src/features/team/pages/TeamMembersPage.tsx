@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import {
   fetchTeamMembers,
   kickTeamMember,
@@ -81,7 +80,6 @@ export default function TeamMembersPage() {
 
   return (
     <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
-      <PageBackButton />
       <h1 className="text-[var(--text-primary)]" style={{ marginTop: 12 }}>
         팀 관리 (팀원 관리)
       </h1>

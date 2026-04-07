@@ -11,7 +11,6 @@ import {
   type GaDelegateRole,
   type GaDelegateRow,
 } from '../../auth/authApi'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 
 const STATUS_META: Record<string, { label: string; fg: string; bg: string }> = {
   ACTIVE: {
@@ -321,7 +320,6 @@ export default function GaDelegateManagementPage() {
   if (user?.role !== 'SUPER_ADMIN') {
     return (
       <main className="page page--with-back">
-        <PageBackButton />
         <header className="page-header">
           <h1>담당자 관리</h1>
           <p>전체 관리자만 접근할 수 있습니다.</p>
@@ -332,7 +330,6 @@ export default function GaDelegateManagementPage() {
 
   return (
     <main className="page page--with-back admin-ga-management">
-      <PageBackButton />
       <header className="page-header">
         <h1>담당자 관리</h1>
         <p>{loadError || '전체 GA의 GA_ADMIN · GA_STAFF 계정을 관리합니다.'}</p>

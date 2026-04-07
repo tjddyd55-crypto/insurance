@@ -1,5 +1,4 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
-import { PageBackButton } from '../../../components/common/PageBackButton'
 import { fetchSecurityAuditLogs, type SecurityAuditLogRow } from '../../auth/authApi'
 import { useAuth } from '../../auth/AuthProvider'
 
@@ -58,7 +57,6 @@ export default function AuditLogsPage() {
 
   return (
     <main className="page page--with-back">
-      <PageBackButton />
       <header className="page-header">
         <h1>보안 감사 로그</h1>
         <p style={{ color: 'var(--text-sub)', margin: 0 }}>
