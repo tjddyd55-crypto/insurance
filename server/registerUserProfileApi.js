@@ -110,7 +110,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
 
       if (!isSignupPhoneRelaxedMode()) {
         if (await isPhoneUsedByActiveUser(pool, phoneNorm, '')) {
-          res.status(409).json({ message: '이미 가입에 사용 중인 휴대폰 번호입니다.' })
+          res.status(400).json({ message: '이미 사용중인 휴대폰 번호입니다.' })
           return
         }
       }
@@ -238,7 +238,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
 
       if (!isSignupPhoneRelaxedMode()) {
         if (await isPhoneUsedByActiveUser(pool, phoneNorm, '')) {
-          res.status(409).json({ message: '이미 가입에 사용 중인 휴대폰 번호입니다.' })
+          res.status(400).json({ message: '이미 사용중인 휴대폰 번호입니다.' })
           return
         }
       }

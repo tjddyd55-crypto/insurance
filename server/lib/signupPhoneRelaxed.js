@@ -1,10 +1,10 @@
 /**
- * 테스트 단계 회원가입 완화: 휴대폰 미입력 허용, 번호 중복 검사 생략, 인증 JWT 생략(번호 없을 때).
+ * 휴대폰 완화 모드는 명시적으로만 켭니다: INSURANCE_SIGNUP_PHONE_RELAXED=1|true|yes|on
  *
- * 운영 복구: 환경변수 INSURANCE_SIGNUP_PHONE_RELAXED=0 | false | off
- * (미설정이면 완화 모드 — 테스트 편의. 배포 시 반드시 0/false/off 로 둘 것.)
+ * 미설정·0·false·off → 엄격 모드 (번호 필수, SMS 인증 JWT 필수, 활성 계정 기준 중복 차단).
+ * 로컬·스테이징에서만 완화가 필요하면 위 값으로 켜세요.
  */
 export function isSignupPhoneRelaxedMode() {
-  const v = String(process.env.INSURANCE_SIGNUP_PHONE_RELAXED ?? '').toLowerCase()
-  return v !== '0' && v !== 'false' && v !== 'off'
+  const v = String(process.env.INSURANCE_SIGNUP_PHONE_RELAXED ?? '').trim().toLowerCase()
+  return v === '1' || v === 'true' || v === 'yes' || v === 'on'
 }

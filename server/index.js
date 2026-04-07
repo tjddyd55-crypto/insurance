@@ -1340,7 +1340,7 @@ async function handleRegister(req, res) {
         return
       }
     } else if (!isSignupPhoneRelaxedMode()) {
-      res.status(400).json({ message: '휴대폰 번호를 입력해 주세요.' })
+      res.status(400).json({ message: '휴대폰 번호는 필수입니다.' })
       return
     }
 
@@ -1364,26 +1364,62 @@ async function handleRegister(req, res) {
       return
     }
 
-    if (phoneNorm) {
+    const proofRaw = String(signupProofSnake ?? signupProofCamel ?? '').trim()
+
+    function respondProofMismatch(signupProof) {
+      if (signupProof.phoneDigits !== phoneNorm) {
+        res.status(400).json({ message: '인증된 휴대폰 번호와 가입 폼의 번호가 일치하지 않습니다.' })
+        return true
+      }
+      if (signupProof.inviteCodeNormalized !== code) {
+        res
+          .status(400)
+          .json({ message: '인증 시점의 GA 코드와 현재 입력이 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
+        return true
+      }
+      if (signupProof.gaId !== gaId) {
+        res.status(400).json({ message: 'GA 정보가 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
+        return true
+      }
+      return false
+    }
+
+    if (!isSignupPhoneRelaxedMode()) {
+      if (!phoneNorm) {
+        res.status(400).json({ message: '휴대폰 번호는 필수입니다.' })
+        return
+      }
+      if (!proofRaw) {
+        res.status(400).json({ message: '휴대폰 인증이 필요합니다.' })
+        return
+      }
       let signupProof
       try {
-        signupProof = verifySignupPhoneProof(String(signupProofSnake ?? signupProofCamel ?? '').trim(), JWT_SECRET)
+        signupProof = verifySignupPhoneProof(proofRaw, JWT_SECRET)
       } catch {
         res.status(400).json({
           message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
         })
         return
       }
-      if (signupProof.phoneDigits !== phoneNorm) {
-        res.status(400).json({ message: '인증된 휴대폰 번호와 가입 폼의 번호가 일치하지 않습니다.' })
+      if (respondProofMismatch(signupProof)) {
         return
       }
-      if (signupProof.inviteCodeNormalized !== code) {
-        res.status(400).json({ message: '인증 시점의 GA 코드와 현재 입력이 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
+    } else if (phoneNorm) {
+      if (!proofRaw) {
+        res.status(400).json({ message: '휴대폰 인증이 필요합니다.' })
         return
       }
-      if (signupProof.gaId !== gaId) {
-        res.status(400).json({ message: 'GA 정보가 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
+      let signupProof
+      try {
+        signupProof = verifySignupPhoneProof(proofRaw, JWT_SECRET)
+      } catch {
+        res.status(400).json({
+          message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
+        })
+        return
+      }
+      if (respondProofMismatch(signupProof)) {
         return
       }
     }
@@ -1391,11 +1427,11 @@ async function handleRegister(req, res) {
     if (!isSignupPhoneRelaxedMode() && phoneNorm) {
       const phoneDup = await systemQuery(
         pool,
-        `SELECT 1 FROM users WHERE phone_number = $1 AND is_deleted = false LIMIT 1`,
+        `SELECT id FROM users WHERE phone_number = $1 AND is_deleted = false LIMIT 1`,
         [phoneNorm],
       )
       if (phoneDup.rowCount > 0) {
-        res.status(409).json({ message: '이미 가입에 사용 중인 휴대폰 번호입니다.' })
+        res.status(400).json({ message: '이미 사용중인 휴대폰 번호입니다.' })
         return
       }
     }
