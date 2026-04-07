@@ -493,8 +493,11 @@ function CustomerListCard({
 
   if (import.meta.env.DEV) {
     console.log('customer:', c)
-    console.log('phone:', phone, 'hasPhone:', hasPhone)
+    console.log('phone:', phone)
+    console.log('hasPhone:', hasPhone)
   }
+
+  const telEmojiStyle = { color: hasPhone ? '#22c55e' : '#9ca3af' } as const
 
   function handleSummaryKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (isSelectMode) {
@@ -614,12 +617,13 @@ function CustomerListCard({
                   {telHref ? (
                     <a
                       href={telHref}
-                      className="group inline-flex text-xl leading-none"
+                      className="inline-flex text-xl leading-none transition-colors hover:opacity-90 active:opacity-80"
                       aria-label="전화 걸기"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <span
-                        className="transition-colors !text-green-500 group-hover:!text-green-400 group-active:!text-green-600"
+                        className="transition-colors !text-green-500 hover:!text-green-400 active:!text-green-600"
+                        style={telEmojiStyle}
                         aria-hidden
                       >
                         📞
@@ -632,6 +636,7 @@ function CustomerListCard({
                           ? '!text-green-500 hover:!text-green-400 active:!text-green-600'
                           : 'text-gray-400'
                       }`}
+                      style={telEmojiStyle}
                       aria-hidden
                     >
                       📞
