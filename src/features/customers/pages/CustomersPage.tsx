@@ -60,6 +60,30 @@ const INVITE_COPY_POINTER_DEBOUNCE_MS = 450
 
 const LAST_CONSULT_FETCH_CONCURRENCY = 12
 
+async function copyTextWithWebViewFallback(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    textarea.style.pointerEvents = 'none'
+    document.body.appendChild(textarea)
+
+    try {
+      textarea.focus()
+      textarea.select()
+      return document.execCommand('copy')
+    } catch {
+      return false
+    } finally {
+      document.body.removeChild(textarea)
+    }
+  }
+}
+
 async function fetchLastConsultDatesByCustomerId(
   token: string,
   customerIds: number[],
@@ -1686,12 +1710,12 @@ export default function CustomersPage() {
       return
     }
     const inviteUrl = `${window.location.origin}/customer/register?ref=${encodeURIComponent(refUsername)}&ga=${encodeURIComponent(gaCode)}`
-    try {
-      await navigator.clipboard.writeText(inviteUrl)
+    const copied = await copyTextWithWebViewFallback(inviteUrl)
+    if (copied) {
       alert('링크 복사 완료')
-    } catch {
-      window.prompt('링크 복사', inviteUrl)
+      return
     }
+    alert('복사 실패')
   }, [user?.username, user?.gaCode])
 
   const invokeInviteCopyFromPointer = useCallback(() => {

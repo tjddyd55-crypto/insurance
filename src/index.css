@@ -1526,11 +1526,32 @@ button.filter-button:focus-visible {
 
 /* 고객 관리 — 넓은 폭, 단일 카드, 리스트 밀도 */
 .customers-page.page {
-  max-width: none;
+  max-width: 100%;
   width: 100%;
   margin: 0 auto;
   padding: 8px 10px 100px;
   box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+.customers-page.page input,
+.customers-page.page button {
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .customers-page__action-row {
+    flex-wrap: wrap;
+  }
+
+  .customers-page.page input,
+  .customers-page.page button,
+  .customers-page.page .customers-page__action-btn,
+  .customers-page.page .customers-page__filter-toggle,
+  .customers-page.page .cta-button,
+  .customers-page.page .filter-button {
+    width: 100%;
+  }
 }
 
 .customers-page__header {
