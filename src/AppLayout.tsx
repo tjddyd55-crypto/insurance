@@ -3,6 +3,7 @@ import { AppExitConfirm } from './components/AppExitConfirm'
 import { GlobalBackHandlerHost } from './hooks/useGlobalBackHandler'
 import { useAuth } from './features/auth/AuthProvider'
 import { NotificationBell } from './features/notification/components/NotificationBell'
+import { isCustomerCreateMode } from './navigation/backNavigationPolicy'
 
 function formatGaBannerLabel(gaName: string, gaCode: string): string {
   const n = gaName.trim()
@@ -33,9 +34,7 @@ export function AppLayout() {
     Boolean(isAuthenticated && user?.gaId != null) && !hideBarPaths.has(location.pathname)
 
   /** 고객 등록(?mode=create)은 CustomersPage ExitConfirmDialog만 사용 (네이티브·웹 이중 확인 방지) */
-  const hideAppExitConfirm =
-    location.pathname.startsWith('/customers') &&
-    (location.search ?? '').includes('mode=create')
+  const hideAppExitConfirm = isCustomerCreateMode(location.pathname, location.search ?? '')
 
   return (
     <>

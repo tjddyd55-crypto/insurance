@@ -43,7 +43,11 @@ import {
   useExpandableCard,
 } from '../../../hooks/useExpandableCard'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
-import { MSG_CUSTOMER_CREATE_EXIT, getBackNavigationBlock } from '../../../navigation/backNavigationPolicy'
+import {
+  MSG_CUSTOMER_CREATE_EXIT,
+  ROUTE_CUSTOMER_LIST,
+  isCustomerCreateMode,
+} from '../../../navigation/backNavigationPolicy'
 import {
   fetchConsultationCounts,
   listCustomerConsultations,
@@ -1140,7 +1144,7 @@ export default function CustomersPage() {
         }
         const path = currentLocation.pathname
         const search = currentLocation.search ?? ''
-        return getBackNavigationBlock(path, search).shouldBlock
+        return isCustomerCreateMode(path, search)
       },
       [tab],
     ),
@@ -1921,7 +1925,7 @@ export default function CustomersPage() {
               onStatusMessage={setStatusText}
               onInternalSaveSuccess={() => {
                 void loadCustomers()
-                navigate('/customers', { replace: true })
+                navigate(ROUTE_CUSTOMER_LIST, { replace: true })
               }}
             />
           </section>
@@ -2230,7 +2234,7 @@ export default function CustomersPage() {
             if (customerCreateExitBlocker.state === 'blocked') {
               customerCreateExitBlocker.reset()
             }
-            navigate('/customers', { replace: true })
+            navigate(ROUTE_CUSTOMER_LIST, { replace: true })
             setCustomerCreateExitModalOpen(false)
           }}
         />

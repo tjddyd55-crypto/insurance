@@ -2,17 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../features/auth/AuthProvider'
-
-/** 로그인 후 메인 메뉴(대시보드) — 라우터에 `/menu` 경로 없음 */
-const MAIN_MENU_PATH = '/dashboard'
-
-function isCustomerCreateUrl(pathname: string, search: string): boolean {
-  return pathname.startsWith('/customers') && search.includes('mode=create')
-}
-
-function isCustomerListUrl(pathname: string, search: string): boolean {
-  return pathname === '/customers' && !search.includes('mode=create')
-}
+import { resolveBackRoute } from '../navigation/backNavigationPolicy'
 
 type GlobalBackMessage = { type?: string }
 
@@ -20,7 +10,7 @@ type GlobalBackMessage = { type?: string }
  * 모바일 WebView 등에서 오는 “하드웨어 뒤로” 의도를 라우터로만 처리한다.
  *
  * - 고객 등록(?mode=create): 즉시 이동하지 않고 insurance-native-back과 동일 이벤트로 모달·blocker 흐름 유지
- * - 고객 목록(/customers): 메인 메뉴로 replace (스택 정리)
+ * - /customers* (등록 제외): `resolveBackRoute` → 메인 메뉴 replace
  * - 그 외: navigate(-1)
  *
  * 주의: `popstate`는 React Router·useBlocker와 이중 처리되기 쉬워 등록하지 않는다.
@@ -54,12 +44,13 @@ export function useGlobalBackHandler(enabled: boolean) {
       const path = loc.pathname
       const search = loc.search ?? ''
 
-      if (isCustomerCreateUrl(path, search)) {
+      const resolved = resolveBackRoute(path, search)
+      if (resolved.kind === 'customer-create-exit') {
         dispatchCustomerCreateBack()
         return
       }
-      if (isCustomerListUrl(path, search)) {
-        nav(MAIN_MENU_PATH, { replace: true })
+      if (resolved.kind === 'replace') {
+        nav(resolved.path, { replace: true })
         return
       }
       nav(-1)
