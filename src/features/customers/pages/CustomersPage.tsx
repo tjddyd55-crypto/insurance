@@ -11,6 +11,7 @@ import {
   type SetStateAction,
   type TouchEvent,
 } from 'react'
+import { useBlocker, type BlockerFunction } from 'react-router'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
@@ -42,7 +43,7 @@ import {
   useExpandableCard,
 } from '../../../hooks/useExpandableCard'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
-import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPolicy'
+import { MSG_CUSTOMER_CREATE_EXIT, getBackNavigationBlock } from '../../../navigation/backNavigationPolicy'
 import {
   fetchConsultationCounts,
   listCustomerConsultations,
@@ -1130,6 +1131,20 @@ export default function CustomersPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
   const tab = searchParams.get('mode') === 'create' ? 'create' : 'list'
+
+  const customerCreateExitBlocker = useBlocker(
+    useCallback<BlockerFunction>(
+      ({ currentLocation, historyAction }) => {
+        if (tab !== 'create' || historyAction !== 'POP') {
+          return false
+        }
+        const path = currentLocation.pathname
+        const search = currentLocation.search ?? ''
+        return getBackNavigationBlock(path, search).shouldBlock
+      },
+      [tab],
+    ),
+  )
   const [searchInput, setSearchInput] = useState('')
   const [keyword, setKeyword] = useState('')
   const [sortType, setSortType] = useState<CustomerSortType>(null)
@@ -2173,14 +2188,23 @@ export default function CustomersPage() {
         </button>
       ) : null}
 
-      {customerCreateExitModalOpen ? (
+      {customerCreateExitModalOpen || customerCreateExitBlocker.state === 'blocked' ? (
         <ExitConfirmDialog
           message={MSG_CUSTOMER_CREATE_EXIT}
           titleId="customer-create-exit-confirm-title"
-          onCancel={() => setCustomerCreateExitModalOpen(false)}
-          onConfirm={() => {
+          onCancel={() => {
+            if (customerCreateExitBlocker.state === 'blocked') {
+              customerCreateExitBlocker.reset()
+            }
             setCustomerCreateExitModalOpen(false)
-            setSearchParams({})
+          }}
+          onConfirm={() => {
+            if (customerCreateExitBlocker.state === 'blocked') {
+              customerCreateExitBlocker.proceed()
+            } else {
+              setSearchParams({})
+            }
+            setCustomerCreateExitModalOpen(false)
           }}
         />
       ) : null}

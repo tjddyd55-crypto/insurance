@@ -16,6 +16,10 @@ export function AppExitConfirm() {
       }
       const path = currentLocation.pathname
       const search = currentLocation.search ?? ''
+      // 고객 등록(?mode=create) POP 차단은 CustomersPage useBlocker에서만 처리 (이중 모달 방지)
+      if (path.startsWith('/customers') && search.includes('mode=create')) {
+        return false
+      }
       return getBackNavigationBlock(path, search).shouldBlock
     },
     [isAuthenticated],
