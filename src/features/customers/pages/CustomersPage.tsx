@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -460,7 +461,7 @@ type CustomerListCardProps = {
   onToggleFavorite: (c: CustomerRecord) => void | Promise<void>
 }
 
-function CustomerListCard({
+const CustomerListCard = memo(function CustomerListCard({
   customer: c,
   ssnDupHighlight,
   isSelectMode,
@@ -1115,7 +1116,7 @@ function CustomerListCard({
       </div>
     </li>
   )
-}
+})
 
 export default function CustomersPage() {
   const navigate = useNavigate()
@@ -1455,10 +1456,12 @@ export default function CustomersPage() {
     if (expandedId == null) {
       return
     }
-    if (!customers.some((c) => c.id === expandedId)) {
+    const inMainList = customers.some((c) => c.id === expandedId)
+    const inAdvHits = advSearchHits?.some((c) => c.id === expandedId) ?? false
+    if (!inMainList && !inAdvHits) {
       setExpandedId(null)
     }
-  }, [customers, expandedId])
+  }, [customers, advSearchHits, expandedId])
 
   useEffect(() => {
     const valid = new Set(customers.map((c) => String(c.id)))
