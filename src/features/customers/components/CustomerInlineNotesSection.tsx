@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
 import { customerRecordToUpdatePayload, updateCustomer } from '../api/customersApi'
@@ -23,6 +24,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
   onPersisted,
   onStatusMessage,
 }: Props) {
+  const navigate = useNavigate()
   const [memoOpen, setMemoOpen] = useState(false)
   const [draft, setDraft] = useState('')
   /** 상담 목록(rows)과 같이 메모만 별도 state — 타이핑·낙관적 반영은 여기서만 처리 */
@@ -156,15 +158,29 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
     <div className="customer-inline-notes mt-5">
       <div className="flex justify-between items-center mb-2 gap-2">
         <div className="customer-section-title !mt-0">[메모]</div>
-        <Button
-          type="button"
-          variant="secondary"
-          className="!px-3 !py-1.5 text-xs shrink-0"
-          disabled={saving || !token?.trim()}
-          onClick={openMemoModal}
-        >
-          메모 추가
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            type="button"
+            variant="secondary"
+            className="!px-3 !py-1.5 text-xs shrink-0"
+            disabled={!token?.trim()}
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(`/customers/${customer.id}/files`, { state: { customerName: customer.name } })
+            }}
+          >
+            파일
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="!px-3 !py-1.5 text-xs shrink-0"
+            disabled={saving || !token?.trim()}
+            onClick={openMemoModal}
+          >
+            메모 추가
+          </Button>
+        </div>
       </div>
       {sortedItems.length === 0 ? (
         <div className="text-sm text-[var(--text-secondary)] mt-2">등록된 내용이 없습니다.</div>

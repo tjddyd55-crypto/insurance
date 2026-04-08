@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import Modal from '../../../components/ui/Modal'
+import { Button } from '../../../components/ui/Button'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import {
@@ -61,6 +63,7 @@ export default function CustomerFilesPage() {
   const [listLoading, setListLoading] = useState(false)
   const [error, setError] = useState('')
   const [notFound, setNotFound] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const loadList = useCallback(async () => {
     if (!token?.trim() || !validId) {
@@ -103,6 +106,20 @@ export default function CustomerFilesPage() {
       return
     }
     setFile(f)
+  }, [])
+
+  const openUploadModal = useCallback(() => {
+    setError('')
+    setContent('')
+    setFile(null)
+    setIsModalOpen(true)
+  }, [])
+
+  const closeUploadModal = useCallback(() => {
+    setIsModalOpen(false)
+    setError('')
+    setContent('')
+    setFile(null)
   }, [])
 
   const handleUpload = async () => {
@@ -160,6 +177,7 @@ export default function CustomerFilesPage() {
       setFiles((prev) => [saved, ...prev])
       setContent('')
       setFile(null)
+      setIsModalOpen(false)
     } catch {
       if (rollbackObjectKey && token?.trim()) {
         try {
@@ -227,8 +245,9 @@ export default function CustomerFilesPage() {
   }
 
   return (
-    <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
+    <div className="page-shell customer-files-page" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
       <div
+        className="customer-files-page__toolbar"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -240,10 +259,21 @@ export default function CustomerFilesPage() {
         <button type="button" className="link-btn link-btn--compact" onClick={handleBack}>
           ← 뒤로
         </button>
-        <h1 style={{ margin: 0, fontSize: '1.25rem' }}>{customerTitle}</h1>
+        <h1 className="customer-files-page__title" style={{ margin: 0, fontSize: '1.25rem', flex: '1 1 auto' }}>
+          {customerTitle}
+        </h1>
+        <Button
+          type="button"
+          variant="primary"
+          className="!px-3 !py-1.5 text-xs shrink-0"
+          disabled={!token?.trim() || listLoading}
+          onClick={openUploadModal}
+        >
+          작성
+        </Button>
       </div>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: 8 }}>
-        파일 첨부 · 메모(content)는 항목별로 저장됩니다.
+      <p className="customer-files-page__lead" style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: 8 }}>
+        첨부 목록은 최신 순입니다. {files.length > 0 ? `(${files.length}건)` : ''}
       </p>
 
       {error ? (
@@ -252,91 +282,74 @@ export default function CustomerFilesPage() {
         </p>
       ) : null}
 
-      <section style={{ marginTop: 24 }}>
-        <h2 style={{ fontSize: '1.05rem' }}>업로드</h2>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            void handleUpload()
-          }}
-          style={{ marginTop: 12 }}
-        >
-          <label style={{ display: 'block', marginBottom: 8 }}>
-            <span style={{ display: 'block', marginBottom: 4, fontSize: '0.9rem' }}>메모 / 설명</span>
-            <textarea
-            className="w-full border border-[var(--border-default)] rounded-lg p-2 bg-[var(--bg-card)] text-[var(--text-primary)] box-border min-h-[100px]"
-              value={content}
-              onChange={(ev) => setContent(ev.target.value)}
-              placeholder="항목에 함께 저장할 내용 (선택)"
-            />
-          </label>
-          <label style={{ display: 'block', marginBottom: 8 }}>
-            <span style={{ display: 'block', marginBottom: 4, fontSize: '0.9rem' }}>파일</span>
-            <input type="file" accept={FILE_INPUT_ACCEPT} onChange={handleFileChange} />
-          </label>
-          {file ? (
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              선택됨: {file.name}
-            </p>
-          ) : null}
-          <button
-            type="submit"
-            className="cta-button"
-            style={{ marginTop: 12 }}
-            disabled={uploading || !file || !token?.trim()}
-          >
-            {uploading ? '업로드 중…' : '업로드'}
-          </button>
-        </form>
-      </section>
-
-      <section style={{ marginTop: 32 }}>
-        <h2 style={{ fontSize: '1.05rem' }}>첨부 목록</h2>
+      <section className="customer-files-page__list-section" style={{ marginTop: 24 }}>
+        <h2 className="customer-files-page__list-heading" style={{ fontSize: '1.05rem', margin: '0 0 12px' }}>
+          첨부 목록
+        </h2>
         {listLoading ? (
           <p style={{ color: 'var(--text-secondary)' }} role="status">
             불러오는 중…
           </p>
         ) : files.length === 0 ? (
-          <p style={{ color: 'var(--text-secondary)' }}>첨부된 파일이 없습니다.</p>
+          <p style={{ color: 'var(--text-secondary)' }}>첨부된 파일이 없습니다. 상단 「작성」에서 추가하세요.</p>
         ) : (
-          <ul style={{ listStyle: 'none', padding: 0, marginTop: 12 }}>
+          <div className="customer-files-page__cards">
             {files.map((f) => (
-              <li
-                key={f.id}
-                style={{
-                  borderBottom: '1px solid var(--border-default)',
-                  padding: '14px 0',
-                  fontSize: '0.95rem',
-                }}
-              >
-                <div style={{ whiteSpace: 'pre-wrap', marginBottom: 8 }}>{f.content || '—'}</div>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>{f.fileName}</div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 8 }}>
+              <div key={f.id} className="file-card">
+                <div className="content">{f.content?.trim() ? f.content : '—'}</div>
+                <div className="file-name">{f.fileName}</div>
+                <div className="date">
                   {f.createdAt ? new Date(f.createdAt).toLocaleString('ko-KR') : '—'}
                 </div>
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <a
-                    className="text-blue-500 hover:underline"
-                    href={f.fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
+                <div className="actions">
+                  <a href={f.fileUrl} target="_blank" rel="noopener noreferrer">
                     다운로드
                   </a>
-                  <button
-                    type="button"
-                    className="text-red-600 hover:underline disabled:opacity-50 text-sm bg-transparent border-0 cursor-pointer p-0"
-                    disabled={uploading}
-                    onClick={() => handleDelete(f)}
-                  >
+                  <button type="button" disabled={uploading} onClick={() => handleDelete(f)}>
                     삭제
                   </button>
                 </div>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </section>
+
+      <Modal open={isModalOpen} onClose={closeUploadModal} ariaLabel="파일 첨부 작성" panelClassName="max-w-lg">
+        <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">파일 첨부</div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            void handleUpload()
+          }}
+          className="customer-files-page__upload-form"
+        >
+          <label className="block mb-3">
+            <span className="block mb-1 text-sm text-[var(--text-secondary)]">메모 / 설명</span>
+            <textarea
+              className="w-full border border-[var(--border-default)] rounded-lg p-2 bg-[var(--bg-card)] text-[var(--text-primary)] box-border min-h-[100px]"
+              value={content}
+              onChange={(ev) => setContent(ev.target.value)}
+              placeholder="항목에 함께 저장할 내용 (선택)"
+            />
+          </label>
+          <label className="block mb-3">
+            <span className="block mb-1 text-sm text-[var(--text-secondary)]">파일</span>
+            <input type="file" accept={FILE_INPUT_ACCEPT} onChange={handleFileChange} className="text-sm" />
+          </label>
+          {file ? (
+            <p className="text-xs text-[var(--text-secondary)] mb-3">선택됨: {file.name}</p>
+          ) : null}
+          <div className="flex gap-2 justify-end flex-wrap">
+            <Button type="button" variant="secondary" onClick={closeUploadModal} disabled={uploading}>
+              취소
+            </Button>
+            <Button type="submit" disabled={uploading || !file || !token?.trim()}>
+              {uploading ? '업로드 중…' : '업로드'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

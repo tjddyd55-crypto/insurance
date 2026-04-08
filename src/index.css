@@ -4083,3 +4083,77 @@ a.contacts-public-auth__link {
   color: var(--text-sub);
   text-align: center;
 }
+
+/* 고객 파일 첨부 페이지 — 팀 게시판과 유사한 카드 목록 */
+.customer-files-page__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.customer-files-page .file-card {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.375rem;
+  background: var(--bg-card, var(--bg-elevated));
+  transition: background-color 0.15s ease;
+}
+
+.customer-files-page .file-card .content {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-bottom: 0.5rem;
+  line-height: 1.45;
+}
+
+.customer-files-page .file-card .file-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+}
+
+.customer-files-page .file-card .date {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  opacity: 0.9;
+  margin-bottom: 0.65rem;
+}
+
+.customer-files-page .file-card .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  padding-top: 0.35rem;
+  border-top: 1px solid color-mix(in srgb, var(--border-default) 75%, transparent);
+}
+
+.customer-files-page .file-card .actions a {
+  font-size: 0.85rem;
+  color: var(--link, #60a5fa);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.customer-files-page .file-card .actions a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.customer-files-page .file-card .actions button {
+  font-size: 0.85rem;
+  color: var(--danger, #dc2626);
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+
+.customer-files-page .file-card .actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

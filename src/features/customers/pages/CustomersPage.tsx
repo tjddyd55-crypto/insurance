@@ -491,7 +491,6 @@ const CustomerListCard = memo(function CustomerListCard({
   onCustomerNotesPersisted,
   onToggleFavorite,
 }: CustomerListCardProps) {
-  const navigate = useNavigate()
   const validCustomerId =
     c != null &&
     typeof c === 'object' &&
@@ -1065,19 +1064,6 @@ const CustomerListCard = memo(function CustomerListCard({
                 onPersisted={onCustomerNotesPersisted}
                 onStatusMessage={onStatusMessage}
               />
-            </div>
-            <div className="mt-3">
-              <button
-                type="button"
-                className="filter-button"
-                disabled={!token?.trim()}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  navigate(`/customers/${c.id}/files`, { state: { customerName: c.name } })
-                }}
-              >
-                파일 첨부
-              </button>
             </div>
             {!(editingId === c.id && editForm) ? (
               <>
