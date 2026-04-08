@@ -41,6 +41,8 @@ import {
   EXPANDABLE_CARD_INVALID_ID,
   useExpandableCard,
 } from '../../../hooks/useExpandableCard'
+import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
+import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPolicy'
 import {
   fetchConsultationCounts,
   listCustomerConsultations,
@@ -1149,6 +1151,7 @@ export default function CustomersPage() {
   const [favoriteOnly, setFavoriteOnly] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [showScrollToTop, setShowScrollToTop] = useState(false)
+  const [customerCreateExitModalOpen, setCustomerCreateExitModalOpen] = useState(false)
   /** 터치→합성 mouse/click 등으로 초대 복사가 두 번 도는 것 방지 */
   const inviteCopyPointerTsRef = useRef(0)
 
@@ -1856,7 +1859,14 @@ export default function CustomersPage() {
           </>
         ) : (
           <div className="customers-page__create-nav">
-            <button type="button" className="link-btn link-btn--compact" onClick={() => setSearchParams({})}>
+            <button
+              type="button"
+              className="link-btn link-btn--compact"
+              onClick={(e) => {
+                e.stopPropagation()
+                setCustomerCreateExitModalOpen(true)
+              }}
+            >
               ← 고객 목록
             </button>
           </div>
@@ -2161,6 +2171,18 @@ export default function CustomersPage() {
         >
           ↑
         </button>
+      ) : null}
+
+      {customerCreateExitModalOpen ? (
+        <ExitConfirmDialog
+          message={MSG_CUSTOMER_CREATE_EXIT}
+          titleId="customer-create-exit-confirm-title"
+          onCancel={() => setCustomerCreateExitModalOpen(false)}
+          onConfirm={() => {
+            setCustomerCreateExitModalOpen(false)
+            setSearchParams({})
+          }}
+        />
       ) : null}
     </main>
   )

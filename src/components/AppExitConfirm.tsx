@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { useBlocker, useLocation, type BlockerFunction } from 'react-router'
 import { useAuth } from '../features/auth/AuthProvider'
 import { getBackNavigationBlock } from '../navigation/backNavigationPolicy'
+import { ExitConfirmDialog } from './ExitConfirmDialog'
 
 export function AppExitConfirm() {
   const { isAuthenticated } = useAuth()
@@ -33,23 +34,11 @@ export function AppExitConfirm() {
   }
 
   return (
-    <div className="modal-overlay" role="presentation">
-      <div
-        className="modal app-exit-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="app-exit-confirm-title"
-      >
-        <h3 id="app-exit-confirm-title">{message}</h3>
-        <div className="modal-actions app-exit-modal__actions">
-          <button type="button" className="modal-cancel" onClick={() => blocker.reset()}>
-            취소
-          </button>
-          <button type="button" className="confirm" onClick={() => blocker.proceed()}>
-            확인
-          </button>
-        </div>
-      </div>
-    </div>
+    <ExitConfirmDialog
+      message={message}
+      titleId="app-exit-confirm-title"
+      onCancel={() => blocker.reset()}
+      onConfirm={() => blocker.proceed()}
+    />
   )
 }

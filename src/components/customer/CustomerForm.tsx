@@ -893,31 +893,21 @@ export function CustomerForm({ onStatusMessage, onInternalSaveSuccess }: Custome
 
 
   return (
-
-    <>
-
+    <form
+      className="customer-form-internal"
+      onSubmit={(e) => {
+        e.preventDefault()
+        void handleSubmit()
+      }}
+    >
       <h2 className="dashboard-section-title">신규 고객</h2>
 
-      <CustomerFormFields
+      <CustomerFormFields form={form} onFormChange={setForm} radioSuffix="internal" onStatusMessage={onStatusMessage} />
 
-        form={form}
-
-        onFormChange={setForm}
-
-        radioSuffix="internal"
-
-        onStatusMessage={onStatusMessage}
-
-      />
-
-      <button className="button button--primary button--full" type="button" onClick={handleSubmit}>
-
+      <button className="button button--primary button--full" type="submit">
         저장
-
       </button>
-
-    </>
-
+    </form>
   )
 
 }

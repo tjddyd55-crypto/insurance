@@ -1,6 +1,6 @@
 /** 브라우저 POP / 뒤로 버튼 확인 — 단일 진실 원천 */
 
-export const MSG_CUSTOMER_CREATE_EXIT = '고객 등록을 중지하시겠습니까?'
+export const MSG_CUSTOMER_CREATE_EXIT = '고객 등록을 취소하시겠습니까?'
 export const MSG_APPLICATION_WRITE_EXIT = '자동차 신청 작성을 중지하시겠습니까?'
 export const MSG_APP_EXIT = '앱을 종료하시겠습니까?'
 
