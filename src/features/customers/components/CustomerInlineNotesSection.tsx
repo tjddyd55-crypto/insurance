@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
 import { customerRecordToUpdatePayload, updateCustomer } from '../api/customersApi'
@@ -13,26 +13,41 @@ type Props = {
   onStatusMessage: (msg: string) => void
 }
 
-export function CustomerInlineNotesSection({ customer, token, onPersisted, onStatusMessage }: Props) {
+export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSection({
+  customer,
+  token,
+  onPersisted,
+  onStatusMessage,
+}: Props) {
   const [memoOpen, setMemoOpen] = useState(false)
-  const [modalDraft, setModalDraft] = useState('')
+  /** 모달 입력창: 타이핑은 로컬만 갱신 (부모 state/API 호출 없음) */
+  const [localNotes, setLocalNotes] = useState('')
+  /** 카드에 표시되는 메모 목록; 저장·삭제 API 성공 후 부모가 내려준 notes와 동기화 */
+  const [localNoteItems, setLocalNoteItems] = useState<CustomerNote[]>(() => customerNoteItems(customer))
   const [saving, setSaving] = useState(false)
   const savingLock = useRef(false)
+
+  const serverNotesSignature = useMemo(() => {
+    const bag = normalizeCustomerNotesBag(customer.notes)
+    return `${customer.id}|${JSON.stringify(bag)}`
+  }, [customer.id, customer.notes])
+
+  useEffect(() => {
+    setLocalNoteItems(customerNoteItems(customer))
+  }, [serverNotesSignature, customer])
 
   const insuranceHistory = normalizeCustomerNotesBag(customer.notes).insuranceHistory
 
   const sortedItems = useMemo(() => {
-    const raw = customerNoteItems(customer)
-    return [...raw].sort(
+    return [...localNoteItems].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
-  }, [customer])
+  }, [localNoteItems])
 
-  useEffect(() => {
-    if (!memoOpen) {
-      setModalDraft('')
-    }
-  }, [memoOpen])
+  function closeMemoModal() {
+    setLocalNotes('')
+    setMemoOpen(false)
+  }
 
   async function persistNotes(nextItems: CustomerNote[]) {
     if (!token?.trim()) {
@@ -70,7 +85,7 @@ export function CustomerInlineNotesSection({ customer, token, onPersisted, onSta
   }
 
   function openMemoModal() {
-    setModalDraft('')
+    setLocalNotes('')
     setMemoOpen(true)
   }
 
@@ -78,7 +93,7 @@ export function CustomerInlineNotesSection({ customer, token, onPersisted, onSta
     if (savingLock.current) {
       return
     }
-    const trimmed = modalDraft.trim()
+    const trimmed = localNotes.trim()
     if (!trimmed) {
       return
     }
@@ -91,17 +106,17 @@ export function CustomerInlineNotesSection({ customer, token, onPersisted, onSta
       content: trimmed,
       createdAt: new Date().toISOString(),
     }
-    const current = customerNoteItems(customer)
-    setMemoOpen(false)
-    void persistNotes([newNote, ...current])
+    const nextItems = [newNote, ...localNoteItems]
+    closeMemoModal()
+    void persistNotes(nextItems)
   }
 
   function removeNote(id: string) {
     if (savingLock.current) {
       return
     }
-    const current = customerNoteItems(customer)
-    void persistNotes(current.filter((n) => n.id !== id))
+    const nextItems = localNoteItems.filter((n) => n.id !== id)
+    void persistNotes(nextItems)
   }
 
   return (
@@ -163,24 +178,24 @@ export function CustomerInlineNotesSection({ customer, token, onPersisted, onSta
         </ul>
       )}
 
-      <Modal open={memoOpen} onClose={() => setMemoOpen(false)} ariaLabel="메모 입력">
+      <Modal open={memoOpen} onClose={closeMemoModal} ariaLabel="메모 입력">
         <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">메모 입력</div>
         <textarea
           className="w-full border border-[var(--border-default)] rounded-lg p-2 mb-3 bg-[var(--bg-card)] text-[var(--text-primary)] box-border min-h-[120px]"
-          value={modalDraft}
+          value={localNotes}
           maxLength={NOTE_MAX_LENGTH}
-          onChange={(e) => setModalDraft(e.target.value.slice(0, NOTE_MAX_LENGTH))}
+          onChange={(e) => setLocalNotes(e.target.value.slice(0, NOTE_MAX_LENGTH))}
           placeholder="메모 내용"
         />
         <div className="flex gap-2 justify-end flex-wrap">
-          <Button type="button" variant="secondary" onClick={() => setMemoOpen(false)}>
+          <Button type="button" variant="secondary" onClick={closeMemoModal}>
             취소
           </Button>
-          <Button type="button" disabled={saving || !modalDraft.trim()} onClick={handleMemoSave}>
+          <Button type="button" disabled={saving || !localNotes.trim()} onClick={handleMemoSave}>
             확인
           </Button>
         </div>
       </Modal>
     </div>
   )
-}
+})

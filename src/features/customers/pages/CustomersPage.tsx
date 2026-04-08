@@ -1052,15 +1052,19 @@ const CustomerListCard = memo(function CustomerListCard({
                       : '내용 없음'}
                   </div>
                 </div>
-                <div className="customer-expand-section-divider" role="presentation" />
-                {token ? (
-                  <CustomerInlineNotesSection
-                    customer={c}
-                    token={token}
-                    onPersisted={onCustomerNotesPersisted}
-                    onStatusMessage={onStatusMessage}
-                  />
-                ) : null}
+              </>
+            )}
+            <div className="customer-expand-section-divider" role="presentation" />
+            <div hidden={!token || (editingId === c.id && Boolean(editForm))}>
+              <CustomerInlineNotesSection
+                customer={c}
+                token={token}
+                onPersisted={onCustomerNotesPersisted}
+                onStatusMessage={onStatusMessage}
+              />
+            </div>
+            {!(editingId === c.id && editForm) ? (
+              <>
                 {token ? (
                   <CustomerConsultationSection
                     customerId={c.id}
@@ -1110,7 +1114,7 @@ const CustomerListCard = memo(function CustomerListCard({
                   </div>
                 ) : null}
               </>
-            )}
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -1141,6 +1145,12 @@ export default function CustomersPage() {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
+  const expandedIdRef = useRef<number | null>(null)
+  const editingIdRef = useRef<number | null>(null)
+  const editFormRef = useRef<CustomerEditFormState | null>(null)
+  expandedIdRef.current = expandedId
+  editingIdRef.current = editingId
+  editFormRef.current = editForm
   const tab = searchParams.get('mode') === 'create' ? 'create' : 'list'
 
   const customerCreateExitBlocker = useBlocker(
@@ -1206,10 +1216,20 @@ export default function CustomersPage() {
     return () => window.removeEventListener('insurance-native-back', handler as EventListener)
   }, [tab])
 
-  const ssnDupHighlightByCustomerId = useMemo(
-    () => buildSsnDuplicateHighlightByCustomerId(customers),
-    [customers],
-  )
+  const ssnDupHighlightByCustomerIdPrevRef = useRef<Map<number, CustomerSsnDupHighlight>>(new Map())
+  const ssnDupHighlightByCustomerId = useMemo(() => {
+    const built = buildSsnDuplicateHighlightByCustomerId(customers)
+    const prev = ssnDupHighlightByCustomerIdPrevRef.current
+    const next = new Map<number, CustomerSsnDupHighlight>()
+    for (const [id, hi] of built) {
+      const old = prev.get(id)
+      const stable =
+        old != null && old.groupLabel === hi.groupLabel && old.color === hi.color ? old : hi
+      next.set(id, stable)
+    }
+    ssnDupHighlightByCustomerIdPrevRef.current = next
+    return next
+  }, [customers])
 
   const keywordFilteredCustomers = useMemo(() => {
     if (advSearchHits != null) {
@@ -1572,7 +1592,92 @@ export default function CustomersPage() {
     }
   }, [tab, isSelectMode])
 
-  async function copyCustomer(rec: CustomerRecord) {
+  const cancelEdit = useCallback(() => {
+    setEditingId(null)
+    setEditForm(null)
+  }, [])
+
+  const handleUpdateCustomer = useCallback(async () => {
+    if (!token?.trim()) {
+      const msg = '로그인이 필요합니다.'
+      setStatusText(msg)
+      window.alert(msg)
+      return
+    }
+    if (user?.role !== 'USER') {
+      const msg = '고객 정보를 수정할 권한이 없습니다.'
+      setStatusText(msg)
+      window.alert(msg)
+      return
+    }
+    const activeEditingId = editingIdRef.current
+    const activeEditForm = editFormRef.current
+    if (activeEditingId == null || !activeEditForm) {
+      const msg = '수정 중인 고객이 없습니다.'
+      setStatusText(msg)
+      window.alert(msg)
+      return
+    }
+    const base = customersRef.current.find((x) => x.id === activeEditingId)
+    if (!base) {
+      const msg = '고객 정보를 찾을 수 없습니다.'
+      setStatusText(msg)
+      window.alert(msg)
+      return
+    }
+    const name = activeEditForm.name.trim()
+    if (!name) {
+      const msg = '이름은 필수입니다.'
+      setStatusText(msg)
+      window.alert(msg)
+      return
+    }
+    const carYearForApi = normalizeCustomerEditCarYearForApi(activeEditForm.carYear)
+    const renewalDateForApi = normalizeCustomerEditRenewalDateForApi(activeEditForm.renewalDate)
+    try {
+      await updateCustomer(token, activeEditingId, {
+        name,
+        ssn: activeEditForm.ssn,
+        phone: activeEditForm.phone,
+        carrier: '',
+        address: activeEditForm.address,
+        height: activeEditForm.height,
+        weight: activeEditForm.weight,
+        job: activeEditForm.job,
+        driving: drivingText(activeEditForm.isDriver),
+        medical: activeEditForm.medical,
+        gender: activeEditForm.gender,
+        isDriver: activeEditForm.isDriver,
+        carType: activeEditForm.carType.trim(),
+        notes: {
+          items: customerNoteItems(base),
+          insuranceHistory: activeEditForm.insuranceHistory.trim(),
+        },
+        carNumber: activeEditForm.carNumber,
+        carModel: activeEditForm.carModel,
+        carYear: carYearForApi,
+        renewalDate: renewalDateForApi,
+        isFavorite: base.isFavorite === true,
+      })
+      setStatusText('고객 정보를 수정했습니다.')
+      cancelEdit()
+      await loadCustomers()
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : '수정에 실패했습니다.'
+      setStatusText(msg)
+      window.alert(msg)
+    }
+  }, [token, user?.role, cancelEdit, loadCustomers])
+
+  const handleEditFormSubmit = useCallback(
+    async (e: FormEvent<HTMLFormElement>) => {
+      e.preventDefault()
+      await handleUpdateCustomer()
+    },
+    [handleUpdateCustomer],
+  )
+
+  const copyCustomer = useCallback(async (rec: CustomerRecord) => {
     const text = buildKakaoCustomerCopyText(rec)
     try {
       await navigator.clipboard.writeText(text)
@@ -1580,7 +1685,48 @@ export default function CustomersPage() {
     } catch {
       setStatusText('복사에 실패했습니다.')
     }
-  }
+  }, [])
+
+  const handleDeleteCustomer = useCallback(
+    async (c: CustomerRecord) => {
+      if (!token || user?.role !== 'USER') {
+        return
+      }
+      if (
+        !window.confirm(
+          `고객 "${c.name}"(번호 ${c.id})를 목록에서 삭제할까요? 기존 신청서의 고객 연결(customer_id)은 유지됩니다.`,
+        )
+      ) {
+        return
+      }
+      try {
+        await deleteCustomer(token, c.id)
+        if (expandedIdRef.current === c.id) {
+          setExpandedId(null)
+        }
+        if (editingIdRef.current === c.id) {
+          cancelEdit()
+        }
+        setStatusText('고객을 삭제했습니다.')
+        await loadCustomers()
+      } catch (error) {
+        setStatusText(error instanceof Error ? error.message : '삭제에 실패했습니다.')
+      }
+    },
+    [token, user?.role, cancelEdit, loadCustomers],
+  )
+
+  const startEdit = useCallback((cl: CustomerRecord) => {
+    setExpandedId(cl.id)
+    setEditingId(cl.id)
+    setEditForm(recordToEditForm(cl))
+  }, [])
+
+  const handleNavigateToFormEdit = useCallback((formId: string) => navigate(`/form/${formId}/edit`), [navigate])
+
+  const handleConsultationCountsInvalidate = useCallback(() => {
+    void refreshConsultationCounts()
+  }, [refreshConsultationCounts])
 
   function applyQuickFilter(type: 'AGE_UNDER_30_MALE' | 'AGE_OVER_40_FEMALE') {
     if (type === 'AGE_UNDER_30_MALE') {
@@ -1596,92 +1742,6 @@ export default function CustomersPage() {
         gender: 'female',
       })
     }
-  }
-
-  function startEdit(c: CustomerRecord) {
-    setExpandedId(c.id)
-    setEditingId(c.id)
-    setEditForm(recordToEditForm(c))
-  }
-
-  function cancelEdit() {
-    setEditingId(null)
-    setEditForm(null)
-  }
-
-  async function handleUpdateCustomer() {
-    if (!token?.trim()) {
-      const msg = '로그인이 필요합니다.'
-      setStatusText(msg)
-      window.alert(msg)
-      return
-    }
-    if (user?.role !== 'USER') {
-      const msg = '고객 정보를 수정할 권한이 없습니다.'
-      setStatusText(msg)
-      window.alert(msg)
-      return
-    }
-    if (editingId == null || !editForm) {
-      const msg = '수정 중인 고객이 없습니다.'
-      setStatusText(msg)
-      window.alert(msg)
-      return
-    }
-    const base = customers.find((x) => x.id === editingId)
-    if (!base) {
-      const msg = '고객 정보를 찾을 수 없습니다.'
-      setStatusText(msg)
-      window.alert(msg)
-      return
-    }
-    const name = editForm.name.trim()
-    if (!name) {
-      const msg = '이름은 필수입니다.'
-      setStatusText(msg)
-      window.alert(msg)
-      return
-    }
-    const carYearForApi = normalizeCustomerEditCarYearForApi(editForm.carYear)
-    const renewalDateForApi = normalizeCustomerEditRenewalDateForApi(editForm.renewalDate)
-    try {
-      await updateCustomer(token, editingId, {
-        name,
-        ssn: editForm.ssn,
-        phone: editForm.phone,
-        carrier: '',
-        address: editForm.address,
-        height: editForm.height,
-        weight: editForm.weight,
-        job: editForm.job,
-        driving: drivingText(editForm.isDriver),
-        medical: editForm.medical,
-        gender: editForm.gender,
-        isDriver: editForm.isDriver,
-        carType: editForm.carType.trim(),
-        notes: {
-          items: customerNoteItems(base),
-          insuranceHistory: editForm.insuranceHistory.trim(),
-        },
-        carNumber: editForm.carNumber,
-        carModel: editForm.carModel,
-        carYear: carYearForApi,
-        renewalDate: renewalDateForApi,
-        isFavorite: base.isFavorite === true,
-      })
-      setStatusText('고객 정보를 수정했습니다.')
-      cancelEdit()
-      await loadCustomers()
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : '수정에 실패했습니다.'
-      setStatusText(msg)
-      window.alert(msg)
-    }
-  }
-
-  async function handleEditFormSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    await handleUpdateCustomer()
   }
 
   function enterExcelSelectMode() {
@@ -1734,32 +1794,6 @@ export default function CustomersPage() {
 
   function toggleExcelColumn(id: string) {
     setSelectedColumns((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
-  }
-
-  async function handleDeleteCustomer(c: CustomerRecord) {
-    if (!token || user?.role !== 'USER') {
-      return
-    }
-    if (
-      !window.confirm(
-        `고객 "${c.name}"(번호 ${c.id})를 목록에서 삭제할까요? 기존 신청서의 고객 연결(customer_id)은 유지됩니다.`,
-      )
-    ) {
-      return
-    }
-    try {
-      await deleteCustomer(token, c.id)
-      if (expandedId === c.id) {
-        setExpandedId(null)
-      }
-      if (editingId === c.id) {
-        cancelEdit()
-      }
-      setStatusText('고객을 삭제했습니다.')
-      await loadCustomers()
-    } catch (error) {
-      setStatusText(error instanceof Error ? error.message : '삭제에 실패했습니다.')
-    }
   }
 
   /** 모바일 앱 WebView는 /customer/register 네비를 네이티브에서 막음 — 여기서는 복사만. */
@@ -2191,9 +2225,7 @@ export default function CustomersPage() {
                   onOpenCustomer={openCustomerInList}
                   consultationCount={consultationCounts[c.id] ?? 0}
                   lastConsultDateLabel={lastConsultDateMap[c.id] ?? null}
-                  onConsultationCountsInvalidate={() => {
-                    void refreshConsultationCounts()
-                  }}
+                  onConsultationCountsInvalidate={handleConsultationCountsInvalidate}
                   onCustomerNotesPersisted={handleCustomerNotesPersisted}
                   onToggleFavorite={handleToggleFavorite}
                 />
