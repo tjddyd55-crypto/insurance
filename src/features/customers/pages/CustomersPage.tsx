@@ -1121,6 +1121,10 @@ function CustomerListCard({
 export default function CustomersPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  /** 고객등록 ↔ 목록 전환 시 히스토리에 동일 리스트가 두 번 쌓이지 않도록 항상 replace */
+  const navigateToCustomerListReplace = useCallback(() => {
+    navigate(ROUTE_CUSTOMER_LIST, { replace: true })
+  }, [navigate])
   const { user, token } = useAuth()
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
@@ -1847,7 +1851,7 @@ export default function CustomersPage() {
                 <button
                   type="button"
                   className="cta-button customers-page__action-btn"
-                  onClick={() => setSearchParams({ mode: 'create' })}
+                  onClick={() => setSearchParams({ mode: 'create' }, { replace: true })}
                 >
                   고객 등록
                 </button>
@@ -1925,7 +1929,7 @@ export default function CustomersPage() {
               onStatusMessage={setStatusText}
               onInternalSaveSuccess={() => {
                 void loadCustomers()
-                navigate(ROUTE_CUSTOMER_LIST, { replace: true })
+                navigateToCustomerListReplace()
               }}
             />
           </section>
@@ -2234,7 +2238,7 @@ export default function CustomersPage() {
             if (customerCreateExitBlocker.state === 'blocked') {
               customerCreateExitBlocker.reset()
             }
-            navigate(ROUTE_CUSTOMER_LIST, { replace: true })
+            navigateToCustomerListReplace()
             setCustomerCreateExitModalOpen(false)
           }}
         />
