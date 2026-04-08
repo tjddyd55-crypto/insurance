@@ -24,7 +24,7 @@ export type UseExpandableCardOptions = {
   cardId: number
   expandedId: number | null
   setExpandedId: Dispatch<SetStateAction<number | null>>
-  /** true면 펼침 토글 무시 (예: 멀티 선택 모드) */
+  /** 호환용(미사용). 멀티 선택 모드에서도 펼침 토글은 허용한다. */
   interactionDisabled?: boolean
 }
 
@@ -48,7 +48,6 @@ export function useExpandableCard({
   cardId,
   expandedId,
   setExpandedId,
-  interactionDisabled = false,
 }: UseExpandableCardOptions): UseExpandableCardResult {
   const [detailClosing, setDetailClosing] = useState(false)
   const closingCardIdRef = useRef<number | null>(null)
@@ -73,7 +72,7 @@ export function useExpandableCard({
   }, [cardId, isValidCard, setExpandedId])
 
   const toggleExpanded = useCallback(() => {
-    if (!isValidCard || interactionDisabled) {
+    if (!isValidCard) {
       return
     }
     if (detailClosing) {
@@ -87,7 +86,7 @@ export function useExpandableCard({
     closingCardIdRef.current = null
     setDetailClosing(false)
     setExpandedId(cardId)
-  }, [cardId, detailClosing, expandedId, interactionDisabled, isValidCard, setExpandedId])
+  }, [cardId, detailClosing, expandedId, isValidCard, setExpandedId])
 
   const handleDetailTransitionEnd = useCallback(
     (e: TransitionEvent<HTMLDivElement>) => {
