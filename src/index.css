@@ -1136,12 +1136,15 @@ button:focus-visible:not(:disabled) {
 
 .customers-page .search-input {
   width: 100%;
-  padding: 10px;
+  height: 44px;
+  margin: 0;
+  padding: 0 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  margin-bottom: 10px;
   box-sizing: border-box;
   font: inherit;
+  font-size: 14px;
+  line-height: 1.2;
   background: var(--bg);
   color: var(--text-main);
 }
@@ -1502,10 +1505,10 @@ button.filter-button:focus-visible {
 
 .scroll-to-top {
   position: fixed;
-  right: 20px;
+  right: 16px;
   bottom: 20px;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--brand);
   color: var(--text-on-primary);
@@ -1526,11 +1529,12 @@ button.filter-button:focus-visible {
 
 /* 고객 관리 — 모바일 기준 단일 열 레이아웃 */
 .customers-page.page {
-  max-width: none;
+  max-width: 100%;
   width: 100%;
   margin: 0 auto;
-  padding: 8px 10px 100px;
+  padding: 8px 12px 100px;
   box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .customers-page__header {
@@ -1551,9 +1555,17 @@ button.filter-button:focus-visible {
   box-sizing: border-box;
 }
 
-.customers-page__action-btn {
+button.cta-button.customers-page__action-btn,
+div.cta-button.customers-page__action-btn[role='button'] {
   flex: 1 1 0;
   min-width: 0;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  font-size: 14px;
+  line-height: 1.2;
+  border-radius: 8px;
+  box-sizing: border-box;
 }
 
 /* 고객 초대 링크 복사 버튼 — 탭/선택 동작만 억제 (<a>로 감싸지 않을 것) */
@@ -1574,26 +1586,45 @@ button.filter-button:focus-visible {
   align-items: center;
   gap: 8px;
   width: 100%;
+  margin-top: 10px;
   margin-bottom: 8px;
   box-sizing: border-box;
+
+  & > button.text-sm {
+    height: 40px;
+    min-height: 40px;
+    padding: 0 10px;
+    font-size: 13px;
+    line-height: 1.2;
+    box-sizing: border-box;
+  }
 }
 
 .customers-page__search-input {
   flex: 1 1 0;
   min-width: 0;
   max-width: none;
+  height: 44px;
+  margin: 0;
+  padding: 0 12px;
+  font-size: 14px;
+  line-height: 1.2;
+  box-sizing: border-box;
 }
 
 .customers-page__filter-toggle {
   flex-shrink: 0;
-  padding: 8px 12px;
-  margin: 0;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 10px;
+  margin-inline: 0;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--bg-elevated);
   color: var(--text-primary);
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 13px;
+  line-height: 1.2;
   cursor: pointer;
   box-sizing: border-box;
 }
@@ -1604,7 +1635,7 @@ button.filter-button:focus-visible {
 }
 
 .customers-page__recent-label {
-  margin: 0 0 6px;
+  margin: 10px 0 6px;
   font-size: 0.875rem;
   color: var(--text-secondary);
 }
@@ -1612,19 +1643,19 @@ button.filter-button:focus-visible {
 .customers-page__recent-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 12px;
 }
 
 .customers-page__recent-chip {
   margin: 0;
-  padding: 6px 10px;
+  padding: 4px 8px;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--bg-elevated);
   color: var(--text-primary);
   font: inherit;
-  font-size: 0.75rem;
+  font-size: 12px;
   line-height: 1.2;
   cursor: pointer;
   box-sizing: border-box;
@@ -1656,7 +1687,7 @@ button.filter-button:focus-visible {
 }
 
 .customers-page ul.customer-list.record-list {
-  gap: 12px;
+  gap: 10px;
 }
 
 @keyframes customers-expand-detail-in {
@@ -1715,7 +1746,7 @@ button.filter-button:focus-visible {
 
 .customers-page .customer-expand-summary {
   background: var(--bg-card);
-  padding: 10px 12px;
+  padding: 12px;
   font-size: 0.9375rem;
   align-items: flex-start;
 }
@@ -1731,6 +1762,36 @@ button.filter-button:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+
+  & .gap-2 {
+    gap: 10px;
+  }
+
+  & button.text-lg,
+  & a.text-lg {
+    font-size: 18px;
+    line-height: 1;
+    padding: 4px;
+    box-sizing: content-box;
+  }
+
+  & a.inline-flex.group {
+    padding: 4px;
+    box-sizing: content-box;
+  }
+
+  & a.inline-flex.group svg,
+  & span.inline-flex svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  & .customer-expand-summary__hint {
+    font-size: 18px;
+    line-height: 1;
+    padding: 4px;
+    box-sizing: content-box;
+  }
 }
 
 .customers-page .customer-card-text-name {
@@ -1738,10 +1799,15 @@ button.filter-button:focus-visible {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+
+  & > span:not(.customer-card-name-primary) {
+    font-size: 12px;
+    opacity: 0.7;
+  }
 }
 
 .customers-page .customer-card-name-primary {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-main);
 }
@@ -1754,7 +1820,9 @@ button.filter-button:focus-visible {
 
 .customers-page .customer-card-summary-meta {
   margin-top: 4px;
+  font-size: 12px;
   line-height: 1.45;
+  opacity: 0.7;
 }
 
 .customers-page .customer-expand-section-divider {
