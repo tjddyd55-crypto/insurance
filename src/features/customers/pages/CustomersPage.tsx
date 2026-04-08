@@ -1179,6 +1179,22 @@ export default function CustomersPage() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  /** React Native WebView: 하드웨어 뒤로가기는 앱이 소비 후 이 이벤트만 전달 → ExitConfirmDialog 단일 표시 */
+  useEffect(() => {
+    if (tab !== 'create') {
+      return
+    }
+    const handler = (ev: Event) => {
+      const ce = ev as CustomEvent<{ reason?: string }>
+      if (ce.detail?.reason !== 'customer-create-exit') {
+        return
+      }
+      setCustomerCreateExitModalOpen(true)
+    }
+    window.addEventListener('insurance-native-back', handler as EventListener)
+    return () => window.removeEventListener('insurance-native-back', handler as EventListener)
+  }, [tab])
+
   const ssnDupHighlightByCustomerId = useMemo(
     () => buildSsnDuplicateHighlightByCustomerId(customers),
     [customers],

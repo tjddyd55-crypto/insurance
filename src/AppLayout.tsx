@@ -31,9 +31,14 @@ export function AppLayout() {
   const showGaBar =
     Boolean(isAuthenticated && user?.gaId != null) && !hideBarPaths.has(location.pathname)
 
+  /** 고객 등록(?mode=create)은 CustomersPage ExitConfirmDialog만 사용 (네이티브·웹 이중 확인 방지) */
+  const hideAppExitConfirm =
+    location.pathname.startsWith('/customers') &&
+    (location.search ?? '').includes('mode=create')
+
   return (
     <>
-      <AppExitConfirm />
+      {hideAppExitConfirm ? null : <AppExitConfirm />}
       {showGaBar ? (
         <div className="app-tenant-ga-bar" role="status" aria-label="소속 GA">
           <span className="app-tenant-ga-bar__name">
