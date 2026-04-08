@@ -29,6 +29,20 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
   const [memos, setMemos] = useState<CustomerNote[]>(() => customerNoteItems(customer))
   const [saving, setSaving] = useState(false)
   const savingLock = useRef(false)
+  const mountLogIdRef = useRef(customer.id)
+  mountLogIdRef.current = customer.id
+
+  /** DEV: 인스턴스가 타이핑 등으로 재마운트되는지 콘솔에서 확인 */
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      return
+    }
+    const id = mountLogIdRef.current
+    console.log('[CustomerInlineNotesSection] mount', id)
+    return () => {
+      console.log('[CustomerInlineNotesSection] unmount', mountLogIdRef.current)
+    }
+  }, [])
 
   const serverNotesSignature = useMemo(() => {
     const bag = normalizeCustomerNotesBag(customer.notes)

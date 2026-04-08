@@ -688,9 +688,9 @@ const CustomerListCard = memo(function CustomerListCard({
           </span>
         </div>
 
-        {expanded ? (
-          <div
+        <div
             className={`customer-expand-detail${detailClosing ? ' customer-expand-detail--closing' : ''}`}
+            hidden={!expanded && !detailClosing}
             onClick={(e) => e.stopPropagation()}
             onTransitionEnd={handleDetailTransitionEnd}
           >
@@ -1057,6 +1057,7 @@ const CustomerListCard = memo(function CustomerListCard({
             <div className="customer-expand-section-divider" role="presentation" />
             <div hidden={!token || (editingId === c.id && Boolean(editForm))}>
               <CustomerInlineNotesSection
+                key={c.id}
                 customer={c}
                 token={token}
                 onPersisted={onCustomerNotesPersisted}
@@ -1116,7 +1117,6 @@ const CustomerListCard = memo(function CustomerListCard({
               </>
             ) : null}
           </div>
-        ) : null}
       </div>
     </li>
   )
