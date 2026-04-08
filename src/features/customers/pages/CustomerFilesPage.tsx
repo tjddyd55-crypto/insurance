@@ -6,21 +6,22 @@ import {
   deleteCustomerFile,
   listCustomerFiles,
   presignCustomerFile,
+  revokeStagedCustomerFileUpload,
   saveCustomerFile,
   type CustomerFileRow,
 } from '../api/customerExtraApi'
 
 const CUSTOMER_FILE_MAX_BYTES = 25 * 1024 * 1024
+const CUSTOMER_FILES_MAX_COUNT = 20
 
-const CUSTOMER_FILE_ALLOWED_MIME = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'application/pdf',
-])
+const CUSTOMER_FILE_ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'application/pdf'])
 
-const FILE_INPUT_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,application/pdf,.pdf'
+const FILE_INPUT_ACCEPT = 'image/jpeg,image/png,application/pdf,.pdf'
+
+const ALERT_FILE_TYPE = '파일 형식 오류'
+const ALERT_SIZE = '용량 초과'
+const ALERT_UPLOAD_FAIL = '업로드 실패'
+const ALERT_DELETE_FAIL = '삭제 실패'
 
 function guessCustomerFileContentType(f: File): string {
   if (f.type && CUSTOMER_FILE_ALLOWED_MIME.has(f.type)) {
@@ -35,12 +36,6 @@ function guessCustomerFileContentType(f: File): string {
   }
   if (n.endsWith('.jpg') || n.endsWith('.jpeg')) {
     return 'image/jpeg'
-  }
-  if (n.endsWith('.webp')) {
-    return 'image/webp'
-  }
-  if (n.endsWith('.gif')) {
-    return 'image/gif'
   }
   return f.type || 'application/octet-stream'
 }
@@ -99,43 +94,59 @@ export default function CustomerFilesPage() {
   }, [navigate])
 
   const handleFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null
+    const input = e.target
+    const f = input.files?.[0] ?? null
+    if (f && f.size > CUSTOMER_FILE_MAX_BYTES) {
+      window.alert(ALERT_SIZE)
+      input.value = ''
+      setFile(null)
+      return
+    }
     setFile(f)
   }, [])
 
   const handleUpload = async () => {
-    if (!token?.trim() || !validId || uploading) {
+    if (uploading) {
+      return
+    }
+    if (!token?.trim() || !validId) {
       return
     }
     if (!file) {
       setError('파일을 선택해 주세요.')
       return
     }
+    if (files.length >= CUSTOMER_FILES_MAX_COUNT) {
+      window.alert('파일은 최대 20개까지 업로드 가능합니다.')
+      return
+    }
     const contentType = guessCustomerFileContentType(file)
     if (!CUSTOMER_FILE_ALLOWED_MIME.has(contentType)) {
-      setError('PDF 또는 이미지(JPEG, PNG, WebP, GIF)만 업로드할 수 있습니다.')
+      window.alert(ALERT_FILE_TYPE)
       return
     }
     if (file.size < 1 || file.size > CUSTOMER_FILE_MAX_BYTES) {
-      setError('파일 크기는 1바이트 이상 25MB 이하여야 합니다.')
+      window.alert(ALERT_SIZE)
       return
     }
 
     setUploading(true)
     setError('')
+    let rollbackObjectKey: string | null = null
     try {
       const presign = await presignCustomerFile(token, customerId, {
         fileName: file.name,
         contentType,
         sizeBytes: file.size,
       })
+      rollbackObjectKey = presign.objectKey
       const putHeaders: Record<string, string> = {
         'Content-Type': contentType,
         ...(presign.putHeaders ?? {}),
       }
       const put = await fetch(presign.uploadUrl, { method: 'PUT', headers: putHeaders, body: file })
       if (!put.ok) {
-        throw new Error('파일 업로드에 실패했습니다.')
+        throw new Error('put')
       }
       const saved = await saveCustomerFile(token, customerId, {
         content,
@@ -145,11 +156,19 @@ export default function CustomerFilesPage() {
         size: file.size,
         mimeType: contentType,
       })
+      rollbackObjectKey = null
       setFiles((prev) => [saved, ...prev])
       setContent('')
       setFile(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '저장에 실패했습니다.')
+    } catch {
+      if (rollbackObjectKey && token?.trim()) {
+        try {
+          await revokeStagedCustomerFileUpload(token, customerId, rollbackObjectKey)
+        } catch (orphanErr) {
+          console.warn('[ORPHAN FILE]', rollbackObjectKey, orphanErr)
+        }
+      }
+      window.alert(ALERT_UPLOAD_FAIL)
     } finally {
       setUploading(false)
     }
@@ -166,9 +185,9 @@ export default function CustomerFilesPage() {
         snapshot = prev
         return prev.filter((f) => f.id !== row.id)
       })
-      void deleteCustomerFile(auth, row.id).catch((err) => {
+      void deleteCustomerFile(auth, row.id).catch(() => {
         setFiles(snapshot)
-        setError(err instanceof Error ? err.message : '삭제에 실패했습니다.')
+        window.alert(ALERT_DELETE_FAIL)
       })
     },
     [token],

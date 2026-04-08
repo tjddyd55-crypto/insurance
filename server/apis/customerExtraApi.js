@@ -14,11 +14,19 @@ import {
 const CONSULTATION_BODY_MAX = 20000
 
 const CUSTOMER_FILE_ALLOWED_MIME = new Set([
+  'application/pdf',
   'image/jpeg',
   'image/png',
-  'image/webp',
-  'image/gif',
-  'application/pdf',
+])
+/** presign 단계에서 명시 차단 (실행/HTML/바이너리 등) */
+const CUSTOMER_FILE_BLOCKED_MIME = new Set([
+  'application/x-msdownload',
+  'application/x-sh',
+  'text/html',
+  'application/javascript',
+  'text/javascript',
+  'application/x-msdos-program',
+  'application/x-executable',
 ])
 const CUSTOMER_FILE_MAX_BYTES = 25 * 1024 * 1024
 const CUSTOMER_FILE_CONTENT_MAX = 100_000
@@ -78,6 +86,18 @@ function parseCustomerFileObjectKeyFromPublicUrl(fileUrl) {
     return null
   }
   return u.slice(base.length + 1).replace(/^\//, '')
+}
+
+async function deleteCustomerFileFromR2WithLog(objectKey, tag = 'delete') {
+  const key = objectKey != null ? String(objectKey).trim() : ''
+  if (!key) {
+    return
+  }
+  try {
+    await r2DeleteObject(key)
+  } catch (e) {
+    console.warn('[R2 DELETE FAIL]', tag, key, e)
+  }
 }
 
 function mapCustomerFileRow(row) {
@@ -674,8 +694,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (customerId == null) {
         return
       }
-      if (!(await assertCustomerActiveOwned(pool, customerId, userId, gaId))) {
-        res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+      if (!(await assertCustomerFileAccess(pool, customerId, userId, gaId, res))) {
         return
       }
 
@@ -684,12 +703,16 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const contentType = String(body.contentType ?? body.content_type ?? 'application/octet-stream').trim()
       const sizeBytes = Number(body.size ?? body.sizeBytes ?? 0)
 
+      if (CUSTOMER_FILE_BLOCKED_MIME.has(contentType)) {
+        res.status(400).json({ message: '파일 형식 오류' })
+        return
+      }
       if (!CUSTOMER_FILE_ALLOWED_MIME.has(contentType)) {
-        res.status(400).json({ message: '허용되지 않은 파일 형식입니다.' })
+        res.status(400).json({ message: '파일 형식 오류' })
         return
       }
       if (!Number.isFinite(sizeBytes) || sizeBytes < 1 || sizeBytes > CUSTOMER_FILE_MAX_BYTES) {
-        res.status(400).json({ message: '파일 크기가 허용 범위를 벗어났습니다.' })
+        res.status(400).json({ message: '용량 초과' })
         return
       }
 
@@ -708,6 +731,46 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         putHeaders['Cache-Control'] = cacheControl
       }
       res.json({ uploadUrl, fileUrl, objectKey, putHeaders })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  /** PUT 성공 후 DB 저장 실패 등으로 남은 R2 객체 제거 (내부 보완용) */
+  apiRouter.post('/customers/:id/files/revoke-staged', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
+      const customerId = parseCustomerIdParam(req, res)
+      if (customerId == null) {
+        return
+      }
+      if (!(await assertCustomerFileAccess(pool, customerId, userId, gaId, res))) {
+        return
+      }
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const objectKeyRaw = String(body.objectKey ?? body.object_key ?? '').trim()
+      if (!objectKeyRaw) {
+        res.status(400).json({ message: '요청이 올바르지 않습니다.' })
+        return
+      }
+      if (!assertCustomerFileObjectKey(objectKeyRaw, gaId, userId, customerId)) {
+        res.status(400).json({ message: '요청이 올바르지 않습니다.' })
+        return
+      }
+      try {
+        await r2DeleteObject(objectKeyRaw)
+      } catch (e) {
+        console.warn('[ORPHAN FILE]', objectKeyRaw, e)
+      }
+      res.json({ ok: true })
     } catch (error) {
       handleDbError(error, req, res)
     }
@@ -777,11 +840,15 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       }
       const objectKey = objectKeyRaw
       if (!Number.isFinite(fileSize) || fileSize < 1 || fileSize > CUSTOMER_FILE_MAX_BYTES) {
-        res.status(400).json({ message: '파일 크기가 올바르지 않습니다.' })
+        res.status(400).json({ message: '용량 초과' })
         return
       }
-      if (mimeType && !CUSTOMER_FILE_ALLOWED_MIME.has(mimeType)) {
-        res.status(400).json({ message: '허용되지 않은 파일 형식입니다.' })
+      if (
+        !mimeType ||
+        CUSTOMER_FILE_BLOCKED_MIME.has(mimeType) ||
+        !CUSTOMER_FILE_ALLOWED_MIME.has(mimeType)
+      ) {
+        res.status(400).json({ message: '파일 형식 오류' })
         return
       }
 
@@ -897,6 +964,10 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
           ? String(row.object_key).trim()
           : parseCustomerFileObjectKeyFromPublicUrl(row.file_url)
 
+      if (!objectKey || !String(objectKey).trim()) {
+        console.warn('[LEGACY FILE WITHOUT OBJECT_KEY]', fileId)
+      }
+
       const del = await safeQuery(
         pool,
         `
@@ -927,7 +998,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
           typeof objectKey === 'string' &&
           objectKey.startsWith(`customers/${gaId}/${userSeg}/${cid}/`)
         if (safeNewKey || legacy || legacyTopLevelCustomers) {
-          void r2DeleteObject(objectKey).catch(() => {})
+          void deleteCustomerFileFromR2WithLog(objectKey, 'soft-delete')
         }
       }
 

@@ -193,6 +193,22 @@ export async function presignCustomerFile(
   })
 }
 
+/** DB 저장 실패 등으로 presign·PUT 이후 R2 객체만 남은 경우 정리 */
+export async function revokeStagedCustomerFileUpload(
+  token: string,
+  customerId: number,
+  objectKey: string,
+): Promise<{ ok: boolean }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  return apiRequest<{ ok: boolean }>(`/api/customers/${customerId}/files/revoke-staged`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ objectKey }),
+  })
+}
+
 export async function saveCustomerFile(
   token: string,
   customerId: number,
