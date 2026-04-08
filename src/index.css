@@ -1501,6 +1501,9 @@ button.filter-button:focus-visible {
 }
 
 .scroll-to-top {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -1509,18 +1512,12 @@ button.filter-button:focus-visible {
   font-size: 20px;
   border: 1px solid color-mix(in srgb, var(--border-default) 40%, transparent);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-card) 80%, transparent);
+  z-index: 999;
   cursor: pointer;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.scroll-top-button {
-  position: fixed;
-  bottom: 20px;
-  right: 16px;
-  z-index: 1000;
 }
 
 .scroll-to-top:hover {
@@ -1529,18 +1526,11 @@ button.filter-button:focus-visible {
 
 /* 고객 관리 — 모바일 기준 단일 열 레이아웃 */
 .customers-page.page {
-  max-width: 100%;
+  max-width: none;
   width: 100%;
   margin: 0 auto;
-  padding: 12px 12px 100px;
+  padding: 8px 10px 100px;
   box-sizing: border-box;
-  overflow-x: hidden;
-}
-
-@media (max-width: 768px) {
-  .customers-page:not(.customers-page--excel-toolbar-pad) .customers-main-content.main-content {
-    padding-top: 60px;
-  }
 }
 
 .customers-page__header {
@@ -1553,29 +1543,17 @@ button.filter-button:focus-visible {
   color: var(--text-secondary);
 }
 
-.customers-actions {
+.customers-page__action-row {
   display: flex;
-  flex-wrap: nowrap;
   gap: 8px;
   width: 100%;
   margin-bottom: 12px;
   box-sizing: border-box;
-  min-width: 0;
 }
 
-.customers-actions > button,
-.customers-actions > [role='button'] {
+.customers-page__action-btn {
   flex: 1 1 0;
   min-width: 0;
-  height: 44px;
-  font-size: 14px;
-  box-sizing: border-box;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* 고객 초대 링크 복사 버튼 — 탭/선택 동작만 억제 (<a>로 감싸지 않을 것) */
@@ -1590,94 +1568,32 @@ button.filter-button:focus-visible {
   margin-bottom: 8px;
 }
 
-.customers-search-block {
+.customers-page__search-row {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
   width: 100%;
   margin-bottom: 8px;
   box-sizing: border-box;
-  min-width: 0;
 }
 
-.customers-page .search-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-  width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  flex-wrap: nowrap;
-}
-
-.customers-page .search-row--input {
-  margin-top: 0;
-}
-
-.customers-page .search-row--filters {
-  margin-top: 0;
-}
-
-.customers-page .customers-search-block .search-input,
-.customers-page .customers-search-block .customers-page__search-input {
-  flex: 1;
-  width: 100%;
-  min-width: 0;
-  height: 44px;
-  box-sizing: border-box;
-}
-
-.customers-page .filter-buttons {
-  display: flex;
-  gap: 6px;
-  flex-wrap: nowrap;
-  width: 100%;
-  min-width: 0;
-}
-
-.customers-page .filter-buttons > .customers-filter-chip,
-.customers-page .filter-buttons > .customers-page__filter-toggle {
+.customers-page__search-input {
   flex: 1 1 0;
   min-width: 0;
-  height: 44px;
-  font-size: 14px;
-  box-sizing: border-box;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.customers-filter-chip {
-  margin: 0;
-  padding: 0 10px;
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  font: inherit;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.customers-filter-chip--on {
-  border-color: var(--brand-primary);
-  background: var(--brand-primary);
-  color: #fff;
+  max-width: none;
 }
 
 .customers-page__filter-toggle {
   flex-shrink: 0;
-  padding: 0 10px;
+  padding: 8px 12px;
   margin: 0;
   border: 1px solid var(--border-default);
   border-radius: 8px;
   background: var(--bg-elevated);
   color: var(--text-primary);
   font: inherit;
-  font-size: 14px;
+  font-size: 0.875rem;
   cursor: pointer;
   box-sizing: border-box;
 }
@@ -1799,40 +1715,9 @@ button.filter-button:focus-visible {
 
 .customers-page .customer-expand-summary {
   background: var(--bg-card);
-  padding: 12px;
+  padding: 10px 12px;
   font-size: 0.9375rem;
-  align-items: center;
-}
-
-/* 카드 요약 행 — 모바일에서 텍스트/아이콘 정렬 (li.customer-card 와 구분) */
-.customers-page .customer-expand-summary .customer-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  min-width: 0;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-.customers-page .customer-expand-summary .customer-info {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.customers-page .customer-expand-summary .customer-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.customers-page .customer-expand-summary .customer-actions a,
-.customers-page .customer-expand-summary .customer-actions button {
-  flex-shrink: 0;
+  align-items: flex-start;
 }
 
 .customers-page .customer-expand-summary--toggle {

@@ -594,8 +594,8 @@ function CustomerListCard({
           onKeyDown={handleSummaryKeyDown}
         >
           <span className="customer-expand-summary__content w-full min-w-0">
-            <div className="customer-card">
-              <div className="customer-info">
+            <div className="flex justify-between items-center gap-2 w-full min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="customer-card-text-name flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span
                     className={`customer-card-name-primary font-semibold${ssnDupHighlight ? ' customer-name-ssn-dup' : ''}`}
@@ -622,61 +622,63 @@ function CustomerListCard({
                   상령일: {ins.dateText} · 상담일: {recentConsultText}
                 </div>
               </div>
-              <div
-                className="customer-actions"
-                role="presentation"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-              >
-                <button
-                  type="button"
-                  className="text-lg leading-none p-0 border-0 bg-transparent cursor-pointer shrink-0"
-                  aria-label={c.isFavorite ? '즐겨찾기 해제' : '즐겨찾기'}
-                  aria-pressed={c.isFavorite}
-                  disabled={!token?.trim()}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    void onToggleFavorite(c)
-                  }}
+              <div className="flex items-center gap-2 shrink-0">
+                <div
+                  className="flex items-center gap-2"
+                  role="presentation"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
                 >
-                  {c.isFavorite ? (
-                    <span className="text-yellow-400" aria-hidden>
-                      ★
-                    </span>
+                  <button
+                    type="button"
+                    className="text-lg leading-none p-0 border-0 bg-transparent cursor-pointer shrink-0"
+                    aria-label={c.isFavorite ? '즐겨찾기 해제' : '즐겨찾기'}
+                    aria-pressed={c.isFavorite}
+                    disabled={!token?.trim()}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void onToggleFavorite(c)
+                    }}
+                  >
+                    {c.isFavorite ? (
+                      <span className="text-yellow-400" aria-hidden>
+                        ★
+                      </span>
+                    ) : (
+                      <span className="text-gray-400" aria-hidden>
+                        ☆
+                      </span>
+                    )}
+                  </button>
+                  {smsHref ? (
+                    <a
+                      href={smsHref}
+                      className="text-lg text-blue-500 leading-none"
+                      aria-label="문자 보내기"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      💬
+                    </a>
                   ) : (
-                    <span className="text-gray-400" aria-hidden>
-                      ☆
+                    <span className="text-lg opacity-35 grayscale" aria-hidden>
+                      💬
                     </span>
                   )}
-                </button>
-                {smsHref ? (
-                  <a
-                    href={smsHref}
-                    className="text-lg text-blue-500 leading-none"
-                    aria-label="문자 보내기"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    💬
-                  </a>
-                ) : (
-                  <span className="text-lg opacity-35 grayscale" aria-hidden>
-                    💬
-                  </span>
-                )}
-                {telHref ? (
-                  <a
-                    href={telHref}
-                    className="group inline-flex items-center justify-center leading-none transition-opacity hover:opacity-90 active:opacity-80"
-                    aria-label="전화 걸기"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <CustomerListTelSvg hasPhone withLinkHover />
-                  </a>
-                ) : (
-                  <span className="inline-flex items-center justify-center leading-none" aria-hidden>
-                    <CustomerListTelSvg hasPhone={hasPhone} />
-                  </span>
-                )}
+                  {telHref ? (
+                    <a
+                      href={telHref}
+                      className="group inline-flex items-center justify-center leading-none transition-opacity hover:opacity-90 active:opacity-80"
+                      aria-label="전화 걸기"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <CustomerListTelSvg hasPhone withLinkHover />
+                    </a>
+                  ) : (
+                    <span className="inline-flex items-center justify-center leading-none" aria-hidden>
+                      <CustomerListTelSvg hasPhone={hasPhone} />
+                    </span>
+                  )}
+                </div>
                 <span className="customer-expand-summary__hint" aria-hidden="true">
                   {showExpandedChrome ? '▲' : '▼'}
                 </span>
@@ -1812,86 +1814,79 @@ export default function CustomersPage() {
           </div>
         </div>
       ) : null}
-      <div className="main-content customers-main-content">
-        <header className="page-header customers-page__header">
-          {tab === 'list' ? (
-            <>
-              {!isSelectMode ? (
-                <div className="customers-actions">
-                  <button
-                    type="button"
-                    className="cta-button customers-actions__control"
-                    onClick={() => setSearchParams({ mode: 'create' })}
-                  >
-                    고객 등록
-                  </button>
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    className="cta-button customers-actions__control customers-page__invite-copy-btn"
-                    style={{ touchAction: 'manipulation' }}
-                    aria-label="고객 등록 링크 복사"
-                    onTouchStart={onCustomerRegisterInviteCopyTouchStart}
-                    onMouseDown={onCustomerRegisterInviteCopyMouseDown}
-                    onClick={onCustomerRegisterInviteCopyClick}
-                    onKeyDown={onCustomerRegisterInviteCopyKeyDown}
-                  >
-                    등록 링크
-                  </div>
-                  <button
-                    type="button"
-                    className="cta-button customers-actions__control"
-                    onClick={enterExcelSelectMode}
-                  >
-                    엑셀 다운로드
-                  </button>
+      <header className="page-header customers-page__header">
+        {tab === 'list' ? (
+          <>
+            {!isSelectMode ? (
+              <div className="customers-page__action-row">
+                <button
+                  type="button"
+                  className="cta-button customers-page__action-btn"
+                  onClick={() => setSearchParams({ mode: 'create' })}
+                >
+                  고객 등록
+                </button>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="cta-button customers-page__action-btn customers-page__invite-copy-btn"
+                  style={{ touchAction: 'manipulation' }}
+                  aria-label="고객 등록 링크 복사"
+                  onTouchStart={onCustomerRegisterInviteCopyTouchStart}
+                  onMouseDown={onCustomerRegisterInviteCopyMouseDown}
+                  onClick={onCustomerRegisterInviteCopyClick}
+                  onKeyDown={onCustomerRegisterInviteCopyKeyDown}
+                >
+                  등록 링크
                 </div>
-              ) : null}
-              <div className="customers-search-block">
-                <div className="search-row search-row--input">
-                  <input
-                    className="search-input customers-page__search-input"
-                    type="search"
-                    placeholder="이름 / 전화번호 검색"
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    autoComplete="off"
-                    aria-label="이름 또는 전화번호 검색"
-                  />
-                </div>
-                <div className="search-row search-row--filters">
-                  <div className="filter-buttons">
-                    <button
-                      type="button"
-                      className={`customers-filter-chip${favoriteOnly ? ' customers-filter-chip--on' : ''}`}
-                      aria-pressed={favoriteOnly}
-                      onClick={() => setFavoriteOnly((v) => !v)}
-                    >
-                      중요 고객
-                    </button>
-                    <button
-                      type="button"
-                      className={`customers-page__filter-toggle${showFilters ? ' customers-page__filter-toggle--on' : ''}`}
-                      aria-expanded={showFilters}
-                      onClick={() => setShowFilters((v) => !v)}
-                    >
-                      필터
-                    </button>
-                  </div>
-                </div>
+                <button type="button" className="cta-button customers-page__action-btn" onClick={enterExcelSelectMode}>
+                  엑셀 다운로드
+                </button>
               </div>
-            </>
-          ) : (
-            <div className="customers-page__create-nav">
-              <button type="button" className="link-btn link-btn--compact" onClick={() => setSearchParams({})}>
-                ← 고객 목록
+            ) : null}
+            <div className="customers-page__search-row">
+              <input
+                className="search-input customers-page__search-input"
+                type="search"
+                placeholder="이름 / 전화번호 검색"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                autoComplete="off"
+                aria-label="이름 또는 전화번호 검색"
+              />
+              <button
+                type="button"
+                className={`px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
+                  favoriteOnly
+                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white'
+                    : 'border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+                }`}
+                aria-pressed={favoriteOnly}
+                onClick={() => setFavoriteOnly((v) => !v)}
+              >
+                중요 고객
+              </button>
+              <button
+                type="button"
+                className={`customers-page__filter-toggle${showFilters ? ' customers-page__filter-toggle--on' : ''}`}
+                aria-expanded={showFilters}
+                onClick={() => setShowFilters((v) => !v)}
+              >
+                필터
               </button>
             </div>
-          )}
-          {statusText ? <p className="customers-page__status">{statusText}</p> : null}
-        </header>
+          </>
+        ) : (
+          <div className="customers-page__create-nav">
+            <button type="button" className="link-btn link-btn--compact" onClick={() => setSearchParams({})}>
+              ← 고객 목록
+            </button>
+          </div>
+        )}
+        {statusText ? <p className="customers-page__status">{statusText}</p> : null}
+      </header>
 
-        {tab === 'create' ? (
+      {tab === 'create' ? (
         <>
           <section className="card" style={{ marginTop: 0 }}>
             <CustomerForm
@@ -2154,7 +2149,6 @@ export default function CustomersPage() {
           )}
         </section>
       )}
-      </div>
 
       {isColumnPickerOpen ? (
         <div
@@ -2203,7 +2197,7 @@ export default function CustomersPage() {
       {showScrollToTop ? (
         <button
           type="button"
-          className="scroll-top-button scroll-to-top"
+          className="scroll-to-top"
           aria-label="맨 위로 스크롤"
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         >
