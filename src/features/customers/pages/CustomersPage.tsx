@@ -43,6 +43,7 @@ import {
   EXPANDABLE_CARD_INVALID_ID,
   useExpandableCard,
 } from '../../../hooks/useExpandableCard'
+import { useDebounce } from '../../../hooks/useDebounce'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
 import { MSG_CUSTOMER_CREATE_EXIT, isCustomerCreateMode } from '../../../navigation/backNavigationPolicy'
 import {
@@ -1167,7 +1168,7 @@ export default function CustomersPage() {
     ),
   )
   const [searchInput, setSearchInput] = useState('')
-  const [keyword, setKeyword] = useState('')
+  const keyword = useDebounce(searchInput, 300)
   const [sortType, setSortType] = useState<CustomerSortType>(null)
   const [advancedFilters, setAdvancedFilters] = useState<CustomerAdvancedFilters>(() => ({
     ...EMPTY_ADVANCED_FILTERS,
@@ -1449,7 +1450,6 @@ export default function CustomersPage() {
   /** 연계 고객 등: 검색어로 찾지 않고 목록에서 카드만 펼침 (검색·심층 검색 상태는 초기화) */
   const openCustomerInList = useCallback((customerId: number) => {
     setSearchInput('')
-    setKeyword('')
     setAdvSearchHits(null)
     setExpandedId(customerId)
     window.requestAnimationFrame(() => {
@@ -1458,11 +1458,6 @@ export default function CustomersPage() {
         ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     })
   }, [])
-
-  useEffect(() => {
-    const handle = window.setTimeout(() => setKeyword(searchInput), 300)
-    return () => window.clearTimeout(handle)
-  }, [searchInput])
 
   useEffect(() => {
     if (user?.role !== 'USER') {
@@ -1721,6 +1716,10 @@ export default function CustomersPage() {
     setEditingId(cl.id)
     setEditForm(recordToEditForm(cl))
   }, [])
+
+  const handleNavigateToFormEdit = useCallback((formId: string) => {
+    navigate(`/form/${formId}/edit`)
+  }, [navigate])
 
   const handleConsultationCountsInvalidate = useCallback(() => {
     void refreshConsultationCounts()
@@ -2218,7 +2217,7 @@ export default function CustomersPage() {
                   onStartEdit={startEdit}
                   onCancelEdit={cancelEdit}
                   onDeleteCustomer={handleDeleteCustomer}
-                  onNavigateToFormEdit={(formId) => navigate(`/form/${formId}/edit`)}
+                  onNavigateToFormEdit={handleNavigateToFormEdit}
                   token={token}
                   onOpenCustomer={openCustomerInList}
                   consultationCount={consultationCounts[c.id] ?? 0}
