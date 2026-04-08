@@ -1085,23 +1085,6 @@ button:focus-visible:not(:disabled) {
   margin-top: 4px;
 }
 
-.dashboard-privacy-link-wrap {
-  margin: 16px 0 0;
-  padding: 0;
-  text-align: center;
-  font-size: 14px;
-}
-
-.dashboard-privacy-link {
-  color: var(--text-sub);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.dashboard-privacy-link:hover {
-  color: var(--text-primary);
-}
-
 .dashboard-sidebar-list {
   list-style: none;
   margin: 0 0 12px;

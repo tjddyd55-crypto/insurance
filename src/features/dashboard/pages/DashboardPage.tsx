@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { fetchInsurerManagersHealth, type InsurerManagersHealth } from '../../auth/authApi'
 import { fetchTeamMembers } from '../../team/api/teamApi'
 import { useAuth } from '../../auth/AuthProvider'
@@ -289,11 +289,6 @@ export function DashboardPage() {
           >
             로그아웃
           </button>
-          <p className="dashboard-privacy-link-wrap">
-            <Link to="/privacy" className="dashboard-privacy-link">
-              개인정보처리방침
-            </Link>
-          </p>
         </section>
       </div>
 
