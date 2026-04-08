@@ -25,7 +25,7 @@ import {
   listCustomers,
   updateCustomer,
 } from '../api/customersApi'
-import type { CustomerRecord } from '../domain/types'
+import type { CustomerNotesBag, CustomerRecord } from '../domain/types'
 import { customerNoteItems, normalizeCustomerNotesBag } from '../domain/types'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
 import { buildKakaoCustomerCopyText } from '../utils/customerText'
@@ -453,7 +453,10 @@ type CustomerListCardProps = {
   consultationCount: number
   lastConsultDateLabel: string | null
   onConsultationCountsInvalidate: () => void
-  onCustomerNotesPersisted: () => void | Promise<void>
+  onCustomerNotesPersisted: (
+    customerId: number,
+    newMemo: CustomerNotesBag,
+  ) => void | Promise<void>
   onToggleFavorite: (c: CustomerRecord) => void | Promise<void>
 }
 
@@ -1408,6 +1411,20 @@ export default function CustomersPage() {
     [token],
   )
 
+  const handleCustomerNotesPersisted = useCallback(
+    (customerId: number, newMemo: CustomerNotesBag) => {
+      setCustomers((prev) =>
+        prev.map((c) => (c.id === customerId ? { ...c, notes: newMemo } : c)),
+      )
+      setAdvSearchHits((hits) =>
+        hits == null
+          ? null
+          : hits.map((c) => (c.id === customerId ? { ...c, notes: newMemo } : c)),
+      )
+    },
+    [],
+  )
+
   /** 연계 고객 등: 검색어로 찾지 않고 목록에서 카드만 펼침 (검색·심층 검색 상태는 초기화) */
   const openCustomerInList = useCallback((customerId: number) => {
     setSearchInput('')
@@ -2174,9 +2191,7 @@ export default function CustomersPage() {
                   onConsultationCountsInvalidate={() => {
                     void refreshConsultationCounts()
                   }}
-                  onCustomerNotesPersisted={() => {
-                    void loadCustomers()
-                  }}
+                  onCustomerNotesPersisted={handleCustomerNotesPersisted}
                   onToggleFavorite={handleToggleFavorite}
                 />
               ))}

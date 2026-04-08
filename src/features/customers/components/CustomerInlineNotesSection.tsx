@@ -2,14 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
 import { customerRecordToUpdatePayload, updateCustomer } from '../api/customersApi'
-import type { CustomerNote, CustomerRecord } from '../domain/types'
+import type { CustomerNote, CustomerNotesBag, CustomerRecord } from '../domain/types'
 import { customerNoteItems, normalizeCustomerNotesBag } from '../domain/types'
 import { NOTE_MAX_LENGTH } from '../utils/insuranceInfo'
 
 type Props = {
   customer: CustomerRecord
   token: string | null
-  onPersisted: () => void | Promise<void>
+  onPersisted: (customerId: number, newMemo: CustomerNotesBag) => void | Promise<void>
   onStatusMessage: (msg: string) => void
 }
 
@@ -58,7 +58,7 @@ export function CustomerInlineNotesSection({ customer, token, onPersisted, onSta
         console.log('[CustomerInlineNotesSection] update payload:', payload)
       }
       await updateCustomer(token, customer.id, payload)
-      await Promise.resolve(onPersisted())
+      await Promise.resolve(onPersisted(customer.id, notesBag))
     } catch (e) {
       const msg = e instanceof Error ? e.message : '메모 저장에 실패했습니다.'
       onStatusMessage(msg)
