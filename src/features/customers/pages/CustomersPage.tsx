@@ -43,11 +43,7 @@ import {
   useExpandableCard,
 } from '../../../hooks/useExpandableCard'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
-import {
-  MSG_CUSTOMER_CREATE_EXIT,
-  ROUTE_CUSTOMER_LIST,
-  isCustomerCreateMode,
-} from '../../../navigation/backNavigationPolicy'
+import { MSG_CUSTOMER_CREATE_EXIT, isCustomerCreateMode } from '../../../navigation/backNavigationPolicy'
 import {
   fetchConsultationCounts,
   listCustomerConsultations,
@@ -1121,9 +1117,12 @@ function CustomerListCard({
 export default function CustomersPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  /** 고객등록 ↔ 목록 전환 시 히스토리에 동일 리스트가 두 번 쌓이지 않도록 항상 replace */
+  /**
+   * 고객등록 → 목록: 반드시 replace. setSearchParams({}) / blocker.proceed() 사용 금지(히스토리 중복·이중 POP).
+   * 차단 중이면 reset()만 하고 이 함수로 이동한다.
+   */
   const navigateToCustomerListReplace = useCallback(() => {
-    navigate(ROUTE_CUSTOMER_LIST, { replace: true })
+    navigate('/customers', { replace: true })
   }, [navigate])
   const { user, token } = useAuth()
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
