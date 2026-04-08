@@ -52,6 +52,16 @@ import { CustomerInlineNotesSection } from '../components/CustomerInlineNotesSec
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 
 const RECENT_CUSTOMER_SEARCHES_KEY = 'insurance.customers.recentSearches.v1'
+const MAX_RECENT = 5
+
+function mergeRecentCustomerSearches(prev: string[], keyword: string): string[] {
+  const q = keyword.trim()
+  if (!q) {
+    return prev
+  }
+  const filtered = prev.filter((v) => v !== q)
+  return [q, ...filtered].slice(0, MAX_RECENT)
+}
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
@@ -122,7 +132,7 @@ function readRecentCustomerSearches(): string[] {
   try {
     const raw = localStorage.getItem(RECENT_CUSTOMER_SEARCHES_KEY)
     const a = raw ? JSON.parse(raw) : []
-    return Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string').slice(0, 5) : []
+    return Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string').slice(0, MAX_RECENT) : []
   } catch {
     return []
   }
@@ -1373,7 +1383,7 @@ export default function CustomersPage() {
     }
     try {
       const prev = readRecentCustomerSearches()
-      const next = [q, ...prev.filter((x) => x !== q)].slice(0, 5)
+      const next = mergeRecentCustomerSearches(prev, q)
       localStorage.setItem(RECENT_CUSTOMER_SEARCHES_KEY, JSON.stringify(next))
       setRecentSearches(next)
     } catch {
@@ -1898,14 +1908,14 @@ export default function CustomersPage() {
       ) : (
         <section className="list-section" style={{ marginTop: 0 }}>
           {recentSearches.length > 0 ? (
-            <>
+            <div className="customers-page__recent-row">
               <p className="customers-page__recent-label">최근:</p>
-              <div className="customers-page__recent-chips" aria-label="최근 검색어">
+              <div className="customers-page__recent-list" aria-label="최근 검색어">
                 {recentSearches.map((term) => (
                   <button
                     key={term}
                     type="button"
-                    className="customers-page__recent-chip"
+                    className="customers-page__recent-item"
                     onClick={() => {
                       setSearchInput(term)
                       setKeyword(term)
@@ -1915,7 +1925,7 @@ export default function CustomersPage() {
                   </button>
                 ))}
               </div>
-            </>
+            </div>
           ) : null}
           {showFilters ? (
             <>

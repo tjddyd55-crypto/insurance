@@ -406,7 +406,7 @@ button:focus-visible:not(:disabled) {
 }
 
 .page--with-back .page-header {
-  padding-left: max(40px, calc(32px + 8px + env(safe-area-inset-left, 0px)));
+  padding-left: 12px;
 }
 
 .page--with-back .page-header.page-header--has-inline-back {
@@ -1552,6 +1552,11 @@ button.filter-button:focus-visible {
   width: 100%;
   margin-bottom: 12px;
   box-sizing: border-box;
+
+  & > * {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 button.cta-button.customers-page__action-btn,
@@ -1635,20 +1640,33 @@ div.cta-button.customers-page__action-btn[role='button'] {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary) 35%, transparent);
 }
 
+.customers-page__recent-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  margin: 10px 0 12px;
+  box-sizing: border-box;
+}
+
 .customers-page__recent-label {
-  margin: 10px 0 6px;
+  flex-shrink: 0;
+  margin: 0;
   font-size: 0.875rem;
   color: var(--text-secondary);
 }
 
-.customers-page__recent-chips {
+.customers-page__recent-list {
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 12px;
+  flex-wrap: nowrap;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.customers-page__recent-chip {
+.customers-page__recent-item {
   margin: 0;
   padding: 4px 8px;
   border: 1px solid var(--border-default);
@@ -1658,6 +1676,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font: inherit;
   font-size: 12px;
   line-height: 1.2;
+  white-space: nowrap;
+  flex-shrink: 0;
   cursor: pointer;
   box-sizing: border-box;
 }
