@@ -1365,14 +1365,23 @@ export default function CustomersPage() {
       if (!token?.trim()) {
         return
       }
+      const previousFavorite = c.isFavorite
+      const nextFavorite = !previousFavorite
+      const patchFavorite = (row: CustomerRecord) =>
+        row.id === c.id ? { ...row, isFavorite: nextFavorite } : row
+      const unpatchFavorite = (row: CustomerRecord) =>
+        row.id === c.id ? { ...row, isFavorite: previousFavorite } : row
+      setCustomers((list) => list.map(patchFavorite))
+      setAdvSearchHits((hits) => (hits == null ? null : hits.map(patchFavorite)))
       try {
-        await updateCustomer(token, c.id, { isFavorite: !c.isFavorite })
-        await loadCustomers()
+        await updateCustomer(token, c.id, { isFavorite: nextFavorite })
       } catch (error) {
+        setCustomers((list) => list.map(unpatchFavorite))
+        setAdvSearchHits((hits) => (hits == null ? null : hits.map(unpatchFavorite)))
         setStatusText(error instanceof Error ? error.message : '즐겨찾기 변경에 실패했습니다.')
       }
     },
-    [token, loadCustomers],
+    [token],
   )
 
   /** 연계 고객 등: 검색어로 찾지 않고 목록에서 카드만 펼침 (검색·심층 검색 상태는 초기화) */
@@ -1910,7 +1919,10 @@ export default function CustomersPage() {
           <section className="card" style={{ marginTop: 0 }}>
             <CustomerForm
               onStatusMessage={setStatusText}
-              onInternalSaveSuccess={() => void loadCustomers()}
+              onInternalSaveSuccess={() => {
+                void loadCustomers()
+                navigate('/customers', { replace: true })
+              }}
             />
           </section>
         </>
@@ -2216,10 +2228,9 @@ export default function CustomersPage() {
           }}
           onConfirm={() => {
             if (customerCreateExitBlocker.state === 'blocked') {
-              customerCreateExitBlocker.proceed()
-            } else {
-              setSearchParams({})
+              customerCreateExitBlocker.reset()
             }
+            navigate('/customers', { replace: true })
             setCustomerCreateExitModalOpen(false)
           }}
         />

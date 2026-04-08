@@ -1,5 +1,6 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AppExitConfirm } from './components/AppExitConfirm'
+import { GlobalBackHandlerHost } from './hooks/useGlobalBackHandler'
 import { useAuth } from './features/auth/AuthProvider'
 import { NotificationBell } from './features/notification/components/NotificationBell'
 
@@ -38,6 +39,7 @@ export function AppLayout() {
 
   return (
     <>
+      {isAuthenticated ? <GlobalBackHandlerHost /> : null}
       {hideAppExitConfirm ? null : <AppExitConfirm />}
       {showGaBar ? (
         <div className="app-tenant-ga-bar" role="status" aria-label="소속 GA">

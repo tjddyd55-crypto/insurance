@@ -1,0 +1,106 @@
+import { useEffect, useRef } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+
+import { useAuth } from '../features/auth/AuthProvider'
+
+/** 로그인 후 메인 메뉴(대시보드) — 라우터에 `/menu` 경로 없음 */
+const MAIN_MENU_PATH = '/dashboard'
+
+function isCustomerCreateUrl(pathname: string, search: string): boolean {
+  return pathname.startsWith('/customers') && search.includes('mode=create')
+}
+
+function isCustomerListUrl(pathname: string, search: string): boolean {
+  return pathname === '/customers' && !search.includes('mode=create')
+}
+
+type GlobalBackMessage = { type?: string }
+
+/**
+ * 모바일 WebView 등에서 오는 “하드웨어 뒤로” 의도를 라우터로만 처리한다.
+ *
+ * - 고객 등록(?mode=create): 즉시 이동하지 않고 insurance-native-back과 동일 이벤트로 모달·blocker 흐름 유지
+ * - 고객 목록(/customers): 메인 메뉴로 replace (스택 정리)
+ * - 그 외: navigate(-1)
+ *
+ * 주의: `popstate`는 React Router·useBlocker와 이중 처리되기 쉬워 등록하지 않는다.
+ * 브라우저 뒤로는 Router가 담당하고, 네이티브·postMessage·커스텀 이벤트만 여기서 처리한다.
+ */
+export function useGlobalBackHandler(enabled: boolean) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const locationRef = useRef(location)
+  locationRef.current = location
+
+  useEffect(() => {
+    if (!enabled) {
+      return
+    }
+
+    const nav = navigate
+
+    const dispatchCustomerCreateBack = (): void => {
+      try {
+        window.dispatchEvent(
+          new CustomEvent('insurance-native-back', { detail: { reason: 'customer-create-exit' } }),
+        )
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const handleBridgeBack = (): void => {
+      const loc = locationRef.current
+      const path = loc.pathname
+      const search = loc.search ?? ''
+
+      if (isCustomerCreateUrl(path, search)) {
+        dispatchCustomerCreateBack()
+        return
+      }
+      if (isCustomerListUrl(path, search)) {
+        nav(MAIN_MENU_PATH, { replace: true })
+        return
+      }
+      nav(-1)
+    }
+
+    const onMessage = (event: MessageEvent): void => {
+      const data = event.data
+      if (data === 'BACK') {
+        handleBridgeBack()
+        return
+      }
+      if (data && typeof data === 'object') {
+        const t = (data as GlobalBackMessage).type
+        if (t === 'INSURANCE_BACK' || t === 'insurance-back') {
+          handleBridgeBack()
+        }
+      }
+    }
+
+    const onInsuranceGlobalBack = (): void => {
+      handleBridgeBack()
+    }
+
+    window.addEventListener('message', onMessage)
+    window.addEventListener('insurance-global-back', onInsuranceGlobalBack as EventListener)
+
+    const w = window as unknown as { __insurance_dispatch_global_back?: () => void }
+    w.__insurance_dispatch_global_back = handleBridgeBack
+
+    return () => {
+      window.removeEventListener('message', onMessage)
+      window.removeEventListener('insurance-global-back', onInsuranceGlobalBack as EventListener)
+      if (w.__insurance_dispatch_global_back === handleBridgeBack) {
+        delete w.__insurance_dispatch_global_back
+      }
+    }
+  }, [enabled, navigate])
+}
+
+export function GlobalBackHandlerHost() {
+  const { isAuthenticated } = useAuth()
+  useGlobalBackHandler(isAuthenticated)
+  return null
+}
