@@ -27,6 +27,7 @@ import CustomerInputPage from './features/customers/pages/CustomerInputPage'
 import CustomerRegisterPage from './features/customers/pages/CustomerRegisterPage'
 import CustomersPage from './features/customers/pages/CustomersPage'
 import CustomerConsultationsPage from './features/customers/pages/CustomerConsultationsPage'
+import CustomerFilesPage from './features/customers/pages/CustomerFilesPage'
 import TeamMembersPage from './features/team/pages/TeamMembersPage'
 import TeamPostsPage from './features/team/pages/TeamPostsPage'
 import TeamFilesPage from './features/team/pages/TeamFilesPage'
@@ -119,6 +120,7 @@ export const appRouter = createBrowserRouter([
               },
               { path: 'customers', element: <CustomersPage /> },
               { path: 'customers/:id/consultations', element: <CustomerConsultationsPage /> },
+              { path: 'customers/:customerId/files', element: <CustomerFilesPage /> },
               { path: 'team/members', element: <TeamMembersPage /> },
               { path: 'team/manage', element: <Navigate to="/team/members" replace /> },
               { path: 'team/menu-settings', element: <Navigate to="/team/members" replace /> },

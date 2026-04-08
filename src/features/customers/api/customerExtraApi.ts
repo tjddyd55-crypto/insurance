@@ -21,6 +21,36 @@ export type ConsultationCountsResponse = {
   counts: Record<string, number>
 }
 
+export type CustomerFileRow = {
+  id: number
+  customerId: number
+  content: string
+  fileName: string
+  objectKey: string | null
+  fileUrl: string
+  fileSize: number | null
+  mimeType: string | null
+  createdAt: string
+  expiresAt: string | null
+  deletedAt: string | null
+}
+
+export type SaveCustomerFilePayload = {
+  content: string
+  fileName: string
+  objectKey: string
+  fileUrl: string
+  size: number
+  mimeType?: string | null
+}
+
+export type CustomerFilePresignResponse = {
+  uploadUrl: string
+  fileUrl: string
+  objectKey: string
+  putHeaders?: Record<string, string>
+}
+
 export async function fetchConsultationCounts(token: string): Promise<ConsultationCountsResponse> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
@@ -142,4 +172,66 @@ export async function searchCustomersAdvanced(
     q.set('limit', String(opts.limit))
   }
   return apiRequest<CustomerRecord[]>(`/api/customers/search/advanced?${q.toString()}`, { token })
+}
+
+export async function presignCustomerFile(
+  token: string,
+  customerId: number,
+  body: { fileName: string; contentType: string; sizeBytes: number },
+): Promise<CustomerFilePresignResponse> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  return apiRequest<CustomerFilePresignResponse>(`/api/customers/${customerId}/files/presign`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({
+      fileName: body.fileName,
+      contentType: body.contentType,
+      size: body.sizeBytes,
+    }),
+  })
+}
+
+export async function saveCustomerFile(
+  token: string,
+  customerId: number,
+  body: SaveCustomerFilePayload,
+): Promise<CustomerFileRow> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  const payload: Record<string, unknown> = {
+    content: body.content,
+    fileName: body.fileName,
+    objectKey: body.objectKey,
+    fileUrl: body.fileUrl,
+    size: body.size,
+  }
+  const mt = body.mimeType?.trim()
+  if (mt) {
+    payload.mimeType = mt
+  }
+  return apiRequest<CustomerFileRow>(`/api/customers/${customerId}/files`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function listCustomerFiles(token: string, customerId: number): Promise<CustomerFileRow[]> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  return apiRequest<CustomerFileRow[]>(`/api/customers/${customerId}/files`, { token })
+}
+
+export async function deleteCustomerFile(token: string, fileId: number): Promise<{ ok: boolean }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  return apiRequest<{ ok: boolean }>(`/api/customers/files/${fileId}`, {
+    method: 'DELETE',
+    token,
+  })
 }

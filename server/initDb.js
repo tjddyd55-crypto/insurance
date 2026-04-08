@@ -1504,6 +1504,61 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_files (
+      id BIGSERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      content TEXT NOT NULL DEFAULT '',
+      file_name TEXT NOT NULL,
+      object_key TEXT,
+      file_url TEXT NOT NULL,
+      file_size BIGINT,
+      mime_type TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at TIMESTAMPTZ,
+      deleted_at TIMESTAMPTZ
+    )
+  `)
+  await pool.query(
+    `ALTER TABLE customer_files ADD COLUMN IF NOT EXISTS content TEXT NOT NULL DEFAULT ''`,
+  )
+  await pool.query(`ALTER TABLE customer_files ADD COLUMN IF NOT EXISTS object_key TEXT`)
+  await pool.query(
+    `ALTER TABLE customer_files ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ`,
+  )
+  await pool.query(
+    `ALTER TABLE customer_files ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ`,
+  )
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_files_customer_created
+    ON customer_files (customer_id, created_at DESC)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_files_user
+    ON customer_files (user_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_files_customer_ga_active
+    ON customer_files (customer_id, ga_id)
+    WHERE deleted_at IS NULL
+  `)
+  /** 고객 소속 GA·담당자와 customer_files 정렬 (기존 NULL/불일치 보정) — customers.ga_id는 INTEGER FK 유지 */
+  await pool.query(`
+    UPDATE customer_files f
+    SET ga_id = c.ga_id,
+        user_id = c.user_id
+    FROM customers c
+    WHERE f.customer_id = c.id
+      AND (
+        f.ga_id IS NULL
+        OR f.user_id IS NULL
+        OR f.ga_id IS DISTINCT FROM c.ga_id
+        OR f.user_id IS DISTINCT FROM c.user_id
+      )
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_relations (
       id SERIAL PRIMARY KEY,
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,

@@ -2,8 +2,101 @@ import { safeQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { mapCustomerRow } from '../lib/customerRowMap.js'
 import { recordAnalyticsEvent } from '../lib/analyticsEvents.js'
+import {
+  getR2InsurerAttachmentsCacheControl,
+  getR2PublicCdnBase,
+  isConsentR2Enabled,
+  logR2EnvDiagnosticCheck,
+  r2DeleteObject,
+  r2GetPresignedPutUrl,
+} from '../lib/consentStorage.js'
 
 const CONSULTATION_BODY_MAX = 20000
+
+const CUSTOMER_FILE_ALLOWED_MIME = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'application/pdf',
+])
+const CUSTOMER_FILE_MAX_BYTES = 25 * 1024 * 1024
+const CUSTOMER_FILE_CONTENT_MAX = 100_000
+
+function sanitizeUserIdForObjectKeySegment(userId) {
+  const s = String(userId ?? '')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .slice(0, 128)
+  return s || '_'
+}
+
+function sanitizeCustomerFileBaseName(fileNameRaw) {
+  const base = String(fileNameRaw ?? 'file').trim() || 'file'
+  return base.replace(/[^\w.\-()\u3131-\u318e\uac00-\ud7a3]/g, '_').slice(0, 120)
+}
+
+function buildCustomerFileObjectKey(gaId, userId, customerId, fileNameRaw) {
+  const userSeg = sanitizeUserIdForObjectKeySegment(userId)
+  const safeName = sanitizeCustomerFileBaseName(fileNameRaw)
+  const now = new Date()
+  const yyyy = String(now.getUTCFullYear())
+  const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(now.getUTCDate()).padStart(2, '0')
+  const ts = Date.now()
+  return `ga/${gaId}/users/${userSeg}/customers/${customerId}/${yyyy}/${mm}/${dd}/${ts}_${safeName}`
+}
+
+function assertCustomerFileObjectKey(key, gaId, userId, customerId) {
+  const k = String(key ?? '').replace(/^\//, '')
+  if (!k || k.includes('..')) {
+    return false
+  }
+  const userSeg = sanitizeUserIdForObjectKeySegment(userId)
+  const prefix = `ga/${gaId}/users/${userSeg}/customers/${customerId}/`
+  if (!k.startsWith(prefix)) {
+    return false
+  }
+  const rest = k.slice(prefix.length)
+  const parts = rest.split('/').filter(Boolean)
+  if (parts.length !== 4) {
+    return false
+  }
+  const [y, mo, d, fileSeg] = parts
+  if (!/^\d{4}$/.test(y) || !/^\d{2}$/.test(mo) || !/^\d{2}$/.test(d)) {
+    return false
+  }
+  if (!/^\d+_.+/.test(fileSeg)) {
+    return false
+  }
+  return true
+}
+
+function parseCustomerFileObjectKeyFromPublicUrl(fileUrl) {
+  const base = getR2PublicCdnBase().replace(/\/$/, '')
+  const u = String(fileUrl ?? '').trim()
+  if (!u.startsWith(`${base}/`)) {
+    return null
+  }
+  return u.slice(base.length + 1).replace(/^\//, '')
+}
+
+function mapCustomerFileRow(row) {
+  return {
+    id: Number(row.id),
+    customerId: Number(row.customer_id),
+    content: row.content != null ? String(row.content) : '',
+    fileName: row.file_name ?? '',
+    objectKey: row.object_key != null ? String(row.object_key) : null,
+    fileUrl: row.file_url ?? '',
+    fileSize: row.file_size != null ? Number(row.file_size) : null,
+    mimeType: row.mime_type ?? null,
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : '',
+    expiresAt:
+      row.expires_at != null ? new Date(row.expires_at).toISOString() : null,
+    deletedAt:
+      row.deleted_at != null ? new Date(row.deleted_at).toISOString() : null,
+  }
+}
 
 function escapeIlikePattern(raw) {
   return String(raw ?? '').replace(/[\\%_]/g, (ch) => `\\${ch}`)
@@ -40,6 +133,38 @@ async function assertCustomerActiveOwned(pool, customerId, userId, gaId) {
     [customerId, userId, gaId],
   )
   return r.rowCount > 0
+}
+
+/**
+ * 고객 파일 API 전용: customer_id만으로는 불충분 — 세션 GA·담당자와 customers 행을 반드시 대조한다.
+ * - 고객 GA ≠ 세션 GA → 403
+ * - 담당 설계사 ≠ 세션 사용자 → 404 (정보 최소 노출)
+ */
+async function assertCustomerFileAccess(pool, customerId, sessionUserId, sessionGaId, res) {
+  const r = await safeQuery(
+    pool,
+    `
+    SELECT id, user_id, ga_id FROM customers
+    WHERE id = $1 AND deleted_at IS NULL
+    LIMIT 1
+    `,
+    [customerId],
+  )
+  if (r.rowCount === 0) {
+    res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+    return false
+  }
+  const row = r.rows[0]
+  const customerGa = parseGaId(row.ga_id)
+  if (customerGa == null || customerGa !== sessionGaId) {
+    res.status(403).json({ message: '권한 없습니다.' })
+    return false
+  }
+  if (String(row.user_id) !== String(sessionUserId)) {
+    res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+    return false
+  }
+  return true
 }
 
 function requireGaIdFromUser(req, res) {
@@ -526,6 +651,289 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       handleDbError(error, req, res)
     } finally {
       client.release()
+    }
+  })
+
+  apiRouter.post('/customers/:id/files/presign', requireAuth, async (req, res) => {
+    try {
+      if (!isConsentR2Enabled()) {
+        logR2EnvDiagnosticCheck()
+        res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+        return
+      }
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
+      const customerId = parseCustomerIdParam(req, res)
+      if (customerId == null) {
+        return
+      }
+      if (!(await assertCustomerActiveOwned(pool, customerId, userId, gaId))) {
+        res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+        return
+      }
+
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const fileNameRaw = String(body.fileName ?? body.file_name ?? 'file').trim() || 'file'
+      const contentType = String(body.contentType ?? body.content_type ?? 'application/octet-stream').trim()
+      const sizeBytes = Number(body.size ?? body.sizeBytes ?? 0)
+
+      if (!CUSTOMER_FILE_ALLOWED_MIME.has(contentType)) {
+        res.status(400).json({ message: '허용되지 않은 파일 형식입니다.' })
+        return
+      }
+      if (!Number.isFinite(sizeBytes) || sizeBytes < 1 || sizeBytes > CUSTOMER_FILE_MAX_BYTES) {
+        res.status(400).json({ message: '파일 크기가 허용 범위를 벗어났습니다.' })
+        return
+      }
+
+      const objectKey = buildCustomerFileObjectKey(gaId, userId, customerId, fileNameRaw)
+
+      const cacheControl = getR2InsurerAttachmentsCacheControl()
+      const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
+      if (!uploadUrl) {
+        res.status(503).json({ message: '업로드 URL을 만들 수 없습니다.' })
+        return
+      }
+      const base = getR2PublicCdnBase()
+      const fileUrl = `${base}/${objectKey.replace(/^\//, '')}`
+      const putHeaders = {}
+      if (cacheControl) {
+        putHeaders['Cache-Control'] = cacheControl
+      }
+      res.json({ uploadUrl, fileUrl, objectKey, putHeaders })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/customers/:id/files', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
+      const customerId = parseCustomerIdParam(req, res)
+      if (customerId == null) {
+        return
+      }
+      if (!(await assertCustomerFileAccess(pool, customerId, userId, gaId, res))) {
+        return
+      }
+
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const spoofGa = parseGaId(body.gaId ?? body.ga_id)
+      if (spoofGa != null && spoofGa !== gaId) {
+        res.status(400).json({ message: '요청이 올바르지 않습니다.' })
+        return
+      }
+      const spoofUser = body.userId != null ? String(body.userId) : body.user_id != null ? String(body.user_id) : null
+      if (spoofUser != null && spoofUser !== userId) {
+        res.status(400).json({ message: '요청이 올바르지 않습니다.' })
+        return
+      }
+      const content = String(body.content ?? '').slice(0, CUSTOMER_FILE_CONTENT_MAX)
+      const fileName = String(body.fileName ?? body.file_name ?? '').trim()
+      const objectKeyRaw = String(body.objectKey ?? body.object_key ?? '').trim()
+      const fileUrl = String(body.fileUrl ?? body.file_url ?? '').trim()
+      const sizeRaw = body.size ?? body.file_size
+      const fileSize = Number(sizeRaw)
+      const mimeType = String(body.mimeType ?? body.mime_type ?? '').trim() || null
+
+      if (!fileName || fileName.length > 240) {
+        res.status(400).json({ message: '파일 이름이 올바르지 않습니다.' })
+        return
+      }
+      if (!objectKeyRaw) {
+        res.status(400).json({ message: 'object key가 필요합니다.' })
+        return
+      }
+      if (!fileUrl) {
+        res.status(400).json({ message: '파일 URL이 필요합니다.' })
+        return
+      }
+      if (
+        !assertCustomerFileObjectKey(objectKeyRaw, gaId, userId, customerId)
+      ) {
+        res.status(400).json({ message: '유효하지 않은 object key입니다.' })
+        return
+      }
+      const base = getR2PublicCdnBase().replace(/\/$/, '')
+      const expectedUrl = `${base}/${objectKeyRaw.replace(/^\//, '')}`
+      if (fileUrl !== expectedUrl) {
+        res.status(400).json({ message: '파일 URL이 object key와 일치하지 않습니다.' })
+        return
+      }
+      const objectKey = objectKeyRaw
+      if (!Number.isFinite(fileSize) || fileSize < 1 || fileSize > CUSTOMER_FILE_MAX_BYTES) {
+        res.status(400).json({ message: '파일 크기가 올바르지 않습니다.' })
+        return
+      }
+      if (mimeType && !CUSTOMER_FILE_ALLOWED_MIME.has(mimeType)) {
+        res.status(400).json({ message: '허용되지 않은 파일 형식입니다.' })
+        return
+      }
+
+      const ins = await safeQuery(
+        pool,
+        `
+        INSERT INTO customer_files (
+          customer_id, user_id, ga_id, content, file_name, object_key,
+          file_url, file_size, mime_type
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id, customer_id, content, file_name, object_key, file_url,
+                  file_size, mime_type, created_at, expires_at, deleted_at
+        `,
+        [
+          customerId,
+          userId,
+          gaId,
+          content,
+          fileName,
+          objectKey,
+          fileUrl,
+          fileSize,
+          mimeType,
+        ],
+      )
+      const row = ins.rows[0]
+      res.status(201).json(mapCustomerFileRow(row))
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/customers/:id/files', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
+      const customerId = parseCustomerIdParam(req, res)
+      if (customerId == null) {
+        return
+      }
+      if (!(await assertCustomerFileAccess(pool, customerId, userId, gaId, res))) {
+        return
+      }
+
+      const r = await safeQuery(
+        pool,
+        `
+        SELECT id, customer_id, content, file_name, object_key, file_url,
+               file_size, mime_type, created_at, expires_at, deleted_at
+        FROM customer_files
+        WHERE customer_id = $1 AND ga_id = $2 AND deleted_at IS NULL
+        ORDER BY created_at DESC, id DESC
+        `,
+        [customerId, gaId],
+      )
+      res.json(r.rows.map(mapCustomerFileRow))
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.delete('/customers/files/:fileId', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
+      const fileId = Number(req.params.fileId)
+      if (!Number.isInteger(fileId) || fileId < 1) {
+        res.status(400).json({ message: '잘못된 파일 ID입니다.' })
+        return
+      }
+
+      const sel = await safeQuery(
+        pool,
+        `
+        SELECT cf.id, cf.customer_id, cf.user_id, cf.ga_id, cf.file_url, cf.object_key
+        FROM customer_files cf
+        INNER JOIN customers c
+          ON c.id = cf.customer_id
+         AND c.user_id = $2
+         AND c.ga_id = $3
+         AND c.ga_id = cf.ga_id
+         AND c.deleted_at IS NULL
+        WHERE cf.id = $1
+          AND cf.user_id = $2
+          AND cf.ga_id = $3
+          AND cf.deleted_at IS NULL
+        LIMIT 1
+        `,
+        [fileId, userId, gaId],
+      )
+      if (sel.rowCount === 0) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      const row = sel.rows[0]
+      const objectKey =
+        row.object_key != null && String(row.object_key).trim()
+          ? String(row.object_key).trim()
+          : parseCustomerFileObjectKeyFromPublicUrl(row.file_url)
+
+      const del = await safeQuery(
+        pool,
+        `
+        UPDATE customer_files
+        SET deleted_at = NOW()
+        WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
+        `,
+        [fileId, userId, gaId],
+      )
+      if (del.rowCount === 0) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+
+      if (objectKey) {
+        const cid = Number(row.customer_id)
+        const userSeg = sanitizeUserIdForObjectKeySegment(userId)
+        const safeNewKey =
+          objectKey && assertCustomerFileObjectKey(objectKey, gaId, userId, cid)
+        const legacy =
+          !safeNewKey &&
+          typeof objectKey === 'string' &&
+          objectKey.startsWith(`customers-files/${gaId}/${cid}/`)
+        /** 구버전(최상위 customers/) R2 키 — DB 소프트삭제와 무관하게 객체 제거 허용 */
+        const legacyTopLevelCustomers =
+          !safeNewKey &&
+          !legacy &&
+          typeof objectKey === 'string' &&
+          objectKey.startsWith(`customers/${gaId}/${userSeg}/${cid}/`)
+        if (safeNewKey || legacy || legacyTopLevelCustomers) {
+          void r2DeleteObject(objectKey).catch(() => {})
+        }
+      }
+
+      res.json({ ok: true })
+    } catch (error) {
+      handleDbError(error, req, res)
     }
   })
 }
