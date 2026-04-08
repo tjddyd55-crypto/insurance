@@ -1372,19 +1372,36 @@ export default function CustomersPage() {
       if (!token?.trim()) {
         return
       }
+      const targetId = c.id
       const previousFavorite = c.isFavorite
       const nextFavorite = !previousFavorite
-      const patchFavorite = (row: CustomerRecord) =>
-        row.id === c.id ? { ...row, isFavorite: nextFavorite } : row
-      const unpatchFavorite = (row: CustomerRecord) =>
-        row.id === c.id ? { ...row, isFavorite: previousFavorite } : row
-      setCustomers((list) => list.map(patchFavorite))
-      setAdvSearchHits((hits) => (hits == null ? null : hits.map(patchFavorite)))
+      setCustomers((prev) =>
+        prev.map((row) =>
+          row.id === targetId ? { ...row, isFavorite: !row.isFavorite } : row,
+        ),
+      )
+      setAdvSearchHits((hits) =>
+        hits == null
+          ? null
+          : hits.map((row) =>
+              row.id === targetId ? { ...row, isFavorite: !row.isFavorite } : row,
+            ),
+      )
       try {
-        await updateCustomer(token, c.id, { isFavorite: nextFavorite })
+        await updateCustomer(token, targetId, { isFavorite: nextFavorite })
       } catch (error) {
-        setCustomers((list) => list.map(unpatchFavorite))
-        setAdvSearchHits((hits) => (hits == null ? null : hits.map(unpatchFavorite)))
+        setCustomers((prev) =>
+          prev.map((row) =>
+            row.id === targetId ? { ...row, isFavorite: previousFavorite } : row,
+          ),
+        )
+        setAdvSearchHits((hits) =>
+          hits == null
+            ? null
+            : hits.map((row) =>
+                row.id === targetId ? { ...row, isFavorite: previousFavorite } : row,
+              ),
+        )
         setStatusText(error instanceof Error ? error.message : '즐겨찾기 변경에 실패했습니다.')
       }
     },
