@@ -1800,21 +1800,48 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .customers-page .customer-card__actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-.customers-page .customer-card__actions button,
-.customers-page .customer-card__actions a,
-.customers-page .customer-card__actions > span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.customers-page .customer-card__actions svg {
+.customers-page .customer-card__actions .icon-box {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.customers-page .customer-card__actions .icon-box svg,
+.customers-page .customer-card__actions .icon-box img {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.customers-page .customer-card__actions .icon-box > button,
+.customers-page .customer-card__actions .icon-box > a,
+.customers-page .customer-card__actions .icon-box > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.customers-page .customer-card__actions .icon-box > button:not(:disabled),
+.customers-page .customer-card__actions .icon-box > a {
+  cursor: pointer;
+}
+
+.customers-page .customer-card__actions .icon-box > button:disabled {
+  cursor: not-allowed;
 }
 
 .customers-page .customer-expand-section-divider {

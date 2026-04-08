@@ -617,55 +617,61 @@ function CustomerListCard({
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => e.stopPropagation()}
                 >
-                  <button
-                    type="button"
-                    className="text-lg leading-none p-0 border-0 bg-transparent cursor-pointer shrink-0"
-                    aria-label={c.isFavorite ? '즐겨찾기 해제' : '즐겨찾기'}
-                    aria-pressed={c.isFavorite}
-                    disabled={!token?.trim()}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      void onToggleFavorite(c)
-                    }}
-                  >
-                    {c.isFavorite ? (
-                      <span className="text-yellow-400" aria-hidden>
-                        ★
-                      </span>
+                  <div className="icon-box">
+                    <button
+                      type="button"
+                      className="text-lg leading-none disabled:opacity-50"
+                      aria-label={c.isFavorite ? '즐겨찾기 해제' : '즐겨찾기'}
+                      aria-pressed={c.isFavorite}
+                      disabled={!token?.trim()}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void onToggleFavorite(c)
+                      }}
+                    >
+                      {c.isFavorite ? (
+                        <span className="text-yellow-400" aria-hidden>
+                          ★
+                        </span>
+                      ) : (
+                        <span className="text-gray-400" aria-hidden>
+                          ☆
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                  <div className="icon-box">
+                    {smsHref ? (
+                      <a
+                        href={smsHref}
+                        className="text-lg text-blue-500 leading-none"
+                        aria-label="문자 보내기"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        💬
+                      </a>
                     ) : (
-                      <span className="text-gray-400" aria-hidden>
-                        ☆
+                      <span className="text-lg opacity-35 grayscale" aria-hidden>
+                        💬
                       </span>
                     )}
-                  </button>
-                  {smsHref ? (
-                    <a
-                      href={smsHref}
-                      className="text-lg text-blue-500 leading-none"
-                      aria-label="문자 보내기"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      💬
-                    </a>
-                  ) : (
-                    <span className="text-lg opacity-35 grayscale" aria-hidden>
-                      💬
-                    </span>
-                  )}
-                  {telHref ? (
-                    <a
-                      href={telHref}
-                      className="group inline-flex items-center justify-center leading-none transition-opacity hover:opacity-90 active:opacity-80"
-                      aria-label="전화 걸기"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <CustomerListTelSvg hasPhone withLinkHover />
-                    </a>
-                  ) : (
-                    <span className="inline-flex items-center justify-center leading-none" aria-hidden>
-                      <CustomerListTelSvg hasPhone={hasPhone} />
-                    </span>
-                  )}
+                  </div>
+                  <div className="icon-box">
+                    {telHref ? (
+                      <a
+                        href={telHref}
+                        className="group transition-opacity hover:opacity-90 active:opacity-80"
+                        aria-label="전화 걸기"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <CustomerListTelSvg hasPhone withLinkHover />
+                      </a>
+                    ) : (
+                      <span aria-hidden>
+                        <CustomerListTelSvg hasPhone={hasPhone} />
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <span className="customer-expand-summary__hint" aria-hidden="true">
                   {showExpandedChrome ? '▲' : '▼'}
