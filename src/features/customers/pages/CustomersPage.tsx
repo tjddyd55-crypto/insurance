@@ -51,18 +51,6 @@ import { CustomerConsultationSection } from '../components/CustomerConsultationS
 import { CustomerInlineNotesSection } from '../components/CustomerInlineNotesSection'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 
-const RECENT_CUSTOMER_SEARCHES_KEY = 'insurance.customers.recentSearches.v1'
-const MAX_RECENT = 5
-
-function mergeRecentCustomerSearches(prev: string[], keyword: string): string[] {
-  const q = keyword.trim()
-  if (!q) {
-    return prev
-  }
-  const filtered = prev.filter((v) => v !== q)
-  return [q, ...filtered].slice(0, MAX_RECENT)
-}
-
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
 /** WebView: touchstart·mousedown·합성 click 연속 시 복사/알림 중복 방지 */
@@ -126,16 +114,6 @@ async function fetchLastConsultDatesByCustomerId(
     }
   }
   return out
-}
-
-function readRecentCustomerSearches(): string[] {
-  try {
-    const raw = localStorage.getItem(RECENT_CUSTOMER_SEARCHES_KEY)
-    const a = raw ? JSON.parse(raw) : []
-    return Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string').slice(0, MAX_RECENT) : []
-  } catch {
-    return []
-  }
 }
 
 function CustomerDDayBadge({ renewalDate }: { renewalDate: string }) {
@@ -1146,7 +1124,6 @@ export default function CustomersPage() {
   const tab = searchParams.get('mode') === 'create' ? 'create' : 'list'
   const [searchInput, setSearchInput] = useState('')
   const [keyword, setKeyword] = useState('')
-  const [recentSearches, setRecentSearches] = useState<string[]>(() => readRecentCustomerSearches())
   const [sortType, setSortType] = useState<CustomerSortType>(null)
   const [advancedFilters, setAdvancedFilters] = useState<CustomerAdvancedFilters>(() => ({
     ...EMPTY_ADVANCED_FILTERS,
@@ -1375,21 +1352,6 @@ export default function CustomersPage() {
     const handle = window.setTimeout(() => setKeyword(searchInput), 300)
     return () => window.clearTimeout(handle)
   }, [searchInput])
-
-  useEffect(() => {
-    const q = keyword.trim()
-    if (!q) {
-      return
-    }
-    try {
-      const prev = readRecentCustomerSearches()
-      const next = mergeRecentCustomerSearches(prev, q)
-      localStorage.setItem(RECENT_CUSTOMER_SEARCHES_KEY, JSON.stringify(next))
-      setRecentSearches(next)
-    } catch {
-      /* ignore */
-    }
-  }, [keyword])
 
   useEffect(() => {
     if (user?.role !== 'USER') {
@@ -1907,26 +1869,6 @@ export default function CustomersPage() {
         </>
       ) : (
         <section className="list-section" style={{ marginTop: 0 }}>
-          {recentSearches.length > 0 ? (
-            <div className="customers-page__recent-row">
-              <p className="customers-page__recent-label">최근:</p>
-              <div className="customers-page__recent-list" aria-label="최근 검색어">
-                {recentSearches.map((term) => (
-                  <button
-                    key={term}
-                    type="button"
-                    className="customers-page__recent-item"
-                    onClick={() => {
-                      setSearchInput(term)
-                      setKeyword(term)
-                    }}
-                  >
-                    {term}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
           {showFilters ? (
             <>
               <div

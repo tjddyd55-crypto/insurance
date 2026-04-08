@@ -11,6 +11,10 @@
   box-sizing: border-box;
 }
 
+html {
+  background-color: var(--bg-main);
+}
+
 button {
   -webkit-tap-highlight-color: transparent;
 }
@@ -1531,9 +1535,14 @@ button.filter-button:focus-visible {
   max-width: 100%;
   width: 100%;
   margin: 0 auto;
-  padding: 8px 12px 100px;
+  padding: 8px 16px 100px;
   box-sizing: border-box;
   overflow-x: hidden;
+}
+
+.customers-page.page--with-back .page-header {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .customers-page__header {
@@ -1638,48 +1647,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .customers-page__filter-toggle--on {
   border-color: var(--brand-primary);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary) 35%, transparent);
-}
-
-.customers-page__recent-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: nowrap;
-  overflow: hidden;
-  margin: 10px 0 12px;
-  box-sizing: border-box;
-}
-
-.customers-page__recent-label {
-  flex-shrink: 0;
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
-.customers-page__recent-list {
-  display: flex;
-  gap: 6px;
-  flex-wrap: nowrap;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.customers-page__recent-item {
-  margin: 0;
-  padding: 4px 8px;
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 12px;
-  line-height: 1.2;
-  white-space: nowrap;
-  flex-shrink: 0;
-  cursor: pointer;
-  box-sizing: border-box;
 }
 
 .customers-page__header-row {
