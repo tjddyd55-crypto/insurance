@@ -1492,7 +1492,7 @@ button.filter-button:focus-visible {
 .scroll-to-top {
   position: fixed;
   right: 16px;
-  bottom: 20px;
+  bottom: 24px;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -1501,7 +1501,8 @@ button.filter-button:focus-visible {
   font-size: 20px;
   border: 1px solid color-mix(in srgb, var(--border-default) 40%, transparent);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-card) 80%, transparent);
-  z-index: 999;
+  z-index: 9999;
+  pointer-events: auto;
   cursor: pointer;
   line-height: 1;
   display: inline-flex;
@@ -1794,6 +1795,26 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font-size: 12px;
   line-height: 1.45;
   opacity: 0.7;
+}
+
+.customers-page .customer-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.customers-page .customer-card__actions button,
+.customers-page .customer-card__actions a,
+.customers-page .customer-card__actions > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.customers-page .customer-card__actions svg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .customers-page .customer-expand-section-divider {

@@ -612,7 +612,7 @@ function CustomerListCard({
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <div
-                  className="flex items-center gap-2"
+                  className="customer-card__actions"
                   role="presentation"
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => e.stopPropagation()}
