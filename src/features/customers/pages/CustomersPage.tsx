@@ -1722,8 +1722,6 @@ export default function CustomersPage() {
     setEditForm(recordToEditForm(cl))
   }, [])
 
-  const handleNavigateToFormEdit = useCallback((formId: string) => navigate(`/form/${formId}/edit`), [navigate])
-
   const handleConsultationCountsInvalidate = useCallback(() => {
     void refreshConsultationCounts()
   }, [refreshConsultationCounts])
