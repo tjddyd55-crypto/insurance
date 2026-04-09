@@ -326,12 +326,6 @@ export function RegisterPage() {
     <main className="auth-page">
       <section className="card auth-card">
         <h1>회원가입</h1>
-        <p className="auth-description">소속 GA 담당자가 공유한 가입 링크로 접속해 주세요. (GA 코드와 담당자 정보가 함께 전달됩니다.)</p>
-        {!inviteLinkOk ? (
-          <p className="status status--error" role="alert">
-            정식 초대 링크가 아닙니다. 담당자가 복사한 주소(ts·sig 포함)로 다시 열어 주세요.
-          </p>
-        ) : null}
 
         <form className="auth-form auth-form--register" onSubmit={(e) => void handleSignup(e)}>
           <input type="hidden" name="invite_ref_user_id" value={inviteRefUserId} aria-hidden />
@@ -339,6 +333,7 @@ export function RegisterPage() {
           <input type="hidden" name="invite_ts" value={inviteTs} aria-hidden />
           <label className="field">
             <span className="field__label">GA 코드</span>
+            <p className="text-xs text-gray-400 mb-2">부여받은 코드를 입력하세요.</p>
             <input
               value={inviteCode}
               onChange={(e) => {
