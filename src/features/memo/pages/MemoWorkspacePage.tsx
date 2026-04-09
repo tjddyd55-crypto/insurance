@@ -32,6 +32,8 @@ export default function MemoWorkspacePage() {
     handleCanvasClick,
     closeDeleteModal,
     confirmDelete,
+    collapsedNotes,
+    toggleNoteCollapse,
   } = useMemoWorkspace()
 
   if (!token?.trim()) {
@@ -88,6 +90,8 @@ export default function MemoWorkspacePage() {
                   onTextareaBlur={handleTextareaBlur}
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
+                  isCollapsed={Boolean(collapsedNotes[note.id])}
+                  onToggleCollapse={toggleNoteCollapse}
                 />
               ))
             )}

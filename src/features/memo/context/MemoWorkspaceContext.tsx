@@ -40,6 +40,9 @@ type MemoWorkspaceContextValue = ReturnType<typeof useNotes> & {
   confirmDelete: () => Promise<void>
   isMinimized: boolean
   setIsMinimized: Dispatch<SetStateAction<boolean>>
+  /** 메모별 접힘(프론트 전용, DB 미사용) */
+  collapsedNotes: Record<string, boolean>
+  toggleNoteCollapse: (id: string) => void
 }
 
 const MemoWorkspaceContext = createContext<MemoWorkspaceContextValue | null>(null)
@@ -68,6 +71,14 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
+  const [collapsedNotes, setCollapsedNotes] = useState<Record<string, boolean>>({})
+
+  const toggleNoteCollapse = useCallback((id: string) => {
+    setCollapsedNotes((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }))
+  }, [])
 
   useEffect(() => {
     activeNoteIdRef.current = activeNoteId
@@ -176,6 +187,7 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
 
   const handleSidebarSelectNote = useCallback(
     (id: string) => {
+      setIsMinimized(false)
       activeNoteIdRef.current = id
       setActiveNoteId(id)
       const note = notes.find((n) => n.id === id)
@@ -187,7 +199,7 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
         })
       })
     },
-    [notes],
+    [notes, setIsMinimized],
   )
 
   const handleCanvasClick = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
@@ -244,6 +256,14 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
     try {
       const id = pendingDeleteId
       await deleteNote(id)
+      setCollapsedNotes((prev) => {
+        if (!(id in prev)) {
+          return prev
+        }
+        const next = { ...prev }
+        delete next[id]
+        return next
+      })
       setActiveNoteId((prev) => {
         const next = prev === id ? null : prev
         activeNoteIdRef.current = next
@@ -285,6 +305,8 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
       confirmDelete,
       isMinimized,
       setIsMinimized,
+      collapsedNotes,
+      toggleNoteCollapse,
     }),
     [
       notesApi,
@@ -310,6 +332,8 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
       closeDeleteModal,
       confirmDelete,
       isMinimized,
+      collapsedNotes,
+      toggleNoteCollapse,
     ],
   )
 

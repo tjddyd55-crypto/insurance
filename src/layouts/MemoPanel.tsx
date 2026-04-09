@@ -21,6 +21,7 @@ export type MemoPanelProps = {
   onToggleList: () => void
   onClosePanel: () => void
   onMinimize: () => void
+  onOpenList: () => void
   selectedNoteId: string | null
   onSelectNoteFromList: (id: string) => void
 }
@@ -35,6 +36,7 @@ export default function MemoPanel({
   onToggleList,
   onClosePanel,
   onMinimize,
+  onOpenList,
   selectedNoteId,
   onSelectNoteFromList,
 }: MemoPanelProps) {
@@ -57,22 +59,27 @@ export default function MemoPanel({
         </button>
       </div>
 
-      <div className="memo-body memo-body--pc-panel">
-        <div className="memo-canvas-area memo-canvas-area--pc">
-          <MemoWorkspacePage />
+      <div className="memo-panel-main">
+        <div className="memo-body memo-body--pc-panel memo-body--list-row">
+          <div className="memo-canvas-area memo-canvas-area--pc">
+            <MemoWorkspacePage />
+          </div>
+          {listVisible ? (
+            <div
+              className="memo-list-sidebar memo-list-sidebar--right-dock"
+              data-selected-note={selectedNoteId ?? ''}
+            >
+              <MemoList onAfterSelectNote={onSelectNoteFromList} />
+            </div>
+          ) : null}
+          {!listVisible ? (
+            <button type="button" className="memo-list-open-btn" onClick={onOpenList} aria-label="메모 목록 열기">
+              ›
+            </button>
+          ) : null}
         </div>
+        <MemoFab />
       </div>
-
-      {listVisible ? (
-        <div
-          className="memo-list-sidebar memo-list-sidebar--stacked"
-          data-selected-note={selectedNoteId ?? ''}
-        >
-          <MemoList onAfterSelectNote={onSelectNoteFromList} />
-        </div>
-      ) : null}
-
-      <MemoFab />
     </div>
   )
 }

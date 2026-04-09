@@ -4237,6 +4237,51 @@ a.contacts-public-auth__link {
   position: relative;
 }
 
+.memo-panel-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.memo-body--list-row {
+  flex-direction: row;
+}
+
+.memo-body--list-row .memo-canvas-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.memo-list-sidebar.memo-list-sidebar--right-dock {
+  width: 220px;
+  flex-shrink: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  background: #111;
+  overflow-y: auto;
+}
+
+.memo-list-open-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  background: #222;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px 0 0 6px;
+  cursor: pointer;
+  color: #fff;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.memo-list-open-btn:hover {
+  background: #2a2a2a;
+}
+
 .memo-workspace .memo-sticky-note__root {
   border: 1px solid rgba(0, 0, 0, 0.08);
   opacity: 0.95;
@@ -4255,6 +4300,11 @@ a.contacts-public-auth__link {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+.memo-body.memo-body--pc-panel.memo-body--list-row {
+  display: flex;
+  align-items: stretch;
 }
 
 .memo-canvas-area.memo-canvas-area--pc {

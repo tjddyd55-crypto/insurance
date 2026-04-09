@@ -22,25 +22,36 @@ function MemoPanelBody({
   isMobile,
   selectedNoteId,
   onSelectNoteFromList,
+  onOpenList,
 }: {
   showList: boolean
   isMobile: boolean
   selectedNoteId: string | null
   onSelectNoteFromList: (id: string) => void
+  onOpenList: () => void
 }) {
   return (
-    <div className={`memo-body ${isMobile ? 'memo-body--mobile mobile-container' : ''}`}>
-      <div className={`memo-canvas-area p-2 min-h-0 ${isMobile ? 'mobile-memo-view' : ''}`}>
-        <MemoWorkspacePage />
-      </div>
-      {showList ? (
-        <div
-          className={`memo-list-sidebar ${isMobile ? 'mobile-list memo-mobile-list' : ''}`}
-          data-selected-note={selectedNoteId ?? ''}
-        >
-          <MemoList onAfterSelectNote={onSelectNoteFromList} />
+    <div className="memo-panel-main">
+      <div
+        className={`memo-body ${isMobile ? 'memo-body--mobile mobile-container' : 'memo-body--list-row'}`}
+      >
+        <div className={`memo-canvas-area p-2 min-h-0 ${isMobile ? 'mobile-memo-view' : ''}`}>
+          <MemoWorkspacePage />
         </div>
-      ) : null}
+        {showList ? (
+          <div
+            className={`memo-list-sidebar ${isMobile ? 'mobile-list memo-mobile-list' : 'memo-list-sidebar--right-dock'}`}
+            data-selected-note={selectedNoteId ?? ''}
+          >
+            <MemoList onAfterSelectNote={onSelectNoteFromList} />
+          </div>
+        ) : null}
+        {!showList ? (
+          <button type="button" className="memo-list-open-btn" onClick={onOpenList} aria-label="메모 목록 열기">
+            ›
+          </button>
+        ) : null}
+      </div>
       <MemoFab />
     </div>
   )
@@ -264,6 +275,7 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
             isMobile={isMobile}
             selectedNoteId={selectedNoteId}
             onSelectNoteFromList={onSelectNoteFromList}
+            onOpenList={() => setIsListOpen(true)}
           />
         </div>
       ) : null}

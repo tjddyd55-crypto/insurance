@@ -173,6 +173,7 @@ function AppWorkspaceLayoutPc() {
             onToggleList={() => setIsListOpen((v) => !v)}
             onClosePanel={closeMemoPanel}
             onMinimize={minimizeMemoPanel}
+            onOpenList={() => setIsListOpen(true)}
             selectedNoteId={selectedNoteId}
             onSelectNoteFromList={onSelectNoteFromList}
           />
