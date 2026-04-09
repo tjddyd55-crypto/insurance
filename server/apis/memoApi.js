@@ -4,6 +4,7 @@ import { parseGaId } from '../lib/parseGaId.js'
 const DEFAULT_WIDTH = 200
 const DEFAULT_HEIGHT = 160
 const DEFAULT_FONT_SIZE = 16
+const DEFAULT_Z_INDEX = 0
 
 /**
  * @param {import('pg').QueryResultRow} row
@@ -22,6 +23,10 @@ function mapMemoRow(row) {
       row.height != null && Number.isFinite(Number(row.height))
         ? Math.round(Number(row.height))
         : DEFAULT_HEIGHT,
+    zIndex:
+      row.z_index != null && Number.isFinite(Number(row.z_index))
+        ? Math.round(Number(row.z_index))
+        : DEFAULT_Z_INDEX,
     fontSize:
       row.font_size != null && Number.isFinite(Number(row.font_size))
         ? Math.round(Number(row.font_size))
@@ -68,7 +73,7 @@ export function registerMemoApi(apiRouter, ctx) {
       const r = await safeQuery(
         pool,
         `
-        SELECT id, content, x, y, width, height, font_size, created_at, updated_at
+        SELECT id, content, x, y, width, height, z_index, font_size, created_at, updated_at
         FROM memo
         WHERE user_id = $1 AND ga_id = $2
         ORDER BY created_at DESC
@@ -92,7 +97,7 @@ export function registerMemoApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      const { content, x, y, width, height, fontSize } = req.body ?? {}
+      const { content, x, y, width, height, zIndex, fontSize } = req.body ?? {}
       const contentVal = typeof content === 'string' ? content : ''
       const xVal = Number.isFinite(Number(x)) ? Math.round(Number(x)) : 100
       const yVal = Number.isFinite(Number(y)) ? Math.round(Number(y)) : 100
@@ -104,6 +109,10 @@ export function registerMemoApi(apiRouter, ctx) {
         height !== undefined && height !== null && Number.isFinite(Number(height))
           ? Math.round(Number(height))
           : DEFAULT_HEIGHT
+      const zVal =
+        zIndex !== undefined && zIndex !== null && Number.isFinite(Number(zIndex))
+          ? Math.round(Number(zIndex))
+          : DEFAULT_Z_INDEX
       const fVal =
         fontSize !== undefined && fontSize !== null && Number.isFinite(Number(fontSize))
           ? Math.round(Number(fontSize))
@@ -111,11 +120,11 @@ export function registerMemoApi(apiRouter, ctx) {
       const r = await safeQuery(
         pool,
         `
-        INSERT INTO memo (user_id, ga_id, content, x, y, width, height, font_size)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        RETURNING id, content, x, y, width, height, font_size
+        INSERT INTO memo (user_id, ga_id, content, x, y, width, height, z_index, font_size)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id, content, x, y, width, height, z_index, font_size
         `,
-        [userId, gaId, contentVal, xVal, yVal, wVal, hVal, fVal],
+        [userId, gaId, contentVal, xVal, yVal, wVal, hVal, zVal, fVal],
       )
       if (r.rowCount === 0) {
         res.status(500).json({ message: '메모를 생성하지 못했습니다.' })
@@ -145,7 +154,7 @@ export function registerMemoApi(apiRouter, ctx) {
       }
       const cur = await safeQuery(
         pool,
-        `SELECT id, content, x, y, width, height, font_size FROM memo WHERE id = $1::uuid AND user_id = $2 AND ga_id = $3`,
+        `SELECT id, content, x, y, width, height, z_index, font_size FROM memo WHERE id = $1::uuid AND user_id = $2 AND ga_id = $3`,
         [memoId, userId, gaId],
       )
       if (cur.rowCount === 0) {
@@ -153,7 +162,7 @@ export function registerMemoApi(apiRouter, ctx) {
         return
       }
       const row = cur.rows[0]
-      const { content, x, y, width, height, fontSize } = req.body ?? {}
+      const { content, x, y, width, height, zIndex, fontSize } = req.body ?? {}
       const nextContent =
         content !== undefined && content !== null ? String(content) : String(row.content ?? '')
       const nextX =
@@ -176,6 +185,12 @@ export function registerMemoApi(apiRouter, ctx) {
           : row.height != null
             ? Math.round(Number(row.height))
             : DEFAULT_HEIGHT
+      const nextZIndex =
+        zIndex !== undefined && zIndex !== null && Number.isFinite(Number(zIndex))
+          ? Math.round(Number(zIndex))
+          : row.z_index != null
+            ? Math.round(Number(row.z_index))
+            : DEFAULT_Z_INDEX
       const nextFontSize =
         fontSize !== undefined && fontSize !== null && Number.isFinite(Number(fontSize))
           ? Math.round(Number(fontSize))
@@ -186,11 +201,11 @@ export function registerMemoApi(apiRouter, ctx) {
         pool,
         `
         UPDATE memo
-        SET content = $1, x = $2, y = $3, width = $4, height = $5, font_size = $6, updated_at = NOW()
-        WHERE id = $7::uuid AND user_id = $8 AND ga_id = $9
-        RETURNING id, content, x, y, width, height, font_size
+        SET content = $1, x = $2, y = $3, width = $4, height = $5, z_index = $6, font_size = $7, updated_at = NOW()
+        WHERE id = $8::uuid AND user_id = $9 AND ga_id = $10
+        RETURNING id, content, x, y, width, height, z_index, font_size
         `,
-        [nextContent, nextX, nextY, nextWidth, nextHeight, nextFontSize, memoId, userId, gaId],
+        [nextContent, nextX, nextY, nextWidth, nextHeight, nextZIndex, nextFontSize, memoId, userId, gaId],
       )
       if (up.rowCount === 0) {
         res.status(404).json({ message: '메모를 찾을 수 없습니다.' })

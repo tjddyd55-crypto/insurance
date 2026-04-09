@@ -13,6 +13,7 @@ export const memoApi = {
       y?: number
       width?: number
       height?: number
+      zIndex?: number
       fontSize?: number
     },
     token: string | null,
@@ -26,7 +27,7 @@ export const memoApi = {
 
   async update(
     id: string,
-    body: Partial<Pick<Note, 'content' | 'x' | 'y' | 'width' | 'height' | 'fontSize'>>,
+    body: Partial<Pick<Note, 'content' | 'x' | 'y' | 'width' | 'height' | 'zIndex' | 'fontSize'>>,
     token: string | null,
   ) {
     return apiRequest<Note>(`/api/memo/${encodeURIComponent(id)}`, {

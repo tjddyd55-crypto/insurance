@@ -4163,6 +4163,128 @@ a.contacts-public-auth__link {
 }
 
 /* ——— 메모 워크스페이스 UX ——— */
+.memo-layout {
+  display: flex;
+  height: 100%;
+  position: static;
+  transform: none;
+  filter: none;
+  overflow: visible;
+  isolation: auto;
+}
+
+.memo-sidebar {
+  width: 220px;
+  transition: width 0.2s ease;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  background: #111;
+  overflow: hidden;
+}
+
+.memo-sidebar.closed {
+  width: 40px;
+}
+
+.memo-sidebar__inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.memo-sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 44px;
+  padding: 10px;
+  font-size: 14px;
+  color: #f5f5f5;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.memo-sidebar__title {
+  white-space: nowrap;
+}
+
+.memo-sidebar__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.memo-sidebar__arrange,
+.memo-sidebar__toggle {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ddd;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1;
+  height: 24px;
+  padding: 0 6px;
+  cursor: pointer;
+}
+
+.memo-sidebar__arrange:hover,
+.memo-sidebar__toggle:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.memo-sidebar__list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.memo-list-item {
+  padding: 8px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #ddd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.memo-list-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.memo-list-item.active {
+  background: rgba(255, 255, 255, 0.1);
+  border-left: 3px solid #3b82f6;
+  color: #fff;
+}
+
+.memo-list-item.editing {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.memo-sidebar.closed .memo-sidebar__list,
+.memo-sidebar.closed .memo-sidebar__arrange,
+.memo-sidebar.closed .memo-sidebar__title {
+  display: none;
+}
+
+.memo-canvas {
+  flex: 1;
+  position: static;
+  min-width: 0;
+  transform: none;
+  filter: none;
+  overflow: visible;
+  isolation: auto;
+}
+
+.memo-workspace {
+  position: relative;
+  transform: none;
+  filter: none;
+  overflow: visible;
+  isolation: auto;
+}
+
 .memo-workspace__empty {
   display: flex;
   flex-direction: column;
@@ -4204,27 +4326,42 @@ a.contacts-public-auth__link {
 
 /* ——— Sticky 메모 레이아웃 / 상태 분리 (행간·높이·outline은 여기서 통일) ——— */
 .memo-sticky-note__root {
+  position: absolute;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border-radius: 0.25rem;
   box-sizing: border-box;
-  border: 1px solid color-mix(in srgb, var(--border-default) 55%, transparent);
-  transition: box-shadow 0.15s ease;
-}
-
-[data-theme='dark'] .memo-sticky-note__root {
-  border-color: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .memo-sticky-note__root--active {
-  box-shadow:
-    0 10px 25px -5px rgba(0, 0, 0, 0.15),
-    0 8px 10px -6px rgba(0, 0, 0, 0.12);
+  border-color: rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.memo-sticky-note__root--active .memo-sticky-note__header {
+  background: #3b82f6;
+  color: #fff;
+  border-bottom-color: rgba(255, 255, 255, 0.3);
+}
+
+.memo-sticky-note__root--active .memo-sticky-note__header button {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .memo-sticky-note__root:hover:not(.memo-sticky-note__root--active) {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.memo-sticky-note__root--editing,
+.memo-sticky-note__root:not(.memo-sticky-note__root--active):has(.memo-sticky-note__textarea--editing) {
+  border-color: rgba(59, 130, 246, 0.4);
 }
 
 .memo-sticky-note__header {

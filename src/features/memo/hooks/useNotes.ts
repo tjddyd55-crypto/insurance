@@ -13,6 +13,9 @@ const MIN_H = 150
 const FONT_MIN = 12
 const FONT_MAX = 24
 
+/** 이 값을 넘으면 zIndex 폭주로 레이어 비교가 흔들릴 수 있어 전체 재번호 후 승격 */
+const Z_INDEX_RENORMALIZE_THRESHOLD = 10_000
+
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n))
 }
@@ -51,13 +54,18 @@ export function useNotes() {
       .getAll(token)
       .then((rows) => {
         if (!cancelled) {
-          const t = Date.now()
-          setNotes(
-            rows.map((r, i) => ({
-              ...r,
-              zIndex: t + i,
+          const apiData = rows.map((r) => ({
+            ...r,
+            zIndex: Number(r.zIndex) || 0,
+          }))
+          console.log(
+            'API RAW zIndex',
+            apiData.map((n) => ({
+              id: n.id,
+              zIndex: n.zIndex,
             })),
           )
+          setNotes(apiData)
         }
       })
       .catch(() => {
@@ -81,9 +89,9 @@ export function useNotes() {
       return
     }
     try {
-      const newNote = await memoApi.create({ content: '', x: 100, y: 100 }, auth)
       const z = Date.now()
-      setNotes((prev) => [...prev, { ...newNote, zIndex: z }])
+      const newNote = await memoApi.create({ content: '', x: 100, y: 100, zIndex: z }, auth)
+      setNotes((prev) => [...prev, { ...newNote, zIndex: newNote.zIndex ?? z }])
     } catch {
       // 실패 시 목록은 그대로
     }
@@ -184,20 +192,50 @@ export function useNotes() {
     [token],
   )
 
-  const bringToFront = useCallback((id: string) => {
-    setNotes((prev) => {
-      const maxZ = Math.max(
-        0,
-        ...prev.map((n) => {
-          const z = n.zIndex
-          return typeof z === 'number' && Number.isFinite(z) ? Math.floor(z) : 0
-        }),
-      )
-      return prev.map((n) =>
-        n.id === id ? { ...n, zIndex: maxZ + 1 } : n,
-      )
-    })
-  }, [])
+  const bringToFront = useCallback(
+    (id: string) => {
+      setNotes((prev) => {
+        const zVal = (n: Note) => Number(n.zIndex) || 0
+
+        const maxZ = Math.max(0, ...prev.map((n) => zVal(n)))
+        const auth = token?.trim()
+
+        if (maxZ > Z_INDEX_RENORMALIZE_THRESHOLD) {
+          const sorted = [...prev].sort(
+            (a, b) =>
+              (Number(a.zIndex) || 0) - (Number(b.zIndex) || 0) ||
+              String(a.id).localeCompare(String(b.id)),
+          )
+          const reset = sorted.map((n, i) => ({
+            ...n,
+            zIndex: i + 1,
+          }))
+          const next = reset.map((n) =>
+            n.id === id ? { ...n, zIndex: reset.length + 1 } : n,
+          )
+
+          if (auth) {
+            next.forEach((note) => {
+              const before = prev.find((p) => p.id === note.id)
+              const oldZ = before ? zVal(before) : -1
+              const newZ = zVal(note)
+              if (oldZ !== newZ) {
+                void memoApi.update(note.id, { zIndex: newZ }, auth).catch(() => {})
+              }
+            })
+          }
+          return next
+        }
+
+        const nextZ = maxZ + 1
+        if (auth) {
+          void memoApi.update(id, { zIndex: nextZ }, auth).catch(() => {})
+        }
+        return prev.map((n) => (n.id === id ? { ...n, zIndex: nextZ } : n))
+      })
+    },
+    [token],
+  )
 
   return {
     notes,

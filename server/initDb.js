@@ -1641,6 +1641,7 @@ export async function initDb() {
       y INTEGER DEFAULT 100,
       width INTEGER DEFAULT 200,
       height INTEGER DEFAULT 160,
+      z_index BIGINT DEFAULT 0,
       font_size INTEGER DEFAULT 16,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
@@ -1657,6 +1658,10 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE memo
     ADD COLUMN IF NOT EXISTS height INTEGER DEFAULT 160
+  `)
+  await pool.query(`
+    ALTER TABLE memo
+    ADD COLUMN IF NOT EXISTS z_index BIGINT DEFAULT 0
   `)
   await pool.query(`
     ALTER TABLE memo

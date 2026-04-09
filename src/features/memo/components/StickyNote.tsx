@@ -6,6 +6,10 @@ const MIN_H = 150
 const FONT_MIN = 12
 const FONT_MAX = 24
 
+const clamp = (value: number, min: number, max: number) => {
+  return Math.max(min, Math.min(value, max))
+}
+
 type Props = {
   note: Note
   isActive: boolean
@@ -16,10 +20,13 @@ type Props = {
   onSizeChange: (id: string, width: number, height: number) => void
   onFontSizeChange: (id: string, fontSize: number) => void
   containerRef: RefObject<HTMLElement | null>
+  getWorkspaceBounds: () => { width: number; height: number }
   onDeleteRequest: (id: string) => void
-  /** 클릭·헤더 등: 앞으로 + 선택 (입력 중 아님) */
+  /** 루트 클릭: 앞으로 + 선택 */
+  onRootClick: (id: string) => void
+  /** 클릭·헤더 등: 선택 (z-index 변경 없음) */
   onActivate: (id: string) => void
-  /** textarea focus: 앞으로 + 선택 + 편집 */
+  /** textarea focus: 선택 + 편집 (z-index 변경 없음) */
   onTextareaFocus: (id: string) => void
   onTextareaBlur: () => void
   onDragStart: (id: string) => void
@@ -36,7 +43,9 @@ export default function StickyNote({
   onSizeChange,
   onFontSizeChange,
   containerRef,
+  getWorkspaceBounds,
   onDeleteRequest,
+  onRootClick,
   onActivate,
   onTextareaFocus,
   onTextareaBlur,
@@ -53,6 +62,9 @@ export default function StickyNote({
   const fs = Math.min(FONT_MAX, Math.max(FONT_MIN, Math.round(Number(note.fontSize) || 16)))
 
   const handleDragStart = (clientX: number, clientY: number) => {
+    if (resizing) {
+      return
+    }
     onDragStart(note.id)
     const rect = containerRef.current?.getBoundingClientRect()
     if (!rect) {
@@ -85,19 +97,33 @@ export default function StickyNote({
       return
     }
     const onMove = (e: MouseEvent) => {
+      if (resizing) {
+        return
+      }
       const rect = containerRef.current?.getBoundingClientRect()
       if (!rect) {
         return
       }
-      const x = e.clientX - rect.left - offsetRef.current.x
-      const y = e.clientY - rect.top - offsetRef.current.y
-      onPositionChange(note.id, x, y)
+      const rawX = e.clientX - rect.left - offsetRef.current.x
+      const rawY = e.clientY - rect.top - offsetRef.current.y
+      const { width: workspaceWidth, height: workspaceHeight } = getWorkspaceBounds()
+      if (workspaceWidth === 0 || workspaceHeight === 0) {
+        return
+      }
+      const maxX = Math.max(0, workspaceWidth - w)
+      const maxY = Math.max(0, workspaceHeight - h)
+      const nextX = clamp(rawX, 0, maxX)
+      const nextY = clamp(rawY, 0, maxY)
+      onPositionChange(note.id, nextX, nextY)
     }
     const onUp = () => {
       setDragging(false)
       onDragEnd()
     }
     const onTouchMove = (e: TouchEvent) => {
+      if (resizing) {
+        return
+      }
       e.preventDefault()
       const touch = e.touches[0]
       if (!touch) {
@@ -107,9 +133,17 @@ export default function StickyNote({
       if (!rect) {
         return
       }
-      const x = touch.clientX - rect.left - offsetRef.current.x
-      const y = touch.clientY - rect.top - offsetRef.current.y
-      onPositionChange(note.id, x, y)
+      const rawX = touch.clientX - rect.left - offsetRef.current.x
+      const rawY = touch.clientY - rect.top - offsetRef.current.y
+      const { width: workspaceWidth, height: workspaceHeight } = getWorkspaceBounds()
+      if (workspaceWidth === 0 || workspaceHeight === 0) {
+        return
+      }
+      const maxX = Math.max(0, workspaceWidth - w)
+      const maxY = Math.max(0, workspaceHeight - h)
+      const nextX = clamp(rawX, 0, maxX)
+      const nextY = clamp(rawY, 0, maxY)
+      onPositionChange(note.id, nextX, nextY)
     }
     const onTouchEnd = () => {
       setDragging(false)
@@ -127,7 +161,7 @@ export default function StickyNote({
       window.removeEventListener('touchend', onTouchEnd)
       window.removeEventListener('touchcancel', onTouchEnd)
     }
-  }, [dragging, note.id, onPositionChange, onDragEnd])
+  }, [dragging, getWorkspaceBounds, h, note.id, onDragEnd, onPositionChange, resizing, w])
 
   const handleResizePointerDown = (e: React.PointerEvent) => {
     e.preventDefault()
@@ -172,18 +206,24 @@ export default function StickyNote({
     `memo-sticky-note__root bg-yellow-100 flex flex-col overflow-hidden ${isActive ? 'memo-sticky-note__root--active' : ''}` +
     (isDragging ? ' opacity-95' : '')
 
+  console.log('DOM zIndex', note.id, note.zIndex)
+
   return (
     <div
       className={rootClass}
-      onMouseDown={() => onActivate(note.id)}
-      onTouchStart={() => onActivate(note.id)}
+      onClick={(e) => {
+        if (e.target !== e.currentTarget) {
+          return
+        }
+        onRootClick(note.id)
+      }}
       style={{
         position: 'absolute',
         left: note.x,
         top: note.y,
         width: w,
         height: h,
-        zIndex: Number(note.zIndex) || 1,
+        zIndex: Number(note.zIndex) || 0,
         touchAction: 'manipulation',
       }}
     >
@@ -192,6 +232,7 @@ export default function StickyNote({
           type="button"
           className="memo-sticky-note__drag flex min-w-0 flex-1 items-center gap-1 rounded px-1 text-left text-amber-900/80 cursor-grab select-none active:cursor-grabbing touch-manipulation"
           aria-label="메모 위치 이동"
+          onClick={(e) => e.stopPropagation()}
           onMouseDown={handleDragHandleMouseDown}
           onTouchStart={handleDragHandleTouchStart}
         >
@@ -255,9 +296,9 @@ export default function StickyNote({
           onFocus={() => onTextareaFocus(note.id)}
           onBlur={() => onTextareaBlur()}
           onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           onTouchStart={(e) => {
             e.stopPropagation()
-            onTextareaFocus(note.id)
           }}
           placeholder="메모를 입력하세요"
           aria-label="메모 내용"
@@ -268,6 +309,7 @@ export default function StickyNote({
       <div
         role="presentation"
         className="memo-sticky-note__resize absolute bottom-0 right-0 z-10 flex h-10 w-10 min-h-[40px] min-w-[40px] cursor-nwse-resize touch-none select-none items-end justify-end p-1"
+        onClick={(e) => e.stopPropagation()}
         onPointerDown={handleResizePointerDown}
         onTouchStart={(e) => e.stopPropagation()}
       >
