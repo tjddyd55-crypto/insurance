@@ -1,9 +1,11 @@
+import { useRef } from 'react'
 import { Button } from '../../../components/ui/Button'
 import StickyNote from '../components/StickyNote'
 import { useNotes } from '../hooks/useNotes'
 
 export default function MemoWorkspacePage() {
-  const { notes, addNote, updateNote } = useNotes()
+  const { notes, addNote, updateNote, updatePosition } = useNotes()
+  const containerRef = useRef<HTMLDivElement>(null)
 
   return (
     <div className="p-4">
@@ -17,9 +19,18 @@ export default function MemoWorkspacePage() {
         </Button>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-4">
+      <div
+        ref={containerRef}
+        className="relative mt-6 min-h-[70vh] w-full rounded-md border border-dashed border-[var(--border-default)] bg-[var(--bg-card)]/30"
+      >
         {notes.map((note) => (
-          <StickyNote key={note.id} note={note} onChange={(content) => updateNote(note.id, content)} />
+          <StickyNote
+            key={note.id}
+            note={note}
+            onChange={(content) => updateNote(note.id, content)}
+            onPositionChange={updatePosition}
+            containerRef={containerRef}
+          />
         ))}
       </div>
     </div>
