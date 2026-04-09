@@ -20,6 +20,7 @@ export type MemoPanelProps = {
   isListOpen: boolean
   onToggleList: () => void
   onClosePanel: () => void
+  onMinimize: () => void
   selectedNoteId: string | null
   onSelectNoteFromList: (id: string) => void
 }
@@ -33,6 +34,7 @@ export default function MemoPanel({
   isListOpen,
   onToggleList,
   onClosePanel,
+  onMinimize,
   selectedNoteId,
   onSelectNoteFromList,
 }: MemoPanelProps) {
@@ -49,6 +51,9 @@ export default function MemoPanel({
         </button>
         <button type="button" className="memo-header-btn" onClick={onToggleList}>
           {isListOpen ? '리스트 닫기' : '리스트 열기'}
+        </button>
+        <button type="button" className="memo-header-btn" onClick={onMinimize}>
+          최소화
         </button>
       </div>
 

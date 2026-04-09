@@ -13,8 +13,8 @@ const MIN_H = 150
 const FONT_MIN = 12
 const FONT_MAX = 24
 
-/** 이 값을 넘으면 zIndex 폭주로 레이어 비교가 흔들릴 수 있어 전체 재번호 후 승격 */
-const Z_INDEX_RENORMALIZE_THRESHOLD = 10_000
+/** 승격 시 다음 z가 이 값을 넘으면 전체 재번호 후 맨 앞으로 (무한 증가 방지) */
+const MAX_Z = 10_000
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n))
@@ -189,22 +189,22 @@ export function useNotes() {
     (id: string) => {
       setNotes((prev) => {
         const zVal = (n: Note) => Number(n.zIndex) || 0
-
         const maxZ = Math.max(0, ...prev.map((n) => zVal(n)))
+        let nextZ = maxZ + 1
         const auth = token?.trim()
 
-        if (maxZ > Z_INDEX_RENORMALIZE_THRESHOLD) {
+        if (nextZ > MAX_Z) {
           const sorted = [...prev].sort(
             (a, b) =>
-              (Number(a.zIndex) || 0) - (Number(b.zIndex) || 0) ||
-              String(a.id).localeCompare(String(b.id)),
+              zVal(a) - zVal(b) || String(a.id).localeCompare(String(b.id)),
           )
-          const reset = sorted.map((n, i) => ({
+          const normalized = sorted.map((n, i) => ({
             ...n,
             zIndex: i + 1,
           }))
-          const next = reset.map((n) =>
-            n.id === id ? { ...n, zIndex: reset.length + 1 } : n,
+          nextZ = normalized.length + 1
+          const next = normalized.map((n) =>
+            n.id === id ? { ...n, zIndex: nextZ } : n,
           )
 
           if (auth) {
@@ -220,7 +220,6 @@ export function useNotes() {
           return next
         }
 
-        const nextZ = maxZ + 1
         if (auth) {
           void memoApi.update(id, { zIndex: nextZ }, auth).catch(() => {})
         }

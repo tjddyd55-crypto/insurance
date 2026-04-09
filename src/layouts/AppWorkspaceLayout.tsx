@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Outlet } from 'react-router-dom'
-import { MemoWorkspaceProvider } from '../features/memo/context/MemoWorkspaceContext'
+import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import MemoPanel from './MemoPanel'
-
-const PANEL_W_DEFAULT = 420
-const PANEL_W_MIN = 340
-const PANEL_W_MAX = 600
+import { MIN_LEFT_WIDTH, MIN_MEMO_WIDTH } from './memoWorkspaceLayoutConstants'
 
 /**
  * 인증 라우트 전역: PC에서는 좌측(앱) + 우측(메모 패널), 모바일(≤768px)에서는 Outlet만 렌더합니다.
@@ -14,7 +11,25 @@ const PANEL_W_MAX = 600
 export default function AppWorkspaceLayout() {
   const isMobile = useMediaQuery('(max-width: 768px)')
 
-  const [panelWidth, setPanelWidth] = useState(PANEL_W_DEFAULT)
+  if (isMobile) {
+    return (
+      <div className="app-main-content">
+        <Outlet />
+      </div>
+    )
+  }
+
+  return (
+    <MemoWorkspaceProvider>
+      <AppWorkspaceLayoutPc />
+    </MemoWorkspaceProvider>
+  )
+}
+
+function AppWorkspaceLayoutPc() {
+  const { isMinimized, setIsMinimized } = useMemoWorkspace()
+
+  const [memoRatio, setMemoRatio] = useState(0.4)
   const [isMemoOpen, setIsMemoOpen] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isListOpen, setIsListOpen] = useState(true)
@@ -23,14 +38,31 @@ export default function AppWorkspaceLayout() {
   const rootRef = useRef<HTMLDivElement>(null)
   const resizingRef = useRef(false)
 
+  const handleResize = useCallback((nextRatio: number) => {
+    const totalWidth = rootRef.current?.offsetWidth ?? 0
+    if (totalWidth <= 0) {
+      return
+    }
+    const t = Math.max(0, Math.min(1, nextRatio))
+    const rMin = MIN_MEMO_WIDTH / totalWidth
+    const rMax = 1 - MIN_LEFT_WIDTH / totalWidth
+    if (rMin > rMax) {
+      setMemoRatio((rMin + rMax) / 2)
+      return
+    }
+    const safeRatio = Math.min(rMax, Math.max(rMin, t))
+    setMemoRatio(safeRatio)
+  }, [])
+
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!resizingRef.current || !rootRef.current) {
         return
       }
       const rect = rootRef.current.getBoundingClientRect()
-      const fromRight = rect.right - e.clientX
-      setPanelWidth(Math.min(PANEL_W_MAX, Math.max(PANEL_W_MIN, fromRight)))
+      const x = e.clientX - rect.left
+      const ratio = (rect.width - x) / rect.width
+      handleResize(ratio)
     }
     const onUp = () => {
       resizingRef.current = false
@@ -41,7 +73,7 @@ export default function AppWorkspaceLayout() {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
-  }, [])
+  }, [handleResize])
 
   const onResizeMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -62,26 +94,38 @@ export default function AppWorkspaceLayout() {
     })
   }, [])
 
-  if (isMobile) {
-    return <Outlet />
-  }
+  const closeMemoPanel = useCallback(() => {
+    setIsMemoOpen(false)
+    setIsMinimized(false)
+  }, [setIsMinimized])
+
+  const minimizeMemoPanel = useCallback(() => {
+    setIsMinimized(true)
+    setIsFullscreen(false)
+  }, [setIsMinimized])
+
+  useEffect(() => {
+    if (isFullscreen) {
+      setIsMinimized(false)
+    }
+  }, [isFullscreen, setIsMinimized])
 
   let leftStyle: CSSProperties = { flex: 1, minWidth: 0 }
   let rightStyle: CSSProperties = {
-    width: panelWidth,
-    flex: `0 0 ${panelWidth}px`,
-    minWidth: 0,
+    flex: `0 0 ${memoRatio * 100}%`,
+    width: `${memoRatio * 100}%`,
+    minWidth: MIN_MEMO_WIDTH,
   }
 
   if (isFullscreen) {
     leftStyle = { display: 'none' }
     rightStyle = { flex: '1 1 100%', width: '100%', minWidth: 0 }
-  } else if (!isMemoOpen) {
+  } else if (!isMemoOpen || isMinimized) {
     leftStyle = { flex: '1 1 100%', width: '100%', minWidth: 0 }
     rightStyle = { display: 'none' }
   }
 
-  const showResize = isMemoOpen && !isFullscreen
+  const showResize = isMemoOpen && !isFullscreen && !isMinimized
 
   return (
     <div className="workspace-root workspace-root--app-pc" ref={rootRef}>
@@ -95,8 +139,20 @@ export default function AppWorkspaceLayout() {
         </button>
       ) : null}
 
+      {isMinimized && isMemoOpen ? (
+        <button
+          type="button"
+          className="memo-restore-btn"
+          onClick={() => setIsMinimized(false)}
+        >
+          메모 열기
+        </button>
+      ) : null}
+
       <div className="workspace-left workspace-left--app" style={leftStyle}>
-        <Outlet />
+        <div className="app-main-content">
+          <Outlet />
+        </div>
       </div>
 
       {showResize ? (
@@ -108,19 +164,20 @@ export default function AppWorkspaceLayout() {
         />
       ) : null}
 
-      <div className="workspace-right workspace-right--app-fixed" style={rightStyle}>
-        <MemoWorkspaceProvider>
+      {!isMinimized && isMemoOpen ? (
+        <div className="workspace-right workspace-right--app-fixed" style={rightStyle}>
           <MemoPanel
             isFullscreen={isFullscreen}
             onToggleFullscreen={onToggleFullscreen}
             isListOpen={isListOpen}
             onToggleList={() => setIsListOpen((v) => !v)}
-            onClosePanel={() => setIsMemoOpen(false)}
+            onClosePanel={closeMemoPanel}
+            onMinimize={minimizeMemoPanel}
             selectedNoteId={selectedNoteId}
             onSelectNoteFromList={onSelectNoteFromList}
           />
-        </MemoWorkspaceProvider>
-      </div>
+        </div>
+      ) : null}
     </div>
   )
 }

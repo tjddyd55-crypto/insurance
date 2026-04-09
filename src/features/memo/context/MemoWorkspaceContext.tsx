@@ -6,7 +6,9 @@ import {
   useMemo,
   useRef,
   useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
   type MouseEvent as ReactMouseEvent,
 } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
@@ -36,6 +38,8 @@ type MemoWorkspaceContextValue = ReturnType<typeof useNotes> & {
   handleAutoArrange: () => void
   closeDeleteModal: () => void
   confirmDelete: () => Promise<void>
+  isMinimized: boolean
+  setIsMinimized: Dispatch<SetStateAction<boolean>>
 }
 
 const MemoWorkspaceContext = createContext<MemoWorkspaceContextValue | null>(null)
@@ -63,6 +67,7 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
 
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(false)
 
   useEffect(() => {
     activeNoteIdRef.current = activeNoteId
@@ -278,6 +283,8 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
       handleAutoArrange,
       closeDeleteModal,
       confirmDelete,
+      isMinimized,
+      setIsMinimized,
     }),
     [
       notesApi,
@@ -302,6 +309,7 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
       handleAutoArrange,
       closeDeleteModal,
       confirmDelete,
+      isMinimized,
     ],
   )
 

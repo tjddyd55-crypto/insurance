@@ -17,6 +17,7 @@ export default function MemoList({ onAfterSelectNote }: Props) {
     editingNoteId,
     handleSidebarSelectNote,
     handleAutoArrange,
+    setIsMinimized,
   } = useMemoWorkspace()
 
   if (!token?.trim()) {
@@ -24,6 +25,7 @@ export default function MemoList({ onAfterSelectNote }: Props) {
   }
 
   const onSelect = (id: string) => {
+    setIsMinimized(false)
     handleSidebarSelectNote(id)
     onAfterSelectNote?.(id)
   }

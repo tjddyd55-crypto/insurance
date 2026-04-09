@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import MemoWorkspacePage from '../features/memo/pages/MemoWorkspacePage'
 import MemoList from '../features/memo/components/MemoList'
 import { useMediaQuery } from '../hooks/useMediaQuery'
-
-const MEMO_RATIO_MIN = 0.25
-const MEMO_RATIO_MAX = 0.75
+import { MIN_LEFT_WIDTH, MIN_MEMO_WIDTH } from './memoWorkspaceLayoutConstants'
 
 function MemoFab() {
   const { addNote, token } = useMemoWorkspace()
@@ -52,7 +50,9 @@ type MainWorkspaceLayoutProps = {
   children: ReactNode
 }
 
-export default function MainWorkspaceLayout({ children }: MainWorkspaceLayoutProps) {
+function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
+  const { isMinimized, setIsMinimized } = useMemoWorkspace()
+
   const [memoRatio, setMemoRatio] = useState(0.4)
   const [isMemoOpen, setIsMemoOpen] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -66,6 +66,22 @@ export default function MainWorkspaceLayout({ children }: MainWorkspaceLayoutPro
   const rootRef = useRef<HTMLDivElement>(null)
   const resizingRef = useRef(false)
 
+  const handleResize = useCallback((nextRatio: number) => {
+    const totalWidth = rootRef.current?.offsetWidth ?? 0
+    if (totalWidth <= 0) {
+      return
+    }
+    const t = Math.max(0, Math.min(1, nextRatio))
+    const rMin = MIN_MEMO_WIDTH / totalWidth
+    const rMax = 1 - MIN_LEFT_WIDTH / totalWidth
+    if (rMin > rMax) {
+      setMemoRatio((rMin + rMax) / 2)
+      return
+    }
+    const safeRatio = Math.min(rMax, Math.max(rMin, t))
+    setMemoRatio(safeRatio)
+  }, [])
+
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!resizingRef.current || !rootRef.current) {
@@ -74,7 +90,7 @@ export default function MainWorkspaceLayout({ children }: MainWorkspaceLayoutPro
       const rect = rootRef.current.getBoundingClientRect()
       const x = e.clientX - rect.left
       const ratio = (rect.width - x) / rect.width
-      setMemoRatio(Math.min(MEMO_RATIO_MAX, Math.max(MEMO_RATIO_MIN, ratio)))
+      handleResize(ratio)
     }
     const onUp = () => {
       resizingRef.current = false
@@ -85,22 +101,38 @@ export default function MainWorkspaceLayout({ children }: MainWorkspaceLayoutPro
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
-  }, [])
+  }, [handleResize])
 
   const onResizeMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     resizingRef.current = true
   }, [])
 
-  const showResize = isMemoOpen && !isFullscreen && !isNarrow
+  const closeMemoPanel = useCallback(() => {
+    setIsMemoOpen(false)
+    setIsMinimized(false)
+  }, [setIsMinimized])
 
-  let leftStyle: React.CSSProperties = { minWidth: 0 }
-  let rightStyle: React.CSSProperties = { minWidth: 0 }
+  const minimizeMemoPanel = useCallback(() => {
+    setIsMinimized(true)
+    setIsFullscreen(false)
+  }, [setIsMinimized])
+
+  useEffect(() => {
+    if (isFullscreen) {
+      setIsMinimized(false)
+    }
+  }, [isFullscreen, setIsMinimized])
+
+  const showResize = isMemoOpen && !isFullscreen && !isNarrow && !isMinimized
+
+  let leftStyle: CSSProperties = { minWidth: 0 }
+  let rightStyle: CSSProperties = { minWidth: 0 }
 
   if (isFullscreen) {
     leftStyle = { display: 'none' }
     rightStyle = { flex: '1 1 100%', width: '100%', minWidth: 0 }
-  } else if (!isMemoOpen) {
+  } else if (!isMemoOpen || isMinimized) {
     leftStyle = { flex: '1 1 100%', width: '100%', minWidth: 0 }
     rightStyle = { display: 'none' }
   } else if (isNarrow) {
@@ -126,7 +158,7 @@ export default function MainWorkspaceLayout({ children }: MainWorkspaceLayoutPro
     rightStyle = {
       flex: `0 0 ${memoRatio * 100}%`,
       width: `${memoRatio * 100}%`,
-      minWidth: 0,
+      minWidth: MIN_MEMO_WIDTH,
     }
   }
 
@@ -159,12 +191,18 @@ export default function MainWorkspaceLayout({ children }: MainWorkspaceLayoutPro
       ) : null}
 
       {!isMemoOpen ? (
+        <button type="button" className="workspace-memo-reopen" onClick={() => setIsMemoOpen(true)}>
+          메모 패널 열기
+        </button>
+      ) : null}
+
+      {isMinimized && isMemoOpen ? (
         <button
           type="button"
-          className="workspace-memo-reopen"
-          onClick={() => setIsMemoOpen(true)}
+          className="memo-restore-btn"
+          onClick={() => setIsMinimized(false)}
         >
-          메모 패널 열기
+          메모 열기
         </button>
       ) : null}
 
@@ -188,15 +226,11 @@ export default function MainWorkspaceLayout({ children }: MainWorkspaceLayoutPro
         />
       ) : null}
 
-      <div className="workspace-right" style={rightStyle}>
-        <MemoWorkspaceProvider>
+      {!isMinimized && isMemoOpen ? (
+        <div className="workspace-right" style={rightStyle}>
           <div className="memo-header">
-            <button
-              type="button"
-              className="memo-header-btn"
-              onClick={() => setIsMemoOpen((v) => !v)}
-            >
-              {isMemoOpen ? '메모 패널 닫기' : '메모 패널 열기'}
+            <button type="button" className="memo-header-btn" onClick={closeMemoPanel}>
+              메모 패널 닫기
             </button>
             <button
               type="button"
@@ -213,6 +247,9 @@ export default function MainWorkspaceLayout({ children }: MainWorkspaceLayoutPro
             >
               {isFullscreen ? '전체화면 끄기' : '메모 전체화면'}
             </button>
+            <button type="button" className="memo-header-btn" onClick={minimizeMemoPanel}>
+              최소화
+            </button>
             <button
               type="button"
               className="memo-header-btn"
@@ -228,8 +265,16 @@ export default function MainWorkspaceLayout({ children }: MainWorkspaceLayoutPro
             selectedNoteId={selectedNoteId}
             onSelectNoteFromList={onSelectNoteFromList}
           />
-        </MemoWorkspaceProvider>
-      </div>
+        </div>
+      ) : null}
     </div>
+  )
+}
+
+export default function MainWorkspaceLayout({ children }: MainWorkspaceLayoutProps) {
+  return (
+    <MemoWorkspaceProvider>
+      <MainWorkspaceLayoutInner>{children}</MainWorkspaceLayoutInner>
+    </MemoWorkspaceProvider>
   )
 }
