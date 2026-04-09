@@ -80,6 +80,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'link', label: '팀원 리스트', path: '/team/members' },
     { type: 'link', label: '팀 게시판', path: '/team/posts' },
     { type: 'link', label: '팀 자료', path: '/team/files' },
+    { type: 'link', label: '메모', path: '/memo' },
     {
       type: 'link',
       label: '기타 (개발중)',
