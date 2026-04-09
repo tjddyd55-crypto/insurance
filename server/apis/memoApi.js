@@ -1,4 +1,9 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
+import { parseGaId } from '../lib/parseGaId.js'
+
+const DEFAULT_WIDTH = 200
+const DEFAULT_HEIGHT = 160
+const DEFAULT_FONT_SIZE = 16
 
 /**
  * @param {import('pg').QueryResultRow} row
@@ -9,7 +14,34 @@ function mapMemoRow(row) {
     content: row.content ?? '',
     x: Number(row.x),
     y: Number(row.y),
+    width:
+      row.width != null && Number.isFinite(Number(row.width))
+        ? Math.round(Number(row.width))
+        : DEFAULT_WIDTH,
+    height:
+      row.height != null && Number.isFinite(Number(row.height))
+        ? Math.round(Number(row.height))
+        : DEFAULT_HEIGHT,
+    fontSize:
+      row.font_size != null && Number.isFinite(Number(row.font_size))
+        ? Math.round(Number(row.font_size))
+        : DEFAULT_FONT_SIZE,
   }
+}
+
+/**
+ * requireAuth 이후 req.gaId 설정됨. SUPER_ADMIN 등 GA 없으면 null.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @returns {number | null}
+ */
+function resolveTenantGaId(req, res) {
+  const gid = parseGaId(req.gaId ?? req.user?.gaId)
+  if (gid == null) {
+    res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+    return null
+  }
+  return gid
 }
 
 /**
@@ -29,15 +61,19 @@ export function registerMemoApi(apiRouter, ctx) {
         res.status(401).json({ message: '로그인이 필요합니다.' })
         return
       }
+      const gaId = resolveTenantGaId(req, res)
+      if (gaId == null) {
+        return
+      }
       const r = await safeQuery(
         pool,
         `
-        SELECT id, content, x, y, created_at, updated_at
+        SELECT id, content, x, y, width, height, font_size, created_at, updated_at
         FROM memo
-        WHERE user_id = $1
+        WHERE user_id = $1 AND ga_id = $2
         ORDER BY created_at DESC
         `,
-        [userId],
+        [userId, gaId],
       )
       res.json(r.rows.map(mapMemoRow))
     } catch (error) {
@@ -52,18 +88,34 @@ export function registerMemoApi(apiRouter, ctx) {
         res.status(401).json({ message: '로그인이 필요합니다.' })
         return
       }
-      const { content, x, y } = req.body ?? {}
+      const gaId = resolveTenantGaId(req, res)
+      if (gaId == null) {
+        return
+      }
+      const { content, x, y, width, height, fontSize } = req.body ?? {}
       const contentVal = typeof content === 'string' ? content : ''
       const xVal = Number.isFinite(Number(x)) ? Math.round(Number(x)) : 100
       const yVal = Number.isFinite(Number(y)) ? Math.round(Number(y)) : 100
+      const wVal =
+        width !== undefined && width !== null && Number.isFinite(Number(width))
+          ? Math.round(Number(width))
+          : DEFAULT_WIDTH
+      const hVal =
+        height !== undefined && height !== null && Number.isFinite(Number(height))
+          ? Math.round(Number(height))
+          : DEFAULT_HEIGHT
+      const fVal =
+        fontSize !== undefined && fontSize !== null && Number.isFinite(Number(fontSize))
+          ? Math.round(Number(fontSize))
+          : DEFAULT_FONT_SIZE
       const r = await safeQuery(
         pool,
         `
-        INSERT INTO memo (user_id, content, x, y)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, content, x, y
+        INSERT INTO memo (user_id, ga_id, content, x, y, width, height, font_size)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id, content, x, y, width, height, font_size
         `,
-        [userId, contentVal, xVal, yVal],
+        [userId, gaId, contentVal, xVal, yVal, wVal, hVal, fVal],
       )
       if (r.rowCount === 0) {
         res.status(500).json({ message: '메모를 생성하지 못했습니다.' })
@@ -82,6 +134,10 @@ export function registerMemoApi(apiRouter, ctx) {
         res.status(401).json({ message: '로그인이 필요합니다.' })
         return
       }
+      const gaId = resolveTenantGaId(req, res)
+      if (gaId == null) {
+        return
+      }
       const memoId = String(req.params.id ?? '').trim()
       if (!memoId) {
         res.status(400).json({ message: '메모 ID가 필요합니다.' })
@@ -89,15 +145,15 @@ export function registerMemoApi(apiRouter, ctx) {
       }
       const cur = await safeQuery(
         pool,
-        `SELECT id, content, x, y FROM memo WHERE id = $1::uuid AND user_id = $2`,
-        [memoId, userId],
+        `SELECT id, content, x, y, width, height, font_size FROM memo WHERE id = $1::uuid AND user_id = $2 AND ga_id = $3`,
+        [memoId, userId, gaId],
       )
       if (cur.rowCount === 0) {
         res.status(404).json({ message: '메모를 찾을 수 없습니다.' })
         return
       }
       const row = cur.rows[0]
-      const { content, x, y } = req.body ?? {}
+      const { content, x, y, width, height, fontSize } = req.body ?? {}
       const nextContent =
         content !== undefined && content !== null ? String(content) : String(row.content ?? '')
       const nextX =
@@ -108,15 +164,33 @@ export function registerMemoApi(apiRouter, ctx) {
         y !== undefined && y !== null && Number.isFinite(Number(y))
           ? Math.round(Number(y))
           : Number(row.y)
+      const nextWidth =
+        width !== undefined && width !== null && Number.isFinite(Number(width))
+          ? Math.round(Number(width))
+          : row.width != null
+            ? Math.round(Number(row.width))
+            : DEFAULT_WIDTH
+      const nextHeight =
+        height !== undefined && height !== null && Number.isFinite(Number(height))
+          ? Math.round(Number(height))
+          : row.height != null
+            ? Math.round(Number(row.height))
+            : DEFAULT_HEIGHT
+      const nextFontSize =
+        fontSize !== undefined && fontSize !== null && Number.isFinite(Number(fontSize))
+          ? Math.round(Number(fontSize))
+          : row.font_size != null
+            ? Math.round(Number(row.font_size))
+            : DEFAULT_FONT_SIZE
       const up = await safeQuery(
         pool,
         `
         UPDATE memo
-        SET content = $1, x = $2, y = $3, updated_at = NOW()
-        WHERE id = $4::uuid AND user_id = $5
-        RETURNING id, content, x, y
+        SET content = $1, x = $2, y = $3, width = $4, height = $5, font_size = $6, updated_at = NOW()
+        WHERE id = $7::uuid AND user_id = $8 AND ga_id = $9
+        RETURNING id, content, x, y, width, height, font_size
         `,
-        [nextContent, nextX, nextY, memoId, userId],
+        [nextContent, nextX, nextY, nextWidth, nextHeight, nextFontSize, memoId, userId, gaId],
       )
       if (up.rowCount === 0) {
         res.status(404).json({ message: '메모를 찾을 수 없습니다.' })
@@ -135,15 +209,20 @@ export function registerMemoApi(apiRouter, ctx) {
         res.status(401).json({ message: '로그인이 필요합니다.' })
         return
       }
+      const gaId = resolveTenantGaId(req, res)
+      if (gaId == null) {
+        return
+      }
       const memoId = String(req.params.id ?? '').trim()
       if (!memoId) {
         res.status(400).json({ message: '메모 ID가 필요합니다.' })
         return
       }
-      const r = await safeQuery(pool, `DELETE FROM memo WHERE id = $1::uuid AND user_id = $2`, [
-        memoId,
-        userId,
-      ])
+      const r = await safeQuery(
+        pool,
+        `DELETE FROM memo WHERE id = $1::uuid AND user_id = $2 AND ga_id = $3`,
+        [memoId, userId, gaId],
+      )
       if (r.rowCount === 0) {
         res.status(404).json({ message: '메모를 찾을 수 없습니다.' })
         return

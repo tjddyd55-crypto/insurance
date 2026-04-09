@@ -20,6 +20,8 @@ button {
 }
 
 body {
+  position: relative;
+  z-index: 0;
   margin: 0;
   min-width: 320px;
   background: var(--bg-main);
@@ -32,6 +34,8 @@ body {
 }
 
 #root {
+  position: relative;
+  z-index: 0;
   min-height: 100vh;
   min-height: 100dvh;
   background: var(--bg-main);
@@ -4156,4 +4160,131 @@ a.contacts-public-auth__link {
 .customer-files-page .file-card .actions button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ——— 메모 워크스페이스 UX ——— */
+.memo-workspace__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: min(48vh, 360px);
+  padding: 2rem;
+  text-align: center;
+  gap: 0.5rem;
+}
+
+.memo-workspace__loading {
+  min-height: min(48vh, 360px);
+}
+
+/* ——— 메모 삭제 확인 (body Portal, 최상단 z-index) ——— */
+.memo-delete-modal__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999 !important;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 1rem;
+}
+
+.memo-delete-modal__panel {
+  width: 90%;
+  max-width: 28rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  padding: 1rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  outline: none;
+}
+
+/* ——— Sticky 메모 레이아웃 / 상태 분리 (행간·높이·outline은 여기서 통일) ——— */
+.memo-sticky-note__root {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0.25rem;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--border-default) 55%, transparent);
+  transition: box-shadow 0.15s ease;
+}
+
+[data-theme='dark'] .memo-sticky-note__root {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.memo-sticky-note__root--active {
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.15),
+    0 8px 10px -6px rgba(0, 0, 0, 0.12);
+}
+
+.memo-sticky-note__root:hover:not(.memo-sticky-note__root--active) {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.memo-sticky-note__header {
+  height: 32px;
+  min-height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px;
+  box-sizing: border-box;
+}
+
+.memo-sticky-note__header button {
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
+  font-size: 12px;
+  padding: 0 6px;
+  box-sizing: border-box;
+}
+
+.memo-sticky-note__content {
+  position: relative;
+  height: calc(100% - 32px);
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+
+textarea.memo-sticky-note__textarea {
+  display: block;
+  vertical-align: top;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  resize: none;
+  box-sizing: border-box;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border-default) 40%, transparent);
+  padding: 6px 8px;
+  font-size: var(--memo-font-size, 16px);
+  line-height: 1.4;
+  color: #111;
+  outline: none;
+}
+
+textarea.memo-sticky-note__textarea::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.memo-sticky-note__textarea:focus:not(.memo-sticky-note__textarea--editing) {
+  outline: none;
+}
+
+.memo-sticky-note__textarea--editing {
+  outline: 2px solid #3b82f6;
+  outline-offset: 0;
 }

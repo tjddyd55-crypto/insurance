@@ -7,7 +7,14 @@ export const memoApi = {
   },
 
   async create(
-    body: { content?: string; x?: number; y?: number },
+    body: {
+      content?: string
+      x?: number
+      y?: number
+      width?: number
+      height?: number
+      fontSize?: number
+    },
     token: string | null,
   ) {
     return apiRequest<Note>('/api/memo', {
@@ -19,7 +26,7 @@ export const memoApi = {
 
   async update(
     id: string,
-    body: Partial<Pick<Note, 'content' | 'x' | 'y'>>,
+    body: Partial<Pick<Note, 'content' | 'x' | 'y' | 'width' | 'height' | 'fontSize'>>,
     token: string | null,
   ) {
     return apiRequest<Note>(`/api/memo/${encodeURIComponent(id)}`, {
