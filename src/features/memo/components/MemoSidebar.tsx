@@ -8,6 +8,8 @@ type Props = {
   onToggle: () => void
   onSelectNote: (id: string) => void
   onAutoArrange: () => void
+  /** false면 헤더 접기(◀) 버튼 숨김 — 외부 레이아웃에서 목록 토글을 쓸 때 */
+  showToggle?: boolean
 }
 
 export default function MemoSidebar({
@@ -18,6 +20,7 @@ export default function MemoSidebar({
   onToggle,
   onSelectNote,
   onAutoArrange,
+  showToggle = true,
 }: Props) {
   return (
     <div className="memo-sidebar__inner">
@@ -29,9 +32,11 @@ export default function MemoSidebar({
               정리하기
             </button>
           ) : null}
-          <button type="button" className="memo-sidebar__toggle" onClick={onToggle}>
-            {isOpen ? '◀' : '▶'}
-          </button>
+          {showToggle ? (
+            <button type="button" className="memo-sidebar__toggle" onClick={onToggle}>
+              {isOpen ? '◀' : '▶'}
+            </button>
+          ) : null}
         </div>
       </div>
 

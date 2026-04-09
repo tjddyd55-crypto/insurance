@@ -206,8 +206,6 @@ export default function StickyNote({
     `memo-sticky-note__root bg-yellow-100 flex flex-col overflow-hidden ${isActive ? 'memo-sticky-note__root--active' : ''}` +
     (isDragging ? ' opacity-95' : '')
 
-  console.log('DOM zIndex', note.id, note.zIndex)
-
   return (
     <div
       className={rootClass}

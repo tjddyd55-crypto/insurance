@@ -56,7 +56,8 @@ import { NewsletterRecentPage } from './features/insurer-news/pages/NewsletterRe
 import { InsurerManagerNewsDetailPage } from './features/insurer-news/pages/InsurerManagerNewsDetailPage'
 import { InsurerManagerNewsListPage } from './features/insurer-news/pages/InsurerManagerNewsListPage'
 import { InsurerManagerNewsUploadPage } from './features/insurer-news/pages/InsurerManagerNewsUploadPage'
-import MemoWorkspacePage from './features/memo/pages/MemoWorkspacePage'
+import MemoRoutePage from './features/memo/pages/MemoRoutePage'
+import AppWorkspaceLayout from './layouts/AppWorkspaceLayout'
 
 export const appRouter = createBrowserRouter([
   {
@@ -78,6 +79,9 @@ export const appRouter = createBrowserRouter([
       {
         element: <ProtectedRoute />,
         children: [
+          {
+            element: <AppWorkspaceLayout />,
+            children: [
           { path: 'dashboard', element: <DashboardPage /> },
           { path: 'contacts/manage', element: <Navigate to="/insurance/company-registry" replace /> },
           { path: 'updates', element: <Navigate to="/insurance/history" replace /> },
@@ -128,7 +132,7 @@ export const appRouter = createBrowserRouter([
               { path: 'team/admin', element: <Navigate to="/team/members" replace /> },
               { path: 'team/posts', element: <TeamPostsPage /> },
               { path: 'team/files', element: <TeamFilesPage /> },
-              { path: 'memo', element: <MemoWorkspacePage /> },
+              { path: 'memo', element: <MemoRoutePage /> },
               { path: 'insurer-managers', element: <InsurerManagersPage /> },
               { path: 'customer-car', element: <CustomerCarPage /> },
               { path: 'admin/ga', element: <GaManagementPage /> },
@@ -173,6 +177,8 @@ export const appRouter = createBrowserRouter([
             ],
           },
           { path: '*', element: <Navigate to="/dashboard" replace /> },
+            ],
+          },
         ],
       },
     ],

@@ -58,13 +58,6 @@ export function useNotes() {
             ...r,
             zIndex: Number(r.zIndex) || 0,
           }))
-          console.log(
-            'API RAW zIndex',
-            apiData.map((n) => ({
-              id: n.id,
-              zIndex: n.zIndex,
-            })),
-          )
           setNotes(apiData)
         }
       })
