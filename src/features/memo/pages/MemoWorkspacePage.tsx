@@ -32,8 +32,8 @@ export default function MemoWorkspacePage() {
     handleCanvasClick,
     closeDeleteModal,
     confirmDelete,
-    collapsedNotes,
-    toggleNoteCollapse,
+    hiddenNotes,
+    minimizeNote,
   } = useMemoWorkspace()
 
   if (!token?.trim()) {
@@ -44,6 +44,8 @@ export default function MemoWorkspacePage() {
       </div>
     )
   }
+
+  const visibleNotes = notes.filter((n) => !hiddenNotes[n.id])
 
   return (
     <>
@@ -69,8 +71,15 @@ export default function MemoWorkspacePage() {
                   우측 하단 + 버튼으로 첫 메모를 만들어보세요
                 </p>
               </div>
+            ) : visibleNotes.length === 0 ? (
+              <div className="memo-workspace__empty">
+                <p className="text-base font-medium text-[var(--text-primary)]">캔버스에 표시된 메모가 없습니다</p>
+                <p className="text-sm text-[var(--text-muted)]">
+                  우측 목록에서 메모를 선택하면 다시 표시됩니다.
+                </p>
+              </div>
             ) : (
-              notes.map((note) => (
+              visibleNotes.map((note) => (
                 <StickyNote
                   key={note.id}
                   note={note}
@@ -90,8 +99,7 @@ export default function MemoWorkspacePage() {
                   onTextareaBlur={handleTextareaBlur}
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
-                  isCollapsed={Boolean(collapsedNotes[note.id])}
-                  onToggleCollapse={toggleNoteCollapse}
+                  onMinimize={minimizeNote}
                 />
               ))
             )}

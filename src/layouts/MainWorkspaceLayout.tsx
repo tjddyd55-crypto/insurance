@@ -48,7 +48,7 @@ function MemoPanelBody({
         ) : null}
         {!showList ? (
           <button type="button" className="memo-list-open-btn" onClick={onOpenList} aria-label="메모 목록 열기">
-            ›
+            &lt;
           </button>
         ) : null}
       </div>
@@ -261,14 +261,11 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
             <button type="button" className="memo-header-btn" onClick={minimizeMemoPanel}>
               최소화
             </button>
-            <button
-              type="button"
-              className="memo-header-btn"
-              onClick={() => setIsListOpen((v) => !v)}
-              disabled={!isMemoOpen && !isFullscreen}
-            >
-              {isListOpen ? '리스트 닫기' : '리스트 열기'}
-            </button>
+            {isListOpen ? (
+              <button type="button" className="memo-header-btn" onClick={() => setIsListOpen(false)}>
+                리스트 접기
+              </button>
+            ) : null}
           </div>
           <MemoPanelBody
             showList={listVisible}

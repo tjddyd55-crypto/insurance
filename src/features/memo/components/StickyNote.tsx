@@ -31,12 +31,9 @@ type Props = {
   onTextareaBlur: () => void
   onDragStart: (id: string) => void
   onDragEnd: () => void
-  /** 접힘 시 헤더만 표시(프론트 상태) */
-  isCollapsed?: boolean
-  onToggleCollapse?: (id: string) => void
+  /** 캔버스에서 숨김(상위에서 렌더 생략과 별개로 버튼만 제공할 때) */
+  onMinimize?: (id: string) => void
 }
-
-const COLLAPSED_HEIGHT_PX = 44
 
 export default function StickyNote({
   note,
@@ -56,8 +53,7 @@ export default function StickyNote({
   onTextareaBlur,
   onDragStart,
   onDragEnd,
-  isCollapsed = false,
-  onToggleCollapse,
+  onMinimize,
 }: Props) {
   const [dragging, setDragging] = useState(false)
   const [resizing, setResizing] = useState(false)
@@ -66,7 +62,6 @@ export default function StickyNote({
 
   const w = Math.max(MIN_W, Number(note.width) || 200)
   const h = Math.max(MIN_H, Number(note.height) || 160)
-  const effH = isCollapsed ? COLLAPSED_HEIGHT_PX : h
   const fs = Math.min(FONT_MAX, Math.max(FONT_MIN, Math.round(Number(note.fontSize) || 16)))
 
   const handleDragStart = (clientX: number, clientY: number) => {
@@ -119,7 +114,7 @@ export default function StickyNote({
         return
       }
       const maxX = Math.max(0, workspaceWidth - w)
-      const maxY = Math.max(0, workspaceHeight - effH)
+      const maxY = Math.max(0, workspaceHeight - h)
       const nextX = clamp(rawX, 0, maxX)
       const nextY = clamp(rawY, 0, maxY)
       onPositionChange(note.id, nextX, nextY)
@@ -148,7 +143,7 @@ export default function StickyNote({
         return
       }
       const maxX = Math.max(0, workspaceWidth - w)
-      const maxY = Math.max(0, workspaceHeight - effH)
+      const maxY = Math.max(0, workspaceHeight - h)
       const nextX = clamp(rawX, 0, maxX)
       const nextY = clamp(rawY, 0, maxY)
       onPositionChange(note.id, nextX, nextY)
@@ -169,7 +164,7 @@ export default function StickyNote({
       window.removeEventListener('touchend', onTouchEnd)
       window.removeEventListener('touchcancel', onTouchEnd)
     }
-  }, [dragging, effH, getWorkspaceBounds, note.id, onDragEnd, onPositionChange, resizing, w])
+  }, [dragging, getWorkspaceBounds, h, note.id, onDragEnd, onPositionChange, resizing, w])
 
   const handleResizePointerDown = (e: React.PointerEvent) => {
     e.preventDefault()
@@ -228,7 +223,7 @@ export default function StickyNote({
         left: note.x,
         top: note.y,
         width: w,
-        height: effH,
+        height: h,
         zIndex: Number(note.zIndex) || 0,
         touchAction: 'manipulation',
       }}
@@ -246,19 +241,19 @@ export default function StickyNote({
           <span className="truncate">이동</span>
         </button>
         <div className="flex shrink-0 items-center gap-1">
-          {onToggleCollapse ? (
+          {onMinimize ? (
             <button
               type="button"
-              className="memo-sticky-note__collapse-btn inline-flex min-w-[28px] items-center justify-center rounded border border-amber-400/80 bg-yellow-50/90 font-semibold text-amber-900 touch-manipulation"
-              aria-label={isCollapsed ? '메모 펼치기' : '메모 접기'}
+              className="memo-sticky-note__minimize-btn inline-flex min-w-[28px] items-center justify-center rounded border border-amber-400/80 bg-yellow-50/90 font-semibold text-amber-900 touch-manipulation"
+              aria-label="메모 숨기기"
               onTouchStart={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation()
-                onToggleCollapse(note.id)
+                onMinimize(note.id)
               }}
             >
-              _
+              -
             </button>
           ) : null}
           <button
@@ -302,47 +297,43 @@ export default function StickyNote({
           ✕
         </button>
       </div>
-      {!isCollapsed ? (
-        <div className="memo-sticky-note__content">
-          <textarea
-            className={`memo-sticky-note__textarea touch-manipulation ${
-              isEditing ? 'memo-sticky-note__textarea--editing' : ''
-            }`}
-            style={
-              {
-                '--memo-font-size': `${fs}px`,
-              } as CSSProperties
-            }
-            value={note.content}
-            onChange={(e) => onChange(e.target.value)}
-            onFocus={() => onTextareaFocus(note.id)}
-            onBlur={() => onTextareaBlur()}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => {
-              e.stopPropagation()
-            }}
-            placeholder="메모를 입력하세요"
-            aria-label="메모 내용"
-            inputMode="text"
-            autoComplete="off"
-          />
-        </div>
-      ) : null}
-      {!isCollapsed ? (
-        <div
-          role="presentation"
-          className="memo-sticky-note__resize absolute bottom-0 right-0 z-10 flex h-10 w-10 min-h-[40px] min-w-[40px] cursor-nwse-resize touch-none select-none items-end justify-end p-1"
+      <div className="memo-sticky-note__content">
+        <textarea
+          className={`memo-sticky-note__textarea touch-manipulation ${
+            isEditing ? 'memo-sticky-note__textarea--editing' : ''
+          }`}
+          style={
+            {
+              '--memo-font-size': `${fs}px`,
+            } as CSSProperties
+          }
+          value={note.content}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => onTextareaFocus(note.id)}
+          onBlur={() => onTextareaBlur()}
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
-          onPointerDown={handleResizePointerDown}
-          onTouchStart={(e) => e.stopPropagation()}
-        >
-          <span
-            className="pointer-events-none inline-block h-3 w-3 border-b-2 border-r-2 border-amber-700/70"
-            aria-hidden
-          />
-        </div>
-      ) : null}
+          onTouchStart={(e) => {
+            e.stopPropagation()
+          }}
+          placeholder="메모를 입력하세요"
+          aria-label="메모 내용"
+          inputMode="text"
+          autoComplete="off"
+        />
+      </div>
+      <div
+        role="presentation"
+        className="memo-sticky-note__resize absolute bottom-0 right-0 z-10 flex h-10 w-10 min-h-[40px] min-w-[40px] cursor-nwse-resize touch-none select-none items-end justify-end p-1"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={handleResizePointerDown}
+        onTouchStart={(e) => e.stopPropagation()}
+      >
+        <span
+          className="pointer-events-none inline-block h-3 w-3 border-b-2 border-r-2 border-amber-700/70"
+          aria-hidden
+        />
+      </div>
     </div>
   )
 }

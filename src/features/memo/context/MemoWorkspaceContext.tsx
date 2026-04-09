@@ -40,9 +40,10 @@ type MemoWorkspaceContextValue = ReturnType<typeof useNotes> & {
   confirmDelete: () => Promise<void>
   isMinimized: boolean
   setIsMinimized: Dispatch<SetStateAction<boolean>>
-  /** 메모별 접힘(프론트 전용, DB 미사용) */
-  collapsedNotes: Record<string, boolean>
-  toggleNoteCollapse: (id: string) => void
+  /** 캔버스에서 숨김(프론트 전용, DB 미사용) — 리스트에서 복구 */
+  hiddenNotes: Record<string, boolean>
+  minimizeNote: (id: string) => void
+  restoreNote: (id: string) => void
 }
 
 const MemoWorkspaceContext = createContext<MemoWorkspaceContextValue | null>(null)
@@ -71,13 +72,21 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
-  const [collapsedNotes, setCollapsedNotes] = useState<Record<string, boolean>>({})
+  const [hiddenNotes, setHiddenNotes] = useState<Record<string, boolean>>({})
 
-  const toggleNoteCollapse = useCallback((id: string) => {
-    setCollapsedNotes((prev) => ({
+  const minimizeNote = useCallback((id: string) => {
+    setHiddenNotes((prev) => ({
       ...prev,
-      [id]: !prev[id],
+      [id]: true,
     }))
+  }, [])
+
+  const restoreNote = useCallback((id: string) => {
+    setHiddenNotes((prev) => {
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
   }, [])
 
   useEffect(() => {
@@ -96,16 +105,17 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const canvasHeight = useMemo(() => {
-    if (notes.length === 0) {
+    const visible = notes.filter((n) => !hiddenNotes[n.id])
+    if (visible.length === 0) {
       return undefined
     }
-    const bottoms = notes.map((n) => {
+    const bottoms = visible.map((n) => {
       const h = Math.max(150, Number(n.height) || 160)
       return n.y + h
     })
     const maxY = Math.max(...bottoms)
     return maxY + 100
-  }, [notes])
+  }, [notes, hiddenNotes])
 
   useEffect(() => {
     if (notes.length === 0 || draggingNoteId != null) {
@@ -256,7 +266,7 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
     try {
       const id = pendingDeleteId
       await deleteNote(id)
-      setCollapsedNotes((prev) => {
+      setHiddenNotes((prev) => {
         if (!(id in prev)) {
           return prev
         }
@@ -305,8 +315,9 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
       confirmDelete,
       isMinimized,
       setIsMinimized,
-      collapsedNotes,
-      toggleNoteCollapse,
+      hiddenNotes,
+      minimizeNote,
+      restoreNote,
     }),
     [
       notesApi,
@@ -332,8 +343,9 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
       closeDeleteModal,
       confirmDelete,
       isMinimized,
-      collapsedNotes,
-      toggleNoteCollapse,
+      hiddenNotes,
+      minimizeNote,
+      restoreNote,
     ],
   )
 

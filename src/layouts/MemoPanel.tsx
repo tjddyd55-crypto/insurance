@@ -51,9 +51,11 @@ export default function MemoPanel({
         <button type="button" className="memo-header-btn" onClick={onToggleFullscreen}>
           {isFullscreen ? '전체화면 끄기' : '메모 전체화면'}
         </button>
-        <button type="button" className="memo-header-btn" onClick={onToggleList}>
-          {isListOpen ? '리스트 닫기' : '리스트 열기'}
-        </button>
+        {isListOpen ? (
+          <button type="button" className="memo-header-btn" onClick={onToggleList}>
+            리스트 접기
+          </button>
+        ) : null}
         <button type="button" className="memo-header-btn" onClick={onMinimize}>
           최소화
         </button>
@@ -74,7 +76,7 @@ export default function MemoPanel({
           ) : null}
           {!listVisible ? (
             <button type="button" className="memo-list-open-btn" onClick={onOpenList} aria-label="메모 목록 열기">
-              ›
+              &lt;
             </button>
           ) : null}
         </div>
