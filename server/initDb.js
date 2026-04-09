@@ -1630,6 +1630,21 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_analytics_daily_stat_date
     ON analytics_daily_stats(stat_date)
   `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS memo (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id TEXT NOT NULL,
+      content TEXT DEFAULT '',
+      x INTEGER DEFAULT 100,
+      y INTEGER DEFAULT 100,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_memo_user_id ON memo (user_id)
+  `)
 }
 
 async function seedConsentTemplatesIfNeeded() {
