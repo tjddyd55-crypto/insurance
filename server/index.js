@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs'
+import cors from 'cors'
 import express from 'express'
 import jwt from 'jsonwebtoken'
 import { randomUUID } from 'node:crypto'
