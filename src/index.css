@@ -44,6 +44,117 @@ body {
   background: var(--bg-main);
 }
 
+
+/* Electron frameless window — drag region + custom controls */
+.electron-title-bar.title-bar {
+  -webkit-app-region: drag;
+  app-region: drag;
+  position: sticky;
+  top: 0;
+  z-index: 9999;
+  height: 40px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 10px 0 max(10px, env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
+  flex-shrink: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 98%, transparent);
+  color: var(--text-main);
+  user-select: none;
+}
+
+
+.electron-title-bar__back {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-main) 90%, transparent);
+  color: var(--text-main);
+}
+
+.electron-title-bar__back:hover {
+  background: var(--bg-soft);
+}
+
+.electron-title-bar__back:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 45%, transparent);
+}
+
+.electron-title-bar__drag {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.electron-title-bar__app-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.electron-title-bar .window-controls {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.electron-title-bar__control {
+  margin: 0;
+  width: 36px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-main) 90%, transparent);
+  color: var(--text-main);
+}
+
+.electron-title-bar__control:hover {
+  background: var(--bg-soft);
+}
+
+.electron-title-bar__control:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 45%, transparent);
+}
+
+.electron-title-bar__control--close:hover {
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+}
+
+html.electron-app body,
+html.electron-app .app-main-content,
+html.electron-app #root {
+  padding-top: 0 !important;
+}
+
 /* 상태·테이블 유틸 (토큰 전용) */
 .badge-success {
   background: color-mix(in srgb, var(--success) 20%, transparent);
@@ -440,6 +551,38 @@ button:focus-visible:not(:disabled) {
 
 .page-back-btn:active {
   opacity: 0.85;
+}
+
+.customer-register-back-btn {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  font-size: 14px;
+  line-height: 1.2;
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  color: var(--text-main);
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-card) 30%, transparent);
+}
+
+.customer-register-back-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--shadow-card) 30%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--brand-primary) 40%, transparent);
+}
+
+.customer-register-back-btn:active {
+  opacity: 0.88;
+}
+
+.customer-register-back-btn--inline {
+  margin-bottom: 0;
+  flex-shrink: 0;
 }
 
 .page--with-back .page-header {

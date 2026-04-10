@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
+import { PublicPageBackButton } from '../../../components/PublicPageBackButton'
 import { resolveApiUrl } from '../../../lib/apiClient'
 import {
   createEmptyCustomerForm,
@@ -109,8 +110,17 @@ export default function CustomerInputPage() {
   if (!refParam) {
     return (
       <main className="page page--with-back">
-        <header className="page-header">
-          <h1>고객 정보 입력</h1>
+        <header
+          className={isRegisterPath ? 'page-header page-header--has-inline-back' : 'page-header'}
+        >
+          {isRegisterPath ? (
+            <div className="page-header__title-row">
+              <PublicPageBackButton className="customer-register-back-btn customer-register-back-btn--inline" />
+              <h1>고객 정보 입력</h1>
+            </div>
+          ) : (
+            <h1>고객 정보 입력</h1>
+          )}
           <p>유효한 링크로 접속해 주세요.</p>
         </header>
       </main>
@@ -120,8 +130,11 @@ export default function CustomerInputPage() {
   if (isRegisterPath && !inviteGaCode) {
     return (
       <main className="page page--with-back">
-        <header className="page-header">
-          <h1>고객 정보 입력</h1>
+        <header className="page-header page-header--has-inline-back">
+          <div className="page-header__title-row">
+            <PublicPageBackButton className="customer-register-back-btn customer-register-back-btn--inline" />
+            <h1>고객 정보 입력</h1>
+          </div>
           <p>링크에 GA 코드(ga)가 없습니다. 담당자에게 링크를 다시 요청해 주세요.</p>
         </header>
       </main>
@@ -130,8 +143,13 @@ export default function CustomerInputPage() {
 
   return (
     <main className="page customers-page page--with-back">
-      <header className="page-header">
-        <h1>고객 정보 입력</h1>
+      <header className="page-header page-header--has-inline-back">
+        <div className="page-header__title-row">
+          {isRegisterPath ? (
+            <PublicPageBackButton className="customer-register-back-btn customer-register-back-btn--inline" />
+          ) : null}
+          <h1>고객 정보 입력</h1>
+        </div>
         {inviteGaCode ? (
           <p className="page-header-hint" style={{ marginTop: 6 }}>
             소속 GA 코드: <strong>{inviteGaCode}</strong>
@@ -183,3 +201,4 @@ export default function CustomerInputPage() {
     </main>
   )
 }
+
