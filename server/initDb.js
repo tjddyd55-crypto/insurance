@@ -1630,6 +1630,49 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_analytics_daily_stat_date
     ON analytics_daily_stats(stat_date)
   `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS memo (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id TEXT NOT NULL,
+      ga_id INTEGER REFERENCES ga_companies(id),
+      content TEXT DEFAULT '',
+      x INTEGER DEFAULT 100,
+      y INTEGER DEFAULT 100,
+      width INTEGER DEFAULT 200,
+      height INTEGER DEFAULT 160,
+      z_index BIGINT DEFAULT 0,
+      font_size INTEGER DEFAULT 16,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    ALTER TABLE memo
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+  await pool.query(`
+    ALTER TABLE memo
+    ADD COLUMN IF NOT EXISTS width INTEGER DEFAULT 200
+  `)
+  await pool.query(`
+    ALTER TABLE memo
+    ADD COLUMN IF NOT EXISTS height INTEGER DEFAULT 160
+  `)
+  await pool.query(`
+    ALTER TABLE memo
+    ADD COLUMN IF NOT EXISTS z_index BIGINT DEFAULT 0
+  `)
+  await pool.query(`
+    ALTER TABLE memo
+    ADD COLUMN IF NOT EXISTS font_size INTEGER DEFAULT 16
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_memo_user_id ON memo (user_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_memo_ga_id ON memo (ga_id)
+  `)
 }
 
 async function seedConsentTemplatesIfNeeded() {

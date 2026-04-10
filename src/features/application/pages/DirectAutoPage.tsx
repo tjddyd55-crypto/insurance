@@ -52,7 +52,7 @@ export function DirectAutoPage() {
         </p>
       </header>
 
-      <section className="w-full max-w-lg mx-auto space-y-5 px-1 pb-10">
+      <section className="w-full space-y-5 px-1 pb-10">
         <div className="rounded-xl border-2 border-[#14b8a6] bg-[var(--bg-elevated)] p-4 sm:p-5 space-y-5">
           <label className="block space-y-2">
             <span className="text-sm font-medium text-[var(--text-primary)]">가입조건</span>
