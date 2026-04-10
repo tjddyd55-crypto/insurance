@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
+import { getPublicOrigin } from '../../../lib/publicOrigin'
 import { useAuth } from '../../auth/AuthProvider'
 import { generateConsentPdf } from '../api/consentApi'
 import { ConsentForm } from '../components/ConsentForm'
@@ -13,7 +14,8 @@ function resolvePdfOpenUrl(pdfUrl: string): string {
     return pdfUrl
   }
   if (typeof window !== 'undefined') {
-    return new URL(pdfUrl, window.location.origin).href
+    const base = getPublicOrigin() || window.location.origin
+    return new URL(pdfUrl, base).href
   }
   return pdfUrl
 }

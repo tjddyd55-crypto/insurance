@@ -15,6 +15,7 @@ import {
 import { useBlocker, type BlockerFunction } from 'react-router'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
+import { getPublicOrigin } from '../../../lib/publicOrigin'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { formatKoreanDateTime } from '../../application/utils/date'
@@ -1805,7 +1806,12 @@ export default function CustomersPage() {
       window.alert('로그인 정보가 없습니다.')
       return
     }
-    const inviteUrl = `${window.location.origin}/customer/register?ref=${encodeURIComponent(refUsername)}&ga=${encodeURIComponent(gaCode)}`
+    const origin = getPublicOrigin()
+    if (!origin) {
+      window.alert('초대 링크를 만들 수 없습니다. VITE_BASE_URL 설정을 확인해 주세요.')
+      return
+    }
+    const inviteUrl = `${origin}/customer/register?ref=${encodeURIComponent(refUsername)}&ga=${encodeURIComponent(gaCode)}`
     const copied = await copyTextWithWebViewFallback(inviteUrl)
     if (copied) {
       alert('링크 복사 완료')
