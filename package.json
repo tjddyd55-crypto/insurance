@@ -10,7 +10,7 @@
     "dev:desktop": "concurrently \"npm run dev\" \"npm run electron\"",
     "build": "vite build",
     "build:web": "vite build",
-    "build:desktop": "npm run build:web && electron-builder",
+    "build:desktop": "npm run build:web -- --base ./ && electron-builder",
     "lint": "eslint .",
     "lint:lock": "node scripts/check-ui-lock.mjs",
     "preview": "node server/index.js",

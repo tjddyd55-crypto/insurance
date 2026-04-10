@@ -8,7 +8,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  // Web (Railway/Express): absolute /assets/... so deep routes like /customer/register work.
+  // Desktop packaged build: use `npm run build:web -- --base ./` (see build:desktop script).
+  base: '/',
   plugins: [react(), tailwindcss()],
   build: {
     outDir: 'dist',
