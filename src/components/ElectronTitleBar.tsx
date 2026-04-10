@@ -1,14 +1,22 @@
 /** Frameless Electron chrome; mounted from AppLayout so `useNavigate` works. */
 import { useLayoutEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../features/auth/AuthProvider'
+import { NotificationBell } from '../features/notification/components/NotificationBell'
+import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 
 const APP_TITLE = '\uBCF4\uD5D8 \uC2E0\uCCAD\u00B7\uACE0\uAC1D\uAD00\uB9AC'
 const BACK_LABEL = '\u2190 \uB4A4\uB85C\uAC00\uAE30'
 
 export function ElectronTitleBar() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { user, isAuthenticated } = useAuth()
   const api = typeof window !== 'undefined' ? window.electronAPI : undefined
   const active = Boolean(api?.minimize && api?.maximize && api?.close)
+
+  const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
+  const showGaUserActions = tenantChrome && user?.role !== 'INSURER_MANAGER'
 
   useLayoutEffect(() => {
     if (!active) {
@@ -35,16 +43,44 @@ export function ElectronTitleBar() {
 
   return (
     <header className="electron-title-bar title-bar" role="banner">
-      <button
-        type="button"
-        className="electron-title-bar__back"
-        aria-label={BACK_LABEL}
-        onClick={handleBack}
-      >
-        {BACK_LABEL}
-      </button>
+      <div className="electron-title-bar__leading">
+        <button
+          type="button"
+          className="electron-title-bar__back"
+          aria-label={BACK_LABEL}
+          onClick={handleBack}
+        >
+          {BACK_LABEL}
+        </button>
+        {showGaUserActions ? (
+          <div className="electron-title-bar__user-actions">
+            <NotificationBell />
+            {user?.role === 'USER' ? (
+              <button
+                type="button"
+                className="app-tenant-ga-bar__profile"
+                onClick={() => navigate('/profile')}
+              >
+                {'\uD504\uB85C\uD544'}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
       <div className="electron-title-bar__drag">
-        <span className="electron-title-bar__app-name">{APP_TITLE}</span>
+        <span className="electron-title-bar__app-name">
+          {tenantChrome ? (
+            <>
+              <span className="electron-title-bar__ga-name">
+                {formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')}
+              </span>
+              <span className="electron-title-bar__title-sep" aria-hidden>
+                {' · '}
+              </span>
+            </>
+          ) : null}
+          {APP_TITLE}
+        </span>
       </div>
       <div className="window-controls">
         <button

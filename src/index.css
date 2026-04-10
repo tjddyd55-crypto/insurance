@@ -228,6 +228,141 @@ button:focus-visible:not(:disabled) {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 35%, transparent);
 }
 
+/* ——— Electron frameless title bar ——— */
+.title-bar.electron-title-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  height: 40px;
+  min-height: 40px;
+  box-sizing: border-box;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.electron-title-bar__leading {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-left: 8px;
+  padding-right: 4px;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.electron-title-bar__user-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.electron-title-bar__back {
+  margin: 0;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-main);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.electron-title-bar__back:hover {
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+}
+
+.electron-title-bar__back:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 35%, transparent);
+}
+
+.electron-title-bar__drag {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  cursor: default;
+}
+
+.electron-title-bar__app-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-main);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.electron-title-bar__ga-name {
+  color: var(--text-sub);
+  font-weight: 500;
+}
+
+.electron-title-bar .window-controls {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  align-items: stretch;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.electron-title-bar__control {
+  margin: 0;
+  min-width: 44px;
+  padding: 0 10px;
+  border: none;
+  border-left: 1px solid var(--border);
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.electron-title-bar__control:hover {
+  background: color-mix(in srgb, var(--text-main) 8%, transparent);
+}
+
+.electron-title-bar__control:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--brand-primary) 40%, transparent);
+}
+
+.electron-title-bar__control--close:hover {
+  background: #e81123;
+  color: #fff;
+}
+
+/* Electron title bar: reset GA-bar profile absolute positioning for inline row. */
+.electron-title-bar .app-tenant-ga-bar__profile {
+  position: static;
+  transform: none;
+  top: auto;
+  right: auto;
+}
+
+.electron-title-bar .app-tenant-ga-bar__notification-trigger,
+.electron-title-bar .app-tenant-ga-bar__profile {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
 /* ——— 공통 확인 모달 ——— */
 @keyframes modal-fade-in {
   from {

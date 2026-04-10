@@ -6,36 +6,14 @@ import { useAuth } from './features/auth/AuthProvider'
 import { NotificationBell } from './features/notification/components/NotificationBell'
 import { isElectronApp } from './lib/isElectronApp'
 import { isCustomerCreateMode } from './navigation/backNavigationPolicy'
-
-function formatGaBannerLabel(gaName: string, gaCode: string): string {
-  const n = gaName.trim()
-  if (n) {
-    const compact = n.replace(/\s+/g, '')
-    if (/GA$/i.test(compact)) {
-      return n
-    }
-    return `${n} GA`
-  }
-  const c = gaCode.trim()
-  return c ? `${c} GA` : 'GA'
-}
+import { formatGaBannerLabel, shouldShowGaTenantChrome } from './navigation/gaTenantBarShared'
 
 export function AppLayout() {
   const { user, isAuthenticated } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
-  const hideBarPaths = new Set([
-    '/login',
-    '/register',
-    '/password-reset',
-    '/customer/input',
-    '/customer/register',
-  ])
-  const showGaBar =
-    Boolean(isAuthenticated && user?.gaId != null) &&
-    !hideBarPaths.has(location.pathname) &&
-    !isElectronApp()
+  const showGaBar = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname) && !isElectronApp()
 
   /** 고객 등록(?mode=create)은 CustomersPage ExitConfirmDialog만 사용 (네이티브·웹 이중 확인 방지) */
   const hideAppExitConfirm = isCustomerCreateMode(location.pathname, location.search ?? '')
