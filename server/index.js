@@ -5031,7 +5031,9 @@ if (fs.existsSync(DIST_PATH)) {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       return next()
     }
+
     const p = req.path ?? ''
+
     if (
       p === '/api' ||
       p.startsWith('/api/') ||
@@ -5040,11 +5042,16 @@ if (fs.existsSync(DIST_PATH)) {
     ) {
       return next()
     }
+
+    if (p.includes('.') || p.startsWith('/assets/')) {
+      return next()
+    }
+
     res.sendFile(path.join(DIST_PATH, 'index.html'))
   })
 } else if (RUNNING_IN_PRODUCTION) {
   console.error(
-    '[deploy] dist/ missing: run vite build before start. SPA deep links need dist + static fallback.',
+    '[deploy��가 없습니다. 배�드에 vite build(���는 npm run build)가 포함되는지 확인하세요.��� URL(/customer/...)은����이 필요합니다.',
   )
 }
 
