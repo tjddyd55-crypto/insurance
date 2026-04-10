@@ -26,7 +26,7 @@ interface RequestOptions extends RequestInit {
   token?: string | null
 }
 
-/** 원격 API 호스트(.env.production의 VITE_API_URL) 또는 Vite 프록시용 상대 경로 */
+/** API base: VITE_API_URL, then VITE_API_BASE_PATH, then /backend. Public links use VITE_BASE_URL via publicOrigin.ts — not here. */
 const API_BASE_PATH =
   (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ||
   (import.meta.env.VITE_API_BASE_PATH as string | undefined)?.replace(/\/$/, '') ||
