@@ -1,18 +1,9 @@
 import { app, BrowserWindow } from 'electron'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-const DEV_URL = 'http://localhost:3000'
-
-/** NODE_ENV 기준 + 패키지 여부(로�� electron . 시 NODE_ENV 미설정 대비) */
-function useDevServer() {
-  if (app.isPackaged) {
-    return false
-  }
-  return process.env.NODE_ENV !== 'production'
-}
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -30,24 +21,24 @@ function createWindow() {
     win.show()
   })
 
-  if (useDevServer()) {
-    void win.loadURL(DEV_URL)
+  if (app.isPackaged) {
+    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
   } else {
-    void win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+    win.loadURL('http://localhost:3000')
   }
 }
 
 app.whenReady().then(() => {
   createWindow()
 
-  app.on('activate', () => {
+  app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
     }
   })
 })
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') {
     app.quit()
   }

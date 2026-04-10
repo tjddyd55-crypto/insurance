@@ -1,4 +1,4 @@
-import { apiRequest } from '../../../lib/apiClient'
+import { apiRequest, resolveApiUrl } from '../../../lib/apiClient'
 import type {
   InsuranceContact,
   InsuranceContactsResponse,
@@ -7,11 +7,8 @@ import type {
 } from '../domain/types'
 import { createVCardContent, openVCardInContactsApp } from '../utils/vcard'
 
-const API_BASE_PATH =
-  (import.meta.env.VITE_API_BASE_PATH as string | undefined)?.replace(/\/$/, '') || '/backend'
-
 export function getVCardDownloadUrl(contactId: string): string {
-  return `${API_BASE_PATH}/insurance/contacts/${contactId}/vcard`
+  return resolveApiUrl(`/api/insurance/contacts/${encodeURIComponent(contactId)}/vcard`)
 }
 
 /** Bearer 인증이 필요한 vCard 다운로드 */

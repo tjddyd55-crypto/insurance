@@ -1237,6 +1237,12 @@ async function touchContactLastUpdatedAt(client, gaId = null) {
 }
 
 const app = express()
+app.use(
+  cors({
+    origin: '*',
+    credentials: true,
+  }),
+)
 app.use(express.json({ limit: '12mb' }))
 
 const apiRouter = express.Router()
