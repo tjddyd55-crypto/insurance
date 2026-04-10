@@ -73,14 +73,14 @@ export function NotificationBell() {
         className="app-tenant-ga-bar__notification-trigger"
         aria-expanded={open}
         aria-haspopup="true"
-        aria-label="알림"
+        aria-label={'\uC54C\uB9BC'}
         onClick={() => {
           setOpen((v) => !v)
           void refreshUnread()
         }}
       >
         <span className="relative inline-block text-lg leading-none" aria-hidden>
-          🔔
+          {'\uD83D\uDD14'}
         </span>
         {unreadCount > 0 ? (
           <span
@@ -93,14 +93,14 @@ export function NotificationBell() {
       </button>
       {open ? (
         <div
-          className="absolute right-0 top-full mt-2 w-[min(100vw-2rem,20rem)] rounded-lg border border-[var(--border-default)] bg-[var(--bg-card)] shadow-lg z-[60] overflow-hidden"
+          className="notification-panel"
           role="dialog"
-          aria-label="알림 목록"
+          aria-label={'\uC54C\uB9BC \uBAA9\uB85D'}
         >
-          <div className="px-3 py-2 border-b border-[var(--border-default)] text-sm font-semibold text-[var(--text-primary)]">
-            알림
+          <div className="notification-panel__header">{'\uC54C\uB9BC'}</div>
+          <div className="notification-panel__body">
+            <NotificationList token={token} onUnreadChanged={() => void refreshUnread()} />
           </div>
-          <NotificationList token={token} onUnreadChanged={() => void refreshUnread()} />
         </div>
       ) : null}
     </div>

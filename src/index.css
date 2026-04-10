@@ -154,6 +154,7 @@ button:focus-visible:not(:disabled) {
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   color: var(--text-main);
+  overflow: visible;
 }
 
 .app-tenant-ga-bar__name {
@@ -165,11 +166,12 @@ button:focus-visible:not(:disabled) {
 .app-tenant-ga-bar__actions {
   position: absolute;
   right: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   gap: 6px;
+  overflow: visible;
 }
 
 .app-tenant-ga-bar__actions .app-tenant-ga-bar__profile {
@@ -243,6 +245,7 @@ button:focus-visible:not(:disabled) {
   border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
   app-region: drag;
+  overflow: visible;
 }
 
 .electron-title-bar__leading {
@@ -255,12 +258,14 @@ button:focus-visible:not(:disabled) {
   padding-right: 4px;
   -webkit-app-region: no-drag;
   app-region: no-drag;
+  overflow: visible;
 }
 
 .electron-title-bar__user-actions {
   display: flex;
   align-items: center;
   gap: 6px;
+  overflow: visible;
 }
 
 .electron-title-bar__back {
@@ -361,6 +366,46 @@ button:focus-visible:not(:disabled) {
 .electron-title-bar .app-tenant-ga-bar__profile {
   -webkit-app-region: no-drag;
   app-region: no-drag;
+}
+
+/* Notification dropdown: viewport-fixed overlay (escapes parent overflow / transform). */
+.notification-panel {
+  position: fixed;
+  top: 36px;
+  right: 10px;
+  width: 320px;
+  max-width: min(100vw - 20px, 320px);
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  z-index: 9999;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.notification-panel__header {
+  flex-shrink: 0;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border-default);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.notification-panel__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+html.electron-app .notification-panel {
+  top: 40px;
+  z-index: 99999;
 }
 
 /* ——— 공통 확인 모달 ——— */
