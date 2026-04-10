@@ -5027,9 +5027,25 @@ app.use('/backend', apiRouter)
 
 if (fs.existsSync(DIST_PATH)) {
   app.use(express.static(DIST_PATH))
-  app.get(/^(?!\/(api|backend)).*/, (_req, res) => {
+  app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      return next()
+    }
+    const p = req.path ?? ''
+    if (
+      p === '/api' ||
+      p.startsWith('/api/') ||
+      p === '/backend' ||
+      p.startsWith('/backend/')
+    ) {
+      return next()
+    }
     res.sendFile(path.join(DIST_PATH, 'index.html'))
   })
+} else if (RUNNING_IN_PRODUCTION) {
+  console.error(
+    '[deploy] dist/ missing: run vite build before start. SPA deep links need dist + static fallback.',
+  )
 }
 
 app.use((error, _req, res, _next) => {
