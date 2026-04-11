@@ -4,6 +4,8 @@ import MemoWorkspacePage from '../features/memo/pages/MemoWorkspacePage'
 import MemoList from '../features/memo/components/MemoList'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { MIN_LEFT_WIDTH, MIN_MEMO_WIDTH } from './memoWorkspaceLayoutConstants'
+import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
+import { isElectronApp } from '../lib/isElectronApp'
 
 function MemoFab() {
   const { addNote, token } = useMemoWorkspace()
@@ -23,12 +25,14 @@ function MemoPanelBody({
   selectedNoteId,
   onSelectNoteFromList,
   onOpenList,
+  omitFab = false,
 }: {
   showList: boolean
   isMobile: boolean
   selectedNoteId: string | null
   onSelectNoteFromList: (id: string) => void
   onOpenList: () => void
+  omitFab?: boolean
 }) {
   return (
     <div className="memo-panel-main">
@@ -52,7 +56,7 @@ function MemoPanelBody({
           </button>
         ) : null}
       </div>
-      <MemoFab />
+      {!omitFab ? <MemoFab /> : null}
     </div>
   )
 }
@@ -129,6 +133,16 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
     setIsFullscreen(false)
   }, [setIsMinimized])
 
+  const onToggleFullscreen = useCallback(() => {
+    setIsFullscreen((v) => {
+      const next = !v
+      if (next) {
+        setIsMemoOpen(true)
+      }
+      return next
+    })
+  }, [])
+
   useEffect(() => {
     if (isFullscreen) {
       setIsMinimized(false)
@@ -178,6 +192,8 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
   const onSelectNoteFromList = useCallback((id: string) => {
     setSelectedNoteId(id)
   }, [])
+
+  const electronUi = isElectronApp()
 
   return (
     <div className="workspace-root" ref={rootRef}>
@@ -239,22 +255,15 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
 
       {!isMinimized && isMemoOpen ? (
         <div className="workspace-right" style={rightStyle}>
-          <div className="memo-header">
+          {!electronUi ? (
+            <div className="memo-header">
             <button type="button" className="memo-header-btn" onClick={closeMemoPanel}>
               메모 패널 닫기
             </button>
             <button
               type="button"
               className="memo-header-btn"
-              onClick={() => {
-                setIsFullscreen((v) => {
-                  const next = !v
-                  if (next) {
-                    setIsMemoOpen(true)
-                  }
-                  return next
-                })
-              }}
+              onClick={onToggleFullscreen}
             >
               {isFullscreen ? '전체화면 끄기' : '메모 전체화면'}
             </button>
@@ -266,16 +275,23 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
                 리스트 접기
               </button>
             ) : null}
-          </div>
+            </div>
+          ) : null}
           <MemoPanelBody
             showList={listVisible}
             isMobile={isMobile}
             selectedNoteId={selectedNoteId}
             onSelectNoteFromList={onSelectNoteFromList}
             onOpenList={() => setIsListOpen(true)}
+            omitFab={electronUi}
           />
         </div>
       ) : null}
+      <MemoElectronFabDock
+        isFullscreen={isFullscreen}
+        onMinimize={minimizeMemoPanel}
+        onToggleFullscreen={onToggleFullscreen}
+      />
     </div>
   )
 }

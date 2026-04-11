@@ -46,7 +46,9 @@ export function AppLayout() {
           ) : null}
         </div>
       ) : null}
-      <Outlet />
+      <div className="main-container">
+        <Outlet />
+      </div>
     </>
   )
 }

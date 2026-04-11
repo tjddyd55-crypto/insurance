@@ -1,4 +1,4 @@
-@config '../tailwind.config.js';
+﻿@config '../tailwind.config.js';
 @import 'tailwindcss';
 
 @import './theme-tokens.css';
@@ -56,6 +56,8 @@ body {
   z-index: 0;
   margin: 0;
   min-width: 320px;
+  max-width: 100%;
+  overflow-x: hidden;
   background: var(--bg-main);
   color: var(--text-main);
   transition:
@@ -71,7 +73,16 @@ body {
   height: 100%;
   min-height: 100vh;
   min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
   background: var(--bg-main);
+}
+
+.main-container {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 /* 상태·테이블 유틸 (토큰 전용) */
@@ -403,9 +414,110 @@ button:focus-visible:not(:disabled) {
   overflow-x: hidden;
 }
 
+html.electron-app .title-bar.electron-title-bar {
+  height: 32px;
+  min-height: 32px;
+}
+
+html.electron-app .electron-title-bar__leading {
+  padding-left: 6px;
+  padding-right: 4px;
+}
+
+html.electron-app .electron-title-bar__back {
+  padding: 2px 6px;
+  font-size: 0.75rem;
+}
+
+html.electron-app .electron-title-bar__app-name {
+  font-size: 0.75rem;
+}
+
+html.electron-app .electron-title-bar__control {
+  min-width: 36px;
+  padding: 0 8px;
+  font-size: 0.8125rem;
+}
+
+html.electron-app .electron-title-bar__trailing {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
 html.electron-app .notification-panel {
-  top: 40px;
+  top: 32px;
   z-index: 99999;
+}
+
+body.electron-only .memo-electron-fab-dock {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 10000;
+}
+
+body.electron-only .memo-fab.memo-fab--electron-dock {
+  position: relative;
+  right: auto;
+  bottom: auto;
+}
+
+body.electron-only .memo-fab-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  min-width: 168px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default, #2a2a2a);
+  background: var(--bg-card, #1a1a1a);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+body.electron-only .memo-fab-menu__item {
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary, #fff);
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+body.electron-only .memo-fab-menu__item:hover {
+  background: color-mix(in srgb, var(--brand-primary, #3b82f6) 18%, transparent);
+}
+
+body.electron-only .memo-fullscreen-exit-electron {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 10001;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: rgba(15, 17, 21, 0.92);
+  color: #fff;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+body.electron-only .memo-fullscreen-exit-electron:hover {
+  background: rgba(30, 34, 42, 0.95);
 }
 
 /* 프로�� — ��스크� 업��이트 */
@@ -646,6 +758,40 @@ html.electron-app .notification-panel {
 .app-main-content .dashboard-page--centered .dashboard-menu-card {
   max-width: none;
   margin-inline: 0;
+}
+
+/* 모바일·��포트: max-width 중� 제거 → 카드/��스트 전�� */
+@media (max-width: 768px) {
+  .container,
+  .layout,
+  .page,
+  .page--result {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+    padding-left: max(12px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(12px, env(safe-area-inset-right, 0px)) !important;
+  }
+
+  .dashboard-menu-shell,
+  .dashboard-page--centered .dashboard-menu-card {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin-inline: 0 !important;
+    box-sizing: border-box;
+    padding-left: max(0px, env(safe-area-inset-left, 0px));
+    padding-right: max(0px, env(safe-area-inset-right, 0px));
+  }
+
+  .app-main-content {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-left: max(12px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(12px, env(safe-area-inset-right, 0px)) !important;
+    box-sizing: border-box;
+  }
 }
 
 .page--with-back {
@@ -2618,6 +2764,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .card {
+  width: 100%;
+  box-sizing: border-box;
   margin-top: 14px;
   background: var(--bg-card);
   color: var(--text-main);

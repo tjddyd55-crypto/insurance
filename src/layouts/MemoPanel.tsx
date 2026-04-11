@@ -1,6 +1,7 @@
 import { useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import MemoWorkspacePage from '../features/memo/pages/MemoWorkspacePage'
 import MemoList from '../features/memo/components/MemoList'
+import { isElectronApp } from '../lib/isElectronApp'
 
 function MemoFab() {
   const { addNote, token } = useMemoWorkspace()
@@ -41,11 +42,13 @@ export default function MemoPanel({
   onSelectNoteFromList,
 }: MemoPanelProps) {
   const listVisible = isListOpen
+  const electronUi = isElectronApp()
 
   return (
     <div className={`memo-panel ${isFullscreen ? 'memo-panel--fullscreen' : ''}`}>
-      <div className="memo-header">
-        <button type="button" className="memo-header-btn" onClick={onClosePanel}>
+      {!electronUi ? (
+        <div className="memo-header">
+          <button type="button" className="memo-header-btn" onClick={onClosePanel}>
           메모 패널 닫기
         </button>
         <button type="button" className="memo-header-btn" onClick={onToggleFullscreen}>
@@ -60,6 +63,7 @@ export default function MemoPanel({
           최소화
         </button>
       </div>
+      ) : null}
 
       <div className="memo-panel-main">
         <div className="memo-body memo-body--pc-panel memo-body--list-row">
@@ -80,7 +84,7 @@ export default function MemoPanel({
             </button>
           ) : null}
         </div>
-        <MemoFab />
+        {!electronUi ? <MemoFab /> : null}
       </div>
     </div>
   )

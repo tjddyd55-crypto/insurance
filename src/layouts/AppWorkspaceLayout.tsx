@@ -4,6 +4,7 @@ import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/contex
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import MemoPanel from './MemoPanel'
 import { MIN_LEFT_WIDTH, MIN_MEMO_WIDTH } from './memoWorkspaceLayoutConstants'
+import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
 
 /**
  * 인증 라우트 전역: PC에서는 좌측(앱) + 우측(메모 패널), 모바일(≤768px)에서는 Outlet만 렌더합니다.
@@ -179,6 +180,12 @@ function AppWorkspaceLayoutPc() {
           />
         </div>
       ) : null}
+
+      <MemoElectronFabDock
+        isFullscreen={isFullscreen}
+        onMinimize={minimizeMemoPanel}
+        onToggleFullscreen={onToggleFullscreen}
+      />
     </div>
   )
 }
