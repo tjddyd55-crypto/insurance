@@ -13,12 +13,42 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [version, setVersion] = useState('')
 
   useEffect(() => {
     if (isAuthenticated) {
       navigate('/dashboard', { replace: true })
     }
   }, [isAuthenticated, navigate])
+
+  useEffect(() => {
+    let cancelled = false
+    const webVersion =
+      typeof __INSURANCE_WEB_APP_VERSION__ === 'string'
+        ? __INSURANCE_WEB_APP_VERSION__
+        : ''
+
+    void (async () => {
+      if (typeof window !== 'undefined' && window.electronAPI?.getVersion) {
+        try {
+          const v = await window.electronAPI.getVersion()
+          if (!cancelled) {
+            setVersion(v)
+          }
+          return
+        } catch {
+          /* fall through to web bundle version */
+        }
+      }
+      if (!cancelled) {
+        setVersion(webVersion)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const handleLogin = async (event: FormEvent) => {
     event.preventDefault()
@@ -94,6 +124,13 @@ export function LoginPage() {
           </Link>
         </div>
       </section>
+
+      {version ? (
+        <div className="auth-page__version-footer" aria-hidden="true">
+          {'\uBC84\uC804: '}
+          {version}
+        </div>
+      ) : null}
     </main>
   )
 }
