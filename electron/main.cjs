@@ -84,6 +84,7 @@ function registerAutoUpdaterIpc() {
 
 function wireAutoUpdaterEvents() {
   autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = true
 
   autoUpdater.on('error', (err) => {
     console.log('update error:', err)
