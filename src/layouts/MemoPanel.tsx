@@ -1,19 +1,5 @@
-import { useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import MemoWorkspacePage from '../features/memo/pages/MemoWorkspacePage'
 import MemoList from '../features/memo/components/MemoList'
-import { isElectronApp } from '../lib/isElectronApp'
-
-function MemoFab() {
-  const { addNote, token } = useMemoWorkspace()
-  if (!token?.trim()) {
-    return null
-  }
-  return (
-    <button type="button" className="memo-fab" onClick={() => void addNote()} aria-label="메모 추가">
-      +
-    </button>
-  )
-}
 
 export type MemoPanelProps = {
   isFullscreen: boolean
@@ -32,39 +18,15 @@ export type MemoPanelProps = {
  */
 export default function MemoPanel({
   isFullscreen,
-  onToggleFullscreen,
   isListOpen,
-  onToggleList,
-  onClosePanel,
-  onMinimize,
   onOpenList,
   selectedNoteId,
   onSelectNoteFromList,
 }: MemoPanelProps) {
   const listVisible = isListOpen
-  const electronUi = isElectronApp()
 
   return (
     <div className={`memo-panel ${isFullscreen ? 'memo-panel--fullscreen' : ''}`}>
-      {!electronUi ? (
-        <div className="memo-header">
-          <button type="button" className="memo-header-btn" onClick={onClosePanel}>
-            메모 패널 닫기
-          </button>
-          <button type="button" className="memo-header-btn" onClick={onToggleFullscreen}>
-            {isFullscreen ? '전체화면 끄기' : '메모 전체화면'}
-          </button>
-          {isListOpen ? (
-          <button type="button" className="memo-header-btn" onClick={onToggleList}>
-            리스트 접기
-          </button>
-          ) : null}
-          <button type="button" className="memo-header-btn" onClick={onMinimize}>
-            최소화
-          </button>
-      </div>
-      ) : null}
-
       <div className="memo-panel-main">
         <div className="memo-body memo-body--pc-panel memo-body--list-row">
           <div className="memo-canvas-area memo-canvas-area--pc">
@@ -84,7 +46,6 @@ export default function MemoPanel({
             </button>
           ) : null}
         </div>
-        {!electronUi ? <MemoFab /> : null}
       </div>
     </div>
   )

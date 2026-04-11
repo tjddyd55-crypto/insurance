@@ -5,7 +5,6 @@ import MemoList from '../features/memo/components/MemoList'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { MIN_LEFT_WIDTH, MIN_MEMO_WIDTH } from './memoWorkspaceLayoutConstants'
 import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
-import { isElectronApp } from '../lib/isElectronApp'
 
 function MemoFab() {
   const { addNote, token } = useMemoWorkspace()
@@ -123,11 +122,6 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
     resizingRef.current = true
   }, [])
 
-  const closeMemoPanel = useCallback(() => {
-    setIsMemoOpen(false)
-    setIsMinimized(false)
-  }, [setIsMinimized])
-
   const minimizeMemoPanel = useCallback(() => {
     setIsMinimized(true)
     setIsFullscreen(false)
@@ -193,8 +187,6 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
     setSelectedNoteId(id)
   }, [])
 
-  const electronUi = isElectronApp()
-
   return (
     <div className="workspace-root" ref={rootRef}>
       {isNarrow && leftDrawerOpen ? (
@@ -255,35 +247,13 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
 
       {!isMinimized && isMemoOpen ? (
         <div className="workspace-right" style={rightStyle}>
-          {!electronUi ? (
-            <div className="memo-header">
-            <button type="button" className="memo-header-btn" onClick={closeMemoPanel}>
-              메모 패널 닫기
-            </button>
-            <button
-              type="button"
-              className="memo-header-btn"
-              onClick={onToggleFullscreen}
-            >
-              {isFullscreen ? '전체화면 끄기' : '메모 전체화면'}
-            </button>
-            <button type="button" className="memo-header-btn" onClick={minimizeMemoPanel}>
-              최소화
-            </button>
-            {isListOpen ? (
-              <button type="button" className="memo-header-btn" onClick={() => setIsListOpen(false)}>
-                리스트 접기
-              </button>
-            ) : null}
-            </div>
-          ) : null}
           <MemoPanelBody
             showList={listVisible}
             isMobile={isMobile}
             selectedNoteId={selectedNoteId}
             onSelectNoteFromList={onSelectNoteFromList}
             onOpenList={() => setIsListOpen(true)}
-            omitFab={electronUi}
+            omitFab
           />
         </div>
       ) : null}

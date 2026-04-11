@@ -19,9 +19,6 @@ export function ElectronTitleBar() {
   const showGaUserActions = tenantChrome && user?.role !== 'INSURER_MANAGER'
 
   useLayoutEffect(() => {
-    if (!active) {
-      return
-    }
     const el = document.documentElement
     const body = document.body
     el.classList.add('electron-app')
@@ -30,11 +27,7 @@ export function ElectronTitleBar() {
       el.classList.remove('electron-app')
       body.classList.remove('electron-only')
     }
-  }, [active])
-
-  if (!active) {
-    return null
-  }
+  }, [])
 
   const handleBack = () => {
     if (typeof window !== 'undefined' && window.history.length > 1) {
@@ -87,7 +80,8 @@ export function ElectronTitleBar() {
             type="button"
             className="electron-title-bar__control"
             aria-label="Minimize"
-            onClick={() => api.minimize()}
+            onClick={() => api?.minimize?.()}
+            disabled={!active}
           >
             ─
           </button>
@@ -95,7 +89,8 @@ export function ElectronTitleBar() {
             type="button"
             className="electron-title-bar__control"
             aria-label="Maximize or restore"
-            onClick={() => api.maximize()}
+            onClick={() => api?.maximize?.()}
+            disabled={!active}
           >
             {'\u25A1'}
           </button>
@@ -103,7 +98,8 @@ export function ElectronTitleBar() {
             type="button"
             className="electron-title-bar__control electron-title-bar__control--close"
             aria-label="Close"
-            onClick={() => api.close()}
+            onClick={() => api?.close?.()}
+            disabled={!active}
           >
             ×
           </button>

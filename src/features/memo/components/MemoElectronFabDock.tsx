@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { isElectronApp } from '../../../lib/isElectronApp'
 import { useMemoWorkspace } from '../context/MemoWorkspaceContext'
 
 export type MemoElectronFabDockProps = {
@@ -8,7 +7,7 @@ export type MemoElectronFabDockProps = {
   isFullscreen: boolean
 }
 
-/** Electron: viewport-fixed + FAB with menu; fullscreen close (X). Wires existing handlers only. */
+/** Unified: viewport-fixed + FAB with menu; fullscreen close (X). Wires existing handlers only. */
 export function MemoElectronFabDock({ onMinimize, onToggleFullscreen, isFullscreen }: MemoElectronFabDockProps) {
   const { addNote, token } = useMemoWorkspace()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -27,7 +26,7 @@ export function MemoElectronFabDock({ onMinimize, onToggleFullscreen, isFullscre
     return () => document.removeEventListener('mousedown', onDoc)
   }, [menuOpen])
 
-  if (!isElectronApp() || !token?.trim()) {
+  if (!token?.trim()) {
     return null
   }
 

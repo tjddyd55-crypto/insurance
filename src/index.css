@@ -328,6 +328,15 @@ button:focus-visible:not(:disabled) {
   font-weight: 500;
 }
 
+.electron-title-bar__trailing {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
 .electron-title-bar .window-controls {
   display: flex;
   flex-direction: row;
@@ -358,6 +367,11 @@ button:focus-visible:not(:disabled) {
 .electron-title-bar__control:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--brand-primary) 40%, transparent);
+}
+
+.electron-title-bar__control:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .electron-title-bar__control--close:hover {
@@ -437,15 +451,6 @@ html.electron-app .electron-title-bar__control {
   min-width: 36px;
   padding: 0 8px;
   font-size: 0.8125rem;
-}
-
-html.electron-app .electron-title-bar__trailing {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  flex-shrink: 0;
-  -webkit-app-region: no-drag;
-  app-region: no-drag;
 }
 
 html.electron-app .notification-panel {
