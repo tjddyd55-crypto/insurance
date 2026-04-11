@@ -27,6 +27,10 @@ function sendClientLog(payload) {
 /** @type {import('electron').BrowserWindow | null} */
 let mainWindow = null
 
+function registerVersionIpc() {
+  ipcMain.handle('get-version', () => app.getVersion())
+}
+
 function registerWindowControlsIpc() {
   ipcMain.on('window:minimize', () => {
     mainWindow?.minimize()
@@ -201,6 +205,8 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  console.log('[InsuranceApp] Current app version:', app.getVersion())
+  registerVersionIpc()
   registerWindowControlsIpc()
   registerAutoUpdaterIpc()
   createWindow()

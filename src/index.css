@@ -448,6 +448,13 @@ html.electron-app .notification-panel {
   color: var(--text-sub);
 }
 
+.desktop-update-section__version {
+  margin: 0.75rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  opacity: 0.75;
+}
+
 /* ——— 공통 확인 모달 ——— */
 @keyframes modal-fade-in {
   from {

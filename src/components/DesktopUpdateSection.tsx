@@ -14,7 +14,17 @@ export function DesktopUpdateSection() {
   const [updateReady, setUpdateReady] = useState(false)
   const [statusLine, setStatusLine] = useState('')
   const [progress, setProgress] = useState<number | null>(null)
+  const [appVersion, setAppVersion] = useState('')
   const api = typeof window !== 'undefined' ? window.electronAPI : undefined
+
+  useEffect(() => {
+    if (!isElectronApp() || typeof api?.getVersion !== 'function') {
+      return
+    }
+    void api.getVersion().then((v) => {
+      setAppVersion(v)
+    })
+  }, [api])
 
   useEffect(() => {
     if (!isElectronApp() || typeof api?.onUpdateError !== 'function') {
@@ -117,6 +127,12 @@ export function DesktopUpdateSection() {
       </div>
       {statusLine ? <p className="desktop-update-section__status">{statusLine}</p> : null}
       {progress != null ? <p className="desktop-update-section__progress">{progress}%</p> : null}
+      {appVersion ? (
+        <p className="desktop-update-section__version">
+          {'\uD604\uC7AC \uBC84\uC804: '}
+          {appVersion}
+        </p>
+      ) : null}
     </div>
   )
 }

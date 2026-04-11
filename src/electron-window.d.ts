@@ -14,6 +14,7 @@ type DesktopCheckResult =
 declare global {
   interface Window {
     electronAPI?: {
+      getVersion: () => Promise<string>
       minimize: () => void
       maximize: () => void
       close: () => void
