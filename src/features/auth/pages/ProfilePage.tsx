@@ -13,6 +13,7 @@ import {
 import { useAuth } from '../AuthProvider'
 import { CustomerExcelImportPanel } from '../../customers/components/CustomerExcelImportPanel'
 import { createTeam, fetchTeamMembers, joinTeam } from '../../team/api/teamApi'
+import { DesktopUpdateSection } from '../../../components/DesktopUpdateSection'
 
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
