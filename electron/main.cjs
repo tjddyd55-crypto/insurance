@@ -1,12 +1,8 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
-import axios from 'axios'
-import path from 'path'
-import semver from 'semver'
-import { fileURLToPath } from 'url'
-import { autoUpdater } from 'electron-updater'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const { app, BrowserWindow, ipcMain } = require('electron')
+const axios = require('axios')
+const path = require('path')
+const semver = require('semver')
+const { autoUpdater } = require('electron-updater')
 
 const DEFAULT_VERSION_CHECK_URL =
   'https://insurance-production-7bd8.up.railway.app/api/version'
@@ -28,7 +24,7 @@ function sendClientLog(payload) {
     })
 }
 
-/** @type {BrowserWindow | null} */
+/** @type {import('electron').BrowserWindow | null} */
 let mainWindow = null
 
 function registerWindowControlsIpc() {
