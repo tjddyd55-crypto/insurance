@@ -408,6 +408,46 @@ html.electron-app .notification-panel {
   z-index: 99999;
 }
 
+/* 프로�� — ��스크� 업��이트 */
+.desktop-update-section {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.desktop-update-section__title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.desktop-update-section__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--text-sub);
+  line-height: 1.45;
+}
+
+.desktop-update-section__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.desktop-update-section__status {
+  margin: 0.65rem 0 0;
+  font-size: 0.875rem;
+  color: var(--text-main);
+}
+
+.desktop-update-section__progress {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-sub);
+}
+
 /* ——— 공통 확인 모달 ——— */
 @keyframes modal-fade-in {
   from {
@@ -5133,4 +5173,68 @@ textarea.memo-sticky-note__textarea::placeholder {
 .memo-sticky-note__textarea--editing {
   outline: 2px solid #3b82f6;
   outline-offset: 0;
+}
+
+/* Electron — server force-update gate (full-window block) */
+.electron-force-update-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #b91c1c;
+  color: #fff;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.electron-force-update-gate__panel {
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.electron-force-update-gate__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.electron-force-update-gate__message {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #fde047;
+}
+
+.electron-force-update-gate__hint {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: color-mix(in srgb, #fff 88%, transparent);
+}
+
+.electron-force-update-gate__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.operational-message-banner {
+  width: 100%;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #fde047;
+  background: color-mix(in srgb, #1a1a1a 92%, var(--bg-main));
+  border-bottom: 1px solid color-mix(in srgb, #fde047 35%, transparent);
 }

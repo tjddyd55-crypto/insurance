@@ -356,6 +356,7 @@ export function ProfilePage() {
       <main className="auth-page profile-page">
         <section className="card auth-card">
           <h1>프로필</h1>
+
           <p className="status status--error">{loadError}</p>
           <button type="button" className="button button--secondary" onClick={() => void load()}>
             다시 시도
@@ -382,6 +383,8 @@ export function ProfilePage() {
     <main className="auth-page profile-page">
       <section className="card auth-card">
         <h1>프로필</h1>
+        <DesktopUpdateSection />
+
 
         <form className="auth-form" onSubmit={(e) => void onSubmit(e)}>
           <label className="field">

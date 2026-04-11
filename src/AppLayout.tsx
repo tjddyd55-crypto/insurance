@@ -1,6 +1,7 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { AppExitConfirm } from './components/AppExitConfirm'
 import { ElectronTitleBar } from './components/ElectronTitleBar'
+import { OperationalMessageBanner } from './components/OperationalMessageBanner'
 import { GlobalBackHandlerHost } from './hooks/useGlobalBackHandler'
 import { useAuth } from './features/auth/AuthProvider'
 import { NotificationBell } from './features/notification/components/NotificationBell'
@@ -21,6 +22,7 @@ export function AppLayout() {
   return (
     <>
       {isElectronApp() ? <ElectronTitleBar /> : null}
+      <OperationalMessageBanner />
       {isAuthenticated ? <GlobalBackHandlerHost /> : null}
       {hideAppExitConfirm ? null : <AppExitConfirm />}
       {showGaBar ? (
