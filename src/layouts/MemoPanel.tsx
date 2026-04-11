@@ -49,19 +49,19 @@ export default function MemoPanel({
       {!electronUi ? (
         <div className="memo-header">
           <button type="button" className="memo-header-btn" onClick={onClosePanel}>
-          메모 패널 닫기
-        </button>
-        <button type="button" className="memo-header-btn" onClick={onToggleFullscreen}>
-          {isFullscreen ? '전체화면 끄기' : '메모 전체화면'}
-        </button>
-        {isListOpen ? (
+            메모 패널 닫기
+          </button>
+          <button type="button" className="memo-header-btn" onClick={onToggleFullscreen}>
+            {isFullscreen ? '전체화면 끄기' : '메모 전체화면'}
+          </button>
+          {isListOpen ? (
           <button type="button" className="memo-header-btn" onClick={onToggleList}>
             리스트 접기
           </button>
-        ) : null}
-        <button type="button" className="memo-header-btn" onClick={onMinimize}>
-          최소화
-        </button>
+          ) : null}
+          <button type="button" className="memo-header-btn" onClick={onMinimize}>
+            최소화
+          </button>
       </div>
       ) : null}
 
