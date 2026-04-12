@@ -1694,11 +1694,12 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const attRes = await safeQuery(
         pool,
         `
-        SELECT object_key
-        FROM insurance_company_newsletter_attachments
-        WHERE newsletter_id = $1
+        SELECT a.object_key
+        FROM insurance_company_newsletter_attachments a
+        INNER JOIN insurance_company_newsletters n ON n.id = a.newsletter_id AND n.ga_id = $2
+        WHERE a.newsletter_id = $1
         `,
-        [newsletterId],
+        [newsletterId, gaId],
       )
 
       if (isConsentR2Enabled()) {
