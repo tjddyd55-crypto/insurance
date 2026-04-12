@@ -522,8 +522,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     const newsChannel = normalizeNewsChannel(payload.newsChannel)
     const publishedAt = payload.publishedAt ? String(payload.publishedAt) : toIso(row.updated_at)
     const summary =
+      String(row.body_text ?? '').trim() ||
       String(payload.summary ?? '').trim() ||
-      String(row.body_text ?? '').trim().slice(0, 160) ||
       '요약 없음'
 
     const fileAttachments = attachments.filter((x) => x.kind === 'file')
@@ -709,8 +709,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     const insurerName = String(payload.insurerName ?? row.company_name_snapshot ?? '').trim()
     const publishedAt = payload.publishedAt ? String(payload.publishedAt) : toIso(row.updated_at)
     const summary =
+      String(row.body_text ?? '').trim() ||
       String(payload.summary ?? '').trim() ||
-      String(row.body_text ?? '').trim().slice(0, 160) ||
       '요약 없음'
 
     return {

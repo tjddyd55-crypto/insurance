@@ -38,7 +38,7 @@ function buildDraftForApi(
   attachmentItems: LocalAttachmentDraft[],
   initial: NewsletterDetail | null,
 ): NewsletterDetail {
-  const summary = bodyText.trim().slice(0, 160) || '요약 없음'
+  const summary = bodyText.trim() || '요약 없음'
   const ok = attachmentItems.filter((a) => a.status !== 'failed')
   const images = ok.filter((a) => a.kind === 'image')
   const files = ok.filter((a) => a.kind === 'file')

@@ -6,7 +6,8 @@ type Props = {
 }
 
 function cardAriaLabel(item: NewsletterItem): string {
-  const head = item.summary?.trim() ? item.summary.trim().slice(0, 40) : ''
+  const headline = item.summary?.trim() || item.title?.trim() || ''
+  const head = headline ? headline.slice(0, 40) : ''
   const parts = [item.insurerName, head].filter(Boolean)
   return parts.length > 0 ? `${parts.join(' — ')} 소식` : '소식지'
 }
@@ -31,13 +32,16 @@ function formatPublishedDateLabel(iso: string): string {
 export function NewsCard({ item, onOpen }: Props) {
   const companyName = item.insurerName?.trim() || '—'
   const dateLabel = formatPublishedDateLabel(item.publishedAt)
+  const headline = item.summary?.trim() || item.title?.trim() || '본문 내용이 없습니다.'
   const media = (
     <div className="news-card__media">
       {item.heroImageUrl ? (
         <img src={item.heroImageUrl} alt="" loading="lazy" />
       ) : (
-        <div className="news-card__placeholder" aria-hidden>
-          <span className="news-card__placeholder-label">이미지 없음</span>
+        <div className="news-card__placeholder news-card__placeholder--content" aria-hidden>
+          <span className="news-card__placeholder-label news-card__placeholder-label--headline">
+            {headline}
+          </span>
         </div>
       )}
       <div className="news-card__overlay">
