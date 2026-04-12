@@ -26,11 +26,47 @@ interface RequestOptions extends RequestInit {
   token?: string | null
 }
 
-/** API base: VITE_API_URL, then VITE_API_BASE_PATH, then /backend. Public links use VITE_BASE_URL via publicOrigin.ts — not here. */
-const API_BASE_PATH =
+/** API base 후보: VITE_API_URL, then VITE_API_BASE_PATH, then /backend. */
+const CONFIGURED_API_BASE_PATH =
   (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ||
   (import.meta.env.VITE_API_BASE_PATH as string | undefined)?.replace(/\/$/, '') ||
   '/backend'
+
+function isHttpWebRuntime(): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  const protocol = window.location?.protocol
+  return protocol === 'http:' || protocol === 'https:'
+}
+
+function resolveApiBasePath(): string {
+  // 웹 런타임(http/https)에서는 same-origin API를 기본값으로 강제해
+  // 잘못된 VITE_API_URL(다른 환경 API)로 인한 운영 장애를 방지한다.
+  if (!isHttpWebRuntime()) {
+    return CONFIGURED_API_BASE_PATH
+  }
+
+  if (/^https?:\/\//.test(CONFIGURED_API_BASE_PATH)) {
+    try {
+      const configuredOrigin = new URL(CONFIGURED_API_BASE_PATH).origin
+      if (configuredOrigin !== window.location.origin) {
+        console.warn(
+          '[apiClient] cross-origin VITE_API_URL ignored on web runtime:',
+          CONFIGURED_API_BASE_PATH,
+          '-> /backend',
+        )
+        return '/backend'
+      }
+    } catch {
+      return '/backend'
+    }
+  }
+
+  return CONFIGURED_API_BASE_PATH || '/backend'
+}
+
+const API_BASE_PATH = resolveApiBasePath()
 
 export function resolveApiUrl(path: string): string {
   if (/^https?:\/\//.test(path)) {
