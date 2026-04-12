@@ -131,7 +131,7 @@ function readStoredSession(): AuthSession | null {
       typeof u.displayName === 'string' ? u.displayName.trim() : String(parsed.user.username ?? '').trim()
     const teamId = parseTeamIdField(u.teamId)
 
-    if ((role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER') && companyIdRaw == null) {
+    if (role === 'INSURER_MANAGER' && companyIdRaw == null) {
       console.warn(`${role} companyId 없음 → 재로그인 필요`)
       window.localStorage.removeItem(AUTH_STORAGE_KEY)
       return null
@@ -146,7 +146,7 @@ function readStoredSession(): AuthSession | null {
         gaId,
         gaCode,
         gaName,
-        companyId: role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER' ? companyIdRaw : null,
+        companyId: role === 'INSURER_MANAGER' ? companyIdRaw : null,
         displayName: displayNameRaw,
         teamId,
       },
@@ -187,11 +187,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         typeof nextSession.user.gaCode === 'string' ? nextSession.user.gaCode.trim().toUpperCase() : ''
       const gaName =
         typeof nextSession.user.gaName === 'string' ? nextSession.user.gaName.trim() : ''
-      const companyId =
-        role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER'
-          ? parseCompanyScopeId(nextSession.user.companyId)
-          : null
-      if ((role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER') && companyId == null) {
+      const companyId = role === 'INSURER_MANAGER' ? parseCompanyScopeId(nextSession.user.companyId) : null
+      if (role === 'INSURER_MANAGER' && companyId == null) {
         console.warn(`${role} companyId 없음`)
         logout()
         return
@@ -231,10 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout()
       return
     }
-    if (
-      (session.user.role === 'INSURER_MANAGER' || session.user.role === 'LOSS_ADJUSTER') &&
-      (session.user.companyId == null || session.user.companyId < 1)
-    ) {
+    if (session.user.role === 'INSURER_MANAGER' && (session.user.companyId == null || session.user.companyId < 1)) {
       console.warn('채널 담당자 세션에 companyId 없음 → 재로그인 필요')
       logout()
     }

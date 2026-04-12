@@ -22,6 +22,7 @@ export function InsurerManagerNewsUploadPage({
   const navigate = useNavigate()
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
+  const requiresCompanyScope = channel !== 'LOSS_ADJUSTER'
   const [error, setError] = useState('')
   const [context, setContext] = useState<{
     gaCode: string
@@ -31,12 +32,12 @@ export function InsurerManagerNewsUploadPage({
   } | null>(null)
 
   useEffect(() => {
-    if (!token?.trim() || !gaCode || companyId == null) {
+    if (!token?.trim() || !gaCode || (requiresCompanyScope && companyId == null)) {
       return
     }
     let cancelled = false
     ;(async () => {
-      const resolved = await resolveInsurerManagerPublishContext(token, gaCode, companyId, { channel })
+      const resolved = await resolveInsurerManagerPublishContext(token, gaCode, companyId ?? 0, { channel })
       if (cancelled) {
         return
       }
@@ -51,9 +52,9 @@ export function InsurerManagerNewsUploadPage({
     return () => {
       cancelled = true
     }
-  }, [channel, token, gaCode, companyId])
+  }, [channel, token, gaCode, companyId, requiresCompanyScope])
 
-  if (!gaCode || companyId == null) {
+  if (!gaCode || (requiresCompanyScope && companyId == null)) {
     return (
       <main className="page page--with-back insurer-news-page">
         <div className="insurer-news-empty">{noSessionMessage}</div>

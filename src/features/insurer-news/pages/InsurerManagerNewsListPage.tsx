@@ -22,18 +22,19 @@ export function InsurerManagerNewsListPage({
   const navigate = useNavigate()
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
+  const requiresCompanyScope = channel !== 'LOSS_ADJUSTER'
   const [items, setItems] = useState<NewsletterItem[]>([])
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!token?.trim() || !gaCode || companyId == null) {
+    if (!token?.trim() || !gaCode || (requiresCompanyScope && companyId == null)) {
       return
     }
     let cancelled = false
     ;(async () => {
       setError('')
       try {
-        const rows = await getNewslettersForInsurerManagerCompany(token, gaCode, companyId, { channel })
+        const rows = await getNewslettersForInsurerManagerCompany(token, gaCode, companyId ?? 0, { channel })
         if (!cancelled) {
           setItems(rows)
         }
@@ -46,9 +47,9 @@ export function InsurerManagerNewsListPage({
     return () => {
       cancelled = true
     }
-  }, [channel, token, gaCode, companyId])
+  }, [channel, token, gaCode, companyId, requiresCompanyScope])
 
-  if (!gaCode || companyId == null) {
+  if (!gaCode || (requiresCompanyScope && companyId == null)) {
     return (
       <main className="page page--with-back insurer-news-page">
         <header className="page-header page-header--has-inline-back">

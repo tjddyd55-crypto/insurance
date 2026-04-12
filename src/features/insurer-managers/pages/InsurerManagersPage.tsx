@@ -53,18 +53,39 @@ function StatusBadge({ status }: { status: InsurerManagerStatus }) {
 function emptyForm(): {
   insurerType: InsurerManagerType
   companyId: number
+  companyName: string
+  adjusterName: string
   username: string
   password: string
 } {
   return {
     insurerType: 'NON_LIFE',
     companyId: 0,
+    companyName: '',
+    adjusterName: '',
     username: '',
     password: '',
   }
 }
 
 type ManagerChannelKind = 'insurer' | 'lossAdjuster'
+type ManagerCreatePayload = {
+  insurerType?: InsurerManagerType
+  companyId?: number
+  companyName?: string
+  adjusterName?: string
+  username: string
+  password: string
+}
+type ManagerPatchPayload = {
+  insurerType?: InsurerManagerType
+  companyId?: number
+  companyName?: string
+  adjusterName?: string
+  username?: string
+  password?: string
+  status?: InsurerManagerStatus
+}
 
 type ManagerPageConfig = {
   pageTitle: string
@@ -78,21 +99,8 @@ type ManagerPageConfig = {
   editRequiredMessage: string
   deleteConfirm: (name: string) => string
   listApi: (token: string) => Promise<InsurerManager[]>
-  createApi: (
-    token: string,
-    payload: { insurerType: InsurerManagerType; companyId: number; username: string; password: string },
-  ) => Promise<InsurerManager>
-  patchApi: (
-    token: string,
-    id: string,
-    payload: {
-      insurerType?: InsurerManagerType
-      companyId?: number
-      username?: string
-      password?: string
-      status?: InsurerManagerStatus
-    },
-  ) => Promise<InsurerManager>
+  createApi: (token: string, payload: ManagerCreatePayload) => Promise<InsurerManager>
+  patchApi: (token: string, id: string, payload: ManagerPatchPayload) => Promise<InsurerManager>
   deleteApi: (token: string, id: string) => Promise<{ ok: boolean }>
 }
 
@@ -101,17 +109,30 @@ function configFor(kind: ManagerChannelKind): ManagerPageConfig {
     return {
       pageTitle: '손해사정사 계정 관리',
       description: '손해사정사별 로그인 계정(아이디·비밀번호)을 관리합니다.',
-      entityLabel: '손해사정사',
+      entityLabel: '회사명',
       listEmpty: '등록된 손해사정사 계정이 없습니다.',
       createTitle: '손해사정사 계정 등록',
       editTitle: '손해사정사 계정 수정',
       noSessionMessage: 'GA에 소속된 계정으로 로그인한 후 이용할 수 있습니다.',
-      createRequiredMessage: '손해사정사(마스터), 아이디, 비밀번호를 모두 입력하세요.',
-      editRequiredMessage: '손해사정사(마스터)와 아이디를 입력하세요.',
+      createRequiredMessage: '회사명, 손해사정사 이름, 아이디, 비밀번호를 모두 입력하세요.',
+      editRequiredMessage: '회사명, 손해사정사 이름, 아이디를 입력하세요.',
       deleteConfirm: (name) => `"${name}" 손해사정사 계정을 삭제하시겠습니까?`,
       listApi: listLossAdjustersApi,
-      createApi: createLossAdjusterApi,
-      patchApi: patchLossAdjusterApi,
+      createApi: (token, payload) =>
+        createLossAdjusterApi(token, {
+          companyName: String(payload.companyName ?? ''),
+          adjusterName: String(payload.adjusterName ?? ''),
+          username: payload.username,
+          password: payload.password,
+        }),
+      patchApi: (token, id, payload) =>
+        patchLossAdjusterApi(token, id, {
+          companyName: payload.companyName,
+          adjusterName: payload.adjusterName,
+          username: payload.username,
+          password: payload.password,
+          status: payload.status,
+        }),
       deleteApi: deleteLossAdjusterApi,
     }
   }
@@ -127,8 +148,21 @@ function configFor(kind: ManagerChannelKind): ManagerPageConfig {
     editRequiredMessage: '보험사(마스터)와 아이디를 입력하세요.',
     deleteConfirm: (name) => `"${name}" 담당자 계정을 삭제하시겠습니까?`,
     listApi: listInsurerManagersApi,
-    createApi: createInsurerManagerApi,
-    patchApi: patchInsurerManagerApi,
+    createApi: (token, payload) =>
+      createInsurerManagerApi(token, {
+        insurerType: payload.insurerType ?? 'NON_LIFE',
+        companyId: Number(payload.companyId ?? 0),
+        username: payload.username,
+        password: payload.password,
+      }),
+    patchApi: (token, id, payload) =>
+      patchInsurerManagerApi(token, id, {
+        insurerType: payload.insurerType,
+        companyId: payload.companyId,
+        username: payload.username,
+        password: payload.password,
+        status: payload.status,
+      }),
     deleteApi: deleteInsurerManagerApi,
   }
 }
@@ -136,6 +170,7 @@ function configFor(kind: ManagerChannelKind): ManagerPageConfig {
 export default function InsurerManagersPage({ managerKind = 'insurer' }: { managerKind?: ManagerChannelKind }) {
   const { user, token } = useAuth()
   const config = useMemo(() => configFor(managerKind), [managerKind])
+  const isLossAdjusterMode = managerKind === 'lossAdjuster'
   const gaCode = user?.gaCode?.trim() ?? ''
   const canDelete = user?.role === 'GA_ADMIN' || user?.role === 'GA_STAFF'
   const [rows, setRows] = useState<InsurerManager[]>([])
@@ -166,7 +201,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
   const { data: companyDirectory = [] } = useQuery<CompanyDirectoryEntry[]>({
     queryKey: ['company-directory', token, gaCode],
     queryFn: () => listCompanyDirectory(token!),
-    enabled: Boolean(token && gaCode),
+    enabled: Boolean(token && gaCode && !isLossAdjusterMode),
   })
 
   const masterChoices = useMemo(() => {
@@ -184,18 +219,32 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
     }
     const u = form.username.trim()
     const password = form.password
-    if (!form.companyId || !u || !password) {
+    if (isLossAdjusterMode) {
+      if (!form.companyName.trim() || !form.adjusterName.trim() || !u || !password) {
+        setFormErr(config.createRequiredMessage)
+        return
+      }
+    } else if (!form.companyId || !u || !password) {
       setFormErr(config.createRequiredMessage)
       return
     }
     setSaving(true)
     try {
-      await config.createApi(token, {
-        insurerType: form.insurerType,
-        companyId: form.companyId,
-        username: u,
-        password,
-      })
+      if (isLossAdjusterMode) {
+        await config.createApi(token, {
+          companyName: form.companyName,
+          adjusterName: form.adjusterName,
+          username: u,
+          password,
+        })
+      } else {
+        await config.createApi(token, {
+          insurerType: form.insurerType,
+          companyId: form.companyId,
+          username: u,
+          password,
+        })
+      }
       setForm(emptyForm())
       setRegisterOpen(false)
       await reload()
@@ -213,18 +262,32 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
       return
     }
     const u = form.username.trim()
-    if (!form.companyId || !u) {
+    if (isLossAdjusterMode) {
+      if (!form.companyName.trim() || !form.adjusterName.trim() || !u) {
+        setFormErr(config.editRequiredMessage)
+        return
+      }
+    } else if (!form.companyId || !u) {
       setFormErr(config.editRequiredMessage)
       return
     }
     setSaving(true)
     try {
-      await config.patchApi(token, editing.id, {
-        insurerType: form.insurerType,
-        companyId: form.companyId,
-        username: u,
-        ...(form.password.trim() !== '' ? { password: form.password } : {}),
-      })
+      if (isLossAdjusterMode) {
+        await config.patchApi(token, editing.id, {
+          companyName: form.companyName,
+          adjusterName: form.adjusterName,
+          username: u,
+          ...(form.password.trim() !== '' ? { password: form.password } : {}),
+        })
+      } else {
+        await config.patchApi(token, editing.id, {
+          insurerType: form.insurerType,
+          companyId: form.companyId,
+          username: u,
+          ...(form.password.trim() !== '' ? { password: form.password } : {}),
+        })
+      }
       setEditing(null)
       setForm(emptyForm())
       await reload()
@@ -271,6 +334,8 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
     setForm({
       insurerType: row.insurerType,
       companyId: row.companyId,
+      companyName: row.insurerName,
+      adjusterName: row.managerName ?? '',
       username: row.username,
       password: '',
     })
@@ -327,6 +392,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
             <thead>
               <tr>
                 <th>{config.entityLabel}</th>
+                {isLossAdjusterMode ? <th>손해사정사 이름</th> : null}
                 <th>아이디</th>
                 <th>비밀번호</th>
                 <th>상태</th>
@@ -336,7 +402,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: 20, color: 'var(--text-sub)' }}>
+                  <td colSpan={isLossAdjusterMode ? 6 : 5} style={{ padding: 20, color: 'var(--text-sub)' }}>
                     {config.listEmpty}
                   </td>
                 </tr>
@@ -344,6 +410,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
                 rows.map((r) => (
                   <tr key={r.id}>
                     <td>{r.insurerName}</td>
+                    {isLossAdjusterMode ? <td>{r.managerName?.trim() || '—'}</td> : null}
                     <td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.username}</td>
                     <td style={{ wordBreak: 'break-all' }}>{r.password?.trim() ? r.password : '—'}</td>
                     <td>
@@ -391,6 +458,12 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
                   <span className="admin-user-card__label">{config.entityLabel}</span>
                   <span className="admin-user-card__value">{r.insurerName}</span>
                 </div>
+                {isLossAdjusterMode ? (
+                  <div className="admin-user-card__row">
+                    <span className="admin-user-card__label">손해사정사 이름</span>
+                    <span className="admin-user-card__value">{r.managerName?.trim() || '—'}</span>
+                  </div>
+                ) : null}
                 <div className="admin-user-card__row">
                   <span className="admin-user-card__label">아이디</span>
                   <span className="admin-user-card__value">{r.username}</span>
@@ -447,46 +520,71 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
             </h2>
             <div className="admin-modal-content">
               {formErr ? <p className="status status--error" style={{ margin: 0 }}>{formErr}</p> : null}
-              <label className="field admin-modal-field">
-                <span className="field__label">보험사 유형</span>
-                <select
-                  className="admin-form-input"
-                  required
-                  value={form.insurerType}
-                  onChange={(e) => {
-                    const t = e.target.value as InsurerManagerType
-                    setForm((f) => ({
-                      ...f,
-                      insurerType: t,
-                      companyId: 0,
-                    }))
-                  }}
-                >
-                  {TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field admin-modal-field">
-                <span className="field__label">{config.entityLabel} (DB 마스터)</span>
-                <select
-                  className="admin-form-input"
-                  required
-                  value={form.companyId || ''}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))
-                  }
-                >
-                  <option value="">선택</option>
-                  {masterChoices.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {isLossAdjusterMode ? (
+                <>
+                  <label className="field admin-modal-field">
+                    <span className="field__label">회사명</span>
+                    <input
+                      className="admin-form-input"
+                      value={form.companyName}
+                      onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
+                      required
+                      autoComplete="off"
+                    />
+                  </label>
+                  <label className="field admin-modal-field">
+                    <span className="field__label">손해사정사 이름</span>
+                    <input
+                      className="admin-form-input"
+                      value={form.adjusterName}
+                      onChange={(e) => setForm((f) => ({ ...f, adjusterName: e.target.value }))}
+                      required
+                      autoComplete="off"
+                    />
+                  </label>
+                </>
+              ) : (
+                <>
+                  <label className="field admin-modal-field">
+                    <span className="field__label">보험사 유형</span>
+                    <select
+                      className="admin-form-input"
+                      required
+                      value={form.insurerType}
+                      onChange={(e) => {
+                        const t = e.target.value as InsurerManagerType
+                        setForm((f) => ({
+                          ...f,
+                          insurerType: t,
+                          companyId: 0,
+                        }))
+                      }}
+                    >
+                      {TYPE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field admin-modal-field">
+                    <span className="field__label">{config.entityLabel} (DB 마스터)</span>
+                    <select
+                      className="admin-form-input"
+                      required
+                      value={form.companyId || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))}
+                    >
+                      <option value="">선택</option>
+                      {masterChoices.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
               <label className="field admin-modal-field">
                 <span className="field__label">아이디</span>
                 <input
@@ -538,46 +636,71 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
               <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--text-sub)' }}>
                 비밀번호는 비워 두면 기존 값이 유지되며, 입력한 경우에만 변경됩니다.
               </p>
-              <label className="field admin-modal-field">
-                <span className="field__label">보험사 유형</span>
-                <select
-                  className="admin-form-input"
-                  required
-                  value={form.insurerType}
-                  onChange={(e) => {
-                    const t = e.target.value as InsurerManagerType
-                    setForm((f) => ({
-                      ...f,
-                      insurerType: t,
-                      companyId: 0,
-                    }))
-                  }}
-                >
-                  {TYPE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field admin-modal-field">
-                <span className="field__label">{config.entityLabel} (DB 마스터)</span>
-                <select
-                  className="admin-form-input"
-                  required
-                  value={form.companyId || ''}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))
-                  }
-                >
-                  <option value="">선택</option>
-                  {masterChoices.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              {isLossAdjusterMode ? (
+                <>
+                  <label className="field admin-modal-field">
+                    <span className="field__label">회사명</span>
+                    <input
+                      className="admin-form-input"
+                      value={form.companyName}
+                      onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
+                      required
+                      autoComplete="off"
+                    />
+                  </label>
+                  <label className="field admin-modal-field">
+                    <span className="field__label">손해사정사 이름</span>
+                    <input
+                      className="admin-form-input"
+                      value={form.adjusterName}
+                      onChange={(e) => setForm((f) => ({ ...f, adjusterName: e.target.value }))}
+                      required
+                      autoComplete="off"
+                    />
+                  </label>
+                </>
+              ) : (
+                <>
+                  <label className="field admin-modal-field">
+                    <span className="field__label">보험사 유형</span>
+                    <select
+                      className="admin-form-input"
+                      required
+                      value={form.insurerType}
+                      onChange={(e) => {
+                        const t = e.target.value as InsurerManagerType
+                        setForm((f) => ({
+                          ...f,
+                          insurerType: t,
+                          companyId: 0,
+                        }))
+                      }}
+                    >
+                      {TYPE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field admin-modal-field">
+                    <span className="field__label">{config.entityLabel} (DB 마스터)</span>
+                    <select
+                      className="admin-form-input"
+                      required
+                      value={form.companyId || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))}
+                    >
+                      <option value="">선택</option>
+                      {masterChoices.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
               <label className="field admin-modal-field">
                 <span className="field__label">아이디</span>
                 <input

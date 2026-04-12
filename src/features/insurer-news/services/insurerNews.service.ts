@@ -387,6 +387,10 @@ export async function getNewslettersForInsurerManagerCompany(
   companyMasterId: number,
   options?: { channel?: NewsChannel },
 ): Promise<NewsletterItem[]> {
+  const channel = normalizeChannel(options?.channel)
+  if (channel === 'LOSS_ADJUSTER') {
+    return listManagerNewsletters(token, { channel })
+  }
   const rows = await listManagerNewsletters(token, { channel: options?.channel })
   const companies = await listCompanyDirectory(token)
   const entry = companies.find((r) => r.id === companyMasterId)
@@ -403,6 +407,10 @@ export async function getNewsletterDetailForInsurerManager(
   newsletterId: string,
   options?: { channel?: NewsChannel },
 ): Promise<NewsletterDetail | null> {
+  const channel = normalizeChannel(options?.channel)
+  if (channel === 'LOSS_ADJUSTER') {
+    return getManagerNewsletterDetail(token, newsletterId, { channel })
+  }
   const detail = await getManagerNewsletterDetail(token, newsletterId, { channel: options?.channel })
   if (!detail) {
     return null
@@ -422,9 +430,18 @@ export async function resolveInsurerManagerPublishContext(
   options?: { channel?: NewsChannel },
 ): Promise<PublishContextApi | { error: string }> {
   try {
-    const apiCtx = await fetchPublishContextApi(token, { channel: options?.channel })
+    const channel = normalizeChannel(options?.channel)
+    const apiCtx = await fetchPublishContextApi(token, { channel })
     if (apiCtx.gaCode.toUpperCase() !== gaCode.trim().toUpperCase()) {
       return { error: 'GA 정보가 일치하지 않습니다. 다시 로그인해 주세요.' }
+    }
+    if (channel === 'LOSS_ADJUSTER') {
+      return {
+        gaCode: apiCtx.gaCode.toUpperCase(),
+        insurerCode: apiCtx.insurerCode,
+        insurerName: apiCtx.insurerName,
+        insurerSlug: apiCtx.insurerSlug,
+      }
     }
     const rows = await listCompanyDirectory(token)
     const entry = rows.find((r) => r.id === companyMasterId)

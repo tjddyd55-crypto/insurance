@@ -75,6 +75,10 @@ function formatCreatedAt(iso: string): string {
   return d.toISOString().slice(0, 10)
 }
 
+function formatDelegateRole(role: GaDelegateRole): string {
+  return role === 'GA_ADMIN' ? 'GA_ADMIN' : 'GA_STAFF'
+}
+
 export default function GaDelegateManagementPage() {
   const { user, token } = useAuth()
   const [rows, setRows] = useState<GaDelegateRow[]>([])
@@ -232,6 +236,7 @@ export default function GaDelegateManagementPage() {
       <tr key={r.id}>
         <td>{r.gaName}</td>
         <td style={{ fontVariantNumeric: 'tabular-nums' }}>{r.username}</td>
+        <td>{formatDelegateRole(r.role)}</td>
         <td style={{ wordBreak: 'break-all' }}>{pw || '—'}</td>
         <td>
           <StatusBadge labelKey={r.statusLabel} />
@@ -277,6 +282,10 @@ export default function GaDelegateManagementPage() {
         <div className="admin-ga-card__row">
           <span className="admin-ga-card__label">아이디</span>
           <span className="admin-ga-card__value">{r.username}</span>
+        </div>
+        <div className="admin-ga-card__row">
+          <span className="admin-ga-card__label">역할</span>
+          <span className="admin-ga-card__value">{formatDelegateRole(r.role)}</span>
         </div>
         <div className="admin-ga-card__row">
           <span className="admin-ga-card__label">비밀번호</span>
@@ -360,6 +369,7 @@ export default function GaDelegateManagementPage() {
               <tr>
                 <th>GA 이름</th>
                 <th>아이디</th>
+                <th>역할</th>
                 <th>비밀번호</th>
                 <th>상태</th>
                 <th>생성일</th>
@@ -369,7 +379,7 @@ export default function GaDelegateManagementPage() {
             <tbody>
               {rows.length === 0 && !isLoading ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
+                  <td colSpan={7} style={{ padding: '20px 14px', color: 'var(--text-sub)' }}>
                     등록된 담당자가 없습니다.
                   </td>
                 </tr>

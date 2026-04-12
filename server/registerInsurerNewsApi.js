@@ -29,6 +29,7 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 const MAX_PDF_BYTES = 10 * 1024 * 1024
 const NEWS_CHANNEL_INSURER = 'INSURER'
 const NEWS_CHANNEL_LOSS_ADJUSTER = 'LOSS_ADJUSTER'
+const LOSS_ADJUSTER_R2_CATEGORY = 'LossAdjuster'
 
 /** @param {unknown} role */
 function newsChannelByRole(role) {
@@ -44,6 +45,11 @@ function isNewsManagerRole(role) {
 function normalizeNewsChannel(raw) {
   const n = String(raw ?? '').trim().toUpperCase()
   return n === NEWS_CHANNEL_LOSS_ADJUSTER ? NEWS_CHANNEL_LOSS_ADJUSTER : NEWS_CHANNEL_INSURER
+}
+
+/** @param {string} channel */
+function storageCategoryForChannel(channel) {
+  return channel === NEWS_CHANNEL_LOSS_ADJUSTER ? LOSS_ADJUSTER_R2_CATEGORY : INSURER_R2_ACTIVE_CATEGORY
 }
 
 /** @param {string} code */
@@ -62,6 +68,11 @@ function slugifyCompanySegment(name) {
     .replace(/\s+/g, '-')
   const stripped = t.replace(/[^\w\u3131-\u318e\uac00-\ud7a3-]/g, '')
   return stripped.slice(0, 48) || 'insurer'
+}
+
+/** @param {string} name */
+function pseudoCompanyCodeForLossAdjuster(name) {
+  return slugifyCompanySegment(name).replace(/-/g, '_').toUpperCase() || 'LOSS_ADJUSTER'
 }
 
 /**
@@ -100,6 +111,10 @@ async function loadInsurerManagerNewsScope(pool, user) {
     companyId: Number(row.company_id),
     companyName: String(row.company_name ?? '').trim(),
     companySlug,
+    companyCodeRaw: String(row.company_code ?? '').trim(),
+    newsChannel: NEWS_CHANNEL_INSURER,
+    storageCategory: storageCategoryForChannel(NEWS_CHANNEL_INSURER),
+    publisherId: null,
   }
 }
 
@@ -114,31 +129,33 @@ async function loadLossAdjusterNewsScope(pool, user) {
     SELECT
       g.code AS ga_code,
       g.id AS ga_id,
-      m.id AS company_id,
-      m.name AS company_name,
-      m.company_code
+      la.company_name AS company_name,
+      la.adjuster_name AS adjuster_name
     FROM loss_adjusters la
     INNER JOIN ga_companies g ON g.id = la.ga_id
-    INNER JOIN insurance_company_master m ON m.id = la.company_id AND m.ga_id = la.ga_id
     WHERE la.id = $1 AND la.is_deleted = false
-      AND la.company_id = $2
-      AND la.ga_id = $3
+      AND la.ga_id = $2
     `,
-    [String(user.id), Number(user.companyId), Number(user.gaId)],
+    [String(user.id), Number(user.gaId)],
   )
   if (r.rowCount === 0) {
     return null
   }
   const row = r.rows[0]
+  const companyNameRaw = String(row.company_name ?? '').trim() || String(row.adjuster_name ?? '').trim()
   const gaPath = normalizeGaCodeForPath(row.ga_code)
-  const companySlug = slugifyCompanySegment(row.company_name)
+  const companySlug = slugifyCompanySegment(companyNameRaw)
   return {
     gaId: Number(row.ga_id),
     gaCodeRaw: String(row.ga_code ?? '').trim(),
     gaPath,
-    companyId: Number(row.company_id),
-    companyName: String(row.company_name ?? '').trim(),
+    companyId: null,
+    companyName: companyNameRaw,
     companySlug,
+    companyCodeRaw: pseudoCompanyCodeForLossAdjuster(companyNameRaw),
+    newsChannel: NEWS_CHANNEL_LOSS_ADJUSTER,
+    storageCategory: storageCategoryForChannel(NEWS_CHANNEL_LOSS_ADJUSTER),
+    publisherId: String(user.id),
   }
 }
 
@@ -147,8 +164,9 @@ async function loadLossAdjusterNewsScope(pool, user) {
  * @param {import('pg').Pool} pool
  * @param {number} gaId
  * @param {number} companyMasterId
+ * @param {string} channel
  */
-async function loadMasterCompanyNewsScope(pool, gaId, companyMasterId) {
+async function loadMasterCompanyNewsScope(pool, gaId, companyMasterId, channel = NEWS_CHANNEL_INSURER) {
   if (!Number.isInteger(gaId) || gaId < 1 || !Number.isInteger(companyMasterId) || companyMasterId < 1) {
     return null
   }
@@ -173,6 +191,10 @@ async function loadMasterCompanyNewsScope(pool, gaId, companyMasterId) {
     companyId: Number(row.id),
     companyName: String(row.name ?? '').trim(),
     companySlug: slugifyCompanySegment(row.name),
+    companyCodeRaw: String(row.company_code ?? '').trim(),
+    newsChannel: normalizeNewsChannel(channel),
+    storageCategory: storageCategoryForChannel(normalizeNewsChannel(channel)),
+    publisherId: null,
   }
 }
 
@@ -187,14 +209,21 @@ function maxBytesForMime(contentType) {
 /**
  * @param {string} objectKey
  * @param {string} gaPath
+ * @param {string} storageCategory
  * @param {string} companySlug
+ * @param {boolean} [allowLegacyLossAdjusterCategory]
  */
-function assertNewsObjectKeyScoped(objectKey, gaPath, companySlug) {
+function assertNewsObjectKeyScoped(objectKey, gaPath, storageCategory, companySlug, allowLegacyLossAdjusterCategory = false) {
   const parts = String(objectKey).split('/')
   if (parts.length < 6) {
     return false
   }
-  if (parts[0] !== 'insurer' || parts[1] !== gaPath || parts[2] !== INSURER_R2_ACTIVE_CATEGORY) {
+  const categoryMatches =
+    parts[2] === storageCategory ||
+    (allowLegacyLossAdjusterCategory &&
+      storageCategory === LOSS_ADJUSTER_R2_CATEGORY &&
+      parts[2] === INSURER_R2_ACTIVE_CATEGORY)
+  if (parts[0] !== 'insurer' || parts[1] !== gaPath || !categoryMatches) {
     return false
   }
   if (!/^\d{4}-\d{2}$/.test(parts[3])) {
@@ -294,6 +323,42 @@ async function buildInsurersListMerged(pool, gaId, gaCodeUpper) {
       lastPublishedAt: st?.last_u ? toIso(st.last_u) : null,
     }
   })
+}
+
+/**
+ * @param {string} gaCodeUpper
+ * @param {Array<{ insurerCode?: string, insurerName?: string, insurerSlug?: string, publishedAt?: string }>} newsletters
+ */
+function buildInsurerListFromNewsletters(gaCodeUpper, newsletters) {
+  /** @type {Map<string, { gaCode: string, insurerCode: string, insurerName: string, insurerSlug: string, newsletterCount: number, lastPublishedAt: string | null }>} */
+  const bySlug = new Map()
+  for (const item of newsletters) {
+    const insurerName = String(item.insurerName ?? '').trim()
+    const insurerSlugRaw = String(item.insurerSlug ?? '').trim()
+    const insurerSlug = insurerSlugRaw || slugifyCompanySegment(insurerName)
+    if (!insurerSlug) {
+      continue
+    }
+    const key = insurerSlug.toLowerCase()
+    const publishedAt = String(item.publishedAt ?? '').trim()
+    const existing = bySlug.get(key)
+    if (!existing) {
+      bySlug.set(key, {
+        gaCode: gaCodeUpper,
+        insurerCode: String(item.insurerCode ?? '').trim() || insurerSlug.replace(/-/g, '_').toUpperCase(),
+        insurerName: insurerName || insurerSlugRaw,
+        insurerSlug,
+        newsletterCount: 1,
+        lastPublishedAt: publishedAt || null,
+      })
+      continue
+    }
+    existing.newsletterCount += 1
+    if (!existing.lastPublishedAt || (publishedAt && new Date(publishedAt).getTime() > new Date(existing.lastPublishedAt).getTime())) {
+      existing.lastPublishedAt = publishedAt || existing.lastPublishedAt
+    }
+  }
+  return [...bySlug.values()].sort((a, b) => a.insurerName.localeCompare(b.insurerName, 'ko'))
 }
 
 function toIso(v) {
@@ -485,7 +550,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   /**
    * @param {object} att
-   * @param {{ gaPath: string, companySlug: string }} scope
+   * @param {{ gaPath: string, companySlug: string, storageCategory: string }} scope
    */
   function assertAttachmentInput(att, scope) {
     const kind = String(att.kind ?? '')
@@ -504,7 +569,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     if (!objectKey || !url) {
       throw Object.assign(new Error('첨부 objectKey와 url이 필요합니다.'), { httpStatus: 400 })
     }
-    if (!assertNewsObjectKeyScoped(objectKey, scope.gaPath, scope.companySlug)) {
+    if (!assertNewsObjectKeyScoped(objectKey, scope.gaPath, scope.storageCategory, scope.companySlug, true)) {
       throw Object.assign(new Error('허용되지 않은 저장 경로입니다.'), { httpStatus: 400 })
     }
     if (!assertCdnUrlMatchesKey(url, objectKey)) {
@@ -537,7 +602,13 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    * @param {import('express').Request} req
    */
   async function resolvePresignScope(req) {
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+    const channel = normalizeNewsChannel(body.channel)
     if (isNewsManagerRole(req.user.role)) {
+      const expected = newsChannelByRole(req.user.role)
+      if (channel !== expected) {
+        throw Object.assign(new Error('업로드 채널이 계정 권한과 일치하지 않습니다.'), { httpStatus: 403 })
+      }
       return loadNewsManagerScopeByUser(req.user)
     }
     if (!isGaInsurerManagerMutatorRole(req.user.role)) {
@@ -547,7 +618,6 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     if (tenantGa == null) {
       return null
     }
-    const body = req.body && typeof req.body === 'object' ? req.body : {}
     const insurerCode = String(body.insurerCode ?? '').trim()
     if (!insurerCode) {
       throw Object.assign(new Error('insurerCode가 필요합니다.'), { httpStatus: 400 })
@@ -564,14 +634,37 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     if (r.rowCount === 0) {
       throw Object.assign(new Error('보험사를 찾을 수 없습니다.'), { httpStatus: 400 })
     }
-    return loadMasterCompanyNewsScope(pool, tenantGa, Number(r.rows[0].id))
+    return loadMasterCompanyNewsScope(pool, tenantGa, Number(r.rows[0].id), channel)
   }
 
   /**
    * @param {object} body
    * @returns {Promise<NonNullable<Awaited<ReturnType<typeof loadInsurerManagerNewsScope>>> | Awaited<ReturnType<typeof loadMasterCompanyNewsScope>> | null>}
    */
-  async function resolveNewsWriteScope(req, body) {
+  async function resolveNewsWriteScope(req, body, channel) {
+    const normalizedChannel = normalizeNewsChannel(channel)
+    if (isNewsManagerRole(req.user.role)) {
+      const managerScope = await loadNewsManagerScopeByUser(req.user)
+      if (!managerScope) {
+        throw Object.assign(new Error('소식 작성 범위를 확인할 수 없습니다.'), { httpStatus: 403 })
+      }
+      if (normalizedChannel !== newsChannelByRole(req.user.role)) {
+        throw Object.assign(new Error('소식 작성 채널이 계정 권한과 일치하지 않습니다.'), { httpStatus: 403 })
+      }
+      const gaCodeFromBody = String(body.gaCode ?? '').trim().toUpperCase()
+      if (gaCodeFromBody && gaCodeFromBody !== String(managerScope.gaCodeRaw ?? '').trim().toUpperCase()) {
+        throw Object.assign(new Error('소식 작성 범위를 벗어났습니다.'), { httpStatus: 403 })
+      }
+      if (!isLossAdjusterRole(req.user.role)) {
+        const insurerCode = String(body.insurerCode ?? '').trim().toUpperCase()
+        const expectedCode = String(managerScope.companyCodeRaw ?? '').trim().toUpperCase()
+        if (!insurerCode || !expectedCode || insurerCode !== expectedCode) {
+          throw Object.assign(new Error('소식 작성 범위를 벗어났습니다.'), { httpStatus: 403 })
+        }
+      }
+      return managerScope
+    }
+
     const gaCode = String(body.gaCode ?? '').trim()
     const insurerCode = String(body.insurerCode ?? '').trim()
     if (!gaCode || !insurerCode) {
@@ -594,19 +687,12 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       throw Object.assign(new Error('보험사를 찾을 수 없습니다.'), { httpStatus: 400 })
     }
     const masterId = Number(companyR.rows[0].id)
-    if (isNewsManagerRole(req.user.role)) {
-      const managerScope = await loadNewsManagerScopeByUser(req.user)
-      if (!managerScope || managerScope.gaId !== gaId || managerScope.companyId !== masterId) {
-        throw Object.assign(new Error('소식 작성 범위를 벗어났습니다.'), { httpStatus: 403 })
-      }
-      return managerScope
-    }
     if (isGaInsurerManagerMutatorRole(req.user.role)) {
       const tenantGa = await resolveTenantGaIdForRequest(pool, req)
       if (tenantGa == null || tenantGa !== gaId) {
         throw Object.assign(new Error('소식 작성 범위를 벗어났습니다.'), { httpStatus: 403 })
       }
-      return loadMasterCompanyNewsScope(pool, gaId, masterId)
+      return loadMasterCompanyNewsScope(pool, gaId, masterId, normalizedChannel)
     }
     throw Object.assign(new Error('소식 작성 권한이 없습니다.'), { httpStatus: 403 })
   }
@@ -646,15 +732,20 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   }
 
   function buildPayloadFromBody(body, scope, newsChannel) {
-    return {
+    const resolvedChannel = normalizeNewsChannel(newsChannel)
+    const payload = {
       gaCode: String(body.gaCode ?? scope.gaCodeRaw ?? '').trim().toUpperCase(),
-      insurerCode: String(body.insurerCode ?? '').trim(),
+      insurerCode: String(body.insurerCode ?? scope.companyCodeRaw ?? '').trim(),
       insurerSlug: String(body.insurerSlug ?? scope.companySlug ?? '').trim(),
       insurerName: String(body.insurerName ?? scope.companyName ?? '').trim(),
-      newsChannel: normalizeNewsChannel(newsChannel),
+      newsChannel: resolvedChannel,
       summary: String(body.summary ?? '').trim(),
       publishedAt: body.publishedAt ? String(body.publishedAt) : null,
     }
+    if (scope.publisherId) {
+      payload.publisherId = String(scope.publisherId)
+    }
+    return payload
   }
 
   /** 첨부 목록 — newsletter_id 와 소속 GA 로 한정 (멀티테넌트 조회 정책과 일치) */
@@ -690,7 +781,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    */
   function prepareAttachmentsForWrite(attIn, scope) {
     return attIn.map((a) =>
-      assertAttachmentInput(a, { gaPath: scope.gaPath, companySlug: scope.companySlug }),
+      assertAttachmentInput(a, {
+        gaPath: scope.gaPath,
+        companySlug: scope.companySlug,
+        storageCategory: scope.storageCategory,
+      }),
     )
   }
 
@@ -734,12 +829,23 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     }
     if (isNewsManagerRole(req.user.role)) {
       const managerScope = await loadNewsManagerScopeByUser(req.user)
-      if (
-        !managerScope ||
-        Number(row.ga_id) !== managerScope.gaId ||
-        Number(row.company_id) !== managerScope.companyId ||
-        rowChannel !== newsChannelByRole(req.user.role)
-      ) {
+      if (!managerScope || Number(row.ga_id) !== managerScope.gaId || rowChannel !== newsChannelByRole(req.user.role)) {
+        throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
+      }
+      if (isLossAdjusterRole(req.user.role)) {
+        const publisherId = String(rowPayload.publisherId ?? '').trim()
+        if (publisherId) {
+          if (publisherId !== String(req.user.id)) {
+            throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
+          }
+          return
+        }
+        if (managerScope.companyId != null && Number(row.company_id) === Number(managerScope.companyId)) {
+          return
+        }
+        throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
+      }
+      if (Number(row.company_id) !== Number(managerScope.companyId)) {
         throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
       }
       return
@@ -814,8 +920,6 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           )
       const gaCodeUpper = gaRow.rowCount ? String(gaRow.rows[0].c ?? '') : gaCodeQuery.toUpperCase()
 
-      const insurers = await buildInsurersListMerged(pool, gaId, gaCodeUpper)
-
       let listSql = `
         SELECT n.*, g.code AS ga_code_join,
           (SELECT COUNT(*) FROM insurance_company_newsletter_attachments a
@@ -841,6 +945,10 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
       const nRes = await safeQuery(pool, listSql, params)
       const newsletters = nRes.rows.map((row) => mapNewsletterListRow(row, gaCodeUpper))
+      const insurers =
+        channel === NEWS_CHANNEL_LOSS_ADJUSTER
+          ? buildInsurerListFromNewsletters(gaCodeUpper, newsletters)
+          : await buildInsurersListMerged(pool, gaId, gaCodeUpper)
 
       res.json({ newsletters, insurers })
     } catch (e86) {
@@ -893,22 +1001,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(403).json({ message: '소식 발행 컨텍스트를 찾을 수 없습니다.' })
         return
       }
-      const { gaId } = req.user
-      const gaIdNum = Number(gaId)
-      if (!Number.isInteger(gaIdNum) || gaIdNum < 1) {
-        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
-        return
-      }
       res.json({
         gaCode: scope.gaCodeRaw.toUpperCase(),
-        insurerCode: String(
-          (
-            await safeQuery(pool, `SELECT company_code FROM insurance_company_master WHERE id = $1 AND ga_id = $2`, [
-              scope.companyId,
-              gaIdNum,
-            ])
-          ).rows[0]?.company_code ?? '',
-        ).trim(),
+        insurerCode: String(scope.companyCodeRaw ?? '').trim(),
         insurerName: scope.companyName,
         insurerSlug: scope.companySlug,
         newsChannel: newsChannelByRole(req.user.role),
@@ -970,7 +1065,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
       const safeSeg = fileNameRaw.replace(/[^\w.\-()\u3131-\u318e\uac00-\ud7a3]/g, '_').slice(0, 120)
       const ym = new Date().toISOString().slice(0, 7)
-      const objectKey = `insurer/${scope.gaPath}/${INSURER_R2_ACTIVE_CATEGORY}/${ym}/${scope.companySlug}/${randomUUID()}-${safeSeg}`
+      const objectKey = `insurer/${scope.gaPath}/${scope.storageCategory}/${ym}/${scope.companySlug}/${randomUUID()}-${safeSeg}`
 
       const cacheControl = getR2InsurerAttachmentsCacheControl()
       const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
@@ -1040,7 +1135,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(403).json({ message: '업로드 범위를 확인할 수 없습니다.' })
         return
       }
-      if (!assertNewsObjectKeyScoped(objectKey, scope.gaPath, scope.companySlug)) {
+      if (!assertNewsObjectKeyScoped(objectKey, scope.gaPath, scope.storageCategory, scope.companySlug)) {
         insurerNewsLog.error({
           event: 'upload-fail',
           stage: 'upload-complete',
@@ -1110,6 +1205,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       let gaId
       /** @type {number | null} */
       let companyIdFilter = null
+      /** @type {string | null} */
+      let publisherIdFilter = null
       /** @type {string} */
       let gaCodeUpper
       const channel = resolveManagerChannel(req)
@@ -1121,7 +1218,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           return
         }
         gaId = managerScope.gaId
-        companyIdFilter = managerScope.companyId
+        if (isLossAdjusterRole(req.user.role)) {
+          publisherIdFilter = String(req.user.id)
+        } else {
+          companyIdFilter = managerScope.companyId
+        }
         gaCodeUpper = managerScope.gaCodeRaw.toUpperCase()
       } else {
         const tenantGa = await resolveTenantGaIdForRequest(pool, req)
@@ -1159,8 +1260,12 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       `
       const params = [gaId, channel]
       if (companyIdFilter != null) {
-        q += ` AND n.company_id = $3`
+        q += ` AND n.company_id = $${params.length + 1}`
         params.push(companyIdFilter)
+      }
+      if (publisherIdFilter) {
+        q += ` AND TRIM(COALESCE(n.payload->>'publisherId', '')) = $${params.length + 1}`
+        params.push(publisherIdFilter)
       }
       q += ` ORDER BY n.created_at DESC`
 
@@ -1208,8 +1313,12 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     try {
       const channel = resolveManagerChannel(req)
-      const normalizedScope = await resolveNewsWriteScope(req, body)
+      const normalizedScope = await resolveNewsWriteScope(req, body, channel)
       const payload = buildPayloadFromBody(body, normalizedScope, channel)
+      const attachmentScope = {
+        ...normalizedScope,
+        companySlug: String(payload.insurerSlug ?? normalizedScope.companySlug ?? '').trim() || normalizedScope.companySlug,
+      }
       const title = ''
       const bodyText = String(body.bodyText ?? '')
       const statusRaw = String(body.status ?? 'DRAFT').toUpperCase()
@@ -1218,7 +1327,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const attIn = Array.isArray(body.attachments) ? body.attachments : []
       let rowsToInsert
       try {
-        rowsToInsert = prepareAttachmentsForWrite(attIn, normalizedScope)
+        rowsToInsert = prepareAttachmentsForWrite(attIn, attachmentScope)
       } catch (prepErr) {
         if (prepErr && typeof prepErr === 'object' && 'httpStatus' in prepErr) {
           const st = Number(prepErr.httpStatus) || 400
@@ -1330,16 +1439,20 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
       await assertCanAccessNewsletterRow(nRes.rows[0], req, channel)
 
-      const scope = await resolveNewsWriteScope(req, body)
+      const scope = await resolveNewsWriteScope(req, body, channel)
       const existingCompanyId =
         nRes.rows[0].company_id != null && nRes.rows[0].company_id !== ''
           ? Number(nRes.rows[0].company_id)
           : null
-      if (existingCompanyId != null && existingCompanyId !== scope.companyId) {
+      if (scope.companyId != null && existingCompanyId != null && existingCompanyId !== scope.companyId) {
         res.status(400).json({ message: '소식의 보험사와 요청 정보가 일치하지 않습니다.' })
         return
       }
       const payload = buildPayloadFromBody(body, scope, channel)
+      const attachmentScope = {
+        ...scope,
+        companySlug: String(payload.insurerSlug ?? scope.companySlug ?? '').trim() || scope.companySlug,
+      }
       const title = ''
       const bodyText = String(body.bodyText ?? '')
       const statusRaw = String(body.status ?? 'DRAFT').toUpperCase()
@@ -1348,7 +1461,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const attIn = Array.isArray(body.attachments) ? body.attachments : []
       let rowsToInsert
       try {
-        rowsToInsert = prepareAttachmentsForWrite(attIn, scope)
+        rowsToInsert = prepareAttachmentsForWrite(attIn, attachmentScope)
       } catch (prepErr) {
         if (prepErr && typeof prepErr === 'object' && 'httpStatus' in prepErr) {
           const st = Number(prepErr.httpStatus) || 400

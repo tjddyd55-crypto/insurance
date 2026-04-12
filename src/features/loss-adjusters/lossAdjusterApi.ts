@@ -1,5 +1,5 @@
 import { ApiError, apiRequest } from '../../lib/apiClient'
-import type { InsurerManager, InsurerManagerStatus, InsurerManagerType } from '../insurer-managers/types'
+import type { InsurerManager, InsurerManagerStatus } from '../insurer-managers/types'
 
 export async function listLossAdjustersApi(token: string): Promise<InsurerManager[]> {
   return apiRequest<InsurerManager[]>('/api/loss-adjusters', { method: 'GET', token })
@@ -8,8 +8,8 @@ export async function listLossAdjustersApi(token: string): Promise<InsurerManage
 export async function createLossAdjusterApi(
   token: string,
   payload: {
-    insurerType: InsurerManagerType
-    companyId: number
+    companyName: string
+    adjusterName: string
     username: string
     password: string
   },
@@ -19,8 +19,8 @@ export async function createLossAdjusterApi(
       method: 'POST',
       token,
       body: JSON.stringify({
-        insurerType: payload.insurerType,
-        companyId: payload.companyId,
+        companyName: payload.companyName.trim(),
+        adjusterName: payload.adjusterName.trim(),
         username: payload.username.trim(),
         password: payload.password,
       }),
@@ -37,8 +37,8 @@ export async function patchLossAdjusterApi(
   token: string,
   id: string,
   payload: {
-    insurerType?: InsurerManagerType
-    companyId?: number
+    companyName?: string
+    adjusterName?: string
     username?: string
     password?: string
     status?: InsurerManagerStatus
@@ -46,11 +46,11 @@ export async function patchLossAdjusterApi(
 ): Promise<InsurerManager> {
   try {
     const body: Record<string, unknown> = {}
-    if (payload.insurerType != null) {
-      body.insurerType = payload.insurerType
+    if (payload.companyName != null) {
+      body.companyName = payload.companyName.trim()
     }
-    if (payload.companyId != null && Number.isFinite(payload.companyId)) {
-      body.companyId = payload.companyId
+    if (payload.adjusterName != null) {
+      body.adjusterName = payload.adjusterName.trim()
     }
     if (payload.username != null) {
       body.username = payload.username.trim()

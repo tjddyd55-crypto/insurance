@@ -281,7 +281,7 @@ export async function login(username: string, password: string) {
       gaId,
       gaCode,
       gaName,
-      companyId: raw.user.role === 'INSURER_MANAGER' || raw.user.role === 'LOSS_ADJUSTER' ? companyId : null,
+      companyId: raw.user.role === 'INSURER_MANAGER' ? companyId : null,
       displayName,
       teamId,
     },

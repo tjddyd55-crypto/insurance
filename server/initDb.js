@@ -1280,8 +1280,9 @@ export async function initDb() {
       id TEXT PRIMARY KEY,
       ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
       company_id INTEGER REFERENCES insurance_company_master(id),
-      adjuster_type TEXT NOT NULL,
-      adjuster_name TEXT NOT NULL,
+      company_name TEXT NOT NULL DEFAULT '',
+      adjuster_type TEXT NOT NULL DEFAULT 'NON_LIFE',
+      adjuster_name TEXT NOT NULL DEFAULT '',
       username VARCHAR(50) NOT NULL,
       password_hash TEXT NOT NULL,
       password_plaintext TEXT,
@@ -1290,6 +1291,24 @@ export async function initDb() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `)
+  await pool.query(`
+    ALTER TABLE loss_adjusters
+    ADD COLUMN IF NOT EXISTS company_name TEXT NOT NULL DEFAULT ''
+  `)
+  await pool.query(`
+    ALTER TABLE loss_adjusters
+    ALTER COLUMN adjuster_type SET DEFAULT 'NON_LIFE'
+  `)
+  await pool.query(`
+    ALTER TABLE loss_adjusters
+    ALTER COLUMN adjuster_name SET DEFAULT ''
+  `)
+  await pool.query(`
+    UPDATE loss_adjusters
+    SET company_name = TRIM(adjuster_name)
+    WHERE TRIM(COALESCE(company_name, '')) = ''
+      AND TRIM(COALESCE(adjuster_name, '')) <> ''
   `)
   await pool.query(`ALTER TABLE loss_adjusters DROP CONSTRAINT IF EXISTS loss_adjusters_adjuster_type_check`)
   await pool.query(`

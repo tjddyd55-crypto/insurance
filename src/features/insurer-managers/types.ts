@@ -9,6 +9,7 @@ export interface InsurerManager {
   gaCode: string
   insurerType: InsurerManagerType
   insurerName: string
+  managerName?: string
   username: string
   /** 관리 화면 표시용 평문(로그인은 password_hash 사용) */
   password: string

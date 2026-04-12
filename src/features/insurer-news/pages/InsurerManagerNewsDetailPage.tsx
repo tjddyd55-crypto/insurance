@@ -12,18 +12,19 @@ export function InsurerManagerNewsDetailPage({ channel = 'INSURER' }: { channel?
   const { user, token } = useAuth()
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
+  const requiresCompanyScope = channel !== 'LOSS_ADJUSTER'
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!token?.trim() || !gaCode || companyId == null || !newsletterId) {
+    if (!token?.trim() || !gaCode || (requiresCompanyScope && companyId == null) || !newsletterId) {
       setLoading(false)
       return
     }
     let cancelled = false
     setLoading(true)
     ;(async () => {
-      const row = await getNewsletterDetailForInsurerManager(token, gaCode, companyId, newsletterId, { channel })
+      const row = await getNewsletterDetailForInsurerManager(token, gaCode, companyId ?? 0, newsletterId, { channel })
       if (!cancelled) {
         setDetail(row)
         setLoading(false)
@@ -32,9 +33,9 @@ export function InsurerManagerNewsDetailPage({ channel = 'INSURER' }: { channel?
     return () => {
       cancelled = true
     }
-  }, [channel, token, gaCode, companyId, newsletterId])
+  }, [channel, token, gaCode, companyId, newsletterId, requiresCompanyScope])
 
-  if (!gaCode || companyId == null) {
+  if (!gaCode || (requiresCompanyScope && companyId == null)) {
     return null
   }
 
