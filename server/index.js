@@ -36,6 +36,8 @@ import {
 import { logSecurityEvent, writeSecurityAudit } from './lib/securityAudit.js'
 import { registerConsentApi } from './registerConsentApi.js'
 import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
+import { registerClientLogRoutes } from './routes/client-log.js'
+import { registerVersionRoutes } from './routes/version.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 
 const PORT = Number(process.env.PORT ?? 3001)
@@ -1332,6 +1334,9 @@ app.use(
 app.use(express.json({ limit: '12mb' }))
 
 const apiRouter = express.Router()
+
+registerVersionRoutes(apiRouter)
+registerClientLogRoutes(apiRouter)
 
 registerConsentApi(apiRouter, {
   pool,

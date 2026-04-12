@@ -20,19 +20,15 @@ export function ElectronTitleBar() {
   const showGaUserActions = tenantChrome && !isNewsManager
 
   useLayoutEffect(() => {
-    if (!active) {
-      return
-    }
     const el = document.documentElement
+    const body = document.body
     el.classList.add('electron-app')
+    body.classList.add('electron-only')
     return () => {
       el.classList.remove('electron-app')
+      body.classList.remove('electron-only')
     }
-  }, [active])
-
-  if (!active) {
-    return null
-  }
+  }, [])
 
   const handleBack = () => {
     if (typeof window !== 'undefined' && window.history.length > 1) {
@@ -53,6 +49,19 @@ export function ElectronTitleBar() {
         >
           {BACK_LABEL}
         </button>
+      </div>
+      <div className="electron-title-bar__drag">
+        <span className="electron-title-bar__app-name">
+          {tenantChrome ? (
+            <span className="electron-title-bar__ga-name">
+              {formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')}
+            </span>
+          ) : (
+            APP_TITLE
+          )}
+        </span>
+      </div>
+      <div className="electron-title-bar__trailing">
         {showGaUserActions ? (
           <div className="electron-title-bar__user-actions">
             <NotificationBell />
@@ -67,47 +76,35 @@ export function ElectronTitleBar() {
             ) : null}
           </div>
         ) : null}
-      </div>
-      <div className="electron-title-bar__drag">
-        <span className="electron-title-bar__app-name">
-          {tenantChrome ? (
-            <>
-              <span className="electron-title-bar__ga-name">
-                {formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')}
-              </span>
-              <span className="electron-title-bar__title-sep" aria-hidden>
-                {' · '}
-              </span>
-            </>
-          ) : null}
-          {APP_TITLE}
-        </span>
-      </div>
-      <div className="window-controls">
-        <button
-          type="button"
-          className="electron-title-bar__control"
-          aria-label="Minimize"
-          onClick={() => api.minimize()}
-        >
-          ─
-        </button>
-        <button
-          type="button"
-          className="electron-title-bar__control"
-          aria-label="Maximize or restore"
-          onClick={() => api.maximize()}
-        >
-          {'\u25A1'}
-        </button>
-        <button
-          type="button"
-          className="electron-title-bar__control electron-title-bar__control--close"
-          aria-label="Close"
-          onClick={() => api.close()}
-        >
-          ×
-        </button>
+        <div className="window-controls">
+          <button
+            type="button"
+            className="electron-title-bar__control"
+            aria-label="Minimize"
+            onClick={() => api?.minimize?.()}
+            disabled={!active}
+          >
+            ─
+          </button>
+          <button
+            type="button"
+            className="electron-title-bar__control"
+            aria-label="Maximize or restore"
+            onClick={() => api?.maximize?.()}
+            disabled={!active}
+          >
+            {'\u25A1'}
+          </button>
+          <button
+            type="button"
+            className="electron-title-bar__control electron-title-bar__control--close"
+            aria-label="Close"
+            onClick={() => api?.close?.()}
+            disabled={!active}
+          >
+            ×
+          </button>
+        </div>
       </div>
     </header>
   )

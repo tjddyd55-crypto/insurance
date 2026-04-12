@@ -4,6 +4,7 @@ import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/contex
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import MemoPanel from './MemoPanel'
 import { MIN_LEFT_WIDTH, MIN_MEMO_WIDTH } from './memoWorkspaceLayoutConstants'
+import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
 
 /**
  * 인증 라우트 전역: PC에서는 좌측(앱) + 우측(메모 패널), 모바일(≤768px)에서는 Outlet만 렌더합니다.
@@ -94,14 +95,15 @@ function AppWorkspaceLayoutPc() {
     })
   }, [])
 
-  const closeMemoPanel = useCallback(() => {
-    setIsMemoOpen(false)
-    setIsMinimized(false)
-  }, [setIsMinimized])
-
-  const minimizeMemoPanel = useCallback(() => {
-    setIsMinimized(true)
-    setIsFullscreen(false)
+  const onToggleMinimize = useCallback(() => {
+    setIsMemoOpen(true)
+    setIsMinimized((prev) => {
+      const next = !prev
+      if (next) {
+        setIsFullscreen(false)
+      }
+      return next
+    })
   }, [setIsMinimized])
 
   useEffect(() => {
@@ -139,16 +141,6 @@ function AppWorkspaceLayoutPc() {
         </button>
       ) : null}
 
-      {isMinimized && isMemoOpen ? (
-        <button
-          type="button"
-          className="memo-restore-btn"
-          onClick={() => setIsMinimized(false)}
-        >
-          메모 열기
-        </button>
-      ) : null}
-
       <div className="workspace-left workspace-left--app" style={leftStyle}>
         <div className="app-main-content">
           <Outlet />
@@ -168,17 +160,19 @@ function AppWorkspaceLayoutPc() {
         <div className="workspace-right workspace-right--app-fixed" style={rightStyle}>
           <MemoPanel
             isFullscreen={isFullscreen}
-            onToggleFullscreen={onToggleFullscreen}
             isListOpen={isListOpen}
             onToggleList={() => setIsListOpen((v) => !v)}
-            onClosePanel={closeMemoPanel}
-            onMinimize={minimizeMemoPanel}
-            onOpenList={() => setIsListOpen(true)}
             selectedNoteId={selectedNoteId}
             onSelectNoteFromList={onSelectNoteFromList}
           />
         </div>
       ) : null}
+
+      <MemoElectronFabDock
+        isMobile={false}
+        onToggleMinimize={onToggleMinimize}
+        onToggleFullscreen={onToggleFullscreen}
+      />
     </div>
   )
 }

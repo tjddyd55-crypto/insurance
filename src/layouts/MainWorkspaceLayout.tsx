@@ -4,6 +4,7 @@ import MemoWorkspacePage from '../features/memo/pages/MemoWorkspacePage'
 import MemoList from '../features/memo/components/MemoList'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { MIN_LEFT_WIDTH, MIN_MEMO_WIDTH } from './memoWorkspaceLayoutConstants'
+import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
 
 function MemoFab() {
   const { addNote, token } = useMemoWorkspace()
@@ -22,13 +23,15 @@ function MemoPanelBody({
   isMobile,
   selectedNoteId,
   onSelectNoteFromList,
-  onOpenList,
+  onToggleList,
+  omitFab = false,
 }: {
   showList: boolean
   isMobile: boolean
   selectedNoteId: string | null
   onSelectNoteFromList: (id: string) => void
-  onOpenList: () => void
+  onToggleList: () => void
+  omitFab?: boolean
 }) {
   return (
     <div className="memo-panel-main">
@@ -43,16 +46,53 @@ function MemoPanelBody({
             className={`memo-list-sidebar ${isMobile ? 'mobile-list memo-mobile-list' : 'memo-list-sidebar--right-dock'}`}
             data-selected-note={selectedNoteId ?? ''}
           >
+            {isMobile ? (
+              <div className="memo-mobile-list-toggle-row">
+                <button
+                  type="button"
+                  className="memo-mobile-list-toggle-btn"
+                  onClick={onToggleList}
+                  aria-label="메모 목록 접기"
+                >
+                  ▼
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="memo-list-toggle-btn memo-list-toggle-btn--collapse"
+                onClick={onToggleList}
+                aria-label="메모 목록 접기"
+              >
+                &gt;
+              </button>
+            )}
             <MemoList onAfterSelectNote={onSelectNoteFromList} />
           </div>
         ) : null}
         {!showList ? (
-          <button type="button" className="memo-list-open-btn" onClick={onOpenList} aria-label="메모 목록 열기">
-            &lt;
-          </button>
+          isMobile ? (
+            <button
+              type="button"
+              className="memo-mobile-list-open-btn"
+              onClick={onToggleList}
+              aria-label="메모 목록 열기"
+            >
+              ▲
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="memo-list-toggle-btn memo-list-toggle-btn--expand"
+              onClick={onToggleList}
+              aria-label="메모 목록 열기"
+            >
+              &lt;
+            </button>
+          )
         ) : null}
       </div>
-      <MemoFab />
+      {!omitFab ? <MemoFab /> : null}
     </div>
   )
 }
@@ -119,15 +159,26 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
     resizingRef.current = true
   }, [])
 
-  const closeMemoPanel = useCallback(() => {
-    setIsMemoOpen(false)
-    setIsMinimized(false)
+  const onToggleMinimize = useCallback(() => {
+    setIsMemoOpen(true)
+    setIsMinimized((prev) => {
+      const next = !prev
+      if (next) {
+        setIsFullscreen(false)
+      }
+      return next
+    })
   }, [setIsMinimized])
 
-  const minimizeMemoPanel = useCallback(() => {
-    setIsMinimized(true)
-    setIsFullscreen(false)
-  }, [setIsMinimized])
+  const onToggleFullscreen = useCallback(() => {
+    setIsFullscreen((v) => {
+      const next = !v
+      if (next) {
+        setIsMemoOpen(true)
+      }
+      return next
+    })
+  }, [])
 
   useEffect(() => {
     if (isFullscreen) {
@@ -207,16 +258,6 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
         </button>
       ) : null}
 
-      {isMinimized && isMemoOpen ? (
-        <button
-          type="button"
-          className="memo-restore-btn"
-          onClick={() => setIsMinimized(false)}
-        >
-          메모 열기
-        </button>
-      ) : null}
-
       <div
         className={`workspace-left ${isNarrow ? 'workspace-left--narrow drawer' : ''}`}
         style={leftStyle}
@@ -239,43 +280,21 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
 
       {!isMinimized && isMemoOpen ? (
         <div className="workspace-right" style={rightStyle}>
-          <div className="memo-header">
-            <button type="button" className="memo-header-btn" onClick={closeMemoPanel}>
-              메모 패널 닫기
-            </button>
-            <button
-              type="button"
-              className="memo-header-btn"
-              onClick={() => {
-                setIsFullscreen((v) => {
-                  const next = !v
-                  if (next) {
-                    setIsMemoOpen(true)
-                  }
-                  return next
-                })
-              }}
-            >
-              {isFullscreen ? '전체화면 끄기' : '메모 전체화면'}
-            </button>
-            <button type="button" className="memo-header-btn" onClick={minimizeMemoPanel}>
-              최소화
-            </button>
-            {isListOpen ? (
-              <button type="button" className="memo-header-btn" onClick={() => setIsListOpen(false)}>
-                리스트 접기
-              </button>
-            ) : null}
-          </div>
           <MemoPanelBody
             showList={listVisible}
             isMobile={isMobile}
             selectedNoteId={selectedNoteId}
             onSelectNoteFromList={onSelectNoteFromList}
-            onOpenList={() => setIsListOpen(true)}
+            onToggleList={() => setIsListOpen((v) => !v)}
+            omitFab
           />
         </div>
       ) : null}
+      <MemoElectronFabDock
+        isMobile={isMobile}
+        onToggleMinimize={onToggleMinimize}
+        onToggleFullscreen={onToggleFullscreen}
+      />
     </div>
   )
 }
