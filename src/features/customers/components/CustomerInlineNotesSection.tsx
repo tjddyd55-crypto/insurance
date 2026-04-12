@@ -235,6 +235,9 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
           maxLength={NOTE_MAX_LENGTH}
           onChange={(e) => setDraft(e.target.value.slice(0, NOTE_MAX_LENGTH))}
           placeholder="메모 내용"
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
         />
         <div className="flex gap-2 justify-end flex-wrap">
           <Button type="button" variant="secondary" onClick={closeMemoModal}>

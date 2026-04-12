@@ -1,14 +1,19 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from './AuthProvider'
+import type { UserRole } from './authApi'
 
-/** 메인 앱 로그인(INSURER_MANAGER) 전용 — 원수사 소식지 조회·업로드만 */
-export function InsurerManagerOnlyRoute() {
+/** 채널 담당자(원수사/손해사정사) 전용 */
+export function InsurerManagerOnlyRoute({
+  allowedRoles = ['INSURER_MANAGER', 'LOSS_ADJUSTER'],
+}: {
+  allowedRoles?: UserRole[]
+}) {
   const { user, isAuthenticated } = useAuth()
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/login?required=1" replace />
   }
-  if (user.role !== 'INSURER_MANAGER') {
+  if (!allowedRoles.includes(user.role)) {
     return <Navigate to="/dashboard" replace />
   }
   return <Outlet />

@@ -9,6 +9,7 @@ import {
   buildGaTenantDashboardMenu,
   GA_STAFF_MENU,
   INSURER_MANAGER_MENU,
+  LOSS_ADJUSTER_MENU,
   type GaTenantDashboardMenuEntry,
   type GaTenantMenuItem,
 } from '../gaTenantMenu'
@@ -40,6 +41,9 @@ function menuForSession(
   if (role === 'INSURER_MANAGER') {
     return menuItemsToEntries(INSURER_MANAGER_MENU)
   }
+  if (role === 'LOSS_ADJUSTER') {
+    return menuItemsToEntries(LOSS_ADJUSTER_MENU)
+  }
   if (role === 'GA_STAFF') {
     return menuItemsToEntries(GA_STAFF_MENU)
   }
@@ -66,6 +70,9 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   }
   if (itemPath === '/portal/newsletters') {
     return pathname === '/portal/newsletters' || pathname.startsWith('/portal/newsletters/')
+  }
+  if (itemPath === '/portal/adjuster-news') {
+    return pathname === '/portal/adjuster-news' || pathname.startsWith('/portal/adjuster-news/')
   }
   if (itemPath === '/contacts/manage') {
     return pathname === '/contacts/manage' || pathname === '/insurance/company-registry'
@@ -103,6 +110,9 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === '/insurer-managers') {
     return pathname === '/insurer-managers'
   }
+  if (itemPath === '/loss-adjusters') {
+    return pathname === '/loss-adjusters'
+  }
   if (itemPath === '/insurer/news') {
     if (pathname.startsWith('/insurer/news/upload')) {
       return false
@@ -111,6 +121,15 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   }
   if (itemPath === '/insurer/news/upload') {
     return pathname === '/insurer/news/upload'
+  }
+  if (itemPath === '/adjuster/news') {
+    if (pathname.startsWith('/adjuster/news/upload')) {
+      return false
+    }
+    return pathname === '/adjuster/news' || pathname.startsWith('/adjuster/news/')
+  }
+  if (itemPath === '/adjuster/news/upload') {
+    return pathname === '/adjuster/news/upload'
   }
   if (itemPath === '/admin/audit-logs') {
     return pathname === '/admin/audit-logs'

@@ -319,6 +319,9 @@ export default function StickyNote({
           placeholder="메모를 입력하세요"
           aria-label="메모 내용"
           inputMode="text"
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
           autoComplete="off"
         />
       </div>

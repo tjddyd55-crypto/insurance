@@ -1,11 +1,11 @@
 import { ApiError, apiRequest } from '../../lib/apiClient'
-import type { InsurerManager, InsurerManagerStatus, InsurerManagerType } from './types'
+import type { InsurerManager, InsurerManagerStatus, InsurerManagerType } from '../insurer-managers/types'
 
-export async function listInsurerManagersApi(token: string): Promise<InsurerManager[]> {
-  return apiRequest<InsurerManager[]>('/api/insurer-managers', { method: 'GET', token })
+export async function listLossAdjustersApi(token: string): Promise<InsurerManager[]> {
+  return apiRequest<InsurerManager[]>('/api/loss-adjusters', { method: 'GET', token })
 }
 
-export async function createInsurerManagerApi(
+export async function createLossAdjusterApi(
   token: string,
   payload: {
     insurerType: InsurerManagerType
@@ -15,7 +15,7 @@ export async function createInsurerManagerApi(
   },
 ): Promise<InsurerManager> {
   try {
-    return await apiRequest<InsurerManager>('/api/insurer-managers', {
+    return await apiRequest<InsurerManager>('/api/loss-adjusters', {
       method: 'POST',
       token,
       body: JSON.stringify({
@@ -33,7 +33,7 @@ export async function createInsurerManagerApi(
   }
 }
 
-export async function patchInsurerManagerApi(
+export async function patchLossAdjusterApi(
   token: string,
   id: string,
   payload: {
@@ -61,7 +61,7 @@ export async function patchInsurerManagerApi(
     if (payload.password != null && payload.password.trim() !== '') {
       body.password = payload.password
     }
-    return await apiRequest<InsurerManager>(`/api/insurer-managers/${encodeURIComponent(id)}`, {
+    return await apiRequest<InsurerManager>(`/api/loss-adjusters/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       token,
       body: JSON.stringify(body),
@@ -74,8 +74,8 @@ export async function patchInsurerManagerApi(
   }
 }
 
-export async function deleteInsurerManagerApi(token: string, id: string): Promise<{ ok: boolean }> {
-  return apiRequest<{ ok: boolean }>(`/api/insurer-managers/${encodeURIComponent(id)}`, {
+export async function deleteLossAdjusterApi(token: string, id: string): Promise<{ ok: boolean }> {
+  return apiRequest<{ ok: boolean }>(`/api/loss-adjusters/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     token,
   })

@@ -3,9 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { NewsletterList } from '../components/NewsletterList'
 import { getNewslettersForInsurerManagerCompany } from '../services/insurerNews.service'
-import type { NewsletterItem } from '../types'
+import type { NewsChannel, NewsletterItem } from '../types'
 
-export function InsurerManagerNewsListPage() {
+export function InsurerManagerNewsListPage({
+  channel = 'INSURER',
+  title = '원수사 소식지 조회',
+  subtitle = '소속 원수사에 등록된 소식지만 표시됩니다.',
+  openPathPrefix = '/insurer/news',
+  noSessionMessage = '원수사 담당자 계정(소속 회사 정보 포함)으로 로그인한 후 이용할 수 있습니다.',
+}: {
+  channel?: NewsChannel
+  title?: string
+  subtitle?: string
+  openPathPrefix?: string
+  noSessionMessage?: string
+}) {
   const { user, token } = useAuth()
   const navigate = useNavigate()
   const gaCode = user?.gaCode ?? ''
@@ -21,7 +33,7 @@ export function InsurerManagerNewsListPage() {
     ;(async () => {
       setError('')
       try {
-        const rows = await getNewslettersForInsurerManagerCompany(token, gaCode, companyId)
+        const rows = await getNewslettersForInsurerManagerCompany(token, gaCode, companyId, { channel })
         if (!cancelled) {
           setItems(rows)
         }
@@ -34,17 +46,17 @@ export function InsurerManagerNewsListPage() {
     return () => {
       cancelled = true
     }
-  }, [token, gaCode, companyId])
+  }, [channel, token, gaCode, companyId])
 
   if (!gaCode || companyId == null) {
     return (
       <main className="page page--with-back insurer-news-page">
         <header className="page-header page-header--has-inline-back">
           <div className="page-header__title-row">
-            <h1>원수사 소식지 조회</h1>
+            <h1>{title}</h1>
           </div>
         </header>
-        <div className="insurer-news-empty">원수사 담당자 계정(소속 회사 정보 포함)으로 로그인한 후 이용할 수 있습니다.</div>
+        <div className="insurer-news-empty">{noSessionMessage}</div>
       </main>
     )
   }
@@ -53,15 +65,15 @@ export function InsurerManagerNewsListPage() {
     <main className="page page--with-back insurer-news-page">
       <header className="page-header page-header--has-inline-back" style={{ marginBottom: 16 }}>
         <div className="page-header__title-row">
-          <h1>원수사 소식지 조회</h1>
+          <h1>{title}</h1>
         </div>
-        <p className="insurer-news-muted">소속 원수사에 등록된 소식지만 표시됩니다.</p>
+        <p className="insurer-news-muted">{subtitle}</p>
       </header>
       {error ? <div className="insurer-news-empty">{error}</div> : null}
       <NewsletterList
         items={items}
         emptyMessage="등록된 소식지가 없습니다."
-        onOpenItem={(id) => navigate(`/insurer/news/${id}`)}
+        onOpenItem={(id) => navigate(`${openPathPrefix}/${id}`)}
       />
     </main>
   )

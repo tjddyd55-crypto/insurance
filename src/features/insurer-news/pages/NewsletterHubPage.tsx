@@ -3,9 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { NewsCard } from '../components/NewsCard'
 import { getAllPublishedForGa } from '../services/insurerNews.service'
-import type { NewsletterItem } from '../types'
+import type { NewsChannel, NewsletterItem } from '../types'
 
-export function NewsletterHubPage() {
+export function NewsletterHubPage({
+  channel = 'INSURER',
+  detailBasePath = '/portal/newsletters',
+  emptyMessage = '아직 등록된 소식지가 없습니다.',
+}: {
+  channel?: NewsChannel
+  detailBasePath?: string
+  emptyMessage?: string
+}) {
   const { user, token } = useAuth()
   const gaCode = user?.gaCode ?? ''
   const navigate = useNavigate()
@@ -17,7 +25,7 @@ export function NewsletterHubPage() {
     }
     let cancelled = false
     ;(async () => {
-      const rows = await getAllPublishedForGa(gaCode, token)
+      const rows = await getAllPublishedForGa(gaCode, token, { channel })
       if (!cancelled) {
         setItems(rows)
       }
@@ -25,7 +33,7 @@ export function NewsletterHubPage() {
     return () => {
       cancelled = true
     }
-  }, [gaCode, token])
+  }, [channel, gaCode, token])
 
   if (!gaCode) {
     return null
@@ -38,7 +46,7 @@ export function NewsletterHubPage() {
   if (items.length === 0) {
     return (
       <div className="insurer-news-empty" role="status">
-        아직 등록된 소식지가 없습니다.
+        {emptyMessage}
       </div>
     )
   }
@@ -46,7 +54,7 @@ export function NewsletterHubPage() {
   return (
     <div className="news-grid">
       {items.map((item) => (
-        <NewsCard key={item.id} item={item} onOpen={() => navigate(`/portal/newsletters/${item.id}`)} />
+        <NewsCard key={item.id} item={item} onOpen={() => navigate(`${detailBasePath}/${item.id}`)} />
       ))}
     </div>
   )

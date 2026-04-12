@@ -31,6 +31,7 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
   const [hasMore, setHasMore] = useState(false)
   const latestRef = useRef<HTMLLIElement | null>(null)
   const pendingScrollRef = useRef(false)
+  const draftTextareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const fetchPage = useCallback(
     async (startOffset: number, append: boolean) => {
@@ -253,7 +254,12 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
         </button>
       ) : null}
 
-      <Modal open={consultModalOpen} onClose={() => setConsultModalOpen(false)} ariaLabel="상담 입력">
+      <Modal
+        open={consultModalOpen}
+        onClose={() => setConsultModalOpen(false)}
+        ariaLabel="상담 입력"
+        initialFocusRef={draftTextareaRef}
+      >
         <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">상담 입력</div>
         <form onSubmit={(ev) => void onModalSubmit(ev)}>
           <div className="mb-2">
@@ -269,12 +275,16 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
             </p>
           </div>
           <textarea
+            ref={draftTextareaRef}
             className="field__control w-full box-border min-h-[120px] mb-2"
             rows={4}
             value={draft}
             maxLength={CONTENT_MAX}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="상담 내용 (줄바꿈 유지)"
+            spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="off"
           />
           {modalError ? (
             <p className="text-[var(--danger)] text-sm mb-2" role="alert">

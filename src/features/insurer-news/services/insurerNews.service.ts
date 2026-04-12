@@ -3,13 +3,20 @@ import { listCompanyDirectory } from '../../company-registry/api/companyRegistry
 import { isNewsletterInCompanyScope } from '../lib/insurerNewsCompanyScope'
 import { cdnUrlForObjectKey } from '../lib/insurerNewsCdn'
 import { validateInsurerNewsFile } from '../utils/validateInsurerNewsFile'
-import type { InsurerSummary, LocalAttachmentDraft, NewsletterDetail, NewsletterItem } from '../types'
+import type { InsurerSummary, LocalAttachmentDraft, NewsChannel, NewsletterDetail, NewsletterItem } from '../types'
 
 type PublishContextApi = {
   gaCode: string
   insurerCode: string
   insurerName: string
   insurerSlug: string
+  newsChannel?: NewsChannel
+}
+
+const DEFAULT_NEWS_CHANNEL: NewsChannel = 'INSURER'
+
+function normalizeChannel(channel?: NewsChannel): NewsChannel {
+  return channel === 'LOSS_ADJUSTER' ? 'LOSS_ADJUSTER' : DEFAULT_NEWS_CHANNEL
 }
 
 function sortByPublishedDesc(items: NewsletterItem[]): NewsletterItem[] {
@@ -25,19 +32,23 @@ export type InsurerNewsFeedResponse = {
   insurers: InsurerSummary[]
 }
 
-async function fetchPublishContextApi(token: string): Promise<PublishContextApi> {
-  return apiRequest<PublishContextApi>('/api/insurer-news/manager/publish-context', { token })
+async function fetchPublishContextApi(token: string, options?: { channel?: NewsChannel }): Promise<PublishContextApi> {
+  const channel = normalizeChannel(options?.channel)
+  const q = channel === DEFAULT_NEWS_CHANNEL ? '' : `?channel=${encodeURIComponent(channel)}`
+  return apiRequest<PublishContextApi>(`/api/insurer-news/manager/publish-context${q}`, { token })
 }
 
 async function fetchInsurerNewsFeed(
   gaCode: string,
   token: string,
-  opts?: { limit?: number; insurerSlug?: string },
+  opts?: { limit?: number; insurerSlug?: string; channel?: NewsChannel },
 ): Promise<InsurerNewsFeedResponse> {
+  const channel = normalizeChannel(opts?.channel)
   const limit = opts?.limit ?? 500
   const sp = new URLSearchParams({
     gaCode: gaCode.trim(),
     limit: String(limit),
+    channel,
   })
   if (opts?.insurerSlug?.trim()) {
     sp.set('insurerSlug', opts.insurerSlug.trim().toLowerCase())
@@ -56,11 +67,19 @@ async function fetchInsurerNewsFeed(
   }
 }
 
-export async function getRecentNewslettersByGa(gaCode: string, limit = 8, token?: string | null): Promise<NewsletterItem[]> {
+export async function getRecentNewslettersByGa(
+  gaCode: string,
+  limit = 8,
+  token?: string | null,
+  options?: { channel?: NewsChannel },
+): Promise<NewsletterItem[]> {
   if (!token?.trim()) {
     return []
   }
-  const { newsletters } = await fetchInsurerNewsFeed(gaCode, token, { limit: Math.max(limit, 50) })
+  const { newsletters } = await fetchInsurerNewsFeed(gaCode, token, {
+    limit: Math.max(limit, 50),
+    channel: options?.channel,
+  })
   return sortByPublishedDesc(newsletters).slice(0, limit)
 }
 
@@ -68,6 +87,7 @@ export async function getNewslettersByInsurer(
   gaCode: string,
   insurerSlug: string,
   token?: string | null,
+  options?: { channel?: NewsChannel },
 ): Promise<NewsletterItem[]> {
   if (!token?.trim()) {
     return []
@@ -75,6 +95,7 @@ export async function getNewslettersByInsurer(
   const { newsletters } = await fetchInsurerNewsFeed(gaCode, token, {
     insurerSlug: insurerSlug.trim().toLowerCase(),
     limit: 500,
+    channel: options?.channel,
   })
   return sortByPublishedDesc(newsletters)
 }
@@ -83,11 +104,12 @@ export async function getNewsletterDetail(
   gaCode: string,
   newsletterId: string,
   token?: string | null,
+  options?: { channel?: NewsChannel },
 ): Promise<NewsletterDetail | null> {
   if (!token?.trim()) {
     return null
   }
-  const q = new URLSearchParams({ gaCode })
+  const q = new URLSearchParams({ gaCode, channel: normalizeChannel(options?.channel) })
   try {
     return await apiRequest<NewsletterDetail>(`/api/insurer-news/feed/${encodeURIComponent(newsletterId)}?${q}`, {
       token,
@@ -97,19 +119,27 @@ export async function getNewsletterDetail(
   }
 }
 
-export async function getInsurersForGa(gaCode: string, token?: string | null): Promise<InsurerSummary[]> {
+export async function getInsurersForGa(
+  gaCode: string,
+  token?: string | null,
+  options?: { channel?: NewsChannel },
+): Promise<InsurerSummary[]> {
   if (!token?.trim()) {
     return []
   }
-  const { insurers } = await fetchInsurerNewsFeed(gaCode, token, { limit: 1 })
+  const { insurers } = await fetchInsurerNewsFeed(gaCode, token, { limit: 1, channel: options?.channel })
   return [...insurers].sort((a, b) => a.insurerName.localeCompare(b.insurerName, 'ko'))
 }
 
-export async function getAllPublishedForGa(gaCode: string, token?: string | null): Promise<NewsletterItem[]> {
+export async function getAllPublishedForGa(
+  gaCode: string,
+  token?: string | null,
+  options?: { channel?: NewsChannel },
+): Promise<NewsletterItem[]> {
   if (!token?.trim()) {
     return []
   }
-  const { newsletters } = await fetchInsurerNewsFeed(gaCode, token, { limit: 500 })
+  const { newsletters } = await fetchInsurerNewsFeed(gaCode, token, { limit: 500, channel: options?.channel })
   return sortByPublishedDesc(newsletters)
 }
 
@@ -119,9 +149,10 @@ export async function getAllPublishedForGa(gaCode: string, token?: string | null
 export async function uploadNewsletterAttachments(
   token: string,
   drafts: LocalAttachmentDraft[],
-  options?: { presignInsurerCode?: string },
+  options?: { presignInsurerCode?: string; channel?: NewsChannel },
 ): Promise<LocalAttachmentDraft[]> {
   const presignInsurerCode = options?.presignInsurerCode?.trim()
+  const channel = normalizeChannel(options?.channel)
   const out: LocalAttachmentDraft[] = []
   for (const item of drafts) {
     if (item.status === 'failed') {
@@ -161,6 +192,7 @@ export async function uploadNewsletterAttachments(
       if (presignInsurerCode) {
         presignBody.insurerCode = presignInsurerCode
       }
+      presignBody.channel = channel
       const presign = await apiRequest<{
         uploadUrl: string
         objectKey: string
@@ -207,6 +239,7 @@ export async function uploadNewsletterAttachments(
         if (presignInsurerCode) {
           completeBody.insurerCode = presignInsurerCode
         }
+        completeBody.channel = channel
         await apiRequest<void>('/api/insurer-news/attachments/upload-complete', {
           method: 'POST',
           token,
@@ -246,7 +279,11 @@ export async function uploadNewsletterAttachments(
   return out
 }
 
-export async function createManagerNewsletter(token: string, draft: NewsletterDetail): Promise<NewsletterDetail> {
+export async function createManagerNewsletter(
+  token: string,
+  draft: NewsletterDetail,
+  options?: { channel?: NewsChannel },
+): Promise<NewsletterDetail> {
   return apiRequest<NewsletterDetail>('/api/insurer-news/manager/newsletters', {
     method: 'POST',
     token,
@@ -257,6 +294,7 @@ export async function createManagerNewsletter(token: string, draft: NewsletterDe
       insurerCode: draft.insurerCode,
       insurerSlug: draft.insurerSlug,
       insurerName: draft.insurerName,
+      channel: normalizeChannel(options?.channel),
       summary: draft.summary,
       publishedAt: draft.publishedAt,
       attachments: draft.attachments.map((a) => ({
@@ -276,6 +314,7 @@ export async function updateManagerNewsletter(
   token: string,
   newsletterId: string,
   draft: NewsletterDetail,
+  options?: { channel?: NewsChannel },
 ): Promise<NewsletterDetail> {
   return apiRequest<NewsletterDetail>(`/api/insurer-news/manager/newsletters/${encodeURIComponent(newsletterId)}`, {
     method: 'PATCH',
@@ -287,6 +326,7 @@ export async function updateManagerNewsletter(
       insurerCode: draft.insurerCode,
       insurerSlug: draft.insurerSlug,
       insurerName: draft.insurerName,
+      channel: normalizeChannel(options?.channel),
       summary: draft.summary,
       publishedAt: draft.publishedAt,
       attachments: draft.attachments.map((a) => ({
@@ -302,13 +342,31 @@ export async function updateManagerNewsletter(
   })
 }
 
-export async function listManagerNewsletters(token: string): Promise<NewsletterItem[]> {
-  return apiRequest<NewsletterItem[]>('/api/insurer-news/manager/newsletters', { token })
+export async function deleteManagerNewsletter(
+  token: string,
+  newsletterId: string,
+  options?: { channel?: NewsChannel },
+): Promise<void> {
+  const q = new URLSearchParams({ channel: normalizeChannel(options?.channel) })
+  await apiRequest<void>(`/api/insurer-news/manager/newsletters/${encodeURIComponent(newsletterId)}?${q}`, {
+    method: 'DELETE',
+    token,
+  })
 }
 
-export async function getManagerNewsletterDetail(token: string, id: string): Promise<NewsletterDetail | null> {
+export async function listManagerNewsletters(token: string, options?: { channel?: NewsChannel }): Promise<NewsletterItem[]> {
+  const q = new URLSearchParams({ channel: normalizeChannel(options?.channel) })
+  return apiRequest<NewsletterItem[]>(`/api/insurer-news/manager/newsletters?${q}`, { token })
+}
+
+export async function getManagerNewsletterDetail(
+  token: string,
+  id: string,
+  options?: { channel?: NewsChannel },
+): Promise<NewsletterDetail | null> {
   try {
-    return await apiRequest<NewsletterDetail>(`/api/insurer-news/manager/newsletters/${encodeURIComponent(id)}`, {
+    const q = new URLSearchParams({ channel: normalizeChannel(options?.channel) })
+    return await apiRequest<NewsletterDetail>(`/api/insurer-news/manager/newsletters/${encodeURIComponent(id)}?${q}`, {
       token,
     })
   } catch {
@@ -327,8 +385,9 @@ export async function getNewslettersForInsurerManagerCompany(
   token: string,
   gaCode: string,
   companyMasterId: number,
+  options?: { channel?: NewsChannel },
 ): Promise<NewsletterItem[]> {
-  const rows = await listManagerNewsletters(token)
+  const rows = await listManagerNewsletters(token, { channel: options?.channel })
   const companies = await listCompanyDirectory(token)
   const entry = companies.find((r) => r.id === companyMasterId)
   if (!entry) {
@@ -342,8 +401,9 @@ export async function getNewsletterDetailForInsurerManager(
   gaCode: string,
   companyMasterId: number,
   newsletterId: string,
+  options?: { channel?: NewsChannel },
 ): Promise<NewsletterDetail | null> {
-  const detail = await getManagerNewsletterDetail(token, newsletterId)
+  const detail = await getManagerNewsletterDetail(token, newsletterId, { channel: options?.channel })
   if (!detail) {
     return null
   }
@@ -359,9 +419,10 @@ export async function resolveInsurerManagerPublishContext(
   token: string,
   gaCode: string,
   companyMasterId: number,
+  options?: { channel?: NewsChannel },
 ): Promise<PublishContextApi | { error: string }> {
   try {
-    const apiCtx = await fetchPublishContextApi(token)
+    const apiCtx = await fetchPublishContextApi(token, { channel: options?.channel })
     if (apiCtx.gaCode.toUpperCase() !== gaCode.trim().toUpperCase()) {
       return { error: 'GA 정보가 일치하지 않습니다. 다시 로그인해 주세요.' }
     }

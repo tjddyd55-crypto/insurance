@@ -4,6 +4,7 @@
  */
 
 export type NewsletterPublishStatus = 'DRAFT' | 'PUBLISHED'
+export type NewsChannel = 'INSURER' | 'LOSS_ADJUSTER'
 
 export type UploadStatus = 'pending' | 'uploading' | 'completed' | 'failed'
 
@@ -38,6 +39,7 @@ export interface NewsletterItem {
   insurerCode: string
   insurerName: string
   insurerSlug: string
+  newsChannel?: NewsChannel
   title: string
   summary: string
   heroImageUrl: string | null

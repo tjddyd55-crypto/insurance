@@ -69,7 +69,7 @@ export default function CustomerConsultationsPage() {
     setBusy(true)
     setError('')
     try {
-      await createCustomerConsultation(token, customerId, t)
+      await createCustomerConsultation(token, customerId, t, { consultationDate: consultDate })
       setBody('')
       await loadAll()
     } catch (err) {

@@ -5,9 +5,9 @@ import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList
 import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
 import { getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
 import { formatInsurerNewsDateTime } from '../utils/formatInsurerNewsDate'
-import type { NewsletterDetail } from '../types'
+import type { NewsChannel, NewsletterDetail } from '../types'
 
-export function InsurerManagerNewsDetailPage() {
+export function InsurerManagerNewsDetailPage({ channel = 'INSURER' }: { channel?: NewsChannel }) {
   const { newsletterId } = useParams<{ newsletterId: string }>()
   const { user, token } = useAuth()
   const gaCode = user?.gaCode ?? ''
@@ -23,7 +23,7 @@ export function InsurerManagerNewsDetailPage() {
     let cancelled = false
     setLoading(true)
     ;(async () => {
-      const row = await getNewsletterDetailForInsurerManager(token, gaCode, companyId, newsletterId)
+      const row = await getNewsletterDetailForInsurerManager(token, gaCode, companyId, newsletterId, { channel })
       if (!cancelled) {
         setDetail(row)
         setLoading(false)
@@ -32,7 +32,7 @@ export function InsurerManagerNewsDetailPage() {
     return () => {
       cancelled = true
     }
-  }, [token, gaCode, companyId, newsletterId])
+  }, [channel, token, gaCode, companyId, newsletterId])
 
   if (!gaCode || companyId == null) {
     return null

@@ -10,7 +10,8 @@ import {
 } from '../lib/consentStorage.js'
 
 function isInsurerManagerRole(role) {
-  return String(role ?? '') === 'INSURER_MANAGER'
+  const normalized = String(role ?? '')
+  return normalized === 'INSURER_MANAGER' || normalized === 'LOSS_ADJUSTER'
 }
 
 /** SUPER_ADMIN / GA_ADMIN — 팀 게시글 수정·삭제 시 작성자·팀장 외 예외 허용 */

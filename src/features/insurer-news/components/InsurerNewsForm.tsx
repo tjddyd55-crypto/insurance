@@ -110,11 +110,6 @@ export function InsurerNewsForm({
       setSubmitError('로그인이 필요합니다.')
       return
     }
-    if (!form.bodyText.trim()) {
-      setSubmitError('내용을 입력해 주세요.')
-      return
-    }
-
     setBusyMessage('저장 중...')
 
     try {
@@ -150,7 +145,6 @@ export function InsurerNewsForm({
         <textarea
           value={form.bodyText}
           onChange={(e) => form.setBodyText(e.target.value)}
-          required
           rows={8}
           className="admin-form-input"
           style={{ height: 'auto', minHeight: 160, paddingTop: 12, paddingBottom: 12 }}

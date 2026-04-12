@@ -25,6 +25,14 @@ export function isInsurerManagerRole(role: string | undefined): role is UserRole
   return role === 'INSURER_MANAGER'
 }
 
+export function isLossAdjusterRole(role: string | undefined): role is UserRole {
+  return role === 'LOSS_ADJUSTER'
+}
+
+export function isNewsManagerRole(role: string | undefined): role is UserRole {
+  return role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER'
+}
+
 /** 원수사 연락처·일반화재·담당자 등 서버에서 GA_ADMIN·SUPER_ADMIN만 쓰기 허용 */
 export function canMutateInsuranceDirectory(role: string | undefined): boolean {
   return role === 'GA_ADMIN' || role === 'SUPER_ADMIN'

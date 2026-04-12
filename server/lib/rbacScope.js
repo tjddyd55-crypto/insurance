@@ -1,6 +1,6 @@
 import { parseGaId } from './parseGaId.js'
 
-const VALID_USER_ROLES = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF', 'USER', 'INSURER_MANAGER']
+const VALID_USER_ROLES = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF', 'USER', 'INSURER_MANAGER', 'LOSS_ADJUSTER']
 
 const LEGACY_USER_ROLE_MAP = {
   super_admin: 'SUPER_ADMIN',
@@ -34,6 +34,17 @@ export function isGaOpsRole(role) {
 /** @param {unknown} role */
 export function isInsurerManagerRole(role) {
   return normalizeRbacRole(role) === 'INSURER_MANAGER'
+}
+
+/** @param {unknown} role */
+export function isLossAdjusterRole(role) {
+  return normalizeRbacRole(role) === 'LOSS_ADJUSTER'
+}
+
+/** 뉴스 채널 운영 계정(원수사/손해사정사) */
+export function isNewsManagerRole(role) {
+  const n = normalizeRbacRole(role)
+  return n === 'INSURER_MANAGER' || n === 'LOSS_ADJUSTER'
 }
 
 /** 보험사 디렉터리·동의서 등 수정 권한: SUPER_ADMIN · GA_ADMIN 만 */

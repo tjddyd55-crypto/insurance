@@ -1,7 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 
-export function NewsletterPortalLayout() {
+export function NewsletterPortalLayout({ title = '원수사 소식지' }: { title?: string }) {
   const { user } = useAuth()
   const gaCode = user?.gaCode?.trim()
 
@@ -16,7 +16,7 @@ export function NewsletterPortalLayout() {
   return (
     <main className="page page--with-back insurer-news-page">
       <header className="page-header" style={{ marginBottom: 16 }}>
-        <h1 style={{ marginBottom: 0 }}>원수사 소식지</h1>
+        <h1 style={{ marginBottom: 0 }}>{title}</h1>
       </header>
       <Outlet />
     </main>

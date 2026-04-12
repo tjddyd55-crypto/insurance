@@ -1,13 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { listCompanyDirectory } from '../../company-registry/api/companyRegistryApi'
+import type { CompanyDirectoryEntry } from '../../company-registry/domain/types'
 import { canonicalInsuranceCategoryForFilter } from '../../company-registry/domain/categoryUtils'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   createInsurerManagerApi,
+  deleteInsurerManagerApi,
   listInsurerManagersApi,
   patchInsurerManagerApi,
 } from '../insurerManagerApi'
+import {
+  createLossAdjusterApi,
+  deleteLossAdjusterApi,
+  listLossAdjustersApi,
+  patchLossAdjusterApi,
+} from '../../loss-adjusters/lossAdjusterApi'
 import type { InsurerManager, InsurerManagerStatus, InsurerManagerType } from '../types'
 
 const STATUS_OPTIONS: { value: InsurerManagerStatus; label: string }[] = [
@@ -56,9 +64,80 @@ function emptyForm(): {
   }
 }
 
-export default function InsurerManagersPage() {
+type ManagerChannelKind = 'insurer' | 'lossAdjuster'
+
+type ManagerPageConfig = {
+  pageTitle: string
+  description: string
+  entityLabel: string
+  listEmpty: string
+  createTitle: string
+  editTitle: string
+  noSessionMessage: string
+  createRequiredMessage: string
+  editRequiredMessage: string
+  deleteConfirm: (name: string) => string
+  listApi: (token: string) => Promise<InsurerManager[]>
+  createApi: (
+    token: string,
+    payload: { insurerType: InsurerManagerType; companyId: number; username: string; password: string },
+  ) => Promise<InsurerManager>
+  patchApi: (
+    token: string,
+    id: string,
+    payload: {
+      insurerType?: InsurerManagerType
+      companyId?: number
+      username?: string
+      password?: string
+      status?: InsurerManagerStatus
+    },
+  ) => Promise<InsurerManager>
+  deleteApi: (token: string, id: string) => Promise<{ ok: boolean }>
+}
+
+function configFor(kind: ManagerChannelKind): ManagerPageConfig {
+  if (kind === 'lossAdjuster') {
+    return {
+      pageTitle: '손해사정사 계정 관리',
+      description: '손해사정사별 로그인 계정(아이디·비밀번호)을 관리합니다.',
+      entityLabel: '손해사정사',
+      listEmpty: '등록된 손해사정사 계정이 없습니다.',
+      createTitle: '손해사정사 계정 등록',
+      editTitle: '손해사정사 계정 수정',
+      noSessionMessage: 'GA에 소속된 계정으로 로그인한 후 이용할 수 있습니다.',
+      createRequiredMessage: '손해사정사(마스터), 아이디, 비밀번호를 모두 입력하세요.',
+      editRequiredMessage: '손해사정사(마스터)와 아이디를 입력하세요.',
+      deleteConfirm: (name) => `"${name}" 손해사정사 계정을 삭제하시겠습니까?`,
+      listApi: listLossAdjustersApi,
+      createApi: createLossAdjusterApi,
+      patchApi: patchLossAdjusterApi,
+      deleteApi: deleteLossAdjusterApi,
+    }
+  }
+  return {
+    pageTitle: '원수사 담당자 관리',
+    description: '보험사별 로그인 계정(아이디·비밀번호)을 관리합니다.',
+    entityLabel: '보험회사',
+    listEmpty: '등록된 원수사 담당자 계정이 없습니다.',
+    createTitle: '원수사 담당자 등록',
+    editTitle: '원수사 담당자 수정',
+    noSessionMessage: 'GA에 소속된 계정으로 로그인한 후 이용할 수 있습니다.',
+    createRequiredMessage: '보험사(마스터), 아이디, 비밀번호를 모두 입력하세요.',
+    editRequiredMessage: '보험사(마스터)와 아이디를 입력하세요.',
+    deleteConfirm: (name) => `"${name}" 담당자 계정을 삭제하시겠습니까?`,
+    listApi: listInsurerManagersApi,
+    createApi: createInsurerManagerApi,
+    patchApi: patchInsurerManagerApi,
+    deleteApi: deleteInsurerManagerApi,
+  }
+}
+
+export default function InsurerManagersPage({ managerKind = 'insurer' }: { managerKind?: ManagerChannelKind }) {
   const { user, token } = useAuth()
+  const config = useMemo(() => configFor(managerKind), [managerKind])
   const gaCode = user?.gaCode?.trim() ?? ''
+  const canDelete = user?.role === 'GA_ADMIN' || user?.role === 'GA_STAFF'
   const [rows, setRows] = useState<InsurerManager[]>([])
   const [loadErr, setLoadErr] = useState('')
   const [registerOpen, setRegisterOpen] = useState(false)
@@ -73,18 +152,18 @@ export default function InsurerManagersPage() {
     }
     setLoadErr('')
     try {
-      const list = await listInsurerManagersApi(token)
+      const list = await config.listApi(token)
       setRows(list)
     } catch {
       setLoadErr('목록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     }
-  }, [gaCode, token])
+  }, [config, gaCode, token])
 
   useEffect(() => {
     void reload()
   }, [reload])
 
-  const { data: companyDirectory = [] } = useQuery({
+  const { data: companyDirectory = [] } = useQuery<CompanyDirectoryEntry[]>({
     queryKey: ['company-directory', token, gaCode],
     queryFn: () => listCompanyDirectory(token!),
     enabled: Boolean(token && gaCode),
@@ -92,12 +171,9 @@ export default function InsurerManagersPage() {
 
   const masterChoices = useMemo(() => {
     return companyDirectory
-      .filter(
-        (c: any) =>
-          canonicalInsuranceCategoryForFilter(c.category, c.name) === form.insurerType,
-      )
+      .filter((c) => canonicalInsuranceCategoryForFilter(c.category, c.name) === form.insurerType)
       .slice()
-      .sort((a: any, b: any) => a.name.localeCompare(b.name, 'ko'))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
   }, [companyDirectory, form.insurerType])
 
   const submitCreate = async (e: FormEvent) => {
@@ -109,12 +185,12 @@ export default function InsurerManagersPage() {
     const u = form.username.trim()
     const password = form.password
     if (!form.companyId || !u || !password) {
-      setFormErr('보험사(마스터), 아이디, 비밀번호를 모두 입력하세요.')
+      setFormErr(config.createRequiredMessage)
       return
     }
     setSaving(true)
     try {
-      await createInsurerManagerApi(token, {
+      await config.createApi(token, {
         insurerType: form.insurerType,
         companyId: form.companyId,
         username: u,
@@ -138,12 +214,12 @@ export default function InsurerManagersPage() {
     }
     const u = form.username.trim()
     if (!form.companyId || !u) {
-      setFormErr('보험사(마스터)와 아이디를 입력하세요.')
+      setFormErr(config.editRequiredMessage)
       return
     }
     setSaving(true)
     try {
-      await patchInsurerManagerApi(token, editing.id, {
+      await config.patchApi(token, editing.id, {
         insurerType: form.insurerType,
         companyId: form.companyId,
         username: u,
@@ -165,10 +241,26 @@ export default function InsurerManagersPage() {
     }
     setLoadErr('')
     try {
-      await patchInsurerManagerApi(token, row.id, { status })
+      await config.patchApi(token, row.id, { status })
       await reload()
     } catch {
       setLoadErr('상태를 변경하지 못했습니다.')
+    }
+  }
+
+  const removeManager = async (row: InsurerManager) => {
+    if (!token || !canDelete) {
+      return
+    }
+    if (!window.confirm(config.deleteConfirm(row.insurerName))) {
+      return
+    }
+    setLoadErr('')
+    try {
+      await config.deleteApi(token, row.id)
+      await reload()
+    } catch (err) {
+      setLoadErr(err instanceof Error ? err.message : '삭제하지 못했습니다.')
     }
   }
 
@@ -195,8 +287,8 @@ export default function InsurerManagersPage() {
     return (
       <main className="page page--with-back">
         <header className="page-header">
-          <h1>원수사 담당자 관리</h1>
-          <p>GA에 소속된 계정으로 로그인한 후 이용할 수 있습니다.</p>
+          <h1>{config.pageTitle}</h1>
+          <p>{config.noSessionMessage}</p>
         </header>
       </main>
     )
@@ -205,8 +297,8 @@ export default function InsurerManagersPage() {
   return (
     <main className="page page--with-back admin-user-management">
       <header className="page-header">
-        <h1>원수사 담당자 관리</h1>
-        <p style={{ color: 'var(--text-sub)', margin: 0 }}>보험사별 로그인 계정(아이디·비밀번호)을 관리합니다.</p>
+        <h1>{config.pageTitle}</h1>
+        <p style={{ color: 'var(--text-sub)', margin: 0 }}>{config.description}</p>
       </header>
 
       {loadErr ? <p className="status status--error">{loadErr}</p> : null}
@@ -234,7 +326,7 @@ export default function InsurerManagersPage() {
           <table className="admin-data-table">
             <thead>
               <tr>
-                <th>보험회사</th>
+                <th>{config.entityLabel}</th>
                 <th>아이디</th>
                 <th>비밀번호</th>
                 <th>상태</th>
@@ -245,7 +337,7 @@ export default function InsurerManagersPage() {
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={5} style={{ padding: 20, color: 'var(--text-sub)' }}>
-                    등록된 원수사 담당자 계정이 없습니다.
+                    {config.listEmpty}
                   </td>
                 </tr>
               ) : (
@@ -276,6 +368,11 @@ export default function InsurerManagersPage() {
                       <button type="button" className="button button--secondary" onClick={() => openEdit(r)}>
                         수정
                       </button>
+                      {canDelete ? (
+                        <button type="button" className="button button--secondary" onClick={() => void removeManager(r)}>
+                          삭제
+                        </button>
+                      ) : null}
                     </td>
                   </tr>
                 ))
@@ -286,12 +383,12 @@ export default function InsurerManagersPage() {
 
         <div className="admin-responsive-card-list" style={{ padding: 12 }}>
           {rows.length === 0 ? (
-            <p style={{ margin: 0, color: 'var(--text-sub)' }}>등록된 원수사 담당자 계정이 없습니다.</p>
+            <p style={{ margin: 0, color: 'var(--text-sub)' }}>{config.listEmpty}</p>
           ) : (
             rows.map((r) => (
               <article key={r.id} className="admin-user-card">
                 <div className="admin-user-card__row">
-                  <span className="admin-user-card__label">보험회사</span>
+                  <span className="admin-user-card__label">{config.entityLabel}</span>
                   <span className="admin-user-card__value">{r.insurerName}</span>
                 </div>
                 <div className="admin-user-card__row">
@@ -324,6 +421,11 @@ export default function InsurerManagersPage() {
                   <button type="button" className="button button--secondary" onClick={() => openEdit(r)}>
                     수정
                   </button>
+                  {canDelete ? (
+                    <button type="button" className="button button--secondary" onClick={() => void removeManager(r)}>
+                      삭제
+                    </button>
+                  ) : null}
                 </div>
               </article>
             ))
@@ -341,7 +443,7 @@ export default function InsurerManagersPage() {
             onSubmit={(ev) => void submitCreate(ev)}
           >
             <h2 id="im-create-title" style={{ marginTop: 0 }}>
-              원수사 담당자 등록
+              {config.createTitle}
             </h2>
             <div className="admin-modal-content">
               {formErr ? <p className="status status--error" style={{ margin: 0 }}>{formErr}</p> : null}
@@ -368,7 +470,7 @@ export default function InsurerManagersPage() {
                 </select>
               </label>
               <label className="field admin-modal-field">
-                <span className="field__label">보험회사 (DB 마스터)</span>
+                <span className="field__label">{config.entityLabel} (DB 마스터)</span>
                 <select
                   className="admin-form-input"
                   required
@@ -429,7 +531,7 @@ export default function InsurerManagersPage() {
             onSubmit={(ev) => void submitEdit(ev)}
           >
             <h2 id="im-edit-title" style={{ marginTop: 0 }}>
-              원수사 담당자 수정
+              {config.editTitle}
             </h2>
             <div className="admin-modal-content">
               {formErr ? <p className="status status--error" style={{ margin: 0 }}>{formErr}</p> : null}
@@ -459,7 +561,7 @@ export default function InsurerManagersPage() {
                 </select>
               </label>
               <label className="field admin-modal-field">
-                <span className="field__label">보험회사 (DB 마스터)</span>
+                <span className="field__label">{config.entityLabel} (DB 마스터)</span>
                 <select
                   className="admin-form-input"
                   required

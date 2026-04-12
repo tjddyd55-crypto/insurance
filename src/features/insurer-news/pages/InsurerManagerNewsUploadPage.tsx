@@ -3,8 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { InsurerNewsForm } from '../components/InsurerNewsForm'
 import { createManagerNewsletter, resolveInsurerManagerPublishContext } from '../services/insurerNews.service'
+import type { NewsChannel } from '../types'
 
-export function InsurerManagerNewsUploadPage() {
+export function InsurerManagerNewsUploadPage({
+  channel = 'INSURER',
+  title = '원수사 소식지 업로드',
+  subtitle = '등록된 내용은 GA 소속 사용자에게 공개될 수 있습니다.',
+  listPath = '/insurer/news',
+  noSessionMessage = '원수사 담당자 계정으로 로그인한 후 이용할 수 있습니다.',
+}: {
+  channel?: NewsChannel
+  title?: string
+  subtitle?: string
+  listPath?: string
+  noSessionMessage?: string
+}) {
   const { user, token } = useAuth()
   const navigate = useNavigate()
   const gaCode = user?.gaCode ?? ''
@@ -23,7 +36,7 @@ export function InsurerManagerNewsUploadPage() {
     }
     let cancelled = false
     ;(async () => {
-      const resolved = await resolveInsurerManagerPublishContext(token, gaCode, companyId)
+      const resolved = await resolveInsurerManagerPublishContext(token, gaCode, companyId, { channel })
       if (cancelled) {
         return
       }
@@ -38,12 +51,12 @@ export function InsurerManagerNewsUploadPage() {
     return () => {
       cancelled = true
     }
-  }, [token, gaCode, companyId])
+  }, [channel, token, gaCode, companyId])
 
   if (!gaCode || companyId == null) {
     return (
       <main className="page page--with-back insurer-news-page">
-        <div className="insurer-news-empty">원수사 담당자 계정으로 로그인한 후 이용할 수 있습니다.</div>
+        <div className="insurer-news-empty">{noSessionMessage}</div>
       </main>
     )
   }
@@ -67,18 +80,18 @@ export function InsurerManagerNewsUploadPage() {
   return (
     <main className="page page--with-back insurer-news-page">
       <header className="page-header" style={{ marginBottom: 16 }}>
-        <h1 style={{ marginBottom: 8 }}>원수사 소식지 업로드</h1>
-        <p className="insurer-news-muted">등록된 내용은 GA 소속 사용자에게 공개될 수 있습니다.</p>
+        <h1 style={{ marginBottom: 8 }}>{title}</h1>
+        <p className="insurer-news-muted">{subtitle}</p>
       </header>
       <InsurerNewsForm
         mode="create"
         initial={null}
         context={context}
         authToken={token}
-        onCancel={() => navigate('/insurer/news')}
+        onCancel={() => navigate(listPath)}
         onSubmit={async (draft) => {
-          await createManagerNewsletter(token!, draft)
-          navigate('/insurer/news')
+          await createManagerNewsletter(token!, draft, { channel })
+          navigate(listPath)
         }}
       />
     </main>

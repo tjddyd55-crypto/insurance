@@ -2,7 +2,8 @@ import { safeQuery } from '../utils/dbSafeQuery.js'
 import { parseGaId } from '../lib/parseGaId.js'
 
 function isInsurerManagerRole(role) {
-  return String(role ?? '') === 'INSURER_MANAGER'
+  const normalized = String(role ?? '')
+  return normalized === 'INSURER_MANAGER' || normalized === 'LOSS_ADJUSTER'
 }
 
 function requireGaForNotifications(req, res) {

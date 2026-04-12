@@ -8,6 +8,8 @@ export type ModalProps = {
   ariaLabel?: string
   /** 패널에 추가할 클래스(폭 등). 예: max-w-2xl */
   panelClassName?: string
+  /** 모달 열릴 때 우선 포커스 대상 */
+  initialFocusRef?: React.RefObject<HTMLElement | null>
 }
 
 export default function Modal({
@@ -16,6 +18,7 @@ export default function Modal({
   children,
   ariaLabel = '대화상자',
   panelClassName = '',
+  initialFocusRef,
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -37,10 +40,11 @@ export default function Modal({
       return
     }
     const id = window.requestAnimationFrame(() => {
-      panelRef.current?.focus({ preventScroll: true })
+      const focusTarget = initialFocusRef?.current ?? panelRef.current
+      focusTarget?.focus({ preventScroll: true })
     })
     return () => window.cancelAnimationFrame(id)
-  }, [open])
+  }, [initialFocusRef, open])
 
   if (!open) {
     return null

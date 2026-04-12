@@ -29,7 +29,7 @@ import { parseGaId } from './lib/parseGaId.js'
 import {
   isGaInsurerManagerMutatorRole,
   isGaTenantAdminRole,
-  isInsurerManagerRole,
+  isNewsManagerRole,
   parseCompanyScopeId,
   resolveTenantGaIdForRequest,
 } from './lib/rbacScope.js'
@@ -43,7 +43,7 @@ const JWT_SECRET = process.env.JWT_SECRET ?? 'change-this-in-production'
 /** 초대 가입 링크 HMAC — 운영에서는 INVITE_SIGNUP_SECRET 별도 권장 */
 const INVITE_SIGNUP_SECRET = String(process.env.INVITE_SIGNUP_SECRET ?? JWT_SECRET)
 const DEFAULT_JWT_SECRET = 'change-this-in-production'
-const VALID_USER_ROLES = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF', 'USER', 'INSURER_MANAGER']
+const VALID_USER_ROLES = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF', 'USER', 'INSURER_MANAGER', 'LOSS_ADJUSTER']
 const GA_DELEGATE_ROLES = ['GA_ADMIN', 'GA_STAFF']
 const FEATURE_REQUEST_STATUSES = ['pending', 'reviewed', 'done']
 const ENTITY_STATUSES = ['active', 'blocked', 'inactive']
@@ -113,6 +113,7 @@ async function isUsernameTakenGlobally(executor, username, options = {}) {
   const normalized = String(username ?? '').trim()
   const excludeUserId = String(options.excludeUserId ?? '').trim()
   const excludeInsurerManagerId = String(options.excludeInsurerManagerId ?? '').trim()
+  const excludeLossAdjusterId = String(options.excludeLossAdjusterId ?? '').trim()
   const uParams = [normalized]
   let uSql = `SELECT 1 FROM users WHERE username = $1 AND is_deleted = false`
   if (excludeUserId) {
@@ -132,10 +133,26 @@ async function isUsernameTakenGlobally(executor, username, options = {}) {
   }
   imSql += ' LIMIT 1'
   const im = await systemQuery(executor, imSql, imParams)
-  return im.rowCount > 0
+  if (im.rowCount > 0) {
+    return true
+  }
+  const laParams = [normalized]
+  let laSql = `SELECT 1 FROM loss_adjusters WHERE username = $1 AND is_deleted = false`
+  if (excludeLossAdjusterId) {
+    laSql += ` AND id <> $2`
+    laParams.push(excludeLossAdjusterId)
+  }
+  laSql += ' LIMIT 1'
+  const la = await systemQuery(executor, laSql, laParams)
+  return la.rowCount > 0
 }
 
 function parseInsurerManagerType(raw) {
+  const u = String(raw ?? '').trim().toUpperCase()
+  return u === 'LIFE' || u === 'NON_LIFE' ? u : null
+}
+
+function parseLossAdjusterType(raw) {
   const u = String(raw ?? '').trim().toUpperCase()
   return u === 'LIFE' || u === 'NON_LIFE' ? u : null
 }
@@ -154,6 +171,22 @@ function mapInsurerManagerRow(row) {
     gaCode: typeof code === 'string' ? code.trim().toUpperCase() : '',
     insurerType: row.insurer_type,
     insurerName: String(row.insurer_name ?? '').trim(),
+    username: String(row.username ?? '').trim(),
+    password: String(row.password_plaintext ?? ''),
+    status: st === 'BLOCKED' ? 'BLOCKED' : 'ACTIVE',
+    createdAt: toIsoString(row.created_at),
+  }
+}
+
+function mapLossAdjusterRow(row) {
+  const code = row.ga_code ?? ''
+  const st = String(row.status ?? 'ACTIVE').toUpperCase()
+  return {
+    id: String(row.id),
+    companyId: row.company_id != null ? Number(row.company_id) : 0,
+    gaCode: typeof code === 'string' ? code.trim().toUpperCase() : '',
+    insurerType: row.adjuster_type,
+    insurerName: String(row.adjuster_name ?? '').trim(),
     username: String(row.username ?? '').trim(),
     password: String(row.password_plaintext ?? ''),
     status: st === 'BLOCKED' ? 'BLOCKED' : 'ACTIVE',
@@ -195,6 +228,43 @@ async function validateInsurerManagerCompanyLink(executor, gaId, companyId, insu
   }
   if (cat !== insurerTypeNorm) {
     return { ok: false, message: '보험사 유형(생명/손해)과 마스터 분류가 일치하지 않습니다.' }
+  }
+  return { ok: true, master: { id: Number(m.id), name: String(m.name ?? '').trim() } }
+}
+
+async function validateLossAdjusterCompanyLink(executor, gaId, companyId, adjusterTypeNorm) {
+  const mid = Number(companyId)
+  if (!Number.isInteger(mid) || mid <= 0) {
+    return { ok: false, message: '손해사정사 회사(마스터)를 선택해 주세요.' }
+  }
+  const g = parseGaId(gaId)
+  if (g == null) {
+    return { ok: false, message: 'GA 컨텍스트가 없습니다.' }
+  }
+  const r = await safeQuery(
+    executor,
+    `SELECT id, name, category, ga_id FROM insurance_company_master WHERE id = $1`,
+    [mid],
+  )
+  if (r.rowCount === 0) {
+    return { ok: false, message: '손해사정사 회사 마스터를 찾을 수 없습니다.' }
+  }
+  const m = r.rows[0]
+  if (Number(m.ga_id) !== Number(g)) {
+    return { ok: false, message: '선택한 회사가 소속 GA와 일치하지 않습니다.' }
+  }
+  const cat = resolveInsuranceCategoryForApi(m.category, m.name)
+  if (!cat || (cat !== 'LIFE' && cat !== 'NON_LIFE' && cat !== 'GENERAL')) {
+    return {
+      ok: false,
+      message: '회사 마스터 분류를 확인할 수 없습니다. 마스터 데이터를 점검해 주세요.',
+    }
+  }
+  if (cat === 'GENERAL') {
+    return { ok: false, message: '일반보험 마스터는 손해사정사 계정과 연결할 수 없습니다.' }
+  }
+  if (cat !== adjusterTypeNorm) {
+    return { ok: false, message: '손해사정사 유형(생명/손해)과 마스터 분류가 일치하지 않습니다.' }
   }
   return { ok: true, master: { id: Number(m.id), name: String(m.name ?? '').trim() } }
 }
@@ -906,13 +976,14 @@ async function requireAuth(req, res, next) {
       teamId,
     }
 
-    if (role === 'INSURER_MANAGER') {
+    if (role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER') {
+      const managerTable = role === 'LOSS_ADJUSTER' ? 'loss_adjusters' : 'insurer_managers'
       const stIm = await safeQuery(
         pool,
         `
         SELECT im.status AS im_status, im.is_deleted AS im_deleted, im.company_id,
                g.status AS ga_status, g.is_deleted AS ga_deleted
-        FROM insurer_managers im
+        FROM ${managerTable} im
         INNER JOIN ga_companies g ON g.id = im.ga_id
         WHERE im.id = $1
           AND im.is_deleted = false
@@ -941,9 +1012,9 @@ async function requireAuth(req, res, next) {
         return
       }
       if (!req.user.companyId || req.user.companyId < 1) {
-        forbiddenResponse(req, res, '담당자 계정에 보험사(마스터)가 연결되지 않았습니다.', {
+        forbiddenResponse(req, res, '담당자 계정에 회사(마스터)가 연결되지 않았습니다.', {
           guard: 'requireAuth',
-          reason: 'insurer_no_company',
+          reason: 'manager_no_company',
         })
         return
       }
@@ -1040,6 +1111,20 @@ function requireGaInsurerManagerMutator(req, res, next) {
   next()
 }
 
+/** 원수사 담당자 삭제: GA_ADMIN · GA_STAFF (SUPER_ADMIN 제외) */
+function requireGaStaffOrAdminOnly(req, res, next) {
+  if (!req.user) {
+    res.status(401).json({ message: '로그인이 필요합니다.' })
+    return
+  }
+  const r = normalizeUserRole(req.user.role)
+  if (r !== 'GA_ADMIN' && r !== 'GA_STAFF') {
+    forbiddenResponse(req, res, '원수사 담당자 삭제 권한이 필요합니다.', { guard: 'requireGaStaffOrAdminOnly' })
+    return
+  }
+  next()
+}
+
 /** 담당자 정합성 헬스: SUPER_ADMIN · GA_ADMIN 만 */
 function requireInsurerHealthReader(req, res, next) {
   if (!req.user) {
@@ -1047,7 +1132,7 @@ function requireInsurerHealthReader(req, res, next) {
     return
   }
   const r = normalizeUserRole(req.user.role)
-  if (r === 'INSURER_MANAGER' || r === 'GA_STAFF' || r === 'USER') {
+  if (r === 'INSURER_MANAGER' || r === 'LOSS_ADJUSTER' || r === 'GA_STAFF' || r === 'USER') {
     forbiddenResponse(req, res, '이 API에 접근할 권한이 없습니다.', { guard: 'requireInsurerHealthReader' })
     return
   }
@@ -1063,8 +1148,8 @@ function forbidInsurerManagerApi(req, res, next) {
     res.status(401).json({ message: '로그인이 필요합니다.' })
     return
   }
-  if (isInsurerManagerRole(req.user.role)) {
-    forbiddenResponse(req, res, '원수사 담당자 계정은 이 API를 사용할 수 없습니다.', {
+  if (isNewsManagerRole(req.user.role)) {
+    forbiddenResponse(req, res, '채널 담당자 계정은 이 API를 사용할 수 없습니다.', {
       guard: 'forbidInsurerManagerApi',
     })
     return
@@ -1255,7 +1340,7 @@ registerConsentApi(apiRouter, {
   requireGaTenantAdmin,
   resolveTenantGaIdForRequest,
   isSuperAdminRole,
-  isInsurerManagerRole,
+  isInsurerManagerRole: isNewsManagerRole,
   parseCompanyScopeId,
   effectiveTenantGaId,
   parseGaId,
@@ -1596,18 +1681,44 @@ async function handleLogin(req, res) {
     let user = result.rows[0]
 
     if (!user) {
-      const imRes = await systemQuery(
-        pool,
-        `
-        SELECT im.*, g.code AS ga_code, g.name AS ga_name, g.status AS ga_status, g.is_deleted AS ga_deleted
-        FROM insurer_managers im
-        INNER JOIN ga_companies g ON g.id = im.ga_id
-        WHERE im.username = $1 AND im.is_deleted = false
-        `,
-        [normalizedUsername],
-      )
-      const im = imRes.rows[0]
-      if (!im) {
+      const managerCandidates = [
+        {
+          role: 'INSURER_MANAGER',
+          table: 'insurer_managers',
+          nameField: 'insurer_name',
+          failInvalidPassword: 'invalid_password_insurer_manager',
+          failInactive: 'insurer_manager_inactive',
+          failMissingCompany: 'insurer_missing_company_id',
+        },
+        {
+          role: 'LOSS_ADJUSTER',
+          table: 'loss_adjusters',
+          nameField: 'adjuster_name',
+          failInvalidPassword: 'invalid_password_loss_adjuster',
+          failInactive: 'loss_adjuster_inactive',
+          failMissingCompany: 'loss_adjuster_missing_company_id',
+        },
+      ]
+      let manager = null
+      let managerMeta = null
+      for (const candidate of managerCandidates) {
+        const mRes = await systemQuery(
+          pool,
+          `
+          SELECT m.*, g.code AS ga_code, g.name AS ga_name, g.status AS ga_status, g.is_deleted AS ga_deleted
+          FROM ${candidate.table} m
+          INNER JOIN ga_companies g ON g.id = m.ga_id
+          WHERE m.username = $1 AND m.is_deleted = false
+          `,
+          [normalizedUsername],
+        )
+        if (mRes.rows[0]) {
+          manager = mRes.rows[0]
+          managerMeta = candidate
+          break
+        }
+      }
+      if (!manager || !managerMeta) {
         await auditLoginFailure(pool, normalizedUsername, 'unknown_user')
         res.status(401).json({
           error: 'Invalid credentials',
@@ -1617,53 +1728,51 @@ async function handleLogin(req, res) {
       }
       if (loginDebug) {
         console.log('입력 비번:', password)
-        console.log('DB hash (insurer_manager):', im.password_hash)
+        console.log(`DB hash (${managerMeta.role.toLowerCase()}):`, manager.password_hash)
       }
-      const imMatch = await bcrypt.compare(password, im.password_hash)
-      if (!imMatch) {
-        await auditLoginFailure(pool, normalizedUsername, 'invalid_password_insurer_manager')
+      const managerMatch = await bcrypt.compare(password, manager.password_hash)
+      if (!managerMatch) {
+        await auditLoginFailure(pool, normalizedUsername, managerMeta.failInvalidPassword)
         res.status(401).json({
           error: 'Invalid credentials',
           message: '아이디 또는 비밀번호가 올바르지 않습니다.',
         })
         return
       }
-      if (String(im.status ?? '').toUpperCase() !== 'ACTIVE') {
-        await auditLoginFailure(pool, normalizedUsername, 'insurer_manager_inactive')
+      if (String(manager.status ?? '').toUpperCase() !== 'ACTIVE') {
+        await auditLoginFailure(pool, normalizedUsername, managerMeta.failInactive)
         res.status(401).json({ message: '접근이 제한된 계정입니다' })
         return
       }
-      if (im.ga_deleted === true || String(im.ga_status ?? '').toLowerCase() !== 'active') {
-        await auditLoginFailure(pool, normalizedUsername, 'ga_restricted_insurer')
+      if (manager.ga_deleted === true || String(manager.ga_status ?? '').toLowerCase() !== 'active') {
+        await auditLoginFailure(pool, normalizedUsername, 'ga_restricted_manager')
         res.status(401).json({ message: '해당 GA는 현재 사용이 제한되었습니다' })
         return
       }
-      const cidCheck = Number(im.company_id)
-      if (!Number.isInteger(cidCheck) || cidCheck < 1) {
-        await auditLoginFailure(pool, normalizedUsername, 'insurer_missing_company_id')
+      const managerCompanyId = Number(manager.company_id)
+      if (!Number.isInteger(managerCompanyId) || managerCompanyId < 1) {
+        await auditLoginFailure(pool, normalizedUsername, managerMeta.failMissingCompany)
         res.status(403).json({
           error: 'FORBIDDEN',
-          message: '담당자 계정에 보험사(마스터)가 연결되지 않았습니다. 관리자에게 문의하세요.',
+          message: '담당자 계정에 회사(마스터)가 연결되지 않았습니다. 관리자에게 문의하세요.',
         })
         return
       }
-      const imGaCode =
-        typeof im.ga_code === 'string' && im.ga_code.trim() ? im.ga_code.trim().toUpperCase() : ''
-      const imGaName = typeof im.ga_name === 'string' ? im.ga_name.trim() : ''
-      const imGaId = parseGaId(im.ga_id)
-      const imCompanyId = Number(im.company_id)
-      const displayName = String(im.insurer_name ?? '').trim()
-      const imToken = jwt.sign(
+      const managerGaCode =
+        typeof manager.ga_code === 'string' && manager.ga_code.trim() ? manager.ga_code.trim().toUpperCase() : ''
+      const managerGaName = typeof manager.ga_name === 'string' ? manager.ga_name.trim() : ''
+      const managerGaId = parseGaId(manager.ga_id)
+      const displayName = String(manager[managerMeta.nameField] ?? '').trim()
+      const managerToken = jwt.sign(
         {
-          userId: im.id,
-          sub: im.id,
-          username: im.username,
-          role: 'INSURER_MANAGER',
-          gaId: imGaId,
-          gaCode: imGaCode,
-          gaName: imGaName,
-          companyId:
-            Number.isInteger(imCompanyId) && imCompanyId > 0 ? imCompanyId : undefined,
+          userId: manager.id,
+          sub: manager.id,
+          username: manager.username,
+          role: managerMeta.role,
+          gaId: managerGaId,
+          gaCode: managerGaCode,
+          gaName: managerGaName,
+          companyId: Number.isInteger(managerCompanyId) && managerCompanyId > 0 ? managerCompanyId : undefined,
           displayName,
           teamId: null,
         },
@@ -1671,31 +1780,30 @@ async function handleLogin(req, res) {
         { expiresIn: '7d' },
       )
       void logSecurityEvent(pool, {
-        actorUserId: String(im.id),
-        actorRole: 'INSURER_MANAGER',
+        actorUserId: String(manager.id),
+        actorRole: managerMeta.role,
         action: 'login_success',
         targetType: 'auth',
-        targetId: String(im.id),
-        gaId: Number.isInteger(imGaId) ? imGaId : null,
-        companyId: Number.isInteger(imCompanyId) && imCompanyId > 0 ? imCompanyId : null,
-        meta: { username: im.username },
+        targetId: String(manager.id),
+        gaId: Number.isInteger(managerGaId) ? managerGaId : null,
+        companyId: Number.isInteger(managerCompanyId) && managerCompanyId > 0 ? managerCompanyId : null,
+        meta: { username: manager.username },
       })
       void recordAnalyticsEvent(pool, {
-        userId: String(im.id),
-        gaId: Number.isInteger(imGaId) ? imGaId : null,
+        userId: String(manager.id),
+        gaId: Number.isInteger(managerGaId) ? managerGaId : null,
         eventType: 'login',
       })
       res.json({
-        token: imToken,
+        token: managerToken,
         user: {
-          id: String(im.id),
-          username: im.username,
-          role: 'INSURER_MANAGER',
-          ga_id: imGaId,
-          ga_code: imGaCode,
-          ga_name: imGaName,
-          company_id:
-            Number.isInteger(imCompanyId) && imCompanyId > 0 ? imCompanyId : undefined,
+          id: String(manager.id),
+          username: manager.username,
+          role: managerMeta.role,
+          ga_id: managerGaId,
+          ga_code: managerGaCode,
+          ga_name: managerGaName,
+          company_id: Number.isInteger(managerCompanyId) && managerCompanyId > 0 ? managerCompanyId : undefined,
           display_name: displayName,
           team_id: null,
         },
@@ -2275,6 +2383,432 @@ apiRouter.patch('/insurer-managers/:id', requireAuth, requireGaInsurerManagerMut
       res.status(409).json({ message: '이미 사용 중인 아이디이거나 동일 보험사에 계정이 있습니다.' })
       return
     }
+    handleDbError(error, req, res)
+  }
+})
+
+apiRouter.delete('/insurer-managers/:id', requireAuth, requireGaStaffOrAdminOnly, async (req, res) => {
+  try {
+    const gaId = await resolveTenantGaIdForRequest(pool, req)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const targetId = String(req.params.id ?? '').trim()
+    if (!targetId) {
+      res.status(400).json({ message: '잘못된 ID입니다.' })
+      return
+    }
+    const exist = await safeQuery(
+      pool,
+      `
+      SELECT id, company_id
+      FROM insurer_managers
+      WHERE id = $1 AND ga_id = $2 AND is_deleted = false
+      `,
+      [targetId, gaId],
+    )
+    if (exist.rowCount === 0) {
+      res.status(404).json({ message: '담당자를 찾을 수 없습니다.' })
+      return
+    }
+    const companyId = Number(exist.rows[0].company_id)
+    await safeQuery(
+      pool,
+      `
+      UPDATE insurer_managers
+      SET status = 'BLOCKED', is_deleted = true, updated_at = NOW()
+      WHERE id = $1 AND ga_id = $2 AND is_deleted = false
+      `,
+      [targetId, gaId],
+    )
+    try {
+      await writeSecurityAudit(pool, {
+        actorUserId: req.user.id,
+        actorRole: req.user.role,
+        action: 'insurer_manager_delete',
+        targetType: 'insurer_manager',
+        targetId,
+        gaId,
+        companyId: Number.isInteger(companyId) && companyId > 0 ? companyId : null,
+      })
+    } catch (auditErr) {
+      console.error('[audit insurer_manager_delete]', auditErr)
+    }
+    res.json({ ok: true })
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
+
+apiRouter.get('/loss-adjusters', requireAuth, requireGaAdminOrSuper, async (req, res) => {
+  try {
+    const gaId = await resolveTenantGaIdForRequest(pool, req)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const r = await safeQuery(
+      pool,
+      `
+      SELECT la.id, la.company_id, la.adjuster_type, la.adjuster_name, la.username, la.password_plaintext, la.status, la.created_at, g.code AS ga_code
+      FROM loss_adjusters la
+      INNER JOIN ga_companies g ON g.id = la.ga_id
+      WHERE la.ga_id = $1 AND la.is_deleted = false
+      ORDER BY la.created_at DESC
+      `,
+      [gaId],
+    )
+    res.json(r.rows.map(mapLossAdjusterRow))
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
+
+apiRouter.post('/loss-adjusters', requireAuth, requireGaInsurerManagerMutator, async (req, res) => {
+  try {
+    const gaId = await resolveTenantGaIdForRequest(pool, req)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const body = req.body ?? {}
+    const typeNorm = parseLossAdjusterType(
+      body.adjuster_type ?? body.adjusterType ?? body.insurer_type ?? body.insurerType,
+    )
+    const companyIdRaw = body.company_id ?? body.companyId
+    const companyMasterId = Number(companyIdRaw)
+    const username = body.username
+    const password = body.password
+    if (!typeNorm) {
+      res.status(400).json({ message: '손해사정사 유형을 선택해 주세요.' })
+      return
+    }
+    const link = await validateLossAdjusterCompanyLink(pool, gaId, companyMasterId, typeNorm)
+    if (!link.ok) {
+      res.status(400).json({ message: link.message })
+      return
+    }
+    const nameNorm = link.master.name
+    const validationMessage = validateCredentials(username, password)
+    if (validationMessage) {
+      res.status(400).json({ message: validationMessage })
+      return
+    }
+    const normalizedUsername = String(username).trim()
+    if (await isUsernameTakenGlobally(pool, normalizedUsername)) {
+      res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
+      return
+    }
+    const dup = await safeQuery(
+      pool,
+      `
+      SELECT 1 FROM loss_adjusters
+      WHERE ga_id = $1 AND company_id = $2 AND is_deleted = false
+      LIMIT 1
+      `,
+      [gaId, link.master.id],
+    )
+    if (dup.rowCount > 0) {
+      res.status(409).json({ message: '해당 손해사정사 회사에 이미 등록된 계정이 있습니다.' })
+      return
+    }
+    const id = randomUUID()
+    const plainPw = String(password)
+    const passwordHash = await bcrypt.hash(plainPw, 10)
+    const ins = await safeQuery(
+      pool,
+      `
+      INSERT INTO loss_adjusters (id, ga_id, company_id, adjuster_type, adjuster_name, username, password_hash, password_plaintext, status, is_deleted)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'ACTIVE', false)
+      RETURNING id, company_id, adjuster_type, adjuster_name, username, password_plaintext, status, created_at
+      `,
+      [id, gaId, link.master.id, typeNorm, nameNorm, normalizedUsername, passwordHash, plainPw],
+    )
+    const g0 = await systemQuery(pool, `SELECT code FROM ga_companies WHERE id = $1`, [gaId])
+    try {
+      await writeSecurityAudit(pool, {
+        actorUserId: req.user.id,
+        actorRole: req.user.role,
+        action: 'loss_adjuster_create',
+        targetType: 'loss_adjuster',
+        targetId: id,
+        gaId,
+        companyId: link.master.id,
+        meta: { username: normalizedUsername },
+      })
+    } catch (auditErr) {
+      console.error('[audit loss_adjuster_create]', auditErr)
+    }
+    res.status(201).json(
+      mapLossAdjusterRow({
+        ...ins.rows[0],
+        ga_code: g0.rows[0]?.code ?? '',
+      }),
+    )
+  } catch (error) {
+    if (error?.code === '23505') {
+      res.status(409).json({ message: '이미 사용 중인 아이디이거나 동일 회사에 계정이 있습니다.' })
+      return
+    }
+    handleDbError(error, req, res)
+  }
+})
+
+apiRouter.patch('/loss-adjusters/:id', requireAuth, requireGaInsurerManagerMutator, async (req, res) => {
+  try {
+    const gaId = await resolveTenantGaIdForRequest(pool, req)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const targetId = String(req.params.id ?? '').trim()
+    if (!targetId) {
+      res.status(400).json({ message: '잘못된 ID입니다.' })
+      return
+    }
+    const exist = await safeQuery(
+      pool,
+      `
+      SELECT id, username, adjuster_type, adjuster_name, status, company_id
+      FROM loss_adjusters
+      WHERE id = $1 AND ga_id = $2 AND is_deleted = false
+      `,
+      [targetId, gaId],
+    )
+    if (exist.rowCount === 0) {
+      res.status(404).json({ message: '손해사정사 계정을 찾을 수 없습니다.' })
+      return
+    }
+    const cur = exist.rows[0]
+    const body = req.body ?? {}
+
+    let newUsername = null
+    if (Object.prototype.hasOwnProperty.call(body, 'username')) {
+      newUsername = String(body.username ?? '').trim()
+      if (!newUsername || newUsername.length < 3 || newUsername.length > 30) {
+        res.status(400).json({ message: '아이디는 3~30자여야 합니다.' })
+        return
+      }
+    }
+    let newType = null
+    if (
+      Object.prototype.hasOwnProperty.call(body, 'adjuster_type') ||
+      Object.prototype.hasOwnProperty.call(body, 'adjusterType') ||
+      Object.prototype.hasOwnProperty.call(body, 'insurer_type') ||
+      Object.prototype.hasOwnProperty.call(body, 'insurerType')
+    ) {
+      newType = parseLossAdjusterType(
+        body.adjuster_type ?? body.adjusterType ?? body.insurer_type ?? body.insurerType,
+      )
+      if (!newType) {
+        res.status(400).json({ message: '손해사정사 유형이 올바르지 않습니다.' })
+        return
+      }
+    }
+    let newStatus = null
+    if (Object.prototype.hasOwnProperty.call(body, 'status')) {
+      newStatus = parseInsurerManagerStatusDb(body.status)
+      if (!newStatus) {
+        res.status(400).json({ message: 'status는 ACTIVE 또는 BLOCKED 여야 합니다.' })
+        return
+      }
+    }
+    let passwordUpdate = null
+    if (Object.prototype.hasOwnProperty.call(body, 'password')) {
+      const p = body.password
+      if (typeof p === 'string' && p.trim() !== '') {
+        if (p.length < 4 || p.length > 100) {
+          res.status(400).json({ message: '비밀번호는 4~100자여야 합니다.' })
+          return
+        }
+        passwordUpdate = p
+      }
+    }
+
+    if (newUsername != null && newUsername !== cur.username) {
+      if (
+        await isUsernameTakenGlobally(pool, newUsername, {
+          excludeLossAdjusterId: targetId,
+        })
+      ) {
+        res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
+        return
+      }
+    }
+
+    const effectiveType = newType ?? cur.adjuster_type
+    let nextCompanyId = Number(cur.company_id)
+    let nextAdjusterName = String(cur.adjuster_name ?? '').trim()
+
+    const companyIdTouched =
+      Object.prototype.hasOwnProperty.call(body, 'company_id') ||
+      Object.prototype.hasOwnProperty.call(body, 'companyId')
+    if (companyIdTouched) {
+      const cid = Number(body.company_id ?? body.companyId)
+      const link = await validateLossAdjusterCompanyLink(pool, gaId, cid, effectiveType)
+      if (!link.ok) {
+        res.status(400).json({ message: link.message })
+        return
+      }
+      nextCompanyId = link.master.id
+      nextAdjusterName = link.master.name
+    } else if (newType != null && newType !== cur.adjuster_type) {
+      const link = await validateLossAdjusterCompanyLink(pool, gaId, cur.company_id, newType)
+      if (!link.ok) {
+        res.status(400).json({ message: link.message })
+        return
+      }
+    }
+
+    if (nextCompanyId !== Number(cur.company_id)) {
+      const dup = await safeQuery(
+        pool,
+        `
+        SELECT 1 FROM loss_adjusters
+        WHERE ga_id = $1 AND company_id = $2 AND is_deleted = false AND id <> $3
+        LIMIT 1
+        `,
+        [gaId, nextCompanyId, targetId],
+      )
+      if (dup.rowCount > 0) {
+        res.status(409).json({ message: '해당 손해사정사 회사에 이미 등록된 계정이 있습니다.' })
+        return
+      }
+    }
+
+    const setParts = []
+    const vals = []
+    let n = 1
+    if (newType != null) {
+      setParts.push(`adjuster_type = $${n++}`)
+      vals.push(newType)
+    }
+    if (nextCompanyId !== Number(cur.company_id)) {
+      setParts.push(`company_id = $${n++}`)
+      vals.push(nextCompanyId)
+      setParts.push(`adjuster_name = $${n++}`)
+      vals.push(nextAdjusterName)
+    }
+    if (newUsername != null) {
+      setParts.push(`username = $${n++}`)
+      vals.push(newUsername)
+    }
+    if (newStatus != null) {
+      setParts.push(`status = $${n++}`)
+      vals.push(newStatus)
+    }
+    if (passwordUpdate != null) {
+      setParts.push(`password_hash = $${n++}`)
+      vals.push(await bcrypt.hash(passwordUpdate, 10))
+      setParts.push(`password_plaintext = $${n++}`)
+      vals.push(passwordUpdate)
+    }
+
+    if (setParts.length === 0) {
+      res.status(400).json({ message: '수정할 필드가 없습니다.' })
+      return
+    }
+    setParts.push('updated_at = NOW()')
+    const idPos = n
+    const gaPos = n + 1
+    vals.push(targetId, gaId)
+    const upd = await safeQuery(
+      pool,
+      `
+      UPDATE loss_adjusters
+      SET ${setParts.join(', ')}
+      WHERE id = $${idPos} AND ga_id = $${gaPos} AND is_deleted = false
+      RETURNING id, company_id, adjuster_type, adjuster_name, username, password_plaintext, status, created_at
+      `,
+      vals,
+    )
+    const g0 = await systemQuery(pool, `SELECT code FROM ga_companies WHERE id = $1`, [gaId])
+    const prevCompanyId = Number(cur.company_id)
+    try {
+      await writeSecurityAudit(pool, {
+        actorUserId: req.user.id,
+        actorRole: req.user.role,
+        action: 'loss_adjuster_update',
+        targetType: 'loss_adjuster',
+        targetId,
+        gaId,
+        companyId: nextCompanyId,
+        meta: {
+          companyIdChanged: nextCompanyId !== prevCompanyId,
+          prevCompanyId,
+          statusTouched: newStatus != null,
+          usernameTouched: newUsername != null,
+        },
+      })
+    } catch (auditErr) {
+      console.error('[audit loss_adjuster_update]', auditErr)
+    }
+    res.json(
+      mapLossAdjusterRow({
+        ...upd.rows[0],
+        ga_code: g0.rows[0]?.code ?? '',
+      }),
+    )
+  } catch (error) {
+    if (error?.code === '23505') {
+      res.status(409).json({ message: '이미 사용 중인 아이디이거나 동일 회사에 계정이 있습니다.' })
+      return
+    }
+    handleDbError(error, req, res)
+  }
+})
+
+apiRouter.delete('/loss-adjusters/:id', requireAuth, requireGaStaffOrAdminOnly, async (req, res) => {
+  try {
+    const gaId = await resolveTenantGaIdForRequest(pool, req)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+    const targetId = String(req.params.id ?? '').trim()
+    if (!targetId) {
+      res.status(400).json({ message: '잘못된 ID입니다.' })
+      return
+    }
+    const exist = await safeQuery(
+      pool,
+      `
+      SELECT id, company_id
+      FROM loss_adjusters
+      WHERE id = $1 AND ga_id = $2 AND is_deleted = false
+      `,
+      [targetId, gaId],
+    )
+    if (exist.rowCount === 0) {
+      res.status(404).json({ message: '손해사정사 계정을 찾을 수 없습니다.' })
+      return
+    }
+    const companyId = Number(exist.rows[0].company_id)
+    await safeQuery(
+      pool,
+      `
+      UPDATE loss_adjusters
+      SET status = 'BLOCKED', is_deleted = true, updated_at = NOW()
+      WHERE id = $1 AND ga_id = $2 AND is_deleted = false
+      `,
+      [targetId, gaId],
+    )
+    try {
+      await writeSecurityAudit(pool, {
+        actorUserId: req.user.id,
+        actorRole: req.user.role,
+        action: 'loss_adjuster_delete',
+        targetType: 'loss_adjuster',
+        targetId,
+        gaId,
+        companyId: Number.isInteger(companyId) && companyId > 0 ? companyId : null,
+      })
+    } catch (auditErr) {
+      console.error('[audit loss_adjuster_delete]', auditErr)
+    }
+    res.json({ ok: true })
+  } catch (error) {
     handleDbError(error, req, res)
   }
 })
@@ -3154,10 +3688,10 @@ apiRouter.get('/company/list', requireAuth, async (req, res) => {
       return
     }
     let scope = {}
-    if (isInsurerManagerRole(req.user?.role)) {
+    if (isNewsManagerRole(req.user?.role)) {
       const cid = parseCompanyScopeId(req.user?.companyId)
       if (cid == null) {
-        forbiddenResponse(req, res, '담당자 계정에 연결된 보험사가 없습니다.', { route: 'GET /company/list' })
+        forbiddenResponse(req, res, '담당자 계정에 연결된 회사가 없습니다.', { route: 'GET /company/list' })
         return
       }
       scope = { onlyCompanyId: cid }
@@ -3178,10 +3712,10 @@ apiRouter.get('/company/recent-updates', requireAuth, async (req, res) => {
     }
     const params = [gaId]
     let extra = ''
-    if (isInsurerManagerRole(req.user?.role)) {
+    if (isNewsManagerRole(req.user?.role)) {
       const cid = parseCompanyScopeId(req.user?.companyId)
       if (cid == null) {
-        forbiddenResponse(req, res, '담당자 계정에 연결된 보험사가 없습니다.', {
+        forbiddenResponse(req, res, '담당자 계정에 연결된 회사가 없습니다.', {
           route: 'GET /company/recent-updates',
         })
         return
@@ -3616,8 +4150,8 @@ apiRouter.post('/company/general-save', requireAuth, requireGaTenantAdmin, async
 
 apiRouter.get('/insurance/contacts', requireAuth, async (req, res) => {
   try {
-    if (isInsurerManagerRole(req.user?.role)) {
-      forbiddenResponse(req, res, '원수사 담당자는 이 목록에 접근할 수 없습니다.', {
+    if (isNewsManagerRole(req.user?.role)) {
+      forbiddenResponse(req, res, '채널 담당자는 이 목록에 접근할 수 없습니다.', {
         route: 'GET /insurance/contacts',
       })
       return

@@ -33,10 +33,17 @@ export const INSURER_MANAGER_MENU: GaTenantMenuItem[] = [
   { label: '원수사 소식지 업로드', path: '/insurer/news/upload' },
 ]
 
+/** 손해사정사 담당자 — 본인 회사 뉴스 */
+export const LOSS_ADJUSTER_MENU: GaTenantMenuItem[] = [
+  { label: '손해사정사 뉴스 조회', path: '/adjuster/news' },
+  { label: '손해사정사 뉴스 업로드', path: '/adjuster/news/upload' },
+]
+
 /** GA_STAFF 전용 — 원수사 관리만(다른 GA 메뉴와 merge 금지) */
 export const GA_STAFF_MENU: GaTenantMenuItem[] = [
   { label: '원수사 연락처 관리', path: '/insurance/company-registry' },
   { label: '원수사 담당자 관리', path: '/insurer-managers' },
+  { label: '손해사정사 계정 관리', path: '/loss-adjusters' },
   { label: '추가기능 요청하기', path: '/feature-request' },
 ]
 
@@ -57,6 +64,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'link', label: '고객 관리', path: '/customers' },
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
     { type: 'link', label: '원수사 소식지', path: '/portal/newsletters' },
+    { type: 'link', label: '손해사정사 뉴스', path: '/portal/adjuster-news' },
     { type: 'divider' },
   ]
   const carByName = String(gaName ?? '').trim() === '영진에셋'

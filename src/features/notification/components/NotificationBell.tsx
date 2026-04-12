@@ -11,8 +11,10 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0)
   const wrapRef = useRef<HTMLDivElement>(null)
 
+  const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
+
   const refreshUnread = useCallback(async () => {
-    if (!token?.trim() || user?.role === 'INSURER_MANAGER') {
+    if (!token?.trim() || isNewsManager) {
       setUnreadCount(0)
       return
     }
@@ -26,7 +28,7 @@ export function NotificationBell() {
       }
       setUnreadCount(0)
     }
-  }, [token, user?.role])
+  }, [isNewsManager, token])
 
   useEffect(() => {
     void refreshUnread()
@@ -62,7 +64,7 @@ export function NotificationBell() {
     return () => document.removeEventListener('mousedown', onDocMouseDown)
   }, [open])
 
-  if (!token?.trim() || user?.role === 'INSURER_MANAGER') {
+  if (!token?.trim() || isNewsManager) {
     return null
   }
 

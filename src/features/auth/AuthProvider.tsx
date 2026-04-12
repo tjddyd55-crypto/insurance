@@ -37,7 +37,7 @@ interface AuthContextValue {
 
 const AUTH_STORAGE_KEY = 'insurance.auth.session'
 
-const VALID_CANONICAL: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF', 'USER', 'INSURER_MANAGER']
+const VALID_CANONICAL: UserRole[] = ['SUPER_ADMIN', 'GA_ADMIN', 'GA_STAFF', 'USER', 'INSURER_MANAGER', 'LOSS_ADJUSTER']
 
 const LEGACY_TO_ROLE: Record<string, UserRole> = {
   super_admin: 'SUPER_ADMIN',
@@ -131,8 +131,8 @@ function readStoredSession(): AuthSession | null {
       typeof u.displayName === 'string' ? u.displayName.trim() : String(parsed.user.username ?? '').trim()
     const teamId = parseTeamIdField(u.teamId)
 
-    if (role === 'INSURER_MANAGER' && companyIdRaw == null) {
-      console.warn('INSURER_MANAGER companyId 없음 → 재로그인 필요')
+    if ((role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER') && companyIdRaw == null) {
+      console.warn(`${role} companyId 없음 → 재로그인 필요`)
       window.localStorage.removeItem(AUTH_STORAGE_KEY)
       return null
     }
@@ -146,7 +146,7 @@ function readStoredSession(): AuthSession | null {
         gaId,
         gaCode,
         gaName,
-        companyId: role === 'INSURER_MANAGER' ? companyIdRaw : null,
+        companyId: role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER' ? companyIdRaw : null,
         displayName: displayNameRaw,
         teamId,
       },
@@ -188,9 +188,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const gaName =
         typeof nextSession.user.gaName === 'string' ? nextSession.user.gaName.trim() : ''
       const companyId =
-        role === 'INSURER_MANAGER' ? parseCompanyScopeId(nextSession.user.companyId) : null
-      if (role === 'INSURER_MANAGER' && companyId == null) {
-        console.warn('INSURER_MANAGER companyId 없음')
+        role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER'
+          ? parseCompanyScopeId(nextSession.user.companyId)
+          : null
+      if ((role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER') && companyId == null) {
+        console.warn(`${role} companyId 없음`)
         logout()
         return
       }
@@ -230,10 +232,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
     if (
-      session.user.role === 'INSURER_MANAGER' &&
+      (session.user.role === 'INSURER_MANAGER' || session.user.role === 'LOSS_ADJUSTER') &&
       (session.user.companyId == null || session.user.companyId < 1)
     ) {
-      console.warn('원수사 담당자 세션에 companyId 없음 → 재로그인 필요')
+      console.warn('채널 담당자 세션에 companyId 없음 → 재로그인 필요')
       logout()
     }
   }, [session, logout])

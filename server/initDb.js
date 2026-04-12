@@ -275,6 +275,32 @@ async function ensureInsurerManagerCompanyFkOnDeleteSetNull(executor) {
   `)
 }
 
+/** 손해사정사 마스터 삭제 시 company_id 해제(ON DELETE SET NULL) */
+async function ensureLossAdjusterCompanyFkOnDeleteSetNull(executor) {
+  const { rows } = await executor.query(`
+    SELECT c.conname
+    FROM pg_constraint c
+    JOIN pg_class cl ON c.conrelid = cl.oid
+    JOIN pg_namespace n ON n.oid = cl.relnamespace
+    WHERE n.nspname = 'public'
+      AND cl.relname = 'loss_adjusters'
+      AND c.contype = 'f'
+      AND c.confrelid = CAST('insurance_company_master' AS regclass)
+  `)
+  for (const r of rows) {
+    const name = String(r.conname ?? '').replace(/"/g, '')
+    if (!/^[a-z_][a-z0-9_]*$/i.test(name)) {
+      continue
+    }
+    await executor.query(`ALTER TABLE loss_adjusters DROP CONSTRAINT IF EXISTS "${name}"`)
+  }
+  await executor.query(`
+    ALTER TABLE loss_adjusters
+    ADD CONSTRAINT fk_loss_adjusters_insurance_company_master
+    FOREIGN KEY (company_id) REFERENCES insurance_company_master(id) ON DELETE SET NULL
+  `)
+}
+
 export async function initDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -1250,6 +1276,50 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS loss_adjusters (
+      id TEXT PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      company_id INTEGER REFERENCES insurance_company_master(id),
+      adjuster_type TEXT NOT NULL,
+      adjuster_name TEXT NOT NULL,
+      username VARCHAR(50) NOT NULL,
+      password_hash TEXT NOT NULL,
+      password_plaintext TEXT,
+      status TEXT NOT NULL DEFAULT 'ACTIVE',
+      is_deleted BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`ALTER TABLE loss_adjusters DROP CONSTRAINT IF EXISTS loss_adjusters_adjuster_type_check`)
+  await pool.query(`
+    ALTER TABLE loss_adjusters
+    ADD CONSTRAINT loss_adjusters_adjuster_type_check
+    CHECK (adjuster_type IN ('LIFE', 'NON_LIFE'))
+  `)
+  await pool.query(`ALTER TABLE loss_adjusters DROP CONSTRAINT IF EXISTS loss_adjusters_status_check`)
+  await pool.query(`
+    ALTER TABLE loss_adjusters
+    ADD CONSTRAINT loss_adjusters_status_check
+    CHECK (status IN ('ACTIVE', 'BLOCKED'))
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_loss_adjusters_username_active
+    ON loss_adjusters (username)
+    WHERE is_deleted = false
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_loss_adjusters_ga_company_active
+    ON loss_adjusters (ga_id, company_id)
+    WHERE is_deleted = false AND company_id IS NOT NULL
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_loss_adjuster_unique
+    ON loss_adjusters (ga_id, company_id, username)
+    WHERE is_deleted = false
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS insurer_manager_recovery_logs (
       id SERIAL PRIMARY KEY,
       manager_id TEXT,
@@ -1277,6 +1347,7 @@ export async function initDb() {
   `)
 
   await ensureInsurerManagerCompanyFkOnDeleteSetNull(pool)
+  await ensureLossAdjusterCompanyFkOnDeleteSetNull(pool)
   await pool.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS uq_insurer_manager_unique
     ON insurer_managers (ga_id, company_id, username)

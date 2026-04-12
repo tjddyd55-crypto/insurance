@@ -8,6 +8,7 @@ import { CarInsuranceDashboardPage } from './features/application/pages/CarInsur
 import { DirectAutoPage } from './features/application/pages/DirectAutoPage'
 import GaDelegateManagementPage from './features/admin/pages/GaDelegateManagementPage'
 import InsurerManagersPage from './features/insurer-managers/pages/InsurerManagersPage'
+import LossAdjustersPage from './features/loss-adjusters/pages/LossAdjustersPage'
 import GaManagementPage from './features/admin/pages/GaManagementPage'
 import UserManagementPage from './features/admin/pages/UserManagementPage'
 import AuditLogsPage from './features/admin/pages/AuditLogsPage'
@@ -56,6 +57,12 @@ import { NewsletterRecentPage } from './features/insurer-news/pages/NewsletterRe
 import { InsurerManagerNewsDetailPage } from './features/insurer-news/pages/InsurerManagerNewsDetailPage'
 import { InsurerManagerNewsListPage } from './features/insurer-news/pages/InsurerManagerNewsListPage'
 import { InsurerManagerNewsUploadPage } from './features/insurer-news/pages/InsurerManagerNewsUploadPage'
+import { LossAdjusterManagerNewsDetailPage } from './features/insurer-news/pages/LossAdjusterManagerNewsDetailPage'
+import { LossAdjusterManagerNewsListPage } from './features/insurer-news/pages/LossAdjusterManagerNewsListPage'
+import { LossAdjusterManagerNewsUploadPage } from './features/insurer-news/pages/LossAdjusterManagerNewsUploadPage'
+import { LossAdjusterNewsletterDetailPage } from './features/insurer-news/pages/LossAdjusterNewsletterDetailPage'
+import { LossAdjusterNewsletterHubPage } from './features/insurer-news/pages/LossAdjusterNewsletterHubPage'
+import { LossAdjusterNewsletterPortalLayout } from './features/insurer-news/pages/LossAdjusterNewsletterPortalLayout'
 import MemoRoutePage from './features/memo/pages/MemoRoutePage'
 import AppWorkspaceLayout from './layouts/AppWorkspaceLayout'
 
@@ -86,11 +93,19 @@ export const appRouter = createBrowserRouter([
           { path: 'contacts/manage', element: <Navigate to="/insurance/company-registry" replace /> },
           { path: 'updates', element: <Navigate to="/insurance/history" replace /> },
           {
-            element: <InsurerManagerOnlyRoute />,
+            element: <InsurerManagerOnlyRoute allowedRoles={['INSURER_MANAGER']} />,
             children: [
               { path: 'insurer/news', element: <InsurerManagerNewsListPage /> },
               { path: 'insurer/news/upload', element: <InsurerManagerNewsUploadPage /> },
               { path: 'insurer/news/:newsletterId', element: <InsurerManagerNewsDetailPage /> },
+            ],
+          },
+          {
+            element: <InsurerManagerOnlyRoute allowedRoles={['LOSS_ADJUSTER']} />,
+            children: [
+              { path: 'adjuster/news', element: <LossAdjusterManagerNewsListPage /> },
+              { path: 'adjuster/news/upload', element: <LossAdjusterManagerNewsUploadPage /> },
+              { path: 'adjuster/news/:newsletterId', element: <LossAdjusterManagerNewsDetailPage /> },
             ],
           },
           {
@@ -109,6 +124,15 @@ export const appRouter = createBrowserRouter([
                   { path: 'insurers', element: <InsurerListPage /> },
                   { path: 'insurers/:insurerSlug', element: <InsurerNewsletterListPage /> },
                   { path: ':newsletterId', element: <NewsletterDetailPage /> },
+                ],
+              },
+              {
+                path: 'portal/adjuster-news',
+                element: <LossAdjusterNewsletterPortalLayout />,
+                children: [
+                  { index: true, element: <LossAdjusterNewsletterHubPage /> },
+                  { path: 'recent', element: <LossAdjusterNewsletterHubPage /> },
+                  { path: ':newsletterId', element: <LossAdjusterNewsletterDetailPage /> },
                 ],
               },
               {
@@ -134,6 +158,7 @@ export const appRouter = createBrowserRouter([
               { path: 'team/files', element: <TeamFilesPage /> },
               { path: 'memo', element: <MemoRoutePage /> },
               { path: 'insurer-managers', element: <InsurerManagersPage /> },
+              { path: 'loss-adjusters', element: <LossAdjustersPage /> },
               { path: 'customer-car', element: <CustomerCarPage /> },
               { path: 'admin/ga', element: <GaManagementPage /> },
               { path: 'admin/create-ga', element: <Navigate to="/admin/ga" replace /> },

@@ -16,7 +16,8 @@ export function ElectronTitleBar() {
   const active = Boolean(api?.minimize && api?.maximize && api?.close)
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
-  const showGaUserActions = tenantChrome && user?.role !== 'INSURER_MANAGER'
+  const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
+  const showGaUserActions = tenantChrome && !isNewsManager
 
   useLayoutEffect(() => {
     if (!active) {

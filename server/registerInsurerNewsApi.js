@@ -11,6 +11,7 @@ import {
 import {
   isGaInsurerManagerMutatorRole,
   isInsurerManagerRole,
+  isLossAdjusterRole,
   isSuperAdminRole,
 } from './lib/rbacScope.js'
 import { INSURER_R2_ACTIVE_CATEGORY } from './lib/insurerR2Layout.js'
@@ -26,6 +27,24 @@ const ALLOWED_UPLOAD_MIME = new Set([
 ])
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 const MAX_PDF_BYTES = 10 * 1024 * 1024
+const NEWS_CHANNEL_INSURER = 'INSURER'
+const NEWS_CHANNEL_LOSS_ADJUSTER = 'LOSS_ADJUSTER'
+
+/** @param {unknown} role */
+function newsChannelByRole(role) {
+  return isLossAdjusterRole(role) ? NEWS_CHANNEL_LOSS_ADJUSTER : NEWS_CHANNEL_INSURER
+}
+
+/** @param {unknown} role */
+function isNewsManagerRole(role) {
+  return isInsurerManagerRole(role) || isLossAdjusterRole(role)
+}
+
+/** @param {unknown} raw */
+function normalizeNewsChannel(raw) {
+  const n = String(raw ?? '').trim().toUpperCase()
+  return n === NEWS_CHANNEL_LOSS_ADJUSTER ? NEWS_CHANNEL_LOSS_ADJUSTER : NEWS_CHANNEL_INSURER
+}
 
 /** @param {string} code */
 function normalizeGaCodeForPath(code) {
@@ -65,6 +84,45 @@ async function loadInsurerManagerNewsScope(pool, user) {
     WHERE im.id = $1 AND im.is_deleted = false
       AND im.company_id = $2
       AND im.ga_id = $3
+    `,
+    [String(user.id), Number(user.companyId), Number(user.gaId)],
+  )
+  if (r.rowCount === 0) {
+    return null
+  }
+  const row = r.rows[0]
+  const gaPath = normalizeGaCodeForPath(row.ga_code)
+  const companySlug = slugifyCompanySegment(row.company_name)
+  return {
+    gaId: Number(row.ga_id),
+    gaCodeRaw: String(row.ga_code ?? '').trim(),
+    gaPath,
+    companyId: Number(row.company_id),
+    companyName: String(row.company_name ?? '').trim(),
+    companySlug,
+  }
+}
+
+/**
+ * @param {import('pg').Pool} pool
+ * @param {object} user req.user
+ */
+async function loadLossAdjusterNewsScope(pool, user) {
+  const r = await safeQuery(
+    pool,
+    `
+    SELECT
+      g.code AS ga_code,
+      g.id AS ga_id,
+      m.id AS company_id,
+      m.name AS company_name,
+      m.company_code
+    FROM loss_adjusters la
+    INNER JOIN ga_companies g ON g.id = la.ga_id
+    INNER JOIN insurance_company_master m ON m.id = la.company_id AND m.ga_id = la.ga_id
+    WHERE la.id = $1 AND la.is_deleted = false
+      AND la.company_id = $2
+      AND la.ga_id = $3
     `,
     [String(user.id), Number(user.companyId), Number(user.gaId)],
   )
@@ -271,21 +329,44 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     resolveTenantGaIdForRequest,
   } = ctx
 
+  async function loadNewsManagerScopeByUser(user) {
+    if (isLossAdjusterRole(user?.role)) {
+      return loadLossAdjusterNewsScope(pool, user)
+    }
+    return loadInsurerManagerNewsScope(pool, user)
+  }
+
   function requireNewsletterWriter(req, res, next) {
     if (!req.user) {
       res.status(401).json({ message: '로그인이 필요합니다.' })
       return
     }
-    if (isInsurerManagerRole(req.user.role) || isGaInsurerManagerMutatorRole(req.user.role)) {
+    if (isNewsManagerRole(req.user.role) || isGaInsurerManagerMutatorRole(req.user.role)) {
       next()
       return
     }
     res.status(403).json({ message: '소식 작성 권한이 없습니다.' })
   }
 
+  function requireGaStaffOrAdminDelete(req, res, next) {
+    if (!req.user) {
+      res.status(401).json({ message: '로그인이 필요합니다.' })
+      return
+    }
+    if (isNewsManagerRole(req.user.role) || isSuperAdminRole(req.user.role)) {
+      res.status(403).json({ message: '소식 삭제 권한이 없습니다.' })
+      return
+    }
+    if (!isGaInsurerManagerMutatorRole(req.user.role)) {
+      res.status(403).json({ message: '소식 삭제 권한이 없습니다.' })
+      return
+    }
+    next()
+  }
+
   function forbidInsurerOnFeed(req, res, next) {
-    if (isInsurerManagerRole(req.user?.role)) {
-      res.status(403).json({ message: '원수사 담당자 계정은 이 목록을 볼 수 없습니다.' })
+    if (isNewsManagerRole(req.user?.role)) {
+      res.status(403).json({ message: '채널 담당자 계정은 이 목록을 볼 수 없습니다.' })
       return
     }
     next()
@@ -332,6 +413,19 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     return effectiveTenantGaId(req)
   }
 
+  /** 피드 조회 채널(기본: 원수사) */
+  function resolveFeedChannel(req) {
+    return normalizeNewsChannel(req.query?.channel)
+  }
+
+  /** 매니저·스태프 조회 채널 */
+  function resolveManagerChannel(req) {
+    if (isNewsManagerRole(req.user?.role)) {
+      return newsChannelByRole(req.user.role)
+    }
+    return normalizeNewsChannel(req.query?.channel ?? req.body?.channel)
+  }
+
   /**
    * @param {object} row newsletter row
    * @param {object[]} attRows
@@ -360,6 +454,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     const insurerCode = String(payload.insurerCode ?? '').trim()
     const insurerSlug = String(payload.insurerSlug ?? '').trim()
     const insurerName = String(payload.insurerName ?? row.company_name_snapshot ?? '').trim()
+    const newsChannel = normalizeNewsChannel(payload.newsChannel)
     const publishedAt = payload.publishedAt ? String(payload.publishedAt) : toIso(row.updated_at)
     const summary =
       String(payload.summary ?? '').trim() ||
@@ -374,6 +469,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       insurerCode: insurerCode || '—',
       insurerName: insurerName || String(row.company_name_snapshot ?? ''),
       insurerSlug: insurerSlug || 'insurer',
+      newsChannel,
       title: '',
       summary,
       heroImageUrl: images[0]?.url ?? null,
@@ -441,8 +537,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    * @param {import('express').Request} req
    */
   async function resolvePresignScope(req) {
-    if (isInsurerManagerRole(req.user.role)) {
-      return loadInsurerManagerNewsScope(pool, req.user)
+    if (isNewsManagerRole(req.user.role)) {
+      return loadNewsManagerScopeByUser(req.user)
     }
     if (!isGaInsurerManagerMutatorRole(req.user.role)) {
       return null
@@ -498,12 +594,12 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       throw Object.assign(new Error('보험사를 찾을 수 없습니다.'), { httpStatus: 400 })
     }
     const masterId = Number(companyR.rows[0].id)
-    if (isInsurerManagerRole(req.user.role)) {
-      const imScope = await loadInsurerManagerNewsScope(pool, req.user)
-      if (!imScope || imScope.gaId !== gaId || imScope.companyId !== masterId) {
+    if (isNewsManagerRole(req.user.role)) {
+      const managerScope = await loadNewsManagerScopeByUser(req.user)
+      if (!managerScope || managerScope.gaId !== gaId || managerScope.companyId !== masterId) {
         throw Object.assign(new Error('소식 작성 범위를 벗어났습니다.'), { httpStatus: 403 })
       }
-      return imScope
+      return managerScope
     }
     if (isGaInsurerManagerMutatorRole(req.user.role)) {
       const tenantGa = await resolveTenantGaIdForRequest(pool, req)
@@ -521,6 +617,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    */
   function mapNewsletterListRow(row, gaCodeUpper) {
     const payload = row.payload && typeof row.payload === 'object' ? row.payload : {}
+    const newsChannel = normalizeNewsChannel(payload.newsChannel)
     const insurerCode = String(payload.insurerCode ?? '').trim()
     const insurerSlug = String(payload.insurerSlug ?? '').trim()
     const insurerName = String(payload.insurerName ?? row.company_name_snapshot ?? '').trim()
@@ -536,6 +633,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       insurerCode: insurerCode || '—',
       insurerName: insurerName || String(row.company_name_snapshot ?? ''),
       insurerSlug: insurerSlug || 'insurer',
+      newsChannel,
       title: '',
       summary,
       heroImageUrl: row.hero_url ? String(row.hero_url) : null,
@@ -547,12 +645,13 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     }
   }
 
-  function buildPayloadFromBody(body, scope) {
+  function buildPayloadFromBody(body, scope, newsChannel) {
     return {
       gaCode: String(body.gaCode ?? scope.gaCodeRaw ?? '').trim().toUpperCase(),
       insurerCode: String(body.insurerCode ?? '').trim(),
       insurerSlug: String(body.insurerSlug ?? scope.companySlug ?? '').trim(),
       insurerName: String(body.insurerName ?? scope.companyName ?? '').trim(),
+      newsChannel: normalizeNewsChannel(newsChannel),
       summary: String(body.summary ?? '').trim(),
       publishedAt: body.publishedAt ? String(body.publishedAt) : null,
     }
@@ -624,13 +723,23 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    * @param {object} row
    * @param {import('express').Request} req
    */
-  async function assertCanAccessNewsletterRow(row, req) {
+  async function assertCanAccessNewsletterRow(row, req, expectedChannel = null) {
     if (!row) {
       throw Object.assign(new Error('소식을 찾을 수 없습니다.'), { httpStatus: 404 })
     }
-    if (isInsurerManagerRole(req.user.role)) {
-      const imScope = await loadInsurerManagerNewsScope(pool, req.user)
-      if (!imScope || Number(row.ga_id) !== imScope.gaId || Number(row.company_id) !== imScope.companyId) {
+    const rowPayload = row.payload && typeof row.payload === 'object' ? row.payload : {}
+    const rowChannel = normalizeNewsChannel(rowPayload.newsChannel)
+    if (expectedChannel && rowChannel !== normalizeNewsChannel(expectedChannel)) {
+      throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
+    }
+    if (isNewsManagerRole(req.user.role)) {
+      const managerScope = await loadNewsManagerScopeByUser(req.user)
+      if (
+        !managerScope ||
+        Number(row.ga_id) !== managerScope.gaId ||
+        Number(row.company_id) !== managerScope.companyId ||
+        rowChannel !== newsChannelByRole(req.user.role)
+      ) {
         throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
       }
       return
@@ -652,9 +761,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    * @returns {Promise<number|null>}
    */
   async function resolveNewsletterSelectGaId(req) {
-    if (isInsurerManagerRole(req.user.role)) {
-      const imScope = await loadInsurerManagerNewsScope(pool, req.user)
-      return imScope != null ? Number(imScope.gaId) : null
+    if (isNewsManagerRole(req.user.role)) {
+      const managerScope = await loadNewsManagerScopeByUser(req.user)
+      return managerScope != null ? Number(managerScope.gaId) : null
     }
     if (isGaInsurerManagerMutatorRole(req.user.role)) {
       const tenantGa = await resolveTenantGaIdForRequest(pool, req)
@@ -671,6 +780,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const insurerSlugFilter = String(req.query.insurerSlug ?? '')
         .trim()
         .toLowerCase()
+      const channel = resolveFeedChannel(req)
 
       const gaId = await resolveFeedGaId(req, gaCodeQuery)
       if (gaId == null) {
@@ -717,11 +827,13 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
             ORDER BY a.sort_order ASC LIMIT 1) AS hero_url
         FROM insurance_company_newsletters n
         INNER JOIN ga_companies g ON g.id = n.ga_id
-        WHERE n.ga_id = $1 AND n.status = 'PUBLISHED'
+        WHERE n.ga_id = $1
+          AND n.status = 'PUBLISHED'
+          AND COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2
       `
-      const params = [gaId]
+      const params = [gaId, channel]
       if (insurerSlugFilter) {
-        listSql += ` AND LOWER(TRIM(n.payload->>'insurerSlug')) = $2`
+        listSql += ` AND LOWER(TRIM(n.payload->>'insurerSlug')) = $3`
         params.push(insurerSlugFilter)
       }
       listSql += ` ORDER BY n.created_at DESC LIMIT $${params.length + 1}`
@@ -740,6 +852,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     try {
       const newsletterId = String(req.params.newsletterId ?? '')
       const gaCodeQuery = String(req.query.gaCode ?? '').trim()
+      const channel = resolveFeedChannel(req)
       const gaId = await resolveFeedGaId(req, gaCodeQuery)
       if (gaId == null) {
         res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
@@ -748,8 +861,15 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
       const nRes = await safeQuery(
         pool,
-        `SELECT * FROM insurance_company_newsletters WHERE id = $1 AND ga_id = $2 AND status = 'PUBLISHED'`,
-        [newsletterId, gaId],
+        `
+        SELECT *
+        FROM insurance_company_newsletters
+        WHERE id = $1
+          AND ga_id = $2
+          AND status = 'PUBLISHED'
+          AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
+        `,
+        [newsletterId, gaId, channel],
       )
       if (nRes.rowCount === 0) {
         res.status(404).json({ message: '소식을 찾을 수 없습니다.' })
@@ -764,13 +884,13 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   apiRouter.get('/insurer-news/manager/publish-context', requireAuth, async (req, res) => {
     try {
-      if (!isInsurerManagerRole(req.user.role)) {
-        res.status(403).json({ message: '원수사 담당자만 이용할 수 있습니다.' })
+      if (!isNewsManagerRole(req.user.role)) {
+        res.status(403).json({ message: '채널 담당자만 이용할 수 있습니다.' })
         return
       }
-      const scope = await loadInsurerManagerNewsScope(pool, req.user)
+      const scope = await loadNewsManagerScopeByUser(req.user)
       if (!scope) {
-        res.status(403).json({ message: '원수사 소식 발행 컨텍스트를 찾을 수 없습니다.' })
+        res.status(403).json({ message: '소식 발행 컨텍스트를 찾을 수 없습니다.' })
         return
       }
       const { gaId } = req.user
@@ -791,6 +911,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         ).trim(),
         insurerName: scope.companyName,
         insurerSlug: scope.companySlug,
+        newsChannel: newsChannelByRole(req.user.role),
       })
     } catch (e88) {
       handleDbError(e88, req, res)
@@ -991,16 +1112,17 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       let companyIdFilter = null
       /** @type {string} */
       let gaCodeUpper
+      const channel = resolveManagerChannel(req)
 
-      if (isInsurerManagerRole(req.user.role)) {
-        const imScope = await loadInsurerManagerNewsScope(pool, req.user)
-        if (!imScope) {
+      if (isNewsManagerRole(req.user.role)) {
+        const managerScope = await loadNewsManagerScopeByUser(req.user)
+        if (!managerScope) {
           res.status(403).json({ message: '소식 목록을 불러올 수 없습니다.' })
           return
         }
-        gaId = imScope.gaId
-        companyIdFilter = imScope.companyId
-        gaCodeUpper = imScope.gaCodeRaw.toUpperCase()
+        gaId = managerScope.gaId
+        companyIdFilter = managerScope.companyId
+        gaCodeUpper = managerScope.gaCodeRaw.toUpperCase()
       } else {
         const tenantGa = await resolveTenantGaIdForRequest(pool, req)
         if (tenantGa == null) {
@@ -1033,10 +1155,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         FROM insurance_company_newsletters n
         INNER JOIN ga_companies g ON g.id = n.ga_id
         WHERE n.ga_id = $1
+          AND COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2
       `
-      const params = [gaId]
+      const params = [gaId, channel]
       if (companyIdFilter != null) {
-        q += ` AND n.company_id = $2`
+        q += ` AND n.company_id = $3`
         params.push(companyIdFilter)
       }
       q += ` ORDER BY n.created_at DESC`
@@ -1052,20 +1175,28 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   apiRouter.get('/insurer-news/manager/newsletters/:newsletterId', requireAuth, requireNewsletterWriter, async (req, res) => {
     try {
       const newsletterId = String(req.params.newsletterId ?? '')
+      const channel = resolveManagerChannel(req)
       const gaIdForSelect = await resolveNewsletterSelectGaId(req)
       if (gaIdForSelect == null || !Number.isInteger(gaIdForSelect) || gaIdForSelect < 1) {
         res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
         return
       }
-      const nRes = await safeQuery(pool, `SELECT * FROM insurance_company_newsletters WHERE id = $1 AND ga_id = $2`, [
-        newsletterId,
-        gaIdForSelect,
-      ])
+      const nRes = await safeQuery(
+        pool,
+        `
+        SELECT *
+        FROM insurance_company_newsletters
+        WHERE id = $1
+          AND ga_id = $2
+          AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
+        `,
+        [newsletterId, gaIdForSelect, channel],
+      )
       if (nRes.rowCount === 0) {
         res.status(404).json({ message: '소식을 찾을 수 없습니다.' })
         return
       }
-      await assertCanAccessNewsletterRow(nRes.rows[0], req)
+      await assertCanAccessNewsletterRow(nRes.rows[0], req, channel)
       const attRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [newsletterId, gaIdForSelect])
       res.json(mapNewsletterDetail(nRes.rows[0], attRes.rows))
     } catch (e91) {
@@ -1076,14 +1207,11 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   apiRouter.post('/insurer-news/manager/newsletters', requireAuth, requireNewsletterWriter, async (req, res) => {
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     try {
+      const channel = resolveManagerChannel(req)
       const normalizedScope = await resolveNewsWriteScope(req, body)
-      const payload = buildPayloadFromBody(body, normalizedScope)
+      const payload = buildPayloadFromBody(body, normalizedScope, channel)
       const title = ''
       const bodyText = String(body.bodyText ?? '')
-      if (!bodyText.trim()) {
-        res.status(400).json({ message: '내용을 입력해 주세요.' })
-        return
-      }
       const statusRaw = String(body.status ?? 'DRAFT').toUpperCase()
       const status = statusRaw === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT'
 
@@ -1179,20 +1307,28 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     const newsletterId = String(req.params.newsletterId ?? '')
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     try {
+      const channel = resolveManagerChannel(req)
       const gaIdForSelect = await resolveNewsletterSelectGaId(req)
       if (gaIdForSelect == null || !Number.isInteger(gaIdForSelect) || gaIdForSelect < 1) {
         res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
         return
       }
-      const nRes = await safeQuery(pool, `SELECT * FROM insurance_company_newsletters WHERE id = $1 AND ga_id = $2`, [
-        newsletterId,
-        gaIdForSelect,
-      ])
+      const nRes = await safeQuery(
+        pool,
+        `
+        SELECT *
+        FROM insurance_company_newsletters
+        WHERE id = $1
+          AND ga_id = $2
+          AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
+        `,
+        [newsletterId, gaIdForSelect, channel],
+      )
       if (nRes.rowCount === 0) {
         res.status(404).json({ message: '소식을 찾을 수 없습니다.' })
         return
       }
-      await assertCanAccessNewsletterRow(nRes.rows[0], req)
+      await assertCanAccessNewsletterRow(nRes.rows[0], req, channel)
 
       const scope = await resolveNewsWriteScope(req, body)
       const existingCompanyId =
@@ -1203,13 +1339,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(400).json({ message: '소식의 보험사와 요청 정보가 일치하지 않습니다.' })
         return
       }
-      const payload = buildPayloadFromBody(body, scope)
+      const payload = buildPayloadFromBody(body, scope, channel)
       const title = ''
       const bodyText = String(body.bodyText ?? '')
-      if (!bodyText.trim()) {
-        res.status(400).json({ message: '내용을 입력해 주세요.' })
-        return
-      }
       const statusRaw = String(body.status ?? 'DRAFT').toUpperCase()
       const status = statusRaw === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT'
 
@@ -1277,10 +1409,17 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         objectKeys: orphanKeys,
       })
 
-      const fresh = await safeQuery(pool, `SELECT * FROM insurance_company_newsletters WHERE id = $1 AND ga_id = $2`, [
-        newsletterId,
-        scope.gaId,
-      ])
+      const fresh = await safeQuery(
+        pool,
+        `
+        SELECT *
+        FROM insurance_company_newsletters
+        WHERE id = $1
+          AND ga_id = $2
+          AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
+        `,
+        [newsletterId, scope.gaId, channel],
+      )
       const attRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [newsletterId, scope.gaId])
       res.json(mapNewsletterDetail(fresh.rows[0], attRes.rows))
     } catch (e93) {
@@ -1292,13 +1431,93 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     }
   })
 
+  apiRouter.delete('/insurer-news/manager/newsletters/:newsletterId', requireAuth, requireGaStaffOrAdminDelete, async (req, res) => {
+    try {
+      const newsletterId = String(req.params.newsletterId ?? '').trim()
+      const channel = resolveManagerChannel(req)
+      if (!newsletterId) {
+        res.status(400).json({ message: '잘못된 소식지 ID입니다.' })
+        return
+      }
+      const gaId = await resolveTenantGaIdForRequest(pool, req)
+      if (gaId == null || !Number.isInteger(gaId) || gaId < 1) {
+        res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
+        return
+      }
+      const nRes = await safeQuery(
+        pool,
+        `
+        SELECT id
+        FROM insurance_company_newsletters
+        WHERE id = $1
+          AND ga_id = $2
+          AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
+        `,
+        [newsletterId, gaId, channel],
+      )
+      if (nRes.rowCount === 0) {
+        res.status(404).json({ message: '소식을 찾을 수 없습니다.' })
+        return
+      }
+
+      const attRes = await safeQuery(
+        pool,
+        `
+        SELECT object_key
+        FROM insurance_company_newsletter_attachments
+        WHERE newsletter_id = $1
+        `,
+        [newsletterId],
+      )
+
+      if (isConsentR2Enabled()) {
+        for (const row of attRes.rows) {
+          const objectKey = String(row.object_key ?? '').trim()
+          if (!objectKey) {
+            continue
+          }
+          try {
+            await r2DeleteObject(objectKey)
+          } catch (errDel) {
+            insurerNewsLog.error({
+              event: 'newsletter-delete-r2-fail',
+              newsletterId,
+              objectKey,
+              err: errDel instanceof Error ? errDel.message : String(errDel),
+            })
+            res.status(502).json({ message: '스토리지에서 첨부 파일을 삭제하지 못했습니다.' })
+            return
+          }
+        }
+      }
+
+      await withTransaction(async (client) => {
+        await deleteAttachmentsForNewsletter(client, newsletterId, gaId)
+        await client.query(`DELETE FROM insurance_company_newsletters WHERE id = $1 AND ga_id = $2`, [
+          newsletterId,
+          gaId,
+        ])
+      })
+
+      insurerNewsLog.info({
+        event: 'newsletter-delete',
+        newsletterId,
+        actorUserId: req.user?.id ?? null,
+        actorRole: req.user?.role ?? null,
+      })
+      res.json({ ok: true })
+    } catch (e94) {
+      handleDbError(e94, req, res)
+    }
+  })
+
   apiRouter.delete('/insurer-news/attachments/:attachmentId', requireAuth, requireNewsletterWriter, async (req, res) => {
     try {
       const attachmentId = String(req.params.attachmentId ?? '')
       const row = await safeQuery(
         pool,
         `
-        SELECT a.id, a.object_key, a.newsletter_id, n.ga_id, n.company_id
+        SELECT a.id, a.object_key, a.newsletter_id, n.ga_id, n.company_id, n.payload
         FROM insurance_company_newsletter_attachments a
         INNER JOIN insurance_company_newsletters n ON n.id = a.newsletter_id
         WHERE a.id = $1
@@ -1310,7 +1529,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       await assertCanAccessNewsletterRow(
-        { ga_id: row.rows[0].ga_id, company_id: row.rows[0].company_id },
+        { ga_id: row.rows[0].ga_id, company_id: row.rows[0].company_id, payload: row.rows[0].payload },
         req,
       )
 
@@ -1331,8 +1550,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
       await safeQuery(pool, `DELETE FROM insurance_company_newsletter_attachments WHERE id = $1`, [attachmentId])
       res.status(204).end()
-    } catch (e94) {
-      handleDbError(e94, req, res)
+    } catch (e95) {
+      handleDbError(e95, req, res)
     }
   })
 }
