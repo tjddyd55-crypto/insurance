@@ -5501,6 +5501,9 @@ registerCustomerExtraApi(apiRouter, { pool, requireAuth, handleDbError })
 
 app.use('/api', apiRouter)
 app.use('/backend', apiRouter)
+// 배포 환경에서 API base가 '/api' 또는 '/backend'로 중복 설정돼도 404 없이 수용
+app.use('/api/api', apiRouter)
+app.use('/backend/api', apiRouter)
 
 if (fs.existsSync(DIST_PATH)) {
   app.use(express.static(DIST_PATH))
