@@ -107,7 +107,8 @@
       {
         "provider": "github",
         "owner": "tjddyd55-crypto",
-        "repo": "insurance"
+        "repo": "insurance",
+        "releaseType": "release"
       }
     ]
   }
