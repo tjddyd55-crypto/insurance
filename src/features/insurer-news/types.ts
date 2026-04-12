@@ -40,6 +40,7 @@ export interface NewsletterItem {
   insurerName: string
   insurerSlug: string
   newsChannel?: NewsChannel
+  publisherId?: string
   title: string
   summary: string
   heroImageUrl: string | null

@@ -114,7 +114,7 @@ async function loadInsurerManagerNewsScope(pool, user) {
     companyCodeRaw: String(row.company_code ?? '').trim(),
     newsChannel: NEWS_CHANNEL_INSURER,
     storageCategory: storageCategoryForChannel(NEWS_CHANNEL_INSURER),
-    publisherId: null,
+    publisherId: String(user.id),
   }
 }
 
@@ -535,6 +535,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       insurerName: insurerName || String(row.company_name_snapshot ?? ''),
       insurerSlug: insurerSlug || 'insurer',
       newsChannel,
+      publisherId: String(payload.publisherId ?? '').trim() || undefined,
       title: '',
       summary,
       heroImageUrl: images[0]?.url ?? null,
@@ -720,6 +721,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       insurerName: insurerName || String(row.company_name_snapshot ?? ''),
       insurerSlug: insurerSlug || 'insurer',
       newsChannel,
+      publisherId: String(payload.publisherId ?? '').trim() || undefined,
       title: '',
       summary,
       heroImageUrl: row.hero_url ? String(row.hero_url) : null,
@@ -858,6 +860,28 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       return
     }
     throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
+  }
+
+  /**
+   * 삭제 권한: 작성자(채널 매니저) 또는 GA_ADMIN/GA_STAFF
+   * @param {object} row
+   * @param {import('express').Request} req
+   * @param {string|null} expectedChannel
+   */
+  async function assertCanDeleteNewsletterRow(row, req, expectedChannel = null) {
+    await assertCanAccessNewsletterRow(row, req, expectedChannel)
+    if (isGaInsurerManagerMutatorRole(req.user.role)) {
+      return
+    }
+    if (isNewsManagerRole(req.user.role)) {
+      const rowPayload = row.payload && typeof row.payload === 'object' ? row.payload : {}
+      const publisherId = String(rowPayload.publisherId ?? '').trim()
+      if (!publisherId || publisherId !== String(req.user.id)) {
+        throw Object.assign(new Error('작성자 본인만 삭제할 수 있습니다.'), { httpStatus: 403 })
+      }
+      return
+    }
+    throw Object.assign(new Error('소식 삭제 권한이 없습니다.'), { httpStatus: 403 })
   }
 
   /**
@@ -1544,7 +1568,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     }
   })
 
-  apiRouter.delete('/insurer-news/manager/newsletters/:newsletterId', requireAuth, requireGaStaffOrAdminDelete, async (req, res) => {
+  apiRouter.delete('/insurer-news/manager/newsletters/:newsletterId', requireAuth, requireNewsletterWriter, async (req, res) => {
     try {
       const newsletterId = String(req.params.newsletterId ?? '').trim()
       const channel = resolveManagerChannel(req)
@@ -1560,7 +1584,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const nRes = await safeQuery(
         pool,
         `
-        SELECT id
+        SELECT id, ga_id, company_id, payload
         FROM insurance_company_newsletters
         WHERE id = $1
           AND ga_id = $2
@@ -1572,6 +1596,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(404).json({ message: '소식을 찾을 수 없습니다.' })
         return
       }
+      await assertCanDeleteNewsletterRow(nRes.rows[0], req, channel)
 
       const attRes = await safeQuery(
         pool,

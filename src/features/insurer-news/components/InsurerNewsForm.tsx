@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ApiError } from '../../../lib/apiClient'
 import { useInsurerNewsForm } from '../hooks/useInsurerNewsForm'
-import type { LocalAttachmentDraft, NewsletterDetail } from '../types'
+import type { LocalAttachmentDraft, NewsChannel, NewsletterDetail } from '../types'
 import { uploadNewsletterAttachments } from '../services/insurerNews.service'
 import { InsurerNewsUploadDropzone } from './InsurerNewsUploadDropzone'
 
@@ -28,6 +28,7 @@ type Props = {
   newsletterId?: string
   /** 저장 전 R2 업로드 후 CDN URL 기준으로 저장 */
   authToken: string | null
+  channel?: NewsChannel
 }
 
 /** API 저장용 — 반드시 cdnUrl + objectKey (미리보기 blob 금지) */
@@ -93,6 +94,7 @@ export function InsurerNewsForm({
   context,
   newsletterId,
   authToken,
+  channel = 'INSURER',
 }: Props) {
   const form = useInsurerNewsForm(initial)
   const [submitError, setSubmitError] = useState('')
@@ -115,6 +117,7 @@ export function InsurerNewsForm({
     try {
       const uploaded = await uploadNewsletterAttachments(authToken, form.attachments, {
         presignInsurerCode: context.insurerCode,
+        channel,
       })
       form.replaceAttachments(uploaded)
       if (uploaded.some((a) => a.status === 'failed')) {

@@ -89,6 +89,7 @@ export function InsurerManagerNewsUploadPage({
         initial={null}
         context={context}
         authToken={token}
+        channel={channel}
         onCancel={() => navigate(listPath)}
         onSubmit={async (draft) => {
           await createManagerNewsletter(token!, draft, { channel })

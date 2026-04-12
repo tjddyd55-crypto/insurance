@@ -1,20 +1,29 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
-import { getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
+import { deleteManagerNewsletter, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
 import { formatInsurerNewsDateTime } from '../utils/formatInsurerNewsDate'
 import type { NewsChannel, NewsletterDetail } from '../types'
 
-export function InsurerManagerNewsDetailPage({ channel = 'INSURER' }: { channel?: NewsChannel }) {
+export function InsurerManagerNewsDetailPage({
+  channel = 'INSURER',
+  listPath = '/insurer/news',
+}: {
+  channel?: NewsChannel
+  listPath?: string
+}) {
   const { newsletterId } = useParams<{ newsletterId: string }>()
   const { user, token } = useAuth()
+  const navigate = useNavigate()
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
   const requiresCompanyScope = channel !== 'LOSS_ADJUSTER'
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     if (!token?.trim() || !gaCode || (requiresCompanyScope && companyId == null) || !newsletterId) {
@@ -65,6 +74,11 @@ export function InsurerManagerNewsDetailPage({ channel = 'INSURER' }: { channel?
     : detail.heroImageUrl
       ? [detail.heroImageUrl]
       : []
+  const role = user?.role ?? ''
+  const isGaDeleteRole = role === 'GA_ADMIN' || role === 'GA_STAFF'
+  const isManagerRole = role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER'
+  const isAuthor = Boolean(detail.publisherId && String(detail.publisherId) === String(user?.id ?? ''))
+  const canDelete = isGaDeleteRole || (isManagerRole && isAuthor)
 
   return (
     <main className="page page--with-back insurer-news-page">
@@ -76,6 +90,41 @@ export function InsurerManagerNewsDetailPage({ channel = 'INSURER' }: { channel?
           <time dateTime={detail.publishedAt} style={{ fontSize: '0.95rem' }}>
             {formatInsurerNewsDateTime(detail.publishedAt)}
           </time>
+          {canDelete ? (
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                className="button button--secondary"
+                disabled={deleteBusy || !token?.trim() || !newsletterId}
+                onClick={() => {
+                  if (!newsletterId || !token?.trim() || deleteBusy) {
+                    return
+                  }
+                  if (!window.confirm('이 소식지를 삭제하시겠습니까?')) {
+                    return
+                  }
+                  setDeleteError('')
+                  setDeleteBusy(true)
+                  void (async () => {
+                    try {
+                      await deleteManagerNewsletter(token, newsletterId, { channel })
+                      navigate(listPath, { replace: true })
+                    } catch (e) {
+                      setDeleteError(e instanceof Error ? e.message : '소식지 삭제에 실패했습니다.')
+                      setDeleteBusy(false)
+                    }
+                  })()
+                }}
+              >
+                {deleteBusy ? '삭제 중…' : '삭제'}
+              </button>
+            </div>
+          ) : null}
+          {deleteError ? (
+            <p className="status status--error" style={{ marginTop: 8 }}>
+              {deleteError}
+            </p>
+          ) : null}
         </header>
         <div className="insurer-news-detail-body" style={{ marginBottom: 8 }}>
           {detail.bodyText || '본문이 없습니다.'}
