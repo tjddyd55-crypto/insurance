@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { NewsletterList } from '../components/NewsletterList'
-import { getNewslettersForInsurerManagerCompany } from '../services/insurerNews.service'
+import { getAllPublishedForGa, getNewslettersForInsurerManagerCompany } from '../services/insurerNews.service'
 import type { NewsChannel, NewsletterItem } from '../types'
 
 export function InsurerManagerNewsListPage({
@@ -10,19 +10,23 @@ export function InsurerManagerNewsListPage({
   title = '원수사 소식지 조회',
   subtitle = '소속 원수사에 등록된 소식지만 표시됩니다.',
   openPathPrefix = '/insurer/news',
+  emptyMessage = '등록된 소식지가 없습니다.',
+  fetchScope = 'manager',
   noSessionMessage = '원수사 담당자 계정(소속 회사 정보 포함)으로 로그인한 후 이용할 수 있습니다.',
 }: {
   channel?: NewsChannel
   title?: string
   subtitle?: string
   openPathPrefix?: string
+  emptyMessage?: string
+  fetchScope?: 'manager' | 'ga'
   noSessionMessage?: string
 }) {
   const { user, token } = useAuth()
   const navigate = useNavigate()
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
-  const requiresCompanyScope = channel !== 'LOSS_ADJUSTER'
+  const requiresCompanyScope = fetchScope === 'manager' && channel !== 'LOSS_ADJUSTER'
   const [items, setItems] = useState<NewsletterItem[]>([])
   const [error, setError] = useState('')
 
@@ -34,7 +38,10 @@ export function InsurerManagerNewsListPage({
     ;(async () => {
       setError('')
       try {
-        const rows = await getNewslettersForInsurerManagerCompany(token, gaCode, companyId ?? 0, { channel })
+        const rows =
+          fetchScope === 'ga'
+            ? await getAllPublishedForGa(gaCode, token, { channel })
+            : await getNewslettersForInsurerManagerCompany(token, gaCode, companyId ?? 0, { channel })
         if (!cancelled) {
           setItems(rows)
         }
@@ -47,7 +54,7 @@ export function InsurerManagerNewsListPage({
     return () => {
       cancelled = true
     }
-  }, [channel, token, gaCode, companyId, requiresCompanyScope])
+  }, [fetchScope, channel, token, gaCode, companyId, requiresCompanyScope])
 
   if (!gaCode || (requiresCompanyScope && companyId == null)) {
     return (
@@ -73,7 +80,7 @@ export function InsurerManagerNewsListPage({
       {error ? <div className="insurer-news-empty">{error}</div> : null}
       <NewsletterList
         items={items}
-        emptyMessage="등록된 소식지가 없습니다."
+        emptyMessage={emptyMessage}
         onOpenItem={(id) => navigate(`${openPathPrefix}/${id}`)}
       />
     </main>

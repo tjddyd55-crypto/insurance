@@ -1,61 +1,30 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../auth/AuthProvider'
-import { NewsCard } from '../components/NewsCard'
-import { getAllPublishedForGa } from '../services/insurerNews.service'
-import type { NewsChannel, NewsletterItem } from '../types'
+import { InsurerManagerNewsListPage } from './InsurerManagerNewsListPage'
+import type { NewsChannel } from '../types'
 
 export function NewsletterHubPage({
   channel = 'INSURER',
+  title = '원수사 소식지 조회',
+  subtitle = '등록된 소식지를 확인할 수 있습니다.',
   detailBasePath = '/portal/newsletters',
-  emptyMessage = '아직 등록된 소식지가 없습니다.',
+  emptyMessage = '등록된 소식지가 없습니다.',
+  noSessionMessage = 'GA에 소속된 계정으로 로그인한 후 이용할 수 있습니다.',
 }: {
   channel?: NewsChannel
+  title?: string
+  subtitle?: string
   detailBasePath?: string
   emptyMessage?: string
+  noSessionMessage?: string
 }) {
-  const { user, token } = useAuth()
-  const gaCode = user?.gaCode ?? ''
-  const navigate = useNavigate()
-  const [items, setItems] = useState<NewsletterItem[] | null>(null)
-
-  useEffect(() => {
-    if (!gaCode || !token?.trim()) {
-      return
-    }
-    let cancelled = false
-    ;(async () => {
-      const rows = await getAllPublishedForGa(gaCode, token, { channel })
-      if (!cancelled) {
-        setItems(rows)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [channel, gaCode, token])
-
-  if (!gaCode) {
-    return null
-  }
-
-  if (items === null) {
-    return <p className="insurer-news-muted">불러오는 중…</p>
-  }
-
-  if (items.length === 0) {
-    return (
-      <div className="insurer-news-empty" role="status">
-        {emptyMessage}
-      </div>
-    )
-  }
-
   return (
-    <div className="news-grid">
-      {items.map((item) => (
-        <NewsCard key={item.id} item={item} onOpen={() => navigate(`${detailBasePath}/${item.id}`)} />
-      ))}
-    </div>
+    <InsurerManagerNewsListPage
+      channel={channel}
+      title={title}
+      subtitle={subtitle}
+      openPathPrefix={detailBasePath}
+      emptyMessage={emptyMessage}
+      fetchScope="ga"
+      noSessionMessage={noSessionMessage}
+    />
   )
 }

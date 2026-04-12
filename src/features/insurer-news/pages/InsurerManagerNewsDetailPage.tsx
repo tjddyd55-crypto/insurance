@@ -3,23 +3,25 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
-import { deleteManagerNewsletter, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
+import { deleteManagerNewsletter, getNewsletterDetail, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
 import { formatInsurerNewsDateTime } from '../utils/formatInsurerNewsDate'
 import type { NewsChannel, NewsletterDetail } from '../types'
 
 export function InsurerManagerNewsDetailPage({
   channel = 'INSURER',
   listPath = '/insurer/news',
+  detailScope = 'manager',
 }: {
   channel?: NewsChannel
   listPath?: string
+  detailScope?: 'manager' | 'ga'
 }) {
   const { newsletterId } = useParams<{ newsletterId: string }>()
   const { user, token } = useAuth()
   const navigate = useNavigate()
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
-  const requiresCompanyScope = channel !== 'LOSS_ADJUSTER'
+  const requiresCompanyScope = detailScope === 'manager' && channel !== 'LOSS_ADJUSTER'
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleteBusy, setDeleteBusy] = useState(false)
@@ -33,7 +35,10 @@ export function InsurerManagerNewsDetailPage({
     let cancelled = false
     setLoading(true)
     ;(async () => {
-      const row = await getNewsletterDetailForInsurerManager(token, gaCode, companyId ?? 0, newsletterId, { channel })
+      const row =
+        detailScope === 'ga'
+          ? await getNewsletterDetail(gaCode, newsletterId, token, { channel })
+          : await getNewsletterDetailForInsurerManager(token, gaCode, companyId ?? 0, newsletterId, { channel })
       if (!cancelled) {
         setDetail(row)
         setLoading(false)
@@ -42,7 +47,7 @@ export function InsurerManagerNewsDetailPage({
     return () => {
       cancelled = true
     }
-  }, [channel, token, gaCode, companyId, newsletterId, requiresCompanyScope])
+  }, [detailScope, channel, token, gaCode, companyId, newsletterId, requiresCompanyScope])
 
   if (!gaCode || (requiresCompanyScope && companyId == null)) {
     return null
