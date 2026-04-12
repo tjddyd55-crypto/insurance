@@ -95,14 +95,15 @@ function AppWorkspaceLayoutPc() {
     })
   }, [])
 
-  const closeMemoPanel = useCallback(() => {
-    setIsMemoOpen(false)
-    setIsMinimized(false)
-  }, [setIsMinimized])
-
-  const minimizeMemoPanel = useCallback(() => {
-    setIsMinimized(true)
-    setIsFullscreen(false)
+  const onToggleMinimize = useCallback(() => {
+    setIsMemoOpen(true)
+    setIsMinimized((prev) => {
+      const next = !prev
+      if (next) {
+        setIsFullscreen(false)
+      }
+      return next
+    })
   }, [setIsMinimized])
 
   useEffect(() => {
@@ -140,16 +141,6 @@ function AppWorkspaceLayoutPc() {
         </button>
       ) : null}
 
-      {isMinimized && isMemoOpen ? (
-        <button
-          type="button"
-          className="memo-restore-btn"
-          onClick={() => setIsMinimized(false)}
-        >
-          메모 열기
-        </button>
-      ) : null}
-
       <div className="workspace-left workspace-left--app" style={leftStyle}>
         <div className="app-main-content">
           <Outlet />
@@ -169,12 +160,8 @@ function AppWorkspaceLayoutPc() {
         <div className="workspace-right workspace-right--app-fixed" style={rightStyle}>
           <MemoPanel
             isFullscreen={isFullscreen}
-            onToggleFullscreen={onToggleFullscreen}
             isListOpen={isListOpen}
             onToggleList={() => setIsListOpen((v) => !v)}
-            onClosePanel={closeMemoPanel}
-            onMinimize={minimizeMemoPanel}
-            onOpenList={() => setIsListOpen(true)}
             selectedNoteId={selectedNoteId}
             onSelectNoteFromList={onSelectNoteFromList}
           />
@@ -182,8 +169,8 @@ function AppWorkspaceLayoutPc() {
       ) : null}
 
       <MemoElectronFabDock
-        isFullscreen={isFullscreen}
-        onMinimize={minimizeMemoPanel}
+        isMobile={false}
+        onToggleMinimize={onToggleMinimize}
         onToggleFullscreen={onToggleFullscreen}
       />
     </div>

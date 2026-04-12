@@ -23,14 +23,14 @@ function MemoPanelBody({
   isMobile,
   selectedNoteId,
   onSelectNoteFromList,
-  onOpenList,
+  onToggleList,
   omitFab = false,
 }: {
   showList: boolean
   isMobile: boolean
   selectedNoteId: string | null
   onSelectNoteFromList: (id: string) => void
-  onOpenList: () => void
+  onToggleList: () => void
   omitFab?: boolean
 }) {
   return (
@@ -46,13 +46,50 @@ function MemoPanelBody({
             className={`memo-list-sidebar ${isMobile ? 'mobile-list memo-mobile-list' : 'memo-list-sidebar--right-dock'}`}
             data-selected-note={selectedNoteId ?? ''}
           >
+            {isMobile ? (
+              <div className="memo-mobile-list-toggle-row">
+                <button
+                  type="button"
+                  className="memo-mobile-list-toggle-btn"
+                  onClick={onToggleList}
+                  aria-label="메모 목록 접기"
+                >
+                  ▼
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="memo-list-toggle-btn memo-list-toggle-btn--collapse"
+                onClick={onToggleList}
+                aria-label="메모 목록 접기"
+              >
+                &gt;
+              </button>
+            )}
             <MemoList onAfterSelectNote={onSelectNoteFromList} />
           </div>
         ) : null}
         {!showList ? (
-          <button type="button" className="memo-list-open-btn" onClick={onOpenList} aria-label="메모 목록 열기">
-            &lt;
-          </button>
+          isMobile ? (
+            <button
+              type="button"
+              className="memo-mobile-list-open-btn"
+              onClick={onToggleList}
+              aria-label="메모 목록 열기"
+            >
+              ▲
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="memo-list-toggle-btn memo-list-toggle-btn--expand"
+              onClick={onToggleList}
+              aria-label="메모 목록 열기"
+            >
+              &lt;
+            </button>
+          )
         ) : null}
       </div>
       {!omitFab ? <MemoFab /> : null}
@@ -122,9 +159,15 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
     resizingRef.current = true
   }, [])
 
-  const minimizeMemoPanel = useCallback(() => {
-    setIsMinimized(true)
-    setIsFullscreen(false)
+  const onToggleMinimize = useCallback(() => {
+    setIsMemoOpen(true)
+    setIsMinimized((prev) => {
+      const next = !prev
+      if (next) {
+        setIsFullscreen(false)
+      }
+      return next
+    })
   }, [setIsMinimized])
 
   const onToggleFullscreen = useCallback(() => {
@@ -215,16 +258,6 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
         </button>
       ) : null}
 
-      {isMinimized && isMemoOpen ? (
-        <button
-          type="button"
-          className="memo-restore-btn"
-          onClick={() => setIsMinimized(false)}
-        >
-          메모 열기
-        </button>
-      ) : null}
-
       <div
         className={`workspace-left ${isNarrow ? 'workspace-left--narrow drawer' : ''}`}
         style={leftStyle}
@@ -252,14 +285,14 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
             isMobile={isMobile}
             selectedNoteId={selectedNoteId}
             onSelectNoteFromList={onSelectNoteFromList}
-            onOpenList={() => setIsListOpen(true)}
+            onToggleList={() => setIsListOpen((v) => !v)}
             omitFab
           />
         </div>
       ) : null}
       <MemoElectronFabDock
-        isFullscreen={isFullscreen}
-        onMinimize={minimizeMemoPanel}
+        isMobile={isMobile}
+        onToggleMinimize={onToggleMinimize}
         onToggleFullscreen={onToggleFullscreen}
       />
     </div>

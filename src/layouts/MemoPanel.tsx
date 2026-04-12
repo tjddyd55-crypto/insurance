@@ -3,12 +3,8 @@ import MemoList from '../features/memo/components/MemoList'
 
 export type MemoPanelProps = {
   isFullscreen: boolean
-  onToggleFullscreen: () => void
   isListOpen: boolean
   onToggleList: () => void
-  onClosePanel: () => void
-  onMinimize: () => void
-  onOpenList: () => void
   selectedNoteId: string | null
   onSelectNoteFromList: (id: string) => void
 }
@@ -19,7 +15,7 @@ export type MemoPanelProps = {
 export default function MemoPanel({
   isFullscreen,
   isListOpen,
-  onOpenList,
+  onToggleList,
   selectedNoteId,
   onSelectNoteFromList,
 }: MemoPanelProps) {
@@ -37,11 +33,24 @@ export default function MemoPanel({
               className="memo-list-sidebar memo-list-sidebar--right-dock"
               data-selected-note={selectedNoteId ?? ''}
             >
+              <button
+                type="button"
+                className="memo-list-toggle-btn memo-list-toggle-btn--collapse"
+                onClick={onToggleList}
+                aria-label="메모 목록 접기"
+              >
+                &gt;
+              </button>
               <MemoList onAfterSelectNote={onSelectNoteFromList} />
             </div>
           ) : null}
           {!listVisible ? (
-            <button type="button" className="memo-list-open-btn" onClick={onOpenList} aria-label="메모 목록 열기">
+            <button
+              type="button"
+              className="memo-list-toggle-btn memo-list-toggle-btn--expand"
+              onClick={onToggleList}
+              aria-label="메모 목록 열기"
+            >
               &lt;
             </button>
           ) : null}

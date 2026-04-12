@@ -2,13 +2,17 @@ import { useEffect, useRef, useState } from 'react'
 import { useMemoWorkspace } from '../context/MemoWorkspaceContext'
 
 export type MemoElectronFabDockProps = {
-  onMinimize: () => void
+  onToggleMinimize: () => void
   onToggleFullscreen: () => void
-  isFullscreen: boolean
+  isMobile?: boolean
 }
 
-/** Unified: viewport-fixed + FAB with menu; fullscreen close (X). Wires existing handlers only. */
-export function MemoElectronFabDock({ onMinimize, onToggleFullscreen, isFullscreen }: MemoElectronFabDockProps) {
+/** Unified: viewport-fixed + FAB menu. PC/Web exposes fullscreen+minimize toggles, mobile hides them. */
+export function MemoElectronFabDock({
+  onToggleMinimize,
+  onToggleFullscreen,
+  isMobile = false,
+}: MemoElectronFabDockProps) {
   const { addNote, token } = useMemoWorkspace()
   const [menuOpen, setMenuOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -33,52 +37,31 @@ export function MemoElectronFabDock({ onMinimize, onToggleFullscreen, isFullscre
   const closeMenu = () => setMenuOpen(false)
 
   return (
-    <>
-      {isFullscreen ? (
-        <button
-          type="button"
-          className="memo-fullscreen-exit-electron"
-          aria-label="전체화면 종료"
-          onClick={() => onToggleFullscreen()}
-        >
-          ×
-        </button>
-      ) : null}
-      <div className="memo-electron-fab-dock" ref={wrapRef}>
-        <button
-          type="button"
-          className="memo-fab memo-fab--electron-dock"
-          aria-label={'\uBA54\uBAA8 \uB354\uBCF4\uAE30'}
-          aria-expanded={menuOpen}
-          aria-haspopup="menu"
-          onClick={() => setMenuOpen((v) => !v)}
-        >
-          +
-        </button>
-        {menuOpen ? (
-          <div className="memo-fab-menu" role="menu">
-            <button
-              type="button"
-              role="menuitem"
-              className="memo-fab-menu__item"
-              onClick={() => {
-                closeMenu()
-                void addNote()
-              }}
-            >
-              메모 추가
-            </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="memo-fab-menu__item"
-              onClick={() => {
-                closeMenu()
-                onMinimize()
-              }}
-            >
-              메모 최소화
-            </button>
+    <div className="memo-electron-fab-dock" ref={wrapRef}>
+      <button
+        type="button"
+        className="memo-fab memo-fab--electron-dock"
+        aria-label={'\uBA54\uBAA8 \uB354\uBCF4\uAE30'}
+        aria-expanded={menuOpen}
+        aria-haspopup="menu"
+        onClick={() => setMenuOpen((v) => !v)}
+      >
+        +
+      </button>
+      {menuOpen ? (
+        <div className="memo-fab-menu" role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            className="memo-fab-menu__item"
+            onClick={() => {
+              closeMenu()
+              void addNote()
+            }}
+          >
+            메모 추가
+          </button>
+          {!isMobile ? (
             <button
               type="button"
               role="menuitem"
@@ -88,11 +71,24 @@ export function MemoElectronFabDock({ onMinimize, onToggleFullscreen, isFullscre
                 onToggleFullscreen()
               }}
             >
-              메모 전체화면
+              메모 전체화면 on/off
             </button>
-          </div>
-        ) : null}
-      </div>
-    </>
+          ) : null}
+          {!isMobile ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="memo-fab-menu__item"
+              onClick={() => {
+                closeMenu()
+                onToggleMinimize()
+              }}
+            >
+              메모 최소화 on/off
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
   )
 }
