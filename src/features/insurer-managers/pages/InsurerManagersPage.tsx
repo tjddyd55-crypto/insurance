@@ -507,7 +507,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
       </div>
 
       {registerOpen ? (
-        <div className="admin-modal-backdrop" role="presentation" onClick={closeModals}>
+        <div className="admin-modal-backdrop" role="presentation">
           <form
             className="admin-modal-panel"
             role="dialog"
@@ -620,7 +620,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
       ) : null}
 
       {editing ? (
-        <div className="admin-modal-backdrop" role="presentation" onClick={closeModals}>
+        <div className="admin-modal-backdrop" role="presentation">
           <form
             className="admin-modal-panel"
             role="dialog"

@@ -2051,7 +2051,7 @@ apiRouter.get('/admin/audit-logs', requireAuth, requireAuditLogReader, async (re
   }
 })
 
-apiRouter.get('/insurer-managers', requireAuth, requireGaAdminOrSuper, async (req, res) => {
+apiRouter.get('/insurer-managers', requireAuth, requireGaInsurerManagerMutator, async (req, res) => {
   try {
     const gaId = await resolveTenantGaIdForRequest(pool, req)
     if (gaId == null) {
@@ -2429,7 +2429,7 @@ apiRouter.delete('/insurer-managers/:id', requireAuth, requireGaStaffOrAdminOnly
   }
 })
 
-apiRouter.get('/loss-adjusters', requireAuth, requireGaAdminOrSuper, async (req, res) => {
+apiRouter.get('/loss-adjusters', requireAuth, requireGaInsurerManagerMutator, async (req, res) => {
   try {
     const gaId = await resolveTenantGaIdForRequest(pool, req)
     if (gaId == null) {
