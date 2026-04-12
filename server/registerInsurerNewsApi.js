@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import {
+  consentPutInsurerAttachment,
   getR2InsurerAttachmentsCacheControl,
   getR2PublicCdnBase,
   isConsentR2Enabled,
@@ -602,8 +603,13 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   /**
    * @param {import('express').Request} req
    */
-  async function resolvePresignScope(req) {
-    const body = req.body && typeof req.body === 'object' ? req.body : {}
+  async function resolvePresignScope(req, bodyOverride = null) {
+    const body =
+      bodyOverride && typeof bodyOverride === 'object'
+        ? bodyOverride
+        : req.body && typeof req.body === 'object'
+          ? req.body
+          : {}
     const channel = normalizeNewsChannel(body.channel)
     if (isNewsManagerRole(req.user.role)) {
       const expected = newsChannelByRole(req.user.role)
@@ -789,6 +795,25 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         storageCategory: scope.storageCategory,
       }),
     )
+  }
+
+  /**
+   * raw 요청 바디를 Buffer로 읽습니다.
+   * @param {import('express').Request} req
+   * @param {number} maxBytes
+   */
+  async function readRawBodyBuffer(req, maxBytes) {
+    const chunks = []
+    let total = 0
+    for await (const chunk of req) {
+      const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+      total += buf.length
+      if (total > maxBytes) {
+        throw Object.assign(new Error('파일 크기가 허용 범위를 벗어났습니다.'), { httpStatus: 400 })
+      }
+      chunks.push(buf)
+    }
+    return Buffer.concat(chunks)
   }
 
   async function insertAttachments(client, newsletterId, normalized) {
@@ -1112,8 +1137,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
       res.json({ uploadUrl, objectKey, putHeaders })
     } catch (e89) {
-      if (e89 && typeof e89 === 'object' && 'httpStatus' in e89 && Number(e89.httpStatus) === 400) {
-        res.status(400).json({ message: e89 instanceof Error ? e89.message : '요청이 올바르지 않습니다.' })
+      if (e89 && typeof e89 === 'object' && 'httpStatus' in e89 && typeof e89.httpStatus === 'number') {
+        res.status(e89.httpStatus).json({ message: e89 instanceof Error ? e89.message : '요청을 처리할 수 없습니다.' })
         return
       }
       insurerNewsLog.error({
@@ -1123,6 +1148,74 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         message: e89 instanceof Error ? e89.message : String(e89),
       })
       handleDbError(e89, req, res)
+    }
+  })
+
+  /**
+   * 브라우저-R2 CORS 차단 시 서버 경유 업로드 fallback.
+   * 클라이언트는 presign으로 받은 objectKey를 사용하고, 여기서 권한/경로를 다시 검증한다.
+   */
+  apiRouter.put('/insurer-news/attachments/upload-proxy', requireAuth, requireNewsletterWriter, async (req, res) => {
+    try {
+      if (!isConsentR2Enabled()) {
+        logR2EnvDiagnosticCheck()
+        res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+        return
+      }
+      const contentTypeRaw = String(req.query.contentType ?? req.headers['content-type'] ?? '').trim()
+      const contentType = contentTypeRaw.split(';')[0].trim()
+      if (!ALLOWED_UPLOAD_MIME.has(contentType)) {
+        res.status(400).json({ message: '허용되지 않은 파일 형식입니다.' })
+        return
+      }
+      const objectKey = String(req.query.objectKey ?? req.headers['x-object-key'] ?? '').trim()
+      if (!objectKey) {
+        res.status(400).json({ message: 'objectKey가 필요합니다.' })
+        return
+      }
+      const scope = await resolvePresignScope(req, {
+        channel: String(req.query.channel ?? req.headers['x-upload-channel'] ?? '').trim(),
+        insurerCode: String(req.query.insurerCode ?? req.headers['x-insurer-code'] ?? '').trim(),
+      })
+      if (!scope) {
+        res.status(403).json({ message: '업로드 범위를 확인할 수 없습니다.' })
+        return
+      }
+      if (!assertNewsObjectKeyScoped(objectKey, scope.gaPath, scope.storageCategory, scope.companySlug)) {
+        res.status(400).json({ message: '허용되지 않은 저장 경로입니다.' })
+        return
+      }
+      const maxB = maxBytesForMime(contentType)
+      const bodyBuffer = await readRawBodyBuffer(req, maxB)
+      if (!bodyBuffer.length) {
+        res.status(400).json({ message: '업로드 본문이 비어 있습니다.' })
+        return
+      }
+      await consentPutInsurerAttachment(objectKey, bodyBuffer, contentType)
+      insurerNewsLog.info({
+        event: 'upload-complete',
+        stage: 'upload-proxy',
+        objectKey,
+        byteSize: bodyBuffer.length,
+        contentType,
+        userId: req.user?.id ?? null,
+        role: req.user?.role ?? null,
+      })
+      res.status(204).end()
+    } catch (eProxy) {
+      if (eProxy && typeof eProxy === 'object' && 'httpStatus' in eProxy && typeof eProxy.httpStatus === 'number') {
+        res.status(eProxy.httpStatus).json({
+          message: eProxy instanceof Error ? eProxy.message : '요청을 처리할 수 없습니다.',
+        })
+        return
+      }
+      insurerNewsLog.error({
+        event: 'upload-fail',
+        stage: 'upload-proxy',
+        reason: 'exception',
+        message: eProxy instanceof Error ? eProxy.message : String(eProxy),
+      })
+      handleDbError(eProxy, req, res)
     }
   })
 
@@ -1207,9 +1300,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       })
       res.status(204).end()
     } catch (eComplete) {
-      if (eComplete && typeof eComplete === 'object' && 'httpStatus' in eComplete && Number(eComplete.httpStatus) === 400) {
-        res.status(400).json({
-          message: eComplete instanceof Error ? eComplete.message : '요청이 올바르지 않습니다.',
+      if (eComplete && typeof eComplete === 'object' && 'httpStatus' in eComplete && typeof eComplete.httpStatus === 'number') {
+        res.status(eComplete.httpStatus).json({
+          message: eComplete instanceof Error ? eComplete.message : '요청을 처리할 수 없습니다.',
         })
         return
       }
@@ -1645,6 +1738,10 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       })
       res.json({ ok: true })
     } catch (e94) {
+      if (e94 && typeof e94 === 'object' && 'httpStatus' in e94 && typeof e94.httpStatus === 'number') {
+        res.status(e94.httpStatus).json({ message: e94 instanceof Error ? e94.message : '요청을 처리할 수 없습니다.' })
+        return
+      }
       handleDbError(e94, req, res)
     }
   })

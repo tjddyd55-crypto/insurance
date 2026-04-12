@@ -1,4 +1,4 @@
-import { apiRequest } from '../../../lib/apiClient'
+import { apiRequest, resolveApiUrl } from '../../../lib/apiClient'
 import { listCompanyDirectory } from '../../company-registry/api/companyRegistryApi'
 import { isNewsletterInCompanyScope } from '../lib/insurerNewsCompanyScope'
 import { cdnUrlForObjectKey } from '../lib/insurerNewsCdn'
@@ -208,26 +208,62 @@ export async function uploadNewsletterAttachments(
         ...(presign.putHeaders ?? {}),
       }
 
-      const put = await fetch(presign.uploadUrl, {
-        method: 'PUT',
-        headers: putHeaders,
-        body: item.file,
-      })
-
-      if (!put.ok) {
-        const msg = `업로드 실패 (${put.status})`
-        // eslint-disable-next-line no-console -- R2 PUT 실패는 서버가 보지 못하므로 클라이언트에서만 1차 추적
-        console.error(
+      let putOk = false
+      try {
+        const put = await fetch(presign.uploadUrl, {
+          method: 'PUT',
+          headers: putHeaders,
+          body: item.file,
+        })
+        putOk = put.ok
+        if (!put.ok) {
+          // eslint-disable-next-line no-console -- R2 PUT 실패는 서버가 보지 못하므로 클라이언트에서 1차 추적
+          console.warn(
+            '[upload-fail]',
+            JSON.stringify({
+              stage: 'r2-put',
+              objectKey: presign.objectKey,
+              status: put.status,
+              at: new Date().toISOString(),
+            }),
+          )
+        }
+      } catch (putErr) {
+        // eslint-disable-next-line no-console -- 브라우저 CORS/네트워크 차단은 서버에서 포착 불가
+        console.warn(
           '[upload-fail]',
           JSON.stringify({
             stage: 'r2-put',
             objectKey: presign.objectKey,
-            status: put.status,
+            message: putErr instanceof Error ? putErr.message : String(putErr),
             at: new Date().toISOString(),
           }),
         )
-        out.push({ ...item, status: 'failed', errorMessage: msg })
-        continue
+      }
+
+      if (!putOk) {
+        // R2 브라우저 CORS 차단 시 서버 경유 fallback
+        const q = new URLSearchParams({
+          objectKey: presign.objectKey,
+          channel,
+          contentType,
+        })
+        if (presignInsurerCode) {
+          q.set('insurerCode', presignInsurerCode)
+        }
+        const proxyResp = await fetch(resolveApiUrl(`/api/insurer-news/attachments/upload-proxy?${q}`), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': contentType,
+            Authorization: `Bearer ${token}`,
+          },
+          body: item.file,
+        })
+        if (!proxyResp.ok) {
+          const msg = `업로드 실패 (${proxyResp.status})`
+          out.push({ ...item, status: 'failed', errorMessage: msg })
+          continue
+        }
       }
 
       try {
