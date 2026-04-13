@@ -201,7 +201,9 @@ export function DashboardPage() {
   }, [token, user?.id, role])
 
   const menuItems = useMemo(() => {
-    const base = menuForSession(role, user?.gaCode, user?.gaName)
+    const base = menuForSession(role, user?.gaCode, user?.gaName).filter((entry) =>
+      entry.type === 'divider' ? true : entry.path !== '/memo',
+    )
     if (!teamMenuManageVisible) {
       return base
     }
