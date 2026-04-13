@@ -36,7 +36,6 @@ import {
 import { logSecurityEvent, writeSecurityAudit } from './lib/securityAudit.js'
 import { registerConsentApi } from './registerConsentApi.js'
 import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
-import { registerDocumentTemplateApi } from './registerDocumentTemplateApi.js'
 import { registerClientLogRoutes } from './routes/client-log.js'
 import { registerVersionRoutes } from './routes/version.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
@@ -1340,17 +1339,6 @@ registerInsurerNewsApi(apiRouter, {
   effectiveTenantGaId,
   parseGaId,
   resolveTenantGaIdForRequest,
-})
-
-registerDocumentTemplateApi(apiRouter, {
-  pool,
-  requireAuth,
-  requireSuperAdmin,
-  resolveTenantGaIdForRequest,
-  handleDbError,
-  systemQuery,
-  isSuperAdminRole,
-  JWT_SECRET,
 })
 
 function normalizeInviteCode(raw) {
