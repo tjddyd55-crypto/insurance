@@ -62,6 +62,69 @@ function buildPdfResponseUrl(req, jwtToken) {
   return `${prefix}/consent/file?token=${encodeURIComponent(jwtToken)}`
 }
 
+function normalizeGaCodeForPath(code) {
+  return String(code ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, '-')
+}
+
+function sanitizeUserIdForPath(userId) {
+  const v = String(userId ?? '')
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .slice(0, 128)
+  return v || '_'
+}
+
+function normalizeDigits(raw) {
+  return String(raw ?? '').replace(/\D/g, '')
+}
+
+async function resolveConsentCustomerPathId(pool, userId, gaId, body) {
+  const explicitIdRaw = body?.customerId ?? body?.customer_id
+  const explicitId = Number(explicitIdRaw)
+  if (Number.isInteger(explicitId) && explicitId > 0) {
+    const own = await safeQuery(
+      pool,
+      `
+      SELECT id
+      FROM customers
+      WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [explicitId, userId, gaId],
+    )
+    if (own.rowCount > 0) {
+      return String(explicitId)
+    }
+  }
+
+  const ssnDigits = normalizeDigits(body?.formData?.ssn)
+  if (ssnDigits.length >= 6) {
+    const bySsn = await safeQuery(
+      pool,
+      `
+      SELECT id
+      FROM customers
+      WHERE user_id = $1
+        AND ga_id = $2
+        AND deleted_at IS NULL
+        AND regexp_replace(COALESCE(ssn, ''), '[^0-9]', '', 'g') = $3
+      ORDER BY created_at DESC
+      LIMIT 1
+      `,
+      [userId, gaId, ssnDigits],
+    )
+    if (bySsn.rowCount > 0) {
+      return String(bySsn.rows[0].id)
+    }
+  }
+
+  // 고객 식별이 어려운 구간도 customers 트리 안으로 강제해 경로 정책을 유지합니다.
+  return 'unknown'
+}
+
 /**
  * @param {import('express').Router} apiRouter
  * @param {object} ctx
@@ -333,6 +396,22 @@ export function registerConsentApi(apiRouter, ctx) {
         res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
         return
       }
+      const gaScope = await safeQuery(
+        pool,
+        `
+        SELECT code
+        FROM ga_companies
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [tenantGa],
+      )
+      if (gaScope.rowCount === 0) {
+        res.status(400).json({ message: 'GA 경로를 확인할 수 없습니다.' })
+        return
+      }
+      const gaPath = normalizeGaCodeForPath(gaScope.rows[0].code)
+      const userSeg = sanitizeUserIdForPath(userId)
 
       const consentTemplateId = String(req.body.consent_template_id ?? '').trim()
       if (!consentTemplateId) {
@@ -385,12 +464,17 @@ export function registerConsentApi(apiRouter, ctx) {
       const templateBytes = await consentGetBuffer(row.pdf_storage_key)
       const filledPdf = await fillConsentPdf(templateBytes, row.fields, formData, signatureBuf)
 
+      const now = new Date()
+      const yyyy = String(now.getUTCFullYear())
+      const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
+      const dd = String(now.getUTCDate()).padStart(2, '0')
       const ts = Date.now()
-      const resultKey = `consent-results/${userId}/${ts}.pdf`
+      const customerPathId = await resolveConsentCustomerPathId(pool, userId, tenantGa, req.body)
+      const resultKey = `insurer/${gaPath}/${userSeg}/customers/${customerPathId}/consents/${yyyy}/${mm}/${dd}/${ts}_consent-result.pdf`
       await consentPutObject(resultKey, filledPdf, 'application/pdf')
 
       if (signatureBuf && signatureBuf.length > 0) {
-        const sigKey = `signatures/${userId}/${ts}.png`
+        const sigKey = `insurer/${gaPath}/${userSeg}/customers/${customerPathId}/consents/${yyyy}/${mm}/${dd}/${ts}_consent-signature.png`
         await consentPutObject(sigKey, signatureBuf, 'image/png')
       }
 

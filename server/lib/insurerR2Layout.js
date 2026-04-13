@@ -1,10 +1,11 @@
 /**
- * R2 객체 키: insurer/{gaPath}/{category}/{yyyy-mm}/{companySlug}/{uuid}-{filename}
+ * R2 객체 키: insurer/{gaPath}/{category}/{yyyy}/{mm}/{companySlug}/{uuid}_{filename}
  *
  * category 확장 예: documents, marketing 등 — 상수 추가 후 presign·assert 경로를 함께 반영할 것.
  */
 export const INSURER_R2_CATEGORY = Object.freeze({
   NEWS: 'news',
+  LOSS_ADJUSTER: 'loss-adjuster',
   // DOCUMENTS: 'documents',
   // MARKETING: 'marketing',
 })

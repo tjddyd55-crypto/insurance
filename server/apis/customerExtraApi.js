@@ -3,6 +3,7 @@ import { parseGaId } from '../lib/parseGaId.js'
 import { mapCustomerRow } from '../lib/customerRowMap.js'
 import { recordAnalyticsEvent } from '../lib/analyticsEvents.js'
 import {
+  consentPutInsurerAttachment,
   getR2InsurerAttachmentsCacheControl,
   getR2PublicCdnBase,
   isConsentR2Enabled,
@@ -31,6 +32,21 @@ const CUSTOMER_FILE_BLOCKED_MIME = new Set([
 const CUSTOMER_FILE_MAX_BYTES = 25 * 1024 * 1024
 const CUSTOMER_FILE_CONTENT_MAX = 100_000
 
+const CUSTOMER_FILE_BUCKET = Object.freeze({
+  CONSENTS: 'consents',
+  ATTACHMENTS: 'attachments',
+  ETC: 'etc',
+})
+
+const CUSTOMER_FILE_BUCKET_SET = new Set(Object.values(CUSTOMER_FILE_BUCKET))
+
+function normalizeGaCodeForPath(code) {
+  return String(code ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, '-')
+}
+
 function sanitizeUserIdForObjectKeySegment(userId) {
   const s = String(userId ?? '')
     .replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -43,33 +59,45 @@ function sanitizeCustomerFileBaseName(fileNameRaw) {
   return base.replace(/[^\w.\-()\u3131-\u318e\uac00-\ud7a3]/g, '_').slice(0, 120)
 }
 
-function buildCustomerFileObjectKey(gaId, userId, customerId, fileNameRaw) {
+function normalizeCustomerFileBucket(raw) {
+  const v = String(raw ?? '').trim().toLowerCase()
+  if (CUSTOMER_FILE_BUCKET_SET.has(v)) {
+    return v
+  }
+  return CUSTOMER_FILE_BUCKET.ATTACHMENTS
+}
+
+function buildCustomerFileObjectKey(gaPath, userId, customerId, fileNameRaw, bucketRaw) {
   const userSeg = sanitizeUserIdForObjectKeySegment(userId)
   const safeName = sanitizeCustomerFileBaseName(fileNameRaw)
+  const bucket = normalizeCustomerFileBucket(bucketRaw)
   const now = new Date()
   const yyyy = String(now.getUTCFullYear())
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
   const dd = String(now.getUTCDate()).padStart(2, '0')
   const ts = Date.now()
-  return `ga/${gaId}/users/${userSeg}/customers/${customerId}/${yyyy}/${mm}/${dd}/${ts}_${safeName}`
+  return `insurer/${gaPath}/${userSeg}/customers/${customerId}/${bucket}/${yyyy}/${mm}/${dd}/${ts}_${safeName}`
 }
 
-function assertCustomerFileObjectKey(key, gaId, userId, customerId) {
+function assertCustomerFileObjectKey(key, gaPath, userId, customerId) {
   const k = String(key ?? '').replace(/^\//, '')
   if (!k || k.includes('..')) {
     return false
   }
   const userSeg = sanitizeUserIdForObjectKeySegment(userId)
-  const prefix = `ga/${gaId}/users/${userSeg}/customers/${customerId}/`
+  const prefix = `insurer/${gaPath}/${userSeg}/customers/${customerId}/`
   if (!k.startsWith(prefix)) {
     return false
   }
   const rest = k.slice(prefix.length)
   const parts = rest.split('/').filter(Boolean)
-  if (parts.length !== 4) {
+  if (parts.length !== 5) {
     return false
   }
-  const [y, mo, d, fileSeg] = parts
+  const [bucket, y, mo, d, fileSeg] = parts
+  if (!CUSTOMER_FILE_BUCKET_SET.has(bucket)) {
+    return false
+  }
   if (!/^\d{4}$/.test(y) || !/^\d{2}$/.test(mo) || !/^\d{2}$/.test(d)) {
     return false
   }
@@ -86,6 +114,23 @@ function parseCustomerFileObjectKeyFromPublicUrl(fileUrl) {
     return null
   }
   return u.slice(base.length + 1).replace(/^\//, '')
+}
+
+async function resolveGaPathByGaId(pool, gaId) {
+  const r = await safeQuery(
+    pool,
+    `
+    SELECT code
+    FROM ga_companies
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [gaId],
+  )
+  if (r.rowCount === 0) {
+    return null
+  }
+  return normalizeGaCodeForPath(r.rows[0].code)
 }
 
 async function deleteCustomerFileFromR2WithLog(objectKey, tag = 'delete') {
@@ -203,6 +248,25 @@ function parseCustomerIdParam(req, res) {
     return null
   }
   return customerId
+}
+
+/**
+ * raw 요청 바디를 Buffer로 읽습니다.
+ * @param {import('express').Request} req
+ * @param {number} maxBytes
+ */
+async function readRawBodyBuffer(req, maxBytes) {
+  const chunks = []
+  let total = 0
+  for await (const chunk of req) {
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    total += buf.length
+    if (total > maxBytes) {
+      throw Object.assign(new Error('용량 초과'), { httpStatus: 400 })
+    }
+    chunks.push(buf)
+  }
+  return Buffer.concat(chunks)
 }
 
 /**
@@ -342,6 +406,11 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       }
       const gaId = requireGaIdFromUser(req, res)
       if (gaId == null) {
+        return
+      }
+      const gaPath = await resolveGaPathByGaId(pool, gaId)
+      if (!gaPath) {
+        res.status(400).json({ message: 'GA 경로를 확인할 수 없습니다.' })
         return
       }
       const customerId = parseCustomerIdParam(req, res)
@@ -702,6 +771,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const fileNameRaw = String(body.fileName ?? body.file_name ?? 'file').trim() || 'file'
       const contentType = String(body.contentType ?? body.content_type ?? 'application/octet-stream').trim()
       const sizeBytes = Number(body.size ?? body.sizeBytes ?? 0)
+      const fileBucket = normalizeCustomerFileBucket(body.fileBucket ?? body.bucket ?? body.kind)
 
       if (CUSTOMER_FILE_BLOCKED_MIME.has(contentType)) {
         res.status(400).json({ message: '파일 형식 오류' })
@@ -716,7 +786,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
 
-      const objectKey = buildCustomerFileObjectKey(gaId, userId, customerId, fileNameRaw)
+      const objectKey = buildCustomerFileObjectKey(gaPath, userId, customerId, fileNameRaw, fileBucket)
 
       const cacheControl = getR2InsurerAttachmentsCacheControl()
       const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
@@ -730,8 +800,73 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (cacheControl) {
         putHeaders['Cache-Control'] = cacheControl
       }
-      res.json({ uploadUrl, fileUrl, objectKey, putHeaders })
+      res.json({ uploadUrl, fileUrl, objectKey, putHeaders, fileBucket })
     } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  /**
+   * 브라우저-R2 CORS 차단 시 서버 경유 업로드 fallback.
+   * 클라이언트는 presign에서 받은 objectKey를 그대로 전달하며, 여기서 범위를 다시 검증한다.
+   */
+  apiRouter.put('/customers/:id/files/upload-proxy', requireAuth, async (req, res) => {
+    try {
+      if (!isConsentR2Enabled()) {
+        logR2EnvDiagnosticCheck()
+        res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+        return
+      }
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
+      const gaPath = await resolveGaPathByGaId(pool, gaId)
+      if (!gaPath) {
+        res.status(400).json({ message: 'GA 경로를 확인할 수 없습니다.' })
+        return
+      }
+      const customerId = parseCustomerIdParam(req, res)
+      if (customerId == null) {
+        return
+      }
+      if (!(await assertCustomerFileAccess(pool, customerId, userId, gaId, res))) {
+        return
+      }
+      const contentTypeRaw = String(req.query.contentType ?? req.headers['content-type'] ?? '').trim()
+      const contentType = contentTypeRaw.split(';')[0].trim()
+      if (!CUSTOMER_FILE_ALLOWED_MIME.has(contentType) || CUSTOMER_FILE_BLOCKED_MIME.has(contentType)) {
+        res.status(400).json({ message: '파일 형식 오류' })
+        return
+      }
+      const objectKey = String(req.query.objectKey ?? req.headers['x-object-key'] ?? '').trim()
+      if (!objectKey) {
+        res.status(400).json({ message: 'object key가 필요합니다.' })
+        return
+      }
+      if (!assertCustomerFileObjectKey(objectKey, gaPath, userId, customerId)) {
+        res.status(400).json({ message: '유효하지 않은 object key입니다.' })
+        return
+      }
+      const bodyBuffer = await readRawBodyBuffer(req, CUSTOMER_FILE_MAX_BYTES)
+      if (!bodyBuffer.length) {
+        res.status(400).json({ message: '업로드 본문이 비어 있습니다.' })
+        return
+      }
+      await consentPutInsurerAttachment(objectKey, bodyBuffer, contentType)
+      res.status(204).end()
+    } catch (error) {
+      if (error && typeof error === 'object' && 'httpStatus' in error && typeof error.httpStatus === 'number') {
+        res.status(error.httpStatus).json({
+          message: error instanceof Error ? error.message : '요청을 처리할 수 없습니다.',
+        })
+        return
+      }
       handleDbError(error, req, res)
     }
   })
@@ -748,6 +883,11 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
+      const gaPath = await resolveGaPathByGaId(pool, gaId)
+      if (!gaPath) {
+        res.status(400).json({ message: 'GA 경로를 확인할 수 없습니다.' })
+        return
+      }
       const customerId = parseCustomerIdParam(req, res)
       if (customerId == null) {
         return
@@ -761,7 +901,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(400).json({ message: '요청이 올바르지 않습니다.' })
         return
       }
-      if (!assertCustomerFileObjectKey(objectKeyRaw, gaId, userId, customerId)) {
+      if (!assertCustomerFileObjectKey(objectKeyRaw, gaPath, userId, customerId)) {
         res.status(400).json({ message: '요청이 올바르지 않습니다.' })
         return
       }
@@ -785,6 +925,11 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       }
       const gaId = requireGaIdFromUser(req, res)
       if (gaId == null) {
+        return
+      }
+      const gaPath = await resolveGaPathByGaId(pool, gaId)
+      if (!gaPath) {
+        res.status(400).json({ message: 'GA 경로를 확인할 수 없습니다.' })
         return
       }
       const customerId = parseCustomerIdParam(req, res)
@@ -826,9 +971,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(400).json({ message: '파일 URL이 필요합니다.' })
         return
       }
-      if (
-        !assertCustomerFileObjectKey(objectKeyRaw, gaId, userId, customerId)
-      ) {
+      if (!assertCustomerFileObjectKey(objectKeyRaw, gaPath, userId, customerId)) {
         res.status(400).json({ message: '유효하지 않은 object key입니다.' })
         return
       }
@@ -929,6 +1072,11 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
+      const gaPath = await resolveGaPathByGaId(pool, gaId)
+      if (!gaPath) {
+        res.status(400).json({ message: 'GA 경로를 확인할 수 없습니다.' })
+        return
+      }
       const fileId = Number(req.params.fileId)
       if (!Number.isInteger(fileId) || fileId < 1) {
         res.status(400).json({ message: '잘못된 파일 ID입니다.' })
@@ -985,19 +1133,25 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (objectKey) {
         const cid = Number(row.customer_id)
         const userSeg = sanitizeUserIdForObjectKeySegment(userId)
-        const safeNewKey =
-          objectKey && assertCustomerFileObjectKey(objectKey, gaId, userId, cid)
+        const safeNewKey = objectKey && assertCustomerFileObjectKey(objectKey, gaPath, userId, cid)
         const legacy =
           !safeNewKey &&
           typeof objectKey === 'string' &&
           objectKey.startsWith(`customers-files/${gaId}/${cid}/`)
+        /** 이전 customer_files 경로 (ga/{gaId}/users/{userSeg}/customers/...) */
+        const legacyGaScopedUsersPath =
+          !safeNewKey &&
+          !legacy &&
+          typeof objectKey === 'string' &&
+          objectKey.startsWith(`ga/${gaId}/users/${userSeg}/customers/${cid}/`)
         /** 구버전(최상위 customers/) R2 키 — DB 소프트삭제와 무관하게 객체 제거 허용 */
         const legacyTopLevelCustomers =
           !safeNewKey &&
           !legacy &&
+          !legacyGaScopedUsersPath &&
           typeof objectKey === 'string' &&
           objectKey.startsWith(`customers/${gaId}/${userSeg}/${cid}/`)
-        if (safeNewKey || legacy || legacyTopLevelCustomers) {
+        if (safeNewKey || legacy || legacyGaScopedUsersPath || legacyTopLevelCustomers) {
           void deleteCustomerFileFromR2WithLog(objectKey, 'soft-delete')
         }
       }

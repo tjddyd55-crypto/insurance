@@ -15,7 +15,7 @@ import {
   isLossAdjusterRole,
   isSuperAdminRole,
 } from './lib/rbacScope.js'
-import { INSURER_R2_ACTIVE_CATEGORY } from './lib/insurerR2Layout.js'
+import { INSURER_R2_ACTIVE_CATEGORY, INSURER_R2_CATEGORY } from './lib/insurerR2Layout.js'
 import { insurerNewsLog } from './lib/logger.js'
 
 /** 프론트 `attachmentUploadPolicy.ts` 와 동기화 */
@@ -30,7 +30,8 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 const MAX_PDF_BYTES = 10 * 1024 * 1024
 const NEWS_CHANNEL_INSURER = 'INSURER'
 const NEWS_CHANNEL_LOSS_ADJUSTER = 'LOSS_ADJUSTER'
-const LOSS_ADJUSTER_R2_CATEGORY = 'LossAdjuster'
+const LOSS_ADJUSTER_R2_CATEGORY = INSURER_R2_CATEGORY.LOSS_ADJUSTER
+const LEGACY_LOSS_ADJUSTER_R2_CATEGORY = 'LossAdjuster'
 
 /** @param {unknown} role */
 function newsChannelByRole(role) {
@@ -219,18 +220,32 @@ function assertNewsObjectKeyScoped(objectKey, gaPath, storageCategory, companySl
   if (parts.length < 6) {
     return false
   }
+  const isLossAdjusterCategory = storageCategory === LOSS_ADJUSTER_R2_CATEGORY
+  const isLegacyLossAdjusterCategory =
+    parts[2] === LEGACY_LOSS_ADJUSTER_R2_CATEGORY || parts[2] === INSURER_R2_ACTIVE_CATEGORY
   const categoryMatches =
     parts[2] === storageCategory ||
     (allowLegacyLossAdjusterCategory &&
-      storageCategory === LOSS_ADJUSTER_R2_CATEGORY &&
-      parts[2] === INSURER_R2_ACTIVE_CATEGORY)
+      isLossAdjusterCategory &&
+      isLegacyLossAdjusterCategory)
   if (parts[0] !== 'insurer' || parts[1] !== gaPath || !categoryMatches) {
     return false
   }
-  if (!/^\d{4}-\d{2}$/.test(parts[3])) {
+  let companyIndex = 4
+  if (/^\d{4}$/.test(parts[3]) && /^\d{2}$/.test(parts[4])) {
+    companyIndex = 5
+  } else if (/^\d{4}-\d{2}$/.test(parts[3])) {
+    companyIndex = 4
+  } else {
     return false
   }
-  if (parts[4] !== companySlug) {
+  if (parts[companyIndex] !== companySlug) {
+    return false
+  }
+  if (parts.length !== companyIndex + 2) {
+    return false
+  }
+  if (!parts[companyIndex + 1] || !String(parts[companyIndex + 1]).trim()) {
     return false
   }
   return true
@@ -1113,8 +1128,10 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
 
       const safeSeg = fileNameRaw.replace(/[^\w.\-()\u3131-\u318e\uac00-\ud7a3]/g, '_').slice(0, 120)
-      const ym = new Date().toISOString().slice(0, 7)
-      const objectKey = `insurer/${scope.gaPath}/${scope.storageCategory}/${ym}/${scope.companySlug}/${randomUUID()}-${safeSeg}`
+      const now = new Date()
+      const yyyy = String(now.getUTCFullYear())
+      const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
+      const objectKey = `insurer/${scope.gaPath}/${scope.storageCategory}/${yyyy}/${mm}/${scope.companySlug}/${randomUUID()}_${safeSeg}`
 
       const cacheControl = getR2InsurerAttachmentsCacheControl()
       const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
