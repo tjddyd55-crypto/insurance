@@ -781,9 +781,10 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         SELECT *
         FROM customers
         WHERE id = $1
+          AND ga_id = $2
         LIMIT 1
         `,
-        [customerId],
+        [customerId, gaId],
       )
       if (customerRow.rowCount === 0) {
         res.status(404).json({ message: 'CUSTOMER_NOT_FOUND' })
