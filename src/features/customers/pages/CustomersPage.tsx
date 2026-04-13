@@ -62,6 +62,7 @@ import { parseConsultationStoredBody } from '../utils/consultationBodyFormat'
 import { CustomerConsultationSection } from '../components/CustomerConsultationSection'
 import { CustomerInlineNotesSection } from '../components/CustomerInlineNotesSection'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
+import { FormButton, FormInput, FormTextarea } from '../../../components/form'
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
@@ -774,7 +775,7 @@ const CustomerListCard = memo(function CustomerListCard({
                   <div className="field-grid-customers">
                     <label className="field">
                       <span className="field__label">이름</span>
-                      <input
+                      <FormInput
                         className="field__control"
                         name="customer-name"
                         autoComplete="name"
@@ -814,7 +815,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     </div>
                     <label className="field">
                       <span className="field__label">주민번호</span>
-                      <input
+                      <FormInput
                         className="field__control"
                         name="customer-ssn"
                         autoComplete="off"
@@ -827,7 +828,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     <InsuranceInline ssn={editForm.ssn ?? ''} />
                     <label className="field">
                       <span className="field__label">전화번호</span>
-                      <input
+                      <FormInput
                         className="field__control"
                         name="customer-phone"
                         autoComplete="tel"
@@ -839,7 +840,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     </label>
                     <label className="field field--wide">
                       <span className="field__label">주소</span>
-                      <input
+                      <FormInput
                         className="field__control"
                         name="customer-address"
                         autoComplete="street-address"
@@ -851,7 +852,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     </label>
                     <label className="field">
                       <span className="field__label">키</span>
-                      <input
+                      <FormInput
                         className="field__control"
                         value={editForm.height ?? ''}
                         onChange={(e) =>
@@ -861,7 +862,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     </label>
                     <label className="field">
                       <span className="field__label">몸무게</span>
-                      <input
+                      <FormInput
                         className="field__control"
                         value={editForm.weight ?? ''}
                         onChange={(e) =>
@@ -871,7 +872,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     </label>
                     <label className="field field--wide">
                       <span className="field__label">직업 / 회사명 등</span>
-                      <input
+                      <FormInput
                         className="field__control"
                         value={editForm.job ?? ''}
                         onChange={(e) =>
@@ -908,7 +909,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     </div>
                     <label className="field field--wide">
                       <span className="field__label">차종 (운전 형태)</span>
-                      <input
+                      <FormInput
                         className="field__control"
                         type="text"
                         placeholder="예: 승용차, SUV, 1톤 트럭"
@@ -924,7 +925,7 @@ const CustomerListCard = memo(function CustomerListCard({
                         <br />
                         <small style={{ opacity: 0.85 }}>{CUSTOMER_MEDICAL_QUESTION_HINT}</small>
                       </span>
-                      <textarea
+                      <FormTextarea
                         className="field__control"
                         name="customer-medical"
                         rows={3}
@@ -936,7 +937,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     </label>
                     <label className="field field--wide">
                       <span className="field__label">보험가입내역</span>
-                      <textarea
+                      <FormTextarea
                         className="field__control"
                         name="customer-insurance-history"
                         rows={4}
@@ -949,7 +950,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     </label>
                     <label className="field">
                       <span className="field__label">차량번호</span>
-                      <input
+                      <FormInput
                         className="field__control"
                         value={editForm.carNumber ?? ''}
                         onChange={(e) =>
@@ -959,7 +960,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     </label>
                     <label className="field">
                       <span className="field__label">차종</span>
-                      <input
+                      <FormInput
                         className="field__control"
                         value={editForm.carModel ?? ''}
                         onChange={(e) =>
@@ -969,7 +970,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     </label>
                     <label className="field">
                       <span className="field__label">연식</span>
-                      <input
+                      <FormInput
                         className="field__control"
                         value={editForm.carYear ?? ''}
                         onChange={(e) =>
@@ -979,7 +980,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     </label>
                     <label className="field">
                       <span className="field__label">만기(갱신)일</span>
-                      <input
+                      <FormInput
                         className="field__control"
                         type="date"
                         value={editForm.renewalDate ? editForm.renewalDate.slice(0, 10) : ''}
@@ -990,12 +991,12 @@ const CustomerListCard = memo(function CustomerListCard({
                     </label>
                   </div>
                   <div className="customer-edit-actions">
-                    <button className="button-save" type="submit">
+                    <FormButton className="button-save" htmlType="submit" variant="primary">
                       수정 저장
-                    </button>
-                    <button className="button-cancel" type="button" onClick={onCancelEdit}>
+                    </FormButton>
+                    <FormButton className="button-cancel" htmlType="button" variant="secondary" onClick={onCancelEdit}>
                       취소
-                    </button>
+                    </FormButton>
                   </div>
                 </form>
                 {token ? (

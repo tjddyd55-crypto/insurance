@@ -33,6 +33,7 @@ import {
   TextAreaInput,
   TextInput,
 } from '../components/FormFields'
+import { FormButton } from '../../../components/form'
 import { FormSection } from '../components/FormSection'
 
 type EditableField = Exclude<keyof InsuranceApplicationFormData, 'customerId'>
@@ -466,17 +467,23 @@ export function ApplicationFormPage() {
         {autoFilledNotice ? <p className="field__helper">{autoFilledNotice}</p> : null}
         {!isReadOnly ? (
           <div className="customer-db-actions">
-            <button
+            <FormButton
               className="button button--secondary"
-              type="button"
+              htmlType="button"
+              variant="secondary"
               onClick={() => void runCustomerSearch()}
               disabled={!canSearchCustomers}
             >
               고객 검색
-            </button>
-            <button className="button button--secondary" type="button" onClick={() => void handleSaveCustomerFromForm()}>
+            </FormButton>
+            <FormButton
+              className="button button--secondary"
+              htmlType="button"
+              variant="secondary"
+              onClick={() => void handleSaveCustomerFromForm()}
+            >
               현재 소유자 정보를 고객으로 저장
-            </button>
+            </FormButton>
           </div>
         ) : null}
         {!canSearchCustomers ? (
@@ -505,12 +512,18 @@ export function ApplicationFormPage() {
                   {c.ssn || '—'}
                 </span>
                 <div className="customer-hit-list__actions">
-                  <button className="button button--secondary" type="button" disabled={isReadOnly} onClick={() => applyCustomer(c)}>
+                  <FormButton
+                    className="button button--secondary"
+                    htmlType="button"
+                    variant="secondary"
+                    disabled={isReadOnly}
+                    onClick={() => applyCustomer(c)}
+                  >
                     신청서에 적용
-                  </button>
-                  <button className="button" type="button" onClick={() => void copyCustomerRecord(c)}>
+                  </FormButton>
+                  <FormButton className="button" htmlType="button" variant="action" onClick={() => void copyCustomerRecord(c)}>
                     카톡 복사
-                  </button>
+                  </FormButton>
                 </div>
               </li>
             ))}
@@ -779,25 +792,40 @@ export function ApplicationFormPage() {
       </FormSection>
 
       <div className="sticky-actions application-form-actions">
-        <button className="button" type="button" onClick={() => navigate('/my-forms')}>
+        <FormButton className="button" htmlType="button" variant="action" onClick={() => navigate('/my-forms')}>
           목록
-        </button>
-        <button className="button button--primary" type="button" onClick={() => void handleViewResult()}>
+        </FormButton>
+        <FormButton className="button button--primary" htmlType="button" variant="primary" onClick={() => void handleViewResult()}>
           결과보기
-        </button>
+        </FormButton>
         {isReadOnly ? (
-          <button className="button button--secondary" type="button" onClick={() => setIsReadOnly(false)}>
+          <FormButton
+            className="button button--secondary"
+            htmlType="button"
+            variant="secondary"
+            onClick={() => setIsReadOnly(false)}
+          >
             수정 시작
-          </button>
+          </FormButton>
         ) : (
           <>
-            <button className="button button--primary" type="button" onClick={() => void handleSave('current')}>
+            <FormButton
+              className="button button--primary"
+              htmlType="button"
+              variant="primary"
+              onClick={() => void handleSave('current')}
+            >
               저장
-            </button>
+            </FormButton>
             {recordId ? (
-              <button className="button button--secondary" type="button" onClick={() => void handleSave('new')}>
+              <FormButton
+                className="button button--secondary"
+                htmlType="button"
+                variant="secondary"
+                onClick={() => void handleSave('new')}
+              >
                 새로 저장
-              </button>
+              </FormButton>
             ) : null}
           </>
         )}

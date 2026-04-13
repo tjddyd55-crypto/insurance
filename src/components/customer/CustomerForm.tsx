@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 
 import { useAuth } from '../../features/auth/AuthProvider'
+import { FormButton, FormInput, FormTextarea } from '../form'
 
 import { saveCustomer } from '../../features/customers/api/customersApi'
 
@@ -348,16 +349,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">이름</span>
 
-        <input
-
+        <FormInput
           className="field__control"
-
           placeholder="이름"
-
           value={form.name}
-
           onChange={(e) => onFormChange({ ...form, name: e.target.value })}
-
         />
 
       </label>
@@ -412,16 +408,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">주민번호</span>
 
-        <input
-
+        <FormInput
           className="field__control"
-
           placeholder="주민번호"
-
           value={form.ssn}
-
           onChange={(e) => onFormChange({ ...form, ssn: e.target.value })}
-
         />
 
       </label>
@@ -432,16 +423,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">전화번호</span>
 
-        <input
-
+        <FormInput
           className="field__control"
-
           placeholder="전화번호"
-
           value={form.phone}
-
           onChange={(e) => onFormChange({ ...form, phone: e.target.value })}
-
         />
 
       </label>
@@ -450,16 +436,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">주소</span>
 
-        <input
-
+        <FormInput
           className="field__control"
-
           placeholder="주소"
-
           value={form.address}
-
           onChange={(e) => onFormChange({ ...form, address: e.target.value })}
-
         />
 
       </label>
@@ -468,16 +449,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">키</span>
 
-        <input
-
+        <FormInput
           className="field__control"
-
           placeholder="키"
-
           value={form.height}
-
           onChange={(e) => onFormChange({ ...form, height: e.target.value })}
-
         />
 
       </label>
@@ -486,16 +462,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">몸무게</span>
 
-        <input
-
+        <FormInput
           className="field__control"
-
           placeholder="몸무게"
-
           value={form.weight}
-
           onChange={(e) => onFormChange({ ...form, weight: e.target.value })}
-
         />
 
       </label>
@@ -504,16 +475,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">직업 / 회사명 / 하는 일 / 지역</span>
 
-        <input
-
+        <FormInput
           className="field__control"
-
           placeholder="직업·회사 등"
-
           value={form.job}
-
           onChange={(e) => onFormChange({ ...form, job: e.target.value })}
-
         />
 
       </label>
@@ -568,18 +534,12 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">차종 (운전 형태)</span>
 
-        <input
-
+        <FormInput
           className="field__control"
-
           type="text"
-
           placeholder="예: 승용차, SUV, 1톤 트럭"
-
           value={form.carType}
-
           onChange={(e) => onFormChange({ ...form, carType: e.target.value })}
-
         />
 
       </label>
@@ -594,16 +554,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">차량번호</span>
 
-        <input
-
+        <FormInput
           className="field__control"
-
           placeholder="차량번호"
-
           value={form.carNumber}
-
           onChange={(e) => onFormChange({ ...form, carNumber: e.target.value })}
-
         />
 
       </label>
@@ -612,16 +567,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">차종(차명)</span>
 
-        <input
-
+        <FormInput
           className="field__control"
-
           placeholder="예: 그랜저, 카니발"
-
           value={form.carModel}
-
           onChange={(e) => onFormChange({ ...form, carModel: e.target.value })}
-
         />
 
       </label>
@@ -630,16 +580,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">연식</span>
 
-        <input
-
+        <FormInput
           className="field__control"
-
           placeholder="연식"
-
           value={form.carYear}
-
           onChange={(e) => onFormChange({ ...form, carYear: e.target.value })}
-
         />
 
       </label>
@@ -648,16 +593,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">만기(갱신)일</span>
 
-        <input
-
+        <FormInput
           className="field__control"
-
           type="date"
-
           value={form.renewalDate ? form.renewalDate.slice(0, 10) : ''}
-
           onChange={(e) => onFormChange({ ...form, renewalDate: e.target.value })}
-
         />
 
       </label>
@@ -670,18 +610,12 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
           <small style={{ opacity: 0.85 }}>{CUSTOMER_MEDICAL_QUESTION_HINT}</small>
         </span>
 
-        <textarea
-
+        <FormTextarea
           className="field__control"
-
           rows={3}
-
           placeholder="내용"
-
           value={form.medical}
-
           onChange={(e) => onFormChange({ ...form, medical: e.target.value })}
-
         />
 
       </label>
@@ -690,18 +624,12 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">보험가입내역</span>
 
-        <textarea
-
+        <FormTextarea
           className="field__control"
-
           rows={4}
-
           placeholder="보험가입내역 입력"
-
           value={form.insuranceHistory}
-
           onChange={(e) => onFormChange({ ...form, insuranceHistory: e.target.value })}
-
         />
 
       </label>
@@ -712,18 +640,12 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 4 }}>
 
-          <input
-
+          <FormInput
             className="field__control"
-
             style={{ flex: '1 1 220px' }}
-
             placeholder="메모 입력"
-
             value={form.noteDraft}
-
             maxLength={NOTE_MAX_LENGTH}
-
             onChange={(e) =>
 
               onFormChange({ ...form, noteDraft: e.target.value.slice(0, NOTE_MAX_LENGTH) })
@@ -741,24 +663,19 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
               }
 
             }}
-
           />
 
-          <button
-
+          <FormButton
             className="filter-button"
-
-            type="button"
-
+            htmlType="button"
+            variant="action"
             style={{ fontSize: '0.875rem', padding: '4px 10px' }}
-
             onClick={() => pushDraftNoteFixed(form.noteDraft)}
-
           >
 
             추가
 
-          </button>
+          </FormButton>
 
         </div>
 
@@ -798,23 +715,20 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
                 </div>
 
-                <button
-
-                  type="button"
-
+                <FormButton
+                  htmlType="button"
                   className="delete-btn"
-
+                  variant="danger"
                   onClick={() =>
 
                     onFormChange({ ...form, notes: form.notes.filter((n) => n.id !== note.id) })
 
                   }
-
                 >
 
                   삭제
 
-                </button>
+                </FormButton>
 
               </li>
 
@@ -912,9 +826,9 @@ export function CustomerForm({ onStatusMessage, onInternalSaveSuccess }: Custome
 
       <CustomerFormFields form={form} onFormChange={setForm} radioSuffix="internal" onStatusMessage={onStatusMessage} />
 
-      <button className="button button--primary button--full" type="submit">
+      <FormButton className="button button--primary button--full" htmlType="submit" variant="primary">
         저장
-      </button>
+      </FormButton>
     </form>
   )
 

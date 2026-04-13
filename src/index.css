@@ -3047,6 +3047,12 @@ div.cta-button.customers-page__action-btn[role='button'] {
   border: 1px solid #444;
 }
 
+.form-input,
+.form-select,
+.form-textarea {
+  font: inherit;
+}
+
 .field__control--textarea {
   min-height: 82px;
   resize: vertical;
@@ -3147,6 +3153,56 @@ div.cta-button.customers-page__action-btn[role='button'] {
   min-height: 36px;
   padding: 8px 10px;
   font-size: 13px;
+}
+
+.btn {
+  min-height: 48px;
+  border: 1px solid var(--btn-border);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  background: var(--btn-surface);
+  color: var(--btn-text);
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    opacity 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.btn:hover:not(:disabled):not(:active) {
+  background-color: var(--btn-hover-bg);
+  border-color: var(--btn-hover-border);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
+  opacity: 0.88;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  border-color: var(--primary);
+  background-color: var(--primary);
+  color: var(--text-on-primary);
+}
+
+.btn--secondary {
+  border-color: var(--secondary-border);
+  background-color: var(--secondary-bg);
+  color: var(--secondary-text);
+}
+
+.btn--danger {
+  border-color: var(--danger-border);
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
 }
 
 .sticky-actions {

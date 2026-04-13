@@ -1,4 +1,5 @@
 import type { HTMLAttributes, KeyboardEventHandler, ReactNode } from 'react'
+import { FormInput, FormSelect, FormTextarea } from '../../../components/form'
 
 interface BaseFieldProps {
   label: string
@@ -73,11 +74,10 @@ export function TextInput({
   readOnly = false,
   onKeyDown,
 }: TextInputProps) {
-  const stateClassName = disabled || readOnly ? 'field--readonly' : 'field--editable'
   return (
     <FieldContainer label={label} required={required} helperText={helperText}>
-      <input
-        className={`field__control ${stateClassName}`}
+      <FormInput
+        className="field__control"
         type={type}
         value={value}
         inputMode={inputMode}
@@ -100,11 +100,10 @@ export function TextAreaInput({
   placeholder,
   disabled,
 }: TextAreaProps) {
-  const stateClassName = disabled ? 'field--readonly' : 'field--editable'
   return (
     <FieldContainer label={label} required={required} helperText={helperText}>
-      <textarea
-        className={`field__control field__control--textarea ${stateClassName}`}
+      <FormTextarea
+        className="field__control field__control--textarea"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
@@ -124,22 +123,18 @@ export function SelectInput({
   placeholder = '선택',
   disabled,
 }: SelectInputProps) {
-  const stateClassName = disabled ? 'field--readonly' : 'field--editable'
   return (
     <FieldContainer label={label} required={required} helperText={helperText}>
-      <select
-        className={`field__control ${stateClassName}`}
+      <FormSelect
+        className="field__control"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
-      >
-        <option value="">{placeholder}</option>
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
+        options={[
+          { value: '', label: placeholder },
+          ...options.map((option) => ({ value: option, label: option })),
+        ]}
+      />
     </FieldContainer>
   )
 }
