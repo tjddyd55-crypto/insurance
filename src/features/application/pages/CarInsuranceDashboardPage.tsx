@@ -1,3 +1,4 @@
+import { FormButton } from '../../../components/form'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { InsuranceApplicationRecord } from '../domain/types'
@@ -89,23 +90,23 @@ export function CarInsuranceDashboardPage() {
 
       <section className="card dashboard-card">
         <h2 className="dashboard-section-title">📌 새 신청서 작성</h2>
-        <button
+        <FormButton
           className="button button--primary button--full"
-          type="button"
+          htmlType="button"
           onClick={() => navigate('/application/write')}
         >
           신청서 작성
-        </button>
-        <button className="button button--full" type="button" onClick={() => navigate('/my-forms')}>
+        </FormButton>
+        <FormButton className="button button--full" htmlType="button" onClick={() => navigate('/my-forms')}>
           내 신청서 목록
-        </button>
-        <button
+        </FormButton>
+        <FormButton
           className="button button--full"
-          type="button"
+          htmlType="button"
           onClick={() => navigate('/application/direct-auto')}
         >
           다이렉트 자동차 — 설계요청
-        </button>
+        </FormButton>
       </section>
 
       <section className="card dashboard-expiring-card">
@@ -138,13 +139,13 @@ export function CarInsuranceDashboardPage() {
                       </span>
                     </td>
                     <td>
-                      <button
+                      <FormButton
                         className="button button--small"
-                        type="button"
+                        htmlType="button"
                         onClick={() => navigate(`/form/${record.id}/edit?mode=readonly`)}
                       >
                         열기
-                      </button>
+                      </FormButton>
                     </td>
                   </tr>
                 ))}
@@ -168,13 +169,13 @@ export function CarInsuranceDashboardPage() {
                   <strong>{record.customerName || record.ownerName || '미입력'}</strong>
                   <span>{record.carNumber || record.vehicleNumber || '미입력'}</span>
                 </div>
-                <button
+                <FormButton
                   className="button button--small"
-                  type="button"
+                  htmlType="button"
                   onClick={() => navigate(`/form/${record.id}/edit?mode=readonly`)}
                 >
                   열기
-                </button>
+                </FormButton>
               </li>
             ))}
           </ul>

@@ -1,3 +1,4 @@
+import { FormButton } from '../../../../components/form'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthProvider'
@@ -57,9 +58,9 @@ export function TemplateListPage() {
           <Link to="/internal/admin/consent-template/edit" className="consent-admin__btn">
             새 템플릿 등록
           </Link>
-          <button type="button" className="consent-admin__btn consent-admin__btn--ghost" onClick={() => void load()}>
+          <FormButton htmlType="button" className="consent-admin__btn consent-admin__btn--ghost" onClick={() => void load()}>
             새로고침
-          </button>
+          </FormButton>
         </div>
 
         {error ? <div className="consent-admin__err">{error}</div> : null}

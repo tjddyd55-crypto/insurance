@@ -87,13 +87,20 @@ export function PdfCoordinateOverlay({
 
   useEffect(() => {
     if (!pdfArrayBuffer) {
-      setStatus('idle')
-      pdfSizeRef.current = null
+      queueMicrotask(() => {
+        setStatus('idle')
+        pdfSizeRef.current = null
+      })
       return
     }
 
     let cancelled = false
-    setStatus('loading')
+    queueMicrotask(() => {
+      if (cancelled) {
+        return
+      }
+      setStatus('loading')
+    })
 
     ;(async () => {
       try {

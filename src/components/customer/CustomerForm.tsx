@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useMemo, useState } from 'react'
 
 import { useAuth } from '../../features/auth/AuthProvider'
@@ -366,7 +367,7 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
           <label>
 
-            <input
+            <FormInput
 
               type="radio"
 
@@ -384,7 +385,7 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
           <label>
 
-            <input
+            <FormInput
 
               type="radio"
 
@@ -492,7 +493,7 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
           <label>
 
-            <input
+            <FormInput
 
               type="radio"
 
@@ -510,7 +511,7 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
           <label>
 
-            <input
+            <FormInput
 
               type="radio"
 

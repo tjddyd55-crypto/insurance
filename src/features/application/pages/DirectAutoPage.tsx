@@ -1,3 +1,4 @@
+import { FormButton, FormInput, FormSelect } from '../../../components/form'
 import { useState } from 'react'
 
 const FIELD_SHELL = 'rounded-xl border-2 border-[#14b8a6] bg-[var(--bg-main)] px-3 py-3 text-[var(--text-primary)]'
@@ -57,15 +58,16 @@ export function DirectAutoPage() {
           <label className="block space-y-2">
             <span className="text-sm font-medium text-[var(--text-primary)]">가입조건</span>
             <div className="relative">
-              <select
+              <FormSelect
                 className={`w-full ${FIELD_SHELL} appearance-none pr-11`}
                 value={form.가입조건}
                 onChange={(e) => setField('가입조건', e.target.value)}
-              >
-                <option value="">선택</option>
-                <option value="신규">신규</option>
-                <option value="갱신">갱신</option>
-              </select>
+                options={[
+                  { value: '', label: '선택' },
+                  { value: '신규', label: '신규' },
+                  { value: '갱신', label: '갱신' },
+                ]}
+              />
               <SelectChevron />
             </div>
           </label>
@@ -73,22 +75,23 @@ export function DirectAutoPage() {
           <label className="block space-y-2">
             <span className="text-sm font-medium text-[var(--text-primary)]">고객유형</span>
             <div className="relative">
-              <select
+              <FormSelect
                 className={`w-full ${FIELD_SHELL} appearance-none pr-11`}
                 value={form.고객유형}
                 onChange={(e) => setField('고객유형', e.target.value)}
-              >
-                <option value="">선택</option>
-                <option value="개인">개인</option>
-                <option value="사업자">사업자</option>
-              </select>
+                options={[
+                  { value: '', label: '선택' },
+                  { value: '개인', label: '개인' },
+                  { value: '사업자', label: '사업자' },
+                ]}
+              />
               <SelectChevron />
             </div>
           </label>
 
           <label className="block space-y-2">
             <span className="text-sm font-medium text-[var(--text-primary)]">고객명</span>
-            <input
+            <FormInput
               type="text"
               name="direct-auto-customer-name"
               autoComplete="name"
@@ -101,7 +104,7 @@ export function DirectAutoPage() {
 
           <label className="block space-y-2">
             <span className="text-sm font-medium text-[var(--text-primary)]">연락처</span>
-            <input
+            <FormInput
               type="tel"
               name="direct-auto-phone"
               autoComplete="tel"
@@ -115,29 +118,31 @@ export function DirectAutoPage() {
           <label className="block space-y-2">
             <span className="text-sm font-medium text-[var(--text-primary)]">차량유형</span>
             <div className="relative">
-              <select
+              <FormSelect
                 className={`w-full ${FIELD_SHELL} appearance-none pr-11`}
                 value={form.차량유형}
                 onChange={(e) => setField('차량유형', e.target.value)}
-              >
-                <option value="">선택</option>
-                <option value="기존차량">기존차량</option>
-                <option value="신차">신차</option>
-              </select>
+                options={[
+                  { value: '', label: '선택' },
+                  { value: '기존차량', label: '기존차량' },
+                  { value: '신차', label: '신차' },
+                ]}
+              />
               <SelectChevron />
             </div>
           </label>
         </div>
 
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
+          variant="primary"
           className="button button--primary button--full rounded-xl py-3.5 font-medium"
           onClick={() => {
             console.log(form)
           }}
         >
           다음
-        </button>
+        </FormButton>
       </section>
     </main>
   )

@@ -58,7 +58,9 @@ export function useExpandableCard({
   useEffect(() => {
     if (!expanded) {
       closingCardIdRef.current = null
-      setDetailClosing(false)
+      queueMicrotask(() => {
+        setDetailClosing(false)
+      })
     }
   }, [expanded])
 

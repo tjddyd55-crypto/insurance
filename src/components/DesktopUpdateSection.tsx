@@ -1,3 +1,4 @@
+import { FormButton } from './form'
 import { useEffect, useState } from 'react'
 import { isElectronApp } from '../lib/isElectronApp'
 
@@ -116,13 +117,13 @@ export function DesktopUpdateSection() {
         {'GitHub \uB9B4\uB9AC\uC2A4\uB97C \uAE30\uC900\uC73C\uB85C \uC5C5\uB370\uC774\uD2B8\uB97C \uD655\uC778\uD569\uB2C8\uB2E4.'}
       </p>
       <div className="desktop-update-section__actions">
-        <button type="button" className="button button--secondary" onClick={() => void onCheck()}>
+        <FormButton htmlType="button" className="button button--secondary" onClick={() => void onCheck()}>
           {'\uC5C5\uB370\uC774\uD2B8 \uD655\uC778'}
-        </button>
+        </FormButton>
         {updateReady ? (
-          <button type="button" className="button" onClick={() => void onInstall()}>
+          <FormButton htmlType="button" className="button" onClick={() => void onInstall()}>
             {'\uC9C0\uAE08 \uC7AC\uC2DC\uC791\uD558\uC5EC \uC5C5\uB370\uC774\uD2B8'}
-          </button>
+          </FormButton>
         ) : null}
       </div>
       {statusLine ? <p className="desktop-update-section__status">{statusLine}</p> : null}

@@ -1,3 +1,4 @@
+import { FormButton } from '../../../components/form'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { InsuranceResultTemplate } from '../components/InsuranceResultTemplate'
@@ -48,13 +49,13 @@ export function ApplicationResultPage() {
           <h1>결과문을 찾을 수 없습니다.</h1>
           <p>저장된 신청서에서 다시 불러와 주세요.</p>
         </header>
-        <button
+        <FormButton
           className="button button--primary"
-          type="button"
+          htmlType="button"
           onClick={() => navigate('/')}
         >
           목록으로 이동
-        </button>
+        </FormButton>
       </main>
     )
   }
@@ -118,22 +119,22 @@ export function ApplicationResultPage() {
       </div>
 
       <div className="sticky-actions">
-        <button
+        <FormButton
           className="button"
-          type="button"
+          htmlType="button"
           onClick={() => navigate(`/form/${record.id}/edit`)}
         >
           수정하기
-        </button>
-        <button className="button button--primary" type="button" onClick={handleSave}>
+        </FormButton>
+        <FormButton className="button button--primary" htmlType="button" onClick={handleSave}>
           저장
-        </button>
-        <button className="button" type="button" onClick={handleExportJpg}>
+        </FormButton>
+        <FormButton className="button" htmlType="button" onClick={handleExportJpg}>
           JPG 다운로드
-        </button>
-        <button className="button" type="button" onClick={handleExportPdf}>
+        </FormButton>
+        <FormButton className="button" htmlType="button" onClick={handleExportPdf}>
           PDF 다운로드
-        </button>
+        </FormButton>
       </div>
 
       <p className="result-file-name">내보내기 파일명 기준: {fileTitle}</p>

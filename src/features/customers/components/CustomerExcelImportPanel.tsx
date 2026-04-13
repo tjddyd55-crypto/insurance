@@ -1,4 +1,6 @@
 import { useRef, useState } from 'react'
+import { useConfirmDialog } from '../../../components/dialog'
+import { FormButton, FormInput } from '../../../components/form'
 
 import type { CustomerExcelPrepareResult, CustomerUploadBatchResult } from '../utils/customerExcelUpload'
 import {
@@ -17,6 +19,7 @@ export type CustomerExcelImportPanelProps = {
 }
 
 export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerExcelImportPanelProps) {
+  const { confirm, confirmDialog } = useConfirmDialog()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
@@ -109,18 +112,19 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
 
   return (
     <div className="customers-excel-import-panel" aria-label="고객 엑셀 업로드">
-      <button
-        type="button"
+      <FormButton
+        htmlType="button"
+        variant="action"
         className="link-btn link-btn--compact"
         onClick={() => {
           downloadCustomerUploadSampleXlsx()
         }}
       >
         샘플 다운로드
-      </button>
+      </FormButton>
 
       <div className="customers-excel-import-panel__row">
-        <input
+        <FormInput
           ref={fileInputRef}
           type="file"
           className="customers-excel-import-panel__file-input"
@@ -131,22 +135,24 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
             resetStatus()
           }}
         />
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
+          variant="action"
           className="link-btn link-btn--compact"
           onClick={() => fileInputRef.current?.click()}
         >
           파일 선택
-        </button>
+        </FormButton>
         {file ? <span className="customers-excel-import-panel__fname">{file.name}</span> : null}
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
+          variant="action"
           className="filter-button customers-excel-import-panel__upload-btn"
           disabled={!file || busy}
           onClick={runPreview}
         >
           미리보기
-        </button>
+        </FormButton>
       </div>
 
       {busy && parsePhase ? (
@@ -204,17 +210,19 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
             ) : null}
           </ul>
           {showExcludedDownload ? (
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
+              variant="action"
               className="link-btn link-btn--compact customers-excel-import-panel__download"
               onClick={() => downloadExcludedRowsExcel(prepare.excludedRows)}
             >
               제외 데이터 다운로드 (엑셀)
-            </button>
+            </FormButton>
           ) : null}
           <div className="customers-excel-import-panel__preview-actions">
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
+              variant="action"
               className="filter-button"
               disabled={busy}
               onClick={() => {
@@ -222,23 +230,31 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
               }}
             >
               취소
-            </button>
-            <button
-              type="button"
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="action"
               className="cta-button"
               disabled={busy || overBatchLimit}
               onClick={() => {
                 if (overBatchLimit) {
                   return
                 }
-                if (!window.confirm(confirmMessage)) {
-                  return
-                }
-                runUploadConfirmed()
+                void (async () => {
+                  const confirmed = await confirm({
+                    title: '엑셀 업로드',
+                    message: confirmMessage,
+                    confirmLabel: '업로드',
+                  })
+                  if (!confirmed) {
+                    return
+                  }
+                  runUploadConfirmed()
+                })()
               }}
             >
               {prepare.payloads.length}건 업로드 진행
-            </button>
+            </FormButton>
           </div>
         </div>
       ) : null}
@@ -256,13 +272,14 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
           {showExcludedDownload ? (
             <>
               {' · '}
-              <button
-                type="button"
+              <FormButton
+                htmlType="button"
+                variant="action"
                 className="link-btn link-btn--compact"
                 onClick={() => prepare && downloadExcludedRowsExcel(prepare.excludedRows)}
               >
                 제외 데이터 다운로드
-              </button>
+              </FormButton>
             </>
           ) : null}
         </p>
@@ -275,22 +292,24 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
           </p>
           {result.failed > 0 && result.failedPayloads.length > 0 ? (
             <div className="customers-excel-import-panel__fail-downloads">
-              <button
-                type="button"
+              <FormButton
+                htmlType="button"
+                variant="action"
                 className="link-btn link-btn--compact"
                 onClick={() =>
                   downloadFailedApiRowsExcel(result.failedPayloads, result.failures)
                 }
               >
                 실패 데이터 다운로드 (엑셀)
-              </button>
-              <button
-                type="button"
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="action"
                 className="link-btn link-btn--compact"
                 onClick={() => downloadFailedPayloadsJson(result.failedPayloads)}
               >
                 실패 데이터 다운로드 (JSON)
-              </button>
+              </FormButton>
             </div>
           ) : null}
           {result.failures.length > 0 ? (
@@ -314,14 +333,16 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
         </p>
       ) : null}
       {error && prepare && prepare.excludedRows.length > 0 ? (
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
+          variant="action"
           className="link-btn link-btn--compact customers-excel-import-panel__download"
           onClick={() => downloadExcludedRowsExcel(prepare.excludedRows)}
         >
           제외 데이터 다운로드 (주민번호 오류 등)
-        </button>
+        </FormButton>
       ) : null}
+      {confirmDialog}
     </div>
   )
 }

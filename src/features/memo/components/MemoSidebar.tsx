@@ -1,3 +1,4 @@
+import { FormButton } from '../../../components/form'
 import type { Note } from '../types/memo.types'
 
 type Props = {
@@ -28,14 +29,14 @@ export default function MemoSidebar({
         <span className="memo-sidebar__title">메모 목록</span>
         <div className="memo-sidebar__header-actions">
           {isOpen ? (
-            <button type="button" className="memo-sidebar__arrange" onClick={onAutoArrange}>
+            <FormButton htmlType="button" className="memo-sidebar__arrange" onClick={onAutoArrange}>
               정리하기
-            </button>
+            </FormButton>
           ) : null}
           {showToggle ? (
-            <button type="button" className="memo-sidebar__toggle" onClick={onToggle}>
+            <FormButton htmlType="button" className="memo-sidebar__toggle" onClick={onToggle}>
               {isOpen ? '◀' : '▶'}
-            </button>
+            </FormButton>
           ) : null}
         </div>
       </div>

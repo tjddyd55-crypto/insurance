@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { normalizeKrMobile, validateKrMobileDigits } from '../../../lib/phoneNormalize'
+import { FormButton, FormInput } from '../../../components/form'
 import { Button, Modal } from '../../../components/ui'
 import {
   fetchMe,
@@ -170,7 +171,7 @@ export function ProfilePage() {
       setSecondsLeft((s) => (s <= 1 ? 0 : s - 1))
     }, 1000)
     return () => window.clearInterval(t)
-  }, [secondsLeft > 0])
+  }, [secondsLeft])
 
   useEffect(() => {
     if (resendLeft <= 0) {
@@ -180,7 +181,7 @@ export function ProfilePage() {
       setResendLeft((s) => (s <= 1 ? 0 : s - 1))
     }, 1000)
     return () => window.clearInterval(t)
-  }, [resendLeft > 0])
+  }, [resendLeft])
 
   const load = useCallback(async () => {
     if (!token) {
@@ -359,9 +360,9 @@ export function ProfilePage() {
           <h1>프로필</h1>
 
           <p className="status status--error">{loadError}</p>
-          <button type="button" className="button button--secondary" onClick={() => void load()}>
+          <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => void load()}>
             다시 시도
-          </button>
+          </FormButton>
         </section>
       </main>
     )
@@ -390,7 +391,7 @@ export function ProfilePage() {
         <form className="auth-form" onSubmit={(e) => void onSubmit(e)}>
           <label className="field">
             <span className="field__label">이름</span>
-            <input
+            <FormInput
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               autoComplete="name"
@@ -400,12 +401,12 @@ export function ProfilePage() {
 
           <label className="field">
             <span className="field__label">아이디</span>
-            <input value={me.username} readOnly />
+            <FormInput value={me.username} readOnly />
           </label>
 
           <label className="field">
             <span className="field__label">휴대폰번호</span>
-            <input
+            <FormInput
               value={phoneEditDigits}
               onChange={(e) => {
                 setPhoneEditDigits(e.target.value)
@@ -422,21 +423,22 @@ export function ProfilePage() {
             <div className="field">
               <span className="field__label">휴대폰 변경 인증</span>
               <div className="profile-page__phone-verify-row">
-                <button
-                  type="button"
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
                   className="button button--secondary"
                   onClick={() => void sendCode()}
                   disabled={submitting || resendLeft > 0}
                 >
                   {resendLeft > 0 ? `재요청 (${resendLeft}s)` : '인증번호 요청'}
-                </button>
+                </FormButton>
                 {secondsLeft > 0 ? (
                   <span className="status" style={{ fontSize: '0.9rem' }}>
                     유효 시간 {secondsLeft}s
                   </span>
                 ) : null}
               </div>
-              <input
+              <FormInput
                 style={{ marginTop: 8 }}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
@@ -444,15 +446,16 @@ export function ProfilePage() {
                 placeholder="인증번호 6자리"
                 maxLength={6}
               />
-              <button
-                type="button"
+              <FormButton
+                htmlType="button"
+                variant="secondary"
                 className="button button--secondary"
                 style={{ marginTop: 8 }}
                 onClick={() => void verifyCode()}
                 disabled={submitting || code.trim().length !== 6}
               >
                 인증 확인
-              </button>
+              </FormButton>
               {phoneChangeProof ? (
                 <p className="status" style={{ color: 'var(--success)' }}>
                   인증 완료 — 저장 시 새 번호가 반영됩니다.
@@ -471,8 +474,9 @@ export function ProfilePage() {
           <div className="my-4 border-t border-[var(--border-default)]" role="presentation" />
 
           <div className="profile-page__team-row">
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
+              variant="action"
               className={`cta-button profile-page__team-btn${hasTeam ? ' opacity-50 cursor-not-allowed' : ''}`}
               aria-disabled={hasTeam}
               onClick={() => {
@@ -485,12 +489,13 @@ export function ProfilePage() {
               }}
             >
               팀 생성
-            </button>
-            <button type="button" className="cta-button profile-page__team-btn" onClick={() => void copyTeamCode()}>
+            </FormButton>
+            <FormButton htmlType="button" variant="action" className="cta-button profile-page__team-btn" onClick={() => void copyTeamCode()}>
               {teamCodeCopied ? '복사됨 ✓' : '팀 코드 복사'}
-            </button>
-            <button
-              type="button"
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="action"
               className={`cta-button profile-page__team-btn${hasTeam ? ' opacity-50 cursor-not-allowed' : ''}`}
               aria-disabled={hasTeam}
               onClick={() => {
@@ -503,7 +508,7 @@ export function ProfilePage() {
               }}
             >
               팀 연결
-            </button>
+            </FormButton>
           </div>
           {teamCopyNotice ? (
             <p className="status text-sm" role="status" style={{ marginTop: 8 }}>
@@ -528,13 +533,14 @@ export function ProfilePage() {
           {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
           {infoMessage ? <p className="status">{infoMessage}</p> : null}
 
-          <button
+          <FormButton
             className="button button--primary button--full profile-page__submit"
-            type="submit"
+            htmlType="submit"
+            variant="primary"
             disabled={savingProfile || (phoneChangedPending && !phoneChangeProof)}
           >
             {savingProfile ? '저장 중…' : '저장'}
-          </button>
+          </FormButton>
         </form>
 
         <div className="switch-text">
@@ -555,7 +561,7 @@ export function ProfilePage() {
           <form onSubmit={(ev) => void onCreateTeamSubmit(ev)}>
             <label className="block text-sm text-[var(--text-secondary)] mb-2">
               팀 이름 (선택)
-              <input
+              <FormInput
                 className="mt-1 w-full box-border border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
                 value={teamNameInput}
                 onChange={(ev) => setTeamNameInput(ev.target.value)}
@@ -597,7 +603,7 @@ export function ProfilePage() {
           <form onSubmit={(ev) => void onJoinTeamSubmit(ev)}>
             <label className="block text-sm text-[var(--text-secondary)] mb-2">
               팀 코드
-              <input
+              <FormInput
                 className="mt-1 w-full box-border border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
                 value={joinTeamCodeInput}
                 onChange={(ev) => setJoinTeamCodeInput(ev.target.value)}

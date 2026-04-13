@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { FormDialog, useConfirmDialog } from '../../../components/dialog'
+import { EmptyState, StatusMessage } from '../../../components/feedback'
+import { FieldWrapper, FormButton, FormSelect } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   deleteAdminUser,
@@ -72,6 +75,7 @@ const EDIT_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
 
 export default function UserManagementPage() {
   const { user, token } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [gaList, setGaList] = useState<GaCompanyRow[]>([])
   const [gaFilter, setGaFilter] = useState<number | 'all'>('all')
   const [rows, setRows] = useState<AdminUserRow[]>([])
@@ -205,7 +209,12 @@ export default function UserManagementPage() {
     if (!token?.trim()) {
       return
     }
-    if (!window.confirm('해당 사용자를 삭제하시겠습니까?')) {
+    const confirmed = await confirm({
+      title: '사용자 삭제',
+      message: '해당 사용자를 삭제하시겠습니까?',
+      tone: 'danger',
+    })
+    if (!confirmed) {
       return
     }
     try {
@@ -230,31 +239,27 @@ export default function UserManagementPage() {
         </td>
         <td className="admin-table-cell--actions">
           <div className="admin-table-actions">
-            <select
+            <FormSelect
               className="admin-form-input"
               style={{ width: 'auto', minWidth: 100 }}
               value={st}
               onChange={(e) => void applyUserStatus(r, e.target.value as EntityStatus)}
               disabled={isLoading}
               aria-label={`${r.username} 상태 변경`}
-            >
-              {STATUS_SELECT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <button type="button" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
+              options={STATUS_SELECT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+            />
+            <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
               수정
-            </button>
-            <button
-              type="button"
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
               className="button button--secondary"
               onClick={() => void confirmDeleteUser(r)}
               disabled={isLoading}
             >
               삭제
-            </button>
+            </FormButton>
           </div>
         </td>
       </>
@@ -289,26 +294,21 @@ export default function UserManagementPage() {
           </span>
         </div>
         <div className="admin-user-card__actions">
-          <select
+          <FormSelect
             className="admin-form-input"
             style={{ flex: '1 1 120px', minWidth: 0 }}
             value={st}
             onChange={(e) => void applyUserStatus(r, e.target.value as EntityStatus)}
             disabled={isLoading}
             aria-label={`${r.username} 상태`}
-          >
-            {STATUS_SELECT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <button type="button" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
+            options={STATUS_SELECT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+          />
+          <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
             수정
-          </button>
-          <button type="button" className="button button--secondary" onClick={() => void confirmDeleteUser(r)} disabled={isLoading}>
+          </FormButton>
+          <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => void confirmDeleteUser(r)} disabled={isLoading}>
             삭제
-          </button>
+          </FormButton>
         </div>
       </article>
     )
@@ -333,9 +333,8 @@ export default function UserManagementPage() {
       </header>
 
       <section className="admin-toolbar admin-user-management__toolbar card auth-card" style={{ maxWidth: 960, margin: '0 auto' }}>
-        <label className="field admin-modal-field" style={{ marginBottom: 0 }}>
-          <span className="field__label">GA 선택</span>
-          <select
+        <FieldWrapper label="GA 선택" className="admin-modal-field" >
+          <FormSelect
             className="admin-form-input"
             value={gaFilter === 'all' ? '' : String(gaFilter)}
             onChange={(e) => {
@@ -345,15 +344,9 @@ export default function UserManagementPage() {
             }}
             disabled={isLoading}
             aria-busy={isLoading}
-          >
-            <option value="">전체</option>
-            {gaList.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            options={[{ value: '', label: '전체' }, ...gaList.map((g) => ({ value: String(g.id), label: g.name }))]}
+          />
+        </FieldWrapper>
       </section>
 
       <div className="card admin-user-management__table-wrap" style={{ maxWidth: 960, margin: '16px auto 0', padding: 0 }}>
@@ -387,7 +380,7 @@ export default function UserManagementPage() {
 
         <div className="admin-responsive-card-list" style={{ padding: 12 }}>
           {rows.length === 0 && !isLoading ? (
-            <p style={{ margin: 0, color: 'var(--text-sub)', padding: '8px 4px' }}>표시할 사용자가 없습니다.</p>
+            <EmptyState message="표시할 사용자가 없습니다." className="m-0 px-1 py-2 text-[var(--text-sub)]" />
           ) : (
             rows.map((r) => renderUserCard(r))
           )}
@@ -395,77 +388,59 @@ export default function UserManagementPage() {
       </div>
 
       {editing ? (
-        <div className="admin-modal-backdrop" role="presentation" onClick={closeEdit}>
-          <div className="admin-modal-panel" role="dialog" aria-labelledby="user-edit-title" onClick={(e) => e.stopPropagation()}>
-            <h2 id="user-edit-title" style={{ marginTop: 0 }}>
-              유저 수정
-            </h2>
-            <div className="admin-modal-content">
-              <p style={{ margin: 0, wordBreak: 'break-all', fontSize: 14 }}>
-                <strong>{editing.username}</strong>
-              </p>
-              {saveError ? (
-                <p className="status status--error" style={{ margin: 0 }}>
-                  {saveError}
-                </p>
-              ) : null}
-              <label className="field admin-modal-field">
-                <span className="field__label">GA 회사</span>
-                <select
-                  className="admin-form-input"
-                  value={String(editGaId)}
-                  onChange={(e) => setEditGaId(Number(e.target.value))}
-                  disabled={isSaving}
-                >
-                  {gaList.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field admin-modal-field">
-                <span className="field__label">역할</span>
-                <select
-                  className="admin-form-input"
-                  value={editRole}
-                  onChange={(e) => setEditRole(e.target.value as UserRole)}
-                  disabled={isSaving}
-                >
-                  {EDIT_ROLE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field admin-modal-field">
-                <span className="field__label">상태</span>
-                <select
-                  className="admin-form-input"
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as EntityStatus)}
-                  disabled={isSaving}
-                >
-                  {STATUS_SELECT_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="admin-modal-actions">
-              <button type="button" className="button button--secondary" onClick={closeEdit} disabled={isSaving}>
-                취소
-              </button>
-              <button type="button" className="button button--primary" onClick={() => void submitEdit()} disabled={isSaving}>
-                {isSaving ? '저장 중…' : '저장'}
-              </button>
-            </div>
+        <FormDialog
+          open={Boolean(editing)}
+          onClose={closeEdit}
+          title="유저 수정"
+          panelClassName="admin-modal-panel"
+          overlayClassName="admin-modal-backdrop"
+          closeOnBackdrop={!isSaving}
+          closeOnEsc={!isSaving}
+        >
+          <div className="admin-modal-content">
+            <p style={{ margin: 0, wordBreak: 'break-all', fontSize: 14 }}>
+              <strong>{editing.username}</strong>
+            </p>
+            <StatusMessage message={saveError} tone="error" className="m-0" />
+            <FieldWrapper label="GA 회사" className="admin-modal-field">
+              <FormSelect
+                className="admin-form-input"
+                value={String(editGaId)}
+                onChange={(e) => setEditGaId(Number(e.target.value))}
+                disabled={isSaving}
+                options={gaList.map((g) => ({ value: String(g.id), label: g.name }))}
+              />
+            </FieldWrapper>
+            <FieldWrapper label="역할" className="admin-modal-field">
+              <FormSelect
+                className="admin-form-input"
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value as UserRole)}
+                disabled={isSaving}
+                options={EDIT_ROLE_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+              />
+            </FieldWrapper>
+            <FieldWrapper label="상태" className="admin-modal-field">
+              <FormSelect
+                className="admin-form-input"
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as EntityStatus)}
+                disabled={isSaving}
+                options={STATUS_SELECT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+              />
+            </FieldWrapper>
           </div>
-        </div>
+          <div className="admin-modal-actions">
+            <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={closeEdit} disabled={isSaving}>
+              취소
+            </FormButton>
+            <FormButton htmlType="button" variant="primary" className="button button--primary" loading={isSaving} loadingText="저장 중…" onClick={() => void submitEdit()}>
+              저장
+            </FormButton>
+          </div>
+        </FormDialog>
       ) : null}
+      {confirmDialog}
     </main>
   )
 }

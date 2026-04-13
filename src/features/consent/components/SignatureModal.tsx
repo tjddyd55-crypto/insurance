@@ -1,3 +1,4 @@
+import { FormButton } from '../../../components/form'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface SignatureModalProps {
@@ -139,12 +140,12 @@ export function SignatureModal({ open, onClose, onSave }: SignatureModalProps) {
         />
       </div>
       <footer className="consent-signature-footer">
-        <button type="button" className="consent-btn consent-btn--secondary" onClick={handleClear}>
+        <FormButton htmlType="button" className="consent-btn consent-btn--secondary" onClick={handleClear}>
           초기화
-        </button>
-        <button type="button" className="consent-btn" onClick={handleSave} disabled={!hasStroke}>
+        </FormButton>
+        <FormButton htmlType="button" className="consent-btn" onClick={handleSave} disabled={!hasStroke}>
           저장
-        </button>
+        </FormButton>
       </footer>
     </div>
   )

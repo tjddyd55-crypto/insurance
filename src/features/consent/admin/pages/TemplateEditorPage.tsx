@@ -1,3 +1,4 @@
+import { FormButton, FormInput, FormSelect } from '../../../../components/form'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthProvider'
@@ -311,17 +312,15 @@ export function TemplateEditorPage() {
               <legend>GA · 보험사</legend>
               <label>
                 GA
-                <select
-                  value={gaId}
+                <FormSelect
+                  value={String(gaId)}
                   disabled={isEdit || !isSuperAdmin}
                   onChange={(e) => setGaId(Number(e.target.value))}
-                >
-                  {gaOptions.map((g: GaCompanyRow) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name} ({g.code}) · {gaLabel(g.id)}
-                    </option>
-                  ))}
-                </select>
+                  options={gaOptions.map((g: GaCompanyRow) => ({
+                    value: String(g.id),
+                    label: `${g.name} (${g.code}) · ${gaLabel(g.id)}`,
+                  }))}
+                />
                 {isEdit ? (
                   <span style={{ fontSize: 12, color: 'var(--consent-sub)' }}>
                     수정 시 GA는 고정됩니다. 조합을 바꾸려면 새로 등록하세요.
@@ -330,21 +329,16 @@ export function TemplateEditorPage() {
               </label>
               <label>
                 보험사
-                <select
+                <FormSelect
                   value={insuranceCompanyId}
                   disabled={isEdit}
                   onChange={(e) => setInsuranceCompanyId(e.target.value)}
-                >
-                  {ALL_INSURER_OPTIONS.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  options={ALL_INSURER_OPTIONS.map((c) => ({ value: c.id, label: c.name }))}
+                />
               </label>
               <label>
                 팩스번호 (보관용)
-                <input
+                <FormInput
                   type="text"
                   value={faxNumber}
                   onChange={(e) => setFaxNumber(e.target.value)}
@@ -358,7 +352,7 @@ export function TemplateEditorPage() {
               <legend>PDF</legend>
               <label>
                 파일 {isEdit ? '(교체 시에만 선택)' : '(필수)'}
-                <input
+                <FormInput
                   type="file"
                   accept="application/pdf"
                   onChange={(e) => setPdfFile(e.target.files?.[0] ?? null)}
@@ -380,17 +374,18 @@ export function TemplateEditorPage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
                 <label>
                   필드 타입
-                  <select
+                  <FormSelect
                     value={pendingType}
                     onChange={(e) => setPendingType(e.target.value as 'text' | 'signature')}
-                  >
-                    <option value="text">text</option>
-                    <option value="signature">signature</option>
-                  </select>
+                    options={[
+                      { value: 'text', label: 'text' },
+                      { value: 'signature', label: 'signature' },
+                    ]}
+                  />
                 </label>
                 <label>
                   key
-                  <input
+                  <FormInput
                     type="text"
                     value={pendingKey}
                     onChange={(e) => setPendingKey(e.target.value)}
@@ -400,7 +395,7 @@ export function TemplateEditorPage() {
                 {pendingType === 'text' ? (
                   <label>
                     fontSize
-                    <input
+                    <FormInput
                       type="number"
                       min={6}
                       max={48}
@@ -412,7 +407,7 @@ export function TemplateEditorPage() {
                   <>
                     <label>
                       서명 width
-                      <input
+                      <FormInput
                         type="number"
                         min={20}
                         max={400}
@@ -422,7 +417,7 @@ export function TemplateEditorPage() {
                     </label>
                     <label>
                       서명 height
-                      <input
+                      <FormInput
                         type="number"
                         min={20}
                         max={300}
@@ -434,7 +429,7 @@ export function TemplateEditorPage() {
                 )}
                 <label>
                   페이지 (0부터)
-                  <input
+                  <FormInput
                     type="number"
                     min={0}
                     max={Math.max(0, numPages - 1)}
@@ -469,13 +464,13 @@ export function TemplateEditorPage() {
                         {f.type === 'text' && f.fontSize != null ? `, ${f.fontSize}pt` : null}
                         {f.type === 'signature' ? `, ${f.width ?? 120}×${f.height ?? 50}` : null}
                       </span>
-                      <button
-                        type="button"
+                      <FormButton
+                        htmlType="button"
                         className="consent-admin__btn consent-admin__btn--danger"
                         onClick={() => removeField(f.clientId)}
                       >
                         삭제
-                      </button>
+                      </FormButton>
                     </li>
                   ))
                 )}
@@ -483,14 +478,14 @@ export function TemplateEditorPage() {
             </fieldset>
 
             <div>
-              <button
-                type="button"
+              <FormButton
+                htmlType="button"
                 className="consent-admin__btn"
                 disabled={saving}
                 onClick={() => void handleSave()}
               >
                 {saving ? '저장 중…' : '저장'}
-              </button>
+              </FormButton>
             </div>
           </div>
         ) : null}

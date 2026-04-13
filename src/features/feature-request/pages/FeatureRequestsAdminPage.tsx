@@ -1,3 +1,4 @@
+import { FormSelect } from '../../../components/form'
 import { useCallback, useEffect, useState } from 'react'
 import {
   listFeatureRequestsAdmin,
@@ -127,20 +128,15 @@ export default function FeatureRequestsAdminPage() {
                     {r.content}
                   </td>
                   <td style={{ padding: '10px 8px' }}>
-                    <select
+                    <FormSelect
                       value={r.status}
                       disabled={updatingId === r.id}
                       onChange={(e) => {
                         void onStatusChange(r.id, e.target.value as FeatureRequestStatus)
                       }}
                       aria-label={`${r.id} 상태`}
-                    >
-                      {STATUS_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
+                      options={STATUS_OPTIONS}
+                    />
                   </td>
                   <td style={{ padding: '10px 12px', fontVariantNumeric: 'tabular-nums' }}>
                     {formatDate(r.created_at)}

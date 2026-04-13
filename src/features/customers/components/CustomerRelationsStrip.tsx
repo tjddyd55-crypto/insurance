@@ -1,4 +1,6 @@
 import { type CSSProperties, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { useConfirmDialog } from '../../../components/dialog'
+import { FormButton, FormInput } from '../../../components/form'
 import { searchCustomers } from '../api/customersApi'
 import {
   createCustomerRelation,
@@ -34,6 +36,7 @@ export function CustomerRelationsStrip({
   onOpenCustomer,
   focusedCustomerId,
 }: Props) {
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [relations, setRelations] = useState<CustomerRelationRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -131,7 +134,12 @@ export function CustomerRelationsStrip({
     if (!token?.trim()) {
       return
     }
-    if (!window.confirm('이 고객과의 연결을 해제할까요?')) {
+    const confirmed = await confirm({
+      title: '연결 해제',
+      message: '이 고객과의 연결을 해제할까요?',
+      tone: 'danger',
+    })
+    if (!confirmed) {
       return
     }
     setError('')
@@ -185,8 +193,9 @@ export function CustomerRelationsStrip({
                   boxShadow: isFocused ? '0 0 0 1px rgba(37,99,235,0.2)' : undefined,
                 }}
               >
-                <button
-                  type="button"
+                <FormButton
+                  htmlType="button"
+                  variant="action"
                   className="filter-button"
                   style={{
                     border: 'none',
@@ -199,9 +208,10 @@ export function CustomerRelationsStrip({
                   onClick={() => onOpenCustomer(r.relatedCustomerId)}
                 >
                   {r.relatedName?.trim() || `고객 #${r.relatedCustomerId}`}
-                </button>
-                <button
-                  type="button"
+                </FormButton>
+                <FormButton
+                  htmlType="button"
+                  variant="action"
                   className="delete-btn"
                   aria-label={`${r.relatedName ?? ''} 연결 해제`}
                   title="연결 해제"
@@ -220,32 +230,35 @@ export function CustomerRelationsStrip({
                   }}
                 >
                   ×
-                </button>
+                </FormButton>
               </div>
             )
           })}
           {!showAllChips && moreCount > 0 ? (
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
+              variant="action"
               className="filter-button"
               style={{ minHeight: 0, padding: '4px 10px', fontSize: '0.875rem', flexShrink: 0 }}
               onClick={() => setShowAllChips(true)}
             >
               +{moreCount} 더보기
-            </button>
+            </FormButton>
           ) : null}
           {showAllChips && relations.length > CHIPS_VISIBLE ? (
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
+              variant="action"
               className="link-btn"
               style={{ flexShrink: 0, minHeight: 0, fontSize: '0.875rem' }}
               onClick={() => setShowAllChips(false)}
             >
               접기
-            </button>
+            </FormButton>
           ) : null}
-          <button
-            type="button"
+          <FormButton
+            htmlType="button"
+            variant="action"
             className="filter-button"
             style={{ minHeight: 0, flexShrink: 0, padding: '4px 10px', fontSize: '0.875rem' }}
             onClick={() => {
@@ -254,7 +267,7 @@ export function CustomerRelationsStrip({
             }}
           >
             +추가
-          </button>
+          </FormButton>
         </div>
       </div>
       <p style={{ fontSize: '0.8rem', color: '#777', margin: '8px 0 0' }}>
@@ -287,7 +300,7 @@ export function CustomerRelationsStrip({
                 e.preventDefault()
               }}
             >
-              <input
+              <FormInput
                 type="search"
                 className="search-input"
                 placeholder="이름 / 전화번호 (기존 검색 API)"
@@ -302,8 +315,9 @@ export function CustomerRelationsStrip({
             <ul style={{ listStyle: 'none', padding: 0, maxHeight: 240, overflow: 'auto', marginTop: 8 }}>
               {hits.map((h) => (
                 <li key={h.id} style={{ borderTop: '1px solid #eee', padding: '8px 0' }}>
-                  <button
-                    type="button"
+                  <FormButton
+                    htmlType="button"
+                    variant="action"
                     className="link-btn"
                     style={{ textAlign: 'left', width: '100%', minHeight: 44 }}
                     disabled={linking || relatedIdSet.has(h.id)}
@@ -314,18 +328,25 @@ export function CustomerRelationsStrip({
                     {relatedIdSet.has(h.id) ? (
                       <span style={{ marginLeft: 8, fontSize: '0.85rem' }}>(이미 연결됨)</span>
                     ) : null}
-                  </button>
+                  </FormButton>
                 </li>
               ))}
             </ul>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-              <button type="button" className="filter-button" disabled={linking} onClick={() => setModalOpen(false)}>
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className="filter-button"
+                disabled={linking}
+                onClick={() => setModalOpen(false)}
+              >
                 닫기
-              </button>
+              </FormButton>
             </div>
           </div>
         </div>
       ) : null}
+      {confirmDialog}
     </div>
   )
 }

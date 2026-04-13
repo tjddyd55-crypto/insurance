@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { FormDialog, useConfirmDialog } from '../../../components/dialog'
+import { EmptyState, StatusMessage } from '../../../components/feedback'
+import { FieldWrapper, FormButton, FormInput, FormTextarea } from '../../../components/form'
 import {
   deleteMyFeatureRequest,
   listMyFeatureRequests,
@@ -7,7 +10,7 @@ import {
   type MyFeatureRequestRow,
 } from '../../auth/authApi'
 import { useAuth } from '../../auth/AuthProvider'
-import { Button, Modal } from '../../../components/ui'
+import { Button } from '../../../components/ui'
 
 function formatDate(iso: string): string {
   if (!iso) {
@@ -32,6 +35,7 @@ function statusLabel(status: FeatureRequestStatus): string {
 
 export default function FeatureRequestPage() {
   const { token } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [open, setOpen] = useState(false)
   const [rows, setRows] = useState<MyFeatureRequestRow[]>([])
   const [listError, setListError] = useState('')
@@ -67,7 +71,12 @@ export default function FeatureRequestPage() {
   }, [open])
 
   const handleDelete = async (id: number) => {
-    if (!confirm('삭제하시겠습니까?')) {
+    const confirmed = await confirm({
+      title: '요청 삭제',
+      message: '삭제하시겠습니까?',
+      tone: 'danger',
+    })
+    if (!confirmed) {
       return
     }
     if (!token?.trim()) {
@@ -128,15 +137,13 @@ export default function FeatureRequestPage() {
           </Button>
         </div>
 
-        {listError ? (
-          <p className="text-sm text-[var(--danger)] mb-2" role="alert">
-            {listError}
-          </p>
-        ) : null}
+        <StatusMessage message={listError} tone="error" className="mb-2" />
 
         <div className="rounded-xl border border-[var(--border-default)] overflow-hidden bg-[var(--bg-elevated)]">
           {rows.length === 0 ? (
-            <div className="p-4 text-sm text-[var(--text-secondary)]">등록된 요청이 없습니다.</div>
+            <div className="p-4">
+              <EmptyState message="등록된 요청이 없습니다." className="m-0 text-sm text-[var(--text-secondary)]" />
+            </div>
           ) : (
             rows.map((item) => (
               <div
@@ -160,14 +167,14 @@ export default function FeatureRequestPage() {
                     <span>상태: {statusLabel(item.status)}</span>
                     <span className="tabular-nums">작성일: {formatDate(item.created_at)}</span>
                   </div>
-                  <button
-                    type="button"
+                  <FormButton
+                    htmlType="button"
                     className="shrink-0 text-[var(--danger)] disabled:opacity-50"
                     disabled={deletingId === item.id}
                     onClick={() => void handleDelete(item.id)}
                   >
                     {deletingId === item.id ? '삭제 중…' : '삭제'}
-                  </button>
+                  </FormButton>
                 </div>
               </div>
             ))
@@ -175,44 +182,45 @@ export default function FeatureRequestPage() {
         </div>
       </div>
 
-      <Modal open={open} onClose={closeModal} ariaLabel="추가기능 요청 작성">
-        <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">추가기능 요청 작성</div>
-
-        <div className="flex gap-2 mb-2">
-          <span className="w-12 shrink-0 text-sm text-[var(--text-secondary)] pt-2">제목:</span>
-          <input
-            className="flex-1 min-w-0 border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            maxLength={200}
-            autoComplete="off"
-          />
+      <FormDialog
+        open={open}
+        onClose={closeModal}
+        title="추가기능 요청 작성"
+        panelClassName="max-w-xl"
+        footer={
+          <div className="flex gap-2 flex-wrap">
+            <FormButton htmlType="button" variant="primary" loading={isSubmitting} loadingText="등록 중…" onClick={() => void handleSubmit()}>
+              등록
+            </FormButton>
+            <FormButton htmlType="button" variant="secondary" disabled={isSubmitting} onClick={closeModal}>
+              취소
+            </FormButton>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <FieldWrapper label="제목">
+            <FormInput
+              className="w-full text-sm"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={200}
+              autoComplete="off"
+            />
+          </FieldWrapper>
+          <FieldWrapper label="내용">
+            <FormTextarea
+              className="w-full text-sm"
+              rows={4}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              maxLength={8000}
+            />
+          </FieldWrapper>
+          <StatusMessage message={modalError} tone="error" />
         </div>
-        <div className="flex gap-2 mb-3">
-          <span className="w-12 shrink-0 text-sm text-[var(--text-secondary)] pt-2">내용:</span>
-          <textarea
-            className="flex-1 min-w-0 border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
-            rows={4}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            maxLength={8000}
-          />
-        </div>
-        {modalError ? (
-          <p className="text-[var(--danger)] text-sm mb-2" role="alert">
-            {modalError}
-          </p>
-        ) : null}
-
-        <div className="flex gap-2 flex-wrap">
-          <Button type="button" disabled={isSubmitting} onClick={() => void handleSubmit()}>
-            {isSubmitting ? '등록 중…' : '등록'}
-          </Button>
-          <Button type="button" variant="secondary" disabled={isSubmitting} onClick={closeModal}>
-            취소
-          </Button>
-        </div>
-      </Modal>
+      </FormDialog>
+      {confirmDialog}
     </main>
   )
 }

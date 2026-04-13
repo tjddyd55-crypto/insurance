@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { FormButton, FormInput, FormTextarea } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
-import { Button } from '../../../components/ui/Button'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import {
@@ -225,9 +225,9 @@ export default function CustomerFilesPage() {
     return (
       <div className="page-shell" style={{ padding: '1rem' }}>
         <p>잘못된 고객 ID입니다.</p>
-        <button type="button" className="filter-button mt-2" onClick={() => navigate('/customers')}>
+        <FormButton htmlType="button" variant="action" className="filter-button mt-2" onClick={() => navigate('/customers')}>
           고객 목록
-        </button>
+        </FormButton>
       </div>
     )
   }
@@ -237,9 +237,9 @@ export default function CustomerFilesPage() {
       <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
         <h1 style={{ marginTop: 12 }}>고객을 찾을 수 없음</h1>
         <p style={{ color: 'var(--text-secondary)' }}>삭제되었거나 접근할 수 없는 고객입니다.</p>
-        <button type="button" className="filter-button mt-3" onClick={() => navigate('/customers')}>
+        <FormButton htmlType="button" variant="action" className="filter-button mt-3" onClick={() => navigate('/customers')}>
           고객 목록으로
-        </button>
+        </FormButton>
       </div>
     )
   }
@@ -256,21 +256,21 @@ export default function CustomerFilesPage() {
           marginTop: 12,
         }}
       >
-        <button type="button" className="link-btn link-btn--compact" onClick={handleBack}>
+        <FormButton htmlType="button" variant="action" className="link-btn link-btn--compact" onClick={handleBack}>
           ← 뒤로
-        </button>
+        </FormButton>
         <h1 className="customer-files-page__title" style={{ margin: 0, fontSize: '1.25rem', flex: '1 1 auto' }}>
           {customerTitle}
         </h1>
-        <Button
-          type="button"
+        <FormButton
+          htmlType="button"
           variant="primary"
           className="!px-3 !py-1.5 text-xs shrink-0"
           disabled={!token?.trim() || listLoading}
           onClick={openUploadModal}
         >
           작성
-        </Button>
+        </FormButton>
       </div>
       <p className="customer-files-page__lead" style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: 8 }}>
         첨부 목록은 최신 순입니다. {files.length > 0 ? `(${files.length}건)` : ''}
@@ -305,9 +305,9 @@ export default function CustomerFilesPage() {
                   <a href={f.fileUrl} target="_blank" rel="noopener noreferrer">
                     다운로드
                   </a>
-                  <button type="button" disabled={uploading} onClick={() => handleDelete(f)}>
+                  <FormButton htmlType="button" variant="action" disabled={uploading} onClick={() => handleDelete(f)}>
                     삭제
-                  </button>
+                  </FormButton>
                 </div>
               </div>
             ))}
@@ -326,7 +326,7 @@ export default function CustomerFilesPage() {
         >
           <label className="block mb-3">
             <span className="block mb-1 text-sm text-[var(--text-secondary)]">메모 / 설명</span>
-            <textarea
+            <FormTextarea
               className="w-full border border-[var(--border-default)] rounded-lg p-2 bg-[var(--bg-card)] text-[var(--text-primary)] box-border min-h-[100px]"
               value={content}
               onChange={(ev) => setContent(ev.target.value)}
@@ -335,18 +335,18 @@ export default function CustomerFilesPage() {
           </label>
           <label className="block mb-3">
             <span className="block mb-1 text-sm text-[var(--text-secondary)]">파일</span>
-            <input type="file" accept={FILE_INPUT_ACCEPT} onChange={handleFileChange} className="text-sm" />
+            <FormInput type="file" accept={FILE_INPUT_ACCEPT} onChange={handleFileChange} className="text-sm" />
           </label>
           {file ? (
             <p className="text-xs text-[var(--text-secondary)] mb-3">선택됨: {file.name}</p>
           ) : null}
           <div className="flex gap-2 justify-end flex-wrap">
-            <Button type="button" variant="secondary" onClick={closeUploadModal} disabled={uploading}>
+            <FormButton htmlType="button" variant="secondary" onClick={closeUploadModal} disabled={uploading}>
               취소
-            </Button>
-            <Button type="submit" disabled={uploading || !file || !token?.trim()}>
+            </FormButton>
+            <FormButton htmlType="submit" variant="primary" disabled={uploading || !file || !token?.trim()}>
               {uploading ? '업로드 중…' : '업로드'}
-            </Button>
+            </FormButton>
           </div>
         </form>
       </Modal>

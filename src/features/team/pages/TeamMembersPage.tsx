@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useConfirmDialog } from '../../../components/dialog'
+import { EmptyState, LoadingState, StatusMessage } from '../../../components/feedback'
+import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   fetchTeamMembers,
@@ -9,6 +12,7 @@ import {
 
 export default function TeamMembersPage() {
   const { token, user, login } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [members, setMembers] = useState<TeamMemberRow[]>([])
   const [ownerId, setOwnerId] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -42,7 +46,12 @@ export default function TeamMembersPage() {
     if (!token?.trim() || !user) {
       return
     }
-    if (!window.confirm('강퇴하시겠습니까?')) {
+    const confirmed = await confirm({
+      title: '팀원 강퇴',
+      message: '강퇴하시겠습니까?',
+      tone: 'danger',
+    })
+    if (!confirmed) {
       return
     }
     setActionBusy(true)
@@ -61,7 +70,12 @@ export default function TeamMembersPage() {
     if (!token?.trim() || !user) {
       return
     }
-    if (!window.confirm('팀에서 나가시겠습니까?')) {
+    const confirmed = await confirm({
+      title: '팀 나가기',
+      message: '팀에서 나가시겠습니까?',
+      tone: 'danger',
+    })
+    if (!confirmed) {
       return
     }
     setActionBusy(true)
@@ -87,32 +101,25 @@ export default function TeamMembersPage() {
         팀원 목록과 강퇴·나가기를 관리합니다.
       </p>
 
-      {error ? (
-        <p style={{ color: 'var(--danger)', marginTop: 8 }} role="alert">
-          {error}
-        </p>
-      ) : null}
+      <StatusMessage message={error} tone="error" className="mt-2" />
 
       {pageLoading ? (
-        <p style={{ marginTop: 12 }} role="status">
-          불러오는 중…
-        </p>
+        <LoadingState className="mt-3 text-left text-sm text-[var(--text-secondary)]" />
       ) : members.length === 0 ? (
-        <div className="text-sm text-[var(--text-secondary)]" style={{ marginTop: 16 }}>
-          팀이 없습니다
-        </div>
+        <EmptyState message="팀이 없습니다" className="mt-4 text-left text-sm text-[var(--text-secondary)]" />
       ) : (
         <>
           {!iAmOwner ? (
             <div className="flex justify-end mb-2 mt-2">
-              <button
-                type="button"
+              <FormButton
+                htmlType="button"
+                variant="action"
                 disabled={actionBusy}
                 className="text-sm text-[var(--text-secondary)] hover:underline disabled:opacity-50"
                 onClick={() => void handleLeave()}
               >
                 팀 나가기
-              </button>
+              </FormButton>
             </div>
           ) : null}
           <div className="border-t border-[var(--border-default)]">
@@ -132,25 +139,27 @@ export default function TeamMembersPage() {
                   </div>
                   <div className="shrink-0 flex items-center gap-2">
                     {iAmOwner && !isRowOwner ? (
-                      <button
-                        type="button"
+                      <FormButton
+                        htmlType="button"
+                        variant="action"
                         disabled={actionBusy}
                         className="text-xs disabled:opacity-50"
                         style={{ color: 'var(--danger)' }}
                         onClick={() => void handleKick(m.userId)}
                       >
                         강퇴
-                      </button>
+                      </FormButton>
                     ) : null}
                     {isMe && !isRowOwner ? (
-                      <button
-                        type="button"
+                      <FormButton
+                        htmlType="button"
+                        variant="action"
                         disabled={actionBusy}
                         className="text-xs text-[var(--text-secondary)] disabled:opacity-50"
                         onClick={() => void handleLeave()}
                       >
                         나가기
-                      </button>
+                      </FormButton>
                     ) : null}
                   </div>
                 </div>
@@ -159,6 +168,7 @@ export default function TeamMembersPage() {
           </div>
         </>
       )}
+      {confirmDialog}
     </div>
   )
 }

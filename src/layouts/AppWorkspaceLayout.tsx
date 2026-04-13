@@ -1,3 +1,4 @@
+import { FormButton } from '../components/form'
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Outlet } from 'react-router-dom'
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
@@ -132,13 +133,13 @@ function AppWorkspaceLayoutPc() {
   return (
     <div className="workspace-root workspace-root--app-pc" ref={rootRef}>
       {!isMemoOpen ? (
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
           className="workspace-memo-reopen"
           onClick={() => setIsMemoOpen(true)}
         >
           메모 패널 열기
-        </button>
+        </FormButton>
       ) : null}
 
       <div className="workspace-left workspace-left--app" style={leftStyle}>

@@ -20,7 +20,10 @@ export function useGlobalBackHandler(enabled: boolean) {
   const navigate = useNavigate()
   const location = useLocation()
   const locationRef = useRef(location)
-  locationRef.current = location
+
+  useEffect(() => {
+    locationRef.current = location
+  }, [location])
 
   useEffect(() => {
     if (!enabled) {

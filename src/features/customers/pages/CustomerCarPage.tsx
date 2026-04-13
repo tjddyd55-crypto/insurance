@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { updateCustomerCar } from '../api/customersApi'
 import { clearSelectedCustomer, readSelectedCustomer } from '../storage/selectedCustomerStorage'
@@ -15,24 +16,23 @@ type CarFormState = {
 export default function CustomerCarPage() {
   const navigate = useNavigate()
   const { user, token } = useAuth()
-  const [form, setForm] = useState<CarFormState | null>(null)
-  const [statusText, setStatusText] = useState('')
-
-  useEffect(() => {
+  const [statusText, setStatusText] = useState(() => {
+    const data = readSelectedCustomer()
+    return data?.id ? '' : '선택된 고객이 없습니다. 고객 관리에서 다시 선택해 주세요.'
+  })
+  const [form, setForm] = useState<CarFormState | null>(() => {
     const data = readSelectedCustomer()
     if (!data?.id) {
-      setStatusText('선택된 고객이 없습니다. 고객 관리에서 다시 선택해 주세요.')
-      setForm(null)
-      return
+      return null
     }
-    setForm({
+    return {
       id: data.id,
       carNumber: data.carNumber ?? '',
       carModel: data.carModel ?? '',
       carYear: data.carYear ?? '',
       renewalDate: data.renewalDate ?? '',
-    })
-  }, [])
+    }
+  })
 
   async function handleSaveCar() {
     if (!token || user?.role !== 'USER' || !form) {
@@ -72,9 +72,9 @@ export default function CustomerCarPage() {
           <h1>자동차 정보 입력</h1>
           <p>{statusText}</p>
         </header>
-        <button className="button button--full" type="button" onClick={() => navigate('/customers')}>
+        <FormButton htmlType="button" fullWidth onClick={() => navigate('/customers')}>
           고객 관리로
-        </button>
+        </FormButton>
       </main>
     )
   }
@@ -90,7 +90,7 @@ export default function CustomerCarPage() {
         <div className="field-grid-customers">
           <label className="field field--wide">
             <span className="field__label">차량번호</span>
-            <input
+            <FormInput
               className="field__control"
               placeholder="차량번호"
               value={form.carNumber}
@@ -99,7 +99,7 @@ export default function CustomerCarPage() {
           </label>
           <label className="field">
             <span className="field__label">차종</span>
-            <input
+            <FormInput
               className="field__control"
               placeholder="차종"
               value={form.carModel}
@@ -108,7 +108,7 @@ export default function CustomerCarPage() {
           </label>
           <label className="field">
             <span className="field__label">연식</span>
-            <input
+            <FormInput
               className="field__control"
               placeholder="연식"
               inputMode="numeric"
@@ -118,7 +118,7 @@ export default function CustomerCarPage() {
           </label>
           <label className="field field--wide">
             <span className="field__label">만기(갱신)일</span>
-            <input
+            <FormInput
               className="field__control"
               type="date"
               value={form.renewalDate}
@@ -127,12 +127,12 @@ export default function CustomerCarPage() {
           </label>
         </div>
         <div className="record-card__actions" style={{ marginTop: 12 }}>
-          <button className="button button--secondary" type="button" onClick={() => navigate('/customers')}>
+          <FormButton variant="secondary" htmlType="button" onClick={() => navigate('/customers')}>
             취소
-          </button>
-          <button className="button button--primary" type="button" onClick={() => void handleSaveCar()}>
+          </FormButton>
+          <FormButton variant="primary" htmlType="button" onClick={() => void handleSaveCar()}>
             저장
-          </button>
+          </FormButton>
         </div>
       </section>
     </main>

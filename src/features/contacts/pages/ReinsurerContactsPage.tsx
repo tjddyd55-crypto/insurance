@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useConfirmDialog } from '../../../components/dialog'
+import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
+import { StatusMessage } from '../../../components/feedback'
+import { PageToolbar } from '../../../components/layout'
 import { useAuth } from '../../auth/AuthProvider'
 import { isInsuranceOpsRole } from '../../auth/roleGuards'
 import {
@@ -59,6 +63,7 @@ function toPayload(form: ContactFormState): UpsertInsuranceContactPayload {
 export function ReinsurerContactsPage() {
   const navigate = useNavigate()
   const { user, token, isAuthenticated } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const isAdmin =
     isAuthenticated && !!user && isInsuranceOpsRole(user.role)
   const [contacts, setContacts] = useState<InsuranceContact[]>([])
@@ -178,7 +183,12 @@ export function ReinsurerContactsPage() {
       setStatusText('관리자 로그인 후 삭제할 수 있습니다.')
       return
     }
-    if (!window.confirm(`${contact.companyName} / ${contact.managerName} 연락처를 삭제할까요?`)) {
+    const confirmed = await confirm({
+      title: '연락처 삭제',
+      message: `${contact.companyName} / ${contact.managerName} 연락처를 삭제할까요?`,
+      tone: 'danger',
+    })
+    if (!confirmed) {
       return
     }
 
@@ -242,39 +252,42 @@ export function ReinsurerContactsPage() {
         </p>
       </header>
 
-      <section className="card contacts-toolbar">
-        <label className="contacts-search">
-          <span>검색</span>
-          <input
-            className="field__control"
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            placeholder="보험사명/담당자/직책/전화번호"
-          />
-        </label>
-        <div className="contacts-toolbar__actions">
-          <button className="button" type="button" onClick={() => navigate('/insurance/history')}>
-            업데이트 현황
-          </button>
-          <button className="button" type="button" onClick={() => navigate('/insurance/print')}>
-            출력
-          </button>
-          {!isAdmin ? (
-            <button className="button" type="button" onClick={() => navigate('/login')}>
-              관리자 로그인
-            </button>
-          ) : null}
-        </div>
-        {statusText ? <p className="status">{statusText}</p> : null}
-      </section>
+      <PageToolbar
+        search={
+          <label className="contacts-search">
+            <span>검색</span>
+            <FormInput
+              className="field__control"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="보험사명/담당자/직책/전화번호"
+            />
+          </label>
+        }
+        actions={
+          <>
+            <FormButton className="button" htmlType="button" variant="action" onClick={() => navigate('/insurance/history')}>
+              업데이트 현황
+            </FormButton>
+            <FormButton className="button" htmlType="button" variant="action" onClick={() => navigate('/insurance/print')}>
+              출력
+            </FormButton>
+            {!isAdmin ? (
+              <FormButton className="button" htmlType="button" variant="action" onClick={() => navigate('/login')}>
+                관리자 로그인
+              </FormButton>
+            ) : null}
+          </>
+        }
+        status={<StatusMessage message={statusText} />}
+      />
 
       {isAdmin ? (
         <section className="card contacts-admin-form">
           <h2 className="dashboard-section-title">관리자 입력</h2>
           <div className="contacts-admin-grid">
-            <label className="field">
-              <span className="field__label">구분</span>
-              <select
+            <FieldWrapper label="구분">
+              <FormSelect
                 className="field__control"
                 value={form.category}
                 onChange={(event) =>
@@ -283,45 +296,42 @@ export function ReinsurerContactsPage() {
                     category: event.target.value as InsuranceContactCategory,
                   }))
                 }
-              >
-                <option value="LIFE">생명보험</option>
-                <option value="NON_LIFE">손해보험</option>
-                <option value="GENERAL">일반보험</option>
-              </select>
-            </label>
-            <label className="field">
-              <span className="field__label">보험사명</span>
-              <input
+                options={[
+                  { value: 'LIFE', label: '생명보험' },
+                  { value: 'NON_LIFE', label: '손해보험' },
+                  { value: 'GENERAL', label: '일반보험' },
+                ]}
+              />
+            </FieldWrapper>
+            <FieldWrapper label="보험사명">
+              <FormInput
                 className="field__control"
                 value={form.companyName}
                 onChange={(event) =>
                   setForm((previous) => ({ ...previous, companyName: event.target.value }))
                 }
               />
-            </label>
-            <label className="field">
-              <span className="field__label">담당자명</span>
-              <input
+            </FieldWrapper>
+            <FieldWrapper label="담당자명">
+              <FormInput
                 className="field__control"
                 value={form.managerName}
                 onChange={(event) =>
                   setForm((previous) => ({ ...previous, managerName: event.target.value }))
                 }
               />
-            </label>
-            <label className="field">
-              <span className="field__label">직책</span>
-              <input
+            </FieldWrapper>
+            <FieldWrapper label="직책">
+              <FormInput
                 className="field__control"
                 value={form.position}
                 onChange={(event) =>
                   setForm((previous) => ({ ...previous, position: event.target.value }))
                 }
               />
-            </label>
-            <label className="field">
-              <span className="field__label">전화번호</span>
-              <input
+            </FieldWrapper>
+            <FieldWrapper label="전화번호">
+              <FormInput
                 className="field__control"
                 value={form.phoneNumber}
                 onChange={(event) =>
@@ -329,26 +339,25 @@ export function ReinsurerContactsPage() {
                 }
                 inputMode="numeric"
               />
-            </label>
-            <label className="field">
-              <span className="field__label">변경 설명</span>
-              <input
+            </FieldWrapper>
+            <FieldWrapper label="변경 설명">
+              <FormInput
                 className="field__control"
                 value={form.description}
                 onChange={(event) =>
                   setForm((previous) => ({ ...previous, description: event.target.value }))
                 }
               />
-            </label>
+            </FieldWrapper>
           </div>
           <div className="contacts-admin-actions">
-            <button className="button button--primary" type="button" onClick={() => void handleSubmit()} disabled={isSubmitting}>
+            <FormButton className="button button--primary" htmlType="button" variant="primary" onClick={() => void handleSubmit()} disabled={isSubmitting}>
               {form.id ? '수정 저장' : '신규 등록'}
-            </button>
+            </FormButton>
             {form.id ? (
-              <button className="button" type="button" onClick={handleCancelEdit} disabled={isSubmitting}>
+              <FormButton className="button" htmlType="button" variant="action" onClick={handleCancelEdit} disabled={isSubmitting}>
                 취소
-              </button>
+              </FormButton>
             ) : null}
           </div>
         </section>
@@ -381,29 +390,17 @@ export function ReinsurerContactsPage() {
                       <a className="button button--full" href={`tel:${normalizePhoneNumber(contact.phoneNumber)}`}>
                         전화걸기
                       </a>
-                      <button
-                        className="button button--full"
-                        type="button"
-                        onClick={() => void handleDownloadVCard(contact)}
-                      >
+                      <FormButton className="button button--full" htmlType="button" variant="action" onClick={() => void handleDownloadVCard(contact)}>
                         연락처저장
-                      </button>
+                      </FormButton>
                       {isAdmin ? (
                         <>
-                          <button
-                            className="button button--full"
-                            type="button"
-                            onClick={() => handleStartEdit(contact)}
-                          >
+                          <FormButton className="button button--full" htmlType="button" variant="action" onClick={() => handleStartEdit(contact)}>
                             수정
-                          </button>
-                          <button
-                            className="button button--secondary button--full"
-                            type="button"
-                            onClick={() => void handleDelete(contact)}
-                          >
+                          </FormButton>
+                          <FormButton className="button button--secondary button--full" htmlType="button" variant="secondary" onClick={() => void handleDelete(contact)}>
                             삭제
-                          </button>
+                          </FormButton>
                         </>
                       ) : null}
                     </div>
@@ -414,6 +411,7 @@ export function ReinsurerContactsPage() {
           </section>
         ))
       )}
+      {confirmDialog}
     </main>
   )
 }

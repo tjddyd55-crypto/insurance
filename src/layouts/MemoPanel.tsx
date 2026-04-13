@@ -1,3 +1,4 @@
+import { FormButton } from '../components/form'
 import MemoWorkspacePage from '../features/memo/pages/MemoWorkspacePage'
 import MemoList from '../features/memo/components/MemoList'
 
@@ -33,26 +34,26 @@ export default function MemoPanel({
               className="memo-list-sidebar memo-list-sidebar--right-dock"
               data-selected-note={selectedNoteId ?? ''}
             >
-              <button
-                type="button"
+              <FormButton
+                htmlType="button"
                 className="memo-list-toggle-btn memo-list-toggle-btn--collapse"
                 onClick={onToggleList}
                 aria-label="메모 목록 접기"
               >
                 &gt;
-              </button>
+              </FormButton>
               <MemoList onAfterSelectNote={onSelectNoteFromList} />
             </div>
           ) : null}
           {!listVisible ? (
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
               className="memo-list-toggle-btn memo-list-toggle-btn--expand"
               onClick={onToggleList}
               aria-label="메모 목록 열기"
             >
               &lt;
-            </button>
+            </FormButton>
           ) : null}
         </div>
       </div>

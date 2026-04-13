@@ -14,6 +14,7 @@ import {
 } from 'react'
 import { useBlocker, type BlockerFunction } from 'react-router'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useConfirmDialog } from '../../../components/dialog'
 import { ApiError } from '../../../lib/apiClient'
 import { getPublicOrigin } from '../../../lib/publicOrigin'
 import { useAuth } from '../../auth/AuthProvider'
@@ -62,7 +63,7 @@ import { parseConsultationStoredBody } from '../utils/consultationBodyFormat'
 import { CustomerConsultationSection } from '../components/CustomerConsultationSection'
 import { CustomerInlineNotesSection } from '../components/CustomerInlineNotesSection'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
-import { FormButton, FormInput, FormTextarea } from '../../../components/form'
+import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
@@ -573,7 +574,7 @@ const CustomerListCard = memo(function CustomerListCard({
     >
       {isSelectMode ? (
         <div className="customer-expand-card__select">
-          <input
+          <FormInput
             type="checkbox"
             checked={selectedCustomerIds.includes(String(c.id))}
             onChange={() => {
@@ -636,8 +637,9 @@ const CustomerListCard = memo(function CustomerListCard({
                   onKeyDown={(e) => e.stopPropagation()}
                 >
                   <div className="icon-box">
-                    <button
-                      type="button"
+                    <FormButton
+                      htmlType="button"
+                      variant="action"
                       className="text-lg leading-none disabled:opacity-50"
                       aria-label={c.isFavorite ? '즐겨찾기 해제' : '즐겨찾기'}
                       aria-pressed={c.isFavorite}
@@ -656,7 +658,7 @@ const CustomerListCard = memo(function CustomerListCard({
                           ☆
                         </span>
                       )}
-                    </button>
+                    </FormButton>
                   </div>
                   <div className="icon-box">
                     {smsHref ? (
@@ -721,43 +723,47 @@ const CustomerListCard = memo(function CustomerListCard({
                 className="customer-card-icon-actions"
                 style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}
               >
-                <button
-                  type="button"
+                <FormButton
+                  htmlType="button"
+                  variant="action"
                   className="customer-icon-action"
                   title="카톡 복사"
                   aria-label="카톡 복사"
                   onClick={() => void onCopyCustomer(c)}
                 >
                   📋
-                </button>
+                </FormButton>
                 {editingId !== c.id ? (
-                  <button
-                    type="button"
+                  <FormButton
+                    htmlType="button"
+                    variant="action"
                     className="customer-icon-action"
                     title="수정"
                     aria-label="수정"
                     onClick={() => onStartEdit(c)}
                   >
                     ✏️
-                  </button>
+                  </FormButton>
                 ) : null}
-                <button
-                  type="button"
+                <FormButton
+                  htmlType="button"
+                  variant="action"
                   className="customer-icon-action"
                   title="삭제"
                   aria-label="삭제"
                   onClick={() => void onDeleteCustomer(c)}
                 >
                   🗑
-                </button>
+                </FormButton>
                 {carFeatureEnabled ? (
-                  <button
-                    type="button"
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
                     className="button button--secondary button--small customer-create-form-button"
                     onClick={() => onCreateAutoApplication(c.id)}
                   >
                     자동차 신청서 작성
-                  </button>
+                  </FormButton>
                 ) : null}
               </div>
             </div>
@@ -789,7 +795,7 @@ const CustomerListCard = memo(function CustomerListCard({
                       <span className="field__label">성별</span>
                       <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
                         <label>
-                          <input
+                          <FormInput
                             type="radio"
                             name={`gender-edit-${c.id}`}
                             checked={editForm.gender === 'male'}
@@ -800,7 +806,7 @@ const CustomerListCard = memo(function CustomerListCard({
                           남
                         </label>
                         <label>
-                          <input
+                          <FormInput
                             type="radio"
                             name={`gender-edit-${c.id}`}
                             checked={editForm.gender === 'female'}
@@ -884,7 +890,7 @@ const CustomerListCard = memo(function CustomerListCard({
                       <span className="field__label">운전 여부</span>
                       <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
                         <label>
-                          <input
+                          <FormInput
                             type="radio"
                             name={`driver-edit-${c.id}`}
                             checked={editForm.isDriver === true}
@@ -895,7 +901,7 @@ const CustomerListCard = memo(function CustomerListCard({
                           운전함
                         </label>
                         <label>
-                          <input
+                          <FormInput
                             type="radio"
                             name={`driver-edit-${c.id}`}
                             checked={editForm.isDriver === false}
@@ -1128,13 +1134,14 @@ const CustomerListCard = memo(function CustomerListCard({
                                 저장: {formatKoreanDateTime(row.updatedAt)} · 만기 {row.expiryDate || '—'}
                               </span>
                             </div>
-                            <button
+                            <FormButton
                               className="button button--secondary"
-                              type="button"
+                              htmlType="button"
+                              variant="secondary"
                               onClick={() => onNavigateToFormEdit(row.id)}
                             >
                               열기
-                            </button>
+                            </FormButton>
                           </li>
                         ))}
                       </ul>
@@ -1160,6 +1167,7 @@ export default function CustomersPage() {
     navigate('/customers', { replace: true })
   }, [navigate])
   const { user, token } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [customersTotalCount, setCustomersTotalCount] = useState(0)
@@ -1713,11 +1721,13 @@ export default function CustomersPage() {
       if (!token || user?.role !== 'USER') {
         return
       }
-      if (
-        !window.confirm(
-          `고객 "${c.name}"(번호 ${c.id})를 목록에서 삭제할까요? 기존 신청서의 고객 연결(customer_id)은 유지됩니다.`,
-        )
-      ) {
+      const confirmed = await confirm({
+        title: '고객 삭제',
+        message: `고객 "${c.name}"(번호 ${c.id})를 목록에서 삭제할까요? 기존 신청서의 고객 연결(customer_id)은 유지됩니다.`,
+        confirmLabel: '삭제',
+        tone: 'danger',
+      })
+      if (!confirmed) {
         return
       }
       try {
@@ -1734,7 +1744,7 @@ export default function CustomersPage() {
         setStatusText(error instanceof Error ? error.message : '삭제에 실패했습니다.')
       }
     },
-    [token, user?.role, cancelEdit, loadCustomers],
+    [token, user?.role, cancelEdit, loadCustomers, confirm],
   )
 
   const startEdit = useCallback((cl: CustomerRecord) => {
@@ -1916,7 +1926,7 @@ export default function CustomersPage() {
           </p>
           <div className="customers-excel-toolbar__row">
             <label className="customers-excel-toolbar__select-all">
-              <input
+              <FormInput
                 ref={selectAllRef}
                 type="checkbox"
                 checked={allVisibleSelected}
@@ -1930,18 +1940,18 @@ export default function CustomersPage() {
               />
               전체 선택
             </label>
-            <button type="button" className="filter-button" onClick={() => setIsColumnPickerOpen(true)}>
+            <FormButton htmlType="button" variant="action" className="filter-button" onClick={() => setIsColumnPickerOpen(true)}>
               컬럼 선택
-            </button>
-            <button type="button" className="cta-button" onClick={handleDownloadSelected}>
+            </FormButton>
+            <FormButton htmlType="button" variant="action" className="cta-button" onClick={handleDownloadSelected}>
               선택 다운로드
-            </button>
-            <button type="button" className="cta-button" onClick={handleDownloadListAll}>
+            </FormButton>
+            <FormButton htmlType="button" variant="action" className="cta-button" onClick={handleDownloadListAll}>
               목록 전체 다운로드
-            </button>
-            <button type="button" className="filter-button" onClick={exitExcelSelectMode}>
+            </FormButton>
+            <FormButton htmlType="button" variant="action" className="filter-button" onClick={exitExcelSelectMode}>
               취소
-            </button>
+            </FormButton>
           </div>
         </div>
       ) : null}
@@ -1950,13 +1960,14 @@ export default function CustomersPage() {
           <>
             {!isSelectMode ? (
               <div className="customers-page__action-row">
-                <button
-                  type="button"
+                <FormButton
+                  htmlType="button"
+                  variant="action"
                   className="cta-button customers-page__action-btn"
                   onClick={() => setSearchParams({ mode: 'create' }, { replace: true })}
                 >
                   고객 등록
-                </button>
+                </FormButton>
                 <div
                   role="button"
                   tabIndex={0}
@@ -1970,13 +1981,13 @@ export default function CustomersPage() {
                 >
                   등록 링크
                 </div>
-                <button type="button" className="cta-button customers-page__action-btn" onClick={enterExcelSelectMode}>
+                <FormButton htmlType="button" variant="action" className="cta-button customers-page__action-btn" onClick={enterExcelSelectMode}>
                   엑셀 다운로드
-                </button>
+                </FormButton>
               </div>
             ) : null}
             <div className="customers-page__search-row">
-              <input
+              <FormInput
                 className="search-input customers-page__search-input"
                 type="search"
                 placeholder="이름 / 전화번호 검색"
@@ -1985,8 +1996,9 @@ export default function CustomersPage() {
                 autoComplete="off"
                 aria-label="이름 또는 전화번호 검색"
               />
-              <button
-                type="button"
+              <FormButton
+                htmlType="button"
+                variant="action"
                 className={`px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
                   favoriteOnly
                     ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white'
@@ -1996,21 +2008,23 @@ export default function CustomersPage() {
                 onClick={() => setFavoriteOnly((v) => !v)}
               >
                 중요 고객
-              </button>
-              <button
-                type="button"
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="action"
                 className={`customers-page__filter-toggle${showFilters ? ' customers-page__filter-toggle--on' : ''}`}
                 aria-expanded={showFilters}
                 onClick={() => setShowFilters((v) => !v)}
               >
                 필터
-              </button>
+              </FormButton>
             </div>
           </>
         ) : (
           <div className="customers-page__create-nav">
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
+              variant="action"
               className="link-btn link-btn--compact"
               onClick={(e) => {
                 e.stopPropagation()
@@ -2018,7 +2032,7 @@ export default function CustomersPage() {
               }}
             >
               ← 고객 목록
-            </button>
+            </FormButton>
           </div>
         )}
         {statusText ? <p className="customers-page__status">{statusText}</p> : null}
@@ -2050,7 +2064,7 @@ export default function CustomersPage() {
                 }}
               >
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <input
+                  <FormInput
                     type="checkbox"
                     checked={deepSearch}
                     onChange={(e) => setDeepSearch(e.target.checked)}
@@ -2058,7 +2072,7 @@ export default function CustomersPage() {
                   상담·연계 포함 검색 (서버 심층 검색)
                 </label>
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <input
+                  <FormInput
                     type="checkbox"
                     checked={onlyWithConsultations}
                     onChange={(e) => setOnlyWithConsultations(e.target.checked)}
@@ -2066,7 +2080,7 @@ export default function CustomersPage() {
                   상담 기록이 있는 고객만 보기
                 </label>
                 <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <input
+                  <FormInput
                     type="checkbox"
                     checked={filterNoRecentConsult}
                     onChange={(e) => setFilterNoRecentConsult(e.target.checked)}
@@ -2087,30 +2101,33 @@ export default function CustomersPage() {
               <div className="customers-sort-row" role="group" aria-label="목록 정렬 (같은 버튼을 다시 누르면 해제되어 이름 가나다순)">
                 <span className="customers-sort-row__label">정렬</span>
                 <div className="customers-sort-row__buttons filter-group">
-                  <button
-                    type="button"
+                  <FormButton
+                    htmlType="button"
+                    variant="action"
                     className={`filter-button${sortType === 'age' ? ' active' : ''}`}
                     aria-pressed={sortType === 'age'}
                     onClick={() => setSortType((t) => (t === 'age' ? null : 'age'))}
                   >
                     상령일 빠른순
-                  </button>
-                  <button
-                    type="button"
+                  </FormButton>
+                  <FormButton
+                    htmlType="button"
+                    variant="action"
                     className={`filter-button${sortType === 'car' ? ' active' : ''}`}
                     aria-pressed={sortType === 'car'}
                     onClick={() => setSortType((t) => (t === 'car' ? null : 'car'))}
                   >
                     자동차 만기순
-                  </button>
-                  <button
-                    type="button"
+                  </FormButton>
+                  <FormButton
+                    htmlType="button"
+                    variant="action"
                     className={`filter-button${sortType === 'recent' ? ' active' : ''}`}
                     aria-pressed={sortType === 'recent'}
                     onClick={() => setSortType((t) => (t === 'recent' ? null : 'recent'))}
                   >
                     최근등록
-                  </button>
+                  </FormButton>
                 </div>
               </div>
 
@@ -2118,7 +2135,7 @@ export default function CustomersPage() {
                 <div className="customers-advanced-filters__grid">
                   <label className="customers-advanced-filters__field">
                     <span>보험나이 최소</span>
-                    <input
+                    <FormInput
                       type="number"
                       min={0}
                       inputMode="numeric"
@@ -2130,7 +2147,7 @@ export default function CustomersPage() {
                   </label>
                   <label className="customers-advanced-filters__field">
                     <span>보험나이 최대</span>
-                    <input
+                    <FormInput
                       type="number"
                       min={0}
                       inputMode="numeric"
@@ -2142,7 +2159,7 @@ export default function CustomersPage() {
                   </label>
                   <label className="customers-advanced-filters__field">
                     <span>성별</span>
-                    <select
+                    <FormSelect
                       value={advancedFilters.gender}
                       onChange={(e) =>
                         setAdvancedFilters((f) => ({
@@ -2150,36 +2167,40 @@ export default function CustomersPage() {
                           gender: e.target.value as CustomerAdvancedFilters['gender'],
                         }))
                       }
-                    >
-                      <option value="">전체</option>
-                      <option value="male">남</option>
-                      <option value="female">여</option>
-                    </select>
+                      options={[
+                        { value: '', label: '전체' },
+                        { value: 'male', label: '남' },
+                        { value: 'female', label: '여' },
+                      ]}
+                    />
                   </label>
                 </div>
                 <div className="customers-advanced-filters__quick filter-group">
-                  <button
-                    type="button"
+                  <FormButton
+                    htmlType="button"
+                    variant="action"
                     className="filter-button"
                     onClick={() => applyQuickFilter('AGE_UNDER_30_MALE')}
                   >
                     30세 이하 남성
-                  </button>
-                  <button
-                    type="button"
+                  </FormButton>
+                  <FormButton
+                    htmlType="button"
+                    variant="action"
                     className="filter-button"
                     onClick={() => applyQuickFilter('AGE_OVER_40_FEMALE')}
                   >
                     40세 이상 여성
-                  </button>
+                  </FormButton>
                   {advancedFiltersActive ? (
-                    <button
-                      type="button"
+                    <FormButton
+                      htmlType="button"
+                      variant="action"
                       className="filter-button"
                       onClick={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
                     >
                       필터 초기화
-                    </button>
+                    </FormButton>
                   ) : null}
                 </div>
               </div>
@@ -2292,7 +2313,7 @@ export default function CustomersPage() {
                 {EXCEL_COLUMN_META.map((col) => (
                   <li key={col.id} className="modal-excel-columns__item">
                     <label>
-                      <input
+                      <FormInput
                         type="checkbox"
                         checked={selectedColumns.includes(col.id)}
                         onChange={() => toggleExcelColumn(col.id)}
@@ -2304,29 +2325,30 @@ export default function CustomersPage() {
               </ul>
             </div>
             <div className="modal-actions">
-              <button type="button" className="confirm" onClick={() => setIsColumnPickerOpen(false)}>
+              <FormButton htmlType="button" variant="action" className="confirm" onClick={() => setIsColumnPickerOpen(false)}>
                 닫기
-              </button>
+              </FormButton>
             </div>
           </div>
         </div>
       ) : null}
 
       {showScrollToTop ? (
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
+          variant="action"
           className="scroll-to-top"
           aria-label="맨 위로 스크롤"
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
         >
           ↑
-        </button>
+        </FormButton>
       ) : null}
 
       {customerCreateExitModalOpen || customerCreateExitBlocker.state === 'blocked' ? (
         <ExitConfirmDialog
           message={MSG_CUSTOMER_CREATE_EXIT}
-          titleId="customer-create-exit-confirm-title"
+          title="등록 이탈 확인"
           onCancel={() => {
             if (customerCreateExitBlocker.state === 'blocked') {
               customerCreateExitBlocker.reset()
@@ -2342,6 +2364,7 @@ export default function CustomersPage() {
           }}
         />
       ) : null}
+      {confirmDialog}
     </main>
   )
 }

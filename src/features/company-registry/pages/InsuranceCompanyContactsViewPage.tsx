@@ -1,3 +1,4 @@
+import { FormButton, FormInput } from '../../../components/form'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -132,13 +133,13 @@ export default function InsuranceCompanyContactsViewPage() {
         <div className="contact-header__row">
           <h1>원수사 연락처</h1>
           {!isStaff ? (
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
               className="update-btn"
               onClick={() => navigate('/updates')}
             >
               업데이트 현황
-            </button>
+            </FormButton>
           ) : null}
         </div>
         {statusText ? <p className="insurance-contacts-status">{statusText}</p> : null}
@@ -146,9 +147,9 @@ export default function InsuranceCompanyContactsViewPage() {
 
       <div className="tabs" role="tablist" aria-label="보험 종류">
         {INSURANCE_TYPE_ORDER.map((tab) => (
-          <button
+          <FormButton
             key={tab}
-            type="button"
+            htmlType="button"
             role="tab"
             aria-selected={activeTab === tab}
             className={activeTab === tab ? 'active' : ''}
@@ -156,13 +157,13 @@ export default function InsuranceCompanyContactsViewPage() {
             onClick={() => setActiveTab(tab)}
           >
             {TAB_SHORT_LABEL[tab]}
-          </button>
+          </FormButton>
         ))}
       </div>
 
       <label className="insurance-contacts-search">
         <span className="visually-hidden">검색</span>
-        <input
+        <FormInput
           className="insurance-contacts-search__input"
           type="search"
           value={keyword}

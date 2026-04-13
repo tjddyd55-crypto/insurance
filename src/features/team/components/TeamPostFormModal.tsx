@@ -1,3 +1,4 @@
+import { FormButton, FormInput, FormTextarea } from '../../../components/form'
 import { type FormEvent, useEffect, useState } from 'react'
 import Modal from '../../../components/ui/Modal'
 import { createTeamPost, updateTeamPost } from '../api/teamApi'
@@ -121,7 +122,7 @@ export function TeamPostFormModal({
         </div>
         <label className="block text-sm text-[var(--text-secondary)]">
           제목
-          <input
+          <FormInput
             className="mt-1 w-full box-border border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
             value={title}
             onChange={(ev) => setTitle(ev.target.value)}
@@ -130,7 +131,7 @@ export function TeamPostFormModal({
         </label>
         <label className="block text-sm text-[var(--text-secondary)]">
           내용
-          <textarea
+          <FormTextarea
             className="mt-1 w-full min-h-[120px] box-border border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
             value={content}
             onChange={(ev) => setContent(ev.target.value)}
@@ -138,7 +139,7 @@ export function TeamPostFormModal({
           />
         </label>
         <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
-          <input
+          <FormInput
             type="checkbox"
             checked={isNotice}
             disabled={!canSetNotice}
@@ -149,7 +150,7 @@ export function TeamPostFormModal({
         {mode === 'create' ? (
           <label className="block text-sm text-[var(--text-secondary)]">
             첨부 (이미지·PDF, 최대 10개)
-            <input
+            <FormInput
               type="file"
               className="mt-1 w-full text-sm"
               accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
@@ -166,12 +167,12 @@ export function TeamPostFormModal({
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2 justify-end pt-1">
-          <button type="button" className="button button--secondary" onClick={onClose} disabled={submitting}>
+          <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={onClose} disabled={submitting}>
             취소
-          </button>
-          <button type="submit" className="cta-button" disabled={submitting}>
+          </FormButton>
+          <FormButton htmlType="submit" variant="action" className="cta-button" disabled={submitting}>
             {submitting ? (mode === 'edit' ? '저장 중…' : '등록 중…') : mode === 'edit' ? '저장' : '등록'}
-          </button>
+          </FormButton>
         </div>
       </form>
     </Modal>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { FormButton } from '../../../components/form'
 import { fetchInsurerManagersHealth, type InsurerManagersHealth } from '../../auth/authApi'
 import { fetchTeamMembers } from '../../team/api/teamApi'
 import { useAuth } from '../../auth/AuthProvider'
@@ -160,41 +161,49 @@ export function DashboardPage() {
     if (!showImHealth || !token?.trim()) {
       return
     }
-    setImHealthErr('')
     try {
-      setImHealth(await fetchInsurerManagersHealth(token))
+      const data = await fetchInsurerManagersHealth(token)
+      setImHealthErr('')
+      setImHealth(data)
     } catch {
       setImHealthErr('원수사 담당자 정합성 상태를 확인하지 못했습니다.')
     }
   }, [showImHealth, token])
 
   useEffect(() => {
-    void loadImHealth()
+    queueMicrotask(() => {
+      void loadImHealth()
+    })
   }, [loadImHealth])
 
   useEffect(() => {
-    if (!token?.trim() || !user?.id) {
-      setTeamMenuManageVisible(false)
-      return
-    }
-    if (role !== 'USER' && role !== 'GA_ADMIN') {
-      setTeamMenuManageVisible(false)
-      return
-    }
     let cancelled = false
-    void fetchTeamMembers(token)
-      .then((data) => {
-        if (cancelled) {
-          return
-        }
-        const oid = data.ownerId?.trim() ?? ''
-        setTeamMenuManageVisible(Boolean(oid && oid === user.id))
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setTeamMenuManageVisible(false)
-        }
-      })
+    queueMicrotask(() => {
+      if (cancelled) {
+        return
+      }
+      if (!token?.trim() || !user?.id) {
+        setTeamMenuManageVisible(false)
+        return
+      }
+      if (role !== 'USER' && role !== 'GA_ADMIN') {
+        setTeamMenuManageVisible(false)
+        return
+      }
+      void fetchTeamMembers(token)
+        .then((data) => {
+          if (cancelled) {
+            return
+          }
+          const oid = data.ownerId?.trim() ?? ''
+          setTeamMenuManageVisible(Boolean(oid && oid === user.id))
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setTeamMenuManageVisible(false)
+          }
+        })
+    })
     return () => {
       cancelled = true
     }
@@ -275,9 +284,10 @@ export function DashboardPage() {
                 entry.path !== '#' &&
                 pathIsActive(pathname, entry.path)
               return (
-                <button
+                <FormButton
                   key={`${entry.path}-${entry.label}-${idx}`}
-                  type="button"
+                  htmlType="button"
+                  variant="action"
                   className={`menu-item${isActive ? ' active' : ''}${entry.disabled ? ' menu-item--disabled' : ''}`}
                   onClick={() => {
                     if (entry.preparing) {
@@ -295,21 +305,22 @@ export function DashboardPage() {
                   }}
                 >
                   {entry.label}
-                </button>
+                </FormButton>
               )
             })}
           </nav>
 
-          <button
+          <FormButton
             className="button button--secondary button--full dashboard-logout"
-            type="button"
+            htmlType="button"
+            variant="secondary"
             onClick={() => {
               logout()
               navigate('/login', { replace: true })
             }}
           >
             로그아웃
-          </button>
+          </FormButton>
         </section>
       </div>
 

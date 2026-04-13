@@ -10,6 +10,7 @@ import {
   sendSignupPhoneCode,
   verifySignupPhoneCode,
 } from '../authApi'
+import { FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../AuthProvider'
 
 type UsernameCheck = 'idle' | 'checking' | 'available' | 'taken' | 'invalid'
@@ -69,7 +70,7 @@ export function RegisterPage() {
       setSecondsLeft((s) => (s <= 1 ? 0 : s - 1))
     }, 1000)
     return () => window.clearInterval(t)
-  }, [secondsLeft > 0])
+  }, [secondsLeft])
 
   useEffect(() => {
     if (resendLeft <= 0) {
@@ -79,7 +80,7 @@ export function RegisterPage() {
       setResendLeft((s) => (s <= 1 ? 0 : s - 1))
     }, 1000)
     return () => window.clearInterval(t)
-  }, [resendLeft > 0])
+  }, [resendLeft])
 
   const resetUsernameCheck = () => {
     setUsernameCheck('idle')
@@ -328,13 +329,13 @@ export function RegisterPage() {
         <h1>회원가입</h1>
 
         <form className="auth-form auth-form--register" onSubmit={(e) => void handleSignup(e)}>
-          <input type="hidden" name="invite_ref_user_id" value={inviteRefUserId} aria-hidden />
-          <input type="hidden" name="invite_sig" value={inviteSig} aria-hidden />
-          <input type="hidden" name="invite_ts" value={inviteTs} aria-hidden />
+          <FormInput type="hidden" name="invite_ref_user_id" value={inviteRefUserId} aria-hidden />
+          <FormInput type="hidden" name="invite_sig" value={inviteSig} aria-hidden />
+          <FormInput type="hidden" name="invite_ts" value={inviteTs} aria-hidden />
           <label className="field">
             <span className="field__label">GA 코드</span>
             <p className="text-xs text-gray-400 mb-2">부여받은 코드를 입력하세요.</p>
-            <input
+            <FormInput
               value={inviteCode}
               onChange={(e) => {
                 setInviteCode(e.target.value.toUpperCase())
@@ -350,7 +351,7 @@ export function RegisterPage() {
           <label className="field">
             <span className="field__label">아이디</span>
             <div className="register-field-row">
-              <input
+              <FormInput
                 value={username}
                 onChange={(event) => {
                   setUsername(event.target.value)
@@ -361,21 +362,22 @@ export function RegisterPage() {
                 placeholder="로그인에 사용할 아이디"
                 required
               />
-              <button
-                type="button"
+              <FormButton
+                htmlType="button"
+                variant="secondary"
                 className="button button--secondary"
                 onClick={() => void runUsernameCheck(username)}
                 disabled={isSubmitting || username.trim().length < 3}
               >
                 중복 확인
-              </button>
+              </FormButton>
             </div>
           </label>
           {usernameStatusMessage()}
 
           <label className="field">
             <span className="field__label">비밀번호</span>
-            <input
+            <FormInput
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -387,7 +389,7 @@ export function RegisterPage() {
 
           <label className="field">
             <span className="field__label">비밀번호 확인</span>
-            <input
+            <FormInput
               type="password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
@@ -399,7 +401,7 @@ export function RegisterPage() {
 
           <label className="field">
             <span className="field__label">이름</span>
-            <input
+            <FormInput
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="name"
@@ -410,7 +412,7 @@ export function RegisterPage() {
 
           <label className="field">
             <span className="field__label">휴대폰 번호</span>
-            <input
+            <FormInput
               value={phone}
               onChange={(e) => {
                 setPhone(e.target.value)
@@ -427,14 +429,15 @@ export function RegisterPage() {
           <div className="field">
             <span className="field__label">휴대폰 인증</span>
             <div className="register-phone-request-row">
-              <button
-                type="button"
+              <FormButton
+                htmlType="button"
+                variant="secondary"
                 className="button button--secondary"
                 onClick={() => void requestSignupSms()}
                 disabled={smsRequestDisabled}
               >
                 {resendLeft > 0 ? `재요청 (${resendLeft}s)` : '인증번호 요청'}
-              </button>
+              </FormButton>
               {secondsLeft > 0 ? (
                 <span className="status" style={{ fontSize: '0.9rem' }}>
                   유효 시간 {secondsLeft}s
@@ -445,7 +448,7 @@ export function RegisterPage() {
 
           <label className="field">
             <span className="field__label">인증번호</span>
-            <input
+            <FormInput
               value={smsCode}
               onChange={(e) => setSmsCode(e.target.value)}
               inputMode="numeric"
@@ -455,14 +458,15 @@ export function RegisterPage() {
             />
           </label>
 
-          <button
-            type="button"
+          <FormButton
+            htmlType="button"
+            variant="secondary"
             className="button button--secondary"
             onClick={() => void confirmSignupSms()}
             disabled={smsConfirmDisabled}
           >
             인증 확인
-          </button>
+          </FormButton>
 
           {isPhoneVerified ? (
             <p className="status" style={{ color: 'var(--success)' }}>
@@ -474,9 +478,9 @@ export function RegisterPage() {
           {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
           {infoMessage ? <p className="status">{infoMessage}</p> : null}
 
-          <button className="button button--primary button--full" type="submit" disabled={submitDisabled}>
+          <FormButton className="button button--primary button--full" htmlType="submit" variant="primary" disabled={submitDisabled}>
             {isSubmitting ? '가입 중…' : '가입'}
-          </button>
+          </FormButton>
         </form>
 
         <div className="switch-text">

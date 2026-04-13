@@ -25,12 +25,12 @@ export function ConsentCompanyPage() {
     if (!token?.trim() || gaId == null) {
       return
     }
-    setLoadError(null)
     try {
       const rows = await apiRequest<ConsentTemplateRow[]>('/api/consent/templates', {
         method: 'GET',
         token,
       })
+      setLoadError(null)
       setTemplates(rows)
     } catch (e) {
       setTemplates([])
@@ -39,7 +39,9 @@ export function ConsentCompanyPage() {
   }, [token, gaId])
 
   useEffect(() => {
-    void load()
+    queueMicrotask(() => {
+      void load()
+    })
   }, [load])
 
   const byCompany = useMemo(() => consentTemplatesByCompanyId(templates), [templates])

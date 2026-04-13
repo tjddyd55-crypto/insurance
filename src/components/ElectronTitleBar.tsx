@@ -1,4 +1,5 @@
 /** Frameless Electron chrome; mounted from AppLayout so `useNavigate` works. */
+import { FormButton } from './form'
 import { useLayoutEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
@@ -41,14 +42,14 @@ export function ElectronTitleBar() {
   return (
     <header className="electron-title-bar title-bar" role="banner">
       <div className="electron-title-bar__leading">
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
           className="electron-title-bar__back"
           aria-label={BACK_LABEL}
           onClick={handleBack}
         >
           {BACK_LABEL}
-        </button>
+        </FormButton>
       </div>
       <div className="electron-title-bar__drag">
         <span className="electron-title-bar__app-name">
@@ -66,44 +67,44 @@ export function ElectronTitleBar() {
           <div className="electron-title-bar__user-actions">
             <NotificationBell />
             {user?.role === 'USER' ? (
-              <button
-                type="button"
+              <FormButton
+                htmlType="button"
                 className="app-tenant-ga-bar__profile"
                 onClick={() => navigate('/profile')}
               >
                 {'\uD504\uB85C\uD544'}
-              </button>
+              </FormButton>
             ) : null}
           </div>
         ) : null}
         <div className="window-controls">
-          <button
-            type="button"
+          <FormButton
+            htmlType="button"
             className="electron-title-bar__control"
             aria-label="Minimize"
             onClick={() => api?.minimize?.()}
             disabled={!active}
           >
             ─
-          </button>
-          <button
-            type="button"
+          </FormButton>
+          <FormButton
+            htmlType="button"
             className="electron-title-bar__control"
             aria-label="Maximize or restore"
             onClick={() => api?.maximize?.()}
             disabled={!active}
           >
             {'\u25A1'}
-          </button>
-          <button
-            type="button"
+          </FormButton>
+          <FormButton
+            htmlType="button"
             className="electron-title-bar__control electron-title-bar__control--close"
             aria-label="Close"
             onClick={() => api?.close?.()}
             disabled={!active}
           >
             ×
-          </button>
+          </FormButton>
         </div>
       </div>
     </header>

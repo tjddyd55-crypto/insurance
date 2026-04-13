@@ -1,4 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { FormDialog, useConfirmDialog } from '../../../components/dialog'
+import { EmptyState, LoadingState, StatusMessage } from '../../../components/feedback'
+import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   createGaCompany,
@@ -74,6 +77,7 @@ function formatCreatedAt(iso: string): string {
 
 export default function GaManagementPage() {
   const { user, token } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [rows, setRows] = useState<GaCompanyRow[]>([])
   const [loadError, setLoadError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -185,7 +189,13 @@ export default function GaManagementPage() {
     if (!token?.trim()) {
       return
     }
-    if (!window.confirm('해당 GA를 삭제하시겠습니까?')) {
+    const confirmed = await confirm({
+      title: 'GA 삭제',
+      message: '해당 GA를 삭제하시겠습니까?',
+      confirmLabel: '삭제',
+      tone: 'danger',
+    })
+    if (!confirmed) {
       return
     }
     try {
@@ -208,26 +218,21 @@ export default function GaManagementPage() {
         <td>{formatCreatedAt(r.created_at)}</td>
         <td className="admin-table-cell--actions">
           <div className="admin-table-actions">
-            <select
+            <FormSelect
               className="admin-form-input"
               style={{ width: 'auto', minWidth: 100 }}
               value={st}
               onChange={(e) => void applyStatus(r, e.target.value as EntityStatus)}
               disabled={isLoading}
               aria-label={`${r.name} 상태`}
-            >
-              {STATUS_SELECT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <button type="button" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
+              options={STATUS_SELECT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+            />
+            <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
               수정
-            </button>
-            <button type="button" className="button button--secondary" onClick={() => void confirmDelete(r)} disabled={isLoading}>
+            </FormButton>
+            <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => void confirmDelete(r)} disabled={isLoading}>
               삭제
-            </button>
+            </FormButton>
           </div>
         </td>
       </tr>
@@ -257,26 +262,21 @@ export default function GaManagementPage() {
           <span className="admin-ga-card__value">{formatCreatedAt(r.created_at)}</span>
         </div>
         <div className="admin-ga-card__actions">
-          <select
+          <FormSelect
             className="admin-form-input"
             style={{ flex: '1 1 120px', minWidth: 0 }}
             value={st}
             onChange={(e) => void applyStatus(r, e.target.value as EntityStatus)}
             disabled={isLoading}
             aria-label={`${r.name} 상태`}
-          >
-            {STATUS_SELECT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <button type="button" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
+            options={STATUS_SELECT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
+          />
+          <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
             수정
-          </button>
-          <button type="button" className="button button--secondary" onClick={() => void confirmDelete(r)} disabled={isLoading}>
+          </FormButton>
+          <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => void confirmDelete(r)} disabled={isLoading}>
             삭제
-          </button>
+          </FormButton>
         </div>
       </article>
     )
@@ -304,8 +304,9 @@ export default function GaManagementPage() {
         className="admin-toolbar admin-ga-management__toolbar card auth-card"
         style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
       >
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
+          variant="primary"
           className="button button--primary"
           onClick={() => {
             setCreateErr('')
@@ -314,8 +315,8 @@ export default function GaManagementPage() {
           disabled={isLoading}
         >
           GA 등록
-        </button>
-        {isLoading ? <span style={{ fontSize: 14, color: 'var(--text-sub)' }}>불러오는 중…</span> : null}
+        </FormButton>
+        {isLoading ? <LoadingState message="불러오는 중…" className="m-0 text-sm text-[var(--text-sub)]" /> : null}
       </section>
 
       <div className="card admin-ga-management__table-wrap" style={{ maxWidth: 960, margin: '16px auto 0', padding: 0 }}>
@@ -346,7 +347,7 @@ export default function GaManagementPage() {
 
         <div className="admin-responsive-card-list" style={{ padding: 12 }}>
           {rows.length === 0 && !isLoading ? (
-            <p style={{ margin: 0, color: 'var(--text-sub)', padding: '8px 4px' }}>등록된 GA가 없습니다.</p>
+            <EmptyState message="등록된 GA가 없습니다." className="m-0 px-1 py-2 text-[var(--text-sub)]" />
           ) : (
             rows.map((r) => renderGaCard(r))
           )}
@@ -354,127 +355,108 @@ export default function GaManagementPage() {
       </div>
 
       {createOpen ? (
-        <div
-          className="admin-modal-backdrop"
-          role="presentation"
-          onClick={() => {
+        <FormDialog
+          open={createOpen}
+          onClose={() => {
             if (!createBusy) {
               setCreateOpen(false)
             }
           }}
+          title="GA 등록"
+          panelClassName="admin-modal-panel"
+          overlayClassName="admin-modal-backdrop"
+          closeOnBackdrop={!createBusy}
+          closeOnEsc={!createBusy}
         >
           <form
-            className="admin-modal-panel"
-            role="dialog"
-            aria-labelledby="ga-create-title"
-            onClick={(e) => e.stopPropagation()}
+            className="admin-modal-content"
             onSubmit={submitCreate}
           >
-            <h2 id="ga-create-title" style={{ marginTop: 0 }}>
-              GA 등록
-            </h2>
-            <div className="admin-modal-content">
-              {createErr ? (
-                <p className="status status--error" style={{ margin: 0 }}>
-                  {createErr}
-                </p>
-              ) : null}
-              <label className="field admin-modal-field">
-                <span className="field__label">GA 이름</span>
-                <input
-                  className="admin-form-input"
-                  value={createName}
-                  onChange={(e) => setCreateName(e.target.value)}
-                  placeholder="예: 영진에셋"
-                  required
-                  disabled={createBusy}
-                />
-              </label>
-              <label className="field admin-modal-field">
-                <span className="field__label">GA 코드</span>
-                <input
-                  className="admin-form-input"
-                  value={createCode}
-                  onChange={(e) => setCreateCode(e.target.value.toUpperCase())}
-                  placeholder="영문 대문자·숫자·밑줄 2~32자"
-                  required
-                  disabled={createBusy}
-                  autoComplete="off"
-                />
-              </label>
-            </div>
+            <StatusMessage message={createErr} tone="error" className="m-0" />
+            <FieldWrapper label="GA 이름" className="admin-modal-field">
+              <FormInput
+                className="admin-form-input"
+                value={createName}
+                onChange={(e) => setCreateName(e.target.value)}
+                placeholder="예: 영진에셋"
+                required
+                disabled={createBusy}
+              />
+            </FieldWrapper>
+            <FieldWrapper label="GA 코드" className="admin-modal-field">
+              <FormInput
+                className="admin-form-input"
+                value={createCode}
+                onChange={(e) => setCreateCode(e.target.value.toUpperCase())}
+                placeholder="영문 대문자·숫자·밑줄 2~32자"
+                required
+                disabled={createBusy}
+                autoComplete="off"
+              />
+            </FieldWrapper>
             <div className="admin-modal-actions">
-              <button type="button" className="button button--secondary" disabled={createBusy} onClick={() => setCreateOpen(false)}>
+              <FormButton htmlType="button" variant="secondary" className="button button--secondary" disabled={createBusy} onClick={() => setCreateOpen(false)}>
                 취소
-              </button>
-              <button type="submit" className="button button--primary" disabled={createBusy}>
-                {createBusy ? '저장 중…' : '저장'}
-              </button>
+              </FormButton>
+              <FormButton htmlType="submit" variant="primary" className="button button--primary" loading={createBusy} loadingText="저장 중…">
+                저장
+              </FormButton>
             </div>
           </form>
-        </div>
+        </FormDialog>
       ) : null}
 
       {editing ? (
-        <div
-          className="admin-modal-backdrop"
-          role="presentation"
-          onClick={() => {
+        <FormDialog
+          open={Boolean(editing)}
+          onClose={() => {
             if (!editBusy) {
               setEditing(null)
             }
           }}
+          title="GA 수정"
+          panelClassName="admin-modal-panel"
+          overlayClassName="admin-modal-backdrop"
+          closeOnBackdrop={!editBusy}
+          closeOnEsc={!editBusy}
         >
           <form
-            className="admin-modal-panel"
-            role="dialog"
-            aria-labelledby="ga-edit-title"
-            onClick={(e) => e.stopPropagation()}
+            className="admin-modal-content"
             onSubmit={submitEdit}
           >
-            <h2 id="ga-edit-title" style={{ marginTop: 0 }}>
-              GA 수정
-            </h2>
-            <div className="admin-modal-content">
-              {editErr ? (
-                <p className="status status--error" style={{ margin: 0 }}>
-                  {editErr}
-                </p>
-              ) : null}
-              <label className="field admin-modal-field">
-                <span className="field__label">GA 이름</span>
-                <input
-                  className="admin-form-input"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder="GA 이름"
-                  required
-                  disabled={editBusy}
-                />
-              </label>
-              <label className="field admin-modal-field">
-                <span className="field__label">GA 코드</span>
-                <input
-                  className="admin-form-input"
-                  value={editCode}
-                  onChange={(e) => setEditCode(e.target.value.toUpperCase())}
-                  placeholder="GA 코드"
-                  required
-                  disabled={editBusy}
-                />
-              </label>
-            </div>
+            <StatusMessage message={editErr} tone="error" className="m-0" />
+            <FieldWrapper label="GA 이름" className="admin-modal-field">
+              <FormInput
+                className="admin-form-input"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="GA 이름"
+                required
+                disabled={editBusy}
+              />
+            </FieldWrapper>
+            <FieldWrapper label="GA 코드" className="admin-modal-field">
+              <FormInput
+                className="admin-form-input"
+                value={editCode}
+                onChange={(e) => setEditCode(e.target.value.toUpperCase())}
+                placeholder="GA 코드"
+                required
+                disabled={editBusy}
+              />
+            </FieldWrapper>
             <div className="admin-modal-actions">
-              <button type="button" className="button button--secondary" disabled={editBusy} onClick={() => setEditing(null)}>
+              <FormButton htmlType="button" variant="secondary" className="button button--secondary" disabled={editBusy} onClick={() => setEditing(null)}>
                 취소
-              </button>
-              <button type="submit" className="button button--primary" disabled={editBusy}>
-                {editBusy ? '저장 중…' : '저장'}
-              </button>
+              </FormButton>
+              <FormButton htmlType="submit" variant="primary" className="button button--primary" loading={editBusy} loadingText="저장 중…">
+                저장
+              </FormButton>
             </div>
           </form>
-        </div>
+        </FormDialog>
       ) : null}
+      {confirmDialog}
     </main>
   )
 }

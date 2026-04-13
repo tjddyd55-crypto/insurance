@@ -1,3 +1,4 @@
+import { FormButton, FormInput, FormSelect } from '../../../components/form'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -163,7 +164,7 @@ export default function GeneralRequestPage() {
           ) : null}
           <label className="field">
             <span className="field__label">보험 종류</span>
-            <select
+            <FormSelect
               className="field__control"
               value={selectedType}
               disabled={readOnlyUi}
@@ -171,38 +172,34 @@ export default function GeneralRequestPage() {
                 setSelectedType(e.target.value as InsuranceCategory | '')
                 setSelectedCompanyCode('')
               }}
-            >
-              <option value="">선택</option>
-              {INSURANCE_TYPE_ORDER.map((v) => (
-                <option key={v} value={v}>
-                  {INSURANCE_TYPE_LABELS[v]}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: '선택' },
+                ...INSURANCE_TYPE_ORDER.map((v) => ({ value: v, label: INSURANCE_TYPE_LABELS[v] })),
+              ]}
+            />
           </label>
           <label className="field">
             <span className="field__label">보험사</span>
-            <select
+            <FormSelect
               className="field__control"
               value={selectedCompanyCode}
               onChange={(e) => setSelectedCompanyCode(String(e.target.value ?? ''))}
               disabled={readOnlyUi || !selectedType}
-            >
-              <option value="">선택</option>
-              {companyOptions.map((row) => (
-                <option key={row.companyCode} value={row.companyCode}>
-                  {row.name}
-                  {!/^INS\d+$/.test(row.companyCode) ? ' (등록 후 저장 필요)' : ''}
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: '', label: '선택' },
+                ...companyOptions.map((row) => ({
+                  value: row.companyCode,
+                  label: `${row.name}${!/^INS\d+$/.test(row.companyCode) ? ' (등록 후 저장 필요)' : ''}`,
+                })),
+              ]}
+            />
           </label>
 
           <h3 className="company-registry-subtitle">의뢰 연락처 (선택)</h3>
           <div className="field-grid-customers">
             <label className="field field--wide">
               <span className="field__label">설명</span>
-              <input
+              <FormInput
                 className="field__control"
                 value={general.description}
                 disabled={readOnlyUi}
@@ -211,7 +208,7 @@ export default function GeneralRequestPage() {
             </label>
             <label className="field">
               <span className="field__label">전화</span>
-              <input
+              <FormInput
                 className="field__control"
                 value={general.phone}
                 disabled={readOnlyUi}
@@ -220,7 +217,7 @@ export default function GeneralRequestPage() {
             </label>
             <label className="field">
               <span className="field__label">팩스</span>
-              <input
+              <FormInput
                 className="field__control"
                 value={general.fax}
                 disabled={readOnlyUi}
@@ -229,7 +226,7 @@ export default function GeneralRequestPage() {
             </label>
             <label className="field">
               <span className="field__label">이메일</span>
-              <input
+              <FormInput
                 className="field__control"
                 value={general.email}
                 disabled={readOnlyUi}
@@ -239,14 +236,14 @@ export default function GeneralRequestPage() {
           </div>
 
           {!readOnlyUi ? (
-            <button
+            <FormButton
               className="button button--primary button--full"
-              type="button"
+              htmlType="button"
               disabled={isSaving || !selectedType || !selectedCompanyCode}
               onClick={() => void handleSave()}
             >
               {isSaving ? '저장 중…' : '저장'}
-            </button>
+            </FormButton>
           ) : null}
         </section>
       ) : (

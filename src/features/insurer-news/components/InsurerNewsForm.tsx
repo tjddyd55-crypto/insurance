@@ -1,3 +1,4 @@
+import { FormButton, FormTextarea } from '../../../components/form'
 import { useState } from 'react'
 import { ApiError } from '../../../lib/apiClient'
 import { useInsurerNewsForm } from '../hooks/useInsurerNewsForm'
@@ -145,7 +146,7 @@ export function InsurerNewsForm({
 
       <label className="field">
         <span className="field__label">내용</span>
-        <textarea
+        <FormTextarea
           value={form.bodyText}
           onChange={(e) => form.setBodyText(e.target.value)}
           rows={8}
@@ -190,21 +191,32 @@ export function InsurerNewsForm({
                   {row.errorMessage ? ` — ${row.errorMessage}` : ''}
                 </p>
               </div>
-              <button type="button" className="button button--secondary" onClick={() => form.removeAttachment(row.localId)}>
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                className="button button--secondary"
+                onClick={() => form.removeAttachment(row.localId)}
+              >
                 삭제
-              </button>
+              </FormButton>
             </div>
           ))}
         </div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap', marginTop: 20 }}>
-        <button type="button" className="button button--secondary" onClick={onCancel} disabled={Boolean(busyMessage)}>
+        <FormButton
+          htmlType="button"
+          variant="secondary"
+          className="button button--secondary"
+          onClick={onCancel}
+          disabled={Boolean(busyMessage)}
+        >
           취소
-        </button>
-        <button type="submit" className="button button--primary" disabled={Boolean(busyMessage)}>
+        </FormButton>
+        <FormButton htmlType="submit" variant="primary" className="button button--primary" disabled={Boolean(busyMessage)}>
           {mode === 'create' ? '등록' : '저장'}
-        </button>
+        </FormButton>
       </div>
     </form>
   )

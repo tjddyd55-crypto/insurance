@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   useCallback,
@@ -225,12 +226,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     if (!session.user.role || session.user.gaId == null) {
       console.warn('세션 불완전 → 재로그인 필요')
-      logout()
+      queueMicrotask(() => {
+        logout()
+      })
       return
     }
     if (session.user.role === 'INSURER_MANAGER' && (session.user.companyId == null || session.user.companyId < 1)) {
       console.warn('채널 담당자 세션에 companyId 없음 → 재로그인 필요')
-      logout()
+      queueMicrotask(() => {
+        logout()
+      })
     }
   }, [session, logout])
 

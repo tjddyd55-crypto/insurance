@@ -138,7 +138,6 @@ export function ApplicationFormPage() {
 
   useEffect(() => {
     let active = true
-    setIsLoading(true)
 
     async function loadInitialData() {
       const mode = new URLSearchParams(location.search).get('mode')
@@ -196,7 +195,13 @@ export function ApplicationFormPage() {
       setIsLoading(false)
     }
 
-    void loadInitialData()
+    queueMicrotask(() => {
+      if (!active) {
+        return
+      }
+      setIsLoading(true)
+      void loadInitialData()
+    })
     return () => {
       active = false
     }

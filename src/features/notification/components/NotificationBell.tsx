@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
 import { fetchUnreadCount } from '../api/notificationApi'
@@ -31,12 +32,16 @@ export function NotificationBell() {
   }, [isNewsManager, token])
 
   useEffect(() => {
-    void refreshUnread()
+    queueMicrotask(() => {
+      void refreshUnread()
+    })
   }, [refreshUnread])
 
   useEffect(() => {
     function onFocus() {
-      void refreshUnread()
+      queueMicrotask(() => {
+        void refreshUnread()
+      })
     }
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
@@ -44,7 +49,9 @@ export function NotificationBell() {
 
   useEffect(() => {
     function onRefreshSignal() {
-      void refreshUnread()
+      queueMicrotask(() => {
+        void refreshUnread()
+      })
     }
     window.addEventListener(NOTIFICATION_REFRESH_EVENT, onRefreshSignal)
     return () => window.removeEventListener(NOTIFICATION_REFRESH_EVENT, onRefreshSignal)
@@ -70,8 +77,9 @@ export function NotificationBell() {
 
   return (
     <div ref={wrapRef} className="relative inline-flex items-center">
-      <button
-        type="button"
+      <FormButton
+        htmlType="button"
+        variant="action"
         className="app-tenant-ga-bar__notification-trigger"
         aria-expanded={open}
         aria-haspopup="true"
@@ -92,7 +100,7 @@ export function NotificationBell() {
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         ) : null}
-      </button>
+      </FormButton>
       {open ? (
         <div
           className="notification-panel"

@@ -1,4 +1,5 @@
 import { type CSSProperties, type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { FormInput, FormTextarea, FormButton } from '../../../components/form'
 import { Button } from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
 import { ApiError } from '../../../lib/apiClient'
@@ -218,8 +219,8 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
                 >
                   {text || '—'}
                 </div>
-                <button
-                  type="button"
+                <FormButton
+                  htmlType="button"
                   aria-label="상담 삭제"
                   title="삭제"
                   style={{
@@ -235,7 +236,7 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
                   onClick={() => void onDelete(r)}
                 >
                   ×
-                </button>
+                </FormButton>
               </li>
             )
           })}
@@ -243,15 +244,15 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
       )}
 
       {hasMore ? (
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
           className="filter-button"
           style={{ marginTop: 10, ...compactBtn }}
           disabled={loading}
           onClick={() => void fetchPage(rows.length, true)}
         >
           {loading ? '불러오는 중…' : '이전 상담 더 보기'}
-        </button>
+        </FormButton>
       ) : null}
 
       <Modal
@@ -263,7 +264,7 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
         <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">상담 입력</div>
         <form onSubmit={(ev) => void onModalSubmit(ev)}>
           <div className="mb-2">
-            <input
+            <FormInput
               type="date"
               className="field__control w-full box-border"
               value={consultDate}
@@ -274,7 +275,7 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
               비워 두면 오늘 날짜로 저장됩니다.
             </p>
           </div>
-          <textarea
+          <FormTextarea
             ref={draftTextareaRef}
             className="field__control w-full box-border min-h-[120px] mb-2"
             rows={4}

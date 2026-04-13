@@ -1,3 +1,4 @@
+import { FormButton, FormInput } from '../../../components/form'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../AuthProvider'
@@ -84,7 +85,7 @@ export function LoginPage() {
         <form className="auth-form" style={{ marginTop: '1rem' }} onSubmit={(e) => void handleLogin(e)}>
           <label className="field">
             <span className="field__label">아이디</span>
-            <input
+            <FormInput
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               autoComplete="username"
@@ -94,7 +95,7 @@ export function LoginPage() {
 
           <label className="field">
             <span className="field__label">비밀번호</span>
-            <input
+            <FormInput
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
@@ -105,9 +106,9 @@ export function LoginPage() {
 
           {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
 
-          <button className="button button--primary button--full" type="submit" disabled={isSubmitting}>
+          <FormButton className="button button--primary button--full" htmlType="submit" variant="primary" disabled={isSubmitting}>
             {isSubmitting ? '로그인 중...' : '로그인'}
-          </button>
+          </FormButton>
         </form>
 
         <div className="switch-text">

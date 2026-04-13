@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import { FormDialog, useConfirmDialog } from '../../../components/dialog'
+import { EmptyState, StatusMessage } from '../../../components/feedback'
+import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
 import { listCompanyDirectory } from '../../company-registry/api/companyRegistryApi'
 import type { CompanyDirectoryEntry } from '../../company-registry/domain/types'
 import { canonicalInsuranceCategoryForFilter } from '../../company-registry/domain/categoryUtils'
@@ -169,6 +172,7 @@ function configFor(kind: ManagerChannelKind): ManagerPageConfig {
 
 export default function InsurerManagersPage({ managerKind = 'insurer' }: { managerKind?: ManagerChannelKind }) {
   const { user, token } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const config = useMemo(() => configFor(managerKind), [managerKind])
   const isLossAdjusterMode = managerKind === 'lossAdjuster'
   const gaCode = user?.gaCode?.trim() ?? ''
@@ -315,7 +319,13 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
     if (!token || !canDelete) {
       return
     }
-    if (!window.confirm(config.deleteConfirm(row.insurerName))) {
+    const confirmed = await confirm({
+      title: '계정 삭제',
+      message: config.deleteConfirm(row.insurerName),
+      confirmLabel: '삭제',
+      tone: 'danger',
+    })
+    if (!confirmed) {
       return
     }
     setLoadErr('')
@@ -366,14 +376,15 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
         <p style={{ color: 'var(--text-sub)', margin: 0 }}>{config.description}</p>
       </header>
 
-      {loadErr ? <p className="status status--error">{loadErr}</p> : null}
+      <StatusMessage message={loadErr} tone="error" />
 
       <section
         className="admin-toolbar card auth-card"
         style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
       >
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
+          variant="primary"
           className="button button--primary"
           onClick={() => {
             setFormErr('')
@@ -383,7 +394,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
           }}
         >
           등록
-        </button>
+        </FormButton>
       </section>
 
       <div className="card" style={{ maxWidth: 960, margin: '16px auto 0', padding: 0 }}>
@@ -416,29 +427,24 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
                     <td>
                       <div className="admin-table-actions" style={{ alignItems: 'center' }}>
                         <StatusBadge status={r.status} />
-                        <select
+                        <FormSelect
                           className="admin-form-input"
                           style={{ width: 'auto', minWidth: 120 }}
                           value={r.status}
                           onChange={(e) => void applyStatus(r, e.target.value as InsurerManagerStatus)}
                           aria-label={`${r.username} 상태`}
-                        >
-                          {STATUS_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
+                          options={STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                        />
                       </div>
                     </td>
                     <td className="admin-table-cell--actions">
-                      <button type="button" className="button button--secondary" onClick={() => openEdit(r)}>
+                      <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)}>
                         수정
-                      </button>
+                      </FormButton>
                       {canDelete ? (
-                        <button type="button" className="button button--secondary" onClick={() => void removeManager(r)}>
+                        <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => void removeManager(r)}>
                           삭제
-                        </button>
+                        </FormButton>
                       ) : null}
                     </td>
                   </tr>
@@ -450,7 +456,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
 
         <div className="admin-responsive-card-list" style={{ padding: 12 }}>
           {rows.length === 0 ? (
-            <p style={{ margin: 0, color: 'var(--text-sub)' }}>{config.listEmpty}</p>
+            <EmptyState message={config.listEmpty} className="m-0 text-[var(--text-sub)]" />
           ) : (
             rows.map((r) => (
               <article key={r.id} className="admin-user-card">
@@ -479,25 +485,20 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
                   </span>
                 </div>
                 <div className="admin-user-card__actions">
-                  <select
+                  <FormSelect
                     className="admin-form-input"
                     style={{ flex: '1 1 140px', minWidth: 0 }}
                     value={r.status}
                     onChange={(e) => void applyStatus(r, e.target.value as InsurerManagerStatus)}
-                  >
-                    {STATUS_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                  <button type="button" className="button button--secondary" onClick={() => openEdit(r)}>
+                    options={STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                  />
+                  <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)}>
                     수정
-                  </button>
+                  </FormButton>
                   {canDelete ? (
-                    <button type="button" className="button button--secondary" onClick={() => void removeManager(r)}>
+                    <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => void removeManager(r)}>
                       삭제
-                    </button>
+                    </FormButton>
                   ) : null}
                 </div>
               </article>
@@ -507,233 +508,194 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
       </div>
 
       {registerOpen ? (
-        <div className="admin-modal-backdrop" role="presentation">
-          <form
-            className="admin-modal-panel"
-            role="dialog"
-            aria-labelledby="im-create-title"
-            onClick={(ev) => ev.stopPropagation()}
-            onSubmit={(ev) => void submitCreate(ev)}
-          >
-            <h2 id="im-create-title" style={{ marginTop: 0 }}>
-              {config.createTitle}
-            </h2>
-            <div className="admin-modal-content">
-              {formErr ? <p className="status status--error" style={{ margin: 0 }}>{formErr}</p> : null}
-              {isLossAdjusterMode ? (
-                <>
-                  <label className="field admin-modal-field">
-                    <span className="field__label">회사명</span>
-                    <input
-                      className="admin-form-input"
-                      value={form.companyName}
-                      onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
-                      required
-                      autoComplete="off"
-                    />
-                  </label>
-                  <label className="field admin-modal-field">
-                    <span className="field__label">손해사정사 이름</span>
-                    <input
-                      className="admin-form-input"
-                      value={form.adjusterName}
-                      onChange={(e) => setForm((f) => ({ ...f, adjusterName: e.target.value }))}
-                      required
-                      autoComplete="off"
-                    />
-                  </label>
-                </>
-              ) : (
-                <>
-                  <label className="field admin-modal-field">
-                    <span className="field__label">보험사 유형</span>
-                    <select
-                      className="admin-form-input"
-                      required
-                      value={form.insurerType}
-                      onChange={(e) => {
-                        const t = e.target.value as InsurerManagerType
-                        setForm((f) => ({
-                          ...f,
-                          insurerType: t,
-                          companyId: 0,
-                        }))
-                      }}
-                    >
-                      {TYPE_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field admin-modal-field">
-                    <span className="field__label">{config.entityLabel} (DB 마스터)</span>
-                    <select
-                      className="admin-form-input"
-                      required
-                      value={form.companyId || ''}
-                      onChange={(e) => setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))}
-                    >
-                      <option value="">선택</option>
-                      {masterChoices.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </>
-              )}
-              <label className="field admin-modal-field">
-                <span className="field__label">아이디</span>
-                <input
-                  className="admin-form-input"
-                  value={form.username}
-                  onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-                  required
-                  autoComplete="off"
-                />
-              </label>
-              <label className="field admin-modal-field">
-                <span className="field__label">비밀번호</span>
-                <input
-                  className="admin-form-input"
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  required
-                  autoComplete="new-password"
-                />
-              </label>
-            </div>
+        <FormDialog
+          open={registerOpen}
+          onClose={closeModals}
+          title={config.createTitle}
+          panelClassName="admin-modal-panel"
+          overlayClassName="admin-modal-backdrop"
+          closeOnBackdrop={!saving}
+          closeOnEsc={!saving}
+        >
+          <form className="admin-modal-content" onSubmit={(ev) => void submitCreate(ev)}>
+            <StatusMessage message={formErr} tone="error" className="m-0" />
+            {isLossAdjusterMode ? (
+              <>
+                <FieldWrapper label="회사명" className="admin-modal-field">
+                  <FormInput
+                    className="admin-form-input"
+                    value={form.companyName}
+                    onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
+                    required
+                    autoComplete="off"
+                  />
+                </FieldWrapper>
+                <FieldWrapper label="손해사정사 이름" className="admin-modal-field">
+                  <FormInput
+                    className="admin-form-input"
+                    value={form.adjusterName}
+                    onChange={(e) => setForm((f) => ({ ...f, adjusterName: e.target.value }))}
+                    required
+                    autoComplete="off"
+                  />
+                </FieldWrapper>
+              </>
+            ) : (
+              <>
+                <FieldWrapper label="보험사 유형" className="admin-modal-field">
+                  <FormSelect
+                    className="admin-form-input"
+                    required
+                    value={form.insurerType}
+                    onChange={(e) => {
+                      const t = e.target.value as InsurerManagerType
+                      setForm((f) => ({
+                        ...f,
+                        insurerType: t,
+                        companyId: 0,
+                      }))
+                    }}
+                    options={TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                  />
+                </FieldWrapper>
+                <FieldWrapper label={`${config.entityLabel} (DB 마스터)`} className="admin-modal-field">
+                  <FormSelect
+                    className="admin-form-input"
+                    required
+                    value={form.companyId ? String(form.companyId) : ''}
+                    onChange={(e) => setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))}
+                    options={[{ value: '', label: '선택' }, ...masterChoices.map((c) => ({ value: String(c.id), label: c.name }))]}
+                  />
+                </FieldWrapper>
+              </>
+            )}
+            <FieldWrapper label="아이디" className="admin-modal-field">
+              <FormInput
+                className="admin-form-input"
+                value={form.username}
+                onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+                required
+                autoComplete="off"
+              />
+            </FieldWrapper>
+            <FieldWrapper label="비밀번호" className="admin-modal-field">
+              <FormInput
+                className="admin-form-input"
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                required
+                autoComplete="new-password"
+              />
+            </FieldWrapper>
             <div className="admin-modal-actions">
-              <button type="button" className="button button--secondary" onClick={closeModals} disabled={saving}>
+              <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={closeModals} disabled={saving}>
                 취소
-              </button>
-              <button type="submit" className="button button--primary" disabled={saving}>
-                {saving ? '저장 중…' : '저장'}
-              </button>
+              </FormButton>
+              <FormButton htmlType="submit" variant="primary" className="button button--primary" loading={saving} loadingText="저장 중…">
+                저장
+              </FormButton>
             </div>
           </form>
-        </div>
+        </FormDialog>
       ) : null}
 
       {editing ? (
-        <div className="admin-modal-backdrop" role="presentation">
-          <form
-            className="admin-modal-panel"
-            role="dialog"
-            aria-labelledby="im-edit-title"
-            onClick={(ev) => ev.stopPropagation()}
-            onSubmit={(ev) => void submitEdit(ev)}
-          >
-            <h2 id="im-edit-title" style={{ marginTop: 0 }}>
-              {config.editTitle}
-            </h2>
-            <div className="admin-modal-content">
-              {formErr ? <p className="status status--error" style={{ margin: 0 }}>{formErr}</p> : null}
-              <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--text-sub)' }}>
-                비밀번호는 비워 두면 기존 값이 유지되며, 입력한 경우에만 변경됩니다.
-              </p>
-              {isLossAdjusterMode ? (
-                <>
-                  <label className="field admin-modal-field">
-                    <span className="field__label">회사명</span>
-                    <input
-                      className="admin-form-input"
-                      value={form.companyName}
-                      onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
-                      required
-                      autoComplete="off"
-                    />
-                  </label>
-                  <label className="field admin-modal-field">
-                    <span className="field__label">손해사정사 이름</span>
-                    <input
-                      className="admin-form-input"
-                      value={form.adjusterName}
-                      onChange={(e) => setForm((f) => ({ ...f, adjusterName: e.target.value }))}
-                      required
-                      autoComplete="off"
-                    />
-                  </label>
-                </>
-              ) : (
-                <>
-                  <label className="field admin-modal-field">
-                    <span className="field__label">보험사 유형</span>
-                    <select
-                      className="admin-form-input"
-                      required
-                      value={form.insurerType}
-                      onChange={(e) => {
-                        const t = e.target.value as InsurerManagerType
-                        setForm((f) => ({
-                          ...f,
-                          insurerType: t,
-                          companyId: 0,
-                        }))
-                      }}
-                    >
-                      {TYPE_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field admin-modal-field">
-                    <span className="field__label">{config.entityLabel} (DB 마스터)</span>
-                    <select
-                      className="admin-form-input"
-                      required
-                      value={form.companyId || ''}
-                      onChange={(e) => setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))}
-                    >
-                      <option value="">선택</option>
-                      {masterChoices.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </>
-              )}
-              <label className="field admin-modal-field">
-                <span className="field__label">아이디</span>
-                <input
-                  className="admin-form-input"
-                  value={form.username}
-                  onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-                  required
-                  autoComplete="off"
-                />
-              </label>
-              <label className="field admin-modal-field">
-                <span className="field__label">비밀번호 (변경 시만 입력)</span>
-                <input
-                  className="admin-form-input"
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                  autoComplete="new-password"
-                  placeholder="비워 두면 유지"
-                />
-              </label>
-            </div>
+        <FormDialog
+          open={Boolean(editing)}
+          onClose={closeModals}
+          title={config.editTitle}
+          panelClassName="admin-modal-panel"
+          overlayClassName="admin-modal-backdrop"
+          closeOnBackdrop={!saving}
+          closeOnEsc={!saving}
+        >
+          <form className="admin-modal-content" onSubmit={(ev) => void submitEdit(ev)}>
+            <StatusMessage message={formErr} tone="error" className="m-0" />
+            <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--text-sub)' }}>
+              비밀번호는 비워 두면 기존 값이 유지되며, 입력한 경우에만 변경됩니다.
+            </p>
+            {isLossAdjusterMode ? (
+              <>
+                <FieldWrapper label="회사명" className="admin-modal-field">
+                  <FormInput
+                    className="admin-form-input"
+                    value={form.companyName}
+                    onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
+                    required
+                    autoComplete="off"
+                  />
+                </FieldWrapper>
+                <FieldWrapper label="손해사정사 이름" className="admin-modal-field">
+                  <FormInput
+                    className="admin-form-input"
+                    value={form.adjusterName}
+                    onChange={(e) => setForm((f) => ({ ...f, adjusterName: e.target.value }))}
+                    required
+                    autoComplete="off"
+                  />
+                </FieldWrapper>
+              </>
+            ) : (
+              <>
+                <FieldWrapper label="보험사 유형" className="admin-modal-field">
+                  <FormSelect
+                    className="admin-form-input"
+                    required
+                    value={form.insurerType}
+                    onChange={(e) => {
+                      const t = e.target.value as InsurerManagerType
+                      setForm((f) => ({
+                        ...f,
+                        insurerType: t,
+                        companyId: 0,
+                      }))
+                    }}
+                    options={TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                  />
+                </FieldWrapper>
+                <FieldWrapper label={`${config.entityLabel} (DB 마스터)`} className="admin-modal-field">
+                  <FormSelect
+                    className="admin-form-input"
+                    required
+                    value={form.companyId ? String(form.companyId) : ''}
+                    onChange={(e) => setForm((f) => ({ ...f, companyId: Number(e.target.value) || 0 }))}
+                    options={[{ value: '', label: '선택' }, ...masterChoices.map((c) => ({ value: String(c.id), label: c.name }))]}
+                  />
+                </FieldWrapper>
+              </>
+            )}
+            <FieldWrapper label="아이디" className="admin-modal-field">
+              <FormInput
+                className="admin-form-input"
+                value={form.username}
+                onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+                required
+                autoComplete="off"
+              />
+            </FieldWrapper>
+            <FieldWrapper label="비밀번호 (변경 시만 입력)" className="admin-modal-field">
+              <FormInput
+                className="admin-form-input"
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                autoComplete="new-password"
+                placeholder="비워 두면 유지"
+              />
+            </FieldWrapper>
             <div className="admin-modal-actions">
-              <button type="button" className="button button--secondary" onClick={closeModals} disabled={saving}>
+              <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={closeModals} disabled={saving}>
                 취소
-              </button>
-              <button type="submit" className="button button--primary" disabled={saving}>
-                {saving ? '저장 중…' : '저장'}
-              </button>
+              </FormButton>
+              <FormButton htmlType="submit" variant="primary" className="button button--primary" loading={saving} loadingText="저장 중…">
+                저장
+              </FormButton>
             </div>
           </form>
-        </div>
+        </FormDialog>
       ) : null}
+      {confirmDialog}
     </main>
   )
 }

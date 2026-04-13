@@ -57,8 +57,6 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
 export function buildGaTenantDashboardMenu(
   gaCode: string | undefined,
   gaName: string | undefined,
-  /** @deprecated 프로필은 상단 GA 바에서 진입 */
-  _includeProfile = false,
 ): GaTenantDashboardMenuEntry[] {
   const items: GaTenantDashboardMenuEntry[] = [
     { type: 'link', label: '고객 관리', path: '/customers' },

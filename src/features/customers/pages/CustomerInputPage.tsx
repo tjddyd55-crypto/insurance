@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
+import { FormButton } from '../../../components/form'
 import { PublicPageBackButton } from '../../../components/PublicPageBackButton'
 import { resolveApiUrl } from '../../../lib/apiClient'
 import {
@@ -170,33 +171,37 @@ export default function CustomerInputPage() {
             />
             {customers.length > 1 ? (
               <div style={{ marginTop: 12 }}>
-                <button
+                <FormButton
                   className="button button--secondary"
-                  type="button"
+                  htmlType="button"
+                  variant="secondary"
                   onClick={() => removeCustomerAt(index)}
                 >
                   이 고객 칸 삭제
-                </button>
+                </FormButton>
               </div>
             ) : null}
           </div>
         ))}
 
         <div className="add-btn-wrap">
-          <button className="button button--secondary" type="button" onClick={addCustomerRow}>
+          <FormButton className="button button--secondary" htmlType="button" variant="secondary" onClick={addCustomerRow}>
             + 고객 추가
-          </button>
+          </FormButton>
         </div>
 
-        <button
+        <FormButton
           className="button button--primary button--full"
-          type="button"
+          htmlType="button"
+          variant="primary"
           disabled={isSubmitting}
           onClick={handleSubmit}
           style={{ marginTop: 8 }}
+          loading={isSubmitting}
+          loadingText="전송 중…"
         >
-          {isSubmitting ? '전송 중…' : '전송'}
-        </button>
+          전송
+        </FormButton>
       </div>
     </main>
   )

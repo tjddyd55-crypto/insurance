@@ -1,3 +1,4 @@
+import { FormButton } from '../../../components/form'
 type Props = {
   onDownloadSample: () => void
 }
@@ -122,9 +123,9 @@ export function ExcelUploadGuide({ onDownloadSample }: Props) {
         <strong>중요:</strong> 컬럼명, 순서, 빈칸 규칙이 다르면 업로드에 실패할 수 있습니다.
       </div>
 
-      <button type="button" className="intro-btn intro-btn--secondary" onClick={onDownloadSample}>
+      <FormButton htmlType="button" className="intro-btn intro-btn--secondary" onClick={onDownloadSample}>
         샘플 파일 다운로드
-      </button>
+      </FormButton>
 
       <div className="intro-prompt-wrap">
         <h3 className="intro-guide-title">GPT 변환 요청 방법</h3>

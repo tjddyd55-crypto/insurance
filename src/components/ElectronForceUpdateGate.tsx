@@ -1,3 +1,4 @@
+import { FormButton } from './form'
 import { useEffect, useState, type ReactNode } from 'react'
 import { isElectronApp } from '../lib/isElectronApp'
 
@@ -62,13 +63,13 @@ export function ElectronForceUpdateGate({ children }: { children: ReactNode }) {
           {'\uCD5C\uC2E0 \uBC84\uC804\uC744 \uBC1B\uC740 \uD6C4 \uC7AC\uC2DC\uC791\uD558\uC138\uC694.'}
         </p>
         <div className="electron-force-update-gate__actions">
-          <button type="button" className="button button--secondary" onClick={onCheck}>
+          <FormButton htmlType="button" className="button button--secondary" onClick={onCheck}>
             {'\uC5C5\uB370\uC774\uD2B8 \uD655\uC778'}
-          </button>
+          </FormButton>
           {updateReady ? (
-            <button type="button" className="button" onClick={onInstall}>
+            <FormButton htmlType="button" className="button" onClick={onInstall}>
               {'\uC9C0\uAE08 \uC7AC\uC2DC\uC791\uD558\uC5EC \uC5C5\uB370\uC774\uD2B8'}
-            </button>
+            </FormButton>
           ) : null}
         </div>
       </div>

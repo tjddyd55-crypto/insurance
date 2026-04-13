@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { FormInput } from '../../../components/form'
 import { Button } from '../../../components/ui'
 import { useAuth } from '../../auth/AuthProvider'
 import { fetchTeamMembers } from '../api/teamApi'
@@ -82,7 +83,7 @@ export default function TeamMenuManagePage() {
 
         <div className="border-t border-[var(--border-default)] pt-3 space-y-3">
           <label className="flex items-start gap-2 text-sm text-[var(--text-primary)] cursor-pointer">
-            <input
+            <FormInput
               type="checkbox"
               className="mt-1 shrink-0"
               checked={menus.notice}
@@ -98,7 +99,7 @@ export default function TeamMenuManagePage() {
           </label>
 
           <label className="flex items-start gap-2 text-sm text-[var(--text-primary)] cursor-pointer">
-            <input
+            <FormInput
               type="checkbox"
               className="mt-1 shrink-0"
               checked={menus.board}
@@ -114,7 +115,7 @@ export default function TeamMenuManagePage() {
           </label>
 
           <label className="flex items-start gap-2 text-sm text-[var(--text-primary)] cursor-pointer">
-            <input
+            <FormInput
               type="checkbox"
               className="mt-1 shrink-0"
               checked={menus.image}
@@ -130,7 +131,7 @@ export default function TeamMenuManagePage() {
           </label>
 
           <label className="flex items-start gap-2 text-sm text-[var(--text-primary)] cursor-pointer">
-            <input
+            <FormInput
               type="checkbox"
               className="mt-1 shrink-0"
               checked={menus.list}

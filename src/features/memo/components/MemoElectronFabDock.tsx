@@ -1,3 +1,4 @@
+import { FormButton } from '../../../components/form'
 import { useEffect, useRef, useState } from 'react'
 import { useMemoWorkspace } from '../context/MemoWorkspaceContext'
 
@@ -38,8 +39,8 @@ export function MemoElectronFabDock({
 
   return (
     <div className="memo-electron-fab-dock" ref={wrapRef}>
-      <button
-        type="button"
+      <FormButton
+        htmlType="button"
         className="memo-fab memo-fab--electron-dock"
         aria-label={'\uBA54\uBAA8 \uB354\uBCF4\uAE30'}
         aria-expanded={menuOpen}
@@ -47,11 +48,11 @@ export function MemoElectronFabDock({
         onClick={() => setMenuOpen((v) => !v)}
       >
         +
-      </button>
+      </FormButton>
       {menuOpen ? (
         <div className="memo-fab-menu" role="menu">
-          <button
-            type="button"
+          <FormButton
+            htmlType="button"
             role="menuitem"
             className="memo-fab-menu__item"
             onClick={() => {
@@ -60,10 +61,10 @@ export function MemoElectronFabDock({
             }}
           >
             메모 추가
-          </button>
+          </FormButton>
           {!isMobile ? (
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
               role="menuitem"
               className="memo-fab-menu__item"
               onClick={() => {
@@ -72,11 +73,11 @@ export function MemoElectronFabDock({
               }}
             >
               메모 전체화면 on/off
-            </button>
+            </FormButton>
           ) : null}
           {!isMobile ? (
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
               role="menuitem"
               className="memo-fab-menu__item"
               onClick={() => {
@@ -85,7 +86,7 @@ export function MemoElectronFabDock({
               }}
             >
               메모 최소화 on/off
-            </button>
+            </FormButton>
           ) : null}
         </div>
       ) : null}

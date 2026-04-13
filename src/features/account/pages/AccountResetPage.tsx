@@ -1,3 +1,4 @@
+import { FormButton, FormInput } from '../../../components/form'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
@@ -22,31 +23,29 @@ export function AccountResetPage() {
   const [resendLeft, setResendLeft] = useState(0)
   const [debugCodeHint, setDebugCodeHint] = useState('')
 
-  if (user?.role !== 'USER') {
-    return <Navigate to="/dashboard" replace />
-  }
-
   const phoneDigits = normalizeKrMobile(phoneInput)
 
+  const secondsTimerActive = secondsLeft > 0
   useEffect(() => {
-    if (secondsLeft <= 0) {
+    if (!secondsTimerActive) {
       return
     }
     const t = window.setInterval(() => {
       setSecondsLeft((s) => (s <= 1 ? 0 : s - 1))
     }, 1000)
     return () => window.clearInterval(t)
-  }, [secondsLeft > 0])
+  }, [secondsTimerActive])
 
+  const resendTimerActive = resendLeft > 0
   useEffect(() => {
-    if (resendLeft <= 0) {
+    if (!resendTimerActive) {
       return
     }
     const t = window.setInterval(() => {
       setResendLeft((s) => (s <= 1 ? 0 : s - 1))
     }, 1000)
     return () => window.clearInterval(t)
-  }, [resendLeft > 0])
+  }, [resendTimerActive])
 
   const sendCode = useCallback(async () => {
     if (!token) {
@@ -85,6 +84,10 @@ export function AccountResetPage() {
       setSubmitting(false)
     }
   }, [phoneDigits, token])
+
+  if (user?.role !== 'USER') {
+    return <Navigate to="/dashboard" replace />
+  }
 
   const onSubmitStep1 = (e: FormEvent) => {
     e.preventDefault()
@@ -153,7 +156,7 @@ export function AccountResetPage() {
           <form className="auth-form" onSubmit={onSubmitStep1}>
             <label className="field">
               <span className="field__label">등록 휴대폰 번호</span>
-              <input
+              <FormInput
                 value={phoneInput}
                 onChange={(ev) => setPhoneInput(ev.target.value)}
                 inputMode="numeric"
@@ -164,9 +167,9 @@ export function AccountResetPage() {
             </label>
             {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
             {infoMessage ? <p className="status">{infoMessage}</p> : null}
-            <button className="button button--primary button--full" type="submit" disabled={submitting}>
+            <FormButton className="button button--primary button--full" htmlType="submit" disabled={submitting}>
               {submitting ? '요청 중…' : '인증번호 요청'}
-            </button>
+            </FormButton>
           </form>
         ) : (
           <form className="auth-form" onSubmit={(e) => void onFinalize(e)}>
@@ -176,7 +179,7 @@ export function AccountResetPage() {
             </p>
             <label className="field">
               <span className="field__label">인증번호 6자리</span>
-              <input
+              <FormInput
                 value={code}
                 onChange={(ev) => setCode(ev.target.value.replace(/\D/g, '').slice(0, 6))}
                 inputMode="numeric"
@@ -185,7 +188,7 @@ export function AccountResetPage() {
               />
             </label>
             <label className="field field--checkbox">
-              <input
+              <FormInput
                 type="checkbox"
                 checked={confirmed}
                 onChange={(ev) => setConfirmed(ev.target.checked)}
@@ -200,23 +203,23 @@ export function AccountResetPage() {
               </p>
             ) : null}
             {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
-            <button
+            <FormButton
               className="button button--primary button--full"
-              type="submit"
+              htmlType="submit"
               disabled={submitting || secondsLeft === 0 || !confirmed}
             >
               {submitting ? '처리 중…' : '계정 초기화 실행'}
-            </button>
-            <button
-              type="button"
+            </FormButton>
+            <FormButton
+              htmlType="button"
               className="button button--secondary button--full"
               disabled={submitting || resendLeft > 0 || secondsLeft === 0}
               onClick={() => void sendCode()}
             >
               {resendLeft > 0 ? `재전송 (${resendLeft}초)` : '인증번호 재전송'}
-            </button>
-            <button
-              type="button"
+            </FormButton>
+            <FormButton
+              htmlType="button"
               className="button button--secondary button--full"
               onClick={() => {
                 setStep(1)
@@ -227,14 +230,14 @@ export function AccountResetPage() {
               }}
             >
               이전 단계
-            </button>
+            </FormButton>
           </form>
         )}
 
         <div className="switch-text">
-          <button type="button" className="switch-text__action" onClick={() => navigate('/dashboard')}>
+          <FormButton htmlType="button" className="switch-text__action" onClick={() => navigate('/dashboard')}>
             메뉴로 돌아가기
-          </button>
+          </FormButton>
         </div>
       </section>
     </main>

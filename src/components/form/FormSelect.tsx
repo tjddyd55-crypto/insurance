@@ -1,4 +1,4 @@
-import type { ChangeEventHandler, SelectHTMLAttributes } from 'react'
+import { forwardRef, type ChangeEventHandler, type SelectHTMLAttributes } from 'react'
 
 export type FormSelectOption = {
   value: string
@@ -11,19 +11,23 @@ type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'value' | 'onChange' 
   options?: FormSelectOption[]
 }
 
-export default function FormSelect({
-  value,
-  onChange,
-  options = [],
-  disabled = false,
-  className = '',
-  ...props
-}: Props) {
+const FormSelect = forwardRef<HTMLSelectElement, Props>(function FormSelect(
+  {
+    value,
+    onChange,
+    options = [],
+    disabled = false,
+    className = '',
+    ...props
+  },
+  ref,
+) {
   const toneClass = disabled ? 'field--readonly' : 'field--editable'
   const mergedClassName = ['form-select', toneClass, className].filter(Boolean).join(' ')
 
   return (
     <select
+      ref={ref}
       {...props}
       value={value ?? ''}
       onChange={onChange}
@@ -37,4 +41,6 @@ export default function FormSelect({
       ))}
     </select>
   )
-}
+})
+
+export default FormSelect

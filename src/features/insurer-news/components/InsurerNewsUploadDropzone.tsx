@@ -1,3 +1,4 @@
+import { FormInput } from '../../../components/form'
 import { useCallback, useRef, useState } from 'react'
 
 type Props = {
@@ -52,7 +53,7 @@ export function InsurerNewsUploadDropzone({ onFiles, disabled }: Props) {
       onDrop={onDrop}
       aria-disabled={disabled}
     >
-      <input
+      <FormInput
         ref={inputRef}
         type="file"
         accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"

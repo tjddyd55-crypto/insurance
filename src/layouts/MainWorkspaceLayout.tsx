@@ -1,3 +1,4 @@
+import { FormButton } from '../components/form'
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import MemoWorkspacePage from '../features/memo/pages/MemoWorkspacePage'
@@ -12,9 +13,9 @@ function MemoFab() {
     return null
   }
   return (
-    <button type="button" className="memo-fab" onClick={() => void addNote()} aria-label="메모 추가">
+    <FormButton htmlType="button" className="memo-fab" onClick={() => void addNote()} aria-label="메모 추가">
       +
-    </button>
+    </FormButton>
   )
 }
 
@@ -48,47 +49,47 @@ function MemoPanelBody({
           >
             {isMobile ? (
               <div className="memo-mobile-list-toggle-row">
-                <button
-                  type="button"
+                <FormButton
+                  htmlType="button"
                   className="memo-mobile-list-toggle-btn"
                   onClick={onToggleList}
                   aria-label="메모 목록 접기"
                 >
                   ▼
-                </button>
+                </FormButton>
               </div>
             ) : (
-              <button
-                type="button"
+              <FormButton
+                htmlType="button"
                 className="memo-list-toggle-btn memo-list-toggle-btn--collapse"
                 onClick={onToggleList}
                 aria-label="메모 목록 접기"
               >
                 &gt;
-              </button>
+              </FormButton>
             )}
             <MemoList onAfterSelectNote={onSelectNoteFromList} />
           </div>
         ) : null}
         {!showList ? (
           isMobile ? (
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
               className="memo-mobile-list-open-btn"
               onClick={onToggleList}
               aria-label="메모 목록 열기"
             >
               ▲
-            </button>
+            </FormButton>
           ) : (
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
               className="memo-list-toggle-btn memo-list-toggle-btn--expand"
               onClick={onToggleList}
               aria-label="메모 목록 열기"
             >
               &lt;
-            </button>
+            </FormButton>
           )
         ) : null}
       </div>
@@ -242,20 +243,20 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
       ) : null}
 
       {isNarrow ? (
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
           className="menu-toggle"
           onClick={() => setLeftDrawerOpen(true)}
           aria-label="메뉴 열기"
         >
           ☰
-        </button>
+        </FormButton>
       ) : null}
 
       {!isMemoOpen ? (
-        <button type="button" className="workspace-memo-reopen" onClick={() => setIsMemoOpen(true)}>
+        <FormButton htmlType="button" className="workspace-memo-reopen" onClick={() => setIsMemoOpen(true)}>
           메모 패널 열기
-        </button>
+        </FormButton>
       ) : null}
 
       <div

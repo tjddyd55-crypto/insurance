@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { ConfirmDialog } from '../dialog'
 
 type Props = {
   open: boolean
@@ -58,26 +59,13 @@ export default function ConfirmModal({ open, title = '확인', message, onConfir
   }
 
   return (
-    <div className="modal-overlay" role="presentation" onClick={handleOverlayClick}>
-      <div
-        className="modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="confirm-modal-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 id="confirm-modal-title">{title}</h3>
-        <div className="modal-body">{message}</div>
-
-        <div className="modal-actions">
-          <button type="button" className="modal-cancel" disabled={isProcessing} onClick={onCancel}>
-            취소
-          </button>
-          <button type="button" className="confirm" disabled={isProcessing} onClick={() => void handleConfirm()}>
-            {isProcessing ? '처리 중…' : '확인'}
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      open={open}
+      title={title}
+      message={message}
+      busy={isProcessing}
+      onCancel={handleOverlayClick}
+      onConfirm={() => void handleConfirm()}
+    />
   )
 }

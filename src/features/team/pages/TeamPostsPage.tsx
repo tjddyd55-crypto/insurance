@@ -1,3 +1,4 @@
+import { FormButton } from '../../../components/form'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -133,13 +134,13 @@ function PostCard({
         </div>
       ) : null}
       <div className="mt-2 flex flex-wrap items-center gap-3">
-        <button type="button" className="text-xs text-[var(--link)] underline" onClick={onToggleExpand}>
+        <FormButton htmlType="button" className="text-xs text-[var(--link)] underline" onClick={onToggleExpand}>
           {expanded ? '접기' : '펼치기 · 댓글'}
-        </button>
+        </FormButton>
         {showEdit ? (
-          <button type="button" className="text-xs text-[var(--link)] underline" onClick={() => onEdit(post)}>
+          <FormButton htmlType="button" className="text-xs text-[var(--link)] underline" onClick={() => onEdit(post)}>
             수정
-          </button>
+          </FormButton>
         ) : null}
       </div>
       {expanded ? (
@@ -277,9 +278,9 @@ export default function TeamPostsPage() {
 
       {!loadError && !loading && token?.trim() ? (
         <div className="mt-4">
-          <button type="button" className="cta-button" onClick={openCreateModal}>
+          <FormButton htmlType="button" className="cta-button" onClick={openCreateModal}>
             글 작성
-          </button>
+          </FormButton>
         </div>
       ) : null}
 

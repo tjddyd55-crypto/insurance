@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import type { ReactNode } from 'react'
+import { BaseDialog } from '../../../components/dialog'
 import { Button } from '../../../components/ui/Button'
 
 export type DeleteConfirmModalProps = {
@@ -22,53 +22,21 @@ export default function DeleteConfirmModal({
   footer,
   ariaLabel = '메모 삭제',
 }: DeleteConfirmModalProps) {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
-    if (!open) {
-      return
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
-
-  if (!mounted || !open) {
-    return null
-  }
-
-  return createPortal(
-    <div
-      className="memo-delete-modal__overlay"
-      role="presentation"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose()
-        }
-      }}
+  return (
+    <BaseDialog
+      open={open}
+      onClose={onClose}
+      ariaLabel={ariaLabel}
+      panelClassName="memo-delete-modal__panel"
+      overlayClassName="memo-delete-modal__overlay"
+      closeOnBackdrop
+      closeOnEsc
+      usePortal
     >
-      <div
-        className="memo-delete-modal__panel"
-        role="dialog"
-        aria-modal="true"
-        aria-label={ariaLabel}
-        tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
-        {children}
-        {footer}
-      </div>
-    </div>,
-    document.body,
+      <h2 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h2>
+      {children}
+      {footer}
+    </BaseDialog>
   )
 }
 

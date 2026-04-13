@@ -1,3 +1,4 @@
+import { FormButton, FormInput } from '../../../components/form'
 import type { ConsentFormData } from '../domain/types'
 
 export interface ConsentFormProps {
@@ -42,7 +43,7 @@ export function ConsentForm({
           <label className="consent-field__label" htmlFor="consent-name">
             이름
           </label>
-          <input
+          <FormInput
             id="consent-name"
             className="consent-field__input"
             autoComplete="name"
@@ -55,7 +56,7 @@ export function ConsentForm({
           <label className="consent-field__label" htmlFor="consent-ssn">
             주민등록번호
           </label>
-          <input
+          <FormInput
             id="consent-ssn"
             className="consent-field__input"
             inputMode="numeric"
@@ -69,7 +70,7 @@ export function ConsentForm({
           <label className="consent-field__label" htmlFor="consent-phone">
             연락처
           </label>
-          <input
+          <FormInput
             id="consent-phone"
             className="consent-field__input"
             type="tel"
@@ -84,9 +85,9 @@ export function ConsentForm({
 
       <section className="consent-section consent-card">
         <h3 className="consent-section__label">서명</h3>
-        <button type="button" className="consent-btn consent-btn--full" onClick={onOpenSignature}>
+        <FormButton htmlType="button" className="consent-btn consent-btn--full" onClick={onOpenSignature}>
           서명하기
-        </button>
+        </FormButton>
         <p className="consent-signature-status">
           {signatureImage ? '서명이 저장되었습니다. (미리보기 단계에서는 전송되지 않습니다)' : '서명이 없습니다.'}
         </p>
@@ -106,14 +107,14 @@ export function ConsentForm({
       </section>
 
       <div className="consent-form-actions">
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
           className="consent-btn consent-btn--full"
           onClick={onSend}
           disabled={isSending}
         >
           {isSending ? 'PDF 생성 중...' : '발송하기'}
-        </button>
+        </FormButton>
       </div>
     </>
   )

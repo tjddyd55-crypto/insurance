@@ -1,4 +1,5 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { FormButton, FormInput } from '../../../components/form'
 import { fetchSecurityAuditLogs, type SecurityAuditLogRow } from '../../auth/authApi'
 import { useAuth } from '../../auth/AuthProvider'
 
@@ -68,7 +69,7 @@ export default function AuditLogsPage() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
           <label className="field" style={{ margin: 0, minWidth: 140 }}>
             <span className="field__label">action</span>
-            <input
+            <FormInput
               className="field__control"
               value={actionFilter}
               onChange={(e) => setActionFilter(e.target.value)}
@@ -77,7 +78,7 @@ export default function AuditLogsPage() {
           </label>
           <label className="field" style={{ margin: 0, minWidth: 140 }}>
             <span className="field__label">actor_user_id</span>
-            <input
+            <FormInput
               className="field__control"
               value={actorFilter}
               onChange={(e) => setActorFilter(e.target.value)}
@@ -86,19 +87,19 @@ export default function AuditLogsPage() {
           </label>
           <label className="field" style={{ margin: 0, minWidth: 160 }}>
             <span className="field__label">since (ISO)</span>
-            <input
+            <FormInput
               className="field__control"
               value={sinceFilter}
               onChange={(e) => setSinceFilter(e.target.value)}
               placeholder="2026-01-01"
             />
           </label>
-          <button type="submit" className="button button--primary" disabled={loading}>
+          <FormButton htmlType="submit" variant="primary" className="button button--primary" disabled={loading}>
             {loading ? '조회 중…' : '조회'}
-          </button>
-          <button type="button" className="button button--secondary" disabled={loading} onClick={() => void load()}>
+          </FormButton>
+          <FormButton htmlType="button" variant="secondary" className="button button--secondary" disabled={loading} onClick={() => void load()}>
             새로고침
-          </button>
+          </FormButton>
         </div>
       </form>
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   fetchAnalyticsChart,
@@ -41,9 +42,9 @@ export default function AdminAnalyticsPage() {
     if (!token?.trim() || user?.role !== 'SUPER_ADMIN') {
       return
     }
-    setError('')
     try {
       const d = await fetchAnalyticsDashboard(token)
+      setError('')
       setDash(d)
     } catch (e) {
       setError(e instanceof Error ? e.message : '통계를 불러오지 못했습니다.')
@@ -63,8 +64,10 @@ export default function AdminAnalyticsPage() {
   }, [token, user?.role])
 
   useEffect(() => {
-    void loadDash()
-    void loadGaOptions()
+    queueMicrotask(() => {
+      void loadDash()
+      void loadGaOptions()
+    })
   }, [loadDash, loadGaOptions])
 
   const loadChart = useCallback(async () => {
@@ -75,7 +78,6 @@ export default function AdminAnalyticsPage() {
       setChartPoints([])
       return
     }
-    setError('')
     try {
       const cap = dash?.statDate ?? ''
       if (!/^\d{4}-\d{2}-\d{2}$/.test(cap)) {
@@ -90,15 +92,18 @@ export default function AdminAnalyticsPage() {
         scope,
         gaId: scope === 'ga' && gaId !== '' ? gaId : undefined,
       })
+      setError('')
       setChartCap(res.statDateCap)
       setChartPoints(res.points)
     } catch (e) {
       setError(e instanceof Error ? e.message : '차트 데이터를 불러오지 못했습니다.')
     }
-  }, [token, user?.role, tab, dash?.statDate, metric, scope, gaId])
+  }, [token, user?.role, tab, dash, metric, scope, gaId])
 
   useEffect(() => {
-    void loadChart()
+    queueMicrotask(() => {
+      void loadChart()
+    })
   }, [loadChart])
 
   if (user?.role !== 'SUPER_ADMIN') {
@@ -123,8 +128,9 @@ export default function AdminAnalyticsPage() {
       </header>
 
       <div className="mb-4 flex gap-2 border-b border-[var(--border-default)]">
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
+          variant="action"
           className={`border-b-2 px-3 py-2 text-sm font-medium ${
             tab === 'board'
               ? 'border-[var(--brand)] text-[var(--brand)]'
@@ -133,9 +139,10 @@ export default function AdminAnalyticsPage() {
           onClick={() => setTab('board')}
         >
           현황판
-        </button>
-        <button
-          type="button"
+        </FormButton>
+        <FormButton
+          htmlType="button"
+          variant="action"
           className={`border-b-2 px-3 py-2 text-sm font-medium ${
             tab === 'chart'
               ? 'border-[var(--brand)] text-[var(--brand)]'
@@ -144,7 +151,7 @@ export default function AdminAnalyticsPage() {
           onClick={() => setTab('chart')}
         >
           통계 분석
-        </button>
+        </FormButton>
       </div>
 
       {tab === 'board' && dash ? (

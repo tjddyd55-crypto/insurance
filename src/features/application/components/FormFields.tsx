@@ -1,5 +1,5 @@
-import type { HTMLAttributes, KeyboardEventHandler, ReactNode } from 'react'
-import { FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import type { HTMLAttributes, KeyboardEventHandler } from 'react'
+import { FieldWrapper, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 
 interface BaseFieldProps {
   label: string
@@ -39,28 +39,6 @@ interface CheckboxProps extends BaseFieldProps {
   disabled?: boolean
 }
 
-interface FieldContainerProps extends BaseFieldProps {
-  children: ReactNode
-}
-
-function FieldContainer({
-  label,
-  required = false,
-  helperText,
-  children,
-}: FieldContainerProps) {
-  return (
-    <label className="field">
-      <span className="field__label">
-        {label}
-        {required ? <em className="field__required">*</em> : null}
-      </span>
-      {children}
-      {helperText ? <small className="field__helper">{helperText}</small> : null}
-    </label>
-  )
-}
-
 export function TextInput({
   label,
   required,
@@ -75,7 +53,7 @@ export function TextInput({
   onKeyDown,
 }: TextInputProps) {
   return (
-    <FieldContainer label={label} required={required} helperText={helperText}>
+    <FieldWrapper label={label} required={required} helperText={helperText}>
       <FormInput
         className="field__control"
         type={type}
@@ -87,7 +65,7 @@ export function TextInput({
         disabled={disabled}
         readOnly={readOnly}
       />
-    </FieldContainer>
+    </FieldWrapper>
   )
 }
 
@@ -101,7 +79,7 @@ export function TextAreaInput({
   disabled,
 }: TextAreaProps) {
   return (
-    <FieldContainer label={label} required={required} helperText={helperText}>
+    <FieldWrapper label={label} required={required} helperText={helperText}>
       <FormTextarea
         className="field__control field__control--textarea"
         value={value}
@@ -109,7 +87,7 @@ export function TextAreaInput({
         placeholder={placeholder}
         disabled={disabled}
       />
-    </FieldContainer>
+    </FieldWrapper>
   )
 }
 
@@ -124,7 +102,7 @@ export function SelectInput({
   disabled,
 }: SelectInputProps) {
   return (
-    <FieldContainer label={label} required={required} helperText={helperText}>
+    <FieldWrapper label={label} required={required} helperText={helperText}>
       <FormSelect
         className="field__control"
         value={value}
@@ -135,7 +113,7 @@ export function SelectInput({
           ...options.map((option) => ({ value: option, label: option })),
         ]}
       />
-    </FieldContainer>
+    </FieldWrapper>
   )
 }
 
@@ -148,7 +126,7 @@ export function CheckboxInput({
 }: CheckboxProps) {
   return (
     <label className="checkbox-field">
-      <input
+      <FormInput
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}

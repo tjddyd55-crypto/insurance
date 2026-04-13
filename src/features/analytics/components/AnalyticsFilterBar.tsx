@@ -1,3 +1,4 @@
+import { FormSelect } from '../../../components/form'
 import type { AnalyticsChartMetric, AnalyticsGaOption } from '../adminAnalyticsApi'
 import {
   analyticsFilterShell,
@@ -41,45 +42,40 @@ export function AnalyticsFilterBar({
     <div className={analyticsFilterShell}>
       <label className={analyticsLabel}>
         지표
-        <select className={analyticsSelect}
+        <FormSelect
+          className={analyticsSelect}
           value={metric}
           onChange={(e) => onMetricChange(e.target.value as AnalyticsChartMetric)}
-        >
-          {METRIC_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          options={METRIC_OPTIONS}
+        />
       </label>
       <label className={analyticsLabel}>
         범위
-        <select
+        <FormSelect
           className={analyticsSelect}
           value={scope}
           onChange={(e) => onScopeChange(e.target.value as 'overall' | 'ga')}
-        >
-          <option value="overall">전체</option>
-          <option value="ga">GA별</option>
-        </select>
+          options={[
+            { value: 'overall', label: '전체' },
+            { value: 'ga', label: 'GA별' },
+          ]}
+        />
       </label>
       {scope === 'ga' ? (
         <label className={analyticsLabel}>
           GA
-          <select className={analyticsSelect}
+          <FormSelect
+            className={analyticsSelect}
             value={gaId === '' ? '' : String(gaId)}
             onChange={(e) => {
               const v = e.target.value
               onGaIdChange(v === '' ? '' : Number(v))
             }}
-          >
-            <option value="">선택…</option>
-            {gaOptions.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name} ({g.code})
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: '', label: '선택…' },
+              ...gaOptions.map((g) => ({ value: String(g.id), label: `${g.name} (${g.code})` })),
+            ]}
+          />
         </label>
       ) : null}
       <p className={analyticsMuted}>

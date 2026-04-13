@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { FormButton, FormTextarea } from '../form'
+import { useConfirmDialog } from '../dialog'
 import { ApiError } from '../../lib/apiClient'
 import {
   createTeamPostComment,
@@ -39,6 +41,7 @@ export function TeamPostComments({
   onCommentCountChange,
   scrollSectionIntoViewNonce,
 }: TeamPostCommentsProps) {
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [comments, setComments] = useState<TeamPostCommentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [newComment, setNewComment] = useState('')
@@ -130,7 +133,12 @@ export function TeamPostComments({
     if (!token?.trim() || !commentId) {
       return
     }
-    if (!window.confirm('이 댓글을 삭제할까요?')) {
+    const confirmed = await confirm({
+      title: '댓글 삭제',
+      message: '이 댓글을 삭제할까요?',
+      tone: 'danger',
+    })
+    if (!confirmed) {
       return
     }
     setDeletingId(commentId)
@@ -189,14 +197,15 @@ export function TeamPostComments({
                       {formatCommentDate(c.createdAt)}
                     </div>
                     {isMine ? (
-                      <button
-                        type="button"
+                      <FormButton
+                        htmlType="button"
+                        variant="action"
                         className="text-xs text-red-400 hover:text-red-300 underline disabled:opacity-50"
                         disabled={deletingId === c.id}
                         onClick={() => void handleDelete(c.id)}
                       >
                         {deletingId === c.id ? '삭제 중…' : '삭제'}
-                      </button>
+                      </FormButton>
                     ) : null}
                   </div>
                 </div>
@@ -208,7 +217,7 @@ export function TeamPostComments({
       </div>
 
       <form onSubmit={(ev) => void handleSubmit(ev)} className="space-y-2">
-        <textarea
+        <FormTextarea
           ref={textareaRef}
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
@@ -217,14 +226,16 @@ export function TeamPostComments({
           className="w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-main)] text-[var(--text-primary)] px-3 py-2 text-sm box-border resize-y min-h-[4.5rem] placeholder:text-[var(--text-secondary)]"
           disabled={isSubmitting || !token?.trim()}
         />
-        <button
-          type="submit"
+        <FormButton
+          htmlType="submit"
+          variant="primary"
           className="button button--primary button--small"
           disabled={!isValid || isSubmitting || !token?.trim()}
         >
           {isSubmitting ? '등록중...' : '등록'}
-        </button>
+        </FormButton>
       </form>
+      {confirmDialog}
     </div>
   )
 }

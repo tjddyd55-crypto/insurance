@@ -1,3 +1,4 @@
+import { FormButton, FormInput } from '../../../components/form'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
@@ -30,7 +31,7 @@ export function PasswordResetPage() {
       setSecondsLeft((s) => (s <= 1 ? 0 : s - 1))
     }, 1000)
     return () => window.clearInterval(t)
-  }, [secondsLeft > 0])
+  }, [secondsLeft])
 
   useEffect(() => {
     if (resendLeft <= 0) {
@@ -40,7 +41,7 @@ export function PasswordResetPage() {
       setResendLeft((s) => (s <= 1 ? 0 : s - 1))
     }, 1000)
     return () => window.clearInterval(t)
-  }, [resendLeft > 0])
+  }, [resendLeft])
 
   const phoneDigits = normalizeKrMobile(phoneInput)
 
@@ -149,7 +150,7 @@ export function PasswordResetPage() {
           <form className="auth-form" onSubmit={onSubmitStep1}>
             <label className="field">
               <span className="field__label">아이디</span>
-              <input
+              <FormInput
                 value={username}
                 onChange={(ev) => setUsername(ev.target.value)}
                 autoComplete="username"
@@ -158,7 +159,7 @@ export function PasswordResetPage() {
             </label>
             <label className="field">
               <span className="field__label">휴대폰 번호</span>
-              <input
+              <FormInput
                 value={phoneInput}
                 onChange={(ev) => setPhoneInput(ev.target.value)}
                 inputMode="numeric"
@@ -169,9 +170,9 @@ export function PasswordResetPage() {
             </label>
             {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
             {infoMessage ? <p className="status">{infoMessage}</p> : null}
-            <button className="button button--primary button--full" type="submit" disabled={submitting}>
+            <FormButton className="button button--primary button--full" htmlType="submit" disabled={submitting}>
               {submitting ? '요청 중…' : '인증번호 요청'}
-            </button>
+            </FormButton>
           </form>
         ) : (
           <form className="auth-form" onSubmit={(e) => void onSubmitStep2(e)}>
@@ -180,7 +181,7 @@ export function PasswordResetPage() {
             </p>
             <label className="field">
               <span className="field__label">인증번호 6자리</span>
-              <input
+              <FormInput
                 value={code}
                 onChange={(ev) => setCode(ev.target.value.replace(/\D/g, '').slice(0, 6))}
                 inputMode="numeric"
@@ -190,7 +191,7 @@ export function PasswordResetPage() {
             </label>
             <label className="field">
               <span className="field__label">새 비밀번호</span>
-              <input
+              <FormInput
                 type="password"
                 value={newPassword}
                 onChange={(ev) => setNewPassword(ev.target.value)}
@@ -200,7 +201,7 @@ export function PasswordResetPage() {
             </label>
             <label className="field">
               <span className="field__label">새 비밀번호 확인</span>
-              <input
+              <FormInput
                 type="password"
                 value={confirmPassword}
                 onChange={(ev) => setConfirmPassword(ev.target.value)}
@@ -215,23 +216,23 @@ export function PasswordResetPage() {
             ) : null}
             {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
             {infoMessage ? <p className="status">{infoMessage}</p> : null}
-            <button
+            <FormButton
               className="button button--primary button--full"
-              type="submit"
+              htmlType="submit"
               disabled={submitting || secondsLeft === 0}
             >
               {submitting ? '처리 중…' : '비밀번호 재설정'}
-            </button>
-            <button
-              type="button"
+            </FormButton>
+            <FormButton
+              htmlType="button"
               className="button button--secondary button--full"
               disabled={submitting || resendLeft > 0 || secondsLeft === 0}
               onClick={() => void sendCode()}
             >
               {resendLeft > 0 ? `재전송 (${resendLeft}초)` : '인증번호 재전송'}
-            </button>
-            <button
-              type="button"
+            </FormButton>
+            <FormButton
+              htmlType="button"
               className="button button--secondary button--full"
               onClick={() => {
                 setStep(1)
@@ -241,7 +242,7 @@ export function PasswordResetPage() {
               }}
             >
               이전 단계
-            </button>
+            </FormButton>
           </form>
         )}
 

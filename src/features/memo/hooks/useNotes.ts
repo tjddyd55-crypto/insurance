@@ -43,34 +43,39 @@ export function useNotes() {
   }, [])
 
   useEffect(() => {
-    if (!token?.trim()) {
-      setNotes([])
-      setNotesLoading(false)
-      return
-    }
     let cancelled = false
-    setNotesLoading(true)
-    void memoApi
-      .getAll(token)
-      .then((rows) => {
-        if (!cancelled) {
-          const apiData = rows.map((r) => ({
-            ...r,
-            zIndex: Number(r.zIndex) || 0,
-          }))
-          setNotes(apiData)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setNotes([])
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setNotesLoading(false)
-        }
-      })
+    queueMicrotask(() => {
+      if (cancelled) {
+        return
+      }
+      if (!token?.trim()) {
+        setNotes([])
+        setNotesLoading(false)
+        return
+      }
+      setNotesLoading(true)
+      void memoApi
+        .getAll(token)
+        .then((rows) => {
+          if (!cancelled) {
+            const apiData = rows.map((r) => ({
+              ...r,
+              zIndex: Number(r.zIndex) || 0,
+            }))
+            setNotes(apiData)
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setNotes([])
+          }
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setNotesLoading(false)
+          }
+        })
+    })
     return () => {
       cancelled = true
     }

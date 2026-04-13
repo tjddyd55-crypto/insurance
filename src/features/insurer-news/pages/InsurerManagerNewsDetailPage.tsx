@@ -1,5 +1,7 @@
+import { FormButton } from '../../../components/form'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useConfirmDialog } from '../../../components/dialog'
 import { useAuth } from '../../auth/AuthProvider'
 import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
@@ -22,18 +24,18 @@ export function InsurerManagerNewsDetailPage({
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
   const requiresCompanyScope = detailScope === 'manager' && channel !== 'LOSS_ADJUSTER'
+  const canFetch = Boolean(token?.trim() && gaCode && (!requiresCompanyScope || companyId != null) && newsletterId)
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [loading, setLoading] = useState(true)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
-    if (!token?.trim() || !gaCode || (requiresCompanyScope && companyId == null) || !newsletterId) {
-      setLoading(false)
+    if (!canFetch) {
       return
     }
     let cancelled = false
-    setLoading(true)
     ;(async () => {
       const row =
         detailScope === 'ga'
@@ -47,10 +49,19 @@ export function InsurerManagerNewsDetailPage({
     return () => {
       cancelled = true
     }
-  }, [detailScope, channel, token, gaCode, companyId, newsletterId, requiresCompanyScope])
+  }, [canFetch, detailScope, channel, token, gaCode, companyId, newsletterId, requiresCompanyScope])
 
   if (!gaCode || (requiresCompanyScope && companyId == null)) {
     return null
+  }
+  if (!canFetch) {
+    return (
+      <main className="page page--with-back insurer-news-page">
+        <div className="insurer-news-empty" role="status">
+          {newsletterId ? '소식지를 불러올 수 없습니다.' : '잘못된 경로입니다.'}
+        </div>
+      </main>
+    )
   }
 
   if (loading) {
@@ -84,6 +95,30 @@ export function InsurerManagerNewsDetailPage({
   const isManagerRole = role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER'
   const isAuthor = Boolean(detail.publisherId && String(detail.publisherId) === String(user?.id ?? ''))
   const canDelete = isGaDeleteRole || (isManagerRole && isAuthor)
+  const handleDelete = () => {
+    if (!newsletterId || !token?.trim() || deleteBusy) {
+      return
+    }
+    void (async () => {
+      const confirmed = await confirm({
+        title: '소식지 삭제',
+        message: '이 소식지를 삭제하시겠습니까?',
+        tone: 'danger',
+      })
+      if (!confirmed) {
+        return
+      }
+      setDeleteError('')
+      setDeleteBusy(true)
+      try {
+        await deleteManagerNewsletter(token, newsletterId, { channel })
+        navigate(listPath, { replace: true })
+      } catch (e) {
+        setDeleteError(e instanceof Error ? e.message : '소식지 삭제에 실패했습니다.')
+        setDeleteBusy(false)
+      }
+    })()
+  }
 
   return (
     <main className="page page--with-back insurer-news-page">
@@ -97,32 +132,14 @@ export function InsurerManagerNewsDetailPage({
           </time>
           {canDelete ? (
             <div style={{ marginTop: 10 }}>
-              <button
-                type="button"
+              <FormButton
+                htmlType="button"
                 className="button button--secondary"
                 disabled={deleteBusy || !token?.trim() || !newsletterId}
-                onClick={() => {
-                  if (!newsletterId || !token?.trim() || deleteBusy) {
-                    return
-                  }
-                  if (!window.confirm('이 소식지를 삭제하시겠습니까?')) {
-                    return
-                  }
-                  setDeleteError('')
-                  setDeleteBusy(true)
-                  void (async () => {
-                    try {
-                      await deleteManagerNewsletter(token, newsletterId, { channel })
-                      navigate(listPath, { replace: true })
-                    } catch (e) {
-                      setDeleteError(e instanceof Error ? e.message : '소식지 삭제에 실패했습니다.')
-                      setDeleteBusy(false)
-                    }
-                  })()
-                }}
+                onClick={handleDelete}
               >
                 {deleteBusy ? '삭제 중…' : '삭제'}
-              </button>
+              </FormButton>
             </div>
           ) : null}
           {deleteError ? (
@@ -137,6 +154,7 @@ export function InsurerManagerNewsDetailPage({
         {galleryUrls.length > 0 ? <NewsletterImageGallery imageUrls={galleryUrls} altBase="소식지 이미지" /> : null}
         <NewsletterAttachmentList attachments={detail.attachments} />
       </article>
+      {confirmDialog}
     </main>
   )
 }

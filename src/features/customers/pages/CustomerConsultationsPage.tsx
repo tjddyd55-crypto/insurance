@@ -1,5 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { EmptyState, StatusMessage } from '../../../components/feedback'
+import { FormButton, FormInput, FormTextarea } from '../../../components/form'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import {
@@ -116,13 +118,9 @@ export default function CustomerConsultationsPage() {
       <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
         <h1 style={{ marginTop: 12 }}>고객을 찾을 수 없음</h1>
         <p style={{ color: 'var(--text-secondary)' }}>삭제되었거나 접근할 수 없는 고객입니다.</p>
-        <button
-          type="button"
-          style={{ marginTop: 12, padding: '0.5rem 1rem' }}
-          onClick={() => navigate('/customers')}
-        >
+        <FormButton htmlType="button" variant="action" style={{ marginTop: 12 }} onClick={() => navigate('/customers')}>
           고객 목록으로
-        </button>
+        </FormButton>
       </div>
     )
   }
@@ -135,20 +133,16 @@ export default function CustomerConsultationsPage() {
         보험 메모·인수 용도 메모는 기존 고객 상세의 <code>notes</code> JSON 필드를 그대로 쓰는 것을 권장합니다. 여기서는
         일정·통화 등 <strong>상담 이력</strong>과 다른 고객과의 <strong>연결</strong>만 다룹니다.
       </p>
-      {error ? (
-        <p style={{ color: 'var(--danger)' }} role="alert">
-          {error}
-        </p>
-      ) : null}
+      <StatusMessage message={error} tone="error" className="!mt-0" />
 
       <section style={{ marginTop: 24 }}>
         <h2 style={{ fontSize: '1.05rem' }}>상담 기록</h2>
         <form onSubmit={onSubmitConsultation} style={{ marginBottom: 20 }}>
           <label style={{ display: 'block', marginBottom: 8 }}>
             상담 일자{' '}
-            <input type="date" value={consultDate} onChange={(ev) => setConsultDate(ev.target.value)} />
+            <FormInput type="date" value={consultDate} onChange={(ev) => setConsultDate(ev.target.value)} />
           </label>
-          <textarea
+          <FormTextarea
             value={body}
             onChange={(ev) => setBody(ev.target.value)}
             rows={4}
@@ -156,12 +150,12 @@ export default function CustomerConsultationsPage() {
             placeholder="상담 내용"
             maxLength={19500}
           />
-          <button type="submit" disabled={busy} style={{ marginTop: 8 }}>
+          <FormButton htmlType="submit" variant="action" disabled={busy} style={{ marginTop: 8 }}>
             {busy ? '저장 중…' : '상담 추가'}
-          </button>
+          </FormButton>
         </form>
         {rows.length === 0 ? (
-          <p style={{ color: 'var(--text-secondary)' }}>등록된 상담이 없습니다.</p>
+          <EmptyState message="등록된 상담이 없습니다." className="!my-0 !text-left" />
         ) : (
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {rows.map((r) => {
@@ -191,7 +185,7 @@ export default function CustomerConsultationsPage() {
         <form onSubmit={onAddRelation} style={{ marginBottom: 16 }}>
           <label>
             연결할 고객 ID
-            <input
+            <FormInput
               type="number"
               min={1}
               value={relatedId}
@@ -199,12 +193,17 @@ export default function CustomerConsultationsPage() {
               style={{ display: 'block', width: 200, marginTop: 4, padding: 8 }}
             />
           </label>
-          <button type="submit" disabled={busy} style={{ display: 'block', marginTop: 8 }}>
+          <FormButton
+            htmlType="submit"
+            variant="action"
+            disabled={busy}
+            style={{ display: 'block', marginTop: 8 }}
+          >
             {busy ? '처리 중…' : '연결 추가'}
-          </button>
+          </FormButton>
         </form>
         {relRows.length === 0 ? (
-          <p style={{ color: '#666' }}>연결된 고객이 없습니다.</p>
+          <EmptyState message="연결된 고객이 없습니다." className="!my-0 !text-left" />
         ) : (
           <ul style={{ paddingLeft: 18 }}>
             {relRows.map((r) => (

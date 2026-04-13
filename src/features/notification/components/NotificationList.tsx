@@ -1,3 +1,4 @@
+import { FormButton } from '../../../components/form'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
@@ -108,8 +109,8 @@ export function NotificationList({ token, onUnreadChanged }: NotificationListPro
         const unread = !n.isRead
         return (
           <li key={n.id}>
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
               className={[
                 'w-full text-left p-2 border-b border-[var(--border-default)] cursor-pointer transition-colors',
                 unread ? 'bg-[var(--bg-main)]' : 'bg-transparent opacity-90',
@@ -121,7 +122,7 @@ export function NotificationList({ token, onUnreadChanged }: NotificationListPro
               <div className="text-xs text-[var(--text-secondary)] mt-0.5 tabular-nums">
                 {formatNotifiedAt(n.createdAt)}
               </div>
-            </button>
+            </FormButton>
           </li>
         )
       })}

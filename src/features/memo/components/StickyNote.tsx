@@ -1,3 +1,4 @@
+import { FormButton, FormTextarea } from '../../../components/form'
 import { useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import type { Note } from '../types/memo.types'
 
@@ -164,7 +165,7 @@ export default function StickyNote({
       window.removeEventListener('touchend', onTouchEnd)
       window.removeEventListener('touchcancel', onTouchEnd)
     }
-  }, [dragging, getWorkspaceBounds, h, note.id, onDragEnd, onPositionChange, resizing, w])
+  }, [containerRef, dragging, getWorkspaceBounds, h, note.id, onDragEnd, onPositionChange, resizing, w])
 
   const handleResizePointerDown = (e: React.PointerEvent) => {
     e.preventDefault()
@@ -229,8 +230,9 @@ export default function StickyNote({
       }}
     >
       <div className="memo-sticky-note__header shrink-0 flex flex-nowrap items-center justify-between gap-1 overflow-x-auto bg-yellow-200/90 border-b border-amber-300/80">
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
+          variant="action"
           className="memo-sticky-note__drag flex min-w-0 flex-1 items-center gap-1 rounded px-1 text-left text-amber-900/80 cursor-grab select-none active:cursor-grabbing touch-manipulation"
           aria-label="메모 위치 이동"
           onClick={(e) => e.stopPropagation()}
@@ -239,11 +241,12 @@ export default function StickyNote({
         >
           <span aria-hidden>⋮⋮</span>
           <span className="truncate">이동</span>
-        </button>
+        </FormButton>
         <div className="flex shrink-0 items-center gap-1">
           {onMinimize ? (
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
+              variant="action"
               className="memo-sticky-note__minimize-btn inline-flex min-w-[28px] items-center justify-center rounded border border-amber-400/80 bg-yellow-50/90 font-semibold text-amber-900 touch-manipulation"
               aria-label="메모 숨기기"
               onTouchStart={(e) => e.stopPropagation()}
@@ -254,10 +257,11 @@ export default function StickyNote({
               }}
             >
               -
-            </button>
+            </FormButton>
           ) : null}
-          <button
-            type="button"
+          <FormButton
+            htmlType="button"
+            variant="action"
             className="memo-sticky-note__font-btn inline-flex min-w-[28px] items-center justify-center rounded border border-amber-400/80 bg-yellow-50/90 font-semibold text-amber-900 touch-manipulation"
             aria-label="글자 크기 줄이기"
             onTouchStart={(e) => e.stopPropagation()}
@@ -268,9 +272,10 @@ export default function StickyNote({
             }}
           >
             A−
-          </button>
-          <button
-            type="button"
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="action"
             className="memo-sticky-note__font-btn inline-flex min-w-[28px] items-center justify-center rounded border border-amber-400/80 bg-yellow-50/90 font-semibold text-amber-900 touch-manipulation"
             aria-label="글자 크기 키우기"
             onTouchStart={(e) => e.stopPropagation()}
@@ -281,10 +286,11 @@ export default function StickyNote({
             }}
           >
             A+
-          </button>
+          </FormButton>
         </div>
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
+          variant="action"
           className="memo-sticky-note__delete inline-flex shrink-0 items-center justify-center rounded text-red-500 hover:text-red-700 touch-manipulation"
           aria-label="메모 삭제"
           onTouchStart={(e) => e.stopPropagation()}
@@ -295,10 +301,10 @@ export default function StickyNote({
           }}
         >
           ✕
-        </button>
+        </FormButton>
       </div>
       <div className="memo-sticky-note__content">
-        <textarea
+        <FormTextarea
           className={`memo-sticky-note__textarea touch-manipulation ${
             isEditing ? 'memo-sticky-note__textarea--editing' : ''
           }`}

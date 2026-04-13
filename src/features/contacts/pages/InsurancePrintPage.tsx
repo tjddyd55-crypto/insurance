@@ -1,3 +1,4 @@
+import { FormButton } from '../../../components/form'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -130,12 +131,12 @@ export function InsurancePrintPage() {
   return (
     <main className="page page--with-back insurance-print-page">
       <div className="screen-only insurance-print-controls">
-        <button className="button" type="button" onClick={() => navigate('/reinsurer-contacts')}>
+        <FormButton className="button" htmlType="button" onClick={() => navigate('/reinsurer-contacts')}>
           원수사 연락처로 이동
-        </button>
-        <button className="button button--primary" type="button" onClick={() => window.print()}>
+        </FormButton>
+        <FormButton className="button button--primary" htmlType="button" onClick={() => window.print()}>
           인쇄하기
-        </button>
+        </FormButton>
       </div>
 
       {isLoading ? (

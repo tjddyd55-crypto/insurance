@@ -40,7 +40,7 @@ export function AppExitConfirm() {
   return (
     <ExitConfirmDialog
       message={message}
-      titleId="app-exit-confirm-title"
+      title="뒤로 이동 확인"
       onCancel={() => blocker.reset()}
       onConfirm={() => blocker.proceed()}
     />

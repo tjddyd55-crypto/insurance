@@ -1,3 +1,4 @@
+import { FormButton } from './form'
 import { useNavigate } from 'react-router-dom'
 
 const BACK_LABEL = '\u2190 \uB4A4\uB85C\uAC00\uAE30'
@@ -15,8 +16,8 @@ export function PublicPageBackButton({
   const navigate = useNavigate()
 
   return (
-    <button
-      type="button"
+    <FormButton
+      htmlType="button"
       className={className}
       aria-label={BACK_LABEL}
       onClick={() => {
@@ -28,6 +29,6 @@ export function PublicPageBackButton({
       }}
     >
       {BACK_LABEL}
-    </button>
+    </FormButton>
   )
 }

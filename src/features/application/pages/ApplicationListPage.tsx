@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useConfirmDialog } from '../../../components/dialog'
+import { EmptyState } from '../../../components/feedback'
+import { FormButton } from '../../../components/form'
 import type { InsuranceApplicationRecord } from '../domain/types'
 import {
   deleteApplication,
@@ -13,6 +16,7 @@ export function ApplicationListPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { token } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [records, setRecords] = useState<InsuranceApplicationRecord[]>([])
   const [statusText, setStatusText] = useState('')
 
@@ -47,9 +51,11 @@ export function ApplicationListPage() {
     if (!token) {
       return
     }
-    const ok = window.confirm(
-      '만기일(또는 만기일자 필드)을 기준으로 1년 연장한 새 신청서를 만듭니다. 계속할까요?',
-    )
+    const ok = await confirm({
+      title: '신청서 갱신',
+      message: '만기일(또는 만기일자 필드)을 기준으로 1년 연장한 새 신청서를 만듭니다. 계속할까요?',
+      confirmLabel: '계속',
+    })
     if (!ok) {
       return
     }
@@ -82,19 +88,20 @@ export function ApplicationListPage() {
       </header>
 
       <div className="card card--actions">
-        <button
+        <FormButton
           className="button button--primary button--full"
           onClick={() => navigate('/application/write')}
-          type="button"
+          htmlType="button"
+          variant="primary"
         >
           신규 신청서 작성
-        </button>
+        </FormButton>
       </div>
 
       <section className="list-section">
         <h2>저장된 신청서</h2>
         {records.length === 0 ? (
-          <p className="empty-state">저장된 신청서가 없습니다.</p>
+          <EmptyState message="저장된 신청서가 없습니다." />
         ) : (
           <ul className="record-list">
             {records.map((record) => (
@@ -104,40 +111,45 @@ export function ApplicationListPage() {
                   수정일: {formatKoreanDateTime(record.updatedAt)}
                 </p>
                 <div className="record-card__actions">
-                  <button
+                  <FormButton
                     className="button button--secondary"
-                    type="button"
+                    htmlType="button"
+                    variant="secondary"
                     onClick={() => navigate(`/form/${record.id}/edit?mode=readonly`)}
                   >
                     불러오기
-                  </button>
-                  <button
+                  </FormButton>
+                  <FormButton
                     className="button"
-                    type="button"
+                    htmlType="button"
+                    variant="action"
                     onClick={() => navigate(`/form/${record.id}/edit`)}
                   >
                     수정
-                  </button>
-                  <button
+                  </FormButton>
+                  <FormButton
                     className="button button--secondary"
-                    type="button"
+                    htmlType="button"
+                    variant="secondary"
                     onClick={() => void handleRenew(record.id)}
                   >
                     갱신(1년)
-                  </button>
-                  <button
+                  </FormButton>
+                  <FormButton
                     className="button"
-                    type="button"
+                    htmlType="button"
+                    variant="action"
                     onClick={() => void handleDelete(record.id)}
                   >
                     삭제
-                  </button>
+                  </FormButton>
                 </div>
               </li>
             ))}
           </ul>
         )}
       </section>
+      {confirmDialog}
     </main>
   )
 }

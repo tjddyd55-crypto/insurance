@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { FormTextarea, FormButton } from '../../../components/form'
 import { Button } from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
 import { customerRecordToUpdatePayload, updateCustomer } from '../api/customersApi'
@@ -203,8 +204,8 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
                 <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{note.content}</div>
                 <small style={{ opacity: 0.75 }}>{new Date(note.createdAt).toLocaleString('ko-KR')}</small>
               </div>
-              <button
-                type="button"
+              <FormButton
+                htmlType="button"
                 aria-label="메모 삭제"
                 title="삭제"
                 disabled={saving}
@@ -221,7 +222,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
                 onClick={() => removeNote(note.id)}
               >
                 ×
-              </button>
+              </FormButton>
             </li>
           ))}
         </ul>
@@ -229,7 +230,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
 
       <Modal open={memoOpen} onClose={closeMemoModal} ariaLabel="메모 입력">
         <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">메모 입력</div>
-        <textarea
+        <FormTextarea
           className="w-full border border-[var(--border-default)] rounded-lg p-2 mb-3 bg-[var(--bg-card)] text-[var(--text-primary)] box-border min-h-[120px]"
           value={draft}
           maxLength={NOTE_MAX_LENGTH}

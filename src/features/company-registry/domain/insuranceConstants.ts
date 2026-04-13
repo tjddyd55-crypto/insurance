@@ -29,6 +29,6 @@ export function isInsuranceCategory(value: string): value is InsuranceCategory {
 }
 
 /** 레거시·UI 보조용. 대표번호는 DB(고객센터)만 신뢰. */
-export function getInsuranceCompanyDefaultTel(_category: string, _companyName: string): string {
+export function getInsuranceCompanyDefaultTel(): string {
   return ''
 }

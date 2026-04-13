@@ -1,3 +1,4 @@
+import { FormButton } from '../../../components/form'
 import type { NewsletterItem } from '../types'
 
 type Props = {
@@ -53,9 +54,9 @@ export function NewsCard({ item, onOpen }: Props) {
 
   if (onOpen) {
     return (
-      <button type="button" className="news-card" onClick={onOpen} aria-label={cardAriaLabel(item)}>
+      <FormButton htmlType="button" className="news-card" onClick={onOpen} aria-label={cardAriaLabel(item)}>
         {media}
-      </button>
+      </FormButton>
     )
   }
 

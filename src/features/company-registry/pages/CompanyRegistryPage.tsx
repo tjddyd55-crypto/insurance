@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useConfirmDialog } from '../../../components/dialog'
+import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
 import { deleteHardCompanyMaster, fullSaveCompanyDirectory, listCompanyDirectory } from '../api/companyRegistryApi'
@@ -35,6 +37,7 @@ const EMPTY_COMPANY_FIELDS: Omit<InsuranceCompanyFormState, 'id' | 'category' | 
 export default function CompanyRegistryPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { user, token, isAuthenticated } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const isOps = isAuthenticated && !!user && isInsuranceOpsRole(user.role)
   const canMutate = isOps && canMutateInsuranceDirectory(user.role)
   const readOnlyUi = isOps && !canMutate
@@ -268,14 +271,17 @@ export default function CompanyRegistryPage() {
       return
     }
     const label = company.name.trim() || company.companyCode || `id ${company.id}`
-    if (
-      !window.confirm(
+    const confirmed = await confirm({
+      title: '보험사 완전 삭제',
+      message:
         `「${label}」보험사를 완전히 삭제할까요?\n\n` +
-          '· 원수사 담당자 계정은 연결이 끊기고 비활성화됩니다.\n' +
-          '· 이 보험사의 연락처·일반의뢰 행은 삭제됩니다.\n' +
-          '· 소식지·업데이트 이력 등은 삭제되지 않으며, 소식지는 보험사명 스냅샷만 남습니다.',
-      )
-    ) {
+        '· 원수사 담당자 계정은 연결이 끊기고 비활성화됩니다.\n' +
+        '· 이 보험사의 연락처·일반의뢰 행은 삭제됩니다.\n' +
+        '· 소식지·업데이트 이력 등은 삭제되지 않으며, 소식지는 보험사명 스냅샷만 남습니다.',
+      confirmLabel: '삭제',
+      tone: 'danger',
+    })
+    if (!confirmed) {
       return
     }
     setIsDeleting(true)
@@ -341,14 +347,14 @@ export default function CompanyRegistryPage() {
                 const label = tabCat ? insuranceCategoryLabel(tabCat) : '분류 미정'
                 return (
                   <li key={e.id}>
-                    <button
-                      type="button"
+                    <FormButton
+                      htmlType="button"
                       className="company-registry-pick-list__btn"
                       onClick={() => applyDirectoryEntry(e)}
                     >
                       <span className="company-registry-pick-list__badge">{label}</span>
                       <span className="company-registry-pick-list__name">{e.name}</span>
-                    </button>
+                    </FormButton>
                   </li>
                 )
               })}
@@ -368,9 +374,8 @@ export default function CompanyRegistryPage() {
             </p>
           ) : null}
 
-          <label className="field">
-            <span className="field__label">보험 종류 (필수)</span>
-            <select
+          <FieldWrapper label="보험 종류 (필수)">
+            <FormSelect
               className="field__control"
               value={selectedType}
               disabled={readOnlyUi}
@@ -379,19 +384,15 @@ export default function CompanyRegistryPage() {
                 commitDirectorySelection(v, '')
               }}
               required
-            >
-              <option value="">선택</option>
-              {INSURANCE_TYPE_ORDER.map((v) => (
-                <option key={v} value={v}>
-                  {INSURANCE_TYPE_LABELS[v]}
-                </option>
-              ))}
-            </select>
-          </label>
+              options={[
+                { value: '', label: '선택' },
+                ...INSURANCE_TYPE_ORDER.map((v) => ({ value: v, label: INSURANCE_TYPE_LABELS[v] })),
+              ]}
+            />
+          </FieldWrapper>
 
-          <label className="field">
-            <span className="field__label">보험사 선택 (필수)</span>
-            <select
+          <FieldWrapper label="보험사 선택 (필수)">
+            <FormSelect
               className="field__control"
               value={selectedCompanyCode}
               onChange={(e) => {
@@ -399,19 +400,15 @@ export default function CompanyRegistryPage() {
               }}
               disabled={readOnlyUi || !selectedType}
               required
-            >
-              <option value="">선택</option>
-              {companyOptions.map((row) => (
-                <option key={row.companyCode} value={row.companyCode}>
-                  {row.name}
-                </option>
-              ))}
-            </select>
-          </label>
+              options={[
+                { value: '', label: '선택' },
+                ...companyOptions.map((row) => ({ value: row.companyCode, label: row.name })),
+              ]}
+            />
+          </FieldWrapper>
 
-          <label className="field">
-            <span className="field__label">보험사명</span>
-            <input
+          <FieldWrapper label="보험사명">
+            <FormInput
               className="field__control"
               value={company.name}
               onChange={(e) => {
@@ -434,7 +431,7 @@ export default function CompanyRegistryPage() {
               disabled={readOnlyUi || !selectedType}
               autoComplete="organization"
             />
-          </label>
+          </FieldWrapper>
 
           {hasDirectoryEntryForSelection ? (
             <p className="company-registry-field-hint" style={{ margin: '0 0 10px' }}>
@@ -450,7 +447,7 @@ export default function CompanyRegistryPage() {
           <div className="field-grid-customers">
             <label className="field">
               <span className="field__label">고객센터</span>
-              <input
+              <FormInput
                 className="field__control"
                 value={company.customerCenter}
                 onChange={(e) => {
@@ -464,7 +461,7 @@ export default function CompanyRegistryPage() {
             </label>
             <label className="field">
               <span className="field__label">전산문의</span>
-              <input
+              <FormInput
                 className="field__control"
                 value={company.systemPhone}
                 onChange={(e) => {
@@ -476,7 +473,7 @@ export default function CompanyRegistryPage() {
             </label>
             <label className="field">
               <span className="field__label">인콜번호</span>
-              <input
+              <FormInput
                 className="field__control"
                 value={company.incallNumber}
                 onChange={(e) => {
@@ -488,7 +485,7 @@ export default function CompanyRegistryPage() {
             </label>
             <label className="field field--wide">
               <span className="field__label">방문일 / 카톡 / 기타</span>
-              <input
+              <FormInput
                 className="field__control"
                 value={company.visitInfo}
                 onChange={(e) => {
@@ -504,66 +501,73 @@ export default function CompanyRegistryPage() {
           <ul className="company-registry-contact-editor-list">
             {contacts.map((row, index) => (
               <li key={index} className="company-registry-contact-editor-row">
-                <input
+                <FormInput
                   className="field__control"
                   placeholder="이름"
                   value={row.name}
                   disabled={readOnlyUi}
                   onChange={(e) => updateContact(index, { name: e.target.value })}
                 />
-                <input
+                <FormInput
                   className="field__control"
                   placeholder="직책"
                   value={row.position}
                   disabled={readOnlyUi}
                   onChange={(e) => updateContact(index, { position: e.target.value })}
                 />
-                <input
+                <FormInput
                   className="field__control"
                   placeholder="전화"
                   value={row.phone}
                   disabled={readOnlyUi}
                   onChange={(e) => updateContact(index, { phone: e.target.value })}
                 />
-                <button
+                <FormButton
                   className="button button--small"
-                  type="button"
+                  htmlType="button"
+                  variant="action"
                   onClick={() => removeContactRow(index)}
                   disabled={readOnlyUi || contacts.length <= 1}
                 >
                   삭제
-                </button>
+                </FormButton>
               </li>
             ))}
           </ul>
           {!readOnlyUi ? (
-            <button className="button button--secondary" type="button" onClick={addContactRow}>
+            <FormButton className="button button--secondary" htmlType="button" variant="secondary" onClick={addContactRow}>
               담당자 추가
-            </button>
+            </FormButton>
           ) : null}
 
           {!readOnlyUi ? (
-            <button
+            <FormButton
               className="button button--primary button--full"
               style={{ marginTop: 16 }}
-              type="button"
+              htmlType="button"
+              variant="primary"
               disabled={isSaving || isDeleting || !selectedType || !selectedCompanyCode}
               onClick={() => void handleSave()}
+              loading={isSaving}
+              loadingText="저장 중…"
             >
-              {isSaving ? '저장 중…' : company.id != null ? '수정 저장' : '신규 저장'}
-            </button>
+              {company.id != null ? '수정 저장' : '신규 저장'}
+            </FormButton>
           ) : null}
 
           {!readOnlyUi && company.id != null ? (
-            <button
+            <FormButton
               className="button button--full"
               style={{ marginTop: 12, borderColor: 'var(--danger, #b42318)', color: 'var(--danger, #b42318)' }}
-              type="button"
+              htmlType="button"
+              variant="danger"
               disabled={isSaving || isDeleting}
               onClick={() => void handleHardDelete()}
+              loading={isDeleting}
+              loadingText="삭제 중…"
             >
-              {isDeleting ? '삭제 중…' : '보험사 완전 삭제…'}
-            </button>
+              보험사 완전 삭제…
+            </FormButton>
           ) : null}
         </section>
       ) : (
@@ -580,6 +584,7 @@ export default function CompanyRegistryPage() {
           <Link to="/insurance/contacts">→ 보험사 연락처 조회 (탭)</Link>
         </p>
       </section>
+      {confirmDialog}
     </main>
   )
 }

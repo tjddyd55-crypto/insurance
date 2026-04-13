@@ -6,7 +6,9 @@ export function useDebounce(value: string, delayMs: number): string {
 
   useEffect(() => {
     if (value === '') {
-      setDebounced('')
+      queueMicrotask(() => {
+        setDebounced('')
+      })
       return
     }
     const id = window.setTimeout(() => {

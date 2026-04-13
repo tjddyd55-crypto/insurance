@@ -1,3 +1,4 @@
+import { FormButton } from '../../../components/form'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
@@ -117,13 +118,13 @@ export function ConsentFormPage() {
     <main className="consent-flow">
       <div className="consent-flow__inner">
         <nav style={{ marginBottom: 16 }}>
-          <button
-            type="button"
+          <FormButton
+            htmlType="button"
             className="consent-btn consent-btn--secondary"
             onClick={() => navigate('/internal/consent')}
           >
             보험사 다시 선택
-          </button>
+          </FormButton>
         </nav>
 
         <ConsentForm
