@@ -740,6 +740,14 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
 
   apiRouter.post('/customers/:id/files/presign', requireAuth, async (req, res) => {
     try {
+      console.log(
+        '[customers/files/presign] request',
+        JSON.stringify({
+          customerId: req.params?.customerId ?? null,
+          id: req.params?.id ?? null,
+          user: req.user ?? null,
+        }),
+      )
       if (!isConsentR2Enabled()) {
         logR2EnvDiagnosticCheck()
         res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
@@ -763,7 +771,28 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (customerId == null) {
         return
       }
-      if (!(await assertCustomerFileAccess(pool, customerId, userId, gaId, res))) {
+      const customerRow = await safeQuery(
+        pool,
+        `
+        SELECT *
+        FROM customers
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [customerId],
+      )
+      if (customerRow.rowCount === 0) {
+        res.status(404).json({ message: 'CUSTOMER_NOT_FOUND' })
+        return
+      }
+      const foundCustomer = customerRow.rows[0]
+      const customerGa = parseGaId(foundCustomer.ga_id)
+      if (customerGa == null || customerGa !== gaId) {
+        res.status(403).json({ message: '권한 없습니다.' })
+        return
+      }
+      if (String(foundCustomer.user_id) !== String(userId)) {
+        res.status(403).json({ message: '권한 없습니다.' })
         return
       }
 
@@ -802,6 +831,8 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       }
       res.json({ uploadUrl, fileUrl, objectKey, putHeaders, fileBucket })
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.error('[customers/files/presign] error:', msg)
       handleDbError(error, req, res)
     }
   })
