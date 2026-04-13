@@ -1,6 +1,10 @@
 import type { CustomerRecord } from '../domain/types'
 import { normalizeCustomerNotesBag } from '../domain/types'
 import { calculateInsuranceInfo, formatDateYmdInput, formatInsuranceUiDate } from './insuranceInfo'
+import {
+  CUSTOMER_MEDICAL_QUESTION_HINT,
+  CUSTOMER_MEDICAL_QUESTION_TEXT,
+} from './customerDisplayFormat'
 
 /** 고객 관리 · 카톡 붙여넣기용 (필요 필드만) */
 export function buildKakaoCustomerCopyText(data: CustomerRecord | Partial<CustomerRecord>) {
@@ -30,7 +34,9 @@ export function buildKakaoCustomerCopyText(data: CustomerRecord | Partial<Custom
     `직업/회사명/하는일/지역: ${job || '—'}`,
     `운전여부: ${drivingLine}`,
     `차종: ${carType || '—'}`,
-    `5년 이내 진단, 수술, 치료: ${medical || '—'}`,
+    `${CUSTOMER_MEDICAL_QUESTION_TEXT}`,
+    `${CUSTOMER_MEDICAL_QUESTION_HINT}`,
+    `${medical || '—'}`,
   ]
   return lines.join('\n').trim()
 }

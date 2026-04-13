@@ -17,6 +17,10 @@ import {
   formatInsuranceUiDate,
 
 } from '../../features/customers/utils/insuranceInfo'
+import {
+  CUSTOMER_MEDICAL_QUESTION_HINT,
+  CUSTOMER_MEDICAL_QUESTION_TEXT,
+} from '../../features/customers/utils/customerDisplayFormat'
 
 
 
@@ -660,13 +664,18 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
       <label className="field field--wide">
 
-        <span className="field__label">5년 이내 진단·수술·치료 (건강 고지)</span>
+        <span className="field__label">
+          {CUSTOMER_MEDICAL_QUESTION_TEXT}
+          <br />
+          <small style={{ opacity: 0.85 }}>{CUSTOMER_MEDICAL_QUESTION_HINT}</small>
+        </span>
 
         <textarea
 
           className="field__control"
 
           rows={3}
+          style={{ backgroundColor: 'var(--bg-main)' }}
 
           placeholder="내용"
 
@@ -687,6 +696,7 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
           className="field__control"
 
           rows={4}
+          style={{ backgroundColor: 'var(--bg-main)' }}
 
           placeholder="보험가입내역 입력"
 

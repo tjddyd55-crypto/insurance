@@ -36,6 +36,12 @@ import { formatDateYmdInput } from '../utils/insuranceInfo'
 import { EXCEL_COLUMN_META, exportCustomersExcel } from '../utils/exportCustomersExcel'
 import { normalizeSsn, RRN_NORMALIZED_LENGTH } from '../utils/customerExcelUpload'
 import {
+  CUSTOMER_MEDICAL_QUESTION_HINT,
+  CUSTOMER_MEDICAL_QUESTION_TEXT,
+  formatCustomerPhoneUi,
+  formatCustomerSsnUi,
+} from '../utils/customerDisplayFormat'
+import {
   CustomerForm,
   InsuranceInline,
   drivingText,
@@ -902,11 +908,16 @@ const CustomerListCard = memo(function CustomerListCard({
                       />
                     </label>
                     <label className="field field--wide">
-                      <span className="field__label">5년 이내 진단·수술·치료 (건강 고지)</span>
+                      <span className="field__label">
+                        {CUSTOMER_MEDICAL_QUESTION_TEXT}
+                        <br />
+                        <small style={{ opacity: 0.85 }}>{CUSTOMER_MEDICAL_QUESTION_HINT}</small>
+                      </span>
                       <textarea
                         className="field__control"
                         name="customer-medical"
                         rows={3}
+                        style={{ backgroundColor: 'var(--bg-main)' }}
                         value={editForm.medical ?? ''}
                         onChange={(e) =>
                           setEditForm((prev) => (prev ? { ...prev, medical: e.target.value } : prev))
@@ -919,6 +930,7 @@ const CustomerListCard = memo(function CustomerListCard({
                         className="field__control"
                         name="customer-insurance-history"
                         rows={4}
+                        style={{ backgroundColor: 'var(--bg-main)' }}
                         placeholder="보험가입내역 입력"
                         value={editForm.insuranceHistory ?? ''}
                         onChange={(e) =>
@@ -991,7 +1003,7 @@ const CustomerListCard = memo(function CustomerListCard({
               <>
                 <div className="customer-detail-read">
                   <p>
-                    <strong>주민번호:</strong> {c.ssn || '—'}
+                    <strong>주민번호:</strong> {formatCustomerSsnUi(c.ssn) || '—'}
                   </p>
                   <p style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px', alignItems: 'center' }}>
                     <span>
@@ -1003,7 +1015,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     </span>
                   </p>
                   <p>
-                    <strong>핸드폰번호:</strong> {c.phone || '—'}
+                    <strong>핸드폰번호:</strong> {formatCustomerPhoneUi(c.phone) || '—'}
                   </p>
                   <p>
                     <strong>주소:</strong> {c.address || '—'}
@@ -1029,8 +1041,11 @@ const CustomerListCard = memo(function CustomerListCard({
                     <strong>차종:</strong> {c.carType.trim() || '—'}
                   </p>
                   <p>
-                    <strong>5년 이내 진단, 수술, 치료:</strong> {c.medical?.trim() || '—'}
+                    <strong>{CUSTOMER_MEDICAL_QUESTION_TEXT}</strong>
+                    <br />
+                    <span style={{ opacity: 0.85 }}>{CUSTOMER_MEDICAL_QUESTION_HINT}</span>
                   </p>
+                  <p>{c.medical?.trim() || '—'}</p>
                   <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
                   <div className="customer-section-title !mt-5">[자동차보험 정보]</div>
                   <div className="customer-car-info-grid text-sm text-[var(--text-primary)]">

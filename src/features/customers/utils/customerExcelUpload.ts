@@ -30,9 +30,49 @@ export const CUSTOMER_EXCEL_UPLOAD_HEADERS = [
   'memo',
 ] as const
 
+const CUSTOMER_EXCEL_UPLOAD_HEADER_LABELS_KO = [
+  '이름',
+  '성별',
+  '주민번호',
+  '휴대폰번호',
+  '주소',
+  '키',
+  '몸무게',
+  '직업',
+  '운전여부',
+  '자동차종류',
+  '차번호',
+  '자동차모델명',
+  '년식',
+  '갱신일',
+  '병력사항',
+  '보험가입내역',
+  '메모',
+] as const
+
 const SHEET_DATA = '고객데이터'
 const SHEET_DESC = '컬럼설명'
 const SAMPLE_FILENAME = 'customer-upload-sample.xlsx'
+
+const HEADER_LABEL_TO_KEY: Record<string, (typeof CUSTOMER_EXCEL_UPLOAD_HEADERS)[number]> = {
+  이름: 'name',
+  성별: 'gender',
+  주민번호: 'ssn',
+  휴대폰번호: 'phone',
+  주소: 'address',
+  키: 'height',
+  몸무게: 'weight',
+  직업: 'job',
+  운전여부: 'isDriver',
+  자동차종류: 'carType',
+  차번호: 'carNumber',
+  자동차모델명: 'carModel',
+  년식: 'carYear',
+  갱신일: 'renewalDate',
+  병력사항: 'medical',
+  보험가입내역: 'insuranceHistory',
+  메모: 'memo',
+}
 
 /** 한국 주민등록번호 본문 13자리 (검증·병합 키용) */
 export const RRN_NORMALIZED_LENGTH = 13
@@ -328,10 +368,65 @@ export function parseExcel(file: File): Promise<CustomerExcelParsedRow[]> {
           reject(new Error(`「${SHEET_DATA}」시트를 찾을 수 없습니다.`))
           return
         }
-        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+        const rows2d = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
+          header: 1,
           defval: '',
           raw: false,
         })
+        if (rows2d.length === 0) {
+          resolve([])
+          return
+        }
+
+        const normalizeHeader = (value: unknown): string =>
+          cellToString(value).trim().replace(/\s+/g, '').toLowerCase()
+
+        const resolveHeaderKeys = (row: unknown[] | undefined): string[] => {
+          if (!Array.isArray(row)) {
+            return []
+          }
+          return row.map((cell) => {
+            const raw = cellToString(cell).trim()
+            if (!raw) {
+              return ''
+            }
+            const normalized = normalizeHeader(raw)
+            const keyMatch = CUSTOMER_EXCEL_UPLOAD_HEADERS.find(
+              (k) => normalizeHeader(k) === normalized,
+            )
+            if (keyMatch) {
+              return keyMatch
+            }
+            const byLabel = HEADER_LABEL_TO_KEY[raw]
+            if (byLabel) {
+              return byLabel
+            }
+            return ''
+          })
+        }
+
+        const hasRequiredKeys = (keys: string[]): boolean => {
+          const set = new Set(keys.filter(Boolean))
+          return set.has('name') && set.has('ssn')
+        }
+
+        const firstHeaderKeys = resolveHeaderKeys(rows2d[0] as unknown[])
+        const secondHeaderKeys = resolveHeaderKeys(rows2d[1] as unknown[] | undefined)
+        const useSecondHeader = !hasRequiredKeys(firstHeaderKeys) && hasRequiredKeys(secondHeaderKeys)
+        const headerKeys = useSecondHeader ? secondHeaderKeys : firstHeaderKeys
+        const dataStartIndex = useSecondHeader ? 2 : 1
+
+        const rows = rows2d.slice(dataStartIndex).map((line) => {
+          const rec: Record<string, unknown> = {}
+          headerKeys.forEach((key, idx) => {
+            if (!key) {
+              return
+            }
+            rec[key] = Array.isArray(line) ? line[idx] : ''
+          })
+          return rec
+        })
+
         const parsed: CustomerExcelParsedRow[] = []
         for (const row of rows) {
           parsed.push({
@@ -513,6 +608,7 @@ export async function prepareCustomerExcelImport(file: File): Promise<CustomerEx
 }
 
 export function downloadCustomerUploadSampleXlsx(): void {
+  const headersKo = [...CUSTOMER_EXCEL_UPLOAD_HEADER_LABELS_KO]
   const headers = [...CUSTOMER_EXCEL_UPLOAD_HEADERS]
   /** 폼(고객 등록) 필드 순서와 동일: 이름·성별·주민번호·…·자동차 정보·건강고지·보험가입내역·메모 */
   const row1 = [
@@ -569,14 +665,12 @@ export function downloadCustomerUploadSampleXlsx(): void {
     ['carModel', '차종(차명) 예: 그랜저'],
     ['carYear', '연식(예: 2022)'],
     ['renewalDate', '만기(갱신)일 — YYYY-MM-DD 권장(폼 date와 동일)'],
-    ['medical', '5년 이내 진단·수술·치료(건강 고지)'],
+    ['medical', '병력사항'],
     ['insuranceHistory', '보험가입내역(긴 텍스트). 폼의「보험가입내역」과 동일하게 저장'],
     ['memo', '메모(폼「메모」). "/" 로 구분 시 여러 메모 항목으로 나뉨, 중복 문구는 제거'],
   ]
-  const sheet1 = XLSX.utils.aoa_to_sheet([headers, row1, row2])
-  sheet1['!cols'] = headers.map(() => ({ wch: 14 }))
+  const sheet1 = XLSX.utils.aoa_to_sheet([headersKo, headers, row1, row2])
   const sheet2 = XLSX.utils.aoa_to_sheet([descHeader, ...descRows])
-  sheet2['!cols'] = [{ wch: 18 }, { wch: 44 }]
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, sheet1, SHEET_DATA)
   XLSX.utils.book_append_sheet(wb, sheet2, SHEET_DESC)
