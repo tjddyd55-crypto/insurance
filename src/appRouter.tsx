@@ -40,6 +40,7 @@ import { TemplateEditorPage } from './features/consent/admin/pages/TemplateEdito
 import { TemplateListPage } from './features/consent/admin/pages/TemplateListPage'
 import { ConsentFormPage } from './features/consent/pages/ConsentFormPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
+import { IntroductionPage } from './features/introduction/pages/IntroductionPage'
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
 import AdminAnalyticsPage from './features/analytics/pages/AdminAnalyticsPage'
@@ -78,6 +79,7 @@ export const appRouter = createBrowserRouter([
       { path: 'signup', element: <Navigate to="/register" replace /> },
       { path: 'privacy', element: <PrivacyPolicyPage /> },
       { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
+      { path: 'introduction', element: <IntroductionPage /> },
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /api/customer/external-create + ref·ga 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },
       { path: 'customer/register', element: <CustomerRegisterPage /> },

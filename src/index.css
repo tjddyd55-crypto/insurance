@@ -6,6 +6,7 @@
 @import './styles/typography.css';
 @import './features/admin/admin-ui.css';
 @import './features/insurer-news/insurer-news.css';
+@import './features/introduction/introduction.css';
 
 * {
   box-sizing: border-box;
