@@ -480,6 +480,11 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
+      const gaPath = await resolveGaPathByGaId(pool, gaId)
+      if (!gaPath) {
+        res.status(400).json({ message: 'GA 경로를 확인할 수 없습니다.' })
+        return
+      }
       const customerId = parseCustomerIdParam(req, res)
       if (customerId == null) {
         return
