@@ -62,13 +62,6 @@ function buildPdfResponseUrl(req, jwtToken) {
   return `${prefix}/consent/file?token=${encodeURIComponent(jwtToken)}`
 }
 
-function normalizeGaCodeForPath(code) {
-  return String(code ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/_/g, '-')
-}
-
 function sanitizeUserIdForPath(userId) {
   const v = String(userId ?? '')
     .trim()
@@ -396,21 +389,7 @@ export function registerConsentApi(apiRouter, ctx) {
         res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
         return
       }
-      const gaScope = await safeQuery(
-        pool,
-        `
-        SELECT code
-        FROM ga_companies
-        WHERE id = $1
-        LIMIT 1
-        `,
-        [tenantGa],
-      )
-      if (gaScope.rowCount === 0) {
-        res.status(400).json({ message: 'GA 경로를 확인할 수 없습니다.' })
-        return
-      }
-      const gaPath = normalizeGaCodeForPath(gaScope.rows[0].code)
+      const gaIdPath = String(tenantGa)
       const userSeg = sanitizeUserIdForPath(userId)
 
       const consentTemplateId = String(req.body.consent_template_id ?? '').trim()
@@ -470,11 +449,11 @@ export function registerConsentApi(apiRouter, ctx) {
       const dd = String(now.getUTCDate()).padStart(2, '0')
       const ts = Date.now()
       const customerPathId = await resolveConsentCustomerPathId(pool, userId, tenantGa, req.body)
-      const resultKey = `insurer/${gaPath}/${userSeg}/customers/${customerPathId}/consents/${yyyy}/${mm}/${dd}/${ts}_consent-result.pdf`
+      const resultKey = `insurer/${gaIdPath}/${userSeg}/customers/${customerPathId}/consents/${yyyy}/${mm}/${dd}/${ts}_consent-result.pdf`
       await consentPutObject(resultKey, filledPdf, 'application/pdf')
 
       if (signatureBuf && signatureBuf.length > 0) {
-        const sigKey = `insurer/${gaPath}/${userSeg}/customers/${customerPathId}/consents/${yyyy}/${mm}/${dd}/${ts}_consent-signature.png`
+        const sigKey = `insurer/${gaIdPath}/${userSeg}/customers/${customerPathId}/consents/${yyyy}/${mm}/${dd}/${ts}_consent-signature.png`
         await consentPutObject(sigKey, signatureBuf, 'image/png')
       }
 

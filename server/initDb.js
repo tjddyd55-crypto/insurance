@@ -345,6 +345,23 @@ export async function initDb() {
     CHECK (status IN ('active', 'blocked', 'inactive'))
   `)
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ga_history (
+      id SERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      old_code VARCHAR(64) NOT NULL,
+      new_code VARCHAR(64) NOT NULL,
+      old_name VARCHAR(255) NOT NULL,
+      new_name VARCHAR(255) NOT NULL,
+      changed_by TEXT NOT NULL,
+      changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_ga_history_ga_id
+    ON ga_history (ga_id)
+  `)
+
   await pool.query(
     `
     INSERT INTO ga_companies (name, code)

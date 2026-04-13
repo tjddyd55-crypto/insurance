@@ -54,12 +54,13 @@ function storageCategoryForChannel(channel) {
   return channel === NEWS_CHANNEL_LOSS_ADJUSTER ? LOSS_ADJUSTER_R2_CATEGORY : INSURER_R2_ACTIVE_CATEGORY
 }
 
-/** @param {string} code */
-function normalizeGaCodeForPath(code) {
-  return String(code ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/_/g, '-')
+/** @param {unknown} gaId */
+function normalizeGaIdForPath(gaId) {
+  const n = Number(gaId)
+  if (!Number.isInteger(n) || n < 1) {
+    return ''
+  }
+  return String(n)
 }
 
 /** @param {string} name */
@@ -104,12 +105,12 @@ async function loadInsurerManagerNewsScope(pool, user) {
     return null
   }
   const row = r.rows[0]
-  const gaPath = normalizeGaCodeForPath(row.ga_code)
+  const gaIdPath = normalizeGaIdForPath(row.ga_id)
   const companySlug = slugifyCompanySegment(row.company_name)
   return {
     gaId: Number(row.ga_id),
     gaCodeRaw: String(row.ga_code ?? '').trim(),
-    gaPath,
+    gaIdPath,
     companyId: Number(row.company_id),
     companyName: String(row.company_name ?? '').trim(),
     companySlug,
@@ -145,12 +146,12 @@ async function loadLossAdjusterNewsScope(pool, user) {
   }
   const row = r.rows[0]
   const companyNameRaw = String(row.company_name ?? '').trim() || String(row.adjuster_name ?? '').trim()
-  const gaPath = normalizeGaCodeForPath(row.ga_code)
+  const gaIdPath = normalizeGaIdForPath(row.ga_id)
   const companySlug = slugifyCompanySegment(companyNameRaw)
   return {
     gaId: Number(row.ga_id),
     gaCodeRaw: String(row.ga_code ?? '').trim(),
-    gaPath,
+    gaIdPath,
     companyId: null,
     companyName: companyNameRaw,
     companySlug,
@@ -189,7 +190,7 @@ async function loadMasterCompanyNewsScope(pool, gaId, companyMasterId, channel =
   return {
     gaId: Number(row.ga_id),
     gaCodeRaw: String(row.ga_code ?? '').trim(),
-    gaPath: normalizeGaCodeForPath(row.ga_code),
+    gaIdPath: normalizeGaIdForPath(row.ga_id),
     companyId: Number(row.id),
     companyName: String(row.name ?? '').trim(),
     companySlug: slugifyCompanySegment(row.name),
@@ -210,12 +211,12 @@ function maxBytesForMime(contentType) {
 
 /**
  * @param {string} objectKey
- * @param {string} gaPath
+ * @param {string} gaIdPath
  * @param {string} storageCategory
  * @param {string} companySlug
  * @param {boolean} [allowLegacyLossAdjusterCategory]
  */
-function assertNewsObjectKeyScoped(objectKey, gaPath, storageCategory, companySlug, allowLegacyLossAdjusterCategory = false) {
+function assertNewsObjectKeyScoped(objectKey, gaIdPath, storageCategory, companySlug, allowLegacyLossAdjusterCategory = false) {
   const parts = String(objectKey).split('/')
   if (parts.length < 6) {
     return false
@@ -228,7 +229,7 @@ function assertNewsObjectKeyScoped(objectKey, gaPath, storageCategory, companySl
     (allowLegacyLossAdjusterCategory &&
       isLossAdjusterCategory &&
       isLegacyLossAdjusterCategory)
-  if (parts[0] !== 'insurer' || parts[1] !== gaPath || !categoryMatches) {
+  if (parts[0] !== 'insurer' || parts[1] !== gaIdPath || !categoryMatches) {
     return false
   }
   let companyIndex = 4
@@ -567,7 +568,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
   /**
    * @param {object} att
-   * @param {{ gaPath: string, companySlug: string, storageCategory: string }} scope
+   * @param {{ gaIdPath: string, companySlug: string, storageCategory: string }} scope
    */
   function assertAttachmentInput(att, scope) {
     const kind = String(att.kind ?? '')
@@ -586,7 +587,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     if (!objectKey || !url) {
       throw Object.assign(new Error('첨부 objectKey와 url이 필요합니다.'), { httpStatus: 400 })
     }
-    if (!assertNewsObjectKeyScoped(objectKey, scope.gaPath, scope.storageCategory, scope.companySlug, true)) {
+    if (!assertNewsObjectKeyScoped(objectKey, scope.gaIdPath, scope.storageCategory, scope.companySlug, true)) {
       throw Object.assign(new Error('허용되지 않은 저장 경로입니다.'), { httpStatus: 400 })
     }
     if (!assertCdnUrlMatchesKey(url, objectKey)) {
@@ -799,13 +800,13 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   /**
    * 이미지·PDF 를 업로드 그대로 저장합니다 (PDF 를 이미지로 변환하지 않음).
    * @param {unknown[]} attIn
-   * @param {{ gaPath: string, companySlug: string }} scope
+   * @param {{ gaIdPath: string, companySlug: string }} scope
    * @returns {ReturnType<typeof assertAttachmentInput>[]}
    */
   function prepareAttachmentsForWrite(attIn, scope) {
     return attIn.map((a) =>
       assertAttachmentInput(a, {
-        gaPath: scope.gaPath,
+        gaIdPath: scope.gaIdPath,
         companySlug: scope.companySlug,
         storageCategory: scope.storageCategory,
       }),
@@ -1131,7 +1132,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const now = new Date()
       const yyyy = String(now.getUTCFullYear())
       const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
-      const objectKey = `insurer/${scope.gaPath}/${scope.storageCategory}/${yyyy}/${mm}/${scope.companySlug}/${randomUUID()}_${safeSeg}`
+      const objectKey = `insurer/${scope.gaIdPath}/${scope.storageCategory}/${yyyy}/${mm}/${scope.companySlug}/${randomUUID()}_${safeSeg}`
 
       const cacheControl = getR2InsurerAttachmentsCacheControl()
       const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
@@ -1198,7 +1199,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(403).json({ message: '업로드 범위를 확인할 수 없습니다.' })
         return
       }
-      if (!assertNewsObjectKeyScoped(objectKey, scope.gaPath, scope.storageCategory, scope.companySlug)) {
+      if (!assertNewsObjectKeyScoped(objectKey, scope.gaIdPath, scope.storageCategory, scope.companySlug)) {
         res.status(400).json({ message: '허용되지 않은 저장 경로입니다.' })
         return
       }
@@ -1269,7 +1270,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(403).json({ message: '업로드 범위를 확인할 수 없습니다.' })
         return
       }
-      if (!assertNewsObjectKeyScoped(objectKey, scope.gaPath, scope.storageCategory, scope.companySlug)) {
+      if (!assertNewsObjectKeyScoped(objectKey, scope.gaIdPath, scope.storageCategory, scope.companySlug)) {
         insurerNewsLog.error({
           event: 'upload-fail',
           stage: 'upload-complete',

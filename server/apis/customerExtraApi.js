@@ -40,13 +40,6 @@ const CUSTOMER_FILE_BUCKET = Object.freeze({
 
 const CUSTOMER_FILE_BUCKET_SET = new Set(Object.values(CUSTOMER_FILE_BUCKET))
 
-function normalizeGaCodeForPath(code) {
-  return String(code ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/_/g, '-')
-}
-
 function sanitizeUserIdForObjectKeySegment(userId) {
   const s = String(userId ?? '')
     .replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -67,7 +60,7 @@ function normalizeCustomerFileBucket(raw) {
   return CUSTOMER_FILE_BUCKET.ATTACHMENTS
 }
 
-function buildCustomerFileObjectKey(gaPath, userId, customerId, fileNameRaw, bucketRaw) {
+function buildCustomerFileObjectKey(gaIdPath, userId, customerId, fileNameRaw, bucketRaw) {
   const userSeg = sanitizeUserIdForObjectKeySegment(userId)
   const safeName = sanitizeCustomerFileBaseName(fileNameRaw)
   const bucket = normalizeCustomerFileBucket(bucketRaw)
@@ -76,16 +69,16 @@ function buildCustomerFileObjectKey(gaPath, userId, customerId, fileNameRaw, buc
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
   const dd = String(now.getUTCDate()).padStart(2, '0')
   const ts = Date.now()
-  return `insurer/${gaPath}/${userSeg}/customers/${customerId}/${bucket}/${yyyy}/${mm}/${dd}/${ts}_${safeName}`
+  return `insurer/${gaIdPath}/${userSeg}/customers/${customerId}/${bucket}/${yyyy}/${mm}/${dd}/${ts}_${safeName}`
 }
 
-function assertCustomerFileObjectKey(key, gaPath, userId, customerId) {
+function assertCustomerFileObjectKey(key, gaIdPath, userId, customerId) {
   const k = String(key ?? '').replace(/^\//, '')
   if (!k || k.includes('..')) {
     return false
   }
   const userSeg = sanitizeUserIdForObjectKeySegment(userId)
-  const prefix = `insurer/${gaPath}/${userSeg}/customers/${customerId}/`
+  const prefix = `insurer/${gaIdPath}/${userSeg}/customers/${customerId}/`
   if (!k.startsWith(prefix)) {
     return false
   }
@@ -116,25 +109,11 @@ function parseCustomerFileObjectKeyFromPublicUrl(fileUrl) {
   return u.slice(base.length + 1).replace(/^\//, '')
 }
 
-async function resolveGaPathByGaId(pool, gaId) {
-  const r = await safeQuery(
-    pool,
-    `
-    SELECT code
-    FROM ga_companies
-    WHERE id = $1
-    LIMIT 1
-    `,
-    [gaId],
-    {
-      skipGaFilter: true,
-      allowUnscoped: true,
-    },
-  )
-  if (r.rowCount === 0) {
+async function resolveGaPathByGaId(_pool, gaId) {
+  if (!Number.isInteger(gaId) || gaId < 1) {
     return null
   }
-  return normalizeGaCodeForPath(r.rows[0].code)
+  return String(gaId)
 }
 
 async function deleteCustomerFileFromR2WithLog(objectKey, tag = 'delete') {
@@ -766,9 +745,9 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      const gaPath = await resolveGaPathByGaId(pool, gaId)
-      if (!gaPath) {
-        res.status(400).json({ message: 'GA 경로를 확인할 수 없습니다.' })
+      const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+      if (!gaIdPath) {
+        res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
         return
       }
       const customerId = parseCustomerIdParam(req, res)
@@ -820,7 +799,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
 
-      const objectKey = buildCustomerFileObjectKey(gaPath, userId, customerId, fileNameRaw, fileBucket)
+      const objectKey = buildCustomerFileObjectKey(gaIdPath, userId, customerId, fileNameRaw, fileBucket)
 
       const cacheControl = getR2InsurerAttachmentsCacheControl()
       const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
@@ -862,9 +841,9 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      const gaPath = await resolveGaPathByGaId(pool, gaId)
-      if (!gaPath) {
-        res.status(400).json({ message: 'GA 경로를 확인할 수 없습니다.' })
+      const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+      if (!gaIdPath) {
+        res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
         return
       }
       const customerId = parseCustomerIdParam(req, res)
@@ -885,7 +864,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(400).json({ message: 'object key가 필요합니다.' })
         return
       }
-      if (!assertCustomerFileObjectKey(objectKey, gaPath, userId, customerId)) {
+      if (!assertCustomerFileObjectKey(objectKey, gaIdPath, userId, customerId)) {
         res.status(400).json({ message: '유효하지 않은 object key입니다.' })
         return
       }
@@ -919,9 +898,9 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      const gaPath = await resolveGaPathByGaId(pool, gaId)
-      if (!gaPath) {
-        res.status(400).json({ message: 'GA 경로를 확인할 수 없습니다.' })
+      const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+      if (!gaIdPath) {
+        res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
         return
       }
       const customerId = parseCustomerIdParam(req, res)
@@ -937,7 +916,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(400).json({ message: '요청이 올바르지 않습니다.' })
         return
       }
-      if (!assertCustomerFileObjectKey(objectKeyRaw, gaPath, userId, customerId)) {
+      if (!assertCustomerFileObjectKey(objectKeyRaw, gaIdPath, userId, customerId)) {
         res.status(400).json({ message: '요청이 올바르지 않습니다.' })
         return
       }
@@ -963,9 +942,9 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      const gaPath = await resolveGaPathByGaId(pool, gaId)
-      if (!gaPath) {
-        res.status(400).json({ message: 'GA 경로를 확인할 수 없습니다.' })
+      const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+      if (!gaIdPath) {
+        res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
         return
       }
       const customerId = parseCustomerIdParam(req, res)
@@ -1007,7 +986,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(400).json({ message: '파일 URL이 필요합니다.' })
         return
       }
-      if (!assertCustomerFileObjectKey(objectKeyRaw, gaPath, userId, customerId)) {
+      if (!assertCustomerFileObjectKey(objectKeyRaw, gaIdPath, userId, customerId)) {
         res.status(400).json({ message: '유효하지 않은 object key입니다.' })
         return
       }
@@ -1108,9 +1087,9 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      const gaPath = await resolveGaPathByGaId(pool, gaId)
-      if (!gaPath) {
-        res.status(400).json({ message: 'GA 경로를 확인할 수 없습니다.' })
+      const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+      if (!gaIdPath) {
+        res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
         return
       }
       const fileId = Number(req.params.fileId)
@@ -1168,26 +1147,8 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
 
       if (objectKey) {
         const cid = Number(row.customer_id)
-        const userSeg = sanitizeUserIdForObjectKeySegment(userId)
-        const safeNewKey = objectKey && assertCustomerFileObjectKey(objectKey, gaPath, userId, cid)
-        const legacy =
-          !safeNewKey &&
-          typeof objectKey === 'string' &&
-          objectKey.startsWith(`customers-files/${gaId}/${cid}/`)
-        /** 이전 customer_files 경로 (ga/{gaId}/users/{userSeg}/customers/...) */
-        const legacyGaScopedUsersPath =
-          !safeNewKey &&
-          !legacy &&
-          typeof objectKey === 'string' &&
-          objectKey.startsWith(`ga/${gaId}/users/${userSeg}/customers/${cid}/`)
-        /** 구버전(최상위 customers/) R2 키 — DB 소프트삭제와 무관하게 객체 제거 허용 */
-        const legacyTopLevelCustomers =
-          !safeNewKey &&
-          !legacy &&
-          !legacyGaScopedUsersPath &&
-          typeof objectKey === 'string' &&
-          objectKey.startsWith(`customers/${gaId}/${userSeg}/${cid}/`)
-        if (safeNewKey || legacy || legacyGaScopedUsersPath || legacyTopLevelCustomers) {
+        const safeNewKey = objectKey && assertCustomerFileObjectKey(objectKey, gaIdPath, userId, cid)
+        if (safeNewKey) {
           void deleteCustomerFileFromR2WithLog(objectKey, 'soft-delete')
         }
       }

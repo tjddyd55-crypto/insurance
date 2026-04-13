@@ -2831,7 +2831,7 @@ apiRouter.patch('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, res
     }
     const exists = await systemQuery(
       pool,
-      `SELECT id FROM ga_companies WHERE id = $1 AND is_deleted = false`,
+      `SELECT id, name, code FROM ga_companies WHERE id = $1 AND is_deleted = false`,
       [id],
     )
     if (exists.rowCount === 0) {
@@ -2839,20 +2839,27 @@ apiRouter.patch('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, res
       return
     }
 
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+    const beforeName = String(exists.rows[0].name ?? '')
+    const beforeCode = String(exists.rows[0].code ?? '')
+    let nextName = beforeName
+    let nextCode = beforeCode
+
     const parts = []
     const vals = []
     let n = 1
-    if (Object.prototype.hasOwnProperty.call(req.body ?? {}, 'name')) {
-      const name = String(req.body?.name ?? '').trim()
+    if (Object.prototype.hasOwnProperty.call(body, 'name')) {
+      const name = String(body.name ?? '').trim()
       if (!name) {
         res.status(400).json({ message: 'name이 비어 있을 수 없습니다.' })
         return
       }
+      nextName = name
       parts.push(`name = $${n++}`)
       vals.push(name)
     }
-    if (Object.prototype.hasOwnProperty.call(req.body ?? {}, 'code')) {
-      const code = String(req.body?.code ?? '').trim().toUpperCase()
+    if (Object.prototype.hasOwnProperty.call(body, 'code')) {
+      const code = String(body.code ?? '').trim().toUpperCase()
       if (!/^[A-Z0-9_]{2,32}$/.test(code)) {
         res.status(400).json({ message: 'code는 2~32자의 영문 대문자·숫자·밑줄만 사용할 수 있습니다.' })
         return
@@ -2870,11 +2877,12 @@ apiRouter.patch('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, res
         res.status(409).json({ message: '이미 존재하는 코드입니다' })
         return
       }
+      nextCode = code
       parts.push(`code = $${n++}`)
       vals.push(code)
     }
-    if (Object.prototype.hasOwnProperty.call(req.body ?? {}, 'status')) {
-      const st = parseEntityStatus(req.body?.status)
+    if (Object.prototype.hasOwnProperty.call(body, 'status')) {
+      const st = parseEntityStatus(body.status)
       if (!st) {
         res.status(400).json({ message: 'status는 active, blocked, inactive 중 하나여야 합니다.' })
         return
@@ -2888,23 +2896,86 @@ apiRouter.patch('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, res
       return
     }
 
-    vals.push(id)
-    const upd = await systemQuery(
-      pool,
-      `
-      UPDATE ga_companies
-      SET ${parts.join(', ')}
-      WHERE id = $${n} AND is_deleted = false
-      RETURNING id, name, code, status, created_at
-      `,
-      vals,
-    )
+    const shouldWriteHistory = beforeName !== nextName || beforeCode !== nextCode
+    const changedBy = String(req.user?.id ?? '').trim() || 'system'
+
+    const client = await pool.connect()
+    let upd
+    try {
+      await client.query('BEGIN')
+
+      if (shouldWriteHistory) {
+        await systemQuery(
+          client,
+          `
+          INSERT INTO ga_history (
+            ga_id,
+            old_code,
+            new_code,
+            old_name,
+            new_name,
+            changed_by,
+            changed_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, NOW())
+          `,
+          [id, beforeCode, nextCode, beforeName, nextName, changedBy],
+        )
+      }
+
+      vals.push(id)
+      upd = await systemQuery(
+        client,
+        `
+        UPDATE ga_companies
+        SET ${parts.join(', ')}
+        WHERE id = $${n} AND is_deleted = false
+        RETURNING id, name, code, status, created_at
+        `,
+        vals,
+      )
+      if (upd.rowCount === 0) {
+        await client.query('ROLLBACK')
+        res.status(404).json({ message: 'GA를 찾을 수 없습니다.' })
+        return
+      }
+      await client.query('COMMIT')
+    } catch (txError) {
+      await client.query('ROLLBACK')
+      throw txError
+    } finally {
+      client.release()
+    }
+
     res.json(upd.rows[0])
   } catch (error) {
     if (error?.code === '23505') {
       res.status(409).json({ message: '이미 존재하는 코드입니다' })
       return
     }
+    handleDbError(error, req, res)
+  }
+})
+
+apiRouter.get('/admin/ga/:id/history', requireAuth, requireSuperAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id < 1) {
+      res.status(400).json({ message: '잘못된 GA ID입니다.' })
+      return
+    }
+    const rows = await systemQuery(
+      pool,
+      `
+      SELECT id, ga_id, old_code, new_code, old_name, new_name, changed_by, changed_at
+      FROM ga_history
+      WHERE ga_id = $1
+      ORDER BY changed_at DESC, id DESC
+      `,
+      [id],
+    )
+    res.json(rows.rows)
+  } catch (error) {
     handleDbError(error, req, res)
   }
 })
