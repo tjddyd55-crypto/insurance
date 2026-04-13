@@ -457,6 +457,7 @@ type CustomerListCardProps = {
   onCancelEdit: () => void
   onDeleteCustomer: (c: CustomerRecord) => void
   onNavigateToFormEdit: (formId: string) => void
+  onCreateAutoApplication: (customerId: number) => void
   token: string | null
   onOpenCustomer: (customerId: number) => void
   consultationCount: number
@@ -490,6 +491,7 @@ const CustomerListCard = memo(function CustomerListCard({
   onCancelEdit,
   onDeleteCustomer,
   onNavigateToFormEdit,
+  onCreateAutoApplication,
   token,
   onOpenCustomer,
   consultationCount,
@@ -747,6 +749,15 @@ const CustomerListCard = memo(function CustomerListCard({
                 >
                   🗑
                 </button>
+                {carFeatureEnabled ? (
+                  <button
+                    type="button"
+                    className="button button--secondary button--small customer-create-form-button"
+                    onClick={() => onCreateAutoApplication(c.id)}
+                  >
+                    자동차 신청서 작성
+                  </button>
+                ) : null}
               </div>
             </div>
             {editingId === c.id && editForm ? (
@@ -1737,6 +1748,10 @@ export default function CustomersPage() {
     navigate(`/form/${formId}/edit`)
   }, [navigate])
 
+  const handleCreateAutoApplication = useCallback((customerId: number) => {
+    navigate(`/app/auto-insurance?customerId=${customerId}`)
+  }, [navigate])
+
   const handleConsultationCountsInvalidate = useCallback(() => {
     void refreshConsultationCounts()
   }, [refreshConsultationCounts])
@@ -2239,6 +2254,7 @@ export default function CustomersPage() {
                   onCancelEdit={cancelEdit}
                   onDeleteCustomer={handleDeleteCustomer}
                   onNavigateToFormEdit={handleNavigateToFormEdit}
+                  onCreateAutoApplication={handleCreateAutoApplication}
                   token={token}
                   onOpenCustomer={openCustomerInList}
                   consultationCount={consultationCounts[c.id] ?? 0}

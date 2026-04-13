@@ -45,12 +45,16 @@ function OptionLine({ options, selected, small = false }: OptionLineProps) {
 }
 
 function valueText(input: string): string {
-  return input.trim() || '\u00a0'
+  const singleLine = input
+    .replace(/\r?\n+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return singleLine || '\u00a0'
 }
 
 export function InsuranceResultTemplate({ data }: InsuranceResultTemplateProps) {
   return (
-    <article className="form-container result-template insurance-form">
+    <article className="form-container result-template insurance-form print-container">
       <div className="form-title insurance-form-title">자동차보험신청서</div>
       <div className="form-header">F.053-218-4273</div>
 

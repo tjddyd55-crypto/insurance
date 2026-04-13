@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { saveCustomer, searchCustomers } from '../../customers/api/customersApi'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { getCustomerById, saveCustomer, searchCustomers } from '../../customers/api/customersApi'
 import type { CustomerRecord } from '../../customers/domain/types'
 import { generateCustomerText } from '../../customers/utils/customerText'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -37,6 +37,7 @@ import { FormSection } from '../components/FormSection'
 
 type EditableField = Exclude<keyof InsuranceApplicationFormData, 'customerId'>
 const AUTO_SAVE_INTERVAL_MS = 5000
+const MIN_CUSTOMER_SEARCH_KEYWORD = 2
 
 function normalizeFormData(source: Partial<InsuranceApplicationFormData>): InsuranceApplicationFormData {
   const normalized = createEmptyApplicationForm()
@@ -67,6 +68,66 @@ function syncPayerFields(source: InsuranceApplicationFormData): InsuranceApplica
   }
 }
 
+function mergeCustomerIntoForm(
+  previous: InsuranceApplicationFormData,
+  customer: CustomerRecord,
+  mode: 'full' | 'autoFillBasic',
+): InsuranceApplicationFormData {
+  if (mode === 'autoFillBasic') {
+    const next = { ...previous, customerId: customer.id }
+    if (!previous.ownerName.trim()) {
+      next.ownerName = customer.name
+    }
+    if (!previous.ownerPhone.trim()) {
+      next.ownerPhone = customer.phone
+    }
+    if (!previous.ownerResidentNumber.trim()) {
+      next.ownerResidentNumber = customer.ssn
+    }
+    if (!previous.ownerAddress.trim()) {
+      next.ownerAddress = customer.address
+    }
+    if (previous.payerSameAsOwner) {
+      return syncPayerFields(next)
+    }
+    return next
+  }
+
+  const next: InsuranceApplicationFormData = {
+    ...previous,
+    customerId: customer.id,
+    ownerName: customer.name,
+    ownerResidentNumber: customer.ssn,
+    ownerPhone: customer.phone,
+    ownerAddress: customer.address,
+    carrier: customer.carrier ?? '',
+    height: customer.height,
+    weight: customer.weight,
+    job: customer.job,
+    driving:
+      customer.isDriver === true
+        ? '운전함'
+        : customer.isDriver === false
+          ? '운전 안함'
+          : customer.driving,
+    medical: customer.medical,
+    vehicleNumber: customer.carNumber || previous.vehicleNumber,
+    vehicleModel: customer.carModel || customer.carType || previous.vehicleModel,
+    vehicleYear: customer.carYear || previous.vehicleYear,
+    expiryDate: customer.renewalDate ? customer.renewalDate : previous.expiryDate,
+  }
+  if (previous.payerSameAsOwner) {
+    return syncPayerFields(next)
+  }
+  return {
+    ...next,
+    payerName: customer.name,
+    payerPhone: customer.phone,
+    payerResidentNumber: customer.ssn,
+    payerAddress: customer.address,
+  }
+}
+
 export function ApplicationFormPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -83,6 +144,18 @@ export function ApplicationFormPage() {
   const [lastSavedSignature, setLastSavedSignature] = useState('')
   const [customerQuery, setCustomerQuery] = useState('')
   const [customerHits, setCustomerHits] = useState<CustomerRecord[]>([])
+  const [customerSearchTriggered, setCustomerSearchTriggered] = useState(false)
+  const [autoFilledNotice, setAutoFilledNotice] = useState('')
+  const autoFilledCustomerIdRef = useRef<number | null>(null)
+
+  const customerIdFromQuery = useMemo(() => {
+    const raw = new URLSearchParams(location.search).get('customerId')
+    const numeric = Number(raw)
+    return Number.isInteger(numeric) && numeric > 0 ? numeric : null
+  }, [location.search])
+
+  const trimmedCustomerQuery = customerQuery.trim()
+  const canSearchCustomers = trimmedCustomerQuery.length >= MIN_CUSTOMER_SEARCH_KEYWORD
 
   const duplicateCustomerHitNames = useMemo(() => {
     const counts = new Map<string, number>()
@@ -148,29 +221,34 @@ export function ApplicationFormPage() {
   }, [id, location.search, token, user?.id])
 
   useEffect(() => {
-    if (!token || isReadOnly) {
-      setCustomerHits([])
+    if (!token || isReadOnly || isLoading || customerIdFromQuery == null) {
+      return
+    }
+    if (autoFilledCustomerIdRef.current === customerIdFromQuery) {
       return
     }
     let cancelled = false
-    const timer = window.setTimeout(() => {
-      void searchCustomers(token, customerQuery)
-        .then((rows) => {
-          if (!cancelled) {
-            setCustomerHits(rows)
-          }
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setCustomerHits([])
-          }
-        })
-    }, 300)
+    void (async () => {
+      try {
+        const customer = await getCustomerById(token, customerIdFromQuery)
+        if (!customer || cancelled) {
+          return
+        }
+        setFormData((previous) => mergeCustomerIntoForm(previous, customer, 'autoFillBasic'))
+        setAutoFilledNotice('고객 정보가 자동 입력되었습니다')
+        setStatusText('고객 정보가 자동 입력되었습니다')
+        autoFilledCustomerIdRef.current = customerIdFromQuery
+      } catch (error) {
+        if (cancelled) {
+          return
+        }
+        setStatusText(error instanceof Error ? error.message : '고객 자동 입력에 실패했습니다.')
+      }
+    })()
     return () => {
       cancelled = true
-      window.clearTimeout(timer)
     }
-  }, [customerQuery, token, isReadOnly])
+  }, [token, isReadOnly, isLoading, customerIdFromQuery])
 
   useEffect(() => {
     if (isLoading || isReadOnly || !token) {
@@ -283,38 +361,34 @@ export function ApplicationFormPage() {
     if (isReadOnly) {
       return
     }
-    setFormData((prev) => {
-      const next: InsuranceApplicationFormData = {
-        ...prev,
-        customerId: c.id,
-        ownerName: c.name,
-        ownerResidentNumber: c.ssn,
-        ownerPhone: c.phone,
-        ownerAddress: c.address,
-        carrier: c.carrier ?? '',
-        height: c.height,
-        weight: c.weight,
-        job: c.job,
-        driving:
-          c.isDriver === true ? '운전함' : c.isDriver === false ? '운전 안함' : c.driving,
-        medical: c.medical,
-        vehicleNumber: c.carNumber || prev.vehicleNumber,
-        vehicleModel: c.carModel || c.carType || prev.vehicleModel,
-        vehicleYear: c.carYear || prev.vehicleYear,
-        expiryDate: c.renewalDate ? c.renewalDate : prev.expiryDate,
-      }
-      if (prev.payerSameAsOwner) {
-        return syncPayerFields(next)
-      }
-      return {
-        ...next,
-        payerName: c.name,
-        payerPhone: c.phone,
-        payerResidentNumber: c.ssn,
-        payerAddress: c.address,
-      }
-    })
+    setFormData((prev) => mergeCustomerIntoForm(prev, c, 'full'))
     setStatusText(`고객 "${c.name}" 정보를 신청서에 적용했습니다.`)
+  }
+
+  const runCustomerSearch = async () => {
+    if (!token || isReadOnly) {
+      return
+    }
+    if (!canSearchCustomers) {
+      setCustomerHits([])
+      setCustomerSearchTriggered(false)
+      setStatusText(`고객 검색은 ${MIN_CUSTOMER_SEARCH_KEYWORD}글자 이상 입력해 주세요.`)
+      return
+    }
+    try {
+      const rows = await searchCustomers(token, trimmedCustomerQuery)
+      setCustomerHits(rows)
+      setCustomerSearchTriggered(true)
+      if (rows.length === 0) {
+        setStatusText('검색 결과가 없습니다.')
+      } else {
+        setStatusText(`고객 검색 결과 ${rows.length}건을 찾았습니다.`)
+      }
+    } catch (error) {
+      setCustomerHits([])
+      setCustomerSearchTriggered(true)
+      setStatusText(error instanceof Error ? error.message : '고객 검색에 실패했습니다.')
+    }
   }
 
   const copyCustomerRecord = async (c: CustomerRecord) => {
@@ -398,17 +472,45 @@ export function ApplicationFormPage() {
           label="이름 또는 전화번호 검색"
           value={customerQuery}
           disabled={isReadOnly}
-          onChange={(value) => setCustomerQuery(value)}
+          onChange={(value) => {
+            setCustomerQuery(value)
+            if (value.trim().length < MIN_CUSTOMER_SEARCH_KEYWORD) {
+              setCustomerHits([])
+              setCustomerSearchTriggered(false)
+            }
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== 'Enter') {
+              return
+            }
+            event.preventDefault()
+            void runCustomerSearch()
+          }}
           helperText="입력 후 목록에서 신청서에 적용하거나 카톡용 문구를 복사합니다."
         />
+        {autoFilledNotice ? <p className="field__helper">{autoFilledNotice}</p> : null}
         {!isReadOnly ? (
           <div className="customer-db-actions">
+            <button
+              className="button button--secondary"
+              type="button"
+              onClick={() => void runCustomerSearch()}
+              disabled={!canSearchCustomers}
+            >
+              고객 검색
+            </button>
             <button className="button button--secondary" type="button" onClick={() => void handleSaveCustomerFromForm()}>
               현재 소유자 정보를 고객으로 저장
             </button>
           </div>
         ) : null}
-        {customerHits.length === 0 ? (
+        {!canSearchCustomers ? (
+          <p className="empty-state empty-state--inline">
+            이름 또는 전화번호를 {MIN_CUSTOMER_SEARCH_KEYWORD}글자 이상 입력 후 Enter 또는 고객 검색 버튼을 눌러주세요.
+          </p>
+        ) : !customerSearchTriggered ? (
+          <p className="empty-state empty-state--inline">검색어를 입력한 뒤 Enter로 검색하세요.</p>
+        ) : customerHits.length === 0 ? (
           <p className="empty-state empty-state--inline">검색 결과가 없습니다.</p>
         ) : (
           <ul className="customer-hit-list">

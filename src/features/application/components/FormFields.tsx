@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react'
+import type { HTMLAttributes, KeyboardEventHandler, ReactNode } from 'react'
 
 interface BaseFieldProps {
   label: string
@@ -13,6 +13,7 @@ interface TextInputProps extends BaseFieldProps {
   type?: 'text' | 'date'
   inputMode?: HTMLAttributes<HTMLInputElement>['inputMode']
   disabled?: boolean
+  onKeyDown?: KeyboardEventHandler<HTMLInputElement>
 }
 
 interface TextAreaProps extends BaseFieldProps {
@@ -68,6 +69,7 @@ export function TextInput({
   type = 'text',
   inputMode,
   disabled,
+  onKeyDown,
 }: TextInputProps) {
   return (
     <FieldContainer label={label} required={required} helperText={helperText}>
@@ -77,6 +79,7 @@ export function TextInput({
         value={value}
         inputMode={inputMode}
         onChange={(event) => onChange(event.target.value)}
+        onKeyDown={onKeyDown}
         placeholder={placeholder}
         disabled={disabled}
       />

@@ -61,6 +61,7 @@ body {
   overflow-x: hidden;
   background: var(--bg-main);
   color: var(--text-main);
+  font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   transition:
     background-color 0.2s ease,
     color 0.2s ease;
@@ -2865,6 +2866,14 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .customer-db-actions {
   margin: 8px 0 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.customer-create-form-button {
+  min-height: 34px;
+  padding: 8px 10px;
 }
 
 .customer-hit-list {
@@ -3120,6 +3129,10 @@ div.cta-button.customers-page__action-btn[role='button'] {
   background: transparent;
 }
 
+.print-container {
+  width: 794px;
+}
+
 .result-template {
   width: 794px;
   margin: 0;
@@ -3128,7 +3141,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   overflow: hidden;
   background: var(--result-paper-bg);
   color: var(--result-paper-text);
-  font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+  font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
 }
 
 .form-container {
@@ -3191,7 +3204,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
   padding: 4px 8px;
   font-size: 15px;
   vertical-align: middle;
-  word-break: break-word;
+  word-break: break-all;
+  white-space: normal;
   text-align: center;
   line-height: 1.32;
 }

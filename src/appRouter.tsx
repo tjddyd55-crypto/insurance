@@ -141,6 +141,7 @@ export const appRouter = createBrowserRouter([
                 element: <GaCarInsuranceRoute />,
                 children: [
                   { path: 'application', element: <CarInsuranceDashboardPage /> },
+                  { path: 'app/auto-insurance', element: <ApplicationFormPage /> },
                   { path: 'application/direct-auto', element: <DirectAutoPage /> },
                   { path: 'application/write', element: <ApplicationFormPage /> },
                   { path: 'my-forms', element: <ApplicationListPage /> },

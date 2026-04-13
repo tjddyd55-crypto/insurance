@@ -154,6 +154,27 @@ export async function searchCustomers(token: string, q: string): Promise<Custome
   }
 }
 
+export async function getCustomerById(
+  token: string,
+  customerId: number,
+): Promise<CustomerRecord | null> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  if (!Number.isInteger(customerId) || customerId < 1) {
+    return null
+  }
+  try {
+    const raw = await apiRequest<unknown>(`/api/customers/${customerId}`, { token })
+    return assertCustomerDataRecord(raw, { context: '고객 상세 조회' })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null
+    }
+    throw error
+  }
+}
+
 export interface SaveCustomerPayload {
   name: string
   ssn?: string

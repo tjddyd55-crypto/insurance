@@ -36,6 +36,7 @@ import {
 import { logSecurityEvent, writeSecurityAudit } from './lib/securityAudit.js'
 import { registerConsentApi } from './registerConsentApi.js'
 import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
+import { registerDocumentTemplateApi } from './registerDocumentTemplateApi.js'
 import { registerClientLogRoutes } from './routes/client-log.js'
 import { registerVersionRoutes } from './routes/version.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
@@ -1339,6 +1340,17 @@ registerInsurerNewsApi(apiRouter, {
   effectiveTenantGaId,
   parseGaId,
   resolveTenantGaIdForRequest,
+})
+
+registerDocumentTemplateApi(apiRouter, {
+  pool,
+  requireAuth,
+  requireSuperAdmin,
+  resolveTenantGaIdForRequest,
+  handleDbError,
+  systemQuery,
+  isSuperAdminRole,
+  JWT_SECRET,
 })
 
 function normalizeInviteCode(raw) {
@@ -5240,6 +5252,49 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
       data: result.rows.map(mapCustomerRow),
       total,
     })
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
+
+apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
+  try {
+    const userId = requireInsuranceFormUserId(req, res)
+    if (!userId) {
+      return
+    }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+      return
+    }
+
+    const customerId = Number(req.params.id)
+    if (!Number.isInteger(customerId) || customerId < 1) {
+      res.status(400).json({ message: '잘못된 고객 ID입니다.' })
+      return
+    }
+
+    const result = await safeQuery(pool,
+      `
+      SELECT
+        id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        car_number, car_model, car_year, renewal_date,
+        gender, insurance_age, next_age_date, is_driver, car_type, notes,
+        is_favorite, created_at
+      FROM customers
+      WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [customerId, userId, gaId],
+    )
+
+    if (result.rowCount === 0) {
+      res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+      return
+    }
+
+    res.json(mapCustomerRow(result.rows[0]))
   } catch (error) {
     handleDbError(error, req, res)
   }
