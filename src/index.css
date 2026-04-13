@@ -3124,6 +3124,35 @@ div.cta-button.customers-page__action-btn[role='button'] {
   z-index: 20;
 }
 
+.application-form-page .field__control:not(:disabled) {
+  background-color: #000;
+  color: #fff;
+}
+
+.application-form-page .field__control:not(:disabled)::placeholder {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.application-form-page input[type='date'].field__control:not(:disabled) {
+  color-scheme: dark;
+}
+
+.application-form-page .application-form-actions {
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  transform: none;
+  margin: 16px auto 0;
+  padding: 0;
+  width: 100%;
+  max-width: 760px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  z-index: auto;
+}
+
 .result-wrapper {
   margin-top: 14px;
   overflow-x: auto;
@@ -4445,6 +4474,13 @@ a.contacts-public-auth__link {
     border-radius: 12px 12px 0 0;
     border-left: 1px solid var(--sticky-actions-edge-border);
     border-right: 1px solid var(--sticky-actions-edge-border);
+  }
+
+  .application-form-page .application-form-actions {
+    left: auto;
+    transform: none;
+    border-left: 0;
+    border-right: 0;
   }
 
   .form-grid {

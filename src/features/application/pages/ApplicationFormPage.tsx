@@ -436,7 +436,7 @@ export function ApplicationFormPage() {
   }
 
   return (
-    <main className="page page--with-back">
+    <main className="page page--with-back application-form-page">
       <header className="page-header">
         <h1>{pageTitle}</h1>
         <p>{statusText}</p>
@@ -778,7 +778,7 @@ export function ApplicationFormPage() {
         />
       </FormSection>
 
-      <div className="sticky-actions">
+      <div className="sticky-actions application-form-actions">
         <button className="button" type="button" onClick={() => navigate('/my-forms')}>
           목록
         </button>
