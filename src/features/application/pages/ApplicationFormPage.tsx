@@ -71,28 +71,7 @@ function syncPayerFields(source: InsuranceApplicationFormData): InsuranceApplica
 function mergeCustomerIntoForm(
   previous: InsuranceApplicationFormData,
   customer: CustomerRecord,
-  mode: 'full' | 'autoFillBasic',
 ): InsuranceApplicationFormData {
-  if (mode === 'autoFillBasic') {
-    const next = { ...previous, customerId: customer.id }
-    if (!previous.ownerName.trim()) {
-      next.ownerName = customer.name
-    }
-    if (!previous.ownerPhone.trim()) {
-      next.ownerPhone = customer.phone
-    }
-    if (!previous.ownerResidentNumber.trim()) {
-      next.ownerResidentNumber = customer.ssn
-    }
-    if (!previous.ownerAddress.trim()) {
-      next.ownerAddress = customer.address
-    }
-    if (previous.payerSameAsOwner) {
-      return syncPayerFields(next)
-    }
-    return next
-  }
-
   const next: InsuranceApplicationFormData = {
     ...previous,
     customerId: customer.id,
@@ -100,21 +79,10 @@ function mergeCustomerIntoForm(
     ownerResidentNumber: customer.ssn,
     ownerPhone: customer.phone,
     ownerAddress: customer.address,
-    carrier: customer.carrier ?? '',
-    height: customer.height,
-    weight: customer.weight,
-    job: customer.job,
-    driving:
-      customer.isDriver === true
-        ? '운전함'
-        : customer.isDriver === false
-          ? '운전 안함'
-          : customer.driving,
-    medical: customer.medical,
-    vehicleNumber: customer.carNumber || previous.vehicleNumber,
-    vehicleModel: customer.carModel || customer.carType || previous.vehicleModel,
-    vehicleYear: customer.carYear || previous.vehicleYear,
-    expiryDate: customer.renewalDate ? customer.renewalDate : previous.expiryDate,
+    vehicleNumber: customer.carNumber || '',
+    vehicleModel: customer.carModel || customer.carType || '',
+    vehicleYear: customer.carYear || '',
+    expiryDate: customer.renewalDate || '',
   }
   if (previous.payerSameAsOwner) {
     return syncPayerFields(next)
@@ -189,6 +157,19 @@ export function ApplicationFormPage() {
         }
       }
 
+      if (!id && customerIdFromQuery != null && active) {
+        const empty = createEmptyApplicationForm()
+        autoFilledCustomerIdRef.current = null
+        setAutoFilledNotice('')
+        setRecordId(undefined)
+        setFormData(empty)
+        setIsReadOnly(false)
+        setStatusText('선택한 고객 정보로 새 신청서를 작성 중입니다.')
+        setLastSavedSignature(JSON.stringify(empty))
+        setIsLoading(false)
+        return
+      }
+
       const draft = getDraft(user?.id)
       if (draft && active) {
         const normalized = normalizeFormData(draft.data)
@@ -218,7 +199,7 @@ export function ApplicationFormPage() {
     return () => {
       active = false
     }
-  }, [id, location.search, token, user?.id])
+  }, [id, location.search, token, user?.id, customerIdFromQuery])
 
   useEffect(() => {
     if (!token || isReadOnly || isLoading || customerIdFromQuery == null) {
@@ -234,7 +215,7 @@ export function ApplicationFormPage() {
         if (!customer || cancelled) {
           return
         }
-        setFormData((previous) => mergeCustomerIntoForm(previous, customer, 'autoFillBasic'))
+        setFormData((previous) => mergeCustomerIntoForm(previous, customer))
         setAutoFilledNotice('고객 정보가 자동 입력되었습니다')
         setStatusText('고객 정보가 자동 입력되었습니다')
         autoFilledCustomerIdRef.current = customerIdFromQuery
@@ -361,7 +342,7 @@ export function ApplicationFormPage() {
     if (isReadOnly) {
       return
     }
-    setFormData((prev) => mergeCustomerIntoForm(prev, c, 'full'))
+    setFormData((prev) => mergeCustomerIntoForm(prev, c))
     setStatusText(`고객 "${c.name}" 정보를 신청서에 적용했습니다.`)
   }
 
@@ -417,13 +398,7 @@ export function ApplicationFormPage() {
         name,
         ssn: formData.ownerResidentNumber,
         phone: formData.ownerPhone,
-        carrier: '',
         address: formData.ownerAddress,
-        height: formData.height,
-        weight: formData.weight,
-        job: formData.job,
-        driving: formData.driving,
-        medical: formData.medical,
       })
       setFormData((prev) => ({ ...prev, customerId: created.id }))
       setStatusText('고객 DB에 저장했습니다.')
@@ -612,42 +587,6 @@ export function ApplicationFormPage() {
           value={formData.ownerAddress}
           disabled={isReadOnly}
           onChange={(value) => updateField('ownerAddress', value)}
-        />
-        <TextInput
-          label="통신사 (고객 DB·카톡 복사용)"
-          value={formData.carrier}
-          disabled={isReadOnly}
-          onChange={(value) => updateField('carrier', value)}
-        />
-        <TextInput
-          label="키"
-          value={formData.height}
-          disabled={isReadOnly}
-          onChange={(value) => updateField('height', value)}
-        />
-        <TextInput
-          label="몸무게"
-          value={formData.weight}
-          disabled={isReadOnly}
-          onChange={(value) => updateField('weight', value)}
-        />
-        <TextInput
-          label="직업 / 회사명 / 하는 일 / 지역"
-          value={formData.job}
-          disabled={isReadOnly}
-          onChange={(value) => updateField('job', value)}
-        />
-        <TextInput
-          label="운전 여부"
-          value={formData.driving}
-          disabled={isReadOnly}
-          onChange={(value) => updateField('driving', value)}
-        />
-        <TextAreaInput
-          label="5년 이내 진단·수술·치료 여부 (건강 고지)"
-          value={formData.medical}
-          disabled={isReadOnly}
-          onChange={(value) => updateField('medical', value)}
         />
       </FormSection>
 

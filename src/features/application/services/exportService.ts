@@ -3,6 +3,8 @@ import { jsPDF } from 'jspdf'
 
 const EXPORT_SCALE = 2
 const RESULT_FORM_WIDTH = 794
+const EXPORT_RENDER_ATTR = 'data-export-render-id'
+const EXPORT_RENDER_MODE_CLASS = 'result-export-mode'
 
 function createSafeFileName(input: string): string {
   return input
@@ -27,15 +29,27 @@ async function waitForStableRender(): Promise<void> {
 async function renderResultCanvas(targetElement: HTMLElement): Promise<HTMLCanvasElement> {
   await waitForStableRender()
 
-  return html2canvas(targetElement, {
-    scale: EXPORT_SCALE,
-    useCORS: true,
-    width: RESULT_FORM_WIDTH,
-    windowWidth: RESULT_FORM_WIDTH,
-    backgroundColor: '#ffffff',
-    scrollX: 0,
-    scrollY: -window.scrollY,
-  })
+  const renderId = `export-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  targetElement.setAttribute(EXPORT_RENDER_ATTR, renderId)
+  try {
+    return await html2canvas(targetElement, {
+      scale: EXPORT_SCALE,
+      useCORS: true,
+      width: RESULT_FORM_WIDTH,
+      windowWidth: RESULT_FORM_WIDTH,
+      backgroundColor: '#ffffff',
+      scrollX: 0,
+      scrollY: -window.scrollY,
+      onclone: (clonedDocument) => {
+        const clonedRoot = clonedDocument.querySelector<HTMLElement>(
+          `[${EXPORT_RENDER_ATTR}="${renderId}"]`,
+        )
+        clonedRoot?.classList.add(EXPORT_RENDER_MODE_CLASS)
+      },
+    })
+  } finally {
+    targetElement.removeAttribute(EXPORT_RENDER_ATTR)
+  }
 }
 
 async function renderResultAsJpegDataUrl(targetElement: HTMLElement): Promise<string> {
