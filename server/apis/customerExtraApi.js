@@ -126,6 +126,10 @@ async function resolveGaPathByGaId(pool, gaId) {
     LIMIT 1
     `,
     [gaId],
+    {
+      skipGaFilter: true,
+      allowUnscoped: true,
+    },
   )
   if (r.rowCount === 0) {
     return null
