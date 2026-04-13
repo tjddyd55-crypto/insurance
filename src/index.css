@@ -117,19 +117,49 @@ body {
   @apply border-l-2 border-blue-500 pl-3 mt-4 mb-2 font-semibold text-blue-400;
 }
 
-/* 기본 폼 컨트롤 — 미지정 구간 대비(세부 화면에서 덮어씀) */
+/* 입력 UI 공통 규칙: editable=검은색, readonly/disabled=회색 */
+.field--editable {
+  background-color: #000000;
+  color: #ffffff;
+  border: 1px solid #444;
+}
+
+.field--readonly {
+  background-color: #2f3540;
+  color: #aaaaaa;
+  border: 1px solid #3a3f4b;
+}
+
 input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not(
     [type='button']
   ):not([type='reset']):not([type='image']):not([type='color']),
 select,
 textarea {
-  background: var(--bg-main);
-  color: var(--text-primary);
-  border: 1px solid var(--border-default);
+  background-color: #000000;
+  color: #ffffff;
+  border: 1px solid #444;
+}
+
+input[type='date']:not(:disabled):not([readonly]) {
+  color-scheme: dark;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not(
+    [type='button']
+  ):not([type='reset']):not([type='image']):not([type='color'])[readonly],
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not(
+    [type='button']
+  ):not([type='reset']):not([type='image']):not([type='color']):disabled,
+textarea[readonly],
+textarea:disabled,
+select:disabled {
+  background-color: #2f3540;
+  color: #aaaaaa;
+  border: 1px solid #3a3f4b;
 }
 
 ::placeholder {
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.62);
   opacity: 1;
 }
 
@@ -2992,20 +3022,29 @@ div.cta-button.customers-page__action-btn[role='button'] {
   width: 100%;
   min-height: 46px;
   border-radius: 10px;
-  border: 1px solid var(--border);
+  border: 1px solid #444;
   font-size: 16px;
   padding: 10px 12px;
-  background-color: var(--input-bg);
-  color: var(--text);
+  background-color: #000000;
+  color: #ffffff;
 }
 
 .field__control::placeholder {
-  color: var(--placeholder);
+  color: rgba(255, 255, 255, 0.62);
 }
 
-.field__control:disabled {
-  background-color: var(--disabled-bg);
-  color: var(--disabled-text);
+.field__control:disabled,
+.field__control[readonly],
+.field__control.field--readonly {
+  background-color: #2f3540;
+  color: #aaaaaa;
+  border: 1px solid #3a3f4b;
+}
+
+.field__control.field--editable {
+  background-color: #000000;
+  color: #ffffff;
+  border: 1px solid #444;
 }
 
 .field__control--textarea {
@@ -3122,19 +3161,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
   background-color: var(--sticky-bar-bg);
   border-top: 1px solid var(--border);
   z-index: 20;
-}
-
-.application-form-page .field__control:not(:disabled) {
-  background-color: #000;
-  color: #fff;
-}
-
-.application-form-page .field__control:not(:disabled)::placeholder {
-  color: rgba(255, 255, 255, 0.62);
-}
-
-.application-form-page input[type='date'].field__control:not(:disabled) {
-  color-scheme: dark;
 }
 
 .application-form-page .application-form-actions {

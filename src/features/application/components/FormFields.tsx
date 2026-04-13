@@ -13,6 +13,7 @@ interface TextInputProps extends BaseFieldProps {
   type?: 'text' | 'date'
   inputMode?: HTMLAttributes<HTMLInputElement>['inputMode']
   disabled?: boolean
+  readOnly?: boolean
   onKeyDown?: KeyboardEventHandler<HTMLInputElement>
 }
 
@@ -69,12 +70,14 @@ export function TextInput({
   type = 'text',
   inputMode,
   disabled,
+  readOnly = false,
   onKeyDown,
 }: TextInputProps) {
+  const stateClassName = disabled || readOnly ? 'field--readonly' : 'field--editable'
   return (
     <FieldContainer label={label} required={required} helperText={helperText}>
       <input
-        className="field__control"
+        className={`field__control ${stateClassName}`}
         type={type}
         value={value}
         inputMode={inputMode}
@@ -82,6 +85,7 @@ export function TextInput({
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         disabled={disabled}
+        readOnly={readOnly}
       />
     </FieldContainer>
   )
@@ -96,10 +100,11 @@ export function TextAreaInput({
   placeholder,
   disabled,
 }: TextAreaProps) {
+  const stateClassName = disabled ? 'field--readonly' : 'field--editable'
   return (
     <FieldContainer label={label} required={required} helperText={helperText}>
       <textarea
-        className="field__control field__control--textarea"
+        className={`field__control field__control--textarea ${stateClassName}`}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
@@ -119,10 +124,11 @@ export function SelectInput({
   placeholder = '선택',
   disabled,
 }: SelectInputProps) {
+  const stateClassName = disabled ? 'field--readonly' : 'field--editable'
   return (
     <FieldContainer label={label} required={required} helperText={helperText}>
       <select
-        className="field__control"
+        className={`field__control ${stateClassName}`}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}

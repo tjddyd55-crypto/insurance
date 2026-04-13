@@ -928,7 +928,6 @@ const CustomerListCard = memo(function CustomerListCard({
                         className="field__control"
                         name="customer-medical"
                         rows={3}
-                        style={{ backgroundColor: 'var(--bg-main)' }}
                         value={editForm.medical ?? ''}
                         onChange={(e) =>
                           setEditForm((prev) => (prev ? { ...prev, medical: e.target.value } : prev))
@@ -941,7 +940,6 @@ const CustomerListCard = memo(function CustomerListCard({
                         className="field__control"
                         name="customer-insurance-history"
                         rows={4}
-                        style={{ backgroundColor: 'var(--bg-main)' }}
                         placeholder="보험가입내역 입력"
                         value={editForm.insuranceHistory ?? ''}
                         onChange={(e) =>

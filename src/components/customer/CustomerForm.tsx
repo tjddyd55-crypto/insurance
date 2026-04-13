@@ -675,7 +675,6 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
           className="field__control"
 
           rows={3}
-          style={{ backgroundColor: 'var(--bg-main)' }}
 
           placeholder="내용"
 
@@ -696,7 +695,6 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
           className="field__control"
 
           rows={4}
-          style={{ backgroundColor: 'var(--bg-main)' }}
 
           placeholder="보험가입내역 입력"
 
