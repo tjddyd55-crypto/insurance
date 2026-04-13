@@ -10,7 +10,7 @@ export function IntroductionPage() {
   return (
     <main className="intro-page">
       <div className="intro-shell">
-        <DownloadHero pcUrl={DOWNLOAD_LINKS.pc} apkUrl={DOWNLOAD_LINKS.apk} />
+        <DownloadHero />
         <DownloadCards pcUrl={DOWNLOAD_LINKS.pc} apkUrl={DOWNLOAD_LINKS.apk} />
         <InstallGuide />
         <ExcelUploadGuide onDownloadSample={downloadCustomerUploadSampleXlsx} />

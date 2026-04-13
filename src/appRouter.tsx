@@ -40,7 +40,7 @@ import { TemplateEditorPage } from './features/consent/admin/pages/TemplateEdito
 import { TemplateListPage } from './features/consent/admin/pages/TemplateListPage'
 import { ConsentFormPage } from './features/consent/pages/ConsentFormPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
-import { IntroductionPage } from './features/introduction/pages/IntroductionPage'
+import { IntroductionPage } from './features/web/pages/IntroductionPage'
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
 import AdminAnalyticsPage from './features/analytics/pages/AdminAnalyticsPage'

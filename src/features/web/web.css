@@ -148,6 +148,26 @@
   border-color: color-mix(in srgb, var(--brand-primary) 45%, var(--border));
 }
 
+.intro-prompt-wrap {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.intro-prompt-box {
+  margin: 0;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-size: 0.86rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 .intro-footer {
   text-align: center;
   color: var(--text-sub);
