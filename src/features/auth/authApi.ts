@@ -43,6 +43,17 @@ export interface GaCompanyRow {
   created_at: string
 }
 
+export interface GaHistoryRow {
+  id: number
+  ga_id: number
+  old_code: string
+  new_code: string
+  old_name: string
+  new_name: string
+  changed_by: string
+  changed_at: string
+}
+
 export async function listGaCompanies(token: string): Promise<GaCompanyRow[]> {
   return apiRequest<GaCompanyRow[]>('/api/admin/ga', { method: 'GET', token })
 }
@@ -483,6 +494,13 @@ export async function patchGaCompany(
     }
     throw error
   }
+}
+
+export async function listGaCompanyHistory(token: string, id: number): Promise<GaHistoryRow[]> {
+  return apiRequest<GaHistoryRow[]>(`/api/admin/ga/${id}/history`, {
+    method: 'GET',
+    token,
+  })
 }
 
 export async function deleteGaCompany(token: string, id: number): Promise<void> {

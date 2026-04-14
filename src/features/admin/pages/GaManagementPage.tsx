@@ -6,10 +6,12 @@ import { useAuth } from '../../auth/AuthProvider'
 import {
   createGaCompany,
   deleteGaCompany,
+  listGaCompanyHistory,
   listGaCompanies,
   patchGaCompany,
   type EntityStatus,
   type GaCompanyRow,
+  type GaHistoryRow,
 } from '../../auth/authApi'
 
 const STATUS_META: Record<EntityStatus, { label: string; fg: string; bg: string }> = {
@@ -75,6 +77,26 @@ function formatCreatedAt(iso: string): string {
   return d.toISOString().slice(0, 10)
 }
 
+function formatChangedAt(iso: string): string {
+  if (!iso) {
+    return '—'
+  }
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) {
+    return iso
+  }
+  return d.toLocaleString('ko-KR', { hour12: false })
+}
+
+function formatChangePair(before: string, after: string): string {
+  const prev = String(before ?? '').trim()
+  const next = String(after ?? '').trim()
+  if (prev === next) {
+    return `${next || '—'} (변경 없음)`
+  }
+  return `${prev || '—'} -> ${next || '—'}`
+}
+
 export default function GaManagementPage() {
   const { user, token } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
@@ -93,6 +115,10 @@ export default function GaManagementPage() {
   const [editCode, setEditCode] = useState('')
   const [editBusy, setEditBusy] = useState(false)
   const [editErr, setEditErr] = useState('')
+  const [historyTarget, setHistoryTarget] = useState<GaCompanyRow | null>(null)
+  const [historyRows, setHistoryRows] = useState<GaHistoryRow[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
 
   const load = useCallback(async () => {
     if (!token?.trim() || user?.role !== 'SUPER_ADMIN') {
@@ -158,6 +184,24 @@ export default function GaManagementPage() {
     setEditing(r)
     setEditName(r.name)
     setEditCode(r.code)
+  }
+
+  const openHistory = async (r: GaCompanyRow) => {
+    if (!token?.trim()) {
+      return
+    }
+    setHistoryTarget(r)
+    setHistoryRows([])
+    setHistoryError('')
+    setHistoryLoading(true)
+    try {
+      const list = await listGaCompanyHistory(token, r.id)
+      setHistoryRows(list)
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : '이력 조회에 실패했습니다.')
+    } finally {
+      setHistoryLoading(false)
+    }
   }
 
   const submitEdit = async (e: FormEvent) => {
@@ -227,6 +271,9 @@ export default function GaManagementPage() {
               aria-label={`${r.name} 상태`}
               options={STATUS_SELECT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
             />
+            <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => void openHistory(r)} disabled={isLoading}>
+              이력
+            </FormButton>
             <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
               수정
             </FormButton>
@@ -271,6 +318,9 @@ export default function GaManagementPage() {
             aria-label={`${r.name} 상태`}
             options={STATUS_SELECT_OPTIONS.map((opt) => ({ value: opt.value, label: opt.label }))}
           />
+          <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => void openHistory(r)} disabled={isLoading}>
+            이력
+          </FormButton>
           <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
             수정
           </FormButton>
@@ -454,6 +504,64 @@ export default function GaManagementPage() {
               </FormButton>
             </div>
           </form>
+        </FormDialog>
+      ) : null}
+      {historyTarget ? (
+        <FormDialog
+          open={Boolean(historyTarget)}
+          onClose={() => {
+            if (!historyLoading) {
+              setHistoryTarget(null)
+            }
+          }}
+          title={`GA 변경 이력 (${historyTarget.name})`}
+          panelClassName="admin-modal-panel"
+          overlayClassName="admin-modal-backdrop"
+          closeOnBackdrop={!historyLoading}
+          closeOnEsc={!historyLoading}
+        >
+          <div className="admin-modal-content">
+            <StatusMessage message={historyError} tone="error" className="m-0" />
+            {historyLoading ? <LoadingState message="이력 불러오는 중…" /> : null}
+            {!historyLoading && historyRows.length === 0 ? (
+              <EmptyState message="기록된 변경 이력이 없습니다." className="m-0" />
+            ) : null}
+            {!historyLoading && historyRows.length > 0 ? (
+              <div className="table-container">
+                <table className="admin-data-table">
+                  <thead>
+                    <tr>
+                      <th>변경 시각</th>
+                      <th>코드 변경</th>
+                      <th>이름 변경</th>
+                      <th>변경자</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>{formatChangedAt(row.changed_at)}</td>
+                        <td>{formatChangePair(row.old_code, row.new_code)}</td>
+                        <td>{formatChangePair(row.old_name, row.new_name)}</td>
+                        <td>{String(row.changed_by ?? '').trim() || 'system'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+            <div className="admin-modal-actions">
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                className="button button--secondary"
+                onClick={() => setHistoryTarget(null)}
+                disabled={historyLoading}
+              >
+                닫기
+              </FormButton>
+            </div>
+          </div>
         </FormDialog>
       ) : null}
       {confirmDialog}
