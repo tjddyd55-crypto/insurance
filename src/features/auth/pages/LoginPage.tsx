@@ -68,62 +68,71 @@ export function LoginPage() {
   }
 
   return (
-    <main className="auth-page">
-      <section className="card auth-card">
-        <h1>로그인</h1>
-        {flash.passwordReset ? (
-          <p className="auth-notice" role="status">
-            비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.
-          </p>
-        ) : null}
-        {flash.accountReset ? (
-          <p className="auth-notice" role="status">
-            계정이 초기화되었습니다. 서비스 이용이 필요하면 소속 GA에 새 계정 발급을 요청해 주세요.
-          </p>
-        ) : null}
-
-        <form className="auth-form" style={{ marginTop: '1rem' }} onSubmit={(e) => void handleLogin(e)}>
-          <label className="field">
-            <span className="field__label">아이디</span>
-            <FormInput
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              autoComplete="username"
-              required
-            />
-          </label>
-
-          <label className="field">
-            <span className="field__label">비밀번호</span>
-            <FormInput
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="current-password"
-              required
-            />
-          </label>
-
-          {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
-
-          <FormButton className="button button--primary button--full" htmlType="submit" variant="primary" disabled={isSubmitting}>
-            {isSubmitting ? '로그인 중...' : '로그인'}
-          </FormButton>
-        </form>
-
-        <div className="switch-text">
-          계정이 없으신가요?
-          <Link to="/register" className="switch-text__action">
-            회원가입
-          </Link>
+    <main className="auth-page auth-page--login-split">
+      <aside className="auth-login-sidebar" aria-label="로그인 안내">
+        <div className="auth-login-sidebar__inner">
+          <h2 className="auth-login-sidebar__brand">Insurance CRM</h2>
+          <p className="auth-login-sidebar__copy">고객 관리 · 상담 기록 · 파일 작업을 한 화면에서 이어서 처리합니다.</p>
         </div>
+      </aside>
 
-        <div className="switch-text">
-          비밀번호를 잊으셨나요?
-          <Link to="/password-reset" className="switch-text__action">
-            비밀번호 재설정
-          </Link>
-        </div>
+      <section className="auth-login-content">
+        <section className="card auth-card auth-card--login-split">
+          <h1>로그인</h1>
+          {flash.passwordReset ? (
+            <p className="auth-notice" role="status">
+              비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.
+            </p>
+          ) : null}
+          {flash.accountReset ? (
+            <p className="auth-notice" role="status">
+              계정이 초기화되었습니다. 서비스 이용이 필요하면 소속 GA에 새 계정 발급을 요청해 주세요.
+            </p>
+          ) : null}
+
+          <form className="auth-form" style={{ marginTop: '1rem' }} onSubmit={(e) => void handleLogin(e)}>
+            <label className="field">
+              <span className="field__label">아이디</span>
+              <FormInput
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                autoComplete="username"
+                required
+              />
+            </label>
+
+            <label className="field">
+              <span className="field__label">비밀번호</span>
+              <FormInput
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </label>
+
+            {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
+
+            <FormButton className="button button--primary button--full" htmlType="submit" variant="primary" disabled={isSubmitting}>
+              {isSubmitting ? '로그인 중...' : '로그인'}
+            </FormButton>
+          </form>
+
+          <div className="switch-text">
+            계정이 없으신가요?
+            <Link to="/register" className="switch-text__action">
+              회원가입
+            </Link>
+          </div>
+
+          <div className="switch-text">
+            비밀번호를 잊으셨나요?
+            <Link to="/password-reset" className="switch-text__action">
+              비밀번호 재설정
+            </Link>
+          </div>
+        </section>
       </section>
 
       {version ? (

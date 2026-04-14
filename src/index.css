@@ -1190,6 +1190,62 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   padding: 20px 16px;
 }
 
+.auth-page.auth-page--login-split {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+  min-height: 100vh;
+  width: 100%;
+  background: var(--bg-main);
+}
+
+.auth-login-sidebar {
+  flex: 0 0 280px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  border-right: 1px solid var(--border-default, #2a2a2a);
+  background: var(--bg-elevated, #141b26);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 18px;
+}
+
+.auth-login-sidebar__inner {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-login-sidebar__brand {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.auth-login-sidebar__copy {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.auth-login-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+}
+
+.auth-card.auth-card--login-split {
+  width: 100%;
+  max-width: 420px;
+}
+
 .auth-page__version-footer {
   position: fixed;
   bottom: 20px;
@@ -1206,6 +1262,27 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .auth-card {
   width: 100%;
   max-width: 420px;
+}
+
+@media (max-width: 900px) {
+  .auth-page.auth-page--login-split {
+    display: block;
+    padding: 16px 12px;
+  }
+
+  .auth-login-sidebar {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border-default, #2a2a2a);
+    justify-content: flex-start;
+    padding: 14px 12px;
+  }
+
+  .auth-login-content {
+    padding: 16px 0 0;
+  }
 }
 
 .auth-description {
@@ -4806,23 +4883,27 @@ a.contacts-public-auth__link {
 
 /* 고객 워크스페이스: 좌측 고객관리 / 우측 작업영역 */
 .customer-workspace-layout {
-  display: grid;
-  grid-template-columns: minmax(380px, 46%) minmax(0, 1fr);
+  display: flex;
+  flex-direction: row;
   width: 100%;
-  min-height: 100%;
+  min-height: 0;
   height: 100%;
   align-items: stretch;
   background: var(--bg-main);
 }
 
 .customer-workspace-layout__left {
-  min-width: 0;
+  flex: 0 0 390px;
+  width: 390px;
+  min-width: 390px;
+  max-width: 390px;
   overflow: auto;
   border-right: 1px solid var(--border-default, #2a2a2a);
   background: var(--bg-main);
 }
 
 .customer-workspace-layout__right {
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -4889,18 +4970,33 @@ a.contacts-public-auth__link {
 }
 
 @media (max-width: 1200px) {
-  .customer-workspace-layout {
-    grid-template-columns: minmax(340px, 48%) minmax(0, 1fr);
+  .customer-workspace-layout__left {
+    flex-basis: 370px;
+    width: 370px;
+    min-width: 370px;
+    max-width: 370px;
   }
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
+  .customer-workspace-layout__left {
+    flex-basis: 360px;
+    width: 360px;
+    min-width: 360px;
+    max-width: 360px;
+  }
+}
+
+@media (max-width: 860px) {
   .customer-workspace-layout {
-    grid-template-columns: 1fr;
+    display: block;
     height: auto;
   }
 
   .customer-workspace-layout__left {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
     border-right: none;
     border-bottom: 1px solid var(--border-default, #2a2a2a);
     max-height: 60vh;
@@ -4925,47 +5021,114 @@ a.contacts-public-auth__link {
   flex: 1;
 }
 
-/* PC 전역: AppWorkspaceLayout — 메모 오버레이 레이아웃 */
+/* PC 전역: AppWorkspaceLayout — 좌측 사이드바 + 메인 + 메모 패널 */
 .workspace-root.workspace-root--app-pc {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
   width: 100%;
+  height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
   min-height: 100dvh;
-}
-
-.workspace-main.workspace-main--app {
-  flex: 1;
-  min-width: 0;
-  width: 100%;
-  height: 100%;
   overflow: hidden;
 }
 
-.workspace-main.workspace-main--app.workspace-main--dimmed {
-  pointer-events: none;
-  user-select: none;
+.workspace-main.workspace-main--app {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: auto;
+  background: var(--bg-main);
 }
 
-.workspace-memo-overlay {
-  position: fixed;
-  top: 0;
-  right: 0;
-  z-index: 900;
-  width: clamp(400px, 34vw, 500px);
-  max-width: min(100vw, 500px);
-  height: 100vh;
-  height: 100dvh;
+.workspace-sidebar {
+  flex: 0 0 240px;
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
+  overflow: auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  gap: 12px;
+  padding: 12px 10px;
+  border-right: 1px solid var(--border-default, #2a2a2a);
+  background: var(--bg-card, #10141d);
+}
+
+.workspace-sidebar__section {
+  border: 1px solid var(--border-default, #2a2a2a);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--bg-elevated, #141b26);
+}
+
+.workspace-sidebar__title {
+  margin: 0 0 8px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.workspace-sidebar__nav,
+.workspace-sidebar__memo-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workspace-sidebar__nav-btn,
+.workspace-sidebar__memo-btn {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.workspace-sidebar__nav-btn.workspace-sidebar__nav-btn--active {
+  border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
+}
+
+.workspace-memo-resizer {
+  flex: 0 0 6px;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  border-left: 1px solid color-mix(in srgb, var(--border-default) 60%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--border-default) 60%, transparent);
+  transition: background-color 0.15s ease;
+}
+
+.workspace-memo-resizer:hover {
+  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
+}
+
+.workspace-memo-panel {
+  flex: 0 0 auto;
+  min-width: 240px;
+  max-width: 600px;
+  width: 340px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   box-shadow: -4px 0 12px rgba(0, 0, 0, 0.2);
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   background: #0f1115;
 }
 
-.workspace-memo-overlay.workspace-memo-overlay--fullscreen {
+.workspace-root.workspace-root--app-pc.workspace-root--memo-fullscreen {
+  display: block;
+}
+
+.workspace-root.workspace-root--app-pc.workspace-root--memo-fullscreen .workspace-memo-panel {
   width: 100vw;
   max-width: 100vw;
-  border-left: none;
+  min-width: 0;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.workspace-root.workspace-root--app-pc.workspace-root--memo-fullscreen .workspace-memo-resizer {
+  display: none;
 }
 
 .memo-panel {
@@ -5152,6 +5315,13 @@ a.contacts-public-auth__link {
   color: var(--text-primary, #fff);
   font-size: 0.875rem;
   cursor: pointer;
+}
+
+.workspace-memo-fullscreen-exit {
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  z-index: 1100;
 }
 
 .memo-restore-btn {
