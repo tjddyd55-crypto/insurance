@@ -277,7 +277,7 @@ async function assertCustomerFileAccess(pool, customerId, sessionUserId, session
 }
 
 function requireGaIdFromUser(req, res) {
-  const gaId = parseGaId(req.user?.gaId)
+  const gaId = parseGaId(req.gaId ?? req.user?.gaId)
   if (gaId == null) {
     res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
     return null
@@ -332,16 +332,18 @@ function parseFolderId(raw) {
   return n
 }
 
-async function assertFolderOwnedByUser(pool, folderId, userId) {
+async function assertFolderOwnedByUser(pool, folderId, userId, gaId) {
   const row = await safeQuery(
     pool,
     `
-    SELECT id, user_id, name
+    SELECT id, user_id, ga_id, name
     FROM folders
-    WHERE id = $1 AND user_id = $2
+    WHERE id = $1
+      AND user_id = $2
+      AND ga_id = $3
     LIMIT 1
     `,
-    [folderId, userId],
+    [folderId, userId, gaId],
   )
   return row.rowCount > 0 ? row.rows[0] : null
 }
@@ -1102,7 +1104,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       return
     }
     if (folderId != null) {
-      const folder = await assertFolderOwnedByUser(pool, folderId, userId)
+      const folder = await assertFolderOwnedByUser(pool, folderId, userId, gaId)
       if (!folder) {
         res.status(404).json({ message: '폴더를 찾을 수 없습니다.' })
         return
@@ -1228,7 +1230,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       return
     }
     if (folderId != null) {
-      const folder = await assertFolderOwnedByUser(pool, folderId, userId)
+      const folder = await assertFolderOwnedByUser(pool, folderId, userId, gaId)
       if (!folder) {
         res.status(404).json({ message: '폴더를 찾을 수 없습니다.' })
         return
@@ -1325,15 +1327,20 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(401).json({ message: '로그인이 필요합니다.' })
         return
       }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
       const rows = await safeQuery(
         pool,
         `
         SELECT id, name, created_at
         FROM folders
         WHERE user_id = $1
+          AND ga_id = $2
         ORDER BY created_at DESC, id DESC
         `,
-        [userId],
+        [userId, gaId],
       )
       res.json(rows.rows.map(mapFolderRow))
     } catch (error) {
@@ -1346,6 +1353,10 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const userId = req.user?.id ? String(req.user.id) : ''
       if (!userId) {
         res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
         return
       }
       const body = req.body && typeof req.body === 'object' ? req.body : {}
@@ -1361,11 +1372,11 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const ins = await safeQuery(
         pool,
         `
-        INSERT INTO folders (user_id, name)
-        VALUES ($1, $2)
+        INSERT INTO folders (user_id, ga_id, name)
+        VALUES ($1, $2, $3)
         RETURNING id, name, created_at
         `,
-        [userId, folderName],
+        [userId, gaId, folderName],
       )
       res.status(201).json(mapFolderRow(ins.rows[0]))
     } catch (error) {
@@ -1384,6 +1395,10 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(401).json({ message: '로그인이 필요합니다.' })
         return
       }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
       const folderId = parseFolderId(req.params.folderId)
       if (folderId == null) {
         res.status(400).json({ message: '잘못된 폴더 ID입니다.' })
@@ -1399,7 +1414,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(400).json({ message: '해당 이름은 사용할 수 없습니다.' })
         return
       }
-      const folder = await assertFolderOwnedByUser(pool, folderId, userId)
+      const folder = await assertFolderOwnedByUser(pool, folderId, userId, gaId)
       if (!folder) {
         res.status(404).json({ message: '폴더를 찾을 수 없습니다.' })
         return
@@ -1409,10 +1424,12 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         `
         UPDATE folders
         SET name = $1
-        WHERE id = $2 AND user_id = $3
+        WHERE id = $2
+          AND user_id = $3
+          AND ga_id = $4
         RETURNING id, name, created_at
         `,
-        [folderName, folderId, userId],
+        [folderName, folderId, userId, gaId],
       )
       res.json(mapFolderRow(upd.rows[0]))
     } catch (error) {
@@ -1440,7 +1457,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(400).json({ message: '잘못된 폴더 ID입니다.' })
         return
       }
-      const folder = await assertFolderOwnedByUser(pool, folderId, userId)
+      const folder = await assertFolderOwnedByUser(pool, folderId, userId, gaId)
       if (!folder) {
         res.status(404).json({ message: '폴더를 찾을 수 없습니다.' })
         return
@@ -1466,9 +1483,11 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         pool,
         `
         DELETE FROM folders
-        WHERE id = $1 AND user_id = $2
+        WHERE id = $1
+          AND user_id = $2
+          AND ga_id = $3
         `,
-        [folderId, userId],
+        [folderId, userId, gaId],
       )
       res.json({ ok: true })
     } catch (error) {

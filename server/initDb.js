@@ -1669,18 +1669,31 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS folders (
       id BIGSERIAL PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER REFERENCES ga_companies(id),
       name VARCHAR(12) NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CONSTRAINT chk_folders_name_len CHECK (char_length(trim(name)) BETWEEN 1 AND 12)
     )
   `)
   await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS uq_folders_user_name
-    ON folders (user_id, lower(name))
+    ALTER TABLE folders
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
   `)
   await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_folders_user_created
-    ON folders (user_id, created_at DESC)
+    UPDATE folders f
+    SET ga_id = u.ga_id
+    FROM users u
+    WHERE f.user_id = u.id
+      AND f.ga_id IS NULL
+      AND u.ga_id IS NOT NULL
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_folders_user_name
+    ON folders (user_id, ga_id, lower(name))
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_folders_user_ga_created
+    ON folders (user_id, ga_id, created_at DESC)
   `)
 
   await pool.query(`
@@ -1698,6 +1711,10 @@ export async function initDb() {
       is_confirmed BOOLEAN NOT NULL DEFAULT true,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `)
+  await pool.query(`
+    ALTER TABLE files
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
   `)
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_files_user_created
