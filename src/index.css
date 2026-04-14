@@ -5044,6 +5044,13 @@ a.contacts-public-auth__link {
   background: var(--bg-elevated, #141b26);
 }
 
+.workspace-sidebar__section.workspace-sidebar__section--menu {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
 .workspace-sidebar__title {
   margin: 0 0 8px;
   font-size: 0.86rem;
@@ -5057,6 +5064,11 @@ a.contacts-public-auth__link {
   gap: 6px;
 }
 
+.workspace-sidebar__divider {
+  margin: 6px 0;
+  border-top: 1px solid var(--border-default, #2a2a2a);
+}
+
 .workspace-sidebar__nav-btn {
   justify-content: flex-start;
   text-align: left;
@@ -5065,6 +5077,10 @@ a.contacts-public-auth__link {
 .workspace-sidebar__nav-btn.workspace-sidebar__nav-btn--active {
   border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent);
   background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
+}
+
+.workspace-sidebar__logout {
+  margin-top: auto;
 }
 
 .workspace-memo-overlay {
@@ -5078,11 +5094,21 @@ a.contacts-public-auth__link {
   flex-direction: column;
   overflow: hidden;
   background: #0f172a;
-  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.2);
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3);
 }
 
 .workspace-memo-overlay.workspace-memo-overlay--fullscreen {
   width: 100vw;
+}
+
+.workspace-memo-resizer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 8px;
+  height: 100%;
+  cursor: ew-resize;
+  z-index: 2;
 }
 
 .memo-panel {
