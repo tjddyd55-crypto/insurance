@@ -26,9 +26,10 @@ import { ReinsurerContactsPage } from './features/contacts/pages/ReinsurerContac
 import CustomerCarPage from './features/customers/pages/CustomerCarPage'
 import CustomerInputPage from './features/customers/pages/CustomerInputPage'
 import CustomerRegisterPage from './features/customers/pages/CustomerRegisterPage'
-import CustomersPage from './features/customers/pages/CustomersPage'
 import CustomerConsultationsPage from './features/customers/pages/CustomerConsultationsPage'
 import CustomerFilesPage from './features/customers/pages/CustomerFilesPage'
+import CustomerWorkspaceLayout from './features/customers/pages/CustomerWorkspaceLayout'
+import CustomerWorkspaceHomePage from './features/customers/pages/CustomerWorkspaceHomePage'
 import TeamMembersPage from './features/team/pages/TeamMembersPage'
 import TeamPostsPage from './features/team/pages/TeamPostsPage'
 import TeamFilesPage from './features/team/pages/TeamFilesPage'
@@ -150,9 +151,15 @@ export const appRouter = createBrowserRouter([
                   { path: 'form/result/:id', element: <ApplicationResultPage /> },
                 ],
               },
-              { path: 'customers', element: <CustomersPage /> },
-              { path: 'customers/:id/consultations', element: <CustomerConsultationsPage /> },
-              { path: 'customers/:customerId/files', element: <CustomerFilesPage /> },
+              {
+                path: 'customers',
+                element: <CustomerWorkspaceLayout />,
+                children: [
+                  { index: true, element: <CustomerWorkspaceHomePage /> },
+                  { path: ':id/consultations', element: <CustomerConsultationsPage /> },
+                  { path: ':customerId/files', element: <CustomerFilesPage /> },
+                ],
+              },
               { path: 'team/members', element: <TeamMembersPage /> },
               { path: 'team/manage', element: <Navigate to="/team/members" replace /> },
               { path: 'team/menu-settings', element: <Navigate to="/team/members" replace /> },

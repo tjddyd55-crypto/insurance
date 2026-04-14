@@ -330,6 +330,11 @@ function parseOptionalInt(s: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+function parseSelectedCustomerId(raw: string | null): number | null {
+  const n = Number(raw)
+  return Number.isInteger(n) && n > 0 ? n : null
+}
+
 function customerRenewalYmd(c: CustomerRecord): string | null {
   const raw = (c.renewalDate ?? '').trim().slice(0, 10)
   return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null
@@ -1175,7 +1180,12 @@ export default function CustomersPage() {
   customersRef.current = customers
   const [statusText, setStatusText] = useState('')
   const [isLoading, setIsLoading] = useState(true)
-  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const tab = searchParams.get('mode') === 'create' ? 'create' : 'list'
+  const selectedCustomerIdFromQuery = useMemo(
+    () => parseSelectedCustomerId(searchParams.get('customerId')),
+    [searchParams],
+  )
+  const [expandedId, setExpandedId] = useState<number | null>(selectedCustomerIdFromQuery)
   const [historyForms, setHistoryForms] = useState<InsuranceApplicationRecord[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -1186,7 +1196,6 @@ export default function CustomersPage() {
   expandedIdRef.current = expandedId
   editingIdRef.current = editingId
   editFormRef.current = editForm
-  const tab = searchParams.get('mode') === 'create' ? 'create' : 'list'
 
   const customerCreateExitBlocker = useBlocker(
     useCallback<BlockerFunction>(
@@ -1500,6 +1509,30 @@ export default function CustomersPage() {
     }
     void loadCustomers()
   }, [user?.role, loadCustomers])
+
+  useEffect(() => {
+    if (tab !== 'list' || selectedCustomerIdFromQuery == null) {
+      return
+    }
+    setExpandedId((prev) => (prev === selectedCustomerIdFromQuery ? prev : selectedCustomerIdFromQuery))
+  }, [tab, selectedCustomerIdFromQuery])
+
+  useEffect(() => {
+    if (tab !== 'list') {
+      return
+    }
+    const queryCustomerId = parseSelectedCustomerId(searchParams.get('customerId'))
+    if (queryCustomerId === expandedId) {
+      return
+    }
+    const next = new URLSearchParams(searchParams)
+    if (expandedId == null) {
+      next.delete('customerId')
+    } else {
+      next.set('customerId', String(expandedId))
+    }
+    setSearchParams(next, { replace: true })
+  }, [expandedId, searchParams, setSearchParams, tab])
 
   useEffect(() => {
     if (expandedId == null) {
