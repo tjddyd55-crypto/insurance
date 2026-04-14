@@ -5,7 +5,7 @@ import {
   createStorageFolder,
   deleteStorageFile,
   deleteStorageFolder,
-  getStorageFileDownloadUrl,
+  downloadStorageFile,
   listStorageFiles,
   listStorageFolders,
   presignStorageFile,
@@ -184,25 +184,43 @@ export default function StorageWorkspace({
     setSubmitting(true)
     setError('')
     try {
-      const created = await createStorageFolder(token, name)
-      setFolders((prev) => [created, ...prev])
+      await createStorageFolder(token, name)
       setCreateFolderOpen(false)
       setCreateFolderName('')
+      await loadFolders()
     } catch (e) {
       setError(e instanceof Error ? e.message : '폴더 생성에 실패했습니다.')
     } finally {
       setSubmitting(false)
     }
-  }, [createFolderName, submitting, token])
+  }, [createFolderName, loadFolders, submitting, token])
+
+  const validateStoragePickerFile = useCallback((file: File): string | null => {
+    const normalizedName = normalizeName(file.name, FILE_NAME_MAX_LENGTH)
+    const mimeType = guessContentType(file)
+    if (!isValidFileName(normalizedName)) {
+      return '파일 이름 형식이 올바르지 않습니다.'
+    }
+    if (!ALLOWED_MIME.has(mimeType)) {
+      return 'JPG, PNG, PDF만 업로드할 수 있습니다.'
+    }
+    if (file.size < 1) {
+      return '빈 파일은 업로드할 수 없습니다.'
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      return '파일 크기는 25MB 이하여야 합니다.'
+    }
+    return null
+  }, [])
 
   const uploadFiles = useCallback(
-    async (selectedFiles: FileList | null) => {
+    async (selectedFiles: File[] | FileList | null) => {
       if (!token?.trim() || uploading || !selectedFiles?.length) {
         return
       }
       setUploading(true)
       setError('')
-      const uploads = Array.from(selectedFiles)
+      const uploads = Array.isArray(selectedFiles) ? selectedFiles : Array.from(selectedFiles)
       let failCount = 0
       for (const file of uploads) {
         const normalizedName = normalizeName(file.name, FILE_NAME_MAX_LENGTH)
@@ -291,8 +309,8 @@ export default function StorageWorkspace({
         const updated = await renameStorageFile(token, renameTarget.file.id, value)
         setFiles((prev) => prev.map((file) => (file.id === updated.id ? updated : file)))
       } else {
-        const updated = await renameStorageFolder(token, renameTarget.folder.id, value)
-        setFolders((prev) => prev.map((folder) => (folder.id === updated.id ? updated : folder)))
+        await renameStorageFolder(token, renameTarget.folder.id, value)
+        await loadFolders()
       }
       setRenameTarget(null)
     } catch (e) {
@@ -300,7 +318,7 @@ export default function StorageWorkspace({
     } finally {
       setSubmitting(false)
     }
-  }, [renameTarget, submitting, token])
+  }, [loadFolders, renameTarget, submitting, token])
 
   const submitDelete = useCallback(async () => {
     if (!token?.trim() || !deleteTarget || submitting) {
@@ -314,10 +332,10 @@ export default function StorageWorkspace({
         setFiles((prev) => prev.filter((file) => file.id !== deleteTarget.file.id))
       } else {
         await deleteStorageFolder(token, deleteTarget.folder.id)
-        setFolders((prev) => prev.filter((folder) => folder.id !== deleteTarget.folder.id))
         if (selectedFolderId === deleteTarget.folder.id) {
           setSelectedFolderId(null)
         }
+        await loadFolders()
       }
       setDeleteTarget(null)
     } catch (e) {
@@ -325,7 +343,7 @@ export default function StorageWorkspace({
     } finally {
       setSubmitting(false)
     }
-  }, [deleteTarget, selectedFolderId, submitting, token])
+  }, [deleteTarget, loadFolders, selectedFolderId, submitting, token])
 
   const downloadFile = useCallback(
     async (file: StorageFileRow) => {
@@ -333,10 +351,9 @@ export default function StorageWorkspace({
         return
       }
       try {
-        const result = await getStorageFileDownloadUrl(token, file.id)
-        window.open(result.url, '_blank', 'noopener,noreferrer')
+        await downloadStorageFile(token, file.id)
       } catch (e) {
-        setError(e instanceof Error ? e.message : '다운로드 링크를 가져오지 못했습니다.')
+        setError(e instanceof Error ? e.message : '다운로드에 실패했습니다.')
       }
     },
     [token],
@@ -359,8 +376,14 @@ export default function StorageWorkspace({
         onCloseFolderPicker={() => setFolderPickerOpen(false)}
         onSelectFolder={(folderId) => setSelectedFolderId(folderId)}
         onOpenCreateFolder={openCreateFolderDialog}
+        validateUploadFile={validateStoragePickerFile}
         onUploadFiles={(selectedFiles) => {
           void uploadFiles(selectedFiles)
+        }}
+        onUploadInvalidBatch={(failures) => {
+          if (failures.length) {
+            setError(`${failures.length}개 파일이 형식·용량·이름 규칙에 맞지 않습니다.`)
+          }
         }}
         uploading={uploading}
       />

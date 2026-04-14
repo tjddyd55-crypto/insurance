@@ -3,6 +3,7 @@ import { parseGaId } from '../lib/parseGaId.js'
 import { mapCustomerRow } from '../lib/customerRowMap.js'
 import { recordAnalyticsEvent } from '../lib/analyticsEvents.js'
 import {
+  consentGetBuffer,
   consentPutInsurerAttachment,
   getR2InsurerAttachmentsCacheControl,
   getR2PublicCdnBase,
@@ -139,6 +140,34 @@ function parseStorageObjectKeyFromPublicUrl(fileUrl) {
     return null
   }
   return u.slice(base.length + 1).replace(/^\//, '')
+}
+
+/** DB file_path → R2/로컬 객체 키 (presign URL 생성 로직은 변경하지 않음) */
+function resolveStorageFileObjectKey(filePath) {
+  const raw = String(filePath ?? '').trim()
+  if (!raw) {
+    return null
+  }
+  if (/^https?:\/\//i.test(raw)) {
+    return parseStorageObjectKeyFromPublicUrl(raw)
+  }
+  return raw.replace(/^\//, '')
+}
+
+/**
+ * 다운로드용 Content-Disposition (한글 등은 filename* 사용)
+ * @param {string} displayNameRaw
+ */
+function buildAttachmentContentDisposition(displayNameRaw) {
+  const name = String(displayNameRaw ?? '').trim() || 'download'
+  const ascii =
+    name
+      .replace(/["\r\n\\]/g, '_')
+      .replace(/[^\x20-\x7E]/g, '_')
+      .trim()
+      .slice(0, 200) || 'download'
+  const star = encodeURIComponent(name)
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${star}`
 }
 
 async function resolveGaPathByGaId(_pool, gaId) {
@@ -1636,11 +1665,26 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
           return
         }
       }
-      res.json({
-        id: Number(file.id),
-        url: toPublicFileUrl(file.file_path),
-        fileName: String(file.display_name ?? file.original_name ?? ''),
-      })
+      const objectKey = resolveStorageFileObjectKey(file.file_path)
+      if (!objectKey) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      let buffer
+      try {
+        buffer = await consentGetBuffer(objectKey)
+      } catch (e) {
+        console.warn('[storage download] read failed', fileId, objectKey, e)
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      const downloadName = String(file.display_name ?? file.original_name ?? '').trim() || 'download'
+      const mimeRaw = file.mime_type != null ? String(file.mime_type).trim() : ''
+      const contentType = mimeRaw || 'application/octet-stream'
+      res.setHeader('Content-Type', contentType)
+      res.setHeader('Content-Disposition', buildAttachmentContentDisposition(downloadName))
+      res.setHeader('Content-Length', String(buffer.length))
+      res.end(buffer)
     } catch (error) {
       handleDbError(error, req, res)
     }

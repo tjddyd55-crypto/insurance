@@ -1,4 +1,5 @@
-import { FormButton, FormInput } from '../../../components/form'
+import FileUploader from '../../../components/common/FileUploader'
+import { FormButton } from '../../../components/form'
 import type { StorageFolderRow } from '../api/storageApi'
 import FolderPicker from './FolderPicker'
 
@@ -13,7 +14,9 @@ type StorageToolbarProps = {
   onCloseFolderPicker: () => void
   onSelectFolder: (folderId: number | null) => void
   onOpenCreateFolder: () => void
-  onUploadFiles: (files: FileList | null) => void
+  validateUploadFile: (file: File) => string | null
+  onUploadFiles: (files: File[]) => void
+  onUploadInvalidBatch?: (failures: { file: File; message: string }[]) => void
   uploading: boolean
 }
 
@@ -26,7 +29,9 @@ export default function StorageToolbar({
   onCloseFolderPicker,
   onSelectFolder,
   onOpenCreateFolder,
+  validateUploadFile,
   onUploadFiles,
+  onUploadInvalidBatch,
   uploading,
 }: StorageToolbarProps) {
   return (
@@ -45,36 +50,31 @@ export default function StorageToolbar({
           onSelect={onSelectFolder}
         />
         {!isMobile ? (
-          <label className="storage-toolbar__upload">
-            <FormInput
-              type="file"
-              multiple
-              accept="image/jpeg,image/png,application/pdf,.pdf"
-              onChange={(event) => {
-                onUploadFiles(event.target.files)
-                event.target.value = ''
-              }}
-              disabled={uploading}
-            />
-            <span>{uploading ? '업로드 중…' : '파일 업로드'}</span>
-          </label>
+          <FileUploader
+            accept="image/jpeg,image/png,application/pdf,.pdf"
+            validateFile={validateUploadFile}
+            onFiles={onUploadFiles}
+            onInvalidBatch={onUploadInvalidBatch}
+            compact
+            disabled={uploading}
+            statusText={uploading ? '업로드 중…' : undefined}
+            primaryHint="파일을 드래그하거나 클릭하여 업로드"
+            hintLines={['JPG · PNG · PDF, 파일당 최대 25MB']}
+          />
         ) : null}
       </div>
       {isMobile ? (
-        <div className="storage-toolbar__row">
-          <label className="storage-toolbar__upload storage-toolbar__upload--mobile">
-            <FormInput
-              type="file"
-              multiple
-              accept="image/jpeg,image/png,application/pdf,.pdf"
-              onChange={(event) => {
-                onUploadFiles(event.target.files)
-                event.target.value = ''
-              }}
-              disabled={uploading}
-            />
-            <span>{uploading ? '업로드 중…' : '파일 업로드'}</span>
-          </label>
+        <div className="storage-toolbar__row storage-toolbar__row--full">
+          <FileUploader
+            accept="image/jpeg,image/png,application/pdf,.pdf"
+            validateFile={validateUploadFile}
+            onFiles={onUploadFiles}
+            onInvalidBatch={onUploadInvalidBatch}
+            disabled={uploading}
+            statusText={uploading ? '업로드 중…' : undefined}
+            primaryHint="파일을 드래그하거나 클릭하여 업로드"
+            hintLines={['JPG · PNG · PDF, 파일당 최대 25MB']}
+          />
         </div>
       ) : null}
     </div>

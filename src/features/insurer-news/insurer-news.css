@@ -547,29 +547,6 @@
   color: var(--text-main);
 }
 
-.insurer-news-dropzone {
-  border: 2px dashed var(--border);
-  border-radius: 14px;
-  padding: 24px 16px;
-  text-align: center;
-  background: var(--bg-soft);
-  color: var(--text-sub);
-  cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
-}
-
-.insurer-news-dropzone--active {
-  border-color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 8%, transparent);
-}
-
-.insurer-news-dropzone__hint {
-  margin: 0;
-  font-size: 0.9rem;
-}
-
 .insurer-news-upload-list {
   display: flex;
   flex-direction: column;

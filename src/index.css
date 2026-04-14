@@ -5922,6 +5922,56 @@ textarea.memo-sticky-note__textarea::placeholder {
   font-size: 0.875rem;
 }
 
+/* 공통 파일 업로드(스토리지·소식지 등) */
+.file-uploader {
+  box-sizing: border-box;
+  min-height: 88px;
+  padding: 14px 16px;
+  border: 2px dashed var(--border-default);
+  border-radius: 0.5rem;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.file-uploader--compact {
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.file-uploader--active {
+  border-color: color-mix(in srgb, var(--accent, #3b82f6) 55%, var(--border-default));
+  background: color-mix(in srgb, var(--accent, #3b82f6) 8%, var(--bg-card));
+}
+
+.file-uploader--busy {
+  cursor: wait;
+  opacity: 0.85;
+}
+
+.file-uploader__primary {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.file-uploader__muted {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text-sub);
+}
+
+.file-uploader__status {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
 .storage-toolbar {
   display: flex;
   flex-direction: column;
@@ -5934,6 +5984,20 @@ textarea.memo-sticky-note__textarea::placeholder {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.storage-toolbar__row--full {
+  align-items: stretch;
+}
+
+.storage-toolbar__row--full .file-uploader {
+  flex: 1;
+  min-width: 0;
+}
+
+.storage-toolbar__row .file-uploader--compact {
+  max-width: 300px;
+  min-width: 200px;
 }
 
 .storage-toolbar__folder-select {

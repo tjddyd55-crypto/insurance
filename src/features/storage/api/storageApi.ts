@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '../../../lib/apiClient'
+import { ApiError, apiRequest, resolveApiUrl } from '../../../lib/apiClient'
 
 export type StorageFolderRow = {
   id: number
@@ -186,10 +186,64 @@ export async function deleteStorageFile(token: string, fileId: number): Promise<
   })
 }
 
-export async function getStorageFileDownloadUrl(
-  token: string,
-  fileId: number,
-): Promise<{ id: number; url: string; fileName: string }> {
+/** Content-Disposition에서 파일명 추출 (UTF-8 filename* 우선) */
+export function parseContentDispositionFilename(headerValue: string | null): string | null {
+  if (!headerValue?.trim()) {
+    return null
+  }
+  const utf8Star = /filename\*\s*=\s*(?:UTF-8|utf-8)''([^;\s]+)/i.exec(headerValue)
+  if (utf8Star?.[1]) {
+    try {
+      return decodeURIComponent(utf8Star[1].trim())
+    } catch {
+      return null
+    }
+  }
+  const quoted = /filename\s*=\s*"((?:\\.|[^"\\])*)"/i.exec(headerValue)
+  if (quoted?.[1]) {
+    return quoted[1].replace(/\\(.)/g, '$1')
+  }
+  const plain = /filename\s*=\s*([^;\s]+)/i.exec(headerValue)
+  if (plain?.[1]) {
+    return plain[1].replace(/^["']|["']$/g, '')
+  }
+  return null
+}
+
+/**
+ * 스토리지 파일 다운로드: 서버가 보낸 Content-Disposition(표시명)을 그대로 저장 파일명으로 사용합니다.
+ */
+export async function downloadStorageFile(token: string, fileId: number): Promise<void> {
   assertToken(token)
-  return apiRequest<{ id: number; url: string; fileName: string }>(`/api/storage/files/${fileId}/download`, { token })
+  const url = resolveApiUrl(`/api/storage/files/${fileId}/download`)
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token.trim()}`,
+    },
+  })
+  if (!response.ok) {
+    let message = '다운로드에 실패했습니다.'
+    try {
+      const payload = (await response.json()) as { message?: string }
+      if (payload?.message) {
+        message = payload.message
+      }
+    } catch {
+      // ignore
+    }
+    throw new ApiError(message, response.status)
+  }
+  const cd = response.headers.get('Content-Disposition')
+  const fromHeader = parseContentDispositionFilename(cd)
+  const blob = await response.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = objectUrl
+  a.download = fromHeader ?? `file-${fileId}`
+  a.rel = 'noopener'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(objectUrl)
 }

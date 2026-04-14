@@ -1,10 +1,11 @@
+import FileUploader from '../../../components/common/FileUploader'
 import { FormButton, FormTextarea } from '../../../components/form'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { ApiError } from '../../../lib/apiClient'
 import { useInsurerNewsForm } from '../hooks/useInsurerNewsForm'
 import type { LocalAttachmentDraft, NewsChannel, NewsletterDetail } from '../types'
 import { uploadNewsletterAttachments } from '../services/insurerNews.service'
-import { InsurerNewsUploadDropzone } from './InsurerNewsUploadDropzone'
+import { validateInsurerNewsFile } from '../utils/validateInsurerNewsFile'
 
 const statusLabel: Record<string, string> = {
   pending: '대기',
@@ -101,6 +102,11 @@ export function InsurerNewsForm({
   const [submitError, setSubmitError] = useState('')
   const [busyMessage, setBusyMessage] = useState<string | null>(null)
 
+  const validateNewsletterFile = useCallback((file: File): string | null => {
+    const v = validateInsurerNewsFile(file)
+    return v.ok ? null : v.message
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitError('')
@@ -173,7 +179,17 @@ export function InsurerNewsForm({
 
       <div className="field">
         <span className="field__label">파일</span>
-        <InsurerNewsUploadDropzone onFiles={form.addAttachments} disabled={Boolean(busyMessage)} />
+        <FileUploader
+          accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+          validateFile={validateNewsletterFile}
+          onFiles={(files) => form.addAttachments(files)}
+          disabled={Boolean(busyMessage)}
+          primaryHint="이미지 또는 PDF를 드래그하여 놓거나, 클릭하여 선택하세요."
+          hintLines={[
+            '이미지는 본문에 표시되고, PDF는 다운로드 링크로만 제공됩니다.',
+            'JPG · PNG · WEBP · GIF · PDF (이미지·PDF 각 최대 10MB)',
+          ]}
+        />
         <div className="insurer-news-upload-list">
           {form.attachments.map((row) => (
             <div key={row.localId} className="insurer-news-upload-row">
