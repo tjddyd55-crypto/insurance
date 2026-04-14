@@ -199,6 +199,8 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
   const handleSidebarSelectNote = useCallback(
     (id: string) => {
       setIsMinimized(false)
+      // 리스트에서 선택해도 캔버스 클릭과 동일하게 최상단으로 승격한다.
+      bringToFront(id)
       activeNoteIdRef.current = id
       setActiveNoteId(id)
       const note = notes.find((n) => n.id === id)
@@ -210,7 +212,7 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
         })
       })
     },
-    [notes, setIsMinimized],
+    [bringToFront, notes, setIsMinimized],
   )
 
   const handleCanvasClick = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {

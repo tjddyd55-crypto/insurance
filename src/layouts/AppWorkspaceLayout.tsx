@@ -21,7 +21,7 @@ type SidebarNavEntry = GaTenantDashboardMenuEntry
 
 const MEMO_DEFAULT_WIDTH = 420
 const MEMO_MIN_WIDTH = 320
-const MEMO_MAX_WIDTH = 700
+const MEMO_MAX_WIDTH_FALLBACK = 1920
 
 function menuItemsToEntries(items: GaTenantMenuItem[]): SidebarNavEntry[] {
   return items.map((item) => ({ type: 'link', label: item.label, path: item.path }))
@@ -258,14 +258,31 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
   }, [token, user?.id, user?.role])
 
   const clampMemoWidth = useCallback((nextWidth: number) => {
+    const viewportMax =
+      typeof window !== 'undefined'
+        ? Math.max(MEMO_MIN_WIDTH, window.innerWidth)
+        : MEMO_MAX_WIDTH_FALLBACK
     if (nextWidth < MEMO_MIN_WIDTH) {
       return MEMO_MIN_WIDTH
     }
-    if (nextWidth > MEMO_MAX_WIDTH) {
-      return MEMO_MAX_WIDTH
+    if (nextWidth > viewportMax) {
+      return viewportMax
     }
     return nextWidth
   }, [])
+
+  useEffect(() => {
+    if (isFullscreen) {
+      return
+    }
+    const onResize = () => {
+      setMemoWidth((prev) => clampMemoWidth(prev))
+    }
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.removeEventListener('resize', onResize)
+    }
+  }, [clampMemoWidth, isFullscreen])
 
   const onMemoResizeStart = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {

@@ -4893,10 +4893,10 @@ a.contacts-public-auth__link {
 }
 
 .customer-workspace-layout__left {
-  width: 360px;
-  min-width: 360px;
-  max-width: 360px;
-  flex: 0 0 360px;
+  width: var(--customer-workspace-left-width, 430px);
+  min-width: var(--customer-workspace-left-width, 430px);
+  max-width: var(--customer-workspace-left-width, 430px);
+  flex: 0 0 var(--customer-workspace-left-width, 430px);
   overflow: auto;
   border-right: 1px solid var(--border-default, #2a2a2a);
   background: var(--bg-main);
@@ -5005,6 +5005,8 @@ a.contacts-public-auth__link {
 
 /* PC 전역: AppWorkspaceLayout — 좌측 메뉴 + 우측 콘텐츠 */
 .workspace-root.workspace-root--app-pc {
+  --workspace-sidebar-width: 280px;
+  --customer-workspace-left-width: 430px;
   display: flex;
   flex-direction: row;
   align-items: stretch;
@@ -5023,11 +5025,21 @@ a.contacts-public-auth__link {
   background: var(--bg-main);
 }
 
+.workspace-main.workspace-main--app .app-main-content .page,
+.workspace-main.workspace-main--app .app-main-content .container,
+.workspace-main.workspace-main--app .app-main-content .layout,
+.workspace-main.workspace-main--app .app-main-content .dashboard-menu-shell {
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+}
+
 .workspace-sidebar {
-  flex: 0 0 360px;
-  width: 360px;
-  min-width: 360px;
-  max-width: 360px;
+  flex: 0 0 var(--workspace-sidebar-width, 280px);
+  width: var(--workspace-sidebar-width, 280px);
+  min-width: var(--workspace-sidebar-width, 280px);
+  max-width: var(--workspace-sidebar-width, 280px);
   overflow: auto;
   display: flex;
   flex-direction: column;
