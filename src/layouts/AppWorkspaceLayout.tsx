@@ -32,6 +32,8 @@ function buildSidebarItems(role: string | undefined, gaCode: string | undefined)
   if (role === 'GA_STAFF') {
     return [
       { label: '원수사 연락처', path: '/insurance/company-registry' },
+      { label: '원수사 담당자', path: '/insurer-managers' },
+      { label: '손해사정사 계정', path: '/loss-adjusters' },
       { label: '원수사 소식지', path: '/portal/newsletters' },
       { label: '팀 리스트', path: '/team/members' },
     ]

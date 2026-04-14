@@ -4893,10 +4893,10 @@ a.contacts-public-auth__link {
 }
 
 .customer-workspace-layout__left {
-  width: 320px;
-  min-width: 320px;
-  max-width: 320px;
-  flex: 0 0 320px;
+  width: 360px;
+  min-width: 360px;
+  max-width: 360px;
+  flex: 0 0 360px;
   overflow: auto;
   border-right: 1px solid var(--border-default, #2a2a2a);
   background: var(--bg-main);
@@ -5024,10 +5024,10 @@ a.contacts-public-auth__link {
 }
 
 .workspace-sidebar {
-  flex: 0 0 320px;
-  width: 320px;
-  min-width: 320px;
-  max-width: 320px;
+  flex: 0 0 360px;
+  width: 360px;
+  min-width: 360px;
+  max-width: 360px;
   overflow: auto;
   display: flex;
   flex-direction: column;
