@@ -30,15 +30,13 @@ const CUSTOMER_FILE_BLOCKED_MIME = new Set([
   'application/x-executable',
 ])
 const CUSTOMER_FILE_MAX_BYTES = 25 * 1024 * 1024
+const STORAGE_USER_MAX_BYTES = 5 * 1024 * 1024 * 1024
 const CUSTOMER_FILE_CONTENT_MAX = 100_000
 
-const CUSTOMER_FILE_BUCKET = Object.freeze({
-  CONSENTS: 'consents',
-  ATTACHMENTS: 'attachments',
-  ETC: 'etc',
-})
-
-const CUSTOMER_FILE_BUCKET_SET = new Set(Object.values(CUSTOMER_FILE_BUCKET))
+const FILE_NAME_MAX_LENGTH = 120
+const FOLDER_NAME_MAX_LENGTH = 12
+const STORAGE_FILE_NAME_REGEX = /^[A-Za-z0-9._\-() \u3131-\u318e\uac00-\ud7a3]+$/
+const STORAGE_FOLDER_NAME_REGEX = /^[A-Za-z0-9 \u3131-\u318e\uac00-\ud7a3]+$/
 
 function sanitizeUserIdForObjectKeySegment(userId) {
   const s = String(userId ?? '')
@@ -47,51 +45,85 @@ function sanitizeUserIdForObjectKeySegment(userId) {
   return s || '_'
 }
 
-function sanitizeCustomerFileBaseName(fileNameRaw) {
-  const base = String(fileNameRaw ?? 'file').trim() || 'file'
-  return base.replace(/[^\w.\-()\u3131-\u318e\uac00-\ud7a3]/g, '_').slice(0, 120)
+function normalizeSpaces(raw) {
+  return String(raw ?? '').replace(/\s+/g, ' ').trim()
 }
 
-function normalizeCustomerFileBucket(raw) {
-  const v = String(raw ?? '').trim().toLowerCase()
-  if (CUSTOMER_FILE_BUCKET_SET.has(v)) {
-    return v
+function normalizeStorageFileName(raw) {
+  const value = normalizeSpaces(raw)
+  if (!value) {
+    return ''
   }
-  return CUSTOMER_FILE_BUCKET.ATTACHMENTS
+  return value.slice(0, FILE_NAME_MAX_LENGTH)
 }
 
-function buildCustomerFileObjectKey(gaIdPath, userId, customerId, fileNameRaw, bucketRaw) {
+function isValidStorageFileName(raw) {
+  const value = normalizeStorageFileName(raw)
+  if (!value) {
+    return false
+  }
+  if (value.length > FILE_NAME_MAX_LENGTH) {
+    return false
+  }
+  return STORAGE_FILE_NAME_REGEX.test(value)
+}
+
+function normalizeFolderName(raw) {
+  const value = normalizeSpaces(raw)
+  if (!value) {
+    return ''
+  }
+  return value.slice(0, FOLDER_NAME_MAX_LENGTH)
+}
+
+function isValidFolderName(raw) {
+  const value = normalizeFolderName(raw)
+  if (!value) {
+    return false
+  }
+  if (value.length > FOLDER_NAME_MAX_LENGTH) {
+    return false
+  }
+  return STORAGE_FOLDER_NAME_REGEX.test(value)
+}
+
+function sanitizeStorageFileNameForObjectKey(fileNameRaw) {
+  const normalized = normalizeStorageFileName(fileNameRaw)
+  const safe =
+    normalized
+      .replace(/[^\w.\-()\u3131-\u318e\uac00-\ud7a3]/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, FILE_NAME_MAX_LENGTH) || 'file'
+  return safe
+}
+
+function buildStorageObjectKey(gaIdPath, userId, fileNameRaw) {
   const userSeg = sanitizeUserIdForObjectKeySegment(userId)
-  const safeName = sanitizeCustomerFileBaseName(fileNameRaw)
-  const bucket = normalizeCustomerFileBucket(bucketRaw)
+  const safeName = sanitizeStorageFileNameForObjectKey(fileNameRaw)
   const now = new Date()
   const yyyy = String(now.getUTCFullYear())
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
-  const dd = String(now.getUTCDate()).padStart(2, '0')
   const ts = Date.now()
-  return `insurer/${gaIdPath}/${userSeg}/customers/${customerId}/${bucket}/${yyyy}/${mm}/${dd}/${ts}_${safeName}`
+  return `platform-assets/insurer/${gaIdPath}/${userSeg}/files/storage/${yyyy}/${mm}/${ts}_${safeName}`
 }
 
-function assertCustomerFileObjectKey(key, gaIdPath, userId, customerId) {
+function assertStorageObjectKey(key, gaIdPath, userId) {
   const k = String(key ?? '').replace(/^\//, '')
   if (!k || k.includes('..')) {
     return false
   }
   const userSeg = sanitizeUserIdForObjectKeySegment(userId)
-  const prefix = `insurer/${gaIdPath}/${userSeg}/customers/${customerId}/`
+  const prefix = `platform-assets/insurer/${gaIdPath}/${userSeg}/files/storage/`
   if (!k.startsWith(prefix)) {
     return false
   }
   const rest = k.slice(prefix.length)
   const parts = rest.split('/').filter(Boolean)
-  if (parts.length !== 5) {
+  if (parts.length !== 3) {
     return false
   }
-  const [bucket, y, mo, d, fileSeg] = parts
-  if (!CUSTOMER_FILE_BUCKET_SET.has(bucket)) {
-    return false
-  }
-  if (!/^\d{4}$/.test(y) || !/^\d{2}$/.test(mo) || !/^\d{2}$/.test(d)) {
+  const [y, mo, fileSeg] = parts
+  if (!/^\d{4}$/.test(y) || !/^\d{2}$/.test(mo)) {
     return false
   }
   if (!/^\d+_.+/.test(fileSeg)) {
@@ -100,7 +132,7 @@ function assertCustomerFileObjectKey(key, gaIdPath, userId, customerId) {
   return true
 }
 
-function parseCustomerFileObjectKeyFromPublicUrl(fileUrl) {
+function parseStorageObjectKeyFromPublicUrl(fileUrl) {
   const base = getR2PublicCdnBase().replace(/\/$/, '')
   const u = String(fileUrl ?? '').trim()
   if (!u.startsWith(`${base}/`)) {
@@ -116,7 +148,7 @@ async function resolveGaPathByGaId(_pool, gaId) {
   return String(gaId)
 }
 
-async function deleteCustomerFileFromR2WithLog(objectKey, tag = 'delete') {
+async function deleteStorageFileFromR2WithLog(objectKey, tag = 'delete') {
   const key = objectKey != null ? String(objectKey).trim() : ''
   if (!key) {
     return
@@ -128,21 +160,50 @@ async function deleteCustomerFileFromR2WithLog(objectKey, tag = 'delete') {
   }
 }
 
+function toPublicFileUrl(filePath) {
+  const raw = String(filePath ?? '').trim()
+  if (!raw) {
+    return ''
+  }
+  if (/^https?:\/\//i.test(raw)) {
+    return raw
+  }
+  const base = getR2PublicCdnBase().replace(/\/$/, '')
+  return `${base}/${raw.replace(/^\//, '')}`
+}
+
 function mapCustomerFileRow(row) {
+  const filePath = row.file_path != null ? String(row.file_path) : row.file_url ?? ''
+  const objectKeyCandidate = /^https?:\/\//i.test(filePath)
+    ? parseStorageObjectKeyFromPublicUrl(filePath)
+    : filePath
   return {
     id: Number(row.id),
-    customerId: Number(row.customer_id),
+    customerId: row.customer_id != null ? Number(row.customer_id) : null,
+    folderId: row.folder_id != null ? Number(row.folder_id) : null,
     content: row.content != null ? String(row.content) : '',
-    fileName: row.file_name ?? '',
-    objectKey: row.object_key != null ? String(row.object_key) : null,
-    fileUrl: row.file_url ?? '',
+    fileName: row.display_name ?? row.file_name ?? row.original_name ?? '',
+    originalName: row.original_name ?? row.file_name ?? '',
+    displayName: row.display_name ?? row.file_name ?? '',
+    objectKey: objectKeyCandidate ? String(objectKeyCandidate) : null,
+    filePath,
+    fileUrl: toPublicFileUrl(filePath),
     fileSize: row.file_size != null ? Number(row.file_size) : null,
     mimeType: row.mime_type ?? null,
+    isConfirmed: row.is_confirmed == null ? true : Boolean(row.is_confirmed),
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : '',
     expiresAt:
       row.expires_at != null ? new Date(row.expires_at).toISOString() : null,
     deletedAt:
       row.deleted_at != null ? new Date(row.deleted_at).toISOString() : null,
+  }
+}
+
+function mapFolderRow(row) {
+  return {
+    id: Number(row.id),
+    name: String(row.name ?? ''),
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : '',
   }
 }
 
@@ -250,6 +311,105 @@ async function readRawBodyBuffer(req, maxBytes) {
     chunks.push(buf)
   }
   return Buffer.concat(chunks)
+}
+
+function parseOptionalCustomerId(raw) {
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 1) {
+    return null
+  }
+  return n
+}
+
+function parseFolderId(raw) {
+  if (raw == null || raw === '') {
+    return null
+  }
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 1) {
+    return null
+  }
+  return n
+}
+
+async function assertFolderOwnedByUser(pool, folderId, userId) {
+  const row = await safeQuery(
+    pool,
+    `
+    SELECT id, user_id, name
+    FROM folders
+    WHERE id = $1 AND user_id = $2
+    LIMIT 1
+    `,
+    [folderId, userId],
+  )
+  return row.rowCount > 0 ? row.rows[0] : null
+}
+
+async function getUserConfirmedStorageBytes(pool, userId, gaId) {
+  const row = await safeQuery(
+    pool,
+    `
+    SELECT COALESCE(SUM(file_size), 0) AS total
+    FROM files
+    WHERE user_id = $1
+      AND ga_id = $2
+      AND is_confirmed = true
+    `,
+    [userId, gaId],
+  )
+  const total = Number(row.rows[0]?.total ?? 0)
+  return Number.isFinite(total) ? total : 0
+}
+
+async function getOwnedStorageFile(pool, fileId, userId, gaId) {
+  const row = await safeQuery(
+    pool,
+    `
+    SELECT
+      id,
+      user_id,
+      ga_id,
+      customer_id,
+      folder_id,
+      original_name,
+      display_name,
+      file_path,
+      file_size,
+      mime_type,
+      is_confirmed,
+      created_at
+    FROM files
+    WHERE id = $1
+      AND user_id = $2
+      AND ga_id = $3
+    LIMIT 1
+    `,
+    [fileId, userId, gaId],
+  )
+  return row.rowCount > 0 ? row.rows[0] : null
+}
+
+async function resolveStorageCustomerScope(pool, res, userId, gaId, rawCustomerId, opts = {}) {
+  const required = opts.required === true
+  const provided = rawCustomerId != null && String(rawCustomerId).trim() !== ''
+  if (!provided) {
+    if (required) {
+      res.status(400).json({ message: '잘못된 고객 ID입니다.' })
+      return { ok: false, customerId: null }
+    }
+    return { ok: true, customerId: null }
+  }
+  const customerId = parseOptionalCustomerId(rawCustomerId)
+  if (customerId == null) {
+    res.status(400).json({ message: '잘못된 고객 ID입니다.' })
+    return { ok: false, customerId: null }
+  }
+  const ok = await assertCustomerFileAccess(pool, customerId, userId, gaId, res)
+  if (!ok) {
+    return { ok: false, customerId: null }
+  }
+  return { ok: true, customerId }
 }
 
 /**
@@ -721,117 +881,551 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     }
   })
 
-  apiRouter.post('/customers/:id/files/presign', requireAuth, async (req, res) => {
+  const resolveContentType = (raw) => {
+    return String(raw ?? '')
+      .trim()
+      .split(';')[0]
+      .trim()
+  }
+
+  async function handleStoragePresign(req, res, forcedCustomerId = null) {
+    if (!isConsentR2Enabled()) {
+      logR2EnvDiagnosticCheck()
+      res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+      return
+    }
+    const userId = req.user?.id ? String(req.user.id) : ''
+    if (!userId) {
+      res.status(401).json({ message: '로그인이 필요합니다.' })
+      return
+    }
+    const gaId = requireGaIdFromUser(req, res)
+    if (gaId == null) {
+      return
+    }
+    const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+    if (!gaIdPath) {
+      res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
+      return
+    }
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+    const scope = await resolveStorageCustomerScope(
+      pool,
+      res,
+      userId,
+      gaId,
+      forcedCustomerId ?? body.customerId ?? body.customer_id ?? null,
+      { required: forcedCustomerId != null },
+    )
+    if (!scope.ok) {
+      return
+    }
+    const customerId = scope.customerId
+
+    const fileName = normalizeStorageFileName(body.fileName ?? body.file_name ?? '')
+    const contentType = resolveContentType(body.contentType ?? body.content_type)
+    const sizeBytes = Number(body.size ?? body.sizeBytes ?? 0)
+
+    if (!isValidStorageFileName(fileName)) {
+      res.status(400).json({ message: '파일 이름이 올바르지 않습니다.' })
+      return
+    }
+    if (CUSTOMER_FILE_BLOCKED_MIME.has(contentType) || !CUSTOMER_FILE_ALLOWED_MIME.has(contentType)) {
+      res.status(400).json({ message: '파일 형식 오류' })
+      return
+    }
+    if (!Number.isFinite(sizeBytes) || sizeBytes < 1 || sizeBytes > CUSTOMER_FILE_MAX_BYTES) {
+      res.status(400).json({ message: '용량 초과' })
+      return
+    }
+    const usageBytes = await getUserConfirmedStorageBytes(pool, userId, gaId)
+    if (usageBytes + sizeBytes > STORAGE_USER_MAX_BYTES) {
+      res.status(400).json({ message: '저장 공간(5GB) 한도를 초과했습니다.' })
+      return
+    }
+
+    const objectKey = buildStorageObjectKey(gaIdPath, userId, fileName)
+    const cacheControl = getR2InsurerAttachmentsCacheControl()
+    const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
+    if (!uploadUrl) {
+      res.status(503).json({ message: '업로드 URL을 만들 수 없습니다.' })
+      return
+    }
+    const fileUrl = toPublicFileUrl(objectKey)
+    const putHeaders = {}
+    if (cacheControl) {
+      putHeaders['Cache-Control'] = cacheControl
+    }
+    res.json({
+      uploadUrl,
+      fileUrl,
+      objectKey,
+      putHeaders,
+      customerId,
+      displayName: fileName,
+    })
+  }
+
+  async function handleStorageUploadProxy(req, res, forcedCustomerId = null) {
+    if (!isConsentR2Enabled()) {
+      logR2EnvDiagnosticCheck()
+      res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+      return
+    }
+    const userId = req.user?.id ? String(req.user.id) : ''
+    if (!userId) {
+      res.status(401).json({ message: '로그인이 필요합니다.' })
+      return
+    }
+    const gaId = requireGaIdFromUser(req, res)
+    if (gaId == null) {
+      return
+    }
+    const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+    if (!gaIdPath) {
+      res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
+      return
+    }
+    const scope = await resolveStorageCustomerScope(
+      pool,
+      res,
+      userId,
+      gaId,
+      forcedCustomerId ?? req.query.customerId ?? null,
+      { required: forcedCustomerId != null },
+    )
+    if (!scope.ok) {
+      return
+    }
+    const contentType = resolveContentType(req.query.contentType ?? req.headers['content-type'])
+    if (CUSTOMER_FILE_BLOCKED_MIME.has(contentType) || !CUSTOMER_FILE_ALLOWED_MIME.has(contentType)) {
+      res.status(400).json({ message: '파일 형식 오류' })
+      return
+    }
+    const objectKey = String(req.query.objectKey ?? req.headers['x-object-key'] ?? '').trim()
+    if (!objectKey) {
+      res.status(400).json({ message: 'object key가 필요합니다.' })
+      return
+    }
+    if (!assertStorageObjectKey(objectKey, gaIdPath, userId)) {
+      res.status(400).json({ message: '유효하지 않은 object key입니다.' })
+      return
+    }
+    const bodyBuffer = await readRawBodyBuffer(req, CUSTOMER_FILE_MAX_BYTES)
+    if (!bodyBuffer.length) {
+      res.status(400).json({ message: '업로드 본문이 비어 있습니다.' })
+      return
+    }
+    await consentPutInsurerAttachment(objectKey, bodyBuffer, contentType)
+    res.status(204).end()
+  }
+
+  async function handleStorageRevokeStaged(req, res, forcedCustomerId = null) {
+    const userId = req.user?.id ? String(req.user.id) : ''
+    if (!userId) {
+      res.status(401).json({ message: '로그인이 필요합니다.' })
+      return
+    }
+    const gaId = requireGaIdFromUser(req, res)
+    if (gaId == null) {
+      return
+    }
+    const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+    if (!gaIdPath) {
+      res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
+      return
+    }
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+    const scope = await resolveStorageCustomerScope(
+      pool,
+      res,
+      userId,
+      gaId,
+      forcedCustomerId ?? body.customerId ?? body.customer_id ?? null,
+      { required: forcedCustomerId != null },
+    )
+    if (!scope.ok) {
+      return
+    }
+    const objectKeyRaw = String(body.objectKey ?? body.object_key ?? '').trim()
+    if (!objectKeyRaw) {
+      res.status(400).json({ message: '요청이 올바르지 않습니다.' })
+      return
+    }
+    if (!assertStorageObjectKey(objectKeyRaw, gaIdPath, userId)) {
+      res.status(400).json({ message: '요청이 올바르지 않습니다.' })
+      return
+    }
     try {
-      console.log(
-        '[customers/files/presign] request',
-        JSON.stringify({
-          customerId: req.params?.customerId ?? null,
-          id: req.params?.id ?? null,
-          user: req.user ?? null,
-        }),
-      )
-      if (!isConsentR2Enabled()) {
-        logR2EnvDiagnosticCheck()
-        res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+      await r2DeleteObject(objectKeyRaw)
+    } catch (e) {
+      console.warn('[ORPHAN FILE]', objectKeyRaw, e)
+    }
+    res.json({ ok: true })
+  }
+
+  async function handleStorageSave(req, res, forcedCustomerId = null) {
+    const userId = req.user?.id ? String(req.user.id) : ''
+    if (!userId) {
+      res.status(401).json({ message: '로그인이 필요합니다.' })
+      return
+    }
+    const gaId = requireGaIdFromUser(req, res)
+    if (gaId == null) {
+      return
+    }
+    const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+    if (!gaIdPath) {
+      res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
+      return
+    }
+    const body = req.body && typeof req.body === 'object' ? req.body : {}
+    const scope = await resolveStorageCustomerScope(
+      pool,
+      res,
+      userId,
+      gaId,
+      forcedCustomerId ?? body.customerId ?? body.customer_id ?? null,
+      { required: forcedCustomerId != null },
+    )
+    if (!scope.ok) {
+      return
+    }
+    const customerId = scope.customerId
+
+    const folderIdRaw = body.folderId ?? body.folder_id
+    const folderProvided = folderIdRaw != null && String(folderIdRaw).trim() !== ''
+    const folderId = parseFolderId(folderIdRaw)
+    if (folderProvided && folderId == null) {
+      res.status(400).json({ message: '잘못된 폴더 ID입니다.' })
+      return
+    }
+    if (folderId != null) {
+      const folder = await assertFolderOwnedByUser(pool, folderId, userId)
+      if (!folder) {
+        res.status(404).json({ message: '폴더를 찾을 수 없습니다.' })
         return
       }
+    }
+
+    const originalName = normalizeStorageFileName(body.fileName ?? body.file_name ?? body.originalName ?? '')
+    const displayName = normalizeStorageFileName(body.displayName ?? body.display_name ?? originalName)
+    const objectKeyRaw = String(body.objectKey ?? body.object_key ?? '').trim()
+    const fileUrl = String(body.fileUrl ?? body.file_url ?? '').trim()
+    const sizeRaw = body.size ?? body.file_size
+    const fileSize = Number(sizeRaw)
+    const mimeType = resolveContentType(body.mimeType ?? body.mime_type)
+    const content = String(body.content ?? '').slice(0, CUSTOMER_FILE_CONTENT_MAX)
+
+    if (!isValidStorageFileName(originalName) || !isValidStorageFileName(displayName)) {
+      res.status(400).json({ message: '파일 이름이 올바르지 않습니다.' })
+      return
+    }
+    if (!objectKeyRaw) {
+      res.status(400).json({ message: 'object key가 필요합니다.' })
+      return
+    }
+    if (!assertStorageObjectKey(objectKeyRaw, gaIdPath, userId)) {
+      res.status(400).json({ message: '유효하지 않은 object key입니다.' })
+      return
+    }
+    if (!Number.isFinite(fileSize) || fileSize < 1 || fileSize > CUSTOMER_FILE_MAX_BYTES) {
+      res.status(400).json({ message: '용량 초과' })
+      return
+    }
+    if (CUSTOMER_FILE_BLOCKED_MIME.has(mimeType) || !CUSTOMER_FILE_ALLOWED_MIME.has(mimeType)) {
+      res.status(400).json({ message: '파일 형식 오류' })
+      return
+    }
+    const usageBytes = await getUserConfirmedStorageBytes(pool, userId, gaId)
+    if (usageBytes + fileSize > STORAGE_USER_MAX_BYTES) {
+      res.status(400).json({ message: '저장 공간(5GB) 한도를 초과했습니다.' })
+      return
+    }
+    const expectedFileUrl = toPublicFileUrl(objectKeyRaw)
+    if (fileUrl && fileUrl !== expectedFileUrl) {
+      res.status(400).json({ message: '파일 URL이 object key와 일치하지 않습니다.' })
+      return
+    }
+
+    const ins = await safeQuery(
+      pool,
+      `
+      INSERT INTO files (
+        user_id,
+        ga_id,
+        customer_id,
+        folder_id,
+        original_name,
+        display_name,
+        file_path,
+        file_size,
+        mime_type,
+        is_confirmed,
+        created_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, NOW())
+      RETURNING
+        id,
+        customer_id,
+        folder_id,
+        original_name,
+        display_name,
+        file_path,
+        file_size,
+        mime_type,
+        is_confirmed,
+        created_at,
+        ''::TEXT AS content,
+        NULL::TIMESTAMPTZ AS expires_at,
+        NULL::TIMESTAMPTZ AS deleted_at
+      `,
+      [
+        userId,
+        gaId,
+        customerId,
+        folderId,
+        originalName,
+        displayName,
+        objectKeyRaw,
+        fileSize,
+        mimeType,
+      ],
+    )
+    const row = ins.rows[0]
+    row.content = content
+    res.status(201).json(mapCustomerFileRow(row))
+  }
+
+  async function handleStorageList(req, res, forcedCustomerId = null) {
+    const userId = req.user?.id ? String(req.user.id) : ''
+    if (!userId) {
+      res.status(401).json({ message: '로그인이 필요합니다.' })
+      return
+    }
+    const gaId = requireGaIdFromUser(req, res)
+    if (gaId == null) {
+      return
+    }
+    const scope = await resolveStorageCustomerScope(
+      pool,
+      res,
+      userId,
+      gaId,
+      forcedCustomerId ?? req.query.customerId ?? null,
+      { required: forcedCustomerId != null },
+    )
+    if (!scope.ok) {
+      return
+    }
+    const customerId = scope.customerId
+    const folderIdRaw = req.query.folderId ?? req.query.folder_id
+    const folderProvided = folderIdRaw != null && String(folderIdRaw).trim() !== ''
+    const folderId = parseFolderId(folderIdRaw)
+    if (folderProvided && folderId == null) {
+      res.status(400).json({ message: '잘못된 폴더 ID입니다.' })
+      return
+    }
+    if (folderId != null) {
+      const folder = await assertFolderOwnedByUser(pool, folderId, userId)
+      if (!folder) {
+        res.status(404).json({ message: '폴더를 찾을 수 없습니다.' })
+        return
+      }
+    }
+
+    const query = `
+      SELECT
+        id,
+        customer_id,
+        folder_id,
+        original_name,
+        display_name,
+        file_path,
+        file_size,
+        mime_type,
+        is_confirmed,
+        created_at,
+        ''::TEXT AS content,
+        NULL::TIMESTAMPTZ AS expires_at,
+        NULL::TIMESTAMPTZ AS deleted_at
+      FROM files
+      WHERE user_id = $1
+        AND ga_id = $2
+        AND is_confirmed = true
+        AND (
+          ($3::INTEGER IS NULL AND customer_id IS NULL)
+          OR customer_id = $3
+        )
+        AND ($4::BIGINT IS NULL OR folder_id = $4)
+      ORDER BY created_at DESC, id DESC
+    `
+    const rows = await safeQuery(pool, query, [userId, gaId, customerId, folderId])
+    res.json(rows.rows.map(mapCustomerFileRow))
+  }
+
+  async function handleStorageDelete(req, res) {
+    const userId = req.user?.id ? String(req.user.id) : ''
+    if (!userId) {
+      res.status(401).json({ message: '로그인이 필요합니다.' })
+      return
+    }
+    const gaId = requireGaIdFromUser(req, res)
+    if (gaId == null) {
+      return
+    }
+    const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+    if (!gaIdPath) {
+      res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
+      return
+    }
+    const fileId = Number(req.params.fileId)
+    if (!Number.isInteger(fileId) || fileId < 1) {
+      res.status(400).json({ message: '잘못된 파일 ID입니다.' })
+      return
+    }
+
+    const file = await getOwnedStorageFile(pool, fileId, userId, gaId)
+    if (!file) {
+      res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+      return
+    }
+    if (file.customer_id != null) {
+      const ok = await assertCustomerFileAccess(pool, Number(file.customer_id), userId, gaId, res)
+      if (!ok) {
+        return
+      }
+    }
+    await safeQuery(
+      pool,
+      `
+      DELETE FROM files
+      WHERE id = $1
+        AND user_id = $2
+        AND ga_id = $3
+      `,
+      [fileId, userId, gaId],
+    )
+
+    const rawPath = String(file.file_path ?? '').trim()
+    const objectKey = /^https?:\/\//i.test(rawPath)
+      ? parseStorageObjectKeyFromPublicUrl(rawPath)
+      : rawPath
+    if (objectKey && assertStorageObjectKey(objectKey, gaIdPath, userId)) {
+      void deleteStorageFileFromR2WithLog(objectKey, 'delete')
+    }
+    res.json({ ok: true })
+  }
+
+  apiRouter.get('/storage/folders', requireAuth, async (req, res) => {
+    try {
       const userId = req.user?.id ? String(req.user.id) : ''
       if (!userId) {
         res.status(401).json({ message: '로그인이 필요합니다.' })
         return
       }
-      const gaId = requireGaIdFromUser(req, res)
-      if (gaId == null) {
-        return
-      }
-      const gaIdPath = await resolveGaPathByGaId(pool, gaId)
-      if (!gaIdPath) {
-        res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
-        return
-      }
-      const customerId = parseCustomerIdParam(req, res)
-      if (customerId == null) {
-        return
-      }
-      const customerRow = await safeQuery(
+      const rows = await safeQuery(
         pool,
         `
-        SELECT *
-        FROM customers
-        WHERE id = $1
-          AND ga_id = $2
-        LIMIT 1
+        SELECT id, name, created_at
+        FROM folders
+        WHERE user_id = $1
+        ORDER BY created_at DESC, id DESC
         `,
-        [customerId, gaId],
+        [userId],
       )
-      if (customerRow.rowCount === 0) {
-        res.status(404).json({ message: 'CUSTOMER_NOT_FOUND' })
-        return
-      }
-      const foundCustomer = customerRow.rows[0]
-      const customerGa = parseGaId(foundCustomer.ga_id)
-      if (customerGa == null || customerGa !== gaId) {
-        res.status(403).json({ message: '권한 없습니다.' })
-        return
-      }
-      if (String(foundCustomer.user_id) !== String(userId)) {
-        res.status(403).json({ message: '권한 없습니다.' })
-        return
-      }
-
-      const body = req.body && typeof req.body === 'object' ? req.body : {}
-      const fileNameRaw = String(body.fileName ?? body.file_name ?? 'file').trim() || 'file'
-      const contentType = String(body.contentType ?? body.content_type ?? 'application/octet-stream').trim()
-      const sizeBytes = Number(body.size ?? body.sizeBytes ?? 0)
-      const fileBucket = normalizeCustomerFileBucket(body.fileBucket ?? body.bucket ?? body.kind)
-
-      if (CUSTOMER_FILE_BLOCKED_MIME.has(contentType)) {
-        res.status(400).json({ message: '파일 형식 오류' })
-        return
-      }
-      if (!CUSTOMER_FILE_ALLOWED_MIME.has(contentType)) {
-        res.status(400).json({ message: '파일 형식 오류' })
-        return
-      }
-      if (!Number.isFinite(sizeBytes) || sizeBytes < 1 || sizeBytes > CUSTOMER_FILE_MAX_BYTES) {
-        res.status(400).json({ message: '용량 초과' })
-        return
-      }
-
-      const objectKey = buildCustomerFileObjectKey(gaIdPath, userId, customerId, fileNameRaw, fileBucket)
-
-      const cacheControl = getR2InsurerAttachmentsCacheControl()
-      const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
-      if (!uploadUrl) {
-        res.status(503).json({ message: '업로드 URL을 만들 수 없습니다.' })
-        return
-      }
-      const base = getR2PublicCdnBase()
-      const fileUrl = `${base}/${objectKey.replace(/^\//, '')}`
-      const putHeaders = {}
-      if (cacheControl) {
-        putHeaders['Cache-Control'] = cacheControl
-      }
-      res.json({ uploadUrl, fileUrl, objectKey, putHeaders, fileBucket })
+      res.json(rows.rows.map(mapFolderRow))
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error)
-      console.error('[customers/files/presign] error:', msg)
       handleDbError(error, req, res)
     }
   })
 
-  /**
-   * 브라우저-R2 CORS 차단 시 서버 경유 업로드 fallback.
-   * 클라이언트는 presign에서 받은 objectKey를 그대로 전달하며, 여기서 범위를 다시 검증한다.
-   */
-  apiRouter.put('/customers/:id/files/upload-proxy', requireAuth, async (req, res) => {
+  apiRouter.post('/storage/folders', requireAuth, async (req, res) => {
     try {
-      if (!isConsentR2Enabled()) {
-        logR2EnvDiagnosticCheck()
-        res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
         return
       }
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const folderName = normalizeFolderName(body.name)
+      if (!isValidFolderName(folderName)) {
+        res.status(400).json({ message: '폴더 이름은 12자 이내로 입력해 주세요.' })
+        return
+      }
+      if (folderName === '전체') {
+        res.status(400).json({ message: '해당 이름은 사용할 수 없습니다.' })
+        return
+      }
+      const ins = await safeQuery(
+        pool,
+        `
+        INSERT INTO folders (user_id, name)
+        VALUES ($1, $2)
+        RETURNING id, name, created_at
+        `,
+        [userId, folderName],
+      )
+      res.status(201).json(mapFolderRow(ins.rows[0]))
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+        res.status(409).json({ message: '이미 같은 이름의 폴더가 있습니다.' })
+        return
+      }
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.patch('/storage/folders/:folderId', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const folderId = parseFolderId(req.params.folderId)
+      if (folderId == null) {
+        res.status(400).json({ message: '잘못된 폴더 ID입니다.' })
+        return
+      }
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const folderName = normalizeFolderName(body.name)
+      if (!isValidFolderName(folderName)) {
+        res.status(400).json({ message: '폴더 이름은 12자 이내로 입력해 주세요.' })
+        return
+      }
+      if (folderName === '전체') {
+        res.status(400).json({ message: '해당 이름은 사용할 수 없습니다.' })
+        return
+      }
+      const folder = await assertFolderOwnedByUser(pool, folderId, userId)
+      if (!folder) {
+        res.status(404).json({ message: '폴더를 찾을 수 없습니다.' })
+        return
+      }
+      const upd = await safeQuery(
+        pool,
+        `
+        UPDATE folders
+        SET name = $1
+        WHERE id = $2 AND user_id = $3
+        RETURNING id, name, created_at
+        `,
+        [folderName, folderId, userId],
+      )
+      res.json(mapFolderRow(upd.rows[0]))
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+        res.status(409).json({ message: '이미 같은 이름의 폴더가 있습니다.' })
+        return
+      }
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.delete('/storage/folders/:folderId', requireAuth, async (req, res) => {
+    try {
       const userId = req.user?.id ? String(req.user.id) : ''
       if (!userId) {
         res.status(401).json({ message: '로그인이 필요합니다.' })
@@ -841,40 +1435,58 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (gaId == null) {
         return
       }
-      const gaIdPath = await resolveGaPathByGaId(pool, gaId)
-      if (!gaIdPath) {
-        res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
+      const folderId = parseFolderId(req.params.folderId)
+      if (folderId == null) {
+        res.status(400).json({ message: '잘못된 폴더 ID입니다.' })
         return
       }
-      const customerId = parseCustomerIdParam(req, res)
-      if (customerId == null) {
+      const folder = await assertFolderOwnedByUser(pool, folderId, userId)
+      if (!folder) {
+        res.status(404).json({ message: '폴더를 찾을 수 없습니다.' })
         return
       }
-      if (!(await assertCustomerFileAccess(pool, customerId, userId, gaId, res))) {
+      const used = await safeQuery(
+        pool,
+        `
+        SELECT 1
+        FROM files
+        WHERE user_id = $1
+          AND ga_id = $2
+          AND folder_id = $3
+          AND is_confirmed = true
+        LIMIT 1
+        `,
+        [userId, gaId, folderId],
+      )
+      if (used.rowCount > 0) {
+        res.status(409).json({ message: '파일이 있는 폴더는 삭제할 수 없습니다.' })
         return
       }
-      const contentTypeRaw = String(req.query.contentType ?? req.headers['content-type'] ?? '').trim()
-      const contentType = contentTypeRaw.split(';')[0].trim()
-      if (!CUSTOMER_FILE_ALLOWED_MIME.has(contentType) || CUSTOMER_FILE_BLOCKED_MIME.has(contentType)) {
-        res.status(400).json({ message: '파일 형식 오류' })
-        return
-      }
-      const objectKey = String(req.query.objectKey ?? req.headers['x-object-key'] ?? '').trim()
-      if (!objectKey) {
-        res.status(400).json({ message: 'object key가 필요합니다.' })
-        return
-      }
-      if (!assertCustomerFileObjectKey(objectKey, gaIdPath, userId, customerId)) {
-        res.status(400).json({ message: '유효하지 않은 object key입니다.' })
-        return
-      }
-      const bodyBuffer = await readRawBodyBuffer(req, CUSTOMER_FILE_MAX_BYTES)
-      if (!bodyBuffer.length) {
-        res.status(400).json({ message: '업로드 본문이 비어 있습니다.' })
-        return
-      }
-      await consentPutInsurerAttachment(objectKey, bodyBuffer, contentType)
-      res.status(204).end()
+      await safeQuery(
+        pool,
+        `
+        DELETE FROM folders
+        WHERE id = $1 AND user_id = $2
+        `,
+        [folderId, userId],
+      )
+      res.json({ ok: true })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/storage/files/presign', requireAuth, async (req, res) => {
+    try {
+      await handleStoragePresign(req, res, null)
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.put('/storage/files/upload-proxy', requireAuth, async (req, res) => {
+    try {
+      await handleStorageUploadProxy(req, res, null)
     } catch (error) {
       if (error && typeof error === 'object' && 'httpStatus' in error && typeof error.httpStatus === 'number') {
         res.status(error.httpStatus).json({
@@ -886,197 +1498,31 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     }
   })
 
-  /** PUT 성공 후 DB 저장 실패 등으로 남은 R2 객체 제거 (내부 보완용) */
-  apiRouter.post('/customers/:id/files/revoke-staged', requireAuth, async (req, res) => {
+  apiRouter.post('/storage/files/revoke-staged', requireAuth, async (req, res) => {
     try {
-      const userId = req.user?.id ? String(req.user.id) : ''
-      if (!userId) {
-        res.status(401).json({ message: '로그인이 필요합니다.' })
-        return
-      }
-      const gaId = requireGaIdFromUser(req, res)
-      if (gaId == null) {
-        return
-      }
-      const gaIdPath = await resolveGaPathByGaId(pool, gaId)
-      if (!gaIdPath) {
-        res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
-        return
-      }
-      const customerId = parseCustomerIdParam(req, res)
-      if (customerId == null) {
-        return
-      }
-      if (!(await assertCustomerFileAccess(pool, customerId, userId, gaId, res))) {
-        return
-      }
-      const body = req.body && typeof req.body === 'object' ? req.body : {}
-      const objectKeyRaw = String(body.objectKey ?? body.object_key ?? '').trim()
-      if (!objectKeyRaw) {
-        res.status(400).json({ message: '요청이 올바르지 않습니다.' })
-        return
-      }
-      if (!assertCustomerFileObjectKey(objectKeyRaw, gaIdPath, userId, customerId)) {
-        res.status(400).json({ message: '요청이 올바르지 않습니다.' })
-        return
-      }
-      try {
-        await r2DeleteObject(objectKeyRaw)
-      } catch (e) {
-        console.warn('[ORPHAN FILE]', objectKeyRaw, e)
-      }
-      res.json({ ok: true })
+      await handleStorageRevokeStaged(req, res, null)
     } catch (error) {
       handleDbError(error, req, res)
     }
   })
 
-  apiRouter.post('/customers/:id/files', requireAuth, async (req, res) => {
+  apiRouter.post('/storage/files', requireAuth, async (req, res) => {
     try {
-      const userId = req.user?.id ? String(req.user.id) : ''
-      if (!userId) {
-        res.status(401).json({ message: '로그인이 필요합니다.' })
-        return
-      }
-      const gaId = requireGaIdFromUser(req, res)
-      if (gaId == null) {
-        return
-      }
-      const gaIdPath = await resolveGaPathByGaId(pool, gaId)
-      if (!gaIdPath) {
-        res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
-        return
-      }
-      const customerId = parseCustomerIdParam(req, res)
-      if (customerId == null) {
-        return
-      }
-      if (!(await assertCustomerFileAccess(pool, customerId, userId, gaId, res))) {
-        return
-      }
-
-      const body = req.body && typeof req.body === 'object' ? req.body : {}
-      const spoofGa = parseGaId(body.gaId ?? body.ga_id)
-      if (spoofGa != null && spoofGa !== gaId) {
-        res.status(400).json({ message: '요청이 올바르지 않습니다.' })
-        return
-      }
-      const spoofUser = body.userId != null ? String(body.userId) : body.user_id != null ? String(body.user_id) : null
-      if (spoofUser != null && spoofUser !== userId) {
-        res.status(400).json({ message: '요청이 올바르지 않습니다.' })
-        return
-      }
-      const content = String(body.content ?? '').slice(0, CUSTOMER_FILE_CONTENT_MAX)
-      const fileName = String(body.fileName ?? body.file_name ?? '').trim()
-      const objectKeyRaw = String(body.objectKey ?? body.object_key ?? '').trim()
-      const fileUrl = String(body.fileUrl ?? body.file_url ?? '').trim()
-      const sizeRaw = body.size ?? body.file_size
-      const fileSize = Number(sizeRaw)
-      const mimeType = String(body.mimeType ?? body.mime_type ?? '').trim() || null
-
-      if (!fileName || fileName.length > 240) {
-        res.status(400).json({ message: '파일 이름이 올바르지 않습니다.' })
-        return
-      }
-      if (!objectKeyRaw) {
-        res.status(400).json({ message: 'object key가 필요합니다.' })
-        return
-      }
-      if (!fileUrl) {
-        res.status(400).json({ message: '파일 URL이 필요합니다.' })
-        return
-      }
-      if (!assertCustomerFileObjectKey(objectKeyRaw, gaIdPath, userId, customerId)) {
-        res.status(400).json({ message: '유효하지 않은 object key입니다.' })
-        return
-      }
-      const base = getR2PublicCdnBase().replace(/\/$/, '')
-      const expectedUrl = `${base}/${objectKeyRaw.replace(/^\//, '')}`
-      if (fileUrl !== expectedUrl) {
-        res.status(400).json({ message: '파일 URL이 object key와 일치하지 않습니다.' })
-        return
-      }
-      const objectKey = objectKeyRaw
-      if (!Number.isFinite(fileSize) || fileSize < 1 || fileSize > CUSTOMER_FILE_MAX_BYTES) {
-        res.status(400).json({ message: '용량 초과' })
-        return
-      }
-      if (
-        !mimeType ||
-        CUSTOMER_FILE_BLOCKED_MIME.has(mimeType) ||
-        !CUSTOMER_FILE_ALLOWED_MIME.has(mimeType)
-      ) {
-        res.status(400).json({ message: '파일 형식 오류' })
-        return
-      }
-
-      const ins = await safeQuery(
-        pool,
-        `
-        INSERT INTO customer_files (
-          customer_id, user_id, ga_id, content, file_name, object_key,
-          file_url, file_size, mime_type
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id, customer_id, content, file_name, object_key, file_url,
-                  file_size, mime_type, created_at, expires_at, deleted_at
-        `,
-        [
-          customerId,
-          userId,
-          gaId,
-          content,
-          fileName,
-          objectKey,
-          fileUrl,
-          fileSize,
-          mimeType,
-        ],
-      )
-      const row = ins.rows[0]
-      res.status(201).json(mapCustomerFileRow(row))
+      await handleStorageSave(req, res, null)
     } catch (error) {
       handleDbError(error, req, res)
     }
   })
 
-  apiRouter.get('/customers/:id/files', requireAuth, async (req, res) => {
+  apiRouter.get('/storage/files', requireAuth, async (req, res) => {
     try {
-      const userId = req.user?.id ? String(req.user.id) : ''
-      if (!userId) {
-        res.status(401).json({ message: '로그인이 필요합니다.' })
-        return
-      }
-      const gaId = requireGaIdFromUser(req, res)
-      if (gaId == null) {
-        return
-      }
-      const customerId = parseCustomerIdParam(req, res)
-      if (customerId == null) {
-        return
-      }
-      if (!(await assertCustomerFileAccess(pool, customerId, userId, gaId, res))) {
-        return
-      }
-
-      const r = await safeQuery(
-        pool,
-        `
-        SELECT id, customer_id, content, file_name, object_key, file_url,
-               file_size, mime_type, created_at, expires_at, deleted_at
-        FROM customer_files
-        WHERE customer_id = $1 AND ga_id = $2 AND deleted_at IS NULL
-        ORDER BY created_at DESC, id DESC
-        `,
-        [customerId, gaId],
-      )
-      res.json(r.rows.map(mapCustomerFileRow))
+      await handleStorageList(req, res, null)
     } catch (error) {
       handleDbError(error, req, res)
     }
   })
 
-  apiRouter.delete('/customers/files/:fileId', requireAuth, async (req, res) => {
+  apiRouter.patch('/storage/files/:fileId', requireAuth, async (req, res) => {
     try {
       const userId = req.user?.id ? String(req.user.id) : ''
       if (!userId) {
@@ -1085,11 +1531,6 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       }
       const gaId = requireGaIdFromUser(req, res)
       if (gaId == null) {
-        return
-      }
-      const gaIdPath = await resolveGaPathByGaId(pool, gaId)
-      if (!gaIdPath) {
-        res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
         return
       }
       const fileId = Number(req.params.fileId)
@@ -1097,63 +1538,152 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(400).json({ message: '잘못된 파일 ID입니다.' })
         return
       }
-
-      const sel = await safeQuery(
-        pool,
-        `
-        SELECT cf.id, cf.customer_id, cf.user_id, cf.ga_id, cf.file_url, cf.object_key
-        FROM customer_files cf
-        INNER JOIN customers c
-          ON c.id = cf.customer_id
-         AND c.user_id = $2
-         AND c.ga_id = $3
-         AND c.ga_id = cf.ga_id
-         AND c.deleted_at IS NULL
-        WHERE cf.id = $1
-          AND cf.user_id = $2
-          AND cf.ga_id = $3
-          AND cf.deleted_at IS NULL
-        LIMIT 1
-        `,
-        [fileId, userId, gaId],
-      )
-      if (sel.rowCount === 0) {
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const displayName = normalizeStorageFileName(body.displayName ?? body.display_name ?? '')
+      if (!isValidStorageFileName(displayName)) {
+        res.status(400).json({ message: '파일 이름이 올바르지 않습니다.' })
+        return
+      }
+      const file = await getOwnedStorageFile(pool, fileId, userId, gaId)
+      if (!file) {
         res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
         return
       }
-      const row = sel.rows[0]
-      const objectKey =
-        row.object_key != null && String(row.object_key).trim()
-          ? String(row.object_key).trim()
-          : parseCustomerFileObjectKeyFromPublicUrl(row.file_url)
-
-      if (!objectKey || !String(objectKey).trim()) {
-        console.warn('[LEGACY FILE WITHOUT OBJECT_KEY]', fileId)
-      }
-
-      const del = await safeQuery(
-        pool,
-        `
-        UPDATE customer_files
-        SET deleted_at = NOW()
-        WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
-        `,
-        [fileId, userId, gaId],
-      )
-      if (del.rowCount === 0) {
-        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
-        return
-      }
-
-      if (objectKey) {
-        const cid = Number(row.customer_id)
-        const safeNewKey = objectKey && assertCustomerFileObjectKey(objectKey, gaIdPath, userId, cid)
-        if (safeNewKey) {
-          void deleteCustomerFileFromR2WithLog(objectKey, 'soft-delete')
+      if (file.customer_id != null) {
+        const scope = await assertCustomerFileAccess(pool, Number(file.customer_id), userId, gaId, res)
+        if (!scope) {
+          return
         }
       }
+      const upd = await safeQuery(
+        pool,
+        `
+        UPDATE files
+        SET display_name = $1
+        WHERE id = $2
+          AND user_id = $3
+          AND ga_id = $4
+        RETURNING
+          id,
+          customer_id,
+          folder_id,
+          original_name,
+          display_name,
+          file_path,
+          file_size,
+          mime_type,
+          is_confirmed,
+          created_at,
+          ''::TEXT AS content,
+          NULL::TIMESTAMPTZ AS expires_at,
+          NULL::TIMESTAMPTZ AS deleted_at
+        `,
+        [displayName, fileId, userId, gaId],
+      )
+      if (upd.rowCount === 0) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      res.json(mapCustomerFileRow(upd.rows[0]))
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
 
-      res.json({ ok: true })
+  apiRouter.get('/storage/files/:fileId/download', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
+      const fileId = Number(req.params.fileId)
+      if (!Number.isInteger(fileId) || fileId < 1) {
+        res.status(400).json({ message: '잘못된 파일 ID입니다.' })
+        return
+      }
+      const file = await getOwnedStorageFile(pool, fileId, userId, gaId)
+      if (!file || file.is_confirmed !== true) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      if (file.customer_id != null) {
+        const scope = await assertCustomerFileAccess(pool, Number(file.customer_id), userId, gaId, res)
+        if (!scope) {
+          return
+        }
+      }
+      res.json({
+        id: Number(file.id),
+        url: toPublicFileUrl(file.file_path),
+        fileName: String(file.display_name ?? file.original_name ?? ''),
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.delete('/storage/files/:fileId', requireAuth, async (req, res) => {
+    try {
+      await handleStorageDelete(req, res)
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/customers/:id/files/presign', requireAuth, async (req, res) => {
+    try {
+      await handleStoragePresign(req, res, req.params.id)
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.put('/customers/:id/files/upload-proxy', requireAuth, async (req, res) => {
+    try {
+      await handleStorageUploadProxy(req, res, req.params.id)
+    } catch (error) {
+      if (error && typeof error === 'object' && 'httpStatus' in error && typeof error.httpStatus === 'number') {
+        res.status(error.httpStatus).json({
+          message: error instanceof Error ? error.message : '요청을 처리할 수 없습니다.',
+        })
+        return
+      }
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/customers/:id/files/revoke-staged', requireAuth, async (req, res) => {
+    try {
+      await handleStorageRevokeStaged(req, res, req.params.id)
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/customers/:id/files', requireAuth, async (req, res) => {
+    try {
+      await handleStorageSave(req, res, req.params.id)
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/customers/:id/files', requireAuth, async (req, res) => {
+    try {
+      await handleStorageList(req, res, req.params.id)
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.delete('/customers/files/:fileId', requireAuth, async (req, res) => {
+    try {
+      await handleStorageDelete(req, res)
     } catch (error) {
       handleDbError(error, req, res)
     }

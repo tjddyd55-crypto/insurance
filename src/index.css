@@ -5888,3 +5888,248 @@ textarea.memo-sticky-note__textarea::placeholder {
   background: color-mix(in srgb, #1a1a1a 92%, var(--bg-main));
   border-bottom: 1px solid color-mix(in srgb, #fde047 35%, transparent);
 }
+
+.storage-workspace.page-shell {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.storage-workspace__header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.storage-workspace__title {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--text-primary);
+}
+
+.storage-workspace__subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.storage-workspace__error {
+  margin: 8px 0 0;
+  color: var(--danger, #dc2626);
+  font-size: 0.875rem;
+}
+
+.storage-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.storage-toolbar__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.storage-toolbar__folder-select {
+  min-width: 170px;
+  max-width: 220px;
+}
+
+.storage-toolbar__folder-trigger {
+  min-width: 132px;
+}
+
+.storage-toolbar__upload {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.storage-toolbar__upload input[type='file'] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.storage-toolbar__upload--mobile {
+  width: 100%;
+}
+
+.storage-folders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.storage-folders__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: var(--bg-card);
+}
+
+.storage-folders__chip--selected {
+  border-color: color-mix(in srgb, var(--accent, #3b82f6) 65%, var(--border-default));
+}
+
+.storage-folders__chip > button {
+  max-width: 120px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.storage-folders__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.storage-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.storage-file-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+  background: var(--bg-card);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.storage-file-list__item:hover {
+  border-color: color-mix(in srgb, var(--accent, #3b82f6) 40%, var(--border-default));
+}
+
+.storage-file-list__item--selected {
+  border-color: color-mix(in srgb, var(--accent, #3b82f6) 70%, var(--border-default));
+  background: color-mix(in srgb, var(--accent, #3b82f6) 10%, var(--bg-card));
+}
+
+.storage-file-list__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.storage-file-list__icon {
+  font-size: 1.05rem;
+}
+
+.storage-file-list__meta {
+  min-width: 0;
+}
+
+.storage-file-list__name {
+  max-width: 360px;
+  font-size: 0.93rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.storage-file-list__sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.storage-file-list__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.storage-file-list__empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.storage-folder-sheet {
+  width: min(92vw, 420px);
+}
+
+.storage-folder-sheet__title {
+  margin-bottom: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.storage-folder-sheet__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.storage-folder-sheet__item {
+  justify-content: flex-start;
+}
+
+.storage-customer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.storage-customer-header__name {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.storage-customer-header__tabs {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.storage-customer-page {
+  padding: 1rem;
+}
+
+@media (max-width: 768px) {
+  .storage-file-list__item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .storage-file-list__actions {
+    width: 100%;
+  }
+
+  .storage-file-list__name {
+    max-width: 220px;
+  }
+}

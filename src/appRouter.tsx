@@ -66,6 +66,7 @@ import { LossAdjusterNewsletterDetailPage } from './features/insurer-news/pages/
 import { LossAdjusterNewsletterHubPage } from './features/insurer-news/pages/LossAdjusterNewsletterHubPage'
 import { LossAdjusterNewsletterPortalLayout } from './features/insurer-news/pages/LossAdjusterNewsletterPortalLayout'
 import MemoRoutePage from './features/memo/pages/MemoRoutePage'
+import MyStoragePage from './features/storage/pages/MyStoragePage'
 import AppWorkspaceLayout from './layouts/AppWorkspaceLayout'
 
 export const appRouter = createBrowserRouter([
@@ -160,6 +161,7 @@ export const appRouter = createBrowserRouter([
                   { path: ':customerId/files', element: <CustomerFilesPage /> },
                 ],
               },
+              { path: 'storage', element: <MyStoragePage /> },
               { path: 'team/members', element: <TeamMembersPage /> },
               { path: 'team/manage', element: <Navigate to="/team/members" replace /> },
               { path: 'team/menu-settings', element: <Navigate to="/team/members" replace /> },

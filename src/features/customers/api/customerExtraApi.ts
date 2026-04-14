@@ -1,4 +1,13 @@
 import { ApiError, apiRequest } from '../../../lib/apiClient'
+import {
+  deleteStorageFile,
+  listStorageFiles,
+  presignStorageFile,
+  revokeStorageStagedUpload,
+  saveStorageFile,
+  type StorageFilePresignResponse,
+  type StorageFileRow,
+} from '../../storage/api/storageApi'
 import type { CustomerRecord } from '../domain/types'
 
 export type CustomerConsultationRow = {
@@ -21,19 +30,7 @@ export type ConsultationCountsResponse = {
   counts: Record<string, number>
 }
 
-export type CustomerFileRow = {
-  id: number
-  customerId: number
-  content: string
-  fileName: string
-  objectKey: string | null
-  fileUrl: string
-  fileSize: number | null
-  mimeType: string | null
-  createdAt: string
-  expiresAt: string | null
-  deletedAt: string | null
-}
+export type CustomerFileRow = StorageFileRow
 
 export type SaveCustomerFilePayload = {
   content: string
@@ -44,12 +41,7 @@ export type SaveCustomerFilePayload = {
   mimeType?: string | null
 }
 
-export type CustomerFilePresignResponse = {
-  uploadUrl: string
-  fileUrl: string
-  objectKey: string
-  putHeaders?: Record<string, string>
-}
+export type CustomerFilePresignResponse = StorageFilePresignResponse
 
 export async function fetchConsultationCounts(token: string): Promise<ConsultationCountsResponse> {
   if (!token?.trim()) {
@@ -182,14 +174,11 @@ export async function presignCustomerFile(
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  return apiRequest<CustomerFilePresignResponse>(`/api/customers/${customerId}/files/presign`, {
-    method: 'POST',
-    token,
-    body: JSON.stringify({
-      fileName: body.fileName,
-      contentType: body.contentType,
-      size: body.sizeBytes,
-    }),
+  return presignStorageFile(token, {
+    fileName: body.fileName,
+    contentType: body.contentType,
+    sizeBytes: body.sizeBytes,
+    customerId,
   })
 }
 
@@ -202,11 +191,7 @@ export async function revokeStagedCustomerFileUpload(
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  return apiRequest<{ ok: boolean }>(`/api/customers/${customerId}/files/revoke-staged`, {
-    method: 'POST',
-    token,
-    body: JSON.stringify({ objectKey }),
-  })
+  return revokeStorageStagedUpload(token, objectKey, { customerId })
 }
 
 export async function saveCustomerFile(
@@ -217,21 +202,15 @@ export async function saveCustomerFile(
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  const payload: Record<string, unknown> = {
-    content: body.content,
+  return saveStorageFile(token, {
     fileName: body.fileName,
+    displayName: body.fileName,
     objectKey: body.objectKey,
     fileUrl: body.fileUrl,
     size: body.size,
-  }
-  const mt = body.mimeType?.trim()
-  if (mt) {
-    payload.mimeType = mt
-  }
-  return apiRequest<CustomerFileRow>(`/api/customers/${customerId}/files`, {
-    method: 'POST',
-    token,
-    body: JSON.stringify(payload),
+    mimeType: body.mimeType?.trim() || null,
+    content: body.content,
+    customerId,
   })
 }
 
@@ -239,15 +218,12 @@ export async function listCustomerFiles(token: string, customerId: number): Prom
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  return apiRequest<CustomerFileRow[]>(`/api/customers/${customerId}/files`, { token })
+  return listStorageFiles(token, { customerId })
 }
 
 export async function deleteCustomerFile(token: string, fileId: number): Promise<{ ok: boolean }> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  return apiRequest<{ ok: boolean }>(`/api/customers/files/${fileId}`, {
-    method: 'DELETE',
-    token,
-  })
+  return deleteStorageFile(token, fileId)
 }

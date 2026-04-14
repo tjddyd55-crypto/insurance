@@ -60,6 +60,7 @@ export function buildGaTenantDashboardMenu(
 ): GaTenantDashboardMenuEntry[] {
   const items: GaTenantDashboardMenuEntry[] = [
     { type: 'link', label: '고객 관리', path: '/customers' },
+    { type: 'link', label: '내 저장공간', path: '/storage' },
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
     { type: 'link', label: '원수사 소식지', path: '/portal/newsletters' },
     { type: 'link', label: '손해사정사 뉴스', path: '/portal/adjuster-news' },

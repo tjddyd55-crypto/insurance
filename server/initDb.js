@@ -1666,6 +1666,98 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS folders (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name VARCHAR(12) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT chk_folders_name_len CHECK (char_length(trim(name)) BETWEEN 1 AND 12)
+    )
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_folders_user_name
+    ON folders (user_id, lower(name))
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_folders_user_created
+    ON folders (user_id, created_at DESC)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS files (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      customer_id INTEGER REFERENCES customers(id) ON DELETE CASCADE,
+      folder_id BIGINT REFERENCES folders(id) ON DELETE SET NULL,
+      original_name TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      file_size BIGINT,
+      mime_type TEXT,
+      is_confirmed BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_files_user_created
+    ON files (user_id, created_at DESC)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_files_customer_created
+    ON files (customer_id, created_at DESC)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_files_user_folder_created
+    ON files (user_id, folder_id, created_at DESC)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_files_user_confirmed_created
+    ON files (user_id, created_at DESC)
+    WHERE is_confirmed = true
+  `)
+
+  await pool.query(`
+    INSERT INTO files (
+      user_id,
+      ga_id,
+      customer_id,
+      folder_id,
+      original_name,
+      display_name,
+      file_path,
+      file_size,
+      mime_type,
+      is_confirmed,
+      created_at
+    )
+    SELECT
+      cf.user_id,
+      cf.ga_id,
+      cf.customer_id,
+      NULL::BIGINT AS folder_id,
+      cf.file_name AS original_name,
+      cf.file_name AS display_name,
+      COALESCE(NULLIF(cf.object_key, ''), NULLIF(cf.file_url, '')) AS file_path,
+      cf.file_size,
+      cf.mime_type,
+      true AS is_confirmed,
+      cf.created_at
+    FROM customer_files cf
+    WHERE cf.deleted_at IS NULL
+      AND COALESCE(NULLIF(cf.object_key, ''), NULLIF(cf.file_url, '')) IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM files f
+        WHERE f.user_id = cf.user_id
+          AND f.ga_id = cf.ga_id
+          AND f.customer_id = cf.customer_id
+          AND f.file_path = COALESCE(NULLIF(cf.object_key, ''), NULLIF(cf.file_url, ''))
+          AND f.created_at = cf.created_at
+      )
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_relations (
       id SERIAL PRIMARY KEY,
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
