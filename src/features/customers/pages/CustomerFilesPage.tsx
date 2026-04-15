@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
 import { useMediaQuery } from '../../../hooks/useMediaQuery'
@@ -12,7 +12,6 @@ type LocationState = { customerName?: string }
 
 export default function CustomerFilesPage() {
   const { customerId: customerIdParam } = useParams<{ customerId: string }>()
-  const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const location = useLocation()
   const { user, token } = useAuth()
@@ -24,17 +23,6 @@ export default function CustomerFilesPage() {
   const nameFromNav = (location.state as LocationState | null)?.customerName?.trim()
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
-
-  useEffect(() => {
-    if (!validId) {
-      return
-    }
-    const next = new URLSearchParams(searchParams)
-    if (next.get('customerId') !== String(customerId)) {
-      next.set('customerId', String(customerId))
-      setSearchParams(next, { replace: true })
-    }
-  }, [customerId, searchParams, setSearchParams, validId])
 
   useEffect(() => {
     if (!isMobile || !token?.trim()) {

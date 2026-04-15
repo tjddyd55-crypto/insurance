@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { useBlocker, useLocation, type BlockerFunction } from 'react-router'
+import { useBlocker, useLocation, useNavigate, type BlockerFunction } from 'react-router'
 import { useAuth } from '../features/auth/AuthProvider'
 import { getBackNavigationBlock, isCustomerCreateMode } from '../navigation/backNavigationPolicy'
 import { ExitConfirmDialog } from './ExitConfirmDialog'
@@ -7,6 +7,7 @@ import { ExitConfirmDialog } from './ExitConfirmDialog'
 export function AppExitConfirm() {
   const { isAuthenticated } = useAuth()
   const { pathname, search } = useLocation()
+  const navigate = useNavigate()
   const searchStr = search ?? ''
 
   const shouldBlockExit: BlockerFunction = useCallback(
@@ -16,10 +17,6 @@ export function AppExitConfirm() {
       }
       const path = currentLocation.pathname
       const search = currentLocation.search ?? ''
-      // 고객 등록(?mode=create) POP 차단은 CustomersPage useBlocker에서만 처리 (이중 모달 방지)
-      if (isCustomerCreateMode(path, search)) {
-        return false
-      }
       return getBackNavigationBlock(path, search).shouldBlock
     },
     [isAuthenticated],
@@ -42,7 +39,15 @@ export function AppExitConfirm() {
       message={message}
       title="뒤로 이동 확인"
       onCancel={() => blocker.reset()}
-      onConfirm={() => blocker.proceed()}
+      onConfirm={() => {
+        // customer create mode: do not POP (history duplication). Always replace to list.
+        if (isCustomerCreateMode(pathname, searchStr)) {
+          blocker.reset()
+          navigate('/customers', { replace: true })
+          return
+        }
+        blocker.proceed()
+      }}
     />
   )
 }

@@ -12,7 +12,6 @@ import {
   type SetStateAction,
   type TouchEvent,
 } from 'react'
-import { useBlocker, type BlockerFunction } from 'react-router'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
 import { ApiError } from '../../../lib/apiClient'
@@ -53,7 +52,7 @@ import {
 } from '../../../hooks/useExpandableCard'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
-import { MSG_CUSTOMER_CREATE_EXIT, isCustomerCreateMode } from '../../../navigation/backNavigationPolicy'
+import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPolicy'
 import {
   fetchConsultationCounts,
   listCustomerConsultations,
@@ -456,6 +455,7 @@ type CustomerListCardProps = {
   setSelectedCustomerIds: Dispatch<SetStateAction<string[]>>
   expandedId: number | null
   setExpandedId: Dispatch<SetStateAction<number | null>>
+  onSelectCustomer: (c: CustomerRecord) => void
   editingId: number | null
   editForm: CustomerEditFormState | null
   setEditForm: Dispatch<SetStateAction<CustomerEditFormState | null>>
@@ -490,6 +490,7 @@ const CustomerListCard = memo(function CustomerListCard({
   setSelectedCustomerIds,
   expandedId,
   setExpandedId,
+  onSelectCustomer,
   editingId,
   editForm,
   setEditForm,
@@ -573,6 +574,7 @@ const CustomerListCard = memo(function CustomerListCard({
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       toggleExpanded()
+      onSelectCustomer(c)
     }
   }
   return (
@@ -607,7 +609,10 @@ const CustomerListCard = memo(function CustomerListCard({
           aria-label={
             isSelectMode ? undefined : `${c.name} 상세 ${showExpandedChrome ? '접기' : '펼치기'}`
           }
-          onClick={toggleExpanded}
+          onClick={() => {
+            toggleExpanded()
+            onSelectCustomer(c)
+          }}
           onKeyDown={handleSummaryKeyDown}
         >
           <span className="customer-expand-summary__content w-full min-w-0">
@@ -1203,19 +1208,7 @@ export default function CustomersPage() {
   editingIdRef.current = editingId
   editFormRef.current = editForm
 
-  const customerCreateExitBlocker = useBlocker(
-    useCallback<BlockerFunction>(
-      ({ currentLocation, historyAction }) => {
-        if (tab !== 'create' || historyAction !== 'POP') {
-          return false
-        }
-        const path = currentLocation.pathname
-        const search = currentLocation.search ?? ''
-        return isCustomerCreateMode(path, search)
-      },
-      [tab],
-    ),
-  )
+  // NOTE: Router supports only one blocker. Global AppExitConfirm handles POP blocking (including customer create).
   const [searchInput, setSearchInput] = useState('')
   const keyword = useDebounce(searchInput, 300)
   const [sortType, setSortType] = useState<CustomerSortType>(null)
@@ -1508,6 +1501,17 @@ export default function CustomersPage() {
     })
   }, [])
 
+  const handleSelectCustomer = useCallback(
+    (c: CustomerRecord) => {
+      // URL is the single source of truth for the right panel.
+      navigate(`/customers/${c.id}/files`, {
+        replace: false,
+        state: { customerName: c.name },
+      })
+    },
+    [navigate],
+  )
+
   useEffect(() => {
     if (user?.role !== 'USER') {
       setIsLoading(false)
@@ -1523,6 +1527,10 @@ export default function CustomersPage() {
    */
   useEffect(() => {
     if (tab !== 'list') {
+      return
+    }
+    // URL은 라우트(/customers/:id/*)가 단일 진실 원천. 우측 패널이 열린 상태에서는 쿼리(customerId) 동기화하지 않는다.
+    if (isCustomerWorkspaceSideDetailPath(location.pathname)) {
       return
     }
     const queryCustomerId = parseSelectedCustomerId(searchParams.get('customerId'))
@@ -2302,6 +2310,7 @@ export default function CustomersPage() {
                   setSelectedCustomerIds={setSelectedCustomerIds}
                   expandedId={expandedId}
                   setExpandedId={setExpandedId}
+                  onSelectCustomer={handleSelectCustomer}
                   editingId={editingId}
                   editForm={editForm}
                   setEditForm={setEditForm}
@@ -2386,20 +2395,14 @@ export default function CustomersPage() {
         </FormButton>
       ) : null}
 
-      {customerCreateExitModalOpen || customerCreateExitBlocker.state === 'blocked' ? (
+      {customerCreateExitModalOpen ? (
         <ExitConfirmDialog
           message={MSG_CUSTOMER_CREATE_EXIT}
           title="등록 이탈 확인"
           onCancel={() => {
-            if (customerCreateExitBlocker.state === 'blocked') {
-              customerCreateExitBlocker.reset()
-            }
             setCustomerCreateExitModalOpen(false)
           }}
           onConfirm={() => {
-            if (customerCreateExitBlocker.state === 'blocked') {
-              customerCreateExitBlocker.reset()
-            }
             navigateToCustomerListReplace()
             setCustomerCreateExitModalOpen(false)
           }}
