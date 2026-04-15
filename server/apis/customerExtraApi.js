@@ -90,6 +90,48 @@ function isValidFolderName(raw) {
   return STORAGE_FOLDER_NAME_REGEX.test(value)
 }
 
+const FOLDER_DUPLICATE_NAME_MESSAGE = '이미 ��재하는 �����명입니다'
+
+async function folderNameExistsForScope(pool, userId, gaId, customerId, folderName, excludeFolderId) {
+  if (excludeFolderId == null) {
+    const row = await safeQuery(
+      pool,
+      `
+      SELECT 1 AS x
+      FROM folders
+      WHERE user_id = $1
+        AND ga_id IS NOT DISTINCT FROM $2
+        AND (
+          ($3::INTEGER IS NULL AND customer_id IS NULL)
+          OR customer_id = $3
+        )
+        AND lower(btrim(name)) = lower(btrim($4))
+      LIMIT 1
+      `,
+      [userId, gaId, customerId, folderName],
+    )
+    return row.rowCount > 0
+  }
+  const row = await safeQuery(
+    pool,
+    `
+    SELECT 1 AS x
+    FROM folders
+    WHERE user_id = $1
+      AND ga_id IS NOT DISTINCT FROM $2
+      AND id <> $3
+      AND (
+        ($4::INTEGER IS NULL AND customer_id IS NULL)
+        OR customer_id = $4
+      )
+      AND lower(btrim(name)) = lower(btrim($5))
+    LIMIT 1
+    `,
+    [userId, gaId, excludeFolderId, customerId, folderName],
+  )
+  return row.rowCount > 0
+}
+
 function sanitizeStorageFileNameForObjectKey(fileNameRaw) {
   const normalized = normalizeStorageFileName(fileNameRaw)
   const safe =
@@ -1984,6 +2026,10 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
       const customerId = scope.customerId
+      if (await folderNameExistsForScope(pool, userId, gaId, customerId, folderName, null)) {
+        res.status(409).json({ message: FOLDER_DUPLICATE_NAME_MESSAGE })
+        return
+      }
       const ins = await safeQuery(
         pool,
         `
@@ -1996,7 +2042,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       res.status(201).json(mapFolderRow(ins.rows[0]))
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
-        res.status(409).json({ message: '이미 같은 이름의 폴더가 있습니다.' })
+        res.status(409).json({ message: FOLDER_DUPLICATE_NAME_MESSAGE })
         return
       }
       handleDbError(error, req, res)
@@ -2034,6 +2080,13 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(404).json({ message: '폴더를 찾을 수 없습니다.' })
         return
       }
+      const scopeCustomerId = folder.customer_id != null ? Number(folder.customer_id) : null
+      if (
+        await folderNameExistsForScope(pool, userId, gaId, scopeCustomerId, folderName, folderId)
+      ) {
+        res.status(409).json({ message: FOLDER_DUPLICATE_NAME_MESSAGE })
+        return
+      }
       const upd = await safeQuery(
         pool,
         `
@@ -2049,7 +2102,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       res.json(mapFolderRow(upd.rows[0]))
     } catch (error) {
       if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
-        res.status(409).json({ message: '이미 같은 이름의 폴더가 있습니다.' })
+        res.status(409).json({ message: FOLDER_DUPLICATE_NAME_MESSAGE })
         return
       }
       handleDbError(error, req, res)

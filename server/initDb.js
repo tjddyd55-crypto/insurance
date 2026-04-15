@@ -1742,10 +1742,6 @@ export async function initDb() {
       AND u.ga_id IS NOT NULL
   `)
   await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS uq_folders_user_name
-    ON folders (user_id, ga_id, lower(name))
-  `)
-  await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_folders_user_ga_created
     ON folders (user_id, ga_id, created_at DESC)
   `)
@@ -1778,18 +1774,6 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_folders_user_ga_customer_created
     ON folders (user_id, ga_id, customer_id, created_at DESC)
   `)
-  await pool.query(`DROP INDEX IF EXISTS uq_folders_user_name`)
-  await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS uq_folders_user_ga_personal_name
-    ON folders (user_id, ga_id, lower(btrim(name)))
-    WHERE customer_id IS NULL
-  `)
-  await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS uq_folders_user_ga_customer_name
-    ON folders (user_id, ga_id, customer_id, lower(btrim(name)))
-    WHERE customer_id IS NOT NULL
-  `)
-
   await pool.query(`
     CREATE TABLE IF NOT EXISTS files (
       id BIGSERIAL PRIMARY KEY,
@@ -1826,6 +1810,74 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_files_user_confirmed_created
     ON files (user_id, created_at DESC)
     WHERE is_confirmed = true
+  `)
+  // Deduplicate folders, remap files.folder_id, then partial unique indexes.
+  await pool.query(`DROP INDEX IF EXISTS uq_folders_user_name`)
+  await pool.query(`DROP INDEX IF EXISTS uq_folders_user_ga_personal_name`)
+  await pool.query(`DROP INDEX IF EXISTS uq_folders_user_ga_customer_name`)
+  await pool.query(`
+    UPDATE files f
+    SET folder_id = m.keep_id
+    FROM folders fo
+    INNER JOIN (
+      SELECT user_id, ga_id, lower(btrim(name)) AS norm, MIN(id) AS keep_id
+      FROM folders
+      WHERE customer_id IS NULL
+      GROUP BY user_id, ga_id, lower(btrim(name))
+      HAVING COUNT(*) > 1
+    ) m ON fo.user_id = m.user_id
+      AND fo.ga_id IS NOT DISTINCT FROM m.ga_id
+      AND lower(btrim(fo.name)) = m.norm
+      AND fo.customer_id IS NULL
+    WHERE f.folder_id = fo.id
+      AND fo.id <> m.keep_id
+  `)
+  await pool.query(`
+    UPDATE files f
+    SET folder_id = m.keep_id
+    FROM folders fo
+    INNER JOIN (
+      SELECT user_id, ga_id, customer_id, lower(btrim(name)) AS norm, MIN(id) AS keep_id
+      FROM folders
+      WHERE customer_id IS NOT NULL
+      GROUP BY user_id, ga_id, customer_id, lower(btrim(name))
+      HAVING COUNT(*) > 1
+    ) m ON fo.user_id = m.user_id
+      AND fo.ga_id IS NOT DISTINCT FROM m.ga_id
+      AND fo.customer_id IS NOT DISTINCT FROM m.customer_id
+      AND lower(btrim(fo.name)) = m.norm
+    WHERE f.folder_id = fo.id
+      AND fo.id <> m.keep_id
+  `)
+  await pool.query(`
+    DELETE FROM folders fo
+    WHERE fo.customer_id IS NULL
+      AND fo.id NOT IN (
+        SELECT MIN(id)
+        FROM folders f2
+        WHERE f2.customer_id IS NULL
+        GROUP BY f2.user_id, f2.ga_id, lower(btrim(f2.name))
+      )
+  `)
+  await pool.query(`
+    DELETE FROM folders fo
+    WHERE fo.customer_id IS NOT NULL
+      AND fo.id NOT IN (
+        SELECT MIN(id)
+        FROM folders f2
+        WHERE f2.customer_id IS NOT NULL
+        GROUP BY f2.user_id, f2.ga_id, f2.customer_id, lower(btrim(f2.name))
+      )
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_folders_user_ga_personal_name
+    ON folders (user_id, ga_id, lower(btrim(name)))
+    WHERE customer_id IS NULL
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_folders_user_ga_customer_name
+    ON folders (user_id, ga_id, customer_id, lower(btrim(name)))
+    WHERE customer_id IS NOT NULL
   `)
 
   await pool.query(`
