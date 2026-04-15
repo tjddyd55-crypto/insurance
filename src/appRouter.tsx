@@ -10,6 +10,7 @@ import GaDelegateManagementPage from './features/admin/pages/GaDelegateManagemen
 import InsurerManagersPage from './features/insurer-managers/pages/InsurerManagersPage'
 import LossAdjustersPage from './features/loss-adjusters/pages/LossAdjustersPage'
 import GaManagementPage from './features/admin/pages/GaManagementPage'
+import GaCompanyManagePage from './features/admin/pages/GaCompanyManagePage'
 import UserManagementPage from './features/admin/pages/UserManagementPage'
 import AuditLogsPage from './features/admin/pages/AuditLogsPage'
 import { AccountResetPage } from './features/account/pages/AccountResetPage'
@@ -28,6 +29,7 @@ import CustomerInputPage from './features/customers/pages/CustomerInputPage'
 import CustomerRegisterPage from './features/customers/pages/CustomerRegisterPage'
 import CustomerConsultationsPage from './features/customers/pages/CustomerConsultationsPage'
 import CustomerFilesPage from './features/customers/pages/CustomerFilesPage'
+import CustomerGaExcelPage from './features/customers/pages/CustomerGaExcelPage'
 import CustomerWorkspaceLayout from './features/customers/pages/CustomerWorkspaceLayout'
 import CustomerWorkspaceHomePage from './features/customers/pages/CustomerWorkspaceHomePage'
 import TeamMembersPage from './features/team/pages/TeamMembersPage'
@@ -159,6 +161,7 @@ export const appRouter = createBrowserRouter([
                   { index: true, element: <CustomerWorkspaceHomePage /> },
                   { path: ':id/consultations', element: <CustomerConsultationsPage /> },
                   { path: ':customerId/files', element: <CustomerFilesPage /> },
+                  { path: ':id/ga-excel', element: <CustomerGaExcelPage /> },
                 ],
               },
               { path: 'storage', element: <MyStoragePage /> },
@@ -173,6 +176,7 @@ export const appRouter = createBrowserRouter([
               { path: 'loss-adjusters', element: <LossAdjustersPage /> },
               { path: 'customer-car', element: <CustomerCarPage /> },
               { path: 'admin/ga', element: <GaManagementPage /> },
+              { path: 'admin/ga/:gaId', element: <GaCompanyManagePage /> },
               { path: 'admin/create-ga', element: <Navigate to="/admin/ga" replace /> },
               { path: 'admin/delegates', element: <GaDelegateManagementPage /> },
               { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },

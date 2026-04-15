@@ -6,6 +6,7 @@ import {
   getR2PublicCdnBase,
   isConsentR2Enabled,
   logR2EnvDiagnosticCheck,
+  r2DeleteStorageObjectOrThrow,
   r2GetPresignedPutUrl,
 } from '../lib/consentStorage.js'
 
@@ -165,6 +166,205 @@ function assertTeamPostAttachmentKey(objectKey, gaId, teamId) {
   return k.startsWith(prefix) && k.length > prefix.length + 4
 }
 
+/** team_post_attachments.file_url → R2 object key */
+function teamAttachmentObjectKeyFromFileUrl(fileUrl) {
+  const base = getR2PublicCdnBase().replace(/\/$/, '')
+  const u = String(fileUrl ?? '').trim()
+  if (!u) {
+    return ''
+  }
+  if (u.startsWith(`${base}/`)) {
+    return u.slice(base.length + 1)
+  }
+  if (u.startsWith(base)) {
+    return u.slice(base.length).replace(/^\//, '')
+  }
+  return ''
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {string} teamId
+ * @param {number} gaId
+ */
+async function loadTeamRowForApi(executor, teamId, gaId) {
+  const r = await safeQuery(
+    executor,
+    `
+    SELECT id, ga_id, owner_user_id, COALESCE(is_active, true) AS is_active
+    FROM teams
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [teamId],
+  )
+  if (r.rowCount === 0) {
+    return null
+  }
+  const row = r.rows[0]
+  const g = Number(row.ga_id)
+  if (!Number.isFinite(g) || g !== gaId) {
+    return null
+  }
+  return {
+    id: String(row.id),
+    ownerUserId: row.owner_user_id != null ? String(row.owner_user_id) : null,
+    isActive: Boolean(row.is_active),
+  }
+}
+
+/**
+ * 팀장을 제외한 활성 팀원 수 (users.team_id 기준 — team_members 테이블 없음)
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ */
+async function countActiveTeamMembersOtherThan(executor, teamId, gaId, excludeUserId) {
+  const r = await safeQuery(
+    executor,
+    `
+    SELECT COUNT(*)::int AS n
+    FROM users
+    WHERE team_id = $1
+      AND ga_id = $2
+      AND is_deleted = false
+      AND id <> $3
+    `,
+    [teamId, gaId, excludeUserId],
+  )
+  return r.rowCount > 0 ? Number(r.rows[0].n ?? 0) : 0
+}
+
+/**
+ * 팀 해체: R2 객체 선삭제 후 DB를 단일 트랜잭션으로 정리. teams 행은 유지·비활성.
+ * @param {import('pg').Pool} pool
+ */
+async function disbandTeamFull(pool, gaId, teamId, leaderUserId) {
+  const team = await loadTeamRowForApi(pool, teamId, gaId)
+  if (!team || !team.isActive) {
+    const e = new Error('TEAM_NOT_FOUND')
+    throw e
+  }
+  if (!team.ownerUserId || team.ownerUserId !== leaderUserId) {
+    const e = new Error('NOT_TEAM_LEADER')
+    throw e
+  }
+  const others = await countActiveTeamMembersOtherThan(pool, teamId, gaId, leaderUserId)
+  if (others > 0) {
+    const e = new Error('TEAM_HAS_MEMBERS')
+    throw e
+  }
+
+  const attRes = await safeQuery(
+    pool,
+    `
+    SELECT a.file_url
+    FROM team_post_attachments a
+    INNER JOIN team_posts p ON p.id = a.post_id
+    WHERE p.team_id = $1 AND p.ga_id = $2 AND COALESCE(p.is_deleted, false) = false
+    `,
+    [teamId, gaId],
+  )
+  const fileRes = await safeQuery(
+    pool,
+    `
+    SELECT file_path
+    FROM files
+    WHERE team_id = $1 AND ga_id = $2 AND deleted_at IS NULL
+    `,
+    [teamId, gaId],
+  )
+
+  const keys = []
+  for (const row of attRes.rows) {
+    const k = teamAttachmentObjectKeyFromFileUrl(row.file_url)
+    if (k) {
+      keys.push(k)
+    }
+  }
+  for (const row of fileRes.rows) {
+    const k = String(row.file_path ?? '').trim()
+    if (k) {
+      keys.push(k)
+    }
+  }
+
+  for (const key of keys) {
+    await r2DeleteStorageObjectOrThrow(key)
+  }
+
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await safeQuery(
+      client,
+      `
+      DELETE FROM team_post_attachments a
+      USING team_posts p
+      WHERE a.post_id = p.id AND p.team_id = $1 AND p.ga_id = $2
+      `,
+      [teamId, gaId],
+    )
+    await safeQuery(
+      client,
+      `
+      UPDATE team_post_comments c
+      SET is_deleted = true, deleted_at = NOW()
+      FROM team_posts p
+      WHERE c.post_id = p.id AND p.team_id = $1 AND p.ga_id = $2
+        AND COALESCE(c.is_deleted, false) = false
+      `,
+      [teamId, gaId],
+    )
+    await safeQuery(
+      client,
+      `
+      UPDATE team_posts
+      SET is_deleted = true, deleted_at = NOW()
+      WHERE team_id = $1 AND ga_id = $2 AND COALESCE(is_deleted, false) = false
+      `,
+      [teamId, gaId],
+    )
+    await safeQuery(
+      client,
+      `
+      UPDATE files
+      SET deleted_at = NOW()
+      WHERE team_id = $1 AND ga_id = $2 AND deleted_at IS NULL
+      `,
+      [teamId, gaId],
+    )
+    await safeQuery(
+      client,
+      `
+      UPDATE users
+      SET team_id = NULL
+      WHERE team_id = $1 AND ga_id = $2 AND is_deleted = false
+      `,
+      [teamId, gaId],
+    )
+    await safeQuery(
+      client,
+      `
+      UPDATE teams
+      SET is_active = false,
+          storage_used = 0,
+          owner_user_id = NULL
+      WHERE id = $1 AND ga_id = $2
+      `,
+      [teamId, gaId],
+    )
+    await client.query('COMMIT')
+  } catch (e) {
+    try {
+      await client.query('ROLLBACK')
+    } catch {
+      /* ignore */
+    }
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
 /**
  * @param {import('express').Router} apiRouter
  * @param {object} ctx
@@ -263,7 +463,12 @@ export function registerTeamApi(apiRouter, ctx) {
 
       const teamRes = await safeQuery(
         pool,
-        `SELECT id, ga_id, name FROM teams WHERE id = $1 LIMIT 1`,
+        `
+        SELECT id, ga_id, name
+        FROM teams
+        WHERE id = $1 AND COALESCE(is_active, true) = true
+        LIMIT 1
+        `,
         [teamId],
       )
       if (teamRes.rowCount === 0) {
@@ -334,7 +539,12 @@ export function registerTeamApi(apiRouter, ctx) {
 
       const teamRes = await safeQuery(
         pool,
-        `SELECT id, name, ga_id, owner_user_id FROM teams WHERE id = $1 LIMIT 1`,
+        `
+        SELECT id, name, ga_id, owner_user_id, COALESCE(is_active, true) AS is_active
+        FROM teams
+        WHERE id = $1
+        LIMIT 1
+        `,
         [me.teamId],
       )
       if (teamRes.rowCount === 0) {
@@ -350,6 +560,7 @@ export function registerTeamApi(apiRouter, ctx) {
 
       const ownerId =
         teamRow.owner_user_id != null ? String(teamRow.owner_user_id) : null
+      const teamActive = Boolean(teamRow.is_active)
 
       const members = await safeQuery(
         pool,
@@ -365,6 +576,7 @@ export function registerTeamApi(apiRouter, ctx) {
         teamId: String(teamRow.id),
         teamName: String(teamRow.name ?? ''),
         ownerId,
+        teamActive,
         members: members.rows.map((row) => ({
           userId: String(row.id),
           username: String(row.username ?? ''),
@@ -454,7 +666,7 @@ export function registerTeamApi(apiRouter, ctx) {
     }
   })
 
-  apiRouter.post('/teams/leave', requireAuth, async (req, res) => {
+  const handleTeamLeave = async (req, res) => {
     try {
       const userId = req.user?.id ? String(req.user.id) : ''
       if (!userId) {
@@ -476,24 +688,37 @@ export function registerTeamApi(apiRouter, ctx) {
         return
       }
 
-      const teamRes = await safeQuery(
-        pool,
-        `SELECT id, ga_id, owner_user_id FROM teams WHERE id = $1 LIMIT 1`,
-        [me.teamId],
-      )
-      if (teamRes.rowCount === 0) {
+      const teamRow = await loadTeamRowForApi(pool, me.teamId, gaId)
+      if (!teamRow) {
         res.status(400).json({ message: '팀 정보를 찾을 수 없습니다. 소속을 다시 확인해 주세요.' })
         return
       }
-      const team = teamRes.rows[0]
-      const teamGaId = Number(team.ga_id)
-      if (!Number.isFinite(teamGaId) || teamGaId !== gaId) {
-        res.status(403).json({ message: '팀 정보가 GA와 일치하지 않습니다.' })
+      if (!teamRow.isActive) {
+        res.status(400).json({ message: '이미 해체된 팀입니다.' })
         return
       }
-      const ownerId = team.owner_user_id != null ? String(team.owner_user_id) : ''
+      const ownerId = teamRow.ownerUserId != null ? String(teamRow.ownerUserId) : ''
+
       if (ownerId && ownerId === userId) {
-        res.status(403).json({ message: '팀장은 팀에서 나갈 수 없습니다.' })
+        const otherMembers = await countActiveTeamMembersOtherThan(pool, me.teamId, gaId, userId)
+        if (otherMembers > 0) {
+          res.status(403).json({
+            message: '팀장을 다른 팀원에게 위임해야 탈퇴할 수 있습니다',
+          })
+          return
+        }
+        try {
+          await disbandTeamFull(pool, gaId, me.teamId, userId)
+        } catch (e) {
+          if (e instanceof Error && e.message === 'TEAM_HAS_MEMBERS') {
+            res.status(403).json({
+              message: '팀장을 다른 팀원에게 위임해야 탈퇴할 수 있습니다',
+            })
+            return
+          }
+          throw e
+        }
+        res.json({ ok: true, disbanded: true })
         return
       }
 
@@ -514,7 +739,155 @@ export function registerTeamApi(apiRouter, ctx) {
     } catch (error) {
       handleDbError(error, req, res)
     }
-  })
+  }
+
+  apiRouter.post('/teams/leave', requireAuth, handleTeamLeave)
+  apiRouter.post('/team/leave', requireAuth, handleTeamLeave)
+
+  const handleTransferLeader = async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const actorId = req.user?.id ? String(req.user.id) : ''
+      if (!actorId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+      const targetRaw = req.body?.userId ?? req.body?.user_id
+      const targetUserId = String(targetRaw ?? '').trim()
+      if (!targetUserId) {
+        res.status(400).json({ message: '새 팀장으로 지정할 사용자를 선택해 주세요.' })
+        return
+      }
+      if (targetUserId === actorId) {
+        res.status(400).json({ message: '이미 팀장입니다.' })
+        return
+      }
+
+      const me = await loadUserTeamContext(pool, actorId)
+      if (!me || me.gaId !== gaId || !me.teamId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+
+      const teamRow = await loadTeamRowForApi(pool, me.teamId, gaId)
+      if (!teamRow || !teamRow.isActive) {
+        res.status(400).json({ message: '팀 정보를 찾을 수 없습니다.' })
+        return
+      }
+      if (!teamRow.ownerUserId || teamRow.ownerUserId !== actorId) {
+        res.status(403).json({ message: '팀장만 위임할 수 있습니다.' })
+        return
+      }
+
+      await client.query('BEGIN')
+      const upd = await safeQuery(
+        client,
+        `
+        UPDATE teams t
+        SET owner_user_id = $1
+        FROM users u
+        WHERE t.id = $2
+          AND t.ga_id = $3
+          AND COALESCE(t.is_active, true) = true
+          AND t.owner_user_id = $4
+          AND u.id = $1
+          AND u.team_id = t.id
+          AND u.ga_id = t.ga_id
+          AND u.is_deleted = false
+        `,
+        [targetUserId, me.teamId, gaId, actorId],
+      )
+      if (upd.rowCount === 0) {
+        await client.query('ROLLBACK')
+        res.status(400).json({ message: '같은 팀에 속한 사용자만 팀장으로 지정할 수 있습니다.' })
+        return
+      }
+      await client.query('COMMIT')
+      res.json({ ok: true, ownerId: targetUserId })
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* ignore */
+      }
+      handleDbError(error, req, res)
+    } finally {
+      client.release()
+    }
+  }
+
+  apiRouter.post('/teams/transfer-leader', requireAuth, handleTransferLeader)
+  apiRouter.post('/team/transfer-leader', requireAuth, handleTransferLeader)
+
+  const handleDisbandTeam = async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaTenantForTeam(req, res)
+      if (gaId == null) {
+        return
+      }
+
+      const me = await loadUserTeamContext(pool, userId)
+      if (!me || me.gaId !== gaId) {
+        res.status(403).json({ message: '사용자 정보를 확인할 수 없습니다.' })
+        return
+      }
+      if (!me.teamId) {
+        res.status(400).json({ message: '팀에 소속되어 있지 않습니다' })
+        return
+      }
+
+      const teamRow = await loadTeamRowForApi(pool, me.teamId, gaId)
+      if (!teamRow) {
+        res.status(400).json({ message: '팀 정보를 찾을 수 없습니다. 소속을 다시 확인해 주세요.' })
+        return
+      }
+      if (!teamRow.isActive) {
+        res.status(400).json({ message: '이미 해체된 팀입니다.' })
+        return
+      }
+      if (!teamRow.ownerUserId || teamRow.ownerUserId !== userId) {
+        res.status(403).json({ message: '팀장만 팀을 해체할 수 있습니다.' })
+        return
+      }
+
+      const otherMembers = await countActiveTeamMembersOtherThan(pool, me.teamId, gaId, userId)
+      if (otherMembers > 0) {
+        res.status(403).json({ message: '팀원이 없는 경우에만 팀 해체가 가능합니다' })
+        return
+      }
+
+      await disbandTeamFull(pool, gaId, me.teamId, userId)
+      res.json({ ok: true, disbanded: true })
+    } catch (e) {
+      if (e instanceof Error) {
+        if (e.message === 'TEAM_HAS_MEMBERS') {
+          res.status(403).json({ message: '팀원이 없는 경우에만 팀 해체가 가능합니다' })
+          return
+        }
+        if (e.message === 'NOT_TEAM_LEADER') {
+          res.status(403).json({ message: '팀장만 팀을 해체할 수 있습니다.' })
+          return
+        }
+        if (e.message === 'TEAM_NOT_FOUND') {
+          res.status(400).json({ message: '팀 정보를 찾을 수 없습니다.' })
+          return
+        }
+      }
+      handleDbError(e, req, res)
+    }
+  }
+
+  apiRouter.post('/teams/disband', requireAuth, handleDisbandTeam)
+  apiRouter.post('/team/disband', requireAuth, handleDisbandTeam)
 
   apiRouter.get('/teams/files', requireAuth, async (req, res) => {
     try {

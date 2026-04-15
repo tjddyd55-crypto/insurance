@@ -668,6 +668,60 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS birth_date DATE
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ga_customer_excel_settings (
+      ga_id INTEGER PRIMARY KEY REFERENCES ga_companies(id) ON DELETE CASCADE,
+      feature_enabled BOOLEAN NOT NULL DEFAULT false,
+      config_ready BOOLEAN NOT NULL DEFAULT false,
+      sample_original_filename TEXT,
+      sample_uploaded_at TIMESTAMPTZ,
+      sample_columns JSONB NOT NULL DEFAULT '[]'::jsonb,
+      match_rules JSONB NOT NULL DEFAULT '[]'::jsonb,
+      display_column_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+      filter_column_id TEXT,
+      filter_op TEXT,
+      filter_value TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      settings_version INTEGER NOT NULL DEFAULT 1
+    )
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ga_customer_excel_uploads (
+      id SERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      uploaded_by_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      original_filename TEXT NOT NULL DEFAULT '',
+      uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      row_count INTEGER NOT NULL DEFAULT 0,
+      settings_version_at_upload INTEGER NOT NULL DEFAULT 1
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_ga_customer_excel_uploads_ga
+    ON ga_customer_excel_uploads(ga_id)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ga_customer_excel_rows (
+      id BIGSERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      upload_id INTEGER NOT NULL REFERENCES ga_customer_excel_uploads(id) ON DELETE CASCADE,
+      row_index INTEGER NOT NULL,
+      cells JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_ga_customer_excel_rows_ga_upload
+    ON ga_customer_excel_rows(ga_id, upload_id)
+  `)
+
+  await pool.query(`
     ALTER TABLE insurance_forms
     ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
   `)
@@ -1697,6 +1751,46 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS storage_limit BIGINT NOT NULL DEFAULT 1073741824
+  `)
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS storage_used BIGINT NOT NULL DEFAULT 0
+  `)
+  await pool.query(`
+    ALTER TABLE teams
+    ADD COLUMN IF NOT EXISTS storage_limit BIGINT NOT NULL DEFAULT 1073741824
+  `)
+  await pool.query(`
+    ALTER TABLE teams
+    ADD COLUMN IF NOT EXISTS storage_used BIGINT NOT NULL DEFAULT 0
+  `)
+  await pool.query(`
+    ALTER TABLE teams
+    ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true
+  `)
+  await pool.query(`
+    ALTER TABLE folders
+    ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_folders_user_ga_customer_created
+    ON folders (user_id, ga_id, customer_id, created_at DESC)
+  `)
+  await pool.query(`DROP INDEX IF EXISTS uq_folders_user_name`)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_folders_user_ga_personal_name
+    ON folders (user_id, ga_id, lower(btrim(name)))
+    WHERE customer_id IS NULL
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_folders_user_ga_customer_name
+    ON folders (user_id, ga_id, customer_id, lower(btrim(name)))
+    WHERE customer_id IS NOT NULL
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS files (
       id BIGSERIAL PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -1772,6 +1866,100 @@ export async function initDb() {
           AND f.file_path = COALESCE(NULLIF(cf.object_key, ''), NULLIF(cf.file_url, ''))
           AND f.created_at = cf.created_at
       )
+  `)
+
+  await pool.query(`
+    ALTER TABLE files
+    ADD COLUMN IF NOT EXISTS team_id TEXT REFERENCES teams(id) ON DELETE SET NULL
+  `)
+  await pool.query(`
+    ALTER TABLE files
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ
+  `)
+  await pool.query(`
+    ALTER TABLE files
+    ADD COLUMN IF NOT EXISTS content TEXT NOT NULL DEFAULT ''
+  `)
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'files' AND column_name = 'upload_status'
+      ) AND NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'files' AND column_name = 'status'
+      ) THEN
+        ALTER TABLE files RENAME COLUMN upload_status TO status;
+      END IF;
+    END $$;
+  `)
+  await pool.query(`
+    ALTER TABLE files
+    ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'active'
+  `)
+  await pool.query(`
+    UPDATE files
+    SET customer_id = NULL
+    WHERE team_id IS NOT NULL
+      AND customer_id IS NOT NULL
+  `)
+  await pool.query(`ALTER TABLE files DROP CONSTRAINT IF EXISTS chk_files_team_customer_exclusive`)
+  await pool.query(`
+    ALTER TABLE files
+    ADD CONSTRAINT chk_files_team_customer_exclusive
+    CHECK (team_id IS NULL OR customer_id IS NULL)
+  `)
+  await pool.query(`ALTER TABLE files DROP CONSTRAINT IF EXISTS chk_files_upload_status`)
+  await pool.query(`ALTER TABLE files DROP CONSTRAINT IF EXISTS chk_files_status`)
+  await pool.query(`
+    ALTER TABLE files
+    ADD CONSTRAINT chk_files_status
+    CHECK (status IN ('uploading', 'active', 'failed'))
+  `)
+  await pool.query(`DROP INDEX IF EXISTS idx_files_team_ga_confirmed`)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_files_team_ga_active
+    ON files (team_id, ga_id)
+    WHERE team_id IS NOT NULL AND status = 'active'
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS storage_upload_staging (
+      object_key TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_storage_upload_staging_ga_created
+    ON storage_upload_staging (ga_id, created_at ASC)
+  `)
+
+  await pool.query(`
+    UPDATE users u
+    SET storage_used = COALESCE((
+      SELECT SUM(f.file_size)::bigint
+      FROM files f
+      WHERE f.user_id = u.id
+        AND f.ga_id = u.ga_id
+        AND f.status = 'active'
+        AND f.team_id IS NULL
+        AND f.deleted_at IS NULL
+    ), 0)
+  `)
+  await pool.query(`
+    UPDATE teams t
+    SET storage_used = COALESCE((
+      SELECT SUM(f.file_size)::bigint
+      FROM files f
+      WHERE f.team_id = t.id
+        AND f.ga_id = t.ga_id
+        AND f.status = 'active'
+        AND f.deleted_at IS NULL
+    ), 0)
   `)
 
   await pool.query(`

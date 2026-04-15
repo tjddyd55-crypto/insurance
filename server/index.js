@@ -15,6 +15,7 @@ import { registerTeamApi } from './apis/teamApi.js'
 import { registerNotificationsApi } from './apis/notificationsApi.js'
 import { registerMemoApi } from './apis/memoApi.js'
 import { registerSuperAdminAnalyticsApi } from './registerSuperAdminAnalyticsApi.js'
+import { registerGaCustomerExcelApi } from './apis/gaCustomerExcelApi.js'
 import { recordAnalyticsEvent } from './lib/analyticsEvents.js'
 import { ensureYesterdayAnalyticsAggregated } from './lib/analyticsAggregation.js'
 import { tickAnalyticsAggregationScheduler } from './lib/analyticsScheduler.js'
@@ -504,10 +505,19 @@ function mapCustomerRow(row) {
   const insuranceAge =
     insRaw != null && insRaw !== '' && Number.isFinite(Number(insRaw)) ? Number(insRaw) : null
 
+  let birthDate = null
+  const bdRaw = row.birth_date
+  if (bdRaw instanceof Date) {
+    birthDate = bdRaw.toISOString().slice(0, 10)
+  } else if (bdRaw) {
+    birthDate = String(bdRaw).slice(0, 10)
+  }
+
   return {
     id: Number(row.id),
     userId: String(row.user_id),
     name: row.name ?? '',
+    birthDate,
     ssn: row.ssn ?? '',
     gender,
     insuranceAge,
@@ -1367,6 +1377,15 @@ registerUserProfileApi(apiRouter, {
 })
 
 registerTeamApi(apiRouter, { pool, requireAuth, handleDbError })
+
+registerGaCustomerExcelApi(apiRouter, {
+  pool,
+  requireAuth,
+  requireSuperAdmin,
+  handleDbError,
+  parseGaId,
+  requireInsuranceFormUserId,
+})
 
 registerNotificationsApi(apiRouter, { pool, requireAuth, handleDbError })
 
@@ -4812,7 +4831,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         notes
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb))
       RETURNING
-        id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
         is_favorite, created_at
@@ -5030,7 +5049,7 @@ apiRouter.post('/customer/external-create', async (req, res) => {
         notes
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb))
       RETURNING
-        id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
         is_favorite, created_at
@@ -5139,6 +5158,13 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       vals.push(renewalDate || null)
     }
 
+    if (hasKey('birthDate') || hasKey('birth_date')) {
+      const rawBd = String(data.birthDate ?? data.birth_date ?? '').trim()
+      const normBd = rawBd ? normalizeExpiryDate(rawBd.slice(0, 10)) : ''
+      parts.push(`birth_date = $${n++}`)
+      vals.push(normBd || null)
+    }
+
     if (hasKey('gender')) {
       const genderRaw = String(data.gender ?? '').trim()
       const gender = genderRaw === 'male' || genderRaw === 'female' ? genderRaw : ''
@@ -5195,7 +5221,7 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       SET ${parts.join(', ')}
       WHERE id = $${n++} AND user_id = $${n++} AND ga_id = $${n++} AND deleted_at IS NULL
       RETURNING
-        id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
         is_favorite, created_at
@@ -5232,7 +5258,7 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
       result = await safeQuery(pool,
         `
         SELECT
-          id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+          id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
           car_number, car_model, car_year, renewal_date,
           gender, insurance_age, next_age_date, is_driver, car_type, notes,
           is_favorite, created_at
@@ -5248,7 +5274,7 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
       result = await safeQuery(pool,
         `
         SELECT
-          id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+          id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
           car_number, car_model, car_year, renewal_date,
           gender, insurance_age, next_age_date, is_driver, car_type, notes,
           is_favorite, created_at
@@ -5285,7 +5311,7 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
       safeQuery(pool,
         `
         SELECT
-          id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+          id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
           car_number, car_model, car_year, renewal_date,
           gender, insurance_age, next_age_date, is_driver, car_type, notes,
           is_favorite, created_at
@@ -5337,7 +5363,7 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
     const result = await safeQuery(pool,
       `
       SELECT
-        id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
         is_favorite, created_at

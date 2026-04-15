@@ -33,6 +33,7 @@ export type ConsultationCountsResponse = {
 export type CustomerFileRow = StorageFileRow
 
 export type SaveCustomerFilePayload = {
+  fileId: number
   content: string
   fileName: string
   objectKey: string
@@ -187,11 +188,12 @@ export async function revokeStagedCustomerFileUpload(
   token: string,
   customerId: number,
   objectKey: string,
+  opts?: { fileId?: number | null },
 ): Promise<{ ok: boolean }> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  return revokeStorageStagedUpload(token, objectKey, { customerId })
+  return revokeStorageStagedUpload(token, objectKey, { customerId, fileId: opts?.fileId ?? null })
 }
 
 export async function saveCustomerFile(
@@ -203,6 +205,7 @@ export async function saveCustomerFile(
     throw new ApiError('로그인이 필요합니다.', 401)
   }
   return saveStorageFile(token, {
+    fileId: body.fileId,
     fileName: body.fileName,
     displayName: body.fileName,
     objectKey: body.objectKey,

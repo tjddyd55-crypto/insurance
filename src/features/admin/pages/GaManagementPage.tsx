@@ -1,4 +1,5 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { FormDialog, useConfirmDialog } from '../../../components/dialog'
 import { EmptyState, LoadingState, StatusMessage } from '../../../components/feedback'
 import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
@@ -274,6 +275,14 @@ export default function GaManagementPage() {
             <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => void openHistory(r)} disabled={isLoading}>
               이력
             </FormButton>
+            <Link
+              to={`/admin/ga/${r.id}`}
+              state={{ name: r.name, code: r.code }}
+              className="button button--secondary"
+              style={{ display: 'inline-flex', alignItems: 'center', padding: '0 12px', textDecoration: 'none' }}
+            >
+              관리
+            </Link>
             <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
               수정
             </FormButton>
@@ -321,6 +330,14 @@ export default function GaManagementPage() {
           <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => void openHistory(r)} disabled={isLoading}>
             이력
           </FormButton>
+          <Link
+            to={`/admin/ga/${r.id}`}
+            state={{ name: r.name, code: r.code }}
+            className="button button--secondary"
+            style={{ display: 'inline-flex', alignItems: 'center', padding: '0 12px', textDecoration: 'none' }}
+          >
+            관리
+          </Link>
           <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
             수정
           </FormButton>

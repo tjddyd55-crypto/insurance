@@ -13,7 +13,7 @@ import {
   type TouchEvent,
 } from 'react'
 import { useBlocker, type BlockerFunction } from 'react-router'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
 import { ApiError } from '../../../lib/apiClient'
 import { getPublicOrigin } from '../../../lib/publicOrigin'
@@ -71,6 +71,11 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 const INVITE_COPY_POINTER_DEBOUNCE_MS = 450
 
 const LAST_CONSULT_FETCH_CONCURRENCY = 12
+
+/** 오른쪽 작업영역(파일·상담)이 라우트로 고객을 고정할 때 — 카드 접힘과 `?customerId=` 동기화 충돌 방지 */
+function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
+  return /^\/customers\/[^/]+\/(files|consultations)(\/|$)/.test(pathname)
+}
 
 async function copyTextWithWebViewFallback(text: string): Promise<boolean> {
   try {
@@ -1163,6 +1168,7 @@ const CustomerListCard = memo(function CustomerListCard({
 
 export default function CustomersPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   /**
    * 고객등록 → 목록: 반드시 replace. setSearchParams({}) / blocker.proceed() 사용 금지(히스토리 중복·이중 POP).
@@ -1510,19 +1516,21 @@ export default function CustomersPage() {
     void loadCustomers()
   }, [user?.role, loadCustomers])
 
-  useEffect(() => {
-    if (tab !== 'list' || selectedCustomerIdFromQuery == null) {
-      return
-    }
-    setExpandedId((prev) => (prev === selectedCustomerIdFromQuery ? prev : selectedCustomerIdFromQuery))
-  }, [tab, selectedCustomerIdFromQuery])
-
+  /**
+   * 카드 펼침(expandedId)은 요약 클릭으로만 바꾼다.
+   * `?customerId=` 는 작업공간·CustomerFilesPage 등이 유지할 수 있으므로,
+   * URL 쿼리가 바뀌었다고 펼침을 강제하지 않는다(파일 패널 ↔ 목록 충돌 방지).
+   */
   useEffect(() => {
     if (tab !== 'list') {
       return
     }
     const queryCustomerId = parseSelectedCustomerId(searchParams.get('customerId'))
     if (queryCustomerId === expandedId) {
+      return
+    }
+    // 접힌 상태에서 쿼리만 남아 있는 경우: 파일/상담 패널이 동일 쿼리를 다시 채우므로 삭제하지 않음
+    if (expandedId == null && queryCustomerId != null && isCustomerWorkspaceSideDetailPath(location.pathname)) {
       return
     }
     const next = new URLSearchParams(searchParams)
@@ -1532,7 +1540,7 @@ export default function CustomersPage() {
       next.set('customerId', String(expandedId))
     }
     setSearchParams(next, { replace: true })
-  }, [expandedId, searchParams, setSearchParams, tab])
+  }, [expandedId, location.pathname, searchParams, setSearchParams, tab])
 
   useEffect(() => {
     if (expandedId == null) {

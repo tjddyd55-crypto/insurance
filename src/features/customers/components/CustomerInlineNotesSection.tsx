@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FormTextarea, FormButton } from '../../../components/form'
 import { Button } from '../../../components/ui/Button'
@@ -55,6 +55,34 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
   useEffect(() => {
     setMemos(customerNoteItems(customer))
   }, [serverNotesSignature, customer])
+
+  const [expandedMemoIds, setExpandedMemoIds] = useState<Set<string>>(() => new Set())
+
+  useEffect(() => {
+    setExpandedMemoIds(new Set())
+  }, [serverNotesSignature])
+
+  const toggleMemoExpanded = useCallback((id: string) => {
+    setExpandedMemoIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const onMemoRowKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLDivElement>, id: string) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        toggleMemoExpanded(id)
+      }
+    },
+    [toggleMemoExpanded],
+  )
 
   const insuranceHistory = normalizeCustomerNotesBag(customer.notes).insuranceHistory
 
@@ -187,44 +215,64 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
         <div className="text-sm text-[var(--text-secondary)] mt-2">등록된 내용이 없습니다.</div>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
-          {sortedItems.map((note) => (
-            <li
-              key={note.id}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                gap: 8,
-                alignItems: 'flex-start',
-                borderTop: '1px solid rgba(0,0,0,0.08)',
-                padding: '8px 0',
-                fontSize: '0.9rem',
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{note.content}</div>
-                <small style={{ opacity: 0.75 }}>{new Date(note.createdAt).toLocaleString('ko-KR')}</small>
-              </div>
-              <FormButton
-                htmlType="button"
-                aria-label="메모 삭제"
-                title="삭제"
-                disabled={saving}
+          {sortedItems.map((note) => {
+            const memoOpen = expandedMemoIds.has(note.id)
+            return (
+              <li
+                key={note.id}
+                className={memoOpen ? 'customer-inline-memo-row customer-inline-memo-row--open' : 'customer-inline-memo-row'}
                 style={{
-                  flexShrink: 0,
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: saving ? 'default' : 'pointer',
-                  fontSize: '1.1rem',
-                  lineHeight: 1,
-                  padding: '2px 6px',
-                  opacity: 0.75,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  alignItems: 'flex-start',
+                  borderTop: '1px solid rgba(0,0,0,0.08)',
+                  padding: '8px 0',
+                  fontSize: '0.9rem',
                 }}
-                onClick={() => removeNote(note.id)}
               >
-                ×
-              </FormButton>
-            </li>
-          ))}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="customer-inline-memo-row__body"
+                  style={{ minWidth: 0, flex: 1 }}
+                  aria-expanded={memoOpen}
+                  onClick={() => toggleMemoExpanded(note.id)}
+                  onKeyDown={(e) => onMemoRowKeyDown(e, note.id)}
+                >
+                  <div
+                    className={memoOpen ? undefined : 'customer-inline-memo-row__text--clamped'}
+                    style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+                  >
+                    {note.content}
+                  </div>
+                  <small style={{ opacity: 0.75 }}>{new Date(note.createdAt).toLocaleString('ko-KR')}</small>
+                </div>
+                <FormButton
+                  htmlType="button"
+                  aria-label="메모 삭제"
+                  title="삭제"
+                  disabled={saving}
+                  style={{
+                    flexShrink: 0,
+                    border: 'none',
+                    background: 'transparent',
+                    cursor: saving ? 'default' : 'pointer',
+                    fontSize: '1.1rem',
+                    lineHeight: 1,
+                    padding: '2px 6px',
+                    opacity: 0.75,
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    removeNote(note.id)
+                  }}
+                >
+                  ×
+                </FormButton>
+              </li>
+            )
+          })}
         </ul>
       )}
 

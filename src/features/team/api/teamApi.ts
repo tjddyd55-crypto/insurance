@@ -13,6 +13,8 @@ export type TeamMembersResponse = {
   teamName: string | null
   /** teams.owner_user_id — 팀장 사용자 id */
   ownerId: string | null
+  /** teams.is_active — 해체 등으로 비활성이면 false */
+  teamActive: boolean
   members: TeamMemberRow[]
 }
 
@@ -64,11 +66,37 @@ export async function kickTeamMember(token: string, userId: string): Promise<{ o
   })
 }
 
-export async function leaveTeam(token: string): Promise<{ ok: boolean }> {
+export async function leaveTeam(token: string): Promise<{ ok: boolean; disbanded?: boolean }> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  return apiRequest<{ ok: boolean }>('/api/teams/leave', {
+  return apiRequest<{ ok: boolean; disbanded?: boolean }>('/api/teams/leave', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({}),
+  })
+}
+
+export async function transferTeamLeader(token: string, userId: string): Promise<{ ok: boolean; ownerId: string }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  const id = String(userId ?? '').trim()
+  if (!id) {
+    throw new ApiError('새 팀장으로 지정할 사용자를 선택해 주세요.', 400)
+  }
+  return apiRequest<{ ok: boolean; ownerId: string }>('/api/teams/transfer-leader', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ userId: id }),
+  })
+}
+
+export async function disbandTeam(token: string): Promise<{ ok: boolean; disbanded: boolean }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  return apiRequest<{ ok: boolean; disbanded: boolean }>('/api/teams/disband', {
     method: 'POST',
     token,
     body: JSON.stringify({}),

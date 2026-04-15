@@ -2000,6 +2000,22 @@ button.filter-button:focus-visible {
   flex-direction: column;
 }
 
+/* 고객 카드 [메모] — 펼친 행만 아주 연한 배경(패딩·마진·테두리·글자색 변경 없음) */
+.customer-inline-notes .customer-inline-memo-row--open {
+  background-color: rgba(0, 0, 0, 0.045);
+}
+
+.customer-inline-notes .customer-inline-memo-row__body {
+  cursor: pointer;
+}
+
+.customer-inline-notes .customer-inline-memo-row__text--clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .customers-excel-toolbar {
   position: fixed;
   top: 0;
@@ -5914,6 +5930,12 @@ textarea.memo-sticky-note__textarea::placeholder {
   margin: 0;
   font-size: 0.875rem;
   color: var(--text-secondary);
+}
+
+.storage-workspace__quota {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-sub);
 }
 
 .storage-workspace__error {

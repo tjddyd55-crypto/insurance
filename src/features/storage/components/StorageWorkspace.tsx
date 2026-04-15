@@ -6,8 +6,10 @@ import {
   deleteStorageFile,
   deleteStorageFolder,
   downloadStorageFile,
+  getPersonalStorageQuota,
   listStorageFiles,
   listStorageFolders,
+  markStorageUploadFailed,
   presignStorageFile,
   renameStorageFile,
   renameStorageFolder,
@@ -78,6 +80,13 @@ function guessContentType(file: File): string {
   return file.type || 'application/octet-stream'
 }
 
+function formatStorageMb(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return '0'
+  }
+  return (bytes / (1024 * 1024)).toFixed(1)
+}
+
 export default function StorageWorkspace({
   token,
   customerId = null,
@@ -100,10 +109,20 @@ export default function StorageWorkspace({
   const [createFolderName, setCreateFolderName] = useState('')
   const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
+  const [quota, setQuota] = useState<{
+    usedBytes: number
+    limitBytes: number
+    pendingUploadBytes?: number
+  } | null>(null)
 
   const folderOptions = useMemo(
     () => [{ id: null, name: '전체', createdAt: '' } as const, ...folders],
     [folders],
+  )
+
+  const storageFolderScope = useMemo(
+    () => (customerId != null ? { customerId } : undefined),
+    [customerId],
   )
 
   const loadFolders = useCallback(async () => {
@@ -111,12 +130,25 @@ export default function StorageWorkspace({
       setFolders([])
       return
     }
-    const rows = await listStorageFolders(token)
+    const rows = await listStorageFolders(token, storageFolderScope)
     setFolders(rows)
     if (selectedFolderId != null && !rows.some((folder) => folder.id === selectedFolderId)) {
       setSelectedFolderId(null)
     }
-  }, [selectedFolderId, token])
+  }, [selectedFolderId, storageFolderScope, token])
+
+  const loadQuota = useCallback(async () => {
+    if (!token?.trim()) {
+      setQuota(null)
+      return
+    }
+    try {
+      const q = await getPersonalStorageQuota(token)
+      setQuota(q)
+    } catch {
+      setQuota(null)
+    }
+  }, [token])
 
   const loadFiles = useCallback(async () => {
     if (!token?.trim()) {
@@ -140,13 +172,13 @@ export default function StorageWorkspace({
     setLoading(true)
     setError('')
     try {
-      await Promise.all([loadFolders(), loadFiles()])
+      await Promise.all([loadFolders(), loadFiles(), loadQuota()])
     } catch (e) {
       setError(e instanceof Error ? e.message : '스토리지 데이터를 불러오지 못했습니다.')
     } finally {
       setLoading(false)
     }
-  }, [loadFiles, loadFolders, token])
+  }, [loadFiles, loadFolders, loadQuota, token])
 
   useEffect(() => {
     void refreshAll()
@@ -184,7 +216,7 @@ export default function StorageWorkspace({
     setSubmitting(true)
     setError('')
     try {
-      await createStorageFolder(token, name)
+      await createStorageFolder(token, name, storageFolderScope)
       setCreateFolderOpen(false)
       setCreateFolderName('')
       await loadFolders()
@@ -193,7 +225,7 @@ export default function StorageWorkspace({
     } finally {
       setSubmitting(false)
     }
-  }, [createFolderName, loadFolders, submitting, token])
+  }, [createFolderName, loadFolders, storageFolderScope, submitting, token])
 
   const validateStoragePickerFile = useCallback((file: File): string | null => {
     const normalizedName = normalizeName(file.name, FILE_NAME_MAX_LENGTH)
@@ -230,6 +262,7 @@ export default function StorageWorkspace({
           continue
         }
         let stagedObjectKey: string | null = null
+        let uploadFileId: number | null = null
         try {
           const presign = await presignStorageFile(token, {
             fileName: normalizedName,
@@ -237,6 +270,7 @@ export default function StorageWorkspace({
             sizeBytes: file.size,
             customerId,
           })
+          uploadFileId = presign.fileId
           stagedObjectKey = presign.objectKey
           const put = await fetch(presign.uploadUrl, {
             method: 'PUT',
@@ -250,6 +284,7 @@ export default function StorageWorkspace({
             throw new Error('업로드 실패')
           }
           await saveStorageFile(token, {
+            fileId: presign.fileId,
             fileName: normalizedName,
             displayName: normalizedName,
             objectKey: presign.objectKey,
@@ -260,24 +295,32 @@ export default function StorageWorkspace({
             customerId,
           })
           stagedObjectKey = null
+          uploadFileId = null
         } catch {
           failCount += 1
-          if (stagedObjectKey) {
+          if (uploadFileId != null) {
             try {
-              await revokeStorageStagedUpload(token, stagedObjectKey, { customerId })
+              await revokeStorageStagedUpload(token, stagedObjectKey ?? '', {
+                customerId,
+                fileId: uploadFileId,
+              })
             } catch {
-              // orphan cleanup best-effort
+              try {
+                await markStorageUploadFailed(token, uploadFileId)
+              } catch {
+                /* orphan cron */
+              }
             }
           }
         }
       }
-      await loadFiles()
+      await Promise.all([loadFiles(), loadQuota()])
       setUploading(false)
       if (failCount > 0) {
         setError(`${failCount}개 파일 업로드에 실패했습니다.`)
       }
     },
-    [customerId, loadFiles, selectedFolderId, token, uploading],
+    [customerId, loadFiles, loadQuota, selectedFolderId, token, uploading],
   )
 
   const openRenameFileDialog = useCallback((file: StorageFileRow) => {
@@ -330,6 +373,7 @@ export default function StorageWorkspace({
       if (deleteTarget.kind === 'file') {
         await deleteStorageFile(token, deleteTarget.file.id)
         setFiles((prev) => prev.filter((file) => file.id !== deleteTarget.file.id))
+        await loadQuota()
       } else {
         await deleteStorageFolder(token, deleteTarget.folder.id)
         if (selectedFolderId === deleteTarget.folder.id) {
@@ -343,7 +387,7 @@ export default function StorageWorkspace({
     } finally {
       setSubmitting(false)
     }
-  }, [deleteTarget, loadFolders, selectedFolderId, submitting, token])
+  }, [deleteTarget, loadFolders, loadQuota, selectedFolderId, submitting, token])
 
   const downloadFile = useCallback(
     async (file: StorageFileRow) => {
@@ -365,6 +409,15 @@ export default function StorageWorkspace({
       <div className="storage-workspace__header">
         <h1 className="storage-workspace__title">{title}</h1>
         {subtitle ? <p className="storage-workspace__subtitle">{subtitle}</p> : null}
+        {quota ? (
+          <p className="storage-workspace__quota">
+            개인 저장소 사용량 {formatStorageMb(quota.usedBytes)} MB / {formatStorageMb(quota.limitBytes)} MB
+            {quota.pendingUploadBytes != null && quota.pendingUploadBytes > 0
+              ? ` (업로드 진행 예약 ${formatStorageMb(quota.pendingUploadBytes)} MB)`
+              : ''}
+            {customerId != null ? ' (고객 파일·내 저장공간 합산)' : ''}
+          </p>
+        ) : null}
       </div>
 
       <StorageToolbar

@@ -69,7 +69,7 @@ export function useExpandableCard({
       return
     }
     closingCardIdRef.current = null
-    setExpandedId(null)
+    setExpandedId(() => null)
     setDetailClosing(false)
   }, [cardId, isValidCard, setExpandedId])
 
@@ -87,7 +87,7 @@ export function useExpandableCard({
     }
     closingCardIdRef.current = null
     setDetailClosing(false)
-    setExpandedId(cardId)
+    setExpandedId(() => cardId)
   }, [cardId, detailClosing, expandedId, isValidCard, setExpandedId])
 
   const handleDetailTransitionEnd = useCallback(

@@ -34,7 +34,9 @@
     "recover:insurer-managers:apply": "node server/scripts/runInsurerManagerCompanyRecovery.mjs --apply",
     "recover:insurer-managers:railway": "railway run -- node server/scripts/runInsurerManagerCompanyRecovery.mjs --apply",
     "recover:insurer-managers:cron": "node server/scripts/runInsurerManagerCompanyRecovery.mjs --fail-on-broken",
-    "analytics:aggregate": "node server/scripts/runAnalyticsAggregation.mjs --yesterday"
+    "analytics:aggregate": "node server/scripts/runAnalyticsAggregation.mjs --yesterday",
+    "cleanup:storage-upload-staging": "node server/scripts/runStorageOrphanStagingCleanupCron.mjs",
+    "cleanup:storage-upload-staging:railway": "railway run -- node server/scripts/runStorageOrphanStagingCleanupCron.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1023.0",

@@ -1,6 +1,8 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
+import { useAuth } from '../../auth/AuthProvider'
+import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '../api/gaCustomerExcelApi'
 import CustomersPage from './CustomersPage'
 
 function parseSelectedCustomerId(raw: string | null): number | null {
@@ -25,17 +27,54 @@ function rightTitle(pathname: string): string {
   if (pathname.includes('/consultations')) {
     return '고객 상담 작업'
   }
+  if (pathname.includes('/ga-excel')) {
+    return 'GA 고객 데이터'
+  }
   return '작업 영역'
 }
 
 export default function CustomerWorkspaceLayout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { token, user } = useAuth()
   const [searchParams] = useSearchParams()
   const selectedCustomerId = useMemo(
     () => parseSelectedCustomerId(searchParams.get('customerId')),
     [searchParams],
   )
+  const [excelCap, setExcelCap] = useState<GaCustomerExcelCapability | null>(null)
+
+  useEffect(() => {
+    if (!token?.trim()) {
+      setExcelCap(null)
+      return
+    }
+    const role = String(user?.role ?? '')
+    if (role === 'SUPER_ADMIN' || role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER') {
+      setExcelCap(null)
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const c = await fetchGaCustomerExcelCapability(token)
+        if (!cancelled) {
+          setExcelCap(c)
+        }
+      } catch {
+        if (!cancelled) {
+          setExcelCap(null)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [token, user?.role])
+
+  const showGaExcelEntry =
+    excelCap != null &&
+    (excelCap.showDesignerUi || (excelCap.featureEnabled && !excelCap.configReady && Boolean(excelCap.message)))
 
   const moveTo = (path: string) => {
     navigate(buildCustomerWorkspaceHref(path, searchParams))
@@ -98,6 +137,27 @@ export default function CustomerWorkspaceLayout() {
             >
               자동차 신청서
             </FormButton>
+            {showGaExcelEntry ? (
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className="filter-button"
+                disabled={!selectedCustomerId || !excelCap?.showDesignerUi}
+                title={
+                  excelCap?.showDesignerUi
+                    ? undefined
+                    : excelCap?.message || '고객 엑셀 기능을 사용할 수 없습니다.'
+                }
+                onClick={() => {
+                  if (!selectedCustomerId || !excelCap?.showDesignerUi) {
+                    return
+                  }
+                  moveTo(`/customers/${selectedCustomerId}/ga-excel`)
+                }}
+              >
+                GA 고객 데이터 보기
+              </FormButton>
+            ) : null}
           </div>
         </header>
 

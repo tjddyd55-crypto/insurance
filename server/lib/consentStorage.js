@@ -1,6 +1,12 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 const LOCAL_ROOT = path.join(process.cwd(), 'server-data', 'consent-storage')
@@ -76,6 +82,104 @@ export async function r2DeleteObject(key) {
     }),
   )
   return true
+}
+
+/**
+ * S3/R2 삭제 오류가 "객체 없음"인지 (멱등 삭제용).
+ * @param {unknown} err
+ */
+export function isR2ObjectNotFoundError(err) {
+  const name = err && typeof err === 'object' && 'name' in err ? String(err.name) : ''
+  const code = err && typeof err === 'object' && 'Code' in err ? String(err.Code) : ''
+  const status =
+    err && typeof err === 'object' && err != null && '$metadata' in err
+      ? /** @type {{ $metadata?: { httpStatusCode?: number } }} */ (err).$metadata?.httpStatusCode
+      : undefined
+  return (
+    name === 'NotFound' ||
+    name === 'NoSuchKey' ||
+    code === 'NoSuchKey' ||
+    status === 404
+  )
+}
+
+/**
+ * 스토리지 객체 삭제: R2면 API 호출(없으면 성공), 로컬 모드면 파일 삭제(없으면 성공).
+ * DB 삭제 전에 호출 — 실패 시 호출측에서 DB 변경을 하지 않는다.
+ * @param {string} key
+ */
+/**
+ * 단일 객체 존재 여부(버킷 전체 목록 없음). orphan 정리 등에 사용.
+ * @param {string} key
+ * @returns {Promise<boolean>}
+ */
+export async function r2StorageObjectExists(key) {
+  const k = key != null ? String(key).trim() : ''
+  if (!k) {
+    return false
+  }
+  const c = r2Credentials()
+  const client = getS3()
+  if (!client || !c) {
+    const full = path.join(LOCAL_ROOT, k)
+    try {
+      await readFile(full)
+      return true
+    } catch (e) {
+      if (e && typeof e === 'object' && 'code' in e && e.code === 'ENOENT') {
+        return false
+      }
+      throw e
+    }
+  }
+  try {
+    await client.send(
+      new HeadObjectCommand({
+        Bucket: c.bucket,
+        Key: k,
+      }),
+    )
+    return true
+  } catch (e) {
+    if (isR2ObjectNotFoundError(e)) {
+      return false
+    }
+    throw e
+  }
+}
+
+export async function r2DeleteStorageObjectOrThrow(key) {
+  const k = key != null ? String(key).trim() : ''
+  if (!k) {
+    return
+  }
+  const c = r2Credentials()
+  const client = getS3()
+  if (!client || !c) {
+    const full = path.join(LOCAL_ROOT, k)
+    try {
+      await unlink(full)
+    } catch (e) {
+      if (e && typeof e === 'object' && 'code' in e && e.code === 'ENOENT') {
+        return
+      }
+      throw e
+    }
+    return
+  }
+  try {
+    await client.send(
+      new DeleteObjectCommand({
+        Bucket: c.bucket,
+        Key: k,
+      }),
+    )
+  } catch (e) {
+    if (isR2ObjectNotFoundError(e)) {
+      return
+    }
+    throw e
+  }
 }
 
 export async function consentPutObject(key, body, contentType = 'application/octet-stream') {

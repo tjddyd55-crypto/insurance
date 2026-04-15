@@ -3,12 +3,14 @@ import { ApiError, apiRequest, resolveApiUrl } from '../../../lib/apiClient'
 export type StorageFolderRow = {
   id: number
   name: string
+  customerId?: number | null
   createdAt: string
 }
 
 export type StorageFileRow = {
   id: number
   customerId: number | null
+  teamId?: string | null
   folderId: number | null
   content: string
   fileName: string
@@ -20,12 +22,15 @@ export type StorageFileRow = {
   fileSize: number | null
   mimeType: string | null
   isConfirmed: boolean
+  uploadStatus?: string
   createdAt: string
   expiresAt: string | null
   deletedAt: string | null
 }
 
 export type StorageFilePresignResponse = {
+  /** presign 시 생성된 uploading 행 id — save 시 반드시 전달 */
+  fileId: number
   uploadUrl: string
   fileUrl: string
   objectKey: string
@@ -55,18 +60,46 @@ function buildStorageScopeQuery(scope?: StorageFileScope & { folderId?: number |
   return q.toString() ? `?${q.toString()}` : ''
 }
 
-export async function listStorageFolders(token: string): Promise<StorageFolderRow[]> {
-  assertToken(token)
-  return apiRequest<StorageFolderRow[]>('/api/storage/folders', { token })
+function buildFolderListQuery(scope?: StorageFileScope) {
+  const q = new URLSearchParams()
+  if (scope?.customerId != null) {
+    q.set('customerId', String(scope.customerId))
+  }
+  return q.toString() ? `?${q.toString()}` : ''
 }
 
-export async function createStorageFolder(token: string, name: string): Promise<StorageFolderRow> {
+export async function listStorageFolders(token: string, scope?: StorageFileScope): Promise<StorageFolderRow[]> {
+  assertToken(token)
+  const qs = buildFolderListQuery(scope)
+  return apiRequest<StorageFolderRow[]>(`/api/storage/folders${qs}`, { token })
+}
+
+export async function createStorageFolder(
+  token: string,
+  name: string,
+  scope?: StorageFileScope,
+): Promise<StorageFolderRow> {
   assertToken(token)
   return apiRequest<StorageFolderRow>('/api/storage/folders', {
     method: 'POST',
     token,
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({
+      name,
+      customerId: scope?.customerId ?? null,
+    }),
   })
+}
+
+export type PersonalStorageQuota = {
+  usedBytes: number
+  limitBytes: number
+  /** uploading 상태 파일 크기 합 (storage_used 미포함) */
+  pendingUploadBytes?: number
+}
+
+export async function getPersonalStorageQuota(token: string): Promise<PersonalStorageQuota> {
+  assertToken(token)
+  return apiRequest<PersonalStorageQuota>('/api/storage/quota', { token })
 }
 
 export async function renameStorageFolder(token: string, folderId: number, name: string): Promise<StorageFolderRow> {
@@ -111,7 +144,7 @@ export async function presignStorageFile(
 export async function revokeStorageStagedUpload(
   token: string,
   objectKey: string,
-  scope?: StorageFileScope,
+  scope?: StorageFileScope & { fileId?: number | null },
 ): Promise<{ ok: boolean }> {
   assertToken(token)
   return apiRequest<{ ok: boolean }>('/api/storage/files/revoke-staged', {
@@ -119,14 +152,28 @@ export async function revokeStorageStagedUpload(
     token,
     body: JSON.stringify({
       objectKey,
+      fileId: scope?.fileId ?? null,
       customerId: scope?.customerId ?? null,
     }),
+  })
+}
+
+export async function markStorageUploadFailed(
+  token: string,
+  fileId: number,
+): Promise<{ ok: boolean; fileId: number }> {
+  assertToken(token)
+  return apiRequest<{ ok: boolean; fileId: number }>('/api/storage/files/upload-fail', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ fileId }),
   })
 }
 
 export async function saveStorageFile(
   token: string,
   body: {
+    fileId: number
     fileName: string
     displayName?: string
     objectKey: string
@@ -143,6 +190,7 @@ export async function saveStorageFile(
     method: 'POST',
     token,
     body: JSON.stringify({
+      fileId: body.fileId,
       fileName: body.fileName,
       displayName: body.displayName ?? body.fileName,
       objectKey: body.objectKey,
