@@ -13,8 +13,7 @@ export default function MemoList({ onAfterSelectNote }: Props) {
   const {
     token,
     notes,
-    activeNoteId,
-    editingNoteId,
+    hiddenNotes,
     handleSidebarSelectNote,
     handleAutoArrange,
     setIsMinimized,
@@ -35,8 +34,7 @@ export default function MemoList({ onAfterSelectNote }: Props) {
   return (
     <MemoSidebar
       notes={notes}
-      activeNoteId={activeNoteId}
-      editingNoteId={editingNoteId}
+      hiddenNotes={hiddenNotes}
       isOpen
       onToggle={() => {}}
       onSelectNote={onSelect}

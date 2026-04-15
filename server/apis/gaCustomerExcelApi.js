@@ -1,6 +1,6 @@
 import multer from 'multer'
 import * as XLSX from 'xlsx'
-import { safeQuery } from '../utils/dbSafeQuery.js'
+import { safeQuery, systemQuery } from '../utils/dbSafeQuery.js'
 
 const uploadExcel = multer({
   storage: multer.memoryStorage(),
@@ -295,7 +295,7 @@ export function registerGaCustomerExcelApi(apiRouter, ctx) {
         res.status(400).json({ message: '잘못된 GA ID입니다.' })
         return
       }
-      const g = await safeQuery(pool, `SELECT id FROM ga_companies WHERE id = $1 AND is_deleted = false LIMIT 1`, [
+      const g = await systemQuery(pool, `SELECT id FROM ga_companies WHERE id = $1 AND is_deleted = false LIMIT 1`, [
         gaId,
       ])
       if (g.rowCount === 0) {
@@ -322,7 +322,7 @@ export function registerGaCustomerExcelApi(apiRouter, ctx) {
           res.status(400).json({ message: '잘못된 GA ID입니다.' })
           return
         }
-        const g = await safeQuery(pool, `SELECT id FROM ga_companies WHERE id = $1 AND is_deleted = false LIMIT 1`, [
+        const g = await systemQuery(pool, `SELECT id FROM ga_companies WHERE id = $1 AND is_deleted = false LIMIT 1`, [
           gaId,
         ])
         if (g.rowCount === 0) {
@@ -398,7 +398,7 @@ export function registerGaCustomerExcelApi(apiRouter, ctx) {
         res.status(400).json({ message: '잘못된 GA ID입니다.' })
         return
       }
-      const g = await safeQuery(pool, `SELECT id FROM ga_companies WHERE id = $1 AND is_deleted = false LIMIT 1`, [
+      const g = await systemQuery(pool, `SELECT id FROM ga_companies WHERE id = $1 AND is_deleted = false LIMIT 1`, [
         gaId,
       ])
       if (g.rowCount === 0) {

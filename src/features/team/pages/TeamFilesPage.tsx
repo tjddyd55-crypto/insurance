@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
-import { fetchTeamFiles, type TeamFileRow } from '../api/teamApi'
+import { fetchTeamFiles, fetchTeamMembers, type TeamFileRow } from '../api/teamApi'
+
+function formatStorageMbFromBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return '0.0'
+  }
+  return (bytes / (1024 * 1024)).toFixed(1)
+}
 
 function formatDate(iso: string): string {
   const d = new Date(iso)
@@ -16,6 +23,9 @@ export default function TeamFilesPage() {
   const [files, setFiles] = useState<TeamFileRow[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [teamQuotaLoading, setTeamQuotaLoading] = useState(false)
+  const [teamQuotaErr, setTeamQuotaErr] = useState(false)
+  const [teamQuota, setTeamQuota] = useState<{ used: number; limit: number } | null>(null)
 
   const load = useCallback(async () => {
     if (!token?.trim()) {
@@ -38,6 +48,31 @@ export default function TeamFilesPage() {
     void load()
   }, [load])
 
+  useEffect(() => {
+    if (!token?.trim()) {
+      setTeamQuota(null)
+      setTeamQuotaErr(false)
+      setTeamQuotaLoading(false)
+      return
+    }
+    setTeamQuotaLoading(true)
+    setTeamQuotaErr(false)
+    void fetchTeamMembers(token)
+      .then((r) => {
+        setTeamQuota({
+          used: Number(r.teamStorageUsedBytes ?? 0),
+          limit: Number(r.teamStorageLimitBytes ?? 0),
+        })
+      })
+      .catch(() => {
+        setTeamQuota(null)
+        setTeamQuotaErr(true)
+      })
+      .finally(() => {
+        setTeamQuotaLoading(false)
+      })
+  }, [token])
+
   return (
     <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
       <h1 className="text-[var(--text-primary)]" style={{ marginTop: 12 }}>
@@ -45,6 +80,13 @@ export default function TeamFilesPage() {
       </h1>
       <p className="text-sm text-[var(--text-secondary)] mt-2">
         게시글에 첨부한 파일만 표시됩니다. (팀·게시글 단위로 분리됨)
+      </p>
+      <p className="text-sm text-[var(--text-secondary)] mt-2" role="status">
+        {teamQuotaLoading
+          ? '팀 저장공간 사용량 불러오는 중…'
+          : teamQuotaErr || !teamQuota
+            ? '팀 저장공간 용량 정보를 표시할 수 없습니다.'
+            : `팀 저장소 사용량 ${formatStorageMbFromBytes(teamQuota.used)} MB / ${formatStorageMbFromBytes(teamQuota.limit)} MB`}
       </p>
 
       {error ? (

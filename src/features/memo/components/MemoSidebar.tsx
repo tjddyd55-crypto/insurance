@@ -1,22 +1,19 @@
 import { FormButton } from '../../../components/form'
 import type { Note } from '../types/memo.types'
 
+
 type Props = {
   notes: Note[]
-  activeNoteId: string | null
-  editingNoteId: string | null
+  hiddenNotes: Record<string, boolean>
   isOpen: boolean
   onToggle: () => void
   onSelectNote: (id: string) => void
   onAutoArrange: () => void
-  /** false면 헤더 접기(◀) 버튼 숨김 — 외부 레이아웃에서 목록 토글을 쓸 때 */
   showToggle?: boolean
 }
-
 export default function MemoSidebar({
   notes,
-  activeNoteId,
-  editingNoteId,
+  hiddenNotes,
   isOpen,
   onToggle,
   onSelectNote,
@@ -35,7 +32,7 @@ export default function MemoSidebar({
           ) : null}
           {showToggle ? (
             <FormButton htmlType="button" className="memo-sidebar__toggle" onClick={onToggle}>
-              {isOpen ? '◀' : '▶'}
+              {isOpen ? '\u25c0' : '\u25b6'}
             </FormButton>
           ) : null}
         </div>
@@ -44,12 +41,11 @@ export default function MemoSidebar({
       <div className="memo-sidebar__list">
         {notes.map((note) => {
           const preview = note.content?.trim().slice(0, 20) || '내용 없음'
-          const isActive = note.id === activeNoteId
-          const isEditing = note.id === editingNoteId
+          const isExpandedOnCanvas = !hiddenNotes[note.id]
           return (
             <div
               key={note.id}
-              className={`memo-list-item ${isActive ? 'active' : ''} ${isEditing ? 'editing' : ''}`.trim()}
+              className={`memo-list-item${isExpandedOnCanvas ? ' memo-list-item--expanded' : ''}`.trim()}
               onClick={(e) => {
                 e.stopPropagation()
                 onSelectNote(note.id)

@@ -5649,14 +5649,12 @@ a.contacts-public-auth__link {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.memo-list-item.active {
-  background: rgba(59, 130, 246, 0.15);
-  border-left: 3px solid #3b82f6;
-  color: #fff;
+.memo-list-item--expanded {
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.memo-list-item.editing {
-  background: rgba(59, 130, 246, 0.15);
+.memo-list-item--expanded:hover {
+  background: rgba(255, 255, 255, 0.11);
 }
 
 .memo-sidebar.closed .memo-sidebar__list,

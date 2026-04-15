@@ -15,6 +15,8 @@ export type TeamMembersResponse = {
   ownerId: string | null
   /** teams.is_active — 해체 등으로 비활성이면 false */
   teamActive: boolean
+  teamStorageUsedBytes?: number
+  teamStorageLimitBytes?: number
   members: TeamMemberRow[]
 }
 

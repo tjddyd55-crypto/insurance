@@ -540,7 +540,9 @@ export function registerTeamApi(apiRouter, ctx) {
       const teamRes = await safeQuery(
         pool,
         `
-        SELECT id, name, ga_id, owner_user_id, COALESCE(is_active, true) AS is_active
+        SELECT id, name, ga_id, owner_user_id, COALESCE(is_active, true) AS is_active,
+          COALESCE(storage_used, 0)::bigint AS storage_used,
+          COALESCE(storage_limit, 0)::bigint AS storage_limit
         FROM teams
         WHERE id = $1
         LIMIT 1
@@ -577,6 +579,8 @@ export function registerTeamApi(apiRouter, ctx) {
         teamName: String(teamRow.name ?? ''),
         ownerId,
         teamActive,
+        teamStorageUsedBytes: Number(teamRow.storage_used) || 0,
+        teamStorageLimitBytes: Number(teamRow.storage_limit) || 0,
         members: members.rows.map((row) => ({
           userId: String(row.id),
           username: String(row.username ?? ''),

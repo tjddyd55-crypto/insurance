@@ -230,12 +230,26 @@ export default function GaCompanyManagePage() {
       </header>
 
       <div className="card auth-card" style={{ maxWidth: 960, margin: '0 auto', padding: 12 }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        <div
+          role="tablist"
+          aria-label="GA-detail-tabs"
+          style={{
+            display: 'flex',
+            gap: 8,
+            flexWrap: 'wrap',
+            marginBottom: 16,
+            position: 'relative',
+            zIndex: 1,
+          }}
+        >
           <FormButton
             htmlType="button"
             variant={tab === 'customerDb' ? 'primary' : 'secondary'}
             className={tab === 'customerDb' ? 'button button--primary' : 'button button--secondary'}
-            onClick={() => setTab('customerDb')}
+            onClick={(ev) => {
+              ev.stopPropagation()
+              setTab('customerDb')
+            }}
           >
             고객 DB 관리
           </FormButton>
@@ -243,11 +257,16 @@ export default function GaCompanyManagePage() {
             htmlType="button"
             variant={tab === 'excel' ? 'primary' : 'secondary'}
             className={tab === 'excel' ? 'button button--primary' : 'button button--secondary'}
-            onClick={() => setTab('excel')}
+            onClick={(ev) => {
+              ev.stopPropagation()
+              setTab('excel')
+            }}
           >
             고객 엑셀 관리
           </FormButton>
         </div>
+
+        {loadErr ? <StatusMessage message={loadErr} tone="error" className="mb-2" /> : null}
 
         {tab === 'customerDb' ? (
           <p className="text-sm text-[var(--text-secondary)]" style={{ lineHeight: 1.6 }}>
@@ -258,7 +277,6 @@ export default function GaCompanyManagePage() {
 
         {tab === 'excel' ? (
           <>
-            <StatusMessage message={loadErr} tone="error" className="mb-2" />
             <StatusMessage message={status} tone="default" className="mb-2" />
             {loading ? (
               <LoadingState message="불러오는 중…" />

@@ -24,6 +24,10 @@ export default function FolderPicker({
   onSelect,
 }: FolderPickerProps) {
   if (!isMobile) {
+    const selectOptions = folders.map((folder) => ({
+      value: folder.id == null ? 'all' : String(folder.id),
+      label: folder.name,
+    }))
     return (
       <FormSelect
         value={selectedFolderId == null ? 'all' : String(selectedFolderId)}
@@ -32,13 +36,8 @@ export default function FolderPicker({
           onSelect(value === 'all' ? null : Number(value))
         }}
         className="storage-toolbar__folder-select"
-      >
-        {folders.map((folder) => (
-          <option key={folder.id == null ? 'all' : String(folder.id)} value={folder.id == null ? 'all' : String(folder.id)}>
-            {folder.name}
-          </option>
-        ))}
-      </FormSelect>
+        options={selectOptions}
+      />
     )
   }
 

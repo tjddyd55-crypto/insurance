@@ -114,6 +114,7 @@ export default function StorageWorkspace({
     limitBytes: number
     pendingUploadBytes?: number
   } | null>(null)
+  const [quotaLoading, setQuotaLoading] = useState(true)
 
   const folderOptions = useMemo(
     () => [{ id: null, name: '전체', createdAt: '' } as const, ...folders],
@@ -140,13 +141,17 @@ export default function StorageWorkspace({
   const loadQuota = useCallback(async () => {
     if (!token?.trim()) {
       setQuota(null)
+      setQuotaLoading(false)
       return
     }
+    setQuotaLoading(true)
     try {
       const q = await getPersonalStorageQuota(token)
       setQuota(q)
     } catch {
       setQuota(null)
+    } finally {
+      setQuotaLoading(false)
     }
   }, [token])
 
@@ -409,15 +414,21 @@ export default function StorageWorkspace({
       <div className="storage-workspace__header">
         <h1 className="storage-workspace__title">{title}</h1>
         {subtitle ? <p className="storage-workspace__subtitle">{subtitle}</p> : null}
-        {quota ? (
-          <p className="storage-workspace__quota">
-            개인 저장소 사용량 {formatStorageMb(quota.usedBytes)} MB / {formatStorageMb(quota.limitBytes)} MB
-            {quota.pendingUploadBytes != null && quota.pendingUploadBytes > 0
-              ? ` (업로드 진행 예약 ${formatStorageMb(quota.pendingUploadBytes)} MB)`
-              : ''}
-            {customerId != null ? ' (고객 파일·내 저장공간 합산)' : ''}
-          </p>
-        ) : null}
+        <p className="storage-workspace__quota" role="status">
+          {quotaLoading ? (
+            <>개인 저장공간 사용량 불러오는 중…</>
+          ) : quota ? (
+            <>
+              개인 저장소 사용량 {formatStorageMb(quota.usedBytes)} MB / {formatStorageMb(quota.limitBytes)} MB
+              {quota.pendingUploadBytes != null && quota.pendingUploadBytes > 0
+                ? ` (업로드 진행 예약 ${formatStorageMb(quota.pendingUploadBytes)} MB)`
+                : ''}
+              {customerId != null ? ' (고객 파일·내 저장공간 합산)' : ''}
+            </>
+          ) : (
+            <>개인 저장공간 용량 정보를 불러오지 못했습니다.</>
+          )}
+        </p>
       </div>
 
       <StorageToolbar

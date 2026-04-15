@@ -14,6 +14,7 @@ import {
 } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
 import { useNotes } from '../hooks/useNotes'
+import { loadMemoUiSnapshot, patchMemoUiCanvas } from '../memoUiStorage'
 
 type MemoWorkspaceContextValue = ReturnType<typeof useNotes> & {
   token: string | undefined
@@ -74,6 +75,43 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
   const [deleteSubmitting, setDeleteSubmitting] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
   const [hiddenNotes, setHiddenNotes] = useState<Record<string, boolean>>({})
+  const canvasHydratedRef = useRef(false)
+  const skipCanvasPersistRef = useRef(true)
+
+  useEffect(() => {
+    skipCanvasPersistRef.current = true
+  }, [persistenceUserId])
+
+  useEffect(() => {
+    if (!persistenceUserId) {
+      canvasHydratedRef.current = false
+      return
+    }
+    const snap = loadMemoUiSnapshot(persistenceUserId)
+    if (snap?.canvas) {
+      setIsMinimized(snap.canvas.isMinimized)
+      const nextHidden: Record<string, boolean> = {}
+      for (const id of snap.canvas.hiddenNoteIds) {
+        nextHidden[id] = true
+      }
+      setHiddenNotes(nextHidden)
+    }
+    canvasHydratedRef.current = true
+  }, [persistenceUserId])
+
+  useEffect(() => {
+    if (!persistenceUserId || !canvasHydratedRef.current) {
+      return
+    }
+    if (skipCanvasPersistRef.current) {
+      skipCanvasPersistRef.current = false
+      return
+    }
+    patchMemoUiCanvas(persistenceUserId, {
+      isMinimized,
+      hiddenNoteIds: Object.keys(hiddenNotes).filter((id) => hiddenNotes[id]),
+    })
+  }, [persistenceUserId, isMinimized, hiddenNotes])
 
   const minimizeNote = useCallback((id: string) => {
     setHiddenNotes((prev) => ({

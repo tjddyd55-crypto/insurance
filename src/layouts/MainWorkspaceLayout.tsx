@@ -1,5 +1,7 @@
 import { FormButton } from '../components/form'
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useAuth } from '../features/auth/AuthProvider'
+import { loadMemoUiSnapshot, patchMemoUiWorkspace } from '../features/memo/memoUiStorage'
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import MemoWorkspacePage from '../features/memo/pages/MemoWorkspacePage'
 import MemoList from '../features/memo/components/MemoList'
@@ -104,6 +106,8 @@ type MainWorkspaceLayoutProps = {
 
 function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
   const { isMinimized, setIsMinimized } = useMemoWorkspace()
+  const { user } = useAuth()
+  const persistenceUserId = String(user?.id ?? '')
 
   const [memoRatio, setMemoRatio] = useState(0.4)
   const [isMemoOpen, setIsMemoOpen] = useState(true)
@@ -111,6 +115,37 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
   const [isListOpen, setIsListOpen] = useState(true)
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
   const [leftDrawerOpen, setLeftDrawerOpen] = useState(false)
+  const workspaceHydratedRef = useRef(false)
+  const skipWorkspacePersistRef = useRef(true)
+
+  useEffect(() => {
+    skipWorkspacePersistRef.current = true
+  }, [persistenceUserId])
+
+  useEffect(() => {
+    if (!persistenceUserId) {
+      workspaceHydratedRef.current = false
+      return
+    }
+    const snap = loadMemoUiSnapshot(persistenceUserId)
+    if (snap?.workspace) {
+      setMemoRatio(snap.workspace.memoRatio)
+      setIsListOpen(snap.workspace.isListOpen)
+      setIsMemoOpen(snap.workspace.isMemoOpen)
+    }
+    workspaceHydratedRef.current = true
+  }, [persistenceUserId])
+
+  useEffect(() => {
+    if (!persistenceUserId || !workspaceHydratedRef.current) {
+      return
+    }
+    if (skipWorkspacePersistRef.current) {
+      skipWorkspacePersistRef.current = false
+      return
+    }
+    patchMemoUiWorkspace(persistenceUserId, { memoRatio, isListOpen, isMemoOpen })
+  }, [persistenceUserId, memoRatio, isListOpen, isMemoOpen])
 
   const isMobile = useMediaQuery('(max-width: 768px)')
   const isNarrow = useMediaQuery('(max-width: 899px)')

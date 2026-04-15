@@ -3,11 +3,21 @@ import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-
 import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '../api/gaCustomerExcelApi'
+import { getCustomerById } from '../api/customersApi'
 import CustomersPage from './CustomersPage'
 
 function parseSelectedCustomerId(raw: string | null): number | null {
   const n = Number(raw)
   return Number.isInteger(n) && n > 0 ? n : null
+}
+
+/** Path-based customer (files/consultations/ga-excel) wins over ?customerId= so list expand does not override the workspace header. */
+function parseWorkspaceCustomerIdFromPath(pathname: string): number | null {
+  const m = pathname.match(/^\/customers\/(\d+)\/(?:files|consultations|ga-excel)(?:\/|$)/)
+  if (!m?.[1]) {
+    return null
+  }
+  return parseSelectedCustomerId(m[1])
 }
 
 function buildCustomerWorkspaceHref(basePath: string, params: URLSearchParams): string {
@@ -38,11 +48,40 @@ export default function CustomerWorkspaceLayout() {
   const location = useLocation()
   const { token, user } = useAuth()
   const [searchParams] = useSearchParams()
-  const selectedCustomerId = useMemo(
-    () => parseSelectedCustomerId(searchParams.get('customerId')),
-    [searchParams],
-  )
+  const selectedCustomerId = useMemo(() => {
+    const fromPath = parseWorkspaceCustomerIdFromPath(location.pathname)
+    if (fromPath != null) {
+      return fromPath
+    }
+    return parseSelectedCustomerId(searchParams.get('customerId'))
+  }, [location.pathname, searchParams])
+  const [selectedCustomerLabel, setSelectedCustomerLabel] = useState('')
   const [excelCap, setExcelCap] = useState<GaCustomerExcelCapability | null>(null)
+
+  useEffect(() => {
+    if (!selectedCustomerId || !token?.trim()) {
+      setSelectedCustomerLabel('')
+      return
+    }
+    let cancelled = false
+    void getCustomerById(token, selectedCustomerId)
+      .then((c) => {
+        if (cancelled) {
+          return
+        }
+        const name = c?.name?.trim()
+        setSelectedCustomerLabel(name || `고객 #${selectedCustomerId}`)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSelectedCustomerLabel(`고객 #${selectedCustomerId}`)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedCustomerId, token])
 
   useEffect(() => {
     if (!token?.trim()) {
@@ -91,7 +130,10 @@ export default function CustomerWorkspaceLayout() {
           <div>
             <h2 className="customer-workspace-layout__title">{rightTitle(location.pathname)}</h2>
             <p className="customer-workspace-layout__subtitle">
-              선택 고객: {selectedCustomerId ? `#${selectedCustomerId}` : '미선택'}
+              선택 고객:{' '}
+              {selectedCustomerId
+                ? selectedCustomerLabel || `고객 #${selectedCustomerId}`
+                : '미선택'}
             </p>
           </div>
           <div className="customer-workspace-layout__actions">
