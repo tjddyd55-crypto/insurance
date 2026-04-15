@@ -59,7 +59,8 @@ export function useMemoWorkspace() {
 }
 
 export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
+  const persistenceUserId = String(user?.id ?? '')
   const notesApi = useNotes()
   const { notes, updatePosition, deleteNote, bringToFront } = notesApi
 
