@@ -1,4 +1,4 @@
-import multer from 'multer'
+﻿import multer from 'multer'
 import * as XLSX from 'xlsx'
 import { safeQuery, systemQuery } from '../utils/dbSafeQuery.js'
 
@@ -7,8 +7,7 @@ const uploadExcel = multer({
   limits: { fileSize: 20 * 1024 * 1024 },
 })
 
-const ALLOWED_MATCH_DB_FIELDS = new Set(['name', 'birth_date', 'ssn'])
-const ALLOWED_FILTER_OPS = new Set(['=', '!='])
+const ALLOWED_MATCH_DB_FIELDS = new Set(['name', 'birth_date', 'ssn', 'phone'])
 
 function parseGaIdParam(raw) {
   const n = Number(raw)
@@ -28,10 +27,22 @@ function cellToString(v) {
   return String(v).trim()
 }
 
-function normalizeName(v) {
-  return String(v ?? '')
-    .replace(/\s+/g, ' ')
-    .trim()
+/** DB 저장·화면 표시용. 셀 문자열은 trim 하지 않고 보관한다(조회 시에만 정규화). */
+function excelCellToStoredString(v) {
+  if (v == null || v === '') {
+    return ''
+  }
+  if (v instanceof Date) {
+    const y = v.getFullYear()
+    const m = String(v.getMonth() + 1).padStart(2, '0')
+    const d = String(v.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+  return String(v)
+}
+
+function normalizeNameForMatch(v) {
+  return String(v ?? '').trim()
 }
 
 function normalizeSsn(v) {
@@ -40,62 +51,107 @@ function normalizeSsn(v) {
     .trim()
 }
 
-/** yyyy-mm-dd, yyyy.mm.dd, yyyymmdd 등 → yyyy-mm-dd 비교용 */
-function normalizeDateString(v) {
-  const s = String(v ?? '')
-    .trim()
-    .replace(/\./g, '-')
-    .replace(/\//g, '-')
-  if (/^\d{8}$/.test(s)) {
-    return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`
-  }
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (m) {
-    return `${m[1]}-${m[2]}-${m[3]}`
-  }
-  return s
+function normalizePhone(v) {
+  return String(v ?? '').replace(/[^0-9]/g, '')
 }
 
-function customerBirthYmd(row) {
+function extractBirthDigits(raw) {
+  return String(raw ?? '').replace(/\D/g, '')
+}
+
+/**
+ * 생년월일: 6자리(YYMMDD) / 8자리(YYYYMMDD) 혼용.
+ * 한쪽만 8자리인 경우 양쪽 모두 뒤 6자리(YYMMDD)로 비교한다.
+ */
+function parseBirthComparable(raw) {
+  const d = extractBirthDigits(raw)
+  if (d.length < 6) {
+    return null
+  }
+  if (d.length >= 8) {
+    const y8 = d.slice(0, 8)
+    return { y8, y6: y8.slice(2, 8) }
+  }
+  return { y8: null, y6: d.slice(-6) }
+}
+
+function birthComparableEquals(aRaw, bRaw) {
+  const a = parseBirthComparable(aRaw)
+  const b = parseBirthComparable(bRaw)
+  if (!a || !b) {
+    return false
+  }
+  if (a.y8 && b.y8) {
+    return a.y8 === b.y8
+  }
+  if (a.y8 && !b.y8) {
+    return a.y6 === b.y6
+  }
+  if (!a.y8 && b.y8) {
+    return a.y6 === b.y6
+  }
+  return a.y6 === b.y6
+}
+
+function customerBirthRawForMatch(row) {
   const bd = row.birth_date
   if (bd instanceof Date) {
-    return bd.toISOString().slice(0, 10)
+    const y = bd.getFullYear()
+    const m = String(bd.getMonth() + 1).padStart(2, '0')
+    const d = String(bd.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
   }
-  if (bd) {
-    return normalizeDateString(String(bd).slice(0, 10))
-  }
-  return ''
+  return String(bd ?? '')
 }
 
 function getCustomerNormalizedField(row, dbField) {
   if (dbField === 'name') {
-    return normalizeName(row.name ?? '')
+    return normalizeNameForMatch(row.name ?? '')
   }
   if (dbField === 'ssn') {
     return normalizeSsn(row.ssn ?? '')
   }
+  if (dbField === 'phone') {
+    return normalizePhone(row.phone ?? '')
+  }
   if (dbField === 'birth_date') {
-    return normalizeDateString(customerBirthYmd(row))
+    return customerBirthRawForMatch(row)
   }
   return ''
 }
 
 function getExcelCellNormalized(cells, columnId, dbField) {
   const raw = cells[columnId]
-  const s = cellToString(raw)
+  const s = raw == null ? '' : String(raw)
   if (dbField === 'ssn') {
     return normalizeSsn(s)
   }
-  if (dbField === 'birth_date') {
-    return normalizeDateString(s)
+  if (dbField === 'phone') {
+    return normalizePhone(s)
   }
-  return normalizeName(s)
+  if (dbField === 'birth_date') {
+    return s
+  }
+  return normalizeNameForMatch(s)
 }
 
 /**
  * 첫 시트, 첫 행 헤더 → col_0… 안정 id 부여
  * @param {Buffer} buffer
  */
+function headerCellToLabel(h, index) {
+  if (h == null || h === '') {
+    return `열 ${index + 1}`
+  }
+  if (h instanceof Date) {
+    const y = h.getFullYear()
+    const m = String(h.getMonth() + 1).padStart(2, '0')
+    const d = String(h.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  }
+  return String(h).trim() || `열 ${index + 1}`
+}
+
 function parseExcelSampleToColumnsAndRows(buffer) {
   const wb = XLSX.read(buffer, { type: 'buffer', cellDates: true })
   const sheetName = wb.SheetNames[0]
@@ -103,17 +159,18 @@ function parseExcelSampleToColumnsAndRows(buffer) {
     throw new Error('EMPTY_WORKBOOK')
   }
   const sheet = wb.Sheets[sheetName]
+  const matrixRaw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true })
   const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false })
   if (!Array.isArray(matrix) || matrix.length === 0) {
     throw new Error('EMPTY_SHEET')
   }
-  const headerRow = matrix[0]
+  const headerRow = Array.isArray(matrixRaw[0]) ? matrixRaw[0] : matrix[0]
   if (!Array.isArray(headerRow)) {
     throw new Error('BAD_HEADER')
   }
   const columns = headerRow.map((h, index) => ({
     id: `col_${index}`,
-    header: String(h ?? '').trim() || `열${index + 1}`,
+    header: headerCellToLabel(h, index),
     index,
   }))
   const dataRows = []
@@ -123,9 +180,9 @@ function parseExcelSampleToColumnsAndRows(buffer) {
     let any = false
     for (let j = 0; j < columns.length; j++) {
       const v = Array.isArray(arr) ? arr[j] : undefined
-      const str = cellToString(v)
+      const str = excelCellToStoredString(v)
       cells[columns[j].id] = str
-      if (str) {
+      if (str.trim()) {
         any = true
       }
     }
@@ -158,19 +215,26 @@ function columnIdSet(columns) {
   return new Set(columns.map((c) => c.id))
 }
 
-function rowPassesFilter(cells, filterColumnId, filterOp, filterValue) {
-  if (!filterColumnId || !filterOp) {
+/** @param {{ id: string, header: string }[]} sampleColumns */
+function resolveSampleColumnId(sampleColumns, raw) {
+  const s = String(raw ?? '').trim()
+  if (!s) {
+    return null
+  }
+  if (sampleColumns.some((c) => c.id === s)) {
+    return s
+  }
+  const hit = sampleColumns.find((c) => c.header === s)
+  return hit ? hit.id : null
+}
+
+function blockNonDesignerExcelUser(req, res) {
+  const role = String(req.user?.role ?? '')
+  if (role === 'SUPER_ADMIN' || role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER') {
+    res.status(403).json({ message: '이 기능은 GA 설계사 계정에서만 사용할 수 있습니다.' })
     return true
   }
-  const cellStr = cellToString(cells[filterColumnId])
-  const fv = String(filterValue ?? '').trim()
-  if (filterOp === '=') {
-    return cellStr === fv
-  }
-  if (filterOp === '!=') {
-    return cellStr !== fv
-  }
-  return true
+  return false
 }
 
 function rowMatchesCustomer(cells, matchRules, customerRow) {
@@ -180,9 +244,15 @@ function rowMatchesCustomer(cells, matchRules, customerRow) {
     if (!colId || !ALLOWED_MATCH_DB_FIELDS.has(dbField)) {
       return false
     }
-    const a = getExcelCellNormalized(cells, colId, dbField)
-    const b = getCustomerNormalizedField(customerRow, dbField)
-    if (a === '' || b === '' || a !== b) {
+    const excelNorm = getExcelCellNormalized(cells, colId, dbField)
+    const dbNorm = getCustomerNormalizedField(customerRow, dbField)
+    if (dbField === 'birth_date') {
+      if (excelNorm === '' || dbNorm === '' || !birthComparableEquals(excelNorm, dbNorm)) {
+        return false
+      }
+      continue
+    }
+    if (excelNorm === '' || dbNorm === '' || excelNorm !== dbNorm) {
       return false
     }
   }
@@ -192,29 +262,19 @@ function rowMatchesCustomer(cells, matchRules, customerRow) {
 function mapSettingsRow(row) {
   const sampleColumns = parseJsonArray(row.sample_columns, [])
   const matchRules = parseJsonArray(row.match_rules, [])
-  const displayColumnIds = parseJsonArray(row.display_column_ids, [])
   return {
     gaId: Number(row.ga_id),
     featureEnabled: Boolean(row.feature_enabled),
-    configReady: Boolean(row.config_ready),
+    configReady: computeConfigReady(sampleColumns, matchRules),
     sampleOriginalFilename: row.sample_original_filename != null ? String(row.sample_original_filename) : '',
     sampleUploadedAt: row.sample_uploaded_at,
     sampleColumns,
     matchRules,
-    displayColumnIds,
-    filter:
-      row.filter_column_id != null && String(row.filter_column_id).trim()
-        ? {
-            columnId: String(row.filter_column_id).trim(),
-            op: String(row.filter_op ?? '=').trim(),
-            value: String(row.filter_value ?? ''),
-          }
-        : null,
+    displayColumnIds: [],
     updatedAt: row.updated_at,
     settingsVersion: Number(row.settings_version ?? 1),
     matchRuleCount: matchRules.length,
-    displayColumnCount: displayColumnIds.length,
-    hasFilter: Boolean(row.filter_column_id && String(row.filter_column_id).trim()),
+    displayColumnCount: 0,
   }
 }
 
@@ -246,18 +306,16 @@ async function loadSettingsOrDefault(pool, gaId) {
       sampleColumns: [],
       matchRules: [],
       displayColumnIds: [],
-      filter: null,
       updatedAt: null,
       settingsVersion: 0,
       matchRuleCount: 0,
       displayColumnCount: 0,
-      hasFilter: false,
     }
   }
   return mapSettingsRow(r.rows[0])
 }
 
-function computeConfigReady(sampleColumns, matchRules, displayColumnIds) {
+function computeConfigReady(sampleColumns, matchRules) {
   const colIds = columnIdSet(sampleColumns)
   if (sampleColumns.length === 0) {
     return false
@@ -272,18 +330,130 @@ function computeConfigReady(sampleColumns, matchRules, displayColumnIds) {
       return false
     }
   }
-  for (const did of displayColumnIds) {
-    if (!colIds.has(String(did))) {
-      return false
-    }
-  }
   return true
 }
 
+async function loadUserColumnVisibilityMap(pool, userId, gaId) {
+  const r = await safeQuery(
+    pool,
+    `
+    SELECT column_name, is_visible
+    FROM user_excel_column_settings
+    WHERE user_id = $1 AND ga_id = $2
+    `,
+    [userId, gaId],
+  )
+  const map = new Map()
+  for (const row of r.rows) {
+    map.set(String(row.column_name), Boolean(row.is_visible))
+  }
+  return map
+}
+
+function buildVisibleColumnOrder(sampleColumns, visibilityMap) {
+  const displayColumnIds = []
+  const displayHeaders = []
+  for (const c of sampleColumns) {
+    const vis = visibilityMap.get(c.id)
+    const isVisible = vis === undefined ? true : vis
+    if (!isVisible) {
+      continue
+    }
+    displayColumnIds.push(c.id)
+    displayHeaders.push(c.header)
+  }
+  return { displayColumnIds, displayHeaders }
+}
+
 /**
- * @param {import('express').Router} apiRouter
- * @param {object} ctx
+ * 로그인 유저의 GA 엑셀 데이터와 고객을 매칭한 조회 페이로드 생성
+ * @returns {Promise<{ status: number, body: object }>}
  */
+async function buildUserGaExcelCustomerPayload(pool, { userId, gaId, customerId }) {
+  const settings = await loadSettingsOrDefault(pool, gaId)
+  if (!settings.featureEnabled || !settings.configReady) {
+    return {
+      status: 403,
+      body: { message: 'GA 엑셀 설정이 필요합니다' },
+    }
+  }
+
+  const cust = await safeQuery(
+    pool,
+    `
+    SELECT id, user_id, ga_id, name, ssn, birth_date, phone
+    FROM customers
+    WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
+    LIMIT 1
+    `,
+    [customerId, userId, gaId],
+  )
+  if (cust.rowCount === 0) {
+    return { status: 404, body: { message: '고객을 찾을 수 없습니다.' } }
+  }
+  const customerRow = cust.rows[0]
+
+  const visibilityMap = await loadUserColumnVisibilityMap(pool, userId, gaId)
+  const { displayColumnIds, displayHeaders } = buildVisibleColumnOrder(settings.sampleColumns, visibilityMap)
+
+  const rowsRes = await safeQuery(
+    pool,
+    `
+    SELECT row_index, row_data
+    FROM user_excel_data
+    WHERE user_id = $1 AND ga_id = $2
+    ORDER BY row_index ASC, id ASC
+    `,
+    [userId, gaId],
+  )
+
+  const matchRules = settings.matchRules
+  const sourceRowCount = rowsRes.rows.length
+
+  if (sourceRowCount === 0) {
+    return {
+      status: 200,
+      body: {
+        displayHeaders,
+        displayColumnIds,
+        rows: [],
+        sourceRowCount: 0,
+        message: '업로드된 고객 데이터가 없습니다',
+      },
+    }
+  }
+
+  const outRows = []
+  for (const r of rowsRes.rows) {
+    const cells = typeof r.row_data === 'object' && r.row_data != null ? r.row_data : {}
+    if (!rowMatchesCustomer(cells, matchRules, customerRow)) {
+      continue
+    }
+    const displayCells = {}
+    for (const colId of displayColumnIds) {
+      const key = String(colId)
+      const v = cells[key]
+      displayCells[key] = v == null ? '' : String(v)
+    }
+    outRows.push({ rowIndex: Number(r.row_index), cells: displayCells })
+  }
+
+  let message = ''
+  if (outRows.length === 0) {
+    message = '매칭되는 행이 없습니다.'
+  }
+
+  return {
+    status: 200,
+    body: {
+      displayHeaders,
+      displayColumnIds,
+      rows: outRows,
+      sourceRowCount,
+      message,
+    },
+  }
+}
 export function registerGaCustomerExcelApi(apiRouter, ctx) {
   const { pool, requireAuth, requireSuperAdmin, handleDbError, parseGaId, requireInsuranceFormUserId } = ctx
 
@@ -390,7 +560,7 @@ export function registerGaCustomerExcelApi(apiRouter, ctx) {
     },
   )
 
-  /** 슈퍼 관리자: ON/OFF·매핑·표시·필터 저장 */
+  /** 슈퍼 관리자: ON/OFF·매핑·표시 저장 */
   apiRouter.put('/admin/ga/:gaId/customer-excel/settings', requireAuth, requireSuperAdmin, async (req, res) => {
     try {
       const gaId = parseGaIdParam(req.params.gaId)
@@ -409,8 +579,6 @@ export function registerGaCustomerExcelApi(apiRouter, ctx) {
       const body = req.body ?? {}
       const featureEnabled = Boolean(body.featureEnabled ?? body.feature_enabled)
       const matchRules = Array.isArray(body.matchRules) ? body.matchRules : []
-      const displayColumnIds = Array.isArray(body.displayColumnIds) ? body.displayColumnIds : []
-      const filterRaw = body.filter ?? null
 
       const client = await pool.connect()
       try {
@@ -419,7 +587,7 @@ export function registerGaCustomerExcelApi(apiRouter, ctx) {
         const row = cur.rows[0]
         const sampleColumns = parseJsonArray(row.sample_columns, [])
 
-        if (sampleColumns.length === 0 && (featureEnabled || matchRules.length > 0 || displayColumnIds.length > 0)) {
+        if (sampleColumns.length === 0 && (featureEnabled || matchRules.length > 0)) {
           res.status(400).json({ message: '먼저 샘플 엑셀을 업로드해 주세요.' })
           return
         }
@@ -444,42 +612,7 @@ export function registerGaCustomerExcelApi(apiRouter, ctx) {
           return
         }
 
-        const cleanedDisplay = []
-        for (const id of displayColumnIds) {
-          const cid = String(id ?? '').trim()
-          if (!cid) {
-            continue
-          }
-          if (sampleColumns.length > 0 && !colIds.has(cid)) {
-            res.status(400).json({ message: '표시 컬럼 선택이 샘플 컬럼과 일치하지 않습니다.' })
-            return
-          }
-          cleanedDisplay.push(cid)
-        }
-
-        let filterColumnId = null
-        let filterOp = null
-        let filterValue = null
-        if (filterRaw && typeof filterRaw === 'object') {
-          filterColumnId = String(filterRaw.columnId ?? '').trim() || null
-          filterOp = String(filterRaw.op ?? '=').trim() || '='
-          filterValue = filterRaw.value != null ? String(filterRaw.value) : ''
-          if (filterColumnId) {
-            if (sampleColumns.length > 0 && !colIds.has(filterColumnId)) {
-              res.status(400).json({ message: '필터 컬럼이 샘플 컬럼에 없습니다.' })
-              return
-            }
-            if (!ALLOWED_FILTER_OPS.has(filterOp)) {
-              res.status(400).json({ message: '필터 연산자는 = 또는 != 만 지원합니다.' })
-              return
-            }
-          } else {
-            filterOp = null
-            filterValue = null
-          }
-        }
-
-        const configReady = computeConfigReady(sampleColumns, cleanedMatch, cleanedDisplay)
+        const configReady = computeConfigReady(sampleColumns, cleanedMatch)
 
         await client.query('BEGIN')
         await safeQuery(
@@ -488,25 +621,16 @@ export function registerGaCustomerExcelApi(apiRouter, ctx) {
           UPDATE ga_customer_excel_settings
           SET feature_enabled = $2,
               match_rules = CAST($3 AS jsonb)::jsonb,
-              display_column_ids = CAST($4 AS jsonb)::jsonb,
-              filter_column_id = $5,
-              filter_op = $6,
-              filter_value = $7,
-              config_ready = $8,
+              display_column_ids = '[]'::jsonb,
+              filter_column_id = NULL,
+              filter_op = NULL,
+              filter_value = NULL,
+              config_ready = $4,
               settings_version = settings_version + 1,
               updated_at = NOW()
           WHERE ga_id = $1
           `,
-          [
-            gaId,
-            featureEnabled,
-            JSON.stringify(cleanedMatch),
-            JSON.stringify(cleanedDisplay),
-            filterColumnId,
-            filterOp,
-            filterValue,
-            configReady,
-          ],
+          [gaId, featureEnabled, JSON.stringify(cleanedMatch), configReady],
         )
         await client.query('COMMIT')
         const settings = await loadSettingsOrDefault(pool, gaId)
@@ -561,102 +685,14 @@ export function registerGaCustomerExcelApi(apiRouter, ctx) {
   })
 
   /** 설계사: 운영 엑셀 업로드 (GA 단위, 기존 업로드 행 교체) */
-  apiRouter.post('/ga-customer-excel/upload', requireAuth, uploadExcel.single('file'), async (req, res) => {
-    const client = await pool.connect()
-    try {
-      const userId = requireInsuranceFormUserId(req, res)
-      if (!userId) {
-        return
-      }
-      const gaId = parseGaId(req.user?.gaId)
-      if (gaId == null) {
-        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
-        return
-      }
-      const role = String(req.user?.role ?? '')
-      if (role === 'SUPER_ADMIN' || role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER') {
-        res.status(403).json({ message: '이 기능은 GA 설계사 계정에서만 사용할 수 있습니다.' })
-        return
-      }
-
-      const settings = await loadSettingsOrDefault(pool, gaId)
-      if (!settings.featureEnabled || !settings.configReady) {
-        res.status(403).json({ message: '고객 엑셀 기능이 비활성이거나 설정이 완료되지 않았습니다.' })
-        return
-      }
-
-      const file = req.file
-      if (!file?.buffer) {
-        res.status(400).json({ message: '엑셀 파일을 선택해 주세요.' })
-        return
-      }
-      const orig = String(file.originalname ?? 'data.xlsx')
-      let dataRows
-      let parsedColumns
-      try {
-        const parsed = parseExcelSampleToColumnsAndRows(file.buffer)
-        parsedColumns = parsed.columns
-        dataRows = parsed.dataRows
-      } catch (err) {
-        const code = err instanceof Error ? err.message : 'PARSE_ERROR'
-        res.status(400).json({ message: '엑셀을 읽을 수 없습니다.', code })
-        return
-      }
-
-      const expectedIds = columnIdSet(settings.sampleColumns)
-      const actualIds = new Set(parsedColumns.map((c) => c.id))
-      if (expectedIds.size !== actualIds.size) {
-        res.status(400).json({ message: '업로드 파일의 열 개수가 샘플 엑셀과 다릅니다.' })
-        return
-      }
-      for (const id of expectedIds) {
-        if (!actualIds.has(id)) {
-          res.status(400).json({ message: '업로드 파일의 열 구조가 샘플 엑셀과 다릅니다.' })
-          return
-        }
-      }
-
-      await client.query('BEGIN')
-      await safeQuery(client, `DELETE FROM ga_customer_excel_rows WHERE ga_id = $1`, [gaId])
-      await safeQuery(client, `DELETE FROM ga_customer_excel_uploads WHERE ga_id = $1`, [gaId])
-
-      const up = await safeQuery(
-        client,
-        `
-        INSERT INTO ga_customer_excel_uploads (ga_id, uploaded_by_user_id, original_filename, row_count, settings_version_at_upload)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id
-        `,
-        [gaId, userId, orig, dataRows.length, settings.settingsVersion],
-      )
-      const uploadId = Number(up.rows[0].id)
-
-      for (const dr of dataRows) {
-        await safeQuery(
-          client,
-          `
-          INSERT INTO ga_customer_excel_rows (ga_id, upload_id, row_index, cells)
-          VALUES ($1, $2, $3, CAST($4 AS jsonb)::jsonb)
-          `,
-          [gaId, uploadId, dr.rowIndex, JSON.stringify(dr.cells)],
-        )
-      }
-
-      await client.query('COMMIT')
-      res.json({ ok: true, uploadId, rowCount: dataRows.length, originalFilename: orig })
-    } catch (e) {
-      try {
-        await client.query('ROLLBACK')
-      } catch {
-        /* ignore */
-      }
-      handleDbError(e, req, res)
-    } finally {
-      client.release()
-    }
+  /** 레거시 GA 공용 업로드 — 종료. 유저는 「내 정보 관리」에서 업로드 */
+  apiRouter.post('/ga-customer-excel/upload', requireAuth, uploadExcel.single('file'), async (_req, res) => {
+    res.status(410).json({
+      message: 'GA 공용 엑셀 업로드는 종료되었습니다. 좌측 메뉴 「내 정보 관리」에서 고객 데이터 엑셀을 업로드해 주십시오.',
+    })
   })
 
-  /** 설계사: 고객 기준 GA 엑셀 데이터 (매칭·필터·표시 컬럼만 서버에서 적용) */
+  /** 설계사: 고객 기준 유저 엑셀 (user_excel_data + GA 매칭 + 표시 설정) */
   apiRouter.get('/customers/:id/ga-excel-data', requireAuth, async (req, res) => {
     try {
       const userId = requireInsuranceFormUserId(req, res)
@@ -674,94 +710,251 @@ export function registerGaCustomerExcelApi(apiRouter, ctx) {
         return
       }
 
+      const payload = await buildUserGaExcelCustomerPayload(pool, { userId, gaId, customerId })
+      if (payload.status === 403) {
+        res.status(403).json({ message: payload.body.message })
+        return
+      }
+      if (payload.status === 404) {
+        res.status(404).json({ message: payload.body.message })
+        return
+      }
+      res.status(200).json(payload.body)
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/user/excel-data', requireAuth, uploadExcel.single('file'), async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const userId = requireInsuranceFormUserId(req, res)
+      if (!userId) {
+        return
+      }
+      if (blockNonDesignerExcelUser(req, res)) {
+        return
+      }
+      const gaId = parseGaId(req.user?.gaId)
+      if (gaId == null) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
       const settings = await loadSettingsOrDefault(pool, gaId)
       if (!settings.featureEnabled || !settings.configReady) {
-        res.status(403).json({ message: '고객 엑셀 기능을 사용할 수 없습니다.' })
+        res.status(403).json({ message: 'GA 엑셀 설정이 필요합니다' })
+        return
+      }
+      const file = req.file
+      if (!file?.buffer) {
+        res.status(400).json({ message: '엑셀 파일을 선택해 주세요.' })
+        return
+      }
+      let dataRows
+      let parsedColumns
+      try {
+        const parsed = parseExcelSampleToColumnsAndRows(file.buffer)
+        parsedColumns = parsed.columns
+        dataRows = parsed.dataRows
+      } catch (err) {
+        const code = err instanceof Error ? err.message : 'PARSE_ERROR'
+        res.status(400).json({ message: '엑셀을 읽을 수 없습니다.', code })
         return
       }
 
-      const cust = await safeQuery(
-        pool,
-        `
-        SELECT id, user_id, ga_id, name, ssn, birth_date
-        FROM customers
-        WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
-        LIMIT 1
-        `,
-        [customerId, userId, gaId],
-      )
-      if (cust.rowCount === 0) {
-        res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+      const expectedIds = columnIdSet(settings.sampleColumns)
+      const actualIds = new Set(parsedColumns.map((c) => c.id))
+      if (expectedIds.size !== actualIds.size) {
+        res.status(400).json({ message: '업로드 파일의 열 구조가 GA에 설정된 샘플 엑셀과 다릅니다.' })
         return
       }
-      const customerRow = cust.rows[0]
+      for (const id of expectedIds) {
+        if (!actualIds.has(id)) {
+          res.status(400).json({ message: '업로드 파일의 열 구조가 GA에 설정된 샘플 엑셀과 다릅니다.' })
+          return
+        }
+      }
 
-      const up = await safeQuery(
-        pool,
-        `
-        SELECT id FROM ga_customer_excel_uploads
-        WHERE ga_id = $1
-        ORDER BY uploaded_at DESC, id DESC
-        LIMIT 1
-        `,
-        [gaId],
-      )
-      if (up.rowCount === 0) {
-        res.json({
-          displayHeaders: [],
-          rows: [],
-          message: '업로드된 GA 고객 엑셀 데이터가 없습니다.',
-        })
+      await client.query('BEGIN')
+      await safeQuery(client, `DELETE FROM user_excel_data WHERE user_id = $1 AND ga_id = $2`, [userId, gaId])
+
+      for (const dr of dataRows) {
+        await safeQuery(
+          client,
+          `
+          INSERT INTO user_excel_data (user_id, ga_id, row_index, row_data)
+          VALUES ($1, $2, $3, CAST($4 AS jsonb)::jsonb)
+          `,
+          [userId, gaId, dr.rowIndex, JSON.stringify(dr.cells)],
+        )
+      }
+
+      await client.query('COMMIT')
+      res.json({ ok: true, rowCount: dataRows.length })
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* ignore */
+      }
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
+    }
+  })
+
+  apiRouter.get('/user/excel-data', requireAuth, async (req, res) => {
+    try {
+      const userId = requireInsuranceFormUserId(req, res)
+      if (!userId) {
         return
       }
-      const uploadId = Number(up.rows[0].id)
-
+      if (blockNonDesignerExcelUser(req, res)) {
+        return
+      }
+      const gaId = parseGaId(req.user?.gaId)
+      if (gaId == null) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
+      const settings = await loadSettingsOrDefault(pool, gaId)
       const rowsRes = await safeQuery(
         pool,
         `
-        SELECT row_index, cells
-        FROM ga_customer_excel_rows
-        WHERE ga_id = $1 AND upload_id = $2
+        SELECT row_index, row_data
+        FROM user_excel_data
+        WHERE user_id = $1 AND ga_id = $2
         ORDER BY row_index ASC, id ASC
         `,
-        [gaId, uploadId],
+        [userId, gaId],
       )
-
-      const sampleColumns = settings.sampleColumns
-      const headerById = new Map(sampleColumns.map((c) => [c.id, c.header]))
-      const displayIds = settings.displayColumnIds
-      const displayHeaders = displayIds.map((id) => headerById.get(String(id)) ?? String(id))
-
-      const matchRules = settings.matchRules
-      const fc = settings.filter?.columnId ?? null
-      const fo = settings.filter?.op ?? '='
-      const fv = settings.filter?.value ?? ''
-
-      const outRows = []
-      for (const r of rowsRes.rows) {
-        const cells = typeof r.cells === 'object' && r.cells != null ? r.cells : {}
-        if (!rowPassesFilter(cells, fc, fo, fv)) {
-          continue
-        }
-        if (!rowMatchesCustomer(cells, matchRules, customerRow)) {
-          continue
-        }
-        const displayCells = {}
-        for (const colId of displayIds) {
-          const key = String(colId)
-          displayCells[key] = cellToString(cells[key])
-        }
-        outRows.push({ rowIndex: Number(r.row_index), cells: displayCells })
-      }
-
+      const rows = rowsRes.rows.map((r) => ({
+        rowIndex: Number(r.row_index),
+        cells: typeof r.row_data === 'object' && r.row_data != null ? r.row_data : {},
+      }))
+      const visRes = await safeQuery(
+        pool,
+        `
+        SELECT column_name, is_visible
+        FROM user_excel_column_settings
+        WHERE user_id = $1 AND ga_id = $2
+        `,
+        [userId, gaId],
+      )
+      const columnSettings = visRes.rows.map((r) => ({
+        column_name: String(r.column_name),
+        is_visible: Boolean(r.is_visible),
+      }))
       res.json({
-        displayHeaders,
-        displayColumnIds: displayIds,
-        rows: outRows,
-        message: '',
+        sampleColumns: settings.sampleColumns,
+        sourceRowCount: rows.length,
+        rows,
+        columnSettings,
       })
     } catch (e) {
       handleDbError(e, req, res)
     }
   })
+
+  apiRouter.get('/user/excel-data/customer/:customerId', requireAuth, async (req, res) => {
+    try {
+      const userId = requireInsuranceFormUserId(req, res)
+      if (!userId) {
+        return
+      }
+      if (blockNonDesignerExcelUser(req, res)) {
+        return
+      }
+      const gaId = parseGaId(req.user?.gaId)
+      if (gaId == null) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
+      const customerId = Number(req.params.customerId)
+      if (!Number.isInteger(customerId) || customerId < 1) {
+        res.status(400).json({ message: '잘못된 고객 ID입니다.' })
+        return
+      }
+      const payload = await buildUserGaExcelCustomerPayload(pool, { userId, gaId, customerId })
+      if (payload.status === 403) {
+        res.status(403).json({ message: payload.body.message })
+        return
+      }
+      if (payload.status === 404) {
+        res.status(404).json({ message: payload.body.message })
+        return
+      }
+      res.status(200).json(payload.body)
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.patch('/user/excel-columns', requireAuth, async (req, res) => {
+    try {
+      const userId = requireInsuranceFormUserId(req, res)
+      if (!userId) {
+        return
+      }
+      if (blockNonDesignerExcelUser(req, res)) {
+        return
+      }
+      const gaId = parseGaId(req.user?.gaId)
+      if (gaId == null) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
+      const settings = await loadSettingsOrDefault(pool, gaId)
+      if (!settings.featureEnabled || !settings.configReady) {
+        res.status(403).json({ message: 'GA 엑셀 설정이 필요합니다' })
+        return
+      }
+      const body = req.body
+      if (!Array.isArray(body)) {
+        res.status(400).json({ message: '요청 본문은 배열이어야 합니다.' })
+        return
+      }
+
+      const client = await pool.connect()
+      try {
+        await client.query('BEGIN')
+        for (const item of body) {
+          const rawName = item?.column_name ?? item?.columnName
+          const isVisible = Boolean(item?.is_visible ?? item?.isVisible ?? true)
+          const colId = resolveSampleColumnId(settings.sampleColumns, rawName)
+          if (!colId) {
+            await client.query('ROLLBACK')
+            res.status(400).json({
+              message: `알 수 없는 컬럼입니다: ${String(rawName ?? '')}`,
+            })
+            return
+          }
+          await safeQuery(
+            client,
+            `
+            INSERT INTO user_excel_column_settings (user_id, ga_id, column_name, is_visible, updated_at)
+            VALUES ($1, $2, $3, $4, NOW())
+            ON CONFLICT (user_id, ga_id, column_name)
+            DO UPDATE SET is_visible = EXCLUDED.is_visible, updated_at = NOW()
+            `,
+            [userId, gaId, colId, isVisible],
+          )
+        }
+        await client.query('COMMIT')
+        res.json({ ok: true })
+      } catch (e) {
+        try {
+          await client.query('ROLLBACK')
+        } catch {
+          /* ignore */
+        }
+        throw e
+      } finally {
+        client.release()
+      }
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
 }

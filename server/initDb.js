@@ -722,6 +722,32 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_excel_data (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      row_index INTEGER NOT NULL,
+      row_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+      uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_excel_data_user_ga
+    ON user_excel_data(user_id, ga_id)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_excel_column_settings (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      column_name TEXT NOT NULL,
+      is_visible BOOLEAN NOT NULL DEFAULT true,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (user_id, ga_id, column_name)
+    )
+  `)
+
+  await pool.query(`
     ALTER TABLE insurance_forms
     ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
   `)
@@ -1774,6 +1800,7 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_folders_user_ga_customer_created
     ON folders (user_id, ga_id, customer_id, created_at DESC)
   `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS files (
       id BIGSERIAL PRIMARY KEY,
@@ -1811,7 +1838,8 @@ export async function initDb() {
     ON files (user_id, created_at DESC)
     WHERE is_confirmed = true
   `)
-  // Deduplicate folders, remap files.folder_id, then partial unique indexes.
+
+  /** folders: 레거시 uq_folders_user_name 미사용.�합 후 partial unique 인����다. */
   await pool.query(`DROP INDEX IF EXISTS uq_folders_user_name`)
   await pool.query(`DROP INDEX IF EXISTS uq_folders_user_ga_personal_name`)
   await pool.query(`DROP INDEX IF EXISTS uq_folders_user_ga_customer_name`)

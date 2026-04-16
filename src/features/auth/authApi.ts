@@ -197,8 +197,15 @@ export async function verifySignupPhoneCode(payload: {
 }) {
   return apiRequest<{
     ok?: boolean
+    success?: boolean
     message?: string
-    signup_phone_proof: string
+    signup_phone_proof?: string
+    data?: {
+      ok?: boolean
+      success?: boolean
+      message?: string
+      signup_phone_proof?: string
+    }
   }>('/api/auth/verify-signup-phone-code', {
     method: 'POST',
     body: JSON.stringify({

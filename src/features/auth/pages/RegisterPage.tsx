@@ -18,6 +18,19 @@ type UsernameCheck = 'idle' | 'checking' | 'available' | 'taken' | 'invalid'
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
 
+type VerifySignupResponseLike = {
+  ok?: boolean
+  success?: boolean
+  message?: string
+  signup_phone_proof?: string
+  data?: {
+    ok?: boolean
+    success?: boolean
+    message?: string
+    signup_phone_proof?: string
+  }
+}
+
 export function RegisterPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -81,6 +94,10 @@ export function RegisterPage() {
     }, 1000)
     return () => window.clearInterval(t)
   }, [resendLeft])
+
+  useEffect(() => {
+    console.log('인증 상태:', isPhoneVerified)
+  }, [isPhoneVerified])
 
   const resetUsernameCheck = () => {
     setUsernameCheck('idle')
@@ -157,7 +174,7 @@ export function RegisterPage() {
     }
   }
 
-  const confirmSignupSms = async () => {
+  const handleVerifyCode = async () => {
     setErrorMessage('')
     setInfoMessage('')
     if (!inviteTrim) {
@@ -175,14 +192,22 @@ export function RegisterPage() {
     }
     setSmsSubmitting(true)
     try {
-      const r = await verifySignupPhoneCode({
+      const r = (await verifySignupPhoneCode({
         inviteCode: inviteTrim,
         phoneNumber: phoneDigits,
         code: smsCode.trim(),
-      })
-      setSignupPhoneProof(r.signup_phone_proof)
-      setIsPhoneVerified(true)
-      setInfoMessage(r.message ?? '휴대폰 인증이 완료되었습니다.')
+      })) as VerifySignupResponseLike
+      const verified = Boolean(r.success ?? r.data?.success ?? r.ok ?? r.data?.ok)
+      const proof = String(r.signup_phone_proof ?? r.data?.signup_phone_proof ?? '').trim()
+
+      setIsPhoneVerified(verified)
+      if (verified) {
+        setSignupPhoneProof(proof || null)
+        setInfoMessage(r.message ?? r.data?.message ?? '휴대폰 인증이 완료되었습니다.')
+      } else {
+        setSignupPhoneProof(null)
+        setErrorMessage('인증번호가 일치하지 않습니다.')
+      }
     } catch (e) {
       setIsPhoneVerified(false)
       setSignupPhoneProof(null)
@@ -200,7 +225,7 @@ export function RegisterPage() {
     event.preventDefault()
     setErrorMessage('')
 
-    if (needsPhoneAuth && (!isPhoneVerified || !signupPhoneProof)) {
+    if (needsPhoneAuth && !isPhoneVerified) {
       alert('휴대폰 인증을 완료해주세요.')
       return
     }
@@ -315,7 +340,7 @@ export function RegisterPage() {
   const submitDisabled =
     isSubmitting ||
     !inviteLinkOk ||
-    (needsPhoneAuth && (!isPhoneVerified || !signupPhoneProof)) ||
+    (needsPhoneAuth && !isPhoneVerified) ||
     usernameCheck === 'checking' ||
     usernameCheck === 'taken' ||
     usernameCheck === 'invalid'
@@ -462,7 +487,7 @@ export function RegisterPage() {
             htmlType="button"
             variant="secondary"
             className="button button--secondary"
-            onClick={() => void confirmSignupSms()}
+            onClick={() => void handleVerifyCode()}
             disabled={smsConfirmDisabled}
           >
             인증 확인
