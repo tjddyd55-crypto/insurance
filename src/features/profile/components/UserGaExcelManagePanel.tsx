@@ -23,6 +23,9 @@ const L = {
   displayTitle: '컬럼 노출 설정',
   quickTitle: '빠른 선택',
   allColumnsTitle: '전체 컬럼',
+  previewTitle: '엑셀 데이터 미리보기',
+  previewGuide: '업로드된 데이터의 상위 10행을 표시합니다.',
+  previewEmpty: '업로드된 데이터가 없습니다.',
   emptyCols: '\uC0D8\uD50C \uC5D1\uC140 \uC124\uC815 \uD6C4 \uC5EC\uAE30\uC5D0 \uCEEC\uB7FC \uBAA9\uB85D\uC774 \uD45C\uC2DC\uB429\uB2C8\uB2E4.',
 }
 
@@ -43,6 +46,7 @@ export function UserGaExcelManagePanel({ token }: Props) {
   const [info, setInfo] = useState('')
   const [rowCount, setRowCount] = useState<number | null>(null)
   const [sampleColumns, setSampleColumns] = useState<{ id: string; header: string }[]>([])
+  const [rows, setRows] = useState<{ rowIndex: number; cells: Record<string, string> }[]>([])
   const [visibility, setVisibility] = useState<Record<string, boolean>>({})
 
   const load = useCallback(async () => {
@@ -56,12 +60,14 @@ export function UserGaExcelManagePanel({ token }: Props) {
       if (!c.showDesignerUi) {
         setRowCount(null)
         setSampleColumns([])
+        setRows([])
         setVisibility({})
         return
       }
       const d = await fetchUserExcelData(token)
       setRowCount(d.sourceRowCount)
       setSampleColumns(d.sampleColumns.map((x) => ({ id: x.id, header: x.header })))
+      setRows(d.rows)
       const vis: Record<string, boolean> = {}
       for (const col of d.sampleColumns) {
         vis[col.id] = true
@@ -96,6 +102,8 @@ export function UserGaExcelManagePanel({ token }: Props) {
       return { label: filter.label, column: found ?? null }
     })
   }, [sampleColumns])
+
+  const previewRows = useMemo(() => rows.slice(0, 10), [rows])
 
   const onUpload = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault()
@@ -223,6 +231,35 @@ export function UserGaExcelManagePanel({ token }: Props) {
               </li>
             ))}
           </ul>
+
+          <div className="mt-4">
+            <span className="field__label block mb-1">{L.previewTitle}</span>
+            <p className="text-sm text-[var(--text-secondary)] mb-2">{L.previewGuide}</p>
+            {previewRows.length === 0 ? (
+              <p className="text-sm text-[var(--text-secondary)]">{L.previewEmpty}</p>
+            ) : (
+              <div className="overflow-x-auto border border-[var(--border-default)] rounded">
+                <table className="admin-data-table" style={{ minWidth: 520 }}>
+                  <thead>
+                    <tr>
+                      {sampleColumns.map((c) => (
+                        <th key={`preview-head-${c.id}`}>{c.header}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewRows.map((r) => (
+                      <tr key={`preview-row-${r.rowIndex}`}>
+                        {sampleColumns.map((c) => (
+                          <td key={`preview-cell-${r.rowIndex}-${c.id}`}>{r.cells[c.id] ?? ''}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <p className="text-sm text-[var(--text-secondary)]">{L.emptyCols}</p>
