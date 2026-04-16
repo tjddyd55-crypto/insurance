@@ -41,16 +41,7 @@ export function ElectronTitleBar() {
 
   return (
     <header className="electron-title-bar title-bar" role="banner">
-      <div className="electron-title-bar__leading">
-        <FormButton
-          htmlType="button"
-          className="electron-title-bar__back"
-          aria-label={BACK_LABEL}
-          onClick={handleBack}
-        >
-          {BACK_LABEL}
-        </FormButton>
-      </div>
+      <div className="electron-title-bar__leading" aria-hidden="true" />
       <div className="electron-title-bar__drag">
         <span className="electron-title-bar__app-name">
           {tenantChrome ? (
@@ -66,18 +57,17 @@ export function ElectronTitleBar() {
         {showGaUserActions ? (
           <div className="electron-title-bar__user-actions">
             <NotificationBell />
-            {user?.role === 'USER' ? (
-              <FormButton
-                htmlType="button"
-                className="app-tenant-ga-bar__profile"
-                onClick={() => navigate('/profile')}
-              >
-                {'\uD504\uB85C\uD544'}
-              </FormButton>
-            ) : null}
           </div>
         ) : null}
         <div className="window-controls">
+          <FormButton
+            htmlType="button"
+            className="electron-title-bar__control electron-title-bar__control--back"
+            aria-label={BACK_LABEL}
+            onClick={handleBack}
+          >
+            ←
+          </FormButton>
           <FormButton
             htmlType="button"
             className="electron-title-bar__control"
@@ -85,7 +75,7 @@ export function ElectronTitleBar() {
             onClick={() => api?.minimize?.()}
             disabled={!active}
           >
-            ─
+            —
           </FormButton>
           <FormButton
             htmlType="button"
@@ -103,7 +93,7 @@ export function ElectronTitleBar() {
             onClick={() => api?.close?.()}
             disabled={!active}
           >
-            ×
+            ✕
           </FormButton>
         </div>
       </div>

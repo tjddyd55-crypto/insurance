@@ -16,6 +16,8 @@ import {
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import { fetchTeamMembers } from '../features/team/api/teamApi'
 import { useMediaQuery } from '../hooks/useMediaQuery'
+import { CarInsuranceDashboardPage } from '../features/application/pages/CarInsuranceDashboardPage'
+import { isElectronApp } from '../lib/isElectronApp'
 import MemoPanel from './MemoPanel'
 import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
 
@@ -151,6 +153,23 @@ function isActivePath(pathname: string, itemPath: string): boolean {
   return pathname === itemPath
 }
 
+/** 자동차 신청 라우트 그룹: 이 경로로 이동하면 임베드 허브를 끄고 라우터 Outlet을 사용한다. */
+function pathnameUsesStandaloneCarInsuranceRoutes(pathname: string): boolean {
+  if (pathname === '/application' || pathname.startsWith('/application/')) {
+    return true
+  }
+  if (pathname.startsWith('/app/auto-insurance')) {
+    return true
+  }
+  if (pathname.startsWith('/my-forms')) {
+    return true
+  }
+  if (pathname.startsWith('/form/')) {
+    return true
+  }
+  return false
+}
+
 /** 인증 라우트 전역: 기본은 좌측 메뉴+우측 콘텐츠, 고객관리는 좌측 고객 워크스페이스로 전환 */
 export default function AppWorkspaceLayout() {
   const isMobile = useMediaQuery('(max-width: 768px)')
@@ -178,6 +197,7 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
   const [resizeSession, setResizeSession] = useState<{ startX: number; startWidth: number } | null>(null)
   /** PC(데스크톱 구간) 좌측 메뉴 접기 — 모바일 분기와 무관, CSS 로 1024px 미만에서는 레이아웃만 숨김 */
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [embedCarInsuranceHub, setEmbedCarInsuranceHub] = useState(false)
 
   const sidebarItems = useMemo(() => {
     const base = buildSidebarEntries(user?.role, user?.gaCode, user?.gaName).filter((entry) =>
@@ -196,6 +216,22 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
     }
     return out
   }, [teamMenuManageVisible, user?.role, user?.gaCode, user?.gaName])
+
+  useEffect(() => {
+    if (pathnameUsesStandaloneCarInsuranceRoutes(location.pathname)) {
+      setEmbedCarInsuranceHub(false)
+    }
+  }, [location.pathname])
+
+  const sidebarLinkIsActive = useCallback(
+    (pathname: string, itemPath: string) => {
+      if (itemPath === '/application' && embedCarInsuranceHub) {
+        return true
+      }
+      return isActivePath(pathname, itemPath)
+    },
+    [embedCarInsuranceHub],
+  )
 
   const onSelectNoteFromList = useCallback((id: string) => {
     setSelectedNoteId(id)
@@ -348,6 +384,23 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
     ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')
     : '업무 메뉴'
 
+  const electronApi = typeof window !== 'undefined' ? window.electronAPI : undefined
+  const windowControlsActive = Boolean(
+    electronApi?.minimize && electronApi?.maximize && electronApi?.close,
+  )
+
+  const handleWorkspaceChromeBack = useCallback(() => {
+    if (embedCarInsuranceHub) {
+      setEmbedCarInsuranceHub(false)
+      return
+    }
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      navigate(-1)
+    } else {
+      navigate('/')
+    }
+  }, [embedCarInsuranceHub, navigate])
+
   return (
     <div className="app-workspace-layout-root">
       <header className="app-workspace-chrome-header" aria-label="워크스페이스 상단">
@@ -365,21 +418,50 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
           <span className="app-workspace-chrome-header__ga">{workspaceHeaderTitle}</span>
         </div>
         <div className="app-workspace-chrome-header__trailing">
-          {showGaUserActions ? (
-            <>
-              <NotificationBell />
-              {user?.role === 'USER' ? (
-                <FormButton
-                  htmlType="button"
-                  variant="secondary"
-                  className="app-workspace-chrome-header__profile"
-                  onClick={() => navigate('/profile')}
-                >
-                  프로필
-                </FormButton>
-              ) : null}
-            </>
-          ) : null}
+          {showGaUserActions ? <NotificationBell /> : null}
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="app-workspace-chrome-header__back-btn"
+            aria-label="뒤로가기"
+            onClick={handleWorkspaceChromeBack}
+          >
+            ←
+          </FormButton>
+          {isElectronApp() ? null : (
+            <div className="app-workspace-chrome-header__window-controls window-controls window-controls--web-stub">
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                className="app-workspace-chrome-header__win-btn"
+                aria-label="최소화"
+                disabled={!windowControlsActive}
+                onClick={() => electronApi?.minimize?.()}
+              >
+                —
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                className="app-workspace-chrome-header__win-btn"
+                aria-label="최대화"
+                disabled={!windowControlsActive}
+                onClick={() => electronApi?.maximize?.()}
+              >
+                □
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                className="app-workspace-chrome-header__win-btn app-workspace-chrome-header__win-btn--close"
+                aria-label="닫기"
+                disabled={!windowControlsActive}
+                onClick={() => electronApi?.close?.()}
+              >
+                ✕
+              </FormButton>
+            </div>
+          )}
         </div>
       </header>
 
@@ -388,42 +470,45 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
           className={`workspace-sidebar${isSidebarCollapsed ? ' workspace-sidebar--collapsed' : ''}`}
           aria-label="좌측 메뉴"
         >
-          <div className="workspace-sidebar__section workspace-sidebar__section--menu">
-            <h2 className="workspace-sidebar__title">메뉴</h2>
-            <nav className="workspace-sidebar__nav" aria-label="주요 메뉴">
-              {sidebarItems.map((item, index) => {
-                if (item.type === 'divider') {
-                  return <div key={`workspace-divider-${index}`} className="workspace-sidebar__divider" role="presentation" />
-                }
-                const isDisabled = Boolean(item.disabled || item.preparing)
-                const isActive =
-                  !isDisabled && item.path.trim() !== '' && item.path !== '#' && isActivePath(location.pathname, item.path)
-                return (
-                  <FormButton
-                    key={`${item.path}-${item.label}-${index}`}
-                    htmlType="button"
-                    variant="action"
-                    className={`workspace-sidebar__nav-btn${
-                      isActive ? ' workspace-sidebar__nav-btn--active' : ''
-                    }`}
-                    disabled={isDisabled}
-                    onClick={() => {
-                      if (item.preparing || item.disabled) {
-                        setPreparingNoticeOpen(true)
-                        return
-                      }
-                      if (!item.path.trim() || item.path === '#') {
-                        return
-                      }
-                      navigate(item.path)
-                    }}
-                  >
-                    {item.label}
-                  </FormButton>
-                )
-              })}
-            </nav>
-          </div>
+          <nav className="workspace-sidebar__nav" aria-label="주요 메뉴">
+            {sidebarItems.map((item, index) => {
+              if (item.type === 'divider') {
+                return <div key={`workspace-divider-${index}`} className="workspace-sidebar__divider" role="presentation" />
+              }
+              const isDisabled = Boolean(item.disabled || item.preparing)
+              const isActive =
+                !isDisabled &&
+                item.path.trim() !== '' &&
+                item.path !== '#' &&
+                sidebarLinkIsActive(location.pathname, item.path)
+              return (
+                <FormButton
+                  key={`${item.path}-${item.label}-${index}`}
+                  htmlType="button"
+                  variant="secondary"
+                  className={`workspace-sidebar__menu-item${isActive ? ' workspace-sidebar__menu-item--active' : ''}`}
+                  disabled={isDisabled}
+                  onClick={() => {
+                    if (item.preparing || item.disabled) {
+                      setPreparingNoticeOpen(true)
+                      return
+                    }
+                    if (!item.path.trim() || item.path === '#') {
+                      return
+                    }
+                    if (item.path === '/application') {
+                      setEmbedCarInsuranceHub(true)
+                      return
+                    }
+                    setEmbedCarInsuranceHub(false)
+                    navigate(item.path)
+                  }}
+                >
+                  {item.label}
+                </FormButton>
+              )
+            })}
+          </nav>
 
           <FormButton
             className="workspace-sidebar__logout"
@@ -439,8 +524,24 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
         </aside>
 
         <div className="workspace-main workspace-main--app">
-          <div className="app-main-content">
+          <div className="app-main-content app-main-content--workspace-outlet-host">
             <Outlet />
+            {embedCarInsuranceHub ? (
+              <div className="workspace-embedded-car-hub-shell" role="dialog" aria-label="자동차 신청서">
+                <div className="workspace-embedded-car-hub-shell__toolbar">
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    onClick={() => setEmbedCarInsuranceHub(false)}
+                  >
+                    ← 닫기
+                  </FormButton>
+                </div>
+                <div className="workspace-embedded-car-hub-shell__body">
+                  <CarInsuranceDashboardPage />
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

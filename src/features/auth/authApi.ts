@@ -125,6 +125,21 @@ export async function checkUsernameAvailability(username: string): Promise<boole
   return Boolean(r.available)
 }
 
+/** 회원가입 GA 코드 자동 조회 — GET /api/ga/validate */
+export type ValidateGaSignupResponse = { success: boolean; gaName?: string }
+
+export async function validateGaCodeForSignup(code: string): Promise<ValidateGaSignupResponse> {
+  const c = code.trim()
+  if (!c) {
+    return { success: false }
+  }
+  const res = await fetch(`/api/ga/validate?code=${encodeURIComponent(c)}`)
+  if (!res.ok) {
+    return { success: false }
+  }
+  return (await res.json()) as ValidateGaSignupResponse
+}
+
 export async function fetchSignedInviteSignupUrl(token: string): Promise<{ path: string }> {
   return apiRequest<{ path: string }>('/api/auth/invite-signup-url', { method: 'GET', token })
 }

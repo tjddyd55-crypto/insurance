@@ -4,6 +4,8 @@ import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '../api/gaCustomerExcelApi'
 import { getCustomerById } from '../api/customersApi'
+import { ApplicationFormPage } from '../../application/pages/ApplicationFormPage'
+import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
 import CustomersPage from './CustomersPage'
 
 function parseSelectedCustomerId(raw: string | null): number | null {
@@ -57,6 +59,8 @@ export default function CustomerWorkspaceLayout() {
   }, [location.pathname, searchParams])
   const [selectedCustomerLabel, setSelectedCustomerLabel] = useState('')
   const [excelCap, setExcelCap] = useState<GaCustomerExcelCapability | null>(null)
+  /** 우측 패널에서만 자동차 신청서 작성(전역 라우트 이동 없음) */
+  const [rightPanelCarForm, setRightPanelCarForm] = useState(false)
 
   useEffect(() => {
     if (!selectedCustomerId || !token?.trim()) {
@@ -165,20 +169,22 @@ export default function CustomerWorkspaceLayout() {
             >
               상담 이력
             </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className="filter-button"
-              disabled={!selectedCustomerId}
-              onClick={() => {
-                if (!selectedCustomerId) {
-                  return
-                }
-                navigate(`/app/auto-insurance?customerId=${selectedCustomerId}`)
-              }}
-            >
-              자동차 신청서
-            </FormButton>
+            {showCarInsuranceInWorkspace ? (
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className={`filter-button${rightPanelCarForm ? ' filter-button--workspace-active' : ''}`}
+                disabled={!selectedCustomerId}
+                onClick={() => {
+                  if (!selectedCustomerId) {
+                    return
+                  }
+                  setRightPanelCarForm(true)
+                }}
+              >
+                자동차 신청서
+              </FormButton>
+            ) : null}
             {showGaExcelEntry ? (
               <FormButton
                 htmlType="button"
@@ -204,7 +210,29 @@ export default function CustomerWorkspaceLayout() {
         </header>
 
         <div className="customer-workspace-layout__right-body">
-          <Outlet context={{ selectedCustomerId }} />
+          {rightPanelCarForm && selectedCustomerId ? (
+            <div
+              className="customer-workspace-layout__embedded-car"
+              role="region"
+              aria-label="자동차 신청서 작성"
+            >
+              <div className="customer-workspace-layout__embedded-car-toolbar">
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  className="filter-button"
+                  onClick={() => setRightPanelCarForm(false)}
+                >
+                  ← 작업 영역으로
+                </FormButton>
+              </div>
+              <div className="customer-workspace-layout__embedded-car-body">
+                <ApplicationFormPage />
+              </div>
+            </div>
+          ) : (
+            <Outlet context={{ selectedCustomerId }} />
+          )}
         </div>
       </section>
     </div>

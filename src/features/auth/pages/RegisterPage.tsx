@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { normalizeKrMobile, validateKrMobileDigits } from '../../../lib/phoneNormalize'
@@ -8,6 +8,7 @@ import {
   login as loginApi,
   register as registerApi,
   sendSignupPhoneCode,
+  validateGaCodeForSignup,
   verifySignupPhoneCode,
 } from '../authApi'
 import { FormButton, FormInput } from '../../../components/form'
@@ -35,7 +36,9 @@ export function RegisterPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { isAuthenticated, login } = useAuth()
-  const [inviteCode, setInviteCode] = useState('')
+  const [gaCode, setGaCode] = useState('')
+  const [gaInfo, setGaInfo] = useState<string | null>(null)
+  const [gaError, setGaError] = useState('')
   const [inviteRefUserId, setInviteRefUserId] = useState('')
   const [inviteSig, setInviteSig] = useState('')
   const [inviteTs, setInviteTs] = useState('')
@@ -46,7 +49,7 @@ export function RegisterPage() {
   const [phone, setPhone] = useState('')
   const [smsCode, setSmsCode] = useState('')
   const [signupPhoneProof, setSignupPhoneProof] = useState<string | null>(null)
-  const [isPhoneVerified, setIsPhoneVerified] = useState(false)
+  const [isVerified, setIsVerified] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [infoMessage, setInfoMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -65,7 +68,7 @@ export function RegisterPage() {
   useEffect(() => {
     const ga = searchParams.get('ga')?.trim()
     if (ga) {
-      setInviteCode((prev) => (prev.trim() !== '' ? prev : ga.toUpperCase()))
+      setGaCode((prev) => (prev.trim() !== '' ? prev : ga.toUpperCase()))
     }
     const ref = searchParams.get('ref')?.trim()
     setInviteRefUserId(ref ?? '')
@@ -96,8 +99,47 @@ export function RegisterPage() {
   }, [resendLeft])
 
   useEffect(() => {
-    console.log('인증 상태:', isPhoneVerified)
-  }, [isPhoneVerified])
+    console.log({ isVerified, gaCode, gaInfo })
+  }, [isVerified, gaCode, gaInfo])
+
+  useEffect(() => {
+    const raw = gaCode.trim()
+    if (!raw) {
+      setGaInfo(null)
+      setGaError('')
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const data = await validateGaCodeForSignup(raw)
+          if (cancelled) {
+            return
+          }
+          if (data.success && data.gaName) {
+            setGaInfo(data.gaName)
+            setGaError('')
+          } else {
+            setGaInfo(null)
+            setGaError('존재하지 않는 GA 코드입니다.')
+          }
+        } catch {
+          if (cancelled) {
+            return
+          }
+          setGaInfo(null)
+          setGaError('조회 실패')
+        }
+      })()
+    }, 400)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [gaCode])
 
   const resetUsernameCheck = () => {
     setUsernameCheck('idle')
@@ -123,16 +165,8 @@ export function RegisterPage() {
   }
 
   const phoneDigits = normalizeKrMobile(phone)
-  const inviteTrim = inviteCode.trim()
+  const gaCodeTrim = gaCode.trim()
   const needsPhoneAuth = !isSignupPhoneRelaxedMode() || Boolean(phoneDigits)
-
-  const inviteLinkOk = useMemo(() => {
-    const refOk = inviteRefUserId.trim().length > 0
-    const sigOk = inviteSig.trim().length > 0
-    const tsNum = Number(inviteTs.trim())
-    const tsOk = Number.isFinite(tsNum) && tsNum > 0
-    return refOk && sigOk && tsOk
-  }, [inviteRefUserId, inviteSig, inviteTs])
 
   const requestSignupSms = async () => {
     setErrorMessage('')
@@ -142,13 +176,13 @@ export function RegisterPage() {
       setErrorMessage(pErr)
       return
     }
-    if (!inviteTrim) {
+    if (!gaCodeTrim) {
       setErrorMessage('GA 코드를 먼저 입력하세요.')
       return
     }
     setSmsSubmitting(true)
     try {
-      const r = await sendSignupPhoneCode({ inviteCode: inviteTrim, phoneNumber: phoneDigits })
+      const r = await sendSignupPhoneCode({ inviteCode: gaCodeTrim, phoneNumber: phoneDigits })
       setInfoMessage(r.message ?? '인증번호를 발송했습니다.')
       if (r.debugCode) {
         setDebugCodeHint(`(개발용) 인증번호: ${r.debugCode}`)
@@ -159,7 +193,7 @@ export function RegisterPage() {
       setResendLeft(RESEND_COOLDOWN_SEC)
       setSmsCode('')
       setSignupPhoneProof(null)
-      setIsPhoneVerified(false)
+      setIsVerified(false)
     } catch (e) {
       if (e instanceof ApiError) {
         setErrorMessage(e.message)
@@ -177,7 +211,7 @@ export function RegisterPage() {
   const handleVerifyCode = async () => {
     setErrorMessage('')
     setInfoMessage('')
-    if (!inviteTrim) {
+    if (!gaCodeTrim) {
       setErrorMessage('GA 코드를 입력하세요.')
       return
     }
@@ -193,14 +227,14 @@ export function RegisterPage() {
     setSmsSubmitting(true)
     try {
       const r = (await verifySignupPhoneCode({
-        inviteCode: inviteTrim,
+        inviteCode: gaCodeTrim,
         phoneNumber: phoneDigits,
         code: smsCode.trim(),
       })) as VerifySignupResponseLike
-      const verified = Boolean(r.success ?? r.data?.success ?? r.ok ?? r.data?.ok)
+      const verified = Boolean(r?.success || r?.data?.success || r?.ok || r?.data?.ok)
       const proof = String(r.signup_phone_proof ?? r.data?.signup_phone_proof ?? '').trim()
 
-      setIsPhoneVerified(verified)
+      setIsVerified(verified)
       if (verified) {
         setSignupPhoneProof(proof || null)
         setInfoMessage(r.message ?? r.data?.message ?? '휴대폰 인증이 완료되었습니다.')
@@ -209,7 +243,7 @@ export function RegisterPage() {
         setErrorMessage('인증번호가 일치하지 않습니다.')
       }
     } catch (e) {
-      setIsPhoneVerified(false)
+      setIsVerified(false)
       setSignupPhoneProof(null)
       if (e instanceof ApiError) {
         setErrorMessage(e.message)
@@ -225,12 +259,12 @@ export function RegisterPage() {
     event.preventDefault()
     setErrorMessage('')
 
-    if (needsPhoneAuth && !isPhoneVerified) {
+    if (needsPhoneAuth && !isVerified) {
       alert('휴대폰 인증을 완료해주세요.')
       return
     }
 
-    const code = inviteTrim
+    const code = gaCodeTrim
     const nameTrim = name.trim()
     const userTrim = username.trim()
     const refTrim = inviteRefUserId.trim()
@@ -337,16 +371,10 @@ export function RegisterPage() {
     return null
   }
 
-  const submitDisabled =
-    isSubmitting ||
-    !inviteLinkOk ||
-    (needsPhoneAuth && !isPhoneVerified) ||
-    usernameCheck === 'checking' ||
-    usernameCheck === 'taken' ||
-    usernameCheck === 'invalid'
+  const signupSubmitDisabled = isSubmitting || (needsPhoneAuth && !isVerified)
 
-  const smsRequestDisabled = smsSubmitting || resendLeft > 0 || isPhoneVerified
-  const smsConfirmDisabled = smsSubmitting || smsCode.trim().length !== 6 || isPhoneVerified
+  const smsRequestDisabled = smsSubmitting || resendLeft > 0 || isVerified
+  const smsConfirmDisabled = smsSubmitting || smsCode.trim().length !== 6 || isVerified
 
   return (
     <main className="auth-page">
@@ -361,16 +389,18 @@ export function RegisterPage() {
             <span className="field__label">GA 코드</span>
             <p className="text-xs text-gray-400 mb-2">부여받은 코드를 입력하세요.</p>
             <FormInput
-              value={inviteCode}
+              value={gaCode}
               onChange={(e) => {
-                setInviteCode(e.target.value.toUpperCase())
-                setIsPhoneVerified(false)
+                setGaCode(e.target.value.toUpperCase())
+                setIsVerified(false)
                 setSignupPhoneProof(null)
               }}
               autoComplete="off"
               placeholder="부여받은 소속코드를 입력하세요"
               required
             />
+            {gaInfo ? <div className="ga-success">{gaInfo}</div> : null}
+            {gaError ? <div className="ga-error">{gaError}</div> : null}
           </label>
 
           <label className="field">
@@ -435,75 +465,83 @@ export function RegisterPage() {
             />
           </label>
 
-          <label className="field">
-            <span className="field__label">휴대폰 번호</span>
-            <FormInput
-              value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value)
-                setIsPhoneVerified(false)
-                setSignupPhoneProof(null)
-              }}
-              inputMode="numeric"
-              autoComplete="tel"
-              placeholder="01012345678 또는 010-1234-5678"
-              required={!isSignupPhoneRelaxedMode()}
-            />
-          </label>
+          <div className="verify-section">
+            <div className="verify-overlay" aria-hidden="true" />
+            <label className="field">
+              <span className="field__label">휴대폰 번호</span>
+              <FormInput
+                value={phone}
+                onChange={(e) => {
+                  setPhone(e.target.value)
+                  setIsVerified(false)
+                  setSignupPhoneProof(null)
+                }}
+                inputMode="numeric"
+                autoComplete="tel"
+                placeholder="01012345678 또는 010-1234-5678"
+                required={!isSignupPhoneRelaxedMode()}
+              />
+            </label>
 
-          <div className="field">
-            <span className="field__label">휴대폰 인증</span>
-            <div className="register-phone-request-row">
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                className="button button--secondary"
-                onClick={() => void requestSignupSms()}
-                disabled={smsRequestDisabled}
-              >
-                {resendLeft > 0 ? `재요청 (${resendLeft}s)` : '인증번호 요청'}
-              </FormButton>
-              {secondsLeft > 0 ? (
-                <span className="status" style={{ fontSize: '0.9rem' }}>
-                  유효 시간 {secondsLeft}s
-                </span>
-              ) : null}
+            <div className="field">
+              <span className="field__label">휴대폰 인증</span>
+              <div className="register-phone-request-row">
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  className="button button--secondary"
+                  onClick={() => void requestSignupSms()}
+                  disabled={smsRequestDisabled}
+                >
+                  {resendLeft > 0 ? `재요청 (${resendLeft}s)` : '인증번호 요청'}
+                </FormButton>
+                {secondsLeft > 0 ? (
+                  <span className="status" style={{ fontSize: '0.9rem' }}>
+                    유효 시간 {secondsLeft}s
+                  </span>
+                ) : null}
+              </div>
             </div>
+
+            <label className="field">
+              <span className="field__label">인증번호</span>
+              <FormInput
+                value={smsCode}
+                onChange={(e) => setSmsCode(e.target.value)}
+                inputMode="numeric"
+                placeholder="인증번호 6자리"
+                maxLength={6}
+                disabled={isVerified}
+              />
+            </label>
+
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="button button--secondary"
+              onClick={() => void handleVerifyCode()}
+              disabled={smsConfirmDisabled}
+            >
+              인증 확인
+            </FormButton>
+
+            {isVerified ? (
+              <p className="status" style={{ color: 'var(--success)' }}>
+                인증 완료
+              </p>
+            ) : null}
           </div>
-
-          <label className="field">
-            <span className="field__label">인증번호</span>
-            <FormInput
-              value={smsCode}
-              onChange={(e) => setSmsCode(e.target.value)}
-              inputMode="numeric"
-              placeholder="인증번호 6자리"
-              maxLength={6}
-              disabled={isPhoneVerified}
-            />
-          </label>
-
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="button button--secondary"
-            onClick={() => void handleVerifyCode()}
-            disabled={smsConfirmDisabled}
-          >
-            인증 확인
-          </FormButton>
-
-          {isPhoneVerified ? (
-            <p className="status" style={{ color: 'var(--success)' }}>
-              인증 완료
-            </p>
-          ) : null}
           {debugCodeHint ? <p className="status">{debugCodeHint}</p> : null}
 
           {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
           {infoMessage ? <p className="status">{infoMessage}</p> : null}
 
-          <FormButton className="button button--primary button--full" htmlType="submit" variant="primary" disabled={submitDisabled}>
+          <FormButton
+            className="button button--primary button--full signup-button"
+            htmlType="submit"
+            variant="primary"
+            disabled={signupSubmitDisabled}
+          >
             {isSubmitting ? '가입 중…' : '가입'}
           </FormButton>
         </form>

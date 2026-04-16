@@ -67,6 +67,35 @@ export function registerUserProfileApi(apiRouter, ctx) {
     next()
   }
 
+  /** 회원가입 화면: GA 코드 존재·활성 여부 및 회사명 조회(비로그인 공개) */
+  apiRouter.get('/ga/validate', async (req, res) => {
+    try {
+      const inviteNorm = normalizeInviteCode(String(req.query?.code ?? ''))
+      if (!inviteNorm) {
+        res.json({ success: false })
+        return
+      }
+      const gaRow = await systemQuery(
+        pool,
+        `SELECT name, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
+        [inviteNorm],
+      )
+      if (gaRow.rows.length === 0) {
+        res.json({ success: false })
+        return
+      }
+      const row = gaRow.rows[0]
+      if (String(row.status ?? '').toLowerCase() !== 'active') {
+        res.json({ success: false })
+        return
+      }
+      const gaName = String(row.name ?? '').trim()
+      res.json({ success: true, gaName: gaName || inviteNorm })
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
   apiRouter.post('/auth/send-signup-phone-code', async (req, res) => {
     const clientIp = getClientIp(req)
     let phoneNorm = ''

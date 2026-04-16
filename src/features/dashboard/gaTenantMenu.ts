@@ -60,6 +60,7 @@ export function buildGaTenantDashboardMenu(
 ): GaTenantDashboardMenuEntry[] {
   const items: GaTenantDashboardMenuEntry[] = [
     { type: 'link', label: '고객 관리', path: '/customers' },
+    { type: 'link', label: '내정보관리', path: '/profile' },
     { type: 'link', label: '내 저장공간', path: '/storage' },
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
     { type: 'link', label: '원수사 소식지', path: '/portal/newsletters' },
@@ -144,4 +145,10 @@ export function isCarInsuranceFeatureEnabledForGa(gaCode: string | undefined): b
     const base = item.path.split('?')[0]
     return base === '/application' || base.startsWith('/application/')
   })
+}
+
+/** 대시보드·워크스페이스와 동일: 영진에셋(이름) 또는 GA_CUSTOM_MENU 기준 자동차 허브 노출 */
+export function isGaCarInsuranceHubEnabled(gaCode: string | undefined, gaName: string | undefined): boolean {
+  const carByName = String(gaName ?? '').trim() === '영진에셋'
+  return carByName || isCarInsuranceFeatureEnabledForGa(gaCode)
 }
