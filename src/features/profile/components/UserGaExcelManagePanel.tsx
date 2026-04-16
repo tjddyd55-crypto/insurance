@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { FormButton, FormInput } from '../../../components/form'
 import { StatusMessage } from '../../../components/feedback'
@@ -23,7 +23,6 @@ const L = {
   fileTypes: '\uD30C\uC77C (.xlsx / .xls)',
   upload: '\uC5C5\uB85C\uB4DC',
   displayTitle: '컬럼 노출 설정',
-  quickTitle: '빠른 선택',
   allColumnsTitle: '전체 컬럼',
   previewTitle: '엑셀 데이터 미리보기',
   previewGuide: '업로드된 데이터의 상위 10행을 표시합니다.',
@@ -35,12 +34,6 @@ type Props = {
   token: string
 }
 
-const QUICK_COLUMN_FILTERS = [
-  { label: '차량번호', matcher: /(차량\s*번호|차량번호|car[_\s-]*number|car[_\s-]*no)/i },
-  { label: '차명', matcher: /(차명|차량명|car[_\s-]*name|model)/i },
-  { label: '보험사', matcher: /(보험사|insurer|company)/i },
-] as const
-
 export function UserGaExcelManagePanel({ token }: Props) {
   const [cap, setCap] = useState<GaCustomerExcelCapability | null>(null)
   const [loadErr, setLoadErr] = useState('')
@@ -50,6 +43,7 @@ export function UserGaExcelManagePanel({ token }: Props) {
   const [sampleColumns, setSampleColumns] = useState<{ id: string; header: string }[]>([])
   const [rows, setRows] = useState<{ rowIndex: number; cells: Record<string, string> }[]>([])
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [fileInputKey, setFileInputKey] = useState(0)
   const [localPreview, setLocalPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null)
   const [visibility, setVisibility] = useState<Record<string, boolean>>({})
 
@@ -100,13 +94,6 @@ export function UserGaExcelManagePanel({ token }: Props) {
     return `\uC5C5\uB85C\uB4DC\uB41C \uD589: ${rowCount}\uAC74`
   }, [cap?.showDesignerUi, rowCount])
 
-  const quickColumns = useMemo(() => {
-    return QUICK_COLUMN_FILTERS.map((filter) => {
-      const found = sampleColumns.find((col) => filter.matcher.test(`${col.header} ${col.id}`))
-      return { label: filter.label, column: found ?? null }
-    })
-  }, [sampleColumns])
-
   const previewRows = useMemo(() => rows.slice(0, 10), [rows])
 
   const serverPreview = useMemo(() => {
@@ -144,13 +131,11 @@ export function UserGaExcelManagePanel({ token }: Props) {
     setLocalPreview({ headers, rows: dataRows })
   }, [])
 
-  const onUpload = async (ev: FormEvent<HTMLFormElement>) => {
-    ev.preventDefault()
+  const onUpload = async () => {
     if (!token?.trim() || !cap?.showDesignerUi) {
       return
     }
-    const fd = new FormData(ev.currentTarget)
-    const file = selectedFile ?? (fd.get('gaUserExcel') as File | null)
+    const file = selectedFile
     if (!file?.size) {
       setInfo('')
       setLoadErr(L.pickFile)
@@ -165,7 +150,7 @@ export function UserGaExcelManagePanel({ token }: Props) {
       await load()
       setSelectedFile(null)
       setLocalPreview(null)
-      ev.currentTarget.reset()
+      setFileInputKey((prev) => prev + 1)
     } catch (e) {
       setLoadErr(e instanceof Error ? e.message : L.uploadFail)
     } finally {
@@ -217,10 +202,11 @@ export function UserGaExcelManagePanel({ token }: Props) {
       <StatusMessage message={loadErr} tone="error" />
       <StatusMessage message={info} tone="default" />
 
-      <form onSubmit={(e) => void onUpload(e)} className="flex flex-wrap items-end gap-2 mb-4">
+      <div className="flex flex-wrap items-end gap-2 mb-4">
         <label className="text-sm text-[var(--text-secondary)]">
           {L.fileTypes}
           <FormInput
+            key={`ga-user-excel-file-${fileInputKey}`}
             type="file"
             name="gaUserExcel"
             accept=".xlsx,.xls"
@@ -240,38 +226,13 @@ export function UserGaExcelManagePanel({ token }: Props) {
             }}
           />
         </label>
-        <FormButton htmlType="submit" variant="secondary" disabled={busy}>
+        <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={() => void onUpload()}>
           {L.upload}
         </FormButton>
-      </form>
+      </div>
 
       {sampleColumns.length > 0 ? (
         <div>
-          <span className="field__label block mb-2">{L.quickTitle}</span>
-          <ul className="text-sm space-y-1 border border-[var(--border-default)] rounded p-2 mb-3">
-            {quickColumns.map((item) => (
-              <li key={item.label} className="flex items-center gap-2">
-                <FormInput
-                  type="checkbox"
-                  id={`ga-quick-col-${item.label}`}
-                  checked={item.column ? visibility[item.column.id] !== false : false}
-                  disabled={!item.column}
-                  onChange={(ev) => {
-                    if (!item.column) {
-                      return
-                    }
-                    void onToggleColumn(item.column.id, ev.target.checked)
-                  }}
-                  className="shrink-0"
-                />
-                <label htmlFor={`ga-quick-col-${item.label}`} className={!item.column ? 'opacity-60' : 'cursor-pointer'}>
-                  {item.label}
-                  {!item.column ? <span className="text-[var(--text-secondary)]"> (해당 컬럼 없음)</span> : null}
-                </label>
-              </li>
-            ))}
-          </ul>
-
           <span className="field__label block mb-2">{L.allColumnsTitle}</span>
           <p className="text-sm text-[var(--text-secondary)] mb-2">{L.displayTitle}</p>
           <ul className="text-sm space-y-1 max-h-48 overflow-y-auto border border-[var(--border-default)] rounded p-2">
