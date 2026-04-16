@@ -22,6 +22,9 @@ const CUSTOMER_FILE_ALLOWED_MIME = new Set([
   'application/pdf',
   'image/jpeg',
   'image/png',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'text/csv',
 ])
 /** presign 단계에서 명시 차단 (실행/HTML/바이너리 등) */
 const CUSTOMER_FILE_BLOCKED_MIME = new Set([
@@ -145,36 +148,44 @@ function sanitizeStorageFileNameForObjectKey(fileNameRaw) {
 function buildStorageObjectKey(gaIdPath, userId, fileNameRaw) {
   const userSeg = sanitizeUserIdForObjectKeySegment(userId)
   const safeName = sanitizeStorageFileNameForObjectKey(fileNameRaw)
-  const now = new Date()
-  const yyyy = String(now.getUTCFullYear())
-  const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
   const ts = Date.now()
-  return `platform-assets/insurer/${gaIdPath}/${userSeg}/files/storage/${yyyy}/${mm}/${ts}_${safeName}`
+  return `insurer/${gaIdPath}/${userSeg}/${ts}-${safeName}`
 }
 
-function assertStorageObjectKey(key, gaIdPath, userId) {
+function assertStorageObjectKey(key, gaPathCandidates, userId) {
   const k = String(key ?? '').replace(/^\//, '')
   if (!k || k.includes('..')) {
     return false
   }
   const userSeg = sanitizeUserIdForObjectKeySegment(userId)
-  const prefix = `platform-assets/insurer/${gaIdPath}/${userSeg}/files/storage/`
-  if (!k.startsWith(prefix)) {
+  const candidates = Array.isArray(gaPathCandidates)
+    ? gaPathCandidates.map((v) => String(v ?? '').trim()).filter(Boolean)
+    : []
+  if (candidates.length === 0) {
     return false
   }
-  const rest = k.slice(prefix.length)
-  const parts = rest.split('/').filter(Boolean)
-  if (parts.length !== 3) {
-    return false
+  for (const gaPath of candidates) {
+    const newPrefix = `insurer/${gaPath}/${userSeg}/`
+    if (k.startsWith(newPrefix)) {
+      const fileSeg = k.slice(newPrefix.length)
+      if (!fileSeg.includes('/') && /^\d+-.+/.test(fileSeg)) {
+        return true
+      }
+    }
+    const legacyPrefix = `platform-assets/insurer/${gaPath}/${userSeg}/files/storage/`
+    if (k.startsWith(legacyPrefix)) {
+      const legacyRest = k.slice(legacyPrefix.length)
+      const parts = legacyRest.split('/').filter(Boolean)
+      if (parts.length !== 3) {
+        continue
+      }
+      const [y, mo, fileSeg] = parts
+      if (/^\d{4}$/.test(y) && /^\d{2}$/.test(mo) && /^\d+_.+/.test(fileSeg)) {
+        return true
+      }
+    }
   }
-  const [y, mo, fileSeg] = parts
-  if (!/^\d{4}$/.test(y) || !/^\d{2}$/.test(mo)) {
-    return false
-  }
-  if (!/^\d+_.+/.test(fileSeg)) {
-    return false
-  }
-  return true
+  return false
 }
 
 function parseStorageObjectKeyFromPublicUrl(fileUrl) {
@@ -214,16 +225,47 @@ function buildAttachmentContentDisposition(displayNameRaw) {
   return `attachment; filename="${ascii}"; filename*=UTF-8''${star}`
 }
 
-async function resolveGaPathByGaId(_pool, gaId) {
+function normalizeGaCodePath(raw) {
+  return String(raw ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '')
+}
+
+async function resolveGaPathByGaId(pool, gaId, gaCodeRaw) {
   if (!Number.isInteger(gaId) || gaId < 1) {
     return null
   }
-  return String(gaId)
+  const fromSession = normalizeGaCodePath(gaCodeRaw)
+  if (fromSession) {
+    return fromSession
+  }
+  const row = await safeQuery(
+    pool,
+    `
+    SELECT code
+    FROM ga_companies
+    WHERE id = $1
+      AND is_deleted = false
+    LIMIT 1
+    `,
+    [gaId],
+  )
+  if (row.rowCount > 0) {
+    const fromDb = normalizeGaCodePath(row.rows[0]?.code)
+    if (fromDb) {
+      return fromDb
+    }
+  }
+  return `ga${gaId}`
 }
 
 function toPublicFileUrl(filePath) {
   const raw = String(filePath ?? '').trim()
   if (!raw) {
+    return ''
+  }
+  if (/^file:\/\//i.test(raw)) {
     return ''
   }
   if (/^https?:\/\//i.test(raw)) {
@@ -235,9 +277,12 @@ function toPublicFileUrl(filePath) {
 
 function mapCustomerFileRow(row) {
   const filePath = row.file_path != null ? String(row.file_path) : row.file_url ?? ''
+  const localFileScheme = /^file:\/\//i.test(filePath)
   const objectKeyCandidate = /^https?:\/\//i.test(filePath)
     ? parseStorageObjectKeyFromPublicUrl(filePath)
-    : filePath
+    : localFileScheme
+      ? null
+      : filePath
   return {
     id: Number(row.id),
     customerId: row.customer_id != null ? Number(row.customer_id) : null,
@@ -1026,7 +1071,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     if (gaId == null) {
       return
     }
-    const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+    const gaIdPath = await resolveGaPathByGaId(pool, gaId, req.user?.gaCode)
     if (!gaIdPath) {
       res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
       return
@@ -1204,7 +1249,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     if (gaId == null) {
       return
     }
-    const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+    const gaIdPath = await resolveGaPathByGaId(pool, gaId, req.user?.gaCode)
     if (!gaIdPath) {
       res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
       return
@@ -1230,7 +1275,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       res.status(400).json({ message: 'object key가 필요합니다.' })
       return
     }
-    if (!assertStorageObjectKey(objectKey, gaIdPath, userId)) {
+    if (!assertStorageObjectKey(objectKey, [gaIdPath, String(gaId)], userId)) {
       res.status(400).json({ message: '유효하지 않은 object key입니다.' })
       return
     }
@@ -1387,7 +1432,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     if (gaId == null) {
       return
     }
-    const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+    const gaIdPath = await resolveGaPathByGaId(pool, gaId, req.user?.gaCode)
     if (!gaIdPath) {
       res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
       return
@@ -1436,7 +1481,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       res.status(400).json({ message: '요청이 올바르지 않습니다.' })
       return
     }
-    if (!assertStorageObjectKey(objectKeyRaw, gaIdPath, userId)) {
+    if (!assertStorageObjectKey(objectKeyRaw, [gaIdPath, String(gaId)], userId)) {
       res.status(400).json({ message: '요청이 올바르지 않습니다.' })
       return
     }
@@ -1485,7 +1530,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     if (gaId == null) {
       return
     }
-    const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+    const gaIdPath = await resolveGaPathByGaId(pool, gaId, req.user?.gaCode)
     if (!gaIdPath) {
       res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
       return
@@ -1545,7 +1590,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       res.status(400).json({ message: 'object key가 필요합니다.' })
       return
     }
-    if (!assertStorageObjectKey(objectKeyRaw, gaIdPath, userId)) {
+    if (!assertStorageObjectKey(objectKeyRaw, [gaIdPath, String(gaId)], userId)) {
       res.status(400).json({ message: '유효하지 않은 object key입니다.' })
       return
     }
@@ -1837,7 +1882,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     if (gaId == null) {
       return
     }
-    const gaIdPath = await resolveGaPathByGaId(pool, gaId)
+    const gaIdPath = await resolveGaPathByGaId(pool, gaId, req.user?.gaCode)
     if (!gaIdPath) {
       res.status(400).json({ message: 'GA ID를 확인할 수 없습니다.' })
       return
@@ -1876,7 +1921,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     const objectKey = /^https?:\/\//i.test(rawPath)
       ? parseStorageObjectKeyFromPublicUrl(rawPath)
       : rawPath
-    if (objectKey && assertStorageObjectKey(objectKey, gaIdPath, userId)) {
+    if (objectKey && assertStorageObjectKey(objectKey, [gaIdPath, String(gaId)], userId)) {
       try {
         await r2DeleteStorageObjectOrThrow(objectKey)
       } catch (e) {
@@ -2530,6 +2575,10 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
 
   apiRouter.get('/storage/files/:fileId/download', requireAuth, async (req, res) => {
     try {
+      if (!isConsentR2Enabled()) {
+        res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+        return
+      }
       const userId = req.user?.id ? String(req.user.id) : ''
       if (!userId) {
         res.status(401).json({ message: '로그인이 필요합니다.' })

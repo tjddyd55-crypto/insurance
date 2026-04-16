@@ -13,15 +13,20 @@ const LOCAL_ROOT = path.join(process.cwd(), 'server-data', 'consent-storage')
 
 function r2Credentials() {
   const accountId = process.env.R2_ACCOUNT_ID?.trim()
-  const bucket = process.env.R2_BUCKET_NAME?.trim()
-  const accessKey = process.env.R2_ACCESS_KEY_ID?.trim()
-  const secretKey = process.env.R2_SECRET_ACCESS_KEY?.trim()
-  // presign·R2 전용 코드는 이 네 값이 모두 있어야 함. throw 대신 null → 로컬 폴더 폴백(동의서 등) 유지
-  if (!accountId || !accessKey || !secretKey || !bucket) {
+  const endpoint =
+    process.env.R2_ENDPOINT?.trim() ||
+    (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : '')
+  const bucket =
+    process.env.R2_BUCKET_NAME?.trim() ||
+    process.env.R2_BUCKET?.trim() ||
+    'platform-assets'
+  const accessKey = process.env.R2_ACCESS_KEY_ID?.trim() || process.env.R2_ACCESS_KEY?.trim()
+  const secretKey =
+    process.env.R2_SECRET_ACCESS_KEY?.trim() || process.env.R2_SECRET_KEY?.trim()
+  // presign·R2 전용 코드는 endpoint/key/secret/bucket이 모두 있어야 함.
+  if (!endpoint || !accessKey || !secretKey || !bucket) {
     return null
   }
-  const endpoint =
-    process.env.R2_ENDPOINT?.trim() || `https://${accountId}.r2.cloudflarestorage.com`
   return { accountId, bucket, accessKey, secret: secretKey, endpoint }
 }
 
@@ -53,9 +58,10 @@ function getS3() {
 export function logR2EnvDiagnosticCheck() {
   console.log('R2 ENV CHECK', {
     accountId: process.env.R2_ACCOUNT_ID,
-    accessKey: process.env.R2_ACCESS_KEY_ID,
-    secretKey: process.env.R2_SECRET_ACCESS_KEY,
-    bucket: process.env.R2_BUCKET_NAME,
+    endpoint: process.env.R2_ENDPOINT,
+    accessKey: process.env.R2_ACCESS_KEY_ID ?? process.env.R2_ACCESS_KEY,
+    secretKey: process.env.R2_SECRET_ACCESS_KEY ?? process.env.R2_SECRET_KEY,
+    bucket: process.env.R2_BUCKET_NAME ?? process.env.R2_BUCKET,
   })
 }
 

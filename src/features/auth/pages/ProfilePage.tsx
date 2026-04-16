@@ -526,6 +526,13 @@ export function ProfilePage() {
             <div className="profile-page__excel-toolbar">
               <UserGaExcelManagePanel token={token} />
             </div>
+            <p className="status text-sm" style={{ marginTop: 8 }}>
+              회사 DB 파일 업로드/조회는{' '}
+              <Link to="/storage" className="switch-text__action">
+                내 저장공간
+              </Link>
+              에서 진행합니다.
+            </p>
           </div>
 
           <Link

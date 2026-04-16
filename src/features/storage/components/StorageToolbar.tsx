@@ -51,7 +51,7 @@ export default function StorageToolbar({
         />
         {!isMobile ? (
           <FileUploader
-            accept="image/jpeg,image/png,application/pdf,.pdf"
+            accept="image/jpeg,image/png,application/pdf,.pdf,.xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
             validateFile={validateUploadFile}
             onFiles={onUploadFiles}
             onInvalidBatch={onUploadInvalidBatch}
@@ -59,21 +59,21 @@ export default function StorageToolbar({
             disabled={uploading}
             statusText={uploading ? '업로드 중…' : undefined}
             primaryHint="파일을 드래그하거나 클릭하여 업로드"
-            hintLines={['JPG · PNG · PDF, 파일당 최대 25MB']}
+            hintLines={['JPG · PNG · PDF · XLS · XLSX · CSV, 파일당 최대 25MB']}
           />
         ) : null}
       </div>
       {isMobile ? (
         <div className="storage-toolbar__row storage-toolbar__row--full">
           <FileUploader
-            accept="image/jpeg,image/png,application/pdf,.pdf"
+            accept="image/jpeg,image/png,application/pdf,.pdf,.xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
             validateFile={validateUploadFile}
             onFiles={onUploadFiles}
             onInvalidBatch={onUploadInvalidBatch}
             disabled={uploading}
             statusText={uploading ? '업로드 중…' : undefined}
             primaryHint="파일을 드래그하거나 클릭하여 업로드"
-            hintLines={['JPG · PNG · PDF, 파일당 최대 25MB']}
+            hintLines={['JPG · PNG · PDF · XLS · XLSX · CSV, 파일당 최대 25MB']}
           />
         </div>
       ) : null}

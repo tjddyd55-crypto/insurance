@@ -26,7 +26,14 @@ import StorageToolbar from './StorageToolbar'
 const FILE_NAME_MAX_LENGTH = 120
 const FOLDER_NAME_MAX_LENGTH = 12
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024
-const ALLOWED_MIME = new Set(['application/pdf', 'image/jpeg', 'image/png'])
+const ALLOWED_MIME = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'text/csv',
+])
 const FILE_NAME_REGEX = /^[A-Za-z0-9._\-() \u3131-\u318e\uac00-\ud7a3]+$/
 const FOLDER_NAME_REGEX = /^[A-Za-z0-9 \u3131-\u318e\uac00-\ud7a3]+$/
 
@@ -76,6 +83,15 @@ function guessContentType(file: File): string {
   }
   if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) {
     return 'image/jpeg'
+  }
+  if (lower.endsWith('.xlsx')) {
+    return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  }
+  if (lower.endsWith('.xls')) {
+    return 'application/vnd.ms-excel'
+  }
+  if (lower.endsWith('.csv')) {
+    return 'text/csv'
   }
   return file.type || 'application/octet-stream'
 }
@@ -239,7 +255,7 @@ export default function StorageWorkspace({
       return '파일 이름 형식이 올바르지 않습니다.'
     }
     if (!ALLOWED_MIME.has(mimeType)) {
-      return 'JPG, PNG, PDF만 업로드할 수 있습니다.'
+      return 'JPG, PNG, PDF, XLS, XLSX, CSV만 업로드할 수 있습니다.'
     }
     if (file.size < 1) {
       return '빈 파일은 업로드할 수 없습니다.'
