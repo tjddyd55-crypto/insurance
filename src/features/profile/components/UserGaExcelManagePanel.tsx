@@ -109,6 +109,23 @@ export function UserGaExcelManagePanel({ token }: Props) {
     return serverPreview
   }, [localPreview, serverPreview])
 
+  const previewColumns = useMemo(() => {
+    const headers = previewTable.headers.length > 0 ? previewTable.headers : sampleColumns.map((c) => c.header)
+    return headers.map((header, idx) => {
+      const mappedColumn = sampleColumns[idx] ?? null
+      return {
+        key: mappedColumn?.id ?? `col-${idx}`,
+        header,
+        sampleId: mappedColumn?.id ?? null,
+        checked: mappedColumn ? visibility[mappedColumn.id] !== false : false,
+      }
+    })
+  }, [previewTable.headers, sampleColumns, visibility])
+
+  const previewMinWidth = useMemo(() => {
+    return Math.max(960, previewColumns.length * 130)
+  }, [previewColumns.length])
+
   const parseLocalPreview = useCallback(async (file: File) => {
     const buf = await file.arrayBuffer()
     const wb = XLSX.read(buf, { type: 'array', cellDates: true })
@@ -233,44 +250,56 @@ export function UserGaExcelManagePanel({ token }: Props) {
 
       {sampleColumns.length > 0 ? (
         <div>
-          <span className="field__label block mb-2">{L.allColumnsTitle}</span>
-          <p className="text-sm text-[var(--text-secondary)] mb-2">{L.displayTitle}</p>
-          <ul className="text-sm space-y-1 max-h-48 overflow-y-auto border border-[var(--border-default)] rounded p-2">
-            {sampleColumns.map((c) => (
-              <li key={c.id} className="flex items-center gap-2">
-                <FormInput
-                  type="checkbox"
-                  id={`ga-col-${c.id}`}
-                  checked={visibility[c.id] !== false}
-                  onChange={(ev) => void onToggleColumn(c.id, ev.target.checked)}
-                  className="shrink-0"
-                />
-                <label htmlFor={`ga-col-${c.id}`} className="cursor-pointer">
-                  {c.header} <span className="text-[var(--text-secondary)]">({c.id})</span>
-                </label>
-              </li>
-            ))}
-          </ul>
-
           <div className="mt-4">
             <span className="field__label block mb-1">{L.previewTitle}</span>
-            <p className="text-sm text-[var(--text-secondary)] mb-2">{L.previewGuide}</p>
-            {previewTable.headers.length === 0 ? (
+            <p className="text-sm text-[var(--text-secondary)] mb-1">{L.previewGuide}</p>
+            <p className="text-sm text-[var(--text-secondary)] mb-2">
+              {L.displayTitle}: {L.allColumnsTitle} 체크를 각 컬럼 헤더 위에서 바로 설정할 수 있습니다.
+            </p>
+            {previewColumns.length === 0 ? (
               <p className="text-sm text-[var(--text-secondary)]">{L.previewEmpty}</p>
             ) : (
-              <div className="overflow-x-auto border border-[var(--border-default)] rounded">
-                <table className="admin-data-table" style={{ minWidth: 520 }}>
+              <div className="profile-page__excel-preview-scroll">
+                <table className="admin-data-table profile-page__excel-preview-table" style={{ minWidth: previewMinWidth }}>
                   <thead>
+                    <tr className="profile-page__excel-preview-toggle-row">
+                      {previewColumns.map((col) => {
+                        const sampleId = col.sampleId
+                        return (
+                          <th key={`preview-toggle-${col.key}`} className="profile-page__excel-preview-toggle-cell">
+                            {sampleId ? (
+                              <FormInput
+                                type="checkbox"
+                                id={`ga-col-preview-${sampleId}`}
+                                checked={col.checked}
+                                onChange={(ev) => void onToggleColumn(sampleId, ev.target.checked)}
+                                className="shrink-0"
+                              />
+                            ) : (
+                              <span className="text-[var(--text-secondary)]">-</span>
+                            )}
+                          </th>
+                        )
+                      })}
+                    </tr>
                     <tr>
-                      {previewTable.headers.map((h, idx) => (
-                        <th key={`preview-head-${idx}`}>{h}</th>
+                      {previewColumns.map((col) => (
+                        <th key={`preview-head-${col.key}`}>
+                          {col.sampleId ? (
+                            <label htmlFor={`ga-col-preview-${col.sampleId}`} className="profile-page__excel-preview-head-label">
+                              {col.header}
+                            </label>
+                          ) : (
+                            col.header
+                          )}
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {previewTable.rows.map((r, rowIdx) => (
                       <tr key={`preview-row-${rowIdx}`}>
-                        {previewTable.headers.map((_, colIdx) => (
+                        {previewColumns.map((_, colIdx) => (
                           <td key={`preview-cell-${rowIdx}-${colIdx}`}>{r[colIdx] ?? ''}</td>
                         ))}
                       </tr>

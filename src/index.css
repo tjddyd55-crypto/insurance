@@ -1962,6 +1962,36 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   word-break: keep-all;
 }
 
+.profile-page__excel-preview-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.profile-page__excel-preview-table {
+  table-layout: fixed;
+}
+
+.profile-page__excel-preview-toggle-row th {
+  padding: 6px 8px;
+  text-align: center;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.profile-page__excel-preview-toggle-cell .form-input {
+  margin: 0 auto;
+}
+
+.profile-page__excel-preview-head-label {
+  display: block;
+  cursor: pointer;
+}
+
 .profile-page__account-reset {
   margin-top: 16px;
   display: block;

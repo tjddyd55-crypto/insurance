@@ -15,6 +15,7 @@ import { useAuth } from '../AuthProvider'
 import { createTeam, fetchTeamMembers, joinTeam } from '../../team/api/teamApi'
 import { DesktopUpdateSection } from '../../../components/DesktopUpdateSection'
 import { UserGaExcelManagePanel } from '../../profile/components/UserGaExcelManagePanel'
+import { CustomerExcelImportPanel } from '../../customers/components/CustomerExcelImportPanel'
 
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
@@ -520,6 +521,21 @@ export function ProfilePage() {
               {teamCopyNotice}
             </p>
           ) : null}
+
+          <div className="field profile-page__excel-field">
+            <span className="field__label">고객 데이터 파일 업로드</span>
+            <div className="profile-page__excel-toolbar">
+              <CustomerExcelImportPanel
+                token={token}
+                onUploadsFinished={async () => {
+                  setInfoMessage('고객 데이터 업로드가 완료되었습니다.')
+                }}
+              />
+            </div>
+            <p className="status text-sm" style={{ marginTop: 8 }}>
+              샘플 다운로드 후 양식에 맞게 작성한 파일을 업로드해 주세요.
+            </p>
+          </div>
 
           <div className="field profile-page__excel-field">
             <span className="field__label">GA 데이터 업로드</span>
