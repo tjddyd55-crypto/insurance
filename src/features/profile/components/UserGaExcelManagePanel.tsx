@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import * as XLSX from 'xlsx'
 import { FormButton, FormInput } from '../../../components/form'
 import { StatusMessage } from '../../../components/feedback'
 import {
@@ -14,6 +15,7 @@ const L = {
   loadFail: '\uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
   pickFile: '\uD30C\uC77C\uC744 \uC120\uD0DD\uD574 \uC8FC\uC138\uC694.',
   uploadFail: '\uC5C5\uB85C\uB4DC\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.',
+  parseFail: '엑셀 파일을 읽을 수 없습니다.',
   saveFail: '\uC800\uC7A5\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.',
   noFeature: '\uC774 GA\uC5D0\uC11C\uB294 \uC774 \uAE30\uB2A5\uC744 \uC0AC\uC6A9\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.',
   intro:
@@ -47,6 +49,8 @@ export function UserGaExcelManagePanel({ token }: Props) {
   const [rowCount, setRowCount] = useState<number | null>(null)
   const [sampleColumns, setSampleColumns] = useState<{ id: string; header: string }[]>([])
   const [rows, setRows] = useState<{ rowIndex: number; cells: Record<string, string> }[]>([])
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [localPreview, setLocalPreview] = useState<{ headers: string[]; rows: string[][] } | null>(null)
   const [visibility, setVisibility] = useState<Record<string, boolean>>({})
 
   const load = useCallback(async () => {
@@ -105,13 +109,48 @@ export function UserGaExcelManagePanel({ token }: Props) {
 
   const previewRows = useMemo(() => rows.slice(0, 10), [rows])
 
+  const serverPreview = useMemo(() => {
+    const headers = sampleColumns.map((c) => c.header)
+    const tableRows = previewRows.map((r) => sampleColumns.map((c) => String(r.cells[c.id] ?? '')))
+    return { headers, rows: tableRows }
+  }, [previewRows, sampleColumns])
+
+  const previewTable = useMemo(() => {
+    if (localPreview?.headers?.length) {
+      return localPreview
+    }
+    return serverPreview
+  }, [localPreview, serverPreview])
+
+  const parseLocalPreview = useCallback(async (file: File) => {
+    const buf = await file.arrayBuffer()
+    const wb = XLSX.read(buf, { type: 'array', cellDates: true })
+    const sheetName = wb.SheetNames[0]
+    if (!sheetName) {
+      throw new Error('EMPTY_WORKBOOK')
+    }
+    const sheet = wb.Sheets[sheetName]
+    const matrix = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, { header: 1, defval: '' })
+    const headerRow = Array.isArray(matrix[0]) ? matrix[0] : []
+    const headers = headerRow.map((v) => String(v ?? '').trim())
+    const dataRows = matrix
+      .slice(1, 11)
+      .map((row) =>
+        Array.from({ length: headers.length }, (_, i) => {
+          const cell = Array.isArray(row) ? row[i] : ''
+          return String(cell ?? '')
+        }),
+      )
+    setLocalPreview({ headers, rows: dataRows })
+  }, [])
+
   const onUpload = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault()
     if (!token?.trim() || !cap?.showDesignerUi) {
       return
     }
     const fd = new FormData(ev.currentTarget)
-    const file = fd.get('gaUserExcel') as File | null
+    const file = selectedFile ?? (fd.get('gaUserExcel') as File | null)
     if (!file?.size) {
       setInfo('')
       setLoadErr(L.pickFile)
@@ -124,6 +163,8 @@ export function UserGaExcelManagePanel({ token }: Props) {
       const r = await uploadUserExcelData(token, file)
       setInfo(`\uC5C5\uB85C\uB4DC \uC644\uB8CC (${r.rowCount}\uD589).`)
       await load()
+      setSelectedFile(null)
+      setLocalPreview(null)
       ev.currentTarget.reset()
     } catch (e) {
       setLoadErr(e instanceof Error ? e.message : L.uploadFail)
@@ -179,7 +220,25 @@ export function UserGaExcelManagePanel({ token }: Props) {
       <form onSubmit={(e) => void onUpload(e)} className="flex flex-wrap items-end gap-2 mb-4">
         <label className="text-sm text-[var(--text-secondary)]">
           {L.fileTypes}
-          <FormInput type="file" name="gaUserExcel" accept=".xlsx,.xls" className="block mt-1 text-sm" />
+          <FormInput
+            type="file"
+            name="gaUserExcel"
+            accept=".xlsx,.xls"
+            className="block mt-1 text-sm"
+            onChange={(ev) => {
+              const file = ev.target.files?.[0] ?? null
+              setSelectedFile(file)
+              setLoadErr('')
+              if (!file) {
+                setLocalPreview(null)
+                return
+              }
+              void parseLocalPreview(file).catch(() => {
+                setLocalPreview(null)
+                setLoadErr(L.parseFail)
+              })
+            }}
+          />
         </label>
         <FormButton htmlType="submit" variant="secondary" disabled={busy}>
           {L.upload}
@@ -235,23 +294,23 @@ export function UserGaExcelManagePanel({ token }: Props) {
           <div className="mt-4">
             <span className="field__label block mb-1">{L.previewTitle}</span>
             <p className="text-sm text-[var(--text-secondary)] mb-2">{L.previewGuide}</p>
-            {previewRows.length === 0 ? (
+            {previewTable.headers.length === 0 ? (
               <p className="text-sm text-[var(--text-secondary)]">{L.previewEmpty}</p>
             ) : (
               <div className="overflow-x-auto border border-[var(--border-default)] rounded">
                 <table className="admin-data-table" style={{ minWidth: 520 }}>
                   <thead>
                     <tr>
-                      {sampleColumns.map((c) => (
-                        <th key={`preview-head-${c.id}`}>{c.header}</th>
+                      {previewTable.headers.map((h, idx) => (
+                        <th key={`preview-head-${idx}`}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {previewRows.map((r) => (
-                      <tr key={`preview-row-${r.rowIndex}`}>
-                        {sampleColumns.map((c) => (
-                          <td key={`preview-cell-${r.rowIndex}-${c.id}`}>{r.cells[c.id] ?? ''}</td>
+                    {previewTable.rows.map((r, rowIdx) => (
+                      <tr key={`preview-row-${rowIdx}`}>
+                        {previewTable.headers.map((_, colIdx) => (
+                          <td key={`preview-cell-${rowIdx}-${colIdx}`}>{r[colIdx] ?? ''}</td>
                         ))}
                       </tr>
                     ))}

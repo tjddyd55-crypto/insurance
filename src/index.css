@@ -1941,6 +1941,27 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   max-width: 100%;
 }
 
+.profile-page__excel-toolbar {
+  width: 100%;
+  min-width: 0;
+}
+
+.profile-page__excel-toolbar input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 18px;
+  border-radius: 4px;
+  accent-color: var(--primary);
+}
+
+.profile-page__excel-toolbar label {
+  white-space: normal;
+  word-break: keep-all;
+}
+
 .profile-page__account-reset {
   margin-top: 16px;
   display: block;
@@ -1972,7 +1993,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page .auth-card {
   min-width: 0;
   width: 100%;
-  max-width: min(420px, 100%);
+  max-width: min(960px, 100%);
   box-sizing: border-box;
 }
 

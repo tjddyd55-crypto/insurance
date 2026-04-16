@@ -40,6 +40,14 @@ function isHttpWebRuntime(): boolean {
   return protocol === 'http:' || protocol === 'https:'
 }
 
+function isLocalDevHost(): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+  const host = String(window.location?.hostname ?? '').toLowerCase()
+  return host === 'localhost' || host === '127.0.0.1'
+}
+
 function resolveApiBasePath(): string {
   // 웹 런타임(http/https)에서는 same-origin API를 기본값으로 강제해
   // 잘못된 VITE_API_URL(다른 환경 API)로 인한 운영 장애를 방지한다.
@@ -51,12 +59,17 @@ function resolveApiBasePath(): string {
     try {
       const configuredOrigin = new URL(CONFIGURED_API_BASE_PATH).origin
       if (configuredOrigin !== window.location.origin) {
-        console.warn(
-          '[apiClient] cross-origin VITE_API_URL ignored on web runtime:',
-          CONFIGURED_API_BASE_PATH,
-          '-> /backend',
-        )
-        return '/backend'
+        // 로컬 개발 서버(http://localhost:3000)에서만 same-origin 프록시(/backend)를 강제한다.
+        // 운영/배포 웹에서는 설정된 절대 API URL을 그대로 사용한다.
+        if (isLocalDevHost()) {
+          console.warn(
+            '[apiClient] cross-origin VITE_API_URL ignored on local web runtime:',
+            CONFIGURED_API_BASE_PATH,
+            '-> /backend',
+          )
+          return '/backend'
+        }
+        return CONFIGURED_API_BASE_PATH
       }
     } catch {
       return '/backend'
