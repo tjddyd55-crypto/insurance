@@ -59,17 +59,16 @@ export function buildGaTenantDashboardMenu(
   gaName: string | undefined,
 ): GaTenantDashboardMenuEntry[] {
   const items: GaTenantDashboardMenuEntry[] = [
-    { type: 'link', label: '고객 관리', path: '/customers' },
-    { type: 'link', label: '내정보관리', path: '/profile' },
     { type: 'link', label: '내 저장공간', path: '/storage' },
+    { type: 'link', label: '고객관리', path: '/customers' },
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
     { type: 'link', label: '원수사 소식지', path: '/portal/newsletters' },
-    { type: 'link', label: '손해사정사 뉴스', path: '/portal/adjuster-news' },
+    { type: 'link', label: '손해사정사 소식지', path: '/portal/adjuster-news' },
     { type: 'divider' },
   ]
   const carByName = String(gaName ?? '').trim() === '영진에셋'
   if (carByName || isCarInsuranceFeatureEnabledForGa(gaCode)) {
-    items.push({ type: 'link', label: '자동차 신청서', path: '/application' })
+    items.push({ type: 'link', label: '자동차신청서', path: '/application' })
     items.push({
       type: 'link',
       label: '다이렉트 자동차',
@@ -79,25 +78,21 @@ export function buildGaTenantDashboardMenu(
   }
   items.push({
     type: 'link',
-    label: '기타 신청서 (개발중)',
+    label: '기타 신청서(개발중)',
     path: '/feature-request',
     disabled: true,
   })
   items.push({ type: 'divider' })
   items.push(
-    { type: 'link', label: '팀원 리스트', path: '/team/members' },
+    { type: 'link', label: '팀원리스트', path: '/team/members' },
     { type: 'link', label: '팀 게시판', path: '/team/posts' },
     { type: 'link', label: '팀 자료', path: '/team/files' },
-    { type: 'link', label: '메모', path: '/memo' },
-    {
-      type: 'link',
-      label: '기타 (개발중)',
-      path: '/feature-request',
-      disabled: true,
-    },
   )
   items.push({ type: 'divider' })
-  items.push({ type: 'link', label: '문의 및 추가기능 요청', path: '/feature-request' })
+  items.push(
+    { type: 'link', label: '문의, 요청', path: '/feature-request' },
+    { type: 'link', label: '내정보관리', path: '/profile' },
+  )
   return items
 }
 

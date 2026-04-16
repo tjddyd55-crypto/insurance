@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { EmptyState, LoadingState, StatusMessage } from '../../../components/feedback'
-import { FormButton, FormInput } from '../../../components/form'
+import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   fetchCustomerGaExcelData,
-  uploadGaCustomerExcelData,
   type GaCustomerExcelDataRow,
 } from '../api/gaCustomerExcelApi'
 
@@ -20,7 +18,6 @@ export default function CustomerGaExcelPage() {
   const [headers, setHeaders] = useState<string[]>([])
   const [colIds, setColIds] = useState<string[]>([])
   const [rows, setRows] = useState<GaCustomerExcelDataRow[]>([])
-  const [uploadBusy, setUploadBusy] = useState(false)
   const [sortIdx, setSortIdx] = useState<number | null>(null)
   const [sortAsc, setSortAsc] = useState(true)
 
@@ -76,31 +73,6 @@ export default function CustomerGaExcelPage() {
     }
   }
 
-  const onUpload = async (ev: FormEvent<HTMLFormElement>) => {
-    ev.preventDefault()
-    if (!token?.trim()) {
-      return
-    }
-    const fd = new FormData(ev.currentTarget)
-    const file = fd.get('datafile') as File | null
-    if (!file?.size) {
-      setError('파일을 선택해 주세요.')
-      return
-    }
-    setUploadBusy(true)
-    setError('')
-    try {
-      await uploadGaCustomerExcelData(token, file)
-      setInfo('업로드가 완료되었습니다. 아래 목록을 갱신합니다.')
-      await load()
-      ev.currentTarget.reset()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '업로드에 실패했습니다.')
-    } finally {
-      setUploadBusy(false)
-    }
-  }
-
   if (!Number.isFinite(customerId) || customerId < 1) {
     return <EmptyState message="고객을 선택해 주세요." />
   }
@@ -109,20 +81,10 @@ export default function CustomerGaExcelPage() {
     <div className="p-3" style={{ maxWidth: 960 }}>
       <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-1">GA 고객 데이터</h2>
       <p className="text-sm text-[var(--text-secondary)] mb-3">
-        슈퍼 관리자가 이 GA에 대해 저장한 엑셀 설정과 동일한 열 구조의 운영 파일을 업로드한 뒤, 아래에서 고객 정보와 AND 조건으로 일치하는 행만 확인할 수 있습니다.
+        업로드는 내정보관리 페이지에서 진행합니다. 여기서는 고객 매핑 결과만 확인할 수 있습니다.
       </p>
       <StatusMessage message={error} tone="error" />
       <StatusMessage message={info} tone="default" />
-
-      <form onSubmit={(ev) => void onUpload(ev)} className="flex flex-wrap items-end gap-2 mb-4 mt-2">
-        <label className="text-sm text-[var(--text-secondary)]">
-          운영 엑셀 업로드
-          <FormInput type="file" name="datafile" accept=".xlsx,.xls" className="block mt-1 text-sm" />
-        </label>
-        <FormButton htmlType="submit" variant="secondary" disabled={uploadBusy}>
-          업로드
-        </FormButton>
-      </form>
 
       {loading ? (
         <LoadingState message="불러오는 중…" />

@@ -86,7 +86,6 @@ export default function GaCompanyManagePage() {
 
   const [featureEnabled, setFeatureEnabled] = useState(false)
   const [matchByCol, setMatchByCol] = useState<Record<string, string>>({})
-  const [displayIds, setDisplayIds] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     if (!settings) {
@@ -101,11 +100,6 @@ export default function GaCompanyManagePage() {
       m[r.columnId] = r.dbField
     }
     setMatchByCol(m)
-    const d: Record<string, boolean> = {}
-    for (const c of settings.sampleColumns) {
-      d[c.id] = settings.displayColumnIds.includes(c.id)
-    }
-    setDisplayIds(d)
   }, [settings])
 
   const summaryText = useMemo(() => {
@@ -115,7 +109,6 @@ export default function GaCompanyManagePage() {
     const parts = [
       `설정 완료: ${settings.configReady ? '예' : '아니오'}`,
       `DB 매칭: ${settings.matchRuleCount}개`,
-      `표시 컬럼: ${settings.displayColumnCount}개`,
     ]
     return parts.join(' · ')
   }, [settings])
@@ -152,16 +145,12 @@ export default function GaCompanyManagePage() {
     const matchRules = Object.entries(matchByCol)
       .filter(([, db]) => db && db.trim())
       .map(([columnId, dbField]) => ({ columnId, dbField: dbField.trim() }))
-    const displayColumnIds = Object.entries(displayIds)
-      .filter(([, on]) => on)
-      .map(([id]) => id)
     setSaving(true)
     setStatus('')
     try {
       const r = await saveGaCustomerExcelSettings(token, gaId, {
         featureEnabled,
         matchRules,
-        displayColumnIds,
       })
       setSettings(r.settings)
       setStatus('저장되었습니다.')
@@ -305,7 +294,7 @@ export default function GaCompanyManagePage() {
                 </section>
 
                 <section className="border border-[var(--border-default)] rounded-md p-3">
-                  <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">4. 컬럼 설정</h2>
+                  <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">4. 조회 매핑 설정</h2>
                   {settings.sampleColumns.length === 0 ? (
                     <p className="text-sm text-[var(--text-secondary)]">먼저 샘플 엑셀을 업로드하면 컬럼 목록이 표시됩니다.</p>
                   ) : (
@@ -315,7 +304,6 @@ export default function GaCompanyManagePage() {
                           <tr>
                             <th>엑셀 컬럼명</th>
                             <th>고객 DB 매칭</th>
-                            <th>표시</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -333,19 +321,6 @@ export default function GaCompanyManagePage() {
                                     }))
                                   }
                                   options={DB_FIELD_OPTIONS}
-                                />
-                              </td>
-                              <td>
-                                <FormInput
-                                  type="checkbox"
-                                  checked={Boolean(displayIds[c.id])}
-                                  onChange={(ev) =>
-                                    setDisplayIds((prev) => ({
-                                      ...prev,
-                                      [c.id]: ev.target.checked,
-                                    }))
-                                  }
-                                  className="shrink-0"
                                 />
                               </td>
                             </tr>

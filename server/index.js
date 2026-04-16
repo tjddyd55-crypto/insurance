@@ -1473,60 +1473,59 @@ async function handleRegister(req, res) {
     }
 
     const refUserId = String(refUserSnake ?? refUserCamel ?? '').trim()
-    if (!refUserId) {
-      res.status(400).json({
-        message: '담당자 초대 정보가 없습니다. 배포된 가입 링크를 통해 다시 시도해 주세요.',
-      })
-      return
-    }
+    let invitedByUserId = null
+    if (refUserId) {
+      const refUserRes = await systemQuery(
+        pool,
+        `
+        SELECT id, role, ga_id, status, is_deleted
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [refUserId],
+      )
+      const refRow = refUserRes.rows[0]
+      if (!refRow || refRow.is_deleted) {
+        res.status(400).json({ message: '유효하지 않은 초대 링크입니다.' })
+        return
+      }
+      if (String(refRow.status ?? '').toLowerCase() !== 'active') {
+        res.status(400).json({ message: '초대를 받을 수 없는 계정 상태입니다.' })
+        return
+      }
+      if (normalizeUserRole(refRow.role) !== 'USER') {
+        res.status(400).json({ message: '일반 설계사(USER) 계정으로만 회원 초대가 가능합니다.' })
+        return
+      }
+      const refGaId = parseGaId(refRow.ga_id)
+      if (refGaId == null || refGaId !== gaId) {
+        res.status(400).json({ message: '소속 GA가 초대 담당자와 일치하지 않습니다.' })
+        return
+      }
 
-    const refUserRes = await systemQuery(
-      pool,
-      `
-      SELECT id, role, ga_id, status, is_deleted
-      FROM users
-      WHERE id = $1
-      LIMIT 1
-      `,
-      [refUserId],
-    )
-    const refRow = refUserRes.rows[0]
-    if (!refRow || refRow.is_deleted) {
-      res.status(400).json({ message: '유효하지 않은 초대 링크입니다.' })
-      return
-    }
-    if (String(refRow.status ?? '').toLowerCase() !== 'active') {
-      res.status(400).json({ message: '초대를 받을 수 없는 계정 상태입니다.' })
-      return
-    }
-    if (normalizeUserRole(refRow.role) !== 'USER') {
-      res.status(400).json({ message: '일반 설계사(USER) 계정으로만 회원 초대가 가능합니다.' })
-      return
-    }
-    const refGaId = parseGaId(refRow.ga_id)
-    if (refGaId == null || refGaId !== gaId) {
-      res.status(400).json({ message: '소속 GA가 초대 담당자와 일치하지 않습니다.' })
-      return
-    }
+      const inviteSigRaw = String(inviteSigSnake ?? inviteSigCamel ?? sigLoose ?? '').trim()
+      const inviteTsRaw = inviteTsSnake ?? inviteTsCamel ?? tsLoose
+      const hasInviteSignaturePayload = Boolean(inviteSigRaw) || inviteTsRaw != null
+      if (hasInviteSignaturePayload) {
+        const inviteTsMs = Number(inviteTsRaw)
+        const sigCheck = verifyInviteSignupSignature(INVITE_SIGNUP_SECRET, {
+          gaCodeNormalized: code,
+          refUserId,
+          tsMs: inviteTsMs,
+          sig: inviteSigRaw,
+        })
+        if (!sigCheck.ok) {
+          const msg =
+            sigCheck.reason === 'expired'
+              ? '초대 링크가 만료되었습니다. 담당자에게 새 링크를 요청해 주세요.'
+              : '유효하지 않거나 변조된 초대 링크입니다. 담당자가 공유한 링크로 다시 시도해 주세요.'
+          res.status(400).json({ message: msg })
+          return
+        }
+      }
 
-    const inviteSigRaw = String(
-      inviteSigSnake ?? inviteSigCamel ?? sigLoose ?? '',
-    ).trim()
-    const inviteTsRaw = inviteTsSnake ?? inviteTsCamel ?? tsLoose
-    const inviteTsMs = Number(inviteTsRaw)
-    const sigCheck = verifyInviteSignupSignature(INVITE_SIGNUP_SECRET, {
-      gaCodeNormalized: code,
-      refUserId,
-      tsMs: inviteTsMs,
-      sig: inviteSigRaw,
-    })
-    if (!sigCheck.ok) {
-      const msg =
-        sigCheck.reason === 'expired'
-          ? '초대 링크가 만료되었습니다. 담당자에게 새 링크를 요청해 주세요.'
-          : '유효하지 않거나 변조된 초대 링크입니다. 담당자가 공유한 링크로 다시 시도해 주세요.'
-      res.status(400).json({ message: msg })
-      return
+      invitedByUserId = refUserId
     }
 
     const proofRaw = String(signupProofSnake ?? signupProofCamel ?? '').trim()
@@ -1621,7 +1620,7 @@ async function handleRegister(req, res) {
       VALUES ($1, $2, $3, 'USER', $4, $5, $6, $7)
       RETURNING created_at
       `,
-      [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm || null, refUserId],
+      [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm || null, invitedByUserId],
     )
 
     if (phoneNorm) {

@@ -285,6 +285,10 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
         setTeamMenuManageVisible(false)
         return
       }
+      if (!user?.teamId?.trim()) {
+        setTeamMenuManageVisible(false)
+        return
+      }
       void fetchTeamMembers(token)
         .then((data) => {
           if (cancelled) {
@@ -302,7 +306,7 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
     return () => {
       cancelled = true
     }
-  }, [token, user?.id, user?.role])
+  }, [token, user?.id, user?.role, user?.teamId])
 
   const clampMemoWidth = useCallback((nextWidth: number) => {
     const viewportMax =

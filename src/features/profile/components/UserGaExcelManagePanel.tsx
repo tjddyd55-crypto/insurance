@@ -10,7 +10,7 @@ import {
 } from '../../customers/api/gaCustomerExcelApi'
 
 const L = {
-  label: '\uACE0\uAC1D \uC5D1\uC140 (GA)',
+  label: 'GA 데이터 업로드',
   loadFail: '\uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.',
   pickFile: '\uD30C\uC77C\uC744 \uC120\uD0DD\uD574 \uC8FC\uC138\uC694.',
   uploadFail: '\uC5C5\uB85C\uB4DC\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.',
@@ -20,13 +20,21 @@ const L = {
     'GA\uC5D0 \uC124\uC815\uB41C \uC0D8\uD50C\uACFC \uB3D9\uC77C\uD55C \uC5F4 \uAD6C\uC870\uC758 \uD30C\uC77C\uB9CC \uC5C5\uB85C\uB4DC\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uC5C5\uB85C\uB4DC \uC2DC \uAE30\uC874 \uB370\uC774\uD130\uB294 \uC0AD\uC81C \uD6C4 \uB300\uCE58\uB429\uB2C8\uB2E4.',
   fileTypes: '\uD30C\uC77C (.xlsx / .xls)',
   upload: '\uC5C5\uB85C\uB4DC',
-  displayTitle: '\uACE0\uAC1D \uD654\uBA74\uC5D0 \uD45C\uC2DC',
+  displayTitle: '컬럼 노출 설정',
+  quickTitle: '빠른 선택',
+  allColumnsTitle: '전체 컬럼',
   emptyCols: '\uC0D8\uD50C \uC5D1\uC140 \uC124\uC815 \uD6C4 \uC5EC\uAE30\uC5D0 \uCEEC\uB7FC \uBAA9\uB85D\uC774 \uD45C\uC2DC\uB429\uB2C8\uB2E4.',
 }
 
 type Props = {
   token: string
 }
+
+const QUICK_COLUMN_FILTERS = [
+  { label: '차량번호', matcher: /(차량\s*번호|차량번호|car[_\s-]*number|car[_\s-]*no)/i },
+  { label: '차명', matcher: /(차명|차량명|car[_\s-]*name|model)/i },
+  { label: '보험사', matcher: /(보험사|insurer|company)/i },
+] as const
 
 export function UserGaExcelManagePanel({ token }: Props) {
   const [cap, setCap] = useState<GaCustomerExcelCapability | null>(null)
@@ -81,6 +89,13 @@ export function UserGaExcelManagePanel({ token }: Props) {
     }
     return `\uC5C5\uB85C\uB4DC\uB41C \uD589: ${rowCount}\uAC74`
   }, [cap?.showDesignerUi, rowCount])
+
+  const quickColumns = useMemo(() => {
+    return QUICK_COLUMN_FILTERS.map((filter) => {
+      const found = sampleColumns.find((col) => filter.matcher.test(`${col.header} ${col.id}`))
+      return { label: filter.label, column: found ?? null }
+    })
+  }, [sampleColumns])
 
   const onUpload = async (ev: FormEvent<HTMLFormElement>) => {
     ev.preventDefault()
@@ -165,7 +180,33 @@ export function UserGaExcelManagePanel({ token }: Props) {
 
       {sampleColumns.length > 0 ? (
         <div>
-          <span className="field__label block mb-2">{L.displayTitle}</span>
+          <span className="field__label block mb-2">{L.quickTitle}</span>
+          <ul className="text-sm space-y-1 border border-[var(--border-default)] rounded p-2 mb-3">
+            {quickColumns.map((item) => (
+              <li key={item.label} className="flex items-center gap-2">
+                <FormInput
+                  type="checkbox"
+                  id={`ga-quick-col-${item.label}`}
+                  checked={item.column ? visibility[item.column.id] !== false : false}
+                  disabled={!item.column}
+                  onChange={(ev) => {
+                    if (!item.column) {
+                      return
+                    }
+                    void onToggleColumn(item.column.id, ev.target.checked)
+                  }}
+                  className="shrink-0"
+                />
+                <label htmlFor={`ga-quick-col-${item.label}`} className={!item.column ? 'opacity-60' : 'cursor-pointer'}>
+                  {item.label}
+                  {!item.column ? <span className="text-[var(--text-secondary)]"> (해당 컬럼 없음)</span> : null}
+                </label>
+              </li>
+            ))}
+          </ul>
+
+          <span className="field__label block mb-2">{L.allColumnsTitle}</span>
+          <p className="text-sm text-[var(--text-secondary)] mb-2">{L.displayTitle}</p>
           <ul className="text-sm space-y-1 max-h-48 overflow-y-auto border border-[var(--border-default)] rounded p-2">
             {sampleColumns.map((c) => (
               <li key={c.id} className="flex items-center gap-2">

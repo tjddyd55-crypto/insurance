@@ -190,6 +190,10 @@ export function DashboardPage() {
         setTeamMenuManageVisible(false)
         return
       }
+      if (!user?.teamId?.trim()) {
+        setTeamMenuManageVisible(false)
+        return
+      }
       void fetchTeamMembers(token)
         .then((data) => {
           if (cancelled) {
@@ -207,7 +211,7 @@ export function DashboardPage() {
     return () => {
       cancelled = true
     }
-  }, [token, user?.id, role])
+  }, [token, user?.id, user?.teamId, role])
 
   const menuItems = useMemo(() => {
     const base = menuForSession(role, user?.gaCode, user?.gaName).filter((entry) =>

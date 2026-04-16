@@ -64,7 +64,6 @@ export async function saveGaCustomerExcelSettings(
   body: {
     featureEnabled: boolean
     matchRules: GaExcelMatchRule[]
-    displayColumnIds: string[]
   },
 ): Promise<{ ok: boolean; settings: GaCustomerExcelSettingsDto }> {
   if (!token?.trim()) {

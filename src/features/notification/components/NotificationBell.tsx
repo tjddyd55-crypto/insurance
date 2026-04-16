@@ -10,7 +10,7 @@ export type NotificationBellVariant = 'inline' | 'workspaceHeader'
 
 type Props = {
   variant?: NotificationBellVariant
-  /** workspaceHeader: panel below workspace header; boundaryRef is the header element. */
+  /** workspaceHeader: header 아래에 패널을 고정할 때 기준 요소로 사용한다. */
   boundaryRef?: RefObject<HTMLElement | null>
 }
 

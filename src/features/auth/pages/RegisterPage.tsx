@@ -264,17 +264,8 @@ export function RegisterPage() {
     const nameTrim = name.trim()
     const userTrim = username.trim()
     const refTrim = inviteRefUserId.trim()
-
-    if (!refTrim) {
-      setErrorMessage('담당자 초대 링크로 접속해 주세요. (주소에 ref 가 포함되어야 합니다)')
-      return
-    }
     const sigTrim = inviteSig.trim()
     const tsTrim = inviteTs.trim()
-    if (!sigTrim || !tsTrim) {
-      setErrorMessage('초대 링크가 불완전합니다. 담당자에게 다시 공유받은 링크로 접속해 주세요.')
-      return
-    }
     if (!code) {
       setErrorMessage('GA 코드를 입력하세요.')
       return
@@ -330,9 +321,9 @@ export function RegisterPage() {
         username: userTrim,
         password,
         inviteCode: code,
-        refUserId: refTrim,
-        inviteSig: sigTrim,
-        inviteTs: tsTrim,
+        refUserId: refTrim || undefined,
+        inviteSig: sigTrim || undefined,
+        inviteTs: tsTrim || undefined,
         name: nameTrim,
         phoneNumber: phoneDigits || undefined,
         signupPhoneProof: signupPhoneProof ?? undefined,

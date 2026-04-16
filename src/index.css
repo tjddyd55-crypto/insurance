@@ -173,9 +173,17 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    height: 56px;
+    height: 48px;
     padding: 0 12px;
     box-sizing: border-box;
+  }
+
+  .app-workspace-chrome-header.header button,
+  .app-workspace-chrome-header.header .menu-btn,
+  .app-workspace-chrome-header.header .notification-icon {
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
   }
 
   .app-workspace-chrome-header__notification-root {

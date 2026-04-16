@@ -115,6 +115,12 @@ export default function CustomerWorkspaceLayout() {
     }
   }, [token, user?.role])
 
+  useEffect(() => {
+    if (!selectedCustomerId) {
+      setRightPanelCarForm(false)
+    }
+  }, [selectedCustomerId])
+
   const showGaExcelEntry =
     excelCap != null &&
     (excelCap.showDesignerUi || (excelCap.featureEnabled && !excelCap.configReady && Boolean(excelCap.message)))
@@ -134,7 +140,9 @@ export default function CustomerWorkspaceLayout() {
       <section className="customer-workspace-layout__right" aria-label="고객 연동 작업영역">
         <header className="customer-workspace-layout__right-header">
           <div>
-            <h2 className="customer-workspace-layout__title">{rightTitle(location.pathname)}</h2>
+            <h2 className="customer-workspace-layout__title">
+              {rightPanelCarForm ? '자동차 신청서' : rightTitle(location.pathname)}
+            </h2>
             <p className="customer-workspace-layout__subtitle">
               선택 고객:{' '}
               {selectedCustomerId
@@ -152,6 +160,7 @@ export default function CustomerWorkspaceLayout() {
                 if (!selectedCustomerId) {
                   return
                 }
+                setRightPanelCarForm(false)
                 moveTo(`/customers/${selectedCustomerId}/files`)
               }}
             >
@@ -166,6 +175,7 @@ export default function CustomerWorkspaceLayout() {
                 if (!selectedCustomerId) {
                   return
                 }
+                setRightPanelCarForm(false)
                 moveTo(`/customers/${selectedCustomerId}/consultations`)
               }}
             >
@@ -202,6 +212,7 @@ export default function CustomerWorkspaceLayout() {
                   if (!selectedCustomerId || !excelCap?.showDesignerUi) {
                     return
                   }
+                  setRightPanelCarForm(false)
                   moveTo(`/customers/${selectedCustomerId}/ga-excel`)
                 }}
               >
@@ -218,16 +229,6 @@ export default function CustomerWorkspaceLayout() {
               role="region"
               aria-label="자동차 신청서 작성"
             >
-              <div className="customer-workspace-layout__embedded-car-toolbar">
-                <FormButton
-                  htmlType="button"
-                  variant="secondary"
-                  className="filter-button"
-                  onClick={() => setRightPanelCarForm(false)}
-                >
-                  ← 작업 영역으로
-                </FormButton>
-              </div>
               <div className="customer-workspace-layout__embedded-car-body">
                 <ApplicationFormPage />
               </div>
