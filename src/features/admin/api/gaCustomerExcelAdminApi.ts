@@ -4,8 +4,6 @@ export type GaExcelColumnDef = { id: string; header: string; index: number }
 
 export type GaExcelMatchRule = { columnId: string; dbField: string }
 
-export type GaExcelFilter = { columnId: string; op: '=' | '!='; value: string }
-
 export type GaCustomerExcelSettingsDto = {
   gaId: number
   featureEnabled: boolean
@@ -15,12 +13,10 @@ export type GaCustomerExcelSettingsDto = {
   sampleColumns: GaExcelColumnDef[]
   matchRules: GaExcelMatchRule[]
   displayColumnIds: string[]
-  filter: GaExcelFilter | null
   updatedAt: string | null
   settingsVersion: number
   matchRuleCount: number
   displayColumnCount: number
-  hasFilter: boolean
 }
 
 export async function fetchGaCustomerExcelSettings(
@@ -69,7 +65,6 @@ export async function saveGaCustomerExcelSettings(
     featureEnabled: boolean
     matchRules: GaExcelMatchRule[]
     displayColumnIds: string[]
-    filter: GaExcelFilter | null
   },
 ): Promise<{ ok: boolean; settings: GaCustomerExcelSettingsDto }> {
   if (!token?.trim()) {

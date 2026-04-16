@@ -87,6 +87,180 @@ body {
   box-sizing: border-box;
 }
 
+/* ——— 인증 후 PC(1024px 이상): 세로 flex 체인으로 본문만 스크롤 ——— */
+.app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+@media (min-width: 1024px) {
+  .app-root.app-root--authenticated {
+    height: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .app-root.app-root--authenticated .main-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .app-root.app-root--authenticated .main-container > .app-workspace-layout-root {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+/* 웹 전용 상단 프로그램 느낌 바 (Electron 은 ElectronTitleBar 사용) */
+.web-program-top-bar {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .web-program-top-bar {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    height: 28px;
+    padding: 0 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: color-mix(in srgb, var(--text-secondary) 88%, transparent);
+    background: #0b0e14;
+    border-bottom: 1px solid #000000;
+  }
+
+  .web-program-top-bar__title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* AppWorkspaceLayout: PC 전용 2차 헤더(메뉴·GA·액션) */
+.app-workspace-layout-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+.app-workspace-chrome-header {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .app-workspace-chrome-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-default, #2a2a2a);
+    background: var(--bg-elevated, #141b26);
+  }
+
+  .app-workspace-chrome-header__leading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .app-workspace-chrome-header__menu-btn {
+    flex-shrink: 0;
+    min-width: 36px;
+    padding-inline: 8px;
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  .app-workspace-chrome-header__ga {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .app-workspace-chrome-header__trailing {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .app-workspace-chrome-header__profile {
+    white-space: nowrap;
+  }
+
+  /* 워크스페이스 헤더에 알림·프로필을 두면 타이틀 바와 중복되지 않도록 */
+  html.electron-app .electron-title-bar__user-actions {
+    display: none;
+  }
+
+  .app-workspace-layout-root .workspace-root.workspace-root--app-pc {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    overflow: hidden;
+  }
+
+  .app-workspace-layout-root .workspace-main.workspace-main--app {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .app-workspace-layout-root .workspace-main.workspace-main--app .app-main-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .workspace-sidebar.workspace-sidebar--collapsed {
+    --workspace-sidebar-width: 64px;
+    width: 64px;
+    min-width: 64px;
+    max-width: 64px;
+    padding-inline: 6px;
+  }
+
+  .workspace-sidebar.workspace-sidebar--collapsed .workspace-sidebar__title {
+    display: none;
+  }
+
+  .workspace-sidebar.workspace-sidebar--collapsed .workspace-sidebar__nav-btn {
+    justify-content: center;
+    padding-inline: 6px;
+    font-size: 0.7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .workspace-sidebar.workspace-sidebar--collapsed .workspace-sidebar__logout {
+    font-size: 0.65rem;
+    padding-inline: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 /* 상태·테이블 유틸 (토큰 전용) */
 .badge-success {
   background: color-mix(in srgb, var(--success) 20%, transparent);

@@ -14,10 +14,11 @@ import { listGaCompanies, type GaCompanyRow } from '../../auth/authApi'
 type TabKey = 'excel' | 'customerDb'
 
 const DB_FIELD_OPTIONS: { value: string; label: string }[] = [
-  { value: '', label: '(조회 기준 아님)' },
-  { value: 'name', label: '고객 이름' },
-  { value: 'birth_date', label: '고객 생년월일' },
-  { value: 'ssn', label: '고객 주민번호' },
+  { value: '', label: '(매칭 없음)' },
+  { value: 'name', label: '이름' },
+  { value: 'birth_date', label: '생년월일' },
+  { value: 'ssn', label: '주민번호' },
+  { value: 'phone', label: '연락처' },
 ]
 
 export default function GaCompanyManagePage() {
@@ -86,9 +87,6 @@ export default function GaCompanyManagePage() {
   const [featureEnabled, setFeatureEnabled] = useState(false)
   const [matchByCol, setMatchByCol] = useState<Record<string, string>>({})
   const [displayIds, setDisplayIds] = useState<Record<string, boolean>>({})
-  const [filterCol, setFilterCol] = useState('')
-  const [filterOp, setFilterOp] = useState<'=' | '!='>('=')
-  const [filterVal, setFilterVal] = useState('')
 
   useEffect(() => {
     if (!settings) {
@@ -108,15 +106,6 @@ export default function GaCompanyManagePage() {
       d[c.id] = settings.displayColumnIds.includes(c.id)
     }
     setDisplayIds(d)
-    if (settings.filter) {
-      setFilterCol(settings.filter.columnId)
-      setFilterOp(settings.filter.op === '!=' ? '!=' : '=')
-      setFilterVal(settings.filter.value)
-    } else {
-      setFilterCol('')
-      setFilterOp('=')
-      setFilterVal('')
-    }
   }, [settings])
 
   const summaryText = useMemo(() => {
@@ -125,9 +114,8 @@ export default function GaCompanyManagePage() {
     }
     const parts = [
       `설정 완료: ${settings.configReady ? '예' : '아니오'}`,
-      `조회 기준: ${settings.matchRuleCount}개`,
+      `DB 매칭: ${settings.matchRuleCount}개`,
       `표시 컬럼: ${settings.displayColumnCount}개`,
-      `필터: ${settings.hasFilter ? '있음' : '없음'}`,
     ]
     return parts.join(' · ')
   }, [settings])
@@ -167,10 +155,6 @@ export default function GaCompanyManagePage() {
     const displayColumnIds = Object.entries(displayIds)
       .filter(([, on]) => on)
       .map(([id]) => id)
-    const filter =
-      filterCol.trim() !== ''
-        ? { columnId: filterCol.trim(), op: filterOp, value: filterVal }
-        : null
     setSaving(true)
     setStatus('')
     try {
@@ -178,7 +162,6 @@ export default function GaCompanyManagePage() {
         featureEnabled,
         matchRules,
         displayColumnIds,
-        filter,
       })
       setSettings(r.settings)
       setStatus('저장되었습니다.')
@@ -287,10 +270,11 @@ export default function GaCompanyManagePage() {
                 <section className="border border-[var(--border-default)] rounded-md p-3">
                   <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-2">1. 기능 사용 여부</h2>
                   <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
+                    <FormInput
                       type="checkbox"
                       checked={featureEnabled}
                       onChange={(ev) => setFeatureEnabled(ev.target.checked)}
+                      className="shrink-0"
                     />
                     고객 엑셀 기능 사용
                   </label>
@@ -312,7 +296,7 @@ export default function GaCompanyManagePage() {
                   <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-2">3. 샘플 엑셀 업로드 (설정용)</h2>
                   <form onSubmit={(ev) => void onSample(ev)} className="flex flex-wrap items-end gap-2">
                     <FieldWrapper label="파일 (.xlsx / .xls)">
-                      <input type="file" name="sample" accept=".xlsx,.xls" />
+                      <FormInput type="file" name="sample" accept=".xlsx,.xls" className="block mt-1 text-sm" />
                     </FieldWrapper>
                     <FormButton htmlType="submit" variant="secondary" disabled={sampleBusy}>
                       업로드 후 분석
@@ -329,8 +313,8 @@ export default function GaCompanyManagePage() {
                       <table className="admin-data-table" style={{ minWidth: 480 }}>
                         <thead>
                           <tr>
-                            <th>엑셀 컬럼</th>
-                            <th>조회 기준 → 고객 DB</th>
+                            <th>엑셀 컬럼명</th>
+                            <th>고객 DB 매칭</th>
                             <th>표시</th>
                           </tr>
                         </thead>
@@ -352,7 +336,7 @@ export default function GaCompanyManagePage() {
                                 />
                               </td>
                               <td>
-                                <input
+                                <FormInput
                                   type="checkbox"
                                   checked={Boolean(displayIds[c.id])}
                                   onChange={(ev) =>
@@ -361,6 +345,7 @@ export default function GaCompanyManagePage() {
                                       [c.id]: ev.target.checked,
                                     }))
                                   }
+                                  className="shrink-0"
                                 />
                               </td>
                             </tr>
@@ -371,36 +356,6 @@ export default function GaCompanyManagePage() {
                   )}
                 </section>
 
-                <section className="border border-[var(--border-default)] rounded-md p-3">
-                  <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-2">5. 필터 (최대 1조건)</h2>
-                  <div className="flex flex-wrap gap-2 items-end">
-                    <FieldWrapper label="컬럼">
-                      <FormSelect
-                        className="admin-form-input"
-                        value={filterCol}
-                        onChange={(ev) => setFilterCol(ev.target.value)}
-                        options={[
-                          { value: '', label: '(필터 없음)' },
-                          ...settings.sampleColumns.map((c) => ({ value: c.id, label: c.header })),
-                        ]}
-                      />
-                    </FieldWrapper>
-                    <FieldWrapper label="연산자">
-                      <FormSelect
-                        className="admin-form-input"
-                        value={filterOp}
-                        onChange={(ev) => setFilterOp(ev.target.value as '=' | '!=')}
-                        options={[
-                          { value: '=', label: '=' },
-                          { value: '!=', label: '!=' },
-                        ]}
-                      />
-                    </FieldWrapper>
-                    <FieldWrapper label="값">
-                      <FormInput value={filterVal} onChange={(ev) => setFilterVal(ev.target.value)} />
-                    </FieldWrapper>
-                  </div>
-                </section>
 
                 <div className="flex gap-2">
                   <FormButton htmlType="button" variant="primary" disabled={saving} onClick={() => void onSave()}>

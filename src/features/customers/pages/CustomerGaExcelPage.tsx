@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { EmptyState, LoadingState, StatusMessage } from '../../../components/feedback'
-import { FormButton } from '../../../components/form'
+import { FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   fetchCustomerGaExcelData,
@@ -117,7 +117,7 @@ export default function CustomerGaExcelPage() {
       <form onSubmit={(ev) => void onUpload(ev)} className="flex flex-wrap items-end gap-2 mb-4 mt-2">
         <label className="text-sm text-[var(--text-secondary)]">
           운영 엑셀 업로드
-          <input type="file" name="datafile" accept=".xlsx,.xls" className="block mt-1 text-sm" />
+          <FormInput type="file" name="datafile" accept=".xlsx,.xls" className="block mt-1 text-sm" />
         </label>
         <FormButton htmlType="submit" variant="secondary" disabled={uploadBusy}>
           업로드
@@ -126,8 +126,8 @@ export default function CustomerGaExcelPage() {
 
       {loading ? (
         <LoadingState message="불러오는 중…" />
-      ) : headers.length === 0 && sortedRows.length === 0 ? (
-        <EmptyState message="표시할 열이 없거나, 조건에 맞는 데이터가 없습니다." />
+      ) : headers.length === 0 ? (
+        <EmptyState message="표시할 열이 설정되어 있지 않습니다." />
       ) : (
         <div className="overflow-x-auto border border-[var(--border-default)] rounded-md">
           <table className="admin-data-table" style={{ minWidth: 400 }}>
@@ -135,14 +135,15 @@ export default function CustomerGaExcelPage() {
               <tr>
                 {headers.map((h, idx) => (
                   <th key={colIds[idx] ?? String(idx)}>
-                    <button
-                      type="button"
-                      className="text-left underline-offset-2 hover:underline text-sm font-semibold"
+                    <FormButton
+                      htmlType="button"
+                      variant="action"
+                      className="text-left underline-offset-2 hover:underline text-sm font-semibold !justify-start"
                       onClick={() => onHeaderClick(idx)}
                     >
                       {h}
                       {sortIdx === idx ? (sortAsc ? ' ▲' : ' ▼') : ''}
-                    </button>
+                    </FormButton>
                   </th>
                 ))}
               </tr>

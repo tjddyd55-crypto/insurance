@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useConfirmDialog } from '../../../components/dialog'
 import { EmptyState, LoadingState, StatusMessage } from '../../../components/feedback'
-import { FormButton } from '../../../components/form'
+import { FormButton, FormSelect } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   disbandTeam,
@@ -202,20 +202,20 @@ export default function TeamMembersPage() {
                   <label htmlFor="transfer-target" className="text-xs text-[var(--text-secondary)]">
                     팀장 위임 대상
                   </label>
-                  <select
+                  <FormSelect
                     id="transfer-target"
                     className="text-sm rounded border border-[var(--border-default)] bg-[var(--surface-base)] text-[var(--text-primary)] px-2 py-1"
                     disabled={actionBusy || transferCandidates.length === 0}
                     value={transferTargetId}
                     onChange={(ev) => setTransferTargetId(ev.target.value)}
-                  >
-                    <option value="">선택</option>
-                    {transferCandidates.map((m) => (
-                      <option key={m.userId} value={m.userId}>
-                        {m.displayName || m.username}
-                      </option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: '', label: '선택' },
+                      ...transferCandidates.map((m) => ({
+                        value: m.userId,
+                        label: m.displayName || m.username,
+                      })),
+                    ]}
+                  />
                 </div>
                 <FormButton
                   htmlType="button"

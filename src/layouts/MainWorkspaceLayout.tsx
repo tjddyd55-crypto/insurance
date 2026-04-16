@@ -129,9 +129,11 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
     }
     const snap = loadMemoUiSnapshot(persistenceUserId)
     if (snap?.workspace) {
-      setMemoRatio(snap.workspace.memoRatio)
-      setIsListOpen(snap.workspace.isListOpen)
-      setIsMemoOpen(snap.workspace.isMemoOpen)
+      queueMicrotask(() => {
+        setMemoRatio(snap.workspace.memoRatio)
+        setIsListOpen(snap.workspace.isListOpen)
+        setIsMemoOpen(snap.workspace.isMemoOpen)
+      })
     }
     workspaceHydratedRef.current = true
   }, [persistenceUserId])

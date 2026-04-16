@@ -217,7 +217,6 @@ export async function uploadNewsletterAttachments(
         })
         putOk = put.ok
         if (!put.ok) {
-          // eslint-disable-next-line no-console -- R2 PUT 실패는 서버가 보지 못하므로 클라이언트에서 1차 추적
           console.warn(
             '[upload-fail]',
             JSON.stringify({
@@ -229,7 +228,6 @@ export async function uploadNewsletterAttachments(
           )
         }
       } catch (putErr) {
-        // eslint-disable-next-line no-console -- 브라우저 CORS/네트워크 차단은 서버에서 포착 불가
         console.warn(
           '[upload-fail]',
           JSON.stringify({
@@ -282,7 +280,6 @@ export async function uploadNewsletterAttachments(
           body: JSON.stringify(completeBody),
         })
       } catch (completeErr) {
-        // eslint-disable-next-line no-console -- PUT 성공 후 서버 알림 실패(orphan 후보); drain과 별도로 브라우저 흔적
         console.warn(
           '[upload-complete-fail]',
           JSON.stringify({
@@ -304,7 +301,6 @@ export async function uploadNewsletterAttachments(
       })
     } catch (e) {
       const msg = e instanceof Error ? e.message : '업로드에 실패했습니다.'
-      // eslint-disable-next-line no-console -- presign/API 예외는 서버 로그와 구분해 클라이언트에서 표시
       console.error(
         '[upload-fail]',
         JSON.stringify({ stage: 'presign-or-network', message: msg, at: new Date().toISOString() }),

@@ -60,7 +60,7 @@ export default function CustomerWorkspaceLayout() {
 
   useEffect(() => {
     if (!selectedCustomerId || !token?.trim()) {
-      setSelectedCustomerLabel('')
+      queueMicrotask(() => setSelectedCustomerLabel(''))
       return
     }
     let cancelled = false
@@ -85,12 +85,12 @@ export default function CustomerWorkspaceLayout() {
 
   useEffect(() => {
     if (!token?.trim()) {
-      setExcelCap(null)
+      queueMicrotask(() => setExcelCap(null))
       return
     }
     const role = String(user?.role ?? '')
     if (role === 'SUPER_ADMIN' || role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER') {
-      setExcelCap(null)
+      queueMicrotask(() => setExcelCap(null))
       return
     }
     let cancelled = false

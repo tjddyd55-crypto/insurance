@@ -78,7 +78,6 @@ export default function CompanyRegistryPage() {
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
     if (import.meta.env.DEV) {
-      // eslint-disable-next-line no-console -- SSOT 목록 크기 확인
       console.log('[company-registry] 2차 옵션(DB만)', { filterKey, count: merged.length })
     }
     return merged

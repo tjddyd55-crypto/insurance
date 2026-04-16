@@ -11,7 +11,6 @@ export async function listCompanyDirectory(token: string): Promise<CompanyDirect
   if (import.meta.env.DEV) {
     const distinctCategories = [...new Set(rows.map((r) => r.category))].sort()
     const missingCategory = rows.filter((r) => !String(r.category ?? '').trim()).length
-    // eslint-disable-next-line no-console -- 서버가 목록을 잘라 주는지·category 원문 분포 확인
     console.log('[company-registry] GET /api/company/list', {
       total: rows.length,
       missingCategory,

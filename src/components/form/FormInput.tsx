@@ -18,14 +18,16 @@ const FormInput = forwardRef<HTMLInputElement, Props>(function FormInput(
 ) {
   const toneClass = readOnly || disabled ? 'field--readonly' : 'field--editable'
   const mergedClassName = ['form-input', toneClass, className].filter(Boolean).join(' ')
-  const isFileInput = String(props.type ?? '').toLowerCase() === 'file'
+  const inputType = String(props.type ?? '').toLowerCase()
+  const isFileInput = inputType === 'file'
+  const isCheckbox = inputType === 'checkbox'
   const normalizedValue = isFileInput ? value ?? undefined : value ?? ''
 
   return (
     <input
       ref={ref}
       {...props}
-      value={normalizedValue}
+      {...(!isCheckbox ? { value: normalizedValue } : {})}
       onChange={onChange}
       readOnly={readOnly}
       disabled={disabled}

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMous
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { FormButton } from '../components/form'
 import { Button, Modal } from '../components/ui'
+import { NotificationBell } from '../features/notification/components/NotificationBell'
 import { useAuth } from '../features/auth/AuthProvider'
+import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import {
   buildGaTenantDashboardMenu,
   GA_STAFF_MENU,
@@ -163,7 +165,7 @@ export default function AppWorkspaceLayout() {
 function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, logout, token } = useAuth()
+  const { user, logout, token, isAuthenticated } = useAuth()
   const { isMinimized, setIsMinimized } = useMemoWorkspace()
 
   const [isMemoOpen, setIsMemoOpen] = useState(true)
@@ -174,6 +176,8 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
   const [preparingNoticeOpen, setPreparingNoticeOpen] = useState(false)
   const [memoWidth, setMemoWidth] = useState(MEMO_DEFAULT_WIDTH)
   const [resizeSession, setResizeSession] = useState<{ startX: number; startWidth: number } | null>(null)
+  /** PC(데스크톱 구간) 좌측 메뉴 접기 — 모바일 분기와 무관, CSS 로 1024px 미만에서는 레이아웃만 숨김 */
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
   const sidebarItems = useMemo(() => {
     const base = buildSidebarEntries(user?.role, user?.gaCode, user?.gaName).filter((entry) =>
@@ -337,10 +341,53 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
 
   const showMemoPanel = isMemoOpen && !isMinimized
 
+  const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
+  const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
+  const showGaUserActions = tenantChrome && !isNewsManager
+  const workspaceHeaderTitle = tenantChrome
+    ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')
+    : '업무 메뉴'
+
   return (
-    <>
+    <div className="app-workspace-layout-root">
+      <header className="app-workspace-chrome-header" aria-label="워크스페이스 상단">
+        <div className="app-workspace-chrome-header__leading">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="app-workspace-chrome-header__menu-btn"
+            aria-label="메뉴 접기·펼치기"
+            aria-expanded={!isSidebarCollapsed}
+            onClick={() => setIsSidebarCollapsed((v) => !v)}
+          >
+            ☰
+          </FormButton>
+          <span className="app-workspace-chrome-header__ga">{workspaceHeaderTitle}</span>
+        </div>
+        <div className="app-workspace-chrome-header__trailing">
+          {showGaUserActions ? (
+            <>
+              <NotificationBell />
+              {user?.role === 'USER' ? (
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  className="app-workspace-chrome-header__profile"
+                  onClick={() => navigate('/profile')}
+                >
+                  프로필
+                </FormButton>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+      </header>
+
       <div className="workspace-root workspace-root--app-pc">
-        <aside className="workspace-sidebar" aria-label="좌측 메뉴">
+        <aside
+          className={`workspace-sidebar${isSidebarCollapsed ? ' workspace-sidebar--collapsed' : ''}`}
+          aria-label="좌측 메뉴"
+        >
           <div className="workspace-sidebar__section workspace-sidebar__section--menu">
             <h2 className="workspace-sidebar__title">메뉴</h2>
             <nav className="workspace-sidebar__nav" aria-label="주요 메뉴">
@@ -449,6 +496,6 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
           </Button>
         </div>
       </Modal>
-    </>
+    </div>
   )
 }
