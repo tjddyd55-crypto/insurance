@@ -187,6 +187,97 @@ export function registerUserProfileApi(apiRouter, ctx) {
     res.json(payload)
   })
 
+  const verifySignupPhoneCodeLegacy = async (req, res) => {
+    const phoneRaw = String(req.body?.phone ?? req.body?.phoneNumber ?? req.body?.phone_number ?? '').trim()
+    const codeRaw = String(req.body?.code ?? '').trim()
+    if (!phoneRaw || !codeRaw) {
+      return res.status(400).json({
+        success: false,
+        message: '휴대폰번호 또는 인증번호 누락',
+      })
+    }
+
+    const normalizedPhone = phoneRaw.replace(/[^0-9]/g, '')
+    if (!normalizedPhone) {
+      return res.status(400).json({
+        success: false,
+        message: '휴대폰번호 또는 인증번호 누락',
+      })
+    }
+
+    const savedRes = await systemQuery(
+      pool,
+      `
+      SELECT id, code, expires_at
+      FROM sms_verification_codes
+      WHERE purpose = $1
+        AND phone_number = $2
+        AND user_id IS NULL
+        AND used = FALSE
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [SMS_PURPOSE_SIGNUP, normalizedPhone],
+    )
+    const saved = savedRes.rows[0] ?? null
+
+    console.log('PHONE:', normalizedPhone)
+    console.log('INPUT CODE:', codeRaw)
+    console.log('SAVED CODE:', saved?.code)
+
+    if (!saved) {
+      return res.status(400).json({
+        success: false,
+        message: '인증 요청이 존재하지 않습니다.',
+      })
+    }
+
+    if (String(saved.code) !== String(codeRaw)) {
+      return res.status(400).json({
+        success: false,
+        message: '인증번호가 일치하지 않습니다.',
+      })
+    }
+
+    const expireAtMs = saved.expires_at ? new Date(saved.expires_at).getTime() : 0
+    if (!Number.isFinite(expireAtMs) || expireAtMs < Date.now()) {
+      return res.status(400).json({
+        success: false,
+        message: '인증번호가 만료되었습니다.',
+      })
+    }
+
+    await pool.query(
+      `
+      UPDATE sms_verification_codes
+      SET used = TRUE, verified_at = NOW()
+      WHERE id = $1
+      `,
+      [saved.id],
+    )
+
+    return res.json({
+      success: true,
+      message: '인증 완료',
+    })
+  }
+
+  apiRouter.post('/signup-phone-code', async (req, res) => {
+    try {
+      await verifySignupPhoneCodeLegacy(req, res)
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/auth/signup-phone-code', async (req, res) => {
+    try {
+      await verifySignupPhoneCodeLegacy(req, res)
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
   apiRouter.post('/auth/verify-signup-phone-code', async (req, res) => {
     const clientIp = getClientIp(req)
     const clientUa = getClientUserAgent(req)
