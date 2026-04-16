@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
@@ -6,7 +6,15 @@ import { fetchUnreadCount } from '../api/notificationApi'
 import { NOTIFICATION_REFRESH_EVENT } from '../notificationRefreshDispatch'
 import { NotificationList } from './NotificationList'
 
-export function NotificationBell() {
+export type NotificationBellVariant = 'inline' | 'workspaceHeader'
+
+type Props = {
+  variant?: NotificationBellVariant
+  /** workspaceHeader: panel below workspace header; boundaryRef is the header element. */
+  boundaryRef?: RefObject<HTMLElement | null>
+}
+
+export function NotificationBell({ variant = 'inline', boundaryRef }: Props) {
   const { token, user } = useAuth()
   const [open, setOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -62,57 +70,76 @@ export function NotificationBell() {
       return
     }
     function onDocMouseDown(ev: MouseEvent) {
-      const el = wrapRef.current
-      if (el && ev.target instanceof Node && !el.contains(ev.target)) {
+      const root = boundaryRef?.current ?? wrapRef.current
+      if (root && ev.target instanceof Node && !root.contains(ev.target)) {
         setOpen(false)
       }
     }
     document.addEventListener('mousedown', onDocMouseDown)
     return () => document.removeEventListener('mousedown', onDocMouseDown)
-  }, [open])
+  }, [open, boundaryRef])
 
   if (!token?.trim() || isNewsManager) {
     return null
   }
 
+  const trigger = (
+    <FormButton
+      htmlType="button"
+      variant="action"
+      className="app-tenant-ga-bar__notification-trigger notification-icon"
+      aria-expanded={open}
+      aria-haspopup="true"
+      aria-label={'\uC54C\uB9BC'}
+      onClick={() => {
+        setOpen((v) => !v)
+        void refreshUnread()
+      }}
+    >
+      <span className="relative inline-block text-lg leading-none" aria-hidden>
+        {'\uD83D\uDD14'}
+      </span>
+      {unreadCount > 0 ? (
+        <span
+          className="absolute -top-0.5 -right-1 min-w-[1rem] h-4 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-semibold leading-none"
+          aria-hidden
+        >
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      ) : null}
+    </FormButton>
+  )
+
+  const panel = open ? (
+    <div
+      className={
+        variant === 'workspaceHeader'
+          ? 'notification-panel notification-panel--workspace-header notification-dropdown'
+          : 'notification-panel'
+      }
+      role="dialog"
+      aria-label={'\uC54C\uB9BC \uBAA9\uB85D'}
+    >
+      <div className="notification-panel__header">{'\uC54C\uB9BC'}</div>
+      <div className="notification-panel__body">
+        <NotificationList token={token} onUnreadChanged={() => void refreshUnread()} />
+      </div>
+    </div>
+  ) : null
+
+  if (variant === 'workspaceHeader') {
+    return (
+      <div className="app-workspace-chrome-header__notification-root">
+        <div className="header-right app-workspace-chrome-header__header-right">{trigger}</div>
+        {panel}
+      </div>
+    )
+  }
+
   return (
     <div ref={wrapRef} className="relative inline-flex items-center">
-      <FormButton
-        htmlType="button"
-        variant="action"
-        className="app-tenant-ga-bar__notification-trigger"
-        aria-expanded={open}
-        aria-haspopup="true"
-        aria-label={'\uC54C\uB9BC'}
-        onClick={() => {
-          setOpen((v) => !v)
-          void refreshUnread()
-        }}
-      >
-        <span className="relative inline-block text-lg leading-none" aria-hidden>
-          {'\uD83D\uDD14'}
-        </span>
-        {unreadCount > 0 ? (
-          <span
-            className="absolute -top-0.5 -right-1 min-w-[1rem] h-4 px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-semibold leading-none"
-            aria-hidden
-          >
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        ) : null}
-      </FormButton>
-      {open ? (
-        <div
-          className="notification-panel"
-          role="dialog"
-          aria-label={'\uC54C\uB9BC \uBAA9\uB85D'}
-        >
-          <div className="notification-panel__header">{'\uC54C\uB9BC'}</div>
-          <div className="notification-panel__body">
-            <NotificationList token={token} onUnreadChanged={() => void refreshUnread()} />
-          </div>
-        </div>
-      ) : null}
+      {trigger}
+      {panel}
     </div>
   )
 }

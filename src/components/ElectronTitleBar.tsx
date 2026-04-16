@@ -1,13 +1,12 @@
-/** Frameless Electron chrome; mounted from AppLayout so `useNavigate` works. */
+/** Frameless Electron title bar: back, drag region, window controls. */
 import { FormButton } from './form'
 import { useLayoutEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
-import { NotificationBell } from '../features/notification/components/NotificationBell'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 
 const APP_TITLE = '\uBCF4\uD5D8 \uC2E0\uCCAD\u00B7\uACE0\uAC1D\uAD00\uB9AC'
-const BACK_LABEL = '\u2190 \uB4A4\uB85C\uAC00\uAE30'
+const BACK_LABEL = '\uB4A4\uB85C\uAC00\uAE30'
 
 export function ElectronTitleBar() {
   const navigate = useNavigate()
@@ -17,8 +16,6 @@ export function ElectronTitleBar() {
   const active = Boolean(api?.minimize && api?.maximize && api?.close)
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
-  const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
-  const showGaUserActions = tenantChrome && !isNewsManager
 
   useLayoutEffect(() => {
     const el = document.documentElement
@@ -40,9 +37,19 @@ export function ElectronTitleBar() {
   }
 
   return (
-    <header className="electron-title-bar title-bar" role="banner">
-      <div className="electron-title-bar__leading" aria-hidden="true" />
-      <div className="electron-title-bar__drag">
+    <header className="top-title-bar electron-title-bar title-bar" role="banner">
+      <div className="title-left">
+        <FormButton
+          htmlType="button"
+          className="back-btn"
+          aria-label={BACK_LABEL}
+          onClick={handleBack}
+        >
+          ←
+        </FormButton>
+      </div>
+
+      <div className="title-center electron-title-bar__drag">
         <span className="electron-title-bar__app-name">
           {tenantChrome ? (
             <span className="electron-title-bar__ga-name">
@@ -53,24 +60,12 @@ export function ElectronTitleBar() {
           )}
         </span>
       </div>
-      <div className="electron-title-bar__trailing">
-        {showGaUserActions ? (
-          <div className="electron-title-bar__user-actions">
-            <NotificationBell />
-          </div>
-        ) : null}
+
+      <div className="title-right">
         <div className="window-controls">
           <FormButton
             htmlType="button"
-            className="electron-title-bar__control electron-title-bar__control--back"
-            aria-label={BACK_LABEL}
-            onClick={handleBack}
-          >
-            ←
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            className="electron-title-bar__control"
+            className="electron-title-bar__control electron-title-bar__control--win"
             aria-label="Minimize"
             onClick={() => api?.minimize?.()}
             disabled={!active}
@@ -79,7 +74,7 @@ export function ElectronTitleBar() {
           </FormButton>
           <FormButton
             htmlType="button"
-            className="electron-title-bar__control"
+            className="electron-title-bar__control electron-title-bar__control--win"
             aria-label="Maximize or restore"
             onClick={() => api?.maximize?.()}
             disabled={!active}
@@ -88,12 +83,12 @@ export function ElectronTitleBar() {
           </FormButton>
           <FormButton
             htmlType="button"
-            className="electron-title-bar__control electron-title-bar__control--close"
+            className="electron-title-bar__control electron-title-bar__control--win electron-title-bar__control--close"
             aria-label="Close"
             onClick={() => api?.close?.()}
             disabled={!active}
           >
-            ✕
+            {'\u2715'}
           </FormButton>
         </div>
       </div>

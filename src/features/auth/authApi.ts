@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '../../lib/apiClient'
+import { ApiError, apiRequest, resolveApiUrl } from '../../lib/apiClient'
 
 export type UserRole = 'SUPER_ADMIN' | 'GA_ADMIN' | 'GA_STAFF' | 'USER' | 'INSURER_MANAGER' | 'LOSS_ADJUSTER'
 
@@ -133,11 +133,17 @@ export async function validateGaCodeForSignup(code: string): Promise<ValidateGaS
   if (!c) {
     return { success: false }
   }
-  const res = await fetch(`/api/ga/validate?code=${encodeURIComponent(c)}`)
-  if (!res.ok) {
+  const url = resolveApiUrl(`/api/ga/validate?code=${encodeURIComponent(c)}`)
+  try {
+    const res = await fetch(url, { method: 'GET' })
+    if (!res.ok) {
+      return { success: false }
+    }
+    const body = (await res.json()) as ValidateGaSignupResponse
+    return body
+  } catch {
     return { success: false }
   }
-  return (await res.json()) as ValidateGaSignupResponse
 }
 
 export async function fetchSignedInviteSignupUrl(token: string): Promise<{ path: string }> {

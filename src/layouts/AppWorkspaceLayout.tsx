@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { FormButton } from '../components/form'
 import { Button, Modal } from '../components/ui'
@@ -17,7 +24,6 @@ import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/contex
 import { fetchTeamMembers } from '../features/team/api/teamApi'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { CarInsuranceDashboardPage } from '../features/application/pages/CarInsuranceDashboardPage'
-import { isElectronApp } from '../lib/isElectronApp'
 import MemoPanel from './MemoPanel'
 import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
 
@@ -186,6 +192,7 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
   const location = useLocation()
   const { user, logout, token, isAuthenticated } = useAuth()
   const { isMinimized, setIsMinimized } = useMemoWorkspace()
+  const workspaceChromeHeaderRef = useRef<HTMLElement>(null)
 
   const [isMemoOpen, setIsMemoOpen] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -384,84 +391,30 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
     ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')
     : '업무 메뉴'
 
-  const electronApi = typeof window !== 'undefined' ? window.electronAPI : undefined
-  const windowControlsActive = Boolean(
-    electronApi?.minimize && electronApi?.maximize && electronApi?.close,
-  )
-
-  const handleWorkspaceChromeBack = useCallback(() => {
-    if (embedCarInsuranceHub) {
-      setEmbedCarInsuranceHub(false)
-      return
-    }
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      navigate(-1)
-    } else {
-      navigate('/')
-    }
-  }, [embedCarInsuranceHub, navigate])
-
   return (
     <div className="app-workspace-layout-root">
-      <header className="app-workspace-chrome-header" aria-label="워크스페이스 상단">
-        <div className="app-workspace-chrome-header__leading">
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="app-workspace-chrome-header__menu-btn"
-            aria-label="메뉴 접기·펼치기"
-            aria-expanded={!isSidebarCollapsed}
-            onClick={() => setIsSidebarCollapsed((v) => !v)}
-          >
-            ☰
-          </FormButton>
-          <span className="app-workspace-chrome-header__ga">{workspaceHeaderTitle}</span>
-        </div>
-        <div className="app-workspace-chrome-header__trailing">
-          {showGaUserActions ? <NotificationBell /> : null}
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="app-workspace-chrome-header__back-btn"
-            aria-label="뒤로가기"
-            onClick={handleWorkspaceChromeBack}
-          >
-            ←
-          </FormButton>
-          {isElectronApp() ? null : (
-            <div className="app-workspace-chrome-header__window-controls window-controls window-controls--web-stub">
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                className="app-workspace-chrome-header__win-btn"
-                aria-label="최소화"
-                disabled={!windowControlsActive}
-                onClick={() => electronApi?.minimize?.()}
-              >
-                —
-              </FormButton>
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                className="app-workspace-chrome-header__win-btn"
-                aria-label="최대화"
-                disabled={!windowControlsActive}
-                onClick={() => electronApi?.maximize?.()}
-              >
-                □
-              </FormButton>
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                className="app-workspace-chrome-header__win-btn app-workspace-chrome-header__win-btn--close"
-                aria-label="닫기"
-                disabled={!windowControlsActive}
-                onClick={() => electronApi?.close?.()}
-              >
-                ✕
-              </FormButton>
-            </div>
-          )}
+      <header
+        ref={workspaceChromeHeaderRef}
+        className="app-workspace-chrome-header header"
+        aria-label="워크스페이스 상단"
+      >
+        <div className="app-workspace-chrome-header__row">
+          <div className="header-left app-workspace-chrome-header__leading">
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="menu-btn app-workspace-chrome-header__menu-btn"
+              aria-label="메뉴 접기·펼치기"
+              aria-expanded={!isSidebarCollapsed}
+              onClick={() => setIsSidebarCollapsed((v) => !v)}
+            >
+              ☰
+            </FormButton>
+            <span className="ga-name app-workspace-chrome-header__ga">{workspaceHeaderTitle}</span>
+          </div>
+          {showGaUserActions ? (
+            <NotificationBell variant="workspaceHeader" boundaryRef={workspaceChromeHeaderRef} />
+          ) : null}
         </div>
       </header>
 

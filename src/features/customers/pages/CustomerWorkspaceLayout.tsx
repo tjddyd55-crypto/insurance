@@ -119,6 +119,8 @@ export default function CustomerWorkspaceLayout() {
     excelCap != null &&
     (excelCap.showDesignerUi || (excelCap.featureEnabled && !excelCap.configReady && Boolean(excelCap.message)))
 
+  const showCarInsuranceInWorkspace = isGaCarInsuranceHubEnabled(user?.gaCode, user?.gaName)
+
   const moveTo = (path: string) => {
     navigate(buildCustomerWorkspaceHref(path, searchParams))
   }

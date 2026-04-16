@@ -99,10 +99,6 @@ export function RegisterPage() {
   }, [resendLeft])
 
   useEffect(() => {
-    console.log({ isVerified, gaCode, gaInfo })
-  }, [isVerified, gaCode, gaInfo])
-
-  useEffect(() => {
     const raw = gaCode.trim()
     if (!raw) {
       setGaInfo(null)
@@ -118,19 +114,19 @@ export function RegisterPage() {
           if (cancelled) {
             return
           }
-          if (data.success && data.gaName) {
-            setGaInfo(data.gaName)
+          if (data.success && data.gaName?.trim()) {
+            setGaInfo(data.gaName.trim())
             setGaError('')
           } else {
             setGaInfo(null)
-            setGaError('존재하지 않는 GA 코드입니다.')
+            setGaError('조회 되지 않습니다.')
           }
         } catch {
           if (cancelled) {
             return
           }
           setGaInfo(null)
-          setGaError('조회 실패')
+          setGaError('조회 되지 않습니다.')
         }
       })()
     }, 400)
@@ -399,7 +395,7 @@ export function RegisterPage() {
               placeholder="부여받은 소속코드를 입력하세요"
               required
             />
-            {gaInfo ? <div className="ga-success">{gaInfo}</div> : null}
+            {gaInfo ? <div className="ga-success">{`조회결과: ${gaInfo}`}</div> : null}
             {gaError ? <div className="ga-error">{gaError}</div> : null}
           </label>
 

@@ -158,16 +158,34 @@ body {
 }
 
 @media (min-width: 1024px) {
-  .app-workspace-chrome-header {
+  .app-workspace-chrome-header.header {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    padding: 0;
+    border-bottom: 1px solid var(--border-default, #2a2a2a);
+    background: var(--bg-elevated, #141b26);
+  }
+
+  .app-workspace-chrome-header__row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+    height: 56px;
+    padding: 0 12px;
+    box-sizing: border-box;
+  }
+
+  .app-workspace-chrome-header__notification-root {
+    display: contents;
+  }
+
+  .app-workspace-chrome-header__header-right {
+    display: flex;
+    align-items: center;
     flex-shrink: 0;
-    min-height: 44px;
-    padding: 6px 12px;
-    border-bottom: 1px solid var(--border-default, #2a2a2a);
-    background: var(--bg-elevated, #141b26);
   }
 
   .app-workspace-chrome-header__leading {
@@ -194,63 +212,17 @@ body {
     text-overflow: ellipsis;
   }
 
-  .app-workspace-chrome-header__trailing {
-    display: flex;
-    align-items: stretch;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-
-  .app-workspace-chrome-header__back-btn {
-    min-width: 40px;
-    padding: 0 10px;
-    margin: 0;
-    align-self: center;
-    font-size: 0.95rem;
-    line-height: 1;
+  .notification-panel.notification-panel--workspace-header.notification-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 12px;
+    margin-top: 4px;
+    width: 320px;
+    max-width: min(100vw - 24px, 320px);
+    z-index: 100;
     border-radius: 8px;
-  }
-
-  .app-workspace-chrome-header__window-controls.window-controls {
-    display: flex;
-    align-items: stretch;
-    align-self: stretch;
-    gap: 6px;
-    margin: -6px -12px -6px 0;
-    padding: 0 0 0 4px;
-  }
-
-  .app-workspace-chrome-header__window-controls.window-controls--web-stub .app-workspace-chrome-header__win-btn:disabled {
-    opacity: 0.35;
-  }
-
-  .app-workspace-chrome-header__win-btn {
-    width: 40px;
-    min-width: 40px;
-    max-width: 40px;
-    padding: 0 !important;
-    margin: 0;
-    box-sizing: border-box;
-    border-radius: 0;
-    align-self: stretch;
-    min-height: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.9rem;
-    line-height: 1;
-    border: none;
-    border-left: 1px solid var(--border-default, #2a2a2a);
-    background: transparent;
-  }
-
-  .app-workspace-chrome-header__win-btn--back {
-    border-left: none;
-  }
-
-  .app-workspace-chrome-header__win-btn--close:hover:not(:disabled) {
-    background: #e81123;
-    color: #fff;
+    background: #2a2f3a;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
   }
 
   .app-workspace-chrome-header__profile {
@@ -289,11 +261,6 @@ body {
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
-  }
-
-  /* 워크스페이스 헤더에 알림·프로필을 두면 타이틀 바와 중복되지 않도록 */
-  html.electron-app .electron-title-bar__user-actions {
-    display: none;
   }
 
   .app-workspace-layout-root .workspace-root.workspace-root--app-pc {
@@ -518,6 +485,37 @@ button:focus-visible:not(:disabled) {
 }
 
 /* ——— Electron frameless title bar ——— */
+.top-title-bar {
+  height: 32px;
+  min-height: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+
+.top-title-bar .title-left,
+.top-title-bar .title-right {
+  display: flex;
+  align-items: stretch;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+.top-title-bar .back-btn {
+  width: 32px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
 .title-bar.electron-title-bar {
   position: sticky;
   top: 0;
@@ -525,14 +523,19 @@ button:focus-visible:not(:disabled) {
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  height: 40px;
-  min-height: 40px;
+  height: 32px;
+  min-height: 32px;
   box-sizing: border-box;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
   app-region: drag;
   overflow: visible;
+}
+
+.title-bar.electron-title-bar .title-center {
+  flex: 1;
+  min-width: 0;
 }
 
 .electron-title-bar__leading {
@@ -752,7 +755,7 @@ html.electron-app .electron-title-bar .window-controls .electron-title-bar__cont
   padding: 0;
 }
 
-html.electron-app .notification-panel {
+html.electron-app .notification-panel:not(.notification-panel--workspace-header) {
   top: 32px;
   z-index: 99999;
 }
