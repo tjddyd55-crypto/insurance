@@ -6013,11 +6013,11 @@ a.contacts-public-auth__link {
 
 .mobile-root .customers-page button.cta-button.customers-page__action-btn,
 .mobile-root .customers-page div.cta-button.customers-page__action-btn[role='button'] {
-  height: 40px;
-  min-height: 40px;
-  padding: 0 12px;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding: 0 12px !important;
   border-radius: 10px;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
 }
@@ -6035,23 +6035,18 @@ a.contacts-public-auth__link {
   box-sizing: border-box;
 }
 
-.mobile-root .customers-page .customers-page__search-row > button.text-sm,
-.mobile-root .customers-page .customers-page__filter-toggle {
-  height: 44px;
-  min-height: 44px;
-  box-sizing: border-box;
-  display: inline-flex;
+.mobile-root .customers-page .customers-page__search-row button {
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 12px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
   align-items: center;
   justify-content: center;
 }
 
-.mobile-root .customers-page .customers-page__search-row > button.text-sm,
-.mobile-root .customers-page .customers-page__filter-toggle {
-  padding: 0 12px;
-}
-
 .mobile-root .customers-page .customer-expand-summary {
-  align-items: center;
+  align-items: center !important;
   padding: 10px;
 }
 
@@ -6061,7 +6056,7 @@ a.contacts-public-auth__link {
 
 .mobile-root .customers-page .customer-card-summary-meta {
   margin-top: 2px;
-  line-height: 1.35;
+  line-height: 1.2 !important;
 }
 
 .mobile-root .customers-page .customer-card__actions {
@@ -6075,6 +6070,14 @@ a.contacts-public-auth__link {
   min-width: 28px;
   min-height: 28px;
   padding: 0;
+}
+
+.mobile-root .customers-page .customer-card__actions .icon-box button {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
 }
 
 .mobile-root .customers-page .customer-card__actions .icon-box svg,
@@ -6117,18 +6120,18 @@ a.contacts-public-auth__link {
   gap: 4px !important;
 }
 
-.mobile-root .customers-page .customer-icon-action {
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
-  padding: 0;
+.mobile-root .customers-page .customer-card-icon-actions .customer-icon-action {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
   border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  line-height: 1;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
 }
 
 .mobile-root .customers-page .customer-expand-section-divider {
@@ -6140,7 +6143,7 @@ a.contacts-public-auth__link {
 }
 
 .pc-root .customers-page .customer-expand-summary {
-  align-items: center;
+  align-items: center !important;
   padding: 11px 12px;
 }
 
@@ -6150,17 +6153,18 @@ a.contacts-public-auth__link {
 
 .pc-root .customers-page .customer-card-summary-meta {
   margin-top: 3px;
-  line-height: 1.35;
+  line-height: 1.2 !important;
 }
 
 .pc-root .customers-page .customer-card__actions {
-  gap: 8px;
+  gap: 8px !important;
   align-items: center;
 }
 
-.pc-root .customers-page .customer-card__actions .icon-box {
-  width: 30px;
-  height: 30px;
+.pc-root .customers-page .customer-card__actions .icon-box button {
+  width: 30px !important;
+  height: 30px !important;
+  padding: 0 !important;
 }
 
 .pc-root .customers-page .customer-expand-summary__hint {
@@ -6184,6 +6188,14 @@ a.contacts-public-auth__link {
 .pc-root .customers-page .customer-expand-detail {
   margin-top: 7px;
   padding: 11px;
+}
+
+.customers-page .customers-page__action-btn {
+  height: 40px !important;
+  min-height: 40px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* ——— 메인 워크스페이스(좌 앱 / 우 메모) ——— */
