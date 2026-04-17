@@ -30,9 +30,9 @@ import CustomerRegisterPage from './features/customers/pages/CustomerRegisterPag
 import CustomerConsultationsPage from './features/customers/pages/CustomerConsultationsPage'
 import CustomerFilesPage from './features/customers/pages/CustomerFilesPage'
 import CustomerGaExcelPage from './features/customers/pages/CustomerGaExcelPage'
-import CustomerListPage from './features/customers/pages/CustomerListPage'
-import CustomerDetailPage from './features/customers/pages/CustomerDetailPage'
 import CustomerAutoPage from './features/customers/pages/CustomerAutoPage'
+import CustomerWorkspaceLayout from './features/customers/pages/CustomerWorkspaceLayout'
+import CustomerWorkspaceHomePage from './features/customers/pages/CustomerWorkspaceHomePage'
 import TeamMembersPage from './features/team/pages/TeamMembersPage'
 import TeamPostsPage from './features/team/pages/TeamPostsPage'
 import TeamFilesPage from './features/team/pages/TeamFilesPage'
@@ -155,8 +155,16 @@ export const appRouter = createBrowserRouter([
                   { path: 'form/result/:id', element: <ApplicationResultPage /> },
                 ],
               },
-              { path: 'customers', element: <CustomerListPage /> },
-              { path: 'customer/:customerId', element: <CustomerDetailPage /> },
+              {
+                path: 'customers',
+                element: <CustomerWorkspaceLayout />,
+                children: [
+                  { index: true, element: <CustomerWorkspaceHomePage /> },
+                  { path: ':customerId/files', element: <CustomerFilesPage /> },
+                  { path: ':customerId/consultations', element: <CustomerConsultationsPage /> },
+                  { path: ':customerId/ga-excel', element: <CustomerGaExcelPage /> },
+                ],
+              },
               { path: 'customer/:customerId/files', element: <CustomerFilesPage /> },
               { path: 'customer/:customerId/consults', element: <CustomerConsultationsPage /> },
               { path: 'customer/:customerId/auto', element: <CustomerAutoPage /> },

@@ -18,12 +18,9 @@ import { ApiError } from '../../../lib/apiClient'
 import { getPublicOrigin } from '../../../lib/publicOrigin'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
-import { formatKoreanDateTime } from '../../application/utils/date'
-import type { InsuranceApplicationRecord } from '../../application/domain/types'
 import {
   assertCustomerDataRecord,
   deleteCustomer,
-  listCustomerForms,
   listCustomers,
   updateCustomer,
 } from '../api/customersApi'
@@ -60,10 +57,10 @@ import {
   searchCustomersAdvanced,
 } from '../api/customerExtraApi'
 import { parseConsultationStoredBody } from '../utils/consultationBodyFormat'
-import { CustomerConsultationSection } from '../components/CustomerConsultationSection'
 import { CustomerInlineNotesSection } from '../components/CustomerInlineNotesSection'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import { useGaSettings } from '../../ga-settings/useGaSettings'
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 
@@ -74,7 +71,7 @@ const LAST_CONSULT_FETCH_CONCURRENCY = 12
 
 /** 오른쪽 작업영역(파일·상담)이 라우트로 고객을 고정할 때 — 카드 접힘과 `?customerId=` 동기화 충돌 방지 */
 function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
-  return /^\/customers\/[^/]+\/(files|consultations)(\/|$)/.test(pathname)
+  return /^\/customers\/[^/]+\/(files|consultations|ga-excel)(\/|$)/.test(pathname)
 }
 
 async function copyTextWithWebViewFallback(text: string): Promise<boolean> {
@@ -463,19 +460,19 @@ type CustomerListCardProps = {
   onEditSubmit: (e: FormEvent<HTMLFormElement>) => void | Promise<void>
   onStatusMessage: (msg: string) => void
   carFeatureEnabled: boolean
-  historyLoading: boolean
-  historyForms: InsuranceApplicationRecord[]
+  gaExcelEnabled: boolean
   onCopyCustomer: (c: CustomerRecord) => void
   onStartEdit: (c: CustomerRecord) => void
   onCancelEdit: () => void
   onDeleteCustomer: (c: CustomerRecord) => void
-  onNavigateToFormEdit: (formId: string) => void
-  onCreateAutoApplication: (customerId: number) => void
+  onNavigateToCustomerFiles: (customerId: number, customerName: string) => void
+  onNavigateToCustomerConsults: (customerId: number) => void
+  onNavigateToCustomerAuto: (customerId: number) => void
+  onNavigateToCustomerGa: (customerId: number) => void
   token: string | null
   onOpenCustomer: (customerId: number) => void
   consultationCount: number
   lastConsultDateLabel: string | null
-  onConsultationCountsInvalidate: () => void
   onCustomerNotesPersisted: (
     customerId: number,
     newMemo: CustomerNotesBag,
@@ -498,22 +495,23 @@ const CustomerListCard = memo(function CustomerListCard({
   onEditSubmit,
   onStatusMessage,
   carFeatureEnabled,
-  historyLoading,
-  historyForms,
+  gaExcelEnabled,
   onCopyCustomer,
   onStartEdit,
   onCancelEdit,
   onDeleteCustomer,
-  onNavigateToFormEdit,
-  onCreateAutoApplication,
+  onNavigateToCustomerFiles,
+  onNavigateToCustomerConsults,
+  onNavigateToCustomerAuto,
+  onNavigateToCustomerGa,
   token,
   onOpenCustomer,
   consultationCount,
   lastConsultDateLabel,
-  onConsultationCountsInvalidate,
   onCustomerNotesPersisted,
   onToggleFavorite,
 }: CustomerListCardProps) {
+  const isMobile = useIsMobile()
   const validCustomerId =
     c != null &&
     typeof c === 'object' &&
@@ -771,16 +769,6 @@ const CustomerListCard = memo(function CustomerListCard({
                 >
                   🗑
                 </FormButton>
-                {carFeatureEnabled ? (
-                  <FormButton
-                    htmlType="button"
-                    variant="secondary"
-                    className="button button--secondary button--small customer-create-form-button"
-                    onClick={() => onCreateAutoApplication(c.id)}
-                  >
-                    자동차 신청서 작성
-                  </FormButton>
-                ) : null}
               </div>
             </div>
             {editingId === c.id && editForm ? (
@@ -1109,20 +1097,13 @@ const CustomerListCard = memo(function CustomerListCard({
                 key={c.id}
                 customer={c}
                 token={token}
+                showFileShortcut={false}
                 onPersisted={onCustomerNotesPersisted}
                 onStatusMessage={onStatusMessage}
               />
             </div>
             {!(editingId === c.id && editForm) ? (
               <>
-                {token ? (
-                  <CustomerConsultationSection
-                    customerId={c.id}
-                    token={token}
-                    onMutated={onConsultationCountsInvalidate}
-                  />
-                ) : null}
-                <div className="customer-expand-section-divider" role="presentation" />
                 {token ? (
                   <CustomerRelationsStrip
                     customerId={c.id}
@@ -1133,37 +1114,44 @@ const CustomerListCard = memo(function CustomerListCard({
                   />
                 ) : null}
                 <div className="customer-expand-section-divider" role="presentation" />
-                {carFeatureEnabled ? (
-                  <div className="customer-form-history mt-5">
-                    <div className="customer-section-title">[연결된 신청서]</div>
-                    {historyLoading ? (
-                      <p className="customer-form-history__status">불러오는 중…</p>
-                    ) : historyForms.length === 0 ? (
-                      <p className="customer-form-history__status">이 고객 ID로 연결된 신청서가 없습니다.</p>
-                    ) : (
-                      <ul className="customer-form-history__list">
-                        {historyForms.map((row) => (
-                          <li key={row.id} className="customer-form-history__item">
-                            <div>
-                              <strong>{row.title}</strong>
-                              <span className="customer-form-history__meta">
-                                저장: {formatKoreanDateTime(row.updatedAt)} · 만기 {row.expiryDate || '—'}
-                              </span>
-                            </div>
-                            <FormButton
-                              className="button button--secondary"
-                              htmlType="button"
-                              variant="secondary"
-                              onClick={() => onNavigateToFormEdit(row.id)}
-                            >
-                              열기
-                            </FormButton>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ) : null}
+                <div className={`customer-detail-feature-actions ${isMobile ? 'customer-detail-feature-actions--mobile' : ''}`}>
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    className="button button--secondary"
+                    onClick={() => onNavigateToCustomerFiles(c.id, c.name)}
+                  >
+                    고객 파일
+                  </FormButton>
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    className="button button--secondary"
+                    onClick={() => onNavigateToCustomerConsults(c.id)}
+                  >
+                    상담 내역
+                  </FormButton>
+                  {carFeatureEnabled ? (
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      className="button button--secondary"
+                      onClick={() => onNavigateToCustomerAuto(c.id)}
+                    >
+                      자동차 신청서
+                    </FormButton>
+                  ) : null}
+                  {gaExcelEnabled ? (
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      className="button button--secondary"
+                      onClick={() => onNavigateToCustomerGa(c.id)}
+                    >
+                      GA 데이터 보기
+                    </FormButton>
+                  ) : null}
+                </div>
               </>
             ) : null}
           </div>
@@ -1185,8 +1173,10 @@ export default function CustomersPage() {
     navigate('/customers', { replace: true })
   }, [navigate])
   const { user, token } = useAuth()
+  const { gaSettings } = useGaSettings()
   const { confirm, confirmDialog } = useConfirmDialog()
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
+  const gaExcelEnabled = gaSettings.use_ga_excel === true
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [customersTotalCount, setCustomersTotalCount] = useState(0)
   const customersRef = useRef<CustomerRecord[]>([])
@@ -1199,8 +1189,6 @@ export default function CustomersPage() {
     [searchParams],
   )
   const [expandedId, setExpandedId] = useState<number | null>(selectedCustomerIdFromQuery)
-  const [historyForms, setHistoryForms] = useState<InsuranceApplicationRecord[]>([])
-  const [historyLoading, setHistoryLoading] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
   const expandedIdRef = useRef<number | null>(null)
@@ -1505,13 +1493,10 @@ export default function CustomersPage() {
 
   const handleSelectCustomer = useCallback(
     (c: CustomerRecord) => {
-      // URL is the single source of truth for the right panel.
-      navigate(`/customers/${c.id}/files`, {
-        replace: false,
-        state: { customerName: c.name },
-      })
+      void c
+      return
     },
-    [navigate],
+    [],
   )
 
   useEffect(() => {
@@ -1616,43 +1601,6 @@ export default function CustomersPage() {
       setEditForm(null)
     }
   }, [expandedId, editingId])
-
-  useEffect(() => {
-    if (expandedId == null) {
-      setHistoryForms([])
-      return
-    }
-    if (!carFeatureEnabled) {
-      setHistoryForms([])
-      return
-    }
-    if (!token) {
-      return
-    }
-    setHistoryForms([])
-    let cancelled = false
-    setHistoryLoading(true)
-    void listCustomerForms(token, expandedId)
-      .then((rows) => {
-        if (!cancelled) {
-          setHistoryForms(rows)
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          setStatusText(error instanceof Error ? error.message : '히스토리를 불러오지 못했습니다.')
-          setHistoryForms([])
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setHistoryLoading(false)
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [expandedId, token, carFeatureEnabled])
 
   useEffect(() => {
     const el = selectAllRef.current
@@ -1804,17 +1752,35 @@ export default function CustomersPage() {
     setEditForm(recordToEditForm(cl))
   }, [])
 
-  const handleNavigateToFormEdit = useCallback((formId: string) => {
-    navigate(`/form/${formId}/edit`)
-  }, [navigate])
+  const handleNavigateToCustomerFiles = useCallback(
+    (customerId: number, customerName: string) => {
+      navigate(`/customer/${customerId}/files`, {
+        state: { customerName },
+      })
+    },
+    [navigate],
+  )
 
-  const handleCreateAutoApplication = useCallback((customerId: number) => {
-    navigate(`/app/auto-insurance?customerId=${customerId}`)
-  }, [navigate])
+  const handleNavigateToCustomerConsults = useCallback(
+    (customerId: number) => {
+      navigate(`/customer/${customerId}/consults`)
+    },
+    [navigate],
+  )
 
-  const handleConsultationCountsInvalidate = useCallback(() => {
-    void refreshConsultationCounts()
-  }, [refreshConsultationCounts])
+  const handleNavigateToCustomerAuto = useCallback(
+    (customerId: number) => {
+      navigate(`/customer/${customerId}/auto`)
+    },
+    [navigate],
+  )
+
+  const handleNavigateToCustomerGa = useCallback(
+    (customerId: number) => {
+      navigate(`/customer/${customerId}/ga`)
+    },
+    [navigate],
+  )
 
   function applyQuickFilter(type: 'AGE_UNDER_30_MALE' | 'AGE_OVER_40_FEMALE') {
     if (type === 'AGE_UNDER_30_MALE') {
@@ -2319,19 +2285,19 @@ export default function CustomersPage() {
                   onEditSubmit={handleEditFormSubmit}
                   onStatusMessage={setStatusText}
                   carFeatureEnabled={carFeatureEnabled}
-                  historyLoading={historyLoading}
-                  historyForms={historyForms}
+                  gaExcelEnabled={gaExcelEnabled}
                   onCopyCustomer={copyCustomer}
                   onStartEdit={startEdit}
                   onCancelEdit={cancelEdit}
                   onDeleteCustomer={handleDeleteCustomer}
-                  onNavigateToFormEdit={handleNavigateToFormEdit}
-                  onCreateAutoApplication={handleCreateAutoApplication}
+                  onNavigateToCustomerFiles={handleNavigateToCustomerFiles}
+                  onNavigateToCustomerConsults={handleNavigateToCustomerConsults}
+                  onNavigateToCustomerAuto={handleNavigateToCustomerAuto}
+                  onNavigateToCustomerGa={handleNavigateToCustomerGa}
                   token={token}
                   onOpenCustomer={openCustomerInList}
                   consultationCount={consultationCounts[c.id] ?? 0}
                   lastConsultDateLabel={lastConsultDateMap[c.id] ?? null}
-                  onConsultationCountsInvalidate={handleConsultationCountsInvalidate}
                   onCustomerNotesPersisted={handleCustomerNotesPersisted}
                   onToggleFavorite={handleToggleFavorite}
                 />

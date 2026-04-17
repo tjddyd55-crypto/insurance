@@ -5769,6 +5769,27 @@ a.contacts-public-auth__link {
   flex: 1 1 auto;
 }
 
+.customer-detail-feature-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.customer-detail-feature-actions > .button {
+  width: 100%;
+  justify-content: center;
+}
+
+.customer-detail-feature-actions--mobile {
+  grid-template-columns: 1fr;
+  position: sticky;
+  bottom: 0;
+  padding: 8px 0 max(8px, env(safe-area-inset-bottom, 0px));
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  z-index: 2;
+}
+
 @media (max-width: 860px) {
   .customer-workspace-layout {
     display: block;
@@ -5785,6 +5806,10 @@ a.contacts-public-auth__link {
   }
 
   .customer-detail-page__info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-detail-feature-actions {
     grid-template-columns: 1fr;
   }
 }

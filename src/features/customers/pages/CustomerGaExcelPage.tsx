@@ -82,7 +82,7 @@ export default function CustomerGaExcelPage() {
     return <LoadingState message="권한 확인 중…" />
   }
   if (!gaSettings.use_ga_excel) {
-    return <Navigate to={`/customer/${customerId}`} />
+    return <Navigate to={`/customers?customerId=${customerId}`} replace />
   }
 
   return (
