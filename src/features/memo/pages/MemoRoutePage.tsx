@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 import MainWorkspaceLayout from '../../../layouts/MainWorkspaceLayout'
-import { useMediaQuery } from '../../../hooks/useMediaQuery'
+import useIsMobile from '../../../hooks/useIsMobile'
 
 export default function MemoRoutePage() {
-  const isMobile = useMediaQuery('(max-width: 768px)')
+  const isMobile = useIsMobile()
 
   if (isMobile) {
     return (

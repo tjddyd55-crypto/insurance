@@ -4767,7 +4767,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   gap: 8px;
   padding: 6px 0;
   margin-top: 0;
-  min-height: 0;
+  min-height: 36px;
 }
 
 .mobile-root .insurance-contacts-view .company-card .info-row + .info-row {
@@ -4792,6 +4792,32 @@ div.cta-button.customers-page__action-btn[role='button'] {
   flex-shrink: 0;
   justify-content: flex-end;
   min-width: 0;
+}
+
+.mobile-root .insurance-contacts-view .company-card .contact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.mobile-root .insurance-contacts-view .company-card .contact-row .position {
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.mobile-root .insurance-contacts-view .company-card .contact-row .name,
+.mobile-root .insurance-contacts-view .company-card .contact-row .phone {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-root .insurance-contacts-view .company-card .actions-mini button,
+.mobile-root .insurance-contacts-view .company-card .actions-mini a {
+  width: 26px;
+  height: 26px;
+  padding: 0;
 }
 
 .company-directory-read-ui .contact-card--empty {
@@ -4832,7 +4858,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .pc-root .insurance-contacts-view .company-card .info-row .label {
-  width: 70px;
+  width: 80px;
   flex-shrink: 0;
   color: #aaa;
 }
@@ -4850,6 +4876,33 @@ div.cta-button.customers-page__action-btn[role='button'] {
   flex-shrink: 0;
   justify-content: flex-end;
   align-items: center;
+}
+
+.pc-root .insurance-contacts-view .company-card .contact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  min-height: 36px;
+}
+
+.pc-root .insurance-contacts-view .company-card .contact-row .position {
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.pc-root .insurance-contacts-view .company-card .contact-row .name,
+.pc-root .insurance-contacts-view .company-card .contact-row .phone {
+  flex: 1;
+  min-width: 0;
+}
+
+.pc-root .insurance-contacts-view .company-card .actions-mini button,
+.pc-root .insurance-contacts-view .company-card .actions-mini a {
+  width: 28px;
+  height: 28px;
+  padding: 0;
 }
 
 @media (min-width: 1024px) and (max-width: 1200px) {

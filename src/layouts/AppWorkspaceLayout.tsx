@@ -27,7 +27,7 @@ import { fetchTeamMembers } from '../features/team/api/teamApi'
 import { CarInsuranceDashboardPage } from '../features/application/pages/CarInsuranceDashboardPage'
 import MemoPanel from './MemoPanel'
 import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
-import { useIsMobile } from '../hooks/useIsMobile'
+import useIsMobile from '../hooks/useIsMobile'
 import { resolveBackRoute } from '../navigation/backNavigationPolicy'
 
 type SidebarNavEntry = GaTenantDashboardMenuEntry
@@ -490,7 +490,7 @@ function AppWorkspaceLayoutPCShell() {
   const clampMemoWidth = useCallback((nextWidth: number) => {
     const viewportMax =
       typeof window !== 'undefined'
-        ? Math.max(MEMO_MIN_WIDTH, window.innerWidth)
+        ? Math.max(MEMO_MIN_WIDTH, document.documentElement?.clientWidth || MEMO_MAX_WIDTH_FALLBACK)
         : MEMO_MAX_WIDTH_FALLBACK
     if (nextWidth < MEMO_MIN_WIDTH) {
       return MEMO_MIN_WIDTH

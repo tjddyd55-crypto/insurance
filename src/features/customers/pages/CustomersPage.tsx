@@ -47,7 +47,7 @@ import {
   EXPANDABLE_CARD_INVALID_ID,
   useExpandableCard,
 } from '../../../hooks/useExpandableCard'
-import { useIsMobile } from '../../../hooks/useIsMobile'
+import useIsMobile from '../../../hooks/useIsMobile'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
 import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPolicy'

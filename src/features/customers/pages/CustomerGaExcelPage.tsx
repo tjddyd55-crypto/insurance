@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { EmptyState, LoadingState, StatusMessage } from '../../../components/feedback'
 import { FormButton } from '../../../components/form'
-import { useMediaQuery } from '../../../hooks/useMediaQuery'
+import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import { useGaSettings } from '../../ga-settings/useGaSettings'
 import {
@@ -15,7 +15,7 @@ export default function CustomerGaExcelPage() {
   const customerId = Number(customerIdParam)
   const { token } = useAuth()
   const { gaSettings, loading: gaSettingsLoading } = useGaSettings()
-  const isMobile = useMediaQuery('(max-width: 768px)')
+  const isMobile = useIsMobile()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')

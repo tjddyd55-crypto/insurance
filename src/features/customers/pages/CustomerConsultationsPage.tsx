@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { EmptyState, StatusMessage } from '../../../components/feedback'
 import { useConfirmDialog } from '../../../components/dialog'
 import { FormButton, FormInput, FormTextarea } from '../../../components/form'
+import useIsMobile from '../../../hooks/useIsMobile'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import {
@@ -18,6 +19,7 @@ export default function CustomerConsultationsPage() {
   const navigate = useNavigate()
   const resolvedCustomerId = Number(customerId)
   const { token } = useAuth()
+  const isMobile = useIsMobile()
   const { confirm, confirmDialog } = useConfirmDialog()
   const [rows, setRows] = useState<CustomerConsultationRow[]>([])
   const [body, setBody] = useState('')

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { FormButton } from '../../../components/form'
-import { useMediaQuery } from '../../../hooks/useMediaQuery'
+import useIsMobile from '../../../hooks/useIsMobile'
 import {
   createStorageFolder,
   deleteStorageFile,
@@ -119,7 +119,7 @@ export default function StorageWorkspace({
   subtitle,
   headerSlot,
 }: StorageWorkspaceProps) {
-  const isMobile = useMediaQuery('(max-width: 768px)')
+  const isMobile = useIsMobile()
   const [folders, setFolders] = useState<StorageFolderRow[]>([])
   const [files, setFiles] = useState<StorageFileRow[]>([])
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)

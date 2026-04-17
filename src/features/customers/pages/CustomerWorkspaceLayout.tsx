@@ -7,7 +7,7 @@ import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '
 import { getCustomerById } from '../api/customersApi'
 import { ApplicationFormPage } from '../../application/pages/ApplicationFormPage'
 import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
-import { useIsMobile } from '../../../hooks/useIsMobile'
+import useIsMobile from '../../../hooks/useIsMobile'
 import CustomersPage from './CustomersPage'
 
 function parseSelectedCustomerId(raw: string | null): number | null {

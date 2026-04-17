@@ -1,5 +1,5 @@
 import { FormButton } from '../../../components/form'
-import { useIsMobile } from '../../../hooks/useIsMobile'
+import useIsMobile from '../../../hooks/useIsMobile'
 import type { NewsletterItem } from '../types'
 
 type Props = {

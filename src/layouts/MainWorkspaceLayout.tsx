@@ -5,6 +5,7 @@ import { loadMemoUiSnapshot, patchMemoUiWorkspace } from '../features/memo/memoU
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import MemoWorkspacePage from '../features/memo/pages/MemoWorkspacePage'
 import MemoList from '../features/memo/components/MemoList'
+import useIsMobile from '../hooks/useIsMobile'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { MIN_LEFT_WIDTH, MIN_MEMO_WIDTH } from './memoWorkspaceLayoutConstants'
 import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
@@ -149,7 +150,7 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
     patchMemoUiWorkspace(persistenceUserId, { memoRatio, isListOpen, isMemoOpen })
   }, [persistenceUserId, memoRatio, isListOpen, isMemoOpen])
 
-  const isMobile = useMediaQuery('(max-width: 768px)')
+  const isMobile = useIsMobile()
   const isNarrow = useMediaQuery('(max-width: 899px)')
 
   const rootRef = useRef<HTMLDivElement>(null)

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
-import { useMediaQuery } from '../../../hooks/useMediaQuery'
+import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import { listCustomers } from '../api/customersApi'
 import type { CustomerRecord } from '../domain/types'
@@ -15,7 +15,7 @@ export default function CustomerFilesPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, token } = useAuth()
-  const isMobile = useMediaQuery('(max-width: 768px)')
+  const isMobile = useIsMobile()
 
   const customerId = Number(customerIdParam)
   const validId = Number.isInteger(customerId) && customerId > 0

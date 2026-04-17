@@ -1,11 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
-import { useIsMobile } from '../../../hooks/useIsMobile'
+import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import { NewsletterList } from '../components/NewsletterList'
-import { getAllPublishedForGa, getNewslettersForInsurerManagerCompany } from '../services/insurerNews.service'
-import type { NewsChannel, NewsletterItem } from '../types'
+import {
+  getAllPublishedForGa,
+  getNewsletterDetail,
+  getNewsletterDetailForInsurerManager,
+  getNewslettersForInsurerManagerCompany,
+} from '../services/insurerNews.service'
+import type { NewsChannel, NewsletterDetail, NewsletterItem } from '../types'
 
 export function InsurerManagerNewsListPage({
   channel = 'INSURER',
@@ -33,7 +38,11 @@ export function InsurerManagerNewsListPage({
   const [items, setItems] = useState<NewsletterItem[]>([])
   const [error, setError] = useState('')
   const [selectedItem, setSelectedItem] = useState<NewsletterItem | null>(null)
+  const [selectedDetail, setSelectedDetail] = useState<NewsletterDetail | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
   const [zoom, setZoom] = useState(1)
+  const openRequestIdRef = useRef(0)
 
   useEffect(() => {
     if (!token?.trim() || !gaCode || (requiresCompanyScope && companyId == null)) {
@@ -96,11 +105,51 @@ export function InsurerManagerNewsListPage({
             return
           }
           setSelectedItem(picked)
+          setSelectedDetail(null)
+          setDetailLoading(true)
+          setDetailError('')
           setZoom(1)
+          const requestId = openRequestIdRef.current + 1
+          openRequestIdRef.current = requestId
+          void (async () => {
+            try {
+              const detail =
+                fetchScope === 'ga'
+                  ? await getNewsletterDetail(gaCode, id, token, { channel })
+                  : await getNewsletterDetailForInsurerManager(token ?? '', gaCode, companyId ?? 0, id, { channel })
+              if (openRequestIdRef.current !== requestId) {
+                return
+              }
+              setSelectedDetail(detail)
+              if (!detail) {
+                setDetailError('소식지 상세를 불러오지 못했습니다.')
+              }
+            } catch (e) {
+              if (openRequestIdRef.current !== requestId) {
+                return
+              }
+              setDetailError(e instanceof Error ? e.message : '소식지 상세를 불러오지 못했습니다.')
+            } finally {
+              if (openRequestIdRef.current === requestId) {
+                setDetailLoading(false)
+              }
+            }
+          })()
         }}
       />
       {!isMobile && selectedItem ? (
-        <div className="news-modal" role="dialog" aria-modal="true" onClick={() => setSelectedItem(null)}>
+        <div
+          className="news-modal"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            openRequestIdRef.current += 1
+            setSelectedItem(null)
+            setSelectedDetail(null)
+            setDetailLoading(false)
+            setDetailError('')
+          }}
+        >
           <div className="news-modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <FormButton
@@ -119,9 +168,9 @@ export function InsurerManagerNewsListPage({
               >
                 －
               </FormButton>
-              {selectedItem.heroImageUrl ? (
+              {(selectedDetail?.heroImageUrl || selectedItem.heroImageUrl) ? (
                 <a
-                  href={selectedItem.heroImageUrl}
+                  href={selectedDetail?.heroImageUrl || selectedItem.heroImageUrl}
                   download
                   className="button filter-button download-btn"
                   target="_blank"
@@ -134,22 +183,44 @@ export function InsurerManagerNewsListPage({
                 htmlType="button"
                 variant="action"
                 className="filter-button close-btn"
-                onClick={() => setSelectedItem(null)}
+                onClick={() => {
+                  openRequestIdRef.current += 1
+                  setSelectedItem(null)
+                  setSelectedDetail(null)
+                  setDetailLoading(false)
+                  setDetailError('')
+                }}
               >
                 ✕
               </FormButton>
             </div>
 
             <div className="modal-body">
-              {selectedItem.heroImageUrl ? (
-                <img
-                  src={selectedItem.heroImageUrl}
-                  alt=""
-                  style={{ transform: `scale(${zoom})` }}
-                />
-              ) : null}
-              {selectedItem.summary?.trim() ? (
-                <div className="modal-text">{selectedItem.summary}</div>
+              {detailLoading ? <div className="modal-text">소식지 상세를 불러오는 중입니다…</div> : null}
+              {!detailLoading && detailError ? <div className="modal-text">{detailError}</div> : null}
+              {!detailLoading && !detailError ? (
+                <div className="news-detail-scroll">
+                  <div className="news-detail-zoom-scope" style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}>
+                    {(selectedDetail?.bodyText?.trim() || selectedItem.summary?.trim()) ? (
+                      <div className="news-text">{selectedDetail?.bodyText?.trim() || selectedItem.summary}</div>
+                    ) : null}
+                    {(() => {
+                      const imageRows =
+                        selectedDetail?.attachments
+                          ?.filter((a) => a.kind === 'image')
+                          .sort((a, b) => a.sortOrder - b.sortOrder)
+                          .map((a) => a.url) ?? []
+                      const imageUrls = imageRows.length
+                        ? imageRows
+                        : selectedDetail?.heroImageUrl
+                          ? [selectedDetail.heroImageUrl]
+                          : selectedItem.heroImageUrl
+                            ? [selectedItem.heroImageUrl]
+                            : []
+                      return imageUrls.map((url) => <img key={url} src={url} alt="" />)
+                    })()}
+                  </div>
+                </div>
               ) : null}
             </div>
           </div>

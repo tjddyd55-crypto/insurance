@@ -16,7 +16,7 @@ import { createTeam, fetchTeamMembers, joinTeam } from '../../team/api/teamApi'
 import { DesktopUpdateSection } from '../../../components/DesktopUpdateSection'
 import { UserGaExcelManagePanel } from '../../profile/components/UserGaExcelManagePanel'
 import { CustomerExcelImportPanel } from '../../customers/components/CustomerExcelImportPanel'
-import { useIsMobile } from '../../../hooks/useIsMobile'
+import useIsMobile from '../../../hooks/useIsMobile'
 
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60

@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../AuthProvider'
 import { login as loginApi } from '../authApi'
-import { useIsMobile } from '../../../hooks/useIsMobile'
+import useIsMobile from '../../../hooks/useIsMobile'
 
 export function LoginPage() {
   const navigate = useNavigate()

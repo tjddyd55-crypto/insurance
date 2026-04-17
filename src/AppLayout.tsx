@@ -8,7 +8,7 @@ import { useAuth } from './features/auth/AuthProvider'
 import { isElectronApp } from './lib/isElectronApp'
 import { isCustomerCreateMode } from './navigation/backNavigationPolicy'
 import { GaSettingsProvider } from './features/ga-settings/GaSettingsProvider'
-import { useIsMobile } from './hooks/useIsMobile'
+import useIsMobile from './hooks/useIsMobile'
 
 export function AppLayout() {
   const { isAuthenticated } = useAuth()
