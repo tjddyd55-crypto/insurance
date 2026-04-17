@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { EmptyState, LoadingState, StatusMessage } from '../../../components/feedback'
 import { FormButton } from '../../../components/form'
+import { useMediaQuery } from '../../../hooks/useMediaQuery'
 import { useAuth } from '../../auth/AuthProvider'
 import { useGaSettings } from '../../ga-settings/useGaSettings'
 import {
@@ -14,6 +15,7 @@ export default function CustomerGaExcelPage() {
   const customerId = Number(customerIdParam)
   const { token } = useAuth()
   const { gaSettings, loading: gaSettingsLoading } = useGaSettings()
+  const isMobile = useMediaQuery('(max-width: 768px)')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
@@ -22,6 +24,17 @@ export default function CustomerGaExcelPage() {
   const [rows, setRows] = useState<GaCustomerExcelDataRow[]>([])
   const [sortIdx, setSortIdx] = useState<number | null>(null)
   const [sortAsc, setSortAsc] = useState(true)
+
+  useEffect(() => {
+    if (!token?.trim() || !Number.isFinite(customerId) || customerId < 1) {
+      return
+    }
+    setHeaders([])
+    setColIds([])
+    setRows([])
+    setSortIdx(null)
+    setSortAsc(true)
+  }, [customerId, token])
 
   const load = useCallback(async () => {
     if (!token?.trim() || !Number.isFinite(customerId) || customerId < 1) {
@@ -86,7 +99,7 @@ export default function CustomerGaExcelPage() {
   }
 
   return (
-    <div className="p-3" style={{ maxWidth: 960 }}>
+    <div className="p-3" style={isMobile ? { maxWidth: 960 } : { maxWidth: 'none', width: '100%' }}>
       <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-1">GA 고객 데이터</h2>
       <p className="text-sm text-[var(--text-secondary)] mb-3">
         업로드는 내정보관리 페이지에서 진행합니다. 여기서는 고객 매핑 결과만 확인할 수 있습니다.

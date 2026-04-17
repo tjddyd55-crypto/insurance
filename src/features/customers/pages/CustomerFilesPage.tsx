@@ -67,38 +67,34 @@ export default function CustomerFilesPage() {
     )
   }
 
-  const customerHeader = (
+  const customerHeaderMobile = (
     <div className="storage-customer-header">
-      {isMobile ? (
-        <>
-          <FormButton htmlType="button" variant="secondary" onClick={() => setPickerOpen(true)}>
-            {customerTitle} ▼
-          </FormButton>
-          <Modal open={pickerOpen} onClose={() => setPickerOpen(false)} ariaLabel="고객 선택" panelClassName="storage-folder-sheet">
-            <div className="storage-folder-sheet__title">고객 선택</div>
-            <div className="storage-folder-sheet__list">
-              {customers.map((customer) => (
-                <FormButton
-                  key={customer.id}
-                  htmlType="button"
-                  variant={customer.id === customerId ? 'primary' : 'secondary'}
-                  className="storage-folder-sheet__item"
-                  onClick={() => {
-                    setPickerOpen(false)
-                    navigate(`/customer/${customer.id}/files`, {
-                      state: { customerName: customer.name },
-                    })
-                  }}
-                >
-                  {customer.name}
-                </FormButton>
-              ))}
-            </div>
-          </Modal>
-        </>
-      ) : (
-        <h2 className="storage-customer-header__name">{customerTitle}</h2>
-      )}
+      <>
+        <FormButton htmlType="button" variant="secondary" onClick={() => setPickerOpen(true)}>
+          {customerTitle} ▼
+        </FormButton>
+        <Modal open={pickerOpen} onClose={() => setPickerOpen(false)} ariaLabel="고객 선택" panelClassName="storage-folder-sheet">
+          <div className="storage-folder-sheet__title">고객 선택</div>
+          <div className="storage-folder-sheet__list">
+            {customers.map((customer) => (
+              <FormButton
+                key={customer.id}
+                htmlType="button"
+                variant={customer.id === customerId ? 'primary' : 'secondary'}
+                className="storage-folder-sheet__item"
+                onClick={() => {
+                  setPickerOpen(false)
+                  navigate(`/customer/${customer.id}/files`, {
+                    state: { customerName: customer.name },
+                  })
+                }}
+              >
+                {customer.name}
+              </FormButton>
+            ))}
+          </div>
+        </Modal>
+      </>
       <div className="storage-customer-header__tabs">
         <FormButton htmlType="button" variant="primary" onClick={() => navigate(`/customer/${customerId}/files`)}>
           고객 파일
@@ -114,9 +110,9 @@ export default function CustomerFilesPage() {
     <StorageWorkspace
       token={token}
       customerId={customerId}
-      title="고객 파일"
-      subtitle="내 저장공간 UI를 동일하게 사용합니다."
-      headerSlot={customerHeader}
+      title={isMobile ? '고객 파일' : ''}
+      subtitle={isMobile ? '내 저장공간 UI를 동일하게 사용합니다.' : undefined}
+      headerSlot={isMobile ? customerHeaderMobile : undefined}
     />
   )
 }

@@ -31,6 +31,7 @@ import CustomerConsultationsPage from './features/customers/pages/CustomerConsul
 import CustomerFilesPage from './features/customers/pages/CustomerFilesPage'
 import CustomerGaExcelPage from './features/customers/pages/CustomerGaExcelPage'
 import CustomerAutoPage from './features/customers/pages/CustomerAutoPage'
+import CustomerMemosPage from './features/customers/pages/CustomerMemosPage'
 import CustomerWorkspaceLayout from './features/customers/pages/CustomerWorkspaceLayout'
 import CustomerWorkspaceHomePage from './features/customers/pages/CustomerWorkspaceHomePage'
 import TeamMembersPage from './features/team/pages/TeamMembersPage'
@@ -163,12 +164,14 @@ export const appRouter = createBrowserRouter([
                   { path: ':customerId/files', element: <CustomerFilesPage /> },
                   { path: ':customerId/consultations', element: <CustomerConsultationsPage /> },
                   { path: ':customerId/ga-excel', element: <CustomerGaExcelPage /> },
+                  { path: ':customerId/memos', element: <CustomerMemosPage /> },
                 ],
               },
               { path: 'customer/:customerId/files', element: <CustomerFilesPage /> },
               { path: 'customer/:customerId/consults', element: <CustomerConsultationsPage /> },
               { path: 'customer/:customerId/auto', element: <CustomerAutoPage /> },
               { path: 'customer/:customerId/ga', element: <CustomerGaExcelPage /> },
+              { path: 'customer/:customerId/memos', element: <CustomerMemosPage /> },
               { path: 'storage', element: <MyStoragePage /> },
               { path: 'team/members', element: <TeamMembersPage /> },
               { path: 'team/manage', element: <Navigate to="/team/members" replace /> },

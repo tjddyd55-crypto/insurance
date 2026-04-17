@@ -2219,6 +2219,11 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   min-width: 0;
 }
 
+.profile-page__excel-toolbar .field {
+  width: 100%;
+  min-width: 0;
+}
+
 .profile-page__excel-toolbar .customers-excel-import-panel__preview {
   width: 100%;
   max-width: none;
@@ -2241,6 +2246,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .profile-page__excel-preview-scroll {
+  display: block;
   width: 100%;
   max-width: 100%;
   overflow-x: auto;
@@ -2251,6 +2257,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .profile-page__excel-preview-table {
+  width: max-content;
   table-layout: fixed;
   min-width: 1200px;
 }
@@ -5650,8 +5657,9 @@ a.contacts-public-auth__link {
 }
 
 .filter-button.filter-button--workspace-active {
-  border-color: color-mix(in srgb, var(--brand-primary) 60%, transparent);
-  background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
+  border-color: var(--border-default);
+  background: var(--bg-soft);
+  color: var(--text-default);
 }
 
 .customer-workspace-home {
@@ -5802,7 +5810,8 @@ a.contacts-public-auth__link {
     max-width: none;
     border-right: none;
     border-bottom: 1px solid var(--border-default, #2a2a2a);
-    max-height: 60vh;
+    max-height: none;
+    overflow: visible;
   }
 
   .customer-detail-page__info-grid {
@@ -5812,6 +5821,10 @@ a.contacts-public-auth__link {
   .customer-detail-feature-actions {
     grid-template-columns: 1fr;
   }
+}
+
+.mobile-root .customers-page.page {
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
 /* ——— 메인 워크스페이스(좌 앱 / 우 메모) ——— */

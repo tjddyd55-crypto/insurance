@@ -68,6 +68,47 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 const INVITE_COPY_POINTER_DEBOUNCE_MS = 450
 
 const LAST_CONSULT_FETCH_CONCURRENCY = 12
+const MOBILE_CUSTOMERS_UI_STATE_KEY = 'customers-mobile-ui-state:v1'
+
+type MobileCustomersUiState = {
+  expandedCustomerId: number | null
+  scrollY: number
+}
+
+function readMobileCustomersUiState(): MobileCustomersUiState | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  try {
+    const raw = window.sessionStorage.getItem(MOBILE_CUSTOMERS_UI_STATE_KEY)
+    if (!raw) {
+      return null
+    }
+    const parsed = JSON.parse(raw) as Partial<MobileCustomersUiState>
+    const expandedCustomerId =
+      typeof parsed.expandedCustomerId === 'number' && Number.isInteger(parsed.expandedCustomerId) && parsed.expandedCustomerId > 0
+        ? parsed.expandedCustomerId
+        : null
+    const scrollY =
+      typeof parsed.scrollY === 'number' && Number.isFinite(parsed.scrollY) && parsed.scrollY >= 0
+        ? parsed.scrollY
+        : 0
+    return { expandedCustomerId, scrollY }
+  } catch {
+    return null
+  }
+}
+
+function writeMobileCustomersUiState(state: MobileCustomersUiState): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  try {
+    window.sessionStorage.setItem(MOBILE_CUSTOMERS_UI_STATE_KEY, JSON.stringify(state))
+  } catch {
+    return
+  }
+}
 
 /** 오른쪽 작업영역(파일·상담)이 라우트로 고객을 고정할 때 — 카드 접힘과 `?customerId=` 동기화 충돌 방지 */
 function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
@@ -1092,7 +1133,7 @@ const CustomerListCard = memo(function CustomerListCard({
               </>
             )}
             <div className="customer-expand-section-divider" role="presentation" />
-            <div hidden={!token || (editingId === c.id && Boolean(editForm))}>
+            <div hidden={!isMobile || !token || (editingId === c.id && Boolean(editForm))}>
               <CustomerInlineNotesSection
                 key={c.id}
                 customer={c}
@@ -1113,45 +1154,49 @@ const CustomerListCard = memo(function CustomerListCard({
                     focusedCustomerId={expandedId}
                   />
                 ) : null}
-                <div className="customer-expand-section-divider" role="presentation" />
-                <div className={`customer-detail-feature-actions ${isMobile ? 'customer-detail-feature-actions--mobile' : ''}`}>
-                  <FormButton
-                    htmlType="button"
-                    variant="secondary"
-                    className="button button--secondary"
-                    onClick={() => onNavigateToCustomerFiles(c.id, c.name)}
-                  >
-                    고객 파일
-                  </FormButton>
-                  <FormButton
-                    htmlType="button"
-                    variant="secondary"
-                    className="button button--secondary"
-                    onClick={() => onNavigateToCustomerConsults(c.id)}
-                  >
-                    상담 내역
-                  </FormButton>
-                  {carFeatureEnabled ? (
-                    <FormButton
-                      htmlType="button"
-                      variant="secondary"
-                      className="button button--secondary"
-                      onClick={() => onNavigateToCustomerAuto(c.id)}
-                    >
-                      자동차 신청서
-                    </FormButton>
-                  ) : null}
-                  {gaExcelEnabled ? (
-                    <FormButton
-                      htmlType="button"
-                      variant="secondary"
-                      className="button button--secondary"
-                      onClick={() => onNavigateToCustomerGa(c.id)}
-                    >
-                      GA 데이터 보기
-                    </FormButton>
-                  ) : null}
-                </div>
+                {isMobile ? (
+                  <>
+                    <div className="customer-expand-section-divider" role="presentation" />
+                    <div className={`customer-detail-feature-actions ${isMobile ? 'customer-detail-feature-actions--mobile' : ''}`}>
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        className="button button--secondary"
+                        onClick={() => onNavigateToCustomerFiles(c.id, c.name)}
+                      >
+                        고객 파일
+                      </FormButton>
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        className="button button--secondary"
+                        onClick={() => onNavigateToCustomerConsults(c.id)}
+                      >
+                        상담 내역
+                      </FormButton>
+                      {carFeatureEnabled ? (
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          className="button button--secondary"
+                          onClick={() => onNavigateToCustomerAuto(c.id)}
+                        >
+                          자동차 신청서
+                        </FormButton>
+                      ) : null}
+                      {gaExcelEnabled ? (
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          className="button button--secondary"
+                          onClick={() => onNavigateToCustomerGa(c.id)}
+                        >
+                          GA 데이터 보기
+                        </FormButton>
+                      ) : null}
+                    </div>
+                  </>
+                ) : null}
               </>
             ) : null}
           </div>
@@ -1184,11 +1229,26 @@ export default function CustomersPage() {
   const [statusText, setStatusText] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const tab = searchParams.get('mode') === 'create' ? 'create' : 'list'
+  const initialMobileUiStateRef = useRef<MobileCustomersUiState | null>(
+    isMobile ? readMobileCustomersUiState() : null,
+  )
   const selectedCustomerIdFromQuery = useMemo(
     () => parseSelectedCustomerId(searchParams.get('customerId')),
     [searchParams],
   )
-  const [expandedId, setExpandedId] = useState<number | null>(selectedCustomerIdFromQuery)
+  const [expandedId, setExpandedId] = useState<number | null>(() => {
+    if (selectedCustomerIdFromQuery != null) {
+      return selectedCustomerIdFromQuery
+    }
+    if (!isMobile) {
+      return null
+    }
+    return initialMobileUiStateRef.current?.expandedCustomerId ?? null
+  })
+  const pendingMobileRestoreScrollYRef = useRef<number | null>(
+    isMobile ? initialMobileUiStateRef.current?.scrollY ?? null : null,
+  )
+  const mobileUiRestoredRef = useRef(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
   const expandedIdRef = useRef<number | null>(null)
@@ -1493,10 +1553,24 @@ export default function CustomersPage() {
 
   const handleSelectCustomer = useCallback(
     (c: CustomerRecord) => {
-      void c
-      return
+      if (isMobile) {
+        return
+      }
+      const safeTab = location.pathname.includes('/consultations')
+        ? 'consultations'
+        : location.pathname.includes('/memos')
+          ? 'memos'
+          : location.pathname.includes('/ga-excel') || location.pathname.includes('/ga')
+            ? 'ga-excel'
+            : location.pathname.includes('/files')
+              ? 'files'
+              : 'files'
+      navigate(`/customers/${c.id}/${safeTab}`, {
+        replace: true,
+        state: { customerName: c.name },
+      })
     },
-    [],
+    [isMobile, location.pathname, navigate],
   )
 
   useEffect(() => {
@@ -1754,32 +1828,56 @@ export default function CustomersPage() {
 
   const handleNavigateToCustomerFiles = useCallback(
     (customerId: number, customerName: string) => {
+      if (isMobile) {
+        writeMobileCustomersUiState({
+          expandedCustomerId: expandedId,
+          scrollY: window.scrollY,
+        })
+      }
       navigate(`/customer/${customerId}/files`, {
         state: { customerName },
       })
     },
-    [navigate],
+    [expandedId, isMobile, navigate],
   )
 
   const handleNavigateToCustomerConsults = useCallback(
     (customerId: number) => {
+      if (isMobile) {
+        writeMobileCustomersUiState({
+          expandedCustomerId: expandedId,
+          scrollY: window.scrollY,
+        })
+      }
       navigate(`/customer/${customerId}/consults`)
     },
-    [navigate],
+    [expandedId, isMobile, navigate],
   )
 
   const handleNavigateToCustomerAuto = useCallback(
     (customerId: number) => {
+      if (isMobile) {
+        writeMobileCustomersUiState({
+          expandedCustomerId: expandedId,
+          scrollY: window.scrollY,
+        })
+      }
       navigate(`/customer/${customerId}/auto`)
     },
-    [navigate],
+    [expandedId, isMobile, navigate],
   )
 
   const handleNavigateToCustomerGa = useCallback(
     (customerId: number) => {
+      if (isMobile) {
+        writeMobileCustomersUiState({
+          expandedCustomerId: expandedId,
+          scrollY: window.scrollY,
+        })
+      }
       navigate(`/customer/${customerId}/ga`)
     },
-    [navigate],
+    [expandedId, isMobile, navigate],
   )
 
   function applyQuickFilter(type: 'AGE_UNDER_30_MALE' | 'AGE_OVER_40_FEMALE') {
@@ -1920,6 +2018,30 @@ export default function CustomersPage() {
     [runCustomerRegisterInviteCopy],
   )
 
+  useEffect(() => {
+    if (!isMobile || tab !== 'list') {
+      return
+    }
+    writeMobileCustomersUiState({
+      expandedCustomerId: expandedId,
+      scrollY: window.scrollY,
+    })
+  }, [expandedId, isMobile, tab])
+
+  useEffect(() => {
+    if (!isMobile || tab !== 'list' || isLoading || mobileUiRestoredRef.current) {
+      return
+    }
+    mobileUiRestoredRef.current = true
+    const restoreY = pendingMobileRestoreScrollYRef.current
+    if (restoreY == null) {
+      return
+    }
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: restoreY, behavior: 'auto' })
+    })
+  }, [isLoading, isMobile, tab])
+
   if (user?.role !== 'USER') {
     return (
       <main className="page page--with-back">
@@ -1975,7 +2097,7 @@ export default function CustomersPage() {
       <header className="page-header customers-page__header">
         {tab === 'list' ? (
           <>
-            {!isSelectMode && !isMobile ? (
+            {!isSelectMode ? (
               <div className="customers-page__action-row">
                 <FormButton
                   htmlType="button"
@@ -1998,7 +2120,20 @@ export default function CustomersPage() {
                 >
                   등록 링크
                 </div>
-                <FormButton htmlType="button" variant="action" className="cta-button customers-page__action-btn" onClick={enterExcelSelectMode}>
+                <FormButton
+                  htmlType="button"
+                  variant="action"
+                  className="cta-button customers-page__action-btn"
+                  onClick={() => {
+                    if (isMobile) {
+                      const msg = 'PC 버전에서 가능합니다.'
+                      setStatusText(msg)
+                      window.alert(msg)
+                      return
+                    }
+                    enterExcelSelectMode()
+                  }}
+                >
                   엑셀 다운로드
                 </FormButton>
               </div>

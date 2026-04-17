@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { EmptyState } from '../../../components/feedback'
 import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '../api/gaCustomerExcelApi'
@@ -16,11 +17,31 @@ function parseSelectedCustomerId(raw: string | null): number | null {
 
 /** Path-based customer (files/consultations/ga-excel) wins over ?customerId= so list expand does not override the workspace header. */
 function parseWorkspaceCustomerIdFromPath(pathname: string): number | null {
-  const m = pathname.match(/^\/customers\/(\d+)\/(?:files|consultations|ga-excel)(?:\/|$)/)
+  const tab = resolveWorkspacePathTab(pathname)
+  if (!tab) {
+    return null
+  }
+  const m = pathname.match(/^\/customers\/(\d+)(?:\/|$)/)
   if (!m?.[1]) {
     return null
   }
   return parseSelectedCustomerId(m[1])
+}
+
+function resolveWorkspacePathTab(pathname: string): 'files' | 'consultations' | 'ga-excel' | 'memos' | null {
+  if (pathname.includes('/consultations')) {
+    return 'consultations'
+  }
+  if (pathname.includes('/memos')) {
+    return 'memos'
+  }
+  if (pathname.includes('/ga-excel') || pathname.includes('/ga')) {
+    return 'ga-excel'
+  }
+  if (pathname.includes('/files')) {
+    return 'files'
+  }
+  return null
 }
 
 function buildCustomerWorkspaceHref(basePath: string, params: URLSearchParams): string {
@@ -43,6 +64,9 @@ function rightTitle(pathname: string): string {
   if (pathname.includes('/ga-excel')) {
     return 'GA 고객 데이터'
   }
+  if (pathname.includes('/memos')) {
+    return '고객 메모'
+  }
   return '작업 영역'
 }
 
@@ -52,6 +76,14 @@ export default function CustomerWorkspaceLayout() {
   const { token, user } = useAuth()
   const isMobile = useIsMobile()
   const [searchParams] = useSearchParams()
+  const currentPathTab = useMemo(
+    () => resolveWorkspacePathTab(location.pathname),
+    [location.pathname],
+  )
+  const queryCustomerId = useMemo(
+    () => parseSelectedCustomerId(searchParams.get('customerId')),
+    [searchParams],
+  )
   const selectedCustomerId = useMemo(() => {
     const fromPath = parseWorkspaceCustomerIdFromPath(location.pathname)
     if (fromPath != null) {
@@ -135,6 +167,24 @@ export default function CustomerWorkspaceLayout() {
     navigate(buildCustomerWorkspaceHref(path, searchParams))
   }
 
+  const safeTab = currentPathTab ?? 'files'
+
+  useEffect(() => {
+    if (isMobile || queryCustomerId == null || selectedCustomerId == null) {
+      return
+    }
+    if (queryCustomerId === selectedCustomerId) {
+      return
+    }
+    navigate(buildCustomerWorkspaceHref(`/customers/${queryCustomerId}/${safeTab}`, searchParams), {
+      replace: true,
+    })
+  }, [isMobile, navigate, queryCustomerId, safeTab, searchParams, selectedCustomerId])
+
+  const activeTab: 'files' | 'consultations' | 'auto' | 'ga-excel' | 'memos' | null = rightPanelCarForm
+    ? 'auto'
+    : currentPathTab
+
   return (
     <div className="customer-workspace-layout">
       <aside className="customer-workspace-layout__left" aria-label="고객 작업공간">
@@ -159,7 +209,7 @@ export default function CustomerWorkspaceLayout() {
               <FormButton
                 htmlType="button"
                 variant="action"
-                className="filter-button"
+                className={`filter-button${activeTab === 'files' ? ' filter-button--workspace-active' : ''}`}
                 disabled={!selectedCustomerId}
                 onClick={() => {
                   if (!selectedCustomerId) {
@@ -174,7 +224,7 @@ export default function CustomerWorkspaceLayout() {
               <FormButton
                 htmlType="button"
                 variant="action"
-                className="filter-button"
+                className={`filter-button${activeTab === 'consultations' ? ' filter-button--workspace-active' : ''}`}
                 disabled={!selectedCustomerId}
                 onClick={() => {
                   if (!selectedCustomerId) {
@@ -206,7 +256,7 @@ export default function CustomerWorkspaceLayout() {
                 <FormButton
                   htmlType="button"
                   variant="action"
-                  className="filter-button"
+                  className={`filter-button${activeTab === 'ga-excel' ? ' filter-button--workspace-active' : ''}`}
                   disabled={!selectedCustomerId || !excelCap?.showDesignerUi}
                   title={
                     excelCap?.showDesignerUi
@@ -224,6 +274,21 @@ export default function CustomerWorkspaceLayout() {
                   GA 고객 데이터 보기
                 </FormButton>
               ) : null}
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className={`filter-button${activeTab === 'memos' ? ' filter-button--workspace-active' : ''}`}
+                disabled={!selectedCustomerId}
+                onClick={() => {
+                  if (!selectedCustomerId) {
+                    return
+                  }
+                  setRightPanelCarForm(false)
+                  moveTo(`/customers/${selectedCustomerId}/memos`)
+                }}
+              >
+                메모 보기
+              </FormButton>
             </div>
           </header>
 
@@ -238,8 +303,10 @@ export default function CustomerWorkspaceLayout() {
                   <ApplicationFormPage />
                 </div>
               </div>
-            ) : (
+            ) : selectedCustomerId ? (
               <Outlet context={{ selectedCustomerId }} />
+            ) : (
+              <EmptyState message="고객을 선택해 주세요." />
             )}
           </div>
         </section>

@@ -2,6 +2,7 @@ import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { EmptyState, StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput, FormTextarea } from '../../../components/form'
+import { useMediaQuery } from '../../../hooks/useMediaQuery'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import {
@@ -27,8 +28,17 @@ export default function CustomerConsultationsPage() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [notFound, setNotFound] = useState(false)
+  const isMobile = useMediaQuery('(max-width: 768px)')
 
   const validId = Number.isInteger(resolvedCustomerId) && resolvedCustomerId > 0
+
+  useEffect(() => {
+    if (!token?.trim() || !validId) {
+      return
+    }
+    setRows([])
+    setRelRows([])
+  }, [resolvedCustomerId, token, validId])
 
   const loadAll = useCallback(async () => {
     if (!token?.trim() || !validId) {
@@ -37,12 +47,14 @@ export default function CustomerConsultationsPage() {
     setError('')
     setNotFound(false)
     try {
-      const [c, r] = await Promise.all([
-        listCustomerConsultations(token, resolvedCustomerId, { limit: 100 }),
-        listCustomerRelations(token, resolvedCustomerId),
-      ])
+      const c = await listCustomerConsultations(token, resolvedCustomerId, { limit: 100 })
       setRows(c)
-      setRelRows(r)
+      if (isMobile) {
+        const r = await listCustomerRelations(token, resolvedCustomerId)
+        setRelRows(r)
+      } else {
+        setRelRows([])
+      }
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
         setNotFound(true)
@@ -52,7 +64,7 @@ export default function CustomerConsultationsPage() {
       }
       setError(e instanceof Error ? e.message : '불러오지 못했습니다.')
     }
-  }, [resolvedCustomerId, token, validId])
+  }, [isMobile, resolvedCustomerId, token, validId])
 
   useEffect(() => {
     void loadAll()
@@ -127,12 +139,16 @@ export default function CustomerConsultationsPage() {
 
   return (
     <div className="content-wrapper page-shell">
-      <h1 style={{ marginTop: 12 }}>고객 상담 · 연결</h1>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>고객 #{resolvedCustomerId}</p>
-      <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-        보험 메모·인수 용도 메모는 기존 고객 상세의 <code>notes</code> JSON 필드를 그대로 쓰는 것을 권장합니다. 여기서는
-        일정·통화 등 <strong>상담 이력</strong>과 다른 고객과의 <strong>연결</strong>만 다룹니다.
-      </p>
+      {isMobile ? (
+        <>
+          <h1 style={{ marginTop: 12 }}>고객 상담 · 연결</h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>고객 #{resolvedCustomerId}</p>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+            보험 메모·인수 용도 메모는 기존 고객 상세의 <code>notes</code> JSON 필드를 그대로 쓰는 것을 권장합니다. 여기서는
+            일정·통화 등 <strong>상담 이력</strong>과 다른 고객과의 <strong>연결</strong>만 다룹니다.
+          </p>
+        </>
+      ) : null}
       <StatusMessage message={error} tone="error" className="!mt-0" />
 
       <section style={{ marginTop: 24 }}>
@@ -177,46 +193,48 @@ export default function CustomerConsultationsPage() {
         )}
       </section>
 
-      <section style={{ marginTop: 32 }}>
-        <h2 style={{ fontSize: '1.05rem' }}>연결된 고객</h2>
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-          동일 GA·내 명의의 다른 고객 ID를 연결하면 양방향으로 조회됩니다.
-        </p>
-        <form onSubmit={onAddRelation} style={{ marginBottom: 16 }}>
-          <label>
-            연결할 고객 ID
-            <FormInput
-              type="number"
-              min={1}
-              value={relatedId}
-              onChange={(ev) => setRelatedId(ev.target.value)}
-              style={{ display: 'block', width: 200, marginTop: 4, padding: 8 }}
-            />
-          </label>
-          <FormButton
-            htmlType="submit"
-            variant="action"
-            disabled={busy}
-            style={{ display: 'block', marginTop: 8 }}
-          >
-            {busy ? '처리 중…' : '연결 추가'}
-          </FormButton>
-        </form>
-        {relRows.length === 0 ? (
-          <EmptyState message="연결된 고객이 없습니다." className="!my-0 !text-left" />
-        ) : (
-          <ul style={{ paddingLeft: 18 }}>
-            {relRows.map((r) => (
-              <li key={`${r.relatedCustomerId}-${r.createdAt}`} style={{ marginBottom: 8 }}>
-                <strong>#{r.relatedCustomerId}</strong> {r.relatedName}
-                <span style={{ color: 'var(--text-secondary)', marginLeft: 8, fontSize: '0.9rem' }}>
-                  {r.relatedPhone}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {isMobile ? (
+        <section style={{ marginTop: 32 }}>
+          <h2 style={{ fontSize: '1.05rem' }}>연결된 고객</h2>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+            동일 GA·내 명의의 다른 고객 ID를 연결하면 양방향으로 조회됩니다.
+          </p>
+          <form onSubmit={onAddRelation} style={{ marginBottom: 16 }}>
+            <label>
+              연결할 고객 ID
+              <FormInput
+                type="number"
+                min={1}
+                value={relatedId}
+                onChange={(ev) => setRelatedId(ev.target.value)}
+                style={{ display: 'block', width: 200, marginTop: 4, padding: 8 }}
+              />
+            </label>
+            <FormButton
+              htmlType="submit"
+              variant="action"
+              disabled={busy}
+              style={{ display: 'block', marginTop: 8 }}
+            >
+              {busy ? '처리 중…' : '연결 추가'}
+            </FormButton>
+          </form>
+          {relRows.length === 0 ? (
+            <EmptyState message="연결된 고객이 없습니다." className="!my-0 !text-left" />
+          ) : (
+            <ul style={{ paddingLeft: 18 }}>
+              {relRows.map((r) => (
+                <li key={`${r.relatedCustomerId}-${r.createdAt}`} style={{ marginBottom: 8 }}>
+                  <strong>#{r.relatedCustomerId}</strong> {r.relatedName}
+                  <span style={{ color: 'var(--text-secondary)', marginLeft: 8, fontSize: '0.9rem' }}>
+                    {r.relatedPhone}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
     </div>
   )
 }

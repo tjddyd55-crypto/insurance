@@ -42,7 +42,7 @@ export function resolveBackRoute(pathname: string, search: string): ResolvedBack
   if (pathname === ROUTE_CUSTOMER_LIST) {
     return null
   }
-  const customerFeatureMatch = pathname.match(/^\/customer\/(\d+)\/(?:files|consults|auto|ga)(?:\/|$)/)
+  const customerFeatureMatch = pathname.match(/^\/customer\/(\d+)\/(?:files|consults|auto|ga|memos)(?:\/|$)/)
   if (customerFeatureMatch?.[1]) {
     const next = new URLSearchParams(q.startsWith('?') ? q.slice(1) : q)
     next.set('customerId', customerFeatureMatch[1])

@@ -142,6 +142,17 @@ export default function StorageWorkspace({
     [customerId],
   )
 
+  useEffect(() => {
+    if (!token?.trim()) {
+      return
+    }
+    setFolders([])
+    setFiles([])
+    setSelectedFolderId(null)
+    setSelectedFileId(null)
+    setError('')
+  }, [customerId, token])
+
   const loadFolders = useCallback(async () => {
     if (!token?.trim()) {
       setFolders([])
@@ -428,7 +439,7 @@ export default function StorageWorkspace({
     <div className="storage-workspace page-shell">
       {headerSlot}
       <div className="storage-workspace__header">
-        <h1 className="storage-workspace__title">{title}</h1>
+        {title?.trim() ? <h1 className="storage-workspace__title">{title}</h1> : null}
         {subtitle ? <p className="storage-workspace__subtitle">{subtitle}</p> : null}
         <p className="storage-workspace__quota" role="status">
           {quotaLoading ? (
