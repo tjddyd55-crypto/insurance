@@ -6004,6 +6004,188 @@ a.contacts-public-auth__link {
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
+/* 고객관리 UI 정렬/간격 통일 (PC/모바일 분리) */
+.mobile-root .customers-page .customers-page__action-row {
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mobile-root .customers-page button.cta-button.customers-page__action-btn,
+.mobile-root .customers-page div.cta-button.customers-page__action-btn[role='button'] {
+  height: 40px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-root .customers-page .customers-page__search-row {
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 6px;
+}
+
+.mobile-root .customers-page .customers-page__search-input {
+  height: 44px;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.mobile-root .customers-page .customers-page__search-row > button.text-sm,
+.mobile-root .customers-page .customers-page__filter-toggle {
+  height: 44px;
+  min-height: 44px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-root .customers-page .customers-page__search-row > button.text-sm,
+.mobile-root .customers-page .customers-page__filter-toggle {
+  padding: 0 12px;
+}
+
+.mobile-root .customers-page .customer-expand-summary {
+  align-items: center;
+  padding: 10px;
+}
+
+.mobile-root .customers-page .customer-card-name-primary {
+  line-height: 1.28;
+}
+
+.mobile-root .customers-page .customer-card-summary-meta {
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.mobile-root .customers-page .customer-card__actions {
+  gap: 6px;
+  align-items: center;
+}
+
+.mobile-root .customers-page .customer-card__actions .icon-box {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.mobile-root .customers-page .customer-card__actions .icon-box svg,
+.mobile-root .customers-page .customer-card__actions .icon-box img {
+  width: 16px;
+  height: 16px;
+}
+
+.mobile-root .customers-page .customer-expand-summary__hint {
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-root .customers-page .customer-expand-summary__row--primary {
+  align-items: center;
+}
+
+.mobile-root .customers-page .customer-expand-summary__row--secondary {
+  margin-top: 3px;
+}
+
+.mobile-root .customers-page .customer-expand-detail {
+  margin-top: 6px;
+  padding: 10px;
+}
+
+.mobile-root .customers-page .customer-detail-toolbar {
+  align-items: center !important;
+  gap: 6px !important;
+  margin-bottom: 8px !important;
+}
+
+.mobile-root .customers-page .customer-card-icon-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px !important;
+}
+
+.mobile-root .customers-page .customer-icon-action {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.mobile-root .customers-page .customer-expand-section-divider {
+  margin: 6px 0;
+}
+
+.mobile-root .customers-page .customer-expand-list {
+  gap: 8px;
+}
+
+.pc-root .customers-page .customer-expand-summary {
+  align-items: center;
+  padding: 11px 12px;
+}
+
+.pc-root .customers-page .customer-card-name-primary {
+  line-height: 1.3;
+}
+
+.pc-root .customers-page .customer-card-summary-meta {
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+.pc-root .customers-page .customer-card__actions {
+  gap: 8px;
+  align-items: center;
+}
+
+.pc-root .customers-page .customer-card__actions .icon-box {
+  width: 30px;
+  height: 30px;
+}
+
+.pc-root .customers-page .customer-expand-summary__hint {
+  width: 30px;
+  height: 30px;
+  margin-left: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.pc-root .customers-page .customer-expand-summary__row--primary {
+  align-items: center;
+}
+
+.pc-root .customers-page .customer-expand-summary__row--secondary {
+  margin-top: 3px;
+}
+
+.pc-root .customers-page .customer-expand-detail {
+  margin-top: 7px;
+  padding: 11px;
+}
+
 /* ——— 메인 워크스페이스(좌 앱 / 우 메모) ——— */
 .memo-route-page {
   display: flex;
