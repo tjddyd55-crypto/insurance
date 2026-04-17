@@ -10,8 +10,8 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { FormButton } from '../components/form'
 import { Button, Modal } from '../components/ui'
 import ResponsiveLayout from '../components/ResponsiveLayout'
+import PCTitleBar from '../components/layout/PCTitleBar'
 import PCHeader from '../components/layout/PCHeader'
-import MobileHeader from '../components/layout/MobileHeader'
 import { useAuth } from '../features/auth/AuthProvider'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import {
@@ -27,6 +27,8 @@ import { fetchTeamMembers } from '../features/team/api/teamApi'
 import { CarInsuranceDashboardPage } from '../features/application/pages/CarInsuranceDashboardPage'
 import MemoPanel from './MemoPanel'
 import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
+import { useIsMobile } from '../hooks/useIsMobile'
+import { resolveBackRoute } from '../navigation/backNavigationPolicy'
 
 type SidebarNavEntry = GaTenantDashboardMenuEntry
 
@@ -98,7 +100,11 @@ function isActivePath(pathname: string, itemPath: string): boolean {
     return pathname === '/insurance/company-registry' || pathname.startsWith('/insurance/company-registry/')
   }
   if (itemPath.startsWith('/customers')) {
-    return pathname === '/customers' || pathname.startsWith('/customers/')
+    return (
+      pathname === '/customers' ||
+      pathname.startsWith('/customers/') ||
+      pathname.startsWith('/customer/')
+    )
   }
   if (itemPath === '/application') {
     return pathname === '/application' || pathname.startsWith('/application/')
@@ -178,7 +184,7 @@ function pathnameUsesStandaloneCarInsuranceRoutes(pathname: string): boolean {
 }
 
 function extractCustomerIdFromPath(path: string): string | null {
-  const matched = path.match(/^\/customers\/([^/?#]+)/)
+  const matched = path.match(/^\/(?:customers|customer)\/([^/?#]+)/)
   if (!matched?.[1]) {
     return null
   }
@@ -206,7 +212,7 @@ function AppWorkspaceLayoutMobileShell() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout, token, isAuthenticated } = useAuth()
-  const mobileHeaderRef = useRef<HTMLElement>(null)
+  const isMobile = useIsMobile()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [mobileSelectedCustomer, setMobileSelectedCustomer] = useState<string | null>(extractCustomerIdFromPath(location.pathname))
   const [mobilePageStack, setMobilePageStack] = useState<string[]>(() => [location.pathname])
@@ -269,10 +275,10 @@ function AppWorkspaceLayoutMobileShell() {
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
   const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
-  const showGaUserActions = tenantChrome && !isNewsManager
   const workspaceHeaderTitle = tenantChrome && !isNewsManager
     ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')
     : '업무 메뉴'
+  const mobileTopbarTitle = (user?.gaName ?? '').trim() || workspaceHeaderTitle || '영진 SGA'
 
   const pushMobilePage = useCallback((path: string) => {
     setMobilePageStack((prev) => {
@@ -285,13 +291,21 @@ function AppWorkspaceLayoutMobileShell() {
 
   return (
     <div className="mobile-root mobile-workspace-layout">
-      <MobileHeader
-        title={workspaceHeaderTitle}
-        drawerOpen={drawerOpen}
-        showNotification={showGaUserActions}
-        headerRef={mobileHeaderRef}
-        onToggleDrawer={() => setDrawerOpen((v) => !v)}
-      />
+      {isMobile ? (
+        <header className="mobile-topbar" aria-label="모바일 상단바">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="menu-btn"
+            aria-label="메뉴 열기"
+            aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen((v) => !v)}
+          >
+            ☰
+          </FormButton>
+          <div className="title">{mobileTopbarTitle}</div>
+        </header>
+      ) : null}
 
       {drawerOpen ? (
         <nav className="mobile-workspace-drawer" aria-label="모바일 주요 메뉴">
@@ -549,18 +563,24 @@ function AppWorkspaceLayoutPCShell() {
 
   return (
     <div className="pc-root app-workspace-layout-root">
+      <PCTitleBar
+        onBack={() => {
+          const resolved = resolveBackRoute(location.pathname, location.search ?? '')
+          if (resolved == null) {
+            return
+          }
+          if (resolved.kind === 'customer-create-exit') {
+            navigate('/customers')
+            return
+          }
+          navigate(resolved.path, resolved.replace ? { replace: true } : undefined)
+        }}
+      />
       <PCHeader
         title={workspaceHeaderTitle}
         showNotification={showGaUserActions}
         sidebarOpen={sidebarOpen}
         headerRef={workspaceChromeHeaderRef}
-        onBack={() => {
-          if (typeof window !== 'undefined' && window.history.length > 1) {
-            navigate(-1)
-            return
-          }
-          navigate('/dashboard')
-        }}
         onToggleSidebar={() => setSidebarOpen((v) => !v)}
       />
 

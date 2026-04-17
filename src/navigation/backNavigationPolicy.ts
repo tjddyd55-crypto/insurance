@@ -30,19 +30,38 @@ export function isCustomerCreateMode(pathname: string, search: string): boolean 
  * - 그 외: 히스토리 POP
  */
 export type ResolvedBackRoute =
-  | { kind: 'replace'; path: string }
-  | { kind: 'pop' }
+  | { kind: 'navigate'; path: string; replace?: boolean }
   | { kind: 'customer-create-exit' }
+  | null
+
+function appendSearch(path: string, search: string): string {
+  const q = search ?? ''
+  if (!q.trim()) {
+    return path
+  }
+  return `${path}${q}`
+}
 
 export function resolveBackRoute(pathname: string, search: string): ResolvedBackRoute {
   const q = search ?? ''
   if (isCustomerCreateMode(pathname, q)) {
     return { kind: 'customer-create-exit' }
   }
-  if (pathname.startsWith('/customers')) {
-    return { kind: 'replace', path: ROUTE_MAIN_MENU }
+  if (pathname === ROUTE_CUSTOMER_LIST) {
+    return null
   }
-  return { kind: 'pop' }
+  const customerFeatureMatch = pathname.match(/^\/customer\/(\d+)\/(?:files|consults|auto|ga)(?:\/|$)/)
+  if (customerFeatureMatch?.[1]) {
+    return { kind: 'navigate', path: appendSearch(`/customer/${customerFeatureMatch[1]}`, q) }
+  }
+  const customerDetailMatch = pathname.match(/^\/customer\/(\d+)(?:\/|$)/)
+  if (customerDetailMatch?.[1]) {
+    return { kind: 'navigate', path: appendSearch(ROUTE_CUSTOMER_LIST, q) }
+  }
+  if (pathname.startsWith('/application/write')) {
+    return { kind: 'navigate', path: '/application', replace: true }
+  }
+  return null
 }
 
 /**

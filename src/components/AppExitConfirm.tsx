@@ -40,10 +40,10 @@ export function AppExitConfirm() {
       title="뒤로 이동 확인"
       onCancel={() => blocker.reset()}
       onConfirm={() => {
-        // customer create mode: do not POP (history duplication). Always replace to list.
+        // customer create mode: do not POP; route policy decides list navigation.
         if (isCustomerCreateMode(pathname, searchStr)) {
           blocker.reset()
-          navigate('/customers', { replace: true })
+          navigate('/customers')
           return
         }
         blocker.proceed()

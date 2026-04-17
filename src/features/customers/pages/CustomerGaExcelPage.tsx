@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Navigate, useParams } from 'react-router-dom'
 import { EmptyState, LoadingState, StatusMessage } from '../../../components/feedback'
 import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
+import { useGaSettings } from '../../ga-settings/useGaSettings'
 import {
   fetchCustomerGaExcelData,
   type GaCustomerExcelDataRow,
 } from '../api/gaCustomerExcelApi'
 
 export default function CustomerGaExcelPage() {
-  const { id } = useParams()
-  const customerId = Number(id)
+  const { customerId: customerIdParam } = useParams()
+  const customerId = Number(customerIdParam)
   const { token } = useAuth()
+  const { gaSettings, loading: gaSettingsLoading } = useGaSettings()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
@@ -75,6 +77,12 @@ export default function CustomerGaExcelPage() {
 
   if (!Number.isFinite(customerId) || customerId < 1) {
     return <EmptyState message="고객을 선택해 주세요." />
+  }
+  if (gaSettingsLoading) {
+    return <LoadingState message="권한 확인 중…" />
+  }
+  if (!gaSettings.use_ga_excel) {
+    return <Navigate to={`/customer/${customerId}`} />
   }
 
   return (

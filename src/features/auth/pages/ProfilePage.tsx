@@ -16,6 +16,7 @@ import { createTeam, fetchTeamMembers, joinTeam } from '../../team/api/teamApi'
 import { DesktopUpdateSection } from '../../../components/DesktopUpdateSection'
 import { UserGaExcelManagePanel } from '../../profile/components/UserGaExcelManagePanel'
 import { CustomerExcelImportPanel } from '../../customers/components/CustomerExcelImportPanel'
+import { useIsMobile } from '../../../hooks/useIsMobile'
 
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
@@ -26,6 +27,7 @@ function canAccessMyInfoPage(role: string | undefined): boolean {
 
 export function ProfilePage() {
   const { token, user, login, isAuthenticated } = useAuth()
+  const isMobile = useIsMobile()
   const pageTitle = '내 정보 관리'
   const [me, setMe] = useState<MeResponse | null>(null)
   const [loadError, setLoadError] = useState('')
@@ -361,7 +363,7 @@ export function ProfilePage() {
 
   if (loadError) {
     return (
-      <main className="auth-page profile-page content-wrapper">
+      <main className="content-wrapper profile-page">
         <section className="card auth-card">
           <h1>{pageTitle}</h1>
 
@@ -376,7 +378,7 @@ export function ProfilePage() {
 
   if (!me) {
     return (
-      <main className="auth-page profile-page content-wrapper">
+      <main className="content-wrapper profile-page">
         <section className="card auth-card">
           <h1>{pageTitle}</h1>
           <p className="status">불러오는 중…</p>
@@ -388,188 +390,215 @@ export function ProfilePage() {
   const hasTeam = Boolean(user.teamId?.trim())
 
   return (
-    <main className="auth-page profile-page content-wrapper">
+    <main className="content-wrapper profile-page">
       <section className="card auth-card">
         <h1>{pageTitle}</h1>
         <DesktopUpdateSection />
 
+        <section className="profile-section">
+          <h2 className="section-title">내 정보</h2>
+          <div className="section-content">
+            <form className="auth-form" onSubmit={(e) => void onSubmit(e)}>
+              <label className="field">
+                <span className="field__label">이름</span>
+                <FormInput
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  autoComplete="name"
+                  required
+                />
+              </label>
 
-        <form className="auth-form" onSubmit={(e) => void onSubmit(e)}>
-          <label className="field">
-            <span className="field__label">이름</span>
-            <FormInput
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              autoComplete="name"
-              required
-            />
-          </label>
+              <label className="field">
+                <span className="field__label">아이디</span>
+                <FormInput value={me.username} readOnly />
+              </label>
 
-          <label className="field">
-            <span className="field__label">아이디</span>
-            <FormInput value={me.username} readOnly />
-          </label>
+              <label className="field">
+                <span className="field__label">휴대폰번호</span>
+                <FormInput
+                  value={phoneEditDigits}
+                  onChange={(e) => {
+                    setPhoneEditDigits(e.target.value)
+                    setPhoneChangeProof(null)
+                  }}
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  placeholder={phoneInput}
+                  required
+                />
+              </label>
 
-          <label className="field">
-            <span className="field__label">휴대폰번호</span>
-            <FormInput
-              value={phoneEditDigits}
-              onChange={(e) => {
-                setPhoneEditDigits(e.target.value)
-                setPhoneChangeProof(null)
-              }}
-              inputMode="numeric"
-              autoComplete="tel"
-              placeholder={phoneInput}
-              required
-            />
-          </label>
+              {phoneChangedPending ? (
+                <div className="field">
+                  <span className="field__label">휴대폰 변경 인증</span>
+                  <div className="profile-page__phone-verify-row">
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      className="button button--secondary"
+                      onClick={() => void sendCode()}
+                      disabled={submitting || resendLeft > 0}
+                    >
+                      {resendLeft > 0 ? `재요청 (${resendLeft}s)` : '인증번호 요청'}
+                    </FormButton>
+                    {secondsLeft > 0 ? (
+                      <span className="status" style={{ fontSize: '0.9rem' }}>
+                        유효 시간 {secondsLeft}s
+                      </span>
+                    ) : null}
+                  </div>
+                  <FormInput
+                    style={{ marginTop: 8 }}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    inputMode="numeric"
+                    placeholder="인증번호 6자리"
+                    maxLength={6}
+                  />
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    className="button button--secondary"
+                    style={{ marginTop: 8 }}
+                    onClick={() => void verifyCode()}
+                    disabled={submitting || code.trim().length !== 6}
+                  >
+                    인증 확인
+                  </FormButton>
+                  {phoneChangeProof ? (
+                    <p className="status" style={{ color: 'var(--success)' }}>
+                      인증 완료 — 저장 시 새 번호가 반영됩니다.
+                    </p>
+                  ) : null}
+                  {debugCodeHint ? <p className="status">{debugCodeHint}</p> : null}
+                </div>
+              ) : null}
 
-          {phoneChangedPending ? (
-            <div className="field">
-              <span className="field__label">휴대폰 변경 인증</span>
-              <div className="profile-page__phone-verify-row">
-                <FormButton
-                  htmlType="button"
-                  variant="secondary"
-                  className="button button--secondary"
-                  onClick={() => void sendCode()}
-                  disabled={submitting || resendLeft > 0}
-                >
-                  {resendLeft > 0 ? `재요청 (${resendLeft}s)` : '인증번호 요청'}
-                </FormButton>
-                {secondsLeft > 0 ? (
-                  <span className="status" style={{ fontSize: '0.9rem' }}>
-                    유효 시간 {secondsLeft}s
-                  </span>
-                ) : null}
+              <div className="field">
+                <Link to="/password-reset" className="button button--secondary button--full">
+                  비밀번호 재설정
+                </Link>
               </div>
-              <FormInput
-                style={{ marginTop: 8 }}
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                inputMode="numeric"
-                placeholder="인증번호 6자리"
-                maxLength={6}
-              />
+
+              {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
+              {infoMessage ? <p className="status">{infoMessage}</p> : null}
+
+              <FormButton
+                className="button button--primary button--full profile-page__submit"
+                htmlType="submit"
+                variant="primary"
+                disabled={savingProfile || (phoneChangedPending && !phoneChangeProof)}
+              >
+                {savingProfile ? '저장 중…' : '저장'}
+              </FormButton>
+            </form>
+          </div>
+        </section>
+
+        <section className="profile-section">
+          <h2 className="section-title">팀 관리</h2>
+          <div className="section-content">
+            <div className="profile-page__team-row">
               <FormButton
                 htmlType="button"
-                variant="secondary"
-                className="button button--secondary"
-                style={{ marginTop: 8 }}
-                onClick={() => void verifyCode()}
-                disabled={submitting || code.trim().length !== 6}
-              >
-                인증 확인
-              </FormButton>
-              {phoneChangeProof ? (
-                <p className="status" style={{ color: 'var(--success)' }}>
-                  인증 완료 — 저장 시 새 번호가 반영됩니다.
-                </p>
-              ) : null}
-              {debugCodeHint ? <p className="status">{debugCodeHint}</p> : null}
-            </div>
-          ) : null}
-
-          <div className="field">
-            <Link to="/password-reset" className="button button--secondary button--full">
-              비밀번호 재설정
-            </Link>
-          </div>
-
-          <div className="my-4 border-t border-[var(--border-default)]" role="presentation" />
-
-          <div className="profile-page__team-row">
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className={`cta-button profile-page__team-btn${hasTeam ? ' opacity-50 cursor-not-allowed' : ''}`}
-              aria-disabled={hasTeam}
-              onClick={() => {
-                if (hasTeam) {
-                  window.alert('이미 팀에 소속되어 있습니다')
-                  return
-                }
-                setTeamActionError('')
-                setCreateTeamOpen(true)
-              }}
-            >
-              팀 생성
-            </FormButton>
-            <FormButton htmlType="button" variant="action" className="cta-button profile-page__team-btn" onClick={() => void copyTeamCode()}>
-              {teamCodeCopied ? '복사됨 ✓' : '팀 코드 복사'}
-            </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className={`cta-button profile-page__team-btn${hasTeam ? ' opacity-50 cursor-not-allowed' : ''}`}
-              aria-disabled={hasTeam}
-              onClick={() => {
-                if (hasTeam) {
-                  window.alert('이미 팀에 소속되어 있습니다')
-                  return
-                }
-                setTeamActionError('')
-                setConnectTeamOpen(true)
-              }}
-            >
-              팀 연결
-            </FormButton>
-          </div>
-          {teamCopyNotice ? (
-            <p className="status text-sm" role="status" style={{ marginTop: 8 }}>
-              {teamCopyNotice}
-            </p>
-          ) : null}
-
-          <div className="field profile-page__excel-field">
-            <span className="field__label">고객 데이터 파일 업로드</span>
-            <div className="profile-page__excel-toolbar">
-              <CustomerExcelImportPanel
-                token={token}
-                onUploadsFinished={async () => {
-                  setInfoMessage('고객 데이터 업로드가 완료되었습니다.')
+                variant="action"
+                className={`cta-button profile-page__team-btn${hasTeam ? ' opacity-50 cursor-not-allowed' : ''}`}
+                aria-disabled={hasTeam}
+                onClick={() => {
+                  if (hasTeam) {
+                    window.alert('이미 팀에 소속되어 있습니다')
+                    return
+                  }
+                  setTeamActionError('')
+                  setCreateTeamOpen(true)
                 }}
-              />
+              >
+                팀 생성
+              </FormButton>
+              <FormButton htmlType="button" variant="action" className="cta-button profile-page__team-btn" onClick={() => void copyTeamCode()}>
+                {teamCodeCopied ? '복사됨 ✓' : '팀 코드 복사'}
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className={`cta-button profile-page__team-btn${hasTeam ? ' opacity-50 cursor-not-allowed' : ''}`}
+                aria-disabled={hasTeam}
+                onClick={() => {
+                  if (hasTeam) {
+                    window.alert('이미 팀에 소속되어 있습니다')
+                    return
+                  }
+                  setTeamActionError('')
+                  setConnectTeamOpen(true)
+                }}
+              >
+                팀 연결
+              </FormButton>
             </div>
-            <p className="status text-sm" style={{ marginTop: 8 }}>
-              샘플 다운로드 후 양식에 맞게 작성한 파일을 업로드해 주세요.
-            </p>
+            {teamCopyNotice ? (
+              <p className="status text-sm" role="status" style={{ marginTop: 8 }}>
+                {teamCopyNotice}
+              </p>
+            ) : null}
           </div>
+        </section>
 
-          <div className="field profile-page__excel-field">
-            <span className="field__label">GA 데이터 업로드</span>
-            <div className="profile-page__excel-toolbar">
-              <UserGaExcelManagePanel token={token} />
-            </div>
-            <p className="status text-sm" style={{ marginTop: 8 }}>
-              회사 DB 파일 업로드/조회는{' '}
-              <Link to="/storage" className="switch-text__action">
-                내 저장공간
-              </Link>
-              에서 진행합니다.
-            </p>
+        <div className="section-divider" />
+
+        <section className="profile-section">
+          <h2 className="section-title">고객 데이터 업로드</h2>
+          <div className="section-content">
+            {!isMobile ? (
+              <>
+                <div className="profile-page__excel-toolbar">
+                  <CustomerExcelImportPanel
+                    token={token}
+                    onUploadsFinished={async () => {
+                      setInfoMessage('고객 데이터 업로드가 완료되었습니다.')
+                    }}
+                  />
+                </div>
+                <p className="status text-sm" style={{ marginTop: 8 }}>
+                  샘플 다운로드 후 양식에 맞게 작성한 파일을 업로드해 주세요.
+                </p>
+              </>
+            ) : (
+              <div className="mobile-disabled-box">해당 기능은 PC에서만 사용 가능합니다.</div>
+            )}
           </div>
+        </section>
 
-          <Link
-            to="/account/reset"
-            className="button button--secondary button--full profile-page__account-reset"
-          >
-            계정 초기화
-          </Link>
+        <div className="section-divider" />
 
-          {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
-          {infoMessage ? <p className="status">{infoMessage}</p> : null}
+        <section className="profile-section">
+          <h2 className="section-title">GA 데이터 업로드</h2>
+          <div className="section-content">
+            {!isMobile ? (
+              <>
+                <div className="profile-page__excel-toolbar">
+                  <UserGaExcelManagePanel token={token} />
+                </div>
+                <p className="status text-sm" style={{ marginTop: 8 }}>
+                  회사 DB 파일 업로드/조회는{' '}
+                  <Link to="/storage" className="switch-text__action">
+                    내 저장공간
+                  </Link>
+                  에서 진행합니다.
+                </p>
+              </>
+            ) : (
+              <div className="mobile-disabled-box">해당 기능은 PC에서만 사용 가능합니다.</div>
+            )}
+          </div>
+        </section>
 
-          <FormButton
-            className="button button--primary button--full profile-page__submit"
-            htmlType="submit"
-            variant="primary"
-            disabled={savingProfile || (phoneChangedPending && !phoneChangeProof)}
-          >
-            {savingProfile ? '저장 중…' : '저장'}
-          </FormButton>
-        </form>
+        <Link
+          to="/account/reset"
+          className="button button--secondary button--full profile-page__account-reset"
+        >
+          계정 초기화
+        </Link>
 
         <div className="switch-text">
           <Link to="/dashboard" className="switch-text__action">

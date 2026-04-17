@@ -10,8 +10,8 @@ type GlobalBackMessage = { type?: string }
  * 모바일 WebView 등에서 오는 “하드웨어 뒤로” 의도를 라우터로만 처리한다.
  *
  * - 고객 등록(?mode=create): 즉시 이동하지 않고 insurance-native-back과 동일 이벤트로 모달·blocker 흐름 유지
- * - /customers* (등록 제외): `resolveBackRoute` → 메인 메뉴 replace
- * - 그 외: navigate(-1)
+ * - 고객/상세/기능 페이지: `resolveBackRoute` 기준 상위 경로로 이동
+ * - 그 외: `/customers`로 이동
  *
  * 주의: `popstate`는 React Router·useBlocker와 이중 처리되기 쉬워 등록하지 않는다.
  * 브라우저 뒤로는 Router가 담당하고, 네이티브·postMessage·커스텀 이벤트만 여기서 처리한다.
@@ -48,15 +48,14 @@ export function useGlobalBackHandler(enabled: boolean) {
       const search = loc.search ?? ''
 
       const resolved = resolveBackRoute(path, search)
+      if (resolved == null) {
+        return
+      }
       if (resolved.kind === 'customer-create-exit') {
         dispatchCustomerCreateBack()
         return
       }
-      if (resolved.kind === 'replace') {
-        nav(resolved.path, { replace: true })
-        return
-      }
-      nav(-1)
+      nav(resolved.path, resolved.replace ? { replace: true } : undefined)
     }
 
     const onMessage = (event: MessageEvent): void => {

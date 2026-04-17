@@ -15,6 +15,7 @@ function makePendingMemoId(): string {
 type Props = {
   customer: CustomerRecord
   token: string | null
+  showFileShortcut?: boolean
   onPersisted: (customerId: number, newMemo: CustomerNotesBag) => void | Promise<void>
   onStatusMessage: (msg: string) => void
 }
@@ -22,6 +23,7 @@ type Props = {
 export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSection({
   customer,
   token,
+  showFileShortcut = true,
   onPersisted,
   onStatusMessage,
 }: Props) {
@@ -188,18 +190,20 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
       <div className="flex justify-between items-center mb-2 gap-2">
         <div className="customer-section-title !mt-0">[메모]</div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button
-            type="button"
-            variant="secondary"
-            className="!px-3 !py-1.5 text-xs shrink-0"
-            disabled={!token?.trim()}
-            onClick={(e) => {
-              e.stopPropagation()
-              navigate(`/customers/${customer.id}/files`, { state: { customerName: customer.name } })
-            }}
-          >
-            파일
-          </Button>
+          {showFileShortcut ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="!px-3 !py-1.5 text-xs shrink-0"
+              disabled={!token?.trim()}
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(`/customer/${customer.id}/files`, { state: { customerName: customer.name } })
+              }}
+            >
+              파일
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="secondary"

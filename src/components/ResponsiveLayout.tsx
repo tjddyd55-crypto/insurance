@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentType } from 'react'
+import { useState, type ComponentType } from 'react'
 
 const MOBILE_BREAKPOINT = 1024
 
@@ -8,13 +8,9 @@ type ResponsiveLayoutProps = {
 }
 
 export default function ResponsiveLayout({ PC, Mobile }: ResponsiveLayoutProps) {
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    }
-  }, [])
+  const [isMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false,
+  )
 
   return isMobile ? <Mobile /> : <PC />
 }

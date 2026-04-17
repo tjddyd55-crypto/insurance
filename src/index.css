@@ -157,7 +157,88 @@ body {
   display: none;
 }
 
+.pc-title-bar {
+  display: none;
+}
+
 @media (min-width: 1024px) {
+  .pc-title-bar {
+    display: flex;
+    height: 30px;
+    min-height: 30px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px;
+    font-size: 12px;
+    line-height: 1;
+    box-sizing: border-box;
+    border-bottom: 1px solid var(--border-default, #2a2a2a);
+    background: var(--bg-elevated, #141b26);
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+
+  .pc-title-bar .title-left,
+  .pc-title-bar .title-center,
+  .pc-title-bar .title-right {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .pc-title-bar .title-left,
+  .pc-title-bar .title-right {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .pc-title-bar .back-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    padding: 2px 6px;
+    min-height: 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .pc-title-bar .title-center {
+    justify-content: center;
+    flex: 1;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 8px;
+  }
+
+  .pc-title-bar .window-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .pc-title-bar .window-controls button {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    min-height: 16px;
+    padding: 0;
+    font-size: 10px;
+    line-height: 1;
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .pc-title-bar .window-controls button:hover:not(:disabled) {
+    filter: brightness(1.06);
+  }
+
   .app-workspace-chrome-header.header {
     position: relative;
     display: flex;
@@ -1083,44 +1164,34 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   background: var(--bg-main);
 }
 
-.mobile-workspace-header {
+.mobile-topbar {
   height: 48px;
   min-height: 48px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   padding: 0 12px;
-  border-bottom: 1px solid var(--border-default, #2a2a2a);
-  background: var(--bg-elevated, #141b26);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #1f2937;
   box-sizing: border-box;
 }
 
-.mobile-workspace-header__left {
+.mobile-topbar .menu-btn {
   min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  font-size: 18px;
+  margin-right: 12px;
+  line-height: 1;
 }
 
-.mobile-workspace-header__right {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.mobile-workspace-header__title {
+.mobile-topbar .title {
   min-width: 0;
-  font-size: 0.95rem;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.mobile-workspace-header__logout {
-  flex-shrink: 0;
 }
 
 .mobile-workspace-drawer__logout {
@@ -2075,6 +2146,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page__team-row {
   display: flex;
   gap: 8px;
+  justify-content: flex-start;
   width: 100%;
   margin-bottom: 12px;
   box-sizing: border-box;
@@ -2089,12 +2161,47 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   margin-top: 16px;
 }
 
+.profile-section {
+  margin-bottom: 24px;
+}
+
+.profile-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.profile-page .section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+
+.profile-page .section-content {
+  width: 100%;
+  min-width: 0;
+}
+
+.section-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 24px 0;
+}
+
+.mobile-disabled-box {
+  padding: 16px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  text-align: center;
+  color: #aaa;
+  font-size: 14px;
+}
+
 .profile-page__excel-toolbar .customers-excel-import-panel {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   width: 100%;
+  max-width: none;
 }
 
 .profile-page__excel-toolbar .customers-excel-import-panel__row {
@@ -2110,6 +2217,11 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page__excel-toolbar {
   width: 100%;
   min-width: 0;
+}
+
+.profile-page__excel-toolbar .customers-excel-import-panel__preview {
+  width: 100%;
+  max-width: none;
 }
 
 .profile-page__excel-toolbar input[type='checkbox'] {
@@ -2140,6 +2252,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 
 .profile-page__excel-preview-table {
   table-layout: fixed;
+  min-width: 1200px;
 }
 
 .profile-page__excel-preview-toggle-row th {
@@ -2177,10 +2290,20 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   margin-top: 16px;
 }
 
-/* 프로필 전용: 모바일 가로 스크롤·콘텐츠 폭 튐 방지 (다른 auth 화면과 분리) */
-.profile-page.auth-page {
-  display: block;
-  place-items: unset;
+/* 프로필 전용: PC 기준 좌측 시작 + 섹션 간격 통일 */
+.profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* 프로필 전용: 가로 스크롤·콘텐츠 폭 튐 방지 */
+.content-wrapper.profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   min-height: 100%;
   width: 100%;
   max-width: 100%;
@@ -2194,6 +2317,15 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   width: 100%;
   max-width: none;
   box-sizing: border-box;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.profile-page .table-wrapper table {
+  min-width: 1200px;
 }
 
 .profile-page .auth-form {
@@ -5545,6 +5677,98 @@ a.contacts-public-auth__link {
   font-size: 0.9rem;
 }
 
+.customer-list-item-nav {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  border: 1px solid var(--border-default, #2a2a2a);
+  background: var(--bg-card, #10141d);
+}
+
+.customer-list-item-nav__main {
+  width: 100%;
+  min-width: 0;
+}
+
+.customer-list-item-nav__title-row {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.customer-list-item-nav__meta {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.customer-list-item-nav__arrow {
+  opacity: 0.7;
+}
+
+.customer-detail-page__section {
+  margin-top: 16px;
+}
+
+.customer-detail-page__section-title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.customer-detail-page__info-grid {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 8px 12px;
+  font-size: 0.95rem;
+}
+
+.customer-detail-page__paragraph {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.customer-detail-page__paragraph--sub {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.customer-detail-page__linked-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.customer-detail-page__linked-item {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.customer-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.customer-actions.customer-actions--pc {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.customer-actions.customer-actions--mobile {
+  flex-direction: column;
+}
+
+.customer-actions > button {
+  flex: 1 1 auto;
+}
+
 @media (max-width: 860px) {
   .customer-workspace-layout {
     display: block;
@@ -5558,6 +5782,10 @@ a.contacts-public-auth__link {
     border-right: none;
     border-bottom: 1px solid var(--border-default, #2a2a2a);
     max-height: 60vh;
+  }
+
+  .customer-detail-page__info-grid {
+    grid-template-columns: 1fr;
   }
 }
 

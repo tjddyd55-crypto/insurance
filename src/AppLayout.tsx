@@ -7,6 +7,7 @@ import { GlobalBackHandlerHost } from './hooks/useGlobalBackHandler'
 import { useAuth } from './features/auth/AuthProvider'
 import { isElectronApp } from './lib/isElectronApp'
 import { isCustomerCreateMode } from './navigation/backNavigationPolicy'
+import { GaSettingsProvider } from './features/ga-settings/GaSettingsProvider'
 
 export function AppLayout() {
   const { isAuthenticated } = useAuth()
@@ -19,13 +20,15 @@ export function AppLayout() {
 
   return (
     <div className={rootClass}>
-      <ElectronTitleBar />
+      {!isAuthenticated ? <ElectronTitleBar /> : null}
       {!isElectronApp() && isAuthenticated ? <WebProgramTopBar /> : null}
       <OperationalMessageBanner />
       {isAuthenticated ? <GlobalBackHandlerHost /> : null}
       {hideAppExitConfirm ? null : <AppExitConfirm />}
       <div className="main-container">
-        <Outlet />
+        <GaSettingsProvider>
+          <Outlet />
+        </GaSettingsProvider>
       </div>
     </div>
   )

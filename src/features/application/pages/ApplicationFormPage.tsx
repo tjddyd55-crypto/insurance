@@ -37,7 +37,6 @@ import { FormButton } from '../../../components/form'
 import { FormSection } from '../components/FormSection'
 
 type EditableField = Exclude<keyof InsuranceApplicationFormData, 'customerId'>
-const AUTO_SAVE_INTERVAL_MS = 5000
 const MIN_CUSTOMER_SEARCH_KEYWORD = 2
 
 function normalizeFormData(source: Partial<InsuranceApplicationFormData>): InsuranceApplicationFormData {
@@ -100,7 +99,7 @@ function mergeCustomerIntoForm(
 export function ApplicationFormPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { id } = useParams()
+  const { id, customerId: customerIdParam } = useParams()
   const { token, user } = useAuth()
 
   const [recordId, setRecordId] = useState<string | undefined>(id)
@@ -110,7 +109,7 @@ export function ApplicationFormPage() {
   const [statusText, setStatusText] = useState('신청서 정보를 불러오는 중입니다.')
   const [isLoading, setIsLoading] = useState(true)
   const [isReadOnly, setIsReadOnly] = useState(false)
-  const [lastSavedSignature, setLastSavedSignature] = useState('')
+  const [, setLastSavedSignature] = useState('')
   const [customerQuery, setCustomerQuery] = useState('')
   const [customerHits, setCustomerHits] = useState<CustomerRecord[]>([])
   const [customerSearchTriggered, setCustomerSearchTriggered] = useState(false)
@@ -118,10 +117,14 @@ export function ApplicationFormPage() {
   const autoFilledCustomerIdRef = useRef<number | null>(null)
 
   const customerIdFromQuery = useMemo(() => {
+    const fromRoute = Number(customerIdParam)
+    if (Number.isInteger(fromRoute) && fromRoute > 0) {
+      return fromRoute
+    }
     const raw = new URLSearchParams(location.search).get('customerId')
     const numeric = Number(raw)
     return Number.isInteger(numeric) && numeric > 0 ? numeric : null
-  }, [location.search])
+  }, [customerIdParam, location.search])
 
   const trimmedCustomerQuery = customerQuery.trim()
   const canSearchCustomers = trimmedCustomerQuery.length >= MIN_CUSTOMER_SEARCH_KEYWORD
@@ -236,36 +239,6 @@ export function ApplicationFormPage() {
       cancelled = true
     }
   }, [token, isReadOnly, isLoading, customerIdFromQuery])
-
-  useEffect(() => {
-    if (isLoading || isReadOnly || !token) {
-      return
-    }
-
-    const currentSignature = JSON.stringify(formData)
-    if (currentSignature === lastSavedSignature) {
-      return
-    }
-
-    const timer = window.setTimeout(async () => {
-      try {
-        const savedRecord = await saveApplication(formData, token, recordId)
-        const normalized = normalizeFormData(savedRecord)
-        setRecordId(savedRecord.id)
-        setLastSavedSignature(JSON.stringify(normalized))
-        const draft = saveDraft(normalized, user?.id, savedRecord.id)
-        const savedText = new Intl.DateTimeFormat('ko-KR', {
-          hour: '2-digit',
-          minute: '2-digit',
-        }).format(new Date(draft.savedAt))
-        setStatusText(`자동 저장됨 (${savedText})`)
-      } catch (error) {
-        setStatusText(error instanceof Error ? error.message : '자동 저장에 실패했습니다.')
-      }
-    }, AUTO_SAVE_INTERVAL_MS)
-
-    return () => window.clearTimeout(timer)
-  }, [formData, isLoading, isReadOnly, lastSavedSignature, recordId, token, user?.id])
 
   const updateField = (field: EditableField, value: string | boolean) => {
     if (isReadOnly) {
@@ -415,12 +388,13 @@ export function ApplicationFormPage() {
     }
   }
 
-  const handleViewResult = async () => {
-    // 결과보기 진입 전 현재 폼을 항상 저장해 유효한 id를 확보한다.
-    const saved = await handleSave('current', { navigateToEdit: false })
-    if (saved) {
-      navigate(`/form/result/${saved.id}`)
+  const handleSubmit = () => {
+    if (!recordId) {
+      setStatusText('신청 전 먼저 저장해 주세요.')
+      window.alert('신청 전 먼저 저장해 주세요.')
+      return
     }
+    navigate(`/form/result/${recordId}`)
   }
 
   const pageTitle = useMemo(() => {
@@ -800,8 +774,8 @@ export function ApplicationFormPage() {
         <FormButton className="button" htmlType="button" variant="action" onClick={() => navigate('/my-forms')}>
           목록
         </FormButton>
-        <FormButton className="button button--primary" htmlType="button" variant="primary" onClick={() => void handleViewResult()}>
-          결과보기
+        <FormButton className="button button--primary" htmlType="button" variant="primary" onClick={handleSubmit}>
+          신청
         </FormButton>
         {isReadOnly ? (
           <FormButton

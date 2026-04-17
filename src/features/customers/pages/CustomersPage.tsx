@@ -50,6 +50,7 @@ import {
   EXPANDABLE_CARD_INVALID_ID,
   useExpandableCard,
 } from '../../../hooks/useExpandableCard'
+import { useIsMobile } from '../../../hooks/useIsMobile'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
 import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPolicy'
@@ -1174,6 +1175,7 @@ const CustomerListCard = memo(function CustomerListCard({
 export default function CustomersPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const isMobile = useIsMobile()
   const [searchParams, setSearchParams] = useSearchParams()
   /**
    * 고객등록 → 목록: 반드시 replace. setSearchParams({}) / blocker.proceed() 사용 금지(히스토리 중복·이중 POP).
@@ -2007,7 +2009,7 @@ export default function CustomersPage() {
       <header className="page-header customers-page__header">
         {tab === 'list' ? (
           <>
-            {!isSelectMode ? (
+            {!isSelectMode && !isMobile ? (
               <div className="customers-page__action-row">
                 <FormButton
                   htmlType="button"

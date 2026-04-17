@@ -85,7 +85,7 @@ export default function CustomerFilesPage() {
                   className="storage-folder-sheet__item"
                   onClick={() => {
                     setPickerOpen(false)
-                    navigate(`/customers/${customer.id}/files`, {
+                    navigate(`/customer/${customer.id}/files`, {
                       state: { customerName: customer.name },
                     })
                   }}
@@ -100,10 +100,10 @@ export default function CustomerFilesPage() {
         <h2 className="storage-customer-header__name">{customerTitle}</h2>
       )}
       <div className="storage-customer-header__tabs">
-        <FormButton htmlType="button" variant="primary" onClick={() => navigate(`/customers/${customerId}/files`)}>
+        <FormButton htmlType="button" variant="primary" onClick={() => navigate(`/customer/${customerId}/files`)}>
           고객 파일
         </FormButton>
-        <FormButton htmlType="button" variant="secondary" onClick={() => navigate(`/customers/${customerId}/consultations`)}>
+        <FormButton htmlType="button" variant="secondary" onClick={() => navigate(`/customer/${customerId}/consults`)}>
           상담 이력
         </FormButton>
       </div>

@@ -6,6 +6,7 @@ import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '
 import { getCustomerById } from '../api/customersApi'
 import { ApplicationFormPage } from '../../application/pages/ApplicationFormPage'
 import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
+import { useIsMobile } from '../../../hooks/useIsMobile'
 import CustomersPage from './CustomersPage'
 
 function parseSelectedCustomerId(raw: string | null): number | null {
@@ -49,6 +50,7 @@ export default function CustomerWorkspaceLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { token, user } = useAuth()
+  const isMobile = useIsMobile()
   const [searchParams] = useSearchParams()
   const selectedCustomerId = useMemo(() => {
     const fromPath = parseWorkspaceCustomerIdFromPath(location.pathname)
@@ -63,6 +65,10 @@ export default function CustomerWorkspaceLayout() {
   const [rightPanelCarForm, setRightPanelCarForm] = useState(false)
 
   useEffect(() => {
+    if (isMobile) {
+      queueMicrotask(() => setSelectedCustomerLabel(''))
+      return
+    }
     if (!selectedCustomerId || !token?.trim()) {
       queueMicrotask(() => setSelectedCustomerLabel(''))
       return
@@ -85,9 +91,13 @@ export default function CustomerWorkspaceLayout() {
     return () => {
       cancelled = true
     }
-  }, [selectedCustomerId, token])
+  }, [isMobile, selectedCustomerId, token])
 
   useEffect(() => {
+    if (isMobile) {
+      queueMicrotask(() => setExcelCap(null))
+      return
+    }
     if (!token?.trim()) {
       queueMicrotask(() => setExcelCap(null))
       return
@@ -113,13 +123,7 @@ export default function CustomerWorkspaceLayout() {
     return () => {
       cancelled = true
     }
-  }, [token, user?.role])
-
-  useEffect(() => {
-    if (!selectedCustomerId) {
-      setRightPanelCarForm(false)
-    }
-  }, [selectedCustomerId])
+  }, [isMobile, token, user?.role])
 
   const showGaExcelEntry =
     excelCap != null &&
@@ -137,107 +141,109 @@ export default function CustomerWorkspaceLayout() {
         <CustomersPage />
       </aside>
 
-      <section className="customer-workspace-layout__right" aria-label="고객 연동 작업영역">
-        <header className="customer-workspace-layout__right-header">
-          <div>
-            <h2 className="customer-workspace-layout__title">
-              {rightPanelCarForm ? '자동차 신청서' : rightTitle(location.pathname)}
-            </h2>
-            <p className="customer-workspace-layout__subtitle">
-              선택 고객:{' '}
-              {selectedCustomerId
-                ? selectedCustomerLabel || `고객 #${selectedCustomerId}`
-                : '미선택'}
-            </p>
-          </div>
-          <div className="customer-workspace-layout__actions">
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className="filter-button"
-              disabled={!selectedCustomerId}
-              onClick={() => {
-                if (!selectedCustomerId) {
-                  return
-                }
-                setRightPanelCarForm(false)
-                moveTo(`/customers/${selectedCustomerId}/files`)
-              }}
-            >
-              고객 파일
-            </FormButton>
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className="filter-button"
-              disabled={!selectedCustomerId}
-              onClick={() => {
-                if (!selectedCustomerId) {
-                  return
-                }
-                setRightPanelCarForm(false)
-                moveTo(`/customers/${selectedCustomerId}/consultations`)
-              }}
-            >
-              상담 이력
-            </FormButton>
-            {showCarInsuranceInWorkspace ? (
+      {!isMobile ? (
+        <section className="customer-workspace-layout__right" aria-label="고객 연동 작업영역">
+          <header className="customer-workspace-layout__right-header">
+            <div>
+              <h2 className="customer-workspace-layout__title">
+                {rightPanelCarForm ? '자동차 신청서' : rightTitle(location.pathname)}
+              </h2>
+              <p className="customer-workspace-layout__subtitle">
+                선택 고객:{' '}
+                {selectedCustomerId
+                  ? selectedCustomerLabel || `고객 #${selectedCustomerId}`
+                  : '미선택'}
+              </p>
+            </div>
+            <div className="customer-workspace-layout__actions">
               <FormButton
                 htmlType="button"
                 variant="action"
-                className={`filter-button${rightPanelCarForm ? ' filter-button--workspace-active' : ''}`}
+                className="filter-button"
                 disabled={!selectedCustomerId}
                 onClick={() => {
                   if (!selectedCustomerId) {
                     return
                   }
-                  setRightPanelCarForm(true)
+                  setRightPanelCarForm(false)
+                  moveTo(`/customers/${selectedCustomerId}/files`)
                 }}
               >
-                자동차 신청서
+                고객 파일
               </FormButton>
-            ) : null}
-            {showGaExcelEntry ? (
               <FormButton
                 htmlType="button"
                 variant="action"
                 className="filter-button"
-                disabled={!selectedCustomerId || !excelCap?.showDesignerUi}
-                title={
-                  excelCap?.showDesignerUi
-                    ? undefined
-                    : excelCap?.message || '고객 엑셀 기능을 사용할 수 없습니다.'
-                }
+                disabled={!selectedCustomerId}
                 onClick={() => {
-                  if (!selectedCustomerId || !excelCap?.showDesignerUi) {
+                  if (!selectedCustomerId) {
                     return
                   }
                   setRightPanelCarForm(false)
-                  moveTo(`/customers/${selectedCustomerId}/ga-excel`)
+                  moveTo(`/customers/${selectedCustomerId}/consultations`)
                 }}
               >
-                GA 고객 데이터 보기
+                상담 이력
               </FormButton>
-            ) : null}
-          </div>
-        </header>
-
-        <div className="customer-workspace-layout__right-body">
-          {rightPanelCarForm && selectedCustomerId ? (
-            <div
-              className="customer-workspace-layout__embedded-car"
-              role="region"
-              aria-label="자동차 신청서 작성"
-            >
-              <div className="customer-workspace-layout__embedded-car-body">
-                <ApplicationFormPage />
-              </div>
+              {showCarInsuranceInWorkspace ? (
+                <FormButton
+                  htmlType="button"
+                  variant="action"
+                  className={`filter-button${rightPanelCarForm ? ' filter-button--workspace-active' : ''}`}
+                  disabled={!selectedCustomerId}
+                  onClick={() => {
+                    if (!selectedCustomerId) {
+                      return
+                    }
+                    setRightPanelCarForm(true)
+                  }}
+                >
+                  자동차 신청서
+                </FormButton>
+              ) : null}
+              {showGaExcelEntry ? (
+                <FormButton
+                  htmlType="button"
+                  variant="action"
+                  className="filter-button"
+                  disabled={!selectedCustomerId || !excelCap?.showDesignerUi}
+                  title={
+                    excelCap?.showDesignerUi
+                      ? undefined
+                      : excelCap?.message || '고객 엑셀 기능을 사용할 수 없습니다.'
+                  }
+                  onClick={() => {
+                    if (!selectedCustomerId || !excelCap?.showDesignerUi) {
+                      return
+                    }
+                    setRightPanelCarForm(false)
+                    moveTo(`/customers/${selectedCustomerId}/ga-excel`)
+                  }}
+                >
+                  GA 고객 데이터 보기
+                </FormButton>
+              ) : null}
             </div>
-          ) : (
-            <Outlet context={{ selectedCustomerId }} />
-          )}
-        </div>
-      </section>
+          </header>
+
+          <div className="customer-workspace-layout__right-body">
+            {rightPanelCarForm && selectedCustomerId ? (
+              <div
+                className="customer-workspace-layout__embedded-car"
+                role="region"
+                aria-label="자동차 신청서 작성"
+              >
+                <div className="customer-workspace-layout__embedded-car-body">
+                  <ApplicationFormPage />
+                </div>
+              </div>
+            ) : (
+              <Outlet context={{ selectedCustomerId }} />
+            )}
+          </div>
+        </section>
+      ) : null}
     </div>
   )
 }

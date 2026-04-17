@@ -15,9 +15,9 @@ import {
 import { localYmd, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
 
 export default function CustomerConsultationsPage() {
-  const { id: idParam } = useParams()
+  const { customerId } = useParams()
   const navigate = useNavigate()
-  const customerId = Number(idParam)
+  const resolvedCustomerId = Number(customerId)
   const { token } = useAuth()
   const [rows, setRows] = useState<CustomerConsultationRow[]>([])
   const [relRows, setRelRows] = useState<CustomerRelationRow[]>([])
@@ -28,7 +28,7 @@ export default function CustomerConsultationsPage() {
   const [busy, setBusy] = useState(false)
   const [notFound, setNotFound] = useState(false)
 
-  const validId = Number.isInteger(customerId) && customerId > 0
+  const validId = Number.isInteger(resolvedCustomerId) && resolvedCustomerId > 0
 
   const loadAll = useCallback(async () => {
     if (!token?.trim() || !validId) {
@@ -38,8 +38,8 @@ export default function CustomerConsultationsPage() {
     setNotFound(false)
     try {
       const [c, r] = await Promise.all([
-        listCustomerConsultations(token, customerId, { limit: 100 }),
-        listCustomerRelations(token, customerId),
+        listCustomerConsultations(token, resolvedCustomerId, { limit: 100 }),
+        listCustomerRelations(token, resolvedCustomerId),
       ])
       setRows(c)
       setRelRows(r)
@@ -52,7 +52,7 @@ export default function CustomerConsultationsPage() {
       }
       setError(e instanceof Error ? e.message : '불러오지 못했습니다.')
     }
-  }, [token, customerId, validId])
+  }, [resolvedCustomerId, token, validId])
 
   useEffect(() => {
     void loadAll()
@@ -71,7 +71,7 @@ export default function CustomerConsultationsPage() {
     setBusy(true)
     setError('')
     try {
-      await createCustomerConsultation(token, customerId, t, { consultationDate: consultDate })
+      await createCustomerConsultation(token, resolvedCustomerId, t, { consultationDate: consultDate })
       setBody('')
       await loadAll()
     } catch (err) {
@@ -94,7 +94,7 @@ export default function CustomerConsultationsPage() {
     setBusy(true)
     setError('')
     try {
-      await createCustomerRelation(token, customerId, n)
+      await createCustomerRelation(token, resolvedCustomerId, n)
       setRelatedId('')
       window.alert('고객을 연결했습니다.')
       await loadAll()
@@ -128,7 +128,7 @@ export default function CustomerConsultationsPage() {
   return (
     <div className="content-wrapper page-shell">
       <h1 style={{ marginTop: 12 }}>고객 상담 · 연결</h1>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>고객 #{customerId}</p>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>고객 #{resolvedCustomerId}</p>
       <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
         보험 메모·인수 용도 메모는 기존 고객 상세의 <code>notes</code> JSON 필드를 그대로 쓰는 것을 권장합니다. 여기서는
         일정·통화 등 <strong>상담 이력</strong>과 다른 고객과의 <strong>연결</strong>만 다룹니다.

@@ -4,6 +4,7 @@ import { useLayoutEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
+import { resolveBackRoute } from '../navigation/backNavigationPolicy'
 
 const APP_TITLE = '\uBCF4\uD5D8 \uC2E0\uCCAD\u00B7\uACE0\uAC1D\uAD00\uB9AC'
 const BACK_LABEL = '\uB4A4\uB85C\uAC00\uAE30'
@@ -29,11 +30,16 @@ export function ElectronTitleBar() {
   }, [])
 
   const handleBack = () => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      navigate(-1)
-    } else {
+    const resolved = resolveBackRoute(location.pathname, location.search ?? '')
+    if (resolved == null) {
       navigate('/')
+      return
     }
+    if (resolved.kind === 'customer-create-exit') {
+      navigate('/customers')
+      return
+    }
+    navigate(resolved.path, resolved.replace ? { replace: true } : undefined)
   }
 
   return (

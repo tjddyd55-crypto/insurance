@@ -259,8 +259,8 @@ export function UserGaExcelManagePanel({ token }: Props) {
             {previewColumns.length === 0 ? (
               <p className="text-sm text-[var(--text-secondary)]">{L.previewEmpty}</p>
             ) : (
-              <div className="profile-page__excel-preview-scroll">
-                <table className="admin-data-table profile-page__excel-preview-table" style={{ minWidth: previewMinWidth }}>
+              <div className="table-wrapper profile-page__excel-preview-scroll">
+                <table className="admin-data-table profile-page__excel-preview-table" style={{ minWidth: Math.max(1200, previewMinWidth) }}>
                   <thead>
                     <tr className="profile-page__excel-preview-toggle-row">
                       {previewColumns.map((col) => {
