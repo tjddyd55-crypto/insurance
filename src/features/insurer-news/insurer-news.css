@@ -113,6 +113,38 @@
   font-variant-numeric: tabular-nums;
 }
 
+.mobile-root .news-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 12px;
+}
+
+.mobile-root .news-card.news-card--mobile {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: transparent;
+  aspect-ratio: 3 / 4;
+}
+
+.mobile-root .news-card.news-card--mobile .news-card__mobile-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.mobile-root .news-card.news-card--mobile .news-card__placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+}
+
 .insurer-news-hub__section-title {
   font-size: 1.05rem;
   font-weight: 700;
@@ -333,6 +365,64 @@
   color: var(--text-sub);
   font-size: 0.9rem;
   background: var(--bg-soft);
+}
+
+.pc-root .news-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.pc-root .news-modal-content {
+  width: 90%;
+  max-width: 1000px;
+  max-height: 90vh;
+  background: #111;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pc-root .news-modal .modal-header {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px;
+  background: #1a1f2a;
+}
+
+.pc-root .news-modal .modal-body {
+  overflow: auto;
+  padding: 10px;
+  text-align: center;
+}
+
+.pc-root .news-modal .modal-body img {
+  max-width: 100%;
+  height: auto;
+  transition: transform 0.2s ease;
+  transform-origin: top center;
+}
+
+.pc-root .news-modal .modal-text {
+  margin-top: 12px;
+  color: #ddd;
+  text-align: left;
+  white-space: pre-wrap;
+}
+
+.pc-root .news-modal .close-btn {
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
 }
 
 /* 소식지 상세: 상단 텍스트(패딩) + 이미지 풀폭(.page 좌우 패딩 상쇄) */

@@ -8,21 +8,24 @@ import { useAuth } from './features/auth/AuthProvider'
 import { isElectronApp } from './lib/isElectronApp'
 import { isCustomerCreateMode } from './navigation/backNavigationPolicy'
 import { GaSettingsProvider } from './features/ga-settings/GaSettingsProvider'
+import { useIsMobile } from './hooks/useIsMobile'
 
 export function AppLayout() {
   const { isAuthenticated } = useAuth()
   const location = useLocation()
+  const isMobile = useIsMobile()
 
   /** 고객 등록(?mode=create)은 CustomersPage ExitConfirmDialog만 사용 (네이티브·웹 이중 확인 방지) */
   const hideAppExitConfirm = isCustomerCreateMode(location.pathname, location.search ?? '')
+  const hideMobileLoginTopChrome = !isAuthenticated && isMobile && location.pathname === '/login'
 
   const rootClass = ['app-root', isAuthenticated ? 'app-root--authenticated' : ''].filter(Boolean).join(' ')
 
   return (
     <div className={rootClass}>
-      {!isAuthenticated ? <ElectronTitleBar /> : null}
+      {!isAuthenticated && !hideMobileLoginTopChrome ? <ElectronTitleBar /> : null}
       {!isElectronApp() && isAuthenticated ? <WebProgramTopBar /> : null}
-      <OperationalMessageBanner />
+      {!hideMobileLoginTopChrome ? <OperationalMessageBanner /> : null}
       {isAuthenticated ? <GlobalBackHandlerHost /> : null}
       {hideAppExitConfirm ? null : <AppExitConfirm />}
       <div className="main-container">

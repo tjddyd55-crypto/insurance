@@ -1,17 +1,15 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { EmptyState, StatusMessage } from '../../../components/feedback'
+import { useConfirmDialog } from '../../../components/dialog'
 import { FormButton, FormInput, FormTextarea } from '../../../components/form'
-import { useMediaQuery } from '../../../hooks/useMediaQuery'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   createCustomerConsultation,
-  createCustomerRelation,
+  deleteCustomerConsultation,
   listCustomerConsultations,
-  listCustomerRelations,
   type CustomerConsultationRow,
-  type CustomerRelationRow,
 } from '../api/customerExtraApi'
 import { localYmd, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
 
@@ -20,15 +18,13 @@ export default function CustomerConsultationsPage() {
   const navigate = useNavigate()
   const resolvedCustomerId = Number(customerId)
   const { token } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [rows, setRows] = useState<CustomerConsultationRow[]>([])
-  const [relRows, setRelRows] = useState<CustomerRelationRow[]>([])
   const [body, setBody] = useState('')
   const [consultDate, setConsultDate] = useState(() => localYmd())
-  const [relatedId, setRelatedId] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [notFound, setNotFound] = useState(false)
-  const isMobile = useMediaQuery('(max-width: 768px)')
 
   const validId = Number.isInteger(resolvedCustomerId) && resolvedCustomerId > 0
 
@@ -37,7 +33,6 @@ export default function CustomerConsultationsPage() {
       return
     }
     setRows([])
-    setRelRows([])
   }, [resolvedCustomerId, token, validId])
 
   const loadAll = useCallback(async () => {
@@ -49,22 +44,15 @@ export default function CustomerConsultationsPage() {
     try {
       const c = await listCustomerConsultations(token, resolvedCustomerId, { limit: 100 })
       setRows(c)
-      if (isMobile) {
-        const r = await listCustomerRelations(token, resolvedCustomerId)
-        setRelRows(r)
-      } else {
-        setRelRows([])
-      }
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
         setNotFound(true)
         setRows([])
-        setRelRows([])
         return
       }
       setError(e instanceof Error ? e.message : '불러오지 못했습니다.')
     }
-  }, [isMobile, resolvedCustomerId, token, validId])
+  }, [resolvedCustomerId, token, validId])
 
   useEffect(() => {
     void loadAll()
@@ -93,25 +81,26 @@ export default function CustomerConsultationsPage() {
     }
   }
 
-  const onAddRelation = async (e: FormEvent) => {
-    e.preventDefault()
+  const onDeleteConsultation = async (consultId: number) => {
     if (!token?.trim() || !validId) {
       return
     }
-    const n = Number(relatedId)
-    if (!Number.isInteger(n) || n < 1) {
-      setError('연결할 고객 번호를 숫자로 입력해 주세요.')
+    const confirmed = await confirm({
+      title: '상담 삭제',
+      message: '정말 삭제하시겠습니까?',
+      confirmLabel: '삭제',
+      tone: 'danger',
+    })
+    if (!confirmed) {
       return
     }
     setBusy(true)
     setError('')
     try {
-      await createCustomerRelation(token, resolvedCustomerId, n)
-      setRelatedId('')
-      window.alert('고객을 연결했습니다.')
-      await loadAll()
+      await deleteCustomerConsultation(token, resolvedCustomerId, consultId)
+      setRows((prev) => prev.filter((item) => item.id !== consultId))
     } catch (err) {
-      setError(err instanceof Error ? err.message : '연결에 실패했습니다.')
+      setError(err instanceof Error ? err.message : '삭제에 실패했습니다.')
     } finally {
       setBusy(false)
     }
@@ -139,16 +128,6 @@ export default function CustomerConsultationsPage() {
 
   return (
     <div className="content-wrapper page-shell">
-      {isMobile ? (
-        <>
-          <h1 style={{ marginTop: 12 }}>고객 상담 · 연결</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>고객 #{resolvedCustomerId}</p>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-            보험 메모·인수 용도 메모는 기존 고객 상세의 <code>notes</code> JSON 필드를 그대로 쓰는 것을 권장합니다. 여기서는
-            일정·통화 등 <strong>상담 이력</strong>과 다른 고객과의 <strong>연결</strong>만 다룹니다.
-          </p>
-        </>
-      ) : null}
       <StatusMessage message={error} tone="error" className="!mt-0" />
 
       <section style={{ marginTop: 24 }}>
@@ -184,7 +163,28 @@ export default function CustomerConsultationsPage() {
                     padding: '12px 0',
                   }}
                 >
-                  <div style={{ fontWeight: 600, marginBottom: 6 }}>{dateLabel}</div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                      marginBottom: 6,
+                    }}
+                  >
+                    <div style={{ fontWeight: 600 }}>{dateLabel}</div>
+                    {!isMobile ? (
+                      <FormButton
+                        htmlType="button"
+                        variant="action"
+                        className="filter-button"
+                        disabled={busy}
+                        onClick={() => void onDeleteConsultation(r.id)}
+                      >
+                        삭제
+                      </FormButton>
+                    ) : null}
+                  </div>
                   <div style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{text || '—'}</div>
                 </li>
               )
@@ -193,48 +193,7 @@ export default function CustomerConsultationsPage() {
         )}
       </section>
 
-      {isMobile ? (
-        <section style={{ marginTop: 32 }}>
-          <h2 style={{ fontSize: '1.05rem' }}>연결된 고객</h2>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-            동일 GA·내 명의의 다른 고객 ID를 연결하면 양방향으로 조회됩니다.
-          </p>
-          <form onSubmit={onAddRelation} style={{ marginBottom: 16 }}>
-            <label>
-              연결할 고객 ID
-              <FormInput
-                type="number"
-                min={1}
-                value={relatedId}
-                onChange={(ev) => setRelatedId(ev.target.value)}
-                style={{ display: 'block', width: 200, marginTop: 4, padding: 8 }}
-              />
-            </label>
-            <FormButton
-              htmlType="submit"
-              variant="action"
-              disabled={busy}
-              style={{ display: 'block', marginTop: 8 }}
-            >
-              {busy ? '처리 중…' : '연결 추가'}
-            </FormButton>
-          </form>
-          {relRows.length === 0 ? (
-            <EmptyState message="연결된 고객이 없습니다." className="!my-0 !text-left" />
-          ) : (
-            <ul style={{ paddingLeft: 18 }}>
-              {relRows.map((r) => (
-                <li key={`${r.relatedCustomerId}-${r.createdAt}`} style={{ marginBottom: 8 }}>
-                  <strong>#{r.relatedCustomerId}</strong> {r.relatedName}
-                  <span style={{ color: 'var(--text-secondary)', marginLeft: 8, fontSize: '0.9rem' }}>
-                    {r.relatedPhone}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      ) : null}
+      {confirmDialog}
     </div>
   )
 }

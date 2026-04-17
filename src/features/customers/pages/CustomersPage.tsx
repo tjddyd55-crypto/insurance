@@ -110,6 +110,28 @@ function writeMobileCustomersUiState(state: MobileCustomersUiState): void {
   }
 }
 
+function readExpandedCustomerIdFromLocationState(state: unknown): number | null {
+  if (!state || typeof state !== 'object') {
+    return null
+  }
+  const value = (state as { expandedCustomerId?: unknown }).expandedCustomerId
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
+    return null
+  }
+  return value
+}
+
+function readScrollYFromLocationState(state: unknown): number | null {
+  if (!state || typeof state !== 'object') {
+    return null
+  }
+  const value = (state as { scrollY?: unknown }).scrollY
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    return null
+  }
+  return value
+}
+
 /** 오른쪽 작업영역(파일·상담)이 라우트로 고객을 고정할 때 — 카드 접힘과 `?customerId=` 동기화 충돌 방지 */
 function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
   return /^\/customers\/[^/]+\/(files|consultations|ga-excel)(\/|$)/.test(pathname)
@@ -1229,8 +1251,17 @@ export default function CustomersPage() {
   const [statusText, setStatusText] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const tab = searchParams.get('mode') === 'create' ? 'create' : 'list'
+  const expandedCustomerIdFromLocationState = readExpandedCustomerIdFromLocationState(location.state)
+  const scrollYFromLocationState = readScrollYFromLocationState(location.state)
+  const sessionMobileUiState = isMobile ? readMobileCustomersUiState() : null
   const initialMobileUiStateRef = useRef<MobileCustomersUiState | null>(
-    isMobile ? readMobileCustomersUiState() : null,
+    isMobile
+      ? {
+          expandedCustomerId:
+            expandedCustomerIdFromLocationState ?? sessionMobileUiState?.expandedCustomerId ?? null,
+          scrollY: scrollYFromLocationState ?? sessionMobileUiState?.scrollY ?? 0,
+        }
+      : null,
   )
   const selectedCustomerIdFromQuery = useMemo(
     () => parseSelectedCustomerId(searchParams.get('customerId')),
@@ -1828,14 +1859,16 @@ export default function CustomersPage() {
 
   const handleNavigateToCustomerFiles = useCallback(
     (customerId: number, customerName: string) => {
+      const expandedCustomerId = expandedId ?? customerId
+      const scrollY = window.scrollY
       if (isMobile) {
         writeMobileCustomersUiState({
-          expandedCustomerId: expandedId,
-          scrollY: window.scrollY,
+          expandedCustomerId,
+          scrollY,
         })
       }
       navigate(`/customer/${customerId}/files`, {
-        state: { customerName },
+        state: { customerName, expandedCustomerId, scrollY },
       })
     },
     [expandedId, isMobile, navigate],
@@ -1843,39 +1876,51 @@ export default function CustomersPage() {
 
   const handleNavigateToCustomerConsults = useCallback(
     (customerId: number) => {
+      const expandedCustomerId = expandedId ?? customerId
+      const scrollY = window.scrollY
       if (isMobile) {
         writeMobileCustomersUiState({
-          expandedCustomerId: expandedId,
-          scrollY: window.scrollY,
+          expandedCustomerId,
+          scrollY,
         })
       }
-      navigate(`/customer/${customerId}/consults`)
+      navigate(`/customer/${customerId}/consults`, {
+        state: { expandedCustomerId, scrollY },
+      })
     },
     [expandedId, isMobile, navigate],
   )
 
   const handleNavigateToCustomerAuto = useCallback(
     (customerId: number) => {
+      const expandedCustomerId = expandedId ?? customerId
+      const scrollY = window.scrollY
       if (isMobile) {
         writeMobileCustomersUiState({
-          expandedCustomerId: expandedId,
-          scrollY: window.scrollY,
+          expandedCustomerId,
+          scrollY,
         })
       }
-      navigate(`/customer/${customerId}/auto`)
+      navigate(`/customer/${customerId}/auto`, {
+        state: { expandedCustomerId, scrollY },
+      })
     },
     [expandedId, isMobile, navigate],
   )
 
   const handleNavigateToCustomerGa = useCallback(
     (customerId: number) => {
+      const expandedCustomerId = expandedId ?? customerId
+      const scrollY = window.scrollY
       if (isMobile) {
         writeMobileCustomersUiState({
-          expandedCustomerId: expandedId,
-          scrollY: window.scrollY,
+          expandedCustomerId,
+          scrollY,
         })
       }
-      navigate(`/customer/${customerId}/ga`)
+      navigate(`/customer/${customerId}/ga`, {
+        state: { expandedCustomerId, scrollY },
+      })
     },
     [expandedId, isMobile, navigate],
   )

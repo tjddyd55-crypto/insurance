@@ -1,4 +1,5 @@
 import { FormButton } from '../../../components/form'
+import { useIsMobile } from '../../../hooks/useIsMobile'
 import type { NewsletterItem } from '../types'
 
 type Props = {
@@ -31,10 +32,27 @@ function formatPublishedDateLabel(iso: string): string {
 }
 
 export function NewsCard({ item, onOpen }: Props) {
+  const isMobile = useIsMobile()
   const companyName = item.insurerName?.trim() || '—'
   const dateLabel = formatPublishedDateLabel(item.publishedAt)
   const headline = item.summary?.trim() || item.title?.trim() || '본문 내용이 없습니다.'
-  const media = (
+  const media = isMobile ? (
+    <>
+      {item.heroImageUrl ? (
+        <img className="news-card__mobile-image" src={item.heroImageUrl} alt="" loading="lazy" />
+      ) : (
+        <div className="news-card__placeholder news-card__placeholder--content" aria-hidden>
+          <span className="news-card__placeholder-label news-card__placeholder-label--headline">
+            {headline}
+          </span>
+        </div>
+      )}
+      <div className="news-card__overlay">
+        <div className="news-card__overlay-name">{companyName}</div>
+        <div className="news-card__overlay-date">{dateLabel}</div>
+      </div>
+    </>
+  ) : (
     <div className="news-card__media">
       {item.heroImageUrl ? (
         <img src={item.heroImageUrl} alt="" loading="lazy" />
@@ -54,14 +72,23 @@ export function NewsCard({ item, onOpen }: Props) {
 
   if (onOpen) {
     return (
-      <FormButton htmlType="button" className="news-card" onClick={onOpen} aria-label={cardAriaLabel(item)}>
+      <FormButton
+        htmlType="button"
+        className={`news-card${isMobile ? ' news-card--mobile' : ''}`}
+        onClick={onOpen}
+        aria-label={cardAriaLabel(item)}
+      >
         {media}
       </FormButton>
     )
   }
 
   return (
-    <div className="news-card news-card--static" role="article" aria-label={cardAriaLabel(item)}>
+    <div
+      className={`news-card news-card--static${isMobile ? ' news-card--mobile' : ''}`}
+      role="article"
+      aria-label={cardAriaLabel(item)}
+    >
       {media}
     </div>
   )

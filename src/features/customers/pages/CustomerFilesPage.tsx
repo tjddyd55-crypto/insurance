@@ -43,8 +43,8 @@ export default function CustomerFilesPage() {
         return match.name.trim()
       }
     }
-    return `고객 #${customerIdParam ?? ''}`
-  }, [customerId, customerIdParam, customers, nameFromNav])
+    return '고객 선택'
+  }, [customerId, customers, nameFromNav])
 
   if (user?.role !== 'USER' && user?.role !== 'GA_ADMIN') {
     return (
@@ -110,8 +110,8 @@ export default function CustomerFilesPage() {
     <StorageWorkspace
       token={token}
       customerId={customerId}
-      title={isMobile ? '고객 파일' : ''}
-      subtitle={isMobile ? '내 저장공간 UI를 동일하게 사용합니다.' : undefined}
+      title=""
+      subtitle={undefined}
       headerSlot={isMobile ? customerHeaderMobile : undefined}
     />
   )

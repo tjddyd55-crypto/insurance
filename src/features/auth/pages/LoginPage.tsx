@@ -3,11 +3,13 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../AuthProvider'
 import { login as loginApi } from '../authApi'
+import { useIsMobile } from '../../../hooks/useIsMobile'
 
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { isAuthenticated, login } = useAuth()
+  const isMobile = useIsMobile()
   const flash = (location.state ?? {}) as { passwordReset?: boolean; accountReset?: boolean }
 
   const [username, setUsername] = useState('')
@@ -68,13 +70,15 @@ export function LoginPage() {
   }
 
   return (
-    <main className="auth-page auth-page--login-split">
-      <aside className="auth-login-sidebar" aria-label="로그인 안내">
-        <div className="auth-login-sidebar__inner">
-          <h2 className="auth-login-sidebar__brand">Insurance CRM</h2>
-          <p className="auth-login-sidebar__copy">고객 관리 · 상담 기록 · 파일 작업을 한 화면에서 이어서 처리합니다.</p>
-        </div>
-      </aside>
+    <main className={`auth-page ${isMobile ? 'auth-page--mobile-login' : 'auth-page--login-split'}`}>
+      {!isMobile ? (
+        <aside className="auth-login-sidebar" aria-label="로그인 안내">
+          <div className="auth-login-sidebar__inner">
+            <h2 className="auth-login-sidebar__brand">Insurance CRM</h2>
+            <p className="auth-login-sidebar__copy">고객 관리 · 상담 기록 · 파일 작업을 한 화면에서 이어서 처리합니다.</p>
+          </div>
+        </aside>
+      ) : null}
 
       <section className="auth-login-content">
         <section className="card auth-card auth-card--login-split">

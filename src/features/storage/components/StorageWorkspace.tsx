@@ -103,6 +103,15 @@ function formatStorageMb(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1)
 }
 
+function calculateStoragePercent(usedBytes: number, limitBytes: number): number {
+  const total = Number.isFinite(limitBytes) && limitBytes > 0 ? limitBytes : 0
+  const used = Number.isFinite(usedBytes) && usedBytes > 0 ? usedBytes : 0
+  if (total <= 0) {
+    return 0
+  }
+  return (used / total) * 100
+}
+
 export default function StorageWorkspace({
   token,
   customerId = null,
@@ -435,6 +444,18 @@ export default function StorageWorkspace({
     [token],
   )
 
+  const quotaPercent = useMemo(() => {
+    if (!quota) {
+      return null
+    }
+    const percent = calculateStoragePercent(quota.usedBytes, quota.limitBytes)
+    const safePercent = Math.min(Math.max(percent, 0), 100)
+    return {
+      text: percent.toFixed(1),
+      safe: safePercent,
+    }
+  }, [quota])
+
   return (
     <div className="storage-workspace page-shell">
       {headerSlot}
@@ -446,11 +467,15 @@ export default function StorageWorkspace({
             <>개인 저장공간 사용량 불러오는 중…</>
           ) : quota ? (
             <>
-              개인 저장소 사용량 {formatStorageMb(quota.usedBytes)} MB / {formatStorageMb(quota.limitBytes)} MB
+              개인 저장소 사용량 {formatStorageMb(quota.usedBytes)} MB / {formatStorageMb(quota.limitBytes)} MB (
+              {quotaPercent?.text ?? '0.0'}%)
               {quota.pendingUploadBytes != null && quota.pendingUploadBytes > 0
                 ? ` (업로드 진행 예약 ${formatStorageMb(quota.pendingUploadBytes)} MB)`
                 : ''}
               {customerId != null ? ' (고객 파일·내 저장공간 합산)' : ''}
+              <span className="storage-bar" aria-hidden="true">
+                <span className="storage-bar-fill" style={{ width: `${quotaPercent?.safe ?? 0}%` }} />
+              </span>
             </>
           ) : (
             <>개인 저장공간 용량 정보를 불러오지 못했습니다.</>

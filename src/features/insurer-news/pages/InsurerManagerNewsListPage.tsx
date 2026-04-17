@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { FormButton } from '../../../components/form'
+import { useIsMobile } from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import { NewsletterList } from '../components/NewsletterList'
 import { getAllPublishedForGa, getNewslettersForInsurerManagerCompany } from '../services/insurerNews.service'
@@ -24,11 +26,14 @@ export function InsurerManagerNewsListPage({
 }) {
   const { user, token } = useAuth()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
   const requiresCompanyScope = fetchScope === 'manager' && channel !== 'LOSS_ADJUSTER'
   const [items, setItems] = useState<NewsletterItem[]>([])
   const [error, setError] = useState('')
+  const [selectedItem, setSelectedItem] = useState<NewsletterItem | null>(null)
+  const [zoom, setZoom] = useState(1)
 
   useEffect(() => {
     if (!token?.trim() || !gaCode || (requiresCompanyScope && companyId == null)) {
@@ -81,8 +86,75 @@ export function InsurerManagerNewsListPage({
       <NewsletterList
         items={items}
         emptyMessage={emptyMessage}
-        onOpenItem={(id) => navigate(`${openPathPrefix}/${id}`)}
+        onOpenItem={(id) => {
+          if (isMobile) {
+            navigate(`${openPathPrefix}/${id}`)
+            return
+          }
+          const picked = items.find((item) => item.id === id) ?? null
+          if (!picked) {
+            return
+          }
+          setSelectedItem(picked)
+          setZoom(1)
+        }}
       />
+      {!isMobile && selectedItem ? (
+        <div className="news-modal" role="dialog" aria-modal="true" onClick={() => setSelectedItem(null)}>
+          <div className="news-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className="filter-button"
+                onClick={() => setZoom((v) => Math.min(v + 0.2, 3))}
+              >
+                ＋
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className="filter-button"
+                onClick={() => setZoom((v) => Math.max(v - 0.2, 0.5))}
+              >
+                －
+              </FormButton>
+              {selectedItem.heroImageUrl ? (
+                <a
+                  href={selectedItem.heroImageUrl}
+                  download
+                  className="button filter-button download-btn"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  다운로드
+                </a>
+              ) : null}
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className="filter-button close-btn"
+                onClick={() => setSelectedItem(null)}
+              >
+                ✕
+              </FormButton>
+            </div>
+
+            <div className="modal-body">
+              {selectedItem.heroImageUrl ? (
+                <img
+                  src={selectedItem.heroImageUrl}
+                  alt=""
+                  style={{ transform: `scale(${zoom})` }}
+                />
+              ) : null}
+              {selectedItem.summary?.trim() ? (
+                <div className="modal-text">{selectedItem.summary}</div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }

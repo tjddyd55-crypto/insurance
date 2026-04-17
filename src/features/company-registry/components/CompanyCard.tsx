@@ -114,6 +114,9 @@ export function CompanyCard(props: CompanyCardProps) {
             <div className="info-row-actions">
               {incallNumber ? (
                 <div className="actions-mini">
+                  <a href={telHref(incallNumber)} aria-label="인콜 전화">
+                    📞
+                  </a>
                   <FormButton htmlType="button" onClick={() => copy(incallNumber)} aria-label="인콜 번호 복사">
                     📋
                   </FormButton>
@@ -234,6 +237,9 @@ export function CompanyCard(props: CompanyCardProps) {
           <div className="info-row-actions">
             {incallNumber ? (
               <div className="actions-mini">
+                <a href={telHref(incallNumber)} aria-label="인콜 전화">
+                  📞
+                </a>
                 <FormButton htmlType="button" onClick={() => copy(incallNumber)} aria-label="인콜 번호 복사">
                   📋
                 </FormButton>
