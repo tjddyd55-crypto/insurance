@@ -1043,10 +1043,153 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   letter-spacing: 0.02em;
 }
 
-.page {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 12px 12px 100px;
+.app-root .page,
+.pc-page,
+.mobile-page {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 16px 20px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1023px) {
+  .app-root .page,
+  .mobile-page {
+    padding: 12px;
+  }
+}
+
+.content-wrapper {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 16px 20px;
+  display: block;
+}
+
+.content-wrapper--mobile {
+  padding: 12px;
+}
+
+.mobile-workspace-layout {
+  width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-main);
+}
+
+.mobile-workspace-header {
+  height: 48px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-default, #2a2a2a);
+  background: var(--bg-elevated, #141b26);
+  box-sizing: border-box;
+}
+
+.mobile-workspace-header__left {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-workspace-header__right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.mobile-workspace-header__title {
+  min-width: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-workspace-header__logout {
+  flex-shrink: 0;
+}
+
+.mobile-workspace-drawer__logout {
+  margin-top: 6px;
+}
+
+.pc-workspace-header__row {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pc-workspace-header__left {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pc-workspace-header__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.pc-workspace-header__back-btn {
+  min-width: 34px;
+  padding-inline: 8px;
+}
+
+.pc-workspace-header__window-controls {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.pc-workspace-header__win-btn {
+  min-width: 34px;
+  border-radius: 0;
+}
+
+.pc-workspace-header__win-btn:first-child {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.pc-workspace-header__win-btn:last-child {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+
+.pc-workspace-header__win-btn--close:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.26);
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+.mobile-workspace-drawer {
+  display: grid;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-default, #2a2a2a);
+  background: var(--bg-card, #10141d);
+}
+
+.mobile-workspace-content {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: auto;
 }
 
 /* 인증 앱 본문: 좌측 영역 전폭 (메모 패널과 리사이즈 일관성) */
@@ -1077,10 +1220,14 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 
 /* 모바일·��포트: max-width 중� 제거 → 카드/��스트 전�� */
 @media (max-width: 768px) {
-  .container,
-  .layout,
-  .page,
-  .page--result {
+  .app-root .container,
+  .app-root .layout,
+  .app-root .page,
+  .app-root .page--result,
+  .mobile-container,
+  .mobile-layout,
+  .mobile-page,
+  .mobile-page--result {
     max-width: 100% !important;
     width: 100% !important;
     margin-left: 0 !important;
@@ -1537,9 +1684,29 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   z-index: 20;
 }
 
-.auth-card {
+.app-root .auth-card,
+.pc-auth-card,
+.mobile-auth-card {
   width: 100%;
   max-width: 420px;
+}
+
+.pc-root .container,
+.mobile-root .container,
+.pc-container,
+.mobile-container {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.pc-root .section,
+.mobile-root .section,
+.pc-section,
+.mobile-section {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 @media (max-width: 900px) {
@@ -1812,18 +1979,17 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .dashboard-page--centered {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  min-height: 100dvh;
+  justify-content: flex-start;
+  align-items: stretch;
+  min-height: 100%;
 }
 
 .dashboard-menu-shell {
   width: 100%;
-  max-width: 760px;
-  margin-inline: auto;
+  max-width: none;
+  margin-inline: 0;
   box-sizing: border-box;
-  text-align: center;
+  text-align: left;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -1832,7 +1998,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 
 .dashboard-page__header {
   width: 100%;
-  text-align: center;
+  text-align: left;
   margin-bottom: 0;
   padding-inline: 0;
   box-sizing: border-box;
@@ -1845,9 +2011,9 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .dashboard-page--centered .dashboard-menu-card {
   gap: clamp(18px, 2.5vw, 24px);
   width: 100%;
-  max-width: 760px;
-  margin-inline: auto;
-  text-align: center;
+  max-width: none;
+  margin-inline: 0;
+  text-align: left;
   box-sizing: border-box;
 }
 
@@ -2013,6 +2179,9 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 
 /* 프로필 전용: 모바일 가로 스크롤·콘텐츠 폭 튐 방지 (다른 auth 화면과 분리) */
 .profile-page.auth-page {
+  display: block;
+  place-items: unset;
+  min-height: 100%;
   width: 100%;
   max-width: 100%;
   min-width: 0;
@@ -2023,7 +2192,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page .auth-card {
   min-width: 0;
   width: 100%;
-  max-width: min(960px, 100%);
+  max-width: none;
   box-sizing: border-box;
 }
 
@@ -2494,8 +2663,8 @@ button.filter-button:focus-visible {
 .customers-page.page {
   max-width: 100%;
   width: 100%;
-  margin: 0 auto;
-  padding: 8px 16px 100px;
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
   overflow-x: hidden;
 }
@@ -5960,8 +6129,8 @@ a.contacts-public-auth__link {
 
 .memo-fab {
   position: absolute;
-  right: 20px;
-  bottom: 20px;
+  right: 24px;
+  bottom: 24px;
   z-index: 9999;
   width: 48px;
   height: 48px;
@@ -5974,6 +6143,16 @@ a.contacts-public-auth__link {
   color: #fff;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+@media (max-width: 1023px) {
+  .memo-fab {
+    right: 16px;
+    bottom: 16px;
+    width: 42px;
+    height: 42px;
+    font-size: 1.25rem;
+  }
 }
 
 .memo-fab:hover {

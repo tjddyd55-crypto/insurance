@@ -332,7 +332,7 @@ export default function UserManagementPage() {
         <p>{loadError || saveOk || 'GA별로 사용자를 조회합니다.'}</p>
       </header>
 
-      <section className="admin-toolbar admin-user-management__toolbar card auth-card" style={{ maxWidth: 960, margin: '0 auto' }}>
+      <section className="admin-toolbar admin-user-management__toolbar card auth-card" style={{ maxWidth: 'none', margin: 0 }}>
         <FieldWrapper label="GA 선택" className="admin-modal-field" >
           <FormSelect
             className="admin-form-input"
@@ -349,7 +349,7 @@ export default function UserManagementPage() {
         </FieldWrapper>
       </section>
 
-      <div className="card admin-user-management__table-wrap" style={{ maxWidth: 960, margin: '16px auto 0', padding: 0 }}>
+      <div className="card admin-user-management__table-wrap" style={{ maxWidth: 'none', margin: '16px 0 0', padding: 0 }}>
         <div className="table-container table-container--desktop">
           <table className="admin-user-table admin-data-table">
             <thead>

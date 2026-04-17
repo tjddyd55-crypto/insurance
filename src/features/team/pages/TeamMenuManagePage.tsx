@@ -50,7 +50,7 @@ export default function TeamMenuManagePage() {
 
   if (loading) {
     return (
-      <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
+      <div className="content-wrapper page-shell">
         <p className="mt-4 text-sm text-[var(--text-secondary)]">불러오는 중…</p>
       </div>
     )
@@ -60,7 +60,7 @@ export default function TeamMenuManagePage() {
 
   if (loadError || !isOwner) {
     return (
-      <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
+      <div className="content-wrapper page-shell">
         <h1 className="text-[var(--text-primary)] mt-3 text-lg font-semibold">팀 메뉴 관리</h1>
         <p className="mt-3 text-sm text-[var(--text-secondary)]" role="status">
           {loadError ? loadError : '팀장만 이용할 수 있습니다.'}
@@ -70,13 +70,10 @@ export default function TeamMenuManagePage() {
   }
 
   return (
-    <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
+    <div className="content-wrapper page-shell">
       <h1 className="text-[var(--text-primary)] mt-3 text-lg font-semibold">팀 메뉴 관리</h1>
 
-      <div
-        className="mt-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-soft)] p-4 space-y-4"
-        style={{ padding: 16 }}
-      >
+      <div className="mt-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-soft)] p-4 space-y-4">
         <p className="text-sm text-[var(--text-secondary)]">
           팀에서 사용할 메뉴를 선택하세요. (설명용 UI — 저장·연동은 이후 단계)
         </p>

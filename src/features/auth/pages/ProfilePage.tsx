@@ -361,7 +361,7 @@ export function ProfilePage() {
 
   if (loadError) {
     return (
-      <main className="auth-page profile-page">
+      <main className="auth-page profile-page content-wrapper">
         <section className="card auth-card">
           <h1>{pageTitle}</h1>
 
@@ -376,7 +376,7 @@ export function ProfilePage() {
 
   if (!me) {
     return (
-      <main className="auth-page">
+      <main className="auth-page profile-page content-wrapper">
         <section className="card auth-card">
           <h1>{pageTitle}</h1>
           <p className="status">불러오는 중…</p>
@@ -388,7 +388,7 @@ export function ProfilePage() {
   const hasTeam = Boolean(user.teamId?.trim())
 
   return (
-    <main className="auth-page profile-page">
+    <main className="auth-page profile-page content-wrapper">
       <section className="card auth-card">
         <h1>{pageTitle}</h1>
         <DesktopUpdateSection />

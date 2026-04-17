@@ -380,7 +380,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
 
       <section
         className="admin-toolbar card auth-card"
-        style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
+        style={{ maxWidth: 'none', margin: 0, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
       >
         <FormButton
           htmlType="button"
@@ -397,7 +397,7 @@ export default function InsurerManagersPage({ managerKind = 'insurer' }: { manag
         </FormButton>
       </section>
 
-      <div className="card" style={{ maxWidth: 960, margin: '16px auto 0', padding: 0 }}>
+      <div className="card" style={{ maxWidth: 'none', margin: '16px 0 0', padding: 0 }}>
         <div className="table-container table-container--desktop">
           <table className="admin-data-table">
             <thead>

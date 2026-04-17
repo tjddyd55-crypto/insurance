@@ -369,7 +369,7 @@ export default function GaManagementPage() {
 
       <section
         className="admin-toolbar admin-ga-management__toolbar card auth-card"
-        style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
+        style={{ maxWidth: 'none', margin: 0, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}
       >
         <FormButton
           htmlType="button"
@@ -386,7 +386,7 @@ export default function GaManagementPage() {
         {isLoading ? <LoadingState message="불러오는 중…" className="m-0 text-sm text-[var(--text-sub)]" /> : null}
       </section>
 
-      <div className="card admin-ga-management__table-wrap" style={{ maxWidth: 960, margin: '16px auto 0', padding: 0 }}>
+      <div className="card admin-ga-management__table-wrap" style={{ maxWidth: 'none', margin: '16px 0 0', padding: 0 }}>
         <div className="table-container table-container--desktop">
           <table className="admin-data-table">
             <thead>

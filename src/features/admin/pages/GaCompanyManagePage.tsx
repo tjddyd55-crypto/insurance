@@ -201,7 +201,7 @@ export default function GaCompanyManagePage() {
         </p>
       </header>
 
-      <div className="card auth-card" style={{ maxWidth: 960, margin: '0 auto', padding: 12 }}>
+      <div className="card auth-card" style={{ maxWidth: 'none', margin: 0, padding: 12 }}>
         <div
           role="tablist"
           aria-label="GA-detail-tabs"

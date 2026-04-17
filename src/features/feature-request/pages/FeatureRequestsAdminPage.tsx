@@ -85,8 +85,8 @@ export default function FeatureRequestsAdminPage() {
       <div
         className="card"
         style={{
-          maxWidth: 1100,
-          margin: '0 auto',
+          maxWidth: 'none',
+          margin: 0,
           padding: 0,
           overflowX: 'auto',
         }}

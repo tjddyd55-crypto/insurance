@@ -128,58 +128,56 @@ export default function FeatureRequestPage() {
   }
 
   return (
-    <main className="page page--with-back">
-      <div style={{ maxWidth: 720, margin: '0 auto', width: '100%' }}>
-        <div className="flex justify-between items-center mb-3">
-          <h1 className="text-lg font-semibold">추가기능 요청하기</h1>
-          <Button type="button" className="shrink-0 px-3 py-1.5 text-xs" onClick={openModal}>
-            작성하기
-          </Button>
-        </div>
+    <main className="page--with-back content-wrapper">
+      <div className="flex justify-between items-center mb-3">
+        <h1 className="text-lg font-semibold">추가기능 요청하기</h1>
+        <Button type="button" className="shrink-0 px-3 py-1.5 text-xs" onClick={openModal}>
+          작성하기
+        </Button>
+      </div>
 
-        <StatusMessage message={listError} tone="error" className="mb-2" />
+      <StatusMessage message={listError} tone="error" className="mb-2" />
 
-        <div className="rounded-xl border border-[var(--border-default)] overflow-hidden bg-[var(--bg-elevated)]">
-          {rows.length === 0 ? (
-            <div className="p-4">
-              <EmptyState message="등록된 요청이 없습니다." className="m-0 text-sm text-[var(--text-secondary)]" />
-            </div>
-          ) : (
-            rows.map((item) => (
-              <div
-                key={item.id}
-                className="p-3 border-b border-[var(--border-default)] last:border-b-0"
-              >
-                <div className="flex gap-2 mb-1">
-                  <span className="w-12 shrink-0 text-[var(--text-secondary)] text-sm">제목:</span>
-                  <span className="text-[var(--text-primary)] text-sm break-words">
-                    {item.title || '(제목 없음)'}
-                  </span>
-                </div>
-                <div className="flex gap-2 mb-1">
-                  <span className="w-12 shrink-0 text-[var(--text-secondary)] text-sm">내용:</span>
-                  <span className="text-[var(--text-primary)] text-sm whitespace-pre-wrap break-words">
-                    {item.content}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-xs mt-2 gap-2">
-                  <div className="flex flex-wrap gap-3 text-[var(--text-secondary)] min-w-0">
-                    <span>상태: {statusLabel(item.status)}</span>
-                    <span className="tabular-nums">작성일: {formatDate(item.created_at)}</span>
-                  </div>
-                  <FormButton
-                    htmlType="button"
-                    className="shrink-0 text-[var(--danger)] disabled:opacity-50"
-                    disabled={deletingId === item.id}
-                    onClick={() => void handleDelete(item.id)}
-                  >
-                    {deletingId === item.id ? '삭제 중…' : '삭제'}
-                  </FormButton>
-                </div>
+      <div className="rounded-xl border border-[var(--border-default)] overflow-hidden bg-[var(--bg-elevated)]">
+        {rows.length === 0 ? (
+          <div className="p-4">
+            <EmptyState message="등록된 요청이 없습니다." className="m-0 text-sm text-[var(--text-secondary)]" />
+          </div>
+        ) : (
+          rows.map((item) => (
+            <div
+              key={item.id}
+              className="p-3 border-b border-[var(--border-default)] last:border-b-0"
+            >
+              <div className="flex gap-2 mb-1">
+                <span className="w-12 shrink-0 text-[var(--text-secondary)] text-sm">제목:</span>
+                <span className="text-[var(--text-primary)] text-sm break-words">
+                  {item.title || '(제목 없음)'}
+                </span>
               </div>
-            ))
-          )}
-        </div>
+              <div className="flex gap-2 mb-1">
+                <span className="w-12 shrink-0 text-[var(--text-secondary)] text-sm">내용:</span>
+                <span className="text-[var(--text-primary)] text-sm whitespace-pre-wrap break-words">
+                  {item.content}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs mt-2 gap-2">
+                <div className="flex flex-wrap gap-3 text-[var(--text-secondary)] min-w-0">
+                  <span>상태: {statusLabel(item.status)}</span>
+                  <span className="tabular-nums">작성일: {formatDate(item.created_at)}</span>
+                </div>
+                <FormButton
+                  htmlType="button"
+                  className="shrink-0 text-[var(--danger)] disabled:opacity-50"
+                  disabled={deletingId === item.id}
+                  onClick={() => void handleDelete(item.id)}
+                >
+                  {deletingId === item.id ? '삭제 중…' : '삭제'}
+                </FormButton>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <FormDialog

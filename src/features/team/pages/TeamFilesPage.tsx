@@ -74,7 +74,7 @@ export default function TeamFilesPage() {
   }, [token])
 
   return (
-    <div className="page-shell" style={{ maxWidth: 720, margin: '0 auto', padding: '1rem' }}>
+    <div className="content-wrapper page-shell">
       <h1 className="text-[var(--text-primary)]" style={{ marginTop: 12 }}>
         팀 자료
       </h1>

@@ -9,7 +9,9 @@ import {
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { FormButton } from '../components/form'
 import { Button, Modal } from '../components/ui'
-import { NotificationBell } from '../features/notification/components/NotificationBell'
+import ResponsiveLayout from '../components/ResponsiveLayout'
+import PCHeader from '../components/layout/PCHeader'
+import MobileHeader from '../components/layout/MobileHeader'
 import { useAuth } from '../features/auth/AuthProvider'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import {
@@ -22,7 +24,6 @@ import {
 } from '../features/dashboard/gaTenantMenu'
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import { fetchTeamMembers } from '../features/team/api/teamApi'
-import { useMediaQuery } from '../hooks/useMediaQuery'
 import { CarInsuranceDashboardPage } from '../features/application/pages/CarInsuranceDashboardPage'
 import MemoPanel from './MemoPanel'
 import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
@@ -176,18 +177,186 @@ function pathnameUsesStandaloneCarInsuranceRoutes(pathname: string): boolean {
   return false
 }
 
-/** 인증 라우트 전역: 기본은 좌측 메뉴+우측 콘텐츠, 고객관리는 좌측 고객 워크스페이스로 전환 */
-export default function AppWorkspaceLayout() {
-  const isMobile = useMediaQuery('(max-width: 768px)')
+function extractCustomerIdFromPath(path: string): string | null {
+  const matched = path.match(/^\/customers\/([^/?#]+)/)
+  if (!matched?.[1]) {
+    return null
+  }
+  return decodeURIComponent(matched[1])
+}
 
+export function PCLayout() {
   return (
     <MemoWorkspaceProvider>
-      <AppWorkspaceLayoutShell isMobile={isMobile} />
+      <AppWorkspaceLayoutPCShell />
     </MemoWorkspaceProvider>
   )
 }
 
-function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
+export function MobileLayout() {
+  return <AppWorkspaceLayoutMobileShell />
+}
+
+/** 인증 라우트 전역: PC/모바일 레이아웃을 완전히 분리해 렌더링한다. */
+export default function AppWorkspaceLayout() {
+  return <ResponsiveLayout PC={PCLayout} Mobile={MobileLayout} />
+}
+
+function AppWorkspaceLayoutMobileShell() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { user, logout, token, isAuthenticated } = useAuth()
+  const mobileHeaderRef = useRef<HTMLElement>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [mobileSelectedCustomer, setMobileSelectedCustomer] = useState<string | null>(extractCustomerIdFromPath(location.pathname))
+  const [mobilePageStack, setMobilePageStack] = useState<string[]>(() => [location.pathname])
+  const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
+
+  const sidebarItems = useMemo(() => {
+    const base = buildSidebarEntries(user?.role, user?.gaCode, user?.gaName).filter((entry) =>
+      entry.type === 'divider' ? false : entry.path !== '/memo',
+    )
+    if (!teamMenuManageVisible) {
+      return base
+    }
+    const out = [...base]
+    const filesIdx = out.findIndex((entry) => entry.type === 'link' && entry.path === '/team/files')
+    const teamManageEntry: SidebarNavEntry = { type: 'link', label: '팀 관리', path: '/team/manage' }
+    if (filesIdx >= 0) {
+      out.splice(filesIdx + 1, 0, teamManageEntry)
+    } else {
+      out.push(teamManageEntry)
+    }
+    return out
+  }, [teamMenuManageVisible, user?.role, user?.gaCode, user?.gaName])
+
+  useEffect(() => {
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) {
+        return
+      }
+      if (!token?.trim() || !user?.id) {
+        setTeamMenuManageVisible(false)
+        return
+      }
+      if (user?.role !== 'USER' && user?.role !== 'GA_ADMIN') {
+        setTeamMenuManageVisible(false)
+        return
+      }
+      if (!user?.teamId?.trim()) {
+        setTeamMenuManageVisible(false)
+        return
+      }
+      void fetchTeamMembers(token)
+        .then((data) => {
+          if (cancelled) {
+            return
+          }
+          const ownerId = data.ownerId?.trim() ?? ''
+          setTeamMenuManageVisible(Boolean(ownerId && ownerId === user?.id))
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setTeamMenuManageVisible(false)
+          }
+        })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [token, user?.id, user?.role, user?.teamId])
+
+  const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
+  const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
+  const showGaUserActions = tenantChrome && !isNewsManager
+  const workspaceHeaderTitle = tenantChrome && !isNewsManager
+    ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')
+    : '업무 메뉴'
+
+  const pushMobilePage = useCallback((path: string) => {
+    setMobilePageStack((prev) => {
+      if (prev[prev.length - 1] === path) {
+        return prev
+      }
+      return [...prev, path]
+    })
+  }, [])
+
+  return (
+    <div className="mobile-root mobile-workspace-layout">
+      <MobileHeader
+        title={workspaceHeaderTitle}
+        drawerOpen={drawerOpen}
+        showNotification={showGaUserActions}
+        headerRef={mobileHeaderRef}
+        onToggleDrawer={() => setDrawerOpen((v) => !v)}
+      />
+
+      {drawerOpen ? (
+        <nav className="mobile-workspace-drawer" aria-label="모바일 주요 메뉴">
+          {sidebarItems.map((item, index) => {
+            if (item.type === 'divider') {
+              return null
+            }
+            const isDisabled = Boolean(item.disabled || item.preparing)
+            const isActive =
+              !isDisabled &&
+              item.path.trim() !== '' &&
+              item.path !== '#' &&
+              isActivePath(location.pathname, item.path)
+            return (
+              <FormButton
+                key={`${item.path}-${item.label}-${index}`}
+                htmlType="button"
+                variant="secondary"
+                className={`workspace-sidebar__menu-item${isActive ? ' workspace-sidebar__menu-item--active' : ''}`}
+                disabled={isDisabled}
+                onClick={() => {
+                  if (item.preparing || item.disabled) {
+                    window.alert('준비중입니다.')
+                    return
+                  }
+                  if (!item.path.trim() || item.path === '#') {
+                    return
+                  }
+                  const nextCustomerId = extractCustomerIdFromPath(item.path)
+                  setMobileSelectedCustomer(nextCustomerId)
+                  pushMobilePage(item.path)
+                  navigate(item.path)
+                  setDrawerOpen(false)
+                }}
+              >
+                {item.label}
+              </FormButton>
+            )
+          })}
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="mobile-workspace-drawer__logout"
+            onClick={() => {
+              logout()
+              navigate('/login', { replace: true })
+            }}
+          >
+            로그아웃
+          </FormButton>
+        </nav>
+      ) : null}
+
+      <main
+        className="mobile-workspace-content content-wrapper content-wrapper--mobile"
+        data-selected-customer={mobileSelectedCustomer ?? ''}
+        data-page-stack-depth={String(mobilePageStack.length)}
+      >
+        <Outlet />
+      </main>
+    </div>
+  )
+}
+
+function AppWorkspaceLayoutPCShell() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout, token, isAuthenticated } = useAuth()
@@ -202,9 +371,9 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
   const [preparingNoticeOpen, setPreparingNoticeOpen] = useState(false)
   const [memoWidth, setMemoWidth] = useState(MEMO_DEFAULT_WIDTH)
   const [resizeSession, setResizeSession] = useState<{ startX: number; startWidth: number } | null>(null)
-  /** PC(데스크톱 구간) 좌측 메뉴 접기 — 모바일 분기와 무관, CSS 로 1024px 미만에서는 레이아웃만 숨김 */
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
-  const [embedCarInsuranceHub, setEmbedCarInsuranceHub] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [selectedCustomerPc, setSelectedCustomerPc] = useState<string | null>(extractCustomerIdFromPath(location.pathname))
+  const [workspaceMode, setWorkspaceMode] = useState<'default' | 'car-hub'>('default')
 
   const sidebarItems = useMemo(() => {
     const base = buildSidebarEntries(user?.role, user?.gaCode, user?.gaName).filter((entry) =>
@@ -224,20 +393,16 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
     return out
   }, [teamMenuManageVisible, user?.role, user?.gaCode, user?.gaName])
 
-  useEffect(() => {
-    if (pathnameUsesStandaloneCarInsuranceRoutes(location.pathname)) {
-      setEmbedCarInsuranceHub(false)
-    }
-  }, [location.pathname])
+  const showEmbeddedCarHub = workspaceMode === 'car-hub' && !pathnameUsesStandaloneCarInsuranceRoutes(location.pathname)
 
   const sidebarLinkIsActive = useCallback(
     (pathname: string, itemPath: string) => {
-      if (itemPath === '/application' && embedCarInsuranceHub) {
+      if (itemPath === '/application' && showEmbeddedCarHub) {
         return true
       }
       return isActivePath(pathname, itemPath)
     },
-    [embedCarInsuranceHub],
+    [showEmbeddedCarHub],
   )
 
   const onSelectNoteFromList = useCallback((id: string) => {
@@ -373,19 +538,6 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
     }
   }, [clampMemoWidth, isFullscreen, resizeSession])
 
-  if (isMobile) {
-    return (
-      <div className="app-main-content">
-        <Outlet />
-        <MemoElectronFabDock
-          isMobile
-          onToggleMinimize={onToggleMinimize}
-          onToggleFullscreen={onToggleFullscreen}
-        />
-      </div>
-    )
-  }
-
   const showMemoPanel = isMemoOpen && !isMinimized
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
@@ -396,35 +548,25 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
     : '업무 메뉴'
 
   return (
-    <div className="app-workspace-layout-root">
-      <header
-        ref={workspaceChromeHeaderRef}
-        className="app-workspace-chrome-header header"
-        aria-label="워크스페이스 상단"
-      >
-        <div className="app-workspace-chrome-header__row">
-          <div className="header-left app-workspace-chrome-header__leading">
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              className="menu-btn app-workspace-chrome-header__menu-btn"
-              aria-label="메뉴 접기·펼치기"
-              aria-expanded={!isSidebarCollapsed}
-              onClick={() => setIsSidebarCollapsed((v) => !v)}
-            >
-              ☰
-            </FormButton>
-            <span className="ga-name app-workspace-chrome-header__ga">{workspaceHeaderTitle}</span>
-          </div>
-          {showGaUserActions ? (
-            <NotificationBell variant="workspaceHeader" boundaryRef={workspaceChromeHeaderRef} />
-          ) : null}
-        </div>
-      </header>
+    <div className="pc-root app-workspace-layout-root">
+      <PCHeader
+        title={workspaceHeaderTitle}
+        showNotification={showGaUserActions}
+        sidebarOpen={sidebarOpen}
+        headerRef={workspaceChromeHeaderRef}
+        onBack={() => {
+          if (typeof window !== 'undefined' && window.history.length > 1) {
+            navigate(-1)
+            return
+          }
+          navigate('/dashboard')
+        }}
+        onToggleSidebar={() => setSidebarOpen((v) => !v)}
+      />
 
       <div className="workspace-root workspace-root--app-pc">
         <aside
-          className={`workspace-sidebar${isSidebarCollapsed ? ' workspace-sidebar--collapsed' : ''}`}
+          className={`workspace-sidebar${sidebarOpen ? '' : ' workspace-sidebar--collapsed'}`}
           aria-label="좌측 메뉴"
         >
           <nav className="workspace-sidebar__nav" aria-label="주요 메뉴">
@@ -453,11 +595,12 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
                     if (!item.path.trim() || item.path === '#') {
                       return
                     }
+                    setSelectedCustomerPc(extractCustomerIdFromPath(item.path))
                     if (item.path === '/application') {
-                      setEmbedCarInsuranceHub(true)
+                      setWorkspaceMode('car-hub')
                       return
                     }
-                    setEmbedCarInsuranceHub(false)
+                    setWorkspaceMode('default')
                     navigate(item.path)
                   }}
                 >
@@ -480,16 +623,20 @@ function AppWorkspaceLayoutShell({ isMobile }: { isMobile: boolean }) {
           </FormButton>
         </aside>
 
-        <div className="workspace-main workspace-main--app">
+        <div
+          className="workspace-main workspace-main--app"
+          data-selected-customer={selectedCustomerPc ?? ''}
+          data-workspace-mode={workspaceMode}
+        >
           <div className="app-main-content app-main-content--workspace-outlet-host">
             <Outlet />
-            {embedCarInsuranceHub ? (
+            {showEmbeddedCarHub ? (
               <div className="workspace-embedded-car-hub-shell" role="dialog" aria-label="자동차 신청서">
                 <div className="workspace-embedded-car-hub-shell__toolbar">
                   <FormButton
                     htmlType="button"
                     variant="secondary"
-                    onClick={() => setEmbedCarInsuranceHub(false)}
+                    onClick={() => setWorkspaceMode('default')}
                   >
                     ← 닫기
                   </FormButton>
