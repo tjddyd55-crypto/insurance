@@ -205,6 +205,7 @@ export function MobileLayout() {
 
 /** 인증 라우트 전역: PC/모바일 레이아웃을 완전히 분리해 렌더링한다. */
 export default function AppWorkspaceLayout() {
+  console.log('🔥 AppWorkspaceLayout - INSURANCE RUNNING')
   return <ResponsiveLayout PC={PCLayout} Mobile={MobileLayout} />
 }
 

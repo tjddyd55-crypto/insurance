@@ -75,6 +75,7 @@ export default function CustomerWorkspaceLayout() {
   const location = useLocation()
   const { token, user } = useAuth()
   const isMobile = useIsMobile()
+  console.log('🔥 CustomerWorkspaceLayout - INSURANCE RUNNING')
   const [searchParams] = useSearchParams()
   const currentPathTab = useMemo(
     () => resolveWorkspacePathTab(location.pathname),

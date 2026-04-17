@@ -363,26 +363,21 @@ export function ProfilePage() {
 
   if (loadError) {
     return (
-      <main className="content-wrapper profile-page">
-        <section className="card auth-card">
-          <h1>{pageTitle}</h1>
-
-          <p className="status status--error">{loadError}</p>
-          <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => void load()}>
-            다시 시도
-          </FormButton>
-        </section>
+      <main className="page page--with-back profile-page">
+        <h1>{pageTitle}</h1>
+        <p className="status status--error">{loadError}</p>
+        <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => void load()}>
+          다시 시도
+        </FormButton>
       </main>
     )
   }
 
   if (!me) {
     return (
-      <main className="content-wrapper profile-page">
-        <section className="card auth-card">
-          <h1>{pageTitle}</h1>
-          <p className="status">불러오는 중…</p>
-        </section>
+      <main className="page page--with-back profile-page">
+        <h1>{pageTitle}</h1>
+        <p className="status">불러오는 중…</p>
       </main>
     )
   }
@@ -390,15 +385,13 @@ export function ProfilePage() {
   const hasTeam = Boolean(user.teamId?.trim())
 
   return (
-    <main className="content-wrapper profile-page">
-      <section className="card auth-card">
-        <h1>{pageTitle}</h1>
-        <DesktopUpdateSection />
+    <main className="page page--with-back profile-page">
+      <h1>{pageTitle}</h1>
+      <DesktopUpdateSection />
 
-        <section className="profile-section">
-          <h2 className="section-title">내 정보</h2>
-          <div className="section-content">
-            <form className="auth-form" onSubmit={(e) => void onSubmit(e)}>
+      <section>
+        <h2 className="profile-page__section-title">내 정보</h2>
+        <form className="auth-form" onSubmit={(e) => void onSubmit(e)}>
               <label className="field">
                 <span className="field__label">이름</span>
                 <FormInput
@@ -492,14 +485,12 @@ export function ProfilePage() {
               >
                 {savingProfile ? '저장 중…' : '저장'}
               </FormButton>
-            </form>
-          </div>
-        </section>
+        </form>
+      </section>
 
-        <section className="profile-section">
-          <h2 className="section-title">팀 관리</h2>
-          <div className="section-content">
-            <div className="profile-page__team-row">
+      <section>
+        <h2 className="profile-page__section-title">팀 관리</h2>
+        <div className="profile-page__team-row">
               <FormButton
                 htmlType="button"
                 variant="action"
@@ -535,160 +526,154 @@ export function ProfilePage() {
               >
                 팀 연결
               </FormButton>
-            </div>
-            {teamCopyNotice ? (
-              <p className="status text-sm" role="status" style={{ marginTop: 8 }}>
-                {teamCopyNotice}
-              </p>
-            ) : null}
-          </div>
-        </section>
-
-        <div className="section-divider" />
-
-        <section className="profile-section">
-          <h2 className="section-title">고객 데이터 업로드</h2>
-          <div className="section-content">
-            {!isMobile ? (
-              <>
-                <div className="profile-page__excel-toolbar">
-                  <CustomerExcelImportPanel
-                    token={token}
-                    onUploadsFinished={async () => {
-                      setInfoMessage('고객 데이터 업로드가 완료되었습니다.')
-                    }}
-                  />
-                </div>
-                <p className="status text-sm" style={{ marginTop: 8 }}>
-                  샘플 다운로드 후 양식에 맞게 작성한 파일을 업로드해 주세요.
-                </p>
-              </>
-            ) : (
-              <div className="mobile-disabled-box">해당 기능은 PC에서만 사용 가능합니다.</div>
-            )}
-          </div>
-        </section>
-
-        <div className="section-divider" />
-
-        <section className="profile-section">
-          <h2 className="section-title">GA 데이터 업로드</h2>
-          <div className="section-content">
-            {!isMobile ? (
-              <>
-                <div className="profile-page__excel-toolbar">
-                  <UserGaExcelManagePanel token={token} />
-                </div>
-                <p className="status text-sm" style={{ marginTop: 8 }}>
-                  회사 DB 파일 업로드/조회는{' '}
-                  <Link to="/storage" className="switch-text__action">
-                    내 저장공간
-                  </Link>
-                  에서 진행합니다.
-                </p>
-              </>
-            ) : (
-              <div className="mobile-disabled-box">해당 기능은 PC에서만 사용 가능합니다.</div>
-            )}
-          </div>
-        </section>
-
-        <Link
-          to="/account/reset"
-          className="button button--secondary button--full profile-page__account-reset"
-        >
-          계정 초기화
-        </Link>
-
-        <div className="switch-text">
-          <Link to="/dashboard" className="switch-text__action">
-            대시보드로
-          </Link>
         </div>
-
-        <Modal
-          open={createTeamOpen}
-          onClose={() => {
-            setTeamActionError('')
-            setCreateTeamOpen(false)
-          }}
-          ariaLabel="팀 생성"
-        >
-          <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">팀 생성</div>
-          <form onSubmit={(ev) => void onCreateTeamSubmit(ev)}>
-            <label className="block text-sm text-[var(--text-secondary)] mb-2">
-              팀 이름 (선택)
-              <FormInput
-                className="mt-1 w-full box-border border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
-                value={teamNameInput}
-                onChange={(ev) => setTeamNameInput(ev.target.value)}
-                maxLength={120}
-                placeholder="예: 강남1팀"
-                autoComplete="off"
-              />
-            </label>
-            {teamActionError ? (
-              <p className="text-[var(--danger)] text-sm mb-2" role="alert">
-                {teamActionError}
-              </p>
-            ) : null}
-            <div className="flex gap-2 flex-wrap mt-2">
-              <Button type="submit" disabled={teamBusy}>
-                {teamBusy ? '처리 중…' : '생성'}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={teamBusy}
-                onClick={() => setCreateTeamOpen(false)}
-              >
-                취소
-              </Button>
-            </div>
-          </form>
-        </Modal>
-
-        <Modal
-          open={connectTeamOpen}
-          onClose={() => {
-            setTeamActionError('')
-            setConnectTeamOpen(false)
-          }}
-          ariaLabel="팀 연결"
-        >
-          <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">팀 연결</div>
-          <form onSubmit={(ev) => void onJoinTeamSubmit(ev)}>
-            <label className="block text-sm text-[var(--text-secondary)] mb-2">
-              팀 코드
-              <FormInput
-                className="mt-1 w-full box-border border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
-                value={joinTeamCodeInput}
-                onChange={(ev) => setJoinTeamCodeInput(ev.target.value)}
-                placeholder="팀 코드 입력"
-                autoComplete="off"
-              />
-            </label>
-            {teamActionError ? (
-              <p className="text-[var(--danger)] text-sm mb-2" role="alert">
-                {teamActionError}
-              </p>
-            ) : null}
-            <div className="flex gap-2 flex-wrap mt-2">
-              <Button type="submit" disabled={teamBusy || !joinTeamCodeInput.trim()}>
-                {teamBusy ? '처리 중…' : '연결'}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={teamBusy}
-                onClick={() => setConnectTeamOpen(false)}
-              >
-                취소
-              </Button>
-            </div>
-          </form>
-        </Modal>
+        {teamCopyNotice ? (
+          <p className="status text-sm" role="status" style={{ marginTop: 8 }}>
+            {teamCopyNotice}
+          </p>
+        ) : null}
       </section>
+
+      <div className="section-divider" />
+
+      <section>
+        <h2 className="profile-page__section-title">고객 데이터 업로드</h2>
+        {!isMobile ? (
+          <>
+            <div className="profile-page__excel-toolbar">
+              <CustomerExcelImportPanel
+                token={token}
+                onUploadsFinished={async () => {
+                  setInfoMessage('고객 데이터 업로드가 완료되었습니다.')
+                }}
+              />
+            </div>
+            <p className="status text-sm" style={{ marginTop: 8 }}>
+              샘플 다운로드 후 양식에 맞게 작성한 파일을 업로드해 주세요.
+            </p>
+          </>
+        ) : (
+          <div className="mobile-disabled-box">해당 기능은 PC에서만 사용 가능합니다.</div>
+        )}
+      </section>
+
+      <div className="section-divider" />
+
+      <section>
+        <h2 className="profile-page__section-title">GA 데이터 업로드</h2>
+        {!isMobile ? (
+          <>
+            <div className="profile-page__excel-toolbar">
+              <UserGaExcelManagePanel token={token} />
+            </div>
+            <p className="status text-sm" style={{ marginTop: 8 }}>
+              회사 DB 파일 업로드/조회는{' '}
+              <Link to="/storage" className="switch-text__action">
+                내 저장공간
+              </Link>
+              에서 진행합니다.
+            </p>
+          </>
+        ) : (
+          <div className="mobile-disabled-box">해당 기능은 PC에서만 사용 가능합니다.</div>
+        )}
+      </section>
+
+      <Link
+        to="/account/reset"
+        className="button button--secondary button--full profile-page__account-reset"
+      >
+        계정 초기화
+      </Link>
+
+      <div className="switch-text">
+        <Link to="/dashboard" className="switch-text__action">
+          대시보드로
+        </Link>
+      </div>
+
+      <Modal
+        open={createTeamOpen}
+        onClose={() => {
+          setTeamActionError('')
+          setCreateTeamOpen(false)
+        }}
+        ariaLabel="팀 생성"
+      >
+        <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">팀 생성</div>
+        <form onSubmit={(ev) => void onCreateTeamSubmit(ev)}>
+          <label className="block text-sm text-[var(--text-secondary)] mb-2">
+            팀 이름 (선택)
+            <FormInput
+              className="mt-1 w-full box-border border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
+              value={teamNameInput}
+              onChange={(ev) => setTeamNameInput(ev.target.value)}
+              maxLength={120}
+              placeholder="예: 강남1팀"
+              autoComplete="off"
+            />
+          </label>
+          {teamActionError ? (
+            <p className="text-[var(--danger)] text-sm mb-2" role="alert">
+              {teamActionError}
+            </p>
+          ) : null}
+          <div className="flex gap-2 flex-wrap mt-2">
+            <Button type="submit" disabled={teamBusy}>
+              {teamBusy ? '처리 중…' : '생성'}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={teamBusy}
+              onClick={() => setCreateTeamOpen(false)}
+            >
+              취소
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={connectTeamOpen}
+        onClose={() => {
+          setTeamActionError('')
+          setConnectTeamOpen(false)
+        }}
+        ariaLabel="팀 연결"
+      >
+        <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">팀 연결</div>
+        <form onSubmit={(ev) => void onJoinTeamSubmit(ev)}>
+          <label className="block text-sm text-[var(--text-secondary)] mb-2">
+            팀 코드
+            <FormInput
+              className="mt-1 w-full box-border border border-[var(--border-default)] rounded-md p-2 text-sm bg-[var(--bg-soft)] text-[var(--text-primary)]"
+              value={joinTeamCodeInput}
+              onChange={(ev) => setJoinTeamCodeInput(ev.target.value)}
+              placeholder="팀 코드 입력"
+              autoComplete="off"
+            />
+          </label>
+          {teamActionError ? (
+            <p className="text-[var(--danger)] text-sm mb-2" role="alert">
+              {teamActionError}
+            </p>
+          ) : null}
+          <div className="flex gap-2 flex-wrap mt-2">
+            <Button type="submit" disabled={teamBusy || !joinTeamCodeInput.trim()}>
+              {teamBusy ? '처리 중…' : '연결'}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={teamBusy}
+              onClick={() => setConnectTeamOpen(false)}
+            >
+              취소
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </main>
   )
 }

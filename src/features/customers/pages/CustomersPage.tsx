@@ -14,7 +14,6 @@ import {
 } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
-import { ApiError } from '../../../lib/apiClient'
 import { getPublicOrigin } from '../../../lib/publicOrigin'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
@@ -24,7 +23,7 @@ import {
   listCustomers,
   updateCustomer,
 } from '../api/customersApi'
-import type { CustomerNotesBag, CustomerRecord } from '../domain/types'
+import type { CustomerRecord } from '../domain/types'
 import { customerNoteItems, normalizeCustomerNotesBag } from '../domain/types'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
 import { buildKakaoCustomerCopyText } from '../utils/customerText'
@@ -51,23 +50,12 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
 import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPolicy'
-import {
-  fetchConsultationCounts,
-  listCustomerConsultations,
-  searchCustomersAdvanced,
-} from '../api/customerExtraApi'
-import { parseConsultationStoredBody } from '../utils/consultationBodyFormat'
-import { CustomerInlineNotesSection } from '../components/CustomerInlineNotesSection'
-import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
+import { searchCustomersAdvanced } from '../api/customerExtraApi'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { useGaSettings } from '../../ga-settings/useGaSettings'
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
-
 /** WebView: touchstart·mousedown·합성 click 연속 시 복사/알림 중복 방지 */
 const INVITE_COPY_POINTER_DEBOUNCE_MS = 450
-
-const LAST_CONSULT_FETCH_CONCURRENCY = 12
 const MOBILE_CUSTOMERS_UI_STATE_KEY = 'customers-mobile-ui-state:v1'
 
 type MobileCustomersUiState = {
@@ -159,40 +147,6 @@ async function copyTextWithWebViewFallback(text: string): Promise<boolean> {
       document.body.removeChild(textarea)
     }
   }
-}
-
-async function fetchLastConsultDatesByCustomerId(
-  token: string,
-  customerIds: number[],
-): Promise<Record<number, string>> {
-  const out: Record<number, string> = {}
-  for (let i = 0; i < customerIds.length; i += LAST_CONSULT_FETCH_CONCURRENCY) {
-    const chunk = customerIds.slice(i, i + LAST_CONSULT_FETCH_CONCURRENCY)
-    const settled = await Promise.allSettled(
-      chunk.map(async (cid) => {
-        try {
-          const rows = await listCustomerConsultations(token, cid, { limit: 1 })
-          const first = rows[0]
-          if (!first) {
-            return { cid, dateLabel: null as string | null }
-          }
-          const { dateLabel } = parseConsultationStoredBody(first.body, first.createdAt)
-          return { cid, dateLabel }
-        } catch (e) {
-          if (e instanceof ApiError && e.status === 404) {
-            return { cid, dateLabel: null as string | null }
-          }
-          throw e
-        }
-      }),
-    )
-    for (const s of settled) {
-      if (s.status === 'fulfilled' && s.value.dateLabel) {
-        out[s.value.cid] = s.value.dateLabel
-      }
-    }
-  }
-  return out
 }
 
 function CustomerDDayBadge({ renewalDate }: { renewalDate: string }) {
@@ -521,7 +475,6 @@ type CustomerListCardProps = {
   editForm: CustomerEditFormState | null
   setEditForm: Dispatch<SetStateAction<CustomerEditFormState | null>>
   onEditSubmit: (e: FormEvent<HTMLFormElement>) => void | Promise<void>
-  onStatusMessage: (msg: string) => void
   carFeatureEnabled: boolean
   gaExcelEnabled: boolean
   onCopyCustomer: (c: CustomerRecord) => void
@@ -533,13 +486,6 @@ type CustomerListCardProps = {
   onNavigateToCustomerAuto: (customerId: number) => void
   onNavigateToCustomerGa: (customerId: number) => void
   token: string | null
-  onOpenCustomer: (customerId: number) => void
-  consultationCount: number
-  lastConsultDateLabel: string | null
-  onCustomerNotesPersisted: (
-    customerId: number,
-    newMemo: CustomerNotesBag,
-  ) => void | Promise<void>
   onToggleFavorite: (c: CustomerRecord) => void | Promise<void>
 }
 
@@ -556,7 +502,6 @@ const CustomerListCard = memo(function CustomerListCard({
   editForm,
   setEditForm,
   onEditSubmit,
-  onStatusMessage,
   carFeatureEnabled,
   gaExcelEnabled,
   onCopyCustomer,
@@ -568,10 +513,6 @@ const CustomerListCard = memo(function CustomerListCard({
   onNavigateToCustomerAuto,
   onNavigateToCustomerGa,
   token,
-  onOpenCustomer,
-  consultationCount,
-  lastConsultDateLabel,
-  onCustomerNotesPersisted,
   onToggleFavorite,
 }: CustomerListCardProps) {
   const isMobile = useIsMobile()
@@ -608,8 +549,7 @@ const CustomerListCard = memo(function CustomerListCard({
   }
 
   const ins = customerInsuranceDisplay(c)
-  const recentConsultText =
-    consultationCount > 0 ? lastConsultDateLabel ?? '—' : '—'
+  const recentConsultText = '—'
   const phone = resolveCustomerListPhone(c)
   const hasPhone = typeof phone === 'string' && phone.trim() !== ''
   const smsHref = customerPhoneHref(phone, 'sms')
@@ -1072,15 +1012,6 @@ const CustomerListCard = memo(function CustomerListCard({
                     </FormButton>
                   </div>
                 </form>
-                {token ? (
-                  <CustomerRelationsStrip
-                    customerId={c.id}
-                    customerName={c.name}
-                    token={token}
-                    onOpenCustomer={onOpenCustomer}
-                    focusedCustomerId={expandedId}
-                  />
-                ) : null}
               </>
             ) : (
               <>
@@ -1155,27 +1086,8 @@ const CustomerListCard = memo(function CustomerListCard({
               </>
             )}
             <div className="customer-expand-section-divider" role="presentation" />
-            <div hidden={!isMobile || !token || (editingId === c.id && Boolean(editForm))}>
-              <CustomerInlineNotesSection
-                key={c.id}
-                customer={c}
-                token={token}
-                showFileShortcut={false}
-                onPersisted={onCustomerNotesPersisted}
-                onStatusMessage={onStatusMessage}
-              />
-            </div>
             {!(editingId === c.id && editForm) ? (
               <>
-                {token ? (
-                  <CustomerRelationsStrip
-                    customerId={c.id}
-                    customerName={c.name}
-                    token={token}
-                    onOpenCustomer={onOpenCustomer}
-                    focusedCustomerId={expandedId}
-                  />
-                ) : null}
                 {isMobile ? (
                   <>
                     <div className="customer-expand-section-divider" role="presentation" />
@@ -1231,6 +1143,7 @@ export default function CustomersPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const isMobile = useIsMobile()
+  console.log('🔥 CustomersPage - INSURANCE RUNNING')
   const [searchParams, setSearchParams] = useSearchParams()
   /**
    * 고객등록 → 목록: 반드시 replace. setSearchParams({}) / blocker.proceed() 사용 금지(히스토리 중복·이중 POP).
@@ -1304,10 +1217,6 @@ export default function CustomersPage() {
   const [deepSearch, setDeepSearch] = useState(false)
   const [advSearchHits, setAdvSearchHits] = useState<CustomerRecord[] | null>(null)
   const [advSearchLoading, setAdvSearchLoading] = useState(false)
-  const [consultationCounts, setConsultationCounts] = useState<Record<number, number>>({})
-  const [lastConsultDateMap, setLastConsultDateMap] = useState<Record<number, string>>({})
-  const [onlyWithConsultations, setOnlyWithConsultations] = useState(false)
-  const [filterNoRecentConsult, setFilterNoRecentConsult] = useState(false)
   const [favoriteOnly, setFavoriteOnly] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [showScrollToTop, setShowScrollToTop] = useState(false)
@@ -1368,28 +1277,11 @@ export default function CustomersPage() {
 
   const filteredCustomers = useMemo(() => {
     let list = keywordFilteredCustomers.filter((c) => customerPassesAdvancedFilters(c, advancedFilters))
-    if (onlyWithConsultations) {
-      list = list.filter((c) => (consultationCounts[c.id] ?? 0) > 0)
-    }
-    if (filterNoRecentConsult) {
-      list = list.filter((c) => {
-        const last = lastConsultDateMap[c.id]
-        return !last || Date.now() - new Date(last).getTime() > THIRTY_DAYS_MS
-      })
-    }
     if (favoriteOnly) {
       list = list.filter((c) => c.isFavorite)
     }
     return list
-  }, [
-    keywordFilteredCustomers,
-    advancedFilters,
-    onlyWithConsultations,
-    consultationCounts,
-    filterNoRecentConsult,
-    lastConsultDateMap,
-    favoriteOnly,
-  ])
+  }, [keywordFilteredCustomers, advancedFilters, favoriteOnly])
 
   const advancedFiltersActive = useMemo(() => {
     const f = advancedFilters
@@ -1400,11 +1292,9 @@ export default function CustomersPage() {
     () =>
       keyword.trim() !== '' ||
       advancedFiltersActive ||
-      onlyWithConsultations ||
-      filterNoRecentConsult ||
       favoriteOnly ||
       advSearchHits != null,
-    [keyword, advancedFiltersActive, onlyWithConsultations, filterNoRecentConsult, favoriteOnly, advSearchHits],
+    [keyword, advancedFiltersActive, favoriteOnly, advSearchHits],
   )
 
   const sortedCustomers = useMemo(() => {
@@ -1461,37 +1351,6 @@ export default function CustomersPage() {
   const allVisibleSelected =
     allVisibleIds.length > 0 && allVisibleIds.every((id) => selectedCustomerIds.includes(id))
 
-  const refreshConsultationCounts = useCallback(async (activeCustomerIds?: number[]) => {
-    if (!token || user?.role !== 'USER') {
-      setConsultationCounts({})
-      setLastConsultDateMap({})
-      return
-    }
-    const allowed = new Set(
-      activeCustomerIds ?? customersRef.current.map((c) => c.id),
-    )
-    try {
-      const { counts } = await fetchConsultationCounts(token)
-      const next: Record<number, number> = {}
-      for (const [k, v] of Object.entries(counts)) {
-        const id = Number(k)
-        if (!Number.isFinite(id) || !allowed.has(id)) {
-          continue
-        }
-        next[id] = Number(v) || 0
-      }
-      setConsultationCounts(next)
-      const idsWithConsult = Object.entries(next)
-        .filter(([, n]) => n > 0)
-        .map(([idKey]) => Number(idKey))
-      const dates = await fetchLastConsultDatesByCustomerId(token, idsWithConsult)
-      setLastConsultDateMap(dates)
-    } catch {
-      setConsultationCounts({})
-      setLastConsultDateMap({})
-    }
-  }, [token, user?.role])
-
   const loadCustomers = useCallback(async () => {
     if (!token || user?.role !== 'USER') {
       setIsLoading(false)
@@ -1507,13 +1366,12 @@ export default function CustomersPage() {
       }
       setCustomers(safeData)
       setCustomersTotalCount(total)
-      await refreshConsultationCounts(safeData.map((r) => r.id))
     } catch (error) {
       setStatusText(error instanceof Error ? error.message : '목록을 불러오지 못했습니다.')
     } finally {
       setIsLoading(false)
     }
-  }, [token, user?.role, refreshConsultationCounts])
+  }, [token, user?.role])
 
   const handleToggleFavorite = useCallback(
     async (c: CustomerRecord) => {
@@ -1555,32 +1413,6 @@ export default function CustomersPage() {
     },
     [token],
   )
-
-  const handleCustomerNotesPersisted = useCallback(
-    (customerId: number, newMemo: CustomerNotesBag) => {
-      setCustomers((prev) =>
-        prev.map((c) => (c.id === customerId ? { ...c, notes: newMemo } : c)),
-      )
-      setAdvSearchHits((hits) =>
-        hits == null
-          ? null
-          : hits.map((c) => (c.id === customerId ? { ...c, notes: newMemo } : c)),
-      )
-    },
-    [],
-  )
-
-  /** 연계 고객 등: 검색어로 찾지 않고 목록에서 카드만 펼침 (검색·심층 검색 상태는 초기화) */
-  const openCustomerInList = useCallback((customerId: number) => {
-    setSearchInput('')
-    setAdvSearchHits(null)
-    setExpandedId(customerId)
-    window.requestAnimationFrame(() => {
-      document
-        .querySelector(`[data-customer-card-id="${customerId}"]`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-    })
-  }, [])
 
   const handleSelectCustomer = useCallback(
     (c: CustomerRecord) => {
@@ -1678,7 +1510,7 @@ export default function CustomersPage() {
       void (async () => {
         setAdvSearchLoading(true)
         try {
-          const rows = await searchCustomersAdvanced(token, { q, includeRelations: true, limit: 500 })
+          const rows = await searchCustomersAdvanced(token, { q, includeRelations: false, limit: 500 })
           if (!cancelled) {
             setAdvSearchHits(coerceCustomersStatePayload(rows))
           }
@@ -2268,22 +2100,6 @@ export default function CustomersPage() {
                   />
                   상담·연계 포함 검색 (서버 심층 검색)
                 </label>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <FormInput
-                    type="checkbox"
-                    checked={onlyWithConsultations}
-                    onChange={(e) => setOnlyWithConsultations(e.target.checked)}
-                  />
-                  상담 기록이 있는 고객만 보기
-                </label>
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <FormInput
-                    type="checkbox"
-                    checked={filterNoRecentConsult}
-                    onChange={(e) => setFilterNoRecentConsult(e.target.checked)}
-                  />
-                  최근 30일 상담 없음
-                </label>
               </div>
               {advSearchLoading ? (
                 <p
@@ -2428,20 +2244,10 @@ export default function CustomersPage() {
             <p className="empty-state">
               {keyword.trim() ||
               advancedFiltersActive ||
-              onlyWithConsultations ||
-              filterNoRecentConsult ||
               favoriteOnly
-                ? onlyWithConsultations &&
-                    !keyword.trim() &&
-                    !advancedFiltersActive &&
-                    !filterNoRecentConsult &&
-                    !favoriteOnly
-                  ? '상담 기록이 있는 고객이 없습니다. 필터에서 「상담 기록이 있는 고객만 보기」를 해제해 보세요.'
-                  : favoriteOnly &&
+                ? favoriteOnly &&
                       !keyword.trim() &&
-                      !advancedFiltersActive &&
-                      !onlyWithConsultations &&
-                      !filterNoRecentConsult
+                      !advancedFiltersActive
                     ? '중요 고객으로 표시된 고객이 없습니다. 카드의 ★로 추가해 보세요.'
                     : '검색·필터 조건에 맞는 고객이 없습니다.'
                 : '고객이 없습니다.'}
@@ -2463,7 +2269,6 @@ export default function CustomersPage() {
                   editForm={editForm}
                   setEditForm={setEditForm}
                   onEditSubmit={handleEditFormSubmit}
-                  onStatusMessage={setStatusText}
                   carFeatureEnabled={carFeatureEnabled}
                   gaExcelEnabled={gaExcelEnabled}
                   onCopyCustomer={copyCustomer}
@@ -2475,10 +2280,6 @@ export default function CustomersPage() {
                   onNavigateToCustomerAuto={handleNavigateToCustomerAuto}
                   onNavigateToCustomerGa={handleNavigateToCustomerGa}
                   token={token}
-                  onOpenCustomer={openCustomerInList}
-                  consultationCount={consultationCounts[c.id] ?? 0}
-                  lastConsultDateLabel={lastConsultDateMap[c.id] ?? null}
-                  onCustomerNotesPersisted={handleCustomerNotesPersisted}
                   onToggleFavorite={handleToggleFavorite}
                 />
               ))}

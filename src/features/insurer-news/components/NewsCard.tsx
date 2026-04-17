@@ -1,4 +1,3 @@
-import { FormButton } from '../../../components/form'
 import useIsMobile from '../../../hooks/useIsMobile'
 import type { NewsletterItem } from '../types'
 
@@ -72,24 +71,31 @@ export function NewsCard({ item, onOpen }: Props) {
 
   if (onOpen) {
     return (
-      <FormButton
-        htmlType="button"
-        className={`news-card${isMobile ? ' news-card--mobile' : ''}`}
+      <div
+        className={`news-card assessor-news-card${isMobile ? ' news-card--mobile' : ''}`}
         onClick={onOpen}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            onOpen()
+          }
+        }}
+        role="button"
+        tabIndex={0}
         aria-label={cardAriaLabel(item)}
       >
-        {media}
-      </FormButton>
+        <div className="card-content">{media}</div>
+      </div>
     )
   }
 
   return (
     <div
-      className={`news-card news-card--static${isMobile ? ' news-card--mobile' : ''}`}
+      className={`news-card assessor-news-card news-card--static${isMobile ? ' news-card--mobile' : ''}`}
       role="article"
       aria-label={cardAriaLabel(item)}
     >
-      {media}
+      <div className="card-content">{media}</div>
     </div>
   )
 }

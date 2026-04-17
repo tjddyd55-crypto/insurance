@@ -1,0 +1,10 @@
+{
+  "rules": [
+    {
+      "name": "R2 Storage Rule",
+      "description": "All uploads must use platform-assets/insurer/{gaCode}/ as base path",
+      "files": ["**/*.js", "**/*.ts"],
+      "enforce": true
+    }
+  ]
+}

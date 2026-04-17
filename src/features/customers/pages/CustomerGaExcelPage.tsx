@@ -112,7 +112,7 @@ export default function CustomerGaExcelPage() {
       ) : headers.length === 0 ? (
         <EmptyState message="표시할 열이 설정되어 있지 않습니다." />
       ) : (
-        <div className="overflow-x-auto border border-[var(--border-default)] rounded-md">
+        <div className="ga-table-scroll overflow-x-auto border border-[var(--border-default)] rounded-md">
           <table className="admin-data-table" style={{ minWidth: 400 }}>
             <thead>
               <tr>

@@ -16,6 +16,23 @@ function copy(text: string) {
   copyToClipboard(text)
 }
 
+function renderPositionLabel(position: string | undefined | null) {
+  const text = asTrimmedText(position)
+  if (!text) {
+    return '—'
+  }
+  if (text === '설계매니저') {
+    return (
+      <>
+        설계
+        <br />
+        매니저
+      </>
+    )
+  }
+  return text
+}
+
 type ContactLine = { name: string; position: string; phone: string }
 
 function contactSortKey(c: ContactLine): string {
@@ -143,7 +160,7 @@ export function CompanyCard(props: CompanyCardProps) {
 
               return (
                 <div key={p.id != null ? p.id : `new-${c.id}-${idx}`} className="contact-row">
-                  <div className="position">{position || '—'}</div>
+                  <div className="position">{renderPositionLabel(position)}</div>
                   <div className="name">{name || '—'}</div>
                   <div className={phoneRaw ? 'phone' : 'phone phone--empty'}>
                     {phoneRaw ? formatPhone(phoneRaw) : '—'}
@@ -279,7 +296,7 @@ export function CompanyCard(props: CompanyCardProps) {
 
             return (
               <div key={rowKey} className="contact-row">
-                <div className={`position${posCh ? ' changed' : ''}`}>{asTrimmedText(position) || '—'}</div>
+                <div className={`position${posCh ? ' changed' : ''}`}>{renderPositionLabel(position)}</div>
                 <div className={`name${nameCh ? ' changed' : ''}`}>{asTrimmedText(name) || '—'}</div>
                 <div className={`phone${asTrimmedText(phoneRaw) ? '' : ' phone--empty'}${phoneCh ? ' changed' : ''}`}>
                   {asTrimmedText(phoneRaw) ? formatPhone(phoneRaw) : '—'}

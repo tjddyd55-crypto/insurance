@@ -122,10 +122,6 @@ export function UserGaExcelManagePanel({ token }: Props) {
     })
   }, [previewTable.headers, sampleColumns, visibility])
 
-  const previewMinWidth = useMemo(() => {
-    return Math.max(960, previewColumns.length * 130)
-  }, [previewColumns.length])
-
   const parseLocalPreview = useCallback(async (file: File) => {
     const buf = await file.arrayBuffer()
     const wb = XLSX.read(buf, { type: 'array', cellDates: true })
@@ -260,7 +256,7 @@ export function UserGaExcelManagePanel({ token }: Props) {
               <p className="text-sm text-[var(--text-secondary)]">{L.previewEmpty}</p>
             ) : (
               <div className="table-wrapper profile-page__excel-preview-scroll">
-                <table className="admin-data-table profile-page__excel-preview-table" style={{ minWidth: Math.max(1200, previewMinWidth) }}>
+                <table className="admin-data-table profile-page__excel-preview-table">
                   <thead>
                     <tr className="profile-page__excel-preview-toggle-row">
                       {previewColumns.map((col) => {
