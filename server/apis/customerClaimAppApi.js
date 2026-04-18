@@ -4,6 +4,7 @@ import {
   consentPutInsurerAttachment,
   consentGetBuffer,
   getR2InsurerAttachmentsCacheControl,
+  getR2PublicCdnBase,
   isConsentR2Enabled,
   logR2EnvDiagnosticCheck,
   r2GetPresignedPutUrl,
@@ -578,6 +579,34 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
   }
 
   /**
+   * 개인파일 UX와 동일하게 "열기"는 CDN 직링크를 우선한다.
+   * 단, R2 미구성 환경에서는 서버 다운로드 URL로 자동 fallback.
+   * @param {import('express').Request} req
+   * @param {{
+   *  scope: 'agent' | 'customer'
+   *  fileId: number
+   *  agentId: string
+   *  customerId: number
+   *  deviceId?: string
+   *  storageKey: string
+   * }} payload
+   */
+  function buildClaimFileOpenUrl(req, payload) {
+    const storageKey = String(payload.storageKey ?? '').trim().replace(/^\//, '')
+    if (storageKey && isConsentR2Enabled()) {
+      const cdnBase = getR2PublicCdnBase().replace(/\/$/, '')
+      return `${cdnBase}/${storageKey}`
+    }
+    return buildClaimFileAccessUrl(req, {
+      scope: payload.scope,
+      fileId: payload.fileId,
+      agentId: payload.agentId,
+      customerId: payload.customerId,
+      ...(payload.deviceId ? { deviceId: payload.deviceId } : {}),
+    })
+  }
+
+  /**
    * @param {string} rawToken
    */
   function verifyClaimFileAccessToken(rawToken) {
@@ -989,19 +1018,21 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           processedAt: requestRow.processed_at ? new Date(requestRow.processed_at).toISOString() : null,
           files: filesResult.rows.map((file) => {
             const fileId = Number(file.id)
+            const storageKey = String(file.storage_key ?? '')
             return {
               id: fileId,
-              storageKey: String(file.storage_key ?? ''),
+              storageKey,
               fileName: String(file.file_name ?? ''),
               contentType: String(file.content_type ?? ''),
               fileSize: Number(file.file_size ?? 0),
               sortOrder: Number(file.sort_order ?? 0),
               uploadedAt: file.uploaded_at ? new Date(file.uploaded_at).toISOString() : null,
-              url: buildClaimFileAccessUrl(req, {
+              url: buildClaimFileOpenUrl(req, {
                 scope: 'agent',
                 fileId,
                 agentId: String(requestRow.agent_id ?? ''),
                 customerId: Number(requestRow.customer_id ?? 0),
+                storageKey,
               }),
               downloadUrl: buildClaimFileAccessUrl(req, {
                 scope: 'agent',
@@ -1724,20 +1755,22 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           processedAt: row.processed_at ? new Date(row.processed_at).toISOString() : null,
           files: filesResult.rows.map((file) => {
             const fileId = Number(file.id)
+            const storageKey = String(file.storage_key ?? '')
             return {
               id: fileId,
-              storageKey: String(file.storage_key ?? ''),
+              storageKey,
               fileName: String(file.file_name ?? ''),
               contentType: String(file.content_type ?? ''),
               fileSize: Number(file.file_size ?? 0),
               sortOrder: Number(file.sort_order ?? 0),
               uploadedAt: file.uploaded_at ? new Date(file.uploaded_at).toISOString() : null,
-              url: buildClaimFileAccessUrl(req, {
+              url: buildClaimFileOpenUrl(req, {
                 scope: 'customer',
                 fileId,
                 agentId: context.agentId,
                 customerId: context.customerId,
                 deviceId: context.deviceId,
+                storageKey,
               }),
               downloadUrl: buildClaimFileAccessUrl(req, {
                 scope: 'customer',
