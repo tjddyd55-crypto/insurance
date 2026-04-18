@@ -48,6 +48,10 @@ function isLocalDevHost(): boolean {
   return host === 'localhost' || host === '127.0.0.1'
 }
 
+function isRailwayHost(host: string): boolean {
+  return host.toLowerCase().endsWith('.up.railway.app')
+}
+
 function resolveApiBasePath(): string {
   // 웹 런타임(http/https)에서는 same-origin API를 기본값으로 강제해
   // 잘못된 VITE_API_URL(다른 환경 API)로 인한 운영 장애를 방지한다.
@@ -57,13 +61,26 @@ function resolveApiBasePath(): string {
 
   if (/^https?:\/\//.test(CONFIGURED_API_BASE_PATH)) {
     try {
-      const configuredOrigin = new URL(CONFIGURED_API_BASE_PATH).origin
+      const configuredUrl = new URL(CONFIGURED_API_BASE_PATH)
+      const configuredOrigin = configuredUrl.origin
       if (configuredOrigin !== window.location.origin) {
         // 로컬 개발 서버(http://localhost:3000)에서만 same-origin 프록시(/backend)를 강제한다.
         // 운영/배포 웹에서는 설정된 절대 API URL을 그대로 사용한다.
         if (isLocalDevHost()) {
           console.warn(
             '[apiClient] cross-origin VITE_API_URL ignored on local web runtime:',
+            CONFIGURED_API_BASE_PATH,
+            '-> /backend',
+          )
+          return '/backend'
+        }
+        const currentHost = String(window.location.hostname ?? '').toLowerCase()
+        const configuredHost = String(configuredUrl.hostname ?? '').toLowerCase()
+        // Railway는 배포/도메인 갱신 시 호스트가 바뀔 수 있으므로,
+        // 절대 API 호스트가 현재 페이지 호스트와 다르면 same-origin을 우선한다.
+        if (isRailwayHost(currentHost) && isRailwayHost(configuredHost)) {
+          console.warn(
+            '[apiClient] stale Railway API host ignored on web runtime:',
             CONFIGURED_API_BASE_PATH,
             '-> /backend',
           )
