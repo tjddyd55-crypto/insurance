@@ -77,9 +77,6 @@ export default function CompanyRegistryPage() {
         tel: e.customerCenter || '',
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-    if (import.meta.env.DEV) {
-      console.log('[company-registry] 2차 옵션(DB만)', { filterKey, count: merged.length })
-    }
     return merged
   }, [selectedType, list])
 

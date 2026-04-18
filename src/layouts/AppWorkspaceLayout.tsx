@@ -24,7 +24,6 @@ import {
 } from '../features/dashboard/gaTenantMenu'
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import { fetchTeamMembers } from '../features/team/api/teamApi'
-import { CarInsuranceDashboardPage } from '../features/application/pages/CarInsuranceDashboardPage'
 import MemoPanel from './MemoPanel'
 import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
 import useIsMobile from '../hooks/useIsMobile'
@@ -166,23 +165,6 @@ function isActivePath(pathname: string, itemPath: string): boolean {
   return pathname === itemPath
 }
 
-/** 자동차 신청 라우트 그룹: 이 경로로 이동하면 임베드 허브를 끄고 라우터 Outlet을 사용한다. */
-function pathnameUsesStandaloneCarInsuranceRoutes(pathname: string): boolean {
-  if (pathname === '/application' || pathname.startsWith('/application/')) {
-    return true
-  }
-  if (pathname.startsWith('/app/auto-insurance')) {
-    return true
-  }
-  if (pathname.startsWith('/my-forms')) {
-    return true
-  }
-  if (pathname.startsWith('/form/')) {
-    return true
-  }
-  return false
-}
-
 function extractCustomerIdFromPath(path: string): string | null {
   const matched = path.match(/^\/(?:customers|customer)\/([^/?#]+)/)
   if (!matched?.[1]) {
@@ -205,7 +187,6 @@ export function MobileLayout() {
 
 /** 인증 라우트 전역: PC/모바일 레이아웃을 완전히 분리해 렌더링한다. */
 export default function AppWorkspaceLayout() {
-  console.log('🔥 AppWorkspaceLayout - INSURANCE RUNNING')
   return <ResponsiveLayout PC={PCLayout} Mobile={MobileLayout} />
 }
 
@@ -388,7 +369,6 @@ function AppWorkspaceLayoutPCShell() {
   const [resizeSession, setResizeSession] = useState<{ startX: number; startWidth: number } | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [selectedCustomerPc, setSelectedCustomerPc] = useState<string | null>(extractCustomerIdFromPath(location.pathname))
-  const [workspaceMode, setWorkspaceMode] = useState<'default' | 'car-hub'>('default')
 
   const sidebarItems = useMemo(() => {
     const base = buildSidebarEntries(user?.role, user?.gaCode, user?.gaName).filter((entry) =>
@@ -408,17 +388,9 @@ function AppWorkspaceLayoutPCShell() {
     return out
   }, [teamMenuManageVisible, user?.role, user?.gaCode, user?.gaName])
 
-  const showEmbeddedCarHub = workspaceMode === 'car-hub' && !pathnameUsesStandaloneCarInsuranceRoutes(location.pathname)
-
-  const sidebarLinkIsActive = useCallback(
-    (pathname: string, itemPath: string) => {
-      if (itemPath === '/application' && showEmbeddedCarHub) {
-        return true
-      }
-      return isActivePath(pathname, itemPath)
-    },
-    [showEmbeddedCarHub],
-  )
+  const sidebarLinkIsActive = useCallback((pathname: string, itemPath: string) => {
+    return isActivePath(pathname, itemPath)
+  }, [])
 
   const onSelectNoteFromList = useCallback((id: string) => {
     setSelectedNoteId(id)
@@ -568,6 +540,11 @@ function AppWorkspaceLayoutPCShell() {
         onBack={() => {
           const resolved = resolveBackRoute(location.pathname, location.search ?? '')
           if (resolved == null) {
+            if (window.history.length > 1) {
+              navigate(-1)
+              return
+            }
+            navigate('/customers')
             return
           }
           if (resolved.kind === 'customer-create-exit') {
@@ -617,11 +594,6 @@ function AppWorkspaceLayoutPCShell() {
                       return
                     }
                     setSelectedCustomerPc(extractCustomerIdFromPath(item.path))
-                    if (item.path === '/application') {
-                      setWorkspaceMode('car-hub')
-                      return
-                    }
-                    setWorkspaceMode('default')
                     navigate(item.path)
                   }}
                 >
@@ -647,26 +619,9 @@ function AppWorkspaceLayoutPCShell() {
         <div
           className="workspace-main workspace-main--app"
           data-selected-customer={selectedCustomerPc ?? ''}
-          data-workspace-mode={workspaceMode}
         >
           <div className="app-main-content app-main-content--workspace-outlet-host">
             <Outlet />
-            {showEmbeddedCarHub ? (
-              <div className="workspace-embedded-car-hub-shell" role="dialog" aria-label="자동차 신청서">
-                <div className="workspace-embedded-car-hub-shell__toolbar">
-                  <FormButton
-                    htmlType="button"
-                    variant="secondary"
-                    onClick={() => setWorkspaceMode('default')}
-                  >
-                    ← 닫기
-                  </FormButton>
-                </div>
-                <div className="workspace-embedded-car-hub-shell__body">
-                  <CarInsuranceDashboardPage />
-                </div>
-              </div>
-            ) : null}
           </div>
         </div>
       </div>

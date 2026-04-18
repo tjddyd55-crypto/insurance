@@ -137,9 +137,6 @@ export function DirectAutoPage() {
           htmlType="button"
           variant="primary"
           className="button button--primary button--full rounded-xl py-3.5 font-medium"
-          onClick={() => {
-            console.log(form)
-          }}
         >
           다음
         </FormButton>

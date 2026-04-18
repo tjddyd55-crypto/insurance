@@ -103,9 +103,6 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const bearer =
     typeof token === 'string' && token.trim() ? `Bearer ${token.trim()}` : ''
   const resolvedUrl = resolveApiUrl(path)
-  if (path === '/api/customer/external-create') {
-    console.log('[apiRequest] fetch', resolvedUrl, rest.method ?? 'GET')
-  }
 
   let response: Response
   try {

@@ -36,8 +36,6 @@ export default function CustomerInputPage() {
   }, [])
 
   async function handleSubmit() {
-    console.log('전송 클릭됨')
-
     if (!refParam) {
       window.alert('잘못된 접근입니다')
       return
@@ -52,7 +50,6 @@ export default function CustomerInputPage() {
       }
     }
 
-    console.log('전송 시작')
     setIsSubmitting(true)
     setNotice('전송 중…')
 

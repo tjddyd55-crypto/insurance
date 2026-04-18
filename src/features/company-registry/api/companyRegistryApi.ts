@@ -8,23 +8,6 @@ import type {
 
 export async function listCompanyDirectory(token: string): Promise<CompanyDirectoryEntry[]> {
   const rows = await apiRequest<CompanyDirectoryEntry[]>('/api/company/list', { token })
-  if (import.meta.env.DEV) {
-    const distinctCategories = [...new Set(rows.map((r) => r.category))].sort()
-    const missingCategory = rows.filter((r) => !String(r.category ?? '').trim()).length
-    console.log('[company-registry] GET /api/company/list', {
-      total: rows.length,
-      missingCategory,
-      categories: distinctCategories,
-      rowCount: rows.length,
-      distinctCategoryCount: distinctCategories.length,
-      distinctCategories,
-      sample: rows.slice(0, 8).map((r) => ({
-        companyCode: r.companyCode,
-        name: r.name,
-        category: r.category,
-      })),
-    })
-  }
   return rows
 }
 

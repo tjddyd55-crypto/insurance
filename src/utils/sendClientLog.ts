@@ -19,7 +19,7 @@ function resolveClientLogUrl(): string {
 
 /**
  * Fire-and-forget POST to server `/client-log` (or VITE_CLIENT_LOG_URL).
- * Safe to call from Web or Electron renderer; failures are swallowed after console.
+ * Safe to call from Web or Electron renderer; failures are swallowed silently.
  */
 export async function sendClientLog(data: ClientLogPayload): Promise<void> {
   const url = resolveClientLogUrl()
@@ -36,6 +36,6 @@ export async function sendClientLog(data: ClientLogPayload): Promise<void> {
       credentials: 'omit',
     })
   } catch {
-    console.log('[client-log] send failed')
+    return
   }
 }

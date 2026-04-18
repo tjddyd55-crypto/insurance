@@ -3,8 +3,8 @@ import { AppLayout } from './AppLayout'
 import { PublicHomeEntry } from './HomeRedirect'
 import { ApplicationFormPage } from './features/application/pages/ApplicationFormPage'
 import { ApplicationListPage } from './features/application/pages/ApplicationListPage'
+import ApplicationPage from './features/application/pages/ApplicationPage'
 import { ApplicationResultPage } from './features/application/pages/ApplicationResultPage'
-import { CarInsuranceDashboardPage } from './features/application/pages/CarInsuranceDashboardPage'
 import { DirectAutoPage } from './features/application/pages/DirectAutoPage'
 import GaDelegateManagementPage from './features/admin/pages/GaDelegateManagementPage'
 import InsurerManagersPage from './features/insurer-managers/pages/InsurerManagersPage'
@@ -145,7 +145,7 @@ export const appRouter = createBrowserRouter([
               {
                 element: <GaCarInsuranceRoute />,
                 children: [
-                  { path: 'application', element: <CarInsuranceDashboardPage /> },
+                  { path: 'application', element: <ApplicationPage /> },
                   { path: 'app/auto-insurance', element: <ApplicationFormPage /> },
                   { path: 'application/direct-auto', element: <DirectAutoPage /> },
                   { path: 'application/write', element: <ApplicationFormPage /> },

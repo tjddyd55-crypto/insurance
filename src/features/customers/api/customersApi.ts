@@ -116,10 +116,6 @@ export async function listCustomers(token: string, limit = 500): Promise<ListCus
         })
         .filter((c): c is CustomerRecord => c != null)
 
-  if (import.meta.env.DEV) {
-    console.log('[listCustomers] refreshed customers:', customers)
-  }
-
   const total =
     totalFromBody != null && Number.isFinite(totalFromBody)
       ? totalFromBody
