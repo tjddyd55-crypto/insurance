@@ -1,8 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { EmptyState, StatusMessage } from '../../../components/feedback'
 import { useConfirmDialog } from '../../../components/dialog'
-import { FormButton, FormInput, FormTextarea } from '../../../components/form'
+import { FormButton } from '../../../components/form'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
@@ -12,7 +11,9 @@ import {
   listCustomerConsultations,
   type CustomerConsultationRow,
 } from '../api/customerExtraApi'
-import { localYmd, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
+import { localYmd } from '../utils/consultationBodyFormat'
+import CustomerConsultationsPageMobile from './detail/CustomerConsultationsPageMobile'
+import CustomerConsultationsPagePC from './detail/CustomerConsultationsPagePC'
 
 export default function CustomerConsultationsPage() {
   const { customerId } = useParams()
@@ -129,73 +130,32 @@ export default function CustomerConsultationsPage() {
   }
 
   return (
-    <div className="content-wrapper page-shell">
-      <StatusMessage message={error} tone="error" className="!mt-0" />
-
-      <section style={{ marginTop: 24 }}>
-        <h2 style={{ fontSize: '1.05rem' }}>상담 기록</h2>
-        <form onSubmit={onSubmitConsultation} style={{ marginBottom: 20 }}>
-          <label style={{ display: 'block', marginBottom: 8 }}>
-            상담 일자{' '}
-            <FormInput type="date" value={consultDate} onChange={(ev) => setConsultDate(ev.target.value)} />
-          </label>
-          <FormTextarea
-            value={body}
-            onChange={(ev) => setBody(ev.target.value)}
-            rows={4}
-            style={{ width: '100%', padding: 8 }}
-            placeholder="상담 내용"
-            maxLength={19500}
-          />
-          <FormButton htmlType="submit" variant="action" disabled={busy} style={{ marginTop: 8 }}>
-            {busy ? '저장 중…' : '상담 추가'}
-          </FormButton>
-        </form>
-        {rows.length === 0 ? (
-          <EmptyState message="등록된 상담이 없습니다." className="!my-0 !text-left" />
-        ) : (
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {rows.map((r) => {
-              const { dateLabel, text } = parseConsultationStoredBody(r.body, r.createdAt)
-              return (
-                <li
-                  key={r.id}
-                  style={{
-                    borderBottom: '1px solid var(--border-default)',
-                    padding: '12px 0',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 8,
-                      marginBottom: 6,
-                    }}
-                  >
-                    <div style={{ fontWeight: 600 }}>{dateLabel}</div>
-                    {!isMobile ? (
-                      <FormButton
-                        htmlType="button"
-                        variant="action"
-                        className="filter-button"
-                        disabled={busy}
-                        onClick={() => void onDeleteConsultation(r.id)}
-                      >
-                        삭제
-                      </FormButton>
-                    ) : null}
-                  </div>
-                  <div style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{text || '—'}</div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </section>
-
+    <>
+      {isMobile ? (
+        <CustomerConsultationsPageMobile
+          error={error}
+          body={body}
+          consultDate={consultDate}
+          busy={busy}
+          rows={rows}
+          onSetBody={setBody}
+          onSetConsultDate={setConsultDate}
+          onSubmit={onSubmitConsultation}
+        />
+      ) : (
+        <CustomerConsultationsPagePC
+          error={error}
+          body={body}
+          consultDate={consultDate}
+          busy={busy}
+          rows={rows}
+          onSetBody={setBody}
+          onSetConsultDate={setConsultDate}
+          onSubmit={onSubmitConsultation}
+          onDelete={onDeleteConsultation}
+        />
+      )}
       {confirmDialog}
-    </div>
+    </>
   )
 }

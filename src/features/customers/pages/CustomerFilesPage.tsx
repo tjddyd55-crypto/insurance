@@ -1,50 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { FormButton } from '../../../components/form'
-import Modal from '../../../components/ui/Modal'
-import useIsMobile from '../../../hooks/useIsMobile'
+import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
-import { listCustomers } from '../api/customersApi'
-import type { CustomerRecord } from '../domain/types'
-import StorageWorkspace from '../../storage/components/StorageWorkspace'
-
-type LocationState = { customerName?: string }
+import CustomerFilesPagePC from './detail/CustomerFilesPagePC'
 
 export default function CustomerFilesPage() {
   const { customerId: customerIdParam } = useParams<{ customerId: string }>()
-  const navigate = useNavigate()
-  const location = useLocation()
   const { user, token } = useAuth()
-  const isMobile = useIsMobile()
 
   const customerId = Number(customerIdParam)
   const validId = Number.isInteger(customerId) && customerId > 0
-
-  const nameFromNav = (location.state as LocationState | null)?.customerName?.trim()
-  const [customers, setCustomers] = useState<CustomerRecord[]>([])
-  const [pickerOpen, setPickerOpen] = useState(false)
-
-  useEffect(() => {
-    if (!isMobile || !token?.trim()) {
-      return
-    }
-    void listCustomers(token)
-      .then((result) => setCustomers(result.customers))
-      .catch(() => setCustomers([]))
-  }, [isMobile, token])
-
-  const customerTitle = useMemo(() => {
-    if (nameFromNav) {
-      return nameFromNav
-    }
-    if (customers.length > 0) {
-      const match = customers.find((customer) => customer.id === customerId)
-      if (match?.name?.trim()) {
-        return match.name.trim()
-      }
-    }
-    return '고객 선택'
-  }, [customerId, customers, nameFromNav])
 
   if (user?.role !== 'USER' && user?.role !== 'GA_ADMIN') {
     return (
@@ -67,52 +30,5 @@ export default function CustomerFilesPage() {
     )
   }
 
-  const customerHeaderMobile = (
-    <div className="storage-customer-header">
-      <>
-        <FormButton htmlType="button" variant="secondary" onClick={() => setPickerOpen(true)}>
-          {customerTitle} ▼
-        </FormButton>
-        <Modal open={pickerOpen} onClose={() => setPickerOpen(false)} ariaLabel="고객 선택" panelClassName="storage-folder-sheet">
-          <div className="storage-folder-sheet__title">고객 선택</div>
-          <div className="storage-folder-sheet__list">
-            {customers.map((customer) => (
-              <FormButton
-                key={customer.id}
-                htmlType="button"
-                variant={customer.id === customerId ? 'primary' : 'secondary'}
-                className="storage-folder-sheet__item"
-                onClick={() => {
-                  setPickerOpen(false)
-                  navigate(`/customer/${customer.id}/files`, {
-                    state: { customerName: customer.name },
-                  })
-                }}
-              >
-                {customer.name}
-              </FormButton>
-            ))}
-          </div>
-        </Modal>
-      </>
-      <div className="storage-customer-header__tabs">
-        <FormButton htmlType="button" variant="primary" onClick={() => navigate(`/customer/${customerId}/files`)}>
-          고객 파일
-        </FormButton>
-        <FormButton htmlType="button" variant="secondary" onClick={() => navigate(`/customer/${customerId}/consults`)}>
-          상담 이력
-        </FormButton>
-      </div>
-    </div>
-  )
-
-  return (
-    <StorageWorkspace
-      token={token}
-      customerId={customerId}
-      title=""
-      subtitle={undefined}
-      headerSlot={isMobile ? customerHeaderMobile : undefined}
-    />
-  )
+  return <CustomerFilesPagePC token={token} customerId={customerId} />
 }

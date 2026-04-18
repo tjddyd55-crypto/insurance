@@ -4,7 +4,6 @@ import { useLayoutEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
-import { resolveBackRoute } from '../navigation/backNavigationPolicy'
 
 const APP_TITLE = '\uBCF4\uD5D8 \uC2E0\uCCAD\u00B7\uACE0\uAC1D\uAD00\uB9AC'
 const BACK_LABEL = '\uB4A4\uB85C\uAC00\uAE30'
@@ -30,24 +29,27 @@ export function ElectronTitleBar() {
   }, [])
 
   const handleBack = () => {
-    const resolved = resolveBackRoute(location.pathname, location.search ?? '')
-    if (resolved == null) {
-      navigate('/')
+    if (window.history.length > 1) {
+      window.history.back()
       return
     }
-    if (resolved.kind === 'customer-create-exit') {
+    if (location.pathname.startsWith('/team')) {
+      navigate('/team')
+      return
+    }
+    if (location.pathname.startsWith('/customers')) {
       navigate('/customers')
       return
     }
-    navigate(resolved.path, resolved.replace ? { replace: true } : undefined)
+    navigate('/')
   }
 
   return (
     <header className="top-title-bar electron-title-bar title-bar" role="banner">
-      <div className="title-left">
+      <div className="title-left no-drag">
         <FormButton
           htmlType="button"
-          className="back-btn"
+          className="back-btn no-drag"
           aria-label={BACK_LABEL}
           onClick={handleBack}
         >
@@ -55,19 +57,21 @@ export function ElectronTitleBar() {
         </FormButton>
       </div>
 
-      <div className="title-center electron-title-bar__drag">
-        <span className="electron-title-bar__app-name">
-          {tenantChrome ? (
-            <span className="electron-title-bar__ga-name">
-              {formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')}
-            </span>
-          ) : (
-            APP_TITLE
-          )}
-        </span>
+      <div className="title-center">
+        <div className="drag-area">
+          <span className="electron-title-bar__app-name">
+            {tenantChrome ? (
+              <span className="electron-title-bar__ga-name">
+                {formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')}
+              </span>
+            ) : (
+              APP_TITLE
+            )}
+          </span>
+        </div>
       </div>
 
-      <div className="title-right">
+      <div className="title-right no-drag">
         <div className="window-controls">
           <FormButton
             htmlType="button"

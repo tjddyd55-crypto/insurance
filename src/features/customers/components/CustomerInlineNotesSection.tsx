@@ -1,5 +1,4 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { FormTextarea, FormButton } from '../../../components/form'
 import { Button } from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
@@ -16,6 +15,10 @@ type Props = {
   customer: CustomerRecord
   token: string | null
   showFileShortcut?: boolean
+  onOpenFilesModal?: (customerId: number) => void
+  onOpenConsultationsModal?: (customerId: number) => void
+  onOpenAutoModal?: (customerId: number) => void
+  onOpenGaModal?: (customerId: number) => void
   onPersisted: (customerId: number, newMemo: CustomerNotesBag) => void | Promise<void>
   onStatusMessage: (msg: string) => void
 }
@@ -24,10 +27,13 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
   customer,
   token,
   showFileShortcut = true,
+  onOpenFilesModal,
+  onOpenConsultationsModal,
+  onOpenAutoModal,
+  onOpenGaModal,
   onPersisted,
   onStatusMessage,
 }: Props) {
-  const navigate = useNavigate()
   const [memoOpen, setMemoOpen] = useState(false)
   const [draft, setDraft] = useState('')
   /** 상담 목록(rows)과 같이 메모만 별도 state — 타이핑·낙관적 반영은 여기서만 처리 */
@@ -196,12 +202,46 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
               variant="secondary"
               className="!px-3 !py-1.5 text-xs shrink-0"
               disabled={!token?.trim()}
-              onClick={(e) => {
-                e.stopPropagation()
-                navigate(`/customer/${customer.id}/files`, { state: { customerName: customer.name } })
+              onClick={() => {
+                if (onOpenFilesModal) {
+                  onOpenFilesModal(customer.id)
+                }
               }}
             >
               파일
+            </Button>
+          ) : null}
+          {onOpenConsultationsModal ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="!px-3 !py-1.5 text-xs shrink-0"
+              disabled={!token?.trim()}
+              onClick={() => onOpenConsultationsModal?.(customer.id)}
+            >
+              상담
+            </Button>
+          ) : null}
+          {onOpenAutoModal ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="!px-3 !py-1.5 text-xs shrink-0"
+              disabled={!token?.trim()}
+              onClick={() => onOpenAutoModal?.(customer.id)}
+            >
+              자동차
+            </Button>
+          ) : null}
+          {onOpenGaModal ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="!px-3 !py-1.5 text-xs shrink-0"
+              disabled={!token?.trim()}
+              onClick={() => onOpenGaModal?.(customer.id)}
+            >
+              GA
             </Button>
           ) : null}
           <Button

@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
   type Dispatch,
   type FormEvent,
   type KeyboardEvent,
@@ -53,72 +54,15 @@ import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPoli
 import { searchCustomersAdvanced } from '../api/customerExtraApi'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { useGaSettings } from '../../ga-settings/useGaSettings'
+import CustomerAutoModal from '../components/mobile/CustomerAutoModal'
+import CustomerConsultationsModal from '../components/mobile/CustomerConsultationsModal'
+import CustomerFilesModal from '../components/mobile/CustomerFilesModal'
+import CustomerGaDataModal from '../components/mobile/CustomerGaDataModal'
+import CustomersPageMobileView from './customers/CustomersPageMobileView'
+import CustomersPagePCView from './customers/CustomersPagePCView'
 
 /** WebView: touchstart·mousedown·합성 click 연속 시 복사/알림 중복 방지 */
 const INVITE_COPY_POINTER_DEBOUNCE_MS = 450
-const MOBILE_CUSTOMERS_UI_STATE_KEY = 'customers-mobile-ui-state:v1'
-
-type MobileCustomersUiState = {
-  expandedCustomerId: number | null
-  scrollY: number
-}
-
-function readMobileCustomersUiState(): MobileCustomersUiState | null {
-  if (typeof window === 'undefined') {
-    return null
-  }
-  try {
-    const raw = window.sessionStorage.getItem(MOBILE_CUSTOMERS_UI_STATE_KEY)
-    if (!raw) {
-      return null
-    }
-    const parsed = JSON.parse(raw) as Partial<MobileCustomersUiState>
-    const expandedCustomerId =
-      typeof parsed.expandedCustomerId === 'number' && Number.isInteger(parsed.expandedCustomerId) && parsed.expandedCustomerId > 0
-        ? parsed.expandedCustomerId
-        : null
-    const scrollY =
-      typeof parsed.scrollY === 'number' && Number.isFinite(parsed.scrollY) && parsed.scrollY >= 0
-        ? parsed.scrollY
-        : 0
-    return { expandedCustomerId, scrollY }
-  } catch {
-    return null
-  }
-}
-
-function writeMobileCustomersUiState(state: MobileCustomersUiState): void {
-  if (typeof window === 'undefined') {
-    return
-  }
-  try {
-    window.sessionStorage.setItem(MOBILE_CUSTOMERS_UI_STATE_KEY, JSON.stringify(state))
-  } catch {
-    return
-  }
-}
-
-function readExpandedCustomerIdFromLocationState(state: unknown): number | null {
-  if (!state || typeof state !== 'object') {
-    return null
-  }
-  const value = (state as { expandedCustomerId?: unknown }).expandedCustomerId
-  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1) {
-    return null
-  }
-  return value
-}
-
-function readScrollYFromLocationState(state: unknown): number | null {
-  if (!state || typeof state !== 'object') {
-    return null
-  }
-  const value = (state as { scrollY?: unknown }).scrollY
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-    return null
-  }
-  return value
-}
 
 /** 오른쪽 작업영역(파일·상담)이 라우트로 고객을 고정할 때 — 카드 접힘과 `?customerId=` 동기화 충돌 방지 */
 function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
@@ -481,10 +425,10 @@ type CustomerListCardProps = {
   onStartEdit: (c: CustomerRecord) => void
   onCancelEdit: () => void
   onDeleteCustomer: (c: CustomerRecord) => void
-  onNavigateToCustomerFiles: (customerId: number, customerName: string) => void
-  onNavigateToCustomerConsults: (customerId: number) => void
-  onNavigateToCustomerAuto: (customerId: number) => void
-  onNavigateToCustomerGa: (customerId: number) => void
+  onOpenFilesModal: (customerId: number) => void
+  onOpenConsultationsModal: (customerId: number) => void
+  onOpenAutoModal: (customerId: number) => void
+  onOpenGaModal: (customerId: number) => void
   token: string | null
   onToggleFavorite: (c: CustomerRecord) => void | Promise<void>
 }
@@ -508,10 +452,10 @@ const CustomerListCard = memo(function CustomerListCard({
   onStartEdit,
   onCancelEdit,
   onDeleteCustomer,
-  onNavigateToCustomerFiles,
-  onNavigateToCustomerConsults,
-  onNavigateToCustomerAuto,
-  onNavigateToCustomerGa,
+  onOpenFilesModal,
+  onOpenConsultationsModal,
+  onOpenAutoModal,
+  onOpenGaModal,
   token,
   onToggleFavorite,
 }: CustomerListCardProps) {
@@ -554,20 +498,6 @@ const CustomerListCard = memo(function CustomerListCard({
   const hasPhone = typeof phone === 'string' && phone.trim() !== ''
   const smsHref = customerPhoneHref(phone, 'sms')
   const telHref = customerPhoneHref(phone, 'tel')
-
-  if (import.meta.env.DEV) {
-    const row = c as CustomerRecord & { phoneNumber?: unknown; phone_number?: unknown }
-    const naivePhone = row.phoneNumber ?? row.phone_number ?? ''
-    console.log('[phone-debug]', {
-      id: c.id,
-      phoneNumber: row.phoneNumber,
-      phone_number: row.phone_number,
-      naiveResolved:
-        typeof naivePhone === 'string' ? naivePhone : naivePhone == null ? '' : String(naivePhone),
-      resolvedPhone: phone,
-      hasPhone,
-    })
-  }
 
   function handleSummaryKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (isSelectMode) {
@@ -1096,7 +1026,7 @@ const CustomerListCard = memo(function CustomerListCard({
                         htmlType="button"
                         variant="secondary"
                         className="button button--secondary"
-                        onClick={() => onNavigateToCustomerFiles(c.id, c.name)}
+                        onClick={() => onOpenFilesModal(c.id)}
                       >
                         고객 파일
                       </FormButton>
@@ -1104,7 +1034,7 @@ const CustomerListCard = memo(function CustomerListCard({
                         htmlType="button"
                         variant="secondary"
                         className="button button--secondary"
-                        onClick={() => onNavigateToCustomerConsults(c.id)}
+                        onClick={() => onOpenConsultationsModal(c.id)}
                       >
                         상담 내역
                       </FormButton>
@@ -1113,7 +1043,7 @@ const CustomerListCard = memo(function CustomerListCard({
                           htmlType="button"
                           variant="secondary"
                           className="button button--secondary"
-                          onClick={() => onNavigateToCustomerAuto(c.id)}
+                          onClick={() => onOpenAutoModal(c.id)}
                         >
                           자동차 신청서
                         </FormButton>
@@ -1123,7 +1053,7 @@ const CustomerListCard = memo(function CustomerListCard({
                           htmlType="button"
                           variant="secondary"
                           className="button button--secondary"
-                          onClick={() => onNavigateToCustomerGa(c.id)}
+                          onClick={() => onOpenGaModal(c.id)}
                         >
                           GA 데이터 보기
                         </FormButton>
@@ -1143,7 +1073,6 @@ export default function CustomersPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const isMobile = useIsMobile()
-  console.log('🔥 CustomersPage - INSURANCE RUNNING')
   const [searchParams, setSearchParams] = useSearchParams()
   /**
    * 고객등록 → 목록: 반드시 replace. setSearchParams({}) / blocker.proceed() 사용 금지(히스토리 중복·이중 POP).
@@ -1164,18 +1093,6 @@ export default function CustomersPage() {
   const [statusText, setStatusText] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const tab = searchParams.get('mode') === 'create' ? 'create' : 'list'
-  const expandedCustomerIdFromLocationState = readExpandedCustomerIdFromLocationState(location.state)
-  const scrollYFromLocationState = readScrollYFromLocationState(location.state)
-  const sessionMobileUiState = isMobile ? readMobileCustomersUiState() : null
-  const initialMobileUiStateRef = useRef<MobileCustomersUiState | null>(
-    isMobile
-      ? {
-          expandedCustomerId:
-            expandedCustomerIdFromLocationState ?? sessionMobileUiState?.expandedCustomerId ?? null,
-          scrollY: scrollYFromLocationState ?? sessionMobileUiState?.scrollY ?? 0,
-        }
-      : null,
-  )
   const selectedCustomerIdFromQuery = useMemo(
     () => parseSelectedCustomerId(searchParams.get('customerId')),
     [searchParams],
@@ -1184,17 +1101,14 @@ export default function CustomersPage() {
     if (selectedCustomerIdFromQuery != null) {
       return selectedCustomerIdFromQuery
     }
-    if (!isMobile) {
-      return null
-    }
-    return initialMobileUiStateRef.current?.expandedCustomerId ?? null
+    return null
   })
-  const pendingMobileRestoreScrollYRef = useRef<number | null>(
-    isMobile ? initialMobileUiStateRef.current?.scrollY ?? null : null,
-  )
-  const mobileUiRestoredRef = useRef(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
+  const [activeMobileModal, setActiveMobileModal] = useState<
+    null | 'files' | 'consultations' | 'auto' | 'ga'
+  >(null)
+  const [activeMobileCustomerId, setActiveMobileCustomerId] = useState<number | null>(null)
   const expandedIdRef = useRef<number | null>(null)
   const editingIdRef = useRef<number | null>(null)
   const editFormRef = useRef<CustomerEditFormState | null>(null)
@@ -1361,9 +1275,6 @@ export default function CustomersPage() {
     try {
       const { customers: rows, total } = await listCustomers(token)
       const safeData = coerceCustomersStatePayload(rows)
-      if (import.meta.env.DEV) {
-        console.log('[CustomersPage] customers after load:', safeData)
-      }
       setCustomers(safeData)
       setCustomersTotalCount(total)
     } catch (error) {
@@ -1689,73 +1600,74 @@ export default function CustomersPage() {
     setEditForm(recordToEditForm(cl))
   }, [])
 
-  const handleNavigateToCustomerFiles = useCallback(
-    (customerId: number, customerName: string) => {
-      const expandedCustomerId = expandedId ?? customerId
-      const scrollY = window.scrollY
-      if (isMobile) {
-        writeMobileCustomersUiState({
-          expandedCustomerId,
-          scrollY,
-        })
+  const openMobileModal = useCallback(
+    (modalType: 'files' | 'consultations' | 'auto' | 'ga', customerId: number) => {
+      if (!isMobile) {
+        return
       }
-      navigate(`/customer/${customerId}/files`, {
-        state: { customerName, expandedCustomerId, scrollY },
-      })
+      setActiveMobileCustomerId(customerId)
+      setActiveMobileModal(modalType)
+      window.history.pushState({ ...(window.history.state ?? {}), modal: true }, '')
     },
-    [expandedId, isMobile, navigate],
+    [isMobile],
   )
 
-  const handleNavigateToCustomerConsults = useCallback(
-    (customerId: number) => {
-      const expandedCustomerId = expandedId ?? customerId
-      const scrollY = window.scrollY
-      if (isMobile) {
-        writeMobileCustomersUiState({
-          expandedCustomerId,
-          scrollY,
-        })
+  const closeMobileModal = useCallback(() => {
+    if (!isMobile || activeMobileModal == null) {
+      return
+    }
+    if (window.history.state?.modal === true) {
+      window.history.back()
+      return
+    }
+    setActiveMobileModal(null)
+    setActiveMobileCustomerId(null)
+  }, [activeMobileModal, isMobile])
+
+  useEffect(() => {
+    if (!isMobile) {
+      return
+    }
+    const handlePopState = () => {
+      if (activeMobileModal != null) {
+        setActiveMobileModal(null)
+        setActiveMobileCustomerId(null)
       }
-      navigate(`/customer/${customerId}/consults`, {
-        state: { expandedCustomerId, scrollY },
-      })
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [activeMobileModal, isMobile])
+
+  const handleOpenFilesModal = useCallback(
+    (customerId: number) => {
+      openMobileModal('files', customerId)
     },
-    [expandedId, isMobile, navigate],
+    [openMobileModal],
   )
 
-  const handleNavigateToCustomerAuto = useCallback(
+  const handleOpenConsultationsModal = useCallback(
     (customerId: number) => {
-      const expandedCustomerId = expandedId ?? customerId
-      const scrollY = window.scrollY
-      if (isMobile) {
-        writeMobileCustomersUiState({
-          expandedCustomerId,
-          scrollY,
-        })
-      }
-      navigate(`/customer/${customerId}/auto`, {
-        state: { expandedCustomerId, scrollY },
-      })
+      openMobileModal('consultations', customerId)
     },
-    [expandedId, isMobile, navigate],
+    [openMobileModal],
   )
 
-  const handleNavigateToCustomerGa = useCallback(
+  const handleOpenAutoModal = useCallback(
     (customerId: number) => {
-      const expandedCustomerId = expandedId ?? customerId
-      const scrollY = window.scrollY
-      if (isMobile) {
-        writeMobileCustomersUiState({
-          expandedCustomerId,
-          scrollY,
-        })
-      }
-      navigate(`/customer/${customerId}/ga`, {
-        state: { expandedCustomerId, scrollY },
-      })
+      openMobileModal('auto', customerId)
     },
-    [expandedId, isMobile, navigate],
+    [openMobileModal],
   )
+
+  const handleOpenGaModal = useCallback(
+    (customerId: number) => {
+      openMobileModal('ga', customerId)
+    },
+    [openMobileModal],
+  )
+
 
   function applyQuickFilter(type: 'AGE_UNDER_30_MALE' | 'AGE_OVER_40_FEMALE') {
     if (type === 'AGE_UNDER_30_MALE') {
@@ -1895,30 +1807,6 @@ export default function CustomersPage() {
     [runCustomerRegisterInviteCopy],
   )
 
-  useEffect(() => {
-    if (!isMobile || tab !== 'list') {
-      return
-    }
-    writeMobileCustomersUiState({
-      expandedCustomerId: expandedId,
-      scrollY: window.scrollY,
-    })
-  }, [expandedId, isMobile, tab])
-
-  useEffect(() => {
-    if (!isMobile || tab !== 'list' || isLoading || mobileUiRestoredRef.current) {
-      return
-    }
-    mobileUiRestoredRef.current = true
-    const restoreY = pendingMobileRestoreScrollYRef.current
-    if (restoreY == null) {
-      return
-    }
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: restoreY, behavior: 'auto' })
-    })
-  }, [isLoading, isMobile, tab])
-
   if (user?.role !== 'USER') {
     return (
       <main className="page page--with-back">
@@ -1929,435 +1817,497 @@ export default function CustomersPage() {
     )
   }
 
-  return (
-    <main
-      className={`page customers-page page--with-back${
-        isSelectMode && tab === 'list' ? ' customers-page--excel-toolbar-pad' : ''
-      }`}
-    >
-      {isSelectMode && tab === 'list' ? (
-        <div className="customers-excel-toolbar" role="region" aria-label="엑셀 다운로드 선택">
-          <p className="customers-excel-toolbar__status">
-            엑셀 선택 중 —「선택 다운로드」는 체크한 고객,「목록 전체 다운로드」는 지금 검색·필터·정렬된 목록만
-          </p>
-          <div className="customers-excel-toolbar__row">
-            <label className="customers-excel-toolbar__select-all">
-              <FormInput
-                ref={selectAllRef}
-                type="checkbox"
-                checked={allVisibleSelected}
-                onChange={() => {
-                  if (allVisibleSelected) {
-                    setSelectedCustomerIds((prev) => prev.filter((id) => !allVisibleIds.includes(id)))
-                  } else {
-                    setSelectedCustomerIds((prev) => [...new Set([...prev, ...allVisibleIds])])
-                  }
-                }}
-              />
-              전체 선택
-            </label>
-            <FormButton htmlType="button" variant="action" className="filter-button" onClick={() => setIsColumnPickerOpen(true)}>
-              컬럼 선택
-            </FormButton>
-            <FormButton htmlType="button" variant="action" className="cta-button" onClick={handleDownloadSelected}>
-              선택 다운로드
-            </FormButton>
-            <FormButton htmlType="button" variant="action" className="cta-button" onClick={handleDownloadListAll}>
-              목록 전체 다운로드
-            </FormButton>
-            <FormButton htmlType="button" variant="action" className="filter-button" onClick={exitExcelSelectMode}>
-              취소
-            </FormButton>
-          </div>
+  const excelToolbarNode =
+    isSelectMode && tab === 'list' ? (
+      <div className="customers-excel-toolbar" role="region" aria-label="엑셀 다운로드 선택">
+        <p className="customers-excel-toolbar__status">
+          엑셀 선택 중 —「선택 다운로드」는 체크한 고객,「목록 전체 다운로드」는 지금 검색·필터·정렬된 목록만
+        </p>
+        <div className="customers-excel-toolbar__row">
+          <label className="customers-excel-toolbar__select-all">
+            <FormInput
+              ref={selectAllRef}
+              type="checkbox"
+              checked={allVisibleSelected}
+              onChange={() => {
+                if (allVisibleSelected) {
+                  setSelectedCustomerIds((prev) => prev.filter((id) => !allVisibleIds.includes(id)))
+                } else {
+                  setSelectedCustomerIds((prev) => [...new Set([...prev, ...allVisibleIds])])
+                }
+              }}
+            />
+            전체 선택
+          </label>
+          <FormButton htmlType="button" variant="action" className="filter-button" onClick={() => setIsColumnPickerOpen(true)}>
+            컬럼 선택
+          </FormButton>
+          <FormButton htmlType="button" variant="action" className="cta-button" onClick={handleDownloadSelected}>
+            선택 다운로드
+          </FormButton>
+          <FormButton htmlType="button" variant="action" className="cta-button" onClick={handleDownloadListAll}>
+            목록 전체 다운로드
+          </FormButton>
+          <FormButton htmlType="button" variant="action" className="filter-button" onClick={exitExcelSelectMode}>
+            취소
+          </FormButton>
         </div>
-      ) : null}
-      <header className="page-header customers-page__header">
-        {tab === 'list' ? (
-          <>
-            {!isSelectMode ? (
-              <div className="customers-page__action-row">
-                <FormButton
-                  htmlType="button"
-                  variant="action"
-                  className="cta-button customers-page__action-btn"
-                  onClick={() => setSearchParams({ mode: 'create' }, { replace: true })}
-                >
-                  고객 등록
-                </FormButton>
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className="cta-button customers-page__action-btn customers-page__invite-copy-btn"
-                  style={{ touchAction: 'manipulation' }}
-                  aria-label="고객 등록 링크 복사"
-                  onTouchStart={onCustomerRegisterInviteCopyTouchStart}
-                  onMouseDown={onCustomerRegisterInviteCopyMouseDown}
-                  onClick={onCustomerRegisterInviteCopyClick}
-                  onKeyDown={onCustomerRegisterInviteCopyKeyDown}
-                >
-                  등록 링크
-                </div>
-                <FormButton
-                  htmlType="button"
-                  variant="action"
-                  className="cta-button customers-page__action-btn"
-                  onClick={() => {
-                    if (isMobile) {
-                      const msg = 'PC 버전에서 가능합니다.'
-                      setStatusText(msg)
-                      window.alert(msg)
-                      return
-                    }
-                    enterExcelSelectMode()
-                  }}
-                >
-                  엑셀 다운로드
-                </FormButton>
-              </div>
-            ) : null}
-            <div className="customers-page__search-row">
-              <FormInput
-                className="search-input customers-page__search-input"
-                type="search"
-                placeholder="이름 / 전화번호 검색"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                autoComplete="off"
-                aria-label="이름 또는 전화번호 검색"
-              />
+      </div>
+    ) : null
+
+  const headerNode = (
+    <header className="page-header customers-page__header">
+      {tab === 'list' ? (
+        <>
+          {!isSelectMode ? (
+            <div className="customers-page__action-row">
               <FormButton
                 htmlType="button"
                 variant="action"
-                className={`px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
-                  favoriteOnly
-                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white'
-                    : 'border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
-                }`}
-                aria-pressed={favoriteOnly}
-                onClick={() => setFavoriteOnly((v) => !v)}
+                className="cta-button customers-page__action-btn"
+                onClick={() => setSearchParams({ mode: 'create' }, { replace: true })}
               >
-                중요 고객
+                고객 등록
               </FormButton>
+              <div
+                role="button"
+                tabIndex={0}
+                className="cta-button customers-page__action-btn customers-page__invite-copy-btn"
+                style={{ touchAction: 'manipulation' }}
+                aria-label="고객 등록 링크 복사"
+                onTouchStart={onCustomerRegisterInviteCopyTouchStart}
+                onMouseDown={onCustomerRegisterInviteCopyMouseDown}
+                onClick={onCustomerRegisterInviteCopyClick}
+                onKeyDown={onCustomerRegisterInviteCopyKeyDown}
+              >
+                등록 링크
+              </div>
               <FormButton
                 htmlType="button"
                 variant="action"
-                className={`customers-page__filter-toggle${showFilters ? ' customers-page__filter-toggle--on' : ''}`}
-                aria-expanded={showFilters}
-                onClick={() => setShowFilters((v) => !v)}
+                className="cta-button customers-page__action-btn"
+                onClick={() => {
+                  if (isMobile) {
+                    const msg = 'PC 버전에서 가능합니다.'
+                    setStatusText(msg)
+                    window.alert(msg)
+                    return
+                  }
+                  enterExcelSelectMode()
+                }}
               >
-                필터
+                엑셀 다운로드
               </FormButton>
             </div>
-          </>
-        ) : (
-          <div className="customers-page__create-nav">
+          ) : null}
+          <div className="customers-page__search-row">
+            <FormInput
+              className="search-input customers-page__search-input"
+              type="search"
+              placeholder="이름 / 전화번호 검색"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              autoComplete="off"
+              aria-label="이름 또는 전화번호 검색"
+            />
             <FormButton
               htmlType="button"
               variant="action"
-              className="link-btn link-btn--compact"
-              onClick={(e) => {
-                e.stopPropagation()
-                setCustomerCreateExitModalOpen(true)
-              }}
+              className={`px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
+                favoriteOnly
+                  ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white'
+                  : 'border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
+              }`}
+              aria-pressed={favoriteOnly}
+              onClick={() => setFavoriteOnly((v) => !v)}
             >
-              ← 고객 목록
+              중요 고객
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="action"
+              className={`customers-page__filter-toggle${showFilters ? ' customers-page__filter-toggle--on' : ''}`}
+              aria-expanded={showFilters}
+              onClick={() => setShowFilters((v) => !v)}
+            >
+              필터
             </FormButton>
           </div>
-        )}
-        {statusText ? <p className="customers-page__status">{statusText}</p> : null}
-      </header>
-
-      {tab === 'create' ? (
-        <>
-          <section className="card" style={{ marginTop: 0 }}>
-            <CustomerForm
-              onStatusMessage={setStatusText}
-              onInternalSaveSuccess={() => {
-                void loadCustomers()
-                navigateToCustomerListReplace()
-              }}
-            />
-          </section>
         </>
       ) : (
-        <section className="list-section" style={{ marginTop: 0 }}>
-          {showFilters ? (
-            <>
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                  marginTop: 8,
-                  fontSize: '0.95rem',
-                }}
-              >
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                  <FormInput
-                    type="checkbox"
-                    checked={deepSearch}
-                    onChange={(e) => setDeepSearch(e.target.checked)}
-                  />
-                  상담·연계 포함 검색 (서버 심층 검색)
-                </label>
-              </div>
-              {advSearchLoading ? (
-                <p
-                  className="text-[var(--text-secondary)]"
-                  style={{ margin: '6px 0 0', fontSize: '0.9rem' }}
-                  role="status"
-                >
-                  심층 검색 중…
-                </p>
-              ) : null}
-
-              <div className="customers-sort-row" role="group" aria-label="목록 정렬 (같은 버튼을 다시 누르면 해제되어 이름 가나다순)">
-                <span className="customers-sort-row__label">정렬</span>
-                <div className="customers-sort-row__buttons filter-group">
-                  <FormButton
-                    htmlType="button"
-                    variant="action"
-                    className={`filter-button${sortType === 'age' ? ' active' : ''}`}
-                    aria-pressed={sortType === 'age'}
-                    onClick={() => setSortType((t) => (t === 'age' ? null : 'age'))}
-                  >
-                    상령일 빠른순
-                  </FormButton>
-                  <FormButton
-                    htmlType="button"
-                    variant="action"
-                    className={`filter-button${sortType === 'car' ? ' active' : ''}`}
-                    aria-pressed={sortType === 'car'}
-                    onClick={() => setSortType((t) => (t === 'car' ? null : 'car'))}
-                  >
-                    자동차 만기순
-                  </FormButton>
-                  <FormButton
-                    htmlType="button"
-                    variant="action"
-                    className={`filter-button${sortType === 'recent' ? ' active' : ''}`}
-                    aria-pressed={sortType === 'recent'}
-                    onClick={() => setSortType((t) => (t === 'recent' ? null : 'recent'))}
-                  >
-                    최근등록
-                  </FormButton>
-                </div>
-              </div>
-
-              <div className="customers-advanced-filters" role="search" aria-label="고급 검색">
-                <div className="customers-advanced-filters__grid">
-                  <label className="customers-advanced-filters__field">
-                    <span>보험나이 최소</span>
-                    <FormInput
-                      type="number"
-                      min={0}
-                      inputMode="numeric"
-                      value={advancedFilters.minInsuranceAge}
-                      onChange={(e) =>
-                        setAdvancedFilters((f) => ({ ...f, minInsuranceAge: e.target.value }))
-                      }
-                    />
-                  </label>
-                  <label className="customers-advanced-filters__field">
-                    <span>보험나이 최대</span>
-                    <FormInput
-                      type="number"
-                      min={0}
-                      inputMode="numeric"
-                      value={advancedFilters.maxInsuranceAge}
-                      onChange={(e) =>
-                        setAdvancedFilters((f) => ({ ...f, maxInsuranceAge: e.target.value }))
-                      }
-                    />
-                  </label>
-                  <label className="customers-advanced-filters__field">
-                    <span>성별</span>
-                    <FormSelect
-                      value={advancedFilters.gender}
-                      onChange={(e) =>
-                        setAdvancedFilters((f) => ({
-                          ...f,
-                          gender: e.target.value as CustomerAdvancedFilters['gender'],
-                        }))
-                      }
-                      options={[
-                        { value: '', label: '전체' },
-                        { value: 'male', label: '남' },
-                        { value: 'female', label: '여' },
-                      ]}
-                    />
-                  </label>
-                </div>
-                <div className="customers-advanced-filters__quick filter-group">
-                  <FormButton
-                    htmlType="button"
-                    variant="action"
-                    className="filter-button"
-                    onClick={() => applyQuickFilter('AGE_UNDER_30_MALE')}
-                  >
-                    30세 이하 남성
-                  </FormButton>
-                  <FormButton
-                    htmlType="button"
-                    variant="action"
-                    className="filter-button"
-                    onClick={() => applyQuickFilter('AGE_OVER_40_FEMALE')}
-                  >
-                    40세 이상 여성
-                  </FormButton>
-                  {advancedFiltersActive ? (
-                    <FormButton
-                      htmlType="button"
-                      variant="action"
-                      className="filter-button"
-                      onClick={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
-                    >
-                      필터 초기화
-                    </FormButton>
-                  ) : null}
-                </div>
-              </div>
-            </>
-          ) : null}
-
-          {!isLoading && customers.length > 0 ? (
-            <p className="customers-filter-result customers-page__result-count" role="status" aria-live="polite">
-              검색·필터 결과:{' '}
-              <span className="customers-page__result-count-strong">
-                <strong>{listIsNarrowed ? sortedCustomers.length : customersTotalCount}</strong>명
-              </span>
-            </p>
-          ) : null}
-
-          {isLoading ? (
-            <div
-              className="customers-page__list-loading"
-              role="status"
-              aria-live="polite"
-              aria-busy="true"
-            >
-              <span className="customers-page__list-loading__text">로딩 중…</span>
-            </div>
-          ) : customers.length === 0 ? (
-            <p className="empty-state">등록된 고객이 없습니다.</p>
-          ) : sortedCustomers.length === 0 ? (
-            <p className="empty-state">
-              {keyword.trim() ||
-              advancedFiltersActive ||
-              favoriteOnly
-                ? favoriteOnly &&
-                      !keyword.trim() &&
-                      !advancedFiltersActive
-                    ? '중요 고객으로 표시된 고객이 없습니다. 카드의 ★로 추가해 보세요.'
-                    : '검색·필터 조건에 맞는 고객이 없습니다.'
-                : '고객이 없습니다.'}
-            </p>
-          ) : (
-            <ul className="record-list customer-expand-list customer-list customers-page__customer-list">
-              {sortedCustomers.map((c) => (
-                <CustomerListCard
-                  key={c.id}
-                  customer={c}
-                  ssnDupHighlight={ssnDupHighlightByCustomerId.get(c.id)}
-                  isSelectMode={isSelectMode}
-                  selectedCustomerIds={selectedCustomerIds}
-                  setSelectedCustomerIds={setSelectedCustomerIds}
-                  expandedId={expandedId}
-                  setExpandedId={setExpandedId}
-                  onSelectCustomer={handleSelectCustomer}
-                  editingId={editingId}
-                  editForm={editForm}
-                  setEditForm={setEditForm}
-                  onEditSubmit={handleEditFormSubmit}
-                  carFeatureEnabled={carFeatureEnabled}
-                  gaExcelEnabled={gaExcelEnabled}
-                  onCopyCustomer={copyCustomer}
-                  onStartEdit={startEdit}
-                  onCancelEdit={cancelEdit}
-                  onDeleteCustomer={handleDeleteCustomer}
-                  onNavigateToCustomerFiles={handleNavigateToCustomerFiles}
-                  onNavigateToCustomerConsults={handleNavigateToCustomerConsults}
-                  onNavigateToCustomerAuto={handleNavigateToCustomerAuto}
-                  onNavigateToCustomerGa={handleNavigateToCustomerGa}
-                  token={token}
-                  onToggleFavorite={handleToggleFavorite}
-                />
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
-
-      {isColumnPickerOpen ? (
-        <div
-          className="modal-overlay"
-          role="presentation"
-          onClick={() => setIsColumnPickerOpen(false)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              setIsColumnPickerOpen(false)
-            }
-          }}
-        >
-          <div
-            className="modal modal-excel-columns"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="excel-columns-title"
-            onClick={(e) => e.stopPropagation()}
+        <div className="customers-page__create-nav">
+          <FormButton
+            htmlType="button"
+            variant="action"
+            className="link-btn link-btn--compact"
+            onClick={(e) => {
+              e.stopPropagation()
+              setCustomerCreateExitModalOpen(true)
+            }}
           >
-            <h3 id="excel-columns-title">엑셀에 포함할 항목</h3>
-            <div className="modal-body">
-              <ul className="modal-excel-columns__list">
-                {EXCEL_COLUMN_META.map((col) => (
-                  <li key={col.id} className="modal-excel-columns__item">
-                    <label>
-                      <FormInput
-                        type="checkbox"
-                        checked={selectedColumns.includes(col.id)}
-                        onChange={() => toggleExcelColumn(col.id)}
-                      />
-                      {col.label}
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="modal-actions">
-              <FormButton htmlType="button" variant="action" className="confirm" onClick={() => setIsColumnPickerOpen(false)}>
-                닫기
+            ← 고객 목록
+          </FormButton>
+        </div>
+      )}
+      {statusText ? <p className="customers-page__status">{statusText}</p> : null}
+    </header>
+  )
+
+  const listBodyNode = (
+    <section className="list-section" style={{ marginTop: 0 }}>
+      {showFilters ? (
+        <>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              marginTop: 8,
+              fontSize: '0.95rem',
+            }}
+          >
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <FormInput
+                type="checkbox"
+                checked={deepSearch}
+                onChange={(e) => setDeepSearch(e.target.checked)}
+              />
+              상담·연계 포함 검색 (서버 심층 검색)
+            </label>
+          </div>
+          {advSearchLoading ? (
+            <p
+              className="text-[var(--text-secondary)]"
+              style={{ margin: '6px 0 0', fontSize: '0.9rem' }}
+              role="status"
+            >
+              심층 검색 중…
+            </p>
+          ) : null}
+
+          <div className="customers-sort-row" role="group" aria-label="목록 정렬 (같은 버튼을 다시 누르면 해제되어 이름 가나다순)">
+            <span className="customers-sort-row__label">정렬</span>
+            <div className="customers-sort-row__buttons filter-group">
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className={`filter-button${sortType === 'age' ? ' active' : ''}`}
+                aria-pressed={sortType === 'age'}
+                onClick={() => setSortType((t) => (t === 'age' ? null : 'age'))}
+              >
+                상령일 빠른순
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className={`filter-button${sortType === 'car' ? ' active' : ''}`}
+                aria-pressed={sortType === 'car'}
+                onClick={() => setSortType((t) => (t === 'car' ? null : 'car'))}
+              >
+                자동차 만기순
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className={`filter-button${sortType === 'recent' ? ' active' : ''}`}
+                aria-pressed={sortType === 'recent'}
+                onClick={() => setSortType((t) => (t === 'recent' ? null : 'recent'))}
+              >
+                최근등록
               </FormButton>
             </div>
           </div>
-        </div>
+
+          <div className="customers-advanced-filters" role="search" aria-label="고급 검색">
+            <div className="customers-advanced-filters__grid">
+              <label className="customers-advanced-filters__field">
+                <span>보험나이 최소</span>
+                <FormInput
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={advancedFilters.minInsuranceAge}
+                  onChange={(e) =>
+                    setAdvancedFilters((f) => ({ ...f, minInsuranceAge: e.target.value }))
+                  }
+                />
+              </label>
+              <label className="customers-advanced-filters__field">
+                <span>보험나이 최대</span>
+                <FormInput
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={advancedFilters.maxInsuranceAge}
+                  onChange={(e) =>
+                    setAdvancedFilters((f) => ({ ...f, maxInsuranceAge: e.target.value }))
+                  }
+                />
+              </label>
+              <label className="customers-advanced-filters__field">
+                <span>성별</span>
+                <FormSelect
+                  value={advancedFilters.gender}
+                  onChange={(e) =>
+                    setAdvancedFilters((f) => ({
+                      ...f,
+                      gender: e.target.value as CustomerAdvancedFilters['gender'],
+                    }))
+                  }
+                  options={[
+                    { value: '', label: '전체' },
+                    { value: 'male', label: '남' },
+                    { value: 'female', label: '여' },
+                  ]}
+                />
+              </label>
+            </div>
+            <div className="customers-advanced-filters__quick filter-group">
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className="filter-button"
+                onClick={() => applyQuickFilter('AGE_UNDER_30_MALE')}
+              >
+                30세 이하 남성
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className="filter-button"
+                onClick={() => applyQuickFilter('AGE_OVER_40_FEMALE')}
+              >
+                40세 이상 여성
+              </FormButton>
+              {advancedFiltersActive ? (
+                <FormButton
+                  htmlType="button"
+                  variant="action"
+                  className="filter-button"
+                  onClick={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
+                >
+                  필터 초기화
+                </FormButton>
+              ) : null}
+            </div>
+          </div>
+        </>
       ) : null}
 
-      {showScrollToTop ? (
-        <FormButton
-          htmlType="button"
-          variant="action"
-          className="scroll-to-top"
-          aria-label="맨 위로 스크롤"
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      {!isLoading && customers.length > 0 ? (
+        <p className="customers-filter-result customers-page__result-count" role="status" aria-live="polite">
+          검색·필터 결과:{' '}
+          <span className="customers-page__result-count-strong">
+            <strong>{listIsNarrowed ? sortedCustomers.length : customersTotalCount}</strong>명
+          </span>
+        </p>
+      ) : null}
+
+      {isLoading ? (
+        <div
+          className="customers-page__list-loading"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
         >
-          ↑
-        </FormButton>
-      ) : null}
-
-      {customerCreateExitModalOpen ? (
-        <ExitConfirmDialog
-          message={MSG_CUSTOMER_CREATE_EXIT}
-          title="등록 이탈 확인"
-          onCancel={() => {
-            setCustomerCreateExitModalOpen(false)
-          }}
-          onConfirm={() => {
-            navigateToCustomerListReplace()
-            setCustomerCreateExitModalOpen(false)
-          }}
-        />
-      ) : null}
-      {confirmDialog}
-    </main>
+          <span className="customers-page__list-loading__text">로딩 중…</span>
+        </div>
+      ) : customers.length === 0 ? (
+        <p className="empty-state">등록된 고객이 없습니다.</p>
+      ) : sortedCustomers.length === 0 ? (
+        <p className="empty-state">
+          {keyword.trim() ||
+          advancedFiltersActive ||
+          favoriteOnly
+            ? favoriteOnly &&
+                !keyword.trim() &&
+                !advancedFiltersActive
+              ? '중요 고객으로 표시된 고객이 없습니다. 카드의 ★로 추가해 보세요.'
+              : '검색·필터 조건에 맞는 고객이 없습니다.'
+            : '고객이 없습니다.'}
+        </p>
+      ) : (
+        <ul className="record-list customer-expand-list customer-list customers-page__customer-list">
+          {sortedCustomers.map((c) => (
+            <CustomerListCard
+              key={c.id}
+              customer={c}
+              ssnDupHighlight={ssnDupHighlightByCustomerId.get(c.id)}
+              isSelectMode={isSelectMode}
+              selectedCustomerIds={selectedCustomerIds}
+              setSelectedCustomerIds={setSelectedCustomerIds}
+              expandedId={expandedId}
+              setExpandedId={setExpandedId}
+              onSelectCustomer={handleSelectCustomer}
+              editingId={editingId}
+              editForm={editForm}
+              setEditForm={setEditForm}
+              onEditSubmit={handleEditFormSubmit}
+              carFeatureEnabled={carFeatureEnabled}
+              gaExcelEnabled={gaExcelEnabled}
+              onCopyCustomer={copyCustomer}
+              onStartEdit={startEdit}
+              onCancelEdit={cancelEdit}
+              onDeleteCustomer={handleDeleteCustomer}
+              onOpenFilesModal={handleOpenFilesModal}
+              onOpenConsultationsModal={handleOpenConsultationsModal}
+              onOpenAutoModal={handleOpenAutoModal}
+              onOpenGaModal={handleOpenGaModal}
+              token={token}
+              onToggleFavorite={handleToggleFavorite}
+            />
+          ))}
+        </ul>
+      )}
+    </section>
   )
+
+  const createBodyNode = (
+    <section className="card" style={{ marginTop: 0 }}>
+      <CustomerForm
+        onStatusMessage={setStatusText}
+        onInternalSaveSuccess={() => {
+          void loadCustomers()
+          navigateToCustomerListReplace()
+        }}
+      />
+    </section>
+  )
+
+  const columnPickerNode =
+    isColumnPickerOpen ? (
+      <div
+        className="modal-overlay"
+        role="presentation"
+        onClick={() => setIsColumnPickerOpen(false)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            setIsColumnPickerOpen(false)
+          }
+        }}
+      >
+        <div
+          className="modal modal-excel-columns"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="excel-columns-title"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 id="excel-columns-title">엑셀에 포함할 항목</h3>
+          <div className="modal-body">
+            <ul className="modal-excel-columns__list">
+              {EXCEL_COLUMN_META.map((col) => (
+                <li key={col.id} className="modal-excel-columns__item">
+                  <label>
+                    <FormInput
+                      type="checkbox"
+                      checked={selectedColumns.includes(col.id)}
+                      onChange={() => toggleExcelColumn(col.id)}
+                    />
+                    {col.label}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="modal-actions">
+            <FormButton htmlType="button" variant="action" className="confirm" onClick={() => setIsColumnPickerOpen(false)}>
+              닫기
+            </FormButton>
+          </div>
+        </div>
+      </div>
+    ) : null
+
+  const scrollTopNode =
+    showScrollToTop ? (
+      <FormButton
+        htmlType="button"
+        variant="action"
+        className="scroll-to-top"
+        aria-label="맨 위로 스크롤"
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      >
+        ↑
+      </FormButton>
+    ) : null
+
+  const createExitConfirmNode =
+    customerCreateExitModalOpen ? (
+      <ExitConfirmDialog
+        message={MSG_CUSTOMER_CREATE_EXIT}
+        title="등록 이탈 확인"
+        onCancel={() => {
+          setCustomerCreateExitModalOpen(false)
+        }}
+        onConfirm={() => {
+          navigateToCustomerListReplace()
+          setCustomerCreateExitModalOpen(false)
+        }}
+      />
+    ) : null
+
+  const mobileDetailModalNode =
+    isMobile && activeMobileCustomerId != null ? (
+      <>
+        {activeMobileModal === 'files' ? (
+          <CustomerFilesModal
+            customerId={activeMobileCustomerId}
+            onClose={closeMobileModal}
+          />
+        ) : null}
+        {activeMobileModal === 'consultations' ? (
+          <CustomerConsultationsModal
+            customerId={activeMobileCustomerId}
+            onClose={closeMobileModal}
+          />
+        ) : null}
+        {activeMobileModal === 'auto' ? (
+          <CustomerAutoModal
+            customerId={activeMobileCustomerId}
+            onClose={closeMobileModal}
+          />
+        ) : null}
+        {activeMobileModal === 'ga' ? (
+          <CustomerGaDataModal
+            customerId={activeMobileCustomerId}
+            onClose={closeMobileModal}
+          />
+        ) : null}
+      </>
+    ) : null
+
+  const bodyNode = (
+    <>
+      {tab === 'create' ? createBodyNode : listBodyNode}
+      {mobileDetailModalNode}
+    </>
+  )
+
+  const viewProps: {
+    isSelectMode: boolean
+    showExcelToolbar: boolean
+    excelToolbarNode: ReactNode
+    headerNode: ReactNode
+    bodyNode: ReactNode
+    columnPickerNode: ReactNode
+    scrollTopNode: ReactNode
+    createExitConfirmNode: ReactNode
+    confirmDialogNode: ReactNode
+  } = {
+    isSelectMode,
+    showExcelToolbar: tab === 'list',
+    excelToolbarNode,
+    headerNode,
+    bodyNode,
+    columnPickerNode,
+    scrollTopNode,
+    createExitConfirmNode,
+    confirmDialogNode: confirmDialog,
+  }
+
+  if (isMobile) {
+    return <CustomersPageMobileView {...viewProps} />
+  }
+  return <CustomersPagePCView {...viewProps} />
 }

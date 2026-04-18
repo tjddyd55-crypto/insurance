@@ -174,8 +174,6 @@ body {
     box-sizing: border-box;
     border-bottom: 1px solid var(--border-default, #2a2a2a);
     background: var(--bg-elevated, #141b26);
-    -webkit-app-region: drag;
-    app-region: drag;
   }
 
   .pc-title-bar .title-left,
@@ -617,9 +615,23 @@ button:focus-visible:not(:disabled) {
   box-sizing: border-box;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
-  -webkit-app-region: drag;
-  app-region: drag;
   overflow: visible;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* Electron titlebar policy: 기본은 클릭 가능, 중앙 drag-area만 drag */
+.electron-title-bar {
+  display: flex;
+  align-items: center;
+}
+
+.electron-title-bar button {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .title-bar.electron-title-bar .title-center {
@@ -670,14 +682,17 @@ button:focus-visible:not(:disabled) {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 35%, transparent);
 }
 
-.electron-title-bar__drag {
+.drag-area {
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 8px;
-  cursor: default;
+  padding: 0 40px;
+  cursor: grab;
+  user-select: none;
+  -webkit-app-region: drag;
+  app-region: drag;
 }
 
 .electron-title-bar__app-name {

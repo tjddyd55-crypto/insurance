@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
-import { EmptyState, LoadingState, StatusMessage } from '../../../components/feedback'
-import { FormButton } from '../../../components/form'
+import { EmptyState, LoadingState } from '../../../components/feedback'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import { useGaSettings } from '../../ga-settings/useGaSettings'
@@ -9,6 +8,8 @@ import {
   fetchCustomerGaExcelData,
   type GaCustomerExcelDataRow,
 } from '../api/gaCustomerExcelApi'
+import CustomerGaExcelPageMobile from './detail/CustomerGaExcelPageMobile'
+import CustomerGaExcelPagePC from './detail/CustomerGaExcelPagePC'
 
 export default function CustomerGaExcelPage() {
   const { customerId: customerIdParam } = useParams()
@@ -98,51 +99,33 @@ export default function CustomerGaExcelPage() {
     return <Navigate to={`/customers?customerId=${customerId}`} replace />
   }
 
-  return (
-    <div className="p-3" style={isMobile ? { maxWidth: 960 } : { maxWidth: 'none', width: '100%' }}>
-      <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-1">GA 고객 데이터</h2>
-      <p className="text-sm text-[var(--text-secondary)] mb-3">
-        업로드는 내정보관리 페이지에서 진행합니다. 여기서는 고객 매핑 결과만 확인할 수 있습니다.
-      </p>
-      <StatusMessage message={error} tone="error" />
-      <StatusMessage message={info} tone="default" />
+  if (isMobile) {
+    return (
+      <CustomerGaExcelPageMobile
+        loading={loading}
+        error={error}
+        info={info}
+        headers={headers}
+        colIds={colIds}
+        sortedRows={sortedRows}
+        sortIdx={sortIdx}
+        sortAsc={sortAsc}
+        onHeaderClick={onHeaderClick}
+      />
+    )
+  }
 
-      {loading ? (
-        <LoadingState message="불러오는 중…" />
-      ) : headers.length === 0 ? (
-        <EmptyState message="표시할 열이 설정되어 있지 않습니다." />
-      ) : (
-        <div className="ga-table-scroll overflow-x-auto border border-[var(--border-default)] rounded-md">
-          <table className="admin-data-table" style={{ minWidth: 400 }}>
-            <thead>
-              <tr>
-                {headers.map((h, idx) => (
-                  <th key={colIds[idx] ?? String(idx)}>
-                    <FormButton
-                      htmlType="button"
-                      variant="action"
-                      className="text-left underline-offset-2 hover:underline text-sm font-semibold !justify-start"
-                      onClick={() => onHeaderClick(idx)}
-                    >
-                      {h}
-                      {sortIdx === idx ? (sortAsc ? ' ▲' : ' ▼') : ''}
-                    </FormButton>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedRows.map((r) => (
-                <tr key={r.rowIndex}>
-                  {colIds.map((cid) => (
-                    <td key={cid}>{r.cells[cid] ?? ''}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+  return (
+    <CustomerGaExcelPagePC
+      loading={loading}
+      error={error}
+      info={info}
+      headers={headers}
+      colIds={colIds}
+      sortedRows={sortedRows}
+      sortIdx={sortIdx}
+      sortAsc={sortAsc}
+      onHeaderClick={onHeaderClick}
+    />
   )
 }

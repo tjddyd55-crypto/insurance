@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../features/auth/AuthProvider'
+import useIsMobile from './useIsMobile'
 import { resolveBackRoute } from '../navigation/backNavigationPolicy'
 
 type GlobalBackMessage = { type?: string }
@@ -19,6 +20,7 @@ type GlobalBackMessage = { type?: string }
 export function useGlobalBackHandler(enabled: boolean) {
   const navigate = useNavigate()
   const location = useLocation()
+  const isMobile = useIsMobile()
   const locationRef = useRef(location)
 
   useEffect(() => {
@@ -26,7 +28,7 @@ export function useGlobalBackHandler(enabled: boolean) {
   }, [location])
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || !isMobile) {
       return
     }
 
@@ -46,9 +48,22 @@ export function useGlobalBackHandler(enabled: boolean) {
       const loc = locationRef.current
       const path = loc.pathname
       const search = loc.search ?? ''
+      const beforeBackEvent = new CustomEvent('insurance-before-global-back', {
+        cancelable: true,
+        detail: { pathname: path, search },
+      })
+      const shouldContinue = window.dispatchEvent(beforeBackEvent)
+      if (!shouldContinue) {
+        return
+      }
 
       const resolved = resolveBackRoute(path, search)
       if (resolved == null) {
+        if (window.history.length > 1) {
+          nav(-1)
+          return
+        }
+        nav('/customers')
         return
       }
       if (resolved.kind === 'customer-create-exit') {
@@ -89,7 +104,7 @@ export function useGlobalBackHandler(enabled: boolean) {
         delete w.__insurance_dispatch_global_back
       }
     }
-  }, [enabled, navigate])
+  }, [enabled, isMobile, navigate])
 }
 
 export function GlobalBackHandlerHost() {
