@@ -16,6 +16,7 @@ import { registerNotificationsApi } from './apis/notificationsApi.js'
 import { registerMemoApi } from './apis/memoApi.js'
 import { registerSuperAdminAnalyticsApi } from './registerSuperAdminAnalyticsApi.js'
 import { registerGaCustomerExcelApi } from './apis/gaCustomerExcelApi.js'
+import { registerCustomerClaimAppApi } from './apis/customerClaimAppApi.js'
 import { recordAnalyticsEvent } from './lib/analyticsEvents.js'
 import { ensureYesterdayAnalyticsAggregated } from './lib/analyticsAggregation.js'
 import { tickAnalyticsAggregationScheduler } from './lib/analyticsScheduler.js'
@@ -1397,6 +1398,286 @@ registerSuperAdminAnalyticsApi(apiRouter, {
   requireSuperAdmin,
   handleDbError,
   systemQuery,
+})
+
+registerCustomerClaimAppApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+  jwtSecret: JWT_SECRET,
+})
+
+/**
+ * 고객 앱 연결 플로우 보조 라우트.
+ * customerClaimAppApi 모듈이 어떤 이유로 등록되지 않아도
+ * "코드 생성/코드 입력" 핵심 플로우는 동작하도록 index에 안전망을 둔다.
+ */
+apiRouter.get('/agent/customer-app-links', requireAuth, async (_req, res) => {
+  res.status(405).json({ message: 'GET이 아니라 POST /agent/customer-app-links 를 사용해 주세요.' })
+})
+
+apiRouter.post('/agent/customer-app-links', requireAuth, async (req, res, next) => {
+  try {
+    const agentId = String(req.user?.id ?? '').trim()
+    if (!agentId) {
+      res.status(401).json({ message: '로그인이 필요합니다.' })
+      return
+    }
+    const gaId = parseGaId(req.user?.gaId)
+    if (gaId == null) {
+      res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
+      return
+    }
+    const requestedCustomerId = Number(req.body?.customerId)
+    let customerId = Number.isInteger(requestedCustomerId) && requestedCustomerId > 0 ? requestedCustomerId : null
+    let customerCode = ''
+    if (customerId == null) {
+      let createdCustomer = null
+      for (let i = 0; i < 10 && createdCustomer == null; i += 1) {
+        const nextCode = `C${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 6).toUpperCase()}`
+        try {
+          const insertCustomer = await pool.query(
+            `
+            INSERT INTO customers (user_id, ga_id, customer_code)
+            VALUES ($1, $2, $3)
+            RETURNING id, customer_code
+            `,
+            [agentId, gaId, nextCode],
+          )
+          createdCustomer = insertCustomer.rows[0]
+        } catch (error) {
+          if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+            continue
+          }
+          throw error
+        }
+      }
+      if (!createdCustomer) {
+        res.status(500).json({ message: '고객코드 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.' })
+        return
+      }
+      customerId = Number(createdCustomer.id)
+      customerCode = String(createdCustomer.customer_code ?? '')
+    } else {
+      const customerCheck = await pool.query(
+        `
+        SELECT id, customer_code
+        FROM customers
+        WHERE id = $1
+          AND ga_id = $2
+        LIMIT 1
+        `,
+        [customerId, gaId],
+      )
+      if (customerCheck.rowCount === 0) {
+        res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+        return
+      }
+      customerCode = String(customerCheck.rows[0]?.customer_code ?? '')
+    }
+
+    const existing = await pool.query(
+      `
+      SELECT id, link_code, status, created_at, expires_at, last_connected_at
+      FROM customer_app_links
+      WHERE agent_id = $1
+        AND customer_id = $2
+        AND status = 'active'
+        AND (expires_at IS NULL OR expires_at > NOW())
+      ORDER BY created_at DESC
+      LIMIT 1
+      `,
+      [agentId, customerId],
+    )
+
+    const baseUrl =
+      String(process.env.CUSTOMER_APP_UNIVERSAL_BASE ?? '').trim() ||
+      `${req.protocol}://${req.get('host')}/customer-app/connect`
+
+    if (existing.rowCount > 0) {
+      const row = existing.rows[0]
+      const deviceCountRow = await pool.query(
+        `
+        SELECT COUNT(*)::int AS c
+        FROM customer_app_devices
+        WHERE agent_id = $1
+          AND customer_id = $2
+          AND status = 'active'
+        `,
+        [agentId, customerId],
+      )
+      res.json({
+        success: true,
+        data: {
+          linkId: Number(row.id),
+          linkCode: String(row.link_code),
+          connectUrl: `insurance://customer-app/connect/${String(row.link_code)}`,
+          universalUrl: `${baseUrl}/${String(row.link_code)}`,
+          customerId,
+          customerCode,
+          status: String(row.status ?? 'active'),
+          createdAt: row.created_at ? new Date(row.created_at).toISOString() : null,
+          expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
+          lastConnectedAt: row.last_connected_at ? new Date(row.last_connected_at).toISOString() : null,
+          deviceCount: Number(deviceCountRow.rows[0]?.c ?? 0),
+        },
+      })
+      return
+    }
+
+    let created = null
+    for (let i = 0; i < 5 && created == null; i += 1) {
+      const linkCode = randomUUID().replace(/-/g, '').slice(0, 18).toUpperCase()
+      try {
+        const insert = await pool.query(
+          `
+          INSERT INTO customer_app_links
+            (agent_id, customer_id, link_code, status, created_by_user_id, created_at, updated_at)
+          VALUES ($1, $2, $3, 'active', $4, NOW(), NOW())
+          RETURNING id, link_code, status, created_at, expires_at, last_connected_at
+          `,
+          [agentId, customerId, linkCode, agentId],
+        )
+        created = insert.rows[0]
+      } catch (error) {
+        if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+          continue
+        }
+        throw error
+      }
+    }
+
+    if (!created) {
+      res.status(500).json({ message: '링크 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.' })
+      return
+    }
+
+    res.status(201).json({
+      success: true,
+      data: {
+        linkId: Number(created.id),
+        linkCode: String(created.link_code),
+        connectUrl: `insurance://customer-app/connect/${String(created.link_code)}`,
+        universalUrl: `${baseUrl}/${String(created.link_code)}`,
+        customerId,
+        customerCode,
+        status: String(created.status ?? 'active'),
+        createdAt: created.created_at ? new Date(created.created_at).toISOString() : null,
+        expiresAt: created.expires_at ? new Date(created.expires_at).toISOString() : null,
+        lastConnectedAt: created.last_connected_at ? new Date(created.last_connected_at).toISOString() : null,
+        deviceCount: 0,
+      },
+    })
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
+
+apiRouter.post('/customer-app/connect', async (req, res, next) => {
+  try {
+    const linkCode = String(req.body?.linkCode ?? '').trim().toUpperCase()
+    const deviceId = String(req.body?.deviceId ?? '').trim()
+    const devicePlatform = String(req.body?.devicePlatform ?? '').trim().slice(0, 20)
+    const appVersion = String(req.body?.appVersion ?? '').trim().slice(0, 30)
+    if (!linkCode || !deviceId) {
+      res.status(400).json({ message: 'linkCode와 deviceId가 필요합니다.' })
+      return
+    }
+    const linkRes = await pool.query(
+      `
+      SELECT id, agent_id, customer_id, status, expires_at
+      FROM customer_app_links
+      WHERE link_code = $1
+      LIMIT 1
+      `,
+      [linkCode],
+    )
+    if (linkRes.rowCount === 0) {
+      res.status(400).json({ message: '유효하지 않은 링크입니다.' })
+      return
+    }
+    const link = linkRes.rows[0]
+    const expired =
+      link.expires_at != null &&
+      Number.isFinite(new Date(String(link.expires_at)).getTime()) &&
+      new Date(String(link.expires_at)).getTime() <= Date.now()
+    if (String(link.status ?? '') !== 'active' || expired) {
+      res.status(400).json({ message: '만료되었거나 비활성화된 링크입니다.' })
+      return
+    }
+    const agentId = String(link.agent_id ?? '').trim()
+    const customerId = Number(link.customer_id)
+
+    await pool.query(
+      `
+      INSERT INTO customer_app_devices
+        (link_id, agent_id, customer_id, device_id, device_platform, app_version, status, connected_at, last_active_at, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, 'active', NOW(), NOW(), NOW(), NOW())
+      ON CONFLICT (device_id, agent_id, customer_id)
+      DO UPDATE SET
+        link_id = EXCLUDED.link_id,
+        device_platform = EXCLUDED.device_platform,
+        app_version = EXCLUDED.app_version,
+        status = 'active',
+        connected_at = NOW(),
+        last_active_at = NOW(),
+        disconnected_at = NULL,
+        updated_at = NOW()
+      `,
+      [Number(link.id), agentId, customerId, deviceId, devicePlatform || null, appVersion || null],
+    )
+
+    await pool.query(
+      `
+      UPDATE customer_app_links
+      SET last_connected_at = NOW(),
+          updated_at = NOW()
+      WHERE id = $1
+      `,
+      [Number(link.id)],
+    )
+
+    const profileRes = await pool.query(
+      `
+      SELECT
+        COALESCE(NULLIF(TRIM(u.display_name), ''), NULLIF(TRIM(u.username), ''), '담당 설계사') AS agent_name,
+        COALESCE(NULLIF(TRIM(c.name), ''), '고객') AS customer_name
+      FROM customers c
+      INNER JOIN users u ON u.id = c.user_id
+      WHERE c.id = $1
+        AND u.id = $2
+      LIMIT 1
+      `,
+      [customerId, agentId],
+    )
+
+    const agentName = String(profileRes.rows[0]?.agent_name ?? '담당 설계사')
+    const customerName = String(profileRes.rows[0]?.customer_name ?? '고객')
+    const appToken = jwt.sign(
+      {
+        kind: 'CUSTOMER_APP',
+        linkId: Number(link.id),
+        agentId,
+        customerId,
+        deviceId,
+      },
+      JWT_SECRET,
+      { expiresIn: '180d' },
+    )
+
+    res.json({
+      success: true,
+      data: {
+        agentId,
+        customerId,
+        agentName,
+        customerName,
+        appToken,
+      },
+    })
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
 })
 
 apiRouter.get('/health', (_req, res) => {

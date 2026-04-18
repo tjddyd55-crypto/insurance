@@ -82,6 +82,7 @@ export function buildGaTenantDashboardMenu(
     path: '/feature-request',
     disabled: true,
   })
+  items.push({ type: 'link', label: '청구 요청', path: '/claim-requests' })
   items.push({ type: 'divider' })
   items.push(
     { type: 'link', label: '팀원리스트', path: '/team/members' },

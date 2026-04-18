@@ -71,6 +71,14 @@ import { LossAdjusterNewsletterPortalLayout } from './features/insurer-news/page
 import MemoRoutePage from './features/memo/pages/MemoRoutePage'
 import MyStoragePage from './features/storage/pages/MyStoragePage'
 import AppWorkspaceLayout from './layouts/AppWorkspaceLayout'
+import ClaimRequestsPage from './features/claim-requests/pages/ClaimRequestsPage'
+import CustomerAppConnectPage from './features/customer-app/pages/CustomerAppConnectPage'
+import CustomerAppHomePage from './features/customer-app/pages/CustomerAppHomePage'
+import CustomerAppRequestComposePage from './features/customer-app/pages/CustomerAppRequestComposePage'
+import CustomerAppRequestsPage from './features/customer-app/pages/CustomerAppRequestsPage'
+import CustomerAppRequestDetailPage from './features/customer-app/pages/CustomerAppRequestDetailPage'
+import CustomerAppNewsListPage from './features/customer-app/pages/CustomerAppNewsListPage'
+import CustomerAppNewsDetailPage from './features/customer-app/pages/CustomerAppNewsDetailPage'
 
 export const appRouter = createBrowserRouter([
   {
@@ -88,6 +96,14 @@ export const appRouter = createBrowserRouter([
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /api/customer/external-create + ref·ga 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },
       { path: 'customer/register', element: <CustomerRegisterPage /> },
+      { path: 'customer-app', element: <CustomerAppConnectPage /> },
+      { path: 'customer-app/connect/:linkCode', element: <CustomerAppConnectPage /> },
+      { path: 'customer-app/home', element: <CustomerAppHomePage /> },
+      { path: 'customer-app/requests/new', element: <CustomerAppRequestComposePage /> },
+      { path: 'customer-app/requests', element: <CustomerAppRequestsPage /> },
+      { path: 'customer-app/requests/:requestId', element: <CustomerAppRequestDetailPage /> },
+      { path: 'customer-app/news', element: <CustomerAppNewsListPage /> },
+      { path: 'customer-app/news/:newsId', element: <CustomerAppNewsDetailPage /> },
       { path: 'portal/insurer-news', element: <Navigate to="/insurer/news" replace /> },
       { path: 'portal/insurer-news/*', element: <Navigate to="/insurer/news" replace /> },
       {
@@ -190,6 +206,7 @@ export const appRouter = createBrowserRouter([
               { path: 'profile', element: <ProfilePage /> },
               { path: 'account/reset', element: <AccountResetPage /> },
               { path: 'feature-request', element: <FeatureRequestPage /> },
+              { path: 'claim-requests', element: <ClaimRequestsPage /> },
               { path: 'feature-requests/my', element: <Navigate to="/feature-request" replace /> },
               {
                 element: <SuperAdminRoute />,

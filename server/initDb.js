@@ -301,6 +301,270 @@ async function ensureLossAdjusterCompanyFkOnDeleteSetNull(executor) {
   `)
 }
 
+/**
+ * 고객 청구 요청 앱(STEP 1) 스키마:
+ * - 링크/디바이스 연결
+ * - 요청/요청 첨부
+ * - 푸시 토큰
+ * - 소식지 읽음
+ * - 감사/상태 이력 로그
+ */
+async function ensureCustomerClaimAppSchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS agent_app_link_targets (
+      agent_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_app_link_targets_customer
+    ON agent_app_link_targets(customer_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_agent_app_link_targets_ga
+    ON agent_app_link_targets(ga_id)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS customer_app_links (
+      id BIGSERIAL PRIMARY KEY,
+      agent_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      link_code VARCHAR(64) NOT NULL UNIQUE,
+      status VARCHAR(20) NOT NULL DEFAULT 'active',
+      created_by_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at TIMESTAMPTZ,
+      last_connected_at TIMESTAMPTZ
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE customer_app_links
+    DROP CONSTRAINT IF EXISTS customer_app_links_status_check
+  `)
+  await executor.query(`
+    ALTER TABLE customer_app_links
+    ADD CONSTRAINT customer_app_links_status_check
+    CHECK (status IN ('active', 'inactive', 'expired', 'revoked'))
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_app_links_agent_customer
+    ON customer_app_links(agent_id, customer_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_app_links_status
+    ON customer_app_links(status)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS customer_app_devices (
+      id BIGSERIAL PRIMARY KEY,
+      link_id BIGINT NOT NULL REFERENCES customer_app_links(id) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      device_id VARCHAR(191) NOT NULL,
+      device_platform VARCHAR(20),
+      app_version VARCHAR(30),
+      status VARCHAR(20) NOT NULL DEFAULT 'active',
+      connected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_active_at TIMESTAMPTZ,
+      disconnected_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE customer_app_devices
+    DROP CONSTRAINT IF EXISTS customer_app_devices_status_check
+  `)
+  await executor.query(`
+    ALTER TABLE customer_app_devices
+    ADD CONSTRAINT customer_app_devices_status_check
+    CHECK (status IN ('active', 'inactive', 'disconnected'))
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_customer_app_devices_agent_customer_device
+    ON customer_app_devices(device_id, agent_id, customer_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_app_devices_agent_customer
+    ON customer_app_devices(agent_id, customer_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_app_devices_status
+    ON customer_app_devices(status)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_app_devices_last_active
+    ON customer_app_devices(last_active_at DESC)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS customer_claim_requests (
+      id BIGSERIAL PRIMARY KEY,
+      agent_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      device_id VARCHAR(191) NOT NULL,
+      request_type VARCHAR(30) NOT NULL DEFAULT 'claim',
+      status VARCHAR(20) NOT NULL DEFAULT 'requested',
+      title VARCHAR(150),
+      memo TEXT,
+      submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      processed_at TIMESTAMPTZ,
+      processed_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE customer_claim_requests
+    DROP CONSTRAINT IF EXISTS customer_claim_requests_status_check
+  `)
+  await executor.query(`
+    ALTER TABLE customer_claim_requests
+    ADD CONSTRAINT customer_claim_requests_status_check
+    CHECK (status IN ('requested', 'processing', 'done', 'rejected', 'canceled'))
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_claim_requests_agent_customer
+    ON customer_claim_requests(agent_id, customer_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_claim_requests_status
+    ON customer_claim_requests(status)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_claim_requests_submitted_at
+    ON customer_claim_requests(submitted_at DESC)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS customer_claim_request_files (
+      id BIGSERIAL PRIMARY KEY,
+      request_id BIGINT NOT NULL REFERENCES customer_claim_requests(id) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      storage_key VARCHAR(255) NOT NULL,
+      file_name VARCHAR(255) NOT NULL,
+      content_type VARCHAR(100),
+      file_size BIGINT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_claim_request_files_request
+    ON customer_claim_request_files(request_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_claim_request_files_agent_customer
+    ON customer_claim_request_files(agent_id, customer_id)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS customer_app_push_tokens (
+      id BIGSERIAL PRIMARY KEY,
+      agent_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      device_id VARCHAR(191) NOT NULL,
+      push_provider VARCHAR(30) NOT NULL,
+      push_token VARCHAR(255) NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'active',
+      last_registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE customer_app_push_tokens
+    DROP CONSTRAINT IF EXISTS customer_app_push_tokens_status_check
+  `)
+  await executor.query(`
+    ALTER TABLE customer_app_push_tokens
+    ADD CONSTRAINT customer_app_push_tokens_status_check
+    CHECK (status IN ('active', 'inactive'))
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_customer_app_push_tokens_push_token
+    ON customer_app_push_tokens(push_token)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_app_push_tokens_agent_customer
+    ON customer_app_push_tokens(agent_id, customer_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_app_push_tokens_device
+    ON customer_app_push_tokens(device_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_app_push_tokens_status
+    ON customer_app_push_tokens(status)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS customer_news_reads (
+      id BIGSERIAL PRIMARY KEY,
+      news_id BIGINT NOT NULL,
+      agent_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      read_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_customer_news_reads_news_customer
+    ON customer_news_reads(news_id, customer_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_news_reads_agent_customer
+    ON customer_news_reads(agent_id, customer_id)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS customer_link_audit_logs (
+      id BIGSERIAL PRIMARY KEY,
+      agent_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      device_id VARCHAR(191),
+      link_code VARCHAR(64),
+      action VARCHAR(30) NOT NULL,
+      result VARCHAR(20) NOT NULL,
+      reason VARCHAR(255),
+      meta_json JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_link_audit_logs_created
+    ON customer_link_audit_logs(created_at DESC)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_link_audit_logs_agent_customer
+    ON customer_link_audit_logs(agent_id, customer_id)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS customer_claim_status_logs (
+      id BIGSERIAL PRIMARY KEY,
+      request_id BIGINT NOT NULL REFERENCES customer_claim_requests(id) ON DELETE CASCADE,
+      from_status VARCHAR(20),
+      to_status VARCHAR(20) NOT NULL,
+      changed_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      memo VARCHAR(255)
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_claim_status_logs_request
+    ON customer_claim_status_logs(request_id, changed_at DESC)
+  `)
+}
+
 export async function initDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -670,6 +934,23 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE customers
     ADD COLUMN IF NOT EXISTS birth_date DATE
+  `)
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS customer_code VARCHAR(50)
+  `)
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'customers_customer_code_key'
+      ) THEN
+        ALTER TABLE customers
+        ADD CONSTRAINT customers_customer_code_key UNIQUE (customer_code);
+      END IF;
+    END $$;
   `)
 
   await pool.query(`
@@ -2113,6 +2394,30 @@ export async function initDb() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_analytics_daily_stat_date
     ON analytics_daily_stats(stat_date)
+  `)
+
+  await ensureCustomerClaimAppSchema(pool)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_claim_requests (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL,
+      ga_id INTEGER NOT NULL,
+      title TEXT,
+      content TEXT,
+      status VARCHAR(20) DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    );
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_claim_files (
+      id SERIAL PRIMARY KEY,
+      claim_request_id INTEGER REFERENCES customer_claim_requests(id) ON DELETE CASCADE,
+      file_url TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
   `)
 
   await pool.query(`
