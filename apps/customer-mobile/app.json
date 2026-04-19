@@ -33,14 +33,9 @@
     "web": {
       "favicon": "../mobile/assets/favicon.png"
     },
-    "updates": {
-      "url": "https://u.expo.dev/46c22c3a-0cf3-4a85-b877-908dab8116fe"
-    },
     "runtimeVersion": "production",
-    "extra": {
-      "eas": {
-        "projectId": "46c22c3a-0cf3-4a85-b877-908dab8116fe"
-      }
+    "updates": {
+      "fallbackToCacheTimeout": 0
     }
   }
 }
