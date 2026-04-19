@@ -6,9 +6,9 @@ export type DownloadLinkMap = {
 }
 
 const DEFAULT_DOWNLOAD_LINKS: DownloadLinkMap = Object.freeze({
-  pc: 'https://cdn.platform-assets.com/insurer/download/InsuranceApp%20Setup%201.0.6.exe',
+  pc: 'https://cdn.platform-assets.com/insurer/download/InsuranceApp%20Setup%201.0.7.exe',
   fcMobile: 'https://cdn.platform-assets.com/insurer/download/FC-app-release.apk',
-  customerApp: 'https://cdn.platform-assets.com/insurer/download/app-release.apk',
+  customerApp: 'https://cdn.platform-assets.com/insurer/download/customer-app-release.apk',
   sampleExcel: '',
 })
 

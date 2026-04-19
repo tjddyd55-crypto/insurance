@@ -357,7 +357,7 @@
 
 .intro-install-hero {
   background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
-  padding: 64px 0;
+  padding: 64px 0 56px;
   text-align: center;
 }
 
@@ -369,13 +369,14 @@
 }
 
 .intro-install-hero p {
-  margin: 8px 0 0;
+  margin: 0;
   font-size: 20px;
+  line-height: 1.62;
   color: #6b7280;
 }
 
 .intro-install-hero__actions {
-  margin-top: 28px;
+  margin-top: 24px;
   display: flex;
   gap: 12px;
   justify-content: center;
@@ -389,15 +390,33 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 46px;
-  border-radius: 12px;
-  padding: 0 18px;
-  font-size: 15px;
-  font-weight: 700;
+  min-height: 48px;
+  border-radius: 14px;
+  padding: 0 24px;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 600;
   text-decoration: none;
   border: 1px solid transparent;
   background: #2563eb;
   color: #fff;
+  transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
+}
+
+.intro-install-hero__actions a:hover,
+.intro-install-download-card a:hover,
+.intro-install-upload-box a:hover,
+.intro-install-cta__actions a:hover {
+  background: #1d4ed8;
+}
+
+.intro-install-hero__actions a:focus-visible,
+.intro-install-download-card a:focus-visible,
+.intro-install-upload-box a:focus-visible,
+.intro-install-cta__actions a:focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.2);
 }
 
 .intro-install-hero__actions a.is-customer,
@@ -405,8 +424,13 @@
   background: #00bc7d;
 }
 
+.intro-install-hero__actions a.is-customer:hover,
+.intro-install-download-card--customer a:hover {
+  background: #009f68;
+}
+
 .intro-install-section {
-  padding: 64px 0;
+  padding: 72px 0;
 }
 
 .intro-install-section--soft {
@@ -415,18 +439,20 @@
 
 .intro-install-title {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 48px;
 }
 
 .intro-install-title h2 {
   margin: 0;
   font-size: 36px;
+  line-height: 1.1;
   font-weight: 800;
 }
 
 .intro-install-title p {
-  margin: 10px 0 0;
+  margin: 16px 0 0;
   font-size: 18px;
+  line-height: 1.55;
   color: #6b7280;
 }
 
@@ -437,22 +463,104 @@
 }
 
 .intro-install-download-card {
+  height: 264px;
+  display: flex;
+  flex-direction: column;
   border: 2px solid #e5e7eb;
   border-radius: 16px;
   background: #fff;
-  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.08);
-  padding: 28px;
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 32px;
+}
+
+.intro-install-download-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  min-height: 56px;
+}
+
+.intro-install-download-card__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.intro-install-download-card__icon span {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.intro-install-download-card__icon.is-customer {
+  background: linear-gradient(135deg, #00bc7d 0%, #00a63e 100%);
+}
+
+.intro-install-download-card__title-wrap {
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.intro-install-download-card__badge {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1447e6;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .intro-install-download-card h3 {
-  margin: 0 0 10px;
-  font-size: 22px;
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 700;
 }
 
 .intro-install-download-card p {
-  margin: 0 0 18px;
+  margin: 16px 0 0;
   color: #6b7280;
-  line-height: 1.6;
+  font-size: 16px;
+  line-height: 1.625;
+  min-height: 52px;
+}
+
+.intro-install-download-card a {
+  width: 100%;
+  min-height: 48px;
+  margin-top: auto;
+  padding: 0 18px;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 14px;
+  background: #2563eb;
+  font-weight: 600;
+}
+
+.intro-install-download-card__btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 16px;
+  line-height: 1;
+  transform: translateY(-1px);
 }
 
 .intro-install-guide-grid {
@@ -462,16 +570,20 @@
 }
 
 .intro-install-guide-card {
+  height: 540px;
+  display: flex;
+  flex-direction: column;
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 28px;
+  padding: 33px;
 }
 
 .intro-install-guide-card h3 {
-  margin: 0 0 16px;
-  font-size: 22px;
+  margin: 0 0 24px;
+  font-size: 20px;
+  line-height: 1.4;
 }
 
 .intro-install-guide-card ol {
@@ -480,38 +592,46 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+  flex: 1 1 auto;
 }
 
 .intro-install-guide-card li {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  line-height: 1.65;
+  gap: 12px;
+  line-height: 1.62;
+  font-size: 16px;
+  color: #111827;
 }
 
 .intro-install-guide-card li span {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
   background: #2563eb;
   color: #fff;
-  font-size: 12px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: 0;
 }
 
 .intro-install-guide-note {
-  margin-top: 18px;
-  padding: 12px;
-  border-radius: 10px;
+  margin-top: 24px;
+  min-height: 76px;
+  padding: 14px 16px;
+  border-radius: 12px;
   background: #eff6ff;
   color: #1d4ed8;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.54;
+  display: flex;
+  align-items: center;
 }
 
 .intro-install-alert {
@@ -606,6 +726,16 @@
   .intro-install-download-grid,
   .intro-install-guide-grid {
     grid-template-columns: 1fr;
+  }
+
+  .intro-install-download-card {
+    height: auto;
+    min-height: 264px;
+  }
+
+  .intro-install-guide-card {
+    height: auto;
+    min-height: 520px;
   }
 
   .intro-install-title h2 {

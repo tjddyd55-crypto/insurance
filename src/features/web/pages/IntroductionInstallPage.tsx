@@ -91,6 +91,39 @@ const FC_MOBILE_STEPS = [
   '설치 완료 후 앱 실행 후 로그인한다',
 ]
 
+const DOWNLOAD_CARDS = [
+  {
+    key: 'pc',
+    title: 'PC 버전 다운로드',
+    description: 'Windows에서 설치 후 바로 사용할 수 있는 프로그램입니다',
+    href: DOWNLOAD_LINKS.pc,
+    buttonLabel: 'PC 다운로드',
+    badge: '설계사용',
+    icon: 'PC',
+    customer: false,
+  },
+  {
+    key: 'fc',
+    title: '모바일 APK 다운로드',
+    description: '안드로이드 휴대폰에 직접 설치하는 파일입니다',
+    href: DOWNLOAD_LINKS.fcMobile,
+    buttonLabel: 'APK 다운로드',
+    badge: '설계사용',
+    icon: 'APK',
+    customer: false,
+  },
+  {
+    key: 'customer',
+    title: '고객앱 다운로드',
+    description: '고객이 소식 확인, 청구 요청, 자료 확인에 사용하는 전용 앱',
+    href: DOWNLOAD_LINKS.customerApp,
+    buttonLabel: '고객앱 다운로드',
+    badge: null,
+    icon: 'APP',
+    customer: true,
+  },
+] as const
+
 export function IntroductionInstallPage() {
   return (
     <main className="intro-install">
@@ -115,21 +148,27 @@ export function IntroductionInstallPage() {
             <p>사용 환경에 맞는 버전을 선택하세요</p>
           </header>
           <div className="intro-install-download-grid">
-            <article className="intro-install-download-card">
-              <h3>PC 버전 다운로드</h3>
-              <p>Windows에서 설치 후 바로 사용할 수 있는 프로그램</p>
-              <a href={DOWNLOAD_LINKS.pc} target="_blank" rel="noreferrer">PC 다운로드</a>
-            </article>
-            <article className="intro-install-download-card">
-              <h3>모바일 APK 다운로드</h3>
-              <p>설계사(FC)가 사용하는 안드로이드 모바일 앱</p>
-              <a href={DOWNLOAD_LINKS.fcMobile} target="_blank" rel="noreferrer">FC용 다운로드</a>
-            </article>
-            <article className="intro-install-download-card intro-install-download-card--customer">
-              <h3>고객앱 다운로드</h3>
-              <p>고객이 소식 확인, 청구 요청, 자료 확인에 사용하는 전용 앱</p>
-              <a href={DOWNLOAD_LINKS.customerApp} target="_blank" rel="noreferrer">고객앱 다운로드</a>
-            </article>
+            {DOWNLOAD_CARDS.map((card) => (
+              <article
+                key={card.key}
+                className={`intro-install-download-card${card.customer ? ' intro-install-download-card--customer' : ''}`}
+              >
+                <div className="intro-install-download-card__head">
+                  <div className={`intro-install-download-card__icon${card.customer ? ' is-customer' : ''}`}>
+                    <span>{card.icon}</span>
+                  </div>
+                  <div className="intro-install-download-card__title-wrap">
+                    <h3>{card.title}</h3>
+                    {card.badge ? <span className="intro-install-download-card__badge">{card.badge}</span> : null}
+                  </div>
+                </div>
+                <p>{card.description}</p>
+                <a href={card.href} target="_blank" rel="noreferrer">
+                  <span className="intro-install-download-card__btn-icon" aria-hidden="true">↓</span>
+                  {card.buttonLabel}
+                </a>
+              </article>
+            ))}
           </div>
         </div>
       </section>
