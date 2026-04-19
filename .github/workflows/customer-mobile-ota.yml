@@ -31,7 +31,7 @@ jobs:
         run: npm install -g eas-cli
 
       - name: Ensure EAS project is initialized
-        run: eas project:info --non-interactive || eas project:init --non-interactive
+        run: eas project:info --non-interactive || eas project:init --non-interactive --force
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
