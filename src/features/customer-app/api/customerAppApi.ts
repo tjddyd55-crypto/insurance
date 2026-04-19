@@ -1,4 +1,10 @@
-import { apiRequest, resolveApiUrl } from '../../../lib/apiClient'
+import { ApiError, apiRequest, resolveApiUrl } from '../../../lib/apiClient'
+import {
+  readCustomerAppProfile,
+  readCustomerAppSession,
+  resolveCustomerDeviceId,
+  writeCustomerAppSession,
+} from '../session/customerAppSession'
 
 export interface CustomerAppConnectResponse {
   agentId: string
@@ -16,6 +22,13 @@ export interface CustomerAppMe {
   customerName: string
   status: string
   lastConnectedAt: string | null
+}
+
+export interface CustomerAppProfile {
+  name: string
+  birthDate: string
+  phone: string
+  savedAt: string | null
 }
 
 export interface CustomerAppClaimFilePresign {
@@ -72,6 +85,9 @@ export interface CustomerAppNewsListItem {
   updatedAt: string | null
   isRead: boolean
   isPinned: boolean
+  heroImageUrl?: string | null
+  scope?: 'all' | 'personal'
+  targetCustomerId?: number | null
 }
 
 export interface CustomerAppNewsDetail {
@@ -80,13 +96,31 @@ export interface CustomerAppNewsDetail {
   content: string
   updatedAt: string | null
   isPinned: boolean
+  heroImageUrl?: string | null
+  attachments?: Array<{
+    id: string
+    kind: 'image' | 'file'
+    url: string
+    fileName: string
+    sortOrder: number
+    objectKey?: string
+    mimeType?: string
+    size?: number
+  }>
 }
 
-export async function connectCustomerApp(payload: {
+let reconnectTask: Promise<string | null> | null = null
+
+async function connectCustomerAppInternal(payload: {
   linkCode: string
   deviceId: string
   devicePlatform: string
   appVersion: string
+  requester: {
+    name: string
+    birthDate: string
+    phone: string
+  }
 }): Promise<CustomerAppConnectResponse> {
   const response = await apiRequest<{ success: true; data: CustomerAppConnectResponse }>('/api/customer-app/connect', {
     method: 'POST',
@@ -95,22 +129,133 @@ export async function connectCustomerApp(payload: {
   return response as CustomerAppConnectResponse
 }
 
+async function reconnectCustomerSession(): Promise<string | null> {
+  if (reconnectTask) {
+    return reconnectTask
+  }
+  reconnectTask = (async () => {
+    const session = readCustomerAppSession()
+    const profile = readCustomerAppProfile()
+    const linkCode = String(session?.linkCode ?? '').trim().toUpperCase()
+    if (!session || !profile || !linkCode) {
+      return null
+    }
+    const deviceId = resolveCustomerDeviceId()
+    const connected = await connectCustomerAppInternal({
+      linkCode,
+      deviceId,
+      devicePlatform: /android/i.test(navigator.userAgent)
+        ? 'android'
+        : /iphone|ipad|ipod/i.test(navigator.userAgent)
+          ? 'ios'
+          : 'web',
+      appVersion: 'web-1.0.0',
+      requester: {
+        name: profile.name,
+        birthDate: profile.birthDate,
+        phone: profile.phone,
+      },
+    })
+    writeCustomerAppSession({
+      ...session,
+      appToken: connected.appToken,
+      agentId: connected.agentId,
+      customerId: connected.customerId,
+      deviceId,
+      agentName: connected.agentName,
+      customerName: connected.customerName,
+      linkCode,
+      requesterName: profile.name,
+      requesterBirthDate: profile.birthDate,
+      requesterPhone: profile.phone,
+    })
+    return connected.appToken
+  })()
+  try {
+    return await reconnectTask
+  } finally {
+    reconnectTask = null
+  }
+}
+
+async function customerAppApiRequest<T>(
+  path: string,
+  appToken: string,
+  options: Omit<RequestInit, 'headers'> & { headers?: HeadersInit } = {},
+): Promise<T> {
+  try {
+    return await apiRequest<T>(path, {
+      ...options,
+      token: appToken,
+    })
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      const renewed = await reconnectCustomerSession()
+      if (renewed) {
+        return await apiRequest<T>(path, {
+          ...options,
+          token: renewed,
+        })
+      }
+    }
+    throw error
+  }
+}
+
+export async function connectCustomerApp(payload: {
+  linkCode: string
+  deviceId: string
+  devicePlatform: string
+  appVersion: string
+  requester: {
+    name: string
+    birthDate: string
+    phone: string
+  }
+}): Promise<CustomerAppConnectResponse> {
+  return connectCustomerAppInternal(payload)
+}
+
 export async function getCustomerAppMe(appToken: string): Promise<CustomerAppMe> {
-  const response = await apiRequest<{ success: true; data: CustomerAppMe }>('/api/customer-app/me', {
-    token: appToken,
-  })
+  const response = await customerAppApiRequest<{ success: true; data: CustomerAppMe }>(
+    '/api/customer-app/me',
+    appToken,
+  )
   return response as CustomerAppMe
+}
+
+export async function getCustomerAppProfile(appToken: string): Promise<CustomerAppProfile | null> {
+  const response = await customerAppApiRequest<{ success: true; data: CustomerAppProfile | null }>(
+    '/api/customer-app/profile',
+    appToken,
+  )
+  return response as CustomerAppProfile | null
+}
+
+export async function saveCustomerAppProfile(
+  appToken: string,
+  payload: { name: string; birthDate: string; phone: string },
+): Promise<CustomerAppProfile> {
+  const response = await customerAppApiRequest<{ success: true; data: CustomerAppProfile }>(
+    '/api/customer-app/profile',
+    appToken,
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    },
+  )
+  return response as CustomerAppProfile
 }
 
 export async function requestClaimFilePresign(
   appToken: string,
   payload: { fileName: string; contentType: string; fileSize: number },
 ): Promise<CustomerAppClaimFilePresign> {
-  const response = await apiRequest<{ success: true; data: CustomerAppClaimFilePresign }>(
+  const response = await customerAppApiRequest<{ success: true; data: CustomerAppClaimFilePresign }>(
     '/api/customer-app/claim-files/presign',
+    appToken,
     {
       method: 'POST',
-      token: appToken,
       body: JSON.stringify(payload),
     },
   )
@@ -122,6 +267,11 @@ export async function createCustomerClaimRequest(
   payload: {
     title?: string
     memo?: string
+    requester?: {
+      name: string
+      birthDate: string
+      phone: string
+    }
     files: Array<{
       storageKey: string
       fileName: string
@@ -130,12 +280,11 @@ export async function createCustomerClaimRequest(
     }>
   },
 ): Promise<{ requestId: number; status: string; submittedAt: string | null; fileCount: number }> {
-  const response = await apiRequest<{
+  const response = await customerAppApiRequest<{
     success: true
     data: { requestId: number; status: string; submittedAt: string | null; fileCount: number }
-  }>('/api/customer-app/claim-requests', {
+  }>('/api/customer-app/claim-requests', appToken, {
     method: 'POST',
-    token: appToken,
     body: JSON.stringify(payload),
   })
   return response as { requestId: number; status: string; submittedAt: string | null; fileCount: number }
@@ -171,9 +320,9 @@ export async function uploadCustomerClaimFileProxy(
 }
 
 export async function listCustomerClaimRequests(appToken: string): Promise<CustomerAppClaimRequestListItem[]> {
-  const response = await apiRequest<{ success: true; data: CustomerAppClaimRequestListItem[] }>(
+  const response = await customerAppApiRequest<{ success: true; data: CustomerAppClaimRequestListItem[] }>(
     '/api/customer-app/claim-requests',
-    { token: appToken },
+    appToken,
   )
   return response as CustomerAppClaimRequestListItem[]
 }
@@ -182,31 +331,40 @@ export async function getCustomerClaimRequestDetail(
   appToken: string,
   requestId: number,
 ): Promise<CustomerAppClaimRequestDetail> {
-  const response = await apiRequest<{ success: true; data: CustomerAppClaimRequestDetail }>(
+  const response = await customerAppApiRequest<{ success: true; data: CustomerAppClaimRequestDetail }>(
     `/api/customer-app/claim-requests/${requestId}`,
-    { token: appToken },
+    appToken,
   )
   return response as CustomerAppClaimRequestDetail
 }
 
-export async function listCustomerNews(appToken: string): Promise<CustomerAppNewsListItem[]> {
-  const response = await apiRequest<{ success: true; data: CustomerAppNewsListItem[] }>('/api/customer-app/news', {
-    token: appToken,
-  })
+export async function listCustomerNewsByScope(
+  appToken: string,
+  scope: 'all' | 'personal',
+): Promise<CustomerAppNewsListItem[]> {
+  const search = new URLSearchParams({ scope })
+  const response = await customerAppApiRequest<{ success: true; data: CustomerAppNewsListItem[] }>(
+    `/api/customer-app/news?${search.toString()}`,
+    appToken,
+  )
   return response as CustomerAppNewsListItem[]
 }
 
+export async function listCustomerNews(appToken: string): Promise<CustomerAppNewsListItem[]> {
+  return listCustomerNewsByScope(appToken, 'all')
+}
+
 export async function getCustomerNewsDetail(appToken: string, newsId: string): Promise<CustomerAppNewsDetail> {
-  const response = await apiRequest<{ success: true; data: CustomerAppNewsDetail }>(`/api/customer-app/news/${newsId}`, {
-    token: appToken,
-  })
+  const response = await customerAppApiRequest<{ success: true; data: CustomerAppNewsDetail }>(
+    `/api/customer-app/news/${newsId}`,
+    appToken,
+  )
   return response as CustomerAppNewsDetail
 }
 
 export async function markCustomerNewsRead(appToken: string, newsId: string): Promise<void> {
-  await apiRequest<void>(`/api/customer-app/news/${newsId}/read`, {
+  await customerAppApiRequest<void>(`/api/customer-app/news/${newsId}/read`, appToken, {
     method: 'POST',
-    token: appToken,
     body: JSON.stringify({}),
   })
 }

@@ -25,17 +25,20 @@ export default function CustomerAppShell({ title, children }: Props) {
           {session ? `${session.customerName} · 담당 ${session.agentName}` : '연결이 필요합니다'}
         </div>
         <div className="flex gap-2 mt-2 text-xs flex-wrap">
-          <Link to="/customer-app/home" className="text-blue-600">
-            홈
+          <Link to="/customer-app/profile" className="text-blue-600">
+            내정보
+          </Link>
+          <Link to="/customer-app/news/all" className="text-blue-600">
+            전체소식지
+          </Link>
+          <Link to="/customer-app/news/personal" className="text-blue-600">
+            개인소식지
           </Link>
           <Link to="/customer-app/requests/new" className="text-blue-600">
-            청구 요청하기
+            청구요청
           </Link>
           <Link to="/customer-app/requests" className="text-blue-600">
-            요청 내역
-          </Link>
-          <Link to="/customer-app/news" className="text-blue-600">
-            소식지
+            요청내역
           </Link>
           {session ? (
             <FormButton htmlType="button" className="text-xs text-red-500 !p-0 !h-auto" onClick={logout}>

@@ -7,6 +7,9 @@ export interface ClaimRequestListItem {
   customerId: number
   deviceId: string
   customerName: string
+  requesterName: string
+  requesterBirthDate: string
+  requesterPhone: string
   status: ClaimRequestStatus
   title: string
   memo: string
@@ -40,6 +43,9 @@ export interface ClaimRequestDetail {
   agentId: string
   customerId: number
   customerName: string
+  requesterName: string
+  requesterBirthDate: string
+  requesterPhone: string
   deviceId: string
   status: ClaimRequestStatus
   title: string
@@ -64,6 +70,35 @@ export interface CustomerAppLinkInfo {
   expiresAt?: string | null
   lastConnectedAt?: string | null
   deviceCount: number
+}
+
+export interface LinkedCustomerItem {
+  customerId: number
+  customerName: string
+  lastConnectedAt: string | null
+  deviceCount: number
+}
+
+export interface AgentCustomerNewsItem {
+  id: string
+  title: string
+  content: string
+  updatedAt: string | null
+  isPinned: boolean
+  heroImageUrl?: string | null
+  attachments?: Array<{
+    id: string
+    kind: 'image' | 'file'
+    url: string
+    fileName: string
+    sortOrder: number
+    objectKey?: string
+    mimeType?: string
+    size?: number
+  }>
+  scope: 'all' | 'personal'
+  targetCustomerId: number | null
+  targetCustomerName: string
 }
 
 export async function createCustomerAppLink(token: string): Promise<CustomerAppLinkInfo> {
@@ -134,7 +169,23 @@ export async function updateClaimRequestStatus(
 
 export async function createCustomerNews(
   token: string,
-  payload: { title: string; content: string; sendPush?: boolean; isPinned?: boolean },
+  payload: {
+    title: string
+    content: string
+    scope?: 'all' | 'personal'
+    targetCustomerId?: number | null
+    sendPush?: boolean
+    isPinned?: boolean
+    attachments?: Array<{
+      kind: 'image' | 'file'
+      url: string
+      objectKey?: string
+      fileName: string
+      mimeType?: string
+      size?: number
+      sortOrder?: number
+    }>
+  },
 ): Promise<{ id: string }> {
   const response = await apiRequest<{ success: true; data: { id: string } }>('/api/agent/customer-news', {
     method: 'POST',
@@ -142,4 +193,30 @@ export async function createCustomerNews(
     body: JSON.stringify(payload),
   })
   return response as { id: string }
+}
+
+export async function listLinkedCustomers(token: string): Promise<LinkedCustomerItem[]> {
+  const response = await apiRequest<{ success: true; data: LinkedCustomerItem[] }>(
+    '/api/agent/customer-app-linked-customers',
+    { token },
+  )
+  return response as LinkedCustomerItem[]
+}
+
+export async function listAgentCustomerNews(
+  token: string,
+  params: { scope?: 'all' | 'personal'; targetCustomerId?: number | null } = {},
+): Promise<AgentCustomerNewsItem[]> {
+  const search = new URLSearchParams()
+  if (params.scope) {
+    search.set('scope', params.scope)
+  }
+  if (params.targetCustomerId && Number.isInteger(params.targetCustomerId) && params.targetCustomerId > 0) {
+    search.set('targetCustomerId', String(params.targetCustomerId))
+  }
+  const response = await apiRequest<{ success: true; data: AgentCustomerNewsItem[] }>(
+    `/api/agent/customer-news${search.toString() ? `?${search.toString()}` : ''}`,
+    { token },
+  )
+  return response as AgentCustomerNewsItem[]
 }

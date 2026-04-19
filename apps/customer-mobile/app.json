@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Insurance Customer",
+    "slug": "insurance-customer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "../mobile/assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "../mobile/assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.insurance.customer"
+    },
+    "android": {
+      "package": "com.insurance.customer",
+      "versionCode": 1,
+      "minSdkVersion": 24,
+      "adaptiveIcon": {
+        "foregroundImage": "../mobile/assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "navigationBar": {
+        "backgroundColor": "#0f1115"
+      }
+    },
+    "web": {
+      "favicon": "../mobile/assets/favicon.png"
+    }
+  }
+}

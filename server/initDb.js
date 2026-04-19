@@ -413,6 +413,9 @@ async function ensureCustomerClaimAppSchema(executor) {
       status VARCHAR(20) NOT NULL DEFAULT 'requested',
       title VARCHAR(150),
       memo TEXT,
+      requester_name VARCHAR(120) NOT NULL DEFAULT '',
+      requester_birth_date VARCHAR(20) NOT NULL DEFAULT '',
+      requester_phone VARCHAR(30) NOT NULL DEFAULT '',
       submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       processed_at TIMESTAMPTZ,
       processed_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
@@ -440,6 +443,40 @@ async function ensureCustomerClaimAppSchema(executor) {
   await executor.query(`
     CREATE INDEX IF NOT EXISTS idx_customer_claim_requests_submitted_at
     ON customer_claim_requests(submitted_at DESC)
+  `)
+  await executor.query(`
+    ALTER TABLE customer_claim_requests
+    ADD COLUMN IF NOT EXISTS requester_name VARCHAR(120) NOT NULL DEFAULT ''
+  `)
+  await executor.query(`
+    ALTER TABLE customer_claim_requests
+    ADD COLUMN IF NOT EXISTS requester_birth_date VARCHAR(20) NOT NULL DEFAULT ''
+  `)
+  await executor.query(`
+    ALTER TABLE customer_claim_requests
+    ADD COLUMN IF NOT EXISTS requester_phone VARCHAR(30) NOT NULL DEFAULT ''
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS customer_app_profiles (
+      id BIGSERIAL PRIMARY KEY,
+      agent_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      device_id VARCHAR(191) NOT NULL,
+      name VARCHAR(120) NOT NULL,
+      birth_date VARCHAR(20) NOT NULL,
+      phone VARCHAR(30) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_customer_app_profiles_agent_customer_device
+    ON customer_app_profiles(agent_id, customer_id, device_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_app_profiles_agent_customer
+    ON customer_app_profiles(agent_id, customer_id)
   `)
 
   await executor.query(`

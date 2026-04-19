@@ -4,6 +4,7 @@ import { StatusMessage } from '../../../components/feedback'
 import { listCustomerClaimRequests } from '../api/customerAppApi'
 import CustomerAppShell from '../components/CustomerAppShell'
 import { readCustomerAppSession } from '../session/customerAppSession'
+import { resolveClaimStatusMeta } from '../utils/claimStatus'
 
 function formatDateTime(iso: string | null): string {
   if (!iso) {
@@ -57,8 +58,13 @@ export default function CustomerAppRequestsPage() {
           <li key={row.id} className="rounded-lg border border-[var(--border-default)] p-2">
             <div className="text-sm font-medium">{row.title || '(제목 없음)'}</div>
             <div className="text-xs text-[var(--text-secondary)]">
-              {row.status} · 첨부 {row.fileCount}개 · {formatDateTime(row.submittedAt)}
+              첨부 {row.fileCount}개 · {formatDateTime(row.submittedAt)}
             </div>
+            <span
+              className={`mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] ${resolveClaimStatusMeta(row.status).className}`}
+            >
+              {resolveClaimStatusMeta(row.status).label}
+            </span>
             <Link to={`/customer-app/requests/${row.id}`} className="text-xs text-blue-600 mt-1 inline-block">
               상세 보기
             </Link>

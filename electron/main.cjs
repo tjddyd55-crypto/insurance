@@ -186,6 +186,7 @@ function createWindow() {
     height: 900,
     show: false,
     frame: false,
+    icon: path.join(__dirname, 'assets', 'app-icon.ico'),
     ...(process.platform === 'darwin' ? { titleBarStyle: 'hidden' } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

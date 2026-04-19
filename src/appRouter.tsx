@@ -45,6 +45,7 @@ import { TemplateListPage } from './features/consent/admin/pages/TemplateListPag
 import { ConsentFormPage } from './features/consent/pages/ConsentFormPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
 import { IntroductionPage } from './features/web/pages/IntroductionPage'
+import { IntroductionInstallPage } from './features/web/pages/IntroductionInstallPage'
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
 import AdminAnalyticsPage from './features/analytics/pages/AdminAnalyticsPage'
@@ -79,6 +80,7 @@ import CustomerAppRequestsPage from './features/customer-app/pages/CustomerAppRe
 import CustomerAppRequestDetailPage from './features/customer-app/pages/CustomerAppRequestDetailPage'
 import CustomerAppNewsListPage from './features/customer-app/pages/CustomerAppNewsListPage'
 import CustomerAppNewsDetailPage from './features/customer-app/pages/CustomerAppNewsDetailPage'
+import CustomerAppProfilePage from './features/customer-app/pages/CustomerAppProfilePage'
 
 export const appRouter = createBrowserRouter([
   {
@@ -93,16 +95,20 @@ export const appRouter = createBrowserRouter([
       { path: 'privacy', element: <PrivacyPolicyPage /> },
       { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
       { path: 'introduction', element: <IntroductionPage /> },
+      { path: 'introduction/install', element: <IntroductionInstallPage /> },
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /api/customer/external-create + ref·ga 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },
       { path: 'customer/register', element: <CustomerRegisterPage /> },
       { path: 'customer-app', element: <CustomerAppConnectPage /> },
       { path: 'customer-app/connect/:linkCode', element: <CustomerAppConnectPage /> },
       { path: 'customer-app/home', element: <CustomerAppHomePage /> },
+      { path: 'customer-app/profile', element: <CustomerAppProfilePage /> },
       { path: 'customer-app/requests/new', element: <CustomerAppRequestComposePage /> },
       { path: 'customer-app/requests', element: <CustomerAppRequestsPage /> },
       { path: 'customer-app/requests/:requestId', element: <CustomerAppRequestDetailPage /> },
-      { path: 'customer-app/news', element: <CustomerAppNewsListPage /> },
+      { path: 'customer-app/news', element: <Navigate to="/customer-app/news/all" replace /> },
+      { path: 'customer-app/news/all', element: <CustomerAppNewsListPage /> },
+      { path: 'customer-app/news/personal', element: <CustomerAppNewsListPage /> },
       { path: 'customer-app/news/:newsId', element: <CustomerAppNewsDetailPage /> },
       { path: 'portal/insurer-news', element: <Navigate to="/insurer/news" replace /> },
       { path: 'portal/insurer-news/*', element: <Navigate to="/insurer/news" replace /> },

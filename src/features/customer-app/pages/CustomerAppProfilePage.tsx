@@ -1,0 +1,127 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { StatusMessage } from '../../../components/feedback'
+import { FormButton, FormInput } from '../../../components/form'
+import { getCustomerAppProfile, saveCustomerAppProfile } from '../api/customerAppApi'
+import CustomerAppShell from '../components/CustomerAppShell'
+import {
+  readCustomerAppProfile,
+  readCustomerAppSession,
+  writeCustomerAppProfile,
+  writeCustomerAppSession,
+} from '../session/customerAppSession'
+
+export default function CustomerAppProfilePage() {
+  const navigate = useNavigate()
+  const session = useMemo(() => readCustomerAppSession(), [])
+  const profile = useMemo(() => readCustomerAppProfile(), [])
+  const [name, setName] = useState(profile?.name ?? '')
+  const [birthDate, setBirthDate] = useState(profile?.birthDate ?? '')
+  const [phone, setPhone] = useState(profile?.phone ?? '')
+  const [error, setError] = useState('')
+  const [result, setResult] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!session) {
+      navigate('/customer-app', { replace: true })
+    }
+  }, [navigate, session])
+
+  useEffect(() => {
+    if (!session) {
+      return
+    }
+    let mounted = true
+    const run = async () => {
+      try {
+        const saved = await getCustomerAppProfile(session.appToken)
+        if (!mounted || !saved) {
+          return
+        }
+        setName(saved.name)
+        setBirthDate(saved.birthDate)
+        setPhone(saved.phone)
+        writeCustomerAppProfile({
+          name: saved.name,
+          birthDate: saved.birthDate,
+          phone: saved.phone,
+        })
+      } catch {
+        // 서버 조회 실패 시 로컬 캐시를 그대로 사용한다.
+      }
+    }
+    void run()
+    return () => {
+      mounted = false
+    }
+  }, [session])
+
+  if (!session) {
+    return null
+  }
+
+  const handleSave = async () => {
+    setError('')
+    setResult('')
+    const nextName = name.trim()
+    const nextBirthDate = birthDate.trim()
+    const nextPhone = phone.trim()
+    if (!nextName || !nextBirthDate || !nextPhone) {
+      setError('이름, 생년월일, 연락처를 모두 입력해 주세요.')
+      return
+    }
+    setBusy(true)
+    try {
+      const saved = await saveCustomerAppProfile(session.appToken, {
+        name: nextName,
+        birthDate: nextBirthDate,
+        phone: nextPhone,
+      })
+      writeCustomerAppProfile({
+        name: saved.name,
+        birthDate: saved.birthDate,
+        phone: saved.phone,
+      })
+      writeCustomerAppSession({
+        ...session,
+        requesterName: saved.name,
+        requesterBirthDate: saved.birthDate,
+        requesterPhone: saved.phone,
+      })
+      setResult('내정보가 저장되었습니다.')
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : '내정보 저장에 실패했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <CustomerAppShell title="내정보">
+      <StatusMessage message={error} tone="error" />
+      <StatusMessage message={result} tone="success" />
+      <FormInput
+        className="w-full text-sm"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        placeholder="이름"
+      />
+      <FormInput
+        className="w-full text-sm"
+        value={birthDate}
+        onChange={(event) => setBirthDate(event.target.value)}
+        placeholder="생년월일 (예: 900101)"
+      />
+      <FormInput
+        className="w-full text-sm"
+        value={phone}
+        onChange={(event) => setPhone(event.target.value)}
+        placeholder="연락처 (예: 010-1234-5678)"
+      />
+      <FormButton htmlType="button" variant="primary" onClick={() => void handleSave()} loading={busy}>
+        저장
+      </FormButton>
+    </CustomerAppShell>
+  )
+}

@@ -6,6 +6,7 @@ import { connectCustomerApp } from '../api/customerAppApi'
 import {
   readCustomerAppSession,
   resolveCustomerDeviceId,
+  writeCustomerAppProfile,
   writeCustomerAppSession,
 } from '../session/customerAppSession'
 
@@ -14,6 +15,9 @@ export default function CustomerAppConnectPage() {
   const navigate = useNavigate()
   const session = useMemo(() => readCustomerAppSession(), [])
   const [linkCode, setLinkCode] = useState(String(linkCodeParam ?? '').trim().toUpperCase())
+  const [name, setName] = useState('')
+  const [birthDate, setBirthDate] = useState('')
+  const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -21,6 +25,13 @@ export default function CustomerAppConnectPage() {
     const code = linkCode.trim().toUpperCase()
     if (!code) {
       setError('링크 코드를 입력해 주세요.')
+      return
+    }
+    const nextName = name.trim()
+    const nextBirthDate = birthDate.trim()
+    const nextPhone = phone.trim()
+    if (!nextName || !nextBirthDate || !nextPhone) {
+      setError('이름, 생년월일, 연락처를 모두 입력해 주세요.')
       return
     }
     setLoading(true)
@@ -36,6 +47,11 @@ export default function CustomerAppConnectPage() {
             ? 'ios'
             : 'web',
         appVersion: 'web-1.0.0',
+        requester: {
+          name: nextName,
+          birthDate: nextBirthDate,
+          phone: nextPhone,
+        },
       })
       writeCustomerAppSession({
         appToken: connected.appToken,
@@ -44,6 +60,15 @@ export default function CustomerAppConnectPage() {
         deviceId,
         agentName: connected.agentName,
         customerName: connected.customerName,
+        linkCode: code,
+        requesterName: nextName,
+        requesterBirthDate: nextBirthDate,
+        requesterPhone: nextPhone,
+      })
+      writeCustomerAppProfile({
+        name: nextName,
+        birthDate: nextBirthDate,
+        phone: nextPhone,
       })
       navigate('/customer-app/home', { replace: true })
     } catch (connectError) {
@@ -66,6 +91,27 @@ export default function CustomerAppConnectPage() {
           onChange={(event) => setLinkCode(event.target.value.toUpperCase())}
           placeholder="예: ABC123XYZ"
           autoComplete="off"
+        />
+        <FormInput
+          className="w-full"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          placeholder="이름"
+          autoComplete="name"
+        />
+        <FormInput
+          className="w-full"
+          value={birthDate}
+          onChange={(event) => setBirthDate(event.target.value)}
+          placeholder="생년월일 (예: 900101)"
+          autoComplete="bday"
+        />
+        <FormInput
+          className="w-full"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+          placeholder="연락처 (예: 010-1234-5678)"
+          autoComplete="tel"
         />
         <FormButton htmlType="button" variant="primary" onClick={() => void handleConnect()} loading={loading}>
           연결하기

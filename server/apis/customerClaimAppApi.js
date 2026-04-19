@@ -89,6 +89,81 @@ function maxBytesForMime(contentType) {
 }
 
 /**
+ * @param {unknown} value
+ * @param {number} max
+ */
+function sanitizeProfileField(value, max) {
+  return String(value ?? '')
+    .trim()
+    .slice(0, max)
+}
+
+/**
+ * @param {unknown} raw
+ */
+function normalizeRequester(raw) {
+  if (!raw || typeof raw !== 'object') {
+    return null
+  }
+  const payload = /** @type {{ name?: unknown, birthDate?: unknown, phone?: unknown }} */ (raw)
+  const name = sanitizeProfileField(payload.name, 120)
+  const birthDate = sanitizeProfileField(payload.birthDate, 20)
+  const phone = sanitizeProfileField(payload.phone, 30)
+  if (!name || !birthDate || !phone) {
+    return null
+  }
+  return { name, birthDate, phone }
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {{
+ *  id: string
+ *  kind: 'image' | 'file'
+ *  url: string
+ *  fileName: string
+ *  sortOrder: number
+ *  objectKey?: string
+ *  mimeType?: string
+ *  size?: number
+ * }[]}
+ */
+function normalizeCustomerNewsAttachments(raw) {
+  if (!Array.isArray(raw)) {
+    return []
+  }
+  return raw
+    .map((item, index) => {
+      if (!item || typeof item !== 'object') {
+        return null
+      }
+      const row = /** @type {{ kind?: unknown, url?: unknown, objectKey?: unknown, fileName?: unknown, mimeType?: unknown, size?: unknown, sortOrder?: unknown }} */ (item)
+      const kind = String(row.kind ?? '') === 'file' ? 'file' : 'image'
+      const url = String(row.url ?? '').trim()
+      const objectKey = String(row.objectKey ?? '').trim()
+      const fileName = sanitizeFileName(row.fileName ?? `${kind}-${index + 1}`)
+      const mimeType = String(row.mimeType ?? '').trim().slice(0, 120)
+      const size = Number(row.size ?? 0)
+      const sortOrder = Number.isFinite(Number(row.sortOrder)) ? Number(row.sortOrder) : index
+      if (!url) {
+        return null
+      }
+      return {
+        id: randomUUID(),
+        kind,
+        url,
+        fileName,
+        sortOrder,
+        ...(objectKey ? { objectKey } : {}),
+        ...(mimeType ? { mimeType } : {}),
+        ...(Number.isFinite(size) && size > 0 ? { size } : {}),
+      }
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+}
+
+/**
  * 다운로드용 Content-Disposition (한글 filename* 포함)
  * @param {string} fileNameRaw
  * @param {'inline'|'attachment'} mode
@@ -513,6 +588,74 @@ async function ensureCustomerAppActiveContext(pool, agentId, customerId, deviceI
 }
 
 /**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {{ agentId: string, customerId: number, deviceId: string }} context
+ */
+async function loadCustomerAppProfile(executor, context) {
+  const row = await executor.query(
+    `
+    SELECT name, birth_date, phone, updated_at
+    FROM customer_app_profiles
+    WHERE agent_id = $1
+      AND customer_id = $2
+      AND device_id = $3
+    LIMIT 1
+    `,
+    [context.agentId, context.customerId, context.deviceId],
+  )
+  if (row.rowCount === 0) {
+    return null
+  }
+  return {
+    name: String(row.rows[0].name ?? ''),
+    birthDate: String(row.rows[0].birth_date ?? ''),
+    phone: String(row.rows[0].phone ?? ''),
+    savedAt: row.rows[0].updated_at ? new Date(row.rows[0].updated_at).toISOString() : null,
+  }
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {{ agentId: string, customerId: number, deviceId: string }} context
+ * @param {{ name: string, birthDate: string, phone: string }} requester
+ */
+async function upsertCustomerAppProfile(executor, context, requester) {
+  await executor.query(
+    `
+    INSERT INTO customer_app_profiles
+      (agent_id, customer_id, device_id, name, birth_date, phone, created_at, updated_at)
+    VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+    ON CONFLICT (agent_id, customer_id, device_id)
+    DO UPDATE SET
+      name = EXCLUDED.name,
+      birth_date = EXCLUDED.birth_date,
+      phone = EXCLUDED.phone,
+      updated_at = NOW()
+    `,
+    [context.agentId, context.customerId, context.deviceId, requester.name, requester.birthDate, requester.phone],
+  )
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} executor
+ * @param {{ agentId: string, customerId: number }} context
+ * @param {{ name: string, phone: string }} requester
+ */
+async function syncProfileToLinkedCustomer(executor, context, requester) {
+  await executor.query(
+    `
+    UPDATE customers
+    SET
+      name = $1,
+      phone = CASE WHEN $2 <> '' THEN $2 ELSE phone END
+    WHERE id = $3
+      AND user_id = $4
+    `,
+    [requester.name, requester.phone, context.customerId, context.agentId],
+  )
+}
+
+/**
  * @param {import('express').Router} apiRouter
  * @param {{
  *  pool: import('pg').Pool
@@ -889,6 +1032,9 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           r.customer_id,
           r.device_id,
           COALESCE(NULLIF(TRIM(c.name), ''), '고객') AS customer_name,
+          r.requester_name,
+          r.requester_birth_date,
+          r.requester_phone,
           r.status,
           r.title,
           r.memo,
@@ -926,6 +1072,9 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
             customerId: Number(row.customer_id),
             deviceId: String(row.device_id ?? ''),
             customerName: String(row.customer_name ?? ''),
+            requesterName: String(row.requester_name ?? ''),
+            requesterBirthDate: String(row.requester_birth_date ?? ''),
+            requesterPhone: String(row.requester_phone ?? ''),
             status: String(row.status ?? ''),
             title: String(row.title ?? ''),
             memo: String(row.memo ?? ''),
@@ -1009,6 +1158,9 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           agentId: String(requestRow.agent_id),
           customerId: Number(requestRow.customer_id),
           customerName: String(requestRow.customer_name ?? ''),
+          requesterName: String(requestRow.requester_name ?? ''),
+          requesterBirthDate: String(requestRow.requester_birth_date ?? ''),
+          requesterPhone: String(requestRow.requester_phone ?? ''),
           deviceId: String(requestRow.device_id ?? ''),
           status: String(requestRow.status ?? ''),
           title: String(requestRow.title ?? ''),
@@ -1218,14 +1370,42 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       const content = String(req.body?.content ?? '').trim()
       const sendPush = Boolean(req.body?.sendPush)
       const isPinned = Boolean(req.body?.isPinned)
+      const attachments = normalizeCustomerNewsAttachments(req.body?.attachments)
+      const scopeRaw = String(req.body?.scope ?? 'all')
+        .trim()
+        .toLowerCase()
+      const scope = scopeRaw === 'personal' ? 'personal' : 'all'
+      const targetCustomerId = parsePositiveInt(req.body?.targetCustomerId)
       if (!title || !content) {
         res.status(400).json({ message: '제목과 내용을 입력해 주세요.' })
+        return
+      }
+      if (scope === 'personal' && targetCustomerId == null) {
+        res.status(422).json({ message: '개별 소식지는 대상 고객을 선택해 주세요.' })
         return
       }
       const gaId = await resolveAgentGaId(pool, agentId)
       if (gaId == null) {
         res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
         return
+      }
+      let targetCustomerName = ''
+      if (scope === 'personal' && targetCustomerId != null) {
+        const customerRow = await pool.query(
+          `
+          SELECT id, name
+          FROM customers
+          WHERE id = $1
+            AND user_id = $2
+          LIMIT 1
+          `,
+          [targetCustomerId, agentId],
+        )
+        if (customerRow.rowCount === 0) {
+          res.status(404).json({ message: '대상 고객을 찾을 수 없습니다.' })
+          return
+        }
+        targetCustomerName = String(customerRow.rows[0].name ?? '')
       }
       const id = randomUUID()
       const payload = {
@@ -1239,6 +1419,11 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         publisherId: agentId,
         customerVisible: true,
         pinned: isPinned,
+        heroImageUrl: attachments.find((item) => item.kind === 'image')?.url ?? null,
+        attachments,
+        customerNewsScope: scope,
+        targetCustomerId: scope === 'personal' ? targetCustomerId : null,
+        targetCustomerName: scope === 'personal' ? targetCustomerName : '',
       }
       await pool.query(
         `
@@ -1255,7 +1440,15 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         linkCode: null,
         action: 'customer_news_created',
         result: sendPush ? 'push_queued' : 'success',
-        meta: { newsletterId: id, sendPush, isPinned },
+        meta: {
+          newsletterId: id,
+          sendPush,
+          isPinned,
+          heroImageUrl: payload.heroImageUrl,
+          attachments,
+          scope,
+          targetCustomerId: scope === 'personal' ? targetCustomerId : null,
+        },
       })
       res.status(201).json({
         success: true,
@@ -1265,7 +1458,119 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           content,
           sendPush,
           isPinned,
+          scope,
+          targetCustomerId: scope === 'personal' ? targetCustomerId : null,
         },
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/agent/customer-news', requireAuth, async (req, res) => {
+    try {
+      const agentId = String(req.user?.id ?? '').trim()
+      if (!agentId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const scopeRaw = String(req.query.scope ?? '')
+        .trim()
+        .toLowerCase()
+      const scope = scopeRaw === 'personal' ? 'personal' : scopeRaw === 'all' ? 'all' : ''
+      const targetCustomerId = parsePositiveInt(req.query.targetCustomerId)
+      const where = [
+        `n.status = 'PUBLISHED'`,
+        `COALESCE((n.payload->>'customerVisible')::boolean, false) = true`,
+        `COALESCE(NULLIF(TRIM(n.payload->>'publisherId'), ''), '') = $1`,
+      ]
+      const params = [agentId]
+      if (scope === 'personal') {
+        where.push(`COALESCE(NULLIF(TRIM(n.payload->>'customerNewsScope'), ''), 'all') = 'personal'`)
+      } else if (scope === 'all') {
+        where.push(`COALESCE(NULLIF(TRIM(n.payload->>'customerNewsScope'), ''), 'all') = 'all'`)
+      }
+      if (targetCustomerId != null) {
+        where.push(
+          `COALESCE(NULLIF(TRIM(n.payload->>'targetCustomerId'), '')::int, 0) = $${params.length + 1}`,
+        )
+        params.push(targetCustomerId)
+      }
+      const rows = await pool.query(
+        `
+        SELECT
+          n.id,
+          n.title,
+          n.body_text,
+          n.updated_at,
+          n.payload
+        FROM insurance_company_newsletters n
+        WHERE ${where.join(' AND ')}
+        ORDER BY n.updated_at DESC, n.id DESC
+        LIMIT 100
+        `,
+        params,
+      )
+      res.json({
+        success: true,
+        data: rows.rows.map((row) => ({
+          id: String(row.id ?? ''),
+          title: String(row.title ?? ''),
+          content: String(row.body_text ?? ''),
+          updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+          isPinned: Boolean(row.payload?.pinned),
+          heroImageUrl: String(row.payload?.heroImageUrl ?? '').trim() || null,
+          attachments: Array.isArray(row.payload?.attachments) ? row.payload.attachments : [],
+          scope: String(row.payload?.customerNewsScope ?? 'all') === 'personal' ? 'personal' : 'all',
+          targetCustomerId:
+            row.payload?.targetCustomerId != null && Number.isFinite(Number(row.payload.targetCustomerId))
+              ? Number(row.payload.targetCustomerId)
+              : null,
+          targetCustomerName: String(row.payload?.targetCustomerName ?? ''),
+        })),
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/agent/customer-app-linked-customers', requireAuth, async (req, res) => {
+    try {
+      const agentId = String(req.user?.id ?? '').trim()
+      if (!agentId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const rows = await pool.query(
+        `
+        SELECT
+          l.customer_id,
+          COALESCE(NULLIF(TRIM(c.name), ''), '고객') AS customer_name,
+          l.last_connected_at,
+          (
+            SELECT COUNT(*)::int
+            FROM customer_app_devices d
+            WHERE d.agent_id = l.agent_id
+              AND d.customer_id = l.customer_id
+              AND d.status = 'active'
+          ) AS device_count
+        FROM customer_app_links l
+        INNER JOIN customers c ON c.id = l.customer_id
+        WHERE l.agent_id = $1
+          AND l.status = 'active'
+          AND (l.expires_at IS NULL OR l.expires_at > NOW())
+        ORDER BY COALESCE(l.last_connected_at, l.created_at) DESC, l.id DESC
+        `,
+        [agentId],
+      )
+      res.json({
+        success: true,
+        data: rows.rows.map((row) => ({
+          customerId: Number(row.customer_id),
+          customerName: String(row.customer_name ?? ''),
+          lastConnectedAt: row.last_connected_at ? new Date(row.last_connected_at).toISOString() : null,
+          deviceCount: Number(row.device_count ?? 0),
+        })),
       })
     } catch (error) {
       handleDbError(error, req, res)
@@ -1279,8 +1584,13 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       const deviceId = String(req.body?.deviceId ?? '').trim()
       const devicePlatform = String(req.body?.devicePlatform ?? '').trim().slice(0, 20)
       const appVersion = String(req.body?.appVersion ?? '').trim().slice(0, 30)
+      const requester = normalizeRequester(req.body?.requester)
       if (!linkCode || !deviceId) {
         res.status(400).json({ message: 'linkCode와 deviceId가 필요합니다.' })
+        return
+      }
+      if (!requester) {
+        res.status(422).json({ message: '이름, 생년월일, 연락처를 모두 입력해 주세요.' })
         return
       }
       await client.query('BEGIN')
@@ -1372,6 +1682,23 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         jwtSecret,
         { expiresIn: CUSTOMER_APP_TOKEN_EXPIRES_IN },
       )
+      await upsertCustomerAppProfile(
+        client,
+        {
+          agentId,
+          customerId,
+          deviceId,
+        },
+        requester,
+      )
+      await syncProfileToLinkedCustomer(
+        client,
+        {
+          agentId,
+          customerId,
+        },
+        requester,
+      )
       await writeLinkAudit(client, {
         agentId,
         customerId,
@@ -1379,6 +1706,9 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         linkCode,
         action: 'connect_device',
         result: 'success',
+        meta: {
+          requesterName: requester.name,
+        },
       })
       await client.query('COMMIT')
       res.json({
@@ -1387,7 +1717,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           agentId,
           customerId,
           agentName: String(display.agent_name ?? '담당 설계사'),
-          customerName: String(display.customer_name ?? '고객'),
+          customerName: requester.name || String(display.customer_name ?? '고객'),
           appToken,
         },
       })
@@ -1432,6 +1762,41 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           customerName: String(display.customer_name ?? ''),
           status: String(link.rows[0]?.status ?? CUSTOMER_LINK_ACTIVE),
           lastConnectedAt: link.rows[0]?.last_connected_at ? new Date(link.rows[0].last_connected_at).toISOString() : null,
+        },
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/customer-app/profile', requireCustomerAppAuth, async (req, res) => {
+    try {
+      const context = req.customerApp
+      const profile = await loadCustomerAppProfile(pool, context)
+      res.json({
+        success: true,
+        data: profile,
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.put('/customer-app/profile', requireCustomerAppAuth, async (req, res) => {
+    try {
+      const context = req.customerApp
+      const requester = normalizeRequester(req.body)
+      if (!requester) {
+        res.status(422).json({ message: '이름, 생년월일, 연락처를 모두 입력해 주세요.' })
+        return
+      }
+      await upsertCustomerAppProfile(pool, context, requester)
+      await syncProfileToLinkedCustomer(pool, context, requester)
+      res.json({
+        success: true,
+        data: {
+          ...requester,
+          savedAt: new Date().toISOString(),
         },
       })
     } catch (error) {
@@ -1557,6 +1922,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       const title = String(req.body?.title ?? '').trim().slice(0, 150)
       const memo = String(req.body?.memo ?? '').trim().slice(0, 5000)
       const filesRaw = Array.isArray(req.body?.files) ? req.body.files : []
+      const requesterFromBody = normalizeRequester(req.body?.requester)
       if (!title && !memo) {
         res.status(400).json({ message: '제목 또는 메모를 입력해 주세요.' })
         return
@@ -1575,14 +1941,54 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         }
       }
       await client.query('BEGIN')
+      const requester = requesterFromBody ?? (await loadCustomerAppProfile(client, context))
+      if (!requester) {
+        await client.query('ROLLBACK')
+        res.status(422).json({ message: '내정보를 먼저 저장해 주세요.' })
+        return
+      }
+      if (requesterFromBody) {
+        await upsertCustomerAppProfile(client, context, requesterFromBody)
+        await syncProfileToLinkedCustomer(
+          client,
+          {
+            agentId: context.agentId,
+            customerId: context.customerId,
+          },
+          requesterFromBody,
+        )
+      }
       const requestInsert = await client.query(
         `
         INSERT INTO customer_claim_requests
-          (agent_id, customer_id, device_id, request_type, status, title, memo, submitted_at, created_at, updated_at)
-        VALUES ($1, $2, $3, 'claim', 'requested', $4, $5, NOW(), NOW(), NOW())
+          (
+            agent_id,
+            customer_id,
+            device_id,
+            request_type,
+            status,
+            title,
+            memo,
+            requester_name,
+            requester_birth_date,
+            requester_phone,
+            submitted_at,
+            created_at,
+            updated_at
+          )
+        VALUES ($1, $2, $3, 'claim', 'requested', $4, $5, $6, $7, $8, NOW(), NOW(), NOW())
         RETURNING id, status, submitted_at
         `,
-        [context.agentId, context.customerId, context.deviceId, title || null, memo || null],
+        [
+          context.agentId,
+          context.customerId,
+          context.deviceId,
+          title || null,
+          memo || null,
+          requester.name,
+          requester.birthDate,
+          requester.phone,
+        ],
       )
       const requestId = Number(requestInsert.rows[0].id)
       let order = 0
@@ -1870,6 +2276,22 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         res.status(404).json({ message: '연결된 설계사 정보를 찾을 수 없습니다.' })
         return
       }
+      const profile = await loadCustomerAppProfile(pool, context)
+      const scopeRaw = String(req.query.scope ?? '')
+        .trim()
+        .toLowerCase()
+      const scope = scopeRaw === 'personal' ? 'personal' : scopeRaw === 'all' ? 'all' : ''
+      const params = [context.agentId, context.customerId, gaId]
+      const scopeWhere =
+        scope === 'personal'
+          ? `AND COALESCE(NULLIF(TRIM(n.payload->>'customerNewsScope'), ''), 'all') = 'personal'
+             AND COALESCE(NULLIF(TRIM(n.payload->>'targetCustomerId'), '')::int, 0) = $${params.length + 1}`
+          : scope === 'all'
+            ? `AND COALESCE(NULLIF(TRIM(n.payload->>'customerNewsScope'), ''), 'all') = 'all'`
+            : ``
+      if (scope === 'personal') {
+        params.push(context.customerId)
+      }
       const rows = await pool.query(
         `
         SELECT
@@ -1881,27 +2303,46 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           r.id AS read_id
         FROM insurance_company_newsletters n
         LEFT JOIN customer_news_reads r
-          ON r.news_id = CAST(n.id AS BIGINT)
+          ON r.news_id = hashtextextended(CAST(n.id AS text), 0)
           AND r.agent_id = $1
           AND r.customer_id = $2
         WHERE n.ga_id = $3
           AND n.status = 'PUBLISHED'
           AND COALESCE((n.payload->>'customerVisible')::boolean, false) = true
           AND COALESCE(NULLIF(TRIM(n.payload->>'publisherId'), ''), '') = $1
+          ${scopeWhere}
         ORDER BY n.updated_at DESC, n.id DESC
         `,
-        [context.agentId, context.customerId, gaId],
+        params,
       )
       res.json({
         success: true,
-        data: rows.rows.map((row) => ({
-          id: String(row.id),
-          title: String(row.title ?? ''),
-          summary: String(row.body_text ?? '').slice(0, 140),
-          updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
-          isRead: row.read_id != null,
-          isPinned: Boolean(row.payload?.pinned),
-        })),
+        data: rows.rows.map((row) => {
+          const rowScope =
+            String(row.payload?.customerNewsScope ?? 'all') === 'personal' ? 'personal' : 'all'
+          const isPersonalForMe =
+            rowScope === 'personal' &&
+            Number.isFinite(Number(row.payload?.targetCustomerId)) &&
+            Number(row.payload?.targetCustomerId) === context.customerId
+          const fallbackTitle = '개인소식지'
+          const displayTitle = isPersonalForMe
+            ? `${profile?.name || '고객'} 고객님께`
+            : String(row.title ?? '')
+          return {
+            id: String(row.id),
+            title: displayTitle || fallbackTitle,
+            summary: String(row.body_text ?? '').slice(0, 140),
+            updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+            isRead: row.read_id != null,
+            isPinned: Boolean(row.payload?.pinned),
+            heroImageUrl: String(row.payload?.heroImageUrl ?? '').trim() || null,
+            scope: rowScope,
+            targetCustomerId:
+              row.payload?.targetCustomerId != null && Number.isFinite(Number(row.payload.targetCustomerId))
+                ? Number(row.payload.targetCustomerId)
+                : null,
+          }
+        }),
       })
     } catch (error) {
       handleDbError(error, req, res)
@@ -1930,9 +2371,16 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           AND status = 'PUBLISHED'
           AND COALESCE((payload->>'customerVisible')::boolean, false) = true
           AND COALESCE(NULLIF(TRIM(payload->>'publisherId'), ''), '') = $3
+          AND (
+            COALESCE(NULLIF(TRIM(payload->>'customerNewsScope'), ''), 'all') = 'all'
+            OR (
+              COALESCE(NULLIF(TRIM(payload->>'customerNewsScope'), ''), 'all') = 'personal'
+              AND COALESCE(NULLIF(TRIM(payload->>'targetCustomerId'), '')::int, 0) = $4
+            )
+          )
         LIMIT 1
         `,
-        [newsId, gaId, context.agentId],
+        [newsId, gaId, context.agentId, context.customerId],
       )
       if (row.rowCount === 0) {
         res.status(404).json({ message: '소식지를 찾을 수 없습니다.' })
@@ -1942,10 +2390,15 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         success: true,
         data: {
           id: String(row.rows[0].id),
-          title: String(row.rows[0].title ?? ''),
+          title:
+            String(row.rows[0].payload?.customerNewsScope ?? 'all') === 'personal'
+              ? `${(await loadCustomerAppProfile(pool, context))?.name || '고객'} 고객님께`
+              : String(row.rows[0].title ?? ''),
           content: String(row.rows[0].body_text ?? ''),
           updatedAt: row.rows[0].updated_at ? new Date(row.rows[0].updated_at).toISOString() : null,
           isPinned: Boolean(row.rows[0].payload?.pinned),
+          heroImageUrl: String(row.rows[0].payload?.heroImageUrl ?? '').trim() || null,
+          attachments: Array.isArray(row.rows[0].payload?.attachments) ? row.rows[0].payload.attachments : [],
         },
       })
     } catch (error) {
@@ -1956,8 +2409,8 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
   apiRouter.post('/customer-app/news/:newsId/read', requireCustomerAppAuth, async (req, res) => {
     try {
       const context = req.customerApp
-      const newsId = parsePositiveInt(req.params.newsId)
-      if (newsId == null) {
+      const newsIdRaw = String(req.params.newsId ?? '').trim()
+      if (!newsIdRaw) {
         res.status(400).json({ message: '유효한 newsId가 필요합니다.' })
         return
       }
@@ -1965,11 +2418,11 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         `
         INSERT INTO customer_news_reads
           (news_id, agent_id, customer_id, read_at)
-        VALUES ($1, $2, $3, NOW())
+        VALUES (hashtextextended($1::text, 0), $2, $3, NOW())
         ON CONFLICT (news_id, customer_id)
         DO UPDATE SET read_at = NOW()
         `,
-        [newsId, context.agentId, context.customerId],
+        [newsIdRaw, context.agentId, context.customerId],
       )
       res.status(204).end()
     } catch (error) {

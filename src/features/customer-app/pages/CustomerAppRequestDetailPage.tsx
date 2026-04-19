@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
+import { FormButton } from '../../../components/form'
 import { getCustomerClaimRequestDetail, type CustomerAppClaimRequestDetail } from '../api/customerAppApi'
 import CustomerAppShell from '../components/CustomerAppShell'
 import { readCustomerAppSession } from '../session/customerAppSession'
+import { resolveClaimStatusMeta } from '../utils/claimStatus'
 
 function formatDateTime(iso: string | null): string {
   if (!iso) {
@@ -21,9 +23,23 @@ export default function CustomerAppRequestDetailPage() {
   const navigate = useNavigate()
   const session = useMemo(() => readCustomerAppSession(), [])
   const [detail, setDetail] = useState<CustomerAppClaimRequestDetail | null>(null)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const parsedRequestId = Number(requestId)
   const hasInvalidRequestId = !Number.isInteger(parsedRequestId) || parsedRequestId < 1
+
+  const loadDetail = useCallback(async (token: string, id: number) => {
+    setLoading(true)
+    try {
+      const data = await getCustomerClaimRequestDetail(token, id)
+      setDetail(data)
+      setError('')
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : '요청 상세를 불러오지 못했습니다.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     if (!session) {
@@ -33,35 +49,50 @@ export default function CustomerAppRequestDetailPage() {
     if (hasInvalidRequestId) {
       return
     }
-    let mounted = true
+    let active = true
     const run = async () => {
-      try {
-        const data = await getCustomerClaimRequestDetail(session.appToken, parsedRequestId)
-        if (!mounted) {
-          return
-        }
-        setDetail(data)
-      } catch (loadError) {
-        if (!mounted) {
-          return
-        }
-        setError(loadError instanceof Error ? loadError.message : '요청 상세를 불러오지 못했습니다.')
+      if (!active) {
+        return
       }
+      await loadDetail(session.appToken, parsedRequestId)
     }
     void run()
+    const timer = window.setInterval(() => {
+      void run()
+    }, 10000)
     return () => {
-      mounted = false
+      active = false
+      window.clearInterval(timer)
     }
-  }, [hasInvalidRequestId, navigate, parsedRequestId, session])
+  }, [hasInvalidRequestId, loadDetail, navigate, parsedRequestId, session])
 
   return (
     <CustomerAppShell title="요청 상세">
       <StatusMessage message={hasInvalidRequestId ? '잘못된 요청 번호입니다.' : error} tone="error" />
-      {!detail ? <div className="text-sm text-[var(--text-secondary)]">불러오는 중…</div> : null}
+      {!detail && loading ? <div className="text-sm text-[var(--text-secondary)]">불러오는 중…</div> : null}
       {detail ? (
         <div className="space-y-3">
-          <div className="text-sm">
-            상태 {detail.status} · 접수 {formatDateTime(detail.submittedAt)}
+          <div className="text-sm flex items-center gap-2 flex-wrap">
+            <span
+              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] ${resolveClaimStatusMeta(detail.status).className}`}
+            >
+              {resolveClaimStatusMeta(detail.status).label}
+            </span>
+            <span className="text-[var(--text-secondary)]">접수 {formatDateTime(detail.submittedAt)}</span>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="!h-auto !py-1 !px-2 text-[11px]"
+              onClick={() => {
+                if (!session || hasInvalidRequestId) {
+                  return
+                }
+                void loadDetail(session.appToken, parsedRequestId)
+              }}
+              loading={loading}
+            >
+              상태 새로고침
+            </FormButton>
           </div>
           <div className="text-sm font-medium">{detail.title || '(제목 없음)'}</div>
           {detail.memo ? <div className="text-sm whitespace-pre-wrap">{detail.memo}</div> : null}
@@ -85,11 +116,16 @@ export default function CustomerAppRequestDetailPage() {
           </div>
           <div className="space-y-1">
             <div className="text-sm font-semibold">상태 이력</div>
-            {detail.statusLogs.map((log) => (
-              <div key={log.id} className="text-xs text-[var(--text-secondary)]">
-                {formatDateTime(log.changedAt)} · {log.fromStatus ?? '초기'} → {log.toStatus} {log.memo ? `(${log.memo})` : ''}
-              </div>
-            ))}
+            {detail.statusLogs.length === 0 ? (
+              <div className="text-xs text-[var(--text-secondary)]">상태 이력이 없습니다.</div>
+            ) : (
+              detail.statusLogs.map((log) => (
+                <div key={log.id} className="text-xs text-[var(--text-secondary)]">
+                  {formatDateTime(log.changedAt)} · {log.fromStatus ? resolveClaimStatusMeta(log.fromStatus).label : '초기'} →{' '}
+                  {resolveClaimStatusMeta(log.toStatus).label} {log.memo ? `(${log.memo})` : ''}
+                </div>
+              ))
+            )}
           </div>
         </div>
       ) : null}

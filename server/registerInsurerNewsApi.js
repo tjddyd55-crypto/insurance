@@ -999,6 +999,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         WHERE n.ga_id = $1
           AND n.status = 'PUBLISHED'
           AND COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2
+          AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
       `
       const params = [gaId, channel]
       if (insurerSlugFilter) {
@@ -1041,6 +1042,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           AND ga_id = $2
           AND status = 'PUBLISHED'
           AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
+          AND COALESCE((payload->>'customerVisible')::boolean, false) = false
         `,
         [newsletterId, gaId, channel],
       )
@@ -1392,6 +1394,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         INNER JOIN ga_companies g ON g.id = n.ga_id
         WHERE n.ga_id = $1
           AND COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2
+          AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
       `
       const params = [gaId, channel]
       if (companyIdFilter != null) {
@@ -1429,6 +1432,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         WHERE id = $1
           AND ga_id = $2
           AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
+          AND COALESCE((payload->>'customerVisible')::boolean, false) = false
         `,
         [newsletterId, gaIdForSelect, channel],
       )
