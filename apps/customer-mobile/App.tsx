@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { ElementRef } from 'react'
 import { Alert, BackHandler, Linking, Platform, StyleSheet, View } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
+import * as Updates from 'expo-updates'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView, type WebViewNavigation } from 'react-native-webview'
 import { AppLayout } from './AppLayout'
@@ -107,6 +108,28 @@ function AppContent() {
 }
 
 export default function App() {
+  useEffect(() => {
+    let mounted = true
+    void (async () => {
+      try {
+        const update = await Updates.checkForUpdateAsync()
+        if (!mounted || !update.isAvailable) {
+          return
+        }
+        await Updates.fetchUpdateAsync()
+        if (!mounted) {
+          return
+        }
+        await Updates.reloadAsync()
+      } catch {
+        // OTA 확인 실패 시 앱 사용은 계속 진행한다.
+      }
+    })()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
   return (
     <AppLayout>
       <AppContent />
