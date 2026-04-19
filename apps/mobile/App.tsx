@@ -58,6 +58,8 @@ const CUSTOMER_REGISTER_PATH = '/customer/register';
 /** Android 패키지와 동일해야 함 (app.json android.package) */
 const ANDROID_PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=com.fchelper.app';
+const SHOW_BUILD_INFO =
+  __DEV__ || String(process.env.EXPO_PUBLIC_SHOW_BUILD_INFO ?? '').trim() === '1';
 
 type MainWebViewLoadRequest = WebViewNavigation & { isTopFrame?: boolean };
 
@@ -358,26 +360,28 @@ export default function App() {
               onPress={() => void applyExpoUpdate({ disableOTA: otaDisabled })}
             />
           )}
-          <View style={styles.expoBuildInfoBlock}>
-            <Text style={styles.expoBuildInfoVersionGate}>
-              {'\uBC84\uC804: '}
-              {Constants.expoConfig?.version ?? '\u2014'}
-            </Text>
-            <Text style={styles.expoBuildInfoIdGate}>
-              {'\uC5C5\uB370\uC774\uD2B8 ID: '}
-              {Updates.updateId ?? '\u2014'}
-            </Text>
-            {!otaDisabled ? (
-              <Button
-                title={'\uC5C5\uB370\uC774\uD2B8 \uD655\uC778'}
-                onPress={() =>
-                  void checkExpoUpdate(setUpdateReady, {
-                    disableOTA: otaDisabled,
-                  })
-                }
-              />
-            ) : null}
-          </View>
+          {SHOW_BUILD_INFO ? (
+            <View style={styles.expoBuildInfoBlock}>
+              <Text style={styles.expoBuildInfoVersionGate}>
+                {'\uBC84\uC804: '}
+                {Constants.expoConfig?.version ?? '\u2014'}
+              </Text>
+              <Text style={styles.expoBuildInfoIdGate}>
+                {'\uC5C5\uB370\uC774\uD2B8 ID: '}
+                {Updates.updateId ?? '\u2014'}
+              </Text>
+              {!otaDisabled ? (
+                <Button
+                  title={'\uC5C5\uB370\uC774\uD2B8 \uD655\uC778'}
+                  onPress={() =>
+                    void checkExpoUpdate(setUpdateReady, {
+                      disableOTA: otaDisabled,
+                    })
+                  }
+                />
+              ) : null}
+            </View>
+          ) : null}
         </View>
       </View>
     );
@@ -401,24 +405,26 @@ export default function App() {
           />
         </View>
       ) : null}
-      <View style={styles.expoBuildInfoFooter} pointerEvents="box-none">
-        <Text style={styles.expoBuildInfoVersion}>
-          {'\uBC84\uC804: '}
-          {Constants.expoConfig?.version ?? '\u2014'}
-        </Text>
-        <Text style={styles.expoBuildInfoUpdateId}>
-          {'\uC5C5\uB370\uC774\uD2B8 ID: '}
-          {Updates.updateId ?? '\u2014'}
-        </Text>
-        {!otaDisabled ? (
-          <Button
-            title={'\uC5C5\uB370\uC774\uD2B8 \uD655\uC778'}
-            onPress={() =>
-              void checkExpoUpdate(setUpdateReady, { disableOTA: otaDisabled })
-            }
-          />
-        ) : null}
-      </View>
+      {SHOW_BUILD_INFO ? (
+        <View style={styles.expoBuildInfoFooter} pointerEvents="box-none">
+          <Text style={styles.expoBuildInfoVersion}>
+            {'\uBC84\uC804: '}
+            {Constants.expoConfig?.version ?? '\u2014'}
+          </Text>
+          <Text style={styles.expoBuildInfoUpdateId}>
+            {'\uC5C5\uB370\uC774\uD2B8 ID: '}
+            {Updates.updateId ?? '\u2014'}
+          </Text>
+          {!otaDisabled ? (
+            <Button
+              title={'\uC5C5\uB370\uC774\uD2B8 \uD655\uC778'}
+              onPress={() =>
+                void checkExpoUpdate(setUpdateReady, { disableOTA: otaDisabled })
+              }
+            />
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }

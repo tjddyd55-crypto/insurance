@@ -1000,6 +1000,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           AND n.status = 'PUBLISHED'
           AND COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2
           AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
+          AND COALESCE(NULLIF(TRIM(n.payload->>'insurerSlug'), ''), '') <> 'customer-news'
+          AND UPPER(COALESCE(NULLIF(TRIM(n.payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
       `
       const params = [gaId, channel]
       if (insurerSlugFilter) {
@@ -1043,6 +1045,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           AND status = 'PUBLISHED'
           AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
           AND COALESCE((payload->>'customerVisible')::boolean, false) = false
+          AND COALESCE(NULLIF(TRIM(payload->>'insurerSlug'), ''), '') <> 'customer-news'
+          AND UPPER(COALESCE(NULLIF(TRIM(payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
         `,
         [newsletterId, gaId, channel],
       )
@@ -1395,6 +1399,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         WHERE n.ga_id = $1
           AND COALESCE(NULLIF(TRIM(n.payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $2
           AND COALESCE((n.payload->>'customerVisible')::boolean, false) = false
+          AND COALESCE(NULLIF(TRIM(n.payload->>'insurerSlug'), ''), '') <> 'customer-news'
+          AND UPPER(COALESCE(NULLIF(TRIM(n.payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
       `
       const params = [gaId, channel]
       if (companyIdFilter != null) {
@@ -1433,6 +1439,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           AND ga_id = $2
           AND COALESCE(NULLIF(TRIM(payload->>'newsChannel'), ''), '${NEWS_CHANNEL_INSURER}') = $3
           AND COALESCE((payload->>'customerVisible')::boolean, false) = false
+          AND COALESCE(NULLIF(TRIM(payload->>'insurerSlug'), ''), '') <> 'customer-news'
+          AND UPPER(COALESCE(NULLIF(TRIM(payload->>'insurerCode'), ''), '')) <> 'CUSTOMER_NEWS'
         `,
         [newsletterId, gaIdForSelect, channel],
       )
