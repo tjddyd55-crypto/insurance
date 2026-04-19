@@ -30,6 +30,11 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
+      - name: Ensure EAS project is initialized
+        run: eas project:info --non-interactive || eas project:init --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
       - name: EAS Update (main branch)
         run: eas update --branch main --non-interactive --message "auto update"
         env:
