@@ -1,6 +1,6 @@
 import { calculateInsuranceAgeFromRrn } from './insuranceAge'
 
-const NOTE_MAX_LENGTH = 200
+const NOTE_MAX_LENGTH = 2000
 
 export function formatRrnInput(raw: string): string {
   const d = raw.replace(/\D/g, '').slice(0, 13)

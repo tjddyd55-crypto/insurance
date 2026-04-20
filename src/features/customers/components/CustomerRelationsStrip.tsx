@@ -16,7 +16,7 @@ type Props = {
   customerId: number
   customerName: string
   token: string
-  onOpenCustomer: (id: number) => void
+  onOpenCustomer: (id: number, name?: string) => void
   /** 펼쳐져 보고 있는 고객 ID — 연계 칩과 같으면 강조 */
   focusedCustomerId: number | null
 }
@@ -205,7 +205,7 @@ export function CustomerRelationsStrip({
                     fontSize: '0.875rem',
                   }}
                   title={phoneTip}
-                  onClick={() => onOpenCustomer(r.relatedCustomerId)}
+                  onClick={() => onOpenCustomer(r.relatedCustomerId, r.relatedName)}
                 >
                   {r.relatedName?.trim() || `고객 #${r.relatedCustomerId}`}
                 </FormButton>
@@ -271,8 +271,8 @@ export function CustomerRelationsStrip({
         </div>
       </div>
       <p style={{ fontSize: '0.8rem', color: '#777', margin: '8px 0 0' }}>
-        {customerName}님과 연결된 다른 고객입니다. 이름을 누르면 해당 카드를 펼칩니다. 칩에 마우스를 올리면 전화번호 힌트가
-        표시됩니다.
+        {customerName}님과 연결된 다른 고객입니다. 이름을 누르면 해당 고객 상세로 이동합니다. 칩에 마우스를 올리면 전화번호
+        힌트가 표시됩니다.
       </p>
 
       {modalOpen ? (

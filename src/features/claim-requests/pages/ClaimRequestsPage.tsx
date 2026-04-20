@@ -16,10 +16,12 @@ import ClaimRequestsPagePCView from './claim-requests/ClaimRequestsPagePCView'
 import {
   createCustomerAppLink,
   createCustomerNews,
+  downloadClaimRequestFile,
   getClaimRequestDetail,
   listAgentCustomerNews,
   listClaimRequests,
   listLinkedCustomers,
+  openClaimRequestFile,
   type AgentCustomerNewsItem,
   type ClaimRequestDetail,
   type ClaimRequestListItem,
@@ -410,6 +412,36 @@ export default function ClaimRequestsPage() {
     [isMobile],
   )
 
+  const handleOpenClaimFile = useCallback(
+    async (file: ClaimRequestDetail['files'][number]) => {
+      if (!token?.trim()) {
+        setError('로그인이 필요합니다.')
+        return
+      }
+      try {
+        await openClaimRequestFile(token, file)
+      } catch (openError) {
+        setError(openError instanceof Error ? openError.message : '파일 열기에 실패했습니다.')
+      }
+    },
+    [token],
+  )
+
+  const handleDownloadClaimFile = useCallback(
+    async (file: ClaimRequestDetail['files'][number]) => {
+      if (!token?.trim()) {
+        setError('로그인이 필요합니다.')
+        return
+      }
+      try {
+        await downloadClaimRequestFile(token, file)
+      } catch (downloadError) {
+        setError(downloadError instanceof Error ? downloadError.message : '파일 다운로드에 실패했습니다.')
+      }
+    },
+    [token],
+  )
+
   const claimDetailBody = (
     <>
       {detailLoading ? <div className="text-sm text-[var(--text-secondary)]">상세 불러오는 중…</div> : null}
@@ -451,12 +483,26 @@ export default function ClaimRequestsPage() {
                   <li key={file.id} className="text-xs flex items-center justify-between gap-3">
                     <span className="truncate">{file.fileName}</span>
                     <div className="flex items-center gap-2 shrink-0">
-                      <a href={file.url} target="_blank" rel="noreferrer" className="text-blue-600">
+                      <FormButton
+                        htmlType="button"
+                        variant="action"
+                        className="text-blue-600"
+                        onClick={() => {
+                          void handleOpenClaimFile(file)
+                        }}
+                      >
                         열기
-                      </a>
-                      <a href={file.downloadUrl ?? file.url} download={file.fileName} className="text-blue-600">
+                      </FormButton>
+                      <FormButton
+                        htmlType="button"
+                        variant="action"
+                        className="text-blue-600"
+                        onClick={() => {
+                          void handleDownloadClaimFile(file)
+                        }}
+                      >
                         다운로드
-                      </a>
+                      </FormButton>
                     </div>
                   </li>
                 ))}

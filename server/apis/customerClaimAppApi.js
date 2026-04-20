@@ -1359,6 +1359,58 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
     }
   })
 
+  apiRouter.get('/agent/customer-claim-files/:fileId/download-auth', requireAuth, async (req, res) => {
+    try {
+      const fileId = parsePositiveInt(req.params.fileId)
+      if (fileId == null) {
+        res.status(400).json({ message: '유효한 fileId가 필요합니다.' })
+        return
+      }
+      const agentId = String(req.user?.id ?? '').trim()
+      if (!agentId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const row = await pool.query(
+        `
+        SELECT id, storage_key, file_name, content_type, file_size, customer_id
+        FROM customer_claim_request_files
+        WHERE id = $1
+          AND agent_id = $2
+        LIMIT 1
+        `,
+        [fileId, agentId],
+      )
+      if (row.rowCount === 0) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      const file = row.rows[0]
+      const customerId = Number(file.customer_id ?? 0)
+      const storageKey = String(file.storage_key ?? '').trim()
+      if (!storageKey || !assertClaimStorageKeyScope(storageKey, agentId, customerId)) {
+        res.status(403).json({ message: '허용되지 않은 파일 경로입니다.' })
+        return
+      }
+      let buffer
+      try {
+        buffer = await consentGetBuffer(storageKey)
+      } catch {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      const mode = resolveDownloadMode(req)
+      const fileName = String(file.file_name ?? '').trim() || 'download'
+      const contentType = String(file.content_type ?? '').trim() || 'application/octet-stream'
+      res.setHeader('Content-Type', contentType)
+      res.setHeader('Content-Disposition', buildContentDisposition(fileName, mode))
+      res.setHeader('Content-Length', String(buffer.length))
+      res.end(buffer)
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
   apiRouter.post('/agent/customer-news', requireAuth, async (req, res) => {
     try {
       const agentId = String(req.user?.id ?? '').trim()

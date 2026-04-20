@@ -1,4 +1,6 @@
 import { DOWNLOAD_LINKS } from '../constants/downloadLinks'
+import { FormButton } from '../../../components/form'
+import { downloadCustomerUploadSampleXlsx } from '../../customers/utils/customerExcelUpload'
 
 const GPT_PROMPT_TEXT = `다음 작업을 수행해줘.
 
@@ -216,7 +218,15 @@ export function IntroductionInstallPage() {
               <li>앱 또는 웹에서 연락처 업로드 메뉴 이동</li>
               <li>작성한 파일 선택 후 업로드</li>
             </ol>
-            <a href={DOWNLOAD_LINKS.sampleExcel || '#'} target="_blank" rel="noreferrer">샘플 파일 다운로드</a>
+            <a
+              href="#sample-download"
+              onClick={(event) => {
+                event.preventDefault()
+                downloadCustomerUploadSampleXlsx()
+              }}
+            >
+              샘플 파일 다운로드
+            </a>
           </div>
         </div>
       </section>
@@ -228,12 +238,13 @@ export function IntroductionInstallPage() {
             <p>샘플 양식과 기존 데이터를 업로드한 뒤 아래 프롬프트를 사용하세요.</p>
           </header>
           <article className="intro-install-prompt">
-            <button
-              type="button"
+            <FormButton
+              htmlType="button"
+              variant="secondary"
               onClick={() => navigator.clipboard?.writeText(GPT_PROMPT_TEXT)}
             >
               복사하기
-            </button>
+            </FormButton>
             <pre>{GPT_PROMPT_TEXT}</pre>
           </article>
         </div>

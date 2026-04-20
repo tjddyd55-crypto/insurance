@@ -1,4 +1,4 @@
-import { apiRequest } from '../../../lib/apiClient'
+import { ApiError, apiRequest, resolveApiUrl } from '../../../lib/apiClient'
 
 export type ClaimRequestStatus = 'requested' | 'processing' | 'done' | 'rejected' | 'canceled'
 
@@ -27,6 +27,96 @@ export interface ClaimRequestFileItem {
   uploadedAt: string | null
   url: string
   downloadUrl?: string
+}
+
+function parseContentDispositionFilename(headerValue: string | null): string | null {
+  if (!headerValue?.trim()) {
+    return null
+  }
+  const utf8Star = /filename\*\s*=\s*(?:UTF-8|utf-8)''([^;\s]+)/i.exec(headerValue)
+  if (utf8Star?.[1]) {
+    try {
+      return decodeURIComponent(utf8Star[1].trim())
+    } catch {
+      return null
+    }
+  }
+  const quoted = /filename\s*=\s*"((?:\\.|[^"\\])*)"/i.exec(headerValue)
+  if (quoted?.[1]) {
+    return quoted[1].replace(/\\(.)/g, '$1')
+  }
+  const plain = /filename\s*=\s*([^;\s]+)/i.exec(headerValue)
+  if (plain?.[1]) {
+    return plain[1].replace(/^["']|["']$/g, '')
+  }
+  return null
+}
+
+function isDirectCdnUrl(url: string): boolean {
+  const trimmed = url.trim()
+  if (!trimmed) {
+    return false
+  }
+  return !/\/(backend|api)\/(agent|customer-app)\/customer-claim-files\/\d+\/download/i.test(trimmed)
+}
+
+async function fetchAgentClaimFileBlob(
+  token: string,
+  fileId: number,
+  mode: 'inline' | 'attachment',
+): Promise<{ blob: Blob; fileName: string | null }> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  const query = mode === 'attachment' ? '?download=1' : ''
+  const url = resolveApiUrl(`/api/agent/customer-claim-files/${fileId}/download-auth${query}`)
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token.trim()}`,
+    },
+  })
+  if (!response.ok) {
+    let message = '파일을 불러오지 못했습니다.'
+    try {
+      const payload = (await response.json()) as { message?: string }
+      if (payload?.message) {
+        message = payload.message
+      }
+    } catch {
+      // ignore json parse error
+    }
+    throw new ApiError(message, response.status)
+  }
+  return {
+    blob: await response.blob(),
+    fileName: parseContentDispositionFilename(response.headers.get('Content-Disposition')),
+  }
+}
+
+export async function openClaimRequestFile(token: string, file: ClaimRequestFileItem): Promise<void> {
+  const directUrl = String(file.url ?? '').trim()
+  if (directUrl && isDirectCdnUrl(directUrl)) {
+    window.open(directUrl, '_blank', 'noopener,noreferrer')
+    return
+  }
+  const { blob } = await fetchAgentClaimFileBlob(token, file.id, 'inline')
+  const objectUrl = URL.createObjectURL(blob)
+  window.open(objectUrl, '_blank', 'noopener,noreferrer')
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+}
+
+export async function downloadClaimRequestFile(token: string, file: ClaimRequestFileItem): Promise<void> {
+  const { blob, fileName } = await fetchAgentClaimFileBlob(token, file.id, 'attachment')
+  const objectUrl = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = objectUrl
+  a.download = fileName ?? file.fileName ?? `claim-file-${file.id}`
+  a.rel = 'noopener'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(objectUrl)
 }
 
 export interface ClaimRequestStatusLogItem {

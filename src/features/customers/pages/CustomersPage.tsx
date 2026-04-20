@@ -70,6 +70,19 @@ function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
   return /^\/customers\/[^/]+\/(files|consultations|ga-excel)(\/|$)/.test(pathname)
 }
 
+function resolveCustomerWorkspaceTab(pathname: string): 'files' | 'consultations' | 'memos' | 'ga-excel' {
+  if (pathname.includes('/consultations')) {
+    return 'consultations'
+  }
+  if (pathname.includes('/memos')) {
+    return 'memos'
+  }
+  if (pathname.includes('/ga-excel') || pathname.includes('/ga')) {
+    return 'ga-excel'
+  }
+  return 'files'
+}
+
 async function copyTextWithWebViewFallback(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text)
@@ -430,6 +443,7 @@ type CustomerListCardProps = {
   onOpenConsultationsModal: (customerId: number) => void
   onOpenAutoModal: (customerId: number) => void
   onOpenGaModal: (customerId: number) => void
+  onOpenRelatedCustomer: (customerId: number, customerName?: string) => void
   token: string | null
   onToggleFavorite: (c: CustomerRecord) => void | Promise<void>
 }
@@ -457,6 +471,7 @@ const CustomerListCard = memo(function CustomerListCard({
   onOpenConsultationsModal,
   onOpenAutoModal,
   onOpenGaModal,
+  onOpenRelatedCustomer,
   token,
   onToggleFavorite,
 }: CustomerListCardProps) {
@@ -1019,9 +1034,7 @@ const CustomerListCard = memo(function CustomerListCard({
                       customerName={c.name}
                       token={token}
                       focusedCustomerId={expandedId}
-                      onOpenCustomer={(relatedCustomerId) => {
-                        setExpandedId(relatedCustomerId)
-                      }}
+                      onOpenCustomer={onOpenRelatedCustomer}
                     />
                   ) : null}
                 </div>
@@ -1342,18 +1355,25 @@ export default function CustomersPage() {
       if (isMobile) {
         return
       }
-      const safeTab = location.pathname.includes('/consultations')
-        ? 'consultations'
-        : location.pathname.includes('/memos')
-          ? 'memos'
-          : location.pathname.includes('/ga-excel') || location.pathname.includes('/ga')
-            ? 'ga-excel'
-            : location.pathname.includes('/files')
-              ? 'files'
-              : 'files'
+      const safeTab = resolveCustomerWorkspaceTab(location.pathname)
       navigate(`/customers/${c.id}/${safeTab}`, {
         replace: true,
         state: { customerName: c.name },
+      })
+    },
+    [isMobile, location.pathname, navigate],
+  )
+
+  const handleOpenRelatedCustomer = useCallback(
+    (customerId: number, customerName?: string) => {
+      setExpandedId(customerId)
+      if (isMobile) {
+        return
+      }
+      const safeTab = resolveCustomerWorkspaceTab(location.pathname)
+      navigate(`/customers/${customerId}/${safeTab}`, {
+        replace: true,
+        state: customerName?.trim() ? { customerName } : undefined,
       })
     },
     [isMobile, location.pathname, navigate],
@@ -2165,6 +2185,7 @@ export default function CustomersPage() {
               onOpenConsultationsModal={handleOpenConsultationsModal}
               onOpenAutoModal={handleOpenAutoModal}
               onOpenGaModal={handleOpenGaModal}
+              onOpenRelatedCustomer={handleOpenRelatedCustomer}
               token={token}
               onToggleFavorite={handleToggleFavorite}
             />
