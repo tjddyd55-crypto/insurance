@@ -176,6 +176,11 @@ body {
     background: var(--bg-elevated, #141b26);
   }
 
+  html.electron-app .pc-title-bar {
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+
   .pc-title-bar .title-left,
   .pc-title-bar .title-center,
   .pc-title-bar .title-right {
