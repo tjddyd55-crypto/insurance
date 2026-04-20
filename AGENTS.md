@@ -61,6 +61,30 @@ main에 푸시되면 **동시에 3개 채널**이 갱신되므로 머지 타이�
 1. Railway Dashboard에서 dev 서비스의 **Source Branch가 `develop`인지** 확인 (가장 흔한 원인).
 2. dev 서비스의 최근 빌드가 실패했는지 (Deployments 탭) 확인.
 3. GitHub Actions `deploy.yml`·`*-ota.yml`이 develop에도 돌도록 잘못 확장되어 있지는 않은지 확인 (현 상태는 `main`만 트리거, 유지할 것).
+4. DevTools Console에 `[apiClient] stale Railway API host ignored …` 경고가 뜬다면 `.env.production`에 prod 호스트가 다시 박혔는지 확인 (3-5 위반). dev 번들이 prod 호스트를 가리키는 순간 검증 신뢰도가 무너진다.
+
+### 3-5. 환경변수 주입 원칙 (API/BASE URL)
+
+다음 규칙은 "dev와 prod가 같은 빌드 산출물을 써도 각자 자기 호스트에 붙는다"는 불변식을 만들기 위함이다.
+
+| 실행 환경 | `VITE_API_URL` / `VITE_BASE_URL` | 실제 API base | 근거 |
+|---|---|---|---|
+| Web (Railway dev) | **미설정** | same-origin `/backend` | `src/lib/apiClient.ts` `resolveApiBasePath()` |
+| Web (Railway prod) | **미설정** | same-origin `/backend` | 동일 |
+| Desktop (Electron, 패키지) | **빌드 타임에 prod 호스트 주입** | 주입된 절대 URL | `file://`이라 same-origin이 없음 |
+| 로컬 개발 (`npm run dev`) | (선택) | `vite` dev proxy가 `/backend` → `localhost:3001` 프록시 | `vite.config.ts` |
+
+- `.env.production`에 절대로 `VITE_API_URL` / `VITE_BASE_URL`을 하드코딩하지 않는다. 해당 파일은 의도 설명 주석만 둔다.
+- Electron 빌드는 `.github/workflows/deploy.yml`의 `Build and publish Electron` 스텝에서 env 주입.
+- Electron을 **로컬에서 수동 패키징**할 때는 동일 env를 셸에서 주입한다.
+
+  ```powershell
+  $env:VITE_API_URL="https://insurance-production-7bd8.up.railway.app"
+  $env:VITE_BASE_URL="https://insurance-production-7bd8.up.railway.app"
+  npm run build:desktop
+  ```
+
+- `src/lib/publicOrigin.ts`의 `getPublicOrigin()`은 `VITE_BASE_URL`이 없으면 `window.location.origin`으로 폴백하므로, 웹 dev/prod 모두 올바른 자기 호스트로 초대 링크·자원 URL을 만든다. 이 폴백을 제거하지 말 것.
 
 ## 4. 체크리스트 (작업 종료 전)
 
