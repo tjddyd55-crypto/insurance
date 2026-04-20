@@ -84,6 +84,37 @@ function resolveCustomerWorkspaceTab(pathname: string): 'files' | 'consultations
   return 'files'
 }
 
+function isScrollableElement(el: Element | null): el is HTMLElement {
+  if (!(el instanceof HTMLElement)) {
+    return false
+  }
+  const style = window.getComputedStyle(el)
+  const overflowY = style.overflowY
+  const canScrollY = overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay'
+  return canScrollY && el.scrollHeight > el.clientHeight + 1
+}
+
+function resolveCustomerScrollContainer(target: HTMLElement): HTMLElement {
+  const listContainer = document.querySelector('.customers-page__customer-list')
+  if (isScrollableElement(listContainer)) {
+    return listContainer
+  }
+
+  let current: HTMLElement | null = target
+  while (current) {
+    if (isScrollableElement(current)) {
+      return current
+    }
+    current = current.parentElement
+  }
+
+  if (document.scrollingElement instanceof HTMLElement) {
+    return document.scrollingElement
+  }
+
+  return document.documentElement
+}
+
 async function copyTextWithWebViewFallback(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text)
@@ -1157,6 +1188,7 @@ export default function CustomersPage() {
     null | 'files' | 'consultations' | 'auto' | 'ga'
   >(null)
   const [activeMobileCustomerId, setActiveMobileCustomerId] = useState<number | null>(null)
+  const [scrollRequestKey, setScrollRequestKey] = useState(0)
   const observerRef = useRef<ResizeObserver | null>(null)
   const scrollCountRef = useRef(0)
   const expandedIdRef = useRef<number | null>(null)
@@ -1379,6 +1411,7 @@ export default function CustomersPage() {
     (c: CustomerRecord) => {
       setSelectedCustomerId(c.id)
       setExpandedId(c.id)
+      setScrollRequestKey((prev) => prev + 1)
       if (isMobile) {
         return
       }
@@ -1401,6 +1434,7 @@ export default function CustomersPage() {
       setAdvSearchHits(null)
       setSelectedCustomerId(customerId)
       setExpandedId(customerId)
+      setScrollRequestKey((prev) => prev + 1)
 
       const next = new URLSearchParams(searchParams)
       next.delete('mode')
@@ -1463,66 +1497,87 @@ export default function CustomersPage() {
       return
     }
     scrollCountRef.current = 0
-
-    const container = document.querySelector<HTMLElement>('.customers-page__customer-list')
-    const target = document.querySelector<HTMLElement>(`[data-customer-id="${expandedId}"]`)
-
-    if (!container || !target) {
-      return
-    }
-
-    // 이전 관찰자는 즉시 제거
     if (observerRef.current) {
       observerRef.current.disconnect()
       observerRef.current = null
     }
 
-    const runScroll = () => {
-      if (scrollCountRef.current >= 2) {
+    let disposed = false
+    let retry = 0
+    let rafId = 0
+    const maxRetry = 8
+
+    const tryAttach = () => {
+      if (disposed) {
         return
       }
-      scrollCountRef.current += 1
 
-      const containerRect = container.getBoundingClientRect()
-      const targetRect = target.getBoundingClientRect()
-
-      const y = targetRect.top - containerRect.top + container.scrollTop
-      const stickyElements = container.querySelectorAll<HTMLElement>(
-        '.sticky, .filter-bar, .search-bar',
-      )
-      let stickyHeight = 0
-      stickyElements.forEach((el) => {
-        const rect = el.getBoundingClientRect()
-        // 컨테이너 상단 영역과 실제로 겹치는 요소만 높이에 합산
-        const isOverlapping = rect.bottom >= containerRect.top && rect.top <= containerRect.top
-
-        if (isOverlapping) {
-          stickyHeight += rect.height
+      const target = document.querySelector<HTMLElement>(`[data-customer-id="${expandedId}"]`)
+      if (!target) {
+        if (retry < maxRetry) {
+          retry += 1
+          rafId = requestAnimationFrame(tryAttach)
         }
-      })
+        return
+      }
 
-      container.scrollTo({
-        top: Math.max(0, y - stickyHeight),
-        behavior: 'smooth',
+      const container = resolveCustomerScrollContainer(target)
+
+      const runScroll = () => {
+        if (disposed || !target.isConnected) {
+          return
+        }
+        if (scrollCountRef.current >= 2) {
+          return
+        }
+        scrollCountRef.current += 1
+
+        const containerRect = container.getBoundingClientRect()
+        const targetRect = target.getBoundingClientRect()
+
+        const y = targetRect.top - containerRect.top + container.scrollTop
+        const stickyElements = container.querySelectorAll<HTMLElement>(
+          '.sticky, .filter-bar, .search-bar',
+        )
+        let stickyHeight = 0
+        stickyElements.forEach((el) => {
+          const rect = el.getBoundingClientRect()
+          // 컨테이너 상단 영역과 실제로 겹치는 요소만 높이에 합산
+          const isOverlapping = rect.bottom >= containerRect.top && rect.top <= containerRect.top
+
+          if (isOverlapping) {
+            stickyHeight += rect.height
+          }
+        })
+
+        container.scrollTo({
+          top: Math.max(0, y - stickyHeight),
+          behavior: 'smooth',
+        })
+      }
+
+      const observer = new ResizeObserver(() => {
+        runScroll()
       })
+      observer.observe(target)
+      observerRef.current = observer
+
+      requestAnimationFrame(runScroll)
     }
 
-    const observer = new ResizeObserver(() => {
-      runScroll()
-    })
-    observer.observe(target)
-    observerRef.current = observer
-
-    // 최초 1회 실행
-    requestAnimationFrame(runScroll)
+    rafId = requestAnimationFrame(tryAttach)
 
     return () => {
-      observer.disconnect()
-      if (observerRef.current === observer) {
+      disposed = true
+      if (rafId) {
+        cancelAnimationFrame(rafId)
+      }
+      if (observerRef.current) {
+        observerRef.current.disconnect()
         observerRef.current = null
       }
     }
-  }, [expandedId])
+  }, [expandedId, scrollRequestKey])
 
   useEffect(() => {
     if (tab !== 'list') {
