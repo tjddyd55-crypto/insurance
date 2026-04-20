@@ -6179,19 +6179,19 @@ a.contacts-public-auth__link {
   }
 }
 
-.mobile-root .customers-page.page {
+.customers-page--mobile.page {
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
 /* 고객관리 UI 정렬/간격 통일 (PC/모바일 분리) */
-.mobile-root .customers-page .customers-page__action-row {
+.customers-page--mobile .customers-page__action-row {
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
 }
 
-.mobile-root .customers-page button.cta-button.customers-page__action-btn,
-.mobile-root .customers-page div.cta-button.customers-page__action-btn[role='button'] {
+.customers-page--mobile button.cta-button.customers-page__action-btn,
+.customers-page--mobile div.cta-button.customers-page__action-btn[role='button'] {
   height: 40px !important;
   min-height: 40px !important;
   padding: 0 12px !important;
@@ -6201,20 +6201,20 @@ a.contacts-public-auth__link {
   justify-content: center;
 }
 
-.mobile-root .customers-page .customers-page__search-row {
+.customers-page--mobile .customers-page__search-row {
   align-items: center;
   gap: 8px;
   margin-top: 8px;
   margin-bottom: 6px;
 }
 
-.mobile-root .customers-page .customers-page__search-input {
+.customers-page--mobile .customers-page__search-input {
   height: 44px;
   min-height: 44px;
   box-sizing: border-box;
 }
 
-.mobile-root .customers-page .customers-page__search-row button {
+.customers-page--mobile .customers-page__search-row button {
   height: 44px !important;
   min-height: 44px !important;
   padding: 0 12px !important;
@@ -6224,26 +6224,26 @@ a.contacts-public-auth__link {
   justify-content: center;
 }
 
-.mobile-root .customers-page .customer-expand-summary {
+.customers-page--mobile .customer-expand-summary {
   align-items: center !important;
   padding: 10px;
 }
 
-.mobile-root .customers-page .customer-card-name-primary {
+.customers-page--mobile .customer-card-name-primary {
   line-height: 1.28;
 }
 
-.mobile-root .customers-page .customer-card-summary-meta {
+.customers-page--mobile .customer-card-summary-meta {
   margin-top: 2px;
   line-height: 1.2 !important;
 }
 
-.mobile-root .customers-page .customer-card__actions {
+.customers-page--mobile .customer-card__actions {
   gap: 6px;
   align-items: center;
 }
 
-.mobile-root .customers-page .customer-card__actions .icon-box {
+.customers-page--mobile .customer-card__actions .icon-box {
   width: 28px;
   height: 28px;
   min-width: 28px;
@@ -6251,7 +6251,7 @@ a.contacts-public-auth__link {
   padding: 0;
 }
 
-.mobile-root .customers-page .customer-card__actions .icon-box button {
+.customers-page--mobile .customer-card__actions .icon-box button {
   width: 28px !important;
   height: 28px !important;
   padding: 0 !important;
@@ -6259,13 +6259,13 @@ a.contacts-public-auth__link {
   line-height: 1 !important;
 }
 
-.mobile-root .customers-page .customer-card__actions .icon-box svg,
-.mobile-root .customers-page .customer-card__actions .icon-box img {
+.customers-page--mobile .customer-card__actions .icon-box svg,
+.customers-page--mobile .customer-card__actions .icon-box img {
   width: 16px;
   height: 16px;
 }
 
-.mobile-root .customers-page .customer-expand-summary__hint {
+.customers-page--mobile .customer-expand-summary__hint {
   width: 28px;
   height: 28px;
   margin-left: 4px;
@@ -6274,32 +6274,32 @@ a.contacts-public-auth__link {
   justify-content: center;
 }
 
-.mobile-root .customers-page .customer-expand-summary__row--primary {
+.customers-page--mobile .customer-expand-summary__row--primary {
   align-items: center;
 }
 
-.mobile-root .customers-page .customer-expand-summary__row--secondary {
+.customers-page--mobile .customer-expand-summary__row--secondary {
   margin-top: 3px;
 }
 
-.mobile-root .customers-page .customer-expand-detail {
+.customers-page--mobile .customer-expand-detail {
   margin-top: 6px;
   padding: 10px;
 }
 
-.mobile-root .customers-page .customer-detail-toolbar {
+.customers-page--mobile .customer-detail-toolbar {
   align-items: center !important;
   gap: 6px !important;
   margin-bottom: 8px !important;
 }
 
-.mobile-root .customers-page .customer-card-icon-actions {
+.customers-page--mobile .customer-card-icon-actions {
   display: flex;
   align-items: center;
   gap: 4px !important;
 }
 
-.mobile-root .customers-page .customer-card-icon-actions .customer-icon-action {
+.customers-page--mobile .customer-card-icon-actions .customer-icon-action {
   width: 32px !important;
   height: 32px !important;
   min-width: 32px !important;
@@ -6313,40 +6313,40 @@ a.contacts-public-auth__link {
   line-height: 1 !important;
 }
 
-.mobile-root .customers-page .customer-expand-section-divider {
+.customers-page--mobile .customer-expand-section-divider {
   margin: 6px 0;
 }
 
-.mobile-root .customers-page .customer-expand-list {
+.customers-page--mobile .customer-expand-list {
   gap: 8px;
 }
 
-.pc-root .customers-page .customer-expand-summary {
+.customers-page--pc .customer-expand-summary {
   align-items: center !important;
   padding: 11px 12px;
 }
 
-.pc-root .customers-page .customer-card-name-primary {
+.customers-page--pc .customer-card-name-primary {
   line-height: 1.3;
 }
 
-.pc-root .customers-page .customer-card-summary-meta {
+.customers-page--pc .customer-card-summary-meta {
   margin-top: 3px;
   line-height: 1.2 !important;
 }
 
-.pc-root .customers-page .customer-card__actions {
+.customers-page--pc .customer-card__actions {
   gap: 8px !important;
   align-items: center;
 }
 
-.pc-root .customers-page .customer-card__actions .icon-box button {
+.customers-page--pc .customer-card__actions .icon-box button {
   width: 30px !important;
   height: 30px !important;
   padding: 0 !important;
 }
 
-.pc-root .customers-page .customer-expand-summary__hint {
+.customers-page--pc .customer-expand-summary__hint {
   width: 30px;
   height: 30px;
   margin-left: 6px;
@@ -6356,15 +6356,15 @@ a.contacts-public-auth__link {
   line-height: 1;
 }
 
-.pc-root .customers-page .customer-expand-summary__row--primary {
+.customers-page--pc .customer-expand-summary__row--primary {
   align-items: center;
 }
 
-.pc-root .customers-page .customer-expand-summary__row--secondary {
+.customers-page--pc .customer-expand-summary__row--secondary {
   margin-top: 3px;
 }
 
-.pc-root .customers-page .customer-expand-detail {
+.customers-page--pc .customer-expand-detail {
   margin-top: 7px;
   padding: 11px;
 }
@@ -7708,22 +7708,22 @@ textarea.memo-sticky-note__textarea::placeholder {
    고객관리 강제 오버라이드
    ========================= */
 
-.pc-root .customers-page button,
-.pc-root .customers-page a {
+.customers-page--pc button,
+.customers-page--pc a {
   min-height: unset !important;
   height: auto !important;
   padding: 0 !important;
 }
 
-.mobile-root .customers-page button,
-.mobile-root .customers-page a {
+.customers-page--mobile button,
+.customers-page--mobile a {
   min-height: unset !important;
   height: auto !important;
   padding: 0 !important;
 }
 
-.pc-root .customers-page .icon-box,
-.mobile-root .customers-page .icon-box {
+.customers-page--pc .icon-box,
+.customers-page--mobile .icon-box {
   width: 28px !important;
   height: 28px !important;
   display: inline-flex !important;
@@ -7731,30 +7731,30 @@ textarea.memo-sticky-note__textarea::placeholder {
   justify-content: center !important;
 }
 
-.pc-root .customers-page .icon-box svg,
-.mobile-root .customers-page .icon-box svg {
+.customers-page--pc .icon-box svg,
+.customers-page--mobile .icon-box svg {
   width: 14px !important;
   height: 14px !important;
 }
 
-.pc-root .customers-page .customer-card__actions,
-.mobile-root .customers-page .customer-card__actions {
+.customers-page--pc .customer-card__actions,
+.customers-page--mobile .customer-card__actions {
   gap: 6px !important;
 }
 
-.pc-root .customers-page__action-btn,
-.mobile-root .customers-page__action-btn {
+.customers-page--pc__action-btn,
+.customers-page--mobile__action-btn {
   height: 40px !important;
   padding: 0 12px !important;
 }
 
-.pc-root .customers-page__search-input,
-.mobile-root .customers-page__search-input {
+.customers-page--pc__search-input,
+.customers-page--mobile__search-input {
   height: 40px !important;
 }
 
-.pc-root .customers-page__filter-toggle,
-.mobile-root .customers-page__filter-toggle {
+.customers-page--pc__filter-toggle,
+.customers-page--mobile__filter-toggle {
   height: 40px !important;
 }
 
