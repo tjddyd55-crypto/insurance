@@ -25,7 +25,7 @@ export function AppLayout() {
 
   return (
     <div className={rootClass}>
-      {!isAuthenticated && !hideMobileLoginTopChrome && !hidePublicIntroChrome ? <ElectronTitleBar /> : null}
+      {isElectronApp() && !hideMobileLoginTopChrome && !hidePublicIntroChrome ? <ElectronTitleBar /> : null}
       {!isElectronApp() && isAuthenticated && !hidePublicIntroChrome ? <WebProgramTopBar /> : null}
       {!hideMobileLoginTopChrome && !hidePublicIntroChrome ? <OperationalMessageBanner /> : null}
       {isAuthenticated ? <GlobalBackHandlerHost /> : null}

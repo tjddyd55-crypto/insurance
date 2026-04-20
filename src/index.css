@@ -2670,8 +2670,9 @@ button.filter-button:focus-visible {
   flex-direction: column;
 }
 
-/* 고객 카드 [메모] — 펼친 행만 아주 연한 배경(패딩·마진·테두리·글자색 변경 없음) */
+/* 고객 카드 [메모] — 펼친 행은 좌측 파란 강조바 + 아주 연한 배경 */
 .customer-inline-notes .customer-inline-memo-row--open {
+  box-shadow: inset 3px 0 0 #2563eb;
   background-color: rgba(0, 0, 0, 0.045);
 }
 

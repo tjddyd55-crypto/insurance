@@ -1365,18 +1365,25 @@ export default function CustomersPage() {
   )
 
   const handleOpenRelatedCustomer = useCallback(
-    (customerId: number, customerName?: string) => {
+    (customerId: number) => {
+      // 연계고객 클릭은 "검색"이 아니라 해당 고객 선택/펼침으로 동작해야 한다.
+      setSearchInput('')
+      setDeepSearch(false)
+      setFavoriteOnly(false)
+      setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })
+      setAdvSearchHits(null)
       setExpandedId(customerId)
-      if (isMobile) {
-        return
+
+      const next = new URLSearchParams(searchParams)
+      next.delete('mode')
+      next.set('customerId', String(customerId))
+      setSearchParams(next, { replace: true })
+
+      if (location.pathname !== '/customers') {
+        navigate(`/customers?${next.toString()}`, { replace: true })
       }
-      const safeTab = resolveCustomerWorkspaceTab(location.pathname)
-      navigate(`/customers/${customerId}/${safeTab}`, {
-        replace: true,
-        state: customerName?.trim() ? { customerName } : undefined,
-      })
     },
-    [isMobile, location.pathname, navigate],
+    [location.pathname, navigate, searchParams, setSearchParams],
   )
 
   useEffect(() => {
