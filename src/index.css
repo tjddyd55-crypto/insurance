@@ -7474,6 +7474,49 @@ textarea.memo-sticky-note__textarea::placeholder {
   padding: 1rem;
 }
 
+/* 청구요청(모바일): 목록 선택 시 상세 모달 */
+.claim-requests-mobile-detail-modal {
+  width: min(96vw, 680px) !important;
+  max-width: 680px !important;
+  max-height: calc(100dvh - 16px);
+  padding: 0 !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.claim-requests-mobile-detail-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-default);
+  padding: 12px;
+}
+
+.claim-requests-mobile-detail-modal__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.claim-requests-mobile-detail-modal__body {
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .claim-requests-mobile-detail-modal {
+    width: calc(100vw - 10px) !important;
+    max-width: none !important;
+    max-height: calc(100dvh - 10px);
+    border-radius: 14px !important;
+  }
+}
+
 @media (max-width: 768px) {
   .storage-file-list__item {
     flex-direction: column;

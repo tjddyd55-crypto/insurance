@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import FileUploader from '../../../components/common/FileUploader'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import Modal from '../../../components/ui/Modal'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { NewsletterList } from '../../insurer-news/components/NewsletterList'
 import { uploadNewsletterAttachments } from '../../insurer-news/services/insurerNews.service'
@@ -69,6 +70,7 @@ export default function ClaimRequestsPage() {
   const [error, setError] = useState('')
   const [statusMemo, setStatusMemo] = useState('')
   const [statusTarget, setStatusTarget] = useState<ClaimRequestStatus>('processing')
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [createdLink, setCreatedLink] = useState('')
   const [createdCode, setCreatedCode] = useState('')
   const [copyResult, setCopyResult] = useState('')
@@ -179,6 +181,12 @@ export default function ClaimRequestsPage() {
   useEffect(() => {
     void loadDetail()
   }, [loadDetail])
+
+  useEffect(() => {
+    if (activeTab !== 'claims' && mobileDetailOpen) {
+      setMobileDetailOpen(false)
+    }
+  }, [activeTab, mobileDetailOpen])
 
   const loadLinkedCustomers = useCallback(async () => {
     if (!token) {
@@ -392,6 +400,114 @@ export default function ClaimRequestsPage() {
     }
   }, [])
 
+  const handleSelectClaim = useCallback(
+    (id: number) => {
+      setSelectedId(id)
+      if (isMobile) {
+        setMobileDetailOpen(true)
+      }
+    },
+    [isMobile],
+  )
+
+  const claimDetailBody = (
+    <>
+      {detailLoading ? <div className="text-sm text-[var(--text-secondary)]">상세 불러오는 중…</div> : null}
+      {!detailLoading && !detail ? <div className="text-sm text-[var(--text-secondary)]">요청을 선택해 주세요.</div> : null}
+      {detail ? (
+        <>
+          <div>
+            {(() => {
+              const senderName = detail.requesterName || detail.customerName
+              return (
+                <div className="text-sm font-semibold">
+                  #{detail.id} {senderName}
+                </div>
+              )
+            })()}
+            <div className="text-xs text-[var(--text-secondary)] mt-1">
+              상태 {statusLabel(detail.status)} · 접수 {formatDateTime(detail.submittedAt)}
+            </div>
+            {detail.requesterName ? (
+              <div className="text-xs text-[var(--text-secondary)] mt-1">
+                요청자 정보: {detail.requesterName} / {detail.requesterBirthDate} / {detail.requesterPhone}
+              </div>
+            ) : null}
+            <div className="text-xs text-[var(--text-secondary)] mt-1">연결고객: {detail.customerName}</div>
+            {detail.deviceId ? (
+              <div className="text-xs text-[var(--text-secondary)] mt-1">설치자 기기: {detail.deviceId}</div>
+            ) : null}
+            {detail.title ? <div className="text-sm mt-2">제목: {detail.title}</div> : null}
+            {detail.memo ? <div className="text-sm mt-1 whitespace-pre-wrap">메모: {detail.memo}</div> : null}
+          </div>
+
+          <div className="space-y-1">
+            <div className="text-sm font-semibold">첨부 파일</div>
+            {detail.files.length === 0 ? (
+              <div className="text-xs text-[var(--text-secondary)]">첨부 파일이 없습니다.</div>
+            ) : (
+              <ul className="space-y-1">
+                {detail.files.map((file) => (
+                  <li key={file.id} className="text-xs flex items-center justify-between gap-3">
+                    <span className="truncate">{file.fileName}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <a href={file.url} target="_blank" rel="noreferrer" className="text-blue-600">
+                        열기
+                      </a>
+                      <a href={file.downloadUrl ?? file.url} download={file.fileName} className="text-blue-600">
+                        다운로드
+                      </a>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-sm font-semibold">상태 변경</div>
+            <div className="flex gap-2 flex-wrap items-center">
+              <FormSelect
+                className="w-36 text-sm"
+                value={statusTarget}
+                onChange={(event) => setStatusTarget(event.target.value as ClaimRequestStatus)}
+                options={STATUS_OPTIONS.map((item) => ({ value: item.value, label: item.label }))}
+              />
+              <FormButton htmlType="button" variant="primary" onClick={() => void handleUpdateStatus()} loading={actionBusy}>
+                상태 저장
+              </FormButton>
+            </div>
+            <FormTextarea
+              className="w-full text-sm"
+              rows={2}
+              value={statusMemo}
+              onChange={(event) => setStatusMemo(event.target.value)}
+              placeholder="상태 변경 메모(선택)"
+              maxLength={255}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <div className="text-sm font-semibold">상태 이력</div>
+            {detail.statusLogs.length === 0 ? (
+              <div className="text-xs text-[var(--text-secondary)]">이력이 없습니다.</div>
+            ) : (
+              detail.statusLogs.map((log) => (
+                <div key={log.id} className="text-xs text-[var(--text-secondary)]">
+                  {formatDateTime(log.changedAt)} · {log.fromStatus ? statusLabel(log.fromStatus) : '초기'} →{' '}
+                  {statusLabel(log.toStatus)} {log.memo ? `(${log.memo})` : ''}
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      ) : null}
+      {selectedRow && !detail ? (
+        <div className="text-xs text-[var(--text-secondary)]">선택된 요청 #{selectedRow.id}의 상세 정보를 불러오지 못했습니다.</div>
+      ) : null}
+    </>
+  )
+
   const pageContent = (
     <>
       <div>
@@ -497,7 +613,7 @@ export default function ClaimRequestsPage() {
                   className={`w-full text-left rounded-lg px-2 py-2 border ${
                     active ? 'border-blue-500 bg-blue-50/60' : 'border-transparent hover:border-[var(--border-default)]'
                   }`}
-                  onClick={() => setSelectedId(item.id)}
+                  onClick={() => handleSelectClaim(item.id)}
                 >
                   <div className="text-sm font-medium">{senderName}</div>
                   {item.requesterName ? (
@@ -521,105 +637,9 @@ export default function ClaimRequestsPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 space-y-3">
-          {detailLoading ? <div className="text-sm text-[var(--text-secondary)]">상세 불러오는 중…</div> : null}
-          {!detailLoading && !detail ? (
-            <div className="text-sm text-[var(--text-secondary)]">요청을 선택해 주세요.</div>
-          ) : null}
-          {detail ? (
-            <>
-              <div>
-                {(() => {
-                  const senderName = detail.requesterName || detail.customerName
-                  return (
-                    <div className="text-sm font-semibold">
-                      #{detail.id} {senderName}
-                    </div>
-                  )
-                })()}
-                <div className="text-xs text-[var(--text-secondary)] mt-1">
-                  상태 {statusLabel(detail.status)} · 접수 {formatDateTime(detail.submittedAt)}
-                </div>
-                {detail.requesterName ? (
-                  <div className="text-xs text-[var(--text-secondary)] mt-1">
-                    요청자 정보: {detail.requesterName} / {detail.requesterBirthDate} / {detail.requesterPhone}
-                  </div>
-                ) : null}
-                <div className="text-xs text-[var(--text-secondary)] mt-1">연결고객: {detail.customerName}</div>
-                {detail.deviceId ? (
-                  <div className="text-xs text-[var(--text-secondary)] mt-1">설치자 기기: {detail.deviceId}</div>
-                ) : null}
-                {detail.title ? <div className="text-sm mt-2">제목: {detail.title}</div> : null}
-                {detail.memo ? <div className="text-sm mt-1 whitespace-pre-wrap">메모: {detail.memo}</div> : null}
-              </div>
-
-              <div className="space-y-1">
-                <div className="text-sm font-semibold">첨부 파일</div>
-                {detail.files.length === 0 ? (
-                  <div className="text-xs text-[var(--text-secondary)]">첨부 파일이 없습니다.</div>
-                ) : (
-                  <ul className="space-y-1">
-                    {detail.files.map((file) => (
-                      <li key={file.id} className="text-xs flex items-center justify-between gap-3">
-                        <span className="truncate">{file.fileName}</span>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <a href={file.url} target="_blank" rel="noreferrer" className="text-blue-600">
-                            열기
-                          </a>
-                          <a href={file.downloadUrl ?? file.url} download={file.fileName} className="text-blue-600">
-                            다운로드
-                          </a>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-sm font-semibold">상태 변경</div>
-                <div className="flex gap-2 flex-wrap items-center">
-                  <FormSelect
-                    className="w-36 text-sm"
-                    value={statusTarget}
-                    onChange={(event) => setStatusTarget(event.target.value as ClaimRequestStatus)}
-                    options={STATUS_OPTIONS.map((item) => ({ value: item.value, label: item.label }))}
-                  />
-                  <FormButton htmlType="button" variant="primary" onClick={() => void handleUpdateStatus()} loading={actionBusy}>
-                    상태 저장
-                  </FormButton>
-                </div>
-                <FormTextarea
-                  className="w-full text-sm"
-                  rows={2}
-                  value={statusMemo}
-                  onChange={(event) => setStatusMemo(event.target.value)}
-                  placeholder="상태 변경 메모(선택)"
-                  maxLength={255}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <div className="text-sm font-semibold">상태 이력</div>
-                {detail.statusLogs.length === 0 ? (
-                  <div className="text-xs text-[var(--text-secondary)]">이력이 없습니다.</div>
-                ) : (
-                  detail.statusLogs.map((log) => (
-                    <div key={log.id} className="text-xs text-[var(--text-secondary)]">
-                      {formatDateTime(log.changedAt)} · {log.fromStatus ? statusLabel(log.fromStatus) : '초기'} →{' '}
-                      {statusLabel(log.toStatus)} {log.memo ? `(${log.memo})` : ''}
-                    </div>
-                  ))
-                )}
-              </div>
-            </>
-          ) : null}
-          {selectedRow && !detail ? (
-            <div className="text-xs text-[var(--text-secondary)]">
-              선택된 요청 #{selectedRow.id}의 상세 정보를 불러오지 못했습니다.
-            </div>
-          ) : null}
-        </div>
+        {!isMobile ? (
+          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 space-y-3">{claimDetailBody}</div>
+        ) : null}
       </section>
         </>
       ) : null}
@@ -808,7 +828,25 @@ export default function ClaimRequestsPage() {
   )
 
   if (isMobile) {
-    return <ClaimRequestsPageMobileView>{pageContent}</ClaimRequestsPageMobileView>
+    return (
+      <ClaimRequestsPageMobileView>
+        {pageContent}
+        <Modal
+          open={mobileDetailOpen}
+          onClose={() => setMobileDetailOpen(false)}
+          ariaLabel="청구 요청 상세"
+          panelClassName="claim-requests-mobile-detail-modal"
+        >
+          <div className="claim-requests-mobile-detail-modal__header">
+            <div className="claim-requests-mobile-detail-modal__title">청구 요청 상세</div>
+            <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => setMobileDetailOpen(false)}>
+              닫기
+            </FormButton>
+          </div>
+          <div className="claim-requests-mobile-detail-modal__body">{claimDetailBody}</div>
+        </Modal>
+      </ClaimRequestsPageMobileView>
+    )
   }
   return <ClaimRequestsPagePCView>{pageContent}</ClaimRequestsPagePCView>
 }
