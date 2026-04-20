@@ -1157,7 +1157,6 @@ export default function CustomersPage() {
     null | 'files' | 'consultations' | 'auto' | 'ga'
   >(null)
   const [activeMobileCustomerId, setActiveMobileCustomerId] = useState<number | null>(null)
-  const lastScrolledRef = useRef<number | null>(null)
   const expandedIdRef = useRef<number | null>(null)
   const editingIdRef = useRef<number | null>(null)
   const editFormRef = useRef<CustomerEditFormState | null>(null)
@@ -1377,6 +1376,7 @@ export default function CustomersPage() {
   const handleSelectCustomer = useCallback(
     (c: CustomerRecord) => {
       setSelectedCustomerId(c.id)
+      setExpandedId(c.id)
       if (isMobile) {
         return
       }
@@ -1454,19 +1454,12 @@ export default function CustomersPage() {
 
   useLayoutEffect(() => {
     if (expandedId == null) {
-      lastScrolledRef.current = null
-      return
-    }
-
-    // 이미 스크롤한 대상이면 중복 실행 방지
-    if (lastScrolledRef.current === expandedId) {
       return
     }
     let retry = 0
 
     const tryScroll = () => {
       const target = document.querySelector<HTMLElement>(`[data-customer-id="${expandedId}"]`)
-      console.log('scroll target', expandedId, target)
 
       // 아직 렌더 안된 경우 재시도
       if (!target) {
@@ -1477,30 +1470,24 @@ export default function CustomersPage() {
         return
       }
 
-      // 실행 기록 저장
-      lastScrolledRef.current = expandedId
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const container =
+            document.querySelector<HTMLElement>('.customers-page__customer-list') ??
+            document.scrollingElement
 
-      // 1차: 기본 scrollIntoView
-      target.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      })
+          if (!container) {
+            return
+          }
 
-      // 2차: 컨테이너 보정 (PC/모바일 공통)
-      const container =
-        document.querySelector<HTMLElement>('.customers-page__customer-list') ??
-        document.scrollingElement
-      if (container) {
-        const containerRect = container.getBoundingClientRect()
-        const targetRect = target.getBoundingClientRect()
-        const nextTop = targetRect.top - containerRect.top + container.scrollTop - 100
-        if (Number.isFinite(nextTop)) {
+          // 상단 기준 정렬
+          const y = target.offsetTop - 60
           container.scrollTo({
-            top: Math.max(0, nextTop),
+            top: Math.max(0, y),
             behavior: 'smooth',
           })
-        }
-      }
+        })
+      })
     }
 
     requestAnimationFrame(tryScroll)
