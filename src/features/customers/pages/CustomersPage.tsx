@@ -100,8 +100,8 @@ function resolveCustomerScrollContainer(target: HTMLElement): HTMLElement {
     return listContainer
   }
 
-  let current: HTMLElement | null = target
-  while (current) {
+  let current: Element | null = target
+  while (current != null) {
     if (isScrollableElement(current)) {
       return current
     }
@@ -1475,11 +1475,17 @@ export default function CustomersPage() {
    * URL 쿼리가 바뀌었다고 펼침을 강제하지 않는다(파일 패널 ↔ 목록 충돌 방지).
    */
   useEffect(() => {
+    // 모바일에서 카드 펼침(expandedId) 상태일 때는 selected를 expandedId가 주도한다.
+    // 이 구간에서 쿼리 기반 동기화까지 동시에 적용하면 selected 값이 흔들리며
+    // update depth 경고가 발생할 수 있어 모바일에 한해 우선순위를 고정한다.
+    if (isMobile && expandedId != null) {
+      return
+    }
     if (selectedCustomerIdFromQuery === selectedCustomerId) {
       return
     }
     setSelectedCustomerId(selectedCustomerIdFromQuery)
-  }, [selectedCustomerId, selectedCustomerIdFromQuery])
+  }, [expandedId, isMobile, selectedCustomerId, selectedCustomerIdFromQuery])
 
   useEffect(() => {
     if (expandedId == null || selectedCustomerId === expandedId) {
@@ -1505,7 +1511,8 @@ export default function CustomersPage() {
     let disposed = false
     let retry = 0
     let rafId = 0
-    const maxRetry = 8
+    // 모바일(WebView)에서는 카드/리스트 렌더 반영이 늦어 attach 재시도 여유를 더 준다.
+    const maxRetry = isMobile ? 60 : 8
 
     const tryAttach = () => {
       if (disposed) {
@@ -1554,6 +1561,15 @@ export default function CustomersPage() {
           top: Math.max(0, y - stickyHeight),
           behavior: 'smooth',
         })
+        // 모바일 WebView에서 smooth 스크롤이 누락되는 경우를 방지하는 최종 보정.
+        if (isMobile) {
+          requestAnimationFrame(() => {
+            container.scrollTo({
+              top: Math.max(0, y - stickyHeight),
+              behavior: 'auto',
+            })
+          })
+        }
       }
 
       const observer = new ResizeObserver(() => {
@@ -1577,7 +1593,7 @@ export default function CustomersPage() {
         observerRef.current = null
       }
     }
-  }, [expandedId, scrollRequestKey])
+  }, [expandedId, isMobile, scrollRequestKey])
 
   useEffect(() => {
     if (tab !== 'list') {
