@@ -62,3 +62,24 @@ docs(scope): 문서
 ## 6. 라인 엔딩 주의
 
 Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 파일이 M으로 보이는 경우가 있다. 이는 대부분 **실제 내용 변경이 아닌 CRLF 경고**이므로 `git diff --ignore-cr-at-eol --name-only`로 실제 변경 파일만 추려서 명시적으로 `git add <파일>` 할 것. `git add .` 사용 금지(의도치 않은 대량 커밋 방지).
+
+> **TODO(별도 단독 커밋)**: 프로젝트 루트에 `.gitattributes`(`* text=auto eol=lf` + 바이너리 지정)를 추가하고 `git add --renormalize .`로 일괄 재정규화한다. 수백 파일짜리 단독 커밋이어야 하며 기능 커밋과 섞지 않는다. 실행은 큰 릴리스 직후 조용한 시점에.
+
+## 7. 작업 인프라
+
+### 7-1. worktree
+
+- `D:/workspace/insurance-main-sync` 는 **main 브랜치 전용 worktree**다. 본 저장소(`D:/workspace/insurance`)는 상시 develop에 머물게 하고, main 머지·푸시만 이 worktree에서 수행하기 위한 용도.
+- 덕분에 develop 작업 도중 브랜치 스위칭 없이 main 반영이 가능하다. 함부로 삭제하지 말 것.
+- 추가 worktree를 만들 경우 이 파일에 용도를 명기한다.
+
+### 7-2. Cursor Project Rules
+
+- 경로: `.cursor/rules/*.mdc` (신형 포맷)
+- 각 `.mdc`는 상단 front matter로 `description` / `globs` / `alwaysApply` 지정. 레거시 `rules.json`·`.md` 금지.
+- 예: `.cursor/rules/r2-storage.mdc` — R2 업로드 기본 경로 규칙.
+
+### 7-3. EAS Update 채널
+
+- `apps/mobile/eas.json`, `apps/customer-mobile/eas.json`에 정의된 **빌드 프로필 채널만 publish 대상**이다 (`development` / `preview` / `main`).
+- `default` 채널처럼 구독하는 빌드가 없는 채널로 publish 하지 말 것. 도달 대상 없이 EAS API 호출만 낭비한다.

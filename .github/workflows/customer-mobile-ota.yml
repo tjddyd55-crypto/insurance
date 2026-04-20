@@ -39,8 +39,3 @@ jobs:
         run: eas update --branch main --non-interactive --message "auto update"
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
-      - name: EAS Update (default fallback)
-        run: eas update --branch default --non-interactive --message "auto update (fallback)"
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
