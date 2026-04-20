@@ -30,13 +30,37 @@
 - `main`에 직접 커밋 금지. 모든 변경은 develop을 경유한다.
 - `git push --force` 류 명령은 **절대 금지**. 사용자가 명시적으로 요구해도 main/develop에는 force push를 하지 않는다.
 
-## 3. main 푸시 시 자동으로 일어나는 일
+## 3. 배포 파이프라인 (Railway 서비스 ↔ 브랜치)
 
-main에 푸시되면 **동시에 3개 채널**이 갱신되므로, 머지 타이밍은 신중해야 한다.
+### 3-1. 서비스별 Source Branch 매핑 (진실 표)
 
-1. **Railway(웹)** — `insurance-dev-production.up.railway.app` 등 웹 서비스 자동 재배포.
-2. **Electron 데스크톱 앱** — `.github/workflows/deploy.yml`이 Windows exe 빌드 후 릴리스에 publish.
-3. **모바일 OTA** — `mobile-ota.yml`, `customer-mobile-ota.yml`이 EAS Update 배포. 설계사 앱·고객 앱 모두.
+| 환경 | URL | 관찰해야 할 브랜치 | 역할 |
+|---|---|---|---|
+| **dev** | `insurance-dev-production.up.railway.app` | **`develop`** | develop 반영 즉시 검증용. 운영 영향 없음 |
+| **prod** | `insurance-production-7bd8.up.railway.app` | **`main`** | 실제 사용자 서비스 |
+
+> **중요**: dev 서비스의 source branch가 `main`으로 되어 있으면 develop 검증 자체가 불가능해진다 (develop에 아무리 푸시해도 dev URL이 반응하지 않거나, main 머지 후에야 바뀐다). Railway Dashboard → 해당 서비스 → Settings → Source → Connect Branch가 **반드시 `develop`** 이어야 한다. 이 설정을 바꾸는 사람은 이 문서를 같이 수정한다.
+
+### 3-2. main 푸시 시 자동으로 일어나는 일
+
+main에 푸시되면 **동시에 3개 채널**이 갱신되므로 머지 타이밍은 신중해야 한다.
+
+1. **Railway prod(웹)** — prod 서비스 자동 재배포
+2. **Electron 데스크톱 앱** — `.github/workflows/deploy.yml`이 Windows exe 빌드 후 릴리스에 publish
+3. **모바일 OTA** — `mobile-ota.yml`, `customer-mobile-ota.yml`이 EAS Update 배포. 설계사 앱·고객 앱 모두
+
+### 3-3. develop 푸시 시 자동으로 일어나는 일
+
+- **Railway dev(웹)만** 자동 재배포된다 (3-1 매핑이 올바른 경우).
+- Electron 데스크톱·모바일 OTA 워크플로는 `on.push.branches: [main]`이므로 develop 푸시로는 **트리거되지 않는다**. 이는 의도된 설계(운영 채널 보호).
+
+### 3-4. 파이프라인 이상 진단
+
+"develop에 푸시했는데 dev URL이 바뀌지 않음"이라면 다음 순서로 의심한다.
+
+1. Railway Dashboard에서 dev 서비스의 **Source Branch가 `develop`인지** 확인 (가장 흔한 원인).
+2. dev 서비스의 최근 빌드가 실패했는지 (Deployments 탭) 확인.
+3. GitHub Actions `deploy.yml`·`*-ota.yml`이 develop에도 돌도록 잘못 확장되어 있지는 않은지 확인 (현 상태는 `main`만 트리거, 유지할 것).
 
 ## 4. 체크리스트 (작업 종료 전)
 
