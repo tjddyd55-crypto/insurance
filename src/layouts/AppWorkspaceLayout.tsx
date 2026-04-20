@@ -10,7 +10,6 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { FormButton } from '../components/form'
 import { Button, Modal } from '../components/ui'
 import ResponsiveLayout from '../components/ResponsiveLayout'
-import PCTitleBar from '../components/layout/PCTitleBar'
 import PCHeader from '../components/layout/PCHeader'
 import { useAuth } from '../features/auth/AuthProvider'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
@@ -27,7 +26,6 @@ import { fetchTeamMembers } from '../features/team/api/teamApi'
 import MemoPanel from './MemoPanel'
 import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
 import useIsMobile from '../hooks/useIsMobile'
-import { resolveBackRoute } from '../navigation/backNavigationPolicy'
 
 type SidebarNavEntry = GaTenantDashboardMenuEntry
 
@@ -536,24 +534,6 @@ function AppWorkspaceLayoutPCShell() {
 
   return (
     <div className="pc-root app-workspace-layout-root">
-      <PCTitleBar
-        onBack={() => {
-          const resolved = resolveBackRoute(location.pathname, location.search ?? '')
-          if (resolved == null) {
-            if (window.history.length > 1) {
-              navigate(-1)
-              return
-            }
-            navigate('/customers')
-            return
-          }
-          if (resolved.kind === 'customer-create-exit') {
-            navigate('/customers')
-            return
-          }
-          navigate(resolved.path, resolved.replace ? { replace: true } : undefined)
-        }}
-      />
       <PCHeader
         title={workspaceHeaderTitle}
         showNotification={showGaUserActions}

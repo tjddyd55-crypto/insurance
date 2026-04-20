@@ -674,7 +674,7 @@ const CustomerListCard = memo(function CustomerListCard({
                       )}
                     </FormButton>
                   </div>
-                  <div className="icon-box">
+                  <div className="icon-box icon-box--sms">
                     {smsHref ? (
                       <a
                         href={smsHref}
@@ -690,7 +690,7 @@ const CustomerListCard = memo(function CustomerListCard({
                       </span>
                     )}
                   </div>
-                  <div className="icon-box">
+                  <div className="icon-box icon-box--tel">
                     {telHref ? (
                       <a
                         href={telHref}
@@ -2186,7 +2186,7 @@ export default function CustomersPage() {
             <FormButton
               htmlType="button"
               variant="action"
-              className={`px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
+              className={`favorite-btn px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
                 favoriteOnly
                   ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white'
                   : 'border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'

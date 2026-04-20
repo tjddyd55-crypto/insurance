@@ -9,6 +9,8 @@ import {
   type CustomerRelationRow,
 } from '../api/customerExtraApi'
 import type { CustomerRecord } from '../domain/types'
+import { formatCustomerPhoneUi } from '../utils/customerDisplayFormat'
+import { parseBirthDateFromRrn } from '../utils/insuranceAge'
 
 const CHIPS_VISIBLE = 5
 
@@ -27,6 +29,17 @@ const chipWrap: CSSProperties = {
   borderRadius: 8,
   overflow: 'hidden',
   flexShrink: 0,
+}
+
+function formatBirthYmdDotFromSsn(ssn: string | null | undefined): string {
+  const birthDate = parseBirthDateFromRrn(String(ssn ?? ''))
+  if (!birthDate) {
+    return '-'
+  }
+  const y = String(birthDate.getFullYear())
+  const m = String(birthDate.getMonth() + 1).padStart(2, '0')
+  const d = String(birthDate.getDate()).padStart(2, '0')
+  return `${y}.${m}.${d}`
 }
 
 export function CustomerRelationsStrip({
@@ -171,7 +184,7 @@ export function CustomerRelationsStrip({
 
   return (
     <div className="customer-relations-strip mt-5" style={{ padding: '10px 0' }}>
-      <div className="customer-section-title !mt-0">[연계 고객]</div>
+      <div className="customer-section-title customer-relations-strip__title !mt-0">연계 고객</div>
       {loading ? (
         <p style={{ fontSize: '0.9rem', color: '#666' }}>불러오는 중…</p>
       ) : error ? (
@@ -187,6 +200,7 @@ export function CustomerRelationsStrip({
             return (
               <div
                 key={r.relatedCustomerId}
+                className="related-customer-tag"
                 style={{
                   ...chipWrap,
                   border: isFocused ? '2px solid #2563eb' : '1px solid rgba(0,0,0,0.18)',
@@ -196,7 +210,7 @@ export function CustomerRelationsStrip({
                 <FormButton
                   htmlType="button"
                   variant="action"
-                  className="filter-button"
+                  className="filter-button related-customer-tag__name"
                   style={{
                     border: 'none',
                     borderRadius: 0,
@@ -212,7 +226,7 @@ export function CustomerRelationsStrip({
                 <FormButton
                   htmlType="button"
                   variant="action"
-                  className="delete-btn"
+                  className="delete-btn related-customer-tag__remove"
                   aria-label={`${r.relatedName ?? ''} 연결 해제`}
                   title="연결 해제"
                   style={{
@@ -259,14 +273,14 @@ export function CustomerRelationsStrip({
           <FormButton
             htmlType="button"
             variant="action"
-            className="filter-button"
+            className="filter-button related-customer-add"
             style={{ minHeight: 0, flexShrink: 0, padding: '4px 10px', fontSize: '0.875rem' }}
             onClick={() => {
               setError('')
               setModalOpen(true)
             }}
           >
-            +추가
+            + 추가
           </FormButton>
         </div>
       </div>
@@ -302,8 +316,8 @@ export function CustomerRelationsStrip({
             >
               <FormInput
                 type="search"
-                className="search-input"
-                placeholder="이름 / 전화번호 (기존 검색 API)"
+                className="search-input customer-relations-modal__search"
+                placeholder="이름 또는 전화번호 검색"
                 value={searchQ}
                 onChange={(e) => setSearchQ(e.target.value)}
                 autoFocus
@@ -312,7 +326,7 @@ export function CustomerRelationsStrip({
               />
             </form>
             {searchBusy ? <p style={{ fontSize: '0.9rem' }}>검색 중…</p> : null}
-            <ul style={{ listStyle: 'none', padding: 0, maxHeight: 240, overflow: 'auto', marginTop: 8 }}>
+            <ul className="related-list-mobile" style={{ listStyle: 'none', padding: 0, maxHeight: 240, overflow: 'auto', marginTop: 8 }}>
               {hits.map((h) => (
                 <li key={h.id} style={{ borderTop: '1px solid #eee', padding: '8px 0' }}>
                   <FormButton
@@ -332,6 +346,44 @@ export function CustomerRelationsStrip({
                 </li>
               ))}
             </ul>
+            <div className="related-list related-list--pc">
+              <div className="related-list__header row" role="presentation">
+                <div className="name">이름</div>
+                <div className="birth">생년월일</div>
+                <div className="phone">연락처</div>
+                <div className="action" aria-hidden="true" />
+              </div>
+              <ul className="related-list__body" role="list">
+                {hits.map((h) => {
+                  const disabled = linking || relatedIdSet.has(h.id)
+                  const birth = formatBirthYmdDotFromSsn(h.ssn)
+                  const phone = formatCustomerPhoneUi(h.phone) || '-'
+                  return (
+                    <li key={h.id} className="row">
+                      <div className="name" title={h.name}>
+                        {h.name}
+                      </div>
+                      <div className="birth">{birth}</div>
+                      <div className="phone">{phone}</div>
+                      <div className="action">
+                        <FormButton
+                          htmlType="button"
+                          variant="action"
+                          className="related-list__connect-btn"
+                          disabled={disabled}
+                          onClick={() => void linkTo(h)}
+                        >
+                          {disabled ? '연결됨' : '연결'}
+                        </FormButton>
+                      </div>
+                    </li>
+                  )
+                })}
+                {hits.length === 0 && !searchBusy ? (
+                  <li className="related-list__empty">검색 결과가 없습니다.</li>
+                ) : null}
+              </ul>
+            </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
               <FormButton
                 htmlType="button"

@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { AppExitConfirm } from './components/AppExitConfirm'
+import { ElectronTitleBar } from './components/ElectronTitleBar'
 import { WebProgramTopBar } from './components/layout/WebProgramTopBar'
 import { OperationalMessageBanner } from './components/OperationalMessageBanner'
 import { GlobalBackHandlerHost } from './hooks/useGlobalBackHandler'
@@ -24,6 +25,7 @@ export function AppLayout() {
 
   return (
     <div className={rootClass}>
+      {isElectronApp() && isAuthenticated && !hidePublicIntroChrome ? <ElectronTitleBar /> : null}
       {!isElectronApp() && isAuthenticated && !hidePublicIntroChrome ? <WebProgramTopBar /> : null}
       {!hideMobileLoginTopChrome && !hidePublicIntroChrome ? <OperationalMessageBanner /> : null}
       {isAuthenticated ? <GlobalBackHandlerHost /> : null}
