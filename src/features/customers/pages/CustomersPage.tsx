@@ -58,6 +58,7 @@ import CustomerAutoModal from '../components/mobile/CustomerAutoModal'
 import CustomerConsultationsModal from '../components/mobile/CustomerConsultationsModal'
 import CustomerFilesModal from '../components/mobile/CustomerFilesModal'
 import CustomerGaDataModal from '../components/mobile/CustomerGaDataModal'
+import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
 
@@ -1012,6 +1013,17 @@ const CustomerListCard = memo(function CustomerListCard({
                       ? normalizeCustomerNotesBag(c.notes).insuranceHistory
                       : '내용 없음'}
                   </div>
+                  {token?.trim() ? (
+                    <CustomerRelationsStrip
+                      customerId={c.id}
+                      customerName={c.name}
+                      token={token}
+                      focusedCustomerId={expandedId}
+                      onOpenCustomer={(relatedCustomerId) => {
+                        setExpandedId(relatedCustomerId)
+                      }}
+                    />
+                  ) : null}
                 </div>
               </>
             )}
