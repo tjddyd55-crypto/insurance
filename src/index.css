@@ -3185,70 +3185,76 @@ div.cta-button.customers-page__action-btn[role='button'] {
   margin-left: 8px;
 }
 
-/* PC 고객관리 UI 최종 정리 (모바일 영향 금지) */
-.pc-root .customers-page .customer-card-text-name {
+/* PC 고객관리 UI 최종 정리 (customers-page--pc / --mobile modifier 기반, 모바일 영향 금지)
+ *
+ * 주의: 이 블록은 `CustomersPagePCView`가 <main>에 부여하는 `customers-page--pc`
+ * modifier를 기준으로 한다. PC/Mobile view 분리 컨벤션(CustomersPageMobileView.tsx의
+ * `.customers-page--mobile` 스타일 블록과 동일 패턴)과 일치시킨 규칙이다.
+ * `.pc-root` / `.mobile-root` 조상에 의존하지 않으므로 레이아웃 구조 변경에 견고하다.
+ */
+.customers-page--pc .customer-card-text-name {
   white-space: nowrap;
   flex-wrap: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.pc-root .customers-page .customer-card-summary-meta {
+.customers-page--pc .customer-card-summary-meta {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.pc-root .customers-page .customer-card__actions {
+.customers-page--pc .customer-card__actions {
   justify-content: flex-end;
   gap: 6px;
 }
 
-.pc-root .customers-page .customer-card__actions .icon-box--sms,
-.pc-root .customers-page .customer-card__actions .icon-box--tel {
+.customers-page--pc .customer-card__actions .icon-box--sms,
+.customers-page--pc .customer-card__actions .icon-box--tel {
   display: none;
 }
 
-.pc-root .customers-page .customers-page__search-row {
+.customers-page--pc .customers-page__search-row {
   display: flex;
   gap: 8px;
 }
 
-.pc-root .customers-page .customers-page__search-input,
-.pc-root .customers-page .customers-page__filter-toggle,
-.pc-root .customers-page .favorite-btn {
+.customers-page--pc .customers-page__search-input,
+.customers-page--pc .customers-page__filter-toggle,
+.customers-page--pc .favorite-btn {
   height: 40px;
   min-height: 40px;
   border-radius: 8px;
 }
 
-.pc-root .customers-page .favorite-btn {
+.customers-page--pc .favorite-btn {
   padding: 0 12px;
 }
 
-.pc-root .customer-relations-strip .customer-relations-strip__title {
+.customers-page--pc .customer-relations-strip .customer-relations-strip__title {
   color: var(--text-main);
 }
 
-.pc-root .customer-relations-strip .related-customer-tag {
+.customers-page--pc .customer-relations-strip .related-customer-tag {
   border-radius: 6px !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   background: rgba(255, 255, 255, 0.05);
 }
 
-.pc-root .customer-relations-strip .related-customer-tag__name {
+.customers-page--pc .customer-relations-strip .related-customer-tag__name {
   padding: 4px 10px !important;
   font-size: 13px !important;
   color: var(--text-main);
 }
 
-.pc-root .customer-relations-strip .related-customer-tag__remove {
+.customers-page--pc .customer-relations-strip .related-customer-tag__remove {
   padding: 4px 8px !important;
   font-size: 13px !important;
   color: var(--text-sub);
 }
 
-.pc-root .customer-relations-strip .related-customer-add {
+.customers-page--pc .customer-relations-strip .related-customer-add {
   border: 1px solid #3b82f6 !important;
   color: #3b82f6 !important;
   background: transparent !important;
@@ -3257,30 +3263,31 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font-size: 13px !important;
 }
 
-.pc-root .customer-relations-strip .related-list {
+.customers-page--pc .customer-relations-strip .related-list {
   margin-top: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   overflow: hidden;
 }
 
+/* 기본 숨김: 연계 고객 검색 결과의 PC용 테이블 뷰는 PC 화면에서만 드러낸다 */
 .customer-relations-strip .related-list--pc {
   display: none;
 }
 
-.pc-root .customer-relations-strip .related-list--pc {
+.customers-page--pc .customer-relations-strip .related-list--pc {
   display: block;
 }
 
-.pc-root .customer-relations-strip .related-list-mobile {
+.customers-page--pc .customer-relations-strip .related-list-mobile {
   display: none;
 }
 
-.mobile-root .customer-relations-strip .related-list--pc {
+.customers-page--mobile .customer-relations-strip .related-list--pc {
   display: none;
 }
 
-.pc-root .customer-relations-strip .related-list .row {
+.customers-page--pc .customer-relations-strip .related-list .row {
   display: grid;
   grid-template-columns: minmax(120px, 1fr) 120px 160px 80px;
   align-items: center;
@@ -3289,17 +3296,17 @@ div.cta-button.customers-page__action-btn[role='button'] {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.pc-root .customer-relations-strip .related-list .row:last-child {
+.customers-page--pc .customer-relations-strip .related-list .row:last-child {
   border-bottom: none;
 }
 
-.pc-root .customer-relations-strip .related-list__header {
+.customers-page--pc .customer-relations-strip .related-list__header {
   font-size: 12px;
   color: var(--text-sub);
   background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
 }
 
-.pc-root .customer-relations-strip .related-list .name {
+.customers-page--pc .customer-relations-strip .related-list .name {
   font-weight: 600;
   color: var(--text-main);
   overflow: hidden;
@@ -3307,22 +3314,22 @@ div.cta-button.customers-page__action-btn[role='button'] {
   white-space: nowrap;
 }
 
-.pc-root .customer-relations-strip .related-list .birth {
+.customers-page--pc .customer-relations-strip .related-list .birth {
   color: #aaa;
   font-size: 13px;
 }
 
-.pc-root .customer-relations-strip .related-list .phone {
+.customers-page--pc .customer-relations-strip .related-list .phone {
   color: #ccc;
   font-size: 13px;
 }
 
-.pc-root .customer-relations-strip .related-list .action {
+.customers-page--pc .customer-relations-strip .related-list .action {
   display: flex;
   justify-content: flex-end;
 }
 
-.pc-root .customer-relations-strip .related-list__connect-btn {
+.customers-page--pc .customer-relations-strip .related-list__connect-btn {
   min-height: 30px;
   height: 30px;
   padding: 0 10px;
@@ -3330,7 +3337,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font-size: 12px;
 }
 
-.pc-root .customer-relations-strip .related-list__body {
+.customers-page--pc .customer-relations-strip .related-list__body {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -3338,7 +3345,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   overflow-y: auto;
 }
 
-.pc-root .customer-relations-strip .related-list__empty {
+.customers-page--pc .customer-relations-strip .related-list__empty {
   padding: 14px 12px;
   color: var(--text-sub);
   font-size: 13px;
