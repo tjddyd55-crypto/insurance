@@ -1157,6 +1157,8 @@ export default function CustomersPage() {
     null | 'files' | 'consultations' | 'auto' | 'ga'
   >(null)
   const [activeMobileCustomerId, setActiveMobileCustomerId] = useState<number | null>(null)
+  const observerRef = useRef<ResizeObserver | null>(null)
+  const scrollCountRef = useRef(0)
   const expandedIdRef = useRef<number | null>(null)
   const editingIdRef = useRef<number | null>(null)
   const editFormRef = useRef<CustomerEditFormState | null>(null)
@@ -1454,43 +1456,72 @@ export default function CustomersPage() {
 
   useLayoutEffect(() => {
     if (expandedId == null) {
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+        observerRef.current = null
+      }
       return
     }
-    let retry = 0
+    scrollCountRef.current = 0
 
-    const tryScroll = () => {
-      const target = document.querySelector<HTMLElement>(`[data-customer-id="${expandedId}"]`)
+    const container = document.querySelector<HTMLElement>('.customers-page__customer-list')
+    const target = document.querySelector<HTMLElement>(`[data-customer-id="${expandedId}"]`)
 
-      // 아직 렌더 안된 경우 재시도
-      if (!target) {
-        if (retry < 5) {
-          retry += 1
-          requestAnimationFrame(tryScroll)
-        }
+    if (!container || !target) {
+      return
+    }
+
+    // 이전 관찰자는 즉시 제거
+    if (observerRef.current) {
+      observerRef.current.disconnect()
+      observerRef.current = null
+    }
+
+    const runScroll = () => {
+      if (scrollCountRef.current >= 2) {
         return
       }
+      scrollCountRef.current += 1
 
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const container =
-            document.querySelector<HTMLElement>('.customers-page__customer-list') ??
-            document.scrollingElement
+      const containerRect = container.getBoundingClientRect()
+      const targetRect = target.getBoundingClientRect()
 
-          if (!container) {
-            return
-          }
+      const y = targetRect.top - containerRect.top + container.scrollTop
+      const stickyElements = container.querySelectorAll<HTMLElement>(
+        '.sticky, .filter-bar, .search-bar',
+      )
+      let stickyHeight = 0
+      stickyElements.forEach((el) => {
+        const rect = el.getBoundingClientRect()
+        // 컨테이너 상단 영역과 실제로 겹치는 요소만 높이에 합산
+        const isOverlapping = rect.bottom >= containerRect.top && rect.top <= containerRect.top
 
-          // 상단 기준 정렬
-          const y = target.offsetTop - 60
-          container.scrollTo({
-            top: Math.max(0, y),
-            behavior: 'smooth',
-          })
-        })
+        if (isOverlapping) {
+          stickyHeight += rect.height
+        }
+      })
+
+      container.scrollTo({
+        top: Math.max(0, y - stickyHeight),
+        behavior: 'smooth',
       })
     }
 
-    requestAnimationFrame(tryScroll)
+    const observer = new ResizeObserver(() => {
+      runScroll()
+    })
+    observer.observe(target)
+    observerRef.current = observer
+
+    // 최초 1회 실행
+    requestAnimationFrame(runScroll)
+
+    return () => {
+      observer.disconnect()
+      if (observerRef.current === observer) {
+        observerRef.current = null
+      }
+    }
   }, [expandedId])
 
   useEffect(() => {
