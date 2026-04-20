@@ -90,15 +90,16 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 
 ### 8-1. 현재 분리 상태(스냅샷)
 
-| 페이지 | View 파일 분리 | modifier 클래스 |
-|---|---|---|
-| `CustomersPage` | ✅ PCView/MobileView | ✅ `.customers-page--pc/--mobile` |
-| `ClaimRequestsPage` | ✅ PCView/MobileView | ✅ `.claim-requests-page--pc/--mobile` |
-| `ApplicationPage` | ✅ PCView/MobileView | ⚠ modifier 미부착(추후 부착 대상) |
-| `CustomerWorkspaceLayout` | ✅ LayoutPC/LayoutMobile | ⚠ modifier 미부착(추후 부착 대상) |
-| 그 외 페이지(20+ 파일) | ❌ 단일 파일 내부에서 `useIsMobile` 분기 | ❌ 없음 |
+| 페이지 | View 파일 분리 | modifier 클래스 | container 분기 방식 |
+|---|---|---|---|
+| `CustomersPage` | ✅ PCView/MobileView | ✅ `.customers-page--pc/--mobile` | 직접 분기(상세 로직 공유, 별도 리팩토링 주제) |
+| `ClaimRequestsPage` | ✅ PCView/MobileView | ✅ `.claim-requests-page--pc/--mobile` | 부분 분기(공통 body + wrapper만 다름) |
+| `ApplicationPage` | ✅ PCView/MobileView | — CSS scope 수요 없음(실제 화면은 동일 컴포넌트) | ✅ `ResponsiveLayout` 표준 사용 |
+| `CustomerWorkspaceLayout` | ✅ LayoutPC/LayoutMobile | — CSS scope 수요 없음 | 부분 분기(좌측 공통, 우측만 분기) |
+| 그 외 페이지(20+ 파일) | ❌ 단일 파일 내부에서 `useIsMobile` 분기 | ❌ 없음 | ❌ |
 
-완성도는 점진적으로 끌어올린다. 이 파일이 "진행 현황"을 반영한다.
+- "CSS scope 수요 없음" = index.css에 `.<page>-page--pc/--mobile`·`.pc-root .<page>-page` 규칙이 0건. CSS가 생길 때 modifier를 부착한다(선제 추상화 금지).
+- 완성도는 기능 수정 PR마다 점진적으로 끌어올린다. 이 표가 "진행 현황"의 단일 출처다.
 
 ### 8-2. 핵심 원칙 (신규·수정 코드에 적용)
 
@@ -109,7 +110,14 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
    features/<feature>/pages/<page>/<page>PCView.tsx ← PC 전용 UI
    features/<feature>/pages/<page>/<page>MobileView.tsx ← 모바일 전용 UI
    ```
-   container 안에서 `useIsMobile()` 한 번만 호출해 `<PCView/>` 또는 `<MobileView/>` 하나만 렌더한다.
+   container는 **`src/components/ResponsiveLayout`**을 재사용해 분기한다. `useIsMobile()`을 container에서 직접 호출하지 않는다.
+   ```tsx
+   import ResponsiveLayout from '../../../components/ResponsiveLayout'
+   export default function ExamplePage() {
+     return <ResponsiveLayout PC={ExamplePCView} Mobile={ExampleMobileView} />
+   }
+   ```
+   같은 역할의 신규 추상화(`ResponsiveSwitch` 등)는 만들지 않는다. 개선은 `ResponsiveLayout` 자체를 고친다.
 
 2. **CSS는 modifier 패턴 고정**  
    View의 최상위 요소에 다음 클래스를 부여한다.
@@ -143,7 +151,58 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 당장 전부 분리하지 않는다. 다음 우선순위로 기회가 생길 때마다 옮긴다.
 
 1. 해당 페이지를 기능적으로 수정할 일이 생기면 **함께** 분리 PR로 묶는다.
-2. 분리 순서: (a) `PCView`/`MobileView` 파일 생성 → (b) container에서 `useIsMobile`로 분기 → (c) CSS를 modifier prefix로 재작성 → (d) 구 `.pc-root`/`.mobile-root` 규칙 삭제.
+2. 분리 순서: (a) `PCView`/`MobileView` 파일 생성 → (b) container에서 `ResponsiveLayout` 사용 → (c) CSS를 modifier prefix로 재작성 → (d) 구 `.pc-root`/`.mobile-root` 규칙 삭제.
 3. 한 PR에 한 페이지만 이관. 대량 리팩토링 PR은 회귀 범위 파악이 어려우므로 금지.
 
 > **원칙**: "기능 작업이 없는데 UI 분리만을 위한 PR"은 만들지 않는다. 리팩토링은 항상 기능 변경과 함께 한다.
+
+### 8-5. `useIsMobile` 사용 현황 및 분리 난이도 분류 (2026-04-16 기준)
+
+향후 페이지별 분리 작업 시 난이도/전략을 미리 파악할 수 있도록 분류해 둔다. 실제 분리는 각 페이지의 기능 수정 PR에서 수행한다.
+
+#### Tier 0 — 분리 대상 아님 (훅/추상화 자체)
+
+| 파일 | 비고 |
+|---|---|
+| `src/hooks/useIsMobile.ts` | 원본 훅 |
+| `src/components/ResponsiveLayout.tsx` | 공용 분기 추상화(표준) |
+| `src/hooks/useGlobalBackHandler.ts` | 동작 분기 훅(UI 아님). 모바일 전용 back 동작 |
+
+#### Tier 1 — 전역 레이아웃 (현 위치 유지, `.pc-root/.mobile-root` 허용 영역)
+
+| 파일 | 역할 |
+|---|---|
+| `src/AppLayout.tsx` | 앱 루트 레이아웃 |
+| `src/layouts/AppWorkspaceLayout.tsx` | 작업공간 루트(`.pc-root`/`.mobile-root` 부여 지점) |
+| `src/layouts/MainWorkspaceLayout.tsx` | 메인 레이아웃 |
+
+→ 페이지 스코프 규칙이 아니므로 `useIsMobile` 직접 호출 허용. 다만 변경 시 레이아웃 격변 영향이 크므로 신중히.
+
+#### Tier 2 — 단순 치환 후보 (기능 작업 시 `ResponsiveLayout`으로 이관 권장)
+
+| 파일 | 현재 분기 횟수 | 비고 |
+|---|---|---|
+| `features/application/pages/ApplicationPage.tsx` | ✅ 완료 | ResponsiveLayout 표준 적용 완료 |
+| `features/auth/pages/LoginPage.tsx` | 중간 | |
+| `features/auth/pages/ProfilePage.tsx` | 중간 | |
+| `features/insurer-news/pages/InsurerManagerNewsListPage.tsx` | 단순 | |
+| `features/customers/pages/CustomerGaExcelPage.tsx` | 단순 | |
+| `features/customers/pages/CustomerConsultationsPage.tsx` | 중간 | |
+| `features/memo/pages/MemoRoutePage.tsx` | 단순 | |
+
+#### Tier 3 — 복합 분기 (View 쪼개기 + 로직 검토 필요)
+
+| 파일 | 특성 |
+|---|---|
+| `features/customers/pages/CustomersPage.tsx` | PCView/MobileView 분리는 됐으나 container 내부에 `isMobile` 기반 로직(스크롤 등) 잔존. 별도 리팩토링 주제 |
+| `features/claim-requests/pages/ClaimRequestsPage.tsx` | 공통 body를 wrapper만 다른 View 2개에 children으로 전달하는 패턴. 단순 `ResponsiveLayout` 치환 불가 |
+| `features/customers/pages/CustomerWorkspaceLayout.tsx` | 좌측은 공통, 우측만 분기. 단순 `ResponsiveLayout` 치환 불가 |
+| `features/insurer-news/components/NewsCard.tsx` | 컴포넌트. `variant` prop으로 올려 분기 제거 권장 |
+
+#### Tier 4 — 컴포넌트 내부 분기 (prop으로 승격)
+
+| 파일 | 전략 |
+|---|---|
+| `features/storage/components/StorageToolbar.tsx` | `variant: 'pc' \| 'mobile'` prop 도입 후 내부 `useIsMobile` 제거 |
+| `features/storage/components/StorageWorkspace.tsx` | 동일 |
+| `features/memo/components/MemoElectronFabDock.tsx` | Electron 전용 컴포넌트. PC 한정으로 렌더되는지 먼저 검토 |
