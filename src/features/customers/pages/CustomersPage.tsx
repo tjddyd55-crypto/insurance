@@ -527,6 +527,7 @@ const CustomerListCard = memo(function CustomerListCard({
   }
   return (
     <li
+      id={`customer-${c.id}`}
       className={`record-card customer-card customer-expand-card transition-all duration-200 ease-out${
         isSelectMode ? ' customer-expand-card--select-mode' : ''
       }${expanded ? ' customer-expand-card--focal' : ''}`}
@@ -1122,6 +1123,9 @@ export default function CustomersPage() {
     () => parseSelectedCustomerId(searchParams.get('customerId')),
     [searchParams],
   )
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(() => {
+    return selectedCustomerIdFromQuery
+  })
   const [expandedId, setExpandedId] = useState<number | null>(() => {
     if (selectedCustomerIdFromQuery != null) {
       return selectedCustomerIdFromQuery
@@ -1352,6 +1356,7 @@ export default function CustomersPage() {
 
   const handleSelectCustomer = useCallback(
     (c: CustomerRecord) => {
+      setSelectedCustomerId(c.id)
       if (isMobile) {
         return
       }
@@ -1372,6 +1377,7 @@ export default function CustomersPage() {
       setFavoriteOnly(false)
       setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })
       setAdvSearchHits(null)
+      setSelectedCustomerId(customerId)
       setExpandedId(customerId)
 
       const next = new URLSearchParams(searchParams)
@@ -1412,6 +1418,31 @@ export default function CustomersPage() {
    * `?customerId=` 는 작업공간·CustomerFilesPage 등이 유지할 수 있으므로,
    * URL 쿼리가 바뀌었다고 펼침을 강제하지 않는다(파일 패널 ↔ 목록 충돌 방지).
    */
+  useEffect(() => {
+    if (selectedCustomerIdFromQuery === selectedCustomerId) {
+      return
+    }
+    setSelectedCustomerId(selectedCustomerIdFromQuery)
+  }, [selectedCustomerId, selectedCustomerIdFromQuery])
+
+  useEffect(() => {
+    if (expandedId == null || selectedCustomerId === expandedId) {
+      return
+    }
+    setSelectedCustomerId(expandedId)
+  }, [expandedId, selectedCustomerId])
+
+  useEffect(() => {
+    if (expandedId == null) {
+      return
+    }
+    const target = document.getElementById(`customer-${expandedId}`)
+    if (!target) {
+      return
+    }
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [expandedId, sortedCustomers])
+
   useEffect(() => {
     if (tab !== 'list') {
       return
