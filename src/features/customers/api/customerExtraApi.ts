@@ -16,6 +16,7 @@ export type CustomerConsultationRow = {
   userId: string
   gaId: number
   body: string
+  consultationDate?: string | null
   createdAt: string
 }
 

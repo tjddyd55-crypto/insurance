@@ -67,6 +67,8 @@ export interface CustomerRecord {
   carYear: string
   /** YYYY-MM-DD 만기·갱신 예정일 */
   renewalDate: string
+  /** YYYY-MM-DD 최신 상담일 (없으면 null) */
+  lastConsultDate?: string | null
   /** 중요 고객(즐겨찾기) — 목록 상단 정렬·필터에 사용 */
   isFavorite: boolean
   createdAt: string

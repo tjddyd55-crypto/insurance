@@ -329,14 +329,14 @@ const CUSTOMER_SELECT_LIST = `
   c.id, c.user_id, c.name, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
   c.car_number, c.car_model, c.car_year, c.renewal_date,
   c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
-  c.is_favorite, c.created_at
+  c.is_favorite, c.created_at, lc.last_consult_date
 `
 
 const CUSTOMER_SELECT_LIST_NO_ALIAS = `
   id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
   car_number, car_model, car_year, renewal_date,
   gender, insurance_age, next_age_date, is_driver, car_type, notes,
-  is_favorite, created_at
+  is_favorite, created_at, last_consult_date
 `
 
 /**
@@ -614,9 +614,17 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
           pool,
           `
           SELECT ${CUSTOMER_SELECT_LIST_NO_ALIAS}
-          FROM customers
-          WHERE user_id = $1 AND ga_id = $2 AND deleted_at IS NULL
-          ORDER BY created_at DESC
+          FROM customers c
+          LEFT JOIN (
+            SELECT
+              cc.customer_id,
+              MAX(cc.consultation_date) AS last_consult_date
+            FROM customer_consultations cc
+            WHERE cc.user_id = $1 AND cc.ga_id = $2
+            GROUP BY cc.customer_id
+          ) lc ON lc.customer_id = c.id
+          WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
+          ORDER BY lc.last_consult_date DESC NULLS LAST, c.created_at DESC
           LIMIT $3
           `,
           [userId, gaId, limit],
@@ -664,9 +672,17 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         )
         SELECT ${CUSTOMER_SELECT_LIST}
         FROM customers c
+        LEFT JOIN (
+          SELECT
+            cc.customer_id,
+            MAX(cc.consultation_date) AS last_consult_date
+          FROM customer_consultations cc
+          WHERE cc.user_id = $1 AND cc.ga_id = $2
+          GROUP BY cc.customer_id
+        ) lc ON lc.customer_id = c.id
         INNER JOIN matched m ON m.id = c.id
         WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
-        ORDER BY c.created_at DESC
+        ORDER BY lc.last_consult_date DESC NULLS LAST, c.created_at DESC
         LIMIT $4
         `,
         [userId, gaId, pattern, limit],
@@ -744,9 +760,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(400).json({ message: '상담 일자는 YYYY-MM-DD 형식이어야 합니다.' })
         return
       }
-      const bodyToStore = `${consultDate}\n${content}`
-
-      if (bodyToStore.length > CONSULTATION_BODY_MAX) {
+      if (content.length > CONSULTATION_BODY_MAX) {
         res.status(400).json({ message: `상담 내용은 ${CONSULTATION_BODY_MAX}자 이하로 입력해 주세요.` })
         return
       }
@@ -754,11 +768,11 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const ins = await safeQuery(
         pool,
         `
-        INSERT INTO customer_consultations (customer_id, user_id, ga_id, body)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, customer_id, user_id, ga_id, body, created_at
+        INSERT INTO customer_consultations (customer_id, user_id, ga_id, body, consultation_date)
+        VALUES ($1, $2, $3, $4, $5::DATE)
+        RETURNING id, customer_id, user_id, ga_id, body, consultation_date, created_at
         `,
-        [customerId, userId, gaId, bodyToStore],
+        [customerId, userId, gaId, content, consultDate],
       )
       const row = ins.rows[0]
       recordAnalyticsEvent(pool, { userId, gaId, eventType: 'team_message_created' })
@@ -768,6 +782,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         userId: String(row.user_id),
         gaId: Number(row.ga_id),
         body: row.body ?? '',
+        consultationDate: row.consultation_date ? String(row.consultation_date).slice(0, 10) : consultDate,
         createdAt: row.created_at ? new Date(row.created_at).toISOString() : '',
       })
     } catch (error) {
@@ -801,10 +816,10 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const r = await safeQuery(
         pool,
         `
-        SELECT id, customer_id, user_id, ga_id, body, created_at
+        SELECT id, customer_id, user_id, ga_id, body, consultation_date, created_at
         FROM customer_consultations
         WHERE customer_id = $1 AND user_id = $2 AND ga_id = $3
-        ORDER BY created_at DESC, id DESC
+        ORDER BY consultation_date DESC NULLS LAST, created_at DESC, id DESC
         LIMIT $4 OFFSET $5
         `,
         [customerId, userId, gaId, limit, offset],
@@ -816,6 +831,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
           userId: String(row.user_id),
           gaId: Number(row.ga_id),
           body: row.body ?? '',
+          consultationDate: row.consultation_date ? String(row.consultation_date).slice(0, 10) : null,
           createdAt: row.created_at ? new Date(row.created_at).toISOString() : '',
         })),
       )

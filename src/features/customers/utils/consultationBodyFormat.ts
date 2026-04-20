@@ -1,14 +1,20 @@
-/** 저장 본문: 선택적 첫 줄 YYYY-MM-DD + 개행 + 내용 (DB 변경 없이 상담 일자 표현) */
-const DATE_FIRST_LINE = /^(\d{4}-\d{2}-\d{2})\n([\s\S]*)$/
+function normalizeYmd(value: unknown): string | null {
+  const s = String(value ?? '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return null
+  }
+  return s
+}
 
 export function parseConsultationStoredBody(
   raw: string,
   createdAtIso: string,
+  consultationDate?: string | null,
 ): { dateLabel: string; text: string } {
   const s = String(raw ?? '')
-  const m = s.match(DATE_FIRST_LINE)
-  if (m) {
-    return { dateLabel: m[1], text: m[2].trim() }
+  const fromColumn = normalizeYmd(consultationDate)
+  if (fromColumn) {
+    return { dateLabel: fromColumn, text: s.trim() }
   }
   const d = new Date(createdAtIso)
   const label = Number.isNaN(d.getTime())

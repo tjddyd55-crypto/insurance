@@ -55,7 +55,11 @@ export default function CustomerConsultationsPagePC({
         ) : (
           <ul style={{ listStyle: 'none', padding: 0 }}>
             {rows.map((r) => {
-              const { dateLabel, text } = parseConsultationStoredBody(r.body, r.createdAt)
+              const { dateLabel, text } = parseConsultationStoredBody(
+                r.body,
+                r.createdAt,
+                r.consultationDate ?? null,
+              )
               return (
                 <li
                   key={r.id}

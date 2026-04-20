@@ -1996,12 +1996,29 @@ export async function initDb() {
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
       body TEXT NOT NULL DEFAULT '',
+      consultation_date DATE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
   await pool.query(`
+    ALTER TABLE customer_consultations
+    ADD COLUMN IF NOT EXISTS consultation_date DATE
+  `)
+  await pool.query(`
+    UPDATE customer_consultations
+    SET consultation_date = CASE
+      WHEN body ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN TO_DATE(SUBSTRING(body FROM 1 FOR 10), 'YYYY-MM-DD')
+      ELSE (created_at AT TIME ZONE 'UTC')::DATE
+    END
+    WHERE consultation_date IS NULL
+  `)
+  await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_customer_consultations_customer_created
     ON customer_consultations(customer_id, created_at DESC)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_consultations_customer_consultation_date
+    ON customer_consultations(customer_id, consultation_date DESC)
   `)
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_customer_consultations_user

@@ -2,6 +2,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -51,7 +52,7 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
 import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPolicy'
-import { searchCustomersAdvanced } from '../api/customerExtraApi'
+import { searchCustomersAdvanced, type CustomerConsultationRow } from '../api/customerExtraApi'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { useGaSettings } from '../../ga-settings/useGaSettings'
 import CustomerAutoModal from '../components/mobile/CustomerAutoModal'
@@ -352,6 +353,23 @@ function parseCreatedAtMs(iso: string | undefined | null): number {
   return Number.isFinite(t) ? t : 0
 }
 
+function normalizeYmd(value: string | null | undefined): string | null {
+  const s = String(value ?? '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return null
+  }
+  return s
+}
+
+function parseYmdMs(ymd: string | null | undefined): number {
+  const valid = normalizeYmd(ymd)
+  if (!valid) {
+    return 0
+  }
+  const t = Date.parse(`${valid}T00:00:00.000Z`)
+  return Number.isFinite(t) ? t : 0
+}
+
 type CustomerSortType = 'age' | 'car' | 'recent' | null
 
 type CustomerEditFormState = {
@@ -509,7 +527,7 @@ const CustomerListCard = memo(function CustomerListCard({
   }
 
   const ins = customerInsuranceDisplay(c)
-  const recentConsultText = '—'
+  const recentConsultText = c.lastConsultDate ? formatDateYmdInput(c.lastConsultDate) : '-'
   const phone = resolveCustomerListPhone(c)
   const hasPhone = typeof phone === 'string' && phone.trim() !== ''
   const smsHref = customerPhoneHref(phone, 'sms')
@@ -528,6 +546,7 @@ const CustomerListCard = memo(function CustomerListCard({
   return (
     <li
       id={`customer-${c.id}`}
+      data-customer-id={c.id}
       className={`record-card customer-card customer-expand-card transition-all duration-200 ease-out${
         isSelectMode ? ' customer-expand-card--select-mode' : ''
       }${expanded ? ' customer-expand-card--focal' : ''}`}
@@ -1138,6 +1157,7 @@ export default function CustomersPage() {
     null | 'files' | 'consultations' | 'auto' | 'ga'
   >(null)
   const [activeMobileCustomerId, setActiveMobileCustomerId] = useState<number | null>(null)
+  const lastScrolledRef = useRef<number | null>(null)
   const expandedIdRef = useRef<number | null>(null)
   const editingIdRef = useRef<number | null>(null)
   const editFormRef = useRef<CustomerEditFormState | null>(null)
@@ -1279,8 +1299,8 @@ export default function CustomersPage() {
         if (f !== 0) {
           return f
         }
-        const ta = parseCreatedAtMs(a.createdAt)
-        const tb = parseCreatedAtMs(b.createdAt)
+        const ta = parseYmdMs(a.lastConsultDate) || parseCreatedAtMs(a.createdAt)
+        const tb = parseYmdMs(b.lastConsultDate) || parseCreatedAtMs(b.createdAt)
         if (tb !== ta) {
           return tb - ta
         }
@@ -1432,16 +1452,59 @@ export default function CustomersPage() {
     setSelectedCustomerId(expandedId)
   }, [expandedId, selectedCustomerId])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (expandedId == null) {
+      lastScrolledRef.current = null
       return
     }
-    const target = document.getElementById(`customer-${expandedId}`)
-    if (!target) {
+
+    // 이미 스크롤한 대상이면 중복 실행 방지
+    if (lastScrolledRef.current === expandedId) {
       return
     }
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, [expandedId, sortedCustomers])
+    let retry = 0
+
+    const tryScroll = () => {
+      const target = document.querySelector<HTMLElement>(`[data-customer-id="${expandedId}"]`)
+      console.log('scroll target', expandedId, target)
+
+      // 아직 렌더 안된 경우 재시도
+      if (!target) {
+        if (retry < 5) {
+          retry += 1
+          requestAnimationFrame(tryScroll)
+        }
+        return
+      }
+
+      // 실행 기록 저장
+      lastScrolledRef.current = expandedId
+
+      // 1차: 기본 scrollIntoView
+      target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+
+      // 2차: 컨테이너 보정 (PC/모바일 공통)
+      const container =
+        document.querySelector<HTMLElement>('.customers-page__customer-list') ??
+        document.scrollingElement
+      if (container) {
+        const containerRect = container.getBoundingClientRect()
+        const targetRect = target.getBoundingClientRect()
+        const nextTop = targetRect.top - containerRect.top + container.scrollTop - 100
+        if (Number.isFinite(nextTop)) {
+          container.scrollTo({
+            top: Math.max(0, nextTop),
+            behavior: 'smooth',
+          })
+        }
+      }
+    }
+
+    requestAnimationFrame(tryScroll)
+  }, [expandedId])
 
   useEffect(() => {
     if (tab !== 'list') {
@@ -1749,6 +1812,44 @@ export default function CustomersPage() {
       openMobileModal('ga', customerId)
     },
     [openMobileModal],
+  )
+
+  const handleCustomerConsultationCreated = useCallback(
+    (customerId: number, row: Pick<CustomerConsultationRow, 'consultationDate' | 'createdAt'>) => {
+      const dateFromRow = normalizeYmd(row.consultationDate)
+      const dateFromCreatedAt = normalizeYmd(String(row.createdAt ?? '').slice(0, 10))
+      const nextConsultDate = dateFromRow ?? dateFromCreatedAt
+      if (!nextConsultDate) {
+        return
+      }
+
+      const apply = (target: CustomerRecord): CustomerRecord => {
+        const current = normalizeYmd(target.lastConsultDate)
+        if (current != null && current >= nextConsultDate) {
+          return target
+        }
+        return { ...target, lastConsultDate: nextConsultDate }
+      }
+
+      const sortByConsultDateDesc = (a: CustomerRecord, b: CustomerRecord) => {
+        const ta = parseYmdMs(a.lastConsultDate)
+        const tb = parseYmdMs(b.lastConsultDate)
+        if (tb !== ta) {
+          return tb - ta
+        }
+        return parseCreatedAtMs(b.createdAt) - parseCreatedAtMs(a.createdAt)
+      }
+
+      setCustomers((prev) =>
+        prev.map((rowItem) => (rowItem.id === customerId ? apply(rowItem) : rowItem)).sort(sortByConsultDateDesc),
+      )
+      setAdvSearchHits((hits) =>
+        hits == null
+          ? null
+          : hits.map((rowItem) => (rowItem.id === customerId ? apply(rowItem) : rowItem)).sort(sortByConsultDateDesc),
+      )
+    },
+    [],
   )
 
 
@@ -2343,6 +2444,7 @@ export default function CustomersPage() {
         {activeMobileModal === 'consultations' ? (
           <CustomerConsultationsModal
             customerId={activeMobileCustomerId}
+            onCreated={(row) => handleCustomerConsultationCreated(activeMobileCustomerId, row)}
             onClose={closeMobileModal}
           />
         ) : null}

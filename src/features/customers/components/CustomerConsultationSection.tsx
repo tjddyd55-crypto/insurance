@@ -186,7 +186,11 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {rows.map((r, idx) => {
-            const { dateLabel, text } = parseConsultationStoredBody(r.body, r.createdAt)
+            const { dateLabel, text } = parseConsultationStoredBody(
+              r.body,
+              r.createdAt,
+              r.consultationDate ?? null,
+            )
             return (
               <li
                 key={r.id}

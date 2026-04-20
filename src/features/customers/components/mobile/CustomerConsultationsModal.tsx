@@ -11,11 +11,13 @@ import { localYmd } from '../../utils/consultationBodyFormat'
 
 type CustomerConsultationsModalProps = {
   customerId: number
+  onCreated?: (row: CustomerConsultationRow) => void
   onClose: () => void
 }
 
 export default function CustomerConsultationsModal({
   customerId,
+  onCreated,
   onClose,
 }: CustomerConsultationsModalProps) {
   const { token } = useAuth()
@@ -71,19 +73,20 @@ export default function CustomerConsultationsModal({
       setBusy(true)
       setError('')
       try {
-        await createCustomerConsultation(token, customerId, content, {
+        const created = await createCustomerConsultation(token, customerId, content, {
           consultationDate: consultDate,
         })
         const nextRows = await listCustomerConsultations(token, customerId, { limit: 100 })
         setRows(nextRows)
         setBody('')
+        onCreated?.(created)
       } catch (submitError) {
         setError(submitError instanceof Error ? submitError.message : '상담 저장에 실패했습니다.')
       } finally {
         setBusy(false)
       }
     },
-    [body, consultDate, customerId, token],
+    [body, consultDate, customerId, onCreated, token],
   )
 
   return (

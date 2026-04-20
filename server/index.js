@@ -506,6 +506,20 @@ function mapCustomerRow(row) {
   const insuranceAge =
     insRaw != null && insRaw !== '' && Number.isFinite(Number(insRaw)) ? Number(insRaw) : null
 
+  const lastConsultRaw = row.last_consult_date ?? row.lastConsultDate ?? null
+  let lastConsultDate = null
+  if (lastConsultRaw instanceof Date) {
+    lastConsultDate = lastConsultRaw.toISOString().slice(0, 10)
+  } else if (lastConsultRaw) {
+    const parsed = new Date(String(lastConsultRaw))
+    if (!Number.isNaN(parsed.getTime())) {
+      lastConsultDate = parsed.toISOString().slice(0, 10)
+    } else {
+      const ymd = String(lastConsultRaw).slice(0, 10)
+      lastConsultDate = /^\d{4}-\d{2}-\d{2}$/.test(ymd) ? ymd : null
+    }
+  }
+
   let birthDate = null
   const bdRaw = row.birth_date
   if (bdRaw instanceof Date) {
@@ -538,6 +552,7 @@ function mapCustomerRow(row) {
     carModel: row.car_model ?? '',
     carYear: row.car_year ?? '',
     renewalDate,
+    lastConsultDate,
     isFavorite: row.is_favorite === true,
     createdAt: toIsoString(row.created_at),
   }
@@ -5535,33 +5550,53 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
     const q = String(req.query.q ?? '').trim()
     let result
     if (!q) {
-      result = await safeQuery(pool,
+      result = await safeQuery(
+        pool,
         `
         SELECT
-          id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
-          car_number, car_model, car_year, renewal_date,
-          gender, insurance_age, next_age_date, is_driver, car_type, notes,
-          is_favorite, created_at
-        FROM customers
-        WHERE user_id = $1 AND ga_id = $2 AND deleted_at IS NULL
-        ORDER BY created_at DESC
+          c.id, c.user_id, c.name, c.birth_date, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
+          c.car_number, c.car_model, c.car_year, c.renewal_date,
+          c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
+          c.is_favorite, c.created_at,
+          lc.last_consult_date
+        FROM customers c
+        LEFT JOIN (
+          SELECT
+            cc.customer_id,
+            MAX(cc.consultation_date) AS last_consult_date
+          FROM customer_consultations cc
+          WHERE cc.user_id = $1 AND cc.ga_id = $2
+          GROUP BY cc.customer_id
+        ) lc ON lc.customer_id = c.id
+        WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
+        ORDER BY lc.last_consult_date DESC NULLS LAST, c.created_at DESC
         LIMIT 2000
         `,
         [userId, gaId],
       )
     } else {
       const pattern = `%${escapeIlikePattern(q)}%`
-      result = await safeQuery(pool,
+      result = await safeQuery(
+        pool,
         `
         SELECT
-          id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
-          car_number, car_model, car_year, renewal_date,
-          gender, insurance_age, next_age_date, is_driver, car_type, notes,
-          is_favorite, created_at
-        FROM customers
-        WHERE user_id = $1 AND ga_id = $3 AND deleted_at IS NULL
-          AND (name ILIKE $2 ESCAPE '\\' OR phone ILIKE $2 ESCAPE '\\')
-        ORDER BY created_at DESC
+          c.id, c.user_id, c.name, c.birth_date, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
+          c.car_number, c.car_model, c.car_year, c.renewal_date,
+          c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
+          c.is_favorite, c.created_at,
+          lc.last_consult_date
+        FROM customers c
+        LEFT JOIN (
+          SELECT
+            cc.customer_id,
+            MAX(cc.consultation_date) AS last_consult_date
+          FROM customer_consultations cc
+          WHERE cc.user_id = $1 AND cc.ga_id = $3
+          GROUP BY cc.customer_id
+        ) lc ON lc.customer_id = c.id
+        WHERE c.user_id = $1 AND c.ga_id = $3 AND c.deleted_at IS NULL
+          AND (c.name ILIKE $2 ESCAPE '\\' OR c.phone ILIKE $2 ESCAPE '\\')
+        ORDER BY lc.last_consult_date DESC NULLS LAST, c.created_at DESC
         LIMIT 2000
         `,
         [userId, pattern, gaId],
@@ -5588,16 +5623,26 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
 
     const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 2000)
     const [result, countResult] = await Promise.all([
-      safeQuery(pool,
+      safeQuery(
+        pool,
         `
         SELECT
-          id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
-          car_number, car_model, car_year, renewal_date,
-          gender, insurance_age, next_age_date, is_driver, car_type, notes,
-          is_favorite, created_at
-        FROM customers
-        WHERE user_id = $1 AND ga_id = $2 AND deleted_at IS NULL
-        ORDER BY renewal_date ASC NULLS LAST, created_at DESC
+          c.id, c.user_id, c.name, c.birth_date, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
+          c.car_number, c.car_model, c.car_year, c.renewal_date,
+          c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
+          c.is_favorite, c.created_at,
+          lc.last_consult_date
+        FROM customers c
+        LEFT JOIN (
+          SELECT
+            cc.customer_id,
+            MAX(cc.consultation_date) AS last_consult_date
+          FROM customer_consultations cc
+          WHERE cc.user_id = $1 AND cc.ga_id = $2
+          GROUP BY cc.customer_id
+        ) lc ON lc.customer_id = c.id
+        WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
+        ORDER BY lc.last_consult_date DESC NULLS LAST, c.renewal_date ASC NULLS LAST, c.created_at DESC
         LIMIT $3
         `,
         [userId, gaId, limit],
@@ -5640,15 +5685,25 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
       return
     }
 
-    const result = await safeQuery(pool,
+    const result = await safeQuery(
+      pool,
       `
       SELECT
-        id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
-        car_number, car_model, car_year, renewal_date,
-        gender, insurance_age, next_age_date, is_driver, car_type, notes,
-        is_favorite, created_at
-      FROM customers
-      WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
+        c.id, c.user_id, c.name, c.birth_date, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
+        c.car_number, c.car_model, c.car_year, c.renewal_date,
+        c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
+        c.is_favorite, c.created_at,
+        lc.last_consult_date
+      FROM customers c
+      LEFT JOIN (
+        SELECT
+          cc.customer_id,
+          MAX(cc.consultation_date) AS last_consult_date
+        FROM customer_consultations cc
+        WHERE cc.user_id = $2 AND cc.ga_id = $3
+        GROUP BY cc.customer_id
+      ) lc ON lc.customer_id = c.id
+      WHERE c.id = $1 AND c.user_id = $2 AND c.ga_id = $3 AND c.deleted_at IS NULL
       LIMIT 1
       `,
       [customerId, userId, gaId],

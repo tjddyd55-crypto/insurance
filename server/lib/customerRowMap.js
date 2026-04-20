@@ -88,6 +88,20 @@ export function mapCustomerRow(row) {
   const insuranceAge =
     insRaw != null && insRaw !== '' && Number.isFinite(Number(insRaw)) ? Number(insRaw) : null
 
+  const lastConsultRaw = row.last_consult_date ?? row.lastConsultDate ?? null
+  let lastConsultDate = null
+  if (lastConsultRaw instanceof Date) {
+    lastConsultDate = lastConsultRaw.toISOString().slice(0, 10)
+  } else if (lastConsultRaw) {
+    const parsed = new Date(String(lastConsultRaw))
+    if (!Number.isNaN(parsed.getTime())) {
+      lastConsultDate = parsed.toISOString().slice(0, 10)
+    } else {
+      const ymd = String(lastConsultRaw).slice(0, 10)
+      lastConsultDate = /^\d{4}-\d{2}-\d{2}$/.test(ymd) ? ymd : null
+    }
+  }
+
   return {
     id: Number(row.id),
     userId: String(row.user_id),
@@ -111,6 +125,7 @@ export function mapCustomerRow(row) {
     carModel: row.car_model ?? '',
     carYear: row.car_year ?? '',
     renewalDate,
+    lastConsultDate,
     isFavorite: row.is_favorite === true,
     createdAt: toIsoString(row.created_at),
   }
