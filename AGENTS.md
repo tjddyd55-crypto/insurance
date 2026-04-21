@@ -274,7 +274,7 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 | `features/application/pages/ApplicationPage.tsx` | ✅ 완료 | ResponsiveLayout 표준 적용 완료 |
 | `features/auth/pages/LoginPage.tsx` | ✅ 완료 | 3파일 구조 (PCView/MobileView) + 공통 `LoginForm` · `LoginPageVersionFooter` + `useLoginController` 훅. CSS modifier(`auth-page--login-split` / `auth-page--mobile-login`) 는 기존 네이밍 유지 |
 | `features/auth/pages/ProfilePage.tsx` | ✅ 완료 | 페이지는 단일 파일 유지(공통 540줄 + PC 한정 섹션 2곳). `PCOnlySection` 으로 섹션 분기를 수렴해 `useIsMobile` 직접 호출 제거. ResponsiveLayout 분리 대상 아님 (섹션 분기 예외) |
-| `features/insurer-news/pages/InsurerManagerNewsListPage.tsx` | 단순 | |
+| `features/insurer-news/pages/InsurerManagerNewsListPage.tsx` | ✅ 완료 | 3파일 구조 (PCView/MobileView) + 공통 타입 `insurerManagerNewsListViewProps.ts` + `ResponsiveLayout<ViewProps>` 치환. 상세 조회·모달·zoom 상태는 PC View 내부 보유 (Mobile 은 라우트 이동이라 불필요). 공개 props 시그니처 유지로 `NewsletterHubPage` / `LossAdjusterManagerNewsListPage` 영향 없음 |
 | `features/customers/pages/CustomerGaExcelPage.tsx` | ✅ 완료 | ResponsiveLayout + 전용 훅(`useGaCustomerExcelData`) + modifier 적용 완료 |
 | `features/customers/pages/CustomerConsultationsPage.tsx` | ✅ 완료 | `ResponsiveLayout<CustomerConsultationsViewProps>` 치환 + 공통 타입 `customerConsultationsViewProps.ts` 도입. Mobile 에 삭제 버튼 추가(UX 일관성). 모바일 모달(`CustomerConsultationsModal`) 에도 삭제 지원 추가 + `BaseDialog` z-[10000] 로 조정해 모달 위에 confirm 이 뜨도록 함 |
 | `features/memo/pages/MemoRoutePage.tsx` | ✅ 완료 | 3파일 구조 (PCView/MobileView) + `.memo-route-page--pc/--mobile` modifier 적용 완료 (데이터 없는 placeholder 라 훅은 두지 않음) |
