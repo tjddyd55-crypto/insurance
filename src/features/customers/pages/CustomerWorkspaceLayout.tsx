@@ -1,7 +1,6 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
-import { devWorkspaceLog } from '../../../dev/devWorkspaceLog'
 import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '../api/gaCustomerExcelApi'
 import { getCustomerById } from '../api/customersApi'
 import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
@@ -64,10 +63,17 @@ export default function CustomerWorkspaceLayout() {
     () => resolveWorkspacePathTab(location.pathname),
     [location.pathname],
   )
-  const queryCustomerId = useMemo(
-    () => parseSelectedCustomerId(searchParams.get('customerId')),
-    [searchParams],
-  )
+  /**
+   * 선택된 고객 id는 **URL path** 를 단일 진실 원천으로 삼는다.
+   * `?customerId=` 쿼리는 목록(`/customers`) 같은 path가 비어있을 때의
+   * 보조 정보로만 읽고, 상세 path와 어긋나도 path 값을 유지한다.
+   *
+   * 역사적 배경:
+   *   과거에는 query → path 방향으로 `useLayoutEffect` 동기화가 있었으나,
+   *   좌측 리스트가 이미 path 자체를 `replace` 하는 현재 코드와 결합되면
+   *   "선택 즉시 이전 path 로 되돌리는" 역방향 덮어쓰기가 일어났다(회귀).
+   *   쿼리는 보조 정보로만 두고 동기화 effect 를 제거하는 것으로 해결.
+   */
   const selectedCustomerId = useMemo(() => {
     const fromPath = parseWorkspaceCustomerIdFromPath(location.pathname)
     if (fromPath != null) {
@@ -149,67 +155,14 @@ export default function CustomerWorkspaceLayout() {
 
   const moveTo = (path: string) => {
     const href = buildCustomerWorkspaceHref(path, searchParams)
-    devWorkspaceLog('navigate', { from: location.pathname, to: href })
     navigate(href)
   }
-
-  const safeTab = currentPathTab ?? 'files'
-
-  // 좌측 리스트가 쿼리만 먼저 바꾸고 path가 뒤따라오는 순간,
-  // 자식(Files/Consultations/Memos/GA)이 useParams로 path를 읽기 때문에
-  // 이전 고객 화면이 한 프레임 보이는 "한 박자 지연"이 발생한다.
-  // useLayoutEffect로 paint 이전에 path를 맞춰 중간 상태를 사용자에게 노출하지 않는다.
-  useLayoutEffect(() => {
-    if (isMobile || queryCustomerId == null || selectedCustomerId == null) {
-      return
-    }
-    if (queryCustomerId === selectedCustomerId) {
-      return
-    }
-    const href = buildCustomerWorkspaceHref(`/customers/${queryCustomerId}/${safeTab}`, searchParams)
-    devWorkspaceLog('sync-query-to-path', {
-      from: location.pathname,
-      to: href,
-      queryCustomerId,
-      selectedCustomerId,
-    })
-    navigate(href, {
-      replace: true,
-    })
-  }, [isMobile, location.pathname, navigate, queryCustomerId, safeTab, searchParams, selectedCustomerId])
-
-  const renderSignatureRef = useRef<string>('')
-  const renderSignature = `${location.pathname}|q=${queryCustomerId ?? 'null'}|s=${selectedCustomerId ?? 'null'}|tab=${currentPathTab ?? 'null'}|carForm=${rightPanelCarForm}`
-
-  useEffect(() => {
-    if (renderSignatureRef.current === renderSignature) {
-      return
-    }
-    renderSignatureRef.current = renderSignature
-    devWorkspaceLog('render', {
-      pathname: location.pathname,
-      search: location.search,
-      queryCustomerId,
-      selectedCustomerId,
-      currentPathTab,
-      rightPanelCarForm,
-    })
-  }, [
-    renderSignature,
-    location.pathname,
-    location.search,
-    queryCustomerId,
-    selectedCustomerId,
-    currentPathTab,
-    rightPanelCarForm,
-  ])
 
   const activeTab: 'files' | 'consultations' | 'auto' | 'ga-excel' | 'memos' | null = rightPanelCarForm
     ? 'auto'
     : currentPathTab
 
   const handleClickFiles = () => {
-    devWorkspaceLog('click:files', { selectedCustomerId })
     if (!selectedCustomerId) {
       return
     }
@@ -218,7 +171,6 @@ export default function CustomerWorkspaceLayout() {
   }
 
   const handleClickConsultations = () => {
-    devWorkspaceLog('click:consultations', { selectedCustomerId })
     if (!selectedCustomerId) {
       return
     }
@@ -227,7 +179,6 @@ export default function CustomerWorkspaceLayout() {
   }
 
   const handleClickCarForm = () => {
-    devWorkspaceLog('click:car-form', { selectedCustomerId })
     if (!selectedCustomerId) {
       return
     }
@@ -235,10 +186,6 @@ export default function CustomerWorkspaceLayout() {
   }
 
   const handleClickGaExcel = () => {
-    devWorkspaceLog('click:ga-excel', {
-      selectedCustomerId,
-      showDesignerUi: excelCap?.showDesignerUi ?? null,
-    })
     if (!selectedCustomerId || !excelCap?.showDesignerUi) {
       return
     }
@@ -247,7 +194,6 @@ export default function CustomerWorkspaceLayout() {
   }
 
   const handleClickMemos = () => {
-    devWorkspaceLog('click:memos', { selectedCustomerId })
     if (!selectedCustomerId) {
       return
     }
