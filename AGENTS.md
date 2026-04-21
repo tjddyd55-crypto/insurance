@@ -170,6 +170,22 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
    ```
    같은 역할의 신규 추상화(`ResponsiveSwitch` 등)는 만들지 않는다. 개선은 `ResponsiveLayout` 자체를 고친다.
 
+   **View 가 props 를 필요로 하는 경우 (`viewProps`)**  
+   같은 View 가 다른 호출부(예: 모달)에서도 props 기반으로 재사용되는 경우엔
+   훅 자가조달로 바꿀 수 없다. 이때는 `ResponsiveLayout` 의 generic `viewProps`
+   옵션을 사용한다.
+   ```tsx
+   type ViewProps = { error: string; rows: Row[]; onSubmit: () => void }
+   <ResponsiveLayout<ViewProps>
+     PC={ExamplePCView}
+     Mobile={ExampleMobileView}
+     viewProps={{ error, rows, onSubmit }}
+   />
+   ```
+   두 View 는 **동일한 props 시그니처**를 가져야 한다. PC 전용 핸들러가 있으면
+   Mobile 쪽에서 `Pick`/`Omit` 으로 맞추지 말고 두 View 가 공통 시그니처를
+   받도록 정리한다 (Mobile 에서 안 쓰는 핸들러는 호출하지 않으면 그만).
+
    **예외 — "페이지 대부분이 공통, 소수 섹션만 플랫폼 한정" 인 경우**  
    페이지 전체를 View 파일로 쪼개면 공통 마크업이 중복 복제되어 유지보수성이 오히려
    악화된다. 이 경우엔 페이지 파일 하나를 유지하되, 플랫폼 한정 섹션은
