@@ -16,7 +16,7 @@ import { createTeam, fetchTeamMembers, joinTeam } from '../../team/api/teamApi'
 import { DesktopUpdateSection } from '../../../components/DesktopUpdateSection'
 import { UserGaExcelManagePanel } from '../../profile/components/UserGaExcelManagePanel'
 import { CustomerExcelImportPanel } from '../../customers/components/CustomerExcelImportPanel'
-import useIsMobile from '../../../hooks/useIsMobile'
+import PCOnlySection from '../../../components/PCOnlySection'
 
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
@@ -27,7 +27,6 @@ function canAccessMyInfoPage(role: string | undefined): boolean {
 
 export function ProfilePage() {
   const { token, user, login, isAuthenticated } = useAuth()
-  const isMobile = useIsMobile()
   const pageTitle = '내 정보 관리'
   const [me, setMe] = useState<MeResponse | null>(null)
   const [loadError, setLoadError] = useState('')
@@ -538,45 +537,37 @@ export function ProfilePage() {
 
       <section>
         <h2 className="profile-page__section-title">고객 데이터 업로드</h2>
-        {!isMobile ? (
-          <>
-            <div className="profile-page__excel-toolbar">
-              <CustomerExcelImportPanel
-                token={token}
-                onUploadsFinished={async () => {
-                  setInfoMessage('고객 데이터 업로드가 완료되었습니다.')
-                }}
-              />
-            </div>
-            <p className="status text-sm" style={{ marginTop: 8 }}>
-              샘플 다운로드 후 양식에 맞게 작성한 파일을 업로드해 주세요.
-            </p>
-          </>
-        ) : (
-          <div className="mobile-disabled-box">해당 기능은 PC에서만 사용 가능합니다.</div>
-        )}
+        <PCOnlySection>
+          <div className="profile-page__excel-toolbar">
+            <CustomerExcelImportPanel
+              token={token}
+              onUploadsFinished={async () => {
+                setInfoMessage('고객 데이터 업로드가 완료되었습니다.')
+              }}
+            />
+          </div>
+          <p className="status text-sm" style={{ marginTop: 8 }}>
+            샘플 다운로드 후 양식에 맞게 작성한 파일을 업로드해 주세요.
+          </p>
+        </PCOnlySection>
       </section>
 
       <div className="section-divider" />
 
       <section>
         <h2 className="profile-page__section-title">GA 데이터 업로드</h2>
-        {!isMobile ? (
-          <>
-            <div className="profile-page__excel-toolbar">
-              <UserGaExcelManagePanel token={token} />
-            </div>
-            <p className="status text-sm" style={{ marginTop: 8 }}>
-              회사 DB 파일 업로드/조회는{' '}
-              <Link to="/storage" className="switch-text__action">
-                내 저장공간
-              </Link>
-              에서 진행합니다.
-            </p>
-          </>
-        ) : (
-          <div className="mobile-disabled-box">해당 기능은 PC에서만 사용 가능합니다.</div>
-        )}
+        <PCOnlySection>
+          <div className="profile-page__excel-toolbar">
+            <UserGaExcelManagePanel token={token} />
+          </div>
+          <p className="status text-sm" style={{ marginTop: 8 }}>
+            회사 DB 파일 업로드/조회는{' '}
+            <Link to="/storage" className="switch-text__action">
+              내 저장공간
+            </Link>
+            에서 진행합니다.
+          </p>
+        </PCOnlySection>
       </section>
 
       <Link

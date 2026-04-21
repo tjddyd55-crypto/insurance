@@ -170,6 +170,25 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
    ```
    같은 역할의 신규 추상화(`ResponsiveSwitch` 등)는 만들지 않는다. 개선은 `ResponsiveLayout` 자체를 고친다.
 
+   **예외 — "페이지 대부분이 공통, 소수 섹션만 플랫폼 한정" 인 경우**  
+   페이지 전체를 View 파일로 쪼개면 공통 마크업이 중복 복제되어 유지보수성이 오히려
+   악화된다. 이 경우엔 페이지 파일 하나를 유지하되, 플랫폼 한정 섹션은
+   **`src/components/PCOnlySection`** (또는 향후 추가될 `MobileOnlySection`) 으로 감싼다.
+   ```tsx
+   import PCOnlySection from '../../../components/PCOnlySection'
+   // 페이지 내부 어딘가
+   <section>
+     <h2>...</h2>
+     <PCOnlySection>
+       <FeaturePanel /> {/* PC 에서만 유의미, 모바일에서는 안내 박스로 대체 */}
+     </PCOnlySection>
+   </section>
+   ```
+   `ResponsiveLayout` 과 `PCOnlySection` 은 **스코프가 다르다**. 전자는 *페이지 전체*,
+   후자는 *페이지 내부 섹션 하나*. 중복 추상화가 아니므로 둘 다 유지한다.
+   페이지 컨테이너에서 `useIsMobile()` 을 직접 호출하는 대신 이 둘 중 하나로 수렴시켜
+   원칙 4 를 지킨다.
+
 2. **CSS는 modifier 패턴 고정**  
    View의 최상위 요소에 다음 클래스를 부여한다.
    ```tsx
@@ -238,7 +257,7 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 |---|---|---|
 | `features/application/pages/ApplicationPage.tsx` | ✅ 완료 | ResponsiveLayout 표준 적용 완료 |
 | `features/auth/pages/LoginPage.tsx` | ✅ 완료 | 3파일 구조 (PCView/MobileView) + 공통 `LoginForm` · `LoginPageVersionFooter` + `useLoginController` 훅. CSS modifier(`auth-page--login-split` / `auth-page--mobile-login`) 는 기존 네이밍 유지 |
-| `features/auth/pages/ProfilePage.tsx` | 중간 | |
+| `features/auth/pages/ProfilePage.tsx` | ✅ 완료 | 페이지는 단일 파일 유지(공통 540줄 + PC 한정 섹션 2곳). `PCOnlySection` 으로 섹션 분기를 수렴해 `useIsMobile` 직접 호출 제거. ResponsiveLayout 분리 대상 아님 (섹션 분기 예외) |
 | `features/insurer-news/pages/InsurerManagerNewsListPage.tsx` | 단순 | |
 | `features/customers/pages/CustomerGaExcelPage.tsx` | ✅ 완료 | ResponsiveLayout + 전용 훅(`useGaCustomerExcelData`) + modifier 적용 완료 |
 | `features/customers/pages/CustomerConsultationsPage.tsx` | 중간 | |
