@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { devWorkspaceLog } from '../../../dev/devWorkspaceLog'
 import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '../api/gaCustomerExcelApi'
 import { getCustomerById } from '../api/customersApi'
 import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
@@ -147,7 +148,9 @@ export default function CustomerWorkspaceLayout() {
   const showCarInsuranceInWorkspace = isGaCarInsuranceHubEnabled(user?.gaCode, user?.gaName)
 
   const moveTo = (path: string) => {
-    navigate(buildCustomerWorkspaceHref(path, searchParams))
+    const href = buildCustomerWorkspaceHref(path, searchParams)
+    devWorkspaceLog('navigate', { from: location.pathname, to: href })
+    navigate(href)
   }
 
   const safeTab = currentPathTab ?? 'files'
@@ -159,16 +162,50 @@ export default function CustomerWorkspaceLayout() {
     if (queryCustomerId === selectedCustomerId) {
       return
     }
-    navigate(buildCustomerWorkspaceHref(`/customers/${queryCustomerId}/${safeTab}`, searchParams), {
+    const href = buildCustomerWorkspaceHref(`/customers/${queryCustomerId}/${safeTab}`, searchParams)
+    devWorkspaceLog('sync-query-to-path', {
+      from: location.pathname,
+      to: href,
+      queryCustomerId,
+      selectedCustomerId,
+    })
+    navigate(href, {
       replace: true,
     })
-  }, [isMobile, navigate, queryCustomerId, safeTab, searchParams, selectedCustomerId])
+  }, [isMobile, location.pathname, navigate, queryCustomerId, safeTab, searchParams, selectedCustomerId])
+
+  const renderSignatureRef = useRef<string>('')
+  const renderSignature = `${location.pathname}|q=${queryCustomerId ?? 'null'}|s=${selectedCustomerId ?? 'null'}|tab=${currentPathTab ?? 'null'}|carForm=${rightPanelCarForm}`
+
+  useEffect(() => {
+    if (renderSignatureRef.current === renderSignature) {
+      return
+    }
+    renderSignatureRef.current = renderSignature
+    devWorkspaceLog('render', {
+      pathname: location.pathname,
+      search: location.search,
+      queryCustomerId,
+      selectedCustomerId,
+      currentPathTab,
+      rightPanelCarForm,
+    })
+  }, [
+    renderSignature,
+    location.pathname,
+    location.search,
+    queryCustomerId,
+    selectedCustomerId,
+    currentPathTab,
+    rightPanelCarForm,
+  ])
 
   const activeTab: 'files' | 'consultations' | 'auto' | 'ga-excel' | 'memos' | null = rightPanelCarForm
     ? 'auto'
     : currentPathTab
 
   const handleClickFiles = () => {
+    devWorkspaceLog('click:files', { selectedCustomerId })
     if (!selectedCustomerId) {
       return
     }
@@ -177,6 +214,7 @@ export default function CustomerWorkspaceLayout() {
   }
 
   const handleClickConsultations = () => {
+    devWorkspaceLog('click:consultations', { selectedCustomerId })
     if (!selectedCustomerId) {
       return
     }
@@ -185,6 +223,7 @@ export default function CustomerWorkspaceLayout() {
   }
 
   const handleClickCarForm = () => {
+    devWorkspaceLog('click:car-form', { selectedCustomerId })
     if (!selectedCustomerId) {
       return
     }
@@ -192,6 +231,10 @@ export default function CustomerWorkspaceLayout() {
   }
 
   const handleClickGaExcel = () => {
+    devWorkspaceLog('click:ga-excel', {
+      selectedCustomerId,
+      showDesignerUi: excelCap?.showDesignerUi ?? null,
+    })
     if (!selectedCustomerId || !excelCap?.showDesignerUi) {
       return
     }
@@ -200,6 +243,7 @@ export default function CustomerWorkspaceLayout() {
   }
 
   const handleClickMemos = () => {
+    devWorkspaceLog('click:memos', { selectedCustomerId })
     if (!selectedCustomerId) {
       return
     }
