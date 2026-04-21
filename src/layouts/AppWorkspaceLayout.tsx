@@ -257,72 +257,93 @@ function AppWorkspaceLayoutMobileShell() {
       ) : null}
 
       {drawerOpen ? (
-        <nav
+        /*
+         * 모바일 드로어 = [스크롤되는 메뉴 nav] + [하단 고정 footer]
+         *
+         * 과거에는 `<nav>` 하나에 메뉴 항목과 로그아웃을 함께 넣어서 "로그아웃이
+         * 내정보 섹션 마지막 아이템 옆에 끼어 보이는" 회귀가 있었다. 구조가 한 바구니
+         * 라서 CSS 로만 하단 고정을 흉내내도 섹션 소속인지 footer 인지 DOM 수준에서
+         * 구분되지 않아 회귀가 되돌아왔다.
+         *
+         * 해결: outer 를 `<div>` 컨테이너로 두고 안에 (a) 메뉴 전담 `<nav>` · (b)
+         * 세션 액션 전담 `<div class="...__footer">` 를 물리적으로 분리.
+         *   - nav 는 스크롤 담당(flex:1; overflow-y:auto)
+         *   - footer 는 로그아웃 같은 "메뉴 외 액션" 전용. 앞으로 여러 액션이
+         *     늘어나도 이 슬롯에만 추가하면 되고 섹션 구분이 깨지지 않는다.
+         *
+         * aria-label 은 내부 `<nav>` 가 소유한다(의미의 주체).
+         */
+        <div
           className="mobile-workspace-drawer mobile-workspace-drawer--overlay"
-          aria-label="모바일 주요 메뉴"
+          role="presentation"
         >
-          {sidebarItems.map((item, index) => {
-            if (item.type === 'divider') {
-              return null
-            }
-            if (item.type === 'section') {
+          <nav className="mobile-workspace-drawer__nav" aria-label="모바일 주요 메뉴">
+            {sidebarItems.map((item, index) => {
+              if (item.type === 'divider') {
+                return null
+              }
+              if (item.type === 'section') {
+                return (
+                  <div
+                    key={`mobile-drawer-section-${index}`}
+                    className="mobile-workspace-drawer__section"
+                    role="presentation"
+                  >
+                    {item.label}
+                  </div>
+                )
+              }
+              const isDisabled = Boolean(item.disabled || item.preparing)
+              const isActive =
+                !isDisabled &&
+                item.path.trim() !== '' &&
+                item.path !== '#' &&
+                isActivePath(location.pathname, item.path)
               return (
-                <div
-                  key={`mobile-drawer-section-${index}`}
-                  className="mobile-workspace-drawer__section"
-                  role="presentation"
+                <FormButton
+                  key={`${item.path}-${item.label}-${index}`}
+                  htmlType="button"
+                  variant="secondary"
+                  className={`workspace-sidebar__menu-item${isActive ? ' workspace-sidebar__menu-item--active' : ''}`}
+                  disabled={isDisabled}
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={() => {
+                    /* 개발중 항목은 클릭 비활성 (alert 없음 · 배지 라벨로만 표시) */
+                    if (isDisabled) {
+                      return
+                    }
+                    if (!item.path.trim() || item.path === '#') {
+                      return
+                    }
+                    const nextCustomerId = extractCustomerIdFromPath(item.path)
+                    setMobileSelectedCustomer(nextCustomerId)
+                    pushMobilePage(item.path)
+                    navigate(item.path)
+                    setDrawerOpen(false)
+                  }}
                 >
-                  {item.label}
-                </div>
+                  <span className="workspace-sidebar__menu-item-label">{item.label}</span>
+                  {item.badge ? (
+                    <span className="workspace-sidebar__menu-item-badge">{item.badge}</span>
+                  ) : null}
+                </FormButton>
               )
-            }
-            const isDisabled = Boolean(item.disabled || item.preparing)
-            const isActive =
-              !isDisabled &&
-              item.path.trim() !== '' &&
-              item.path !== '#' &&
-              isActivePath(location.pathname, item.path)
-            return (
-              <FormButton
-                key={`${item.path}-${item.label}-${index}`}
-                htmlType="button"
-                variant="secondary"
-                className={`workspace-sidebar__menu-item${isActive ? ' workspace-sidebar__menu-item--active' : ''}`}
-                disabled={isDisabled}
-                onClick={() => {
-                  /* 개발중 항목은 클릭 비활성 (alert 없음 · 배지 라벨로만 표시) */
-                  if (isDisabled) {
-                    return
-                  }
-                  if (!item.path.trim() || item.path === '#') {
-                    return
-                  }
-                  const nextCustomerId = extractCustomerIdFromPath(item.path)
-                  setMobileSelectedCustomer(nextCustomerId)
-                  pushMobilePage(item.path)
-                  navigate(item.path)
-                  setDrawerOpen(false)
-                }}
-              >
-                <span className="workspace-sidebar__menu-item-label">{item.label}</span>
-                {item.badge ? (
-                  <span className="workspace-sidebar__menu-item-badge">{item.badge}</span>
-                ) : null}
-              </FormButton>
-            )
-          })}
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="mobile-workspace-drawer__logout"
-            onClick={() => {
-              logout()
-              navigate('/login', { replace: true })
-            }}
-          >
-            로그아웃
-          </FormButton>
-        </nav>
+            })}
+          </nav>
+          <div className="mobile-workspace-drawer__footer" role="presentation">
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="mobile-workspace-drawer__logout"
+              onClick={() => {
+                logout()
+                navigate('/login', { replace: true })
+              }}
+            >
+              로그아웃
+            </FormButton>
+          </div>
+        </div>
       ) : null}
 
       <main
@@ -565,6 +586,7 @@ function AppWorkspaceLayoutPCShell() {
                   variant="secondary"
                   className={`workspace-sidebar__menu-item${isActive ? ' workspace-sidebar__menu-item--active' : ''}`}
                   disabled={isDisabled}
+                  aria-current={isActive ? 'page' : undefined}
                   onClick={() => {
                     /*
                      * 개발중(disabled/preparing) 항목은 클릭 자체가 비활성(모달/알림 없음).
