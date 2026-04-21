@@ -7083,12 +7083,20 @@ a.contacts-public-auth__link {
   color: var(--text-secondary);
 }
 
+/*
+ * PC 사이드바 메뉴 리스트.
+ *   - 과거에는 flex: 1; min-height: 0 으로 남은 공간을 다 채우게 했는데,
+ *     이 경우 aside 의 overflow 스크롤과 충돌해 로그아웃(.workspace-sidebar__logout)
+ *     의 margin-top: auto 가 의미를 잃고 스크롤 중간에 로그아웃이 걸쳐 보이는
+ *     회귀가 있었다. 사용자 보고 스크린샷: "로그아웃이 내 저장공간 위에 떠있음".
+ *   - 지금은 자연 크기로 쌓이고 스크롤은 상위 .workspace-sidebar 가 담당한다.
+ *     이렇게 두면 로그아웃(.workspace-sidebar__footer) 이 메뉴 리스트 마지막
+ *     항목처럼 자연스럽게 하단에 붙는다. 모바일 드로어와 동일한 구조.
+ */
 .workspace-sidebar__nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1;
-  min-height: 0;
 }
 
 .workspace-sidebar__divider {
@@ -7217,10 +7225,21 @@ a.contacts-public-auth__link {
  *   - 로그아웃 외 다른 세션 액션이 생기면 같은 규칙을 따르는 별도 클래스로
  *     추가하고, 순서는 위→아래 = 덜 파괴적 → 더 파괴적 순으로.
  */
-.workspace-sidebar__logout {
-  margin-top: auto;
-  border-top: 1px solid var(--border-default, #2a2a2a);
+/*
+ * PC 사이드바 하단 영역 — 로그아웃의 SSOT 위치.
+ *   - nav 와 분리된 독립 블록으로, 메뉴 리스트 마지막 뒤에 자연스럽게 쌓인다.
+ *   - border-top 으로 시각적 섹션 구분을 담당하고, 버튼 자체의 모양은 공용
+ *     .button* 규격을 그대로 따른다 (절대 덮지 않음).
+ *   - 모바일 .mobile-workspace-drawer__footer 와 동일한 의도의 PC 대칭체.
+ */
+.workspace-sidebar__footer {
   padding-top: 10px;
+  border-top: 1px solid var(--border-default, #2a2a2a);
+}
+
+.workspace-sidebar__logout {
+  width: 100%;
+  margin: 0;
 }
 
 .workspace-memo-overlay {
