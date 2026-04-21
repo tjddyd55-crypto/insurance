@@ -1495,9 +1495,22 @@ export default function CustomersPage() {
     [token],
   )
 
+  /**
+   * 카드 요약 클릭에 따르는 부수 작업 전담 핸들러.
+   *
+   * 책임 분리 (routing-ssot.mdc §4, 단일 책임 원칙):
+   *  - expandedId 토글 + 접기 애니메이션은 `useExpandableCard.toggleExpanded` 전담
+   *  - 이 핸들러는 같은 클릭에 뒤따르는 두 가지만 수행한다.
+   *      1) 펼친 카드가 보이도록 스크롤 요청
+   *      2) PC 에서는 우측 워크스페이스 path 로 이동
+   *
+   * 과거에는 여기서도 `setExpandedId(c.id)` 를 호출해 `toggleExpanded` 와
+   * 이중으로 setter 를 트리거했고, 그 부작용으로 같은 이벤트에서
+   * URL 동기화가 두 번 수행되었다. 책임을 분리한 뒤로는 setter 호출이
+   * 한 번으로 정리되고, 각 함수 이름이 곧 그 함수의 역할이 된다.
+   */
   const handleSelectCustomer = useCallback(
     (c: CustomerRecord) => {
-      setExpandedId(c.id)
       setScrollRequestKey((prev) => prev + 1)
       if (isMobile) {
         return
@@ -1508,7 +1521,7 @@ export default function CustomersPage() {
         state: { customerName: c.name },
       })
     },
-    [isMobile, location.pathname, navigate, setExpandedId],
+    [isMobile, location.pathname, navigate],
   )
 
   const handleOpenRelatedCustomer = useCallback(
