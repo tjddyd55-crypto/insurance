@@ -7188,57 +7188,73 @@ a.contacts-public-auth__link {
   flex-shrink: 0;
 }
 
+/**
+ * 모바일 메모 리스트 박스.
+ *
+ * 높이는 한 줄 핸들 바(≈24px) 는 별도 형제로 분리되므로 이 박스는 순수 리스트 공간.
+ * 항목당 약 32px × 5개 + 상하 padding 여유 → 220px 로 5개 이상 확실히 노출.
+ */
 .memo-list-sidebar.mobile-list {
   width: 100%;
-  height: 200px;
+  height: 220px;
   border-left: none;
   border-top: 1px solid #333;
 }
 
 .memo-mobile-list {
-  height: 200px;
+  height: 220px;
   border-top: 1px solid var(--border-default, #2a2a2a);
 }
 
-.memo-mobile-list-toggle-row {
-  position: sticky;
-  top: 0;
-  z-index: 3;
+/**
+ * 모바일 메모 리스트 접기/펴기 핸들 바.
+ *
+ * 요구사항:
+ *  - 한 줄(약 24px) 로 얇게
+ *  - 중앙에 방향 화살표(▼ 열린 상태 / ▲ 접힌 상태)
+ *  - "메모 목록" 같은 텍스트 레이블은 두지 않는다 (자리만 차지).
+ *
+ * 접힌 상태(collapsed) 에서도 동일한 한 줄 바가 `memo-body--mobile` 의 맨 아래에
+ * block 으로 붙어, 사용자가 항상 같은 위치에서 열고 닫을 수 있다.
+ */
+/**
+ * FormButton 을 핸들 바로 쓰기 때문에 `.button` 기본값(min-height 48px / padding 12px /
+ * border-radius 10px 등) 을 명시적으로 덮어쓴다.
+ */
+.memo-mobile-list-handle,
+.memo-mobile-list-handle.button {
   display: flex;
+  align-items: center;
   justify-content: center;
-  margin: -8px -8px 8px;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
+  min-height: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0;
   background: #111;
+  color: #fff;
+  cursor: pointer;
+  line-height: 1;
+  font-size: 0.9rem;
+  font-weight: 500;
+  flex-shrink: 0;
 }
 
-.memo-mobile-list-toggle-btn {
-  width: 44px;
-  height: 24px;
-  border: none;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  font-size: 1rem;
-  line-height: 1;
-  cursor: pointer;
+.memo-mobile-list-handle:hover,
+.memo-mobile-list-handle.button:hover {
+  background: #181818;
 }
 
-.memo-mobile-list-open-btn {
-  position: absolute;
-  left: 50%;
-  bottom: 8px;
-  transform: translateX(-50%);
-  z-index: 10;
-  width: 44px;
-  height: 24px;
-  border: none;
-  border-radius: 999px;
-  background: rgba(34, 34, 34, 0.95);
-  color: #fff;
-  font-size: 1rem;
+.memo-mobile-list-handle__icon {
+  font-size: 0.9rem;
   line-height: 1;
-  cursor: pointer;
+  opacity: 0.85;
+}
+
+.memo-mobile-list-handle--collapsed {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
@@ -7282,6 +7298,60 @@ a.contacts-public-auth__link {
 
 .memo-fab:active {
   transform: scale(0.95);
+}
+
+/**
+ * 모바일 FAB — "추가" / "정리" 듀얼 버튼 도크.
+ *
+ * 기존 단일 `+` 원형 FAB 와 동일한 위치(우하단) 에 두 개의 pill 버튼을 가로로 배치.
+ * 각 버튼은 클릭 즉시 해당 동작을 실행(메뉴 팝업 없음).
+ */
+.memo-electron-fab-dock--mobile {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+}
+
+.memo-fab--mobile-dual,
+.memo-fab--mobile-dual.button {
+  position: static;
+  width: auto;
+  min-width: 64px;
+  min-height: 40px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.memo-fab--mobile-dual-add {
+  background: #3b82f6;
+}
+
+.memo-fab--mobile-dual-arrange {
+  background: #475569;
+}
+
+.memo-fab--mobile-dual:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.memo-fab--mobile-dual:active {
+  transform: translateY(0);
+  filter: brightness(0.95);
 }
 
 /* ——— 메모 워크스페이스 UX ——— */

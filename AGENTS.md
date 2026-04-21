@@ -172,6 +172,16 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 - 스타일: `.mobile-workspace-drawer--overlay`, `.mobile-workspace-drawer-backdrop` (src/index.css).
 - z-index 정책: backdrop=900, drawer=901, mobile modal overlay=9999, confirm dialog=10000. 드로어가 모달 위로 올라오지 않도록 의도적으로 하위 레이어에 둔다.
 
+**모바일 메모 리스트 / FAB 구성**
+모바일 `MainWorkspaceLayout` 하단 메모 영역은 다음 3요소로 구성된다.
+- **한 줄 핸들 바** `.memo-mobile-list-handle` — 높이 24px, 중앙에 `▼` / `▲` 만 표시. "메모 목록" 같은 레이블 텍스트는 두지 않는다(자리만 차지). `collapsed` 여부는 `--collapsed` modifier.
+- **리스트 박스** `.memo-list-sidebar.mobile-list.memo-mobile-list` — 높이 220px, 5개 이상 항목이 스크롤 없이 보이도록 설정. 내부 `MemoList` 는 `hideHeader` 로 호출 → `MemoSidebar` 의 제목·정리하기·토글 헤더 전체 생략.
+- **듀얼 FAB** `.memo-electron-fab-dock--mobile` — 우하단 같은 위치에 `[추가]` `[정리]` 두 pill 버튼을 가로로 배치. 각 버튼은 메뉴 팝업 없이 즉시 동작(`addNote()` / `handleAutoArrange()`). PC/웹 에서는 기존 단일 `+` FAB + 메뉴 팝업을 유지한다.
+
+컴포넌트 경계:
+- `MemoMobileListSection` / `MemoPcListSection` (둘 다 `src/layouts/MainWorkspaceLayout.tsx` 내부) 로 모바일/PC 하단 리스트 UI 를 완전히 분리 — 한쪽 수정이 다른 쪽에 흘러들지 않는다.
+- `MemoElectronFabDock` 의 `isMobile` 분기가 FAB 형태를 결정한다.
+
 ### 8-2. 핵심 원칙 (신규·수정 코드에 적용)
 
 1. **View 파일 분리 우선**  

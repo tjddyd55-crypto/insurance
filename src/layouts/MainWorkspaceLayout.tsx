@@ -45,59 +45,108 @@ function MemoPanelBody({
         <div className={`memo-canvas-area p-2 min-h-0 ${isMobile ? 'mobile-memo-view' : ''}`}>
           <MemoWorkspacePage />
         </div>
-        {showList ? (
-          <div
-            className={`memo-list-sidebar ${isMobile ? 'mobile-list memo-mobile-list' : 'memo-list-sidebar--right-dock'}`}
-            data-selected-note={selectedNoteId ?? ''}
-          >
-            {isMobile ? (
-              <div className="memo-mobile-list-toggle-row">
-                <FormButton
-                  htmlType="button"
-                  className="memo-mobile-list-toggle-btn"
-                  onClick={onToggleList}
-                  aria-label="메모 목록 접기"
-                >
-                  ▼
-                </FormButton>
-              </div>
-            ) : (
-              <FormButton
-                htmlType="button"
-                className="memo-list-toggle-btn memo-list-toggle-btn--collapse"
-                onClick={onToggleList}
-                aria-label="메모 목록 접기"
-              >
-                &gt;
-              </FormButton>
-            )}
-            <MemoList onAfterSelectNote={onSelectNoteFromList} />
-          </div>
-        ) : null}
-        {!showList ? (
-          isMobile ? (
-            <FormButton
-              htmlType="button"
-              className="memo-mobile-list-open-btn"
-              onClick={onToggleList}
-              aria-label="메모 목록 열기"
-            >
-              ▲
-            </FormButton>
-          ) : (
-            <FormButton
-              htmlType="button"
-              className="memo-list-toggle-btn memo-list-toggle-btn--expand"
-              onClick={onToggleList}
-              aria-label="메모 목록 열기"
-            >
-              &lt;
-            </FormButton>
-          )
-        ) : null}
+        {isMobile ? (
+          <MemoMobileListSection
+            showList={showList}
+            selectedNoteId={selectedNoteId}
+            onSelectNoteFromList={onSelectNoteFromList}
+            onToggleList={onToggleList}
+          />
+        ) : (
+          <MemoPcListSection
+            showList={showList}
+            selectedNoteId={selectedNoteId}
+            onSelectNoteFromList={onSelectNoteFromList}
+            onToggleList={onToggleList}
+          />
+        )}
       </div>
       {!omitFab ? <MemoFab /> : null}
     </div>
+  )
+}
+
+type MemoListSectionProps = {
+  showList: boolean
+  selectedNoteId: string | null
+  onSelectNoteFromList: (id: string) => void
+  onToggleList: () => void
+}
+
+/**
+ * 모바일 하단 메모 리스트 영역.
+ *
+ * - "메모 목록" 헤더 / "정리하기" 버튼 / 작은 동그라미 토글을 한 줄 핸들 바 하나로 통합.
+ * - showList 가 false 이면 핸들 바만 노출(▲), true 면 핸들(▼) + 리스트 5개 이상 보이는 영역.
+ * - 리스트 헤더는 `hideHeader` 로 숨긴다 (자리 차지 방지, "정리" 는 FAB 영역으로 이동).
+ */
+function MemoMobileListSection({
+  showList,
+  selectedNoteId,
+  onSelectNoteFromList,
+  onToggleList,
+}: MemoListSectionProps) {
+  const handleLabel = showList ? '메모 목록 접기' : '메모 목록 열기'
+  const handleIcon = showList ? '▼' : '▲'
+  return (
+    <>
+      <FormButton
+        htmlType="button"
+        className={`memo-mobile-list-handle${showList ? '' : ' memo-mobile-list-handle--collapsed'}`}
+        onClick={onToggleList}
+        aria-label={handleLabel}
+        aria-expanded={showList}
+      >
+        <span className="memo-mobile-list-handle__icon" aria-hidden>
+          {handleIcon}
+        </span>
+      </FormButton>
+      {showList ? (
+        <div
+          className="memo-list-sidebar mobile-list memo-mobile-list"
+          data-selected-note={selectedNoteId ?? ''}
+        >
+          <MemoList onAfterSelectNote={onSelectNoteFromList} hideHeader />
+        </div>
+      ) : null}
+    </>
+  )
+}
+
+/** PC 우측 메모 리스트 — 기존 방식 유지(좌측 토글 버튼 + 도킹된 사이드바). */
+function MemoPcListSection({
+  showList,
+  selectedNoteId,
+  onSelectNoteFromList,
+  onToggleList,
+}: MemoListSectionProps) {
+  if (showList) {
+    return (
+      <div
+        className="memo-list-sidebar memo-list-sidebar--right-dock"
+        data-selected-note={selectedNoteId ?? ''}
+      >
+        <FormButton
+          htmlType="button"
+          className="memo-list-toggle-btn memo-list-toggle-btn--collapse"
+          onClick={onToggleList}
+          aria-label="메모 목록 접기"
+        >
+          &gt;
+        </FormButton>
+        <MemoList onAfterSelectNote={onSelectNoteFromList} />
+      </div>
+    )
+  }
+  return (
+    <FormButton
+      htmlType="button"
+      className="memo-list-toggle-btn memo-list-toggle-btn--expand"
+      onClick={onToggleList}
+      aria-label="메모 목록 열기"
+    >
+      &lt;
+    </FormButton>
   )
 }
 
