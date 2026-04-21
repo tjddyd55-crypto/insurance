@@ -1289,19 +1289,22 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 /*
- * 모바일 드로어 = [스크롤 nav] + [하단 고정 footer] (AppWorkspaceLayout 참고).
- *   - outer(.mobile-workspace-drawer) 는 flex column 컨테이너만 담당.
- *   - __nav 가 스크롤을 담당하고, __footer 가 로그아웃 같은 세션 액션을 하단에 고정.
- *   - 과거에는 `<nav>` 하나에 메뉴+로그아웃이 섞여 있어 위계가 깨졌다 — 이 슬롯
- *     규약이 회귀 방지의 SSOT.
+ * 모바일 드로어 = [메뉴 nav] → [로그아웃 footer] (자연 순서 · 단일 스크롤).
+ *
+ *   - outer(.mobile-workspace-drawer--overlay) 가 유일한 스크롤 축. 내부
+ *     __nav 와 __footer 는 단순히 "콘텐츠 높이만큼" 자리잡는 플로우 아이템이다.
+ *   - __nav 는 남는 공간을 먹지 않는다 (flex:1 금지). 메뉴가 짧으면 짧은 대로
+ *     끝나고, 그 바로 아래에 __footer(로그아웃) 가 "메뉴의 마지막 항목처럼"
+ *     자연스럽게 이어진다.
+ *   - 회귀 기록: 과거에는 __nav { flex:1; overflow-y:auto } 로 nav 가 스크롤을
+ *     담당하고 footer 를 항상 화면 바닥에 고정했는데, 메뉴 수가 적을 때 로그
+ *     아웃이 화면 아래로 동떨어져 "플로팅 오버레이" 처럼 보이는 UX 단절이
+ *     있었다. 이 주석이 회귀 방지 SSOT.
  */
 .mobile-workspace-drawer__nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
   padding: 4px 12px 10px;
 }
 
@@ -1401,9 +1404,13 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 /*
- * overlay 자신은 overflow 를 잠그고(헤더/footer 가 경계 밖으로 튀어나오지 않도록),
- * 실제 스크롤은 내부 `__nav` 가 담당한다. 두 층이 동시에 스크롤되면 iOS 터치에서
- * 튀는 현상이 있어 역할을 분리해둔다.
+ * overlay = "메뉴 + 로그아웃" 을 자연 순서로 쌓은 세로 리스트 한 덩어리.
+ * 콘텐츠 합계 높이가 뷰포트를 넘을 때만 overlay 자신이 스크롤한다.
+ *
+ * 과거에는 __nav 가 flex:1 로 스크롤을 담당하고 __footer 를 바닥에 고정했으나,
+ * 메뉴 수가 적을 때 로그아웃이 화면 아래로 뚝 떨어져 "플로팅 버튼처럼" 보이는
+ * 회귀가 있었다. 스크롤 책임을 overlay 한 층으로 모아 단일 축으로 정리한다.
+ * (참고: .mobile-workspace-drawer__nav 주석)
  */
 .mobile-workspace-drawer--overlay {
   position: fixed;
@@ -1412,7 +1419,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   right: 0;
   z-index: 901;
   max-height: calc(100dvh - 48px);
-  overflow: hidden;
+  overflow-y: auto;
   box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.45);
 }
 
@@ -1495,6 +1502,29 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   min-width: 0;
   flex: 1 1 auto;
   overflow: auto;
+}
+
+/*
+ * /memo 등 "앱 셸 내부에서 .workspace-root 를 다시 감싸는 중첩 레이아웃" 보정.
+ *
+ * .workspace-root 는 원래 "최상위 앱 셸" 로 설계되어 height: 100dvh 로 뷰포트
+ * 전체를 차지한다. 그러나 /memo 모바일 뷰는
+ *
+ *   AppWorkspaceLayout (mobile-topbar 48px + <main .mobile-workspace-content>)
+ *     └ MemoRouteMobileView (.memo-route-page)
+ *         └ MainWorkspaceLayout (.workspace-root { height: 100dvh })
+ *
+ * 처럼 2중으로 쌓인다. 내부 .workspace-root 가 다시 100dvh 를 고집하면 탑바
+ * 높이(48px) 만큼 본문이 화면 아래로 밀려 뷰포트 바깥으로 빠져 "검은 화면"
+ * 처럼 보이는 회귀가 발생한다.
+ *
+ * 이 셀렉터는 "앱 셸 <main> 안쪽에 들어온 workspace-root" 에만 부모 높이 계승
+ * 을 강제해 회귀를 구조적으로 차단한다. 최상위에서 단독으로 쓰이는
+ * .workspace-root 의 자체 높이 정책은 영향받지 않는다.
+ */
+.mobile-workspace-content .workspace-root {
+  height: 100%;
+  min-height: 0;
 }
 
 /* 인증 앱 본문: 좌측 영역 전폭 (메모 패널과 리사이즈 일관성) */
