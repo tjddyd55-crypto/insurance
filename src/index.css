@@ -7367,6 +7367,18 @@ a.contacts-public-auth__link {
   min-height: 0;
 }
 
+/*
+ * 메모 캔버스는 앱 전역 테마(라이트/다크)와 독립된 "다크 스코프" 이다.
+ * 캔버스 내부에서 쓸 글자 색을 별도 토큰(--canvas-fg / --canvas-fg-muted)으로
+ * 정의해 자식(empty state / loading / 향후 오버레이)이 이걸 상속받게 한다.
+ *
+ * 왜 이렇게 분리하는가:
+ *  - 예전에는 캔버스 내부 텍스트가 전역 --text-primary 를 썼다.
+ *  - 라이트 테마에서 --text-primary = #111 이 되면 캔버스 배경(#0f1115)과
+ *    거의 같은 색이라 본문이 "검은 화면" 으로 인식되는 회귀가 발생했다.
+ *  - 캔버스 스코프 전용 토큰으로 격리하면 테마가 바뀌어도, 캔버스 배경을
+ *    나중에 바꿔도, 한 곳에서 관리할 수 있다.
+ */
 .memo-canvas-area {
   flex: 1;
   position: relative;
@@ -7377,6 +7389,9 @@ a.contacts-public-auth__link {
   flex-direction: column;
   overflow: auto;
   background: #0f1115;
+  --canvas-fg: #e5e7eb;
+  --canvas-fg-muted: #9ca3af;
+  color: var(--canvas-fg);
   scroll-behavior: smooth;
 }
 
@@ -7710,6 +7725,13 @@ a.contacts-public-auth__link {
   box-shadow: none;
 }
 
+/*
+ * 메모 캔버스 빈 상태.
+ *
+ * 색상은 컴포넌트가 아닌 캔버스 스코프(.memo-canvas-area)의 토큰을 상속한다
+ * (--canvas-fg / --canvas-fg-muted). 이로써 "검은 배경 + 검은 글씨" 회귀를
+ * 구조적으로 차단한다.
+ */
 .memo-workspace__empty {
   display: flex;
   flex-direction: column;
@@ -7719,10 +7741,23 @@ a.contacts-public-auth__link {
   padding: 2rem;
   text-align: center;
   gap: 0.5rem;
+  color: var(--canvas-fg, #e5e7eb);
+}
+
+.memo-workspace__empty-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--canvas-fg, #e5e7eb);
+}
+
+.memo-workspace__empty-hint {
+  font-size: 0.875rem;
+  color: var(--canvas-fg-muted, #9ca3af);
 }
 
 .memo-workspace__loading {
   min-height: min(48vh, 360px);
+  color: var(--canvas-fg-muted, #9ca3af);
 }
 
 /* ——— 메모 삭제 확인 (body Portal, 최상단 z-index) ——— */
