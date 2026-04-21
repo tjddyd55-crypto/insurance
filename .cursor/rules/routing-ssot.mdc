@@ -1,0 +1,125 @@
+---
+description: 라우팅 단일 진실 원천(SSOT) — URL path 기준, 쿼리↔path 양방향 sync 금지
+globs: src/**/*.{ts,tsx}
+alwaysApply: true
+---
+
+# 라우팅 단일 진실 원천(SSOT) 규칙
+
+> **배경**
+> 과거에 "query → path" 방향으로 동기화하는 `useLayoutEffect`가 도입되었다가,
+> 좌측 리스트가 이미 path를 직접 `replace` 하는 코드와 충돌하여
+> **선택 즉시 이전 고객으로 되돌아가는 회귀**가 발생했다.
+> 이 규칙은 같은 회귀가 재발하지 않도록 박아둔 가드레일이다.
+
+---
+
+## 1. URL path를 단일 진실 원천으로 삼는다
+
+**선택된 리소스 id는 URL path 하나에서만 파생한다.**
+
+- ✅ 허용: `const id = parseFromPath(pathname)`
+- ✅ 보조: path에 id가 없을 때만 `?customerId=`, `?id=` 같은 쿼리를 **fallback**으로 읽는다.
+- ❌ 금지: path와 query를 **둘 다 primary**로 간주하고 서로 맞추는 양방향 sync.
+
+### 올바른 패턴
+
+```ts
+const selectedId = useMemo(() => {
+  const fromPath = parseIdFromPath(location.pathname)
+  if (fromPath != null) return fromPath
+  return parseId(searchParams.get('id'))
+}, [location.pathname, searchParams])
+```
+
+---
+
+## 2. 쿼리 ↔ path 양방향 sync effect 금지
+
+**금지 패턴**:
+
+```tsx
+// ❌ 금지: query 가 path 를 바꾸려 함
+useLayoutEffect(() => {
+  if (queryId !== pathId) {
+    navigate(`/customers/${queryId}/...`, { replace: true })
+  }
+}, [queryId, pathId])
+
+// ❌ 금지: path 가 query 를 바꾸려 함 (반대 방향도 동일하게 금지)
+useEffect(() => {
+  if (pathId !== queryId) {
+    setSearchParams({ id: String(pathId) }, { replace: true })
+  }
+}, [pathId, queryId])
+```
+
+두 방향이 동시에 존재하면 **무한 replace 루프** 또는 **사용자 선택을 뒤엎는 덮어쓰기**가 발생한다.
+쿼리가 필요하면 path를 바꿀 때 **같은 `navigate` 호출 안에서 쿼리도 함께 지정**한다.
+
+### 올바른 패턴
+
+```tsx
+// 좌측 리스트 → 고객 선택
+navigate(`/customers/${id}/${currentTab}`, { replace: true })
+// 쿼리와 path 를 분리된 effect 로 맞추지 않는다. 한 번의 navigate 로 끝낸다.
+```
+
+---
+
+## 3. 라우팅을 일으키는 `useEffect` / `useLayoutEffect` 주의
+
+다음 조건을 만족하는 effect는 **금지에 준하는 레드 플래그**다.
+
+- `navigate(...)`를 호출
+- 의존성에 `location` 또는 `searchParams`가 포함
+- 자신이 조건에 따라 URL을 **되돌리거나 덮어쓸 수 있음**
+
+리뷰 시 아래 질문에 대답할 수 있어야 한다.
+
+1. 이 effect가 바꾸려는 URL은 "사용자의 조작 결과"를 덮어쓰지 않는가?
+2. 이 effect가 만드는 URL이 자기 자신의 의존성을 바꿔 **무한 루프**를 만들지 않는가?
+3. 이 effect 없이 **이벤트 핸들러에서 직접 `navigate`** 로 처리할 수 없는가? (보통 가능하다)
+
+---
+
+## 4. 라우팅 변경은 이벤트 핸들러에서
+
+- 사용자의 클릭/입력에 의한 라우팅 변경은 **이벤트 핸들러**에서 직접 `navigate(...)`.
+- effect에서의 `navigate`는 다음 경우로만 제한한다.
+  - **초기 진입 리다이렉트** (예: 미로그인 → `/login`)
+  - **404/권한 없음 처리**
+  - **명백한 잔존 상태 정리**(한 번만 실행되는 cleanup, 무한 루프 불가능해야 함)
+
+---
+
+## 5. `replace` vs `push`
+
+- 리스트에서 상세 선택은 `replace: true` (뒤로가기 히스토리를 오염시키지 않음).
+- 상세 내부의 탭 전환도 `replace: true` 권장.
+- 명시적 네비게이션(메뉴 클릭 등)만 `push`(기본).
+
+---
+
+## 6. path 구조 규약
+
+- 리소스 상세는 `/resource/:id/<tab>` 형식. 예: `/customers/647/consultations`.
+- `:id`는 **정수**이며 파서에서 `> 0` 가드를 둔다.
+- 빈 값/NaN/undefined가 path에 들어가 `//`가 되지 않도록 핸들러에서 **선제 가드**한다.
+
+```tsx
+const handleClick = () => {
+  if (!selectedId) return  // 가드 먼저
+  navigate(`/customers/${selectedId}/files`)
+}
+```
+
+---
+
+## 7. 체크리스트
+
+- [ ] path가 단일 진실 원천이다 (query는 fallback만)
+- [ ] 쿼리 ↔ path 양방향 동기화 effect가 없다
+- [ ] `navigate`는 가능한 한 이벤트 핸들러에서 호출된다
+- [ ] effect에서 navigate하더라도 무한 루프 불가 증명이 가능하다
+- [ ] path 조립 전에 id null 가드가 있다

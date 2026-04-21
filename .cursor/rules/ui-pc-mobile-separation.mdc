@@ -1,7 +1,7 @@
 ---
 description: PC/Mobile UI 분리 규칙 — 페이지는 PCView/MobileView로 분리하고 CSS는 .page--pc/--mobile modifier 사용. .pc-root/.mobile-root 신규 사용 금지.
 globs: src/**/*.{ts,tsx,css}
-alwaysApply: false
+alwaysApply: true
 ---
 
 # PC / MOBILE UI SEPARATION RULE
