@@ -4508,9 +4508,22 @@ div.cta-button.customers-page__action-btn[role='button'] {
     border-color 0.15s ease;
 }
 
-.button:hover:not(:disabled):not(:active) {
-  background-color: var(--btn-hover-bg);
-  border-color: var(--btn-hover-border);
+/*
+ * 터치 디바이스의 "sticky :hover" 회귀 방지 (post-ssot-ui-followups.md §2.4).
+ *   증상: 모바일 카드 액션 버튼 탭 → 모달 오픈 → 하드웨어 back 으로 닫음
+ *        → 트리거 버튼이 활성 색으로 고정 남음.
+ *   원인: 모바일 브라우저는 탭된 요소의 :hover 를 포인터가 떠나기 전엔 해제하지
+ *        않는다. 모달을 뒤로가기로 닫으면 "떠나는 이벤트" 가 없으므로 hover 고착.
+ *   근본 해결: hover 스타일을 "실제 hover 가 의미있는 장치" 에서만 적용.
+ *   범위: 공통 .button 계열 4종(.button · --primary · --secondary · --danger).
+ *        데스크톱(마우스/트랙패드)은 (hover: hover) and (pointer: fine) 이 true 라
+ *        UX 변화 없음. 이후 새 hover 규칙도 같은 가드 안에 넣어 일관성 유지.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .button:hover:not(:disabled):not(:active) {
+    background-color: var(--btn-hover-bg);
+    border-color: var(--btn-hover-border);
+  }
 }
 
 .button:active:not(:disabled) {
@@ -4529,9 +4542,11 @@ div.cta-button.customers-page__action-btn[role='button'] {
   color: var(--text-on-primary);
 }
 
-.button--primary:hover:not(:disabled):not(:active) {
-  background-color: var(--primary-hover);
-  border-color: var(--primary-hover);
+@media (hover: hover) and (pointer: fine) {
+  .button--primary:hover:not(:disabled):not(:active) {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
 }
 
 .button--secondary {
@@ -4540,9 +4555,11 @@ div.cta-button.customers-page__action-btn[role='button'] {
   color: var(--secondary-text);
 }
 
-.button--secondary:hover:not(:disabled):not(:active) {
-  background-color: var(--secondary-hover-bg);
-  border-color: var(--secondary-border);
+@media (hover: hover) and (pointer: fine) {
+  .button--secondary:hover:not(:disabled):not(:active) {
+    background-color: var(--secondary-hover-bg);
+    border-color: var(--secondary-border);
+  }
 }
 
 .button--danger {
@@ -4551,9 +4568,11 @@ div.cta-button.customers-page__action-btn[role='button'] {
   color: var(--danger-text);
 }
 
-.button--danger:hover:not(:disabled):not(:active) {
-  background-color: var(--danger-hover-bg);
-  border-color: var(--danger-border);
+@media (hover: hover) and (pointer: fine) {
+  .button--danger:hover:not(:disabled):not(:active) {
+    background-color: var(--danger-hover-bg);
+    border-color: var(--danger-border);
+  }
 }
 
 .button--full {
