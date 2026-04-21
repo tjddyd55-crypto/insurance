@@ -62,6 +62,7 @@ main에 푸시되면 **동시에 3개 채널**이 갱신되므로 머지 타이�
 2. dev 서비스의 최근 빌드가 실패했는지 (Deployments 탭) 확인.
 3. GitHub Actions `deploy.yml`·`*-ota.yml`이 develop에도 돌도록 잘못 확장되어 있지는 않은지 확인 (현 상태는 `main`만 트리거, 유지할 것).
 4. DevTools Console에 `[apiClient] stale Railway API host ignored …` 경고가 뜬다면 `.env.production`에 prod 호스트가 다시 박혔는지 확인 (3-5 위반). dev 번들이 prod 호스트를 가리키는 순간 검증 신뢰도가 무너진다.
+5. **PC에서 고객관리 우측 패널이 사라지거나, PC 전용 CSS(문자/전화 아이콘 숨김 등)가 적용되지 않는다**면 `useIsMobile()`이 true로 오판정됐을 확률이 가장 높다. PC가 F12를 열거나 창을 좁게 쓸 때도 반드시 PC UI가 유지되어야 한다. 판정식은 `(max-width: 768px) and (pointer: coarse)` 로, `pointer: coarse` 조건을 제거하지 말 것(§8-3 참고).
 
 ### 3-5. 환경변수 주입 원칙 (API/BASE URL)
 
@@ -185,6 +186,9 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 
 5. **공유 컴포넌트는 props로 분기**  
    같은 컴포넌트를 두 플랫폼이 모두 쓸 경우, 컴포넌트는 `variant="pc" | "mobile"` 같은 명시적 prop으로만 분기한다. 컴포넌트 내부에서 `useIsMobile()`을 호출해 스스로 판단하는 코드는 금지.
+
+6. **`useIsMobile` 판정식 고정**  
+   `src/hooks/useIsMobile.ts`의 미디어 쿼리는 **`(max-width: 768px) and (pointer: coarse)`** 이다. `pointer: coarse`를 제거하거나 width 단독으로 되돌리면 "PC에서 DevTools 열거나 창 좁게 쓰면 우측 패널·PC CSS가 통째로 사라지는" 버그가 재발한다(실제 사례 있음). 정의상 이 hook은 **"레이아웃용 실모바일 기기 여부"** 이지 "뷰포트 폭"이 아니다.
 
 ### 8-3. 신규 페이지 체크리스트
 
