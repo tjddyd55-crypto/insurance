@@ -1221,7 +1221,7 @@ export default function CustomersPage() {
    * memo 로 전환하지 않고 그대로 제거했다. 선택 고객 id 가 필요해지는 시점에는
    * `CustomerWorkspaceLayout` 의 파생값을 재사용한다.
    */
-  const [expandedId, setExpandedId] = useState<number | null>(() => {
+  const [expandedId, rawSetExpandedId] = useState<number | null>(() => {
     if (selectedCustomerIdFromQuery != null) {
       return selectedCustomerIdFromQuery
     }
@@ -1242,6 +1242,49 @@ export default function CustomersPage() {
   expandedIdRef.current = expandedId
   editingIdRef.current = editingId
   editFormRef.current = editForm
+
+  /**
+   * expandedId state 와 `?customerId=` 쿼리를 **한 번의 호출로 원자 업데이트**하는 래퍼.
+   *
+   * 과거에는 expandedId 가 바뀐 뒤 별도의 effect(구:Effect C) 가 뒤늦게 URL 을 따라붙이는
+   * 구조였다. 이는 routing-ssot.mdc §3 가 명시한 red flag("effect 안에서 setSearchParams"
+   * + "state→URL reflect") 에 해당해, 특정 타이밍에 URL 과 state 가 어긋나거나 사용자
+   * 조작을 덮어쓸 여지를 남겼다.
+   *
+   * 래퍼는 state 를 먼저 반영한 뒤, side-detail path(/customers/:id/*) 가 아닌 경우에만
+   * query 를 동기화한다. side-detail path 에서는 우측 패널(CustomerFiles/Memos 등) 이
+   * 동일 쿼리를 관장하므로 목록의 접기·펼치기가 패널 URL 을 덮어쓰면 안 된다
+   * (routing-ssot.mdc §6-B).
+   *
+   * 이 래퍼는 내부적으로 useState 의 raw setter 를 감싸기 때문에 기존 호출부
+   * (`setExpandedId(id)` · `useExpandableCard` prop 등) 를 고치지 않아도 자동으로
+   * URL 동기화가 적용된다.
+   */
+  const setExpandedId = useCallback<Dispatch<SetStateAction<number | null>>>(
+    (updater) => {
+      const prev = expandedIdRef.current
+      const next =
+        typeof updater === 'function'
+          ? (updater as (prev: number | null) => number | null)(prev)
+          : updater
+      rawSetExpandedId(next)
+      if (isCustomerWorkspaceSideDetailPath(location.pathname)) {
+        return
+      }
+      const currentQueryId = parseSelectedCustomerId(searchParams.get('customerId'))
+      if (currentQueryId === next) {
+        return
+      }
+      const nextParams = new URLSearchParams(searchParams)
+      if (next == null) {
+        nextParams.delete('customerId')
+      } else {
+        nextParams.set('customerId', String(next))
+      }
+      setSearchParams(nextParams, { replace: true })
+    },
+    [location.pathname, searchParams, setSearchParams],
+  )
 
   // NOTE: Router supports only one blocker. Global AppExitConfirm handles POP blocking (including customer create).
   const [searchInput, setSearchInput] = useState('')
@@ -1465,7 +1508,7 @@ export default function CustomersPage() {
         state: { customerName: c.name },
       })
     },
-    [isMobile, location.pathname, navigate],
+    [isMobile, location.pathname, navigate, setExpandedId],
   )
 
   const handleOpenRelatedCustomer = useCallback(
@@ -1501,7 +1544,7 @@ export default function CustomersPage() {
         },
       )
     },
-    [isMobile, location.pathname, navigate, searchParams],
+    [isMobile, location.pathname, navigate, searchParams, setExpandedId],
   )
 
   useEffect(() => {
@@ -1647,30 +1690,9 @@ export default function CustomersPage() {
     }
   }, [expandedId, isMobile, scrollRequestKey])
 
-  useEffect(() => {
-    if (tab !== 'list') {
-      return
-    }
-    // URL은 라우트(/customers/:id/*)가 단일 진실 원천. 우측 패널이 열린 상태에서는 쿼리(customerId) 동기화하지 않는다.
-    if (isCustomerWorkspaceSideDetailPath(location.pathname)) {
-      return
-    }
-    const queryCustomerId = parseSelectedCustomerId(searchParams.get('customerId'))
-    if (queryCustomerId === expandedId) {
-      return
-    }
-    // 접힌 상태에서 쿼리만 남아 있는 경우: 파일/상담 패널이 동일 쿼리를 다시 채우므로 삭제하지 않음
-    if (expandedId == null && queryCustomerId != null && isCustomerWorkspaceSideDetailPath(location.pathname)) {
-      return
-    }
-    const next = new URLSearchParams(searchParams)
-    if (expandedId == null) {
-      next.delete('customerId')
-    } else {
-      next.set('customerId', String(expandedId))
-    }
-    setSearchParams(next, { replace: true })
-  }, [expandedId, location.pathname, searchParams, setSearchParams, tab])
+  // NOTE: "expandedId 변화 → ?customerId= 반영" 을 담당하던 effect(구:Effect C) 는 제거했다.
+  // 동일 책임을 위 `setExpandedId` 래퍼가 동기적으로 수행하므로(§3 red flag 해소),
+  // state→URL reflect 전용 effect 는 더 이상 필요 없다.
 
   useEffect(() => {
     if (expandedId == null) {
@@ -1681,7 +1703,7 @@ export default function CustomersPage() {
     if (!inMainList && !inAdvHits) {
       setExpandedId(null)
     }
-  }, [customers, advSearchHits, expandedId])
+  }, [customers, advSearchHits, expandedId, setExpandedId])
 
   useEffect(() => {
     const valid = new Set(customers.map((c) => String(c.id)))
@@ -1878,14 +1900,17 @@ export default function CustomersPage() {
         setStatusText(error instanceof Error ? error.message : '삭제에 실패했습니다.')
       }
     },
-    [token, user?.role, cancelEdit, loadCustomers, confirm],
+    [token, user?.role, cancelEdit, loadCustomers, confirm, setExpandedId],
   )
 
-  const startEdit = useCallback((cl: CustomerRecord) => {
-    setExpandedId(cl.id)
-    setEditingId(cl.id)
-    setEditForm(recordToEditForm(cl))
-  }, [])
+  const startEdit = useCallback(
+    (cl: CustomerRecord) => {
+      setExpandedId(cl.id)
+      setEditingId(cl.id)
+      setEditForm(recordToEditForm(cl))
+    },
+    [setExpandedId],
+  )
 
   const openMobileModal = useCallback(
     (modalType: 'files' | 'consultations' | 'auto' | 'ga', customerId: number) => {
