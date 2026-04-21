@@ -220,7 +220,56 @@ const activeTab = rightPanelCarForm ? 'auto' : currentPathTab  // 두 source 혼
 
 ---
 
-## 9. 체크리스트
+## 9. 같은 state 를 복수 source 에서 pull 하지 않는다 (핑퐁 금지)
+
+### 왜 필요한가
+
+하나의 state(예: `selectedCustomerId`) 를 **두 개 이상의 `useEffect`** 가
+각기 다른 source(query, 부모 state, path 등) 로부터 당겨와 `setState` 하면,
+두 source 의 값이 어긋나는 순간 effect 끼리 **번갈아 덮어쓰는 핑퐁**이 발생해
+React 가 `Maximum update depth exceeded` 로 중단한다. 증상은 다음과 같다.
+
+- "클릭이 일부는 되고 일부는 안 된다 — 순서에 따라 다르다"
+- "잠깐 선택이 되었다가 이전 값으로 되돌아간다"
+- 콘솔에 `Maximum update depth exceeded` 경고가 반복
+
+### 규칙
+
+- ❌ 금지: `setSelectedX` 를 호출하는 effect 가 **두 개 이상**이고 각자 다른 source 를 읽는다.
+- ✅ 필수: 동일 state 를 쓰는 effect 가 여럿일 수밖에 없다면
+  - 우선순위를 **명시적으로 guard** 에 박는다 (예: "expandedId 가 유효하면 query pull 스킵").
+  - 또는 state 를 없애고 `useMemo` 로 **derive** 값으로 전환한다(권장).
+
+### 올바른 패턴 (derive)
+
+```ts
+const selectedCustomerId = useMemo(() => {
+  const fromPath = parseIdFromPath(location.pathname)
+  if (fromPath != null) return fromPath
+  if (expandedId != null) return expandedId
+  return selectedCustomerIdFromQuery
+}, [location.pathname, expandedId, selectedCustomerIdFromQuery])
+```
+
+### 안 되는 패턴 (핑퐁)
+
+```ts
+// Effect A: query → state
+useEffect(() => {
+  if (qId != null && qId !== selectedId) setSelectedId(qId)
+}, [qId, selectedId])
+
+// Effect B: expandedId → state  (Effect A 와 동일 state 를 다른 source 로 당김)
+useEffect(() => {
+  if (expId != null && expId !== selectedId) setSelectedId(expId)
+}, [expId, selectedId])
+
+// qId !== expId 인 순간 A↔B 가 무한 덮어쓰기
+```
+
+---
+
+## 10. 체크리스트
 
 - [ ] path가 단일 진실 원천이다 (query는 fallback만)
 - [ ] 쿼리 ↔ path 양방향 동기화 effect가 없다
@@ -229,3 +278,4 @@ const activeTab = rightPanelCarForm ? 'auto' : currentPathTab  // 두 source 혼
 - [ ] path 조립 전에 id null 가드가 있다
 - [ ] 상세 레이아웃의 `<Outlet>` 또는 Domain 조립 지점에 `key={resourceId}` 가 있다
 - [ ] 우측 패널·서브 뷰 중 로컬 state 토글로 조건부 렌더되는 것이 없다 (전부 URL 기반)
+- [ ] 동일 state 를 복수 effect 가 서로 다른 source 에서 pull 하지 않는다 (핑퐁 금지)
