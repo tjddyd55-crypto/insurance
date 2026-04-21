@@ -1,9 +1,14 @@
-import useIsMobile from '../../../hooks/useIsMobile'
 import type { NewsletterItem } from '../types'
 
+/**
+ * PC/Mobile 분기는 `variant` prop 으로 승격 (AGENTS.md §8-5 Tier 4/3 참조).
+ * NewsCard 내부에서 useIsMobile 을 직접 호출하지 않으며, 호출 측(NewsletterList)
+ * 또는 그 위의 페이지 컨테이너(ClaimRequestsPage 등)가 variant 를 결정해 주입한다.
+ */
 type Props = {
   item: NewsletterItem
   onOpen?: () => void
+  variant: 'pc' | 'mobile'
 }
 
 function cardAriaLabel(item: NewsletterItem): string {
@@ -30,8 +35,8 @@ function formatPublishedDateLabel(iso: string): string {
   return ymd || '—'
 }
 
-export function NewsCard({ item, onOpen }: Props) {
-  const isMobile = useIsMobile()
+export function NewsCard({ item, onOpen, variant }: Props) {
+  const isMobile = variant === 'mobile'
   const companyName = item.insurerName?.trim() || '—'
   const dateLabel = formatPublishedDateLabel(item.publishedAt)
   const headline = item.summary?.trim() || item.title?.trim() || '본문 내용이 없습니다.'

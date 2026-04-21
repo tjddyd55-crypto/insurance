@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useAuth } from '../../auth/AuthProvider'
 import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '../api/gaCustomerExcelApi'
 import { getCustomerById } from '../api/customersApi'
 import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
 import useIsMobile from '../../../hooks/useIsMobile'
 import CustomersPageContainer from './customers/CustomersPageContainer'
-import CustomerWorkspaceLayoutPC from './workspace/CustomerWorkspaceLayoutPC'
+import CustomerWorkspaceLayoutPC, { type CustomerWorkspaceLayoutPCProps } from './workspace/CustomerWorkspaceLayoutPC'
 import CustomerWorkspaceLayoutMobile from './workspace/CustomerWorkspaceLayoutMobile'
 
 function parseSelectedCustomerId(raw: string | null): number | null {
@@ -217,31 +218,39 @@ export default function CustomerWorkspaceLayout() {
     moveTo(`/customers/${selectedCustomerId}/memos`)
   }
 
+  const rightPanelProps: CustomerWorkspaceLayoutPCProps = {
+    pathname: location.pathname,
+    selectedCustomerId,
+    selectedCustomerLabel,
+    activeTab,
+    showCarInsuranceInWorkspace,
+    showGaExcelEntry,
+    gaExcelEnabledForDesigner: Boolean(excelCap?.showDesignerUi),
+    gaExcelDisabledReason: excelCap?.message || '고객 엑셀 기능을 사용할 수 없습니다.',
+    onClickFiles: handleClickFiles,
+    onClickConsultations: handleClickConsultations,
+    onClickCarForm: handleClickCarForm,
+    onClickGaExcel: handleClickGaExcel,
+    onClickMemos: handleClickMemos,
+  }
+
   return (
     <div className="customer-workspace-layout">
       <aside className="customer-workspace-layout__left" aria-label="고객 작업공간">
         <CustomersPageContainer />
       </aside>
 
-      {!isMobile ? (
-        <CustomerWorkspaceLayoutPC
-          pathname={location.pathname}
-          selectedCustomerId={selectedCustomerId}
-          selectedCustomerLabel={selectedCustomerLabel}
-          activeTab={activeTab}
-          showCarInsuranceInWorkspace={showCarInsuranceInWorkspace}
-          showGaExcelEntry={showGaExcelEntry}
-          gaExcelEnabledForDesigner={Boolean(excelCap?.showDesignerUi)}
-          gaExcelDisabledReason={excelCap?.message || '고객 엑셀 기능을 사용할 수 없습니다.'}
-          onClickFiles={handleClickFiles}
-          onClickConsultations={handleClickConsultations}
-          onClickCarForm={handleClickCarForm}
-          onClickGaExcel={handleClickGaExcel}
-          onClickMemos={handleClickMemos}
-        />
-      ) : (
-        <CustomerWorkspaceLayoutMobile />
-      )}
+      {/**
+        * 우측 panel 분기는 `ResponsiveLayout` 으로 수렴 (§8-2 원칙 1).
+        * 위쪽 `useEffect` 들의 `isMobile` 가드는 모바일에서 무의미한 PC 전용
+        * 데이터 fetch 를 건너뛰기 위한 "행동 분기" 이며, 이 파일이 layout 역할
+        * (Tier 1 등가) 이므로 AGENTS §8-5 Tier 1 규칙상 허용된다.
+        */}
+      <ResponsiveLayout<CustomerWorkspaceLayoutPCProps>
+        PC={CustomerWorkspaceLayoutPC}
+        Mobile={CustomerWorkspaceLayoutMobile}
+        viewProps={rightPanelProps}
+      />
     </div>
   )
 }

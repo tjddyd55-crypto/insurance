@@ -3,6 +3,7 @@ import FileUploader from '../../../components/common/FileUploader'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
+import PCOnlySection from '../../../components/PCOnlySection'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { NewsletterList } from '../../insurer-news/components/NewsletterList'
 import { uploadNewsletterAttachments } from '../../insurer-news/services/insurerNews.service'
@@ -683,9 +684,9 @@ export default function ClaimRequestsPage() {
           </div>
         </div>
 
-        {!isMobile ? (
+        <PCOnlySection fallback={null}>
           <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 space-y-3">{claimDetailBody}</div>
-        ) : null}
+        </PCOnlySection>
       </section>
         </>
       ) : null}
@@ -716,7 +717,11 @@ export default function ClaimRequestsPage() {
           </section>
           {newsAllSubTab === 'list' ? (
             <div style={{ marginTop: 16 }}>
-              <NewsletterList items={allNewsCards} emptyMessage="등록된 전체소식지가 없습니다." />
+              <NewsletterList
+                items={allNewsCards}
+                emptyMessage="등록된 전체소식지가 없습니다."
+                variant={isMobile ? 'mobile' : 'pc'}
+              />
             </div>
           ) : null}
           {newsAllSubTab === 'upload' ? (
@@ -866,7 +871,11 @@ export default function ClaimRequestsPage() {
               <div className="text-xs text-[var(--text-secondary)]">왼쪽에서 고객을 선택해 주세요.</div>
             )}
             </div>
-            <NewsletterList items={personalNewsCards} emptyMessage="해당 고객에게 전송한 소식지가 없습니다." />
+            <NewsletterList
+              items={personalNewsCards}
+              emptyMessage="해당 고객에게 전송한 소식지가 없습니다."
+              variant={isMobile ? 'mobile' : 'pc'}
+            />
           </div>
         </section>
       ) : null}

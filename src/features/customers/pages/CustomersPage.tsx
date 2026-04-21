@@ -516,6 +516,13 @@ type CustomerListCardProps = {
   onOpenRelatedCustomer: (customerId: number, customerName?: string) => void
   token: string | null
   onToggleFavorite: (c: CustomerRecord) => void | Promise<void>
+  /**
+   * PC/Mobile 분기를 컴포넌트 내부 `useIsMobile()` 호출이 아니라 부모에서 내려주는
+   * 명시적 variant 로 받는다 (AGENTS.md §8-5 Tier 4).
+   * 상위 `CustomersPage` 는 이미 동일 세션에서 `isMobile` 을 계산해 View 를 분기하므로,
+   * 자식 카드는 그 값을 그대로 내려받아 쓰면 된다 — 훅이 여러 곳에서 중복 호출되지 않는다.
+   */
+  variant: 'pc' | 'mobile'
 }
 
 const CustomerListCard = memo(function CustomerListCard({
@@ -544,8 +551,9 @@ const CustomerListCard = memo(function CustomerListCard({
   onOpenRelatedCustomer,
   token,
   onToggleFavorite,
+  variant,
 }: CustomerListCardProps) {
-  const isMobile = useIsMobile()
+  const isMobile = variant === 'mobile'
   const validCustomerId =
     c != null &&
     typeof c === 'object' &&
@@ -2492,6 +2500,7 @@ export default function CustomersPage() {
               onOpenRelatedCustomer={handleOpenRelatedCustomer}
               token={token}
               onToggleFavorite={handleToggleFavorite}
+              variant={isMobile ? 'mobile' : 'pc'}
             />
           ))}
         </ul>

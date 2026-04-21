@@ -4,7 +4,7 @@ import { FormButton } from '../../../../components/form'
 
 type WorkspaceActiveTab = 'files' | 'consultations' | 'auto' | 'ga-excel' | 'memos' | null
 
-type CustomerWorkspaceLayoutPCProps = {
+export type CustomerWorkspaceLayoutPCProps = {
   pathname: string
   selectedCustomerId: number | null
   selectedCustomerLabel: string

@@ -311,12 +311,12 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 
 #### Tier 3 — 복합 분기 (View 쪼개기 + 로직 검토 필요)
 
-| 파일 | 특성 |
+| 파일 | 상태 · 비고 |
 |---|---|
-| `features/customers/pages/CustomersPage.tsx` | PCView/MobileView 분리는 됐으나 container 내부에 `isMobile` 기반 로직(스크롤 등) 잔존. 별도 리팩토링 주제 |
-| `features/claim-requests/pages/ClaimRequestsPage.tsx` | 공통 body를 wrapper만 다른 View 2개에 children으로 전달하는 패턴. 단순 `ResponsiveLayout` 치환 불가 |
-| `features/customers/pages/CustomerWorkspaceLayout.tsx` | 좌측은 공통, 우측만 분기. 단순 `ResponsiveLayout` 치환 불가 |
-| `features/insurer-news/components/NewsCard.tsx` | 컴포넌트. `variant` prop으로 올려 분기 제거 권장 |
+| `features/insurer-news/components/NewsCard.tsx` | ✅ 완료 — 내부 `useIsMobile()` 제거, `variant: 'pc' \| 'mobile'` 필수 prop 승격. 호출측 `NewsletterList` 도 `variant` 를 받아 그대로 전달하며, 최상위 컨테이너(`ClaimRequestsPage`) 가 자신의 `isMobile` 로부터 결정해 주입한다 (AGENTS §8-5 Tier 4 패턴). |
+| `features/customers/pages/CustomersPage.tsx` | ✅ 완료 — 내부 `CustomerListCard` memo 서브컴포넌트의 `useIsMobile()` 호출을 제거하고 `variant` 필수 prop 으로 승격. 컨테이너(`CustomersPage`) 의 `useIsMobile` 은 **행동 분기** 전용으로 유지(모바일 전용 모달 open·history pushState·WebView 스크롤 전략·최종 View dispatch). UI 토글 분기는 없다. |
+| `features/claim-requests/pages/ClaimRequestsPage.tsx` | ✅ 완료 — `pageContent` 내부의 유일한 UI 분기(`!isMobile ?` PC 전용 detail 패널) 를 `PCOnlySection` 으로 치환. 컨테이너의 `useIsMobile` 은 **행동 분기** 전용(모바일 상세 모달 open trigger + 최종 View dispatch + `NewsCard` variant prop 주입) 으로 유지. 공통 body 를 children 으로 전달하는 PC/Mobile wrapper 2개는 기능 동등성을 위해 유지. |
+| `features/customers/pages/CustomerWorkspaceLayout.tsx` | ✅ 완료 — 우측 panel 분기(`{!isMobile ? PC : Mobile}`) 를 `ResponsiveLayout<CustomerWorkspaceLayoutPCProps>` 로 수렴. Mobile View 는 동일 props 시그니처를 받고 무시(null 반환). 이 파일은 `features/customers/pages/` 아래에 있지만 실질은 **layout 역할**(좌측 공통 목록 + 우측 panel 분기) 이므로 AGENTS §8-5 Tier 1 등가로 본다. `useEffect` 내부의 `isMobile` 가드는 모바일에서 불필요한 PC 전용 데이터 fetch 를 건너뛰기 위한 행동 분기이며, Tier 1 규칙상 허용된다. |
 
 #### Tier 4 — 컴포넌트 내부 분기 (prop으로 승격)
 
