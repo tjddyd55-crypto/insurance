@@ -1,8 +1,8 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useConfirmDialog } from '../../../components/dialog'
 import { FormButton } from '../../../components/form'
-import useIsMobile from '../../../hooks/useIsMobile'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import {
@@ -14,13 +14,13 @@ import {
 import { localYmd } from '../utils/consultationBodyFormat'
 import CustomerConsultationsPageMobile from './detail/CustomerConsultationsPageMobile'
 import CustomerConsultationsPagePC from './detail/CustomerConsultationsPagePC'
+import type { CustomerConsultationsViewProps } from './detail/customerConsultationsViewProps'
 
 export default function CustomerConsultationsPage() {
   const { customerId } = useParams()
   const navigate = useNavigate()
   const resolvedCustomerId = Number(customerId)
   const { token } = useAuth()
-  const isMobile = useIsMobile()
   const { confirm, confirmDialog } = useConfirmDialog()
   const [rows, setRows] = useState<CustomerConsultationRow[]>([])
   const [body, setBody] = useState('')
@@ -129,32 +129,33 @@ export default function CustomerConsultationsPage() {
     )
   }
 
+  /*
+   * View 분기는 `ResponsiveLayout<ViewProps>` 에 위임한다 (AGENTS §8-2 원칙 1).
+   * 두 View 는 공통 `CustomerConsultationsViewProps` 시그니처를 공유하므로
+   * container 는 `useIsMobile` 을 직접 호출하지 않는다.
+   *
+   * `confirmDialog` 는 `useConfirmDialog` 훅이 제공하는 포털 기반 다이얼로그이므로
+   * View 와 같은 서브트리에 형제로 렌더해야 confirm 호출 시 정상 동작한다.
+   */
+  const viewProps: CustomerConsultationsViewProps = {
+    error,
+    body,
+    consultDate,
+    busy,
+    rows,
+    onSetBody: setBody,
+    onSetConsultDate: setConsultDate,
+    onSubmit: onSubmitConsultation,
+    onDelete: onDeleteConsultation,
+  }
+
   return (
     <>
-      {isMobile ? (
-        <CustomerConsultationsPageMobile
-          error={error}
-          body={body}
-          consultDate={consultDate}
-          busy={busy}
-          rows={rows}
-          onSetBody={setBody}
-          onSetConsultDate={setConsultDate}
-          onSubmit={onSubmitConsultation}
-        />
-      ) : (
-        <CustomerConsultationsPagePC
-          error={error}
-          body={body}
-          consultDate={consultDate}
-          busy={busy}
-          rows={rows}
-          onSetBody={setBody}
-          onSetConsultDate={setConsultDate}
-          onSubmit={onSubmitConsultation}
-          onDelete={onDeleteConsultation}
-        />
-      )}
+      <ResponsiveLayout<CustomerConsultationsViewProps>
+        PC={CustomerConsultationsPagePC}
+        Mobile={CustomerConsultationsPageMobile}
+        viewProps={viewProps}
+      />
       {confirmDialog}
     </>
   )

@@ -1,20 +1,7 @@
-import { type FormEvent } from 'react'
 import { EmptyState, StatusMessage } from '../../../../components/feedback'
 import { FormButton, FormInput, FormTextarea } from '../../../../components/form'
 import { parseConsultationStoredBody } from '../../utils/consultationBodyFormat'
-import type { CustomerConsultationRow } from '../../api/customerExtraApi'
-
-type CustomerConsultationsPagePCProps = {
-  error: string
-  body: string
-  consultDate: string
-  busy: boolean
-  rows: CustomerConsultationRow[]
-  onSetBody: (value: string) => void
-  onSetConsultDate: (value: string) => void
-  onSubmit: (e: FormEvent) => void | Promise<void>
-  onDelete: (consultId: number) => void | Promise<void>
-}
+import type { CustomerConsultationsViewProps } from './customerConsultationsViewProps'
 
 export default function CustomerConsultationsPagePC({
   error,
@@ -26,7 +13,7 @@ export default function CustomerConsultationsPagePC({
   onSetConsultDate,
   onSubmit,
   onDelete,
-}: CustomerConsultationsPagePCProps) {
+}: CustomerConsultationsViewProps) {
   return (
     <div className="content-wrapper page-shell">
       <StatusMessage message={error} tone="error" className="!mt-0" />

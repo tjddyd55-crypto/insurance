@@ -276,7 +276,7 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 | `features/auth/pages/ProfilePage.tsx` | ✅ 완료 | 페이지는 단일 파일 유지(공통 540줄 + PC 한정 섹션 2곳). `PCOnlySection` 으로 섹션 분기를 수렴해 `useIsMobile` 직접 호출 제거. ResponsiveLayout 분리 대상 아님 (섹션 분기 예외) |
 | `features/insurer-news/pages/InsurerManagerNewsListPage.tsx` | 단순 | |
 | `features/customers/pages/CustomerGaExcelPage.tsx` | ✅ 완료 | ResponsiveLayout + 전용 훅(`useGaCustomerExcelData`) + modifier 적용 완료 |
-| `features/customers/pages/CustomerConsultationsPage.tsx` | 중간 | |
+| `features/customers/pages/CustomerConsultationsPage.tsx` | ✅ 완료 | `ResponsiveLayout<CustomerConsultationsViewProps>` 치환 + 공통 타입 `customerConsultationsViewProps.ts` 도입. Mobile 에 삭제 버튼 추가(UX 일관성). 모바일 모달(`CustomerConsultationsModal`) 에도 삭제 지원 추가 + `BaseDialog` z-[10000] 로 조정해 모달 위에 confirm 이 뜨도록 함 |
 | `features/memo/pages/MemoRoutePage.tsx` | ✅ 완료 | 3파일 구조 (PCView/MobileView) + `.memo-route-page--pc/--mobile` modifier 적용 완료 (데이터 없는 placeholder 라 훅은 두지 않음) |
 
 #### Tier 3 — 복합 분기 (View 쪼개기 + 로직 검토 필요)

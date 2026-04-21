@@ -1,19 +1,7 @@
-import { type FormEvent } from 'react'
 import { EmptyState, StatusMessage } from '../../../../components/feedback'
 import { FormButton, FormInput, FormTextarea } from '../../../../components/form'
 import { parseConsultationStoredBody } from '../../utils/consultationBodyFormat'
-import type { CustomerConsultationRow } from '../../api/customerExtraApi'
-
-type CustomerConsultationsPageMobileProps = {
-  error: string
-  body: string
-  consultDate: string
-  busy: boolean
-  rows: CustomerConsultationRow[]
-  onSetBody: (value: string) => void
-  onSetConsultDate: (value: string) => void
-  onSubmit: (e: FormEvent) => void | Promise<void>
-}
+import type { CustomerConsultationsViewProps } from './customerConsultationsViewProps'
 
 export default function CustomerConsultationsPageMobile({
   error,
@@ -24,7 +12,8 @@ export default function CustomerConsultationsPageMobile({
   onSetBody,
   onSetConsultDate,
   onSubmit,
-}: CustomerConsultationsPageMobileProps) {
+  onDelete,
+}: CustomerConsultationsViewProps) {
   return (
     <div className="content-wrapper page-shell">
       <StatusMessage message={error} tone="error" className="!mt-0" />
@@ -76,6 +65,15 @@ export default function CustomerConsultationsPageMobile({
                     }}
                   >
                     <div style={{ fontWeight: 600 }}>{dateLabel}</div>
+                    <FormButton
+                      htmlType="button"
+                      variant="action"
+                      className="filter-button"
+                      disabled={busy}
+                      onClick={() => void onDelete(r.id)}
+                    >
+                      삭제
+                    </FormButton>
                   </div>
                   <div style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{text || '—'}</div>
                 </li>
