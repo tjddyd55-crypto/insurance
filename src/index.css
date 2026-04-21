@@ -1387,6 +1387,20 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.45);
 }
 
+/* 모바일 드로어 섹션(카테고리) 헤더 — PC 사이드바와 동일한 시각 계층. */
+.mobile-workspace-drawer__section {
+  padding: 10px 12px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-sub);
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.mobile-workspace-drawer__section:first-child {
+  padding-top: 4px;
+}
+
 .mobile-workspace-content {
   width: 100%;
   min-width: 0;
@@ -2288,6 +2302,42 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .menu-card__divider {
   flex-shrink: 0;
   border-color: var(--border-default);
+}
+
+/* 대시보드 카드 섹션(카테고리) 헤더 — 그리드/플렉스 어디에 있어도 한 줄을 독점.
+ * (.menu-card 가 grid 일 때 `grid-column: 1 / -1`, flex 일 때는 `width: 100%` 가 작동.) */
+.menu-card__section {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding: 14px 4px 4px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-sub);
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.menu-card__section:first-child {
+  padding-top: 4px;
+}
+
+/* 대시보드 메뉴 아이템 내부 라벨·배지. 기본 스타일(중앙 정렬)을 유지하되 배지만 옆에. */
+.menu-item__label {
+  display: inline;
+}
+
+.menu-item__badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-main) 14%, transparent);
+  color: var(--text-sub);
+  line-height: 1;
+  vertical-align: middle;
 }
 
 .profile-page__team-row {
@@ -6820,6 +6870,9 @@ a.contacts-public-auth__link {
 }
 
 .workspace-sidebar__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-start;
   text-align: left;
   width: 100%;
@@ -6845,6 +6898,40 @@ a.contacts-public-auth__link {
 
 .workspace-sidebar__menu-item:disabled {
   opacity: 0.45;
+}
+
+/* 사이드바 항목 내부 라벨·배지 — 라벨은 가용 폭을 채우고, 배지는 우측 고정. */
+.workspace-sidebar__menu-item-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workspace-sidebar__menu-item-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-main) 16%, transparent);
+  color: var(--text-sub);
+  line-height: 1;
+}
+
+/* 사이드바 섹션(카테고리) 헤더 — 사용자가 메뉴 그룹을 명시적으로 인지하도록 표시. */
+.workspace-sidebar__section {
+  padding: 12px 10px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-sub);
+  letter-spacing: 0.02em;
+  user-select: none;
+}
+
+.workspace-sidebar__section:first-child {
+  padding-top: 4px;
 }
 
 .workspace-sidebar__logout {

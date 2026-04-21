@@ -6,7 +6,17 @@
 
 export type GaTenantMenuItem = { label: string; path: string }
 
-/** 대시보드 전용 — 구분선 포함 */
+/**
+ * 대시보드·사이드바·드로어 공용 메뉴 엔트리.
+ *
+ * 엔트리 종류:
+ *  - `link`     : 실제 이동 가능한 메뉴 항목. `disabled`/`preparing` 조합으로 비활성도 표현.
+ *                 `badge` 는 우측에 붙는 짧은 라벨(예: "개발중") — UI 토큰일 뿐, 동작 분기 아님.
+ *  - `divider`  : 텍스트 없는 얇은 구분선. 호출처별로 렌더 생략 가능(예: 모바일 드로어 무시).
+ *  - `section`  : **텍스트 라벨 있는 그룹 헤더**. "고객관리 / 소식지 / 팀관리 …" 같은
+ *                 카테고리를 사용자에게 명시적으로 보여줄 때 사용.
+ *                 (divider 와 분리한 이유: 의미가 달라 호환성·UI 선택 폭이 더 넓어진다.)
+ */
 export type GaTenantDashboardMenuEntry =
   | {
       type: 'link'
@@ -15,8 +25,11 @@ export type GaTenantDashboardMenuEntry =
       disabled?: boolean
       /** true: 페이지 이동 없이 준비중 안내만 (path는 플레이스홀더) */
       preparing?: boolean
+      /** "개발중" 같이 항목 옆에 표시되는 짧은 배지 라벨(정보 전용). */
+      badge?: string
     }
   | { type: 'divider' }
+  | { type: 'section'; label: string }
 
 /** @deprecated 대시보드는 buildGaTenantDashboardMenu 사용 */
 export const GA_TENANT_ESSENTIAL_MENU: GaTenantMenuItem[] = [
@@ -51,50 +64,84 @@ export const GA_STAFF_MENU: GaTenantMenuItem[] = [
 export const BASE_GA_MENU: GaTenantMenuItem[] = []
 
 /**
- * 대시보드 GA 메뉴.
- * 자동차: 표시명「영진에셋」또는 GA_CUSTOM_MENU(YJASSET) — GaCarInsuranceRoute 와 동일하게 진입 가능하도록 맞춤.
+ * 대시보드 GA 메뉴 (USER / GA_ADMIN).
+ *
+ * ## 구조 — 5 개 카테고리 섹션
+ *
+ *   1. 고객관리 : 고객리스트 · 고객메세지
+ *   2. 소식지   : 원수사 연락처 · 원수사 소식지 · 손해사정사 소식지 · 세무사 소식지(개발중)
+ *   3. 팀관리   : 팀원리스트 · 팀 게시판 · 팀 자료 · (팀 관리 — 오너만)
+ *   4. 신청서   : 자동차신청서* · 다이렉트자동차*(개발중) · 렌트(사고대차)(개발중)
+ *                 (* 표시된 항목은 영진에셋 또는 YJASSET 코드일 때만 노출)
+ *   5. 내정보   : 내 저장공간 · 내정보관리 · 문의, 요청
+ *
+ * ## 배지 / 비활성 정책
+ *
+ * "개발중" 으로 표기되는 항목은 `disabled: true` + `badge: '개발중'` 조합을 쓴다.
+ *  - `disabled`: 클릭·네비게이션을 막는다 (렌더 측 책임).
+ *  - `badge`   : UI 에 옆에 표기되는 라벨(정보 전용).
+ *  - `preparing` 은 **사용하지 않는다** — 과거엔 "준비중 모달" 을 띄우는 용도였으나
+ *    신규 정책은 "클릭 비활성 + 배지 표기" 로 통일(사용자 요청).
+ *
+ * ## 수정 가이드
+ *
+ *  - 새 메뉴는 해당 섹션 배열에 엔트리 추가 → 자동으로 모든 호출처에 반영된다.
+ *  - 새 섹션 추가 시 `{ type: 'section', label }` 으로 시작해 하위 링크를 이어 붙인다.
+ *  - 조건부 노출(예: 영진에셋 전용) 은 섹션 단위가 아닌 개별 링크 단위로 판단한다.
+ *    섹션은 항상 노출하되, 내부 항목이 비어 보여도 "준비 중" 이 자연스럽게 드러나도록 한다.
  */
+const DEV_BADGE = '개발중'
+
 export function buildGaTenantDashboardMenu(
   gaCode: string | undefined,
   gaName: string | undefined,
 ): GaTenantDashboardMenuEntry[] {
-  const items: GaTenantDashboardMenuEntry[] = [
-    { type: 'link', label: '내 저장공간', path: '/storage' },
-    { type: 'link', label: '고객관리', path: '/customers' },
+  const carHubEnabled =
+    String(gaName ?? '').trim() === '영진에셋' || isCarInsuranceFeatureEnabledForGa(gaCode)
+
+  const applicationItems: GaTenantDashboardMenuEntry[] = []
+  if (carHubEnabled) {
+    applicationItems.push({ type: 'link', label: '자동차신청서', path: '/application' })
+    applicationItems.push({
+      type: 'link',
+      label: '다이렉트자동차',
+      path: '#',
+      disabled: true,
+      badge: DEV_BADGE,
+    })
+  }
+  applicationItems.push({
+    type: 'link',
+    label: '렌트(사고대차)',
+    path: '#',
+    disabled: true,
+    badge: DEV_BADGE,
+  })
+
+  return [
+    { type: 'section', label: '고객관리' },
+    { type: 'link', label: '고객리스트', path: '/customers' },
+    { type: 'link', label: '고객메세지', path: '/claim-requests' },
+
+    { type: 'section', label: '소식지' },
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
     { type: 'link', label: '원수사 소식지', path: '/portal/newsletters' },
     { type: 'link', label: '손해사정사 소식지', path: '/portal/adjuster-news' },
-    { type: 'divider' },
-  ]
-  const carByName = String(gaName ?? '').trim() === '영진에셋'
-  if (carByName || isCarInsuranceFeatureEnabledForGa(gaCode)) {
-    items.push({ type: 'link', label: '자동차신청서', path: '/application' })
-    items.push({
-      type: 'link',
-      label: '다이렉트 자동차',
-      path: '#',
-      preparing: true,
-    })
-  }
-  items.push({
-    type: 'link',
-    label: '기타 신청서(개발중)',
-    path: '/feature-request',
-    disabled: true,
-  })
-  items.push({ type: 'link', label: '청구 요청', path: '/claim-requests' })
-  items.push({ type: 'divider' })
-  items.push(
+    { type: 'link', label: '세무사 소식지', path: '#', disabled: true, badge: DEV_BADGE },
+
+    { type: 'section', label: '팀관리' },
     { type: 'link', label: '팀원리스트', path: '/team/members' },
     { type: 'link', label: '팀 게시판', path: '/team/posts' },
     { type: 'link', label: '팀 자료', path: '/team/files' },
-  )
-  items.push({ type: 'divider' })
-  items.push(
-    { type: 'link', label: '문의, 요청', path: '/feature-request' },
+
+    { type: 'section', label: '신청서' },
+    ...applicationItems,
+
+    { type: 'section', label: '내정보' },
+    { type: 'link', label: '내 저장공간', path: '/storage' },
     { type: 'link', label: '내정보관리', path: '/profile' },
-  )
-  return items
+    { type: 'link', label: '문의, 요청', path: '/feature-request' },
+  ]
 }
 
 /**
@@ -225,16 +272,12 @@ export function normalizeGaMenuCode(raw: string | undefined): string {
 
 /** @deprecated buildGaTenantDashboardMenu 사용 */
 export function buildGaTenantMenu(gaCode?: string | undefined, gaName?: string | undefined): GaTenantMenuItem[] {
-  return buildGaTenantDashboardMenu(gaCode, gaName).flatMap((e) =>
-    e.type === 'divider'
-      ? []
-      : [
-          {
-            label: e.label,
-            path: e.disabled || e.preparing ? '#' : e.path,
-          },
-        ],
-  )
+  return buildGaTenantDashboardMenu(gaCode, gaName).flatMap((e) => {
+    if (e.type !== 'link') {
+      return []
+    }
+    return [{ label: e.label, path: e.disabled || e.preparing ? '#' : e.path }]
+  })
 }
 
 /**

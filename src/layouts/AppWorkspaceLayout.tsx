@@ -264,6 +264,17 @@ function AppWorkspaceLayoutMobileShell() {
             if (item.type === 'divider') {
               return null
             }
+            if (item.type === 'section') {
+              return (
+                <div
+                  key={`mobile-drawer-section-${index}`}
+                  className="mobile-workspace-drawer__section"
+                  role="presentation"
+                >
+                  {item.label}
+                </div>
+              )
+            }
             const isDisabled = Boolean(item.disabled || item.preparing)
             const isActive =
               !isDisabled &&
@@ -278,8 +289,8 @@ function AppWorkspaceLayoutMobileShell() {
                 className={`workspace-sidebar__menu-item${isActive ? ' workspace-sidebar__menu-item--active' : ''}`}
                 disabled={isDisabled}
                 onClick={() => {
-                  if (item.preparing || item.disabled) {
-                    window.alert('준비중입니다.')
+                  /* 개발중 항목은 클릭 비활성 (alert 없음 · 배지 라벨로만 표시) */
+                  if (isDisabled) {
                     return
                   }
                   if (!item.path.trim() || item.path === '#') {
@@ -292,7 +303,10 @@ function AppWorkspaceLayoutMobileShell() {
                   setDrawerOpen(false)
                 }}
               >
-                {item.label}
+                <span className="workspace-sidebar__menu-item-label">{item.label}</span>
+                {item.badge ? (
+                  <span className="workspace-sidebar__menu-item-badge">{item.badge}</span>
+                ) : null}
               </FormButton>
             )
           })}
@@ -521,6 +535,17 @@ function AppWorkspaceLayoutPCShell() {
               if (item.type === 'divider') {
                 return <div key={`workspace-divider-${index}`} className="workspace-sidebar__divider" role="presentation" />
               }
+              if (item.type === 'section') {
+                return (
+                  <div
+                    key={`workspace-section-${index}`}
+                    className="workspace-sidebar__section"
+                    role="presentation"
+                  >
+                    {item.label}
+                  </div>
+                )
+              }
               const isDisabled = Boolean(item.disabled || item.preparing)
               const isActive =
                 !isDisabled &&
@@ -535,8 +560,11 @@ function AppWorkspaceLayoutPCShell() {
                   className={`workspace-sidebar__menu-item${isActive ? ' workspace-sidebar__menu-item--active' : ''}`}
                   disabled={isDisabled}
                   onClick={() => {
-                    if (item.preparing || item.disabled) {
-                      setPreparingNoticeOpen(true)
+                    /*
+                     * 개발중(disabled/preparing) 항목은 클릭 자체가 비활성(모달/알림 없음).
+                     * 사용자에게는 옆에 붙은 `badge` 라벨로만 상태를 알린다.
+                     */
+                    if (isDisabled) {
                       return
                     }
                     if (!item.path.trim() || item.path === '#') {
@@ -546,7 +574,10 @@ function AppWorkspaceLayoutPCShell() {
                     navigate(item.path)
                   }}
                 >
-                  {item.label}
+                  <span className="workspace-sidebar__menu-item-label">{item.label}</span>
+                  {item.badge ? (
+                    <span className="workspace-sidebar__menu-item-badge">{item.badge}</span>
+                  ) : null}
                 </FormButton>
               )
             })}

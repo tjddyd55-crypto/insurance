@@ -244,9 +244,20 @@ export function DashboardPage() {
                   />
                 )
               }
+              if (entry.type === 'section') {
+                return (
+                  <div
+                    key={`menu-section-${idx}`}
+                    className="menu-card__section"
+                    role="presentation"
+                  >
+                    {entry.label}
+                  </div>
+                )
+              }
+              const isDisabled = Boolean(entry.disabled || entry.preparing)
               const isActive =
-                !entry.disabled &&
-                !entry.preparing &&
+                !isDisabled &&
                 Boolean(entry.path) &&
                 entry.path !== '#' &&
                 pathIsActive(pathname, entry.path)
@@ -255,14 +266,11 @@ export function DashboardPage() {
                   key={`${entry.path}-${entry.label}-${idx}`}
                   htmlType="button"
                   variant="action"
-                  className={`menu-item${isActive ? ' active' : ''}${entry.disabled ? ' menu-item--disabled' : ''}`}
+                  className={`menu-item${isActive ? ' active' : ''}${isDisabled ? ' menu-item--disabled' : ''}`}
+                  disabled={isDisabled}
                   onClick={() => {
-                    if (entry.preparing) {
-                      setPreparingNoticeOpen(true)
-                      return
-                    }
-                    if (entry.disabled) {
-                      setPreparingNoticeOpen(true)
+                    /* 개발중(disabled/preparing) 항목은 클릭 비활성 — 모달 없이 배지로만 안내 */
+                    if (isDisabled) {
                       return
                     }
                     if (!entry.path.trim() || entry.path === '#') {
@@ -271,7 +279,8 @@ export function DashboardPage() {
                     navigate(entry.path)
                   }}
                 >
-                  {entry.label}
+                  <span className="menu-item__label">{entry.label}</span>
+                  {entry.badge ? <span className="menu-item__badge">{entry.badge}</span> : null}
                 </FormButton>
               )
             })}
