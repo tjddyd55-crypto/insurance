@@ -162,6 +162,18 @@ export default function StorageWorkspace({
     setError('')
   }, [customerId, token])
 
+  /**
+   * 각 로드 함수는 **외부 입력(token, customerId, selectedFolderId)** 에만 의존한다.
+   * 과거에는 `loadFolders` 가 deps 에 `selectedFolderId` 를 포함하면서 함수 **내부에서**
+   * `setSelectedFolderId(null)` 을 호출해 "자기 deps 를 자기가 바꾸는" 안티패턴이었고,
+   * 이것이 연쇄적으로 `refreshAll` → `useEffect` → fetch 폭주(동일 리소스 2~N중 호출,
+   * Chrome 의 동시 6연결 한도 초과로 대부분 pending stall) 를 유발했다.
+   *
+   * 해결 원칙:
+   *   1) fetch 함수는 "가져오기" 만 담당. 선택 상태 정리(cleanup)는 별도 effect 로.
+   *   2) 자동 로드 effect 는 리소스별 1개씩 → folders / files / quota 세 개.
+   *   3) `refreshAll` 은 사용자 행동(업로드, 삭제, rename) 뒤의 **수동 트리거 전용**.
+   */
   const loadFolders = useCallback(async () => {
     if (!token?.trim()) {
       setFolders([])
@@ -169,10 +181,7 @@ export default function StorageWorkspace({
     }
     const rows = await listStorageFolders(token, storageFolderScope)
     setFolders(rows)
-    if (selectedFolderId != null && !rows.some((folder) => folder.id === selectedFolderId)) {
-      setSelectedFolderId(null)
-    }
-  }, [selectedFolderId, storageFolderScope, token])
+  }, [storageFolderScope, token])
 
   const loadQuota = useCallback(async () => {
     if (!token?.trim()) {
@@ -201,30 +210,27 @@ export default function StorageWorkspace({
       folderId: selectedFolderId,
     })
     setFiles(rows)
-    if (selectedFileId != null && !rows.some((file) => file.id === selectedFileId)) {
-      setSelectedFileId(null)
-    }
-  }, [customerId, selectedFileId, selectedFolderId, token])
+  }, [customerId, selectedFolderId, token])
 
-  const refreshAll = useCallback(async () => {
+  // 자동 로드: quota — token 기준으로만 1회.
+  useEffect(() => {
     if (!token?.trim()) {
       return
     }
-    setLoading(true)
-    setError('')
-    try {
-      await Promise.all([loadFolders(), loadFiles(), loadQuota()])
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '스토리지 데이터를 불러오지 못했습니다.')
-    } finally {
-      setLoading(false)
-    }
-  }, [loadFiles, loadFolders, loadQuota, token])
+    void loadQuota()
+  }, [loadQuota, token])
 
+  // 자동 로드: folders — token / customerId 기준으로 1회씩.
   useEffect(() => {
-    void refreshAll()
-  }, [refreshAll])
+    if (!token?.trim()) {
+      return
+    }
+    void loadFolders().catch((e) => {
+      setError(e instanceof Error ? e.message : '폴더 목록을 불러오지 못했습니다.')
+    })
+  }, [loadFolders, token])
 
+  // 자동 로드: files — token / customerId / selectedFolderId 기준으로.
   useEffect(() => {
     if (!token?.trim()) {
       return
@@ -239,6 +245,24 @@ export default function StorageWorkspace({
         setLoading(false)
       })
   }, [loadFiles, token])
+
+  /**
+   * 선택 cleanup 은 로드와 독립 effect 로 분리.
+   * 과거에는 loadFolders/loadFiles 내부에서 setSelectedXxx 를 호출했고, 해당 state 가
+   * 그 함수의 deps 라서 useCallback 이 재생성 → useEffect 재실행 → fetch 가 또 돌았다.
+   * 이제는 목록(folders/files) 변화에만 반응해 존재하지 않는 선택 id 를 비운다.
+   */
+  useEffect(() => {
+    if (selectedFolderId != null && !folders.some((folder) => folder.id === selectedFolderId)) {
+      setSelectedFolderId(null)
+    }
+  }, [folders, selectedFolderId])
+
+  useEffect(() => {
+    if (selectedFileId != null && !files.some((file) => file.id === selectedFileId)) {
+      setSelectedFileId(null)
+    }
+  }, [files, selectedFileId])
 
   const openCreateFolderDialog = useCallback(() => {
     setCreateFolderName('')
