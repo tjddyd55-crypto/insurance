@@ -8044,6 +8044,21 @@ textarea.memo-sticky-note__textarea::placeholder {
   border-radius: 3px;
 }
 
+/* ------------------------------------------------------------------ *
+ * GA 고객 데이터 페이지 — 플랫폼별 컨테이너 폭 스코프
+ *   PC 전용:     가로 꽉 채움
+ *   모바일 전용: 최대 폭 960px 상한 (원본 style prop 값 이관)
+ * 규칙 §2 (ui-pc-mobile-separation.mdc): modifier prefix 로만 작성.
+ * ------------------------------------------------------------------ */
+.customer-ga-excel-page--pc {
+  max-width: none;
+  width: 100%;
+}
+
+.customer-ga-excel-page--mobile {
+  max-width: 960px;
+}
+
 @media (max-width: 768px) {
   .insurance-contacts-cards {
     grid-template-columns: 1fr;
