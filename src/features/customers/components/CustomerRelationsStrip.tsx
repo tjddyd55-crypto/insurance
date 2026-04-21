@@ -301,12 +301,12 @@ export function CustomerRelationsStrip({
           }}
         >
           <div
-            className="modal"
+            className="modal customer-relations-modal"
             role="dialog"
             aria-modal="true"
             aria-label="연계 고객 검색"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: 420, width: '100%' }}
+            style={{ width: '100%' }}
           >
             <h3 style={{ marginTop: 0 }}>고객 검색 후 연결</h3>
             <form
@@ -326,55 +326,97 @@ export function CustomerRelationsStrip({
               />
             </form>
             {searchBusy ? <p style={{ fontSize: '0.9rem' }}>검색 중…</p> : null}
-            <ul className="related-list-mobile" style={{ listStyle: 'none', padding: 0, maxHeight: 240, overflow: 'auto', marginTop: 8 }}>
-              {hits.map((h) => (
-                <li key={h.id} style={{ borderTop: '1px solid #eee', padding: '8px 0' }}>
-                  <FormButton
-                    htmlType="button"
-                    variant="action"
-                    className="link-btn"
-                    style={{ textAlign: 'left', width: '100%', minHeight: 44 }}
-                    disabled={linking || relatedIdSet.has(h.id)}
-                    onClick={() => void linkTo(h)}
-                  >
-                    <strong>{h.name}</strong>
-                    <span style={{ marginLeft: 8, color: '#666', fontSize: '0.9rem' }}>{h.phone}</span>
-                    {relatedIdSet.has(h.id) ? (
-                      <span style={{ marginLeft: 8, fontSize: '0.85rem' }}>(이미 연결됨)</span>
-                    ) : null}
-                  </FormButton>
-                </li>
-              ))}
+            {/* 모바일 리스트: '이름 / 생년월일 / 연락처' 3필드 고정.
+                한 행 안에서 정보 위계를 둘 레이아웃(이름=주요, 생년/연락처=보조)으로 두어
+                좁은 화면에서도 식별이 쉽도록 했다. 연결됨 상태는 상단 우측 배지. */}
+            <ul className="related-list-mobile">
+              {hits.map((h) => {
+                const alreadyLinked = relatedIdSet.has(h.id)
+                const disabled = linking || alreadyLinked
+                const birth = formatBirthYmdDotFromSsn(h.ssn)
+                const phone = formatCustomerPhoneUi(h.phone) || '-'
+                return (
+                  <li key={h.id} className="related-list-mobile__item">
+                    <FormButton
+                      htmlType="button"
+                      variant="action"
+                      className={`related-list-mobile__row${alreadyLinked ? ' related-list-mobile__row--linked' : ''}`}
+                      disabled={disabled}
+                      onClick={() => void linkTo(h)}
+                      aria-label={`${h.name} 연결`}
+                    >
+                      <span className="related-list-mobile__main">
+                        <span className="related-list-mobile__name">{h.name}</span>
+                        {alreadyLinked ? (
+                          <span className="related-list-mobile__badge">연결됨</span>
+                        ) : null}
+                      </span>
+                      <span className="related-list-mobile__sub">
+                        <span className="related-list-mobile__birth">{birth}</span>
+                        <span className="related-list-mobile__dot" aria-hidden>·</span>
+                        <span className="related-list-mobile__phone">{phone}</span>
+                      </span>
+                    </FormButton>
+                  </li>
+                )
+              })}
+              {hits.length === 0 && !searchBusy ? (
+                <li className="related-list-mobile__empty">검색 결과가 없습니다.</li>
+              ) : null}
             </ul>
+            {/* PC 테이블 뷰: 별도 '연결' 버튼을 두는 대신 **행 자체가 버튼**이 된다.
+                이유:
+                - 좁은 모달 폭에서 별도 액션 컬럼이 가로 스크롤 원인이었다.
+                - 연결은 결국 한 가지 동작이어서, 액션 컬럼을 분리할 이유가 약하다.
+                - 키보드 접근성은 role="button" + Enter/Space 핸들러로 보존한다. */}
             <div className="related-list related-list--pc">
               <div className="related-list__header row" role="presentation">
                 <div className="name">이름</div>
                 <div className="birth">생년월일</div>
                 <div className="phone">연락처</div>
-                <div className="action" aria-hidden="true" />
               </div>
               <ul className="related-list__body" role="list">
                 {hits.map((h) => {
-                  const disabled = linking || relatedIdSet.has(h.id)
+                  const alreadyLinked = relatedIdSet.has(h.id)
+                  const disabled = linking || alreadyLinked
                   const birth = formatBirthYmdDotFromSsn(h.ssn)
                   const phone = formatCustomerPhoneUi(h.phone) || '-'
+                  const triggerLink = () => {
+                    if (disabled) {
+                      return
+                    }
+                    void linkTo(h)
+                  }
                   return (
-                    <li key={h.id} className="row">
+                    <li
+                      key={h.id}
+                      className={`row related-list__row${disabled ? ' related-list__row--disabled' : ''}`}
+                      role="button"
+                      tabIndex={disabled ? -1 : 0}
+                      aria-disabled={disabled}
+                      aria-label={`${h.name} 연결`}
+                      onClick={triggerLink}
+                      onKeyDown={(e) => {
+                        if (disabled) {
+                          return
+                        }
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          triggerLink()
+                        }
+                      }}
+                    >
                       <div className="name" title={h.name}>
                         {h.name}
                       </div>
                       <div className="birth">{birth}</div>
-                      <div className="phone">{phone}</div>
-                      <div className="action">
-                        <FormButton
-                          htmlType="button"
-                          variant="action"
-                          className="related-list__connect-btn"
-                          disabled={disabled}
-                          onClick={() => void linkTo(h)}
-                        >
-                          {disabled ? '연결됨' : '연결'}
-                        </FormButton>
+                      <div className="phone">
+                        <span>{phone}</span>
+                        {alreadyLinked ? (
+                          <span className="related-list__linked" aria-label="이미 연결됨">
+                            연결됨
+                          </span>
+                        ) : null}
                       </div>
                     </li>
                   )

@@ -13,15 +13,19 @@
   box-sizing: border-box;
 }
 
+/* PC 소식지 카드 — 고정 4열 대신 '최소 카드 폭 보장' 방식.
+ * 좌측 사이드바 때문에 좁아진 본문에서도 카드가 과하게 작아지지 않게 한다.
+ * 넓으면 자동으로 열 개수가 늘어 화면을 꽉 채운다. */
 .pc-root .news-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
+  padding: 16px;
 }
 
 .pc-root .news-list,
 .pc-root .assessor-list {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 16px;
 }
 

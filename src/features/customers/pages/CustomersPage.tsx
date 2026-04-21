@@ -680,38 +680,44 @@ const CustomerListCard = memo(function CustomerListCard({
                       )}
                     </FormButton>
                   </div>
-                  <div className="icon-box icon-box--sms">
-                    {smsHref ? (
-                      <a
-                        href={smsHref}
-                        className="text-lg text-blue-500 leading-none"
-                        aria-label="문자 보내기"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        💬
-                      </a>
-                    ) : (
-                      <span className="text-lg opacity-35 grayscale" aria-hidden>
-                        💬
-                      </span>
-                    )}
-                  </div>
-                  <div className="icon-box icon-box--tel">
-                    {telHref ? (
-                      <a
-                        href={telHref}
-                        className="group transition-opacity hover:opacity-90 active:opacity-80"
-                        aria-label="전화 걸기"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <CustomerListTelSvg hasPhone withLinkHover />
-                      </a>
-                    ) : (
-                      <span aria-hidden>
-                        <CustomerListTelSvg hasPhone={hasPhone} />
-                      </span>
-                    )}
-                  </div>
+                  {/* 전화/문자 아이콘은 모바일(터치 디바이스)에서만 의미가 있어 PC에서는 DOM 자체를 넣지 않는다.
+                      CSS display:none 대신 조건부 렌더로 의도를 명시해 향후 유틸리티 override 위험을 제거한다. */}
+                  {isMobile ? (
+                    <>
+                      <div className="icon-box icon-box--sms">
+                        {smsHref ? (
+                          <a
+                            href={smsHref}
+                            className="text-lg text-blue-500 leading-none"
+                            aria-label="문자 보내기"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            💬
+                          </a>
+                        ) : (
+                          <span className="text-lg opacity-35 grayscale" aria-hidden>
+                            💬
+                          </span>
+                        )}
+                      </div>
+                      <div className="icon-box icon-box--tel">
+                        {telHref ? (
+                          <a
+                            href={telHref}
+                            className="group transition-opacity hover:opacity-90 active:opacity-80"
+                            aria-label="전화 걸기"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <CustomerListTelSvg hasPhone withLinkHover />
+                          </a>
+                        ) : (
+                          <span aria-hidden>
+                            <CustomerListTelSvg hasPhone={hasPhone} />
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  ) : null}
                 </div>
                 <span className="customer-expand-summary__hint" aria-hidden="true">
                   {showExpandedChrome ? '▲' : '▼'}
@@ -2213,11 +2219,7 @@ export default function CustomersPage() {
             <FormButton
               htmlType="button"
               variant="action"
-              className={`favorite-btn px-3 py-2 rounded-lg border text-sm shrink-0 transition-colors ${
-                favoriteOnly
-                  ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white'
-                  : 'border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)]'
-              }`}
+              className={`favorite-btn${favoriteOnly ? ' favorite-btn--on' : ''}`}
               aria-pressed={favoriteOnly}
               onClick={() => setFavoriteOnly((v) => !v)}
             >
