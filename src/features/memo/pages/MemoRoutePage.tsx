@@ -1,39 +1,23 @@
-import { Link } from 'react-router-dom'
-import MainWorkspaceLayout from '../../../layouts/MainWorkspaceLayout'
-import useIsMobile from '../../../hooks/useIsMobile'
+import ResponsiveLayout from '../../../components/ResponsiveLayout'
+import MemoRouteMobileView from './MemoRoute/MemoRouteMobileView'
+import MemoRoutePCView from './MemoRoute/MemoRoutePCView'
 
+/**
+ * [Container] /memo 라우트 페이지.
+ *
+ * 책임:
+ *  - PC/Mobile 분기를 공용 `ResponsiveLayout` 에 위임한다.
+ *
+ * 책임이 아닌 것:
+ *  - UI 마크업:   ./MemoRoute/MemoRoutePCView.tsx · ./MemoRoute/MemoRouteMobileView.tsx
+ *  - 메모 기능:   features/memo/** (데이터·상태·컴포넌트)
+ *  - 라우팅 등록: src/appRouter.tsx
+ *
+ * 이 페이지는 데이터 소스·권한 가드가 없는 placeholder 라서 별도 훅을 두지 않는다.
+ * 향후 데이터 연동이 생기면 `useMemoRouteData` 같은 훅을 features/memo/hooks 에 추가한다.
+ *
+ * 관련 규칙: AGENTS.md §8, .cursor/rules/ui-pc-mobile-separation.mdc
+ */
 export default function MemoRoutePage() {
-  const isMobile = useIsMobile()
-
-  if (isMobile) {
-    return (
-      <div className="memo-route-page">
-        <MainWorkspaceLayout>
-          <div className="p-4 space-y-3">
-            <h1 className="text-lg font-bold">업무 영역</h1>
-            <p className="text-sm text-[var(--text-muted)]">
-              우측에서 메모를 사용합니다. 다른 화면으로 이동하려면 아래 링크를 사용하세요.
-            </p>
-            <Link to="/dashboard" className="text-blue-400 hover:underline">
-              대시보드로 이동
-            </Link>
-          </div>
-        </MainWorkspaceLayout>
-      </div>
-    )
-  }
-
-  return (
-    <div className="memo-route-page memo-route-page--desktop">
-      <div className="p-4 space-y-3">
-        <h1 className="text-lg font-bold">업무 영역</h1>
-        <p className="text-sm text-[var(--text-muted)]">
-          메모는 화면 우측 패널에서 항상 사용할 수 있습니다. 다른 화면으로 이동하려면 아래 링크를 사용하세요.
-        </p>
-        <Link to="/dashboard" className="text-blue-400 hover:underline">
-          대시보드로 이동
-        </Link>
-      </div>
-    </div>
-  )
+  return <ResponsiveLayout PC={MemoRoutePCView} Mobile={MemoRouteMobileView} />
 }

@@ -146,6 +146,7 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 | `ApplicationPage` | ✅ PCView/MobileView | — CSS scope 수요 없음(실제 화면은 동일 컴포넌트) | ✅ `ResponsiveLayout` 표준 사용 |
 | `CustomerWorkspaceLayout` | ✅ LayoutPC/LayoutMobile | — CSS scope 수요 없음 | 부분 분기(좌측 공통, 우측만 분기) |
 | `CustomerGaExcelPage` | ✅ PagePC/PageMobile | ✅ `.customer-ga-excel-page--pc/--mobile` | ✅ `ResponsiveLayout` + 전용 훅(`useGaCustomerExcelData`) |
+| `MemoRoutePage` | ✅ PCView/MobileView | ✅ `.memo-route-page--pc/--mobile` | ✅ `ResponsiveLayout` (placeholder — 훅 불필요) |
 | 그 외 페이지(20+ 파일) | ❌ 단일 파일 내부에서 `useIsMobile` 분기 | ❌ 없음 | ❌ |
 
 - "CSS scope 수요 없음" = index.css에 `.<page>-page--pc/--mobile`·`.pc-root .<page>-page` 규칙이 0건. CSS가 생길 때 modifier를 부착한다(선제 추상화 금지).
@@ -241,7 +242,7 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 | `features/insurer-news/pages/InsurerManagerNewsListPage.tsx` | 단순 | |
 | `features/customers/pages/CustomerGaExcelPage.tsx` | ✅ 완료 | ResponsiveLayout + 전용 훅(`useGaCustomerExcelData`) + modifier 적용 완료 |
 | `features/customers/pages/CustomerConsultationsPage.tsx` | 중간 | |
-| `features/memo/pages/MemoRoutePage.tsx` | 단순 | |
+| `features/memo/pages/MemoRoutePage.tsx` | ✅ 완료 | 3파일 구조 (PCView/MobileView) + `.memo-route-page--pc/--mobile` modifier 적용 완료 (데이터 없는 placeholder 라 훅은 두지 않음) |
 
 #### Tier 3 — 복합 분기 (View 쪼개기 + 로직 검토 필요)
 

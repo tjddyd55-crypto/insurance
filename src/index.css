@@ -6638,7 +6638,13 @@ a.contacts-public-auth__link {
   justify-content: center !important;
 }
 
-/* ——— 메인 워크스페이스(좌 앱 / 우 메모) ——— */
+/* ------------------------------------------------------------------ *
+ * /memo 라우트 — 플랫폼별 컨테이너 스코프
+ *   공통:   모바일이 전체 화면을 채우도록 min-height: 100dvh (MainWorkspaceLayout 기준).
+ *   PC:     상위 AppWorkspaceLayout 안에서 자연스럽게 늘어나도록 height/flex 재조정.
+ *   모바일: 별도 조정 없음 (공통 .memo-route-page 스타일로 충분).
+ * 규칙 §2 (ui-pc-mobile-separation.mdc): modifier prefix 로만 작성.
+ * ------------------------------------------------------------------ */
 .memo-route-page {
   display: flex;
   flex-direction: column;
@@ -6650,7 +6656,7 @@ a.contacts-public-auth__link {
   min-height: 100dvh;
 }
 
-.memo-route-page--desktop {
+.memo-route-page--pc {
   min-height: 0;
   height: auto;
   flex: 1;
