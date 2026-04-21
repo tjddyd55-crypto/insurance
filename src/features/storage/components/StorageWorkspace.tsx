@@ -37,6 +37,19 @@ const ALLOWED_MIME = new Set([
 const FILE_NAME_REGEX = /^[A-Za-z0-9._\-() \u3131-\u318e\uac00-\ud7a3]+$/
 const FOLDER_NAME_REGEX = /^[A-Za-z0-9 \u3131-\u318e\uac00-\ud7a3]+$/
 
+/**
+ * AbortController 로 취소된 요청에서 던져지는 AbortError 를 판별한다.
+ * 브라우저마다 `DOMException` 이거나 `Error` 서브클래스인 경우가 있어 name 기준으로 판정.
+ */
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    (error as { name: string }).name === 'AbortError'
+  )
+}
+
 type RenameTarget =
   | { kind: 'file'; file: StorageFileRow; value: string }
   | { kind: 'folder'; folder: StorageFolderRow; value: string }
@@ -174,76 +187,110 @@ export default function StorageWorkspace({
    *   2) 자동 로드 effect 는 리소스별 1개씩 → folders / files / quota 세 개.
    *   3) `refreshAll` 은 사용자 행동(업로드, 삭제, rename) 뒤의 **수동 트리거 전용**.
    */
-  const loadFolders = useCallback(async () => {
-    if (!token?.trim()) {
-      setFolders([])
-      return
-    }
-    const rows = await listStorageFolders(token, storageFolderScope)
-    setFolders(rows)
-  }, [storageFolderScope, token])
+  const loadFolders = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!token?.trim()) {
+        setFolders([])
+        return
+      }
+      const rows = await listStorageFolders(token, storageFolderScope, { signal })
+      setFolders(rows)
+    },
+    [storageFolderScope, token],
+  )
 
-  const loadQuota = useCallback(async () => {
-    if (!token?.trim()) {
-      setQuota(null)
-      setQuotaLoading(false)
-      return
-    }
-    setQuotaLoading(true)
-    try {
-      const q = await getPersonalStorageQuota(token)
-      setQuota(q)
-    } catch {
-      setQuota(null)
-    } finally {
-      setQuotaLoading(false)
-    }
-  }, [token])
+  const loadQuota = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!token?.trim()) {
+        setQuota(null)
+        setQuotaLoading(false)
+        return
+      }
+      setQuotaLoading(true)
+      try {
+        const q = await getPersonalStorageQuota(token, { signal })
+        setQuota(q)
+      } catch (e) {
+        if (isAbortError(e)) {
+          return
+        }
+        setQuota(null)
+      } finally {
+        setQuotaLoading(false)
+      }
+    },
+    [token],
+  )
 
-  const loadFiles = useCallback(async () => {
-    if (!token?.trim()) {
-      setFiles([])
-      return
-    }
-    const rows = await listStorageFiles(token, {
-      customerId,
-      folderId: selectedFolderId,
-    })
-    setFiles(rows)
-  }, [customerId, selectedFolderId, token])
+  const loadFiles = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!token?.trim()) {
+        setFiles([])
+        return
+      }
+      const rows = await listStorageFiles(
+        token,
+        { customerId, folderId: selectedFolderId },
+        { signal },
+      )
+      setFiles(rows)
+    },
+    [customerId, selectedFolderId, token],
+  )
 
-  // 자동 로드: quota — token 기준으로만 1회.
+  /**
+   * 각 자동 로드 effect 에 AbortController 를 연결해 컴포넌트 언마운트·deps 변경 시
+   * 진행 중이던 요청을 취소한다. 효과:
+   *   - React StrictMode 의 dev-only double invoke 에서 첫 번째 호출이 즉시 취소되어
+   *     네트워크 슬롯(HTTP/1.1 동시 6 연결) 을 점유하지 않는다.
+   *   - 고객 A→B 전환 시 A 의 folders/files 요청이 즉시 취소되어 B 의 요청이 바로 출발.
+   *   - pending 잔여 요청이 다음 화면까지 쌓이지 않아 stall 연쇄가 끊어진다.
+   *
+   * AbortError 는 정상적인 취소이므로 사용자용 에러 메시지를 띄우지 않는다.
+   */
   useEffect(() => {
     if (!token?.trim()) {
       return
     }
-    void loadQuota()
+    const controller = new AbortController()
+    void loadQuota(controller.signal)
+    return () => controller.abort()
   }, [loadQuota, token])
 
-  // 자동 로드: folders — token / customerId 기준으로 1회씩.
   useEffect(() => {
     if (!token?.trim()) {
       return
     }
-    void loadFolders().catch((e) => {
+    const controller = new AbortController()
+    void loadFolders(controller.signal).catch((e) => {
+      if (isAbortError(e)) {
+        return
+      }
       setError(e instanceof Error ? e.message : '폴더 목록을 불러오지 못했습니다.')
     })
+    return () => controller.abort()
   }, [loadFolders, token])
 
-  // 자동 로드: files — token / customerId / selectedFolderId 기준으로.
   useEffect(() => {
     if (!token?.trim()) {
       return
     }
+    const controller = new AbortController()
     setLoading(true)
     setError('')
-    void loadFiles()
+    void loadFiles(controller.signal)
       .catch((e) => {
+        if (isAbortError(e)) {
+          return
+        }
         setError(e instanceof Error ? e.message : '파일 목록을 불러오지 못했습니다.')
       })
       .finally(() => {
-        setLoading(false)
+        if (!controller.signal.aborted) {
+          setLoading(false)
+        }
       })
+    return () => controller.abort()
   }, [loadFiles, token])
 
   /**

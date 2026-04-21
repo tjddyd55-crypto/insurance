@@ -131,7 +131,16 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
         ...headers,
       },
     })
-  } catch {
+  } catch (error) {
+    /**
+     * AbortController 로 의도적으로 취소한 요청까지 "서버 연결 실패" 로 뭉뚱그리면
+     * 호출자(useEffect cleanup, 컴포넌트 언마운트 등) 가 정상적인 취소와 실제 네트워크
+     * 장애를 구분하지 못한다. AbortError 는 원본 그대로 흘려보내고, 그 외의 fetch 오류만
+     * 사용자용 ApiError 로 감싼다.
+     */
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw error
+    }
     throw new ApiError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.', 0)
   }
 

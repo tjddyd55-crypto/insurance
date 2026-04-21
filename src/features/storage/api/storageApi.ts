@@ -68,10 +68,23 @@ function buildFolderListQuery(scope?: StorageFileScope) {
   return q.toString() ? `?${q.toString()}` : ''
 }
 
-export async function listStorageFolders(token: string, scope?: StorageFileScope): Promise<StorageFolderRow[]> {
+/**
+ * 읽기 계열 API 에 `signal` 옵션을 받아 호출자(useEffect cleanup 등) 가 취소할 수 있게 한다.
+ * 기존 호출부는 signal 없이 호출해도 동작하도록 선택적 매개변수로 유지.
+ */
+type ReadOptions = { signal?: AbortSignal }
+
+export async function listStorageFolders(
+  token: string,
+  scope?: StorageFileScope,
+  options: ReadOptions = {},
+): Promise<StorageFolderRow[]> {
   assertToken(token)
   const qs = buildFolderListQuery(scope)
-  return apiRequest<StorageFolderRow[]>(`/api/storage/folders${qs}`, { token })
+  return apiRequest<StorageFolderRow[]>(`/api/storage/folders${qs}`, {
+    token,
+    signal: options.signal,
+  })
 }
 
 export async function createStorageFolder(
@@ -97,9 +110,15 @@ export type PersonalStorageQuota = {
   pendingUploadBytes?: number
 }
 
-export async function getPersonalStorageQuota(token: string): Promise<PersonalStorageQuota> {
+export async function getPersonalStorageQuota(
+  token: string,
+  options: ReadOptions = {},
+): Promise<PersonalStorageQuota> {
   assertToken(token)
-  return apiRequest<PersonalStorageQuota>('/api/storage/quota', { token })
+  return apiRequest<PersonalStorageQuota>('/api/storage/quota', {
+    token,
+    signal: options.signal,
+  })
 }
 
 export async function renameStorageFolder(token: string, folderId: number, name: string): Promise<StorageFolderRow> {
@@ -207,10 +226,14 @@ export async function saveStorageFile(
 export async function listStorageFiles(
   token: string,
   scope?: StorageFileScope & { folderId?: number | null },
+  options: ReadOptions = {},
 ): Promise<StorageFileRow[]> {
   assertToken(token)
   const qs = buildStorageScopeQuery(scope)
-  return apiRequest<StorageFileRow[]>(`/api/storage/files${qs}`, { token })
+  return apiRequest<StorageFileRow[]>(`/api/storage/files${qs}`, {
+    token,
+    signal: options.signal,
+  })
 }
 
 export async function renameStorageFile(
