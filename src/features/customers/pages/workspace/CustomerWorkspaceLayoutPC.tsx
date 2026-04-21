@@ -131,7 +131,21 @@ export default function CustomerWorkspaceLayoutPC({
             </div>
           </div>
         ) : selectedCustomerId ? (
-          <Outlet context={{ selectedCustomerId }} />
+          /**
+           * 고객 id를 자식 서브트리 key로 강제 설정.
+           *
+           * 이유:
+           *   `CustomerFilesPage → CustomerFilesPagePC → StorageWorkspace` 처럼
+           *   자식 트리 중간 어느 한 컴포넌트라도 `customerId` prop/params 변화에
+           *   반응(useEffect deps)에서 누락되면 전체가 stale 된다.
+           *   key 로 "고객 id = 리소스 identity" 를 선언해 고객 전환 시
+           *   자식 트리를 통째로 재마운트하여 stale state 를 원천 차단한다.
+           *   (같은 고객 안 탭 전환은 element 타입 변경으로 자연 교체되므로 영향 없음.)
+           *
+           * 근본 수정은 `CustomersPage` 모놀리식 분해(`ui-architecture.mdc` A-1)이며,
+           * 본 key 가드는 분해 전까지의 방어 레이어이다.
+           */
+          <Outlet key={selectedCustomerId} context={{ selectedCustomerId }} />
         ) : (
           <EmptyState message="고객을 선택해 주세요." />
         )}

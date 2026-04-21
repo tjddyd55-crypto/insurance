@@ -116,10 +116,61 @@ const handleClick = () => {
 
 ---
 
-## 7. 체크리스트
+## 7. 리소스 identity 는 자식 서브트리 `key` 로 선언한다
+
+레이아웃(Container)은 자식 서브트리에 **"지금 다루는 리소스 id가 무엇인지"** 를 `key` 로 전달한다.
+이는 React 의 key 시맨틱("key 가 바뀌면 완전히 다른 인스턴스") 과 정확히 일치한다.
+
+### 왜 필요한가
+
+`ParentRoute → ChildRoute → DomainComponent → LeafFetcher` 처럼 자식 트리가 여러 단계를 거치면,
+중간 어느 한 컴포넌트라도 `useEffect` 의존성에서 id 를 빠뜨리는 순간 트리 전체가 stale 된다.
+`key={resourceId}` 로 선언해 두면 id 가 바뀔 때 **자식 트리 전체가 재마운트** 되어
+의존성 누락이 있어도 사용자에게 **이전 리소스 데이터가 남아 보이는 회귀**가 원천적으로 차단된다.
+
+### 적용 지점
+
+- 상세/목록 컨테이너가 `<Outlet />` 으로 자식 라우트를 렌더할 때.
+- Container 가 prop 으로 자식 DomainComponent 를 조립할 때.
+
+### 올바른 패턴
+
+```tsx
+// ✅ 리소스 id 를 key 로 선언 (identity 선언)
+<Outlet key={selectedCustomerId ?? 'empty'} context={{ selectedCustomerId }} />
+
+// ✅ Domain 컴포넌트 prop 조립 시도 동일
+{selectedCustomerId ? (
+  <CustomerDetailPanel key={selectedCustomerId} customerId={selectedCustomerId} />
+) : (
+  <EmptyState />
+)}
+```
+
+### 안 되는 패턴
+
+```tsx
+// ❌ key 없이 useParams/props 반응성에만 의존
+// 자식 트리 중 어느 한 컴포넌트라도 deps 를 까먹으면 stale
+<Outlet context={{ selectedCustomerId }} />
+```
+
+### 한계와 보완
+
+- key 가드는 **방어 레이어**이지 근본 해결이 아니다. 자식 컴포넌트는 여전히 props/params 변화에
+  `useEffect` deps 로 반응하도록 작성해야 한다.
+- 같은 리소스 내부의 탭 전환은 key 값이 같고 element 타입만 달라지므로 React 가
+  자연스럽게 교체한다(재마운트 비용 없음).
+- 재마운트 비용이 부담되는 리소스(대규모 캐시·스트림) 는 key 대신 Container 가 명시적으로
+  cache reset 을 수행하는 방식을 고려한다.
+
+---
+
+## 8. 체크리스트
 
 - [ ] path가 단일 진실 원천이다 (query는 fallback만)
 - [ ] 쿼리 ↔ path 양방향 동기화 effect가 없다
 - [ ] `navigate`는 가능한 한 이벤트 핸들러에서 호출된다
 - [ ] effect에서 navigate하더라도 무한 루프 불가 증명이 가능하다
 - [ ] path 조립 전에 id null 가드가 있다
+- [ ] 상세 레이아웃의 `<Outlet>` 또는 Domain 조립 지점에 `key={resourceId}` 가 있다
