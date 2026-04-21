@@ -1,150 +1,27 @@
-import { FormButton, FormInput } from '../../../components/form'
-import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../AuthProvider'
-import { login as loginApi } from '../authApi'
-import useIsMobile from '../../../hooks/useIsMobile'
+import ResponsiveLayout from '../../../components/ResponsiveLayout'
+import LoginPageMobileView from './Login/LoginPageMobileView'
+import LoginPagePCView from './Login/LoginPagePCView'
 
+/**
+ * [Container] 로그인 페이지.
+ *
+ * 책임:
+ *  - PC/Mobile 분기를 공용 `ResponsiveLayout` 에 위임한다.
+ *
+ * 책임이 아닌 것:
+ *  - 폼 상태·로그인 API:    ../hooks/useLoginController.ts
+ *  - PC 레이아웃(브랜드 사이드바): ./Login/LoginPagePCView.tsx
+ *  - Mobile 레이아웃:              ./Login/LoginPageMobileView.tsx
+ *  - 공통 폼 마크업:               ./Login/LoginForm.tsx
+ *  - 버전 표기:                    ./Login/LoginPageVersionFooter.tsx
+ *
+ * 이 컨테이너는 `useIsMobile()` 을 직접 호출하지 않는다. (§8-2 원칙 1)
+ * 같은 이유로 ResponsiveLayout 외의 새 분기 추상화(ResponsiveSwitch 등)도 만들지 않는다.
+ *
+ * named export 유지: `appRouter.tsx` 가 `import { LoginPage }` 로 소비한다.
+ *
+ * 관련 규칙: AGENTS.md §8, .cursor/rules/ui-pc-mobile-separation.mdc
+ */
 export function LoginPage() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { isAuthenticated, login } = useAuth()
-  const isMobile = useIsMobile()
-  const flash = (location.state ?? {}) as { passwordReset?: boolean; accountReset?: boolean }
-
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [version, setVersion] = useState('')
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard', { replace: true })
-    }
-  }, [isAuthenticated, navigate])
-
-  useEffect(() => {
-    let cancelled = false
-    const webVersion =
-      typeof __INSURANCE_WEB_APP_VERSION__ === 'string'
-        ? __INSURANCE_WEB_APP_VERSION__
-        : ''
-
-    void (async () => {
-      if (typeof window !== 'undefined' && window.electronAPI?.getVersion) {
-        try {
-          const v = await window.electronAPI.getVersion()
-          if (!cancelled) {
-            setVersion(v)
-          }
-          return
-        } catch {
-          /* fall through to web bundle version */
-        }
-      }
-      if (!cancelled) {
-        setVersion(webVersion)
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const handleLogin = async (event: FormEvent) => {
-    event.preventDefault()
-    setErrorMessage('')
-    setIsSubmitting(true)
-
-    try {
-      const session = await loginApi(username, password)
-      login(session)
-      navigate('/dashboard', { replace: true })
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '로그인에 실패했습니다.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  return (
-    <main className={`auth-page ${isMobile ? 'auth-page--mobile-login' : 'auth-page--login-split'}`}>
-      {!isMobile ? (
-        <aside className="auth-login-sidebar" aria-label="로그인 안내">
-          <div className="auth-login-sidebar__inner">
-            <h2 className="auth-login-sidebar__brand">Insurance CRM</h2>
-            <p className="auth-login-sidebar__copy">고객 관리 · 상담 기록 · 파일 작업을 한 화면에서 이어서 처리합니다.</p>
-          </div>
-        </aside>
-      ) : null}
-
-      <section className="auth-login-content">
-        <section className="card auth-card auth-card--login-split">
-          <h1>로그인</h1>
-          {flash.passwordReset ? (
-            <p className="auth-notice" role="status">
-              비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.
-            </p>
-          ) : null}
-          {flash.accountReset ? (
-            <p className="auth-notice" role="status">
-              계정이 초기화되었습니다. 서비스 이용이 필요하면 소속 GA에 새 계정 발급을 요청해 주세요.
-            </p>
-          ) : null}
-
-          <form className="auth-form" style={{ marginTop: '1rem' }} onSubmit={(e) => void handleLogin(e)}>
-            <label className="field">
-              <span className="field__label">아이디</span>
-              <FormInput
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                autoComplete="username"
-                required
-              />
-            </label>
-
-            <label className="field">
-              <span className="field__label">비밀번호</span>
-              <FormInput
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-                required
-              />
-            </label>
-
-            {errorMessage ? <p className="status status--error">{errorMessage}</p> : null}
-
-            <FormButton className="button button--primary button--full" htmlType="submit" variant="primary" disabled={isSubmitting}>
-              {isSubmitting ? '로그인 중...' : '로그인'}
-            </FormButton>
-          </form>
-
-          <div className="switch-text">
-            계정이 없으신가요?
-            <Link to="/register" className="switch-text__action">
-              회원가입
-            </Link>
-          </div>
-
-          <div className="switch-text">
-            비밀번호를 잊으셨나요?
-            <Link to="/password-reset" className="switch-text__action">
-              비밀번호 재설정
-            </Link>
-          </div>
-        </section>
-      </section>
-
-      {version ? (
-        <div className="auth-page__version-footer" aria-hidden="true">
-          {'\uBC84\uC804: '}
-          {version}
-        </div>
-      ) : null}
-    </main>
-  )
+  return <ResponsiveLayout PC={LoginPagePCView} Mobile={LoginPageMobileView} />
 }

@@ -237,7 +237,7 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 | 파일 | 현재 분기 횟수 | 비고 |
 |---|---|---|
 | `features/application/pages/ApplicationPage.tsx` | ✅ 완료 | ResponsiveLayout 표준 적용 완료 |
-| `features/auth/pages/LoginPage.tsx` | 중간 | |
+| `features/auth/pages/LoginPage.tsx` | ✅ 완료 | 3파일 구조 (PCView/MobileView) + 공통 `LoginForm` · `LoginPageVersionFooter` + `useLoginController` 훅. CSS modifier(`auth-page--login-split` / `auth-page--mobile-login`) 는 기존 네이밍 유지 |
 | `features/auth/pages/ProfilePage.tsx` | 중간 | |
 | `features/insurer-news/pages/InsurerManagerNewsListPage.tsx` | 단순 | |
 | `features/customers/pages/CustomerGaExcelPage.tsx` | ✅ 완료 | ResponsiveLayout + 전용 훅(`useGaCustomerExcelData`) + modifier 적용 완료 |
