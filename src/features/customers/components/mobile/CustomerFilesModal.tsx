@@ -75,7 +75,7 @@ export default function CustomerFilesModal({ customerId, onClose }: CustomerFile
         <div className="mobile-modal-body">
           <div className="mobile-modal-content">
             {token?.trim() ? (
-              <StorageWorkspace token={token} customerId={customerId} title="" subtitle={undefined} />
+              <StorageWorkspace token={token} customerId={customerId} title="" subtitle={undefined} variant="mobile" />
             ) : (
               <div style={{ padding: 16 }}>로그인이 필요합니다.</div>
             )}

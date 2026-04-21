@@ -320,8 +320,8 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 
 #### Tier 4 — 컴포넌트 내부 분기 (prop으로 승격)
 
-| 파일 | 전략 |
+| 파일 | 상태 · 비고 |
 |---|---|
-| `features/storage/components/StorageToolbar.tsx` | `variant: 'pc' \| 'mobile'` prop 도입 후 내부 `useIsMobile` 제거 |
-| `features/storage/components/StorageWorkspace.tsx` | 동일 |
-| `features/memo/components/MemoElectronFabDock.tsx` | Electron 전용 컴포넌트. PC 한정으로 렌더되는지 먼저 검토 |
+| `features/storage/components/StorageToolbar.tsx` | ✅ 완료 — 이미 `isMobile: boolean` prop 을 받고 있었음. 내부 훅 호출 없음 (현행 유지) |
+| `features/storage/components/StorageWorkspace.tsx` | ✅ 완료 — `variant: 'pc' \| 'mobile'` **필수** prop 도입, 내부 `useIsMobile` 제거. 기존 단일 호출처였던 `MyStoragePage` 는 `ResponsiveLayout<MyStorageViewProps>` + `MyStoragePagePCView` / `MyStoragePageMobileView` 로 분리해 variant 를 명시 주입 |
+| `features/memo/components/MemoElectronFabDock.tsx` | ✅ 완료 — `isMobile?: boolean` prop 을 받아 PC/Mobile UI 를 분기(단일 `+` FAB vs. `[추가]/[정리]` 듀얼 pill). 훅 직접 호출 없음. `MainWorkspaceLayout`(Tier 1) 에서 주입 |

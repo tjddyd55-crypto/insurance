@@ -12,6 +12,7 @@ export default function CustomerFilesPagePC({ token, customerId }: CustomerFiles
       customerId={customerId}
       title=""
       subtitle={undefined}
+      variant="pc"
     />
   )
 }

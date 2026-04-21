@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { FormButton } from '../../../components/form'
-import useIsMobile from '../../../hooks/useIsMobile'
 import {
   createStorageFolder,
   deleteStorageFile,
@@ -64,6 +63,15 @@ type StorageWorkspaceProps = {
   title: string
   subtitle?: string
   headerSlot?: ReactNode
+  /**
+   * 플랫폼 변형. 이 컴포넌트는 반드시 PC/Mobile 분기된 호출처(`ResponsiveLayout` 의
+   * View 파일 또는 모바일 전용 모달) 에서만 쓰이므로 variant 를 **필수**로 받는다.
+   *
+   * 과거에는 컴포넌트 내부에서 `useIsMobile()` 을 호출해 화면 변형을 스스로 결정했지만
+   * 이 방식은 "누가 무슨 UI 를 보는지" 를 컴포넌트 사용자가 제어할 수 없게 만들었다.
+   * AGENTS.md §8-5 Tier 4 "prop 승격" 규칙에 맞춰 호출처에서 명시한다.
+   */
+  variant: 'pc' | 'mobile'
 }
 
 function normalizeName(raw: string, maxLength: number): string {
@@ -131,8 +139,9 @@ export default function StorageWorkspace({
   title,
   subtitle,
   headerSlot,
+  variant,
 }: StorageWorkspaceProps) {
-  const isMobile = useIsMobile()
+  const isMobile = variant === 'mobile'
   const [folders, setFolders] = useState<StorageFolderRow[]>([])
   const [files, setFiles] = useState<StorageFileRow[]>([])
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)

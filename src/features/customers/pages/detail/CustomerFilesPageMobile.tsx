@@ -74,6 +74,7 @@ export default function CustomerFilesPageMobile({
       title=""
       subtitle={undefined}
       headerSlot={headerSlot}
+      variant="mobile"
     />
   )
 }
