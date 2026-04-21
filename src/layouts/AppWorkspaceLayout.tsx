@@ -198,14 +198,29 @@ function AppWorkspaceLayoutMobileShell() {
   const [mobilePageStack, setMobilePageStack] = useState<string[]>(() => [location.pathname])
   const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
 
+  /*
+   * Mobile 드로어 메뉴 구성.
+   *
+   * 플랫폼별 정책:
+   *  - PC   : `AppWorkspaceLayoutPCShell` 이 우측에 메모 패널을 상시 렌더하므로
+   *           `/memo` 메뉴 항목을 노출하지 않는다 (중복 접근 경로 회피).
+   *  - Mobile: 우측 상시 패널이 없으므로 `/memo` 를 드로어에 명시적으로 주입해
+   *           모바일 사용자가 메모 화면에 접근할 수 있게 한다.
+   *
+   * divider 는 모바일 드로어에서 의미가 약해 일괄 제거한다.
+   */
   const sidebarItems = useMemo(() => {
-    const base = buildSidebarEntries(user?.role, user?.gaCode, user?.gaName).filter((entry) =>
-      entry.type === 'divider' ? false : entry.path !== '/memo',
+    const memoMenuEntry: SidebarNavEntry = { type: 'link', label: '메모', path: '/memo' }
+
+    const base = buildSidebarEntries(user?.role, user?.gaCode, user?.gaName).filter(
+      (entry) => entry.type !== 'divider',
     )
+    const withMemo: SidebarNavEntry[] = [...base, memoMenuEntry]
+
     if (!teamMenuManageVisible) {
-      return base
+      return withMemo
     }
-    const out = [...base]
+    const out = [...withMemo]
     const filesIdx = out.findIndex((entry) => entry.type === 'link' && entry.path === '/team/files')
     const teamManageEntry: SidebarNavEntry = { type: 'link', label: '팀 관리', path: '/team/manage' }
     if (filesIdx >= 0) {
