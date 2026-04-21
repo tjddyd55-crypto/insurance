@@ -1208,9 +1208,19 @@ export default function CustomersPage() {
     () => parseSelectedCustomerId(searchParams.get('customerId')),
     [searchParams],
   )
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(() => {
-    return selectedCustomerIdFromQuery
-  })
+  /**
+   * `CustomersPage` 는 좌측 목록(카드 펼침)과 `?customerId=` 쿼리만 관리한다.
+   * "지금 선택된 고객 id" 의 단일 진실 원천은 **URL path** 이며,
+   * 이 값을 소비하는 쪽(우측 워크스페이스)은 `CustomerWorkspaceLayout` 이 자체적으로
+   * path → query 순서로 memo 파생한다 (routing-ssot.mdc §1 · §9).
+   *
+   * 과거에는 이 파일에도 `selectedCustomerId` state 가 존재해 두 개의 pull effect
+   * (query→state, expandedId→state) 가 동일 state 를 다른 source 로 당겨 쓰며
+   * 핑퐁(Maximum update depth exceeded) 을 유발했지만, 해당 state 는 실제로
+   * 이 컴포넌트 내부·하위 뷰 어디에서도 read 되지 않는 **dead state** 였기 때문에
+   * memo 로 전환하지 않고 그대로 제거했다. 선택 고객 id 가 필요해지는 시점에는
+   * `CustomerWorkspaceLayout` 의 파생값을 재사용한다.
+   */
   const [expandedId, setExpandedId] = useState<number | null>(() => {
     if (selectedCustomerIdFromQuery != null) {
       return selectedCustomerIdFromQuery
@@ -1444,7 +1454,6 @@ export default function CustomersPage() {
 
   const handleSelectCustomer = useCallback(
     (c: CustomerRecord) => {
-      setSelectedCustomerId(c.id)
       setExpandedId(c.id)
       setScrollRequestKey((prev) => prev + 1)
       if (isMobile) {
@@ -1467,7 +1476,6 @@ export default function CustomersPage() {
       setFavoriteOnly(false)
       setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })
       setAdvSearchHits(null)
-      setSelectedCustomerId(customerId)
       setExpandedId(customerId)
       setScrollRequestKey((prev) => prev + 1)
 
@@ -1510,50 +1518,19 @@ export default function CustomersPage() {
    * URL 쿼리가 바뀌었다고 펼침을 강제하지 않는다(파일 패널 ↔ 목록 충돌 방지).
    */
   /**
-   * selectedCustomerId 는 두 개의 pull effect(A: query→state, B: expandedId→state) 와
-   * 한 개의 push effect(C: expandedId→query) 로 유지된다. 원래 설계 의도는:
-   *   - URL `?customerId=` 로 외부 진입 시 state 를 당겨오고(A)
-   *   - 카드 펼침(expandedId)을 기준으로 state 와 query 를 따라 맞추는 것(B, C)
-   * 이었다. 그러나 side-detail path(/customers/:id/*) 에서는 Effect C 가 early return
-   * 하도록 막혀 있어 query 가 갱신되지 못하고, 그 상태에서 expandedId 와 `?customerId=`
-   * 가 서로 다른 값으로 어긋나면 Effect A/B 가 selectedCustomerId 를 **서로 다른 목표값**
-   * 으로 번갈아 당기며 핑퐁 → "Maximum update depth exceeded" 가 발생한다.
+   * [HISTORY] 과거에는 `selectedCustomerId` 가 이 컴포넌트의 state 였고,
+   * 두 개의 pull effect(A: query→state, B: expandedId→state) 가 각기 다른 source 로부터
+   * 값을 당겨 쓰며 핑퐁 → `Maximum update depth exceeded` 를 유발했다.
    *
-   * 가드 원칙(routing-ssot.mdc 1):
-   *   "복수의 source 가 동일 state 를 쓰기할 때 우선순위가 명시되어야 한다."
-   *   여기서는 사용자의 **현재 조작 결과**인 expandedId 를 우선으로 삼는다.
-   *   query 는 외부 진입/공유용 fallback 이므로, expandedId 가 이미 유효 값을 가리키면
-   *   query pull 은 건너뛴다. Effect B 가 expandedId 를 state 에 반영할 동안 Effect A 가
-   *   query 로 되덮어 쓰는 경쟁 조건을 차단한다.
+   * 근본 정리 결과: 해당 state 는 이 파일 안에서도 하위 뷰에서도 **실제로 read 되지 않던**
+   * dead state 였다 (우측 워크스페이스는 `CustomerWorkspaceLayout` 이 path 기준으로 자체
+   * 파생). 따라서 memo 로 전환할 필요 없이 state 와 두 pull effect 를 통째로 제거했다.
    *
-   * 근본 정리(후속):
-   *   `selectedCustomerId` 를 state 가 아니라 path → expandedId → query 순의 derive 값
-   *   으로 전환하는 별도 리팩터가 예정되어 있다. 본 가드는 그때까지의 안전장치다.
+   * 선택된 고객 id 의 단일 진실 원천은 이제 `CustomerWorkspaceLayout` 의 path → query
+   * 파생값 한 곳뿐이다 (routing-ssot.mdc §1 · §9).
+   *
+   * 이 주석 블록 자체는 SSOT 근본 정리 마지막 커밋에서 함께 제거될 예정이다.
    */
-  useEffect(() => {
-    if (isMobile && expandedId != null) {
-      return
-    }
-    if (selectedCustomerIdFromQuery == null) {
-      return
-    }
-    if (selectedCustomerIdFromQuery === selectedCustomerId) {
-      return
-    }
-    // 핑퐁 차단: expandedId 가 이미 다른 유효 값을 가리키면 query 는 stale 로 간주하고
-    // 덮어쓰지 않는다. Effect B 가 expandedId → state 동기화를 담당하도록 양보한다.
-    if (expandedId != null && expandedId !== selectedCustomerIdFromQuery) {
-      return
-    }
-    setSelectedCustomerId(selectedCustomerIdFromQuery)
-  }, [expandedId, isMobile, selectedCustomerId, selectedCustomerIdFromQuery])
-
-  useEffect(() => {
-    if (expandedId == null || selectedCustomerId === expandedId) {
-      return
-    }
-    setSelectedCustomerId(expandedId)
-  }, [expandedId, selectedCustomerId])
 
   useLayoutEffect(() => {
     if (expandedId == null) {
