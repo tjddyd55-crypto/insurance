@@ -1218,6 +1218,26 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   letter-spacing: 0.02em;
 }
 
+/*
+ * 모바일 가로 거터 SSOT — 모든 모바일 페이지 루트의 좌우 여백을 한 곳에서 관리한다.
+ *
+ * 적용 체인:
+ *   1) 전역 .page / .content-wrapper / .storage-workspace.page-shell 의 PC 기본값은
+ *      각자 유지 (넓은 화면은 여유 있는 여백을 그대로 쓴다).
+ *   2) @media (max-width: 768px) 블록에서 모바일 페이지 루트 전체에 !important 로
+ *      좌우 padding 을 이 변수 값으로 강제한다 — 카드 내부 여백과는 분리된 정책.
+ *
+ * 값 조정 가이드:
+ *   ·  0    → 모서리까지 꽉 채움 (카드가 뷰포트 가장자리에 붙음)
+ *   ·  8px  → 현재 기본값. 가로 공간을 최대한 쓰면서 카드 그림자가 잘리지 않는다.
+ *   ·  12px → 여백을 조금 넉넉히.
+ *
+ * 카드/리스트 아이템 **내부** 좌우 여백은 가독성 축이므로 이 변수에 포함하지 않는다.
+ */
+:root {
+  --mobile-h-padding: 8px;
+}
+
 .app-root .page,
 .pc-page,
 .mobile-page {
@@ -1231,7 +1251,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 @media (max-width: 1023px) {
   .app-root .page,
   .mobile-page {
-    padding: 12px;
+    padding: 12px var(--mobile-h-padding);
   }
 }
 
@@ -1245,7 +1265,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .content-wrapper--mobile {
-  padding: 12px;
+  padding: 12px var(--mobile-h-padding);
 }
 
 .mobile-workspace-layout {
@@ -1552,6 +1572,17 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 
 /* 모바일·��포트: max-width 중� 제거 → 카드/��스트 전�� */
 @media (max-width: 768px) {
+  /*
+   * 모바일 페이지 루트의 좌우 거터는 var(--mobile-h-padding) 한 축에서 관리한다.
+   * !important 는 페이지별 하드코딩된 좌우 padding 을 의도적으로 덮어쓰기 위함.
+   * max(..., env(safe-area-inset-*)) 로 노치/둥근 모서리 안전영역은 보장.
+   *
+   * 셀렉터 정책:
+   * - .page / .mobile-page 계열 : 전통적 페이지 루트
+   * - .content-wrapper          : page 클래스 없이 쓰는 래퍼 (팀 게시판, 기능 요청 등)
+   * - .page-shell               : 스토리지 등 별도 셸 기반 화면
+   * 새 페이지를 만들 때 위 셋 중 하나를 최상위 클래스로 쓰면 자동으로 거터가 적용된다.
+   */
   .app-root .container,
   .app-root .layout,
   .app-root .page,
@@ -1559,14 +1590,16 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   .mobile-container,
   .mobile-layout,
   .mobile-page,
-  .mobile-page--result {
+  .mobile-page--result,
+  .content-wrapper,
+  .page-shell {
     max-width: 100% !important;
     width: 100% !important;
     margin-left: 0 !important;
     margin-right: 0 !important;
     box-sizing: border-box !important;
-    padding-left: max(12px, env(safe-area-inset-left, 0px)) !important;
-    padding-right: max(12px, env(safe-area-inset-right, 0px)) !important;
+    padding-left: max(var(--mobile-h-padding), env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(var(--mobile-h-padding), env(safe-area-inset-right, 0px)) !important;
   }
 
   .dashboard-menu-shell,
