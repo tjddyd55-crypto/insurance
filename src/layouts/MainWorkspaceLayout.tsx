@@ -168,25 +168,51 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
   const workspaceHydratedRef = useRef(false)
   const skipWorkspacePersistRef = useRef(true)
 
+  const isMobile = useIsMobile()
+  const isNarrow = useMediaQuery('(max-width: 899px)')
+
   useEffect(() => {
     skipWorkspacePersistRef.current = true
   }, [persistenceUserId])
 
+  /*
+   * 메모 워크스페이스 상태 hydrate.
+   *
+   * 단일 책임: 여기 한 곳에서 "snapshot 복원" 과 "모바일 진입 보장" 을 모두 처리한다.
+   *
+   * 회귀 배경:
+   * - 과거 세션에서 메모 패널을 닫거나 최소화한 적이 있으면 localStorage 의
+   *   memoUiSnapshot.workspace 에 isMemoOpen:false / isMinimized:true 가 남는다.
+   * - 이 값이 모바일 /memo 에서 그대로 복원되면 우측 workspace-right 가 DOM 에서
+   *   사라져 사용자 눈에는 "FAB 만 살아있는 검은 화면" 으로 보인다.
+   *
+   * 규칙:
+   * - PC: snapshot 값을 존중한다 (사용자가 닫아둔 상태를 다음 세션에도 유지).
+   * - 모바일: /memo 진입 자체가 "메모를 쓰려는 의도" 이므로 항상 열림 상태로 강제한다.
+   *
+   * 주의: "복원 후 별도 effect 로 다시 true 로 되돌리는" 2단계 구조는 hydrate
+   * microtask 와 경합해 회귀가 재발한다. 반드시 이 한 지점에서 분기로 해결한다.
+   */
   useEffect(() => {
     if (!persistenceUserId) {
       workspaceHydratedRef.current = false
       return
     }
     const snap = loadMemoUiSnapshot(persistenceUserId)
-    if (snap?.workspace) {
-      queueMicrotask(() => {
+    queueMicrotask(() => {
+      if (snap?.workspace) {
         setMemoRatio(snap.workspace.memoRatio)
         setIsListOpen(snap.workspace.isListOpen)
+      }
+      if (isMobile) {
+        setIsMemoOpen(true)
+        setIsMinimized(false)
+      } else if (snap?.workspace) {
         setIsMemoOpen(snap.workspace.isMemoOpen)
-      })
-    }
+      }
+    })
     workspaceHydratedRef.current = true
-  }, [persistenceUserId])
+  }, [persistenceUserId, isMobile, setIsMinimized])
 
   useEffect(() => {
     if (!persistenceUserId || !workspaceHydratedRef.current) {
@@ -198,40 +224,6 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
     }
     patchMemoUiWorkspace(persistenceUserId, { memoRatio, isListOpen, isMemoOpen })
   }, [persistenceUserId, memoRatio, isListOpen, isMemoOpen])
-
-  const isMobile = useIsMobile()
-  const isNarrow = useMediaQuery('(max-width: 899px)')
-  /*
-   * 모바일 /memo 진입 보장 — snapshot hydrate 로 인해 메모 패널이 닫힌 채
-   * 복원되는 회귀 차단.
-   *
-   * 사용자 시나리오: 과거 어느 세션에서 메모 패널을 닫거나 최소화한 적이 있으면
-   * localStorage 의 memoUiSnapshot.workspace 에 `isMemoOpen:false` 또는
-   * `isMinimized:true` 가 남는다. 이 값이 그대로 복원되면 /memo 모바일 화면에서
-   * 좌측 placeholder 만 남고 메모 캔버스 전체가 DOM 에서 사라져 "검은 화면 + FAB
-   * 없음" 으로 보이는 회귀가 발생한다.
-   *
-   * 모바일에서는 /memo 에 진입한 것 자체가 "메모를 쓰려는 의도" 이므로,
-   * hydrate 가 끝난 뒤 일회성으로 normalize 한다. 최소화 UX 가 존재하지 않는
-   * 모바일에서 `isMinimized:true` 도 동시에 해제한다.
-   */
-  useEffect(() => {
-    if (!isMobile) {
-      return
-    }
-    if (!workspaceHydratedRef.current) {
-      return
-    }
-    if (!isMemoOpen) {
-      setIsMemoOpen(true)
-    }
-    if (isMinimized) {
-      setIsMinimized(false)
-    }
-    // 의도적으로 의존성에 isMobile 만 두어 "모바일 진입 시 1회" 보정으로 제한한다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile])
-
 
   const rootRef = useRef<HTMLDivElement>(null)
   const resizingRef = useRef(false)
