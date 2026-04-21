@@ -611,17 +611,28 @@ function AppWorkspaceLayoutPCShell() {
             })}
           </nav>
 
-          <FormButton
-            className="workspace-sidebar__logout"
-            htmlType="button"
-            variant="secondary"
-            onClick={() => {
-              logout()
-              navigate('/login', { replace: true })
-            }}
-          >
-            로그아웃
-          </FormButton>
+          {/*
+            · 로그아웃은 .workspace-sidebar__footer 라는 별도 하단 블록에 둔다.
+              이전에는 <aside> 의 직접 자식으로 놓고 CSS margin-top: auto 로
+              하단에 밀어두려 했으나, 메뉴가 많아 aside 가 스크롤되는 상황에서
+              로그아웃이 스크롤 중간에 어정쩡하게 걸려 보이는 회귀가 있었다.
+            · 모바일 드로어의 .mobile-workspace-drawer__footer 와 동일한 구조로
+              통일해, "메뉴 리스트 마지막 뒤에 자연스럽게 붙은 하단 항목" 의미를
+              PC/모바일 양쪽이 같은 방식으로 표현한다.
+          */}
+          <div className="workspace-sidebar__footer" role="presentation">
+            <FormButton
+              className="workspace-sidebar__logout"
+              htmlType="button"
+              variant="secondary"
+              onClick={() => {
+                logout()
+                navigate('/login', { replace: true })
+              }}
+            >
+              로그아웃
+            </FormButton>
+          </div>
         </aside>
 
         <div
