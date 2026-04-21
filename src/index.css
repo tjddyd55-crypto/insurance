@@ -4521,6 +4521,16 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font-size: 14px;
 }
 
+/*
+ * 공용 .button 규약 SSOT (refactor/dialog-actions-and-button-ssot).
+ *   - 모든 행동 버튼의 기본 모양·크기·전이는 여기서 단일하게 정의한다.
+ *   - 호출부는 className 으로 모양을 덮지 말고 variant(primary/secondary/action/danger)
+ *     와 size(sm/md/lg) 로만 의도를 표현한다.
+ *   - 모바일 네이티브 탭 하이라이트(안드로이드 ripple, iOS 회색 박스) 는 UI 와
+ *     충돌해 회귀로 보이므로 공용 수준에서 제거한다. 탭 피드백은 .button:active
+ *     transform/opacity 애니메이션이 담당한다.
+ *   - user-select 를 none 으로 두어 텍스트 드래그 선택이 탭을 가로채지 않게 한다.
+ */
 .button {
   min-height: 48px;
   border: 1px solid var(--btn-border);
@@ -4531,6 +4541,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
   background: var(--btn-surface);
   color: var(--btn-text);
   cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
   transition:
     transform 0.15s ease,
     opacity 0.15s ease,
@@ -4613,6 +4625,20 @@ div.cta-button.customers-page__action-btn[role='button'] {
   min-height: 36px;
   padding: 8px 10px;
   font-size: 13px;
+}
+
+/*
+ * <DialogActions> 레이아웃 SSOT.
+ *   - 다이얼로그 풋터의 버튼 줄 정렬/간격만 책임진다. 버튼 모양은 .button* 에 위임.
+ *   - 오른쪽 정렬 + wrap 이 기본. 좁은 폭에서도 버튼이 짤리지 않고 다음 줄로 내려간다.
+ *   - 마진 상단 20px 은 기존 ConfirmDialog 의 mt-5(= 1.25rem)와 동일해 시각 회귀 없음.
+ */
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
 }
 
 .btn {
