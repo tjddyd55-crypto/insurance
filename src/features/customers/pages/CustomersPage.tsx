@@ -69,7 +69,7 @@ const INVITE_COPY_POINTER_DEBOUNCE_MS = 450
 /** 오른쪽 작업영역(파일·상담·메모·GA)이 라우트로 고객을 고정할 때 — 카드 접힘과 `?customerId=` 동기화 충돌 방지
  *  새 탭이 추가되면 아래 목록만 갱신하면 된다. regex 오타·누락으로 인한 UX 차이를 막기 위해 배열로 관리한다.
  */
-const WORKSPACE_SIDE_DETAIL_TABS = ['files', 'consultations', 'ga-excel', 'memos'] as const
+const WORKSPACE_SIDE_DETAIL_TABS = ['files', 'consultations', 'ga-excel', 'memos', 'auto-form'] as const
 const WORKSPACE_SIDE_DETAIL_PATH_RE = new RegExp(
   `^/customers/[^/]+/(?:${WORKSPACE_SIDE_DETAIL_TABS.join('|')})(?:/|$)`,
 )
@@ -77,7 +77,19 @@ function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
   return WORKSPACE_SIDE_DETAIL_PATH_RE.test(pathname)
 }
 
-function resolveCustomerWorkspaceTab(pathname: string): 'files' | 'consultations' | 'memos' | 'ga-excel' {
+/**
+ * 고객 전환 시 "현재 보고 있던 탭"을 유지하기 위해 경로에서 탭을 식별한다.
+ *
+ * 예: `/customers/123/memos` 에서 B 고객 선택 → `/customers/456/memos`
+ *     `/customers/123/auto-form` 에서 B 고객 선택 → `/customers/456/auto-form`
+ *
+ * 새 우측 메뉴가 추가되면 위 `WORKSPACE_SIDE_DETAIL_TABS` 와 이 함수 두 곳만
+ * 함께 업데이트하면 된다. 기본값(`files`)은 상세 탭이 없는 상태에서 처음 고객을
+ * 선택할 때의 랜딩 탭을 가리킨다.
+ */
+function resolveCustomerWorkspaceTab(
+  pathname: string,
+): 'files' | 'consultations' | 'memos' | 'ga-excel' | 'auto-form' {
   if (pathname.includes('/consultations')) {
     return 'consultations'
   }
@@ -86,6 +98,9 @@ function resolveCustomerWorkspaceTab(pathname: string): 'files' | 'consultations
   }
   if (pathname.includes('/ga-excel') || pathname.includes('/ga')) {
     return 'ga-excel'
+  }
+  if (pathname.includes('/auto-form')) {
+    return 'auto-form'
   }
   return 'files'
 }

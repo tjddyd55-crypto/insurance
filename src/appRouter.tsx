@@ -33,6 +33,7 @@ import CustomerGaExcelPage from './features/customers/pages/CustomerGaExcelPage'
 import CustomerMemosPage from './features/customers/pages/CustomerMemosPage'
 import CustomerWorkspaceLayout from './features/customers/pages/CustomerWorkspaceLayout'
 import CustomerWorkspaceHomePage from './features/customers/pages/CustomerWorkspaceHomePage'
+import CustomerAutoFormPage from './features/customers/pages/CustomerAutoFormPage'
 import TeamMembersPage from './features/team/pages/TeamMembersPage'
 import TeamPostsPage from './features/team/pages/TeamPostsPage'
 import TeamFilesPage from './features/team/pages/TeamFilesPage'
@@ -186,6 +187,7 @@ export const appRouter = createBrowserRouter([
                   { path: ':customerId/consultations', element: <CustomerConsultationsPage /> },
                   { path: ':customerId/ga-excel', element: <CustomerGaExcelPage /> },
                   { path: ':customerId/memos', element: <CustomerMemosPage /> },
+                  { path: ':customerId/auto-form', element: <CustomerAutoFormPage /> },
                 ],
               },
               { path: 'storage', element: <MyStoragePage /> },

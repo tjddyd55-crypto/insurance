@@ -27,7 +27,17 @@ function parseWorkspaceCustomerIdFromPath(pathname: string): number | null {
   return parseSelectedCustomerId(m[1])
 }
 
-function resolveWorkspacePathTab(pathname: string): 'files' | 'consultations' | 'ga-excel' | 'memos' | null {
+export type CustomerWorkspaceTab = 'files' | 'consultations' | 'auto' | 'ga-excel' | 'memos'
+
+/**
+ * URL path → 현재 활성 탭 매핑.
+ *
+ * 규칙(routing-ssot.mdc 1):
+ *   우측 패널이 "지금 어떤 메뉴를 보고 있는가" 는 오직 URL path 하나만으로 결정된다.
+ *   로컬 state 나 props 로 중복 표현하지 않는다. 새로운 우측 메뉴가 추가될 때도
+ *   path 규약만 추가하면 자동으로 layout·버튼 하이라이트·스크롤 복원이 일관되게 따라온다.
+ */
+function resolveWorkspacePathTab(pathname: string): CustomerWorkspaceTab | null {
   if (pathname.includes('/consultations')) {
     return 'consultations'
   }
@@ -36,6 +46,9 @@ function resolveWorkspacePathTab(pathname: string): 'files' | 'consultations' | 
   }
   if (pathname.includes('/ga-excel') || pathname.includes('/ga')) {
     return 'ga-excel'
+  }
+  if (pathname.includes('/auto-form')) {
+    return 'auto'
   }
   if (pathname.includes('/files')) {
     return 'files'
@@ -83,8 +96,6 @@ export default function CustomerWorkspaceLayout() {
   }, [location.pathname, searchParams])
   const [selectedCustomerLabel, setSelectedCustomerLabel] = useState('')
   const [excelCap, setExcelCap] = useState<GaCustomerExcelCapability | null>(null)
-  /** 우측 패널에서만 자동차 신청서 작성(전역 라우트 이동 없음) */
-  const [rightPanelCarForm, setRightPanelCarForm] = useState(false)
 
   useEffect(() => {
     if (isMobile) {
@@ -158,15 +169,23 @@ export default function CustomerWorkspaceLayout() {
     navigate(href)
   }
 
-  const activeTab: 'files' | 'consultations' | 'auto' | 'ga-excel' | 'memos' | null = rightPanelCarForm
-    ? 'auto'
-    : currentPathTab
+  /**
+   * 우측 패널 활성 탭은 오직 URL path 로부터만 파생된다(routing-ssot.mdc 1).
+   * 이전 구조에는 `rightPanelCarForm` 로컬 state 가 추가로 있어서 URL ↔ state 가
+   * 사용 순서에 따라 drift 되고, "메뉴 클릭은 되지만 전환 안 됨" / "고객 전환해도
+   * 우측이 이전 고객 기준" 등의 회귀를 반복 유발했다. 이제는 단일 진실 원천만 사용한다.
+   */
+  const activeTab: CustomerWorkspaceTab | null = currentPathTab
 
+  /**
+   * 우측 메뉴 핸들러는 **전부 동일한 패턴**으로 통일한다: URL 이동(navigate) 하나뿐.
+   * 로컬 state 토글, 조건부 렌더, 임시 force rerender 등은 사용하지 않는다.
+   * 새 우측 메뉴를 추가할 때도 이 패턴만 따르면 된다.
+   */
   const handleClickFiles = () => {
     if (!selectedCustomerId) {
       return
     }
-    setRightPanelCarForm(false)
     moveTo(`/customers/${selectedCustomerId}/files`)
   }
 
@@ -174,7 +193,6 @@ export default function CustomerWorkspaceLayout() {
     if (!selectedCustomerId) {
       return
     }
-    setRightPanelCarForm(false)
     moveTo(`/customers/${selectedCustomerId}/consultations`)
   }
 
@@ -182,14 +200,13 @@ export default function CustomerWorkspaceLayout() {
     if (!selectedCustomerId) {
       return
     }
-    setRightPanelCarForm(true)
+    moveTo(`/customers/${selectedCustomerId}/auto-form`)
   }
 
   const handleClickGaExcel = () => {
     if (!selectedCustomerId || !excelCap?.showDesignerUi) {
       return
     }
-    setRightPanelCarForm(false)
     moveTo(`/customers/${selectedCustomerId}/ga-excel`)
   }
 
@@ -197,7 +214,6 @@ export default function CustomerWorkspaceLayout() {
     if (!selectedCustomerId) {
       return
     }
-    setRightPanelCarForm(false)
     moveTo(`/customers/${selectedCustomerId}/memos`)
   }
 
@@ -212,7 +228,6 @@ export default function CustomerWorkspaceLayout() {
           pathname={location.pathname}
           selectedCustomerId={selectedCustomerId}
           selectedCustomerLabel={selectedCustomerLabel}
-          rightPanelCarForm={rightPanelCarForm}
           activeTab={activeTab}
           showCarInsuranceInWorkspace={showCarInsuranceInWorkspace}
           showGaExcelEntry={showGaExcelEntry}

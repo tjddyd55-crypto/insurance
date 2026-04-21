@@ -166,7 +166,61 @@ const handleClick = () => {
 
 ---
 
-## 8. 체크리스트
+## 8. 우측 패널·서브 뷰는 로컬 state 토글 금지, 전부 URL 기반
+
+리소스 상세 화면의 "어떤 서브 뷰(탭/패널)를 보고 있는가" 는 **오직 URL path 하나로만** 결정한다.
+
+### 왜 필요한가
+
+과거에 자동차 신청서만 `rightPanelCarForm` 로컬 state 로 토글하고 나머지 우측 메뉴(파일/상담/GA/메모)는
+`navigate` 로 전환하는 **혼합 구조**가 존재했다. 이 혼합 구조는 사용 순서에 따라 URL ↔ state 가 drift 되어
+다음과 같은 회귀를 반복 유발했다.
+
+- "A 고객에서 B 고객으로 전환해도 우측이 A 그대로 남아있음"
+- "메뉴 버튼은 눌리는데 페이지 전환이 안 됨"
+- "되다 안 되다 한다 — 순서에 따라 다름"
+
+### 규칙
+
+- ❌ 금지: 우측 패널·탭 중 **일부만** 로컬 state 토글, 나머지는 navigate.
+- ❌ 금지: URL 과 별개로 "지금 열려 있는 패널이 무엇인가" 를 로컬 state 로 유지.
+- ✅ 필수: 우측 패널은 전부 `/resource/:id/<tab>` path 로 올리고, 클릭 핸들러는 **모두 navigate 하나로 통일**.
+- ✅ 필수: 우측 버튼의 활성 표시(`filter-button--workspace-active` 등)도 path 파생 값만 사용.
+
+### 올바른 패턴
+
+```tsx
+// ✅ 모든 우측 메뉴가 동일 패턴: 선제 가드 → navigate → 끝
+const handleClickMemos = () => {
+  if (!selectedCustomerId) return
+  navigate(`/customers/${selectedCustomerId}/memos`)
+}
+
+// ✅ 우측 body 는 한 갈래만 존재
+<div className="right-body">
+  {selectedCustomerId ? (
+    <Outlet key={selectedCustomerId} />
+  ) : (
+    <EmptyState />
+  )}
+</div>
+```
+
+### 안 되는 패턴
+
+```tsx
+// ❌ 일부 패널만 로컬 state, 나머지는 navigate
+const [rightPanelCarForm, setRightPanelCarForm] = useState(false)
+const activeTab = rightPanelCarForm ? 'auto' : currentPathTab  // 두 source 혼합
+
+<div className="right-body">
+  {rightPanelCarForm ? <AutoForm /> : <Outlet />}               {/* 두 갈래 */}
+</div>
+```
+
+---
+
+## 9. 체크리스트
 
 - [ ] path가 단일 진실 원천이다 (query는 fallback만)
 - [ ] 쿼리 ↔ path 양방향 동기화 effect가 없다
@@ -174,3 +228,4 @@ const handleClick = () => {
 - [ ] effect에서 navigate하더라도 무한 루프 불가 증명이 가능하다
 - [ ] path 조립 전에 id null 가드가 있다
 - [ ] 상세 레이아웃의 `<Outlet>` 또는 Domain 조립 지점에 `key={resourceId}` 가 있다
+- [ ] 우측 패널·서브 뷰 중 로컬 state 토글로 조건부 렌더되는 것이 없다 (전부 URL 기반)
