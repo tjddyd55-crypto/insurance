@@ -146,11 +146,31 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 | `ApplicationPage` | ✅ PCView/MobileView | — CSS scope 수요 없음(실제 화면은 동일 컴포넌트) | ✅ `ResponsiveLayout` 표준 사용 |
 | `CustomerWorkspaceLayout` | ✅ LayoutPC/LayoutMobile | — CSS scope 수요 없음 | 부분 분기(좌측 공통, 우측만 분기) |
 | `CustomerGaExcelPage` | ✅ PagePC/PageMobile | ✅ `.customer-ga-excel-page--pc/--mobile` | ✅ `ResponsiveLayout` + 전용 훅(`useGaCustomerExcelData`) |
-| `MemoRoutePage` | ✅ PCView/MobileView | ✅ `.memo-route-page--pc/--mobile` | ✅ `ResponsiveLayout` (placeholder — 훅 불필요) |
+| `MemoRoutePage` | ✅ PCView/MobileView | ✅ `.memo-route-page--pc` 만 사용(Mobile 은 modifier 미부착: 분리 전과 1:1 동일 마크업 유지, [아래 예외 노트](#memo-mobile-modifier-exception) 참조) | ✅ `ResponsiveLayout` (placeholder — 훅 불필요) |
 | 그 외 페이지(20+ 파일) | ❌ 단일 파일 내부에서 `useIsMobile` 분기 | ❌ 없음 | ❌ |
 
 - "CSS scope 수요 없음" = index.css에 `.<page>-page--pc/--mobile`·`.pc-root .<page>-page` 규칙이 0건. CSS가 생길 때 modifier를 부착한다(선제 추상화 금지).
 - 완성도는 기능 수정 PR마다 점진적으로 끌어올린다. 이 표가 "진행 현황"의 단일 출처다.
+
+<a id="memo-mobile-modifier-exception"></a>
+**`MemoRoutePage` Mobile modifier 예외**
+`MemoRouteMobileView` 는 `<div className="memo-route-page">` 만 부착한다(`--mobile` 생략).
+이유: 하위 `MainWorkspaceLayout` 이 자체 `workspace-root` flex 컨테이너를 가지므로 상위 `.memo-route-page` 에 modifier 스타일이 얹히면 내부 flex 높이 계산이 어긋나 **메모 패널이 찌그러지는 회귀**가 발생한다(실제 발생 사례). "분리 전 모바일 화면과 렌더 1:1 동일" 이라는 업무 요구와 결합해 이 페이지만 예외로 다룬다. 이 예외는 `MemoRouteMobileView.tsx` 상단 docblock 에도 명시되어 있다.
+
+**레이아웃 스캐폴딩 단일 진실 원천 — 앱 메뉴**
+`DashboardPage`, `AppWorkspaceLayoutPCShell`, `AppWorkspaceLayoutMobileShell` 세 호출처가 보여주는 메뉴 리스트는 반드시 같아야 한다(과거 "대시보드엔 있는데 햄버거엔 없다" 류 회귀를 구조적으로 차단).
+- 유일한 빌더: `src/features/dashboard/gaTenantMenu.ts` 의 **`buildAppMenuForSession(role, gaCode, gaName, { includeMemo, teamMenuManageVisible })`**.
+- 옵션 정책:
+  - `includeMemo: true`  — 모바일 대시보드 / 모바일 드로어 (우측 상시 메모 패널 없음).
+  - `includeMemo: false` — PC 사이드바 / PC 대시보드 (우측 메모 패널 상시).
+  - `teamMenuManageVisible` — 팀 오너일 때만 `/team/files` 바로 뒤에 "팀 관리" 주입. 자리 고정 → 세 호출처 모두 같은 위치.
+- 메뉴 항목을 추가/이동할 때는 반드시 이 빌더만 수정한다. 각 호출처에서 재구성하지 않는다.
+
+**모바일 드로어는 오버레이**
+모바일 햄버거 메뉴는 `position: fixed` 오버레이 + backdrop 이다. 본문 DOM 을 밀어내지 않는다.
+- 컴포넌트: `src/layouts/AppWorkspaceLayout.tsx` `AppWorkspaceLayoutMobileShell`.
+- 스타일: `.mobile-workspace-drawer--overlay`, `.mobile-workspace-drawer-backdrop` (src/index.css).
+- z-index 정책: backdrop=900, drawer=901, mobile modal overlay=9999, confirm dialog=10000. 드로어가 모달 위로 올라오지 않도록 의도적으로 하위 레이어에 둔다.
 
 ### 8-2. 핵심 원칙 (신규·수정 코드에 적용)
 

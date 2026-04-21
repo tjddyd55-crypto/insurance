@@ -6,57 +6,10 @@ import { fetchTeamMembers } from '../../team/api/teamApi'
 import { useAuth } from '../../auth/AuthProvider'
 import { isGaStaffReadOnlyUi } from '../../auth/roleGuards'
 import { Button, Modal } from '../../../components/ui'
-import {
-  buildGaTenantDashboardMenu,
-  GA_STAFF_MENU,
-  INSURER_MANAGER_MENU,
-  LOSS_ADJUSTER_MENU,
-  type GaTenantDashboardMenuEntry,
-  type GaTenantMenuItem,
-} from '../gaTenantMenu'
+import useIsMobile from '../../../hooks/useIsMobile'
+import { buildAppMenuForSession, type GaTenantDashboardMenuEntry } from '../gaTenantMenu'
 
 type MenuEntry = GaTenantDashboardMenuEntry
-
-function menuItemsToEntries(items: GaTenantMenuItem[]): MenuEntry[] {
-  return items.map((i) => ({ type: 'link' as const, label: i.label, path: i.path }))
-}
-
-const AUDIT_MENU: GaTenantMenuItem = { label: '보안 감사 로그', path: '/admin/audit-logs' }
-
-const SUPER_ADMIN_MENU: GaTenantMenuItem[] = [
-  { label: 'GA 관리', path: '/admin/ga' },
-  { label: '담당자 관리', path: '/admin/delegates' },
-  { label: '유저 관리', path: '/admin/users' },
-  { label: '운영 통계', path: '/admin/analytics' },
-  { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
-]
-
-function menuForSession(
-  role: string | undefined,
-  gaCode: string | undefined,
-  gaName: string | undefined,
-): MenuEntry[] {
-  if (role === 'SUPER_ADMIN') {
-    return [...menuItemsToEntries(SUPER_ADMIN_MENU), { type: 'link', label: AUDIT_MENU.label, path: AUDIT_MENU.path }]
-  }
-  if (role === 'INSURER_MANAGER') {
-    return menuItemsToEntries(INSURER_MANAGER_MENU)
-  }
-  if (role === 'LOSS_ADJUSTER') {
-    return menuItemsToEntries(LOSS_ADJUSTER_MENU)
-  }
-  if (role === 'GA_STAFF') {
-    return menuItemsToEntries(GA_STAFF_MENU)
-  }
-  if (role === 'GA_ADMIN' || role === 'USER') {
-    const items = buildGaTenantDashboardMenu(gaCode, gaName)
-    if (role === 'GA_ADMIN') {
-      items.push({ type: 'divider' }, { type: 'link', label: AUDIT_MENU.label, path: AUDIT_MENU.path })
-    }
-    return items
-  }
-  return []
-}
 
 function showInsurerManagerHealthBanner(role: string | undefined): boolean {
   return role === 'SUPER_ADMIN' || role === 'GA_ADMIN'
@@ -157,6 +110,18 @@ export function DashboardPage() {
   const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
   const [preparingNoticeOpen, setPreparingNoticeOpen] = useState(false)
 
+  /*
+   * `useIsMobile` 을 데이터 빌딩 용도로 1회 호출한다.
+   *
+   * §8-2 원칙 4 "페이지 container 의 View 분기에 `useIsMobile` 금지" 는 "PC/Mobile
+   * 마크업 전체를 한 container 에서 토글하지 말라"는 의도다. 여기는 메뉴 리스트에
+   * 한 항목(`/memo`)을 포함할지만 결정하는 스위치로, 마크업 분기가 아니다.
+   *
+   * 목적: 모바일 대시보드 ↔ 모바일 드로어 가 **완전히 같은** 메뉴 리스트를 렌더하게 하여
+   *      "둘이 달라 보인다" 는 회귀를 구조적으로 방지한다.
+   */
+  const isMobile = useIsMobile()
+
   const loadImHealth = useCallback(async () => {
     if (!showImHealth || !token?.trim()) {
       return
@@ -213,23 +178,21 @@ export function DashboardPage() {
     }
   }, [token, user?.id, user?.teamId, role])
 
-  const menuItems = useMemo(() => {
-    const base = menuForSession(role, user?.gaCode, user?.gaName).filter((entry) =>
-      entry.type === 'divider' ? true : entry.path !== '/memo',
-    )
-    if (!teamMenuManageVisible) {
-      return base
-    }
-    const out = [...base]
-    const filesIdx = out.findIndex((e) => e.type === 'link' && e.path === '/team/files')
-    const entry: MenuEntry = { type: 'link', label: '팀 관리', path: '/team/manage' }
-    if (filesIdx >= 0) {
-      out.splice(filesIdx + 1, 0, entry)
-    } else {
-      out.push(entry)
-    }
-    return out
-  }, [role, user?.gaCode, user?.gaName, teamMenuManageVisible])
+  /*
+   * 대시보드 메뉴 — `buildAppMenuForSession` 단일 진실 원천 호출.
+   *
+   *   - `includeMemo: isMobile` : 모바일 대시보드만 메모 카드 노출(드로어와 동일).
+   *                               PC 대시보드는 우측 메모 패널이 상시이므로 제외.
+   *   - `teamMenuManageVisible` : 팀 오너일 때만 "팀 관리" 카드를 `/team/files` 뒤에 주입.
+   *
+   * divider 는 대시보드 카드 UI 에서는 유지해 섹션 구분선 역할을 한다.
+   */
+  const menuItems = useMemo<MenuEntry[]>(() => {
+    return buildAppMenuForSession(role, user?.gaCode, user?.gaName, {
+      includeMemo: isMobile,
+      teamMenuManageVisible,
+    })
+  }, [role, user?.gaCode, user?.gaName, teamMenuManageVisible, isMobile])
 
   return (
     <main className="page dashboard-page--centered">

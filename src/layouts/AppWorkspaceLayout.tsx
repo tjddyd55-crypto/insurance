@@ -13,69 +13,16 @@ import ResponsiveLayout from '../components/ResponsiveLayout'
 import PCHeader from '../components/layout/PCHeader'
 import { useAuth } from '../features/auth/AuthProvider'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
-import {
-  buildGaTenantDashboardMenu,
-  GA_STAFF_MENU,
-  INSURER_MANAGER_MENU,
-  LOSS_ADJUSTER_MENU,
-  type GaTenantDashboardMenuEntry,
-  type GaTenantMenuItem,
-} from '../features/dashboard/gaTenantMenu'
+import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import { fetchTeamMembers } from '../features/team/api/teamApi'
 import MemoPanel from './MemoPanel'
 import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
 import useIsMobile from '../hooks/useIsMobile'
 
-type SidebarNavEntry = GaTenantDashboardMenuEntry
-
 const MEMO_DEFAULT_WIDTH = 420
 const MEMO_MIN_WIDTH = 320
 const MEMO_MAX_WIDTH_FALLBACK = 1920
-
-function menuItemsToEntries(items: GaTenantMenuItem[]): SidebarNavEntry[] {
-  return items.map((item) => ({ type: 'link', label: item.label, path: item.path }))
-}
-
-const AUDIT_MENU: GaTenantMenuItem = { label: '보안 감사 로그', path: '/admin/audit-logs' }
-
-const SUPER_ADMIN_MENU: GaTenantMenuItem[] = [
-  { label: 'GA 관리', path: '/admin/ga' },
-  { label: '담당자 관리', path: '/admin/delegates' },
-  { label: '유저 관리', path: '/admin/users' },
-  { label: '운영 통계', path: '/admin/analytics' },
-  { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
-]
-
-function buildSidebarEntries(
-  role: string | undefined,
-  gaCode: string | undefined,
-  gaName: string | undefined,
-): SidebarNavEntry[] {
-  if (role === 'SUPER_ADMIN') {
-    return [
-      ...menuItemsToEntries(SUPER_ADMIN_MENU),
-      { type: 'link', label: AUDIT_MENU.label, path: AUDIT_MENU.path },
-    ]
-  }
-  if (role === 'INSURER_MANAGER') {
-    return menuItemsToEntries(INSURER_MANAGER_MENU)
-  }
-  if (role === 'LOSS_ADJUSTER') {
-    return menuItemsToEntries(LOSS_ADJUSTER_MENU)
-  }
-  if (role === 'GA_STAFF') {
-    return menuItemsToEntries(GA_STAFF_MENU)
-  }
-  if (role === 'GA_ADMIN' || role === 'USER') {
-    const items = buildGaTenantDashboardMenu(gaCode, gaName)
-    if (role === 'GA_ADMIN') {
-      items.push({ type: 'divider' }, { type: 'link', label: AUDIT_MENU.label, path: AUDIT_MENU.path })
-    }
-    return items
-  }
-  return []
-}
 
 function isActivePath(pathname: string, itemPath: string): boolean {
   if (itemPath === '/contacts') {
@@ -201,34 +148,20 @@ function AppWorkspaceLayoutMobileShell() {
   /*
    * Mobile 드로어 메뉴 구성.
    *
-   * 플랫폼별 정책:
-   *  - PC   : `AppWorkspaceLayoutPCShell` 이 우측에 메모 패널을 상시 렌더하므로
-   *           `/memo` 메뉴 항목을 노출하지 않는다 (중복 접근 경로 회피).
-   *  - Mobile: 우측 상시 패널이 없으므로 `/memo` 를 드로어에 명시적으로 주입해
-   *           모바일 사용자가 메모 화면에 접근할 수 있게 한다.
+   * `buildAppMenuForSession` (gaTenantMenu.ts) 이 "대시보드 vs 드로어 vs PC 사이드바"
+   * 공통 단일 진실 원천이다. 여기서 Mobile 용 옵션만 전달한다:
    *
-   * divider 는 모바일 드로어에서 의미가 약해 일괄 제거한다.
+   *   - `includeMemo: true` : 모바일은 우측 상시 메모 패널이 없으므로 `/memo` 항목을 주입.
+   *   - `teamMenuManageVisible`: 팀 오너일 때만 "팀 관리" 항목을 `/team/files` 뒤에 주입.
+   *
+   * divider 는 드로어에서 시각적으로 의미가 약해 렌더 측에서 무시한다(아래 `if (item.type === 'divider') return null`).
+   * 빌더 단계에서는 제거하지 않는다 — 대시보드와 동일한 엔트리 배열을 유지해 호출처 간 일관성을 보장한다.
    */
   const sidebarItems = useMemo(() => {
-    const memoMenuEntry: SidebarNavEntry = { type: 'link', label: '메모', path: '/memo' }
-
-    const base = buildSidebarEntries(user?.role, user?.gaCode, user?.gaName).filter(
-      (entry) => entry.type !== 'divider',
-    )
-    const withMemo: SidebarNavEntry[] = [...base, memoMenuEntry]
-
-    if (!teamMenuManageVisible) {
-      return withMemo
-    }
-    const out = [...withMemo]
-    const filesIdx = out.findIndex((entry) => entry.type === 'link' && entry.path === '/team/files')
-    const teamManageEntry: SidebarNavEntry = { type: 'link', label: '팀 관리', path: '/team/manage' }
-    if (filesIdx >= 0) {
-      out.splice(filesIdx + 1, 0, teamManageEntry)
-    } else {
-      out.push(teamManageEntry)
-    }
-    return out
+    return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
+      includeMemo: true,
+      teamMenuManageVisible,
+    })
   }, [teamMenuManageVisible, user?.role, user?.gaCode, user?.gaName])
 
   useEffect(() => {
@@ -302,8 +235,31 @@ function AppWorkspaceLayoutMobileShell() {
         </header>
       ) : null}
 
+      {/*
+       * 오버레이 드로어:
+       *   - 과거에는 `<nav>` 를 `<main>` 앞에 인라인으로 렌더해 본문이 드로어 만큼
+       *     아래로 밀리는 회귀가 있었다. (브라우저가 기본 block flow 로 배치)
+       *   - 드로어는 "현재 보던 페이지 위에 떠 있는 네비" 여야 한다는 요구사항
+       *     (모바일 앱 UX 관행) 을 만족하도록 `position: fixed` + backdrop 구조로
+       *     전환한다. 본문 DOM 은 건드리지 않고 드로어가 topbar 아래부터 화면 위에 떠
+       *     있으며, backdrop 을 터치하면 드로어가 닫힌다.
+       *   - CSS 는 `.mobile-workspace-drawer--overlay` / `.mobile-workspace-drawer-backdrop`
+       *     스코프에서 일괄 관리한다 (src/index.css).
+       */}
       {drawerOpen ? (
-        <nav className="mobile-workspace-drawer" aria-label="모바일 주요 메뉴">
+        <div
+          className="mobile-workspace-drawer-backdrop"
+          role="presentation"
+          aria-hidden
+          onClick={() => setDrawerOpen(false)}
+        />
+      ) : null}
+
+      {drawerOpen ? (
+        <nav
+          className="mobile-workspace-drawer mobile-workspace-drawer--overlay"
+          aria-label="모바일 주요 메뉴"
+        >
           {sidebarItems.map((item, index) => {
             if (item.type === 'divider') {
               return null
@@ -383,22 +339,20 @@ function AppWorkspaceLayoutPCShell() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [selectedCustomerPc, setSelectedCustomerPc] = useState<string | null>(extractCustomerIdFromPath(location.pathname))
 
+  /*
+   * PC 사이드바 메뉴 — `buildAppMenuForSession` 단일 진실 원천 호출.
+   *
+   *   - `includeMemo: false`  : PC 는 우측에 메모 패널이 상시 렌더되므로 사이드바
+   *                             에서 `/memo` 를 제외한다 (접근 경로 중복 회피).
+   *   - `teamMenuManageVisible`: 팀 오너일 때만 "팀 관리" 항목 주입.
+   *
+   * divider 는 렌더 측에서 그대로 표시한다 (섹션 구분 선).
+   */
   const sidebarItems = useMemo(() => {
-    const base = buildSidebarEntries(user?.role, user?.gaCode, user?.gaName).filter((entry) =>
-      entry.type === 'divider' ? true : entry.path !== '/memo',
-    )
-    if (!teamMenuManageVisible) {
-      return base
-    }
-    const out = [...base]
-    const filesIdx = out.findIndex((entry) => entry.type === 'link' && entry.path === '/team/files')
-    const teamManageEntry: SidebarNavEntry = { type: 'link', label: '팀 관리', path: '/team/manage' }
-    if (filesIdx >= 0) {
-      out.splice(filesIdx + 1, 0, teamManageEntry)
-    } else {
-      out.push(teamManageEntry)
-    }
-    return out
+    return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
+      includeMemo: false,
+      teamMenuManageVisible,
+    })
   }, [teamMenuManageVisible, user?.role, user?.gaCode, user?.gaName])
 
   const sidebarLinkIsActive = useCallback((pathname: string, itemPath: string) => {

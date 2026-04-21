@@ -1326,6 +1326,43 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   background: var(--bg-card, #10141d);
 }
 
+/*
+ * 오버레이 드로어 — 모바일 햄버거 메뉴 UX 관행.
+ *
+ *  - topbar(48px) 아래부터 화면 위에 떠 있으며 본문을 밀어내지 않는다.
+ *  - backdrop 을 터치하면 드로어가 닫힌다 (AppWorkspaceLayout 쪽에서 처리).
+ *  - 메뉴 항목이 많을 경우 내부 스크롤 (overflow: auto).
+ *
+ * z-index 정책 (AppWorkspaceLayout 주석과 일치):
+ *   - backdrop: 900
+ *   - drawer:   901 (backdrop 위)
+ *   - confirm dialog: 10000 (drawer 위)
+ *   - mobile modal overlay: 9999
+ *
+ * 의도적으로 모바일 modal (9999) 보다 낮게 둔다 — 모달이 열린 상태에서 드로어
+ * 가 떠오르면 UX 가 깨진다. 드로어는 상시 하단 레이어다.
+ */
+.mobile-workspace-drawer-backdrop {
+  position: fixed;
+  top: 48px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 900;
+}
+
+.mobile-workspace-drawer--overlay {
+  position: fixed;
+  top: 48px;
+  left: 0;
+  right: 0;
+  z-index: 901;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.45);
+}
+
 .mobile-workspace-content {
   width: 100%;
   min-width: 0;
