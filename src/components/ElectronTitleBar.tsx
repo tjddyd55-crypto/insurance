@@ -5,7 +5,12 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../features/auth/AuthProvider'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 
-const APP_TITLE = '\uBCF4\uD5D8 \uC2E0\uCCAD\u00B7\uACE0\uAC1D\uAD00\uB9AC'
+/**
+ * 로그인 전(HIDE_GA_BAR_PATHS 포함) 또는 테넌트 컨텍스트가 없을 때 타이틀바 중앙에
+ * 표시되는 기본 브랜드 문구. 로그인 후에는 `formatGaBannerLabel` 로 사용자 소속
+ * GA 이름이 표시된다(하드코딩 없음).
+ */
+const APP_TITLE = 'FC-OA'
 const BACK_LABEL = '\uB4A4\uB85C\uAC00\uAE30'
 
 export function ElectronTitleBar() {

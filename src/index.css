@@ -601,12 +601,17 @@ button:focus-visible:not(:disabled) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 8px;
+  /* 우측 여백 제거 — 캡션 버튼이 바 경계에 딱 붙도록 좌/우 패딩 0.
+   * (뒤로가기/캡션 버튼은 자체 width·height: 100% 이므로 내부 여백이 없어도 클릭 영역이 충분하다.) */
+  padding: 0;
   box-sizing: border-box;
 }
 
+/* 좌·우 영역은 absolute 로 깔린 중앙 레이어(`.title-center`) 위에 올라와야 버튼이 클릭된다. */
 .top-title-bar .title-left,
 .top-title-bar .title-right {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: stretch;
   -webkit-app-region: no-drag;
@@ -614,11 +619,14 @@ button:focus-visible:not(:disabled) {
 }
 
 /* 뒤로가기 버튼: Windows 11 탐색기의 네비게이션 버튼과 같은 감각.
- * 캡션 버튼과 동일한 46px 너비·32px 높이·둥근 모서리 없음·테두리 없음. */
+ * 캡션 버튼과 동일한 46px 너비·32px 높이·둥근 모서리 없음·테두리 없음.
+ * `.button` 기본 min-height(48px)이 FormButton 경유로 들어오므로 타이틀바 높이에 정확히
+ * 맞추려면 `min-height: 0` 으로 명시 override 한다. */
 .top-title-bar .back-btn {
   width: 46px;
   min-width: 46px;
   height: 100%;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -646,7 +654,9 @@ button:focus-visible:not(:disabled) {
 
 /* Electron 타이틀바 컨테이너: Windows 11 표준 32px.
  * 빈 공백도 드래그 가능하도록 컨테이너 전체를 drag region으로 두고,
- * 클릭 대상(back 버튼, 캡션 버튼)에만 no-drag를 명시한다(기존 규칙 유지). */
+ * 클릭 대상(back 버튼, 캡션 버튼)에만 no-drag를 명시한다(기존 규칙 유지).
+ * `position: sticky` 자체가 positioned ancestor 이므로 자식 `.title-center`
+ * 의 absolute 기준점이 된다(별도 relative 불필요). */
 .title-bar.electron-title-bar {
   position: sticky;
   top: 0;
@@ -680,9 +690,21 @@ button:focus-visible:not(:disabled) {
   app-region: no-drag;
 }
 
+/* 중앙 문구("FC-OA" 또는 소속 GA 이름)를 타이틀바 전체 폭 기준 **정중앙**에 고정한다.
+ * - 좌측 뒤로가기(46px)와 우측 캡션 버튼(138px)의 너비가 비대칭이라 플렉스만으로는
+ *   진짜 중앙이 나오지 않는다.
+ * - 중앙 레이어를 absolute 로 바 전체에 깔아 기준을 바 자체로 두고,
+ *   `pointer-events: none` 으로 좌/우 버튼 클릭을 방해하지 않는다.
+ *   내부 `.drag-area` 만 `pointer-events: auto` 로 드래그 가능. */
 .title-bar.electron-title-bar .title-center {
-  flex: 1;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .electron-title-bar__leading {
@@ -728,15 +750,17 @@ button:focus-visible:not(:disabled) {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 35%, transparent);
 }
 
-/* 드래그 영역: Windows 표준처럼 왼쪽에 작은 앱 타이틀, 오른쪽으로 넓게 드래그 존.
- * cursor: grab은 네이티브 프로그램에선 쓰지 않으므로 default로 되돌림. */
+/* 드래그 영역: 중앙 레이어 내부에 놓이며 자기 크기만큼만 차지한다.
+ * 좌·우 캡션 영역과 겹치지 않도록 좌우 여백을 캡션 너비(좌 46px · 우 138px) 만큼 확보한다.
+ * cursor: grab 은 네이티브 프로그램에선 쓰지 않으므로 default. */
 .drag-area {
-  flex: 1;
-  min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  padding: 0 8px 0 6px;
+  justify-content: center;
+  min-width: 0;
+  max-width: calc(100% - 46px - 138px);
+  padding: 0;
+  pointer-events: auto;
   cursor: default;
   user-select: none;
   -webkit-app-region: drag;
@@ -747,7 +771,7 @@ button:focus-visible:not(:disabled) {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-sub);
-  text-align: left;
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
