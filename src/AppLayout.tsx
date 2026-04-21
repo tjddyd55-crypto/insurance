@@ -25,7 +25,12 @@ export function AppLayout() {
 
   return (
     <div className={rootClass}>
-      {isElectronApp() && isAuthenticated && !hidePublicIntroChrome ? <ElectronTitleBar /> : null}
+      {/*
+       * Electron 에서는 로그인 여부와 무관하게 타이틀바를 노출한다.
+       * 창 최소화/최대화/닫기 버튼은 비인증 상태에서도 제공되어야 하기 때문.
+       * (`ElectronTitleBar` 내부의 GA 테넌트·뒤로가기 로직은 이미 비인증을 고려한다)
+       */}
+      {isElectronApp() && !hidePublicIntroChrome ? <ElectronTitleBar /> : null}
       {!isElectronApp() && isAuthenticated && !hidePublicIntroChrome ? <WebProgramTopBar /> : null}
       {!hideMobileLoginTopChrome && !hidePublicIntroChrome ? <OperationalMessageBanner /> : null}
       {isAuthenticated ? <GlobalBackHandlerHost /> : null}
