@@ -18,6 +18,7 @@ import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/contex
 import { fetchTeamMembers } from '../features/team/api/teamApi'
 import MemoPanel from './MemoPanel'
 import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
+import { MemoMobileFab } from '../features/memo/components/MemoMobileFab'
 import useIsMobile from '../hooks/useIsMobile'
 
 const MEMO_DEFAULT_WIDTH = 420
@@ -151,15 +152,15 @@ function AppWorkspaceLayoutMobileShell() {
    * `buildAppMenuForSession` (gaTenantMenu.ts) 이 "대시보드 vs 드로어 vs PC 사이드바"
    * 공통 단일 진실 원천이다. 여기서 Mobile 용 옵션만 전달한다:
    *
-   *   - `includeMemo: true` : 모바일은 우측 상시 메모 패널이 없으므로 `/memo` 항목을 주입.
    *   - `teamMenuManageVisible`: 팀 오너일 때만 "팀 관리" 항목을 `/team/files` 뒤에 주입.
    *
    * divider 는 드로어에서 시각적으로 의미가 약해 렌더 측에서 무시한다(아래 `if (item.type === 'divider') return null`).
    * 빌더 단계에서는 제거하지 않는다 — 대시보드와 동일한 엔트리 배열을 유지해 호출처 간 일관성을 보장한다.
+   *
+   * 메모 진입은 전용 FAB(`MemoMobileFab`) 로 분리되어 더 이상 드로어에 포함하지 않는다.
    */
   const sidebarItems = useMemo(() => {
     return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
-      includeMemo: true,
       teamMenuManageVisible,
     })
   }, [teamMenuManageVisible, user?.role, user?.gaCode, user?.gaName])
@@ -331,6 +332,12 @@ function AppWorkspaceLayoutMobileShell() {
       >
         <Outlet />
       </main>
+
+      {/*
+       * 메모 진입 FAB — 모바일 전용, 화면 우측 하단 1/3 지점에 고정.
+       * `/memo` 경로에서는 내부에서 자기 자신을 숨긴다. (MemoMobileFab 참조)
+       */}
+      <MemoMobileFab />
     </div>
   )
 }
@@ -356,15 +363,14 @@ function AppWorkspaceLayoutPCShell() {
   /*
    * PC 사이드바 메뉴 — `buildAppMenuForSession` 단일 진실 원천 호출.
    *
-   *   - `includeMemo: false`  : PC 는 우측에 메모 패널이 상시 렌더되므로 사이드바
-   *                             에서 `/memo` 를 제외한다 (접근 경로 중복 회피).
    *   - `teamMenuManageVisible`: 팀 오너일 때만 "팀 관리" 항목 주입.
    *
    * divider 는 렌더 측에서 그대로 표시한다 (섹션 구분 선).
+   *
+   * PC 는 우측 상시 `MemoPanel` 로 메모에 접근하므로 사이드바에는 메모 항목이 없다.
    */
   const sidebarItems = useMemo(() => {
     return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
-      includeMemo: false,
       teamMenuManageVisible,
     })
   }, [teamMenuManageVisible, user?.role, user?.gaCode, user?.gaName])

@@ -1401,6 +1401,58 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   padding-top: 4px;
 }
 
+/*
+ * 모바일 전용 메모 FAB — MemoMobileFab 의 배치 정책.
+ *
+ *  · `--memo-fab-bottom` : 화면 하단 기준 세로 오프셋(1/3 지점). 위치 정책 변경은
+ *                          이 변수 한 줄만 수정하면 된다.
+ *  · z-index 850         : drawer(901)·modal(9999) 보다는 아래, 일반 콘텐츠 위에
+ *                          항상 떠 있는 계층. (AppWorkspaceLayout z-index 정책 참조)
+ */
+:root {
+  --memo-fab-bottom: 33.333dvh;
+}
+
+.memo-mobile-fab {
+  position: fixed;
+  right: 16px;
+  bottom: var(--memo-fab-bottom);
+  z-index: 850;
+  width: 56px;
+  height: 56px;
+  min-height: 56px;
+  padding: 0;
+  border: none;
+  border-radius: 28px;
+  background: var(--brand-primary, #2563eb);
+  color: var(--text-on-primary, #fff);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.memo-mobile-fab:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--brand-primary, #2563eb) 88%, #000);
+}
+
+.memo-mobile-fab:active {
+  transform: translateY(1px);
+}
+
+.memo-mobile-fab:focus-visible {
+  outline: none;
+  box-shadow:
+    0 10px 24px -8px rgba(0, 0, 0, 0.45),
+    0 0 0 3px color-mix(in srgb, var(--brand-primary, #2563eb) 35%, transparent);
+}
+
 .mobile-workspace-content {
   width: 100%;
   min-width: 0;

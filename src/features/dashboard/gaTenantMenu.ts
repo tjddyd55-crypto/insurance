@@ -163,13 +163,19 @@ export function buildGaTenantDashboardMenu(
  *
  * ## 옵션
  *
- *  - `includeMemo`: "메모" 항목(`/memo`) 주입 여부.
- *      - Mobile 드로어 / Mobile 대시보드: `true` (우측 상시 메모 패널이 없음).
- *      - PC 사이드바 / PC 대시보드:       `false` (우측 메모 패널 상시 → 중복 회피).
- *
  *  - `teamMenuManageVisible`: 팀 소유자 여부.
  *      - `true` 면 `/team/files` 바로 다음에 "팀 관리" 를 주입.
  *      - 자리를 고정해 사이드바·대시보드·드로어 모두 같은 위치에 나타나게 한다.
+ *
+ * ## 메모 진입 정책 (2026-04 변경)
+ *
+ * "메모" 는 **더 이상 메뉴에 포함되지 않는다**. 진입 경로는 디바이스별 전용 UI 로
+ * 이원화되어 있어서 공통 메뉴에서 다루면 오히려 사용자 혼선이 커진다:
+ *   - PC    : 우측 상시 메모 패널(`MemoPanel`)
+ *   - 모바일: 화면 우측 하단 고정 FAB(`MemoMobileFab`)
+ *
+ * 따라서 과거의 `includeMemo` 옵션은 제거했다. 메뉴 빌더 공용 인터페이스에서 메모
+ * 개념이 사라져 호출처가 디바이스별 분기 없이 단일 빌더를 호출할 수 있다.
  *
  * ## 반환 타입
  *
@@ -177,7 +183,6 @@ export function buildGaTenantDashboardMenu(
  * 여부를 결정한다 (예: 모바일 드로어는 divider 를 일괄 무시).
  */
 export type AppMenuBuildOptions = {
-  includeMemo?: boolean
   teamMenuManageVisible?: boolean
 }
 
@@ -201,7 +206,7 @@ export function buildAppMenuForSession(
   gaName: string | undefined,
   options: AppMenuBuildOptions = {},
 ): GaTenantDashboardMenuEntry[] {
-  const { includeMemo = false, teamMenuManageVisible = false } = options
+  const { teamMenuManageVisible = false } = options
 
   const base: GaTenantDashboardMenuEntry[] = (() => {
     if (role === 'SUPER_ADMIN') {
@@ -233,27 +238,19 @@ export function buildAppMenuForSession(
   })()
 
   // 팀 관리 주입: `/team/files` 바로 다음 자리에 고정.
-  let withTeam = base
-  if (teamMenuManageVisible) {
-    const filesIdx = base.findIndex((entry) => entry.type === 'link' && entry.path === '/team/files')
-    const teamManageEntry: GaTenantDashboardMenuEntry = {
-      type: 'link',
-      label: '팀 관리',
-      path: '/team/manage',
-    }
-    if (filesIdx >= 0) {
-      withTeam = [...base.slice(0, filesIdx + 1), teamManageEntry, ...base.slice(filesIdx + 1)]
-    } else {
-      withTeam = [...base, teamManageEntry]
-    }
+  if (!teamMenuManageVisible) {
+    return base
   }
-
-  // 메모 주입: 항상 리스트 맨 끝.
-  if (!includeMemo) {
-    return withTeam
+  const filesIdx = base.findIndex((entry) => entry.type === 'link' && entry.path === '/team/files')
+  const teamManageEntry: GaTenantDashboardMenuEntry = {
+    type: 'link',
+    label: '팀 관리',
+    path: '/team/manage',
   }
-  const memoEntry: GaTenantDashboardMenuEntry = { type: 'link', label: '메모', path: '/memo' }
-  return [...withTeam, memoEntry]
+  if (filesIdx >= 0) {
+    return [...base.slice(0, filesIdx + 1), teamManageEntry, ...base.slice(filesIdx + 1)]
+  }
+  return [...base, teamManageEntry]
 }
 
 /**
