@@ -66,9 +66,15 @@ import CustomersPagePCView from './customers/CustomersPagePCView'
 /** WebView: touchstart·mousedown·합성 click 연속 시 복사/알림 중복 방지 */
 const INVITE_COPY_POINTER_DEBOUNCE_MS = 450
 
-/** 오른쪽 작업영역(파일·상담)이 라우트로 고객을 고정할 때 — 카드 접힘과 `?customerId=` 동기화 충돌 방지 */
+/** 오른쪽 작업영역(파일·상담·메모·GA)이 라우트로 고객을 고정할 때 — 카드 접힘과 `?customerId=` 동기화 충돌 방지
+ *  새 탭이 추가되면 아래 목록만 갱신하면 된다. regex 오타·누락으로 인한 UX 차이를 막기 위해 배열로 관리한다.
+ */
+const WORKSPACE_SIDE_DETAIL_TABS = ['files', 'consultations', 'ga-excel', 'memos'] as const
+const WORKSPACE_SIDE_DETAIL_PATH_RE = new RegExp(
+  `^/customers/[^/]+/(?:${WORKSPACE_SIDE_DETAIL_TABS.join('|')})(?:/|$)`,
+)
 function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
-  return /^\/customers\/[^/]+\/(files|consultations|ga-excel)(\/|$)/.test(pathname)
+  return WORKSPACE_SIDE_DETAIL_PATH_RE.test(pathname)
 }
 
 function resolveCustomerWorkspaceTab(pathname: string): 'files' | 'consultations' | 'memos' | 'ga-excel' {
@@ -1479,6 +1485,13 @@ export default function CustomersPage() {
     // 이 구간에서 쿼리 기반 동기화까지 동시에 적용하면 selected 값이 흔들리며
     // update depth 경고가 발생할 수 있어 모바일에 한해 우선순위를 고정한다.
     if (isMobile && expandedId != null) {
+      return
+    }
+    // URL에 `?customerId=`가 없다는 것은 "모름"이지 "해제 지시"가 아니다.
+    // path(/customers/:id/<tab>)로 직접 이동한 경우 query가 비어 있으므로, 이 때
+    // selected를 null로 덮어쓰면 직후 다른 effect가 다시 expandedId로 복구하며
+    // selected가 B→null→B로 튀어 한 프레임 지연이 발생한다.
+    if (selectedCustomerIdFromQuery == null) {
       return
     }
     if (selectedCustomerIdFromQuery === selectedCustomerId) {

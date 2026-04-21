@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { devWorkspaceLog } from '../../../dev/devWorkspaceLog'
@@ -155,7 +155,11 @@ export default function CustomerWorkspaceLayout() {
 
   const safeTab = currentPathTab ?? 'files'
 
-  useEffect(() => {
+  // 좌측 리스트가 쿼리만 먼저 바꾸고 path가 뒤따라오는 순간,
+  // 자식(Files/Consultations/Memos/GA)이 useParams로 path를 읽기 때문에
+  // 이전 고객 화면이 한 프레임 보이는 "한 박자 지연"이 발생한다.
+  // useLayoutEffect로 paint 이전에 path를 맞춰 중간 상태를 사용자에게 노출하지 않는다.
+  useLayoutEffect(() => {
     if (isMobile || queryCustomerId == null || selectedCustomerId == null) {
       return
     }
