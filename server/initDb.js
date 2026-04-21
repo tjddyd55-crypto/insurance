@@ -842,6 +842,31 @@ export async function initDb() {
       AND TRIM(content) <> ''
   `)
 
+  /*
+   * feature_request_comments — 문의/요청 항목에 달리는 코멘트(답변) 테이블.
+   *
+   *  - author_role 체크 제약에 'requester' 도 허용하여 추후 요청자의 역답변 기능을
+   *    열 때 스키마 마이그레이션 없이 API 만 추가하면 되도록 확장 여유를 둔다.
+   *  - 요청이 삭제되면 CASCADE 로 함께 삭제(고아 코멘트 방지).
+   *  - request_id + created_at 복합 인덱스로 "특정 요청의 시간순 목록" 질의 최적화.
+   */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feature_request_comments (
+      id SERIAL PRIMARY KEY,
+      request_id INTEGER NOT NULL REFERENCES feature_requests(id) ON DELETE CASCADE,
+      author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      author_role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT feature_request_comments_role_check
+        CHECK (author_role IN ('admin', 'requester'))
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_feature_request_comments_request
+    ON feature_request_comments(request_id, created_at)
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS insurance_forms (
       id TEXT PRIMARY KEY,

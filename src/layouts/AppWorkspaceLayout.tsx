@@ -18,6 +18,7 @@ import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/contex
 import { fetchTeamMembers } from '../features/team/api/teamApi'
 import MemoPanel from './MemoPanel'
 import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
+import { MemoMobileFab } from '../features/memo/components/MemoMobileFab'
 import useIsMobile from '../hooks/useIsMobile'
 
 const MEMO_DEFAULT_WIDTH = 420
@@ -151,15 +152,15 @@ function AppWorkspaceLayoutMobileShell() {
    * `buildAppMenuForSession` (gaTenantMenu.ts) 이 "대시보드 vs 드로어 vs PC 사이드바"
    * 공통 단일 진실 원천이다. 여기서 Mobile 용 옵션만 전달한다:
    *
-   *   - `includeMemo: true` : 모바일은 우측 상시 메모 패널이 없으므로 `/memo` 항목을 주입.
    *   - `teamMenuManageVisible`: 팀 오너일 때만 "팀 관리" 항목을 `/team/files` 뒤에 주입.
    *
    * divider 는 드로어에서 시각적으로 의미가 약해 렌더 측에서 무시한다(아래 `if (item.type === 'divider') return null`).
    * 빌더 단계에서는 제거하지 않는다 — 대시보드와 동일한 엔트리 배열을 유지해 호출처 간 일관성을 보장한다.
+   *
+   * 메모 진입은 전용 FAB(`MemoMobileFab`) 로 분리되어 더 이상 드로어에 포함하지 않는다.
    */
   const sidebarItems = useMemo(() => {
     return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
-      includeMemo: true,
       teamMenuManageVisible,
     })
   }, [teamMenuManageVisible, user?.role, user?.gaCode, user?.gaName])
@@ -256,58 +257,93 @@ function AppWorkspaceLayoutMobileShell() {
       ) : null}
 
       {drawerOpen ? (
-        <nav
+        /*
+         * 모바일 드로어 = [스크롤되는 메뉴 nav] + [하단 고정 footer]
+         *
+         * 과거에는 `<nav>` 하나에 메뉴 항목과 로그아웃을 함께 넣어서 "로그아웃이
+         * 내정보 섹션 마지막 아이템 옆에 끼어 보이는" 회귀가 있었다. 구조가 한 바구니
+         * 라서 CSS 로만 하단 고정을 흉내내도 섹션 소속인지 footer 인지 DOM 수준에서
+         * 구분되지 않아 회귀가 되돌아왔다.
+         *
+         * 해결: outer 를 `<div>` 컨테이너로 두고 안에 (a) 메뉴 전담 `<nav>` · (b)
+         * 세션 액션 전담 `<div class="...__footer">` 를 물리적으로 분리.
+         *   - nav 는 스크롤 담당(flex:1; overflow-y:auto)
+         *   - footer 는 로그아웃 같은 "메뉴 외 액션" 전용. 앞으로 여러 액션이
+         *     늘어나도 이 슬롯에만 추가하면 되고 섹션 구분이 깨지지 않는다.
+         *
+         * aria-label 은 내부 `<nav>` 가 소유한다(의미의 주체).
+         */
+        <div
           className="mobile-workspace-drawer mobile-workspace-drawer--overlay"
-          aria-label="모바일 주요 메뉴"
+          role="presentation"
         >
-          {sidebarItems.map((item, index) => {
-            if (item.type === 'divider') {
-              return null
-            }
-            const isDisabled = Boolean(item.disabled || item.preparing)
-            const isActive =
-              !isDisabled &&
-              item.path.trim() !== '' &&
-              item.path !== '#' &&
-              isActivePath(location.pathname, item.path)
-            return (
-              <FormButton
-                key={`${item.path}-${item.label}-${index}`}
-                htmlType="button"
-                variant="secondary"
-                className={`workspace-sidebar__menu-item${isActive ? ' workspace-sidebar__menu-item--active' : ''}`}
-                disabled={isDisabled}
-                onClick={() => {
-                  if (item.preparing || item.disabled) {
-                    window.alert('준비중입니다.')
-                    return
-                  }
-                  if (!item.path.trim() || item.path === '#') {
-                    return
-                  }
-                  const nextCustomerId = extractCustomerIdFromPath(item.path)
-                  setMobileSelectedCustomer(nextCustomerId)
-                  pushMobilePage(item.path)
-                  navigate(item.path)
-                  setDrawerOpen(false)
-                }}
-              >
-                {item.label}
-              </FormButton>
-            )
-          })}
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="mobile-workspace-drawer__logout"
-            onClick={() => {
-              logout()
-              navigate('/login', { replace: true })
-            }}
-          >
-            로그아웃
-          </FormButton>
-        </nav>
+          <nav className="mobile-workspace-drawer__nav" aria-label="모바일 주요 메뉴">
+            {sidebarItems.map((item, index) => {
+              if (item.type === 'divider') {
+                return null
+              }
+              if (item.type === 'section') {
+                return (
+                  <div
+                    key={`mobile-drawer-section-${index}`}
+                    className="mobile-workspace-drawer__section"
+                    role="presentation"
+                  >
+                    {item.label}
+                  </div>
+                )
+              }
+              const isDisabled = Boolean(item.disabled || item.preparing)
+              const isActive =
+                !isDisabled &&
+                item.path.trim() !== '' &&
+                item.path !== '#' &&
+                isActivePath(location.pathname, item.path)
+              return (
+                <FormButton
+                  key={`${item.path}-${item.label}-${index}`}
+                  htmlType="button"
+                  variant="secondary"
+                  className={`workspace-sidebar__menu-item${isActive ? ' workspace-sidebar__menu-item--active' : ''}`}
+                  disabled={isDisabled}
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={() => {
+                    /* 개발중 항목은 클릭 비활성 (alert 없음 · 배지 라벨로만 표시) */
+                    if (isDisabled) {
+                      return
+                    }
+                    if (!item.path.trim() || item.path === '#') {
+                      return
+                    }
+                    const nextCustomerId = extractCustomerIdFromPath(item.path)
+                    setMobileSelectedCustomer(nextCustomerId)
+                    pushMobilePage(item.path)
+                    navigate(item.path)
+                    setDrawerOpen(false)
+                  }}
+                >
+                  <span className="workspace-sidebar__menu-item-label">{item.label}</span>
+                  {item.badge ? (
+                    <span className="workspace-sidebar__menu-item-badge">{item.badge}</span>
+                  ) : null}
+                </FormButton>
+              )
+            })}
+          </nav>
+          <div className="mobile-workspace-drawer__footer" role="presentation">
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="mobile-workspace-drawer__logout"
+              onClick={() => {
+                logout()
+                navigate('/login', { replace: true })
+              }}
+            >
+              로그아웃
+            </FormButton>
+          </div>
+        </div>
       ) : null}
 
       <main
@@ -317,6 +353,12 @@ function AppWorkspaceLayoutMobileShell() {
       >
         <Outlet />
       </main>
+
+      {/*
+       * 메모 진입 FAB — 모바일 전용, 화면 우측 하단 1/3 지점에 고정.
+       * `/memo` 경로에서는 내부에서 자기 자신을 숨긴다. (MemoMobileFab 참조)
+       */}
+      <MemoMobileFab />
     </div>
   )
 }
@@ -342,15 +384,14 @@ function AppWorkspaceLayoutPCShell() {
   /*
    * PC 사이드바 메뉴 — `buildAppMenuForSession` 단일 진실 원천 호출.
    *
-   *   - `includeMemo: false`  : PC 는 우측에 메모 패널이 상시 렌더되므로 사이드바
-   *                             에서 `/memo` 를 제외한다 (접근 경로 중복 회피).
    *   - `teamMenuManageVisible`: 팀 오너일 때만 "팀 관리" 항목 주입.
    *
    * divider 는 렌더 측에서 그대로 표시한다 (섹션 구분 선).
+   *
+   * PC 는 우측 상시 `MemoPanel` 로 메모에 접근하므로 사이드바에는 메모 항목이 없다.
    */
   const sidebarItems = useMemo(() => {
     return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
-      includeMemo: false,
       teamMenuManageVisible,
     })
   }, [teamMenuManageVisible, user?.role, user?.gaCode, user?.gaName])
@@ -521,6 +562,17 @@ function AppWorkspaceLayoutPCShell() {
               if (item.type === 'divider') {
                 return <div key={`workspace-divider-${index}`} className="workspace-sidebar__divider" role="presentation" />
               }
+              if (item.type === 'section') {
+                return (
+                  <div
+                    key={`workspace-section-${index}`}
+                    className="workspace-sidebar__section"
+                    role="presentation"
+                  >
+                    {item.label}
+                  </div>
+                )
+              }
               const isDisabled = Boolean(item.disabled || item.preparing)
               const isActive =
                 !isDisabled &&
@@ -534,9 +586,13 @@ function AppWorkspaceLayoutPCShell() {
                   variant="secondary"
                   className={`workspace-sidebar__menu-item${isActive ? ' workspace-sidebar__menu-item--active' : ''}`}
                   disabled={isDisabled}
+                  aria-current={isActive ? 'page' : undefined}
                   onClick={() => {
-                    if (item.preparing || item.disabled) {
-                      setPreparingNoticeOpen(true)
+                    /*
+                     * 개발중(disabled/preparing) 항목은 클릭 자체가 비활성(모달/알림 없음).
+                     * 사용자에게는 옆에 붙은 `badge` 라벨로만 상태를 알린다.
+                     */
+                    if (isDisabled) {
                       return
                     }
                     if (!item.path.trim() || item.path === '#') {
@@ -546,23 +602,37 @@ function AppWorkspaceLayoutPCShell() {
                     navigate(item.path)
                   }}
                 >
-                  {item.label}
+                  <span className="workspace-sidebar__menu-item-label">{item.label}</span>
+                  {item.badge ? (
+                    <span className="workspace-sidebar__menu-item-badge">{item.badge}</span>
+                  ) : null}
                 </FormButton>
               )
             })}
           </nav>
 
-          <FormButton
-            className="workspace-sidebar__logout"
-            htmlType="button"
-            variant="secondary"
-            onClick={() => {
-              logout()
-              navigate('/login', { replace: true })
-            }}
-          >
-            로그아웃
-          </FormButton>
+          {/*
+            · 로그아웃은 .workspace-sidebar__footer 라는 별도 하단 블록에 둔다.
+              이전에는 <aside> 의 직접 자식으로 놓고 CSS margin-top: auto 로
+              하단에 밀어두려 했으나, 메뉴가 많아 aside 가 스크롤되는 상황에서
+              로그아웃이 스크롤 중간에 어정쩡하게 걸려 보이는 회귀가 있었다.
+            · 모바일 드로어의 .mobile-workspace-drawer__footer 와 동일한 구조로
+              통일해, "메뉴 리스트 마지막 뒤에 자연스럽게 붙은 하단 항목" 의미를
+              PC/모바일 양쪽이 같은 방식으로 표현한다.
+          */}
+          <div className="workspace-sidebar__footer" role="presentation">
+            <FormButton
+              className="workspace-sidebar__logout"
+              htmlType="button"
+              variant="secondary"
+              onClick={() => {
+                logout()
+                navigate('/login', { replace: true })
+              }}
+            >
+              로그아웃
+            </FormButton>
+          </div>
         </aside>
 
         <div

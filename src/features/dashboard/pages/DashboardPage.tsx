@@ -6,7 +6,6 @@ import { fetchTeamMembers } from '../../team/api/teamApi'
 import { useAuth } from '../../auth/AuthProvider'
 import { isGaStaffReadOnlyUi } from '../../auth/roleGuards'
 import { Button, Modal } from '../../../components/ui'
-import useIsMobile from '../../../hooks/useIsMobile'
 import { buildAppMenuForSession, type GaTenantDashboardMenuEntry } from '../gaTenantMenu'
 
 type MenuEntry = GaTenantDashboardMenuEntry
@@ -110,18 +109,6 @@ export function DashboardPage() {
   const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
   const [preparingNoticeOpen, setPreparingNoticeOpen] = useState(false)
 
-  /*
-   * `useIsMobile` 을 데이터 빌딩 용도로 1회 호출한다.
-   *
-   * §8-2 원칙 4 "페이지 container 의 View 분기에 `useIsMobile` 금지" 는 "PC/Mobile
-   * 마크업 전체를 한 container 에서 토글하지 말라"는 의도다. 여기는 메뉴 리스트에
-   * 한 항목(`/memo`)을 포함할지만 결정하는 스위치로, 마크업 분기가 아니다.
-   *
-   * 목적: 모바일 대시보드 ↔ 모바일 드로어 가 **완전히 같은** 메뉴 리스트를 렌더하게 하여
-   *      "둘이 달라 보인다" 는 회귀를 구조적으로 방지한다.
-   */
-  const isMobile = useIsMobile()
-
   const loadImHealth = useCallback(async () => {
     if (!showImHealth || !token?.trim()) {
       return
@@ -181,18 +168,18 @@ export function DashboardPage() {
   /*
    * 대시보드 메뉴 — `buildAppMenuForSession` 단일 진실 원천 호출.
    *
-   *   - `includeMemo: isMobile` : 모바일 대시보드만 메모 카드 노출(드로어와 동일).
-   *                               PC 대시보드는 우측 메모 패널이 상시이므로 제외.
    *   - `teamMenuManageVisible` : 팀 오너일 때만 "팀 관리" 카드를 `/team/files` 뒤에 주입.
    *
    * divider 는 대시보드 카드 UI 에서는 유지해 섹션 구분선 역할을 한다.
+   *
+   * 메모 항목은 더 이상 이 메뉴에 포함되지 않는다 — 모바일은 우측 하단 FAB,
+   * PC 는 우측 상시 메모 패널로 각각 진입한다(gaTenantMenu.ts 주석 참조).
    */
   const menuItems = useMemo<MenuEntry[]>(() => {
     return buildAppMenuForSession(role, user?.gaCode, user?.gaName, {
-      includeMemo: isMobile,
       teamMenuManageVisible,
     })
-  }, [role, user?.gaCode, user?.gaName, teamMenuManageVisible, isMobile])
+  }, [role, user?.gaCode, user?.gaName, teamMenuManageVisible])
 
   return (
     <main className="page dashboard-page--centered">
@@ -244,9 +231,20 @@ export function DashboardPage() {
                   />
                 )
               }
+              if (entry.type === 'section') {
+                return (
+                  <div
+                    key={`menu-section-${idx}`}
+                    className="menu-card__section"
+                    role="presentation"
+                  >
+                    {entry.label}
+                  </div>
+                )
+              }
+              const isDisabled = Boolean(entry.disabled || entry.preparing)
               const isActive =
-                !entry.disabled &&
-                !entry.preparing &&
+                !isDisabled &&
                 Boolean(entry.path) &&
                 entry.path !== '#' &&
                 pathIsActive(pathname, entry.path)
@@ -255,14 +253,11 @@ export function DashboardPage() {
                   key={`${entry.path}-${entry.label}-${idx}`}
                   htmlType="button"
                   variant="action"
-                  className={`menu-item${isActive ? ' active' : ''}${entry.disabled ? ' menu-item--disabled' : ''}`}
+                  className={`menu-item${isActive ? ' active' : ''}${isDisabled ? ' menu-item--disabled' : ''}`}
+                  disabled={isDisabled}
                   onClick={() => {
-                    if (entry.preparing) {
-                      setPreparingNoticeOpen(true)
-                      return
-                    }
-                    if (entry.disabled) {
-                      setPreparingNoticeOpen(true)
+                    /* 개발중(disabled/preparing) 항목은 클릭 비활성 — 모달 없이 배지로만 안내 */
+                    if (isDisabled) {
                       return
                     }
                     if (!entry.path.trim() || entry.path === '#') {
@@ -271,7 +266,8 @@ export function DashboardPage() {
                     navigate(entry.path)
                   }}
                 >
-                  {entry.label}
+                  <span className="menu-item__label">{entry.label}</span>
+                  {entry.badge ? <span className="menu-item__badge">{entry.badge}</span> : null}
                 </FormButton>
               )
             })}

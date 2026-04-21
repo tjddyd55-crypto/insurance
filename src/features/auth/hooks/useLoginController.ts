@@ -2,6 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../AuthProvider'
 import { login as loginApi } from '../authApi'
+import { resolveAuthLandingPath } from '../landing'
+import useIsMobile from '../../../hooks/useIsMobile'
 
 /**
  * 로그인 페이지가 소비하는 "일시적 플래시 메시지".
@@ -32,9 +34,12 @@ export type UseLoginControllerResult = {
  *
  * 책임:
  *  - 폼 상태(username / password / errorMessage / isSubmitting) 관리
- *  - 로그인 API 호출 + 성공 시 `/dashboard` 리다이렉트
- *  - 이미 인증된 세션은 `/dashboard` 로 즉시 리다이렉트
+ *  - 로그인 API 호출 + 성공 시 기본 랜딩 경로로 리다이렉트
+ *  - 이미 인증된 세션은 기본 랜딩 경로로 즉시 리다이렉트
  *  - Electron 네이티브 / 웹 번들 버전 조회 (footer 표시용)
+ *
+ * 기본 랜딩 경로는 디바이스에 따라 다르다 (→ `resolveAuthLandingPath`).
+ * 정책 변경은 `../landing.ts` 한 곳에서만 수행한다.
  *
  * 책임이 아닌 것:
  *  - UI 마크업: `../pages/Login/*View.tsx`
@@ -48,6 +53,7 @@ export function useLoginController(): UseLoginControllerResult {
   const navigate = useNavigate()
   const location = useLocation()
   const { isAuthenticated, login } = useAuth()
+  const isMobile = useIsMobile()
   const flash = (location.state ?? {}) as LoginFlash
 
   const [username, setUsername] = useState('')
@@ -58,9 +64,9 @@ export function useLoginController(): UseLoginControllerResult {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/dashboard', { replace: true })
+      navigate(resolveAuthLandingPath(isMobile), { replace: true })
     }
-  }, [isAuthenticated, navigate])
+  }, [isAuthenticated, isMobile, navigate])
 
   useEffect(() => {
     let cancelled = false
@@ -96,7 +102,7 @@ export function useLoginController(): UseLoginControllerResult {
     try {
       const session = await loginApi(username, password)
       login(session)
-      navigate('/dashboard', { replace: true })
+      navigate(resolveAuthLandingPath(isMobile), { replace: true })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '로그인에 실패했습니다.')
     } finally {

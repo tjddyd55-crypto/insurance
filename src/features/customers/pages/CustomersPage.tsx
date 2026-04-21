@@ -1208,10 +1208,13 @@ export default function CustomersPage() {
     () => parseSelectedCustomerId(searchParams.get('customerId')),
     [searchParams],
   )
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(() => {
-    return selectedCustomerIdFromQuery
-  })
-  const [expandedId, setExpandedId] = useState<number | null>(() => {
+  /**
+   * `CustomersPage` 는 좌측 목록(카드 펼침)과 `?customerId=` 쿼리만 관리한다.
+   * 선택된 고객 id 의 단일 진실 원천은 URL path 이며, 그 값의 소비는
+   * `CustomerWorkspaceLayout` 이 path → query 순서로 파생한다
+   * (routing-ssot.mdc §1 · §9).
+   */
+  const [expandedId, rawSetExpandedId] = useState<number | null>(() => {
     if (selectedCustomerIdFromQuery != null) {
       return selectedCustomerIdFromQuery
     }
@@ -1232,6 +1235,42 @@ export default function CustomersPage() {
   expandedIdRef.current = expandedId
   editingIdRef.current = editingId
   editFormRef.current = editForm
+
+  /**
+   * expandedId state 와 `?customerId=` 쿼리를 같은 호출에서 원자적으로 갱신하는 래퍼.
+   *
+   * side-detail path(`/customers/:id/<tab>`) 위에서는 query 를 건드리지 않는다.
+   * 우측 패널(CustomerFiles/Memos 등) 이 해당 쿼리를 관장하므로, 목록의 접기·
+   * 펼치기가 패널 URL 을 덮어쓰면 안 된다 (routing-ssot.mdc §11).
+   *
+   * useState 의 raw setter 를 감싸기 때문에 기존 호출부와 `useExpandableCard`
+   * prop 에도 별도 변경 없이 URL 동기화가 따라붙는다.
+   */
+  const setExpandedId = useCallback<Dispatch<SetStateAction<number | null>>>(
+    (updater) => {
+      const prev = expandedIdRef.current
+      const next =
+        typeof updater === 'function'
+          ? (updater as (prev: number | null) => number | null)(prev)
+          : updater
+      rawSetExpandedId(next)
+      if (isCustomerWorkspaceSideDetailPath(location.pathname)) {
+        return
+      }
+      const currentQueryId = parseSelectedCustomerId(searchParams.get('customerId'))
+      if (currentQueryId === next) {
+        return
+      }
+      const nextParams = new URLSearchParams(searchParams)
+      if (next == null) {
+        nextParams.delete('customerId')
+      } else {
+        nextParams.set('customerId', String(next))
+      }
+      setSearchParams(nextParams, { replace: true })
+    },
+    [location.pathname, searchParams, setSearchParams],
+  )
 
   // NOTE: Router supports only one blocker. Global AppExitConfirm handles POP blocking (including customer create).
   const [searchInput, setSearchInput] = useState('')
@@ -1442,10 +1481,14 @@ export default function CustomersPage() {
     [token],
   )
 
+  /**
+   * 카드 요약 클릭의 부수 작업만 담당한다 (routing-ssot.mdc §4).
+   * expandedId 토글·접기 애니메이션은 `useExpandableCard.toggleExpanded` 전담이며,
+   * 이 핸들러는 (1) 펼친 카드 스크롤 요청, (2) PC 에서는 우측 워크스페이스
+   * path 이동 두 가지만 수행한다.
+   */
   const handleSelectCustomer = useCallback(
     (c: CustomerRecord) => {
-      setSelectedCustomerId(c.id)
-      setExpandedId(c.id)
       setScrollRequestKey((prev) => prev + 1)
       if (isMobile) {
         return
@@ -1467,7 +1510,6 @@ export default function CustomersPage() {
       setFavoriteOnly(false)
       setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })
       setAdvSearchHits(null)
-      setSelectedCustomerId(customerId)
       setExpandedId(customerId)
       setScrollRequestKey((prev) => prev + 1)
 
@@ -1493,7 +1535,7 @@ export default function CustomersPage() {
         },
       )
     },
-    [isMobile, location.pathname, navigate, searchParams],
+    [isMobile, location.pathname, navigate, searchParams, setExpandedId],
   )
 
   useEffect(() => {
@@ -1505,55 +1547,10 @@ export default function CustomersPage() {
   }, [user?.role, loadCustomers])
 
   /**
-   * 카드 펼침(expandedId)은 요약 클릭으로만 바꾼다.
-   * `?customerId=` 는 작업공간·CustomerFilesPage 등이 유지할 수 있으므로,
-   * URL 쿼리가 바뀌었다고 펼침을 강제하지 않는다(파일 패널 ↔ 목록 충돌 방지).
+   * 카드 펼침(expandedId) 은 요약 클릭 이벤트로만 바꾼다.
+   * `?customerId=` 는 우측 패널(CustomerFiles/Memos 등) 이 유지할 수 있으므로
+   * 쿼리 변화에 반응해 펼침을 강제하지 않는다 (routing-ssot.mdc §11).
    */
-  /**
-   * selectedCustomerId 는 두 개의 pull effect(A: query→state, B: expandedId→state) 와
-   * 한 개의 push effect(C: expandedId→query) 로 유지된다. 원래 설계 의도는:
-   *   - URL `?customerId=` 로 외부 진입 시 state 를 당겨오고(A)
-   *   - 카드 펼침(expandedId)을 기준으로 state 와 query 를 따라 맞추는 것(B, C)
-   * 이었다. 그러나 side-detail path(/customers/:id/*) 에서는 Effect C 가 early return
-   * 하도록 막혀 있어 query 가 갱신되지 못하고, 그 상태에서 expandedId 와 `?customerId=`
-   * 가 서로 다른 값으로 어긋나면 Effect A/B 가 selectedCustomerId 를 **서로 다른 목표값**
-   * 으로 번갈아 당기며 핑퐁 → "Maximum update depth exceeded" 가 발생한다.
-   *
-   * 가드 원칙(routing-ssot.mdc 1):
-   *   "복수의 source 가 동일 state 를 쓰기할 때 우선순위가 명시되어야 한다."
-   *   여기서는 사용자의 **현재 조작 결과**인 expandedId 를 우선으로 삼는다.
-   *   query 는 외부 진입/공유용 fallback 이므로, expandedId 가 이미 유효 값을 가리키면
-   *   query pull 은 건너뛴다. Effect B 가 expandedId 를 state 에 반영할 동안 Effect A 가
-   *   query 로 되덮어 쓰는 경쟁 조건을 차단한다.
-   *
-   * 근본 정리(후속):
-   *   `selectedCustomerId` 를 state 가 아니라 path → expandedId → query 순의 derive 값
-   *   으로 전환하는 별도 리팩터가 예정되어 있다. 본 가드는 그때까지의 안전장치다.
-   */
-  useEffect(() => {
-    if (isMobile && expandedId != null) {
-      return
-    }
-    if (selectedCustomerIdFromQuery == null) {
-      return
-    }
-    if (selectedCustomerIdFromQuery === selectedCustomerId) {
-      return
-    }
-    // 핑퐁 차단: expandedId 가 이미 다른 유효 값을 가리키면 query 는 stale 로 간주하고
-    // 덮어쓰지 않는다. Effect B 가 expandedId → state 동기화를 담당하도록 양보한다.
-    if (expandedId != null && expandedId !== selectedCustomerIdFromQuery) {
-      return
-    }
-    setSelectedCustomerId(selectedCustomerIdFromQuery)
-  }, [expandedId, isMobile, selectedCustomerId, selectedCustomerIdFromQuery])
-
-  useEffect(() => {
-    if (expandedId == null || selectedCustomerId === expandedId) {
-      return
-    }
-    setSelectedCustomerId(expandedId)
-  }, [expandedId, selectedCustomerId])
 
   useLayoutEffect(() => {
     if (expandedId == null) {
@@ -1671,31 +1668,6 @@ export default function CustomersPage() {
   }, [expandedId, isMobile, scrollRequestKey])
 
   useEffect(() => {
-    if (tab !== 'list') {
-      return
-    }
-    // URL은 라우트(/customers/:id/*)가 단일 진실 원천. 우측 패널이 열린 상태에서는 쿼리(customerId) 동기화하지 않는다.
-    if (isCustomerWorkspaceSideDetailPath(location.pathname)) {
-      return
-    }
-    const queryCustomerId = parseSelectedCustomerId(searchParams.get('customerId'))
-    if (queryCustomerId === expandedId) {
-      return
-    }
-    // 접힌 상태에서 쿼리만 남아 있는 경우: 파일/상담 패널이 동일 쿼리를 다시 채우므로 삭제하지 않음
-    if (expandedId == null && queryCustomerId != null && isCustomerWorkspaceSideDetailPath(location.pathname)) {
-      return
-    }
-    const next = new URLSearchParams(searchParams)
-    if (expandedId == null) {
-      next.delete('customerId')
-    } else {
-      next.set('customerId', String(expandedId))
-    }
-    setSearchParams(next, { replace: true })
-  }, [expandedId, location.pathname, searchParams, setSearchParams, tab])
-
-  useEffect(() => {
     if (expandedId == null) {
       return
     }
@@ -1704,7 +1676,7 @@ export default function CustomersPage() {
     if (!inMainList && !inAdvHits) {
       setExpandedId(null)
     }
-  }, [customers, advSearchHits, expandedId])
+  }, [customers, advSearchHits, expandedId, setExpandedId])
 
   useEffect(() => {
     const valid = new Set(customers.map((c) => String(c.id)))
@@ -1901,14 +1873,17 @@ export default function CustomersPage() {
         setStatusText(error instanceof Error ? error.message : '삭제에 실패했습니다.')
       }
     },
-    [token, user?.role, cancelEdit, loadCustomers, confirm],
+    [token, user?.role, cancelEdit, loadCustomers, confirm, setExpandedId],
   )
 
-  const startEdit = useCallback((cl: CustomerRecord) => {
-    setExpandedId(cl.id)
-    setEditingId(cl.id)
-    setEditForm(recordToEditForm(cl))
-  }, [])
+  const startEdit = useCallback(
+    (cl: CustomerRecord) => {
+      setExpandedId(cl.id)
+      setEditingId(cl.id)
+      setEditForm(recordToEditForm(cl))
+    },
+    [setExpandedId],
+  )
 
   const openMobileModal = useCallback(
     (modalType: 'files' | 'consultations' | 'auto' | 'ga', customerId: number) => {

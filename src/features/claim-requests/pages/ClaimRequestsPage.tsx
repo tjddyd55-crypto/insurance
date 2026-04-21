@@ -73,6 +73,12 @@ export default function ClaimRequestsPage() {
   const [error, setError] = useState('')
   const [statusMemo, setStatusMemo] = useState('')
   const [statusTarget, setStatusTarget] = useState<ClaimRequestStatus>('processing')
+  /*
+   * 상태 변경 성공 피드백 — 저장 직후 loadDetail 로 전체가 리렌더되기 전에 "저장됐다" 를
+   * 즉시 알려주기 위한 분리된 state. error 와 채널을 구분해 "성공 직후 기타 요청 실패"
+   * 로 성공 메시지가 덮이는 회귀를 막는다. 타이머로 자동 해제(아래 useEffect 참고).
+   */
+  const [statusNotice, setStatusNotice] = useState('')
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
   const [createdLink, setCreatedLink] = useState('')
   const [createdCode, setCreatedCode] = useState('')
@@ -273,25 +279,84 @@ export default function ClaimRequestsPage() {
     }
   }
 
+  /**
+   * 상태/메모 저장 핸들러.
+   *
+   * 흐름:
+   *   1) 방어: 동일 상태 + 빈 메모는 서버 왕복 전에 차단(무의미한 요청 억제).
+   *   2) API 호출 후 응답 필드로 **낙관적 UI 반영** — `statusLogs` 에 방금 기록을 즉시
+   *      append 한다. 이후 `loadDetail` 이 서버 정식 데이터로 대체한다.
+   *      → 서버가 실제로 저장을 실패하면 "잠깐 보였다 사라진다" 로 증상이 뚜렷해져
+   *        서버측 원인을 빠르게 식별 가능.
+   *   3) 성공/실패를 `statusNotice`/`error` 분리 채널로 피드백.
+   *   4) 실패 시 `console.error` 로 원본 에러 남겨 운영 중 원인 추적을 돕는다.
+   */
   const handleUpdateStatus = async () => {
     if (!token || selectedId == null || !detail) {
       return
     }
+    const memoToSend = statusMemo.trim()
+    if (statusTarget === detail.status && !memoToSend) {
+      setStatusNotice('')
+      setError('현재 상태와 동일합니다. 상태를 바꾸거나 메모를 입력해 주세요.')
+      return
+    }
+    setError('')
     setActionBusy(true)
     try {
-      await updateClaimRequestStatus(token, selectedId, {
+      const result = await updateClaimRequestStatus(token, selectedId, {
         status: statusTarget,
-        memo: statusMemo.trim(),
+        memo: memoToSend,
+      })
+      setDetail((prev) => {
+        if (!prev) {
+          return prev
+        }
+        return {
+          ...prev,
+          status: result.status,
+          statusLogs: [
+            ...prev.statusLogs,
+            {
+              // 음수 임시 id — loadDetail 이 실제 id 로 덮어쓰기 전 중복 key 회피용.
+              id: -Date.now(),
+              fromStatus: result.fromStatus ?? prev.status,
+              toStatus: result.status,
+              changedByUserId: null,
+              changedAt: new Date().toISOString(),
+              memo: result.memo ?? memoToSend,
+            },
+          ],
+        }
       })
       setStatusMemo('')
+      setStatusNotice(
+        memoToSend
+          ? `상태를 "${statusLabel(result.status)}" 로 변경하고 메모를 기록했습니다.`
+          : `상태를 "${statusLabel(result.status)}" 로 변경했습니다.`,
+      )
       await loadList()
       await loadDetail()
     } catch (actionError) {
+      console.error('[claim-requests] 상태 변경 실패', actionError)
+      setStatusNotice('')
       setError(actionError instanceof Error ? actionError.message : '상태 변경에 실패했습니다.')
     } finally {
       setActionBusy(false)
     }
   }
+
+  /*
+   * 성공 메시지 자동 해제 — 4 초 뒤 지워서 화면을 항상 깨끗하게 유지.
+   * error 는 사용자가 원인을 재확인해야 하므로 자동 해제하지 않는다.
+   */
+  useEffect(() => {
+    if (!statusNotice) {
+      return
+    }
+    const timer = window.setTimeout(() => setStatusNotice(''), 4000)
+    return () => window.clearTimeout(timer)
+  }, [statusNotice])
 
   const validateNewsletterFile = useCallback((file: File): string | null => {
     const validated = validateInsurerNewsFile(file)
@@ -520,7 +585,18 @@ export default function ClaimRequestsPage() {
                 onChange={(event) => setStatusTarget(event.target.value as ClaimRequestStatus)}
                 options={STATUS_OPTIONS.map((item) => ({ value: item.value, label: item.label }))}
               />
-              <FormButton htmlType="button" variant="primary" onClick={() => void handleUpdateStatus()} loading={actionBusy}>
+              <FormButton
+                htmlType="button"
+                variant="primary"
+                onClick={() => void handleUpdateStatus()}
+                loading={actionBusy}
+                disabled={statusTarget === detail.status && !statusMemo.trim()}
+                title={
+                  statusTarget === detail.status && !statusMemo.trim()
+                    ? '현재 상태와 동일하고 메모도 비어 있어 저장할 내용이 없습니다.'
+                    : undefined
+                }
+              >
                 상태 저장
               </FormButton>
             </div>
@@ -529,9 +605,18 @@ export default function ClaimRequestsPage() {
               rows={2}
               value={statusMemo}
               onChange={(event) => setStatusMemo(event.target.value)}
-              placeholder="상태 변경 메모(선택)"
+              placeholder="상태 변경 메모 — 담당자 내부 기록용(상태 이력에 남습니다)"
               maxLength={255}
             />
+            {statusNotice ? (
+              <div
+                className="text-xs font-medium text-[var(--brand-primary,#2563eb)]"
+                role="status"
+                aria-live="polite"
+              >
+                {statusNotice}
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-1">

@@ -15,6 +15,57 @@ function formatHistoryDate(isoDate: string): string {
   return isoDate
 }
 
+/**
+ * 오늘을 0 일로 두고, 날짜와의 차이(일수) 를 구해 "오늘 / 어제 / N일 전" 으로 변환.
+ * - 정확한 ISO(YYYY-MM-DD) 가 아니면 `null` 반환: 상대 시간 배지를 렌더하지 않는다.
+ * - 7 일 이상 지난 날짜는 `null` — 이 경우 절대 날짜만 표시해 혼란을 줄인다.
+ *
+ * "언제인지를 즉각 파악" 이 목적이므로 1 주일 이내만 상대 시간으로 표기한다.
+ */
+function formatRelativeFromToday(isoDate: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) {
+    return null
+  }
+  const [y, m, d] = isoDate.split('-').map(Number)
+  const target = new Date(y, m - 1, d)
+  target.setHours(0, 0, 0, 0)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const diffMs = today.getTime() - target.getTime()
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) {
+    return '오늘'
+  }
+  if (diffDays === 1) {
+    return '어제'
+  }
+  if (diffDays > 1 && diffDays <= 7) {
+    return `${diffDays}일 전`
+  }
+  return null
+}
+
+/**
+ * 날짜 헤더 — 변경이 "언제" 일어났는지 한눈에 보이도록 시각적으로 강조한다.
+ *
+ *  - 상대 시간("오늘/어제/N일 전") 은 컬러 배지로, 직관적 인지 담당.
+ *  - 절대 날짜(`2026. 4. 16.`) 는 큰 글씨로, 근거 기록 담당.
+ *  - 두 표기가 한 줄에 나란히 — 하나만 보고 판단하는 오독을 방지한다.
+ */
+function HistoryDateHeader({ rawDate }: { rawDate: string }) {
+  const absolute = formatHistoryDate(rawDate)
+  const relative = formatRelativeFromToday(rawDate)
+  const isToday = relative === '오늘'
+  return (
+    <div
+      className={`history-date history-date--emphasis${isToday ? ' history-date--today' : ''}`}
+    >
+      {relative ? <span className="history-date__relative">{relative}</span> : null}
+      <span className="history-date__absolute">{absolute}</span>
+    </div>
+  )
+}
+
 function groupHistoryByDate(items: CompanyUpdateHistoryItem[]) {
   const groups: { date: string; items: CompanyUpdateHistoryItem[] }[] = []
   for (const item of items) {
@@ -94,7 +145,7 @@ export function InsuranceUpdatesPage() {
           <div className="update-history">
             {grouped.map((block) => (
               <div key={block.date} className="history-block">
-                <div className="history-date">{formatHistoryDate(block.date)}</div>
+                <HistoryDateHeader rawDate={block.date} />
                 <div className="insurance-contacts-cards">
                   {block.items.map((item) => (
                     <CompanyCard

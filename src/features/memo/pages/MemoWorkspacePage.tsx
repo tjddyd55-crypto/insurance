@@ -60,21 +60,30 @@ export default function MemoWorkspacePage() {
           onClick={handleCanvasClick}
         >
           <div ref={containerRef} className="h-full w-full" onClick={handleCanvasClick}>
+            {/*
+             * 색상 클래스를 컴포넌트 레벨에 박지 않는다. 메모 캔버스는 앱 전역 테마와
+             * 독립된 "다크 스코프" 라서, 색은 부모 .memo-canvas-area 의 전용 변수
+             * (--canvas-fg / --canvas-fg-muted) 에서 상속받는다. (index.css 참조)
+             *
+             * 역사적 회귀: 예전에는 text-[var(--text-primary)] 를 직접 썼는데, 라이트
+             * 테마에서 --text-primary=#111 이 되어 검은 배경 + 검은 글씨로 본문이
+             * 안 보이는 증상이 있었다. 컴포넌트에서 색을 지우고 CSS scope 에 위임한다.
+             */}
             {notesLoading && notes.length === 0 ? (
-              <div className="memo-workspace__loading flex items-center justify-center px-4 py-16 text-sm text-[var(--text-muted)]">
+              <div className="memo-workspace__loading flex items-center justify-center px-4 py-16 text-sm">
                 메모를 불러오는 중…
               </div>
             ) : notes.length === 0 ? (
               <div className="memo-workspace__empty">
-                <p className="text-base font-medium text-[var(--text-primary)]">메모가 아직 없습니다</p>
-                <p className="text-sm text-[var(--text-muted)]">
+                <p className="memo-workspace__empty-title">메모가 아직 없습니다</p>
+                <p className="memo-workspace__empty-hint">
                   우측 하단 + 버튼으로 첫 메모를 만들어보세요
                 </p>
               </div>
             ) : visibleNotes.length === 0 ? (
               <div className="memo-workspace__empty">
-                <p className="text-base font-medium text-[var(--text-primary)]">캔버스에 표시된 메모가 없습니다</p>
-                <p className="text-sm text-[var(--text-muted)]">
+                <p className="memo-workspace__empty-title">캔버스에 표시된 메모가 없습니다</p>
+                <p className="memo-workspace__empty-hint">
                   우측 목록에서 메모를 선택하면 다시 표시됩니다.
                 </p>
               </div>

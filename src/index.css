@@ -601,12 +601,17 @@ button:focus-visible:not(:disabled) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 8px;
+  /* 우측 여백 제거 — 캡션 버튼이 바 경계에 딱 붙도록 좌/우 패딩 0.
+   * (뒤로가기/캡션 버튼은 자체 width·height: 100% 이므로 내부 여백이 없어도 클릭 영역이 충분하다.) */
+  padding: 0;
   box-sizing: border-box;
 }
 
+/* 좌·우 영역은 absolute 로 깔린 중앙 레이어(`.title-center`) 위에 올라와야 버튼이 클릭된다. */
 .top-title-bar .title-left,
 .top-title-bar .title-right {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: stretch;
   -webkit-app-region: no-drag;
@@ -614,11 +619,14 @@ button:focus-visible:not(:disabled) {
 }
 
 /* 뒤로가기 버튼: Windows 11 탐색기의 네비게이션 버튼과 같은 감각.
- * 캡션 버튼과 동일한 46px 너비·32px 높이·둥근 모서리 없음·테두리 없음. */
+ * 캡션 버튼과 동일한 46px 너비·32px 높이·둥근 모서리 없음·테두리 없음.
+ * `.button` 기본 min-height(48px)이 FormButton 경유로 들어오므로 타이틀바 높이에 정확히
+ * 맞추려면 `min-height: 0` 으로 명시 override 한다. */
 .top-title-bar .back-btn {
   width: 46px;
   min-width: 46px;
   height: 100%;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -646,7 +654,9 @@ button:focus-visible:not(:disabled) {
 
 /* Electron 타이틀바 컨테이너: Windows 11 표준 32px.
  * 빈 공백도 드래그 가능하도록 컨테이너 전체를 drag region으로 두고,
- * 클릭 대상(back 버튼, 캡션 버튼)에만 no-drag를 명시한다(기존 규칙 유지). */
+ * 클릭 대상(back 버튼, 캡션 버튼)에만 no-drag를 명시한다(기존 규칙 유지).
+ * `position: sticky` 자체가 positioned ancestor 이므로 자식 `.title-center`
+ * 의 absolute 기준점이 된다(별도 relative 불필요). */
 .title-bar.electron-title-bar {
   position: sticky;
   top: 0;
@@ -680,9 +690,21 @@ button:focus-visible:not(:disabled) {
   app-region: no-drag;
 }
 
+/* 중앙 문구("FC-OA" 또는 소속 GA 이름)를 타이틀바 전체 폭 기준 **정중앙**에 고정한다.
+ * - 좌측 뒤로가기(46px)와 우측 캡션 버튼(138px)의 너비가 비대칭이라 플렉스만으로는
+ *   진짜 중앙이 나오지 않는다.
+ * - 중앙 레이어를 absolute 로 바 전체에 깔아 기준을 바 자체로 두고,
+ *   `pointer-events: none` 으로 좌/우 버튼 클릭을 방해하지 않는다.
+ *   내부 `.drag-area` 만 `pointer-events: auto` 로 드래그 가능. */
 .title-bar.electron-title-bar .title-center {
-  flex: 1;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-width: 0;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .electron-title-bar__leading {
@@ -728,15 +750,17 @@ button:focus-visible:not(:disabled) {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 35%, transparent);
 }
 
-/* 드래그 영역: Windows 표준처럼 왼쪽에 작은 앱 타이틀, 오른쪽으로 넓게 드래그 존.
- * cursor: grab은 네이티브 프로그램에선 쓰지 않으므로 default로 되돌림. */
+/* 드래그 영역: 중앙 레이어 내부에 놓이며 자기 크기만큼만 차지한다.
+ * 좌·우 캡션 영역과 겹치지 않도록 좌우 여백을 캡션 너비(좌 46px · 우 138px) 만큼 확보한다.
+ * cursor: grab 은 네이티브 프로그램에선 쓰지 않으므로 default. */
 .drag-area {
-  flex: 1;
-  min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  padding: 0 8px 0 6px;
+  justify-content: center;
+  min-width: 0;
+  max-width: calc(100% - 46px - 138px);
+  padding: 0;
+  pointer-events: auto;
   cursor: default;
   user-select: none;
   -webkit-app-region: drag;
@@ -747,7 +771,7 @@ button:focus-visible:not(:disabled) {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-sub);
-  text-align: left;
+  text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1264,8 +1288,35 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   text-overflow: ellipsis;
 }
 
+/*
+ * 모바일 드로어 = [메뉴 nav] → [로그아웃 footer] (자연 순서 · 단일 스크롤).
+ *
+ *   - outer(.mobile-workspace-drawer--overlay) 가 유일한 스크롤 축. 내부
+ *     __nav 와 __footer 는 단순히 "콘텐츠 높이만큼" 자리잡는 플로우 아이템이다.
+ *   - __nav 는 남는 공간을 먹지 않는다 (flex:1 금지). 메뉴가 짧으면 짧은 대로
+ *     끝나고, 그 바로 아래에 __footer(로그아웃) 가 "메뉴의 마지막 항목처럼"
+ *     자연스럽게 이어진다.
+ *   - 회귀 기록: 과거에는 __nav { flex:1; overflow-y:auto } 로 nav 가 스크롤을
+ *     담당하고 footer 를 항상 화면 바닥에 고정했는데, 메뉴 수가 적을 때 로그
+ *     아웃이 화면 아래로 동떨어져 "플로팅 오버레이" 처럼 보이는 UX 단절이
+ *     있었다. 이 주석이 회귀 방지 SSOT.
+ */
+.mobile-workspace-drawer__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 12px 10px;
+}
+
+.mobile-workspace-drawer__footer {
+  padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border-default, #2a2a2a);
+  background: var(--bg-card, #10141d);
+}
+
 .mobile-workspace-drawer__logout {
-  margin-top: 6px;
+  width: 100%;
+  margin: 0;
 }
 
 .pc-workspace-header__row {
@@ -1319,9 +1370,9 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .mobile-workspace-drawer {
-  display: grid;
-  gap: 6px;
-  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
   border-bottom: 1px solid var(--border-default, #2a2a2a);
   background: var(--bg-card, #10141d);
 }
@@ -1352,6 +1403,15 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   z-index: 900;
 }
 
+/*
+ * overlay = "메뉴 + 로그아웃" 을 자연 순서로 쌓은 세로 리스트 한 덩어리.
+ * 콘텐츠 합계 높이가 뷰포트를 넘을 때만 overlay 자신이 스크롤한다.
+ *
+ * 과거에는 __nav 가 flex:1 로 스크롤을 담당하고 __footer 를 바닥에 고정했으나,
+ * 메뉴 수가 적을 때 로그아웃이 화면 아래로 뚝 떨어져 "플로팅 버튼처럼" 보이는
+ * 회귀가 있었다. 스크롤 책임을 overlay 한 층으로 모아 단일 축으로 정리한다.
+ * (참고: .mobile-workspace-drawer__nav 주석)
+ */
 .mobile-workspace-drawer--overlay {
   position: fixed;
   top: 48px;
@@ -1363,9 +1423,103 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.45);
 }
 
+/*
+ * 모바일 드로어 카테고리 헤더 — PC 사이드바 섹션(.workspace-sidebar__section) 과
+ * 동일한 위계 규칙. 폰트/구분선/들여쓰기 세 축을 동시에 벌려 카테고리가 메뉴
+ * 엔트리와 "같은 급" 으로 보이지 않게 한다.
+ */
+.mobile-workspace-drawer__section {
+  padding: 14px 4px 6px 10px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-sub);
+  letter-spacing: 0.04em;
+  user-select: none;
+  border-top: 1px solid color-mix(in srgb, var(--text-sub) 14%, transparent);
+}
+
+.mobile-workspace-drawer__section:first-child,
+.mobile-workspace-drawer__nav > .mobile-workspace-drawer__section:first-child {
+  padding-top: 4px;
+  border-top: none;
+}
+
+/*
+ * 모바일 전용 메모 FAB — MemoMobileFab 의 배치 정책.
+ *
+ *  · `--memo-fab-bottom` : 화면 하단 기준 세로 오프셋(1/3 지점). 위치 정책 변경은
+ *                          이 변수 한 줄만 수정하면 된다.
+ *  · z-index 850         : drawer(901)·modal(9999) 보다는 아래, 일반 콘텐츠 위에
+ *                          항상 떠 있는 계층. (AppWorkspaceLayout z-index 정책 참조)
+ */
+:root {
+  --memo-fab-bottom: 33.333dvh;
+}
+
+.memo-mobile-fab {
+  position: fixed;
+  right: 16px;
+  bottom: var(--memo-fab-bottom);
+  z-index: 850;
+  width: 56px;
+  height: 56px;
+  min-height: 56px;
+  padding: 0;
+  border: none;
+  border-radius: 28px;
+  background: var(--brand-primary, #2563eb);
+  color: var(--text-on-primary, #fff);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.memo-mobile-fab:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--brand-primary, #2563eb) 88%, #000);
+}
+
+.memo-mobile-fab:active {
+  transform: translateY(1px);
+}
+
+.memo-mobile-fab:focus-visible {
+  outline: none;
+  box-shadow:
+    0 10px 24px -8px rgba(0, 0, 0, 0.45),
+    0 0 0 3px color-mix(in srgb, var(--brand-primary, #2563eb) 35%, transparent);
+}
+
+/*
+ * 모바일 셸의 본문 스크롤 컨테이너.
+ *
+ * flex 자식에게 `min-height: 0` 을 함께 주지 않으면 기본값(auto)에 의해
+ * 자식의 자연 크기(예: `.memo-route-page` 의 `min-height: 100dvh`)가 부모를
+ * 강제로 늘려, 상단 탑바(48px) 만큼 본문이 뷰포트 아래로 밀려나오는 회귀가
+ * 발생한다. 결과적으로 /memo 모바일 화면에서 "탑바 바로 아래 영역이 비어보이는
+ * 검은 화면" 처럼 관측됨 (사용자 보고).
+ *
+ * 해결은 "부모가 자기 overflow 를 책임지고, 자식의 레이아웃 의도는 존중한다"
+ * 는 flex 표준 패턴이다:
+ *   - 부모(.mobile-workspace-content) 에만 `min-height: 0` 을 넣어 자연 확장을 막고,
+ *   - 자식(.workspace-root / .memo-route-page) 의 높이 전략은 그대로 둔다.
+ *
+ * 과거에 자식 쪽에 `.mobile-workspace-content .workspace-root { height:100% }`
+ * 와 `.mobile-workspace-content .memo-route-page { height:100% }` 를 덧댄 적
+ * 있는데, 이는 자식 flex 자식들을 0 으로 수축시켜 메모 FAB(추가/정리)이
+ * 사라지거나 빈 어두운 영역만 남는 2차 회귀를 일으켰으므로 제거했다.
+ */
 .mobile-workspace-content {
   width: 100%;
   min-width: 0;
+  min-height: 0;
   flex: 1 1 auto;
   overflow: auto;
 }
@@ -2266,6 +2420,45 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   border-color: var(--border-default);
 }
 
+/* 대시보드 카드 섹션(카테고리) 헤더 — 그리드/플렉스 어디에 있어도 한 줄을 독점.
+ * (.menu-card 가 grid 일 때 `grid-column: 1 / -1`, flex 일 때는 `width: 100%` 가 작동.) */
+.menu-card__section {
+  grid-column: 1 / -1;
+  width: 100%;
+  padding: 18px 4px 6px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-sub);
+  letter-spacing: 0.04em;
+  border-top: 1px solid color-mix(in srgb, var(--text-sub) 14%, transparent);
+  user-select: none;
+}
+
+.menu-card__section:first-child,
+.dashboard-menu-card > .menu-card__section:first-child {
+  padding-top: 4px;
+  border-top: none;
+}
+
+/* 대시보드 메뉴 아이템 내부 라벨·배지. 기본 스타일(중앙 정렬)을 유지하되 배지만 옆에. */
+.menu-item__label {
+  display: inline;
+}
+
+.menu-item__badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-main) 14%, transparent);
+  color: var(--text-sub);
+  line-height: 1;
+  vertical-align: middle;
+}
+
 .profile-page__team-row {
   display: flex;
   gap: 8px;
@@ -2465,8 +2658,20 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   max-width: 100%;
 }
 
+/*
+ * 대시보드 로그아웃 = 메뉴 카드 내부지만 "세션 액션" 슬롯.
+ *   - `grid-column: 1 / -1` 로 전체 폭을 차지해 카테고리 섹션과 시각적으로 분리.
+ *   - `padding-top` 안쪽에 얇은 구분선(`border-top`) 을 얹어 메뉴 영역과 명확한 경계.
+ *   - PC 에선 `.pc-root .dashboard-page--centered .dashboard-logout` 이 max-width 로
+ *     버튼 크기를 줄이지만, 구분선은 이 셀 자체에 붙어 있어 폭과 함께 따라간다.
+ *     PC 에서 구분선을 카드 전체 폭으로 확장하고 싶으면 래퍼 div 를 감싸 전용 슬롯을
+ *     만드는 편이 맞다(현재는 버튼 자체 폭 내 구분선으로 충분).
+ */
 .dashboard-logout {
-  margin-top: 4px;
+  grid-column: 1 / -1;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-default, #2a2a2a);
 }
 
 .dashboard-sidebar-list {
@@ -4313,6 +4518,16 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font-size: 14px;
 }
 
+/*
+ * 공용 .button 규약 SSOT (refactor/dialog-actions-and-button-ssot).
+ *   - 모든 행동 버튼의 기본 모양·크기·전이는 여기서 단일하게 정의한다.
+ *   - 호출부는 className 으로 모양을 덮지 말고 variant(primary/secondary/action/danger)
+ *     와 size(sm/md/lg) 로만 의도를 표현한다.
+ *   - 모바일 네이티브 탭 하이라이트(안드로이드 ripple, iOS 회색 박스) 는 UI 와
+ *     충돌해 회귀로 보이므로 공용 수준에서 제거한다. 탭 피드백은 .button:active
+ *     transform/opacity 애니메이션이 담당한다.
+ *   - user-select 를 none 으로 두어 텍스트 드래그 선택이 탭을 가로채지 않게 한다.
+ */
 .button {
   min-height: 48px;
   border: 1px solid var(--btn-border);
@@ -4323,6 +4538,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
   background: var(--btn-surface);
   color: var(--btn-text);
   cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
   transition:
     transform 0.15s ease,
     opacity 0.15s ease,
@@ -4330,9 +4547,22 @@ div.cta-button.customers-page__action-btn[role='button'] {
     border-color 0.15s ease;
 }
 
-.button:hover:not(:disabled):not(:active) {
-  background-color: var(--btn-hover-bg);
-  border-color: var(--btn-hover-border);
+/*
+ * 터치 디바이스의 "sticky :hover" 회귀 방지 (post-ssot-ui-followups.md §2.4).
+ *   증상: 모바일 카드 액션 버튼 탭 → 모달 오픈 → 하드웨어 back 으로 닫음
+ *        → 트리거 버튼이 활성 색으로 고정 남음.
+ *   원인: 모바일 브라우저는 탭된 요소의 :hover 를 포인터가 떠나기 전엔 해제하지
+ *        않는다. 모달을 뒤로가기로 닫으면 "떠나는 이벤트" 가 없으므로 hover 고착.
+ *   근본 해결: hover 스타일을 "실제 hover 가 의미있는 장치" 에서만 적용.
+ *   범위: 공통 .button 계열 4종(.button · --primary · --secondary · --danger).
+ *        데스크톱(마우스/트랙패드)은 (hover: hover) and (pointer: fine) 이 true 라
+ *        UX 변화 없음. 이후 새 hover 규칙도 같은 가드 안에 넣어 일관성 유지.
+ */
+@media (hover: hover) and (pointer: fine) {
+  .button:hover:not(:disabled):not(:active) {
+    background-color: var(--btn-hover-bg);
+    border-color: var(--btn-hover-border);
+  }
 }
 
 .button:active:not(:disabled) {
@@ -4351,9 +4581,11 @@ div.cta-button.customers-page__action-btn[role='button'] {
   color: var(--text-on-primary);
 }
 
-.button--primary:hover:not(:disabled):not(:active) {
-  background-color: var(--primary-hover);
-  border-color: var(--primary-hover);
+@media (hover: hover) and (pointer: fine) {
+  .button--primary:hover:not(:disabled):not(:active) {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
 }
 
 .button--secondary {
@@ -4362,9 +4594,11 @@ div.cta-button.customers-page__action-btn[role='button'] {
   color: var(--secondary-text);
 }
 
-.button--secondary:hover:not(:disabled):not(:active) {
-  background-color: var(--secondary-hover-bg);
-  border-color: var(--secondary-border);
+@media (hover: hover) and (pointer: fine) {
+  .button--secondary:hover:not(:disabled):not(:active) {
+    background-color: var(--secondary-hover-bg);
+    border-color: var(--secondary-border);
+  }
 }
 
 .button--danger {
@@ -4373,9 +4607,11 @@ div.cta-button.customers-page__action-btn[role='button'] {
   color: var(--danger-text);
 }
 
-.button--danger:hover:not(:disabled):not(:active) {
-  background-color: var(--danger-hover-bg);
-  border-color: var(--danger-border);
+@media (hover: hover) and (pointer: fine) {
+  .button--danger:hover:not(:disabled):not(:active) {
+    background-color: var(--danger-hover-bg);
+    border-color: var(--danger-border);
+  }
 }
 
 .button--full {
@@ -4386,6 +4622,20 @@ div.cta-button.customers-page__action-btn[role='button'] {
   min-height: 36px;
   padding: 8px 10px;
   font-size: 13px;
+}
+
+/*
+ * <DialogActions> 레이아웃 SSOT.
+ *   - 다이얼로그 풋터의 버튼 줄 정렬/간격만 책임진다. 버튼 모양은 .button* 에 위임.
+ *   - 오른쪽 정렬 + wrap 이 기본. 좁은 폭에서도 버튼이 짤리지 않고 다음 줄로 내려간다.
+ *   - 마진 상단 20px 은 기존 ConfirmDialog 의 mt-5(= 1.25rem)와 동일해 시각 회귀 없음.
+ */
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
 }
 
 .btn {
@@ -4793,6 +5043,59 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .history-block:first-child .history-date {
   margin-top: 0;
+}
+
+/*
+ * 업데이트 현황 — 날짜 헤더 강조.
+ *
+ * 사용자 요구: "언제 업데이트가 된건지가 중요하다" → 절대 날짜 + 상대 시간 배지의
+ * 이중 표기를 큰 시각 계층으로 올려, 스크롤 중에도 날짜가 먼저 읽히도록 한다.
+ * "오늘" 은 가장 강한 색으로 차별화해서 "가장 최근 업데이트" 를 즉시 식별.
+ */
+.history-date--emphasis {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 0 10px;
+  margin: 20px 0 14px;
+  border-bottom: 2px solid color-mix(in srgb, var(--brand-primary, #2563eb) 28%, transparent);
+}
+
+.history-block:first-child .history-date--emphasis {
+  margin-top: 4px;
+}
+
+.history-date__relative {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand-primary, #2563eb) 12%, transparent);
+  color: var(--brand-primary, #2563eb);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.history-date--today .history-date__relative {
+  background: var(--brand-primary, #2563eb);
+  color: var(--text-on-primary, #fff);
+}
+
+.history-date__absolute {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main, #111);
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.history-date--today .history-date__absolute {
+  color: var(--brand-primary, #2563eb);
 }
 
 .company-card--diff .value.changed,
@@ -6751,14 +7054,19 @@ a.contacts-public-auth__link {
   background: var(--bg-card, #10141d);
 }
 
-.workspace-sidebar__section {
-  border: 1px solid var(--border-default, #2a2a2a);
-  border-radius: 10px;
-  padding: 10px;
-  background: var(--bg-elevated, #141b26);
-}
-
-.workspace-sidebar__section.workspace-sidebar__section--menu {
+/*
+ * NOTE(2026-04):
+ *   과거엔 `.workspace-sidebar__section` 이 "카드 박스(border + bg + padding)"
+ *   용도였다. A3 커밋(17aecb1) 에서 동일 클래스명을 **카테고리 헤더 라벨**로도
+ *   재사용하면서 두 정의가 충돌했다(파일 아래쪽 섹션 참고).
+ *
+ *   현재 코드베이스에서 `.workspace-sidebar__section` 을 다는 곳은 카테고리
+ *   헤더 한 곳뿐(grep 으로 확인됨). 카드 박스 용도는 쓰이지 않는다. 혼선 방지를
+ *   위해 **카드 박스 베이스는 제거**하고, `__section--menu` 모디파이어만 남겨
+ *   혹시라도 미래에 쓰일 때 독립적으로 동작하도록 한다. (베이스 스타일이 필요해지면
+ *   그때 새 클래스로 명명한다.)
+ */
+.workspace-sidebar__section--menu {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -6772,12 +7080,20 @@ a.contacts-public-auth__link {
   color: var(--text-secondary);
 }
 
+/*
+ * PC 사이드바 메뉴 리스트.
+ *   - 과거에는 flex: 1; min-height: 0 으로 남은 공간을 다 채우게 했는데,
+ *     이 경우 aside 의 overflow 스크롤과 충돌해 로그아웃(.workspace-sidebar__logout)
+ *     의 margin-top: auto 가 의미를 잃고 스크롤 중간에 로그아웃이 걸쳐 보이는
+ *     회귀가 있었다. 사용자 보고 스크린샷: "로그아웃이 내 저장공간 위에 떠있음".
+ *   - 지금은 자연 크기로 쌓이고 스크롤은 상위 .workspace-sidebar 가 담당한다.
+ *     이렇게 두면 로그아웃(.workspace-sidebar__footer) 이 메뉴 리스트 마지막
+ *     항목처럼 자연스럽게 하단에 붙는다. 모바일 드로어와 동일한 구조.
+ */
 .workspace-sidebar__nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1;
-  min-height: 0;
 }
 
 .workspace-sidebar__divider {
@@ -6795,7 +7111,16 @@ a.contacts-public-auth__link {
   background: color-mix(in srgb, var(--brand-primary) 22%, transparent);
 }
 
+/*
+ * 메뉴 엔트리 (PC 사이드바 · 모바일 드로어 공용).
+ *   - 섹션 헤더 대비 **들여쓰기(padding-left 20px)** 로 위계 표현.
+ *   - 활성 엔트리는 배경색 + 좌측 accent bar 두 겹으로 강조.
+ *   - 위계 규칙은 DashboardPage `.menu-item` 과도 일관되게 맞춘다.
+ */
 .workspace-sidebar__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-start;
   text-align: left;
   width: 100%;
@@ -6805,9 +7130,10 @@ a.contacts-public-auth__link {
   background: transparent !important;
   box-shadow: none !important;
   font-weight: 500;
-  font-size: 0.88rem;
-  padding: 8px 10px;
+  font-size: 0.9rem;
+  padding: 8px 10px 8px 20px;
   color: var(--text-primary);
+  position: relative;
 }
 
 .workspace-sidebar__menu-item:hover:not(:disabled) {
@@ -6817,14 +7143,100 @@ a.contacts-public-auth__link {
 .workspace-sidebar__menu-item--active {
   background: color-mix(in srgb, var(--brand-primary) 22%, transparent) !important;
   color: var(--text-primary);
+  font-weight: 600;
+}
+
+/*
+ * 활성 엔트리 좌측 accent bar.
+ *   - 배경색 강조만으로는 섹션 헤더와의 위계 차이가 약해 잘 안 보인다는 보고가 있어
+ *     도입. 이후 hover/focus 와 시각이 섞이지 않도록 `::before` 로 분리한다.
+ */
+.workspace-sidebar__menu-item--active::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--brand-primary, #2563eb);
 }
 
 .workspace-sidebar__menu-item:disabled {
   opacity: 0.45;
 }
 
+/* 사이드바 항목 내부 라벨·배지 — 라벨은 가용 폭을 채우고, 배지는 우측 고정. */
+.workspace-sidebar__menu-item-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workspace-sidebar__menu-item-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-main) 16%, transparent);
+  color: var(--text-sub);
+  line-height: 1;
+}
+
+/*
+ * 사이드바 섹션(카테고리) 헤더 — "고객관리 / 소식지 / 팀관리 …"
+ *
+ * 시각 위계 규칙:
+ *   · 13px · 700 · muted · letter-spacing 0.04em
+ *   · 섹션 간 얇은 구분선(첫 섹션 제외) + 위쪽 14px 여백
+ *   · 메뉴 엔트리 대비 **들여쓰기 차이(10px vs 20px)** 로 부모/자식 관계 인지.
+ *
+ * 과거 11px 하나만 주던 스타일은 바로 아래 메뉴 엔트리(0.88rem)와 너무 가까워
+ * 카테고리 라벨이 "메뉴 중 하나" 처럼 오독됐다. 폰트·구분선·들여쓰기 세 축을
+ * 동시에 벌려서 위계를 회복한다.
+ */
+.workspace-sidebar__section {
+  padding: 14px 10px 6px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-sub);
+  letter-spacing: 0.04em;
+  user-select: none;
+  border-top: 1px solid color-mix(in srgb, var(--text-sub) 14%, transparent);
+}
+
+.workspace-sidebar__section:first-child,
+.workspace-sidebar__nav > .workspace-sidebar__section:first-child {
+  padding-top: 4px;
+  border-top: none;
+}
+
+/*
+ * 로그아웃 = 세션 액션 슬롯. 메뉴 바깥 "하단 고정" 이 SSOT 규칙.
+ *   - aside 가 flex column 이므로 `margin-top: auto` 로 하단에 정렬되고,
+ *     `border-top` 으로 메뉴 영역과 물리적 경계를 시각화한다.
+ *   - 로그아웃 외 다른 세션 액션이 생기면 같은 규칙을 따르는 별도 클래스로
+ *     추가하고, 순서는 위→아래 = 덜 파괴적 → 더 파괴적 순으로.
+ */
+/*
+ * PC 사이드바 하단 영역 — 로그아웃의 SSOT 위치.
+ *   - nav 와 분리된 독립 블록으로, 메뉴 리스트 마지막 뒤에 자연스럽게 쌓인다.
+ *   - border-top 으로 시각적 섹션 구분을 담당하고, 버튼 자체의 모양은 공용
+ *     .button* 규격을 그대로 따른다 (절대 덮지 않음).
+ *   - 모바일 .mobile-workspace-drawer__footer 와 동일한 의도의 PC 대칭체.
+ */
+.workspace-sidebar__footer {
+  padding-top: 10px;
+  border-top: 1px solid var(--border-default, #2a2a2a);
+}
+
 .workspace-sidebar__logout {
-  margin-top: auto;
+  width: 100%;
+  margin: 0;
 }
 
 .workspace-memo-overlay {
@@ -7151,6 +7563,18 @@ a.contacts-public-auth__link {
   min-height: 0;
 }
 
+/*
+ * 메모 캔버스는 앱 전역 테마(라이트/다크)와 독립된 "다크 스코프" 이다.
+ * 캔버스 내부에서 쓸 글자 색을 별도 토큰(--canvas-fg / --canvas-fg-muted)으로
+ * 정의해 자식(empty state / loading / 향후 오버레이)이 이걸 상속받게 한다.
+ *
+ * 왜 이렇게 분리하는가:
+ *  - 예전에는 캔버스 내부 텍스트가 전역 --text-primary 를 썼다.
+ *  - 라이트 테마에서 --text-primary = #111 이 되면 캔버스 배경(#0f1115)과
+ *    거의 같은 색이라 본문이 "검은 화면" 으로 인식되는 회귀가 발생했다.
+ *  - 캔버스 스코프 전용 토큰으로 격리하면 테마가 바뀌어도, 캔버스 배경을
+ *    나중에 바꿔도, 한 곳에서 관리할 수 있다.
+ */
 .memo-canvas-area {
   flex: 1;
   position: relative;
@@ -7161,6 +7585,9 @@ a.contacts-public-auth__link {
   flex-direction: column;
   overflow: auto;
   background: #0f1115;
+  --canvas-fg: #e5e7eb;
+  --canvas-fg-muted: #9ca3af;
+  color: var(--canvas-fg);
   scroll-behavior: smooth;
 }
 
@@ -7494,6 +7921,13 @@ a.contacts-public-auth__link {
   box-shadow: none;
 }
 
+/*
+ * 메모 캔버스 빈 상태.
+ *
+ * 색상은 컴포넌트가 아닌 캔버스 스코프(.memo-canvas-area)의 토큰을 상속한다
+ * (--canvas-fg / --canvas-fg-muted). 이로써 "검은 배경 + 검은 글씨" 회귀를
+ * 구조적으로 차단한다.
+ */
 .memo-workspace__empty {
   display: flex;
   flex-direction: column;
@@ -7503,10 +7937,23 @@ a.contacts-public-auth__link {
   padding: 2rem;
   text-align: center;
   gap: 0.5rem;
+  color: var(--canvas-fg, #e5e7eb);
+}
+
+.memo-workspace__empty-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--canvas-fg, #e5e7eb);
+}
+
+.memo-workspace__empty-hint {
+  font-size: 0.875rem;
+  color: var(--canvas-fg-muted, #9ca3af);
 }
 
 .memo-workspace__loading {
   min-height: min(48vh, 360px);
+  color: var(--canvas-fg-muted, #9ca3af);
 }
 
 /* ——— 메모 삭제 확인 (body Portal, 최상단 z-index) ——— */

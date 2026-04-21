@@ -558,6 +558,11 @@ export interface FeatureRequestAdminRow {
   content: string
   status: FeatureRequestStatus
   created_at: string
+  /**
+   * 해당 요청에 달린 코멘트 총 개수(집계값).
+   * 목록 화면에서 "답변 있음" 뱃지를 바로 그리기 위해 별도 API 호출 없이 사용한다.
+   */
+  comment_count: number
 }
 
 export async function submitFeatureRequest(
@@ -582,6 +587,11 @@ export interface MyFeatureRequestRow {
   content: string
   status: FeatureRequestStatus
   created_at: string
+  /**
+   * 내 요청에 달린 코멘트(담당자 답변 등) 개수.
+   * 0 초과이면 사용자 화면에 "답변 N" 배지를 노출한다.
+   */
+  comment_count: number
 }
 
 export async function listMyFeatureRequests(token: string): Promise<MyFeatureRequestRow[]> {
@@ -614,4 +624,51 @@ export async function updateFeatureRequestStatus(
     token,
     body: JSON.stringify({ status }),
   })
+}
+
+/**
+ * 문의/요청 코멘트.
+ *
+ * 작성은 관리자만(이번 버전), 읽기는 관리자·요청자 양쪽 모두. `authorRole` 값으로
+ * UI 에서 '담당자' / '본인' 배지를 구분 표시한다.
+ */
+export interface FeatureRequestComment {
+  id: number
+  requestId: number
+  authorId: string
+  authorRole: 'admin' | 'requester'
+  authorUsername: string
+  content: string
+  createdAt: string
+}
+
+export async function listAdminFeatureRequestComments(
+  token: string,
+  requestId: number,
+): Promise<FeatureRequestComment[]> {
+  return apiRequest<FeatureRequestComment[]>(
+    `/api/admin/feature-requests/${requestId}/comments`,
+    { method: 'GET', token },
+  )
+}
+
+export async function createAdminFeatureRequestComment(
+  token: string,
+  requestId: number,
+  content: string,
+): Promise<FeatureRequestComment> {
+  return apiRequest<FeatureRequestComment>(
+    `/api/admin/feature-requests/${requestId}/comments`,
+    { method: 'POST', token, body: JSON.stringify({ content }) },
+  )
+}
+
+export async function listMyFeatureRequestComments(
+  token: string,
+  requestId: number,
+): Promise<FeatureRequestComment[]> {
+  return apiRequest<FeatureRequestComment[]>(
+    `/api/feature-requests/my/${requestId}/comments`,
+    { method: 'GET', token },
+  )
 }
