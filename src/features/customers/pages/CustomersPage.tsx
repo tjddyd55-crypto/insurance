@@ -1210,16 +1210,9 @@ export default function CustomersPage() {
   )
   /**
    * `CustomersPage` 는 좌측 목록(카드 펼침)과 `?customerId=` 쿼리만 관리한다.
-   * "지금 선택된 고객 id" 의 단일 진실 원천은 **URL path** 이며,
-   * 이 값을 소비하는 쪽(우측 워크스페이스)은 `CustomerWorkspaceLayout` 이 자체적으로
-   * path → query 순서로 memo 파생한다 (routing-ssot.mdc §1 · §9).
-   *
-   * 과거에는 이 파일에도 `selectedCustomerId` state 가 존재해 두 개의 pull effect
-   * (query→state, expandedId→state) 가 동일 state 를 다른 source 로 당겨 쓰며
-   * 핑퐁(Maximum update depth exceeded) 을 유발했지만, 해당 state 는 실제로
-   * 이 컴포넌트 내부·하위 뷰 어디에서도 read 되지 않는 **dead state** 였기 때문에
-   * memo 로 전환하지 않고 그대로 제거했다. 선택 고객 id 가 필요해지는 시점에는
-   * `CustomerWorkspaceLayout` 의 파생값을 재사용한다.
+   * 선택된 고객 id 의 단일 진실 원천은 URL path 이며, 그 값의 소비는
+   * `CustomerWorkspaceLayout` 이 path → query 순서로 파생한다
+   * (routing-ssot.mdc §1 · §9).
    */
   const [expandedId, rawSetExpandedId] = useState<number | null>(() => {
     if (selectedCustomerIdFromQuery != null) {
@@ -1244,21 +1237,14 @@ export default function CustomersPage() {
   editFormRef.current = editForm
 
   /**
-   * expandedId state 와 `?customerId=` 쿼리를 **한 번의 호출로 원자 업데이트**하는 래퍼.
+   * expandedId state 와 `?customerId=` 쿼리를 같은 호출에서 원자적으로 갱신하는 래퍼.
    *
-   * 과거에는 expandedId 가 바뀐 뒤 별도의 effect(구:Effect C) 가 뒤늦게 URL 을 따라붙이는
-   * 구조였다. 이는 routing-ssot.mdc §3 가 명시한 red flag("effect 안에서 setSearchParams"
-   * + "state→URL reflect") 에 해당해, 특정 타이밍에 URL 과 state 가 어긋나거나 사용자
-   * 조작을 덮어쓸 여지를 남겼다.
+   * side-detail path(`/customers/:id/<tab>`) 위에서는 query 를 건드리지 않는다.
+   * 우측 패널(CustomerFiles/Memos 등) 이 해당 쿼리를 관장하므로, 목록의 접기·
+   * 펼치기가 패널 URL 을 덮어쓰면 안 된다 (routing-ssot.mdc §11).
    *
-   * 래퍼는 state 를 먼저 반영한 뒤, side-detail path(/customers/:id/*) 가 아닌 경우에만
-   * query 를 동기화한다. side-detail path 에서는 우측 패널(CustomerFiles/Memos 등) 이
-   * 동일 쿼리를 관장하므로 목록의 접기·펼치기가 패널 URL 을 덮어쓰면 안 된다
-   * (routing-ssot.mdc §6-B).
-   *
-   * 이 래퍼는 내부적으로 useState 의 raw setter 를 감싸기 때문에 기존 호출부
-   * (`setExpandedId(id)` · `useExpandableCard` prop 등) 를 고치지 않아도 자동으로
-   * URL 동기화가 적용된다.
+   * useState 의 raw setter 를 감싸기 때문에 기존 호출부와 `useExpandableCard`
+   * prop 에도 별도 변경 없이 URL 동기화가 따라붙는다.
    */
   const setExpandedId = useCallback<Dispatch<SetStateAction<number | null>>>(
     (updater) => {
@@ -1496,18 +1482,10 @@ export default function CustomersPage() {
   )
 
   /**
-   * 카드 요약 클릭에 따르는 부수 작업 전담 핸들러.
-   *
-   * 책임 분리 (routing-ssot.mdc §4, 단일 책임 원칙):
-   *  - expandedId 토글 + 접기 애니메이션은 `useExpandableCard.toggleExpanded` 전담
-   *  - 이 핸들러는 같은 클릭에 뒤따르는 두 가지만 수행한다.
-   *      1) 펼친 카드가 보이도록 스크롤 요청
-   *      2) PC 에서는 우측 워크스페이스 path 로 이동
-   *
-   * 과거에는 여기서도 `setExpandedId(c.id)` 를 호출해 `toggleExpanded` 와
-   * 이중으로 setter 를 트리거했고, 그 부작용으로 같은 이벤트에서
-   * URL 동기화가 두 번 수행되었다. 책임을 분리한 뒤로는 setter 호출이
-   * 한 번으로 정리되고, 각 함수 이름이 곧 그 함수의 역할이 된다.
+   * 카드 요약 클릭의 부수 작업만 담당한다 (routing-ssot.mdc §4).
+   * expandedId 토글·접기 애니메이션은 `useExpandableCard.toggleExpanded` 전담이며,
+   * 이 핸들러는 (1) 펼친 카드 스크롤 요청, (2) PC 에서는 우측 워크스페이스
+   * path 이동 두 가지만 수행한다.
    */
   const handleSelectCustomer = useCallback(
     (c: CustomerRecord) => {
@@ -1569,23 +1547,9 @@ export default function CustomersPage() {
   }, [user?.role, loadCustomers])
 
   /**
-   * 카드 펼침(expandedId)은 요약 클릭으로만 바꾼다.
-   * `?customerId=` 는 작업공간·CustomerFilesPage 등이 유지할 수 있으므로,
-   * URL 쿼리가 바뀌었다고 펼침을 강제하지 않는다(파일 패널 ↔ 목록 충돌 방지).
-   */
-  /**
-   * [HISTORY] 과거에는 `selectedCustomerId` 가 이 컴포넌트의 state 였고,
-   * 두 개의 pull effect(A: query→state, B: expandedId→state) 가 각기 다른 source 로부터
-   * 값을 당겨 쓰며 핑퐁 → `Maximum update depth exceeded` 를 유발했다.
-   *
-   * 근본 정리 결과: 해당 state 는 이 파일 안에서도 하위 뷰에서도 **실제로 read 되지 않던**
-   * dead state 였다 (우측 워크스페이스는 `CustomerWorkspaceLayout` 이 path 기준으로 자체
-   * 파생). 따라서 memo 로 전환할 필요 없이 state 와 두 pull effect 를 통째로 제거했다.
-   *
-   * 선택된 고객 id 의 단일 진실 원천은 이제 `CustomerWorkspaceLayout` 의 path → query
-   * 파생값 한 곳뿐이다 (routing-ssot.mdc §1 · §9).
-   *
-   * 이 주석 블록 자체는 SSOT 근본 정리 마지막 커밋에서 함께 제거될 예정이다.
+   * 카드 펼침(expandedId) 은 요약 클릭 이벤트로만 바꾼다.
+   * `?customerId=` 는 우측 패널(CustomerFiles/Memos 등) 이 유지할 수 있으므로
+   * 쿼리 변화에 반응해 펼침을 강제하지 않는다 (routing-ssot.mdc §11).
    */
 
   useLayoutEffect(() => {
@@ -1702,10 +1666,6 @@ export default function CustomersPage() {
       }
     }
   }, [expandedId, isMobile, scrollRequestKey])
-
-  // NOTE: "expandedId 변화 → ?customerId= 반영" 을 담당하던 effect(구:Effect C) 는 제거했다.
-  // 동일 책임을 위 `setExpandedId` 래퍼가 동기적으로 수행하므로(§3 red flag 해소),
-  // state→URL reflect 전용 effect 는 더 이상 필요 없다.
 
   useEffect(() => {
     if (expandedId == null) {

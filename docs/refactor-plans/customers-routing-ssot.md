@@ -159,3 +159,42 @@ git checkout -b refactor/customers-routing-ssot
 - `.cursor/rules/routing-ssot.mdc` — 라우팅 SSOT 원칙 (존재하면 반드시 읽기)
 - `CustomersPage.tsx` 1507~1532 주석 블록 — 현재 상태의 배경 설명
 - 과거 회귀 이력: "고객 클릭해도 우측 영역이 이전 고객 기준으로 남음"
+
+## 10. 완료 기록 (`refactor/customers-routing-ssot` 브랜치 작업 결과)
+
+### 10.1 커밋 타임라인
+
+| 커밋 | 역할 |
+|---|---|
+| `68557ba` docs | 본 handoff 노트 추가 (§1~§9) |
+| `dfd7aed` refactor | `selectedCustomerId` dead state 제거 + Effect A/B(query→state, expandedId→state) pull effect 2개 제거 |
+| (`6d9cc49` chore) | Scenario 6 진단용 임시 `console.log` 투입 — 이후 제거 |
+| `9003df3` refactor | Effect C(expandedId→query push) 제거 → `setExpandedId` 를 `useCallback` 래퍼로 전환, state 와 `?customerId=` 를 한 호출에서 원자 갱신 |
+| `8926934` refactor | 카드 요약 클릭에서 `toggleExpanded` + `handleSelectCustomer` 가 `setExpandedId` 를 이중으로 트리거하던 문제 정리 (책임 분리) |
+| (본 커밋) refactor | 히스토리 주석 축약·제거 + rule §10/§11 신설 + 본 섹션 추가 |
+
+### 10.2 §5 회귀 시나리오 결과
+
+- **PC**: 카드 클릭·A→B 전환·사이드 디테일 직접 진입·탭 유지·뒤로/새로고침 전부 정상.
+- **모바일**: 카드 펼침이 `?customerId=` 쿼리와 같은 틱에 동기화됨을 콘솔 로그로 확인 (이후 로그 제거).
+- **성능**: `Maximum update depth exceeded` 재발 없음. 콘솔 에러 0.
+
+### 10.3 근본 정리가 낳은 불변식
+
+1. `CustomersPage` 는 좌측 목록(`expandedId`) 과 `?customerId=` 쿼리만 관리한다. 선택된 고객 id 의 SSOT 는 URL path 이며 `CustomerWorkspaceLayout` 의 파생 한 곳뿐이다.
+2. `setExpandedId` 는 state 와 URL 을 **같은 호출에서** 갱신한다. 별도 "state → URL reflect" effect 는 존재하지 않는다.
+3. side-detail path(`/customers/:id/<tab>`) 위에서는 리스트 조작이 `?customerId=` 를 덮어쓰지 않는다. URL 갱신 권한은 우측 패널이 가진다.
+4. 카드 요약 클릭의 책임은 분리되어 있다.
+   - `useExpandableCard.toggleExpanded` → expandedId 토글 + 접기 애니메이션
+   - `handleSelectCustomer` → 스크롤 요청 + PC navigate
+
+### 10.4 이번 스코프 밖으로 남긴 이슈
+
+- `/customers?customerId=123` 로 직접 진입 시 대시보드로 리다이렉트되는 현상이 보고됨. 본 리팩터와 무관(라우터/가드 상위 레이어 추정). 별도 티켓으로 조사 필요.
+- 개발 환경 콘솔의 `[Violation] Forced reflow` 경고는 `develop` 기준선에도 동일하게 존재하는 pre-existing 항목. 기능 영향 없음.
+
+### 10.5 rule 문서 업데이트 (`.cursor/rules/routing-ssot.mdc`)
+
+- `§10` 신설 — "state → URL reflect 는 effect 가 아니라 setter 래퍼에서"
+- `§11` 신설 — "side-detail path 에서 리스트 조작은 우측 패널 URL 을 덮어쓰지 않는다"
+- `§12` 체크리스트 — 위 두 항목 추가
