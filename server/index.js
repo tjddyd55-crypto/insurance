@@ -1910,13 +1910,24 @@ async function handleRegister(req, res) {
     const passwordHash = await bcrypt.hash(password, 10)
     const id = randomUUID()
 
+    /*
+     * invited_by_user_id 는 NOT NULL + FK(users.id) 제약을 가진다 (initDb.js §1815-1832).
+     * 초대 링크(ref_user_id) 를 통해 들어온 경우 해당 유저 id 를,
+     * 그렇지 않은 셀프 가입(GA 코드만 입력) 인 경우 자기 자신의 id 를 기록한다.
+     * 후자는 initDb bootstrap 이 기존 유저에 대해 수행하는
+     *   `UPDATE users SET invited_by_user_id = id WHERE invited_by_user_id IS NULL`
+     * 과 동일한 컨벤션이므로 데이터 모델 일관성이 유지된다.
+     * → 초대 없이 가입한 유저는 쿼리상 `invited_by_user_id = id` 로 식별 가능.
+     */
+    const effectiveInvitedByUserId = invitedByUserId ?? id
+
     const inserted = await safeQuery(pool,
       `
       INSERT INTO users (id, username, password_hash, role, ga_id, display_name, phone_number, invited_by_user_id)
       VALUES ($1, $2, $3, 'USER', $4, $5, $6, $7)
       RETURNING created_at
       `,
-      [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm || null, invitedByUserId],
+      [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm || null, effectiveInvitedByUserId],
     )
 
     if (phoneNorm) {
