@@ -842,6 +842,27 @@ export async function initDb() {
       AND TRIM(content) <> ''
   `)
 
+  // 문의/요청 댓글.
+  // - feature_requests(1) : feature_request_comments(N) 관계.
+  // - author_role 은 현재 'admin' 만 기록되지만, 추후 요청자 답글을 허용할 경우
+  //   'user' 등 다른 값을 추가할 수 있도록 CHECK 제약 대신 애플리케이션 레이어에서 검증한다.
+  // - 요청이 삭제되면 댓글도 함께 정리(CASCADE).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feature_request_comments (
+      id SERIAL PRIMARY KEY,
+      feature_request_id INTEGER NOT NULL REFERENCES feature_requests(id) ON DELETE CASCADE,
+      author_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      author_role TEXT NOT NULL,
+      author_username TEXT,
+      content TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_frc_request_created
+    ON feature_request_comments(feature_request_id, created_at)
+  `)
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS insurance_forms (
       id TEXT PRIMARY KEY,
