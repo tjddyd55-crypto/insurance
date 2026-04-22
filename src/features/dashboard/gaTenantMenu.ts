@@ -119,6 +119,13 @@ export function buildGaTenantDashboardMenu(
     disabled: true,
     badge: DEV_BADGE,
   })
+  /* 좌표 기반 PDF 자동화 — 관리자가 정의한 문서 목록.
+     GA 별로 템플릿이 없으면 목록이 비어 보이므로, 항상 메뉴에 노출해도 안전하다. */
+  applicationItems.push({
+    type: 'link',
+    label: '문서',
+    path: '/application/documents',
+  })
 
   return [
     { type: 'section', label: '고객관리' },
