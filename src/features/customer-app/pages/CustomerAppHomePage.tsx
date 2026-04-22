@@ -84,6 +84,7 @@ export default function CustomerAppHomePage() {
         <NewsletterList
           items={newsletterItems}
           emptyMessage="표시할 소식지가 없습니다."
+          variant="mobile"
           onOpenItem={(id) => navigate(`/customer-app/news/${id}`)}
         />
         <div className="customer-app-home__news-more">
