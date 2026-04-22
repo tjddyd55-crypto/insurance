@@ -21,6 +21,7 @@ import MemoPanel from './MemoPanel'
 import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
 import { MemoMobileFab } from '../features/memo/components/MemoMobileFab'
 import useIsMobile from '../hooks/useIsMobile'
+import { useBackButtonClose } from '../hooks/useBackButtonClose'
 
 const MEMO_DEFAULT_WIDTH = 420
 const MEMO_MIN_WIDTH = 320
@@ -143,6 +144,14 @@ function AppWorkspaceLayoutMobileShell() {
   const { user, logout, token, isAuthenticated } = useAuth()
   const isMobile = useIsMobile()
   const [drawerOpen, setDrawerOpen] = useState(false)
+
+  /*
+   * 모바일 뒤로가기 UX:
+   *   드로어가 열린 상태에서 브라우저/하드웨어 뒤로가기 → 드로어만 닫히고 페이지 이동은 막는다.
+   *   훅 내부에서 history pushState/popstate 를 모두 캡슐화하므로 여기서는 한 줄 선언만 한다.
+   */
+  useBackButtonClose(drawerOpen, () => setDrawerOpen(false))
+
   const [mobileSelectedCustomer, setMobileSelectedCustomer] = useState<string | null>(extractCustomerIdFromPath(location.pathname))
   const [mobilePageStack, setMobilePageStack] = useState<string[]>(() => [location.pathname])
   const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
