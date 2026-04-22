@@ -17,6 +17,7 @@ import { DesktopUpdateSection } from '../../../components/DesktopUpdateSection'
 import { UserGaExcelManagePanel } from '../../profile/components/UserGaExcelManagePanel'
 import { CustomerExcelImportPanel } from '../../customers/components/CustomerExcelImportPanel'
 import PCOnlySection from '../../../components/PCOnlySection'
+import { SubscriptionStatusCard } from '../../subscription/components/SubscriptionStatusCard'
 
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
@@ -386,6 +387,7 @@ export function ProfilePage() {
   return (
     <main className="page page--with-back profile-page">
       <h1>{pageTitle}</h1>
+      <SubscriptionStatusCard subscription={user?.subscription ?? null} />
       <DesktopUpdateSection />
 
       <section>

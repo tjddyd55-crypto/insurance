@@ -14,6 +14,7 @@ import PCHeader from '../components/layout/PCHeader'
 import { useAuth } from '../features/auth/AuthProvider'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
+import { ExpiredBanner } from '../features/subscription/components/ExpiredBanner'
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import { fetchTeamMembers } from '../features/team/api/teamApi'
 import MemoPanel from './MemoPanel'
@@ -358,6 +359,7 @@ function AppWorkspaceLayoutMobileShell() {
         data-selected-customer={mobileSelectedCustomer ?? ''}
         data-page-stack-depth={String(mobilePageStack.length)}
       >
+        <ExpiredBanner />
         <Outlet />
       </main>
 
@@ -654,6 +656,7 @@ function AppWorkspaceLayoutPCShell() {
           data-selected-customer={selectedCustomerPc ?? ''}
         >
           <div className="app-main-content app-main-content--workspace-outlet-host">
+            <ExpiredBanner />
             <Outlet />
           </div>
         </div>
