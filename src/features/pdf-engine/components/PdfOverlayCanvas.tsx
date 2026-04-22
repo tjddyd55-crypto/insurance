@@ -96,9 +96,16 @@ export function PdfOverlayCanvas({
     }
   }, [marks, pageIndex])
 
+  /*
+   * status 도 의존성에 넣는다.
+   * PDF 첫 로드 완료 시점에는 marks·pageIndex 가 바뀌지 않아
+   * drawMarks 이펙트가 재실행되지 않기 때문에,
+   * 'ready' 전이를 트리거로 삼아 기존 placement 가 누락되지 않게 한다.
+   */
   useEffect(() => {
+    if (status !== 'ready') return
     drawMarks()
-  }, [drawMarks])
+  }, [drawMarks, status])
 
   useEffect(() => {
     if (!pdfBuffer) {

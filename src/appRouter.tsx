@@ -182,10 +182,6 @@ export const appRouter = createBrowserRouter([
                   { path: 'application', element: <ApplicationPage /> },
                   { path: 'app/auto-insurance', element: <ApplicationFormPage /> },
                   { path: 'application/direct-auto', element: <DirectAutoPage /> },
-                  /* 좌표 기반 PDF 자동화 — 신청서 섹션에 '문서' 로 노출.
-                     권한은 서버 API 에서 GA 범위 + 구독 상태로 이중 차단된다. */
-                  { path: 'application/documents', element: <PdfDocumentListPage /> },
-                  { path: 'application/documents/:id', element: <PdfDocumentDetailPage /> },
                   { path: 'application/write', element: <ApplicationFormPage /> },
                   { path: 'my-forms', element: <ApplicationListPage /> },
                   { path: 'form/create', element: <ApplicationFormPage /> },
@@ -193,6 +189,14 @@ export const appRouter = createBrowserRouter([
                   { path: 'form/result/:id', element: <ApplicationResultPage /> },
                 ],
               },
+              /*
+               * 좌표 기반 PDF 자동화 — 차보험 토글과 무관한 공용 문서 기능이므로
+               * GaCarInsuranceRoute 게이트 밖에 둔다.
+               * 권한/활성 여부는 서버(GET /pdf-templates · /pdf-templates/:id · /render)에서
+               * GA 범위 + 구독 상태로 이중 차단한다.
+               */
+              { path: 'application/documents', element: <PdfDocumentListPage /> },
+              { path: 'application/documents/:id', element: <PdfDocumentDetailPage /> },
               {
                 path: 'customers',
                 element: <CustomerWorkspaceLayout />,

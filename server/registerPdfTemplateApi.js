@@ -79,6 +79,17 @@ function requireSuperAdmin(req, res, isSuperAdminRole) {
   return true
 }
 
+/**
+ * SUPER_ADMIN 전용 라우트의 미들웨어 체인 선두에 배치.
+ * multer 같은 리소스 소비형 파서가 비인가 요청을 처리하지 않도록, 권한 체크를 파싱 앞에서 수행한다.
+ */
+function makeRequireSuperAdminMw(isSuperAdminRole) {
+  return (req, res, next) => {
+    if (!requireSuperAdmin(req, res, isSuperAdminRole)) return
+    next()
+  }
+}
+
 /* 권한 판정은 security/templateAccess.js 로 이관 — 단위 테스트 용이 + 재사용 대비. */
 function canAccessTemplateForRequest(template, req, isSuperAdminRole) {
   return canAccessTemplateForUser(template, req.user ?? null, isSuperAdminRole)
@@ -124,12 +135,15 @@ function fieldRowToDto(row) {
  */
 export function registerPdfTemplateApi(apiRouter, deps) {
   const { pool, requireAuth, isSuperAdminRole, handleDbError } = deps
+  const requireSuperAdminMw = makeRequireSuperAdminMw(isSuperAdminRole)
 
   // ─── 관리자 라우트 ────────────────────────────────────────────────
 
   apiRouter.post(
     '/admin/pdf-templates/upload',
     requireAuth,
+    /* 권한을 multer 앞에 두어 비인가 요청이 25MB 멀티파트 파싱을 강제하지 못하게 한다. */
+    requireSuperAdminMw,
     (req, res, next) => {
       uploadPdf.single('pdf')(req, res, (err) => {
         if (err) {
@@ -140,7 +154,6 @@ export function registerPdfTemplateApi(apiRouter, deps) {
       })
     },
     async (req, res) => {
-      if (!requireSuperAdmin(req, res, isSuperAdminRole)) return
       const file = req.file
       if (!file || !file.buffer || file.buffer.length === 0) {
         res.status(400).json({ message: 'PDF 파일이 필요합니다.' })
@@ -363,10 +376,20 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
         return
       }
-      /* 스토리지 먼저 지우고 DB 를 지운다. 스토리지가 실패하면 DB 는 남겨 재시도 가능하게. */
-      await deleteTemplateObject(template.storage_key).catch((err) => {
-        console.warn('[pdf-templates] 스토리지 삭제 경고(무시):', err?.message ?? err)
-      })
+      /*
+       * 스토리지 먼저 지우고 DB 를 지운다.
+       * 스토리지 삭제가 실패하면 DB row 를 남겨두고 에러를 반환해야 orphan 객체를 재시도로 정리할 수 있다.
+       * (DB 만 날려버리면 복구 단서가 사라진다.)
+       */
+      try {
+        await deleteTemplateObject(template.storage_key)
+      } catch (storageError) {
+        console.error('[pdf-templates] 스토리지 삭제 실패 — DB row 유지', storageError)
+        res.status(502).json({
+          message: '원본 PDF 삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+        })
+        return
+      }
       await deleteTemplate(pool, id)
       res.status(204).end()
     } catch (error) {
@@ -378,7 +401,13 @@ export function registerPdfTemplateApi(apiRouter, deps) {
 
   apiRouter.get('/pdf-templates', requireAuth, async (req, res) => {
     try {
-      const gaIdForFilter = isSuperAdminRole(req.user?.role) ? null : req.user?.gaId ?? null
+      const isSuper = isSuperAdminRole(req.user?.role)
+      /* 비관리자 계정에 GA 컨텍스트가 없으면 전체 노출 위험이 있으므로 명시적으로 거절한다. */
+      if (!isSuper && req.user?.gaId == null) {
+        res.status(400).json({ message: 'GA 컨텍스트가 없는 계정은 문서 목록을 조회할 수 없습니다.' })
+        return
+      }
+      const gaIdForFilter = isSuper ? null : req.user?.gaId ?? null
       const rows = await listTemplates(pool, { gaId: gaIdForFilter, includeInactive: false })
       res.json({ templates: rows.map(templateToDto) })
     } catch (error) {
