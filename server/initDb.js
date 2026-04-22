@@ -2576,6 +2576,7 @@ export async function initDb() {
   `)
 
   await ensureSubscriptionSchema(pool)
+  await ensurePdfTemplateSchema(pool)
 }
 
 /**
@@ -2652,6 +2653,87 @@ async function ensureSubscriptionSchema(executor) {
       ('subscription.policy_active',       CAST('false' AS jsonb)),
       ('subscription.trial_default_days',  CAST('30'    AS jsonb))
     ON CONFLICT (key) DO NOTHING
+  `)
+}
+
+/**
+ * 좌표 기반 PDF 자동화 엔진 스키마.
+ *
+ * - `pdf_templates` : 원본 PDF(R2 객체키) + 메타.
+ *     GA 범위(`ga_id NULL` = 전체 공용) / 문서 코드 / 활성 여부.
+ *     UNIQUE(ga_id, code) 로 한 GA 안에서 같은 code 재등록을 막는다.
+ *
+ * - `pdf_template_fields` : 필드 정의 + 좌표 placements.
+ *     `field_type` 은 Phase 1 에서 text/number/date/textarea 로 CHECK 제약.
+ *     `placements` 는 JSONB 배열로 설계 → Phase 2 에서 radio/checkbox 옵션별 좌표를
+ *     늘리더라도 스키마 그대로 쓸 수 있다.
+ *     placement 요소: { page, x, y, width?, height?, fontSize?, align? }
+ *     좌표 단위: PDF user space (원점 좌하단, pt).
+ *
+ * 확장 포인트:
+ *   - Phase 2: `field_type` CHECK 확장(radio/checkbox/select) + placements 의 각 요소에
+ *     `optionValue` 를 추가. 필드 1건 = 옵션 N개 → placements 요소 N개.
+ *   - Phase 3: `pdf_render_jobs` 를 새 테이블로 분리해 발급 이력/R2 저장을 관리.
+ *
+ * 정책:
+ *   - 이 마이그레이션만 단독 배포해도 기존 기능에 영향이 없다.
+ *   - UI·API 가 아직 없으므로 테이블은 존재만 하고 트래픽은 0.
+ */
+async function ensurePdfTemplateSchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS pdf_templates (
+      id SERIAL PRIMARY KEY,
+      ga_id INTEGER REFERENCES ga_companies(id) ON DELETE CASCADE,
+      code TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      storage_key TEXT NOT NULL,
+      page_count INTEGER NOT NULL DEFAULT 1,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS pdf_templates_ga_code_uk
+    ON pdf_templates (COALESCE(ga_id, 0), code)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS pdf_templates_ga_active_idx
+    ON pdf_templates (ga_id, is_active)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS pdf_template_fields (
+      id SERIAL PRIMARY KEY,
+      template_id INTEGER NOT NULL REFERENCES pdf_templates(id) ON DELETE CASCADE,
+      field_key TEXT NOT NULL,
+      label TEXT NOT NULL,
+      field_type TEXT NOT NULL,
+      required BOOLEAN NOT NULL DEFAULT false,
+      order_index INTEGER NOT NULL DEFAULT 0,
+      customer_mapping TEXT,
+      placements JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE pdf_template_fields DROP CONSTRAINT IF EXISTS pdf_template_fields_type_check
+  `)
+  await executor.query(`
+    ALTER TABLE pdf_template_fields
+    ADD CONSTRAINT pdf_template_fields_type_check
+    CHECK (field_type IN ('text', 'number', 'date', 'textarea'))
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS pdf_template_fields_tpl_key_uk
+    ON pdf_template_fields (template_id, field_key)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS pdf_template_fields_tpl_order_idx
+    ON pdf_template_fields (template_id, order_index)
   `)
 }
 

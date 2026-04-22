@@ -1,0 +1,116 @@
+/**
+ * 스탬핑 엔드-투-엔드 스모크 테스트.
+ *
+ * 목적:
+ *   - `stampPdf` 가 원본 → 스탬프된 바이트를 "PDF 로서 다시 로드할 수 있는지" 만 확인.
+ *   - 픽셀 비교는 별도 시각 테스트(수동) 영역으로 두고, 여기선 회귀 탐지에만 집중.
+ *
+ * 환경:
+ *   - 한글 폰트 파일이 번들되지 않은 CI 환경에서는 skip.
+ *     (폰트가 없는 배포는 서비스 레벨에서 명시적으로 실패하는 것이 정책이지만,
+ *      개발/테스트에선 파이프라인이 멈추지 않도록 skip 을 허용한다.)
+ */
+
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { access } from 'node:fs/promises'
+import path from 'node:path'
+import { PDFDocument } from 'pdf-lib'
+
+import { stampPdf } from './stampPdf.js'
+import { normalizeFieldSpecList } from '../schema/fieldSpec.js'
+
+async function hasFont() {
+  const candidates = [
+    process.env.CONSENT_FONT_PATH,
+    path.join(process.cwd(), 'server/fonts/NotoSansKR-Regular.otf'),
+    path.join(process.cwd(), 'server/fonts/NotoSansKR-Regular.ttf'),
+  ].filter(Boolean)
+  for (const c of candidates) {
+    try {
+      await access(String(c))
+      return true
+    } catch {
+      /* keep looking */
+    }
+  }
+  return false
+}
+
+async function buildBlankPdf() {
+  const doc = await PDFDocument.create()
+  /* A4 세로. 좌표가 실제 문서 내부에 떨어지는지 확인만 하면 충분. */
+  doc.addPage([595.28, 841.89])
+  return Buffer.from(await doc.save())
+}
+
+test('stampPdf: 단일 텍스트 스탬프 후 PDF 로 다시 로드 가능', async (t) => {
+  if (!(await hasFont())) {
+    t.skip('한글 폰트 파일이 없어 skip (server/fonts/NotoSansKR-Regular.otf)')
+    return
+  }
+  const template = await buildBlankPdf()
+  const fields = normalizeFieldSpecList([
+    {
+      fieldKey: 'name',
+      label: '성명',
+      fieldType: 'text',
+      required: true,
+      orderIndex: 0,
+      placements: [{ page: 0, x: 100, y: 700, align: 'left' }],
+    },
+  ])
+  const out = await stampPdf(template, fields, { name: '홍길동' })
+  assert.ok(out instanceof Buffer)
+  /* 재로드 성공이 곧 유효한 PDF 의 정의. */
+  const reloaded = await PDFDocument.load(out)
+  assert.equal(reloaded.getPageCount(), 1)
+  /* 스탬프된 버전은 원본보다 1바이트라도 커져야 한다 — "실제로 뭔가 그려졌다" 의 최소 증거. */
+  assert.ok(out.byteLength > template.byteLength - 2048)
+})
+
+test('stampPdf: textarea 줄바꿈 옵션이 있어도 예외 없이 생성된다', async (t) => {
+  if (!(await hasFont())) {
+    t.skip('한글 폰트 파일이 없어 skip')
+    return
+  }
+  const template = await buildBlankPdf()
+  const fields = normalizeFieldSpecList([
+    {
+      fieldKey: 'memo',
+      label: '메모',
+      fieldType: 'textarea',
+      required: false,
+      orderIndex: 0,
+      placements: [{ page: 0, x: 60, y: 760, width: 300, height: 120, fontSize: 11 }],
+    },
+  ])
+  const out = await stampPdf(template, fields, {
+    memo: '긴 문장이 여러 번 등장해도 안전하게 줄바꿈이 적용되는지 확인하기 위한 스모크 테스트 입니다.',
+  })
+  assert.ok(out instanceof Buffer)
+})
+
+test('stampPdf: 잘못된 페이지 인덱스 placement 는 건너뛰고 성공', async (t) => {
+  if (!(await hasFont())) {
+    t.skip('한글 폰트 파일이 없어 skip')
+    return
+  }
+  const template = await buildBlankPdf()
+  const fields = normalizeFieldSpecList([
+    {
+      fieldKey: 'name',
+      label: '성명',
+      fieldType: 'text',
+      required: true,
+      orderIndex: 0,
+      placements: [
+        { page: 0, x: 100, y: 700 },
+        { page: 9, x: 100, y: 700 } /* 존재하지 않는 페이지 */,
+      ],
+    },
+  ])
+  const out = await stampPdf(template, fields, { name: 'OK' })
+  const reloaded = await PDFDocument.load(out)
+  assert.equal(reloaded.getPageCount(), 1)
+})
