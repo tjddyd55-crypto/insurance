@@ -2211,6 +2211,15 @@ async function handleLogin(req, res) {
     })
     void recordAnalyticsEvent(pool, { userId: uid, gaId: gaIdInt, eventType: 'login' })
 
+    const userSubscription = buildSubscriptionResponse(
+      {
+        role,
+        subscription_plan: user.subscription_plan ?? null,
+        subscription_started_at: user.subscription_started_at ?? null,
+        subscription_expires_at: user.subscription_expires_at ?? null,
+      },
+      { policyActive: await readPolicyActive() },
+    )
     res.json({
       token,
       user: {
@@ -2222,6 +2231,7 @@ async function handleLogin(req, res) {
         ga_name: gaName,
         display_name: userDisplayName,
         team_id: userTeamId,
+        subscription: userSubscription,
       },
     })
   } catch (error) {
@@ -3875,21 +3885,10 @@ apiRouter.get('/feature-requests/my', requireAuth, async (req, res) => {
     }
     const r = await safeQuery(pool,
       `
-      SELECT
-        fr.id,
-        fr.title,
-        fr.content,
-        fr.status,
-        fr.created_at,
-        COALESCE(cc.comment_count, 0) AS comment_count
-      FROM feature_requests fr
-      LEFT JOIN (
-        SELECT request_id, COUNT(*)::int AS comment_count
-        FROM feature_request_comments
-        GROUP BY request_id
-      ) cc ON cc.request_id = fr.id
-      WHERE fr.user_id = $1 AND fr.ga_id = $2
-      ORDER BY fr.created_at DESC
+      SELECT id, title, content, status, created_at
+      FROM feature_requests
+      WHERE user_id = $1 AND ga_id = $2
+      ORDER BY created_at DESC
       LIMIT 200
       `,
       [userId, gaId],
@@ -3900,7 +3899,6 @@ apiRouter.get('/feature-requests/my', requireAuth, async (req, res) => {
       content: row.content,
       status: row.status,
       created_at: toIsoString(row.created_at),
-      comment_count: Number(row.comment_count ?? 0),
     }))
     res.json(rows)
   } catch (error) {
@@ -3960,16 +3958,10 @@ apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (
         COALESCE(fr.title, '') AS title,
         fr.content,
         fr.status,
-        fr.created_at,
-        COALESCE(cc.comment_count, 0) AS comment_count
+        fr.created_at
       FROM feature_requests fr
       INNER JOIN ga_companies g ON g.id = fr.ga_id
       INNER JOIN users u ON u.id = fr.user_id
-      LEFT JOIN (
-        SELECT request_id, COUNT(*)::int AS comment_count
-        FROM feature_request_comments
-        GROUP BY request_id
-      ) cc ON cc.request_id = fr.id
       WHERE fr.ga_id = $1
       ORDER BY fr.created_at DESC
       LIMIT 500
@@ -3985,7 +3977,6 @@ apiRouter.get('/admin/feature-requests', requireAuth, requireSuperAdmin, async (
       content: row.content,
       status: row.status,
       created_at: toIsoString(row.created_at),
-      comment_count: Number(row.comment_count ?? 0),
     }))
     res.json(rows)
   } catch (error) {
@@ -4037,189 +4028,6 @@ apiRouter.patch('/admin/feature-requests/:id', requireAuth, requireSuperAdmin, a
     handleDbError(error, req, res)
   }
 })
-
-/*
- * ===========================================================================
- *  문의/요청 코멘트 (feature_request_comments)
- * ===========================================================================
- *
- * 관리자가 요청자(일반 유저)에게 답변을 남기고, 요청자가 자기 화면에서 그 답변을
- * 읽을 수 있게 하는 기능. 스키마는 양방향을 허용하지만 현재 API 는
- * 관리자 WRITE + 양쪽 READ 만 제공한다(요청자 WRITE 는 추후 확장).
- *
- * 작성자 표시용으로 users.username 을 JOIN 해서 반환한다. 저장 시점에는 보관하지
- * 않아 프로필 이름이 바뀌면 과거 코멘트 표시도 새 이름으로 업데이트됨(의도적 선택 —
- * 운영상 이름 변경 발생이 드물고, 과거 표기 유지 요구가 없음).
- */
-
-const COMMENT_MAX_LENGTH = 4000
-
-/** 공통 헬퍼: 댓글 행 직렬화. */
-function mapCommentRow(row) {
-  return {
-    id: row.id,
-    requestId: row.request_id,
-    authorId: row.author_id,
-    authorRole: row.author_role,
-    authorUsername: String(row.author_username ?? ''),
-    content: String(row.content ?? ''),
-    createdAt: toIsoString(row.created_at),
-  }
-}
-
-/** GET /api/admin/feature-requests/:id/comments — 관리자 댓글 목록 조회. */
-apiRouter.get(
-  '/admin/feature-requests/:id/comments',
-  requireAuth,
-  requireSuperAdmin,
-  async (req, res) => {
-    try {
-      const id = Number(req.params.id)
-      if (!Number.isInteger(id) || id < 1) {
-        res.status(400).json({ message: '잘못된 ID입니다.' })
-        return
-      }
-      const actorGa = parseGaId(req.user?.gaId)
-      if (actorGa == null) {
-        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
-        return
-      }
-      const parent = await safeQuery(
-        pool,
-        `SELECT id FROM feature_requests WHERE id = $1 AND ga_id = $2`,
-        [id, actorGa],
-      )
-      if (parent.rowCount === 0) {
-        res.status(404).json({ message: '요청을 찾을 수 없습니다.' })
-        return
-      }
-      const rows = await safeQuery(
-        pool,
-        `
-        SELECT c.id, c.request_id, c.author_id, c.author_role, c.content, c.created_at,
-               u.username AS author_username
-        FROM feature_request_comments c
-        LEFT JOIN users u ON u.id = c.author_id
-        WHERE c.request_id = $1
-        ORDER BY c.created_at ASC, c.id ASC
-        `,
-        [id],
-      )
-      res.json(rows.rows.map(mapCommentRow))
-    } catch (error) {
-      handleDbError(error, req, res)
-    }
-  },
-)
-
-/** POST /api/admin/feature-requests/:id/comments — 관리자 코멘트 작성. */
-apiRouter.post(
-  '/admin/feature-requests/:id/comments',
-  requireAuth,
-  requireSuperAdmin,
-  async (req, res) => {
-    try {
-      const id = Number(req.params.id)
-      if (!Number.isInteger(id) || id < 1) {
-        res.status(400).json({ message: '잘못된 ID입니다.' })
-        return
-      }
-      const content = String(req.body?.content ?? '').trim()
-      if (!content) {
-        res.status(400).json({ message: '내용을 입력해 주세요.' })
-        return
-      }
-      if (content.length > COMMENT_MAX_LENGTH) {
-        res.status(400).json({ message: `코멘트는 ${COMMENT_MAX_LENGTH}자 이하로 입력해 주세요.` })
-        return
-      }
-      const actorGa = parseGaId(req.user?.gaId)
-      if (actorGa == null) {
-        res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
-        return
-      }
-      const parent = await safeQuery(
-        pool,
-        `SELECT id FROM feature_requests WHERE id = $1 AND ga_id = $2`,
-        [id, actorGa],
-      )
-      if (parent.rowCount === 0) {
-        res.status(404).json({ message: '요청을 찾을 수 없습니다.' })
-        return
-      }
-      const authorId = req.user?.id
-      const ins = await safeQuery(
-        pool,
-        `
-        INSERT INTO feature_request_comments (request_id, author_id, author_role, content)
-        VALUES ($1, $2, 'admin', $3)
-        RETURNING id, request_id, author_id, author_role, content, created_at
-        `,
-        [id, authorId, content],
-      )
-      const row = ins.rows[0]
-      // 작성자 이름 JOIN 후 반환 — 프론트가 즉시 새 코멘트를 목록에 append 가능.
-      const withName = await safeQuery(
-        pool,
-        `SELECT username FROM users WHERE id = $1`,
-        [authorId],
-      )
-      const username = withName.rows[0]?.username ?? ''
-      res.status(201).json(mapCommentRow({ ...row, author_username: username }))
-    } catch (error) {
-      handleDbError(error, req, res)
-    }
-  },
-)
-
-/** GET /api/feature-requests/my/:id/comments — 요청자 본인 요청의 코멘트 조회. */
-apiRouter.get(
-  '/feature-requests/my/:id/comments',
-  requireAuth,
-  async (req, res) => {
-    try {
-      const id = Number(req.params.id)
-      if (!Number.isInteger(id) || id < 1) {
-        res.status(400).json({ message: '잘못된 ID입니다.' })
-        return
-      }
-      const userId = req.user?.id
-      const gaId = parseGaId(req.user?.gaId)
-      if (!userId || gaId == null) {
-        res.status(400).json({ message: '세션 정보가 없습니다.' })
-        return
-      }
-      /*
-       * 본인 소유 요청인지 먼저 검증한다. 소유 검증을 거치지 않고 바로 목록을 노출하면
-       * id 탐색 공격(IDOR) 로 타인의 요청 코멘트가 유출될 수 있다.
-       */
-      const parent = await safeQuery(
-        pool,
-        `SELECT id FROM feature_requests WHERE id = $1 AND user_id = $2 AND ga_id = $3`,
-        [id, userId, gaId],
-      )
-      if (parent.rowCount === 0) {
-        res.status(404).json({ message: '요청을 찾을 수 없습니다.' })
-        return
-      }
-      const rows = await safeQuery(
-        pool,
-        `
-        SELECT c.id, c.request_id, c.author_id, c.author_role, c.content, c.created_at,
-               u.username AS author_username
-        FROM feature_request_comments c
-        LEFT JOIN users u ON u.id = c.author_id
-        WHERE c.request_id = $1
-        ORDER BY c.created_at ASC, c.id ASC
-        `,
-        [id],
-      )
-      res.json(rows.rows.map(mapCommentRow))
-    } catch (error) {
-      handleDbError(error, req, res)
-    }
-  },
-)
 
 apiRouter.get('/company/list', requireAuth, async (req, res) => {
   try {

@@ -842,31 +842,6 @@ export async function initDb() {
       AND TRIM(content) <> ''
   `)
 
-  /*
-   * feature_request_comments — 문의/요청 항목에 달리는 코멘트(답변) 테이블.
-   *
-   *  - author_role 체크 제약에 'requester' 도 허용하여 추후 요청자의 역답변 기능을
-   *    열 때 스키마 마이그레이션 없이 API 만 추가하면 되도록 확장 여유를 둔다.
-   *  - 요청이 삭제되면 CASCADE 로 함께 삭제(고아 코멘트 방지).
-   *  - request_id + created_at 복합 인덱스로 "특정 요청의 시간순 목록" 질의 최적화.
-   */
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS feature_request_comments (
-      id SERIAL PRIMARY KEY,
-      request_id INTEGER NOT NULL REFERENCES feature_requests(id) ON DELETE CASCADE,
-      author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      author_role TEXT NOT NULL,
-      content TEXT NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      CONSTRAINT feature_request_comments_role_check
-        CHECK (author_role IN ('admin', 'requester'))
-    )
-  `)
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_feature_request_comments_request
-    ON feature_request_comments(request_id, created_at)
-  `)
-
   await pool.query(`
     CREATE TABLE IF NOT EXISTS insurance_forms (
       id TEXT PRIMARY KEY,
@@ -2540,6 +2515,85 @@ export async function initDb() {
   `)
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_memo_ga_id ON memo (ga_id)
+  `)
+
+  await ensureSubscriptionSchema(pool)
+}
+
+/**
+ * 구독 상태 기반 접근 제어 (docs/refactor-plans/subscription-access-control.md §3)
+ *
+ * - users: plan / started_at / expires_at 3개 컬럼만 추가. "의도 상태"만 저장하고 "유효 상태"는 런타임 계산.
+ * - subscription_change_logs: 관리자 변경 이력 감사.
+ * - app_settings: 정책 활성화 스위치(`subscription.policy_active`, 기본 false) + TRIAL 기본 일수.
+ *
+ * policy_active=false 인 동안 `evaluateSubscription` 이 전원 ACTIVE 로 단락하므로, 이 마이그레이션만
+ * 단독 배포해도 유저 영향이 없다. 과금 정책 활성화는 추후 관리자 UI 에서 플래그 토글로 수행한다.
+ */
+async function ensureSubscriptionSchema(executor) {
+  await executor.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS subscription_plan TEXT NOT NULL DEFAULT 'FREE'
+  `)
+  await executor.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS subscription_started_at TIMESTAMPTZ
+  `)
+  await executor.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ
+  `)
+  await executor.query(`
+    ALTER TABLE users DROP CONSTRAINT IF EXISTS users_subscription_plan_check
+  `)
+  await executor.query(`
+    ALTER TABLE users
+    ADD CONSTRAINT users_subscription_plan_check
+    CHECK (subscription_plan IN ('FREE', 'TRIAL', 'PAID', 'EXPIRED'))
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS users_subscription_plan_idx
+    ON users (subscription_plan)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS users_subscription_expires_at_idx
+    ON users (subscription_expires_at)
+    WHERE subscription_expires_at IS NOT NULL
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS subscription_change_logs (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      changed_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      prev_plan TEXT,
+      next_plan TEXT,
+      prev_expires_at TIMESTAMPTZ,
+      next_expires_at TIMESTAMPTZ,
+      reason TEXT NOT NULL,
+      memo TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS sub_change_logs_user_id_idx
+    ON subscription_change_logs (user_id, created_at DESC)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value_json JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
+    )
+  `)
+  await executor.query(`
+    INSERT INTO app_settings (key, value_json)
+    VALUES
+      ('subscription.policy_active',       CAST('false' AS jsonb)),
+      ('subscription.trial_default_days',  CAST('30'    AS jsonb))
+    ON CONFLICT (key) DO NOTHING
   `)
 }
 
