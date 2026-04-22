@@ -42,6 +42,7 @@ import { registerClientLogRoutes } from './routes/client-log.js'
 import { registerVersionRoutes } from './routes/version.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 import { registerSubscriptionAdminApi } from './registerSubscriptionAdminApi.js'
+import { registerPdfTemplateApi } from './registerPdfTemplateApi.js'
 import { registerSubscriptionEndpoints } from './subscription/endpoints.js'
 import { enforceActiveSubscription } from './subscription/requireActiveSubscription.js'
 
@@ -1419,6 +1420,13 @@ registerSuperAdminAnalyticsApi(apiRouter, {
 })
 
 registerSubscriptionAdminApi(apiRouter, { requireAuth, requireSuperAdmin })
+
+registerPdfTemplateApi(apiRouter, {
+  pool,
+  requireAuth,
+  isSuperAdminRole,
+  handleDbError,
+})
 
 registerSubscriptionEndpoints(apiRouter, { requireAuth })
 
