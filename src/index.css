@@ -1268,17 +1268,40 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   padding: 12px var(--mobile-h-padding);
 }
 
+/*
+ * 모바일 앱 셸 — 유일한 스크롤 축은 내부 `.mobile-workspace-content`.
+ *
+ * `min-height` 대신 `height: 100dvh + overflow: hidden` 으로 고정하는 이유:
+ *   - flex 자식(.mobile-workspace-content) 의 `min-height: auto` 기본값이
+ *     콘텐츠 자연 높이로 부모를 밀어올려 결국 body/html 레벨 스크롤이 발생하면,
+ *     모바일 브라우저(특히 iOS Safari) 가 주소창을 접으면서 dvh 값이 변하고
+ *     `position` 이 없는 topbar 가 같이 위로 밀려 드로어와 topbar 사이에 틈이
+ *     생겨 뒷배경이 노출되는 회귀가 발생한다.
+ *   - 외부 스크롤을 차단하면 주소창 접힘이 일어나지 않으므로 dvh 가 안정되고
+ *     topbar 위치도 흔들리지 않는다.
+ */
 .mobile-workspace-layout {
   width: 100%;
   min-width: 0;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: var(--bg-main);
 }
 
+/*
+ * 모바일 상단 헤더 — 셸의 스크롤 축이 내부 컨테이너이므로 본래라면 플렉스
+ * 첫 자식으로도 흔들리지 않지만, 모바일 브라우저의 오버스크롤/주소창 애니메이션
+ * 대비 sticky + 명시적 z-index 로 **절대 아래로 밀리지 않도록** 고정한다.
+ * 드로어(901) 와 backdrop(900) 보다 위(902) 에 있어야 겹침 순서가 일관된다.
+ */
 .mobile-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 902;
+  flex-shrink: 0;
   height: 48px;
   min-height: 48px;
   display: flex;
@@ -1287,6 +1310,7 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   gap: 8px;
   padding: 0 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-main);
   background: #1f2937;
   box-sizing: border-box;
 }
@@ -1421,6 +1445,9 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   bottom: 0;
   background: rgba(0, 0, 0, 0.45);
   z-index: 900;
+  /* 백드롭 위 터치/휠 제스처가 뒷배경 본문으로 통과하지 않게 차단. */
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 /*
@@ -1440,6 +1467,8 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   z-index: 901;
   max-height: calc(100dvh - 48px);
   overflow-y: auto;
+  /* 드로어 스크롤이 천장/바닥에 닿아도 뒷배경으로 전파되지 않도록 격리. */
+  overscroll-behavior: contain;
   box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.45);
 }
 
