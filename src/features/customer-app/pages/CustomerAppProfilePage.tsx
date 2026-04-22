@@ -5,6 +5,7 @@ import { FormButton, FormInput } from '../../../components/form'
 import { getCustomerAppProfile, saveCustomerAppProfile } from '../api/customerAppApi'
 import CustomerAppShell from '../components/CustomerAppShell'
 import {
+  clearCustomerAppSession,
   readCustomerAppProfile,
   readCustomerAppSession,
   writeCustomerAppProfile,
@@ -122,6 +123,26 @@ export default function CustomerAppProfilePage() {
       <FormButton htmlType="button" variant="primary" onClick={() => void handleSave()} loading={busy}>
         저장
       </FormButton>
+
+      <div className="customer-app-profile__danger">
+        <FormButton
+          htmlType="button"
+          variant="secondary"
+          className="customer-app-profile__logout"
+          onClick={() => {
+            if (!window.confirm('연결을 해제하시겠어요? 다시 이용하려면 QR 로 재연결이 필요합니다.')) {
+              return
+            }
+            clearCustomerAppSession()
+            navigate('/customer-app', { replace: true })
+          }}
+        >
+          연결 해제
+        </FormButton>
+        <p className="customer-app-profile__danger-help">
+          다른 기기에서 이용하거나 다시 QR 로 연결하려면 연결 해제를 눌러 주세요.
+        </p>
+      </div>
     </CustomerAppShell>
   )
 }

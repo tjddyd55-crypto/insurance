@@ -1,31 +1,50 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton } from '../../../components/form'
-import { getCustomerAppMe, listCustomerClaimRequests, listCustomerNews } from '../api/customerAppApi'
+import { NewsletterList } from '../../insurer-news/components/NewsletterList'
+import type { NewsletterItem } from '../../insurer-news/types'
+import { listCustomerNews, type CustomerAppNewsListItem } from '../api/customerAppApi'
 import CustomerAppShell from '../components/CustomerAppShell'
 import { readCustomerAppSession } from '../session/customerAppSession'
 
-function formatDateTime(iso: string | null): string {
-  if (!iso) {
-    return '—'
+/**
+ * 고객앱 메인 화면.
+ *
+ * 설계 의도:
+ *   - 첫 화면에서 노출되는 액션의 우선순위는 "청구 요청하기" 하나.
+ *   - 소식지는 자연 노출만. 최신 1건만 보여주고 더보기는 텍스트 링크로 배치.
+ *   - 개인메시지/요청내역/내정보는 하단 탭바(Shell) 에서 접근.
+ *
+ * NewsletterList 를 그대로 재사용하되 items 는 최대 1건으로 제한해
+ * 기존 카드 UI 를 건드리지 않고 "최신 1건" UX 를 달성한다.
+ */
+
+const EMPTY_NEWSLETTER: NewsletterItem[] = []
+
+function toNewsletterItem(row: CustomerAppNewsListItem): NewsletterItem {
+  return {
+    id: row.id,
+    gaCode: 'customer-app',
+    insurerCode: 'customer-news',
+    insurerName: '소식지',
+    insurerSlug: row.scope ?? 'all',
+    title: row.title,
+    summary: row.summary,
+    heroImageUrl: row.heroImageUrl ?? null,
+    publishedAt: row.updatedAt ?? new Date().toISOString(),
+    status: 'PUBLISHED',
+    hasImages: Boolean(row.heroImageUrl),
+    hasPdf: false,
+    hasTextBody: Boolean(row.summary?.trim()),
   }
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) {
-    return iso
-  }
-  return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
 }
 
 export default function CustomerAppHomePage() {
   const navigate = useNavigate()
   const session = readCustomerAppSession()
   const [error, setError] = useState('')
-  const [summary, setSummary] = useState({
-    me: '',
-    latestRequest: '',
-    latestNews: '',
-  })
+  const [latestNews, setLatestNews] = useState<CustomerAppNewsListItem | null>(null)
 
   useEffect(() => {
     if (!session) {
@@ -33,53 +52,57 @@ export default function CustomerAppHomePage() {
       return
     }
     let mounted = true
-    const run = async () => {
+    void (async () => {
       try {
-        const [me, requests, news] = await Promise.all([
-          getCustomerAppMe(session.appToken),
-          listCustomerClaimRequests(session.appToken),
-          listCustomerNews(session.appToken),
-        ])
+        const news = await listCustomerNews(session.appToken)
         if (!mounted) {
           return
         }
-        setSummary({
-          me: `${me.customerName} · 담당 ${me.agentName}`,
-          latestRequest:
-            requests.length > 0
-              ? `${requests[0].title || '(제목 없음)'} / ${formatDateTime(requests[0].submittedAt)}`
-              : '아직 요청 내역이 없습니다.',
-          latestNews:
-            news.length > 0 ? `${news[0].title} / ${formatDateTime(news[0].updatedAt)}` : '아직 소식지가 없습니다.',
-        })
+        setLatestNews(news.length > 0 ? news[0] : null)
       } catch (loadError) {
         if (!mounted) {
           return
         }
-        setError(loadError instanceof Error ? loadError.message : '홈 정보를 불러오지 못했습니다.')
+        setError(loadError instanceof Error ? loadError.message : '소식지 정보를 불러오지 못했습니다.')
       }
-    }
-    void run()
+    })()
     return () => {
       mounted = false
     }
   }, [navigate, session])
 
+  const newsletterItems = useMemo<NewsletterItem[]>(
+    () => (latestNews ? [toNewsletterItem(latestNews)] : EMPTY_NEWSLETTER),
+    [latestNews],
+  )
+
   return (
     <CustomerAppShell title="홈">
       <StatusMessage message={error} tone="error" />
-      <div className="text-sm text-[var(--text-secondary)]">{summary.me}</div>
-      <div className="space-y-1 text-sm">
-        <div>
-          <span className="font-medium">최근 요청</span> {summary.latestRequest}
+
+      <section className="customer-app-home__news" aria-label="최신 소식지">
+        <NewsletterList
+          items={newsletterItems}
+          emptyMessage="표시할 소식지가 없습니다."
+          onOpenItem={(id) => navigate(`/customer-app/news/${id}`)}
+        />
+        <div className="customer-app-home__news-more">
+          <Link to="/customer-app/news/all" className="customer-app-home__news-more-link">
+            전체 소식지 보기 &gt;
+          </Link>
         </div>
-        <div>
-          <span className="font-medium">최근 소식지</span> {summary.latestNews}
-        </div>
+      </section>
+
+      <div className="customer-app-home__cta">
+        <FormButton
+          htmlType="button"
+          variant="primary"
+          className="customer-app-home__cta-button"
+          onClick={() => navigate('/customer-app/requests/new')}
+        >
+          청구 요청하기
+        </FormButton>
       </div>
-      <FormButton htmlType="button" variant="primary" onClick={() => navigate('/customer-app/requests/new')}>
-        청구 요청하기
-      </FormButton>
     </CustomerAppShell>
   )
 }
