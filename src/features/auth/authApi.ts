@@ -1,4 +1,24 @@
 import { ApiError, apiRequest, resolveApiUrl } from '../../lib/apiClient'
+import {
+  normalizeSubscriptionFromApi,
+  type SubscriptionSnapshot,
+} from '../subscription/policy'
+
+/**
+ * 서버 /api/login, /api/me 응답에 포함되는 subscription 필드의 원시(raw) 모양.
+ *
+ * 서버가 snake_case 로 내려주는 그대로의 타입이며, 프론트 내부에서는
+ * policy.ts 의 `normalizeSubscriptionFromApi` 로 SubscriptionSnapshot 으로 정규화해 사용한다.
+ */
+export interface SubscriptionResponsePayload {
+  plan?: string | null
+  effective_status?: string | null
+  started_at?: string | null
+  expires_at?: string | null
+  remaining_days?: number | null
+  reason?: string | null
+  policy_active?: boolean | null
+}
 
 export type UserRole = 'SUPER_ADMIN' | 'GA_ADMIN' | 'GA_STAFF' | 'USER' | 'INSURER_MANAGER' | 'LOSS_ADJUSTER'
 
@@ -16,6 +36,11 @@ export interface AuthUser {
   displayName: string
   /** users.team_id (팀 소속). 미소속이면 null */
   teamId: string | null
+  /**
+   * 서버가 내려준 구독 스냅샷(정규화 후).
+   * 구세션/비대상 역할에서는 null 또는 undefined 로 남는다.
+   */
+  subscription?: SubscriptionSnapshot | null
 }
 
 export interface LoginResponse {
@@ -30,6 +55,7 @@ export interface LoginResponse {
     company_id?: number | null
     display_name?: string | null
     team_id?: string | null
+    subscription?: SubscriptionResponsePayload | null
   }
 }
 
@@ -321,6 +347,7 @@ export async function login(username: string, password: string) {
   const rawTeam = raw.user.team_id
   const teamId =
     typeof rawTeam === 'string' && rawTeam.trim() ? rawTeam.trim() : null
+  const subscription = normalizeSubscriptionFromApi(raw.user.subscription)
   return {
     token: raw.token,
     user: {
@@ -333,6 +360,7 @@ export async function login(username: string, password: string) {
       companyId: raw.user.role === 'INSURER_MANAGER' ? companyId : null,
       displayName,
       teamId,
+      subscription,
     },
   } satisfies { token: string; user: AuthUser }
 }
