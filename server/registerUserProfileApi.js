@@ -437,7 +437,8 @@ export function registerUserProfileApi(apiRouter, ctx) {
       const r = await systemQuery(
         pool,
         `
-        SELECT id, username, display_name, phone_number, role, ga_id, status, team_id
+        SELECT id, username, display_name, phone_number, role, ga_id, status, team_id,
+               subscription_plan, subscription_started_at, subscription_expires_at
         FROM users
         WHERE id = $1 AND is_deleted = false
         `,
@@ -448,6 +449,12 @@ export function registerUserProfileApi(apiRouter, ctx) {
         return
       }
       const row = r.rows[0]
+      const subscription = await buildSubscriptionResponseForUser({
+        role: String(row.role ?? ''),
+        subscription_plan: row.subscription_plan ?? null,
+        subscription_started_at: row.subscription_started_at ?? null,
+        subscription_expires_at: row.subscription_expires_at ?? null,
+      })
       res.json({
         id: String(row.id),
         username: String(row.username ?? ''),
@@ -457,6 +464,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         ga_id: row.ga_id,
         status: String(row.status ?? 'active').toLowerCase(),
         team_id: row.team_id != null ? String(row.team_id) : null,
+        subscription,
       })
     } catch (e) {
       handleDbError(e, req, res)

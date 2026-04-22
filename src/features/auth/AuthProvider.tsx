@@ -199,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? nextSession.user.displayName.trim()
           : String(nextSession.user.username ?? '').trim()
       const teamId = parseTeamIdField(nextSession.user.teamId)
+      const subscription = readSubscriptionSnapshot(nextSession.user.subscription)
 
       const normalized: AuthSession = {
         token: nextSession.token,
@@ -212,6 +213,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           companyId,
           displayName,
           teamId,
+          subscription,
         },
       }
       setSession(normalized)
