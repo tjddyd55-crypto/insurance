@@ -60,13 +60,19 @@
   opacity: 0.7;
 }
 
-/* 본문 — 페이지 children */
+/* 본문 — 페이지 children
+ *
+ * 간격 규칙(고객앱 홈 기준):
+ *   - 상단 padding(10px) = 설계사 헤더 → 첫 콘텐츠
+ *   - main gap(12px)     = 섹션 간(예: 소식지 블록 → 청구 버튼)
+ *   - 섹션 내부 간격은 각 섹션이 자체 클래스로 제어(예: __news gap=8px)
+ */
 .customer-app-main {
   flex: 1;
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  padding: 12px 16px 20px;
+  padding: 10px 16px 20px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -106,10 +112,51 @@
 
 /* ------------------------ Home ------------------------ */
 
+/*
+ * 소식지 블록.
+ *   - 카드와 "전체 소식지 보기 >" 는 한 덩어리로 인식되도록 gap=8px 로 타이트하게 붙인다.
+ *   - 블록 전체와 청구 버튼 사이 간격(12px) 은 .customer-app-main 의 gap 이 담당한다.
+ */
 .customer-app-home__news {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+}
+
+/*
+ * 기존 NewsCard 스타일은 건드리지 않고, 고객앱 홈 스코프에서만 사이즈만 확장.
+ *   - .news-grid 가 grid layout 으로 정의돼 있을 수 있어 display 를 block 으로 중립화.
+ *   - 카드 자체는 width 100% / height 200px (요구 180~220px 중간값).
+ *   - 내부 이미지/placeholder 가 부모(=200px) 를 꽉 채우도록 height:100% 전달.
+ */
+.customer-app-home__news .news-grid {
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+.customer-app-home__news .news-card {
+  width: 100%;
+  height: 200px;
+  margin: 0;
+}
+
+.customer-app-home__news .news-card .card-content,
+.customer-app-home__news .news-card .news-card__media {
+  width: 100%;
+  height: 100%;
+}
+
+.customer-app-home__news .news-card .news-card__media img,
+.customer-app-home__news .news-card .news-card__mobile-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.customer-app-home__news .news-card .news-card__placeholder {
+  width: 100%;
+  height: 100%;
 }
 
 .customer-app-home__news-more {
@@ -123,7 +170,8 @@
   font-size: 13px;
   color: var(--text-secondary, #6b7280);
   text-decoration: none;
-  padding: 4px 0;
+  padding: 2px 0;
+  line-height: 1.4;
 }
 
 .customer-app-home__news-more-link:hover,
@@ -133,8 +181,9 @@
   text-underline-offset: 2px;
 }
 
+/* 청구 CTA — 섹션 간 간격은 main 의 gap 이 담당하므로 margin-top 불필요. */
 .customer-app-home__cta {
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .customer-app-home__cta-button {
