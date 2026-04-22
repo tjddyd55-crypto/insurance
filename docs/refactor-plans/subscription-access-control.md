@@ -212,16 +212,47 @@ ON CONFLICT (key) DO NOTHING;
 ### PR1 — 데이터 모델 + 정책 함수 + 로그인/`/me` 응답 확장 (백엔드만)
 
 **파일**
-- `server/initDb.js` — 3-1/3-2/3-3 스키마 추가 (`policy_active=false` 기본 삽입)
-- `server/subscription/policy.js` **(신규)** — `evaluateSubscription(input)` 순수 함수. `policyActive=false` 시 `reason='policy-inactive'` 로 즉시 ACTIVE 반환
-- `server/subscription/appSettings.js` **(신규)** — `readPolicyActive()` / `readTrialDefaultDays()` 캐시+TTL (5초) 조회 유틸
-- `server/subscription/applyToResponseUser.js` **(신규)** — 유저 레코드 + app_settings 로부터 `{ plan, expiresAt, startedAt, effectiveStatus, remainingDays, reason }` 병합
-- `server/index.js` — 로그인·`/me` 응답 user 에 `subscription` 객체 포함
+- `server/initDb.js` — 3-1/3-2/3-3 스키마 추가
+- `server/subscription/policy.js` **(신규)** — `evaluateSubscription(input)` 순수 함수
+- `server/subscription/applyToResponseUser.js` **(신규)** — `{ plan, expiresAt, effectiveStatus, remainingDays }` 병합
+- `server/index.js` — 로그인·`/me` 응답에 `subscription` 객체 포함
 - `src/features/subscription/policy.ts` **(신규)** — 정책 함수의 프론트 미러(같은 로직, TS)
-- `src/features/auth/authApi.ts` — `LoginResponse.user.subscription` 타입 추가 + snake→camel 매핑
+- `src/features/auth/authApi.ts` — `LoginResponse.user.subscription` 타입 추가
 - `src/features/auth/AuthProvider.tsx` — `user.subscription` 저장·복원
 
-**완료 조건**: 로그인 후 `user.subscription = { plan:'FREE', effectiveStatus:'ACTIVE', reason:'policy-inactive', ... }` 가 내려온다. `policy_active=false` 기본값이라 전 유저 ACTIVE. 라우트/UI 변경 없음.
+**완료 조건**: 로그인 후 `user.subscription = { plan:'FREE', effectiveStatus:'ACTIVE', ... }` 가 내려온다. 라우트/UI 변경 없음.
+
+---
+
+### PR1a — 정책 활성화 기계장치 (관리자 API)
+
+> D2 결정(**"배포 ≠ 활성화"**)을 코드로 이행하는 단계. PR1 의 플래그(`policy_active`)에
+> "스위치를 켜는 순간 TRIAL 타이머가 시작된다" 는 실제 동작을 부여한다.
+> UI/라우트 가드는 아직 붙이지 않으므로 이 PR 이 배포되어도 일반 유저엔 영향이 없다.
+
+**파일**
+- `server/subscription/activatePolicy.js` **(신규)** — 트랜잭션 단위 상태 전환 SSOT
+  - `activateSubscriptionPolicy({ actorUserId, trialDays?, dryRun?, memo? })`
+    - 단일 트랜잭션으로 (a) 구독 주체 유저(`GA_ADMIN`/`GA_STAFF`/`USER`) 중 `plan='FREE'` AND `started_at IS NULL` 인 유저를 `TRIAL` 로 일괄 전환 → (b) `subscription_change_logs` 감사 로그 기록 → (c) `app_settings.subscription.policy_active = true`
+    - `started_at/expires_at = NOW() / NOW() + trialDays` — 타이머 **기준점은 활성화 순간**
+    - `dryRun=true` 는 READ-ONLY, 대상 유저 수만 반환
+    - 이미 `started_at` 이 채워진 유저는 대상에서 제외 → **두 번째 활성화 호출이 기존 타이머를 덮어쓰지 않음**
+  - `deactivateSubscriptionPolicy({ actorUserId })`
+    - 플래그만 `false` 로 되돌리고 유저 타이머는 **보존** (비파괴적) → 재활성화 시 남은 기간 이어짐
+  - `getSubscriptionPolicyStatus()` — 현재 플래그 + 영향 규모(`eligibleUserCount`/`trialUserCount`/`expiredUserCount`)
+- `server/subscription/policy.js` — `SUBSCRIPTION_SUBJECT_ROLES` 를 `export` 로 승격 (정책 판정과 활성화 SQL 이 동일 SSOT 참조)
+- `server/registerSubscriptionAdminApi.js` **(신규)** — HTTP 경계 전담
+  - `GET  /api/admin/subscription/policy`     → 현재 상태 + 영향 규모
+  - `POST /api/admin/subscription/activate`   → 본문 `{ trialDays?, dryRun?, memo? }`
+  - `POST /api/admin/subscription/deactivate`
+  - 전부 `requireAuth + requireSuperAdmin`
+- `server/index.js` — `registerSubscriptionAdminApi(apiRouter, { requireAuth, requireSuperAdmin })` 등록
+
+**완료 조건**
+- SUPER_ADMIN 이 `POST /activate { dryRun:true }` 를 호출하면 `eligibleCount` 가 나오고 DB 상태는 그대로다.
+- `POST /activate { trialDays:30 }` 호출 직후 대상 유저의 `subscription_plan='TRIAL'`, `subscription_expires_at ≈ NOW()+30d` 가 되어 있고 `subscription_change_logs` 에 `reason='policy-activation'` 기록이 남는다.
+- 동일 호출을 두 번 해도 두 번째 호출에서는 `convertedCount=0` (기존 타이머 유지).
+- `POST /deactivate` 후 플래그는 `false`, 유저 타이머는 그대로.
 
 ---
 
