@@ -587,6 +587,20 @@ export interface FeatureRequestAdminRow {
   content: string
   status: FeatureRequestStatus
   created_at: string
+  comment_count: number
+}
+
+// 문의/요청 댓글.
+// - authorRole 은 서버가 넣어주는 값("admin" 또는 향후 "user").
+//   UI 는 'admin' 과 그 외를 분기하므로 유니언으로 고정하지 않고 문자열로 둔다.
+// - authorUsername 은 계정이 삭제되었을 경우 null 일 수 있다.
+export interface FeatureRequestComment {
+  id: number
+  authorRole: string
+  authorUsername: string | null
+  authorId: string
+  createdAt: string
+  content: string
 }
 
 export async function submitFeatureRequest(
@@ -611,6 +625,7 @@ export interface MyFeatureRequestRow {
   content: string
   status: FeatureRequestStatus
   created_at: string
+  comment_count: number
 }
 
 export async function listMyFeatureRequests(token: string): Promise<MyFeatureRequestRow[]> {
@@ -621,8 +636,44 @@ export async function deleteMyFeatureRequest(token: string, id: number): Promise
   await apiRequest<undefined>(`/api/feature-requests/my/${id}`, { method: 'DELETE', token })
 }
 
+// 요청자 본인이 자신의 요청에 달린 댓글을 지연 로딩한다.
+// 목록 API 의 comment_count 는 존재만 알려주고, 실제 본문은 사용자가 펼칠 때만 가져온다.
+export async function listMyFeatureRequestComments(
+  token: string,
+  id: number,
+): Promise<FeatureRequestComment[]> {
+  return apiRequest<FeatureRequestComment[]>(`/api/feature-requests/my/${id}/comments`, {
+    method: 'GET',
+    token,
+  })
+}
+
 export async function listFeatureRequestsAdmin(token: string): Promise<FeatureRequestAdminRow[]> {
   return apiRequest<FeatureRequestAdminRow[]>('/api/admin/feature-requests', { method: 'GET', token })
+}
+
+// 관리자 전용: 특정 요청에 달린 모든 댓글.
+export async function listAdminFeatureRequestComments(
+  token: string,
+  id: number,
+): Promise<FeatureRequestComment[]> {
+  return apiRequest<FeatureRequestComment[]>(`/api/admin/feature-requests/${id}/comments`, {
+    method: 'GET',
+    token,
+  })
+}
+
+// 관리자 전용: 새 답변 등록. 서버가 author_role='admin' 과 작성자 정보를 기록한다.
+export async function createAdminFeatureRequestComment(
+  token: string,
+  id: number,
+  content: string,
+): Promise<FeatureRequestComment> {
+  return apiRequest<FeatureRequestComment>(`/api/admin/feature-requests/${id}/comments`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ content }),
+  })
 }
 
 export async function updateFeatureRequestStatus(
