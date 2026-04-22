@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton } from '../../../components/form'
@@ -11,7 +11,7 @@ import {
   type CustomerAppNewsDetail,
 } from '../api/customerAppApi'
 import CustomerAppShell from '../components/CustomerAppShell'
-import { readCustomerAppSession } from '../session/customerAppSession'
+import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
 function formatDateTime(iso: string | null): string {
   if (!iso) {
@@ -27,7 +27,7 @@ function formatDateTime(iso: string | null): string {
 export default function CustomerAppNewsListPage() {
   const location = useLocation()
   const navigate = useNavigate()
-  const session = useMemo(() => readCustomerAppSession(), [])
+  const session = useCustomerAppSession()
   const isPersonalMode = location.pathname.includes('/customer-app/news/personal')
   const [rows, setRows] = useState<
     Array<{

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { getCustomerAppMe } from '../api/customerAppApi'
-import { readCustomerAppSession } from '../session/customerAppSession'
+import { useCustomerAppSession } from '../session/useCustomerAppSession'
 import '../customer-app.css'
 
 /**
@@ -47,9 +47,7 @@ function formatKrPhone(raw: string | null): string {
 }
 
 export default function CustomerAppShell({ title, children }: Props) {
-  // 주의: readCustomerAppSession() 은 매 호출마다 새 객체를 반환한다.
-  // 의존성 배열에 직접 넣으면 /customer-app/me 가 무한 호출된다 (고객앱 페이지 공통 규약으로 useMemo 캐시).
-  const session = useMemo(() => readCustomerAppSession(), [])
+  const session = useCustomerAppSession()
   const [header, setHeader] = useState<HeaderInfo>(() =>
     session
       ? { agentName: session.agentName || HEADER_FALLBACK.agentName, agentPhone: null }

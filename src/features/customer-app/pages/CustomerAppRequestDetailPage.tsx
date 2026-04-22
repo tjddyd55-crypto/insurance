@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton } from '../../../components/form'
 import { getCustomerClaimRequestDetail, type CustomerAppClaimRequestDetail } from '../api/customerAppApi'
 import CustomerAppShell from '../components/CustomerAppShell'
-import { readCustomerAppSession } from '../session/customerAppSession'
+import { useCustomerAppSession } from '../session/useCustomerAppSession'
 import { resolveClaimStatusMeta } from '../utils/claimStatus'
 
 function formatDateTime(iso: string | null): string {
@@ -21,7 +21,7 @@ function formatDateTime(iso: string | null): string {
 export default function CustomerAppRequestDetailPage() {
   const { requestId } = useParams<{ requestId: string }>()
   const navigate = useNavigate()
-  const session = useMemo(() => readCustomerAppSession(), [])
+  const session = useCustomerAppSession()
   const [detail, setDetail] = useState<CustomerAppClaimRequestDetail | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
