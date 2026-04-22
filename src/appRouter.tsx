@@ -47,6 +47,10 @@ import InsuranceCompanyContactsViewPage from './features/company-registry/pages/
 import { ConsentCompanyPage } from './features/consent/pages/ConsentCompanyPage'
 import { TemplateEditorPage } from './features/consent/admin/pages/TemplateEditorPage'
 import { TemplateListPage } from './features/consent/admin/pages/TemplateListPage'
+import PdfTemplateListPage from './features/pdf-engine/pages/PdfTemplateListPage'
+import PdfTemplateEditorPage from './features/pdf-engine/pages/PdfTemplateEditorPage'
+import PdfDocumentListPage from './features/pdf-engine/pages/PdfDocumentListPage'
+import PdfDocumentDetailPage from './features/pdf-engine/pages/PdfDocumentDetailPage'
 import { ConsentFormPage } from './features/consent/pages/ConsentFormPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
 import { IntroductionPage } from './features/web/pages/IntroductionPage'
@@ -178,6 +182,10 @@ export const appRouter = createBrowserRouter([
                   { path: 'application', element: <ApplicationPage /> },
                   { path: 'app/auto-insurance', element: <ApplicationFormPage /> },
                   { path: 'application/direct-auto', element: <DirectAutoPage /> },
+                  /* 좌표 기반 PDF 자동화 — 신청서 섹션에 '문서' 로 노출.
+                     권한은 서버 API 에서 GA 범위 + 구독 상태로 이중 차단된다. */
+                  { path: 'application/documents', element: <PdfDocumentListPage /> },
+                  { path: 'application/documents/:id', element: <PdfDocumentDetailPage /> },
                   { path: 'application/write', element: <ApplicationFormPage /> },
                   { path: 'my-forms', element: <ApplicationListPage /> },
                   { path: 'form/create', element: <ApplicationFormPage /> },
@@ -250,6 +258,16 @@ export const appRouter = createBrowserRouter([
                   { path: 'internal/admin/consent-template', element: <TemplateListPage /> },
                   { path: 'internal/admin/consent-template/edit', element: <TemplateEditorPage /> },
                   { path: 'internal/admin/consent-template/edit/:id', element: <TemplateEditorPage /> },
+                ],
+              },
+              {
+                /* PDF 좌표 기반 문서 자동화 — SUPER_ADMIN 전용.
+                   권한 게이트는 서버 라우터에서도 이중으로 확인한다. */
+                element: <SuperAdminRoute />,
+                children: [
+                  { path: 'admin/pdf-templates', element: <PdfTemplateListPage /> },
+                  { path: 'admin/pdf-templates/new', element: <PdfTemplateEditorPage /> },
+                  { path: 'admin/pdf-templates/:id', element: <PdfTemplateEditorPage /> },
                 ],
               },
               { path: 'contacts', element: <Navigate to="/insurance/contacts" replace /> },

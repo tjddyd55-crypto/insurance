@@ -1,0 +1,325 @@
+/**
+ * 관리자 PDF 템플릿 에디터 페이지.
+ *
+ * 하나의 페이지가 두 가지 모드를 담당한다:
+ *   - 신규(`/admin/pdf-templates/new`): GA·code·title 입력 + PDF 업로드 → 생성 성공 시 edit 경로로 이동
+ *   - 편집(`/admin/pdf-templates/:id`): 서버에서 불러와 메타·필드·좌표를 저장
+ *
+ * 관심사 분리:
+ *   - `PdfCoordinateEditor` 는 필드·좌표 편집 UI 만 담당(I/O 없음).
+ *   - 이 페이지는 API 호출과 상태 오케스트레이션만 담당.
+ */
+
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { ApiError } from '../../../lib/apiClient'
+import { useAuth } from '../../auth/AuthProvider'
+import { listGaCompanies, type GaCompanyRow } from '../../auth/authApi'
+import {
+  createAdminPdfTemplate,
+  fetchAdminPdfTemplateFile,
+  getAdminPdfTemplate,
+  patchAdminPdfTemplate,
+  saveAdminPdfTemplateFields,
+  uploadAdminPdfTemplateFile,
+} from '../api/pdfTemplateApi'
+import { PdfCoordinateEditor } from '../components/PdfCoordinateEditor'
+import type { PdfFieldSpec, PdfTemplateSummary } from '../types'
+import '../pdf-engine.css'
+
+const CODE_HINT = '영문 소문자/숫자/_/-, 2~64자 (예: car_consent)'
+const CODE_REGEX = /^[a-z][a-z0-9_-]{1,63}$/
+
+export default function PdfTemplateEditorPage() {
+  const { id: idParam } = useParams<{ id: string }>()
+  const isNew = !idParam || idParam === 'new'
+  const numericId = isNew ? null : Number(idParam)
+  const navigate = useNavigate()
+  const { token } = useAuth()
+
+  return isNew ? (
+    <CreateTemplateFlow token={token ?? ''} onCreated={(id) => navigate(`/admin/pdf-templates/${id}`)} />
+  ) : (
+    <EditTemplateFlow token={token ?? ''} templateId={Number(numericId)} />
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// 생성 플로우: 메타 입력 → PDF 업로드 → 서버 저장 → 편집 화면으로 이동
+// ────────────────────────────────────────────────────────────────────────
+
+function CreateTemplateFlow({
+  token,
+  onCreated,
+}: {
+  token: string
+  onCreated: (id: number) => void
+}) {
+  const [gaList, setGaList] = useState<GaCompanyRow[]>([])
+  const [gaId, setGaId] = useState<'' | number>('')
+  const [code, setCode] = useState('')
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!token) return
+    listGaCompanies(token)
+      .then(setGaList)
+      .catch(() => {
+        /* GA 목록 실패는 치명적이지 않음 — 공용(null)으로 생성 가능. */
+      })
+  }, [token])
+
+  const handleSubmit = async (ev: FormEvent) => {
+    ev.preventDefault()
+    if (!token) return
+    if (!CODE_REGEX.test(code.trim())) {
+      setError(`code 형식이 올바르지 않습니다. ${CODE_HINT}`)
+      return
+    }
+    if (!title.trim()) {
+      setError('문서 제목을 입력하세요.')
+      return
+    }
+    if (!file) {
+      setError('PDF 파일을 선택하세요.')
+      return
+    }
+    setSubmitting(true)
+    setError(null)
+    try {
+      const gaIdValue = gaId === '' ? null : Number(gaId)
+      const uploaded = await uploadAdminPdfTemplateFile(token, {
+        gaId: gaIdValue,
+        code: code.trim(),
+        file,
+      })
+      const created = await createAdminPdfTemplate(token, {
+        gaId: gaIdValue,
+        code: code.trim(),
+        title: title.trim(),
+        description: description.trim(),
+        storageKey: uploaded.storageKey,
+        pageCount: uploaded.pageCount,
+      })
+      onCreated(created.template.id)
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : '템플릿 생성 실패')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <main className="pdf-engine-page">
+      <h1 className="pdf-engine-page__title">새 PDF 템플릿</h1>
+      <div className="pdf-engine-page__toolbar">
+        <Link to="/admin/pdf-templates" className="pdf-engine-editor__btn">
+          ← 목록
+        </Link>
+      </div>
+      {error ? <div className="pdf-engine-page__error">{error}</div> : null}
+      <form className="pdf-engine-form" onSubmit={handleSubmit}>
+        <label className="pdf-engine-editor__label">
+          소속 GA (미지정이면 전 GA 공용)
+          <select value={gaId} onChange={(e) => setGaId(e.target.value === '' ? '' : Number(e.target.value))}>
+            <option value="">(공용)</option>
+            {gaList.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name} ({g.code})
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="pdf-engine-editor__label">
+          code <span className="pdf-engine-editor__field-meta">{CODE_HINT}</span>
+          <input type="text" value={code} onChange={(e) => setCode(e.target.value)} placeholder="예: car_consent" />
+        </label>
+        <label className="pdf-engine-editor__label">
+          문서 제목
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="예: 자동차보험 개인정보 동의서"
+          />
+        </label>
+        <label className="pdf-engine-editor__label">
+          설명 (선택)
+          <textarea
+            rows={2}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="사용자에게 보일 간단한 설명"
+          />
+        </label>
+        <label className="pdf-engine-editor__label">
+          PDF 파일
+          <input
+            type="file"
+            accept="application/pdf"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+        </label>
+        <button
+          type="submit"
+          className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
+          disabled={submitting}
+        >
+          {submitting ? '등록 중…' : '등록하고 좌표 편집으로'}
+        </button>
+      </form>
+    </main>
+  )
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// 편집 플로우: 서버에서 템플릿·필드·원본 PDF 로드 → 좌표 에디터 → 저장
+// ────────────────────────────────────────────────────────────────────────
+
+type LoadState =
+  | { status: 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'ready'; template: PdfTemplateSummary; fields: PdfFieldSpec[]; pdfBuffer: ArrayBuffer }
+
+function EditTemplateFlow({ token, templateId }: { token: string; templateId: number }) {
+  const [state, setState] = useState<LoadState>({ status: 'loading' })
+  const [fields, setFields] = useState<PdfFieldSpec[]>([])
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [isActive, setIsActive] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    if (!token) return
+    setState({ status: 'loading' })
+    try {
+      const detail = await getAdminPdfTemplate(token, templateId)
+      const pdfBuffer = await fetchAdminPdfTemplateFile(token, templateId)
+      setFields(detail.fields)
+      setTitle(detail.template.title)
+      setDescription(detail.template.description ?? '')
+      setIsActive(detail.template.isActive)
+      setState({ status: 'ready', template: detail.template, fields: detail.fields, pdfBuffer })
+    } catch (e) {
+      setState({
+        status: 'error',
+        message: e instanceof ApiError ? e.message : '템플릿을 불러오지 못했습니다.',
+      })
+    }
+  }, [token, templateId])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const handleSave = async () => {
+    if (!token || state.status !== 'ready') return
+    setSaving(true)
+    setToast(null)
+    try {
+      /* 메타(title/description/isActive) → 필드 순서로 저장.
+         필드 저장이 실패해도 메타는 반영되도록 분리. */
+      await patchAdminPdfTemplate(token, templateId, {
+        title: title.trim(),
+        description: description.trim(),
+        isActive,
+      })
+      await saveAdminPdfTemplateFields(token, templateId, fields)
+      setToast('저장되었습니다.')
+    } catch (e) {
+      setToast(e instanceof ApiError ? `저장 실패: ${e.message}` : '저장 실패')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const headerMeta = useMemo(() => {
+    if (state.status !== 'ready') return null
+    const t = state.template
+    return (
+      <span className="pdf-engine-editor__field-meta">
+        #{t.id} · code=<code>{t.code}</code> · {t.gaId == null ? '공용' : `${t.gaName ?? `GA#${t.gaId}`}`} ·{' '}
+        {t.pageCount} 페이지
+      </span>
+    )
+  }, [state])
+
+  if (state.status === 'loading') {
+    return (
+      <main className="pdf-engine-page">
+        <p className="pdf-engine-page__hint">템플릿을 불러오는 중…</p>
+      </main>
+    )
+  }
+  if (state.status === 'error') {
+    return (
+      <main className="pdf-engine-page">
+        <div className="pdf-engine-page__error">{state.message}</div>
+        <div className="pdf-engine-page__toolbar">
+          <Link to="/admin/pdf-templates" className="pdf-engine-editor__btn">
+            ← 목록으로
+          </Link>
+          <button type="button" className="pdf-engine-editor__btn" onClick={() => void load()}>
+            다시 시도
+          </button>
+        </div>
+      </main>
+    )
+  }
+
+  return (
+    <main className="pdf-engine-page">
+      <div className="pdf-engine-page__header">
+        <h1 className="pdf-engine-page__title">PDF 템플릿 편집</h1>
+        {headerMeta}
+      </div>
+      <div className="pdf-engine-page__toolbar">
+        <Link to="/admin/pdf-templates" className="pdf-engine-editor__btn">
+          ← 목록
+        </Link>
+        <button
+          type="button"
+          className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
+          disabled={saving}
+          onClick={() => void handleSave()}
+        >
+          {saving ? '저장 중…' : '저장'}
+        </button>
+        {toast ? <span className="pdf-engine-page__hint">{toast}</span> : null}
+      </div>
+
+      <section className="pdf-engine-form pdf-engine-form--inline">
+        <label className="pdf-engine-editor__label">
+          문서 제목
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
+        </label>
+        <label className="pdf-engine-editor__label">
+          설명
+          <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
+        </label>
+        <label className="pdf-engine-editor__label" style={{ flex: '0 0 auto' }}>
+          <input
+            type="checkbox"
+            checked={isActive}
+            onChange={(e) => setIsActive(e.target.checked)}
+            style={{ width: 'auto' }}
+          />{' '}
+          활성 (사용자에게 노출)
+        </label>
+      </section>
+
+      <PdfCoordinateEditor
+        pdfBuffer={state.pdfBuffer}
+        pageCount={state.template.pageCount}
+        fields={fields}
+        onChange={setFields}
+      />
+    </main>
+  )
+}

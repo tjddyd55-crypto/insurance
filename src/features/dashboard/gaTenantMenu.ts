@@ -208,6 +208,7 @@ const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
   { label: '구독 설정', path: '/admin/subscription/settings' },
   { label: '운영 통계', path: '/admin/analytics' },
   { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
+  { label: 'PDF 문서 템플릿', path: '/admin/pdf-templates' },
 ]
 
 function itemsToEntries(items: GaTenantMenuItem[]): GaTenantDashboardMenuEntry[] {
