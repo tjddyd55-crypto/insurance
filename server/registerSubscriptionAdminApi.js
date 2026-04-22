@@ -20,6 +20,7 @@ import {
   deactivateSubscriptionPolicy,
   getSubscriptionPolicyStatus,
 } from './subscription/activatePolicy.js'
+import { registerSubscriptionAdminUserEndpoints } from './subscription/adminUserEndpoints.js'
 
 /**
  * @param {unknown} body
@@ -105,4 +106,6 @@ export function registerSubscriptionAdminApi(apiRouter, deps) {
       }
     },
   )
+
+  registerSubscriptionAdminUserEndpoints(apiRouter, { requireAuth, requireSuperAdmin })
 }

@@ -78,3 +78,33 @@ export function invalidateAppSettingsCache(key) {
   }
   cache.clear()
 }
+
+/**
+ * TRIAL 기본 일수 설정 쓰기.
+ *
+ * - 정책 활성 직후 "체험 기간" 의 근거가 되는 값이라 관리자만 변경할 수 있어야 한다.
+ * - 쓰기 후 반드시 캐시를 무효화하여 다음 평가에서 새 값을 읽게 한다.
+ * - 범위 검증은 호출 측(엔드포인트)에서 수행한다. 이 함수는 단순 쓰기 전담.
+ *
+ * @param {number} value
+ * @param {string|null|undefined} updatedByUserId
+ */
+export async function writeTrialDefaultDays(value, updatedByUserId = null) {
+  const normalized = Math.floor(Number(value))
+  if (!Number.isFinite(normalized) || normalized < 1 || normalized > 365) {
+    throw new Error(`TRIAL 기본 일수는 1~365 범위여야 합니다 (입력: ${value}).`)
+  }
+  await pool.query(
+    `
+    INSERT INTO app_settings (key, value_json, updated_at, updated_by_user_id)
+    VALUES ($1, $2::jsonb, NOW(), $3)
+    ON CONFLICT (key) DO UPDATE
+      SET value_json = EXCLUDED.value_json,
+          updated_at = NOW(),
+          updated_by_user_id = EXCLUDED.updated_by_user_id
+    `,
+    ['subscription.trial_default_days', JSON.stringify(normalized), updatedByUserId ?? null],
+  )
+  invalidateAppSettingsCache('subscription.trial_default_days')
+  return normalized
+}
