@@ -19,6 +19,7 @@ import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.
 import { isSignupPhoneRelaxedMode } from './lib/signupPhoneRelaxed.js'
 import { logSmsVerifyFailure } from './services/smsStructuredLog.js'
 import { SMS_PUBLIC_DELAY_MESSAGE } from './services/smsPublicMessages.js'
+import { buildSubscriptionResponseForUser } from './subscription/applyToResponseUser.js'
 
 const SMS_PURPOSE_SIGNUP = 'SIGNUP'
 const SMS_PURPOSE_PHONE_CHANGE = 'PHONE_CHANGE'
