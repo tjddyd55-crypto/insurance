@@ -1477,6 +1477,12 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   --memo-fab-bottom: 33.333dvh;
 }
 
+/*
+ * `bottom` 값은 JS(MemoMobileFab) 가 inline style 로 항상 덮어쓴다.
+ * 여기 `var(--memo-fab-bottom)` 는 JS 실행 이전 최초 paint 용 fallback.
+ * `touch-action: none` 은 FAB 위에서 시작되는 터치를 브라우저 스크롤로
+ * 해석하지 않고 pointer 이벤트로 직접 받기 위한 조건.
+ */
 .memo-mobile-fab {
   position: fixed;
   right: 16px;
@@ -1500,6 +1506,11 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   justify-content: center;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  transition:
+    bottom 160ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .memo-mobile-fab:hover:not(:disabled) {
@@ -1515,6 +1526,21 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   box-shadow:
     0 10px 24px -8px rgba(0, 0, 0, 0.45),
     0 0 0 3px color-mix(in srgb, var(--brand-primary, #2563eb) 35%, transparent);
+}
+
+/*
+ * 드래그 중에는 bottom 전이를 끄고(한 프레임씩 밀려 보이는 러버밴딩 방지)
+ * 살짝 확대·그림자 강조하여 "탭" 과 시각적으로 구분한다.
+ */
+.memo-mobile-fab--dragging {
+  cursor: grabbing;
+  transition: none;
+  transform: scale(1.06);
+  box-shadow: 0 14px 32px -6px rgba(0, 0, 0, 0.55);
+}
+
+.memo-mobile-fab--dragging:active {
+  transform: scale(1.06);
 }
 
 /*
