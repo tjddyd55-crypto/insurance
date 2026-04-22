@@ -162,8 +162,15 @@ function AppWorkspaceLayoutMobileShell() {
   const sidebarItems = useMemo(() => {
     return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
       teamMenuManageVisible,
+      subscriptionExpired: user?.subscription?.effectiveStatus === 'EXPIRED',
     })
-  }, [teamMenuManageVisible, user?.role, user?.gaCode, user?.gaName])
+  }, [
+    teamMenuManageVisible,
+    user?.role,
+    user?.gaCode,
+    user?.gaName,
+    user?.subscription?.effectiveStatus,
+  ])
 
   useEffect(() => {
     let cancelled = false
@@ -393,8 +400,15 @@ function AppWorkspaceLayoutPCShell() {
   const sidebarItems = useMemo(() => {
     return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
       teamMenuManageVisible,
+      subscriptionExpired: user?.subscription?.effectiveStatus === 'EXPIRED',
     })
-  }, [teamMenuManageVisible, user?.role, user?.gaCode, user?.gaName])
+  }, [
+    teamMenuManageVisible,
+    user?.role,
+    user?.gaCode,
+    user?.gaName,
+    user?.subscription?.effectiveStatus,
+  ])
 
   const sidebarLinkIsActive = useCallback((pathname: string, itemPath: string) => {
     return isActivePath(pathname, itemPath)

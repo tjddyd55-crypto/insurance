@@ -4,6 +4,8 @@
  * INSURER_MANAGER 는 INSURER_MANAGER_MENU 별도.
  */
 
+import { isAllowedForExpiredFrontend } from '../subscription/expiredAllowlist'
+
 export type GaTenantMenuItem = { label: string; path: string }
 
 /**
@@ -184,6 +186,15 @@ export function buildGaTenantDashboardMenu(
  */
 export type AppMenuBuildOptions = {
   teamMenuManageVisible?: boolean
+  /**
+   * 구독 만료(EXPIRED) 유저에게만 메뉴를 화이트리스트 정책으로 필터링한다.
+   * EXPIRED_ALLOW_FRONTEND_PATHS 에 해당하지 않는 링크는 제거되고,
+   * 결과적으로 고립된 divider 는 자동 정리된다.
+   *
+   * 서버의 enforceActiveSubscription 과 동일한 경계를 메뉴 레벨에서 선제적으로
+   * 적용해 "보이는데 들어가면 403" 이라는 UX 불일치를 없앤다.
+   */
+  subscriptionExpired?: boolean
 }
 
 const AUDIT_LOG_ENTRY: GaTenantMenuItem = { label: '보안 감사 로그', path: '/admin/audit-logs' }
@@ -206,7 +217,10 @@ export function buildAppMenuForSession(
   gaName: string | undefined,
   options: AppMenuBuildOptions = {},
 ): GaTenantDashboardMenuEntry[] {
-  const { teamMenuManageVisible = false } = options
+  const {
+    teamMenuManageVisible = false,
+    subscriptionExpired = false,
+  } = options
 
   const base: GaTenantDashboardMenuEntry[] = (() => {
     if (role === 'SUPER_ADMIN') {
@@ -238,19 +252,68 @@ export function buildAppMenuForSession(
   })()
 
   // 팀 관리 주입: `/team/files` 바로 다음 자리에 고정.
-  if (!teamMenuManageVisible) {
-    return base
+  const withTeam: GaTenantDashboardMenuEntry[] = (() => {
+    if (!teamMenuManageVisible) {
+      return base
+    }
+    const filesIdx = base.findIndex(
+      (entry) => entry.type === 'link' && entry.path === '/team/files',
+    )
+    const teamManageEntry: GaTenantDashboardMenuEntry = {
+      type: 'link',
+      label: '팀 관리',
+      path: '/team/manage',
+    }
+    if (filesIdx >= 0) {
+      return [...base.slice(0, filesIdx + 1), teamManageEntry, ...base.slice(filesIdx + 1)]
+    }
+    return [...base, teamManageEntry]
+  })()
+
+  if (!subscriptionExpired) {
+    return withTeam
   }
-  const filesIdx = base.findIndex((entry) => entry.type === 'link' && entry.path === '/team/files')
-  const teamManageEntry: GaTenantDashboardMenuEntry = {
-    type: 'link',
-    label: '팀 관리',
-    path: '/team/manage',
+  return filterMenuForExpired(withTeam)
+}
+
+function filterMenuForExpired(
+  entries: GaTenantDashboardMenuEntry[],
+): GaTenantDashboardMenuEntry[] {
+  const allowed = entries.filter((entry) => {
+    if (entry.type === 'divider') {
+      return true
+    }
+    if (entry.type !== 'link') {
+      /* 'section' 카테고리 헤더는 EXPIRED 유저에게는 의미가 없으므로 제거한다. */
+      return false
+    }
+    if (entry.disabled || entry.preparing) {
+      return false
+    }
+    return isAllowedForExpiredFrontend(entry.path)
+  })
+  return collapseRedundantDividers(allowed)
+}
+
+function collapseRedundantDividers(
+  entries: GaTenantDashboardMenuEntry[],
+): GaTenantDashboardMenuEntry[] {
+  const result: GaTenantDashboardMenuEntry[] = []
+  for (const entry of entries) {
+    if (entry.type !== 'divider') {
+      result.push(entry)
+      continue
+    }
+    const previous = result[result.length - 1]
+    if (!previous || previous.type === 'divider') {
+      continue
+    }
+    result.push(entry)
   }
-  if (filesIdx >= 0) {
-    return [...base.slice(0, filesIdx + 1), teamManageEntry, ...base.slice(filesIdx + 1)]
+  if (result[result.length - 1]?.type === 'divider') {
+    result.pop()
   }
-  return [...base, teamManageEntry]
+  return result
 }
 
 /**

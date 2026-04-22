@@ -9,6 +9,10 @@ import {
   type ReactNode,
 } from 'react'
 import type { UserRole } from './authApi'
+import {
+  normalizeSubscriptionFromApi,
+  type SubscriptionSnapshot,
+} from '../subscription/policy'
 
 interface AuthUser {
   id: string
@@ -21,6 +25,14 @@ interface AuthUser {
   displayName: string
   /** users.team_id. 구세션에 없으면 null */
   teamId: string | null
+  /**
+   * 서버가 내려준 구독 스냅샷(정규화 후).
+   *
+   * - subscription 이 없는 구세션/비대상 역할은 null 또는 undefined 로 남는다.
+   * - 프론트 가드/메뉴 필터는 subscription.effectiveStatus === 'EXPIRED' 만
+   *   검사하므로, null/undefined 는 "EXPIRED 아님" 으로 안전하게 취급된다.
+   */
+  subscription?: SubscriptionSnapshot | null
 }
 
 interface AuthSession {
@@ -199,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? nextSession.user.displayName.trim()
           : String(nextSession.user.username ?? '').trim()
       const teamId = parseTeamIdField(nextSession.user.teamId)
-      const subscription = readSubscriptionSnapshot(nextSession.user.subscription)
+      const subscription = normalizeSubscriptionFromApi(nextSession.user.subscription)
 
       const normalized: AuthSession = {
         token: nextSession.token,
