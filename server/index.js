@@ -1415,6 +1415,8 @@ registerSuperAdminAnalyticsApi(apiRouter, {
   systemQuery,
 })
 
+registerSubscriptionAdminApi(apiRouter, { requireAuth, requireSuperAdmin })
+
 registerCustomerClaimAppApi(apiRouter, {
   pool,
   requireAuth,
@@ -2211,15 +2213,6 @@ async function handleLogin(req, res) {
     })
     void recordAnalyticsEvent(pool, { userId: uid, gaId: gaIdInt, eventType: 'login' })
 
-    const userSubscription = buildSubscriptionResponse(
-      {
-        role,
-        subscription_plan: user.subscription_plan ?? null,
-        subscription_started_at: user.subscription_started_at ?? null,
-        subscription_expires_at: user.subscription_expires_at ?? null,
-      },
-      { policyActive: await readPolicyActive() },
-    )
     res.json({
       token,
       user: {
@@ -2231,7 +2224,6 @@ async function handleLogin(req, res) {
         ga_name: gaName,
         display_name: userDisplayName,
         team_id: userTeamId,
-        subscription: userSubscription,
       },
     })
   } catch (error) {

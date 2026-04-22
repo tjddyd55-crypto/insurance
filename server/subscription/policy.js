@@ -20,8 +20,13 @@
 /** @type {ReadonlyArray<SubscriptionPlan>} */
 export const SUBSCRIPTION_PLAN_KEYS = Object.freeze(['FREE', 'TRIAL', 'PAID', 'EXPIRED'])
 
-/** @type {ReadonlyArray<string>} */
-const SUBSCRIPTION_SUBJECT_ROLES = Object.freeze(['GA_ADMIN', 'GA_STAFF', 'USER'])
+/**
+ * 구독 정책 대상이 되는 역할 목록. SSOT — 서버 어디서든(정책 판정, 활성화 SQL, 관리자 쿼리)
+ * 이 목록만 참조해야 주체 범위가 한 곳에서 관리된다.
+ *
+ * @type {ReadonlyArray<string>}
+ */
+export const SUBSCRIPTION_SUBJECT_ROLES = Object.freeze(['GA_ADMIN', 'GA_STAFF', 'USER'])
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 
