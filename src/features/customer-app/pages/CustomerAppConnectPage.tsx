@@ -1,19 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput } from '../../../components/form'
 import { connectCustomerApp } from '../api/customerAppApi'
 import {
-  readCustomerAppSession,
   resolveCustomerDeviceId,
   writeCustomerAppProfile,
   writeCustomerAppSession,
 } from '../session/customerAppSession'
+import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
 export default function CustomerAppConnectPage() {
   const { linkCode: linkCodeParam } = useParams<{ linkCode?: string }>()
   const navigate = useNavigate()
-  const session = useMemo(() => readCustomerAppSession(), [])
+  const session = useCustomerAppSession()
   const [linkCode, setLinkCode] = useState(String(linkCodeParam ?? '').trim().toUpperCase())
   const [name, setName] = useState('')
   const [birthDate, setBirthDate] = useState('')

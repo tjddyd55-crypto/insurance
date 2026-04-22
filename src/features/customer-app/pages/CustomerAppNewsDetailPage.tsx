@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { NewsletterAttachmentList } from '../../insurer-news/components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../../insurer-news/components/NewsletterImageGallery'
 import { getCustomerNewsDetail, markCustomerNewsRead, type CustomerAppNewsDetail } from '../api/customerAppApi'
 import CustomerAppShell from '../components/CustomerAppShell'
-import { readCustomerAppSession } from '../session/customerAppSession'
+import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
 function formatDateTime(iso: string | null): string {
   if (!iso) {
@@ -21,7 +21,7 @@ function formatDateTime(iso: string | null): string {
 export default function CustomerAppNewsDetailPage() {
   const { newsId } = useParams<{ newsId: string }>()
   const navigate = useNavigate()
-  const session = useMemo(() => readCustomerAppSession(), [])
+  const session = useCustomerAppSession()
   const [detail, setDetail] = useState<CustomerAppNewsDetail | null>(null)
   const [error, setError] = useState('')
   const hasInvalidNewsId = !newsId

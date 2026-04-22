@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { listCustomerClaimRequests } from '../api/customerAppApi'
 import CustomerAppShell from '../components/CustomerAppShell'
-import { readCustomerAppSession } from '../session/customerAppSession'
+import { useCustomerAppSession } from '../session/useCustomerAppSession'
 import { resolveClaimStatusMeta } from '../utils/claimStatus'
 
 function formatDateTime(iso: string | null): string {
@@ -19,7 +19,7 @@ function formatDateTime(iso: string | null): string {
 
 export default function CustomerAppRequestsPage() {
   const navigate = useNavigate()
-  const session = useMemo(() => readCustomerAppSession(), [])
+  const session = useCustomerAppSession()
   const [rows, setRows] = useState<Array<{ id: number; status: string; title: string; submittedAt: string | null; fileCount: number }>>([])
   const [error, setError] = useState('')
 

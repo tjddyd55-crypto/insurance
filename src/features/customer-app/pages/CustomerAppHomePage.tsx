@@ -6,7 +6,7 @@ import { NewsletterList } from '../../insurer-news/components/NewsletterList'
 import type { NewsletterItem } from '../../insurer-news/types'
 import { listCustomerNews, type CustomerAppNewsListItem } from '../api/customerAppApi'
 import CustomerAppShell from '../components/CustomerAppShell'
-import { readCustomerAppSession } from '../session/customerAppSession'
+import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
 /**
  * 고객앱 메인 화면.
@@ -42,9 +42,7 @@ function toNewsletterItem(row: CustomerAppNewsListItem): NewsletterItem {
 
 export default function CustomerAppHomePage() {
   const navigate = useNavigate()
-  // 주의: readCustomerAppSession() 은 매 호출마다 새 객체를 반환한다.
-  // 의존성 배열에 직접 넣으면 useEffect 가 무한 재실행된다 (고객앱 다른 페이지와 동일 규약으로 useMemo 캐시).
-  const session = useMemo(() => readCustomerAppSession(), [])
+  const session = useCustomerAppSession()
   const [error, setError] = useState('')
   const [latestNews, setLatestNews] = useState<CustomerAppNewsListItem | null>(null)
 

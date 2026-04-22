@@ -7,14 +7,14 @@ import CustomerAppShell from '../components/CustomerAppShell'
 import {
   clearCustomerAppSession,
   readCustomerAppProfile,
-  readCustomerAppSession,
   writeCustomerAppProfile,
   writeCustomerAppSession,
 } from '../session/customerAppSession'
+import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
 export default function CustomerAppProfilePage() {
   const navigate = useNavigate()
-  const session = useMemo(() => readCustomerAppSession(), [])
+  const session = useCustomerAppSession()
   const profile = useMemo(() => readCustomerAppProfile(), [])
   const [name, setName] = useState(profile?.name ?? '')
   const [birthDate, setBirthDate] = useState(profile?.birthDate ?? '')

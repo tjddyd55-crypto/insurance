@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import FileUploader from '../../../components/common/FileUploader'
 import { StatusMessage } from '../../../components/feedback'
@@ -10,7 +10,8 @@ import {
   uploadCustomerClaimFileProxy,
 } from '../api/customerAppApi'
 import CustomerAppShell from '../components/CustomerAppShell'
-import { readCustomerAppProfile, readCustomerAppSession } from '../session/customerAppSession'
+import { readCustomerAppProfile } from '../session/customerAppSession'
+import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
 interface UploadReadyFile {
   id: string
@@ -19,7 +20,7 @@ interface UploadReadyFile {
 
 export default function CustomerAppRequestComposePage() {
   const navigate = useNavigate()
-  const session = useMemo(() => readCustomerAppSession(), [])
+  const session = useCustomerAppSession()
   const [profile, setProfile] = useState(() => readCustomerAppProfile())
   const [memo, setMemo] = useState('')
   const [files, setFiles] = useState<UploadReadyFile[]>([])
