@@ -42,7 +42,9 @@ function toNewsletterItem(row: CustomerAppNewsListItem): NewsletterItem {
 
 export default function CustomerAppHomePage() {
   const navigate = useNavigate()
-  const session = readCustomerAppSession()
+  // 주의: readCustomerAppSession() 은 매 호출마다 새 객체를 반환한다.
+  // 의존성 배열에 직접 넣으면 useEffect 가 무한 재실행된다 (고객앱 다른 페이지와 동일 규약으로 useMemo 캐시).
+  const session = useMemo(() => readCustomerAppSession(), [])
   const [error, setError] = useState('')
   const [latestNews, setLatestNews] = useState<CustomerAppNewsListItem | null>(null)
 
