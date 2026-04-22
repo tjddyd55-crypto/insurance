@@ -41,6 +41,9 @@ import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
 import { registerClientLogRoutes } from './routes/client-log.js'
 import { registerVersionRoutes } from './routes/version.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
+import { registerSubscriptionAdminApi } from './registerSubscriptionAdminApi.js'
+import { registerSubscriptionEndpoints } from './subscription/endpoints.js'
+import { enforceActiveSubscription } from './subscription/requireActiveSubscription.js'
 
 const PORT = Number(process.env.PORT ?? 3001)
 const JWT_SECRET = process.env.JWT_SECRET ?? 'change-this-in-production'
@@ -1025,7 +1028,7 @@ async function requireAuth(req, res, next) {
         return
       }
       req.gaId = parseGaId(req.user?.gaId)
-      next()
+      await enforceActiveSubscription(req, res, next)
       return
     }
 
@@ -1067,7 +1070,7 @@ async function requireAuth(req, res, next) {
     }
 
     req.gaId = parseGaId(req.user?.gaId)
-    next()
+    await enforceActiveSubscription(req, res, next)
   } catch (e) {
     const name = e && typeof e === 'object' && 'name' in e ? String(e.name) : ''
     if (name === 'JsonWebTokenError' || name === 'TokenExpiredError') {
@@ -1416,6 +1419,8 @@ registerSuperAdminAnalyticsApi(apiRouter, {
 })
 
 registerSubscriptionAdminApi(apiRouter, { requireAuth, requireSuperAdmin })
+
+registerSubscriptionEndpoints(apiRouter, { requireAuth })
 
 registerCustomerClaimAppApi(apiRouter, {
   pool,
