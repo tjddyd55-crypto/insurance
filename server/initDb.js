@@ -847,16 +847,53 @@ export async function initDb() {
   // - author_role 은 현재 'admin' 만 기록되지만, 추후 요청자 답글을 허용할 경우
   //   'user' 등 다른 값을 추가할 수 있도록 CHECK 제약 대신 애플리케이션 레이어에서 검증한다.
   // - 요청이 삭제되면 댓글도 함께 정리(CASCADE).
+  //
+  // 운영 DB 에 이 테이블이 "일부 스키마" 로 이미 존재할 수 있는 과도기가 있었으므로,
+  // 신규 환경/기존 환경 모두에서 동일하게 수렴하도록 자가치유(ALTER ... IF NOT EXISTS)
+  // 패턴을 사용한다. 제약(NOT NULL, FK) 은 중복 추가를 피하기 위해 DO 블록으로 감싼다.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS feature_request_comments (
-      id SERIAL PRIMARY KEY,
-      feature_request_id INTEGER NOT NULL REFERENCES feature_requests(id) ON DELETE CASCADE,
-      author_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      author_role TEXT NOT NULL,
-      author_username TEXT,
-      content TEXT NOT NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      id SERIAL PRIMARY KEY
     )
+  `)
+  await pool.query(`
+    ALTER TABLE feature_request_comments
+      ADD COLUMN IF NOT EXISTS feature_request_id INTEGER,
+      ADD COLUMN IF NOT EXISTS author_user_id TEXT,
+      ADD COLUMN IF NOT EXISTS author_role TEXT,
+      ADD COLUMN IF NOT EXISTS author_username TEXT,
+      ADD COLUMN IF NOT EXISTS content TEXT,
+      ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  `)
+  // FK(feature_request_id → feature_requests.id) - 이미 존재하면 무시.
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'feature_request_comments_feature_request_id_fkey'
+      ) THEN
+        ALTER TABLE feature_request_comments
+          ADD CONSTRAINT feature_request_comments_feature_request_id_fkey
+          FOREIGN KEY (feature_request_id) REFERENCES feature_requests(id)
+          ON DELETE CASCADE;
+      END IF;
+    END $$;
+  `)
+  // FK(author_user_id → users.id) - 이미 존재하면 무시.
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'feature_request_comments_author_user_id_fkey'
+      ) THEN
+        ALTER TABLE feature_request_comments
+          ADD CONSTRAINT feature_request_comments_author_user_id_fkey
+          FOREIGN KEY (author_user_id) REFERENCES users(id)
+          ON DELETE CASCADE;
+      END IF;
+    END $$;
   `)
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_frc_request_created
