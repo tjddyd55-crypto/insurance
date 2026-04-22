@@ -19,6 +19,7 @@ import { PasswordResetPage } from './features/auth/pages/PasswordResetPage'
 import { RegisterPage } from './features/auth/pages/RegisterPage'
 import { ProfilePage } from './features/auth/pages/ProfilePage'
 import { ProtectedRoute } from './features/auth/ProtectedRoute'
+import { RequireActiveSubscription } from './features/subscription/RequireActiveSubscription'
 import { GaCarInsuranceRoute } from './features/auth/GaCarInsuranceRoute'
 import { StaffRoute } from './features/auth/StaffRoute'
 import { InsurancePrintPage } from './features/contacts/pages/InsurancePrintPage'
@@ -117,8 +118,11 @@ export const appRouter = createBrowserRouter([
         element: <ProtectedRoute />,
         children: [
           {
-            element: <AppWorkspaceLayout />,
+            element: <RequireActiveSubscription />,
             children: [
+              {
+                element: <AppWorkspaceLayout />,
+                children: [
           { path: 'dashboard', element: <DashboardPage /> },
           { path: 'contacts/manage', element: <Navigate to="/insurance/company-registry" replace /> },
           { path: 'updates', element: <Navigate to="/insurance/history" replace /> },
@@ -242,6 +246,8 @@ export const appRouter = createBrowserRouter([
               { path: 'insurance/general-request', element: <GeneralRequestPage /> },
               { path: 'reinsurer-contacts', element: <ReinsurerContactsPage /> },
               { path: 'insurance/print', element: <InsurancePrintPage /> },
+                ],
+              },
             ],
           },
           { path: '*', element: <Navigate to="/dashboard" replace /> },
