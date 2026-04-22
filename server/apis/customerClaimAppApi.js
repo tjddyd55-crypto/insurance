@@ -338,6 +338,7 @@ async function loadAgentAndCustomerDisplay(pool, agentId, customerId) {
     `
     SELECT
       COALESCE(NULLIF(TRIM(u.display_name), ''), NULLIF(TRIM(u.username), ''), '담당 설계사') AS agent_name,
+      NULLIF(TRIM(u.phone_number), '') AS agent_phone,
       COALESCE(NULLIF(TRIM(c.name), ''), '고객') AS customer_name,
       c.id AS customer_id,
       u.id AS agent_id,
@@ -1811,6 +1812,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           customerId: context.customerId,
           deviceId: context.deviceId,
           agentName: String(display.agent_name ?? ''),
+          agentPhone: display.agent_phone ? String(display.agent_phone) : null,
           customerName: String(display.customer_name ?? ''),
           status: String(link.rows[0]?.status ?? CUSTOMER_LINK_ACTIVE),
           lastConnectedAt: link.rows[0]?.last_connected_at ? new Date(link.rows[0].last_connected_at).toISOString() : null,

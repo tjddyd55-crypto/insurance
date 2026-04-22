@@ -19,6 +19,7 @@ export interface CustomerAppMe {
   customerId: number
   deviceId: string
   agentName: string
+  agentPhone: string | null
   customerName: string
   status: string
   lastConnectedAt: string | null
