@@ -13,6 +13,9 @@ import GaManagementPage from './features/admin/pages/GaManagementPage'
 import GaCompanyManagePage from './features/admin/pages/GaCompanyManagePage'
 import UserManagementPage from './features/admin/pages/UserManagementPage'
 import AuditLogsPage from './features/admin/pages/AuditLogsPage'
+import SubscriptionPolicyPage from './features/admin/pages/SubscriptionPolicyPage'
+import SubscriptionUsersPage from './features/admin/pages/SubscriptionUsersPage'
+import AdminSubscriptionSettingsPage from './features/admin/pages/AdminSubscriptionSettingsPage'
 import { AccountResetPage } from './features/account/pages/AccountResetPage'
 import { LoginPage } from './features/auth/pages/LoginPage'
 import { PasswordResetPage } from './features/auth/pages/PasswordResetPage'
@@ -211,6 +214,14 @@ export const appRouter = createBrowserRouter([
               { path: 'admin/delegates', element: <GaDelegateManagementPage /> },
               { path: 'admin/create-staff', element: <Navigate to="/admin/delegates" replace /> },
               { path: 'admin/users', element: <UserManagementPage /> },
+              {
+                element: <SuperAdminRoute />,
+                children: [
+                  { path: 'admin/subscription/policy', element: <SubscriptionPolicyPage /> },
+                  { path: 'admin/subscription/users', element: <SubscriptionUsersPage /> },
+                  { path: 'admin/subscription/settings', element: <AdminSubscriptionSettingsPage /> },
+                ],
+              },
               {
                 element: <AuditLogReaderRoute />,
                 children: [{ path: 'admin/audit-logs', element: <AuditLogsPage /> }],

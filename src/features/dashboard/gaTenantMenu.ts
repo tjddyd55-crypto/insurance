@@ -203,6 +203,9 @@ const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
   { label: 'GA 관리', path: '/admin/ga' },
   { label: '담당자 관리', path: '/admin/delegates' },
   { label: '유저 관리', path: '/admin/users' },
+  { label: '구독 정책', path: '/admin/subscription/policy' },
+  { label: '구독 유저', path: '/admin/subscription/users' },
+  { label: '구독 설정', path: '/admin/subscription/settings' },
   { label: '운영 통계', path: '/admin/analytics' },
   { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
 ]
