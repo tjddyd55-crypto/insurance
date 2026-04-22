@@ -1,8 +1,10 @@
 # 구독 상태 기반 접근 제어 시스템 — 설계/구현 계획
 
-> 상태: **초안(승인 대기)** — §0 의사결정 확정 후 §4 PR 분할대로 착수한다.
+> 상태: **PR1 / PR1a 완료(develop+main 머지)** — §4 PR2 부터 순차 진행.
 > 범위: FREE / TRIAL / PAID / EXPIRED 4단계 상태 모델을 도입하고,
 > 서버·프론트 동일 정책으로 접근 제어한다. 실제 PG 결제 연동은 스코프 밖.
+>
+> **용어**: 정책 집행 스위치의 단일 키 이름은 `subscription.policy_active` (app_settings). 정책 함수 인자명은 `policyActive`. 문서 곳곳에서 이 이름으로만 언급한다.
 
 ---
 
@@ -11,7 +13,7 @@
 | # | 항목 | 권장안 | 대안 |
 |---|------|--------|------|
 | D1 | **구독 대상 역할** | `USER`, `GA_ADMIN`, `GA_STAFF` 만 구독 대상. `SUPER_ADMIN` 은 항상 FREE, `INSURER_MANAGER` / `LOSS_ADJUSTER` 는 이번 스코프 제외(별도 계정 체계). | 담당자도 포함 |
-| D2 | **전 유저 기본값** | 전부 `FREE` 로 배포. 누구도 차단되지 않음 → 무중단 이행. 과금 시작 시 관리자가 TRIAL/PAID 로 전환. | 전 유저 TRIAL 부여 후 만료 시 EXPIRED |
+| D2 | **전 유저 기본값 + 활성화 방식** | **확정(구현 완료)**: 배포 시점 기본 `plan='FREE'` + `policy_active=false`. 이 상태에서는 정책 함수가 전원 `ACTIVE` 로 단락하므로 아무도 차단되지 않는다. 관리자가 `POST /api/admin/subscription/activate` 를 호출하는 순간 동일 트랜잭션 안에서 (a) 구독 주체 FREE 유저를 TRIAL 로 일괄 전환하며 `started_at=NOW()` / `expires_at=NOW()+trialDays` 로 타이머 시작, (b) `subscription_change_logs` 에 `reason='policy-activation'` 로 감사 기록, (c) `policy_active=true` 로 플래그 토글. 두 번째 호출은 이미 시작된 타이머를 덮어쓰지 않음(멱등). 비활성화는 플래그만 false 로 되돌리고 타이머는 보존(재활성화 시 이어서 감소). | 배포 즉시 타이머 시작(리스크 큼 — 채택 안 함) |
 | D3 | **구독 단위** | **유저별**. "GA 전체 일괄 30일 TRIAL" 같은 운영 요구는 관리자 **일괄 작업 기능**으로 커버. | GA 단위 구독 + 유저별 오버라이드 (복잡) |
 | D4 | **관리자 UI** | 기존 `/admin/users`(`UserManagementPage`) 를 확장(플랜 컬럼·필터·일괄작업). | 신규 `/admin/subscriptions` 페이지 분리 |
 | D5 | **PR 분할 & 머지 순서** | 아래 §4 의 6단계 PR. 각 PR 은 develop → main 순차 머지, 사용자 테스트 후 다음 PR. | 한 번에 big bang |
@@ -89,22 +91,41 @@ started_at ∈ TIMESTAMPTZ | NULL
 
 ### 2-3. 공용 정책 함수 (서버 = 프론트 시그니처 동일)
 
+구현: `server/subscription/policy.js` (서버) / `src/features/subscription/policy.ts` (프론트 미러).
+
 ```
-// 순수 함수 — I/O 없음, 테스트 가능
 evaluateSubscription(input: {
-  role: string
+  role: string | null
   plan: 'FREE'|'TRIAL'|'PAID'|'EXPIRED'|null
   expiresAt: Date|string|null
   startedAt: Date|string|null
-  now?: Date                    // 테스트용 주입 가능
+  policyActive: boolean          // app_settings.'subscription.policy_active'
+  now?: Date                     // 테스트 주입용
 }): {
   effectiveStatus: 'ACTIVE'|'EXPIRED'
   plan: 'FREE'|'TRIAL'|'PAID'|'EXPIRED'
   expiresAt: Date|null
-  remainingDays: number|null    // FREE/SUPER_ADMIN 은 null
-  reason: 'not-subject'|'free'|'trial-active'|'paid-active'|'trial-expired'|'paid-expired'|'forced-expired'
+  startedAt: Date|null
+  remainingDays: number|null     // policy-inactive / not-subject / free 는 null
+  reason:
+    | 'policy-inactive'          // 정책 스위치 OFF → 전원 단락 통과
+    | 'not-subject'              // SUPER_ADMIN / 담당자 계정
+    | 'free'
+    | 'trial-active' | 'paid-active'
+    | 'trial-expired' | 'paid-expired'
+    | 'forced-expired'           // plan='EXPIRED' (관리자 강제)
 }
 ```
+
+**판정 순서** (위에서부터, 첫 매칭으로 결정):
+1. `policyActive !== true` → `ACTIVE` / plan=FREE (`reason: 'policy-inactive'`)
+2. `role` ∉ `SUBSCRIPTION_SUBJECT_ROLES`(=`['GA_ADMIN','GA_STAFF','USER']`) → `ACTIVE` / plan=FREE (`reason: 'not-subject'`)
+3. `plan === 'FREE'` → `ACTIVE` (`reason: 'free'`)
+4. `plan === 'EXPIRED'` → `EXPIRED` (`reason: 'forced-expired'`)
+5. `plan === 'TRIAL'` 이고 `expiresAt > now` → `ACTIVE` · 아니면 `EXPIRED` (`trial-active` / `trial-expired`)
+6. `plan === 'PAID'` 이고 `expiresAt > now` → `ACTIVE` · 아니면 `EXPIRED` (`paid-active` / `paid-expired`)
+
+활성화 전 유저는 모두 plan=FREE 이므로 "started_at=NULL 상태의 TRIAL" 케이스는 존재하지 않는다(활성화 트랜잭션이 FREE→TRIAL 전환과 started_at 세팅을 원자적으로 수행).
 
 ### 2-4. EXPIRED 화이트리스트 (서버·프론트 공통 SSOT)
 
@@ -184,9 +205,9 @@ CREATE INDEX IF NOT EXISTS sub_change_logs_user_id_idx
   ON subscription_change_logs (user_id, created_at DESC);
 ```
 
-### 3-3. 전역 설정 `app_settings` (신설)
+### 3-3. 전역 설정 `app_settings` (신설 — PR1 완료)
 
-TRIAL 기본 기간과 향후 유사 설정을 담을 key-value 설정 테이블.
+TRIAL 기본 기간·정책 스위치·그 외 전역 설정을 담을 key-value 테이블.
 
 ```sql
 CREATE TABLE IF NOT EXISTS app_settings (
@@ -196,90 +217,95 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_by_user_id TEXT NULL REFERENCES users(id) ON DELETE SET NULL
 );
 
-INSERT INTO app_settings (key, value_json)
-VALUES ('subscription.trial_default_days', '30'::jsonb)
+INSERT INTO app_settings (key, value_json) VALUES
+  ('subscription.policy_active',       CAST('false' AS jsonb)),
+  ('subscription.trial_default_days',  CAST('30'    AS jsonb))
 ON CONFLICT (key) DO NOTHING;
 ```
 
-**확장성**: 추후 `payment.default_plan_price`, `ui.announcement_banner` 등도 여기에 쌓는다.
+**읽기 경로**: 서버는 `server/subscription/appSettings.js` 의 TTL 5초 in-memory 캐시로 읽고, 관리자 변경 직후 `invalidateAppSettingsCache(key)` 로 즉시 무효화한다. 다중 인스턴스 환경 도입 시 Redis pub/sub 또는 Postgres LISTEN/NOTIFY 로 교체.
+
+**스위치 ON 플로우** (PR1a 완료, 관리자 UI 는 PR5):
+1. 관리자가 `/admin/users` 에서 유저별 plan 정리(활성화 대상만 FREE 로 남기고, FREE 유지가 필요한 유저는 별도로 PAID/EXPIRED 로 전환)
+2. `/admin/settings` 에서 `subscription.trial_default_days` 확인/조정(기본 30일, 1~365 클램프)
+3. "정책 활성화" 버튼 → 확인 다이얼로그 → `POST /api/admin/subscription/activate`
+   - `trialDays?`(선택), `dryRun?`(영향 규모만 조회), `memo?` 파라미터 지원
+   - 단일 트랜잭션:
+     - FREE 이고 started_at/expires_at 둘 다 NULL 인 구독 주체 유저를 row-lock
+     - `plan='TRIAL'`, `started_at=NOW()`, `expires_at=NOW()+interval(trialDays days)` 로 UPDATE
+     - `subscription_change_logs` 에 `reason='policy-activation'` 로 전수 기록
+     - `subscription.policy_active=true` 로 플래그 전환
+4. 이후 TRIAL 타이머가 흐르고 만료된 유저는 `effective_status='EXPIRED'` 가 된다.
+
+**스위치 OFF** (`POST /api/admin/subscription/deactivate`): `policy_active=false` 만 내림. 각 유저의 `plan`/`started_at`/`expires_at` 는 **보존**(재개 시 잔여 기간 이어서 소진). 긴급 롤백 수단.
+
+**현재 상태 조회** (`GET /api/admin/subscription/policy`): 플래그·trial 기본 일수·영향 유저 수(활성화 대상 / TRIAL 유저 수 / 현재 만료된 유저 수) 한 번에 반환.
+
+**확장성**: 추후 `payment.default_plan_price`, `ui.announcement_banner` 등도 이 테이블에 쌓는다.
 
 ---
 
 ## 4. PR 분할 및 머지 순서
 
-> 각 PR 은 **하위 호환** 을 유지한다. FREE 기본값 덕에 어느 단계에서 배포를 멈춰도 회귀 없음.
+> 각 PR 은 **하위 호환** 을 유지한다. `policy_active=false` 기본값 덕에 어느 단계에서 배포를 멈춰도 회귀 없음.
 
-### PR1 — 데이터 모델 + 정책 함수 + 로그인/`/me` 응답 확장 (백엔드만)
+### ✅ PR1 — 데이터 모델 + 정책 함수 + 로그인/`/me` 응답 확장 (완료, develop+main 머지 `7b5eabf`)
 
-**파일**
-- `server/initDb.js` — 3-1/3-2/3-3 스키마 추가
-- `server/subscription/policy.js` **(신규)** — `evaluateSubscription(input)` 순수 함수
-- `server/subscription/applyToResponseUser.js` **(신규)** — `{ plan, expiresAt, effectiveStatus, remainingDays }` 병합
-- `server/index.js` — 로그인·`/me` 응답에 `subscription` 객체 포함
-- `src/features/subscription/policy.ts` **(신규)** — 정책 함수의 프론트 미러(같은 로직, TS)
-- `src/features/auth/authApi.ts` — `LoginResponse.user.subscription` 타입 추가
-- `src/features/auth/AuthProvider.tsx` — `user.subscription` 저장·복원
+**파일 (실제 반영분)**
+- `server/initDb.js` — §3-1/3-2/3-3 스키마 추가 (TRIAL 기본 일수 30, `policy_active=false`)
+- `server/subscription/policy.js` — `evaluateSubscription`, `SUBSCRIPTION_SUBJECT_ROLES`, `normalizeSubscriptionPlan`
+- `server/subscription/applyToResponseUser.js` — `buildSubscriptionResponse` / `buildSubscriptionResponseForUser`
+- `server/subscription/appSettings.js` — TTL 5s in-memory 캐시 + `readPolicyActive` / `readTrialDefaultDays` / `invalidateAppSettingsCache`
+- `server/registerUserProfileApi.js` — `/api/me` 응답에 snake_case `subscription` 병합 (USER 전용)
+- `src/features/subscription/policy.ts` — 서버와 동일 로직 TS 미러
+- `src/features/auth/authApi.ts` — `SubscriptionResponsePayload` / `AuthUser.subscription` 타입 추가, 로그인 응답 camelCase 매핑
+- `src/features/auth/AuthProvider.tsx` — `readSubscriptionSnapshot` 으로 localStorage 복원·검증
 
-**완료 조건**: 로그인 후 `user.subscription = { plan:'FREE', effectiveStatus:'ACTIVE', ... }` 가 내려온다. 라우트/UI 변경 없음.
-
----
-
-### PR1a — 정책 활성화 기계장치 (관리자 API)
-
-> D2 결정(**"배포 ≠ 활성화"**)을 코드로 이행하는 단계. PR1 의 플래그(`policy_active`)에
-> "스위치를 켜는 순간 TRIAL 타이머가 시작된다" 는 실제 동작을 부여한다.
-> UI/라우트 가드는 아직 붙이지 않으므로 이 PR 이 배포되어도 일반 유저엔 영향이 없다.
-
-**파일**
-- `server/subscription/activatePolicy.js` **(신규)** — 트랜잭션 단위 상태 전환 SSOT
-  - `activateSubscriptionPolicy({ actorUserId, trialDays?, dryRun?, memo? })`
-    - 단일 트랜잭션으로 (a) 구독 주체 유저(`GA_ADMIN`/`GA_STAFF`/`USER`) 중 `plan='FREE'` AND `started_at IS NULL` 인 유저를 `TRIAL` 로 일괄 전환 → (b) `subscription_change_logs` 감사 로그 기록 → (c) `app_settings.subscription.policy_active = true`
-    - `started_at/expires_at = NOW() / NOW() + trialDays` — 타이머 **기준점은 활성화 순간**
-    - `dryRun=true` 는 READ-ONLY, 대상 유저 수만 반환
-    - 이미 `started_at` 이 채워진 유저는 대상에서 제외 → **두 번째 활성화 호출이 기존 타이머를 덮어쓰지 않음**
-  - `deactivateSubscriptionPolicy({ actorUserId })`
-    - 플래그만 `false` 로 되돌리고 유저 타이머는 **보존** (비파괴적) → 재활성화 시 남은 기간 이어짐
-  - `getSubscriptionPolicyStatus()` — 현재 플래그 + 영향 규모(`eligibleUserCount`/`trialUserCount`/`expiredUserCount`)
-- `server/subscription/policy.js` — `SUBSCRIPTION_SUBJECT_ROLES` 를 `export` 로 승격 (정책 판정과 활성화 SQL 이 동일 SSOT 참조)
-- `server/registerSubscriptionAdminApi.js` **(신규)** — HTTP 경계 전담
-  - `GET  /api/admin/subscription/policy`     → 현재 상태 + 영향 규모
-  - `POST /api/admin/subscription/activate`   → 본문 `{ trialDays?, dryRun?, memo? }`
-  - `POST /api/admin/subscription/deactivate`
-  - 전부 `requireAuth + requireSuperAdmin`
-- `server/index.js` — `registerSubscriptionAdminApi(apiRouter, { requireAuth, requireSuperAdmin })` 등록
-
-**완료 조건**
-- SUPER_ADMIN 이 `POST /activate { dryRun:true }` 를 호출하면 `eligibleCount` 가 나오고 DB 상태는 그대로다.
-- `POST /activate { trialDays:30 }` 호출 직후 대상 유저의 `subscription_plan='TRIAL'`, `subscription_expires_at ≈ NOW()+30d` 가 되어 있고 `subscription_change_logs` 에 `reason='policy-activation'` 기록이 남는다.
-- 동일 호출을 두 번 해도 두 번째 호출에서는 `convertedCount=0` (기존 타이머 유지).
-- `POST /deactivate` 후 플래그는 `false`, 유저 타이머는 그대로.
+**완료 상태**: `policy_active=false` 여서 전 유저 `effective_status='ACTIVE'`, `reason='policy-inactive'`. 라우트/UI 변경 없음, 기존 기능 회귀 없음.
 
 ---
 
-### PR2 — 서버 접근 제어 미들웨어
+### ✅ PR1a — 정책 활성화 기계장치 + 관리자 API (완료, develop+main 머지 `c1c9216`)
 
-**파일**
-- `server/subscription/requireActiveSubscription.js` **(신규)** — 화이트리스트 prefix 통과, 나머지는 `evaluateSubscription()` 으로 판정하여 403
-- `server/index.js` — `requireAuth` 뒤에 **route-level 장착** 또는 **path prefix 기반 global 장착** 중 확정(아래 §5 결정)
-- `server/subscription/endpoints.js` **(신규)** — `GET /api/subscription/me`, `POST /api/subscription/checkout` (checkout 은 501 "준비중")
+**파일 (실제 반영분)**
+- `server/subscription/activatePolicy.js` — `activateSubscriptionPolicy` / `deactivateSubscriptionPolicy` / `getSubscriptionPolicyStatus` (단일 트랜잭션·멱등·dryRun·row lock·감사 로그)
+- `server/registerSubscriptionAdminApi.js` — `/api/admin/subscription/{policy,activate,deactivate}` (SUPER_ADMIN 전용)
 
-**완료 조건**: 로컬에서 관리자 도구로 임의 유저를 `EXPIRED` 로 강제 시 업무 API 가 403 을 반환하고, 화이트리스트 API 는 200 유지.
+**완료 상태**: 서버 재부팅 없이 관리자가 `POST /api/admin/subscription/activate` 한 번으로 정책 발효. 취소는 `/deactivate` 로 플래그만 내리면 즉시 단락 통과.
+
+**미검증(수동 테스트로 확인 필요)**: 실제 `curl` / 관리자 UI 없이는 사용자 확인이 어려움 → PR5 관리자 UI 전까지는 운영 관리자가 `curl` 로 트리거하는 방식으로 남겨둠.
 
 ---
 
-### PR3 — 프론트 라우트 가드 + 메뉴 필터
+### 🔜 PR2 — 서버 접근 제어 미들웨어 + `/api/subscription/me`
 
 **파일**
-- `src/features/auth/RequireActiveSubscription.tsx` **(신규)** — `<Outlet/>` 래퍼, EXPIRED 면 `/profile?expired=1` 로 redirect
-- `src/appRouter.tsx` — `/profile`, `/feature-request`, `/account/reset` 를 `RequireActiveSubscription` **바깥**에 두고, 나머지 업무 라우트를 **안**에 둔다
+- `server/subscription/requireActiveSubscription.js` **(신규)** — 화이트리스트 prefix 목록 통과, 나머지는 `buildSubscriptionResponseForUser()` 로 판정해 `effective_status==='EXPIRED'` 일 때 403 응답(`{ error:'SUBSCRIPTION_EXPIRED', message, subscription }`)
+- `server/subscription/expiredAllowlist.js` **(신규)** — `EXPIRED_ALLOW_API_PREFIXES` SSOT (§2-4)
+- `server/subscription/endpoints.js` **(신규)** — `GET /api/subscription/me` (유저 본인 구독 상태 조회), `POST /api/subscription/checkout` (501 "준비중")
+- `server/index.js` — `requireAuth` 뒤에 prefix 기반 global 미들웨어 장착(§5-3 결정)
+
+**완료 조건**:
+1. 관리자 `curl` 로 임의 유저를 `EXPIRED` 강제 설정 → 업무 API 403(`SUBSCRIPTION_EXPIRED`), `/api/me` / `/api/subscription/me` / `/api/feature-request` 200 유지.
+2. `policy_active=false` 상태에서는 EXPIRED 유저로 설정해도 전부 200 (정책이 전원 ACTIVE 로 단락).
+3. `GET /api/subscription/me` 는 자신의 subscription 스냅샷을 `/api/me` 와 동일 구조로 반환.
+
+---
+
+### 🔜 PR3 — 프론트 라우트 가드 + 메뉴 필터 + `useSubscription` 훅
+
+**파일**
+- `src/features/subscription/useSubscription.ts` **(신규)** — `AuthProvider` 의 session.user.subscription 을 읽고, 앱 진입 후 주기적(5~10분)으로 `/api/subscription/me` 를 재조회해서 최신화
+- `src/features/subscription/RequireActiveSubscription.tsx` **(신규)** — `<Outlet/>` 래퍼, `effective_status==='EXPIRED'` 면 `/profile?expired=1` 로 redirect
+- `src/appRouter.tsx` — `/profile`, `/feature-request`, `/account/reset` 를 래퍼 **바깥**에, 나머지 업무 라우트를 **안**에 배치
 - `src/features/dashboard/gaTenantMenu.ts` — `buildGaTenantDashboardMenu(…, { effectiveStatus })` 로 확장. EXPIRED 면 `내정보관리` / `문의·요청` 만 반환
-- `src/layouts/AppWorkspaceLayout.tsx` — menu build 시 subscription 상태 주입
+- `src/layouts/AppWorkspaceLayout.tsx` — 메뉴 빌드 시 subscription 상태 주입
 
-**완료 조건**: EXPIRED 로 설정된 테스트 유저가 로그인 → 메뉴에 `내정보관리` / `문의·요청` 만 표시 → 업무 URL 직타 시 `/profile?expired=1` 로 리다이렉트.
+**완료 조건**: EXPIRED 테스트 유저로 로그인 → 메뉴에 `내정보관리` / `문의·요청` 만 표시 → 업무 URL 직타 시 `/profile?expired=1` 로 리다이렉트. 일반(FREE / policy-inactive) 유저는 기존 동작 완전 동일.
 
 ---
 
-### PR4 — 내 정보 관리 UI (구독 섹션)
+### 🔜 PR4 — 내 정보 관리 UI (구독 섹션)
 
 **파일**
 - `src/features/subscription/components/SubscriptionStatusCard.tsx` **(신규)** — 현재 플랜/만료일/남은기간/결제 안내
@@ -293,32 +319,34 @@ ON CONFLICT (key) DO NOTHING;
 
 ---
 
-### PR5 — 관리자 일괄 관리 UI + API
+### 🔜 PR5 — 관리자 일괄 관리 UI + 단건/일괄 변경 API
 
 **백엔드**
-- `server/subscription/adminEndpoints.js` **(신규)**
-  - `GET  /api/admin/subscriptions` — 필터(ga, plan, status, near-expiry, expired-only), 페이지네이션
-  - `PATCH /api/admin/subscriptions/:userId` — 단건 변경(plan / expires_at / memo)
-  - `POST /api/admin/subscriptions/bulk` — 일괄 작업(userIds[] or gaId, action: 'SET_PLAN' | 'EXTEND_DAYS' | 'SET_EXPIRY')
-  - `GET  /api/admin/settings/subscription` / `PATCH /api/admin/settings/subscription` — 기본 TRIAL 일수
-- 모든 변경은 `subscription_change_logs` 에 기록
+- `server/subscription/adminUserEndpoints.js` **(신규)**
+  - `GET  /api/admin/subscriptions/users` — 필터(ga, plan, effective-status, near-expiry, expired-only), 페이지네이션
+  - `PATCH /api/admin/subscriptions/users/:userId` — 단건 변경(plan / expires_at / memo)
+  - `POST /api/admin/subscriptions/users/bulk` — 일괄 작업(userIds[] or gaId, action: `SET_PLAN` | `EXTEND_DAYS` | `SET_EXPIRY`)
+  - `GET/PATCH /api/admin/settings/subscription` — TRIAL 기본 일수 등 app_settings
+- 모든 변경은 `subscription_change_logs` 에 기록(reason: `admin-manual` / `admin-bulk`)
 
 **프론트**
 - `src/features/admin/pages/UserManagementPage.tsx` — 플랜 컬럼, 필터, 체크박스 다중선택, 툴바 액션
 - `src/features/admin/components/SubscriptionBulkToolbar.tsx` **(신규)**
 - `src/features/admin/components/SubscriptionEditDialog.tsx` **(신규)**
+- `src/features/admin/pages/SubscriptionPolicyPage.tsx` **(신규)** — `GET /api/admin/subscription/policy` 요약 + "정책 활성화 / 비활성화" 버튼(PR1a 엔드포인트 호출)
 - `src/features/admin/pages/AdminSettingsPage.tsx` (없으면 신설) — TRIAL 기본 일수 설정
 
-**완료 조건**: 관리자가 "특정 GA 전체에 30일 TRIAL" / "EXPIRED 유저 7일 연장" / "개별 유저 PAID 전환" 시나리오를 전부 UI 에서 수행 가능.
+**완료 조건**: 관리자가 "특정 GA 전체에 30일 TRIAL" / "EXPIRED 유저 7일 연장" / "개별 유저 PAID 전환" / "정책 활성화·비활성화" 시나리오를 전부 UI 에서 수행 가능.
 
 ---
 
-### PR6 — 감사 · 테스트 · 문서 정리
+### 🔜 PR6 — 테스트 · 문서 정리
 
-- `server/subscription/policy.test.js` — `evaluateSubscription()` 케이스(FREE/TRIAL-active/TRIAL-expired/PAID-active/PAID-expired/EXPIRED-forced/SUPER_ADMIN/INSURER_MANAGER/경계값(expires_at == now))
+- `server/subscription/policy.test.js` — `evaluateSubscription()` 케이스(policy-inactive / not-subject / free / trial-active / trial-expired / paid-active / paid-expired / forced-expired / 경계값 `expires_at == now`)
 - `src/features/subscription/policy.test.ts` — 동일 케이스(프론트 미러와 서버 로직 일치 보증)
-- `subscription_change_logs` 관리자 뷰 페이지(옵션, 선택 후순위)
-- `docs/ops/subscription.md` — 운영 가이드(관리자 액션, 기본 TRIAL 설정 방법, EXPIRED 해제 방법)
+- `server/subscription/activatePolicy.test.js` — 멱등성, dryRun, 재활성화 시 기존 타이머 보존
+- `subscription_change_logs` 관리자 뷰 페이지(선택 후순위)
+- `docs/ops/subscription.md` — 운영 가이드(관리자 액션, 기본 TRIAL 설정 방법, EXPIRED 해제 방법, 롤백 절차)
 - 이 계획 문서에 "완료" 마크
 
 ---
