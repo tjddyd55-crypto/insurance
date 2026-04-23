@@ -17,8 +17,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
-import type { PdfFieldSpec, PdfFieldType, PdfPlacement } from '../types'
-import { PDF_FIELD_TYPES } from '../types'
+import type { PdfCustomerMapping, PdfFieldSpec, PdfFieldType, PdfPlacement } from '../types'
+import { PDF_CUSTOMER_MAPPINGS, PDF_FIELD_TYPES } from '../types'
 import { PdfOverlayCanvas, type OverlayMark, type OverlayPick } from './PdfOverlayCanvas'
 import FormInput from '../../../components/form/FormInput'
 import FormSelect from '../../../components/form/FormSelect'
@@ -43,6 +43,23 @@ const EMPTY_DRAFT: DraftField = {
 }
 
 const ALIGN_OPTIONS: Array<PdfPlacement['align']> = ['left', 'center', 'right']
+
+/**
+ * 관리자 에디터의 "자동 매핑" 드롭다운 라벨.
+ * 서버 컨벤션 키(name/dob/phone/address) 는 코드에 남기되, UI 는 한국어로만 보여준다.
+ * 신규 매핑 추가 시 이 맵과 서버 fieldSpec 의 ALLOWED_CUSTOMER_MAPPINGS 만 같이 수정한다.
+ */
+const CUSTOMER_MAPPING_LABEL: Record<PdfCustomerMapping, string> = {
+  name: '이름 (display_name)',
+  dob: '생년월일 (customer_dob)',
+  phone: '전화번호 (phone_number)',
+  address: '주소 (customer_address)',
+}
+
+const CUSTOMER_MAPPING_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: '', label: '없음 (수동 입력)' },
+  ...PDF_CUSTOMER_MAPPINGS.map((m) => ({ value: m, label: CUSTOMER_MAPPING_LABEL[m] })),
+]
 
 /**
  * 필드의 "기본 텍스트 박스 크기" 가 없어 placement.width 가 null 인 경우(기존 점 배치)
@@ -179,6 +196,12 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
         /* radio 로 새로 전환되는 경우, 옵션이 아직 없으면 기본 옵션 2개를 시드. */
         if (patch.fieldType === 'radio' && (!next.options || next.options.length === 0)) {
           next.options = ['옵션1', '옵션2']
+        }
+        /* checkbox/radio 는 "값의 의미" 가 회원 속성과 직접 대응하지 않으므로 자동 매핑을 강제 해제.
+           UI 에서 드롭다운을 감추는 것만으로 데이터를 남겨 두면, 타입 전환 후 매핑이 슬쩍 살아있어
+           사용자 혼란과 서버 주입 부작용을 일으킨다. */
+        if (patch.fieldType === 'checkbox' || patch.fieldType === 'radio') {
+          next.customerMapping = null
         }
         return next
       }),
@@ -465,6 +488,29 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
                 style={{ width: 'auto' }}
               />
             </label>
+
+            {/*
+              고객 자동 매핑: 이 필드를 특정 회원 속성(이름/생년월일/전화/주소) 과 연결한다.
+              발급 시 서버가 회원 DB 값으로 자동 주입하며, 사용자가 굳이 입력하지 않아도 된다.
+              - checkbox/radio 는 "값 자체" 가 서버에 구조화된 속성으로 매핑되지 않으므로
+                UX 혼동 방지를 위해 드롭다운을 노출하지 않는다.
+            */}
+            {selectedField.fieldType !== 'checkbox' && selectedField.fieldType !== 'radio' ? (
+              <label className="pdf-engine-editor__label">
+                자동 매핑
+                <FormSelect
+                  value={selectedField.customerMapping ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    const next = (PDF_CUSTOMER_MAPPINGS as readonly string[]).includes(raw)
+                      ? (raw as PdfCustomerMapping)
+                      : null
+                    handlePatchField(selectedField.fieldKey, { customerMapping: next })
+                  }}
+                  options={CUSTOMER_MAPPING_OPTIONS}
+                />
+              </label>
+            ) : null}
 
             {selectedField.fieldType === 'radio' ? (
               <RadioOptionsEditor

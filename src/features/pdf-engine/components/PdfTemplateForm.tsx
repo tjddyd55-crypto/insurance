@@ -18,7 +18,20 @@
 
 import { useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent, ReactElement } from 'react'
-import type { PdfFieldSpec, PdfFieldType } from '../types'
+import type { PdfCustomerMapping, PdfFieldSpec, PdfFieldType } from '../types'
+
+/**
+ * 자동 매핑 배지 라벨.
+ * 사용자에게 "서버가 내 계정 정보로 채운다" 는 메타 정보를 노출해,
+ * 입력 여부를 판단할 수 있게 한다.
+ * 매핑 키가 늘어나면 이 맵만 확장한다.
+ */
+const CUSTOMER_MAPPING_LABEL: Record<PdfCustomerMapping, string> = {
+  name: '이름',
+  dob: '생년월일',
+  phone: '전화번호',
+  address: '주소',
+}
 
 interface Props {
   title: string
@@ -226,7 +239,17 @@ export function PdfTemplateForm({
             }
           >
             {field.label}
+            {field.customerMapping ? (
+              <span className="pdf-engine-form__mapping-badge" title="회원 정보로 자동 입력됩니다">
+                {CUSTOMER_MAPPING_LABEL[field.customerMapping]} 자동
+              </span>
+            ) : null}
           </label>
+          {field.customerMapping ? (
+            <p className="pdf-engine-form__mapping-hint">
+              비워두면 회원 정보에 등록된 값으로 자동 입력됩니다. 다르게 출력하려면 여기에 입력하세요.
+            </p>
+          ) : null}
           {renderByType(field, values[field.fieldKey] ?? '', setValue(field.fieldKey))}
         </div>
       ))}
