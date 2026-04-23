@@ -73,6 +73,23 @@ function registerAutoUpdaterIpc() {
     }
   })
 
+  /*
+   * 사용자가 "시작" 버튼을 누른 순간부터 다운로드를 시작한다.
+   * autoDownload=false 와 한 쌍으로 동작한다 — 렌더러 UX 가 다운로드 개시 권한을 갖는다.
+   */
+  ipcMain.handle('app:download-update', async () => {
+    if (!app.isPackaged) {
+      return { ok: false, code: 'dev' }
+    }
+    try {
+      await autoUpdater.downloadUpdate()
+      return { ok: true }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
+      return { ok: false, code: 'error', message }
+    }
+  })
+
   ipcMain.handle('app:install-update', () => {
     if (!app.isPackaged) {
       return { ok: false, code: 'dev' }
@@ -83,7 +100,14 @@ function registerAutoUpdaterIpc() {
 }
 
 function wireAutoUpdaterEvents() {
-  autoUpdater.autoDownload = true
+  /*
+   * autoDownload=false: 사용자가 명시적으로 "지금 시작" 을 눌러야 다운로드가 시작된다.
+   * 그래야 사용자가 업데이트 존재를 인지한 상태에서 트래픽을 쓰게 된다.
+   *
+   * autoInstallOnAppQuit=true: 사용자가 "나중에" 를 선택해도 앱을 끄는 순간 조용히 적용된다.
+   * 다음 실행부터 최신 버전. 강제 재시작은 하지 않는 운영 원칙.
+   */
+  autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = true
 
   autoUpdater.on('error', (err) => {
@@ -101,6 +125,7 @@ function wireAutoUpdaterEvents() {
   autoUpdater.on('checking-for-update', () => {
     console.log('checking for update...')
     sendClientLog({ type: 'checking-update' })
+    sendDesktopUpdate({ phase: 'checking' })
   })
 
   autoUpdater.on('update-available', (info) => {
@@ -108,7 +133,11 @@ function wireAutoUpdaterEvents() {
     sendClientLog({ type: 'update-available', version: info?.version ?? null })
     sendDesktopUpdate({
       phase: 'available',
-      version: info.version,
+      version: info?.version ?? null,
+      releaseDate: info?.releaseDate ?? null,
+      /* releaseNotes 는 Markdown/HTML 일 수 있어 UI 에서 단순 텍스트로 축약 렌더한다. */
+      releaseNotes:
+        typeof info?.releaseNotes === 'string' ? info.releaseNotes : null,
     })
   })
 
@@ -122,6 +151,9 @@ function wireAutoUpdaterEvents() {
     sendDesktopUpdate({
       phase: 'progress',
       percent: Math.round(p.percent),
+      bytesPerSecond: Math.round(p.bytesPerSecond ?? 0),
+      transferred: Math.round(p.transferred ?? 0),
+      total: Math.round(p.total ?? 0),
     })
   })
 

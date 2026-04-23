@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   maximize: () => ipcRenderer.send('window:maximize-toggle'),
   close: () => ipcRenderer.send('window:close'),
   checkForDesktopUpdates: () => ipcRenderer.invoke('app:check-for-updates'),
+  /* 사용자가 모달에서 "시작" 을 누를 때 호출. main 은 autoDownload=false 로 대기 중이다. */
+  downloadDesktopUpdate: () => ipcRenderer.invoke('app:download-update'),
   installDownloadedUpdate: () => ipcRenderer.invoke('app:install-update'),
   onUpdateError: (callback) => {
     if (typeof callback !== 'function') {

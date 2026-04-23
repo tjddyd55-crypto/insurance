@@ -344,22 +344,49 @@ export function registerPdfTemplateApi(apiRouter, deps) {
     if (!requireSuperAdmin(req, res, isSuperAdminRole)) return
     const id = parseTemplateId(req.params.id)
     if (!id) {
-      res.status(400).json({ message: 'id 가 올바르지 않습니다.' })
+      res.status(400).json({ message: 'id 가 올바르지 않습니다.', code: 'invalid-id' })
+      return
+    }
+    /*
+     * 실패 지점을 code 로 분리해 응답한다:
+     *   - template-not-found: DB 에 해당 템플릿 없음
+     *   - template-lookup-failed: DB 조회 자체가 실패
+     *   - storage-fetch-failed: R2 등 스토리지에서 객체를 가져오지 못함
+     * 클라이언트는 logger 가 서버 message/code 를 그대로 기록한다.
+     */
+    let template
+    try {
+      template = await getTemplateById(pool, id)
+    } catch (error) {
+      console.error('[pdf-templates] file lookup 실패', { id, error })
+      res.status(500).json({
+        message: '템플릿 조회 중 오류가 발생했습니다.',
+        code: 'template-lookup-failed',
+      })
+      return
+    }
+    if (!template) {
+      res.status(404).json({
+        message: '템플릿을 찾을 수 없습니다.',
+        code: 'template-not-found',
+      })
       return
     }
     try {
-      const template = await getTemplateById(pool, id)
-      if (!template) {
-        res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
-        return
-      }
       const buf = await getTemplateObject(template.storage_key)
       res.setHeader('Content-Type', 'application/pdf')
       res.setHeader('Cache-Control', 'private, max-age=0, must-revalidate')
       res.send(buf)
     } catch (error) {
-      console.error('[pdf-templates] file read 실패', error)
-      res.status(500).json({ message: '원본 PDF 를 가져오지 못했습니다.' })
+      console.error('[pdf-templates] storage fetch 실패', {
+        id,
+        storageKey: template.storage_key,
+        error,
+      })
+      res.status(502).json({
+        message: '원본 PDF 를 가져오지 못했습니다.',
+        code: 'storage-fetch-failed',
+      })
     }
   })
 
