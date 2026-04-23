@@ -32,16 +32,21 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
   const drawingRef = useRef(false)
   const pointerIdRef = useRef<number | null>(null)
   const prevPointRef = useRef<Point | null>(null)
+  const onDirtyChangeRef = useRef<SignaturePadProps['onDirtyChange']>(onDirtyChange)
   const [isDirty, setIsDirty] = useState(false)
+
+  useEffect(() => {
+    onDirtyChangeRef.current = onDirtyChange
+  }, [onDirtyChange])
 
   const markDirty = useCallback(() => {
     setIsDirty((prev) => {
       if (!prev) {
-        onDirtyChange?.(true)
+        onDirtyChangeRef.current?.(true)
       }
       return true
     })
-  }, [onDirtyChange])
+  }, [])
 
   const setupCanvas = useCallback(() => {
     const canvas = canvasRef.current
@@ -71,8 +76,8 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     pointerIdRef.current = null
     prevPointRef.current = null
     setIsDirty(false)
-    onDirtyChange?.(false)
-  }, [onDirtyChange])
+    onDirtyChangeRef.current?.(false)
+  }, [])
 
   const toLocalPoint = useCallback((event: PointerEvent | ReactPointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current

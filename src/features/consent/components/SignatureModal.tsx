@@ -13,6 +13,7 @@ export function SignatureModal({ open, onClose, onSave }: SignatureModalProps) {
   const [hasStroke, setHasStroke] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const handleDirtyChange = useCallback((dirty: boolean) => setHasStroke(dirty), [])
 
   useEffect(() => {
     if (!open) {
@@ -66,7 +67,7 @@ export function SignatureModal({ open, onClose, onSave }: SignatureModalProps) {
         <SignaturePad
           ref={signaturePadRef}
           className="consent-signature-canvas"
-          onDirtyChange={(dirty) => setHasStroke(dirty)}
+          onDirtyChange={handleDirtyChange}
         />
       </div>
       {error ? <p className="consent-signature-error">{error}</p> : null}
