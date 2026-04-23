@@ -1,107 +1,55 @@
 import { FormButton } from '../../../components/form'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { SignaturePad, type SignaturePadHandle } from './SignaturePad'
 
 export interface SignatureModalProps {
   open: boolean
   onClose: () => void
-  onSave: (dataUrlBase64: string) => void
+  onSave: (pngBlob: Blob) => Promise<void> | void
 }
 
 export function SignatureModal({ open, onClose, onSave }: SignatureModalProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const drawingRef = useRef(false)
+  const signaturePadRef = useRef<SignaturePadHandle | null>(null)
   const [hasStroke, setHasStroke] = useState(false)
-
-  const setupCanvas = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) {
-      return
-    }
-    const rect = canvas.getBoundingClientRect()
-    const dpr = window.devicePixelRatio || 1
-    const w = Math.max(1, Math.floor(rect.width * dpr))
-    const h = Math.max(1, Math.floor(rect.height * dpr))
-    canvas.width = w
-    canvas.height = h
-    const ctx = canvas.getContext('2d')
-    if (!ctx) {
-      return
-    }
-    ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.scale(dpr, dpr)
-    ctx.fillStyle = '#1a1f26'
-    ctx.fillRect(0, 0, rect.width, rect.height)
-    ctx.strokeStyle = '#ffffff'
-    ctx.lineWidth = 2
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    setHasStroke(false)
-  }, [])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) {
       return
     }
-    const t = window.requestAnimationFrame(() => setupCanvas())
-    const onResize = () => setupCanvas()
-    window.addEventListener('resize', onResize)
-    return () => {
-      window.cancelAnimationFrame(t)
-      window.removeEventListener('resize', onResize)
-    }
-  }, [open, setupCanvas])
-
-  const startStroke = useCallback(
-    (clientX: number, clientY: number) => {
-      const canvas = canvasRef.current
-      const ctx = canvas?.getContext('2d')
-      if (!canvas || !ctx) {
-        return
-      }
-      const rect = canvas.getBoundingClientRect()
-      const x = clientX - rect.left
-      const y = clientY - rect.top
-      drawingRef.current = true
-      ctx.beginPath()
-      ctx.moveTo(x, y)
-      setHasStroke(true)
-    },
-    [],
-  )
-
-  const moveStroke = useCallback((clientX: number, clientY: number) => {
-    if (!drawingRef.current) {
-      return
-    }
-    const canvas = canvasRef.current
-    const ctx = canvas?.getContext('2d')
-    if (!canvas || !ctx) {
-      return
-    }
-    const rect = canvas.getBoundingClientRect()
-    const x = clientX - rect.left
-    const y = clientY - rect.top
-    ctx.lineTo(x, y)
-    ctx.stroke()
-  }, [])
-
-  const endStroke = useCallback(() => {
-    drawingRef.current = false
-  }, [])
+    setError(null)
+    setSaving(false)
+  }, [open])
 
   const handleClear = useCallback(() => {
-    setupCanvas()
-  }, [setupCanvas])
+    signaturePadRef.current?.clear()
+    setHasStroke(false)
+    setError(null)
+  }, [])
 
-  const handleSave = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas || !hasStroke) {
+  const handleSave = useCallback(async () => {
+    if (!hasStroke || saving) {
       return
     }
-    const dataUrl = canvas.toDataURL('image/png')
-    onSave(dataUrl)
-    onClose()
-  }, [hasStroke, onClose, onSave])
+    const pad = signaturePadRef.current
+    if (!pad) {
+      setError('서명 패드를 찾을 수 없습니다.')
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      const pngBlob = await pad.exportPng()
+      await onSave(pngBlob)
+      onClose()
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '서명 저장 중 오류가 발생했습니다.'
+      setError(msg)
+    } finally {
+      setSaving(false)
+    }
+  }, [hasStroke, onClose, onSave, saving])
 
   if (!open) {
     return null
@@ -115,36 +63,22 @@ export function SignatureModal({ open, onClose, onSave }: SignatureModalProps) {
         </h2>
       </header>
       <div className="consent-signature-canvas-wrap">
-        <canvas
-          ref={canvasRef}
+        <SignaturePad
+          ref={signaturePadRef}
           className="consent-signature-canvas"
-          onMouseDown={(e) => startStroke(e.clientX, e.clientY)}
-          onMouseMove={(e) => moveStroke(e.clientX, e.clientY)}
-          onMouseUp={endStroke}
-          onMouseLeave={endStroke}
-          onTouchStart={(e) => {
-            e.preventDefault()
-            const t = e.touches[0]
-            if (t) {
-              startStroke(t.clientX, t.clientY)
-            }
-          }}
-          onTouchMove={(e) => {
-            e.preventDefault()
-            const t = e.touches[0]
-            if (t) {
-              moveStroke(t.clientX, t.clientY)
-            }
-          }}
-          onTouchEnd={endStroke}
+          onDirtyChange={(dirty) => setHasStroke(dirty)}
         />
       </div>
+      {error ? <p className="consent-signature-error">{error}</p> : null}
       <footer className="consent-signature-footer">
         <FormButton htmlType="button" className="consent-btn consent-btn--secondary" onClick={handleClear}>
-          초기화
+          지우기
         </FormButton>
-        <FormButton htmlType="button" className="consent-btn" onClick={handleSave} disabled={!hasStroke}>
-          저장
+        <FormButton htmlType="button" className="consent-btn consent-btn--secondary" onClick={onClose} disabled={saving}>
+          취소
+        </FormButton>
+        <FormButton htmlType="button" className="consent-btn" onClick={() => void handleSave()} disabled={!hasStroke || saving}>
+          {saving ? '저장 중...' : '저장'}
         </FormButton>
       </footer>
     </div>

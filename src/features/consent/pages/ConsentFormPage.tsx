@@ -5,6 +5,7 @@ import { ApiError } from '../../../lib/apiClient'
 import { getPublicOrigin } from '../../../lib/publicOrigin'
 import { useAuth } from '../../auth/AuthProvider'
 import { generateConsentPdf } from '../api/consentApi'
+import { saveSignature } from '../api/signatureApi'
 import { ConsentForm } from '../components/ConsentForm'
 import { SignatureModal } from '../components/SignatureModal'
 import type { ConsentCompanySelection, ConsentFormData } from '../domain/types'
@@ -41,14 +42,36 @@ const EMPTY_FORM: ConsentFormData = {
   phone: '',
 }
 
+interface SavedSignature {
+  id: string
+  previewUrl: string
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        reject(new Error('서명 데이터를 읽지 못했습니다.'))
+        return
+      }
+      resolve(reader.result)
+    }
+    reader.onerror = () => {
+      reject(new Error('서명 데이터를 읽는 중 오류가 발생했습니다.'))
+    }
+    reader.readAsDataURL(blob)
+  })
+}
+
 export function ConsentFormPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const selection = location.state
 
   const [formData, setFormData] = useState<ConsentFormData>(EMPTY_FORM)
-  const [signatureImage, setSignatureImage] = useState<string | null>(null)
+  const [signature, setSignature] = useState<SavedSignature | null>(null)
   const [signatureOpen, setSignatureOpen] = useState(false)
   const [sendNotice, setSendNotice] = useState<string | null>(null)
   const [sendError, setSendError] = useState<string | null>(null)
@@ -71,8 +94,27 @@ export function ConsentFormPage() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleSaveSignature = (dataUrl: string) => {
-    setSignatureImage(dataUrl)
+  const handleSaveSignature = async (pngBlob: Blob) => {
+    setSendError(null)
+    setSendNotice(null)
+    if (!token?.trim()) {
+      throw new Error('로그인이 필요합니다.')
+    }
+    if (!user?.id) {
+      throw new Error('사용자 정보가 올바르지 않습니다.')
+    }
+    const signatureDataUrl = await blobToDataUrl(pngBlob)
+    const saved = await saveSignature(token, {
+      signatureDataUrl,
+      signerType: 'USER',
+      signerId: user.id,
+      customerId: null,
+      relatedType: null,
+      relatedId: null,
+      replaceSignatureId: signature?.id ?? null,
+    })
+    setSignature({ id: saved.id, previewUrl: saved.previewUrl })
+    setSendNotice('서명이 저장되었습니다.')
   }
 
   const handleSend = async () => {
@@ -95,7 +137,7 @@ export function ConsentFormPage() {
           ssn: formData.ssn.trim(),
           phone: formData.phone.trim(),
         },
-        signature: signatureImage,
+        signature: null,
       })
       const openUrl = resolvePdfOpenUrl(res.pdfUrl)
       setLastPdfUrl(openUrl)
@@ -134,7 +176,7 @@ export function ConsentFormPage() {
           consentTemplateId={consentTemplateId}
           formData={formData}
           onFormChange={handleFormChange}
-          signatureImage={signatureImage}
+          signatureImageUrl={signature?.previewUrl ?? null}
           onOpenSignature={() => setSignatureOpen(true)}
           onSend={() => void handleSend()}
           isSending={isSending}

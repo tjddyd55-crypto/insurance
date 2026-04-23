@@ -8,7 +8,7 @@ export interface ConsentFormProps {
   consentTemplateId: string
   formData: ConsentFormData
   onFormChange: (field: keyof ConsentFormData, value: string) => void
-  signatureImage: string | null
+  signatureImageUrl: string | null
   onOpenSignature: () => void
   onSend: () => void
   isSending?: boolean
@@ -23,7 +23,7 @@ export function ConsentForm({
   consentTemplateId,
   formData,
   onFormChange,
-  signatureImage,
+  signatureImageUrl,
   onOpenSignature,
   onSend,
   isSending = false,
@@ -86,10 +86,15 @@ export function ConsentForm({
       <section className="consent-section consent-card">
         <h3 className="consent-section__label">서명</h3>
         <FormButton htmlType="button" className="consent-btn consent-btn--full" onClick={onOpenSignature}>
-          서명하기
+          {signatureImageUrl ? '다시 작성' : '서명하기'}
         </FormButton>
+        {signatureImageUrl ? (
+          <div className="consent-signature-preview-wrap">
+            <img src={signatureImageUrl} alt="저장된 서명 미리보기" className="consent-signature-preview-image" />
+          </div>
+        ) : null}
         <p className="consent-signature-status">
-          {signatureImage ? '서명이 저장되었습니다. (미리보기 단계에서는 전송되지 않습니다)' : '서명이 없습니다.'}
+          {signatureImageUrl ? '서명이 저장되었습니다.' : '서명이 없습니다.'}
         </p>
       </section>
 

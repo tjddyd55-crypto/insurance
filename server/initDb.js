@@ -2589,6 +2589,7 @@ export async function initDb() {
   `)
 
   await ensureSubscriptionSchema(pool)
+  await ensureSignatureSchema(pool)
   await ensurePdfTemplateSchema(pool)
 }
 
@@ -2666,6 +2667,59 @@ async function ensureSubscriptionSchema(executor) {
       ('subscription.policy_active',       CAST('false' AS jsonb)),
       ('subscription.trial_default_days',  CAST('30'    AS jsonb))
     ON CONFLICT (key) DO NOTHING
+  `)
+}
+
+/**
+ * 공용 서명 SSOT 스키마.
+ *
+ * - 파일 원본은 R2에 저장하고, 이 테이블은 "현재 유효한 서명 id"의 단일 기준점으로 사용한다.
+ * - 한 컨텍스트(ga/signer/customer/related)에서 active 는 1개만 허용한다.
+ * - related_type/related_id 는 현 단계에서 nullable(임시 저장 허용).
+ */
+async function ensureSignatureSchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS signature (
+      id TEXT PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      signer_type TEXT NOT NULL,
+      signer_id TEXT NOT NULL,
+      related_type TEXT,
+      related_id TEXT,
+      file_key TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+      status TEXT NOT NULL DEFAULT 'active'
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE signature DROP CONSTRAINT IF EXISTS signature_status_check
+  `)
+  await executor.query(`
+    ALTER TABLE signature
+    ADD CONSTRAINT signature_status_check
+    CHECK (status IN ('active', 'replaced', 'deleted'))
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_signature_ga_created
+    ON signature (ga_id, created_at DESC)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_signature_context
+    ON signature (ga_id, signer_type, signer_id, customer_id)
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_signature_active_context
+    ON signature (
+      ga_id,
+      signer_type,
+      signer_id,
+      COALESCE(customer_id, 0),
+      COALESCE(related_type, ''),
+      COALESCE(related_id, '')
+    )
+    WHERE status = 'active'
   `)
 }
 

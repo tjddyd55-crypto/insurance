@@ -38,6 +38,7 @@ import {
 import { logSecurityEvent, writeSecurityAudit } from './lib/securityAudit.js'
 import { registerConsentApi } from './registerConsentApi.js'
 import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
+import { registerSignatureApi } from './registerSignatureApi.js'
 import { registerClientLogRoutes } from './routes/client-log.js'
 import { registerVersionRoutes } from './routes/version.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
@@ -1356,6 +1357,14 @@ registerConsentApi(apiRouter, {
   isInsurerManagerRole: isNewsManagerRole,
   parseCompanyScopeId,
   effectiveTenantGaId,
+  parseGaId,
+  handleDbError,
+  JWT_SECRET,
+})
+
+registerSignatureApi(apiRouter, {
+  pool,
+  requireAuth,
   parseGaId,
   handleDbError,
   JWT_SECRET,

@@ -8,6 +8,8 @@
   --consent-brand: #3b82f6;
   --consent-brand-active: #2563eb;
   --consent-border: #2a3038;
+  --consent-signature-bg: #1a1f26;
+  --consent-signature-ink: #ffffff;
   --consent-gap-section: 16px;
   --consent-gap-list: 12px;
   --consent-touch-min: 44px;
@@ -232,6 +234,26 @@
   color: var(--consent-sub);
 }
 
+.consent-signature-preview-wrap {
+  margin-top: 10px;
+  border: 1px solid var(--consent-border);
+  border-radius: 10px;
+  background: #1a1f26;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+}
+
+.consent-signature-preview-image {
+  width: 100%;
+  max-width: 420px;
+  max-height: 170px;
+  object-fit: contain;
+  display: block;
+}
+
 .consent-preview-scroll {
   display: flex;
   flex-direction: column;
@@ -318,8 +340,18 @@
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--consent-border);
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--consent-gap-list);
+}
+
+.consent-signature-error {
+  margin: 0 16px;
+  padding: 10px 12px;
+  border: 1px solid #7f1d1d;
+  border-radius: 8px;
+  background: #2b1111;
+  color: #fecaca;
+  font-size: 13px;
 }
 
 .consent-form-actions {
