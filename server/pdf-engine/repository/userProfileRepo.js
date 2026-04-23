@@ -15,10 +15,14 @@
  */
 
 /**
+ * 이 프로젝트의 `users.id` 는 TEXT PRIMARY KEY 다(username/외부 식별자 대응용).
+ * 그래서 userId 검증은 "정수" 가 아니라 "비어 있지 않은 문자열"(또는 숫자→문자열 캐스팅 가능)
+ * 인지만 확인한다. Number.isInteger 로 체크하면 전 계정에서 매핑이 무력화된다.
+ *
  * @param {import('pg').Pool} pool
- * @param {number} userId
+ * @param {string | number | null | undefined} userId
  * @returns {Promise<{
- *   id: number,
+ *   id: string,
  *   display_name: string | null,
  *   phone_number: string | null,
  *   customer_dob: string | Date | null,
@@ -26,12 +30,14 @@
  * } | null>}
  */
 export async function getCustomerProfile(pool, userId) {
-  if (!Number.isInteger(userId) || userId < 1) return null
+  if (userId == null) return null
+  const idStr = String(userId).trim()
+  if (!idStr) return null
   const { rows } = await pool.query(
     `SELECT id, display_name, phone_number, customer_dob, customer_address
        FROM users
       WHERE id = $1`,
-    [userId],
+    [idStr],
   )
   return rows[0] ?? null
 }
