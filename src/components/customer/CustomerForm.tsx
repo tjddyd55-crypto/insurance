@@ -839,8 +839,6 @@ export function CustomerForm({ onStatusMessage, onInternalSaveSuccess }: Custome
 
       await saveCustomer(token, payload)
 
-      window.alert('저장 완료')
-
       setForm(createEmptyCustomerForm())
 
       onStatusMessage?.('저장했습니다.')

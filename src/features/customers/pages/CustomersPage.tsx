@@ -1274,6 +1274,7 @@ export default function CustomersPage() {
 
   // NOTE: Router supports only one blocker. Global AppExitConfirm handles POP blocking (including customer create).
   const [searchInput, setSearchInput] = useState('')
+  const searchInputRef = useRef<HTMLInputElement | null>(null)
   const keyword = useDebounce(searchInput, 300)
   const [sortType, setSortType] = useState<CustomerSortType>(null)
   const [advancedFilters, setAdvancedFilters] = useState<CustomerAdvancedFilters>(() => ({
@@ -1317,6 +1318,16 @@ export default function CustomersPage() {
     }
     window.addEventListener('insurance-native-back', handler as EventListener)
     return () => window.removeEventListener('insurance-native-back', handler as EventListener)
+  }, [tab])
+
+  useEffect(() => {
+    if (tab !== 'list') {
+      return
+    }
+    const timer = window.setTimeout(() => {
+      searchInputRef.current?.focus({ preventScroll: true })
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [tab])
 
   const ssnDupHighlightByCustomerIdPrevRef = useRef<Map<number, CustomerSsnDupHighlight>>(new Map())
@@ -2225,6 +2236,7 @@ export default function CustomersPage() {
           ) : null}
           <div className="customers-page__search-row">
             <FormInput
+              ref={searchInputRef}
               className="search-input customers-page__search-input"
               type="search"
               placeholder="이름 / 전화번호 검색"
