@@ -2,7 +2,14 @@
 import { useMemo, useState } from 'react'
 
 import { useAuth } from '../../features/auth/AuthProvider'
-import { FormButton, FormInput, FormTextarea } from '../form'
+import {
+  AddressSearchField,
+  FormButton,
+  FormInput,
+  FormTextarea,
+  formatAddressForSave,
+  type AddressSearchValue,
+} from '../form'
 
 import { saveCustomer } from '../../features/customers/api/customersApi'
 
@@ -128,7 +135,17 @@ export type CustomerFormState = {
 
   phone: string
 
+  /**
+   * 기본주소 — 카카오(다음) 우편번호 서비스로 선택된 도로명/지번 주소.
+   * 사용자가 타이핑으로 수정할 수 없도록 UI 에서 readonly 로 고정.
+   */
   address: string
+
+  /** 상세주소 — 동/호수 등 자유 입력. 저장 시 address 뒤에 공백으로 합친다. */
+  addressDetail: string
+
+  /** 우편번호(zonecode). 검색 결과로만 채워진다. */
+  zonecode: string
 
   height: string
 
@@ -173,6 +190,10 @@ const EMPTY_FORM: CustomerFormState = {
   phone: '',
 
   address: '',
+
+  addressDetail: '',
+
+  zonecode: '',
 
   height: '',
 
@@ -235,6 +256,17 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
 
   const name = form.name.trim()
 
+  /*
+   * 서버 스키마의 customers.address 는 단일 문자열 컬럼이다. UI 는 "우편번호 / 기본주소 / 상세주소"
+   * 로 분리 입력을 받지만, 직렬화 단계에서 formatAddressForSave 로 "(zip) 기본주소 상세주소"
+   * 단일 문자열로 합쳐 보낸다. 향후 스키마가 분리되면 이 한 줄만 바꾸면 된다.
+   */
+  const mergedAddress = formatAddressForSave({
+    zonecode: form.zonecode,
+    baseAddress: form.address,
+    detailAddress: form.addressDetail,
+  })
+
   return {
 
     name,
@@ -245,7 +277,7 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
 
     carrier: '',
 
-    address: form.address,
+    address: mergedAddress,
 
     height: form.height,
 
@@ -433,18 +465,28 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
       </label>
 
-      <label className="field field--wide">
+      <div className="field field--wide">
 
         <span className="field__label">주소</span>
 
-        <FormInput
-          className="field__control"
-          placeholder="주소"
-          value={form.address}
-          onChange={(e) => onFormChange({ ...form, address: e.target.value })}
+        <AddressSearchField
+          className="address-search-field"
+          value={{
+            zonecode: form.zonecode,
+            baseAddress: form.address,
+            detailAddress: form.addressDetail,
+          }}
+          onChange={(next: AddressSearchValue) =>
+            onFormChange({
+              ...form,
+              zonecode: next.zonecode,
+              address: next.baseAddress,
+              addressDetail: next.detailAddress,
+            })
+          }
         />
 
-      </label>
+      </div>
 
       <label className="field">
 
