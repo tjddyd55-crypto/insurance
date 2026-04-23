@@ -696,6 +696,19 @@ export async function initDb() {
     ALTER TABLE users
     ADD COLUMN IF NOT EXISTS phone_number VARCHAR(20)
   `)
+  /*
+   * PDF 자동화 엔진의 고객 자동 매핑 대상 컬럼.
+   * 프로필 UI 는 후속 PR. 지금은 NULL 로 시작하며, 값이 비어 있으면 render 엔진이
+   * "사용자가 직접 입력" 로 폴백하므로 기존 흐름에 영향이 없다.
+   */
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS customer_dob DATE
+  `)
+  await pool.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS customer_address TEXT
+  `)
 
   await pool.query(`
     ALTER TABLE users

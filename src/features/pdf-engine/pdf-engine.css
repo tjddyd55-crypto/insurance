@@ -362,6 +362,27 @@
   cursor: not-allowed;
 }
 
+/* ─── 고객 자동 매핑 배지/힌트 ──────────────────────────────────── */
+
+.pdf-engine-form__mapping-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: #e0e7ff;
+  color: #3730a3;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.pdf-engine-form__mapping-hint {
+  margin: 4px 0 6px;
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* ─── 체크박스 / 라디오 (사용자 폼) ──────────────────────────────── */
 
 .pdf-engine-form__checkbox-row {

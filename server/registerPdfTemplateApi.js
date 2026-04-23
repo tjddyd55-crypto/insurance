@@ -42,6 +42,8 @@ import {
   replaceTemplateFields,
   updateTemplateMeta,
 } from './pdf-engine/repository/pdfTemplateRepo.js'
+import { getCustomerProfile } from './pdf-engine/repository/userProfileRepo.js'
+import { injectCustomerValues } from './pdf-engine/mapping/customerMapping.js'
 import { stampPdf } from './pdf-engine/renderer/stampPdf.js'
 import {
   buildTemplateStorageKey,
@@ -516,7 +518,16 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         req.body && typeof req.body.values === 'object' && req.body.values !== null
           ? req.body.values
           : {}
-      const validation = validateRenderValues(fields, valuesRaw)
+      /*
+       * 고객 자동 매핑: 사용자가 보낸 값을 기본으로 두고, 필드 정의에
+       * customerMapping 이 설정되어 있으면 서버 DB 의 프로필 값으로 덮어쓴다.
+       * 프로필 값이 비어 있으면 사용자가 입력한 값이 그대로 유지되므로
+       * "값 없음" 인 계정도 수동 입력으로 발급을 이어갈 수 있다.
+       */
+      const needsMapping = fields.some((f) => f.customerMapping)
+      const profile = needsMapping && req.user?.id ? await getCustomerProfile(pool, req.user.id) : null
+      const valuesWithProfile = injectCustomerValues(fields, valuesRaw, profile)
+      const validation = validateRenderValues(fields, valuesWithProfile)
       if (!validation.ok) {
         res.status(400).json({ message: validation.error })
         return
