@@ -5,7 +5,14 @@
  * 필드 타입/속성을 추가할 때는 서버 스키마 + 여기 + DB CHECK 제약 세 곳을 같이 수정한다.
  */
 
-export const PDF_FIELD_TYPES = ['text', 'number', 'date', 'textarea'] as const
+export const PDF_FIELD_TYPES = [
+  'text',
+  'number',
+  'date',
+  'textarea',
+  'checkbox',
+  'radio',
+] as const
 export type PdfFieldType = (typeof PDF_FIELD_TYPES)[number]
 
 export const PDF_CUSTOMER_MAPPINGS = ['name', 'dob', 'phone', 'address'] as const
@@ -24,6 +31,12 @@ export interface PdfPlacement {
   /** 텍스트 크기(pt). null 이면 서버 기본값(11pt). */
   fontSize: number | null
   align: 'left' | 'center' | 'right'
+  /**
+   * radio 필드 전용 — 이 placement 가 대표하는 옵션 값.
+   * 렌더 시 선택된 값과 일치하는 placement 만 체크 마크가 그려진다.
+   * 다른 타입에서는 항상 null.
+   */
+  optionValue: string | null
 }
 
 export interface PdfFieldSpec {
@@ -33,6 +46,11 @@ export interface PdfFieldSpec {
   required: boolean
   orderIndex: number
   customerMapping: PdfCustomerMapping | null
+  /**
+   * radio 타입의 선택지. 다른 타입은 null.
+   * UI 에서 옵션을 추가/삭제/재정렬할 수 있다.
+   */
+  options: string[] | null
   placements: PdfPlacement[]
 }
 
