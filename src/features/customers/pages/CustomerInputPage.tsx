@@ -37,7 +37,7 @@ export default function CustomerInputPage() {
 
   async function handleSubmit() {
     if (!refParam) {
-      window.alert('잘못된 접근입니다')
+      setNotice('잘못된 접근입니다.')
       return
     }
 
@@ -45,7 +45,6 @@ export default function CustomerInputPage() {
       const msg = getCustomerFormValidationError(customers[i])
       if (msg) {
         setNotice(`${i + 1}번째 고객: ${msg}`)
-        window.alert(msg)
         return
       }
     }
@@ -86,19 +85,15 @@ export default function CustomerInputPage() {
           const errMsg = errJson.message ?? errJson.error ?? '저장 실패'
           console.error('external-create failed', res.status, errMsg)
           setNotice(`${i + 1}번째 고객: ${errMsg}`)
-          window.alert(
-            `전송 중 오류: ${i + 1}번째 고객에서 실패했습니다. (이전 고객은 이미 저장되었을 수 있습니다.)`,
-          )
+          setNotice(`전송 중 오류: ${i + 1}번째 고객에서 실패했습니다. (이전 고객은 이미 저장되었을 수 있습니다.)`)
           return
         }
       }
 
       setCustomers([createEmptyCustomerForm()])
       setNotice('정보가 전송되었습니다.')
-      window.alert('전송 완료')
     } catch (e) {
       console.error(e)
-      window.alert('전송 실패')
       setNotice(e instanceof Error ? e.message : '전송에 실패했습니다.')
     } finally {
       setIsSubmitting(false)
