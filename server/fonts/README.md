@@ -8,21 +8,25 @@
 두 기능 모두 한글 텍스트를 원본 PDF 위에 스탬핑한다. `pdf-lib` 의 기본 Helvetica 는 한글 글리프가
 없으므로, 한글을 쓰려면 **임베드 폰트 파일**이 반드시 필요하다.
 
-## 배치 방법
+## 현재 상태 — 리포 번들 (기본값)
 
-다음 중 하나를 선택한다.
+다음 파일을 레포에 직접 포함한다. 추가 배포 작업 없이 `npm install && npm start` 만으로 한글 PDF 가 동작한다.
 
-### (권장) 프로젝트 번들
+- `server/fonts/NotoSansKR-Regular.otf` — Noto Sans KR Regular 한글 서브셋 (~4.5MB, OTF)
+- `server/fonts/OFL.txt` — SIL Open Font License 1.1 원문
 
-[Noto Sans KR](https://fonts.google.com/noto/specimen/Noto+Sans+KR) 의 Regular 를 OTF 또는 TTF 로 받아 이 폴더에 둔다.
+출처: [notofonts/noto-cjk Sans2.004 릴리스 — `17_NotoSansKR.zip`](https://github.com/notofonts/noto-cjk/releases/tag/Sans2.004).
 
-- `server/fonts/NotoSansKR-Regular.otf`  ← 우선 순위 1
-- `server/fonts/NotoSansKR-Regular.ttf`  ← 우선 순위 2
+### 왜 리포에 포함했나
 
-### 환경변수 지정
+- dev/CI/prod 환경을 동일하게 맞추기 위함. 외부 다운로드·볼륨 마운트·환경변수 설정 단계를 제거.
+- `pdf-lib` 는 *임베드 폰트 바이너리가 필요*하므로 CDN/웹폰트 로는 대체 불가.
+- OFL-1.1 은 상용 재배포 허용. 조건은 원본 폰트를 단독으로 판매하지 않는 것뿐.
 
-배포 환경에서 별도 경로에 폰트를 두는 경우 `CONSENT_FONT_PATH` 에 **절대 경로**를 지정한다.
-이 환경변수는 동의서·PDF 엔진이 공용으로 사용한다.
+## 환경변수 오버라이드 (선택)
+
+운영에서 더 최신 버전이나 다른 서브셋을 쓰고 싶으면 `CONSENT_FONT_PATH` 환경변수에 **절대 경로**를
+지정한다. 이 환경변수가 있으면 리포 번들보다 우선한다 (동의서·PDF 엔진이 공용으로 해석).
 
 ## 누락 시 동작
 
