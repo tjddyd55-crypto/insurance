@@ -2788,24 +2788,22 @@ async function ensurePdfTemplateSchema(executor) {
   `)
   /*
    * Phase 2: radio/checkbox 추가. CHECK 제약은 idempotent 하게 교체한다.
-   * 기존 데이터(text/number/date/textarea) 는 새 제약의 상위집합이라 마이그레이션 없음.
+   * 현재 타입 정책은 text/textarea/checkbox/radio 이며,
+   * 테스트/개발 데이터의 legacy 타입(number/date)은 text로 정규화한다.
    */
   await executor.query(`
     ALTER TABLE pdf_template_fields DROP CONSTRAINT IF EXISTS pdf_template_fields_type_check
   `)
-  /*
-   * number 타입은 text로 통합한다.
-   * 테스트/개발 데이터에 number가 남아 있어도 새 CHECK 제약 적용이 실패하지 않게 선정규화한다.
-   */
+  /* legacy 타입을 text로 통합한다. */
   await executor.query(`
     UPDATE pdf_template_fields
     SET field_type = 'text'
-    WHERE field_type = 'number'
+    WHERE field_type IN ('number', 'date')
   `)
   await executor.query(`
     ALTER TABLE pdf_template_fields
     ADD CONSTRAINT pdf_template_fields_type_check
-    CHECK (field_type IN ('text', 'date', 'textarea', 'checkbox', 'radio'))
+    CHECK (field_type IN ('text', 'textarea', 'checkbox', 'radio'))
   `)
   /*
    * radio 타입 필드는 선택지 목록(options)을 JSONB 로 저장한다.

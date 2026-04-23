@@ -28,7 +28,7 @@ function makeField(overrides = {}) {
   }
 }
 
-test('normalizeFieldSpec: 허용 타입(text/date/textarea/checkbox/radio) 모두 통과', () => {
+test('normalizeFieldSpec: 허용 타입(text/textarea/checkbox/radio) 모두 통과', () => {
   for (const t of ALLOWED_FIELD_TYPES) {
     /* radio 는 options + placement.optionValue 가 있어야 하므로 별도 빌더 사용 */
     if (t === 'radio') {
@@ -129,12 +129,11 @@ test('validateRenderValues: 필수 필드 누락은 거부', () => {
   assert.equal(r.ok, false)
 })
 
-test('validateRenderValues: date 타입은 YYYY-MM-DD 만', () => {
-  const fields = [
-    normalizeFieldSpec(makeField({ fieldKey: 'dob', fieldType: 'date', required: true })),
-  ]
-  assert.equal(validateRenderValues(fields, { dob: '2020-03-15' }).ok, true)
-  assert.equal(validateRenderValues(fields, { dob: '2020/03/15' }).ok, false)
+test('validateRenderValues: date 타입은 더 이상 허용되지 않음', () => {
+  assert.throws(
+    () => normalizeFieldSpec(makeField({ fieldKey: 'dob', fieldType: 'date', required: true })),
+    /허용되지 않는/,
+  )
 })
 
 test('validateRenderValues: 통과 시 값은 trim 된 문자열 맵', () => {

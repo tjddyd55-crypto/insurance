@@ -45,8 +45,6 @@ const EMPTY_DRAFT: DraftField = {
   required: false,
 }
 
-const ALIGN_OPTIONS: Array<PdfPlacement['align']> = ['left', 'center', 'right']
-
 /**
  * 관리자 에디터의 "자동 매핑" 드롭다운 라벨.
  * 서버 컨벤션 키(name/dob/phone/address) 는 코드에 남기되, UI 는 한국어로만 보여준다.
@@ -311,12 +309,20 @@ export function PdfCoordinateEditor({
         width: pick.width != null ? pick.width : null,
         height: pick.height != null ? pick.height : null,
         fontSize: null,
-        align: 'left',
+        align: 'center',
         optionValue,
       }
       let nextIndex = 0
       const nextFields = fields.map((f) => {
         if (f.fieldKey !== selectedKey) return f
+        /*
+         * non-radio 필드는 좌표를 1개만 유지한다.
+         * 잘못 찍은 경우 다시 찍으면 기존 박스를 즉시 교체해 화면/결과물이 일치하도록 한다.
+         */
+        if (f.fieldType !== 'radio') {
+          nextIndex = 0
+          return { ...f, placements: [placement] }
+        }
         /*
          * 기본 동작은 "선택된 좌표 수정(덮어쓰기)".
          * 사용자가 같은 필드에서 좌표를 다시 찍을 때 이전 박스가 남아 누적되는 혼란을 방지한다.
@@ -743,17 +749,9 @@ function PlacementMetaEditor({
             placeholder="기본 11"
           />
         </label>
-        <label className="pdf-engine-editor__label">
-          정렬
-          <FormSelect
-            value={placement.align}
-            onChange={(e) => onPatch({ align: e.target.value as PdfPlacement['align'] })}
-            options={ALIGN_OPTIONS.map((a) => ({ value: a, label: a }))}
-          />
-        </label>
       </div>
       <p className="pdf-engine-editor__hint" style={{ margin: '4px 0 0' }}>
-        너비가 지정되면 서버가 박스 안에서 정렬·줄바꿈을 처리합니다.
+        텍스트는 좌표 박스 중앙 정렬로 출력됩니다.
       </p>
       <button
         type="button"

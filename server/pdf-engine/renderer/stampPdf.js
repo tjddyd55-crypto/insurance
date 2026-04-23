@@ -41,21 +41,26 @@ function stampSingleLine({ page, font, placement, value }) {
   const fontSize = placement.fontSize ?? DEFAULT_FONT_SIZE
   const textWidth = font.widthOfTextAtSize(value, fontSize)
   let x = placement.x
+  let y = placement.y
   if (placement.width && placement.width > 0) {
     const remain = placement.width - textWidth
-    /* 텍스트가 박스 폭보다 길면 정렬 오프셋을 주지 않는다.
-       (center/right 오프셋이 음수가 되어 좌표가 박스 밖으로 밀리는 현상 방지) */
+    /* 좌표 편집기는 중앙 정렬 고정: 박스 안에 수평 중앙 배치 */
     if (remain <= 0) {
       x = placement.x
-    } else if (placement.align === 'center') {
+    } else {
       x = placement.x + remain / 2
-    } else if (placement.align === 'right') {
-      x = placement.x + remain
     }
+  }
+  if (placement.height && placement.height > 0) {
+    /*
+     * 단일 라인 텍스트를 박스 중앙에 두기 위한 baseline 보정.
+     * drawText y는 baseline 기준이라 약간 상향 오프셋을 준다.
+     */
+    y = placement.y + (placement.height - fontSize) / 2 + fontSize * 0.15
   }
   page.drawText(value, {
     x,
-    y: placement.y,
+    y,
     size: fontSize,
     font,
     color: STAMP_COLOR_BLACK,
@@ -189,7 +194,6 @@ function dispatchStamp(fieldType) {
     case 'textarea':
       return stampMultiLine
     case 'text':
-    case 'date':
       return stampSingleLine
     case 'checkbox':
       return stampCheckbox
@@ -217,7 +221,7 @@ function shouldSkipEmpty(fieldType, value) {
 
 /** 폰트를 필요로 하는 타입인지. checkbox/radio 는 라인 드로잉만 하므로 폰트가 필요 없다. */
 function needsFont(fieldType) {
-  return fieldType === 'text' || fieldType === 'date' || fieldType === 'textarea'
+  return fieldType === 'text' || fieldType === 'textarea'
 }
 
 /**

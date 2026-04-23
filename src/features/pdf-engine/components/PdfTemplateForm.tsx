@@ -10,7 +10,7 @@
  * 이 컴포넌트는 발급(HTTP) 을 직접 하지 않는다. 상위 페이지가 `onSubmit(values)` 에서 수행한다.
  *
  * 값 컨벤션(Record<string, string>):
- *   - text/number/date/textarea: 사용자가 입력한 문자열
+ *   - text/textarea: 사용자가 입력한 문자열
  *   - checkbox: "true" | "false" (빈 문자열은 "false" 로 취급)
  *   - radio: 선택된 옵션 문자열. 미선택은 "" (빈 문자열)
  *   이 컨벤션은 서버의 validateRenderValues 와 짝을 이룬다 — 바뀌면 양쪽 동시 수정.
@@ -74,19 +74,6 @@ function renderByType(
           onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setValue(e.target.value)}
           className="pdf-engine-form__textarea"
           rows={4}
-        />
-      )
-    case 'date':
-      /* HTML date 는 브라우저마다 포맷이 다르지만, 서버는 "YYYY-MM-DD" 로 정규화한다. */
-      return (
-        <input
-          id={inputId}
-          name={field.fieldKey}
-          required={field.required}
-          value={value}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
-          type="date"
-          className="pdf-engine-form__input"
         />
       )
     case 'checkbox': {
