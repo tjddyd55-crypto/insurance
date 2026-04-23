@@ -1,4 +1,14 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type TouchEvent as ReactTouchEvent,
+} from 'react'
 import { exportSignatureCanvasToPngBlob } from '../utils/signaturePng'
 
 type Point = { x: number; y: number }
@@ -82,10 +92,9 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     if (!canvas || !ctx) {
       return
     }
-    const mid: Point = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }
     ctx.beginPath()
     ctx.moveTo(from.x, from.y)
-    ctx.quadraticCurveTo(from.x, from.y, mid.x, mid.y)
+    ctx.lineTo(to.x, to.y)
     ctx.stroke()
   }, [])
 
@@ -94,6 +103,29 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     pointerIdRef.current = null
     prevPointRef.current = null
   }, [])
+
+  const startDraw = useCallback(
+    (point: Point) => {
+      drawingRef.current = true
+      prevPointRef.current = point
+      markDirty()
+    },
+    [markDirty],
+  )
+
+  const moveDraw = useCallback(
+    (point: Point) => {
+      if (!drawingRef.current) {
+        return
+      }
+      const prev = prevPointRef.current
+      if (prev) {
+        drawLineSegment(prev, point)
+      }
+      prevPointRef.current = point
+    },
+    [drawLineSegment],
+  )
 
   useEffect(() => {
     const t = window.requestAnimationFrame(() => setupCanvas())
@@ -134,23 +166,23 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
         if (!canvas) {
           return
         }
-        canvas.setPointerCapture(event.pointerId)
+        if (typeof canvas.setPointerCapture === 'function') {
+          try {
+            canvas.setPointerCapture(event.pointerId)
+          } catch {
+            // 일부 WebView/Electron 환경은 pointer capture를 거부한다.
+            // capture 실패와 무관하게 그리기는 계속 진행한다.
+          }
+        }
         pointerIdRef.current = event.pointerId
-        drawingRef.current = true
-        prevPointRef.current = toLocalPoint(event)
-        markDirty()
+        startDraw(toLocalPoint(event))
       }}
       onPointerMove={(event) => {
         if (!drawingRef.current || pointerIdRef.current !== event.pointerId) {
           return
         }
         event.preventDefault()
-        const current = toLocalPoint(event)
-        const prev = prevPointRef.current
-        if (prev) {
-          drawLineSegment(prev, current)
-        }
-        prevPointRef.current = current
+        moveDraw(toLocalPoint(event))
       }}
       onPointerUp={(event) => {
         if (pointerIdRef.current !== event.pointerId) {
@@ -167,6 +199,61 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
         event.preventDefault()
         stopDrawing()
       }}
+      onMouseDown={(event: ReactMouseEvent<HTMLCanvasElement>) => {
+        if (window.PointerEvent) {
+          return
+        }
+        event.preventDefault()
+        startDraw(toLocalPoint(event.nativeEvent))
+      }}
+      onMouseMove={(event: ReactMouseEvent<HTMLCanvasElement>) => {
+        if (window.PointerEvent) {
+          return
+        }
+        event.preventDefault()
+        moveDraw(toLocalPoint(event.nativeEvent))
+      }}
+      onMouseUp={() => {
+        if (window.PointerEvent) {
+          return
+        }
+        stopDrawing()
+      }}
+      onMouseLeave={() => {
+        if (window.PointerEvent) {
+          return
+        }
+        stopDrawing()
+      }}
+      onTouchStart={(event: ReactTouchEvent<HTMLCanvasElement>) => {
+        if (window.PointerEvent) {
+          return
+        }
+        event.preventDefault()
+        const touch = event.touches[0]
+        if (!touch) {
+          return
+        }
+        startDraw(toLocalPoint(touch))
+      }}
+      onTouchMove={(event: ReactTouchEvent<HTMLCanvasElement>) => {
+        if (window.PointerEvent) {
+          return
+        }
+        event.preventDefault()
+        const touch = event.touches[0]
+        if (!touch) {
+          return
+        }
+        moveDraw(toLocalPoint(touch))
+      }}
+      onTouchEnd={() => {
+        if (window.PointerEvent) {
+          return
+        }
+        stopDrawing()
+      }}
+      style={{ touchAction: 'none' }}
     />
   )
 })
