@@ -76,21 +76,6 @@ function renderByType(
           rows={4}
         />
       )
-    case 'number':
-      /* 모바일 키패드를 숫자로 유도(inputmode). 형식 검증은 서버에서 엄격하게 한다. */
-      return (
-        <input
-          id={inputId}
-          name={field.fieldKey}
-          required={field.required}
-          value={value}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
-          type="text"
-          inputMode="decimal"
-          pattern="[-0-9.,]*"
-          className="pdf-engine-form__input"
-        />
-      )
     case 'date':
       /* HTML date 는 브라우저마다 포맷이 다르지만, 서버는 "YYYY-MM-DD" 로 정규화한다. */
       return (

@@ -317,6 +317,18 @@ export function PdfCoordinateEditor({
       let nextIndex = 0
       const nextFields = fields.map((f) => {
         if (f.fieldKey !== selectedKey) return f
+        /*
+         * 기본 동작은 "선택된 좌표 수정(덮어쓰기)".
+         * 사용자가 같은 필드에서 좌표를 다시 찍을 때 이전 박스가 남아 누적되는 혼란을 방지한다.
+         * 새 좌표를 추가하고 싶을 때는 좌표 목록의 "새 좌표 추가" 버튼으로 선택을 해제한 상태에서 찍는다.
+         */
+        if (selectedPlacementIndex != null && f.placements[selectedPlacementIndex]) {
+          nextIndex = selectedPlacementIndex
+          return {
+            ...f,
+            placements: f.placements.map((p, i) => (i === selectedPlacementIndex ? placement : p)),
+          }
+        }
         nextIndex = f.placements.length
         return { ...f, placements: [...f.placements, placement] }
       })
@@ -324,7 +336,7 @@ export function PdfCoordinateEditor({
       /* 방금 추가한 placement 를 자동 선택해, 관리자가 곧바로 메타 편집을 이어갈 수 있게 한다. */
       setSelectedPlacementIndex(nextIndex)
     },
-    [fields, onChange, selectedKey, activeOptionValue],
+    [fields, onChange, selectedKey, activeOptionValue, selectedPlacementIndex],
   )
 
   const handleDocumentReady = useCallback((doc: PDFDocumentProxy) => {
@@ -544,6 +556,18 @@ export function PdfCoordinateEditor({
             <h4 className="pdf-engine-editor__panel-title" style={{ marginTop: 8, fontSize: 13 }}>
               좌표 목록
             </h4>
+            <div className="pdf-engine-editor__row" style={{ marginTop: -4 }}>
+              <button
+                type="button"
+                className="pdf-engine-editor__btn"
+                onClick={() => setSelectedPlacementIndex(null)}
+              >
+                새 좌표 추가
+              </button>
+              <span className="pdf-engine-editor__field-meta">
+                선택된 좌표가 있으면 다시 찍을 때 해당 좌표를 덮어씁니다.
+              </span>
+            </div>
             {selectedField.placements.length === 0 ? (
               <p className="pdf-engine-editor__hint">
                 아직 좌표가 없습니다. 오른쪽 PDF 위를 드래그해 추가하세요.

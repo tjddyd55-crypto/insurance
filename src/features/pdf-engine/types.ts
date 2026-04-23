@@ -7,7 +7,6 @@
 
 export const PDF_FIELD_TYPES = [
   'text',
-  'number',
   'date',
   'textarea',
   'checkbox',

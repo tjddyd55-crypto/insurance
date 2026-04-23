@@ -2793,10 +2793,19 @@ async function ensurePdfTemplateSchema(executor) {
   await executor.query(`
     ALTER TABLE pdf_template_fields DROP CONSTRAINT IF EXISTS pdf_template_fields_type_check
   `)
+  /*
+   * number 타입은 text로 통합한다.
+   * 테스트/개발 데이터에 number가 남아 있어도 새 CHECK 제약 적용이 실패하지 않게 선정규화한다.
+   */
+  await executor.query(`
+    UPDATE pdf_template_fields
+    SET field_type = 'text'
+    WHERE field_type = 'number'
+  `)
   await executor.query(`
     ALTER TABLE pdf_template_fields
     ADD CONSTRAINT pdf_template_fields_type_check
-    CHECK (field_type IN ('text', 'number', 'date', 'textarea', 'checkbox', 'radio'))
+    CHECK (field_type IN ('text', 'date', 'textarea', 'checkbox', 'radio'))
   `)
   /*
    * radio 타입 필드는 선택지 목록(options)을 JSONB 로 저장한다.

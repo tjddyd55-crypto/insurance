@@ -189,7 +189,6 @@ function dispatchStamp(fieldType) {
     case 'textarea':
       return stampMultiLine
     case 'text':
-    case 'number':
     case 'date':
       return stampSingleLine
     case 'checkbox':
@@ -218,7 +217,7 @@ function shouldSkipEmpty(fieldType, value) {
 
 /** 폰트를 필요로 하는 타입인지. checkbox/radio 는 라인 드로잉만 하므로 폰트가 필요 없다. */
 function needsFont(fieldType) {
-  return fieldType === 'text' || fieldType === 'number' || fieldType === 'date' || fieldType === 'textarea'
+  return fieldType === 'text' || fieldType === 'date' || fieldType === 'textarea'
 }
 
 /**

@@ -20,13 +20,12 @@
 /**
  * Phase 2 포함 허용 타입.
  *
- * - text/number/date/textarea: 단일 값 텍스트 스탬프
+ * - text/date/textarea: 단일 값 텍스트 스탬프
  * - checkbox: boolean("true"/"false") — true 일 때 placement 위치에 체크 마크
  * - radio: 여러 옵션 중 하나. placement 별 optionValue 와 매칭된 것만 체크 마크
  */
 export const ALLOWED_FIELD_TYPES = Object.freeze([
   'text',
-  'number',
   'date',
   'textarea',
   'checkbox',
@@ -295,11 +294,6 @@ export function normalizeFieldSpecList(raw) {
  */
 function validateOneValue(field, rawStr) {
   switch (field.fieldType) {
-    case 'number':
-      if (rawStr !== '' && Number.isNaN(Number(rawStr))) {
-        return { ok: false, error: `"${field.label}" 은(는) 숫자여야 합니다.` }
-      }
-      return { ok: true, value: rawStr }
     case 'date':
       if (rawStr !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(rawStr)) {
         return { ok: false, error: `"${field.label}" 은(는) YYYY-MM-DD 형식이어야 합니다.` }
@@ -328,7 +322,7 @@ function validateOneValue(field, rawStr) {
 
 /**
  * required 검증은 타입별로 달라진다.
- * - text/number/date/textarea/radio: 비어 있으면 위반
+ * - text/date/textarea/radio: 비어 있으면 위반
  * - checkbox: "true" 여야 통과("필수 동의" 같은 의미)
  */
 function isRequiredViolated(field, value) {
