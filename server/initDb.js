@@ -2760,6 +2760,49 @@ async function ensurePdfTemplateSchema(executor) {
     CREATE INDEX IF NOT EXISTS pdf_template_fields_tpl_order_idx
     ON pdf_template_fields (template_id, order_index)
   `)
+
+  /*
+   * 발급 이력(pdf_issuances) — Phase 2 마무리.
+   *
+   * 설계 의도:
+   *   - "이미 발급된 PDF 를 다시 볼 수 있어야" 한다는 컴플라이언스 요구를 충족.
+   *     재생성(재스탬프) 으로도 같은 결과가 나오긴 하지만, 폰트·엔진 업데이트 이후
+   *     바이트 불일치가 생길 수 있어 "그 시점 그대로" 보존하는 편이 안전하다.
+   *   - 템플릿/사용자가 삭제돼도 이력은 남아야 하므로 FK 는 ON DELETE SET NULL.
+   *     삭제된 대상을 식별하려고 template_code/template_title 스냅샷도 저장.
+   *   - values_snapshot 은 "찍힌 값" 을 그대로 보존 — 감사(audit) 용. 민감 정보 암호화는
+   *     후속 요구가 생기면 이 컬럼 교체로 이주(JSONB → bytea).
+   *
+   * 인덱스:
+   *   - 사용자 내역 화면: (user_id, created_at DESC)
+   *   - 템플릿별 관리자 조회: (template_id, created_at DESC)
+   */
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS pdf_issuances (
+      id BIGSERIAL PRIMARY KEY,
+      template_id INTEGER REFERENCES pdf_templates(id) ON DELETE SET NULL,
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      ga_id INTEGER REFERENCES ga_companies(id) ON DELETE SET NULL,
+      template_code TEXT NOT NULL,
+      template_title TEXT NOT NULL,
+      storage_key TEXT NOT NULL,
+      values_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+      byte_length INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS pdf_issuances_user_created_idx
+    ON pdf_issuances (user_id, created_at DESC)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS pdf_issuances_template_created_idx
+    ON pdf_issuances (template_id, created_at DESC)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS pdf_issuances_ga_created_idx
+    ON pdf_issuances (ga_id, created_at DESC)
+  `)
 }
 
 async function seedConsentTemplatesIfNeeded() {

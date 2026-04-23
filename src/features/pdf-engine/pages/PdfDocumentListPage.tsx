@@ -22,6 +22,9 @@ export default function PdfDocumentListPage() {
   useEffect(() => {
     if (!token?.trim()) return
     let cancelled = false
+    /* 토큰 재로드 시 "로딩 중" UX 를 보장하기 위한 의도적 동기 setState.
+       외부 HTTP 소스와 동기화하는 전형적 effect 패턴이라 경고 억제가 맞다. */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     setError(null)
     listPdfTemplates(token)
@@ -47,6 +50,9 @@ export default function PdfDocumentListPage() {
       <h1 className="pdf-engine-page__title">문서</h1>
       <p className="pdf-engine-page__hint">
         원하는 문서를 선택하고, 안내에 따라 값을 입력하면 PDF 로 발급됩니다.
+      </p>
+      <p className="pdf-engine-page__hint">
+        <Link to="/application/documents/history">과거 발급 이력 보기 →</Link>
       </p>
 
       {error ? <div className="pdf-engine-page__error">{error}</div> : null}
