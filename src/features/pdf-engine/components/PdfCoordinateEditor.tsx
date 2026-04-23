@@ -1,14 +1,15 @@
 /**
  * 관리자 좌표 에디터.
  *
- * UX 원칙: "라벨 우선".
+ * UX 원칙: "라벨 우선 + 박스 우선".
  *   1) 왼쪽 패널에서 라벨·타입·필수만 입력해 필드를 정의한다.
  *      (내부 식별자 `fieldKey` 는 라벨에서 자동 파생 — 관리자가 다룰 필요 없음.)
- *   2) 원하는 필드를 선택한 상태로 오른쪽 PDF 를 클릭 → placement 1개가 추가된다.
- *   3) placement 는 배열이므로 한 필드가 문서 내 여러 위치를 차지할 수 있다(예: 2p 서명).
+ *   2) 필드를 선택한 상태로 오른쪽 PDF 위를 "드래그" 하면 박스 placement 가 추가된다.
+ *      — 드래그 거리가 너무 짧으면(실수 클릭) 무시된다.
+ *   3) 등록된 placement 를 좌측에서 골라 width/height/fontSize/align 을 바로 편집한다.
  *
  * 저장 형식:
- *   - 좌표는 PDF 포인트(원점 좌하단). 해상도 무관.
+ *   - 좌표·크기는 PDF 포인트(원점 좌하단). 해상도 무관.
  *   - 호출측(페이지 컴포넌트) 이 이 필드 배열을 서버 API 로 PUT 한다.
  *
  * 이 컴포넌트 자체는 I/O 를 하지 않는다 — 입력(fields)과 출력(onChange)만으로 동작.
@@ -19,6 +20,8 @@ import type { PDFDocumentProxy } from 'pdfjs-dist'
 import type { PdfFieldSpec, PdfFieldType, PdfPlacement } from '../types'
 import { PDF_FIELD_TYPES } from '../types'
 import { PdfOverlayCanvas, type OverlayMark, type OverlayPick } from './PdfOverlayCanvas'
+import FormInput from '../../../components/form/FormInput'
+import FormSelect from '../../../components/form/FormSelect'
 
 interface Props {
   pdfBuffer: ArrayBuffer | null
@@ -39,6 +42,27 @@ const EMPTY_DRAFT: DraftField = {
   required: false,
 }
 
+const ALIGN_OPTIONS: Array<PdfPlacement['align']> = ['left', 'center', 'right']
+
+/**
+ * 필드의 "기본 텍스트 박스 크기" 가 없어 placement.width 가 null 인 경우(기존 점 배치)
+ * 편집 UI 의 숫자 입력에 표시할 값은 빈 문자열이 되어야 한다. 0 을 보여주면
+ * 관리자가 "0 이 할당됐다"고 착각할 여지가 생긴다.
+ */
+function numericInputValue(v: number | null | undefined): string {
+  if (v == null) return ''
+  return String(v)
+}
+
+/** 숫자 입력 문자열을 placement 용 숫자(|null) 로 파싱한다. 비어 있으면 null. */
+function parseOptionalPositive(raw: string): number | null | 'invalid' {
+  const trimmed = raw.trim()
+  if (trimmed === '') return null
+  const n = Number(trimmed)
+  if (!Number.isFinite(n) || n < 0) return 'invalid'
+  return Math.round(n * 100) / 100
+}
+
 function genKeyFromLabel(label: string, existing: ReadonlySet<string>): string {
   const base =
     label
@@ -57,6 +81,11 @@ function genKeyFromLabel(label: string, existing: ReadonlySet<string>): string {
 
 export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  /**
+   * 같은 필드 안의 여러 placement 중 "어느 것을 편집 중" 인지.
+   * 필드가 바뀌면 자동으로 리셋된다. 여러 placement 가 있으면 마지막에 추가된 것을 기본 선택.
+   */
+  const [selectedPlacementIndex, setSelectedPlacementIndex] = useState<number | null>(null)
   const [draft, setDraft] = useState<DraftField>(EMPTY_DRAFT)
   const [pageIndex, setPageIndex] = useState(0)
   const [numPages, setNumPages] = useState(pageCount > 0 ? pageCount : 1)
@@ -68,24 +97,28 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
   const existingKeys = useMemo(() => new Set(fields.map((f) => f.fieldKey)), [fields])
 
   /** 왼쪽 필드 목록의 placement 들을 overlay 마커로 변환.
-      마커 라벨은 사용자가 실제로 다루는 값(`label`) 을 쓴다 — 내부 key 는 노출하지 않는다. */
+      박스 placement 는 width/height 를 같이 넘겨 사각형 마커로 그려진다. */
   const marks: OverlayMark[] = useMemo(() => {
     const out: OverlayMark[] = []
     for (const f of fields) {
+      const isActiveField = f.fieldKey === selectedKey
       for (let i = 0; i < f.placements.length; i += 1) {
         const p = f.placements[i]
+        const isActivePlacement = isActiveField && i === selectedPlacementIndex
         out.push({
           id: `${f.fieldKey}-${i}`,
           pageIndex: p.page,
           x: p.x,
           y: p.y,
+          width: p.width,
+          height: p.height,
           label: f.label || `필드 ${f.orderIndex + 1}`,
-          selected: f.fieldKey === selectedKey,
+          selected: isActiveField && (isActivePlacement || f.placements.length === 1),
         })
       }
     }
     return out
-  }, [fields, selectedKey])
+  }, [fields, selectedKey, selectedPlacementIndex])
 
   const handleAddField = () => {
     const labelTrim = draft.label.trim()
@@ -104,6 +137,7 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
     }
     onChange([...fields, next])
     setSelectedKey(key)
+    setSelectedPlacementIndex(null)
     setDraft(EMPTY_DRAFT)
   }
 
@@ -111,7 +145,10 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
     if (!window.confirm('해당 필드를 삭제할까요? 모든 좌표도 함께 제거됩니다.')) return
     const next = fields.filter((f) => f.fieldKey !== key).map((f, i) => ({ ...f, orderIndex: i }))
     onChange(next)
-    if (selectedKey === key) setSelectedKey(null)
+    if (selectedKey === key) {
+      setSelectedKey(null)
+      setSelectedPlacementIndex(null)
+    }
   }
 
   const handlePatchField = (key: string, patch: Partial<PdfFieldSpec>) => {
@@ -129,30 +166,62 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
           : f,
       ),
     )
+    /* 삭제 대상이 현재 선택된 placement 면 선택 해제. 이후 인덱스는 바뀌므로
+       단순히 null 로 돌려 놓는 편이 예측 가능하다. */
+    if (selectedKey === key && selectedPlacementIndex === index) {
+      setSelectedPlacementIndex(null)
+    } else if (
+      selectedKey === key &&
+      selectedPlacementIndex != null &&
+      selectedPlacementIndex > index
+    ) {
+      setSelectedPlacementIndex(selectedPlacementIndex - 1)
+    }
   }
+
+  /** 선택된 필드의 특정 placement 를 부분 갱신한다. */
+  const handlePatchPlacement = useCallback(
+    (key: string, index: number, patch: Partial<PdfPlacement>) => {
+      onChange(
+        fields.map((f) =>
+          f.fieldKey === key
+            ? {
+                ...f,
+                placements: f.placements.map((p, i) => (i === index ? { ...p, ...patch } : p)),
+              }
+            : f,
+        ),
+      )
+    },
+    [fields, onChange],
+  )
 
   const handlePick = useCallback(
     (pick: OverlayPick) => {
       if (!selectedKey) {
-        window.alert('먼저 왼쪽에서 필드를 선택한 뒤 PDF 위를 클릭하세요.')
+        window.alert('먼저 왼쪽에서 필드를 선택한 뒤 PDF 위를 드래그하세요.')
         return
       }
+      /* 드래그(박스) 결과가 오면 그 치수를, 단일 클릭이면 width/height = null 로 저장.
+         서버는 null 일 때 단일 라인 렌더로 폴백하므로 양쪽 모두 안전. */
       const placement: PdfPlacement = {
         page: pick.pageIndex,
         x: pick.x,
         y: pick.y,
-        width: null,
-        height: null,
+        width: pick.width != null ? pick.width : null,
+        height: pick.height != null ? pick.height : null,
         fontSize: null,
         align: 'left',
       }
-      onChange(
-        fields.map((f) =>
-          f.fieldKey === selectedKey
-            ? { ...f, placements: [...f.placements, placement] }
-            : f,
-        ),
-      )
+      let nextIndex = 0
+      const nextFields = fields.map((f) => {
+        if (f.fieldKey !== selectedKey) return f
+        nextIndex = f.placements.length
+        return { ...f, placements: [...f.placements, placement] }
+      })
+      onChange(nextFields)
+      /* 방금 추가한 placement 를 자동 선택해, 관리자가 곧바로 메타 편집을 이어갈 수 있게 한다. */
+      setSelectedPlacementIndex(nextIndex)
     },
     [fields, onChange, selectedKey],
   )
@@ -162,6 +231,13 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
   }, [])
 
   const selectedField = fields.find((f) => f.fieldKey === selectedKey) ?? null
+  const selectedPlacement =
+    selectedField && selectedPlacementIndex != null
+      ? selectedField.placements[selectedPlacementIndex] ?? null
+      : null
+
+  /** 박스 모드로 드래그 픽을 받는다. 이는 필드가 선택되어 있을 때만 활성화. */
+  const canvasClickEnabled = Boolean(selectedKey)
 
   return (
     <div className="pdf-engine-editor">
@@ -225,7 +301,10 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
                   'pdf-engine-editor__field-item' +
                   (f.fieldKey === selectedKey ? ' pdf-engine-editor__field-item--active' : '')
                 }
-                onClick={() => setSelectedKey(f.fieldKey)}
+                onClick={() => {
+                  setSelectedKey(f.fieldKey)
+                  setSelectedPlacementIndex(f.placements.length > 0 ? 0 : null)
+                }}
               >
                 <div className="pdf-engine-editor__field-item-row">
                   <strong>{f.label}</strong>
@@ -260,7 +339,7 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
               선택된 필드: {selectedField.label}
             </h3>
             <p className="pdf-engine-editor__hint">
-              PDF 위를 클릭하면 이 필드의 위치가 추가됩니다.
+              PDF 위를 드래그하면 박스 좌표가, 짧게 클릭하면 점 좌표가 추가됩니다.
             </p>
             <label className="pdf-engine-editor__label">
               라벨
@@ -303,28 +382,59 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
               좌표 목록
             </h4>
             {selectedField.placements.length === 0 ? (
-              <p className="pdf-engine-editor__hint">아직 좌표가 없습니다. PDF 를 클릭해 추가하세요.</p>
+              <p className="pdf-engine-editor__hint">
+                아직 좌표가 없습니다. 오른쪽 PDF 위를 드래그해 추가하세요.
+              </p>
             ) : (
               <ul className="pdf-engine-editor__fields">
-                {selectedField.placements.map((p, i) => (
-                  <li key={`${selectedField.fieldKey}-p-${i}`} className="pdf-engine-editor__field-item">
-                    <div className="pdf-engine-editor__field-item-row">
-                      <span className="pdf-engine-editor__field-meta">
-                        p{p.page + 1} · x={p.x.toFixed(1)}, y={p.y.toFixed(1)}
-                        {p.fontSize ? `, ${p.fontSize}pt` : ''}
-                      </span>
-                      <button
-                        type="button"
-                        className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
-                        onClick={() => handleRemovePlacement(selectedField.fieldKey, i)}
-                      >
-                        삭제
-                      </button>
-                    </div>
-                  </li>
-                ))}
+                {selectedField.placements.map((p, i) => {
+                  const isActive = i === selectedPlacementIndex
+                  return (
+                    <li
+                      key={`${selectedField.fieldKey}-p-${i}`}
+                      className={
+                        'pdf-engine-editor__field-item' +
+                        (isActive ? ' pdf-engine-editor__field-item--active' : '')
+                      }
+                      onClick={() => setSelectedPlacementIndex(i)}
+                    >
+                      <div className="pdf-engine-editor__field-item-row">
+                        <span className="pdf-engine-editor__field-meta">
+                          p{p.page + 1} · x={p.x.toFixed(1)}, y={p.y.toFixed(1)}
+                          {p.width != null && p.height != null
+                            ? ` · ${p.width.toFixed(0)}×${p.height.toFixed(0)}pt`
+                            : ' · 점'}
+                          {p.fontSize ? ` · ${p.fontSize}pt` : ''}
+                        </span>
+                        <button
+                          type="button"
+                          className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRemovePlacement(selectedField.fieldKey, i)
+                          }}
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             )}
+
+            {selectedPlacement ? (
+              <PlacementMetaEditor
+                placement={selectedPlacement}
+                onPatch={(patch) =>
+                  handlePatchPlacement(
+                    selectedField.fieldKey,
+                    selectedPlacementIndex as number,
+                    patch,
+                  )
+                }
+              />
+            ) : null}
           </>
         ) : null}
       </aside>
@@ -344,18 +454,98 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
             />
           </label>
           <span className="pdf-engine-editor__field-meta">
-            {selectedField ? `선택됨: ${selectedField.label}` : '필드를 선택해 주세요.'}
+            {selectedField
+              ? `선택됨: ${selectedField.label} — PDF 위를 드래그해 박스를 지정하세요`
+              : '먼저 왼쪽에서 필드를 선택해 주세요.'}
           </span>
         </div>
         <PdfOverlayCanvas
           pdfBuffer={pdfBuffer}
           pageIndex={pageIndex}
           marks={marks}
-          clickEnabled={Boolean(selectedKey)}
+          clickEnabled={canvasClickEnabled}
           onPick={handlePick}
           onDocumentReady={handleDocumentReady}
+          mode="pick-box"
         />
       </section>
+    </div>
+  )
+}
+
+/**
+ * 선택된 placement 의 박스 메타(width/height/fontSize/align) 편집 패널.
+ *
+ * 이 서브컴포넌트를 분리한 이유:
+ *   - 편집 로직은 "입력 문자열 → 숫자 파싱 → patch" 라는 하나의 책임만 가진다.
+ *   - PdfCoordinateEditor 본체는 필드 단위 상태 관리에 집중한다.
+ *   - 후속 PR 에서 드래그 핸들/리사이즈를 붙일 때도 이 패널을 그대로 유지한다.
+ */
+interface PlacementMetaEditorProps {
+  placement: PdfPlacement
+  onPatch: (patch: Partial<PdfPlacement>) => void
+}
+
+function PlacementMetaEditor({ placement, onPatch }: PlacementMetaEditorProps) {
+  const handleNumericChange = (key: 'width' | 'height' | 'fontSize') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const parsed = parseOptionalPositive(e.target.value)
+    if (parsed === 'invalid') return
+    onPatch({ [key]: parsed } as Partial<PdfPlacement>)
+  }
+
+  return (
+    <div style={{ marginTop: 4 }}>
+      <h4 className="pdf-engine-editor__panel-title" style={{ marginTop: 8, fontSize: 13 }}>
+        선택된 좌표 설정
+      </h4>
+      <div className="pdf-engine-editor__row">
+        <label className="pdf-engine-editor__label">
+          너비 (pt)
+          <FormInput
+            type="number"
+            min={0}
+            step={1}
+            value={numericInputValue(placement.width)}
+            onChange={handleNumericChange('width')}
+            placeholder="비워두면 자동"
+          />
+        </label>
+        <label className="pdf-engine-editor__label">
+          높이 (pt)
+          <FormInput
+            type="number"
+            min={0}
+            step={1}
+            value={numericInputValue(placement.height)}
+            onChange={handleNumericChange('height')}
+            placeholder="비워두면 자동"
+          />
+        </label>
+      </div>
+      <div className="pdf-engine-editor__row">
+        <label className="pdf-engine-editor__label">
+          글자 크기 (pt)
+          <FormInput
+            type="number"
+            min={0}
+            step={1}
+            value={numericInputValue(placement.fontSize)}
+            onChange={handleNumericChange('fontSize')}
+            placeholder="기본 11"
+          />
+        </label>
+        <label className="pdf-engine-editor__label">
+          정렬
+          <FormSelect
+            value={placement.align}
+            onChange={(e) => onPatch({ align: e.target.value as PdfPlacement['align'] })}
+            options={ALIGN_OPTIONS.map((a) => ({ value: a, label: a }))}
+          />
+        </label>
+      </div>
+      <p className="pdf-engine-editor__hint" style={{ margin: '4px 0 0' }}>
+        너비가 지정되면 서버가 박스 안에서 정렬·줄바꿈을 처리합니다.
+      </p>
     </div>
   )
 }
