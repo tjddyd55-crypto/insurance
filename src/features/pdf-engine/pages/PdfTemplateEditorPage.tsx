@@ -179,6 +179,8 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
   const [description, setDescription] = useState('')
   const [isActive, setIsActive] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingFields, setSavingFields] = useState(false)
+  const [fieldsDirty, setFieldsDirty] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   const load = useCallback(async () => {
@@ -188,6 +190,7 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
       const detail = await getAdminPdfTemplate(token, templateId)
       const pdfBuffer = await fetchAdminPdfTemplateFile(token, templateId)
       setFields(detail.fields)
+      setFieldsDirty(false)
       setTitle(detail.template.title)
       setDescription(detail.template.description ?? '')
       setIsActive(detail.template.isActive)
@@ -204,6 +207,37 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
     void load()
   }, [load])
 
+  const persistFields = useCallback(
+    async (options?: { silent?: boolean }): Promise<boolean> => {
+      if (!token || state.status !== 'ready') return false
+      if (!fieldsDirty) {
+        if (!options?.silent) {
+          setToast('변경된 좌표가 없습니다.')
+        }
+        return true
+      }
+      setSavingFields(true)
+      if (!options?.silent) {
+        setToast(null)
+      }
+      try {
+        const saved = await saveAdminPdfTemplateFields(token, templateId, fields)
+        setFields(saved.fields)
+        setFieldsDirty(false)
+        if (!options?.silent) {
+          setToast('좌표가 저장되었습니다.')
+        }
+        return true
+      } catch (e) {
+        setToast(e instanceof ApiError ? `좌표 저장 실패: ${e.message}` : '좌표 저장 실패')
+        return false
+      } finally {
+        setSavingFields(false)
+      }
+    },
+    [fields, fieldsDirty, state.status, templateId, token],
+  )
+
   const handleSave = async () => {
     if (!token || state.status !== 'ready') return
     setSaving(true)
@@ -216,7 +250,7 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
         description: description.trim(),
         isActive,
       })
-      await saveAdminPdfTemplateFields(token, templateId, fields)
+      await persistFields({ silent: true })
       setToast('저장되었습니다.')
     } catch (e) {
       setToast(e instanceof ApiError ? `저장 실패: ${e.message}` : '저장 실패')
@@ -305,7 +339,13 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
         pdfBuffer={state.pdfBuffer}
         pageCount={state.template.pageCount}
         fields={fields}
-        onChange={setFields}
+        onChange={(next) => {
+          setFields(next)
+          setFieldsDirty(true)
+        }}
+        onSaveFields={() => void persistFields()}
+        savingFields={savingFields}
+        fieldsDirty={fieldsDirty}
       />
     </main>
   )

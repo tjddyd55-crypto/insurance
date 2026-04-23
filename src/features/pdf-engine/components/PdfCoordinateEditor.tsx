@@ -28,6 +28,9 @@ interface Props {
   pageCount: number
   fields: PdfFieldSpec[]
   onChange: (next: PdfFieldSpec[]) => void
+  onSaveFields: () => void
+  savingFields: boolean
+  fieldsDirty: boolean
 }
 
 type DraftField = {
@@ -96,7 +99,15 @@ function genKeyFromLabel(label: string, existing: ReadonlySet<string>): string {
   return `${base}_${Date.now().toString(36)}`
 }
 
-export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: Props) {
+export function PdfCoordinateEditor({
+  pdfBuffer,
+  pageCount,
+  fields,
+  onChange,
+  onSaveFields,
+  savingFields,
+  fieldsDirty,
+}: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   /**
    * 같은 필드 안의 여러 placement 중 "어느 것을 편집 중" 인지.
@@ -397,6 +408,15 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
         >
           필드 추가
         </button>
+        <button
+          type="button"
+          className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
+          onClick={onSaveFields}
+          disabled={savingFields || !fieldsDirty}
+          style={{ marginTop: 6 }}
+        >
+          {savingFields ? '좌표 저장 중…' : '좌표 저장'}
+        </button>
 
         <h3 className="pdf-engine-editor__panel-title" style={{ marginTop: 8 }}>
           등록된 필드 ({fields.length})
@@ -577,6 +597,9 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
                     patch,
                   )
                 }
+                onSaveFields={onSaveFields}
+                savingFields={savingFields}
+                fieldsDirty={fieldsDirty}
               />
             ) : null}
           </>
@@ -628,9 +651,18 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
 interface PlacementMetaEditorProps {
   placement: PdfPlacement
   onPatch: (patch: Partial<PdfPlacement>) => void
+  onSaveFields: () => void
+  savingFields: boolean
+  fieldsDirty: boolean
 }
 
-function PlacementMetaEditor({ placement, onPatch }: PlacementMetaEditorProps) {
+function PlacementMetaEditor({
+  placement,
+  onPatch,
+  onSaveFields,
+  savingFields,
+  fieldsDirty,
+}: PlacementMetaEditorProps) {
   const handleNumericChange = (key: 'width' | 'height' | 'fontSize') => (e: React.ChangeEvent<HTMLInputElement>) => {
     const parsed = parseOptionalPositive(e.target.value)
     if (parsed === 'invalid') return
@@ -690,6 +722,15 @@ function PlacementMetaEditor({ placement, onPatch }: PlacementMetaEditorProps) {
       <p className="pdf-engine-editor__hint" style={{ margin: '4px 0 0' }}>
         너비가 지정되면 서버가 박스 안에서 정렬·줄바꿈을 처리합니다.
       </p>
+      <button
+        type="button"
+        className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
+        onClick={onSaveFields}
+        disabled={savingFields || !fieldsDirty}
+        style={{ marginTop: 6 }}
+      >
+        {savingFields ? '좌표 저장 중…' : '좌표 저장'}
+      </button>
     </div>
   )
 }
