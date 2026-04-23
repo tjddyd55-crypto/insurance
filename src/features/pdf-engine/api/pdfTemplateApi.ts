@@ -6,11 +6,44 @@
  */
 
 import { ApiError, apiRequest, resolveApiUrl } from '../../../lib/apiClient'
+import { logger } from '../../../lib/logger'
 import type {
   PdfFieldSpec,
   PdfTemplateDetail,
   PdfTemplateSummary,
 } from '../types'
+
+/**
+ * 실패 응답을 해석해 ApiError 로 변환한다.
+ * JSON body 가 있으면 message/code 를 꺼내고, 없으면 HTTP status 로 대체한다.
+ * 이 헬퍼가 있어야 바이너리 엔드포인트(/file, /render) 의 에러도
+ * 일관된 형태로 UI/로거에 전달된다.
+ */
+async function toApiError(
+  res: Response,
+  fallback: string,
+  event: string,
+  extra: Record<string, unknown> = {},
+): Promise<ApiError> {
+  const text = await res.text().catch(() => '')
+  let body: { message?: string; code?: string } = {}
+  if (text) {
+    try {
+      body = JSON.parse(text) as typeof body
+    } catch {
+      /* JSON 아니면 텍스트 그대로 메시지 자리에. */
+      body = { message: text.slice(0, 200) }
+    }
+  }
+  logger.error(event, {
+    ...extra,
+    status: res.status,
+    statusText: res.statusText,
+    serverMessage: body.message ?? null,
+    serverCode: body.code ?? null,
+  })
+  return new ApiError(body.message ?? fallback, res.status)
+}
 
 function authHeader(token: string | null | undefined): Record<string, string> {
   return token?.trim() ? { Authorization: `Bearer ${token.trim()}` } : {}
@@ -27,17 +60,35 @@ export async function uploadAdminPdfTemplateFile(
   if (input.gaId != null) fd.append('gaId', String(input.gaId))
   fd.append('code', input.code)
 
-  const res = await fetch(resolveApiUrl('/api/admin/pdf-templates/upload'), {
-    method: 'POST',
-    headers: { ...authHeader(token) },
-    body: fd,
-  })
+  let res: Response
+  try {
+    res = await fetch(resolveApiUrl('/api/admin/pdf-templates/upload'), {
+      method: 'POST',
+      headers: { ...authHeader(token) },
+      body: fd,
+    })
+  } catch (networkError) {
+    logger.error('pdf-template.upload.network-failed', {
+      gaId: input.gaId,
+      code: input.code,
+      fileSize: input.file.size,
+      error: networkError,
+    })
+    throw new ApiError('네트워크 오류로 업로드하지 못했습니다.', 0)
+  }
+
   const payload = (await res.json().catch(() => ({}))) as {
     storageKey?: string
     pageCount?: number
     message?: string
   }
   if (!res.ok || !payload.storageKey) {
+    logger.error('pdf-template.upload.server-rejected', {
+      status: res.status,
+      serverMessage: payload.message ?? null,
+      gaId: input.gaId,
+      code: input.code,
+    })
     throw new ApiError(payload.message ?? 'PDF 업로드 실패', res.status)
   }
   return { storageKey: payload.storageKey, pageCount: Number(payload.pageCount) || 1 }
@@ -102,12 +153,36 @@ export async function fetchAdminPdfTemplateFile(
   token: string,
   id: number,
 ): Promise<ArrayBuffer> {
-  const res = await fetch(resolveApiUrl(`/api/admin/pdf-templates/${id}/file`), {
-    method: 'GET',
-    headers: { ...authHeader(token) },
-  })
+  const url = resolveApiUrl(`/api/admin/pdf-templates/${id}/file`)
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: 'GET',
+      headers: { ...authHeader(token) },
+    })
+  } catch (networkError) {
+    logger.error('pdf-template.file.network-failed', {
+      templateId: id,
+      url,
+      error: networkError,
+    })
+    throw new ApiError('네트워크 오류로 원본 PDF 를 불러오지 못했습니다.', 0)
+  }
+
   if (!res.ok) {
-    throw new ApiError('원본 PDF 를 불러오지 못했습니다.', res.status)
+    throw await toApiError(res, '원본 PDF 를 불러오지 못했습니다.', 'pdf-template.file.http-error', {
+      templateId: id,
+    })
+  }
+
+  /* 응답이 PDF 인지 Content-Type 으로 가볍게 확인한다. HTML 에러페이지가
+     200 으로 섞여 들어오는 엣지 케이스(프록시/게이트웨이)를 잡기 위함. */
+  const contentType = res.headers.get('content-type') ?? ''
+  if (!contentType.toLowerCase().includes('pdf')) {
+    logger.warn('pdf-template.file.unexpected-content-type', {
+      templateId: id,
+      contentType,
+    })
   }
   return res.arrayBuffer()
 }
@@ -138,14 +213,28 @@ export async function renderPdfTemplate(
   id: number,
   values: Record<string, string>,
 ): Promise<Blob> {
-  const res = await fetch(resolveApiUrl(`/api/pdf-templates/${id}/render`), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-    body: JSON.stringify({ values }),
-  })
+  const url = resolveApiUrl(`/api/pdf-templates/${id}/render`)
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader(token) },
+      body: JSON.stringify({ values }),
+    })
+  } catch (networkError) {
+    logger.error('pdf-template.render.network-failed', {
+      templateId: id,
+      valueKeys: Object.keys(values),
+      error: networkError,
+    })
+    throw new ApiError('네트워크 오류로 PDF 를 생성하지 못했습니다.', 0)
+  }
+
   if (!res.ok) {
-    const payload = (await res.json().catch(() => ({}))) as { message?: string }
-    throw new ApiError(payload.message ?? 'PDF 생성 실패', res.status)
+    throw await toApiError(res, 'PDF 생성 실패', 'pdf-template.render.http-error', {
+      templateId: id,
+      valueKeys: Object.keys(values),
+    })
   }
   return res.blob()
 }
