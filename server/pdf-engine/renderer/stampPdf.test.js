@@ -91,7 +91,7 @@ test('stampPdf: textarea 줄바꿈 옵션이 있어도 예외 없이 생성된�
   assert.ok(out instanceof Buffer)
 })
 
-test('stampPdf: checkbox=true 는 체크마크를 그리고 false 는 생략', async (t) => {
+test('stampPdf: checkbox 는 선택된 세부 라벨 좌표만 체크한다', async (t) => {
   if (!(await hasFont())) {
     t.skip('한글 폰트 파일이 없어 skip')
     return
@@ -104,16 +104,20 @@ test('stampPdf: checkbox=true 는 체크마크를 그리고 false 는 생략', a
       fieldType: 'checkbox',
       required: false,
       orderIndex: 0,
-      placements: [{ page: 0, x: 100, y: 600, width: 14, height: 14 }],
+      options: ['고객', '마케팅'],
+      placements: [
+        { page: 0, x: 100, y: 600, width: 14, height: 14, optionValue: '고객' },
+        { page: 0, x: 140, y: 600, width: 14, height: 14, optionValue: '마케팅' },
+      ],
     },
   ])
-  const onTrue = await stampPdf(template, fields, { agree: 'true' })
-  const onFalse = await stampPdf(template, fields, { agree: 'false' })
+  const onOne = await stampPdf(template, fields, { agree: '["고객"]' })
+  const onNone = await stampPdf(template, fields, { agree: '[]' })
   /* 둘 다 유효한 PDF */
-  await PDFDocument.load(onTrue)
-  await PDFDocument.load(onFalse)
-  /* true 는 라인 2개가 추가되므로 false 보다 커야 한다. */
-  assert.ok(onTrue.byteLength > onFalse.byteLength)
+  await PDFDocument.load(onOne)
+  await PDFDocument.load(onNone)
+  /* 선택된 항목이 있으면 체크 라인이 추가되므로 파일이 더 커야 한다. */
+  assert.ok(onOne.byteLength > onNone.byteLength)
 })
 
 test('stampPdf: radio 는 선택된 옵션의 placement 만 체크', async (t) => {

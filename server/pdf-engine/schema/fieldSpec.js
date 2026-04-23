@@ -212,11 +212,14 @@ export function normalizeFieldSpec(raw, fallbackOrder = 0) {
       ? /** @type {FieldSpec['customerMapping']} */ (mappingRaw)
       : null
 
-  /* radio 만 options 를 저장한다. 다른 타입에서 온 options 는 무시해
+  /* checkbox/radio 만 options 를 저장한다. 다른 타입에서 온 options 는 무시해
      DB 에 "의미 없는 옵션 잔재" 가 남지 않도록 한다. */
-  const options = fieldTypeRaw === 'radio' ? normalizeOptions(src.options) : null
-  if (fieldTypeRaw === 'radio' && options.length === 0) {
-    throw new Error(`radio 필드 "${fieldKey}" 는 최소 1개 이상의 옵션이 필요합니다.`)
+  const options =
+    fieldTypeRaw === 'radio' || fieldTypeRaw === 'checkbox' ? normalizeOptions(src.options) : null
+  if ((fieldTypeRaw === 'radio' || fieldTypeRaw === 'checkbox') && options.length === 0) {
+    throw new Error(
+      `${fieldTypeRaw} 필드 "${fieldKey}" 는 최소 1개 이상의 옵션(세부 라벨)이 필요합니다.`,
+    )
   }
 
   const placementsRaw = Array.isArray(src.placements) ? src.placements : []
@@ -225,20 +228,20 @@ export function normalizeFieldSpec(raw, fallbackOrder = 0) {
   }
   const placements = placementsRaw.map((p) => normalizePlacement(p))
 
-  /* radio placement 는 반드시 options 에 등록된 값과 매칭되어야 한다.
+  /* checkbox/radio placement 는 반드시 options 에 등록된 값과 매칭되어야 한다.
      실수로 optionValue 를 비워둔 placement 는 "어떤 선택지에도 연결되지 않는 스탬프" 가
      되어 렌더 시 아무 효과가 없으므로 여기서 막는다. */
-  if (fieldTypeRaw === 'radio') {
+  if (fieldTypeRaw === 'radio' || fieldTypeRaw === 'checkbox') {
     const allowed = new Set(options)
     for (const p of placements) {
       if (p.optionValue == null) {
         throw new Error(
-          `radio 필드 "${fieldKey}" 의 placement 에 optionValue 가 없습니다. 옵션 중 하나를 지정하세요.`,
+          `${fieldTypeRaw} 필드 "${fieldKey}" 의 placement 에 optionValue 가 없습니다. 옵션 중 하나를 지정하세요.`,
         )
       }
       if (!allowed.has(p.optionValue)) {
         throw new Error(
-          `radio 필드 "${fieldKey}" 의 placement.optionValue "${p.optionValue}" 가 옵션 목록에 없습니다.`,
+          `${fieldTypeRaw} 필드 "${fieldKey}" 의 placement.optionValue "${p.optionValue}" 가 옵션 목록에 없습니다.`,
         )
       }
     }
@@ -294,10 +297,33 @@ export function normalizeFieldSpecList(raw) {
 function validateOneValue(field, rawStr) {
   switch (field.fieldType) {
     case 'checkbox': {
-      /* 폼에서 체크박스는 "true"/"false" 문자열로 온다. 빈 값("") 은 false 로 취급. */
-      if (rawStr === '' || rawStr === 'false') return { ok: true, value: 'false' }
-      if (rawStr === 'true') return { ok: true, value: 'true' }
-      return { ok: false, error: `"${field.label}" 값이 올바르지 않습니다.` }
+      if (rawStr === '') return { ok: true, value: '[]' }
+      let parsed
+      try {
+        parsed = JSON.parse(rawStr)
+      } catch {
+        return { ok: false, error: `"${field.label}" 선택값 형식이 올바르지 않습니다.` }
+      }
+      if (!Array.isArray(parsed)) {
+        return { ok: false, error: `"${field.label}" 선택값 형식이 올바르지 않습니다.` }
+      }
+      const allowed = new Set(field.options ?? [])
+      const normalized = []
+      const seen = new Set()
+      for (const item of parsed) {
+        if (typeof item !== 'string') {
+          return { ok: false, error: `"${field.label}" 선택값 형식이 올바르지 않습니다.` }
+        }
+        const v = item.trim()
+        if (!v) continue
+        if (!allowed.has(v)) {
+          return { ok: false, error: `"${field.label}" 의 선택값이 유효하지 않습니다.` }
+        }
+        if (seen.has(v)) continue
+        seen.add(v)
+        normalized.push(v)
+      }
+      return { ok: true, value: JSON.stringify(normalized) }
     }
     case 'radio': {
       if (rawStr === '') return { ok: true, value: '' }
@@ -321,7 +347,14 @@ function validateOneValue(field, rawStr) {
  */
 function isRequiredViolated(field, value) {
   if (!field.required) return false
-  if (field.fieldType === 'checkbox') return value !== 'true'
+  if (field.fieldType === 'checkbox') {
+    try {
+      const parsed = JSON.parse(value)
+      return !Array.isArray(parsed) || parsed.length === 0
+    } catch {
+      return true
+    }
+  }
   return !value
 }
 

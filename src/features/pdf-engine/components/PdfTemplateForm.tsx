@@ -45,14 +45,25 @@ interface Props {
 function initialValues(fields: PdfFieldSpec[]): Record<string, string> {
   const out: Record<string, string> = {}
   for (const f of fields) {
-    /* checkbox 는 "false" 가 기본값이어야 서버와 컨벤션이 일치한다. */
-    out[f.fieldKey] = f.fieldType === 'checkbox' ? 'false' : ''
+    /* checkbox 는 JSON 배열 문자열이 기본값이어야 서버 컨벤션과 일치한다. */
+    out[f.fieldKey] = f.fieldType === 'checkbox' ? '[]' : ''
   }
   return out
 }
 
 function isEmpty(value: string): boolean {
   return !value || !value.trim()
+}
+
+function parseCheckboxJsonArray(raw: string): string[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((v): v is string => typeof v === 'string')
+  } catch {
+    return []
+  }
 }
 
 /** 타입별 기본 위젯. 주석은 "왜 이 입력을 썼는지" 만 남긴다. */
@@ -77,22 +88,37 @@ function renderByType(
         />
       )
     case 'checkbox': {
-      /* 단일 체크박스. 값은 문자열 "true"/"false" 로 표현(서버 컨벤션). */
-      const checked = value === 'true'
+      const options = field.options ?? []
+      const selectedSet = new Set(parseCheckboxJsonArray(value))
+      const toggle = (opt: string, checked: boolean) => {
+        if (checked) selectedSet.add(opt)
+        else selectedSet.delete(opt)
+        setValue(JSON.stringify(Array.from(selectedSet)))
+      }
+      if (options.length === 0) {
+        return (
+          <p className="pdf-engine-page__hint">
+            체크 옵션이 아직 설정되지 않았습니다. 관리자에게 문의해 주세요.
+          </p>
+        )
+      }
       return (
-        <div className="pdf-engine-form__checkbox-row">
-          <input
-            id={inputId}
-            name={field.fieldKey}
-            type="checkbox"
-            checked={checked}
-            onChange={(e: ChangeEvent<HTMLInputElement>) =>
-              setValue(e.target.checked ? 'true' : 'false')
-            }
-          />
-          <span className="pdf-engine-form__checkbox-caption">
-            {field.required ? '동의(필수)' : '동의'}
-          </span>
+        <div className="pdf-engine-form__radio-group" role="group" aria-labelledby={`${inputId}-label`}>
+          {options.map((opt, idx) => {
+            const id = `${inputId}-check-${idx}`
+            return (
+              <label key={id} htmlFor={id} className="pdf-engine-form__radio-item">
+                <input
+                  id={id}
+                  type="checkbox"
+                  name={`${field.fieldKey}-${idx}`}
+                  checked={selectedSet.has(opt)}
+                  onChange={(e) => toggle(opt, e.target.checked)}
+                />
+                <span>{opt}</span>
+              </label>
+            )
+          })}
         </div>
       )
     }
@@ -146,7 +172,7 @@ function renderByType(
 /** 타입별 필수값 위반 여부. 체크박스는 "true" 여야만 통과(필수 동의). */
 function isRequiredViolated(field: PdfFieldSpec, value: string): boolean {
   if (!field.required) return false
-  if (field.fieldType === 'checkbox') return value !== 'true'
+  if (field.fieldType === 'checkbox') return parseCheckboxJsonArray(value).length === 0
   return isEmpty(value)
 }
 

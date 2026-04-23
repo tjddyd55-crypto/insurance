@@ -196,14 +196,17 @@ export function PdfCoordinateEditor({
       fields.map((f) => {
         if (f.fieldKey !== key) return f
         const next: PdfFieldSpec = { ...f, ...patch }
-        /* 타입이 radio 가 아닌 값으로 바뀌면 options 와 placement.optionValue 를 제거한다.
+        /* 타입이 checkbox/radio 가 아닌 값으로 바뀌면 options 와 placement.optionValue 를 제거한다.
            서버 정규화에서 걸러지지만, UI 상태도 일관되게 유지해야 편집 중 혼란이 없다. */
-        if (patch.fieldType && patch.fieldType !== 'radio') {
+        if (patch.fieldType && patch.fieldType !== 'radio' && patch.fieldType !== 'checkbox') {
           next.options = null
           next.placements = next.placements.map((p) => ({ ...p, optionValue: null }))
         }
-        /* radio 로 새로 전환되는 경우, 옵션이 아직 없으면 기본 옵션 2개를 시드. */
-        if (patch.fieldType === 'radio' && (!next.options || next.options.length === 0)) {
+        /* checkbox/radio 로 새로 전환되는 경우, 옵션이 아직 없으면 기본 옵션 2개를 시드. */
+        if (
+          (patch.fieldType === 'radio' || patch.fieldType === 'checkbox') &&
+          (!next.options || next.options.length === 0)
+        ) {
           next.options = ['옵션1', '옵션2']
         }
         /* checkbox/radio 는 "값의 의미" 가 회원 속성과 직접 대응하지 않으므로 자동 매핑을 강제 해제.
@@ -289,13 +292,13 @@ export function PdfCoordinateEditor({
         return
       }
       const target = fields.find((f) => f.fieldKey === selectedKey) ?? null
-      /* radio 는 "어느 옵션의 체크박스를 그릴지" 선택이 전제. 선택된 옵션이 없으면
+      /* checkbox/radio 는 "어느 옵션 좌표를 그릴지" 선택이 전제. 선택된 옵션이 없으면
          첫 옵션으로 폴백하고, 그마저 없으면 placement 생성을 거부해 오염 데이터 방지. */
       let optionValue: string | null = null
-      if (target?.fieldType === 'radio') {
+      if (target?.fieldType === 'radio' || target?.fieldType === 'checkbox') {
         const opts = target.options ?? []
         if (opts.length === 0) {
-          window.alert('라디오 필드에 옵션이 없습니다. 먼저 옵션을 1개 이상 추가해 주세요.')
+          window.alert('선택형 필드에 옵션이 없습니다. 먼저 옵션을 1개 이상 추가해 주세요.')
           return
         }
         optionValue = activeOptionValue && opts.includes(activeOptionValue) ? activeOptionValue : opts[0]
@@ -319,7 +322,7 @@ export function PdfCoordinateEditor({
          * non-radio 필드는 좌표를 1개만 유지한다.
          * 잘못 찍은 경우 다시 찍으면 기존 박스를 즉시 교체해 화면/결과물이 일치하도록 한다.
          */
-        if (f.fieldType !== 'radio') {
+        if (f.fieldType !== 'radio' && f.fieldType !== 'checkbox') {
           nextIndex = 0
           return { ...f, placements: [placement] }
         }
@@ -356,11 +359,14 @@ export function PdfCoordinateEditor({
       : null
 
   /* 선택된 필드/옵션 정합성 동기화.
-     "선택 중 필드가 radio 이고, activeOptionValue 가 그 필드의 options 에 없으면"
+     "선택 중 필드가 checkbox/radio 이고, activeOptionValue 가 그 필드의 options 에 없으면"
      첫 옵션으로 재설정한다. 이 동기화가 없으면 필드 전환 후 엉뚱한 옵션 placement 가
      생성될 수 있다. */
   useEffect(() => {
-    if (!selectedField || selectedField.fieldType !== 'radio') {
+    if (
+      !selectedField ||
+      (selectedField.fieldType !== 'radio' && selectedField.fieldType !== 'checkbox')
+    ) {
       if (activeOptionValue != null) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setActiveOptionValue(null)
@@ -543,12 +549,13 @@ export function PdfCoordinateEditor({
               </label>
             ) : null}
 
-            {selectedField.fieldType === 'radio' ? (
+            {selectedField.fieldType === 'radio' || selectedField.fieldType === 'checkbox' ? (
               <RadioOptionsEditor
                 options={selectedField.options ?? []}
                 activeOption={activeOptionValue}
                 onActiveChange={setActiveOptionValue}
                 onOptionsChange={(next) => handlePatchFieldOptions(selectedField.fieldKey, next)}
+                mode={selectedField.fieldType}
               />
             ) : null}
 
@@ -778,6 +785,7 @@ interface RadioOptionsEditorProps {
   activeOption: string | null
   onActiveChange: (next: string | null) => void
   onOptionsChange: (next: string[]) => void
+  mode: 'radio' | 'checkbox'
 }
 
 function RadioOptionsEditor({
@@ -785,6 +793,7 @@ function RadioOptionsEditor({
   activeOption,
   onActiveChange,
   onOptionsChange,
+  mode,
 }: RadioOptionsEditorProps) {
   const [draft, setDraft] = useState('')
 
@@ -818,10 +827,10 @@ function RadioOptionsEditor({
   return (
     <div style={{ marginTop: 8 }}>
       <h4 className="pdf-engine-editor__panel-title" style={{ marginTop: 8, fontSize: 13 }}>
-        라디오 옵션 ({options.length})
+        {mode === 'radio' ? '라디오 옵션' : '체크박스 옵션'} ({options.length})
       </h4>
       <p className="pdf-engine-editor__hint" style={{ margin: '0 0 6px' }}>
-        옵션을 선택하고 PDF 위를 드래그하면, 해당 옵션 전용 체크 박스가 추가됩니다.
+        옵션을 선택하고 PDF 위를 드래그하면, 해당 라벨 전용 좌표가 추가됩니다.
       </p>
       {options.length === 0 ? (
         <p className="pdf-engine-editor__hint">아직 옵션이 없습니다.</p>

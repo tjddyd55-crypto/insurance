@@ -45,7 +45,8 @@ export interface PdfFieldSpec {
   orderIndex: number
   customerMapping: PdfCustomerMapping | null
   /**
-   * radio 타입의 선택지. 다른 타입은 null.
+   * checkbox/radio 타입의 선택지(사용자에게 보이는 세부 라벨).
+   * 다른 타입은 null.
    * UI 에서 옵션을 추가/삭제/재정렬할 수 있다.
    */
   options: string[] | null

@@ -168,7 +168,17 @@ function stampCheckMark({ page, placement }) {
  * @param {StampContext} ctx
  */
 function stampCheckbox({ page, placement, value }) {
-  if (value !== 'true') return
+  if (!placement.optionValue) return
+  if (!value) return
+  let selected = []
+  try {
+    const parsed = JSON.parse(value)
+    if (!Array.isArray(parsed)) return
+    selected = parsed.filter((v) => typeof v === 'string')
+  } catch {
+    return
+  }
+  if (!selected.includes(placement.optionValue)) return
   stampCheckMark({ page, placement })
 }
 
