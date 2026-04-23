@@ -366,7 +366,34 @@ export function registerPdfTemplateApi(apiRouter, deps) {
     }
     try {
       const buf = await getTemplateObject(template.storage_key)
+      /*
+       * 진단 로깅: 클라이언트가 "0 바이트를 받았다" 고 보고했지만 원인이 서버/프록시/클라이언트
+       * 중 어디인지 불명확한 상태를 해결하기 위한 최소 관찰 포인트다.
+       * 여기서 기록하는 byteLength 와 클라이언트가 arrayBuffer().byteLength 로 측정한 값이
+       * 다르면 그 사이 경로(Railway edge/압축/캐시) 가 범인이 된다.
+       * 운영 노이즈를 줄이려 warn 이 아닌 info 로 둔다(Railway 는 info 도 수집).
+       */
+      console.info('[pdf-templates] file serve', {
+        id,
+        storageKey: template.storage_key,
+        byteLength: buf?.length ?? 0,
+        userAgent: req.headers['user-agent'] ?? null,
+      })
+      if (!buf || buf.length === 0) {
+        /* 스토리지가 0 바이트 객체를 반환하면 클라이언트에 "형식 파싱 실패" 로 오인되어
+           도달한다. 여기서 502 로 끊어 UX 와 책임 소재를 명확히 한다. */
+        console.error('[pdf-templates] storage returned empty buffer', {
+          id,
+          storageKey: template.storage_key,
+        })
+        res.status(502).json({
+          message: '원본 PDF 가 비어 있습니다. 업로드를 다시 시도해 주세요.',
+          code: 'storage-empty-object',
+        })
+        return
+      }
       res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Length', String(buf.length))
       res.setHeader('Cache-Control', 'private, max-age=0, must-revalidate')
       res.send(buf)
     } catch (error) {
