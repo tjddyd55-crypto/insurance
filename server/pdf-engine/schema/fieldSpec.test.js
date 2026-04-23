@@ -28,17 +28,62 @@ function makeField(overrides = {}) {
   }
 }
 
-test('normalizeFieldSpec: 허용 타입 4종 (text/number/date/textarea) 모두 통과', () => {
+test('normalizeFieldSpec: 허용 타입(text/number/date/textarea/checkbox/radio) 모두 통과', () => {
   for (const t of ALLOWED_FIELD_TYPES) {
+    /* radio 는 options + placement.optionValue 가 있어야 하므로 별도 빌더 사용 */
+    if (t === 'radio') {
+      const out = normalizeFieldSpec(
+        makeField({
+          fieldType: 'radio',
+          options: ['A', 'B'],
+          placements: [{ page: 0, x: 10, y: 10, optionValue: 'A' }],
+        }),
+      )
+      assert.equal(out.fieldType, 'radio')
+      assert.deepEqual(out.options, ['A', 'B'])
+      assert.equal(out.placements[0].optionValue, 'A')
+      continue
+    }
     const out = normalizeFieldSpec(makeField({ fieldType: t }))
     assert.equal(out.fieldType, t)
   }
 })
 
-test('normalizeFieldSpec: 비허용 타입(radio/checkbox/select) 은 에러', () => {
-  for (const t of ['radio', 'checkbox', 'select', 'email']) {
+test('normalizeFieldSpec: 비허용 타입(select/email) 은 에러', () => {
+  for (const t of ['select', 'email']) {
     assert.throws(() => normalizeFieldSpec(makeField({ fieldType: t })), /허용되지 않는/)
   }
+})
+
+test('normalizeFieldSpec: radio 는 options 가 최소 1개 필요', () => {
+  assert.throws(
+    () =>
+      normalizeFieldSpec(
+        makeField({ fieldType: 'radio', options: [], placements: [{ page: 0, x: 1, y: 1 }] }),
+      ),
+    /옵션/,
+  )
+})
+
+test('normalizeFieldSpec: radio placement.optionValue 가 options 에 없으면 에러', () => {
+  assert.throws(
+    () =>
+      normalizeFieldSpec(
+        makeField({
+          fieldType: 'radio',
+          options: ['A'],
+          placements: [{ page: 0, x: 1, y: 1, optionValue: 'B' }],
+        }),
+      ),
+    /옵션 목록/,
+  )
+})
+
+test('normalizeFieldSpec: radio 가 아닌 타입에 options 가 오면 null 로 버림', () => {
+  const out = normalizeFieldSpec(
+    makeField({ fieldType: 'checkbox', options: ['A', 'B'] }),
+  )
+  assert.equal(out.options, null)
 })
 
 test('normalizeFieldSpec: fieldKey 네이밍 규칙 위반', () => {
@@ -105,4 +150,57 @@ test('validateRenderValues: 통과 시 값은 trim 된 문자열 맵', () => {
   const r = validateRenderValues(fields, { name: '  홍길동  ' })
   assert.equal(r.ok, true)
   if (r.ok) assert.equal(r.normalized.name, '홍길동')
+})
+
+test('validateRenderValues: checkbox 는 "true"/"false" 만 허용', () => {
+  const fields = [
+    normalizeFieldSpec(
+      makeField({
+        fieldKey: 'agree',
+        fieldType: 'checkbox',
+        required: false,
+        placements: [{ page: 0, x: 10, y: 10 }],
+      }),
+    ),
+  ]
+  assert.equal(validateRenderValues(fields, { agree: 'true' }).ok, true)
+  assert.equal(validateRenderValues(fields, { agree: 'false' }).ok, true)
+  assert.equal(validateRenderValues(fields, { agree: '' }).ok, true)
+  assert.equal(validateRenderValues(fields, { agree: 'yes' }).ok, false)
+})
+
+test('validateRenderValues: checkbox required 는 "true" 만 통과', () => {
+  const fields = [
+    normalizeFieldSpec(
+      makeField({
+        fieldKey: 'agree',
+        fieldType: 'checkbox',
+        required: true,
+        placements: [{ page: 0, x: 10, y: 10 }],
+      }),
+    ),
+  ]
+  assert.equal(validateRenderValues(fields, { agree: 'true' }).ok, true)
+  assert.equal(validateRenderValues(fields, { agree: 'false' }).ok, false)
+  assert.equal(validateRenderValues(fields, { agree: '' }).ok, false)
+})
+
+test('validateRenderValues: radio 는 options 중 하나여야 함', () => {
+  const fields = [
+    normalizeFieldSpec(
+      makeField({
+        fieldKey: 'gender',
+        fieldType: 'radio',
+        required: true,
+        options: ['M', 'F'],
+        placements: [
+          { page: 0, x: 1, y: 1, optionValue: 'M' },
+          { page: 0, x: 2, y: 1, optionValue: 'F' },
+        ],
+      }),
+    ),
+  ]
+  assert.equal(validateRenderValues(fields, { gender: 'M' }).ok, true)
+  assert.equal(validateRenderValues(fields, { gender: 'X' }).ok, false)
+  assert.equal(validateRenderValues(fields, { gender: '' }).ok, false)
 })

@@ -119,6 +119,59 @@ function wrapText(value, font, fontSize, maxWidth) {
 }
 
 /**
+ * 체크 마커(✓) 를 PDF 좌표계에 그린다.
+ *
+ * 왜 텍스트 "✓" 가 아닌 라인 드로잉인가:
+ *   - 번들 한글 폰트(NotoSansKR) 가 특정 체크 문자 글리프를 포함하지 않을 수 있다.
+ *   - 라인으로 그리면 폰트 의존성이 사라져 어떤 환경에서도 동일 렌더가 보장된다.
+ *   - 크기는 `fontSize` 를 기준 단위로 삼아 "글자 옆에 그리는 체크" 느낌을 유지한다.
+ *
+ * 좌표계:
+ *   - PDF 는 y-up. placement.x / placement.y 는 "마커의 좌하단" 으로 간주.
+ *   - width/height 가 주어지면 그 박스 중앙에 마커를 배치한다. 없으면 fontSize 정사각.
+ *
+ * @param {{ page: import('pdf-lib').PDFPage, placement: Placement }} ctx
+ */
+function stampCheckMark({ page, placement }) {
+  const size = placement.fontSize && placement.fontSize > 0 ? placement.fontSize : DEFAULT_FONT_SIZE
+  const boxW = placement.width && placement.width > 0 ? placement.width : size
+  const boxH = placement.height && placement.height > 0 ? placement.height : size
+  /* 마커 실제 크기는 박스 한 변의 85% 로 잡아 여백을 남긴다. */
+  const markSize = Math.min(boxW, boxH) * 0.85
+  const left = placement.x + (boxW - markSize) / 2
+  const bottom = placement.y + (boxH - markSize) / 2
+
+  /* 체크 마크 3 점: 좌측 중간 → 하단 1/3 지점 → 우측 상단. */
+  const p1 = { x: left + markSize * 0.1, y: bottom + markSize * 0.5 }
+  const p2 = { x: left + markSize * 0.4, y: bottom + markSize * 0.15 }
+  const p3 = { x: left + markSize * 0.9, y: bottom + markSize * 0.85 }
+  const thickness = Math.max(1, markSize * 0.12)
+  const color = rgb(0, 0, 0)
+  page.drawLine({ start: p1, end: p2, thickness, color })
+  page.drawLine({ start: p2, end: p3, thickness, color })
+}
+
+/**
+ * checkbox: "true" 일 때만 모든 placement 에 체크 마크.
+ * @param {StampContext} ctx
+ */
+function stampCheckbox({ page, placement, value }) {
+  if (value !== 'true') return
+  stampCheckMark({ page, placement })
+}
+
+/**
+ * radio: 선택된 옵션(value) 과 placement.optionValue 가 일치하는 것만 체크 마크.
+ * 이 함수는 placement 단위로 호출되므로, 본 함수 안에서만 매칭 여부를 본다.
+ * @param {StampContext} ctx
+ */
+function stampRadio({ page, placement, value }) {
+  if (!value) return
+  if (placement.optionValue !== value) return
+  stampCheckMark({ page, placement })
+}
+
+/**
  * 타입별 스탬핑 전략 분기. 새 타입 추가 시 이 맵만 늘리면 된다.
  *
  * @param {FieldSpec['fieldType']} fieldType
@@ -132,11 +185,33 @@ function dispatchStamp(fieldType) {
     case 'number':
     case 'date':
       return stampSingleLine
+    case 'checkbox':
+      return stampCheckbox
+    case 'radio':
+      return stampRadio
     default: {
       /* 스키마에서 이미 타입이 제한돼 있으므로 도달하면 개발자 오류. */
       throw new Error(`지원하지 않는 필드 타입: ${fieldType}`)
     }
   }
+}
+
+/**
+ * 필드별로 "빈 값이면 스탬프 생략" 이 가능한지 판정.
+ *
+ * - 텍스트 계열은 빈 문자열이면 그릴 게 없으므로 생략이 자연스럽다.
+ * - checkbox 는 "true" / "false" 두 상태 모두 의미가 있다. false 때도 dispatch 에 넘겨
+ *   개별 stamper 가 분기하게 한다("false 는 아무것도 안 그린다" — 같은 결과지만 책임이 명확).
+ * - radio 는 value 가 비어 있으면 선택이 없으므로 스탬프 생략이 맞다.
+ */
+function shouldSkipEmpty(fieldType, value) {
+  if (fieldType === 'checkbox') return false
+  return !value
+}
+
+/** 폰트를 필요로 하는 타입인지. checkbox/radio 는 라인 드로잉만 하므로 폰트가 필요 없다. */
+function needsFont(fieldType) {
+  return fieldType === 'text' || fieldType === 'number' || fieldType === 'date' || fieldType === 'textarea'
 }
 
 /**
@@ -147,16 +222,27 @@ function dispatchStamp(fieldType) {
  */
 export async function stampPdf(templatePdfBytes, fields, values) {
   const pdfDoc = await PDFDocument.load(templatePdfBytes)
-  const font = await embedKoreanFont(pdfDoc)
   const pages = pdfDoc.getPages()
   if (pages.length === 0) {
     throw new Error('템플릿 PDF 에 페이지가 없습니다.')
   }
 
+  /*
+   * 한글 폰트 임베드는 실제 텍스트 스탬프가 있을 때만 수행한다.
+   * 이유:
+   *   1) 체크박스/라디오만 있는 문서에서 글리프 0개 subset 을 만들려다 fontkit 이 터진다.
+   *   2) 불필요한 폰트 임베드는 결과 파일 용량을 수 MB 키운다.
+   */
+  const hasTextStamp = fields.some((f) => {
+    if (!needsFont(f.fieldType)) return false
+    const v = values[f.fieldKey] ?? ''
+    return !shouldSkipEmpty(f.fieldType, v)
+  })
+  const font = hasTextStamp ? await embedKoreanFont(pdfDoc) : null
+
   for (const field of fields) {
     const value = values[field.fieldKey] ?? ''
-    if (!value) {
-      /* 비필수 필드는 빈 값 허용 → 스탬프 생략. */
+    if (shouldSkipEmpty(field.fieldType, value)) {
       continue
     }
     const stamp = dispatchStamp(field.fieldType)

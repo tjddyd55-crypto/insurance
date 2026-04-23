@@ -153,7 +153,7 @@ export async function deleteTemplate(pool, id) {
 export async function listFields(pool, templateId) {
   const { rows } = await pool.query(
     `SELECT id, template_id, field_key, label, field_type, required, order_index,
-            customer_mapping, placements, created_at, updated_at
+            customer_mapping, options, placements, created_at, updated_at
        FROM pdf_template_fields
        WHERE template_id = $1
        ORDER BY order_index ASC, id ASC`,
@@ -176,11 +176,15 @@ export async function replaceTemplateFields(pool, templateId, fields) {
     await client.query(`DELETE FROM pdf_template_fields WHERE template_id = $1`, [templateId])
     for (let i = 0; i < fields.length; i += 1) {
       const f = fields[i]
+      /* options 는 radio 에서만 의미가 있다. 다른 타입은 NULL 로 저장해
+         "type 이 radio 가 아닌데 options 가 남아 있는" 비일관 상태를 원천 차단한다. */
+      const optionsJson =
+        f.fieldType === 'radio' && Array.isArray(f.options) ? JSON.stringify(f.options) : null
       await client.query(
         `INSERT INTO pdf_template_fields
            (template_id, field_key, label, field_type, required, order_index,
-            customer_mapping, placements)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, CAST($8 AS jsonb))`,
+            customer_mapping, options, placements)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, CAST($8 AS jsonb), CAST($9 AS jsonb))`,
         [
           templateId,
           f.fieldKey,
@@ -189,6 +193,7 @@ export async function replaceTemplateFields(pool, templateId, fields) {
           f.required,
           f.orderIndex ?? i,
           f.customerMapping,
+          optionsJson,
           JSON.stringify(f.placements ?? []),
         ],
       )

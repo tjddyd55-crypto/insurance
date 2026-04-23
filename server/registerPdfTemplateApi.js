@@ -118,6 +118,7 @@ function fieldRowToDto(row) {
     required: row.required,
     orderIndex: row.order_index,
     customerMapping: row.customer_mapping,
+    options: Array.isArray(row.options) ? row.options : null,
     placements: Array.isArray(row.placements) ? row.placements : [],
   }
 }
@@ -505,6 +506,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
             required: row.required,
             orderIndex: row.order_index,
             customerMapping: row.customer_mapping,
+            options: Array.isArray(row.options) ? row.options : null,
             placements: Array.isArray(row.placements) ? row.placements : [],
           },
           row.order_index,

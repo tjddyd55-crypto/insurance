@@ -11,17 +11,26 @@
  *   - DB/HTTP/pdf-lib 에 의존하지 않는다. 다른 레이어가 이 모듈에 맞춘다.
  *
  * 확장 포인트:
- *   - Phase 2 에서 radio/checkbox/select 를 추가하려면 ALLOWED_FIELD_TYPES 에 값 추가
- *     + placement 에 `optionValue` 파싱 라인 한 줄만 추가하면 된다.
- *   - DB CHECK 제약 도 같이 확장해야 한다(initDb.js 의 ensurePdfTemplateSchema).
+ *   - 새 필드 타입을 추가하려면 ALLOWED_FIELD_TYPES 와 dispatchStamp(렌더러) 양쪽만
+ *     수정한다. DB CHECK 제약(initDb.js ensurePdfTemplateSchema) 도 같이 확장한다.
+ *   - radio 는 필드 전체가 "옵션 집합" 을 갖고, 각 placement 는 자신이 대표하는
+ *     옵션 값(`optionValue`) 을 갖는다. 선택된 값과 일치하는 placement 만 렌더된다.
  */
 
-/** Phase 1 허용 타입. 추가 시 이 배열만 늘리면 모든 검증/스키마가 함께 확장된다. */
+/**
+ * Phase 2 포함 허용 타입.
+ *
+ * - text/number/date/textarea: 단일 값 텍스트 스탬프
+ * - checkbox: boolean("true"/"false") — true 일 때 placement 위치에 체크 마크
+ * - radio: 여러 옵션 중 하나. placement 별 optionValue 와 매칭된 것만 체크 마크
+ */
 export const ALLOWED_FIELD_TYPES = Object.freeze([
   'text',
   'number',
   'date',
   'textarea',
+  'checkbox',
+  'radio',
 ])
 
 /** 관리자 폼에서 받을 수 있는 고객 데이터 자동 매핑 키(Phase 2 에서 실제 주입). */
@@ -35,13 +44,16 @@ export const ALLOWED_CUSTOMER_MAPPINGS = Object.freeze([
 /** 필드 key 네이밍 규칙: 라틴 소문자/숫자/언더스코어. 한글·공백 금지 — PDF 내부 검색/스크립트 안정성. */
 const FIELD_KEY_REGEX = /^[a-z][a-z0-9_]{0,63}$/
 
-/** 텍스트 정렬 — PDF 출력 시 좌·중·우. Phase 1 은 left 기본. */
+/** 텍스트 정렬 — PDF 출력 시 좌·중·우. */
 const ALLOWED_ALIGNS = Object.freeze(['left', 'center', 'right'])
 
 /** 최대 한 문서의 필드/배치 상한. 악성 입력 방지. */
 const MAX_FIELDS_PER_TEMPLATE = 500
 const MAX_PLACEMENTS_PER_FIELD = 50
 const MAX_PAGE_INDEX = 999
+/** radio 옵션 상한. UX 상으로도 20개가 넘어가면 다른 UI 로 재설계해야 한다. */
+const MAX_OPTIONS_PER_FIELD = 50
+const MAX_OPTION_LENGTH = 120
 
 /**
  * @typedef {{
@@ -52,6 +64,7 @@ const MAX_PAGE_INDEX = 999
  *   height: number | null,
  *   fontSize: number | null,
  *   align: 'left' | 'center' | 'right',
+ *   optionValue: string | null,
  * }} Placement
  */
 
@@ -63,6 +76,7 @@ const MAX_PAGE_INDEX = 999
  *   required: boolean,
  *   orderIndex: number,
  *   customerMapping: typeof ALLOWED_CUSTOMER_MAPPINGS[number] | null,
+ *   options: string[] | null,
  *   placements: Placement[],
  * }} FieldSpec
  */
@@ -77,6 +91,22 @@ function clampNonNegativeNumber(value, fallback) {
   const n = toFiniteNumberOrNull(value)
   if (n == null || n < 0) return fallback
   return n
+}
+
+/**
+ * placement 의 `optionValue` 정규화.
+ * 숫자가 와도 문자열로 찍어 비교(선택값과 JSON 동등성) 가 단순해진다.
+ * 비어 있으면 null — radio 가 아닌 타입이거나 "기본 체크" 전용 placement 를 의미한다.
+ */
+function normalizeOptionValue(raw) {
+  if (raw == null) return null
+  const str = typeof raw === 'string' ? raw : String(raw)
+  const trimmed = str.trim()
+  if (!trimmed) return null
+  if (trimmed.length > MAX_OPTION_LENGTH) {
+    throw new Error(`optionValue 가 상한(${MAX_OPTION_LENGTH}자)을 초과합니다.`)
+  }
+  return trimmed
 }
 
 function normalizePlacement(raw) {
@@ -110,7 +140,38 @@ function normalizePlacement(raw) {
     height: height != null ? Math.round(height * 100) / 100 : null,
     fontSize: fontSize != null ? Math.round(fontSize) : null,
     align,
+    optionValue: normalizeOptionValue(src.optionValue),
   }
+}
+
+/**
+ * radio 의 options 배열 정규화.
+ * - 중복 제거(앞 값 우선)
+ * - 공백 trim
+ * - 빈 문자열 제거
+ * - 상한 초과 시 에러
+ *
+ * @param {unknown} raw
+ * @returns {string[]}
+ */
+function normalizeOptions(raw) {
+  if (raw == null) return []
+  if (!Array.isArray(raw)) {
+    throw new Error('options 는 배열이어야 합니다.')
+  }
+  if (raw.length > MAX_OPTIONS_PER_FIELD) {
+    throw new Error(`options 수가 상한(${MAX_OPTIONS_PER_FIELD})을 초과했습니다.`)
+  }
+  const out = []
+  const seen = new Set()
+  for (const item of raw) {
+    const v = normalizeOptionValue(item)
+    if (v == null) continue
+    if (seen.has(v)) continue
+    seen.add(v)
+    out.push(v)
+  }
+  return out
 }
 
 /**
@@ -153,11 +214,37 @@ export function normalizeFieldSpec(raw, fallbackOrder = 0) {
       ? /** @type {FieldSpec['customerMapping']} */ (mappingRaw)
       : null
 
+  /* radio 만 options 를 저장한다. 다른 타입에서 온 options 는 무시해
+     DB 에 "의미 없는 옵션 잔재" 가 남지 않도록 한다. */
+  const options = fieldTypeRaw === 'radio' ? normalizeOptions(src.options) : null
+  if (fieldTypeRaw === 'radio' && options.length === 0) {
+    throw new Error(`radio 필드 "${fieldKey}" 는 최소 1개 이상의 옵션이 필요합니다.`)
+  }
+
   const placementsRaw = Array.isArray(src.placements) ? src.placements : []
   if (placementsRaw.length > MAX_PLACEMENTS_PER_FIELD) {
     throw new Error(`필드 ${fieldKey} 의 placement 수가 상한(${MAX_PLACEMENTS_PER_FIELD})을 초과했습니다.`)
   }
   const placements = placementsRaw.map((p) => normalizePlacement(p))
+
+  /* radio placement 는 반드시 options 에 등록된 값과 매칭되어야 한다.
+     실수로 optionValue 를 비워둔 placement 는 "어떤 선택지에도 연결되지 않는 스탬프" 가
+     되어 렌더 시 아무 효과가 없으므로 여기서 막는다. */
+  if (fieldTypeRaw === 'radio') {
+    const allowed = new Set(options)
+    for (const p of placements) {
+      if (p.optionValue == null) {
+        throw new Error(
+          `radio 필드 "${fieldKey}" 의 placement 에 optionValue 가 없습니다. 옵션 중 하나를 지정하세요.`,
+        )
+      }
+      if (!allowed.has(p.optionValue)) {
+        throw new Error(
+          `radio 필드 "${fieldKey}" 의 placement.optionValue "${p.optionValue}" 가 옵션 목록에 없습니다.`,
+        )
+      }
+    }
+  }
 
   return {
     fieldKey,
@@ -166,6 +253,7 @@ export function normalizeFieldSpec(raw, fallbackOrder = 0) {
     required,
     orderIndex,
     customerMapping,
+    options,
     placements,
   }
 }
@@ -197,6 +285,59 @@ export function normalizeFieldSpecList(raw) {
 }
 
 /**
+ * 타입별 값 검증 전략.
+ * switch 분기를 한 곳에 모아 "값 검증" 과 "값 정규화" 를 같이 처리한다.
+ * 새 타입이 추가되면 이 함수만 수정한다.
+ *
+ * @param {FieldSpec} field
+ * @param {string} rawStr 이미 trim 된 문자열
+ * @returns {{ ok: true, value: string } | { ok: false, error: string }}
+ */
+function validateOneValue(field, rawStr) {
+  switch (field.fieldType) {
+    case 'number':
+      if (rawStr !== '' && Number.isNaN(Number(rawStr))) {
+        return { ok: false, error: `"${field.label}" 은(는) 숫자여야 합니다.` }
+      }
+      return { ok: true, value: rawStr }
+    case 'date':
+      if (rawStr !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(rawStr)) {
+        return { ok: false, error: `"${field.label}" 은(는) YYYY-MM-DD 형식이어야 합니다.` }
+      }
+      return { ok: true, value: rawStr }
+    case 'checkbox': {
+      /* 폼에서 체크박스는 "true"/"false" 문자열로 온다. 빈 값("") 은 false 로 취급. */
+      if (rawStr === '' || rawStr === 'false') return { ok: true, value: 'false' }
+      if (rawStr === 'true') return { ok: true, value: 'true' }
+      return { ok: false, error: `"${field.label}" 값이 올바르지 않습니다.` }
+    }
+    case 'radio': {
+      if (rawStr === '') return { ok: true, value: '' }
+      const allowed = new Set(field.options ?? [])
+      if (!allowed.has(rawStr)) {
+        return { ok: false, error: `"${field.label}" 의 선택값이 유효하지 않습니다.` }
+      }
+      return { ok: true, value: rawStr }
+    }
+    case 'text':
+    case 'textarea':
+    default:
+      return { ok: true, value: rawStr }
+  }
+}
+
+/**
+ * required 검증은 타입별로 달라진다.
+ * - text/number/date/textarea/radio: 비어 있으면 위반
+ * - checkbox: "true" 여야 통과("필수 동의" 같은 의미)
+ */
+function isRequiredViolated(field, value) {
+  if (!field.required) return false
+  if (field.fieldType === 'checkbox') return value !== 'true'
+  return !value
+}
+
+/**
  * 사용자 입력값 검증: 필드 정의 + values → 렌더링에 쓸 수 있는 문자열 map 으로 변환.
  *
  * @param {FieldSpec[]} fields
@@ -208,16 +349,12 @@ export function validateRenderValues(fields, values) {
   for (const f of fields) {
     const raw = values?.[f.fieldKey]
     const str = raw == null ? '' : String(raw).trim()
-    if (f.required && !str) {
+    const r = validateOneValue(f, str)
+    if (!r.ok) return r
+    if (isRequiredViolated(f, r.value)) {
       return { ok: false, error: `"${f.label}" 항목은 필수입니다.` }
     }
-    if (f.fieldType === 'number' && str !== '' && Number.isNaN(Number(str))) {
-      return { ok: false, error: `"${f.label}" 은(는) 숫자여야 합니다.` }
-    }
-    if (f.fieldType === 'date' && str !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(str)) {
-      return { ok: false, error: `"${f.label}" 은(는) YYYY-MM-DD 형식이어야 합니다.` }
-    }
-    normalized[f.fieldKey] = str
+    normalized[f.fieldKey] = r.value
   }
   return { ok: true, normalized }
 }

@@ -362,6 +362,39 @@
   cursor: not-allowed;
 }
 
+/* ─── 체크박스 / 라디오 (사용자 폼) ──────────────────────────────── */
+
+.pdf-engine-form__checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pdf-engine-form__checkbox-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: #2563eb;
+}
+
+.pdf-engine-form__radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.pdf-engine-form__radio-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.pdf-engine-form__radio-item input[type='radio'] {
+  accent-color: #2563eb;
+}
+
 /* 편집 페이지의 헤더(제목 + 메타) 영역. 목록 제목과 일관된 간격을 유지한다. */
 .pdf-engine-page__header {
   display: flex;

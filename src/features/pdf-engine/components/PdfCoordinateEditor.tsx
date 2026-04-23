@@ -86,6 +86,12 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
    * 필드가 바뀌면 자동으로 리셋된다. 여러 placement 가 있으면 마지막에 추가된 것을 기본 선택.
    */
   const [selectedPlacementIndex, setSelectedPlacementIndex] = useState<number | null>(null)
+  /**
+   * radio 필드에서 "지금 캔버스에 추가할 placement 가 대표할 옵션".
+   * 새 placement 가 생길 때 이 값이 optionValue 로 박힌다.
+   * 필드가 바뀌면 해당 필드의 첫 옵션으로 자동 동기화된다.
+   */
+  const [activeOptionValue, setActiveOptionValue] = useState<string | null>(null)
   const [draft, setDraft] = useState<DraftField>(EMPTY_DRAFT)
   const [pageIndex, setPageIndex] = useState(0)
   const [numPages, setNumPages] = useState(pageCount > 0 ? pageCount : 1)
@@ -105,6 +111,9 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
       for (let i = 0; i < f.placements.length; i += 1) {
         const p = f.placements[i]
         const isActivePlacement = isActiveField && i === selectedPlacementIndex
+        const baseLabel = f.label || `필드 ${f.orderIndex + 1}`
+        /* radio 는 "어느 옵션" 인지 라벨에 같이 표기해야 관리자가 화면에서 즉시 구분할 수 있다. */
+        const composedLabel = p.optionValue ? `${baseLabel} · ${p.optionValue}` : baseLabel
         out.push({
           id: `${f.fieldKey}-${i}`,
           pageIndex: p.page,
@@ -112,7 +121,7 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
           y: p.y,
           width: p.width,
           height: p.height,
-          label: f.label || `필드 ${f.orderIndex + 1}`,
+          label: composedLabel,
           selected: isActiveField && (isActivePlacement || f.placements.length === 1),
         })
       }
@@ -126,6 +135,9 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
     /* 내부 식별자는 라벨에서 자동 파생. 같은 템플릿 내 충돌은 genKeyFromLabel 이
        suffix 로 회피하므로 사용자는 식별자를 의식할 필요가 없다. */
     const key = genKeyFromLabel(labelTrim, existingKeys)
+    /* radio 로 바로 만들면 기본 옵션 2개를 시드해 관리자가 빈 상태로 드래그했을 때
+       "옵션이 비어 있다" 에러를 만나지 않도록 한다. */
+    const options = draft.fieldType === 'radio' ? ['옵션1', '옵션2'] : null
     const next: PdfFieldSpec = {
       fieldKey: key,
       label: labelTrim,
@@ -133,11 +145,13 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
       required: draft.required,
       orderIndex: fields.length,
       customerMapping: null,
+      options,
       placements: [],
     }
     onChange([...fields, next])
     setSelectedKey(key)
     setSelectedPlacementIndex(null)
+    setActiveOptionValue(options?.[0] ?? null)
     setDraft(EMPTY_DRAFT)
   }
 
@@ -152,7 +166,47 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
   }
 
   const handlePatchField = (key: string, patch: Partial<PdfFieldSpec>) => {
-    onChange(fields.map((f) => (f.fieldKey === key ? { ...f, ...patch } : f)))
+    onChange(
+      fields.map((f) => {
+        if (f.fieldKey !== key) return f
+        const next: PdfFieldSpec = { ...f, ...patch }
+        /* 타입이 radio 가 아닌 값으로 바뀌면 options 와 placement.optionValue 를 제거한다.
+           서버 정규화에서 걸러지지만, UI 상태도 일관되게 유지해야 편집 중 혼란이 없다. */
+        if (patch.fieldType && patch.fieldType !== 'radio') {
+          next.options = null
+          next.placements = next.placements.map((p) => ({ ...p, optionValue: null }))
+        }
+        /* radio 로 새로 전환되는 경우, 옵션이 아직 없으면 기본 옵션 2개를 시드. */
+        if (patch.fieldType === 'radio' && (!next.options || next.options.length === 0)) {
+          next.options = ['옵션1', '옵션2']
+        }
+        return next
+      }),
+    )
+  }
+
+  /**
+   * radio 전용: options 배열을 교체한다.
+   * 옵션이 제거되면 그 옵션을 대표하던 placement 의 optionValue 를 남은 첫 옵션으로 이주시킨다.
+   * 이 "이주" 정책이 없으면 저장 시점에 서버가 전체 필드를 거부하므로 UX 가 깨진다.
+   */
+  const handlePatchFieldOptions = (key: string, nextOptions: string[]) => {
+    onChange(
+      fields.map((f) => {
+        if (f.fieldKey !== key) return f
+        const allowed = new Set(nextOptions)
+        const fallback = nextOptions[0] ?? null
+        const placements = f.placements.map((p) => {
+          if (p.optionValue && allowed.has(p.optionValue)) return p
+          return { ...p, optionValue: fallback }
+        })
+        return { ...f, options: nextOptions, placements }
+      }),
+    )
+    /* 활성 옵션이 제거됐다면 첫 옵션으로 재정렬. */
+    if (!activeOptionValue || !nextOptions.includes(activeOptionValue)) {
+      setActiveOptionValue(nextOptions[0] ?? null)
+    }
   }
 
   const handleRemovePlacement = (key: string, index: number) => {
@@ -202,6 +256,18 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
         window.alert('먼저 왼쪽에서 필드를 선택한 뒤 PDF 위를 드래그하세요.')
         return
       }
+      const target = fields.find((f) => f.fieldKey === selectedKey) ?? null
+      /* radio 는 "어느 옵션의 체크박스를 그릴지" 선택이 전제. 선택된 옵션이 없으면
+         첫 옵션으로 폴백하고, 그마저 없으면 placement 생성을 거부해 오염 데이터 방지. */
+      let optionValue: string | null = null
+      if (target?.fieldType === 'radio') {
+        const opts = target.options ?? []
+        if (opts.length === 0) {
+          window.alert('라디오 필드에 옵션이 없습니다. 먼저 옵션을 1개 이상 추가해 주세요.')
+          return
+        }
+        optionValue = activeOptionValue && opts.includes(activeOptionValue) ? activeOptionValue : opts[0]
+      }
       /* 드래그(박스) 결과가 오면 그 치수를, 단일 클릭이면 width/height = null 로 저장.
          서버는 null 일 때 단일 라인 렌더로 폴백하므로 양쪽 모두 안전. */
       const placement: PdfPlacement = {
@@ -212,6 +278,7 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
         height: pick.height != null ? pick.height : null,
         fontSize: null,
         align: 'left',
+        optionValue,
       }
       let nextIndex = 0
       const nextFields = fields.map((f) => {
@@ -223,7 +290,7 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
       /* 방금 추가한 placement 를 자동 선택해, 관리자가 곧바로 메타 편집을 이어갈 수 있게 한다. */
       setSelectedPlacementIndex(nextIndex)
     },
-    [fields, onChange, selectedKey],
+    [fields, onChange, selectedKey, activeOptionValue],
   )
 
   const handleDocumentReady = useCallback((doc: PDFDocumentProxy) => {
@@ -235,6 +302,27 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
     selectedField && selectedPlacementIndex != null
       ? selectedField.placements[selectedPlacementIndex] ?? null
       : null
+
+  /* 선택된 필드/옵션 정합성 동기화.
+     "선택 중 필드가 radio 이고, activeOptionValue 가 그 필드의 options 에 없으면"
+     첫 옵션으로 재설정한다. 이 동기화가 없으면 필드 전환 후 엉뚱한 옵션 placement 가
+     생성될 수 있다. */
+  useEffect(() => {
+    if (!selectedField || selectedField.fieldType !== 'radio') {
+      if (activeOptionValue != null) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setActiveOptionValue(null)
+      }
+      return
+    }
+    const opts = selectedField.options ?? []
+    if (activeOptionValue == null || !opts.includes(activeOptionValue)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setActiveOptionValue(opts[0] ?? null)
+    }
+    /* selectedKey 가 바뀔 때만 재평가. options 가 바뀌면 handlePatchFieldOptions 에서 직접 맞춘다. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedKey])
 
   /** 박스 모드로 드래그 픽을 받는다. 이는 필드가 선택되어 있을 때만 활성화. */
   const canvasClickEnabled = Boolean(selectedKey)
@@ -378,6 +466,15 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
               />
             </label>
 
+            {selectedField.fieldType === 'radio' ? (
+              <RadioOptionsEditor
+                options={selectedField.options ?? []}
+                activeOption={activeOptionValue}
+                onActiveChange={setActiveOptionValue}
+                onOptionsChange={(next) => handlePatchFieldOptions(selectedField.fieldKey, next)}
+              />
+            ) : null}
+
             <h4 className="pdf-engine-editor__panel-title" style={{ marginTop: 8, fontSize: 13 }}>
               좌표 목록
             </h4>
@@ -405,6 +502,7 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
                             ? ` · ${p.width.toFixed(0)}×${p.height.toFixed(0)}pt`
                             : ' · 점'}
                           {p.fontSize ? ` · ${p.fontSize}pt` : ''}
+                          {p.optionValue ? ` · "${p.optionValue}"` : ''}
                         </span>
                         <button
                           type="button"
@@ -546,6 +644,121 @@ function PlacementMetaEditor({ placement, onPatch }: PlacementMetaEditorProps) {
       <p className="pdf-engine-editor__hint" style={{ margin: '4px 0 0' }}>
         너비가 지정되면 서버가 박스 안에서 정렬·줄바꿈을 처리합니다.
       </p>
+    </div>
+  )
+}
+
+/**
+ * radio 필드의 옵션 목록 편집 + "현재 편집 중 옵션" 선택 UI.
+ *
+ * 설계 의도:
+ *   - 옵션 입력은 별도 서브컴포넌트로 분리해 radio 가 아닌 타입에서는 import 자체가 동작하지 않는 코드가
+ *     실행되지 않도록 한다(관심사 분리).
+ *   - "활성 옵션(activeOption)" 개념은 "새 placement 가 대표할 옵션" 을 의미한다. 편집 흐름:
+ *     옵션을 하나 고르고 → PDF 위를 드래그하면 그 옵션의 체크 박스가 생긴다. 각 옵션마다
+ *     이 동작을 반복해 선택지 개수만큼 placement 를 만든다.
+ */
+interface RadioOptionsEditorProps {
+  options: string[]
+  activeOption: string | null
+  onActiveChange: (next: string | null) => void
+  onOptionsChange: (next: string[]) => void
+}
+
+function RadioOptionsEditor({
+  options,
+  activeOption,
+  onActiveChange,
+  onOptionsChange,
+}: RadioOptionsEditorProps) {
+  const [draft, setDraft] = useState('')
+
+  const handleAdd = () => {
+    const v = draft.trim()
+    if (!v) return
+    if (options.includes(v)) {
+      setDraft('')
+      return
+    }
+    onOptionsChange([...options, v])
+    onActiveChange(v)
+    setDraft('')
+  }
+
+  const handleRemove = (target: string) => {
+    const next = options.filter((o) => o !== target)
+    onOptionsChange(next)
+  }
+
+  const handleRename = (index: number, nextValue: string) => {
+    const trimmed = nextValue.trim()
+    /* 중복 값 입력은 저장하지 않는다 — 같은 옵션 2개는 업무상 의미가 없다. */
+    if (!trimmed || options.some((o, i) => i !== index && o === trimmed)) return
+    const next = options.map((o, i) => (i === index ? trimmed : o))
+    /* 현재 활성 옵션이 이름변경 대상이라면 활성 값도 갱신해 placement 생성 시 일관성 유지. */
+    if (activeOption === options[index]) onActiveChange(trimmed)
+    onOptionsChange(next)
+  }
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <h4 className="pdf-engine-editor__panel-title" style={{ marginTop: 8, fontSize: 13 }}>
+        라디오 옵션 ({options.length})
+      </h4>
+      <p className="pdf-engine-editor__hint" style={{ margin: '0 0 6px' }}>
+        옵션을 선택하고 PDF 위를 드래그하면, 해당 옵션 전용 체크 박스가 추가됩니다.
+      </p>
+      {options.length === 0 ? (
+        <p className="pdf-engine-editor__hint">아직 옵션이 없습니다.</p>
+      ) : (
+        <ul className="pdf-engine-editor__fields">
+          {options.map((opt, i) => (
+            <li
+              key={`${opt}-${i}`}
+              className={
+                'pdf-engine-editor__field-item' +
+                (opt === activeOption ? ' pdf-engine-editor__field-item--active' : '')
+              }
+              onClick={() => onActiveChange(opt)}
+            >
+              <div className="pdf-engine-editor__field-item-row">
+                <FormInput
+                  type="text"
+                  value={opt}
+                  onChange={(e) => handleRename(i, e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <button
+                  type="button"
+                  className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleRemove(opt)
+                  }}
+                >
+                  삭제
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="pdf-engine-editor__row" style={{ marginTop: 4 }}>
+        <FormInput
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="새 옵션 이름"
+        />
+        <button
+          type="button"
+          className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
+          onClick={handleAdd}
+          disabled={!draft.trim()}
+        >
+          옵션 추가
+        </button>
+      </div>
     </div>
   )
 }

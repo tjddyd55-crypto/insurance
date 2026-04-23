@@ -3,11 +3,17 @@
  *
  * 설계 의도:
  *   - `PdfFieldSpec` 배열만 받으면 입력 UI 를 그려낸다 — 문서별 UI 코드가 늘어나지 않는다.
- *   - 타입별 렌더는 `renderByType` 한 곳에서만 분기. Phase 2 에서 select/radio 를 추가할 때
- *     DB CHECK, 서버 스키마, 프론트 타입과 함께 이 switch 만 확장한다.
+ *   - 타입별 렌더는 `renderByType` 한 곳에서만 분기. 새 타입이 생기면 DB CHECK, 서버 스키마,
+ *     프론트 타입과 함께 이 switch 만 확장한다.
  *   - 검증은 서버에서 1차로 수행하므로, 프론트는 UX 용 가벼운 필수값 체크만 담당.
  *
  * 이 컴포넌트는 발급(HTTP) 을 직접 하지 않는다. 상위 페이지가 `onSubmit(values)` 에서 수행한다.
+ *
+ * 값 컨벤션(Record<string, string>):
+ *   - text/number/date/textarea: 사용자가 입력한 문자열
+ *   - checkbox: "true" | "false" (빈 문자열은 "false" 로 취급)
+ *   - radio: 선택된 옵션 문자열. 미선택은 "" (빈 문자열)
+ *   이 컨벤션은 서버의 validateRenderValues 와 짝을 이룬다 — 바뀌면 양쪽 동시 수정.
  */
 
 import { useMemo, useState } from 'react'
@@ -25,7 +31,10 @@ interface Props {
 
 function initialValues(fields: PdfFieldSpec[]): Record<string, string> {
   const out: Record<string, string> = {}
-  for (const f of fields) out[f.fieldKey] = ''
+  for (const f of fields) {
+    /* checkbox 는 "false" 가 기본값이어야 서버와 컨벤션이 일치한다. */
+    out[f.fieldKey] = f.fieldType === 'checkbox' ? 'false' : ''
+  }
   return out
 }
 
@@ -39,23 +48,30 @@ function renderByType(
   value: string,
   setValue: (v: string) => void,
 ): ReactElement {
-  const common = {
-    id: `pdf-field-${field.fieldKey}`,
-    name: field.fieldKey,
-    required: field.required,
-    value,
-    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-      setValue(e.target.value),
-  } as const
+  const inputId = `pdf-field-${field.fieldKey}`
 
   switch (field.fieldType) {
     case 'textarea':
-      return <textarea {...common} className="pdf-engine-form__textarea" rows={4} />
+      return (
+        <textarea
+          id={inputId}
+          name={field.fieldKey}
+          required={field.required}
+          value={value}
+          onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setValue(e.target.value)}
+          className="pdf-engine-form__textarea"
+          rows={4}
+        />
+      )
     case 'number':
       /* 모바일 키패드를 숫자로 유도(inputmode). 형식 검증은 서버에서 엄격하게 한다. */
       return (
         <input
-          {...common}
+          id={inputId}
+          name={field.fieldKey}
+          required={field.required}
+          value={value}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
           type="text"
           inputMode="decimal"
           pattern="[-0-9.,]*"
@@ -64,11 +80,89 @@ function renderByType(
       )
     case 'date':
       /* HTML date 는 브라우저마다 포맷이 다르지만, 서버는 "YYYY-MM-DD" 로 정규화한다. */
-      return <input {...common} type="date" className="pdf-engine-form__input" />
+      return (
+        <input
+          id={inputId}
+          name={field.fieldKey}
+          required={field.required}
+          value={value}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
+          type="date"
+          className="pdf-engine-form__input"
+        />
+      )
+    case 'checkbox': {
+      /* 단일 체크박스. 값은 문자열 "true"/"false" 로 표현(서버 컨벤션). */
+      const checked = value === 'true'
+      return (
+        <div className="pdf-engine-form__checkbox-row">
+          <input
+            id={inputId}
+            name={field.fieldKey}
+            type="checkbox"
+            checked={checked}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setValue(e.target.checked ? 'true' : 'false')
+            }
+          />
+          <span className="pdf-engine-form__checkbox-caption">
+            {field.required ? '동의(필수)' : '동의'}
+          </span>
+        </div>
+      )
+    }
+    case 'radio': {
+      /* 옵션이 없으면(데이터 결함) 안내 문구만 표시한다 — 서버 정규화에서 막히므로 정상 운영 중에는 오지 않는다. */
+      const options = field.options ?? []
+      if (options.length === 0) {
+        return (
+          <p className="pdf-engine-page__hint">
+            옵션이 아직 설정되지 않았습니다. 관리자에게 문의해 주세요.
+          </p>
+        )
+      }
+      return (
+        <div className="pdf-engine-form__radio-group" role="radiogroup" aria-labelledby={`${inputId}-label`}>
+          {options.map((opt, idx) => {
+            const id = `${inputId}-${idx}`
+            return (
+              <label key={id} htmlFor={id} className="pdf-engine-form__radio-item">
+                <input
+                  id={id}
+                  type="radio"
+                  name={field.fieldKey}
+                  value={opt}
+                  checked={value === opt}
+                  onChange={() => setValue(opt)}
+                />
+                <span>{opt}</span>
+              </label>
+            )
+          })}
+        </div>
+      )
+    }
     case 'text':
     default:
-      return <input {...common} type="text" className="pdf-engine-form__input" />
+      return (
+        <input
+          id={inputId}
+          name={field.fieldKey}
+          required={field.required}
+          value={value}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
+          type="text"
+          className="pdf-engine-form__input"
+        />
+      )
   }
+}
+
+/** 타입별 필수값 위반 여부. 체크박스는 "true" 여야만 통과(필수 동의). */
+function isRequiredViolated(field: PdfFieldSpec, value: string): boolean {
+  if (!field.required) return false
+  if (field.fieldType === 'checkbox') return value !== 'true'
+  return isEmpty(value)
 }
 
 export function PdfTemplateForm({
@@ -95,7 +189,7 @@ export function PdfTemplateForm({
     setError(null)
 
     for (const f of sortedFields) {
-      if (f.required && isEmpty(values[f.fieldKey] ?? '')) {
+      if (isRequiredViolated(f, values[f.fieldKey] ?? '')) {
         setError(`"${f.label}" 은(는) 필수 입력입니다.`)
         return
       }
@@ -124,6 +218,7 @@ export function PdfTemplateForm({
       {sortedFields.map((field) => (
         <div key={field.fieldKey} className="pdf-engine-form__field">
           <label
+            id={`pdf-field-${field.fieldKey}-label`}
             htmlFor={`pdf-field-${field.fieldKey}`}
             className={
               'pdf-engine-form__label' +
@@ -149,5 +244,5 @@ export function PdfTemplateForm({
   )
 }
 
-/* 타입 명세 재사용을 위해 export — 향후 Phase 2 에서 이 타입만 확장하면 된다. */
+/* 타입 명세 재사용을 위해 export — 향후 확장 시 이 타입만 확장하면 된다. */
 export type { PdfFieldType }
