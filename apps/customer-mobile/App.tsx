@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ElementRef } from 'react'
 import { Alert, BackHandler, Linking, Platform, StyleSheet, View } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
@@ -6,6 +6,7 @@ import * as Updates from 'expo-updates'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView, type WebViewNavigation } from 'react-native-webview'
 import { AppLayout } from './AppLayout'
+import { ExpoUpdateOverlay, type ExpoUpdatePhase } from './components/ExpoUpdateOverlay'
 
 const CUSTOMER_HOME_URL = 'https://insurance-production-7bd8.up.railway.app/customer-app'
 const SERVICE_HOST = new URL(CUSTOMER_HOME_URL).hostname
@@ -108,21 +109,34 @@ function AppContent() {
 }
 
 export default function App() {
+  /*
+   * OTA 단계 상태.
+   * on-launch 에서 체크 → 다운로드 → 리로드까지 자동으로 진행되며,
+   * ExpoUpdateOverlay 가 downloading/reloading 구간에서만 풀스크린 안내를 보여 준다.
+   * 사용자가 "왜 갑자기 앱이 재시작됐는지" 모르는 현상을 막는 것이 핵심 목적.
+   */
+  const [updatePhase, setUpdatePhase] = useState<ExpoUpdatePhase>('idle')
+
   useEffect(() => {
     let mounted = true
     void (async () => {
       try {
+        if (!Updates.isEnabled) return
+        setUpdatePhase('checking')
         const update = await Updates.checkForUpdateAsync()
-        if (!mounted || !update.isAvailable) {
+        if (!mounted) return
+        if (!update.isAvailable) {
+          setUpdatePhase('idle')
           return
         }
+        setUpdatePhase('downloading')
         await Updates.fetchUpdateAsync()
-        if (!mounted) {
-          return
-        }
+        if (!mounted) return
+        setUpdatePhase('reloading')
         await Updates.reloadAsync()
       } catch {
-        // OTA 확인 실패 시 앱 사용은 계속 진행한다.
+        /* OTA 확인 실패 시 앱 사용은 계속 진행한다. 오버레이도 숨긴다. */
+        if (mounted) setUpdatePhase('error')
       }
     })()
     return () => {
@@ -133,6 +147,7 @@ export default function App() {
   return (
     <AppLayout>
       <AppContent />
+      <ExpoUpdateOverlay phase={updatePhase} />
     </AppLayout>
   )
 }
