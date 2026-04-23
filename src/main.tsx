@@ -1,11 +1,18 @@
 /*
- * Uint8Array.prototype.{toHex,toBase64} / Uint8Array.fromBase64 폴리필.
- * Electron 35 (Chromium 134) 에는 해당 TC39 API 가 아직 없다. pdfjs 등 5.x
- * 라이브러리들이 런타임에 이 메서드를 호출하므로 최초 로드 시점에 한 번 심는다.
- * (네이티브가 있으면 덮어쓰지 않으므로, Chromium 136+ 환경에서는 아무 일도
- *  하지 않는다.)
+ * 최신 TC39 제안 API 폴리필 — Electron 35 (Chromium 134) 대응.
+ *
+ * Chromium 134 에는 Uint8Array 의 hex/base64 메서드(Stage-3)와 Map/WeakMap 의
+ * Upsert 메서드(Stage-3)가 아직 없다. pdfjs-dist 5.x 가 이 API 들을 적극 사용
+ * 하므로 앱 부팅 최초 시점에 폴리필을 심어 둔다.
+ *
+ * 각 폴리필은 "네이티브가 있으면 덮어쓰지 않는" 가드를 포함하므로,
+ * Chromium 업그레이드 후에는 자연스럽게 네이티브로 복귀한다.
+ *
+ * 폴리필 추가 시엔 `src/lib/pdfjs/pdfWorkerEntry.ts` 의 import 도 함께
+ * 맞춰 갱신한다(워커 realm 은 메인과 분리되어 있다).
  */
 import './lib/polyfills/uint8ArrayBase'
+import './lib/polyfills/mapUpsert'
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
