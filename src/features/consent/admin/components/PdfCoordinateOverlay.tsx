@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from 'pdfjs-dist'
+import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist'
+import { setupPdfWorker } from '../../../../lib/pdfjs/setupWorker'
 
-GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString()
+/*
+ * pdfjs 워커는 공용 SSOT 에서만 초기화한다 — Electron(file://) 환경에서도
+ * 동일하게 동작하도록 Vite 의 ?worker 로 번들된 워커 인스턴스를 주입한다.
+ */
+setupPdfWorker()
 
 export interface PdfMark {
   clientId: string

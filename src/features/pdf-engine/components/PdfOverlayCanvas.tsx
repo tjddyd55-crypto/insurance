@@ -4,13 +4,11 @@
  * 역할 분리:
  *   - 이 컴포넌트는 "렌더 + 클릭 좌표 변환" 만 한다. 필드 상태 관리는 상위(Editor) 가.
  *   - 클릭 이벤트는 PDF 포인트 좌표로 정규화해 상위에 전달한다 → 배율과 독립.
- *
- * pdfjs-dist 의 worker 는 기존 consent 에디터와 동일한 방식으로 초기화한다
- * (번들러가 worker URL 을 해석하도록 `new URL(..., import.meta.url)` 사용).
+ *   - pdfjs 워커 설정은 setupPdfWorker() SSOT 에 위임 — Electron/웹 차이 흡수.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getDocument, GlobalWorkerOptions, type PDFDocumentProxy } from 'pdfjs-dist'
+import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist'
 import { canvasToPdf } from '../lib/coordinateMath'
 import {
   describePdfLoadError,
@@ -19,11 +17,9 @@ import {
   type PdfLoadErrorCode,
 } from '../lib/pdfErrors'
 import { logger } from '../../../lib/logger'
+import { setupPdfWorker } from '../../../lib/pdfjs/setupWorker'
 
-GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString()
+setupPdfWorker()
 
 /*
  * 캔버스 드로잉 전용 내부 상수.
