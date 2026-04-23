@@ -42,10 +42,15 @@ function stampSingleLine({ page, font, placement, value }) {
   const textWidth = font.widthOfTextAtSize(value, fontSize)
   let x = placement.x
   if (placement.width && placement.width > 0) {
-    if (placement.align === 'center') {
-      x = placement.x + (placement.width - textWidth) / 2
+    const remain = placement.width - textWidth
+    /* 텍스트가 박스 폭보다 길면 정렬 오프셋을 주지 않는다.
+       (center/right 오프셋이 음수가 되어 좌표가 박스 밖으로 밀리는 현상 방지) */
+    if (remain <= 0) {
+      x = placement.x
+    } else if (placement.align === 'center') {
+      x = placement.x + remain / 2
     } else if (placement.align === 'right') {
-      x = placement.x + (placement.width - textWidth)
+      x = placement.x + remain
     }
   }
   page.drawText(value, {
