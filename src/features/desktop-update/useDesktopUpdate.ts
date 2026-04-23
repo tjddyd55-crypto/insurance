@@ -134,10 +134,41 @@ export function useDesktopUpdate(): DesktopUpdateState & DesktopUpdateActions {
     if (!isElectronApp() || typeof api?.onDesktopUpdate !== 'function') {
       return
     }
+    /*
+     * 마운트 시점에 main 프로세스가 이미 수신·캐시해 둔 최신 상태를 한 번 당겨온다.
+     * 앱 실행 직후 "React 가 아직 리스너를 붙이기 전" 에 발생한 update-available 이벤트를
+     * 렌더러가 놓치더라도, 여기서 스냅샷으로 복원되어 다이얼로그가 정상 표시된다.
+     * 스냅샷 실패는 UX 치명적이지 않으므로 조용히 넘긴다(이벤트 스트림이 여전히 보조선).
+     */
+    let cancelled = false
+    if (typeof api.getDesktopUpdateSnapshot === 'function') {
+      void api
+        .getDesktopUpdateSnapshot()
+        .then((snapshot) => {
+          if (cancelled || !snapshot) return
+          setState((prev) => {
+            let next = prev
+            if (snapshot.desktopUpdate) {
+              next = reduce(next, snapshot.desktopUpdate)
+            }
+            if (snapshot.updateDownloaded) {
+              next = reduce(next, { phase: 'downloaded' })
+            }
+            return next
+          })
+        })
+        .catch(() => {
+          /* 스냅샷은 보조 경로 — 실패해도 이벤트 스트림이 살아있다. */
+        })
+    }
+
     const off = api.onDesktopUpdate((payload: DesktopUpdatePayload) => {
       setState((prev) => reduce(prev, payload))
     })
-    return off
+    return () => {
+      cancelled = true
+      off()
+    }
   }, [api])
 
   const checkNow = useCallback(async () => {
