@@ -171,16 +171,56 @@ export async function fetchAdminPdfTemplateFile(
     })
   }
 
-  /* 응답이 PDF 인지 Content-Type 으로 가볍게 확인한다. HTML 에러페이지가
-     200 으로 섞여 들어오는 엣지 케이스(프록시/게이트웨이)를 잡기 위함. */
+  /*
+   * 응답이 PDF 인지 Content-Type 으로 가볍게 확인한다. HTML 에러페이지가
+   * 200 으로 섞여 들어오는 엣지 케이스(프록시/게이트웨이)를 잡기 위함.
+   */
   const contentType = res.headers.get('content-type') ?? ''
+  const contentLengthHeader = res.headers.get('content-length')
   if (!contentType.toLowerCase().includes('pdf')) {
     logger.warn('pdf-template.file.unexpected-content-type', {
       templateId: id,
       contentType,
     })
   }
-  return res.arrayBuffer()
+
+  const buffer = await res.arrayBuffer()
+  const declaredLength = contentLengthHeader ? Number(contentLengthHeader) : null
+
+  /*
+   * 0 바이트 응답은 "형식을 해석할 수 없다(parse-failed)" 로 오해되어 pdfjs 까지 흘러간다.
+   * 여기서 명시적 에러로 차단해 UX 메시지와 원인 진단을 모두 정확하게 만든다.
+   *
+   * 함께 로깅하는 3 요소 — 헤더 content-length / 수신 byteLength / content-type — 이
+   * 서로 다르면 중간 경로(Railway edge / 프록시 / Electron 네트워크 스택) 가 범인임이
+   * 드러난다. 같다면 서버가 정말 0 바이트를 보낸 것이므로 서버 측 로그와 대조하면 된다.
+   */
+  if (buffer.byteLength === 0) {
+    logger.error('pdf-template.file.empty-body', {
+      templateId: id,
+      status: res.status,
+      contentType,
+      declaredLength,
+      receivedByteLength: 0,
+    })
+    throw new ApiError(
+      '원본 PDF 를 가져오지 못했습니다. 업로드 직후라면 잠시 후 다시 시도해 주세요.',
+      res.status,
+    )
+  }
+
+  /*
+   * 정상 케이스도 info 로 한 줄 남긴다 — 문제 발생 시 "직전 성공" 과 비교하기 위한 기준선.
+   * 프로덕션 debug 는 조용히 버려지므로 용량 부담은 없다.
+   */
+  logger.debug('pdf-template.file.loaded', {
+    templateId: id,
+    status: res.status,
+    contentType,
+    declaredLength,
+    receivedByteLength: buffer.byteLength,
+  })
+  return buffer
 }
 
 export function deleteAdminPdfTemplate(token: string, id: number): Promise<void> {
