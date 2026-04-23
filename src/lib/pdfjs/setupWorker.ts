@@ -21,6 +21,12 @@
  *   pdfjs 5.x 는 ESM-only 라 워커도 ES 모듈로 번들되어야 한다. 이 설정이
  *   빠지면 워커가 부팅 직후 죽고 getDocument 가 `parse-failed` 로 reject 된다.
  *
+ * 왜 `pdfWorkerEntry` 를 거쳐 import 하는가:
+ *   Electron 35 (Chrome 134) 에는 `Uint8Array.prototype.toHex` 등 TC39 Stage-3
+ *   제안 API 가 아직 없다. pdfjs-dist 5.x 의 워커는 PDF fingerprint 계산에서
+ *   `hash.toHex()` 를 호출하므로, 폴리필을 워커 스레드에 먼저 심어야 한다.
+ *   엔트리 래퍼가 그 순서를 보장한다.
+ *
  * 호출 규약:
  *   - 앱 부트 또는 PDF 를 쓰는 컴포넌트 모듈 최상위에서 한 번만 호출하면 된다.
  *   - 여러 번 호출돼도 안전하다(중복 초기화 가드).
@@ -28,7 +34,7 @@
  */
 
 import { GlobalWorkerOptions } from 'pdfjs-dist'
-import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker'
+import PdfWorker from './pdfWorkerEntry?worker'
 
 let initialized = false
 
