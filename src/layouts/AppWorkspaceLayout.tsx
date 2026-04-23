@@ -56,6 +56,9 @@ function isActivePath(pathname: string, itemPath: string): boolean {
   if (itemPath === '/application') {
     return pathname === '/application' || pathname.startsWith('/application/')
   }
+  if (itemPath === '/application/documents') {
+    return pathname === '/application/documents' || pathname.startsWith('/application/documents/')
+  }
   if (itemPath === '/feature-request') {
     return pathname === '/feature-request' || pathname === '/feature-requests/my'
   }

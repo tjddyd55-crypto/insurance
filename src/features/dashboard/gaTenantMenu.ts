@@ -73,7 +73,7 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
  *   1. 고객관리 : 고객리스트 · 고객메세지
  *   2. 소식지   : 원수사 연락처 · 원수사 소식지 · 손해사정사 소식지 · 세무사 소식지(개발중)
  *   3. 팀관리   : 팀원리스트 · 팀 게시판 · 팀 자료 · (팀 관리 — 오너만)
- *   4. 신청서   : 자동차신청서* · 다이렉트자동차*(개발중) · 렌트(사고대차)(개발중)
+ *   4. 신청서   : 자동차신청서* · 동행상담신청서 · 다이렉트자동차*(개발중) · 렌트(사고대차)(개발중)
  *                 (* 표시된 항목은 영진에셋 또는 YJASSET 코드일 때만 노출)
  *   5. 내정보   : 내 저장공간 · 내정보관리 · 문의, 요청
  *
@@ -104,6 +104,12 @@ export function buildGaTenantDashboardMenu(
   const applicationItems: GaTenantDashboardMenuEntry[] = []
   if (carHubEnabled) {
     applicationItems.push({ type: 'link', label: '자동차신청서', path: '/application' })
+    /* 좌표 기반 PDF 자동화 사용자 테스트 진입점 */
+    applicationItems.push({
+      type: 'link',
+      label: '동행상담신청서',
+      path: '/application/documents',
+    })
     applicationItems.push({
       type: 'link',
       label: '다이렉트자동차',
@@ -119,14 +125,6 @@ export function buildGaTenantDashboardMenu(
     disabled: true,
     badge: DEV_BADGE,
   })
-  /* 좌표 기반 PDF 자동화 — 관리자가 정의한 문서 목록.
-     GA 별로 템플릿이 없으면 목록이 비어 보이므로, 항상 메뉴에 노출해도 안전하다. */
-  applicationItems.push({
-    type: 'link',
-    label: '문서',
-    path: '/application/documents',
-  })
-
   return [
     { type: 'section', label: '고객관리' },
     { type: 'link', label: '고객리스트', path: '/customers' },
