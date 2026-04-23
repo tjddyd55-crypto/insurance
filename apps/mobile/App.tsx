@@ -18,7 +18,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
 
 import { AppLayout } from './AppLayout';
-import { applyExpoUpdate, checkExpoUpdate } from './lib/checkExpoUpdate';
+import { ExpoUpdateOverlay } from './components/ExpoUpdateOverlay';
+import {
+  applyExpoUpdate,
+  checkExpoUpdate,
+  type ExpoUpdatePhase,
+} from './lib/checkExpoUpdate';
 import { fetchClientVersionPolicy } from './lib/clientVersionPolicy';
 import { sendClientLog } from './lib/sendClientLog';
 
@@ -286,6 +291,12 @@ export default function App() {
   const [forceUpdate, setForceUpdate] = useState(false);
   const [otaDisabled, setOtaDisabled] = useState(false);
   const [operatorMessage, setOperatorMessage] = useState('');
+  /*
+   * OTA 단계. checkExpoUpdate/applyExpoUpdate 가 진입할 때마다 콜백으로 갱신되고,
+   * ExpoUpdateOverlay 는 이 값을 보고 오버레이 표시 여부를 결정한다.
+   * 데스크탑의 DesktopUpdateDialog 와 비슷한 UX 를 상태기계로 표현.
+   */
+  const [updatePhase, setUpdatePhase] = useState<ExpoUpdatePhase>('idle');
 
   useEffect(() => {
     void (async () => {
@@ -301,9 +312,13 @@ export default function App() {
       }
       const updateAvailable = await checkExpoUpdate(setUpdateReady, {
         disableOTA: policy.disableOTA,
+        onPhase: setUpdatePhase,
       });
       if (updateAvailable && !policy.disableOTA) {
-        await applyExpoUpdate({ disableOTA: policy.disableOTA });
+        await applyExpoUpdate({
+          disableOTA: policy.disableOTA,
+          onPhase: setUpdatePhase,
+        });
       }
     })();
   }, []);
@@ -357,7 +372,12 @@ export default function App() {
           ) : (
             <Button
               title={'\uC5C5\uB370\uC774\uD2B8'}
-              onPress={() => void applyExpoUpdate({ disableOTA: otaDisabled })}
+              onPress={() =>
+                void applyExpoUpdate({
+                  disableOTA: otaDisabled,
+                  onPhase: setUpdatePhase,
+                })
+              }
             />
           )}
           {SHOW_BUILD_INFO ? (
@@ -376,6 +396,7 @@ export default function App() {
                   onPress={() =>
                     void checkExpoUpdate(setUpdateReady, {
                       disableOTA: otaDisabled,
+                      onPhase: setUpdatePhase,
                     })
                   }
                 />
@@ -383,6 +404,7 @@ export default function App() {
             </View>
           ) : null}
         </View>
+        <ExpoUpdateOverlay phase={updatePhase} />
       </View>
     );
   }
@@ -401,7 +423,12 @@ export default function App() {
         <View style={styles.expoUpdateBanner} pointerEvents="box-none">
           <Button
             title={'\uC5C5\uB370\uC774\uD2B8 \uC801\uC6A9'}
-            onPress={() => void applyExpoUpdate({ disableOTA: otaDisabled })}
+            onPress={() =>
+              void applyExpoUpdate({
+                disableOTA: otaDisabled,
+                onPhase: setUpdatePhase,
+              })
+            }
           />
         </View>
       ) : null}
@@ -419,12 +446,16 @@ export default function App() {
             <Button
               title={'\uC5C5\uB370\uC774\uD2B8 \uD655\uC778'}
               onPress={() =>
-                void checkExpoUpdate(setUpdateReady, { disableOTA: otaDisabled })
+                void checkExpoUpdate(setUpdateReady, {
+                  disableOTA: otaDisabled,
+                  onPhase: setUpdatePhase,
+                })
               }
             />
           ) : null}
         </View>
       ) : null}
+      <ExpoUpdateOverlay phase={updatePhase} />
     </View>
   );
 }
