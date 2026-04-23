@@ -30,6 +30,17 @@ export type DesktopCheckResult =
 
 export type DesktopActionResult = { ok: boolean; code?: string; message?: string }
 
+/**
+ * 앱 시작 직후 메인에 쌓여 있던 최신 상태를 한 번에 당겨오기 위한 스냅샷 형태.
+ * 렌더러가 마운트될 때 이벤트를 이미 놓쳤어도 이 값으로 상태를 재구성할 수 있다.
+ */
+export type DesktopUpdateSnapshot = {
+  desktopUpdate: DesktopUpdatePayload | null
+  updateDownloaded: boolean
+  forceUpdate: { minVersion?: string; latestVersion?: string; message?: string } | null
+  currentVersion: string
+}
+
 declare global {
   interface Window {
     electronAPI?: {
@@ -41,6 +52,7 @@ declare global {
       /* "시작" 버튼 전용: 다운로드 개시. 이미 다운로드 중이거나 완료면 no-op 에 가깝다. */
       downloadDesktopUpdate: () => Promise<DesktopActionResult>
       installDownloadedUpdate: () => Promise<DesktopActionResult>
+      getDesktopUpdateSnapshot: () => Promise<DesktopUpdateSnapshot>
       onForceUpdate: (
         callback: (payload?: { minVersion?: string; latestVersion?: string; message?: string }) => void,
       ) => () => void

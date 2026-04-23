@@ -27,6 +27,28 @@ function sendClientLog(payload) {
 /** @type {import('electron').BrowserWindow | null} */
 let mainWindow = null
 
+/*
+ * 자동 업데이트 상태 캐시.
+ *
+ * 왜 필요한가:
+ *   auto-updater 이벤트는 앱 시작 직후(때로는 렌더러가 React 마운트를 끝내기 전) 발생한다.
+ *   그 시점에 webContents.send 로만 브로드캐스트하면 렌더러 쪽 리스너가 아직 없어
+ *   이벤트가 허공으로 날아간다. 사용자는 "업데이트 확인" 을 수동으로 눌러야만
+ *   모달을 볼 수 있게 됨 — 이게 startup-race 버그의 정체였다.
+ *
+ * 해결:
+ *   - 이벤트가 올 때마다 여기에 저장한다(최신값으로 덮어씀).
+ *   - 렌더러는 마운트 직후 `app:get-update-snapshot` 으로 캐시를 한 번 당겨간다.
+ *   - 이후는 기존처럼 이벤트 스트림으로 갱신.
+ *   "이벤트를 놓쳐도 상태는 놓치지 않는다" 는 설계가 타이밍에 대한 유일한 정답.
+ */
+/** @type {{desktopUpdate: unknown | null, updateDownloaded: boolean, forceUpdate: unknown | null}} */
+const updateStateCache = {
+  desktopUpdate: null,
+  updateDownloaded: false,
+  forceUpdate: null,
+}
+
 function registerVersionIpc() {
   ipcMain.handle('get-version', () => app.getVersion())
 }
@@ -51,6 +73,9 @@ function registerWindowControlsIpc() {
 }
 
 function sendDesktopUpdate(payload) {
+  /* 캐시를 먼저 갱신한 뒤 브로드캐스트한다. 순서가 반대면 렌더러가 snapshot 을 당길 때
+     "방금 보낸 이벤트" 가 캐시에 아직 반영되지 않아 누락될 수 있다. */
+  updateStateCache.desktopUpdate = payload
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('desktop-update', payload)
   }
@@ -96,6 +121,19 @@ function registerAutoUpdaterIpc() {
     }
     autoUpdater.quitAndInstall()
     return { ok: true }
+  })
+
+  /*
+   * 렌더러가 마운트된 뒤 "지금까지 어떤 상태가 됐는지" 한 번에 당겨오는 스냅샷 채널.
+   * 이벤트 스트림과는 별개의 경로여서, 이벤트를 놓쳐도 UI 가 정상적으로 재구성된다.
+   */
+  ipcMain.handle('app:get-update-snapshot', () => {
+    return {
+      desktopUpdate: updateStateCache.desktopUpdate,
+      updateDownloaded: updateStateCache.updateDownloaded,
+      forceUpdate: updateStateCache.forceUpdate,
+      currentVersion: app.getVersion(),
+    }
   })
 }
 
@@ -159,6 +197,7 @@ function wireAutoUpdaterEvents() {
 
   autoUpdater.on('update-downloaded', () => {
     sendClientLog({ type: 'update-downloaded' })
+    updateStateCache.updateDownloaded = true
     sendDesktopUpdate({ phase: 'downloaded' })
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('update-downloaded')
@@ -197,12 +236,10 @@ async function checkForceUpdateFromServer() {
         minVersion,
         latestVersion: latestVersion ?? null,
       })
+      const forcePayload = { minVersion, latestVersion, message }
+      updateStateCache.forceUpdate = forcePayload
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('force-update', {
-          minVersion,
-          latestVersion,
-          message,
-        })
+        mainWindow.webContents.send('force-update', forcePayload)
       }
       return true
     }
@@ -238,6 +275,37 @@ function createWindow() {
   }
 }
 
+/*
+ * 자동 업데이트 체크는 "창이 콘텐츠를 완전히 로드한 뒤" 실행한다.
+ *
+ * 왜 지연이 필요한가:
+ *   - 렌더러의 React 트리가 useDesktopUpdate 훅을 마운트하고 IPC 리스너를 달 시간을 확보.
+ *   - 여전히 캐시(updateStateCache) 가 최종 안전망이지만, 첫 이벤트도 가능하면 직접 수신하는 게
+ *     상태 일관성에 유리하다(이중 경로 설계).
+ *   - did-finish-load 는 렌더러가 DOM 을 모두 올린 시점이고, 거기에 1.5 초 버퍼를 둔다.
+ *
+ * 왜 checkForUpdates 인가(checkForUpdatesAndNotify 가 아니라):
+ *   - AndNotify 는 OS 네이티브 알림(Balloon/Notification Center) 을 띄우는데,
+ *     이미 in-app 모달(DesktopUpdateDialog) 이 있으므로 알림이 중복된다.
+ *   - 사용자는 앱 안에서 UX 를 일관되게 경험해야 한다 — 이중 경고는 오히려 혼란.
+ */
+function scheduleAutoUpdateCheck() {
+  if (!mainWindow) return
+  const wc = mainWindow.webContents
+  const start = () => {
+    setTimeout(() => {
+      void autoUpdater.checkForUpdates().catch((e) => {
+        console.warn('[auto-updater] initial check failed', e instanceof Error ? e.message : e)
+      })
+    }, 1500)
+  }
+  if (wc.isLoading()) {
+    wc.once('did-finish-load', start)
+  } else {
+    start()
+  }
+}
+
 app.whenReady().then(() => {
   console.log('[InsuranceApp] Current app version:', app.getVersion())
   registerVersionIpc()
@@ -248,7 +316,7 @@ app.whenReady().then(() => {
   if (app.isPackaged) {
     wireAutoUpdaterEvents()
     void checkForceUpdateFromServer()
-    void autoUpdater.checkForUpdatesAndNotify()
+    scheduleAutoUpdateCheck()
   }
 
   app.on('activate', function () {
