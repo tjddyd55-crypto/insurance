@@ -381,7 +381,53 @@ export function PdfCoordinateEditor({
 
   return (
     <div className="pdf-engine-editor">
-      <aside className="pdf-engine-editor__panel">
+      <aside className="pdf-engine-editor__panel pdf-engine-editor__panel--fields">
+        <h3 className="pdf-engine-editor__panel-title">등록된 필드 ({fields.length})</h3>
+        {fields.length === 0 ? (
+          <p className="pdf-engine-editor__hint">아직 필드가 없습니다.</p>
+        ) : (
+          <ul className="pdf-engine-editor__fields">
+            {fields.map((f) => (
+              <li
+                key={f.fieldKey}
+                className={
+                  'pdf-engine-editor__field-item' +
+                  (f.fieldKey === selectedKey ? ' pdf-engine-editor__field-item--active' : '')
+                }
+                onClick={() => {
+                  setSelectedKey(f.fieldKey)
+                  setSelectedPlacementIndex(f.placements.length > 0 ? 0 : null)
+                }}
+              >
+                <div className="pdf-engine-editor__field-item-row">
+                  <strong>{f.label}</strong>
+                </div>
+                <div className="pdf-engine-editor__field-item-row">
+                  <span className="pdf-engine-editor__field-meta">
+                    {f.fieldType}
+                    {f.required ? ' · 필수' : ''}
+                    {' · 좌표 '}
+                    {f.placements.length}
+                    개
+                  </span>
+                  <button
+                    type="button"
+                    className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleRemoveField(f.fieldKey)
+                    }}
+                  >
+                    삭제
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </aside>
+
+      <aside className="pdf-engine-editor__panel pdf-engine-editor__panel--config">
         <h3 className="pdf-engine-editor__panel-title">필드 정의</h3>
         <div className="pdf-engine-editor__row">
           <label className="pdf-engine-editor__label">
@@ -431,64 +477,17 @@ export function PdfCoordinateEditor({
           className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
           onClick={onSaveFields}
           disabled={savingFields || !fieldsDirty}
-          style={{ marginTop: 6 }}
         >
           {savingFields ? '좌표 저장 중…' : '좌표 저장'}
         </button>
 
-        <h3 className="pdf-engine-editor__panel-title" style={{ marginTop: 8 }}>
-          등록된 필드 ({fields.length})
-        </h3>
-        {fields.length === 0 ? (
-          <p className="pdf-engine-editor__hint">아직 필드가 없습니다.</p>
-        ) : (
-          <ul className="pdf-engine-editor__fields">
-            {fields.map((f) => (
-              <li
-                key={f.fieldKey}
-                className={
-                  'pdf-engine-editor__field-item' +
-                  (f.fieldKey === selectedKey ? ' pdf-engine-editor__field-item--active' : '')
-                }
-                onClick={() => {
-                  setSelectedKey(f.fieldKey)
-                  setSelectedPlacementIndex(f.placements.length > 0 ? 0 : null)
-                }}
-              >
-                <div className="pdf-engine-editor__field-item-row">
-                  <strong>{f.label}</strong>
-                </div>
-                <div className="pdf-engine-editor__field-item-row">
-                  <span className="pdf-engine-editor__field-meta">
-                    {f.fieldType}
-                    {f.required ? ' · 필수' : ''}
-                    {' · 좌표 '}
-                    {f.placements.length}
-                    개
-                  </span>
-                  <button
-                    type="button"
-                    className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleRemoveField(f.fieldKey)
-                    }}
-                  >
-                    삭제
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-
         {selectedField ? (
           <>
             <h3 className="pdf-engine-editor__panel-title" style={{ marginTop: 8 }}>
-              선택된 필드: {selectedField.label}
+              세부 설정: {selectedField.label}
             </h3>
             <p className="pdf-engine-editor__hint">
-              PDF 위를 드래그하면 박스 좌표가, 짧게 클릭하면 점 좌표가 추가됩니다.
+              필드를 선택한 뒤 PDF에서 드래그하면 좌표가 지정됩니다.
             </p>
             <label className="pdf-engine-editor__label">
               라벨
@@ -527,12 +526,6 @@ export function PdfCoordinateEditor({
               />
             </label>
 
-            {/*
-              고객 자동 매핑: 이 필드를 특정 회원 속성(이름/생년월일/전화/주소) 과 연결한다.
-              발급 시 서버가 회원 DB 값으로 자동 주입하며, 사용자가 굳이 입력하지 않아도 된다.
-              - checkbox/radio 는 "값 자체" 가 서버에 구조화된 속성으로 매핑되지 않으므로
-                UX 혼동 방지를 위해 드롭다운을 노출하지 않는다.
-            */}
             {selectedField.fieldType !== 'checkbox' && selectedField.fieldType !== 'radio' ? (
               <label className="pdf-engine-editor__label">
                 자동 매핑
@@ -562,18 +555,20 @@ export function PdfCoordinateEditor({
             <h4 className="pdf-engine-editor__panel-title" style={{ marginTop: 8, fontSize: 13 }}>
               좌표 목록
             </h4>
-            <div className="pdf-engine-editor__row" style={{ marginTop: -4 }}>
-              <button
-                type="button"
-                className="pdf-engine-editor__btn"
-                onClick={() => setSelectedPlacementIndex(null)}
-              >
-                새 좌표 추가
-              </button>
-              <span className="pdf-engine-editor__field-meta">
-                선택된 좌표가 있으면 다시 찍을 때 해당 좌표를 덮어씁니다.
-              </span>
-            </div>
+            {selectedField.fieldType === 'checkbox' || selectedField.fieldType === 'radio' ? (
+              <div className="pdf-engine-editor__row" style={{ marginTop: -4 }}>
+                <button
+                  type="button"
+                  className="pdf-engine-editor__btn"
+                  onClick={() => setSelectedPlacementIndex(null)}
+                >
+                  새 좌표 추가
+                </button>
+                <span className="pdf-engine-editor__field-meta">
+                  체크/라디오는 필요 시 여러 좌표를 추가할 수 있습니다.
+                </span>
+              </div>
+            ) : null}
             {selectedField.placements.length === 0 ? (
               <p className="pdf-engine-editor__hint">
                 아직 좌표가 없습니다. 오른쪽 PDF 위를 드래그해 추가하세요.
@@ -633,7 +628,9 @@ export function PdfCoordinateEditor({
               />
             ) : null}
           </>
-        ) : null}
+        ) : (
+          <p className="pdf-engine-editor__hint">왼쪽 등록된 필드를 선택하면 세부 설정이 표시됩니다.</p>
+        )}
       </aside>
 
       <section className="pdf-engine-editor__panel">

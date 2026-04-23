@@ -32,17 +32,17 @@ setupPdfWorker()
  * 디자인 토큰 대상이 아닌 "마커 렌더 고유의 구현 상수" 라서 파일 상단에 모아둔다.
  * 디자인 변경 시 이곳만 손보면 된다.
  */
-const MARK_FILL_SELECTED = 'rgba(234, 88, 12, 0.95)'
-const MARK_FILL_DEFAULT = 'rgba(37, 99, 235, 0.92)'
-const MARK_STROKE = 'white'
-const MARK_LABEL_COLOR = '#0f172a'
-const MARK_LABEL_BG = 'rgba(255, 255, 255, 0.92)'
-const BOX_FILL_SELECTED = 'rgba(234, 88, 12, 0.18)'
-const BOX_FILL_DEFAULT = 'rgba(37, 99, 235, 0.12)'
-const BOX_STROKE_SELECTED = 'rgba(234, 88, 12, 0.95)'
-const BOX_STROKE_DEFAULT = 'rgba(37, 99, 235, 0.85)'
-const DRAG_PREVIEW_FILL = 'rgba(234, 88, 12, 0.12)'
-const DRAG_PREVIEW_STROKE = 'rgba(234, 88, 12, 0.95)'
+const MARK_FILL_SELECTED = 'rgba(255, 77, 79, 0.98)'
+const MARK_FILL_DEFAULT = 'rgba(0, 163, 255, 0.96)'
+const MARK_STROKE = '#ffffff'
+const MARK_LABEL_COLOR = '#ffffff'
+const MARK_LABEL_BG = 'rgba(15, 23, 42, 0.9)'
+const BOX_FILL_SELECTED = 'rgba(255, 77, 79, 0.16)'
+const BOX_FILL_DEFAULT = 'rgba(0, 163, 255, 0.14)'
+const BOX_STROKE_SELECTED = 'rgba(255, 77, 79, 0.98)'
+const BOX_STROKE_DEFAULT = 'rgba(0, 163, 255, 0.95)'
+const DRAG_PREVIEW_FILL = 'rgba(255, 77, 79, 0.12)'
+const DRAG_PREVIEW_STROKE = 'rgba(255, 77, 79, 0.98)'
 const PDF_CANVAS_BG = 'white'
 
 /**
