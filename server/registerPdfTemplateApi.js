@@ -32,6 +32,7 @@ import {
   normalizeFieldSpecList,
   validateRenderValues,
 } from './pdf-engine/schema/fieldSpec.js'
+import { createTemplateWithAutoCode } from './pdf-engine/code/templateCode.js'
 import {
   createTemplate,
   deleteTemplate,
@@ -61,9 +62,6 @@ const uploadPdf = multer({
     cb(null, true)
   },
 })
-
-/** 코드 네이밍 규칙(사람이 URL·식별자로 보기 편한 최소 집합). */
-const CODE_REGEX = /^[a-z][a-z0-9_-]{1,63}$/
 
 function parseTemplateId(raw) {
   const n = Number(raw)
@@ -166,14 +164,16 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         res.status(400).json({ message: 'gaId 가 올바르지 않습니다.' })
         return
       }
-      const codeRaw = typeof req.body?.code === 'string' ? req.body.code.trim() : ''
-      const code = codeRaw || 'tmp'
+      /* 스토리지 키는 업로드 시점에 고정되며, UUID 접미어로 유일성이 보장된다.
+         템플릿의 최종 `code` 는 등록(POST /admin/pdf-templates) 시점에 서버가
+         자동 생성하므로, 업로드 단계에서는 내부 버킷 정리용 접두어만 필요하다. */
+      const STORAGE_KEY_SEED = 'upload'
 
       try {
         /* 페이지 수 미리 계산 — 프론트에서 재요청하지 않아도 되게 서버가 고정. */
         const doc = await PDFDocument.load(file.buffer)
         const pageCount = doc.getPageCount()
-        const storageKey = buildTemplateStorageKey({ gaId, code })
+        const storageKey = buildTemplateStorageKey({ gaId, code: STORAGE_KEY_SEED })
         await putTemplateObject(storageKey, file.buffer)
         res.json({ storageKey, pageCount })
       } catch (error) {
@@ -193,13 +193,8 @@ export function registerPdfTemplateApi(apiRouter, deps) {
       res.status(400).json({ message: 'gaId 가 올바르지 않습니다.' })
       return
     }
-    const code = typeof body.code === 'string' ? body.code.trim() : ''
-    if (!CODE_REGEX.test(code)) {
-      res.status(400).json({
-        message: 'code 는 소문자/숫자/언더스코어/하이픈으로 2~64자여야 합니다.',
-      })
-      return
-    }
+    /* `code` 는 더 이상 클라이언트에서 받지 않는다(서버가 title 로부터 자동 생성).
+       기존 호출자가 code 를 보내도 무시 — 하위 호환을 위한 silent ignore. */
     const title = typeof body.title === 'string' ? body.title.trim() : ''
     if (!title) {
       res.status(400).json({ message: 'title 이 필요합니다.' })
@@ -218,9 +213,10 @@ export function registerPdfTemplateApi(apiRouter, deps) {
     }
 
     try {
-      const row = await createTemplate(pool, {
+      /* code 자동 생성 + 충돌 재시도는 createTemplateWithAutoCode 에 일임한다.
+         라우터는 "요청을 받고 응답을 낸다" 에만 집중한다. */
+      const row = await createTemplateWithAutoCode(pool, createTemplate, {
         gaId,
-        code,
         title,
         description,
         storageKey,
@@ -229,10 +225,6 @@ export function registerPdfTemplateApi(apiRouter, deps) {
       })
       res.status(201).json({ template: templateToDto(row) })
     } catch (error) {
-      if (error && typeof error === 'object' && error.code === '23505') {
-        res.status(409).json({ message: '같은 GA 범위에 동일한 code 가 이미 있습니다.' })
-        return
-      }
       handleDbError(res, error)
     }
   })

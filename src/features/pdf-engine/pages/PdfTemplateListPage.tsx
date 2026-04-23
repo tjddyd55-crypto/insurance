@@ -64,13 +64,14 @@ export default function PdfTemplateListPage() {
       {error ? <div className="pdf-engine-page__error">{error}</div> : null}
       {loading ? <p className="pdf-engine-page__hint">불러오는 중…</p> : null}
 
+      {/* 내부 식별자(code) 컬럼은 의도적으로 노출하지 않는다.
+          관리자는 "제목 + 소속 GA + 상태" 만으로 템플릿을 식별한다. */}
       <table className="pdf-engine-table">
         <thead>
           <tr>
             <th style={{ width: 80 }}>ID</th>
             <th>제목</th>
-            <th style={{ width: 160 }}>GA</th>
-            <th style={{ width: 160 }}>code</th>
+            <th style={{ width: 180 }}>GA</th>
             <th style={{ width: 100 }}>상태</th>
             <th style={{ width: 180 }}>작업</th>
           </tr>
@@ -78,7 +79,7 @@ export default function PdfTemplateListPage() {
         <tbody>
           {rows.length === 0 && !loading ? (
             <tr>
-              <td colSpan={6} className="pdf-engine-page__hint">
+              <td colSpan={5} className="pdf-engine-page__hint">
                 등록된 템플릿이 없습니다.
               </td>
             </tr>
@@ -96,14 +97,8 @@ export default function PdfTemplateListPage() {
                 {r.gaId == null ? (
                   <span className="pdf-engine-badge">공용</span>
                 ) : (
-                  <span>
-                    {r.gaName ?? `GA#${r.gaId}`}{' '}
-                    <span className="pdf-engine-editor__field-meta">({r.gaCode ?? '-'})</span>
-                  </span>
+                  <span>{r.gaName ?? `GA#${r.gaId}`}</span>
                 )}
-              </td>
-              <td>
-                <code className="pdf-engine-editor__field-key">{r.code}</code>
               </td>
               <td>
                 {r.isActive ? (

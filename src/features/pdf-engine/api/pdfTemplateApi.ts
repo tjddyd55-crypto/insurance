@@ -53,12 +53,11 @@ function authHeader(token: string | null | undefined): Record<string, string> {
 
 export async function uploadAdminPdfTemplateFile(
   token: string,
-  input: { gaId: number | null; code: string; file: File },
+  input: { gaId: number | null; file: File },
 ): Promise<{ storageKey: string; pageCount: number }> {
   const fd = new FormData()
   fd.append('pdf', input.file)
   if (input.gaId != null) fd.append('gaId', String(input.gaId))
-  fd.append('code', input.code)
 
   let res: Response
   try {
@@ -70,7 +69,6 @@ export async function uploadAdminPdfTemplateFile(
   } catch (networkError) {
     logger.error('pdf-template.upload.network-failed', {
       gaId: input.gaId,
-      code: input.code,
       fileSize: input.file.size,
       error: networkError,
     })
@@ -87,7 +85,6 @@ export async function uploadAdminPdfTemplateFile(
       status: res.status,
       serverMessage: payload.message ?? null,
       gaId: input.gaId,
-      code: input.code,
     })
     throw new ApiError(payload.message ?? 'PDF 업로드 실패', res.status)
   }
@@ -98,7 +95,6 @@ export function createAdminPdfTemplate(
   token: string,
   body: {
     gaId: number | null
-    code: string
     title: string
     description: string
     storageKey: string
