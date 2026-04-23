@@ -632,6 +632,15 @@ export function PdfCoordinateEditor({
           marks={marks}
           clickEnabled={canvasClickEnabled}
           onPick={handlePick}
+          onSelectMark={(markId) => {
+            const splitAt = markId.lastIndexOf('-')
+            if (splitAt <= 0) return
+            const key = markId.slice(0, splitAt)
+            const rawIndex = Number(markId.slice(splitAt + 1))
+            if (!Number.isInteger(rawIndex) || rawIndex < 0) return
+            setSelectedKey(key)
+            setSelectedPlacementIndex(rawIndex)
+          }}
           onDocumentReady={handleDocumentReady}
           mode="pick-box"
         />

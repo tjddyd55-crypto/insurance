@@ -17,6 +17,11 @@
   color: #0f172a;
 }
 
+/* 좌표 편집은 PDF 정밀 작업이므로 가로 폭을 최대한 활용한다. */
+.pdf-engine-page--editor {
+  max-width: min(96vw, 1800px);
+}
+
 .pdf-engine-page__title {
   font-size: 22px;
   font-weight: 700;
@@ -95,7 +100,7 @@
 
 .pdf-engine-editor {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 300px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }

@@ -55,5 +55,10 @@ async function loadFontBytes() {
 export async function embedKoreanFont(pdfDoc) {
   const bytes = await loadFontBytes()
   pdfDoc.registerFontkit(fontkit)
-  return pdfDoc.embedFont(bytes, { subset: true })
+  /*
+   * 일부 환경에서 subset=true 일 때 한글 글리프가 누락되어
+   * 숫자만 보이고 한글이 비어 보이는 케이스가 보고되어 전체 폰트 임베드로 고정한다.
+   * (파일 크기는 다소 증가하지만 출력 정확성을 우선)
+   */
+  return pdfDoc.embedFont(bytes, { subset: false })
 }

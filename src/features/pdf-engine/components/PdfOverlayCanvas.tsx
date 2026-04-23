@@ -92,6 +92,7 @@ interface Props {
   marks: OverlayMark[]
   clickEnabled: boolean
   onPick: (p: OverlayPick) => void
+  onSelectMark?: (markId: string) => void
   onDocumentReady?: (doc: PDFDocumentProxy) => void
   /** 기본 'pick-point'. 'pick-box' 이면 드래그로 영역을 잡는다. */
   mode?: OverlayPickMode
@@ -129,6 +130,7 @@ export function PdfOverlayCanvas({
   marks,
   clickEnabled,
   onPick,
+  onSelectMark,
   onDocumentReady,
   mode = 'pick-point',
 }: Props) {
@@ -271,7 +273,11 @@ export function PdfOverlayCanvas({
       const canvas = canvasRef.current
       if (!canvas || !wrap || cancelled) return
 
-      const maxW = Math.min(920, Math.max(320, wrap.clientWidth || 640))
+      /*
+       * 좌표 정밀 편집 시 확대 가능 폭을 넉넉히 잡는다.
+       * 기존 920px 상한은 큰 모니터/사이드바 접힘 상태에서도 PDF가 작게 보이는 원인이었다.
+       */
+      const maxW = Math.min(1600, Math.max(420, wrap.clientWidth || 900))
       const scale = maxW / base.width
       const viewport = page.getViewport({ scale })
       canvas.width = viewport.width
@@ -346,10 +352,49 @@ export function PdfOverlayCanvas({
 
   /* ---------- 박스 모드: 드래그 ---------- */
 
+  const trySelectExistingMark = useCallback(
+    (clientX: number, clientY: number): boolean => {
+      const canvas = canvasRef.current
+      const pageSize = pageSizeRef.current
+      if (!canvas || !pageSize) return false
+      const { x, y } = cssToCanvasPixels(clientX, clientY, canvas)
+      const hitRadius = 12
+      const pageMarks = [...marks].filter((m) => m.pageIndex === pageIndex).reverse()
+      for (const m of pageMarks) {
+        const cx = (m.x / pageSize.widthPt) * canvas.width
+        const cyBottom = ((pageSize.heightPt - m.y) / pageSize.heightPt) * canvas.height
+        const hasBox = typeof m.width === 'number' && typeof m.height === 'number' && m.width > 0 && m.height > 0
+        if (hasBox) {
+          const widthPx = ((m.width as number) / pageSize.widthPt) * canvas.width
+          const heightPx = ((m.height as number) / pageSize.heightPt) * canvas.height
+          const boxX = cx
+          const boxY = cyBottom - heightPx
+          if (x >= boxX && x <= boxX + widthPx && y >= boxY && y <= boxY + heightPx) {
+            onSelectMark?.(m.id)
+            return true
+          }
+          continue
+        }
+        const dx = x - cx
+        const dy = y - cyBottom
+        if (dx * dx + dy * dy <= hitRadius * hitRadius) {
+          onSelectMark?.(m.id)
+          return true
+        }
+      }
+      return false
+    },
+    [marks, onSelectMark, pageIndex],
+  )
+
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (mode !== 'pick-box') return
     if (!clickEnabled || status !== 'ready') return
     if (e.button !== 0) return
+    if (trySelectExistingMark(e.clientX, e.clientY)) {
+      e.preventDefault()
+      return
+    }
     const canvas = canvasRef.current
     if (!canvas) return
     const { x, y } = cssToCanvasPixels(e.clientX, e.clientY, canvas)

@@ -105,7 +105,7 @@ function CreateTemplateFlow({
   }
 
   return (
-    <main className="pdf-engine-page">
+    <main className="pdf-engine-page pdf-engine-page--editor">
       <h1 className="pdf-engine-page__title">새 PDF 템플릿</h1>
       <div className="pdf-engine-page__toolbar">
         <Link to="/admin/pdf-templates" className="pdf-engine-editor__btn">
