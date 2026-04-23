@@ -510,6 +510,51 @@
   color: inherit;
 }
 
+/* ─── 사용자 미리보기 모달 ──────────────────────────────────────── */
+
+.pdf-engine-preview-modal {
+  width: min(96vw, 1100px) !important;
+  max-width: min(96vw, 1100px) !important;
+}
+
+.pdf-engine-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pdf-engine-preview__header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.pdf-engine-preview__header p {
+  margin: 4px 0 0;
+  color: #475569;
+  font-size: 13px;
+}
+
+.pdf-engine-preview__frame-wrap {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.pdf-engine-preview__frame {
+  width: 100%;
+  height: min(72vh, 860px);
+  border: none;
+  background: #fff;
+}
+
+.pdf-engine-preview__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 /* 에디터 상단의 메타(제목/설명/활성) 한 줄 폼. */
 .pdf-engine-form--inline {
   max-width: 100%;

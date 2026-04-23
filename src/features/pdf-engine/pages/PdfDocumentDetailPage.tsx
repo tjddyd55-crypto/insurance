@@ -11,6 +11,8 @@
 
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { FormButton } from '../../../components/form'
+import Modal from '../../../components/ui/Modal'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import { getPdfTemplate, renderPdfTemplate } from '../api/pdfTemplateApi'
@@ -47,6 +49,21 @@ export default function PdfDocumentDetailPage() {
 
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [submitting, setSubmitting] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewValues, setPreviewValues] = useState<Record<string, string> | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+
+  const closePreview = () => {
+    setPreviewOpen(false)
+    setPreviewValues(null)
+    setPreviewError(null)
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+      setPreviewUrl(null)
+    }
+  }
 
   useEffect(() => {
     if (!token?.trim()) return
@@ -77,8 +94,15 @@ export default function PdfDocumentDetailPage() {
     if (!token || state.status !== 'ready') return
     setSubmitting(true)
     try {
-      const blob = await renderPdfTemplate(token, templateId, values)
-      triggerDownload(blob, `${state.template.code}.pdf`)
+      const blob = await renderPdfTemplate(token, templateId, values, { preview: true })
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
+      const nextUrl = URL.createObjectURL(blob)
+      setPreviewUrl(nextUrl)
+      setPreviewValues(values)
+      setPreviewError(null)
+      setPreviewOpen(true)
     } catch (e) {
       const message = e instanceof ApiError ? e.message : 'PDF 생성에 실패했습니다.'
       throw new Error(message)
@@ -86,6 +110,30 @@ export default function PdfDocumentDetailPage() {
       setSubmitting(false)
     }
   }
+
+  const handleSaveFromPreview = async () => {
+    if (!token || state.status !== 'ready' || !previewValues) return
+    setSaving(true)
+    setPreviewError(null)
+    try {
+      const blob = await renderPdfTemplate(token, templateId, previewValues)
+      triggerDownload(blob, `${state.template.code}.pdf`)
+      closePreview()
+    } catch (e) {
+      const message = e instanceof ApiError ? e.message : 'PDF 저장에 실패했습니다.'
+      setPreviewError(message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
+    }
+  }, [previewUrl])
 
   if (state.status === 'loading') {
     return (
@@ -102,13 +150,14 @@ export default function PdfDocumentDetailPage() {
           <Link to="/application/documents" className="pdf-engine-editor__btn">
             ← 문서 목록
           </Link>
-          <button
-            type="button"
+          <FormButton
+            htmlType="button"
+            variant="secondary"
             className="pdf-engine-editor__btn"
             onClick={() => navigate(0)}
           >
             다시 시도
-          </button>
+          </FormButton>
         </div>
       </main>
     )
@@ -127,7 +176,52 @@ export default function PdfDocumentDetailPage() {
         fields={state.fields}
         submitting={submitting}
         onSubmit={handleSubmit}
+        submitLabel="결과보기"
       />
+      <Modal
+        open={previewOpen}
+        onClose={() => {
+          if (saving) return
+          closePreview()
+        }}
+        ariaLabel="PDF 결과 미리보기"
+        panelClassName="pdf-engine-preview-modal"
+      >
+        <div className="pdf-engine-preview">
+          <header className="pdf-engine-preview__header">
+            <h3>결과 미리보기</h3>
+            <p>내용을 확인한 뒤 저장하거나, 수정으로 돌아갈 수 있습니다.</p>
+          </header>
+          {previewError ? <div className="pdf-engine-page__error">{previewError}</div> : null}
+          <div className="pdf-engine-preview__frame-wrap">
+            {previewUrl ? (
+              <iframe title="PDF 미리보기" src={previewUrl} className="pdf-engine-preview__frame" />
+            ) : (
+              <p className="pdf-engine-page__hint">미리보기 파일을 준비하지 못했습니다.</p>
+            )}
+          </div>
+          <div className="pdf-engine-preview__actions">
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="pdf-engine-editor__btn"
+              onClick={closePreview}
+              disabled={saving}
+            >
+              수정하기
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="primary"
+              className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
+              onClick={handleSaveFromPreview}
+              disabled={saving || !previewValues}
+            >
+              {saving ? '저장 중…' : '저장하기'}
+            </FormButton>
+          </div>
+        </div>
+      </Modal>
     </main>
   )
 }

@@ -295,8 +295,10 @@ export async function renderPdfTemplate(
   token: string,
   id: number,
   values: Record<string, string>,
+  options?: { preview?: boolean },
 ): Promise<Blob> {
-  const url = resolveApiUrl(`/api/pdf-templates/${id}/render`)
+  const query = options?.preview ? '?preview=1' : ''
+  const url = resolveApiUrl(`/api/pdf-templates/${id}/render${query}`)
   let res: Response
   try {
     res = await fetch(url, {

@@ -20,6 +20,8 @@ import { embedKoreanFont } from './fontProvider.js'
 /** @typedef {import('../schema/fieldSpec.js').FieldSpec['placements'][number]} Placement */
 
 const DEFAULT_FONT_SIZE = 11
+/** 사용자 입력 텍스트/마크는 항상 검정으로 고정한다. */
+const STAMP_COLOR_BLACK = rgb(0, 0, 0)
 
 /**
  * @typedef {{
@@ -51,7 +53,7 @@ function stampSingleLine({ page, font, placement, value }) {
     y: placement.y,
     size: fontSize,
     font,
-    color: rgb(0, 0, 0),
+    color: STAMP_COLOR_BLACK,
   })
 }
 
@@ -77,7 +79,7 @@ function stampMultiLine({ page, font, placement, value }) {
       y: placement.y - idx * lineHeight,
       size: fontSize,
       font,
-      color: rgb(0, 0, 0),
+      color: STAMP_COLOR_BLACK,
     })
   })
 }
@@ -146,7 +148,7 @@ function stampCheckMark({ page, placement }) {
   const p2 = { x: left + markSize * 0.4, y: bottom + markSize * 0.15 }
   const p3 = { x: left + markSize * 0.9, y: bottom + markSize * 0.85 }
   const thickness = Math.max(1, markSize * 0.12)
-  const color = rgb(0, 0, 0)
+  const color = STAMP_COLOR_BLACK
   page.drawLine({ start: p1, end: p2, thickness, color })
   page.drawLine({ start: p2, end: p3, thickness, color })
 }

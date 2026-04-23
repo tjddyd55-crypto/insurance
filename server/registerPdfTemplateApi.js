@@ -136,6 +136,13 @@ function fieldRowToDto(row) {
   }
 }
 
+function isPreviewRenderRequest(req) {
+  const raw = String(req.query?.preview ?? '')
+    .trim()
+    .toLowerCase()
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'preview'
+}
+
 /**
  * @param {import('express').Router} apiRouter
  * @param {{
@@ -504,6 +511,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
       return
     }
     try {
+      const previewOnly = isPreviewRenderRequest(req)
       const template = await getTemplateById(pool, id)
       if (!canAccessTemplateForRequest(template, req, isSuperAdminRole) || !template.is_active) {
         res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
@@ -553,32 +561,34 @@ export function registerPdfTemplateApi(apiRouter, deps) {
        * 다만 에러는 서버 로그에 남겨 추후 조사 가능하도록 한다.
        */
       let issuanceId = null
-      try {
-        const storageKey = buildIssuanceStorageKey()
-        await putIssuanceObject(storageKey, Buffer.from(rendered))
-        const row = await createIssuance(pool, {
-          templateId: template.id,
-          userId: req.user?.id ?? null,
-          gaId: template.ga_id ?? null,
-          templateCode: template.code,
-          templateTitle: template.title,
-          storageKey,
-          valuesSnapshot: validation.normalized,
-          byteLength: rendered.length ?? rendered.byteLength ?? 0,
-        })
-        issuanceId = row?.id ?? null
-      } catch (archiveError) {
-        console.error('[pdf-templates] 이력 기록 실패 (발급은 정상 진행)', archiveError)
+      if (!previewOnly) {
+        try {
+          const storageKey = buildIssuanceStorageKey()
+          await putIssuanceObject(storageKey, Buffer.from(rendered))
+          const row = await createIssuance(pool, {
+            templateId: template.id,
+            userId: req.user?.id ?? null,
+            gaId: template.ga_id ?? null,
+            templateCode: template.code,
+            templateTitle: template.title,
+            storageKey,
+            valuesSnapshot: validation.normalized,
+            byteLength: rendered.length ?? rendered.byteLength ?? 0,
+          })
+          issuanceId = row?.id ?? null
+        } catch (archiveError) {
+          console.error('[pdf-templates] 이력 기록 실패 (발급은 정상 진행)', archiveError)
+        }
       }
 
       const filename = encodeURIComponent(`${template.code}.pdf`)
       res.setHeader('Content-Type', 'application/pdf')
       res.setHeader(
         'Content-Disposition',
-        `attachment; filename="document.pdf"; filename*=UTF-8''${filename}`,
+        `${previewOnly ? 'inline' : 'attachment'}; filename="document.pdf"; filename*=UTF-8''${filename}`,
       )
       res.setHeader('Cache-Control', 'private, no-store')
-      if (issuanceId != null) {
+      if (!previewOnly && issuanceId != null) {
         /* 프론트가 이력 화면으로 이동할 때 방금 생성된 이력을 바로 가리키도록 힌트를 내려준다. */
         res.setHeader('X-Issuance-Id', String(issuanceId))
       }
