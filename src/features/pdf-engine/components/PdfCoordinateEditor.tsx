@@ -1,8 +1,9 @@
 /**
  * 관리자 좌표 에디터.
  *
- * UX 원칙: "필드 우선".
- *   1) 왼쪽 패널에 먼저 필드를 정의한다(label·key·type·필수).
+ * UX 원칙: "라벨 우선".
+ *   1) 왼쪽 패널에서 라벨·타입·필수만 입력해 필드를 정의한다.
+ *      (내부 식별자 `fieldKey` 는 라벨에서 자동 파생 — 관리자가 다룰 필요 없음.)
  *   2) 원하는 필드를 선택한 상태로 오른쪽 PDF 를 클릭 → placement 1개가 추가된다.
  *   3) placement 는 배열이므로 한 필드가 문서 내 여러 위치를 차지할 수 있다(예: 2p 서명).
  *
@@ -27,14 +28,12 @@ interface Props {
 }
 
 type DraftField = {
-  fieldKey: string
   label: string
   fieldType: PdfFieldType
   required: boolean
 }
 
 const EMPTY_DRAFT: DraftField = {
-  fieldKey: '',
   label: '',
   fieldType: 'text',
   required: false,
@@ -68,7 +67,8 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
 
   const existingKeys = useMemo(() => new Set(fields.map((f) => f.fieldKey)), [fields])
 
-  /** 왼쪽 필드 목록의 placement 들을 overlay 마커로 변환. */
+  /** 왼쪽 필드 목록의 placement 들을 overlay 마커로 변환.
+      마커 라벨은 사용자가 실제로 다루는 값(`label`) 을 쓴다 — 내부 key 는 노출하지 않는다. */
   const marks: OverlayMark[] = useMemo(() => {
     const out: OverlayMark[] = []
     for (const f of fields) {
@@ -79,7 +79,7 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
           pageIndex: p.page,
           x: p.x,
           y: p.y,
-          label: f.fieldKey,
+          label: f.label || `필드 ${f.orderIndex + 1}`,
           selected: f.fieldKey === selectedKey,
         })
       }
@@ -90,11 +90,9 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
   const handleAddField = () => {
     const labelTrim = draft.label.trim()
     if (!labelTrim) return
-    const key = draft.fieldKey.trim() || genKeyFromLabel(labelTrim, existingKeys)
-    if (existingKeys.has(key)) {
-      window.alert('이미 존재하는 필드 key 입니다.')
-      return
-    }
+    /* 내부 식별자는 라벨에서 자동 파생. 같은 템플릿 내 충돌은 genKeyFromLabel 이
+       suffix 로 회피하므로 사용자는 식별자를 의식할 필요가 없다. */
+    const key = genKeyFromLabel(labelTrim, existingKeys)
     const next: PdfFieldSpec = {
       fieldKey: key,
       label: labelTrim,
@@ -182,17 +180,6 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
         </div>
         <div className="pdf-engine-editor__row">
           <label className="pdf-engine-editor__label">
-            key (영문 소문자·숫자·_)
-            <input
-              type="text"
-              value={draft.fieldKey}
-              onChange={(e) => setDraft({ ...draft, fieldKey: e.target.value })}
-              placeholder="비워두면 라벨에서 자동 생성"
-            />
-          </label>
-        </div>
-        <div className="pdf-engine-editor__row">
-          <label className="pdf-engine-editor__label">
             타입
             <select
               value={draft.fieldType}
@@ -242,7 +229,6 @@ export function PdfCoordinateEditor({ pdfBuffer, pageCount, fields, onChange }: 
               >
                 <div className="pdf-engine-editor__field-item-row">
                   <strong>{f.label}</strong>
-                  <span className="pdf-engine-editor__field-key">{f.fieldKey}</span>
                 </div>
                 <div className="pdf-engine-editor__field-item-row">
                   <span className="pdf-engine-editor__field-meta">

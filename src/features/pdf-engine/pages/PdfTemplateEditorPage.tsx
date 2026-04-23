@@ -28,9 +28,6 @@ import { PdfCoordinateEditor } from '../components/PdfCoordinateEditor'
 import type { PdfFieldSpec, PdfTemplateSummary } from '../types'
 import '../pdf-engine.css'
 
-const CODE_HINT = '영문 소문자/숫자/_/-, 2~64자 (예: car_consent)'
-const CODE_REGEX = /^[a-z][a-z0-9_-]{1,63}$/
-
 export default function PdfTemplateEditorPage() {
   const { id: idParam } = useParams<{ id: string }>()
   const isNew = !idParam || idParam === 'new'
@@ -58,7 +55,6 @@ function CreateTemplateFlow({
 }) {
   const [gaList, setGaList] = useState<GaCompanyRow[]>([])
   const [gaId, setGaId] = useState<'' | number>('')
-  const [code, setCode] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [file, setFile] = useState<File | null>(null)
@@ -77,10 +73,6 @@ function CreateTemplateFlow({
   const handleSubmit = async (ev: FormEvent) => {
     ev.preventDefault()
     if (!token) return
-    if (!CODE_REGEX.test(code.trim())) {
-      setError(`code 형식이 올바르지 않습니다. ${CODE_HINT}`)
-      return
-    }
     if (!title.trim()) {
       setError('문서 제목을 입력하세요.')
       return
@@ -95,12 +87,10 @@ function CreateTemplateFlow({
       const gaIdValue = gaId === '' ? null : Number(gaId)
       const uploaded = await uploadAdminPdfTemplateFile(token, {
         gaId: gaIdValue,
-        code: code.trim(),
         file,
       })
       const created = await createAdminPdfTemplate(token, {
         gaId: gaIdValue,
-        code: code.trim(),
         title: title.trim(),
         description: description.trim(),
         storageKey: uploaded.storageKey,
@@ -134,10 +124,6 @@ function CreateTemplateFlow({
               </option>
             ))}
           </select>
-        </label>
-        <label className="pdf-engine-editor__label">
-          code <span className="pdf-engine-editor__field-meta">{CODE_HINT}</span>
-          <input type="text" value={code} onChange={(e) => setCode(e.target.value)} placeholder="예: car_consent" />
         </label>
         <label className="pdf-engine-editor__label">
           문서 제목
@@ -242,10 +228,11 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
   const headerMeta = useMemo(() => {
     if (state.status !== 'ready') return null
     const t = state.template
+    /* 내부 식별자(code) 는 의도적으로 숨긴다 — 관리자가 다뤄야 할 값이 아니다.
+       #id 는 운영 상황에서 서버 로그와 교차 확인할 때 유일하게 필요한 흔적. */
     return (
       <span className="pdf-engine-editor__field-meta">
-        #{t.id} · code=<code>{t.code}</code> · {t.gaId == null ? '공용' : `${t.gaName ?? `GA#${t.gaId}`}`} ·{' '}
-        {t.pageCount} 페이지
+        #{t.id} · {t.gaId == null ? '공용' : `${t.gaName ?? `GA#${t.gaId}`}`} · {t.pageCount} 페이지
       </span>
     )
   }, [state])
