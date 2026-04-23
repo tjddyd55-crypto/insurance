@@ -858,6 +858,7 @@ export function CustomerForm({ onStatusMessage, onInternalSaveSuccess }: Custome
   return (
     <form
       className="customer-form-internal"
+      noValidate
       onSubmit={(e) => {
         e.preventDefault()
         void handleSubmit()

@@ -1770,13 +1770,11 @@ export default function CustomersPage() {
     if (!token?.trim()) {
       const msg = '로그인이 필요합니다.'
       setStatusText(msg)
-      window.alert(msg)
       return
     }
     if (user?.role !== 'USER') {
       const msg = '고객 정보를 수정할 권한이 없습니다.'
       setStatusText(msg)
-      window.alert(msg)
       return
     }
     const activeEditingId = editingIdRef.current
@@ -1784,21 +1782,18 @@ export default function CustomersPage() {
     if (activeEditingId == null || !activeEditForm) {
       const msg = '수정 중인 고객이 없습니다.'
       setStatusText(msg)
-      window.alert(msg)
       return
     }
     const base = customersRef.current.find((x) => x.id === activeEditingId)
     if (!base) {
       const msg = '고객 정보를 찾을 수 없습니다.'
       setStatusText(msg)
-      window.alert(msg)
       return
     }
     const name = activeEditForm.name.trim()
     if (!name) {
       const msg = '이름은 필수입니다.'
       setStatusText(msg)
-      window.alert(msg)
       return
     }
     const carYearForApi = normalizeCustomerEditCarYearForApi(activeEditForm.carYear)
@@ -1834,7 +1829,6 @@ export default function CustomersPage() {
     } catch (error) {
       const msg = error instanceof Error ? error.message : '수정에 실패했습니다.'
       setStatusText(msg)
-      window.alert(msg)
     }
   }, [token, user?.role, cancelEdit, loadCustomers])
 
@@ -1850,7 +1844,7 @@ export default function CustomersPage() {
     const text = buildKakaoCustomerCopyText(rec)
     try {
       await navigator.clipboard.writeText(text)
-      window.alert('복사되었습니다')
+      setStatusText('복사되었습니다.')
     } catch {
       setStatusText('복사에 실패했습니다.')
     }
@@ -2048,7 +2042,6 @@ export default function CustomersPage() {
 
   function handleDownloadSelected() {
     if (selectedCustomerIds.length === 0) {
-      window.alert('고객을 선택해주세요')
       setStatusText('다운로드할 고객을 선택해 주세요.')
       return
     }
@@ -2060,7 +2053,6 @@ export default function CustomersPage() {
   /** 현재 검색·정렬된 목록 전체 (필터 반영) */
   function handleDownloadListAll() {
     if (sortedCustomers.length === 0) {
-      window.alert('다운로드할 고객이 없습니다.')
       setStatusText('목록에 표시된 고객이 없습니다.')
       return
     }
@@ -2076,25 +2068,25 @@ export default function CustomersPage() {
     const refUsername = (user?.username ?? '').trim()
     const gaCode = (user?.gaCode ?? '').trim().toUpperCase()
     if (!gaCode) {
-      window.alert('GA 코드가 없습니다')
+      setStatusText('GA 코드가 없습니다.')
       return
     }
     if (!refUsername) {
-      window.alert('로그인 정보가 없습니다.')
+      setStatusText('로그인 정보가 없습니다.')
       return
     }
     const origin = getPublicOrigin()
     if (!origin) {
-      window.alert('초대 링크를 만들 수 없습니다. VITE_BASE_URL 설정을 확인해 주세요.')
+      setStatusText('초대 링크를 만들 수 없습니다. VITE_BASE_URL 설정을 확인해 주세요.')
       return
     }
     const inviteUrl = `${origin}/customer/register?ref=${encodeURIComponent(refUsername)}&ga=${encodeURIComponent(gaCode)}`
     const copied = await copyTextWithWebViewFallback(inviteUrl)
     if (copied) {
-      alert('링크 복사 완료')
+      setStatusText('링크 복사 완료')
       return
     }
-    alert('복사 실패')
+    setStatusText('복사 실패')
   }, [user?.username, user?.gaCode])
 
   const invokeInviteCopyFromPointer = useCallback(() => {
@@ -2224,7 +2216,6 @@ export default function CustomersPage() {
                   if (isMobile) {
                     const msg = 'PC 버전에서 가능합니다.'
                     setStatusText(msg)
-                    window.alert(msg)
                     return
                   }
                   enterExcelSelectMode()
