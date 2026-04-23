@@ -44,6 +44,12 @@ import {
 } from './pdf-engine/repository/pdfTemplateRepo.js'
 import { getCustomerProfile } from './pdf-engine/repository/userProfileRepo.js'
 import { injectCustomerValues } from './pdf-engine/mapping/customerMapping.js'
+import {
+  createIssuance,
+  getIssuanceById,
+  listIssuancesAll,
+  listIssuancesByUser,
+} from './pdf-engine/repository/pdfIssuanceRepo.js'
 import { stampPdf } from './pdf-engine/renderer/stampPdf.js'
 import {
   buildTemplateStorageKey,
@@ -51,6 +57,11 @@ import {
   getTemplateObject,
   putTemplateObject,
 } from './pdf-engine/storage/pdfTemplateStorage.js'
+import {
+  buildIssuanceStorageKey,
+  getIssuanceObject,
+  putIssuanceObject,
+} from './pdf-engine/storage/pdfIssuanceStorage.js'
 import { canAccessTemplateForUser } from './pdf-engine/security/templateAccess.js'
 
 const uploadPdf = multer({
@@ -535,6 +546,31 @@ export function registerPdfTemplateApi(apiRouter, deps) {
       const templateBytes = await getTemplateObject(template.storage_key)
       const rendered = await stampPdf(templateBytes, fields, validation.normalized)
 
+      /*
+       * 발급 이력 기록. 스탬핑이 성공한 뒤에만 저장한다 — 실패한 바이트를 보존할 이유가 없다.
+       * 스토리지/DB 저장 실패는 사용자 다운로드를 막지 않는다(이력 기록이 로깅 용도라기보다는
+       * 보조적인 감사 장치라서, 발급 자체를 실패 처리하면 사용자 입장에서 과한 UX 다).
+       * 다만 에러는 서버 로그에 남겨 추후 조사 가능하도록 한다.
+       */
+      let issuanceId = null
+      try {
+        const storageKey = buildIssuanceStorageKey()
+        await putIssuanceObject(storageKey, Buffer.from(rendered))
+        const row = await createIssuance(pool, {
+          templateId: template.id,
+          userId: req.user?.id ?? null,
+          gaId: template.ga_id ?? null,
+          templateCode: template.code,
+          templateTitle: template.title,
+          storageKey,
+          valuesSnapshot: validation.normalized,
+          byteLength: rendered.length ?? rendered.byteLength ?? 0,
+        })
+        issuanceId = row?.id ?? null
+      } catch (archiveError) {
+        console.error('[pdf-templates] 이력 기록 실패 (발급은 정상 진행)', archiveError)
+      }
+
       const filename = encodeURIComponent(`${template.code}.pdf`)
       res.setHeader('Content-Type', 'application/pdf')
       res.setHeader(
@@ -542,11 +578,102 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         `attachment; filename="document.pdf"; filename*=UTF-8''${filename}`,
       )
       res.setHeader('Cache-Control', 'private, no-store')
+      if (issuanceId != null) {
+        /* 프론트가 이력 화면으로 이동할 때 방금 생성된 이력을 바로 가리키도록 힌트를 내려준다. */
+        res.setHeader('X-Issuance-Id', String(issuanceId))
+      }
       res.send(rendered)
     } catch (error) {
       console.error('[pdf-templates] render 실패', error)
       const msg = error instanceof Error ? error.message : 'PDF 생성에 실패했습니다.'
       res.status(500).json({ message: msg })
+    }
+  })
+
+  // ─── 발급 이력 라우트 ──────────────────────────────────────────────
+
+  /*
+   * 사용자/관리자 공용: 본인 이력 또는(관리자) 전체 이력.
+   *
+   * 스코핑:
+   *   - SUPER_ADMIN: 전체 조회(listIssuancesAll).
+   *   - 그 외: req.user.id 로 제한. userId 가 없으면 빈 배열.
+   * 응답 구조는 프론트 표 렌더링에 바로 쓸 수 있는 DTO 로 변환한다.
+   */
+  apiRouter.get('/pdf-issuances', requireAuth, async (req, res) => {
+    try {
+      const isSuper = isSuperAdminRole(req.user?.role)
+      const rows = isSuper
+        ? await listIssuancesAll(pool, { limit: 200 })
+        : req.user?.id
+          ? await listIssuancesByUser(pool, String(req.user.id), { limit: 200 })
+          : []
+      res.json({
+        issuances: rows.map((row) => ({
+          id: row.id,
+          templateId: row.template_id,
+          userId: row.user_id,
+          gaId: row.ga_id,
+          templateCode: row.template_code,
+          templateTitle: row.template_title,
+          byteLength: row.byte_length,
+          createdAt: row.created_at,
+        })),
+      })
+    } catch (error) {
+      handleDbError(res, error)
+    }
+  })
+
+  /*
+   * 보관된 PDF 재다운로드.
+   *
+   * 접근 규칙:
+   *   - SUPER_ADMIN: 모두 허용.
+   *   - 본인 이력: user_id 가 일치해야 허용.
+   *   그 외는 404 로 응답(이력 존재 여부 노출 방지).
+   */
+  apiRouter.get('/pdf-issuances/:id/file', requireAuth, async (req, res) => {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id < 1) {
+      res.status(400).json({ message: 'id 가 올바르지 않습니다.' })
+      return
+    }
+    try {
+      const row = await getIssuanceById(pool, id)
+      if (!row) {
+        res.status(404).json({ message: '이력을 찾을 수 없습니다.' })
+        return
+      }
+      const isSuper = isSuperAdminRole(req.user?.role)
+      const isOwner = row.user_id != null && row.user_id === String(req.user?.id ?? '')
+      if (!isSuper && !isOwner) {
+        res.status(404).json({ message: '이력을 찾을 수 없습니다.' })
+        return
+      }
+      const buf = await getIssuanceObject(row.storage_key)
+      if (!buf || buf.length === 0) {
+        res.status(502).json({
+          message: '보관된 PDF 가 비어 있습니다.',
+          code: 'issuance-empty-object',
+        })
+        return
+      }
+      const filename = encodeURIComponent(`${row.template_code}-${row.id}.pdf`)
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Length', String(buf.length))
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="issuance.pdf"; filename*=UTF-8''${filename}`,
+      )
+      res.setHeader('Cache-Control', 'private, no-store')
+      res.send(buf)
+    } catch (error) {
+      console.error('[pdf-issuances] 다운로드 실패', { id, error })
+      res.status(502).json({
+        message: '이력 PDF 를 가져오지 못했습니다.',
+        code: 'issuance-fetch-failed',
+      })
     }
   })
 }

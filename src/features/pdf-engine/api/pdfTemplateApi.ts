@@ -240,6 +240,53 @@ export function getPdfTemplate(token: string, id: number): Promise<PdfTemplateDe
   return apiRequest(`/api/pdf-templates/${id}`, { method: 'GET', token })
 }
 
+// ─── 발급 이력(사용자/관리자 공용) ───────────────────────────────────
+
+export interface PdfIssuanceSummary {
+  id: number
+  templateId: number | null
+  userId: string | null
+  gaId: number | null
+  templateCode: string
+  templateTitle: string
+  byteLength: number
+  createdAt: string
+}
+
+export function listPdfIssuances(
+  token: string,
+): Promise<{ issuances: PdfIssuanceSummary[] }> {
+  return apiRequest('/api/pdf-issuances', { method: 'GET', token })
+}
+
+/**
+ * 보관된 PDF 를 바이너리로 받는다.
+ * 서버 측에서 본인 여부/관리자 여부를 검사하므로 프론트는 요청만 한다.
+ */
+export async function fetchPdfIssuanceFile(token: string, id: number): Promise<Blob> {
+  const url = resolveApiUrl(`/api/pdf-issuances/${id}/file`)
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method: 'GET',
+      headers: { ...authHeader(token) },
+    })
+  } catch (networkError) {
+    logger.error('pdf-issuance.file.network-failed', {
+      issuanceId: id,
+      error: networkError,
+    })
+    throw new ApiError('네트워크 오류로 보관된 PDF 를 불러오지 못했습니다.', 0)
+  }
+
+  if (!res.ok) {
+    throw await toApiError(res, '보관된 PDF 를 불러오지 못했습니다.', 'pdf-issuance.file.http-error', {
+      issuanceId: id,
+    })
+  }
+  return res.blob()
+}
+
 /**
  * 입력값을 전송하고 스탬핑된 PDF 바이너리를 받는다.
  * 브라우저에서 다운로드 트리거는 호출측에서 Blob + anchor 로 처리.

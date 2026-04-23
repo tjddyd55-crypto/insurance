@@ -51,6 +51,7 @@ import PdfTemplateListPage from './features/pdf-engine/pages/PdfTemplateListPage
 import PdfTemplateEditorPage from './features/pdf-engine/pages/PdfTemplateEditorPage'
 import PdfDocumentListPage from './features/pdf-engine/pages/PdfDocumentListPage'
 import PdfDocumentDetailPage from './features/pdf-engine/pages/PdfDocumentDetailPage'
+import PdfIssuanceHistoryPage from './features/pdf-engine/pages/PdfIssuanceHistoryPage'
 import { ConsentFormPage } from './features/consent/pages/ConsentFormPage'
 import { DashboardPage } from './features/dashboard/pages/DashboardPage'
 import { IntroductionPage } from './features/web/pages/IntroductionPage'
@@ -196,6 +197,7 @@ export const appRouter = createBrowserRouter([
                * GA 범위 + 구독 상태로 이중 차단한다.
                */
               { path: 'application/documents', element: <PdfDocumentListPage /> },
+              { path: 'application/documents/history', element: <PdfIssuanceHistoryPage /> },
               { path: 'application/documents/:id', element: <PdfDocumentDetailPage /> },
               {
                 path: 'customers',

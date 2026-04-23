@@ -383,6 +383,55 @@
   line-height: 1.4;
 }
 
+/* ─── 발급 이력 ────────────────────────────────────────────────── */
+
+.pdf-engine-issuance-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pdf-engine-issuance-list__head,
+.pdf-engine-issuance-list__row {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 0.8fr 1fr;
+  gap: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  align-items: center;
+}
+
+.pdf-engine-issuance-list__head {
+  background: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.pdf-engine-issuance-list__row {
+  background: white;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.pdf-engine-issuance-list__row:last-child {
+  border-bottom: none;
+}
+
+@media (max-width: 640px) {
+  .pdf-engine-issuance-list__head {
+    display: none;
+  }
+  .pdf-engine-issuance-list__row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 12px 14px;
+  }
+}
+
 /* ─── 체크박스 / 라디오 (사용자 폼) ──────────────────────────────── */
 
 .pdf-engine-form__checkbox-row {
