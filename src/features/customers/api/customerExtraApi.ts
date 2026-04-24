@@ -45,6 +45,19 @@ export type SaveCustomerFilePayload = {
 
 export type CustomerFilePresignResponse = StorageFilePresignResponse
 
+function dedupeCustomersById(rows: CustomerRecord[]): CustomerRecord[] {
+  const seen = new Set<number>()
+  const deduped: CustomerRecord[] = []
+  for (const row of rows) {
+    if (seen.has(row.id)) {
+      continue
+    }
+    seen.add(row.id)
+    deduped.push(row)
+  }
+  return deduped
+}
+
 export async function fetchConsultationCounts(token: string): Promise<ConsultationCountsResponse> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
@@ -159,13 +172,11 @@ export async function searchCustomersAdvanced(
   }
   const q = new URLSearchParams()
   q.set('q', opts.q)
-  if (opts.includeRelations) {
-    q.set('includeRelations', '1')
-  }
   if (opts.limit != null) {
     q.set('limit', String(opts.limit))
   }
-  return apiRequest<CustomerRecord[]>(`/api/customers/search/advanced?${q.toString()}`, { token })
+  const rows = await apiRequest<CustomerRecord[]>(`/api/customers/search/advanced?${q.toString()}`, { token })
+  return dedupeCustomersById(rows)
 }
 
 export async function presignCustomerFile(

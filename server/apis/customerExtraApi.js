@@ -329,14 +329,14 @@ const CUSTOMER_SELECT_LIST = `
   c.id, c.user_id, c.name, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
   c.car_number, c.car_model, c.car_year, c.renewal_date,
   c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
-  c.is_favorite, c.created_at, lc.last_consult_date
+  c.is_favorite, c.created_at
 `
 
 const CUSTOMER_SELECT_LIST_NO_ALIAS = `
   id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
   car_number, car_model, car_year, renewal_date,
   gender, insurance_age, next_age_date, is_driver, car_type, notes,
-  is_favorite, created_at, last_consult_date
+  is_favorite, created_at
 `
 
 /**
@@ -604,9 +604,6 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       }
 
       const q = String(req.query.q ?? '').trim()
-      const includeRelations = ['1', 'true', 'yes'].includes(
-        String(req.query.includeRelations ?? '').trim().toLowerCase(),
-      )
       const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 500)
 
       if (!q) {
@@ -615,16 +612,8 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
           `
           SELECT ${CUSTOMER_SELECT_LIST_NO_ALIAS}
           FROM customers c
-          LEFT JOIN (
-            SELECT
-              cc.customer_id,
-              MAX(cc.consultation_date) AS last_consult_date
-            FROM customer_consultations cc
-            WHERE cc.user_id = $1 AND cc.ga_id = $2
-            GROUP BY cc.customer_id
-          ) lc ON lc.customer_id = c.id
           WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
-          ORDER BY lc.last_consult_date DESC NULLS LAST, c.created_at DESC
+          ORDER BY c.created_at DESC
           LIMIT $3
           `,
           [userId, gaId, limit],
@@ -634,55 +623,14 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       }
 
       const pattern = `%${escapeIlikePattern(q)}%`
-      const relationExists = includeRelations
-        ? `
-        OR EXISTS (
-          SELECT 1 FROM customer_relations cr
-          INNER JOIN customers o
-            ON o.id = cr.related_customer_id
-           AND o.user_id = $1
-           AND o.ga_id = $2
-           AND o.deleted_at IS NULL
-          WHERE cr.customer_id = c2.id
-            AND cr.user_id = $1
-            AND cr.ga_id = $2
-            AND (o.name ILIKE $3 ESCAPE '\\' OR o.phone ILIKE $3 ESCAPE '\\')
-        )
-      `
-        : ''
-
       const result = await safeQuery(
         pool,
         `
-        WITH matched AS (
-          SELECT DISTINCT c2.id
-          FROM customers c2
-          WHERE c2.user_id = $1 AND c2.ga_id = $2 AND c2.deleted_at IS NULL
-          AND (
-            c2.name ILIKE $3 ESCAPE '\\' OR c2.phone ILIKE $3 ESCAPE '\\'
-            OR EXISTS (
-              SELECT 1 FROM customer_consultations cc
-              WHERE cc.customer_id = c2.id
-                AND cc.user_id = $1
-                AND cc.ga_id = $2
-                AND cc.body ILIKE $3 ESCAPE '\\'
-            )
-            ${relationExists}
-          )
-        )
         SELECT ${CUSTOMER_SELECT_LIST}
         FROM customers c
-        LEFT JOIN (
-          SELECT
-            cc.customer_id,
-            MAX(cc.consultation_date) AS last_consult_date
-          FROM customer_consultations cc
-          WHERE cc.user_id = $1 AND cc.ga_id = $2
-          GROUP BY cc.customer_id
-        ) lc ON lc.customer_id = c.id
-        INNER JOIN matched m ON m.id = c.id
         WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
-        ORDER BY lc.last_consult_date DESC NULLS LAST, c.created_at DESC
+          AND (c.name ILIKE $3 ESCAPE '\\' OR c.phone ILIKE $3 ESCAPE '\\')
+        ORDER BY c.created_at DESC
         LIMIT $4
         `,
         [userId, gaId, pattern, limit],

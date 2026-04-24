@@ -77,6 +77,19 @@ function normalizeCustomerMutationResponse(raw: unknown): unknown {
   return raw
 }
 
+function dedupeCustomersById(rows: CustomerRecord[]): CustomerRecord[] {
+  const seen = new Set<number>()
+  const deduped: CustomerRecord[] = []
+  for (const row of rows) {
+    if (seen.has(row.id)) {
+      continue
+    }
+    seen.add(row.id)
+    deduped.push(row)
+  }
+  return deduped
+}
+
 export async function listCustomers(token: string, limit = 500): Promise<ListCustomersResult> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
@@ -144,7 +157,8 @@ export async function searchCustomers(token: string, q: string): Promise<Custome
   }
   const suffix = query.toString() ? `?${query.toString()}` : ''
   try {
-    return await apiRequest<CustomerRecord[]>(`/api/customers/search${suffix}`, { token })
+    const rows = await apiRequest<CustomerRecord[]>(`/api/customers/search${suffix}`, { token })
+    return dedupeCustomersById(rows)
   } catch {
     return []
   }

@@ -5774,19 +5774,10 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
           c.id, c.user_id, c.name, c.birth_date, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
           c.car_number, c.car_model, c.car_year, c.renewal_date,
           c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
-          c.is_favorite, c.created_at,
-          lc.last_consult_date
+          c.is_favorite, c.created_at
         FROM customers c
-        LEFT JOIN (
-          SELECT
-            cc.customer_id,
-            MAX(cc.consultation_date) AS last_consult_date
-          FROM customer_consultations cc
-          WHERE cc.user_id = $1 AND cc.ga_id = $2
-          GROUP BY cc.customer_id
-        ) lc ON lc.customer_id = c.id
         WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
-        ORDER BY lc.last_consult_date DESC NULLS LAST, c.created_at DESC
+        ORDER BY c.created_at DESC
         LIMIT 2000
         `,
         [userId, gaId],
@@ -5800,20 +5791,11 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
           c.id, c.user_id, c.name, c.birth_date, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
           c.car_number, c.car_model, c.car_year, c.renewal_date,
           c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
-          c.is_favorite, c.created_at,
-          lc.last_consult_date
+          c.is_favorite, c.created_at
         FROM customers c
-        LEFT JOIN (
-          SELECT
-            cc.customer_id,
-            MAX(cc.consultation_date) AS last_consult_date
-          FROM customer_consultations cc
-          WHERE cc.user_id = $1 AND cc.ga_id = $3
-          GROUP BY cc.customer_id
-        ) lc ON lc.customer_id = c.id
         WHERE c.user_id = $1 AND c.ga_id = $3 AND c.deleted_at IS NULL
           AND (c.name ILIKE $2 ESCAPE '\\' OR c.phone ILIKE $2 ESCAPE '\\')
-        ORDER BY lc.last_consult_date DESC NULLS LAST, c.created_at DESC
+        ORDER BY c.created_at DESC
         LIMIT 2000
         `,
         [userId, pattern, gaId],
