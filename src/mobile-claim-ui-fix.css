@@ -1,9 +1,27 @@
 @media (max-width: 767px) {
   /*
    * Mobile claim visual rules only.
-   * Do not hide page sections here. Mobile/PC structure must be decided in JSX,
-   * not by :has(), :last-child, or nth-child selectors.
+   * Page section visibility is handled by JSX. This file only styles the detail
+   * modal and hides the raw link code/URL rows inside the link sending card.
    */
+
+  .claim-requests-page--mobile .claim-requests-page__link-row,
+  .claim-requests-page--mobile .claim-requests-page__link-code-row,
+  .claim-requests-page--mobile .claim-requests-page__link-url-row,
+  .claim-requests-page--mobile .claim-requests-page__raw-link-row,
+  .claim-requests-page--mobile .claim-requests-page__link-field-row,
+  .claim-requests-page--mobile .claim-requests-page__link-value-row {
+    display: none !important;
+  }
+
+  .claim-requests-page--mobile :is(.claim-requests-page__link-panel, .claim-requests-page__link-card, .claim-requests-page__link-section) :is(.claim-requests-page__code-field, .claim-requests-page__url-field, .claim-requests-page__copy-row) {
+    display: none !important;
+  }
+
+  .claim-requests-page--mobile :is(.claim-requests-page__link-panel, .claim-requests-page__link-card, .claim-requests-page__link-section) > :not(header):not(.claim-requests-page__link-header):not(.claim-requests-page__share-actions):not(.claim-requests-page__link-actions):has(input[readonly]),
+  .claim-requests-page--mobile :is(.claim-requests-page__link-panel, .claim-requests-page__link-card, .claim-requests-page__link-section) > :not(header):not(.claim-requests-page__link-header):not(.claim-requests-page__share-actions):not(.claim-requests-page__link-actions):has(textarea[readonly]) {
+    display: none !important;
+  }
 
   .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) {
     z-index: 13000 !important;
