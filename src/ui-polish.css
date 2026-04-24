@@ -12,9 +12,6 @@
   --ui-polish-text-muted: color-mix(in srgb, var(--text-secondary, #9aa5b1) 86%, transparent);
 }
 
-/* --------------------------------------------------------------------------
- * 1) Mobile customer list card polish
- * -------------------------------------------------------------------------- */
 @media (max-width: 767px) {
   .customers-page--mobile,
   .mobile-root .customers-page,
@@ -159,34 +156,52 @@
   .mobile-root .customer-detail-feature-actions--mobile-priority {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin: 2px 0 8px;
-    padding: 10px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--ui-polish-primary) 7%, var(--bg-card, #1e2633) 93%);
-    border: 1px solid color-mix(in srgb, var(--ui-polish-primary) 24%, transparent);
+    gap: 12px;
+    margin: 8px 0 12px;
+    padding: 12px 8px 14px;
+    border-radius: 0;
+    background: transparent;
+    border: 0;
+    border-top: 1px solid color-mix(in srgb, var(--border, #2b3544) 78%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--border, #2b3544) 78%, transparent);
   }
 
   .customers-page--mobile .customer-detail-feature-actions--mobile-priority .button,
   .mobile-root .customer-detail-feature-actions--mobile-priority .button,
   .customers-page--mobile .customer-detail-feature-actions--mobile-priority button,
   .mobile-root .customer-detail-feature-actions--mobile-priority button {
-    min-height: 38px;
-    height: 38px;
-    border-radius: 10px;
+    min-height: 76px;
+    height: 76px;
+    border-radius: 14px;
     padding: 0 10px;
-    font-size: 0.86rem;
-    font-weight: 800;
+    font-size: 1rem;
+    font-weight: 900;
     justify-content: center;
-    background: color-mix(in srgb, var(--ui-polish-primary) 26%, var(--bg-card, #1e2633) 74%);
-    border-color: color-mix(in srgb, var(--ui-polish-primary) 34%, var(--ui-polish-border) 66%);
+    gap: 8px;
+    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+    border: 1px solid color-mix(in srgb, #60a5fa 28%, transparent);
+    color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 8px 18px rgba(37, 99, 235, 0.18);
   }
+
+  .customers-page--mobile .customer-detail-feature-actions--mobile-priority button:nth-child(1)::before,
+  .mobile-root .customer-detail-feature-actions--mobile-priority button:nth-child(1)::before { content: '📁'; }
+  .customers-page--mobile .customer-detail-feature-actions--mobile-priority button:nth-child(2)::before,
+  .mobile-root .customer-detail-feature-actions--mobile-priority button:nth-child(2)::before { content: '💬'; }
+  .customers-page--mobile .customer-detail-feature-actions--mobile-priority button:nth-child(3)::before,
+  .mobile-root .customer-detail-feature-actions--mobile-priority button:nth-child(3)::before { content: '📝'; }
+  .customers-page--mobile .customer-detail-feature-actions--mobile-priority button:nth-child(4)::before,
+  .mobile-root .customer-detail-feature-actions--mobile-priority button:nth-child(4)::before { content: '📊'; }
+  .customers-page--mobile .customer-detail-feature-actions--mobile-priority button:nth-child(5)::before,
+  .mobile-root .customer-detail-feature-actions--mobile-priority button:nth-child(5)::before { content: '✉️'; }
+  .customers-page--mobile .customer-detail-feature-actions--mobile-priority button:nth-child(6)::before,
+  .mobile-root .customer-detail-feature-actions--mobile-priority button:nth-child(6)::before { content: '📋'; }
 
   .customers-page--mobile .customer-detail-toggle-btn,
   .mobile-root .customer-detail-toggle-btn {
     width: 100%;
-    min-height: 38px;
-    height: 38px;
+    min-height: 40px;
+    height: 40px;
     margin-top: 8px;
     border-radius: 999px;
     font-weight: 800;
@@ -197,9 +212,81 @@
   }
 }
 
-/* --------------------------------------------------------------------------
- * 2) Claim management page: mobile-first card stack + denser PC top area
- * -------------------------------------------------------------------------- */
+.customer-workspace-mobile-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+
+.customer-workspace-mobile-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.customer-workspace-mobile-modal__sheet {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 480px;
+  height: min(92dvh, 820px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 18px 18px 0 0;
+  background: var(--bg-main, #0f141b);
+  border: 1px solid var(--ui-polish-border);
+  border-bottom: 0;
+  overflow: hidden;
+  box-shadow: 0 -18px 44px rgba(0, 0, 0, 0.42);
+}
+
+.customer-workspace-mobile-modal__header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid var(--ui-polish-border-soft);
+  background: var(--ui-polish-card);
+}
+
+.customer-workspace-mobile-modal__eyebrow {
+  font-size: 0.78rem;
+  color: var(--ui-polish-text-muted);
+  margin-bottom: 2px;
+}
+
+.customer-workspace-mobile-modal__title {
+  margin: 0;
+  font-size: 1.06rem;
+  font-weight: 900;
+  color: var(--text-primary, #e6ecf2);
+}
+
+.customer-workspace-mobile-modal__close {
+  min-height: 36px;
+  border-radius: 10px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.customer-workspace-mobile-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0;
+}
+
+.customer-workspace-mobile-modal__body .claim-requests-page--mobile {
+  min-height: 100%;
+  padding: 12px 12px calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
 .claim-requests-page {
   --claim-card-radius: 14px;
   --claim-gap: 12px;
@@ -411,9 +498,6 @@
   }
 }
 
-/* --------------------------------------------------------------------------
- * 3) Personal message page: mobile stack and PC two-column readability
- * -------------------------------------------------------------------------- */
 .claim-requests-page :is(.claim-requests-page__composer, .claim-requests-page__message-composer, .claim-requests-page__personal-composer) {
   background: var(--ui-polish-card);
   border: 1px solid var(--ui-polish-border-soft);
