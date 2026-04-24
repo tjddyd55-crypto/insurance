@@ -30,9 +30,11 @@ import { DesktopUpdateDialog } from './features/desktop-update/DesktopUpdateDial
 import { AuthProvider } from './features/auth/AuthProvider'
 import { initColorScheme } from './theme/colorScheme'
 import { initCustomerDetailEmojiCleanup } from './customer-detail-emoji-cleanup'
+import { initMobileRuntimeCleanup } from './mobile-runtime-cleanup'
 
 initColorScheme()
 initCustomerDetailEmojiCleanup()
+initMobileRuntimeCleanup()
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
