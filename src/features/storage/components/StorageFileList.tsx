@@ -1,14 +1,19 @@
 import { FormButton } from '../../../components/form'
-import type { StorageFileRow } from '../api/storageApi'
+import type { StorageFileRow, StorageFolderRow } from '../api/storageApi'
 
 type StorageFileListProps = {
+  folders: StorageFolderRow[]
   files: StorageFileRow[]
   loading: boolean
   selectedFileId: number | null
+  expandedFolderIds: Set<number>
+  onToggleFolder: (folderId: number) => void
   onSelectFile: (id: number) => void
   onDownload: (file: StorageFileRow) => void
   onRename: (file: StorageFileRow) => void
   onDelete: (file: StorageFileRow) => void
+  onRenameFolder: (folder: StorageFolderRow) => void
+  onDeleteFolder: (folder: StorageFolderRow) => void
 }
 
 function renderFileIcon(file: StorageFileRow): string {
@@ -31,56 +36,166 @@ function formatDate(iso: string): string {
 }
 
 export default function StorageFileList({
+  folders,
   files,
   loading,
   selectedFileId,
+  expandedFolderIds,
+  onToggleFolder,
   onSelectFile,
   onDownload,
   onRename,
   onDelete,
+  onRenameFolder,
+  onDeleteFolder,
 }: StorageFileListProps) {
   if (loading) {
     return <p className="storage-file-list__empty">불러오는 중…</p>
   }
-  if (files.length === 0) {
+  if (files.length === 0 && folders.length === 0) {
     return <p className="storage-file-list__empty">파일이 없습니다.</p>
   }
-  return (
-    <div className="storage-file-list">
-      {files.map((file) => {
-        const selected = selectedFileId === file.id
-        return (
-          <div
-            key={file.id}
-            className={`storage-file-list__item${selected ? ' storage-file-list__item--selected' : ''}`}
-            role="button"
-            tabIndex={0}
-            onClick={() => onSelectFile(file.id)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                onSelectFile(file.id)
-              }
+
+  const filesByFolderId = new Map<number | null, StorageFileRow[]>()
+  for (const file of files) {
+    const key = file.folderId ?? null
+    const bucket = filesByFolderId.get(key)
+    if (bucket) {
+      bucket.push(file)
+    } else {
+      filesByFolderId.set(key, [file])
+    }
+  }
+  const rootFiles = filesByFolderId.get(null) ?? []
+
+  const renderFileRow = (file: StorageFileRow, nested = false) => {
+    const selected = selectedFileId === file.id
+    return (
+      <div
+        key={file.id}
+        className={`storage-file-list__item${selected ? ' storage-file-list__item--selected' : ''}${
+          nested ? ' storage-file-list__item--nested' : ''
+        }`}
+        role="button"
+        tabIndex={0}
+        onClick={() => onSelectFile(file.id)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            onSelectFile(file.id)
+          }
+        }}
+      >
+        <div className="storage-file-list__main">
+          <span className="storage-file-list__icon">{renderFileIcon(file)}</span>
+          <div className="storage-file-list__meta">
+            <div className="storage-file-list__name">{file.displayName}</div>
+            <div className="storage-file-list__sub">{formatDate(file.createdAt)}</div>
+          </div>
+        </div>
+        <div className="storage-file-list__actions">
+          <FormButton
+            htmlType="button"
+            variant="action"
+            onClick={(event) => {
+              event.stopPropagation()
+              onDownload(file)
             }}
           >
-            <div className="storage-file-list__main">
-              <span className="storage-file-list__icon">{renderFileIcon(file)}</span>
-              <div className="storage-file-list__meta">
-                <div className="storage-file-list__name">{file.displayName}</div>
-                <div className="storage-file-list__sub">{formatDate(file.createdAt)}</div>
+            다운로드
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="action"
+            onClick={(event) => {
+              event.stopPropagation()
+              onRename(file)
+            }}
+          >
+            이름 변경
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="action"
+            onClick={(event) => {
+              event.stopPropagation()
+              onDelete(file)
+            }}
+          >
+            삭제
+          </FormButton>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="storage-file-list">
+      <div className="storage-tree__root">
+        <span className="storage-tree__arrow">▼</span>
+        <span className="storage-tree__label">전체</span>
+      </div>
+
+      {rootFiles.length > 0 ? (
+        <div className="storage-tree__folder-block">
+          <div className="storage-tree__virtual-group">
+            <span className="storage-tree__arrow">•</span>
+            <span className="storage-tree__label">미분류</span>
+          </div>
+          {rootFiles.map((file) => renderFileRow(file, true))}
+        </div>
+      ) : null}
+
+      {folders.map((folder) => {
+        const expanded = expandedFolderIds.has(folder.id)
+        const folderFiles = filesByFolderId.get(folder.id) ?? []
+        return (
+          <div key={folder.id} className="storage-tree__folder-block">
+            <div
+              className="storage-tree__folder"
+              role="button"
+              tabIndex={0}
+              onClick={() => onToggleFolder(folder.id)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onToggleFolder(folder.id)
+                }
+              }}
+            >
+              <div className="storage-tree__folder-main">
+                <span className="storage-tree__arrow">{expanded ? '▼' : '▶'}</span>
+                <span className="storage-tree__folder-icon">📁</span>
+                <span className="storage-tree__label">{folder.name}</span>
+              </div>
+              <div className="storage-tree__folder-actions">
+                <FormButton
+                  htmlType="button"
+                  variant="action"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onRenameFolder(folder)
+                  }}
+                >
+                  ✏️
+                </FormButton>
+                <FormButton
+                  htmlType="button"
+                  variant="action"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onDeleteFolder(folder)
+                  }}
+                >
+                  🗑️
+                </FormButton>
               </div>
             </div>
-            <div className="storage-file-list__actions">
-              <FormButton htmlType="button" variant="action" onClick={() => onDownload(file)}>
-                다운로드
-              </FormButton>
-              <FormButton htmlType="button" variant="action" onClick={() => onRename(file)}>
-                이름 변경
-              </FormButton>
-              <FormButton htmlType="button" variant="action" onClick={() => onDelete(file)}>
-                삭제
-              </FormButton>
-            </div>
+
+            {expanded ? folderFiles.map((file) => renderFileRow(file, true)) : null}
+            {expanded && folderFiles.length === 0 ? (
+              <p className="storage-file-list__empty storage-file-list__empty--nested">파일이 없습니다.</p>
+            ) : null}
           </div>
         )
       })}

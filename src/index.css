@@ -8568,6 +8568,74 @@ textarea.memo-sticky-note__textarea::placeholder {
   gap: 8px;
 }
 
+.storage-tree__root {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 2px 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.storage-tree__folder-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.storage-tree__virtual-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 2px;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.storage-tree__folder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+  background: var(--bg-card);
+  cursor: pointer;
+}
+
+.storage-tree__folder-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.storage-tree__folder-icon {
+  font-size: 1rem;
+}
+
+.storage-tree__arrow {
+  width: 14px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.storage-tree__label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.storage-tree__folder-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .storage-file-list__item {
   display: flex;
   align-items: center;
@@ -8587,6 +8655,10 @@ textarea.memo-sticky-note__textarea::placeholder {
 .storage-file-list__item--selected {
   border-color: color-mix(in srgb, var(--accent, #3b82f6) 70%, var(--border-default));
   background: color-mix(in srgb, var(--accent, #3b82f6) 10%, var(--bg-card));
+}
+
+.storage-file-list__item--nested {
+  margin-left: 22px;
 }
 
 .storage-file-list__main {
@@ -8628,6 +8700,11 @@ textarea.memo-sticky-note__textarea::placeholder {
   margin: 0;
   color: var(--text-secondary);
   font-size: 0.9rem;
+}
+
+.storage-file-list__empty--nested {
+  margin-left: 22px;
+  font-size: 0.82rem;
 }
 
 .storage-folder-sheet {
@@ -8720,9 +8797,23 @@ textarea.memo-sticky-note__textarea::placeholder {
 }
 
 @media (max-width: 768px) {
+  .storage-tree__folder {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .storage-tree__folder-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
   .storage-file-list__item {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .storage-file-list__item--nested {
+    margin-left: 12px;
   }
 
   .storage-file-list__actions {
@@ -8730,7 +8821,7 @@ textarea.memo-sticky-note__textarea::placeholder {
   }
 
   .storage-file-list__name {
-    max-width: 220px;
+    max-width: min(72vw, 260px);
   }
 }
 

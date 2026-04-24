@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { FormButton } from '../../../components/form'
 import {
   createStorageFolder,
   deleteStorageFile,
@@ -144,6 +143,7 @@ export default function StorageWorkspace({
   const isMobile = variant === 'mobile'
   const [folders, setFolders] = useState<StorageFolderRow[]>([])
   const [files, setFiles] = useState<StorageFileRow[]>([])
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(new Set())
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
@@ -183,6 +183,19 @@ export default function StorageWorkspace({
     setSelectedFileId(null)
     setError('')
   }, [customerId, token])
+
+  useEffect(() => {
+    setExpandedFolderIds((prev) => {
+      const next = new Set<number>()
+      for (const folder of folders) {
+        // 새로 생긴 폴더는 기본 펼침으로 시작, 기존 폴더는 사용자의 이전 상태를 유지.
+        if (prev.has(folder.id) || !prev.size) {
+          next.add(folder.id)
+        }
+      }
+      return next
+    })
+  }, [folders])
 
   /**
    * 각 로드 함수는 **외부 입력(token, customerId, selectedFolderId)** 에만 의존한다.
@@ -239,12 +252,12 @@ export default function StorageWorkspace({
       }
       const rows = await listStorageFiles(
         token,
-        { customerId, folderId: selectedFolderId },
+        { customerId },
         { signal },
       )
       setFiles(rows)
     },
-    [customerId, selectedFolderId, token],
+    [customerId, token],
   )
 
   /**
@@ -584,42 +597,33 @@ export default function StorageWorkspace({
         uploading={uploading}
       />
 
-      <div className="storage-folders">
-        {folderOptions.map((folder) => {
-          const selected = folder.id === selectedFolderId
-          const editable = folder.id != null
-          return (
-            <div key={folder.id == null ? 'all' : String(folder.id)} className={`storage-folders__chip${selected ? ' storage-folders__chip--selected' : ''}`}>
-              <FormButton htmlType="button" variant="action" onClick={() => setSelectedFolderId(folder.id)}>
-                {folder.name}
-              </FormButton>
-              {editable ? (
-                <div className="storage-folders__actions">
-                  <FormButton htmlType="button" variant="action" onClick={() => openRenameFolderDialog(folder)}>
-                    ✏️
-                  </FormButton>
-                  <FormButton htmlType="button" variant="action" onClick={() => setDeleteTarget({ kind: 'folder', folder })}>
-                    🗑️
-                  </FormButton>
-                </div>
-              ) : null}
-            </div>
-          )
-        })}
-      </div>
-
       {error ? <p className="storage-workspace__error">{error}</p> : null}
 
       <StorageFileList
+        folders={folders}
         files={files}
         loading={loading}
         selectedFileId={selectedFileId}
+        expandedFolderIds={expandedFolderIds}
+        onToggleFolder={(folderId) => {
+          setExpandedFolderIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(folderId)) {
+              next.delete(folderId)
+            } else {
+              next.add(folderId)
+            }
+            return next
+          })
+        }}
         onSelectFile={setSelectedFileId}
         onDownload={(file) => {
           void downloadFile(file)
         }}
         onRename={openRenameFileDialog}
         onDelete={(file) => setDeleteTarget({ kind: 'file', file })}
+        onRenameFolder={openRenameFolderDialog}
+        onDeleteFolder={(folder) => setDeleteTarget({ kind: 'folder', folder })}
       />
 
       <StorageRenameDialog
