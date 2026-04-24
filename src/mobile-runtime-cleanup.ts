@@ -1,13 +1,14 @@
 /*
  * Mobile runtime cleanup guard.
  *
- * This is intentionally narrow and mobile-only. It protects the current UI while
- * older/overlapping polish CSS and JSX are being consolidated:
- * - Remove emoji/icon nodes from the 6 customer-card action buttons.
+ * Mobile-only visual cleanup while overlapping polish CSS is being consolidated:
  * - Strip remaining leading emoji prefixes from customer detail text/section titles.
  * - Hide raw claim link code/URL rows on mobile.
- * - Hide only the inline "selected claim detail" block on the mobile claim main screen,
+ * - Hide only the inline selected-claim detail card on the mobile claim main screen,
  *   while preserving the claim request list and the full-screen detail modal.
+ *
+ * Important: this file must not remove generic svg/img/aria-hidden nodes, because
+ * copy/edit/delete action controls also use those nodes for their icons.
  */
 
 const MOBILE_MEDIA_QUERY = '(max-width: 767px)'
@@ -47,22 +48,6 @@ function stripCustomerDetailEmojiPrefixes(root: ParentNode = document) {
   }
 }
 
-function removeMobileActionButtonIcons(root: ParentNode = document) {
-  if (!isMobileViewport()) {
-    return
-  }
-  const actionAreas = Array.from(root.querySelectorAll?.('.customer-detail-feature-actions--mobile-priority') ?? [])
-  for (const area of actionAreas) {
-    area.querySelectorAll('.customer-mobile-action-btn__icon, svg, img').forEach((node) => node.remove())
-    area.querySelectorAll('[aria-hidden="true"]').forEach((node) => {
-      const el = node as HTMLElement
-      if (!el.classList.contains('customer-mobile-action-btn__text')) {
-        el.remove()
-      }
-    })
-  }
-}
-
 function closestHideableRow(labelEl: Element): HTMLElement | null {
   let current: HTMLElement | null = labelEl.parentElement
   let depth = 0
@@ -99,32 +84,49 @@ function hideMobileClaimRawLinkRows(root: ParentNode = document) {
   }
 }
 
+function findClaimDetailCard(titleEl: HTMLElement, page: Element): HTMLElement | null {
+  let current: HTMLElement | null = titleEl
+  let depth = 0
+  while (current && current !== page && depth < 6) {
+    const parent = current.parentElement
+    if (!parent || parent === page) {
+      return current
+    }
+    const parentText = parent.textContent ?? ''
+    const parentHasClaimList = parentText.includes('청구 요청 목록')
+    const parentHasLinkPanel = parentText.includes('링크 발송') || parentText.includes('연결 상태')
+    if (parentHasClaimList || parentHasLinkPanel) {
+      return current
+    }
+    current = parent
+    depth += 1
+  }
+  return null
+}
+
 function hideInlineSelectedClaimDetail(root: ParentNode = document) {
   if (!isMobileViewport()) {
     return
   }
   const pages = Array.from(root.querySelectorAll?.('.workspace-mobile-outlet-modal__body .claim-requests-page--mobile') ?? [])
   for (const page of pages) {
-    page.querySelectorAll('section, article, div').forEach((node) => {
+    page.querySelectorAll('h1, h2, h3, h4, header, section > div:first-child, article > div:first-child, div').forEach((node) => {
       const el = node as HTMLElement
       if (el.closest('.customer-ui-modal-backdrop')) {
         return
       }
-      const text = (el.textContent ?? '').trim()
-      if (!text.includes('선택한 청구 요청 상세')) {
+      if ((el.textContent ?? '').trim() !== '선택한 청구 요청 상세') {
         return
       }
-      const detailSectionCount = el.querySelectorAll('.claim-requests-page__detail-section').length
-      const hasClaimList = text.includes('청구 요청 목록')
-      if (detailSectionCount > 0 || !hasClaimList) {
-        el.style.display = 'none'
+      const card = findClaimDetailCard(el, page)
+      if (card) {
+        card.style.display = 'none'
       }
     })
   }
 }
 
 function runMobileRuntimeCleanup(root: ParentNode = document) {
-  removeMobileActionButtonIcons(root)
   stripCustomerDetailEmojiPrefixes(root)
   hideMobileClaimRawLinkRows(root)
   hideInlineSelectedClaimDetail(root)
