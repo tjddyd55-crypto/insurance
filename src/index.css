@@ -6937,6 +6937,29 @@ a.contacts-public-auth__link {
   z-index: 2;
 }
 
+.customer-detail-feature-actions--mobile-priority {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 0;
+}
+
+.customer-detail-feature-actions--mobile-priority > .button {
+  min-height: 44px;
+  height: 44px;
+  border-radius: 10px;
+  justify-content: center;
+  text-align: center;
+}
+
+.customer-detail-toggle-btn {
+  margin-top: 8px;
+  min-height: 44px;
+  height: 44px;
+  border-radius: 10px;
+  justify-content: center;
+  text-align: center;
+}
+
 @media (max-width: 860px) {
   .customer-workspace-layout {
     display: block;
@@ -6959,6 +6982,10 @@ a.contacts-public-auth__link {
 
   .customer-detail-feature-actions {
     grid-template-columns: 1fr;
+  }
+
+  .customer-detail-feature-actions--mobile-priority {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

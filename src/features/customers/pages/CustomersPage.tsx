@@ -69,7 +69,14 @@ const INVITE_COPY_POINTER_DEBOUNCE_MS = 450
 /** 오른쪽 작업영역(파일·상담·메모·GA)이 라우트로 고객을 고정할 때 — 카드 접힘과 `?customerId=` 동기화 충돌 방지
  *  새 탭이 추가되면 아래 목록만 갱신하면 된다. regex 오타·누락으로 인한 UX 차이를 막기 위해 배열로 관리한다.
  */
-const WORKSPACE_SIDE_DETAIL_TABS = ['files', 'consultations', 'ga-excel', 'memos', 'auto-form'] as const
+const WORKSPACE_SIDE_DETAIL_TABS = [
+  'files',
+  'consultations',
+  'ga-excel',
+  'memos',
+  'auto-form',
+  'claim-requests',
+] as const
 const WORKSPACE_SIDE_DETAIL_PATH_RE = new RegExp(
   `^/customers/[^/]+/(?:${WORKSPACE_SIDE_DETAIL_TABS.join('|')})(?:/|$)`,
 )
@@ -89,7 +96,10 @@ function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
  */
 function resolveCustomerWorkspaceTab(
   pathname: string,
-): 'files' | 'consultations' | 'memos' | 'ga-excel' | 'auto-form' {
+): 'files' | 'consultations' | 'memos' | 'ga-excel' | 'auto-form' | 'claim-requests' {
+  if (pathname.includes('/claim-requests')) {
+    return 'claim-requests'
+  }
   if (pathname.includes('/consultations')) {
     return 'consultations'
   }
@@ -513,6 +523,8 @@ type CustomerListCardProps = {
   onOpenConsultationsModal: (customerId: number) => void
   onOpenAutoModal: (customerId: number) => void
   onOpenGaModal: (customerId: number) => void
+  onOpenPersonalMessage: (customerId: number) => void
+  onOpenClaims: (customerId: number) => void
   onOpenRelatedCustomer: (customerId: number, customerName?: string) => void
   token: string | null
   onToggleFavorite: (c: CustomerRecord) => void | Promise<void>
@@ -548,12 +560,15 @@ const CustomerListCard = memo(function CustomerListCard({
   onOpenConsultationsModal,
   onOpenAutoModal,
   onOpenGaModal,
+  onOpenPersonalMessage,
+  onOpenClaims,
   onOpenRelatedCustomer,
   token,
   onToggleFavorite,
   variant,
 }: CustomerListCardProps) {
   const isMobile = variant === 'mobile'
+  const [mobileInfoExpanded, setMobileInfoExpanded] = useState(false)
   const validCustomerId =
     c != null &&
     typeof c === 'object' &&
@@ -756,68 +771,137 @@ const CustomerListCard = memo(function CustomerListCard({
             onClick={(e) => e.stopPropagation()}
             onTransitionEnd={handleDetailTransitionEnd}
           >
-            <div
-              className="customer-detail-toolbar"
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: 8,
-                flexWrap: 'wrap',
-                marginBottom: 12,
-              }}
-            >
-              <div style={{ fontWeight: 700, fontSize: '1.05rem', minWidth: 0 }}>{c.name}</div>
-              <div
-                className="customer-card-icon-actions"
-                style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}
-              >
-                <FormButton
-                  htmlType="button"
-                  variant="action"
-                  className="customer-icon-action"
-                  title="카톡 복사"
-                  aria-label="카톡 복사"
-                  onClick={() => void onCopyCustomer(c)}
-                >
-                  📋
-                </FormButton>
-                {editingId !== c.id ? (
+            {!(editingId === c.id && editForm) && isMobile ? (
+              <>
+                <div className="customer-detail-feature-actions customer-detail-feature-actions--mobile-priority">
                   <FormButton
                     htmlType="button"
-                    variant="action"
-                    className="customer-icon-action"
-                    title="수정"
-                    aria-label="수정"
-                    onClick={() => onStartEdit(c)}
+                    variant="secondary"
+                    className="button button--secondary"
+                    onClick={() => onOpenFilesModal(c.id)}
                   >
-                    ✏️
+                    고객 파일
                   </FormButton>
-                ) : null}
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    className="button button--secondary"
+                    onClick={() => onOpenConsultationsModal(c.id)}
+                  >
+                    상담 내역
+                  </FormButton>
+                  {carFeatureEnabled ? (
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      className="button button--secondary"
+                      onClick={() => onOpenAutoModal(c.id)}
+                    >
+                      자동차 신청서
+                    </FormButton>
+                  ) : null}
+                  {gaExcelEnabled ? (
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      className="button button--secondary"
+                      onClick={() => onOpenGaModal(c.id)}
+                    >
+                      GA 데이터 보기
+                    </FormButton>
+                  ) : null}
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    className="button button--secondary"
+                    onClick={() => onOpenPersonalMessage(c.id)}
+                  >
+                    개인메시지
+                  </FormButton>
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    className="button button--secondary"
+                    onClick={() => onOpenClaims(c.id)}
+                  >
+                    청구
+                  </FormButton>
+                </div>
                 <FormButton
                   htmlType="button"
-                  variant="action"
-                  className="customer-icon-action"
-                  title="삭제"
-                  aria-label="삭제"
-                  onClick={() => void onDeleteCustomer(c)}
+                  variant="secondary"
+                  className="button button--secondary button--full customer-detail-toggle-btn"
+                  onClick={() => setMobileInfoExpanded((prev) => !prev)}
                 >
-                  🗑
+                  {mobileInfoExpanded ? '고객 정보 접기 ▲' : '고객 정보 펼치기 ▼'}
                 </FormButton>
-              </div>
-            </div>
-            {editingId === c.id && editForm ? (
+              </>
+            ) : null}
+
+            {!isMobile || mobileInfoExpanded ? (
               <>
-                <div className="customer-edit-banner" role="status">
-                  ✏ 고객 정보 수정 중
-                </div>
-                <form
-                  className="customer-edit-form"
-                  onSubmit={(e) => {
-                    void onEditSubmit(e)
+                <div
+                  className="customer-detail-toolbar"
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                    marginBottom: 12,
                   }}
                 >
-                  <div className="field-grid-customers">
+                  <div style={{ fontWeight: 700, fontSize: '1.05rem', minWidth: 0 }}>{c.name}</div>
+                  <div
+                    className="customer-card-icon-actions"
+                    style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}
+                  >
+                    <FormButton
+                      htmlType="button"
+                      variant="action"
+                      className="customer-icon-action"
+                      title="카톡 복사"
+                      aria-label="카톡 복사"
+                      onClick={() => void onCopyCustomer(c)}
+                    >
+                      📋
+                    </FormButton>
+                    {editingId !== c.id ? (
+                      <FormButton
+                        htmlType="button"
+                        variant="action"
+                        className="customer-icon-action"
+                        title="수정"
+                        aria-label="수정"
+                        onClick={() => onStartEdit(c)}
+                      >
+                        ✏️
+                      </FormButton>
+                    ) : null}
+                    <FormButton
+                      htmlType="button"
+                      variant="action"
+                      className="customer-icon-action"
+                      title="삭제"
+                      aria-label="삭제"
+                      onClick={() => void onDeleteCustomer(c)}
+                    >
+                      🗑
+                    </FormButton>
+                  </div>
+                </div>
+                {editingId === c.id && editForm ? (
+                  <>
+                    <div className="customer-edit-banner" role="status">
+                      ✏ 고객 정보 수정 중
+                    </div>
+                    <form
+                      className="customer-edit-form"
+                      onSubmit={(e) => {
+                        void onEditSubmit(e)
+                      }}
+                    >
+                      <div className="field-grid-customers">
                     <label className="field">
                       <span className="field__label">이름</span>
                       <FormInput
@@ -1034,20 +1118,20 @@ const CustomerListCard = memo(function CustomerListCard({
                         }
                       />
                     </label>
-                  </div>
-                  <div className="customer-edit-actions">
-                    <FormButton className="button-save" htmlType="submit" variant="primary">
-                      수정 저장
-                    </FormButton>
-                    <FormButton className="button-cancel" htmlType="button" variant="secondary" onClick={onCancelEdit}>
-                      취소
-                    </FormButton>
-                  </div>
-                </form>
-              </>
-            ) : (
-              <>
-                <div className="customer-detail-read">
+                      </div>
+                      <div className="customer-edit-actions">
+                        <FormButton className="button-save" htmlType="submit" variant="primary">
+                          수정 저장
+                        </FormButton>
+                        <FormButton className="button-cancel" htmlType="button" variant="secondary" onClick={onCancelEdit}>
+                          취소
+                        </FormButton>
+                      </div>
+                    </form>
+                  </>
+                ) : (
+                  <>
+                    <div className="customer-detail-read">
                   <p>
                     <strong>주민번호:</strong> {formatCustomerSsnUi(c.ssn) || '—'}
                   </p>
@@ -1114,63 +1198,62 @@ const CustomerListCard = memo(function CustomerListCard({
                       ? normalizeCustomerNotesBag(c.notes).insuranceHistory
                       : '내용 없음'}
                   </div>
-                  {token?.trim() ? (
-                    <CustomerRelationsStrip
-                      customerId={c.id}
-                      customerName={c.name}
-                      token={token}
-                      focusedCustomerId={expandedId}
-                      onOpenCustomer={onOpenRelatedCustomer}
-                    />
-                  ) : null}
-                </div>
-              </>
-            )}
-            <div className="customer-expand-section-divider" role="presentation" />
+                    {token?.trim() ? (
+                      <CustomerRelationsStrip
+                        customerId={c.id}
+                        customerName={c.name}
+                        token={token}
+                        focusedCustomerId={expandedId}
+                        onOpenCustomer={onOpenRelatedCustomer}
+                      />
+                    ) : null}
+                  </div>
+                </>
+              )}
+              <div className="customer-expand-section-divider" role="presentation" />
+            </>
+          ) : null}
             {!(editingId === c.id && editForm) ? (
               <>
-                {isMobile ? (
-                  <>
-                    <div className="customer-expand-section-divider" role="presentation" />
-                    <div className={`customer-detail-feature-actions ${isMobile ? 'customer-detail-feature-actions--mobile' : ''}`}>
+                {!isMobile ? (
+                  <div className="customer-detail-feature-actions">
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      className="button button--secondary"
+                      onClick={() => onOpenFilesModal(c.id)}
+                    >
+                      고객 파일
+                    </FormButton>
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      className="button button--secondary"
+                      onClick={() => onOpenConsultationsModal(c.id)}
+                    >
+                      상담 내역
+                    </FormButton>
+                    {carFeatureEnabled ? (
                       <FormButton
                         htmlType="button"
                         variant="secondary"
                         className="button button--secondary"
-                        onClick={() => onOpenFilesModal(c.id)}
+                        onClick={() => onOpenAutoModal(c.id)}
                       >
-                        고객 파일
+                        자동차 신청서
                       </FormButton>
+                    ) : null}
+                    {gaExcelEnabled ? (
                       <FormButton
                         htmlType="button"
                         variant="secondary"
                         className="button button--secondary"
-                        onClick={() => onOpenConsultationsModal(c.id)}
+                        onClick={() => onOpenGaModal(c.id)}
                       >
-                        상담 내역
+                        GA 데이터 보기
                       </FormButton>
-                      {carFeatureEnabled ? (
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          className="button button--secondary"
-                          onClick={() => onOpenAutoModal(c.id)}
-                        >
-                          자동차 신청서
-                        </FormButton>
-                      ) : null}
-                      {gaExcelEnabled ? (
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          className="button button--secondary"
-                          onClick={() => onOpenGaModal(c.id)}
-                        >
-                          GA 데이터 보기
-                        </FormButton>
-                      ) : null}
-                    </div>
-                  </>
+                    ) : null}
+                  </div>
                 ) : null}
               </>
             ) : null}
@@ -1505,12 +1588,16 @@ export default function CustomersPage() {
         return
       }
       const safeTab = resolveCustomerWorkspaceTab(location.pathname)
-      navigate(`/customers/${c.id}/${safeTab}`, {
+      const next = new URLSearchParams(searchParams)
+      next.set('customerId', String(c.id))
+      const qs = next.toString()
+      const href = qs ? `/customers/${c.id}/${safeTab}?${qs}` : `/customers/${c.id}/${safeTab}`
+      navigate(href, {
         replace: true,
         state: { customerName: c.name },
       })
     },
-    [isMobile, location.pathname, navigate],
+    [isMobile, location.pathname, navigate, searchParams],
   )
 
   const handleOpenRelatedCustomer = useCallback(
@@ -1956,6 +2043,23 @@ export default function CustomersPage() {
       openMobileModal('ga', customerId)
     },
     [openMobileModal],
+  )
+
+  const handleOpenClaims = useCallback(
+    (customerId: number) => {
+      const next = new URLSearchParams(searchParams)
+      next.set('customerId', String(customerId))
+      const qs = next.toString()
+      navigate(qs ? `/customers/${customerId}/claim-requests?${qs}` : `/customers/${customerId}/claim-requests`)
+    },
+    [navigate, searchParams],
+  )
+
+  const handleOpenPersonalMessage = useCallback(
+    (customerId: number) => {
+      navigate(`/customers/${customerId}/claim-requests?customerId=${customerId}&claimTab=news-personal`)
+    },
+    [navigate],
   )
 
   const handleCustomerConsultationCreated = useCallback(
@@ -2475,6 +2579,8 @@ export default function CustomersPage() {
               onOpenConsultationsModal={handleOpenConsultationsModal}
               onOpenAutoModal={handleOpenAutoModal}
               onOpenGaModal={handleOpenGaModal}
+              onOpenPersonalMessage={handleOpenPersonalMessage}
+              onOpenClaims={handleOpenClaims}
               onOpenRelatedCustomer={handleOpenRelatedCustomer}
               token={token}
               onToggleFavorite={handleToggleFavorite}
