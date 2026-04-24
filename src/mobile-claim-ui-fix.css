@@ -1,6 +1,9 @@
 @media (max-width: 767px) {
-  .workspace-mobile-outlet-modal__body .claim-requests-page--mobile > :is(section, article, div):has(.claim-requests-page__detail-section),
-  .workspace-mobile-outlet-modal__body .claim-requests-page--mobile > :is(section, article, div):has(.claim-requests-page__detail-empty) {
+  /* Hide only the inline selected-claim detail block on the mobile main screen.
+   * Do not hide blocks that only contain an empty message, because the request list
+   * can also use empty-state text and must remain visible.
+   */
+  .workspace-mobile-outlet-modal__body .claim-requests-page--mobile > :is(section, article, div):has(.claim-requests-page__detail-section) {
     display: none !important;
   }
 
@@ -126,6 +129,9 @@
     resize: vertical !important;
   }
 
+  /* Mobile link sending card: hide raw code/URL fields and their copy buttons.
+   * Keep the create/send/preview buttons visible.
+   */
   .claim-requests-page--mobile .claim-requests-page__link-row,
   .claim-requests-page--mobile .claim-requests-page__link-code-row,
   .claim-requests-page--mobile .claim-requests-page__link-url-row,
@@ -134,22 +140,12 @@
     display: none !important;
   }
 
-  .claim-requests-page--mobile :is(label, div, p):has(+ input[readonly]),
-  .claim-requests-page--mobile :is(label, div, p):has(+ textarea[readonly]) {
+  .claim-requests-page--mobile :is(.claim-requests-page__link-panel, .claim-requests-page__link-card) > :not(.claim-requests-page__share-actions):not(.claim-requests-page__link-actions):has(input[readonly]),
+  .claim-requests-page--mobile :is(.claim-requests-page__link-panel, .claim-requests-page__link-card) > :not(.claim-requests-page__share-actions):not(.claim-requests-page__link-actions):has(textarea[readonly]) {
     display: none !important;
   }
 
-  .claim-requests-page--mobile input[readonly][value*="http"],
-  .claim-requests-page--mobile input[readonly][value*="HTTP"],
-  .claim-requests-page--mobile input[readonly][value*="B"],
-  .claim-requests-page--mobile input[readonly][value*="b"] {
-    display: none !important;
-  }
-
-  .claim-requests-page--mobile input[readonly][value*="http"] + button,
-  .claim-requests-page--mobile input[readonly][value*="HTTP"] + button,
-  .claim-requests-page--mobile input[readonly][value*="B"] + button,
-  .claim-requests-page--mobile input[readonly][value*="b"] + button {
-    display: none !important;
+  .claim-requests-page--mobile :is(.claim-requests-page__link-panel, .claim-requests-page__link-card) {
+    gap: 10px !important;
   }
 }
