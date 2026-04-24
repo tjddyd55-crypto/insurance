@@ -28,8 +28,10 @@ import { ElectronForceUpdateGate } from './components/ElectronForceUpdateGate'
 import { DesktopUpdateDialog } from './features/desktop-update/DesktopUpdateDialog'
 import { AuthProvider } from './features/auth/AuthProvider'
 import { initColorScheme } from './theme/colorScheme'
+import { initCustomerDetailEmojiCleanup } from './customer-detail-emoji-cleanup'
 
 initColorScheme()
+initCustomerDetailEmojiCleanup()
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
