@@ -1,15 +1,18 @@
 @media (max-width: 767px) {
-  /*
-   * Mobile claim main should show:
-   * 1) link sending card
-   * 2) connection status card
-   * 3) claim request list card
-   *
-   * The inline selected-detail card at the bottom is hidden on mobile.
-   * Detail is shown only through the full-screen detail modal when a list item is tapped.
-   */
-  .workspace-mobile-outlet-modal__body .claim-requests-page--mobile > :last-child:has(.claim-requests-page__detail-empty),
-  .workspace-mobile-outlet-modal__body .claim-requests-page--mobile > :last-child:has(.claim-requests-page__detail-section) {
+  .workspace-mobile-outlet-modal__body .claim-requests-page--mobile > :nth-child(n+4) {
+    display: none !important;
+  }
+
+  .claim-requests-page--mobile .claim-requests-page__link-row,
+  .claim-requests-page--mobile .claim-requests-page__link-code-row,
+  .claim-requests-page--mobile .claim-requests-page__link-url-row,
+  .claim-requests-page--mobile .claim-requests-page__raw-link-row,
+  .claim-requests-page--mobile .claim-requests-page__link-field-row {
+    display: none !important;
+  }
+
+  .claim-requests-page--mobile :is(.claim-requests-page__link-panel, .claim-requests-page__link-card) > :not(.claim-requests-page__share-actions):not(.claim-requests-page__link-actions):has(input[readonly]),
+  .claim-requests-page--mobile :is(.claim-requests-page__link-panel, .claim-requests-page__link-card) > :not(.claim-requests-page__share-actions):not(.claim-requests-page__link-actions):has(textarea[readonly]) {
     display: none !important;
   }
 
@@ -46,7 +49,6 @@
     display: grid !important;
     grid-template-columns: 64px minmax(0, 1fr) 64px !important;
     align-items: center !important;
-    gap: 0 !important;
     padding: 0 12px !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
     background: var(--app-bg, var(--bg-main, #0b0f14)) !important;
@@ -82,73 +84,5 @@
     -webkit-overflow-scrolling: touch !important;
     padding: 12px 10px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
     background: var(--app-bg, var(--bg-main, #0b0f14)) !important;
-  }
-
-  .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) .claim-requests-page__detail-section {
-    padding: 14px !important;
-    border-radius: 12px !important;
-    background: var(--ui-polish-card, #1e2633) !important;
-    border: 1px solid var(--ui-polish-border-soft, rgba(148, 163, 184, 0.18)) !important;
-    margin-bottom: 12px !important;
-  }
-
-  .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) .claim-requests-page__detail-title {
-    font-size: 1.05rem !important;
-    font-weight: 900 !important;
-    margin-bottom: 8px !important;
-  }
-
-  .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) .claim-requests-page__detail-meta,
-  .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) .claim-requests-page__detail-text,
-  .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) .claim-requests-page__detail-empty {
-    font-size: 0.84rem !important;
-    line-height: 1.55 !important;
-    color: color-mix(in srgb, var(--text-primary, #e6ecf2) 82%, var(--text-secondary, #9aa5b1) 18%) !important;
-  }
-
-  .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) .claim-requests-page__detail-subtitle {
-    font-size: 0.92rem !important;
-    font-weight: 900 !important;
-    margin-bottom: 8px !important;
-  }
-
-  .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) .claim-requests-page__status-form-row {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-    gap: 10px !important;
-    align-items: stretch !important;
-  }
-
-  .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) .claim-requests-page__status-select,
-  .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) .claim-requests-page__status-form-row button {
-    width: 100% !important;
-    min-height: 44px !important;
-    height: 44px !important;
-    border-radius: 10px !important;
-  }
-
-  .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) .claim-requests-page__status-memo {
-    width: 100% !important;
-    min-height: 104px !important;
-    margin-top: 10px !important;
-    border-radius: 10px !important;
-    resize: vertical !important;
-  }
-
-  .claim-requests-page--mobile .claim-requests-page__link-row,
-  .claim-requests-page--mobile .claim-requests-page__link-code-row,
-  .claim-requests-page--mobile .claim-requests-page__link-url-row,
-  .claim-requests-page--mobile .claim-requests-page__raw-link-row,
-  .claim-requests-page--mobile .claim-requests-page__link-field-row {
-    display: none !important;
-  }
-
-  .claim-requests-page--mobile :is(.claim-requests-page__link-panel, .claim-requests-page__link-card) > :not(.claim-requests-page__share-actions):not(.claim-requests-page__link-actions):has(input[readonly]),
-  .claim-requests-page--mobile :is(.claim-requests-page__link-panel, .claim-requests-page__link-card) > :not(.claim-requests-page__share-actions):not(.claim-requests-page__link-actions):has(textarea[readonly]) {
-    display: none !important;
-  }
-
-  .claim-requests-page--mobile :is(.claim-requests-page__link-panel, .claim-requests-page__link-card) {
-    gap: 10px !important;
   }
 }
