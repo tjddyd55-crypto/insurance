@@ -154,7 +154,7 @@ export default function FeatureRequestPage() {
       await deleteMyFeatureRequest(token, id)
       await loadRequests()
     } catch (e) {
-      alert(e instanceof Error ? e.message : '삭제에 실패했습니다.')
+      setListError(e instanceof Error ? e.message : '삭제에 실패했습니다.')
     } finally {
       setDeletingId(null)
     }
@@ -279,13 +279,14 @@ export default function FeatureRequestPage() {
                     ) : commentsError ? (
                       <div className="text-xs text-[var(--danger)]">
                         {commentsError}{' '}
-                        <button
-                          type="button"
-                          className="underline"
+                        <FormButton
+                          htmlType="button"
+                          variant="action"
+                          className="underline text-xs !px-0 !py-0 align-baseline"
                           onClick={() => void loadComments(item.id)}
                         >
                           다시 시도
-                        </button>
+                        </FormButton>
                       </div>
                     ) : comments.length === 0 ? (
                       <div className="text-xs text-[var(--text-secondary)]">

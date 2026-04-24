@@ -73,7 +73,7 @@ export function CustomerExcelImportPanel({ token, onUploadsFinished }: CustomerE
       return
     }
     if (prepare.payloads.length > CUSTOMER_EXCEL_UPLOAD_MAX_BATCH) {
-      window.alert(
+      setError(
         `한 번에 ${CUSTOMER_EXCEL_UPLOAD_MAX_BATCH}건까지만 업로드 가능합니다. (현재 ${prepare.payloads.length}건)`,
       )
       return

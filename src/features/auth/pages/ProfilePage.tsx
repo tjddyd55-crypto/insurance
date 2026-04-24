@@ -51,6 +51,7 @@ export function ProfilePage() {
   const [joinTeamCodeInput, setJoinTeamCodeInput] = useState('')
   const [teamBusy, setTeamBusy] = useState(false)
   const [teamActionError, setTeamActionError] = useState('')
+  const [teamActionInfo, setTeamActionInfo] = useState('')
   const [teamCodeCopied, setTeamCodeCopied] = useState(false)
   const [teamCopyNotice, setTeamCopyNotice] = useState('')
   const teamCopyFeedbackTimerRef = useRef<number | null>(null)
@@ -121,11 +122,12 @@ export function ProfilePage() {
       return
     }
     if (user.teamId?.trim()) {
-      window.alert('이미 팀에 소속되어 있습니다')
+      setTeamActionError('이미 팀에 소속되어 있습니다')
       return
     }
     setTeamBusy(true)
     setTeamActionError('')
+    setTeamActionInfo('')
     try {
       const created = await createTeam(token, teamNameInput.trim() || undefined)
       setMyTeamId(created.teamId)
@@ -133,7 +135,7 @@ export function ProfilePage() {
       setTeamActionError('')
       setTeamNameInput('')
       setCreateTeamOpen(false)
-      window.alert('팀이 생성되었습니다.')
+      setTeamActionInfo('팀이 생성되었습니다.')
       await loadMyTeamId()
       void load()
     } catch (err) {
@@ -149,11 +151,12 @@ export function ProfilePage() {
       return
     }
     if (user.teamId?.trim()) {
-      window.alert('이미 팀에 소속되어 있습니다')
+      setTeamActionError('이미 팀에 소속되어 있습니다')
       return
     }
     setTeamBusy(true)
     setTeamActionError('')
+    setTeamActionInfo('')
     try {
       const joined = await joinTeam(token, joinTeamCodeInput.trim())
       setMyTeamId(joined.teamId)
@@ -161,7 +164,7 @@ export function ProfilePage() {
       setTeamActionError('')
       setJoinTeamCodeInput('')
       setConnectTeamOpen(false)
-      window.alert('팀에 참여했습니다.')
+      setTeamActionInfo('팀에 참여했습니다.')
       await loadMyTeamId()
       void load()
     } catch (err) {
@@ -499,10 +502,11 @@ export function ProfilePage() {
                 aria-disabled={hasTeam}
                 onClick={() => {
                   if (hasTeam) {
-                    window.alert('이미 팀에 소속되어 있습니다')
+                    setTeamActionError('이미 팀에 소속되어 있습니다')
                     return
                   }
                   setTeamActionError('')
+                  setTeamActionInfo('')
                   setCreateTeamOpen(true)
                 }}
               >
@@ -518,10 +522,11 @@ export function ProfilePage() {
                 aria-disabled={hasTeam}
                 onClick={() => {
                   if (hasTeam) {
-                    window.alert('이미 팀에 소속되어 있습니다')
+                    setTeamActionError('이미 팀에 소속되어 있습니다')
                     return
                   }
                   setTeamActionError('')
+                  setTeamActionInfo('')
                   setConnectTeamOpen(true)
                 }}
               >
@@ -531,6 +536,16 @@ export function ProfilePage() {
         {teamCopyNotice ? (
           <p className="status text-sm" role="status" style={{ marginTop: 8 }}>
             {teamCopyNotice}
+          </p>
+        ) : null}
+        {teamActionError ? (
+          <p className="status status--error text-sm" role="alert" style={{ marginTop: 8 }}>
+            {teamActionError}
+          </p>
+        ) : null}
+        {teamActionInfo ? (
+          <p className="status text-sm" role="status" style={{ marginTop: 8 }}>
+            {teamActionInfo}
           </p>
         ) : null}
       </section>

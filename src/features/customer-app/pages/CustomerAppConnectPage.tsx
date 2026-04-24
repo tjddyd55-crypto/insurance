@@ -1,14 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput } from '../../../components/form'
-import { connectCustomerApp } from '../api/customerAppApi'
+import { connectCustomerApp, getCustomerAppConnectPrefill, type CustomerAppConnectPrefill } from '../api/customerAppApi'
 import {
   resolveCustomerDeviceId,
   writeCustomerAppProfile,
   writeCustomerAppSession,
 } from '../session/customerAppSession'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
 
 export default function CustomerAppConnectPage() {
   const { linkCode: linkCodeParam } = useParams<{ linkCode?: string }>()
@@ -19,18 +24,91 @@ export default function CustomerAppConnectPage() {
   const [birthDate, setBirthDate] = useState('')
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
+  const [prefillLoading, setPrefillLoading] = useState(false)
   const [error, setError] = useState('')
+  const [prefillError, setPrefillError] = useState('')
+  const [prefill, setPrefill] = useState<CustomerAppConnectPrefill | null>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [installHintOpen, setInstallHintOpen] = useState(false)
+  const [installResult, setInstallResult] = useState('')
 
-  const handleConnect = async () => {
-    const code = linkCode.trim().toUpperCase()
+  useEffect(() => {
+    const code = String(linkCodeParam ?? '').trim().toUpperCase()
+    setLinkCode(code)
+    setPrefill(null)
+    setPrefillError('')
+    if (!code) {
+      return
+    }
+    let cancelled = false
+    setPrefillLoading(true)
+    void getCustomerAppConnectPrefill(code)
+      .then((nextPrefill) => {
+        if (cancelled || !nextPrefill) {
+          return
+        }
+        setPrefill(nextPrefill)
+        setName(nextPrefill.name || '')
+        setBirthDate(nextPrefill.birthDate || '')
+        setPhone(nextPrefill.phone || '')
+        setPrefillError('')
+      })
+      .catch((prefillLoadError) => {
+        if (cancelled) {
+          return
+        }
+        setPrefill(null)
+        setPrefillError(prefillLoadError instanceof Error ? prefillLoadError.message : '고객 정보 자동 입력에 실패했습니다.')
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setPrefillLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [linkCodeParam])
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event: Event) => {
+      const installEvent = event as BeforeInstallPromptEvent
+      event.preventDefault()
+      setDeferredPrompt(installEvent)
+    }
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    }
+  }, [])
+
+  const platform = useMemo(() => {
+    const ua = navigator.userAgent.toLowerCase()
+    const isIos = /iphone|ipad|ipod/.test(ua)
+    const isSafari = /safari/.test(ua) && !/crios|fxios|edgios|chrome|android/.test(ua)
+    if (isIos && isSafari) {
+      return 'ios-safari'
+    }
+    if (/android/.test(ua) && /chrome|chromium|crios/.test(ua)) {
+      return 'android-chrome'
+    }
+    return 'other'
+  }, [])
+
+  const isDesignatedLink = Boolean(linkCodeParam) && prefill?.mode === 'designated'
+
+  const handleConnectWithRequester = async (payload: {
+    code: string
+    requesterName: string
+    requesterBirthDate: string
+    requesterPhone: string
+  }) => {
+    const { code, requesterName, requesterBirthDate, requesterPhone } = payload
     if (!code) {
       setError('링크 코드를 입력해 주세요.')
       return
     }
-    const nextName = name.trim()
-    const nextBirthDate = birthDate.trim()
-    const nextPhone = phone.trim()
-    if (!nextName || !nextBirthDate || !nextPhone) {
+    if (!requesterName || !requesterBirthDate || !requesterPhone) {
       setError('이름, 생년월일, 연락처를 모두 입력해 주세요.')
       return
     }
@@ -48,9 +126,9 @@ export default function CustomerAppConnectPage() {
             : 'web',
         appVersion: 'web-1.0.0',
         requester: {
-          name: nextName,
-          birthDate: nextBirthDate,
-          phone: nextPhone,
+          name: requesterName,
+          birthDate: requesterBirthDate,
+          phone: requesterPhone,
         },
       })
       writeCustomerAppSession({
@@ -61,14 +139,14 @@ export default function CustomerAppConnectPage() {
         agentName: connected.agentName,
         customerName: connected.customerName,
         linkCode: code,
-        requesterName: nextName,
-        requesterBirthDate: nextBirthDate,
-        requesterPhone: nextPhone,
+        requesterName,
+        requesterBirthDate,
+        requesterPhone,
       })
       writeCustomerAppProfile({
-        name: nextName,
-        birthDate: nextBirthDate,
-        phone: nextPhone,
+        name: requesterName,
+        birthDate: requesterBirthDate,
+        phone: requesterPhone,
       })
       navigate('/customer-app/home', { replace: true })
     } catch (connectError) {
@@ -76,6 +154,123 @@ export default function CustomerAppConnectPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleConnect = async () => {
+    await handleConnectWithRequester({
+      code: linkCode.trim().toUpperCase(),
+      requesterName: name.trim(),
+      requesterBirthDate: birthDate.trim(),
+      requesterPhone: phone.trim(),
+    })
+  }
+
+  const handleStartClaim = async () => {
+    if (!prefill?.isActive) {
+      setError('해당 링크는 만료되었거나 사용할 수 없습니다.')
+      return
+    }
+    await handleConnectWithRequester({
+      code: linkCode.trim().toUpperCase(),
+      requesterName: String(prefill.name ?? '').trim(),
+      requesterBirthDate: String(prefill.birthDate ?? '').trim(),
+      requesterPhone: String(prefill.phone ?? '').trim(),
+    })
+  }
+
+  const handleAddToHome = async () => {
+    setInstallResult('')
+    if (deferredPrompt) {
+      await deferredPrompt.prompt()
+      const choice = await deferredPrompt.userChoice
+      setInstallResult(choice.outcome === 'accepted' ? '홈 화면 추가 요청을 완료했습니다.' : '홈 화면 추가를 취소했습니다.')
+      setDeferredPrompt(null)
+      return
+    }
+    setInstallHintOpen(true)
+  }
+
+  if (linkCodeParam && prefillLoading) {
+    return (
+      <main className="content-wrapper py-6 max-w-xl">
+        <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4">
+          <StatusMessage message="고객 전용 링크 정보를 확인하고 있습니다." />
+        </section>
+      </main>
+    )
+  }
+
+  if (isDesignatedLink) {
+    const displayName = String(prefill?.customerName ?? '').trim() || '고객'
+    return (
+      <main className="content-wrapper py-6 max-w-xl">
+        <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-elevated)] px-5 py-6 space-y-4 text-center">
+          <div className="text-3xl" aria-hidden="true">
+            🛡️
+          </div>
+          <h1 className="text-xl font-semibold">{displayName}님의 전용 페이지입니다</h1>
+          <p className="text-sm leading-6 text-[var(--text-secondary)]">
+            보험금 청구 자료 제출, 담당 설계사 메시지 확인, 소식지 확인을 이곳에서 할 수 있습니다.
+          </p>
+
+          {prefill?.isActive ? (
+            <div className="space-y-2">
+              <FormButton
+                htmlType="button"
+                variant="primary"
+                className="w-full min-h-[44px]"
+                onClick={() => void handleStartClaim()}
+                loading={loading}
+              >
+                청구하기
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                className="w-full min-h-[44px]"
+                onClick={() => void handleAddToHome()}
+              >
+                홈 화면에 추가
+              </FormButton>
+            </div>
+          ) : (
+            <StatusMessage
+              message="해당 링크는 만료되었거나 사용할 수 없습니다. 담당 설계사에게 새 링크를 요청해 주세요."
+            />
+          )}
+
+          <p className="text-xs text-[var(--text-secondary)]">
+            홈 화면에 추가하면 다음부터 앱처럼 바로 열 수 있습니다.
+          </p>
+          <StatusMessage message={installResult} />
+          <StatusMessage message={prefillError} />
+          <StatusMessage message={error} tone="error" />
+        </section>
+
+        {installHintOpen ? (
+          <section className="mt-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 space-y-2">
+            <h2 className="text-sm font-semibold">
+              {platform === 'ios-safari' ? 'iPhone 홈 화면 추가 방법' : '홈 화면 추가 안내'}
+            </h2>
+            {platform === 'ios-safari' ? (
+              <ol className="text-xs leading-6 text-[var(--text-secondary)] list-decimal pl-4">
+                <li>하단 또는 상단의 공유 버튼을 누르세요.</li>
+                <li>홈 화면에 추가를 선택하세요.</li>
+                <li>오른쪽 위 추가를 누르세요.</li>
+              </ol>
+            ) : (
+              <ol className="text-xs leading-6 text-[var(--text-secondary)] list-decimal pl-4">
+                <li>브라우저 메뉴를 연 뒤 홈 화면에 추가 또는 앱 설치를 선택하세요.</li>
+                <li>표시되는 안내를 따라 추가를 완료하세요.</li>
+              </ol>
+            )}
+            <FormButton htmlType="button" variant="secondary" className="w-full min-h-[44px]" onClick={() => setInstallHintOpen(false)}>
+              닫기
+            </FormButton>
+          </section>
+        ) : null}
+      </main>
+    )
   }
 
   return (
@@ -116,6 +311,8 @@ export default function CustomerAppConnectPage() {
         <FormButton htmlType="button" variant="primary" onClick={() => void handleConnect()} loading={loading}>
           연결하기
         </FormButton>
+        <StatusMessage message={prefillLoading ? '고객 정보를 확인하고 있습니다.' : ''} />
+        <StatusMessage message={prefillError} />
         <StatusMessage message={error} tone="error" />
         {session ? (
           <FormButton

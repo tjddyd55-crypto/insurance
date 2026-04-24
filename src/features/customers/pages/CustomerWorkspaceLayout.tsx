@@ -230,7 +230,7 @@ export default function CustomerWorkspaceLayout() {
     if (!selectedCustomerId) {
       return
     }
-    moveTo('/claim-requests')
+    moveTo(`/customers/${selectedCustomerId}/claim-requests`)
   }
 
   const rightPanelProps: CustomerWorkspaceLayoutPCProps = {

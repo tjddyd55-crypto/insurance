@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useConfirmDialog } from '../../../components/dialog'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput } from '../../../components/form'
 import { getCustomerAppProfile, saveCustomerAppProfile } from '../api/customerAppApi'
@@ -14,6 +15,7 @@ import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
 export default function CustomerAppProfilePage() {
   const navigate = useNavigate()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const session = useCustomerAppSession()
   const profile = useMemo(() => readCustomerAppProfile(), [])
   const [name, setName] = useState(profile?.name ?? '')
@@ -129,8 +131,13 @@ export default function CustomerAppProfilePage() {
           htmlType="button"
           variant="secondary"
           className="customer-app-profile__logout"
-          onClick={() => {
-            if (!window.confirm('연결을 해제하시겠어요? 다시 이용하려면 QR 로 재연결이 필요합니다.')) {
+          onClick={async () => {
+            const ok = await confirm({
+              title: '연결 해제',
+              message: '연결을 해제하시겠어요? 다시 이용하려면 QR 로 재연결이 필요합니다.',
+              tone: 'danger',
+            })
+            if (!ok) {
               return
             }
             clearCustomerAppSession()
@@ -143,6 +150,7 @@ export default function CustomerAppProfilePage() {
           다른 기기에서 이용하거나 다시 QR 로 연결하려면 연결 해제를 눌러 주세요.
         </p>
       </div>
+      {confirmDialog}
     </CustomerAppShell>
   )
 }

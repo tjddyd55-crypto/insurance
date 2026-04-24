@@ -27,6 +27,14 @@ import { initColorScheme } from './theme/colorScheme'
 
 initColorScheme()
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/customer-app-sw.js').catch(() => {
+      // 서비스워커 등록 실패는 앱 동작을 막지 않는다.
+    })
+  })
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

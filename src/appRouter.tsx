@@ -209,6 +209,7 @@ export const appRouter = createBrowserRouter([
                   { path: ':customerId/ga-excel', element: <CustomerGaExcelPage /> },
                   { path: ':customerId/memos', element: <CustomerMemosPage /> },
                   { path: ':customerId/auto-form', element: <CustomerAutoFormPage /> },
+                  { path: ':customerId/claim-requests', element: <ClaimRequestsPage /> },
                 ],
               },
               { path: 'storage', element: <MyStoragePage /> },

@@ -408,6 +408,7 @@ async function ensureCustomerClaimAppSchema(executor) {
       id BIGSERIAL PRIMARY KEY,
       agent_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      link_id BIGINT REFERENCES customer_app_links(id) ON DELETE SET NULL,
       device_id VARCHAR(191) NOT NULL,
       request_type VARCHAR(30) NOT NULL DEFAULT 'claim',
       status VARCHAR(20) NOT NULL DEFAULT 'requested',
@@ -435,6 +436,14 @@ async function ensureCustomerClaimAppSchema(executor) {
   await executor.query(`
     CREATE INDEX IF NOT EXISTS idx_customer_claim_requests_agent_customer
     ON customer_claim_requests(agent_id, customer_id)
+  `)
+  await executor.query(`
+    ALTER TABLE customer_claim_requests
+    ADD COLUMN IF NOT EXISTS link_id BIGINT REFERENCES customer_app_links(id) ON DELETE SET NULL
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_claim_requests_link_id
+    ON customer_claim_requests(link_id)
   `)
   await executor.query(`
     CREATE INDEX IF NOT EXISTS idx_customer_claim_requests_status

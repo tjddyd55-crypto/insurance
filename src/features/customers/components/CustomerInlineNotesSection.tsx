@@ -121,7 +121,6 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
       rollback()
       const msg = e instanceof Error ? e.message : '메모 저장에 실패했습니다.'
       onStatusMessage(msg)
-      window.alert(`저장 실패\n${msg}`)
     } finally {
       savingLock.current = false
       setSaving(false)

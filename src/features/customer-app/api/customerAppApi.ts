@@ -14,6 +14,17 @@ export interface CustomerAppConnectResponse {
   appToken: string
 }
 
+export interface CustomerAppConnectPrefill {
+  mode: 'designated' | 'general'
+  status: string
+  isActive: boolean
+  expiresAt: string | null
+  customerName: string
+  name: string
+  birthDate: string
+  phone: string
+}
+
 export interface CustomerAppMe {
   agentId: string
   customerId: number
@@ -215,6 +226,17 @@ export async function connectCustomerApp(payload: {
   }
 }): Promise<CustomerAppConnectResponse> {
   return connectCustomerAppInternal(payload)
+}
+
+export async function getCustomerAppConnectPrefill(linkCode: string): Promise<CustomerAppConnectPrefill | null> {
+  const code = String(linkCode ?? '').trim().toUpperCase()
+  if (!code) {
+    return null
+  }
+  const response = await apiRequest<{ success: true; data: CustomerAppConnectPrefill | null }>(
+    `/api/customer-app/connect/${encodeURIComponent(code)}/prefill`,
+  )
+  return response as CustomerAppConnectPrefill | null
 }
 
 export async function getCustomerAppMe(appToken: string): Promise<CustomerAppMe> {

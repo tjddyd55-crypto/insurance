@@ -46,7 +46,6 @@ export default function CustomerCarPage() {
         carYear: form.carYear,
         renewalDate: form.renewalDate,
       })
-      window.alert('차량 정보 저장 완료')
       clearSelectedCustomer()
       navigate('/customers?mode=list', { replace: true })
     } catch (error) {

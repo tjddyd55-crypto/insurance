@@ -53,6 +53,7 @@ export function CustomerRelationsStrip({
   const [relations, setRelations] = useState<CustomerRelationRow[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [searchQ, setSearchQ] = useState('')
   const [searchBusy, setSearchBusy] = useState(false)
@@ -68,6 +69,7 @@ export function CustomerRelationsStrip({
     }
     setLoading(true)
     setError('')
+    setNotice('')
     try {
       const r = await listCustomerRelations(token, customerId)
       setRelations(r)
@@ -141,14 +143,15 @@ export function CustomerRelationsStrip({
       return
     }
     if (relatedIdSet.has(target.id)) {
-      window.alert('이미 연결된 고객입니다.')
+      setNotice('이미 연결된 고객입니다.')
       return
     }
     setLinking(true)
     setError('')
+    setNotice('')
     try {
       await createCustomerRelation(token, customerId, target.id)
-      window.alert(`${target.name} 고객과 연결했습니다.`)
+      setNotice(`${target.name} 고객과 연결했습니다.`)
       setModalOpen(false)
       setSearchQ('')
       await loadRelations()
@@ -172,6 +175,7 @@ export function CustomerRelationsStrip({
       return
     }
     setError('')
+    setNotice('')
     try {
       await deleteCustomerRelation(token, customerId, relatedCustomerId)
       await loadRelations()
@@ -206,6 +210,10 @@ export function CustomerRelationsStrip({
       ) : error ? (
         <p style={{ color: '#b00020', fontSize: '0.9rem' }} role="alert">
           {error}
+        </p>
+      ) : notice ? (
+        <p style={{ color: '#1f9d55', fontSize: '0.9rem' }} role="status">
+          {notice}
         </p>
       ) : null}
       <div style={scrollRowStyle}>
@@ -293,6 +301,7 @@ export function CustomerRelationsStrip({
             style={{ minHeight: 0, flexShrink: 0, padding: '4px 10px', fontSize: '0.875rem' }}
             onClick={() => {
               setError('')
+              setNotice('')
               setModalOpen(true)
               setSearchPool([])
             }}

@@ -116,6 +116,22 @@ function normalizeRequester(raw) {
 }
 
 /**
+ * @param {{ ssn?: unknown, birth_date?: unknown }} row
+ */
+function deriveCustomerBirthDate(row) {
+  const ssnDigits = String(row?.ssn ?? '').replace(/[^0-9]/g, '')
+  if (ssnDigits.length >= 6) {
+    return ssnDigits.slice(0, 6)
+  }
+  const birthDateRaw = String(row?.birth_date ?? '').trim()
+  const dateDigits = birthDateRaw.replace(/[^0-9]/g, '')
+  if (dateDigits.length >= 8) {
+    return dateDigits.slice(2, 8)
+  }
+  return ''
+}
+
+/**
  * @param {unknown} raw
  * @returns {{
  *  id: string
@@ -256,6 +272,29 @@ async function findActiveLink(pool, agentId, customerId) {
 /**
  * @param {import('pg').Pool} pool
  * @param {string} agentId
+ * @param {number} customerId
+ */
+async function findLatestLink(pool, agentId, customerId) {
+  const result = await pool.query(
+    `
+    SELECT id, link_code, status, created_at, expires_at, last_connected_at
+    FROM customer_app_links
+    WHERE agent_id = $1
+      AND customer_id = $2
+    ORDER BY created_at DESC
+    LIMIT 1
+    `,
+    [agentId, customerId],
+  )
+  if (result.rowCount === 0) {
+    return null
+  }
+  return result.rows[0]
+}
+
+/**
+ * @param {import('pg').Pool} pool
+ * @param {string} agentId
  */
 async function findActiveLinkByAgent(pool, agentId) {
   const result = await pool.query(
@@ -344,9 +383,8 @@ async function loadAgentAndCustomerDisplay(pool, agentId, customerId) {
       u.id AS agent_id,
       u.ga_id
     FROM customers c
-    INNER JOIN users u ON u.id = c.user_id
+    INNER JOIN users u ON u.id = $2
     WHERE c.id = $1
-      AND u.id = $2
     LIMIT 1
     `,
     [customerId, agentId],
@@ -1000,12 +1038,23 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       const baseUrl =
         String(process.env.CUSTOMER_APP_UNIVERSAL_BASE ?? '').trim() ||
         `${req.protocol}://${req.get('host')}/customer-app/connect`
-      const link = await findActiveLink(pool, agentId, customerId)
+      const link = await findLatestLink(pool, agentId, customerId)
       if (!link) {
-        res.json({ success: true, data: null })
+        res.json({
+          success: true,
+          data: {
+            connectionState: 'not_created',
+          },
+        })
         return
       }
-      const deviceCount = await countActiveDevices(pool, agentId, customerId)
+      const status = String(link.status ?? '')
+      const expiresAtMs = link.expires_at ? new Date(link.expires_at).getTime() : null
+      const expired = expiresAtMs != null && Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now()
+      const isUsable = status === CUSTOMER_LINK_ACTIVE && !expired
+      const deviceCount = isUsable ? await countActiveDevices(pool, agentId, customerId) : 0
+      const connected = Boolean(link.last_connected_at) || deviceCount > 0
+      const connectionState = !isUsable ? 'expired' : connected ? 'connected' : 'link_created'
       res.json({
         success: true,
         data: {
@@ -1013,7 +1062,8 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           linkCode: String(link.link_code),
           connectUrl: `insurance://customer-app/connect/${String(link.link_code)}`,
           universalUrl: `${baseUrl}/${String(link.link_code)}`,
-          status: String(link.status),
+          status,
+          connectionState,
           createdAt: link.created_at ? new Date(link.created_at).toISOString() : null,
           expiresAt: link.expires_at ? new Date(link.expires_at).toISOString() : null,
           lastConnectedAt: link.last_connected_at ? new Date(link.last_connected_at).toISOString() : null,
@@ -1281,8 +1331,11 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       await client.query(
         `
         UPDATE customer_claim_requests
-        SET status = $1,
-            processed_at = CASE WHEN $1 IN ('done', 'rejected', 'canceled') THEN NOW() ELSE processed_at END,
+        SET status = $1::varchar,
+            processed_at = CASE
+              WHEN $1::varchar IN ('done'::varchar, 'rejected'::varchar, 'canceled'::varchar) THEN NOW()
+              ELSE processed_at
+            END,
             processed_by_user_id = $2,
             updated_at = NOW()
         WHERE id = $3
@@ -1649,6 +1702,61 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           lastConnectedAt: row.last_connected_at ? new Date(row.last_connected_at).toISOString() : null,
           deviceCount: Number(row.device_count ?? 0),
         })),
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/customer-app/connect/:linkCode/prefill', async (req, res) => {
+    try {
+      const linkCode = String(req.params.linkCode ?? '').trim().toUpperCase()
+      if (!linkCode) {
+        res.status(400).json({ message: '링크 코드가 필요합니다.' })
+        return
+      }
+      const rowResult = await pool.query(
+        `
+        SELECT
+          c.name,
+          c.ssn,
+          c.birth_date,
+          c.phone,
+          l.customer_id,
+          l.status,
+          l.expires_at,
+          t.customer_id AS generic_target_customer_id
+        FROM customer_app_links l
+        INNER JOIN customers c ON c.id = l.customer_id
+        LEFT JOIN agent_app_link_targets t ON t.agent_id = l.agent_id
+        WHERE l.link_code = $1
+        ORDER BY l.created_at DESC
+        LIMIT 1
+        `,
+        [linkCode],
+      )
+      if (rowResult.rowCount === 0) {
+        res.status(404).json({ message: '유효한 링크 정보를 찾지 못했습니다.' })
+        return
+      }
+      const row = rowResult.rows[0]
+      const status = String(row?.status ?? '')
+      const expiresAtMs = row?.expires_at ? new Date(row.expires_at).getTime() : null
+      const expired = expiresAtMs != null && Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now()
+      const isActive = status === CUSTOMER_LINK_ACTIVE && !expired
+      const mode = Number(row?.generic_target_customer_id ?? 0) === Number(row?.customer_id ?? -1) ? 'general' : 'designated'
+      res.json({
+        success: true,
+        data: {
+          mode,
+          status,
+          isActive,
+          expiresAt: row?.expires_at ? new Date(row.expires_at).toISOString() : null,
+          customerName: String(row?.name ?? '').trim(),
+          name: String(row?.name ?? '').trim(),
+          birthDate: deriveCustomerBirthDate(row),
+          phone: String(row?.phone ?? '').trim(),
+        },
       })
     } catch (error) {
       handleDbError(error, req, res)
@@ -2043,6 +2151,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           (
             agent_id,
             customer_id,
+            link_id,
             device_id,
             request_type,
             status,
@@ -2055,12 +2164,13 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
             created_at,
             updated_at
           )
-        VALUES ($1, $2, $3, 'claim', 'requested', $4, $5, $6, $7, $8, NOW(), NOW(), NOW())
+        VALUES ($1, $2, $3, $4, 'claim', 'requested', $5, $6, $7, $8, $9, NOW(), NOW(), NOW())
         RETURNING id, status, submitted_at
         `,
         [
           context.agentId,
           context.customerId,
+          context.linkId,
           context.deviceId,
           title || null,
           memo || null,

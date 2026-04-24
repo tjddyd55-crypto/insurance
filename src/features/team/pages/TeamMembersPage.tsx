@@ -20,6 +20,7 @@ export default function TeamMembersPage() {
   const [teamActive, setTeamActive] = useState(true)
   const [transferTargetId, setTransferTargetId] = useState('')
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
   const [pageLoading, setPageLoading] = useState(true)
   const [actionBusy, setActionBusy] = useState(false)
 
@@ -76,6 +77,7 @@ export default function TeamMembersPage() {
     }
     setActionBusy(true)
     setError('')
+    setInfo('')
     try {
       await kickTeamMember(token, memberUserId)
       await load()
@@ -107,6 +109,7 @@ export default function TeamMembersPage() {
     }
     setActionBusy(true)
     setError('')
+    setInfo('')
     try {
       await transferTeamLeader(token, id)
       await load()
@@ -132,10 +135,11 @@ export default function TeamMembersPage() {
     }
     setActionBusy(true)
     setError('')
+    setInfo('')
     try {
       await disbandTeam(token)
       login({ token, user: { ...user, teamId: null } })
-      window.alert('팀이 해체되었습니다.')
+      setInfo('팀이 해체되었습니다.')
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : '팀 해체에 실패했습니다.')
@@ -161,10 +165,11 @@ export default function TeamMembersPage() {
     }
     setActionBusy(true)
     setError('')
+    setInfo('')
     try {
       const result = await leaveTeam(token)
       login({ token, user: { ...user, teamId: null } })
-      window.alert(result.disbanded ? '팀이 해체되었습니다.' : '팀에서 나갔습니다')
+      setInfo(result.disbanded ? '팀이 해체되었습니다.' : '팀에서 나갔습니다')
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : '팀 나가기에 실패했습니다.')
@@ -183,6 +188,7 @@ export default function TeamMembersPage() {
       </p>
 
       <StatusMessage message={error} tone="error" className="mt-2" />
+      <StatusMessage message={info} tone="success" className="mt-2" />
 
       {pageLoading ? (
         <LoadingState className="mt-3 text-left text-sm text-[var(--text-secondary)]" />

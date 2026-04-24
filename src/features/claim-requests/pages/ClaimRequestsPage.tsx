@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import FileUploader from '../../../components/common/FileUploader'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
@@ -87,12 +87,41 @@ function statusBadgeClass(status: ClaimRequestStatus): string {
   }
 }
 
+type CustomerAppConnectionState = 'not_created' | 'link_created' | 'connected' | 'expired'
+
+function resolveConnectionState(linkStatus: CustomerAppLinkInfo | null): CustomerAppConnectionState {
+  const state = linkStatus?.connectionState
+  if (state === 'not_created' || state === 'link_created' || state === 'connected' || state === 'expired') {
+    return state
+  }
+  if (!linkStatus || !linkStatus.linkCode) {
+    return 'not_created'
+  }
+  const status = String(linkStatus.status ?? '').toLowerCase()
+  const expiresAtMs = linkStatus.expiresAt ? new Date(linkStatus.expiresAt).getTime() : null
+  const expiredByTime = expiresAtMs != null && Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now()
+  if (expiredByTime || status === 'expired' || status === 'revoked' || status === 'disabled') {
+    return 'expired'
+  }
+  if (Boolean(linkStatus.lastConnectedAt) || Number(linkStatus.deviceCount ?? 0) > 0) {
+    return 'connected'
+  }
+  return 'link_created'
+}
+
 export default function ClaimRequestsPage() {
   const isMobile = useIsMobile()
   const { token } = useAuth()
   const navigate = useNavigate()
+  const { customerId: customerIdParam } = useParams<{ customerId?: string }>()
   const [searchParams] = useSearchParams()
-  const activeCustomerId = useMemo(() => parsePositiveInt(searchParams.get('customerId')), [searchParams])
+  const activeCustomerId = useMemo(() => {
+    const fromQuery = parsePositiveInt(searchParams.get('customerId'))
+    if (fromQuery != null) {
+      return fromQuery
+    }
+    return parsePositiveInt(customerIdParam ?? null)
+  }, [customerIdParam, searchParams])
   const [activeTab, setActiveTab] = useState<'claims' | 'news-all' | 'news-personal'>('claims')
   const [rows, setRows] = useState<ClaimRequestListItem[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -140,6 +169,50 @@ export default function ClaimRequestsPage() {
     }
     return '미확인'
   }, [detail?.deviceId, selectedRow?.deviceId])
+  const connectionState = useMemo(() => resolveConnectionState(linkStatus), [linkStatus])
+  const connectionMeta = useMemo(() => {
+    switch (connectionState) {
+      case 'connected':
+        return {
+          title: '앱 연결됨',
+          subtitle: linkStatus?.lastConnectedAt
+            ? `최근 접속: ${formatDateTime(linkStatus.lastConnectedAt)}`
+            : '최근 접속 정보 없음',
+          className: 'claim-requests-page__status-value claim-requests-page__status-value--ok',
+        }
+      case 'link_created':
+        return {
+          title: '링크 생성됨',
+          subtitle: '아직 접속 전',
+          className: 'claim-requests-page__status-value claim-requests-page__status-value--pending',
+        }
+      case 'expired':
+        return {
+          title: '링크 만료',
+          subtitle: '재생성 필요',
+          className: 'claim-requests-page__status-value claim-requests-page__status-value--expired',
+        }
+      case 'not_created':
+      default:
+        return {
+          title: '미연결',
+          subtitle: '아직 링크 미생성',
+          className: 'claim-requests-page__status-value',
+        }
+    }
+  }, [connectionState, linkStatus?.lastConnectedAt])
+  const linkActionLabel = useMemo(() => {
+    switch (connectionState) {
+      case 'link_created':
+      case 'connected':
+        return '링크 재전송'
+      case 'expired':
+        return '새 링크 생성'
+      case 'not_created':
+      default:
+        return '링크 생성'
+    }
+  }, [connectionState])
   const allNewsCards = useMemo<NewsletterItem[]>(
     () =>
       newsHistoryAll.map((item) => ({
@@ -881,7 +954,7 @@ export default function ClaimRequestsPage() {
                   loading={actionBusy}
                   disabled={!activeCustomerId}
                 >
-                  링크 생성
+                  {linkActionLabel}
                 </FormButton>
               </div>
               <div className="claim-requests-page__connect-row">
@@ -928,9 +1001,8 @@ export default function ClaimRequestsPage() {
               <div className="claim-requests-page__status-grid">
                 <div>
                   <p className="claim-requests-page__status-key">연결 상태</p>
-                  <p className="claim-requests-page__status-value claim-requests-page__status-value--ok">
-                    {linkStatus ? '연결 완료' : '미연결'}
-                  </p>
+                  <p className={connectionMeta.className}>{connectionMeta.title}</p>
+                  <p className="claim-requests-page__status-sub">{connectionMeta.subtitle}</p>
                 </div>
                 <div>
                   <p className="claim-requests-page__status-key">최초 연결</p>

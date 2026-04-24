@@ -148,18 +148,19 @@ export interface ClaimRequestDetail {
 }
 
 export interface CustomerAppLinkInfo {
-  linkId: number
-  linkCode: string
+  connectionState?: 'not_created' | 'link_created' | 'connected' | 'expired'
+  linkId?: number
+  linkCode?: string
   agentCode?: string
-  connectUrl: string
-  universalUrl: string
+  connectUrl?: string
+  universalUrl?: string
   customerId?: number
   customerCode?: string
-  status: string
+  status?: string
   createdAt?: string | null
   expiresAt?: string | null
   lastConnectedAt?: string | null
-  deviceCount: number
+  deviceCount?: number
 }
 
 export interface LinkedCustomerItem {
