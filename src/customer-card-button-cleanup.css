@@ -1,28 +1,3 @@
-/*
- * Customer card cleanup
- * - Remove the recently-added detail-field leading icons on PC/mobile.
- * - Keep only the mobile action button shape/color update.
- * - No route/API/data behavior changes.
- */
-
-.customer-expand-detail .customer-info-label__icon,
-.customer-expand-detail .customer-info-icon,
-.customer-expand-detail .customer-detail-icon,
-.customer-expand-detail .customer-detail-row__icon,
-.customer-expand-detail .customer-detail-field-icon,
-.customer-expand-detail .customer-detail-label-icon,
-.customer-expand-detail .customer-detail-line__icon,
-.customer-expand-detail .customer-field-icon,
-.customer-expand-detail .customer-field-label__icon,
-.customer-expand-detail .customer-detail-item__icon,
-.customer-expand-detail .customer-detail-section-icon,
-.customer-expand-detail .customer-section-title__icon,
-.customer-expand-detail .customer-medical-icon,
-.customer-expand-detail .customer-auto-info-icon,
-.customer-expand-detail .customer-relations-icon {
-  display: none !important;
-}
-
 @media (max-width: 767px) {
   .customers-page--mobile .customer-detail-feature-actions--mobile-priority,
   .mobile-root .customer-detail-feature-actions--mobile-priority {
