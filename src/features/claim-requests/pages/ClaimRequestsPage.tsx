@@ -1217,12 +1217,25 @@ export default function ClaimRequestsPage() {
           panelClassName="claim-requests-mobile-detail-modal"
         >
           <div className="claim-requests-mobile-detail-modal__header">
-            <div className="claim-requests-mobile-detail-modal__title">청구 요청 상세</div>
-            <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => setMobileDetailOpen(false)}>
+            <span className="claim-requests-mobile-detail-modal__spacer" aria-hidden />
+            <div className="claim-requests-mobile-detail-modal__title">청구 관리</div>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              size="sm"
+              className="claim-requests-mobile-detail-modal__close"
+              onClick={() => setMobileDetailOpen(false)}
+            >
               닫기
             </FormButton>
           </div>
-          <div className="claim-requests-mobile-detail-modal__body">{claimDetailBody}</div>
+          <div className="claim-requests-mobile-detail-modal__body">
+            {claimDetailBody}
+            <div className="claim-requests-mobile-detail-modal__timeline">
+              <div className="claim-requests-page__detail-subtitle">상태 이력</div>
+              {claimStatusTimeline}
+            </div>
+          </div>
         </Modal>
       </ClaimRequestsPageMobileView>
     )

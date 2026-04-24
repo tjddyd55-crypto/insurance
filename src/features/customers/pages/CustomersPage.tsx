@@ -777,54 +777,72 @@ const CustomerListCard = memo(function CustomerListCard({
                   <FormButton
                     htmlType="button"
                     variant="secondary"
-                    className="button button--secondary"
+                    className="button button--secondary customer-mobile-action-btn"
                     onClick={() => onOpenFilesModal(c.id)}
                   >
-                    고객 파일
+                    <span className="customer-mobile-action-btn__icon" aria-hidden>
+                      📁
+                    </span>
+                    <span className="customer-mobile-action-btn__text">고객 파일</span>
                   </FormButton>
                   <FormButton
                     htmlType="button"
                     variant="secondary"
-                    className="button button--secondary"
+                    className="button button--secondary customer-mobile-action-btn"
                     onClick={() => onOpenConsultationsModal(c.id)}
                   >
-                    상담 내역
+                    <span className="customer-mobile-action-btn__icon" aria-hidden>
+                      💬
+                    </span>
+                    <span className="customer-mobile-action-btn__text">상담 내역</span>
                   </FormButton>
                   {carFeatureEnabled ? (
                     <FormButton
                       htmlType="button"
                       variant="secondary"
-                      className="button button--secondary"
+                      className="button button--secondary customer-mobile-action-btn"
                       onClick={() => onOpenAutoModal(c.id)}
                     >
-                      자동차 신청서
+                      <span className="customer-mobile-action-btn__icon" aria-hidden>
+                        📝
+                      </span>
+                      <span className="customer-mobile-action-btn__text">자동차 신청서</span>
                     </FormButton>
                   ) : null}
                   {gaExcelEnabled ? (
                     <FormButton
                       htmlType="button"
                       variant="secondary"
-                      className="button button--secondary"
+                      className="button button--secondary customer-mobile-action-btn"
                       onClick={() => onOpenGaModal(c.id)}
                     >
-                      GA 데이터 보기
+                      <span className="customer-mobile-action-btn__icon" aria-hidden>
+                        📊
+                      </span>
+                      <span className="customer-mobile-action-btn__text">GA 데이터 보기</span>
                     </FormButton>
                   ) : null}
                   <FormButton
                     htmlType="button"
                     variant="secondary"
-                    className="button button--secondary"
+                    className="button button--secondary customer-mobile-action-btn"
                     onClick={() => onOpenPersonalMessage(c.id)}
                   >
-                    개인메시지
+                    <span className="customer-mobile-action-btn__icon" aria-hidden>
+                      ✉️
+                    </span>
+                    <span className="customer-mobile-action-btn__text">개인메시지</span>
                   </FormButton>
                   <FormButton
                     htmlType="button"
                     variant="secondary"
-                    className="button button--secondary"
+                    className="button button--secondary customer-mobile-action-btn"
                     onClick={() => onOpenClaims(c.id)}
                   >
-                    청구
+                    <span className="customer-mobile-action-btn__icon" aria-hidden>
+                      📋
+                    </span>
+                    <span className="customer-mobile-action-btn__text">청구</span>
                   </FormButton>
                 </div>
                 <FormButton
@@ -851,7 +869,14 @@ const CustomerListCard = memo(function CustomerListCard({
                     marginBottom: 12,
                   }}
                 >
-                  <div style={{ fontWeight: 700, fontSize: '1.05rem', minWidth: 0 }}>{c.name}</div>
+                  <div style={{ fontWeight: 700, fontSize: '1.05rem', minWidth: 0 }}>
+                    <span className="customer-info-label">
+                      <span className="customer-info-label__icon" aria-hidden>
+                        👤
+                      </span>
+                      {c.name}
+                    </span>
+                  </div>
                   <div
                     className="customer-card-icon-actions"
                     style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}
@@ -1133,34 +1158,80 @@ const CustomerListCard = memo(function CustomerListCard({
                   <>
                     <div className="customer-detail-read">
                   <p>
-                    <strong>주민번호:</strong> {formatCustomerSsnUi(c.ssn) || '—'}
+                    <strong className="customer-info-label">
+                      <span className="customer-info-label__icon" aria-hidden>
+                        🆔
+                      </span>
+                      주민번호:
+                    </strong>{' '}
+                    {formatCustomerSsnUi(c.ssn) || '—'}
                   </p>
                   <p style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px', alignItems: 'center' }}>
                     <span>
-                      <strong>보험나이:</strong> {ins.ageText}
+                      <strong className="customer-info-label">
+                        <span className="customer-info-label__icon" aria-hidden>
+                          🎂
+                        </span>
+                        보험나이:
+                      </strong>{' '}
+                      {ins.ageText}
                     </span>
                     <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
-                      <strong>상령일:</strong> {ins.dateText}
+                      <strong className="customer-info-label">
+                        <span className="customer-info-label__icon" aria-hidden>
+                          📅
+                        </span>
+                        상령일:
+                      </strong>{' '}
+                      {ins.dateText}
                       <MaturityDdayBadge maturityYmd={ins.maturityYmd} />
                     </span>
                   </p>
                   <p>
-                    <strong>핸드폰번호:</strong> {formatCustomerPhoneUi(c.phone) || '—'}
+                    <strong className="customer-info-label">
+                      <span className="customer-info-label__icon" aria-hidden>
+                        📞
+                      </span>
+                      핸드폰번호:
+                    </strong>{' '}
+                    {formatCustomerPhoneUi(c.phone) || '—'}
                   </p>
                   <p>
-                    <strong>주소:</strong> {c.address || '—'}
+                    <strong className="customer-info-label">
+                      <span className="customer-info-label__icon" aria-hidden>
+                        📍
+                      </span>
+                      주소:
+                    </strong>{' '}
+                    {c.address || '—'}
                   </p>
                   <p>
-                    <strong>키/몸무게:</strong>{' '}
+                    <strong className="customer-info-label">
+                      <span className="customer-info-label__icon" aria-hidden>
+                        🧍
+                      </span>
+                      키/몸무게:
+                    </strong>{' '}
                     {c.height?.trim() || c.weight?.trim()
                       ? `${c.height?.trim() || '—'}/${c.weight?.trim() || '—'}`
                       : '—'}
                   </p>
                   <p>
-                    <strong>직업/회사명/하는일/지역:</strong> {c.job?.trim() || '—'}
+                    <strong className="customer-info-label">
+                      <span className="customer-info-label__icon" aria-hidden>
+                        💼
+                      </span>
+                      직업/회사명/하는일/지역:
+                    </strong>{' '}
+                    {c.job?.trim() || '—'}
                   </p>
                   <p>
-                    <strong>운전여부:</strong>{' '}
+                    <strong className="customer-info-label">
+                      <span className="customer-info-label__icon" aria-hidden>
+                        🛞
+                      </span>
+                      운전여부:
+                    </strong>{' '}
                     {c.isDriver === true
                       ? '운전함'
                       : c.isDriver === false
@@ -1168,31 +1239,42 @@ const CustomerListCard = memo(function CustomerListCard({
                         : c.driving || '—'}
                   </p>
                   <p>
-                    <strong>차종:</strong> {c.carType.trim() || '—'}
+                    <strong className="customer-info-label">
+                      <span className="customer-info-label__icon" aria-hidden>
+                        🚙
+                      </span>
+                      차종:
+                    </strong>{' '}
+                    {c.carType.trim() || '—'}
                   </p>
                   <p>
-                    <strong>{CUSTOMER_MEDICAL_QUESTION_TEXT}</strong>
+                    <strong className="customer-info-label">
+                      <span className="customer-info-label__icon" aria-hidden>
+                        🩺
+                      </span>
+                      {CUSTOMER_MEDICAL_QUESTION_TEXT}
+                    </strong>
                     <br />
                     <span style={{ opacity: 0.85 }}>{CUSTOMER_MEDICAL_QUESTION_HINT}</span>
                   </p>
                   <p>{c.medical?.trim() || '—'}</p>
                   <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-                  <div className="customer-section-title !mt-5">[자동차보험 정보]</div>
+                  <div className="customer-section-title !mt-5">🚗 [자동차보험 정보]</div>
                   <div className="customer-car-info-grid text-sm text-[var(--text-primary)]">
-                    <div>차량번호:</div>
+                    <div>🔢 차량번호:</div>
                     <div>{c.carNumber || '—'}</div>
-                    <div>차종:</div>
+                    <div>🚘 차종:</div>
                     <div>{c.carModel || '—'}</div>
-                    <div>연식:</div>
+                    <div>📅 연식:</div>
                     <div>{c.carYear || '—'}</div>
-                    <div>만기일:</div>
+                    <div>📆 만기일:</div>
                     <div>
                       {c.renewalDate || '—'}{' '}
                       <CustomerDDayBadge renewalDate={c.renewalDate} />
                     </div>
                   </div>
                   <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-                  <div className="customer-section-title !mt-5">[보험가입내역]</div>
+                  <div className="customer-section-title !mt-5">📄 [보험가입내역]</div>
                   <div className="customer-insurance-history-body">
                     {normalizeCustomerNotesBag(c.notes).insuranceHistory?.trim()
                       ? normalizeCustomerNotesBag(c.notes).insuranceHistory

@@ -1,46 +1,77 @@
-import { Outlet, useNavigate } from 'react-router-dom'
+import { useMemo } from 'react'
+import { useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { FormButton } from '../../../../components/form'
+import Modal from '../../../../components/ui/Modal'
 import type { CustomerWorkspaceLayoutPCProps } from './CustomerWorkspaceLayoutPC'
 
-function mobileWorkspaceTitle(activeTab: CustomerWorkspaceLayoutPCProps['activeTab']): string {
-  if (activeTab === 'personal-message') return '개인메시지'
-  if (activeTab === 'claims') return '청구 관리'
-  return '고객 작업'
+function resolveMobileSheetTitle(pathname: string, search: string): string {
+  if (pathname.includes('/claim-requests')) {
+    const tab = new URLSearchParams(search).get('claimTab')
+    return tab === 'news-personal' ? '개인메시지' : '청구 관리'
+  }
+  if (pathname.includes('/consultations')) {
+    return '상담'
+  }
+  if (pathname.includes('/ga-excel') || pathname.includes('/ga')) {
+    return 'GA 데이터 보기'
+  }
+  if (pathname.includes('/auto-form')) {
+    return '자동차 신청서'
+  }
+  if (pathname.includes('/memos')) {
+    return '메모'
+  }
+  if (pathname.includes('/files')) {
+    return '고객 파일'
+  }
+  return '상세'
 }
 
-export default function CustomerWorkspaceLayoutMobile({
-  selectedCustomerId,
-  selectedCustomerLabel,
-  activeTab,
-}: CustomerWorkspaceLayoutPCProps) {
+export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLayoutPCProps) {
+  const outlet = useOutlet()
   const navigate = useNavigate()
-  const shouldRenderRouteModal = activeTab === 'claims' || activeTab === 'personal-message'
+  const location = useLocation()
 
-  if (!selectedCustomerId || !shouldRenderRouteModal) {
+  const isMobileDetailRoute = useMemo(
+    () => /^\/customers\/\d+\/(?:files|consultations|ga-excel|memos|auto-form|claim-requests)(?:\/|$)/.test(location.pathname),
+    [location.pathname],
+  )
+
+  if (!isMobileDetailRoute || !outlet) {
     return null
   }
 
+  const title = resolveMobileSheetTitle(location.pathname, location.search)
+
   const handleClose = () => {
-    navigate(`/customers?customerId=${selectedCustomerId}`, { replace: true })
+    if (props.selectedCustomerId) {
+      navigate(`/customers?customerId=${props.selectedCustomerId}`, { replace: true })
+      return
+    }
+    navigate('/customers', { replace: true })
   }
 
   return (
-    <section className="customer-workspace-mobile-modal" aria-label={mobileWorkspaceTitle(activeTab)}>
-      <div className="customer-workspace-mobile-modal__backdrop" onClick={handleClose} />
-      <div className="customer-workspace-mobile-modal__sheet">
-        <header className="customer-workspace-mobile-modal__header">
-          <div className="customer-workspace-mobile-modal__title-wrap">
-            <div className="customer-workspace-mobile-modal__eyebrow">{selectedCustomerLabel || `고객 #${selectedCustomerId}`}</div>
-            <h2 className="customer-workspace-mobile-modal__title">{mobileWorkspaceTitle(activeTab)}</h2>
-          </div>
-          <FormButton htmlType="button" variant="secondary" className="customer-workspace-mobile-modal__close" onClick={handleClose}>
-            닫기
-          </FormButton>
-        </header>
-        <div className="customer-workspace-mobile-modal__body">
-          <Outlet key={`${selectedCustomerId}-${activeTab}`} context={{ selectedCustomerId }} />
-        </div>
+    <Modal
+      open
+      onClose={handleClose}
+      ariaLabel={title}
+      panelClassName="workspace-mobile-outlet-modal"
+    >
+      <div className="workspace-mobile-outlet-modal__header">
+        <span className="workspace-mobile-outlet-modal__spacer" aria-hidden />
+        <h2 className="workspace-mobile-outlet-modal__title">{title}</h2>
+        <FormButton
+          htmlType="button"
+          variant="secondary"
+          size="sm"
+          className="workspace-mobile-outlet-modal__close"
+          onClick={handleClose}
+        >
+          닫기
+        </FormButton>
       </div>
-    </section>
+      <div className="workspace-mobile-outlet-modal__body">{outlet}</div>
+    </Modal>
   )
 }
