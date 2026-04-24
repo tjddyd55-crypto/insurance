@@ -1104,10 +1104,10 @@ function requireGaAdminOrSuper(req, res, next) {
   next()
 }
 
-/** 보험사 마스터 쓰기 등: SUPER_ADMIN · GA_ADMIN 만 */
+/** 보험사 마스터 쓰기 등: SUPER_ADMIN · GA_ADMIN · GA_STAFF */
 function requireGaTenantAdmin(req, res, next) {
   if (!req.user || !isGaTenantAdminRole(req.user.role)) {
-    forbiddenResponse(req, res, 'GA 관리자 권한이 필요합니다.', { guard: 'requireGaTenantAdmin' })
+    forbiddenResponse(req, res, 'GA 스태프 이상 권한이 필요합니다.', { guard: 'requireGaTenantAdmin' })
     return
   }
   next()

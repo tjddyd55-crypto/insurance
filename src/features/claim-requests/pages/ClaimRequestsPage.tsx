@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import FileUploader from '../../../components/common/FileUploader'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
@@ -33,8 +33,6 @@ import {
   type LinkedCustomerItem,
   updateClaimRequestStatus,
 } from '../api/claimRequestsApi'
-import { getCustomerById } from '../../customers/api/customersApi'
-import type { CustomerRecord } from '../../customers/domain/types'
 
 const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus; label: string }> = [
   { value: 'requested', label: '요청됨' },
@@ -112,9 +110,9 @@ function resolveConnectionState(linkStatus: CustomerAppLinkInfo | null): Custome
 export default function ClaimRequestsPage() {
   const isMobile = useIsMobile()
   const { token } = useAuth()
-  const navigate = useNavigate()
   const { customerId: customerIdParam } = useParams<{ customerId?: string }>()
   const [searchParams] = useSearchParams()
+  const claimTabParam = searchParams.get('claimTab')
   const activeCustomerId = useMemo(() => {
     const fromQuery = parsePositiveInt(searchParams.get('customerId'))
     if (fromQuery != null) {
@@ -126,7 +124,6 @@ export default function ClaimRequestsPage() {
   const [rows, setRows] = useState<ClaimRequestListItem[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [detail, setDetail] = useState<ClaimRequestDetail | null>(null)
-  const [activeCustomer, setActiveCustomer] = useState<CustomerRecord | null>(null)
   const [linkStatus, setLinkStatus] = useState<CustomerAppLinkInfo | null>(null)
   const [linkStatusLoading, setLinkStatusLoading] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -317,28 +314,6 @@ export default function ClaimRequestsPage() {
     }
   }, [activeTab, mobileDetailOpen])
 
-  useEffect(() => {
-    if (!token?.trim() || !activeCustomerId) {
-      setActiveCustomer(null)
-      return
-    }
-    let cancelled = false
-    void getCustomerById(token, activeCustomerId)
-      .then((customer) => {
-        if (!cancelled) {
-          setActiveCustomer(customer)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setActiveCustomer(null)
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [activeCustomerId, token])
-
   const loadLinkStatus = useCallback(async () => {
     if (!token?.trim() || !activeCustomerId) {
       setLinkStatus(null)
@@ -361,11 +336,19 @@ export default function ClaimRequestsPage() {
 
   useEffect(() => {
     if (activeCustomerId) {
+      if (claimTabParam === 'news-personal') {
+        setActiveTab('news-personal')
+        return
+      }
+      if (claimTabParam === 'news-all') {
+        setActiveTab('news-all')
+        return
+      }
       setActiveTab('claims')
       return
     }
     setActiveTab((prev) => (prev === 'claims' ? 'news-all' : prev))
-  }, [activeCustomerId])
+  }, [activeCustomerId, claimTabParam])
 
   useEffect(() => {
     setCreatedLink('')
@@ -649,17 +632,6 @@ export default function ClaimRequestsPage() {
     }
   }, [])
 
-  const moveToCustomerWorkspace = useCallback(
-    (tab: 'files' | 'consultations' | 'auto-form' | 'ga-excel' | 'memos') => {
-      if (!activeCustomerId) {
-        setError('먼저 좌측 고객 리스트에서 고객을 선택해 주세요.')
-        return
-      }
-      navigate(`/customers/${activeCustomerId}/${tab}?customerId=${activeCustomerId}`)
-    },
-    [activeCustomerId, navigate],
-  )
-
   const handleOpenLinkPreview = useCallback(() => {
     if (!displayedLink.trim()) {
       return
@@ -871,75 +843,28 @@ export default function ClaimRequestsPage() {
 
   const pageContent = (
     <>
-      {activeCustomerId ? (
-        <section className="claim-requests-page__workspace-header">
-          <div className="claim-requests-page__customer-meta">
-            <h1 className="claim-requests-page__customer-name">
-              {activeCustomer ? activeCustomer.name : '고객 미선택'}
-              {activeCustomer ? (
-                <span className="claim-requests-page__customer-extra">
-                  {activeCustomer.gender === 'male' ? '남' : activeCustomer.gender === 'female' ? '여' : '미지'} · 보험나이{' '}
-                  {activeCustomer.insuranceAge ?? '-'}세
-                </span>
-              ) : null}
-            </h1>
-            <p className="claim-requests-page__customer-subline">
-              생년월일 {activeCustomer?.ssn || '-'} · 상담일 {activeCustomer?.lastConsultDate || '-'} · 연락처{' '}
-              {activeCustomer?.phone || '-'}
-            </p>
-          </div>
-          <div className="claim-requests-page__workspace-actions">
-            <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('files')} disabled={!activeCustomerId}>
-              고객 파일
+      <StatusMessage message={error} tone="error" />
+
+      {!activeCustomerId ? (
+        <section className="claim-requests-page__tab-section">
+          <div className="claim-requests-page__tabs">
+            <FormButton
+              htmlType="button"
+              variant={activeTab === 'news-all' ? 'primary' : 'secondary'}
+              onClick={() => setActiveTab('news-all')}
+            >
+              전체소식지
             </FormButton>
-            <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('consultations')} disabled={!activeCustomerId}>
-              상담 이력
-            </FormButton>
-            <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('auto-form')} disabled={!activeCustomerId}>
-              자동차 신청서
-            </FormButton>
-            <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('ga-excel')} disabled={!activeCustomerId}>
-              GA 고객 데이터 보기
-            </FormButton>
-            <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('memos')} disabled={!activeCustomerId}>
-              메모 보기
-            </FormButton>
-            <FormButton htmlType="button" variant="primary" className="claim-requests-page__workspace-actions--active">
-              청구 연결
+            <FormButton
+              htmlType="button"
+              variant={activeTab === 'news-personal' ? 'primary' : 'secondary'}
+              onClick={() => setActiveTab('news-personal')}
+            >
+              개인메시지
             </FormButton>
           </div>
         </section>
       ) : null}
-
-      <StatusMessage message={error} tone="error" />
-
-      <section className="claim-requests-page__tab-section">
-        <div className="claim-requests-page__tabs">
-          {activeCustomerId ? (
-            <FormButton
-              htmlType="button"
-              variant={activeTab === 'claims' ? 'primary' : 'secondary'}
-              onClick={() => setActiveTab('claims')}
-            >
-              청구 연결
-            </FormButton>
-          ) : null}
-          <FormButton
-            htmlType="button"
-            variant={activeTab === 'news-all' ? 'primary' : 'secondary'}
-            onClick={() => setActiveTab('news-all')}
-          >
-            전체소식지
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            variant={activeTab === 'news-personal' ? 'primary' : 'secondary'}
-            onClick={() => setActiveTab('news-personal')}
-          >
-            개인메시지
-          </FormButton>
-        </div>
-      </section>
 
       {activeTab === 'claims' ? (
         <>

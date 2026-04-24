@@ -47,10 +47,10 @@ export function isNewsManagerRole(role) {
   return n === 'INSURER_MANAGER' || n === 'LOSS_ADJUSTER'
 }
 
-/** 보험사 디렉터리·동의서 등 수정 권한: SUPER_ADMIN · GA_ADMIN 만 */
+/** 보험사 디렉터리·일반의뢰 등 수정 권한: SUPER_ADMIN · GA_ADMIN · GA_STAFF */
 export function isGaTenantAdminRole(role) {
   const n = normalizeRbacRole(role)
-  return n === 'SUPER_ADMIN' || n === 'GA_ADMIN'
+  return n === 'SUPER_ADMIN' || n === 'GA_ADMIN' || n === 'GA_STAFF'
 }
 
 /** 원수사 담당자(insurer_managers) 생성·수정·상태변경: SUPER_ADMIN · GA_ADMIN · GA_STAFF */

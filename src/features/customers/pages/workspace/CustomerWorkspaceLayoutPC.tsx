@@ -1,13 +1,23 @@
 import { Outlet } from 'react-router-dom'
 import { EmptyState } from '../../../../components/feedback'
 import { FormButton } from '../../../../components/form'
+import type { CustomerRecord } from '../../domain/types'
 
-type WorkspaceActiveTab = 'files' | 'consultations' | 'auto' | 'ga-excel' | 'memos' | 'claims' | null
+type WorkspaceActiveTab =
+  | 'files'
+  | 'consultations'
+  | 'auto'
+  | 'ga-excel'
+  | 'memos'
+  | 'claims'
+  | 'personal-message'
+  | null
 
 export type CustomerWorkspaceLayoutPCProps = {
   pathname: string
   selectedCustomerId: number | null
   selectedCustomerLabel: string
+  selectedCustomer: CustomerRecord | null
   activeTab: WorkspaceActiveTab
   showCarInsuranceInWorkspace: boolean
   showGaExcelEntry: boolean
@@ -19,6 +29,7 @@ export type CustomerWorkspaceLayoutPCProps = {
   onClickGaExcel: () => void
   onClickMemos: () => void
   onClickClaims: () => void
+  onClickPersonalMessage: () => void
 }
 
 /**
@@ -60,6 +71,7 @@ export default function CustomerWorkspaceLayoutPC({
   pathname,
   selectedCustomerId,
   selectedCustomerLabel,
+  selectedCustomer,
   activeTab,
   showCarInsuranceInWorkspace,
   showGaExcelEntry,
@@ -71,17 +83,50 @@ export default function CustomerWorkspaceLayoutPC({
   onClickGaExcel,
   onClickMemos,
   onClickClaims,
+  onClickPersonalMessage,
 }: CustomerWorkspaceLayoutPCProps) {
+  const genderLabel =
+    selectedCustomer?.gender === 'male'
+      ? '남'
+      : selectedCustomer?.gender === 'female'
+        ? '여'
+        : '미지'
+  const insuranceAgeLabel =
+    selectedCustomer?.insuranceAge != null && Number.isFinite(selectedCustomer.insuranceAge)
+      ? `보험나이 ${selectedCustomer.insuranceAge}세`
+      : null
+
   return (
     <section className="customer-workspace-layout__right" aria-label="고객 연동 작업영역">
       <header className="customer-workspace-layout__right-header">
-        <div>
-          <h2 className="customer-workspace-layout__title">{rightTitle(pathname)}</h2>
+        <div className="customer-workspace-layout__customer-meta">
+          <h2 className="customer-workspace-layout__title">
+            {selectedCustomerId ? selectedCustomerLabel || `고객 #${selectedCustomerId}` : rightTitle(pathname)}
+            {selectedCustomerId ? (
+              <span className="customer-workspace-layout__title-sub">
+                {genderLabel}
+                {insuranceAgeLabel ? ` · ${insuranceAgeLabel}` : ''}
+              </span>
+            ) : null}
+          </h2>
           <p className="customer-workspace-layout__subtitle">
-            선택 고객: {selectedCustomerId ? selectedCustomerLabel || `고객 #${selectedCustomerId}` : '미선택'}
+            {selectedCustomerId
+              ? `생년월일 ${selectedCustomer?.ssn || '-'} · 상담일 ${selectedCustomer?.lastConsultDate || '-'} · 연락처 ${
+                  selectedCustomer?.phone || '-'
+                }`
+              : '고객을 선택해 주세요.'}
           </p>
         </div>
         <div className="customer-workspace-layout__actions">
+          <FormButton
+            htmlType="button"
+            variant="action"
+            className={`filter-button${activeTab === 'personal-message' ? ' filter-button--workspace-active' : ''}`}
+            disabled={!selectedCustomerId}
+            onClick={onClickPersonalMessage}
+          >
+            개인메시지
+          </FormButton>
           <FormButton
             htmlType="button"
             variant="action"

@@ -222,7 +222,7 @@ export default function CompanyRegistryPage() {
 
   const handleSave = async () => {
     if (!canMutate || !token) {
-      setStatusText('연락처 저장은 GA 관리자 이상만 가능합니다.')
+      setStatusText('연락처 저장은 GA 스태프 이상만 가능합니다.')
       return
     }
     if (!isInsuranceCategory(company.category)) {
@@ -263,7 +263,7 @@ export default function CompanyRegistryPage() {
 
   const handleHardDelete = async () => {
     if (!canMutate || !token || company.id == null) {
-      setStatusText('삭제는 GA 관리자 이상만 가능하며, 이미 등록된 보험사만 삭제할 수 있습니다.')
+      setStatusText('삭제는 GA 스태프 이상만 가능하며, 이미 등록된 보험사만 삭제할 수 있습니다.')
       return
     }
     const label = company.name.trim() || company.companyCode || `id ${company.id}`
@@ -362,11 +362,11 @@ export default function CompanyRegistryPage() {
       {isOps ? (
         <section className="card company-registry-form-card" aria-busy={isSaving || isDeleting}>
           <h2 className="dashboard-section-title">
-            {readOnlyUi ? '조회 (GA_STAFF · 읽기 전용)' : '입력 · 수정 (GA_ADMIN / SUPER_ADMIN)'}
+            {readOnlyUi ? '조회 (읽기 전용)' : '입력 · 수정 (GA_ADMIN / GA_STAFF / SUPER_ADMIN)'}
           </h2>
           {readOnlyUi ? (
             <p className="company-registry-field-hint" style={{ marginTop: 0 }}>
-              변경·저장은 GA 관리자(GA_ADMIN) 이상만 가능합니다. 서버에서도 동일하게 차단됩니다.
+              변경·저장은 GA 스태프 이상만 가능합니다. 서버에서도 동일하게 차단됩니다.
             </p>
           ) : null}
 

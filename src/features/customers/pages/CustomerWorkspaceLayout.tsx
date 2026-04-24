@@ -9,6 +9,7 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import CustomersPageContainer from './customers/CustomersPageContainer'
 import CustomerWorkspaceLayoutPC, { type CustomerWorkspaceLayoutPCProps } from './workspace/CustomerWorkspaceLayoutPC'
 import CustomerWorkspaceLayoutMobile from './workspace/CustomerWorkspaceLayoutMobile'
+import type { CustomerRecord } from '../domain/types'
 
 function parseSelectedCustomerId(raw: string | null): number | null {
   const n = Number(raw)
@@ -28,7 +29,14 @@ function parseWorkspaceCustomerIdFromPath(pathname: string): number | null {
   return parseSelectedCustomerId(m[1])
 }
 
-export type CustomerWorkspaceTab = 'files' | 'consultations' | 'auto' | 'ga-excel' | 'memos' | 'claims'
+export type CustomerWorkspaceTab =
+  | 'files'
+  | 'consultations'
+  | 'auto'
+  | 'ga-excel'
+  | 'memos'
+  | 'claims'
+  | 'personal-message'
 
 /**
  * URL path → 현재 활성 탭 매핑.
@@ -103,16 +111,25 @@ export default function CustomerWorkspaceLayout() {
     }
     return parseSelectedCustomerId(searchParams.get('customerId'))
   }, [location.pathname, searchParams])
-  const [selectedCustomerLabel, setSelectedCustomerLabel] = useState('')
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerRecord | null>(null)
   const [excelCap, setExcelCap] = useState<GaCustomerExcelCapability | null>(null)
+  const selectedCustomerLabel = useMemo(() => {
+    if (selectedCustomer?.name?.trim()) {
+      return selectedCustomer.name.trim()
+    }
+    if (selectedCustomerId) {
+      return `고객 #${selectedCustomerId}`
+    }
+    return ''
+  }, [selectedCustomer, selectedCustomerId])
 
   useEffect(() => {
     if (isMobile) {
-      queueMicrotask(() => setSelectedCustomerLabel(''))
+      queueMicrotask(() => setSelectedCustomer(null))
       return
     }
     if (!selectedCustomerId || !token?.trim()) {
-      queueMicrotask(() => setSelectedCustomerLabel(''))
+      queueMicrotask(() => setSelectedCustomer(null))
       return
     }
     let cancelled = false
@@ -121,12 +138,11 @@ export default function CustomerWorkspaceLayout() {
         if (cancelled) {
           return
         }
-        const name = c?.name?.trim()
-        setSelectedCustomerLabel(name || `고객 #${selectedCustomerId}`)
+        setSelectedCustomer(c)
       })
       .catch(() => {
         if (!cancelled) {
-          setSelectedCustomerLabel(`고객 #${selectedCustomerId}`)
+          setSelectedCustomer(null)
         }
       })
 
@@ -179,12 +195,15 @@ export default function CustomerWorkspaceLayout() {
   }
 
   /**
-   * 우측 패널 활성 탭은 오직 URL path 로부터만 파생된다(routing-ssot.mdc 1).
-   * 이전 구조에는 `rightPanelCarForm` 로컬 state 가 추가로 있어서 URL ↔ state 가
-   * 사용 순서에 따라 drift 되고, "메뉴 클릭은 되지만 전환 안 됨" / "고객 전환해도
-   * 우측이 이전 고객 기준" 등의 회귀를 반복 유발했다. 이제는 단일 진실 원천만 사용한다.
+   * 우측 패널 활성 탭은 URL path + claimTab(query) 조합으로 파생한다.
+   * claim-requests 내부에서 personal 탭을 별도 메뉴로 노출할 수 있도록 query를 해석한다.
    */
-  const activeTab: CustomerWorkspaceTab | null = currentPathTab
+  const activeTab: CustomerWorkspaceTab | null = useMemo(() => {
+    if (currentPathTab === 'claims' && searchParams.get('claimTab') === 'news-personal') {
+      return 'personal-message'
+    }
+    return currentPathTab
+  }, [currentPathTab, searchParams])
 
   /**
    * 우측 메뉴 핸들러는 **전부 동일한 패턴**으로 통일한다: URL 이동(navigate) 하나뿐.
@@ -233,10 +252,18 @@ export default function CustomerWorkspaceLayout() {
     moveTo(`/customers/${selectedCustomerId}/claim-requests`)
   }
 
+  const handleClickPersonalMessage = () => {
+    if (!selectedCustomerId) {
+      return
+    }
+    navigate(`/customers/${selectedCustomerId}/claim-requests?customerId=${selectedCustomerId}&claimTab=news-personal`)
+  }
+
   const rightPanelProps: CustomerWorkspaceLayoutPCProps = {
     pathname: location.pathname,
     selectedCustomerId,
     selectedCustomerLabel,
+    selectedCustomer,
     activeTab,
     showCarInsuranceInWorkspace,
     showGaExcelEntry,
@@ -248,6 +275,7 @@ export default function CustomerWorkspaceLayout() {
     onClickGaExcel: handleClickGaExcel,
     onClickMemos: handleClickMemos,
     onClickClaims: handleClickClaims,
+    onClickPersonalMessage: handleClickPersonalMessage,
   }
 
   return (
