@@ -125,4 +125,31 @@
     border-radius: 10px !important;
     resize: vertical !important;
   }
+
+  .claim-requests-page--mobile .claim-requests-page__link-row,
+  .claim-requests-page--mobile .claim-requests-page__link-code-row,
+  .claim-requests-page--mobile .claim-requests-page__link-url-row,
+  .claim-requests-page--mobile .claim-requests-page__raw-link-row,
+  .claim-requests-page--mobile .claim-requests-page__link-field-row {
+    display: none !important;
+  }
+
+  .claim-requests-page--mobile :is(label, div, p):has(+ input[readonly]),
+  .claim-requests-page--mobile :is(label, div, p):has(+ textarea[readonly]) {
+    display: none !important;
+  }
+
+  .claim-requests-page--mobile input[readonly][value*="http"],
+  .claim-requests-page--mobile input[readonly][value*="HTTP"],
+  .claim-requests-page--mobile input[readonly][value*="B"],
+  .claim-requests-page--mobile input[readonly][value*="b"] {
+    display: none !important;
+  }
+
+  .claim-requests-page--mobile input[readonly][value*="http"] + button,
+  .claim-requests-page--mobile input[readonly][value*="HTTP"] + button,
+  .claim-requests-page--mobile input[readonly][value*="B"] + button,
+  .claim-requests-page--mobile input[readonly][value*="b"] + button {
+    display: none !important;
+  }
 }
