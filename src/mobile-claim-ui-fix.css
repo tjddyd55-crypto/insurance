@@ -1,11 +1,17 @@
 @media (max-width: 767px) {
   /*
-   * Do not hide any top-level mobile claim page block here.
-   * Connected customers can have an auto-selected detail, and a broad
-   * :has(.claim-requests-page__detail-section) selector hides the parent that
-   * also contains the request list. Inline detail hiding is handled narrowly by
-   * mobile-runtime-cleanup.ts until the JSX is split properly.
+   * Mobile claim main should show:
+   * 1) link sending card
+   * 2) connection status card
+   * 3) claim request list card
+   *
+   * The inline selected-detail card at the bottom is hidden on mobile.
+   * Detail is shown only through the full-screen detail modal when a list item is tapped.
    */
+  .workspace-mobile-outlet-modal__body .claim-requests-page--mobile > :last-child:has(.claim-requests-page__detail-empty),
+  .workspace-mobile-outlet-modal__body .claim-requests-page--mobile > :last-child:has(.claim-requests-page__detail-section) {
+    display: none !important;
+  }
 
   .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) {
     z-index: 13000 !important;
