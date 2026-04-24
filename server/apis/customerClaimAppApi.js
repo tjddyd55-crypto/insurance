@@ -868,21 +868,46 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
         return
       }
-      const linkedCustomer = await ensureAgentLinkCustomer(pool, agentId, gaId)
-      if (!linkedCustomer) {
-        res.status(500).json({ message: '설계사 연결코드 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.' })
-        return
+      const requestedCustomerId = parsePositiveInt(req.body?.customerId)
+      let finalCustomerId = null
+      let customerCode = ''
+      if (requestedCustomerId != null) {
+        const permission = await assertAgentCanAccessCustomer(pool, agentId, requestedCustomerId, req.user)
+        if (!permission.ok) {
+          res.status(permission.status).json({ message: permission.message })
+          return
+        }
+        const customerRow = await pool.query(
+          `
+          SELECT customer_code
+          FROM customers
+          WHERE id = $1
+          LIMIT 1
+          `,
+          [requestedCustomerId],
+        )
+        if (customerRow.rowCount === 0) {
+          res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+          return
+        }
+        finalCustomerId = requestedCustomerId
+        customerCode = String(customerRow.rows[0]?.customer_code ?? '')
+      } else {
+        const linkedCustomer = await ensureAgentLinkCustomer(pool, agentId, gaId)
+        if (!linkedCustomer) {
+          res.status(500).json({ message: '설계사 연결코드 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.' })
+          return
+        }
+        finalCustomerId = linkedCustomer.customerId
+        customerCode = linkedCustomer.customerCode
       }
-      const finalCustomerId = linkedCustomer.customerId
-      const customerCode = linkedCustomer.customerCode
 
-      const existing = await findActiveLinkByAgent(pool, agentId)
+      const existing = await findActiveLink(pool, agentId, finalCustomerId)
       const baseUrl =
         String(process.env.CUSTOMER_APP_UNIVERSAL_BASE ?? '').trim() ||
         `${req.protocol}://${req.get('host')}/customer-app/connect`
       if (existing) {
-        const activeCustomerId = Number(existing.customer_id ?? finalCustomerId)
-        const deviceCount = await countActiveDevices(pool, agentId, activeCustomerId)
+        const deviceCount = await countActiveDevices(pool, agentId, finalCustomerId)
         res.json({
           success: true,
           data: {
@@ -891,7 +916,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
             agentCode: String(existing.link_code),
             connectUrl: `insurance://customer-app/connect/${String(existing.link_code)}`,
             universalUrl: `${baseUrl}/${String(existing.link_code)}`,
-            customerId: activeCustomerId,
+            customerId: finalCustomerId,
             customerCode,
             status: String(existing.status),
             lastConnectedAt: existing.last_connected_at ? new Date(existing.last_connected_at).toISOString() : null,

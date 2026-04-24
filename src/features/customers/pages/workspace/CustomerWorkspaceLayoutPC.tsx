@@ -2,7 +2,7 @@ import { Outlet } from 'react-router-dom'
 import { EmptyState } from '../../../../components/feedback'
 import { FormButton } from '../../../../components/form'
 
-type WorkspaceActiveTab = 'files' | 'consultations' | 'auto' | 'ga-excel' | 'memos' | null
+type WorkspaceActiveTab = 'files' | 'consultations' | 'auto' | 'ga-excel' | 'memos' | 'claims' | null
 
 export type CustomerWorkspaceLayoutPCProps = {
   pathname: string
@@ -18,6 +18,7 @@ export type CustomerWorkspaceLayoutPCProps = {
   onClickCarForm: () => void
   onClickGaExcel: () => void
   onClickMemos: () => void
+  onClickClaims: () => void
 }
 
 /**
@@ -40,6 +41,9 @@ function rightTitle(pathname: string): string {
   }
   if (pathname.includes('/memos')) {
     return '고객 메모'
+  }
+  if (pathname.includes('/claim-requests')) {
+    return '청구 관리'
   }
   return '작업 영역'
 }
@@ -66,6 +70,7 @@ export default function CustomerWorkspaceLayoutPC({
   onClickCarForm,
   onClickGaExcel,
   onClickMemos,
+  onClickClaims,
 }: CustomerWorkspaceLayoutPCProps) {
   return (
     <section className="customer-workspace-layout__right" aria-label="고객 연동 작업영역">
@@ -126,6 +131,15 @@ export default function CustomerWorkspaceLayoutPC({
             onClick={onClickMemos}
           >
             메모 보기
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="action"
+            className={`filter-button${activeTab === 'claims' ? ' filter-button--workspace-active' : ''}`}
+            disabled={!selectedCustomerId}
+            onClick={onClickClaims}
+          >
+            청구관리
           </FormButton>
         </div>
       </header>

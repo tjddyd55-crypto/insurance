@@ -191,11 +191,11 @@ export interface AgentCustomerNewsItem {
   targetCustomerName: string
 }
 
-export async function createCustomerAppLink(token: string): Promise<CustomerAppLinkInfo> {
+export async function createCustomerAppLink(token: string, customerId: number): Promise<CustomerAppLinkInfo> {
   const response = await apiRequest<{ success: true; data: CustomerAppLinkInfo }>('/api/agent/customer-app-links', {
     method: 'POST',
     token,
-    body: JSON.stringify({}),
+    body: JSON.stringify({ customerId }),
   })
   return response as CustomerAppLinkInfo
 }

@@ -127,6 +127,8 @@ export default function ClaimRequestsPage() {
   const [newsHistoryPersonal, setNewsHistoryPersonal] = useState<AgentCustomerNewsItem[]>([])
   const [actionBusy, setActionBusy] = useState(false)
   const allNewsForm = useInsurerNewsForm(null)
+  const displayedCode = createdCode || linkStatus?.agentCode || linkStatus?.linkCode || ''
+  const displayedLink = createdLink || linkStatus?.universalUrl || ''
 
   const selectedRow = useMemo(() => rows.find((item) => item.id === selectedId) ?? null, [rows, selectedId])
   const latestDeviceLabel = useMemo(() => {
@@ -163,7 +165,7 @@ export default function ClaimRequestsPage() {
         id: item.id,
         gaCode: 'customer-news',
         insurerCode: 'customer-news-personal',
-        insurerName: '개인소식지',
+        insurerName: '개인메시지',
         insurerSlug: 'personal',
         title: item.title,
         summary: item.content,
@@ -284,6 +286,20 @@ export default function ClaimRequestsPage() {
     void loadLinkStatus()
   }, [loadLinkStatus])
 
+  useEffect(() => {
+    if (activeCustomerId) {
+      setActiveTab('claims')
+      return
+    }
+    setActiveTab((prev) => (prev === 'claims' ? 'news-all' : prev))
+  }, [activeCustomerId])
+
+  useEffect(() => {
+    setCreatedLink('')
+    setCreatedCode('')
+    setCopyResult('')
+  }, [activeCustomerId])
+
   const loadLinkedCustomers = useCallback(async () => {
     if (!token) {
       return
@@ -349,7 +365,7 @@ export default function ClaimRequestsPage() {
     setCreatedLink('')
     setCreatedCode('')
     try {
-      const res = await createCustomerAppLink(token)
+      const res = await createCustomerAppLink(token, activeCustomerId)
       if (!res) {
         console.error('API 응답 이상', res)
         return
@@ -460,7 +476,7 @@ export default function ClaimRequestsPage() {
       return
     }
     if (!newsTitle.trim() || !allNewsForm.bodyText.trim()) {
-      setNewsUploadError('소식지 제목과 내용을 입력해 주세요.')
+      setNewsUploadError('전체소식지 제목과 내용을 입력해 주세요.')
       return
     }
     setActionBusy(true)
@@ -487,7 +503,7 @@ export default function ClaimRequestsPage() {
           size: row.sizeBytes ?? row.file.size,
           sortOrder: index,
         }))
-      setNewsUploadBusy('소식지 저장 중...')
+      setNewsUploadBusy('전체소식지 발송 중...')
       const created = await createCustomerNews(token, {
         title: newsTitle.trim(),
         content: allNewsForm.bodyText.trim(),
@@ -495,7 +511,7 @@ export default function ClaimRequestsPage() {
         scope: 'all',
         sendPush: true,
       })
-      setNewsResult(`고객 소식지 등록 완료: ${created.id}`)
+      setNewsResult(`전체소식지 발송 완료: ${created.id}`)
       setNewsTitle('')
       allNewsForm.setBodyText('')
       allNewsForm.replaceAttachments([])
@@ -503,7 +519,7 @@ export default function ClaimRequestsPage() {
       setError('')
       setNewsAllSubTab('list')
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : '소식지 등록에 실패했습니다.')
+      setError(actionError instanceof Error ? actionError.message : '전체소식지 발송에 실패했습니다.')
     } finally {
       setNewsUploadBusy(null)
       setActionBusy(false)
@@ -515,18 +531,18 @@ export default function ClaimRequestsPage() {
       return
     }
     if (!selectedCustomerId) {
-      setError('개별소식지를 보낼 고객을 선택해 주세요.')
+      setError('개인메시지를 보낼 고객을 선택해 주세요.')
       return
     }
     if (!personalNewsContent.trim()) {
-      setError('개별소식지 내용을 입력해 주세요.')
+      setError('개인메시지 내용을 입력해 주세요.')
       return
     }
     setActionBusy(true)
     setNewsResult('')
     try {
       const customer = linkedCustomers.find((item) => item.customerId === selectedCustomerId)
-      const title = customer ? `${customer.customerName} 고객님께` : '개별소식지'
+      const title = customer ? `${customer.customerName} 고객님께` : '개인메시지'
       const created = await createCustomerNews(token, {
         title,
         content: personalNewsContent.trim(),
@@ -534,12 +550,12 @@ export default function ClaimRequestsPage() {
         targetCustomerId: selectedCustomerId,
         sendPush: true,
       })
-      setNewsResult(`개별소식지 전송 완료: ${created.id}`)
+      setNewsResult(`개인메시지 발송 완료: ${created.id}`)
       setPersonalNewsContent('')
       await loadNewsHistory(selectedCustomerId)
       setError('')
     } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : '개별소식지 전송에 실패했습니다.')
+      setError(actionError instanceof Error ? actionError.message : '개인메시지 발송에 실패했습니다.')
     } finally {
       setActionBusy(false)
     }
@@ -572,29 +588,29 @@ export default function ClaimRequestsPage() {
   )
 
   const handleOpenLinkPreview = useCallback(() => {
-    if (!createdLink.trim()) {
+    if (!displayedLink.trim()) {
       return
     }
-    window.open(createdLink, '_blank', 'noopener,noreferrer')
-  }, [createdLink])
+    window.open(displayedLink, '_blank', 'noopener,noreferrer')
+  }, [displayedLink])
 
   const handleShareBySms = useCallback(async () => {
-    if (!createdLink.trim()) {
+    if (!displayedLink.trim()) {
       setError('먼저 링크를 생성해 주세요.')
       return
     }
-    await handleCopyText(createdLink, 'URL')
-    window.location.href = `sms:?body=${encodeURIComponent(createdLink)}`
-  }, [createdLink, handleCopyText])
+    await handleCopyText(displayedLink, 'URL')
+    window.location.href = `sms:?body=${encodeURIComponent(displayedLink)}`
+  }, [displayedLink, handleCopyText])
 
   const handleShareByKakao = useCallback(async () => {
-    if (!createdLink.trim()) {
+    if (!displayedLink.trim()) {
       setError('먼저 링크를 생성해 주세요.')
       return
     }
-    await handleCopyText(createdLink, 'URL')
+    await handleCopyText(displayedLink, 'URL')
     setCopyResult('카카오톡으로 공유할 URL을 복사했습니다.')
-  }, [createdLink, handleCopyText])
+  }, [displayedLink, handleCopyText])
 
   const handleSelectClaim = useCallback(
     (id: number) => {
@@ -782,68 +798,72 @@ export default function ClaimRequestsPage() {
 
   const pageContent = (
     <>
-      <section className="claim-requests-page__workspace-header">
-        <div className="claim-requests-page__customer-meta">
-          <h1 className="claim-requests-page__customer-name">
-            {activeCustomer ? activeCustomer.name : '고객 미선택'}
-            {activeCustomer ? (
-              <span className="claim-requests-page__customer-extra">
-                {activeCustomer.gender === 'male' ? '남' : activeCustomer.gender === 'female' ? '여' : '미지'} · 보험나이{' '}
-                {activeCustomer.insuranceAge ?? '-'}세
-              </span>
-            ) : null}
-          </h1>
-          <p className="claim-requests-page__customer-subline">
-            생년월일 {activeCustomer?.ssn || '-'} · 상담일 {activeCustomer?.lastConsultDate || '-'} · 연락처{' '}
-            {activeCustomer?.phone || '-'}
-          </p>
-        </div>
-        <div className="claim-requests-page__workspace-actions">
-          <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('files')} disabled={!activeCustomerId}>
-            고객 파일
-          </FormButton>
-          <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('consultations')} disabled={!activeCustomerId}>
-            상담 이력
-          </FormButton>
-          <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('auto-form')} disabled={!activeCustomerId}>
-            자동차 신청서
-          </FormButton>
-          <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('ga-excel')} disabled={!activeCustomerId}>
-            GA 고객 데이터 보기
-          </FormButton>
-          <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('memos')} disabled={!activeCustomerId}>
-            메모 보기
-          </FormButton>
-          <FormButton htmlType="button" variant="primary" className="claim-requests-page__workspace-actions--active">
-            청구 연결
-          </FormButton>
-        </div>
-      </section>
+      {activeCustomerId ? (
+        <section className="claim-requests-page__workspace-header">
+          <div className="claim-requests-page__customer-meta">
+            <h1 className="claim-requests-page__customer-name">
+              {activeCustomer ? activeCustomer.name : '고객 미선택'}
+              {activeCustomer ? (
+                <span className="claim-requests-page__customer-extra">
+                  {activeCustomer.gender === 'male' ? '남' : activeCustomer.gender === 'female' ? '여' : '미지'} · 보험나이{' '}
+                  {activeCustomer.insuranceAge ?? '-'}세
+                </span>
+              ) : null}
+            </h1>
+            <p className="claim-requests-page__customer-subline">
+              생년월일 {activeCustomer?.ssn || '-'} · 상담일 {activeCustomer?.lastConsultDate || '-'} · 연락처{' '}
+              {activeCustomer?.phone || '-'}
+            </p>
+          </div>
+          <div className="claim-requests-page__workspace-actions">
+            <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('files')} disabled={!activeCustomerId}>
+              고객 파일
+            </FormButton>
+            <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('consultations')} disabled={!activeCustomerId}>
+              상담 이력
+            </FormButton>
+            <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('auto-form')} disabled={!activeCustomerId}>
+              자동차 신청서
+            </FormButton>
+            <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('ga-excel')} disabled={!activeCustomerId}>
+              GA 고객 데이터 보기
+            </FormButton>
+            <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('memos')} disabled={!activeCustomerId}>
+              메모 보기
+            </FormButton>
+            <FormButton htmlType="button" variant="primary" className="claim-requests-page__workspace-actions--active">
+              청구 연결
+            </FormButton>
+          </div>
+        </section>
+      ) : null}
 
       <StatusMessage message={error} tone="error" />
 
       <section className="claim-requests-page__tab-section">
         <div className="claim-requests-page__tabs">
-          <FormButton
-            htmlType="button"
-            variant={activeTab === 'claims' ? 'primary' : 'secondary'}
-            onClick={() => setActiveTab('claims')}
-          >
-            청구 연결
-          </FormButton>
+          {activeCustomerId ? (
+            <FormButton
+              htmlType="button"
+              variant={activeTab === 'claims' ? 'primary' : 'secondary'}
+              onClick={() => setActiveTab('claims')}
+            >
+              청구 연결
+            </FormButton>
+          ) : null}
           <FormButton
             htmlType="button"
             variant={activeTab === 'news-all' ? 'primary' : 'secondary'}
             onClick={() => setActiveTab('news-all')}
           >
-            전체소식지 업로드
+            전체소식지
           </FormButton>
           <FormButton
             htmlType="button"
             variant={activeTab === 'news-personal' ? 'primary' : 'secondary'}
             onClick={() => setActiveTab('news-personal')}
           >
-            개별소식지 업로드
+            개인메시지
           </FormButton>
         </div>
       </section>
@@ -853,7 +873,7 @@ export default function ClaimRequestsPage() {
           <section className="claim-requests-page__connect-top">
             <article className="claim-requests-page__connect-card">
               <div className="claim-requests-page__connect-card-head">
-                <h2>링크 보내기</h2>
+                <h2>링크 발송</h2>
                 <FormButton
                   htmlType="button"
                   variant="primary"
@@ -866,36 +886,36 @@ export default function ClaimRequestsPage() {
               </div>
               <div className="claim-requests-page__connect-row">
                 <span className="claim-requests-page__connect-label">연결 코드</span>
-                <FormInput className="claim-requests-page__connect-input" value={createdCode || '미생성'} readOnly />
+                <FormInput className="claim-requests-page__connect-input" value={displayedCode || '미생성'} readOnly />
                 <FormButton
                   htmlType="button"
                   variant="secondary"
-                  onClick={() => void handleCopyText(createdCode, '코드')}
-                  disabled={!createdCode}
+                  onClick={() => void handleCopyText(displayedCode, '코드')}
+                  disabled={!displayedCode}
                 >
                   복사
                 </FormButton>
               </div>
               <div className="claim-requests-page__connect-row">
                 <span className="claim-requests-page__connect-label">연결 URL</span>
-                <FormInput className="claim-requests-page__connect-input" value={createdLink || '미생성'} readOnly />
+                <FormInput className="claim-requests-page__connect-input" value={displayedLink || '미생성'} readOnly />
                 <FormButton
                   htmlType="button"
                   variant="secondary"
-                  onClick={() => void handleCopyText(createdLink, 'URL')}
-                  disabled={!createdLink}
+                  onClick={() => void handleCopyText(displayedLink, 'URL')}
+                  disabled={!displayedLink}
                 >
                   복사
                 </FormButton>
               </div>
               <div className="claim-requests-page__connect-actions">
-                <FormButton htmlType="button" variant="secondary" onClick={() => void handleShareBySms()} disabled={!createdLink}>
-                  문자로 보내기
+                <FormButton htmlType="button" variant="secondary" onClick={() => void handleShareBySms()} disabled={!displayedLink}>
+                  문자 발송
                 </FormButton>
-                <FormButton htmlType="button" variant="secondary" onClick={() => void handleShareByKakao()} disabled={!createdLink}>
-                  카카오로 보내기
+                <FormButton htmlType="button" variant="secondary" onClick={() => void handleShareByKakao()} disabled={!displayedLink}>
+                  카카오 발송
                 </FormButton>
-                <FormButton htmlType="button" variant="secondary" onClick={handleOpenLinkPreview} disabled={!createdLink}>
+                <FormButton htmlType="button" variant="secondary" onClick={handleOpenLinkPreview} disabled={!displayedLink}>
                   링크 미리보기
                 </FormButton>
               </div>
@@ -1001,8 +1021,8 @@ export default function ClaimRequestsPage() {
       {activeTab === 'news-all' ? (
         <section className="insurer-news-page">
           <header className="page-header" style={{ marginBottom: 16 }}>
-            <h2 style={{ marginBottom: 8 }}>전체소식지업로드</h2>
-            <p className="insurer-news-muted">원수사 업로드와 동일한 카드형 리스트/작성 흐름입니다.</p>
+            <h2 style={{ marginBottom: 8 }}>전체소식지</h2>
+            <p className="insurer-news-muted">전체 고객에게 발송할 소식지를 작성하고 관리합니다.</p>
           </header>
           <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-2" style={{ marginBottom: 16 }}>
             <div className="flex gap-2">
@@ -1018,7 +1038,7 @@ export default function ClaimRequestsPage() {
                 variant={newsAllSubTab === 'upload' ? 'primary' : 'secondary'}
                 onClick={() => setNewsAllSubTab('upload')}
               >
-                업로드
+                발송
               </FormButton>
             </div>
           </section>
@@ -1026,7 +1046,7 @@ export default function ClaimRequestsPage() {
             <div style={{ marginTop: 16 }}>
               <NewsletterList
                 items={allNewsCards}
-                emptyMessage="등록된 전체소식지가 없습니다."
+                emptyMessage="발송한 전체소식지가 없습니다."
                 variant={isMobile ? 'mobile' : 'pc'}
               />
             </div>
@@ -1113,7 +1133,7 @@ export default function ClaimRequestsPage() {
               ) : null}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
                 <FormButton htmlType="button" variant="primary" onClick={() => void handleCreateNews()} loading={actionBusy}>
-                  등록
+                  발송
                 </FormButton>
               </div>
             </form>
@@ -1150,7 +1170,7 @@ export default function ClaimRequestsPage() {
           </div>
           <div className="space-y-3">
             <div className="auth-card card" style={{ padding: 16 }}>
-              <div className="text-sm font-semibold">개별소식지 작성</div>
+              <div className="text-sm font-semibold">개인메시지 작성</div>
             {selectedCustomerId ? (
               <>
                 <div className="text-xs text-[var(--text-secondary)] mt-2">
@@ -1163,7 +1183,7 @@ export default function ClaimRequestsPage() {
                   value={personalNewsContent}
                   onChange={(event) => setPersonalNewsContent(event.target.value)}
                   style={{ height: 'auto', minHeight: 160, paddingTop: 12, paddingBottom: 12, marginTop: 8 }}
-                  placeholder="선택 고객에게 보낼 소식 내용을 입력해 주세요."
+                  placeholder="선택 고객에게 보낼 메시지 내용을 입력해 주세요."
                 />
                 <FormButton
                   htmlType="button"
@@ -1171,7 +1191,7 @@ export default function ClaimRequestsPage() {
                   onClick={() => void handleCreatePersonalNews()}
                   loading={actionBusy}
                 >
-                  선택 고객에게 전송
+                  선택 고객에게 발송
                 </FormButton>
               </>
             ) : (
@@ -1180,7 +1200,7 @@ export default function ClaimRequestsPage() {
             </div>
             <NewsletterList
               items={personalNewsCards}
-              emptyMessage="해당 고객에게 전송한 소식지가 없습니다."
+              emptyMessage="해당 고객에게 발송한 개인메시지가 없습니다."
               variant={isMobile ? 'mobile' : 'pc'}
             />
           </div>

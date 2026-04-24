@@ -28,7 +28,7 @@ function parseWorkspaceCustomerIdFromPath(pathname: string): number | null {
   return parseSelectedCustomerId(m[1])
 }
 
-export type CustomerWorkspaceTab = 'files' | 'consultations' | 'auto' | 'ga-excel' | 'memos'
+export type CustomerWorkspaceTab = 'files' | 'consultations' | 'auto' | 'ga-excel' | 'memos' | 'claims'
 
 /**
  * URL path → 현재 활성 탭 매핑.
@@ -39,6 +39,9 @@ export type CustomerWorkspaceTab = 'files' | 'consultations' | 'auto' | 'ga-exce
  *   path 규약만 추가하면 자동으로 layout·버튼 하이라이트·스크롤 복원이 일관되게 따라온다.
  */
 function resolveWorkspacePathTab(pathname: string): CustomerWorkspaceTab | null {
+  if (pathname.includes('/claim-requests')) {
+    return 'claims'
+  }
   if (pathname.includes('/consultations')) {
     return 'consultations'
   }
@@ -218,6 +221,13 @@ export default function CustomerWorkspaceLayout() {
     moveTo(`/customers/${selectedCustomerId}/memos`)
   }
 
+  const handleClickClaims = () => {
+    if (!selectedCustomerId) {
+      return
+    }
+    moveTo('/claim-requests')
+  }
+
   const rightPanelProps: CustomerWorkspaceLayoutPCProps = {
     pathname: location.pathname,
     selectedCustomerId,
@@ -232,6 +242,7 @@ export default function CustomerWorkspaceLayout() {
     onClickCarForm: handleClickCarForm,
     onClickGaExcel: handleClickGaExcel,
     onClickMemos: handleClickMemos,
+    onClickClaims: handleClickClaims,
   }
 
   return (
