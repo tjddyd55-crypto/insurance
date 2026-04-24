@@ -607,7 +607,7 @@ const CustomerListCard = memo(function CustomerListCard({
     <li
       id={`customer-${c.id}`}
       data-customer-id={c.id}
-      className={`record-card customer-card customer-expand-card transition-all duration-200 ease-out${
+      className={`record-card customer-card customer-expand-card transition-all duration-150 ease-out${
         isSelectMode ? ' customer-expand-card--select-mode' : ''
       }${expanded ? ' customer-expand-card--focal' : ''}`}
       data-customer-card-id={c.id}
@@ -630,7 +630,7 @@ const CustomerListCard = memo(function CustomerListCard({
       ) : null}
       <div className="customer-expand-card__main">
         <div
-          className={`customer-expand-summary${isSelectMode ? '' : ' customer-expand-summary--toggle transition-transform duration-150 ease-out active:scale-[0.98]'}`}
+          className={`customer-expand-summary${isSelectMode ? '' : ' customer-expand-summary--toggle transition-transform duration-100 ease-out active:scale-[0.98]'}`}
           role={isSelectMode ? undefined : 'button'}
           tabIndex={isSelectMode ? undefined : 0}
           aria-expanded={isSelectMode ? undefined : showExpandedChrome}
@@ -1275,7 +1275,7 @@ export default function CustomersPage() {
   // NOTE: Router supports only one blocker. Global AppExitConfirm handles POP blocking (including customer create).
   const [searchInput, setSearchInput] = useState('')
   const searchInputRef = useRef<HTMLInputElement | null>(null)
-  const keyword = useDebounce(searchInput, 300)
+  const keyword = useDebounce(searchInput, 180)
   const [sortType, setSortType] = useState<CustomerSortType>(null)
   const [advancedFilters, setAdvancedFilters] = useState<CustomerAdvancedFilters>(() => ({
     ...EMPTY_ADVANCED_FILTERS,
@@ -1625,7 +1625,7 @@ export default function CustomersPage() {
         if (disposed || !target.isConnected) {
           return
         }
-        if (scrollCountRef.current >= 2) {
+        if (scrollCountRef.current >= 1) {
           return
         }
         scrollCountRef.current += 1
@@ -1650,7 +1650,7 @@ export default function CustomersPage() {
 
         container.scrollTo({
           top: Math.max(0, y - stickyHeight),
-          behavior: 'smooth',
+          behavior: 'auto',
         })
       }
 
@@ -1729,7 +1729,7 @@ export default function CustomersPage() {
           }
         }
       })()
-    }, 300)
+    }, 180)
     return () => {
       cancelled = true
       window.clearTimeout(handle)

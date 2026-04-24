@@ -1,7 +1,7 @@
 import { type CSSProperties, type FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import { useConfirmDialog } from '../../../components/dialog'
 import { FormButton, FormInput } from '../../../components/form'
-import { searchCustomers } from '../api/customersApi'
+import { listCustomers } from '../api/customersApi'
 import {
   createCustomerRelation,
   deleteCustomerRelation,
@@ -56,7 +56,7 @@ export function CustomerRelationsStrip({
   const [modalOpen, setModalOpen] = useState(false)
   const [searchQ, setSearchQ] = useState('')
   const [searchBusy, setSearchBusy] = useState(false)
-  const [hits, setHits] = useState<CustomerRecord[]>([])
+  const [searchPool, setSearchPool] = useState<CustomerRecord[]>([])
   const [linking, setLinking] = useState(false)
   const [showAllChips, setShowAllChips] = useState(false)
 
@@ -91,33 +91,50 @@ export function CustomerRelationsStrip({
     if (!modalOpen || !token?.trim()) {
       return
     }
-    const q = searchQ.trim()
     let cancelled = false
-    const t = window.setTimeout(() => {
-      void (async () => {
-        setSearchBusy(true)
-        try {
-          const rows = await searchCustomers(token, q)
-          if (!cancelled) {
-            setHits(rows.filter((c) => c.id !== customerId))
-          }
-        } catch (e) {
-          if (!cancelled) {
-            setHits([])
-            setError(e instanceof Error ? e.message : '검색에 실패했습니다.')
-          }
-        } finally {
-          if (!cancelled) {
-            setSearchBusy(false)
-          }
+    void (async () => {
+      setSearchBusy(true)
+      try {
+        const { customers } = await listCustomers(token, 500)
+        if (cancelled) {
+          return
         }
-      })()
-    }, 300)
+        setSearchPool(customers)
+      } catch (e) {
+        if (!cancelled) {
+          setSearchPool([])
+          setError(e instanceof Error ? e.message : '검색에 실패했습니다.')
+        }
+      } finally {
+        if (!cancelled) {
+          setSearchBusy(false)
+        }
+      }
+    })()
     return () => {
       cancelled = true
-      window.clearTimeout(t)
     }
-  }, [modalOpen, searchQ, token, customerId])
+  }, [modalOpen, token])
+
+  const hits = useMemo(() => {
+    const q = searchQ.trim()
+    const rows = q
+      ? searchPool.filter((c) => c.name.includes(q) || (c.phone ?? '').includes(q))
+      : searchPool
+    const out: CustomerRecord[] = []
+    const seen = new Set<number>()
+    for (const row of rows) {
+      if (row.id === customerId) {
+        continue
+      }
+      if (seen.has(row.id)) {
+        continue
+      }
+      seen.add(row.id)
+      out.push(row)
+    }
+    return out
+  }, [customerId, searchPool, searchQ])
 
   const linkTo = async (target: CustomerRecord) => {
     if (!token?.trim()) {
@@ -134,7 +151,6 @@ export function CustomerRelationsStrip({
       window.alert(`${target.name} 고객과 연결했습니다.`)
       setModalOpen(false)
       setSearchQ('')
-      setHits([])
       await loadRelations()
     } catch (e) {
       setError(e instanceof Error ? e.message : '연결에 실패했습니다.')
@@ -278,6 +294,7 @@ export function CustomerRelationsStrip({
             onClick={() => {
               setError('')
               setModalOpen(true)
+              setSearchPool([])
             }}
           >
             + 추가

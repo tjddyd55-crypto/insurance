@@ -9,13 +9,13 @@ import {
 } from 'react'
 
 /** index.css `.customers-page .customer-expand-detail` — `transition` 의 opacity/transform 구간(ms) */
-export const EXPANDABLE_CARD_TRANSITION_MS = 200
+export const EXPANDABLE_CARD_TRANSITION_MS = 160
 
 /**
  * 닫힘 fallback 타이머(ms). CSS transition(0.2s)보다 충분히 길게 유지.
  * CSS의 transition 길이를 바꾸면 `EXPANDABLE_CARD_TRANSITION_MS`·이 값을 함께 맞출 것.
  */
-export const CLOSE_DURATION = 320
+export const CLOSE_DURATION = 220
 
 /** 훅에 넘길 수 없는 카드일 때(렌더 가드용) — 토글·닫힘 처리 전부 무시 */
 export const EXPANDABLE_CARD_INVALID_ID = -1 as const
