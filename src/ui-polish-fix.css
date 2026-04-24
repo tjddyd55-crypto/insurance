@@ -1,0 +1,168 @@
+/*
+ * Final mobile UI stabilization layer.
+ * This file intentionally overrides only the recent polish rules that caused
+ * duplicated icons, oversized action buttons, and centered workspace modals.
+ * No API, route, or data behavior is changed here.
+ */
+
+@media (max-width: 767px) {
+  .customers-page--mobile .customer-detail-feature-actions--mobile-priority,
+  .mobile-root .customer-detail-feature-actions--mobile-priority {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 7px 10px !important;
+    margin: 8px 0 10px !important;
+    padding: 8px 8px 10px !important;
+    border-top: 1px solid color-mix(in srgb, var(--border, #2b3544) 78%, transparent) !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--border, #2b3544) 78%, transparent) !important;
+    background: transparent !important;
+  }
+
+  /* Remove the accidental pseudo icons that were added on top of real button icons. */
+  .customers-page--mobile .customer-detail-feature-actions--mobile-priority button::before,
+  .mobile-root .customer-detail-feature-actions--mobile-priority button::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  .customers-page--mobile .customer-detail-feature-actions--mobile-priority .customer-mobile-action-btn,
+  .mobile-root .customer-detail-feature-actions--mobile-priority .customer-mobile-action-btn,
+  .customers-page--mobile .customer-detail-feature-actions--mobile-priority button.customer-mobile-action-btn,
+  .mobile-root .customer-detail-feature-actions--mobile-priority button.customer-mobile-action-btn {
+    min-height: 36px !important;
+    height: 36px !important;
+    max-height: 36px !important;
+    padding: 0 10px !important;
+    border-radius: 999px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-direction: row !important;
+    gap: 5px !important;
+    font-size: 0.82rem !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    color: #fff !important;
+    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%) !important;
+    border: 1px solid color-mix(in srgb, #60a5fa 26%, transparent) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+    white-space: nowrap !important;
+  }
+
+  .customers-page--mobile .customer-mobile-action-btn__icon,
+  .mobile-root .customer-mobile-action-btn__icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 16px !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    font-size: 0.86rem !important;
+    line-height: 1 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    text-align: center !important;
+  }
+
+  .customers-page--mobile .customer-mobile-action-btn__text,
+  .mobile-root .customer-mobile-action-btn__text {
+    display: inline-block !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    line-height: 1 !important;
+  }
+
+  .customers-page--mobile .customer-detail-toggle-btn,
+  .mobile-root .customer-detail-toggle-btn {
+    min-height: 32px !important;
+    height: 32px !important;
+    margin-top: 8px !important;
+    border-radius: 999px !important;
+    font-size: 0.82rem !important;
+  }
+}
+
+/* Make route-based mobile workspace screens behave like the existing full-screen mobile modals. */
+@media (max-width: 767px) {
+  .customer-ui-modal-backdrop:has(.workspace-mobile-outlet-modal) {
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: center !important;
+    background: rgba(0, 0, 0, 0.55) !important;
+  }
+
+  .customer-ui-modal-panel.workspace-mobile-outlet-modal {
+    width: 100% !important;
+    max-width: 430px !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    min-height: 100dvh !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    border: 0 !important;
+    background: var(--app-bg, var(--bg-main, #0b0f14)) !important;
+    color: var(--app-text, var(--text-primary, #fff)) !important;
+    box-shadow: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+  }
+
+  .workspace-mobile-outlet-modal__header {
+    flex: 0 0 56px !important;
+    height: 56px !important;
+    display: grid !important;
+    grid-template-columns: 64px minmax(0, 1fr) 64px !important;
+    align-items: center !important;
+    gap: 0 !important;
+    padding: 0 12px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: var(--app-bg, var(--bg-main, #0b0f14)) !important;
+  }
+
+  .workspace-mobile-outlet-modal__spacer {
+    display: block !important;
+  }
+
+  .workspace-mobile-outlet-modal__title {
+    grid-column: 2 !important;
+    margin: 0 !important;
+    text-align: center !important;
+    font-size: 1rem !important;
+    font-weight: 900 !important;
+    color: var(--text-primary, #fff) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .workspace-mobile-outlet-modal__close {
+    grid-column: 3 !important;
+    justify-self: end !important;
+    min-width: 48px !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 10px !important;
+    border-radius: 10px !important;
+  }
+
+  .workspace-mobile-outlet-modal__body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 0 !important;
+    background: var(--app-bg, var(--bg-main, #0b0f14)) !important;
+  }
+
+  .workspace-mobile-outlet-modal__body .claim-requests-page--mobile,
+  .workspace-mobile-outlet-modal__body .claim-requests-page {
+    min-height: 100% !important;
+    width: 100% !important;
+    padding: 12px 10px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+    background: transparent !important;
+  }
+}
