@@ -1,13 +1,49 @@
 /*
  * Final mobile hotfix loaded last.
- * Scope: mobile-only visual cleanup.
- * - Force-hide all icons inside the six customer detail action buttons.
- * - Keep those buttons as clean blue text-only actions.
- * - Put confirm dialogs above mobile sheets so delete confirmations are clickable.
+ * Scope: visual cleanup while the customer/claim UI is being consolidated.
  */
 
+/* Copy/edit/delete action icons must remain visible on PC and mobile. */
+.customer-card__actions .icon-box,
+.customer-card__actions .icon-box a,
+.customer-card__actions .icon-box button,
+.customer-card__actions .icon-box span,
+.customer-card__actions .icon-box svg,
+.customer-card__actions .icon-box img,
+.customer-expand-summary .customer-card__actions,
+.customer-expand-summary .customer-card__actions * {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.customer-card__actions .icon-box {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.customer-card__actions .icon-box a,
+.customer-card__actions .icon-box button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: auto !important;
+}
+
+.customer-card__actions .icon-box svg,
+.customer-card__actions .icon-box img,
+.customer-card__actions .icon-box [aria-hidden="true"] {
+  display: inline-flex !important;
+  width: 16px !important;
+  min-width: 16px !important;
+  max-width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  max-height: 16px !important;
+  margin: 0 !important;
+}
+
 @media (max-width: 767px) {
-  /* Six action buttons on expanded mobile customer cards */
   .customer-detail-feature-actions--mobile-priority {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -81,7 +117,6 @@
     visibility: visible !important;
   }
 
-  /* Remaining leading emoji prefixes in customer detail text */
   .customer-expand-detail .customer-info-label__icon,
   .customer-expand-detail .customer-info-icon,
   .customer-expand-detail .customer-detail-icon,
@@ -100,7 +135,6 @@
     display: none !important;
   }
 
-  /* Confirm dialogs must be above legacy mobile modals. */
   .customer-ui-modal-backdrop:not(:has(.workspace-mobile-outlet-modal)):not(:has(.claim-requests-page__detail-section)) {
     z-index: 20000 !important;
     pointer-events: auto !important;
