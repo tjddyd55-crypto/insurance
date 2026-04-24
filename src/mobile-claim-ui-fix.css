@@ -1,5 +1,8 @@
 @media (max-width: 767px) {
-  .workspace-mobile-outlet-modal__body .claim-requests-page--mobile > :nth-child(n+4) {
+  .claim-requests-page--mobile:has(.claim-requests-page__link-panel) > :last-child,
+  .claim-requests-page--mobile:has(.claim-requests-page__link-card) > :last-child,
+  .claim-requests-page--mobile:has(.claim-requests-page__status-panel) > :last-child,
+  .claim-requests-page--mobile:has(.claim-requests-page__status-card) > :last-child {
     display: none !important;
   }
 
