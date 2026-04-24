@@ -23,13 +23,6 @@
   display: none !important;
 }
 
-/* Most of the temporary field icons were inserted as small aria-hidden spans.
- * Limit this to non-button descendants so edit/delete/favorite controls are not affected.
- */
-.customer-expand-detail :not(button):not(a) > span[aria-hidden]:first-child:not(.customer-dday):not(.customer-name-ssn-dup__badge) {
-  display: none !important;
-}
-
 @media (max-width: 767px) {
   .customers-page--mobile .customer-detail-feature-actions--mobile-priority,
   .mobile-root .customer-detail-feature-actions--mobile-priority {
