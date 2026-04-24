@@ -60,11 +60,16 @@ function resolveWorkspacePathTab(pathname: string): CustomerWorkspaceTab | null 
   return null
 }
 
-function buildCustomerWorkspaceHref(basePath: string, params: URLSearchParams): string {
+function buildCustomerWorkspaceHref(
+  basePath: string,
+  params: URLSearchParams,
+  selectedCustomerId: number | null,
+): string {
   const next = new URLSearchParams()
-  const selected = params.get('customerId')
-  if (selected) {
-    next.set('customerId', selected)
+  const selectedFromQuery = parseSelectedCustomerId(params.get('customerId'))
+  const selected = selectedFromQuery ?? selectedCustomerId
+  if (selected != null) {
+    next.set('customerId', String(selected))
   }
   const qs = next.toString()
   return qs ? `${basePath}?${qs}` : basePath
@@ -169,7 +174,7 @@ export default function CustomerWorkspaceLayout() {
   const showCarInsuranceInWorkspace = isGaCarInsuranceHubEnabled(user?.gaCode, user?.gaName)
 
   const moveTo = (path: string) => {
-    const href = buildCustomerWorkspaceHref(path, searchParams)
+    const href = buildCustomerWorkspaceHref(path, searchParams, selectedCustomerId)
     navigate(href)
   }
 
