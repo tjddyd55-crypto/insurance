@@ -5,6 +5,6 @@ type ClaimRequestsPagePCViewProps = {
 }
 
 export default function ClaimRequestsPagePCView({ children }: ClaimRequestsPagePCViewProps) {
-  return <main className="page claim-requests-page claim-requests-page--pc page--with-back content-wrapper space-y-4">{children}</main>
+  return <main className="page claim-requests-page claim-requests-page--pc page--with-back content-wrapper">{children}</main>
 }
 

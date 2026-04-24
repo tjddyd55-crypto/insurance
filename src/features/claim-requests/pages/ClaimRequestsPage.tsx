@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import FileUploader from '../../../components/common/FileUploader'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
@@ -19,6 +20,7 @@ import {
   createCustomerNews,
   downloadClaimRequestFile,
   getClaimRequestDetail,
+  getCustomerAppLink,
   listAgentCustomerNews,
   listClaimRequests,
   listLinkedCustomers,
@@ -27,9 +29,12 @@ import {
   type ClaimRequestDetail,
   type ClaimRequestListItem,
   type ClaimRequestStatus,
+  type CustomerAppLinkInfo,
   type LinkedCustomerItem,
   updateClaimRequestStatus,
 } from '../api/claimRequestsApi'
+import { getCustomerById } from '../../customers/api/customersApi'
+import type { CustomerRecord } from '../../customers/domain/types'
 
 const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus; label: string }> = [
   { value: 'requested', label: '요청됨' },
@@ -61,13 +66,40 @@ function statusLabel(status: ClaimRequestStatus): string {
   return STATUS_OPTIONS.find((item) => item.value === status)?.label ?? status
 }
 
+function parsePositiveInt(raw: string | null): number | null {
+  const n = Number(raw)
+  return Number.isInteger(n) && n > 0 ? n : null
+}
+
+function statusBadgeClass(status: ClaimRequestStatus): string {
+  switch (status) {
+    case 'done':
+      return 'claim-requests-page__badge claim-requests-page__badge--done'
+    case 'processing':
+      return 'claim-requests-page__badge claim-requests-page__badge--processing'
+    case 'requested':
+      return 'claim-requests-page__badge claim-requests-page__badge--requested'
+    case 'rejected':
+    case 'canceled':
+      return 'claim-requests-page__badge claim-requests-page__badge--rejected'
+    default:
+      return 'claim-requests-page__badge'
+  }
+}
+
 export default function ClaimRequestsPage() {
   const isMobile = useIsMobile()
   const { token } = useAuth()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const activeCustomerId = useMemo(() => parsePositiveInt(searchParams.get('customerId')), [searchParams])
   const [activeTab, setActiveTab] = useState<'claims' | 'news-all' | 'news-personal'>('claims')
   const [rows, setRows] = useState<ClaimRequestListItem[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [detail, setDetail] = useState<ClaimRequestDetail | null>(null)
+  const [activeCustomer, setActiveCustomer] = useState<CustomerRecord | null>(null)
+  const [linkStatus, setLinkStatus] = useState<CustomerAppLinkInfo | null>(null)
+  const [linkStatusLoading, setLinkStatusLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState('')
@@ -97,6 +129,15 @@ export default function ClaimRequestsPage() {
   const allNewsForm = useInsurerNewsForm(null)
 
   const selectedRow = useMemo(() => rows.find((item) => item.id === selectedId) ?? null, [rows, selectedId])
+  const latestDeviceLabel = useMemo(() => {
+    if (detail?.deviceId?.trim()) {
+      return detail.deviceId.trim()
+    }
+    if (selectedRow?.deviceId?.trim()) {
+      return selectedRow.deviceId.trim()
+    }
+    return '미확인'
+  }, [detail?.deviceId, selectedRow?.deviceId])
   const allNewsCards = useMemo<NewsletterItem[]>(
     () =>
       newsHistoryAll.map((item) => ({
@@ -143,7 +184,11 @@ export default function ClaimRequestsPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await listClaimRequests(token, { page: 1, pageSize: 50 })
+      const res = await listClaimRequests(token, {
+        page: 1,
+        pageSize: 50,
+        customerId: activeCustomerId,
+      })
       if (!res) {
         console.error('API 응답 이상', res)
         setRows([])
@@ -164,7 +209,7 @@ export default function ClaimRequestsPage() {
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [activeCustomerId, token])
 
   const loadDetail = useCallback(async () => {
     if (!token || selectedId == null) {
@@ -196,6 +241,48 @@ export default function ClaimRequestsPage() {
       setMobileDetailOpen(false)
     }
   }, [activeTab, mobileDetailOpen])
+
+  useEffect(() => {
+    if (!token?.trim() || !activeCustomerId) {
+      setActiveCustomer(null)
+      return
+    }
+    let cancelled = false
+    void getCustomerById(token, activeCustomerId)
+      .then((customer) => {
+        if (!cancelled) {
+          setActiveCustomer(customer)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setActiveCustomer(null)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeCustomerId, token])
+
+  const loadLinkStatus = useCallback(async () => {
+    if (!token?.trim() || !activeCustomerId) {
+      setLinkStatus(null)
+      return
+    }
+    setLinkStatusLoading(true)
+    try {
+      const current = await getCustomerAppLink(token, activeCustomerId)
+      setLinkStatus(current)
+    } catch {
+      setLinkStatus(null)
+    } finally {
+      setLinkStatusLoading(false)
+    }
+  }, [activeCustomerId, token])
+
+  useEffect(() => {
+    void loadLinkStatus()
+  }, [loadLinkStatus])
 
   const loadLinkedCustomers = useCallback(async () => {
     if (!token) {
@@ -254,6 +341,10 @@ export default function ClaimRequestsPage() {
     if (!token) {
       return
     }
+    if (!activeCustomerId) {
+      setError('먼저 좌측 고객 리스트에서 고객을 선택해 주세요.')
+      return
+    }
     setActionBusy(true)
     setCreatedLink('')
     setCreatedCode('')
@@ -272,6 +363,7 @@ export default function ClaimRequestsPage() {
       setCreatedLink(linkUrl)
       setCreatedCode(String(res.agentCode ?? res.linkCode ?? '').trim())
       setError('')
+      await loadLinkStatus()
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : '링크 생성에 실패했습니다.')
     } finally {
@@ -468,6 +560,42 @@ export default function ClaimRequestsPage() {
     }
   }, [])
 
+  const moveToCustomerWorkspace = useCallback(
+    (tab: 'files' | 'consultations' | 'auto-form' | 'ga-excel' | 'memos') => {
+      if (!activeCustomerId) {
+        setError('먼저 좌측 고객 리스트에서 고객을 선택해 주세요.')
+        return
+      }
+      navigate(`/customers/${activeCustomerId}/${tab}?customerId=${activeCustomerId}`)
+    },
+    [activeCustomerId, navigate],
+  )
+
+  const handleOpenLinkPreview = useCallback(() => {
+    if (!createdLink.trim()) {
+      return
+    }
+    window.open(createdLink, '_blank', 'noopener,noreferrer')
+  }, [createdLink])
+
+  const handleShareBySms = useCallback(async () => {
+    if (!createdLink.trim()) {
+      setError('먼저 링크를 생성해 주세요.')
+      return
+    }
+    await handleCopyText(createdLink, 'URL')
+    window.location.href = `sms:?body=${encodeURIComponent(createdLink)}`
+  }, [createdLink, handleCopyText])
+
+  const handleShareByKakao = useCallback(async () => {
+    if (!createdLink.trim()) {
+      setError('먼저 링크를 생성해 주세요.')
+      return
+    }
+    await handleCopyText(createdLink, 'URL')
+    setCopyResult('카카오톡으로 공유할 URL을 복사했습니다.')
+  }, [createdLink, handleCopyText])
+
   const handleSelectClaim = useCallback(
     (id: number) => {
       setSelectedId(id)
@@ -510,49 +638,49 @@ export default function ClaimRequestsPage() {
 
   const claimDetailBody = (
     <>
-      {detailLoading ? <div className="text-sm text-[var(--text-secondary)]">상세 불러오는 중…</div> : null}
-      {!detailLoading && !detail ? <div className="text-sm text-[var(--text-secondary)]">요청을 선택해 주세요.</div> : null}
+      {detailLoading ? <div className="claim-requests-page__detail-empty">상세 불러오는 중…</div> : null}
+      {!detailLoading && !detail ? <div className="claim-requests-page__detail-empty">요청을 선택해 주세요.</div> : null}
       {detail ? (
         <>
-          <div>
+          <div className="claim-requests-page__detail-section">
             {(() => {
               const senderName = detail.requesterName || detail.customerName
               return (
-                <div className="text-sm font-semibold">
+                <div className="claim-requests-page__detail-title">
                   #{detail.id} {senderName}
                 </div>
               )
             })()}
-            <div className="text-xs text-[var(--text-secondary)] mt-1">
+            <div className="claim-requests-page__detail-meta">
               상태 {statusLabel(detail.status)} · 접수 {formatDateTime(detail.submittedAt)}
             </div>
             {detail.requesterName ? (
-              <div className="text-xs text-[var(--text-secondary)] mt-1">
+              <div className="claim-requests-page__detail-meta">
                 요청자 정보: {detail.requesterName} / {detail.requesterBirthDate} / {detail.requesterPhone}
               </div>
             ) : null}
-            <div className="text-xs text-[var(--text-secondary)] mt-1">연결고객: {detail.customerName}</div>
+            <div className="claim-requests-page__detail-meta">연결고객: {detail.customerName}</div>
             {detail.deviceId ? (
-              <div className="text-xs text-[var(--text-secondary)] mt-1">설치자 기기: {detail.deviceId}</div>
+              <div className="claim-requests-page__detail-meta">설치자 기기: {detail.deviceId}</div>
             ) : null}
-            {detail.title ? <div className="text-sm mt-2">제목: {detail.title}</div> : null}
-            {detail.memo ? <div className="text-sm mt-1 whitespace-pre-wrap">메모: {detail.memo}</div> : null}
+            {detail.title ? <div className="claim-requests-page__detail-text">제목: {detail.title}</div> : null}
+            {detail.memo ? <div className="claim-requests-page__detail-text claim-requests-page__detail-text--memo">메모: {detail.memo}</div> : null}
           </div>
 
-          <div className="space-y-1">
-            <div className="text-sm font-semibold">첨부 파일</div>
+          <div className="claim-requests-page__detail-section">
+            <div className="claim-requests-page__detail-subtitle">첨부 파일</div>
             {detail.files.length === 0 ? (
-              <div className="text-xs text-[var(--text-secondary)]">첨부 파일이 없습니다.</div>
+              <div className="claim-requests-page__detail-empty">첨부 파일이 없습니다.</div>
             ) : (
-              <ul className="space-y-1">
+              <ul className="claim-requests-page__file-list">
                 {detail.files.map((file) => (
-                  <li key={file.id} className="text-xs flex items-center justify-between gap-3">
-                    <span className="truncate">{file.fileName}</span>
-                    <div className="flex items-center gap-2 shrink-0">
+                  <li key={file.id} className="claim-requests-page__file-item">
+                    <span className="claim-requests-page__file-name" title={file.fileName}>{file.fileName}</span>
+                    <span className="claim-requests-page__file-size">{(file.fileSize / 1024 / 1024).toFixed(1)} MB</span>
+                    <div className="claim-requests-page__file-actions">
                       <FormButton
                         htmlType="button"
-                        variant="action"
-                        className="text-blue-600"
+                        variant="secondary"
                         onClick={() => {
                           void handleOpenClaimFile(file)
                         }}
@@ -561,8 +689,7 @@ export default function ClaimRequestsPage() {
                       </FormButton>
                       <FormButton
                         htmlType="button"
-                        variant="action"
-                        className="text-blue-600"
+                        variant="secondary"
                         onClick={() => {
                           void handleDownloadClaimFile(file)
                         }}
@@ -576,11 +703,11 @@ export default function ClaimRequestsPage() {
             )}
           </div>
 
-          <div className="space-y-2">
-            <div className="text-sm font-semibold">상태 변경</div>
-            <div className="flex gap-2 flex-wrap items-center">
+          <div className="claim-requests-page__detail-section claim-requests-page__detail-section--status">
+            <div className="claim-requests-page__detail-subtitle">상태 변경</div>
+            <div className="claim-requests-page__status-form-row">
               <FormSelect
-                className="w-36 text-sm"
+                className="claim-requests-page__status-select"
                 value={statusTarget}
                 onChange={(event) => setStatusTarget(event.target.value as ClaimRequestStatus)}
                 options={STATUS_OPTIONS.map((item) => ({ value: item.value, label: item.label }))}
@@ -601,7 +728,7 @@ export default function ClaimRequestsPage() {
               </FormButton>
             </div>
             <FormTextarea
-              className="w-full text-sm"
+              className="claim-requests-page__status-memo"
               rows={2}
               value={statusMemo}
               onChange={(event) => setStatusMemo(event.target.value)}
@@ -610,7 +737,7 @@ export default function ClaimRequestsPage() {
             />
             {statusNotice ? (
               <div
-                className="text-xs font-medium text-[var(--brand-primary,#2563eb)]"
+                className="claim-requests-page__status-notice"
                 role="status"
                 aria-live="polite"
               >
@@ -619,160 +746,255 @@ export default function ClaimRequestsPage() {
             ) : null}
           </div>
 
-          <div className="space-y-1">
-            <div className="text-sm font-semibold">상태 이력</div>
-            {detail.statusLogs.length === 0 ? (
-              <div className="text-xs text-[var(--text-secondary)]">이력이 없습니다.</div>
-            ) : (
-              detail.statusLogs.map((log) => (
-                <div key={log.id} className="text-xs text-[var(--text-secondary)]">
-                  {formatDateTime(log.changedAt)} · {log.fromStatus ? statusLabel(log.fromStatus) : '초기'} →{' '}
-                  {statusLabel(log.toStatus)} {log.memo ? `(${log.memo})` : ''}
-                </div>
-              ))
-            )}
-          </div>
         </>
       ) : null}
       {selectedRow && !detail ? (
-        <div className="text-xs text-[var(--text-secondary)]">선택된 요청 #{selectedRow.id}의 상세 정보를 불러오지 못했습니다.</div>
+        <div className="claim-requests-page__detail-empty">선택된 요청 #{selectedRow.id}의 상세 정보를 불러오지 못했습니다.</div>
       ) : null}
     </>
   )
 
+  const claimStatusTimeline = detail ? (
+    <div className="claim-requests-page__timeline-list">
+      {detail.statusLogs.length === 0 ? (
+        <div className="claim-requests-page__timeline-empty">이력이 없습니다.</div>
+      ) : (
+        detail.statusLogs
+          .slice()
+          .reverse()
+          .map((log) => (
+            <div key={log.id} className="claim-requests-page__timeline-item">
+              <div className="claim-requests-page__timeline-dot" />
+              <div className="claim-requests-page__timeline-content">
+                <p className="claim-requests-page__timeline-time">{formatDateTime(log.changedAt)}</p>
+                <p className="claim-requests-page__timeline-state">
+                  {log.fromStatus ? statusLabel(log.fromStatus) : '초기'} → {statusLabel(log.toStatus)}
+                </p>
+                {log.memo ? <p className="claim-requests-page__timeline-memo">{log.memo}</p> : null}
+              </div>
+            </div>
+          ))
+      )}
+    </div>
+  ) : (
+    <div className="claim-requests-page__timeline-empty">청구 요청을 선택해 주세요.</div>
+  )
+
   const pageContent = (
     <>
-      <div>
-        <h1 className="text-lg font-semibold">청구 요청</h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
-          고객앱 링크 생성, 청구 요청 확인/상태 변경, 고객 소식지 등록을 한 화면에서 관리합니다.
-        </p>
-      </div>
+      <section className="claim-requests-page__workspace-header">
+        <div className="claim-requests-page__customer-meta">
+          <h1 className="claim-requests-page__customer-name">
+            {activeCustomer ? activeCustomer.name : '고객 미선택'}
+            {activeCustomer ? (
+              <span className="claim-requests-page__customer-extra">
+                {activeCustomer.gender === 'male' ? '남' : activeCustomer.gender === 'female' ? '여' : '미지'} · 보험나이{' '}
+                {activeCustomer.insuranceAge ?? '-'}세
+              </span>
+            ) : null}
+          </h1>
+          <p className="claim-requests-page__customer-subline">
+            생년월일 {activeCustomer?.ssn || '-'} · 상담일 {activeCustomer?.lastConsultDate || '-'} · 연락처{' '}
+            {activeCustomer?.phone || '-'}
+          </p>
+        </div>
+        <div className="claim-requests-page__workspace-actions">
+          <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('files')} disabled={!activeCustomerId}>
+            고객 파일
+          </FormButton>
+          <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('consultations')} disabled={!activeCustomerId}>
+            상담 이력
+          </FormButton>
+          <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('auto-form')} disabled={!activeCustomerId}>
+            자동차 신청서
+          </FormButton>
+          <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('ga-excel')} disabled={!activeCustomerId}>
+            GA 고객 데이터 보기
+          </FormButton>
+          <FormButton htmlType="button" variant="secondary" onClick={() => moveToCustomerWorkspace('memos')} disabled={!activeCustomerId}>
+            메모 보기
+          </FormButton>
+          <FormButton htmlType="button" variant="primary" className="claim-requests-page__workspace-actions--active">
+            청구 연결
+          </FormButton>
+        </div>
+      </section>
 
       <StatusMessage message={error} tone="error" />
 
-      <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-2">
-        <div className="flex flex-wrap gap-2">
+      <section className="claim-requests-page__tab-section">
+        <div className="claim-requests-page__tabs">
           <FormButton
             htmlType="button"
             variant={activeTab === 'claims' ? 'primary' : 'secondary'}
             onClick={() => setActiveTab('claims')}
           >
-            청구요청
+            청구 연결
           </FormButton>
           <FormButton
             htmlType="button"
             variant={activeTab === 'news-all' ? 'primary' : 'secondary'}
             onClick={() => setActiveTab('news-all')}
           >
-            전체소식지업로드
+            전체소식지 업로드
           </FormButton>
           <FormButton
             htmlType="button"
             variant={activeTab === 'news-personal' ? 'primary' : 'secondary'}
             onClick={() => setActiveTab('news-personal')}
           >
-            개별소식지업로드
+            개별소식지 업로드
           </FormButton>
         </div>
       </section>
 
       {activeTab === 'claims' ? (
         <>
-          <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 space-y-3">
-        <h2 className="text-sm font-semibold">고객 앱 링크 생성</h2>
-        <div className="flex gap-2 flex-wrap items-center">
-          <FormButton htmlType="button" variant="primary" onClick={() => void handleCreateLink()} loading={actionBusy}>
-            링크 생성
-          </FormButton>
-        </div>
-        {createdLink ? (
-          <div className="space-y-1">
-            {createdCode ? (
-              <>
-                <div className="text-xs text-[var(--text-secondary)]">
-                  <span className="font-medium text-[var(--text-primary)] mr-2">설계사 연결 코드</span>
-                  생성 완료
+          <section className="claim-requests-page__connect-top">
+            <article className="claim-requests-page__connect-card">
+              <div className="claim-requests-page__connect-card-head">
+                <h2>링크 보내기</h2>
+                <FormButton
+                  htmlType="button"
+                  variant="primary"
+                  onClick={() => void handleCreateLink()}
+                  loading={actionBusy}
+                  disabled={!activeCustomerId}
+                >
+                  링크 생성
+                </FormButton>
+              </div>
+              <div className="claim-requests-page__connect-row">
+                <span className="claim-requests-page__connect-label">연결 코드</span>
+                <FormInput className="claim-requests-page__connect-input" value={createdCode || '미생성'} readOnly />
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  onClick={() => void handleCopyText(createdCode, '코드')}
+                  disabled={!createdCode}
+                >
+                  복사
+                </FormButton>
+              </div>
+              <div className="claim-requests-page__connect-row">
+                <span className="claim-requests-page__connect-label">연결 URL</span>
+                <FormInput className="claim-requests-page__connect-input" value={createdLink || '미생성'} readOnly />
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  onClick={() => void handleCopyText(createdLink, 'URL')}
+                  disabled={!createdLink}
+                >
+                  복사
+                </FormButton>
+              </div>
+              <div className="claim-requests-page__connect-actions">
+                <FormButton htmlType="button" variant="secondary" onClick={() => void handleShareBySms()} disabled={!createdLink}>
+                  문자로 보내기
+                </FormButton>
+                <FormButton htmlType="button" variant="secondary" onClick={() => void handleShareByKakao()} disabled={!createdLink}>
+                  카카오로 보내기
+                </FormButton>
+                <FormButton htmlType="button" variant="secondary" onClick={handleOpenLinkPreview} disabled={!createdLink}>
+                  링크 미리보기
+                </FormButton>
+              </div>
+              {copyResult ? <p className="claim-requests-page__copy-result">{copyResult}</p> : null}
+            </article>
+
+            <article className="claim-requests-page__status-card">
+              <h2>연결 상태</h2>
+              {linkStatusLoading ? <p className="claim-requests-page__status-loading">상태를 확인하는 중…</p> : null}
+              <div className="claim-requests-page__status-grid">
+                <div>
+                  <p className="claim-requests-page__status-key">연결 상태</p>
+                  <p className="claim-requests-page__status-value claim-requests-page__status-value--ok">
+                    {linkStatus ? '연결 완료' : '미연결'}
+                  </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <FormInput className="w-full text-xs font-mono" value={createdCode} readOnly />
-                  <FormButton
-                    htmlType="button"
-                    variant="secondary"
-                    className="shrink-0"
-                    onClick={() => void handleCopyText(createdCode, '코드')}
-                  >
-                    복사하기
+                <div>
+                  <p className="claim-requests-page__status-key">최초 연결</p>
+                  <p className="claim-requests-page__status-value">{formatDateTime(linkStatus?.createdAt ?? null)}</p>
+                </div>
+                <div>
+                  <p className="claim-requests-page__status-key">최근 활동</p>
+                  <p className="claim-requests-page__status-value">{formatDateTime(linkStatus?.lastConnectedAt ?? null)}</p>
+                </div>
+                <div>
+                  <p className="claim-requests-page__status-key">연결 기기</p>
+                  <p className="claim-requests-page__status-value">{latestDeviceLabel}</p>
+                </div>
+                <div>
+                  <p className="claim-requests-page__status-key">연결 IP</p>
+                  <p className="claim-requests-page__status-value">미수집</p>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <section className="claim-requests-page__claims-grid">
+            <article className="claim-requests-page__panel claim-requests-page__panel--list">
+              <div className="claim-requests-page__panel-head">
+                <h3>청구 요청 목록</h3>
+                <div className="claim-requests-page__panel-head-tools">
+                  <span>총 {rows.length}건</span>
+                  <FormButton htmlType="button" variant="secondary" onClick={() => void loadList()} disabled={loading}>
+                    새로고침
                   </FormButton>
                 </div>
-              </>
-            ) : null}
-            <div className="text-xs text-[var(--text-secondary)]">
-              <span className="font-medium text-[var(--text-primary)] mr-2">연결 URL</span>
-              생성 완료
-            </div>
-            <div className="flex items-center gap-2">
-              <FormInput className="w-full text-xs" value={createdLink} readOnly />
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                className="shrink-0"
-                onClick={() => void handleCopyText(createdLink, 'URL')}
-              >
-                복사하기
-              </FormButton>
-            </div>
-            {copyResult ? <div className="text-xs text-[var(--text-secondary)]">{copyResult}</div> : null}
-          </div>
-        ) : null}
-      </section>
+              </div>
+              {loading ? <div className="claim-requests-page__panel-empty">불러오는 중…</div> : null}
+              {!loading && rows.length === 0 ? (
+                <div className="claim-requests-page__panel-empty">
+                  {activeCustomerId ? '선택 고객의 청구 요청이 없습니다.' : '청구 요청이 없습니다.'}
+                </div>
+              ) : null}
+              <div className="claim-requests-page__list">
+                {rows.map((item) => {
+                  const active = item.id === selectedId
+                  return (
+                    <FormButton
+                      key={item.id}
+                      htmlType="button"
+                      variant="action"
+                      className={`claim-requests-page__list-item${active ? ' claim-requests-page__list-item--active' : ''}`}
+                      onClick={() => handleSelectClaim(item.id)}
+                    >
+                      <div className="claim-requests-page__list-item-title-row">
+                        <strong>{item.title || `#${item.id} 청구리스트`}</strong>
+                        <span className={statusBadgeClass(item.status)}>{statusLabel(item.status)}</span>
+                      </div>
+                      <p className="claim-requests-page__list-item-meta">
+                        {formatDateTime(item.submittedAt)} · 첨부 {item.fileCount}건
+                      </p>
+                      <p className="claim-requests-page__list-item-meta">기기 {item.deviceId || '미확인'}</p>
+                    </FormButton>
+                  )
+                })}
+              </div>
+            </article>
 
-          <section className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-3">
-        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-2">
-          <div className="text-sm font-semibold px-2 py-1">요청 목록</div>
-          {loading ? <div className="px-2 py-3 text-sm text-[var(--text-secondary)]">불러오는 중…</div> : null}
-          {!loading && rows.length === 0 ? (
-            <div className="px-2 py-3 text-sm text-[var(--text-secondary)]">청구 요청이 없습니다.</div>
-          ) : null}
-          <div className="space-y-1">
-            {rows.map((item) => {
-              const active = item.id === selectedId
-              const senderName = item.requesterName || item.customerName
-              return (
-                <FormButton
-                  key={item.id}
-                  htmlType="button"
-                  className={`w-full text-left rounded-lg px-2 py-2 border ${
-                    active ? 'border-blue-500 bg-blue-50/60' : 'border-transparent hover:border-[var(--border-default)]'
-                  }`}
-                  onClick={() => handleSelectClaim(item.id)}
-                >
-                  <div className="text-sm font-medium">{senderName}</div>
-                  {item.requesterName ? (
-                    <div className="text-[11px] text-[var(--text-secondary)] mt-1 truncate">
-                      요청자: {item.requesterName} / {item.requesterBirthDate} / {item.requesterPhone}
-                    </div>
-                  ) : null}
-                  <div className="text-[11px] text-[var(--text-secondary)] mt-1 truncate">
-                    연결고객: {item.customerName}
-                  </div>
-                  <div className="text-xs text-[var(--text-secondary)]">
-                    {statusLabel(item.status)} · 첨부 {item.fileCount}개 · {formatDateTime(item.submittedAt)}
-                  </div>
-                  {item.deviceId ? (
-                    <div className="text-[11px] text-[var(--text-secondary)] mt-1 truncate">설치자 기기: {item.deviceId}</div>
-                  ) : null}
-                  {item.title ? <div className="text-xs mt-1 truncate">{item.title}</div> : null}
-                </FormButton>
-              )
-            })}
-          </div>
-        </div>
+            <article className="claim-requests-page__panel claim-requests-page__panel--detail">
+              <div className="claim-requests-page__panel-head">
+                <h3>선택한 청구 요청 상세</h3>
+              </div>
+              <div className="claim-requests-page__detail-scroll">{claimDetailBody}</div>
+            </article>
 
-        <PCOnlySection fallback={null}>
-          <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-3 space-y-3">{claimDetailBody}</div>
-        </PCOnlySection>
-      </section>
+            <PCOnlySection fallback={null}>
+              <article className="claim-requests-page__panel claim-requests-page__panel--timeline">
+                <div className="claim-requests-page__panel-head">
+                  <h3>상태 이력</h3>
+                  <div className="claim-requests-page__panel-head-tools">
+                    <FormButton htmlType="button" variant="secondary" onClick={() => void loadDetail()} disabled={detailLoading}>
+                      요약
+                    </FormButton>
+                  </div>
+                </div>
+                <div className="claim-requests-page__timeline-scroll">{claimStatusTimeline}</div>
+              </article>
+            </PCOnlySection>
+          </section>
         </>
       ) : null}
 
