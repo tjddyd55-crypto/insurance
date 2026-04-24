@@ -84,6 +84,89 @@
   }
 }
 
+/* Existing mobile modals: files, consultations, auto form, and GA data. */
+@media (max-width: 767px) {
+  .mobile-modal-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 12000 !important;
+    display: block !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    background: rgba(0, 0, 0, 0.55) !important;
+    pointer-events: auto !important;
+  }
+
+  .mobile-modal {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 12001 !important;
+    width: 100% !important;
+    max-width: 430px !important;
+    height: 100dvh !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    background: var(--app-bg, var(--bg-main, #0b0f14)) !important;
+    color: var(--app-text, var(--text-primary, #fff)) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .mobile-modal-header {
+    flex: 0 0 56px !important;
+    height: 56px !important;
+    display: grid !important;
+    grid-template-columns: 64px minmax(0, 1fr) 64px !important;
+    align-items: center !important;
+    gap: 0 !important;
+    padding: 0 12px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: var(--app-bg, var(--bg-main, #0b0f14)) !important;
+  }
+
+  .mobile-modal-header__spacer {
+    display: block !important;
+  }
+
+  .mobile-modal-header__title {
+    grid-column: 2 !important;
+    text-align: center !important;
+    font-size: 1rem !important;
+    font-weight: 900 !important;
+    color: var(--text-primary, #fff) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .mobile-btn.mobile-btn--close,
+  .mobile-modal-header .mobile-btn--close {
+    grid-column: 3 !important;
+    justify-self: end !important;
+    min-width: 48px !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 0 10px !important;
+    border-radius: 10px !important;
+  }
+
+  .mobile-modal-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    background: var(--app-bg, var(--bg-main, #0b0f14)) !important;
+  }
+
+  .mobile-modal-content {
+    min-height: 100% !important;
+    padding: 12px 10px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
 /* Make route-based mobile workspace screens behave like the existing full-screen mobile modals. */
 @media (max-width: 767px) {
   .customer-ui-modal-backdrop:has(.workspace-mobile-outlet-modal) {
