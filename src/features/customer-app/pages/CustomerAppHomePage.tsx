@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton } from '../../../components/form'
-import { NewsletterList } from '../../insurer-news/components/NewsletterList'
-import type { NewsletterItem } from '../../insurer-news/types'
 import { listCustomerNews, type CustomerAppNewsListItem } from '../api/customerAppApi'
+import CustomerAppNewsCard from '../components/CustomerAppNewsCard'
 import CustomerAppShell from '../components/CustomerAppShell'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
@@ -13,33 +12,9 @@ import { useCustomerAppSession } from '../session/useCustomerAppSession'
  *
  * 설계 의도:
  *   - 첫 화면에서 노출되는 액션의 우선순위는 "청구 요청하기" 하나.
- *   - 소식지는 자연 노출만. 최신 1건만 보여주고 더보기는 텍스트 링크로 배치.
+ *   - 최신 전체소식지 1건은 고객 홍보 카드로 크게 노출한다.
  *   - 개인메시지/요청내역/내정보는 하단 탭바(Shell) 에서 접근.
- *
- * NewsletterList 를 그대로 재사용하되 items 는 최대 1건으로 제한해
- * 기존 카드 UI 를 건드리지 않고 "최신 1건" UX 를 달성한다.
  */
-
-const EMPTY_NEWSLETTER: NewsletterItem[] = []
-
-function toNewsletterItem(row: CustomerAppNewsListItem): NewsletterItem {
-  return {
-    id: row.id,
-    gaCode: 'customer-app',
-    insurerCode: 'customer-news',
-    insurerName: '소식지',
-    insurerSlug: row.scope ?? 'all',
-    title: row.title,
-    summary: row.summary,
-    heroImageUrl: row.heroImageUrl ?? null,
-    publishedAt: row.updatedAt ?? new Date().toISOString(),
-    status: 'PUBLISHED',
-    hasImages: Boolean(row.heroImageUrl),
-    hasPdf: false,
-    hasTextBody: Boolean(row.summary?.trim()),
-  }
-}
-
 export default function CustomerAppHomePage() {
   const navigate = useNavigate()
   const session = useCustomerAppSession()
@@ -71,22 +46,25 @@ export default function CustomerAppHomePage() {
     }
   }, [navigate, session])
 
-  const newsletterItems = useMemo<NewsletterItem[]>(
-    () => (latestNews ? [toNewsletterItem(latestNews)] : EMPTY_NEWSLETTER),
-    [latestNews],
-  )
-
   return (
     <CustomerAppShell title="홈">
       <StatusMessage message={error} tone="error" />
 
       <section className="customer-app-home__news" aria-label="최신 소식지">
-        <NewsletterList
-          items={newsletterItems}
-          emptyMessage="표시할 소식지가 없습니다."
-          variant="mobile"
-          onOpenItem={(id) => navigate(`/customer-app/news/${id}`)}
-        />
+        {latestNews ? (
+          <CustomerAppNewsCard
+            id={latestNews.id}
+            title={latestNews.title}
+            summary={latestNews.summary}
+            updatedAt={latestNews.updatedAt}
+            heroImageUrl={latestNews.heroImageUrl ?? null}
+            label="소식지"
+            variant="featured"
+            onOpen={() => navigate(`/customer-app/news/${latestNews.id}`)}
+          />
+        ) : (
+          <div className="customer-app-news-empty">표시할 소식지가 없습니다.</div>
+        )}
         <div className="customer-app-home__news-more">
           <Link to="/customer-app/news/all" className="customer-app-home__news-more-link">
             전체 소식지 보기 &gt;
