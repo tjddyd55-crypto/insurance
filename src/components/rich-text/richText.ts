@@ -34,12 +34,30 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#039;')
 }
 
+function decodeHtmlEntities(value: string): string {
+  const raw = String(value ?? '')
+  if (!/[&](lt|gt|amp|quot|#039);/i.test(raw)) {
+    return raw
+  }
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    const textarea = document.createElement('textarea')
+    textarea.innerHTML = raw
+    return textarea.value
+  }
+  return raw
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#039;/gi, "'")
+    .replace(/&amp;/gi, '&')
+}
+
 function looksLikeHtml(value: string): boolean {
   return /<[a-z][\s\S]*>/i.test(value)
 }
 
 function normalizeInputToHtml(value: string): string {
-  const raw = String(value ?? '')
+  const raw = decodeHtmlEntities(String(value ?? ''))
   if (looksLikeHtml(raw)) {
     return raw
   }
