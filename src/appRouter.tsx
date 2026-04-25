@@ -82,7 +82,6 @@ import { LossAdjusterNewsletterPortalLayout } from './features/insurer-news/page
 import MemoRoutePage from './features/memo/pages/MemoRoutePage'
 import MyStoragePage from './features/storage/pages/MyStoragePage'
 import AppWorkspaceLayout from './layouts/AppWorkspaceLayout'
-import ClaimRequestsPage from './features/claim-requests/pages/ClaimRequestsPage'
 import ClaimRequestsRoutePage from './features/claim-requests/pages/ClaimRequestsRoutePage'
 import CustomerAppConnectPage from './features/customer-app/pages/CustomerAppConnectPage'
 import CustomerAppHomePage from './features/customer-app/pages/CustomerAppHomePage'
@@ -245,7 +244,7 @@ export const appRouter = createBrowserRouter([
               { path: 'profile', element: <ProfilePage /> },
               { path: 'account/reset', element: <AccountResetPage /> },
               { path: 'feature-request', element: <FeatureRequestPage /> },
-              { path: 'claim-requests', element: <ClaimRequestsPage /> },
+              { path: 'claim-requests', element: <ClaimRequestsRoutePage /> },
               { path: 'feature-requests/my', element: <Navigate to="/feature-request" replace /> },
               {
                 element: <SuperAdminRoute />,
