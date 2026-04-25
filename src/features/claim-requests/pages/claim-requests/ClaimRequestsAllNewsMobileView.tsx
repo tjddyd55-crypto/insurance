@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { AgentCustomerNewsItem } from '../../api/claimRequestsApi'
 
 export type AllNewsAttachmentDraft = {
@@ -40,6 +41,21 @@ const statusLabel: Record<AllNewsAttachmentDraft['status'], string> = {
   failed: '실패',
 }
 
+function getNewsHero(item: AgentCustomerNewsItem): string | null {
+  return item.heroImageUrl || item.attachments?.find((attachment) => attachment.kind === 'image')?.url || null
+}
+
+function formatDateOnly(iso: string | null): string {
+  if (!iso) {
+    return '—'
+  }
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) {
+    return iso
+  }
+  return date.toISOString().slice(0, 10)
+}
+
 export default function ClaimRequestsAllNewsMobileView({
   title,
   content,
@@ -58,6 +74,10 @@ export default function ClaimRequestsAllNewsMobileView({
   onDeleteNews,
   formatDateTime,
 }: ClaimRequestsAllNewsMobileViewProps) {
+  const [selectedNews, setSelectedNews] = useState<AgentCustomerNewsItem | null>(null)
+  const selectedHero = selectedNews ? getNewsHero(selectedNews) : null
+  const selectedFiles = selectedNews?.attachments?.filter((attachment) => attachment.kind !== 'image') ?? []
+
   return (
     <main className="page claim-requests-page claim-requests-page--mobile claim-requests-all-news-mobile page--with-back content-wrapper">
       {errorMessage ? <p className="status status--error" role="alert">{errorMessage}</p> : null}
@@ -159,35 +179,88 @@ export default function ClaimRequestsAllNewsMobileView({
           <div className="claim-requests-all-news-mobile__history-list">
             {history.map((item) => {
               const isDeleting = deletingId === item.id
-              const hero = item.heroImageUrl || item.attachments?.find((attachment) => attachment.kind === 'image')?.url || null
+              const hero = getNewsHero(item)
               return (
-                <article key={item.id} className="claim-requests-all-news-mobile__history-item">
-                  {hero ? <img className="claim-requests-all-news-mobile__history-hero" src={hero} alt="" /> : null}
-                  <div className="claim-requests-all-news-mobile__history-header">
-                    <div className="claim-requests-all-news-mobile__history-heading">
-                      <div className="claim-requests-all-news-mobile__history-title">{item.title || '전체소식지'}</div>
-                      <div className="claim-requests-all-news-mobile__history-date">{formatDateTime(item.updatedAt)}</div>
-                    </div>
+                <article
+                  key={item.id}
+                  className="claim-requests-all-news-mobile__history-item claim-requests-all-news-mobile__history-item--summary"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedNews(item)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setSelectedNews(item)
+                    }
+                  }}
+                >
+                  {hero ? <img className="claim-requests-all-news-mobile__history-thumb" src={hero} alt="" /> : null}
+                  <div className="claim-requests-all-news-mobile__summary-main">
+                    <div className="claim-requests-all-news-mobile__history-title">{item.title || '전체소식지'}</div>
+                    <div className="claim-requests-all-news-mobile__history-date">{formatDateTime(item.updatedAt)}</div>
+                    <div className="claim-requests-all-news-mobile__history-excerpt">{item.content}</div>
+                    {item.attachments && item.attachments.length > 0 ? (
+                      <div className="claim-requests-all-news-mobile__attachments">첨부 {item.attachments.length}개</div>
+                    ) : null}
+                  </div>
+                  <div className="claim-requests-all-news-mobile__summary-actions">
+                    <span className="claim-requests-all-news-mobile__open-badge">미리보기</span>
                     <button
                       type="button"
                       className="claim-requests-all-news-mobile__delete-button"
-                      onClick={() => onDeleteNews(item)}
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onDeleteNews(item)
+                      }}
                       disabled={isDeleting || actionBusy}
                       aria-label={`${item.title || '전체소식지'} 삭제`}
                     >
                       {isDeleting ? '삭제 중…' : '삭제'}
                     </button>
                   </div>
-                  <div className="claim-requests-all-news-mobile__history-content">{item.content}</div>
-                  {item.attachments && item.attachments.length > 0 ? (
-                    <div className="claim-requests-all-news-mobile__attachments">첨부 {item.attachments.length}개</div>
-                  ) : null}
                 </article>
               )
             })}
           </div>
         ) : null}
       </section>
+
+      {selectedNews ? (
+        <div className="claim-requests-all-news-mobile__preview-backdrop" role="dialog" aria-modal="true" aria-label="전체소식지 미리보기">
+          <div className="claim-requests-all-news-mobile__preview-panel">
+            <div className="claim-requests-all-news-mobile__preview-header">
+              <strong>고객 화면 미리보기</strong>
+              <button type="button" onClick={() => setSelectedNews(null)}>닫기</button>
+            </div>
+            <div className="claim-requests-all-news-mobile__preview-body">
+              <article className="claim-requests-all-news-mobile__customer-card-preview">
+                {selectedHero ? (
+                  <div className="claim-requests-all-news-mobile__customer-hero-wrap">
+                    <img className="claim-requests-all-news-mobile__customer-hero" src={selectedHero} alt="" />
+                    <div className="claim-requests-all-news-mobile__customer-hero-overlay">
+                      <h3>{selectedNews.title || '소식지'}</h3>
+                      <p>{formatDateOnly(selectedNews.updatedAt)}</p>
+                    </div>
+                  </div>
+                ) : null}
+                {!selectedHero ? <h3 className="claim-requests-all-news-mobile__customer-title">{selectedNews.title || '소식지'}</h3> : null}
+                <div className="claim-requests-all-news-mobile__customer-meta">최신 업데이트: {formatDateTime(selectedNews.updatedAt)}</div>
+                <div className="claim-requests-all-news-mobile__customer-content">{selectedNews.content}</div>
+                {selectedFiles.length > 0 ? (
+                  <div className="claim-requests-all-news-mobile__customer-files">
+                    <strong>첨부 파일</strong>
+                    {selectedFiles.map((file) => (
+                      <a key={file.id} href={file.url} target="_blank" rel="noreferrer">
+                        {file.fileName || '첨부파일'}
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+              </article>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   )
 }
