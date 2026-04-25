@@ -194,7 +194,7 @@ export default function ClaimRequestsAllNewsMobileView({
                     }
                   }}
                 >
-                  {hero ? <img className="claim-requests-all-news-mobile__history-thumb" src={hero} alt="" /> : null}
+                  {hero ? <img className="claim-requests-all-news-mobile__history-thumb" src={hero} alt="" /> : <div className="claim-requests-all-news-mobile__history-thumb claim-requests-all-news-mobile__history-thumb--empty">소식</div>}
                   <div className="claim-requests-all-news-mobile__summary-main">
                     <div className="claim-requests-all-news-mobile__history-title">{item.title || '전체소식지'}</div>
                     <div className="claim-requests-all-news-mobile__history-date">{formatDateTime(item.updatedAt)}</div>
@@ -226,28 +226,37 @@ export default function ClaimRequestsAllNewsMobileView({
       </section>
 
       {selectedNews ? (
-        <div className="claim-requests-all-news-mobile__preview-backdrop" role="dialog" aria-modal="true" aria-label="전체소식지 미리보기">
-          <div className="claim-requests-all-news-mobile__preview-panel">
-            <div className="claim-requests-all-news-mobile__preview-header">
+        <div className="all-news-preview-v2-backdrop" role="dialog" aria-modal="true" aria-label="전체소식지 고객 화면 미리보기">
+          <section className="all-news-preview-v2-panel">
+            <header className="all-news-preview-v2-header">
               <strong>고객 화면 미리보기</strong>
               <button type="button" onClick={() => setSelectedNews(null)}>닫기</button>
-            </div>
-            <div className="claim-requests-all-news-mobile__preview-body">
-              <article className="claim-requests-all-news-mobile__customer-card-preview">
+            </header>
+            <div className="all-news-preview-v2-scroll">
+              <article className="all-news-preview-v2-content-card">
                 {selectedHero ? (
-                  <div className="claim-requests-all-news-mobile__customer-hero-wrap">
-                    <img className="claim-requests-all-news-mobile__customer-hero" src={selectedHero} alt="" />
-                    <div className="claim-requests-all-news-mobile__customer-hero-overlay">
-                      <h3>{selectedNews.title || '소식지'}</h3>
+                  <div
+                    className="all-news-preview-v2-hero"
+                    style={{ backgroundImage: `url(${JSON.stringify(selectedHero).slice(1, -1)})` }}
+                  >
+                    <div className="all-news-preview-v2-hero-shade" />
+                    <div className="all-news-preview-v2-hero-text">
+                      <h2>{selectedNews.title || '소식지'}</h2>
                       <p>{formatDateOnly(selectedNews.updatedAt)}</p>
                     </div>
                   </div>
-                ) : null}
-                {!selectedHero ? <h3 className="claim-requests-all-news-mobile__customer-title">{selectedNews.title || '소식지'}</h3> : null}
-                <div className="claim-requests-all-news-mobile__customer-meta">최신 업데이트: {formatDateTime(selectedNews.updatedAt)}</div>
-                <div className="claim-requests-all-news-mobile__customer-content">{selectedNews.content}</div>
+                ) : (
+                  <div className="all-news-preview-v2-plain-title">
+                    <h2>{selectedNews.title || '소식지'}</h2>
+                    <p>{formatDateOnly(selectedNews.updatedAt)}</p>
+                  </div>
+                )}
+
+                <div className="all-news-preview-v2-meta">최신 업데이트: {formatDateTime(selectedNews.updatedAt)}</div>
+                <div className="all-news-preview-v2-body-text">{selectedNews.content}</div>
+
                 {selectedFiles.length > 0 ? (
-                  <div className="claim-requests-all-news-mobile__customer-files">
+                  <div className="all-news-preview-v2-files">
                     <strong>첨부 파일</strong>
                     {selectedFiles.map((file) => (
                       <a key={file.id} href={file.url} target="_blank" rel="noreferrer">
@@ -258,7 +267,7 @@ export default function ClaimRequestsAllNewsMobileView({
                 ) : null}
               </article>
             </div>
-          </div>
+          </section>
         </div>
       ) : null}
     </main>
