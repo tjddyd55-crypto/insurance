@@ -10,6 +10,7 @@ import './ui-polish.css'
 import './ui-polish-fix.css'
 import './mobile-claim-ui-fix.css'
 import './mobile-claim-detail-fix.css'
+import './mobile-personal-message-fix.css'
 import './mobile-ui-foundation.css'
 import { appRouter } from './appRouter'
 import { ElectronForceUpdateGate } from './components/ElectronForceUpdateGate'
@@ -21,16 +22,14 @@ initColorScheme()
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/customer-app-sw.js').catch(() => {
-      // Service worker registration failure should not block the app.
-    })
+    void navigator.serviceWorker.register('/customer-app-sw.js').catch(() => {})
   })
 }
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60_000,
+      staleTime: 60000,
       refetchOnWindowFocus: false,
     },
   },
