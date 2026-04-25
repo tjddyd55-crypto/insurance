@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { listCustomerClaimRequests } from '../api/customerAppApi'
 import CustomerAppShell from '../components/CustomerAppShell'
@@ -20,7 +20,7 @@ function formatDateTime(iso: string | null): string {
 export default function CustomerAppRequestsPage() {
   const navigate = useNavigate()
   const session = useCustomerAppSession()
-  const [rows, setRows] = useState<Array<{ id: number; status: string; title: string; submittedAt: string | null; fileCount: number }>>([])
+  const [rows, setRows] = useState<Array<{ id: number; status: string; title: string; memo: string; submittedAt: string | null; fileCount: number }>>([])
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -50,27 +50,40 @@ export default function CustomerAppRequestsPage() {
   }, [navigate, session])
 
   return (
-    <CustomerAppShell title="요청 내역">
-      <StatusMessage message={error} tone="error" />
-      {rows.length === 0 ? <div className="text-sm text-[var(--text-secondary)]">요청 내역이 없습니다.</div> : null}
-      <ul className="space-y-2">
-        {rows.map((row) => (
-          <li key={row.id} className="rounded-lg border border-[var(--border-default)] p-2">
-            <div className="text-sm font-medium">{row.title || '(제목 없음)'}</div>
-            <div className="text-xs text-[var(--text-secondary)]">
-              첨부 {row.fileCount}개 · {formatDateTime(row.submittedAt)}
-            </div>
-            <span
-              className={`mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] ${resolveClaimStatusMeta(row.status).className}`}
-            >
-              {resolveClaimStatusMeta(row.status).label}
-            </span>
-            <Link to={`/customer-app/requests/${row.id}`} className="text-xs text-blue-600 mt-1 inline-block">
-              상세 보기
-            </Link>
-          </li>
-        ))}
-      </ul>
+    <CustomerAppShell title="청구내역">
+      <div className="customer-app-claim-page">
+        <StatusMessage message={error} tone="error" />
+        {rows.length === 0 ? <div className="customer-app-claim-empty">요청 내역이 없습니다.</div> : null}
+        {rows.length > 0 ? (
+          <ul className="customer-app-claim-request-list">
+            {rows.map((row) => {
+              const meta = resolveClaimStatusMeta(row.status)
+              return (
+                <li key={row.id}>
+                  <button
+                    type="button"
+                    className="customer-app-claim-request-card"
+                    onClick={() => navigate(`/customer-app/requests/${row.id}`)}
+                  >
+                    <div className="customer-app-claim-request-card__top">
+                      <div>
+                        <div className="customer-app-claim-request-card__title">
+                          #{row.id} {row.title || '청구 요청'}
+                        </div>
+                        <div className="customer-app-claim-request-card__meta">
+                          첨부 {row.fileCount}개 · {formatDateTime(row.submittedAt)}
+                        </div>
+                      </div>
+                      <span className={`customer-app-claim-status ${meta.className}`}>{meta.label}</span>
+                    </div>
+                    {row.memo ? <div className="customer-app-claim-request-card__memo">{row.memo}</div> : null}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        ) : null}
+      </div>
     </CustomerAppShell>
   )
 }
