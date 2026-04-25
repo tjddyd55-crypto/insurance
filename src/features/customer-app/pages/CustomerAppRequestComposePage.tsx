@@ -18,6 +18,27 @@ interface UploadReadyFile {
   file: File
 }
 
+function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 1) {
+    return '0 KB'
+  }
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  }
+  return `${Math.ceil(bytes / 1024)} KB`
+}
+
+function fileTypeLabel(file: File): string {
+  const contentType = file.type || 'application/octet-stream'
+  if (contentType === 'application/pdf') {
+    return 'PDF'
+  }
+  if (contentType.startsWith('image/')) {
+    return 'IMG'
+  }
+  return 'FILE'
+}
+
 export default function CustomerAppRequestComposePage() {
   const navigate = useNavigate()
   const session = useCustomerAppSession()
@@ -64,12 +85,10 @@ export default function CustomerAppRequestComposePage() {
   if (!session) {
     return (
       <main className="content-wrapper py-6 max-w-xl">
-        <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 space-y-2">
-          <h1 className="text-base font-semibold">고객 앱 연결 필요</h1>
-          <p className="text-sm text-[var(--text-secondary)]">
-            요청 작성 전에 설계사 링크로 먼저 연결해 주세요.
-          </p>
-          <Link to="/customer-app" className="text-sm text-blue-600">
+        <section className="customer-app-claim-card">
+          <h1 className="customer-app-claim-section-title">고객 앱 연결 필요</h1>
+          <p className="customer-app-claim-section-description">요청 작성 전에 설계사 링크로 먼저 연결해 주세요.</p>
+          <Link to="/customer-app" className="customer-app-claim-profile__button">
             연결 화면으로 이동
           </Link>
         </section>
@@ -189,72 +208,98 @@ export default function CustomerAppRequestComposePage() {
 
   return (
     <CustomerAppShell title="청구 요청 작성">
-      <StatusMessage message={error} tone="error" />
-      <StatusMessage message={result} tone="success" />
-      {!profile ? (
-        <div className="text-xs text-red-500">
-          내정보가 저장되지 않았습니다. 먼저 내정보에서 이름/생년월일/연락처를 저장해 주세요.
+      <div className="customer-app-claim-page">
+        <StatusMessage message={error} tone="error" />
+        <StatusMessage message={result} tone="success" />
+
+        <section className="customer-app-claim-card customer-app-claim-profile">
+          <div className="customer-app-claim-profile__main">
+            <div className="customer-app-claim-profile__label">요청자 정보</div>
+            {profile ? (
+              <>
+                <div className="customer-app-claim-profile__name">{profile.name}</div>
+                <div className="customer-app-claim-profile__sub">
+                  {profile.birthDate} · {profile.phone}
+                </div>
+              </>
+            ) : (
+              <div className="customer-app-claim-profile__sub">내정보가 저장되지 않았습니다.</div>
+            )}
+          </div>
+          <Link to="/customer-app/profile" className="customer-app-claim-profile__button">
+            내정보 수정
+          </Link>
+        </section>
+
+        <section className="customer-app-claim-card">
+          <h2 className="customer-app-claim-section-title">청구 내용</h2>
+          <p className="customer-app-claim-section-description">
+            병원명, 사고/진료 내용, 요청사항을 간단히 적어 주세요.
+          </p>
+          <div className="customer-app-claim-field" style={{ marginTop: 12 }}>
+            <span className="customer-app-claim-field__label">내용</span>
+            <FormTextarea
+              className="customer-app-claim-textarea"
+              rows={5}
+              value={memo}
+              onChange={(event) => setMemo(event.target.value)}
+              placeholder="예: 4월 25일 통원 치료 보험금 청구 요청합니다. 진료비 영수증과 세부내역서 첨부했습니다."
+            />
+          </div>
+        </section>
+
+        <section className="customer-app-claim-card">
+          <h2 className="customer-app-claim-section-title">첨부 파일</h2>
+          <p className="customer-app-claim-section-description">
+            영수증, 진료비 세부내역서, 처방전 등 이미지를 첨부할 수 있습니다.
+          </p>
+          <div style={{ marginTop: 12 }}>
+            <FileUploader
+              accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+              validateFile={validateClaimFile}
+              onFiles={handleAppendFiles}
+              onInvalidBatch={(failures) => {
+                const firstMessage = failures[0]?.message
+                if (firstMessage) {
+                  setError(firstMessage)
+                }
+              }}
+              disabled={busy}
+              primaryHint="이미지 또는 PDF를 선택해 주세요."
+              hintLines={['JPG · PNG · WEBP · GIF · PDF', '각 파일 최대 10MB']}
+            />
+            {files.length > 0 ? (
+              <ul className="customer-app-claim-file-list">
+                {files.map((item) => (
+                  <li key={item.id} className="customer-app-claim-file-row">
+                    <span className="customer-app-claim-file-row__icon">{fileTypeLabel(item.file)}</span>
+                    <div className="customer-app-claim-file-row__main">
+                      <div className="customer-app-claim-file-row__name">{item.file.name}</div>
+                      <div className="customer-app-claim-file-row__meta">{formatFileSize(item.file.size)}</div>
+                    </div>
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      className="!h-8 !px-3 text-[12px]"
+                      onClick={() => handleRemoveFile(item.id)}
+                    >
+                      삭제
+                    </FormButton>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </section>
+
+        <div className="customer-app-claim-actions">
+          <FormButton htmlType="button" variant="primary" onClick={() => void handleSubmit()} loading={busy}>
+            요청 전송
+          </FormButton>
+          <FormButton htmlType="button" variant="secondary" onClick={() => navigate('/customer-app/requests')}>
+            내역 보기
+          </FormButton>
         </div>
-      ) : (
-        <div className="text-xs text-[var(--text-secondary)]">
-          요청자 정보: {profile.name} / {profile.birthDate} / {profile.phone}
-        </div>
-      )}
-      <div className="text-sm font-medium">내용</div>
-      <FormTextarea
-        className="w-full text-sm"
-        rows={5}
-        value={memo}
-        onChange={(event) => setMemo(event.target.value)}
-        placeholder="청구 요청 내용을 입력해 주세요."
-      />
-      <div className="space-y-1">
-        <div className="text-sm font-medium">첨부</div>
-        <FileUploader
-          accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
-          validateFile={validateClaimFile}
-          onFiles={handleAppendFiles}
-          onInvalidBatch={(failures) => {
-            const firstMessage = failures[0]?.message
-            if (firstMessage) {
-              setError(firstMessage)
-            }
-          }}
-          disabled={busy}
-          primaryHint="이미지 또는 PDF를 드래그하여 놓거나, 클릭하여 선택하세요."
-          hintLines={[
-            '이미지는 본문에 표시되고, PDF는 다운로드 링크로 제공됩니다.',
-            'JPG · PNG · WEBP · GIF · PDF (이미지·PDF 각 최대 10MB)',
-          ]}
-        />
-        <div className="text-xs text-[var(--text-secondary)]">
-          이미지/PDF만 업로드할 수 있습니다. (최대 10MB)
-        </div>
-        {files.length > 0 ? (
-          <ul className="text-xs space-y-2">
-            {files.map((item) => (
-              <li key={item.id} className="flex items-center justify-between gap-2 rounded-md border border-[var(--border-default)] px-2 py-1">
-                <span className="truncate">{item.file.name}</span>
-                <FormButton
-                  htmlType="button"
-                  variant="secondary"
-                  className="!h-7 !px-2 text-[11px]"
-                  onClick={() => handleRemoveFile(item.id)}
-                >
-                  삭제
-                </FormButton>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-      <div className="flex gap-2">
-        <FormButton htmlType="button" variant="primary" onClick={() => void handleSubmit()} loading={busy}>
-          요청 전송
-        </FormButton>
-        <FormButton htmlType="button" variant="secondary" onClick={() => navigate('/customer-app/requests')}>
-          내역 보기
-        </FormButton>
       </div>
     </CustomerAppShell>
   )
