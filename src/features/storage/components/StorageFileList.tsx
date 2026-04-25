@@ -9,6 +9,7 @@ type StorageFileListProps = {
   expandedFolderIds: Set<number>
   onToggleFolder: (folderId: number) => void
   onSelectFile: (id: number) => void
+  onOpen: (file: StorageFileRow) => void
   onDownload: (file: StorageFileRow) => void
   onRename: (file: StorageFileRow) => void
   onDelete: (file: StorageFileRow) => void
@@ -24,6 +25,9 @@ function renderFileIcon(file: StorageFileRow): string {
   if (mime.startsWith('image/')) {
     return '🖼️'
   }
+  if (mime.includes('spreadsheet') || mime.includes('excel') || file.fileName.toLowerCase().endsWith('.csv')) {
+    return '📊'
+  }
   return '📁'
 }
 
@@ -35,6 +39,17 @@ function formatDate(iso: string): string {
   return date.toLocaleString('ko-KR')
 }
 
+function formatFileSize(bytes: number | null): string {
+  if (!Number.isFinite(Number(bytes)) || Number(bytes) < 1) {
+    return '0 KB'
+  }
+  const safeBytes = Number(bytes)
+  if (safeBytes >= 1024 * 1024) {
+    return `${(safeBytes / 1024 / 1024).toFixed(1)} MB`
+  }
+  return `${Math.ceil(safeBytes / 1024)} KB`
+}
+
 export default function StorageFileList({
   folders,
   files,
@@ -43,6 +58,7 @@ export default function StorageFileList({
   expandedFolderIds,
   onToggleFolder,
   onSelectFile,
+  onOpen,
   onDownload,
   onRename,
   onDelete,
@@ -79,6 +95,7 @@ export default function StorageFileList({
         role="button"
         tabIndex={0}
         onClick={() => onSelectFile(file.id)}
+        onDoubleClick={() => onOpen(file)}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault()
@@ -90,10 +107,20 @@ export default function StorageFileList({
           <span className="storage-file-list__icon">{renderFileIcon(file)}</span>
           <div className="storage-file-list__meta">
             <div className="storage-file-list__name">{file.displayName}</div>
-            <div className="storage-file-list__sub">{formatDate(file.createdAt)}</div>
+            <div className="storage-file-list__sub">{formatFileSize(file.fileSize)} · {formatDate(file.createdAt)}</div>
           </div>
         </div>
         <div className="storage-file-list__actions">
+          <FormButton
+            htmlType="button"
+            variant="action"
+            onClick={(event) => {
+              event.stopPropagation()
+              onOpen(file)
+            }}
+          >
+            열기
+          </FormButton>
           <FormButton
             htmlType="button"
             variant="action"
@@ -167,6 +194,7 @@ export default function StorageFileList({
                 <span className="storage-tree__arrow">{expanded ? '▼' : '▶'}</span>
                 <span className="storage-tree__folder-icon">📁</span>
                 <span className="storage-tree__label">{folder.name}</span>
+                <span className="storage-tree__count">{folderFiles.length}</span>
               </div>
               <div className="storage-tree__folder-actions">
                 <FormButton
