@@ -51,6 +51,15 @@ function formatDate(iso: string | null): string {
   return date.toLocaleDateString('ko-KR')
 }
 
+function scrollToStorageWorkspace() {
+  window.setTimeout(() => {
+    const target = document.querySelector('.storage-workspace')
+    if (target instanceof HTMLElement) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }, 80)
+}
+
 export default function StorageUsageManager({ token, onStorageChanged }: StorageUsageManagerProps) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
@@ -131,6 +140,12 @@ export default function StorageUsageManager({ token, onStorageChanged }: Storage
   }, [token])
 
   const handleGoSource = useCallback((item: StorageUsageItem) => {
+    if (item.source === 'personal-storage') {
+      setOpen(false)
+      navigate('/storage', { replace: true })
+      scrollToStorageWorkspace()
+      return
+    }
     if (item.source === 'customer-storage' && item.customerId) {
       navigate(`/customers/${item.customerId}/files`)
       return
