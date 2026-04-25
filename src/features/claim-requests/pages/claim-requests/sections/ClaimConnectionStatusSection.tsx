@@ -7,6 +7,7 @@ type ClaimConnectionStatusSectionProps = {
   linkStatus?: CustomerAppLinkInfo | null
   loading?: boolean
   latestDeviceLabel?: string
+  showDescription?: boolean
   formatDateTime: (iso: string | null) => string
 }
 
@@ -17,14 +18,17 @@ export default function ClaimConnectionStatusSection({
   linkStatus,
   loading = false,
   latestDeviceLabel = '미확인',
+  showDescription = true,
   formatDateTime,
 }: ClaimConnectionStatusSectionProps) {
   return (
     <section className="claim-requests-page__card claim-requests-page__connection-section">
       <div className="claim-requests-page__section-header">
-        <div>
+        <div className="claim-requests-page__section-heading">
           <h2 className="claim-requests-page__section-title">연결 상태</h2>
-          <p className="claim-requests-page__section-description">고객앱 링크 생성 및 접속 상태를 확인합니다.</p>
+          {showDescription ? (
+            <p className="claim-requests-page__section-description">고객앱 링크 생성 및 접속 상태를 확인합니다.</p>
+          ) : null}
         </div>
       </div>
 
