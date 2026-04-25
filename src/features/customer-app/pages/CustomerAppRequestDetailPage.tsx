@@ -18,6 +18,20 @@ function formatDateTime(iso: string | null): string {
   return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
 }
 
+function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 1) {
+    return '0 KB'
+  }
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  }
+  return `${Math.ceil(bytes / 1024)} KB`
+}
+
+function isImageFile(contentType: string): boolean {
+  return String(contentType ?? '').startsWith('image/')
+}
+
 export default function CustomerAppRequestDetailPage() {
   const { requestId } = useParams<{ requestId: string }>()
   const navigate = useNavigate()
@@ -66,69 +80,97 @@ export default function CustomerAppRequestDetailPage() {
     }
   }, [hasInvalidRequestId, loadDetail, navigate, parsedRequestId, session])
 
+  const statusMeta = detail ? resolveClaimStatusMeta(detail.status) : null
+
   return (
-    <CustomerAppShell title="요청 상세">
-      <StatusMessage message={hasInvalidRequestId ? '잘못된 요청 번호입니다.' : error} tone="error" />
-      {!detail && loading ? <div className="text-sm text-[var(--text-secondary)]">불러오는 중…</div> : null}
-      {detail ? (
-        <div className="space-y-3">
-          <div className="text-sm flex items-center gap-2 flex-wrap">
-            <span
-              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] ${resolveClaimStatusMeta(detail.status).className}`}
-            >
-              {resolveClaimStatusMeta(detail.status).label}
-            </span>
-            <span className="text-[var(--text-secondary)]">접수 {formatDateTime(detail.submittedAt)}</span>
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              className="!h-auto !py-1 !px-2 text-[11px]"
-              onClick={() => {
-                if (!session || hasInvalidRequestId) {
-                  return
-                }
-                void loadDetail(session.appToken, parsedRequestId)
-              }}
-              loading={loading}
-            >
-              상태 새로고침
-            </FormButton>
-          </div>
-          <div className="text-sm font-medium">{detail.title || '(제목 없음)'}</div>
-          {detail.memo ? <div className="text-sm whitespace-pre-wrap">{detail.memo}</div> : null}
-          <div className="space-y-1">
-            <div className="text-sm font-semibold">첨부 파일</div>
-            {detail.files.length === 0 ? (
-              <div className="text-xs text-[var(--text-secondary)]">첨부 파일이 없습니다.</div>
-            ) : (
-              detail.files.map((file) => (
-                <a
-                  key={file.id}
-                  href={file.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block text-xs text-blue-600"
+    <CustomerAppShell title="청구 상세">
+      <div className="customer-app-claim-page">
+        <StatusMessage message={hasInvalidRequestId ? '잘못된 요청 번호입니다.' : error} tone="error" />
+        {!detail && loading ? <div className="customer-app-claim-empty">불러오는 중…</div> : null}
+        {detail ? (
+          <>
+            <section className="customer-app-claim-card">
+              <div className="customer-app-claim-detail-header">
+                <h2 className="customer-app-claim-section-title">#{detail.id} 청구 요청</h2>
+                {statusMeta ? <span className={`customer-app-claim-status ${statusMeta.className}`}>{statusMeta.label}</span> : null}
+              </div>
+              <div className="customer-app-claim-detail-meta">
+                <span>접수 {formatDateTime(detail.submittedAt)}</span>
+                {detail.processedAt ? <span>처리 {formatDateTime(detail.processedAt)}</span> : null}
+              </div>
+              {detail.memo ? <div className="customer-app-claim-detail-memo" style={{ marginTop: 14 }}>{detail.memo}</div> : null}
+              <div style={{ marginTop: 12 }}>
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  className="!h-auto !py-2 !px-3 text-[12px]"
+                  onClick={() => {
+                    if (!session || hasInvalidRequestId) {
+                      return
+                    }
+                    void loadDetail(session.appToken, parsedRequestId)
+                  }}
+                  loading={loading}
                 >
-                  {file.fileName}
-                </a>
-              ))
-            )}
-          </div>
-          <div className="space-y-1">
-            <div className="text-sm font-semibold">상태 이력</div>
-            {detail.statusLogs.length === 0 ? (
-              <div className="text-xs text-[var(--text-secondary)]">상태 이력이 없습니다.</div>
-            ) : (
-              detail.statusLogs.map((log) => (
-                <div key={log.id} className="text-xs text-[var(--text-secondary)]">
-                  {formatDateTime(log.changedAt)} · {log.fromStatus ? resolveClaimStatusMeta(log.fromStatus).label : '초기'} →{' '}
-                  {resolveClaimStatusMeta(log.toStatus).label} {log.memo ? `(${log.memo})` : ''}
+                  상태 새로고침
+                </FormButton>
+              </div>
+            </section>
+
+            <section className="customer-app-claim-card">
+              <h2 className="customer-app-claim-section-title">첨부 파일</h2>
+              <p className="customer-app-claim-section-description">제출한 이미지와 PDF를 확인할 수 있습니다.</p>
+              {detail.files.length === 0 ? (
+                <div className="customer-app-claim-empty" style={{ marginTop: 12 }}>첨부 파일이 없습니다.</div>
+              ) : (
+                <div className="customer-app-claim-detail-files" style={{ marginTop: 12 }}>
+                  {detail.files.map((file) => (
+                    <a
+                      key={file.id}
+                      href={file.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="customer-app-claim-detail-file"
+                    >
+                      {isImageFile(file.contentType) ? (
+                        <img className="customer-app-claim-detail-file__thumb" src={file.url} alt="" loading="lazy" />
+                      ) : (
+                        <span className="customer-app-claim-detail-file__placeholder">PDF</span>
+                      )}
+                      <span>
+                        <span className="customer-app-claim-detail-file__name">{file.fileName}</span>
+                        <span className="customer-app-claim-detail-file__meta">
+                          {formatFileSize(file.fileSize)} · 열기
+                        </span>
+                      </span>
+                    </a>
+                  ))}
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-      ) : null}
+              )}
+            </section>
+
+            <section className="customer-app-claim-card">
+              <h2 className="customer-app-claim-section-title">상태 이력</h2>
+              {detail.statusLogs.length === 0 ? (
+                <div className="customer-app-claim-empty" style={{ marginTop: 12 }}>상태 이력이 없습니다.</div>
+              ) : (
+                <ul className="customer-app-claim-timeline" style={{ marginTop: 12 }}>
+                  {detail.statusLogs.map((log) => (
+                    <li key={log.id} className="customer-app-claim-timeline__item">
+                      <div className="customer-app-claim-timeline__main">
+                        {log.fromStatus ? `${resolveClaimStatusMeta(log.fromStatus).label} → ` : '초기 → '}
+                        {resolveClaimStatusMeta(log.toStatus).label}
+                      </div>
+                      <div className="customer-app-claim-timeline__meta">{formatDateTime(log.changedAt)}</div>
+                      {log.memo ? <div className="customer-app-claim-timeline__memo">{log.memo}</div> : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </>
+        ) : null}
+      </div>
     </CustomerAppShell>
   )
 }
