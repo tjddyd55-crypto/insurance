@@ -17,6 +17,52 @@ const COLOR_OPTIONS = [
   { label: '노랑', value: '#d97706' },
 ]
 
+const SIZE_OPTIONS = [
+  { label: '작게', value: '0.9rem' },
+  { label: '보통', value: '1rem' },
+  { label: '크게', value: '1.25rem' },
+  { label: '아주 크게', value: '1.5rem' },
+]
+
+function isSelectionInside(editor: HTMLElement, range: Range): boolean {
+  const node = range.commonAncestorContainer
+  return editor === node || editor.contains(node)
+}
+
+function applyInlineStyleToRange(range: Range, style: Record<string, string>) {
+  const span = document.createElement('span')
+  Object.entries(style).forEach(([property, value]) => {
+    span.style.setProperty(property, value)
+  })
+
+  if (range.collapsed) {
+    span.appendChild(document.createTextNode('\u200b'))
+    range.insertNode(span)
+    const nextRange = document.createRange()
+    nextRange.setStart(span.firstChild ?? span, 1)
+    nextRange.collapse(true)
+    const selection = window.getSelection()
+    selection?.removeAllRanges()
+    selection?.addRange(nextRange)
+    return
+  }
+
+  try {
+    range.surroundContents(span)
+  } catch {
+    const fragment = range.extractContents()
+    span.appendChild(fragment)
+    range.insertNode(span)
+  }
+
+  const nextRange = document.createRange()
+  nextRange.selectNodeContents(span)
+  nextRange.collapse(false)
+  const selection = window.getSelection()
+  selection?.removeAllRanges()
+  selection?.addRange(nextRange)
+}
+
 function runCommand(command: string, value?: string) {
   document.execCommand(command, false, value)
 }
@@ -30,6 +76,7 @@ export default function RichTextEditor({
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement | null>(null)
   const lastHtmlRef = useRef('')
+  const savedRangeRef = useRef<Range | null>(null)
 
   useEffect(() => {
     const editor = editorRef.current
@@ -43,6 +90,30 @@ export default function RichTextEditor({
     }
   }, [value])
 
+  const saveSelection = () => {
+    const editor = editorRef.current
+    const selection = window.getSelection()
+    if (!editor || !selection || selection.rangeCount === 0) {
+      return
+    }
+    const range = selection.getRangeAt(0)
+    if (isSelectionInside(editor, range)) {
+      savedRangeRef.current = range.cloneRange()
+    }
+  }
+
+  const restoreSelection = () => {
+    const editor = editorRef.current
+    const selection = window.getSelection()
+    const savedRange = savedRangeRef.current
+    if (!editor || !selection || !savedRange || !isSelectionInside(editor, savedRange)) {
+      return false
+    }
+    selection.removeAllRanges()
+    selection.addRange(savedRange)
+    return true
+  }
+
   const emitChange = () => {
     const editor = editorRef.current
     if (!editor) {
@@ -51,33 +122,111 @@ export default function RichTextEditor({
     const sanitized = sanitizeRichTextHtml(editor.innerHTML)
     lastHtmlRef.current = sanitized
     onChange(sanitized)
+    saveSelection()
   }
 
   const exec = (command: string, commandValue?: string) => {
     if (disabled) {
       return
     }
-    editorRef.current?.focus()
+    const editor = editorRef.current
+    if (!editor) {
+      return
+    }
+    editor.focus()
+    restoreSelection()
     runCommand(command, commandValue)
+    emitChange()
+  }
+
+  const applyStyle = (style: Record<string, string>) => {
+    if (disabled) {
+      return
+    }
+    const editor = editorRef.current
+    if (!editor) {
+      return
+    }
+    editor.focus()
+    restoreSelection()
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0) {
+      return
+    }
+    const range = selection.getRangeAt(0)
+    if (!isSelectionInside(editor, range)) {
+      return
+    }
+    applyInlineStyleToRange(range, style)
+    emitChange()
+  }
+
+  const handlePlainTextPaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const text = event.clipboardData.getData('text/plain')
+    runCommand('insertText', text)
     emitChange()
   }
 
   return (
     <div className={`rich-text-editor ${className}`.trim()} data-disabled={disabled ? 'true' : 'false'}>
-      <div className="rich-text-editor__toolbar" aria-label="글자 꾸미기 도구">
-        <button type="button" onClick={() => exec('bold')} disabled={disabled}>굵게</button>
-        <button type="button" onClick={() => exec('underline')} disabled={disabled}>밑줄</button>
-        <button type="button" onClick={() => exec('foreColor', '#dc2626')} disabled={disabled}>빨강</button>
-        <button type="button" onClick={() => exec('fontSize', '5')} disabled={disabled}>크게</button>
-        <button type="button" onClick={() => exec('fontSize', '3')} disabled={disabled}>보통</button>
-        <button type="button" onClick={() => exec('insertUnorderedList')} disabled={disabled}>목록</button>
+      <div className="rich-text-editor__toolbar" aria-label="글자 꾸미기 도구" onMouseDown={saveSelection}>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => applyStyle({ 'font-weight': '700' })}
+          disabled={disabled}
+        >
+          굵게
+        </button>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => applyStyle({ 'text-decoration': 'underline' })}
+          disabled={disabled}
+        >
+          밑줄
+        </button>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => applyStyle({ color: '#dc2626', 'font-weight': '700' })}
+          disabled={disabled}
+        >
+          빨강굵게
+        </button>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => applyStyle({ 'font-size': '1.25rem' })}
+          disabled={disabled}
+        >
+          크게
+        </button>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => applyStyle({ 'font-size': '1rem' })}
+          disabled={disabled}
+        >
+          보통
+        </button>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => exec('insertUnorderedList')}
+          disabled={disabled}
+        >
+          목록
+        </button>
         <select
           aria-label="글자 색상"
           disabled={disabled}
           defaultValue=""
+          onMouseDown={saveSelection}
           onChange={(event) => {
             if (event.target.value) {
-              exec('foreColor', event.target.value)
+              applyStyle({ color: event.target.value })
               event.target.value = ''
             }
           }}
@@ -85,6 +234,23 @@ export default function RichTextEditor({
           <option value="">색상</option>
           {COLOR_OPTIONS.map((color) => (
             <option key={color.value} value={color.value}>{color.label}</option>
+          ))}
+        </select>
+        <select
+          aria-label="글자 크기"
+          disabled={disabled}
+          defaultValue=""
+          onMouseDown={saveSelection}
+          onChange={(event) => {
+            if (event.target.value) {
+              applyStyle({ 'font-size': event.target.value })
+              event.target.value = ''
+            }
+          }}
+        >
+          <option value="">크기</option>
+          {SIZE_OPTIONS.map((size) => (
+            <option key={size.value} value={size.value}>{size.label}</option>
           ))}
         </select>
       </div>
@@ -98,13 +264,10 @@ export default function RichTextEditor({
           data-placeholder={placeholder}
           suppressContentEditableWarning
           onInput={emitChange}
-          onBlur={emitChange}
-          onPaste={(event) => {
-            event.preventDefault()
-            const text = event.clipboardData.getData('text/plain')
-            document.execCommand('insertText', false, text)
-            emitChange()
-          }}
+          onBlur={saveSelection}
+          onKeyUp={saveSelection}
+          onMouseUp={saveSelection}
+          onPaste={handlePlainTextPaste}
         />
       </div>
     </div>
