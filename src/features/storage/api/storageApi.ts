@@ -281,10 +281,7 @@ export function parseContentDispositionFilename(headerValue: string | null): str
   return null
 }
 
-/**
- * 스토리지 파일 다운로드: 서버가 보낸 Content-Disposition(표시명)을 그대로 저장 파일명으로 사용합니다.
- */
-export async function downloadStorageFile(token: string, fileId: number): Promise<void> {
+async function fetchStorageFileBlob(token: string, fileId: number): Promise<{ blob: Blob; fileName: string | null }> {
   assertToken(token)
   const url = resolveApiUrl(`/api/storage/files/${fileId}/download`)
   const response = await fetch(url, {
@@ -294,7 +291,7 @@ export async function downloadStorageFile(token: string, fileId: number): Promis
     },
   })
   if (!response.ok) {
-    let message = '다운로드에 실패했습니다.'
+    let message = '파일을 불러오지 못했습니다.'
     try {
       const payload = (await response.json()) as { message?: string }
       if (payload?.message) {
@@ -305,16 +302,39 @@ export async function downloadStorageFile(token: string, fileId: number): Promis
     }
     throw new ApiError(message, response.status)
   }
-  const cd = response.headers.get('Content-Disposition')
-  const fromHeader = parseContentDispositionFilename(cd)
-  const blob = await response.blob()
+  return {
+    blob: await response.blob(),
+    fileName: parseContentDispositionFilename(response.headers.get('Content-Disposition')),
+  }
+}
+
+/**
+ * 스토리지 파일 다운로드: 서버가 보낸 Content-Disposition(표시명)을 그대로 저장 파일명으로 사용합니다.
+ */
+export async function downloadStorageFile(token: string, fileId: number): Promise<void> {
+  const { blob, fileName } = await fetchStorageFileBlob(token, fileId)
   const objectUrl = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = objectUrl
-  a.download = fromHeader ?? `file-${fileId}`
+  a.download = fileName ?? `file-${fileId}`
   a.rel = 'noopener'
   document.body.appendChild(a)
   a.click()
   a.remove()
   URL.revokeObjectURL(objectUrl)
+}
+
+/**
+ * 이미지/PDF 등 브라우저가 볼 수 있는 파일은 새 탭에서 열고, 그 외 파일은 브라우저 기본 동작에 맡긴다.
+ * 서버 다운로드 권한 검증을 통과한 blob URL만 사용하므로 원본 저장소 URL을 직접 노출하지 않는다.
+ */
+export async function openStorageFile(token: string, fileId: number): Promise<void> {
+  const { blob } = await fetchStorageFileBlob(token, fileId)
+  const objectUrl = URL.createObjectURL(blob)
+  const win = window.open(objectUrl, '_blank', 'noopener,noreferrer')
+  if (!win) {
+    URL.revokeObjectURL(objectUrl)
+    throw new ApiError('팝업이 차단되어 파일을 열지 못했습니다.', 400)
+  }
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
 }
