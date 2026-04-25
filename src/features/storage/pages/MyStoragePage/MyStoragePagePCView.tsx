@@ -1,3 +1,4 @@
+import StorageUsageManager from '../../components/StorageUsageManager'
 import StorageWorkspace from '../../components/StorageWorkspace'
 import type { MyStorageViewProps } from './myStorageViewProps'
 
@@ -8,5 +9,10 @@ import type { MyStorageViewProps } from './myStorageViewProps'
  * 내부 `useIsMobile` 분기가 사라지게 한다(AGENTS.md §8-5 Tier 4 prop 승격).
  */
 export default function MyStoragePagePCView(props: MyStorageViewProps) {
-  return <StorageWorkspace {...props} variant="pc" />
+  return (
+    <>
+      <StorageUsageManager token={props.token} />
+      <StorageWorkspace {...props} variant="pc" />
+    </>
+  )
 }
