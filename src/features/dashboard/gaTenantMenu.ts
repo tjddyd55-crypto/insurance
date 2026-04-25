@@ -130,7 +130,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'link', label: '고객리스트', path: '/customers' },
 
     { type: 'section', label: '소식지' },
-    { type: 'link', label: '고객 소식지', path: '/claim-requests' },
+    { type: 'link', label: '고객 소식지', path: '/claim-requests?claimTab=news-all' },
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
     { type: 'link', label: '원수사 소식지', path: '/portal/newsletters' },
     { type: 'link', label: '손해사정사 소식지', path: '/portal/adjuster-news' },
