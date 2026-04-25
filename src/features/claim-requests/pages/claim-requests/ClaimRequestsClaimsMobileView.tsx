@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import Modal from '../../../../components/ui/Modal'
 import type {
   ClaimRequestDetail,
@@ -20,6 +21,7 @@ type ConnectionMeta = {
 }
 
 type ClaimRequestsClaimsMobileViewProps = {
+  feedbackSection?: ReactNode
   activeCustomerId?: number | null
   displayedCode?: string
   displayedLink?: string
@@ -58,6 +60,7 @@ type ClaimRequestsClaimsMobileViewProps = {
 }
 
 export default function ClaimRequestsClaimsMobileView({
+  feedbackSection,
   activeCustomerId,
   displayedCode = '',
   displayedLink = '',
@@ -97,21 +100,24 @@ export default function ClaimRequestsClaimsMobileView({
   return (
     <ClaimRequestsClaimsMobileLayout
       linkSection={
-        <ClaimLinkSection
-          activeCustomerId={activeCustomerId}
-          displayedCode={displayedCode}
-          displayedLink={displayedLink}
-          linkActionLabel={linkActionLabel}
-          actionBusy={actionBusy}
-          copyResult={copyResult}
-          showRawLinkFields={false}
-          onCreateLink={onCreateLink}
-          onCopyCode={onCopyCode}
-          onCopyLink={onCopyLink}
-          onShareBySms={onShareBySms}
-          onShareByKakao={onShareByKakao}
-          onOpenLinkPreview={onOpenLinkPreview}
-        />
+        <>
+          {feedbackSection}
+          <ClaimLinkSection
+            activeCustomerId={activeCustomerId}
+            displayedCode={displayedCode}
+            displayedLink={displayedLink}
+            linkActionLabel={linkActionLabel}
+            actionBusy={actionBusy}
+            copyResult={copyResult}
+            showRawLinkFields={false}
+            onCreateLink={onCreateLink}
+            onCopyCode={onCopyCode}
+            onCopyLink={onCopyLink}
+            onShareBySms={onShareBySms}
+            onShareByKakao={onShareByKakao}
+            onOpenLinkPreview={onOpenLinkPreview}
+          />
+        </>
       }
       connectionSection={
         <ClaimConnectionStatusSection
