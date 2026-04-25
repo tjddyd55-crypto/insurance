@@ -26,10 +26,30 @@ const CUSTOMER_NEWS_TABLE_CANDIDATES = [
   'customer_news',
   'agent_customer_news',
   'customer_app_news',
+  'customer_app_messages',
+  'agent_customer_messages',
+  'customer_messages',
   'customer_newsletters',
   'newsletters',
   'insurer_newsletters',
 ]
+
+const CUSTOMER_NEWS_OWNER_COLUMNS = [
+  'agent_id',
+  'user_id',
+  'created_by_user_id',
+  'created_by_id',
+  'created_by',
+  'author_id',
+  'owner_id',
+]
+
+const CUSTOMER_NEWS_TARGET_COLUMNS = ['target_customer_id', 'customer_id', 'recipient_customer_id', 'target_id']
+
+function parsePositiveIntLocal(value) {
+  const n = Number(value)
+  return Number.isInteger(n) && n > 0 ? n : null
+}
 
 function assertSafeIdentifier(name) {
   const s = String(name ?? '')
@@ -61,61 +81,108 @@ function pickFirstColumn(columns, candidates) {
   return candidates.find((column) => columns.has(column)) ?? null
 }
 
-async function deleteCustomerNewsReadsIfPresent(pool, newsId) {
-  const columns = await loadTableColumns(pool, 'customer_news_reads')
-  if (!columns.has('news_id')) {
-    return
+async function deleteCustomerNewsChildRowsIfPresent(pool, newsId) {
+  const childTables = [
+    'customer_news_reads',
+    'customer_news_attachments',
+    'agent_customer_news_attachments',
+    'customer_app_news_attachments',
+  ]
+  const childColumns = ['news_id', 'customer_news_id', 'customer_app_news_id', 'agent_customer_news_id']
+
+  for (const tableName of childTables) {
+    const columns = await loadTableColumns(pool, tableName)
+    if (columns.size === 0) {
+      continue
+    }
+    const fkColumn = pickFirstColumn(columns, childColumns)
+    if (!fkColumn) {
+      continue
+    }
+    await safeQuery(
+      pool,
+      `DELETE FROM ${quoteIdentifier(tableName)} WHERE ${quoteIdentifier(fkColumn)}::text = $1`,
+      [newsId],
+    )
   }
-  await safeQuery(pool, `DELETE FROM customer_news_reads WHERE news_id = $1::bigint`, [newsId])
 }
 
-async function tryDeleteCustomerNewsFromTable(pool, tableName, columns, newsId, userId, gaId) {
+function buildDeleteAttempts(columns, context) {
+  const ownerColumn = pickFirstColumn(columns, CUSTOMER_NEWS_OWNER_COLUMNS)
+  const targetColumn = pickFirstColumn(columns, CUSTOMER_NEWS_TARGET_COLUMNS)
+  const gaColumn = columns.has('ga_id') ? 'ga_id' : null
+  const scopeColumn = columns.has('scope') ? 'scope' : null
+  const attempts = []
+
+  const addAttempt = (parts) => {
+    const where = ['id::text = $1']
+    const params = [context.newsId]
+    for (const part of parts) {
+      if (!part?.column || part.value == null || part.value === '') {
+        continue
+      }
+      params.push(part.value)
+      where.push(`${quoteIdentifier(part.column)}::text = $${params.length}`)
+    }
+    const key = where.join('|')
+    if (!attempts.some((attempt) => attempt.key === key)) {
+      attempts.push({ key, where, params })
+    }
+  }
+
+  addAttempt([
+    gaColumn ? { column: gaColumn, value: context.gaId } : null,
+    ownerColumn ? { column: ownerColumn, value: context.userId } : null,
+    targetColumn && context.targetCustomerId ? { column: targetColumn, value: context.targetCustomerId } : null,
+    scopeColumn ? { column: scopeColumn, value: 'personal' } : null,
+  ])
+  addAttempt([
+    gaColumn ? { column: gaColumn, value: context.gaId } : null,
+    ownerColumn ? { column: ownerColumn, value: context.userId } : null,
+    targetColumn && context.targetCustomerId ? { column: targetColumn, value: context.targetCustomerId } : null,
+  ])
+  addAttempt([
+    ownerColumn ? { column: ownerColumn, value: context.userId } : null,
+    targetColumn && context.targetCustomerId ? { column: targetColumn, value: context.targetCustomerId } : null,
+  ])
+  addAttempt([
+    gaColumn ? { column: gaColumn, value: context.gaId } : null,
+    targetColumn && context.targetCustomerId ? { column: targetColumn, value: context.targetCustomerId } : null,
+  ])
+  addAttempt([targetColumn && context.targetCustomerId ? { column: targetColumn, value: context.targetCustomerId } : null])
+  addAttempt([ownerColumn ? { column: ownerColumn, value: context.userId } : null])
+  addAttempt([gaColumn ? { column: gaColumn, value: context.gaId } : null])
+
+  return attempts
+}
+
+async function tryDeleteCustomerNewsFromTable(pool, tableName, columns, context) {
   if (!columns.has('id')) {
     return { matched: false, deleted: false }
   }
 
-  const ownerColumn = pickFirstColumn(columns, ['agent_id', 'user_id', 'created_by_user_id', 'author_id'])
-  const gaColumn = columns.has('ga_id') ? 'ga_id' : null
-  const scopeColumn = columns.has('scope') ? 'scope' : null
-  const deletedAtColumn = columns.has('deleted_at') ? 'deleted_at' : null
-  const isDeletedColumn = columns.has('is_deleted') ? 'is_deleted' : null
-  const statusColumn = columns.has('status') ? 'status' : null
-
-  const where = [`id = $1::bigint`]
-  const params = [newsId]
-
-  if (gaColumn) {
-    params.push(gaId)
-    where.push(`${quoteIdentifier(gaColumn)} = $${params.length}`)
-  }
-
-  if (ownerColumn) {
-    params.push(userId)
-    where.push(`${quoteIdentifier(ownerColumn)} = $${params.length}`)
-  }
-
-  if (scopeColumn) {
-    params.push('personal')
-    where.push(`${quoteIdentifier(scopeColumn)} = $${params.length}`)
-  }
-
+  const attempts = buildDeleteAttempts(columns, context)
   const tableSql = quoteIdentifier(tableName)
-  const whereSql = where.join(' AND ')
 
-  let sql
-  if (deletedAtColumn) {
-    sql = `UPDATE ${tableSql} SET ${quoteIdentifier(deletedAtColumn)} = NOW() WHERE ${whereSql}`
-  } else if (isDeletedColumn) {
-    sql = `UPDATE ${tableSql} SET ${quoteIdentifier(isDeletedColumn)} = true WHERE ${whereSql}`
-  } else if (statusColumn) {
-    sql = `UPDATE ${tableSql} SET ${quoteIdentifier(statusColumn)} = 'deleted' WHERE ${whereSql}`
-  } else {
-    await deleteCustomerNewsReadsIfPresent(pool, newsId)
-    sql = `DELETE FROM ${tableSql} WHERE ${whereSql}`
+  for (const attempt of attempts) {
+    const exists = await safeQuery(
+      pool,
+      `SELECT id FROM ${tableSql} WHERE ${attempt.where.join(' AND ')} LIMIT 1`,
+      attempt.params,
+    )
+    if (exists.rowCount === 0) {
+      continue
+    }
+
+    await deleteCustomerNewsChildRowsIfPresent(pool, context.newsId)
+    const deleted = await safeQuery(pool, `DELETE FROM ${tableSql} WHERE ${attempt.where.join(' AND ')}`, attempt.params)
+    if (deleted.rowCount > 0) {
+      return { matched: true, deleted: true }
+    }
+    return { matched: true, deleted: false }
   }
 
-  const result = await safeQuery(pool, sql, params)
-  return { matched: true, deleted: result.rowCount > 0 }
+  return { matched: true, deleted: false }
 }
 
 /**
@@ -249,18 +316,20 @@ export function registerNotificationsApi(apiRouter, ctx) {
         return
       }
       const newsId = String(req.params.newsId ?? '').trim()
-      if (!newsId || !/^\d+$/.test(newsId)) {
+      if (!newsId || newsId.length > 80 || !/^[a-zA-Z0-9_-]+$/.test(newsId)) {
         res.status(400).json({ message: '삭제할 개인메시지를 찾을 수 없습니다.' })
         return
       }
+      const targetCustomerId = parsePositiveIntLocal(req.query?.targetCustomerId)
 
       let anyTableMatched = false
+      const context = { newsId, userId, gaId, targetCustomerId }
       for (const tableName of CUSTOMER_NEWS_TABLE_CANDIDATES) {
         const columns = await loadTableColumns(pool, tableName)
         if (columns.size === 0) {
           continue
         }
-        const result = await tryDeleteCustomerNewsFromTable(pool, tableName, columns, newsId, userId, gaId)
+        const result = await tryDeleteCustomerNewsFromTable(pool, tableName, columns, context)
         anyTableMatched = anyTableMatched || result.matched
         if (result.deleted) {
           res.json({ success: true, data: { id: newsId } })
