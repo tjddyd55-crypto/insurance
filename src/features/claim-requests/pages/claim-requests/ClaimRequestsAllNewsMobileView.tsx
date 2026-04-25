@@ -1,8 +1,23 @@
 import type { AgentCustomerNewsItem } from '../../api/claimRequestsApi'
 
+export type AllNewsAttachmentDraft = {
+  localId: string
+  file: File
+  kind: 'image' | 'file'
+  previewUrl: string | null
+  status: 'pending' | 'uploading' | 'completed' | 'failed'
+  errorMessage?: string
+  cdnUrl?: string
+  objectKey?: string
+  mimeType?: string
+  sizeBytes?: number
+  storageFileId?: number
+}
+
 type ClaimRequestsAllNewsMobileViewProps = {
   title: string
   content: string
+  attachments: AllNewsAttachmentDraft[]
   history: AgentCustomerNewsItem[]
   loading?: boolean
   actionBusy?: boolean
@@ -11,14 +26,24 @@ type ClaimRequestsAllNewsMobileViewProps = {
   errorMessage?: string
   onTitleChange: (value: string) => void
   onContentChange: (value: string) => void
+  onFilesSelected: (files: FileList | File[]) => void
+  onRemoveAttachment: (localId: string) => void
   onSend: () => void
   onDeleteNews: (item: AgentCustomerNewsItem) => void
   formatDateTime: (iso: string | null) => string
 }
 
+const statusLabel: Record<AllNewsAttachmentDraft['status'], string> = {
+  pending: '대기',
+  uploading: '업로드 중',
+  completed: '완료',
+  failed: '실패',
+}
+
 export default function ClaimRequestsAllNewsMobileView({
   title,
   content,
+  attachments,
   history,
   loading = false,
   actionBusy = false,
@@ -27,6 +52,8 @@ export default function ClaimRequestsAllNewsMobileView({
   errorMessage = '',
   onTitleChange,
   onContentChange,
+  onFilesSelected,
+  onRemoveAttachment,
   onSend,
   onDeleteNews,
   formatDateTime,
@@ -65,6 +92,54 @@ export default function ClaimRequestsAllNewsMobileView({
           maxLength={5000}
           rows={7}
         />
+
+        <div className="claim-requests-all-news-mobile__upload-field">
+          <span className="claim-requests-all-news-mobile__upload-label">대표 이미지 / 첨부</span>
+          <label className="claim-requests-all-news-mobile__dropzone">
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+              multiple
+              disabled={actionBusy}
+              onChange={(event) => {
+                if (event.currentTarget.files?.length) {
+                  onFilesSelected(event.currentTarget.files)
+                }
+                event.currentTarget.value = ''
+              }}
+            />
+            <span>이미지 또는 PDF를 선택해 주세요.</span>
+            <small>첫 번째 이미지는 고객앱 카드 대표 이미지로 사용됩니다. 각 파일 최대 10MB</small>
+          </label>
+          {attachments.length > 0 ? (
+            <div className="claim-requests-all-news-mobile__attachment-list">
+              {attachments.map((item) => (
+                <div key={item.localId} className="claim-requests-all-news-mobile__attachment-row">
+                  {item.kind === 'image' && item.previewUrl ? (
+                    <img className="claim-requests-all-news-mobile__attachment-thumb" src={item.previewUrl} alt="" />
+                  ) : (
+                    <div className="claim-requests-all-news-mobile__attachment-pdf">PDF</div>
+                  )}
+                  <div className="claim-requests-all-news-mobile__attachment-info">
+                    <p className="claim-requests-all-news-mobile__attachment-name">{item.file.name || '첨부파일'}</p>
+                    <p className={`claim-requests-all-news-mobile__attachment-status claim-requests-all-news-mobile__attachment-status--${item.status}`}>
+                      {statusLabel[item.status]}
+                      {item.errorMessage ? ` — ${item.errorMessage}` : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="claim-requests-all-news-mobile__attachment-remove"
+                    onClick={() => onRemoveAttachment(item.localId)}
+                    disabled={actionBusy}
+                  >
+                    삭제
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </section>
 
       <section className="claim-requests-page__card claim-requests-all-news-mobile__history-card">
@@ -84,8 +159,10 @@ export default function ClaimRequestsAllNewsMobileView({
           <div className="claim-requests-all-news-mobile__history-list">
             {history.map((item) => {
               const isDeleting = deletingId === item.id
+              const hero = item.heroImageUrl || item.attachments?.find((attachment) => attachment.kind === 'image')?.url || null
               return (
                 <article key={item.id} className="claim-requests-all-news-mobile__history-item">
+                  {hero ? <img className="claim-requests-all-news-mobile__history-hero" src={hero} alt="" /> : null}
                   <div className="claim-requests-all-news-mobile__history-header">
                     <div className="claim-requests-all-news-mobile__history-heading">
                       <div className="claim-requests-all-news-mobile__history-title">{item.title || '전체소식지'}</div>
