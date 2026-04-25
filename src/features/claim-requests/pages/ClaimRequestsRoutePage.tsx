@@ -3,15 +3,21 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import ClaimRequestsAllNewsMobileStandalone from './claim-requests/ClaimRequestsAllNewsMobileStandalone'
 import ClaimRequestsClaimsMobileStandalone from './claim-requests/ClaimRequestsClaimsMobileStandalone'
 import ClaimRequestsPersonalMobileStandalone from './claim-requests/ClaimRequestsPersonalMobileStandalone'
+import ClaimInboxPage from './ClaimInboxPage'
 import ClaimRequestsPage from './ClaimRequestsPage'
 
 export default function ClaimRequestsRoutePage() {
   const isMobile = useIsMobile()
   const [searchParams] = useSearchParams()
   const claimTabParam = searchParams.get('claimTab')
+  const isInboxTab = claimTabParam === 'inbox'
   const isClaimsTab = !claimTabParam || claimTabParam === 'claims'
   const isPersonalTab = claimTabParam === 'news-personal'
   const isAllNewsTab = claimTabParam === 'news-all'
+
+  if (isInboxTab) {
+    return <ClaimInboxPage />
+  }
 
   if (isMobile && isClaimsTab) {
     return <ClaimRequestsClaimsMobileStandalone />
