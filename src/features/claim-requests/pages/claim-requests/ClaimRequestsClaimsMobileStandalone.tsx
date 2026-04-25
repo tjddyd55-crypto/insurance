@@ -94,6 +94,7 @@ export default function ClaimRequestsClaimsMobileStandalone() {
     }
     return parsePositiveInt(customerIdParam ?? null)
   }, [customerIdParam, searchParams])
+  const targetClaimId = useMemo(() => parsePositiveInt(searchParams.get('claimId')), [searchParams])
 
   const [rows, setRows] = useState<ClaimRequestListItem[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -182,7 +183,12 @@ export default function ClaimRequestsClaimsMobileStandalone() {
       const nextRows = res.rows || []
       setRows(nextRows)
       if (nextRows.length > 0) {
-        setSelectedId((prev) => prev ?? nextRows[0].id)
+        const targetExists = targetClaimId != null && nextRows.some((item) => item.id === targetClaimId)
+        const nextSelectedId = targetExists ? targetClaimId : selectedId && nextRows.some((item) => item.id === selectedId) ? selectedId : nextRows[0].id
+        setSelectedId(nextSelectedId)
+        if (targetExists) {
+          setMobileDetailOpen(true)
+        }
       } else {
         setSelectedId(null)
         setDetail(null)
@@ -192,7 +198,7 @@ export default function ClaimRequestsClaimsMobileStandalone() {
     } finally {
       setLoading(false)
     }
-  }, [activeCustomerId, token])
+  }, [activeCustomerId, selectedId, targetClaimId, token])
 
   const loadDetail = useCallback(async () => {
     if (!token || selectedId == null) {
