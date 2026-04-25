@@ -286,6 +286,21 @@ export async function createCustomerNews(
   return response as { id: string }
 }
 
+export async function deleteCustomerNews(token: string, newsId: string | number): Promise<{ id: string }> {
+  const id = String(newsId ?? '').trim()
+  if (!id) {
+    throw new ApiError('삭제할 개인메시지를 선택해 주세요.', 400)
+  }
+  const response = await apiRequest<{ success: true; data: { id: string } }>(
+    `/api/agent/customer-news/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      token,
+    },
+  )
+  return response as { id: string }
+}
+
 export async function listLinkedCustomers(token: string): Promise<LinkedCustomerItem[]> {
   const response = await apiRequest<{ success: true; data: LinkedCustomerItem[] }>(
     '/api/agent/customer-app-linked-customers',
