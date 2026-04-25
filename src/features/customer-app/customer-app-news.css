@@ -184,13 +184,3 @@
   margin: 8px 0;
   padding-left: 20px;
 }
-
-.rich-text-content font,
-.rich-text-content span,
-.rich-text-content strong,
-.rich-text-content b,
-.rich-text-content u,
-.rich-text-content em,
-.rich-text-content i {
-  color: inherit;
-}
