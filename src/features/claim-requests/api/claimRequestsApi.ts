@@ -286,13 +286,22 @@ export async function createCustomerNews(
   return response as { id: string }
 }
 
-export async function deleteCustomerNews(token: string, newsId: string | number): Promise<{ id: string }> {
+export async function deleteCustomerNews(
+  token: string,
+  newsId: string | number,
+  params: { targetCustomerId?: number | null } = {},
+): Promise<{ id: string }> {
   const id = String(newsId ?? '').trim()
   if (!id) {
     throw new ApiError('삭제할 개인메시지를 선택해 주세요.', 400)
   }
+  const search = new URLSearchParams()
+  if (params.targetCustomerId && Number.isInteger(params.targetCustomerId) && params.targetCustomerId > 0) {
+    search.set('targetCustomerId', String(params.targetCustomerId))
+  }
+  const query = search.toString()
   const response = await apiRequest<{ success: true; data: { id: string } }>(
-    `/api/agent/customer-news/${encodeURIComponent(id)}`,
+    `/api/agent/customer-news/${encodeURIComponent(id)}${query ? `?${query}` : ''}`,
     {
       method: 'DELETE',
       token,
