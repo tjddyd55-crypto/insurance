@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthProvider'
 import {
   createCustomerNews,
+  deleteCustomerNews,
   listAgentCustomerNews,
   listLinkedCustomers,
   type AgentCustomerNewsItem,
@@ -43,6 +44,7 @@ export default function ClaimRequestsPersonalMobileStandalone() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [actionBusy, setActionBusy] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
 
@@ -95,6 +97,7 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     setMessage('')
     setResult('')
     setError('')
+    setDeletingId(null)
   }, [activeCustomerId])
 
   const handleSend = async () => {
@@ -132,6 +135,28 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     }
   }
 
+  const handleDeleteMessage = async (item: AgentCustomerNewsItem) => {
+    if (!token) {
+      return
+    }
+    if (!window.confirm('이 개인메시지를 삭제하시겠습니까? 고객앱에서도 더 이상 보이지 않습니다.')) {
+      return
+    }
+    setDeletingId(item.id)
+    setError('')
+    setResult('')
+    try {
+      await deleteCustomerNews(token, item.id)
+      setHistory((prev) => prev.filter((row) => row.id !== item.id))
+      setResult('개인메시지를 삭제했습니다.')
+      await loadHistory()
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : '개인메시지 삭제에 실패했습니다.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <ClaimRequestsPersonalMobileView
       targetCustomer={targetCustomer}
@@ -140,10 +165,12 @@ export default function ClaimRequestsPersonalMobileStandalone() {
       history={history}
       loading={loading}
       actionBusy={actionBusy}
+      deletingId={deletingId}
       resultMessage={result}
       errorMessage={error}
       onMessageChange={setMessage}
       onSend={() => void handleSend()}
+      onDeleteMessage={(item) => void handleDeleteMessage(item)}
       formatDateTime={formatDateTime}
     />
   )
