@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormSelect, FormTextarea } from '../../../components/form'
@@ -95,6 +95,8 @@ export default function ClaimInboxPage() {
   const [actionBusy, setActionBusy] = useState(false)
   const [statusNotice, setStatusNotice] = useState('')
   const [error, setError] = useState('')
+  const mobileDetailOpenRef = useRef(false)
+  const modalHistoryPushedRef = useRef(false)
 
   const selectedRow = useMemo(() => rows.find((row) => row.id === selectedId) ?? null, [rows, selectedId])
   const requestedCount = useMemo(() => rows.filter((row) => row.status === 'requested').length, [rows])
@@ -158,6 +160,25 @@ export default function ClaimInboxPage() {
   }, [loadDetail])
 
   useEffect(() => {
+    mobileDetailOpenRef.current = mobileDetailOpen
+  }, [mobileDetailOpen])
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (!mobileDetailOpenRef.current || !modalHistoryPushedRef.current) {
+        return
+      }
+      modalHistoryPushedRef.current = false
+      mobileDetailOpenRef.current = false
+      setMobileDetailOpen(false)
+      setStatusMemo('')
+      setError('')
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+
+  useEffect(() => {
     if (!statusNotice) {
       return
     }
@@ -179,10 +200,20 @@ export default function ClaimInboxPage() {
     }
     setSelectedId(row.id)
     setMobileDetailOpen(true)
+    mobileDetailOpenRef.current = true
+    if (!modalHistoryPushedRef.current) {
+      window.history.pushState({ claimInboxModal: true }, '', window.location.href)
+      modalHistoryPushedRef.current = true
+    }
   }, [selectedId])
 
   const closeDetailModal = useCallback(() => {
+    if (modalHistoryPushedRef.current) {
+      window.history.back()
+      return
+    }
     setMobileDetailOpen(false)
+    mobileDetailOpenRef.current = false
     setStatusMemo('')
     setError('')
   }, [])
