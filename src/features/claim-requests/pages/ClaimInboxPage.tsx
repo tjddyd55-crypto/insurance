@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormSelect } from '../../../components/form'
+import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   downloadClaimRequestFile,
@@ -71,6 +72,7 @@ function isImageFile(file: ClaimRequestFileItem): boolean {
 export default function ClaimInboxPage() {
   const { token } = useAuth()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [rows, setRows] = useState<ClaimRequestListItem[]>([])
   const [total, setTotal] = useState(0)
   const [status, setStatus] = useState<ClaimRequestStatus | ''>('')
@@ -116,6 +118,10 @@ export default function ClaimInboxPage() {
   }, [status, token])
 
   const loadDetail = useCallback(async () => {
+    if (isMobile) {
+      setDetail(null)
+      return
+    }
     if (!token || selectedId == null) {
       setDetail(null)
       return
@@ -129,7 +135,7 @@ export default function ClaimInboxPage() {
     } finally {
       setDetailLoading(false)
     }
-  }, [selectedId, token])
+  }, [isMobile, selectedId, token])
 
   useEffect(() => {
     void loadRows()
@@ -214,6 +220,7 @@ export default function ClaimInboxPage() {
             <h2>요청 목록</h2>
             <span>{rows.length}건</span>
           </div>
+          {isMobile ? <p className="claim-inbox__mobile-help">목록을 누르면 해당 고객 청구페이지로 이동합니다.</p> : null}
           {loading ? <div className="claim-inbox__empty">청구 요청을 불러오는 중…</div> : null}
           {!loading && rows.length === 0 ? <div className="claim-inbox__empty">접수된 청구 요청이 없습니다.</div> : null}
           {rows.length > 0 ? (
@@ -224,8 +231,14 @@ export default function ClaimInboxPage() {
                   <button
                     key={row.id}
                     type="button"
-                    className={row.id === selectedId ? 'claim-inbox__list-item claim-inbox__list-item--active' : 'claim-inbox__list-item'}
-                    onClick={() => setSelectedId(row.id)}
+                    className={row.id === selectedId && !isMobile ? 'claim-inbox__list-item claim-inbox__list-item--active' : 'claim-inbox__list-item'}
+                    onClick={() => {
+                      if (isMobile) {
+                        openCustomerClaimPage(row)
+                        return
+                      }
+                      setSelectedId(row.id)
+                    }}
                   >
                     <div className="claim-inbox__list-item-top">
                       <strong>#{row.id} {requesterName}</strong>
@@ -242,78 +255,80 @@ export default function ClaimInboxPage() {
           ) : null}
         </aside>
 
-        <section className="claim-inbox__detail-panel" aria-label="청구 요청 상세 미리보기">
-          <div className="claim-inbox__panel-header">
-            <h2>상세 미리보기</h2>
-            {selectedRow ? <span>#{selectedRow.id}</span> : null}
-          </div>
-
-          {detailLoading ? <div className="claim-inbox__empty">상세를 불러오는 중…</div> : null}
-          {!detailLoading && !detail ? <div className="claim-inbox__empty">목록에서 요청을 선택해 주세요.</div> : null}
-
-          {detail ? (
-            <div className="claim-inbox__detail">
-              <div className="claim-inbox__detail-head">
-                <div>
-                  <div className="claim-inbox__detail-title">#{detail.id} {detail.requesterName || detail.customerName}</div>
-                  <div className="claim-inbox__detail-meta">접수 {formatDateTime(detail.submittedAt)}</div>
-                  <div className="claim-inbox__detail-meta">연결고객: {detail.customerName}</div>
-                </div>
-                <span className={statusClass(detail.status)}>{statusLabel(detail.status)}</span>
-              </div>
-
-              {detail.memo ? <div className="claim-inbox__detail-memo">{detail.memo}</div> : null}
-
-              <div className="claim-inbox__detail-actions">
-                <FormButton htmlType="button" variant="primary" onClick={() => openCustomerClaimPage(detail)}>
-                  고객 청구페이지 열기
-                </FormButton>
-              </div>
-
-              <div className="claim-inbox__detail-section">
-                <h3>첨부 파일</h3>
-                {detail.files.length === 0 ? <div className="claim-inbox__empty claim-inbox__empty--small">첨부 파일이 없습니다.</div> : null}
-                {detail.files.length > 0 ? (
-                  <div className="claim-inbox__file-list">
-                    {detail.files.map((file) => (
-                      <div key={file.id} className="claim-inbox__file-item">
-                        {isImageFile(file) ? (
-                          <img className="claim-inbox__file-thumb" src={file.url} alt="" loading="lazy" />
-                        ) : (
-                          <span className="claim-inbox__file-thumb claim-inbox__file-thumb--file">PDF</span>
-                        )}
-                        <div className="claim-inbox__file-main">
-                          <div className="claim-inbox__file-name">{file.fileName}</div>
-                          <div className="claim-inbox__file-meta">{formatFileSize(file.fileSize)}</div>
-                        </div>
-                        <div className="claim-inbox__file-actions">
-                          <button type="button" onClick={() => void handleOpenFile(file)}>열기</button>
-                          <button type="button" onClick={() => void handleDownloadFile(file)}>다운</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="claim-inbox__detail-section">
-                <h3>상태 이력</h3>
-                {detail.statusLogs.length === 0 ? <div className="claim-inbox__empty claim-inbox__empty--small">상태 이력이 없습니다.</div> : null}
-                {detail.statusLogs.length > 0 ? (
-                  <ul className="claim-inbox__history-list">
-                    {detail.statusLogs.map((log) => (
-                      <li key={log.id} className="claim-inbox__history-item">
-                        <strong>{log.fromStatus ? `${statusLabel(log.fromStatus)} → ` : ''}{statusLabel(log.toStatus)}</strong>
-                        <span>{formatDateTime(log.changedAt)}</span>
-                        {log.memo ? <p>{log.memo}</p> : null}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
+        {!isMobile ? (
+          <section className="claim-inbox__detail-panel" aria-label="청구 요청 상세 미리보기">
+            <div className="claim-inbox__panel-header">
+              <h2>상세 미리보기</h2>
+              {selectedRow ? <span>#{selectedRow.id}</span> : null}
             </div>
-          ) : null}
-        </section>
+
+            {detailLoading ? <div className="claim-inbox__empty">상세를 불러오는 중…</div> : null}
+            {!detailLoading && !detail ? <div className="claim-inbox__empty">목록에서 요청을 선택해 주세요.</div> : null}
+
+            {detail ? (
+              <div className="claim-inbox__detail">
+                <div className="claim-inbox__detail-head">
+                  <div>
+                    <div className="claim-inbox__detail-title">#{detail.id} {detail.requesterName || detail.customerName}</div>
+                    <div className="claim-inbox__detail-meta">접수 {formatDateTime(detail.submittedAt)}</div>
+                    <div className="claim-inbox__detail-meta">연결고객: {detail.customerName}</div>
+                  </div>
+                  <span className={statusClass(detail.status)}>{statusLabel(detail.status)}</span>
+                </div>
+
+                {detail.memo ? <div className="claim-inbox__detail-memo">{detail.memo}</div> : null}
+
+                <div className="claim-inbox__detail-actions">
+                  <FormButton htmlType="button" variant="primary" onClick={() => openCustomerClaimPage(detail)}>
+                    고객 청구페이지 열기
+                  </FormButton>
+                </div>
+
+                <div className="claim-inbox__detail-section">
+                  <h3>첨부 파일</h3>
+                  {detail.files.length === 0 ? <div className="claim-inbox__empty claim-inbox__empty--small">첨부 파일이 없습니다.</div> : null}
+                  {detail.files.length > 0 ? (
+                    <div className="claim-inbox__file-list">
+                      {detail.files.map((file) => (
+                        <div key={file.id} className="claim-inbox__file-item">
+                          {isImageFile(file) ? (
+                            <img className="claim-inbox__file-thumb" src={file.url} alt="" loading="lazy" />
+                          ) : (
+                            <span className="claim-inbox__file-thumb claim-inbox__file-thumb--file">PDF</span>
+                          )}
+                          <div className="claim-inbox__file-main">
+                            <div className="claim-inbox__file-name">{file.fileName}</div>
+                            <div className="claim-inbox__file-meta">{formatFileSize(file.fileSize)}</div>
+                          </div>
+                          <div className="claim-inbox__file-actions">
+                            <button type="button" onClick={() => void handleOpenFile(file)}>열기</button>
+                            <button type="button" onClick={() => void handleDownloadFile(file)}>다운</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="claim-inbox__detail-section">
+                  <h3>상태 이력</h3>
+                  {detail.statusLogs.length === 0 ? <div className="claim-inbox__empty claim-inbox__empty--small">상태 이력이 없습니다.</div> : null}
+                  {detail.statusLogs.length > 0 ? (
+                    <ul className="claim-inbox__history-list">
+                      {detail.statusLogs.map((log) => (
+                        <li key={log.id} className="claim-inbox__history-item">
+                          <strong>{log.fromStatus ? `${statusLabel(log.fromStatus)} → ` : ''}{statusLabel(log.toStatus)}</strong>
+                          <span>{formatDateTime(log.changedAt)}</span>
+                          {log.memo ? <p>{log.memo}</p> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
       </section>
     </main>
   )
