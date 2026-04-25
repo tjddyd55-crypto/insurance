@@ -9,6 +9,7 @@ type ClaimLinkSectionProps = {
   linkActionLabel: string
   actionBusy?: boolean
   copyResult?: string
+  showDescription?: boolean
   showRawLinkFields?: boolean
   onCreateLink: () => MaybePromise
   onCopyCode?: () => MaybePromise
@@ -25,6 +26,7 @@ export default function ClaimLinkSection({
   linkActionLabel,
   actionBusy = false,
   copyResult = '',
+  showDescription = true,
   showRawLinkFields = true,
   onCreateLink,
   onCopyCode,
@@ -39,11 +41,13 @@ export default function ClaimLinkSection({
   return (
     <section className="claim-requests-page__card claim-requests-page__link-section">
       <div className="claim-requests-page__section-header claim-requests-page__link-header">
-        <div>
+        <div className="claim-requests-page__section-heading">
           <h2 className="claim-requests-page__section-title">링크 발송</h2>
-          <p className="claim-requests-page__section-description">
-            고객에게 청구 요청과 개인메시지를 확인할 수 있는 고객앱 링크를 전달합니다.
-          </p>
+          {showDescription ? (
+            <p className="claim-requests-page__section-description">
+              고객에게 청구 요청과 개인메시지를 확인할 수 있는 고객앱 링크를 전달합니다.
+            </p>
+          ) : null}
         </div>
         <FormButton
           htmlType="button"
