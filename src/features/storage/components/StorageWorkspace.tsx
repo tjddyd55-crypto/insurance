@@ -8,6 +8,7 @@ import {
   listStorageFiles,
   listStorageFolders,
   markStorageUploadFailed,
+  openStorageFile,
   presignStorageFile,
   renameStorageFile,
   renameStorageFolder,
@@ -35,10 +36,6 @@ const ALLOWED_MIME = new Set([
 const FILE_NAME_REGEX = /^[A-Za-z0-9._\-() \u3131-\u318e\uac00-\ud7a3]+$/
 const FOLDER_NAME_REGEX = /^[A-Za-z0-9 \u3131-\u318e\uac00-\ud7a3]+$/
 
-/**
- * AbortController 로 취소된 요청에서 던져지는 AbortError 를 판별한다.
- * 브라우저마다 `DOMException` 이거나 `Error` 서브클래스인 경우가 있어 name 기준으로 판정.
- */
 function isAbortError(error: unknown): boolean {
   return (
     typeof error === 'object' &&
@@ -62,14 +59,6 @@ type StorageWorkspaceProps = {
   title: string
   subtitle?: string
   headerSlot?: ReactNode
-  /**
-   * 플랫폼 변형. 이 컴포넌트는 반드시 PC/Mobile 분기된 호출처(`ResponsiveLayout` 의
-   * View 파일 또는 모바일 전용 모달) 에서만 쓰이므로 variant 를 **필수**로 받는다.
-   *
-   * 과거에는 컴포넌트 내부에서 `useIsMobile()` 을 호출해 화면 변형을 스스로 결정했지만
-   * 이 방식은 "누가 무슨 UI 를 보는지" 를 컴포넌트 사용자가 제어할 수 없게 만들었다.
-   * AGENTS.md §8-5 Tier 4 "prop 승격" 규칙에 맞춰 호출처에서 명시한다.
-   */
   variant: 'pc' | 'mobile'
 }
 
@@ -132,6 +121,21 @@ function calculateStoragePercent(usedBytes: number, limitBytes: number): number 
   return (used / total) * 100
 }
 
+function storageFileKind(file: StorageFileRow): 'image' | 'pdf' | 'spreadsheet' | 'other' {
+  const mime = String(file.mimeType ?? '').toLowerCase()
+  const name = String(file.fileName || file.displayName || '').toLowerCase()
+  if (mime.startsWith('image/')) {
+    return 'image'
+  }
+  if (mime === 'application/pdf' || name.endsWith('.pdf')) {
+    return 'pdf'
+  }
+  if (mime.includes('spreadsheet') || mime.includes('excel') || name.endsWith('.csv') || name.endsWith('.xls') || name.endsWith('.xlsx')) {
+    return 'spreadsheet'
+  }
+  return 'other'
+}
+
 export default function StorageWorkspace({
   token,
   customerId = null,
@@ -146,6 +150,8 @@ export default function StorageWorkspace({
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<number>>(new Set())
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null)
   const [selectedFileId, setSelectedFileId] = useState<number | null>(null)
+  const [searchText, setSearchText] = useState('')
+  const [kindFilter, setKindFilter] = useState<'all' | 'image' | 'pdf' | 'spreadsheet'>('all')
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -173,6 +179,23 @@ export default function StorageWorkspace({
     [customerId],
   )
 
+  const filteredFiles = useMemo(() => {
+    const query = searchText.trim().toLowerCase()
+    return files.filter((file) => {
+      if (selectedFolderId !== null && (file.folderId ?? null) !== selectedFolderId) {
+        return false
+      }
+      if (kindFilter !== 'all' && storageFileKind(file) !== kindFilter) {
+        return false
+      }
+      if (!query) {
+        return true
+      }
+      const haystack = `${file.displayName ?? ''} ${file.fileName ?? ''} ${file.originalName ?? ''}`.toLowerCase()
+      return haystack.includes(query)
+    })
+  }, [files, kindFilter, searchText, selectedFolderId])
+
   useEffect(() => {
     if (!token?.trim()) {
       return
@@ -181,6 +204,8 @@ export default function StorageWorkspace({
     setFiles([])
     setSelectedFolderId(null)
     setSelectedFileId(null)
+    setSearchText('')
+    setKindFilter('all')
     setError('')
   }, [customerId, token])
 
@@ -188,7 +213,6 @@ export default function StorageWorkspace({
     setExpandedFolderIds((prev) => {
       const next = new Set<number>()
       for (const folder of folders) {
-        // 새로 생긴 폴더는 기본 펼침으로 시작, 기존 폴더는 사용자의 이전 상태를 유지.
         if (prev.has(folder.id) || !prev.size) {
           next.add(folder.id)
         }
@@ -197,18 +221,6 @@ export default function StorageWorkspace({
     })
   }, [folders])
 
-  /**
-   * 각 로드 함수는 **외부 입력(token, customerId, selectedFolderId)** 에만 의존한다.
-   * 과거에는 `loadFolders` 가 deps 에 `selectedFolderId` 를 포함하면서 함수 **내부에서**
-   * `setSelectedFolderId(null)` 을 호출해 "자기 deps 를 자기가 바꾸는" 안티패턴이었고,
-   * 이것이 연쇄적으로 `refreshAll` → `useEffect` → fetch 폭주(동일 리소스 2~N중 호출,
-   * Chrome 의 동시 6연결 한도 초과로 대부분 pending stall) 를 유발했다.
-   *
-   * 해결 원칙:
-   *   1) fetch 함수는 "가져오기" 만 담당. 선택 상태 정리(cleanup)는 별도 effect 로.
-   *   2) 자동 로드 effect 는 리소스별 1개씩 → folders / files / quota 세 개.
-   *   3) `refreshAll` 은 사용자 행동(업로드, 삭제, rename) 뒤의 **수동 트리거 전용**.
-   */
   const loadFolders = useCallback(
     async (signal?: AbortSignal) => {
       if (!token?.trim()) {
@@ -260,16 +272,6 @@ export default function StorageWorkspace({
     [customerId, token],
   )
 
-  /**
-   * 각 자동 로드 effect 에 AbortController 를 연결해 컴포넌트 언마운트·deps 변경 시
-   * 진행 중이던 요청을 취소한다. 효과:
-   *   - React StrictMode 의 dev-only double invoke 에서 첫 번째 호출이 즉시 취소되어
-   *     네트워크 슬롯(HTTP/1.1 동시 6 연결) 을 점유하지 않는다.
-   *   - 고객 A→B 전환 시 A 의 folders/files 요청이 즉시 취소되어 B 의 요청이 바로 출발.
-   *   - pending 잔여 요청이 다음 화면까지 쌓이지 않아 stall 연쇄가 끊어진다.
-   *
-   * AbortError 는 정상적인 취소이므로 사용자용 에러 메시지를 띄우지 않는다.
-   */
   useEffect(() => {
     if (!token?.trim()) {
       return
@@ -315,12 +317,6 @@ export default function StorageWorkspace({
     return () => controller.abort()
   }, [loadFiles, token])
 
-  /**
-   * 선택 cleanup 은 로드와 독립 effect 로 분리.
-   * 과거에는 loadFolders/loadFiles 내부에서 setSelectedXxx 를 호출했고, 해당 state 가
-   * 그 함수의 deps 라서 useCallback 이 재생성 → useEffect 재실행 → fetch 가 또 돌았다.
-   * 이제는 목록(folders/files) 변화에만 반응해 존재하지 않는 선택 id 를 비운다.
-   */
   useEffect(() => {
     if (selectedFolderId != null && !folders.some((folder) => folder.id === selectedFolderId)) {
       setSelectedFolderId(null)
@@ -523,6 +519,20 @@ export default function StorageWorkspace({
     }
   }, [deleteTarget, loadFolders, loadQuota, selectedFolderId, submitting, token])
 
+  const openFile = useCallback(
+    async (file: StorageFileRow) => {
+      if (!token?.trim()) {
+        return
+      }
+      try {
+        await openStorageFile(token, file.id)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '파일 열기에 실패했습니다.')
+      }
+    },
+    [token],
+  )
+
   const downloadFile = useCallback(
     async (file: StorageFileRow) => {
       if (!token?.trim()) {
@@ -597,11 +607,50 @@ export default function StorageWorkspace({
         uploading={uploading}
       />
 
+      <div className="storage-workspace__filters" role="search">
+        <input
+          type="search"
+          value={searchText}
+          onChange={(event) => setSearchText(event.target.value)}
+          placeholder="파일명 검색"
+          className="storage-workspace__search"
+        />
+        <select
+          value={kindFilter}
+          onChange={(event) => setKindFilter(event.target.value as 'all' | 'image' | 'pdf' | 'spreadsheet')}
+          className="storage-workspace__kind-filter"
+          aria-label="파일 종류 필터"
+        >
+          <option value="all">전체 형식</option>
+          <option value="image">이미지</option>
+          <option value="pdf">PDF</option>
+          <option value="spreadsheet">엑셀/CSV</option>
+        </select>
+        {(searchText.trim() || kindFilter !== 'all' || selectedFolderId !== null) ? (
+          <button
+            type="button"
+            className="storage-workspace__filter-reset"
+            onClick={() => {
+              setSearchText('')
+              setKindFilter('all')
+              setSelectedFolderId(null)
+            }}
+          >
+            필터 초기화
+          </button>
+        ) : null}
+      </div>
+
+      <div className="storage-workspace__summary">
+        표시 {filteredFiles.length}개 / 전체 {files.length}개 · 폴더 {folders.length}개
+        {selectedFolderId !== null ? ` · 선택 폴더: ${folders.find((folder) => folder.id === selectedFolderId)?.name ?? '폴더'}` : ''}
+      </div>
+
       {error ? <p className="storage-workspace__error">{error}</p> : null}
 
       <StorageFileList
         folders={folders}
-        files={files}
+        files={filteredFiles}
         loading={loading}
         selectedFileId={selectedFileId}
         expandedFolderIds={expandedFolderIds}
@@ -617,6 +666,9 @@ export default function StorageWorkspace({
           })
         }}
         onSelectFile={setSelectedFileId}
+        onOpen={(file) => {
+          void openFile(file)
+        }}
         onDownload={(file) => {
           void downloadFile(file)
         }}
