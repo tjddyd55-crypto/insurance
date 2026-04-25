@@ -64,8 +64,7 @@ function quoteIdentifier(name) {
 }
 
 async function loadTableColumns(pool, tableName) {
-  const result = await safeQuery(
-    pool,
+  const result = await pool.query(
     `
     SELECT column_name
     FROM information_schema.columns
@@ -99,11 +98,7 @@ async function deleteCustomerNewsChildRowsIfPresent(pool, newsId) {
     if (!fkColumn) {
       continue
     }
-    await safeQuery(
-      pool,
-      `DELETE FROM ${quoteIdentifier(tableName)} WHERE ${quoteIdentifier(fkColumn)}::text = $1`,
-      [newsId],
-    )
+    await pool.query(`DELETE FROM ${quoteIdentifier(tableName)} WHERE ${quoteIdentifier(fkColumn)}::text = $1`, [newsId])
   }
 }
 
@@ -123,6 +118,9 @@ function buildDeleteAttempts(columns, context) {
       }
       params.push(part.value)
       where.push(`${quoteIdentifier(part.column)}::text = $${params.length}`)
+    }
+    if (where.length <= 1) {
+      return
     }
     const key = where.join('|')
     if (!attempts.some((attempt) => attempt.key === key)) {
@@ -162,11 +160,13 @@ async function tryDeleteCustomerNewsFromTable(pool, tableName, columns, context)
   }
 
   const attempts = buildDeleteAttempts(columns, context)
+  if (attempts.length === 0) {
+    return { matched: true, deleted: false }
+  }
   const tableSql = quoteIdentifier(tableName)
 
   for (const attempt of attempts) {
-    const exists = await safeQuery(
-      pool,
+    const exists = await pool.query(
       `SELECT id FROM ${tableSql} WHERE ${attempt.where.join(' AND ')} LIMIT 1`,
       attempt.params,
     )
@@ -175,7 +175,7 @@ async function tryDeleteCustomerNewsFromTable(pool, tableName, columns, context)
     }
 
     await deleteCustomerNewsChildRowsIfPresent(pool, context.newsId)
-    const deleted = await safeQuery(pool, `DELETE FROM ${tableSql} WHERE ${attempt.where.join(' AND ')}`, attempt.params)
+    const deleted = await pool.query(`DELETE FROM ${tableSql} WHERE ${attempt.where.join(' AND ')}`, attempt.params)
     if (deleted.rowCount > 0) {
       return { matched: true, deleted: true }
     }
