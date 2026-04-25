@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
+import RichTextContent from '../../../components/rich-text/RichTextContent'
 import { NewsletterAttachmentList } from '../../insurer-news/components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../../insurer-news/components/NewsletterImageGallery'
 import { getCustomerNewsDetail, markCustomerNewsRead, type CustomerAppNewsDetail } from '../api/customerAppApi'
@@ -66,17 +67,21 @@ export default function CustomerAppNewsDetailPage() {
             <p className="insurer-news-muted" style={{ margin: '0 0 4px', fontSize: 14 }}>
               고객 소식지
             </p>
-            <h2 className="insurer-news-detail-header__title" style={{ marginBottom: 8 }}>
-              {detail.isPinned ? '[중요] ' : ''}
-              {detail.title}
-            </h2>
+            {detail.title && detail.title !== '전체소식지' ? (
+              <h2 className="insurer-news-detail-header__title" style={{ marginBottom: 8 }}>
+                {detail.isPinned ? '[중요] ' : ''}
+                {detail.title}
+              </h2>
+            ) : null}
             <time dateTime={detail.updatedAt ?? undefined} style={{ fontSize: '0.95rem' }}>
               {formatDateTime(detail.updatedAt)}
             </time>
           </header>
-          <div className="insurer-news-detail-body insurer-news-detail-text" style={{ marginBottom: 8 }}>
-            {detail.content || '본문이 없습니다.'}
-          </div>
+          <RichTextContent
+            value={detail.content || ''}
+            className="insurer-news-detail-body insurer-news-detail-text rich-text-content"
+            emptyText="본문이 없습니다."
+          />
           <div className="insurer-news-detail-after">
             <NewsletterImageGallery
               imageUrls={
