@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton } from '../../../components/form'
-import { NewsletterList } from '../../insurer-news/components/NewsletterList'
-import type { NewsletterItem } from '../../insurer-news/types'
+import RichTextContent from '../../../components/rich-text/RichTextContent'
 import {
   getCustomerNewsDetail,
   listCustomerNewsByScope,
   markCustomerNewsRead,
   type CustomerAppNewsDetail,
+  type CustomerAppNewsListItem,
 } from '../api/customerAppApi'
+import CustomerAppNewsCard from '../components/CustomerAppNewsCard'
 import CustomerAppShell from '../components/CustomerAppShell'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
@@ -29,19 +30,9 @@ export default function CustomerAppNewsListPage() {
   const navigate = useNavigate()
   const session = useCustomerAppSession()
   const isPersonalMode = location.pathname.includes('/customer-app/news/personal')
-  const [rows, setRows] = useState<
-    Array<{
-      id: string
-      title: string
-      summary: string
-      updatedAt: string | null
-      isRead: boolean
-      isPinned: boolean
-      heroImageUrl?: string | null
-    }>
-  >([])
+  const [rows, setRows] = useState<CustomerAppNewsListItem[]>([])
   const [error, setError] = useState('')
-  const [selectedItem, setSelectedItem] = useState<NewsletterItem | null>(null)
+  const [selectedItem, setSelectedItem] = useState<CustomerAppNewsListItem | null>(null)
   const [selectedDetail, setSelectedDetail] = useState<CustomerAppNewsDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
@@ -85,25 +76,6 @@ export default function CustomerAppNewsListPage() {
 
   const pageTitle = isPersonalMode ? '개인소식지' : '전체소식지'
   const emptyMessage = isPersonalMode ? '표시할 개인 소식지가 없습니다.' : '표시할 소식지가 없습니다.'
-  const newsletterItems = useMemo<NewsletterItem[]>(
-    () =>
-      rows.map((row) => ({
-        id: row.id,
-        gaCode: 'customer-app',
-        insurerCode: 'customer-news',
-        insurerName: pageTitle,
-        insurerSlug: isPersonalMode ? 'personal' : 'all',
-        title: row.title,
-        summary: row.summary,
-        heroImageUrl: row.heroImageUrl ?? null,
-        publishedAt: row.updatedAt ?? new Date().toISOString(),
-        status: 'PUBLISHED',
-        hasImages: Boolean(row.heroImageUrl),
-        hasPdf: false,
-        hasTextBody: Boolean(row.summary?.trim()),
-      })),
-    [isPersonalMode, pageTitle, rows],
-  )
 
   return (
     <CustomerAppShell title={pageTitle}>
@@ -113,46 +85,57 @@ export default function CustomerAppNewsListPage() {
           {isPersonalMode ? '개별로 전달된 소식지만 표시됩니다.' : '전체 공지 소식지가 표시됩니다.'}
         </div>
       ) : null}
-      <NewsletterList
-        items={newsletterItems}
-        emptyMessage={emptyMessage}
-        onOpenItem={(id) => {
-          if (!session) {
-            return
-          }
-          const picked = newsletterItems.find((item) => item.id === id) ?? null
-          if (!picked) {
-            return
-          }
-          setSelectedItem(picked)
-          setSelectedDetail(null)
-          setDetailLoading(true)
-          setDetailError('')
-          setZoom(1)
-          const requestId = openRequestIdRef.current + 1
-          openRequestIdRef.current = requestId
-          void (async () => {
-            try {
-              const detail = await getCustomerNewsDetail(session.appToken, id)
-              await markCustomerNewsRead(session.appToken, id)
-              if (openRequestIdRef.current !== requestId) {
-                return
-              }
-              setRows((prev) => prev.map((row) => (row.id === id ? { ...row, isRead: true } : row)))
-              setSelectedDetail(detail)
-            } catch (loadError) {
-              if (openRequestIdRef.current !== requestId) {
-                return
-              }
-              setDetailError(loadError instanceof Error ? loadError.message : '소식지 상세를 불러오지 못했습니다.')
-            } finally {
-              if (openRequestIdRef.current === requestId) {
-                setDetailLoading(false)
-              }
-            }
-          })()
-        }}
-      />
+
+      {rows.length === 0 ? <div className="customer-app-news-empty">{emptyMessage}</div> : null}
+      {rows.length > 0 ? (
+        <div className="customer-app-news-list">
+          {rows.map((row) => (
+            <CustomerAppNewsCard
+              key={row.id}
+              id={row.id}
+              title={row.title}
+              summary={row.summary}
+              updatedAt={row.updatedAt}
+              heroImageUrl={row.heroImageUrl ?? null}
+              label={pageTitle}
+              variant="list"
+              onOpen={() => {
+                if (!session) {
+                  return
+                }
+                setSelectedItem(row)
+                setSelectedDetail(null)
+                setDetailLoading(true)
+                setDetailError('')
+                setZoom(1)
+                const requestId = openRequestIdRef.current + 1
+                openRequestIdRef.current = requestId
+                void (async () => {
+                  try {
+                    const detail = await getCustomerNewsDetail(session.appToken, row.id)
+                    await markCustomerNewsRead(session.appToken, row.id)
+                    if (openRequestIdRef.current !== requestId) {
+                      return
+                    }
+                    setRows((prev) => prev.map((item) => (item.id === row.id ? { ...item, isRead: true } : item)))
+                    setSelectedDetail(detail)
+                  } catch (loadError) {
+                    if (openRequestIdRef.current !== requestId) {
+                      return
+                    }
+                    setDetailError(loadError instanceof Error ? loadError.message : '소식지 상세를 불러오지 못했습니다.')
+                  } finally {
+                    if (openRequestIdRef.current === requestId) {
+                      setDetailLoading(false)
+                    }
+                  }
+                })()
+              }}
+            />
+          ))}
+        </div>
+      ) : null}
+
       {rows.length > 0 ? (
         <div className="text-xs text-[var(--text-secondary)]">
           최신 업데이트: {formatDateTime(rows[0]?.updatedAt ?? null)}
@@ -193,9 +176,6 @@ export default function CustomerAppNewsListPage() {
               {!detailLoading && !detailError ? (
                 <div className="news-detail-scroll">
                   <div className="news-detail-zoom-scope" style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}>
-                    {(selectedDetail?.content?.trim() || selectedItem.summary?.trim()) ? (
-                      <div className="news-text">{selectedDetail?.content?.trim() || selectedItem.summary}</div>
-                    ) : null}
                     {(() => {
                       const imageUrls =
                         selectedDetail?.attachments
@@ -209,8 +189,13 @@ export default function CustomerAppNewsListPage() {
                           : selectedItem.heroImageUrl
                             ? [selectedItem.heroImageUrl]
                             : []
-                      return finalUrls.map((url) => <img key={url} src={url} alt="" />)
+                      return finalUrls.map((url) => <img key={url} src={url} alt="" className="customer-news-modal-image" />)
                     })()}
+                    <RichTextContent
+                      value={selectedDetail?.content?.trim() || selectedItem.summary || ''}
+                      className="news-text rich-text-content"
+                      emptyText="본문이 없습니다."
+                    />
                   </div>
                 </div>
               ) : null}
