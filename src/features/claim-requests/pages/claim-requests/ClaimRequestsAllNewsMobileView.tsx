@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import RichTextContent from '../../../../components/rich-text/RichTextContent'
+import RichTextEditor from '../../../../components/rich-text/RichTextEditor'
+import { stripRichText } from '../../../../components/rich-text/richText'
 import type { AgentCustomerNewsItem } from '../../api/claimRequestsApi'
 
 export type AllNewsAttachmentDraft = {
@@ -92,7 +95,7 @@ export default function ClaimRequestsAllNewsMobileView({
             type="button"
             className="form-button button button--primary claim-requests-all-news-mobile__send-button"
             onClick={onSend}
-            disabled={!title.trim() || !content.trim() || actionBusy}
+            disabled={actionBusy}
           >
             {actionBusy ? '발송 중…' : '발송'}
           </button>
@@ -101,16 +104,15 @@ export default function ClaimRequestsAllNewsMobileView({
           className="claim-requests-all-news-mobile__title-input"
           value={title}
           onChange={(event) => onTitleChange(event.target.value)}
-          placeholder="소식지 제목을 입력해 주세요."
+          placeholder="제목은 선택사항입니다."
           maxLength={120}
         />
-        <textarea
-          className="claim-requests-all-news-mobile__textarea"
+        <RichTextEditor
           value={content}
-          onChange={(event) => onContentChange(event.target.value)}
+          onChange={onContentChange}
+          disabled={actionBusy}
           placeholder="모든 고객에게 전달할 소식 내용을 입력해 주세요."
-          maxLength={5000}
-          rows={7}
+          className="claim-requests-all-news-mobile__rich-editor"
         />
 
         <div className="claim-requests-all-news-mobile__upload-field">
@@ -180,6 +182,7 @@ export default function ClaimRequestsAllNewsMobileView({
             {history.map((item) => {
               const isDeleting = deletingId === item.id
               const hero = getNewsHero(item)
+              const summary = stripRichText(item.content)
               return (
                 <article
                   key={item.id}
@@ -198,7 +201,7 @@ export default function ClaimRequestsAllNewsMobileView({
                   <div className="claim-requests-all-news-mobile__summary-main">
                     <div className="claim-requests-all-news-mobile__history-title">{item.title || '전체소식지'}</div>
                     <div className="claim-requests-all-news-mobile__history-date">{formatDateTime(item.updatedAt)}</div>
-                    <div className="claim-requests-all-news-mobile__history-excerpt">{item.content}</div>
+                    <div className="claim-requests-all-news-mobile__history-excerpt">{summary}</div>
                     {item.attachments && item.attachments.length > 0 ? (
                       <div className="claim-requests-all-news-mobile__attachments">첨부 {item.attachments.length}개</div>
                     ) : null}
@@ -241,19 +244,19 @@ export default function ClaimRequestsAllNewsMobileView({
                   >
                     <div className="all-news-preview-v2-hero-shade" />
                     <div className="all-news-preview-v2-hero-text">
-                      <h2>{selectedNews.title || '소식지'}</h2>
+                      <h2>{selectedNews.title || '전체소식지'}</h2>
                       <p>{formatDateOnly(selectedNews.updatedAt)}</p>
                     </div>
                   </div>
                 ) : (
                   <div className="all-news-preview-v2-plain-title">
-                    <h2>{selectedNews.title || '소식지'}</h2>
+                    <h2>{selectedNews.title || '전체소식지'}</h2>
                     <p>{formatDateOnly(selectedNews.updatedAt)}</p>
                   </div>
                 )}
 
                 <div className="all-news-preview-v2-meta">최신 업데이트: {formatDateTime(selectedNews.updatedAt)}</div>
-                <div className="all-news-preview-v2-body-text">{selectedNews.content}</div>
+                <RichTextContent value={selectedNews.content} className="all-news-preview-v2-body-text" emptyText="본문이 없습니다." />
 
                 {selectedFiles.length > 0 ? (
                   <div className="all-news-preview-v2-files">
