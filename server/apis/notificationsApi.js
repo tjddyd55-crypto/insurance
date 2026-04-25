@@ -22,7 +22,7 @@ function requireGaForNotifications(req, res) {
 const NOTIFICATIONS_LIST_LIMIT_DEFAULT = 20
 const NOTIFICATIONS_LIST_LIMIT_MAX = 50
 
-const CUSTOMER_NEWS_TABLE_CANDIDATES = [
+const CUSTOMER_NEWS_KNOWN_TABLES = [
   'customer_news',
   'agent_customer_news',
   'customer_app_news',
@@ -45,6 +45,20 @@ const CUSTOMER_NEWS_OWNER_COLUMNS = [
 ]
 
 const CUSTOMER_NEWS_TARGET_COLUMNS = ['target_customer_id', 'customer_id', 'recipient_customer_id', 'target_id']
+const CUSTOMER_NEWS_GA_COLUMNS = ['ga_id']
+const CUSTOMER_NEWS_SCOPE_COLUMNS = ['scope']
+const CUSTOMER_NEWS_CONTENT_COLUMNS = [
+  'content',
+  'body',
+  'message',
+  'memo',
+  'title',
+  'subject',
+  'body_html',
+  'html',
+  'text',
+]
+const CUSTOMER_NEWS_CHILD_FK_COLUMNS = ['news_id', 'customer_news_id', 'customer_app_news_id', 'agent_customer_news_id']
 
 function parsePositiveIntLocal(value) {
   const n = Number(value)
@@ -63,50 +77,99 @@ function quoteIdentifier(name) {
   return `"${assertSafeIdentifier(name)}"`
 }
 
-async function loadTableColumns(pool, tableName) {
+async function loadPublicTableColumns(pool) {
   const result = await pool.query(
     `
-    SELECT column_name
+    SELECT table_name, column_name
     FROM information_schema.columns
     WHERE table_schema = 'public'
-      AND table_name = $1
+    ORDER BY table_name, ordinal_position
     `,
-    [tableName],
   )
-  return new Set(result.rows.map((row) => String(row.column_name)))
+  const tableColumns = new Map()
+  for (const row of result.rows) {
+    const tableName = String(row.table_name ?? '')
+    const columnName = String(row.column_name ?? '')
+    if (!tableName || !columnName) {
+      continue
+    }
+    const columns = tableColumns.get(tableName) ?? new Set()
+    columns.add(columnName)
+    tableColumns.set(tableName, columns)
+  }
+  return tableColumns
 }
 
 function pickFirstColumn(columns, candidates) {
   return candidates.find((column) => columns.has(column)) ?? null
 }
 
-async function deleteCustomerNewsChildRowsIfPresent(pool, newsId) {
-  const childTables = [
-    'customer_news_reads',
-    'customer_news_attachments',
-    'agent_customer_news_attachments',
-    'customer_app_news_attachments',
-  ]
-  const childColumns = ['news_id', 'customer_news_id', 'customer_app_news_id', 'agent_customer_news_id']
+function hasAnyColumn(columns, candidates) {
+  return candidates.some((column) => columns.has(column))
+}
 
-  for (const tableName of childTables) {
-    const columns = await loadTableColumns(pool, tableName)
-    if (columns.size === 0) {
+function isPotentialCustomerNewsTable(tableName, columns) {
+  if (!columns.has('id')) {
+    return false
+  }
+  if (CUSTOMER_NEWS_KNOWN_TABLES.includes(tableName)) {
+    return true
+  }
+  const tableLooksLikeCustomerNews = /customer.*(news|message|notice|newsletter)|agent.*customer.*(news|message)|news/i.test(tableName)
+  const hasContentShape = hasAnyColumn(columns, CUSTOMER_NEWS_CONTENT_COLUMNS)
+  const hasOwnershipShape =
+    hasAnyColumn(columns, CUSTOMER_NEWS_OWNER_COLUMNS) ||
+    hasAnyColumn(columns, CUSTOMER_NEWS_TARGET_COLUMNS) ||
+    hasAnyColumn(columns, CUSTOMER_NEWS_GA_COLUMNS)
+  return tableLooksLikeCustomerNews && hasContentShape && hasOwnershipShape
+}
+
+function loadCustomerNewsTableCandidates(tableColumns) {
+  const candidates = []
+  for (const [tableName, columns] of tableColumns.entries()) {
+    if (isPotentialCustomerNewsTable(tableName, columns)) {
+      candidates.push({ tableName, columns })
+    }
+  }
+  candidates.sort((a, b) => {
+    const aKnown = CUSTOMER_NEWS_KNOWN_TABLES.includes(a.tableName) ? 0 : 1
+    const bKnown = CUSTOMER_NEWS_KNOWN_TABLES.includes(b.tableName) ? 0 : 1
+    if (aKnown !== bKnown) {
+      return aKnown - bKnown
+    }
+    return a.tableName.localeCompare(b.tableName)
+  })
+  return candidates
+}
+
+function loadCustomerNewsChildTableCandidates(tableColumns) {
+  const candidates = []
+  for (const [tableName, columns] of tableColumns.entries()) {
+    const fkColumn = pickFirstColumn(columns, CUSTOMER_NEWS_CHILD_FK_COLUMNS)
+    if (!fkColumn || !columns.has('id')) {
       continue
     }
-    const fkColumn = pickFirstColumn(columns, childColumns)
-    if (!fkColumn) {
-      continue
+    if (/customer.*(news|message|notice|newsletter)|agent.*customer.*(news|message)|news/i.test(tableName)) {
+      candidates.push({ tableName, fkColumn })
     }
-    await pool.query(`DELETE FROM ${quoteIdentifier(tableName)} WHERE ${quoteIdentifier(fkColumn)}::text = $1`, [newsId])
+  }
+  return candidates
+}
+
+async function deleteCustomerNewsChildRowsIfPresent(pool, childCandidates, newsId) {
+  for (const child of childCandidates) {
+    await pool.query(
+      `DELETE FROM ${quoteIdentifier(child.tableName)} WHERE ${quoteIdentifier(child.fkColumn)}::text = $1`,
+      [newsId],
+    )
   }
 }
 
 function buildDeleteAttempts(columns, context) {
   const ownerColumn = pickFirstColumn(columns, CUSTOMER_NEWS_OWNER_COLUMNS)
   const targetColumn = pickFirstColumn(columns, CUSTOMER_NEWS_TARGET_COLUMNS)
-  const gaColumn = columns.has('ga_id') ? 'ga_id' : null
-  const scopeColumn = columns.has('scope') ? 'scope' : null
+  const gaColumn = pickFirstColumn(columns, CUSTOMER_NEWS_GA_COLUMNS)
+  const scopeColumn = pickFirstColumn(columns, CUSTOMER_NEWS_SCOPE_COLUMNS)
   const attempts = []
 
   const addAttempt = (parts) => {
@@ -154,7 +217,8 @@ function buildDeleteAttempts(columns, context) {
   return attempts
 }
 
-async function tryDeleteCustomerNewsFromTable(pool, tableName, columns, context) {
+async function tryDeleteCustomerNewsFromTable(pool, candidate, childCandidates, context) {
+  const { tableName, columns } = candidate
   if (!columns.has('id')) {
     return { matched: false, deleted: false }
   }
@@ -174,12 +238,12 @@ async function tryDeleteCustomerNewsFromTable(pool, tableName, columns, context)
       continue
     }
 
-    await deleteCustomerNewsChildRowsIfPresent(pool, context.newsId)
+    await deleteCustomerNewsChildRowsIfPresent(pool, childCandidates, context.newsId)
     const deleted = await pool.query(`DELETE FROM ${tableSql} WHERE ${attempt.where.join(' AND ')}`, attempt.params)
     if (deleted.rowCount > 0) {
-      return { matched: true, deleted: true }
+      return { matched: true, deleted: true, tableName }
     }
-    return { matched: true, deleted: false }
+    return { matched: true, deleted: false, tableName }
   }
 
   return { matched: true, deleted: false }
@@ -322,14 +386,14 @@ export function registerNotificationsApi(apiRouter, ctx) {
       }
       const targetCustomerId = parsePositiveIntLocal(req.query?.targetCustomerId)
 
-      let anyTableMatched = false
+      const tableColumns = await loadPublicTableColumns(pool)
+      const newsCandidates = loadCustomerNewsTableCandidates(tableColumns)
+      const childCandidates = loadCustomerNewsChildTableCandidates(tableColumns)
       const context = { newsId, userId, gaId, targetCustomerId }
-      for (const tableName of CUSTOMER_NEWS_TABLE_CANDIDATES) {
-        const columns = await loadTableColumns(pool, tableName)
-        if (columns.size === 0) {
-          continue
-        }
-        const result = await tryDeleteCustomerNewsFromTable(pool, tableName, columns, context)
+
+      let anyTableMatched = newsCandidates.length > 0
+      for (const candidate of newsCandidates) {
+        const result = await tryDeleteCustomerNewsFromTable(pool, candidate, childCandidates, context)
         anyTableMatched = anyTableMatched || result.matched
         if (result.deleted) {
           res.json({ success: true, data: { id: newsId } })
