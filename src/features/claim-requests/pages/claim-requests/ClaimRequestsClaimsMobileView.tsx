@@ -145,7 +145,12 @@ export default function ClaimRequestsClaimsMobileView({
         />
       }
       detailModal={
-        <Modal open={mobileDetailOpen} onClose={onCloseMobileDetail} ariaLabel="청구 상세">
+        <Modal
+          open={mobileDetailOpen}
+          onClose={onCloseMobileDetail}
+          ariaLabel="청구 상세"
+          panelClassName="claim-requests-page__detail-modal-panel"
+        >
           <div className="modal-header claim-requests-page__modal-header">
             <div />
             <h2 className="modal-title claim-requests-page__modal-title">청구 상세</h2>
