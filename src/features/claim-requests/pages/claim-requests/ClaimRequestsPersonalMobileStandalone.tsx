@@ -146,7 +146,7 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     setError('')
     setResult('')
     try {
-      await deleteCustomerNews(token, item.id)
+      await deleteCustomerNews(token, item.id, { targetCustomerId: item.targetCustomerId ?? activeCustomerId })
       setHistory((prev) => prev.filter((row) => row.id !== item.id))
       setResult('개인메시지를 삭제했습니다.')
       await loadHistory()
