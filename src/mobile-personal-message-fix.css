@@ -72,12 +72,42 @@
     background: color-mix(in srgb, var(--m-surface, #1e2633) 92%, #334155 8%) !important;
   }
 
+  .claim-requests-personal-mobile__history-header {
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+  }
+
+  .claim-requests-personal-mobile__history-heading {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+  }
+
   .claim-requests-personal-mobile__history-title {
     margin: 0 0 4px !important;
     font-size: 0.9rem !important;
     line-height: 1.25 !important;
     font-weight: 900 !important;
     color: var(--m-text, #e6ecf2) !important;
+  }
+
+  .claim-requests-personal-mobile__delete-button {
+    flex: 0 0 auto !important;
+    min-width: 56px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 10px !important;
+    border-radius: var(--m-radius-md, 10px) !important;
+    border: 1px solid rgba(248, 113, 113, 0.35) !important;
+    background: rgba(127, 29, 29, 0.26) !important;
+    color: #fecaca !important;
+    font-size: 0.78rem !important;
+    font-weight: 900 !important;
+  }
+
+  .claim-requests-personal-mobile__delete-button:disabled {
+    opacity: 0.55 !important;
   }
 
   .claim-requests-personal-mobile__history-content {
