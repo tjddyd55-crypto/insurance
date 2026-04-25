@@ -94,6 +94,62 @@ function isValidFolderName(raw) {
 }
 
 const FOLDER_DUPLICATE_NAME_MESSAGE = '이미 ��재하는 �����명입니다'
+const STORAGE_USAGE_BASE_SUMMARY = [
+  { source: 'personal-storage', label: '내 파일' },
+  { source: 'customer-storage', label: '고객 파일' },
+  { source: 'claim-file', label: '청구 첨부' },
+  { source: 'customer-news', label: '소식지 첨부' },
+]
+
+function toIsoStringOrNull(value) {
+  if (!value) {
+    return null
+  }
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+  return date.toISOString()
+}
+
+function toFiniteNonNegativeNumber(value) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return 0
+  }
+  return parsed
+}
+
+function normalizeCustomerNewsScope(scopeRaw) {
+  return String(scopeRaw ?? '').trim().toLowerCase() === 'personal' ? 'personal' : 'all'
+}
+
+function buildStorageUsageSummary(items) {
+  const groups = STORAGE_USAGE_BASE_SUMMARY.map((row) => ({
+    source: row.source,
+    label: row.label,
+    count: 0,
+    size: 0,
+  }))
+  const bySource = new Map(groups.map((group) => [group.source, group]))
+  for (const item of items) {
+    const group = bySource.get(item.source)
+    if (!group) {
+      continue
+    }
+    group.count += 1
+    group.size += toFiniteNonNegativeNumber(item.size)
+  }
+  return groups
+}
+
+function toSortTimestamp(isoOrNull) {
+  if (!isoOrNull) {
+    return 0
+  }
+  const ms = new Date(isoOrNull).getTime()
+  return Number.isFinite(ms) ? ms : 0
+}
 
 async function folderNameExistsForScope(pool, userId, gaId, customerId, folderName, excludeFolderId) {
   if (excludeFolderId == null) {
@@ -2195,6 +2251,191 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         usedBytes: q.used,
         limitBytes: q.limit,
         pendingUploadBytes,
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/storage/usage-breakdown', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
+
+      const [storageRows, claimFileRows, customerNewsRows] = await Promise.all([
+        safeQuery(
+          pool,
+          `
+          SELECT
+            f.id,
+            f.customer_id,
+            f.display_name,
+            f.original_name,
+            f.file_size,
+            f.created_at,
+            COALESCE(NULLIF(TRIM(c.name), ''), '') AS customer_name
+          FROM files f
+          LEFT JOIN customers c
+            ON c.id = f.customer_id
+           AND c.user_id = f.user_id
+           AND c.ga_id = f.ga_id
+           AND c.deleted_at IS NULL
+          WHERE f.user_id = $1
+            AND f.ga_id = $2
+            AND f.team_id IS NULL
+            AND f.status = 'active'
+            AND f.deleted_at IS NULL
+          `,
+          [userId, gaId],
+        ),
+        safeQuery(
+          pool,
+          `
+          SELECT
+            f.id AS file_id,
+            f.file_name,
+            f.file_size,
+            f.uploaded_at,
+            r.id AS claim_request_id,
+            r.customer_id,
+            COALESCE(NULLIF(TRIM(c.name), ''), '') AS customer_name
+          FROM customer_claim_request_files f
+          INNER JOIN customer_claim_requests r
+            ON r.id = f.request_id
+           AND r.agent_id = $1
+           AND r.customer_id = f.customer_id
+          INNER JOIN customers c
+            ON c.id = r.customer_id
+           AND c.user_id = $1
+           AND c.ga_id = $2
+           AND c.deleted_at IS NULL
+          WHERE f.agent_id = $1
+          `,
+          [userId, gaId],
+        ),
+        safeQuery(
+          pool,
+          `
+          SELECT
+            n.id,
+            n.updated_at,
+            n.payload
+          FROM insurance_company_newsletters n
+          WHERE n.ga_id = $1
+            AND n.status = 'PUBLISHED'
+            AND COALESCE((n.payload->>'customerVisible')::boolean, false) = true
+            AND COALESCE(NULLIF(TRIM(n.payload->>'publisherId'), ''), '') = $2
+          `,
+          [gaId, userId],
+        ),
+      ])
+
+      const items = []
+
+      for (const row of storageRows.rows) {
+        const customerId = row.customer_id != null ? Number(row.customer_id) : null
+        const customerNameRaw = String(row.customer_name ?? '').trim()
+        const source = customerId == null ? 'personal-storage' : 'customer-storage'
+        const sourceLabel = source === 'personal-storage' ? '내 파일' : '고객 파일'
+        items.push({
+          id: `${source}:${Number(row.id)}`,
+          source,
+          sourceLabel,
+          fileName: String(row.display_name ?? row.original_name ?? '').trim() || `파일 #${Number(row.id)}`,
+          size: toFiniteNonNegativeNumber(row.file_size),
+          createdAt: toIsoStringOrNull(row.created_at),
+          locationLabel:
+            source === 'personal-storage'
+              ? '내 저장공간'
+              : `${customerNameRaw || `고객 #${customerId}`} · 고객 파일`,
+          storageFileId: Number(row.id),
+          customerId,
+          customerName: customerNameRaw || null,
+          canDeleteDirectly: true,
+        })
+      }
+
+      for (const row of claimFileRows.rows) {
+        const customerId = Number(row.customer_id)
+        const claimRequestId = Number(row.claim_request_id)
+        const customerNameRaw = String(row.customer_name ?? '').trim()
+        const fileId = Number(row.file_id)
+        items.push({
+          id: `claim-file:${fileId}`,
+          source: 'claim-file',
+          sourceLabel: '청구 첨부',
+          fileName: String(row.file_name ?? '').trim() || `청구파일 #${fileId}`,
+          size: toFiniteNonNegativeNumber(row.file_size),
+          createdAt: toIsoStringOrNull(row.uploaded_at),
+          locationLabel: `${customerNameRaw || `고객 #${customerId}`} · 청구 #${claimRequestId}`,
+          customerId,
+          customerName: customerNameRaw || null,
+          claimRequestId,
+          canDeleteDirectly: false,
+        })
+      }
+
+      for (const row of customerNewsRows.rows) {
+        const payload = row.payload && typeof row.payload === 'object' ? row.payload : {}
+        const attachments = Array.isArray(payload.attachments) ? payload.attachments : []
+        const scope = normalizeCustomerNewsScope(payload.customerNewsScope)
+        const targetCustomerId = parseOptionalCustomerId(payload.targetCustomerId)
+        const targetCustomerNameRaw = String(payload.targetCustomerName ?? '').trim()
+        const locationLabel =
+          scope === 'all'
+            ? '전체 소식지'
+            : targetCustomerNameRaw
+              ? `${targetCustomerNameRaw} · 개인 소식지`
+              : '개인 소식지'
+
+        for (let index = 0; index < attachments.length; index += 1) {
+          const rawAttachment = attachments[index]
+          if (!rawAttachment || typeof rawAttachment !== 'object') {
+            continue
+          }
+          const fileName =
+            String(rawAttachment.fileName ?? '').trim() || `첨부 #${index + 1}`
+          const attachmentId = String(rawAttachment.id ?? `${index + 1}`).trim() || `${index + 1}`
+          items.push({
+            id: `customer-news:${String(row.id)}:${attachmentId}`,
+            source: 'customer-news',
+            sourceLabel: '소식지 첨부',
+            fileName,
+            size: toFiniteNonNegativeNumber(rawAttachment.size),
+            createdAt: toIsoStringOrNull(row.updated_at),
+            locationLabel,
+            customerId: targetCustomerId,
+            customerName: targetCustomerNameRaw || null,
+            newsId: String(row.id),
+            newsScope: scope,
+            canDeleteDirectly: false,
+          })
+        }
+      }
+
+      items.sort((a, b) => {
+        const sizeDiff = toFiniteNonNegativeNumber(b.size) - toFiniteNonNegativeNumber(a.size)
+        if (sizeDiff !== 0) {
+          return sizeDiff
+        }
+        return toSortTimestamp(b.createdAt) - toSortTimestamp(a.createdAt)
+      })
+
+      const summary = buildStorageUsageSummary(items)
+      const totalSize = items.reduce((sum, item) => sum + toFiniteNonNegativeNumber(item.size), 0)
+
+      res.json({
+        items,
+        summary,
+        totalCount: items.length,
+        totalSize,
       })
     } catch (error) {
       handleDbError(error, req, res)
