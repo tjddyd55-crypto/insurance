@@ -109,6 +109,7 @@ export default function ClaimRequestsClaimsMobileView({
             linkActionLabel={linkActionLabel}
             actionBusy={actionBusy}
             copyResult={copyResult}
+            showDescription={false}
             showRawLinkFields={false}
             onCreateLink={onCreateLink}
             onCopyCode={onCopyCode}
@@ -127,6 +128,7 @@ export default function ClaimRequestsClaimsMobileView({
           linkStatus={linkStatus}
           loading={linkStatusLoading}
           latestDeviceLabel={latestDeviceLabel}
+          showDescription={false}
           formatDateTime={formatDateTime}
         />
       }
@@ -135,6 +137,7 @@ export default function ClaimRequestsClaimsMobileView({
           rows={rows}
           selectedId={selectedId}
           loading={loading}
+          showDescription={false}
           onSelectClaim={onSelectClaim}
           formatDateTime={formatDateTime}
           statusLabel={statusLabel}
