@@ -83,6 +83,7 @@ import MemoRoutePage from './features/memo/pages/MemoRoutePage'
 import MyStoragePage from './features/storage/pages/MyStoragePage'
 import AppWorkspaceLayout from './layouts/AppWorkspaceLayout'
 import ClaimRequestsPage from './features/claim-requests/pages/ClaimRequestsPage'
+import ClaimRequestsRoutePage from './features/claim-requests/pages/ClaimRequestsRoutePage'
 import CustomerAppConnectPage from './features/customer-app/pages/CustomerAppConnectPage'
 import CustomerAppHomePage from './features/customer-app/pages/CustomerAppHomePage'
 import CustomerAppRequestComposePage from './features/customer-app/pages/CustomerAppRequestComposePage'
@@ -209,7 +210,7 @@ export const appRouter = createBrowserRouter([
                   { path: ':customerId/ga-excel', element: <CustomerGaExcelPage /> },
                   { path: ':customerId/memos', element: <CustomerMemosPage /> },
                   { path: ':customerId/auto-form', element: <CustomerAutoFormPage /> },
-                  { path: ':customerId/claim-requests', element: <ClaimRequestsPage /> },
+                  { path: ':customerId/claim-requests', element: <ClaimRequestsRoutePage /> },
                 ],
               },
               { path: 'storage', element: <MyStoragePage /> },
