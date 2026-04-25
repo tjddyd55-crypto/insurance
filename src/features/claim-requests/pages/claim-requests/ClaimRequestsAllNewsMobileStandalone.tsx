@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { isRichTextEmpty } from '../../../../components/rich-text/richText'
 import { useAuth } from '../../../auth/AuthProvider'
 import {
   deleteStorageFile,
@@ -216,11 +217,7 @@ export default function ClaimRequestsAllNewsMobileStandalone() {
     }
     const nextTitle = title.trim()
     const nextContent = content.trim()
-    if (!nextTitle) {
-      setError('전체소식지 제목을 입력해 주세요.')
-      return
-    }
-    if (!nextContent) {
+    if (isRichTextEmpty(nextContent)) {
       setError('전체소식지 내용을 입력해 주세요.')
       return
     }
@@ -248,7 +245,7 @@ export default function ClaimRequestsAllNewsMobileStandalone() {
       }
 
       const created = await createCustomerNews(token, {
-        title: nextTitle,
+        title: nextTitle || '전체소식지',
         content: nextContent,
         scope: 'all',
         targetCustomerId: null,
