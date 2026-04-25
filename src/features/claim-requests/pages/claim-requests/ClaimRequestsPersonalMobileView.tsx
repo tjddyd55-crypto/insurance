@@ -7,10 +7,12 @@ type ClaimRequestsPersonalMobileViewProps = {
   history: AgentCustomerNewsItem[]
   loading?: boolean
   actionBusy?: boolean
+  deletingId?: string | null
   resultMessage?: string
   errorMessage?: string
   onMessageChange: (value: string) => void
   onSend: () => void
+  onDeleteMessage: (item: AgentCustomerNewsItem) => void
   formatDateTime: (iso: string | null) => string
 }
 
@@ -21,10 +23,12 @@ export default function ClaimRequestsPersonalMobileView({
   history,
   loading = false,
   actionBusy = false,
+  deletingId = null,
   resultMessage = '',
   errorMessage = '',
   onMessageChange,
   onSend,
+  onDeleteMessage,
   formatDateTime,
 }: ClaimRequestsPersonalMobileViewProps) {
   const targetName = targetCustomer?.customerName || (targetCustomerId ? '선택 고객' : '미선택')
@@ -91,18 +95,34 @@ export default function ClaimRequestsPersonalMobileView({
 
         {history.length > 0 ? (
           <div className="claim-requests-personal-mobile__history-list">
-            {history.map((item) => (
-              <article key={item.id} className="claim-requests-personal-mobile__history-item">
-                <div className="claim-requests-personal-mobile__history-title">{item.title || '개인메시지'}</div>
-                <div className="claim-requests-personal-mobile__history-date">{formatDateTime(item.updatedAt)}</div>
-                <div className="claim-requests-personal-mobile__history-content">{item.content}</div>
-                {item.attachments && item.attachments.length > 0 ? (
-                  <div className="claim-requests-personal-mobile__attachments">
-                    첨부 {item.attachments.length}개
+            {history.map((item) => {
+              const isDeleting = deletingId === item.id
+              return (
+                <article key={item.id} className="claim-requests-personal-mobile__history-item">
+                  <div className="claim-requests-personal-mobile__history-header">
+                    <div className="claim-requests-personal-mobile__history-heading">
+                      <div className="claim-requests-personal-mobile__history-title">{item.title || '개인메시지'}</div>
+                      <div className="claim-requests-personal-mobile__history-date">{formatDateTime(item.updatedAt)}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="claim-requests-personal-mobile__delete-button"
+                      onClick={() => onDeleteMessage(item)}
+                      disabled={isDeleting || actionBusy}
+                      aria-label={`${item.title || '개인메시지'} 삭제`}
+                    >
+                      {isDeleting ? '삭제 중…' : '삭제'}
+                    </button>
                   </div>
-                ) : null}
-              </article>
-            ))}
+                  <div className="claim-requests-personal-mobile__history-content">{item.content}</div>
+                  {item.attachments && item.attachments.length > 0 ? (
+                    <div className="claim-requests-personal-mobile__attachments">
+                      첨부 {item.attachments.length}개
+                    </div>
+                  ) : null}
+                </article>
+              )
+            })}
           </div>
         ) : null}
       </section>
