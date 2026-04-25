@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../../../auth/AuthProvider'
 import {
+  deleteStorageFile,
+  listStorageFiles,
   markStorageUploadFailed,
   presignStorageFile,
   saveStorageFile,
@@ -58,6 +60,35 @@ function validateAttachment(file: File): string | null {
     return '첨부파일은 10MB 이하만 업로드할 수 있습니다.'
   }
   return null
+}
+
+function collectNewsObjectKeys(item: AgentCustomerNewsItem): string[] {
+  const keys = new Set<string>()
+  for (const attachment of item.attachments ?? []) {
+    const objectKey = String(attachment.objectKey ?? '').trim()
+    if (objectKey) {
+      keys.add(objectKey)
+    }
+  }
+  return Array.from(keys)
+}
+
+async function deleteAllNewsSourceFiles(token: string, item: AgentCustomerNewsItem): Promise<number> {
+  const objectKeys = collectNewsObjectKeys(item)
+  if (objectKeys.length === 0) {
+    return 0
+  }
+  const files = await listStorageFiles(token, { customerId: null })
+  const targetFiles = files.filter((file) => {
+    const key = String(file.objectKey ?? '').trim()
+    return key && objectKeys.includes(key)
+  })
+  let deletedCount = 0
+  for (const file of targetFiles) {
+    await deleteStorageFile(token, file.id)
+    deletedCount += 1
+  }
+  return deletedCount
 }
 
 async function uploadNewsAttachmentToPersonalStorage(
@@ -253,7 +284,7 @@ export default function ClaimRequestsAllNewsMobileStandalone() {
     if (!token) {
       return
     }
-    if (!window.confirm('이 전체소식지를 삭제하시겠습니까? 고객앱에서도 더 이상 보이지 않습니다.')) {
+    if (!window.confirm('이 전체소식지를 삭제하시겠습니까? 고객앱에서도 더 이상 보이지 않습니다. 첨부 원본 파일도 내 저장공간에서 함께 삭제됩니다.')) {
       return
     }
     setDeletingId(item.id)
@@ -261,8 +292,13 @@ export default function ClaimRequestsAllNewsMobileStandalone() {
     setResult('')
     try {
       await deleteCustomerNews(token, item.id)
+      const deletedFileCount = await deleteAllNewsSourceFiles(token, item)
       setHistory((prev) => prev.filter((row) => row.id !== item.id))
-      setResult('전체소식지를 삭제했습니다.')
+      setResult(
+        deletedFileCount > 0
+          ? `전체소식지와 첨부 원본 ${deletedFileCount}개를 삭제했습니다.`
+          : '전체소식지를 삭제했습니다.',
+      )
       await loadHistory()
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : '전체소식지 삭제에 실패했습니다.')
