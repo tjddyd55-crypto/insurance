@@ -41,9 +41,20 @@ export default function ClaimRequestListSection({
         <div className="claim-requests-page__request-list">
           {rows.map((item) => {
             const requesterName = item.requesterName || item.customerName
+            const openDetail = () => onSelectClaim(item.id)
             return (
               <article
                 key={item.id}
+                role="button"
+                tabIndex={0}
+                aria-label={`#${item.id} ${requesterName} 청구 상세 보기`}
+                onClick={openDetail}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    openDetail()
+                  }
+                }}
                 className={
                   item.id === selectedId
                     ? 'claim-requests-page__request-card claim-requests-page__request-card--active'
@@ -62,7 +73,14 @@ export default function ClaimRequestListSection({
                 </div>
                 <div className="claim-requests-page__request-side">
                   <span className={statusBadgeClass(item.status)}>{statusLabel(item.status)}</span>
-                  <FormButton htmlType="button" variant="secondary" onClick={() => onSelectClaim(item.id)}>
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      openDetail()
+                    }}
+                  >
                     상세
                   </FormButton>
                 </div>
