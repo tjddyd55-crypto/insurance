@@ -58,6 +58,8 @@
     -webkit-overflow-scrolling: touch !important;
     padding: 12px 10px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
     background: var(--m-bg, var(--app-bg, #0b0f14)) !important;
+    font-size: 14px !important;
+    line-height: 1.4 !important;
   }
 
   .claim-requests-page__detail-modal-panel .claim-requests-page__detail-section {
@@ -95,10 +97,16 @@
     font-weight: 800 !important;
   }
 
+  .claim-requests-page__detail-modal-panel .claim-requests-page__detail-section--status {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+
   .claim-requests-page__detail-modal-panel .claim-requests-page__status-form-row {
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-    gap: 10px !important;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr) !important;
+    gap: 8px !important;
     align-items: start !important;
   }
 
@@ -106,10 +114,11 @@
   .claim-requests-page__detail-modal-panel select {
     width: 100% !important;
     min-width: 0 !important;
-    height: 42px !important;
-    min-height: 42px !important;
+    height: 40px !important;
+    min-height: 40px !important;
     padding: 0 10px !important;
-    font-size: 0.9rem !important;
+    font-size: 0.86rem !important;
+    line-height: 1.2 !important;
     font-weight: 800 !important;
   }
 
@@ -117,21 +126,25 @@
   .claim-requests-page__detail-modal-panel .claim-requests-page__status-form-row .form-button {
     width: 100% !important;
     min-width: 0 !important;
-    height: 42px !important;
-    min-height: 42px !important;
-    padding: 0 10px !important;
-    font-size: 0.88rem !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 8px !important;
+    font-size: 0.84rem !important;
     font-weight: 900 !important;
   }
 
   .claim-requests-page__detail-modal-panel .claim-requests-page__status-memo,
   .claim-requests-page__detail-modal-panel textarea {
+    display: block !important;
     width: 100% !important;
-    min-height: 88px !important;
-    margin-top: 10px !important;
-    padding: 10px !important;
-    font-size: 0.84rem !important;
-    line-height: 1.45 !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: 72px !important;
+    margin: 0 !important;
+    padding: 9px 10px !important;
+    box-sizing: border-box !important;
+    font-size: 0.82rem !important;
+    line-height: 1.4 !important;
     resize: vertical !important;
   }
 
