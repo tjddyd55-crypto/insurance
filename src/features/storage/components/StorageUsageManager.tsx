@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import { deleteStorageFile, downloadStorageFile, openStorageFile } from '../api/storageApi'
@@ -6,12 +6,15 @@ import {
   getStorageUsageBreakdown,
   type StorageUsageBreakdown,
   type StorageUsageItem,
+  type StorageUsageSource,
 } from '../api/storageUsageApi'
 
 type StorageUsageManagerProps = {
   token: string
   onStorageChanged?: () => void
 }
+
+type StorageUsageSortMode = 'size-desc' | 'latest' | 'name'
 
 function emptyBreakdown(): StorageUsageBreakdown {
   return {
@@ -60,6 +63,16 @@ function scrollToStorageWorkspace() {
   }, 80)
 }
 
+function compareUsageItems(a: StorageUsageItem, b: StorageUsageItem, sortMode: StorageUsageSortMode): number {
+  if (sortMode === 'latest') {
+    return String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? ''))
+  }
+  if (sortMode === 'name') {
+    return String(a.fileName ?? '').localeCompare(String(b.fileName ?? ''), 'ko')
+  }
+  return (Number(b.size) || 0) - (Number(a.size) || 0)
+}
+
 export default function StorageUsageManager({ token, onStorageChanged }: StorageUsageManagerProps) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
@@ -67,6 +80,36 @@ export default function StorageUsageManager({ token, onStorageChanged }: Storage
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [breakdown, setBreakdown] = useState<StorageUsageBreakdown>(() => emptyBreakdown())
+  const [sourceFilter, setSourceFilter] = useState<StorageUsageSource | 'all'>('all')
+  const [searchText, setSearchText] = useState('')
+  const [sortMode, setSortMode] = useState<StorageUsageSortMode>('size-desc')
+
+  const filteredItems = useMemo(() => {
+    const query = searchText.trim().toLowerCase()
+    return breakdown.items
+      .filter((item) => {
+        if (sourceFilter !== 'all' && item.source !== sourceFilter) {
+          return false
+        }
+        if (!query) {
+          return true
+        }
+        const haystack = [item.fileName, item.locationLabel, item.customerName, item.sourceLabel]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        return haystack.includes(query)
+      })
+      .sort((a, b) => compareUsageItems(a, b, sortMode))
+  }, [breakdown.items, searchText, sortMode, sourceFilter])
+
+  const hasActiveFilter = sourceFilter !== 'all' || searchText.trim().length > 0 || sortMode !== 'size-desc'
+
+  const resetFilters = useCallback(() => {
+    setSourceFilter('all')
+    setSearchText('')
+    setSortMode('size-desc')
+  }, [])
 
   const loadUsage = useCallback(async () => {
     if (!token?.trim()) {
@@ -207,11 +250,53 @@ export default function StorageUsageManager({ token, onStorageChanged }: Storage
             ))}
           </div>
 
+          <div className="storage-usage-manager__filters" role="search">
+            <input
+              type="search"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="파일명, 고객명, 위치 검색"
+              aria-label="용량 사용처 검색"
+            />
+            <select
+              value={sourceFilter}
+              onChange={(event) => setSourceFilter(event.target.value as StorageUsageSource | 'all')}
+              aria-label="사용처 필터"
+            >
+              <option value="all">전체 사용처</option>
+              <option value="personal-storage">내 파일</option>
+              <option value="customer-storage">고객 파일</option>
+              <option value="claim-file">청구 첨부</option>
+              <option value="customer-news">소식지 첨부</option>
+            </select>
+            <select
+              value={sortMode}
+              onChange={(event) => setSortMode(event.target.value as StorageUsageSortMode)}
+              aria-label="정렬"
+            >
+              <option value="size-desc">용량 큰 순</option>
+              <option value="latest">최신순</option>
+              <option value="name">이름순</option>
+            </select>
+            {hasActiveFilter ? (
+              <button type="button" className="storage-usage-manager__filter-reset" onClick={resetFilters}>
+                필터 초기화
+              </button>
+            ) : null}
+          </div>
+
+          <p className="storage-usage-manager__count">
+            표시 {filteredItems.length}개 / 전체 {breakdown.totalCount}개
+          </p>
+
           {loading ? <div className="storage-usage-manager__empty">용량 사용처를 불러오는 중…</div> : null}
           {!loading && breakdown.items.length === 0 ? <div className="storage-usage-manager__empty">표시할 파일이 없습니다.</div> : null}
-          {!loading && breakdown.items.length > 0 ? (
+          {!loading && breakdown.items.length > 0 && filteredItems.length === 0 ? (
+            <div className="storage-usage-manager__empty">조건에 맞는 파일이 없습니다.</div>
+          ) : null}
+          {!loading && filteredItems.length > 0 ? (
             <div className="storage-usage-manager__list">
-              {breakdown.items.map((item) => (
+              {filteredItems.map((item) => (
                 <article key={item.id} className="storage-usage-manager__item">
                   <div className="storage-usage-manager__item-main">
                     <span className={`storage-usage-manager__badge storage-usage-manager__badge--${item.source}`}>{item.sourceLabel}</span>
