@@ -117,13 +117,21 @@ export default function PCTopNavigation({
       ),
     )
   }, [groups, location.pathname])
-  const openGroup = groups.find((group) => group.label === openGroupLabel) ?? activeGroup ?? groups[0]
+  const openGroup = openGroupLabel
+    ? groups.find((group) => group.label === openGroupLabel) ?? null
+    : null
 
   return (
     <nav
       className="pc-top-navigation pc-top-navigation--dropdown"
       aria-label="PC 상단 주요 메뉴"
       onMouseLeave={() => setOpenGroupLabel(null)}
+      onBlur={(event) => {
+        const nextFocusTarget = event.relatedTarget as Node | null
+        if (!nextFocusTarget || !event.currentTarget.contains(nextFocusTarget)) {
+          setOpenGroupLabel(null)
+        }
+      }}
     >
       <div className="pc-top-navigation__bar">
         <div className="pc-top-navigation__groups" role="menubar" aria-label="PC 업무 대분류 메뉴">
@@ -165,7 +173,6 @@ export default function PCTopNavigation({
 
       {openGroup ? (
         <div className="pc-top-navigation__dropdown" role="menu" aria-label={`${openGroup.label} 하위 메뉴`}>
-          <div className="pc-top-navigation__dropdown-title">{openGroup.label}</div>
           <div className="pc-top-navigation__dropdown-items">
             {openGroup.items.map((item, index) => {
               const isDisabled = Boolean(item.disabled || item.preparing)
