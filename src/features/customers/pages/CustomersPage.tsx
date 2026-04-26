@@ -18,12 +18,7 @@ import { useConfirmDialog } from '../../../components/dialog'
 import { getPublicOrigin } from '../../../lib/publicOrigin'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
-import {
-  assertCustomerDataRecord,
-  deleteCustomer,
-  listCustomers,
-  updateCustomer,
-} from '../api/customersApi'
+import { deleteCustomer, listCustomers, updateCustomer } from '../api/customersApi'
 import type { CustomerRecord } from '../domain/types'
 import { customerNoteItems } from '../domain/types'
 import { buildKakaoCustomerCopyText } from '../utils/customerText'
@@ -85,19 +80,12 @@ import {
   INVITE_COPY_POINTER_DEBOUNCE_MS,
   copyTextWithWebViewFallback,
 } from '../utils/customerInviteClipboard'
+import { coerceCustomersStatePayload } from '../utils/customerStateGuards'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
 
 type CustomerSortType = 'age' | 'car' | 'recent' | null
 
-/** API 이후에도 상태에 깨진 행·undefined 슬롯이 들어가지 않도록 최종 방어 */
-function coerceCustomersStatePayload(rows: unknown): CustomerRecord[] {
-  if (!Array.isArray(rows)) {
-    console.error('[CustomersPage] ❌ customers is not an array:', rows)
-    throw new Error('Invalid customers response')
-  }
-  return rows.map((c, idx) => assertCustomerDataRecord(c, { listIndex: idx }))
-}
 export default function CustomersPage() {
   const navigate = useNavigate()
   const location = useLocation()
