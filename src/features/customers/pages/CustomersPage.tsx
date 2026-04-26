@@ -1298,11 +1298,11 @@ const CustomerListCard = memo(function CustomerListCard({
             {!(editingId === c.id && editForm) ? (
               <>
                 {!isMobile ? (
-                  <div className="customer-detail-feature-actions">
+                  <div className="customer-detail-feature-actions customer-workspace-action-bar">
                     <FormButton
                       htmlType="button"
                       variant="secondary"
-                      className="button button--secondary"
+                      className="button button--secondary customer-workspace-action-button"
                       onClick={() => onOpenFilesModal(c.id)}
                     >
                       고객 파일
@@ -1310,7 +1310,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     <FormButton
                       htmlType="button"
                       variant="secondary"
-                      className="button button--secondary"
+                      className="button button--secondary customer-workspace-action-button"
                       onClick={() => onOpenConsultationsModal(c.id)}
                     >
                       상담 내역
@@ -1319,7 +1319,7 @@ const CustomerListCard = memo(function CustomerListCard({
                       <FormButton
                         htmlType="button"
                         variant="secondary"
-                        className="button button--secondary"
+                        className="button button--secondary customer-workspace-action-button"
                         onClick={() => onOpenAutoModal(c.id)}
                       >
                         자동차 신청서
@@ -1329,7 +1329,7 @@ const CustomerListCard = memo(function CustomerListCard({
                       <FormButton
                         htmlType="button"
                         variant="secondary"
-                        className="button button--secondary"
+                        className="button button--secondary customer-workspace-action-button"
                         onClick={() => onOpenGaModal(c.id)}
                       >
                         GA 데이터 보기
@@ -2411,7 +2411,7 @@ export default function CustomersPage() {
               </FormButton>
             </div>
           ) : null}
-          <div className="customers-page__search-row">
+          <div className="customers-page__search-row customer-filter-bar">
             <FormInput
               ref={searchInputRef}
               className="search-input customers-page__search-input"
@@ -2425,7 +2425,7 @@ export default function CustomersPage() {
             <FormButton
               htmlType="button"
               variant="action"
-              className={`favorite-btn${favoriteOnly ? ' favorite-btn--on' : ''}`}
+              className={`favorite-btn customer-filter-chip${favoriteOnly ? ' favorite-btn--on customer-filter-chip--active' : ''}`}
               aria-pressed={favoriteOnly}
               onClick={() => setFavoriteOnly((v) => !v)}
             >
@@ -2434,7 +2434,7 @@ export default function CustomersPage() {
             <FormButton
               htmlType="button"
               variant="action"
-              className={`customers-page__filter-toggle${showFilters ? ' customers-page__filter-toggle--on' : ''}`}
+              className={`customers-page__filter-toggle customer-filter-chip${showFilters ? ' customers-page__filter-toggle--on customer-filter-chip--active' : ''}`}
               aria-expanded={showFilters}
               onClick={() => setShowFilters((v) => !v)}
             >
@@ -2493,13 +2493,17 @@ export default function CustomersPage() {
             </p>
           ) : null}
 
-          <div className="customers-sort-row" role="group" aria-label="목록 정렬 (같은 버튼을 다시 누르면 해제되어 이름 가나다순)">
+          <div
+            className="customers-sort-row customer-sort-bar"
+            role="group"
+            aria-label="목록 정렬 (같은 버튼을 다시 누르면 해제되어 이름 가나다순)"
+          >
             <span className="customers-sort-row__label">정렬</span>
             <div className="customers-sort-row__buttons filter-group">
               <FormButton
                 htmlType="button"
                 variant="action"
-                className={`filter-button${sortType === 'age' ? ' active' : ''}`}
+                className={`filter-button customer-filter-chip${sortType === 'age' ? ' active customer-filter-chip--active' : ''}`}
                 aria-pressed={sortType === 'age'}
                 onClick={() => setSortType((t) => (t === 'age' ? null : 'age'))}
               >
@@ -2508,7 +2512,7 @@ export default function CustomersPage() {
               <FormButton
                 htmlType="button"
                 variant="action"
-                className={`filter-button${sortType === 'car' ? ' active' : ''}`}
+                className={`filter-button customer-filter-chip${sortType === 'car' ? ' active customer-filter-chip--active' : ''}`}
                 aria-pressed={sortType === 'car'}
                 onClick={() => setSortType((t) => (t === 'car' ? null : 'car'))}
               >
@@ -2517,7 +2521,7 @@ export default function CustomersPage() {
               <FormButton
                 htmlType="button"
                 variant="action"
-                className={`filter-button${sortType === 'recent' ? ' active' : ''}`}
+                className={`filter-button customer-filter-chip${sortType === 'recent' ? ' active customer-filter-chip--active' : ''}`}
                 aria-pressed={sortType === 'recent'}
                 onClick={() => setSortType((t) => (t === 'recent' ? null : 'recent'))}
               >
@@ -2570,11 +2574,11 @@ export default function CustomersPage() {
                 />
               </label>
             </div>
-            <div className="customers-advanced-filters__quick filter-group">
+            <div className="customers-advanced-filters__quick filter-group customer-quick-filter-bar">
               <FormButton
                 htmlType="button"
                 variant="action"
-                className="filter-button"
+                className="filter-button customer-filter-chip"
                 onClick={() => applyQuickFilter('AGE_UNDER_30_MALE')}
               >
                 30세 이하 남성
@@ -2582,7 +2586,7 @@ export default function CustomersPage() {
               <FormButton
                 htmlType="button"
                 variant="action"
-                className="filter-button"
+                className="filter-button customer-filter-chip"
                 onClick={() => applyQuickFilter('AGE_OVER_40_FEMALE')}
               >
                 40세 이상 여성
@@ -2591,7 +2595,7 @@ export default function CustomersPage() {
                 <FormButton
                   htmlType="button"
                   variant="action"
-                  className="filter-button"
+                  className="filter-button customer-filter-chip"
                   onClick={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
                 >
                   필터 초기화
