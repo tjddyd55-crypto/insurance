@@ -11,7 +11,6 @@ import { FormButton } from '../components/form'
 import { Button, Modal } from '../components/ui'
 import ResponsiveLayout from '../components/ResponsiveLayout'
 import PCHeader from '../components/layout/PCHeader'
-import PCSidebarNavigation from '../components/layout/PCSidebarNavigation'
 import { useAuth } from '../features/auth/AuthProvider'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
@@ -388,7 +387,7 @@ function AppWorkspaceLayoutMobileShell() {
 function AppWorkspaceLayoutPCShell() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, logout, token, isAuthenticated } = useAuth()
+  const { user, logout, isAuthenticated } = useAuth()
   const { isMinimized, setIsMinimized } = useMemoWorkspace()
   const workspaceChromeHeaderRef = useRef<HTMLElement>(null)
 
@@ -396,38 +395,9 @@ function AppWorkspaceLayoutPCShell() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isListOpen, setIsListOpen] = useState(true)
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
-  const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
   const [preparingNoticeOpen, setPreparingNoticeOpen] = useState(false)
   const [memoWidth, setMemoWidth] = useState(MEMO_DEFAULT_WIDTH)
   const [resizeSession, setResizeSession] = useState<{ startX: number; startWidth: number } | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [selectedCustomerPc, setSelectedCustomerPc] = useState<string | null>(extractCustomerIdFromPath(location.pathname))
-
-  /*
-   * PC 사이드바 메뉴 — `buildAppMenuForSession` 단일 진실 원천 호출.
-   *
-   *   - `teamMenuManageVisible`: 팀 오너일 때만 "팀 관리" 항목 주입.
-   *
-   * divider 는 렌더 측에서 그대로 표시한다 (섹션 구분 선).
-   *
-   * PC 는 우측 상시 `MemoPanel` 로 메모에 접근하므로 사이드바에는 메모 항목이 없다.
-   */
-  const sidebarItems = useMemo(() => {
-    return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
-      teamMenuManageVisible,
-      subscriptionExpired: user?.subscription?.effectiveStatus === 'EXPIRED',
-    })
-  }, [
-    teamMenuManageVisible,
-    user?.role,
-    user?.gaCode,
-    user?.gaName,
-    user?.subscription?.effectiveStatus,
-  ])
-
-  const sidebarLinkIsActive = useCallback((pathname: string, itemPath: string) => {
-    return isActivePath(pathname, itemPath)
-  }, [])
 
   const onSelectNoteFromList = useCallback((id: string) => {
     setSelectedNoteId(id)
@@ -459,43 +429,6 @@ function AppWorkspaceLayoutPCShell() {
       setIsMinimized(false)
     }
   }, [isFullscreen, setIsMinimized])
-
-  useEffect(() => {
-    let cancelled = false
-    queueMicrotask(() => {
-      if (cancelled) {
-        return
-      }
-      if (!token?.trim() || !user?.id) {
-        setTeamMenuManageVisible(false)
-        return
-      }
-      if (user?.role !== 'USER' && user?.role !== 'GA_ADMIN') {
-        setTeamMenuManageVisible(false)
-        return
-      }
-      if (!user?.teamId?.trim()) {
-        setTeamMenuManageVisible(false)
-        return
-      }
-      void fetchTeamMembers(token)
-        .then((data) => {
-          if (cancelled) {
-            return
-          }
-          const ownerId = data.ownerId?.trim() ?? ''
-          setTeamMenuManageVisible(Boolean(ownerId && ownerId === user?.id))
-        })
-        .catch(() => {
-          if (!cancelled) {
-            setTeamMenuManageVisible(false)
-          }
-        })
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [token, user?.id, user?.role, user?.teamId])
 
   const clampMemoWidth = useCallback((nextWidth: number) => {
     const viewportMax =
@@ -576,54 +509,15 @@ function AppWorkspaceLayoutPCShell() {
       <PCHeader
         title={workspaceHeaderTitle}
         showNotification={showGaUserActions}
-        sidebarOpen={sidebarOpen}
         headerRef={workspaceChromeHeaderRef}
-        onToggleSidebar={() => setSidebarOpen((v) => !v)}
+        onLogout={() => {
+          logout()
+          navigate('/login', { replace: true })
+        }}
       />
 
       <div className="workspace-root workspace-root--app-pc">
-        <aside
-          className={`workspace-sidebar${sidebarOpen ? '' : ' workspace-sidebar--collapsed'}`}
-          aria-label="좌측 메뉴"
-        >
-          <PCSidebarNavigation
-            items={sidebarItems}
-            pathname={location.pathname}
-            isActivePath={sidebarLinkIsActive}
-            onNavigate={(path) => {
-              setSelectedCustomerPc(extractCustomerIdFromPath(path))
-              navigate(path)
-            }}
-          />
-
-          {/*
-            · 로그아웃은 .workspace-sidebar__footer 라는 별도 하단 블록에 둔다.
-              이전에는 <aside> 의 직접 자식으로 놓고 CSS margin-top: auto 로
-              하단에 밀어두려 했으나, 메뉴가 많아 aside 가 스크롤되는 상황에서
-              로그아웃이 스크롤 중간에 어정쩡하게 걸려 보이는 회귀가 있었다.
-            · 모바일 드로어의 .mobile-workspace-drawer__footer 와 동일한 구조로
-              통일해, "메뉴 리스트 마지막 뒤에 자연스럽게 붙은 하단 항목" 의미를
-              PC/모바일 양쪽이 같은 방식으로 표현한다.
-          */}
-          <div className="workspace-sidebar__footer" role="presentation">
-            <FormButton
-              className="workspace-sidebar__logout"
-              htmlType="button"
-              variant="secondary"
-              onClick={() => {
-                logout()
-                navigate('/login', { replace: true })
-              }}
-            >
-              로그아웃
-            </FormButton>
-          </div>
-        </aside>
-
-        <div
-          className="workspace-main workspace-main--app"
-          data-selected-customer={selectedCustomerPc ?? ''}
-        >
+        <div className="workspace-main workspace-main--app">
           <div className="app-main-content app-main-content--workspace-outlet-host">
             <ExpiredBanner />
             <Outlet />
