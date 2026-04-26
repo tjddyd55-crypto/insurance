@@ -4,35 +4,8 @@ import { FormButton } from '../form'
 import { useAuth } from '../../features/auth/AuthProvider'
 import { buildAppMenuForSession } from '../../features/dashboard/gaTenantMenu'
 import { fetchTeamMembers } from '../../features/team/api/teamApi'
+import { isActivePcNavigationPath } from './pcNavigationUtils'
 import './pc-top-navigation.css'
-
-function isActiveTopNavigationPath(pathname: string, itemPath: string): boolean {
-  if (itemPath.startsWith('/customers')) {
-    return pathname === '/customers' || pathname.startsWith('/customers/') || pathname.startsWith('/customer/')
-  }
-  if (itemPath === '/portal/newsletters') {
-    return pathname === '/portal/newsletters' || pathname.startsWith('/portal/newsletters/')
-  }
-  if (itemPath === '/portal/adjuster-news') {
-    return pathname === '/portal/adjuster-news' || pathname.startsWith('/portal/adjuster-news/')
-  }
-  if (itemPath === '/application') {
-    return pathname === '/application' || pathname.startsWith('/application/')
-  }
-  if (itemPath === '/application/documents') {
-    return pathname === '/application/documents' || pathname.startsWith('/application/documents/')
-  }
-  if (itemPath === '/feature-request') {
-    return pathname === '/feature-request' || pathname === '/feature-requests/my'
-  }
-  if (itemPath.startsWith('/team/')) {
-    return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
-  }
-  if (itemPath.startsWith('/internal/')) {
-    return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
-  }
-  return pathname === itemPath
-}
 
 export default function PCTopNavigation() {
   const navigate = useNavigate()
@@ -111,7 +84,7 @@ export default function PCTopNavigation() {
           !isDisabled &&
           item.path.trim() !== '' &&
           item.path !== '#' &&
-          isActiveTopNavigationPath(location.pathname, item.path)
+          isActivePcNavigationPath(location.pathname, item.path)
 
         return (
           <FormButton
