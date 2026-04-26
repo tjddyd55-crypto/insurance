@@ -52,6 +52,7 @@ import CustomerConsultationsModal from '../components/mobile/CustomerConsultatio
 import CustomerFilesModal from '../components/mobile/CustomerFilesModal'
 import CustomerGaDataModal from '../components/mobile/CustomerGaDataModal'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
+import CustomerPageHeaderActions from '../components/CustomerPageHeaderActions'
 import { CustomerFilterControls } from '../components/CustomerFilterControls'
 import { CustomerWorkspaceActions } from '../components/CustomerWorkspaceActions'
 import CustomerListCard, {
@@ -1376,44 +1377,16 @@ export default function CustomersPage() {
       {tab === 'list' ? (
         <>
           {!isSelectMode ? (
-            <div className="customers-page__action-row">
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className="cta-button customers-page__action-btn"
-                onClick={() => setSearchParams({ mode: 'create' }, { replace: true })}
-              >
-                고객 등록
-              </FormButton>
-              <div
-                role="button"
-                tabIndex={0}
-                className="cta-button customers-page__action-btn customers-page__invite-copy-btn"
-                style={{ touchAction: 'manipulation' }}
-                aria-label="고객 등록 링크 복사"
-                onTouchStart={onCustomerRegisterInviteCopyTouchStart}
-                onMouseDown={onCustomerRegisterInviteCopyMouseDown}
-                onClick={onCustomerRegisterInviteCopyClick}
-                onKeyDown={onCustomerRegisterInviteCopyKeyDown}
-              >
-                등록 링크
-              </div>
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className="cta-button customers-page__action-btn"
-                onClick={() => {
-                  if (isMobile) {
-                    const msg = 'PC 버전에서 가능합니다.'
-                    setStatusText(msg)
-                    return
-                  }
-                  enterExcelSelectMode()
-                }}
-              >
-                엑셀 다운로드
-              </FormButton>
-            </div>
+            <CustomerPageHeaderActions
+              isMobile={isMobile}
+              setStatusText={setStatusText}
+              onCreateCustomer={() => setSearchParams({ mode: 'create' }, { replace: true })}
+              onCustomerRegisterInviteCopyTouchStart={onCustomerRegisterInviteCopyTouchStart}
+              onCustomerRegisterInviteCopyMouseDown={onCustomerRegisterInviteCopyMouseDown}
+              onCustomerRegisterInviteCopyClick={onCustomerRegisterInviteCopyClick}
+              onCustomerRegisterInviteCopyKeyDown={onCustomerRegisterInviteCopyKeyDown}
+              enterExcelSelectMode={enterExcelSelectMode}
+            />
           ) : null}
           <div className="customers-page__search-row customer-filter-bar">
             <FormInput
