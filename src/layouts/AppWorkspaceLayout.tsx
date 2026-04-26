@@ -11,6 +11,7 @@ import { FormButton } from '../components/form'
 import { Button, Modal } from '../components/ui'
 import ResponsiveLayout from '../components/ResponsiveLayout'
 import PCHeader from '../components/layout/PCHeader'
+import PCSidebarNavigation from '../components/layout/PCSidebarNavigation'
 import { useAuth } from '../features/auth/AuthProvider'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
@@ -585,59 +586,15 @@ function AppWorkspaceLayoutPCShell() {
           className={`workspace-sidebar${sidebarOpen ? '' : ' workspace-sidebar--collapsed'}`}
           aria-label="좌측 메뉴"
         >
-          <nav className="workspace-sidebar__nav" aria-label="주요 메뉴">
-            {sidebarItems.map((item, index) => {
-              if (item.type === 'divider') {
-                return <div key={`workspace-divider-${index}`} className="workspace-sidebar__divider" role="presentation" />
-              }
-              if (item.type === 'section') {
-                return (
-                  <div
-                    key={`workspace-section-${index}`}
-                    className="workspace-sidebar__section"
-                    role="presentation"
-                  >
-                    {item.label}
-                  </div>
-                )
-              }
-              const isDisabled = Boolean(item.disabled || item.preparing)
-              const isActive =
-                !isDisabled &&
-                item.path.trim() !== '' &&
-                item.path !== '#' &&
-                sidebarLinkIsActive(location.pathname, item.path)
-              return (
-                <FormButton
-                  key={`${item.path}-${item.label}-${index}`}
-                  htmlType="button"
-                  variant="secondary"
-                  className={`workspace-sidebar__menu-item${isActive ? ' workspace-sidebar__menu-item--active' : ''}`}
-                  disabled={isDisabled}
-                  aria-current={isActive ? 'page' : undefined}
-                  onClick={() => {
-                    /*
-                     * 개발중(disabled/preparing) 항목은 클릭 자체가 비활성(모달/알림 없음).
-                     * 사용자에게는 옆에 붙은 `badge` 라벨로만 상태를 알린다.
-                     */
-                    if (isDisabled) {
-                      return
-                    }
-                    if (!item.path.trim() || item.path === '#') {
-                      return
-                    }
-                    setSelectedCustomerPc(extractCustomerIdFromPath(item.path))
-                    navigate(item.path)
-                  }}
-                >
-                  <span className="workspace-sidebar__menu-item-label">{item.label}</span>
-                  {item.badge ? (
-                    <span className="workspace-sidebar__menu-item-badge">{item.badge}</span>
-                  ) : null}
-                </FormButton>
-              )
-            })}
-          </nav>
+          <PCSidebarNavigation
+            items={sidebarItems}
+            pathname={location.pathname}
+            isActivePath={sidebarLinkIsActive}
+            onNavigate={(path) => {
+              setSelectedCustomerPc(extractCustomerIdFromPath(path))
+              navigate(path)
+            }}
+          />
 
           {/*
             · 로그아웃은 .workspace-sidebar__footer 라는 별도 하단 블록에 둔다.
