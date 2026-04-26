@@ -81,35 +81,12 @@ import {
   parseSelectedCustomerId,
   resolveCustomerScrollContainer,
 } from '../utils/customerWorkspaceNavigation'
+import {
+  INVITE_COPY_POINTER_DEBOUNCE_MS,
+  copyTextWithWebViewFallback,
+} from '../utils/customerInviteClipboard'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
-
-/** WebView: touchstart·mousedown·합성 click 연속 시 복사/알림 중복 방지 */
-const INVITE_COPY_POINTER_DEBOUNCE_MS = 450
-
-async function copyTextWithWebViewFallback(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    const textarea = document.createElement('textarea')
-    textarea.value = text
-    textarea.style.position = 'fixed'
-    textarea.style.opacity = '0'
-    textarea.style.pointerEvents = 'none'
-    document.body.appendChild(textarea)
-
-    try {
-      textarea.focus()
-      textarea.select()
-      return document.execCommand('copy')
-    } catch {
-      return false
-    } finally {
-      document.body.removeChild(textarea)
-    }
-  }
-}
 
 type CustomerSortType = 'age' | 'car' | 'recent' | null
 
@@ -121,7 +98,6 @@ function coerceCustomersStatePayload(rows: unknown): CustomerRecord[] {
   }
   return rows.map((c, idx) => assertCustomerDataRecord(c, { listIndex: idx }))
 }
-
 export default function CustomersPage() {
   const navigate = useNavigate()
   const location = useLocation()
