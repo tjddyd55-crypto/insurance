@@ -1,17 +1,59 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type RefObject } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { FormButton } from '../form'
 import { useAuth } from '../../features/auth/AuthProvider'
-import { buildAppMenuForSession } from '../../features/dashboard/gaTenantMenu'
+import { buildAppMenuForSession, type GaTenantDashboardMenuEntry } from '../../features/dashboard/gaTenantMenu'
 import { fetchTeamMembers } from '../../features/team/api/teamApi'
+import { NotificationBell } from '../../features/notification/components/NotificationBell'
 import { isActivePcNavigationPath } from './pcNavigationUtils'
 import './pc-top-navigation.css'
 
-export default function PCTopNavigation() {
+type LinkEntry = Extract<GaTenantDashboardMenuEntry, { type: 'link' }>
+
+type MenuGroup = {
+  label: string
+  items: LinkEntry[]
+}
+
+type Props = {
+  showNotification?: boolean
+  notificationBoundaryRef?: RefObject<HTMLElement | null>
+  onLogout?: () => void
+}
+
+function buildMenuGroups(entries: GaTenantDashboardMenuEntry[]): MenuGroup[] {
+  const groups: MenuGroup[] = []
+  let currentGroup: MenuGroup | null = null
+
+  for (const entry of entries.filter(Boolean)) {
+    if (entry.type === 'divider') {
+      continue
+    }
+    if (entry.type === 'section') {
+      currentGroup = { label: entry.label, items: [] }
+      groups.push(currentGroup)
+      continue
+    }
+    if (!currentGroup) {
+      currentGroup = { label: '메뉴', items: [] }
+      groups.push(currentGroup)
+    }
+    currentGroup.items.push(entry)
+  }
+
+  return groups.filter((group) => group.items.length > 0)
+}
+
+export default function PCTopNavigation({
+  showNotification = false,
+  notificationBoundaryRef,
+  onLogout,
+}: Props) {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, token } = useAuth()
   const [teamMenuManageVisible, setTeamMenuManageVisible] = useState(false)
+  const [openGroupLabel, setOpenGroupLabel] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -63,52 +105,104 @@ export default function PCTopNavigation() {
     user?.subscription?.effectiveStatus,
   ])
 
-  const safeItems = items.filter(Boolean)
+  const groups = useMemo(() => buildMenuGroups(items), [items])
+  const activeGroup = useMemo(() => {
+    return groups.find((group) =>
+      group.items.some((item) =>
+        !item.disabled &&
+        !item.preparing &&
+        item.path.trim() !== '' &&
+        item.path !== '#' &&
+        isActivePcNavigationPath(location.pathname, item.path),
+      ),
+    )
+  }, [groups, location.pathname])
+  const openGroup = groups.find((group) => group.label === openGroupLabel) ?? activeGroup ?? groups[0]
 
   return (
-    <nav className="pc-top-navigation" aria-label="PC 상단 주요 메뉴">
-      {safeItems.map((item, index) => {
-        if (item.type === 'divider') {
-          return <div key={`pc-top-divider-${index}`} className="pc-top-navigation__divider" role="presentation" />
-        }
-        if (item.type === 'section') {
-          return (
-            <div key={`pc-top-section-${index}`} className="pc-top-navigation__section" role="presentation">
-              {item.label}
-            </div>
-          )
-        }
+    <nav
+      className="pc-top-navigation pc-top-navigation--dropdown"
+      aria-label="PC 상단 주요 메뉴"
+      onMouseLeave={() => setOpenGroupLabel(null)}
+    >
+      <div className="pc-top-navigation__bar">
+        <div className="pc-top-navigation__groups" role="menubar" aria-label="PC 업무 대분류 메뉴">
+          {groups.map((group) => {
+            const isActive = activeGroup?.label === group.label
+            const isOpen = openGroup?.label === group.label
+            return (
+              <button
+                key={group.label}
+                type="button"
+                className={`pc-top-navigation__group${isActive ? ' pc-top-navigation__group--active' : ''}${isOpen ? ' pc-top-navigation__group--open' : ''}`}
+                aria-haspopup="menu"
+                aria-expanded={isOpen}
+                onMouseEnter={() => setOpenGroupLabel(group.label)}
+                onFocus={() => setOpenGroupLabel(group.label)}
+              >
+                {group.label}
+              </button>
+            )
+          })}
+        </div>
 
-        const isDisabled = Boolean(item.disabled || item.preparing)
-        const isActive =
-          !isDisabled &&
-          item.path.trim() !== '' &&
-          item.path !== '#' &&
-          isActivePcNavigationPath(location.pathname, item.path)
+        <div className="pc-top-navigation__actions" aria-label="PC 상단 액션">
+          {showNotification ? (
+            <NotificationBell variant="workspaceHeader" boundaryRef={notificationBoundaryRef} />
+          ) : null}
+          {onLogout ? (
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="pc-top-navigation__logout"
+              onClick={onLogout}
+            >
+              로그아웃
+            </FormButton>
+          ) : null}
+        </div>
+      </div>
 
-        return (
-          <FormButton
-            key={`${item.path}-${item.label}-${index}`}
-            htmlType="button"
-            variant="secondary"
-            className={`pc-top-navigation__item${isActive ? ' pc-top-navigation__item--active' : ''}`}
-            disabled={isDisabled}
-            aria-current={isActive ? 'page' : undefined}
-            onClick={() => {
-              if (isDisabled) {
-                return
-              }
-              if (!item.path.trim() || item.path === '#') {
-                return
-              }
-              navigate(item.path)
-            }}
-          >
-            <span className="pc-top-navigation__item-label">{item.label}</span>
-            {item.badge ? <span className="pc-top-navigation__item-badge">{item.badge}</span> : null}
-          </FormButton>
-        )
-      })}
+      {openGroup ? (
+        <div className="pc-top-navigation__dropdown" role="menu" aria-label={`${openGroup.label} 하위 메뉴`}>
+          <div className="pc-top-navigation__dropdown-title">{openGroup.label}</div>
+          <div className="pc-top-navigation__dropdown-items">
+            {openGroup.items.map((item, index) => {
+              const isDisabled = Boolean(item.disabled || item.preparing)
+              const isActive =
+                !isDisabled &&
+                item.path.trim() !== '' &&
+                item.path !== '#' &&
+                isActivePcNavigationPath(location.pathname, item.path)
+
+              return (
+                <FormButton
+                  key={`${item.path}-${item.label}-${index}`}
+                  htmlType="button"
+                  variant="secondary"
+                  className={`pc-top-navigation__item${isActive ? ' pc-top-navigation__item--active' : ''}`}
+                  disabled={isDisabled}
+                  role="menuitem"
+                  aria-current={isActive ? 'page' : undefined}
+                  onClick={() => {
+                    if (isDisabled) {
+                      return
+                    }
+                    if (!item.path.trim() || item.path === '#') {
+                      return
+                    }
+                    navigate(item.path)
+                    setOpenGroupLabel(null)
+                  }}
+                >
+                  <span className="pc-top-navigation__item-label">{item.label}</span>
+                  {item.badge ? <span className="pc-top-navigation__item-badge">{item.badge}</span> : null}
+                </FormButton>
+              )
+            })}
+          </div>
+        </div>
+      ) : null}
     </nav>
   )
 }
