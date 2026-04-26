@@ -71,7 +71,6 @@ import {
 } from '../utils/customerListFilters'
 import { buildSsnDuplicateHighlightByCustomerId } from '../utils/customerSsnDuplicateHighlight'
 import {
-  inferIsDriverFromDriving,
   recordToEditForm,
   normalizeCustomerEditCarYearForApi,
   normalizeCustomerEditRenewalDateForApi,
