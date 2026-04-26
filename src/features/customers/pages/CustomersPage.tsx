@@ -53,13 +53,14 @@ import { useDebounce } from '../../../hooks/useDebounce'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
 import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPolicy'
 import { searchCustomersAdvanced, type CustomerConsultationRow } from '../api/customerExtraApi'
-import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import { FormButton, FormInput, FormTextarea } from '../../../components/form'
 import { useGaSettings } from '../../ga-settings/useGaSettings'
 import CustomerAutoModal from '../components/mobile/CustomerAutoModal'
 import CustomerConsultationsModal from '../components/mobile/CustomerConsultationsModal'
 import CustomerFilesModal from '../components/mobile/CustomerFilesModal'
 import CustomerGaDataModal from '../components/mobile/CustomerGaDataModal'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
+import { CustomerFilterControls } from '../components/CustomerFilterControls'
 import { CustomerWorkspaceActions } from '../components/CustomerWorkspaceActions'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
@@ -2379,146 +2380,19 @@ export default function CustomersPage() {
   const listBodyNode = (
     <section className="list-section" style={{ marginTop: 0 }}>
       {showFilters ? (
-        <>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              marginTop: 8,
-              fontSize: '0.95rem',
-            }}
-          >
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <FormInput
-                type="checkbox"
-                checked={deepSearch}
-                onChange={(e) => setDeepSearch(e.target.checked)}
-              />
-              상담·연계 포함 검색 (서버 심층 검색)
-            </label>
-          </div>
-          {advSearchLoading ? (
-            <p
-              className="text-[var(--text-secondary)]"
-              style={{ margin: '6px 0 0', fontSize: '0.9rem' }}
-              role="status"
-            >
-              심층 검색 중…
-            </p>
-          ) : null}
-
-          <div
-            className="customers-sort-row customer-sort-bar"
-            role="group"
-            aria-label="목록 정렬 (같은 버튼을 다시 누르면 해제되어 이름 가나다순)"
-          >
-            <span className="customers-sort-row__label">정렬</span>
-            <div className="customers-sort-row__buttons filter-group">
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className={`filter-button customer-filter-chip${sortType === 'age' ? ' active customer-filter-chip--active' : ''}`}
-                aria-pressed={sortType === 'age'}
-                onClick={() => setSortType((t) => (t === 'age' ? null : 'age'))}
-              >
-                상령일 빠른순
-              </FormButton>
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className={`filter-button customer-filter-chip${sortType === 'car' ? ' active customer-filter-chip--active' : ''}`}
-                aria-pressed={sortType === 'car'}
-                onClick={() => setSortType((t) => (t === 'car' ? null : 'car'))}
-              >
-                자동차 만기순
-              </FormButton>
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className={`filter-button customer-filter-chip${sortType === 'recent' ? ' active customer-filter-chip--active' : ''}`}
-                aria-pressed={sortType === 'recent'}
-                onClick={() => setSortType((t) => (t === 'recent' ? null : 'recent'))}
-              >
-                최근등록
-              </FormButton>
-            </div>
-          </div>
-
-          <div className="customers-advanced-filters" role="search" aria-label="고급 검색">
-            <div className="customers-advanced-filters__grid">
-              <label className="customers-advanced-filters__field">
-                <span>보험나이 최소</span>
-                <FormInput
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={advancedFilters.minInsuranceAge}
-                  onChange={(e) =>
-                    setAdvancedFilters((f) => ({ ...f, minInsuranceAge: e.target.value }))
-                  }
-                />
-              </label>
-              <label className="customers-advanced-filters__field">
-                <span>보험나이 최대</span>
-                <FormInput
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={advancedFilters.maxInsuranceAge}
-                  onChange={(e) =>
-                    setAdvancedFilters((f) => ({ ...f, maxInsuranceAge: e.target.value }))
-                  }
-                />
-              </label>
-              <label className="customers-advanced-filters__field">
-                <span>성별</span>
-                <FormSelect
-                  value={advancedFilters.gender}
-                  onChange={(e) =>
-                    setAdvancedFilters((f) => ({
-                      ...f,
-                      gender: e.target.value as CustomerAdvancedFilters['gender'],
-                    }))
-                  }
-                  options={[
-                    { value: '', label: '전체' },
-                    { value: 'male', label: '남' },
-                    { value: 'female', label: '여' },
-                  ]}
-                />
-              </label>
-            </div>
-            <div className="customers-advanced-filters__quick filter-group customer-quick-filter-bar">
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className="filter-button customer-filter-chip"
-                onClick={() => applyQuickFilter('AGE_UNDER_30_MALE')}
-              >
-                30세 이하 남성
-              </FormButton>
-              <FormButton
-                htmlType="button"
-                variant="action"
-                className="filter-button customer-filter-chip"
-                onClick={() => applyQuickFilter('AGE_OVER_40_FEMALE')}
-              >
-                40세 이상 여성
-              </FormButton>
-              {advancedFiltersActive ? (
-                <FormButton
-                  htmlType="button"
-                  variant="action"
-                  className="filter-button customer-filter-chip"
-                  onClick={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
-                >
-                  필터 초기화
-                </FormButton>
-              ) : null}
-            </div>
-          </div>
-        </>
+        <CustomerFilterControls
+          variant="filterPanel"
+          deepSearch={deepSearch}
+          setDeepSearch={setDeepSearch}
+          advSearchLoading={advSearchLoading}
+          sortType={sortType}
+          setSortType={setSortType}
+          advancedFilters={advancedFilters}
+          setAdvancedFilters={setAdvancedFilters}
+          advancedFiltersActive={advancedFiltersActive}
+          applyQuickFilter={applyQuickFilter}
+          resetAdvancedFilters={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
+        />
       ) : null}
 
       {!isLoading && customers.length > 0 ? (
