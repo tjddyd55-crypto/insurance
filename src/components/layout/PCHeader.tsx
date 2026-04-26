@@ -4,7 +4,9 @@ import { NotificationBell } from '../../features/notification/components/Notific
 type Props = {
   title: string
   showNotification: boolean
+  sidebarOpen?: boolean
   headerRef: RefObject<HTMLElement | null>
+  onToggleSidebar?: () => void
 }
 
 export default function PCHeader({
