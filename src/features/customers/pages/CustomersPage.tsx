@@ -60,6 +60,16 @@ import CustomerListCard, {
   type CustomerSsnDupHighlight,
 } from '../components/CustomerListCard'
 import { getCustomerListMetrics } from '../utils/customerListMetrics'
+import {
+  type CustomerAdvancedFilters,
+  EMPTY_ADVANCED_FILTERS,
+  customerRenewalYmd,
+  customerPassesAdvancedFilters,
+  ymdAscSortKey,
+  parseCreatedAtMs,
+  normalizeYmd,
+  parseYmdMs,
+} from '../utils/customerListFilters'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
 
@@ -184,18 +194,6 @@ function inferIsDriverFromDriving(driving: string): boolean | null {
   return null
 }
 
-type CustomerAdvancedFilters = {
-  minInsuranceAge: string
-  maxInsuranceAge: string
-  gender: '' | 'male' | 'female'
-}
-
-const EMPTY_ADVANCED_FILTERS: CustomerAdvancedFilters = {
-  minInsuranceAge: '',
-  maxInsuranceAge: '',
-  gender: '',
-}
-
 /** 주민번호(숫자 13자리) 중복 그룹마다 순환 적용하는 표시색 */
 const CUSTOMER_SSN_DUP_PALETTE = [
   'var(--distinct-hue-0)',
@@ -230,75 +228,9 @@ function buildSsnDuplicateHighlightByCustomerId(rows: CustomerRecord[]): Map<num
   return out
 }
 
-function parseOptionalInt(s: string): number | null {
-  const t = s.trim()
-  if (!t) {
-    return null
-  }
-  const n = Number.parseInt(t, 10)
-  return Number.isFinite(n) ? n : null
-}
-
 function parseSelectedCustomerId(raw: string | null): number | null {
   const n = Number(raw)
   return Number.isInteger(n) && n > 0 ? n : null
-}
-
-function customerRenewalYmd(c: CustomerRecord): string | null {
-  const raw = (c.renewalDate ?? '').trim().slice(0, 10)
-  return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null
-}
-
-function customerPassesAdvancedFilters(c: CustomerRecord, filters: CustomerAdvancedFilters): boolean {
-  const metrics = getCustomerListMetrics(c)
-
-  if (filters.gender === 'male' || filters.gender === 'female') {
-    if (c.gender !== filters.gender) {
-      return false
-    }
-  }
-
-  const minA = parseOptionalInt(filters.minInsuranceAge)
-  if (minA != null) {
-    if (metrics.insuranceAge == null || metrics.insuranceAge < minA) {
-      return false
-    }
-  }
-
-  const maxA = parseOptionalInt(filters.maxInsuranceAge)
-  if (maxA != null) {
-    if (metrics.insuranceAge == null || metrics.insuranceAge > maxA) {
-      return false
-    }
-  }
-
-  return true
-}
-
-function ymdAscSortKey(ymd: string | null): string {
-  return ymd ?? '9999-12-31'
-}
-
-function parseCreatedAtMs(iso: string | undefined | null): number {
-  const t = Date.parse(String(iso ?? ''))
-  return Number.isFinite(t) ? t : 0
-}
-
-function normalizeYmd(value: string | null | undefined): string | null {
-  const s = String(value ?? '').trim()
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    return null
-  }
-  return s
-}
-
-function parseYmdMs(ymd: string | null | undefined): number {
-  const valid = normalizeYmd(ymd)
-  if (!valid) {
-    return 0
-  }
-  const t = Date.parse(`${valid}T00:00:00.000Z`)
-  return Number.isFinite(t) ? t : 0
 }
 
 type CustomerSortType = 'age' | 'car' | 'recent' | null
@@ -349,6 +281,7 @@ function coerceCustomersStatePayload(rows: unknown): CustomerRecord[] {
   }
   return rows.map((c, idx) => assertCustomerDataRecord(c, { listIndex: idx }))
 }
+
 
 export default function CustomersPage() {
   const navigate = useNavigate()
