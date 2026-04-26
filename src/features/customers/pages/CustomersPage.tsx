@@ -25,7 +25,7 @@ import {
   updateCustomer,
 } from '../api/customersApi'
 import type { CustomerRecord } from '../domain/types'
-import { customerNoteItems, normalizeCustomerNotesBag } from '../domain/types'
+import { customerNoteItems } from '../domain/types'
 import { buildKakaoCustomerCopyText } from '../utils/customerText'
 import { EXCEL_COLUMN_META, exportCustomersExcel } from '../utils/exportCustomersExcel'
 import {
@@ -70,6 +70,12 @@ import {
   parseYmdMs,
 } from '../utils/customerListFilters'
 import { buildSsnDuplicateHighlightByCustomerId } from '../utils/customerSsnDuplicateHighlight'
+import {
+  inferIsDriverFromDriving,
+  recordToEditForm,
+  normalizeCustomerEditCarYearForApi,
+  normalizeCustomerEditRenewalDateForApi,
+} from '../utils/customerEditFormState'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
 
@@ -180,64 +186,12 @@ async function copyTextWithWebViewFallback(text: string): Promise<boolean> {
   }
 }
 
-function inferIsDriverFromDriving(driving: string): boolean | null {
-  const t = String(driving ?? '').trim()
-  if (!t) {
-    return null
-  }
-  if (t.includes('운전 안함') || t.includes('안 함')) {
-    return false
-  }
-  if (t.startsWith('운전함') || t === '운전') {
-    return true
-  }
-  return null
-}
-
 function parseSelectedCustomerId(raw: string | null): number | null {
   const n = Number(raw)
   return Number.isInteger(n) && n > 0 ? n : null
 }
 
 type CustomerSortType = 'age' | 'car' | 'recent' | null
-
-function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
-  let isDriver = c.isDriver
-  if (isDriver == null) {
-    isDriver = inferIsDriverFromDriving(c.driving)
-  }
-  return {
-    name: c.name ?? '',
-    gender: c.gender ?? null,
-    ssn: c.ssn ?? '',
-    phone: c.phone ?? '',
-    address: c.address ?? '',
-    height: c.height ?? '',
-    weight: c.weight ?? '',
-    job: c.job ?? '',
-    isDriver,
-    carType: c.carType ?? '',
-    medical: c.medical ?? '',
-    insuranceHistory: normalizeCustomerNotesBag(c.notes).insuranceHistory,
-    carNumber: c.carNumber ?? '',
-    carModel: c.carModel ?? '',
-    carYear: c.carYear ?? '',
-    renewalDate: c.renewalDate ?? '',
-  }
-}
-
-function normalizeCustomerEditCarYearForApi(raw: string | undefined): string {
-  return String(raw ?? '').replace(/\D/g, '')
-}
-
-function normalizeCustomerEditRenewalDateForApi(raw: string | undefined): string {
-  const s = String(raw ?? '').trim()
-  if (!s) {
-    return ''
-  }
-  const head = s.slice(0, 10)
-  return /^\d{4}-\d{2}-\d{2}$/.test(head) ? head : ''
-}
 
 /** API 이후에도 상태에 깨진 행·undefined 슬롯이 들어가지 않도록 최종 방어 */
 function coerceCustomersStatePayload(rows: unknown): CustomerRecord[] {
@@ -247,7 +201,6 @@ function coerceCustomersStatePayload(rows: unknown): CustomerRecord[] {
   }
   return rows.map((c, idx) => assertCustomerDataRecord(c, { listIndex: idx }))
 }
-
 
 export default function CustomersPage() {
   const navigate = useNavigate()
