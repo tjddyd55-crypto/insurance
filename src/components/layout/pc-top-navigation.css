@@ -1,0 +1,82 @@
+.pc-top-navigation {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .pc-top-navigation {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 6px 12px;
+    border-top: 1px solid color-mix(in srgb, var(--border-default, #2a2a2a) 70%, transparent);
+    background: color-mix(in srgb, var(--bg-elevated, #141b26) 92%, #000 8%);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+  }
+
+  .pc-top-navigation__section {
+    flex: 0 0 auto;
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--brand-primary, #60a5fa) 14%, transparent);
+    color: color-mix(in srgb, var(--brand-primary, #60a5fa) 78%, #fff 22%);
+    font-size: 0.72rem;
+    line-height: 1;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .pc-top-navigation__divider {
+    flex: 0 0 auto;
+    width: 1px;
+    height: 22px;
+    margin: 0 2px;
+    background: color-mix(in srgb, var(--border-default, #2a2a2a) 82%, transparent);
+  }
+
+  .pc-top-navigation__item {
+    flex: 0 0 auto;
+    min-height: 30px;
+    height: 30px;
+    width: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .pc-top-navigation__item[aria-current='page'],
+  .pc-top-navigation__item--active {
+    background: color-mix(in srgb, var(--brand-primary, #60a5fa) 22%, transparent);
+    color: var(--text-primary, #fff);
+  }
+
+  .pc-top-navigation__item:disabled {
+    opacity: 0.58;
+    cursor: not-allowed;
+  }
+
+  .pc-top-navigation__item-label {
+    white-space: nowrap;
+  }
+
+  .pc-top-navigation__item-badge {
+    flex: 0 0 auto;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--warning, #f59e0b) 18%, transparent);
+    color: color-mix(in srgb, var(--warning, #f59e0b) 78%, #fff 22%);
+    font-size: 0.66rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+}
