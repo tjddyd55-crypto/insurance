@@ -1,4 +1,5 @@
 import { type RefObject } from 'react'
+import { FormButton } from '../form'
 import { NotificationBell } from '../../features/notification/components/NotificationBell'
 
 type Props = {
@@ -12,7 +13,9 @@ type Props = {
 export default function PCHeader({
   title,
   showNotification,
+  sidebarOpen = true,
   headerRef,
+  onToggleSidebar,
 }: Props) {
   return (
     <header
@@ -22,6 +25,18 @@ export default function PCHeader({
     >
       <div className="app-workspace-chrome-header__row pc-workspace-header__row">
         <div className="pc-workspace-header__left">
+          {onToggleSidebar ? (
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="pc-workspace-header__sidebar-toggle menu-btn"
+              aria-label={sidebarOpen ? '좌측 메뉴 접기' : '좌측 메뉴 열기'}
+              aria-expanded={sidebarOpen}
+              onClick={onToggleSidebar}
+            >
+              ☰
+            </FormButton>
+          ) : null}
           <div className="header-left app-workspace-chrome-header__leading">
             <span className="ga-name app-workspace-chrome-header__ga">{title}</span>
           </div>
