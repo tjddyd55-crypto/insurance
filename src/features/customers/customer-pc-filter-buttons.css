@@ -1,50 +1,49 @@
 @media (min-width: 1024px) {
   /*
-   * PC 고객관리 필터성 버튼 정리
+   * PC 고객관리 필터/정렬/퀵필터 UI
    *
-   * 범위:
-   * - 중요 고객 / 필터 토글
-   * - 정렬 버튼
-   * - 빠른 필터 버튼
-   * - 필터 패널 내부 버튼
+   * 정석 규칙:
+   * - 이 파일은 의미 있는 className만 바라본다.
+   * - 넓은 selector(.filter-button 전체, button 전체)로 억지 보정하지 않는다.
+   * - 고객 등록 / 등록 링크 / 엑셀 다운로드 같은 primary action은 여기서 다루지 않는다.
+   * - JSX 수정 위치는 CustomersPage.tsx의 PC 필터/정렬/퀵필터 렌더링 영역이다.
    *
-   * 제외:
-   * - 고객 등록 / 등록 링크 / 엑셀 다운로드 같은 상단 주요 액션 버튼
-   * - 모바일 고객 화면
+   * 기대 JSX 구조:
+   * - customer-filter-bar: 중요 고객 / 필터 토글
+   * - customer-sort-bar: 정렬 버튼 묶음
+   * - customer-quick-filter-bar: 빠른 필터 버튼 묶음
+   * - customer-filter-panel-actions: 필터 패널 내부 액션 묶음
+   * - customer-filter-chip: 필터성 버튼 공통
+   * - customer-filter-chip--active: 선택/활성 상태
    */
-  .customers-page--pc .customer-filter-toolbar,
-  .customers-page--pc .customer-filter-actions,
-  .customers-page--pc .customer-sort-toolbar,
-  .customers-page--pc .customer-quick-filters,
-  .customers-page--pc .customer-filter-panel__actions,
-  .customers-page--pc .customer-filter-panel__quick-actions,
-  .customers-page--pc .customers-page__filters,
-  .customers-page--pc .customer-search-row,
-  .customers-page--pc .customers-page__result-count {
+
+  .app-workspace-layout-root .workspace-main.workspace-main--app .app-main-content.app-main-content--workspace-outlet-host {
+    padding-top: 14px;
+  }
+
+  .customers-page--pc .customer-filter-bar,
+  .customers-page--pc .customer-sort-bar,
+  .customers-page--pc .customer-quick-filter-bar,
+  .customers-page--pc .customer-filter-panel-actions {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 8px;
   }
 
-  .customers-page--pc .customer-filter-toolbar .button,
-  .customers-page--pc .customer-filter-toolbar button,
-  .customers-page--pc .customer-filter-actions .button,
-  .customers-page--pc .customer-filter-actions button,
-  .customers-page--pc .customer-sort-toolbar .button,
-  .customers-page--pc .customer-sort-toolbar button,
-  .customers-page--pc .customer-quick-filters .button,
-  .customers-page--pc .customer-quick-filters button,
-  .customers-page--pc .customer-filter-panel__actions .button,
-  .customers-page--pc .customer-filter-panel__actions button,
-  .customers-page--pc .customer-filter-panel__quick-actions .button,
-  .customers-page--pc .customer-filter-panel__quick-actions button,
-  .customers-page--pc .customers-page__filters button,
-  .customers-page--pc .customer-search-row button,
-  .customers-page--pc .customers-page__result-count button,
-  .customers-page--pc .filter-button {
+  .customers-page--pc .customer-filter-bar,
+  .customers-page--pc .customer-sort-bar,
+  .customers-page--pc .customer-quick-filter-bar {
+    margin-top: 8px;
+  }
+
+  .customers-page--pc .customer-filter-chip {
     min-height: 34px;
     height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     padding: 0 12px;
     border-radius: 999px;
     border: 1px solid color-mix(in srgb, var(--border-default, #334155) 86%, transparent);
@@ -56,80 +55,26 @@
     white-space: nowrap;
   }
 
-  .customers-page--pc .customer-filter-toolbar .button:hover:not(:disabled),
-  .customers-page--pc .customer-filter-toolbar button:hover:not(:disabled),
-  .customers-page--pc .customer-filter-actions .button:hover:not(:disabled),
-  .customers-page--pc .customer-filter-actions button:hover:not(:disabled),
-  .customers-page--pc .customer-sort-toolbar .button:hover:not(:disabled),
-  .customers-page--pc .customer-sort-toolbar button:hover:not(:disabled),
-  .customers-page--pc .customer-quick-filters .button:hover:not(:disabled),
-  .customers-page--pc .customer-quick-filters button:hover:not(:disabled),
-  .customers-page--pc .customer-filter-panel__actions .button:hover:not(:disabled),
-  .customers-page--pc .customer-filter-panel__actions button:hover:not(:disabled),
-  .customers-page--pc .customer-filter-panel__quick-actions .button:hover:not(:disabled),
-  .customers-page--pc .customer-filter-panel__quick-actions button:hover:not(:disabled),
-  .customers-page--pc .customers-page__filters button:hover:not(:disabled),
-  .customers-page--pc .customer-search-row button:hover:not(:disabled),
-  .customers-page--pc .customers-page__result-count button:hover:not(:disabled),
-  .customers-page--pc .filter-button:hover:not(:disabled) {
+  .customers-page--pc .customer-filter-chip:hover:not(:disabled) {
     border-color: color-mix(in srgb, var(--brand-primary, #60a5fa) 48%, transparent);
     background: color-mix(in srgb, var(--brand-primary, #60a5fa) 16%, var(--bg-card, #1e293b) 84%);
     color: var(--text-primary, #fff);
   }
 
-  .customers-page--pc .customer-filter-toolbar .button[aria-pressed='true'],
-  .customers-page--pc .customer-filter-toolbar button[aria-pressed='true'],
-  .customers-page--pc .customer-filter-actions .button[aria-pressed='true'],
-  .customers-page--pc .customer-filter-actions button[aria-pressed='true'],
-  .customers-page--pc .customer-sort-toolbar .button[aria-pressed='true'],
-  .customers-page--pc .customer-sort-toolbar button[aria-pressed='true'],
-  .customers-page--pc .customer-quick-filters .button[aria-pressed='true'],
-  .customers-page--pc .customer-quick-filters button[aria-pressed='true'],
-  .customers-page--pc .customer-filter-panel__actions .button[aria-pressed='true'],
-  .customers-page--pc .customer-filter-panel__actions button[aria-pressed='true'],
-  .customers-page--pc .customer-filter-panel__quick-actions .button[aria-pressed='true'],
-  .customers-page--pc .customer-filter-panel__quick-actions button[aria-pressed='true'],
-  .customers-page--pc .customers-page__filters button[aria-pressed='true'],
-  .customers-page--pc .customer-search-row button[aria-pressed='true'],
-  .customers-page--pc .customers-page__result-count button[aria-pressed='true'],
-  .customers-page--pc .customer-filter-toolbar .button--active,
-  .customers-page--pc .customer-filter-actions .button--active,
-  .customers-page--pc .customer-sort-toolbar .button--active,
-  .customers-page--pc .customer-quick-filters .button--active,
-  .customers-page--pc .filter-button[aria-pressed='true'],
-  .customers-page--pc .filter-button--active {
+  .customers-page--pc .customer-filter-chip[aria-pressed='true'],
+  .customers-page--pc .customer-filter-chip--active {
     border-color: color-mix(in srgb, var(--brand-primary, #60a5fa) 62%, transparent);
     background: color-mix(in srgb, var(--brand-primary, #60a5fa) 24%, transparent);
     color: var(--text-primary, #fff);
   }
 
-  /* 고객 등록 / 등록 링크 / 엑셀 다운로드 같은 상단 주요 액션은 기존 스타일 유지 */
-  .customers-page--pc .customers-page__top-actions .button,
-  .customers-page--pc .customers-page__top-actions button {
-    min-height: revert;
-    height: revert;
-    padding: revert;
-    border-radius: revert;
-    border: revert;
-    background: revert;
-    color: revert;
-    font-size: revert;
-    font-weight: revert;
+  .customers-page--pc .customer-filter-chip:disabled {
+    opacity: 0.52;
+    cursor: not-allowed;
   }
 
-  /* 1번: PC 상단 메뉴와 실제 워크스페이스 사이 여백 확보 */
-  .app-workspace-layout-root .workspace-main.workspace-main--app .app-main-content.app-main-content--workspace-outlet-host {
-    padding-top: 14px;
-  }
-
-  /* 3번: PC 고객 작업영역 우측 액션 버튼 가독성 개선 */
-  .customers-page--pc .customer-workspace-layout__right-header {
-    align-items: flex-start;
-    gap: 16px;
-    padding-top: 2px;
-  }
-
-  .customers-page--pc .customer-workspace-layout__actions {
+  /* PC 고객 작업영역 우측 액션 버튼 — 별도 의미 className 기준 */
+  .customers-page--pc .customer-workspace-action-bar {
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -138,9 +83,12 @@
     min-width: 0;
   }
 
-  .customers-page--pc .customer-workspace-layout__actions .filter-button {
+  .customers-page--pc .customer-workspace-action-button {
     min-height: 36px;
     height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 0 13px;
     border-radius: 10px;
     border: 1px solid color-mix(in srgb, var(--border-default, #334155) 82%, transparent);
@@ -152,13 +100,13 @@
     white-space: nowrap;
   }
 
-  .customers-page--pc .customer-workspace-layout__actions .filter-button:hover:not(:disabled) {
+  .customers-page--pc .customer-workspace-action-button:hover:not(:disabled) {
     border-color: color-mix(in srgb, var(--brand-primary, #60a5fa) 50%, transparent);
     background: color-mix(in srgb, var(--brand-primary, #60a5fa) 15%, var(--bg-card, #1e293b) 85%);
     color: var(--text-primary, #fff);
   }
 
-  .customers-page--pc .customer-workspace-layout__actions .filter-button--workspace-active {
+  .customers-page--pc .customer-workspace-action-button--active {
     border-color: color-mix(in srgb, var(--brand-primary, #60a5fa) 64%, transparent);
     background: color-mix(in srgb, var(--brand-primary, #60a5fa) 24%, transparent);
     color: var(--text-primary, #fff);
