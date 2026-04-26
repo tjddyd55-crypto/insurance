@@ -1,0 +1,103 @@
+@media (min-width: 1024px) {
+  /*
+   * PC 고객관리 필터성 버튼 정리
+   *
+   * 범위:
+   * - 중요 고객 / 필터 토글
+   * - 정렬 버튼
+   * - 빠른 필터 버튼
+   * - 필터 패널 내부 버튼
+   *
+   * 제외:
+   * - 고객 등록 / 등록 링크 / 엑셀 다운로드 같은 상단 주요 액션 버튼
+   * - 모바일 고객 화면
+   */
+  .customers-page--pc .customer-filter-toolbar,
+  .customers-page--pc .customer-filter-actions,
+  .customers-page--pc .customer-sort-toolbar,
+  .customers-page--pc .customer-quick-filters,
+  .customers-page--pc .customer-filter-panel__actions,
+  .customers-page--pc .customer-filter-panel__quick-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .customers-page--pc .customer-filter-toolbar .button,
+  .customers-page--pc .customer-filter-toolbar button,
+  .customers-page--pc .customer-filter-actions .button,
+  .customers-page--pc .customer-filter-actions button,
+  .customers-page--pc .customer-sort-toolbar .button,
+  .customers-page--pc .customer-sort-toolbar button,
+  .customers-page--pc .customer-quick-filters .button,
+  .customers-page--pc .customer-quick-filters button,
+  .customers-page--pc .customer-filter-panel__actions .button,
+  .customers-page--pc .customer-filter-panel__actions button,
+  .customers-page--pc .customer-filter-panel__quick-actions .button,
+  .customers-page--pc .customer-filter-panel__quick-actions button {
+    min-height: 32px;
+    height: 32px;
+    padding: 0 11px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--border-default, #334155) 86%, transparent);
+    background: color-mix(in srgb, var(--bg-card, #1e293b) 88%, #000 12%);
+    color: color-mix(in srgb, var(--text-primary, #f8fafc) 92%, transparent);
+    font-size: 0.78rem;
+    line-height: 1;
+    font-weight: 850;
+    white-space: nowrap;
+  }
+
+  .customers-page--pc .customer-filter-toolbar .button:hover:not(:disabled),
+  .customers-page--pc .customer-filter-toolbar button:hover:not(:disabled),
+  .customers-page--pc .customer-filter-actions .button:hover:not(:disabled),
+  .customers-page--pc .customer-filter-actions button:hover:not(:disabled),
+  .customers-page--pc .customer-sort-toolbar .button:hover:not(:disabled),
+  .customers-page--pc .customer-sort-toolbar button:hover:not(:disabled),
+  .customers-page--pc .customer-quick-filters .button:hover:not(:disabled),
+  .customers-page--pc .customer-quick-filters button:hover:not(:disabled),
+  .customers-page--pc .customer-filter-panel__actions .button:hover:not(:disabled),
+  .customers-page--pc .customer-filter-panel__actions button:hover:not(:disabled),
+  .customers-page--pc .customer-filter-panel__quick-actions .button:hover:not(:disabled),
+  .customers-page--pc .customer-filter-panel__quick-actions button:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--brand-primary, #60a5fa) 48%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #60a5fa) 16%, var(--bg-card, #1e293b) 84%);
+    color: var(--text-primary, #fff);
+  }
+
+  .customers-page--pc .customer-filter-toolbar .button[aria-pressed='true'],
+  .customers-page--pc .customer-filter-toolbar button[aria-pressed='true'],
+  .customers-page--pc .customer-filter-actions .button[aria-pressed='true'],
+  .customers-page--pc .customer-filter-actions button[aria-pressed='true'],
+  .customers-page--pc .customer-sort-toolbar .button[aria-pressed='true'],
+  .customers-page--pc .customer-sort-toolbar button[aria-pressed='true'],
+  .customers-page--pc .customer-quick-filters .button[aria-pressed='true'],
+  .customers-page--pc .customer-quick-filters button[aria-pressed='true'],
+  .customers-page--pc .customer-filter-panel__actions .button[aria-pressed='true'],
+  .customers-page--pc .customer-filter-panel__actions button[aria-pressed='true'],
+  .customers-page--pc .customer-filter-panel__quick-actions .button[aria-pressed='true'],
+  .customers-page--pc .customer-filter-panel__quick-actions button[aria-pressed='true'],
+  .customers-page--pc .customer-filter-toolbar .button--active,
+  .customers-page--pc .customer-filter-actions .button--active,
+  .customers-page--pc .customer-sort-toolbar .button--active,
+  .customers-page--pc .customer-quick-filters .button--active {
+    border-color: color-mix(in srgb, var(--brand-primary, #60a5fa) 62%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #60a5fa) 24%, transparent);
+    color: var(--text-primary, #fff);
+  }
+
+  /* 현재 화면에서 필터/중요고객 토글이 공통 filter-button 클래스를 쓰는 경우만 보정 */
+  .customers-page--pc .customer-filter-toolbar .filter-button,
+  .customers-page--pc .customer-filter-actions .filter-button,
+  .customers-page--pc .customer-sort-toolbar .filter-button,
+  .customers-page--pc .customer-quick-filters .filter-button,
+  .customers-page--pc .customer-filter-panel__actions .filter-button,
+  .customers-page--pc .customer-filter-panel__quick-actions .filter-button {
+    min-height: 32px;
+    height: 32px;
+    padding-inline: 11px;
+    font-size: 0.78rem;
+    font-weight: 850;
+  }
+}
