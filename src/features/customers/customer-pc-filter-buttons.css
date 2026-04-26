@@ -100,4 +100,51 @@
     font-size: 0.78rem;
     font-weight: 850;
   }
+
+  /* 1번: PC 상단 메뉴와 실제 워크스페이스 사이 여백 확보 */
+  .app-workspace-layout-root .workspace-main.workspace-main--app .app-main-content.app-main-content--workspace-outlet-host {
+    padding-top: 14px;
+  }
+
+  /* 3번: PC 고객 작업영역 우측 액션 버튼 가독성 개선 */
+  .customers-page--pc .customer-workspace-layout__right-header {
+    align-items: flex-start;
+    gap: 16px;
+    padding-top: 2px;
+  }
+
+  .customers-page--pc .customer-workspace-layout__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .customers-page--pc .customer-workspace-layout__actions .filter-button {
+    min-height: 36px;
+    height: 36px;
+    padding: 0 13px;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--border-default, #334155) 82%, transparent);
+    background: color-mix(in srgb, var(--bg-card, #1e293b) 90%, #000 10%);
+    color: color-mix(in srgb, var(--text-primary, #f8fafc) 94%, transparent);
+    font-size: 0.82rem;
+    line-height: 1;
+    font-weight: 850;
+    white-space: nowrap;
+  }
+
+  .customers-page--pc .customer-workspace-layout__actions .filter-button:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--brand-primary, #60a5fa) 50%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #60a5fa) 15%, var(--bg-card, #1e293b) 85%);
+    color: var(--text-primary, #fff);
+  }
+
+  .customers-page--pc .customer-workspace-layout__actions .filter-button--workspace-active {
+    border-color: color-mix(in srgb, var(--brand-primary, #60a5fa) 64%, transparent);
+    background: color-mix(in srgb, var(--brand-primary, #60a5fa) 24%, transparent);
+    color: var(--text-primary, #fff);
+  }
 }
