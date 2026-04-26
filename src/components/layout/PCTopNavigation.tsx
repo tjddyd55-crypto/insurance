@@ -90,9 +90,11 @@ export default function PCTopNavigation() {
     user?.subscription?.effectiveStatus,
   ])
 
+  const safeItems = items.filter(Boolean)
+
   return (
     <nav className="pc-top-navigation" aria-label="PC 상단 주요 메뉴">
-      {items.map((item, index) => {
+      {safeItems.map((item, index) => {
         if (item.type === 'divider') {
           return <div key={`pc-top-divider-${index}`} className="pc-top-navigation__divider" role="presentation" />
         }
