@@ -754,6 +754,39 @@
   background: var(--intro-btn-green-hover);
 }
 
+.intro-business-footer {
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
+  padding: 24px 0 28px;
+}
+
+.intro-business-footer dl {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+}
+
+.intro-business-footer__row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.intro-business-footer dt {
+  margin: 0;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.intro-business-footer dd {
+  margin: 0;
+  color: #111827;
+  font-weight: 700;
+}
+
 .intro-v2-btn:disabled,
 .intro-install-prompt button:disabled,
 .intro-install-download-card a[aria-disabled='true'],
@@ -800,5 +833,18 @@
 
   .intro-install-title h2 {
     font-size: 30px;
+  }
+
+  .intro-business-footer {
+    padding: 20px 0 24px;
+  }
+
+  .intro-business-footer dl {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .intro-business-footer__row {
+    font-size: 13px;
   }
 }

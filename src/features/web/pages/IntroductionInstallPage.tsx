@@ -1,6 +1,7 @@
 import { DOWNLOAD_LINKS } from '../constants/downloadLinks'
 import { FormButton } from '../../../components/form'
 import { downloadCustomerUploadSampleXlsx } from '../../customers/utils/customerExcelUpload'
+import { BusinessInfoFooter } from '../components/BusinessInfoFooter'
 
 const GPT_PROMPT_TEXT = `다음 작업을 수행해줘.
 
@@ -261,6 +262,7 @@ export function IntroductionInstallPage() {
           </div>
         </div>
       </section>
+      <BusinessInfoFooter />
     </main>
   )
 }

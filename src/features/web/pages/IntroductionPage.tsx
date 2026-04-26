@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { BusinessInfoFooter } from '../components/BusinessInfoFooter'
 
 export function IntroductionPage() {
   const structureItems = [
@@ -140,6 +141,7 @@ export function IntroductionPage() {
           </Link>
         </div>
       </section>
+      <BusinessInfoFooter />
     </main>
   )
 }
