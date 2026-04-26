@@ -7,6 +7,8 @@ import { listCustomers } from '../../api/customersApi'
 import type { CustomerRecord } from '../../domain/types'
 import type { CustomerWorkspaceLayoutPCProps } from './CustomerWorkspaceLayoutPC'
 
+const RECENT_CUSTOMER_LIMIT = 5
+
 function resolveMobileSheetTitle(pathname: string, search: string): string {
   if (pathname.includes('/claim-requests')) {
     const tab = new URLSearchParams(search).get('claimTab')
@@ -73,7 +75,7 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
     () =>
       [...recentCustomers]
         .sort((a, b) => parseCreatedAtMs(b.createdAt) - parseCreatedAtMs(a.createdAt))
-        .slice(0, 8),
+        .slice(0, RECENT_CUSTOMER_LIMIT),
     [recentCustomers],
   )
 
