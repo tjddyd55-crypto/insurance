@@ -95,6 +95,7 @@ export default function CustomerWorkspaceLayoutPC({
     selectedCustomer?.insuranceAge != null && Number.isFinite(selectedCustomer.insuranceAge)
       ? `보험나이 ${selectedCustomer.insuranceAge}세`
       : null
+  const isCustomerIndexPath = pathname === '/customers' || pathname === '/customers/'
 
   return (
     <section className="customer-workspace-layout__right" aria-label="고객 연동 작업영역">
@@ -190,13 +191,15 @@ export default function CustomerWorkspaceLayoutPC({
       </header>
 
       <div className="customer-workspace-layout__right-body">
-        {selectedCustomerId ? (
+        {selectedCustomerId || isCustomerIndexPath ? (
           /**
            * 고객 id 를 자식 서브트리 `key` 로 선언(routing-ssot.mdc 7).
            * 다중 래퍼 아래에서 `useEffect` deps 누락이 있어도 "전 고객 데이터 잔존" 회귀를
            * 막기 위한 방어 레이어. 같은 고객 내부의 탭 전환은 key 값이 동일하므로 자연 교체된다.
+           *
+           * 고객 미선택 index(`/customers`) 에서는 Outlet 을 렌더해 최근 등록 고객 패널을 보여준다.
            */
-          <Outlet key={selectedCustomerId} context={{ selectedCustomerId }} />
+          <Outlet key={selectedCustomerId ?? 'customer-index'} context={{ selectedCustomerId }} />
         ) : (
           <EmptyState message="고객을 선택해 주세요." />
         )}
