@@ -20,6 +20,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { deleteCustomer, listCustomers, updateCustomer } from '../api/customersApi'
 import type { CustomerRecord } from '../domain/types'
+import type { CustomerSortType } from '../types/customerListSort'
 import { customerNoteItems } from '../domain/types'
 import { buildKakaoCustomerCopyText } from '../utils/customerText'
 import { EXCEL_COLUMN_META, exportCustomersExcel } from '../utils/exportCustomersExcel'
@@ -83,9 +84,6 @@ import {
 import { coerceCustomersStatePayload } from '../utils/customerStateGuards'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
-
-type CustomerSortType = 'age' | 'car' | 'recent' | null
-
 export default function CustomersPage() {
   const navigate = useNavigate()
   const location = useLocation()
