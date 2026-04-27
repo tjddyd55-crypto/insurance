@@ -461,6 +461,7 @@ const CustomerListCard = memo(function CustomerListCard({
                     ins={ins}
                     token={token}
                     expandedId={expandedId}
+                    fetchCarsEnabled={expanded && editingId !== c.id}
                     onOpenRelatedCustomer={onOpenRelatedCustomer}
                   />
                 )}

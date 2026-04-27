@@ -7,8 +7,7 @@ import {
   formatCustomerPhoneUi,
   formatCustomerSsnUi,
 } from '../utils/customerDisplayFormat'
-import { customerRecordToCarFormItemsForDisplay } from '../utils/customerCarFormUtils'
-import { CustomerCarsReadGrid } from './CustomerCarsReadGrid'
+import { CustomerCarsReadSection } from './CustomerCarsReadSection'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 
 export type CustomerDetailInsuranceDisplay = {
@@ -40,6 +39,8 @@ type CustomerDetailReadViewProps = {
   ins: CustomerDetailInsuranceDisplay
   token: string | null
   expandedId: number | null
+  /** 펼친 읽기 모드에서만 customer_cars API 조회 */
+  fetchCarsEnabled: boolean
   onOpenRelatedCustomer: (customerId: number, customerName?: string) => void
 }
 
@@ -48,6 +49,7 @@ export default function CustomerDetailReadView({
   ins,
   token,
   expandedId,
+  fetchCarsEnabled,
   onOpenRelatedCustomer,
 }: CustomerDetailReadViewProps) {
   return (
@@ -154,7 +156,7 @@ export default function CustomerDetailReadView({
         </p>
         <p>{c.medical?.trim() || '—'}</p>
         <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-        <CustomerCarsReadGrid cars={displayCars} />
+        <CustomerCarsReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
         <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
         <div className="customer-section-title !mt-5">📄 [보험가입내역]</div>
         <div className="customer-insurance-history-body">

@@ -4330,6 +4330,12 @@ div.cta-button.customers-page__action-btn[role='button'] {
   opacity: 0.9;
 }
 
+.customer-car-read-section__loading {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
 .customer-car-read-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

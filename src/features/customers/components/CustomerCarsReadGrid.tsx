@@ -3,13 +3,16 @@ import { CustomerCarReadCard } from './CustomerCarReadCard'
 
 export type CustomerCarsReadGridProps = {
   cars: CustomerCarFormItem[]
+  loading?: boolean
 }
 
-export function CustomerCarsReadGrid({ cars }: CustomerCarsReadGridProps) {
+export function CustomerCarsReadGrid({ cars, loading = false }: CustomerCarsReadGridProps) {
   return (
     <section className="customer-car-read-section">
       <h4 className="customer-car-read-section__title">🚗 [자동차보험 정보]</h4>
-      {cars.length > 0 ? (
+      {loading ? (
+        <p className="customer-car-read-section__loading">자동차 정보를 불러오는 중…</p>
+      ) : cars.length > 0 ? (
         <div className="customer-car-read-grid">
           {cars.map((car, index) => (
             <CustomerCarReadCard
