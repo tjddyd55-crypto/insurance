@@ -70,7 +70,7 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
  *
  * ## 구조 — 5 개 카테고리 섹션
  *
- *   1. 고객관리 : 고객리스트
+ *   1. 고객관리 : 고객리스트 · 청구관리
  *   2. 소식지   : 고객 소식지 · 원수사 연락처 · 원수사 소식지 · 손해사정사 소식지 · 세무사 소식지(개발중)
  *   3. 팀관리   : 팀원리스트 · 팀 게시판 · 팀 자료 · (팀 관리 — 오너만)
  *   4. 신청서   : 자동차신청서* · 동행상담신청서 · 다이렉트자동차*(개발중) · 렌트(사고대차)(개발중)
@@ -128,6 +128,7 @@ export function buildGaTenantDashboardMenu(
   return [
     { type: 'section', label: '고객관리' },
     { type: 'link', label: '고객리스트', path: '/customers' },
+    { type: 'link', label: '청구관리', path: '/claim-requests' },
 
     { type: 'section', label: '소식지' },
     { type: 'link', label: '고객 소식지', path: '/claim-requests?claimTab=news-all' },
