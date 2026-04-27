@@ -2,7 +2,7 @@
  * 인증된 세션이 "처음 도착해야 하는" 기본 경로(랜딩 경로)를 결정한다.
  *
  * 정책 근거:
- *  - SUPER_ADMIN 은 관리자 유저 관리 `/admin/users` 로 보낸다.
+ *  - SUPER_ADMIN 은 공통 대시보드 `/dashboard` 로 보낸다 (관리자 메뉴 카드).
  *  - GA_STAFF, INSURER_MANAGER, LOSS_ADJUSTER 등은 각 업무 기본 경로로 보낸다 (`resolveAuthLandingPath` 본문 참고).
  *  - USER / GA_ADMIN 등은 기존과 같다:
  *      - PC: 사이드바가 상존 → `/customers` 직행
@@ -30,7 +30,7 @@ export function resolveAuthLandingPath(isMobile: boolean, role?: AuthLandingRole
   const normalizedRole = String(role ?? '').trim().toUpperCase()
 
   if (normalizedRole === 'SUPER_ADMIN') {
-    return '/admin/users'
+    return '/dashboard'
   }
 
   if (normalizedRole === 'GA_STAFF') {
