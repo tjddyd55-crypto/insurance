@@ -11,6 +11,7 @@ import { initDb } from './initDb.js'
 import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
 import { registerUserProfileApi } from './registerUserProfileApi.js'
 import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
+import { registerCustomerImportApi } from './apis/customerImportApi.js'
 import { registerTeamApi } from './apis/teamApi.js'
 import { registerNotificationsApi } from './apis/notificationsApi.js'
 import { registerMemoApi } from './apis/memoApi.js'
@@ -5847,6 +5848,15 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
   } catch (error) {
     handleDbError(error, req, res)
   }
+})
+
+registerCustomerImportApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+  requireInsuranceFormUserId,
+  parseGaId,
+  recordAnalyticsEvent,
 })
 
 apiRouter.get('/customers/:id', requireAuth, async (req, res) => {

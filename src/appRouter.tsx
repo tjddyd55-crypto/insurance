@@ -38,6 +38,7 @@ import CustomerMemosPage from './features/customers/pages/CustomerMemosPage'
 import CustomerWorkspaceLayout from './features/customers/pages/CustomerWorkspaceLayout'
 import CustomerWorkspaceHomePage from './features/customers/pages/CustomerWorkspaceHomePage'
 import CustomerAutoFormPage from './features/customers/pages/CustomerAutoFormPage'
+import { CustomerAutoImportPage } from './features/customers/import/pages/CustomerAutoImportPage'
 import TeamMembersPage from './features/team/pages/TeamMembersPage'
 import TeamPostsPage from './features/team/pages/TeamPostsPage'
 import TeamFilesPage from './features/team/pages/TeamFilesPage'
@@ -242,6 +243,7 @@ export const appRouter = createBrowserRouter([
                 children: [{ path: 'admin/audit-logs', element: <AuditLogsPage /> }],
               },
               { path: 'profile', element: <ProfilePage /> },
+              { path: 'profile/customer-upload-auto', element: <CustomerAutoImportPage /> },
               { path: 'account/reset', element: <AccountResetPage /> },
               { path: 'feature-request', element: <FeatureRequestPage /> },
               { path: 'claim-requests', element: <ClaimRequestsRoutePage /> },
