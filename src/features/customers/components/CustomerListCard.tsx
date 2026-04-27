@@ -1,7 +1,13 @@
 ﻿import { memo, useState, type Dispatch, type FormEvent, type KeyboardEvent, type SetStateAction } from 'react'
 import { InsuranceInline } from '../../../components/customer/CustomerForm'
 import { EXPANDABLE_CARD_INVALID_ID, useExpandableCard } from '../../../hooks/useExpandableCard'
-import { FormButton, FormInput, FormTextarea } from '../../../components/form'
+import {
+  AddressSearchField,
+  FormButton,
+  FormInput,
+  FormTextarea,
+  type AddressSearchValue,
+} from '../../../components/form'
 import type { CustomerRecord } from '../domain/types'
 import { normalizeCustomerNotesBag } from '../domain/types'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
@@ -129,6 +135,8 @@ export type CustomerEditFormState = {
   ssn: string
   phone: string
   address: string
+  addressDetail: string
+  zonecode: string
   height: string
   weight: string
   job: string
@@ -574,18 +582,29 @@ const CustomerListCard = memo(function CustomerListCard({
                         }
                       />
                     </label>
-                    <label className="field field--wide">
+                    <div className="field field--wide">
                       <span className="field__label">주소</span>
-                      <FormInput
-                        className="field__control"
-                        name="customer-address"
-                        autoComplete="street-address"
-                        value={editForm.address ?? ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, address: e.target.value } : prev))
+                      <AddressSearchField
+                        className="address-search-field"
+                        value={{
+                          zonecode: editForm.zonecode ?? '',
+                          baseAddress: editForm.address ?? '',
+                          detailAddress: editForm.addressDetail ?? '',
+                        }}
+                        onChange={(next: AddressSearchValue) =>
+                          setEditForm((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  zonecode: next.zonecode,
+                                  address: next.baseAddress,
+                                  addressDetail: next.detailAddress,
+                                }
+                              : prev,
+                          )
                         }
                       />
-                    </label>
+                    </div>
                     <label className="field">
                       <span className="field__label">키</span>
                       <FormInput

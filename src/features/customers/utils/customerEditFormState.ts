@@ -27,6 +27,8 @@ export function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
     ssn: c.ssn ?? '',
     phone: c.phone ?? '',
     address: c.address ?? '',
+    addressDetail: '',
+    zonecode: '',
     height: c.height ?? '',
     weight: c.weight ?? '',
     job: c.job ?? '',

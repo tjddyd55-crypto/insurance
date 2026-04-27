@@ -40,7 +40,7 @@ import { useDebounce } from '../../../hooks/useDebounce'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
 import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPolicy'
 import { searchCustomersAdvanced, type CustomerConsultationRow } from '../api/customerExtraApi'
-import { FormButton, FormInput, FormTextarea } from '../../../components/form'
+import { formatAddressForSave, FormButton, FormInput, FormTextarea } from '../../../components/form'
 import { useGaSettings } from '../../ga-settings/useGaSettings'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 import CustomerMobileModals from '../components/CustomerMobileModals'
@@ -728,7 +728,11 @@ export default function CustomersPage() {
         ssn: activeEditForm.ssn,
         phone: activeEditForm.phone,
         carrier: '',
-        address: activeEditForm.address,
+        address: formatAddressForSave({
+          zonecode: activeEditForm.zonecode ?? '',
+          baseAddress: activeEditForm.address ?? '',
+          detailAddress: activeEditForm.addressDetail ?? '',
+        }),
         height: activeEditForm.height,
         weight: activeEditForm.weight,
         job: activeEditForm.job,
