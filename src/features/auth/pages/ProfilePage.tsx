@@ -566,11 +566,6 @@ export function ProfilePage() {
           <p className="status text-sm" style={{ marginTop: 8 }}>
             샘플 다운로드 후 양식에 맞게 작성한 파일을 업로드해 주세요.
           </p>
-          <p className="text-sm mt-3">
-            <Link to="/profile/customer-upload-auto" className="switch-text__action">
-              고객 데이터 자동 업로드 (엑셀 원본 자동 분석)
-            </Link>
-          </p>
         </PCOnlySection>
       </section>
 
