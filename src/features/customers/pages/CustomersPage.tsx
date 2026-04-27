@@ -1073,7 +1073,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
             />
             <FormButton
               htmlType="button"
-              variant="action"
+              variant="secondary"
+              size="sm"
               className={`favorite-btn customer-filter-chip${favoriteOnly ? ' favorite-btn--on customer-filter-chip--active' : ''}`}
               aria-pressed={favoriteOnly}
               onClick={() => setFavoriteOnly((v) => !v)}
@@ -1082,7 +1083,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
             </FormButton>
             <FormButton
               htmlType="button"
-              variant="action"
+              variant="secondary"
+              size="sm"
               className={`customers-page__filter-toggle customer-filter-chip${showFilters ? ' customers-page__filter-toggle--on customer-filter-chip--active' : ''}`}
               aria-expanded={showFilters}
               onClick={() => setShowFilters((v) => !v)}

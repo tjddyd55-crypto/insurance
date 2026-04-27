@@ -61,7 +61,8 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
         />
         <FormButton
           htmlType="button"
-          variant="action"
+          variant="secondary"
+          size="sm"
           className={`favorite-btn customer-filter-chip${favoriteOnly ? ' favorite-btn--on customer-filter-chip--active' : ''}`}
           aria-pressed={favoriteOnly}
           onClick={() => setFavoriteOnly((v) => !v)}
@@ -70,7 +71,8 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
         </FormButton>
         <FormButton
           htmlType="button"
-          variant="action"
+          variant="secondary"
+          size="sm"
           className={`customers-page__filter-toggle customer-filter-chip${showFilters ? ' customers-page__filter-toggle--on customer-filter-chip--active' : ''}`}
           aria-expanded={showFilters}
           onClick={() => setShowFilters((v) => !v)}
@@ -96,16 +98,8 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
 
   return (
     <>
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-          marginTop: 8,
-          fontSize: '0.95rem',
-        }}
-      >
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      <div className="customer-filter-controls__stack">
+        <label className="customer-filter-controls__deep-row">
           <FormInput
             type="checkbox"
             checked={deepSearch}
@@ -115,11 +109,7 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
         </label>
       </div>
       {advSearchLoading ? (
-        <p
-          className="text-[var(--text-secondary)]"
-          style={{ margin: '6px 0 0', fontSize: '0.9rem' }}
-          role="status"
-        >
+        <p className="customer-filter-controls__loading text-[var(--text-secondary)]" role="status">
           심층 검색 중…
         </p>
       ) : null}
@@ -133,8 +123,9 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
         <div className="customers-sort-row__buttons filter-group">
           <FormButton
             htmlType="button"
-            variant="action"
-            className={`filter-button customer-filter-chip${sortType === 'age' ? ' active customer-filter-chip--active' : ''}`}
+            variant="secondary"
+            size="sm"
+            className={`customer-filter-chip${sortType === 'age' ? ' customer-filter-chip--active' : ''}`}
             aria-pressed={sortType === 'age'}
             onClick={() => setSortType((t) => (t === 'age' ? null : 'age'))}
           >
@@ -142,8 +133,9 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
           </FormButton>
           <FormButton
             htmlType="button"
-            variant="action"
-            className={`filter-button customer-filter-chip${sortType === 'car' ? ' active customer-filter-chip--active' : ''}`}
+            variant="secondary"
+            size="sm"
+            className={`customer-filter-chip${sortType === 'car' ? ' customer-filter-chip--active' : ''}`}
             aria-pressed={sortType === 'car'}
             onClick={() => setSortType((t) => (t === 'car' ? null : 'car'))}
           >
@@ -151,8 +143,9 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
           </FormButton>
           <FormButton
             htmlType="button"
-            variant="action"
-            className={`filter-button customer-filter-chip${sortType === 'recent' ? ' active customer-filter-chip--active' : ''}`}
+            variant="secondary"
+            size="sm"
+            className={`customer-filter-chip${sortType === 'recent' ? ' customer-filter-chip--active' : ''}`}
             aria-pressed={sortType === 'recent'}
             onClick={() => setSortType((t) => (t === 'recent' ? null : 'recent'))}
           >
@@ -204,16 +197,18 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
         <div className="customers-advanced-filters__quick filter-group customer-quick-filter-bar customer-filter-panel-actions">
           <FormButton
             htmlType="button"
-            variant="action"
-            className="filter-button customer-filter-chip"
+            variant="secondary"
+            size="sm"
+            className="customer-filter-chip"
             onClick={() => applyQuickFilter('AGE_UNDER_30_MALE')}
           >
             30세 이하 남성
           </FormButton>
           <FormButton
             htmlType="button"
-            variant="action"
-            className="filter-button customer-filter-chip"
+            variant="secondary"
+            size="sm"
+            className="customer-filter-chip"
             onClick={() => applyQuickFilter('AGE_OVER_40_FEMALE')}
           >
             40세 이상 여성
@@ -221,8 +216,9 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
           {advancedFiltersActive ? (
             <FormButton
               htmlType="button"
-              variant="action"
-              className="filter-button customer-filter-chip"
+              variant="secondary"
+              size="sm"
+              className="customer-filter-chip"
               onClick={resetAdvancedFilters}
             >
               필터 초기화

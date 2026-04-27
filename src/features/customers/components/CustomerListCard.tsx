@@ -390,18 +390,8 @@ const CustomerListCard = memo(function CustomerListCard({
 
             {!isMobile || mobileInfoExpanded ? (
               <>
-                <div
-                  className="customer-detail-toolbar"
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: 8,
-                    flexWrap: 'wrap',
-                    marginBottom: 12,
-                  }}
-                >
-                  <div style={{ fontWeight: 700, fontSize: '1.05rem', minWidth: 0 }}>
+                <div className="customer-detail-toolbar">
+                  <div className="customer-detail-toolbar__title">
                     <span className="customer-info-label">
                       <span className="customer-info-label__icon" aria-hidden>
                         👤
@@ -409,41 +399,41 @@ const CustomerListCard = memo(function CustomerListCard({
                       {c.name}
                     </span>
                   </div>
-                  <div
-                    className="customer-card-icon-actions"
-                    style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}
-                  >
+                  <div className="customer-detail-action-bar">
                     <FormButton
                       htmlType="button"
-                      variant="action"
-                      className="customer-icon-action"
-                      title="카톡 복사"
-                      aria-label="카톡 복사"
+                      variant="secondary"
+                      size="sm"
+                      className="customer-detail-action-button"
+                      title="카톡 복사 형식으로 복사"
+                      aria-label="복사"
                       onClick={() => void onCopyCustomer(c)}
                     >
-                      📋
+                      복사
                     </FormButton>
                     {editingId !== c.id ? (
                       <FormButton
                         htmlType="button"
-                        variant="action"
-                        className="customer-icon-action"
-                        title="수정"
+                        variant="secondary"
+                        size="sm"
+                        className="customer-detail-action-button"
+                        title="고객 정보 수정"
                         aria-label="수정"
                         onClick={() => onStartEdit(c)}
                       >
-                        ✏️
+                        수정
                       </FormButton>
                     ) : null}
                     <FormButton
                       htmlType="button"
-                      variant="action"
-                      className="customer-icon-action"
-                      title="삭제"
+                      variant="danger"
+                      size="sm"
+                      className="customer-detail-action-button customer-detail-action-button--danger"
+                      title="고객 삭제"
                       aria-label="삭제"
                       onClick={() => void onDeleteCustomer(c)}
                     >
-                      🗑
+                      삭제
                     </FormButton>
                   </div>
                 </div>

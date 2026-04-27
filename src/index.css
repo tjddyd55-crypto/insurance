@@ -3004,6 +3004,25 @@ button.filter-button:focus-visible {
   font-weight: 600;
 }
 
+.customer-filter-controls__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 0.95rem;
+}
+
+.customer-filter-controls__deep-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.customer-filter-controls__loading {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+}
+
 .customers-page ul.customer-list.record-list {
   display: flex;
   flex-direction: column;
@@ -3429,52 +3448,35 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 /* ======================================================================
- * 고객 리스트 상단 액션 버튼 (중요 고객 / 필터)
+ * 고객 리스트 상단·필터 칩 버튼 (중요 고객 / 필터 / 정렬 / 퀵필터)
  * ----------------------------------------------------------------------
- * 적용 범위 : `.customers-page` 안에서만 (PC/모바일 공용)
- * 수정 포인트: 아래 3개 선언 블록(기본 / hover / --on 활성).
- *             치수·상태색을 바꾸면 두 버튼 모두 동시에 반영된다.
- * 설계 의도 : 둘을 한 블록에 묶어 시각 일관성 보장. Tailwind 유틸
- *             (`!bg-*`, `!text-*` 등)로 상태를 표현하지 않는다.
+ * FormButton → `.button.button--secondary.button--small` + `.customer-filter-chip`
+ * 활성: `.customer-filter-chip--active` 또는 `aria-pressed="true"`(정렬)
  * ====================================================================== */
-.customers-page .favorite-btn,
-.customers-page .customers-page__filter-toggle {
+.customers-page .customer-filter-chip.button.button--small {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 40px;
   min-height: 40px;
-  padding: 0 14px;
-  margin-inline: 0;
-  border: 1px solid var(--border-default);
-  border-radius: 8px;
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.2;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 600;
   white-space: nowrap;
-  cursor: pointer;
-  box-sizing: border-box;
-  transition:
-    background-color 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
 }
 
-.customers-page .favorite-btn:hover:not(:disabled),
-.customers-page .customers-page__filter-toggle:hover:not(:disabled) {
-  background: var(--bg-soft);
-}
-
-.customers-page .favorite-btn.favorite-btn--on,
-.customers-page .customers-page__filter-toggle--on {
+.customers-page .customer-filter-chip.button.button--secondary.customer-filter-chip--active:not(:disabled),
+.customers-page .favorite-btn.customer-filter-chip.button.button--secondary.favorite-btn--on:not(:disabled),
+.customers-page .customers-page__filter-toggle.customer-filter-chip.button.button--secondary.customers-page__filter-toggle--on:not(:disabled),
+.customers-page .customer-filter-chip.button.button--secondary[aria-pressed='true']:not(:disabled) {
   border-color: var(--brand-primary);
   background: var(--brand-soft);
   color: var(--brand);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary) 35%, transparent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .customers-page .customer-filter-chip.button.button--secondary:hover:not(:disabled):not(:active) {
+    border-color: color-mix(in srgb, var(--brand-primary) 55%, var(--secondary-border));
+    background: color-mix(in srgb, var(--brand-soft) 70%, var(--secondary-bg));
+  }
 }
 
 .customers-page__header-row {
@@ -4021,18 +4023,12 @@ div.cta-button.customers-page__action-btn[role='button'] {
   text-align: center;
 }
 
-/* 모바일 고객관리 — 필터 화면 칩 버튼 통일.
- * 터치 타깃 확보를 위해 공용 .filter-button(32px)보다 한 단계 크게 잡고,
- * 활성/초기화 등 다른 칩도 같은 치수를 공유하도록 단일 선택자로 묶는다. */
-.customers-page--mobile .filter-button,
-.customers-page--mobile .customers-sort-row__buttons .filter-button,
-.customers-page--mobile .customers-advanced-filters__quick .filter-button {
-  min-height: 36px;
-  padding: 6px 14px;
-  font-size: 13px;
-  border-radius: 8px;
+/* 모바일 고객관리 — 필터 칩 (공통 .button--small 기반) */
+.customers-page--mobile .customer-filter-chip.button.button--small {
+  min-height: 40px;
 }
 
+/* 모바일 — 정렬·퀵필터 행 간격 */
 .customers-page--mobile .customers-sort-row,
 .customers-page--mobile .customers-advanced-filters__quick {
   gap: 10px;
@@ -4061,6 +4057,34 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .pc-root .dashboard-page--centered .dashboard-logout {
   max-width: 180px;
   align-self: flex-start;
+}
+
+.customers-page .customer-detail-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.customers-page .customer-detail-toolbar__title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  min-width: 0;
+}
+
+.customers-page .customer-detail-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.customers-page .customer-detail-action-button {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .customers-page .customer-expand-detail {
@@ -7495,29 +7519,19 @@ a.contacts-public-auth__link {
 }
 
 .customers-page--mobile .customer-detail-toolbar {
-  align-items: center !important;
-  gap: 6px !important;
+  align-items: flex-start !important;
+  gap: 8px !important;
   margin-bottom: 8px !important;
 }
 
-.customers-page--mobile .customer-card-icon-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px !important;
+.customers-page--mobile .customer-detail-action-bar {
+  justify-content: flex-end;
+  gap: 8px !important;
 }
 
-.customers-page--mobile .customer-card-icon-actions .customer-icon-action {
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
-  min-height: 32px !important;
-  padding: 0 !important;
-  border-radius: 8px;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-size: 14px !important;
-  line-height: 1 !important;
+.customers-page--mobile .customer-detail-action-button.button {
+  flex: 0 1 auto;
+  min-width: min(100%, 4.5rem);
 }
 
 .customers-page--mobile .customer-expand-section-divider {
@@ -9645,27 +9659,6 @@ textarea.memo-sticky-note__textarea::placeholder {
   height: 38px;
   min-height: 38px;
   border-radius: var(--radius-md);
-}
-
-.customers-page--pc .favorite-btn,
-.customers-page--pc .customers-page__filter-toggle {
-  height: 38px;
-  min-height: 38px;
-  padding: 0 14px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.customers-page--pc .customers-page__filter-toggle--on,
-.customers-page--pc .favorite-btn.favorite-btn--on {
-  border-color: var(--primary);
-  background: var(--primary-soft);
-  color: var(--text-primary);
-  box-shadow: none;
 }
 
 .customers-page--pc .record-card.customer-card.customer-expand-card {

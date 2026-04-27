@@ -2,19 +2,8 @@
   /*
    * PC 고객관리 필터/정렬/퀵필터 UI
    *
-   * 정석 규칙:
-   * - 이 파일은 의미 있는 className만 바라본다.
-   * - 넓은 selector(.filter-button 전체, button 전체)로 억지 보정하지 않는다.
-   * - 고객 등록 / 등록 링크 / 엑셀 다운로드 같은 primary action은 여기서 다루지 않는다.
-   * - JSX 수정 위치는 CustomersPage.tsx의 PC 필터/정렬/퀵필터 렌더링 영역이다.
-   *
-   * 기대 JSX 구조:
-   * - customer-filter-bar: 중요 고객 / 필터 토글
-   * - customer-sort-bar: 정렬 버튼 묶음
-   * - customer-quick-filter-bar: 빠른 필터 버튼 묶음
-   * - customer-filter-panel-actions: 필터 패널 내부 액션 묶음
-   * - customer-filter-chip: 필터성 버튼 공통
-   * - customer-filter-chip--active: 선택/활성 상태
+   * 필터 칩은 공용 `.button.button--secondary.button--small` + `.customer-filter-chip` 를 쓴다.
+   * 이 파일은 PC 레이아웃(행 간격)과 PC에서만 미세 조정할 치수만 담는다.
    */
 
   .app-workspace-layout-root .workspace-main.workspace-main--app .app-main-content.app-main-content--workspace-outlet-host {
@@ -37,43 +26,11 @@
     margin-top: 8px;
   }
 
-  .customers-page--pc .customer-filter-chip {
-    min-height: 34px;
-    height: 34px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 0 12px;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--border-default, #334155) 86%, transparent);
-    background: color-mix(in srgb, var(--bg-card, #1e293b) 88%, #000 12%);
-    color: color-mix(in srgb, var(--text-primary, #f8fafc) 94%, transparent);
-    font-size: 0.82rem;
-    line-height: 1;
-    font-weight: 850;
-    white-space: nowrap;
+  .customers-page--pc .customer-filter-chip.button.button--small {
+    min-height: 38px;
+    font-size: 13px;
   }
 
-  .customers-page--pc .customer-filter-chip:hover:not(:disabled) {
-    border-color: color-mix(in srgb, var(--brand-primary, #60a5fa) 48%, transparent);
-    background: color-mix(in srgb, var(--brand-primary, #60a5fa) 16%, var(--bg-card, #1e293b) 84%);
-    color: var(--text-primary, #fff);
-  }
-
-  .customers-page--pc .customer-filter-chip[aria-pressed='true'],
-  .customers-page--pc .customer-filter-chip--active {
-    border-color: color-mix(in srgb, var(--brand-primary, #60a5fa) 62%, transparent);
-    background: color-mix(in srgb, var(--brand-primary, #60a5fa) 24%, transparent);
-    color: var(--text-primary, #fff);
-  }
-
-  .customers-page--pc .customer-filter-chip:disabled {
-    opacity: 0.52;
-    cursor: not-allowed;
-  }
-
-  /* PC 고객 작업영역 우측 액션 버튼 — 별도 의미 className 기준 */
   .customers-page--pc .customer-workspace-action-bar {
     display: flex;
     align-items: center;
