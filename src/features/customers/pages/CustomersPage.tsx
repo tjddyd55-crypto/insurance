@@ -82,8 +82,15 @@ import {
   copyTextWithWebViewFallback,
 } from '../utils/customerInviteClipboard'
 import { coerceCustomersStatePayload } from '../utils/customerStateGuards'
+import {
+  CUSTOMER_LIST_PATH,
+  CUSTOMER_CREATE_MODE_QUERY,
+  buildCustomerWorkspacePath,
+  buildCustomerListPath,
+} from '../utils/customerRoutePaths'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
+
 export default function CustomersPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -94,7 +101,7 @@ export default function CustomersPage() {
    * 차단 중이면 reset()만 하고 이 함수로 이동한다.
    */
   const navigateToCustomerListReplace = useCallback(() => {
-    navigate('/customers', { replace: true })
+    navigate(CUSTOMER_LIST_PATH, { replace: true })
   }, [navigate])
   const { user, token } = useAuth()
   const { gaSettings } = useGaSettings()
@@ -411,12 +418,13 @@ export default function CustomersPage() {
       const safeTab = resolveCustomerWorkspaceTab(location.pathname)
       const next = new URLSearchParams(searchParams)
       next.set('customerId', String(c.id))
-      const qs = next.toString()
-      const href = qs ? `/customers/${c.id}/${safeTab}?${qs}` : `/customers/${c.id}/${safeTab}`
-      navigate(href, {
-        replace: true,
-        state: { customerName: c.name },
-      })
+      navigate(
+        buildCustomerWorkspacePath({ customerId: c.id, tab: safeTab, query: next }),
+        {
+          replace: true,
+          state: { customerName: c.name },
+        },
+      )
     },
     [isMobile, location.pathname, navigate, searchParams],
   )
@@ -435,10 +443,9 @@ export default function CustomersPage() {
       const next = new URLSearchParams(searchParams)
       next.delete('mode')
       next.set('customerId', String(customerId))
-      const qs = next.toString()
 
       if (isMobile) {
-        navigate(qs ? `/customers?${qs}` : '/customers', {
+        navigate(buildCustomerListPath(next), {
           replace: true,
           state: customerName?.trim() ? { customerName } : undefined,
         })
@@ -447,7 +454,7 @@ export default function CustomersPage() {
 
       const safeTab = resolveCustomerWorkspaceTab(location.pathname)
       navigate(
-        qs ? `/customers/${customerId}/${safeTab}?${qs}` : `/customers/${customerId}/${safeTab}`,
+        buildCustomerWorkspacePath({ customerId, tab: safeTab, query: next }),
         {
           replace: true,
           state: customerName?.trim() ? { customerName } : undefined,
@@ -870,15 +877,25 @@ export default function CustomersPage() {
     (customerId: number) => {
       const next = new URLSearchParams(searchParams)
       next.set('customerId', String(customerId))
-      const qs = next.toString()
-      navigate(qs ? `/customers/${customerId}/claim-requests?${qs}` : `/customers/${customerId}/claim-requests`)
+      navigate(
+        buildCustomerWorkspacePath({ customerId, tab: 'claim-requests', query: next }),
+      )
     },
     [navigate, searchParams],
   )
 
   const handleOpenPersonalMessage = useCallback(
     (customerId: number) => {
-      navigate(`/customers/${customerId}/claim-requests?customerId=${customerId}&claimTab=news-personal`)
+      navigate(
+        buildCustomerWorkspacePath({
+          customerId,
+          tab: 'claim-requests',
+          query: new URLSearchParams([
+            ['customerId', String(customerId)],
+            ['claimTab', 'news-personal'],
+          ]),
+        }),
+      )
     },
     [navigate],
   )
@@ -1114,7 +1131,7 @@ export default function CustomersPage() {
             <CustomerPageHeaderActions
               isMobile={isMobile}
               setStatusText={setStatusText}
-              onCreateCustomer={() => setSearchParams({ mode: 'create' }, { replace: true })}
+              onCreateCustomer={() => setSearchParams(CUSTOMER_CREATE_MODE_QUERY, { replace: true })}
               onCustomerRegisterInviteCopyTouchStart={onCustomerRegisterInviteCopyTouchStart}
               onCustomerRegisterInviteCopyMouseDown={onCustomerRegisterInviteCopyMouseDown}
               onCustomerRegisterInviteCopyClick={onCustomerRegisterInviteCopyClick}
@@ -1412,3 +1429,4 @@ export default function CustomersPage() {
   }
   return <CustomersPagePCView {...viewProps} />
 }
+
