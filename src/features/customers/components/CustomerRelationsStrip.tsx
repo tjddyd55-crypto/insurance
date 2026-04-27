@@ -203,8 +203,11 @@ export function CustomerRelationsStrip({
   }
 
   return (
-    <div className="customer-relations-strip mt-5" style={{ padding: '10px 0' }}>
-      <div className="customer-section-title customer-relations-strip__title !mt-0">🔗 연계 고객</div>
+    <section className="customer-relations-strip customer-detail-read__section customer-relations-strip--in-detail mt-5">
+      <div className="customer-detail-read__section-header">
+        <h4 className="customer-detail-read__section-title">연계 고객</h4>
+      </div>
+      <div className="customer-detail-read__section-body">
       {loading ? (
         <p style={{ fontSize: '0.9rem', color: '#666' }}>불러오는 중…</p>
       ) : error ? (
@@ -314,6 +317,7 @@ export function CustomerRelationsStrip({
         {customerName}님과 연결된 다른 고객입니다. 이름을 누르면 해당 고객 상세로 이동합니다. 칩에 마우스를 올리면 전화번호
         힌트가 표시됩니다.
       </p>
+      </div>
 
       {modalOpen ? (
         <div
@@ -467,6 +471,6 @@ export function CustomerRelationsStrip({
         </div>
       ) : null}
       {confirmDialog}
-    </div>
+    </section>
   )
 }

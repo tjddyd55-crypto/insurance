@@ -36,16 +36,13 @@ export function CustomerCarsReadSection({ customer, token, enabled }: CustomerCa
   }
 
   return (
-    <>
+    <div className="customer-detail-read__cars-wrap">
       {showApiWarning ? (
-        <p
-          className="customer-cars-read-section__warn"
-          style={{ fontSize: 13, opacity: 0.9, margin: '0 0 8px' }}
-        >
+        <p className="customer-detail-read__api-warn" role="status">
           자동차 목록을 불러오지 못해 저장된 기본 정보로 표시합니다.
         </p>
       ) : null}
       <CustomerCarsReadGrid cars={displayCars} loading={shouldFetch && isLoading} />
-    </>
+    </div>
   )
 }

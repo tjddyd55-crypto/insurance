@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { CustomerRecord } from '../domain/types'
 import { normalizeCustomerNotesBag } from '../domain/types'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
@@ -26,11 +27,19 @@ function MaturityDdayBadge({ maturityYmd }: { maturityYmd: string | null }) {
     return null
   }
   const hot = dday >= 0 && dday <= 30
-  const label = hot ? `🔥 D-${dday}` : `D-${dday}`
+  const label = `D-${dday}`
+  const toneClass = hot ? getDDayBadgeClass(dday) : 'customer-dday'
+  return <span className={`customer-detail-read__dday-inline ${toneClass}`}>({label})</span>
+}
+
+function DetailReadInfoRow({ children, rowClassName }: { children: ReactNode; rowClassName?: string }) {
   return (
-    <span className={hot ? getDDayBadgeClass(dday) : 'customer-dday'} style={{ marginLeft: 4 }}>
-      ({label})
-    </span>
+    <div className={`customer-detail-read__info-row${rowClassName ? ` ${rowClassName}` : ''}`}>
+      <span className="customer-detail-read__info-bullet" aria-hidden>
+        •
+      </span>
+      <div className="customer-detail-read__info-main">{children}</div>
+    </div>
   )
 }
 
@@ -54,125 +63,90 @@ export default function CustomerDetailReadView({
 }: CustomerDetailReadViewProps) {
   return (
     <div className="customer-detail-read">
-        <p>
-          <strong className="customer-info-label">
-            <span className="customer-info-label__icon" aria-hidden>
-              🆔
+      <div className="customer-detail-read__info-list">
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">주민번호:</span>{' '}
+          <span className="customer-detail-read__info-value">{formatCustomerSsnUi(c.ssn) || '—'}</span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <div className="customer-detail-read__info-main--cluster">
+            <span>
+              <span className="customer-detail-read__info-label">보험나이:</span>{' '}
+              <span className="customer-detail-read__info-value">{ins.ageText}</span>
             </span>
-            주민번호:
-          </strong>{' '}
-          {formatCustomerSsnUi(c.ssn) || '—'}
-        </p>
-        <p style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px', alignItems: 'center' }}>
-          <span>
-            <strong className="customer-info-label">
-              <span className="customer-info-label__icon" aria-hidden>
-                🎂
-              </span>
-              보험나이:
-            </strong>{' '}
-            {ins.ageText}
+            <span>
+              <span className="customer-detail-read__info-label">상령일:</span>{' '}
+              <span className="customer-detail-read__info-value">{ins.dateText}</span>
+              <MaturityDdayBadge maturityYmd={ins.maturityYmd} />
+            </span>
+          </div>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">핸드폰번호:</span>{' '}
+          <span className="customer-detail-read__info-value">{formatCustomerPhoneUi(c.phone) || '—'}</span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">주소:</span>{' '}
+          <span className="customer-detail-read__info-value">{c.address || '—'}</span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">키/몸무게:</span>{' '}
+          <span className="customer-detail-read__info-value">
+            {c.height?.trim() || c.weight?.trim()
+              ? `${c.height?.trim() || '—'}/${c.weight?.trim() || '—'}`
+              : '—'}
           </span>
-          <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
-            <strong className="customer-info-label">
-              <span className="customer-info-label__icon" aria-hidden>
-                📅
-              </span>
-              상령일:
-            </strong>{' '}
-            {ins.dateText}
-            <MaturityDdayBadge maturityYmd={ins.maturityYmd} />
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">직업/회사명/하는일/지역:</span>{' '}
+          <span className="customer-detail-read__info-value">{c.job?.trim() || '—'}</span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">운전여부:</span>{' '}
+          <span className="customer-detail-read__info-value">
+            {c.isDriver === true
+              ? '운전함'
+              : c.isDriver === false
+                ? '운전 안함'
+                : c.driving || '—'}
           </span>
-        </p>
-        <p>
-          <strong className="customer-info-label">
-            <span className="customer-info-label__icon" aria-hidden>
-              📞
-            </span>
-            핸드폰번호:
-          </strong>{' '}
-          {formatCustomerPhoneUi(c.phone) || '—'}
-        </p>
-        <p>
-          <strong className="customer-info-label">
-            <span className="customer-info-label__icon" aria-hidden>
-              📍
-            </span>
-            주소:
-          </strong>{' '}
-          {c.address || '—'}
-        </p>
-        <p>
-          <strong className="customer-info-label">
-            <span className="customer-info-label__icon" aria-hidden>
-              🧍
-            </span>
-            키/몸무게:
-          </strong>{' '}
-          {c.height?.trim() || c.weight?.trim()
-            ? `${c.height?.trim() || '—'}/${c.weight?.trim() || '—'}`
-            : '—'}
-        </p>
-        <p>
-          <strong className="customer-info-label">
-            <span className="customer-info-label__icon" aria-hidden>
-              💼
-            </span>
-            직업/회사명/하는일/지역:
-          </strong>{' '}
-          {c.job?.trim() || '—'}
-        </p>
-        <p>
-          <strong className="customer-info-label">
-            <span className="customer-info-label__icon" aria-hidden>
-              🛞
-            </span>
-            운전여부:
-          </strong>{' '}
-          {c.isDriver === true
-            ? '운전함'
-            : c.isDriver === false
-              ? '운전 안함'
-              : c.driving || '—'}
-        </p>
-        <p>
-          <strong className="customer-info-label">
-            <span className="customer-info-label__icon" aria-hidden>
-              🚙
-            </span>
-            차종:
-          </strong>{' '}
-          {c.carType.trim() || '—'}
-        </p>
-        <p>
-          <strong className="customer-info-label">
-            <span className="customer-info-label__icon" aria-hidden>
-              🩺
-            </span>
-            {CUSTOMER_MEDICAL_QUESTION_TEXT}
-          </strong>
-          <br />
-          <span style={{ opacity: 0.85 }}>{CUSTOMER_MEDICAL_QUESTION_HINT}</span>
-        </p>
-        <p>{c.medical?.trim() || '—'}</p>
-        <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-        <CustomerCarsReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
-        <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-        <div className="customer-section-title !mt-5">📄 [보험가입내역]</div>
-        <div className="customer-insurance-history-body">
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">차종:</span>{' '}
+          <span className="customer-detail-read__info-value">{c.carType.trim() || '—'}</span>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <div>
+            <span className="customer-detail-read__info-label">{CUSTOMER_MEDICAL_QUESTION_TEXT}</span>
+            <p className="customer-detail-read__info-hint">{CUSTOMER_MEDICAL_QUESTION_HINT}</p>
+            <p className="customer-detail-read__info-answer">{c.medical?.trim() || '—'}</p>
+          </div>
+        </DetailReadInfoRow>
+      </div>
+      <hr className="customer-detail-read__divider" />
+      <CustomerCarsReadSection customer={c} token={token} enabled={fetchCarsEnabled} />
+      <hr className="customer-detail-read__divider" />
+      <section className="customer-detail-read__section" aria-labelledby="customer-insurance-history-heading">
+        <div className="customer-detail-read__section-header">
+          <h4 id="customer-insurance-history-heading" className="customer-detail-read__section-title">
+            보험가입내역
+          </h4>
+        </div>
+        <div className="customer-detail-read__section-body customer-insurance-history-body">
           {normalizeCustomerNotesBag(c.notes).insuranceHistory?.trim()
             ? normalizeCustomerNotesBag(c.notes).insuranceHistory
             : '내용 없음'}
         </div>
-        {token?.trim() ? (
-          <CustomerRelationsStrip
-            customerId={c.id}
-            customerName={c.name}
-            token={token}
-            focusedCustomerId={expandedId}
-            onOpenCustomer={onOpenRelatedCustomer}
-          />
-        ) : null}
+      </section>
+      {token?.trim() ? (
+        <CustomerRelationsStrip
+          customerId={c.id}
+          customerName={c.name}
+          token={token}
+          focusedCustomerId={expandedId}
+          onOpenCustomer={onOpenRelatedCustomer}
+        />
+      ) : null}
     </div>
   )
 }

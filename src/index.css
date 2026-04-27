@@ -3658,7 +3658,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
   border-top: 1px solid var(--border-default);
 }
 
-.customers-page .customer-insurance-history-body {
+.customers-page .customer-insurance-history-body,
+.customer-detail-read .customer-insurance-history-body {
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 14px;
@@ -3738,10 +3739,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
   height: 40px;
   min-height: 40px;
   border-radius: 8px;
-}
-
-.customers-page--pc .customer-relations-strip .customer-relations-strip__title {
-  color: var(--text-main);
 }
 
 .customers-page--pc .customer-relations-strip .related-customer-tag {
@@ -4284,6 +4281,133 @@ div.cta-button.customers-page__action-btn[role='button'] {
   gap: 16px;
 }
 
+/* 고객 상세 읽기 전용 — CustomerDetailReadView / cars grid / 연계 고객 헤더 공통 */
+.customer-detail-read {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-main);
+}
+
+.customer-detail-read__info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.customer-detail-read__info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.customer-detail-read__info-bullet {
+  flex: 0 0 0.75rem;
+  width: 0.75rem;
+  text-align: center;
+  line-height: 1.45;
+  opacity: 0.72;
+  user-select: none;
+}
+
+.customer-detail-read__info-main {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.45;
+}
+
+.customer-detail-read__info-main--cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  column-gap: 1.25rem;
+  row-gap: 0.35rem;
+}
+
+.customer-detail-read__info-label {
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.customer-detail-read__info-value {
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.customer-detail-read__info-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--text-sub);
+  opacity: 0.92;
+}
+
+.customer-detail-read__info-answer {
+  margin: 0.5rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  color: var(--text-main);
+}
+
+.customer-detail-read__dday-inline {
+  margin-left: 0.35rem;
+  vertical-align: baseline;
+}
+
+.customer-detail-read__divider {
+  border: none;
+  border-top: 1px solid var(--border-default);
+  margin: 0.75rem 0;
+}
+
+.customer-detail-read__api-warn {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--text-sub);
+  opacity: 0.92;
+}
+
+.customer-detail-read__cars-wrap .customer-detail-read__section-header {
+  margin-top: 0;
+}
+
+.customer-detail-read__divider + .customer-detail-read__section .customer-detail-read__section-header {
+  margin-top: 0;
+}
+
+.customer-detail-read__section {
+  margin: 0;
+}
+
+.customer-detail-read__section-header {
+  margin-top: 1.125rem;
+  margin-bottom: 0.5rem;
+  padding-left: 0.65rem;
+  border-left: 2px solid color-mix(in srgb, var(--text-main) 32%, transparent);
+}
+
+.customer-detail-read__section-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text-main);
+}
+
+.customer-detail-read__section-body {
+  min-width: 0;
+}
+
+.customer-relations-strip--in-detail {
+  padding: 0.25rem 0 0.5rem;
+}
+
+.customer-relations-strip--in-detail .customer-detail-read__section-header {
+  margin-top: 0;
+}
+
 .customer-car-edit-card {
   padding: 12px 12px 4px;
   border: 1px solid var(--border-muted);
@@ -4315,13 +4439,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .customer-car-read-section {
-  margin-top: 1.25rem;
-}
-
-.customer-car-read-section__title {
-  margin: 0 0 10px;
-  font-size: 1rem;
-  font-weight: 700;
+  margin-top: 0;
 }
 
 .customer-car-read-section__empty {
