@@ -7,6 +7,8 @@ import {
   formatCustomerPhoneUi,
   formatCustomerSsnUi,
 } from '../utils/customerDisplayFormat'
+import { customerRecordToCarFormItemsForDisplay } from '../utils/customerCarFormUtils'
+import { CustomerCarsReadGrid } from './CustomerCarsReadGrid'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 
 export type CustomerDetailInsuranceDisplay = {
@@ -16,15 +18,6 @@ export type CustomerDetailInsuranceDisplay = {
   insuranceAgeNum: number | null
 }
 
-function CustomerDDayBadge({ renewalDate }: { renewalDate: string }) {
-  const dday = getDDay(renewalDate)
-  if (dday === null) {
-    return null
-  }
-  return <span className={getDDayBadgeClass(dday)}>{`D-${dday}`}</span>
-}
-
-/** 상령일까지 남은 일수 — 30일 이내 임박 시 강조 */
 function MaturityDdayBadge({ maturityYmd }: { maturityYmd: string | null }) {
   if (!maturityYmd) {
     return null
@@ -161,20 +154,7 @@ export default function CustomerDetailReadView({
         </p>
         <p>{c.medical?.trim() || '—'}</p>
         <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
-        <div className="customer-section-title !mt-5">🚗 [자동차보험 정보]</div>
-        <div className="customer-car-info-grid text-sm text-[var(--text-primary)]">
-          <div>🔢 차량번호:</div>
-          <div>{c.carNumber || '—'}</div>
-          <div>🚘 차종:</div>
-          <div>{c.carModel || '—'}</div>
-          <div>📅 연식:</div>
-          <div>{c.carYear || '—'}</div>
-          <div>📆 만기일:</div>
-          <div>
-            {c.renewalDate || '—'}{' '}
-            <CustomerDDayBadge renewalDate={c.renewalDate} />
-          </div>
-        </div>
+        <CustomerCarsReadGrid cars={displayCars} />
         <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.1)', margin: '12px 0' }} />
         <div className="customer-section-title !mt-5">📄 [보험가입내역]</div>
         <div className="customer-insurance-history-body">

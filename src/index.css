@@ -4314,6 +4314,86 @@ div.cta-button.customers-page__action-btn[role='button'] {
   padding: 4px 10px !important;
 }
 
+.customer-car-read-section {
+  margin-top: 1.25rem;
+}
+
+.customer-car-read-section__title {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.customer-car-read-section__empty {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.customer-car-read-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .customer-car-read-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.customer-car-read-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border-muted);
+  border-radius: 8px;
+  background: var(--bg-soft, rgba(0, 0, 0, 0.04));
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.customer-car-read-card__header {
+  margin-bottom: 10px;
+}
+
+.customer-car-read-card__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.customer-car-read-card__badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--primary);
+  color: var(--text-on-primary);
+}
+
+.customer-car-read-card__row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px 10px;
+  margin-top: 6px;
+}
+
+.customer-car-read-card__label {
+  opacity: 0.8;
+  font-weight: 600;
+}
+
+.customer-car-read-card__value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .customer-dday {
   display: inline-block;
   margin-left: 6px;

@@ -50,3 +50,11 @@ export function customerRecordToCarFormItems(customer: CustomerRecord): Customer
     },
   ]
 }
+
+/** 상세 보기용 — 레거시 단일 차량이 비어 있으면 빈 배열 */
+export function customerRecordToCarFormItemsForDisplay(
+  customer: CustomerRecord,
+): CustomerCarFormItem[] {
+  const items = customerRecordToCarFormItems(customer)
+  return items.filter((car) => !isCustomerCarEmpty(car))
+}
