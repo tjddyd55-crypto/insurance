@@ -47,6 +47,7 @@ import CustomerMobileModals from '../components/CustomerMobileModals'
 import CustomerPageHeaderActions from '../components/CustomerPageHeaderActions'
 import { CustomerFilterControls } from '../components/CustomerFilterControls'
 import { CustomerWorkspaceActions } from '../components/CustomerWorkspaceActions'
+import CustomerExcelSelectToolbar from '../components/CustomerExcelSelectToolbar'
 import CustomerListCard, {
   type CustomerEditFormState,
   type CustomerSsnDupHighlight,
@@ -1077,35 +1078,23 @@ export default function CustomersPage() {
   }
 
   const excelToolbarNode =
-    isSelectMode && tab === 'list' ? (
-      <div className="customers-excel-toolbar" role="region" aria-label="엑셀 다운로드 선택">
-        <p className="customers-excel-toolbar__status">
-          엑셀 선택 중 —「선택 다운로드」는 체크한 고객,「목록 전체 다운로드」는 지금 검색·필터·정렬된 목록만
-        </p>
-        <div className="customers-excel-toolbar__row">
-          <label className="customers-excel-toolbar__select-all">
-            <FormInput
-              ref={selectAllRef}
-              type="checkbox"
-              checked={allVisibleSelected}
-              onChange={toggleSelectAll}
-            />
-            전체 선택
-          </label>
-          <FormButton htmlType="button" variant="action" className="filter-button" onClick={() => setIsColumnPickerOpen(true)}>
-            컬럼 선택
-          </FormButton>
-          <FormButton htmlType="button" variant="action" className="cta-button" onClick={handleDownloadSelected}>
-            선택 다운로드
-          </FormButton>
-          <FormButton htmlType="button" variant="action" className="cta-button" onClick={handleDownloadListAll}>
-            목록 전체 다운로드
-          </FormButton>
-          <FormButton htmlType="button" variant="action" className="filter-button" onClick={exitExcelSelectMode}>
-            취소
-          </FormButton>
-        </div>
-      </div>
+    tab === 'list' && isSelectMode ? (
+      <CustomerExcelSelectToolbar
+        variant="toolbar"
+        tab={tab}
+        isSelectMode={isSelectMode}
+        isColumnPickerOpen={isColumnPickerOpen}
+        setIsColumnPickerOpen={setIsColumnPickerOpen}
+        selectAllRef={selectAllRef}
+        allVisibleSelected={allVisibleSelected}
+        selectedColumns={selectedColumns}
+        allVisibleIds={allVisibleIds}
+        onToggleSelectAll={toggleSelectAll}
+        handleDownloadSelected={handleDownloadSelected}
+        handleDownloadListAll={handleDownloadListAll}
+        exitExcelSelectMode={exitExcelSelectMode}
+        toggleExcelColumn={toggleExcelColumn}
+      />
     ) : null
 
   const headerNode = (
@@ -1277,48 +1266,23 @@ export default function CustomersPage() {
   )
 
   const columnPickerNode =
-    isColumnPickerOpen ? (
-      <div
-        className="modal-overlay"
-        role="presentation"
-        onClick={() => setIsColumnPickerOpen(false)}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
-            setIsColumnPickerOpen(false)
-          }
-        }}
-      >
-        <div
-          className="modal modal-excel-columns"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="excel-columns-title"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <h3 id="excel-columns-title">엑셀에 포함할 항목</h3>
-          <div className="modal-body">
-            <ul className="modal-excel-columns__list">
-              {EXCEL_COLUMN_META.map((col) => (
-                <li key={col.id} className="modal-excel-columns__item">
-                  <label>
-                    <FormInput
-                      type="checkbox"
-                      checked={selectedColumns.includes(col.id)}
-                      onChange={() => toggleExcelColumn(col.id)}
-                    />
-                    {col.label}
-                  </label>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="modal-actions">
-            <FormButton htmlType="button" variant="action" className="confirm" onClick={() => setIsColumnPickerOpen(false)}>
-              닫기
-            </FormButton>
-          </div>
-        </div>
-      </div>
+    tab === 'list' && isSelectMode && isColumnPickerOpen ? (
+      <CustomerExcelSelectToolbar
+        variant="modal"
+        tab={tab}
+        isSelectMode={isSelectMode}
+        isColumnPickerOpen={isColumnPickerOpen}
+        setIsColumnPickerOpen={setIsColumnPickerOpen}
+        selectAllRef={selectAllRef}
+        allVisibleSelected={allVisibleSelected}
+        selectedColumns={selectedColumns}
+        allVisibleIds={allVisibleIds}
+        onToggleSelectAll={toggleSelectAll}
+        handleDownloadSelected={handleDownloadSelected}
+        handleDownloadListAll={handleDownloadListAll}
+        exitExcelSelectMode={exitExcelSelectMode}
+        toggleExcelColumn={toggleExcelColumn}
+      />
     ) : null
 
   const scrollTopNode =
