@@ -2,6 +2,7 @@ import { FormButton } from '../../../components/form'
 import type { CustomerCarFormItem } from '../types/customerCarForm'
 import { createEmptyCustomerCar } from '../utils/customerCarFormUtils'
 import { CustomerCarEditCard } from './CustomerCarEditCard'
+import { CustomerFormSection } from './CustomerFormSection'
 
 export type CustomerCarsEditorProps = {
   cars: CustomerCarFormItem[]
@@ -64,25 +65,21 @@ export function CustomerCarsEditor({ cars, onChange, disabled }: CustomerCarsEdi
   }
 
   return (
-    <div className="customer-cars-editor field field--wide">
-      <div className="customer-cars-editor__header">
-        <h3
-          className="dashboard-section-title"
-          style={{ margin: 0, fontSize: '1rem', flex: '1 1 auto' }}
-        >
-          자동차 정보
-        </h3>
+    <CustomerFormSection
+      title="자동차 정보"
+      className="customer-form-section--grid-full customer-cars-editor"
+      headerExtra={
         <FormButton
           htmlType="button"
           className="customer-cars-editor__add-button filter-button"
           variant="secondary"
           disabled={disabled}
-          style={{ fontSize: '0.875rem', padding: '4px 10px' }}
           onClick={addCar}
         >
           자동차 추가
         </FormButton>
-      </div>
+      }
+    >
       <div className="customer-cars-editor__list">
         {list.map((car, i) => (
           <CustomerCarEditCard
@@ -96,6 +93,6 @@ export function CustomerCarsEditor({ cars, onChange, disabled }: CustomerCarsEdi
           />
         ))}
       </div>
-    </div>
+    </CustomerFormSection>
   )
 }

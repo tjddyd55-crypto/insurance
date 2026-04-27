@@ -4240,6 +4240,75 @@ div.cta-button.customers-page__action-btn[role='button'] {
   color: var(--text-main);
 }
 
+/* 고객 등록·수정 폼 — 섹션 래퍼 */
+.customer-form-section {
+  margin: 0;
+  min-width: 0;
+}
+
+.customer-form-section--grid-full {
+  grid-column: 1 / -1;
+}
+
+.customer-form-section__header {
+  margin-bottom: 0.5rem;
+}
+
+.customer-form-section__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.customer-form-section__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text-main);
+}
+
+.customer-form-section__header-extra {
+  flex-shrink: 0;
+}
+
+.customer-form-section__description {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--text-sub);
+  opacity: 0.92;
+}
+
+.customer-form-section__body {
+  min-width: 0;
+}
+
+.customer-form-section__solo {
+  display: block;
+  margin: 0;
+}
+
+.customer-form-section__solo .field__control {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.customer-form-textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.customer-form-textarea--large,
+.customer-textarea--medical-history,
+.customer-textarea--insurance-history {
+  min-height: 128px;
+  resize: vertical;
+}
+
 .customer-driving-radio-group {
   display: flex;
   align-items: center;
@@ -4251,14 +4320,18 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .customer-driving-radio-option {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
 }
 
-.customer-textarea--medical-history,
-.customer-textarea--insurance-history {
-  min-height: 112px;
-  resize: vertical;
+.customer-driving-radio-option__input {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.customer-driving-radio-option__label {
+  line-height: 1.45;
+  color: var(--text-main);
 }
 
 .customer-cars-editor {
@@ -4266,13 +4339,9 @@ div.cta-button.customers-page__action-btn[role='button'] {
   margin-top: 4px;
 }
 
-.customer-cars-editor__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
+.customer-cars-editor__add-button {
+  font-size: 0.875rem;
+  padding: 4px 10px;
 }
 
 .customer-cars-editor__list {

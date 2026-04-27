@@ -28,9 +28,13 @@ import {
 
 } from '../../features/customers/utils/insuranceInfo'
 import {
+  CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER,
+  CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER,
   CUSTOMER_MEDICAL_QUESTION_TEXT,
 } from '../../features/customers/utils/customerDisplayFormat'
 import { CustomerCarsEditor } from '../../features/customers/components/CustomerCarsEditor'
+import { CustomerDrivingRadioGroup } from '../../features/customers/components/CustomerDrivingRadioGroup'
+import { CustomerFormSection } from '../../features/customers/components/CustomerFormSection'
 import type { CustomerCarFormItem } from '../../features/customers/types/customerCarForm'
 import {
   createEmptyCustomerCar,
@@ -533,45 +537,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">운전 여부</span>
 
-        <div className="customer-driving-radio-group" role="radiogroup" aria-label="운전 여부">
-
-          <label className="customer-driving-radio-option">
-
-            <FormInput
-
-              type="radio"
-
-              name={`driver-${radioSuffix}`}
-
-              checked={form.isDriver === true}
-
-              onChange={() => onFormChange({ ...form, isDriver: true })}
-
-            />
-
-            <span>운전함</span>
-
-          </label>
-
-          <label className="customer-driving-radio-option">
-
-            <FormInput
-
-              type="radio"
-
-              name={`driver-${radioSuffix}`}
-
-              checked={form.isDriver === false}
-
-              onChange={() => onFormChange({ ...form, isDriver: false })}
-
-            />
-
-            <span>운전 안함</span>
-
-          </label>
-
-        </div>
+        <CustomerDrivingRadioGroup
+          name={`driver-${radioSuffix}`}
+          value={form.isDriver}
+          onChange={(next) => onFormChange({ ...form, isDriver: next })}
+        />
 
       </div>
 
@@ -583,45 +553,39 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
       />
 
-      <label className="field field--wide">
+      <CustomerFormSection title={CUSTOMER_MEDICAL_QUESTION_TEXT} className="field field--wide" description="입력 형식은 아래 칸의 예시(placeholder)를 참고하세요.">
+        <label className="customer-form-section__solo">
+          <FormTextarea
 
-        <span className="field__label">{CUSTOMER_MEDICAL_QUESTION_TEXT}</span>
+            className="field__control customer-form-textarea customer-form-textarea--large customer-textarea--medical-history"
 
-        <FormTextarea
+            placeholder={CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER}
+            aria-label={CUSTOMER_MEDICAL_QUESTION_TEXT}
 
-          className="field__control customer-textarea--medical-history"
+            value={form.medical}
 
-          rows={5}
+            onChange={(e) => onFormChange({ ...form, medical: e.target.value })}
 
-          placeholder="예: 2024-03 / 허리디스크 / 허리 / 시술 / 통원치료 / 사고 후 통증 / 치료 완료"
+          />
+        </label>
+      </CustomerFormSection>
 
-          value={form.medical}
+      <CustomerFormSection title="보험가입내역" className="field field--wide">
+        <label className="customer-form-section__solo">
+          <FormTextarea
 
-          onChange={(e) => onFormChange({ ...form, medical: e.target.value })}
+            className="field__control customer-form-textarea customer-form-textarea--large customer-textarea--insurance-history"
 
-        />
+            placeholder={CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER}
+            aria-label="보험가입내역"
 
-      </label>
+            value={form.insuranceHistory}
 
-      <label className="field field--wide">
+            onChange={(e) => onFormChange({ ...form, insuranceHistory: e.target.value })}
 
-        <span className="field__label">보험가입내역</span>
-
-        <FormTextarea
-
-          className="field__control customer-textarea--insurance-history"
-
-          rows={5}
-
-          placeholder="보험가입내역 입력"
-
-          value={form.insuranceHistory}
-
-          onChange={(e) => onFormChange({ ...form, insuranceHistory: e.target.value })}
-
-        />
-
-      </label>
+          />
+        </label>
+      </CustomerFormSection>
 
       <div className="field field--wide">
 

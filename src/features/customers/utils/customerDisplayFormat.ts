@@ -4,6 +4,13 @@ export const CUSTOMER_MEDICAL_QUESTION_TEXT =
 export const CUSTOMER_MEDICAL_QUESTION_HINT =
   '(몇년몇월/진단명/치료부위/수술명/입원 및 통원여부/원인/현상태)'
 
+/** 등록·수정 폼 병력 textarea placeholder */
+export const CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER =
+  '형식 예시: 2024-03 / 진단명 / 치료부위 / 수술명 / 입원 및 통원 여부 / 원인 / 현상태'
+
+/** 등록·수정 폼 보험가입내역 textarea placeholder */
+export const CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER = '보험가입내역을 입력하세요'
+
 export function formatCustomerSsnUi(raw: string | null | undefined): string {
   const text = String(raw ?? '').trim()
   if (!text) {

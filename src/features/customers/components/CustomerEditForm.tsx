@@ -7,9 +7,15 @@ import {
   FormTextarea,
   type AddressSearchValue,
 } from '../../../components/form'
-import { CUSTOMER_MEDICAL_QUESTION_TEXT } from '../utils/customerDisplayFormat'
+import {
+  CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER,
+  CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER,
+  CUSTOMER_MEDICAL_QUESTION_TEXT,
+} from '../utils/customerDisplayFormat'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import { CustomerCarsEditor } from './CustomerCarsEditor'
+import { CustomerDrivingRadioGroup } from './CustomerDrivingRadioGroup'
+import { CustomerFormSection } from './CustomerFormSection'
 
 type CustomerEditFormProps = {
   customerId: number
@@ -146,7 +152,7 @@ export default function CustomerEditForm({
             />
           </label>
           <label className="field field--wide">
-            <span className="field__label">직업 / 회사명 등</span>
+            <span className="field__label">직업 / 회사명 / 하는 일 / 지역</span>
             <FormInput
               className="field__control"
               value={editForm.job ?? ''}
@@ -157,30 +163,13 @@ export default function CustomerEditForm({
           </label>
           <div className="field field--wide">
             <span className="field__label">운전 여부</span>
-            <div className="customer-driving-radio-group" role="radiogroup" aria-label="운전 여부">
-              <label className="customer-driving-radio-option">
-                <FormInput
-                  type="radio"
-                  name={`driver-edit-${customerId}`}
-                  checked={editForm.isDriver === true}
-                  onChange={() =>
-                    setEditForm((prev) => (prev ? { ...prev, isDriver: true } : prev))
-                  }
-                />
-                <span>운전함</span>
-              </label>
-              <label className="customer-driving-radio-option">
-                <FormInput
-                  type="radio"
-                  name={`driver-edit-${customerId}`}
-                  checked={editForm.isDriver === false}
-                  onChange={() =>
-                    setEditForm((prev) => (prev ? { ...prev, isDriver: false } : prev))
-                  }
-                />
-                <span>운전 안함</span>
-              </label>
-            </div>
+            <CustomerDrivingRadioGroup
+              name={`driver-edit-${customerId}`}
+              value={editForm.isDriver ?? null}
+              onChange={(next) =>
+                setEditForm((prev) => (prev ? { ...prev, isDriver: next } : prev))
+              }
+            />
           </div>
           <CustomerCarsEditor
             cars={editForm.cars}
@@ -188,32 +177,40 @@ export default function CustomerEditForm({
               setEditForm((prev) => (prev ? { ...prev, cars: next } : prev))
             }
           />
-          <label className="field field--wide">
-            <span className="field__label">{CUSTOMER_MEDICAL_QUESTION_TEXT}</span>
-            <FormTextarea
-              className="field__control customer-textarea--medical-history"
-              name="customer-medical"
-              rows={5}
-              placeholder="예: 2024-03 / 허리디스크 / 허리 / 시술 / 통원치료 / 사고 후 통증 / 치료 완료"
-              value={editForm.medical ?? ''}
-              onChange={(e) =>
-                setEditForm((prev) => (prev ? { ...prev, medical: e.target.value } : prev))
-              }
-            />
-          </label>
-          <label className="field field--wide">
-            <span className="field__label">보험가입내역</span>
-            <FormTextarea
-              className="field__control customer-textarea--insurance-history"
-              name="customer-insurance-history"
-              rows={5}
-              placeholder="보험가입내역 입력"
-              value={editForm.insuranceHistory ?? ''}
-              onChange={(e) =>
-                setEditForm((prev) => (prev ? { ...prev, insuranceHistory: e.target.value } : prev))
-              }
-            />
-          </label>
+          <CustomerFormSection
+            title={CUSTOMER_MEDICAL_QUESTION_TEXT}
+            className="field field--wide"
+            description="입력 형식은 아래 칸의 예시(placeholder)를 참고하세요."
+          >
+            <label className="customer-form-section__solo">
+              <FormTextarea
+                className="field__control customer-form-textarea customer-form-textarea--large customer-textarea--medical-history"
+                name="customer-medical"
+                placeholder={CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER}
+                aria-label={CUSTOMER_MEDICAL_QUESTION_TEXT}
+                value={editForm.medical ?? ''}
+                onChange={(e) =>
+                  setEditForm((prev) => (prev ? { ...prev, medical: e.target.value } : prev))
+                }
+              />
+            </label>
+          </CustomerFormSection>
+          <CustomerFormSection title="보험가입내역" className="field field--wide">
+            <label className="customer-form-section__solo">
+              <FormTextarea
+                className="field__control customer-form-textarea customer-form-textarea--large customer-textarea--insurance-history"
+                name="customer-insurance-history"
+                placeholder={CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER}
+                aria-label="보험가입내역"
+                value={editForm.insuranceHistory ?? ''}
+                onChange={(e) =>
+                  setEditForm((prev) =>
+                    prev ? { ...prev, insuranceHistory: e.target.value } : prev,
+                  )
+                }
+              />
+            </label>
+          </CustomerFormSection>
         </div>
         <div className="customer-edit-actions">
           <FormButton className="button-save" htmlType="submit" variant="primary">
