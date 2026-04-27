@@ -3021,6 +3021,54 @@ button.filter-button:focus-visible {
   grid-column: 1 / -1;
 }
 
+/* 고객 등록·수정 — 짧은 필드 2열 compact (field-grid 자식으로 전체 폭 차지) */
+.customer-form-compact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.customer-form-compact-grid .field {
+  min-width: 0;
+}
+
+.customer-form-compact-grid .field--wide {
+  grid-column: 1 / -1;
+}
+
+.customer-form-gender-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.customer-form-gender-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.customer-form-field--driving .customer-driving-radio-group {
+  margin-top: 2px;
+}
+
+.customer-insurance-hint {
+  margin: 4px 0 0;
+  color: var(--text-sub);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 380px) {
+  .customer-form-compact-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── 주소 검색 필드 ─────────────────────────────────────────────
    카카오(다음) 우편번호 위젯을 품은 공용 입력 블록.
    - 기본주소/상세주소가 한 필드의 "파트" 처럼 보이도록 세로로 쌓되,
@@ -4305,7 +4353,8 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .customer-form-textarea--large,
 .customer-textarea--medical-history,
 .customer-textarea--insurance-history {
-  min-height: 128px;
+  min-height: 112px;
+  line-height: 1.5;
   resize: vertical;
 }
 

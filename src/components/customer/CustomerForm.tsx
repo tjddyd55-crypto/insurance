@@ -76,7 +76,7 @@ export function InsuranceInline({ ssn }: { ssn: string }) {
 
       <span className="field__label">보험나이 · 상령일 (자동)</span>
 
-      <p className="customer-insurance-hint" style={{ margin: '4px 0 0' }}>
+      <p className="customer-insurance-hint">
 
         {ok ? (
 
@@ -384,6 +384,8 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
     <div className="field-grid-customers">
 
+      <div className="customer-form-compact-grid field--wide">
+
       <label className="field">
 
         <span className="field__label">이름</span>
@@ -397,11 +399,11 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
       </label>
 
-      <div className="field field--wide">
+      <div className="field customer-form-field--gender">
 
         <span className="field__label">성별</span>
 
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
+        <div className="customer-form-gender-options" role="radiogroup" aria-label="성별">
 
           <label>
 
@@ -456,8 +458,6 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
       </label>
 
-      <InsuranceInline ssn={form.ssn} />
-
       <label className="field">
 
         <span className="field__label">전화번호</span>
@@ -471,28 +471,7 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
       </label>
 
-      <div className="field field--wide">
-
-        <span className="field__label">주소</span>
-
-        <AddressSearchField
-          className="address-search-field"
-          value={{
-            zonecode: form.zonecode,
-            baseAddress: form.address,
-            detailAddress: form.addressDetail,
-          }}
-          onChange={(next: AddressSearchValue) =>
-            onFormChange({
-              ...form,
-              zonecode: next.zonecode,
-              address: next.baseAddress,
-              addressDetail: next.detailAddress,
-            })
-          }
-        />
-
-      </div>
+      <InsuranceInline ssn={form.ssn} />
 
       <label className="field">
 
@@ -533,7 +512,7 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
       </label>
 
-      <div className="field field--wide">
+      <div className="field field--wide customer-form-field--driving">
 
         <span className="field__label">운전 여부</span>
 
@@ -541,6 +520,31 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
           name={`driver-${radioSuffix}`}
           value={form.isDriver}
           onChange={(next) => onFormChange({ ...form, isDriver: next })}
+        />
+
+      </div>
+
+      </div>
+
+      <div className="field field--wide">
+
+        <span className="field__label">주소</span>
+
+        <AddressSearchField
+          className="address-search-field"
+          value={{
+            zonecode: form.zonecode,
+            baseAddress: form.address,
+            detailAddress: form.addressDetail,
+          }}
+          onChange={(next: AddressSearchValue) =>
+            onFormChange({
+              ...form,
+              zonecode: next.zonecode,
+              address: next.baseAddress,
+              addressDetail: next.detailAddress,
+            })
+          }
         />
 
       </div>

@@ -44,6 +44,7 @@ export default function CustomerEditForm({
         }}
       >
         <div className="field-grid-customers">
+          <div className="customer-form-compact-grid field--wide">
           <label className="field">
             <span className="field__label">이름</span>
             <FormInput
@@ -56,9 +57,9 @@ export default function CustomerEditForm({
               }
             />
           </label>
-          <div className="field field--wide">
+          <div className="field customer-form-field--gender">
             <span className="field__label">성별</span>
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
+            <div className="customer-form-gender-options" role="radiogroup" aria-label="성별">
               <label>
                 <FormInput
                   type="radio"
@@ -95,7 +96,6 @@ export default function CustomerEditForm({
               }
             />
           </label>
-          <InsuranceInline ssn={editForm.ssn ?? ''} />
           <label className="field">
             <span className="field__label">전화번호</span>
             <FormInput
@@ -108,29 +108,7 @@ export default function CustomerEditForm({
               }
             />
           </label>
-          <div className="field field--wide">
-            <span className="field__label">주소</span>
-            <AddressSearchField
-              className="address-search-field"
-              value={{
-                zonecode: editForm.zonecode ?? '',
-                baseAddress: editForm.address ?? '',
-                detailAddress: editForm.addressDetail ?? '',
-              }}
-              onChange={(next: AddressSearchValue) =>
-                setEditForm((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        zonecode: next.zonecode,
-                        address: next.baseAddress,
-                        addressDetail: next.detailAddress,
-                      }
-                    : prev,
-                )
-              }
-            />
-          </div>
+          <InsuranceInline ssn={editForm.ssn ?? ''} />
           <label className="field">
             <span className="field__label">키</span>
             <FormInput
@@ -161,13 +139,37 @@ export default function CustomerEditForm({
               }
             />
           </label>
-          <div className="field field--wide">
+          <div className="field field--wide customer-form-field--driving">
             <span className="field__label">운전 여부</span>
             <CustomerDrivingRadioGroup
               name={`driver-edit-${customerId}`}
               value={editForm.isDriver ?? null}
               onChange={(next) =>
                 setEditForm((prev) => (prev ? { ...prev, isDriver: next } : prev))
+              }
+            />
+          </div>
+          </div>
+          <div className="field field--wide">
+            <span className="field__label">주소</span>
+            <AddressSearchField
+              className="address-search-field"
+              value={{
+                zonecode: editForm.zonecode ?? '',
+                baseAddress: editForm.address ?? '',
+                detailAddress: editForm.addressDetail ?? '',
+              }}
+              onChange={(next: AddressSearchValue) =>
+                setEditForm((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        zonecode: next.zonecode,
+                        address: next.baseAddress,
+                        addressDetail: next.detailAddress,
+                      }
+                    : prev,
+                )
               }
             />
           </div>
