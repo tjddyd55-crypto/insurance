@@ -12,10 +12,9 @@ export default function ClaimRequestsRoutePage() {
   const [searchParams] = useSearchParams()
   const claimTabParam = searchParams.get('claimTab')
   const hasCustomerContext = Boolean(customerId?.trim())
-  const isInboxTab = !hasCustomerContext && (!claimTabParam || claimTabParam === 'inbox')
-  const isClaimsTab = hasCustomerContext
-    ? !claimTabParam || claimTabParam === 'claims'
-    : claimTabParam === 'claims'
+  const isInboxTab =
+    !hasCustomerContext && (!claimTabParam || claimTabParam === 'inbox' || claimTabParam === 'claims')
+  const isClaimsTab = hasCustomerContext && (!claimTabParam || claimTabParam === 'claims')
   const isPersonalTab = claimTabParam === 'news-personal'
   const isAllNewsTab = claimTabParam === 'news-all'
 
