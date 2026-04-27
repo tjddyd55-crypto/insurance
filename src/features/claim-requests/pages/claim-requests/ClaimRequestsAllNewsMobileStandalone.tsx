@@ -281,7 +281,11 @@ export default function ClaimRequestsAllNewsMobileStandalone() {
     if (!token) {
       return
     }
-    if (!window.confirm('이 전체소식지를 삭제하시겠습니까? 고객앱에서도 더 이상 보이지 않습니다. 첨부 원본 파일도 내 저장공간에서 함께 삭제됩니다.')) {
+    if (
+      !window.confirm(
+        '이 소식지를 완전히 삭제할까요? 첨부 이미지/파일도 삭제되며 복구할 수 없습니다.',
+      )
+    ) {
       return
     }
     setDeletingId(item.id)
@@ -289,16 +293,21 @@ export default function ClaimRequestsAllNewsMobileStandalone() {
     setResult('')
     try {
       await deleteCustomerNews(token, item.id)
-      const deletedFileCount = await deleteAllNewsSourceFiles(token, item)
+      let deletedFileCount = 0
+      try {
+        deletedFileCount = await deleteAllNewsSourceFiles(token, item)
+      } catch {
+        deletedFileCount = 0
+      }
       setHistory((prev) => prev.filter((row) => row.id !== item.id))
       setResult(
         deletedFileCount > 0
-          ? `전체소식지와 첨부 원본 ${deletedFileCount}개를 삭제했습니다.`
-          : '전체소식지를 삭제했습니다.',
+          ? `소식지를 삭제했습니다. (저장공간 메타데이터 ${deletedFileCount}건 정리)`
+          : '소식지를 삭제했습니다.',
       )
       await loadHistory()
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : '전체소식지 삭제에 실패했습니다.')
+      setError(deleteError instanceof Error ? deleteError.message : '소식지 삭제에 실패했습니다.')
     } finally {
       setDeletingId(null)
     }

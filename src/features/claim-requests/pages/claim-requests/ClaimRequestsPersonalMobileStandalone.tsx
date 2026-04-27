@@ -139,7 +139,11 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     if (!token) {
       return
     }
-    if (!window.confirm('이 개인메시지를 삭제하시겠습니까? 고객앱에서도 더 이상 보이지 않습니다.')) {
+    if (
+      !window.confirm(
+        '이 개인 소식지를 완전히 삭제할까요? 고객 앱에서도 보이지 않으며 복구할 수 없습니다.',
+      )
+    ) {
       return
     }
     setDeletingId(item.id)
@@ -148,10 +152,10 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     try {
       await deleteCustomerNews(token, item.id, { targetCustomerId: item.targetCustomerId ?? activeCustomerId })
       setHistory((prev) => prev.filter((row) => row.id !== item.id))
-      setResult('개인메시지를 삭제했습니다.')
+      setResult('소식지를 삭제했습니다.')
       await loadHistory()
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : '개인메시지 삭제에 실패했습니다.')
+      setError(deleteError instanceof Error ? deleteError.message : '소식지 삭제에 실패했습니다.')
     } finally {
       setDeletingId(null)
     }

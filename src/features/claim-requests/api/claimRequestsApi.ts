@@ -293,7 +293,7 @@ export async function deleteCustomerNews(
 ): Promise<{ id: string }> {
   const id = String(newsId ?? '').trim()
   if (!id) {
-    throw new ApiError('삭제할 개인메시지를 선택해 주세요.', 400)
+    throw new ApiError('삭제할 소식지를 선택해 주세요.', 400)
   }
   const search = new URLSearchParams()
   if (params.targetCustomerId && Number.isInteger(params.targetCustomerId) && params.targetCustomerId > 0) {

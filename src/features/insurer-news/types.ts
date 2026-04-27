@@ -49,6 +49,9 @@ export interface NewsletterItem {
   hasImages: boolean
   hasPdf: boolean
   hasTextBody: boolean
+  /** 고객 소식지(claim-requests) 전용 — 삭제 시 대상 고객 검증용 */
+  customerNewsScope?: 'all' | 'personal'
+  targetCustomerId?: number | null
 }
 
 /** 상세 본문 */

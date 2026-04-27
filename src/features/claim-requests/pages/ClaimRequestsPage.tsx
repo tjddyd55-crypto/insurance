@@ -18,6 +18,7 @@ import ClaimRequestsPagePCView from './claim-requests/ClaimRequestsPagePCView'
 import {
   createCustomerAppLink,
   createCustomerNews,
+  deleteCustomerNews,
   downloadClaimRequestFile,
   getClaimRequestDetail,
   getCustomerAppLink,
@@ -226,6 +227,8 @@ export default function ClaimRequestsPage() {
         hasImages: Boolean(item.attachments?.some((attachment) => attachment.kind === 'image')),
         hasPdf: Boolean(item.attachments?.some((attachment) => attachment.kind === 'file')),
         hasTextBody: Boolean(item.content?.trim()),
+        customerNewsScope: 'all',
+        targetCustomerId: item.targetCustomerId ?? null,
       })),
     [newsHistoryAll],
   )
@@ -245,6 +248,8 @@ export default function ClaimRequestsPage() {
         hasImages: Boolean(item.attachments?.some((attachment) => attachment.kind === 'image')),
         hasPdf: Boolean(item.attachments?.some((attachment) => attachment.kind === 'file')),
         hasTextBody: Boolean(item.content?.trim()),
+        customerNewsScope: 'personal',
+        targetCustomerId: item.targetCustomerId ?? null,
       })),
     [newsHistoryPersonal],
   )
@@ -399,6 +404,65 @@ export default function ClaimRequestsPage() {
       }
     },
     [token],
+  )
+
+  const handleDeleteAllCustomerNews = useCallback(
+    async (item: NewsletterItem) => {
+      if (!token) {
+        return
+      }
+      if (
+        !window.confirm(
+          '이 소식지를 완전히 삭제할까요? 첨부 이미지/파일도 삭제되며 복구할 수 없습니다.',
+        )
+      ) {
+        return
+      }
+      setCustomerNewsDeletingId(item.id)
+      setError('')
+      try {
+        await deleteCustomerNews(token, item.id)
+        setNewsResult('소식지를 삭제했습니다.')
+        await loadNewsHistory(selectedCustomerId)
+      } catch (deleteErr) {
+        setError(deleteErr instanceof Error ? deleteErr.message : '소식지 삭제에 실패했습니다.')
+      } finally {
+        setCustomerNewsDeletingId(null)
+      }
+    },
+    [token, loadNewsHistory, selectedCustomerId],
+  )
+
+  const handleDeletePersonalCustomerNews = useCallback(
+    async (item: NewsletterItem) => {
+      if (!token) {
+        return
+      }
+      if (
+        !window.confirm(
+          '이 개인 소식지를 완전히 삭제할까요? 고객 앱에서도 보이지 않으며 복구할 수 없습니다.',
+        )
+      ) {
+        return
+      }
+      const tid = item.targetCustomerId ?? selectedCustomerId ?? null
+      if (tid == null || !Number.isInteger(tid)) {
+        setError('삭제할 대상 고객을 확인할 수 없습니다.')
+        return
+      }
+      setCustomerNewsDeletingId(item.id)
+      setError('')
+      try {
+        await deleteCustomerNews(token, item.id, { targetCustomerId: tid })
+        setNewsResult('소식지를 삭제했습니다.')
+        await loadNewsHistory(selectedCustomerId)
+      } catch (deleteErr) {
+        setError(deleteErr instanceof Error ? deleteErr.message : '소식지 삭제에 실패했습니다.')
+      } finally {
+        setCustomerNewsDeletingId(null)
+      }
+    },
+    [token, loadNewsHistory, selectedCustomerId],
   )
 
   useEffect(() => {
@@ -1045,6 +1109,8 @@ export default function ClaimRequestsPage() {
                 items={allNewsCards}
                 emptyMessage="발송한 전체소식지가 없습니다."
                 variant={isMobile ? 'mobile' : 'pc'}
+                onDeleteItem={(card) => void handleDeleteAllCustomerNews(card)}
+                deleteBusyId={customerNewsDeletingId}
               />
             </div>
           ) : null}
@@ -1199,6 +1265,8 @@ export default function ClaimRequestsPage() {
               items={personalNewsCards}
               emptyMessage="해당 고객에게 발송한 개인메시지가 없습니다."
               variant={isMobile ? 'mobile' : 'pc'}
+              onDeleteItem={(card) => void handleDeletePersonalCustomerNews(card)}
+              deleteBusyId={customerNewsDeletingId}
             />
           </div>
         </section>

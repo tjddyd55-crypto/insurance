@@ -1,4 +1,5 @@
 import type { NewsletterItem } from '../types'
+import FormButton from '../../../components/form/FormButton'
 
 /**
  * PC/Mobile 분기는 `variant` prop 으로 승격 (AGENTS.md §8-5 Tier 4/3 참조).
@@ -8,6 +9,8 @@ import type { NewsletterItem } from '../types'
 type Props = {
   item: NewsletterItem
   onOpen?: () => void
+  onDelete?: () => void
+  deleteBusy?: boolean
   variant: 'pc' | 'mobile'
 }
 
@@ -35,7 +38,7 @@ function formatPublishedDateLabel(iso: string): string {
   return ymd || '—'
 }
 
-export function NewsCard({ item, onOpen, variant }: Props) {
+export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props) {
   const isMobile = variant === 'mobile'
   const companyName = item.insurerName?.trim() || '—'
   const dateLabel = formatPublishedDateLabel(item.publishedAt)
@@ -74,10 +77,10 @@ export function NewsCard({ item, onOpen, variant }: Props) {
     </div>
   )
 
-  if (onOpen) {
-    return (
+  const mediaBlock =
+    onOpen != null ? (
       <div
-        className={`news-card assessor-news-card${isMobile ? ' news-card--mobile' : ''}`}
+        className="card-content card-content--clickable"
         onClick={onOpen}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
@@ -87,9 +90,42 @@ export function NewsCard({ item, onOpen, variant }: Props) {
         }}
         role="button"
         tabIndex={0}
+      >
+        {media}
+      </div>
+    ) : (
+      <div className="card-content">{media}</div>
+    )
+
+  const deleteFooter =
+    onDelete != null ? (
+      <div
+        className={`news-card__actions${isMobile ? ' news-card__actions--mobile' : ''}`}
+        onClick={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
+      >
+        <FormButton
+          htmlType="button"
+          variant="danger"
+          size={isMobile ? 'sm' : 'sm'}
+          loading={Boolean(deleteBusy)}
+          disabled={Boolean(deleteBusy)}
+          className="news-card__delete"
+          onClick={() => onDelete()}
+        >
+          삭제
+        </FormButton>
+      </div>
+    ) : null
+
+  if (onOpen != null) {
+    return (
+      <div
+        className={`news-card assessor-news-card${isMobile ? ' news-card--mobile' : ''}`}
         aria-label={cardAriaLabel(item)}
       >
-        <div className="card-content">{media}</div>
+        {mediaBlock}
+        {deleteFooter}
       </div>
     )
   }
@@ -100,7 +136,8 @@ export function NewsCard({ item, onOpen, variant }: Props) {
       role="article"
       aria-label={cardAriaLabel(item)}
     >
-      <div className="card-content">{media}</div>
+      {mediaBlock}
+      {deleteFooter}
     </div>
   )
 }

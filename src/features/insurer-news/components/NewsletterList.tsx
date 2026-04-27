@@ -10,10 +10,20 @@ type Props = {
   emptyMessage: string
   variant: 'pc' | 'mobile'
   onOpenItem?: (id: string) => void
+  onDeleteItem?: (item: NewsletterItem) => void
+  deleteBusyId?: string | null
   noSearchResults?: boolean
 }
 
-export function NewsletterList({ items, emptyMessage, variant, onOpenItem, noSearchResults }: Props) {
+export function NewsletterList({
+  items,
+  emptyMessage,
+  variant,
+  onOpenItem,
+  onDeleteItem,
+  deleteBusyId,
+  noSearchResults,
+}: Props) {
   if (!items.length) {
     return (
       <div className="insurer-news-empty" role="status">
@@ -30,6 +40,8 @@ export function NewsletterList({ items, emptyMessage, variant, onOpenItem, noSea
           item={item}
           variant={variant}
           onOpen={onOpenItem ? () => onOpenItem(item.id) : undefined}
+          onDelete={onDeleteItem ? () => onDeleteItem(item) : undefined}
+          deleteBusy={Boolean(deleteBusyId && deleteBusyId === item.id)}
         />
       ))}
     </div>
