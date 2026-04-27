@@ -2,18 +2,48 @@
  * 인증된 세션이 "처음 도착해야 하는" 기본 경로(랜딩 경로)를 결정한다.
  *
  * 정책 근거:
- *  - PC: 사이드바가 상존하므로 다른 메뉴 접근성이 이미 확보되어 있다.
- *        가장 많이 쓰는 업무가 고객관리이므로 `/customers` 로 직행한다.
- *  - Mobile: 대시보드 카드 그리드가 주 메뉴 탐색 경로다. 이를 건너뛰면
- *            모바일 사용자가 다른 메뉴에 닿기 위해 햄버거를 한 번 더
- *            눌러야 하므로 `/dashboard` 를 유지한다.
+ *  - 역할(SUPER_ADMIN, GA_STAFF, INSURER_MANAGER, LOSS_ADJUSTER 등)에 따라
+ *    해당 업무 영역의 기본 화면으로 보낸다.
+ *  - USER / GA_ADMIN 등은 기존과 같다:
+ *      - PC: 사이드바가 상존 → `/customers` 직행
+ *      - Mobile: `/dashboard` (햄버거 한 번 절약)
+ *  - `role` 이 없으면(구 호출·마이그레이션) PC `/customers` · 모바일 `/dashboard` 로 폴백한다.
  *
  * 이 함수는 "경로 정책" 의 단일 진실 원천(SSOT)이다.
  * 로그인 성공 직후 / 루트(`/`) 진입 / 기타 자동 리다이렉트가 전부
  * 이 함수를 통해 동일한 경로로 수렴하도록 구성한다.
  *
- * 새 디바이스 / 역할별 랜딩 정책 요구가 생기면 여기만 수정하면 된다.
+ * 새 역할·랜딩 정책 요구가 생기면 여기만 수정하면 된다.
  */
-export function resolveAuthLandingPath(isMobile: boolean): string {
+export type AuthLandingRole =
+  | 'SUPER_ADMIN'
+  | 'GA_ADMIN'
+  | 'GA_STAFF'
+  | 'USER'
+  | 'INSURER_MANAGER'
+  | 'LOSS_ADJUSTER'
+  | string
+  | undefined
+  | null
+
+export function resolveAuthLandingPath(isMobile: boolean, role?: AuthLandingRole): string {
+  const normalizedRole = String(role ?? '').trim().toUpperCase()
+
+  if (normalizedRole === 'SUPER_ADMIN') {
+    return '/admin/ga'
+  }
+
+  if (normalizedRole === 'GA_STAFF') {
+    return '/insurance/company-registry'
+  }
+
+  if (normalizedRole === 'INSURER_MANAGER') {
+    return '/insurer/news'
+  }
+
+  if (normalizedRole === 'LOSS_ADJUSTER') {
+    return '/adjuster/news'
+  }
+
   return isMobile ? '/dashboard' : '/customers'
 }

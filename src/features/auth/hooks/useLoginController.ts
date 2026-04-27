@@ -38,7 +38,7 @@ export type UseLoginControllerResult = {
  *  - 이미 인증된 세션은 기본 랜딩 경로로 즉시 리다이렉트
  *  - Electron 네이티브 / 웹 번들 버전 조회 (footer 표시용)
  *
- * 기본 랜딩 경로는 디바이스에 따라 다르다 (→ `resolveAuthLandingPath`).
+ * 기본 랜딩 경로는 역할·디바이스에 따라 다르다 (→ `resolveAuthLandingPath`).
  * 정책 변경은 `../landing.ts` 한 곳에서만 수행한다.
  *
  * 책임이 아닌 것:
@@ -52,7 +52,7 @@ export type UseLoginControllerResult = {
 export function useLoginController(): UseLoginControllerResult {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, login } = useAuth()
+  const { isAuthenticated, login, user } = useAuth()
   const isMobile = useIsMobile()
   const flash = (location.state ?? {}) as LoginFlash
 
@@ -64,9 +64,9 @@ export function useLoginController(): UseLoginControllerResult {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(resolveAuthLandingPath(isMobile), { replace: true })
+      navigate(resolveAuthLandingPath(isMobile, user?.role), { replace: true })
     }
-  }, [isAuthenticated, isMobile, navigate])
+  }, [isAuthenticated, isMobile, navigate, user?.role])
 
   useEffect(() => {
     let cancelled = false
@@ -102,7 +102,7 @@ export function useLoginController(): UseLoginControllerResult {
     try {
       const session = await loginApi(username, password)
       login(session)
-      navigate(resolveAuthLandingPath(isMobile), { replace: true })
+      navigate(resolveAuthLandingPath(isMobile, session.user.role), { replace: true })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '로그인에 실패했습니다.')
     } finally {
