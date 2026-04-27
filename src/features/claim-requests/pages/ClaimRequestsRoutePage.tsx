@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import useIsMobile from '../../../hooks/useIsMobile'
 import ClaimRequestsAllNewsMobileStandalone from './claim-requests/ClaimRequestsAllNewsMobileStandalone'
 import ClaimRequestsClaimsMobileStandalone from './claim-requests/ClaimRequestsClaimsMobileStandalone'
@@ -8,10 +8,14 @@ import ClaimRequestsPage from './ClaimRequestsPage'
 
 export default function ClaimRequestsRoutePage() {
   const isMobile = useIsMobile()
+  const { customerId } = useParams<{ customerId?: string }>()
   const [searchParams] = useSearchParams()
   const claimTabParam = searchParams.get('claimTab')
-  const isInboxTab = claimTabParam === 'inbox'
-  const isClaimsTab = !claimTabParam || claimTabParam === 'claims'
+  const hasCustomerContext = Boolean(customerId?.trim())
+  const isInboxTab = !hasCustomerContext && (!claimTabParam || claimTabParam === 'inbox')
+  const isClaimsTab = hasCustomerContext
+    ? !claimTabParam || claimTabParam === 'claims'
+    : claimTabParam === 'claims'
   const isPersonalTab = claimTabParam === 'news-personal'
   const isAllNewsTab = claimTabParam === 'news-all'
 
