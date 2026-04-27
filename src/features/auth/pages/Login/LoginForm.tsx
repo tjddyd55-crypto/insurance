@@ -63,6 +63,10 @@ export default function LoginForm({
             value={username}
             onChange={(event) => setUsername(event.target.value)}
             autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            inputMode="text"
             required
           />
         </label>

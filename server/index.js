@@ -24,7 +24,6 @@ import { verifySignupPhoneProof } from './lib/signupPhoneProof.js'
 import { signInviteSignup, verifyInviteSignupSignature } from './lib/inviteSignupSignature.js'
 import { purgeExpiredSmsVerificationCodes } from './services/purgeExpiredSmsCodes.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
-import { isSignupPhoneRelaxedMode } from './lib/signupPhoneRelaxed.js'
 import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
 import { parseGaId } from './lib/parseGaId.js'
@@ -1757,18 +1756,10 @@ async function handleRegister(req, res) {
       return
     }
 
-    const phoneRaw = phoneSnake ?? phoneCamel
-    const phoneTrim = String(phoneRaw ?? '').trim()
-    let phoneNorm = ''
-    if (phoneTrim) {
-      phoneNorm = normalizeKrMobile(phoneRaw)
-      const phoneValidationError = validateKrMobileDigits(phoneNorm)
-      if (phoneValidationError) {
-        res.status(400).json({ message: phoneValidationError })
-        return
-      }
-    } else if (!isSignupPhoneRelaxedMode()) {
-      res.status(400).json({ message: '휴대폰 번호는 필수입니다.' })
+    const phoneNorm = normalizeKrMobile(req.body?.phone_number ?? req.body?.phoneNumber)
+    const phoneErr = validateKrMobileDigits(phoneNorm)
+    if (phoneErr) {
+      res.status(400).json({ message: phoneErr })
       return
     }
 
@@ -1868,56 +1859,38 @@ async function handleRegister(req, res) {
       return false
     }
 
-    if (!isSignupPhoneRelaxedMode()) {
-      if (!phoneNorm) {
-        res.status(400).json({ message: '휴대폰 번호는 필수입니다.' })
-        return
-      }
-      if (!proofRaw) {
-        res.status(400).json({ message: '휴대폰 인증이 필요합니다.' })
-        return
-      }
-      let signupProof
-      try {
-        signupProof = verifySignupPhoneProof(proofRaw, JWT_SECRET)
-      } catch {
-        res.status(400).json({
-          message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
-        })
-        return
-      }
-      if (respondProofMismatch(signupProof)) {
-        return
-      }
-    } else if (phoneNorm) {
-      if (!proofRaw) {
-        res.status(400).json({ message: '휴대폰 인증이 필요합니다.' })
-        return
-      }
-      let signupProof
-      try {
-        signupProof = verifySignupPhoneProof(proofRaw, JWT_SECRET)
-      } catch {
-        res.status(400).json({
-          message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
-        })
-        return
-      }
-      if (respondProofMismatch(signupProof)) {
-        return
-      }
+    if (!proofRaw) {
+      res.status(400).json({ message: '휴대폰 인증이 필요합니다.' })
+      return
+    }
+    let signupProof
+    try {
+      signupProof = verifySignupPhoneProof(proofRaw, JWT_SECRET)
+    } catch {
+      res.status(400).json({
+        message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
+      })
+      return
+    }
+    if (respondProofMismatch(signupProof)) {
+      return
     }
 
-    if (!isSignupPhoneRelaxedMode() && phoneNorm) {
-      const phoneDup = await systemQuery(
-        pool,
-        `SELECT id FROM users WHERE phone_number = $1 AND is_deleted = false LIMIT 1`,
-        [phoneNorm],
-      )
-      if (phoneDup.rowCount > 0) {
-        res.status(400).json({ message: '이미 사용중인 휴대폰 번호입니다.' })
-        return
-      }
+    const phoneDup = await systemQuery(
+      pool,
+      `
+      SELECT 1
+      FROM users
+      WHERE is_deleted = false
+        AND role = 'USER'
+        AND regexp_replace(COALESCE(phone_number, ''), '[^0-9]', '', 'g') = $1
+      LIMIT 1
+      `,
+      [phoneNorm],
+    )
+    if (phoneDup.rowCount > 0) {
+      res.status(409).json({ message: '이미 가입된 휴대폰 번호입니다.' })
+      return
     }
 
     const validationMessage = validateCredentials(username, password)
@@ -1951,7 +1924,7 @@ async function handleRegister(req, res) {
       VALUES ($1, $2, $3, 'USER', $4, $5, $6, $7)
       RETURNING created_at
       `,
-      [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm || null, effectiveInvitedByUserId],
+      [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm, effectiveInvitedByUserId],
     )
 
     if (phoneNorm) {

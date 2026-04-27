@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { normalizeKrMobile, validateKrMobileDigits } from '../../../lib/phoneNormalize'
-import { isSignupPhoneRelaxedMode } from '../../../lib/signupPhoneRelaxed'
 import {
   checkUsernameAvailability,
   login as loginApi,
@@ -162,7 +161,7 @@ export function RegisterPage() {
 
   const phoneDigits = normalizeKrMobile(phone)
   const gaCodeTrim = gaCode.trim()
-  const needsPhoneAuth = !isSignupPhoneRelaxedMode() || Boolean(phoneDigits)
+  const needsPhoneAuth = true
 
   const requestSignupSms = async () => {
     setErrorMessage('')
@@ -255,8 +254,13 @@ export function RegisterPage() {
     event.preventDefault()
     setErrorMessage('')
 
-    if (needsPhoneAuth && !isVerified) {
-      alert('휴대폰 인증을 완료해주세요.')
+    const phoneErrSubmit = validateKrMobileDigits(phoneDigits)
+    if (phoneErrSubmit) {
+      setErrorMessage(phoneErrSubmit)
+      return
+    }
+    if (!isVerified) {
+      setErrorMessage('휴대폰 인증을 완료해 주세요.')
       return
     }
 
@@ -293,19 +297,6 @@ export function RegisterPage() {
     if (!nameTrim) {
       setErrorMessage('이름을 입력하세요.')
       return
-    }
-    if (!isSignupPhoneRelaxedMode()) {
-      const phoneErr = validateKrMobileDigits(phoneDigits)
-      if (phoneErr) {
-        setErrorMessage(phoneErr)
-        return
-      }
-    } else if (phoneDigits) {
-      const phoneErr = validateKrMobileDigits(phoneDigits)
-      if (phoneErr) {
-        setErrorMessage(phoneErr)
-        return
-      }
     }
 
     setIsSubmitting(true)
@@ -401,6 +392,10 @@ export function RegisterPage() {
                 }}
                 onBlur={() => void runUsernameCheck(username)}
                 autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                inputMode="text"
                 placeholder="로그인에 사용할 아이디"
                 required
               />
@@ -466,7 +461,7 @@ export function RegisterPage() {
                 inputMode="numeric"
                 autoComplete="tel"
                 placeholder="01012345678 또는 010-1234-5678"
-                required={!isSignupPhoneRelaxedMode()}
+                required
               />
             </label>
 

@@ -16,7 +16,6 @@ import { assertNotSmsAccountLocked } from './services/smsAccountLock.js'
 import { insertSmsVerificationLog } from './services/smsVerificationAudit.js'
 import { applyUserSmsRequestAfterSend, evaluateUserSmsRequestQuota } from './services/smsUserDbRate.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
-import { isSignupPhoneRelaxedMode } from './lib/signupPhoneRelaxed.js'
 import { logSmsVerifyFailure } from './services/smsStructuredLog.js'
 import { SMS_PUBLIC_DELAY_MESSAGE } from './services/smsPublicMessages.js'
 import { buildSubscriptionResponseForUser } from './subscription/applyToResponseUser.js'
@@ -28,6 +27,23 @@ function exposeSmsDebugCode(runningInProduction) {
   return (
     !runningInProduction && String(process.env.INSURANCE_SMS_DEBUG_RESPONSE_CODE ?? '').trim() === 'true'
   )
+}
+
+/** USER 역할·숫자만 동일(포맷 무시) — 회원가입/가입 SMS 플로우용 */
+async function isUserSignupPhoneDuplicate(pool, phoneDigits) {
+  const r = await systemQuery(
+    pool,
+    `
+    SELECT 1
+    FROM users
+    WHERE is_deleted = false
+      AND role = 'USER'
+      AND regexp_replace(COALESCE(phone_number, ''), '[^0-9]', '', 'g') = $1
+    LIMIT 1
+    `,
+    [phoneDigits],
+  )
+  return r.rowCount > 0
 }
 
 async function isPhoneUsedByActiveUser(pool, phoneDigits, excludeUserId = '') {
@@ -138,11 +154,9 @@ export function registerUserProfileApi(apiRouter, ctx) {
         return
       }
 
-      if (!isSignupPhoneRelaxedMode()) {
-        if (await isPhoneUsedByActiveUser(pool, phoneNorm, '')) {
-          res.status(400).json({ message: '이미 사용중인 휴대폰 번호입니다.' })
-          return
-        }
+      if (await isUserSignupPhoneDuplicate(pool, phoneNorm)) {
+        res.status(409).json({ message: '이미 가입된 휴대폰 번호입니다.' })
+        return
       }
 
       const gap = await assertCanRequestSmsCode(SMS_PURPOSE_SIGNUP, phoneNorm)
@@ -357,11 +371,9 @@ export function registerUserProfileApi(apiRouter, ctx) {
         return
       }
 
-      if (!isSignupPhoneRelaxedMode()) {
-        if (await isPhoneUsedByActiveUser(pool, phoneNorm, '')) {
-          res.status(400).json({ message: '이미 사용중인 휴대폰 번호입니다.' })
-          return
-        }
+      if (await isUserSignupPhoneDuplicate(pool, phoneNorm)) {
+        res.status(409).json({ message: '이미 가입된 휴대폰 번호입니다.' })
+        return
       }
 
       await tx.query('BEGIN')

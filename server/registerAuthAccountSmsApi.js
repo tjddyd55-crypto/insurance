@@ -129,15 +129,39 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
         [usernameNorm],
       )
       user = lockR.rows[0]
-      const okUser =
-        user &&
-        String(user.role ?? '').toUpperCase() === 'USER' &&
-        String(user.status ?? '').toLowerCase() === 'active' &&
-        normalizeKrMobile(user.phone_number) === phoneNorm
-
-      if (!okUser) {
+      if (!user) {
         await client.query('ROLLBACK')
-        logSmsEvent('password_reset_request_mismatch', { username: usernameNorm })
+        console.error('[sms-auth] request-password-reset-code denied', {
+          reason: 'username_not_found',
+          username: usernameNorm,
+        })
+        jsonPublicAuth(res, 400)
+        return
+      }
+      if (String(user.role ?? '').toUpperCase() !== 'USER') {
+        await client.query('ROLLBACK')
+        console.error('[sms-auth] request-password-reset-code denied', {
+          reason: 'role_not_user',
+          username: usernameNorm,
+        })
+        jsonPublicAuth(res, 400)
+        return
+      }
+      if (String(user.status ?? '').toLowerCase() !== 'active') {
+        await client.query('ROLLBACK')
+        console.error('[sms-auth] request-password-reset-code denied', {
+          reason: 'status_not_active',
+          username: usernameNorm,
+        })
+        jsonPublicAuth(res, 400)
+        return
+      }
+      if (normalizeKrMobile(user.phone_number) !== phoneNorm) {
+        await client.query('ROLLBACK')
+        console.error('[sms-auth] request-password-reset-code denied', {
+          reason: 'phone_mismatch',
+          username: usernameNorm,
+        })
         jsonPublicAuth(res, 400)
         return
       }
@@ -145,6 +169,7 @@ export function registerAuthAccountSmsApi(apiRouter, ctx) {
       userGa = parseGaId(user.ga_id)
       if (userGa == null) {
         await client.query('ROLLBACK')
+        console.error('[sms-auth] request-password-reset-code denied', { reason: 'ga_missing', userId: user.id })
         jsonPublicAuth(res, 500)
         return
       }

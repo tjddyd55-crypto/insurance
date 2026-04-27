@@ -210,10 +210,7 @@ export async function register(payload: {
     if (inviteTs) {
       body.invite_ts = inviteTs
     }
-    const phone = payload.phoneNumber?.trim()
-    if (phone) {
-      body.phone_number = phone
-    }
+    body.phone_number = String(payload.phoneNumber ?? '').trim()
     const proof = payload.signupPhoneProof?.trim()
     if (proof) {
       body.signup_phone_proof = proof
@@ -328,7 +325,7 @@ export async function verifyPhoneChangeCode(token: string, phoneNumber: string, 
 export async function login(username: string, password: string) {
   const raw = await apiRequest<LoginResponse>('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username: username.trim(), password }),
   })
   const gaCode =
     typeof raw.user.ga_code === 'string' ? raw.user.ga_code.trim().toUpperCase() : ''
