@@ -1071,6 +1071,84 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_cars (
+      id BIGSERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      car_type TEXT NOT NULL DEFAULT '',
+      car_number TEXT NOT NULL DEFAULT '',
+      car_model TEXT NOT NULL DEFAULT '',
+      car_year TEXT NOT NULL DEFAULT '',
+      renewal_date DATE NULL,
+      memo TEXT NOT NULL DEFAULT '',
+      is_primary BOOLEAN NOT NULL DEFAULT false,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_cars_customer_id
+    ON customer_cars(customer_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_cars_user_customer
+    ON customer_cars(user_id, customer_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_cars_ga_customer
+    ON customer_cars(ga_id, customer_id)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_cars_renewal_date
+    ON customer_cars(renewal_date)
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_customer_cars_primary_per_customer
+    ON customer_cars(customer_id)
+    WHERE is_primary = true
+  `)
+
+  await pool.query(`
+    INSERT INTO customer_cars (
+      customer_id,
+      user_id,
+      ga_id,
+      car_type,
+      car_number,
+      car_model,
+      car_year,
+      renewal_date,
+      is_primary,
+      sort_order
+    )
+    SELECT
+      c.id,
+      c.user_id,
+      c.ga_id,
+      COALESCE(c.car_type, ''),
+      COALESCE(c.car_number, ''),
+      COALESCE(c.car_model, ''),
+      COALESCE(c.car_year, ''),
+      c.renewal_date,
+      true,
+      0
+    FROM customers c
+    WHERE NOT EXISTS (
+      SELECT 1 FROM customer_cars cc WHERE cc.customer_id = c.id
+    )
+    AND (
+      COALESCE(TRIM(c.car_type), '') <> ''
+      OR COALESCE(TRIM(c.car_number), '') <> ''
+      OR COALESCE(TRIM(c.car_model), '') <> ''
+      OR COALESCE(TRIM(c.car_year), '') <> ''
+      OR c.renewal_date IS NOT NULL
+    )
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS ga_customer_excel_settings (
       ga_id INTEGER PRIMARY KEY REFERENCES ga_companies(id) ON DELETE CASCADE,
       feature_enabled BOOLEAN NOT NULL DEFAULT false,
@@ -2600,6 +2678,7 @@ export async function initDb() {
   await ensureSubscriptionSchema(pool)
   await ensureSignatureSchema(pool)
   await ensurePdfTemplateSchema(pool)
+  await ensureCustomerImportSchema(pool)
 }
 
 /**
@@ -2676,6 +2755,66 @@ async function ensureSubscriptionSchema(executor) {
       ('subscription.policy_active',       CAST('false' AS jsonb)),
       ('subscription.trial_default_days',  CAST('30'    AS jsonb))
     ON CONFLICT (key) DO NOTHING
+  `)
+}
+
+/**
+ * 고객 자동 업로드(import jobs) — 기존 GPT/양식 업로드 와 별도 테이블.
+ */
+async function ensureCustomerImportSchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS customer_import_jobs (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      original_filename TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      total_rows INTEGER NOT NULL DEFAULT 0,
+      ready_rows INTEGER NOT NULL DEFAULT 0,
+      incomplete_rows INTEGER NOT NULL DEFAULT 0,
+      duplicate_rows INTEGER NOT NULL DEFAULT 0,
+      error_rows INTEGER NOT NULL DEFAULT 0,
+      imported_rows INTEGER NOT NULL DEFAULT 0,
+      error_message TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_import_jobs_user_created
+    ON customer_import_jobs (user_id, created_at DESC)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_import_jobs_ga_created
+    ON customer_import_jobs (ga_id, created_at DESC)
+  `)
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS customer_import_rows (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      job_id UUID NOT NULL REFERENCES customer_import_jobs(id) ON DELETE CASCADE,
+      row_index INTEGER NOT NULL,
+      raw_row JSONB NOT NULL DEFAULT '{}'::jsonb,
+      normalized_row JSONB,
+      status TEXT NOT NULL,
+      reason TEXT,
+      matched_customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (job_id, row_index)
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_import_rows_job_status
+    ON customer_import_rows (job_id, status)
+  `)
+  await executor.query(`
+    ALTER TABLE customer_import_rows
+    DROP CONSTRAINT IF EXISTS customer_import_rows_status_check
+  `)
+  await executor.query(`
+    ALTER TABLE customer_import_rows
+    ADD CONSTRAINT customer_import_rows_status_check
+    CHECK (status IN ('ready', 'incomplete', 'duplicate', 'error', 'imported'))
   `)
 }
 

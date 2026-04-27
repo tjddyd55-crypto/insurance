@@ -11,12 +11,14 @@ import { initDb } from './initDb.js'
 import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
 import { registerUserProfileApi } from './registerUserProfileApi.js'
 import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
+import { registerCustomerImportApi } from './apis/customerImportApi.js'
 import { registerTeamApi } from './apis/teamApi.js'
 import { registerNotificationsApi } from './apis/notificationsApi.js'
 import { registerMemoApi } from './apis/memoApi.js'
 import { registerSuperAdminAnalyticsApi } from './registerSuperAdminAnalyticsApi.js'
 import { registerGaCustomerExcelApi } from './apis/gaCustomerExcelApi.js'
 import { registerCustomerClaimAppApi } from './apis/customerClaimAppApi.js'
+import { registerCustomerCarsApi } from './apis/customerCarsApi.js'
 import { recordAnalyticsEvent } from './lib/analyticsEvents.js'
 import { ensureYesterdayAnalyticsAggregated } from './lib/analyticsAggregation.js'
 import { tickAnalyticsAggregationScheduler } from './lib/analyticsScheduler.js'
@@ -1437,6 +1439,8 @@ registerPdfTemplateApi(apiRouter, {
 })
 
 registerSubscriptionEndpoints(apiRouter, { requireAuth })
+
+registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDbError })
 
 registerCustomerClaimAppApi(apiRouter, {
   pool,
@@ -5847,6 +5851,15 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
   } catch (error) {
     handleDbError(error, req, res)
   }
+})
+
+registerCustomerImportApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+  requireInsuranceFormUserId,
+  parseGaId,
+  recordAnalyticsEvent,
 })
 
 apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
