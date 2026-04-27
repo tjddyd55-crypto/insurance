@@ -51,7 +51,7 @@ import CustomerListCard, {
   type CustomerEditFormState,
   type CustomerSsnDupHighlight,
 } from '../components/CustomerListCard'
-import CustomerExcelSelectToolbar from '../components/CustomerExcelSelectToolbar'
+import { useCustomerExcelSelection } from '../hooks/useCustomerExcelSelection'
 import { getCustomerListMetrics } from '../utils/customerListMetrics'
 import {
   type CustomerAdvancedFilters,
@@ -189,11 +189,6 @@ export default function CustomersPage() {
   const [advancedFilters, setAdvancedFilters] = useState<CustomerAdvancedFilters>(() => ({
     ...EMPTY_ADVANCED_FILTERS,
   }))
-  const [isSelectMode, setIsSelectMode] = useState(false)
-  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([])
-  const [selectedColumns, setSelectedColumns] = useState<string[]>([])
-  const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false)
-  const selectAllRef = useRef<HTMLInputElement>(null)
   const [deepSearch, setDeepSearch] = useState(false)
   const [advSearchHits, setAdvSearchHits] = useState<CustomerRecord[] | null>(null)
   const [advSearchLoading, setAdvSearchLoading] = useState(false)
@@ -338,8 +333,33 @@ export default function CustomersPage() {
   }, [filteredCustomers, sortType])
 
   const allVisibleIds = useMemo(() => sortedCustomers.map((c) => String(c.id)), [sortedCustomers])
-  const allVisibleSelected =
-    allVisibleIds.length > 0 && allVisibleIds.every((id) => selectedCustomerIds.includes(id))
+  const defaultSelectedColumns = useMemo(() => ['name'], [])
+  const onEnterExcelSelectMode = useCallback(() => {
+    setExpandedId(null)
+    setEditingId(null)
+    setEditForm(null)
+    setStatusText('')
+  }, [setExpandedId])
+  const {
+    isSelectMode,
+    setIsSelectMode,
+    selectedCustomerIds,
+    setSelectedCustomerIds,
+    selectedColumns,
+    setSelectedColumns,
+    isColumnPickerOpen,
+    setIsColumnPickerOpen,
+    selectAllRef,
+    allVisibleSelected,
+    enterExcelSelectMode,
+    exitExcelSelectMode,
+    toggleSelectAll,
+    toggleExcelColumn,
+  } = useCustomerExcelSelection({
+    visibleCustomerIds: allVisibleIds,
+    defaultSelectedColumns,
+    onEnterExcelSelectMode,
+  })
 
   const loadCustomers = useCallback(async () => {
     if (!token || user?.role !== 'USER') {
@@ -657,15 +677,6 @@ export default function CustomersPage() {
   }, [expandedId, editingId])
 
   useEffect(() => {
-    const el = selectAllRef.current
-    if (!el) {
-      return
-    }
-    const n = selectedCustomerIds.filter((id) => allVisibleIds.includes(id)).length
-    el.indeterminate = n > 0 && n < allVisibleIds.length
-  }, [selectedCustomerIds, allVisibleIds])
-
-  useEffect(() => {
     if (tab !== 'list' && isSelectMode) {
       setIsSelectMode(false)
       setSelectedCustomerIds([])
@@ -953,24 +964,6 @@ export default function CustomersPage() {
     }
   }
 
-  function enterExcelSelectMode() {
-    setExpandedId(null)
-    setEditingId(null)
-    setEditForm(null)
-    setIsSelectMode(true)
-    setSelectedCustomerIds([])
-    setSelectedColumns(['name'])
-    setIsColumnPickerOpen(false)
-    setStatusText('')
-  }
-
-  function exitExcelSelectMode() {
-    setIsSelectMode(false)
-    setSelectedCustomerIds([])
-    setSelectedColumns([])
-    setIsColumnPickerOpen(false)
-  }
-
   function runExport(rows: CustomerRecord[]) {
     try {
       exportCustomersExcel(rows, selectedColumns)
@@ -997,10 +990,6 @@ export default function CustomersPage() {
       return
     }
     runExport([...sortedCustomers])
-  }
-
-  function toggleExcelColumn(id: string) {
-    setSelectedColumns((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
   }
 
   /** 모바일 앱 WebView는 /customer/register 네비를 네이티브에서 막음 — 여기서는 복사만. */
@@ -1095,13 +1084,7 @@ export default function CustomersPage() {
               ref={selectAllRef}
               type="checkbox"
               checked={allVisibleSelected}
-              onChange={() => {
-                if (allVisibleSelected) {
-                  setSelectedCustomerIds((prev) => prev.filter((id) => !allVisibleIds.includes(id)))
-                } else {
-                  setSelectedCustomerIds((prev) => [...new Set([...prev, ...allVisibleIds])])
-                }
-              }}
+              onChange={toggleSelectAll}
             />
             전체 선택
           </label>
