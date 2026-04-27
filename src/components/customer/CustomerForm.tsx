@@ -563,6 +563,8 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
             className="field__control customer-form-textarea customer-form-textarea--large customer-textarea--medical-history"
 
+            rows={4}
+
             placeholder={CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER}
             aria-label={CUSTOMER_MEDICAL_QUESTION_TEXT}
 
@@ -579,6 +581,8 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
           <FormTextarea
 
             className="field__control customer-form-textarea customer-form-textarea--large customer-textarea--insurance-history"
+
+            rows={4}
 
             placeholder={CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER}
             aria-label="보험가입내역"

@@ -19,6 +19,7 @@ export type { AddressSearchValue } from './addressSearchUtils'
  *   - 우편번호 + 기본주소(도로명/지번) 는 검색 결과로만 채워질 수 있게 하여
  *     사용자 오타를 원천 차단한다(readonly 입력).
  *   - 상세주소는 자유 입력이며, 검색 완료 직후 자동으로 포커스를 옮겨 입력 흐름을 끊지 않는다.
+ *   - 화면 순서: 주소 검색 → 우편번호 → 기본주소 → 상세주소.
  *   - 검색 UI 는 모달 안에 카카오 위젯을 embed 해, 팝업 차단이나 별도 창 UX 혼란을 피한다.
  *
  * 상위가 이 필드를 "제어(controlled)" 한다. 값 객체는 3-튜플:
@@ -153,23 +154,16 @@ export default function AddressSearchField({
   }, [open, handleSelect])
 
   const current = value ?? EMPTY_VALUE
+  const rootClass = ['customer-address-field', className].filter(Boolean).join(' ')
 
   return (
-    <div className={className}>
-      {/* 1줄: 우편번호 + 검색 버튼 */}
-      <div className="address-search-field__row address-search-field__row--inline">
-        <FormInput
-          className="address-search-field__zonecode"
-          placeholder={zonecodePlaceholder}
-          value={current.zonecode}
-          readOnly
-          aria-label="우편번호"
-          onClick={openDialog}
-        />
+    <div className={rootClass}>
+      <div className="customer-address-field__search-row">
         <FormButton
           htmlType="button"
           variant="secondary"
           size="sm"
+          fullWidth
           disabled={disabled}
           onClick={openDialog}
         >
@@ -177,9 +171,17 @@ export default function AddressSearchField({
         </FormButton>
       </div>
 
-      {/* 2줄: 기본 주소(readonly) */}
       <FormInput
-        className="address-search-field__base"
+        className="field__control address-search-field__zonecode"
+        placeholder={zonecodePlaceholder}
+        value={current.zonecode}
+        readOnly
+        aria-label="우편번호"
+        onClick={openDialog}
+      />
+
+      <FormInput
+        className="field__control address-search-field__base"
         placeholder={addressPlaceholder}
         value={current.baseAddress}
         readOnly
@@ -187,10 +189,9 @@ export default function AddressSearchField({
         onClick={openDialog}
       />
 
-      {/* 3줄: 상세 주소(자유 입력) */}
       <FormInput
         ref={detailInputRef}
-        className="address-search-field__detail"
+        className="field__control address-search-field__detail"
         placeholder={detailPlaceholder}
         value={current.detailAddress}
         disabled={disabled}

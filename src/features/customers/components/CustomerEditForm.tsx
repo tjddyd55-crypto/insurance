@@ -187,6 +187,7 @@ export default function CustomerEditForm({
             <label className="customer-form-section__solo">
               <FormTextarea
                 className="field__control customer-form-textarea customer-form-textarea--large customer-textarea--medical-history"
+                rows={4}
                 name="customer-medical"
                 placeholder={CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER}
                 aria-label={CUSTOMER_MEDICAL_QUESTION_TEXT}
@@ -201,6 +202,7 @@ export default function CustomerEditForm({
             <label className="customer-form-section__solo">
               <FormTextarea
                 className="field__control customer-form-textarea customer-form-textarea--large customer-textarea--insurance-history"
+                rows={4}
                 name="customer-insurance-history"
                 placeholder={CUSTOMER_INSURANCE_HISTORY_PLACEHOLDER}
                 aria-label="보험가입내역"

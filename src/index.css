@@ -3043,6 +3043,7 @@ button.filter-button:focus-visible {
   align-items: center;
   gap: 16px;
   margin-top: 4px;
+  min-height: 46px;
 }
 
 .customer-form-gender-options label {
@@ -3050,6 +3051,12 @@ button.filter-button:focus-visible {
   align-items: center;
   gap: 6px;
   cursor: pointer;
+  line-height: 1;
+}
+
+.customer-form-gender-options .form-input[type='radio'] {
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .customer-form-field--driving .customer-driving-radio-group {
@@ -3071,36 +3078,29 @@ button.filter-button:focus-visible {
 
 /* ── 주소 검색 필드 ─────────────────────────────────────────────
    카카오(다음) 우편번호 위젯을 품은 공용 입력 블록.
-   - 기본주소/상세주소가 한 필드의 "파트" 처럼 보이도록 세로로 쌓되,
-     첫 줄(우편번호 + 버튼) 은 가로 인라인으로 정렬한다.
+   - 표시 순서: 주소 검색 버튼 → 우편번호 → 기본주소 → 상세주소.
+   - 기본주소/상세주소가 한 필드의 "파트" 처럼 보이도록 세로로 쌓는다.
+   - 입력(.field__control) 은 고객 폼의 다른 칸과 동일한 최소 높이를 쓴다.
    - 모달 패널은 폭 640, 높이 560 을 기본으로 하고, 모바일에선 90% 폭으로 줄인다.
    - 위젯 내부 iframe 은 100% 채워야 하므로 embed 컨테이너의 min-height 를 명시한다.
 */
-.address-search-field {
+.customer-address-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin-top: 4px;
 }
 
-.address-search-field__row {
+.customer-address-field__search-row {
   display: flex;
-  gap: 8px;
-}
-
-.address-search-field__row--inline {
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.address-search-field__zonecode {
-  flex: 0 0 140px;
-  max-width: 180px;
+  width: 100%;
 }
 
 .address-search-field__base,
-.address-search-field__detail {
+.address-search-field__detail,
+.address-search-field__zonecode {
   width: 100%;
+  max-width: none;
 }
 
 .address-search-field__dialog {
@@ -3139,10 +3139,6 @@ button.filter-button:focus-visible {
 }
 
 @media (max-width: 480px) {
-  .address-search-field__zonecode {
-    flex: 1 1 100%;
-    max-width: none;
-  }
   .address-search-field__embed {
     height: 60vh;
     min-height: 320px;
@@ -4353,9 +4349,16 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .customer-form-textarea--large,
 .customer-textarea--medical-history,
 .customer-textarea--insurance-history {
-  min-height: 112px;
   line-height: 1.5;
   resize: vertical;
+  box-sizing: border-box;
+}
+
+/* .field__control 가 나중에 선언되어 textarea min-height 를 덮어쓰므로 더 구체적으로 고정 */
+.field__control.form-textarea.customer-form-textarea--large,
+.field__control.customer-form-textarea--large.form-textarea {
+  min-height: calc(1.5em * 4 + 24px);
+  height: auto;
 }
 
 .customer-driving-radio-group {
@@ -4364,6 +4367,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   gap: 16px;
   flex-wrap: wrap;
   margin-top: 4px;
+  min-height: 46px;
 }
 
 .customer-driving-radio-option {
@@ -4379,7 +4383,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .customer-driving-radio-option__label {
-  line-height: 1.45;
+  line-height: 1;
   color: var(--text-main);
 }
 
@@ -9542,6 +9546,12 @@ textarea.memo-sticky-note__textarea::placeholder {
   height: 38px;
   min-height: 38px;
   padding: 0 12px;
+}
+
+.pc-root .field__control.form-textarea.customer-form-textarea--large {
+  height: auto;
+  min-height: calc(1.5em * 4 + 24px);
+  padding: 10px 12px;
 }
 
 .pc-root .form-textarea,
