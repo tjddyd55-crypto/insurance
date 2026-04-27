@@ -1,6 +1,6 @@
 import type { CustomerRecord } from '../domain/types'
 import { normalizeCustomerNotesBag } from '../domain/types'
-import type { CustomerEditFormState } from '../components/CustomerListCard'
+import type { CustomerEditFormState } from '../types/customerEditForm'
 
 export function inferIsDriverFromDriving(driving: string): boolean | null {
   const t = String(driving ?? '').trim()

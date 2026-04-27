@@ -48,10 +48,8 @@ import CustomerPageHeaderActions from '../components/CustomerPageHeaderActions'
 import { CustomerFilterControls } from '../components/CustomerFilterControls'
 import { CustomerWorkspaceActions } from '../components/CustomerWorkspaceActions'
 import CustomerExcelSelectToolbar from '../components/CustomerExcelSelectToolbar'
-import CustomerListCard, {
-  type CustomerEditFormState,
-  type CustomerSsnDupHighlight,
-} from '../components/CustomerListCard'
+import CustomerListCard, { type CustomerSsnDupHighlight } from '../components/CustomerListCard'
+import type { CustomerEditFormState } from '../types/customerEditForm'
 import { useCustomerExcelSelection } from '../hooks/useCustomerExcelSelection'
 import { getCustomerListMetrics } from '../utils/customerListMetrics'
 import {

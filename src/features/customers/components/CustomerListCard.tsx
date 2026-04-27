@@ -1,13 +1,6 @@
 ﻿import { memo, useState, type Dispatch, type FormEvent, type KeyboardEvent, type SetStateAction } from 'react'
-import { InsuranceInline } from '../../../components/customer/CustomerForm'
 import { EXPANDABLE_CARD_INVALID_ID, useExpandableCard } from '../../../hooks/useExpandableCard'
-import {
-  AddressSearchField,
-  FormButton,
-  FormInput,
-  FormTextarea,
-  type AddressSearchValue,
-} from '../../../components/form'
+import { FormButton, FormInput } from '../../../components/form'
 import type { CustomerRecord } from '../domain/types'
 import { normalizeCustomerNotesBag } from '../domain/types'
 import { getDDay, getDDayBadgeClass } from '../utils/dday'
@@ -19,6 +12,8 @@ import {
   formatCustomerPhoneUi,
   formatCustomerSsnUi,
 } from '../utils/customerDisplayFormat'
+import type { CustomerEditFormState } from '../types/customerEditForm'
+import CustomerEditForm from './CustomerEditForm'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 import { CustomerWorkspaceActions } from './CustomerWorkspaceActions'
 function CustomerDDayBadge({ renewalDate }: { renewalDate: string }) {
@@ -129,26 +124,7 @@ export type CustomerSsnDupHighlight = {
   color: string
 }
 
-export type CustomerEditFormState = {
-  name: string
-  gender: 'male' | 'female' | null
-  ssn: string
-  phone: string
-  address: string
-  addressDetail: string
-  zonecode: string
-  height: string
-  weight: string
-  job: string
-  isDriver: boolean | null
-  carType: string
-  medical: string
-  insuranceHistory: string
-  carNumber: string
-  carModel: string
-  carYear: string
-  renewalDate: string
-}
+export type { CustomerEditFormState }
 
 export type CustomerListCardProps = {
   customer: CustomerRecord
@@ -506,255 +482,13 @@ const CustomerListCard = memo(function CustomerListCard({
                   </div>
                 </div>
                 {editingId === c.id && editForm ? (
-                  <>
-                    <div className="customer-edit-banner" role="status">
-                      ✏ 고객 정보 수정 중
-                    </div>
-                    <form
-                      className="customer-edit-form"
-                      onSubmit={(e) => {
-                        void onEditSubmit(e)
-                      }}
-                    >
-                      <div className="field-grid-customers">
-                    <label className="field">
-                      <span className="field__label">이름</span>
-                      <FormInput
-                        className="field__control"
-                        name="customer-name"
-                        autoComplete="name"
-                        value={editForm.name ?? ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, name: e.target.value } : prev))
-                        }
-                      />
-                    </label>
-                    <div className="field field--wide">
-                      <span className="field__label">성별</span>
-                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
-                        <label>
-                          <FormInput
-                            type="radio"
-                            name={`gender-edit-${c.id}`}
-                            checked={editForm.gender === 'male'}
-                            onChange={() =>
-                              setEditForm((prev) => (prev ? { ...prev, gender: 'male' } : prev))
-                            }
-                          />{' '}
-                          남
-                        </label>
-                        <label>
-                          <FormInput
-                            type="radio"
-                            name={`gender-edit-${c.id}`}
-                            checked={editForm.gender === 'female'}
-                            onChange={() =>
-                              setEditForm((prev) => (prev ? { ...prev, gender: 'female' } : prev))
-                            }
-                          />{' '}
-                          여
-                        </label>
-                      </div>
-
-                    </div>
-                    <label className="field">
-                      <span className="field__label">주민번호</span>
-                      <FormInput
-                        className="field__control"
-                        name="customer-ssn"
-                        autoComplete="off"
-                        value={editForm.ssn ?? ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, ssn: e.target.value } : prev))
-                        }
-                      />
-                    </label>
-                    <InsuranceInline ssn={editForm.ssn ?? ''} />
-                    <label className="field">
-                      <span className="field__label">전화번호</span>
-                      <FormInput
-                        className="field__control"
-                        name="customer-phone"
-                        autoComplete="tel"
-                        value={editForm.phone ?? ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, phone: e.target.value } : prev))
-                        }
-                      />
-                    </label>
-                    <div className="field field--wide">
-                      <span className="field__label">주소</span>
-                      <AddressSearchField
-                        className="address-search-field"
-                        value={{
-                          zonecode: editForm.zonecode ?? '',
-                          baseAddress: editForm.address ?? '',
-                          detailAddress: editForm.addressDetail ?? '',
-                        }}
-                        onChange={(next: AddressSearchValue) =>
-                          setEditForm((prev) =>
-                            prev
-                              ? {
-                                  ...prev,
-                                  zonecode: next.zonecode,
-                                  address: next.baseAddress,
-                                  addressDetail: next.detailAddress,
-                                }
-                              : prev,
-                          )
-                        }
-                      />
-                    </div>
-                    <label className="field">
-                      <span className="field__label">키</span>
-                      <FormInput
-                        className="field__control"
-                        value={editForm.height ?? ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, height: e.target.value } : prev))
-                        }
-                      />
-                    </label>
-                    <label className="field">
-                      <span className="field__label">몸무게</span>
-                      <FormInput
-                        className="field__control"
-                        value={editForm.weight ?? ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, weight: e.target.value } : prev))
-                        }
-                      />
-                    </label>
-                    <label className="field field--wide">
-                      <span className="field__label">직업 / 회사명 등</span>
-                      <FormInput
-                        className="field__control"
-                        value={editForm.job ?? ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, job: e.target.value } : prev))
-                        }
-                      />
-                    </label>
-                    <div className="field field--wide">
-                      <span className="field__label">운전 여부</span>
-                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
-                        <label>
-                          <FormInput
-                            type="radio"
-                            name={`driver-edit-${c.id}`}
-                            checked={editForm.isDriver === true}
-                            onChange={() =>
-                              setEditForm((prev) => (prev ? { ...prev, isDriver: true } : prev))
-                            }
-                          />{' '}
-                          운전함
-                        </label>
-                        <label>
-                          <FormInput
-                            type="radio"
-                            name={`driver-edit-${c.id}`}
-                            checked={editForm.isDriver === false}
-                            onChange={() =>
-                              setEditForm((prev) => (prev ? { ...prev, isDriver: false } : prev))
-                            }
-                          />{' '}
-                          운전 안함
-                        </label>
-                      </div>
-                    </div>
-                    <label className="field field--wide">
-                      <span className="field__label">차종 (운전 형태)</span>
-                      <FormInput
-                        className="field__control"
-                        type="text"
-                        placeholder="예: 승용차, SUV, 1톤 트럭"
-                        value={editForm.carType ?? ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, carType: e.target.value } : prev))
-                        }
-                      />
-                    </label>
-                    <label className="field field--wide">
-                      <span className="field__label">
-                        {CUSTOMER_MEDICAL_QUESTION_TEXT}
-                        <br />
-                        <small style={{ opacity: 0.85 }}>{CUSTOMER_MEDICAL_QUESTION_HINT}</small>
-                      </span>
-                      <FormTextarea
-                        className="field__control"
-                        name="customer-medical"
-                        rows={3}
-                        value={editForm.medical ?? ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, medical: e.target.value } : prev))
-                        }
-                      />
-                    </label>
-                    <label className="field field--wide">
-                      <span className="field__label">보험가입내역</span>
-                      <FormTextarea
-                        className="field__control"
-                        name="customer-insurance-history"
-                        rows={4}
-                        placeholder="보험가입내역 입력"
-                        value={editForm.insuranceHistory ?? ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, insuranceHistory: e.target.value } : prev))
-                        }
-                      />
-                    </label>
-                    <label className="field">
-                      <span className="field__label">차량번호</span>
-                      <FormInput
-                        className="field__control"
-                        value={editForm.carNumber ?? ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, carNumber: e.target.value } : prev))
-                        }
-                      />
-                    </label>
-                    <label className="field">
-                      <span className="field__label">차종</span>
-                      <FormInput
-                        className="field__control"
-                        value={editForm.carModel ?? ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, carModel: e.target.value } : prev))
-                        }
-                      />
-                    </label>
-                    <label className="field">
-                      <span className="field__label">연식</span>
-                      <FormInput
-                        className="field__control"
-                        value={editForm.carYear ?? ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, carYear: e.target.value } : prev))
-                        }
-                      />
-                    </label>
-                    <label className="field">
-                      <span className="field__label">만기(갱신)일</span>
-                      <FormInput
-                        className="field__control"
-                        type="date"
-                        value={editForm.renewalDate ? editForm.renewalDate.slice(0, 10) : ''}
-                        onChange={(e) =>
-                          setEditForm((prev) => (prev ? { ...prev, renewalDate: e.target.value } : prev))
-                        }
-                      />
-                    </label>
-                      </div>
-                      <div className="customer-edit-actions">
-                        <FormButton className="button-save" htmlType="submit" variant="primary">
-                          수정 저장
-                        </FormButton>
-                        <FormButton className="button-cancel" htmlType="button" variant="secondary" onClick={onCancelEdit}>
-                          취소
-                        </FormButton>
-                      </div>
-                    </form>
-                  </>
+                  <CustomerEditForm
+                    customerId={c.id}
+                    editForm={editForm}
+                    setEditForm={setEditForm}
+                    onEditSubmit={onEditSubmit}
+                    onCancelEdit={onCancelEdit}
+                  />
                 ) : (
                   <>
                     <div className="customer-detail-read">
