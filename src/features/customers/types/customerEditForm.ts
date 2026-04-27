@@ -1,3 +1,5 @@
+import type { CustomerCarFormItem } from './customerCarForm'
+
 export type CustomerEditFormState = {
   name: string
   gender: 'male' | 'female' | null
@@ -10,11 +12,9 @@ export type CustomerEditFormState = {
   weight: string
   job: string
   isDriver: boolean | null
+  /** UI 제거 — 서버 `customers.car_type` 유지용(기존 값 보존) */
   carType: string
   medical: string
   insuranceHistory: string
-  carNumber: string
-  carModel: string
-  carYear: string
-  renewalDate: string
+  cars: CustomerCarFormItem[]
 }

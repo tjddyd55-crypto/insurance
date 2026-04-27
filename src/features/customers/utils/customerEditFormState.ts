@@ -1,6 +1,7 @@
 import type { CustomerRecord } from '../domain/types'
 import { normalizeCustomerNotesBag } from '../domain/types'
 import type { CustomerEditFormState } from '../types/customerEditForm'
+import { customerRecordToCarFormItems } from './customerCarFormUtils'
 
 export function inferIsDriverFromDriving(driving: string): boolean | null {
   const t = String(driving ?? '').trim()
@@ -36,10 +37,7 @@ export function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
     carType: c.carType ?? '',
     medical: c.medical ?? '',
     insuranceHistory: normalizeCustomerNotesBag(c.notes).insuranceHistory,
-    carNumber: c.carNumber ?? '',
-    carModel: c.carModel ?? '',
-    carYear: c.carYear ?? '',
-    renewalDate: c.renewalDate ?? '',
+    cars: customerRecordToCarFormItems(c),
   }
 }
 

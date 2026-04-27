@@ -27,9 +27,15 @@ import {
 
 } from '../../features/customers/utils/insuranceInfo'
 import {
-  CUSTOMER_MEDICAL_QUESTION_HINT,
   CUSTOMER_MEDICAL_QUESTION_TEXT,
 } from '../../features/customers/utils/customerDisplayFormat'
+import { CustomerCarsEditor } from '../../features/customers/components/CustomerCarsEditor'
+import type { CustomerCarFormItem } from '../../features/customers/types/customerCarForm'
+import {
+  createEmptyCustomerCar,
+  normalizeCustomerCarsForSave,
+  pickPrimaryCustomerCar,
+} from '../../features/customers/utils/customerCarFormUtils'
 
 
 
@@ -155,16 +161,10 @@ export type CustomerFormState = {
 
   isDriver: boolean | null
 
+  /** 레거시 DB 컬럼 — UI 제거, 신규 등록 시 빈 문자열 */
   carType: string
 
-  /** 차량번호·모델·연식·만기(갱신일) — 고객 테이블 car_* */
-  carNumber: string
-
-  carModel: string
-
-  carYear: string
-
-  renewalDate: string
+  cars: CustomerCarFormItem[]
 
   medical: string
 
@@ -205,13 +205,7 @@ const EMPTY_FORM: CustomerFormState = {
 
   carType: '',
 
-  carNumber: '',
-
-  carModel: '',
-
-  carYear: '',
-
-  renewalDate: '',
+  cars: [],
 
   medical: '',
 
@@ -234,6 +228,8 @@ export function createEmptyCustomerForm(): CustomerFormState {
     notes: [],
 
     noteDraft: '',
+
+    cars: [{ ...createEmptyCustomerCar(), isPrimary: true }],
 
   }
 
@@ -267,6 +263,9 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
     detailAddress: form.addressDetail,
   })
 
+  const normalizedCars = normalizeCustomerCarsForSave(form.cars)
+  const primaryCar = pickPrimaryCustomerCar(normalizedCars)
+
   return {
 
     name,
@@ -295,13 +294,15 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
 
     carType: form.carType.trim(),
 
-    carNumber: form.carNumber.trim(),
+    carNumber: (primaryCar?.carNumber ?? '').trim(),
 
-    carModel: form.carModel.trim(),
+    carModel: (primaryCar?.carModel ?? '').trim(),
 
-    carYear: form.carYear.trim(),
+    carYear: (primaryCar?.carYear ?? '').trim(),
 
-    renewalDate: form.renewalDate.trim(),
+    renewalDate: (primaryCar?.renewalDate ?? '').trim(),
+
+    cars: normalizedCars,
 
     notes: {
       items: form.notes,
@@ -531,9 +532,9 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
         <span className="field__label">운전 여부</span>
 
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
+        <div className="customer-driving-radio-group" role="radiogroup" aria-label="운전 여부">
 
-          <label>
+          <label className="customer-driving-radio-option">
 
             <FormInput
 
@@ -545,13 +546,13 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
               onChange={() => onFormChange({ ...form, isDriver: true })}
 
-            />{' '}
+            />
 
-            운전함
+            <span>운전함</span>
 
           </label>
 
-          <label>
+          <label className="customer-driving-radio-option">
 
             <FormInput
 
@@ -563,9 +564,9 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
               onChange={() => onFormChange({ ...form, isDriver: false })}
 
-            />{' '}
+            />
 
-            운전 안함
+            <span>운전 안함</span>
 
           </label>
 
@@ -573,92 +574,30 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
 
       </div>
 
-      <label className="field field--wide">
+      <CustomerCarsEditor
 
-        <span className="field__label">차종 (운전 형태)</span>
+        cars={form.cars}
 
-        <FormInput
-          className="field__control"
-          type="text"
-          placeholder="예: 승용차, SUV, 1톤 트럭"
-          value={form.carType}
-          onChange={(e) => onFormChange({ ...form, carType: e.target.value })}
-        />
+        onChange={(next) => onFormChange({ ...form, cars: next })}
 
-      </label>
-
-      <hr style={{ gridColumn: '1 / -1', border: 'none', borderTop: '1px solid rgba(0,0,0,0.12)', margin: '8px 0' }} />
-
-      <h3 className="dashboard-section-title" style={{ gridColumn: '1 / -1', margin: '4px 0 0', fontSize: '1rem' }}>
-        자동차 정보
-      </h3>
-
-      <label className="field">
-
-        <span className="field__label">차량번호</span>
-
-        <FormInput
-          className="field__control"
-          placeholder="차량번호"
-          value={form.carNumber}
-          onChange={(e) => onFormChange({ ...form, carNumber: e.target.value })}
-        />
-
-      </label>
-
-      <label className="field">
-
-        <span className="field__label">차종(차명)</span>
-
-        <FormInput
-          className="field__control"
-          placeholder="예: 그랜저, 카니발"
-          value={form.carModel}
-          onChange={(e) => onFormChange({ ...form, carModel: e.target.value })}
-        />
-
-      </label>
-
-      <label className="field">
-
-        <span className="field__label">연식</span>
-
-        <FormInput
-          className="field__control"
-          placeholder="연식"
-          value={form.carYear}
-          onChange={(e) => onFormChange({ ...form, carYear: e.target.value })}
-        />
-
-      </label>
-
-      <label className="field">
-
-        <span className="field__label">만기(갱신)일</span>
-
-        <FormInput
-          className="field__control"
-          type="date"
-          value={form.renewalDate ? form.renewalDate.slice(0, 10) : ''}
-          onChange={(e) => onFormChange({ ...form, renewalDate: e.target.value })}
-        />
-
-      </label>
+      />
 
       <label className="field field--wide">
 
-        <span className="field__label">
-          {CUSTOMER_MEDICAL_QUESTION_TEXT}
-          <br />
-          <small style={{ opacity: 0.85 }}>{CUSTOMER_MEDICAL_QUESTION_HINT}</small>
-        </span>
+        <span className="field__label">{CUSTOMER_MEDICAL_QUESTION_TEXT}</span>
 
         <FormTextarea
-          className="field__control"
-          rows={3}
-          placeholder="내용"
+
+          className="field__control customer-textarea--medical-history"
+
+          rows={5}
+
+          placeholder="예: 2024-03 / 허리디스크 / 허리 / 시술 / 통원치료 / 사고 후 통증 / 치료 완료"
+
           value={form.medical}
+
           onChange={(e) => onFormChange({ ...form, medical: e.target.value })}
+
         />
 
       </label>
@@ -668,11 +607,17 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
         <span className="field__label">보험가입내역</span>
 
         <FormTextarea
-          className="field__control"
-          rows={4}
+
+          className="field__control customer-textarea--insurance-history"
+
+          rows={5}
+
           placeholder="보험가입내역 입력"
+
           value={form.insuranceHistory}
+
           onChange={(e) => onFormChange({ ...form, insuranceHistory: e.target.value })}
+
         />
 
       </label>

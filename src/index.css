@@ -4243,6 +4243,77 @@ div.cta-button.customers-page__action-btn[role='button'] {
   color: var(--text-main);
 }
 
+.customer-driving-radio-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.customer-driving-radio-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.customer-textarea--medical-history,
+.customer-textarea--insurance-history {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.customer-cars-editor {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.customer-cars-editor__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.customer-cars-editor__list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.customer-car-edit-card {
+  padding: 12px 12px 4px;
+  border: 1px solid var(--border-muted);
+  border-radius: 8px;
+  background: var(--bg-soft, rgba(0, 0, 0, 0.04));
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px 12px;
+}
+
+.customer-car-edit-card__header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.customer-car-edit-card__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.customer-car-edit-card__remove {
+  font-size: 0.8125rem !important;
+  padding: 4px 10px !important;
+}
+
 .customer-dday {
   display: inline-block;
   margin-left: 6px;

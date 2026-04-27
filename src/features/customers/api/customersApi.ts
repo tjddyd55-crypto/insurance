@@ -1,6 +1,7 @@
 import type { InsuranceApplicationRecord } from '../../application/domain/types'
 import { ApiError, apiRequest } from '../../../lib/apiClient'
 import type { CustomerNote, CustomerNotesBag, CustomerRecord } from '../domain/types'
+import type { CustomerCarFormItem } from '../types/customerCarForm'
 
 export type ListCustomersResult = {
   customers: CustomerRecord[]
@@ -206,6 +207,8 @@ export interface SaveCustomerPayload {
   carModel?: string
   carYear?: string
   renewalDate?: string
+  /** 다건 자동차(서버가 무시할 수 있음 — 대표차량은 car_* 로 동기화) */
+  cars?: CustomerCarFormItem[]
   isFavorite?: boolean
 }
 

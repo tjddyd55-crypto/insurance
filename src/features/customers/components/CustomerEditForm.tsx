@@ -7,11 +7,9 @@ import {
   FormTextarea,
   type AddressSearchValue,
 } from '../../../components/form'
-import {
-  CUSTOMER_MEDICAL_QUESTION_HINT,
-  CUSTOMER_MEDICAL_QUESTION_TEXT,
-} from '../utils/customerDisplayFormat'
+import { CUSTOMER_MEDICAL_QUESTION_TEXT } from '../utils/customerDisplayFormat'
 import type { CustomerEditFormState } from '../types/customerEditForm'
+import { CustomerCarsEditor } from './CustomerCarsEditor'
 
 type CustomerEditFormProps = {
   customerId: number
@@ -159,8 +157,8 @@ export default function CustomerEditForm({
           </label>
           <div className="field field--wide">
             <span className="field__label">운전 여부</span>
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: 4 }}>
-              <label>
+            <div className="customer-driving-radio-group" role="radiogroup" aria-label="운전 여부">
+              <label className="customer-driving-radio-option">
                 <FormInput
                   type="radio"
                   name={`driver-edit-${customerId}`}
@@ -168,10 +166,10 @@ export default function CustomerEditForm({
                   onChange={() =>
                     setEditForm((prev) => (prev ? { ...prev, isDriver: true } : prev))
                   }
-                />{' '}
-                운전함
+                />
+                <span>운전함</span>
               </label>
-              <label>
+              <label className="customer-driving-radio-option">
                 <FormInput
                   type="radio"
                   name={`driver-edit-${customerId}`}
@@ -179,33 +177,24 @@ export default function CustomerEditForm({
                   onChange={() =>
                     setEditForm((prev) => (prev ? { ...prev, isDriver: false } : prev))
                   }
-                />{' '}
-                운전 안함
+                />
+                <span>운전 안함</span>
               </label>
             </div>
           </div>
+          <CustomerCarsEditor
+            cars={editForm.cars}
+            onChange={(next) =>
+              setEditForm((prev) => (prev ? { ...prev, cars: next } : prev))
+            }
+          />
           <label className="field field--wide">
-            <span className="field__label">차종 (운전 형태)</span>
-            <FormInput
-              className="field__control"
-              type="text"
-              placeholder="예: 승용차, SUV, 1톤 트럭"
-              value={editForm.carType ?? ''}
-              onChange={(e) =>
-                setEditForm((prev) => (prev ? { ...prev, carType: e.target.value } : prev))
-              }
-            />
-          </label>
-          <label className="field field--wide">
-            <span className="field__label">
-              {CUSTOMER_MEDICAL_QUESTION_TEXT}
-              <br />
-              <small style={{ opacity: 0.85 }}>{CUSTOMER_MEDICAL_QUESTION_HINT}</small>
-            </span>
+            <span className="field__label">{CUSTOMER_MEDICAL_QUESTION_TEXT}</span>
             <FormTextarea
-              className="field__control"
+              className="field__control customer-textarea--medical-history"
               name="customer-medical"
-              rows={3}
+              rows={5}
+              placeholder="예: 2024-03 / 허리디스크 / 허리 / 시술 / 통원치료 / 사고 후 통증 / 치료 완료"
               value={editForm.medical ?? ''}
               onChange={(e) =>
                 setEditForm((prev) => (prev ? { ...prev, medical: e.target.value } : prev))
@@ -215,54 +204,13 @@ export default function CustomerEditForm({
           <label className="field field--wide">
             <span className="field__label">보험가입내역</span>
             <FormTextarea
-              className="field__control"
+              className="field__control customer-textarea--insurance-history"
               name="customer-insurance-history"
-              rows={4}
+              rows={5}
               placeholder="보험가입내역 입력"
               value={editForm.insuranceHistory ?? ''}
               onChange={(e) =>
                 setEditForm((prev) => (prev ? { ...prev, insuranceHistory: e.target.value } : prev))
-              }
-            />
-          </label>
-          <label className="field">
-            <span className="field__label">차량번호</span>
-            <FormInput
-              className="field__control"
-              value={editForm.carNumber ?? ''}
-              onChange={(e) =>
-                setEditForm((prev) => (prev ? { ...prev, carNumber: e.target.value } : prev))
-              }
-            />
-          </label>
-          <label className="field">
-            <span className="field__label">차종</span>
-            <FormInput
-              className="field__control"
-              value={editForm.carModel ?? ''}
-              onChange={(e) =>
-                setEditForm((prev) => (prev ? { ...prev, carModel: e.target.value } : prev))
-              }
-            />
-          </label>
-          <label className="field">
-            <span className="field__label">연식</span>
-            <FormInput
-              className="field__control"
-              value={editForm.carYear ?? ''}
-              onChange={(e) =>
-                setEditForm((prev) => (prev ? { ...prev, carYear: e.target.value } : prev))
-              }
-            />
-          </label>
-          <label className="field">
-            <span className="field__label">만기(갱신)일</span>
-            <FormInput
-              className="field__control"
-              type="date"
-              value={editForm.renewalDate ? editForm.renewalDate.slice(0, 10) : ''}
-              onChange={(e) =>
-                setEditForm((prev) => (prev ? { ...prev, renewalDate: e.target.value } : prev))
               }
             />
           </label>

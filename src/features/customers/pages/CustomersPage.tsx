@@ -69,6 +69,7 @@ import {
   normalizeCustomerEditCarYearForApi,
   normalizeCustomerEditRenewalDateForApi,
 } from '../utils/customerEditFormState'
+import { normalizeCustomerCarsForSave, pickPrimaryCustomerCar } from '../utils/customerCarFormUtils'
 import {
   isCustomerWorkspaceSideDetailPath,
   resolveCustomerWorkspaceTab,
@@ -627,8 +628,10 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       setStatusText(msg)
       return
     }
-    const carYearForApi = normalizeCustomerEditCarYearForApi(activeEditForm.carYear)
-    const renewalDateForApi = normalizeCustomerEditRenewalDateForApi(activeEditForm.renewalDate)
+    const normalizedCars = normalizeCustomerCarsForSave(activeEditForm.cars)
+    const primaryCar = pickPrimaryCustomerCar(normalizedCars)
+    const carYearForApi = normalizeCustomerEditCarYearForApi(primaryCar?.carYear)
+    const renewalDateForApi = normalizeCustomerEditRenewalDateForApi(primaryCar?.renewalDate)
     try {
       await updateCustomer(token, activeEditingId, {
         name,
@@ -652,10 +655,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           items: customerNoteItems(base),
           insuranceHistory: activeEditForm.insuranceHistory.trim(),
         },
-        carNumber: activeEditForm.carNumber,
-        carModel: activeEditForm.carModel,
+        carNumber: primaryCar?.carNumber ?? '',
+        carModel: primaryCar?.carModel ?? '',
         carYear: carYearForApi,
         renewalDate: renewalDateForApi,
+        cars: normalizedCars,
         isFavorite: base.isFavorite === true,
       })
       setStatusText('고객 정보를 수정했습니다.')
