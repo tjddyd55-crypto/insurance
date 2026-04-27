@@ -467,24 +467,6 @@ const CustomerListCard = memo(function CustomerListCard({
               <div className="customer-expand-section-divider" role="presentation" />
             </>
           ) : null}
-            {!(editingId === c.id && editForm) ? (
-              <>
-                {!isMobile ? (
-                  <CustomerWorkspaceActions
-                    variant="pc"
-                    customerId={c.id}
-                    carFeatureEnabled={carFeatureEnabled}
-                    gaExcelEnabled={gaExcelEnabled}
-                    onOpenFilesModal={onOpenFilesModal}
-                    onOpenConsultationsModal={onOpenConsultationsModal}
-                    onOpenAutoModal={onOpenAutoModal}
-                    onOpenGaModal={onOpenGaModal}
-                    onOpenPersonalMessage={onOpenPersonalMessage}
-                    onOpenClaims={onOpenClaims}
-                  />
-                ) : null}
-              </>
-            ) : null}
           </div>
       </div>
     </li>

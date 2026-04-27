@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { MutableRefObject } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
@@ -7,6 +8,9 @@ import type { CustomerRecord } from '../domain/types'
 
 type CustomerWorkspaceOutletContext = {
   selectedCustomerId: number | null
+  openRelatedCustomerRef: MutableRefObject<
+    ((customerId: number, customerName?: string) => void) | null
+  >
 }
 
 function parseCreatedAtMs(iso: string | null | undefined): number {
@@ -36,7 +40,7 @@ function formatPhone(phone: string | null | undefined): string {
 export default function CustomerWorkspaceHomePage() {
   const navigate = useNavigate()
   const { token } = useAuth()
-  const { selectedCustomerId } = useOutletContext<CustomerWorkspaceOutletContext>()
+  const { selectedCustomerId, openRelatedCustomerRef } = useOutletContext<CustomerWorkspaceOutletContext>()
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -70,9 +74,17 @@ export default function CustomerWorkspaceHomePage() {
     void loadRecentCustomers()
   }, [loadRecentCustomers])
 
-  const openCustomer = (customerId: number) => {
-    navigate(`/customers?customerId=${customerId}`)
-  }
+  const openRecentCustomer = useCallback(
+    (customer: CustomerRecord) => {
+      const open = openRelatedCustomerRef.current
+      if (open) {
+        open(customer.id, customer.name)
+        return
+      }
+      navigate(`/customers?customerId=${customer.id}`)
+    },
+    [navigate, openRelatedCustomerRef],
+  )
 
   return (
     <section className="customer-workspace-home">
@@ -108,7 +120,7 @@ export default function CustomerWorkspaceHomePage() {
                 key={customer.id}
                 type="button"
                 className="customer-workspace-recent__item"
-                onClick={() => openCustomer(customer.id)}
+                onClick={() => openRecentCustomer(customer)}
               >
                 <span className="customer-workspace-recent__rank">{index + 1}</span>
                 <span className="customer-workspace-recent__main">

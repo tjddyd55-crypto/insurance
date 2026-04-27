@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useAuth } from '../../auth/AuthProvider'
@@ -89,6 +89,7 @@ export default function CustomerWorkspaceLayout() {
   const { token, user } = useAuth()
   const isMobile = useIsMobile()
   const [searchParams] = useSearchParams()
+  const openRelatedCustomerRef = useRef<((customerId: number, customerName?: string) => void) | null>(null)
   const currentPathTab = useMemo(
     () => resolveWorkspacePathTab(location.pathname),
     [location.pathname],
@@ -276,12 +277,13 @@ export default function CustomerWorkspaceLayout() {
     onClickMemos: handleClickMemos,
     onClickClaims: handleClickClaims,
     onClickPersonalMessage: handleClickPersonalMessage,
+    openRelatedCustomerRef,
   }
 
   return (
     <div className="customer-workspace-layout">
       <aside className="customer-workspace-layout__left" aria-label="고객 작업공간">
-        <CustomersPageContainer />
+        <CustomersPageContainer openRelatedCustomerRef={openRelatedCustomerRef} />
       </aside>
 
       {/**

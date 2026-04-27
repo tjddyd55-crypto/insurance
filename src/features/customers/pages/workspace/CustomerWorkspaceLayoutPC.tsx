@@ -1,3 +1,4 @@
+import type { MutableRefObject } from 'react'
 import { Outlet } from 'react-router-dom'
 import { EmptyState } from '../../../../components/feedback'
 import { FormButton } from '../../../../components/form'
@@ -30,6 +31,10 @@ export type CustomerWorkspaceLayoutPCProps = {
   onClickMemos: () => void
   onClickClaims: () => void
   onClickPersonalMessage: () => void
+  /** 좌측 `CustomersPage` 가 `handleOpenRelatedCustomer` 를 등록한다. 최근 등록 고객 패널 등에서 재사용. */
+  openRelatedCustomerRef: MutableRefObject<
+    ((customerId: number, customerName?: string) => void) | null
+  >
 }
 
 /**
@@ -84,6 +89,7 @@ export default function CustomerWorkspaceLayoutPC({
   onClickMemos,
   onClickClaims,
   onClickPersonalMessage,
+  openRelatedCustomerRef,
 }: CustomerWorkspaceLayoutPCProps) {
   const genderLabel =
     selectedCustomer?.gender === 'male'
@@ -199,7 +205,10 @@ export default function CustomerWorkspaceLayoutPC({
            *
            * 고객 미선택 index(`/customers`) 에서는 Outlet 을 렌더해 최근 등록 고객 패널을 보여준다.
            */
-          <Outlet key={selectedCustomerId ?? 'customer-index'} context={{ selectedCustomerId }} />
+          <Outlet
+            key={selectedCustomerId ?? 'customer-index'}
+            context={{ selectedCustomerId, openRelatedCustomerRef }}
+          />
         ) : (
           <EmptyState message="고객을 선택해 주세요." />
         )}

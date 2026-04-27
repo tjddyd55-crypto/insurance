@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type MutableRefObject,
   type ReactNode,
   type Dispatch,
   type FormEvent,
@@ -87,7 +88,13 @@ import {
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
 
-export default function CustomersPage() {
+export type CustomersPageProps = {
+  openRelatedCustomerRef?: MutableRefObject<
+    ((customerId: number, customerName?: string) => void) | null
+  >
+}
+
+export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageProps = {}) {
   const navigate = useNavigate()
   const location = useLocation()
   const isMobile = useIsMobile()
@@ -485,6 +492,16 @@ export default function CustomersPage() {
     },
     [isMobile, location.pathname, navigate, searchParams, setExpandedId],
   )
+
+  useEffect(() => {
+    if (!openRelatedCustomerRef) {
+      return
+    }
+    openRelatedCustomerRef.current = handleOpenRelatedCustomer
+    return () => {
+      openRelatedCustomerRef.current = null
+    }
+  }, [openRelatedCustomerRef, handleOpenRelatedCustomer])
 
   useEffect(() => {
     if (user?.role !== 'USER') {
