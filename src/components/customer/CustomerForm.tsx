@@ -12,6 +12,7 @@ import {
 } from '../form'
 
 import { saveCustomer } from '../../features/customers/api/customersApi'
+import { saveCustomerCarsForCustomer } from '../../features/customers/utils/customerCarsSaveUtils'
 
 import type { SaveCustomerPayload } from '../../features/customers/api/customersApi'
 
@@ -782,7 +783,22 @@ export function CustomerForm({ onStatusMessage, onInternalSaveSuccess }: Custome
 
       }
 
-      await saveCustomer(token, payload)
+      const created = await saveCustomer(token, payload)
+
+      try {
+        await saveCustomerCarsForCustomer({
+          token,
+          customerId: created.id,
+          formCars: form.cars,
+        })
+      } catch {
+        onStatusMessage?.(
+          '고객 정보를 저장했습니다. 자동차 정보 일부 저장에 실패했습니다. 고객 수정 화면에서 다시 확인해 주세요.',
+        )
+        setForm(createEmptyCustomerForm())
+        onInternalSaveSuccess?.()
+        return
+      }
 
       setForm(createEmptyCustomerForm())
 

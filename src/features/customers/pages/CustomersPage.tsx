@@ -19,6 +19,7 @@ import { getPublicOrigin } from '../../../lib/publicOrigin'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { deleteCustomer, listCustomers, updateCustomer } from '../api/customersApi'
+import { listCustomerCars } from '../api/customerCarsApi'
 import type { CustomerRecord } from '../domain/types'
 import type { CustomerSortType } from '../types/customerListSort'
 import { customerNoteItems } from '../domain/types'
@@ -70,6 +71,10 @@ import {
   normalizeCustomerEditRenewalDateForApi,
 } from '../utils/customerEditFormState'
 import { normalizeCustomerCarsForSave, pickPrimaryCustomerCar } from '../utils/customerCarFormUtils'
+import {
+  customerCarRecordToFormItem,
+  saveCustomerCarsForCustomer,
+} from '../utils/customerCarsSaveUtils'
 import {
   isCustomerWorkspaceSideDetailPath,
   resolveCustomerWorkspaceTab,
@@ -659,9 +664,24 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         carModel: primaryCar?.carModel ?? '',
         carYear: carYearForApi,
         renewalDate: renewalDateForApi,
-        cars: normalizedCars,
         isFavorite: base.isFavorite === true,
       })
+      try {
+        if (token) {
+          await saveCustomerCarsForCustomer({
+            token,
+            customerId: activeEditingId,
+            formCars: activeEditForm.cars,
+          })
+        }
+      } catch {
+        setStatusText(
+          '고객 정보는 수정했습니다. 자동차 정보 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+        )
+        cancelEdit()
+        await loadCustomers()
+        return
+      }
       setStatusText('고객 정보를 수정했습니다.')
       cancelEdit()
       await loadCustomers()
@@ -724,9 +744,26 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     (cl: CustomerRecord) => {
       setExpandedId(cl.id)
       setEditingId(cl.id)
-      setEditForm(recordToEditForm(cl))
+      const base = recordToEditForm(cl)
+      setEditForm(base)
+      if (!token?.trim()) {
+        return
+      }
+      const customerId = cl.id
+      void (async () => {
+        try {
+          const serverCars = await listCustomerCars(token, cl.id)
+          if (serverCars.length > 0) {
+            setEditForm((prev) =>
+              editingIdRef.current === customerId && prev ? { ...prev, cars: serverCars.map(customerCarRecordToFormItem) } : prev,
+            )
+          }
+        } catch {
+          setStatusText('자동차 목록을 불러오지 못했습니다. 기본 차량 정보로 편집합니다.')
+        }
+      })()
     },
-    [setExpandedId],
+    [token, setExpandedId],
   )
 
   const openMobileModal = useCallback(
