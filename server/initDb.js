@@ -2678,7 +2678,6 @@ export async function initDb() {
   await ensureSubscriptionSchema(pool)
   await ensureSignatureSchema(pool)
   await ensurePdfTemplateSchema(pool)
-  await ensureCustomerImportSchema(pool)
 }
 
 /**
@@ -2755,66 +2754,6 @@ async function ensureSubscriptionSchema(executor) {
       ('subscription.policy_active',       CAST('false' AS jsonb)),
       ('subscription.trial_default_days',  CAST('30'    AS jsonb))
     ON CONFLICT (key) DO NOTHING
-  `)
-}
-
-/**
- * 고객 자동 업로드(import jobs) — 기존 GPT/양식 업로드 와 별도 테이블.
- */
-async function ensureCustomerImportSchema(executor) {
-  await executor.query(`
-    CREATE TABLE IF NOT EXISTS customer_import_jobs (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
-      original_filename TEXT NOT NULL DEFAULT '',
-      status TEXT NOT NULL DEFAULT 'pending',
-      total_rows INTEGER NOT NULL DEFAULT 0,
-      ready_rows INTEGER NOT NULL DEFAULT 0,
-      incomplete_rows INTEGER NOT NULL DEFAULT 0,
-      duplicate_rows INTEGER NOT NULL DEFAULT 0,
-      error_rows INTEGER NOT NULL DEFAULT 0,
-      imported_rows INTEGER NOT NULL DEFAULT 0,
-      error_message TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )
-  `)
-  await executor.query(`
-    CREATE INDEX IF NOT EXISTS idx_customer_import_jobs_user_created
-    ON customer_import_jobs (user_id, created_at DESC)
-  `)
-  await executor.query(`
-    CREATE INDEX IF NOT EXISTS idx_customer_import_jobs_ga_created
-    ON customer_import_jobs (ga_id, created_at DESC)
-  `)
-  await executor.query(`
-    CREATE TABLE IF NOT EXISTS customer_import_rows (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      job_id UUID NOT NULL REFERENCES customer_import_jobs(id) ON DELETE CASCADE,
-      row_index INTEGER NOT NULL,
-      raw_row JSONB NOT NULL DEFAULT '{}'::jsonb,
-      normalized_row JSONB,
-      status TEXT NOT NULL,
-      reason TEXT,
-      matched_customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE (job_id, row_index)
-    )
-  `)
-  await executor.query(`
-    CREATE INDEX IF NOT EXISTS idx_customer_import_rows_job_status
-    ON customer_import_rows (job_id, status)
-  `)
-  await executor.query(`
-    ALTER TABLE customer_import_rows
-    DROP CONSTRAINT IF EXISTS customer_import_rows_status_check
-  `)
-  await executor.query(`
-    ALTER TABLE customer_import_rows
-    ADD CONSTRAINT customer_import_rows_status_check
-    CHECK (status IN ('ready', 'incomplete', 'duplicate', 'error', 'imported'))
   `)
 }
 
