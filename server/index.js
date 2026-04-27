@@ -1978,7 +1978,9 @@ async function handleLogin(req, res) {
       `
       SELECT *
       FROM users
-      WHERE username = $1 AND is_deleted = false
+      WHERE username = $1
+        AND is_deleted = false
+        AND LOWER(TRIM(COALESCE(status::text, 'active'))) = 'active'
       `,
       [normalizedUsername],
     )
@@ -3510,9 +3512,17 @@ apiRouter.delete('/admin/users/:id', requireAuth, requireSuperAdmin, async (req,
     await client.query('BEGIN')
     await client.query(`DELETE FROM sms_verification_codes WHERE user_id = $1`, [targetId])
     await client.query(`DELETE FROM sms_verification_logs WHERE user_id = $1`, [targetId])
-    const del = await client.query(`DELETE FROM users WHERE id = $1`, [targetId])
+    const soft = await client.query(
+      `
+      UPDATE users
+      SET is_deleted = true, status = 'inactive'
+      WHERE id = $1 AND is_deleted = false
+      RETURNING id
+      `,
+      [targetId],
+    )
     await client.query('COMMIT')
-    if (del.rowCount === 0) {
+    if (soft.rowCount === 0) {
       res.status(404).json({ message: '사용자를 찾을 수 없습니다.' })
       return
     }
