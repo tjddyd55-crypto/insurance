@@ -152,6 +152,7 @@ export default function ClaimRequestsPage() {
   const [personalNewsContent, setPersonalNewsContent] = useState('')
   const [newsHistoryAll, setNewsHistoryAll] = useState<AgentCustomerNewsItem[]>([])
   const [newsHistoryPersonal, setNewsHistoryPersonal] = useState<AgentCustomerNewsItem[]>([])
+  const [customerNewsDeletingId, setCustomerNewsDeletingId] = useState<string | null>(null)
   const [actionBusy, setActionBusy] = useState(false)
   const allNewsForm = useInsurerNewsForm(null)
   const displayedCode = createdCode || linkStatus?.agentCode || linkStatus?.linkCode || ''
