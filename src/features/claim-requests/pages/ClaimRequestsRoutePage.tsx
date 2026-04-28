@@ -3,6 +3,7 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import ClaimRequestsAllNewsMobileStandalone from './claim-requests/ClaimRequestsAllNewsMobileStandalone'
 import ClaimRequestsClaimsMobileStandalone from './claim-requests/ClaimRequestsClaimsMobileStandalone'
 import ClaimRequestsPersonalMobileStandalone from './claim-requests/ClaimRequestsPersonalMobileStandalone'
+import ClaimRequestsPersonalPCStandalone from './claim-requests/ClaimRequestsPersonalPCStandalone'
 import ClaimInboxPage from './ClaimInboxPage'
 import ClaimRequestsPage from './ClaimRequestsPage'
 
@@ -28,6 +29,10 @@ export default function ClaimRequestsRoutePage() {
 
   if (isMobile && isPersonalTab) {
     return <ClaimRequestsPersonalMobileStandalone />
+  }
+
+  if (!isMobile && isPersonalTab && hasCustomerContext) {
+    return <ClaimRequestsPersonalPCStandalone />
   }
 
   if (isMobile && isAllNewsTab) {
