@@ -1,7 +1,7 @@
-# 보험사 로고 (초기 번들)
+# 보험사 로고 (자체 호스팅)
 
-- 이 디렉터리의 PNG는 **레이아웃·경로 검증용**이며, 현재는 1×1 투명 placeholder가 스크립트로 생성됩니다.
-- **운영 반영 전** 브랜드 가이드에 맞는 실제 로고로 교체하거나, 수퍼관리자 화면의 **로고 업로드**로 `uploads/system/insurers/` 경로를 쓰도록 바꾸는 것을 권장합니다.
-- 외부 이미지 URL을 `img src`에 직접 넣지 마세요. 반드시 `/assets/insurers/...` 또는 `/uploads/system/insurers/...` 같은 **자체 호스팅 경로**만 사용합니다.
-
-생성: `node scripts/generate-insurer-placeholder-logos.mjs`
+- 초기 시드는 **로고 경로를 비웁니다.** UI는 보험사명 기반 placeholder를 씁니다.
+- 실제 로고를 넣을 때:
+  - **권장:** 수퍼관리자 **보험사 설계사이트 관리**에서 **로고 업로드** → `/uploads/system/insurers/insurer_{id}.(png|jpg|webp)`
+  - 또는 이 디렉터리에 브랜드 가이드에 맞는 PNG/JPEG/WebP를 넣고, 관리 화면에서 `logo_path`에 `/assets/insurers/파일명.png` 를 입력
+- 외부 이미지 URL을 `img src`에 직접 넣지 마세요. `/assets/...` 또는 `/uploads/...` 같은 **동일 출처 경로**만 사용합니다.

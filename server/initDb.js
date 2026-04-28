@@ -2981,12 +2981,17 @@ async function ensureInsurerSitesSchema(executor) {
     ON insurer_sites (is_active, category, sort_order)
   `)
 
+  await executor.query(`
+    UPDATE insurer_sites
+    SET logo_path = '', updated_at = NOW()
+    WHERE logo_path LIKE '/assets/insurers/%'
+  `)
+
   const countRes = await executor.query(`SELECT COUNT(*)::int AS c FROM insurer_sites`)
   if (countRes.rows[0].c > 0) {
     return
   }
   for (const row of INSURER_SITES_SEED) {
-    const logoPath = `/assets/insurers/${row.logoFile}.png`
     await executor.query(
       `
       INSERT INTO insurer_sites (
@@ -2997,7 +3002,7 @@ async function ensureInsurerSitesSchema(executor) {
       [
         row.category,
         row.name,
-        logoPath,
+        '',
         row.salesUrl,
         row.homepageUrl,
         row.disclosureUrl ?? '',

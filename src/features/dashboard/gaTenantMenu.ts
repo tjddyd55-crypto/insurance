@@ -225,7 +225,8 @@ const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
 function superAdminMenuWithPublicShortcuts(): GaTenantMenuItem[] {
   return [
     ...SUPER_ADMIN_BASE,
-    { label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
+    /* SUPER_ADMIN 전용: FC·GA와 동일한 카드 UI 미리보기. "관리" 항목과 경로·라벨 혼동 방지 */
+    { label: '보험사 설계사이트 (일반·카드)', path: '/insurance/insurer-sites' },
   ]
 }
 
