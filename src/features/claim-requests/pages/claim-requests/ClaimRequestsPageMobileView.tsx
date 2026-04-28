@@ -24,9 +24,9 @@ type ClaimRequestsPageMobileViewProps = ClaimRequestsPageMobileViewSlots & {
   children?: ReactNode
 }
 
-const INLINE_DETAIL_TITLE = '청구 요청 상세'
+const INLINE_DETAIL_TITLE = '선택한 청구 요청 상세'
 const RAW_LINK_FIELD_TITLES = ['연결 코드', '연결 URL']
-const PROTECTED_SECTION_TITLES = ['링크 발송', '연결 상태', '청구 요청', '청구 요청 목록']
+const PROTECTED_SECTION_TITLES = ['링크 발송', '연결 상태', '청구 요청 목록']
 const PROTECTED_LINK_ACTION_TITLES = ['링크 발송', '문자 발송', '카카오 발송', '링크 미리보기']
 
 function nodeContainsText(node: ReactNode, target: string): boolean {
