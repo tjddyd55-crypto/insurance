@@ -6,6 +6,7 @@ import { useAuth } from '../../../auth/AuthProvider'
 import { listCustomers } from '../../api/customersApi'
 import type { CustomerRecord } from '../../domain/types'
 import type { CustomerWorkspaceLayoutPCProps } from './CustomerWorkspaceLayoutPC'
+import CustomerHeaderAppLinkCompact from './CustomerHeaderAppLinkCompact'
 
 const RECENT_CUSTOMER_LIMIT = 5
 
@@ -145,7 +146,14 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
             닫기
           </FormButton>
         </div>
-        <div className="workspace-mobile-outlet-modal__body">{outlet}</div>
+        <div className="workspace-mobile-outlet-modal__body">
+          {props.selectedCustomerId ? (
+            <div className="workspace-mobile-outlet-modal__app-link">
+              <CustomerHeaderAppLinkCompact key={props.selectedCustomerId} customerId={props.selectedCustomerId} />
+            </div>
+          ) : null}
+          {outlet}
+        </div>
       </Modal>
     )
   }
