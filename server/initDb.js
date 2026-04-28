@@ -6,6 +6,7 @@ import {
   touchContactLastUpdatedAt,
 } from './lib/companyDirectorySanitize.js'
 import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
+import { INSURER_SITES_SEED } from './insurerSitesSeedData.js'
 
 /**
  * ⚠️ 디버그 전용: insurance_forms 등 user_id FK는 ON DELETE CASCADE 로 함께 정리됨.
@@ -2678,6 +2679,7 @@ export async function initDb() {
   await ensureSubscriptionSchema(pool)
   await ensureSignatureSchema(pool)
   await ensurePdfTemplateSchema(pool)
+  await ensureInsurerSitesSchema(pool)
 }
 
 /**
@@ -2951,6 +2953,60 @@ async function ensurePdfTemplateSchema(executor) {
     CREATE INDEX IF NOT EXISTS pdf_issuances_ga_created_idx
     ON pdf_issuances (ga_id, created_at DESC)
   `)
+}
+
+/**
+ * 전역 공통 보험사 설계사이트 마스터 (GA/회사/팀/유저 FK 없음).
+ * 최초 빈 테이블일 때만 시드 삽입 — 이후는 수퍼관리자 UI 로만 갱신.
+ */
+async function ensureInsurerSitesSchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS insurer_sites (
+      id SERIAL PRIMARY KEY,
+      category TEXT NOT NULL CHECK (category IN ('non_life', 'life')),
+      name TEXT NOT NULL,
+      logo_path TEXT NOT NULL DEFAULT '',
+      sales_url TEXT NOT NULL DEFAULT '',
+      homepage_url TEXT NOT NULL DEFAULT '',
+      disclosure_url TEXT NOT NULL DEFAULT '',
+      claim_url TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS insurer_sites_active_cat_sort_idx
+    ON insurer_sites (is_active, category, sort_order)
+  `)
+
+  const countRes = await executor.query(`SELECT COUNT(*)::int AS c FROM insurer_sites`)
+  if (countRes.rows[0].c > 0) {
+    return
+  }
+  for (const row of INSURER_SITES_SEED) {
+    const logoPath = `/assets/insurers/${row.logoFile}.png`
+    await executor.query(
+      `
+      INSERT INTO insurer_sites (
+        category, name, logo_path, sales_url, homepage_url, disclosure_url, claim_url, sort_order, is_active
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+      `,
+      [
+        row.category,
+        row.name,
+        logoPath,
+        row.salesUrl,
+        row.homepageUrl,
+        row.disclosureUrl ?? '',
+        row.claimUrl,
+        row.sortOrder,
+      ],
+    )
+  }
+  console.log('[initDb] insurer_sites 시드 완료:', INSURER_SITES_SEED.length)
 }
 
 async function seedConsentTemplatesIfNeeded() {
