@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { FieldWrapper, FormButton, FormInput, FormSelect, type FormSelectOption } from '../../../components/form'
 import { Modal } from '../../../components/ui'
 import { StatusMessage } from '../../../components/feedback'
@@ -14,6 +14,7 @@ import {
 } from '../api/insurerSitesApi'
 import { InsurerSiteLogoMark } from '../components/InsurerSiteLogoMark'
 import { normalizeOptionalUrl } from '../lib/normalizeOptionalUrl'
+import './admin-insurer-sites-modal.css'
 
 const CATEGORY_OPTIONS: FormSelectOption[] = [
   { value: '', label: '전체 구분' },
@@ -89,6 +90,21 @@ function formFromSite(s: InsurerSite): FormState {
   }
 }
 
+function formDirtySnapshot(f: FormState, logoPicked: boolean): string {
+  return JSON.stringify({
+    name: f.name,
+    category: f.category,
+    logoPath: f.logoPath,
+    salesUrl: f.salesUrl,
+    homepageUrl: f.homepageUrl,
+    disclosureUrl: f.disclosureUrl,
+    claimUrl: f.claimUrl,
+    sortOrder: f.sortOrder,
+    isActive: f.isActive,
+    logoPicked,
+  })
+}
+
 export default function AdminInsurerSitesPage() {
   const { user, token } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
@@ -103,6 +119,40 @@ export default function AdminInsurerSitesPage() {
   const [saving, setSaving] = useState(false)
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null)
+  const baselineSnapshotRef = useRef<string | null>(null)
+  const nestedConfirmBlockingRef = useRef(false)
+
+  const closeModalCompletely = useCallback(() => {
+    setModalOpen(false)
+    baselineSnapshotRef.current = null
+  }, [])
+
+  const requestClose = useCallback(async () => {
+    if (saving || nestedConfirmBlockingRef.current) {
+      return
+    }
+    const baseline = baselineSnapshotRef.current
+    const dirty =
+      baseline !== null && formDirtySnapshot(form, logoFile !== null) !== baseline
+    if (!dirty) {
+      closeModalCompletely()
+      return
+    }
+    nestedConfirmBlockingRef.current = true
+    try {
+      const ok = await confirm({
+        title: '확인',
+        message: '변경사항이 저장되지 않았습니다. 닫으시겠습니까?',
+        confirmLabel: '확인',
+        cancelLabel: '취소',
+      })
+      if (ok) {
+        closeModalCompletely()
+      }
+    } finally {
+      nestedConfirmBlockingRef.current = false
+    }
+  }, [saving, form, logoFile, confirm, closeModalCompletely])
 
   useEffect(() => {
     if (!logoFile) {
@@ -136,18 +186,22 @@ export default function AdminInsurerSitesPage() {
   }, [load])
 
   const openCreate = () => {
+    const next = emptyForm()
     setEditingId(null)
-    setForm(emptyForm())
+    setForm(next)
     setLogoFile(null)
     setLogoPreviewUrl(null)
+    baselineSnapshotRef.current = formDirtySnapshot(next, false)
     setModalOpen(true)
   }
 
   const openEdit = (s: InsurerSite) => {
+    const next = formFromSite(s)
     setEditingId(s.id)
-    setForm(formFromSite(s))
+    setForm(next)
     setLogoFile(null)
     setLogoPreviewUrl(null)
+    baselineSnapshotRef.current = formDirtySnapshot(next, false)
     setModalOpen(true)
   }
 
@@ -214,6 +268,7 @@ export default function AdminInsurerSitesPage() {
           setLogoFile(null)
         }
       }
+      baselineSnapshotRef.current = null
       setModalOpen(false)
       await load()
     } catch (e) {
@@ -354,30 +409,50 @@ export default function AdminInsurerSitesPage() {
 
       <Modal
         open={modalOpen}
-        onClose={() => !saving && setModalOpen(false)}
+        onClose={() => void requestClose()}
         ariaLabel={editingId == null ? '보험사 추가' : '보험사 수정'}
+        panelClassName="insurer-site-form-modal-panel"
+        closeOnBackdrop={false}
+        closeOnEsc={false}
+        onEscapeRequest={() => void requestClose()}
       >
-        <h2 style={{ margin: '0 0 12px', fontSize: 18 }}>{editingId == null ? '보험사 추가' : '보험사 수정'}</h2>
-        <div style={{ display: 'grid', gap: 12, minWidth: 'min(92vw, 420px)' }}>
-          <FieldWrapper label="보험사명" required>
-            <FormInput value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-          </FieldWrapper>
-          <FieldWrapper label="카테고리">
-            <FormSelect
-              value={form.category}
-              options={[
-                { value: 'non_life', label: '손해보험' },
-                { value: 'life', label: '생명보험' },
-              ]}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  category: e.target.value === 'life' ? 'life' : 'non_life',
-                }))
-              }
-            />
-          </FieldWrapper>
-          {editingId != null ? (
+        <header className="insurer-site-form-modal__header">
+          <h2 className="insurer-site-form-modal__title">{editingId == null ? '보험사 추가' : '보험사 수정'}</h2>
+          <button
+            type="button"
+            className="insurer-site-form-modal__close"
+            aria-label="닫기"
+            disabled={saving}
+            onClick={() => void requestClose()}
+          >
+            ×
+          </button>
+        </header>
+        <div className="insurer-site-form-modal__body">
+          <div className="insurer-site-form-modal__grid">
+            <div className="insurer-site-form-modal__col" aria-labelledby="insurer-modal-col-basic">
+              <h3 id="insurer-modal-col-basic" className="insurer-site-form-modal__col-title">
+                기본 정보
+              </h3>
+              <FieldWrapper label="보험사명" required>
+                <FormInput value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+              </FieldWrapper>
+              <FieldWrapper label="카테고리">
+                <FormSelect
+                  value={form.category}
+                  options={[
+                    { value: 'non_life', label: '손해보험' },
+                    { value: 'life', label: '생명보험' },
+                  ]}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      category: e.target.value === 'life' ? 'life' : 'non_life',
+                    }))
+                  }
+                />
+              </FieldWrapper>
+              {editingId != null ? (
                 <>
                   <FieldWrapper
                     label="로고 업로드"
@@ -401,40 +476,56 @@ export default function AdminInsurerSitesPage() {
                 </>
               ) : (
                 <FieldWrapper label="logo_path (선택)">
-                  <FormInput value={form.logoPath} onChange={(e) => setForm((f) => ({ ...f, logoPath: e.target.value }))} />
+                  <FormInput
+                    value={form.logoPath}
+                    onChange={(e) => setForm((f) => ({ ...f, logoPath: e.target.value }))}
+                  />
                 </FieldWrapper>
               )}
-          <FieldWrapper label="설계사이트 URL" helperText="비우면 일반 화면에서 설계사이트 버튼이 비활성됩니다.">
-            <FormInput value={form.salesUrl} onChange={(e) => setForm((f) => ({ ...f, salesUrl: e.target.value }))} />
-          </FieldWrapper>
-          <FieldWrapper label="공식홈 URL" helperText="비우면 일반 화면에서 비활성. http(s) 없으면 저장 시 https:// 를 붙입니다.">
-            <FormInput value={form.homepageUrl} onChange={(e) => setForm((f) => ({ ...f, homepageUrl: e.target.value }))} />
-          </FieldWrapper>
-          <FieldWrapper label="공시실 URL" helperText="비우면 일반 화면에서 공시실 버튼이 준비중 처리됩니다.">
-            <FormInput value={form.disclosureUrl} onChange={(e) => setForm((f) => ({ ...f, disclosureUrl: e.target.value }))} />
-          </FieldWrapper>
-          <FieldWrapper label="보상홈 URL" helperText="비우면 일반 화면에서 비활성.">
-            <FormInput value={form.claimUrl} onChange={(e) => setForm((f) => ({ ...f, claimUrl: e.target.value }))} />
-          </FieldWrapper>
-          <FieldWrapper label="정렬 순서">
-            <FormInput value={form.sortOrder} onChange={(e) => setForm((f) => ({ ...f, sortOrder: e.target.value }))} />
-          </FieldWrapper>
-          <FieldWrapper label="노출 여부">
-            <FormInput
-              type="checkbox"
-              checked={form.isActive}
-              onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
-            />
-          </FieldWrapper>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <FormButton htmlType="button" variant="secondary" onClick={() => setModalOpen(false)} disabled={saving}>
-              취소
-            </FormButton>
-            <FormButton htmlType="button" variant="primary" onClick={() => void save()} disabled={saving}>
-              저장
-            </FormButton>
+              <FieldWrapper label="정렬 순서">
+                <FormInput value={form.sortOrder} onChange={(e) => setForm((f) => ({ ...f, sortOrder: e.target.value }))} />
+              </FieldWrapper>
+              <FieldWrapper label="노출 여부">
+                <FormInput
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                />
+              </FieldWrapper>
+            </div>
+            <div className="insurer-site-form-modal__col" aria-labelledby="insurer-modal-col-urls">
+              <h3 id="insurer-modal-col-urls" className="insurer-site-form-modal__col-title">
+                URL 정보
+              </h3>
+              <FieldWrapper label="설계사이트 URL" helperText="비우면 일반 화면에서 설계사이트 버튼이 비활성됩니다.">
+                <FormInput value={form.salesUrl} onChange={(e) => setForm((f) => ({ ...f, salesUrl: e.target.value }))} />
+              </FieldWrapper>
+              <FieldWrapper
+                label="공식홈 URL"
+                helperText="비우면 일반 화면에서 비활성. http(s) 없으면 저장 시 https:// 를 붙입니다."
+              >
+                <FormInput value={form.homepageUrl} onChange={(e) => setForm((f) => ({ ...f, homepageUrl: e.target.value }))} />
+              </FieldWrapper>
+              <FieldWrapper label="공시실 URL" helperText="비우면 일반 화면에서 공시실 버튼이 준비중 처리됩니다.">
+                <FormInput
+                  value={form.disclosureUrl}
+                  onChange={(e) => setForm((f) => ({ ...f, disclosureUrl: e.target.value }))}
+                />
+              </FieldWrapper>
+              <FieldWrapper label="보상홈 URL" helperText="비우면 일반 화면에서 비활성.">
+                <FormInput value={form.claimUrl} onChange={(e) => setForm((f) => ({ ...f, claimUrl: e.target.value }))} />
+              </FieldWrapper>
+            </div>
           </div>
         </div>
+        <footer className="insurer-site-form-modal__footer">
+          <FormButton htmlType="button" variant="secondary" onClick={() => void requestClose()} disabled={saving}>
+            취소
+          </FormButton>
+          <FormButton htmlType="button" variant="primary" onClick={() => void save()} disabled={saving}>
+            저장
+          </FormButton>
+        </footer>
       </Modal>
     </main>
   )

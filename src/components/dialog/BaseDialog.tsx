@@ -11,6 +11,8 @@ export type BaseDialogProps = {
   initialFocusRef?: React.RefObject<HTMLElement | null>
   closeOnBackdrop?: boolean
   closeOnEsc?: boolean
+  /** 설정 시 Escape 키는 `onClose` 대신 이 콜백만 호출한다(미저장 확인 등). */
+  onEscapeRequest?: () => void
   usePortal?: boolean
 }
 
@@ -24,22 +26,31 @@ export function BaseDialog({
   initialFocusRef,
   closeOnBackdrop = true,
   closeOnEsc = true,
+  onEscapeRequest,
   usePortal = false,
 }: BaseDialogProps) {
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!open || !closeOnEsc) {
+    if (!open) {
       return
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key !== 'Escape') {
+        return
+      }
+      if (onEscapeRequest) {
+        event.preventDefault()
+        onEscapeRequest()
+        return
+      }
+      if (closeOnEsc) {
         onClose()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [closeOnEsc, onClose, open])
+  }, [closeOnEsc, onClose, onEscapeRequest, open])
 
   useEffect(() => {
     if (!open) {
