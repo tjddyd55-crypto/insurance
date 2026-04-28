@@ -53,90 +53,15 @@
   color: var(--text-secondary);
 }
 
-.customer-workspace-layout__app-link-strip {
-  padding: 8px 12px 10px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-elevated);
-}
-
-.customer-workspace-app-link-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 10px;
-}
-
-.customer-workspace-app-link-bar__loading {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.customer-workspace-app-link-bar__pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--bg-card) 88%, var(--text-muted));
-}
-
-.customer-workspace-app-link-bar__pill--ok {
-  border-color: color-mix(in srgb, var(--success) 40%, var(--border-subtle));
-  color: var(--success);
-  background: color-mix(in srgb, var(--success) 12%, transparent);
-}
-
-.customer-workspace-app-link-bar__pill--pending {
-  border-color: color-mix(in srgb, var(--primary) 35%, var(--border-subtle));
-  color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 10%, transparent);
-}
-
-.customer-workspace-app-link-bar__pill--expired {
-  border-color: color-mix(in srgb, var(--danger) 40%, var(--border-subtle));
-  color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
-}
-
-.customer-workspace-app-link-bar__code {
-  font-size: 12px;
-  color: var(--text-secondary);
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.customer-workspace-app-link-bar__url {
-  flex: 1 1 220px;
-  min-width: 160px;
-  max-width: 480px;
-  font-size: 12px;
-}
-
-.customer-workspace-app-link-bar__actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.customer-workspace-app-link-bar__hint {
-  flex-basis: 100%;
-  margin: 0;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.customer-workspace-app-link-bar__err {
-  flex-basis: 100%;
-  margin: 0;
-  font-size: 11px;
-  color: var(--danger);
+/* 고객 상세 > 청구관리에서는 기존 상단 대형 링크 발송/연결 상태 박스를 숨기고,
+   필요한 정보는 헤더의 앱 연결 상태 + 연결 링크 복사 버튼으로만 제공한다. */
+.customer-workspace-layout__right-body .claim-requests-page--pc > .claim-requests-page__link-card,
+.customer-workspace-layout__right-body .claim-requests-page--pc > .claim-requests-page__link-section,
+.customer-workspace-layout__right-body .claim-requests-page--pc > .claim-requests-page__connection-section,
+.customer-workspace-layout__right-body .claim-requests-page--pc > .claim-requests-page__link-panel,
+.customer-workspace-layout__right-body .claim-requests-page--pc > .claim-requests-page__connect-panel,
+.customer-workspace-layout__right-body .claim-requests-page--pc > .claim-requests-page__customer-app-panel {
+  display: none;
 }
 
 @media (max-width: 1280px) {

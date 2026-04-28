@@ -93,9 +93,7 @@ function findClaimDetailCard(titleEl: HTMLElement, page: Element): HTMLElement |
       return current
     }
     const parentText = parent.textContent ?? ''
-    const parentHasClaimList =
-      parentText.includes('청구 요청 목록') ||
-      (parentText.includes('청구 요청') && parentText.includes('총') && parentText.includes('건'))
+    const parentHasClaimList = parentText.includes('청구 요청 목록')
     const parentHasLinkPanel = parentText.includes('링크 발송') || parentText.includes('연결 상태')
     if (parentHasClaimList || parentHasLinkPanel) {
       return current

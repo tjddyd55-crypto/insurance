@@ -185,24 +185,6 @@
     font-weight: 900 !important;
   }
 
-  .claim-requests-page--mobile .claim-requests-page__request-meta--date {
-    font-size: 0.8rem !important;
-    font-weight: 700 !important;
-    color: var(--m-text-main, #e5e7eb) !important;
-    margin: 0 0 4px !important;
-  }
-
-  .claim-requests-page--mobile .claim-requests-page__request-text--preview {
-    display: -webkit-box !important;
-    -webkit-line-clamp: 2 !important;
-    -webkit-box-orient: vertical !important;
-    overflow: hidden !important;
-    color: var(--m-text-main, #e5e7eb) !important;
-    font-size: 0.85rem !important;
-    margin: 4px 0 !important;
-    line-height: 1.4 !important;
-  }
-
   .claim-requests-page--mobile .claim-requests-page__request-meta,
   .claim-requests-page--mobile .claim-requests-page__request-text {
     font-size: 0.76rem !important;
