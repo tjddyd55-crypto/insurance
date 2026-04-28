@@ -60,6 +60,17 @@ function isDirectCdnUrl(url: string): boolean {
   return !/\/(backend|api)\/(agent|customer-app)\/customer-claim-files\/\d+\/download/i.test(trimmed)
 }
 
+function triggerBrowserDownload(url: string, fileName: string): void {
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  a.rel = 'noopener'
+  a.target = '_blank'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+}
+
 async function fetchAgentClaimFileBlob(
   token: string,
   fileId: number,
@@ -107,16 +118,21 @@ export async function openClaimRequestFile(token: string, file: ClaimRequestFile
 }
 
 export async function downloadClaimRequestFile(token: string, file: ClaimRequestFileItem): Promise<void> {
-  const { blob, fileName } = await fetchAgentClaimFileBlob(token, file.id, 'attachment')
+  const fileName = file.fileName ?? `claim-file-${file.id}`
+  const explicitDownloadUrl = String(file.downloadUrl ?? '').trim()
+  if (explicitDownloadUrl) {
+    triggerBrowserDownload(explicitDownloadUrl, fileName)
+    return
+  }
+  const directUrl = String(file.url ?? '').trim()
+  if (directUrl && isDirectCdnUrl(directUrl)) {
+    triggerBrowserDownload(directUrl, fileName)
+    return
+  }
+  const { blob, fileName: responseFileName } = await fetchAgentClaimFileBlob(token, file.id, 'attachment')
   const objectUrl = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = objectUrl
-  a.download = fileName ?? file.fileName ?? `claim-file-${file.id}`
-  a.rel = 'noopener'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(objectUrl)
+  triggerBrowserDownload(objectUrl, responseFileName ?? fileName)
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
 }
 
 export interface ClaimRequestStatusLogItem {
