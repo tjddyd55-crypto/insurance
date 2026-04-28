@@ -10,6 +10,44 @@ const insurancePkg = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'package.json'), 'utf-8'),
 ) as { version: string }
 
+function resolveVendorChunk(id: string) {
+  const normalizedId = id.replaceAll('\\', '/')
+  if (!normalizedId.includes('node_modules')) {
+    return undefined
+  }
+
+  if (
+    normalizedId.includes('/react/') ||
+    normalizedId.includes('/react-dom/') ||
+    normalizedId.includes('/react-router-dom/') ||
+    normalizedId.includes('/@tanstack/react-query/')
+  ) {
+    return 'vendor-react'
+  }
+
+  if (
+    normalizedId.includes('/pdfjs-dist/') ||
+    normalizedId.includes('/pdf-lib/') ||
+    normalizedId.includes('/@pdf-lib/fontkit/')
+  ) {
+    return 'vendor-pdf'
+  }
+
+  if (normalizedId.includes('/xlsx/') || normalizedId.includes('/file-saver/')) {
+    return 'vendor-excel'
+  }
+
+  if (normalizedId.includes('/jspdf/') || normalizedId.includes('/html-to-image/')) {
+    return 'vendor-export'
+  }
+
+  if (normalizedId.includes('/@aws-sdk/')) {
+    return 'vendor-aws'
+  }
+
+  return 'vendor'
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
@@ -21,6 +59,11 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
     outDir: 'dist',
+    rollupOptions: {
+      output: {
+        manualChunks: resolveVendorChunk,
+      },
+    },
   },
   /*
    * pdfjs-dist@5.x 는 ESM 전용으로 배포되며 워커 소스(`pdf.worker.min.mjs`) 도
