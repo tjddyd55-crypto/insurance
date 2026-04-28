@@ -1,6 +1,19 @@
 import { FormButton } from '../../../../../components/form'
 import type { ClaimRequestListItem, ClaimRequestStatus } from '../../../api/claimRequestsApi'
 
+function claimListPreviewText(item: ClaimRequestListItem): string {
+  const memo = item.memo?.trim()
+  const title = item.title?.trim()
+  const raw = memo || title || ''
+  if (!raw) {
+    return '내용 없음'
+  }
+  if (raw.length <= 140) {
+    return raw
+  }
+  return `${raw.slice(0, 137)}…`
+}
+
 type ClaimRequestListSectionProps = {
   rows: ClaimRequestListItem[]
   selectedId?: number | null
@@ -26,7 +39,7 @@ export default function ClaimRequestListSection({
     <section className="claim-requests-page__card claim-requests-page__list-section">
       <div className="claim-requests-page__section-header claim-requests-page__list-header">
         <div className="claim-requests-page__section-heading">
-          <h2 className="claim-requests-page__section-title">청구 요청 목록</h2>
+          <h2 className="claim-requests-page__section-title">청구 요청</h2>
           {showDescription ? (
             <p className="claim-requests-page__section-description">고객앱에서 접수된 청구 요청을 확인합니다.</p>
           ) : null}
@@ -40,14 +53,13 @@ export default function ClaimRequestListSection({
       {rows.length > 0 ? (
         <div className="claim-requests-page__request-list">
           {rows.map((item) => {
-            const requesterName = item.requesterName || item.customerName
             const openDetail = () => onSelectClaim(item.id)
             return (
               <article
                 key={item.id}
                 role="button"
                 tabIndex={0}
-                aria-label={`#${item.id} ${requesterName} 청구 상세 보기`}
+                aria-label={`${formatDateTime(item.submittedAt)} 청구 요청 상세 보기`}
                 onClick={openDetail}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
@@ -62,14 +74,13 @@ export default function ClaimRequestListSection({
                 }
               >
                 <div className="claim-requests-page__request-main">
-                  <div className="claim-requests-page__request-title">
-                    #{item.id} {requesterName}
+                  <div className="claim-requests-page__request-meta claim-requests-page__request-meta--date">
+                    {formatDateTime(item.submittedAt)}
                   </div>
-                  <div className="claim-requests-page__request-meta">
-                    {item.customerName} · {formatDateTime(item.submittedAt)} · 파일 {item.fileCount}개
+                  <div className="claim-requests-page__request-text claim-requests-page__request-text--preview">
+                    {claimListPreviewText(item)}
                   </div>
-                  {item.title ? <div className="claim-requests-page__request-text">{item.title}</div> : null}
-                  {item.memo ? <div className="claim-requests-page__request-text claim-requests-page__request-text--memo">{item.memo}</div> : null}
+                  <div className="claim-requests-page__request-meta">첨부 {item.fileCount}개</div>
                 </div>
                 <div className="claim-requests-page__request-side">
                   <span className={statusBadgeClass(item.status)}>{statusLabel(item.status)}</span>

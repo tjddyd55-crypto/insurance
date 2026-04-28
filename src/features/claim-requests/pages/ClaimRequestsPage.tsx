@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useParams, useSearchParams } from 'react-router-dom'
 import FileUploader from '../../../components/common/FileUploader'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
@@ -34,6 +34,12 @@ import {
   type LinkedCustomerItem,
   updateClaimRequestStatus,
 } from '../api/claimRequestsApi'
+import {
+  customerAppLinkActionLabel,
+  describeCustomerAppConnection,
+  notifyCustomerAppLinkUpdated,
+  resolveCustomerAppConnectionState,
+} from '../model/customerAppLinkConnection'
 
 const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus; label: string }> = [
   { value: 'requested', label: '요청됨' },
@@ -86,33 +92,29 @@ function statusBadgeClass(status: ClaimRequestStatus): string {
   }
 }
 
-type CustomerAppConnectionState = 'not_created' | 'link_created' | 'connected' | 'expired'
-
-function resolveConnectionState(linkStatus: CustomerAppLinkInfo | null): CustomerAppConnectionState {
-  const state = linkStatus?.connectionState
-  if (state === 'not_created' || state === 'link_created' || state === 'connected' || state === 'expired') {
-    return state
+function claimListPreviewText(item: ClaimRequestListItem): string {
+  const memo = item.memo?.trim()
+  const title = item.title?.trim()
+  const raw = memo || title || ''
+  if (!raw) {
+    return '내용 없음'
   }
-  if (!linkStatus || !linkStatus.linkCode) {
-    return 'not_created'
+  if (raw.length <= 140) {
+    return raw
   }
-  const status = String(linkStatus.status ?? '').toLowerCase()
-  const expiresAtMs = linkStatus.expiresAt ? new Date(linkStatus.expiresAt).getTime() : null
-  const expiredByTime = expiresAtMs != null && Number.isFinite(expiresAtMs) && expiresAtMs <= Date.now()
-  if (expiredByTime || status === 'expired' || status === 'revoked' || status === 'disabled') {
-    return 'expired'
-  }
-  if (Boolean(linkStatus.lastConnectedAt) || Number(linkStatus.deviceCount ?? 0) > 0) {
-    return 'connected'
-  }
-  return 'link_created'
+  return `${raw.slice(0, 137)}…`
 }
 
 export default function ClaimRequestsPage() {
   const isMobile = useIsMobile()
   const { token } = useAuth()
+  const location = useLocation()
   const { customerId: customerIdParam } = useParams<{ customerId?: string }>()
   const [searchParams] = useSearchParams()
+  const embedInCustomerWorkspace = useMemo(
+    () => /^\/customers\/\d+(\/|$)/.test(location.pathname),
+    [location.pathname],
+  )
   const claimTabParam = searchParams.get('claimTab')
   const activeCustomerId = useMemo(() => {
     const fromQuery = parsePositiveInt(searchParams.get('customerId'))
@@ -168,50 +170,12 @@ export default function ClaimRequestsPage() {
     }
     return '미확인'
   }, [detail?.deviceId, selectedRow?.deviceId])
-  const connectionState = useMemo(() => resolveConnectionState(linkStatus), [linkStatus])
-  const connectionMeta = useMemo(() => {
-    switch (connectionState) {
-      case 'connected':
-        return {
-          title: '앱 연결됨',
-          subtitle: linkStatus?.lastConnectedAt
-            ? `최근 접속: ${formatDateTime(linkStatus.lastConnectedAt)}`
-            : '최근 접속 정보 없음',
-          className: 'claim-requests-page__status-value claim-requests-page__status-value--ok',
-        }
-      case 'link_created':
-        return {
-          title: '링크 생성됨',
-          subtitle: '아직 접속 전',
-          className: 'claim-requests-page__status-value claim-requests-page__status-value--pending',
-        }
-      case 'expired':
-        return {
-          title: '링크 만료',
-          subtitle: '재생성 필요',
-          className: 'claim-requests-page__status-value claim-requests-page__status-value--expired',
-        }
-      case 'not_created':
-      default:
-        return {
-          title: '미연결',
-          subtitle: '아직 링크 미생성',
-          className: 'claim-requests-page__status-value',
-        }
-    }
-  }, [connectionState, linkStatus?.lastConnectedAt])
-  const linkActionLabel = useMemo(() => {
-    switch (connectionState) {
-      case 'link_created':
-      case 'connected':
-        return '링크 재전송'
-      case 'expired':
-        return '새 링크 생성'
-      case 'not_created':
-      default:
-        return '링크 생성'
-    }
-  }, [connectionState])
+  const connectionState = useMemo(() => resolveCustomerAppConnectionState(linkStatus), [linkStatus])
+  const connectionMeta = useMemo(
+    () => describeCustomerAppConnection(connectionState, linkStatus, formatDateTime),
+    [connectionState, linkStatus],
+  )
+  const linkActionLabel = useMemo(() => customerAppLinkActionLabel(connectionState), [connectionState])
   const allNewsCards = useMemo<NewsletterItem[]>(
     () =>
       newsHistoryAll.map((item) => ({
@@ -337,8 +301,12 @@ export default function ClaimRequestsPage() {
   }, [activeCustomerId, token])
 
   useEffect(() => {
+    if (embedInCustomerWorkspace) {
+      setLinkStatus(null)
+      return
+    }
     void loadLinkStatus()
-  }, [loadLinkStatus])
+  }, [loadLinkStatus, embedInCustomerWorkspace])
 
   useEffect(() => {
     if (activeCustomerId) {
@@ -501,6 +469,7 @@ export default function ClaimRequestsPage() {
       setCreatedCode(String(res.agentCode ?? res.linkCode ?? '').trim())
       setError('')
       await loadLinkStatus()
+      notifyCustomerAppLinkUpdated()
     } catch (actionError) {
       setError(actionError instanceof Error ? actionError.message : '링크 생성에 실패했습니다.')
     } finally {
@@ -855,10 +824,10 @@ export default function ClaimRequestsPage() {
             </div>
             <FormTextarea
               className="claim-requests-page__status-memo"
-              rows={2}
+              rows={5}
               value={statusMemo}
               onChange={(event) => setStatusMemo(event.target.value)}
-              placeholder="상태 변경 메모 — 담당자 내부 기록용(상태 이력에 남습니다)"
+              placeholder="담당자 내부 기록용(상태 이력에 함께 남습니다)"
               maxLength={255}
             />
             {statusNotice ? (
@@ -875,7 +844,7 @@ export default function ClaimRequestsPage() {
         </>
       ) : null}
       {selectedRow && !detail ? (
-        <div className="claim-requests-page__detail-empty">선택된 요청 #{selectedRow.id}의 상세 정보를 불러오지 못했습니다.</div>
+        <div className="claim-requests-page__detail-empty">선택한 청구 요청 상세를 불러오지 못했습니다.</div>
       ) : null}
     </>
   )
@@ -1017,7 +986,7 @@ export default function ClaimRequestsPage() {
           <section className="claim-requests-page__claims-grid">
             <article className="claim-requests-page__panel claim-requests-page__panel--list">
               <div className="claim-requests-page__panel-head">
-                <h3>청구 요청 목록</h3>
+                <h3>청구 요청</h3>
                 <div className="claim-requests-page__panel-head-tools">
                   <span>총 {rows.length}건</span>
                   <FormButton htmlType="button" variant="secondary" onClick={() => void loadList()} disabled={loading}>
@@ -1042,14 +1011,14 @@ export default function ClaimRequestsPage() {
                       className={`claim-requests-page__list-item${active ? ' claim-requests-page__list-item--active' : ''}`}
                       onClick={() => handleSelectClaim(item.id)}
                     >
-                      <div className="claim-requests-page__list-item-title-row">
-                        <strong>{item.title || `#${item.id} 청구리스트`}</strong>
+                      <div className="claim-requests-page__list-item-date-row">
+                        <span>{formatDateTime(item.submittedAt)}</span>
                         <span className={statusBadgeClass(item.status)}>{statusLabel(item.status)}</span>
                       </div>
-                      <p className="claim-requests-page__list-item-meta">
-                        {formatDateTime(item.submittedAt)} · 첨부 {item.fileCount}건
-                      </p>
-                      <p className="claim-requests-page__list-item-meta">기기 {item.deviceId || '미확인'}</p>
+                      <p className="claim-requests-page__list-item-preview">{claimListPreviewText(item)}</p>
+                      <div className="claim-requests-page__list-item-footer">
+                        <span className="claim-requests-page__list-item-attach">첨부 {item.fileCount}개</span>
+                      </div>
                     </FormButton>
                   )
                 })}
@@ -1058,7 +1027,7 @@ export default function ClaimRequestsPage() {
 
             <article className="claim-requests-page__panel claim-requests-page__panel--detail">
               <div className="claim-requests-page__panel-head">
-                <h3>선택한 청구 요청 상세</h3>
+                <h3>청구 요청 상세</h3>
               </div>
               <div className="claim-requests-page__detail-scroll">{claimDetailBody}</div>
             </article>
