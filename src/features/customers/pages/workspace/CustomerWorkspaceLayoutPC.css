@@ -1,0 +1,71 @@
+.customer-workspace-layout__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.customer-workspace-layout__claim-link-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.customer-workspace-layout__claim-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.customer-workspace-layout__claim-status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.customer-workspace-layout__claim-status--connected {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.customer-workspace-layout__claim-status--disconnected {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.customer-workspace-layout__claim-copy-result {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+/* 고객 상세 > 청구관리에서는 기존 상단 대형 링크 발송/연결 상태 박스를 숨기고,
+   필요한 정보는 헤더의 앱 연결 상태 + 연결 링크 복사 버튼으로만 제공한다. */
+.customer-workspace-layout__right-body .claim-requests-page--pc > .claim-requests-page__link-card,
+.customer-workspace-layout__right-body .claim-requests-page--pc > .claim-requests-page__link-section,
+.customer-workspace-layout__right-body .claim-requests-page--pc > .claim-requests-page__connection-section,
+.customer-workspace-layout__right-body .claim-requests-page--pc > .claim-requests-page__link-panel,
+.customer-workspace-layout__right-body .claim-requests-page--pc > .claim-requests-page__connect-panel,
+.customer-workspace-layout__right-body .claim-requests-page--pc > .claim-requests-page__customer-app-panel {
+  display: none;
+}
+
+@media (max-width: 1280px) {
+  .customer-workspace-layout__claim-copy-result {
+    display: none;
+  }
+}
