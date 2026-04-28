@@ -12,6 +12,7 @@ import {
   listAgentCustomerNews,
   type AgentCustomerNewsItem,
 } from '../../api/claimRequestsApi'
+import './ClaimRequestsPersonalPCStandalone.css'
 
 function parsePositiveInt(raw: string | null | undefined): number | null {
   const n = Number(raw)
@@ -19,19 +20,20 @@ function parsePositiveInt(raw: string | null | undefined): number | null {
 }
 
 function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) {
-    return '—'
-  }
+  if (!iso) return '—'
   const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) {
-    return iso
-  }
+  if (Number.isNaN(date.getTime())) return iso
   return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
 }
 
 function attachmentLabel(item: AgentCustomerNewsItem): string {
   const count = item.attachments?.length ?? 0
   return count > 0 ? `첨부 ${count}개` : '첨부 없음'
+}
+
+function messageSnippet(content: string | null | undefined): string {
+  const text = String(content ?? '').trim()
+  return text || '첨부파일 메시지'
 }
 
 export default function ClaimRequestsPersonalPCStandalone() {
@@ -72,9 +74,7 @@ export default function ClaimRequestsPersonalPCStandalone() {
       })
       setMessages(rows)
       setSelectedMessageId((prev) => {
-        if (prev && rows.some((item) => item.id === prev)) {
-          return prev
-        }
+        if (prev && rows.some((item) => item.id === prev)) return prev
         return rows[0]?.id ?? null
       })
     } catch (loadError) {
@@ -114,7 +114,7 @@ export default function ClaimRequestsPersonalPCStandalone() {
       })
       form.replaceAttachments(uploaded)
       if (uploaded.some((row) => row.status === 'failed')) {
-        setError('일부 파일 업로드에 실패했습니다. 실패 항목을 삭제하고 다시 시도해 주세요.')
+        setError('일부 파일 업로드에 실패했습니다. 실패 항목을 정리하고 다시 시도해 주세요.')
         return
       }
       const attachments = uploaded
@@ -129,9 +129,8 @@ export default function ClaimRequestsPersonalPCStandalone() {
           sortOrder: index,
         }))
       setUploadBusyText('개인메시지 발송 중...')
-      const title = `${targetCustomerName} 고객님께`
       const created = await createCustomerNews(token, {
-        title,
+        title: `${targetCustomerName} 고객님께`,
         content: form.bodyText.trim(),
         scope: 'personal',
         targetCustomerId: activeCustomerId,
@@ -152,90 +151,95 @@ export default function ClaimRequestsPersonalPCStandalone() {
   }
 
   return (
-    <main className="page claim-requests-page claim-requests-page--pc page--with-back content-wrapper">
-      <section className="claim-requests-page__personal-workspace" aria-label="개인메시지 작업공간">
-        <div className="claim-requests-page__personal-column claim-requests-page__personal-column--list">
-          <div className="claim-requests-page__section-header">
-            <div>
-              <h3>{targetCustomerName} 개인메시지</h3>
-              <p>현재 고객에게 보낸 개인메시지만 표시합니다.</p>
-            </div>
-            <FormButton htmlType="button" variant="secondary" onClick={() => void loadMessages()} loading={loading}>
-              새로고침
-            </FormButton>
+    <section className="personal-message-workspace" aria-label="개인메시지 작업공간">
+      <aside className="personal-message-panel personal-message-panel--list" aria-label="개인메시지 목록">
+        <header className="personal-message-panel__header">
+          <div className="personal-message-panel__title-group">
+            <h3>{targetCustomerName} 개인메시지</h3>
+            <p>현재 고객에게 보낸 메시지만 표시합니다.</p>
           </div>
-          {loading ? <div className="claim-requests-page__detail-empty">불러오는 중…</div> : null}
-          {!loading && messages.length === 0 ? (
-            <div className="claim-requests-page__detail-empty">아직 보낸 개인메시지가 없습니다.</div>
-          ) : null}
-          <div className="claim-requests-page__list">
+          <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => void loadMessages()} loading={loading}>
+            새로고침
+          </FormButton>
+        </header>
+        <div className="personal-message-panel__body personal-message-panel__body--list">
+          {loading ? <div className="personal-message-empty">불러오는 중…</div> : null}
+          {!loading && messages.length === 0 ? <div className="personal-message-empty">아직 보낸 개인메시지가 없습니다.</div> : null}
+          <div className="personal-message-list">
             {messages.map((message) => (
               <button
                 key={message.id}
                 type="button"
-                className={`claim-requests-page__list-row${selectedMessage?.id === message.id ? ' claim-requests-page__list-row--active' : ''}`}
+                className={`personal-message-list__item${selectedMessage?.id === message.id ? ' personal-message-list__item--active' : ''}`}
                 onClick={() => setSelectedMessageId(message.id)}
               >
                 <strong>{message.title || '개인메시지'}</strong>
-                <span>{message.content || '첨부파일 메시지'}</span>
+                <span>{messageSnippet(message.content)}</span>
                 <small>{formatDateTime(message.updatedAt)} · {attachmentLabel(message)}</small>
               </button>
             ))}
           </div>
         </div>
+      </aside>
 
-        <div className="claim-requests-page__personal-column claim-requests-page__personal-column--preview">
-          <div className="claim-requests-page__section-header">
-            <div>
-              <h3>고객앱 미리보기</h3>
-              <p>고객에게 보이는 메시지 내용과 첨부파일을 확인합니다.</p>
-            </div>
+      <section className="personal-message-panel personal-message-panel--preview" aria-label="고객앱 미리보기">
+        <header className="personal-message-panel__header">
+          <div className="personal-message-panel__title-group">
+            <h3>고객앱 미리보기</h3>
+            <p>고객에게 보이는 메시지와 첨부파일을 확인합니다.</p>
           </div>
+        </header>
+        <div className="personal-message-panel__body personal-message-panel__body--preview">
           {!selectedMessage ? (
-            <div className="claim-requests-page__detail-empty">왼쪽 목록에서 메시지를 선택해 주세요.</div>
+            <div className="personal-message-empty">왼쪽 목록에서 메시지를 선택해 주세요.</div>
           ) : (
-            <article className="claim-requests-page__detail-section">
-              <div className="claim-requests-page__detail-title">{selectedMessage.title || '개인메시지'}</div>
-              <div className="claim-requests-page__detail-meta">발송/수정 {formatDateTime(selectedMessage.updatedAt)}</div>
-              <div className="claim-requests-page__detail-text claim-requests-page__detail-text--memo">
-                {selectedMessage.content || '내용 없이 첨부파일만 보낸 메시지입니다.'}
+            <article className="personal-message-detail">
+              <div className="personal-message-detail__head">
+                <h4>{selectedMessage.title || '개인메시지'}</h4>
+                <p>발송/수정 {formatDateTime(selectedMessage.updatedAt)}</p>
               </div>
-              <div className="claim-requests-page__detail-subtitle">첨부파일</div>
-              {selectedMessage.attachments?.length ? (
-                <div className="claim-requests-page__file-list">
-                  {selectedMessage.attachments.map((file) => (
-                    <a
-                      key={file.id}
-                      className="claim-requests-page__file-row"
-                      href={file.url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <span>{file.fileName || '첨부파일'}</span>
-                      <small>{file.kind === 'image' ? '이미지' : '파일'}</small>
-                    </a>
-                  ))}
+              <section className="personal-message-detail__section">
+                <h5>메시지 내용</h5>
+                <div className="personal-message-detail__content">
+                  {selectedMessage.content || '내용 없이 첨부파일만 보낸 메시지입니다.'}
                 </div>
-              ) : (
-                <div className="claim-requests-page__detail-empty">첨부파일이 없습니다.</div>
-              )}
-              <div className="claim-requests-page__detail-subtitle">댓글/답글</div>
-              <div className="claim-requests-page__detail-empty">
-                댓글 기능은 별도 댓글 API가 연결되면 이 영역에 표시됩니다.
-              </div>
+              </section>
+              <section className="personal-message-detail__section">
+                <h5>첨부파일</h5>
+                {selectedMessage.attachments?.length ? (
+                  <div className="personal-message-attachments">
+                    {selectedMessage.attachments.map((file) => (
+                      <a key={file.id} className="personal-message-attachments__item" href={file.url} target="_blank" rel="noreferrer">
+                        <span>{file.fileName || '첨부파일'}</span>
+                        <small>{file.kind === 'image' ? '이미지' : '파일'}</small>
+                      </a>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="personal-message-empty personal-message-empty--compact">첨부파일이 없습니다.</div>
+                )}
+              </section>
+              <section className="personal-message-detail__section personal-message-detail__section--comments">
+                <h5>댓글/답글</h5>
+                <div className="personal-message-empty personal-message-empty--compact">
+                  댓글 API 연결 후 이 영역에 고객/담당자 댓글이 표시됩니다.
+                </div>
+              </section>
             </article>
           )}
         </div>
+      </section>
 
-        <div className="claim-requests-page__personal-column claim-requests-page__personal-column--compose">
-          <div className="claim-requests-page__section-header">
-            <div>
-              <h3>새 개인메시지 작성</h3>
-              <p>{targetCustomerName}에게만 발송됩니다.</p>
-            </div>
+      <aside className="personal-message-panel personal-message-panel--compose" aria-label="새 개인메시지 작성">
+        <header className="personal-message-panel__header">
+          <div className="personal-message-panel__title-group">
+            <h3>새 개인메시지 작성</h3>
+            <p>{targetCustomerName}에게만 발송됩니다.</p>
           </div>
+        </header>
+        <div className="personal-message-panel__body personal-message-panel__body--compose">
           <FormTextarea
-            rows={8}
+            rows={9}
             value={form.bodyText}
             onChange={(e) => form.setBodyText(e.target.value)}
             placeholder="고객에게 보낼 개인메시지 내용을 입력해 주세요."
@@ -254,30 +258,26 @@ export default function ClaimRequestsPersonalPCStandalone() {
             hintLines={['사진, PDF, 문서 파일을 첨부할 수 있습니다.']}
           />
           {form.attachments.length > 0 ? (
-            <div className="claim-requests-page__file-list">
+            <div className="personal-message-draft-files">
               {form.attachments.map((attachment) => (
-                <div key={attachment.localId} className="claim-requests-page__file-row">
+                <div key={attachment.localId} className="personal-message-draft-files__item">
                   <span>{attachment.file.name}</span>
-                  <FormButton
-                    htmlType="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => form.removeAttachment(attachment.localId)}
-                    disabled={busy}
-                  >
+                  <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => form.removeAttachment(attachment.localId)} disabled={busy}>
                     삭제
                   </FormButton>
                 </div>
               ))}
             </div>
           ) : null}
-          {notice ? <div className="claim-requests-page__notice claim-requests-page__notice--ok">{notice}</div> : null}
-          {error ? <div className="claim-requests-page__notice claim-requests-page__notice--error">{error}</div> : null}
-          <FormButton htmlType="button" onClick={() => void handleSend()} loading={busy} disabled={busy}>
-            개인메시지 발송
-          </FormButton>
+          <div className="personal-message-compose__footer">
+            {notice ? <div className="personal-message-notice personal-message-notice--ok">{notice}</div> : null}
+            {error ? <div className="personal-message-notice personal-message-notice--error">{error}</div> : null}
+            <FormButton htmlType="button" variant="primary" onClick={() => void handleSend()} loading={busy} disabled={busy}>
+              개인메시지 발송
+            </FormButton>
+          </div>
         </div>
-      </section>
-    </main>
+      </aside>
+    </section>
   )
 }
