@@ -6,6 +6,9 @@ import {
   writeCustomerAppSession,
 } from '../session/customerAppSession'
 
+/** POST /customer-app/connect 전용 링크: DB 프로필 부족 시 서버가 내려주는 payload.code 와 동일 */
+export const CUSTOMER_APP_PROFILE_INCOMPLETE_CODE = 'CUSTOMER_PROFILE_INCOMPLETE' as const
+
 export interface CustomerAppConnectResponse {
   agentId: string
   customerId: number

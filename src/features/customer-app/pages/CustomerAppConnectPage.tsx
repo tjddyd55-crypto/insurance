@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput } from '../../../components/form'
-import { connectCustomerApp, getCustomerAppConnectPrefill, type CustomerAppConnectPrefill } from '../api/customerAppApi'
+import { ApiError } from '../../../lib/apiClient'
+import {
+  connectCustomerApp,
+  CUSTOMER_APP_PROFILE_INCOMPLETE_CODE,
+  getCustomerAppConnectPrefill,
+  type CustomerAppConnectPrefill,
+} from '../api/customerAppApi'
 import {
   readCustomerAppSession,
   resolveCustomerDeviceId,
@@ -171,11 +177,23 @@ export default function CustomerAppConnectPage() {
         ...(opts.useServerCustomerProfile ? {} : { requester: opts.requester! }),
       })
       persistAfterConnect(connected, code, deviceId)
+      setServerDesignatedProfileIncomplete(false)
       if (opts.navigateToHome) {
         navigate('/customer-app/home', { replace: true })
       }
     } catch (connectError) {
-      setError(connectError instanceof Error ? connectError.message : '연결에 실패했습니다.')
+      if (
+        isDesignatedLink &&
+        opts.useServerCustomerProfile &&
+        connectError instanceof ApiError &&
+        connectError.status === 422 &&
+        connectError.code === CUSTOMER_APP_PROFILE_INCOMPLETE_CODE
+      ) {
+        setServerDesignatedProfileIncomplete(true)
+        setError('')
+      } else {
+        setError(connectError instanceof Error ? connectError.message : '연결에 실패했습니다.')
+      }
     } finally {
       setLoading(false)
     }
@@ -217,6 +235,9 @@ export default function CustomerAppConnectPage() {
   }
 
   const handleStartClaim = async () => {
+    if (designatedConnectBlocked) {
+      return
+    }
     if (!prefill?.isActive) {
       setError('해당 링크는 만료되었거나 사용할 수 없습니다.')
       return
@@ -227,6 +248,9 @@ export default function CustomerAppConnectPage() {
   const handleAddToHome = async () => {
     setInstallResult('')
     setError('')
+    if (designatedConnectBlocked) {
+      return
+    }
     if (isDesignatedLink && prefill?.isActive) {
       await handleConnectViaServerProfile(linkCode.trim().toUpperCase(), false)
     }
@@ -313,6 +337,7 @@ export default function CustomerAppConnectPage() {
                 className="w-full min-h-[44px]"
                 onClick={() => void handleStartClaim()}
                 loading={loading}
+                disabled={designatedConnectBlocked}
               >
                 청구하기
               </FormButton>
@@ -322,6 +347,7 @@ export default function CustomerAppConnectPage() {
                 className="w-full min-h-[44px]"
                 onClick={() => void handleAddToHome()}
                 loading={loading}
+                disabled={designatedConnectBlocked}
               >
                 홈 화면에 추가
               </FormButton>
@@ -332,12 +358,19 @@ export default function CustomerAppConnectPage() {
             />
           )}
 
+          {designatedConnectBlocked ? (
+            <div className="status status--error text-sm text-left space-y-1.5" role="alert">
+              <p className="m-0 leading-6">고객앱 연결에 필요한 정보가 부족합니다.</p>
+              <p className="m-0 leading-6">담당 설계사에게 이름, 생년월일, 연락처 등록을 요청해 주세요.</p>
+            </div>
+          ) : null}
+
           <p className="text-xs text-[var(--text-secondary)]">
             홈 화면에 추가하면 다음부터 앱처럼 바로 열 수 있습니다.
           </p>
           <StatusMessage message={installResult} />
           <StatusMessage message={prefillError} />
-          <StatusMessage message={error} tone="error" />
+          <StatusMessage message={designatedConnectBlocked ? '' : error} tone="error" />
         </section>
 
         {installHintOpen ? (

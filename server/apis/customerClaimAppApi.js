@@ -131,22 +131,29 @@ function deriveCustomerBirthDate(row) {
   return ''
 }
 
+/** 전용 링크·DB 기반 연결: 임시 연락처/생년월일 없이 필수값이 모두 있을 때만 요청자 정보를 반환한다. */
+const CONNECT_PROFILE_INCOMPLETE_MESSAGE =
+  '고객앱 연결에 필요한 고객 정보가 부족합니다. 설계사에게 이름, 생년월일, 연락처 등록을 요청해 주세요.'
+const CUSTOMER_PROFILE_INCOMPLETE_CODE = 'CUSTOMER_PROFILE_INCOMPLETE'
+
 /**
- * 링크의 customer_id 로 이미 특정된 고객 — 클라이언트가 requester 를 보내지 않아도 DB 프로필로 연결 처리한다.
  * @param {{ name?: unknown, ssn?: unknown, birth_date?: unknown, phone?: unknown }} row
  */
-function buildRequesterFromCustomerRow(row) {
+function buildRequesterFromCustomerRowStrict(row) {
   if (!row || typeof row !== 'object') {
     return null
   }
-  const name = sanitizeProfileField(row.name, 120) || '고객'
-  let birthDate = deriveCustomerBirthDate(row)
-  if (!birthDate) {
-    birthDate = '000101'
+  const name = sanitizeProfileField(row.name, 120)
+  if (!name) {
+    return null
   }
-  let phone = sanitizeProfileField(row.phone, 30)
+  const birthDate = deriveCustomerBirthDate(row)
+  if (!birthDate) {
+    return null
+  }
+  const phone = sanitizeProfileField(row.phone, 30)
   if (!phone) {
-    phone = '01000000000'
+    return null
   }
   return { name, birthDate, phone }
 }
@@ -1839,29 +1846,62 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       }
       const agentId = String(link.agent_id ?? '').trim()
       const customerId = Number(link.customer_id)
-      let requester = normalizeRequester(req.body?.requester)
-      if (!requester) {
-        const customerRow = await client.query(
-          `
-          SELECT name, ssn, birth_date, phone
-          FROM customers
-          WHERE id = $1
-            AND user_id = $2
-          LIMIT 1
-          `,
-          [customerId, agentId],
-        )
-        if (customerRow.rowCount === 0) {
+
+      const targetRow = await client.query(
+        `
+        SELECT customer_id
+        FROM agent_app_link_targets
+        WHERE agent_id = $1
+        LIMIT 1
+        `,
+        [agentId],
+      )
+      const genericTargetId = targetRow.rowCount > 0 ? Number(targetRow.rows[0].customer_id) : null
+      const isGeneralLink =
+        genericTargetId != null && Number.isFinite(genericTargetId) && genericTargetId === Number(customerId)
+
+      const customerRowResult = await client.query(
+        `
+        SELECT name, ssn, birth_date, phone
+        FROM customers
+        WHERE id = $1
+          AND user_id = $2
+        LIMIT 1
+        `,
+        [customerId, agentId],
+      )
+      if (customerRowResult.rowCount === 0) {
+        await client.query('ROLLBACK')
+        res.status(404).json({ message: '고객 정보를 찾을 수 없습니다.' })
+        return
+      }
+      const customerRow = customerRowResult.rows[0]
+
+      let requester = null
+      if (isGeneralLink) {
+        requester = normalizeRequester(req.body?.requester)
+        if (!requester) {
+          requester = buildRequesterFromCustomerRowStrict(customerRow)
+        }
+        if (!requester) {
           await client.query('ROLLBACK')
-          res.status(404).json({ message: '고객 정보를 찾을 수 없습니다.' })
+          res.status(422).json({
+            success: false,
+            message: '이름, 생년월일, 연락처를 모두 입력해 주세요.',
+          })
           return
         }
-        requester = buildRequesterFromCustomerRow(customerRow.rows[0])
-      }
-      if (!requester) {
-        await client.query('ROLLBACK')
-        res.status(422).json({ message: '이름, 생년월일, 연락처를 모두 입력해 주세요.' })
-        return
+      } else {
+        requester = buildRequesterFromCustomerRowStrict(customerRow)
+        if (!requester) {
+          await client.query('ROLLBACK')
+          res.status(422).json({
+            success: false,
+            code: CUSTOMER_PROFILE_INCOMPLETE_CODE,
+            message: CONNECT_PROFILE_INCOMPLETE_MESSAGE,
+          })
+          return
+        }
       }
       await client.query(
         `

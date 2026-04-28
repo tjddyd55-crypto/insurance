@@ -4,15 +4,20 @@ export class ApiError extends Error {
   status: number
   retryAfterSec?: number
   retryAfterMin?: number
+  /** 서버 JSON payload.code (예: 고객앱 연결 프로필 부족) */
+  code?: string
 
   constructor(
     message: string,
     status: number,
-    opts?: { retryAfterSec?: number; retryAfterMin?: number },
+    opts?: { retryAfterSec?: number; retryAfterMin?: number; code?: string },
   ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    if (opts?.code != null && String(opts.code).trim()) {
+      this.code = String(opts.code).trim()
+    }
     if (opts?.retryAfterSec != null && Number.isFinite(opts.retryAfterSec)) {
       this.retryAfterSec = Math.max(1, Math.floor(opts.retryAfterSec))
     }
@@ -151,6 +156,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   const payload = (await response.json().catch(() => ({}))) as {
     message?: string
     error?: string
+    code?: string
     retryAfterSec?: number
     retryAfterMin?: number
   }
@@ -159,9 +165,11 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       response.status === 429
         ? '요청이 많습니다. 잠시 후 다시 시도해 주세요.'
         : '요청 처리에 실패했습니다.'
+    const code = typeof payload.code === 'string' && payload.code.trim() ? payload.code.trim() : undefined
     throw new ApiError(payload.message ?? payload.error ?? fallback, response.status, {
       retryAfterSec: payload.retryAfterSec,
       retryAfterMin: payload.retryAfterMin,
+      code,
     })
   }
 
