@@ -100,7 +100,7 @@ export default function CustomerAppProfilePage() {
   }
 
   return (
-    <CustomerAppShell title="내정보">
+    <>
       <StatusMessage message={error} tone="error" />
       <StatusMessage message={result} tone="success" />
       <FormInput

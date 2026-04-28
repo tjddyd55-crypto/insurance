@@ -57,7 +57,7 @@ export default function CustomerAppNewsDetailPage() {
   }, [hasInvalidNewsId, navigate, newsId, session])
 
   return (
-    <CustomerAppShell title="소식지 상세">
+    <>
       <StatusMessage message={hasInvalidNewsId ? '잘못된 소식지 번호입니다.' : error} tone="error" />
       {!detail ? <div className="text-sm text-[var(--text-secondary)]">불러오는 중…</div> : null}
       {detail ? (
