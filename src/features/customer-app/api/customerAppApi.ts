@@ -12,6 +12,7 @@ export interface CustomerAppConnectResponse {
   agentName: string
   customerName: string
   appToken: string
+  profile?: { name: string; birthDate: string; phone: string }
 }
 
 export interface CustomerAppConnectPrefill {
@@ -128,15 +129,24 @@ async function connectCustomerAppInternal(payload: {
   deviceId: string
   devicePlatform: string
   appVersion: string
-  requester: {
+  requester?: {
     name: string
     birthDate: string
     phone: string
   }
 }): Promise<CustomerAppConnectResponse> {
+  const body: Record<string, unknown> = {
+    linkCode: payload.linkCode,
+    deviceId: payload.deviceId,
+    devicePlatform: payload.devicePlatform,
+    appVersion: payload.appVersion,
+  }
+  if (payload.requester) {
+    body.requester = payload.requester
+  }
   const response = await apiRequest<{ success: true; data: CustomerAppConnectResponse }>('/api/customer-app/connect', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   })
   return response as CustomerAppConnectResponse
 }
@@ -219,7 +229,7 @@ export async function connectCustomerApp(payload: {
   deviceId: string
   devicePlatform: string
   appVersion: string
-  requester: {
+  requester?: {
     name: string
     birthDate: string
     phone: string

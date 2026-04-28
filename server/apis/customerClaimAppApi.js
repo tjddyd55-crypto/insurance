@@ -132,6 +132,26 @@ function deriveCustomerBirthDate(row) {
 }
 
 /**
+ * 링크의 customer_id 로 이미 특정된 고객 — 클라이언트가 requester 를 보내지 않아도 DB 프로필로 연결 처리한다.
+ * @param {{ name?: unknown, ssn?: unknown, birth_date?: unknown, phone?: unknown }} row
+ */
+function buildRequesterFromCustomerRow(row) {
+  if (!row || typeof row !== 'object') {
+    return null
+  }
+  const name = sanitizeProfileField(row.name, 120) || '고객'
+  let birthDate = deriveCustomerBirthDate(row)
+  if (!birthDate) {
+    birthDate = '000101'
+  }
+  let phone = sanitizeProfileField(row.phone, 30)
+  if (!phone) {
+    phone = '01000000000'
+  }
+  return { name, birthDate, phone }
+}
+
+/**
  * @param {unknown} raw
  * @returns {{
  *  id: string
@@ -1770,13 +1790,8 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       const deviceId = String(req.body?.deviceId ?? '').trim()
       const devicePlatform = String(req.body?.devicePlatform ?? '').trim().slice(0, 20)
       const appVersion = String(req.body?.appVersion ?? '').trim().slice(0, 30)
-      const requester = normalizeRequester(req.body?.requester)
       if (!linkCode || !deviceId) {
         res.status(400).json({ message: 'linkCode와 deviceId가 필요합니다.' })
-        return
-      }
-      if (!requester) {
-        res.status(422).json({ message: '이름, 생년월일, 연락처를 모두 입력해 주세요.' })
         return
       }
       await client.query('BEGIN')
@@ -1824,6 +1839,30 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       }
       const agentId = String(link.agent_id ?? '').trim()
       const customerId = Number(link.customer_id)
+      let requester = normalizeRequester(req.body?.requester)
+      if (!requester) {
+        const customerRow = await client.query(
+          `
+          SELECT name, ssn, birth_date, phone
+          FROM customers
+          WHERE id = $1
+            AND user_id = $2
+          LIMIT 1
+          `,
+          [customerId, agentId],
+        )
+        if (customerRow.rowCount === 0) {
+          await client.query('ROLLBACK')
+          res.status(404).json({ message: '고객 정보를 찾을 수 없습니다.' })
+          return
+        }
+        requester = buildRequesterFromCustomerRow(customerRow.rows[0])
+      }
+      if (!requester) {
+        await client.query('ROLLBACK')
+        res.status(422).json({ message: '이름, 생년월일, 연락처를 모두 입력해 주세요.' })
+        return
+      }
       await client.query(
         `
         INSERT INTO customer_app_devices
@@ -1905,6 +1944,11 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           agentName: String(display.agent_name ?? '담당 설계사'),
           customerName: requester.name || String(display.customer_name ?? '고객'),
           appToken,
+          profile: {
+            name: requester.name,
+            birthDate: requester.birthDate,
+            phone: requester.phone,
+          },
         },
       })
     } catch (error) {

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput } from '../../../components/form'
 import { connectCustomerApp, getCustomerAppConnectPrefill, type CustomerAppConnectPrefill } from '../api/customerAppApi'
 import {
+  readCustomerAppSession,
   resolveCustomerDeviceId,
   writeCustomerAppProfile,
   writeCustomerAppSession,
@@ -13,6 +14,16 @@ import { useCustomerAppSession } from '../session/useCustomerAppSession'
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
+
+function resolveDevicePlatform(): 'android' | 'ios' | 'web' {
+  if (/android/i.test(navigator.userAgent)) {
+    return 'android'
+  }
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+    return 'ios'
+  }
+  return 'web'
 }
 
 export default function CustomerAppConnectPage() {
@@ -31,6 +42,12 @@ export default function CustomerAppConnectPage() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [installHintOpen, setInstallHintOpen] = useState(false)
   const [installResult, setInstallResult] = useState('')
+
+  const didAutoConnectRef = useRef(false)
+
+  useEffect(() => {
+    didAutoConnectRef.current = false
+  }, [linkCodeParam])
 
   useEffect(() => {
     const code = String(linkCodeParam ?? '').trim().toUpperCase()
@@ -97,40 +114,12 @@ export default function CustomerAppConnectPage() {
 
   const isDesignatedLink = Boolean(linkCodeParam) && prefill?.mode === 'designated'
 
-  const handleConnectWithRequester = async (payload: {
-    code: string
-    requesterName: string
-    requesterBirthDate: string
-    requesterPhone: string
-  }) => {
-    const { code, requesterName, requesterBirthDate, requesterPhone } = payload
-    if (!code) {
-      setError('링크 코드를 입력해 주세요.')
-      return
-    }
-    if (!requesterName || !requesterBirthDate || !requesterPhone) {
-      setError('이름, 생년월일, 연락처를 모두 입력해 주세요.')
-      return
-    }
-    setLoading(true)
-    setError('')
-    try {
-      const deviceId = resolveCustomerDeviceId()
-      const connected = await connectCustomerApp({
-        linkCode: code,
-        deviceId,
-        devicePlatform: /android/i.test(navigator.userAgent)
-          ? 'android'
-          : /iphone|ipad|ipod/i.test(navigator.userAgent)
-            ? 'ios'
-            : 'web',
-        appVersion: 'web-1.0.0',
-        requester: {
-          name: requesterName,
-          birthDate: requesterBirthDate,
-          phone: requesterPhone,
-        },
-      })
+  const persistAfterConnect = useCallback(
+    (connected: Awaited<ReturnType<typeof connectCustomerApp>>, code: string, deviceId: string) => {
+      const prof = connected.profile
+      const requesterName = prof?.name ?? connected.customerName
+      const requesterBirthDate = prof?.birthDate ?? ''
+      const requesterPhone = prof?.phone ?? ''
       writeCustomerAppSession({
         appToken: connected.appToken,
         agentId: connected.agentId,
@@ -148,12 +137,74 @@ export default function CustomerAppConnectPage() {
         birthDate: requesterBirthDate,
         phone: requesterPhone,
       })
-      navigate('/customer-app/home', { replace: true })
+    },
+    [],
+  )
+
+  const runConnect = async (opts: {
+    code: string
+    useServerCustomerProfile: boolean
+    requester?: { name: string; birthDate: string; phone: string }
+    navigateToHome: boolean
+  }) => {
+    const code = opts.code.trim().toUpperCase()
+    if (!code) {
+      setError('링크 코드를 입력해 주세요.')
+      return
+    }
+    if (!opts.useServerCustomerProfile) {
+      const r = opts.requester
+      if (!r?.name?.trim() || !r?.birthDate?.trim() || !r?.phone?.trim()) {
+        setError('이름, 생년월일, 연락처를 모두 입력해 주세요.')
+        return
+      }
+    }
+    setLoading(true)
+    setError('')
+    try {
+      const deviceId = resolveCustomerDeviceId()
+      const connected = await connectCustomerApp({
+        linkCode: code,
+        deviceId,
+        devicePlatform: resolveDevicePlatform(),
+        appVersion: 'web-1.0.0',
+        ...(opts.useServerCustomerProfile ? {} : { requester: opts.requester! }),
+      })
+      persistAfterConnect(connected, code, deviceId)
+      if (opts.navigateToHome) {
+        navigate('/customer-app/home', { replace: true })
+      }
     } catch (connectError) {
       setError(connectError instanceof Error ? connectError.message : '연결에 실패했습니다.')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleConnectWithRequester = async (payload: {
+    code: string
+    requesterName: string
+    requesterBirthDate: string
+    requesterPhone: string
+  }) => {
+    await runConnect({
+      code: payload.code,
+      useServerCustomerProfile: false,
+      requester: {
+        name: payload.requesterName.trim(),
+        birthDate: payload.requesterBirthDate.trim(),
+        phone: payload.requesterPhone.trim(),
+      },
+      navigateToHome: true,
+    })
+  }
+
+  const handleConnectViaServerProfile = async (code: string, navigateToHome: boolean) => {
+    await runConnect({
+      code,
+      useServerCustomerProfile: true,
+      navigateToHome,
+    })
   }
 
   const handleConnect = async () => {
@@ -170,16 +221,15 @@ export default function CustomerAppConnectPage() {
       setError('해당 링크는 만료되었거나 사용할 수 없습니다.')
       return
     }
-    await handleConnectWithRequester({
-      code: linkCode.trim().toUpperCase(),
-      requesterName: String(prefill.name ?? '').trim(),
-      requesterBirthDate: String(prefill.birthDate ?? '').trim(),
-      requesterPhone: String(prefill.phone ?? '').trim(),
-    })
+    await handleConnectViaServerProfile(linkCode.trim().toUpperCase(), true)
   }
 
   const handleAddToHome = async () => {
     setInstallResult('')
+    setError('')
+    if (isDesignatedLink && prefill?.isActive) {
+      await handleConnectViaServerProfile(linkCode.trim().toUpperCase(), false)
+    }
     if (deferredPrompt) {
       await deferredPrompt.prompt()
       const choice = await deferredPrompt.userChoice
@@ -189,6 +239,48 @@ export default function CustomerAppConnectPage() {
     }
     setInstallHintOpen(true)
   }
+
+  useEffect(() => {
+    if (!isDesignatedLink || !prefill?.isActive || prefillLoading) {
+      return
+    }
+    const code = String(linkCodeParam ?? '').trim().toUpperCase()
+    if (!code) {
+      return
+    }
+    const existing = readCustomerAppSession()
+    if (existing?.linkCode?.toUpperCase() === code) {
+      return
+    }
+    if (didAutoConnectRef.current) {
+      return
+    }
+    didAutoConnectRef.current = true
+    let cancelled = false
+    void (async () => {
+      try {
+        const deviceId = resolveCustomerDeviceId()
+        const connected = await connectCustomerApp({
+          linkCode: code,
+          deviceId,
+          devicePlatform: resolveDevicePlatform(),
+          appVersion: 'web-1.0.0',
+        })
+        if (cancelled) {
+          return
+        }
+        persistAfterConnect(connected, code, deviceId)
+      } catch (autoErr) {
+        didAutoConnectRef.current = false
+        if (!cancelled) {
+          setError(autoErr instanceof Error ? autoErr.message : '연결에 실패했습니다.')
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isDesignatedLink, prefill?.isActive, prefillLoading, linkCodeParam, persistAfterConnect])
 
   if (linkCodeParam && prefillLoading) {
     return (
@@ -229,6 +321,7 @@ export default function CustomerAppConnectPage() {
                 variant="secondary"
                 className="w-full min-h-[44px]"
                 onClick={() => void handleAddToHome()}
+                loading={loading}
               >
                 홈 화면에 추가
               </FormButton>
@@ -328,3 +421,4 @@ export default function CustomerAppConnectPage() {
     </main>
   )
 }
+
