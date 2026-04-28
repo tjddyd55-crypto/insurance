@@ -1,6 +1,6 @@
 import type { MutableRefObject } from 'react'
 import { Outlet } from 'react-router-dom'
-import CustomerAppLinkBar from '../../../claim-requests/components/CustomerAppLinkBar'
+import CustomerAppLinkBar from './CustomerAppLinkBar'
 import { EmptyState } from '../../../../components/feedback'
 import { FormButton } from '../../../../components/form'
 import type { CustomerRecord } from '../../domain/types'
@@ -106,7 +106,7 @@ export default function CustomerWorkspaceLayoutPC({
 
   return (
     <section className="customer-workspace-layout__right" aria-label="고객 연동 작업영역">
-      <header className="customer-workspace-layout__right-header">
+      <header className="customer-workspace-layout__right-header customer-workspace-layout__right-header--meta-only">
         <div className="customer-workspace-layout__customer-meta">
           <h2 className="customer-workspace-layout__title">
             {selectedCustomerId ? selectedCustomerLabel || `고객 #${selectedCustomerId}` : rightTitle(pathname)}
@@ -125,6 +125,15 @@ export default function CustomerWorkspaceLayoutPC({
               : '고객을 선택해 주세요.'}
           </p>
         </div>
+      </header>
+
+      {selectedCustomerId ? (
+        <div className="customer-workspace-layout__app-link-strip">
+          <CustomerAppLinkBar key={selectedCustomerId} customerId={selectedCustomerId} />
+        </div>
+      ) : null}
+
+      <nav className="customer-workspace-layout__tab-row" aria-label="고객 작업 메뉴">
         <div className="customer-workspace-layout__actions">
           <FormButton
             htmlType="button"
@@ -195,13 +204,7 @@ export default function CustomerWorkspaceLayoutPC({
             청구관리
           </FormButton>
         </div>
-      </header>
-
-      {selectedCustomerId ? (
-        <div className="customer-workspace-layout__app-link-strip">
-          <CustomerAppLinkBar customerId={selectedCustomerId} />
-        </div>
-      ) : null}
+      </nav>
 
       <div className="customer-workspace-layout__right-body">
         {selectedCustomerId || isCustomerIndexPath ? (

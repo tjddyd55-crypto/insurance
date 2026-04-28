@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FormButton, FormInput } from '../../../components/form'
-import { useAuth } from '../../auth/AuthProvider'
+import { FormButton, FormInput } from '../../../../components/form'
+import { useAuth } from '../../../auth/AuthProvider'
 import {
   createCustomerAppLink,
   getCustomerAppLink,
   type CustomerAppLinkInfo,
-} from '../api/claimRequestsApi'
+} from '../../../claim-requests/api/claimRequestsApi'
 import {
   CUSTOMER_APP_LINK_UPDATED_EVENT,
   customerAppLinkActionLabel,
   describeCustomerAppConnection,
   notifyCustomerAppLinkUpdated,
   resolveCustomerAppConnectionState,
-} from '../model/customerAppLinkConnection'
+} from '../../../claim-requests/model/customerAppLinkConnection'
 
 function formatDateTime(iso: string | null): string {
   if (!iso) return '—'
@@ -25,6 +25,9 @@ type CustomerAppLinkBarProps = {
   customerId: number
 }
 
+/**
+ * 고객 작업영역 shell 전용 — 청구 탭 콘텐츠와 무관하게 `customerId`만으로 표시한다.
+ */
 export default function CustomerAppLinkBar({ customerId }: CustomerAppLinkBarProps) {
   const { token } = useAuth()
   const [linkStatus, setLinkStatus] = useState<CustomerAppLinkInfo | null>(null)

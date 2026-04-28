@@ -9,6 +9,7 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import CustomersPageContainer from './customers/CustomersPageContainer'
 import CustomerWorkspaceLayoutPC, { type CustomerWorkspaceLayoutPCProps } from './workspace/CustomerWorkspaceLayoutPC'
 import CustomerWorkspaceLayoutMobile from './workspace/CustomerWorkspaceLayoutMobile'
+import './workspace/CustomerWorkspaceLayoutPC.css'
 import type { CustomerRecord } from '../domain/types'
 
 function parseSelectedCustomerId(raw: string | null): number | null {
@@ -16,12 +17,11 @@ function parseSelectedCustomerId(raw: string | null): number | null {
   return Number.isInteger(n) && n > 0 ? n : null
 }
 
-/** Path-based customer (files/consultations/ga-excel) wins over ?customerId= so list expand does not override the workspace header. */
+/**
+ * `/customers/:id/...` 에서 id 추출. 탭 세그먼트(files 등) 유무와 무관해야
+ * 청구관리 외 탭으로 이동하지 않은 상태에서도 공통 shell(앱 링크 바)이 동작한다.
+ */
 function parseWorkspaceCustomerIdFromPath(pathname: string): number | null {
-  const tab = resolveWorkspacePathTab(pathname)
-  if (!tab) {
-    return null
-  }
   const m = pathname.match(/^\/customers\/(\d+)(?:\/|$)/)
   if (!m?.[1]) {
     return null
