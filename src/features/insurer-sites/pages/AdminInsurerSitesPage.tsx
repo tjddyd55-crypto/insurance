@@ -67,6 +67,31 @@ function AdminLogoThumb({ path, name }: { path: string; name: string }) {
   )
 }
 
+function AdminUrlCell({ url }: { url: string | undefined | null }) {
+  const v = String(url ?? '').trim()
+  if (!v) {
+    return (
+      <span style={{ color: 'var(--text-secondary)', fontSize: 12 }} title="미입력">
+        — · 미입력
+      </span>
+    )
+  }
+  return (
+    <div
+      style={{
+        maxWidth: 200,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        fontSize: 12,
+      }}
+      title={v}
+    >
+      {v}
+    </div>
+  )
+}
+
 type FormState = {
   name: string
   category: InsurerSiteCategory
@@ -308,19 +333,20 @@ export default function AdminInsurerSitesPage() {
         style={{ maxWidth: 'none', padding: 0, overflow: 'hidden' }}
       >
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: 880, borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', minWidth: 1280, borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 <th>정렬</th>
                 <th>로고</th>
                 <th>보험사명</th>
                 <th>구분</th>
-                <th>설계</th>
-                <th>공식홈</th>
-                <th>공시실</th>
-                <th>보상</th>
-                <th>노출</th>
-                <th />
+                <th>설계사이트 URL</th>
+                <th>공식홈 URL</th>
+                <th>공시실 URL</th>
+                <th>보상홈 URL</th>
+                <th>노출 여부</th>
+                <th>수정</th>
+                <th>비활성화</th>
               </tr>
             </thead>
             <tbody>
@@ -333,32 +359,32 @@ export default function AdminInsurerSitesPage() {
                   <td style={{ fontWeight: 700 }}>{s.name}</td>
                   <td>{CATEGORY_LABEL[s.category]}</td>
                   <td>
-                    <PresenceChip ok={Boolean(String(s.salesUrl ?? '').trim())} />
+                    <AdminUrlCell url={s.salesUrl} />
                   </td>
                   <td>
-                    <PresenceChip ok={Boolean(String(s.homepageUrl ?? '').trim())} />
+                    <AdminUrlCell url={s.homepageUrl} />
                   </td>
                   <td>
-                    <PresenceChip ok={Boolean(String(s.disclosureUrl ?? '').trim())} />
+                    <AdminUrlCell url={s.disclosureUrl} />
                   </td>
                   <td>
-                    <PresenceChip ok={Boolean(String(s.claimUrl ?? '').trim())} />
+                    <AdminUrlCell url={s.claimUrl} />
                   </td>
                   <td>{s.isActive ? 'Y' : 'N'}</td>
                   <td>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <FormButton htmlType="button" variant="secondary" onClick={() => openEdit(s)}>
-                        수정
-                      </FormButton>
-                      <FormButton
-                        htmlType="button"
-                        variant="danger"
-                        onClick={() => void deactivateRow(s)}
-                        disabled={!s.isActive}
-                      >
-                        비활성화
-                      </FormButton>
-                    </div>
+                    <FormButton htmlType="button" variant="secondary" onClick={() => openEdit(s)}>
+                      수정
+                    </FormButton>
+                  </td>
+                  <td>
+                    <FormButton
+                      htmlType="button"
+                      variant="danger"
+                      onClick={() => void deactivateRow(s)}
+                      disabled={!s.isActive}
+                    >
+                      비활성화
+                    </FormButton>
                   </td>
                 </tr>
               ))}
@@ -392,7 +418,7 @@ export default function AdminInsurerSitesPage() {
               }
             />
           </FieldWrapper>
-              {editingId != null ? (
+          {editingId != null ? (
                 <>
                   <FieldWrapper
                     label="로고 업로드"
@@ -406,10 +432,10 @@ export default function AdminInsurerSitesPage() {
                   </FieldWrapper>
                   {(logoPreviewUrl || logoSrcForUi(form.logoPath)) ? (
                     <div>
-                      <span style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>로고 미리보기</span>
+                      <span style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>현재 로고 미리보기</span>
                       <img
                         key={logoPreviewUrl || form.logoPath}
-                        src={logoPreviewUrl || logoSrcForUi(form.logoPath)}
+                        src={logoPreviewUrl || logoSrcForUi(form.logoPath) || ''}
                         alt=""
                         style={{ maxWidth: 160, maxHeight: 64, objectFit: 'contain' }}
                       />
@@ -417,10 +443,10 @@ export default function AdminInsurerSitesPage() {
                   ) : null}
                 </>
               ) : (
-            <FieldWrapper label="logo_path (선택)">
-              <FormInput value={form.logoPath} onChange={(e) => setForm((f) => ({ ...f, logoPath: e.target.value }))} />
-            </FieldWrapper>
-          )}
+                <FieldWrapper label="logo_path (선택)">
+                  <FormInput value={form.logoPath} onChange={(e) => setForm((f) => ({ ...f, logoPath: e.target.value }))} />
+                </FieldWrapper>
+              )}
           <FieldWrapper label="설계사이트 URL" helperText="비우면 일반 화면에서 설계사이트 버튼이 비활성됩니다.">
             <FormInput value={form.salesUrl} onChange={(e) => setForm((f) => ({ ...f, salesUrl: e.target.value }))} />
           </FieldWrapper>
@@ -436,7 +462,7 @@ export default function AdminInsurerSitesPage() {
           <FieldWrapper label="정렬 순서">
             <FormInput value={form.sortOrder} onChange={(e) => setForm((f) => ({ ...f, sortOrder: e.target.value }))} />
           </FieldWrapper>
-          <FieldWrapper label="노출(활성)">
+          <FieldWrapper label="노출 여부">
             <FormInput
               type="checkbox"
               checked={form.isActive}
