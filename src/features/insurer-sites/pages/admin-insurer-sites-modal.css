@@ -1,14 +1,5 @@
-/* 보험사 설계사이트 관리 — 추가/수정 폼 모달 (PC 2열, 모바일 1열) */
-
-.insurer-site-form-modal-panel {
-  width: min(1080px, 92vw) !important;
-  max-width: none !important;
-  max-height: 86vh;
-  display: flex;
-  flex-direction: column;
-  padding: 0 !important;
-  overflow: hidden;
-}
+/* 보험사 설계사이트 관리 — 폼 모달 바디·그리드·헤더/풋터.
+ * 패널 셸(폭·max-height·flex column)은 BaseDialog `panelPreset="largeForm"` + Tailwind. */
 
 .insurer-site-form-modal__header {
   flex-shrink: 0;
@@ -19,7 +10,6 @@
   padding: 16px 16px 12px;
   border-bottom: 1px solid var(--border-default, rgba(255, 255, 255, 0.12));
 }
-
 .insurer-site-form-modal__title {
   margin: 0;
   font-size: 18px;

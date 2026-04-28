@@ -412,6 +412,7 @@ export default function AdminInsurerSitesPage() {
         onClose={() => void requestClose()}
         ariaLabel={editingId == null ? '보험사 추가' : '보험사 수정'}
         panelClassName="insurer-site-form-modal-panel"
+        panelPreset="largeForm"
         closeOnBackdrop={false}
         closeOnEsc={false}
         onEscapeRequest={() => void requestClose()}

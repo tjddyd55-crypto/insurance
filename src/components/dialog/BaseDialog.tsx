@@ -13,6 +13,11 @@ export type BaseDialogProps = {
   closeOnEsc?: boolean
   /** 설정 시 Escape 키는 `onClose` 대신 이 콜백만 호출한다(미저장 확인 등). */
   onEscapeRequest?: () => void
+  /**
+   * 기본(default)은 좁은 알림형 패널(w-[90%] max-w-md p-4).
+   * largeForm 은 헤더·스크롤 바디·고정 풋터용 넓은 폼 모달(폭·높이·flex는 Tailwind 로 고정).
+   */
+  panelPreset?: 'default' | 'largeForm'
   usePortal?: boolean
 }
 
@@ -27,9 +32,15 @@ export function BaseDialog({
   closeOnBackdrop = true,
   closeOnEsc = true,
   onEscapeRequest,
+  panelPreset = 'default',
   usePortal = false,
 }: BaseDialogProps) {
   const panelRef = useRef<HTMLDivElement>(null)
+
+  const panelSizingClasses =
+    panelPreset === 'largeForm'
+      ? '!w-[min(1080px,92vw)] !max-w-none !max-h-[86vh] !min-h-0 !flex !flex-col !overflow-hidden !p-0'
+      : 'w-[90%] max-w-md p-4'
 
   useEffect(() => {
     if (!open) {
@@ -97,7 +108,7 @@ export function BaseDialog({
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
-        className={`customer-ui-modal-panel w-[90%] max-w-md rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 shadow-lg outline-none ${panelClassName}`.trim()}
+        className={`customer-ui-modal-panel rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] shadow-lg outline-none ${panelSizingClasses} ${panelClassName}`.trim()}
         onClick={(event) => event.stopPropagation()}
       >
         {children}

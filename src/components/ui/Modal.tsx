@@ -17,6 +17,8 @@ export type ModalProps = {
   closeOnEsc?: boolean
   /** Escape 시 `onClose` 대신 호출(미저장 확인 등). */
   onEscapeRequest?: () => void
+  /** `largeForm` 는 넓은 폼 모달용(기본 w/max-w/p 제거). */
+  panelPreset?: 'default' | 'largeForm'
 }
 
 export default function Modal({
@@ -29,6 +31,7 @@ export default function Modal({
   closeOnBackdrop = true,
   closeOnEsc = true,
   onEscapeRequest,
+  panelPreset = 'default',
 }: ModalProps) {
   return (
     <BaseDialog
@@ -40,6 +43,7 @@ export default function Modal({
       closeOnBackdrop={closeOnBackdrop}
       closeOnEsc={closeOnEsc}
       onEscapeRequest={onEscapeRequest}
+      panelPreset={panelPreset}
     >
       {children}
     </BaseDialog>

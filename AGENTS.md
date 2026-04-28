@@ -120,8 +120,9 @@ docs(scope): 문서
 6. **PC**에서 필드가 많으면 **2열 이상** 그리드를 우선하고, **모바일**(너비 좁음)에서는 **1열**로 전환한다.
 7. 저장·삭제 등 **되돌리기 어려운 액션**은 확인·명확한 라벨 등으로 실수를 방지한다.
 8. Escape 처리: 폼 모달은 `BaseDialog`의 `onEscapeRequest`로 통일해 미저장 확인 후 닫는다. **확인 모달이 포커스일 때**는 상위 모달의 Escape 핸들러가 중복 반응하지 않도록 `nestedConfirmBlockingRef` 패턴 등으로 막는다.
+9. **넓은 폼 모달**은 `Modal` / `BaseDialog`의 **`panelPreset="largeForm"`** 을 쓴다. 이렇게 하면 기본 `w-[90%] max-w-md p-4` 가 붙지 않고 `min(1080px,92vw)`·`max-h-[86vh]`·flex 셸이 Tailwind로 고정된다 (배포 번들에서 좁은 패널로 보이는 회귀 방지).
 
-구현 참고: `src/features/insurer-sites/pages/AdminInsurerSitesPage.tsx` (보험사 설계사이트 추가·수정), `src/components/dialog/BaseDialog.tsx` (`onEscapeRequest`).
+구현 참고: `src/features/insurer-sites/pages/AdminInsurerSitesPage.tsx` (보험사 설계사이트 추가·수정), `src/components/dialog/BaseDialog.tsx` (`onEscapeRequest`, `panelPreset`).
 
 ## 6. 라인 엔딩 주의
 
