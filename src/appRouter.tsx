@@ -292,6 +292,7 @@ export const appRouter = createBrowserRouter([
                     path: 'admin/analytics',
                     element: <AdminAnalyticsPage />,
                   },
+                  { path: 'admin/insurer-sites', element: <AdminInsurerSitesPage /> },
                 ],
               },
               {
@@ -310,7 +311,6 @@ export const appRouter = createBrowserRouter([
                   { path: 'admin/pdf-templates', element: <PdfTemplateListPage /> },
                   { path: 'admin/pdf-templates/new', element: <PdfTemplateEditorPage /> },
                   { path: 'admin/pdf-templates/:id', element: <PdfTemplateEditorPage /> },
-                  { path: 'admin/insurer-sites', element: <AdminInsurerSitesPage /> },
                 ],
               },
               { path: 'contacts', element: <Navigate to="/insurance/contacts" replace /> },

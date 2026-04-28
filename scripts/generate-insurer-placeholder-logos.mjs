@@ -1,23 +1,8 @@
 /**
- * insurerSitesSeedData의 logoFile 목록에 맞춰 public/assets/insurers/*.png 생성.
- * 운영 전 실제 로고로 교체하거나 수퍼관리자 업로드로 대체할 것.
+ * 과거 1×1 placeholder PNG를 생성하던 스크립트 — 더 이상 사용하지 않습니다.
+ * 로고는 수퍼관리자 업로드(`/uploads/system/insurers/`) 또는 `public/assets/insurers/*.png` 실파일을 넣은 뒤
+ * DB `logo_path`에만 연결합니다. 시드는 `logo_path` 비움.
  */
-import fs from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { INSURER_SITES_SEED } from '../server/insurerSitesSeedData.js'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-/** 1×1 투명 PNG */
-const PNG_1X1 = Buffer.from(
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-  'base64',
+console.log(
+  '[generate-insurer-placeholder-logos] skipped — placeholder PNG generation removed; use admin upload or real assets.',
 )
-
-const dir = path.join(__dirname, '..', 'public', 'assets', 'insurers')
-fs.mkdirSync(dir, { recursive: true })
-const names = new Set(INSURER_SITES_SEED.map((r) => r.logoFile))
-for (const name of names) {
-  fs.writeFileSync(path.join(dir, `${name}.png`), PNG_1X1)
-}
-console.log('[generate-insurer-placeholder-logos]', names.size, 'files →', dir)

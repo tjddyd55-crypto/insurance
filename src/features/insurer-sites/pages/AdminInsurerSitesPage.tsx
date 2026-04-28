@@ -12,7 +12,7 @@ import {
   patchAdminInsurerSite,
   uploadAdminInsurerLogo,
 } from '../api/insurerSitesApi'
-import { logoSrcForUi } from '../lib/insurerSiteLinks'
+import { InsurerSiteLogoMark } from '../components/InsurerSiteLogoMark'
 import { normalizeOptionalUrl } from '../lib/normalizeOptionalUrl'
 
 const CATEGORY_OPTIONS: FormSelectOption[] = [
@@ -24,47 +24,6 @@ const CATEGORY_OPTIONS: FormSelectOption[] = [
 const CATEGORY_LABEL: Record<InsurerSiteCategory, string> = {
   non_life: '손해',
   life: '생명',
-}
-
-function PresenceChip({ ok }: { ok: boolean }) {
-  return (
-    <span
-      title={ok ? '값 있음' : '미입력'}
-      style={{
-        display: 'inline-block',
-        minWidth: 48,
-        textAlign: 'center',
-        fontSize: 11,
-        fontWeight: 700,
-        padding: '2px 6px',
-        borderRadius: 6,
-        background: ok
-          ? 'color-mix(in srgb, var(--primary) 15%, transparent)'
-          : 'color-mix(in srgb, #b45309 18%, transparent)',
-        color: ok ? 'var(--primary)' : '#92400e',
-      }}
-    >
-      {ok ? '입력' : '미입력'}
-    </span>
-  )
-}
-
-function AdminLogoThumb({ path, name }: { path: string; name: string }) {
-  const src = logoSrcForUi(path)
-  const [broken, setBroken] = useState(false)
-  const ok = Boolean(src && !broken)
-  if (!ok) {
-    return <PresenceChip ok={false} />
-  }
-  return (
-    <img
-      src={src}
-      alt=""
-      onError={() => setBroken(true)}
-      style={{ width: 40, height: 28, objectFit: 'contain', display: 'block' }}
-      title={name}
-    />
-  )
 }
 
 function AdminUrlCell({ url }: { url: string | undefined | null }) {
@@ -354,7 +313,7 @@ export default function AdminInsurerSitesPage() {
                 <tr key={s.id}>
                   <td>{s.sortOrder}</td>
                   <td>
-                    <AdminLogoThumb path={s.logoPath} name={s.name} />
+                    <InsurerSiteLogoMark name={s.name} logoPath={s.logoPath} variant="adminThumb" />
                   </td>
                   <td style={{ fontWeight: 700 }}>{s.name}</td>
                   <td>{CATEGORY_LABEL[s.category]}</td>
@@ -430,17 +389,15 @@ export default function AdminInsurerSitesPage() {
                       onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
                     />
                   </FieldWrapper>
-                  {(logoPreviewUrl || logoSrcForUi(form.logoPath)) ? (
-                    <div>
-                      <span style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>현재 로고 미리보기</span>
-                      <img
-                        key={logoPreviewUrl || form.logoPath}
-                        src={logoPreviewUrl || logoSrcForUi(form.logoPath) || ''}
-                        alt=""
-                        style={{ maxWidth: 160, maxHeight: 64, objectFit: 'contain' }}
-                      />
-                    </div>
-                  ) : null}
+                  <div>
+                    <span style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>현재 로고 미리보기</span>
+                    <InsurerSiteLogoMark
+                      name={form.name.trim() || '보험사'}
+                      logoPath={form.logoPath}
+                      overrideSrc={logoPreviewUrl}
+                      variant="preview"
+                    />
+                  </div>
                 </>
               ) : (
                 <FieldWrapper label="logo_path (선택)">

@@ -3,51 +3,9 @@ import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import type { InsurerSite, InsurerSiteCategory } from '../api/insurerSitesApi'
 import { fetchActiveInsurerSites } from '../api/insurerSitesApi'
-import { logoSrcForUi, safeOpenUrl } from '../lib/insurerSiteLinks'
+import { InsurerSiteLogoMark } from '../components/InsurerSiteLogoMark'
+import { safeOpenUrl } from '../lib/insurerSiteLinks'
 import '../insurer-sites.css'
-
-function InsurerLogo({ name, src }: { name: string; src: string }) {
-  const [broken, setBroken] = useState(false)
-  if (!src || broken) {
-    return (
-      <div
-        aria-hidden
-        style={{
-          width: '100%',
-          maxWidth: 120,
-          height: 52,
-          margin: '0 auto',
-          borderRadius: 8,
-          background: 'color-mix(in srgb, var(--text-secondary) 12%, transparent)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 14,
-          fontWeight: 700,
-          color: 'var(--text-secondary)',
-        }}
-      >
-        {name.slice(0, 2)}
-      </div>
-    )
-  }
-  return (
-    <img
-      src={src}
-      alt=""
-      onError={() => setBroken(true)}
-      style={{
-        display: 'block',
-        margin: '0 auto',
-        maxWidth: '100%',
-        maxHeight: 52,
-        width: 'auto',
-        height: 'auto',
-        objectFit: 'contain',
-      }}
-    />
-  )
-}
 
 function FooterLink(props: {
   label: string
@@ -169,7 +127,6 @@ export default function InsurerSitesPage() {
 
       <div className="insurer-sites-grid">
         {items.map((site) => {
-          const logo = logoSrcForUi(site.logoPath)
           const sales = String(site.salesUrl ?? '').trim()
           return (
             <article
@@ -206,7 +163,7 @@ export default function InsurerSitesPage() {
                   gap: 8,
                 }}
               >
-                <InsurerLogo key={`${site.id}-${logo}`} name={site.name} src={logo} />
+                <InsurerSiteLogoMark key={site.id} name={site.name} logoPath={site.logoPath} variant="userCard" />
                 <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.25 }}>{site.name}</div>
                 <FormButton
                   htmlType="button"
