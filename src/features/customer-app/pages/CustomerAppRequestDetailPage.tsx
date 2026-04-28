@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton } from '../../../components/form'
 import { getCustomerClaimRequestDetail, type CustomerAppClaimRequestDetail } from '../api/customerAppApi'
-import CustomerAppShell from '../components/CustomerAppShell'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 import { resolveClaimStatusMeta } from '../utils/claimStatus'
 
@@ -83,9 +82,8 @@ export default function CustomerAppRequestDetailPage() {
   const statusMeta = detail ? resolveClaimStatusMeta(detail.status) : null
 
   return (
-    <CustomerAppShell title="청구 상세">
-      <div className="customer-app-claim-page">
-        <StatusMessage message={hasInvalidRequestId ? '잘못된 요청 번호입니다.' : error} tone="error" />
+    <div className="customer-app-claim-page">
+      <StatusMessage message={hasInvalidRequestId ? '잘못된 요청 번호입니다.' : error} tone="error" />
         {!detail && loading ? <div className="customer-app-claim-empty">불러오는 중…</div> : null}
         {detail ? (
           <>
@@ -171,6 +169,5 @@ export default function CustomerAppRequestDetailPage() {
           </>
         ) : null}
       </div>
-    </CustomerAppShell>
   )
 }

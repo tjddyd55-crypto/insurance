@@ -1,4 +1,4 @@
-import { Navigate, createBrowserRouter } from 'react-router-dom'
+import { Navigate, Outlet, createBrowserRouter } from 'react-router-dom'
 import { AppLayout } from './AppLayout'
 import { PublicHomeEntry } from './HomeRedirect'
 import { ApplicationFormPage } from './features/application/pages/ApplicationFormPage'
@@ -38,6 +38,7 @@ import CustomerMemosPage from './features/customers/pages/CustomerMemosPage'
 import CustomerWorkspaceLayout from './features/customers/pages/CustomerWorkspaceLayout'
 import CustomerWorkspaceHomePage from './features/customers/pages/CustomerWorkspaceHomePage'
 import CustomerAutoFormPage from './features/customers/pages/CustomerAutoFormPage'
+import { CustomerAutoImportPage } from './features/customers/import/pages/CustomerAutoImportPage'
 import TeamMembersPage from './features/team/pages/TeamMembersPage'
 import TeamPostsPage from './features/team/pages/TeamPostsPage'
 import TeamFilesPage from './features/team/pages/TeamFilesPage'
@@ -91,6 +92,7 @@ import CustomerAppRequestDetailPage from './features/customer-app/pages/Customer
 import CustomerAppNewsListPage from './features/customer-app/pages/CustomerAppNewsListPage'
 import CustomerAppNewsDetailPage from './features/customer-app/pages/CustomerAppNewsDetailPage'
 import CustomerAppProfilePage from './features/customer-app/pages/CustomerAppProfilePage'
+import CustomerAppMainLayout from './features/customer-app/components/CustomerAppMainLayout'
 
 export const appRouter = createBrowserRouter([
   {
@@ -109,17 +111,48 @@ export const appRouter = createBrowserRouter([
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /api/customer/external-create + ref·ga 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },
       { path: 'customer/register', element: <CustomerRegisterPage /> },
-      { path: 'customer-app', element: <CustomerAppConnectPage /> },
-      { path: 'customer-app/connect/:linkCode', element: <CustomerAppConnectPage /> },
-      { path: 'customer-app/home', element: <CustomerAppHomePage /> },
-      { path: 'customer-app/profile', element: <CustomerAppProfilePage /> },
-      { path: 'customer-app/requests/new', element: <CustomerAppRequestComposePage /> },
-      { path: 'customer-app/requests', element: <CustomerAppRequestsPage /> },
-      { path: 'customer-app/requests/:requestId', element: <CustomerAppRequestDetailPage /> },
-      { path: 'customer-app/news', element: <Navigate to="/customer-app/news/all" replace /> },
-      { path: 'customer-app/news/all', element: <CustomerAppNewsListPage /> },
-      { path: 'customer-app/news/personal', element: <CustomerAppNewsListPage /> },
-      { path: 'customer-app/news/:newsId', element: <CustomerAppNewsDetailPage /> },
+      {
+        path: 'customer-app',
+        element: <Outlet />,
+        children: [
+          { index: true, element: <CustomerAppConnectPage /> },
+          { path: 'connect/:linkCode', element: <CustomerAppConnectPage /> },
+          {
+            element: <CustomerAppMainLayout />,
+            children: [
+              { path: 'home', element: <CustomerAppHomePage />, handle: { customerAppMainLabel: '홈' } },
+              { path: 'profile', element: <CustomerAppProfilePage />, handle: { customerAppMainLabel: '내정보' } },
+              {
+                path: 'requests/new',
+                element: <CustomerAppRequestComposePage />,
+                handle: { customerAppMainLabel: '청구 요청 작성' },
+              },
+              { path: 'requests', element: <CustomerAppRequestsPage />, handle: { customerAppMainLabel: '청구내역' } },
+              {
+                path: 'requests/:requestId',
+                element: <CustomerAppRequestDetailPage />,
+                handle: { customerAppMainLabel: '청구 상세' },
+              },
+              { path: 'news', element: <Navigate to="/customer-app/news/all" replace /> },
+              {
+                path: 'news/all',
+                element: <CustomerAppNewsListPage />,
+                handle: { customerAppMainLabel: '전체소식지' },
+              },
+              {
+                path: 'news/personal',
+                element: <CustomerAppNewsListPage />,
+                handle: { customerAppMainLabel: '개인소식지' },
+              },
+              {
+                path: 'news/:newsId',
+                element: <CustomerAppNewsDetailPage />,
+                handle: { customerAppMainLabel: '소식지 상세' },
+              },
+            ],
+          },
+        ],
+      },
       { path: 'portal/insurer-news', element: <Navigate to="/insurer/news" replace /> },
       { path: 'portal/insurer-news/*', element: <Navigate to="/insurer/news" replace /> },
       {
@@ -242,6 +275,7 @@ export const appRouter = createBrowserRouter([
                 children: [{ path: 'admin/audit-logs', element: <AuditLogsPage /> }],
               },
               { path: 'profile', element: <ProfilePage /> },
+              { path: 'profile/customer-upload-auto', element: <CustomerAutoImportPage /> },
               { path: 'account/reset', element: <AccountResetPage /> },
               { path: 'feature-request', element: <FeatureRequestPage /> },
               { path: 'claim-requests', element: <ClaimRequestsRoutePage /> },

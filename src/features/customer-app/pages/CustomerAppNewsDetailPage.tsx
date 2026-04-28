@@ -5,7 +5,6 @@ import RichTextContent from '../../../components/rich-text/RichTextContent'
 import { NewsletterAttachmentList } from '../../insurer-news/components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../../insurer-news/components/NewsletterImageGallery'
 import { getCustomerNewsDetail, markCustomerNewsRead, type CustomerAppNewsDetail } from '../api/customerAppApi'
-import CustomerAppShell from '../components/CustomerAppShell'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
 function formatDateTime(iso: string | null): string {
@@ -94,6 +93,6 @@ export default function CustomerAppNewsDetailPage() {
           </div>
         </article>
       ) : null}
-    </CustomerAppShell>
+    </>
   )
 }

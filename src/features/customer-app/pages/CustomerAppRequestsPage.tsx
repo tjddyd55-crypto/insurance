@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { listCustomerClaimRequests } from '../api/customerAppApi'
-import CustomerAppShell from '../components/CustomerAppShell'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 import { resolveClaimStatusMeta } from '../utils/claimStatus'
 
@@ -50,9 +49,8 @@ export default function CustomerAppRequestsPage() {
   }, [navigate, session])
 
   return (
-    <CustomerAppShell title="청구내역">
-      <div className="customer-app-claim-page">
-        <StatusMessage message={error} tone="error" />
+    <div className="customer-app-claim-page">
+      <StatusMessage message={error} tone="error" />
         {rows.length === 0 ? <div className="customer-app-claim-empty">요청 내역이 없습니다.</div> : null}
         {rows.length > 0 ? (
           <ul className="customer-app-claim-request-list">
@@ -83,7 +81,6 @@ export default function CustomerAppRequestsPage() {
             })}
           </ul>
         ) : null}
-      </div>
-    </CustomerAppShell>
+    </div>
   )
 }

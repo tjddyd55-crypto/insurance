@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import FormButton from '../../../components/form/FormButton'
 import { getCustomerAppMe } from '../api/customerAppApi'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 import '../customer-app.css'
@@ -7,19 +8,17 @@ import '../customer-app.css'
 /**
  * 고객앱 레이아웃 Shell.
  *
- * 책임 분리:
- *   - 상단: 담당 설계사 이름 + 전화번호(tel: 링크) — 모든 페이지 공통 노출
- *   - 본문: children (페이지가 자율적으로 채움)
- *   - 하단: 고정 탭바 3개(청구내역 / 개인메시지 / 내정보) — 메인 흐름 진입점
- *
- * 의도적으로 뺀 것:
- *   - 상단 링크 클러스터(청구요청/전체소식지/개인소식지 등) — 메인 CTA 경쟁을 막기 위함
- *   - 연결 초기화 버튼 — 내정보 페이지로 이관 (파괴적 액션은 한 단계 안으로)
+ * - 상단: 담당 설계사 정보
+ * - 본문: children (Outlet 또는 페이지 콘텐츠)
+ * - 하단 고정: 청구 요청 CTA(작성 화면 제외) + 4탭(홈/청구내역/개인메시지/내정보)
  */
 
-interface Props {
-  title: string
+type Props = {
   children: ReactNode
+  /** 본문 main aria-label. 미지정 시 "고객 앱". */
+  title?: string
+  /** false일 때 청구 작성(/requests/new) 등 CTA 숨김 */
+  showClaimCta?: boolean
 }
 
 interface HeaderInfo {
@@ -46,7 +45,8 @@ function formatKrPhone(raw: string | null): string {
   return digits
 }
 
-export default function CustomerAppShell({ title, children }: Props) {
+export default function CustomerAppShell({ children, title = '고객 앱', showClaimCta = true }: Props) {
+  const navigate = useNavigate()
   const session = useCustomerAppSession()
   const [header, setHeader] = useState<HeaderInfo>(() =>
     session
@@ -70,7 +70,7 @@ export default function CustomerAppShell({ title, children }: Props) {
           agentPhone: me.agentPhone ?? null,
         })
       } catch {
-        // 실패해도 세션 캐시로 이미 이름이 표시되어 있으니 조용히 흡수.
+        // 세션 캐시로 이름 표시
       }
     })()
     return () => {
@@ -79,7 +79,7 @@ export default function CustomerAppShell({ title, children }: Props) {
   }, [session])
 
   return (
-    <div className="customer-app-shell">
+    <div className={`customer-app-shell${showClaimCta ? '' : ' customer-app-shell--no-cta'}`}>
       <header className="customer-app-header">
         <div className="customer-app-header__role">담당 설계사</div>
         <div className="customer-app-header__agent">
@@ -100,7 +100,24 @@ export default function CustomerAppShell({ title, children }: Props) {
         {children}
       </main>
 
-      <CustomerAppBottomNav />
+      <div className="customer-app-shell__bottom">
+        <div className="customer-app-shell__bottom-inner">
+          {showClaimCta ? (
+            <div className="customer-app-shell__cta-wrap">
+              <FormButton
+                htmlType="button"
+                variant="primary"
+                className="customer-app-shell__cta-button"
+                fullWidth
+                onClick={() => navigate('/customer-app/requests/new')}
+              >
+                청구 요청하기
+              </FormButton>
+            </div>
+          ) : null}
+          <CustomerAppBottomNav />
+        </div>
+      </div>
     </div>
   )
 }
@@ -113,6 +130,11 @@ interface TabItem {
 
 const TABS: TabItem[] = [
   {
+    to: '/customer-app/home',
+    label: '홈',
+    match: (path) => path === '/customer-app/home',
+  },
+  {
     to: '/customer-app/requests',
     label: '청구내역',
     match: (path) => path.startsWith('/customer-app/requests'),
@@ -120,7 +142,7 @@ const TABS: TabItem[] = [
   {
     to: '/customer-app/news/personal',
     label: '개인메시지',
-    match: (path) => path.startsWith('/customer-app/news/personal'),
+    match: (path) => path.startsWith('/customer-app/news'),
   },
   {
     to: '/customer-app/profile',
@@ -130,7 +152,7 @@ const TABS: TabItem[] = [
 ]
 
 function CustomerAppBottomNav() {
-  const location = useLocation()
+  const { pathname } = useLocation()
   return (
     <nav className="customer-app-tabbar" aria-label="고객앱 주요 메뉴">
       {TABS.map((tab) => {

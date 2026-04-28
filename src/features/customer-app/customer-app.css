@@ -4,8 +4,8 @@
  * 설계 의도:
  *   - 전역 토큰(--text-primary, --border-default, --bg-elevated 등) 을 재사용
  *     하므로 테마 변경이 이 파일을 자동으로 따라온다.
- *   - Shell 이 flex column + sticky header/footer 구조를 고정하고,
- *     본문(children) 은 flex: 1 로 남은 공간을 채워 탭바가 항상 화면 하단.
+ *   - Shell 은 flex column, 헤더는 sticky, 하단 CTA+택체는 fixed.
+ *     본문은 flex:1 + 충분한 padding-bottom 으로 하단에 가리지 않게 한다.
  *   - iOS 홈인디케이터 영역(safe-area-inset-bottom) 대응.
  * ---------------------------------------------------------------------- */
 
@@ -64,7 +64,7 @@
  *
  * 간격 규칙(고객앱 홈 기준):
  *   - 상단 padding(10px) = 설계사 헤더 → 첫 콘텐츠
- *   - main gap(12px)     = 섹션 간(예: 소식지 블록 → 청구 버튼)
+ *   - main gap(12px)     = 섹션 간
  *   - 섹션 내부 간격은 각 섹션이 자체 클래스로 제어(예: __news gap=8px)
  */
 .customer-app-main {
@@ -72,33 +72,66 @@
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  padding: 10px 16px 20px;
+  padding: 10px 16px calc(140px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 12px;
+  box-sizing: border-box;
 }
 
-/* 하단 탭바 — 고정 3개 */
-.customer-app-tabbar {
-  position: sticky;
+.customer-app-shell--no-cta .customer-app-main {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+/* 하단 고정: CTA + 탭 (본문과 분리) */
+.customer-app-shell__bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
   bottom: 0;
-  z-index: 30;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  z-index: 40;
   background: var(--bg-elevated, #ffffff);
   border-top: 1px solid var(--border-default, #e5e7eb);
-  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: border-box;
+}
+
+.customer-app-shell__bottom-inner {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.customer-app-shell__cta-wrap {
+  padding: 10px 16px 8px;
+  box-sizing: border-box;
+}
+
+.customer-app-shell__cta-button {
+  min-height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* 하단 탭바 — 4개 균등 */
+.customer-app-tabbar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: var(--bg-elevated, #ffffff);
 }
 
 .customer-app-tabbar__item {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 52px;
-  font-size: 13px;
+  min-height: 52px;
+  padding: 6px 2px;
+  font-size: 11px;
+  line-height: 1.25;
+  text-align: center;
   color: var(--text-secondary, #6b7280);
   text-decoration: none;
   transition: color 120ms ease;
+  word-break: keep-all;
 }
 
 .customer-app-tabbar__item.is-active {
@@ -115,7 +148,7 @@
 /*
  * 소식지 블록.
  *   - 카드와 "전체 소식지 보기 >" 는 한 덩어리로 인식되도록 gap=8px 로 타이트하게 붙인다.
- *   - 블록 전체와 청구 버튼 사이 간격(12px) 은 .customer-app-main 의 gap 이 담당한다.
+ *   - 섹션 간 간격은 .customer-app-main 의 gap 이 담당한다.
  */
 .customer-app-home__news {
   display: flex;
@@ -179,18 +212,6 @@
   color: var(--accent-primary, #2563eb);
   text-decoration: underline;
   text-underline-offset: 2px;
-}
-
-/* 청구 CTA — 섹션 간 간격은 main 의 gap 이 담당하므로 margin-top 불필요. */
-.customer-app-home__cta {
-  margin-top: 0;
-}
-
-.customer-app-home__cta-button {
-  width: 100%;
-  height: 52px;
-  font-size: 16px;
-  font-weight: 600;
 }
 
 /* ------------------------ Profile ------------------------ */

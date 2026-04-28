@@ -9,7 +9,6 @@ import {
   requestClaimFilePresign,
   uploadCustomerClaimFileProxy,
 } from '../api/customerAppApi'
-import CustomerAppShell from '../components/CustomerAppShell'
 import { readCustomerAppProfile } from '../session/customerAppSession'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
@@ -207,9 +206,8 @@ export default function CustomerAppRequestComposePage() {
   }
 
   return (
-    <CustomerAppShell title="청구 요청 작성">
-      <div className="customer-app-claim-page">
-        <StatusMessage message={error} tone="error" />
+    <div className="customer-app-claim-page">
+      <StatusMessage message={error} tone="error" />
         <StatusMessage message={result} tone="success" />
 
         <section className="customer-app-claim-card customer-app-claim-profile">
@@ -301,6 +299,5 @@ export default function CustomerAppRequestComposePage() {
           </FormButton>
         </div>
       </div>
-    </CustomerAppShell>
   )
 }

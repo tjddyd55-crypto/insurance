@@ -4,7 +4,6 @@ import { useConfirmDialog } from '../../../components/dialog'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput } from '../../../components/form'
 import { getCustomerAppProfile, saveCustomerAppProfile } from '../api/customerAppApi'
-import CustomerAppShell from '../components/CustomerAppShell'
 import {
   clearCustomerAppSession,
   readCustomerAppProfile,
@@ -151,6 +150,6 @@ export default function CustomerAppProfilePage() {
         </p>
       </div>
       {confirmDialog}
-    </CustomerAppShell>
+    </>
   )
 }

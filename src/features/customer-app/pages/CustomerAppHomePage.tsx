@@ -1,19 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
-import { FormButton } from '../../../components/form'
 import { listCustomerNews, type CustomerAppNewsListItem } from '../api/customerAppApi'
 import CustomerAppNewsCard from '../components/CustomerAppNewsCard'
-import CustomerAppShell from '../components/CustomerAppShell'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
 /**
  * 고객앱 메인 화면.
  *
  * 설계 의도:
- *   - 첫 화면에서 노출되는 액션의 우선순위는 "청구 요청하기" 하나.
- *   - 최신 전체소식지 1건은 고객 홍보 카드로 크게 노출한다.
- *   - 개인메시지/요청내역/내정보는 하단 탭바(Shell) 에서 접근.
+ *   - 청구 요청은 Shell 하단 CTA에서 공통 제공.
+ *   - 최신 전체소식지 1건은 고객 홍보 카드로 크게 노출.
+ *   - 개인메시지/요청내역/내정보는 하단 탭바(Shell)에서 접근.
  */
 export default function CustomerAppHomePage() {
   const navigate = useNavigate()
@@ -47,7 +45,7 @@ export default function CustomerAppHomePage() {
   }, [navigate, session])
 
   return (
-    <CustomerAppShell title="홈">
+    <>
       <StatusMessage message={error} tone="error" />
 
       <section className="customer-app-home__news" aria-label="최신 소식지">
@@ -71,17 +69,6 @@ export default function CustomerAppHomePage() {
           </Link>
         </div>
       </section>
-
-      <div className="customer-app-home__cta">
-        <FormButton
-          htmlType="button"
-          variant="primary"
-          className="customer-app-home__cta-button"
-          onClick={() => navigate('/customer-app/requests/new')}
-        >
-          청구 요청하기
-        </FormButton>
-      </div>
-    </CustomerAppShell>
+    </>
   )
 }

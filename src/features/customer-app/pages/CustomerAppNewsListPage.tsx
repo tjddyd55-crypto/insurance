@@ -11,7 +11,6 @@ import {
   type CustomerAppNewsListItem,
 } from '../api/customerAppApi'
 import CustomerAppNewsCard from '../components/CustomerAppNewsCard'
-import CustomerAppShell from '../components/CustomerAppShell'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
 function formatDateTime(iso: string | null): string {
@@ -78,7 +77,7 @@ export default function CustomerAppNewsListPage() {
   const emptyMessage = isPersonalMode ? '표시할 개인 소식지가 없습니다.' : '표시할 소식지가 없습니다.'
 
   return (
-    <CustomerAppShell title={pageTitle}>
+    <>
       <StatusMessage message={error} tone="error" />
       {rows.length > 0 ? (
         <div className="text-xs text-[var(--text-secondary)]">
@@ -203,6 +202,6 @@ export default function CustomerAppNewsListPage() {
           </div>
         </div>
       ) : null}
-    </CustomerAppShell>
+    </>
   )
 }
