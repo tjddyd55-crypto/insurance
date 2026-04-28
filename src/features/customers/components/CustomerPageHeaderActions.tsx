@@ -18,26 +18,11 @@ export type CustomerPageHeaderActionsProps = {
   enterExcelSelectMode: () => void
 }
 
-/**
- * 고객 페이지 상단 primary action 전용 컴포넌트.
- *
- * 담당 범위:
- * - 고객 등록
- * - 등록 링크
- * - 엑셀 다운로드
- *
- * 하지 않는 일:
- * - 검색/필터/정렬 UI 렌더링
- * - 고객 목록 상태 계산
- * - API 호출
- * - 모바일/PC 조건 변경
- */
 function CustomerPageHeaderActions({
   isMobile,
   setStatusText,
   onCreateCustomer,
   onCustomerRegisterInviteCopyTouchStart,
-  onCustomerRegisterInviteCopyMouseDown,
   onCustomerRegisterInviteCopyClick,
   onCustomerRegisterInviteCopyKeyDown,
   enterExcelSelectMode,
@@ -59,7 +44,6 @@ function CustomerPageHeaderActions({
         style={{ touchAction: 'manipulation' }}
         aria-label="고객 등록 링크 복사"
         onTouchStart={onCustomerRegisterInviteCopyTouchStart}
-        onMouseDown={onCustomerRegisterInviteCopyMouseDown}
         onClick={onCustomerRegisterInviteCopyClick}
         onKeyDown={onCustomerRegisterInviteCopyKeyDown}
       >
