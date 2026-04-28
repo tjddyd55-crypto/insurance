@@ -1,8 +1,12 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { MutableRefObject } from 'react'
 import { Outlet } from 'react-router-dom'
 import { EmptyState } from '../../../../components/feedback'
 import { FormButton } from '../../../../components/form'
+import { useAuth } from '../../../auth/AuthProvider'
+import { getCustomerAppLink, type CustomerAppLinkInfo } from '../../../claim-requests/api/claimRequestsApi'
 import type { CustomerRecord } from '../../domain/types'
+import './CustomerWorkspaceLayoutPC.css'
 
 type WorkspaceActiveTab =
   | 'files'
@@ -64,6 +68,20 @@ function rightTitle(pathname: string): string {
   return '작업 영역'
 }
 
+function resolveClaimLink(linkStatus: CustomerAppLinkInfo | null): string {
+  return String(linkStatus?.universalUrl ?? linkStatus?.connectUrl ?? '').trim()
+}
+
+function isCustomerAppConnected(linkStatus: CustomerAppLinkInfo | null): boolean {
+  if (!linkStatus) {
+    return false
+  }
+  if (linkStatus.connectionState === 'connected') {
+    return true
+  }
+  return Boolean(linkStatus.lastConnectedAt) || Number(linkStatus.deviceCount ?? 0) > 0
+}
+
 /**
  * 우측 패널은 전적으로 URL path 를 기준으로 렌더된다.
  *
@@ -91,6 +109,11 @@ export default function CustomerWorkspaceLayoutPC({
   onClickPersonalMessage,
   openRelatedCustomerRef,
 }: CustomerWorkspaceLayoutPCProps) {
+  const { token } = useAuth()
+  const [claimLinkStatus, setClaimLinkStatus] = useState<CustomerAppLinkInfo | null>(null)
+  const [claimLinkLoading, setClaimLinkLoading] = useState(false)
+  const [claimLinkCopyResult, setClaimLinkCopyResult] = useState('')
+
   const genderLabel =
     selectedCustomer?.gender === 'male'
       ? '남'
@@ -102,20 +125,101 @@ export default function CustomerWorkspaceLayoutPC({
       ? `보험나이 ${selectedCustomer.insuranceAge}세`
       : null
   const isCustomerIndexPath = pathname === '/customers' || pathname === '/customers/'
+  const isClaimsTab = activeTab === 'claims'
+  const claimLinkUrl = useMemo(() => resolveClaimLink(claimLinkStatus), [claimLinkStatus])
+  const claimAppConnected = useMemo(() => isCustomerAppConnected(claimLinkStatus), [claimLinkStatus])
+
+  useEffect(() => {
+    if (!isClaimsTab || !selectedCustomerId || !token?.trim()) {
+      setClaimLinkStatus(null)
+      setClaimLinkCopyResult('')
+      return
+    }
+    let cancelled = false
+    setClaimLinkLoading(true)
+    void getCustomerAppLink(token, selectedCustomerId)
+      .then((status) => {
+        if (!cancelled) {
+          setClaimLinkStatus(status)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setClaimLinkStatus(null)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setClaimLinkLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isClaimsTab, selectedCustomerId, token])
+
+  useEffect(() => {
+    if (!claimLinkCopyResult) {
+      return
+    }
+    const timer = window.setTimeout(() => setClaimLinkCopyResult(''), 2500)
+    return () => window.clearTimeout(timer)
+  }, [claimLinkCopyResult])
+
+  const handleCopyClaimLink = useCallback(async () => {
+    if (!claimLinkUrl) {
+      setClaimLinkCopyResult('복사할 연결 링크가 없습니다.')
+      return
+    }
+    try {
+      if (!navigator?.clipboard?.writeText) {
+        throw new Error('clipboard API unavailable')
+      }
+      await navigator.clipboard.writeText(claimLinkUrl)
+      setClaimLinkCopyResult('연결 링크 복사 완료')
+    } catch {
+      setClaimLinkCopyResult('연결 링크 복사 실패')
+    }
+  }, [claimLinkUrl])
 
   return (
     <section className="customer-workspace-layout__right" aria-label="고객 연동 작업영역">
       <header className="customer-workspace-layout__right-header">
         <div className="customer-workspace-layout__customer-meta">
-          <h2 className="customer-workspace-layout__title">
-            {selectedCustomerId ? selectedCustomerLabel || `고객 #${selectedCustomerId}` : rightTitle(pathname)}
-            {selectedCustomerId ? (
-              <span className="customer-workspace-layout__title-sub">
-                {genderLabel}
-                {insuranceAgeLabel ? ` · ${insuranceAgeLabel}` : ''}
-              </span>
+          <div className="customer-workspace-layout__title-row">
+            <h2 className="customer-workspace-layout__title">
+              {selectedCustomerId ? selectedCustomerLabel || `고객 #${selectedCustomerId}` : rightTitle(pathname)}
+              {selectedCustomerId ? (
+                <span className="customer-workspace-layout__title-sub">
+                  {genderLabel}
+                  {insuranceAgeLabel ? ` · ${insuranceAgeLabel}` : ''}
+                </span>
+              ) : null}
+            </h2>
+            {selectedCustomerId && isClaimsTab ? (
+              <div className="customer-workspace-layout__claim-link-tools" aria-label="고객앱 연결 링크">
+                <span
+                  className={`customer-workspace-layout__claim-status${claimAppConnected ? ' customer-workspace-layout__claim-status--connected' : ' customer-workspace-layout__claim-status--disconnected'}`}
+                  title={claimLinkLoading ? '연결 상태 확인 중' : undefined}
+                >
+                  앱 {claimAppConnected ? '연결됨' : '미연결'}
+                </span>
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={!claimLinkUrl}
+                  onClick={handleCopyClaimLink}
+                  title={claimLinkUrl || '생성된 연결 링크가 없습니다.'}
+                >
+                  연결 링크 복사
+                </FormButton>
+                {claimLinkCopyResult ? (
+                  <span className="customer-workspace-layout__claim-copy-result">{claimLinkCopyResult}</span>
+                ) : null}
+              </div>
             ) : null}
-          </h2>
+          </div>
           <p className="customer-workspace-layout__subtitle">
             {selectedCustomerId
               ? `생년월일 ${selectedCustomer?.ssn || '-'} · 상담일 ${selectedCustomer?.lastConsultDate || '-'} · 연락처 ${
