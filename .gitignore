@@ -19,6 +19,16 @@ data/*.db-*
 # 로컬 동의서/R2 대체 스토리지
 server-data/
 
+# 수퍼관리자 업로드(로고 등) — 운영 바이너리는 커밋하지 않음
+uploads/*
+!uploads/.gitkeep
+!uploads/system/
+uploads/system/*
+!uploads/system/.gitkeep
+!uploads/system/insurers/
+uploads/system/insurers/*
+!uploads/system/insurers/.gitkeep
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
