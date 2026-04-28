@@ -6,10 +6,18 @@
  * - DGB생명: 구 DGB → iM라이프(imlifeins.co.kr) 공시 경로 사용.
  * - 푸본현대생명: 직접 랜딩 URL을 확정하지 못해 빈 값 → 수퍼관리자에서 입력.
  * 빈 disclosureUrl 은 일반 화면에서 공시실 버튼 비활성(준비중), 관리자 목록에서 「미입력」 표시.
- * 로고 파일은 시드에 포함하지 않으며, 관리자 업로드 또는 public/assets/insurers 실파일 + logo_path 로 연결합니다.
+ *
+ * 번들 기본 로고: `public/assets/insurers/{logoFile}.png` 를 두고 DB `logo_path` 는
+ * `insurerSiteBundledLogoPath(logoFile)` 로만 참조합니다. 수퍼관리자 업로드 경로
+ * (`/uploads/system/insurers/...`) 는 initDb·백필에서 덮어쓰지 않습니다.
  */
 
 /** @typedef {{ category: 'non_life' | 'life', name: string, logoFile: string, salesUrl: string, homepageUrl: string, disclosureUrl: string, claimUrl: string, sortOrder: number }} InsurerSiteSeedRow */
+
+/** @param {string} logoFile */
+export function insurerSiteBundledLogoPath(logoFile) {
+  return `/assets/insurers/${logoFile}.png`
+}
 
 /** @type {InsurerSiteSeedRow[]} */
 export const INSURER_SITES_SEED = [
