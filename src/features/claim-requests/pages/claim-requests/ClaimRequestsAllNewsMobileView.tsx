@@ -1,7 +1,10 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import RichTextContent from '../../../../components/rich-text/RichTextContent'
 import RichTextEditor from '../../../../components/rich-text/RichTextEditor'
 import { stripRichText } from '../../../../components/rich-text/richText'
+import CustomerAppNewsImageGallery from '../../../customer-app/components/CustomerAppNewsImageGallery'
+import { buildCustomerNewsGalleryUrls } from '../../../customer-app/model/buildCustomerNewsGalleryUrls'
+import '../../../customer-app/customer-app-news.css'
 import type { AgentCustomerNewsItem } from '../../api/claimRequestsApi'
 import type { AllNewsAttachmentDraft } from '../../model/customerNewsAllAttachmentUpload'
 
@@ -67,7 +70,15 @@ export default function ClaimRequestsAllNewsMobileView({
   formatDateTime,
 }: ClaimRequestsAllNewsMobileViewProps) {
   const [selectedNews, setSelectedNews] = useState<AgentCustomerNewsItem | null>(null)
-  const selectedHero = selectedNews ? getNewsHero(selectedNews) : null
+  const selectedGalleryUrls = useMemo(() => {
+    if (!selectedNews) {
+      return []
+    }
+    return buildCustomerNewsGalleryUrls({
+      heroImageUrl: selectedNews.heroImageUrl,
+      attachments: selectedNews.attachments,
+    })
+  }, [selectedNews])
   const selectedFiles = selectedNews?.attachments?.filter((attachment) => attachment.kind !== 'image') ?? []
 
   return (
@@ -226,17 +237,21 @@ export default function ClaimRequestsAllNewsMobileView({
             </header>
             <div className="all-news-preview-v2-scroll">
               <article className="all-news-preview-v2-content-card">
-                {selectedHero ? (
-                  <div
-                    className="all-news-preview-v2-hero"
-                    style={{ backgroundImage: `url(${JSON.stringify(selectedHero).slice(1, -1)})` }}
-                  >
-                    <div className="all-news-preview-v2-hero-shade" />
-                    <div className="all-news-preview-v2-hero-text">
+                {selectedGalleryUrls.length > 0 ? (
+                  <>
+                    <div className="all-news-preview-v2-gallery-wrap">
+                      <CustomerAppNewsImageGallery
+                        key={selectedGalleryUrls.join('|')}
+                        imageUrls={selectedGalleryUrls}
+                        altBase="전체소식지 미리보기"
+                        className="customer-app-news-gallery--in-modal"
+                      />
+                    </div>
+                    <div className="all-news-preview-v2-after-gallery">
                       <h2>{selectedNews.title || '전체소식지'}</h2>
                       <p>{formatDateOnly(selectedNews.updatedAt)}</p>
                     </div>
-                  </div>
+                  </>
                 ) : (
                   <div className="all-news-preview-v2-plain-title">
                     <h2>{selectedNews.title || '전체소식지'}</h2>

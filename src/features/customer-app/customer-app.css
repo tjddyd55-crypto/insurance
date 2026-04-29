@@ -79,20 +79,22 @@
 }
 
 .customer-app-header__action-btn--call {
-  background: #2563eb;
+  background: #1d4ed8;
   color: #ffffff;
-  border-color: #1d4ed8;
+  border-color: #1e3a8a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 a.customer-app-header__action-btn--call {
   color: #ffffff;
-  background: #2563eb;
+  background: #1d4ed8;
 }
 
 .customer-app-header__action-btn--close {
-  background: rgba(255, 255, 255, 0.16);
-  color: #f8fafc;
-  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.38);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .customer-app-header__action-btn:active {

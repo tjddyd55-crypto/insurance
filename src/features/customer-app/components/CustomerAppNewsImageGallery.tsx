@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type TouchEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type TouchEvent } from 'react'
 
 type Props = {
   imageUrls: string[]
@@ -14,6 +14,11 @@ export default function CustomerAppNewsImageGallery({ imageUrls, altBase = 'ì†Œì
   const touchStartX = useRef<number | null>(null)
   const urls = imageUrls.filter(Boolean)
   const n = urls.length
+  const urlsSignature = urls.join('|')
+
+  useEffect(() => {
+    setIndex(0)
+  }, [urlsSignature])
 
   const go = useCallback(
     (dir: -1 | 1) => {

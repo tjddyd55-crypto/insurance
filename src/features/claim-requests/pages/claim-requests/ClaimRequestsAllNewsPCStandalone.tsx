@@ -20,6 +20,7 @@ import {
   type AgentCustomerNewsItem,
 } from '../../api/claimRequestsApi'
 import { deleteStorageFile, listStorageFiles } from '../../../storage/api/storageApi'
+import { buildCustomerNewsGalleryUrls } from '../../../customer-app/model/buildCustomerNewsGalleryUrls'
 import ClaimRequestsPagePCView from './ClaimRequestsPagePCView'
 import './ClaimRequestsAllNewsPCStandalone.css'
 
@@ -70,6 +71,7 @@ export default function ClaimRequestsAllNewsPCStandalone() {
   const [loading, setLoading] = useState(false)
   const [actionBusy, setActionBusy] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
 
@@ -93,6 +95,19 @@ export default function ClaimRequestsAllNewsPCStandalone() {
   useEffect(() => {
     void loadHistory()
   }, [loadHistory])
+
+  useEffect(() => {
+    if (history.length === 0) {
+      setSelectedHistoryId(null)
+      return
+    }
+    setSelectedHistoryId((prev) => {
+      if (prev && history.some((row) => row.id === prev)) {
+        return prev
+      }
+      return history[0]?.id ?? null
+    })
+  }, [history])
 
   useEffect(() => {
     if (!token) {
@@ -127,14 +142,38 @@ export default function ClaimRequestsAllNewsPCStandalone() {
     }
   }, [attachments])
 
-  const previewImageUrls = useMemo(
+  const draftImageUrls = useMemo(
     () =>
       attachments
-        .filter((row) => row.kind === 'image' && (row.previewUrl || row.cdnUrl))
+        .filter(
+          (row) => row.kind === 'image' && row.status !== 'failed' && (row.previewUrl || row.cdnUrl),
+        )
         .map((row) => (row.previewUrl || row.cdnUrl || '').trim())
         .filter(Boolean),
     [attachments],
   )
+
+  const selectedHistoryItem = useMemo(
+    () => (selectedHistoryId ? history.find((row) => row.id === selectedHistoryId) ?? null : null),
+    [history, selectedHistoryId],
+  )
+
+  const historyGalleryUrls = useMemo(() => {
+    if (!selectedHistoryItem) {
+      return []
+    }
+    return buildCustomerNewsGalleryUrls({
+      heroImageUrl: selectedHistoryItem.heroImageUrl,
+      attachments: selectedHistoryItem.attachments,
+    })
+  }, [selectedHistoryItem])
+
+  const phonePreviewUrls = useMemo(() => {
+    if (draftImageUrls.length > 0) {
+      return draftImageUrls
+    }
+    return historyGalleryUrls
+  }, [draftImageUrls, historyGalleryUrls])
 
   const allNewsCards = useMemo<NewsletterItem[]>(
     () =>
@@ -297,7 +336,7 @@ export default function ClaimRequestsAllNewsPCStandalone() {
           <CustomerAppNewsPhonePreview
             agentName={user?.displayName?.trim() || '담당 설계사'}
             agentPhoneRaw={agentMePhone}
-            imageUrls={previewImageUrls}
+            imageUrls={phonePreviewUrls}
             showHomeChrome
           />
           <div className="customer-news-all-layout__main claim-requests-all-news-pc__main">
@@ -334,6 +373,7 @@ export default function ClaimRequestsAllNewsPCStandalone() {
                   items={allNewsCards}
                   emptyMessage="발송한 전체소식지가 없습니다."
                   variant="pc"
+                  onOpenItem={(id) => setSelectedHistoryId(id)}
                   onDeleteItem={(card) => void handleDeleteNews(card)}
                   deleteBusyId={deletingId}
                 />
