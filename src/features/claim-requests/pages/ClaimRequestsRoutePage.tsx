@@ -36,6 +36,10 @@ export default function ClaimRequestsRoutePage() {
     return <ClaimRequestsPersonalPCStandalone />
   }
 
+  if (!isMobile && isAllNewsTab) {
+    return <ClaimRequestsAllNewsPCStandalone />
+  }
+
   if (isMobile && isAllNewsTab) {
     return <ClaimRequestsAllNewsMobileStandalone />
   }

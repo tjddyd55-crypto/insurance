@@ -3,20 +3,9 @@ import RichTextContent from '../../../../components/rich-text/RichTextContent'
 import RichTextEditor from '../../../../components/rich-text/RichTextEditor'
 import { stripRichText } from '../../../../components/rich-text/richText'
 import type { AgentCustomerNewsItem } from '../../api/claimRequestsApi'
+import type { AllNewsAttachmentDraft } from '../../model/customerNewsAllAttachmentUpload'
 
-export type AllNewsAttachmentDraft = {
-  localId: string
-  file: File
-  kind: 'image' | 'file'
-  previewUrl: string | null
-  status: 'pending' | 'uploading' | 'completed' | 'failed'
-  errorMessage?: string
-  cdnUrl?: string
-  objectKey?: string
-  mimeType?: string
-  sizeBytes?: number
-  storageFileId?: number
-}
+export type { AllNewsAttachmentDraft }
 
 type ClaimRequestsAllNewsMobileViewProps = {
   title: string
@@ -89,7 +78,7 @@ export default function ClaimRequestsAllNewsMobileView({
       <section className="claim-requests-page__card claim-requests-all-news-mobile__compose-card">
         <div className="claim-requests-page__section-header">
           <div className="claim-requests-page__section-heading">
-            <h2 className="claim-requests-page__section-title">전체소식지 작성</h2>
+            <h2 className="claim-requests-page__section-title">고객메시지 작성</h2>
           </div>
           <button
             type="button"
@@ -97,7 +86,7 @@ export default function ClaimRequestsAllNewsMobileView({
             onClick={onSend}
             disabled={actionBusy}
           >
-            {actionBusy ? '발송 중…' : '발송'}
+            {actionBusy ? '저장 중…' : '고객앱에 적용'}
           </button>
         </div>
         <input
@@ -116,11 +105,11 @@ export default function ClaimRequestsAllNewsMobileView({
         />
 
         <div className="claim-requests-all-news-mobile__upload-field">
-          <span className="claim-requests-all-news-mobile__upload-label">대표 이미지 / 첨부</span>
+          <span className="claim-requests-all-news-mobile__upload-label">이미지 (권장 9:16)</span>
           <label className="claim-requests-all-news-mobile__dropzone">
             <input
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+              accept="image/jpeg,image/png,image/webp,image/gif"
               multiple
               disabled={actionBusy}
               onChange={(event) => {
@@ -130,8 +119,8 @@ export default function ClaimRequestsAllNewsMobileView({
                 event.currentTarget.value = ''
               }}
             />
-            <span>이미지 또는 PDF를 선택해 주세요.</span>
-            <small>첫 번째 이미지는 고객앱 카드 대표 이미지로 사용됩니다. 각 파일 최대 10MB</small>
+            <span>JPG · PNG · WEBP · GIF 이미지를 선택해 주세요.</span>
+            <small>첫 번째 이미지는 고객앱 홈 슬라이드 대표 이미지로 사용됩니다. 각 파일 최대 10MB</small>
           </label>
           {attachments.length > 0 ? (
             <div className="claim-requests-all-news-mobile__attachment-list">
@@ -140,7 +129,7 @@ export default function ClaimRequestsAllNewsMobileView({
                   {item.kind === 'image' && item.previewUrl ? (
                     <img className="claim-requests-all-news-mobile__attachment-thumb" src={item.previewUrl} alt="" />
                   ) : (
-                    <div className="claim-requests-all-news-mobile__attachment-pdf">PDF</div>
+                    <div className="claim-requests-all-news-mobile__attachment-pdf">이미지</div>
                   )}
                   <div className="claim-requests-all-news-mobile__attachment-info">
                     <p className="claim-requests-all-news-mobile__attachment-name">{item.file.name || '첨부파일'}</p>

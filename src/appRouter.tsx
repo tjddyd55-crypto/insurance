@@ -128,7 +128,7 @@ export const appRouter = createBrowserRouter([
                 element: <CustomerAppRequestComposePage />,
                 handle: { customerAppMainLabel: '청구 요청 작성' },
               },
-              { path: 'requests', element: <CustomerAppRequestsPage />, handle: { customerAppMainLabel: '청구내역' } },
+              { path: 'requests', element: <CustomerAppRequestsPage />, handle: { customerAppMainLabel: '문의내역' } },
               {
                 path: 'requests/:requestId',
                 element: <CustomerAppRequestDetailPage />,

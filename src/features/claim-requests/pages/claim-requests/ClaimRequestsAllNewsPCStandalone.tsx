@@ -2,366 +2,434 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import FileUploader from '../../../../components/common/FileUploader'
 import { StatusMessage } from '../../../../components/feedback'
 import { FormButton, FormInput, FormTextarea } from '../../../../components/form'
-import { useAuth } from '../../../auth/AuthProvider'
+import { NewsletterList } from '../../../insurer-news/components/NewsletterList'
+import type { NewsletterItem } from '../../../insurer-news/types'
 import { fetchMe } from '../../../auth/authApi'
-import { useInsurerNewsForm } from '../../../insurer-news/hooks/useInsurerNewsForm'
-import { uploadNewsletterAttachments } from '../../../insurer-news/services/insurerNews.service'
-import type { LocalAttachmentDraft } from '../../../insurer-news/types'
-import { validateInsurerNewsFile } from '../../../insurer-news/utils/validateInsurerNewsFile'
-import { createCustomerNews, listAgentCustomerNews, type AgentCustomerNewsItem } from '../../api/claimRequestsApi'
+import { useAuth } from '../../../auth/AuthProvider'
+import CustomerAppNewsPhonePreview from '../../components/CustomerAppNewsPhonePreview'
+import {
+  createLocalCustomerNewsImageAttachment,
+  uploadCustomerNewsAllAttachment,
+  validateCustomerNewsAllImage,
+  type AllNewsAttachmentDraft,
+} from '../../model/customerNewsAllAttachmentUpload'
+import {
+  createCustomerNews,
+  deleteCustomerNews,
+  listAgentCustomerNews,
+  type AgentCustomerNewsItem,
+} from '../../api/claimRequestsApi'
+import { deleteStorageFile, listStorageFiles } from '../../../storage/api/storageApi'
+import ClaimRequestsPagePCView from './ClaimRequestsPagePCView'
 import './ClaimRequestsAllNewsPCStandalone.css'
 
-function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+const ATTACHMENT_STATUS_LABEL: Record<AllNewsAttachmentDraft['status'], string> = {
+  pending: '대기',
+  uploading: '업로드 중',
+  completed: '완료',
+  failed: '실패',
 }
 
-function formatKrPhone(raw: string | null | undefined): string {
-  const digits = String(raw ?? '').replace(/\D/g, '')
-  if (!digits) return ''
-  if (digits.startsWith('02') && digits.length >= 9) {
-    return `${digits.slice(0, 2)}-${digits.slice(2, digits.length - 4)}-${digits.slice(-4)}`
-  }
-  if (digits.length === 11) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
-  }
-  if (digits.length === 10) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
-  }
-  return digits
-}
-
-function firstImageUrl(item: AgentCustomerNewsItem | null | undefined): string {
-  if (!item) return ''
-  const image = item.attachments?.find((attachment) => attachment.kind === 'image')
-  return String(item.heroImageUrl || image?.url || '').trim()
-}
-
-function imageCount(item: AgentCustomerNewsItem): number {
-  return item.attachments?.filter((attachment) => attachment.kind === 'image').length ?? (item.heroImageUrl ? 1 : 0)
-}
-
-function useAttachmentPreviewUrls(attachments: LocalAttachmentDraft[]) {
-  const [urls, setUrls] = useState<string[]>([])
-
-  useEffect(() => {
-    const nextUrls = attachments
-      .filter((attachment) => attachment.file.type.startsWith('image/'))
-      .map((attachment) => URL.createObjectURL(attachment.file))
-    setUrls(nextUrls)
-    return () => {
-      nextUrls.forEach((url) => URL.revokeObjectURL(url))
+function collectNewsObjectKeys(item: AgentCustomerNewsItem): string[] {
+  const keys = new Set<string>()
+  for (const attachment of item.attachments ?? []) {
+    const objectKey = String(attachment.objectKey ?? '').trim()
+    if (objectKey) {
+      keys.add(objectKey)
     }
-  }, [attachments])
+  }
+  return Array.from(keys)
+}
 
-  return urls
+async function deleteAllNewsSourceFiles(token: string, item: AgentCustomerNewsItem): Promise<number> {
+  const objectKeys = collectNewsObjectKeys(item)
+  if (objectKeys.length === 0) {
+    return 0
+  }
+  const files = await listStorageFiles(token, { customerId: null })
+  const targetFiles = files.filter((file) => {
+    const key = String(file.objectKey ?? '').trim()
+    return key && objectKeys.includes(key)
+  })
+  let deletedCount = 0
+  for (const file of targetFiles) {
+    await deleteStorageFile(token, file.id)
+    deletedCount += 1
+  }
+  return deletedCount
 }
 
 export default function ClaimRequestsAllNewsPCStandalone() {
   const { token, user } = useAuth()
-  const form = useInsurerNewsForm(null)
-  const draftPreviewUrls = useAttachmentPreviewUrls(form.attachments)
-  const [messages, setMessages] = useState<AgentCustomerNewsItem[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [agentMePhone, setAgentMePhone] = useState<string | null>(null)
+  const [history, setHistory] = useState<AgentCustomerNewsItem[]>([])
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [attachments, setAttachments] = useState<AllNewsAttachmentDraft[]>([])
+  const [newsAllSubTab, setNewsAllSubTab] = useState<'list' | 'upload'>('upload')
   const [loading, setLoading] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [uploadBusyText, setUploadBusyText] = useState<string | null>(null)
-  const [notice, setNotice] = useState('')
+  const [actionBusy, setActionBusy] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const [previewIndex, setPreviewIndex] = useState(0)
-  const [agentName, setAgentName] = useState(user?.displayName || user?.username || '담당자')
-  const [agentPhone, setAgentPhone] = useState('')
+  const [result, setResult] = useState('')
 
-  useEffect(() => {
-    setAgentName(user?.displayName || user?.username || '담당자')
-  }, [user?.displayName, user?.username])
-
-  useEffect(() => {
-    if (!token?.trim()) {
-      setAgentPhone('')
-      return
-    }
-    let cancelled = false
-    void fetchMe(token)
-      .then((me) => {
-        if (cancelled) return
-        setAgentName(me.display_name || user?.displayName || user?.username || '담당자')
-        setAgentPhone(me.phone_number || '')
-      })
-      .catch(() => {
-        if (cancelled) return
-        setAgentPhone('')
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [token, user?.displayName, user?.username])
-
-  const selectedMessage = useMemo(
-    () => messages.find((item) => item.id === selectedId) ?? messages[0] ?? null,
-    [messages, selectedId],
-  )
-
-  const savedPreviewImages = useMemo(() => {
-    if (!selectedMessage) return []
-    const attachmentImages = selectedMessage.attachments
-      ?.filter((attachment) => attachment.kind === 'image' && attachment.url)
-      .map((attachment) => attachment.url) ?? []
-    const hero = firstImageUrl(selectedMessage)
-    return Array.from(new Set([hero, ...attachmentImages].filter(Boolean)))
-  }, [selectedMessage])
-
-  const previewImages = draftPreviewUrls.length > 0 ? draftPreviewUrls : savedPreviewImages
-  const activePreviewImage = previewImages[previewIndex] ?? ''
-  const agentPhoneLabel = formatKrPhone(agentPhone)
-
-  useEffect(() => {
-    setPreviewIndex(0)
-  }, [draftPreviewUrls.length, selectedMessage?.id])
-
-  const loadMessages = useCallback(async () => {
-    if (!token?.trim()) {
-      setMessages([])
-      setSelectedId(null)
+  const loadHistory = useCallback(async () => {
+    if (!token) {
+      setHistory([])
       return
     }
     setLoading(true)
-    setError('')
     try {
       const rows = await listAgentCustomerNews(token, { scope: 'all' })
-      setMessages(rows)
-      setSelectedId((prev) => {
-        if (prev && rows.some((item) => item.id === prev)) return prev
-        return rows[0]?.id ?? null
-      })
-    } catch (loadError) {
-      setMessages([])
-      setSelectedId(null)
-      setError(loadError instanceof Error ? loadError.message : '고객메시지를 불러오지 못했습니다.')
+      setHistory(rows)
+    } catch (loadErr) {
+      setHistory([])
+      setError(loadErr instanceof Error ? loadErr.message : '전체소식지를 불러오지 못했습니다.')
     } finally {
       setLoading(false)
     }
   }, [token])
 
   useEffect(() => {
-    void loadMessages()
-  }, [loadMessages])
+    void loadHistory()
+  }, [loadHistory])
 
-  const validateImageFile = useCallback((file: File): string | null => {
-    if (!file.type.startsWith('image/')) {
-      return '고객앱 메인 고객메시지는 이미지 파일만 등록할 수 있습니다.'
+  useEffect(() => {
+    if (!token) {
+      setAgentMePhone(null)
+      return
     }
-    const validated = validateInsurerNewsFile(file)
-    return validated.ok ? null : validated.message
-  }, [])
+    let cancelled = false
+    void fetchMe(token)
+      .then((me) => {
+        if (!cancelled) {
+          const raw = String(me.phone_number ?? '').trim()
+          setAgentMePhone(raw || null)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAgentMePhone(null)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token])
 
-  const movePreview = (direction: 'prev' | 'next') => {
-    if (previewImages.length <= 1) return
-    setPreviewIndex((prev) => {
-      if (direction === 'prev') return prev <= 0 ? previewImages.length - 1 : prev - 1
-      return prev >= previewImages.length - 1 ? 0 : prev + 1
+  useEffect(() => {
+    return () => {
+      attachments.forEach((item) => {
+        if (item.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl)
+        }
+      })
+    }
+  }, [attachments])
+
+  const previewImageUrls = useMemo(
+    () =>
+      attachments
+        .filter((row) => row.kind === 'image' && (row.previewUrl || row.cdnUrl))
+        .map((row) => (row.previewUrl || row.cdnUrl || '').trim())
+        .filter(Boolean),
+    [attachments],
+  )
+
+  const allNewsCards = useMemo<NewsletterItem[]>(
+    () =>
+      history.map((item) => ({
+        id: item.id,
+        gaCode: 'customer-news',
+        insurerCode: 'customer-news',
+        insurerName: '전체소식지',
+        insurerSlug: 'all',
+        title: item.title,
+        summary: item.content,
+        heroImageUrl: item.heroImageUrl ?? null,
+        publishedAt: item.updatedAt ?? new Date().toISOString(),
+        status: 'PUBLISHED',
+        hasImages: Boolean(item.attachments?.some((attachment) => attachment.kind === 'image')),
+        hasPdf: false,
+        hasTextBody: Boolean(item.content?.trim()),
+        customerNewsScope: 'all',
+        targetCustomerId: item.targetCustomerId ?? null,
+      })),
+    [history],
+  )
+
+  const validateImageFile = useCallback((file: File): string | null => validateCustomerNewsAllImage(file), [])
+
+  const handleFilesSelected = (files: FileList | File[]) => {
+    setError('')
+    const next: AllNewsAttachmentDraft[] = []
+    for (const file of Array.from(files)) {
+      const validationMessage = validateCustomerNewsAllImage(file)
+      const item = createLocalCustomerNewsImageAttachment(file)
+      if (validationMessage) {
+        next.push({ ...item, status: 'failed', errorMessage: validationMessage })
+      } else {
+        next.push(item)
+      }
+    }
+    if (next.length > 0) {
+      setAttachments((prev) => [...prev, ...next])
+    }
+  }
+
+  const handleRemoveAttachment = (localId: string) => {
+    setAttachments((prev) => {
+      const target = prev.find((item) => item.localId === localId)
+      if (target?.previewUrl) {
+        URL.revokeObjectURL(target.previewUrl)
+      }
+      return prev.filter((item) => item.localId !== localId)
     })
   }
 
-  const handleSend = async () => {
+  const handleApply = async () => {
     if (!token?.trim()) {
-      setError('로그인이 필요합니다.')
       return
     }
-    if (form.attachments.length === 0) {
-      setError('고객앱 홈에 표시할 이미지를 먼저 업로드해 주세요.')
+    const nextTitle = title.trim()
+    const nextBody = description.trim()
+    if (!nextBody) {
+      setError('설명을 입력해 주세요.')
       return
     }
-    setBusy(true)
-    setNotice('')
+    const blocked = attachments.find((item) => item.status === 'failed')
+    if (blocked) {
+      setError('실패한 이미지 항목을 삭제한 뒤 다시 시도해 주세요.')
+      return
+    }
+
+    setActionBusy(true)
     setError('')
-    setUploadBusyText('이미지 업로드 중...')
+    setResult('')
     try {
-      const uploaded = await uploadNewsletterAttachments(token, form.attachments, {
-        presignInsurerCode: 'CUSTOMER_NEWS',
-      })
-      form.replaceAttachments(uploaded)
-      if (uploaded.some((row) => row.status === 'failed')) {
-        setError('일부 이미지 업로드에 실패했습니다. 실패 항목을 정리하고 다시 시도해 주세요.')
-        return
+      const uploaded: AllNewsAttachmentDraft[] = []
+      for (const item of attachments) {
+        if (item.status === 'completed' && item.cdnUrl && item.objectKey) {
+          uploaded.push(item)
+          continue
+        }
+        setAttachments((prev) =>
+          prev.map((row) => (row.localId === item.localId ? { ...row, status: 'uploading' } : row)),
+        )
+        const next = await uploadCustomerNewsAllAttachment(token, item)
+        uploaded.push(next)
+        setAttachments((prev) => prev.map((row) => (row.localId === item.localId ? next : row)))
       }
-      const attachments = uploaded
-        .filter((row): row is LocalAttachmentDraft & { cdnUrl: string; objectKey: string } => Boolean(row.cdnUrl && row.objectKey))
-        .map((row, index) => ({
-          kind: 'image' as const,
-          url: row.cdnUrl,
-          objectKey: row.objectKey,
-          fileName: row.file.name,
-          mimeType: row.mimeType ?? row.file.type ?? 'image/jpeg',
-          size: row.sizeBytes ?? row.file.size,
-          sortOrder: index,
-        }))
-      if (attachments.length === 0) {
-        setError('저장할 이미지가 없습니다.')
-        return
-      }
-      setUploadBusyText('고객메시지 저장 중...')
-      const messageTitle = title.trim() || '고객메시지'
-      const content = description.trim() || messageTitle
+
       const created = await createCustomerNews(token, {
-        title: messageTitle,
-        content,
+        title: nextTitle || '전체소식지',
+        content: nextBody,
         scope: 'all',
+        targetCustomerId: null,
         sendPush: true,
-        attachments,
+        attachments: uploaded.map((item, index) => ({
+          kind: 'image',
+          url: item.cdnUrl ?? '',
+          objectKey: item.objectKey,
+          fileName: item.file.name || `news-image-${index + 1}`,
+          mimeType: item.mimeType ?? item.file.type,
+          size: item.sizeBytes ?? item.file.size,
+          sortOrder: index,
+        })),
       })
-      setNotice('고객앱 메인 고객메시지를 저장했습니다.')
+      setResult(`전체소식지 적용 완료: ${created.id}`)
+      attachments.forEach((item) => {
+        if (item.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl)
+        }
+      })
       setTitle('')
       setDescription('')
-      form.setBodyText('')
-      form.replaceAttachments([])
-      await loadMessages()
-      setSelectedId(created.id)
-    } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : '고객메시지 저장에 실패했습니다.')
+      setAttachments([])
+      await loadHistory()
+      setNewsAllSubTab('list')
+    } catch (applyErr) {
+      setError(applyErr instanceof Error ? applyErr.message : '전체소식지 적용에 실패했습니다.')
     } finally {
-      setUploadBusyText(null)
-      setBusy(false)
+      setActionBusy(false)
+    }
+  }
+
+  const handleDeleteNews = async (card: NewsletterItem) => {
+    if (!token?.trim()) {
+      return
+    }
+    if (
+      !window.confirm(
+        '이 소식지를 완전히 삭제할까요? 저장된 고객 앱 홈 이미지도 함께 정리되며 복구할 수 없습니다.',
+      )
+    ) {
+      return
+    }
+    setDeletingId(card.id)
+    setError('')
+    setResult('')
+    try {
+      await deleteCustomerNews(token, card.id)
+      try {
+        const item = history.find((row) => row.id === card.id)
+        if (item) {
+          await deleteAllNewsSourceFiles(token, item)
+        }
+      } catch {
+        // 스토리지 정리 실패 시에도 게시글 삭제 결과는 유지
+      }
+      setHistory((prev) => prev.filter((row) => row.id !== card.id))
+      setResult('소식지를 삭제했습니다.')
+      await loadHistory()
+    } catch (delErr) {
+      setError(delErr instanceof Error ? delErr.message : '소식지 삭제에 실패했습니다.')
+    } finally {
+      setDeletingId(null)
     }
   }
 
   return (
-    <section className="customer-message-workspace" aria-label="고객메시지 이미지 업로드">
-      <div className="customer-message-phone-zone">
-        <div className="customer-message-phone">
-          <div className="customer-message-phone__speaker" />
-          <div className="customer-message-phone__screen">
-            <header className="customer-message-phone__header">
-              <div className="customer-message-phone__identity">
-                <span>담당자</span>
-                <strong>{agentName}</strong>
-                {agentPhoneLabel ? <small>· {agentPhoneLabel}</small> : null}
-              </div>
-              <div className="customer-message-phone__actions">
-                <span>전화하기</span>
-                <span>닫기</span>
-              </div>
+    <ClaimRequestsPagePCView>
+      <section className="claim-requests-all-news-pc insurer-news-page">
+        <StatusMessage message={error} tone="error" />
+        <div className="customer-news-all-layout claim-requests-all-news-pc__layout">
+          <CustomerAppNewsPhonePreview
+            agentName={user?.displayName?.trim() || '담당 설계사'}
+            agentPhoneRaw={agentMePhone}
+            imageUrls={previewImageUrls}
+            showHomeChrome
+          />
+          <div className="customer-news-all-layout__main claim-requests-all-news-pc__main">
+            <header className="page-header claim-requests-all-news-pc__header">
+              <h2>고객메시지 (전체)</h2>
+              <p className="claim-requests-all-news-pc__lede insurer-news-muted">
+                전체 고객 앱 홈 상단 슬라이드에 표시되는 이미지와 설명입니다. JPG·PNG·WEBP·GIF만 등록합니다.
+              </p>
             </header>
 
-            <main className="customer-message-phone__main">
-              <div className="customer-message-phone__slide">
-                {activePreviewImage ? (
-                  <img src={activePreviewImage} alt="고객앱 고객메시지 미리보기" />
-                ) : (
-                  <div className="customer-message-phone__empty">
-                    이미지를 업로드하면 고객앱 홈 미리보기가 여기에 표시됩니다.
-                  </div>
-                )}
+            <section className="claim-requests-all-news-pc__subtabs rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-2">
+              <div className="flex gap-2">
+                <FormButton
+                  htmlType="button"
+                  variant={newsAllSubTab === 'list' ? 'primary' : 'secondary'}
+                  onClick={() => setNewsAllSubTab('list')}
+                >
+                  등록 목록
+                </FormButton>
+                <FormButton
+                  htmlType="button"
+                  variant={newsAllSubTab === 'upload' ? 'primary' : 'secondary'}
+                  onClick={() => setNewsAllSubTab('upload')}
+                >
+                  작성
+                </FormButton>
               </div>
-              {previewImages.length > 1 ? (
-                <div className="customer-message-phone__controls">
-                  <button type="button" onClick={() => movePreview('prev')}>이전</button>
-                  <span>{previewIndex + 1} / {previewImages.length}</span>
-                  <button type="button" onClick={() => movePreview('next')}>다음</button>
-                </div>
-              ) : null}
-            </main>
+            </section>
 
-            <footer className="customer-message-phone__bottom">
-              <button type="button">청구/문의하기</button>
-              <nav>
-                <span className="is-active">홈</span>
-                <span>문의내역</span>
-                <span>개인메시지</span>
-                <span>내정보</span>
-              </nav>
-            </footer>
-          </div>
-        </div>
-      </div>
-
-      <div className="customer-message-editor-zone">
-        <header className="customer-message-editor__header">
-          <div>
-            <h3>고객메시지 이미지 업로드</h3>
-            <p>이미지를 올리면 고객앱 홈 화면 세로 슬라이드에 자동 적용됩니다.</p>
-          </div>
-          <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => void loadMessages()} loading={loading}>
-            새로고침
-          </FormButton>
-        </header>
-
-        <div className="customer-message-editor__grid">
-          <section className="customer-message-editor__card">
-            <h4>새 고객메시지</h4>
-            <FormInput
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="제목: 예) 5월 고객 안내"
-              disabled={busy}
-            />
-            <FormTextarea
-              rows={3}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="설명 문구를 입력하세요. 비워도 저장됩니다."
-              disabled={busy}
-            />
-            <FileUploader
-              accept="image/*"
-              validateFile={validateImageFile}
-              onFiles={form.addAttachments}
-              onInvalidBatch={(failures) => setError(failures[0]?.message ?? '첨부할 수 없는 이미지가 있습니다.')}
-              multiple
-              compact
-              disabled={busy}
-              statusText={uploadBusyText ?? undefined}
-              primaryHint="이미지 업로드"
-              hintLines={['권장 비율: 세로형 9:16, 여러 장 등록 시 슬라이드로 표시됩니다.']}
-            />
-            {form.attachments.length > 0 ? (
-              <div className="customer-message-draft-list">
-                {form.attachments.map((attachment) => (
-                  <div key={attachment.localId} className="customer-message-draft-list__item">
-                    <span>{attachment.file.name}</span>
-                    <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => form.removeAttachment(attachment.localId)} disabled={busy}>
-                      삭제
-                    </FormButton>
-                  </div>
-                ))}
+            {newsAllSubTab === 'list' ? (
+              <div className="claim-requests-all-news-pc__list">
+                {loading ? <p className="insurer-news-muted claim-requests-all-news-pc__loading">불러오는 중…</p> : null}
+                <NewsletterList
+                  items={allNewsCards}
+                  emptyMessage="발송한 전체소식지가 없습니다."
+                  variant="pc"
+                  onDeleteItem={(card) => void handleDeleteNews(card)}
+                  deleteBusyId={deletingId}
+                />
               </div>
             ) : null}
-            <div className="customer-message-editor__footer">
-              <StatusMessage message={notice} />
-              <StatusMessage message={error} tone="error" />
-              <FormButton htmlType="button" variant="primary" onClick={() => void handleSend()} loading={busy} disabled={busy}>
-                고객앱에 적용
-              </FormButton>
-            </div>
-          </section>
 
-          <section className="customer-message-editor__card customer-message-editor__card--history">
-            <h4>등록된 고객메시지</h4>
-            {loading ? <div className="customer-message-history-empty">불러오는 중…</div> : null}
-            {!loading && messages.length === 0 ? <div className="customer-message-history-empty">등록된 고객메시지가 없습니다.</div> : null}
-            <div className="customer-message-history-list">
-              {messages.map((message) => (
-                <button
-                  key={message.id}
-                  type="button"
-                  className={`customer-message-history-item${selectedMessage?.id === message.id ? ' customer-message-history-item--active' : ''}`}
-                  onClick={() => setSelectedId(message.id)}
-                >
-                  {firstImageUrl(message) ? <img src={firstImageUrl(message)} alt="" /> : <div className="customer-message-history-item__thumb" />}
-                  <span>
-                    <strong>{message.title || '고객메시지'}</strong>
-                    <small>{formatDateTime(message.updatedAt)} · 이미지 {imageCount(message)}장</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </section>
+            {newsAllSubTab === 'upload' ? (
+              <form
+                className="auth-card card claim-requests-all-news-pc__form"
+                onSubmit={(event) => event.preventDefault()}
+              >
+                <label className="field">
+                  <span className="field__label">제목 (선택)</span>
+                  <FormInput
+                    className="admin-form-input"
+                    value={title}
+                    onChange={(event) => setTitle(event.target.value)}
+                    placeholder="비워두면 기본 제목이 사용됩니다."
+                  />
+                </label>
+                <label className="field">
+                  <span className="field__label">설명</span>
+                  <FormTextarea
+                    value={description}
+                    onChange={(event) => setDescription(event.target.value)}
+                    rows={8}
+                    className="admin-form-input"
+                    style={{ height: 'auto', minHeight: 160, paddingTop: 12, paddingBottom: 12 }}
+                    placeholder="고객에게 전달할 내용을 입력하세요."
+                  />
+                </label>
+                <div className="field">
+                  <span className="field__label">이미지</span>
+                  <FileUploader
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    validateFile={validateImageFile}
+                    onFiles={handleFilesSelected}
+                    disabled={actionBusy}
+                    primaryHint="권장 비율 9:16 세로 이미지를 드래그하거나 클릭하여 선택하세요."
+                    hintLines={[
+                      '고객 앱 홈에는 이미지 슬라이드로 표시됩니다.',
+                      'JPG · PNG · WEBP · GIF (각 최대 10MB)',
+                    ]}
+                  />
+                  <div className="insurer-news-upload-list">
+                    {attachments.map((row) => (
+                      <div key={row.localId} className="insurer-news-upload-row">
+                        {row.kind === 'image' && row.previewUrl ? (
+                          <img className="insurer-news-upload-row__thumb" src={row.previewUrl} alt="" />
+                        ) : (
+                          <div className="insurer-news-upload-row__pdf">IMG</div>
+                        )}
+                        <div className="insurer-news-upload-row__info">
+                          <p className="insurer-news-upload-row__name">{row.file.name || '(이름 없음)'}</p>
+                          <p
+                            className={`insurer-news-upload-row__status${
+                              row.status === 'failed' ? ' insurer-news-upload-row__status--err' : ''
+                            }`}
+                          >
+                            {ATTACHMENT_STATUS_LABEL[row.status] ?? row.status}
+                            {row.errorMessage ? ` — ${row.errorMessage}` : ''}
+                          </p>
+                        </div>
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          className="button button--secondary"
+                          onClick={() => handleRemoveAttachment(row.localId)}
+                          disabled={actionBusy}
+                        >
+                          삭제
+                        </FormButton>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="claim-requests-all-news-pc__form-actions">
+                  <FormButton
+                    htmlType="button"
+                    variant="primary"
+                    onClick={() => void handleApply()}
+                    loading={actionBusy}
+                  >
+                    고객앱에 적용
+                  </FormButton>
+                </div>
+              </form>
+            ) : null}
+
+            {result ? (
+              <p className="claim-requests-all-news-pc__result text-xs text-[var(--text-secondary)]">{result}</p>
+            ) : null}
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </ClaimRequestsPagePCView>
   )
 }

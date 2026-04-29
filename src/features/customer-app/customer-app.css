@@ -4,7 +4,7 @@
  * 설계 의도:
  *   - 전역 토큰(--text-primary, --border-default, --bg-elevated 등) 을 재사용
  *     하므로 테마 변경이 이 파일을 자동으로 따라온다.
- *   - Shell 은 flex column, 헤더는 sticky, 하단 CTA+탭바는 fixed.
+ *   - Shell 은 flex column, 헤더는 sticky, 하단 CTA+택체는 fixed.
  *     본문은 flex:1 + 충분한 padding-bottom 으로 하단에 가리지 않게 한다.
  *   - iOS 홈인디케이터 영역(safe-area-inset-bottom) 대응.
  * ---------------------------------------------------------------------- */
@@ -16,7 +16,7 @@
   background: var(--bg-default, #f7f7f9);
 }
 
-/* 상단 — 담당자 이름·전화번호·전화하기·닫기 (모든 페이지 공통) */
+/* 상단 — 담당 설계사 한 줄 헤더 */
 .customer-app-header {
   position: sticky;
   top: 0;
@@ -26,80 +26,88 @@
   border-bottom: 1px solid var(--border-default, #e5e7eb);
 }
 
-.customer-app-header__agent-line {
+.customer-app-header__row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
+  gap: 10px;
+  max-width: 640px;
+  margin: 0 auto;
 }
 
 .customer-app-header__identity {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+  flex: 1;
   min-width: 0;
-  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
   white-space: nowrap;
-}
-
-.customer-app-header__label,
-.customer-app-header__phone-text {
-  font-size: 12px;
-  color: var(--text-secondary, #6b7280);
-  flex: 0 0 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .customer-app-header__name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary, #111827);
+  font-weight: 600;
+}
+
+.customer-app-header__sep {
+  font-weight: 400;
+  color: var(--text-secondary, #6b7280);
+}
+
+.customer-app-header__phone-line {
+  font-weight: 500;
+  color: var(--text-secondary, #6b7280);
 }
 
 .customer-app-header__actions {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 6px;
-  flex: 0 0 auto;
 }
 
-.customer-app-header__call-button,
-.customer-app-header__close-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 30px;
-  padding: 0 9px;
-  border-radius: 999px;
+.customer-app-header__action-btn {
+  appearance: none;
   border: 1px solid var(--border-default, #e5e7eb);
-  background: var(--bg-elevated, #ffffff);
+  background: var(--bg-default, #f9fafb);
   color: var(--text-primary, #111827);
   font-size: 12px;
-  font-weight: 700;
-  text-decoration: none;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 8px;
   cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
-.customer-app-header__call-button {
-  border-color: color-mix(in srgb, var(--accent-primary, #2563eb) 45%, #e5e7eb);
+a.customer-app-header__action-btn {
   color: var(--accent-primary, #2563eb);
+  background: var(--bg-elevated, #ffffff);
 }
 
-.customer-app-header__call-button:active,
-.customer-app-header__close-button:active {
-  opacity: 0.72;
+.customer-app-header__action-btn:active {
+  opacity: 0.85;
 }
 
-/* 본문 — 페이지 children */
+.customer-app-header__action-btn--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* 본문 — 페이지 children
+ *
+ * 간격 규칙(고객앱 홈 기준):
+ *   - 상단 padding(10px) = 설계사 헤더 → 첫 콘텐츠
+ *   - main gap(12px)     = 섹션 간
+ *   - 섹션 내부 간격은 각 섹션이 자체 클래스로 제어(예: __news gap=8px)
+ */
 .customer-app-main {
   flex: 1;
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  padding: 10px 16px calc(140px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 16px calc(150px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -136,7 +144,7 @@
 .customer-app-shell__cta-button {
   min-height: 48px;
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 /* 하단 탭바 — 4개 균등 */
@@ -163,117 +171,136 @@
 
 .customer-app-tabbar__item.is-active {
   color: var(--accent-primary, #2563eb);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .customer-app-tabbar__item:active {
   background: rgba(0, 0, 0, 0.04);
 }
 
-/* ------------------------ Home: 고객메시지 이미지 슬라이드 ------------------------ */
+/* ------------------------ Home ------------------------ */
 
-.customer-app-home__message-slider {
+/*
+ * 소식지 블록.
+ *   - 카드와 "전체 소식지 보기 >" 는 한 덩어리로 인식되도록 gap=8px 로 타이트하게 붙인다.
+ *   - 섹션 간 간격은 .customer-app-main 의 gap 이 담당한다.
+ */
+.customer-app-home__news {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: 8px;
+}
+
+/* 홈 — customer-news(scope all) 이미지 슬라이드 */
+.customer-app-home-slider {
   width: 100%;
 }
 
-.customer-app-message-slide {
-  width: 100%;
+.customer-app-home-slider__track {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: center;
-}
-
-.customer-app-message-slide__card {
-  width: min(100%, 390px);
-  aspect-ratio: 9 / 16;
-  padding: 0;
-  overflow: hidden;
-  border: 0;
-  border-radius: 22px;
-  background: #111827;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
-  cursor: pointer;
-}
-
-.customer-app-message-slide__card img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
-.customer-app-message-slide__fallback {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
   gap: 12px;
-  padding: 28px;
-  color: #ffffff;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.customer-app-home-slider__slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  max-width: 100%;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
   text-align: left;
   box-sizing: border-box;
-  background: linear-gradient(160deg, #1d4ed8 0%, #111827 100%);
 }
 
-.customer-app-message-slide__fallback strong {
-  font-size: 1.35rem;
-  line-height: 1.25;
+.customer-app-home-slider__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
 }
 
-.customer-app-message-slide__fallback span {
-  font-size: 0.95rem;
-  line-height: 1.55;
-  opacity: 0.9;
-}
-
-.customer-app-message-slide__controls {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 34px;
-  padding: 4px 6px;
-  border-radius: 999px;
+.customer-app-home-slider__media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  max-height: min(62vh, 520px);
+  border-radius: 16px;
+  overflow: hidden;
   background: var(--bg-elevated, #ffffff);
   border: 1px solid var(--border-default, #e5e7eb);
+  box-sizing: border-box;
 }
 
-.customer-app-message-slide__controls button {
-  min-height: 28px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(37, 99, 235, 0.08);
-  color: var(--accent-primary, #2563eb);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.customer-app-message-slide__controls span {
-  font-size: 12px;
-  color: var(--text-secondary, #6b7280);
-}
-
-.customer-app-news-empty {
+.customer-app-home-slider__media img {
   width: 100%;
-  padding: 24px 16px;
-  border-radius: 16px;
-  text-align: center;
-  color: var(--text-secondary, #6b7280);
-  background: var(--bg-elevated, #ffffff);
-  border: 1px dashed var(--border-default, #e5e7eb);
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
-.customer-app-news-empty--tall {
-  min-height: 360px;
+.customer-app-home-slider__fallback {
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  max-height: min(62vh, 520px);
+  border-radius: 16px;
+  padding: 16px;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: linear-gradient(165deg, var(--bg-elevated, #fff), var(--bg-default, #f3f4f6));
+  border: 1px solid var(--border-default, #e5e7eb);
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customer-app-home-slider__fallback-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+}
+
+.customer-app-home-slider__fallback-body {
+  flex: 1;
+  min-height: 0;
+  font-size: 14px;
+  color: var(--text-secondary, #4b5563);
+  overflow: hidden;
+}
+
+.customer-app-home-slider__caption {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+  padding: 0 2px;
+}
+
+.customer-app-home__news-more {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 2px;
+}
+
+/* 의도적으로 버튼스럽지 않게 — CTA 와 시각 경쟁 금지 */
+.customer-app-home__news-more-link {
+  font-size: 13px;
+  color: var(--text-secondary, #6b7280);
+  text-decoration: none;
+  padding: 2px 0;
+  line-height: 1.4;
+}
+
+.customer-app-home__news-more-link:hover,
+.customer-app-home__news-more-link:focus-visible {
+  color: var(--accent-primary, #2563eb);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 /* ------------------------ Profile ------------------------ */
