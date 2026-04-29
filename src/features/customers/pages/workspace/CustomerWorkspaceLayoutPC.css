@@ -18,6 +18,26 @@
   row-gap: 6px;
 }
 
+.customer-mobile-expanded-app-link {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0 0 12px;
+  margin: 0 0 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.customer-mobile-expanded-app-link .customer-header-app-link-compact,
+.customer-mobile-expanded-app-link .customer-workspace-layout__claim-link-tools {
+  justify-content: center;
+}
+
+.customer-mobile-expanded-app-link .customer-workspace-layout__claim-copy-result {
+  flex-basis: 100%;
+  max-width: 100%;
+  text-align: center;
+}
+
 .customer-workspace-layout__claim-status {
   display: inline-flex;
   align-items: center;
