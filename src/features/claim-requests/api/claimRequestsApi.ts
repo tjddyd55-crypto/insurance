@@ -65,7 +65,7 @@ function triggerBrowserDownload(url: string, fileName: string): void {
   a.href = url
   a.download = fileName
   a.rel = 'noopener'
-  a.target = '_blank'
+  // 다운로드는 업무 화면을 벗어나면 안 되므로 target="_blank"를 사용하지 않는다.
   document.body.appendChild(a)
   a.click()
   a.remove()
@@ -119,20 +119,20 @@ export async function openClaimRequestFile(token: string, file: ClaimRequestFile
 
 export async function downloadClaimRequestFile(token: string, file: ClaimRequestFileItem): Promise<void> {
   const fileName = file.fileName ?? `claim-file-${file.id}`
-  const explicitDownloadUrl = String(file.downloadUrl ?? '').trim()
-  if (explicitDownloadUrl) {
-    triggerBrowserDownload(explicitDownloadUrl, fileName)
+
+  try {
+    const { blob, fileName: responseFileName } = await fetchAgentClaimFileBlob(token, file.id, 'attachment')
+    const objectUrl = URL.createObjectURL(blob)
+    triggerBrowserDownload(objectUrl, responseFileName ?? fileName)
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
     return
+  } catch (downloadError) {
+    const fallbackUrl = String(file.downloadUrl ?? file.url ?? '').trim()
+    if (!fallbackUrl || !isDirectCdnUrl(fallbackUrl)) {
+      throw downloadError
+    }
+    triggerBrowserDownload(fallbackUrl, fileName)
   }
-  const directUrl = String(file.url ?? '').trim()
-  if (directUrl && isDirectCdnUrl(directUrl)) {
-    triggerBrowserDownload(directUrl, fileName)
-    return
-  }
-  const { blob, fileName: responseFileName } = await fetchAgentClaimFileBlob(token, file.id, 'attachment')
-  const objectUrl = URL.createObjectURL(blob)
-  triggerBrowserDownload(objectUrl, responseFileName ?? fileName)
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
 }
 
 export interface ClaimRequestStatusLogItem {
