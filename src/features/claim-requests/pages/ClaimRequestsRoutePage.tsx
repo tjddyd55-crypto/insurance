@@ -1,6 +1,7 @@
 import { useParams, useSearchParams } from 'react-router-dom'
 import useIsMobile from '../../../hooks/useIsMobile'
 import ClaimRequestsAllNewsMobileStandalone from './claim-requests/ClaimRequestsAllNewsMobileStandalone'
+import ClaimRequestsAllNewsPCStandalone from './claim-requests/ClaimRequestsAllNewsPCStandalone'
 import ClaimRequestsClaimsMobileStandalone from './claim-requests/ClaimRequestsClaimsMobileStandalone'
 import ClaimRequestsPersonalMobileStandalone from './claim-requests/ClaimRequestsPersonalMobileStandalone'
 import ClaimRequestsPersonalPCStandalone from './claim-requests/ClaimRequestsPersonalPCStandalone'
@@ -37,6 +38,10 @@ export default function ClaimRequestsRoutePage() {
 
   if (isMobile && isAllNewsTab) {
     return <ClaimRequestsAllNewsMobileStandalone />
+  }
+
+  if (!isMobile && isAllNewsTab && hasCustomerContext) {
+    return <ClaimRequestsAllNewsPCStandalone />
   }
 
   return <ClaimRequestsPage />
