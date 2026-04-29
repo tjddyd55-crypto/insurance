@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { StatusMessage } from '../../../../components/feedback'
 import { useAuth } from '../../../auth/AuthProvider'
 import {
@@ -83,8 +83,12 @@ function resolveConnectionState(linkStatus: CustomerAppLinkInfo | null): Custome
   return 'link_created'
 }
 
+const EMBED_IN_CUSTOMER_WORKSPACE_PATH = /^\/customers\/\d+(\/|$)/
+
 export default function ClaimRequestsClaimsMobileStandalone() {
   const { token } = useAuth()
+  const location = useLocation()
+  const embedInCustomerWorkspace = EMBED_IN_CUSTOMER_WORKSPACE_PATH.test(location.pathname)
   const { customerId: customerIdParam } = useParams<{ customerId?: string }>()
   const [searchParams] = useSearchParams()
   const activeCustomerId = useMemo(() => {
@@ -242,8 +246,11 @@ export default function ClaimRequestsClaimsMobileStandalone() {
   }, [loadDetail])
 
   useEffect(() => {
+    if (embedInCustomerWorkspace) {
+      return
+    }
     void loadLinkStatus()
-  }, [loadLinkStatus])
+  }, [embedInCustomerWorkspace, loadLinkStatus])
 
   useEffect(() => {
     setCreatedLink('')
@@ -439,6 +446,7 @@ export default function ClaimRequestsClaimsMobileStandalone() {
       formatDateTime={formatDateTime}
       statusLabel={statusLabel}
       statusBadgeClass={statusBadgeClass}
+      embedInCustomerWorkspace={embedInCustomerWorkspace}
     />
   )
 }
