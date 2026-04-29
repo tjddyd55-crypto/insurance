@@ -8,6 +8,8 @@ import type { CustomerRecord } from '../../domain/types'
 import type { CustomerWorkspaceLayoutPCProps } from './CustomerWorkspaceLayoutPC'
 
 const RECENT_CUSTOMER_LIMIT = 5
+const RECENT_CUSTOMER_SCROLL_RETRY_LIMIT = 12
+const RECENT_CUSTOMER_SCROLL_RETRY_DELAY_MS = 40
 
 function resolveMobileSheetTitle(pathname: string, search: string): string {
   if (pathname.includes('/claim-requests')) {
@@ -54,6 +56,43 @@ function formatPhone(phone: string | null | undefined): string {
     return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
   }
   return String(phone ?? '').trim() || '연락처 없음'
+}
+
+function scrollCustomerCardIntoCenter(customerId: number, attempt = 0): void {
+  const target = document.querySelector<HTMLElement>(
+    `[data-customer-id="${customerId}"], [data-customer-card-id="${customerId}"]`,
+  )
+
+  if (!target) {
+    if (attempt < RECENT_CUSTOMER_SCROLL_RETRY_LIMIT) {
+      window.setTimeout(
+        () => scrollCustomerCardIntoCenter(customerId, attempt + 1),
+        RECENT_CUSTOMER_SCROLL_RETRY_DELAY_MS,
+      )
+    }
+    return
+  }
+
+  const summary = target.querySelector<HTMLElement>('.customer-expand-summary')
+  const alreadyExpanded =
+    target.classList.contains('customer-expand-card--focal') ||
+    summary?.getAttribute('aria-expanded') === 'true'
+
+  if (!alreadyExpanded) {
+    summary?.click()
+  }
+
+  const snapToCenter = () => {
+    if (!target.isConnected) {
+      return
+    }
+    target.scrollIntoView({ behavior: 'auto', block: 'center' })
+  }
+
+  snapToCenter()
+  ;[80, 180].forEach((ms) => {
+    window.setTimeout(snapToCenter, ms)
+  })
 }
 
 export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLayoutPCProps) {
@@ -114,13 +153,7 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
   const openRecentCustomer = (customerId: number) => {
     setRecentOpen(false)
     navigate(`/customers?customerId=${customerId}`, { replace: true })
-    window.setTimeout(() => {
-      const target = document.querySelector(`[data-customer-card-id="${customerId}"]`)
-      if (target instanceof HTMLElement) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        target.click()
-      }
-    }, 120)
+    window.setTimeout(() => scrollCustomerCardIntoCenter(customerId), 50)
   }
 
   if (isMobileDetailRoute && outlet) {
