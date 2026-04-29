@@ -11,6 +11,8 @@ import {
   type CustomerAppNewsListItem,
 } from '../api/customerAppApi'
 import CustomerAppNewsCard from '../components/CustomerAppNewsCard'
+import CustomerAppNewsImageGallery from '../components/CustomerAppNewsImageGallery'
+import { buildCustomerNewsGalleryUrls } from '../model/buildCustomerNewsGalleryUrls'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
 function formatDateTime(iso: string | null): string {
@@ -174,22 +176,18 @@ export default function CustomerAppNewsListPage() {
               {!detailLoading && detailError ? <div className="modal-text">{detailError}</div> : null}
               {!detailLoading && !detailError ? (
                 <div className="news-detail-scroll">
-                  <div className="news-detail-zoom-scope" style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}>
-                    {(() => {
-                      const imageUrls =
-                        selectedDetail?.attachments
-                          ?.filter((attachment) => attachment.kind === 'image')
-                          .sort((a, b) => a.sortOrder - b.sortOrder)
-                          .map((attachment) => attachment.url) ?? []
-                      const finalUrls = imageUrls.length
-                        ? imageUrls
-                        : selectedDetail?.heroImageUrl
-                          ? [selectedDetail.heroImageUrl]
-                          : selectedItem.heroImageUrl
-                            ? [selectedItem.heroImageUrl]
-                            : []
-                      return finalUrls.map((url) => <img key={url} src={url} alt="" className="customer-news-modal-image" />)
-                    })()}
+                  <CustomerAppNewsImageGallery
+                    className="customer-app-news-gallery--in-modal"
+                    imageUrls={buildCustomerNewsGalleryUrls({
+                      heroImageUrl: selectedDetail?.heroImageUrl ?? selectedItem.heroImageUrl,
+                      attachments: selectedDetail?.attachments ?? [],
+                    })}
+                    altBase="소식지 이미지"
+                  />
+                  <div
+                    className="news-detail-zoom-scope customer-app-news-modal__text-zoom"
+                    style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
+                  >
                     <RichTextContent
                       value={selectedDetail?.content?.trim() || selectedItem.summary || ''}
                       className="news-text rich-text-content"

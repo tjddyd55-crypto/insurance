@@ -43,19 +43,22 @@
 }
 
 .customer-app-news-card__image-frame {
-  aspect-ratio: 3 / 4;
-  max-height: min(72vh, 680px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 0;
+  background: #0f172a;
+  display: block;
+  aspect-ratio: auto;
+  max-height: none;
+  min-height: 0;
 }
 
 .customer-app-news-card__image {
   width: 100%;
-  height: 100%;
+  height: auto;
   display: block;
   object-fit: contain;
-  background: #ffffff;
+  background: #0f172a;
 }
 
 .customer-app-news-card__text-frame {
@@ -183,4 +186,141 @@
 .rich-text-content ol {
   margin: 8px 0;
   padding-left: 20px;
+}
+
+/* --- 고객앱 소식 이미지 갤러리 (다중 장 · 스와이프 · 인디케이터) --- */
+
+.customer-app-news-gallery {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  touch-action: pan-y;
+}
+
+.customer-app-news-gallery__viewport {
+  overflow: hidden;
+  width: 100%;
+}
+
+.customer-app-news-gallery__track {
+  display: flex;
+  transition: transform 0.22s ease-out;
+  will-change: transform;
+}
+
+.customer-app-news-gallery__slide {
+  flex: 0 0 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.customer-app-news-gallery__slide img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  vertical-align: top;
+  background: #0f172a;
+}
+
+.customer-app-news-gallery__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.5);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.customer-app-news-gallery__nav--prev {
+  left: 6px;
+}
+
+.customer-app-news-gallery__nav--next {
+  right: 6px;
+}
+
+.customer-app-news-gallery__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 2px;
+}
+
+.customer-app-news-gallery__counter {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary, #64748b);
+}
+
+.customer-app-news-gallery__dots {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.customer-app-news-gallery__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  background: rgba(100, 116, 139, 0.45);
+  cursor: pointer;
+}
+
+.customer-app-news-gallery__dot.is-active {
+  background: var(--accent-primary, #2563eb);
+  transform: scale(1.18);
+}
+
+/* 고객앱 상세: 본문 좌우 패딩(16px)과 맞춘 풀폭 이미지 */
+
+.customer-app-shell .insurer-news-detail-article {
+  margin-left: -16px;
+  margin-right: -16px;
+  width: calc(100% + 32px);
+}
+
+.customer-app-shell .insurer-news-detail-text {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.customer-app-shell .customer-app-news-detail__gallery {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.customer-app-shell .insurer-news-detail-after {
+  padding: 12px 16px 16px;
+}
+
+/* 목록 모달: 갤러리 풀폭 · 본문만 패딩 */
+
+.customer-news-modal .news-detail-scroll {
+  padding: 0;
+}
+
+.customer-app-news-modal__text-zoom {
+  padding: 16px 16px 20px;
+}
+
+.customer-news-modal .customer-app-news-gallery--in-modal .customer-app-news-gallery__slide img {
+  background: #000000;
 }

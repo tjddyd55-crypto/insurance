@@ -100,13 +100,16 @@ export default function CustomerAppShell({ children, title = '고객 앱', showC
           </div>
           <div className="customer-app-header__actions">
             {telDigits ? (
-              <a className="customer-app-header__action-btn" href={`tel:${telDigits}`}>
+              <a
+                className="customer-app-header__action-btn customer-app-header__action-btn--call"
+                href={`tel:${telDigits}`}
+              >
                 전화하기
               </a>
             ) : (
               <span className="customer-app-header__action-btn customer-app-header__action-btn--disabled">전화하기</span>
             )}
-            <button type="button" className="customer-app-header__action-btn" onClick={handleClose}>
+            <button type="button" className="customer-app-header__action-btn customer-app-header__action-btn--close" onClick={handleClose}>
               닫기
             </button>
           </div>

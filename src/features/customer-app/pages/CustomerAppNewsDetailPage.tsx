@@ -3,8 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import RichTextContent from '../../../components/rich-text/RichTextContent'
 import { NewsletterAttachmentList } from '../../insurer-news/components/NewsletterAttachmentList'
-import { NewsletterImageGallery } from '../../insurer-news/components/NewsletterImageGallery'
+import CustomerAppNewsImageGallery from '../components/CustomerAppNewsImageGallery'
 import { getCustomerNewsDetail, markCustomerNewsRead, type CustomerAppNewsDetail } from '../api/customerAppApi'
+import { buildCustomerNewsGalleryUrls } from '../model/buildCustomerNewsGalleryUrls'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
 function formatDateTime(iso: string | null): string {
@@ -62,7 +63,7 @@ export default function CustomerAppNewsDetailPage() {
       {!detail ? <div className="text-sm text-[var(--text-secondary)]">불러오는 중…</div> : null}
       {detail ? (
         <article className="insurer-news-detail-article">
-          <header style={{ marginBottom: 16 }} className="insurer-news-detail-text">
+          <header style={{ marginBottom: 12 }} className="insurer-news-detail-text">
             <p className="insurer-news-muted" style={{ margin: '0 0 4px', fontSize: 14 }}>
               고객 소식지
             </p>
@@ -76,19 +77,21 @@ export default function CustomerAppNewsDetailPage() {
               {formatDateTime(detail.updatedAt)}
             </time>
           </header>
+          <div className="customer-app-news-detail__gallery">
+            <CustomerAppNewsImageGallery
+              imageUrls={buildCustomerNewsGalleryUrls({
+                heroImageUrl: detail.heroImageUrl,
+                attachments: detail.attachments ?? [],
+              })}
+              altBase="고객 소식지 이미지"
+            />
+          </div>
           <RichTextContent
             value={detail.content || ''}
             className="insurer-news-detail-body insurer-news-detail-text rich-text-content"
             emptyText="본문이 없습니다."
           />
           <div className="insurer-news-detail-after">
-            <NewsletterImageGallery
-              imageUrls={
-                detail.attachments?.filter((attachment) => attachment.kind === 'image').map((attachment) => attachment.url) ??
-                (detail.heroImageUrl ? [detail.heroImageUrl] : [])
-              }
-              altBase="고객 소식지 이미지"
-            />
             <NewsletterAttachmentList attachments={detail.attachments ?? []} />
           </div>
         </article>
