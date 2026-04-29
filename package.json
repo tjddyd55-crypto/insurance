@@ -38,6 +38,8 @@
     "analytics:aggregate": "node server/scripts/runAnalyticsAggregation.mjs --yesterday",
     "cleanup:storage-upload-staging": "node server/scripts/runStorageOrphanStagingCleanupCron.mjs",
     "cleanup:storage-upload-staging:railway": "railway run -- node server/scripts/runStorageOrphanStagingCleanupCron.mjs",
+    "download:insurer-logos": "node scripts/download-insurer-logos.mjs",
+    "backfill:insurer-bundled-logos": "node server/scripts/runBackfillInsurerBundledLogos.mjs",
     "check:claim-deploy": "node server/scripts/checkClaimAppDeploy.mjs",
     "check:claim-deploy:railway": "railway run -- node server/scripts/checkClaimAppDeploy.mjs"
   },

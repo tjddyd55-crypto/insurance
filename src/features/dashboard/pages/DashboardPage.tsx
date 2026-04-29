@@ -87,6 +87,12 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === '/admin/audit-logs') {
     return pathname === '/admin/audit-logs'
   }
+  if (itemPath === '/insurance/insurer-sites') {
+    return pathname === '/insurance/insurer-sites'
+  }
+  if (itemPath === '/admin/insurer-sites') {
+    return pathname === '/admin/insurer-sites'
+  }
   if (itemPath === '/team/manage' || itemPath === '/team/menu-settings' || itemPath === '/team/admin') {
     return pathname === '/team/members' || pathname === itemPath || pathname.startsWith('/team/members/')
   }

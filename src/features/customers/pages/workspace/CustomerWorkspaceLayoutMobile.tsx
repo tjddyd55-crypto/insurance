@@ -145,7 +145,9 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
             닫기
           </FormButton>
         </div>
-        <div className="workspace-mobile-outlet-modal__body">{outlet}</div>
+        <div className="workspace-mobile-outlet-modal__body">
+          {outlet}
+        </div>
       </Modal>
     )
   }

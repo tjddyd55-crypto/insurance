@@ -57,6 +57,8 @@ type ClaimRequestsClaimsMobileViewProps = {
   formatDateTime: (iso: string | null) => string
   statusLabel: (status: ClaimRequestStatus) => string
   statusBadgeClass: (status: ClaimRequestStatus) => string
+  /** true이면 워크스페이스 헤더(compact)만 쓰고 링크 발송·연결 상태 카드는 넘기지 않음 */
+  embedInCustomerWorkspace?: boolean
 }
 
 export default function ClaimRequestsClaimsMobileView({
@@ -96,41 +98,46 @@ export default function ClaimRequestsClaimsMobileView({
   formatDateTime,
   statusLabel,
   statusBadgeClass,
+  embedInCustomerWorkspace = false,
 }: ClaimRequestsClaimsMobileViewProps) {
+  const legacyLinkSection = (
+    <>
+      {feedbackSection}
+      <ClaimLinkSection
+        activeCustomerId={activeCustomerId}
+        displayedCode={displayedCode}
+        displayedLink={displayedLink}
+        linkActionLabel={linkActionLabel}
+        actionBusy={actionBusy}
+        copyResult={copyResult}
+        showDescription={false}
+        showRawLinkFields={false}
+        onCreateLink={onCreateLink}
+        onCopyCode={onCopyCode}
+        onCopyLink={onCopyLink}
+        onShareBySms={onShareBySms}
+        onShareByKakao={onShareByKakao}
+        onOpenLinkPreview={onOpenLinkPreview}
+      />
+    </>
+  )
+
   return (
     <ClaimRequestsClaimsMobileLayout
-      linkSection={
-        <>
-          {feedbackSection}
-          <ClaimLinkSection
-            activeCustomerId={activeCustomerId}
-            displayedCode={displayedCode}
-            displayedLink={displayedLink}
-            linkActionLabel={linkActionLabel}
-            actionBusy={actionBusy}
-            copyResult={copyResult}
-            showDescription={false}
-            showRawLinkFields={false}
-            onCreateLink={onCreateLink}
-            onCopyCode={onCopyCode}
-            onCopyLink={onCopyLink}
-            onShareBySms={onShareBySms}
-            onShareByKakao={onShareByKakao}
-            onOpenLinkPreview={onOpenLinkPreview}
-          />
-        </>
-      }
+      linkSection={embedInCustomerWorkspace ? feedbackSection : legacyLinkSection}
       connectionSection={
-        <ClaimConnectionStatusSection
-          title={connectionMeta.title}
-          subtitle={connectionMeta.subtitle}
-          className={connectionMeta.className}
-          linkStatus={linkStatus}
-          loading={linkStatusLoading}
-          latestDeviceLabel={latestDeviceLabel}
-          showDescription={false}
-          formatDateTime={formatDateTime}
-        />
+        embedInCustomerWorkspace ? undefined : (
+          <ClaimConnectionStatusSection
+            title={connectionMeta.title}
+            subtitle={connectionMeta.subtitle}
+            className={connectionMeta.className}
+            linkStatus={linkStatus}
+            loading={linkStatusLoading}
+            latestDeviceLabel={latestDeviceLabel}
+            showDescription={false}
+            formatDateTime={formatDateTime}
+          />
+        )
       }
       requestListSection={
         <ClaimRequestListSection

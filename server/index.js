@@ -44,6 +44,7 @@ import { registerVersionRoutes } from './routes/version.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 import { registerSubscriptionAdminApi } from './registerSubscriptionAdminApi.js'
 import { registerPdfTemplateApi } from './registerPdfTemplateApi.js'
+import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
 import { registerSubscriptionEndpoints } from './subscription/endpoints.js'
 import { enforceActiveSubscription } from './subscription/requireActiveSubscription.js'
 
@@ -64,6 +65,7 @@ const LEGACY_USER_ROLE_MAP = {
 const RUNNING_IN_PRODUCTION =
   process.env.NODE_ENV === 'production' || Boolean(process.env.RAILWAY_ENVIRONMENT)
 const DIST_PATH = path.join(process.cwd(), 'dist')
+const UPLOADS_PUBLIC_PATH = path.join(process.cwd(), 'uploads')
 
 function normalizeExpiryDate(value) {
   if (typeof value !== 'string') {
@@ -1436,6 +1438,8 @@ registerPdfTemplateApi(apiRouter, {
   isSuperAdminRole,
   handleDbError,
 })
+
+registerInsurerSitesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 
 registerSubscriptionEndpoints(apiRouter, { requireAuth })
 
@@ -6158,6 +6162,8 @@ apiRouter.delete('/forms/:id', requireAuth, async (req, res) => {
  * 반드시 app.use 로 apiRouter 를 붙이기 **전에** 등록한다. (등록이 뒤에 가면 라우트가 붙지 않음)
  */
 registerCustomerExtraApi(apiRouter, { pool, requireAuth, handleDbError })
+
+app.use('/uploads', express.static(UPLOADS_PUBLIC_PATH))
 
 app.use('/api', apiRouter)
 app.use('/backend', apiRouter)

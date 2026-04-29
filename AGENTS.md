@@ -108,6 +108,22 @@ docs(scope): 문서
 
 `scope` 예: `customers`, `customers-pc`, `customers-mobile`, `auth`, `api`, `deploy`.
 
+### 모달 UX 절대 규칙
+
+새 모달·다이얼로그를 만들거나 `Modal` / `BaseDialog` 사용 방식을 바꿀 때 아래를 **기본 계약**으로 둔다.
+
+1. **입력·수정·삭제·업로드**가 포함된 모달은 **바깥(백드롭) 클릭으로 닫히면 안 된다.** (`closeOnBackdrop={false}` 등)
+2. **단순 조회·안내** 모달만 백드롭 클릭 닫기를 허용할 수 있다.
+3. 입력값이 바뀐 뒤 **취소·X·Escape**로 닫으려 하면 확인을 띄운다. 문구 예: `변경사항이 저장되지 않았습니다. 닫으시겠습니까?` — 확인 시에만 닫기, 취소 시 모달 유지. **저장 성공 후** 자동 닫기는 확인 없음.
+4. 긴 폼 모달은 **header / body / footer** 구조로 나눈다.
+5. footer의 **저장·취소** 등 주요 버튼은 **항상 보이게** 하고, **body만 스크롤** (`body`: `overflow-y: auto`; 패널은 `max-height` + flex column).
+6. **PC**에서 필드가 많으면 **2열 이상** 그리드를 우선하고, **모바일**(너비 좁음)에서는 **1열**로 전환한다.
+7. 저장·삭제 등 **되돌리기 어려운 액션**은 확인·명확한 라벨 등으로 실수를 방지한다.
+8. Escape 처리: 폼 모달은 `BaseDialog`의 `onEscapeRequest`로 통일해 미저장 확인 후 닫는다. **확인 모달이 포커스일 때**는 상위 모달의 Escape 핸들러가 중복 반응하지 않도록 `nestedConfirmBlockingRef` 패턴 등으로 막는다.
+9. **넓은 폼 모달**은 `Modal` / `BaseDialog`의 **`panelPreset="largeForm"`** 을 쓴다. 이렇게 하면 기본 `w-[90%] max-w-md p-4` 가 붙지 않고 `min(1080px,92vw)`·`max-h-[86vh]`·flex 셸이 Tailwind로 고정된다 (배포 번들에서 좁은 패널로 보이는 회귀 방지).
+
+구현 참고: `src/features/insurer-sites/pages/AdminInsurerSitesPage.tsx` (보험사 설계사이트 추가·수정), `src/components/dialog/BaseDialog.tsx` (`onEscapeRequest`, `panelPreset`).
+
 ## 6. 라인 엔딩 주의
 
 Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 파일이 M으로 보이는 경우가 있다. 이는 대부분 **실제 내용 변경이 아닌 CRLF 경고**이므로 `git diff --ignore-cr-at-eol --name-only`로 실제 변경 파일만 추려서 명시적으로 `git add <파일>` 할 것. `git add .` 사용 금지(의도치 않은 대량 커밋 방지).

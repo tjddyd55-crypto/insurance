@@ -6,12 +6,16 @@ import {
   writeCustomerAppSession,
 } from '../session/customerAppSession'
 
+/** POST /customer-app/connect 전용 링크: DB 프로필 부족 시 서버가 내려주는 payload.code 와 동일 */
+export const CUSTOMER_APP_PROFILE_INCOMPLETE_CODE = 'CUSTOMER_PROFILE_INCOMPLETE' as const
+
 export interface CustomerAppConnectResponse {
   agentId: string
   customerId: number
   agentName: string
   customerName: string
   appToken: string
+  profile?: { name: string; birthDate: string; phone: string }
 }
 
 export interface CustomerAppConnectPrefill {
@@ -128,15 +132,24 @@ async function connectCustomerAppInternal(payload: {
   deviceId: string
   devicePlatform: string
   appVersion: string
-  requester: {
+  requester?: {
     name: string
     birthDate: string
     phone: string
   }
 }): Promise<CustomerAppConnectResponse> {
+  const body: Record<string, unknown> = {
+    linkCode: payload.linkCode,
+    deviceId: payload.deviceId,
+    devicePlatform: payload.devicePlatform,
+    appVersion: payload.appVersion,
+  }
+  if (payload.requester) {
+    body.requester = payload.requester
+  }
   const response = await apiRequest<{ success: true; data: CustomerAppConnectResponse }>('/api/customer-app/connect', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   })
   return response as CustomerAppConnectResponse
 }
@@ -219,7 +232,7 @@ export async function connectCustomerApp(payload: {
   deviceId: string
   devicePlatform: string
   appVersion: string
-  requester: {
+  requester?: {
     name: string
     birthDate: string
     phone: string

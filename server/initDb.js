@@ -6,6 +6,7 @@ import {
   touchContactLastUpdatedAt,
 } from './lib/companyDirectorySanitize.js'
 import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
+import { INSURER_SITES_SEED, insurerSiteBundledLogoPath } from './insurerSitesSeedData.js'
 
 /**
  * ⚠️ 디버그 전용: insurance_forms 등 user_id FK는 ON DELETE CASCADE 로 함께 정리됨.
@@ -2678,6 +2679,7 @@ export async function initDb() {
   await ensureSubscriptionSchema(pool)
   await ensureSignatureSchema(pool)
   await ensurePdfTemplateSchema(pool)
+  await ensureInsurerSitesSchema(pool)
 }
 
 /**
@@ -2951,6 +2953,94 @@ async function ensurePdfTemplateSchema(executor) {
     CREATE INDEX IF NOT EXISTS pdf_issuances_ga_created_idx
     ON pdf_issuances (ga_id, created_at DESC)
   `)
+}
+
+/**
+ * 전역 공통 보험사 설계사이트 마스터 (GA/회사/팀/유저 FK 없음).
+ * 최초 빈 테이블일 때만 시드 삽입; 매 부팅 시 업로드 경로를 제외하고 빈·외부 URL·구번들 로고만 보정합니다.
+ */
+async function ensureInsurerSitesSchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS insurer_sites (
+      id SERIAL PRIMARY KEY,
+      category TEXT NOT NULL CHECK (category IN ('non_life', 'life')),
+      name TEXT NOT NULL,
+      logo_path TEXT NOT NULL DEFAULT '',
+      sales_url TEXT NOT NULL DEFAULT '',
+      homepage_url TEXT NOT NULL DEFAULT '',
+      disclosure_url TEXT NOT NULL DEFAULT '',
+      claim_url TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS insurer_sites_active_cat_sort_idx
+    ON insurer_sites (is_active, category, sort_order)
+  `)
+
+  const countRes = await executor.query(`SELECT COUNT(*)::int AS c FROM insurer_sites`)
+  if (countRes.rows[0].c === 0) {
+    for (const row of INSURER_SITES_SEED) {
+      const logoPath = insurerSiteBundledLogoPath(row.logoFile)
+      await executor.query(
+        `
+        INSERT INTO insurer_sites (
+          category, name, logo_path, sales_url, homepage_url, disclosure_url, claim_url, sort_order, is_active
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
+        `,
+        [
+          row.category,
+          row.name,
+          logoPath,
+          row.salesUrl,
+          row.homepageUrl,
+          row.disclosureUrl ?? '',
+          row.claimUrl,
+          row.sortOrder,
+        ],
+      )
+    }
+    console.log('[initDb] insurer_sites 시드 완료:', INSURER_SITES_SEED.length)
+  }
+
+  await backfillInsurerSiteBundledLogos(executor)
+}
+
+/**
+ * 빈 값·외부 URL·구번들 /assets/insurers 만 보정. `/uploads/system/insurers/` 는 유지.
+ */
+async function backfillInsurerSiteBundledLogos(executor) {
+  let touched = 0
+  for (const row of INSURER_SITES_SEED) {
+    const expected = insurerSiteBundledLogoPath(row.logoFile)
+    const r = await executor.query(
+      `
+      UPDATE insurer_sites
+      SET logo_path = $1, updated_at = NOW()
+      WHERE name = $2
+        AND NOT (logo_path LIKE '/uploads/system/insurers/%')
+        AND (
+          TRIM(COALESCE(logo_path, '')) = ''
+          OR logo_path LIKE 'http://%'
+          OR logo_path LIKE 'https://%'
+          OR logo_path LIKE '//%'
+          OR (
+            logo_path LIKE '/assets/insurers/%'
+            AND logo_path IS DISTINCT FROM $1
+          )
+        )
+      `,
+      [expected, row.name],
+    )
+    touched += r.rowCount ?? 0
+  }
+  if (touched > 0) {
+    console.log('[initDb] insurer_sites 기본 로고 경로 보정 행 수:', touched)
+  }
 }
 
 async function seedConsentTemplatesIfNeeded() {

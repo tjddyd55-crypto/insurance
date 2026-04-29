@@ -46,12 +46,14 @@ export const GA_TENANT_ESSENTIAL_MENU: GaTenantMenuItem[] = [
 export const INSURER_MANAGER_MENU: GaTenantMenuItem[] = [
   { label: '원수사 소식지 조회', path: '/insurer/news' },
   { label: '원수사 소식지 업로드', path: '/insurer/news/upload' },
+  { label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
 ]
 
 /** 손해사정사 담당자 — 본인 회사 뉴스 */
 export const LOSS_ADJUSTER_MENU: GaTenantMenuItem[] = [
   { label: '손해사정사 뉴스 조회', path: '/adjuster/news' },
   { label: '손해사정사 뉴스 업로드', path: '/adjuster/news/upload' },
+  { label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
 ]
 
 /** GA_STAFF 전용 — 원수사 관리만(다른 GA 메뉴와 merge 금지) */
@@ -59,6 +61,7 @@ export const GA_STAFF_MENU: GaTenantMenuItem[] = [
   { label: '원수사 연락처 관리', path: '/insurance/company-registry' },
   { label: '원수사 담당자 관리', path: '/insurer-managers' },
   { label: '손해사정사 계정 관리', path: '/loss-adjusters' },
+  { label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
   { label: '추가기능 요청하기', path: '/feature-request' },
 ]
 
@@ -133,6 +136,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'section', label: '소식지' },
     { type: 'link', label: '고객 소식지', path: '/claim-requests?claimTab=news-all' },
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
+    { type: 'link', label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
     { type: 'link', label: '원수사 소식지', path: '/portal/newsletters' },
     { type: 'link', label: '손해사정사 소식지', path: '/portal/adjuster-news' },
     { type: 'link', label: '세무사 소식지', path: '#', disabled: true, badge: DEV_BADGE },
@@ -214,8 +218,17 @@ const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
   { label: '구독 설정', path: '/admin/subscription/settings' },
   { label: '운영 통계', path: '/admin/analytics' },
   { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
+  { label: '보험사 설계사이트 관리', path: '/admin/insurer-sites' },
   { label: 'PDF 문서 템플릿', path: '/admin/pdf-templates' },
 ]
+
+function superAdminMenuWithPublicShortcuts(): GaTenantMenuItem[] {
+  return [
+    ...SUPER_ADMIN_BASE,
+    /* SUPER_ADMIN 전용: FC·GA와 동일한 카드 UI 미리보기. "관리" 항목과 경로·라벨 혼동 방지 */
+    { label: '보험사 설계사이트 (일반·카드)', path: '/insurance/insurer-sites' },
+  ]
+}
 
 function itemsToEntries(items: GaTenantMenuItem[]): GaTenantDashboardMenuEntry[] {
   return items.map((item) => ({ type: 'link' as const, label: item.label, path: item.path }))
@@ -235,7 +248,7 @@ export function buildAppMenuForSession(
   const base: GaTenantDashboardMenuEntry[] = (() => {
     if (role === 'SUPER_ADMIN') {
       return [
-        ...itemsToEntries(SUPER_ADMIN_BASE),
+        ...itemsToEntries(superAdminMenuWithPublicShortcuts()),
         { type: 'link', label: AUDIT_LOG_ENTRY.label, path: AUDIT_LOG_ENTRY.path },
       ]
     }

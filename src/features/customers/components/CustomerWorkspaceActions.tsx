@@ -1,4 +1,5 @@
 import { FormButton } from '../../../components/form'
+import CustomerHeaderAppLinkCompact from '../pages/workspace/CustomerHeaderAppLinkCompact'
 
 export type CustomerWorkspaceActionsVariant = 'mobile' | 'pc'
 
@@ -29,78 +30,83 @@ export function CustomerWorkspaceActions({
 }: CustomerWorkspaceActionsProps) {
   if (variant === 'mobile') {
     return (
-      <div className="customer-detail-feature-actions customer-detail-feature-actions--mobile-priority">
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          className="button button--secondary customer-mobile-action-btn"
-          onClick={() => onOpenFilesModal(customerId)}
-        >
-          <span className="customer-mobile-action-btn__icon" aria-hidden>
-            📁
-          </span>
-          <span className="customer-mobile-action-btn__text">고객 파일</span>
-        </FormButton>
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          className="button button--secondary customer-mobile-action-btn"
-          onClick={() => onOpenConsultationsModal(customerId)}
-        >
-          <span className="customer-mobile-action-btn__icon" aria-hidden>
-            💬
-          </span>
-          <span className="customer-mobile-action-btn__text">상담 내역</span>
-        </FormButton>
-        {carFeatureEnabled ? (
+      <>
+        <div className="customer-mobile-expanded-app-link">
+          <CustomerHeaderAppLinkCompact key={customerId} customerId={customerId} />
+        </div>
+        <div className="customer-detail-feature-actions customer-detail-feature-actions--mobile-priority">
           <FormButton
             htmlType="button"
             variant="secondary"
             className="button button--secondary customer-mobile-action-btn"
-            onClick={() => onOpenAutoModal(customerId)}
+            onClick={() => onOpenFilesModal(customerId)}
           >
             <span className="customer-mobile-action-btn__icon" aria-hidden>
-              📝
+              📁
             </span>
-            <span className="customer-mobile-action-btn__text">자동차 신청서</span>
+            <span className="customer-mobile-action-btn__text">고객 파일</span>
           </FormButton>
-        ) : null}
-        {gaExcelEnabled ? (
           <FormButton
             htmlType="button"
             variant="secondary"
             className="button button--secondary customer-mobile-action-btn"
-            onClick={() => onOpenGaModal(customerId)}
+            onClick={() => onOpenConsultationsModal(customerId)}
           >
             <span className="customer-mobile-action-btn__icon" aria-hidden>
-              📊
+              💬
             </span>
-            <span className="customer-mobile-action-btn__text">GA 데이터 보기</span>
+            <span className="customer-mobile-action-btn__text">상담 내역</span>
           </FormButton>
-        ) : null}
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          className="button button--secondary customer-mobile-action-btn"
-          onClick={() => onOpenPersonalMessage(customerId)}
-        >
-          <span className="customer-mobile-action-btn__icon" aria-hidden>
-            ✉️
-          </span>
-          <span className="customer-mobile-action-btn__text">개인메시지</span>
-        </FormButton>
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          className="button button--secondary customer-mobile-action-btn"
-          onClick={() => onOpenClaims(customerId)}
-        >
-          <span className="customer-mobile-action-btn__icon" aria-hidden>
-            📋
-          </span>
-          <span className="customer-mobile-action-btn__text">청구</span>
-        </FormButton>
-      </div>
+          {carFeatureEnabled ? (
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="button button--secondary customer-mobile-action-btn"
+              onClick={() => onOpenAutoModal(customerId)}
+            >
+              <span className="customer-mobile-action-btn__icon" aria-hidden>
+                📝
+              </span>
+              <span className="customer-mobile-action-btn__text">자동차 신청서</span>
+            </FormButton>
+          ) : null}
+          {gaExcelEnabled ? (
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="button button--secondary customer-mobile-action-btn"
+              onClick={() => onOpenGaModal(customerId)}
+            >
+              <span className="customer-mobile-action-btn__icon" aria-hidden>
+                📊
+              </span>
+              <span className="customer-mobile-action-btn__text">GA 데이터 보기</span>
+            </FormButton>
+          ) : null}
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="button button--secondary customer-mobile-action-btn"
+            onClick={() => onOpenPersonalMessage(customerId)}
+          >
+            <span className="customer-mobile-action-btn__icon" aria-hidden>
+              ✉️
+            </span>
+            <span className="customer-mobile-action-btn__text">개인메시지</span>
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="button button--secondary customer-mobile-action-btn"
+            onClick={() => onOpenClaims(customerId)}
+          >
+            <span className="customer-mobile-action-btn__icon" aria-hidden>
+              📋
+            </span>
+            <span className="customer-mobile-action-btn__text">청구</span>
+          </FormButton>
+        </div>
+      </>
     )
   }
 

@@ -59,6 +59,8 @@ import { IntroductionInstallPage } from './features/web/pages/IntroductionInstal
 import FeatureRequestPage from './features/feature-request/pages/FeatureRequestPage'
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
 import AdminAnalyticsPage from './features/analytics/pages/AdminAnalyticsPage'
+import AdminInsurerSitesPage from './features/insurer-sites/pages/AdminInsurerSitesPage'
+import InsurerSitesPage from './features/insurer-sites/pages/InsurerSitesPage'
 import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
 import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
 import { InsurerManagerOnlyRoute } from './features/auth/InsurerManagerOnlyRoute'
@@ -182,6 +184,7 @@ export const appRouter = createBrowserRouter([
               { path: 'adjuster/news/:newsletterId', element: <LossAdjusterManagerNewsDetailPage /> },
             ],
           },
+          { path: 'insurance/insurer-sites', element: <InsurerSitesPage /> },
           {
             element: <RequireNotInsurerManagerRoute />,
             children: [
@@ -289,6 +292,7 @@ export const appRouter = createBrowserRouter([
                     path: 'admin/analytics',
                     element: <AdminAnalyticsPage />,
                   },
+                  { path: 'admin/insurer-sites', element: <AdminInsurerSitesPage /> },
                 ],
               },
               {

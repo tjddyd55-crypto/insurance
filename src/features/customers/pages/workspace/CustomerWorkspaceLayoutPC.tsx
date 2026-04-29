@@ -3,6 +3,8 @@ import { Outlet } from 'react-router-dom'
 import { EmptyState } from '../../../../components/feedback'
 import { FormButton } from '../../../../components/form'
 import type { CustomerRecord } from '../../domain/types'
+import CustomerHeaderAppLinkCompact from './CustomerHeaderAppLinkCompact'
+import './CustomerWorkspaceLayoutPC.css'
 
 type WorkspaceActiveTab =
   | 'files'
@@ -107,15 +109,20 @@ export default function CustomerWorkspaceLayoutPC({
     <section className="customer-workspace-layout__right" aria-label="고객 연동 작업영역">
       <header className="customer-workspace-layout__right-header">
         <div className="customer-workspace-layout__customer-meta">
-          <h2 className="customer-workspace-layout__title">
-            {selectedCustomerId ? selectedCustomerLabel || `고객 #${selectedCustomerId}` : rightTitle(pathname)}
+          <div className="customer-workspace-layout__title-row">
+            <h2 className="customer-workspace-layout__title">
+              {selectedCustomerId ? selectedCustomerLabel || `고객 #${selectedCustomerId}` : rightTitle(pathname)}
+              {selectedCustomerId ? (
+                <span className="customer-workspace-layout__title-sub">
+                  {genderLabel}
+                  {insuranceAgeLabel ? ` · ${insuranceAgeLabel}` : ''}
+                </span>
+              ) : null}
+            </h2>
             {selectedCustomerId ? (
-              <span className="customer-workspace-layout__title-sub">
-                {genderLabel}
-                {insuranceAgeLabel ? ` · ${insuranceAgeLabel}` : ''}
-              </span>
+              <CustomerHeaderAppLinkCompact key={selectedCustomerId} customerId={selectedCustomerId} />
             ) : null}
-          </h2>
+          </div>
           <p className="customer-workspace-layout__subtitle">
             {selectedCustomerId
               ? `생년월일 ${selectedCustomer?.ssn || '-'} · 상담일 ${selectedCustomer?.lastConsultDate || '-'} · 연락처 ${
