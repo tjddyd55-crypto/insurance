@@ -32,6 +32,14 @@ function resolveDevicePlatform(): 'android' | 'ios' | 'web' {
   return 'web'
 }
 
+function hasRequiredDesignatedProfile(prefill: CustomerAppConnectPrefill | null): boolean {
+  return Boolean(
+    String(prefill?.name ?? '').trim() &&
+      String(prefill?.birthDate ?? '').trim() &&
+      String(prefill?.phone ?? '').trim(),
+  )
+}
+
 export default function CustomerAppConnectPage() {
   const { linkCode: linkCodeParam } = useParams<{ linkCode?: string }>()
   const navigate = useNavigate()
@@ -45,6 +53,7 @@ export default function CustomerAppConnectPage() {
   const [error, setError] = useState('')
   const [prefillError, setPrefillError] = useState('')
   const [prefill, setPrefill] = useState<CustomerAppConnectPrefill | null>(null)
+  const [serverDesignatedProfileIncomplete, setServerDesignatedProfileIncomplete] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [installHintOpen, setInstallHintOpen] = useState(false)
   const [installResult, setInstallResult] = useState('')
@@ -53,6 +62,7 @@ export default function CustomerAppConnectPage() {
 
   useEffect(() => {
     didAutoConnectRef.current = false
+    setServerDesignatedProfileIncomplete(false)
   }, [linkCodeParam])
 
   useEffect(() => {
@@ -60,6 +70,7 @@ export default function CustomerAppConnectPage() {
     setLinkCode(code)
     setPrefill(null)
     setPrefillError('')
+    setServerDesignatedProfileIncomplete(false)
     if (!code) {
       return
     }
@@ -119,6 +130,9 @@ export default function CustomerAppConnectPage() {
   }, [])
 
   const isDesignatedLink = Boolean(linkCodeParam) && prefill?.mode === 'designated'
+  const designatedPrefillProfileIncomplete = isDesignatedLink && Boolean(prefill?.isActive) && !hasRequiredDesignatedProfile(prefill)
+  const designatedConnectBlocked =
+    isDesignatedLink && Boolean(prefill?.isActive) && (designatedPrefillProfileIncomplete || serverDesignatedProfileIncomplete)
 
   const persistAfterConnect = useCallback(
     (connected: Awaited<ReturnType<typeof connectCustomerApp>>, code: string, deviceId: string) => {
@@ -265,7 +279,7 @@ export default function CustomerAppConnectPage() {
   }
 
   useEffect(() => {
-    if (!isDesignatedLink || !prefill?.isActive || prefillLoading) {
+    if (!isDesignatedLink || !prefill?.isActive || prefillLoading || designatedConnectBlocked) {
       return
     }
     const code = String(linkCodeParam ?? '').trim().toUpperCase()
@@ -294,17 +308,27 @@ export default function CustomerAppConnectPage() {
           return
         }
         persistAfterConnect(connected, code, deviceId)
+        setServerDesignatedProfileIncomplete(false)
       } catch (autoErr) {
         didAutoConnectRef.current = false
         if (!cancelled) {
-          setError(autoErr instanceof Error ? autoErr.message : '연결에 실패했습니다.')
+          if (
+            autoErr instanceof ApiError &&
+            autoErr.status === 422 &&
+            autoErr.code === CUSTOMER_APP_PROFILE_INCOMPLETE_CODE
+          ) {
+            setServerDesignatedProfileIncomplete(true)
+            setError('')
+          } else {
+            setError(autoErr instanceof Error ? autoErr.message : '연결에 실패했습니다.')
+          }
         }
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [isDesignatedLink, prefill?.isActive, prefillLoading, linkCodeParam, persistAfterConnect])
+  }, [isDesignatedLink, prefill?.isActive, prefillLoading, designatedConnectBlocked, linkCodeParam, persistAfterConnect])
 
   if (linkCodeParam && prefillLoading) {
     return (
@@ -454,4 +478,3 @@ export default function CustomerAppConnectPage() {
     </main>
   )
 }
-
