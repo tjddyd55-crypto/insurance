@@ -18,6 +18,41 @@
   row-gap: 6px;
 }
 
+.customer-mobile-expanded-app-link {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0 0 12px;
+  margin: 0 0 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.customer-mobile-expanded-app-link .customer-header-app-link-compact,
+.customer-mobile-expanded-app-link .customer-workspace-layout__claim-link-tools {
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+  gap: 8px;
+}
+
+.customer-mobile-expanded-app-link .customer-workspace-app-link-bar__pill,
+.customer-mobile-expanded-app-link .customer-header-app-link-compact > button {
+  min-height: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.customer-mobile-expanded-app-link .customer-workspace-layout__claim-copy-result {
+  flex-basis: 100%;
+  max-width: 100%;
+  text-align: center;
+}
+
 .customer-workspace-layout__claim-status {
   display: inline-flex;
   align-items: center;
