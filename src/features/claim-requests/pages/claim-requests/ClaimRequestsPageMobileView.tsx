@@ -1,5 +1,6 @@
 import { Children, cloneElement, isValidElement } from 'react'
 import type { ReactElement, ReactNode } from 'react'
+import { useLocation } from 'react-router-dom'
 
 type ClaimRequestsPageMobileViewSlots = {
   /** 링크 생성/재전송, 문자/카카오/미리보기 버튼 영역 */
@@ -114,14 +115,16 @@ function hasSlotContent(props: ClaimRequestsPageMobileViewSlots): boolean {
 }
 
 export default function ClaimRequestsPageMobileView(props: ClaimRequestsPageMobileViewProps) {
+  const location = useLocation()
   const slotMode = hasSlotContent(props)
+  const isCustomerWorkspace = /^\/customers\/\d+(\/|$)/.test(location.pathname)
 
   return (
     <main className="page claim-requests-page claim-requests-page--mobile page--with-back content-wrapper space-y-4">
       {slotMode ? (
         <>
-          {props.linkSection}
-          {props.connectionSection}
+          {isCustomerWorkspace ? null : props.linkSection}
+          {isCustomerWorkspace ? null : props.connectionSection}
           {props.requestListSection}
           {props.contentSection}
           {props.detailModal}
