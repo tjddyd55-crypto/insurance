@@ -149,6 +149,7 @@ export default function CustomerHeaderAppLinkCompact({ customerId }: Props) {
         htmlType="button"
         variant="secondary"
         size="sm"
+        className="customer-header-app-link-compact__copy-button"
         loading={copyBusy}
         disabled={!token?.trim()}
         onClick={() => void handleCopyLink()}
