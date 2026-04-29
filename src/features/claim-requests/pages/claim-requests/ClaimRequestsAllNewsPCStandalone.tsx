@@ -3,6 +3,7 @@ import FileUploader from '../../../../components/common/FileUploader'
 import { StatusMessage } from '../../../../components/feedback'
 import { FormButton, FormInput, FormTextarea } from '../../../../components/form'
 import { useAuth } from '../../../auth/AuthProvider'
+import { fetchMe } from '../../../auth/authApi'
 import { useInsurerNewsForm } from '../../../insurer-news/hooks/useInsurerNewsForm'
 import { uploadNewsletterAttachments } from '../../../insurer-news/services/insurerNews.service'
 import type { LocalAttachmentDraft } from '../../../insurer-news/types'
@@ -15,6 +16,21 @@ function formatDateTime(iso: string | null | undefined): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
   return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+function formatKrPhone(raw: string | null | undefined): string {
+  const digits = String(raw ?? '').replace(/\D/g, '')
+  if (!digits) return ''
+  if (digits.startsWith('02') && digits.length >= 9) {
+    return `${digits.slice(0, 2)}-${digits.slice(2, digits.length - 4)}-${digits.slice(-4)}`
+  }
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+  }
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
+  }
+  return digits
 }
 
 function firstImageUrl(item: AgentCustomerNewsItem | null | undefined): string {
@@ -44,7 +60,7 @@ function useAttachmentPreviewUrls(attachments: LocalAttachmentDraft[]) {
 }
 
 export default function ClaimRequestsAllNewsPCStandalone() {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const form = useInsurerNewsForm(null)
   const draftPreviewUrls = useAttachmentPreviewUrls(form.attachments)
   const [messages, setMessages] = useState<AgentCustomerNewsItem[]>([])
@@ -57,6 +73,33 @@ export default function ClaimRequestsAllNewsPCStandalone() {
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [previewIndex, setPreviewIndex] = useState(0)
+  const [agentName, setAgentName] = useState(user?.displayName || user?.username || '담당자')
+  const [agentPhone, setAgentPhone] = useState('')
+
+  useEffect(() => {
+    setAgentName(user?.displayName || user?.username || '담당자')
+  }, [user?.displayName, user?.username])
+
+  useEffect(() => {
+    if (!token?.trim()) {
+      setAgentPhone('')
+      return
+    }
+    let cancelled = false
+    void fetchMe(token)
+      .then((me) => {
+        if (cancelled) return
+        setAgentName(me.display_name || user?.displayName || user?.username || '담당자')
+        setAgentPhone(me.phone_number || '')
+      })
+      .catch(() => {
+        if (cancelled) return
+        setAgentPhone('')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, user?.displayName, user?.username])
 
   const selectedMessage = useMemo(
     () => messages.find((item) => item.id === selectedId) ?? messages[0] ?? null,
@@ -74,6 +117,7 @@ export default function ClaimRequestsAllNewsPCStandalone() {
 
   const previewImages = draftPreviewUrls.length > 0 ? draftPreviewUrls : savedPreviewImages
   const activePreviewImage = previewImages[previewIndex] ?? ''
+  const agentPhoneLabel = formatKrPhone(agentPhone)
 
   useEffect(() => {
     setPreviewIndex(0)
@@ -194,8 +238,8 @@ export default function ClaimRequestsAllNewsPCStandalone() {
             <header className="customer-message-phone__header">
               <div className="customer-message-phone__identity">
                 <span>담당자</span>
-                <strong>김진우</strong>
-                <small>· 010-0000-0000</small>
+                <strong>{agentName}</strong>
+                {agentPhoneLabel ? <small>· {agentPhoneLabel}</small> : null}
               </div>
               <div className="customer-message-phone__actions">
                 <span>전화하기</span>
