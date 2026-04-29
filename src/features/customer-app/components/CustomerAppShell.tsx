@@ -8,9 +8,9 @@ import '../customer-app.css'
 /**
  * 고객앱 레이아웃 Shell.
  *
- * - 상단: 담당 설계사 정보
+ * - 상단 공통 헤더: 담당자 이름·전화번호·전화하기·닫기
  * - 본문: children (Outlet 또는 페이지 콘텐츠)
- * - 하단 고정: 청구 요청 CTA(작성 화면 제외) + 4탭(홈/청구내역/개인메시지/내정보)
+ * - 하단 고정: 청구/문의 CTA + 4탭(홈/문의내역/개인메시지/내정보)
  */
 
 type Props = {
@@ -26,7 +26,7 @@ interface HeaderInfo {
   agentPhone: string | null
 }
 
-const HEADER_FALLBACK: HeaderInfo = { agentName: '담당 설계사', agentPhone: null }
+const HEADER_FALLBACK: HeaderInfo = { agentName: '담당자', agentPhone: null }
 
 function formatKrPhone(raw: string | null): string {
   const digits = (raw ?? '').replace(/\D/g, '')
@@ -43,6 +43,19 @@ function formatKrPhone(raw: string | null): string {
     return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`
   }
   return digits
+}
+
+function closeCustomerApp() {
+  try {
+    window.close()
+  } catch {
+    // ignore
+  }
+  window.setTimeout(() => {
+    if (window.history.length > 1) {
+      window.history.back()
+    }
+  }, 80)
 }
 
 export default function CustomerAppShell({ children, title = '고객 앱', showClaimCta = true }: Props) {
@@ -78,21 +91,32 @@ export default function CustomerAppShell({ children, title = '고객 앱', showC
     }
   }, [session])
 
+  const phoneDigits = header.agentPhone?.replace(/\D/g, '') ?? ''
+  const phoneLabel = formatKrPhone(header.agentPhone)
+
   return (
     <div className={`customer-app-shell${showClaimCta ? '' : ' customer-app-shell--no-cta'}`}>
       <header className="customer-app-header">
-        <div className="customer-app-header__role">담당 설계사</div>
-        <div className="customer-app-header__agent">
-          <span className="customer-app-header__name">{header.agentName}</span>
-          {header.agentPhone ? (
-            <a
-              className="customer-app-header__phone"
-              href={`tel:${header.agentPhone.replace(/\D/g, '')}`}
-              aria-label={`담당 설계사에게 전화걸기 ${header.agentPhone}`}
-            >
-              {formatKrPhone(header.agentPhone)}
-            </a>
-          ) : null}
+        <div className="customer-app-header__agent-line">
+          <div className="customer-app-header__identity">
+            <span className="customer-app-header__label">담당자</span>
+            <span className="customer-app-header__name">{header.agentName}</span>
+            {phoneLabel ? <span className="customer-app-header__phone-text">· {phoneLabel}</span> : null}
+          </div>
+          <div className="customer-app-header__actions">
+            {phoneDigits ? (
+              <a
+                className="customer-app-header__call-button"
+                href={`tel:${phoneDigits}`}
+                aria-label={`담당자에게 전화하기 ${phoneLabel}`}
+              >
+                전화하기
+              </a>
+            ) : null}
+            <button type="button" className="customer-app-header__close-button" onClick={closeCustomerApp}>
+              닫기
+            </button>
+          </div>
         </div>
       </header>
 
@@ -111,7 +135,7 @@ export default function CustomerAppShell({ children, title = '고객 앱', showC
                 fullWidth
                 onClick={() => navigate('/customer-app/requests/new')}
               >
-                청구 요청하기
+                청구/문의하기
               </FormButton>
             </div>
           ) : null}
@@ -136,7 +160,7 @@ const TABS: TabItem[] = [
   },
   {
     to: '/customer-app/requests',
-    label: '청구내역',
+    label: '문의내역',
     match: (path) => path.startsWith('/customer-app/requests'),
   },
   {
@@ -156,7 +180,7 @@ function CustomerAppBottomNav() {
   return (
     <nav className="customer-app-tabbar" aria-label="고객앱 주요 메뉴">
       {TABS.map((tab) => {
-        const active = tab.match(location.pathname)
+        const active = tab.match(pathname)
         return (
           <NavLink
             key={tab.to}
