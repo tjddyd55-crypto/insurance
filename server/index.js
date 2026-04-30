@@ -46,6 +46,7 @@ import { registerSubscriptionAdminApi } from './registerSubscriptionAdminApi.js'
 import { registerPdfTemplateApi } from './registerPdfTemplateApi.js'
 import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
+import { registerContractPublicApi } from './apis/contractPublicApi.js'
 import { registerContractAdminApi } from './apis/contractAdminApi.js'
 import { registerSubscriptionEndpoints } from './subscription/endpoints.js'
 import { enforceActiveSubscription } from './subscription/requireActiveSubscription.js'
@@ -1401,6 +1402,8 @@ registerAuthAccountSmsApi(apiRouter, {
 })
 
 registerContractPublicOtpApi(apiRouter, { pool, handleDbError })
+
+registerContractPublicApi(apiRouter, { pool, handleDbError })
 
 registerContractAdminApi(apiRouter, {
   pool,
