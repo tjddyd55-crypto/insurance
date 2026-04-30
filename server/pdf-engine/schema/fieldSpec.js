@@ -348,6 +348,8 @@ function validateOneValue(field, rawStr) {
  */
 function isRequiredViolated(field, value) {
   if (!field.required) return false
+  /* 손사인은 계약 서명 플로우에서 파일/해시로 검증한다. PDF 텍스트 렌더 입력 맵에는 없다. */
+  if (field.fieldType === 'signature') return false
   if (field.fieldType === 'checkbox') {
     try {
       const parsed = JSON.parse(value)
