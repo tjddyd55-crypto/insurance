@@ -1,7 +1,7 @@
 import { FormButton, FormInput, FormSelect } from '../../../components/form'
 import { useState } from 'react'
 
-const FIELD_SHELL = 'rounded-xl border-2 border-[#14b8a6] bg-[var(--bg-main)] px-3 py-3 text-[var(--text-primary)]'
+const FIELD_SHELL = 'field__control w-full px-3 py-3'
 
 type DirectAutoDesignFormState = {
   가입조건: string
@@ -22,7 +22,7 @@ const INITIAL_FORM: DirectAutoDesignFormState = {
 function SelectChevron() {
   return (
     <span
-      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#0f766e] opacity-85"
+      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 opacity-90"
       aria-hidden
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -43,10 +43,10 @@ export function DirectAutoPage() {
   }
 
   return (
-    <main className="page page--with-back">
+    <main className="insurance-dark-forms page page--with-back">
       <header className="page-header">
         <h1>설계요청</h1>
-        <p className="text-[var(--text-secondary)] text-sm mt-2 leading-relaxed">
+        <p className="text-sm mt-2 leading-relaxed">
           설계를 위한 정보를 입력해주세요
           <br />
           모든 항목을 입력해주세요
@@ -54,9 +54,9 @@ export function DirectAutoPage() {
       </header>
 
       <section className="w-full space-y-5 px-1 pb-10">
-        <div className="rounded-xl border-2 border-[#14b8a6] bg-[var(--bg-elevated)] p-4 sm:p-5 space-y-5">
+        <div className="card space-y-5">
           <label className="block space-y-2">
-            <span className="text-sm font-medium text-[var(--text-primary)]">가입조건</span>
+            <span className="text-sm font-semibold text-slate-300">가입조건</span>
             <div className="relative">
               <FormSelect
                 className={`w-full ${FIELD_SHELL} appearance-none pr-11`}
@@ -73,7 +73,7 @@ export function DirectAutoPage() {
           </label>
 
           <label className="block space-y-2">
-            <span className="text-sm font-medium text-[var(--text-primary)]">고객유형</span>
+            <span className="text-sm font-semibold text-slate-300">고객유형</span>
             <div className="relative">
               <FormSelect
                 className={`w-full ${FIELD_SHELL} appearance-none pr-11`}
@@ -90,7 +90,7 @@ export function DirectAutoPage() {
           </label>
 
           <label className="block space-y-2">
-            <span className="text-sm font-medium text-[var(--text-primary)]">고객명</span>
+            <span className="text-sm font-semibold text-slate-300">고객명</span>
             <FormInput
               type="text"
               name="direct-auto-customer-name"
@@ -103,7 +103,7 @@ export function DirectAutoPage() {
           </label>
 
           <label className="block space-y-2">
-            <span className="text-sm font-medium text-[var(--text-primary)]">연락처</span>
+            <span className="text-sm font-semibold text-slate-300">연락처</span>
             <FormInput
               type="tel"
               name="direct-auto-phone"
@@ -116,7 +116,7 @@ export function DirectAutoPage() {
           </label>
 
           <label className="block space-y-2">
-            <span className="text-sm font-medium text-[var(--text-primary)]">차량유형</span>
+            <span className="text-sm font-semibold text-slate-300">차량유형</span>
             <div className="relative">
               <FormSelect
                 className={`w-full ${FIELD_SHELL} appearance-none pr-11`}

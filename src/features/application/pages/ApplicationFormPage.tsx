@@ -406,7 +406,7 @@ export function ApplicationFormPage() {
 
   if (isLoading) {
     return (
-      <main className="page page--with-back">
+      <main className="insurance-dark-forms page page--with-back">
         <header className="page-header">
           <h1>신청서 로딩 중</h1>
           <p>저장된 데이터를 확인하고 있습니다.</p>
@@ -416,7 +416,7 @@ export function ApplicationFormPage() {
   }
 
   return (
-    <main className="page page--with-back application-form-page">
+    <main className="insurance-dark-forms page page--with-back application-form-page">
       <header className="page-header">
         <h1>{pageTitle}</h1>
         <p>{statusText}</p>

@@ -96,12 +96,12 @@ export default function CustomerAppRequestDetailPage() {
                 <span>접수 {formatDateTime(detail.submittedAt)}</span>
                 {detail.processedAt ? <span>처리 {formatDateTime(detail.processedAt)}</span> : null}
               </div>
-              {detail.memo ? <div className="customer-app-claim-detail-memo" style={{ marginTop: 14 }}>{detail.memo}</div> : null}
-              <div style={{ marginTop: 12 }}>
+              {detail.memo ? <div className="customer-app-claim-detail-memo">{detail.memo}</div> : null}
+              <div className="customer-app-claim-refresh-wrap">
                 <FormButton
                   htmlType="button"
                   variant="secondary"
-                  className="!h-auto !py-2 !px-3 text-[12px]"
+                  className="button button--secondary customer-app-claim-refresh-btn"
                   onClick={() => {
                     if (!session || hasInvalidRequestId) {
                       return
@@ -119,9 +119,9 @@ export default function CustomerAppRequestDetailPage() {
               <h2 className="customer-app-claim-section-title">첨부 파일</h2>
               <p className="customer-app-claim-section-description">제출한 이미지와 PDF를 확인할 수 있습니다.</p>
               {detail.files.length === 0 ? (
-                <div className="customer-app-claim-empty" style={{ marginTop: 12 }}>첨부 파일이 없습니다.</div>
+                <div className="customer-app-claim-empty customer-app-claim-empty--in-card">첨부 파일이 없습니다.</div>
               ) : (
-                <div className="customer-app-claim-detail-files" style={{ marginTop: 12 }}>
+                <div className="customer-app-claim-detail-files">
                   {detail.files.map((file) => (
                     <a
                       key={file.id}
@@ -150,9 +150,9 @@ export default function CustomerAppRequestDetailPage() {
             <section className="customer-app-claim-card">
               <h2 className="customer-app-claim-section-title">상태 이력</h2>
               {detail.statusLogs.length === 0 ? (
-                <div className="customer-app-claim-empty" style={{ marginTop: 12 }}>상태 이력이 없습니다.</div>
+                <div className="customer-app-claim-empty customer-app-claim-empty--in-card">상태 이력이 없습니다.</div>
               ) : (
-                <ul className="customer-app-claim-timeline" style={{ marginTop: 12 }}>
+                <ul className="customer-app-claim-timeline">
                   {detail.statusLogs.map((log) => (
                     <li key={log.id} className="customer-app-claim-timeline__item">
                       <div className="customer-app-claim-timeline__main">

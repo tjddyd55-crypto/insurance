@@ -7,6 +7,7 @@
 @import './features/admin/admin-ui.css';
 @import './features/insurer-news/insurer-news.css';
 @import './features/web/web.css';
+@import './styles/dark-application-pdf-scope.css';
 
 /* =============================================================================
  * UI 가이드 (디자이너/주니어 개발자용)

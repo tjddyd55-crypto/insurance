@@ -81,7 +81,7 @@ export function ApplicationListPage() {
   }
 
   return (
-    <main className="page page--with-back">
+    <main className="insurance-dark-forms page page--with-back">
       <header className="page-header">
         <h1>내 신청서 목록</h1>
         <p>{statusText || '저장된 신청서를 불러오거나 수정/삭제할 수 있습니다.'}</p>

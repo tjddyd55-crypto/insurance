@@ -82,7 +82,7 @@ export function CarInsuranceDashboardPage() {
   )
 
   return (
-    <main className="page page--with-back">
+    <main className="insurance-dark-forms page page--with-back">
       <header className="page-header">
         <h1>자동차보험신청서</h1>
         {statusText ? <p>{statusText}</p> : null}

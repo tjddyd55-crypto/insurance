@@ -60,20 +60,15 @@ export default function CustomerAppNewsDetailPage() {
   return (
     <>
       <StatusMessage message={hasInvalidNewsId ? '잘못된 소식지 번호입니다.' : error} tone="error" />
-      {!detail ? <div className="text-sm text-[var(--text-secondary)]">불러오는 중…</div> : null}
+      {!detail ? <div className="customer-app-news-page-hint">불러오는 중…</div> : null}
       {detail ? (
-        <article className="insurer-news-detail-article">
-          <header style={{ marginBottom: 12 }} className="insurer-news-detail-text">
-            <p className="insurer-news-muted" style={{ margin: '0 0 4px', fontSize: 14 }}>
-              고객 소식지
-            </p>
+        <article className="insurer-news-detail-article customer-app-news-detail-article">
+          <header className="insurer-news-detail-text customer-app-news-detail-header">
+            <p className="insurer-news-muted customer-app-news-detail-kicker">고객 소식지</p>
             {detail.title && detail.title !== '전체소식지' ? (
-              <h2 className="insurer-news-detail-header__title" style={{ marginBottom: 8 }}>
-                {detail.isPinned ? '[중요] ' : ''}
-                {detail.title}
-              </h2>
+              <h2 className="insurer-news-detail-header__title customer-app-news-detail-title">{detail.isPinned ? '[중요] ' : ''}{detail.title}</h2>
             ) : null}
-            <time dateTime={detail.updatedAt ?? undefined} style={{ fontSize: '0.95rem' }}>
+            <time className="customer-app-news-detail-time" dateTime={detail.updatedAt ?? undefined}>
               {formatDateTime(detail.updatedAt)}
             </time>
           </header>

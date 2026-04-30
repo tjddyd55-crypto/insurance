@@ -82,7 +82,7 @@ export default function CustomerAppNewsListPage() {
     <>
       <StatusMessage message={error} tone="error" />
       {rows.length > 0 ? (
-        <div className="text-xs text-[var(--text-secondary)]">
+        <div className="customer-app-news-page-hint">
           {isPersonalMode ? '개별로 전달된 소식지만 표시됩니다.' : '전체 공지 소식지가 표시됩니다.'}
         </div>
       ) : null}
@@ -138,7 +138,7 @@ export default function CustomerAppNewsListPage() {
       ) : null}
 
       {rows.length > 0 ? (
-        <div className="text-xs text-[var(--text-secondary)]">
+        <div className="customer-app-news-page-hint">
           최신 업데이트: {formatDateTime(rows[0]?.updatedAt ?? null)}
         </div>
       ) : null}

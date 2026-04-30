@@ -13,7 +13,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  background: var(--bg-default, #f7f7f9);
+  background: #0b111a;
 }
 
 /* 상단 — 담당 설계사 (어두운 바 · 버튼 고대비) */
@@ -168,6 +168,8 @@ a.customer-app-header__action-btn--call {
   flex-direction: column;
   gap: 12px;
   box-sizing: border-box;
+  background: #0b111a;
+  color: #e5e7eb;
 }
 
 /* 홈: 슬라이드~CTA 사이 흰 배경 제거 — 본문 전체 다크 */
@@ -197,8 +199,8 @@ a.customer-app-header__action-btn--call {
   right: 0;
   bottom: 0;
   z-index: 40;
-  background: var(--bg-elevated, #ffffff);
-  border-top: 1px solid var(--border-default, #e5e7eb);
+  background: #111827;
+  border-top: 1px solid #1e293b;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   box-sizing: border-box;
 }
@@ -223,7 +225,7 @@ a.customer-app-header__action-btn--call {
 .customer-app-tabbar {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  background: var(--bg-elevated, #ffffff);
+  background: #111827;
 }
 
 .customer-app-tabbar__item {
@@ -236,19 +238,19 @@ a.customer-app-header__action-btn--call {
   font-weight: 500;
   line-height: 1.28;
   text-align: center;
-  color: var(--text-secondary, #6b7280);
+  color: #94a3b8;
   text-decoration: none;
   transition: color 120ms ease;
   word-break: keep-all;
 }
 
 .customer-app-tabbar__item.is-active {
-  color: var(--accent-primary, #2563eb);
+  color: #2563eb;
   font-weight: 700;
 }
 
 .customer-app-tabbar__item:active {
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* ------------------------ Home (단일 활성 홈 세트 슬라이드) ------------------------ */
@@ -342,7 +344,7 @@ a.customer-app-header__action-btn--call {
 .customer-app-profile__danger {
   margin-top: 24px;
   padding-top: 16px;
-  border-top: 1px solid var(--border-default, #e5e7eb);
+  border-top: 1px solid #1e293b;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -355,6 +357,56 @@ a.customer-app-header__action-btn--call {
 .customer-app-profile__danger-help {
   margin: 0;
   font-size: 12px;
-  color: var(--text-secondary, #6b7280);
+  color: #94a3b8;
   line-height: 1.5;
+}
+
+/* 내정보 — 입력·레이아웃 (다크 SSOT) */
+.customer-app-profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.customer-app-profile-page__inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  background: #111827;
+  border: 1px solid #1e293b;
+  box-sizing: border-box;
+}
+
+.customer-app-profile-page__inputs .form-input.field--editable,
+.customer-app-profile-page__inputs .form-input.field--readonly {
+  width: 100%;
+  font-size: 14px;
+  min-height: 46px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #020617;
+  color: #f8fafc;
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+
+.customer-app-profile-page__inputs .form-input::placeholder {
+  color: #64748b;
+}
+
+.customer-app-profile-page__inputs .form-input:focus,
+.customer-app-profile-page__inputs .form-input:focus-visible {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+}
+
+.customer-app-main .status {
+  color: #94a3b8;
+}
+
+.customer-app-main .status--error {
+  color: #f87171;
 }

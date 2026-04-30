@@ -137,14 +137,14 @@ export default function PdfDocumentDetailPage() {
 
   if (state.status === 'loading') {
     return (
-      <main className="pdf-engine-page">
+      <main className="insurance-dark-forms pdf-engine-page">
         <p className="pdf-engine-page__hint">문서를 불러오는 중…</p>
       </main>
     )
   }
   if (state.status === 'error') {
     return (
-      <main className="pdf-engine-page">
+      <main className="insurance-dark-forms pdf-engine-page">
         <div className="pdf-engine-page__error">{state.message}</div>
         <div className="pdf-engine-page__toolbar">
           <Link to="/application/documents" className="pdf-engine-editor__btn">
@@ -164,7 +164,7 @@ export default function PdfDocumentDetailPage() {
   }
 
   return (
-    <main className="pdf-engine-page">
+    <main className="insurance-dark-forms pdf-engine-page">
       <div className="pdf-engine-page__toolbar">
         <Link to="/application/documents" className="pdf-engine-editor__btn">
           ← 문서 목록
