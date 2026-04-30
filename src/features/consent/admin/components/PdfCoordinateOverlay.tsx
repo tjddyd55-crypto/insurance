@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist'
 import { setupPdfWorker } from '../../../../lib/pdfjs/setupWorker'
+import { copyPdfBytesForPdfJs } from '../../../pdf-engine/lib/pdfArrayBuffer'
 
 /*
  * pdfjs 워커는 공용 SSOT 에서만 초기화한다 — Electron(file://) 환경에서도
@@ -106,7 +107,8 @@ export function PdfCoordinateOverlay({
 
     ;(async () => {
       try {
-        const pdf = await getDocument({ data: pdfArrayBuffer }).promise
+        const pdfJsBytes = copyPdfBytesForPdfJs(pdfArrayBuffer)
+        const pdf = await getDocument({ data: pdfJsBytes }).promise
         if (cancelled) {
           return
         }

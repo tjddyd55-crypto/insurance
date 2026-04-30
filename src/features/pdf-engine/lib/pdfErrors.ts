@@ -1,3 +1,5 @@
+import { isLikelyDetachedArrayBufferError } from './pdfArrayBuffer'
+
 /**
  * PDF 로딩/렌더 과정의 "실패 지점 라벨".
  *
@@ -7,7 +9,8 @@
  *     2) pdf.getPage(n) 로 페이지 객체 조회
  *     3) page.render(...) 로 캔버스 래스터화
  *   셋 중 어디서 실패했는지에 따라 대응 방법이 다르다:
- *     - parse-failed       → 스토리지/업로드 문제 (파일 자체가 깨졌거나 MIME 오응답)
+ *     - parse-failed             → 바이너리 파싱 실패(형식/MIME 등). buffer detach 는 buffer-transport-failed
+ *     - buffer-transport-failed → ArrayBuffer 가 worker transfer 로 detach 된 뒤 재사용된 경우(클라이언트)
  *     - page-fetch-failed  → 페이지 수 범위 오류 또는 내부 구조 손상
  *     - page-render-failed → 폰트/이미지 서브리소스 취득 실패, 메모리
  *     - not-pdf-response   → fetch 층에서 구분 (API가 HTML/JSON 을 돌려준 경우 등)
@@ -17,6 +20,7 @@
 export type PdfLoadErrorCode =
   | 'fetch-failed'
   | 'parse-failed'
+  | 'buffer-transport-failed'
   | 'page-fetch-failed'
   | 'page-render-failed'
   | 'not-pdf-response'
@@ -51,6 +55,8 @@ export function messageForPdfLoadErrorCode(
       return 'PDF 파일 대신 다른 응답을 받았습니다. 서버 응답을 확인해주세요.'
     case 'parse-failed':
       return 'PDF 파일을 불러오지 못했습니다. 파일이 손상되었거나 지원되지 않는 형식일 수 있습니다.'
+    case 'buffer-transport-failed':
+      return 'PDF 데이터를 다시 읽는 중 오류가 발생했습니다. 화면을 새로고침하거나 다시 시도해주세요.'
     case 'page-fetch-failed':
       return '선택한 페이지를 불러올 수 없습니다. 페이지 번호를 다시 확인해주세요.'
     case 'page-render-failed':
@@ -74,6 +80,13 @@ export function describePdfLoadError(error: unknown): {
   code: PdfLoadErrorCode | 'unknown'
   message: string
 } {
+  const cause = error instanceof PdfLoadError ? (error as { cause?: unknown }).cause : undefined
+  if (isLikelyDetachedArrayBufferError(error) || isLikelyDetachedArrayBufferError(cause)) {
+    return {
+      code: 'buffer-transport-failed',
+      message: messageForPdfLoadErrorCode('buffer-transport-failed'),
+    }
+  }
   if (error instanceof PdfLoadError) {
     return { code: error.code, message: messageForPdfLoadErrorCode(error.code) }
   }

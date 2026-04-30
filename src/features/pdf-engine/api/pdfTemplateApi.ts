@@ -217,7 +217,7 @@ export async function fetchAdminPdfTemplateFile(
       receivedByteLength: 0,
     })
     throw new ApiError(
-      '원본 PDF 를 가져오지 못했습니다. 업로드 직후라면 잠시 후 다시 시도해 주세요.',
+      'PDF 파일 데이터를 불러오지 못했습니다. 파일 저장 상태를 확인해주세요.',
       res.status,
     )
   }

@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist'
 import { canvasLengthToPdf, canvasToPdf } from '../lib/coordinateMath'
+import { copyPdfBytesForPdfJs } from '../lib/pdfArrayBuffer'
 import {
   describePdfLoadError,
   messageForPdfLoadErrorCode,
@@ -234,8 +235,8 @@ export function PdfOverlayCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const markCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const pageSizeRef = useRef<{ widthPt: number; heightPt: number } | null>(null)
-  /** 동일 ArrayBuffer 에 대해 pdfjs 문서를 재파싱하지 않기 위한 캐시 */
-  const pdfDocCacheRef = useRef<{ buffer: ArrayBuffer; doc: PDFDocumentProxy } | null>(null)
+  /** 동일 원본 ArrayBuffer 참조에 대해 pdfjs 문서를 재파싱하지 않기 위한 캐시(참조는 prop 그대로). */
+  const pdfDocCacheRef = useRef<{ sourceRef: ArrayBuffer; doc: PDFDocumentProxy } | null>(null)
   const loadGenRef = useRef(0)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [fatalErrorCode, setFatalErrorCode] = useState<PdfLoadErrorCode | 'unknown' | null>(null)
@@ -351,6 +352,7 @@ export function PdfOverlayCanvas({
     /*
      * 외부 prop(pdfBuffer/pageIndex/previewInnerWidth) 에 맞춰 렌더한다.
      * 동일 pdfBuffer 참조면 getDocument 는 생략하고 페이지 raster 만 갱신한다.
+     * getDocument에는 원본 ArrayBuffer 를 넘기지 않는다(transfer 로 detach 됨).
      * loadGenRef 로 오래된 비동게 완료가 UI 를 덮어쓰지 않게 한다.
      */
     if (!pdfBuffer) {
@@ -370,14 +372,17 @@ export function PdfOverlayCanvas({
     setWarningCode(null)
 
     void (async () => {
+      let sourceByteLength = 0
       let parseOk = false
       let renderOk = false
       let numPagesForLog: number | undefined
       try {
+        sourceByteLength = pdfBuffer.byteLength
+
         let pdf: PDFDocumentProxy
         let documentCallbackError: unknown = null
         const cached = pdfDocCacheRef.current
-        const reuseDoc = Boolean(cached && cached.buffer === pdfBuffer)
+        const reuseDoc = Boolean(cached && cached.sourceRef === pdfBuffer)
 
         if (reuseDoc && cached) {
           pdf = cached.doc
@@ -388,16 +393,17 @@ export function PdfOverlayCanvas({
             pdfDocCacheRef.current = null
           }
           try {
-            pdf = await getDocument({ data: pdfBuffer }).promise
+            const pdfJsBytes = copyPdfBytesForPdfJs(pdfBuffer)
+            pdf = await getDocument({ data: pdfJsBytes }).promise
           } catch (e) {
-            throw new PdfLoadError('parse-failed', { byteLength: pdfBuffer.byteLength }, e)
+            throw new PdfLoadError('parse-failed', { byteLength: sourceByteLength }, e)
           }
           parseOk = true
           if (cancelled || myGen !== loadGenRef.current) {
             void pdf.destroy().catch(() => {})
             return
           }
-          pdfDocCacheRef.current = { buffer: pdfBuffer, doc: pdf }
+          pdfDocCacheRef.current = { sourceRef: pdfBuffer, doc: pdf }
           try {
             onDocumentReady?.(pdf)
           } catch (cbErr) {
@@ -481,7 +487,7 @@ export function PdfOverlayCanvas({
             pageCount: numPagesForLog,
             serverPageCount: debugMeta?.serverPageCount,
             fetchUrlPath: debugMeta?.fetchUrlPath,
-            byteLength: pdfBuffer.byteLength,
+            byteLength: sourceByteLength,
             renderSucceeded: renderOk,
             parserSucceeded: parseOk,
             error:
@@ -491,7 +497,7 @@ export function PdfOverlayCanvas({
         logger.error('pdf.overlay.load-failed', {
           code,
           pageIndex,
-          byteLength: pdfBuffer.byteLength,
+          byteLength: sourceByteLength,
           error: e,
         })
       }
