@@ -13,12 +13,23 @@ type Props = {
   lastCreated: CreateSendSessionResult | null
   onCreate: () => void
   canSend: boolean
+  /** 선택한 계약서 템플릿이 active가 아닐 때 발송 버튼 비활성 사유 */
+  inactiveTemplateHint?: string | null
   detail: SendSessionDetail | null
   onRefresh: () => void
   error: string | null
 }
 
-export function SendSessionPanel({ busy, lastCreated, onCreate, canSend, detail, onRefresh, error }: Props) {
+export function SendSessionPanel({
+  busy,
+  lastCreated,
+  onCreate,
+  canSend,
+  inactiveTemplateHint,
+  detail,
+  onRefresh,
+  error,
+}: Props) {
   const session = detail ?? (lastCreated ? mapLastToDetailShape(lastCreated) : null)
 
   const copyLink = async (linkCode: string) => {
@@ -44,6 +55,11 @@ export function SendSessionPanel({ busy, lastCreated, onCreate, canSend, detail,
       <FormButton htmlType="button" variant="primary" size="sm" disabled={!canSend || busy} onClick={onCreate}>
         {busy ? '생성 중…' : '발송 세션 생성'}
       </FormButton>
+      {inactiveTemplateHint ? (
+        <p className="contract-signature-console__inline-warning" role="status" style={{ margin: '8px 0 0' }}>
+          {inactiveTemplateHint}
+        </p>
+      ) : null}
       <p className="contract-signature-console__hint">
         선택한 고객에 등록된 휴대폰으로만 링크가 열립니다. 임의 번호 입력·발송은 할 수 없습니다.
       </p>

@@ -13,6 +13,19 @@ type Props = {
   error: string | null
 }
 
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'draft':
+      return 'draft (아직 발송 불가)'
+    case 'active':
+      return 'active (발송 가능)'
+    case 'archived':
+      return 'archived (사용 중지)'
+    default:
+      return status
+  }
+}
+
 export function ContractTemplatePanel({
   pdfTemplateId,
   pdfTitle,
@@ -28,6 +41,8 @@ export function ContractTemplatePanel({
     ? templates.filter((t) => t.pdfTemplateId === pdfTemplateId)
     : []
   const canPick = pdfTemplateId != null
+  const titleExample =
+    (pdfTitle ?? '').trim() ? `${(pdfTitle ?? '').trim()} 전자서명 템플릿` : '계약서 전자서명 템플릿'
 
   return (
     <div>
@@ -43,17 +58,28 @@ export function ContractTemplatePanel({
       ) : linked.length === 0 ? (
         <div>
           <p style={{ fontSize: 13 }}>
-            이 PDF에 연결된 <code>contract_template</code>이 없습니다. 테스트용 초안을 만들 수 있습니다.
+            이 PDF에 연결된 계약서 템플릿이 없습니다. 전자서명 발송용 초안을 만들 수 있습니다.
           </p>
           <FormButton htmlType="button" variant="primary" size="sm" disabled={busy} onClick={onCreateTest}>
-            [TEST] 계약서 템플릿 생성
+            전자서명용 계약서 템플릿 만들기
           </FormButton>
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>
-            제목은 자동으로 <strong>[TEST]</strong> 접두어가 붙습니다. (예: [TEST] {pdfTitle ?? '…'})
+            생성 시 제목 예: <strong>{titleExample}</strong>
           </p>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
+          <ul className="contract-signature-console__hint" style={{ margin: '0 0 10px', paddingLeft: 18, fontSize: 12 }}>
+            <li>
+              <strong>draft</strong>: 아직 발송 불가
+            </li>
+            <li>
+              <strong>active</strong>: 발송 가능
+            </li>
+            <li>
+              <strong>archived</strong>: 사용 중지
+            </li>
+          </ul>
           <table className="table table-sm" style={{ fontSize: 13 }}>
             <thead>
               <tr>
@@ -78,7 +104,7 @@ export function ContractTemplatePanel({
                     />
                   </td>
                   <td>{t.title}</td>
-                  <td>{t.status}</td>
+                  <td>{statusLabel(t.status)}</td>
                   <td>
                     <code style={{ fontSize: 11 }}>{t.id}</code>
                   </td>
@@ -102,7 +128,7 @@ export function ContractTemplatePanel({
             </tbody>
           </table>
           <FormButton htmlType="button" variant="action" size="sm" className="p-0" disabled={busy} onClick={onCreateTest}>
-            + 또 다른 [TEST] 템플릿 만들기
+            + 전자서명용 계약서 템플릿 만들기
           </FormButton>
         </div>
       )}

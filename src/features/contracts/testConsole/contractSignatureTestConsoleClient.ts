@@ -159,7 +159,8 @@ export async function createContractTemplateFromPdfTemplate(
   params: { pdfTemplateId: number; pdfTitle: string; tenantGaId: number | null },
 ): Promise<string> {
   const isSuper = role === 'SUPER_ADMIN'
-  const title = `[TEST] ${String(params.pdfTitle ?? '').trim() || '계약 템플릿'}`
+  const baseTitle = String(params.pdfTitle ?? '').trim() || '계약서'
+  const title = `${baseTitle} 전자서명 템플릿`
   const body = await apiRequest<{ data?: { id?: string } }>(`/api/admin/contracts/templates`, {
     method: 'POST',
     token,
@@ -167,7 +168,7 @@ export async function createContractTemplateFromPdfTemplate(
       title,
       pdfTemplateId: params.pdfTemplateId,
       status: 'draft',
-      description: '[TEST] 전자서명 테스트 콘솔에서 생성됨',
+      description: '전자서명 관리에서 선택한 PDF 템플릿으로 생성됨',
       ...tenantBody(params.tenantGaId, isSuper),
     }),
   })
@@ -196,7 +197,12 @@ export async function activateContractTemplate(
 export async function searchCustomersForContractTest(
   token: string,
   q: string,
+  role: string | undefined,
+  scopeGaId: number | null,
 ): Promise<CustomerRecord[]> {
+  if (role === 'SUPER_ADMIN') {
+    return searchCustomers(token, q, { scopeGaId })
+  }
   return searchCustomers(token, q)
 }
 

@@ -542,6 +542,7 @@ function mapCustomerRow(row) {
     id: Number(row.id),
     userId: String(row.user_id),
     name: row.name ?? '',
+    customerCode: row.customer_code != null ? String(row.customer_code) : null,
     birthDate,
     ssn: row.ssn ?? '',
     gender,
@@ -5763,48 +5764,107 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
     if (!userId) {
       return
     }
-    const gaId = parseGaId(req.user?.gaId)
-    if (gaId == null) {
+    const role = normalizeUserRole(req.user?.role)
+    const jwtGaId = parseGaId(req.user?.gaId)
+
+    let gaId = jwtGaId
+    if (role === 'SUPER_ADMIN') {
+      gaId = parseGaId(req.query.scope_ga_id ?? req.query.tenant_ga_id)
+      if (gaId == null) {
+        res.status(400).json({
+          message: '고객 검색 범위(GA)가 필요합니다. scope_ga_id(또는 tenant_ga_id)를 지정해 주세요.',
+        })
+        return
+      }
+    } else if (gaId == null) {
       res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
       return
     }
 
     const q = String(req.query.q ?? '').trim()
-    let result
-    if (!q) {
-      result = await safeQuery(
-        pool,
-        `
-        SELECT
+    const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 50)
+    const isGaWide = role === 'SUPER_ADMIN' || GA_DELEGATE_ROLES.includes(role)
+
+    const selectList = `
           c.id, c.user_id, c.name, c.birth_date, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
           c.car_number, c.car_model, c.car_year, c.renewal_date,
           c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
-          c.is_favorite, c.created_at
+          c.is_favorite, c.created_at,
+          c.customer_code
+    `
+
+    let result
+    if (!q) {
+      if (isGaWide) {
+        result = await safeQuery(
+          pool,
+          `
+        SELECT
+          ${selectList}
+        FROM customers c
+        WHERE c.ga_id = $1 AND c.deleted_at IS NULL
+        ORDER BY c.created_at DESC
+        LIMIT $2
+        `,
+          [gaId, limit],
+        )
+      } else {
+        result = await safeQuery(
+          pool,
+          `
+        SELECT
+          ${selectList}
         FROM customers c
         WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
         ORDER BY c.created_at DESC
-        LIMIT 2000
+        LIMIT $3
         `,
-        [userId, gaId],
-      )
+          [userId, gaId, limit],
+        )
+      }
     } else {
       const pattern = `%${escapeIlikePattern(q)}%`
-      result = await safeQuery(
-        pool,
-        `
+      const rawId = /^\d+$/.test(q) ? Number(q) : null
+      const idParam = rawId != null && Number.isInteger(rawId) && rawId > 0 ? rawId : null
+      if (isGaWide) {
+        result = await safeQuery(
+          pool,
+          `
         SELECT
-          c.id, c.user_id, c.name, c.birth_date, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
-          c.car_number, c.car_model, c.car_year, c.renewal_date,
-          c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
-          c.is_favorite, c.created_at
+          ${selectList}
         FROM customers c
-        WHERE c.user_id = $1 AND c.ga_id = $3 AND c.deleted_at IS NULL
-          AND (c.name ILIKE $2 ESCAPE '\\' OR c.phone ILIKE $2 ESCAPE '\\')
+        WHERE c.ga_id = $1 AND c.deleted_at IS NULL
+          AND (
+            c.name ILIKE $2 ESCAPE '\\'
+            OR c.phone ILIKE $2 ESCAPE '\\'
+            OR (c.customer_code IS NOT NULL AND c.customer_code ILIKE $2 ESCAPE '\\')
+            OR ($3::int IS NOT NULL AND c.id = $3)
+          )
         ORDER BY c.created_at DESC
-        LIMIT 2000
+        LIMIT $4
         `,
-        [userId, pattern, gaId],
-      )
+          [gaId, pattern, idParam, limit],
+        )
+      } else {
+        result = await safeQuery(
+          pool,
+          `
+        SELECT
+          ${selectList}
+        FROM customers c
+        WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
+          AND (
+            c.name ILIKE $3 ESCAPE '\\'
+            OR c.phone ILIKE $3 ESCAPE '\\'
+            OR (c.customer_code IS NOT NULL AND c.customer_code ILIKE $3 ESCAPE '\\')
+            OR ($4::int IS NOT NULL AND c.id = $4)
+          )
+        ORDER BY c.created_at DESC
+        LIMIT $5
+        `,
+          [userId, gaId, pattern, idParam, limit],
+        )
+      }
     }
 
     res.json(result.rows.map(mapCustomerRow))

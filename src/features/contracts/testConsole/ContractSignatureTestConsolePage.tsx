@@ -35,6 +35,17 @@ function resolveTenantGaId(role: string | undefined, gaId: number): number | nul
   return gaId
 }
 
+/** GET /customers/search — SUPER_ADMIN 은 scope_ga_id(세션 GA) 필수, 그 외는 JWT GA·user 스코프만 사용 */
+function resolveCustomerSearchScopeGaId(role: string | undefined, gaId: number | undefined): number | null {
+  if (role !== 'SUPER_ADMIN') {
+    return null
+  }
+  if (gaId != null && Number.isFinite(gaId) && gaId > 0) {
+    return gaId
+  }
+  return null
+}
+
 function customerPhoneOk(c: CustomerRecord): boolean {
   const p = String(c.phone ?? c.phoneNumber ?? '').replace(/\D/g, '')
   return p.length >= 10
@@ -45,6 +56,16 @@ export default function ContractSignatureTestConsolePage() {
   const t = token?.trim() ?? ''
   const role = user?.role
   const tenantGaId = useMemo(() => resolveTenantGaId(role, user?.gaId ?? 0), [role, user?.gaId])
+  const customerSearchScopeGaId = useMemo(
+    () => resolveCustomerSearchScopeGaId(role, user?.gaId),
+    [role, user?.gaId],
+  )
+  const customerSearchBlockedMessage = useMemo(() => {
+    if (role === 'SUPER_ADMIN' && customerSearchScopeGaId == null) {
+      return '고객 검색 범위(GA)를 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.'
+    }
+    return null
+  }, [role, customerSearchScopeGaId])
 
   const [bootError, setBootError] = useState<string | null>(null)
   const [pdfRows, setPdfRows] = useState<PdfPickRow[]>([])
@@ -178,8 +199,8 @@ export default function ContractSignatureTestConsolePage() {
   }
 
   const onSearchCustomers = useCallback(
-    async (q: string) => searchCustomersForContractTest(t, q),
-    [t],
+    async (q: string) => searchCustomersForContractTest(t, q, role, customerSearchScopeGaId),
+    [t, role, customerSearchScopeGaId],
   )
 
   const refreshSessionDetail = useCallback(async () => {
@@ -204,7 +225,7 @@ export default function ContractSignatureTestConsolePage() {
     }
     const sel = contractTemplates.find((x) => x.id === selectedContractId)
     if (!sel || sel.status !== 'active') {
-      setSendError('active 상태인 계약 템플릿을 선택하세요.')
+      setSendError('발송하려면 계약서 템플릿을 활성화해야 합니다.')
       return
     }
     setSendBusy(true)
@@ -231,6 +252,11 @@ export default function ContractSignatureTestConsolePage() {
     selectedContract?.status === 'active' &&
     customer != null &&
     customerPhoneOk(customer)
+
+  const inactiveTemplateHint =
+    Boolean(selectedContractId) && selectedContract != null && selectedContract.status !== 'active'
+      ? '발송하려면 계약서 템플릿을 활성화해야 합니다.'
+      : null
 
   return (
     <main className="insurance-dark-forms contract-signature-console">
@@ -286,6 +312,7 @@ export default function ContractSignatureTestConsolePage() {
           <CustomerSelector
             token={t}
             disabled={!t}
+            searchBlockedMessage={customerSearchBlockedMessage}
             onSearch={onSearchCustomers}
             selected={customer}
             onSelect={setCustomer}
@@ -299,6 +326,7 @@ export default function ContractSignatureTestConsolePage() {
             lastCreated={lastCreated}
             onCreate={onCreateSendSession}
             canSend={canSend}
+            inactiveTemplateHint={inactiveTemplateHint}
             detail={sessionDetail}
             onRefresh={() => void refreshSessionDetail()}
             error={sendError}
