@@ -1,17 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useLocation, useParams, useSearchParams } from 'react-router-dom'
-import FileUploader from '../../../components/common/FileUploader'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
 import PCOnlySection from '../../../components/PCOnlySection'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { NewsletterList } from '../../insurer-news/components/NewsletterList'
-import { uploadNewsletterAttachments } from '../../insurer-news/services/insurerNews.service'
-import type { LocalAttachmentDraft } from '../../insurer-news/types'
-import { useInsurerNewsForm } from '../../insurer-news/hooks/useInsurerNewsForm'
 import type { NewsletterItem } from '../../insurer-news/types'
-import { validateInsurerNewsFile } from '../../insurer-news/utils/validateInsurerNewsFile'
 import { useAuth } from '../../auth/AuthProvider'
 import ClaimRequestsPageMobileView from './claim-requests/ClaimRequestsPageMobileView'
 import ClaimRequestsPagePCView from './claim-requests/ClaimRequestsPagePCView'
@@ -48,13 +43,6 @@ const STATUS_OPTIONS: Array<{ value: ClaimRequestStatus; label: string }> = [
   { value: 'rejected', label: '반려' },
   { value: 'canceled', label: '취소' },
 ]
-
-const ATTACHMENT_STATUS_LABEL: Record<string, string> = {
-  pending: '대기',
-  uploading: '업로드 중',
-  completed: '완료',
-  failed: '실패',
-}
 
 function formatDateTime(iso: string | null): string {
   if (!iso) {
@@ -107,6 +95,7 @@ function claimListPreviewText(item: ClaimRequestListItem): string {
 
 export default function ClaimRequestsPage() {
   const isMobile = useIsMobile()
+  const navigate = useNavigate()
   const { token } = useAuth()
   const location = useLocation()
   const { customerId: customerIdParam } = useParams<{ customerId?: string }>()
@@ -123,7 +112,7 @@ export default function ClaimRequestsPage() {
     }
     return parsePositiveInt(customerIdParam ?? null)
   }, [customerIdParam, searchParams])
-  const [activeTab, setActiveTab] = useState<'claims' | 'news-all' | 'news-personal'>('claims')
+  const [activeTab, setActiveTab] = useState<'claims' | 'news-personal'>('claims')
   const [rows, setRows] = useState<ClaimRequestListItem[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [detail, setDetail] = useState<ClaimRequestDetail | null>(null)
@@ -144,19 +133,13 @@ export default function ClaimRequestsPage() {
   const [createdLink, setCreatedLink] = useState('')
   const [createdCode, setCreatedCode] = useState('')
   const [copyResult, setCopyResult] = useState('')
-  const [newsTitle, setNewsTitle] = useState('')
-  const [newsAllSubTab, setNewsAllSubTab] = useState<'list' | 'upload'>('list')
   const [newsResult, setNewsResult] = useState('')
-  const [newsUploadError, setNewsUploadError] = useState('')
-  const [newsUploadBusy, setNewsUploadBusy] = useState<string | null>(null)
   const [linkedCustomers, setLinkedCustomers] = useState<LinkedCustomerItem[]>([])
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null)
   const [personalNewsContent, setPersonalNewsContent] = useState('')
-  const [newsHistoryAll, setNewsHistoryAll] = useState<AgentCustomerNewsItem[]>([])
   const [newsHistoryPersonal, setNewsHistoryPersonal] = useState<AgentCustomerNewsItem[]>([])
   const [customerNewsDeletingId, setCustomerNewsDeletingId] = useState<string | null>(null)
   const [actionBusy, setActionBusy] = useState(false)
-  const allNewsForm = useInsurerNewsForm(null)
   const displayedCode = createdCode || linkStatus?.agentCode || linkStatus?.linkCode || ''
   const displayedLink = createdLink || linkStatus?.universalUrl || ''
 
@@ -176,27 +159,6 @@ export default function ClaimRequestsPage() {
     [connectionState, linkStatus],
   )
   const linkActionLabel = useMemo(() => customerAppLinkActionLabel(connectionState), [connectionState])
-  const allNewsCards = useMemo<NewsletterItem[]>(
-    () =>
-      newsHistoryAll.map((item) => ({
-        id: item.id,
-        gaCode: 'customer-news',
-        insurerCode: 'customer-news',
-        insurerName: '전체소식지',
-        insurerSlug: 'all',
-        title: item.title,
-        summary: item.content,
-        heroImageUrl: item.heroImageUrl ?? null,
-        publishedAt: item.updatedAt ?? new Date().toISOString(),
-        status: 'PUBLISHED',
-        hasImages: Boolean(item.attachments?.some((attachment) => attachment.kind === 'image')),
-        hasPdf: Boolean(item.attachments?.some((attachment) => attachment.kind === 'file')),
-        hasTextBody: Boolean(item.content?.trim()),
-        customerNewsScope: 'all',
-        targetCustomerId: item.targetCustomerId ?? null,
-      })),
-    [newsHistoryAll],
-  )
   const personalNewsCards = useMemo<NewsletterItem[]>(
     () =>
       newsHistoryPersonal.map((item) => ({
@@ -314,14 +276,14 @@ export default function ClaimRequestsPage() {
         setActiveTab('news-personal')
         return
       }
-      if (claimTabParam === 'news-all') {
-        setActiveTab('news-all')
-        return
-      }
       setActiveTab('claims')
       return
     }
-    setActiveTab((prev) => (prev === 'claims' ? 'news-all' : prev))
+    if (claimTabParam === 'news-personal') {
+      setActiveTab('news-personal')
+      return
+    }
+    setActiveTab('claims')
   }, [activeCustomerId, claimTabParam])
 
   useEffect(() => {
@@ -352,12 +314,6 @@ export default function ClaimRequestsPage() {
       if (!token) {
         return
       }
-      try {
-        const all = await listAgentCustomerNews(token, { scope: 'all' })
-        setNewsHistoryAll(all)
-      } catch {
-        setNewsHistoryAll([])
-      }
       if (!targetCustomerId) {
         setNewsHistoryPersonal([])
         return
@@ -375,31 +331,14 @@ export default function ClaimRequestsPage() {
     [token],
   )
 
-  const handleDeleteAllCustomerNews = useCallback(
-    async (item: NewsletterItem) => {
-      if (!token) {
-        return
-      }
-      if (
-        !window.confirm(
-          '이 소식지를 완전히 삭제할까요? 첨부 이미지/파일도 삭제되며 복구할 수 없습니다.',
-        )
-      ) {
-        return
-      }
-      setCustomerNewsDeletingId(item.id)
-      setError('')
-      try {
-        await deleteCustomerNews(token, item.id)
-        setNewsResult('소식지를 삭제했습니다.')
-        await loadNewsHistory(selectedCustomerId)
-      } catch (deleteErr) {
-        setError(deleteErr instanceof Error ? deleteErr.message : '소식지 삭제에 실패했습니다.')
-      } finally {
-        setCustomerNewsDeletingId(null)
-      }
+  const goClaimMessengerTab = useCallback(
+    (tab: 'news-all' | 'news-personal') => {
+      const next = new URLSearchParams(location.search)
+      next.set('claimTab', tab)
+      const q = next.toString()
+      navigate(`${location.pathname}${q ? `?${q}` : ''}`)
     },
-    [token, loadNewsHistory, selectedCustomerId],
+    [location.pathname, location.search, navigate],
   )
 
   const handleDeletePersonalCustomerNews = useCallback(
@@ -555,66 +494,6 @@ export default function ClaimRequestsPage() {
     const timer = window.setTimeout(() => setStatusNotice(''), 4000)
     return () => window.clearTimeout(timer)
   }, [statusNotice])
-
-  const validateNewsletterFile = useCallback((file: File): string | null => {
-    const validated = validateInsurerNewsFile(file)
-    return validated.ok ? null : validated.message
-  }, [])
-
-  const handleCreateNews = async () => {
-    if (!token) {
-      return
-    }
-    if (!newsTitle.trim() || !allNewsForm.bodyText.trim()) {
-      setNewsUploadError('전체소식지 제목과 내용을 입력해 주세요.')
-      return
-    }
-    setActionBusy(true)
-    setNewsResult('')
-    setNewsUploadError('')
-    setNewsUploadBusy('파일 업로드 중...')
-    try {
-      const uploaded = await uploadNewsletterAttachments(token, allNewsForm.attachments, {
-        presignInsurerCode: 'CUSTOMER_NEWS',
-      })
-      allNewsForm.replaceAttachments(uploaded)
-      if (uploaded.some((row) => row.status === 'failed')) {
-        setNewsUploadError('일부 파일 업로드에 실패했습니다. 실패 항목을 삭제하고 다시 시도해 주세요.')
-        return
-      }
-      const attachments = uploaded
-        .filter((row): row is LocalAttachmentDraft & { cdnUrl: string; objectKey: string } => Boolean(row.cdnUrl && row.objectKey))
-        .map((row, index) => ({
-          kind: row.kind,
-          url: row.cdnUrl,
-          objectKey: row.objectKey,
-          fileName: row.file.name,
-          mimeType: row.mimeType ?? row.file.type ?? 'application/octet-stream',
-          size: row.sizeBytes ?? row.file.size,
-          sortOrder: index,
-        }))
-      setNewsUploadBusy('전체소식지 발송 중...')
-      const created = await createCustomerNews(token, {
-        title: newsTitle.trim(),
-        content: allNewsForm.bodyText.trim(),
-        attachments,
-        scope: 'all',
-        sendPush: true,
-      })
-      setNewsResult(`전체소식지 발송 완료: ${created.id}`)
-      setNewsTitle('')
-      allNewsForm.setBodyText('')
-      allNewsForm.replaceAttachments([])
-      await loadNewsHistory(selectedCustomerId)
-      setError('')
-      setNewsAllSubTab('list')
-    } catch (actionError) {
-      setError(actionError instanceof Error ? actionError.message : '전체소식지 발송에 실패했습니다.')
-    } finally {
-      setNewsUploadBusy(null)
-      setActionBusy(false)
-    }
-  }
 
   const handleCreatePersonalNews = async () => {
     if (!token) {
@@ -884,15 +763,15 @@ export default function ClaimRequestsPage() {
           <div className="claim-requests-page__tabs">
             <FormButton
               htmlType="button"
-              variant={activeTab === 'news-all' ? 'primary' : 'secondary'}
-              onClick={() => setActiveTab('news-all')}
+              variant={claimTabParam === 'news-all' ? 'primary' : 'secondary'}
+              onClick={() => goClaimMessengerTab('news-all')}
             >
               전체소식지
             </FormButton>
             <FormButton
               htmlType="button"
-              variant={activeTab === 'news-personal' ? 'primary' : 'secondary'}
-              onClick={() => setActiveTab('news-personal')}
+              variant={claimTabParam === 'news-personal' ? 'primary' : 'secondary'}
+              onClick={() => goClaimMessengerTab('news-personal')}
             >
               개인메시지
             </FormButton>
@@ -1051,132 +930,6 @@ export default function ClaimRequestsPage() {
         </>
       ) : null}
 
-      {activeTab === 'news-all' ? (
-        <section className="insurer-news-page">
-          <header className="page-header" style={{ marginBottom: 16 }}>
-            <h2 style={{ marginBottom: 8 }}>전체소식지</h2>
-            <p className="insurer-news-muted">전체 고객에게 발송할 소식지를 작성하고 관리합니다.</p>
-          </header>
-          <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-2" style={{ marginBottom: 16 }}>
-            <div className="flex gap-2">
-              <FormButton
-                htmlType="button"
-                variant={newsAllSubTab === 'list' ? 'primary' : 'secondary'}
-                onClick={() => setNewsAllSubTab('list')}
-              >
-                리스트
-              </FormButton>
-              <FormButton
-                htmlType="button"
-                variant={newsAllSubTab === 'upload' ? 'primary' : 'secondary'}
-                onClick={() => setNewsAllSubTab('upload')}
-              >
-                발송
-              </FormButton>
-            </div>
-          </section>
-          {newsAllSubTab === 'list' ? (
-            <div style={{ marginTop: 16 }}>
-              <NewsletterList
-                items={allNewsCards}
-                emptyMessage="발송한 전체소식지가 없습니다."
-                variant={isMobile ? 'mobile' : 'pc'}
-                onDeleteItem={(card) => void handleDeleteAllCustomerNews(card)}
-                deleteBusyId={customerNewsDeletingId}
-              />
-            </div>
-          ) : null}
-          {newsAllSubTab === 'upload' ? (
-            <form className="auth-card card" style={{ padding: 16 }} onSubmit={(event) => event.preventDefault()}>
-              <label className="field">
-                <span className="field__label">제목</span>
-                <FormInput
-                  className="admin-form-input"
-                  value={newsTitle}
-                  onChange={(event) => setNewsTitle(event.target.value)}
-                  placeholder="제목"
-                />
-              </label>
-              <label className="field">
-                <span className="field__label">내용</span>
-                <FormTextarea
-                  value={allNewsForm.bodyText}
-                  onChange={(event) => allNewsForm.setBodyText(event.target.value)}
-                  rows={8}
-                  className="admin-form-input"
-                  style={{ height: 'auto', minHeight: 160, paddingTop: 12, paddingBottom: 12 }}
-                  placeholder="본문을 입력하세요"
-                />
-              </label>
-              <div className="field">
-                <span className="field__label">파일</span>
-                <FileUploader
-                  accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
-                  validateFile={validateNewsletterFile}
-                  onFiles={(files) => allNewsForm.addAttachments(files)}
-                  disabled={Boolean(newsUploadBusy)}
-                  primaryHint="이미지 또는 PDF를 드래그하여 놓거나, 클릭하여 선택하세요."
-                  hintLines={[
-                    '이미지는 본문에 표시되고, PDF는 다운로드 링크로 제공됩니다.',
-                    'JPG · PNG · WEBP · GIF · PDF (이미지·PDF 각 최대 10MB)',
-                  ]}
-                />
-                <div className="insurer-news-upload-list">
-                  {allNewsForm.attachments.map((row) => (
-                    <div key={row.localId} className="insurer-news-upload-row">
-                      {row.kind === 'image' && row.previewUrl ? (
-                        <img className="insurer-news-upload-row__thumb" src={row.previewUrl} alt="" />
-                      ) : (
-                        <div className="insurer-news-upload-row__pdf">PDF</div>
-                      )}
-                      <div className="insurer-news-upload-row__info">
-                        <p className="insurer-news-upload-row__name">{row.file.name || '(이름 없음)'}</p>
-                        <p
-                          className={`insurer-news-upload-row__status${
-                            row.status === 'failed' ? ' insurer-news-upload-row__status--err' : ''
-                          }`}
-                        >
-                          {ATTACHMENT_STATUS_LABEL[row.status] ?? row.status}
-                          {row.errorMessage ? ` — ${row.errorMessage}` : ''}
-                        </p>
-                      </div>
-                      <FormButton
-                        htmlType="button"
-                        variant="secondary"
-                        className="button button--secondary"
-                        onClick={() => allNewsForm.removeAttachment(row.localId)}
-                        disabled={Boolean(newsUploadBusy)}
-                      >
-                        삭제
-                      </FormButton>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {newsUploadBusy ? (
-                <p className="insurer-news-muted" style={{ marginBottom: 12 }}>
-                  {newsUploadBusy}
-                </p>
-              ) : null}
-              {newsUploadError ? (
-                <p
-                  className="insurer-news-upload-row__status insurer-news-upload-row__status--err"
-                  style={{ marginBottom: 12, whiteSpace: 'pre-line' }}
-                >
-                  {newsUploadError}
-                </p>
-              ) : null}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
-                <FormButton htmlType="button" variant="primary" onClick={() => void handleCreateNews()} loading={actionBusy}>
-                  발송
-                </FormButton>
-              </div>
-            </form>
-          ) : null}
-          {newsResult ? <div className="text-xs text-[var(--text-secondary)] mt-2">{newsResult}</div> : null}
-        </section>
-      ) : null}
-
       {activeTab === 'news-personal' ? (
         <section className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-3 insurer-news-page">
           <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-2 space-y-2">
@@ -1240,6 +993,9 @@ export default function ClaimRequestsPage() {
               onDeleteItem={(card) => void handleDeletePersonalCustomerNews(card)}
               deleteBusyId={customerNewsDeletingId}
             />
+            {newsResult ? (
+              <p className="text-xs text-[var(--text-secondary)]">{newsResult}</p>
+            ) : null}
           </div>
         </section>
       ) : null}

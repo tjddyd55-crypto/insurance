@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import FormButton from '../../../components/form/FormButton'
 import { getCustomerAppMe } from '../api/customerAppApi'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
+import { closeCustomerApp } from '../utils/closeCustomerApp'
 import '../customer-app.css'
 
 /**
@@ -10,7 +11,7 @@ import '../customer-app.css'
  *
  * - 상단: 담당 설계사 정보
  * - 본문: children (Outlet 또는 페이지 콘텐츠)
- * - 하단 고정: 청구 요청 CTA(작성 화면 제외) + 4탭(홈/청구내역/개인메시지/내정보)
+ * - 하단 고정: 청구 요청 CTA(작성 화면 제외) + 4탭(홈/문의내역/개인메시지/내정보)
  */
 
 type Props = {
@@ -45,9 +46,13 @@ function formatKrPhone(raw: string | null): string {
   return digits
 }
 
+const CLOSE_GUIDE_DELAY_MS = 900
+
 export default function CustomerAppShell({ children, title = '고객 앱', showClaimCta = true }: Props) {
   const navigate = useNavigate()
   const session = useCustomerAppSession()
+  const closeGuideTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+  const [closeGuideVisible, setCloseGuideVisible] = useState(false)
   const [header, setHeader] = useState<HeaderInfo>(() =>
     session
       ? { agentName: session.agentName || HEADER_FALLBACK.agentName, agentPhone: null }
@@ -78,23 +83,72 @@ export default function CustomerAppShell({ children, title = '고객 앱', showC
     }
   }, [session])
 
+  useEffect(() => {
+    return () => {
+      if (closeGuideTimerRef.current != null) {
+        window.clearTimeout(closeGuideTimerRef.current)
+        closeGuideTimerRef.current = null
+      }
+    }
+  }, [])
+
+  const displayPhone = formatKrPhone(header.agentPhone)
+  const telDigits = (header.agentPhone ?? '').replace(/\D/g, '')
+
+  const handleClose = useCallback(() => {
+    setCloseGuideVisible(false)
+    closeCustomerApp()
+    if (closeGuideTimerRef.current != null) {
+      window.clearTimeout(closeGuideTimerRef.current)
+    }
+    closeGuideTimerRef.current = window.setTimeout(() => {
+      setCloseGuideVisible(true)
+      closeGuideTimerRef.current = null
+    }, CLOSE_GUIDE_DELAY_MS)
+  }, [])
+
   return (
     <div className={`customer-app-shell${showClaimCta ? '' : ' customer-app-shell--no-cta'}`}>
       <header className="customer-app-header">
-        <div className="customer-app-header__role">담당 설계사</div>
-        <div className="customer-app-header__agent">
-          <span className="customer-app-header__name">{header.agentName}</span>
-          {header.agentPhone ? (
-            <a
-              className="customer-app-header__phone"
-              href={`tel:${header.agentPhone.replace(/\D/g, '')}`}
-              aria-label={`담당 설계사에게 전화걸기 ${header.agentPhone}`}
-            >
-              {formatKrPhone(header.agentPhone)}
-            </a>
-          ) : null}
+        <div className="customer-app-header__row">
+          <div className="customer-app-header__identity" title={`${header.agentName}${displayPhone ? ` · ${displayPhone}` : ''}`}>
+            <span className="customer-app-header__name">{header.agentName}</span>
+            <span className="customer-app-header__sep" aria-hidden>
+              {' '}
+              ·{' '}
+            </span>
+            <span className="customer-app-header__phone-line">{displayPhone || '전화번호 미등록'}</span>
+          </div>
+          <div className="customer-app-header__actions">
+            {telDigits ? (
+              <a
+                className="customer-app-header__action-btn customer-app-header__action-btn--call"
+                href={`tel:${telDigits}`}
+              >
+                전화하기
+              </a>
+            ) : (
+              <span className="customer-app-header__action-btn customer-app-header__action-btn--disabled">전화하기</span>
+            )}
+            <button type="button" className="customer-app-header__action-btn customer-app-header__action-btn--close" onClick={handleClose}>
+              닫기
+            </button>
+          </div>
         </div>
       </header>
+
+      {closeGuideVisible ? (
+        <div className="customer-app-close-guide" role="status">
+          <p className="customer-app-close-guide__text">브라우저 상단의 X 또는 뒤로 버튼으로 닫아 주세요.</p>
+          <button
+            type="button"
+            className="customer-app-close-guide__dismiss"
+            onClick={() => setCloseGuideVisible(false)}
+          >
+            확인
+          </button>
+        </div>
+      ) : null}
 
       <main className="customer-app-main" aria-label={title}>
         {children}
@@ -111,7 +165,7 @@ export default function CustomerAppShell({ children, title = '고객 앱', showC
                 fullWidth
                 onClick={() => navigate('/customer-app/requests/new')}
               >
-                청구 요청하기
+                청구/문의하기
               </FormButton>
             </div>
           ) : null}
@@ -136,13 +190,13 @@ const TABS: TabItem[] = [
   },
   {
     to: '/customer-app/requests',
-    label: '청구내역',
+    label: '문의내역',
     match: (path) => path.startsWith('/customer-app/requests'),
   },
   {
     to: '/customer-app/news/personal',
     label: '개인메시지',
-    match: (path) => path.startsWith('/customer-app/news'),
+    match: (path) => path === '/customer-app/news/personal',
   },
   {
     to: '/customer-app/profile',
@@ -156,7 +210,7 @@ function CustomerAppBottomNav() {
   return (
     <nav className="customer-app-tabbar" aria-label="고객앱 주요 메뉴">
       {TABS.map((tab) => {
-        const active = tab.match(location.pathname)
+        const active = tab.match(pathname)
         return (
           <NavLink
             key={tab.to}

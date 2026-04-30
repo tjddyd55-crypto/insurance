@@ -46,7 +46,7 @@ export default function PdfDocumentListPage() {
   }, [token])
 
   return (
-    <main className="pdf-engine-page">
+    <main className="insurance-dark-forms pdf-engine-page">
       <h1 className="pdf-engine-page__title">문서</h1>
       <p className="pdf-engine-page__hint">
         원하는 문서를 선택하고, 안내에 따라 값을 입력하면 PDF 로 발급됩니다.

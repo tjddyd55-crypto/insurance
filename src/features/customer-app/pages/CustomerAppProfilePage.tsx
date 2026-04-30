@@ -101,53 +101,54 @@ export default function CustomerAppProfilePage() {
 
   return (
     <>
-      <StatusMessage message={error} tone="error" />
-      <StatusMessage message={result} tone="success" />
-      <FormInput
-        className="w-full text-sm"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        placeholder="이름"
-      />
-      <FormInput
-        className="w-full text-sm"
-        value={birthDate}
-        onChange={(event) => setBirthDate(event.target.value)}
-        placeholder="생년월일 (예: 900101)"
-      />
-      <FormInput
-        className="w-full text-sm"
-        value={phone}
-        onChange={(event) => setPhone(event.target.value)}
-        placeholder="연락처 (예: 010-1234-5678)"
-      />
-      <FormButton htmlType="button" variant="primary" onClick={() => void handleSave()} loading={busy}>
-        저장
-      </FormButton>
-
-      <div className="customer-app-profile__danger">
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          className="customer-app-profile__logout"
-          onClick={async () => {
-            const ok = await confirm({
-              title: '연결 해제',
-              message: '연결을 해제하시겠어요? 다시 이용하려면 QR 로 재연결이 필요합니다.',
-              tone: 'danger',
-            })
-            if (!ok) {
-              return
-            }
-            clearCustomerAppSession()
-            navigate('/customer-app', { replace: true })
-          }}
-        >
-          연결 해제
+      <div className="customer-app-profile-page">
+        <StatusMessage message={error} tone="error" />
+        <StatusMessage message={result} tone="success" />
+        <div className="customer-app-profile-page__inputs">
+          <FormInput
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="이름"
+          />
+          <FormInput
+            value={birthDate}
+            onChange={(event) => setBirthDate(event.target.value)}
+            placeholder="생년월일 (예: 900101)"
+          />
+          <FormInput
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            placeholder="연락처 (예: 010-1234-5678)"
+          />
+        </div>
+        <FormButton htmlType="button" variant="primary" onClick={() => void handleSave()} loading={busy}>
+          저장
         </FormButton>
-        <p className="customer-app-profile__danger-help">
-          다른 기기에서 이용하거나 다시 QR 로 연결하려면 연결 해제를 눌러 주세요.
-        </p>
+
+        <div className="customer-app-profile__danger">
+          <FormButton
+            htmlType="button"
+            variant="danger"
+            className="button button--danger customer-app-profile__logout"
+            onClick={async () => {
+              const ok = await confirm({
+                title: '연결 해제',
+                message: '연결을 해제하시겠어요? 다시 이용하려면 QR 로 재연결이 필요합니다.',
+                tone: 'danger',
+              })
+              if (!ok) {
+                return
+              }
+              clearCustomerAppSession()
+              navigate('/customer-app', { replace: true })
+            }}
+          >
+            연결 해제
+          </FormButton>
+          <p className="customer-app-profile__danger-help">
+            다른 기기에서 이용하거나 다시 QR 로 연결하려면 연결 해제를 눌러 주세요.
+          </p>
+        </div>
       </div>
       {confirmDialog}
     </>

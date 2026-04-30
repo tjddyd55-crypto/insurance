@@ -98,7 +98,7 @@ export default function PdfIssuanceHistoryPage() {
   )
 
   return (
-    <main className="pdf-engine-page">
+    <main className="insurance-dark-forms pdf-engine-page">
       <h1 className="pdf-engine-page__title">발급 이력</h1>
       <p className="pdf-engine-page__hint">
         과거에 발급한 문서를 다시 다운로드할 수 있습니다. 목록은 최근순으로 최대 200건까지 표시됩니다.

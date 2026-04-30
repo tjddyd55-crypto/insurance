@@ -302,6 +302,39 @@ export async function createCustomerNews(
   return response as { id: string }
 }
 
+export async function updateCustomerNews(
+  token: string,
+  newsId: string,
+  payload: {
+    title: string
+    content: string
+    sendPush?: boolean
+    attachments?: Array<{
+      kind: 'image' | 'file'
+      url: string
+      objectKey?: string
+      fileName: string
+      mimeType?: string
+      size?: number
+      sortOrder?: number
+    }>
+  },
+): Promise<{ id: string }> {
+  const id = String(newsId ?? '').trim()
+  if (!id) {
+    throw new ApiError('소식지 ID가 필요합니다.', 400)
+  }
+  const response = await apiRequest<{ success: true; data: { id: string } }>(
+    `/api/agent/customer-news/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(payload),
+    },
+  )
+  return response as { id: string }
+}
+
 export async function deleteCustomerNews(
   token: string,
   newsId: string | number,

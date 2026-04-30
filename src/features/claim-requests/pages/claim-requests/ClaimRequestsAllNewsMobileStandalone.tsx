@@ -1,29 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import { isRichTextEmpty } from '../../../../components/rich-text/richText'
 import { useAuth } from '../../../auth/AuthProvider'
+import { deleteStorageFile, listStorageFiles } from '../../../storage/api/storageApi'
 import {
-  deleteStorageFile,
-  listStorageFiles,
-  markStorageUploadFailed,
-  presignStorageFile,
-  saveStorageFile,
-} from '../../../storage/api/storageApi'
+  createLocalCustomerNewsImageAttachment,
+  uploadCustomerNewsAllAttachment,
+  validateCustomerNewsAllImage,
+  type AllNewsAttachmentDraft,
+} from '../../model/customerNewsAllAttachmentUpload'
 import {
   createCustomerNews,
   deleteCustomerNews,
   listAgentCustomerNews,
   type AgentCustomerNewsItem,
 } from '../../api/claimRequestsApi'
-import ClaimRequestsAllNewsMobileView, { type AllNewsAttachmentDraft } from './ClaimRequestsAllNewsMobileView'
-
-const ALLOWED_NEWS_ATTACHMENT_TYPES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'application/pdf',
-])
-const MAX_NEWS_ATTACHMENT_BYTES = 10 * 1024 * 1024
+import ClaimRequestsAllNewsMobileView from './ClaimRequestsAllNewsMobileView'
 
 function formatDateTime(iso: string | null): string {
   if (!iso) {
@@ -34,33 +25,6 @@ function formatDateTime(iso: string | null): string {
     return iso
   }
   return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
-}
-
-function createLocalAttachment(file: File): AllNewsAttachmentDraft {
-  const mimeType = file.type || 'application/octet-stream'
-  const kind = mimeType === 'application/pdf' ? 'file' : 'image'
-  const previewUrl = kind === 'image' ? URL.createObjectURL(file) : null
-  return {
-    localId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    file,
-    kind,
-    previewUrl,
-    status: 'pending',
-  }
-}
-
-function validateAttachment(file: File): string | null {
-  const mimeType = file.type || 'application/octet-stream'
-  if (!ALLOWED_NEWS_ATTACHMENT_TYPES.has(mimeType)) {
-    return 'JPG, PNG, WEBP, GIF, PDF만 첨부할 수 있습니다.'
-  }
-  if (file.size < 1) {
-    return '빈 파일은 첨부할 수 없습니다.'
-  }
-  if (file.size > MAX_NEWS_ATTACHMENT_BYTES) {
-    return '첨부파일은 10MB 이하만 업로드할 수 있습니다.'
-  }
-  return null
 }
 
 function collectNewsObjectKeys(item: AgentCustomerNewsItem): string[] {
@@ -90,55 +54,6 @@ async function deleteAllNewsSourceFiles(token: string, item: AgentCustomerNewsIt
     deletedCount += 1
   }
   return deletedCount
-}
-
-async function uploadNewsAttachmentToPersonalStorage(
-  token: string,
-  item: AllNewsAttachmentDraft,
-): Promise<AllNewsAttachmentDraft> {
-  const mimeType = item.file.type || (item.kind === 'file' ? 'application/pdf' : 'image/jpeg')
-  const presign = await presignStorageFile(token, {
-    fileName: item.file.name || 'news-attachment',
-    contentType: mimeType,
-    sizeBytes: item.file.size,
-    customerId: null,
-  })
-
-  const put = await fetch(presign.uploadUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': mimeType,
-      ...(presign.putHeaders ?? {}),
-    },
-    body: item.file,
-  })
-  if (!put.ok) {
-    await markStorageUploadFailed(token, presign.fileId).catch(() => {})
-    throw new Error(`첨부파일 업로드에 실패했습니다. (${put.status})`)
-  }
-
-  const saved = await saveStorageFile(token, {
-    fileId: presign.fileId,
-    fileName: item.file.name || presign.displayName,
-    displayName: item.file.name || presign.displayName,
-    objectKey: presign.objectKey,
-    fileUrl: presign.fileUrl,
-    size: item.file.size,
-    mimeType,
-    content: 'customer-news/all',
-    folderId: null,
-    customerId: null,
-  })
-
-  return {
-    ...item,
-    status: 'completed',
-    objectKey: saved.objectKey ?? presign.objectKey,
-    cdnUrl: saved.fileUrl || presign.fileUrl,
-    mimeType: saved.mimeType ?? mimeType,
-    sizeBytes: saved.fileSize ?? item.file.size,
-    storageFileId: saved.id,
-  }
 }
 
 export default function ClaimRequestsAllNewsMobileStandalone() {
@@ -188,8 +103,8 @@ export default function ClaimRequestsAllNewsMobileStandalone() {
     setError('')
     const next: AllNewsAttachmentDraft[] = []
     for (const file of Array.from(files)) {
-      const validationMessage = validateAttachment(file)
-      const item = createLocalAttachment(file)
+      const validationMessage = validateCustomerNewsAllImage(file)
+      const item = createLocalCustomerNewsImageAttachment(file)
       if (validationMessage) {
         next.push({ ...item, status: 'failed', errorMessage: validationMessage })
       } else {
@@ -239,7 +154,7 @@ export default function ClaimRequestsAllNewsMobileStandalone() {
         setAttachments((prev) =>
           prev.map((row) => (row.localId === item.localId ? { ...row, status: 'uploading' } : row)),
         )
-        const next = await uploadNewsAttachmentToPersonalStorage(token, item)
+        const next = await uploadCustomerNewsAllAttachment(token, item)
         uploaded.push(next)
         setAttachments((prev) => prev.map((row) => (row.localId === item.localId ? next : row)))
       }
