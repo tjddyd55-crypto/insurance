@@ -2,6 +2,8 @@
  * 전자서명 관리 — SUPER_ADMIN / GA_ADMIN 전용. 공개 계약 링크 플로우와 분리.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import '../../pdf-engine/pdf-engine.css'
+import './contract-signature-console.css'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
 import type { CustomerRecord } from '../../customers/domain/types'
@@ -231,85 +233,87 @@ export default function ContractSignatureTestConsolePage() {
     customerPhoneOk(customer)
 
   return (
-    <div className="container py-4" style={{ maxWidth: 1100 }}>
-      <h1 className="h4 mb-1">전자서명 관리</h1>
-      <p className="text-muted small mb-3">
-        PDF 좌표 템플릿을 기반으로 고객에게 전자서명 링크를 발송하고, 지정 휴대폰 인증·손사인·증빙 상태를
-        확인합니다.
-      </p>
-      <div className="alert alert-secondary small mb-4" role="status">
-        <ul className="mb-0 ps-3">
-          <li>
-            현재 기능은 지정 휴대폰 인증 기반 전자서명입니다. NICE/KCB 실명 본인확인은 아직 연결되어 있지
-            않습니다.
-          </li>
-          <li>최종 PDF 합성은 추후 지원 예정입니다.</li>
-        </ul>
-      </div>
-
-      {bootError ? (
-        <div className="alert alert-danger" role="alert">
-          {bootError}
+    <main className="insurance-dark-forms contract-signature-console">
+      <div className="contract-signature-console__container">
+        <h1 className="contract-signature-console__title">전자서명 관리</h1>
+        <p className="contract-signature-console__lead">
+          PDF 좌표 템플릿을 기반으로 고객에게 전자서명 링크를 발송하고, 지정 휴대폰 인증·손사인·증빙 상태를
+          확인합니다.
+        </p>
+        <div className="contract-signature-console__notice" role="status">
+          <ul>
+            <li>
+              현재 기능은 지정 휴대폰 인증 기반 전자서명입니다. NICE/KCB 실명 본인확인은 아직 연결되어 있지
+              않습니다.
+            </li>
+            <li>최종 PDF 합성은 추후 지원 예정입니다.</li>
+          </ul>
         </div>
-      ) : null}
 
-      <section className="mb-4 p-3 border rounded bg-white">
-        <h2 className="h6">1. PDF 템플릿 선택</h2>
-        <PdfTemplateSelector
-          rows={pdfRows}
-          selectedId={selectedPdfId}
-          onSelect={onSelectPdf}
-          disabled={!t || contractBusy}
-        />
-      </section>
+        {bootError ? (
+          <div className="contract-signature-console__alert--danger" role="alert">
+            {bootError}
+          </div>
+        ) : null}
 
-      <section className="mb-4 p-3 border rounded bg-white">
-        <h2 className="h6">2. 계약서 템플릿 연결</h2>
-        <ContractTemplatePanel
-          pdfTemplateId={selectedPdfId}
-          pdfTitle={selectedPdf?.title ?? null}
-          templates={contractTemplates}
-          selectedContractId={selectedContractId}
-          onSelectContract={setSelectedContractId}
-          busy={contractBusy}
-          onCreateTest={onCreateTestTemplate}
-          onActivate={onActivateTemplate}
-          error={contractPanelError}
-        />
-      </section>
+        <section className="contract-signature-console__section">
+          <h2 className="contract-signature-console__section-title">1. PDF 템플릿 선택</h2>
+          <PdfTemplateSelector
+            rows={pdfRows}
+            selectedId={selectedPdfId}
+            onSelect={onSelectPdf}
+            disabled={!t || contractBusy}
+          />
+        </section>
 
-      <section className="mb-4 p-3 border rounded bg-white">
-        <h2 className="h6">3. 고객 선택</h2>
-        <CustomerSelector
-          token={t}
-          disabled={!t}
-          onSearch={onSearchCustomers}
-          selected={customer}
-          onSelect={setCustomer}
-        />
-      </section>
+        <section className="contract-signature-console__section">
+          <h2 className="contract-signature-console__section-title">2. 계약서 템플릿 연결</h2>
+          <ContractTemplatePanel
+            pdfTemplateId={selectedPdfId}
+            pdfTitle={selectedPdf?.title ?? null}
+            templates={contractTemplates}
+            selectedContractId={selectedContractId}
+            onSelectContract={setSelectedContractId}
+            busy={contractBusy}
+            onCreateTest={onCreateTestTemplate}
+            onActivate={onActivateTemplate}
+            error={contractPanelError}
+          />
+        </section>
 
-      <section className="mb-4 p-3 border rounded bg-white">
-        <h2 className="h6">4. 발송 세션</h2>
-        <SendSessionPanel
-          busy={sendBusy}
-          lastCreated={lastCreated}
-          onCreate={onCreateSendSession}
-          canSend={canSend}
-          detail={sessionDetail}
-          onRefresh={() => void refreshSessionDetail()}
-          error={sendError}
-        />
-      </section>
+        <section className="contract-signature-console__section">
+          <h2 className="contract-signature-console__section-title">3. 고객 선택</h2>
+          <CustomerSelector
+            token={t}
+            disabled={!t}
+            onSearch={onSearchCustomers}
+            selected={customer}
+            onSelect={setCustomer}
+          />
+        </section>
 
-      <section className="mb-4 p-3 border rounded bg-white">
-        <h2 className="h6">5. 상태 · evidence</h2>
-        <EvidenceStatusPanel
-          detail={sessionDetail}
-          loading={evidenceLoading}
-          onRefresh={() => void refreshSessionDetail()}
-        />
-      </section>
-    </div>
+        <section className="contract-signature-console__section">
+          <h2 className="contract-signature-console__section-title">4. 발송 세션</h2>
+          <SendSessionPanel
+            busy={sendBusy}
+            lastCreated={lastCreated}
+            onCreate={onCreateSendSession}
+            canSend={canSend}
+            detail={sessionDetail}
+            onRefresh={() => void refreshSessionDetail()}
+            error={sendError}
+          />
+        </section>
+
+        <section className="contract-signature-console__section">
+          <h2 className="contract-signature-console__section-title">5. 상태 · evidence</h2>
+          <EvidenceStatusPanel
+            detail={sessionDetail}
+            loading={evidenceLoading}
+            onRefresh={() => void refreshSessionDetail()}
+          />
+        </section>
+      </div>
+    </main>
   )
 }

@@ -32,12 +32,14 @@ export function ContractTemplatePanel({
   return (
     <div>
       {error ? (
-        <div style={{ color: '#b91c1c', marginBottom: 8, fontSize: 13 }} role="alert">
+        <div className="contract-signature-console__inline-error" role="alert">
           {error}
         </div>
       ) : null}
       {!canPick ? (
-        <p style={{ color: 'var(--text-secondary)', fontSize: 13 }}>먼저 PDF 템플릿을 선택하세요.</p>
+        <p className="contract-signature-console__hint contract-signature-console__hint--flush">
+          먼저 PDF 템플릿을 선택하세요.
+        </p>
       ) : linked.length === 0 ? (
         <div>
           <p style={{ fontSize: 13 }}>
@@ -92,7 +94,7 @@ export function ContractTemplatePanel({
                         active로 전환
                       </FormButton>
                     ) : (
-                      <span style={{ color: 'var(--text-secondary)' }}>active</span>
+                      <span className="contract-signature-console__muted">active</span>
                     )}
                   </td>
                 </tr>

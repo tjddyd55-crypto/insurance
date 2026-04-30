@@ -49,6 +49,12 @@ main.insurance-dark-forms {
   --danger-hover-bg: rgba(239, 68, 68, 0.12);
   --status-error: #ef4444;
 
+  /* 경고 · 주의 (테스트 콘솔 등, amber 계열) */
+  --warning: #f59e0b;
+  --warning-text: #fcd34d;
+  --warning-bg: rgba(245, 158, 11, 0.14);
+  --warning-border: rgba(245, 158, 11, 0.4);
+
   --checkbox-bg: #1f2937;
   --surface-list-row: #1f2937;
   --sticky-bar-bg: #111827;

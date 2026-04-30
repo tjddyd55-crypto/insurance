@@ -42,7 +42,7 @@ export function CustomerSelector({ token, disabled, onSearch, selected, onSelect
 
   return (
     <div>
-      <div className="d-flex gap-2 flex-wrap align-items-center mb-2">
+      <div className="contract-signature-console__search-row">
         <FormInput
           className="form-control form-control-sm"
           style={{ maxWidth: 280 }}
@@ -62,14 +62,16 @@ export function CustomerSelector({ token, disabled, onSearch, selected, onSelect
         </FormButton>
       </div>
       {selected ? (
-        <div className="alert alert-light border py-2 px-3" style={{ fontSize: 13 }}>
+        <div className="contract-signature-console__selected-card">
           <div>
             선택 고객 ID: <strong>{selected.id}</strong>
           </div>
           <div>이름(마스킹): {maskCustomerNameForTestConsole(selected.name)}</div>
           <div>전화(마스킹): {maskPhoneForTestConsole(selected.phone ?? selected.phoneNumber ?? '')}</div>
           {!phoneOk(selected) ? (
-            <div style={{ color: '#b45309', marginTop: 6 }}>휴대폰 번호가 없거나 형식이 맞지 않으면 발송할 수 없습니다.</div>
+            <div className="contract-signature-console__inline-warning">
+              휴대폰 번호가 없거나 형식이 맞지 않으면 발송할 수 없습니다.
+            </div>
           ) : null}
           <FormButton htmlType="button" variant="action" size="sm" className="p-0 mt-1" onClick={() => onSelect(null)}>
             선택 해제
@@ -77,14 +79,14 @@ export function CustomerSelector({ token, disabled, onSearch, selected, onSelect
         </div>
       ) : null}
       {results.length > 0 ? (
-        <ul className="list-group list-group-flush" style={{ maxHeight: 220, overflowY: 'auto' }}>
+        <ul className="contract-signature-console__hit-list">
           {results.map((c) => (
-            <li key={c.id} className="list-group-item d-flex justify-content-between align-items-center py-2">
+            <li key={c.id} className="contract-signature-console__hit-item">
               <div style={{ fontSize: 13 }}>
                 <div>
                   #{c.id} · {maskCustomerNameForTestConsole(c.name)}
                 </div>
-                <div style={{ color: 'var(--text-secondary)' }}>{maskPhoneForTestConsole(c.phone ?? c.phoneNumber ?? '')}</div>
+                <div className="contract-signature-console__muted">{maskPhoneForTestConsole(c.phone ?? c.phoneNumber ?? '')}</div>
               </div>
               <FormButton
                 htmlType="button"

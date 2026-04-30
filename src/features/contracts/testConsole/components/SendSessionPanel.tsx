@@ -37,19 +37,19 @@ export function SendSessionPanel({ busy, lastCreated, onCreate, canSend, detail,
   return (
     <div>
       {error ? (
-        <div style={{ color: '#b91c1c', marginBottom: 8, fontSize: 13 }} role="alert">
+        <div className="contract-signature-console__inline-error" role="alert">
           {error}
         </div>
       ) : null}
       <FormButton htmlType="button" variant="primary" size="sm" disabled={!canSend || busy} onClick={onCreate}>
         {busy ? '생성 중…' : '발송 세션 생성'}
       </FormButton>
-      <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>
+      <p className="contract-signature-console__hint">
         선택한 고객에 등록된 휴대폰으로만 링크가 열립니다. 임의 번호 입력·발송은 할 수 없습니다.
       </p>
 
       {session ? (
-        <div className="mt-3 p-3 border rounded" style={{ fontSize: 13, background: 'var(--surface-elevated, #fafafa)' }}>
+        <div className="contract-signature-console__session-summary">
           <div>
             <strong>sendSessionId</strong>{' '}
             <code style={{ fontSize: 11 }}>{session.id}</code>
@@ -69,11 +69,11 @@ export function SendSessionPanel({ busy, lastCreated, onCreate, canSend, detail,
           <div>
             <strong>생성일</strong> {session.createdAt?.slice(0, 19) ?? '—'}
           </div>
-          <div className="mt-2">
+          <div style={{ marginTop: 8 }}>
             <strong>공개 링크</strong>{' '}
             <code style={{ fontSize: 11, wordBreak: 'break-all' }}>{publicSignUrl(session.linkCode)}</code>
           </div>
-          <div className="d-flex flex-wrap gap-2 mt-2">
+          <div className="contract-signature-console__btn-row">
             <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => void copyLink(session.linkCode)}>
               링크 복사
             </FormButton>

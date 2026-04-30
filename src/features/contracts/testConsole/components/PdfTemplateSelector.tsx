@@ -16,8 +16,8 @@ type Props = {
 
 export function PdfTemplateSelector({ rows, selectedId, onSelect, disabled }: Props) {
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table className="table table-sm table-striped" style={{ fontSize: 13 }}>
+    <div className="contract-signature-console__scroll-x">
+      <table className="pdf-engine-table contract-signature-console__table--compact contract-signature-console__table--striped">
         <thead>
           <tr>
             <th>선택</th>
@@ -48,10 +48,10 @@ export function PdfTemplateSelector({ rows, selectedId, onSelect, disabled }: Pr
                 <td>
                   {r.title}
                   {noFields ? (
-                    <div style={{ color: '#b45309', fontSize: 12 }}>좌표 필드 없음 — active 전환·발송에 제약될 수 있습니다.</div>
+                    <div className="contract-signature-console__hint--warning">좌표 필드 없음 — active 전환·발송에 제약될 수 있습니다.</div>
                   ) : null}
                   {noSig ? (
-                    <div style={{ color: '#b45309', fontSize: 12 }}>signature 필드 없음 — 손사인 단계 테스트가 제한될 수 있습니다.</div>
+                    <div className="contract-signature-console__hint--warning">signature 필드 없음 — 손사인 단계 테스트가 제한될 수 있습니다.</div>
                   ) : null}
                 </td>
                 <td>{r.id}</td>
