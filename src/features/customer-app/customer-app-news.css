@@ -288,7 +288,29 @@
   transform: scale(1.18);
 }
 
-/* 고객앱 상세: 본문 좌우 패딩(16px)과 맞춘 풀폭 이미지 */
+/* 고객앱 홈: 단일 세트 풀폭, dot 아래 바로 셸 CTA(고정)로 이어지도록 메타 배경 통일 */
+.customer-app-news-gallery--home {
+  background: #0f172a;
+}
+
+.customer-app-news-gallery--home .customer-app-news-gallery__meta {
+  padding: 8px 8px 10px;
+  background: #0f172a;
+}
+
+.customer-app-news-gallery--home .customer-app-news-gallery__counter {
+  color: #94a3b8;
+}
+
+.customer-app-news-gallery--home .customer-app-news-gallery__dot {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.customer-app-news-gallery--home .customer-app-news-gallery__dot.is-active {
+  background: #e2e8f0;
+}
+
+/* 고객 앱 홈 상세: 본문 좌우 패딩(16px)과 맞춘 풀폭 이미지 */
 
 .customer-app-shell .insurer-news-detail-article {
   margin-left: -16px;

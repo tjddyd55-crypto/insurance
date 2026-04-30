@@ -2,8 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import FileUploader from '../../../../components/common/FileUploader'
 import { StatusMessage } from '../../../../components/feedback'
 import { FormButton, FormInput, FormTextarea } from '../../../../components/form'
-import { NewsletterList } from '../../../insurer-news/components/NewsletterList'
-import type { NewsletterItem } from '../../../insurer-news/types'
 import { fetchMe } from '../../../auth/authApi'
 import { useAuth } from '../../../auth/AuthProvider'
 import CustomerAppNewsPhonePreview from '../../components/CustomerAppNewsPhonePreview'
@@ -29,6 +27,23 @@ const ATTACHMENT_STATUS_LABEL: Record<AllNewsAttachmentDraft['status'], string> 
   uploading: '업로드 중',
   completed: '완료',
   failed: '실패',
+}
+
+function newsRowTime(iso: string | null | undefined): number {
+  if (!iso) {
+    return 0
+  }
+  const t = Date.parse(iso)
+  return Number.isNaN(t) ? 0 : t
+}
+
+/** 고객앱 홈에 쓰는 활성 세트: scope all 중 updatedAt 최신 1건 */
+function pickActiveHomeNewsItem(rows: AgentCustomerNewsItem[]): AgentCustomerNewsItem | null {
+  const all = rows.filter((row) => row.scope === 'all')
+  if (all.length === 0) {
+    return null
+  }
+  return [...all].sort((a, b) => newsRowTime(b.updatedAt) - newsRowTime(a.updatedAt))[0]
 }
 
 function collectNewsObjectKeys(item: AgentCustomerNewsItem): string[] {
@@ -67,11 +82,9 @@ export default function ClaimRequestsAllNewsPCStandalone() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [attachments, setAttachments] = useState<AllNewsAttachmentDraft[]>([])
-  const [newsAllSubTab, setNewsAllSubTab] = useState<'list' | 'upload'>('upload')
   const [loading, setLoading] = useState(false)
   const [actionBusy, setActionBusy] = useState(false)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
 
@@ -86,7 +99,7 @@ export default function ClaimRequestsAllNewsPCStandalone() {
       setHistory(rows)
     } catch (loadErr) {
       setHistory([])
-      setError(loadErr instanceof Error ? loadErr.message : '전체소식지를 불러오지 못했습니다.')
+      setError(loadErr instanceof Error ? loadErr.message : '고객앱 홈 메시지를 불러오지 못했습니다.')
     } finally {
       setLoading(false)
     }
@@ -96,18 +109,20 @@ export default function ClaimRequestsAllNewsPCStandalone() {
     void loadHistory()
   }, [loadHistory])
 
+  const activeHomeItem = useMemo(() => pickActiveHomeNewsItem(history), [history])
+
   useEffect(() => {
-    if (history.length === 0) {
-      setSelectedHistoryId(null)
+    if (attachments.length > 0) {
       return
     }
-    setSelectedHistoryId((prev) => {
-      if (prev && history.some((row) => row.id === prev)) {
-        return prev
-      }
-      return history[0]?.id ?? null
-    })
-  }, [history])
+    if (!activeHomeItem) {
+      setTitle('')
+      setDescription('')
+      return
+    }
+    setTitle(activeHomeItem.title ?? '')
+    setDescription(activeHomeItem.content ?? '')
+  }, [activeHomeItem, attachments.length])
 
   useEffect(() => {
     if (!token) {
@@ -153,49 +168,22 @@ export default function ClaimRequestsAllNewsPCStandalone() {
     [attachments],
   )
 
-  const selectedHistoryItem = useMemo(
-    () => (selectedHistoryId ? history.find((row) => row.id === selectedHistoryId) ?? null : null),
-    [history, selectedHistoryId],
-  )
-
-  const historyGalleryUrls = useMemo(() => {
-    if (!selectedHistoryItem) {
+  const activeGalleryUrls = useMemo(() => {
+    if (!activeHomeItem) {
       return []
     }
     return buildCustomerNewsGalleryUrls({
-      heroImageUrl: selectedHistoryItem.heroImageUrl,
-      attachments: selectedHistoryItem.attachments,
+      heroImageUrl: activeHomeItem.heroImageUrl,
+      attachments: activeHomeItem.attachments,
     })
-  }, [selectedHistoryItem])
+  }, [activeHomeItem])
 
   const phonePreviewUrls = useMemo(() => {
     if (draftImageUrls.length > 0) {
       return draftImageUrls
     }
-    return historyGalleryUrls
-  }, [draftImageUrls, historyGalleryUrls])
-
-  const allNewsCards = useMemo<NewsletterItem[]>(
-    () =>
-      history.map((item) => ({
-        id: item.id,
-        gaCode: 'customer-news',
-        insurerCode: 'customer-news',
-        insurerName: '전체소식지',
-        insurerSlug: 'all',
-        title: item.title,
-        summary: item.content,
-        heroImageUrl: item.heroImageUrl ?? null,
-        publishedAt: item.updatedAt ?? new Date().toISOString(),
-        status: 'PUBLISHED',
-        hasImages: Boolean(item.attachments?.some((attachment) => attachment.kind === 'image')),
-        hasPdf: false,
-        hasTextBody: Boolean(item.content?.trim()),
-        customerNewsScope: 'all',
-        targetCustomerId: item.targetCustomerId ?? null,
-      })),
-    [history],
-  )
+    return activeGalleryUrls
+  }, [draftImageUrls, activeGalleryUrls])
 
   const validateImageFile = useCallback((file: File): string | null => validateCustomerNewsAllImage(file), [])
 
@@ -260,8 +248,8 @@ export default function ClaimRequestsAllNewsPCStandalone() {
         setAttachments((prev) => prev.map((row) => (row.localId === item.localId ? next : row)))
       }
 
-      const created = await createCustomerNews(token, {
-        title: nextTitle || '전체소식지',
+      await createCustomerNews(token, {
+        title: nextTitle || '고객 메시지',
         content: nextBody,
         scope: 'all',
         targetCustomerId: null,
@@ -276,55 +264,50 @@ export default function ClaimRequestsAllNewsPCStandalone() {
           sortOrder: index,
         })),
       })
-      setResult(`전체소식지 적용 완료: ${created.id}`)
+
       attachments.forEach((item) => {
         if (item.previewUrl) {
           URL.revokeObjectURL(item.previewUrl)
         }
       })
-      setTitle('')
-      setDescription('')
       setAttachments([])
       await loadHistory()
-      setNewsAllSubTab('list')
+      setResult('고객앱 홈에 반영되었습니다.')
     } catch (applyErr) {
-      setError(applyErr instanceof Error ? applyErr.message : '전체소식지 적용에 실패했습니다.')
+      setError(applyErr instanceof Error ? applyErr.message : '적용에 실패했습니다.')
     } finally {
       setActionBusy(false)
     }
   }
 
-  const handleDeleteNews = async (card: NewsletterItem) => {
-    if (!token?.trim()) {
+  const handleDeleteActiveHome = async () => {
+    if (!token?.trim() || !activeHomeItem) {
       return
     }
     if (
       !window.confirm(
-        '이 소식지를 완전히 삭제할까요? 저장된 고객 앱 홈 이미지도 함께 정리되며 복구할 수 없습니다.',
+        '고객앱 홈에 표시 중인 메시지·이미지를 삭제할까요? 저장소에 올린 파일도 정리합니다.',
       )
     ) {
       return
     }
-    setDeletingId(card.id)
+    setDeleteBusy(true)
     setError('')
     setResult('')
     try {
-      await deleteCustomerNews(token, card.id)
+      await deleteCustomerNews(token, activeHomeItem.id)
       try {
-        const item = history.find((row) => row.id === card.id)
-        if (item) {
-          await deleteAllNewsSourceFiles(token, item)
-        }
+        await deleteAllNewsSourceFiles(token, activeHomeItem)
       } catch {
         // 스토리지 정리 실패 시에도 게시글 삭제 결과는 유지
       }
-      setHistory((prev) => prev.filter((row) => row.id !== card.id))
-      setResult('소식지를 삭제했습니다.')
+      setAttachments([])
       await loadHistory()
+      setResult('고객앱 홈 메시지를 삭제했습니다.')
     } catch (delErr) {
-      setError(delErr instanceof Error ? delErr.message : '소식지 삭제에 실패했습니다.')
+      setError(delErr instanceof Error ? delErr.message : '삭제에 실패했습니다.')
     } finally {
-      setDeletingId(null)
+      setDeleteBusy(false)
     }
   }
 
@@ -341,128 +324,96 @@ export default function ClaimRequestsAllNewsPCStandalone() {
           />
           <div className="customer-news-all-layout__main claim-requests-all-news-pc__main">
             <header className="page-header claim-requests-all-news-pc__header">
-              <h2>고객메시지 (전체)</h2>
+              <h2>고객앱 홈 슬라이드</h2>
               <p className="claim-requests-all-news-pc__lede insurer-news-muted">
-                전체 고객 앱 홈 상단 슬라이드에 표시되는 이미지와 설명입니다. JPG·PNG·WEBP·GIF만 등록합니다.
+                홈 상단에 올라가는 이미지·문구 한 세트만 관리합니다. 저장하면 최신 게시글이 고객 홈에 바로 반영됩니다.
               </p>
             </header>
 
-            <section className="claim-requests-all-news-pc__subtabs rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-2">
-              <div className="flex gap-2">
-                <FormButton
-                  htmlType="button"
-                  variant={newsAllSubTab === 'list' ? 'primary' : 'secondary'}
-                  onClick={() => setNewsAllSubTab('list')}
-                >
-                  등록 목록
-                </FormButton>
-                <FormButton
-                  htmlType="button"
-                  variant={newsAllSubTab === 'upload' ? 'primary' : 'secondary'}
-                  onClick={() => setNewsAllSubTab('upload')}
-                >
-                  작성
-                </FormButton>
-              </div>
-            </section>
+            {loading ? <p className="insurer-news-muted claim-requests-all-news-pc__loading">불러오는 중…</p> : null}
 
-            {newsAllSubTab === 'list' ? (
-              <div className="claim-requests-all-news-pc__list">
-                {loading ? <p className="insurer-news-muted claim-requests-all-news-pc__loading">불러오는 중…</p> : null}
-                <NewsletterList
-                  items={allNewsCards}
-                  emptyMessage="발송한 전체소식지가 없습니다."
-                  variant="pc"
-                  onOpenItem={(id) => setSelectedHistoryId(id)}
-                  onDeleteItem={(card) => void handleDeleteNews(card)}
-                  deleteBusyId={deletingId}
+            <form
+              className="auth-card card claim-requests-all-news-pc__form"
+              onSubmit={(event) => event.preventDefault()}
+            >
+              <label className="field">
+                <span className="field__label">제목</span>
+                <FormInput
+                  className="admin-form-input"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="고객에게 보일 제목(선택)"
                 />
+              </label>
+              <label className="field">
+                <span className="field__label">설명</span>
+                <FormTextarea
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  rows={8}
+                  className="admin-form-input"
+                  style={{ height: 'auto', minHeight: 160, paddingTop: 12, paddingBottom: 12 }}
+                  placeholder="고객에게 전달할 내용을 입력하세요."
+                />
+              </label>
+              <div className="field">
+                <span className="field__label">이미지</span>
+                <FileUploader
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  validateFile={validateImageFile}
+                  onFiles={handleFilesSelected}
+                  disabled={actionBusy}
+                  primaryHint="여러 장을 한 세트로 올릴 수 있습니다. 드래그하거나 클릭하여 선택하세요."
+                  hintLines={['고객앱 홈에서 세트 전체가 슬라이드로 표시됩니다.', 'JPG · PNG · WEBP · GIF (각 최대 10MB)']}
+                />
+                <ul className="claim-requests-all-news-pc__file-list" aria-label="현재 선택된 이미지">
+                  {attachments.map((row) => (
+                    <li key={row.localId} className="claim-requests-all-news-pc__file-row">
+                      <span className="claim-requests-all-news-pc__file-name">{row.file.name || '(이름 없음)'}</span>
+                      <span
+                        className={`claim-requests-all-news-pc__file-status${
+                          row.status === 'failed' ? ' claim-requests-all-news-pc__file-status--err' : ''
+                        }`}
+                      >
+                        {ATTACHMENT_STATUS_LABEL[row.status] ?? row.status}
+                        {row.errorMessage ? ` — ${row.errorMessage}` : ''}
+                      </span>
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        className="button button--secondary"
+                        onClick={() => handleRemoveAttachment(row.localId)}
+                        disabled={actionBusy}
+                      >
+                        제거
+                      </FormButton>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            ) : null}
 
-            {newsAllSubTab === 'upload' ? (
-              <form
-                className="auth-card card claim-requests-all-news-pc__form"
-                onSubmit={(event) => event.preventDefault()}
-              >
-                <label className="field">
-                  <span className="field__label">제목 (선택)</span>
-                  <FormInput
-                    className="admin-form-input"
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                    placeholder="비워두면 기본 제목이 사용됩니다."
-                  />
-                </label>
-                <label className="field">
-                  <span className="field__label">설명</span>
-                  <FormTextarea
-                    value={description}
-                    onChange={(event) => setDescription(event.target.value)}
-                    rows={8}
-                    className="admin-form-input"
-                    style={{ height: 'auto', minHeight: 160, paddingTop: 12, paddingBottom: 12 }}
-                    placeholder="고객에게 전달할 내용을 입력하세요."
-                  />
-                </label>
-                <div className="field">
-                  <span className="field__label">이미지</span>
-                  <FileUploader
-                    accept="image/jpeg,image/png,image/webp,image/gif"
-                    validateFile={validateImageFile}
-                    onFiles={handleFilesSelected}
-                    disabled={actionBusy}
-                    primaryHint="권장 비율 9:16 세로 이미지를 드래그하거나 클릭하여 선택하세요."
-                    hintLines={[
-                      '고객 앱 홈에는 이미지 슬라이드로 표시됩니다.',
-                      'JPG · PNG · WEBP · GIF (각 최대 10MB)',
-                    ]}
-                  />
-                  <div className="insurer-news-upload-list">
-                    {attachments.map((row) => (
-                      <div key={row.localId} className="insurer-news-upload-row">
-                        {row.kind === 'image' && row.previewUrl ? (
-                          <img className="insurer-news-upload-row__thumb" src={row.previewUrl} alt="" />
-                        ) : (
-                          <div className="insurer-news-upload-row__pdf">IMG</div>
-                        )}
-                        <div className="insurer-news-upload-row__info">
-                          <p className="insurer-news-upload-row__name">{row.file.name || '(이름 없음)'}</p>
-                          <p
-                            className={`insurer-news-upload-row__status${
-                              row.status === 'failed' ? ' insurer-news-upload-row__status--err' : ''
-                            }`}
-                          >
-                            {ATTACHMENT_STATUS_LABEL[row.status] ?? row.status}
-                            {row.errorMessage ? ` — ${row.errorMessage}` : ''}
-                          </p>
-                        </div>
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          className="button button--secondary"
-                          onClick={() => handleRemoveAttachment(row.localId)}
-                          disabled={actionBusy}
-                        >
-                          삭제
-                        </FormButton>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="claim-requests-all-news-pc__form-actions">
+              <div className="claim-requests-all-news-pc__form-actions">
+                <FormButton
+                  htmlType="button"
+                  variant="primary"
+                  onClick={() => void handleApply()}
+                  loading={actionBusy}
+                >
+                  고객앱에 적용
+                </FormButton>
+                {activeHomeItem ? (
                   <FormButton
                     htmlType="button"
-                    variant="primary"
-                    onClick={() => void handleApply()}
-                    loading={actionBusy}
+                    variant="secondary"
+                    onClick={() => void handleDeleteActiveHome()}
+                    loading={deleteBusy}
+                    disabled={actionBusy}
                   >
-                    고객앱에 적용
+                    홈 메시지 삭제
                   </FormButton>
-                </div>
-              </form>
-            ) : null}
+                ) : null}
+              </div>
+            </form>
 
             {result ? (
               <p className="claim-requests-all-news-pc__result text-xs text-[var(--text-secondary)]">{result}</p>

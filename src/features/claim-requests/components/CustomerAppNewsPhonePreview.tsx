@@ -87,6 +87,7 @@ export default function CustomerAppNewsPhonePreview({
               imageUrls={imageUrls}
               altBase="고객앱 미리보기 이미지"
               className="customer-app-news-gallery--phone-preview"
+              alwaysShowPager
             />
           )}
         </div>

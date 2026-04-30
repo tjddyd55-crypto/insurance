@@ -5,11 +5,18 @@ type Props = {
   altBase?: string
   /** 상위에서 주입하는 추가 클래스 (예: 모달 전용 여백) */
   className?: string
+  /** true면 이미지 1장일 때도 1/N·dot 표시 (홈·미리보기) */
+  alwaysShowPager?: boolean
 }
 
 const SWIPE_PX = 48
 
-export default function CustomerAppNewsImageGallery({ imageUrls, altBase = '소식 이미지', className = '' }: Props) {
+export default function CustomerAppNewsImageGallery({
+  imageUrls,
+  altBase = '소식 이미지',
+  className = '',
+  alwaysShowPager = false,
+}: Props) {
   const [index, setIndex] = useState(0)
   const touchStartX = useRef<number | null>(null)
   const urls = imageUrls.filter(Boolean)
@@ -65,6 +72,8 @@ export default function CustomerAppNewsImageGallery({ imageUrls, altBase = '소�
   }
 
   const rootClass = `customer-app-news-gallery${className ? ` ${className}` : ''}`
+  const showArrows = n > 1
+  const showMeta = alwaysShowPager ? n >= 1 : n > 1
 
   return (
     <div className={rootClass} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
@@ -81,7 +90,7 @@ export default function CustomerAppNewsImageGallery({ imageUrls, altBase = '소�
         </div>
       </div>
 
-      {n > 1 ? (
+      {showArrows ? (
         <>
           <button
             type="button"
@@ -99,25 +108,28 @@ export default function CustomerAppNewsImageGallery({ imageUrls, altBase = '소�
           >
             ›
           </button>
-          <div className="customer-app-news-gallery__meta" aria-live="polite">
-            <span className="customer-app-news-gallery__counter">
-              {index + 1} / {n}
-            </span>
-            <div className="customer-app-news-gallery__dots" role="tablist" aria-label="이미지 선택">
-              {urls.map((_, i) => (
-                <button
-                  key={String(i)}
-                  type="button"
-                  role="tab"
-                  aria-selected={i === index}
-                  aria-label={`${i + 1}번째 이미지 보기`}
-                  className={`customer-app-news-gallery__dot${i === index ? ' is-active' : ''}`}
-                  onClick={() => setIndex(i)}
-                />
-              ))}
-            </div>
-          </div>
         </>
+      ) : null}
+
+      {showMeta ? (
+        <div className="customer-app-news-gallery__meta" aria-live="polite">
+          <span className="customer-app-news-gallery__counter">
+            {index + 1} / {n}
+          </span>
+          <div className="customer-app-news-gallery__dots" role="tablist" aria-label="이미지 선택">
+            {urls.map((_, i) => (
+              <button
+                key={String(i)}
+                type="button"
+                role="tab"
+                aria-selected={i === index}
+                aria-label={`${i + 1}번째 이미지 보기`}
+                className={`customer-app-news-gallery__dot${i === index ? ' is-active' : ''}`}
+                onClick={() => setIndex(i)}
+              />
+            ))}
+          </div>
+        </div>
       ) : null}
     </div>
   )
