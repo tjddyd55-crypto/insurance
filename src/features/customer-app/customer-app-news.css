@@ -224,6 +224,23 @@
   background: #0f172a;
 }
 
+.customer-app-news-gallery__slide-btn {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.customer-app-news-gallery__slide-btn img {
+  pointer-events: none;
+}
+
 .customer-app-news-gallery__nav {
   position: absolute;
   top: 50%;
@@ -308,6 +325,133 @@
 
 .customer-app-news-gallery--home .customer-app-news-gallery__dot.is-active {
   background: #e2e8f0;
+}
+
+/* 전체화면 이미지 (고객앱 홈) — fixed overlay, body 스크롤 잠금은 컴포넌트에서 처리 */
+
+.customer-app-news-fs {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.customer-app-news-fs__backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: #000000;
+  cursor: pointer;
+}
+
+.customer-app-news-fs__close {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  z-index: 3;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(15, 23, 42, 0.75);
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.customer-app-news-fs__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.customer-app-news-fs__nav--prev {
+  left: max(8px, env(safe-area-inset-left, 0px));
+}
+
+.customer-app-news-fs__nav--next {
+  right: max(8px, env(safe-area-inset-right, 0px));
+}
+
+.customer-app-news-fs__stage {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 12px 12px;
+  box-sizing: border-box;
+  touch-action: pan-y;
+}
+
+.customer-app-news-fs__img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #000;
+}
+
+.customer-app-news-fs__meta {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px max(16px, env(safe-area-inset-bottom, 0px));
+  background: #000000;
+}
+
+.customer-app-news-fs__counter {
+  font-size: 13px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.customer-app-news-fs__dots {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.customer-app-news-fs__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  background: rgba(148, 163, 184, 0.45);
+  cursor: pointer;
+}
+
+.customer-app-news-fs__dot.is-active {
+  background: #e2e8f0;
+  transform: scale(1.15);
 }
 
 /* 고객 앱 홈 상세: 본문 좌우 패딩(16px)과 맞춘 풀폭 이미지 */

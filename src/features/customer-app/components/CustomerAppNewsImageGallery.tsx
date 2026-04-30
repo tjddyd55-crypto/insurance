@@ -7,6 +7,8 @@ type Props = {
   className?: string
   /** true면 이미지 1장일 때도 1/N·dot 표시 (홈·미리보기) */
   alwaysShowPager?: boolean
+  /** 슬라이드 이미지 탭 시 (전체화면 등). 지정 시 슬라이드가 버튼으로 감싸짐 */
+  onRequestFullscreen?: (index: number) => void
 }
 
 const SWIPE_PX = 48
@@ -16,6 +18,7 @@ export default function CustomerAppNewsImageGallery({
   altBase = '소식 이미지',
   className = '',
   alwaysShowPager = false,
+  onRequestFullscreen,
 }: Props) {
   const [index, setIndex] = useState(0)
   const touchStartX = useRef<number | null>(null)
@@ -84,7 +87,23 @@ export default function CustomerAppNewsImageGallery({
         >
           {urls.map((url, idx) => (
             <div key={`${url}-${idx}`} className="customer-app-news-gallery__slide">
-              <img src={url} alt={`${altBase} ${idx + 1}`} loading={idx === 0 ? 'eager' : 'lazy'} decoding="async" />
+              {onRequestFullscreen ? (
+                <button
+                  type="button"
+                  className="customer-app-news-gallery__slide-btn"
+                  aria-label={`${altBase} 전체 화면으로 보기 ${idx + 1}`}
+                  onClick={() => onRequestFullscreen(idx)}
+                >
+                  <img
+                    src={url}
+                    alt={`${altBase} ${idx + 1}`}
+                    loading={idx === 0 ? 'eager' : 'lazy'}
+                    decoding="async"
+                  />
+                </button>
+              ) : (
+                <img src={url} alt={`${altBase} ${idx + 1}`} loading={idx === 0 ? 'eager' : 'lazy'} decoding="async" />
+              )}
             </div>
           ))}
         </div>

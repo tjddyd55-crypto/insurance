@@ -54,6 +54,31 @@ export function createLocalCustomerNewsImageAttachment(file: File): AllNewsAttac
   }
 }
 
+/** 서버에 이미 저장된 이미지(재업로드 없이 PATCH 페이로드에 실을 때) */
+export function createRemoteCustomerNewsImageAttachment(input: {
+  serverKey: string
+  url: string
+  objectKey?: string | null
+  fileName: string
+  mimeType?: string | null
+  size?: number | null
+}): AllNewsAttachmentDraft {
+  const fileName = input.fileName.trim() || 'image.jpg'
+  const mimeType = (input.mimeType && input.mimeType.trim()) || 'image/jpeg'
+  const placeholderFile = new File([], fileName, { type: mimeType })
+  return {
+    localId: `remote-${input.serverKey}`,
+    file: placeholderFile,
+    kind: 'image',
+    previewUrl: null,
+    status: 'completed',
+    cdnUrl: input.url.trim(),
+    objectKey: input.objectKey?.trim() || undefined,
+    mimeType,
+    sizeBytes: input.size ?? undefined,
+  }
+}
+
 /** presignStorageFile → PUT → saveStorageFile (content=customer-news/all, customerId=null) */
 export async function uploadCustomerNewsAllAttachment(
   token: string,

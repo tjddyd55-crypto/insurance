@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import FileUploader from '../../../../components/common/FileUploader'
 import { StatusMessage } from '../../../../components/feedback'
 import { FormButton, FormInput, FormTextarea } from '../../../../components/form'
@@ -15,8 +15,10 @@ import {
   createCustomerNews,
   deleteCustomerNews,
   listAgentCustomerNews,
+  updateCustomerNews,
   type AgentCustomerNewsItem,
 } from '../../api/claimRequestsApi'
+import { buildSlideDraftsFromActiveHomeItem } from '../../model/customerNewsHomeSlideDrafts'
 import { deleteStorageFile, listStorageFiles } from '../../../storage/api/storageApi'
 import { buildCustomerNewsGalleryUrls } from '../../../customer-app/model/buildCustomerNewsGalleryUrls'
 import ClaimRequestsPagePCView from './ClaimRequestsPagePCView'
@@ -87,6 +89,7 @@ export default function ClaimRequestsAllNewsPCStandalone() {
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
+  const draftSourceRef = useRef<string>('__init__')
 
   const loadHistory = useCallback(async () => {
     if (!token) {
@@ -112,17 +115,31 @@ export default function ClaimRequestsAllNewsPCStandalone() {
   const activeHomeItem = useMemo(() => pickActiveHomeNewsItem(history), [history])
 
   useEffect(() => {
-    if (attachments.length > 0) {
+    if (loading) {
       return
     }
+    const fp = activeHomeItem ? `${activeHomeItem.id}:${activeHomeItem.updatedAt ?? ''}` : '__none__'
+    if (fp === draftSourceRef.current) {
+      return
+    }
+    draftSourceRef.current = fp
+
+    setAttachments((prev) => {
+      for (const item of prev) {
+        if (item.previewUrl) {
+          URL.revokeObjectURL(item.previewUrl)
+        }
+      }
+      return activeHomeItem ? buildSlideDraftsFromActiveHomeItem(activeHomeItem) : []
+    })
     if (!activeHomeItem) {
       setTitle('')
       setDescription('')
-      return
+    } else {
+      setTitle(activeHomeItem.title ?? '')
+      setDescription(activeHomeItem.content ?? '')
     }
-    setTitle(activeHomeItem.title ?? '')
-    setDescription(activeHomeItem.content ?? '')
-  }, [activeHomeItem, attachments.length])
+  }, [loading, activeHomeItem])
 
   useEffect(() => {
     if (!token) {
@@ -236,7 +253,10 @@ export default function ClaimRequestsAllNewsPCStandalone() {
     try {
       const uploaded: AllNewsAttachmentDraft[] = []
       for (const item of attachments) {
-        if (item.status === 'completed' && item.cdnUrl && item.objectKey) {
+        if (item.kind !== 'image') {
+          continue
+        }
+        if (item.status === 'completed' && item.cdnUrl) {
           uploaded.push(item)
           continue
         }
@@ -248,23 +268,38 @@ export default function ClaimRequestsAllNewsPCStandalone() {
         setAttachments((prev) => prev.map((row) => (row.localId === item.localId ? next : row)))
       }
 
-      await createCustomerNews(token, {
-        title: nextTitle || '고객 메시지',
-        content: nextBody,
-        scope: 'all',
-        targetCustomerId: null,
-        sendPush: true,
-        attachments: uploaded.map((item, index) => ({
-          kind: 'image',
+      const imagePayload = uploaded
+        .filter((item) => item.kind === 'image' && item.cdnUrl)
+        .map((item, index) => ({
+          kind: 'image' as const,
           url: item.cdnUrl ?? '',
           objectKey: item.objectKey,
           fileName: item.file.name || `news-image-${index + 1}`,
           mimeType: item.mimeType ?? item.file.type,
           size: item.sizeBytes ?? item.file.size,
           sortOrder: index,
-        })),
-      })
+        }))
 
+      const editingId = activeHomeItem?.id?.trim()
+      if (editingId) {
+        await updateCustomerNews(token, editingId, {
+          title: nextTitle || '고객 메시지',
+          content: nextBody,
+          sendPush: true,
+          attachments: imagePayload,
+        })
+      } else {
+        await createCustomerNews(token, {
+          title: nextTitle || '고객 메시지',
+          content: nextBody,
+          scope: 'all',
+          targetCustomerId: null,
+          sendPush: true,
+          attachments: imagePayload,
+        })
+      }
+
+      draftSourceRef.current = ''
       attachments.forEach((item) => {
         if (item.previewUrl) {
           URL.revokeObjectURL(item.previewUrl)
@@ -301,6 +336,7 @@ export default function ClaimRequestsAllNewsPCStandalone() {
       } catch {
         // 스토리지 정리 실패 시에도 게시글 삭제 결과는 유지
       }
+      draftSourceRef.current = ''
       setAttachments([])
       await loadHistory()
       setResult('고객앱 홈 메시지를 삭제했습니다.')
@@ -326,7 +362,8 @@ export default function ClaimRequestsAllNewsPCStandalone() {
             <header className="page-header claim-requests-all-news-pc__header">
               <h2>고객앱 홈 슬라이드</h2>
               <p className="claim-requests-all-news-pc__lede insurer-news-muted">
-                홈 상단에 올라가는 이미지·문구 한 세트만 관리합니다. 저장하면 최신 게시글이 고객 홈에 바로 반영됩니다.
+                수정 중인 홈 슬라이드 세트 1개입니다. 제목·설명·이미지를 바꾼 뒤 저장하면 같은 세트가 고객앱 홈에
+                반영됩니다.
               </p>
             </header>
 
@@ -366,7 +403,7 @@ export default function ClaimRequestsAllNewsPCStandalone() {
                   primaryHint="여러 장을 한 세트로 올릴 수 있습니다. 드래그하거나 클릭하여 선택하세요."
                   hintLines={['고객앱 홈에서 세트 전체가 슬라이드로 표시됩니다.', 'JPG · PNG · WEBP · GIF (각 최대 10MB)']}
                 />
-                <ul className="claim-requests-all-news-pc__file-list" aria-label="현재 선택된 이미지">
+                <ul className="claim-requests-all-news-pc__file-list" aria-label="이 세트 이미지 목록">
                   {attachments.map((row) => (
                     <li key={row.localId} className="claim-requests-all-news-pc__file-row">
                       <span className="claim-requests-all-news-pc__file-name">{row.file.name || '(이름 없음)'}</span>
@@ -409,7 +446,7 @@ export default function ClaimRequestsAllNewsPCStandalone() {
                     loading={deleteBusy}
                     disabled={actionBusy}
                   >
-                    홈 메시지 삭제
+                    홈 슬라이드 전체 삭제
                   </FormButton>
                 ) : null}
               </div>

@@ -1625,6 +1625,105 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
     }
   })
 
+  apiRouter.patch('/agent/customer-news/:newsId', requireAuth, async (req, res) => {
+    try {
+      const agentId = String(req.user?.id ?? '').trim()
+      if (!agentId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const newsId = String(req.params.newsId ?? '').trim()
+      if (!newsId) {
+        res.status(400).json({ message: '소식지 ID가 필요합니다.' })
+        return
+      }
+      const title = String(req.body?.title ?? '').trim() || '고객 메시지'
+      const content = String(req.body?.content ?? '').trim()
+      const sendPush = Boolean(req.body?.sendPush)
+      if (!content) {
+        res.status(400).json({ message: '내용을 입력해 주세요.' })
+        return
+      }
+      const attachments = normalizeCustomerNewsAttachments(req.body?.attachments)
+      const gaId = await resolveAgentGaId(pool, agentId)
+      if (gaId == null) {
+        res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
+        return
+      }
+      const existing = await pool.query(
+        `
+        SELECT id, payload
+        FROM insurance_company_newsletters
+        WHERE id = $1
+          AND ga_id = $2
+          AND status = 'PUBLISHED'
+        LIMIT 1
+        `,
+        [newsId, gaId],
+      )
+      if (existing.rowCount === 0) {
+        res.status(404).json({ message: '소식지를 찾을 수 없습니다.' })
+        return
+      }
+      const prevPayload = existing.rows[0].payload || {}
+      const publisherId = String(prevPayload?.publisherId ?? '').trim()
+      if (publisherId && publisherId !== agentId) {
+        res.status(403).json({ message: '이 소식지를 수정할 권한이 없습니다.' })
+        return
+      }
+      const prevScope = String(prevPayload?.customerNewsScope ?? 'all') === 'personal' ? 'personal' : 'all'
+      if (prevScope !== 'all') {
+        res.status(403).json({ message: '개별 소식지는 여기서 수정할 수 없습니다.' })
+        return
+      }
+      const nextPayload = {
+        ...prevPayload,
+        summary: content.slice(0, 300),
+        heroImageUrl: attachments.find((item) => item.kind === 'image')?.url ?? null,
+        attachments,
+      }
+      await pool.query(
+        `
+        UPDATE insurance_company_newsletters
+        SET title = $1,
+            body_text = $2,
+            payload = $3::jsonb,
+            updated_at = NOW()
+        WHERE id = $4
+          AND ga_id = $5
+        `,
+        [title, content, JSON.stringify(nextPayload), newsId, gaId],
+      )
+      await writeLinkAudit(pool, {
+        agentId,
+        customerId: null,
+        deviceId: null,
+        linkCode: null,
+        action: 'customer_news_updated',
+        result: sendPush ? 'push_queued' : 'success',
+        meta: {
+          newsletterId: newsId,
+          sendPush,
+          heroImageUrl: nextPayload.heroImageUrl,
+          attachments,
+          scope: 'all',
+        },
+      })
+      res.json({
+        success: true,
+        data: {
+          id: newsId,
+          title,
+          content,
+          sendPush,
+          scope: 'all',
+        },
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
   apiRouter.get('/agent/customer-news', requireAuth, async (req, res) => {
     try {
       const agentId = String(req.user?.id ?? '').trim()

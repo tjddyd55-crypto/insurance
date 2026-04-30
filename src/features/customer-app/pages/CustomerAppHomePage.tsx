@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import RichTextContent from '../../../components/rich-text/RichTextContent'
+import CustomerAppNewsImageFullscreenOverlay from '../components/CustomerAppNewsImageFullscreenOverlay'
 import CustomerAppNewsImageGallery from '../components/CustomerAppNewsImageGallery'
 import {
   getCustomerNewsDetail,
@@ -33,10 +34,11 @@ export default function CustomerAppHomePage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [homeNewsId, setHomeNewsId] = useState<string | null>(null)
-  /** 최신 활성 홈 세트 1건의 이미지 URL (hero + attachments 이미지, 중복 제거) */
   const [galleryUrls, setGalleryUrls] = useState<string[]>([])
   const [summaryText, setSummaryText] = useState('')
   const [slideTitle, setSlideTitle] = useState('')
+  const [fsOpen, setFsOpen] = useState(false)
+  const [fsIndex, setFsIndex] = useState(0)
 
   useEffect(() => {
     if (!session) {
@@ -91,10 +93,9 @@ export default function CustomerAppHomePage() {
     }
   }, [navigate, session])
 
-  const openDetail = () => {
-    if (homeNewsId) {
-      navigate(`/customer-app/news/${homeNewsId}`)
-    }
+  const openFullscreen = (index: number) => {
+    setFsIndex(index)
+    setFsOpen(true)
   }
 
   return (
@@ -115,15 +116,12 @@ export default function CustomerAppHomePage() {
             altBase="고객 메시지 이미지"
             className="customer-app-news-gallery--home"
             alwaysShowPager
+            onRequestFullscreen={openFullscreen}
           />
         ) : null}
 
         {!loading && homeNewsId && galleryUrls.length === 0 && summaryText ? (
-          <button
-            type="button"
-            className="customer-app-home__text-fallback"
-            onClick={openDetail}
-          >
+          <div className="customer-app-home__text-fallback">
             <div className="customer-app-home__text-fallback-inner">
               {slideTitle ? <div className="customer-app-home__text-fallback-title">{slideTitle}</div> : null}
               <RichTextContent
@@ -131,19 +129,18 @@ export default function CustomerAppHomePage() {
                 className="customer-app-home__text-fallback-body"
                 emptyText="내용이 없습니다."
               />
-              <span className="customer-app-home__text-fallback-hint">탭하여 상세 보기</span>
             </div>
-          </button>
-        ) : null}
-
-        {homeNewsId ? (
-          <div className="customer-app-home__detail-link">
-            <Link to={`/customer-app/news/${homeNewsId}`} className="customer-app-home__detail-link-a">
-              메시지 상세 보기
-            </Link>
           </div>
         ) : null}
       </section>
+
+      <CustomerAppNewsImageFullscreenOverlay
+        open={fsOpen}
+        imageUrls={galleryUrls}
+        initialIndex={fsIndex}
+        onClose={() => setFsOpen(false)}
+        altBase="고객 메시지"
+      />
     </>
   )
 }
