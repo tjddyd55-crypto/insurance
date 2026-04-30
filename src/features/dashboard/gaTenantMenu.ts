@@ -5,10 +5,7 @@
  */
 
 import { isAllowedForExpiredFrontend } from '../subscription/expiredAllowlist'
-import {
-  canAccessContractSignatureTestConsole,
-  isContractSignatureTestMenuEnabled,
-} from '../contracts/testConsole/contractSignatureTestConsoleFlags'
+import { canAccessContractSignatureAdminConsole } from '../contracts/testConsole/contractSignatureTestConsoleFlags'
 
 export type GaTenantMenuItem = { label: string; path: string }
 
@@ -219,7 +216,7 @@ const CONTRACT_SIGNATURE_ADMIN_MENU: GaTenantMenuItem = {
 }
 
 function contractSignatureAdminMenuIfEnabled(role: string | undefined): GaTenantMenuItem | null {
-  if (!isContractSignatureTestMenuEnabled() || !canAccessContractSignatureTestConsole(role)) {
+  if (!canAccessContractSignatureAdminConsole(role)) {
     return null
   }
   return CONTRACT_SIGNATURE_ADMIN_MENU

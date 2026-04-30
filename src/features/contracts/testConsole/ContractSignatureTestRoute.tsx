@@ -1,9 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
-import {
-  canAccessContractSignatureTestConsole,
-  isContractSignatureTestMenuEnabled,
-} from './contractSignatureTestConsoleFlags'
+import { canAccessContractSignatureAdminConsole } from './contractSignatureTestConsoleFlags'
 
 /** 비활성 시 북마크 직접 진입도 차단 */
 export function ContractSignatureTestRoute() {
@@ -12,10 +9,7 @@ export function ContractSignatureTestRoute() {
   if (!isAuthenticated || !user) {
     return <Navigate to="/login?required=1" replace />
   }
-  if (!isContractSignatureTestMenuEnabled()) {
-    return <Navigate to="/dashboard" replace />
-  }
-  if (!canAccessContractSignatureTestConsole(user.role)) {
+  if (!canAccessContractSignatureAdminConsole(user.role)) {
     return <Navigate to="/dashboard" replace />
   }
   return <Outlet />
