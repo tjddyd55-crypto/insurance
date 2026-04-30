@@ -213,16 +213,16 @@ export type AppMenuBuildOptions = {
 
 const AUDIT_LOG_ENTRY: GaTenantMenuItem = { label: '보안 감사 로그', path: '/admin/audit-logs' }
 
-const CONTRACT_SIGNATURE_TEST_MENU: GaTenantMenuItem = {
-  label: '전자서명 테스트',
-  path: '/admin/contract-signature-test',
+const CONTRACT_SIGNATURE_ADMIN_MENU: GaTenantMenuItem = {
+  label: '전자서명 관리',
+  path: '/admin/contract-signatures',
 }
 
-function contractSignatureTestMenuIfEnabled(role: string | undefined): GaTenantMenuItem | null {
+function contractSignatureAdminMenuIfEnabled(role: string | undefined): GaTenantMenuItem | null {
   if (!isContractSignatureTestMenuEnabled() || !canAccessContractSignatureTestConsole(role)) {
     return null
   }
-  return CONTRACT_SIGNATURE_TEST_MENU
+  return CONTRACT_SIGNATURE_ADMIN_MENU
 }
 
 const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
@@ -239,7 +239,7 @@ const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
 ]
 
 function superAdminMenuWithPublicShortcuts(): GaTenantMenuItem[] {
-  const testItem = contractSignatureTestMenuIfEnabled('SUPER_ADMIN')
+  const testItem = contractSignatureAdminMenuIfEnabled('SUPER_ADMIN')
   const adminItems = [...SUPER_ADMIN_BASE]
   if (testItem) {
     const pdfIdx = adminItems.findIndex((i) => i.path === '/admin/pdf-templates')
@@ -290,7 +290,7 @@ export function buildAppMenuForSession(
     if (role === 'GA_ADMIN' || role === 'USER') {
       const entries = buildGaTenantDashboardMenu(gaCode, gaName)
       if (role === 'GA_ADMIN') {
-        const testEntry = contractSignatureTestMenuIfEnabled('GA_ADMIN')
+        const testEntry = contractSignatureAdminMenuIfEnabled('GA_ADMIN')
         if (testEntry) {
           entries.push({ type: 'link', label: testEntry.label, path: testEntry.path })
         }

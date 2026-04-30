@@ -326,6 +326,10 @@ export const appRouter = createBrowserRouter([
                 element: <ContractSignatureTestRoute />,
                 children: [
                   {
+                    path: 'admin/contract-signatures',
+                    element: <ContractSignatureTestConsolePage />,
+                  },
+                  {
                     path: 'admin/contract-signature-test',
                     element: <ContractSignatureTestConsolePage />,
                   },

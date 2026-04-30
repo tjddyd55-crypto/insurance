@@ -1,5 +1,5 @@
 /**
- * 전자서명 E2E 테스트 콘솔 — 관리자 전용. 공개 계약 링크 플로우와 분리.
+ * 전자서명 관리 — SUPER_ADMIN / GA_ADMIN 전용. 공개 계약 링크 플로우와 분리.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
@@ -232,10 +232,20 @@ export default function ContractSignatureTestConsolePage() {
 
   return (
     <div className="container py-4" style={{ maxWidth: 1100 }}>
-      <h1 className="h4 mb-1">전자서명 테스트 콘솔</h1>
-      <p className="text-muted small mb-4">
-        PDF 템플릿·계약 템플릿·고객을 연결해 발송 세션을 만들고, 공개 링크 플로우와 증빙 필드를 확인합니다.
+      <h1 className="h4 mb-1">전자서명 관리</h1>
+      <p className="text-muted small mb-3">
+        PDF 좌표 템플릿을 기반으로 고객에게 전자서명 링크를 발송하고, 지정 휴대폰 인증·손사인·증빙 상태를
+        확인합니다.
       </p>
+      <div className="alert alert-secondary small mb-4" role="status">
+        <ul className="mb-0 ps-3">
+          <li>
+            현재 기능은 지정 휴대폰 인증 기반 전자서명입니다. NICE/KCB 실명 본인확인은 아직 연결되어 있지
+            않습니다.
+          </li>
+          <li>최종 PDF 합성은 추후 지원 예정입니다.</li>
+        </ul>
+      </div>
 
       {bootError ? (
         <div className="alert alert-danger" role="alert">

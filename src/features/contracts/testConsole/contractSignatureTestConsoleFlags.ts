@@ -1,9 +1,9 @@
-/** Vite feature flag: 전자서명 테스트 콘솔 메뉴·라우트 노출 */
+/** Vite: 전자서명 관리 메뉴·라우트 노출(개발 빌드 또는 env 명시 시) */
 export function isContractSignatureTestMenuEnabled(): boolean {
-  if (import.meta.env.DEV) {
-    return true
-  }
-  return import.meta.env.VITE_ENABLE_CONTRACT_SIGNATURE_TEST_MENU === 'true'
+  return (
+    import.meta.env.DEV === true ||
+    import.meta.env.VITE_ENABLE_CONTRACT_SIGNATURE_TEST_MENU === 'true'
+  )
 }
 
 /** SUPER_ADMIN · GA_ADMIN 만 — 스태프/일반 고객·원수사 채널은 제외 */
