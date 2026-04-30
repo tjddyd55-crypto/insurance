@@ -17,9 +17,12 @@
   color: #0f172a;
 }
 
-/* 좌표 편집은 PDF 정밀 작업이므로 가로 폭을 최대한 활용한다. */
+/* 좌표 편집 — 좌우 여백을 줄이고 가로를 최대한 PDF 미리보기에 할당 */
 .pdf-engine-page--editor {
-  max-width: min(96vw, 1800px);
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px 12px 48px;
 }
 
 .pdf-engine-page__title {
@@ -100,20 +103,28 @@
 
 .pdf-engine-editor {
   display: grid;
-  grid-template-columns: 280px 360px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 240px 320px minmax(820px, 1fr);
+  gap: 12px;
   align-items: start;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
 }
 
-@media (max-width: 1500px) {
+@media (max-width: 1400px) {
   .pdf-engine-editor {
-    grid-template-columns: 260px 320px minmax(0, 1fr);
+    grid-template-columns: 220px 300px minmax(720px, 1fr);
   }
 }
 
 @media (max-width: 1024px) {
   .pdf-engine-editor {
     grid-template-columns: 1fr;
+    overflow-x: visible;
+  }
+
+  .pdf-engine-editor__panel--preview {
+    min-width: 0 !important;
   }
 }
 
@@ -131,6 +142,30 @@
 .pdf-engine-editor__panel--config {
   max-height: calc(100vh - 220px);
   overflow-y: auto;
+}
+
+/* 오른쪽: PDF 미리보기 — 남는 폭 사용, 좁은 화면에서는 그리드 가로 스크롤로 820px 이상 확보 */
+.pdf-engine-editor__panel--preview {
+  min-width: 820px;
+  min-height: 0;
+}
+
+.pdf-engine-editor__preview-scroll {
+  max-height: min(82vh, calc(100vh - 140px));
+  overflow-x: auto;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 10px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  box-sizing: border-box;
+}
+
+.pdf-engine-editor__preview-hint {
+  margin: 0;
 }
 
 .pdf-engine-editor__panel-title {
@@ -214,17 +249,18 @@
 .pdf-engine-editor__overlay {
   position: relative;
   display: inline-block;
-  max-width: 100%;
+  flex: 0 0 auto;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #fff;
-  overflow: auto;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .pdf-engine-editor__pdf-canvas {
   display: block;
-  max-width: 100%;
+  width: auto;
   height: auto;
+  max-width: none;
   cursor: crosshair;
 }
 
@@ -247,6 +283,15 @@
   color: #b91c1c;
   font-size: 13px;
   margin: 0 0 8px;
+}
+
+/* 미리보기 보조 메시지 — 렌더 실패가 의심될 때만 노출되며, 치명 오류와 구분해 색을 완화 */
+.pdf-engine-editor__error--soft {
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 8px 10px;
 }
 
 /* DEV 빌드에서만 보이는 원인 코드 배지 — UI 에 자리만 잡아준다. */

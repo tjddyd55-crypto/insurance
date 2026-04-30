@@ -295,7 +295,7 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
   }
 
   return (
-    <main className="insurance-dark-forms pdf-engine-page">
+    <main className="insurance-dark-forms pdf-engine-page pdf-engine-page--editor">
       <div className="pdf-engine-page__header">
         <h1 className="pdf-engine-page__title">PDF 템플릿 편집</h1>
         {headerMeta}

@@ -31,7 +31,9 @@ setupPdfWorker()
  * 캔버스 드로잉 전용 내부 상수.
  * 디자인 토큰 대상이 아닌 "마커 렌더 고유의 구현 상수" 라서 파일 상단에 모아둔다.
  * 디자인 변경 시 이곳만 손보면 된다.
+ * (Canvas 2D fillStyle 은 CSS 변수 문자열을 일반적으로 쓰지 않는다.)
  */
+/* eslint-disable no-restricted-syntax -- canvas 마커용 고정 RGBA */
 const MARK_FILL_SELECTED = 'rgba(255, 77, 79, 0.98)'
 const MARK_FILL_DEFAULT = 'rgba(0, 163, 255, 0.96)'
 const MARK_STROKE = '#ffffff'
@@ -44,12 +46,22 @@ const BOX_STROKE_DEFAULT = 'rgba(0, 163, 255, 0.95)'
 const DRAG_PREVIEW_FILL = 'rgba(255, 77, 79, 0.12)'
 const DRAG_PREVIEW_STROKE = 'rgba(255, 77, 79, 0.98)'
 const PDF_CANVAS_BG = 'white'
+/* eslint-enable no-restricted-syntax */
 
 /**
  * 드래그 박스 픽이 유효하다고 판정하는 최소 치수(CSS 픽셀).
  * 실수 클릭·떨림으로 아주 얇은 박스가 생기는 걸 막는다.
  */
 const MIN_BOX_SIZE_PX = 6
+
+/**
+ * 미리보기에서 한 페이지가 차지하는 CSS 가로 폭 목표(A4 96dpi 근사).
+ * 저장 좌표(PDF pt)와 무관 — canvas 픽셀 ↔ pt 는 coordinateMath 가 처리한다.
+ */
+const TARGET_PAGE_CSS_WIDTH_PX = 794
+
+/** 매우 좁은 뷰포트에서의 하한. */
+const MIN_PAGE_CSS_WIDTH_PX = 260
 
 /** 상위에서 그려야 할 마커 한 개. */
 export interface OverlayMark {
@@ -143,6 +155,8 @@ export function PdfOverlayCanvas({
      개발 모드에선 사용자 메시지 아래에 code 를 조그맣게 노출해 디버깅을 돕는다. */
   const [errorCode, setErrorCode] = useState<PdfLoadErrorCode | 'unknown' | null>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
+  /** 미리보기 래퍼 가로폭 — ResizeObserver 로 갱신해 A4 목표 폭(794px) 스케일을 맞춘다. */
+  const [previewInnerWidth, setPreviewInnerWidth] = useState(0)
 
   /** 드래그 중 프리뷰 박스 하나를 marks 위에 덧그린다. 렌더가 별 함수로 빠져 있어야
       drawMarks 의 단일 책임을 해치지 않는다. */
@@ -222,26 +236,41 @@ export function PdfOverlayCanvas({
   }, [drawMarks, status])
 
   useEffect(() => {
+    if (!pdfBuffer) {
+      return
+    }
+    const el = wrapRef.current
+    if (!el) {
+      return
+    }
+    const apply = () => {
+      setPreviewInnerWidth(el.clientWidth)
+    }
+    const ro = new ResizeObserver(() => apply())
+    ro.observe(el)
+    queueMicrotask(apply)
+    return () => {
+      ro.disconnect()
+    }
+  }, [pdfBuffer])
+
+  useEffect(() => {
     /*
      * 외부 prop(pdfBuffer/pageIndex) 변화에 동기해 내부 상태를 리셋하고,
      * pdfjs 문서 로딩이라는 외부 자원 취득 흐름을 시작하는 이펙트다.
-     * react-hooks/set-state-in-effect 가 이 패턴을 경고할 때가 있다(플러그인 버전 의존).
-     * 외부 리소스 수명주기 동기화가 본 훅의 책임 그 자체다 → disable 로 의도를 고정.
      */
+    /* eslint-disable react-hooks/set-state-in-effect -- pdfjs 로드 수명주기와 UI 상태 동기 */
     if (!pdfBuffer) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus('idle')
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setErrorCode(null)
       pageSizeRef.current = null
       return
     }
 
     let cancelled = false
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStatus('loading')
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setErrorCode(null)
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     /*
      * 각 단계를 독립 try/catch 로 감싸 "어디서 실패했는지" 라벨을 보존한다.
@@ -273,12 +302,17 @@ export function PdfOverlayCanvas({
       const canvas = canvasRef.current
       if (!canvas || !wrap || cancelled) return
 
-      /*
-       * 좌표 정밀 편집 시 확대 가능 폭을 넉넉히 잡는다.
-       * 기존 920px 상한은 큰 모니터/사이드바 접힘 상태에서도 PDF가 작게 보이는 원인이었다.
-       */
-      const maxW = Math.min(1600, Math.max(420, wrap.clientWidth || 900))
-      const scale = maxW / base.width
+      const innerW =
+        wrap.clientWidth > 0
+          ? wrap.clientWidth
+          : previewInnerWidth > 0
+            ? previewInnerWidth
+            : TARGET_PAGE_CSS_WIDTH_PX
+      const targetCssW = Math.max(
+        MIN_PAGE_CSS_WIDTH_PX,
+        Math.min(TARGET_PAGE_CSS_WIDTH_PX, innerW),
+      )
+      const scale = targetCssW / base.width
       const viewport = page.getViewport({ scale })
       canvas.width = viewport.width
       canvas.height = viewport.height
@@ -323,7 +357,7 @@ export function PdfOverlayCanvas({
     return () => {
       cancelled = true
     }
-  }, [pdfBuffer, pageIndex, onDocumentReady])
+  }, [pdfBuffer, pageIndex, onDocumentReady, previewInnerWidth])
 
   /* ---------- 포인트 모드: 단순 클릭 ---------- */
 
@@ -497,7 +531,7 @@ export function PdfOverlayCanvas({
         <p className="pdf-engine-editor__hint">PDF 렌더링 중…</p>
       ) : null}
       {status === 'error' ? (
-        <p className="pdf-engine-editor__error">
+        <p className="pdf-engine-editor__error pdf-engine-editor__error--soft">
           {messageForPdfLoadErrorCode(errorCode)}
           {logger.isDev && errorCode ? (
             <span className="pdf-engine-editor__error-code"> [code: {errorCode}]</span>

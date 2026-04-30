@@ -126,6 +126,11 @@ export function PdfCoordinateEditor({
     if (pageCount > 0) setNumPages(pageCount)
   }, [pageCount])
 
+  useEffect(() => {
+    /* 서버 pageCount 와 pdfjs 실제 페이지 수가 어긋나면, 열람 중 페이지가 범위를 벗어나지 않게 한다. */
+    setPageIndex((i) => Math.min(i, Math.max(0, numPages - 1)))
+  }, [numPages])
+
   const existingKeys = useMemo(() => new Set(fields.map((f) => f.fieldKey)), [fields])
 
   /** 왼쪽 필드 목록의 placement 들을 overlay 마커로 변환.
@@ -642,7 +647,11 @@ export function PdfCoordinateEditor({
         )}
       </aside>
 
-      <section className="pdf-engine-editor__panel">
+      <section className="pdf-engine-editor__panel pdf-engine-editor__panel--preview">
+        <p className="pdf-engine-editor__hint pdf-engine-editor__preview-hint">
+          PDF는 A4에 가까운 크기(가로 약 794px)로 표시합니다. 페이지가 길면 아래 미리보기 영역을 스크롤하며
+          좌표를 지정하세요.
+        </p>
         <div className="pdf-engine-editor__row">
           <label className="pdf-engine-editor__label" style={{ flex: '0 0 160px' }}>
             페이지 (1~{numPages})
@@ -662,24 +671,26 @@ export function PdfCoordinateEditor({
               : '먼저 왼쪽에서 필드를 선택해 주세요.'}
           </span>
         </div>
-        <PdfOverlayCanvas
-          pdfBuffer={pdfBuffer}
-          pageIndex={pageIndex}
-          marks={marks}
-          clickEnabled={canvasClickEnabled}
-          onPick={handlePick}
-          onSelectMark={(markId) => {
-            const splitAt = markId.lastIndexOf('-')
-            if (splitAt <= 0) return
-            const key = markId.slice(0, splitAt)
-            const rawIndex = Number(markId.slice(splitAt + 1))
-            if (!Number.isInteger(rawIndex) || rawIndex < 0) return
-            setSelectedKey(key)
-            setSelectedPlacementIndex(rawIndex)
-          }}
-          onDocumentReady={handleDocumentReady}
-          mode="pick-box"
-        />
+        <div className="pdf-engine-editor__preview-scroll">
+          <PdfOverlayCanvas
+            pdfBuffer={pdfBuffer}
+            pageIndex={pageIndex}
+            marks={marks}
+            clickEnabled={canvasClickEnabled}
+            onPick={handlePick}
+            onSelectMark={(markId) => {
+              const splitAt = markId.lastIndexOf('-')
+              if (splitAt <= 0) return
+              const key = markId.slice(0, splitAt)
+              const rawIndex = Number(markId.slice(splitAt + 1))
+              if (!Number.isInteger(rawIndex) || rawIndex < 0) return
+              setSelectedKey(key)
+              setSelectedPlacementIndex(rawIndex)
+            }}
+            onDocumentReady={handleDocumentReady}
+            mode="pick-box"
+          />
+        </div>
       </section>
     </div>
   )
