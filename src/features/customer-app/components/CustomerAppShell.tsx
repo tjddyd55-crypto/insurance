@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import FormButton from '../../../components/form/FormButton'
 import { getCustomerAppMe } from '../api/customerAppApi'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
-import { tryCloseCustomerApp } from '../utils/tryCloseCustomerApp'
+import { closeCustomerApp } from '../utils/closeCustomerApp'
 import '../customer-app.css'
 
 /**
@@ -46,9 +46,13 @@ function formatKrPhone(raw: string | null): string {
   return digits
 }
 
+const CLOSE_GUIDE_DELAY_MS = 900
+
 export default function CustomerAppShell({ children, title = '고객 앱', showClaimCta = true }: Props) {
   const navigate = useNavigate()
   const session = useCustomerAppSession()
+  const closeGuideTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null)
+  const [closeGuideVisible, setCloseGuideVisible] = useState(false)
   const [header, setHeader] = useState<HeaderInfo>(() =>
     session
       ? { agentName: session.agentName || HEADER_FALLBACK.agentName, agentPhone: null }
@@ -79,11 +83,28 @@ export default function CustomerAppShell({ children, title = '고객 앱', showC
     }
   }, [session])
 
+  useEffect(() => {
+    return () => {
+      if (closeGuideTimerRef.current != null) {
+        window.clearTimeout(closeGuideTimerRef.current)
+        closeGuideTimerRef.current = null
+      }
+    }
+  }, [])
+
   const displayPhone = formatKrPhone(header.agentPhone)
   const telDigits = (header.agentPhone ?? '').replace(/\D/g, '')
 
   const handleClose = useCallback(() => {
-    tryCloseCustomerApp()
+    setCloseGuideVisible(false)
+    closeCustomerApp()
+    if (closeGuideTimerRef.current != null) {
+      window.clearTimeout(closeGuideTimerRef.current)
+    }
+    closeGuideTimerRef.current = window.setTimeout(() => {
+      setCloseGuideVisible(true)
+      closeGuideTimerRef.current = null
+    }, CLOSE_GUIDE_DELAY_MS)
   }, [])
 
   return (
@@ -115,6 +136,19 @@ export default function CustomerAppShell({ children, title = '고객 앱', showC
           </div>
         </div>
       </header>
+
+      {closeGuideVisible ? (
+        <div className="customer-app-close-guide" role="status">
+          <p className="customer-app-close-guide__text">브라우저 상단의 X 또는 뒤로 버튼으로 닫아 주세요.</p>
+          <button
+            type="button"
+            className="customer-app-close-guide__dismiss"
+            onClick={() => setCloseGuideVisible(false)}
+          >
+            확인
+          </button>
+        </div>
+      ) : null}
 
       <main className="customer-app-main" aria-label={title}>
         {children}

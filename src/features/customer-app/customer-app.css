@@ -110,6 +110,47 @@ a.customer-app-header__action-btn--call {
   border-color: rgba(255, 255, 255, 0.12);
 }
 
+/* [닫기] 후 인앱에서 창이 남았을 때 안내 (뒤로가기 아님) */
+.customer-app-close-guide {
+  flex-shrink: 0;
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #1e3a5f;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.customer-app-close-guide__text {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.customer-app-close-guide__dismiss {
+  flex-shrink: 0;
+  appearance: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.customer-app-close-guide__dismiss:active {
+  opacity: 0.9;
+}
+
 /* 본문 — 페이지 children
  *
  * 간격 규칙(고객앱 홈 기준):
@@ -133,8 +174,8 @@ a.customer-app-header__action-btn--call {
 .customer-app-main:has(.customer-app-home__news--edge) {
   background: #0f172a;
   gap: 0;
-  /* 고정 CTA+탭 높이에 맞춰 최소 여백만 — dot~버튼 사이 과도한 빈 칸 완화 */
-  padding: 0 0 calc(118px + env(safe-area-inset-bottom, 0px));
+  /* 갤러리 높이 소폭↑ 보정으로 dot~고정 CTA 체감 간격은 유지 */
+  padding: 0 0 calc(114px + env(safe-area-inset-bottom, 0px));
 }
 
 .customer-app-main:has(.customer-app-home__news--edge) > .customer-app-home__news--edge {
@@ -190,9 +231,10 @@ a.customer-app-header__action-btn--call {
   align-items: center;
   justify-content: center;
   min-height: 52px;
-  padding: 6px 2px;
-  font-size: 11px;
-  line-height: 1.25;
+  padding: 5px 3px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.28;
   text-align: center;
   color: var(--text-secondary, #6b7280);
   text-decoration: none;
@@ -202,7 +244,7 @@ a.customer-app-header__action-btn--call {
 
 .customer-app-tabbar__item.is-active {
   color: var(--accent-primary, #2563eb);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .customer-app-tabbar__item:active {

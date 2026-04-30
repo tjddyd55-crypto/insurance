@@ -305,18 +305,15 @@
   transform: scale(1.18);
 }
 
-/* 고객앱 홈: 단일 세트 풀폭, dot 아래 바로 셸 CTA(고정)로 이어지도록 메타 배경 통일 */
-.customer-app-news-gallery--home {
-  background: #0f172a;
-}
-
+/* 고객앱 홈: 이미지~dot 소간격, dot~CTA는 과도해지지 않도록 하단 패딩은 살짝만 유지 */
 .customer-app-news-gallery--home .customer-app-news-gallery__meta {
-  padding: 4px 8px 6px;
+  margin-top: 8px;
+  padding: 0 8px 4px;
   background: #0f172a;
 }
 
 .customer-app-news-gallery--home.customer-app-news-gallery--no-counter .customer-app-news-gallery__meta {
-  padding: 2px 8px 4px;
+  padding: 0 8px 2px;
   gap: 0;
 }
 
