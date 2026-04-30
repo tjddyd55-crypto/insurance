@@ -2679,6 +2679,7 @@ export async function initDb() {
   await ensureSubscriptionSchema(pool)
   await ensureSignatureSchema(pool)
   await ensurePdfTemplateSchema(pool)
+  await ensureContractSelfSmsSchema(pool)
   await ensureInsurerSitesSchema(pool)
 }
 
@@ -2892,7 +2893,7 @@ async function ensurePdfTemplateSchema(executor) {
   await executor.query(`
     ALTER TABLE pdf_template_fields
     ADD CONSTRAINT pdf_template_fields_type_check
-    CHECK (field_type IN ('text', 'textarea', 'checkbox', 'radio'))
+    CHECK (field_type IN ('text', 'textarea', 'checkbox', 'radio', 'signature'))
   `)
   /*
    * radio 타입 필드는 선택지 목록(options)을 JSONB 로 저장한다.
@@ -2952,6 +2953,279 @@ async function ensurePdfTemplateSchema(executor) {
   await executor.query(`
     CREATE INDEX IF NOT EXISTS pdf_issuances_ga_created_idx
     ON pdf_issuances (ga_id, created_at DESC)
+  `)
+}
+
+/**
+ * 지정 휴대폰 인증(self_sms) + 계약서 발송 세션 + 문서 인스턴스 + 증빙.
+ * - 고객 식별자는 기존 customers.id INTEGER 에 맞춘다 (지시문 TEXT 는 프로젝트 정합성 위해 INTEGER FK).
+ * - PDF 좌표 원본은 pdf_templates/pdf_template_fields 를 재사용; contract_templates 에 pdf_template_id 로 연결.
+ * - send_session ↔ identity_session 간 순환 참조는 애플리케이션 정합성으로 처리(TEXT, FK 없음).
+ */
+async function ensureContractSelfSmsSchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS identity_verification_sessions (
+      id TEXT PRIMARY KEY,
+      send_session_id TEXT,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      provider TEXT NOT NULL DEFAULT 'self_sms',
+      level TEXT NOT NULL DEFAULT 'phone_possession',
+      purpose TEXT NOT NULL DEFAULT 'contract_signature',
+      status TEXT NOT NULL DEFAULT 'pending',
+      target_phone_encrypted TEXT,
+      target_phone_hash TEXT,
+      target_phone_masked TEXT,
+      otp_hash TEXT,
+      otp_sent_at TIMESTAMPTZ,
+      otp_expires_at TIMESTAMPTZ,
+      otp_verified_at TIMESTAMPTZ,
+      otp_attempt_count INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT,
+      ip_hash TEXT,
+      user_agent TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_identity_sessions_send_session_id
+    ON identity_verification_sessions(send_session_id)
+  `)
+  await executor.query(`
+    ALTER TABLE identity_verification_sessions
+    ADD COLUMN IF NOT EXISTS otp_send_count INTEGER NOT NULL DEFAULT 0
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS contract_templates (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      category TEXT,
+      pdf_file_id TEXT,
+      pdf_file_path TEXT,
+      pdf_hash TEXT,
+      page_count INTEGER,
+      pdf_template_id INTEGER REFERENCES pdf_templates(id) ON DELETE SET NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      version INTEGER NOT NULL DEFAULT 1,
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE contract_templates
+    ADD COLUMN IF NOT EXISTS pdf_template_id INTEGER REFERENCES pdf_templates(id) ON DELETE SET NULL
+  `)
+  await executor.query(`
+    ALTER TABLE contract_templates
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_templates_ga_status
+    ON contract_templates(ga_id, status)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS contract_template_fields (
+      id TEXT PRIMARY KEY,
+      template_id TEXT NOT NULL,
+      field_key TEXT NOT NULL,
+      field_label TEXT NOT NULL,
+      field_type TEXT NOT NULL,
+      page_no INTEGER NOT NULL,
+      x DOUBLE PRECISION NOT NULL,
+      y DOUBLE PRECISION NOT NULL,
+      width DOUBLE PRECISION,
+      height DOUBLE PRECISION,
+      font_size INTEGER,
+      required INTEGER NOT NULL DEFAULT 0,
+      default_value TEXT,
+      data_binding_key TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'contract_template_fields_template_id_fkey'
+      ) THEN
+        ALTER TABLE contract_template_fields
+        ADD CONSTRAINT contract_template_fields_template_id_fkey
+        FOREIGN KEY (template_id) REFERENCES contract_templates(id) ON DELETE CASCADE;
+      END IF;
+    END $$;
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_template_fields_template_id
+    ON contract_template_fields(template_id)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS contract_packages (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      status TEXT NOT NULL DEFAULT 'draft',
+      ga_id INTEGER REFERENCES ga_companies(id),
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE contract_packages
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_packages_ga_status
+    ON contract_packages(ga_id, status)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS contract_package_items (
+      id TEXT PRIMARY KEY,
+      package_id TEXT NOT NULL REFERENCES contract_packages(id) ON DELETE CASCADE,
+      template_id TEXT NOT NULL REFERENCES contract_templates(id) ON DELETE CASCADE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      required INTEGER NOT NULL DEFAULT 1,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_package_items_package_id
+    ON contract_package_items(package_id)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS contract_send_sessions (
+      id TEXT PRIMARY KEY,
+      package_id TEXT REFERENCES contract_packages(id) ON DELETE SET NULL,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      link_code TEXT NOT NULL UNIQUE,
+      status TEXT NOT NULL DEFAULT 'pending',
+      identity_session_id TEXT,
+      target_phone_encrypted TEXT,
+      target_phone_hash TEXT,
+      target_phone_masked TEXT,
+      sent_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      sent_at TIMESTAMPTZ,
+      opened_at TIMESTAMPTZ,
+      completed_at TIMESTAMPTZ,
+      expired_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_send_sessions_link_code
+    ON contract_send_sessions(link_code)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_send_sessions_customer_id
+    ON contract_send_sessions(customer_id)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS contract_document_instances (
+      id TEXT PRIMARY KEY,
+      send_session_id TEXT NOT NULL REFERENCES contract_send_sessions(id) ON DELETE CASCADE,
+      template_id TEXT NOT NULL REFERENCES contract_templates(id) ON DELETE RESTRICT,
+      template_version INTEGER,
+      title_snapshot TEXT,
+      required INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending',
+      original_pdf_hash TEXT,
+      filled_pdf_file_id TEXT,
+      filled_pdf_hash TEXT,
+      signed_pdf_file_id TEXT,
+      signed_pdf_hash TEXT,
+      completed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_document_instances_send_session_id
+    ON contract_document_instances(send_session_id)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS contract_document_values (
+      id TEXT PRIMARY KEY,
+      document_instance_id TEXT NOT NULL REFERENCES contract_document_instances(id) ON DELETE CASCADE,
+      field_id TEXT,
+      field_key TEXT NOT NULL,
+      field_type TEXT NOT NULL,
+      value_text TEXT,
+      value_file_id TEXT,
+      value_hash TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_document_values_document_instance_id
+    ON contract_document_values(document_instance_id)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS signature_evidences (
+      id TEXT PRIMARY KEY,
+      send_session_id TEXT NOT NULL REFERENCES contract_send_sessions(id) ON DELETE CASCADE,
+      document_instance_id TEXT REFERENCES contract_document_instances(id) ON DELETE SET NULL,
+      identity_session_id TEXT,
+      customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL,
+      provider TEXT NOT NULL DEFAULT 'self_sms',
+      level TEXT NOT NULL DEFAULT 'phone_possession',
+      target_phone_hash TEXT,
+      document_hash TEXT,
+      signature_image_hash TEXT,
+      signed_pdf_hash TEXT,
+      evidence_hash TEXT NOT NULL,
+      ip_hash TEXT,
+      user_agent TEXT,
+      signed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_signature_evidences_send_session_id
+    ON signature_evidences(send_session_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_signature_evidences_document_instance_id
+    ON signature_evidences(document_instance_id)
+  `)
+  await executor.query(`
+    ALTER TABLE signature_evidences
+    ADD COLUMN IF NOT EXISTS otp_verified_at TIMESTAMPTZ
+  `)
+  await executor.query(`
+    ALTER TABLE signature_evidences
+    ADD COLUMN IF NOT EXISTS values_hash TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE signature_evidences
+    ADD COLUMN IF NOT EXISTS document_reference_hash TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE signature_evidences
+    ADD COLUMN IF NOT EXISTS signature_file_id TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE signature_evidences
+    ADD COLUMN IF NOT EXISTS signed_pdf_file_id TEXT
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_signature_evidences_document_instance_id
+    ON signature_evidences(document_instance_id)
+    WHERE document_instance_id IS NOT NULL
   `)
 }
 

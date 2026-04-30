@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import type { PdfCustomerMapping, PdfFieldSpec, PdfFieldType, PdfPlacement } from '../types'
-import { PDF_CUSTOMER_MAPPINGS, PDF_FIELD_TYPES } from '../types'
+import { PDF_CUSTOMER_MAPPINGS, PDF_FIELD_TYPE_LABELS, PDF_FIELD_TYPES } from '../types'
 import { PdfOverlayCanvas, type OverlayMark, type OverlayPick } from './PdfOverlayCanvas'
 import FormInput from '../../../components/form/FormInput'
 import FormSelect from '../../../components/form/FormSelect'
@@ -212,7 +212,7 @@ export function PdfCoordinateEditor({
         /* checkbox/radio 는 "값의 의미" 가 회원 속성과 직접 대응하지 않으므로 자동 매핑을 강제 해제.
            UI 에서 드롭다운을 감추는 것만으로 데이터를 남겨 두면, 타입 전환 후 매핑이 슬쩍 살아있어
            사용자 혼란과 서버 주입 부작용을 일으킨다. */
-        if (patch.fieldType === 'checkbox' || patch.fieldType === 'radio') {
+        if (patch.fieldType === 'checkbox' || patch.fieldType === 'radio' || patch.fieldType === 'signature') {
           next.customerMapping = null
         }
         return next
@@ -410,7 +410,7 @@ export function PdfCoordinateEditor({
                 </div>
                 <div className="pdf-engine-editor__field-item-row">
                   <span className="pdf-engine-editor__field-meta">
-                    {f.fieldType}
+                    {PDF_FIELD_TYPE_LABELS[f.fieldType]}
                     {f.required ? ' · 필수' : ''}
                     {' · 좌표 '}
                     {f.placements.length}
@@ -455,7 +455,7 @@ export function PdfCoordinateEditor({
             >
               {PDF_FIELD_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {PDF_FIELD_TYPE_LABELS[t]}
                 </option>
               ))}
             </select>
@@ -515,7 +515,7 @@ export function PdfCoordinateEditor({
               >
                 {PDF_FIELD_TYPES.map((t) => (
                   <option key={t} value={t}>
-                    {t}
+                    {PDF_FIELD_TYPE_LABELS[t]}
                   </option>
                 ))}
               </select>
@@ -532,7 +532,9 @@ export function PdfCoordinateEditor({
               />
             </label>
 
-            {selectedField.fieldType !== 'checkbox' && selectedField.fieldType !== 'radio' ? (
+            {selectedField.fieldType !== 'checkbox' &&
+            selectedField.fieldType !== 'radio' &&
+            selectedField.fieldType !== 'signature' ? (
               <label className="pdf-engine-editor__label">
                 자동 매핑
                 <FormSelect

@@ -153,6 +153,12 @@ function renderByType(
         </div>
       )
     }
+    case 'signature':
+      return (
+        <p id={inputId} className="pdf-engine-page__hint">
+          손사인은 전자계약 문서 서명 화면에서만 입력됩니다. 이 자동 발급 양식에서는 좌표만 저장됩니다.
+        </p>
+      )
     case 'text':
     default:
       return (
@@ -172,6 +178,7 @@ function renderByType(
 /** 타입별 필수값 위반 여부. 체크박스는 "true" 여야만 통과(필수 동의). */
 function isRequiredViolated(field: PdfFieldSpec, value: string): boolean {
   if (!field.required) return false
+  if (field.fieldType === 'signature') return false
   if (field.fieldType === 'checkbox') return parseCheckboxJsonArray(value).length === 0
   return isEmpty(value)
 }

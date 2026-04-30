@@ -45,6 +45,9 @@ import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 import { registerSubscriptionAdminApi } from './registerSubscriptionAdminApi.js'
 import { registerPdfTemplateApi } from './registerPdfTemplateApi.js'
 import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
+import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
+import { registerContractPublicApi } from './apis/contractPublicApi.js'
+import { registerContractAdminApi } from './apis/contractAdminApi.js'
 import { registerSubscriptionEndpoints } from './subscription/endpoints.js'
 import { enforceActiveSubscription } from './subscription/requireActiveSubscription.js'
 
@@ -1396,6 +1399,18 @@ registerAuthAccountSmsApi(apiRouter, {
   handleDbError,
   RUNNING_IN_PRODUCTION,
   requireAuth,
+})
+
+registerContractPublicOtpApi(apiRouter, { pool, handleDbError })
+
+registerContractPublicApi(apiRouter, { pool, handleDbError })
+
+registerContractAdminApi(apiRouter, {
+  pool,
+  requireAuth,
+  forbidInsurerManagerApi,
+  requireGaTenantAdmin,
+  handleDbError,
 })
 
 registerUserProfileApi(apiRouter, {

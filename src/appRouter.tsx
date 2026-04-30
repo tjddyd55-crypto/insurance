@@ -94,6 +94,10 @@ import CustomerAppNewsListPage from './features/customer-app/pages/CustomerAppNe
 import CustomerAppNewsDetailPage from './features/customer-app/pages/CustomerAppNewsDetailPage'
 import CustomerAppProfilePage from './features/customer-app/pages/CustomerAppProfilePage'
 import CustomerAppMainLayout from './features/customer-app/components/CustomerAppMainLayout'
+import ContractSignPage from './features/contracts/public/ContractSignPage'
+import ContractSignDocumentPage from './features/contracts/public/ContractSignDocumentPage'
+import { ContractSignatureTestRoute } from './features/contracts/testConsole/ContractSignatureTestRoute'
+import ContractSignatureTestConsolePage from './features/contracts/testConsole/ContractSignatureTestConsolePage'
 
 export const appRouter = createBrowserRouter([
   {
@@ -112,6 +116,11 @@ export const appRouter = createBrowserRouter([
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /api/customer/external-create + ref·ga 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },
       { path: 'customer/register', element: <CustomerRegisterPage /> },
+      { path: 'contracts/sign/:linkCode', element: <ContractSignPage /> },
+      {
+        path: 'contracts/sign/:linkCode/documents/:documentInstanceId',
+        element: <ContractSignDocumentPage />,
+      },
       {
         path: 'customer-app',
         element: <Outlet />,
@@ -311,6 +320,19 @@ export const appRouter = createBrowserRouter([
                   { path: 'admin/pdf-templates', element: <PdfTemplateListPage /> },
                   { path: 'admin/pdf-templates/new', element: <PdfTemplateEditorPage /> },
                   { path: 'admin/pdf-templates/:id', element: <PdfTemplateEditorPage /> },
+                ],
+              },
+              {
+                element: <ContractSignatureTestRoute />,
+                children: [
+                  {
+                    path: 'admin/contract-signatures',
+                    element: <ContractSignatureTestConsolePage />,
+                  },
+                  {
+                    path: 'admin/contract-signature-test',
+                    element: <ContractSignatureTestConsolePage />,
+                  },
                 ],
               },
               { path: 'contacts', element: <Navigate to="/insurance/contacts" replace /> },
