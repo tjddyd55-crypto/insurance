@@ -2991,6 +2991,10 @@ async function ensureContractSelfSmsSchema(executor) {
     CREATE INDEX IF NOT EXISTS idx_identity_sessions_send_session_id
     ON identity_verification_sessions(send_session_id)
   `)
+  await executor.query(`
+    ALTER TABLE identity_verification_sessions
+    ADD COLUMN IF NOT EXISTS otp_send_count INTEGER NOT NULL DEFAULT 0
+  `)
 
   await executor.query(`
     CREATE TABLE IF NOT EXISTS contract_templates (
