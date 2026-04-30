@@ -29,6 +29,7 @@ export const ALLOWED_FIELD_TYPES = Object.freeze([
   'textarea',
   'checkbox',
   'radio',
+  'signature',
 ])
 
 /** 관리자 폼에서 받을 수 있는 고객 데이터 자동 매핑 키(Phase 2 에서 실제 주입). */

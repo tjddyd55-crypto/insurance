@@ -80,6 +80,12 @@ export async function fetchContractOtpStatus(linkCode: string): Promise<{
   return apiRequest(`/api/contracts/public/${lc(linkCode)}/otp/status`)
 }
 
+export type ContractPublicFieldValue =
+  | { kind: 'text'; value: string }
+  | { kind: 'radio'; value: string }
+  | { kind: 'checkbox'; checked: boolean }
+  | { kind: 'signature'; signed: boolean }
+
 export type ContractDocumentDetailPayload = {
   document: {
     id: string
@@ -109,9 +115,13 @@ export type ContractDocumentDetailPayload = {
     orderIndex: number
     placements: unknown
     options: unknown
+    customerMapping?: string | null
+    suggestedDefault?: string | null
+    publicValue?: ContractPublicFieldValue | null
   }[]
   pdfPreviewUrl: string
   notice?: string
+  canEdit?: boolean
 }
 
 export async function fetchContractPublicDocumentDetail(
@@ -125,6 +135,49 @@ export async function fetchContractPublicDocumentDetail(
 
 export function resolveContractPdfPreviewAbsUrl(linkCode: string, documentInstanceId: string): string {
   return resolveApiUrl(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/pdf`)
+}
+
+export type ContractPublicValueInput = {
+  fieldId: number | string
+  fieldKey: string
+  value: string | boolean
+}
+
+export async function postContractPublicDocumentValues(
+  linkCode: string,
+  documentInstanceId: string,
+  values: ContractPublicValueInput[],
+): Promise<{ saved?: boolean }> {
+  return apiRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/values`, {
+    method: 'POST',
+    body: JSON.stringify({ values }),
+  })
+}
+
+export async function postContractPublicDocumentSign(
+  linkCode: string,
+  documentInstanceId: string,
+  body: {
+    signatureImageData: string
+    fieldId?: number | string
+    electronicSignAcknowledged: true
+  },
+): Promise<{ fieldId?: string; valueHash?: string; fileId?: string }> {
+  return apiRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/sign`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function postContractPublicDocumentComplete(
+  linkCode: string,
+  documentInstanceId: string,
+  body: { acknowledgeElectronicContract: true },
+): Promise<{ completed?: boolean }> {
+  return apiRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/complete`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
 }
 
 export { ApiError }

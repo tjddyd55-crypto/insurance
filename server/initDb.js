@@ -2893,7 +2893,7 @@ async function ensurePdfTemplateSchema(executor) {
   await executor.query(`
     ALTER TABLE pdf_template_fields
     ADD CONSTRAINT pdf_template_fields_type_check
-    CHECK (field_type IN ('text', 'textarea', 'checkbox', 'radio'))
+    CHECK (field_type IN ('text', 'textarea', 'checkbox', 'radio', 'signature'))
   `)
   /*
    * radio 타입 필드는 선택지 목록(options)을 JSONB 로 저장한다.
