@@ -7,6 +7,8 @@ type Props = {
   className?: string
   /** true면 이미지 1장일 때도 1/N·dot 표시 (홈·미리보기) */
   alwaysShowPager?: boolean
+  /** false면 "1 / N" 숫자 숨김·dot만 (고객앱 홈 등) */
+  showSlideCounter?: boolean
   /** 슬라이드 이미지 탭 시 (전체화면 등). 지정 시 슬라이드가 버튼으로 감싸짐 */
   onRequestFullscreen?: (index: number) => void
 }
@@ -18,6 +20,7 @@ export default function CustomerAppNewsImageGallery({
   altBase = '소식 이미지',
   className = '',
   alwaysShowPager = false,
+  showSlideCounter = true,
   onRequestFullscreen,
 }: Props) {
   const [index, setIndex] = useState(0)
@@ -132,9 +135,11 @@ export default function CustomerAppNewsImageGallery({
 
       {showMeta ? (
         <div className="customer-app-news-gallery__meta" aria-live="polite">
-          <span className="customer-app-news-gallery__counter">
-            {index + 1} / {n}
-          </span>
+          {showSlideCounter ? (
+            <span className="customer-app-news-gallery__counter">
+              {index + 1} / {n}
+            </span>
+          ) : null}
           <div className="customer-app-news-gallery__dots" role="tablist" aria-label="이미지 선택">
             {urls.map((_, i) => (
               <button

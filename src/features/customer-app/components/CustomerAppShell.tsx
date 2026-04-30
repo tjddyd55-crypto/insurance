@@ -3,6 +3,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import FormButton from '../../../components/form/FormButton'
 import { getCustomerAppMe } from '../api/customerAppApi'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
+import { tryCloseCustomerApp } from '../utils/tryCloseCustomerApp'
 import '../customer-app.css'
 
 /**
@@ -82,9 +83,8 @@ export default function CustomerAppShell({ children, title = '고객 앱', showC
   const telDigits = (header.agentPhone ?? '').replace(/\D/g, '')
 
   const handleClose = useCallback(() => {
-    window.close()
-    navigate(-1)
-  }, [navigate])
+    tryCloseCustomerApp()
+  }, [])
 
   return (
     <div className={`customer-app-shell${showClaimCta ? '' : ' customer-app-shell--no-cta'}`}>

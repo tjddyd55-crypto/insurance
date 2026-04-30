@@ -311,8 +311,13 @@
 }
 
 .customer-app-news-gallery--home .customer-app-news-gallery__meta {
-  padding: 8px 8px 10px;
+  padding: 4px 8px 6px;
   background: #0f172a;
+}
+
+.customer-app-news-gallery--home.customer-app-news-gallery--no-counter .customer-app-news-gallery__meta {
+  padding: 2px 8px 4px;
+  gap: 0;
 }
 
 .customer-app-news-gallery--home .customer-app-news-gallery__counter {

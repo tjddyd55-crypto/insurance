@@ -116,6 +116,7 @@ export default function CustomerAppHomePage() {
             altBase="고객 메시지 이미지"
             className="customer-app-news-gallery--home"
             alwaysShowPager
+            showSlideCounter={false}
             onRequestFullscreen={openFullscreen}
           />
         ) : null}

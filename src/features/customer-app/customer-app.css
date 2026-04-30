@@ -133,14 +133,14 @@ a.customer-app-header__action-btn--call {
 .customer-app-main:has(.customer-app-home__news--edge) {
   background: #0f172a;
   gap: 0;
-  padding: 0 0 calc(150px + env(safe-area-inset-bottom, 0px));
+  /* 고정 CTA+탭 높이에 맞춰 최소 여백만 — dot~버튼 사이 과도한 빈 칸 완화 */
+  padding: 0 0 calc(118px + env(safe-area-inset-bottom, 0px));
 }
 
 .customer-app-main:has(.customer-app-home__news--edge) > .customer-app-home__news--edge {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
   margin: 0;
   width: 100%;
 }
