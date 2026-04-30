@@ -744,11 +744,15 @@ export function registerContractPublicApi(apiRouter, ctx) {
         SELECT cdi.*, ct.pdf_template_id
         FROM contract_document_instances cdi
         INNER JOIN contract_templates ct ON ct.id = cdi.template_id
-        WHERE cdi.id = $1
+        WHERE cdi.id = $1 AND cdi.send_session_id = $2
         LIMIT 1
         `,
-        [docId],
+        [docId, session.id],
       )
+      if (!docMeta.rowCount) {
+        res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
+        return
+      }
       const pdfTid = docMeta.rows[0]?.pdf_template_id
       if (pdfTid == null) {
         res.status(400).json({ success: false, message: 'PDF 템플릿이 연결되어 있지 않습니다.' })
@@ -863,11 +867,15 @@ export function registerContractPublicApi(apiRouter, ctx) {
         SELECT cdi.*, ct.pdf_template_id
         FROM contract_document_instances cdi
         INNER JOIN contract_templates ct ON ct.id = cdi.template_id
-        WHERE cdi.id = $1
+        WHERE cdi.id = $1 AND cdi.send_session_id = $2
         LIMIT 1
         `,
-        [docId],
+        [docId, session.id],
       )
+      if (!docMeta.rowCount) {
+        res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
+        return
+      }
       const pdfTid = docMeta.rows[0]?.pdf_template_id
       if (pdfTid == null) {
         res.status(400).json({ success: false, message: 'PDF 템플릿이 없어 값을 저장할 수 없습니다.' })
