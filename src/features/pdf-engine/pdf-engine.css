@@ -285,6 +285,22 @@
   margin: 0 0 8px;
 }
 
+.pdf-engine-editor__error--fatal {
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.pdf-engine-editor__error--warning {
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
 /* 미리보기 보조 메시지 — 렌더 실패가 의심될 때만 노출되며, 치명 오류와 구분해 색을 완화 */
 .pdf-engine-editor__error--soft {
   color: #92400e;

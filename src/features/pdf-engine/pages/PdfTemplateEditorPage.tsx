@@ -336,6 +336,7 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
       </section>
 
       <PdfCoordinateEditor
+        templateId={templateId}
         pdfBuffer={state.pdfBuffer}
         pageCount={state.template.pageCount}
         fields={fields}

@@ -13,6 +13,13 @@ import type {
   PdfTemplateSummary,
 } from '../types'
 
+/** 선두 4바이트가 `%PDF` 인지 — 개발 로그·본문 검증에 공통 사용 */
+function arrayBufferHasPdfMagic(buf: ArrayBuffer): boolean {
+  if (buf.byteLength < 4) return false
+  const u8 = new Uint8Array(buf, 0, 4)
+  return u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46
+}
+
 /**
  * 실패 응답을 해석해 ApiError 로 변환한다.
  * JSON body 가 있으면 message/code 를 꺼내고, 없으면 HTTP status 로 대체한다.
@@ -171,17 +178,23 @@ export async function fetchAdminPdfTemplateFile(
     })
   }
 
-  /*
-   * 응답이 PDF 인지 Content-Type 으로 가볍게 확인한다. HTML 에러페이지가
-   * 200 으로 섞여 들어오는 엣지 케이스(프록시/게이트웨이)를 잡기 위함.
-   */
   const contentType = res.headers.get('content-type') ?? ''
   const contentLengthHeader = res.headers.get('content-length')
-  if (!contentType.toLowerCase().includes('pdf')) {
-    logger.warn('pdf-template.file.unexpected-content-type', {
+  const contentTypeLower = contentType.toLowerCase()
+  /*
+   * HTML/JSON 이 200 으로 온 경우 pdfjs 가 parse-failed 로만 드러나 사용자 혼란을 키운다.
+   * 본문을 읽기 전에 Content-Type 으로 차단한다.
+   */
+  if (contentTypeLower.includes('text/html') || contentTypeLower.includes('application/json')) {
+    logger.error('pdf-template.file.non-pdf-content-type', {
       templateId: id,
       contentType,
+      status: res.status,
     })
+    throw new ApiError(
+      'PDF 파일 대신 다른 응답을 받았습니다. 파일 경로 또는 접근 권한을 확인해주세요.',
+      res.status,
+    )
   }
 
   const buffer = await res.arrayBuffer()
@@ -205,6 +218,38 @@ export async function fetchAdminPdfTemplateFile(
     })
     throw new ApiError(
       '원본 PDF 를 가져오지 못했습니다. 업로드 직후라면 잠시 후 다시 시도해 주세요.',
+      res.status,
+    )
+  }
+
+  const magicOk = arrayBufferHasPdfMagic(buffer)
+  if (logger.isDev && !magicOk && buffer.byteLength >= 4) {
+    logger.warn('pdf-template.file.missing-pdf-magic', {
+      templateId: id,
+      byteLength: buffer.byteLength,
+      contentType,
+    })
+  }
+
+  if (!magicOk) {
+    if (contentTypeLower.includes('pdf')) {
+      logger.error('pdf-template.file.invalid-pdf-magic-declared-pdf', {
+        templateId: id,
+        byteLength: buffer.byteLength,
+        contentType,
+      })
+      throw new ApiError(
+        'PDF 파일을 불러오지 못했습니다. 파일이 손상되었거나 지원되지 않는 형식일 수 있습니다.',
+        res.status,
+      )
+    }
+    logger.error('pdf-template.file.invalid-pdf-magic', {
+      templateId: id,
+      byteLength: buffer.byteLength,
+      contentType,
+    })
+    throw new ApiError(
+      'PDF 파일 대신 다른 응답을 받았습니다. 파일 경로 또는 접근 권한을 확인해주세요.',
       res.status,
     )
   }

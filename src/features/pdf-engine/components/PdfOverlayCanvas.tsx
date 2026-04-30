@@ -13,14 +13,16 @@
  *     잡음 placement 생성을 막는다. 상위가 기본값을 주고 싶다면 pick-point 를 쓰면 된다.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
 import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist'
 import { canvasLengthToPdf, canvasToPdf } from '../lib/coordinateMath'
 import {
   describePdfLoadError,
   messageForPdfLoadErrorCode,
+  messageForPdfOverlayWarning,
   PdfLoadError,
   type PdfLoadErrorCode,
+  type PdfOverlayWarningCode,
 } from '../lib/pdfErrors'
 import { logger } from '../../../lib/logger'
 import { setupPdfWorker } from '../../../lib/pdfjs/setupWorker'
@@ -98,6 +100,14 @@ export interface OverlayPick {
 
 export type OverlayPickMode = 'pick-point' | 'pick-box'
 
+/** 개발용 진단 로그 — 전체 스토리지 경로·민감 URL 은 넣지 않는다. */
+export interface PdfOverlayDebugMeta {
+  pdfTemplateId?: number
+  serverPageCount?: number
+  /** API 경로만 (예: /api/admin/pdf-templates/12/file) */
+  fetchUrlPath?: string
+}
+
 interface Props {
   pdfBuffer: ArrayBuffer | null
   pageIndex: number
@@ -108,6 +118,7 @@ interface Props {
   onDocumentReady?: (doc: PDFDocumentProxy) => void
   /** 기본 'pick-point'. 'pick-box' 이면 드래그로 영역을 잡는다. */
   mode?: OverlayPickMode
+  debugMeta?: PdfOverlayDebugMeta
 }
 
 /**
@@ -136,6 +147,78 @@ interface DragState {
   currentY: number
 }
 
+type PdfJsPage = Awaited<ReturnType<PDFDocumentProxy['getPage']>>
+
+async function paintPdfPageToCanvas(payload: {
+  page: PdfJsPage
+  pageIndex: number
+  previewInnerWidth: number
+  cancelled: () => boolean
+  gen: number
+  loadGenRef: MutableRefObject<number>
+  wrapRef: MutableRefObject<HTMLDivElement | null>
+  canvasRef: MutableRefObject<HTMLCanvasElement | null>
+  pageSizeRef: MutableRefObject<{ widthPt: number; heightPt: number } | null>
+}): Promise<boolean> {
+  const {
+    page,
+    pageIndex,
+    previewInnerWidth,
+    cancelled,
+    gen,
+    loadGenRef,
+    wrapRef,
+    canvasRef,
+    pageSizeRef,
+  } = payload
+
+  const base = page.getViewport({ scale: 1 })
+  let wrap = wrapRef.current
+  let canvas = canvasRef.current
+  if (!wrap || !canvas) {
+    await new Promise<void>((r) => requestAnimationFrame(() => r()))
+    if (cancelled() || gen !== loadGenRef.current) return false
+    wrap = wrapRef.current
+    canvas = canvasRef.current
+  }
+  if (!wrap || !canvas || cancelled() || gen !== loadGenRef.current) return false
+
+  const innerW =
+    wrap.clientWidth > 0
+      ? wrap.clientWidth
+      : previewInnerWidth > 0
+        ? previewInnerWidth
+        : TARGET_PAGE_CSS_WIDTH_PX
+  const targetCssW = Math.max(
+    MIN_PAGE_CSS_WIDTH_PX,
+    Math.min(TARGET_PAGE_CSS_WIDTH_PX, innerW),
+  )
+  const scale = targetCssW / base.width
+  const viewport = page.getViewport({ scale })
+  canvas.width = viewport.width
+  canvas.height = viewport.height
+  pageSizeRef.current = { widthPt: base.width, heightPt: base.height }
+
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    throw new PdfLoadError('page-render-failed', { reason: 'canvas-2d-context-null' })
+  }
+  ctx.fillStyle = PDF_CANVAS_BG
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+  try {
+    const task = page.render({ canvasContext: ctx, viewport, canvas })
+    await task.promise
+  } catch (e) {
+    throw new PdfLoadError(
+      'page-render-failed',
+      { pageIndex, canvasW: canvas.width, canvasH: canvas.height },
+      e,
+    )
+  }
+  return true
+}
+
 export function PdfOverlayCanvas({
   pdfBuffer,
   pageIndex,
@@ -145,15 +228,18 @@ export function PdfOverlayCanvas({
   onSelectMark,
   onDocumentReady,
   mode = 'pick-point',
+  debugMeta,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const markCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const pageSizeRef = useRef<{ widthPt: number; heightPt: number } | null>(null)
+  /** 동일 ArrayBuffer 에 대해 pdfjs 문서를 재파싱하지 않기 위한 캐시 */
+  const pdfDocCacheRef = useRef<{ buffer: ArrayBuffer; doc: PDFDocumentProxy } | null>(null)
+  const loadGenRef = useRef(0)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
-  /* 실패 지점의 라벨. UI 는 status === 'error' 일 때만 참조한다.
-     개발 모드에선 사용자 메시지 아래에 code 를 조그맣게 노출해 디버깅을 돕는다. */
-  const [errorCode, setErrorCode] = useState<PdfLoadErrorCode | 'unknown' | null>(null)
+  const [fatalErrorCode, setFatalErrorCode] = useState<PdfLoadErrorCode | 'unknown' | null>(null)
+  const [warningCode, setWarningCode] = useState<PdfOverlayWarningCode | null>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
   /** 미리보기 래퍼 가로폭 — ResizeObserver 로 갱신해 A4 목표 폭(794px) 스케일을 맞춘다. */
   const [previewInnerWidth, setPreviewInnerWidth] = useState(0)
@@ -233,7 +319,14 @@ export function PdfOverlayCanvas({
   useEffect(() => {
     if (status !== 'ready') return
     drawMarks()
-  }, [drawMarks, status])
+  }, [drawMarks, status, previewInnerWidth])
+
+  useEffect(() => {
+    return () => {
+      void pdfDocCacheRef.current?.doc.destroy().catch(() => {})
+      pdfDocCacheRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     if (!pdfBuffer) {
@@ -256,95 +349,145 @@ export function PdfOverlayCanvas({
 
   useEffect(() => {
     /*
-     * 외부 prop(pdfBuffer/pageIndex) 변화에 동기해 내부 상태를 리셋하고,
-     * pdfjs 문서 로딩이라는 외부 자원 취득 흐름을 시작하는 이펙트다.
+     * 외부 prop(pdfBuffer/pageIndex/previewInnerWidth) 에 맞춰 렌더한다.
+     * 동일 pdfBuffer 참조면 getDocument 는 생략하고 페이지 raster 만 갱신한다.
+     * loadGenRef 로 오래된 비동게 완료가 UI 를 덮어쓰지 않게 한다.
      */
-    /* eslint-disable react-hooks/set-state-in-effect -- pdfjs 로드 수명주기와 UI 상태 동기 */
     if (!pdfBuffer) {
+      void pdfDocCacheRef.current?.doc.destroy().catch(() => {})
+      pdfDocCacheRef.current = null
       setStatus('idle')
-      setErrorCode(null)
+      setFatalErrorCode(null)
+      setWarningCode(null)
       pageSizeRef.current = null
       return
     }
 
+    const myGen = ++loadGenRef.current
     let cancelled = false
     setStatus('loading')
-    setErrorCode(null)
-    /* eslint-enable react-hooks/set-state-in-effect */
-
-    /*
-     * 각 단계를 독립 try/catch 로 감싸 "어디서 실패했는지" 라벨을 보존한다.
-     * 상위는 PdfLoadError 하나로 통일해 받고, 원인은 cause 에 넣어 logger 가 풀어낸다.
-     */
-    const run = async () => {
-      let pdf: PDFDocumentProxy
-      try {
-        pdf = await getDocument({ data: pdfBuffer }).promise
-      } catch (e) {
-        throw new PdfLoadError('parse-failed', { byteLength: pdfBuffer.byteLength }, e)
-      }
-      if (cancelled) return
-      onDocumentReady?.(pdf)
-
-      let page
-      try {
-        page = await pdf.getPage(pageIndex + 1)
-      } catch (e) {
-        throw new PdfLoadError(
-          'page-fetch-failed',
-          { pageIndex, numPages: pdf.numPages },
-          e,
-        )
-      }
-
-      const base = page.getViewport({ scale: 1 })
-      const wrap = wrapRef.current
-      const canvas = canvasRef.current
-      if (!canvas || !wrap || cancelled) return
-
-      const innerW =
-        wrap.clientWidth > 0
-          ? wrap.clientWidth
-          : previewInnerWidth > 0
-            ? previewInnerWidth
-            : TARGET_PAGE_CSS_WIDTH_PX
-      const targetCssW = Math.max(
-        MIN_PAGE_CSS_WIDTH_PX,
-        Math.min(TARGET_PAGE_CSS_WIDTH_PX, innerW),
-      )
-      const scale = targetCssW / base.width
-      const viewport = page.getViewport({ scale })
-      canvas.width = viewport.width
-      canvas.height = viewport.height
-      pageSizeRef.current = { widthPt: base.width, heightPt: base.height }
-
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        throw new PdfLoadError('page-render-failed', { reason: 'canvas-2d-context-null' })
-      }
-      ctx.fillStyle = PDF_CANVAS_BG
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-      try {
-        await page.render({ canvasContext: ctx, viewport, canvas }).promise
-      } catch (e) {
-        throw new PdfLoadError(
-          'page-render-failed',
-          { pageIndex, canvasW: canvas.width, canvasH: canvas.height },
-          e,
-        )
-      }
-    }
+    setFatalErrorCode(null)
+    setWarningCode(null)
 
     void (async () => {
+      let parseOk = false
+      let renderOk = false
+      let numPagesForLog: number | undefined
       try {
-        await run()
-        if (!cancelled) setStatus('ready')
+        let pdf: PDFDocumentProxy
+        let documentCallbackError: unknown = null
+        const cached = pdfDocCacheRef.current
+        const reuseDoc = Boolean(cached && cached.buffer === pdfBuffer)
+
+        if (reuseDoc && cached) {
+          pdf = cached.doc
+          parseOk = true
+        } else {
+          if (cached) {
+            void cached.doc.destroy().catch(() => {})
+            pdfDocCacheRef.current = null
+          }
+          try {
+            pdf = await getDocument({ data: pdfBuffer }).promise
+          } catch (e) {
+            throw new PdfLoadError('parse-failed', { byteLength: pdfBuffer.byteLength }, e)
+          }
+          parseOk = true
+          if (cancelled || myGen !== loadGenRef.current) {
+            void pdf.destroy().catch(() => {})
+            return
+          }
+          pdfDocCacheRef.current = { buffer: pdfBuffer, doc: pdf }
+          try {
+            onDocumentReady?.(pdf)
+          } catch (cbErr) {
+            documentCallbackError = cbErr
+          }
+        }
+
+        if (cancelled || myGen !== loadGenRef.current) return
+
+        numPagesForLog = pdf.numPages
+        const pageNum = pageIndex + 1
+        if (pageNum < 1 || pageNum > pdf.numPages) {
+          throw new PdfLoadError('page-fetch-failed', {
+            pageIndex,
+            pageNum,
+            numPages: pdf.numPages,
+          })
+        }
+
+        let page: PdfJsPage
+        try {
+          page = await pdf.getPage(pageNum)
+        } catch (e) {
+          throw new PdfLoadError(
+            'page-fetch-failed',
+            { pageIndex, pageNum, numPages: pdf.numPages },
+            e,
+          )
+        }
+
+        if (cancelled || myGen !== loadGenRef.current) return
+
+        const painted = await paintPdfPageToCanvas({
+          page,
+          pageIndex,
+          previewInnerWidth,
+          cancelled: () => cancelled,
+          gen: myGen,
+          loadGenRef,
+          wrapRef,
+          canvasRef,
+          pageSizeRef,
+        })
+        if (cancelled || myGen !== loadGenRef.current) return
+
+        if (!painted) {
+          throw new PdfLoadError('page-render-failed', {
+            reason: 'wrap-or-canvas-unavailable',
+            pageIndex,
+          })
+        }
+        renderOk = true
+
+        if (documentCallbackError != null) {
+          if (logger.isDev) {
+            console.warn('[pdf.overlay] onDocumentReady threw (preview still usable)', {
+              pdfTemplateId: debugMeta?.pdfTemplateId,
+              error:
+                documentCallbackError instanceof Error
+                  ? { name: documentCallbackError.name, message: documentCallbackError.message }
+                  : String(documentCallbackError),
+            })
+          }
+          setWarningCode('document-callback-failed')
+        } else {
+          setWarningCode(null)
+        }
+
+        setFatalErrorCode(null)
+        setStatus('ready')
       } catch (e) {
-        if (cancelled) return
+        if (cancelled || myGen !== loadGenRef.current) return
         const { code } = describePdfLoadError(e)
-        setErrorCode(code)
+        setWarningCode(null)
+        setFatalErrorCode(code)
         setStatus('error')
+        if (logger.isDev) {
+          console.error('[pdf.overlay] load failure', {
+            pdfTemplateId: debugMeta?.pdfTemplateId,
+            selectedPageNo: pageIndex + 1,
+            pageCount: numPagesForLog,
+            serverPageCount: debugMeta?.serverPageCount,
+            fetchUrlPath: debugMeta?.fetchUrlPath,
+            byteLength: pdfBuffer.byteLength,
+            renderSucceeded: renderOk,
+            parserSucceeded: parseOk,
+            error:
+              e instanceof Error ? { name: e.name, message: e.message } : { message: String(e) },
+          })
+        }
         logger.error('pdf.overlay.load-failed', {
           code,
           pageIndex,
@@ -357,7 +500,15 @@ export function PdfOverlayCanvas({
     return () => {
       cancelled = true
     }
-  }, [pdfBuffer, pageIndex, onDocumentReady, previewInnerWidth])
+  }, [
+    pdfBuffer,
+    pageIndex,
+    previewInnerWidth,
+    onDocumentReady,
+    debugMeta?.pdfTemplateId,
+    debugMeta?.serverPageCount,
+    debugMeta?.fetchUrlPath,
+  ])
 
   /* ---------- 포인트 모드: 단순 클릭 ---------- */
 
@@ -531,11 +682,16 @@ export function PdfOverlayCanvas({
         <p className="pdf-engine-editor__hint">PDF 렌더링 중…</p>
       ) : null}
       {status === 'error' ? (
-        <p className="pdf-engine-editor__error pdf-engine-editor__error--soft">
-          {messageForPdfLoadErrorCode(errorCode)}
-          {logger.isDev && errorCode ? (
-            <span className="pdf-engine-editor__error-code"> [code: {errorCode}]</span>
+        <p className="pdf-engine-editor__error pdf-engine-editor__error--fatal">
+          {messageForPdfLoadErrorCode(fatalErrorCode)}
+          {logger.isDev && fatalErrorCode ? (
+            <span className="pdf-engine-editor__error-code"> [code: {fatalErrorCode}]</span>
           ) : null}
+        </p>
+      ) : null}
+      {status === 'ready' && warningCode ? (
+        <p className="pdf-engine-editor__error pdf-engine-editor__error--warning">
+          {messageForPdfOverlayWarning(warningCode)}
         </p>
       ) : null}
       <div ref={wrapRef} className="pdf-engine-editor__overlay">

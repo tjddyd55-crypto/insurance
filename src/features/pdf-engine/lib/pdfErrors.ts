@@ -10,6 +10,7 @@
  *     - parse-failed       → 스토리지/업로드 문제 (파일 자체가 깨졌거나 MIME 오응답)
  *     - page-fetch-failed  → 페이지 수 범위 오류 또는 내부 구조 손상
  *     - page-render-failed → 폰트/이미지 서브리소스 취득 실패, 메모리
+ *     - not-pdf-response   → fetch 층에서 구분 (API가 HTML/JSON 을 돌려준 경우 등)
  *   사용자 메시지는 동일하더라도 개발자 로그·원격 진단용으로는 반드시 구분해야 한다.
  */
 
@@ -18,6 +19,10 @@ export type PdfLoadErrorCode =
   | 'parse-failed'
   | 'page-fetch-failed'
   | 'page-render-failed'
+  | 'not-pdf-response'
+
+/** 미리보기·좌표 픽은 가능하지만 부가 콜백(페이지 수 동기화 등)만 실패한 경우 */
+export type PdfOverlayWarningCode = 'document-callback-failed'
 
 export class PdfLoadError extends Error {
   readonly code: PdfLoadErrorCode
@@ -41,15 +46,26 @@ export function messageForPdfLoadErrorCode(
 ): string {
   switch (code) {
     case 'fetch-failed':
-      return '원본 PDF 를 내려받지 못했습니다. 네트워크/권한을 확인해 주세요.'
+      return 'PDF 파일을 불러오지 못했습니다. 파일 저장 경로나 접근 권한을 확인해주세요.'
+    case 'not-pdf-response':
+      return 'PDF 파일 대신 다른 응답을 받았습니다. 서버 응답을 확인해주세요.'
     case 'parse-failed':
-      return 'PDF 파일 형식을 해석하지 못했습니다. 파일이 손상되었을 수 있습니다.'
+      return 'PDF 파일을 불러오지 못했습니다. 파일이 손상되었거나 지원되지 않는 형식일 수 있습니다.'
     case 'page-fetch-failed':
-      return '페이지 정보를 가져오지 못했습니다.'
+      return '선택한 페이지를 불러올 수 없습니다. 페이지 번호를 다시 확인해주세요.'
     case 'page-render-failed':
-      return '페이지 렌더링 중 문제가 발생했습니다.'
+      return 'PDF 파일을 불러오지 못했습니다. 파일이 손상되었거나 지원되지 않는 형식일 수 있습니다.'
     default:
       return 'PDF 를 표시하지 못했습니다.'
+  }
+}
+
+export function messageForPdfOverlayWarning(code: PdfOverlayWarningCode): string {
+  switch (code) {
+    case 'document-callback-failed':
+      return 'PDF 미리보기는 가능하지만 일부 검증 정보를 읽지 못했습니다. 좌표 설정은 계속할 수 있습니다.'
+    default:
+      return ''
   }
 }
 

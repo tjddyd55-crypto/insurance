@@ -19,7 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import type { PdfCustomerMapping, PdfFieldSpec, PdfFieldType, PdfPlacement } from '../types'
 import { PDF_CUSTOMER_MAPPINGS, PDF_FIELD_TYPE_LABELS, PDF_FIELD_TYPES } from '../types'
-import { PdfOverlayCanvas, type OverlayMark, type OverlayPick } from './PdfOverlayCanvas'
+import { PdfOverlayCanvas, type OverlayMark, type OverlayPick, type PdfOverlayDebugMeta } from './PdfOverlayCanvas'
 import FormInput from '../../../components/form/FormInput'
 import FormSelect from '../../../components/form/FormSelect'
 
@@ -31,6 +31,8 @@ interface Props {
   onSaveFields: () => void
   savingFields: boolean
   fieldsDirty: boolean
+  /** 좌표 화면 개발 로그용(스토리지 경로는 넣지 않음) */
+  templateId?: number
 }
 
 type DraftField = {
@@ -105,6 +107,7 @@ export function PdfCoordinateEditor({
   onSaveFields,
   savingFields,
   fieldsDirty,
+  templateId,
 }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   /**
@@ -125,6 +128,15 @@ export function PdfCoordinateEditor({
   useEffect(() => {
     if (pageCount > 0) setNumPages(pageCount)
   }, [pageCount])
+
+  const overlayDebugMeta = useMemo((): PdfOverlayDebugMeta | undefined => {
+    if (templateId == null) return undefined
+    return {
+      pdfTemplateId: templateId,
+      serverPageCount: pageCount > 0 ? pageCount : undefined,
+      fetchUrlPath: `/api/admin/pdf-templates/${templateId}/file`,
+    }
+  }, [templateId, pageCount])
 
   useEffect(() => {
     /* 서버 pageCount 와 pdfjs 실제 페이지 수가 어긋나면, 열람 중 페이지가 범위를 벗어나지 않게 한다. */
@@ -660,9 +672,13 @@ export function PdfCoordinateEditor({
               min={1}
               max={numPages}
               value={pageIndex + 1}
-              onChange={(e) =>
-                setPageIndex(Math.max(0, Math.min(numPages - 1, (Number(e.target.value) || 1) - 1)))
-              }
+              onChange={(e) => {
+                const raw = Number(e.target.value)
+                const pageNo =
+                  Number.isFinite(raw) && !Number.isNaN(raw) ? Math.trunc(raw) : 1
+                const clamped = Math.max(1, Math.min(numPages, pageNo || 1))
+                setPageIndex(clamped - 1)
+              }}
             />
           </label>
           <span className="pdf-engine-editor__field-meta">
@@ -688,6 +704,7 @@ export function PdfCoordinateEditor({
               setSelectedPlacementIndex(rawIndex)
             }}
             onDocumentReady={handleDocumentReady}
+            debugMeta={overlayDebugMeta}
             mode="pick-box"
           />
         </div>
