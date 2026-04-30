@@ -13,11 +13,70 @@ import type {
   PdfTemplateSummary,
 } from '../types'
 
-/** 선두 4바이트가 `%PDF` 인지 — 개발 로그·본문 검증에 공통 사용 */
-function arrayBufferHasPdfMagic(buf: ArrayBuffer): boolean {
-  if (buf.byteLength < 4) return false
-  const u8 = new Uint8Array(buf, 0, 4)
-  return u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46
+/** `%PDF` 시그니처 탐색 상한 — 선두 BOM·일부 프록시 프리픽스 뒤에 오는 경우까지 허용 */
+const PDF_SIGNATURE_SCAN_MAX_BYTES = 4096
+
+/**
+ * 본문 어딘가(상한 내)에 PDF 시그니처 `%PDF` 가 있는지.
+ * UTF-8 BOM(EF BB BF) 은 건너뛴 뒤 검사한다.
+ */
+function findPdfSignatureOffset(buf: ArrayBuffer): number {
+  if (buf.byteLength < 4) return -1
+  const u8 = new Uint8Array(buf)
+  let i = 0
+  if (
+    buf.byteLength >= 3 &&
+    u8[0] === 0xef &&
+    u8[1] === 0xbb &&
+    u8[2] === 0xbf
+  ) {
+    i = 3
+  }
+  const limit = Math.min(buf.byteLength, PDF_SIGNATURE_SCAN_MAX_BYTES)
+  for (; i <= limit - 4; i++) {
+    if (
+      u8[i] === 0x25 &&
+      u8[i + 1] === 0x50 &&
+      u8[i + 2] === 0x44 &&
+      u8[i + 3] === 0x46
+    ) {
+      return i
+    }
+  }
+  return -1
+}
+
+/**
+ * HTML/JSON 에러 본문처럼 보이면 true — 이 경우는 PDF 가 아니라 서버/프록시 오류로 본다.
+ */
+function bodyLooksLikeTextProtocolResponse(buf: ArrayBuffer): boolean {
+  const sliceLen = Math.min(buf.byteLength, 512)
+  const u8 = new Uint8Array(buf, 0, sliceLen)
+  let i = 0
+  if (
+    sliceLen >= 3 &&
+    u8[0] === 0xef &&
+    u8[1] === 0xbb &&
+    u8[2] === 0xbf
+  ) {
+    i = 3
+  }
+  while (i < sliceLen && (u8[i] === 9 || u8[i] === 10 || u8[i] === 13 || u8[i] === 32)) {
+    i += 1
+  }
+  if (i >= sliceLen) return false
+  const b = u8[i]
+  return b === 0x3c || b === 0x7b || b === 0x5b
+}
+
+function contentTypeSuggestsPdfBytes(ct: string): boolean {
+  const l = ct.toLowerCase()
+  return (
+    l.includes('application/pdf') ||
+    l.includes('application/octet-stream') ||
+    l.includes('binary/octet-stream') ||
+    l.includes('application/x-pdf')
+  )
 }
 
 /**
@@ -222,36 +281,37 @@ export async function fetchAdminPdfTemplateFile(
     )
   }
 
-  const magicOk = arrayBufferHasPdfMagic(buffer)
-  if (logger.isDev && !magicOk && buffer.byteLength >= 4) {
-    logger.warn('pdf-template.file.missing-pdf-magic', {
-      templateId: id,
-      byteLength: buffer.byteLength,
-      contentType,
-    })
-  }
-
-  if (!magicOk) {
-    if (contentTypeLower.includes('pdf')) {
-      logger.error('pdf-template.file.invalid-pdf-magic-declared-pdf', {
+  const pdfSigAt = findPdfSignatureOffset(buffer)
+  const hasPdfSignature = pdfSigAt >= 0
+  if (!hasPdfSignature) {
+    if (bodyLooksLikeTextProtocolResponse(buffer)) {
+      logger.error('pdf-template.file.body-looks-like-text-not-pdf', {
         templateId: id,
         byteLength: buffer.byteLength,
         contentType,
       })
       throw new ApiError(
-        'PDF 파일을 불러오지 못했습니다. 파일이 손상되었거나 지원되지 않는 형식일 수 있습니다.',
+        'PDF 파일 대신 다른 응답(HTML/JSON)을 받았습니다. 서버 응답과 파일 경로를 확인해주세요.',
         res.status,
       )
     }
-    logger.error('pdf-template.file.invalid-pdf-magic', {
-      templateId: id,
-      byteLength: buffer.byteLength,
-      contentType,
-    })
-    throw new ApiError(
-      'PDF 파일 대신 다른 응답을 받았습니다. 파일 경로 또는 접근 권한을 확인해주세요.',
-      res.status,
-    )
+    if (contentTypeSuggestsPdfBytes(contentTypeLower)) {
+      logger.warn('pdf-template.file.no-pdf-signature-trusting-binary-content-type', {
+        templateId: id,
+        byteLength: buffer.byteLength,
+        contentType,
+      })
+    } else {
+      logger.warn('pdf-template.file.no-pdf-signature-defer-to-pdfjs', {
+        templateId: id,
+        byteLength: buffer.byteLength,
+        contentType,
+      })
+    }
+    /*
+     * 시그니처만으로 거부하지 않는다 — CMap/오프셋 PDF·octet-stream 정상 응답은
+     * PDF.js 파싱 실패 시에만 `PdfOverlayCanvas` 가 치명 오류를 올린다.
+     */
   }
 
   /*
