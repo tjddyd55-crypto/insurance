@@ -210,8 +210,13 @@ export type AppMenuBuildOptions = {
 
 const AUDIT_LOG_ENTRY: GaTenantMenuItem = { label: '보안 감사 로그', path: '/admin/audit-logs' }
 
+const CONTRACT_SIGNATURE_USER_SEND: GaTenantMenuItem = {
+  label: '전자서명 발송',
+  path: '/contracts/signatures/send',
+}
+
 const CONTRACT_SIGNATURE_ADMIN_MENU: GaTenantMenuItem = {
-  label: '전자서명 관리',
+  label: '전자서명 템플릿 관리',
   path: '/admin/contract-signatures',
 }
 
@@ -282,10 +287,20 @@ export function buildAppMenuForSession(
       return itemsToEntries(LOSS_ADJUSTER_MENU)
     }
     if (role === 'GA_STAFF') {
-      return itemsToEntries(GA_STAFF_MENU)
+      return itemsToEntries([CONTRACT_SIGNATURE_USER_SEND, ...GA_STAFF_MENU])
     }
     if (role === 'GA_ADMIN' || role === 'USER') {
       const entries = buildGaTenantDashboardMenu(gaCode, gaName)
+      if (role === 'USER') {
+        const customerIdx = entries.findIndex((e) => e.type === 'link' && e.path === '/customers')
+        if (customerIdx >= 0) {
+          entries.splice(customerIdx + 1, 0, {
+            type: 'link',
+            label: CONTRACT_SIGNATURE_USER_SEND.label,
+            path: CONTRACT_SIGNATURE_USER_SEND.path,
+          })
+        }
+      }
       if (role === 'GA_ADMIN') {
         const testEntry = contractSignatureAdminMenuIfEnabled('GA_ADMIN')
         if (testEntry) {

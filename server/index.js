@@ -29,6 +29,7 @@ import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryRe
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
 import { parseGaId } from './lib/parseGaId.js'
 import {
+  isContractUserSendRole,
   isGaInsurerManagerMutatorRole,
   isGaTenantAdminRole,
   isNewsManagerRole,
@@ -48,6 +49,7 @@ import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
 import { registerContractPublicApi } from './apis/contractPublicApi.js'
 import { registerContractAdminApi } from './apis/contractAdminApi.js'
+import { registerContractUserApi } from './apis/contractUserApi.js'
 import { registerSubscriptionEndpoints } from './subscription/endpoints.js'
 import { enforceActiveSubscription } from './subscription/requireActiveSubscription.js'
 
@@ -1110,6 +1112,37 @@ function requireGaAdminOrSuper(req, res, next) {
   next()
 }
 
+/** 전자서명 템플릿 관리(관리자 콘솔) — SUPER_ADMIN · GA_ADMIN */
+function requireContractAdminConsole(req, res, next) {
+  if (!req.user) {
+    res.status(401).json({ message: '로그인이 필요합니다.' })
+    return
+  }
+  const r = normalizeUserRole(req.user.role)
+  if (r !== 'SUPER_ADMIN' && r !== 'GA_ADMIN') {
+    forbiddenResponse(req, res, '전자서명 템플릿 관리 권한이 없습니다.', { guard: 'requireContractAdminConsole' })
+    return
+  }
+  next()
+}
+
+/** 전자서명 발송 — USER · GA_STAFF (본인 소속 고객만) */
+function requireContractUserSend(req, res, next) {
+  if (!req.user) {
+    res.status(401).json({ message: '로그인이 필요합니다.' })
+    return
+  }
+  if (!isContractUserSendRole(req.user.role)) {
+    forbiddenResponse(req, res, '전자서명 발송 권한이 없습니다.', { guard: 'requireContractUserSend' })
+    return
+  }
+  if (parseGaId(req.user?.gaId) == null) {
+    res.status(400).json({ message: 'GA 컨텍스트가 없습니다.' })
+    return
+  }
+  next()
+}
+
 /** 보험사 마스터 쓰기 등: SUPER_ADMIN · GA_ADMIN · GA_STAFF */
 function requireGaTenantAdmin(req, res, next) {
   if (!req.user || !isGaTenantAdminRole(req.user.role)) {
@@ -1410,7 +1443,15 @@ registerContractAdminApi(apiRouter, {
   pool,
   requireAuth,
   forbidInsurerManagerApi,
-  requireGaTenantAdmin,
+  requireContractAdminConsole,
+  handleDbError,
+})
+
+registerContractUserApi(apiRouter, {
+  pool,
+  requireAuth,
+  forbidInsurerManagerApi,
+  requireContractUserSend,
   handleDbError,
 })
 

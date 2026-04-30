@@ -23,7 +23,7 @@ function hashPhoneDigits(digits) {
   return createHash('sha256').update(`${digits}|${pepper}`, 'utf8').digest('hex')
 }
 
-function getAuthUserId(req) {
+export function getAuthUserId(req) {
   return String(req.user?.id ?? '').trim()
 }
 
@@ -48,7 +48,7 @@ async function resolveEffectiveGaId(pool, req) {
   return userGa
 }
 
-async function assertCustomerForSend(client, customerId, req) {
+export async function assertCustomerForSend(client, customerId, req) {
   const role = normalizeRbacRole(req.user?.role)
   const userGa = parseGaId(req.user?.gaId)
   const uid = getAuthUserId(req)
@@ -117,7 +117,7 @@ async function countPdfEngineFields(client, pdfTemplateId) {
   return Number(r.rows[0]?.c ?? 0)
 }
 
-async function assertContractTemplateAccess(client, templateId, effectiveGaId, isSuper) {
+export async function assertContractTemplateAccess(client, templateId, effectiveGaId, isSuper) {
   const r = await client.query(
     `SELECT * FROM contract_templates WHERE id = $1 LIMIT 1`,
     [templateId],
@@ -160,7 +160,7 @@ async function assertPackageAccess(client, packageId, effectiveGaId, isSuper) {
   return { row }
 }
 
-function buildTargetPhoneSnapshot(digits) {
+export function buildTargetPhoneSnapshot(digits) {
   let encrypted = null
   try {
     encrypted = encryptContractTargetPhoneDigits(digits)
@@ -174,7 +174,7 @@ function buildTargetPhoneSnapshot(digits) {
   }
 }
 
-async function generateUniqueLinkCode(client) {
+export async function generateUniqueLinkCode(client) {
   for (let i = 0; i < 8; i += 1) {
     const code = randomBytes(32).toString('base64url')
     const ck = await client.query(
@@ -188,7 +188,7 @@ async function generateUniqueLinkCode(client) {
   throw new Error('link_code_collision')
 }
 
-function parseTemplateIdsArray(raw) {
+export function parseTemplateIdsArray(raw) {
   if (!Array.isArray(raw) || raw.length === 0) {
     return { error: 'templateIds가 필요합니다.' }
   }
@@ -214,14 +214,14 @@ function parseTemplateIdsArray(raw) {
  *   pool: import('pg').Pool,
  *   requireAuth: import('express').RequestHandler,
  *   forbidInsurerManagerApi: import('express').RequestHandler,
- *   requireGaTenantAdmin: import('express').RequestHandler,
+ *   requireContractAdminConsole: import('express').RequestHandler,
  *   handleDbError: (e: unknown, req: import('express').Request, res: import('express').Response) => void,
  * }} ctx
  */
 export function registerContractAdminApi(apiRouter, ctx) {
-  const { pool, requireAuth, forbidInsurerManagerApi, requireGaTenantAdmin, handleDbError } = ctx
+  const { pool, requireAuth, forbidInsurerManagerApi, requireContractAdminConsole, handleDbError } = ctx
 
-  const chain = [requireAuth, forbidInsurerManagerApi, requireGaTenantAdmin]
+  const chain = [requireAuth, forbidInsurerManagerApi, requireContractAdminConsole]
 
   apiRouter.get('/admin/contracts/templates', ...chain, async (req, res) => {
     try {

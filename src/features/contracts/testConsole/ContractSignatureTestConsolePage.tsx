@@ -1,31 +1,22 @@
 /**
- * 전자서명 관리 — SUPER_ADMIN / GA_ADMIN 전용. 공개 계약 링크 플로우와 분리.
+ * 전자서명 템플릿 관리 — SUPER_ADMIN / GA_ADMIN. 실제 고객 발송은 전자서명 발송 메뉴에서 진행.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import '../../pdf-engine/pdf-engine.css'
 import './contract-signature-console.css'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
-import type { CustomerRecord } from '../../customers/domain/types'
 import { ContractTemplatePanel } from './components/ContractTemplatePanel'
-import { CustomerSelector } from './components/CustomerSelector'
-import { EvidenceStatusPanel } from './components/EvidenceStatusPanel'
 import type { PdfPickRow } from './components/PdfTemplateSelector'
 import { PdfTemplateSelector } from './components/PdfTemplateSelector'
-import { SendSessionPanel } from './components/SendSessionPanel'
 import {
   activateContractTemplate,
   countPdfFieldStats,
-  createContractSendSession,
   createContractTemplateFromPdfTemplate,
-  getContractSendSessionDetail,
   getPdfTemplateDetailForContractTest,
   listContractTemplates,
   listPdfTemplatesForContractTest,
-  searchCustomersForContractTest,
   type ContractTemplateListItem,
-  type CreateSendSessionResult,
-  type SendSessionDetail,
 } from './contractSignatureTestConsoleClient'
 
 function resolveTenantGaId(role: string | undefined, gaId: number): number | null {
@@ -35,37 +26,11 @@ function resolveTenantGaId(role: string | undefined, gaId: number): number | nul
   return gaId
 }
 
-/** GET /customers/search — SUPER_ADMIN 은 scope_ga_id(세션 GA) 필수, 그 외는 JWT GA·user 스코프만 사용 */
-function resolveCustomerSearchScopeGaId(role: string | undefined, gaId: number | undefined): number | null {
-  if (role !== 'SUPER_ADMIN') {
-    return null
-  }
-  if (gaId != null && Number.isFinite(gaId) && gaId > 0) {
-    return gaId
-  }
-  return null
-}
-
-function customerPhoneOk(c: CustomerRecord): boolean {
-  const p = String(c.phone ?? c.phoneNumber ?? '').replace(/\D/g, '')
-  return p.length >= 10
-}
-
 export default function ContractSignatureTestConsolePage() {
   const { token, user } = useAuth()
   const t = token?.trim() ?? ''
   const role = user?.role
   const tenantGaId = useMemo(() => resolveTenantGaId(role, user?.gaId ?? 0), [role, user?.gaId])
-  const customerSearchScopeGaId = useMemo(
-    () => resolveCustomerSearchScopeGaId(role, user?.gaId),
-    [role, user?.gaId],
-  )
-  const customerSearchBlockedMessage = useMemo(() => {
-    if (role === 'SUPER_ADMIN' && customerSearchScopeGaId == null) {
-      return '고객 검색 범위(GA)를 확인할 수 없습니다. 다시 로그인한 뒤 시도해 주세요.'
-    }
-    return null
-  }, [role, customerSearchScopeGaId])
 
   const [bootError, setBootError] = useState<string | null>(null)
   const [pdfRows, setPdfRows] = useState<PdfPickRow[]>([])
@@ -74,14 +39,6 @@ export default function ContractSignatureTestConsolePage() {
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null)
   const [contractPanelError, setContractPanelError] = useState<string | null>(null)
   const [contractBusy, setContractBusy] = useState(false)
-
-  const [customer, setCustomer] = useState<CustomerRecord | null>(null)
-
-  const [sendBusy, setSendBusy] = useState(false)
-  const [sendError, setSendError] = useState<string | null>(null)
-  const [lastCreated, setLastCreated] = useState<CreateSendSessionResult | null>(null)
-  const [sessionDetail, setSessionDetail] = useState<SendSessionDetail | null>(null)
-  const [evidenceLoading, setEvidenceLoading] = useState(false)
 
   const selectedPdf = useMemo(
     () => (selectedPdfId == null ? null : pdfRows.find((r) => r.id === selectedPdfId) ?? null),
@@ -198,73 +155,16 @@ export default function ContractSignatureTestConsolePage() {
     }
   }
 
-  const onSearchCustomers = useCallback(
-    async (q: string) => searchCustomersForContractTest(t, q, role, customerSearchScopeGaId),
-    [t, role, customerSearchScopeGaId],
-  )
-
-  const refreshSessionDetail = useCallback(async () => {
-    const sid = sessionDetail?.id ?? lastCreated?.id
-    if (!t || !sid) {
-      return
-    }
-    setEvidenceLoading(true)
-    try {
-      const next = await getContractSendSessionDetail(t, role, sid, tenantGaId)
-      setSessionDetail(next)
-    } catch (e) {
-      setSendError(e instanceof ApiError ? e.message : '세션 상태를 불러오지 못했습니다.')
-    } finally {
-      setEvidenceLoading(false)
-    }
-  }, [t, role, tenantGaId, sessionDetail?.id, lastCreated?.id])
-
-  const onCreateSendSession = async () => {
-    if (!t || !selectedContractId || !customer || !customerPhoneOk(customer)) {
-      return
-    }
-    const sel = contractTemplates.find((x) => x.id === selectedContractId)
-    if (!sel || sel.status !== 'active') {
-      setSendError('발송하려면 계약서 템플릿을 활성화해야 합니다.')
-      return
-    }
-    setSendBusy(true)
-    setSendError(null)
-    try {
-      const created = await createContractSendSession(t, role, {
-        customerId: customer.id,
-        templateIds: [selectedContractId],
-        tenantGaId,
-      })
-      setLastCreated(created)
-      const next = await getContractSendSessionDetail(t, role, created.id, tenantGaId)
-      setSessionDetail(next)
-    } catch (e) {
-      setSendError(e instanceof ApiError ? e.message : '발송 세션 생성에 실패했습니다.')
-    } finally {
-      setSendBusy(false)
-    }
-  }
-
-  const selectedContract = contractTemplates.find((x) => x.id === selectedContractId)
-  const canSend =
-    Boolean(selectedContractId) &&
-    selectedContract?.status === 'active' &&
-    customer != null &&
-    customerPhoneOk(customer)
-
-  const inactiveTemplateHint =
-    Boolean(selectedContractId) && selectedContract != null && selectedContract.status !== 'active'
-      ? '발송하려면 계약서 템플릿을 활성화해야 합니다.'
-      : null
+  const resolveCoordinateEditorHref =
+    role === 'SUPER_ADMIN' ? (pdfTemplateId: number) => `/admin/pdf-templates/${pdfTemplateId}` : undefined
 
   return (
     <main className="insurance-dark-forms contract-signature-console">
       <div className="contract-signature-console__container">
-        <h1 className="contract-signature-console__title">전자서명 관리</h1>
+        <h1 className="contract-signature-console__title">전자서명 템플릿 관리</h1>
         <p className="contract-signature-console__lead">
-          PDF 좌표 템플릿을 기반으로 고객에게 전자서명 링크를 발송하고, 지정 휴대폰 인증·손사인·증빙 상태를
-          확인합니다.
+          관리자는 PDF 좌표 템플릿을 전자서명 발송용 계약서 템플릿으로 등록하고 관리합니다. 실제 고객 발송은
+          유저/FC 화면의 「전자서명 발송」 메뉴에서 진행합니다.
         </p>
         <div className="contract-signature-console__notice" role="status">
           <ul>
@@ -273,6 +173,7 @@ export default function ContractSignatureTestConsolePage() {
               않습니다.
             </li>
             <li>최종 PDF 합성은 추후 지원 예정입니다.</li>
+            <li>관리자용 임시 발송·세션 조회 API(`/api/admin/contracts/send-sessions`)는 호환용으로 유지될 수 있습니다.</li>
           </ul>
         </div>
 
@@ -289,11 +190,12 @@ export default function ContractSignatureTestConsolePage() {
             selectedId={selectedPdfId}
             onSelect={onSelectPdf}
             disabled={!t || contractBusy}
+            resolveCoordinateEditorHref={resolveCoordinateEditorHref}
           />
         </section>
 
         <section className="contract-signature-console__section">
-          <h2 className="contract-signature-console__section-title">2. 계약서 템플릿 연결</h2>
+          <h2 className="contract-signature-console__section-title">2. 계약서 템플릿 연결 · 상태</h2>
           <ContractTemplatePanel
             pdfTemplateId={selectedPdfId}
             pdfTitle={selectedPdf?.title ?? null}
@@ -304,41 +206,6 @@ export default function ContractSignatureTestConsolePage() {
             onCreateTest={onCreateTestTemplate}
             onActivate={onActivateTemplate}
             error={contractPanelError}
-          />
-        </section>
-
-        <section className="contract-signature-console__section">
-          <h2 className="contract-signature-console__section-title">3. 고객 선택</h2>
-          <CustomerSelector
-            token={t}
-            disabled={!t}
-            searchBlockedMessage={customerSearchBlockedMessage}
-            onSearch={onSearchCustomers}
-            selected={customer}
-            onSelect={setCustomer}
-          />
-        </section>
-
-        <section className="contract-signature-console__section">
-          <h2 className="contract-signature-console__section-title">4. 발송 세션</h2>
-          <SendSessionPanel
-            busy={sendBusy}
-            lastCreated={lastCreated}
-            onCreate={onCreateSendSession}
-            canSend={canSend}
-            inactiveTemplateHint={inactiveTemplateHint}
-            detail={sessionDetail}
-            onRefresh={() => void refreshSessionDetail()}
-            error={sendError}
-          />
-        </section>
-
-        <section className="contract-signature-console__section">
-          <h2 className="contract-signature-console__section-title">5. 상태 · evidence</h2>
-          <EvidenceStatusPanel
-            detail={sessionDetail}
-            loading={evidenceLoading}
-            onRefresh={() => void refreshSessionDetail()}
           />
         </section>
       </div>

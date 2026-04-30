@@ -98,6 +98,8 @@ import ContractSignPage from './features/contracts/public/ContractSignPage'
 import ContractSignDocumentPage from './features/contracts/public/ContractSignDocumentPage'
 import { ContractSignatureTestRoute } from './features/contracts/testConsole/ContractSignatureTestRoute'
 import ContractSignatureTestConsolePage from './features/contracts/testConsole/ContractSignatureTestConsolePage'
+import { ContractSignatureUserSendRoute } from './features/contracts/userSend/ContractSignatureUserSendRoute'
+import ContractSignatureSendPage from './features/contracts/userSend/ContractSignatureSendPage'
 
 export const appRouter = createBrowserRouter([
   {
@@ -320,6 +322,12 @@ export const appRouter = createBrowserRouter([
                   { path: 'admin/pdf-templates', element: <PdfTemplateListPage /> },
                   { path: 'admin/pdf-templates/new', element: <PdfTemplateEditorPage /> },
                   { path: 'admin/pdf-templates/:id', element: <PdfTemplateEditorPage /> },
+                ],
+              },
+              {
+                element: <ContractSignatureUserSendRoute />,
+                children: [
+                  { path: 'contracts/signatures/send', element: <ContractSignatureSendPage /> },
                 ],
               },
               {

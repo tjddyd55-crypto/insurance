@@ -17,3 +17,9 @@ export function canAccessContractSignatureTestConsole(role: string | undefined):
 export function canAccessContractSignatureAdminConsole(role: string | undefined): boolean {
   return isContractSignatureTestMenuEnabled() && canAccessContractSignatureTestConsole(role)
 }
+
+/** 전자서명 발송(/contracts/signatures/send) — USER · GA_STAFF */
+export function canAccessContractSignatureUserSend(role: string | undefined): boolean {
+  const r = role ?? ''
+  return r === 'USER' || r === 'GA_STAFF'
+}

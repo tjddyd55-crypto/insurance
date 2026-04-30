@@ -12,9 +12,18 @@ type Props = {
   selectedId: number | null
   onSelect: (id: number) => void
   disabled?: boolean
+  /** SUPER_ADMIN 등 PDF 좌표 편집기 진입 링크 (없으면 열 숨김) */
+  resolveCoordinateEditorHref?: (pdfTemplateId: number) => string | null
 }
 
-export function PdfTemplateSelector({ rows, selectedId, onSelect, disabled }: Props) {
+export function PdfTemplateSelector({
+  rows,
+  selectedId,
+  onSelect,
+  disabled,
+  resolveCoordinateEditorHref,
+}: Props) {
+  const showCoordCol = typeof resolveCoordinateEditorHref === 'function'
   return (
     <div className="contract-signature-console__scroll-x">
       <table className="pdf-engine-table contract-signature-console__table--compact contract-signature-console__table--striped">
@@ -27,6 +36,7 @@ export function PdfTemplateSelector({ rows, selectedId, onSelect, disabled }: Pr
             <th>서명 필드</th>
             <th>활성</th>
             <th>수정일</th>
+            {showCoordCol ? <th>좌표 편집</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -59,6 +69,20 @@ export function PdfTemplateSelector({ rows, selectedId, onSelect, disabled }: Pr
                 <td>{r.loadingDetail ? '…' : r.signatureCount}</td>
                 <td>{r.isActive ? '예' : '아니오'}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>{r.updatedAt?.slice(0, 19) ?? '—'}</td>
+                {showCoordCol ? (
+                  <td>
+                    {(() => {
+                      const href = resolveCoordinateEditorHref?.(r.id) ?? null
+                      return href ? (
+                        <a href={href} style={{ color: '#7dd3fc' }}>
+                          열기
+                        </a>
+                      ) : (
+                        '—'
+                      )
+                    })()}
+                  </td>
+                ) : null}
               </tr>
             )
           })}
