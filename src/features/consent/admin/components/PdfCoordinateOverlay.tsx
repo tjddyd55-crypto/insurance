@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist'
+import { getPdfJsCmapAndStandardFontUrls } from '../../../../lib/pdfjs/pdfDocumentInitParams'
 import { setupPdfWorker } from '../../../../lib/pdfjs/setupWorker'
 import { copyPdfBytesForPdfJs } from '../../../pdf-engine/lib/pdfArrayBuffer'
+import { isPdfJsRenderingCancelled } from '../../../pdf-engine/lib/pdfErrors'
+
+type PdfJsPage = Awaited<ReturnType<PDFDocumentProxy['getPage']>>
+type PdfPageRenderTask = ReturnType<PdfJsPage['render']>
 
 /*
  * pdfjs 워커는 공용 SSOT 에서만 초기화한다 — Electron(file://) 환경에서도
@@ -47,6 +52,7 @@ export function PdfCoordinateOverlay({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const markCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const pdfSizeRef = useRef<{ w: number; h: number } | null>(null)
+  const pageRenderTaskRef = useRef<PdfPageRenderTask | null>(null)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
 
   const drawMarks = useCallback(() => {
@@ -58,6 +64,8 @@ export function PdfCoordinateOverlay({
     }
     markCanvas.width = pdfCanvas.width
     markCanvas.height = pdfCanvas.height
+    markCanvas.style.width = pdfCanvas.style.width
+    markCanvas.style.height = pdfCanvas.style.height
     const ctx = markCanvas.getContext('2d')
     if (!ctx) {
       return
@@ -90,6 +98,15 @@ export function PdfCoordinateOverlay({
 
   useEffect(() => {
     if (!pdfArrayBuffer) {
+      const t = pageRenderTaskRef.current
+      if (t) {
+        try {
+          t.cancel()
+        } catch {
+          /* ignore */
+        }
+        pageRenderTaskRef.current = null
+      }
       queueMicrotask(() => {
         setStatus('idle')
         pdfSizeRef.current = null
@@ -108,8 +125,16 @@ export function PdfCoordinateOverlay({
     ;(async () => {
       try {
         const pdfJsBytes = copyPdfBytesForPdfJs(pdfArrayBuffer)
-        const pdf = await getDocument({ data: pdfJsBytes }).promise
+        const cmapFonts = getPdfJsCmapAndStandardFontUrls()
+        const pdf = await getDocument({
+          data: pdfJsBytes,
+          ...cmapFonts,
+          cMapPacked: true,
+          useSystemFonts: true,
+          disableFontFace: false,
+        }).promise
         if (cancelled) {
+          void pdf.destroy().catch(() => {})
           return
         }
         onDocumentReady?.(pdf)
@@ -125,15 +150,47 @@ export function PdfCoordinateOverlay({
         const viewport = page.getViewport({ scale })
         canvas.width = viewport.width
         canvas.height = viewport.height
+        canvas.style.width = `${viewport.width}px`
+        canvas.style.height = `${viewport.height}px`
         pdfSizeRef.current = { w: base.width, h: base.height }
+
+        const prevTask = pageRenderTaskRef.current
+        if (prevTask) {
+          try {
+            prevTask.cancel()
+          } catch {
+            /* ignore */
+          }
+          pageRenderTaskRef.current = null
+        }
+
         const ctx = canvas.getContext('2d')
         if (!ctx) {
+          if (!cancelled) {
+            setStatus('error')
+          }
           return
         }
         ctx.fillStyle = '#fff'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
-        const task = page.render({ canvasContext: ctx, viewport, canvas })
-        await task.promise
+        let task: PdfPageRenderTask | null = null
+        try {
+          task = page.render({ canvasContext: ctx, viewport, canvas })
+          pageRenderTaskRef.current = task
+          await task.promise
+        } catch (e) {
+          if (isPdfJsRenderingCancelled(e)) {
+            return
+          }
+          if (!cancelled) {
+            setStatus('error')
+          }
+          return
+        } finally {
+          if (pageRenderTaskRef.current === task) {
+            pageRenderTaskRef.current = null
+          }
+        }
         if (cancelled) {
           return
         }
@@ -147,6 +204,15 @@ export function PdfCoordinateOverlay({
 
     return () => {
       cancelled = true
+      const t = pageRenderTaskRef.current
+      if (t) {
+        try {
+          t.cancel()
+        } catch {
+          /* ignore */
+        }
+        pageRenderTaskRef.current = null
+      }
     }
   }, [pdfArrayBuffer, pageIndex, onDocumentReady])
 
