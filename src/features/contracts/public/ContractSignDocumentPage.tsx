@@ -14,26 +14,34 @@ export default function ContractSignDocumentPage() {
   }>()
   const linkCode = String(linkCodeParam ?? '').trim()
   const documentInstanceId = String(docIdParam ?? '').trim()
+  const paramsInvalid = !linkCode || !documentInstanceId
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [detail, setDetail] = useState<ContractDocumentDetailPayload | null>(null)
 
   useEffect(() => {
-    if (!linkCode || !documentInstanceId) {
-      setError('링크가 올바르지 않습니다.')
-      setLoading(false)
+    if (paramsInvalid) {
       return
     }
     let cancelled = false
-    setLoading(true)
-    setError('')
-    void fetchContractPublicDocumentDetail(linkCode, documentInstanceId)
-      .then((d) => {
-        if (!cancelled) setDetail(d)
-      })
-      .catch((e) => {
-        if (cancelled) return
+
+    void (async () => {
+      await Promise.resolve()
+      if (cancelled) {
+        return
+      }
+      setLoading(true)
+      setError('')
+      try {
+        const d = await fetchContractPublicDocumentDetail(linkCode, documentInstanceId)
+        if (!cancelled) {
+          setDetail(d)
+        }
+      } catch (e) {
+        if (cancelled) {
+          return
+        }
         setDetail(null)
         if (e instanceof ApiError && e.status === 403) {
           setError('계약서 수신번호 인증이 필요합니다. 목록 화면에서 인증을 완료해 주세요.')
@@ -44,17 +52,32 @@ export default function ContractSignDocumentPage() {
           return
         }
         setError(e instanceof ApiError ? e.message : '문서를 불러오지 못했습니다.')
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    })()
+
     return () => {
       cancelled = true
     }
-  }, [linkCode, documentInstanceId])
+  }, [linkCode, documentInstanceId, paramsInvalid])
 
   let body: ReactNode
-  if (loading) {
+  if (paramsInvalid) {
+    body = (
+      <div className="space-y-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+        <p className="text-sm">링크가 올바르지 않습니다.</p>
+        <Link
+          className="text-sm font-medium text-slate-900 underline"
+          to={linkCode ? `/contracts/sign/${encodeURIComponent(linkCode)}` : '/'}
+        >
+          목록으로
+        </Link>
+      </div>
+    )
+  } else if (loading) {
     body = <p className="text-slate-600">불러오는 중…</p>
   } else if (error || !detail) {
     body = (
