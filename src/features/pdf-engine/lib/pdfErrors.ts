@@ -54,25 +54,30 @@ export function messageForPdfLoadErrorCode(
     case 'not-pdf-response':
       return 'PDF 파일 대신 다른 응답을 받았습니다. 서버 응답을 확인해주세요.'
     case 'parse-failed':
-      return 'PDF 파일을 불러오지 못했습니다. 파일이 손상되었거나 지원되지 않는 형식일 수 있습니다.'
+      return 'PDF 파일 형식을 해석하지 못했습니다. 네트워크 또는 파일이 손상되지 않았는지 확인해주세요.'
     case 'buffer-transport-failed':
       return 'PDF 데이터를 다시 읽는 중 오류가 발생했습니다. 화면을 새로고침하거나 다시 시도해주세요.'
     case 'page-fetch-failed':
       return '선택한 페이지를 불러올 수 없습니다. 페이지 번호를 다시 확인해주세요.'
     case 'page-render-failed':
-      return 'PDF 파일을 불러오지 못했습니다. 파일이 손상되었거나 지원되지 않는 형식일 수 있습니다.'
+      return 'PDF 미리보기를 표시하지 못했습니다. 파일 형식 또는 렌더링 설정을 확인해주세요.'
     default:
-      return 'PDF 를 표시하지 못했습니다.'
+      return 'PDF 미리보기를 표시하지 못했습니다. 잠시 후 다시 시도하거나 새로고침해주세요.'
   }
 }
 
 export function messageForPdfOverlayWarning(code: PdfOverlayWarningCode): string {
   switch (code) {
     case 'document-callback-failed':
-      return 'PDF 미리보기는 가능하지만 일부 검증 정보를 읽지 못했습니다. 좌표 설정은 계속할 수 있습니다.'
+      return 'PDF 미리보기는 가능하지만 일부 분석 정보를 읽지 못했습니다. 좌표 설정은 계속할 수 있습니다.'
     default:
       return ''
   }
+}
+
+/** page.render 가 취소되어 promise 가 reject 된 경우 — fatal 로 취급하지 않는다. */
+export function isPdfJsRenderingCancelled(error: unknown): boolean {
+  return error != null && typeof error === 'object' && (error as { name?: string }).name === 'RenderingCancelledException'
 }
 
 /** 에러 객체 → code 분류. PdfLoadError 가 아니면 'unknown'. */

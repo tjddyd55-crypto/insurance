@@ -19,6 +19,7 @@ import { canvasLengthToPdf, canvasToPdf } from '../lib/coordinateMath'
 import { copyPdfBytesForPdfJs } from '../lib/pdfArrayBuffer'
 import {
   describePdfLoadError,
+  isPdfJsRenderingCancelled,
   messageForPdfLoadErrorCode,
   messageForPdfOverlayWarning,
   PdfLoadError,
@@ -26,6 +27,7 @@ import {
   type PdfOverlayWarningCode,
 } from '../lib/pdfErrors'
 import { logger } from '../../../lib/logger'
+import { getPdfJsCmapAndStandardFontUrls } from '../../../lib/pdfjs/pdfDocumentInitParams'
 import { setupPdfWorker } from '../../../lib/pdfjs/setupWorker'
 
 setupPdfWorker()
@@ -149,6 +151,12 @@ interface DragState {
 }
 
 type PdfJsPage = Awaited<ReturnType<PDFDocumentProxy['getPage']>>
+type PdfPageRenderTask = ReturnType<PdfJsPage['render']>
+
+/** paint 가 취소·대체됨 → 호출측은 fatal 을 올리지 않고 조용히 빠진다. */
+type PaintPdfOutcome = 'rendered' | 'aborted'
+
+const MAX_PDF_PREVIEW_DEVICE_PIXEL_RATIO = 3
 
 async function paintPdfPageToCanvas(payload: {
   page: PdfJsPage
@@ -161,7 +169,8 @@ async function paintPdfPageToCanvas(payload: {
   wrapRef: MutableRefObject<HTMLDivElement | null>
   canvasRef: MutableRefObject<HTMLCanvasElement | null>
   pageSizeRef: MutableRefObject<{ widthPt: number; heightPt: number } | null>
-}): Promise<boolean> {
+  pageRenderTaskRef: MutableRefObject<PdfPageRenderTask | null>
+}): Promise<PaintPdfOutcome> {
   const {
     page,
     pageIndex,
@@ -173,6 +182,7 @@ async function paintPdfPageToCanvas(payload: {
     wrapRef,
     canvasRef,
     pageSizeRef,
+    pageRenderTaskRef,
   } = payload
 
   const base = page.getViewport({ scale: 1 })
@@ -180,11 +190,17 @@ async function paintPdfPageToCanvas(payload: {
   let canvas = canvasRef.current
   if (!wrap || !canvas) {
     await new Promise<void>((r) => requestAnimationFrame(() => r()))
-    if (cancelled() || gen !== loadGenRef.current) return false
+    if (cancelled() || gen !== loadGenRef.current) return 'aborted'
     wrap = wrapRef.current
     canvas = canvasRef.current
   }
-  if (!wrap || !canvas || cancelled() || gen !== loadGenRef.current) return false
+  if (cancelled() || gen !== loadGenRef.current) return 'aborted'
+  if (!wrap || !canvas) {
+    throw new PdfLoadError('page-render-failed', {
+      reason: 'wrap-or-canvas-unavailable',
+      pageIndex,
+    })
+  }
 
   /*
    * 스케일 기준 폭은 "미리보기 스크롤 영역 전체"(layoutHost)만 사용한다.
@@ -200,28 +216,54 @@ async function paintPdfPageToCanvas(payload: {
   )
   const scale = targetCssW / base.width
   const viewport = page.getViewport({ scale })
-  canvas.width = viewport.width
-  canvas.height = viewport.height
+  const dpr =
+    typeof window !== 'undefined'
+      ? Math.min(window.devicePixelRatio || 1, MAX_PDF_PREVIEW_DEVICE_PIXEL_RATIO)
+      : 1
+  canvas.width = Math.floor(viewport.width * dpr)
+  canvas.height = Math.floor(viewport.height * dpr)
+  canvas.style.width = `${viewport.width}px`
+  canvas.style.height = `${viewport.height}px`
   pageSizeRef.current = { widthPt: base.width, heightPt: base.height }
+
+  const prevTask = pageRenderTaskRef.current
+  if (prevTask) {
+    try {
+      prevTask.cancel()
+    } catch {
+      /* ignore */
+    }
+    pageRenderTaskRef.current = null
+  }
 
   const ctx = canvas.getContext('2d')
   if (!ctx) {
     throw new PdfLoadError('page-render-failed', { reason: 'canvas-2d-context-null' })
   }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.fillStyle = PDF_CANVAS_BG
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.fillRect(0, 0, viewport.width, viewport.height)
 
+  let task: PdfPageRenderTask | null = null
   try {
-    const task = page.render({ canvasContext: ctx, viewport, canvas })
+    task = page.render({ canvasContext: ctx, viewport, canvas })
+    pageRenderTaskRef.current = task
     await task.promise
   } catch (e) {
+    if (isPdfJsRenderingCancelled(e)) {
+      return 'aborted'
+    }
     throw new PdfLoadError(
       'page-render-failed',
       { pageIndex, canvasW: canvas.width, canvasH: canvas.height },
       e,
     )
+  } finally {
+    if (pageRenderTaskRef.current === task) {
+      pageRenderTaskRef.current = null
+    }
   }
-  return true
+  return 'rendered'
 }
 
 export function PdfOverlayCanvas({
@@ -242,6 +284,8 @@ export function PdfOverlayCanvas({
   const pageSizeRef = useRef<{ widthPt: number; heightPt: number } | null>(null)
   /** 동일 원본 ArrayBuffer 참조에 대해 pdfjs 문서를 재파싱하지 않기 위한 캐시(참조는 prop 그대로). */
   const pdfDocCacheRef = useRef<{ sourceRef: ArrayBuffer; doc: PDFDocumentProxy } | null>(null)
+  /** 동일 캔버스에 겹치는 page.render 를 막기 위해 최신 태스크만 추적·취소한다. */
+  const pageRenderTaskRef = useRef<PdfPageRenderTask | null>(null)
   const loadGenRef = useRef(0)
   const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
   const [fatalErrorCode, setFatalErrorCode] = useState<PdfLoadErrorCode | 'unknown' | null>(null)
@@ -274,6 +318,8 @@ export function PdfOverlayCanvas({
 
     markCanvas.width = pdfCanvas.width
     markCanvas.height = pdfCanvas.height
+    markCanvas.style.width = pdfCanvas.style.width
+    markCanvas.style.height = pdfCanvas.style.height
     const ctx = markCanvas.getContext('2d')
     if (!ctx) return
     ctx.clearRect(0, 0, markCanvas.width, markCanvas.height)
@@ -361,6 +407,15 @@ export function PdfOverlayCanvas({
      * loadGenRef 로 오래된 비동게 완료가 UI 를 덮어쓰지 않게 한다.
      */
     if (!pdfBuffer) {
+      const t = pageRenderTaskRef.current
+      if (t) {
+        try {
+          t.cancel()
+        } catch {
+          /* ignore */
+        }
+        pageRenderTaskRef.current = null
+      }
       void pdfDocCacheRef.current?.doc.destroy().catch(() => {})
       pdfDocCacheRef.current = null
       setStatus('idle')
@@ -399,7 +454,14 @@ export function PdfOverlayCanvas({
           }
           try {
             const pdfJsBytes = copyPdfBytesForPdfJs(pdfBuffer)
-            pdf = await getDocument({ data: pdfJsBytes }).promise
+            const cmapFonts = getPdfJsCmapAndStandardFontUrls()
+            pdf = await getDocument({
+              data: pdfJsBytes,
+              ...cmapFonts,
+              cMapPacked: true,
+              useSystemFonts: true,
+              disableFontFace: false,
+            }).promise
           } catch (e) {
             throw new PdfLoadError('parse-failed', { byteLength: sourceByteLength }, e)
           }
@@ -441,7 +503,7 @@ export function PdfOverlayCanvas({
 
         if (cancelled || myGen !== loadGenRef.current) return
 
-        const painted = await paintPdfPageToCanvas({
+        const paintOutcome = await paintPdfPageToCanvas({
           page,
           pageIndex,
           previewInnerWidth,
@@ -452,14 +514,12 @@ export function PdfOverlayCanvas({
           wrapRef,
           canvasRef,
           pageSizeRef,
+          pageRenderTaskRef,
         })
         if (cancelled || myGen !== loadGenRef.current) return
 
-        if (!painted) {
-          throw new PdfLoadError('page-render-failed', {
-            reason: 'wrap-or-canvas-unavailable',
-            pageIndex,
-          })
+        if (paintOutcome === 'aborted') {
+          return
         }
         renderOk = true
 
@@ -511,6 +571,15 @@ export function PdfOverlayCanvas({
 
     return () => {
       cancelled = true
+      const t = pageRenderTaskRef.current
+      if (t) {
+        try {
+          t.cancel()
+        } catch {
+          /* ignore */
+        }
+        pageRenderTaskRef.current = null
+      }
     }
   }, [
     pdfBuffer,
