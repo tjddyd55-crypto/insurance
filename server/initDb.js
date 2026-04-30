@@ -3018,6 +3018,14 @@ async function ensureContractSelfSmsSchema(executor) {
     ALTER TABLE contract_templates
     ADD COLUMN IF NOT EXISTS pdf_template_id INTEGER REFERENCES pdf_templates(id) ON DELETE SET NULL
   `)
+  await executor.query(`
+    ALTER TABLE contract_templates
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_templates_ga_status
+    ON contract_templates(ga_id, status)
+  `)
 
   await executor.query(`
     CREATE TABLE IF NOT EXISTS contract_template_fields (
@@ -3063,10 +3071,19 @@ async function ensureContractSelfSmsSchema(executor) {
       title TEXT NOT NULL,
       description TEXT,
       status TEXT NOT NULL DEFAULT 'draft',
+      ga_id INTEGER REFERENCES ga_companies(id),
       created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `)
+  await executor.query(`
+    ALTER TABLE contract_packages
+    ADD COLUMN IF NOT EXISTS ga_id INTEGER REFERENCES ga_companies(id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_packages_ga_status
+    ON contract_packages(ga_id, status)
   `)
 
   await executor.query(`
