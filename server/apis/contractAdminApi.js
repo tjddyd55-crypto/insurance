@@ -237,15 +237,15 @@ export function registerContractAdminApi(apiRouter, ctx) {
           return
         }
         params.push(effectiveGa)
-        where += ` AND ga_id = $${params.length}`
+        where += ` AND t.ga_id = $${params.length}`
       }
       if (status && ALLOWED_TEMPLATE_STATUS.has(status)) {
         params.push(status)
-        where += ` AND status = $${params.length}`
+        where += ` AND t.status = $${params.length}`
       }
       if (category) {
         params.push(category)
-        where += ` AND category = $${params.length}`
+        where += ` AND t.category = $${params.length}`
       }
       const r = await pool.query(
         `
