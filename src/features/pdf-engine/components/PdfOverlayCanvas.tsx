@@ -157,6 +157,7 @@ async function paintPdfPageToCanvas(payload: {
   cancelled: () => boolean
   gen: number
   loadGenRef: MutableRefObject<number>
+  layoutHostRef: MutableRefObject<HTMLDivElement | null>
   wrapRef: MutableRefObject<HTMLDivElement | null>
   canvasRef: MutableRefObject<HTMLCanvasElement | null>
   pageSizeRef: MutableRefObject<{ widthPt: number; heightPt: number } | null>
@@ -168,6 +169,7 @@ async function paintPdfPageToCanvas(payload: {
     cancelled,
     gen,
     loadGenRef,
+    layoutHostRef,
     wrapRef,
     canvasRef,
     pageSizeRef,
@@ -184,12 +186,14 @@ async function paintPdfPageToCanvas(payload: {
   }
   if (!wrap || !canvas || cancelled() || gen !== loadGenRef.current) return false
 
+  /*
+   * 스케일 기준 폭은 "미리보기 스크롤 영역 전체"(layoutHost)만 사용한다.
+   * wrap(오버레이)는 초기 HTML canvas 기본 폭(300px) 등으로 좁게 잡혀
+   * min(794, 300) 축소가 고착되는 문제가 있다.
+   */
+  const hostW = layoutHostRef.current?.clientWidth ?? 0
   const innerW =
-    wrap.clientWidth > 0
-      ? wrap.clientWidth
-      : previewInnerWidth > 0
-        ? previewInnerWidth
-        : TARGET_PAGE_CSS_WIDTH_PX
+    hostW > 0 ? hostW : previewInnerWidth > 0 ? previewInnerWidth : TARGET_PAGE_CSS_WIDTH_PX
   const targetCssW = Math.max(
     MIN_PAGE_CSS_WIDTH_PX,
     Math.min(TARGET_PAGE_CSS_WIDTH_PX, innerW),
@@ -231,6 +235,7 @@ export function PdfOverlayCanvas({
   mode = 'pick-point',
   debugMeta,
 }: Props) {
+  const layoutHostRef = useRef<HTMLDivElement | null>(null)
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const markCanvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -333,7 +338,7 @@ export function PdfOverlayCanvas({
     if (!pdfBuffer) {
       return
     }
-    const el = wrapRef.current
+    const el = layoutHostRef.current
     if (!el) {
       return
     }
@@ -443,6 +448,7 @@ export function PdfOverlayCanvas({
           cancelled: () => cancelled,
           gen: myGen,
           loadGenRef,
+          layoutHostRef,
           wrapRef,
           canvasRef,
           pageSizeRef,
@@ -700,20 +706,22 @@ export function PdfOverlayCanvas({
           {messageForPdfOverlayWarning(warningCode)}
         </p>
       ) : null}
-      <div ref={wrapRef} className="pdf-engine-editor__overlay">
-        <canvas
-          ref={canvasRef}
-          className="pdf-engine-editor__pdf-canvas"
-          onClick={handleClick}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseLeave}
-          role="presentation"
-          aria-label="PDF 좌표 선택 — 선택된 필드를 그 위치에 배치합니다"
-          style={cursorStyle}
-        />
-        <canvas ref={markCanvasRef} className="pdf-engine-editor__mark-canvas" aria-hidden />
+      <div ref={layoutHostRef} className="pdf-engine-editor__preview-canvas-host">
+        <div ref={wrapRef} className="pdf-engine-editor__overlay pdf-engine-editor__overlay--a4-page">
+          <canvas
+            ref={canvasRef}
+            className="pdf-engine-editor__pdf-canvas"
+            onClick={handleClick}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseLeave}
+            role="presentation"
+            aria-label="PDF 좌표 선택 — 선택된 필드를 그 위치에 배치합니다"
+            style={cursorStyle}
+          />
+          <canvas ref={markCanvasRef} className="pdf-engine-editor__mark-canvas" aria-hidden />
+        </div>
       </div>
     </div>
   )

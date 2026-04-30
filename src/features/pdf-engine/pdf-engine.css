@@ -151,16 +151,28 @@
 }
 
 .pdf-engine-editor__preview-scroll {
-  max-height: min(82vh, calc(100vh - 140px));
+  max-height: min(80vh, calc(100vh - 140px));
   overflow-x: auto;
   overflow-y: auto;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
   padding: 10px;
   background: #f1f5f9;
   border-radius: 10px;
   border: 1px solid #e2e8f0;
+  box-sizing: border-box;
+}
+
+.pdf-engine-editor__preview-canvas-host {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* A4 목표(794px)는 JS 래스터 스케일이 담당. 좁은 뷰에서는 호스트 폭에 맞춰 캔버스만 줄어든다. */
+.pdf-engine-editor__overlay--a4-page {
+  max-width: 100%;
   box-sizing: border-box;
 }
 
