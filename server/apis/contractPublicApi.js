@@ -5,6 +5,7 @@ import { normalizeKrMobile, validateKrMobileDigits } from '../lib/phoneNormalize
 import { maskKrMobileForDisplay } from '../utils/maskKrMobile.js'
 import { getTemplateById, listFields } from '../pdf-engine/repository/pdfTemplateRepo.js'
 import { getTemplateObject } from '../pdf-engine/storage/pdfTemplateStorage.js'
+import { insertSignatureEvidenceRow, loadVerifiedIdentitySession } from '../services/contractEvidenceService.js'
 
 const TERMINAL_SESSION = new Set(['expired', 'cancelled'])
 const COMPLETED_SESSION = new Set(['completed'])
@@ -101,6 +102,34 @@ function allowsDocumentMutation(sendStatus, identityStatus) {
     return false
   }
   return isIdentityVerified(sendStatus, identityStatus)
+}
+
+/**
+ * @param {{ evidence_hash?: string, signed_at?: Date | string } | null | undefined} ev
+ * @param {{ completedAt?: string | null }} [opts]
+ */
+function buildPublicEvidenceFromRow(ev, opts = {}) {
+  if (!ev || ev.evidence_hash == null || String(ev.evidence_hash).trim() === '') {
+    return null
+  }
+  const out = {
+    authenticationLabel: '지정 휴대폰 인증',
+    evidenceHashPrefix: String(ev.evidence_hash).slice(0, 12),
+    signedAt: ev.signed_at ? new Date(ev.signed_at).toISOString() : null,
+  }
+  if (opts.completedAt) {
+    out.completedAt = opts.completedAt
+  }
+  return out
+}
+
+/** @param {import('express').Response} res @param {{ status: number, message: string, evidence?: unknown }} err */
+function respondPublicMutationError(res, err) {
+  const body = { success: false, message: err.message }
+  if ('evidence' in err) {
+    body.data = { evidence: err.evidence }
+  }
+  res.status(err.status).json(body)
 }
 
 const MAX_PUBLIC_TEXT_LEN = 8000
@@ -267,8 +296,8 @@ function requiredFieldSatisfied(fieldRow, valueRow) {
   return String(valueRow.value_text ?? '').trim().length > 0
 }
 
-async function loadValueRows(pool, documentInstanceId) {
-  const r = await pool.query(
+async function loadValueRows(db, documentInstanceId) {
+  const r = await db.query(
     `
     SELECT field_id, field_key, field_type, value_text, value_file_id, value_hash
     FROM contract_document_values
@@ -308,7 +337,23 @@ async function resolveMutationBase(pool, linkCode, documentInstanceId) {
   }
   const doc = docR.rows[0]
   if (String(doc.status ?? '') === 'completed') {
-    return { error: { status: 409, message: '이미 완료된 문서입니다.' } }
+    const evR = await pool.query(
+      `
+      SELECT evidence_hash, signed_at
+      FROM signature_evidences
+      WHERE document_instance_id = $1
+      ORDER BY created_at DESC
+      LIMIT 1
+      `,
+      [documentInstanceId],
+    )
+    return {
+      error: {
+        status: 409,
+        message: '이미 완료된 문서입니다.',
+        evidence: buildPublicEvidenceFromRow(evR.rows[0]),
+      },
+    }
   }
   return { session: row, sendStatus, idStatus, doc }
 }
@@ -473,7 +518,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const docId = String(req.params.documentInstanceId ?? '').trim()
       const base = await resolveMutationBase(pool, linkCode, docId)
       if (base.error) {
-        res.status(base.error.status).json({ success: false, message: base.error.message })
+        respondPublicMutationError(res, base.error)
         return
       }
       if (req.body?.acknowledgeElectronicContract !== true) {
@@ -483,48 +528,150 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const { session } = base
       const docMeta = await pool.query(
         `
-        SELECT cdi.*, ct.pdf_template_id
+        SELECT cdi.*, ct.pdf_template_id, ct.pdf_hash AS contract_template_pdf_hash
         FROM contract_document_instances cdi
         INNER JOIN contract_templates ct ON ct.id = cdi.template_id
-        WHERE cdi.id = $1
+        WHERE cdi.id = $1 AND cdi.send_session_id = $2
         LIMIT 1
         `,
-        [docId],
+        [docId, session.id],
       )
-      const pdfTid = docMeta.rows[0]?.pdf_template_id
+      if (!docMeta.rowCount) {
+        res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
+        return
+      }
+      const dm0 = docMeta.rows[0]
+      const pdfTid = dm0.pdf_template_id
+      const contractTemplatePdfHash = dm0.contract_template_pdf_hash ?? null
       if (pdfTid == null) {
         res.status(400).json({ success: false, message: 'PDF 템플릿이 연결되어 있지 않습니다.' })
         return
       }
       const rawFields = await listFields(pool, Number(pdfTid))
-      const valRows = await loadValueRows(pool, docId)
-      const valueByKey = new Map(valRows.map((r) => [String(r.field_key), r]))
-      const valueByFieldId = new Map(valRows.map((r) => [String(r.field_id), r]))
-      const missing = []
+      const valRowsPre = await loadValueRows(pool, docId)
+      const valueByKeyPre = new Map(valRowsPre.map((r) => [String(r.field_key), r]))
+      const valueByFieldIdPre = new Map(valRowsPre.map((r) => [String(r.field_id), r]))
+      const missingPre = []
       for (const f of rawFields) {
         if (!f.required) {
           continue
         }
-        const vr = valueByKey.get(String(f.field_key)) ?? valueByFieldId.get(String(f.id))
+        const vr = valueByKeyPre.get(String(f.field_key)) ?? valueByFieldIdPre.get(String(f.id))
         if (!requiredFieldSatisfied(f, vr)) {
-          missing.push(String(f.field_key))
+          missingPre.push(String(f.field_key))
         }
       }
-      if (missing.length > 0) {
+      if (missingPre.length > 0) {
         res.status(400).json({
           success: false,
           message: '필수 항목을 모두 입력·서명해야 합니다.',
-          data: { missingFieldKeys: missing },
+          data: { missingFieldKeys: missingPre },
         })
         return
       }
       const client = await pool.connect()
       try {
         await client.query('BEGIN')
-        await client.query(
-          `UPDATE contract_document_instances SET status = 'completed', completed_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        const lockR = await client.query(
+          `SELECT * FROM contract_document_instances WHERE id = $1 AND send_session_id = $2 FOR UPDATE`,
+          [docId, session.id],
+        )
+        if (!lockR.rowCount) {
+          await client.query('ROLLBACK')
+          res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
+          return
+        }
+        const docLocked = lockR.rows[0]
+        if (String(docLocked.status ?? '') === 'completed') {
+          const evR0 = await client.query(
+            `
+            SELECT evidence_hash, signed_at
+            FROM signature_evidences
+            WHERE document_instance_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1
+            `,
+            [docId],
+          )
+          await client.query('ROLLBACK')
+          respondPublicMutationError(res, {
+            status: 409,
+            message: '이미 완료된 문서입니다.',
+            evidence: buildPublicEvidenceFromRow(evR0.rows[0]),
+          })
+          return
+        }
+        const valRows = await loadValueRows(client, docId)
+        const valueByKey = new Map(valRows.map((r) => [String(r.field_key), r]))
+        const valueByFieldId = new Map(valRows.map((r) => [String(r.field_id), r]))
+        const missing = []
+        for (const f of rawFields) {
+          if (!f.required) {
+            continue
+          }
+          const vr = valueByKey.get(String(f.field_key)) ?? valueByFieldId.get(String(f.id))
+          if (!requiredFieldSatisfied(f, vr)) {
+            missing.push(String(f.field_key))
+          }
+        }
+        if (missing.length > 0) {
+          await client.query('ROLLBACK')
+          res.status(400).json({
+            success: false,
+            message: '필수 항목을 모두 입력·서명해야 합니다.',
+            data: { missingFieldKeys: missing },
+          })
+          return
+        }
+        const identityRow = await loadVerifiedIdentitySession(client, String(session.id), session.identity_session_id ?? null)
+        if (!identityRow) {
+          await client.query('ROLLBACK')
+          res.status(403).json({ success: false, message: '계약서 수신번호 인증이 필요합니다.' })
+          return
+        }
+        try {
+          await insertSignatureEvidenceRow(client, req, {
+            sendSession: session,
+            documentInstance: docLocked,
+            contractTemplate: { pdf_hash: contractTemplatePdfHash },
+            pdfTemplateId: Number(pdfTid),
+            valueRows: valRows,
+            identityRow,
+          })
+        } catch (insErr) {
+          if (insErr && insErr.code === '23505') {
+            const evDup = await client.query(
+              `
+              SELECT evidence_hash, signed_at
+              FROM signature_evidences
+              WHERE document_instance_id = $1
+              ORDER BY created_at DESC
+              LIMIT 1
+              `,
+              [docId],
+            )
+            await client.query('ROLLBACK')
+            respondPublicMutationError(res, {
+              status: 409,
+              message: '이미 완료된 문서입니다.',
+              evidence: buildPublicEvidenceFromRow(evDup.rows[0]),
+            })
+            return
+          }
+          throw insErr
+        }
+        const completedRes = await client.query(
+          `
+          UPDATE contract_document_instances
+          SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+          WHERE id = $1
+          RETURNING completed_at
+          `,
           [docId],
         )
+        const completedAtIso = completedRes.rows[0]?.completed_at
+          ? new Date(completedRes.rows[0].completed_at).toISOString()
+          : null
         await client.query(
           `
           UPDATE contract_send_sessions
@@ -536,15 +683,34 @@ export function registerContractPublicApi(apiRouter, ctx) {
           [session.id],
         )
         await maybeCompleteSendSession(client, session.id)
+        const evRow = await client.query(
+          `
+          SELECT evidence_hash, signed_at
+          FROM signature_evidences
+          WHERE document_instance_id = $1
+          ORDER BY created_at DESC
+          LIMIT 1
+          `,
+          [docId],
+        )
+        const evidenceSummary = buildPublicEvidenceFromRow(evRow.rows[0], {
+          completedAt: completedAtIso,
+        })
         await client.query('COMMIT')
+        res.status(200).json({
+          success: true,
+          data: {
+            completed: true,
+            evidenceSummary: evidenceSummary ?? undefined,
+          },
+        })
       } catch (e) {
-        await client.query('ROLLBACK')
+        await client.query('ROLLBACK').catch(() => {})
         handleDbError(e, req, res)
         return
       } finally {
         client.release()
       }
-      res.status(200).json({ success: true, data: { completed: true } })
     } catch (e) {
       handleDbError(e, req, res)
     }
@@ -556,7 +722,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const docId = String(req.params.documentInstanceId ?? '').trim()
       const base = await resolveMutationBase(pool, linkCode, docId)
       if (base.error) {
-        res.status(base.error.status).json({ success: false, message: base.error.message })
+        respondPublicMutationError(res, base.error)
         return
       }
       if (req.body?.electronicSignAcknowledged !== true) {
@@ -683,7 +849,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const docId = String(req.params.documentInstanceId ?? '').trim()
       const base = await resolveMutationBase(pool, linkCode, docId)
       if (base.error) {
-        res.status(base.error.status).json({ success: false, message: base.error.message })
+        respondPublicMutationError(res, base.error)
         return
       }
       const { session } = base
@@ -884,6 +1050,21 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const pdfPreviewPath = `/api/contracts/public/${encodeURIComponent(linkCode)}/documents/${encodeURIComponent(docId)}/pdf`
       const canEdit =
         allowsDocumentMutation(sendStatus, idStatus) && String(doc.status ?? '') !== 'completed'
+      let evidenceSummary = null
+      if (String(doc.status ?? '') === 'completed') {
+        const evR = await pool.query(
+          `
+          SELECT evidence_hash, signed_at
+          FROM signature_evidences
+          WHERE document_instance_id = $1
+          ORDER BY created_at DESC
+          LIMIT 1
+          `,
+          [docId],
+        )
+        const completedAtIso = doc.completed_at ? new Date(doc.completed_at).toISOString() : null
+        evidenceSummary = buildPublicEvidenceFromRow(evR.rows[0], { completedAt: completedAtIso })
+      }
       res.status(200).json({
         success: true,
         data: {
@@ -902,6 +1083,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
           fields,
           pdfPreviewUrl: pdfPreviewPath,
           canEdit,
+          evidenceSummary: evidenceSummary ?? undefined,
           notice:
             '휴대폰 인증 완료 후 문서 작성 및 전자서명을 진행합니다. 본 화면에서 입력·임시저장·전자서명·문서 완료까지 이어집니다.',
         },

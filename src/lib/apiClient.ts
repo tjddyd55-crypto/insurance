@@ -6,15 +6,20 @@ export class ApiError extends Error {
   retryAfterMin?: number
   /** 서버 JSON payload.code (예: 고객앱 연결 프로필 부족) */
   code?: string
+  /** 서버 JSON payload.data (민감 필드 제외·계약 공개 API 등) */
+  data?: unknown
 
   constructor(
     message: string,
     status: number,
-    opts?: { retryAfterSec?: number; retryAfterMin?: number; code?: string },
+    opts?: { retryAfterSec?: number; retryAfterMin?: number; code?: string; data?: unknown },
   ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    if (opts?.data !== undefined) {
+      this.data = opts.data
+    }
     if (opts?.code != null && String(opts.code).trim()) {
       this.code = String(opts.code).trim()
     }
@@ -157,6 +162,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     message?: string
     error?: string
     code?: string
+    data?: unknown
     retryAfterSec?: number
     retryAfterMin?: number
   }
@@ -170,6 +176,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       retryAfterSec: payload.retryAfterSec,
       retryAfterMin: payload.retryAfterMin,
       code,
+      data: payload.data,
     })
   }
 

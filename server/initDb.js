@@ -3198,6 +3198,35 @@ async function ensureContractSelfSmsSchema(executor) {
     CREATE INDEX IF NOT EXISTS idx_signature_evidences_send_session_id
     ON signature_evidences(send_session_id)
   `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_signature_evidences_document_instance_id
+    ON signature_evidences(document_instance_id)
+  `)
+  await executor.query(`
+    ALTER TABLE signature_evidences
+    ADD COLUMN IF NOT EXISTS otp_verified_at TIMESTAMPTZ
+  `)
+  await executor.query(`
+    ALTER TABLE signature_evidences
+    ADD COLUMN IF NOT EXISTS values_hash TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE signature_evidences
+    ADD COLUMN IF NOT EXISTS document_reference_hash TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE signature_evidences
+    ADD COLUMN IF NOT EXISTS signature_file_id TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE signature_evidences
+    ADD COLUMN IF NOT EXISTS signed_pdf_file_id TEXT
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_signature_evidences_document_instance_id
+    ON signature_evidences(document_instance_id)
+    WHERE document_instance_id IS NOT NULL
+  `)
 }
 
 /**

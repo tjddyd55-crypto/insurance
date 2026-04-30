@@ -207,6 +207,14 @@ export default function ContractSignDocumentPage() {
     } catch (e) {
       if (e instanceof ApiError && e.status === 400) {
         setActionError(e.message || '필수 항목이 남았습니다.')
+      } else if (e instanceof ApiError && e.status === 409) {
+        const pack = e.data as { evidence?: { evidenceHashPrefix?: string | null } | null } | undefined
+        const prefix = pack?.evidence?.evidenceHashPrefix
+        setActionError(
+          prefix
+            ? `${e.message} (증빙 해시 일부: ${prefix})`
+            : e.message,
+        )
       } else {
         setActionError(e instanceof ApiError ? e.message : '문서 완료 처리에 실패했습니다.')
       }
@@ -255,6 +263,24 @@ export default function ContractSignDocumentPage() {
             </p>
           ) : null}
         </div>
+
+        {detail.document.status === 'completed' && detail.evidenceSummary ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950 shadow-sm">
+            <p className="text-sm font-semibold">전자서명이 완료되었습니다.</p>
+            <p className="mt-2 text-sm">인증 방식: {detail.evidenceSummary.authenticationLabel}</p>
+            {detail.evidenceSummary.completedAt ? (
+              <p className="mt-1 text-sm">완료 시각: {detail.evidenceSummary.completedAt}</p>
+            ) : null}
+            {!detail.evidenceSummary.completedAt && detail.evidenceSummary.signedAt ? (
+              <p className="mt-1 text-sm">서명 시각: {detail.evidenceSummary.signedAt}</p>
+            ) : null}
+            {detail.evidenceSummary.evidenceHashPrefix ? (
+              <p className="mt-2 text-xs text-emerald-900">
+                서명 증빙 기록(해시 일부): {detail.evidenceSummary.evidenceHashPrefix}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100" style={{ minHeight: '360px' }}>
           <iframe title="PDF 미리보기" src={pdfSrc} className="h-[70vh] w-full border-0 bg-white" />

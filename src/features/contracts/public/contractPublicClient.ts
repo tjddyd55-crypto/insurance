@@ -122,6 +122,12 @@ export type ContractDocumentDetailPayload = {
   pdfPreviewUrl: string
   notice?: string
   canEdit?: boolean
+  evidenceSummary?: {
+    authenticationLabel: string
+    evidenceHashPrefix: string
+    signedAt: string | null
+    completedAt?: string
+  }
 }
 
 export async function fetchContractPublicDocumentDetail(
@@ -173,7 +179,10 @@ export async function postContractPublicDocumentComplete(
   linkCode: string,
   documentInstanceId: string,
   body: { acknowledgeElectronicContract: true },
-): Promise<{ completed?: boolean }> {
+): Promise<{
+  completed?: boolean
+  evidenceSummary?: ContractDocumentDetailPayload['evidenceSummary']
+}> {
   return apiRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/complete`, {
     method: 'POST',
     body: JSON.stringify(body),

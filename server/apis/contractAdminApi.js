@@ -1119,13 +1119,40 @@ export function registerContractAdminApi(apiRouter, ctx) {
       const row = r.rows[0]
       const docs = await pool.query(
         `
-        SELECT id, template_id, template_version, title_snapshot, status, sort_order, original_pdf_hash, created_at
+        SELECT id, template_id, template_version, title_snapshot, status, sort_order, original_pdf_hash, created_at, completed_at
         FROM contract_document_instances
         WHERE send_session_id = $1
         ORDER BY sort_order ASC, created_at ASC
         `,
         [row.id],
       )
+      const docIds = docs.rows.map((d) => d.id)
+      /** @type {Map<string, Record<string, unknown>>} */
+      const evidenceByDoc = new Map()
+      if (docIds.length > 0) {
+        const evRows = await pool.query(
+          `
+          SELECT DISTINCT ON (document_instance_id)
+            document_instance_id,
+            evidence_hash,
+            signed_at,
+            otp_verified_at,
+            provider,
+            level,
+            signature_file_id,
+            signed_pdf_file_id,
+            signed_pdf_hash
+          FROM signature_evidences
+          WHERE send_session_id = $1
+            AND document_instance_id = ANY($2::text[])
+          ORDER BY document_instance_id, created_at DESC
+          `,
+          [row.id, docIds],
+        )
+        for (const er of evRows.rows) {
+          evidenceByDoc.set(String(er.document_instance_id), er)
+        }
+      }
       res.json({
         ok: true,
         sendSession: {
@@ -1139,16 +1166,38 @@ export function registerContractAdminApi(apiRouter, ctx) {
           sentByUserId: row.sent_by_user_id,
           sentAt: row.sent_at,
           createdAt: row.created_at,
-          documents: docs.rows.map((d) => ({
-            id: d.id,
-            templateId: d.template_id,
-            templateVersion: d.template_version,
-            titleSnapshot: d.title_snapshot,
-            status: d.status,
-            sortOrder: d.sort_order,
-            originalPdfHash: d.original_pdf_hash,
-            createdAt: d.created_at,
-          })),
+          completedAt: row.completed_at ?? null,
+          documents: docs.rows.map((d) => {
+            const ev = evidenceByDoc.get(String(d.id))
+            return {
+              id: d.id,
+              templateId: d.template_id,
+              templateVersion: d.template_version,
+              titleSnapshot: d.title_snapshot,
+              status: d.status,
+              sortOrder: d.sort_order,
+              originalPdfHash: d.original_pdf_hash,
+              createdAt: d.created_at,
+              completedAt: d.completed_at ?? null,
+              evidence: ev
+                ? {
+                    documentInstanceId: d.id,
+                    documentTitle: d.title_snapshot,
+                    status: d.status,
+                    completedAt: d.completed_at ?? null,
+                    evidenceHash: ev.evidence_hash ? String(ev.evidence_hash) : null,
+                    evidenceHashPrefix: ev.evidence_hash ? String(ev.evidence_hash).slice(0, 12) : null,
+                    identityProvider: ev.provider != null ? String(ev.provider) : 'self_sms',
+                    identityLevel: ev.level != null ? String(ev.level) : 'phone_possession',
+                    otpVerifiedAt: ev.otp_verified_at ?? null,
+                    signedAt: ev.signed_at ?? null,
+                    hasSignatureFile: Boolean(ev.signature_file_id),
+                    hasSignedPdfFile: Boolean(ev.signed_pdf_file_id),
+                    hasSignedPdfHash: Boolean(ev.signed_pdf_hash),
+                  }
+                : null,
+            }
+          }),
         },
       })
     } catch (e) {
