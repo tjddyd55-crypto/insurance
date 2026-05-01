@@ -189,9 +189,29 @@ export async function postContractPublicDocumentComplete(
   })
 }
 
+export type ContractPublicMissingField = {
+  fieldId: string
+  fieldKey: string
+  fieldLabel: string
+  fieldType: string
+}
+
 export { ApiError }
 
-const PUBLIC_SIGN_CODE_MESSAGES: Record<string, string> = {
+function isLikelyInternalErrorMessage(message: string): boolean {
+  const u = message.toUpperCase()
+  return (
+    u.includes('DB_ERROR') ||
+    u.includes('DATABASE') ||
+    u.includes('ECONN') ||
+    u.includes('ETIMEDOUT') ||
+    u.includes('SQL') ||
+    u.includes('NAMESPACE') ||
+    u.includes('PG::')
+  )
+}
+
+const PUBLIC_ACTION_CODE_MESSAGES: Record<string, string> = {
   missing_signature_acknowledgement: '전자서명 진술에 동의해 주세요.',
   invalid_signature_payload: '유효한 서명 이미지가 아닙니다. 다시 서명해 주세요.',
   invalid_signature_field: '서명 필드가 올바르지 않습니다.',
@@ -200,20 +220,69 @@ const PUBLIC_SIGN_CODE_MESSAGES: Record<string, string> = {
   signature_file_constraint_failed: '서명 저장이 서버 정책과 맞지 않습니다. 담당자에게 문의해 주세요.',
   signature_reference_violation: '서명 저장에 필요한 정보가 부족합니다. 담당자에게 문의해 주세요.',
   signature_file_owner_missing: '서명 저장에 필요한 배포 설정이 누락되었습니다. 담당자에게 문의해 주세요.',
-  signature_save_failed: '전자서명 저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
+  signature_save_failed: '전자서명 저장 중 오류가 발생했습니다. 다시 시도해 주세요.',
+  required_fields_missing: '필수 항목을 모두 입력·서명해야 합니다.',
 }
 
-/** 공개 계약 API 오류 → 사용자용 문구 (민감 정보 없음) */
-export function formatContractPublicActionError(e: unknown): string {
+const SIGN_FALLBACK = '전자서명 저장 중 오류가 발생했습니다. 다시 시도해 주세요.'
+const COMPLETE_FALLBACK = '문서 완료 처리 중 오류가 발생했습니다. 다시 시도해 주세요.'
+const GENERIC_FALLBACK = '요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+
+/** 공개 계약 API 오류 → 사용자용 문구 (민감 정보·내부 메시지 노출 방지) */
+export function formatContractPublicActionError(
+  e: unknown,
+  ctx?: 'sign' | 'complete' | 'values',
+): string {
   if (e instanceof ApiError) {
-    const byCode = e.code ? PUBLIC_SIGN_CODE_MESSAGES[e.code] : undefined
+    const byCode = e.code ? PUBLIC_ACTION_CODE_MESSAGES[e.code] : undefined
     if (byCode) {
       return byCode
     }
-    if (e.message === 'DB_ERROR' || e.message.includes('DB_ERROR')) {
-      return '서버 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+    if (e.status >= 500) {
+      if (ctx === 'complete') {
+        return COMPLETE_FALLBACK
+      }
+      if (ctx === 'sign') {
+        return SIGN_FALLBACK
+      }
+      return GENERIC_FALLBACK
     }
-    return e.message
+    const msg = (e.message ?? '').trim()
+    if (msg && !isLikelyInternalErrorMessage(msg)) {
+      return msg
+    }
+    if (isLikelyInternalErrorMessage(msg)) {
+      if (ctx === 'complete') {
+        return COMPLETE_FALLBACK
+      }
+      if (ctx === 'sign') {
+        return SIGN_FALLBACK
+      }
+      return GENERIC_FALLBACK
+    }
+    if (ctx === 'complete') {
+      return COMPLETE_FALLBACK
+    }
+    if (ctx === 'sign') {
+      return SIGN_FALLBACK
+    }
+    return GENERIC_FALLBACK
   }
-  return '요청 처리에 실패했습니다.'
+  return GENERIC_FALLBACK
+}
+
+/** 문서 완료: 누락 필드 상세 + 안전한 폴백 */
+export function formatContractPublicCompleteError(e: unknown): string {
+  if (e instanceof ApiError && e.code === 'required_fields_missing') {
+    const pack = e.data as { missingFields?: ContractPublicMissingField[] } | undefined
+    const labels =
+      pack?.missingFields
+        ?.map((m) => String(m.fieldLabel || m.fieldKey || m.fieldId || '').trim())
+        .filter((s) => s.length > 0) ?? []
+    if (labels.length > 0) {
+      return `누락된 항목: ${labels.join(', ')}`
+    }
+    return PUBLIC_ACTION_CODE_MESSAGES.required_fields_missing
+  }
+  return formatContractPublicActionError(e, 'complete')
 }

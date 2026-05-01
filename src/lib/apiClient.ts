@@ -171,8 +171,18 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       response.status === 429
         ? '요청이 많습니다. 잠시 후 다시 시도해 주세요.'
         : '요청 처리에 실패했습니다.'
-    const code = typeof payload.code === 'string' && payload.code.trim() ? payload.code.trim() : undefined
-    throw new ApiError(payload.message ?? payload.error ?? fallback, response.status, {
+    const rawCode =
+      typeof payload.code === 'string' && payload.code.trim() ? payload.code.trim() : ''
+    const rawErr =
+      typeof payload.error === 'string' && payload.error.trim() ? payload.error.trim() : ''
+    const code =
+      rawCode ||
+      (rawErr && /^[a-z][a-z0-9_]*$/i.test(rawErr) ? rawErr : undefined)
+    const userMsg =
+      typeof payload.message === 'string' && payload.message.trim()
+        ? payload.message.trim()
+        : fallback
+    throw new ApiError(userMsg, response.status, {
       retryAfterSec: payload.retryAfterSec,
       retryAfterMin: payload.retryAfterMin,
       code,

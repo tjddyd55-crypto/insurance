@@ -296,6 +296,10 @@
   position: fixed;
   inset: 0;
   z-index: 10050;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
   background: var(--consent-bg);
   color: var(--consent-text);
   display: flex;
@@ -342,13 +346,18 @@
   min-height: 0;
   padding: var(--consent-gap-section);
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: center;
+  overflow: hidden;
+  touch-action: none;
 }
 
 .consent-signature-canvas {
   width: 100%;
   max-width: 640px;
+  height: min(45dvh, 420px);
+  min-height: 260px;
+  flex-shrink: 0;
   touch-action: none;
   border-radius: 12px;
   border: 1px solid var(--consent-border);

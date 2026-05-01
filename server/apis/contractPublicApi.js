@@ -312,7 +312,7 @@ function publicValueShape(fieldRow, valueRow) {
   if (ft === 'signature') {
     return {
       kind: 'signature',
-      signed: Boolean(valueRow.value_file_id || valueRow.value_hash),
+      signed: rowHasSignatureEvidence(valueRow),
     }
   }
   if (ft === 'checkbox') {
@@ -343,7 +343,7 @@ function requiredFieldSatisfied(fieldRow, valueRow) {
   }
   const ft = fieldRow.field_type
   if (ft === 'signature') {
-    return Boolean(valueRow?.value_file_id || valueRow?.value_hash)
+    return rowHasSignatureEvidence(valueRow)
   }
   if (!valueRow) {
     return false
@@ -356,6 +356,9 @@ function requiredFieldSatisfied(fieldRow, valueRow) {
     } catch {
       return t === 'true'
     }
+  }
+  if (ft === 'radio') {
+    return String(valueRow.value_text ?? '').trim().length > 0
   }
   return String(valueRow.value_text ?? '').trim().length > 0
 }
@@ -370,6 +373,65 @@ async function loadValueRows(db, documentInstanceId) {
     [documentInstanceId],
   )
   return r.rows
+}
+
+/**
+ * 템플릿 필드와 값 행을 매칭한다. field_id 우선(동일 field_key 중복 시 안전), 다음 field_key.
+ * @param {object} templateField
+ * @param {Array<object>} valRows
+ */
+function findValueRowForTemplateField(templateField, valRows) {
+  const fid = String(templateField.id)
+  const fk = String(templateField.field_key)
+  for (const r of valRows) {
+    if (String(r.field_id) === fid) {
+      return r
+    }
+  }
+  for (const r of valRows) {
+    if (String(r.field_key) === fk) {
+      return r
+    }
+  }
+  return null
+}
+
+function rowHasSignatureEvidence(valueRow) {
+  if (!valueRow) {
+    return false
+  }
+  const vf = valueRow.value_file_id
+  if (vf != null && String(vf).trim() !== '') {
+    return true
+  }
+  const h = valueRow.value_hash
+  if (h != null && String(h).trim() !== '') {
+    return true
+  }
+  return false
+}
+
+/**
+ * @param {Array<object>} rawFields
+ * @param {Array<object>} valRows
+ */
+function collectMissingRequiredFields(rawFields, valRows) {
+  const out = []
+  for (const f of rawFields) {
+    if (!f.required) {
+      continue
+    }
+    const vr = findValueRowForTemplateField(f, valRows)
+    if (!requiredFieldSatisfied(f, vr)) {
+      out.push({
+        fieldId: String(f.id),
+        fieldKey: String(f.field_key),
+        fieldLabel: String(f.label ?? '').trim() || String(f.field_key),
+        fieldType: String(f.field_type ?? ''),
+      })
+    }
+  }
+  return out
 }
 
 function fieldMapsFromRows(rawFields) {
@@ -493,7 +555,7 @@ async function syncDocStatusAfterSign(client, pdfTemplateId, documentInstanceId)
   const byFid = new Map(vals.rows.map((r) => [String(r.field_id), r]))
   const allSigned = sigFields.every((f) => {
     const v = byFid.get(String(f.id))
-    return v && v.value_file_id
+    return rowHasSignatureEvidence(v)
   })
   await client.query(
     `UPDATE contract_document_instances SET status = $1, updated_at = NOW() WHERE id = $2`,
@@ -613,23 +675,14 @@ export function registerContractPublicApi(apiRouter, ctx) {
       }
       const rawFields = await listFields(pool, Number(pdfTid))
       const valRowsPre = await loadValueRows(pool, docId)
-      const valueByKeyPre = new Map(valRowsPre.map((r) => [String(r.field_key), r]))
-      const valueByFieldIdPre = new Map(valRowsPre.map((r) => [String(r.field_id), r]))
-      const missingPre = []
-      for (const f of rawFields) {
-        if (!f.required) {
-          continue
-        }
-        const vr = valueByKeyPre.get(String(f.field_key)) ?? valueByFieldIdPre.get(String(f.id))
-        if (!requiredFieldSatisfied(f, vr)) {
-          missingPre.push(String(f.field_key))
-        }
-      }
+      const missingPre = collectMissingRequiredFields(rawFields, valRowsPre)
       if (missingPre.length > 0) {
         res.status(400).json({
           success: false,
+          code: 'required_fields_missing',
+          error: 'required_fields_missing',
           message: '필수 항목을 모두 입력·서명해야 합니다.',
-          data: { missingFieldKeys: missingPre },
+          data: { missingFields: missingPre },
         })
         return
       }
@@ -666,24 +719,15 @@ export function registerContractPublicApi(apiRouter, ctx) {
           return
         }
         const valRows = await loadValueRows(client, docId)
-        const valueByKey = new Map(valRows.map((r) => [String(r.field_key), r]))
-        const valueByFieldId = new Map(valRows.map((r) => [String(r.field_id), r]))
-        const missing = []
-        for (const f of rawFields) {
-          if (!f.required) {
-            continue
-          }
-          const vr = valueByKey.get(String(f.field_key)) ?? valueByFieldId.get(String(f.id))
-          if (!requiredFieldSatisfied(f, vr)) {
-            missing.push(String(f.field_key))
-          }
-        }
+        const missing = collectMissingRequiredFields(rawFields, valRows)
         if (missing.length > 0) {
           await client.query('ROLLBACK')
           res.status(400).json({
             success: false,
+            code: 'required_fields_missing',
+            error: 'required_fields_missing',
             message: '필수 항목을 모두 입력·서명해야 합니다.',
-            data: { missingFieldKeys: missing },
+            data: { missingFields: missing },
           })
           return
         }
@@ -1179,11 +1223,9 @@ export function registerContractPublicApi(apiRouter, ctx) {
           }
           const rawFields = await listFields(pool, Number(pdfTid))
           const valRows = await loadValueRows(pool, docId)
-          const valueByKey = new Map(valRows.map((r) => [String(r.field_key), r]))
-          const valueByFieldId = new Map(valRows.map((r) => [String(r.field_id), r]))
           fields = rawFields.map((rf) => {
             const dto = fieldRowToPublicDto(rf)
-            const vr = valueByKey.get(String(rf.field_key)) ?? valueByFieldId.get(String(rf.id))
+            const vr = findValueRowForTemplateField(rf, valRows)
             dto.suggestedDefault = buildSuggestedDefault(rf, row, maskedPhone)
             dto.publicValue = publicValueShape(rf, vr)
             return dto

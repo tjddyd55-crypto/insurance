@@ -33,6 +33,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
   const pointerIdRef = useRef<number | null>(null)
   const prevPointRef = useRef<Point | null>(null)
   const onDirtyChangeRef = useRef<SignaturePadProps['onDirtyChange']>(onDirtyChange)
+  const isDirtyRef = useRef(false)
   const [isDirty, setIsDirty] = useState(false)
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
   }, [onDirtyChange])
 
   const markDirty = useCallback(() => {
+    isDirtyRef.current = true
     setIsDirty((prev) => {
       if (!prev) {
         onDirtyChangeRef.current?.(true)
@@ -75,6 +77,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     drawingRef.current = false
     pointerIdRef.current = null
     prevPointRef.current = null
+    isDirtyRef.current = false
     setIsDirty(false)
     onDirtyChangeRef.current?.(false)
   }, [])
@@ -134,7 +137,12 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
 
   useEffect(() => {
     const t = window.requestAnimationFrame(() => setupCanvas())
-    const onResize = () => setupCanvas()
+    const onResize = () => {
+      if (isDirtyRef.current) {
+        return
+      }
+      setupCanvas()
+    }
     window.addEventListener('resize', onResize)
     return () => {
       window.cancelAnimationFrame(t)
