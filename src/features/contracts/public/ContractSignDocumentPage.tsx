@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { SignatureModal } from '../../consent/components/SignatureModal'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
@@ -12,10 +12,12 @@ import {
   postContractPublicDocumentSign,
   postContractPublicDocumentValues,
   resolveContractPdfPreviewAbsUrl,
+  resolveContractRenderedPdfAbsUrl,
   type ContractDocumentDetailPayload,
   type ContractPublicValueInput,
 } from './contractPublicClient'
 import { PublicPdfPreviewModal } from './components/PublicPdfPreviewModal'
+import { resolveApiUrl } from '../../../lib/apiClient'
 
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -48,6 +50,48 @@ function buildDraftsFromDetail(d: ContractDocumentDetailPayload): Record<string,
   return next
 }
 
+function sortFields(d: ContractDocumentDetailPayload) {
+  return d.fields.slice().sort((a, b) => a.orderIndex - b.orderIndex)
+}
+
+function isRequiredSatisfied(
+  f: ContractDocumentDetailPayload['fields'][number],
+  drafts: Record<string, string | boolean>,
+): boolean {
+  if (!f.required) {
+    return true
+  }
+  if (f.fieldType === 'signature') {
+    return f.publicValue?.kind === 'signature' ? f.publicValue.signed : false
+  }
+  if (f.fieldType === 'checkbox') {
+    return Boolean(drafts[f.id])
+  }
+  if (f.fieldType === 'radio') {
+    return String(drafts[f.id] ?? '').trim().length > 0
+  }
+  return String(drafts[f.id] ?? '').trim().length > 0
+}
+
+function allRequiredFilled(detail: ContractDocumentDetailPayload, drafts: Record<string, string | boolean>) {
+  return detail.fields.every((f) => isRequiredSatisfied(f, drafts))
+}
+
+async function downloadPdfWithCredentials(pathFromApi: string) {
+  const url = resolveApiUrl(pathFromApi.startsWith('/api/') ? pathFromApi : `/api${pathFromApi}`)
+  const res = await fetch(url, { credentials: 'include' })
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`)
+  }
+  const blob = await res.blob()
+  const u = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = u
+  a.download = 'signed-contract.pdf'
+  a.click()
+  URL.revokeObjectURL(u)
+}
+
 export default function ContractSignDocumentPage() {
   const { linkCode: linkCodeParam, documentInstanceId: docIdParam } = useParams<{
     linkCode: string
@@ -64,13 +108,23 @@ export default function ContractSignDocumentPage() {
   const [actionError, setActionError] = useState('')
   const [saving, setSaving] = useState(false)
   const [signAck, setSignAck] = useState(false)
-  const [completeAck, setCompleteAck] = useState(false)
   const [signatureDrafts, setSignatureDrafts] = useState<Record<string, string>>({})
   const [sigModalField, setSigModalField] = useState<{ id: string; label: string } | null>(null)
   const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null)
   const [pdfFetchNonce, setPdfFetchNonce] = useState(0)
   const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false)
+  const [finalReviewOpen, setFinalReviewOpen] = useState(false)
+  const [finalReviewLoadNonce, setFinalReviewLoadNonce] = useState(0)
+  const [finalPreviewConfirmed, setFinalPreviewConfirmed] = useState(false)
+  const [finalSubmitAck, setFinalSubmitAck] = useState(false)
   const [pdfLoadState, setPdfLoadState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
+  const [successOpen, setSuccessOpen] = useState(false)
+  const [completeResult, setCompleteResult] = useState<{
+    evidenceSummary: ContractDocumentDetailPayload['evidenceSummary']
+    signedPdfDownloadPath?: string
+    signedPdfDownloadAvailable?: boolean
+    completedAt?: string
+  } | null>(null)
 
   const reloadDetail = useCallback(
     async (isCancelled?: () => boolean) => {
@@ -90,6 +144,8 @@ export default function ContractSignDocumentPage() {
 
   useEffect(() => {
     setSignatureDrafts({})
+    setFinalPreviewConfirmed(false)
+    setFinalSubmitAck(false)
   }, [linkCode, documentInstanceId])
 
   useEffect(() => {
@@ -102,22 +158,9 @@ export default function ContractSignDocumentPage() {
     setPdfLoadState('loading')
     setPdfBytes(null)
 
-    /*
-     * blob URL 대신 ArrayBuffer: 전체화면 미리보기 모달에서 PDF.js(copyPdfBytesForPdfJs)와
-     * 동일 바이트를 재사용해 중복 네트워크를 줄인다.
-     */
     void (async () => {
       try {
         const res = await fetch(url, { credentials: 'include' })
-        if (import.meta.env.DEV) {
-          console.info('[contract pdf preview]', {
-            documentInstanceId,
-            pdfTemplateId: detail.document.pdfTemplateId,
-            previewUrl: url,
-            status: res.status,
-            contentType: res.headers.get('content-type'),
-          })
-        }
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`)
         }
@@ -164,8 +207,6 @@ export default function ContractSignDocumentPage() {
         await reloadDetail(isCancelled)
         if (!cancelled) {
           setActionError('')
-          setSignAck(false)
-          setCompleteAck(false)
         }
       } catch (e) {
         if (cancelled) {
@@ -193,6 +234,33 @@ export default function ContractSignDocumentPage() {
       cancelled = true
     }
   }, [linkCode, documentInstanceId, paramsInvalid, reloadDetail])
+
+  const sortedFields = useMemo(() => (detail ? sortFields(detail) : []), [detail])
+  const agreementFields = useMemo(() => sortedFields.filter((f) => f.fieldType === 'checkbox'), [sortedFields])
+  const inputFields = useMemo(
+    () => sortedFields.filter((f) => f.fieldType === 'text' || f.fieldType === 'textarea' || f.fieldType === 'radio'),
+    [sortedFields],
+  )
+  const signatureFields = useMemo(() => sortedFields.filter((f) => f.fieldType === 'signature'), [sortedFields])
+
+  const basicsComplete = detail ? allRequiredFilled(detail, drafts) : false
+  const canSubmitSend =
+    Boolean(detail && detail.canEdit !== false && detail.document.status !== 'completed') &&
+    basicsComplete &&
+    finalPreviewConfirmed &&
+    finalSubmitAck
+
+  const openOriginalPdfPreview = () => {
+    setFinalReviewOpen(false)
+    setSigModalField(null)
+    setPdfPreviewOpen(true)
+  }
+
+  const openSignatureModal = (id: string, label: string) => {
+    setPdfPreviewOpen(false)
+    setFinalReviewOpen(false)
+    setSigModalField({ id, label })
+  }
 
   const onSaveValues = async () => {
     if (!detail || detail.canEdit === false) {
@@ -232,7 +300,7 @@ export default function ContractSignDocumentPage() {
     }
     const dataUrl = signatureDrafts[fieldId]?.trim()
     if (!dataUrl) {
-      setActionError('전자서명 입력하기에서 서명을 작성한 뒤 적용해 주세요.')
+      setActionError('전자서명하기에서 서명을 작성한 뒤 적용해 주세요.')
       return
     }
     setActionError('')
@@ -249,10 +317,12 @@ export default function ContractSignDocumentPage() {
         return next
       })
       setSignAck(false)
+      setFinalPreviewConfirmed(false)
+      setFinalSubmitAck(false)
       await reloadDetail()
     } catch (e) {
       if (import.meta.env.DEV) {
-        console.error('[contract public sign]', e)
+        console.error('[contract public.sign]', e)
       }
       setActionError(formatContractPublicActionError(e, 'sign'))
     } finally {
@@ -260,29 +330,76 @@ export default function ContractSignDocumentPage() {
     }
   }
 
-  const onComplete = async () => {
+  const onOpenFinalReview = async () => {
     if (!detail || detail.canEdit === false) {
       return
     }
-    if (!completeAck) {
-      setActionError('문서 완료를 위해 확인 문구에 동의해 주세요.')
+    if (!basicsComplete) {
+      setActionError('필수 입력·동의·전자서명을 모두 완료한 뒤 최종 확인을 진행해 주세요.')
       return
     }
     setActionError('')
     setSaving(true)
     try {
-      await postContractPublicDocumentComplete(linkCode, documentInstanceId, {
+      const values: ContractPublicValueInput[] = []
+      for (const f of detail.fields) {
+        if (f.fieldType === 'signature') {
+          continue
+        }
+        const raw = drafts[f.id]
+        if (f.fieldType === 'checkbox') {
+          values.push({ fieldId: f.id, fieldKey: f.fieldKey, value: Boolean(raw) })
+          continue
+        }
+        values.push({ fieldId: f.id, fieldKey: f.fieldKey, value: raw == null ? '' : String(raw) })
+      }
+      await postContractPublicDocumentValues(linkCode, documentInstanceId, values)
+      await reloadDetail()
+    } catch (e) {
+      setActionError(formatContractPublicActionError(e, 'values'))
+      return
+    } finally {
+      setSaving(false)
+    }
+    setPdfPreviewOpen(false)
+    setSigModalField(null)
+    setFinalReviewLoadNonce((n) => n + 1)
+    setFinalReviewOpen(true)
+  }
+
+  const onComplete = async () => {
+    if (!detail || detail.canEdit === false) {
+      return
+    }
+    if (!canSubmitSend) {
+      setActionError('최종 문서 확인과 전송 동의를 완료해 주세요.')
+      return
+    }
+    setActionError('')
+    setSaving(true)
+    try {
+      const data = await postContractPublicDocumentComplete(linkCode, documentInstanceId, {
         acknowledgeElectronicContract: true,
+        finalPreviewConfirmed: true,
+        finalSubmitAcknowledged: true,
       })
       await reloadDetail()
-      setCompleteAck(false)
+      setFinalSubmitAck(false)
+      setFinalPreviewConfirmed(false)
+      const ev = data.evidenceSummary
+      const completedAt = ev?.completedAt ?? ev?.signedAt ?? new Date().toISOString()
+      setCompleteResult({
+        evidenceSummary: ev,
+        signedPdfDownloadPath: data.signedPdfDownloadPath,
+        signedPdfDownloadAvailable: data.signedPdfDownloadAvailable,
+        completedAt,
+      })
+      setSuccessOpen(true)
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {
         const pack = e.data as { evidence?: { evidenceHashPrefix?: string | null } | null } | undefined
         const prefix = pack?.evidence?.evidenceHashPrefix
-        setActionError(
-          prefix ? `${e.message} (증빙 해시 일부: ${prefix})` : e.message,
-        )
+        setActionError(prefix ? `${e.message} (증빙 해시 일부: ${prefix})` : e.message)
       } else {
         setActionError(formatContractPublicCompleteError(e))
       }
@@ -292,6 +409,7 @@ export default function ContractSignDocumentPage() {
   }
 
   const pdfSrc = !paramsInvalid ? resolveContractPdfPreviewAbsUrl(linkCode, documentInstanceId) : ''
+  const renderedPdfSrc = !paramsInvalid ? resolveContractRenderedPdfAbsUrl(linkCode, documentInstanceId) : ''
 
   let body: ReactNode
   if (paramsInvalid) {
@@ -319,12 +437,21 @@ export default function ContractSignDocumentPage() {
     )
   } else {
     const canEdit = detail.canEdit !== false && detail.document.status !== 'completed'
+    const statusLabel =
+      detail.document.status === 'completed'
+        ? '전송 완료'
+        : detail.document.status === 'signed'
+          ? '전자서명 저장됨 (최종 전송 전)'
+          : detail.document.status === 'signing'
+            ? '작성·서명 진행 중'
+            : detail.document.status
+
     body = (
       <div className="space-y-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-lg font-semibold text-slate-900">{detail.document.title || '문서'}</p>
           <p className="mt-1 text-sm text-slate-600">
-            {detail.document.required ? '필수 문서' : '선택 문서'} · 상태: {detail.document.status}
+            {detail.document.required ? '필수 문서' : '선택 문서'} · {statusLabel}
           </p>
           {detail.pdfTemplate ? (
             <p className="mt-2 text-xs text-slate-500">
@@ -335,7 +462,7 @@ export default function ContractSignDocumentPage() {
 
         {detail.document.status === 'completed' && detail.evidenceSummary ? (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950 shadow-sm">
-            <p className="text-sm font-semibold">전자서명이 완료되었습니다.</p>
+            <p className="text-sm font-semibold">전자서명이 전송되었습니다.</p>
             <p className="mt-2 text-sm">인증 방식: {detail.evidenceSummary.authenticationLabel}</p>
             {detail.evidenceSummary.completedAt ? (
               <p className="mt-1 text-sm">완료 시각: {detail.evidenceSummary.completedAt}</p>
@@ -345,30 +472,38 @@ export default function ContractSignDocumentPage() {
             ) : null}
             {detail.evidenceSummary.evidenceHashPrefix ? (
               <p className="mt-2 text-xs text-emerald-900">
-                서명 증빙 기록(해시 일부): {detail.evidenceSummary.evidenceHashPrefix}
+                증빙 기록(해시 일부): {detail.evidenceSummary.evidenceHashPrefix}
               </p>
             ) : null}
+            {detail.signedPdfDownloadPath ? (
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                fullWidth
+                className="mt-4"
+                onClick={() => void downloadPdfWithCredentials(detail.signedPdfDownloadPath!).catch(() => {})}
+              >
+                최종 계약서 다운로드
+              </FormButton>
+            ) : (
+              <p className="mt-3 text-xs text-emerald-900">
+                최종 PDF 다운로드는 준비 중입니다. 담당자 화면에서 증빙 상태를 확인할 수 있습니다.
+              </p>
+            )}
           </div>
         ) : null}
 
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-sm font-semibold text-slate-900">계약서 미리보기</p>
+          <p className="text-sm font-semibold text-slate-900">계약서 원문 확인</p>
           <p className="mt-2 text-sm text-slate-600">
-            계약서 내용을 확인한 뒤 작성 및 전자서명을 진행해주세요.
+            계약서 내용을 확인한 뒤 아래 항목을 입력하고 전자서명을 진행해주세요.
           </p>
-          {pdfLoadState === 'loading' ? (
-            <p className="mt-3 text-sm text-slate-500">계약서 PDF 불러오는 중…</p>
-          ) : null}
+          {pdfLoadState === 'loading' ? <p className="mt-3 text-sm text-slate-500">계약서 PDF 불러오는 중…</p> : null}
           {pdfLoadState === 'error' ? (
             <div className="mt-3 space-y-3">
               <p className="text-sm text-slate-700">문서 미리보기를 불러오지 못했습니다.</p>
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <FormButton
-                  htmlType="button"
-                  variant="secondary"
-                  fullWidth
-                  onClick={() => setPdfFetchNonce((n) => n + 1)}
-                >
+                <FormButton htmlType="button" variant="secondary" fullWidth onClick={() => setPdfFetchNonce((n) => n + 1)}>
                   다시 시도
                 </FormButton>
                 <FormButton
@@ -389,12 +524,9 @@ export default function ContractSignDocumentPage() {
               fullWidth
               className="mt-4"
               disabled={saving}
-              onClick={() => {
-                setSigModalField(null)
-                setPdfPreviewOpen(true)
-              }}
+              onClick={() => void openOriginalPdfPreview()}
             >
-              문서 크게 보기
+              계약서 원문 크게 보기
             </FormButton>
           ) : null}
           {pdfLoadState === 'idle' ? <p className="mt-3 text-sm text-slate-500">미리보기 준비 중…</p> : null}
@@ -408,164 +540,218 @@ export default function ContractSignDocumentPage() {
 
         {detail.fields.length > 0 ? (
           <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-sm font-medium text-slate-800">문서 입력</p>
-            {detail.fields.map((f) => {
-              if (f.fieldType === 'signature') {
-                const signed = f.publicValue?.kind === 'signature' ? f.publicValue.signed : false
-                const draftUrl = signatureDrafts[f.id]
-                return (
-                  <div key={f.id} className="space-y-2 border-t border-slate-100 pt-3">
-                    <p className="text-sm text-slate-800">
-                      {f.label || f.fieldKey}
-                      {f.required ? <span className="text-rose-600"> *</span> : null}
-                      {signed ? <span className="ml-2 text-emerald-600">(전자서명 완료)</span> : null}
-                    </p>
-                    {!canEdit || signed ? null : (
-                      <>
-                        <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
-                          <FormInput
-                            type="checkbox"
-                            checked={signAck}
-                            onChange={(ev) => setSignAck(ev.target.checked)}
-                            className="mt-0.5"
-                          />
-                          <span>본인은 본 계약서가 본인에게 발송된 문서임을 확인하고, 전자서명합니다.</span>
-                        </label>
-                        {draftUrl ? (
-                          <>
+            {agreementFields.length > 0 ? (
+              <div className="space-y-3 border-b border-slate-100 pb-4">
+                <p className="text-sm font-medium text-slate-800">확인·동의</p>
+                {agreementFields.map((f) => {
+                  const checked = Boolean(drafts[f.id])
+                  return (
+                    <label key={f.id} className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+                      <FormInput
+                        type="checkbox"
+                        disabled={!canEdit}
+                        checked={checked}
+                        onChange={(ev) => {
+                          setDrafts((prev) => ({ ...prev, [f.id]: ev.target.checked }))
+                          setFinalPreviewConfirmed(false)
+                          setFinalSubmitAck(false)
+                        }}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        {f.label || f.fieldKey}
+                        {f.required ? <span className="text-rose-600"> *</span> : null}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            ) : null}
+
+            {inputFields.length > 0 ? (
+              <div className="space-y-3 border-b border-slate-100 pb-4">
+                <p className="text-sm font-medium text-slate-800">문서 입력</p>
+                {inputFields.map((f) => {
+                  if (f.fieldType === 'radio') {
+                    const opts = Array.isArray(f.options) ? f.options.map((x) => String(x)) : []
+                    const cur = String(drafts[f.id] ?? '')
+                    return (
+                      <div key={f.id} className="space-y-1">
+                        <p className="text-sm text-slate-800">
+                          {f.label || f.fieldKey}
+                          {f.required ? <span className="text-rose-600"> *</span> : null}
+                        </p>
+                        <FormSelect
+                          disabled={!canEdit}
+                          value={cur}
+                          options={[{ value: '', label: '선택' }, ...opts.map((o) => ({ value: o, label: o }))]}
+                          onChange={(ev) => {
+                            setDrafts((prev) => ({ ...prev, [f.id]: ev.target.value }))
+                            setFinalPreviewConfirmed(false)
+                            setFinalSubmitAck(false)
+                          }}
+                          className="w-full"
+                        />
+                      </div>
+                    )
+                  }
+                  const isTextarea = f.fieldType === 'textarea'
+                  const tv = String(drafts[f.id] ?? '')
+                  return (
+                    <div key={f.id} className="space-y-1">
+                      <p className="text-sm text-slate-800">
+                        {f.label || f.fieldKey}
+                        {f.required ? <span className="text-rose-600"> *</span> : null}
+                      </p>
+                      {isTextarea ? (
+                        <FormTextarea
+                          disabled={!canEdit}
+                          value={tv}
+                          onChange={(ev) => {
+                            setDrafts((prev) => ({ ...prev, [f.id]: ev.target.value }))
+                            setFinalPreviewConfirmed(false)
+                            setFinalSubmitAck(false)
+                          }}
+                          rows={4}
+                          className="w-full text-sm"
+                        />
+                      ) : (
+                        <FormInput
+                          type="text"
+                          disabled={!canEdit}
+                          value={tv}
+                          onChange={(ev) => {
+                            setDrafts((prev) => ({ ...prev, [f.id]: ev.target.value }))
+                            setFinalPreviewConfirmed(false)
+                            setFinalSubmitAck(false)
+                          }}
+                          className="w-full text-sm"
+                        />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
+
+            {signatureFields.length > 0 ? (
+              <div className="space-y-3 border-b border-slate-100 pb-4">
+                <p className="text-sm font-medium text-slate-800">전자서명 (손사인)</p>
+                {signatureFields.map((f) => {
+                  const signed = f.publicValue?.kind === 'signature' ? f.publicValue.signed : false
+                  const draftUrl = signatureDrafts[f.id]
+                  return (
+                    <div key={f.id} className="space-y-2 border-t border-slate-100 pt-3 first:border-t-0 first:pt-0">
+                      <p className="text-sm text-slate-800">
+                        {f.label || f.fieldKey}
+                        {f.required ? <span className="text-rose-600"> *</span> : null}
+                        {signed ? <span className="ml-2 text-emerald-600">· 전자서명이 저장되었습니다</span> : null}
+                      </p>
+                      {!canEdit || signed ? null : (
+                        <>
+                          <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+                            <FormInput
+                              type="checkbox"
+                              checked={signAck}
+                              onChange={(ev) => setSignAck(ev.target.checked)}
+                              className="mt-0.5"
+                            />
+                            <span>본인은 본 계약서가 본인에게 발송된 문서임을 확인하고, 전자서명합니다.</span>
+                          </label>
+                          {draftUrl ? (
                             <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                              <img src={draftUrl} alt="서명 미리보기" className="mx-auto max-h-32 object-contain" />
+                              <img src={draftUrl} alt="" className="mx-auto max-h-32 object-contain" />
                             </div>
-                            <p className="text-xs text-emerald-700">서명이 입력되었습니다. 아래 버튼으로 저장할 수 있습니다.</p>
-                            <FormButton
-                              htmlType="button"
-                              variant="secondary"
-                              fullWidth
-                              disabled={saving}
-                              onClick={() => {
-                                setPdfPreviewOpen(false)
-                                setSigModalField({ id: f.id, label: f.label || f.fieldKey })
-                              }}
-                            >
-                              다시 서명하기
-                            </FormButton>
-                          </>
-                        ) : (
+                          ) : null}
                           <FormButton
                             htmlType="button"
                             variant="secondary"
                             fullWidth
                             disabled={saving}
-                            onClick={() => {
-                              setPdfPreviewOpen(false)
-                              setSigModalField({ id: f.id, label: f.label || f.fieldKey })
-                            }}
+                            onClick={() => openSignatureModal(f.id, f.label || f.fieldKey)}
                           >
-                            전자서명 입력하기
+                            전자서명하기
                           </FormButton>
-                        )}
-                        <FormButton
-                          htmlType="button"
-                          variant="primary"
-                          fullWidth
-                          loading={saving}
-                          onClick={() => void onSignField(f.id)}
-                        >
-                          전자서명 완료
-                        </FormButton>
-                      </>
-                    )}
-                  </div>
-                )
-              }
-              if (f.fieldType === 'checkbox') {
-                const checked = Boolean(drafts[f.id])
-                return (
-                  <label key={f.id} className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
-                    <FormInput
-                      type="checkbox"
-                      disabled={!canEdit}
-                      checked={checked}
-                      onChange={(ev) => setDrafts((prev) => ({ ...prev, [f.id]: ev.target.checked }))}
-                      className="mt-0.5"
-                    />
-                    <span>
-                      {f.label || f.fieldKey}
-                      {f.required ? <span className="text-rose-600"> *</span> : null}
-                    </span>
-                  </label>
-                )
-              }
-              if (f.fieldType === 'radio') {
-                const opts = Array.isArray(f.options) ? f.options.map((x) => String(x)) : []
-                const cur = String(drafts[f.id] ?? '')
-                return (
-                  <div key={f.id} className="space-y-1">
-                    <p className="text-sm text-slate-800">
-                      {f.label || f.fieldKey}
-                      {f.required ? <span className="text-rose-600"> *</span> : null}
-                    </p>
-                    <FormSelect
-                      disabled={!canEdit}
-                      value={cur}
-                      options={[{ value: '', label: '선택' }, ...opts.map((o) => ({ value: o, label: o }))]}
-                      onChange={(ev) => setDrafts((prev) => ({ ...prev, [f.id]: ev.target.value }))}
-                      className="w-full"
-                    />
-                  </div>
-                )
-              }
-              const isTextarea = f.fieldType === 'textarea'
-              const tv = String(drafts[f.id] ?? '')
-              return (
-                <div key={f.id} className="space-y-1">
-                  <p className="text-sm text-slate-800">
-                    {f.label || f.fieldKey}
-                    {f.required ? <span className="text-rose-600"> *</span> : null}
-                  </p>
-                  {isTextarea ? (
-                    <FormTextarea
-                      disabled={!canEdit}
-                      value={tv}
-                      onChange={(ev) => setDrafts((prev) => ({ ...prev, [f.id]: ev.target.value }))}
-                      rows={4}
-                      className="w-full text-sm"
-                    />
-                  ) : (
-                    <FormInput
-                      type="text"
-                      disabled={!canEdit}
-                      value={tv}
-                      onChange={(ev) => setDrafts((prev) => ({ ...prev, [f.id]: ev.target.value }))}
-                      className="w-full text-sm"
-                    />
-                  )}
-                </div>
-              )
-            })}
+                          {draftUrl ? (
+                            <FormButton
+                              htmlType="button"
+                              variant="primary"
+                              fullWidth
+                              loading={saving}
+                              onClick={() => void onSignField(f.id)}
+                            >
+                              손사인 저장 (전자서명 적용)
+                            </FormButton>
+                          ) : null}
+                          {draftUrl ? (
+                            <FormButton
+                              htmlType="button"
+                              variant="secondary"
+                              fullWidth
+                              disabled={saving}
+                              onClick={() => openSignatureModal(f.id, f.label || f.fieldKey)}
+                            >
+                              다시 서명하기
+                            </FormButton>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : null}
 
             {canEdit ? (
               <div className="space-y-3 border-t border-slate-100 pt-3">
-                <FormButton
-                  htmlType="button"
-                  variant="secondary"
-                  fullWidth
-                  loading={saving}
-                  onClick={() => void onSaveValues()}
-                >
+                <FormButton htmlType="button" variant="secondary" fullWidth loading={saving} onClick={() => void onSaveValues()}>
                   임시저장
                 </FormButton>
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+                  <p className="text-sm font-medium text-slate-900">최종 문서 확인</p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    입력·서명이 반영된 문서를 확인한 뒤에만 전송 단계로 진행할 수 있습니다.
+                  </p>
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    fullWidth
+                    className="mt-3"
+                    disabled={saving || !basicsComplete}
+                    onClick={() => void onOpenFinalReview()}
+                  >
+                    최종 문서 확인
+                  </FormButton>
+                  {finalPreviewConfirmed ? (
+                    <p className="mt-2 text-xs font-medium text-emerald-700">최종 문서 확인 완료</p>
+                  ) : (
+                    <p className="mt-2 text-xs text-slate-500">미확인</p>
+                  )}
+                </div>
+
                 <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
                   <FormInput
                     type="checkbox"
-                    checked={completeAck}
-                    onChange={(ev) => setCompleteAck(ev.target.checked)}
+                    checked={finalSubmitAck}
+                    disabled={!finalPreviewConfirmed}
+                    onChange={(ev) => setFinalSubmitAck(ev.target.checked)}
                     className="mt-0.5"
                   />
-                  <span>필수 항목을 확인했으며, 이 문서를 완료합니다.</span>
+                  <span>
+                    입력한 내용과 전자서명이 최종 문서에 올바르게 반영된 것을 확인했으며, 이 문서를 전송합니다.
+                  </span>
                 </label>
-                <FormButton htmlType="button" variant="primary" fullWidth loading={saving} onClick={() => void onComplete()}>
-                  문서 완료
+
+                <FormButton
+                  htmlType="button"
+                  variant="primary"
+                  fullWidth
+                  loading={saving}
+                  disabled={!canSubmitSend}
+                  onClick={() => void onComplete()}
+                >
+                  전체 완료 및 전송
                 </FormButton>
               </div>
             ) : null}
@@ -587,6 +773,39 @@ export default function ContractSignDocumentPage() {
           documentInstanceId={documentInstanceId}
         />
 
+        <PublicPdfPreviewModal
+          open={finalReviewOpen}
+          onClose={() => setFinalReviewOpen(false)}
+          title="최종 문서 확인"
+          subtitle="입력하신 내용과 전자서명이 올바르게 반영되었는지 확인해주세요."
+          pdfUrl={renderedPdfSrc}
+          initialPdfBytes={null}
+          pageCount={Math.max(1, detail.pdfTemplate?.pageCount ?? 1)}
+          initialPageNo={1}
+          documentInstanceId={documentInstanceId}
+          loadNonce={finalReviewLoadNonce}
+          footerSlot={
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
+              <FormButton htmlType="button" variant="secondary" fullWidth className="sm:w-auto" onClick={() => setFinalReviewOpen(false)}>
+                수정하기
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="primary"
+                fullWidth
+                className="sm:w-auto"
+                onClick={() => {
+                  setFinalPreviewConfirmed(true)
+                  setFinalSubmitAck(false)
+                  setFinalReviewOpen(false)
+                }}
+              >
+                확인했습니다
+              </FormButton>
+            </div>
+          }
+        />
+
         <SignatureModal
           key={sigModalField?.id ?? 'contract-signature-modal'}
           open={sigModalField != null}
@@ -601,8 +820,68 @@ export default function ContractSignDocumentPage() {
             const dataUrl = await blobToDataUrl(blob)
             const fid = sigModalField.id
             setSignatureDrafts((prev) => ({ ...prev, [fid]: dataUrl }))
+            setFinalPreviewConfirmed(false)
+            setFinalSubmitAck(false)
           }}
         />
+
+        {successOpen && completeResult ? (
+          <div
+            className="fixed inset-0 z-[100030] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+            role="dialog"
+            aria-modal="true"
+            aria-label="전송 완료"
+          >
+            <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+              <p className="text-lg font-semibold text-slate-900">전자서명이 전송되었습니다.</p>
+              <p className="mt-3 text-sm text-slate-700">
+                문서명: <span className="font-medium">{detail.document.title || '문서'}</span>
+              </p>
+              {completeResult.completedAt ? (
+                <p className="mt-1 text-sm text-slate-600">완료 시각: {completeResult.completedAt}</p>
+              ) : null}
+              {completeResult.evidenceSummary?.evidenceHashPrefix ? (
+                <p className="mt-2 text-xs text-slate-600">
+                  증빙번호(해시 일부): {completeResult.evidenceSummary.evidenceHashPrefix}
+                </p>
+              ) : null}
+              <p className="mt-3 text-sm text-slate-600">담당자가 완료된 전자서명 문서를 확인할 수 있습니다.</p>
+              <p className="mt-2 text-sm text-slate-600">이 화면은 닫으셔도 됩니다.</p>
+              <p className="mt-2 text-xs text-slate-500">
+                카카오톡 인앱 브라우저에서는 상단 닫기 버튼으로 창을 닫아 주세요.
+              </p>
+              <div className="mt-5 flex flex-col gap-2">
+                {completeResult.signedPdfDownloadAvailable && completeResult.signedPdfDownloadPath ? (
+                  <FormButton
+                    htmlType="button"
+                    variant="primary"
+                    fullWidth
+                    onClick={() =>
+                      void downloadPdfWithCredentials(completeResult.signedPdfDownloadPath!).catch(() => {})
+                    }
+                  >
+                    최종 계약서 다운로드
+                  </FormButton>
+                ) : (
+                  <p className="text-xs text-slate-600">
+                    최종 PDF 다운로드는 준비 중입니다. 담당자 화면에서 증빙 상태를 확인할 수 있습니다.
+                  </p>
+                )}
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  fullWidth
+                  onClick={() => {
+                    setSuccessOpen(false)
+                    window.close()
+                  }}
+                >
+                  닫기
+                </FormButton>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     )
   }

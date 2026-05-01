@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { consentGetBuffer } from '../lib/consentStorage.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { normalizeKrMobile, validateKrMobileDigits } from '../lib/phoneNormalize.js'
 import { maskKrMobileForDisplay } from '../utils/maskKrMobile.js'
@@ -166,7 +167,7 @@ function mapSendSessionDetailRow(row, docs, evidenceByDoc) {
               otpVerifiedAt: ev.otp_verified_at ?? null,
               signedAt: ev.signed_at ?? null,
               hasSignatureFile: Boolean(ev.signature_file_id),
-              hasSignedPdfFile: Boolean(ev.signed_pdf_file_id),
+              hasSignedPdfFile: Boolean(ev.signed_pdf_file_id || d.signed_pdf_file_id),
               hasSignedPdfHash: Boolean(ev.signed_pdf_hash),
             }
           : null,
@@ -606,7 +607,8 @@ export function registerContractUserApi(apiRouter, ctx) {
       const row = r.rows[0]
       const docs = await pool.query(
         `
-        SELECT id, template_id, template_version, title_snapshot, status, sort_order, original_pdf_hash, created_at, completed_at
+        SELECT id, template_id, template_version, title_snapshot, status, sort_order, original_pdf_hash,
+               signed_pdf_file_id, created_at, completed_at
         FROM contract_document_instances
         WHERE send_session_id = $1
         ORDER BY sort_order ASC, created_at ASC
@@ -648,4 +650,86 @@ export function registerContractUserApi(apiRouter, ctx) {
       handleDbError(e, req, res)
     }
   })
+
+  apiRouter.get(
+    '/contracts/send-sessions/:sendSessionId/documents/:documentInstanceId/signed-pdf',
+    ...chain,
+    async (req, res) => {
+      try {
+        const userGa = parseGaId(req.user?.gaId)
+        const uid = getAuthUserId(req)
+        if (!uid) {
+          res.status(401).json({ ok: false, message: '로그인이 필요합니다.' })
+          return
+        }
+        if (userGa == null) {
+          res.status(400).json({ ok: false, message: 'GA 컨텍스트가 없습니다.' })
+          return
+        }
+        const sid = String(req.params.sendSessionId ?? '').trim()
+        const docId = String(req.params.documentInstanceId ?? '').trim()
+        const r = await pool.query(
+          `
+          SELECT s.id
+          FROM contract_send_sessions s
+          JOIN customers c ON c.id = s.customer_id
+          WHERE s.id = $1
+            AND s.sent_by_user_id = $2
+            AND c.user_id = $2
+            AND c.ga_id = $3
+          LIMIT 1
+          `,
+          [sid, uid, userGa],
+        )
+        if (r.rowCount === 0) {
+          res.status(404).json({ ok: false, message: '발송 세션을 찾을 수 없습니다.' })
+          return
+        }
+        const d = await pool.query(
+          `
+          SELECT status, signed_pdf_file_id
+          FROM contract_document_instances
+          WHERE id = $1 AND send_session_id = $2
+          LIMIT 1
+          `,
+          [docId, sid],
+        )
+        if (d.rowCount === 0) {
+          res.status(404).json({ ok: false, message: '문서를 찾을 수 없습니다.' })
+          return
+        }
+        if (String(d.rows[0].status ?? '') !== 'completed') {
+          res.status(403).json({ ok: false, message: '완료된 문서만 다운로드할 수 있습니다.' })
+          return
+        }
+        const fid = d.rows[0].signed_pdf_file_id
+        if (fid == null || String(fid).trim() === '') {
+          res.status(404).json({ ok: false, message: '최종 PDF 가 아직 준비되지 않았습니다.' })
+          return
+        }
+        const fk = await pool.query(`SELECT file_path FROM files WHERE id = $1 LIMIT 1`, [String(fid).trim()])
+        const storageKey = fk.rows[0]?.file_path
+        if (!storageKey) {
+          res.status(404).json({ ok: false, message: '파일을 찾을 수 없습니다.' })
+          return
+        }
+        let buf
+        try {
+          buf = await consentGetBuffer(String(storageKey))
+        } catch {
+          res.status(502).json({ ok: false, message: '파일을 불러오지 못했습니다.' })
+          return
+        }
+        if (!buf || buf.length === 0) {
+          res.status(404).json({ ok: false, message: '파일을 찾을 수 없습니다.' })
+          return
+        }
+        res.setHeader('Content-Type', 'application/pdf')
+        res.setHeader('Cache-Control', 'private, no-store')
+        res.status(200).send(Buffer.from(buf))
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    },
+  )
 }

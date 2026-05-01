@@ -1,11 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { decryptContractTargetPhoneBlob } from '../lib/contractStoredPhone.js'
-import { consentPutObject } from '../lib/consentStorage.js'
+import { consentGetBuffer, consentPutObject } from '../lib/consentStorage.js'
 import { normalizeKrMobile, validateKrMobileDigits } from '../lib/phoneNormalize.js'
 import { maskKrMobileForDisplay } from '../utils/maskKrMobile.js'
 import { getTemplateById, listFields } from '../pdf-engine/repository/pdfTemplateRepo.js'
 import { getTemplateObject } from '../pdf-engine/storage/pdfTemplateStorage.js'
 import { insertSignatureEvidenceRow, loadVerifiedIdentitySession } from '../services/contractEvidenceService.js'
+import { buildStampedPdfBufferFromInstance } from '../services/contractStampedPdfFromInstance.js'
 
 const TERMINAL_SESSION = new Set(['expired', 'cancelled'])
 const COMPLETED_SESSION = new Set(['completed'])
@@ -588,6 +589,84 @@ async function maybeCompleteSendSession(client, sendSessionId) {
   }
 }
 
+async function loadFileStorageKeyForId(pool, fileId) {
+  if (fileId == null || String(fileId).trim() === '') {
+    return null
+  }
+  const r = await pool.query(`SELECT file_path FROM files WHERE id = $1 LIMIT 1`, [String(fileId).trim()])
+  const p = r.rows[0]?.file_path
+  return p ? String(p) : null
+}
+
+async function respondWithPdfFromFileId(pool, res, fileId) {
+  const key = await loadFileStorageKeyForId(pool, fileId)
+  if (!key) {
+    res.status(404).json({ success: false, message: '파일을 찾을 수 없습니다.' })
+    return
+  }
+  let buf
+  try {
+    buf = await consentGetBuffer(key)
+  } catch {
+    res.status(502).json({ success: false, message: '파일을 불러오지 못했습니다.' })
+    return
+  }
+  if (!buf || buf.length === 0) {
+    res.status(404).json({ success: false, message: '파일을 찾을 수 없습니다.' })
+    return
+  }
+  res.setHeader('Content-Type', 'application/pdf')
+  res.setHeader('Cache-Control', 'private, no-store')
+  res.status(200).send(Buffer.from(buf))
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {{
+ *   userId: string,
+ *   gaId: number,
+ *   customerId: number,
+ *   docId: string,
+ *   sessionId: string,
+ *   buf: Buffer,
+ * }} p
+ */
+async function insertFinalSignedPdfFileRow(client, p) {
+  const storageKey = `contracts/${p.sessionId}/documents/${p.docId}/final-signed.pdf`
+  await consentPutObject(storageKey, p.buf, 'application/pdf')
+  const hashHex = createHash('sha256').update(p.buf).digest('hex')
+  const ins = await client.query(
+    `
+    INSERT INTO files (
+      user_id,
+      ga_id,
+      customer_id,
+      team_id,
+      folder_id,
+      original_name,
+      display_name,
+      file_path,
+      file_size,
+      mime_type,
+      content,
+      is_confirmed,
+      status
+    )
+    VALUES ($1, $2, $3, NULL, NULL, $4, $4, $5, $6, 'application/pdf', '', true, 'active')
+    RETURNING id
+    `,
+    [
+      p.userId,
+      p.gaId,
+      p.customerId,
+      `contract-final-${p.docId}.pdf`,
+      storageKey,
+      p.buf.length,
+    ],
+  )
+  return { fileId: String(ins.rows[0].id), hashHex }
+}
+
 function fieldRowToPublicDto(row) {
   return {
     id: String(row.id),
@@ -649,6 +728,24 @@ export function registerContractPublicApi(apiRouter, ctx) {
       }
       if (req.body?.acknowledgeElectronicContract !== true) {
         res.status(400).json({ success: false, message: '전자계약 확인 진술에 동의해야 합니다.' })
+        return
+      }
+      if (req.body?.finalPreviewConfirmed !== true) {
+        res.status(400).json({
+          success: false,
+          code: 'final_preview_required',
+          error: 'final_preview_required',
+          message: '최종 문서 확인 단계를 완료해야 합니다.',
+        })
+        return
+      }
+      if (req.body?.finalSubmitAcknowledged !== true) {
+        res.status(400).json({
+          success: false,
+          code: 'final_submit_ack_required',
+          error: 'final_submit_ack_required',
+          message: '최종 전송 확인에 동의해야 합니다.',
+        })
         return
       }
       const { session } = base
@@ -737,6 +834,34 @@ export function registerContractPublicApi(apiRouter, ctx) {
           res.status(403).json({ success: false, message: '계약서 수신번호 인증이 필요합니다.' })
           return
         }
+        let signedPdfFileId = null
+        let signedPdfHashHex = null
+        const fileUserId = session.sent_by_user_id || session.customer_user_id
+        const gaIdForFile = session.customer_ga_id
+        if (fileUserId && gaIdForFile != null) {
+          try {
+            const stamped = await buildStampedPdfBufferFromInstance(client, pdfTid, valRows)
+            const insPdf = await insertFinalSignedPdfFileRow(client, {
+              userId: fileUserId,
+              gaId: Number(gaIdForFile),
+              customerId: Number(session.customer_id),
+              docId,
+              sessionId: String(session.id),
+              buf: stamped,
+            })
+            signedPdfFileId = insPdf.fileId
+            signedPdfHashHex = insPdf.hashHex
+          } catch (pdfErr) {
+            if (process.env.NODE_ENV !== 'production') {
+              console.error('[contract public complete] final pdf error', {
+                documentInstanceId: docId,
+                err: pdfErr instanceof Error ? pdfErr.message : String(pdfErr),
+              })
+            } else {
+              console.error('[contract public complete] final pdf error')
+            }
+          }
+        }
         try {
           await insertSignatureEvidenceRow(client, req, {
             sendSession: session,
@@ -745,6 +870,8 @@ export function registerContractPublicApi(apiRouter, ctx) {
             pdfTemplateId: Number(pdfTid),
             valueRows: valRows,
             identityRow,
+            signedPdfFileId,
+            signedPdfHash: signedPdfHashHex,
           })
         } catch (insErr) {
           if (insErr && insErr.code === '23505') {
@@ -771,11 +898,16 @@ export function registerContractPublicApi(apiRouter, ctx) {
         const completedRes = await client.query(
           `
           UPDATE contract_document_instances
-          SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+          SET
+            status = 'completed',
+            completed_at = NOW(),
+            signed_pdf_file_id = COALESCE($2, signed_pdf_file_id),
+            signed_pdf_hash = COALESCE($3, signed_pdf_hash),
+            updated_at = NOW()
           WHERE id = $1
           RETURNING completed_at
           `,
-          [docId],
+          [docId, signedPdfFileId, signedPdfHashHex],
         )
         const completedAtIso = completedRes.rows[0]?.completed_at
           ? new Date(completedRes.rows[0].completed_at).toISOString()
@@ -804,12 +936,19 @@ export function registerContractPublicApi(apiRouter, ctx) {
         const evidenceSummary = buildPublicEvidenceFromRow(evRow.rows[0], {
           completedAt: completedAtIso,
         })
+        const signedPdfPath =
+          signedPdfFileId != null
+            ? `/api/contracts/public/${encodeURIComponent(linkCode)}/documents/${encodeURIComponent(docId)}/signed-pdf`
+            : null
         await client.query('COMMIT')
         res.status(200).json({
           success: true,
           data: {
+            status: 'completed',
             completed: true,
             evidenceSummary: evidenceSummary ?? undefined,
+            signedPdfDownloadAvailable: Boolean(signedPdfFileId),
+            signedPdfDownloadPath: signedPdfPath ?? undefined,
           },
         })
       } catch (e) {
@@ -1169,6 +1308,107 @@ export function registerContractPublicApi(apiRouter, ctx) {
     }
   })
 
+  apiRouter.get('/contracts/public/:linkCode/documents/:documentInstanceId/rendered-pdf', async (req, res) => {
+    try {
+      const linkCode = String(req.params.linkCode ?? '').trim()
+      const docId = String(req.params.documentInstanceId ?? '').trim()
+      const row = await loadSendSessionRow(pool, linkCode)
+      if (!row) {
+        res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
+        return
+      }
+      const sendStatus = String(row.status ?? '')
+      const idStatus = await loadLatestIdentityStatus(pool, row.id)
+      if (!allowsDocumentDetail(sendStatus, idStatus)) {
+        res.status(403).json({ success: false, message: '계약서 수신번호 인증이 필요합니다.' })
+        return
+      }
+      const docR = await pool.query(
+        `
+        SELECT cdi.id, ct.pdf_template_id
+        FROM contract_document_instances cdi
+        INNER JOIN contract_templates ct ON ct.id = cdi.template_id
+        WHERE cdi.id = $1 AND cdi.send_session_id = $2
+        LIMIT 1
+        `,
+        [docId, row.id],
+      )
+      if (docR.rowCount === 0) {
+        res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
+        return
+      }
+      const pdfTid = docR.rows[0].pdf_template_id
+      if (pdfTid == null) {
+        res.status(404).json({ success: false, message: 'PDF 템플릿이 연결되어 있지 않습니다.' })
+        return
+      }
+      const valRows = await loadValueRows(pool, docId)
+      let stamped
+      try {
+        stamped = await buildStampedPdfBufferFromInstance(pool, pdfTid, valRows)
+      } catch (rendErr) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.error('[contract public rendered-pdf]', {
+            documentInstanceId: docId,
+            err: rendErr instanceof Error ? rendErr.message : String(rendErr),
+          })
+        } else {
+          console.error('[contract public rendered-pdf] failed')
+        }
+        res.status(502).json({ success: false, message: '확인용 문서를 만들지 못했습니다. 잠시 후 다시 시도해 주세요.' })
+        return
+      }
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Cache-Control', 'private, no-store')
+      res.status(200).send(stamped)
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.get('/contracts/public/:linkCode/documents/:documentInstanceId/signed-pdf', async (req, res) => {
+    try {
+      const linkCode = String(req.params.linkCode ?? '').trim()
+      const docId = String(req.params.documentInstanceId ?? '').trim()
+      const row = await loadSendSessionRow(pool, linkCode)
+      if (!row) {
+        res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
+        return
+      }
+      const sendStatus = String(row.status ?? '')
+      const idStatus = await loadLatestIdentityStatus(pool, row.id)
+      if (!allowsDocumentDetail(sendStatus, idStatus)) {
+        res.status(403).json({ success: false, message: '계약서 수신번호 인증이 필요합니다.' })
+        return
+      }
+      const docR = await pool.query(
+        `
+        SELECT cdi.id, cdi.status, cdi.signed_pdf_file_id
+        FROM contract_document_instances cdi
+        WHERE cdi.id = $1 AND cdi.send_session_id = $2
+        LIMIT 1
+        `,
+        [docId, row.id],
+      )
+      if (docR.rowCount === 0) {
+        res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
+        return
+      }
+      if (String(docR.rows[0].status ?? '') !== 'completed') {
+        res.status(403).json({ success: false, message: '완료된 문서만 다운로드할 수 있습니다.' })
+        return
+      }
+      const fid = docR.rows[0].signed_pdf_file_id
+      if (fid == null || String(fid).trim() === '') {
+        res.status(404).json({ success: false, message: '최종 PDF 가 아직 준비되지 않았습니다.' })
+        return
+      }
+      await respondWithPdfFromFileId(pool, res, fid)
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
   apiRouter.get('/contracts/public/:linkCode/documents/:documentInstanceId', async (req, res) => {
     try {
       const linkCode = String(req.params.linkCode ?? '').trim()
@@ -1250,6 +1490,12 @@ export function registerContractPublicApi(apiRouter, ctx) {
         const completedAtIso = doc.completed_at ? new Date(doc.completed_at).toISOString() : null
         evidenceSummary = buildPublicEvidenceFromRow(evR.rows[0], { completedAt: completedAtIso })
       }
+      const signedPdfDownloadPath =
+        String(doc.status ?? '') === 'completed' &&
+        doc.signed_pdf_file_id != null &&
+        String(doc.signed_pdf_file_id).trim() !== ''
+          ? `/api/contracts/public/${encodeURIComponent(linkCode)}/documents/${encodeURIComponent(docId)}/signed-pdf`
+          : null
       res.status(200).json({
         success: true,
         data: {
@@ -1267,6 +1513,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
           pdfTemplate,
           fields,
           pdfPreviewUrl: pdfPreviewPath,
+          signedPdfDownloadPath,
           canEdit,
           evidenceSummary: evidenceSummary ?? undefined,
           notice:

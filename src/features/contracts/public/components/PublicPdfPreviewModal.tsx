@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { getDocument, type PDFDocumentProxy } from 'pdfjs-dist'
 import { FormButton } from '../../../../components/form'
 import { getPdfJsCmapAndStandardFontUrls } from '../../../../lib/pdfjs/pdfDocumentInitParams'
@@ -33,7 +33,10 @@ export interface PublicPdfPreviewModalProps {
   pageCount: number
   /** 1-based */
   initialPageNo?: number
-  documentInstanceId: string
+  /** 모달이 열릴 때마다 PDF 로드를 강제하려면 증가 */
+  loadNonce?: number
+  subtitle?: string
+  footerSlot?: ReactNode
 }
 
 export function PublicPdfPreviewModal({
@@ -45,6 +48,9 @@ export function PublicPdfPreviewModal({
   pageCount,
   initialPageNo = 1,
   documentInstanceId,
+  loadNonce = 0,
+  subtitle,
+  footerSlot,
 }: PublicPdfPreviewModalProps) {
   const scrollHostRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -258,7 +264,7 @@ export function PublicPdfPreviewModal({
         pageRenderTaskRef.current = null
       }
     }
-  }, [open, pdfUrl, initialPdfBytes, documentInstanceId])
+  }, [open, pdfUrl, initialPdfBytes, documentInstanceId, loadNonce])
 
   useEffect(() => {
     if (!open || loading || loadError) {
@@ -386,7 +392,10 @@ export function PublicPdfPreviewModal({
       className="fixed inset-0 z-[100020] flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-white"
     >
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
-        <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-slate-900">{title || '계약서 미리보기'}</h2>
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-base font-semibold text-slate-900">{title || '계약서 미리보기'}</h2>
+          {subtitle ? <p className="mt-1 text-xs leading-snug text-slate-600">{subtitle}</p> : null}
+        </div>
         <FormButton htmlType="button" variant="secondary" onClick={onClose}>
           닫기
         </FormButton>
@@ -532,6 +541,11 @@ export function PublicPdfPreviewModal({
           </div>
         ) : null}
       </div>
+      {footerSlot ? (
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
+          {footerSlot}
+        </div>
+      ) : null}
     </div>
   )
 }

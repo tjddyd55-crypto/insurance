@@ -120,6 +120,7 @@ export type ContractDocumentDetailPayload = {
     publicValue?: ContractPublicFieldValue | null
   }[]
   pdfPreviewUrl: string
+  signedPdfDownloadPath?: string | null
   notice?: string
   canEdit?: boolean
   evidenceSummary?: {
@@ -141,6 +142,14 @@ export async function fetchContractPublicDocumentDetail(
 
 export function resolveContractPdfPreviewAbsUrl(linkCode: string, documentInstanceId: string): string {
   return resolveApiUrl(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/pdf`)
+}
+
+export function resolveContractRenderedPdfAbsUrl(linkCode: string, documentInstanceId: string): string {
+  return resolveApiUrl(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/rendered-pdf`)
+}
+
+export function resolveContractSignedPdfAbsUrl(linkCode: string, documentInstanceId: string): string {
+  return resolveApiUrl(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/signed-pdf`)
 }
 
 export type ContractPublicValueInput = {
@@ -178,10 +187,17 @@ export async function postContractPublicDocumentSign(
 export async function postContractPublicDocumentComplete(
   linkCode: string,
   documentInstanceId: string,
-  body: { acknowledgeElectronicContract: true },
+  body: {
+    acknowledgeElectronicContract: true
+    finalPreviewConfirmed: true
+    finalSubmitAcknowledged: true
+  },
 ): Promise<{
+  status?: string
   completed?: boolean
   evidenceSummary?: ContractDocumentDetailPayload['evidenceSummary']
+  signedPdfDownloadAvailable?: boolean
+  signedPdfDownloadPath?: string
 }> {
   return apiRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/complete`, {
     method: 'POST',
@@ -222,6 +238,8 @@ const PUBLIC_ACTION_CODE_MESSAGES: Record<string, string> = {
   signature_file_owner_missing: '서명 저장에 필요한 배포 설정이 누락되었습니다. 담당자에게 문의해 주세요.',
   signature_save_failed: '전자서명 저장 중 오류가 발생했습니다. 다시 시도해 주세요.',
   required_fields_missing: '필수 항목을 모두 입력·서명해야 합니다.',
+  final_preview_required: '최종 문서 확인 단계를 먼저 완료해 주세요.',
+  final_submit_ack_required: '최종 전송 확인에 동의해 주세요.',
 }
 
 const SIGN_FALLBACK = '전자서명 저장 중 오류가 발생했습니다. 다시 시도해 주세요.'

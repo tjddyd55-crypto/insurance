@@ -246,6 +246,8 @@ export async function loadVerifiedIdentitySession(client, sendSessionId, pinnedI
  *   pdfTemplateId: number | null,
  *   valueRows: Array<Record<string, unknown>>,
  *   identityRow: Record<string, unknown>,
+ *   signedPdfHash?: string | null,
+ *   signedPdfFileId?: string | null,
  * }} input
  */
 export async function insertSignatureEvidenceRow(client, req, input) {
@@ -366,8 +368,8 @@ export async function insertSignatureEvidenceRow(client, req, input) {
       targetPhoneHash,
       documentHash,
       signatureImageHash,
-      null,
-      null,
+      signedPdfHashNorm,
+      signedPdfFileIdNorm,
       evidenceHash,
       ipHash,
       ua,

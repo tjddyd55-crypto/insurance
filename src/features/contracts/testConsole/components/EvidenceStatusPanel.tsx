@@ -1,4 +1,6 @@
 import { FormButton } from '../../../../components/form'
+import { useAuth } from '../../../auth/AuthProvider'
+import { resolveApiUrl } from '../../../../lib/apiClient'
 import type { SendSessionDetail } from '../contractSignatureTestConsoleClient'
 
 type Props = {
@@ -8,6 +10,29 @@ type Props = {
 }
 
 export function EvidenceStatusPanel({ detail, loading, onRefresh }: Props) {
+  const { token } = useAuth()
+  const t = token?.trim() ?? ''
+
+  async function downloadSignedPdf(docId: string) {
+    if (!detail || !t) {
+      return
+    }
+    const url = resolveApiUrl(
+      `/api/contracts/send-sessions/${encodeURIComponent(detail.id)}/documents/${encodeURIComponent(docId)}/signed-pdf`,
+    )
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${t}` } })
+    if (!res.ok) {
+      return
+    }
+    const blob = await res.blob()
+    const u = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = u
+    a.download = 'signed-contract.pdf'
+    a.click()
+    URL.revokeObjectURL(u)
+  }
+
   return (
     <div>
       <div className="contract-signature-console__toolbar">
@@ -42,12 +67,14 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh }: Props) {
                   <th>identityLevel</th>
                   <th>otpVerifiedAt</th>
                   <th>signedAt</th>
+                  <th>최종 PDF</th>
                 </tr>
               </thead>
               <tbody>
                 {detail.documents.map((d) => {
                   const ev = d.evidence
                   const hashShow = ev?.evidenceHash ?? '—'
+                  const canDl = Boolean(ev?.hasSignedPdfFile)
                   return (
                     <tr key={d.id}>
                       <td>
@@ -63,6 +90,17 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh }: Props) {
                       <td>{ev?.identityLevel ?? '—'}</td>
                       <td>{ev?.otpVerifiedAt ?? '—'}</td>
                       <td>{ev?.signedAt ?? '—'}</td>
+                      <td>
+                        {d.status === 'completed' && canDl ? (
+                          <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => void downloadSignedPdf(d.id)}>
+                            다운로드
+                          </FormButton>
+                        ) : d.status === 'completed' ? (
+                          <span className="contract-signature-console__hint">준비 중</span>
+                        ) : (
+                          <span className="contract-signature-console__hint">—</span>
+                        )}
+                      </td>
                     </tr>
                   )
                 })}
