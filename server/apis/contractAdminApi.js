@@ -3,7 +3,7 @@ import { parseGaId } from '../lib/parseGaId.js'
 import { isSuperAdminRole, normalizeRbacRole } from '../lib/rbacScope.js'
 import { normalizeKrMobile, validateKrMobileDigits } from '../lib/phoneNormalize.js'
 import { maskKrMobileForDisplay } from '../utils/maskKrMobile.js'
-import { getContractOtpPepper } from '../lib/contractOtpConfig.js'
+import { getContractOtpPepper, isRunningInProduction } from '../lib/contractOtpConfig.js'
 import { encryptContractTargetPhoneDigits } from '../lib/contractStoredPhone.js'
 
 const CT_PREFIX = 'ct_'
@@ -164,8 +164,14 @@ export function buildTargetPhoneSnapshot(digits) {
   let encrypted = null
   try {
     encrypted = encryptContractTargetPhoneDigits(digits)
-  } catch {
+  } catch (e) {
+    if (isRunningInProduction()) {
+      throw e
+    }
     encrypted = null
+  }
+  if (isRunningInProduction() && !encrypted) {
+    throw new Error('[contract phone] CONTRACT_TARGET_PHONE_ENCRYPTION_KEY is not set')
   }
   return {
     target_phone_encrypted: encrypted,

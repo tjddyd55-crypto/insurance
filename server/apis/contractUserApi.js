@@ -21,6 +21,84 @@ function escapeIlikePattern(raw) {
   return String(raw ?? '').replace(/[\\%_]/g, (ch) => `\\${ch}`)
 }
 
+const VERBOSE_CONTRACT_SEND_LOGS =
+  process.env.NODE_ENV !== 'production' && !process.env.RAILWAY_ENVIRONMENT
+
+/**
+ * @param {Record<string, unknown>} ctx
+ * @param {unknown} err
+ */
+function logContractSendSessionFailure(ctx, err) {
+  const e = err instanceof Error ? err : new Error(String(err))
+  if (VERBOSE_CONTRACT_SEND_LOGS) {
+    console.error('[contracts/send-sessions]', {
+      route: ctx.route,
+      userId: ctx.userId,
+      gaId: ctx.gaId,
+      customerId: ctx.customerId,
+      templateIds: ctx.templateIds,
+      selectedTemplateCount: ctx.selectedTemplateCount,
+      customerFound: ctx.customerFound,
+      customerHasPhone: ctx.customerHasPhone,
+      activeTemplateCheckPassed: ctx.activeTemplateCheckPassed,
+      errorName: e.name,
+      errorMessage: e.message,
+      errorCode: /** @type {{ code?: string }} */ (err)?.code,
+      stack: e.stack,
+    })
+    return
+  }
+  console.error('[contracts/send-sessions]', {
+    route: ctx.route,
+    userId: ctx.userId,
+    gaId: ctx.gaId,
+    customerId: ctx.customerId,
+    templateIds: ctx.templateIds,
+    selectedTemplateCount: ctx.selectedTemplateCount,
+    customerFound: ctx.customerFound,
+    customerHasPhone: ctx.customerHasPhone,
+    activeTemplateCheckPassed: ctx.activeTemplateCheckPassed,
+    pgCode: /** @type {{ code?: string }} */ (err)?.code,
+    errorName: e.name,
+    errorMessage: e.message,
+  })
+}
+
+/**
+ * @param {unknown} err
+ * @returns {{ status: number, code: string, message: string } | null}
+ */
+function mapSendSessionCreateError(err) {
+  const msg = err instanceof Error ? err.message : String(err)
+  if (msg.includes('CONTRACT_OTP_PEPPER') || msg.includes('[contract OTP]')) {
+    return {
+      status: 503,
+      code: 'missing_contract_otp_pepper',
+      message:
+        '전자서명 OTP를 위해 서버에 CONTRACT_OTP_PEPPER(16자 이상) 환경 변수가 필요합니다. Railway 등 배포 환경 변수를 확인해 주세요.',
+    }
+  }
+  if (
+    msg.includes('CONTRACT_TARGET_PHONE_ENCRYPTION_KEY') ||
+    (msg.includes('[contract phone]') && msg.includes('ENCRYPTION'))
+  ) {
+    return {
+      status: 503,
+      code: 'missing_contract_target_phone_key',
+      message:
+        '전화번호 저장을 위해 서버에 CONTRACT_TARGET_PHONE_ENCRYPTION_KEY(64자 hex 또는 아무 문자열)가 필요합니다. Railway 환경 변수를 확인해 주세요.',
+    }
+  }
+  if (msg.includes('link_code_collision')) {
+    return {
+      status: 503,
+      code: 'link_code_collision',
+      message: '발송 링크 코드 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+    }
+  }
+  return null
+}
+
 async function assertCustomerForUserSend(client, customerId, req) {
   const userGa = parseGaId(req.user?.gaId)
   const uid = getAuthUserId(req)
@@ -279,8 +357,21 @@ export function registerContractUserApi(apiRouter, ctx) {
 
   apiRouter.post('/contracts/send-sessions', ...chain, async (req, res) => {
     const client = await pool.connect()
+    /** @type {Record<string, unknown>} */
+    const debugCtx = {
+      route: 'contracts/send-sessions',
+      userId: getAuthUserId(req) || null,
+      gaId: null,
+      customerId: null,
+      templateIds: null,
+      selectedTemplateCount: null,
+      customerFound: null,
+      customerHasPhone: null,
+      activeTemplateCheckPassed: null,
+    }
     try {
       const userGa = parseGaId(req.user?.gaId)
+      debugCtx.gaId = userGa
       if (userGa == null) {
         res.status(400).json({ ok: false, message: 'GA 컨텍스트가 없습니다.' })
         return
@@ -298,14 +389,19 @@ export function registerContractUserApi(apiRouter, ctx) {
         res.status(400).json({ ok: false, message: 'customerId가 올바르지 않습니다.' })
         return
       }
+      debugCtx.customerId = customerId
       const tplIdsRaw = req.body?.templateIds ?? req.body?.template_ids
       const parsed = parseTemplateIdsArray(tplIdsRaw)
       if (parsed.error) {
         res.status(400).json({ ok: false, message: parsed.error })
         return
       }
+      debugCtx.templateIds = parsed.ids
+      debugCtx.selectedTemplateCount = parsed.ids.length
 
       const cust = await assertCustomerForUserSend(client, customerId, req)
+      debugCtx.customerFound = !cust.error
+      debugCtx.customerHasPhone = Boolean(cust.row && !cust.error)
       if (cust.error) {
         res.status(cust.status ?? 400).json({ ok: false, message: cust.error })
         return
@@ -339,6 +435,7 @@ export function registerContractUserApi(apiRouter, ctx) {
           pdfTemplateId: t.pdf_template_id,
         })
       }
+      debugCtx.activeTemplateCheckPassed = true
 
       const sendId = newId(CSS_PREFIX)
       const linkCode = await generateUniqueLinkCode(client)
@@ -403,11 +500,32 @@ export function registerContractUserApi(apiRouter, ctx) {
       } catch {
         /* ignore */
       }
-      if (e instanceof Error && e.message.includes('CONTRACT_OTP_PEPPER')) {
-        res.status(500).json({ ok: false, message: '서버 설정 오류입니다.' })
+      logContractSendSessionFailure(debugCtx, e)
+      const mapped = mapSendSessionCreateError(e)
+      if (mapped) {
+        res.status(mapped.status).json({
+          ok: false,
+          error: 'send_session_create_failed',
+          code: mapped.code,
+          message: mapped.message,
+        })
         return
       }
-      handleDbError(e, req, res)
+      if (/** @type {{ code?: string }} */ (e)?.code === '23505') {
+        res.status(409).json({
+          ok: false,
+          error: 'send_session_create_failed',
+          code: 'unique_violation',
+          message: '이미 존재하는 발송 세션 정보와 충돌했습니다.',
+        })
+        return
+      }
+      res.status(500).json({
+        ok: false,
+        error: 'send_session_create_failed',
+        code: 'internal_error',
+        message: '발송 세션 생성 중 오류가 발생했습니다.',
+      })
     } finally {
       client.release()
     }
