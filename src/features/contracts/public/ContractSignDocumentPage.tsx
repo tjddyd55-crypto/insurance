@@ -475,21 +475,25 @@ export default function ContractSignDocumentPage() {
                 증빙 기록(해시 일부): {detail.evidenceSummary.evidenceHashPrefix}
               </p>
             ) : null}
-            {detail.signedPdfDownloadPath ? (
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                fullWidth
-                className="mt-4"
-                onClick={() => void downloadPdfWithCredentials(detail.signedPdfDownloadPath!).catch(() => {})}
-              >
-                최종 계약서 다운로드
-              </FormButton>
-            ) : (
-              <p className="mt-3 text-xs text-emerald-900">
-                최종 PDF 다운로드는 준비 중입니다. 담당자 화면에서 증빙 상태를 확인할 수 있습니다.
-              </p>
-            )}
+            {(() => {
+              const p = (detail.signedPdfDownloadPath ?? '').trim()
+              const can = Boolean(p) && detail.signedPdfDownloadAvailable !== false
+              return can ? (
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  fullWidth
+                  className="mt-4"
+                  onClick={() => void downloadPdfWithCredentials(p).catch(() => {})}
+                >
+                  최종 계약서 다운로드
+                </FormButton>
+              ) : (
+                <p className="mt-3 text-xs text-emerald-900">
+                  최종 PDF 다운로드는 준비 중입니다. 담당자 화면에서 증빙 상태를 확인할 수 있습니다.
+                </p>
+              )
+            })()}
           </div>
         ) : null}
 
@@ -847,26 +851,28 @@ export default function ContractSignDocumentPage() {
               ) : null}
               <p className="mt-3 text-sm text-slate-600">담당자가 완료된 전자서명 문서를 확인할 수 있습니다.</p>
               <p className="mt-2 text-sm text-slate-600">이 화면은 닫으셔도 됩니다.</p>
-              <p className="mt-2 text-xs text-slate-500">
-                카카오톡 인앱 브라우저에서는 상단 닫기 버튼으로 창을 닫아 주세요.
-              </p>
+              <p className="mt-2 text-xs text-slate-500">카카오톡으로 돌아가려면 상단 닫기 버튼을 눌러주세요.</p>
               <div className="mt-5 flex flex-col gap-2">
-                {completeResult.signedPdfDownloadAvailable && completeResult.signedPdfDownloadPath ? (
-                  <FormButton
-                    htmlType="button"
-                    variant="primary"
-                    fullWidth
-                    onClick={() =>
-                      void downloadPdfWithCredentials(completeResult.signedPdfDownloadPath!).catch(() => {})
-                    }
-                  >
-                    최종 계약서 다운로드
-                  </FormButton>
-                ) : (
-                  <p className="text-xs text-slate-600">
-                    최종 PDF 다운로드는 준비 중입니다. 담당자 화면에서 증빙 상태를 확인할 수 있습니다.
-                  </p>
-                )}
+                {(() => {
+                  const path = (completeResult.signedPdfDownloadPath ?? '').trim()
+                  const canDl =
+                    Boolean(path) &&
+                    completeResult.signedPdfDownloadAvailable !== false
+                  return canDl ? (
+                    <FormButton
+                      htmlType="button"
+                      variant="primary"
+                      fullWidth
+                      onClick={() => void downloadPdfWithCredentials(path).catch(() => {})}
+                    >
+                      최종 계약서 다운로드
+                    </FormButton>
+                  ) : (
+                    <p className="text-xs text-slate-600">
+                      최종 PDF 다운로드는 준비 중입니다. 담당자 화면에서 증빙 상태를 확인할 수 있습니다.
+                    </p>
+                  )
+                })()}
                 <FormButton
                   htmlType="button"
                   variant="secondary"

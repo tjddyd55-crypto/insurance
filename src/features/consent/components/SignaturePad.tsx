@@ -50,18 +50,13 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     })
   }, [])
 
-  const setupCanvas = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) {
-      return
-    }
-    const rect = canvas.getBoundingClientRect()
+  const applyBlankCanvas = useCallback((canvas: HTMLCanvasElement, cssW: number, cssH: number) => {
     const dpr = window.devicePixelRatio || 1
-    canvas.width = Math.max(1, Math.floor(rect.width * dpr))
-    canvas.height = Math.max(1, Math.floor(rect.height * dpr))
+    canvas.width = Math.max(1, Math.floor(cssW * dpr))
+    canvas.height = Math.max(1, Math.floor(cssH * dpr))
     const ctx = canvas.getContext('2d')
     if (!ctx) {
-      return
+      return null
     }
     const computed = window.getComputedStyle(canvas)
     const signatureBg = computed.getPropertyValue('--consent-signature-bg').trim() || 'black'
@@ -69,18 +64,78 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
     ctx.fillStyle = signatureBg
-    ctx.fillRect(0, 0, rect.width, rect.height)
+    ctx.fillRect(0, 0, cssW, cssH)
     ctx.strokeStyle = signatureInk
     ctx.lineWidth = 2
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
+    return { ctx, dpr, signatureInk }
+  }, [])
+
+  const setupCanvas = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) {
+      return
+    }
+    const rect = canvas.getBoundingClientRect()
+    const cssW = Math.max(1, rect.width)
+    const cssH = Math.max(1, rect.height)
+    applyBlankCanvas(canvas, cssW, cssH)
     drawingRef.current = false
     pointerIdRef.current = null
     prevPointRef.current = null
     isDirtyRef.current = false
     setIsDirty(false)
     onDirtyChangeRef.current?.(false)
-  }, [])
+  }, [applyBlankCanvas])
+
+  const resizeCanvasPreservingStroke = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) {
+      return
+    }
+    const rect = canvas.getBoundingClientRect()
+    const cssW = Math.max(1, rect.width)
+    const cssH = Math.max(1, rect.height)
+    let backup: string | null = null
+    if (isDirtyRef.current) {
+      try {
+        backup = canvas.toDataURL('image/png')
+      } catch {
+        backup = null
+      }
+    }
+    const drawKit = applyBlankCanvas(canvas, cssW, cssH)
+    drawingRef.current = false
+    pointerIdRef.current = null
+    prevPointRef.current = null
+    if (!drawKit || !backup) {
+      isDirtyRef.current = false
+      setIsDirty(false)
+      onDirtyChangeRef.current?.(false)
+      return
+    }
+    const { ctx, dpr, signatureInk } = drawKit
+    const img = new Image()
+    img.onload = () => {
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.scale(dpr, dpr)
+      ctx.drawImage(img, 0, 0, cssW, cssH)
+      ctx.strokeStyle = signatureInk
+      ctx.lineWidth = 2
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      isDirtyRef.current = true
+      setIsDirty(true)
+      onDirtyChangeRef.current?.(true)
+    }
+    img.onerror = () => {
+      isDirtyRef.current = false
+      setIsDirty(false)
+      onDirtyChangeRef.current?.(false)
+    }
+    img.src = backup
+  }, [applyBlankCanvas])
 
   const toLocalPoint = useCallback((event: PointerEvent | ReactPointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current
@@ -138,17 +193,25 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
   useEffect(() => {
     const t = window.requestAnimationFrame(() => setupCanvas())
     const onResize = () => {
-      if (isDirtyRef.current) {
-        return
-      }
-      setupCanvas()
+      window.requestAnimationFrame(() => {
+        resizeCanvasPreservingStroke()
+      })
     }
     window.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    const vv = window.visualViewport
+    if (vv) {
+      vv.addEventListener('resize', onResize)
+    }
     return () => {
       window.cancelAnimationFrame(t)
       window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+      if (vv) {
+        vv.removeEventListener('resize', onResize)
+      }
     }
-  }, [setupCanvas])
+  }, [setupCanvas, resizeCanvasPreservingStroke])
 
   useImperativeHandle(
     ref,

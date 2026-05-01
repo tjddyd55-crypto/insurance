@@ -1,7 +1,7 @@
 /**
  * 전자서명 테스트 콘솔 — 기존 관리자 계약 API만 어댑트. 비즈니스 로직 복사 없음.
  */
-import { ApiError, apiRequest } from '../../../lib/apiClient'
+import { ApiError, apiRequest, resolveApiUrl } from '../../../lib/apiClient'
 import {
   getAdminPdfTemplate,
   getPdfTemplate,
@@ -252,4 +252,36 @@ export async function getContractSendSessionDetail(
     throw new ApiError('발송 세션 상세 응답이 올바르지 않습니다.', 500)
   }
   return s
+}
+
+/** 담당자용 완료 PDF 다운로드 URL (storageKey 미노출) */
+export function buildStaffSignedPdfAbsUrl(sendSessionId: string, documentInstanceId: string): string {
+  return resolveApiUrl(
+    `/api/contracts/send-sessions/${encodeURIComponent(sendSessionId)}/documents/${encodeURIComponent(documentInstanceId)}/signed-pdf`,
+  )
+}
+
+export async function downloadStaffSignedPdfFile(
+  token: string,
+  sendSessionId: string,
+  documentInstanceId: string,
+): Promise<boolean> {
+  const auth = token.trim()
+  if (!auth) {
+    return false
+  }
+  const res = await fetch(buildStaffSignedPdfAbsUrl(sendSessionId, documentInstanceId), {
+    headers: { Authorization: `Bearer ${auth}` },
+  })
+  if (!res.ok) {
+    return false
+  }
+  const blob = await res.blob()
+  const u = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = u
+  a.download = 'signed-contract.pdf'
+  a.click()
+  URL.revokeObjectURL(u)
+  return true
 }

@@ -1496,6 +1496,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
         String(doc.signed_pdf_file_id).trim() !== ''
           ? `/api/contracts/public/${encodeURIComponent(linkCode)}/documents/${encodeURIComponent(docId)}/signed-pdf`
           : null
+      const signedPdfDownloadAvailable = signedPdfDownloadPath != null
       res.status(200).json({
         success: true,
         data: {
@@ -1514,6 +1515,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
           fields,
           pdfPreviewUrl: pdfPreviewPath,
           signedPdfDownloadPath,
+          signedPdfDownloadAvailable,
           canEdit,
           evidenceSummary: evidenceSummary ?? undefined,
           notice:

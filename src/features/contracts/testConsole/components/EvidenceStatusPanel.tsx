@@ -1,7 +1,6 @@
 import { FormButton } from '../../../../components/form'
 import { useAuth } from '../../../auth/AuthProvider'
-import { resolveApiUrl } from '../../../../lib/apiClient'
-import type { SendSessionDetail } from '../contractSignatureTestConsoleClient'
+import { downloadStaffSignedPdfFile, type SendSessionDetail } from '../contractSignatureTestConsoleClient'
 
 type Props = {
   detail: SendSessionDetail | null
@@ -17,20 +16,7 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh }: Props) {
     if (!detail || !t) {
       return
     }
-    const url = resolveApiUrl(
-      `/api/contracts/send-sessions/${encodeURIComponent(detail.id)}/documents/${encodeURIComponent(docId)}/signed-pdf`,
-    )
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${t}` } })
-    if (!res.ok) {
-      return
-    }
-    const blob = await res.blob()
-    const u = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = u
-    a.download = 'signed-contract.pdf'
-    a.click()
-    URL.revokeObjectURL(u)
+    await downloadStaffSignedPdfFile(t, detail.id, docId)
   }
 
   return (

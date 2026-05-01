@@ -121,6 +121,8 @@ export type ContractDocumentDetailPayload = {
   }[]
   pdfPreviewUrl: string
   signedPdfDownloadPath?: string | null
+  /** false 이면 경로가 있어도 합성 미완료로 간주 */
+  signedPdfDownloadAvailable?: boolean
   notice?: string
   canEdit?: boolean
   evidenceSummary?: {

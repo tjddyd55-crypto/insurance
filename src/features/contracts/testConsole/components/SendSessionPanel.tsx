@@ -1,5 +1,6 @@
 import { FormButton } from '../../../../components/form'
 import type { CreateSendSessionResult, SendSessionDetail } from '../contractSignatureTestConsoleClient'
+import { downloadStaffSignedPdfFile } from '../contractSignatureTestConsoleClient'
 
 function publicSignUrl(linkCode: string): string {
   if (typeof window === 'undefined') {
@@ -18,6 +19,8 @@ type Props = {
   detail: SendSessionDetail | null
   onRefresh: () => void
   error: string | null
+  /** FC·테스트 콘솔 담당자 토큰 — 있으면 완료 문서 행에 최종 PDF 다운로드 노출 */
+  staffAuthToken?: string
 }
 
 export function SendSessionPanel({
@@ -29,7 +32,9 @@ export function SendSessionPanel({
   detail,
   onRefresh,
   error,
+  staffAuthToken,
 }: Props) {
+  const staffTok = staffAuthToken?.trim() ?? ''
   const session = detail ?? (lastCreated ? mapLastToDetailShape(lastCreated) : null)
 
   const copyLink = async (linkCode: string) => {
@@ -100,6 +105,49 @@ export function SendSessionPanel({
               상태 새로고침
             </FormButton>
           </div>
+          {staffTok && (detail?.documents?.length ?? 0) > 0 ? (
+            <div className="contract-signature-console__scroll-x" style={{ marginTop: 12 }}>
+              <table className="pdf-engine-table contract-signature-console__table--compact">
+                <thead>
+                  <tr>
+                    <th>문서</th>
+                    <th>상태</th>
+                    <th>최종 PDF</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(detail?.documents ?? []).map((d) => {
+                    const ev = d.evidence
+                    const canDl = d.status === 'completed' && Boolean(ev?.hasSignedPdfFile)
+                    return (
+                      <tr key={d.id}>
+                        <td>{d.titleSnapshot}</td>
+                        <td>{d.status}</td>
+                        <td>
+                          {d.status === 'completed' && canDl ? (
+                            <FormButton
+                              htmlType="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() =>
+                                detail ? void downloadStaffSignedPdfFile(staffTok, detail.id, d.id) : undefined
+                              }
+                            >
+                              다운로드
+                            </FormButton>
+                          ) : d.status === 'completed' ? (
+                            <span className="contract-signature-console__hint">최종 PDF 준비 중</span>
+                          ) : (
+                            <span className="contract-signature-console__hint">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

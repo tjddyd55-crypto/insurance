@@ -268,6 +268,7 @@ export default function ContractSignatureSendPage() {
             detail={sessionDetail}
             onRefresh={() => void refreshSessionDetail()}
             error={sendError}
+            staffAuthToken={t}
           />
         </section>
 

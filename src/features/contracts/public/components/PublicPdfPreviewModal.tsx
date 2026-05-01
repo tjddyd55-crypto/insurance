@@ -37,6 +37,8 @@ export interface PublicPdfPreviewModalProps {
   loadNonce?: number
   subtitle?: string
   footerSlot?: ReactNode
+  /** 오류 로그용(선택) */
+  documentInstanceId?: string
 }
 
 export function PublicPdfPreviewModal({
@@ -95,12 +97,9 @@ export function PublicPdfPreviewModal({
       return
     }
     const prevOverflow = document.body.style.overflow
-    const prevTouch = document.body.style.touchAction
     document.body.style.overflow = 'hidden'
-    document.body.style.touchAction = 'none'
     return () => {
       document.body.style.overflow = prevOverflow
-      document.body.style.touchAction = prevTouch
     }
   }, [open])
 
@@ -309,7 +308,6 @@ export function PublicPdfPreviewModal({
         canvas.style.width = `${viewport.width}px`
         canvas.style.height = `${viewport.height}px`
         canvas.style.maxWidth = 'none'
-        canvas.style.touchAction = 'pinch-zoom'
 
         const ctx = canvas.getContext('2d')
         if (!ctx) {
@@ -536,8 +534,10 @@ export function PublicPdfPreviewModal({
           </div>
         ) : null}
         {!loading && !loadError ? (
-          <div className="flex justify-center">
-            <canvas ref={canvasRef} role="img" aria-label={`PDF 페이지 ${pageNo}`} />
+          <div className="flex min-h-full min-w-min justify-center">
+            <div className="inline-block leading-none">
+              <canvas ref={canvasRef} role="img" aria-label={`PDF 페이지 ${pageNo}`} />
+            </div>
           </div>
         ) : null}
       </div>
