@@ -185,7 +185,13 @@ export default function ContractSignatureSendPage() {
                       />
                     </td>
                     <td>{c.name}</td>
-                    <td>{c.customerCode ?? '—'}</td>
+                    <td>
+                      {c.customerCode?.trim() ? (
+                        c.customerCode
+                      ) : (
+                        <span className="contract-signature-console__hint">고객 ID: {c.id}</span>
+                      )}
+                    </td>
                     <td>
                       {c.hasPhone ? c.maskedPhone : '—'}
                       {!c.hasPhone ? (

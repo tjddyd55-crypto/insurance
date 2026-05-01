@@ -40,6 +40,21 @@ export async function listUserContractTemplates(
   return raw.templates
 }
 
+function dedupeContractSendHitsById(
+  rows: UserContractCustomerSearchHit[],
+): UserContractCustomerSearchHit[] {
+  const seen = new Set<number>()
+  const out: UserContractCustomerSearchHit[] = []
+  for (const row of rows) {
+    if (seen.has(row.id)) {
+      continue
+    }
+    seen.add(row.id)
+    out.push(row)
+  }
+  return out
+}
+
 export async function searchCustomersForContractSend(
   token: string,
   q: string,
@@ -57,7 +72,7 @@ export async function searchCustomersForContractSend(
   if (!raw?.customers || !Array.isArray(raw.customers)) {
     throw new ApiError('고객 검색 응답 형식이 올바르지 않습니다.', 500)
   }
-  return raw.customers
+  return dedupeContractSendHitsById(raw.customers)
 }
 
 export async function createUserContractSendSession(

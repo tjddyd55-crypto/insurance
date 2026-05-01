@@ -183,18 +183,19 @@ export function registerContractUserApi(apiRouter, ctx) {
       const q = String(req.query.q ?? '').trim()
       const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 50)
 
-      let sql = `
-        SELECT c.id, c.name, c.customer_code, c.phone
-        FROM customers c
-        WHERE c.deleted_at IS NULL AND c.ga_id = $1 AND c.user_id = $2
-      `
+      /**
+       * 고객 목록 GET /customers 와 동일한 상담일 조인 + 정렬을 쓰고,
+       * 동일 로그인 유저·GA 내에서 (정규화 휴대폰 + 이름) 이 같으면 목록 우선순위상 1행만 노출한다.
+       * 휴대폰 없음/짧은 값은 행마다 고유 dedupe_key 로 합치지 않는다.
+       */
       const params = [userGa, uid]
+      let searchClause = ''
       if (q) {
         const pattern = `%${escapeIlikePattern(q)}%`
         const rawId = /^\d+$/.test(q) ? Number(q) : null
         const idParam = rawId != null && Number.isInteger(rawId) && rawId > 0 ? rawId : null
         params.push(pattern, idParam)
-        sql += `
+        searchClause = `
           AND (
             c.name ILIKE $3 ESCAPE '\\'
             OR c.phone ILIKE $3 ESCAPE '\\'
@@ -204,7 +205,48 @@ export function registerContractUserApi(apiRouter, ctx) {
         `
       }
       params.push(limit)
-      sql += ` ORDER BY c.created_at DESC LIMIT $${params.length}`
+      const limitIdx = params.length
+
+      const sql = `
+        SELECT DISTINCT ON (t.dedupe_key)
+          t.id,
+          t.name,
+          t.customer_code,
+          t.phone
+        FROM (
+          SELECT
+            c.id,
+            c.name,
+            c.customer_code,
+            c.phone,
+            CASE
+              WHEN length(regexp_replace(COALESCE(c.phone, ''), '[^0-9]', '', 'g')) >= 10
+              THEN regexp_replace(COALESCE(c.phone, ''), '[^0-9]', '', 'g') || ':' || lower(trim(COALESCE(c.name, '')))
+              ELSE 'id:' || c.id::text
+            END AS dedupe_key,
+            lc.last_consult_date,
+            c.renewal_date,
+            c.created_at
+          FROM customers c
+          LEFT JOIN (
+            SELECT
+              cc.customer_id,
+              MAX(cc.consultation_date) AS last_consult_date
+            FROM customer_consultations cc
+            WHERE cc.user_id = $2 AND cc.ga_id = $1
+            GROUP BY cc.customer_id
+          ) lc ON lc.customer_id = c.id
+          WHERE c.deleted_at IS NULL AND c.ga_id = $1 AND c.user_id = $2
+          ${searchClause}
+        ) t
+        ORDER BY
+          t.dedupe_key,
+          t.last_consult_date DESC NULLS LAST,
+          t.renewal_date ASC NULLS LAST,
+          t.created_at DESC,
+          t.id DESC
+        LIMIT $${limitIdx}
+      `
 
       const r = await pool.query(sql, params)
 
@@ -221,6 +263,14 @@ export function registerContractUserApi(apiRouter, ctx) {
           hasPhone,
         }
       })
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.info('[contracts/customers/search]', {
+          q: q || null,
+          ids: customers.map((c) => c.id),
+        })
+      }
+
       res.json({ ok: true, customers })
     } catch (e) {
       handleDbError(e, req, res)
