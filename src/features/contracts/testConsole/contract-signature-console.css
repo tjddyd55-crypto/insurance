@@ -269,8 +269,8 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
 
 main.insurance-dark-forms.contract-signature-console .contract-signature-console__detail-dialog {
   max-height: 90dvh;
-  width: 100%;
-  max-width: 32rem;
+  width: min(760px, calc(100vw - 32px));
+  max-width: 760px;
   overflow: auto;
   border-radius: 0.5rem;
   border: 1px solid var(--border);
@@ -290,5 +290,254 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
 main.insurance-dark-forms.contract-signature-console .contract-signature-console__btn-row > * {
   margin-right: 0.25rem;
   margin-bottom: 0.25rem;
+}
+
+/* ─── 발송 내역·상세 모달 표 (PC/태블릿 고정 컬럼) ─────────────────── */
+
+main.insurance-dark-forms.contract-signature-console .contract-history-table {
+  width: 100%;
+  min-width: 1040px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-history-table th,
+main.insurance-dark-forms.contract-signature-console .contract-history-table td {
+  padding: 12px 10px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-history-table th {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-sub);
+  background: var(--bg-soft);
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-history-table td {
+  color: var(--text-main);
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-session-doc-table {
+  width: 100%;
+  min-width: 680px;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-session-doc-table th,
+main.insurance-dark-forms.contract-signature-console .contract-session-doc-table td {
+  padding: 10px 8px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+  box-sizing: border-box;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-session-doc-table th {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-sub);
+  background: var(--bg-soft);
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__session-doc-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-table-cell-center {
+  text-align: center;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-table-cell-left {
+  text-align: left;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-table-date {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-table-empty {
+  color: var(--text-sub);
+  font-size: 13px;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-table-hash {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-table-document {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-table-customer {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-table-phone {
+  line-height: 1.35;
+  white-space: normal;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-table-cell-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-table-cell-stack--center {
+  align-items: center;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-table-progress {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  line-height: 1.25;
+  font-size: 12px;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-status-badge.contract-signature-console__status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-status-badge--doc {
+  min-width: 58px;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-status='completed'],
+main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-doc-status='completed'] {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 14%, var(--bg-soft));
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-status='cancelled'],
+main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-status='expired'],
+main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-doc-status='pending'] {
+  color: var(--text-sub);
+  border-color: var(--border);
+  background: var(--bg-soft);
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-status='signing'],
+main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-doc-status='signing'] {
+  border-color: color-mix(in srgb, var(--warning-text) 45%, var(--border));
+  color: var(--warning-text);
+  background: color-mix(in srgb, var(--warning-text) 12%, var(--bg-soft));
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-status='pending'],
+main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-status='opened'],
+main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-status='identity_verified'],
+main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-doc-status='viewed'] {
+  border-color: var(--border);
+  color: var(--text-main);
+  background: var(--bg-soft);
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-doc-status='signed'] {
+  border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+  color: color-mix(in srgb, var(--success) 88%, var(--text-main));
+  background: color-mix(in srgb, var(--success) 10%, var(--bg-soft));
+}
+
+main.insurance-dark-forms.contract-signature-console .history-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+}
+
+main.insurance-dark-forms.contract-signature-console .history-actions__cancel {
+  grid-column: 1 / 2;
+}
+
+main.insurance-dark-forms.contract-signature-console .history-actions button {
+  min-width: 0;
+  width: 100%;
+  height: 32px;
+  padding-left: 8px;
+  padding-right: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+main.insurance-dark-forms.contract-signature-console .session-modal-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+main.insurance-dark-forms.contract-signature-console .session-modal-actions__left,
+main.insurance-dark-forms.contract-signature-console .session-modal-actions__right {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-session-doc-dl-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 32px;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-session-doc-dl-wrap button {
+  height: 32px;
+  min-width: 72px;
+  padding: 0 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-session-doc-pending {
+  margin: 0;
+  font-size: 12px;
+  white-space: nowrap;
 }
 

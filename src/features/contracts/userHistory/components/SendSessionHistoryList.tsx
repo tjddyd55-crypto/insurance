@@ -1,7 +1,7 @@
 import { FormButton } from '../../../../components/form'
 import type { SendSessionHistoryListItem } from '../contractSignatureHistoryClient'
 import { SendSessionStatusBadge } from './SendSessionStatusBadge'
-import { formatStaffSessionDate, staffSendSessionDisplayLabel } from '../sendSessionStaffDisplay'
+import { ContractTableDateCell, ContractTableHashCell } from './ContractTableCells'
 
 type Props = {
   rows: SendSessionHistoryListItem[]
@@ -19,57 +19,97 @@ export function SendSessionHistoryList({ rows, busy, onDetail, onCopyLink, onOpe
 
   return (
     <div className="contract-signature-console__scroll-x">
-      <table className="pdf-engine-table contract-signature-console__table--compact contract-signature-console__table--striped">
+      <table className="contract-history-table contract-signature-console__table--striped">
+        <colgroup>
+          <col style={{ width: '88px' }} />
+          <col style={{ width: '112px' }} />
+          <col style={{ width: '210px' }} />
+          <col style={{ width: '84px' }} />
+          <col style={{ width: '80px' }} />
+          <col style={{ width: '124px' }} />
+          <col style={{ width: '124px' }} />
+          <col style={{ width: '118px' }} />
+          <col style={{ width: '220px' }} />
+        </colgroup>
         <thead>
           <tr>
-            <th>고객</th>
-            <th>연락처</th>
-            <th>문서</th>
-            <th>상태</th>
-            <th>진행</th>
-            <th>발송일</th>
-            <th>완료일</th>
-            <th>증빙</th>
-            <th>액션</th>
+            <th className="contract-table-cell-left">고객</th>
+            <th className="contract-table-cell-left">연락처</th>
+            <th className="contract-table-cell-left">문서</th>
+            <th className="contract-table-cell-center">상태</th>
+            <th className="contract-table-cell-center">진행</th>
+            <th className="contract-table-cell-center">발송일</th>
+            <th className="contract-table-cell-center">완료일</th>
+            <th className="contract-table-cell-center">증빙</th>
+            <th className="contract-table-cell-center">액션</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => {
-            const tpl = row.templateNames.length > 0 ? row.templateNames.join(', ') : '—'
+            const tpl = row.templateNames.length > 0 ? row.templateNames.join(', ') : ''
             const req = Math.max(0, row.requiredDocumentCount)
             const done = Math.max(0, row.completedDocumentCount)
-            const label = staffSendSessionDisplayLabel(row.status, {
-              hasSignedNotCompleted: row.hasSignedNotCompleted,
-            })
+            const evidencePrefix =
+              row.evidenceHashPrefix && String(row.evidenceHashPrefix).trim() !== ''
+                ? row.evidenceHashPrefix
+                : null
             return (
               <tr key={row.id}>
-                <td>
-                  <div>{row.customerName || '—'}</div>
+                <td className="contract-table-cell-left">
+                  <div className="contract-table-customer">{row.customerName || '—'}</div>
                   {row.customerCode ? (
-                    <div className="contract-signature-console__hint">{row.customerCode}</div>
+                    <div className="contract-signature-console__hint contract-signature-console__hint--flush">
+                      {row.customerCode}
+                    </div>
                   ) : null}
                 </td>
-                <td>{row.maskedPhone || '—'}</td>
-                <td>
-                  <span title={tpl}>{tpl.length > 36 ? `${tpl.slice(0, 36)}…` : tpl}</span>
+                <td className="contract-table-cell-left">
+                  <div className="contract-table-phone">{row.maskedPhone || '—'}</div>
                 </td>
-                <td>
-                  <SendSessionStatusBadge
-                    sessionStatus={row.status}
-                    hasSignedNotCompleted={row.hasSignedNotCompleted}
-                  />
-                  <div className="contract-signature-console__hint" style={{ marginTop: 4 }}>
-                    {label}
+                <td className="contract-table-cell-left">
+                  {tpl ? (
+                    <div className="contract-table-document" title={tpl}>
+                      {tpl}
+                    </div>
+                  ) : (
+                    <span className="contract-table-empty">—</span>
+                  )}
+                </td>
+                <td className="contract-table-cell-center">
+                  <div className="contract-table-cell-stack contract-table-cell-stack--center">
+                    <SendSessionStatusBadge
+                      sessionStatus={row.status}
+                      hasSignedNotCompleted={row.hasSignedNotCompleted}
+                    />
                   </div>
                 </td>
-                <td>
-                  {done}/{Math.max(req, row.documentCount)} 완료
+                <td className="contract-table-cell-center">
+                  {(() => {
+                    const denom = Math.max(req, row.documentCount)
+                    if (denom <= 0) {
+                      return <span className="contract-table-empty">—</span>
+                    }
+                    return (
+                      <div className="contract-table-progress">
+                        <span>
+                          {done}/{denom}
+                        </span>
+                        <span>{done >= denom ? '완료' : '진행'}</span>
+                      </div>
+                    )
+                  })()}
                 </td>
-                <td>{formatStaffSessionDate(row.sentAt ?? row.createdAt)}</td>
-                <td>{row.completedAt ? formatStaffSessionDate(row.completedAt) : '—'}</td>
-                <td>{row.status === 'completed' && row.evidenceHashPrefix ? row.evidenceHashPrefix : '—'}</td>
-                <td>
-                  <div className="contract-signature-console__btn-row">
+                <td className="contract-table-cell-center">
+                  <ContractTableDateCell iso={row.sentAt ?? row.createdAt} />
+                </td>
+                <td className="contract-table-cell-center">
+                  <ContractTableDateCell iso={row.completedAt} />
+                </td>
+                <td className="contract-table-cell-center">
+                  <ContractTableHashCell prefix={evidencePrefix} />
+                </td>
+                <td className="contract-table-cell-center">
+                  <div className="history-actions">
                     <FormButton htmlType="button" variant="primary" size="sm" onClick={() => onDetail(row)}>
                       상세
                     </FormButton>
@@ -91,15 +131,17 @@ export function SendSessionHistoryList({ rows, busy, onDetail, onCopyLink, onOpe
                     >
                       링크 열기
                     </FormButton>
-                    <FormButton
-                      htmlType="button"
-                      variant="secondary"
-                      size="sm"
-                      disabled={!row.canCancel || busy}
-                      onClick={() => onCancel(row)}
-                    >
-                      취소
-                    </FormButton>
+                    <div className="history-actions__cancel">
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        size="sm"
+                        disabled={!row.canCancel || busy}
+                        onClick={() => onCancel(row)}
+                      >
+                        취소
+                      </FormButton>
+                    </div>
                   </div>
                 </td>
               </tr>
