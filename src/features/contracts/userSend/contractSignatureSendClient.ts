@@ -4,6 +4,15 @@ import type {
   SendSessionDetail,
 } from '../testConsole/contractSignatureTestConsoleClient'
 
+export type ContractSenderFieldDef = {
+  fieldKey: string
+  label: string
+  required: boolean
+  fieldType: string
+  orderIndex: number
+  options?: unknown
+}
+
 export type UserContractTemplateItem = {
   id: string
   title: string
@@ -15,6 +24,8 @@ export type UserContractTemplateItem = {
   pdfEngineTitle: string | null
   pdfFieldCount: number
   signatureFieldCount: number
+  /** 설계사가 발송 전에 채워야 하는 PDF 필드(서버가 연결된 PDF 기준으로 계산) */
+  senderFieldsForSend: ContractSenderFieldDef[]
   sendable: boolean
 }
 
@@ -37,7 +48,10 @@ export async function listUserContractTemplates(
   if (!raw?.templates || !Array.isArray(raw.templates)) {
     throw new ApiError('템플릿 목록 응답 형식이 올바르지 않습니다.', 500)
   }
-  return raw.templates
+  return raw.templates.map((row) => ({
+    ...row,
+    senderFieldsForSend: Array.isArray(row.senderFieldsForSend) ? row.senderFieldsForSend : [],
+  }))
 }
 
 function dedupeContractSendHitsById(
@@ -77,7 +91,12 @@ export async function searchCustomersForContractSend(
 
 export async function createUserContractSendSession(
   token: string,
-  params: { customerId: number; templateIds: string[] },
+  params: {
+    customerId: number
+    templateIds: string[]
+    /** 템플릿 ID(ct_…) → 필드키 → 값 — 설계사(sender) 입력 */
+    senderFieldValues?: Record<string, Record<string, unknown>>
+  },
 ): Promise<CreateSendSessionResult> {
   const body = await apiRequest<{ sendSession?: CreateSendSessionResult }>(
     '/api/contracts/send-sessions',
@@ -87,6 +106,7 @@ export async function createUserContractSendSession(
       body: JSON.stringify({
         customerId: params.customerId,
         templateIds: params.templateIds,
+        senderFieldValues: params.senderFieldValues,
       }),
     },
   )

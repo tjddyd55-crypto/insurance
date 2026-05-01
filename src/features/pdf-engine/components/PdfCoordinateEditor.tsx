@@ -17,8 +17,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
-import type { PdfCustomerMapping, PdfFieldSpec, PdfFieldType, PdfPlacement } from '../types'
-import { PDF_CUSTOMER_MAPPINGS, PDF_FIELD_TYPE_LABELS, PDF_FIELD_TYPES } from '../types'
+import type { PdfFieldSpec, PdfFieldType, PdfInputRole, PdfPlacement } from '../types'
+import {
+  PDF_FIELD_TYPE_LABELS,
+  PDF_FIELD_TYPES,
+  PDF_INPUT_ROLE_LABELS,
+  PDF_INPUT_ROLES,
+} from '../types'
 import { PdfOverlayCanvas, type OverlayMark, type OverlayPick, type PdfOverlayDebugMeta } from './PdfOverlayCanvas'
 import FormInput from '../../../components/form/FormInput'
 import FormSelect from '../../../components/form/FormSelect'
@@ -48,21 +53,11 @@ const EMPTY_DRAFT: DraftField = {
 }
 
 /**
- * 관리자 에디터의 "자동 매핑" 드롭다운 라벨.
- * 서버 컨벤션 키(name/dob/phone/address) 는 코드에 남기되, UI 는 한국어로만 보여준다.
- * 신규 매핑 추가 시 이 맵과 서버 fieldSpec 의 ALLOWED_CUSTOMER_MAPPINGS 만 같이 수정한다.
+ * 관리자 에디터의 입력 주체 옵션(서명 제외 — 서명은 항상 고객).
  */
-const CUSTOMER_MAPPING_LABEL: Record<PdfCustomerMapping, string> = {
-  name: '이름 (display_name)',
-  dob: '생년월일 (customer_dob)',
-  phone: '전화번호 (phone_number)',
-  address: '주소 (customer_address)',
-}
-
-const CUSTOMER_MAPPING_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: '', label: '없음 (수동 입력)' },
-  ...PDF_CUSTOMER_MAPPINGS.map((m) => ({ value: m, label: CUSTOMER_MAPPING_LABEL[m] })),
-]
+const INPUT_ROLE_OPTIONS_DETAIL: Array<{ value: PdfInputRole; label: string }> = PDF_INPUT_ROLES.map(
+  (role) => ({ value: role, label: PDF_INPUT_ROLE_LABELS[role] }),
+)
 
 /**
  * 필드의 "기본 텍스트 박스 크기" 가 없어 placement.width 가 null 인 경우(기존 점 배치)
@@ -187,7 +182,7 @@ export function PdfCoordinateEditor({
       fieldType: draft.fieldType,
       required: draft.required,
       orderIndex: fields.length,
-      customerMapping: null,
+      inputRole: 'customer',
       options,
       placements: [],
     }
@@ -226,11 +221,11 @@ export function PdfCoordinateEditor({
         ) {
           next.options = ['옵션1', '옵션2']
         }
-        /* checkbox/radio 는 "값의 의미" 가 회원 속성과 직접 대응하지 않으므로 자동 매핑을 강제 해제.
-           UI 에서 드롭다운을 감추는 것만으로 데이터를 남겨 두면, 타입 전환 후 매핑이 슬쩍 살아있어
-           사용자 혼란과 서버 주입 부작용을 일으킨다. */
-        if (patch.fieldType === 'checkbox' || patch.fieldType === 'radio' || patch.fieldType === 'signature') {
-          next.customerMapping = null
+        if (patch.fieldType === 'signature' || next.fieldType === 'signature') {
+          next.inputRole = 'customer'
+        }
+        if (next.fieldType === 'signature' && next.inputRole === 'sender') {
+          next.inputRole = 'customer'
         }
         return next
       }),
@@ -385,14 +380,12 @@ export function PdfCoordinateEditor({
       (selectedField.fieldType !== 'radio' && selectedField.fieldType !== 'checkbox')
     ) {
       if (activeOptionValue != null) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setActiveOptionValue(null)
       }
       return
     }
     const opts = selectedField.options ?? []
     if (activeOptionValue == null || !opts.includes(activeOptionValue)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveOptionValue(opts[0] ?? null)
     }
     /* selectedKey 가 바뀔 때만 재평가. options 가 바뀌면 handlePatchFieldOptions 에서 직접 맞춘다. */
@@ -409,44 +402,55 @@ export function PdfCoordinateEditor({
         {fields.length === 0 ? (
           <p className="pdf-engine-editor__hint">아직 필드가 없습니다.</p>
         ) : (
-          <ul className="pdf-engine-editor__fields">
-            {fields.map((f) => (
-              <li
-                key={f.fieldKey}
-                className={
-                  'pdf-engine-editor__field-item' +
-                  (f.fieldKey === selectedKey ? ' pdf-engine-editor__field-item--active' : '')
-                }
-                onClick={() => {
-                  setSelectedKey(f.fieldKey)
-                  setSelectedPlacementIndex(f.placements.length > 0 ? 0 : null)
-                }}
-              >
-                <div className="pdf-engine-editor__field-item-row">
-                  <strong>{f.label}</strong>
-                </div>
-                <div className="pdf-engine-editor__field-item-row">
-                  <span className="pdf-engine-editor__field-meta">
-                    {PDF_FIELD_TYPE_LABELS[f.fieldType]}
-                    {f.required ? ' · 필수' : ''}
-                    {' · 좌표 '}
-                    {f.placements.length}
-                    개
-                  </span>
-                  <button
-                    type="button"
-                    className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleRemoveField(f.fieldKey)
-                    }}
-                  >
-                    삭제
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
+            <table className="pdf-engine-table" style={{ width: '100%', fontSize: 12 }}>
+              <thead>
+                <tr>
+                  <th>필드명</th>
+                  <th>타입</th>
+                  <th>필수</th>
+                  <th>입력 주체</th>
+                  <th style={{ width: 56 }} />
+                </tr>
+              </thead>
+              <tbody>
+                {fields.map((f) => {
+                  const active = f.fieldKey === selectedKey
+                  return (
+                    <tr
+                      key={f.fieldKey}
+                      className={active ? 'pdf-engine-editor__field-row--active' : undefined}
+                      style={{ cursor: 'pointer', background: active ? 'rgba(255,255,255,0.06)' : undefined }}
+                      onClick={() => {
+                        setSelectedKey(f.fieldKey)
+                        setSelectedPlacementIndex(f.placements.length > 0 ? 0 : null)
+                      }}
+                    >
+                      <td>
+                        <strong>{f.label}</strong>
+                        <div className="pdf-engine-editor__field-meta">좌표 {f.placements.length}개</div>
+                      </td>
+                      <td>{PDF_FIELD_TYPE_LABELS[f.fieldType]}</td>
+                      <td>{f.required ? 'Y' : '—'}</td>
+                      <td>{PDF_INPUT_ROLE_LABELS[f.inputRole]}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRemoveField(f.fieldKey)
+                          }}
+                        >
+                          삭제
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </aside>
 
@@ -549,24 +553,23 @@ export function PdfCoordinateEditor({
               />
             </label>
 
-            {selectedField.fieldType !== 'checkbox' &&
-            selectedField.fieldType !== 'radio' &&
-            selectedField.fieldType !== 'signature' ? (
+            {selectedField.fieldType === 'signature' ? (
+              <p className="pdf-engine-editor__hint" style={{ marginTop: 6 }}>
+                손사인은 항상 <strong>고객 입력</strong>입니다. 고객 공개 서명 단계에서만 작성됩니다.
+              </p>
+            ) : (
               <label className="pdf-engine-editor__label">
-                자동 매핑
+                입력 주체
                 <FormSelect
-                  value={selectedField.customerMapping ?? ''}
+                  value={selectedField.inputRole}
                   onChange={(e) => {
-                    const raw = e.target.value
-                    const next = (PDF_CUSTOMER_MAPPINGS as readonly string[]).includes(raw)
-                      ? (raw as PdfCustomerMapping)
-                      : null
-                    handlePatchField(selectedField.fieldKey, { customerMapping: next })
+                    const raw = e.target.value as PdfInputRole
+                    handlePatchField(selectedField.fieldKey, { inputRole: raw })
                   }}
-                  options={CUSTOMER_MAPPING_OPTIONS}
+                  options={INPUT_ROLE_OPTIONS_DETAIL}
                 />
               </label>
-            ) : null}
+            )}
 
             {selectedField.fieldType === 'radio' || selectedField.fieldType === 'checkbox' ? (
               <RadioOptionsEditor

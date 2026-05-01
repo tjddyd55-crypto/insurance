@@ -10,6 +10,12 @@ import {
   generateUniqueLinkCode,
   parseTemplateIdsArray,
 } from './contractAdminApi.js'
+import {
+  assertSenderFieldValuesFilled,
+  groupSenderFieldsByPdfTemplateId,
+  insertSenderPrefillDocumentValues,
+  senderValuesByContractTemplates,
+} from '../services/contractSenderPrefill.js'
 
 const CSS_PREFIX = 'css_'
 const CDI_PREFIX = 'cdi_'
@@ -274,21 +280,47 @@ export function registerContractUserApi(apiRouter, ctx) {
         `,
         [userGa],
       )
+      const pdfIds = [
+        ...new Set(
+          r.rows
+            .map((row) => row.pdf_template_id)
+            .filter((pid) => pid != null)
+            .map((pid) => Number(pid)),
+        ),
+      ]
+      /** @type {Map<number, { fieldKey: string, label: string, required: boolean, fieldType: string, orderIndex: number }[]>} */
+      let senderByPdf = new Map()
+      if (pdfIds.length > 0) {
+        const fr = await pool.query(
+          `
+          SELECT template_id, field_key, label, required, field_type, order_index, input_role, customer_mapping
+          FROM pdf_template_fields
+          WHERE template_id = ANY($1::int[])
+          `,
+          [pdfIds],
+        )
+        senderByPdf = groupSenderFieldsByPdfTemplateId(fr.rows)
+      }
       res.json({
         ok: true,
-        templates: r.rows.map((row) => ({
-          id: row.id,
-          title: row.title,
-          description: row.description,
-          category: row.category,
-          status: row.status,
-          version: row.version,
-          pdfTemplateId: row.pdf_template_id,
-          pdfEngineTitle: row.pdf_engine_title,
-          pdfFieldCount: row.pdf_field_count,
-          signatureFieldCount: row.signature_field_count,
-          sendable: Boolean(row.pdf_template_id && Number(row.pdf_field_count) > 0),
-        })),
+        templates: r.rows.map((row) => {
+          const pid = row.pdf_template_id != null ? Number(row.pdf_template_id) : NaN
+          const senderList = Number.isFinite(pid) ? senderByPdf.get(pid) ?? [] : []
+          return {
+            id: row.id,
+            title: row.title,
+            description: row.description,
+            category: row.category,
+            status: row.status,
+            version: row.version,
+            pdfTemplateId: row.pdf_template_id,
+            pdfEngineTitle: row.pdf_engine_title,
+            pdfFieldCount: row.pdf_field_count,
+            signatureFieldCount: row.signature_field_count,
+            senderFieldsForSend: senderList,
+            sendable: Boolean(row.pdf_template_id && Number(row.pdf_field_count) > 0),
+          }
+        }),
       })
     } catch (e) {
       handleDbError(e, req, res)
@@ -457,6 +489,9 @@ export function registerContractUserApi(apiRouter, ctx) {
       }
       const snapshot = buildTargetPhoneSnapshot(cust.digits)
 
+      const senderRoot = req.body?.senderFieldValues ?? req.body?.sender_field_values
+      const senderMaps = senderValuesByContractTemplates(senderRoot, parsed.ids)
+
       const contractTemplatesOrdered = /** @type {{ id: string, title: string, version: number, required: number, pdfHash: string | null, pdfTemplateId: number | null }[]} */ ([])
 
       await client.query('BEGIN')
@@ -471,6 +506,24 @@ export function registerContractUserApi(apiRouter, ctx) {
         if (String(t.status) !== 'active') {
           await client.query('ROLLBACK')
           res.status(400).json({ ok: false, message: `템플릿 ${tid}은(는) active 상태가 아닙니다.` })
+          return
+        }
+        if (t.pdf_template_id == null) {
+          await client.query('ROLLBACK')
+          res.status(400).json({ ok: false, message: `템플릿 ${tid}에 PDF 엔진이 연결되어 있지 않아 발송할 수 없습니다.` })
+          return
+        }
+        const senderCheck = await assertSenderFieldValuesFilled(
+          client,
+          Number(t.pdf_template_id),
+          senderMaps.get(String(t.id)) ?? {},
+        )
+        if (!senderCheck.ok) {
+          await client.query('ROLLBACK')
+          res.status(senderCheck.status ?? 400).json({
+            ok: false,
+            message: senderCheck.message ?? '발송 전 입력이 올바르지 않습니다.',
+          })
           return
         }
         contractTemplatesOrdered.push({
@@ -528,6 +581,15 @@ export function registerContractUserApi(apiRouter, ctx) {
           `,
           [docId, sendId, ct.id, ct.version, ct.title, ct.required, i, ct.pdfHash],
         )
+        const pdfTm = ct.pdfTemplateId != null ? Number(ct.pdfTemplateId) : NaN
+        if (Number.isFinite(pdfTm)) {
+          await insertSenderPrefillDocumentValues(
+            client,
+            docId,
+            pdfTm,
+            senderMaps.get(String(ct.id)) ?? {},
+          )
+        }
       }
 
       await client.query('COMMIT')

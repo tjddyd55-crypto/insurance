@@ -2,6 +2,7 @@ import { consentGetBuffer } from '../lib/consentStorage.js'
 import { getTemplateById, listFields } from '../pdf-engine/repository/pdfTemplateRepo.js'
 import { stampPdf } from '../pdf-engine/renderer/stampPdf.js'
 import { normalizeFieldSpec } from '../pdf-engine/schema/fieldSpec.js'
+import { inputRoleExcludedFromPdfStamp, inputRoleFromPdfFieldRow } from '../pdf-engine/schema/inputRole.js'
 import { getTemplateObject } from '../pdf-engine/storage/pdfTemplateStorage.js'
 
 /**
@@ -17,7 +18,8 @@ function rawFieldRowToSpec(row, idx) {
       fieldType: row.field_type,
       required: row.required,
       orderIndex: row.order_index,
-      customerMapping: row.customer_mapping,
+      inputRole: row.input_role,
+      customerMapping: null,
       options: Array.isArray(row.options) ? row.options : null,
       placements: Array.isArray(row.placements) ? row.placements : [],
     },
@@ -41,7 +43,9 @@ export async function buildStampedPdfBufferFromInstance(executor, pdfTemplateId,
     throw new Error('pdf_template_id 가 없습니다.')
   }
   const rawFields = await listFields(executor, tid)
-  const fields = rawFields.map((row, i) => rawFieldRowToSpec(row, i))
+  const fields = rawFields
+    .filter((row) => !inputRoleExcludedFromPdfStamp(inputRoleFromPdfFieldRow(row)))
+    .map((row, i) => rawFieldRowToSpec(row, i))
   const textValues = /** @type {Record<string, string>} */ ({})
   const signaturePngByFieldKey = /** @type {Record<string, Buffer>} */ ({})
 

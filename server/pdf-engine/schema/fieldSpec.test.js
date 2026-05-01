@@ -22,7 +22,7 @@ function makeField(overrides = {}) {
     fieldType: 'text',
     required: true,
     orderIndex: 0,
-    customerMapping: null,
+    inputRole: 'customer',
     placements: [{ page: 0, x: 100, y: 200, align: 'left' }],
     ...overrides,
   }
@@ -60,6 +60,27 @@ test('normalizeFieldSpec: 허용 타입(text/textarea/checkbox/radio/signature) 
     const out = normalizeFieldSpec(makeField({ fieldType: t }))
     assert.equal(out.fieldType, t)
   }
+})
+
+test('normalizeFieldSpec: signature 은 입력 주체 설계사(sender) 불가', () => {
+  assert.throws(
+    () =>
+      normalizeFieldSpec(
+        makeField({
+          fieldType: 'signature',
+          inputRole: 'sender',
+          placements: [{ page: 0, x: 1, y: 1 }],
+        }),
+      ),
+    /설계사/,
+  )
+})
+
+test('normalizeFieldSpec: signature 는 입력 주체 고객으로 정규화', () => {
+  const out = normalizeFieldSpec(
+    makeField({ fieldType: 'signature', placements: [{ page: 0, x: 1, y: 1 }] }),
+  )
+  assert.equal(out.inputRole, 'customer')
 })
 
 test('normalizeFieldSpec: 비허용 타입(select/email) 은 에러', () => {

@@ -76,6 +76,9 @@ function isRequiredSatisfied(
   f: ContractDocumentDetailPayload['fields'][number],
   drafts: Record<string, string | boolean>,
 ): boolean {
+  if (f.readOnlyCustomerUi) {
+    return true
+  }
   if (!f.required) {
     return true
   }
@@ -282,6 +285,9 @@ export default function ContractSignDocumentPage() {
         if (f.fieldType === 'signature') {
           continue
         }
+        if (f.readOnlyCustomerUi) {
+          continue
+        }
         const raw = drafts[f.id]
         if (f.fieldType === 'checkbox') {
           values.push({ fieldId: f.id, fieldKey: f.fieldKey, value: Boolean(raw) })
@@ -312,6 +318,9 @@ export default function ContractSignDocumentPage() {
       const values: ContractPublicValueInput[] = []
       for (const f of detail.fields) {
         if (f.fieldType === 'signature') {
+          continue
+        }
+        if (f.readOnlyCustomerUi) {
           continue
         }
         const raw = drafts[f.id]
@@ -356,6 +365,9 @@ export default function ContractSignDocumentPage() {
       const values: ContractPublicValueInput[] = []
       for (const f of detail.fields) {
         if (f.fieldType === 'signature') {
+          continue
+        }
+        if (f.readOnlyCustomerUi) {
           continue
         }
         const raw = drafts[f.id]
@@ -524,11 +536,12 @@ export default function ContractSignDocumentPage() {
                     <p className="contract-public-sign-page__section-label">확인·동의</p>
                     {agreementFields.map((f) => {
                       const checked = Boolean(drafts[f.id])
+                      const locked = Boolean(f.readOnlyCustomerUi)
                       return (
                         <label key={f.id} className="contract-public-sign-page__label-row">
                           <FormInput
                             type="checkbox"
-                            disabled={!canEdit}
+                            disabled={!canEdit || locked}
                             checked={checked}
                             onChange={(ev) => {
                               setDrafts((prev) => ({ ...prev, [f.id]: ev.target.checked }))
@@ -541,6 +554,11 @@ export default function ContractSignDocumentPage() {
                           <span>
                             {f.label || f.fieldKey}
                             {f.required ? <span className="contract-public-sign-page__required"> *</span> : null}
+                            {locked ? (
+                              <span className="contract-public-sign-page__notice" style={{ marginLeft: 6 }}>
+                                (설계사 입력)
+                              </span>
+                            ) : null}
                           </span>
                         </label>
                       )
@@ -552,6 +570,7 @@ export default function ContractSignDocumentPage() {
                   <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight space-y-3">
                     <p className="contract-public-sign-page__section-label">문서 입력</p>
                     {inputFields.map((f) => {
+                      const locked = Boolean(f.readOnlyCustomerUi)
                       if (f.fieldType === 'radio') {
                         const opts = Array.isArray(f.options) ? f.options.map((x) => String(x)) : []
                         const cur = String(drafts[f.id] ?? '')
@@ -560,9 +579,14 @@ export default function ContractSignDocumentPage() {
                             <p className="contract-public-sign-page__field-label">
                               {f.label || f.fieldKey}
                               {f.required ? <span className="contract-public-sign-page__required"> *</span> : null}
+                              {locked ? (
+                                <span className="contract-public-sign-page__notice" style={{ marginLeft: 6 }}>
+                                  (설계사 입력)
+                                </span>
+                              ) : null}
                             </p>
                             <FormSelect
-                              disabled={!canEdit}
+                              disabled={!canEdit || locked}
                               value={cur}
                               options={[{ value: '', label: '선택' }, ...opts.map((o) => ({ value: o, label: o }))]}
                               onChange={(ev) => {
@@ -583,10 +607,15 @@ export default function ContractSignDocumentPage() {
                           <p className="contract-public-sign-page__field-label">
                             {f.label || f.fieldKey}
                             {f.required ? <span className="contract-public-sign-page__required"> *</span> : null}
+                            {locked ? (
+                              <span className="contract-public-sign-page__notice" style={{ marginLeft: 6 }}>
+                                (설계사 입력)
+                              </span>
+                            ) : null}
                           </p>
                           {isTextarea ? (
                             <FormTextarea
-                              disabled={!canEdit}
+                              disabled={!canEdit || locked}
                               value={tv}
                               onChange={(ev) => {
                                 setDrafts((prev) => ({ ...prev, [f.id]: ev.target.value }))
@@ -600,7 +629,7 @@ export default function ContractSignDocumentPage() {
                           ) : (
                             <FormInput
                               type="text"
-                              disabled={!canEdit}
+                              disabled={!canEdit || locked}
                               value={tv}
                               onChange={(ev) => {
                                 setDrafts((prev) => ({ ...prev, [f.id]: ev.target.value }))

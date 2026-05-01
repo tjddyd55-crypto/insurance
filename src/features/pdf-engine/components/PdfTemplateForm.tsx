@@ -16,22 +16,10 @@
  *   이 컨벤션은 서버의 validateRenderValues 와 짝을 이룬다 — 바뀌면 양쪽 동시 수정.
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ChangeEvent, FormEvent, ReactElement } from 'react'
-import type { PdfCustomerMapping, PdfFieldSpec, PdfFieldType } from '../types'
-
-/**
- * 자동 매핑 배지 라벨.
- * 사용자에게 "서버가 내 계정 정보로 채운다" 는 메타 정보를 노출해,
- * 입력 여부를 판단할 수 있게 한다.
- * 매핑 키가 늘어나면 이 맵만 확장한다.
- */
-const CUSTOMER_MAPPING_LABEL: Record<PdfCustomerMapping, string> = {
-  name: '이름',
-  dob: '생년월일',
-  phone: '전화번호',
-  address: '주소',
-}
+import { FormButton, FormInput, FormTextarea } from '../../../components/form'
+import type { PdfFieldSpec, PdfFieldType } from '../types'
 
 interface Props {
   title: string
@@ -42,9 +30,14 @@ interface Props {
   submitLabel?: string
 }
 
+function fieldIsCustomerFacing(f: PdfFieldSpec): boolean {
+  return f.inputRole === 'customer'
+}
+
 function initialValues(fields: PdfFieldSpec[]): Record<string, string> {
   const out: Record<string, string> = {}
   for (const f of fields) {
+    if (!fieldIsCustomerFacing(f)) continue
     /* checkbox 는 JSON 배열 문자열이 기본값이어야 서버 컨벤션과 일치한다. */
     out[f.fieldKey] = f.fieldType === 'checkbox' ? '[]' : ''
   }
@@ -77,7 +70,7 @@ function renderByType(
   switch (field.fieldType) {
     case 'textarea':
       return (
-        <textarea
+        <FormTextarea
           id={inputId}
           name={field.fieldKey}
           required={field.required}
@@ -108,7 +101,7 @@ function renderByType(
             const id = `${inputId}-check-${idx}`
             return (
               <label key={id} htmlFor={id} className="pdf-engine-form__radio-item">
-                <input
+                <FormInput
                   id={id}
                   type="checkbox"
                   name={`${field.fieldKey}-${idx}`}
@@ -138,7 +131,7 @@ function renderByType(
             const id = `${inputId}-${idx}`
             return (
               <label key={id} htmlFor={id} className="pdf-engine-form__radio-item">
-                <input
+                <FormInput
                   id={id}
                   type="radio"
                   name={field.fieldKey}
@@ -162,7 +155,7 @@ function renderByType(
     case 'text':
     default:
       return (
-        <input
+        <FormInput
           id={inputId}
           name={field.fieldKey}
           required={field.required}
@@ -194,10 +187,13 @@ export function PdfTemplateForm({
   const [values, setValues] = useState<Record<string, string>>(() => initialValues(fields))
   const [error, setError] = useState<string | null>(null)
 
-  const sortedFields = useMemo(
-    () => [...fields].sort((a, b) => a.orderIndex - b.orderIndex),
-    [fields],
-  )
+  useEffect(() => {
+    setValues(initialValues(fields))
+  }, [fields])
+
+  const sortedFields = useMemo(() => {
+    return [...fields].filter(fieldIsCustomerFacing).sort((a, b) => a.orderIndex - b.orderIndex)
+  }, [fields])
 
   const setValue = (key: string) => (next: string) =>
     setValues((prev) => ({ ...prev, [key]: next }))
@@ -207,6 +203,9 @@ export function PdfTemplateForm({
     setError(null)
 
     for (const f of sortedFields) {
+      if (!fieldIsCustomerFacing(f)) {
+        continue
+      }
       if (isRequiredViolated(f, values[f.fieldKey] ?? '')) {
         setError(`"${f.label}" 은(는) 필수 입력입니다.`)
         return
@@ -244,29 +243,20 @@ export function PdfTemplateForm({
             }
           >
             {field.label}
-            {field.customerMapping ? (
-              <span className="pdf-engine-form__mapping-badge" title="회원 정보로 자동 입력됩니다">
-                {CUSTOMER_MAPPING_LABEL[field.customerMapping]} 자동
-              </span>
-            ) : null}
           </label>
-          {field.customerMapping ? (
-            <p className="pdf-engine-form__mapping-hint">
-              비워두면 회원 정보에 등록된 값으로 자동 입력됩니다. 다르게 출력하려면 여기에 입력하세요.
-            </p>
-          ) : null}
           {renderByType(field, values[field.fieldKey] ?? '', setValue(field.fieldKey))}
         </div>
       ))}
 
       <div className="pdf-engine-form__actions">
-        <button
-          type="submit"
+        <FormButton
+          htmlType="submit"
+          variant="primary"
           className="pdf-engine-form__primary"
           disabled={submitting || sortedFields.length === 0}
         >
           {submitting ? '생성 중…' : submitLabel}
-        </button>
+        </FormButton>
       </div>
     </form>
   )

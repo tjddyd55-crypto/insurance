@@ -6,6 +6,8 @@ import { maskKrMobileForDisplay } from '../utils/maskKrMobile.js'
 import { getTemplateById, listFields } from '../pdf-engine/repository/pdfTemplateRepo.js'
 import { getTemplateObject } from '../pdf-engine/storage/pdfTemplateStorage.js'
 import { insertSignatureEvidenceRow, loadVerifiedIdentitySession } from '../services/contractEvidenceService.js'
+import { normalizeContractFieldStoredValue } from '../services/contractFieldValueNormalize.js'
+import { inputRoleAllowsCustomerEdit, inputRoleFromPdfFieldRow } from '../pdf-engine/schema/inputRole.js'
 import { buildStampedPdfBufferFromInstance } from '../services/contractStampedPdfFromInstance.js'
 
 const TERMINAL_SESSION = new Set(['expired', 'cancelled'])
@@ -224,88 +226,9 @@ function mapPublicSignDatabaseError(err) {
   return null
 }
 
-function formatBirthDateIso(dateVal) {
-  if (!dateVal) {
-    return null
-  }
-  const dt = dateVal instanceof Date ? dateVal : new Date(dateVal)
-  if (Number.isNaN(dt.getTime())) {
-    return null
-  }
-  return dt.toISOString().slice(0, 10)
-}
 
-function buildSuggestedDefault(fieldRow, sessionRow, maskedPhone) {
-  const m = fieldRow.customer_mapping ? String(fieldRow.customer_mapping) : ''
-  if (m === 'phone') {
-    return maskedPhone ?? ''
-  }
-  if (m === 'name') {
-    const n = String(sessionRow.customer_name ?? '').trim()
-    return n || null
-  }
-  if (m === 'dob') {
-    return formatBirthDateIso(sessionRow.customer_birth_date)
-  }
-  if (m === 'address') {
-    const a = String(sessionRow.customer_address ?? '').trim()
-    return a || null
-  }
+function buildSuggestedDefault() {
   return null
-}
-
-function checkboxStorageFromBoolean(fieldRow, boolVal) {
-  const opts = fieldRow.options
-  const arr = Array.isArray(opts) && opts.length > 0 ? opts : null
-  if (boolVal === true) {
-    if (arr) {
-      return JSON.stringify([String(arr[0])])
-    }
-    return 'true'
-  }
-  if (arr) {
-    return '[]'
-  }
-  return 'false'
-}
-
-function normalizeIncomingValueForField(fieldRow, raw) {
-  const ft = fieldRow.field_type
-  if (ft === 'signature') {
-    return {
-      ok: false,
-      status: 400,
-      message: '서명 필드는 sign API 로만 저장할 수 있습니다.',
-    }
-  }
-  if (ft === 'text' || ft === 'textarea') {
-    if (raw == null) {
-      return { ok: true, valueText: '' }
-    }
-    const s = String(raw).trim().slice(0, MAX_PUBLIC_TEXT_LEN)
-    return { ok: true, valueText: s }
-  }
-  if (ft === 'radio') {
-    if (raw == null || raw === '') {
-      return { ok: true, valueText: '' }
-    }
-    const s = String(raw).trim()
-    const allowed = new Set((Array.isArray(fieldRow.options) ? fieldRow.options : []).map((x) => String(x)))
-    if (!allowed.has(s)) {
-      return { ok: false, status: 400, message: `선택할 수 없는 옵션입니다: ${fieldRow.field_key}` }
-    }
-    return { ok: true, valueText: s }
-  }
-  if (ft === 'checkbox') {
-    if (typeof raw === 'boolean') {
-      return { ok: true, valueText: checkboxStorageFromBoolean(fieldRow, raw) }
-    }
-    if (raw == null) {
-      return { ok: true, valueText: checkboxStorageFromBoolean(fieldRow, false) }
-    }
-    return { ok: false, status: 400, message: `checkbox 필드는 boolean 만 허용합니다: ${fieldRow.field_key}` }
-  }
-  return { ok: false, status: 400, message: `지원하지 않는 필드 타입입니다: ${ft}` }
 }
 
 function publicValueShape(fieldRow, valueRow) {
@@ -332,9 +255,9 @@ function publicValueShape(fieldRow, valueRow) {
     return { kind: 'radio', value: valueRow.value_text ?? '' }
   }
   const raw = valueRow.value_text ?? ''
-  if (fieldRow.customer_mapping === 'phone' && raw) {
+  if (raw) {
     const d = normalizeKrMobile(raw)
-    if (validateKrMobileDigits(d) === null) {
+    if (validateKrMobileDigits(d) === null && d.length >= 10) {
       return { kind: 'text', value: maskKrMobileForDisplay(d) }
     }
   }
@@ -422,6 +345,10 @@ function rowHasSignatureEvidence(valueRow) {
 function collectMissingRequiredFields(rawFields, valRows) {
   const out = []
   for (const f of rawFields) {
+    const role = inputRoleFromPdfFieldRow(f)
+    if (role === 'disabled' || role === 'sender') {
+      continue
+    }
     if (!f.required) {
       continue
     }
@@ -558,7 +485,10 @@ async function syncDocStatusAfterSign(client, pdfTemplateId, documentInstanceId)
     return
   }
   const fields = await listFields(client, Number(pdfTemplateId))
-  const sigFields = fields.filter((f) => String(f.field_type) === 'signature')
+  const sigFields = fields.filter(
+    (f) =>
+      String(f.field_type) === 'signature' && inputRoleFromPdfFieldRow(f) === 'customer',
+  )
   if (sigFields.length === 0) {
     await client.query(`UPDATE contract_document_instances SET status = 'signing', updated_at = NOW() WHERE id = $1`, [
       documentInstanceId,
@@ -693,7 +623,8 @@ function fieldRowToPublicDto(row) {
     orderIndex: row.order_index,
     placements: row.placements ?? [],
     options: row.options ?? null,
-    customerMapping: row.customer_mapping ?? null,
+    customerMapping: null,
+    inputRole: inputRoleFromPdfFieldRow(row),
   }
 }
 
@@ -1044,7 +975,10 @@ export function registerContractPublicApi(apiRouter, ctx) {
         return
       }
       const rawFields = await listFields(pool, Number(pdfTid))
-      const sigFields = rawFields.filter((f) => String(f.field_type) === 'signature')
+      const sigFields = rawFields.filter(
+        (f) =>
+          String(f.field_type) === 'signature' && inputRoleFromPdfFieldRow(f) === 'customer',
+      )
       if (sigFields.length === 0) {
         res.status(400).json({ success: false, message: '이 문서에 서명 필드가 없습니다.' })
         return
@@ -1244,9 +1178,12 @@ export function registerContractPublicApi(apiRouter, ctx) {
           if (!fkey || String(fieldRow.field_key) !== fkey) {
             throw Object.assign(new Error('fieldKey가 해당 필드와 일치하지 않습니다.'), { statusCode: 400 })
           }
-          const normalized = normalizeIncomingValueForField(fieldRow, item?.value)
+          if (!inputRoleAllowsCustomerEdit(inputRoleFromPdfFieldRow(fieldRow))) {
+            throw Object.assign(new Error('고객이 수정할 수 없는 필드입니다.'), { statusCode: 400 })
+          }
+          const normalized = normalizeContractFieldStoredValue(fieldRow, item?.value)
           if (!normalized.ok) {
-            throw Object.assign(new Error(normalized.message), { statusCode: normalized.status })
+            throw Object.assign(new Error(normalized.message || '값이 올바르지 않습니다.'), { statusCode: 400 })
           }
           await upsertDocumentValue(client, docId, fieldRow, normalized.valueText, null, null)
         }
@@ -1495,13 +1432,17 @@ export function registerContractPublicApi(apiRouter, ctx) {
           }
           const rawFields = await listFields(pool, Number(pdfTid))
           const valRows = await loadValueRows(pool, docId)
-          fields = rawFields.map((rf) => {
-            const dto = fieldRowToPublicDto(rf)
-            const vr = findValueRowForTemplateField(rf, valRows)
-            dto.suggestedDefault = buildSuggestedDefault(rf, row, maskedPhone)
-            dto.publicValue = publicValueShape(rf, vr)
-            return dto
-          })
+          fields = rawFields
+            .filter((rf) => inputRoleFromPdfFieldRow(rf) !== 'disabled')
+            .map((rf) => {
+              const dto = fieldRowToPublicDto(rf)
+              const vr = findValueRowForTemplateField(rf, valRows)
+              dto.suggestedDefault = buildSuggestedDefault()
+              dto.publicValue = publicValueShape(rf, vr)
+              dto.readOnlyCustomerUi =
+                rf.field_type !== 'signature' && !inputRoleAllowsCustomerEdit(inputRoleFromPdfFieldRow(rf))
+              return dto
+            })
         }
       }
       const pdfPreviewPath = `/api/contracts/public/${encodeURIComponent(linkCode)}/documents/${encodeURIComponent(docId)}/pdf`

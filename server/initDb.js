@@ -2904,6 +2904,30 @@ async function ensurePdfTemplateSchema(executor) {
     ADD COLUMN IF NOT EXISTS options JSONB
   `)
   await executor.query(`
+    ALTER TABLE pdf_template_fields
+    ADD COLUMN IF NOT EXISTS input_role TEXT NOT NULL DEFAULT 'customer'
+  `)
+  await executor.query(`
+    UPDATE pdf_template_fields SET customer_mapping = NULL
+  `)
+  await executor.query(`
+    UPDATE pdf_template_fields SET input_role = 'customer' WHERE field_type::text = 'signature'
+  `)
+  await executor.query(`
+    ALTER TABLE pdf_template_fields DROP CONSTRAINT IF EXISTS pdf_template_fields_input_role_check
+  `)
+  await executor.query(`
+    ALTER TABLE pdf_template_fields
+    ADD CONSTRAINT pdf_template_fields_input_role_check
+    CHECK (
+      input_role IN ('customer', 'sender', 'disabled')
+      AND (
+        field_type::text <> 'signature' OR input_role = 'customer'
+      )
+    )
+  `)
+
+  await executor.query(`
     CREATE UNIQUE INDEX IF NOT EXISTS pdf_template_fields_tpl_key_uk
     ON pdf_template_fields (template_id, field_key)
   `)

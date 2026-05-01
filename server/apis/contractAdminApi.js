@@ -5,6 +5,11 @@ import { normalizeKrMobile, validateKrMobileDigits } from '../lib/phoneNormalize
 import { maskKrMobileForDisplay } from '../utils/maskKrMobile.js'
 import { getContractOtpPepper, isRunningInProduction } from '../lib/contractOtpConfig.js'
 import { encryptContractTargetPhoneDigits } from '../lib/contractStoredPhone.js'
+import {
+  assertSenderFieldValuesFilled,
+  insertSenderPrefillDocumentValues,
+  senderValuesByContractTemplates,
+} from '../services/contractSenderPrefill.js'
 
 const CT_PREFIX = 'ct_'
 const PKG_PREFIX = 'pkg_'
@@ -965,6 +970,35 @@ export function registerContractAdminApi(apiRouter, ctx) {
         }
       }
 
+      const senderRoot = req.body?.senderFieldValues ?? req.body?.sender_field_values
+      const senderMaps = senderValuesByContractTemplates(
+        senderRoot,
+        contractTemplatesOrdered.map((x) => String(x.id)),
+      )
+      for (const ct of contractTemplatesOrdered) {
+        if (ct.pdfTemplateId == null) {
+          await client.query('ROLLBACK')
+          res.status(400).json({
+            ok: false,
+            message: 'PDF 엔진이 연결된 계약 템플릿만 전자서명 발송할 수 있습니다.',
+          })
+          return
+        }
+        const senderCheck = await assertSenderFieldValuesFilled(
+          client,
+          Number(ct.pdfTemplateId),
+          senderMaps.get(String(ct.id)) ?? {},
+        )
+        if (!senderCheck.ok) {
+          await client.query('ROLLBACK')
+          res.status(senderCheck.status ?? 400).json({
+            ok: false,
+            message: senderCheck.message ?? '발송 전 입력이 올바르지 않습니다.',
+          })
+          return
+        }
+      }
+
       const sendId = newId(CSS_PREFIX)
       const linkCode = await generateUniqueLinkCode(client)
       const uid = getAuthUserId(req)
@@ -1008,6 +1042,15 @@ export function registerContractAdminApi(apiRouter, ctx) {
           `,
           [docId, sendId, ct.id, ct.version, ct.title, ct.required, i, ct.pdfHash],
         )
+        const pdfTm = ct.pdfTemplateId != null ? Number(ct.pdfTemplateId) : NaN
+        if (Number.isFinite(pdfTm)) {
+          await insertSenderPrefillDocumentValues(
+            client,
+            docId,
+            pdfTm,
+            senderMaps.get(String(ct.id)) ?? {},
+          )
+        }
       }
 
       await client.query('COMMIT')

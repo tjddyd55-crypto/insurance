@@ -32,6 +32,7 @@ import {
   normalizeFieldSpecList,
   validateRenderValues,
 } from './pdf-engine/schema/fieldSpec.js'
+import { inputRoleFromPdfFieldRow } from './pdf-engine/schema/inputRole.js'
 import { createTemplateWithAutoCode } from './pdf-engine/code/templateCode.js'
 import {
   createTemplate,
@@ -130,7 +131,8 @@ function fieldRowToDto(row) {
     fieldType: row.field_type,
     required: row.required,
     orderIndex: row.order_index,
-    customerMapping: row.customer_mapping,
+    inputRole: inputRoleFromPdfFieldRow(row),
+    customerMapping: null,
     options: Array.isArray(row.options) ? row.options : null,
     placements: Array.isArray(row.placements) ? row.placements : [],
   }
@@ -526,7 +528,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
             fieldType: row.field_type,
             required: row.required,
             orderIndex: row.order_index,
-            customerMapping: row.customer_mapping,
+            inputRole: row.input_role,
             options: Array.isArray(row.options) ? row.options : null,
             placements: Array.isArray(row.placements) ? row.placements : [],
           },

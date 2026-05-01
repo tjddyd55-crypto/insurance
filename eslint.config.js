@@ -69,6 +69,8 @@ export default defineConfig([
       /* Canvas·PDF 렌더링은 픽셀 색 고정이 필요해 UI 토큰 규칙 제외 */
       'src/features/consent/components/SignatureModal.tsx',
       'src/features/consent/admin/components/PdfCoordinateOverlay.tsx',
+      /* PDF 좌표 에디터 — 캔버스·필드 정의 UI 가 밀집해 있어 전면 Form* 치환은 범위 밖(기능 유지 우선). */
+      'src/features/pdf-engine/components/PdfCoordinateEditor.tsx',
       'src/features/application/services/exportService.ts',
     ],
     rules: {

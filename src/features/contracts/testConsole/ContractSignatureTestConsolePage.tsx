@@ -199,6 +199,7 @@ export default function ContractSignatureTestConsolePage() {
           <ContractTemplatePanel
             pdfTemplateId={selectedPdfId}
             pdfTitle={selectedPdf?.title ?? null}
+            pdfSignatureFieldCount={selectedPdf?.signatureCount ?? 0}
             templates={contractTemplates}
             selectedContractId={selectedContractId}
             onSelectContract={setSelectedContractId}

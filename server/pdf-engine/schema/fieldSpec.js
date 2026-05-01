@@ -32,13 +32,10 @@ export const ALLOWED_FIELD_TYPES = Object.freeze([
   'signature',
 ])
 
-/** 관리자 폼에서 받을 수 있는 고객 데이터 자동 매핑 키(Phase 2 에서 실제 주입). */
-export const ALLOWED_CUSTOMER_MAPPINGS = Object.freeze([
-  'name',
-  'dob',
-  'phone',
-  'address',
-])
+import { INPUT_ROLES, parseInputRoleString } from './inputRole.js'
+
+/** @deprecated 저장 시 항상 null — 전자계약 플로우는 inputRole 만 사용한다. */
+export const ALLOWED_CUSTOMER_MAPPINGS = Object.freeze([])
 
 /** 필드 key 네이밍 규칙: 라틴 소문자/숫자/언더스코어. 한글·공백 금지 — PDF 내부 검색/스크립트 안정성. */
 const FIELD_KEY_REGEX = /^[a-z][a-z0-9_]{0,63}$/
@@ -74,7 +71,8 @@ const MAX_OPTION_LENGTH = 120
  *   fieldType: typeof ALLOWED_FIELD_TYPES[number],
  *   required: boolean,
  *   orderIndex: number,
- *   customerMapping: typeof ALLOWED_CUSTOMER_MAPPINGS[number] | null,
+ *   inputRole: 'customer' | 'sender' | 'disabled',
+ *   customerMapping: null,
  *   options: string[] | null,
  *   placements: Placement[],
  * }} FieldSpec
@@ -207,11 +205,19 @@ export function normalizeFieldSpec(raw, fallbackOrder = 0) {
   const orderIdxRaw = toFiniteNumberOrNull(src.orderIndex)
   const orderIndex = orderIdxRaw == null ? fallbackOrder : Math.max(0, Math.floor(orderIdxRaw))
 
-  const mappingRaw = typeof src.customerMapping === 'string' ? src.customerMapping.trim() : ''
-  const customerMapping =
-    mappingRaw && ALLOWED_CUSTOMER_MAPPINGS.includes(mappingRaw)
-      ? /** @type {FieldSpec['customerMapping']} */ (mappingRaw)
-      : null
+  let inputRoleRaw =
+    typeof src.inputRole === 'string' ? src.inputRole.trim().toLowerCase() : ''
+  if (!INPUT_ROLES.includes(inputRoleRaw)) {
+    inputRoleRaw = parseInputRoleString(inputRoleRaw)
+  }
+  /** @type {FieldSpec['inputRole']} */
+  let inputRole = /** @type {FieldSpec['inputRole']} */ (inputRoleRaw)
+  if (fieldTypeRaw === 'signature') {
+    if (inputRole === 'sender') {
+      throw new Error(`서명(signature) 필드는 입력 주체를 "설계사"로 둘 수 없습니다: "${fieldKey}"`)
+    }
+    inputRole = 'customer'
+  }
 
   /* checkbox/radio 만 options 를 저장한다. 다른 타입에서 온 options 는 무시해
      DB 에 "의미 없는 옵션 잔재" 가 남지 않도록 한다. */
@@ -254,7 +260,8 @@ export function normalizeFieldSpec(raw, fallbackOrder = 0) {
     fieldType: /** @type {FieldSpec['fieldType']} */ (fieldTypeRaw),
     required,
     orderIndex,
-    customerMapping,
+    inputRole,
+    customerMapping: null,
     options,
     placements,
   }

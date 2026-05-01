@@ -23,8 +23,15 @@ export const PDF_FIELD_TYPE_LABELS: Record<PdfFieldType, string> = {
   signature: '손사인',
 }
 
-export const PDF_CUSTOMER_MAPPINGS = ['name', 'dob', 'phone', 'address'] as const
-export type PdfCustomerMapping = (typeof PDF_CUSTOMER_MAPPINGS)[number]
+/** 전자계약 PDF 필드 입력 주체(1단계). 서버 `fieldSpec.inputRole` 과 동일. */
+export const PDF_INPUT_ROLES = ['customer', 'sender', 'disabled'] as const
+export type PdfInputRole = (typeof PDF_INPUT_ROLES)[number]
+
+export const PDF_INPUT_ROLE_LABELS: Record<PdfInputRole, string> = {
+  customer: '고객 입력',
+  sender: '설계사 발송 시 입력',
+  disabled: '사용 안 함',
+}
 
 export interface PdfPlacement {
   /** 0-based 페이지 인덱스. */
@@ -53,7 +60,8 @@ export interface PdfFieldSpec {
   fieldType: PdfFieldType
   required: boolean
   orderIndex: number
-  customerMapping: PdfCustomerMapping | null
+  /** 고객 공개 서명 단계 / 설계사 발송 전 입력 / 미사용 */
+  inputRole: PdfInputRole
   /**
    * checkbox/radio 타입의 선택지(사용자에게 보이는 세부 라벨).
    * 다른 타입은 null.

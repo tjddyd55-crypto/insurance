@@ -4,6 +4,7 @@ import type { ContractTemplateListItem } from '../contractSignatureTestConsoleCl
 type Props = {
   pdfTemplateId: number | null
   pdfTitle: string | null
+  pdfSignatureFieldCount?: number
   templates: ContractTemplateListItem[]
   selectedContractId: string | null
   onSelectContract: (id: string) => void
@@ -29,6 +30,7 @@ function statusLabel(status: string): string {
 export function ContractTemplatePanel({
   pdfTemplateId,
   pdfTitle,
+  pdfSignatureFieldCount = 0,
   templates,
   selectedContractId,
   onSelectContract,
@@ -69,6 +71,12 @@ export function ContractTemplatePanel({
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
+          {pdfSignatureFieldCount < 1 ? (
+            <div className="contract-signature-console__alert--danger" role="alert" style={{ marginBottom: 10 }}>
+              이 PDF에는 서명(signature) 필드가 없습니다. 전자서명 절차에서 고객 서명단계가 제한되거나 진행 불가할 수 있습니다.
+              PDF 좌표 편집기에서 손사인 필드를 추가해 주세요.
+            </div>
+          ) : null}
           <ul className="contract-signature-console__hint" style={{ margin: '0 0 10px', paddingLeft: 18, fontSize: 12 }}>
             <li>
               <strong>draft</strong>: 아직 발송 불가

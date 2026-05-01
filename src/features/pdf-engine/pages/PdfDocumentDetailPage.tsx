@@ -17,8 +17,20 @@ import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import { getPdfTemplate, renderPdfTemplate } from '../api/pdfTemplateApi'
 import { PdfTemplateForm } from '../components/PdfTemplateForm'
-import type { PdfFieldSpec, PdfTemplateSummary } from '../types'
+import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
 import '../pdf-engine.css'
+
+function coercePdfFieldSpecForForm(f: PdfFieldSpec & { id?: number }): PdfFieldSpec {
+  const rest = { ...f } as PdfFieldSpec & { id?: number }
+  delete rest.id
+  const inputRole: PdfInputRole =
+    rest.fieldType === 'signature'
+      ? 'customer'
+      : rest.inputRole === 'sender' || rest.inputRole === 'disabled' || rest.inputRole === 'customer'
+        ? rest.inputRole
+        : 'customer'
+  return { ...rest, inputRole }
+}
 
 type LoadState =
   | { status: 'loading' }
@@ -76,7 +88,7 @@ export default function PdfDocumentDetailPage() {
     getPdfTemplate(token, templateId)
       .then((res) => {
         if (cancelled) return
-        setState({ status: 'ready', template: res.template, fields: res.fields })
+        setState({ status: 'ready', template: res.template, fields: res.fields.map(coercePdfFieldSpecForForm) })
       })
       .catch((e) => {
         if (cancelled) return

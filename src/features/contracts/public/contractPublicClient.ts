@@ -124,7 +124,10 @@ export type ContractDocumentDetailPayload = {
     orderIndex: number
     placements: unknown
     options: unknown
-    customerMapping?: string | null
+    /** 서버 정규화된 입력 주체(고객·설계사 등) */
+    inputRole?: string
+    /** 고객 화면에서 설계사(sender)가 넣은 값 — 읽기 전용 */
+    readOnlyCustomerUi?: boolean
     suggestedDefault?: string | null
     publicValue?: ContractPublicFieldValue | null
   }[]

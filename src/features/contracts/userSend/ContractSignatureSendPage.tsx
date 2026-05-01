@@ -2,7 +2,7 @@
  * 전자서명 발송 — USER / GA_STAFF. 관리자 템플릿은 /admin/contract-signatures 에서만 관리.
  */
 import { useCallback, useEffect, useState } from 'react'
-import { FormInput } from '../../../components/form'
+import { FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import '../../pdf-engine/pdf-engine.css'
 import '../testConsole/contract-signature-console.css'
 import { useAuth } from '../../auth/AuthProvider'
@@ -40,6 +40,8 @@ export default function ContractSignatureSendPage() {
   const [lastCreated, setLastCreated] = useState<CreateSendSessionResult | null>(null)
   const [sessionDetail, setSessionDetail] = useState<SendSessionDetail | null>(null)
   const [evidenceLoading, setEvidenceLoading] = useState(false)
+  /** 설계사(sender) 필드 값 — 선택된 템플릿 내 fieldKey 로만 사용 */
+  const [senderVals, setSenderVals] = useState<Record<string, string | boolean>>({})
 
   const reloadTemplates = useCallback(async () => {
     if (!t) {
@@ -98,13 +100,41 @@ export default function ContractSignatureSendPage() {
     }
   }, [t, sessionDetail?.id, lastCreated?.id])
 
+  useEffect(() => {
+    setSenderVals({})
+  }, [selectedTemplateId])
+
+  const senderPrefillSatisfied = (tpl: UserContractTemplateItem | null | undefined): boolean => {
+    const defs = tpl?.senderFieldsForSend
+    if (!defs || defs.length === 0) {
+      return true
+    }
+    for (const d of defs) {
+      if (!d.required) {
+        continue
+      }
+      const v = senderVals[d.fieldKey]
+      if (d.fieldType === 'checkbox') {
+        if (!v) {
+          return false
+        }
+        continue
+      }
+      if (String(v ?? '').trim() === '') {
+        return false
+      }
+    }
+    return true
+  }
+
   const selectedTpl = templates.find((x) => x.id === selectedTemplateId)
   const canSend =
     Boolean(selectedTemplateId) &&
     selectedTpl != null &&
     selectedCustomer != null &&
     selectedCustomer.hasPhone &&
-    String(selectedTpl.status) === 'active'
+    String(selectedTpl.status) === 'active' &&
+    senderPrefillSatisfied(selectedTpl)
 
   const onCreateSendSession = async () => {
     if (!t || !selectedTemplateId || !selectedCustomer?.hasPhone) {
@@ -113,9 +143,25 @@ export default function ContractSignatureSendPage() {
     setSendBusy(true)
     setSendError(null)
     try {
+      const senderDefs = selectedTpl?.senderFieldsForSend ?? []
+      const senderFieldValues =
+        selectedTpl && senderDefs.length > 0
+          ? {
+              [selectedTpl.id]: Object.fromEntries(
+                senderDefs.map((d) => {
+                  const raw = senderVals[d.fieldKey]
+                  if (d.fieldType === 'checkbox') {
+                    return [d.fieldKey, Boolean(raw)]
+                  }
+                  return [d.fieldKey, raw == null ? '' : String(raw)]
+                }),
+              ),
+            }
+          : undefined
       const created = await createUserContractSendSession(t, {
         customerId: selectedCustomer.id,
         templateIds: [selectedTemplateId],
+        senderFieldValues,
       })
       setLastCreated(created)
       const next = await getUserContractSendSessionDetail(t, created.id)
@@ -131,6 +177,13 @@ export default function ContractSignatureSendPage() {
     selectedTpl != null && String(selectedTpl.status) !== 'active'
       ? 'active 템플릿만 발송할 수 있습니다.'
       : null
+
+  const sendSessionPanelHint =
+    inactiveTemplateHint ||
+    (!senderPrefillSatisfied(selectedTpl ?? undefined) ? '발송 전 입력(설계사) 필수 항목을 모두 채워 주세요.' : null) ||
+    (selectedCustomer != null && !selectedCustomer.hasPhone
+      ? '선택한 고객에 유효한 휴대폰번호가 없습니다.'
+      : null)
 
   return (
     <main className="insurance-dark-forms contract-signature-console">
@@ -253,18 +306,94 @@ export default function ContractSignatureSendPage() {
         </section>
 
         <section className="contract-signature-console__section">
+          <h2 className="contract-signature-console__section-title">2-1. 발송 전 입력 (설계사)</h2>
+          <p className="contract-signature-console__hint">
+            템플릿에 따라 설계사가 보내기 전에 채워야 하는 항목이 있습니다. 해당 값은 고객에게는 읽기 전용으로
+            노출됩니다.
+          </p>
+          {!selectedTemplateId ? (
+            <p className="contract-signature-console__hint">먼저 2단계에서 템플릿을 선택해 주세요.</p>
+          ) : (selectedTpl?.senderFieldsForSend ?? []).length === 0 ? (
+            <p className="contract-signature-console__hint">이 템플릿에는 발송 전 입력 항목이 없습니다.</p>
+          ) : (
+            <div className="mt-4 space-y-4">
+              {(selectedTpl?.senderFieldsForSend ?? []).map((d) => {
+                const fk = d.fieldKey
+                if (d.fieldType === 'checkbox') {
+                  return (
+                    <label key={fk} className="contract-public-sign-page__label-row flex items-start gap-2">
+                      <FormInput
+                        type="checkbox"
+                        checked={Boolean(senderVals[fk])}
+                        onChange={(ev) =>
+                          setSenderVals((prev) => ({ ...prev, [fk]: ev.target.checked }))
+                        }
+                      />
+                      <span>
+                        {d.label || fk}
+                        {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
+                      </span>
+                    </label>
+                  )
+                }
+                if (d.fieldType === 'radio') {
+                  const rawOpts = Array.isArray(d.options) ? d.options : []
+                  const opts = rawOpts.map((x) => String(x))
+                  const cur = String(senderVals[fk] ?? '')
+                  return (
+                    <div key={fk} className="space-y-1">
+                      <p className="contract-signature-console__hint" style={{ marginBottom: 4 }}>
+                        {d.label || fk}
+                        {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
+                      </p>
+                      <FormSelect
+                        value={cur}
+                        options={[{ value: '', label: '선택' }, ...opts.map((o) => ({ value: o, label: o }))]}
+                        onChange={(ev) =>
+                          setSenderVals((prev) => ({ ...prev, [fk]: ev.target.value }))
+                        }
+                      />
+                    </div>
+                  )
+                }
+                const tv = String(senderVals[fk] ?? '')
+                const multiline = d.fieldType === 'textarea'
+                return (
+                  <label key={fk} className="block space-y-1">
+                    <span className="contract-signature-console__hint">
+                      {d.label || fk}
+                      {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
+                    </span>
+                    {multiline ? (
+                      <FormTextarea
+                        className="pdf-engine-form__textarea w-full max-w-xl text-sm"
+                        rows={4}
+                        value={tv}
+                        onChange={(e) => setSenderVals((prev) => ({ ...prev, [fk]: e.target.value }))}
+                      />
+                    ) : (
+                      <FormInput
+                        type="text"
+                        className="max-w-xl"
+                        value={tv}
+                        onChange={(e) => setSenderVals((prev) => ({ ...prev, [fk]: e.target.value }))}
+                      />
+                    )}
+                  </label>
+                )
+              })}
+            </div>
+          )}
+        </section>
+
+        <section className="contract-signature-console__section">
           <h2 className="contract-signature-console__section-title">3. 발송 세션</h2>
           <SendSessionPanel
             busy={sendBusy}
             lastCreated={lastCreated}
             onCreate={() => void onCreateSendSession()}
             canSend={canSend}
-            inactiveTemplateHint={
-              inactiveTemplateHint ??
-              (selectedCustomer && !selectedCustomer.hasPhone
-                ? '선택한 고객에 유효한 휴대폰번호가 없습니다.'
-                : null)
-            }
+            inactiveTemplateHint={sendSessionPanelHint}
             detail={sessionDetail}
             onRefresh={() => void refreshSessionDetail()}
             error={sendError}
