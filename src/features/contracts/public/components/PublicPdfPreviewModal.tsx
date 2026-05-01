@@ -5,6 +5,7 @@ import { getPdfJsCmapAndStandardFontUrls } from '../../../../lib/pdfjs/pdfDocume
 import { setupPdfWorker } from '../../../../lib/pdfjs/setupWorker'
 import { copyPdfBytesForPdfJs } from '../../../pdf-engine/lib/pdfArrayBuffer'
 import { isPdfJsRenderingCancelled } from '../../../pdf-engine/lib/pdfErrors'
+import '../contract-public-sign.css'
 
 setupPdfWorker()
 
@@ -387,19 +388,19 @@ export function PublicPdfPreviewModal({
       role="dialog"
       aria-modal="true"
       aria-label={title || '계약서 미리보기'}
-      className="fixed inset-0 z-[100020] flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-white"
+      className="public-pdf-preview-modal"
     >
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-base font-semibold text-slate-900">{title || '계약서 미리보기'}</h2>
-          {subtitle ? <p className="mt-1 text-xs leading-snug text-slate-600">{subtitle}</p> : null}
+      <header className="public-pdf-preview-modal__header">
+        <div className="public-pdf-preview-modal__titles">
+          <h2 className="public-pdf-preview-modal__title">{title || '계약서 미리보기'}</h2>
+          {subtitle ? <p className="public-pdf-preview-modal__subtitle">{subtitle}</p> : null}
         </div>
         <FormButton htmlType="button" variant="secondary" onClick={onClose}>
           닫기
         </FormButton>
       </header>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-3 py-2">
+      <div className="public-pdf-preview-modal__toolbar">
         <FormButton htmlType="button" variant="secondary" onClick={() => bumpManualZoom(ZOOM_STEP)} disabled={loading}>
           +
         </FormButton>
@@ -430,7 +431,7 @@ export function PublicPdfPreviewModal({
         </FormButton>
       </div>
 
-      <div className="flex shrink-0 items-center justify-center gap-2 border-b border-slate-200 bg-white px-3 py-2">
+      <div className="public-pdf-preview-modal__pager">
         <FormButton
           htmlType="button"
           variant="secondary"
@@ -439,7 +440,7 @@ export function PublicPdfPreviewModal({
         >
           이전
         </FormButton>
-        <span className="text-sm text-slate-700">
+        <span className="public-pdf-preview-modal__page-label">
           {pageNo} / {totalLabel}
         </span>
         <FormButton
@@ -452,15 +453,12 @@ export function PublicPdfPreviewModal({
         </FormButton>
       </div>
 
-      <div
-        ref={scrollHostRef}
-        className="min-h-0 flex-1 overflow-auto bg-slate-200 p-3 [touch-action:pan-x_pan-y_pinch-zoom] [-webkit-overflow-scrolling:touch]"
-      >
-        {loading ? <p className="m-6 text-center text-slate-500">PDF 불러오는 중…</p> : null}
+      <div ref={scrollHostRef} className="public-pdf-preview-modal__scroll">
+        {loading ? <p className="public-pdf-preview-modal__scroll-loading">PDF 불러오는 중…</p> : null}
         {loadError ? (
-          <div className="m-6 text-center">
-            <p className="mb-3 text-slate-700">{loadError}</p>
-            <div className="flex flex-wrap justify-center gap-2">
+          <div className="public-pdf-preview-modal__error">
+            <p className="public-pdf-preview-modal__error-msg">{loadError}</p>
+            <div className="public-pdf-preview-modal__error-actions">
               <FormButton
                 htmlType="button"
                 variant="secondary"
@@ -534,18 +532,14 @@ export function PublicPdfPreviewModal({
           </div>
         ) : null}
         {!loading && !loadError ? (
-          <div className="flex min-h-full min-w-min justify-center">
-            <div className="inline-block leading-none">
+          <div className="public-pdf-preview-modal__canvas-wrap">
+            <div className="public-pdf-preview-modal__canvas-host">
               <canvas ref={canvasRef} role="img" aria-label={`PDF 페이지 ${pageNo}`} />
             </div>
           </div>
         ) : null}
       </div>
-      {footerSlot ? (
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
-          {footerSlot}
-        </div>
-      ) : null}
+      {footerSlot ? <div className="public-pdf-preview-modal__footer">{footerSlot}</div> : null}
     </div>
   )
 }

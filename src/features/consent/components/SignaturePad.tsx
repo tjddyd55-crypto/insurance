@@ -59,12 +59,12 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
       return null
     }
     const computed = window.getComputedStyle(canvas)
-    const signatureInk = computed.getPropertyValue('--consent-signature-ink').trim() || 'white'
+    const signatureInk = computed.getPropertyValue('--consent-signature-ink').trim() || 'black'
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
     ctx.clearRect(0, 0, cssW, cssH)
     ctx.strokeStyle = signatureInk
-    ctx.lineWidth = 2
+    ctx.lineWidth = 2.75
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     return { ctx, dpr, signatureInk }
@@ -120,7 +120,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
       ctx.scale(dpr, dpr)
       ctx.drawImage(img, 0, 0, cssW, cssH)
       ctx.strokeStyle = signatureInk
-      ctx.lineWidth = 2
+      ctx.lineWidth = 2.75
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
       isDirtyRef.current = true

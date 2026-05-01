@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { SignatureModal } from '../../consent/components/SignatureModal'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import '../../consent/consent.css'
+import './contract-public-sign.css'
 import {
   ApiError,
   fetchContractPublicDocumentDetail,
@@ -432,10 +433,10 @@ export default function ContractSignDocumentPage() {
   let body: ReactNode
   if (paramsInvalid) {
     body = (
-      <div className="space-y-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+      <div className="contract-public-sign-page__panel-danger-soft">
         <p className="text-sm">링크가 올바르지 않습니다.</p>
         <Link
-          className="text-sm font-medium text-slate-900 underline"
+          className="contract-public-sign-page__link contract-public-sign-page__link--after-block"
           to={linkCode ? `/contracts/sign/${encodeURIComponent(linkCode)}` : '/'}
         >
           목록으로
@@ -443,12 +444,12 @@ export default function ContractSignDocumentPage() {
       </div>
     )
   } else if (loading) {
-    body = <p className="text-slate-600">불러오는 중…</p>
+    body = <p className="contract-public-sign-page__loading">불러오는 중…</p>
   } else if (error || !detail) {
     body = (
-      <div className="space-y-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+      <div className="contract-public-sign-page__panel-danger-soft">
         <p className="text-sm">{error || '문서를 표시할 수 없습니다.'}</p>
-        <Link className="text-sm font-medium text-slate-900 underline" to={`/contracts/sign/${encodeURIComponent(linkCode)}`}>
+        <Link className="contract-public-sign-page__link contract-public-sign-page__link--after-block" to={`/contracts/sign/${encodeURIComponent(linkCode)}`}>
           목록으로
         </Link>
       </div>
@@ -465,31 +466,29 @@ export default function ContractSignDocumentPage() {
             : detail.document.status
 
     body = (
-      <div className="space-y-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-lg font-semibold text-slate-900">{detail.document.title || '문서'}</p>
-          <p className="mt-1 text-sm text-slate-600">
+      <div className="contract-public-sign-page__stack">
+        <div className="contract-public-sign-page__card">
+          <p className="contract-public-sign-page__card-title">{detail.document.title || '문서'}</p>
+          <p className="contract-public-sign-page__meta">
             {detail.document.required ? '필수 문서' : '선택 문서'} · {statusLabel}
           </p>
           {detail.pdfTemplate ? (
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="contract-public-sign-page__caption">
               템플릿: {detail.pdfTemplate.title} ({detail.pdfTemplate.pageCount}페이지)
             </p>
           ) : null}
         </div>
 
         {detail.document.status === 'completed' && detail.evidenceSummary ? (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950 shadow-sm">
-            <p className="text-sm font-semibold">전자서명이 전송되었습니다.</p>
-            <p className="mt-2 text-sm">인증 방식: {detail.evidenceSummary.authenticationLabel}</p>
-            {detail.evidenceSummary.completedAt ? (
-              <p className="mt-1 text-sm">완료 시각: {detail.evidenceSummary.completedAt}</p>
-            ) : null}
+          <div className="contract-public-sign-page__panel-success">
+            <p className="contract-public-sign-page__panel-success-title">전자서명이 전송되었습니다.</p>
+            <p>인증 방식: {detail.evidenceSummary.authenticationLabel}</p>
+            {detail.evidenceSummary.completedAt ? <p>완료 시각: {detail.evidenceSummary.completedAt}</p> : null}
             {!detail.evidenceSummary.completedAt && detail.evidenceSummary.signedAt ? (
-              <p className="mt-1 text-sm">서명 시각: {detail.evidenceSummary.signedAt}</p>
+              <p>서명 시각: {detail.evidenceSummary.signedAt}</p>
             ) : null}
             {detail.evidenceSummary.evidenceHashPrefix ? (
-              <p className="mt-2 text-xs text-emerald-900">
+              <p className="contract-public-sign-page__panel-success-note">
                 증빙 기록(해시 일부): {detail.evidenceSummary.evidenceHashPrefix}
               </p>
             ) : null}
@@ -507,7 +506,7 @@ export default function ContractSignDocumentPage() {
                   최종 계약서 다운로드
                 </FormButton>
               ) : (
-                <p className="mt-3 text-xs text-emerald-900">
+                <p className="contract-public-sign-page__panel-success-note">
                   최종 PDF 다운로드는 준비 중입니다. 담당자 화면에서 증빙 상태를 확인할 수 있습니다.
                 </p>
               )
@@ -515,15 +514,15 @@ export default function ContractSignDocumentPage() {
           </div>
         ) : null}
 
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-sm font-semibold text-slate-900">계약서 원문 확인</p>
-          <p className="mt-2 text-sm text-slate-600">
+        <div className="contract-public-sign-page__card">
+          <p className="contract-public-sign-page__section-label">계약서 원문 확인</p>
+          <p className="contract-public-sign-page__notice mt-2">
             계약서 내용을 확인한 뒤 아래 항목을 입력하고 전자서명을 진행해주세요.
           </p>
-          {pdfLoadState === 'loading' ? <p className="mt-3 text-sm text-slate-500">계약서 PDF 불러오는 중…</p> : null}
+          {pdfLoadState === 'loading' ? <p className="contract-public-sign-page__notice mt-3">계약서 PDF 불러오는 중…</p> : null}
           {pdfLoadState === 'error' ? (
             <div className="mt-3 space-y-3">
-              <p className="text-sm text-slate-700">문서 미리보기를 불러오지 못했습니다.</p>
+              <p className="contract-public-sign-page__notice">문서 미리보기를 불러오지 못했습니다.</p>
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <FormButton htmlType="button" variant="secondary" fullWidth onClick={() => setPdfFetchNonce((n) => n + 1)}>
                   다시 시도
@@ -551,24 +550,22 @@ export default function ContractSignDocumentPage() {
               계약서 원문 크게 보기
             </FormButton>
           ) : null}
-          {pdfLoadState === 'idle' ? <p className="mt-3 text-sm text-slate-500">미리보기 준비 중…</p> : null}
+          {pdfLoadState === 'idle' ? <p className="contract-public-sign-page__notice mt-3">미리보기 준비 중…</p> : null}
         </div>
 
-        <p className="text-sm text-slate-700">{detail.notice}</p>
+        <p className="contract-public-sign-page__notice">{detail.notice}</p>
 
-        {actionError ? (
-          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{actionError}</div>
-        ) : null}
+        {actionError ? <div className="contract-public-sign-page__panel-danger">{actionError}</div> : null}
 
         {detail.fields.length > 0 ? (
-          <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="contract-public-sign-page__card space-y-4">
             {agreementFields.length > 0 ? (
-              <div className="space-y-3 border-b border-slate-100 pb-4">
-                <p className="text-sm font-medium text-slate-800">확인·동의</p>
+              <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight space-y-3">
+                <p className="contract-public-sign-page__section-label">확인·동의</p>
                 {agreementFields.map((f) => {
                   const checked = Boolean(drafts[f.id])
                   return (
-                    <label key={f.id} className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+                    <label key={f.id} className="contract-public-sign-page__label-row">
                       <FormInput
                         type="checkbox"
                         disabled={!canEdit}
@@ -582,7 +579,7 @@ export default function ContractSignDocumentPage() {
                       />
                       <span>
                         {f.label || f.fieldKey}
-                        {f.required ? <span className="text-rose-600"> *</span> : null}
+                        {f.required ? <span className="contract-public-sign-page__required"> *</span> : null}
                       </span>
                     </label>
                   )
@@ -591,17 +588,17 @@ export default function ContractSignDocumentPage() {
             ) : null}
 
             {inputFields.length > 0 ? (
-              <div className="space-y-3 border-b border-slate-100 pb-4">
-                <p className="text-sm font-medium text-slate-800">문서 입력</p>
+              <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight space-y-3">
+                <p className="contract-public-sign-page__section-label">문서 입력</p>
                 {inputFields.map((f) => {
                   if (f.fieldType === 'radio') {
                     const opts = Array.isArray(f.options) ? f.options.map((x) => String(x)) : []
                     const cur = String(drafts[f.id] ?? '')
                     return (
                       <div key={f.id} className="space-y-1">
-                        <p className="text-sm text-slate-800">
+                        <p className="contract-public-sign-page__field-label">
                           {f.label || f.fieldKey}
-                          {f.required ? <span className="text-rose-600"> *</span> : null}
+                          {f.required ? <span className="contract-public-sign-page__required"> *</span> : null}
                         </p>
                         <FormSelect
                           disabled={!canEdit}
@@ -621,9 +618,9 @@ export default function ContractSignDocumentPage() {
                   const tv = String(drafts[f.id] ?? '')
                   return (
                     <div key={f.id} className="space-y-1">
-                      <p className="text-sm text-slate-800">
+                      <p className="contract-public-sign-page__field-label">
                         {f.label || f.fieldKey}
-                        {f.required ? <span className="text-rose-600"> *</span> : null}
+                        {f.required ? <span className="contract-public-sign-page__required"> *</span> : null}
                       </p>
                       {isTextarea ? (
                         <FormTextarea
@@ -657,21 +654,21 @@ export default function ContractSignDocumentPage() {
             ) : null}
 
             {signatureFields.length > 0 ? (
-              <div className="space-y-3 border-b border-slate-100 pb-4">
-                <p className="text-sm font-medium text-slate-800">전자서명 (손사인)</p>
+              <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight space-y-3">
+                <p className="contract-public-sign-page__section-label">전자서명 (손사인)</p>
                 {signatureFields.map((f) => {
                   const signed = f.publicValue?.kind === 'signature' ? f.publicValue.signed : false
                   const draftUrl = signatureDrafts[f.id]
                   return (
-                    <div key={f.id} className="space-y-2 border-t border-slate-100 pt-3 first:border-t-0 first:pt-0">
-                      <p className="text-sm text-slate-800">
+                    <div key={f.id} className="contract-public-sign-page__sig-row space-y-2">
+                      <p className="text-sm text-[var(--text-main)]">
                         {f.label || f.fieldKey}
-                        {f.required ? <span className="text-rose-600"> *</span> : null}
-                        {signed ? <span className="ml-2 text-emerald-600">· 전자서명이 저장되었습니다</span> : null}
+                        {f.required ? <span className="contract-public-sign-page__required"> *</span> : null}
+                        {signed ? <span className="contract-public-sign-page__success-inline">· 전자서명이 저장되었습니다</span> : null}
                       </p>
                       {!canEdit || signed ? null : (
                         <>
-                          <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+                          <label className="contract-public-sign-page__label-row">
                             <FormInput
                               type="checkbox"
                               checked={signAck}
@@ -681,8 +678,8 @@ export default function ContractSignDocumentPage() {
                             <span>본인은 본 계약서가 본인에게 발송된 문서임을 확인하고, 전자서명합니다.</span>
                           </label>
                           {draftUrl ? (
-                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                              <img src={draftUrl} alt="" className="mx-auto max-h-32 object-contain" />
+                            <div className="contract-public-sign-page__signature-preview">
+                              <img src={draftUrl} alt="" />
                             </div>
                           ) : null}
                           <FormButton
@@ -725,14 +722,14 @@ export default function ContractSignDocumentPage() {
             ) : null}
 
             {canEdit ? (
-              <div className="space-y-3 border-t border-slate-100 pt-3">
+              <div className="contract-public-sign-page__actions-block space-y-3">
                 <FormButton htmlType="button" variant="secondary" fullWidth loading={saving} onClick={() => void onSaveValues()}>
                   임시저장
                 </FormButton>
 
-                <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
-                  <p className="text-sm font-medium text-slate-900">최종 문서 확인</p>
-                  <p className="mt-1 text-xs text-slate-600">
+                <div className="contract-public-sign-page__final-hint">
+                  <p className="contract-public-sign-page__final-hint-title">최종 문서 확인</p>
+                  <p className="contract-public-sign-page__final-hint-desc">
                     입력·서명이 반영된 문서를 확인한 뒤에만 전송 단계로 진행할 수 있습니다.
                   </p>
                   <FormButton
@@ -746,13 +743,13 @@ export default function ContractSignDocumentPage() {
                     최종 문서 확인
                   </FormButton>
                   {finalPreviewConfirmed ? (
-                    <p className="mt-2 text-xs font-medium text-emerald-700">최종 문서 확인 완료</p>
+                    <p className="contract-public-sign-page__status-ok">최종 문서 확인 완료</p>
                   ) : (
-                    <p className="mt-2 text-xs text-slate-500">미확인</p>
+                    <p className="contract-public-sign-page__status-pending">미확인</p>
                   )}
                 </div>
 
-                <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+                <label className="contract-public-sign-page__label-row">
                   <FormInput
                     type="checkbox"
                     checked={finalSubmitAck}
@@ -780,7 +777,7 @@ export default function ContractSignDocumentPage() {
           </div>
         ) : null}
 
-        <Link className="inline-block text-sm font-medium text-slate-900 underline" to={`/contracts/sign/${encodeURIComponent(linkCode)}`}>
+        <Link className="contract-public-sign-page__link contract-public-sign-page__link--after-block" to={`/contracts/sign/${encodeURIComponent(linkCode)}`}>
           ← 문서 목록
         </Link>
 
@@ -849,28 +846,28 @@ export default function ContractSignDocumentPage() {
 
         {successOpen && completeResult ? (
           <div
-            className="fixed inset-0 z-[100030] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+            className="contract-public-sign-page__success-backdrop"
             role="dialog"
             aria-modal="true"
             aria-label="전송 완료"
           >
-            <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
-              <p className="text-lg font-semibold text-slate-900">전자서명이 전송되었습니다.</p>
-              <p className="mt-3 text-sm text-slate-700">
+            <div className="contract-public-sign-page__success-dialog">
+              <h2 className="contract-public-sign-page__success-dialog-title">전자서명이 전송되었습니다.</h2>
+              <p className="contract-public-sign-page__success-dialog-lead">
                 문서명: <span className="font-medium">{detail.document.title || '문서'}</span>
               </p>
-              {completeResult.completedAt ? (
-                <p className="mt-1 text-sm text-slate-600">완료 시각: {completeResult.completedAt}</p>
-              ) : null}
+              {completeResult.completedAt ? <p>완료 시각: {completeResult.completedAt}</p> : null}
               {completeResult.evidenceSummary?.evidenceHashPrefix ? (
-                <p className="mt-2 text-xs text-slate-600">
+                <p className="contract-public-sign-page__success-dialog-muted">
                   증빙번호(해시 일부): {completeResult.evidenceSummary.evidenceHashPrefix}
                 </p>
               ) : null}
-              <p className="mt-3 text-sm text-slate-600">담당자가 완료된 전자서명 문서를 확인할 수 있습니다.</p>
-              <p className="mt-2 text-sm text-slate-600">이 화면은 닫으셔도 됩니다.</p>
-              <p className="mt-2 text-xs text-slate-500">카카오톡으로 돌아가려면 상단 닫기 버튼을 눌러주세요.</p>
-              <div className="mt-5 flex flex-col gap-2">
+              <p>담당자가 완료된 전자서명 문서를 확인할 수 있습니다.</p>
+              <p>이 화면은 닫으셔도 됩니다.</p>
+              <p className="contract-public-sign-page__success-dialog-muted">
+                카카오톡으로 돌아가려면 상단 닫기 버튼을 눌러주세요.
+              </p>
+              <div className="contract-public-sign-page__success-dialog-actions">
                 {(() => {
                   const path = (completeResult.signedPdfDownloadPath ?? '').trim()
                   const canDl =
@@ -886,7 +883,7 @@ export default function ContractSignDocumentPage() {
                       최종 계약서 다운로드
                     </FormButton>
                   ) : (
-                    <p className="text-xs text-slate-600">
+                    <p className="contract-public-sign-page__success-dialog-muted">
                       최종 PDF 다운로드는 준비 중입니다. 담당자 화면에서 증빙 상태를 확인할 수 있습니다.
                     </p>
                   )
@@ -911,9 +908,9 @@ export default function ContractSignDocumentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-lg">
-        <h1 className="mb-6 text-center text-xl font-bold text-slate-900">계약서 문서</h1>
+    <div className="contract-public-sign-page">
+      <div className="contract-public-sign-page__inner">
+        <h1 className="contract-public-sign-page__h1">계약서 문서</h1>
         {body}
       </div>
     </div>
