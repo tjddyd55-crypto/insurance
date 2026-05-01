@@ -31,9 +31,11 @@ function rawFieldRowToSpec(row, idx) {
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {number | string | null | undefined} pdfTemplateId
  * @param {Array<Record<string, unknown>>} valRows
+ * @param {{ excludeSignatures?: boolean }} [options]
  * @returns {Promise<Buffer>}
  */
-export async function buildStampedPdfBufferFromInstance(executor, pdfTemplateId, valRows) {
+export async function buildStampedPdfBufferFromInstance(executor, pdfTemplateId, valRows, options = {}) {
+  const excludeSignatures = options.excludeSignatures === true
   const tid = pdfTemplateId == null ? NaN : Number(pdfTemplateId)
   if (!Number.isFinite(tid)) {
     throw new Error('pdf_template_id 가 없습니다.')
@@ -50,6 +52,9 @@ export async function buildStampedPdfBufferFromInstance(executor, pdfTemplateId,
       continue
     }
     if (ft === 'signature') {
+      if (excludeSignatures) {
+        continue
+      }
       const fid = row.value_file_id
       if (fid == null || String(fid).trim() === '') {
         continue

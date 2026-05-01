@@ -1357,9 +1357,11 @@ export function registerContractPublicApi(apiRouter, ctx) {
         return
       }
       const valRows = await loadValueRows(pool, docId)
+      const mode = String(req.query.mode ?? 'final').trim().toLowerCase()
+      const excludeSignatures = mode === 'input'
       let stamped
       try {
-        stamped = await buildStampedPdfBufferFromInstance(pool, pdfTid, valRows)
+        stamped = await buildStampedPdfBufferFromInstance(pool, pdfTid, valRows, { excludeSignatures })
       } catch (rendErr) {
         if (process.env.NODE_ENV !== 'production') {
           console.error('[contract public rendered-pdf]', {

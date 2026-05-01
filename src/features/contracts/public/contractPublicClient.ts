@@ -151,8 +151,16 @@ export function resolveContractPdfPreviewAbsUrl(linkCode: string, documentInstan
   return resolveApiUrl(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/pdf`)
 }
 
-export function resolveContractRenderedPdfAbsUrl(linkCode: string, documentInstanceId: string): string {
-  return resolveApiUrl(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/rendered-pdf`)
+export type ContractRenderedPdfMode = 'input' | 'final'
+
+export function resolveContractRenderedPdfAbsUrl(
+  linkCode: string,
+  documentInstanceId: string,
+  mode: ContractRenderedPdfMode = 'final',
+): string {
+  const base = resolveApiUrl(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/rendered-pdf`)
+  const q = mode === 'input' ? '?mode=input' : '?mode=final'
+  return `${base}${q}`
 }
 
 export function resolveContractSignedPdfAbsUrl(linkCode: string, documentInstanceId: string): string {
