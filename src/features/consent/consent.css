@@ -280,15 +280,37 @@
   padding: 16px;
 }
 
-/* 서명 전체 화면 모달 */
+/* 서명 전체 화면 모달 (consent-flow 밖에서도 색상 변수 사용 가능) */
 .consent-signature-overlay {
+  --consent-bg: #0f1115;
+  --consent-card: #14171c;
+  --consent-text: #ffffff;
+  --consent-sub: #94a3b8;
+  --consent-brand: #3b82f6;
+  --consent-brand-active: #2563eb;
+  --consent-border: #2a3038;
+  --consent-signature-bg: #1a1f26;
+  --consent-signature-ink: #ffffff;
+  --consent-gap-section: 16px;
+  --consent-gap-list: 12px;
   position: fixed;
   inset: 0;
   z-index: 10050;
   background: var(--consent-bg);
+  color: var(--consent-text);
   display: flex;
   flex-direction: column;
   animation: consent-fade-in 0.2s ease;
+}
+
+.consent-signature-modal-desc {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 16px 8px;
+  font-size: 14px;
+  color: var(--consent-sub);
+  line-height: 1.4;
+  text-align: center;
 }
 
 @keyframes consent-fade-in {

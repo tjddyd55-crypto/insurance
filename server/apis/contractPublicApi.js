@@ -140,9 +140,12 @@ function parsePublicSignatureDataUrl(input) {
     return null
   }
   const trimmed = input.trim()
+  if (!/^data:image\/png/i.test(trimmed)) {
+    return null
+  }
   const marker = 'base64,'
   const index = trimmed.indexOf(marker)
-  if (!trimmed.startsWith('data:image/png') || index < 0) {
+  if (index < 0) {
     return null
   }
   try {
@@ -154,6 +157,67 @@ function parsePublicSignatureDataUrl(input) {
   } catch {
     return null
   }
+}
+
+const VERBOSE_PUBLIC_SIGN_LOG =
+  process.env.NODE_ENV !== 'production' && !process.env.RAILWAY_ENVIRONMENT
+
+/**
+ * @param {Record<string, unknown>} ctx
+ * @param {unknown} err
+ */
+function logPublicSignFailure(ctx, err) {
+  const e = err instanceof Error ? err : new Error(String(err))
+  const pg = /** @type {{ code?: string, detail?: string, constraint?: string }} */ (err)
+  if (VERBOSE_PUBLIC_SIGN_LOG) {
+    console.error('[contract public sign]', {
+      ...ctx,
+      errorName: e.name,
+      errorMessage: e.message,
+      pgCode: pg.code,
+      detail: pg.detail,
+      constraint: pg.constraint,
+      stack: e.stack,
+    })
+    return
+  }
+  console.error('[contract public sign]', {
+    ...ctx,
+    errorName: e.name,
+    errorMessage: e.message,
+    pgCode: pg.code,
+  })
+}
+
+/**
+ * @param {unknown} err
+ * @returns {{ status: number, code: string, message: string } | null}
+ */
+function mapPublicSignDatabaseError(err) {
+  const pg = /** @type {{ code?: string }} */ (err)
+  const c = pg?.code
+  if (c === '23503') {
+    return {
+      status: 400,
+      code: 'signature_reference_violation',
+      message: '서명 저장에 필요한 연관 데이터가 없습니다. 담당자에게 문의해 주세요.',
+    }
+  }
+  if (c === '23502') {
+    return {
+      status: 500,
+      code: 'signature_file_insert_failed',
+      message: '전자서명 파일 정보를 저장하지 못했습니다. 관리자에게 문의해 주세요.',
+    }
+  }
+  if (c === '23514') {
+    return {
+      status: 500,
+      code: 'signature_file_constraint_failed',
+      message: '전자서명 파일이 서버 정책과 맞지 않습니다. 관리자에게 문의해 주세요.',
+    }
+  }
+  return null
 }
 
 function formatBirthDateIso(dateVal) {
@@ -410,11 +474,11 @@ async function upsertDocumentValue(client, documentInstanceId, fieldRow, valueTe
   }
 }
 
-async function syncDocStatusAfterSign(pool, client, pdfTemplateId, documentInstanceId) {
+async function syncDocStatusAfterSign(client, pdfTemplateId, documentInstanceId) {
   if (pdfTemplateId == null) {
     return
   }
-  const fields = await listFields(pool, Number(pdfTemplateId))
+  const fields = await listFields(client, Number(pdfTemplateId))
   const sigFields = fields.filter((f) => String(f.field_type) === 'signature')
   if (sigFields.length === 0) {
     await client.query(`UPDATE contract_document_instances SET status = 'signing', updated_at = NOW() WHERE id = $1`, [
@@ -726,12 +790,20 @@ export function registerContractPublicApi(apiRouter, ctx) {
         return
       }
       if (req.body?.electronicSignAcknowledged !== true) {
-        res.status(400).json({ success: false, message: '전자서명 진술에 동의해야 합니다.' })
+        res.status(400).json({
+          success: false,
+          code: 'missing_signature_acknowledgement',
+          message: '전자서명 진술에 동의해야 합니다.',
+        })
         return
       }
       const buf = parsePublicSignatureDataUrl(req.body?.signatureImageData ?? req.body?.signatureDataUrl)
       if (!buf) {
-        res.status(400).json({ success: false, message: '유효한 PNG 서명 이미지가 필요합니다.' })
+        res.status(400).json({
+          success: false,
+          code: 'invalid_signature_payload',
+          message: '유효한 PNG 서명 이미지가 필요합니다.',
+        })
         return
       }
       if (buf.length > MAX_PUBLIC_SIGNATURE_BYTES) {
@@ -769,7 +841,11 @@ export function registerContractPublicApi(apiRouter, ctx) {
       if (rawFid != null && String(rawFid).trim() !== '') {
         targetField = sigFields.find((f) => String(f.id) === String(rawFid))
         if (!targetField) {
-          res.status(400).json({ success: false, message: '유효하지 않은 서명 필드입니다.' })
+          res.status(400).json({
+            success: false,
+            code: 'invalid_signature_field',
+            message: '유효하지 않은 서명 필드입니다.',
+          })
           return
         }
       } else if (sigFields.length === 1) {
@@ -781,15 +857,35 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const fileUserId = session.sent_by_user_id || session.customer_user_id
       const gaId = session.customer_ga_id
       if (!fileUserId || gaId == null) {
-        res.status(503).json({ success: false, message: '파일 저장에 필요한 담당·GA 정보가 없습니다.' })
+        res.status(503).json({
+          success: false,
+          code: 'signature_file_owner_missing',
+          message: '파일 저장에 필요한 담당·GA 정보가 없습니다.',
+        })
         return
       }
       const storageKey = `contracts/${session.id}/documents/${docId}/signature/${targetField.id}.png`
       const hashHex = createHash('sha256').update(buf).digest('hex')
+      const signLogCtx = {
+        route: 'contract public sign',
+        linkCodePrefix: linkCode.length > 8 ? `${linkCode.slice(0, 8)}…` : linkCode,
+        documentInstanceId: docId,
+        sendSessionId: session.id,
+        customerId: session.customer_id,
+        gaId,
+        fieldId: String(targetField.id),
+        hasSignatureImageData: true,
+        signatureByteLength: buf.length,
+      }
       try {
         await consentPutObject(storageKey, buf, 'image/png')
       } catch (e) {
-        handleDbError(e, req, res)
+        logPublicSignFailure({ ...signLogCtx, uploadStage: 'object_storage' }, e)
+        res.status(503).json({
+          success: false,
+          code: 'signature_upload_failed',
+          message: '서명 이미지를 저장소에 올리지 못했습니다. 잠시 후 다시 시도해 주세요.',
+        })
         return
       }
       let outFileId = ''
@@ -798,8 +894,22 @@ export function registerContractPublicApi(apiRouter, ctx) {
         await client.query('BEGIN')
         const ins = await client.query(
           `
-          INSERT INTO files (user_id, ga_id, customer_id, folder_id, original_name, display_name, file_path, file_size, mime_type)
-          VALUES ($1, $2, $3, NULL, $4, $4, $5, $6, 'image/png')
+          INSERT INTO files (
+            user_id,
+            ga_id,
+            customer_id,
+            team_id,
+            folder_id,
+            original_name,
+            display_name,
+            file_path,
+            file_size,
+            mime_type,
+            content,
+            is_confirmed,
+            status
+          )
+          VALUES ($1, $2, $3, NULL, NULL, $4, $4, $5, $6, 'image/png', '', true, 'active')
           RETURNING id
           `,
           [
@@ -807,14 +917,13 @@ export function registerContractPublicApi(apiRouter, ctx) {
             gaId,
             session.customer_id,
             `contract-signature-${targetField.id}.png`,
-            `contract-signature-${targetField.id}.png`,
             storageKey,
             buf.length,
           ],
         )
         outFileId = String(ins.rows[0].id)
         await upsertDocumentValue(client, docId, targetField, null, outFileId, hashHex)
-        await syncDocStatusAfterSign(pool, client, pdfTid, docId)
+        await syncDocStatusAfterSign(client, pdfTid, docId)
         await client.query(
           `
           UPDATE contract_send_sessions
@@ -828,8 +937,22 @@ export function registerContractPublicApi(apiRouter, ctx) {
         )
         await client.query('COMMIT')
       } catch (e) {
-        await client.query('ROLLBACK')
-        handleDbError(e, req, res)
+        await client.query('ROLLBACK').catch(() => {})
+        logPublicSignFailure({ ...signLogCtx, uploadStage: 'database' }, e)
+        const mapped = mapPublicSignDatabaseError(e)
+        if (mapped) {
+          res.status(mapped.status).json({
+            success: false,
+            code: mapped.code,
+            message: mapped.message,
+          })
+          return
+        }
+        res.status(500).json({
+          success: false,
+          code: 'signature_save_failed',
+          message: '전자서명 저장 중 오류가 발생했습니다. 다시 시도해 주세요.',
+        })
         return
       } finally {
         client.release()
@@ -843,7 +966,19 @@ export function registerContractPublicApi(apiRouter, ctx) {
         },
       })
     } catch (e) {
-      handleDbError(e, req, res)
+      logPublicSignFailure(
+        {
+          route: 'contract public sign',
+          linkCodePrefix: String(req.params.linkCode ?? '').trim().slice(0, 8),
+          documentInstanceId: String(req.params.documentInstanceId ?? '').trim(),
+        },
+        e,
+      )
+      res.status(500).json({
+        success: false,
+        code: 'signature_save_failed',
+        message: '전자서명 저장 중 오류가 발생했습니다. 다시 시도해 주세요.',
+      })
     }
   })
 

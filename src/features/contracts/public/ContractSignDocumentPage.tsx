@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { SignaturePad, type SignaturePadHandle } from '../../consent/components/SignaturePad'
+import { SignatureModal } from '../../consent/components/SignatureModal'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import '../../consent/consent.css'
 import {
   ApiError,
   fetchContractPublicDocumentDetail,
+  formatContractPublicActionError,
   postContractPublicDocumentComplete,
   postContractPublicDocumentSign,
   postContractPublicDocumentValues,
@@ -61,7 +63,10 @@ export default function ContractSignDocumentPage() {
   const [saving, setSaving] = useState(false)
   const [signAck, setSignAck] = useState(false)
   const [completeAck, setCompleteAck] = useState(false)
-  const sigRefs = useRef<Map<string, SignaturePadHandle | null>>(new Map())
+  const [signatureDrafts, setSignatureDrafts] = useState<Record<string, string>>({})
+  const [sigModalField, setSigModalField] = useState<{ id: string; label: string } | null>(null)
+  const [pdfObjectUrl, setPdfObjectUrl] = useState<string | null>(null)
+  const [pdfLoadState, setPdfLoadState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
 
   const reloadDetail = useCallback(
     async (isCancelled?: () => boolean) => {
@@ -78,6 +83,71 @@ export default function ContractSignDocumentPage() {
     },
     [linkCode, documentInstanceId],
   )
+
+  useEffect(() => {
+    setSignatureDrafts({})
+  }, [linkCode, documentInstanceId])
+
+  useEffect(() => {
+    if (paramsInvalid || !detail) {
+      return
+    }
+    const url = resolveContractPdfPreviewAbsUrl(linkCode, documentInstanceId)
+    let cancelled = false
+    let objectUrl: string | null = null
+
+    setPdfLoadState('loading')
+    setPdfObjectUrl((prev) => {
+      if (prev) {
+        URL.revokeObjectURL(prev)
+      }
+      return null
+    })
+
+    void (async () => {
+      try {
+        const res = await fetch(url, { credentials: 'include' })
+        if (import.meta.env.DEV) {
+          console.info('[contract pdf preview]', {
+            documentInstanceId,
+            pdfTemplateId: detail.document.pdfTemplateId,
+            previewUrl: url,
+            status: res.status,
+            contentType: res.headers.get('content-type'),
+          })
+        }
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`)
+        }
+        const ct = res.headers.get('content-type') ?? ''
+        if (!ct.includes('application/pdf')) {
+          throw new Error(`unexpected content-type: ${ct}`)
+        }
+        const blob = await res.blob()
+        if (cancelled) {
+          return
+        }
+        const nextUrl = URL.createObjectURL(blob)
+        objectUrl = nextUrl
+        setPdfObjectUrl(nextUrl)
+        setPdfLoadState('ready')
+      } catch (e) {
+        if (import.meta.env.DEV) {
+          console.error('[contract pdf preview]', e)
+        }
+        if (!cancelled) {
+          setPdfLoadState('error')
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl)
+      }
+    }
+  }, [detail, linkCode, documentInstanceId, paramsInvalid])
 
   useEffect(() => {
     if (paramsInvalid) {
@@ -149,7 +219,7 @@ export default function ContractSignDocumentPage() {
       await postContractPublicDocumentValues(linkCode, documentInstanceId, values)
       await reloadDetail()
     } catch (e) {
-      setActionError(e instanceof ApiError ? e.message : '저장에 실패했습니다.')
+      setActionError(formatContractPublicActionError(e))
     } finally {
       setSaving(false)
     }
@@ -163,26 +233,31 @@ export default function ContractSignDocumentPage() {
       setActionError('전자서명 진술에 동의해 주세요.')
       return
     }
-    const h = sigRefs.current.get(fieldId)
-    if (!h || h.isEmpty()) {
-      setActionError('서명을 입력해 주세요.')
+    const dataUrl = signatureDrafts[fieldId]?.trim()
+    if (!dataUrl) {
+      setActionError('전자서명 입력하기에서 서명을 작성한 뒤 적용해 주세요.')
       return
     }
     setActionError('')
     setSaving(true)
     try {
-      const blob = await h.exportPng()
-      const signatureImageData = await blobToDataUrl(blob)
       await postContractPublicDocumentSign(linkCode, documentInstanceId, {
-        signatureImageData,
+        signatureImageData: dataUrl,
         fieldId,
         electronicSignAcknowledged: true,
       })
-      h.clear()
+      setSignatureDrafts((prev) => {
+        const next = { ...prev }
+        delete next[fieldId]
+        return next
+      })
       setSignAck(false)
       await reloadDetail()
     } catch (e) {
-      setActionError(e instanceof ApiError ? e.message : '서명 저장에 실패했습니다.')
+      if (import.meta.env.DEV) {
+        console.error('[contract public sign]', e)
+      }
+      setActionError(formatContractPublicActionError(e))
     } finally {
       setSaving(false)
     }
@@ -211,17 +286,17 @@ export default function ContractSignDocumentPage() {
         const pack = e.data as { evidence?: { evidenceHashPrefix?: string | null } | null } | undefined
         const prefix = pack?.evidence?.evidenceHashPrefix
         setActionError(
-          prefix
-            ? `${e.message} (증빙 해시 일부: ${prefix})`
-            : e.message,
+          prefix ? `${e.message} (증빙 해시 일부: ${prefix})` : e.message,
         )
       } else {
-        setActionError(e instanceof ApiError ? e.message : '문서 완료 처리에 실패했습니다.')
+        setActionError(formatContractPublicActionError(e))
       }
     } finally {
       setSaving(false)
     }
   }
+
+  const pdfSrc = !paramsInvalid ? resolveContractPdfPreviewAbsUrl(linkCode, documentInstanceId) : ''
 
   let body: ReactNode
   if (paramsInvalid) {
@@ -248,7 +323,6 @@ export default function ContractSignDocumentPage() {
       </div>
     )
   } else {
-    const pdfSrc = resolveContractPdfPreviewAbsUrl(linkCode, documentInstanceId)
     const canEdit = detail.canEdit !== false && detail.document.status !== 'completed'
     body = (
       <div className="space-y-4">
@@ -283,7 +357,28 @@ export default function ContractSignDocumentPage() {
         ) : null}
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-100" style={{ minHeight: '360px' }}>
-          <iframe title="PDF 미리보기" src={pdfSrc} className="h-[70vh] w-full border-0 bg-white" />
+          {pdfLoadState === 'loading' ? (
+            <div className="flex h-[50vh] min-h-[280px] items-center justify-center text-sm text-slate-600">계약서 PDF 불러오는 중…</div>
+          ) : null}
+          {pdfLoadState === 'error' ? (
+            <div className="flex min-h-[280px] flex-col items-center justify-center gap-3 px-4 py-8 text-center">
+              <p className="text-sm text-slate-700">문서 미리보기를 불러오지 못했습니다.</p>
+              <a
+                href={pdfSrc}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-medium text-blue-600 underline"
+              >
+                PDF 새 창에서 열기
+              </a>
+            </div>
+          ) : null}
+          {pdfLoadState === 'ready' && pdfObjectUrl ? (
+            <iframe title="PDF 미리보기" src={pdfObjectUrl} className="h-[70vh] min-h-[320px] w-full border-0 bg-white" />
+          ) : null}
+          {pdfLoadState === 'idle' ? (
+            <div className="flex h-[50vh] min-h-[280px] items-center justify-center text-sm text-slate-500">미리보기 준비 중…</div>
+          ) : null}
         </div>
 
         <p className="text-sm text-slate-700">{detail.notice}</p>
@@ -298,6 +393,7 @@ export default function ContractSignDocumentPage() {
             {detail.fields.map((f) => {
               if (f.fieldType === 'signature') {
                 const signed = f.publicValue?.kind === 'signature' ? f.publicValue.signed : false
+                const draftUrl = signatureDrafts[f.id]
                 return (
                   <div key={f.id} className="space-y-2 border-t border-slate-100 pt-3">
                     <p className="text-sm text-slate-800">
@@ -316,27 +412,37 @@ export default function ContractSignDocumentPage() {
                           />
                           <span>본인은 본 계약서가 본인에게 발송된 문서임을 확인하고, 전자서명합니다.</span>
                         </label>
-                        <div
-                          className="rounded-lg border border-slate-200 bg-white p-2"
-                          style={
-                            {
-                              '--consent-signature-bg': 'var(--bg-main)',
-                              '--consent-signature-ink': 'var(--text-main)',
-                            } as CSSProperties
-                          }
-                        >
-                          <SignaturePad
-                            className="h-40 w-full"
-                            ref={(inst) => {
-                              const m = sigRefs.current
-                              if (inst) {
-                                m.set(f.id, inst)
-                              } else {
-                                m.delete(f.id)
-                              }
+                        {draftUrl ? (
+                          <>
+                            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2">
+                              <img src={draftUrl} alt="서명 미리보기" className="mx-auto max-h-32 object-contain" />
+                            </div>
+                            <p className="text-xs text-emerald-700">서명이 입력되었습니다. 아래 버튼으로 저장할 수 있습니다.</p>
+                            <FormButton
+                              htmlType="button"
+                              variant="secondary"
+                              fullWidth
+                              disabled={saving}
+                              onClick={() => {
+                                setSigModalField({ id: f.id, label: f.label || f.fieldKey })
+                              }}
+                            >
+                              다시 서명하기
+                            </FormButton>
+                          </>
+                        ) : (
+                          <FormButton
+                            htmlType="button"
+                            variant="secondary"
+                            fullWidth
+                            disabled={saving}
+                            onClick={() => {
+                              setSigModalField({ id: f.id, label: f.label || f.fieldKey })
                             }}
-                          />
-                        </div>
+                          >
+                            전자서명 입력하기
+                          </FormButton>
+                        )}
                         <FormButton
                           htmlType="button"
                           variant="primary"
@@ -448,6 +554,22 @@ export default function ContractSignDocumentPage() {
         <Link className="inline-block text-sm font-medium text-slate-900 underline" to={`/contracts/sign/${encodeURIComponent(linkCode)}`}>
           ← 문서 목록
         </Link>
+
+        <SignatureModal
+          open={sigModalField != null}
+          title="전자서명 입력"
+          description="손가락 또는 마우스로 서명하세요."
+          saveLabel="서명 적용"
+          onClose={() => setSigModalField(null)}
+          onSave={async (blob) => {
+            if (!sigModalField) {
+              return
+            }
+            const dataUrl = await blobToDataUrl(blob)
+            const fid = sigModalField.id
+            setSignatureDrafts((prev) => ({ ...prev, [fid]: dataUrl }))
+          }}
+        />
       </div>
     )
   }
