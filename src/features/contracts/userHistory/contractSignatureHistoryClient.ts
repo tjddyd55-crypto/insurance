@@ -1,0 +1,110 @@
+import { ApiError, apiRequest } from '../../../lib/apiClient'
+import type { SendSessionDetail } from '../testConsole/contractSignatureTestConsoleClient'
+
+export type SendSessionHistoryListItem = {
+  id: string
+  linkCode: string
+  customerId: number
+  customerName: string
+  customerCode: string | null
+  maskedPhone: string
+  templateNames: string[]
+  documentCount: number
+  requiredDocumentCount: number
+  completedDocumentCount: number
+  status: string
+  identityStatus: string | null
+  createdAt: string
+  sentAt: string | null
+  openedAt: string | null
+  identityVerifiedAt: string | null
+  completedAt: string | null
+  expiresAt: string | null
+  evidenceHashPrefix: string | null
+  hasSignedPdfFile: boolean
+  hasSignedNotCompleted: boolean
+  canCancel: boolean
+  canDelete: boolean
+  canCopyLink: boolean
+  canOpenLink: boolean
+  canResend: boolean
+}
+
+export type ListUserSendSessionsResult = {
+  sendSessions: SendSessionHistoryListItem[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export async function listUserSendSessions(
+  token: string,
+  params: {
+    q?: string
+    filter?: 'all' | 'in_progress' | 'completed' | 'expired' | 'cancelled'
+    sort?: 'sent_desc' | 'completed_desc'
+    limit?: number
+    offset?: number
+  },
+): Promise<ListUserSendSessionsResult> {
+  const qs = new URLSearchParams()
+  if (params.q?.trim()) {
+    qs.set('q', params.q.trim())
+  }
+  if (params.filter && params.filter !== 'all') {
+    qs.set('filter', params.filter)
+  }
+  if (params.sort) {
+    qs.set('sort', params.sort)
+  }
+  if (params.limit != null) {
+    qs.set('limit', String(params.limit))
+  }
+  if (params.offset != null) {
+    qs.set('offset', String(params.offset))
+  }
+  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const body = await apiRequest<{
+    sendSessions?: SendSessionHistoryListItem[]
+    total?: number
+    limit?: number
+    offset?: number
+  }>(`/api/contracts/send-sessions${suffix}`, { method: 'GET', token })
+  const raw = body as ListUserSendSessionsResult
+  if (!raw?.sendSessions || !Array.isArray(raw.sendSessions)) {
+    throw new ApiError('발송 내역 응답 형식이 올바르지 않습니다.', 500)
+  }
+  return {
+    sendSessions: raw.sendSessions,
+    total: Number(raw.total) || 0,
+    limit: Number(raw.limit) || 30,
+    offset: Number(raw.offset) || 0,
+  }
+}
+
+export async function getUserSendSessionDetail(token: string, sendSessionId: string): Promise<SendSessionDetail> {
+  const body = await apiRequest<{ sendSession?: SendSessionDetail }>(
+    `/api/contracts/send-sessions/${encodeURIComponent(sendSessionId)}`,
+    { method: 'GET', token },
+  )
+  const s = (body as { sendSession?: SendSessionDetail }).sendSession
+  if (!s?.id || !s.linkCode) {
+    throw new ApiError('발송 세션 상세 응답이 올바르지 않습니다.', 500)
+  }
+  return s
+}
+
+export async function cancelUserSendSession(token: string, sendSessionId: string): Promise<void> {
+  await apiRequest(`/api/contracts/send-sessions/${encodeURIComponent(sendSessionId)}/cancel`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({}),
+  })
+}
+
+export function buildCustomerPublicSignUrl(linkCode: string): string {
+  if (typeof window === 'undefined') {
+    return `/contracts/sign/${linkCode}`
+  }
+  return `${window.location.origin}/contracts/sign/${linkCode}`
+}

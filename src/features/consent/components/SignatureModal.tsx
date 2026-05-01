@@ -29,27 +29,13 @@ export function SignatureModal({ open, onClose, onSave, title, saveLabel, descri
     if (!open) {
       return
     }
-    const scrollY = window.scrollY
     const prevHtmlOverflow = document.documentElement.style.overflow
     const prevBodyOverflow = document.body.style.overflow
-    const prevBodyTouch = document.body.style.touchAction
-    const prevBodyPosition = document.body.style.position
-    const prevBodyTop = document.body.style.top
-    const prevBodyWidth = document.body.style.width
     document.documentElement.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
-    document.body.style.touchAction = 'none'
-    document.body.style.position = 'fixed'
-    document.body.style.top = `-${scrollY}px`
-    document.body.style.width = '100%'
     return () => {
       document.documentElement.style.overflow = prevHtmlOverflow
       document.body.style.overflow = prevBodyOverflow
-      document.body.style.touchAction = prevBodyTouch
-      document.body.style.position = prevBodyPosition
-      document.body.style.top = prevBodyTop
-      document.body.style.width = prevBodyWidth
-      window.scrollTo(0, scrollY)
     }
   }, [open])
 
@@ -96,50 +82,52 @@ export function SignatureModal({ open, onClose, onSave, title, saveLabel, descri
 
   return (
     <div
-      className="consent-signature-overlay consent-signature-overlay--fullscreen"
+      className="consent-signature-backdrop"
       role="dialog"
       aria-modal="true"
       aria-labelledby="consent-signature-title"
     >
-      <header className="consent-signature-header">
-        <span className="consent-signature-header__spacer" aria-hidden />
-        <h2 id="consent-signature-title" className="consent-signature-header__title">
-          {titleText}
-        </h2>
-        <button
-          type="button"
-          className="consent-signature-header__close"
-          onClick={() => !saving && onClose()}
-          disabled={saving}
-          aria-label="닫기"
-        >
-          닫기
-        </button>
-      </header>
-      {description?.trim() ? (
-        <p className="consent-signature-modal-desc">{description.trim()}</p>
-      ) : null}
-      <div className="consent-signature-canvas-wrap">
-        <div className="consent-signature-canvas-surface" key={padResetKey?.trim() ? padResetKey.trim() : 'signature-pad'}>
-          <SignaturePad
-            ref={signaturePadRef}
-            className="consent-signature-canvas"
-            onDirtyChange={handleDirtyChange}
-          />
+      <div
+        className="consent-signature-dialog"
+        onMouseDown={(ev) => ev.stopPropagation()}
+        onTouchStart={(ev) => ev.stopPropagation()}
+      >
+        <header className="consent-signature-header">
+          <span className="consent-signature-header__spacer" aria-hidden />
+          <h2 id="consent-signature-title" className="consent-signature-header__title">
+            {titleText}
+          </h2>
+          <button
+            type="button"
+            className="consent-signature-header__close"
+            onClick={() => !saving && onClose()}
+            disabled={saving}
+            aria-label="닫기"
+          >
+            닫기
+          </button>
+        </header>
+        {description?.trim() ? (
+          <p className="consent-signature-modal-desc">{description.trim()}</p>
+        ) : null}
+        <div className="consent-signature-canvas-wrap">
+          <div className="consent-signature-canvas-surface" key={padResetKey?.trim() ? padResetKey.trim() : 'signature-pad'}>
+            <SignaturePad ref={signaturePadRef} className="consent-signature-canvas" onDirtyChange={handleDirtyChange} />
+          </div>
         </div>
+        {error ? <p className="consent-signature-error">{error}</p> : null}
+        <footer className="consent-signature-footer">
+          <FormButton htmlType="button" className="consent-btn consent-btn--secondary" onClick={handleClear}>
+            지우기
+          </FormButton>
+          <FormButton htmlType="button" className="consent-btn consent-btn--secondary" onClick={onClose} disabled={saving}>
+            취소
+          </FormButton>
+          <FormButton htmlType="button" className="consent-btn" onClick={() => void handleSave()} disabled={!hasStroke || saving}>
+            {saving ? `${saveText} 중…` : saveText}
+          </FormButton>
+        </footer>
       </div>
-      {error ? <p className="consent-signature-error">{error}</p> : null}
-      <footer className="consent-signature-footer">
-        <FormButton htmlType="button" className="consent-btn consent-btn--secondary" onClick={handleClear}>
-          지우기
-        </FormButton>
-        <FormButton htmlType="button" className="consent-btn consent-btn--secondary" onClick={onClose} disabled={saving}>
-          취소
-        </FormButton>
-        <FormButton htmlType="button" className="consent-btn" onClick={() => void handleSave()} disabled={!hasStroke || saving}>
-          {saving ? `${saveText} 중…` : saveText}
-        </FormButton>
-      </footer>
     </div>
   )
 }

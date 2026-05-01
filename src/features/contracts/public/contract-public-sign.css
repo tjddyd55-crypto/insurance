@@ -501,10 +501,13 @@
 }
 
 .public-pdf-preview-modal__canvas-wrap {
-  display: flex;
+  display: block;
+  width: max-content;
+  max-width: none;
+  margin: 0 auto;
   min-height: 100%;
-  min-width: min-content;
-  justify-content: center;
+  padding: 8px;
+  box-sizing: border-box;
 }
 
 .public-pdf-preview-modal__canvas-host {

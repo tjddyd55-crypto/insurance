@@ -130,14 +130,22 @@ async function assertCustomerForUserSend(client, customerId, req) {
 }
 
 function mapSendSessionDetailRow(row, docs, evidenceByDoc) {
+  const ivsStatus = row.ivs_status != null ? String(row.ivs_status) : null
+  const ivsVerifiedAt = row.ivs_otp_verified_at ?? null
   return {
     id: row.id,
     linkCode: row.link_code,
     customerId: row.customer_id,
+    customerName: row.customer_name != null ? String(row.customer_name) : null,
+    customerCode: row.customer_code != null ? String(row.customer_code) : null,
     packageId: row.package_id,
     status: row.status,
     maskedPhone: row.target_phone_masked,
     identitySessionId: row.identity_session_id,
+    identityStatus: ivsStatus,
+    identityVerifiedAt: ivsVerifiedAt ? new Date(ivsVerifiedAt).toISOString() : null,
+    openedAt: row.opened_at ? new Date(row.opened_at).toISOString() : null,
+    expiredAt: row.expired_at ? new Date(row.expired_at).toISOString() : null,
     sentByUserId: row.sent_by_user_id,
     sentAt: row.sent_at,
     createdAt: row.created_at,
@@ -173,6 +181,44 @@ function mapSendSessionDetailRow(row, docs, evidenceByDoc) {
           : null,
       }
     }),
+  }
+}
+
+/**
+ * @param {Record<string, unknown>} row
+ */
+function mapSendSessionListRow(row) {
+  const st = String(row.session_status ?? '')
+  const canCancel = !['completed', 'cancelled', 'expired'].includes(st)
+  const rawTitles = String(row.template_names ?? '').trim()
+  const templateNames = rawTitles ? rawTitles.split(' · ').filter(Boolean) : []
+  return {
+    id: row.id,
+    linkCode: row.link_code,
+    customerId: row.customer_id,
+    customerName: row.customer_name != null ? String(row.customer_name) : '',
+    customerCode: row.customer_code != null ? String(row.customer_code) : null,
+    maskedPhone: row.target_phone_masked != null ? String(row.target_phone_masked) : '',
+    templateNames,
+    documentCount: Number(row.document_count) || 0,
+    requiredDocumentCount: Number(row.required_document_count) || 0,
+    completedDocumentCount: Number(row.completed_document_count) || 0,
+    status: st,
+    identityStatus: row.identity_session_status != null ? String(row.identity_session_status) : null,
+    createdAt: row.created_at,
+    sentAt: row.sent_at,
+    openedAt: row.opened_at,
+    identityVerifiedAt: row.identity_verified_at,
+    completedAt: row.completed_at,
+    expiresAt: row.expired_at,
+    evidenceHashPrefix: row.evidence_hash_prefix ? String(row.evidence_hash_prefix) : null,
+    hasSignedPdfFile: Boolean(row.has_signed_pdf_file),
+    hasSignedNotCompleted: Boolean(row.has_signed_not_completed),
+    canCancel,
+    canDelete: false,
+    canCopyLink: Boolean(row.link_code),
+    canOpenLink: Boolean(row.link_code),
+    canResend: false,
   }
 }
 
@@ -544,34 +590,205 @@ export function registerContractUserApi(apiRouter, ctx) {
         res.status(400).json({ ok: false, message: 'GA 컨텍스트가 없습니다.' })
         return
       }
-      const r = await pool.query(
+
+      const qSearch = String(req.query.q ?? '').trim()
+      const filterRaw = String(req.query.filter ?? 'all').trim().toLowerCase()
+      const sortRaw = String(req.query.sort ?? 'sent_desc').trim().toLowerCase()
+      const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 100)
+      const offset = Math.max(Number(req.query.offset) || 0, 0)
+
+      const baseParams = [uid, userGa]
+      let searchClause = ''
+      if (qSearch) {
+        const pattern = `%${escapeIlikePattern(qSearch)}%`
+        baseParams.push(pattern)
+        const pPat = 3
+        searchClause = `
+          AND (
+            c.name ILIKE $${pPat} ESCAPE '\\'
+            OR (c.customer_code IS NOT NULL AND c.customer_code ILIKE $${pPat} ESCAPE '\\')
+            OR c.phone ILIKE $${pPat} ESCAPE '\\'
+            OR EXISTS (
+              SELECT 1 FROM contract_document_instances cdi2
+              WHERE cdi2.send_session_id = s.id
+                AND cdi2.title_snapshot ILIKE $${pPat} ESCAPE '\\'
+            )
+          )
         `
-        SELECT s.id, s.link_code, s.customer_id, s.status, s.target_phone_masked, s.sent_at, s.created_at, s.package_id
+      }
+
+      let filterClause = ''
+      if (filterRaw === 'in_progress') {
+        filterClause = ` AND s.status NOT IN ('completed', 'expired', 'cancelled') `
+      } else if (filterRaw === 'completed') {
+        filterClause = ` AND s.status = 'completed' `
+      } else if (filterRaw === 'expired') {
+        filterClause = ` AND s.status = 'expired' `
+      } else if (filterRaw === 'cancelled') {
+        filterClause = ` AND s.status = 'cancelled' `
+      }
+
+      const orderSql =
+        sortRaw === 'completed_desc'
+          ? 's.completed_at DESC NULLS LAST, s.created_at DESC'
+          : 's.created_at DESC'
+
+      const whereRest = `${searchClause}${filterClause}`
+
+      const countSql = `
+        SELECT COUNT(*)::int AS total
         FROM contract_send_sessions s
-        JOIN customers c ON c.id = s.customer_id
+        INNER JOIN customers c ON c.id = s.customer_id
         WHERE s.sent_by_user_id = $1
           AND c.user_id = $1
           AND c.ga_id = $2
-        ORDER BY s.created_at DESC
-        LIMIT 200
-        `,
-        [uid, userGa],
-      )
+          ${whereRest}
+      `
+      const countR = await pool.query(countSql, baseParams)
+
+      const dataParams = [...baseParams, limit, offset]
+      const li = baseParams.length + 1
+      const oi = baseParams.length + 2
+
+      const dataSql = `
+        SELECT
+          s.id,
+          s.link_code,
+          s.customer_id,
+          s.status AS session_status,
+          s.target_phone_masked,
+          s.sent_at,
+          s.created_at,
+          s.opened_at,
+          s.completed_at,
+          s.expired_at,
+          c.name AS customer_name,
+          c.customer_code,
+          ivs.status AS identity_session_status,
+          ivs.otp_verified_at AS identity_verified_at,
+          COALESCE(doc_agg.document_count, 0)::int AS document_count,
+          COALESCE(doc_agg.required_document_count, 0)::int AS required_document_count,
+          COALESCE(doc_agg.completed_document_count, 0)::int AS completed_document_count,
+          COALESCE(doc_agg.template_names, '') AS template_names,
+          COALESCE(doc_agg.has_signed_pdf_file, false) AS has_signed_pdf_file,
+          COALESCE(doc_agg.has_signed_not_completed, false) AS has_signed_not_completed,
+          evpfx.evidence_hash_prefix
+        FROM contract_send_sessions s
+        INNER JOIN customers c ON c.id = s.customer_id
+        LEFT JOIN identity_verification_sessions ivs ON ivs.id = s.identity_session_id
+        LEFT JOIN LATERAL (
+          SELECT
+            COUNT(*)::int AS document_count,
+            COUNT(*) FILTER (WHERE required = 1)::int AS required_document_count,
+            COUNT(*) FILTER (WHERE status = 'completed')::int AS completed_document_count,
+            string_agg(title_snapshot, ' · ' ORDER BY sort_order ASC, created_at ASC) AS template_names,
+            BOOL_OR(
+              status = 'completed' AND signed_pdf_file_id IS NOT NULL
+            ) AS has_signed_pdf_file,
+            BOOL_OR(status = 'signed') AS has_signed_not_completed
+          FROM contract_document_instances
+          WHERE send_session_id = s.id
+        ) doc_agg ON true
+        LEFT JOIN LATERAL (
+          SELECT SUBSTRING(evidence_hash::text FROM 1 FOR 12) AS evidence_hash_prefix
+          FROM signature_evidences
+          WHERE send_session_id = s.id
+            AND evidence_hash IS NOT NULL
+            AND TRIM(evidence_hash::text) <> ''
+          ORDER BY created_at DESC
+          LIMIT 1
+        ) evpfx ON true
+        WHERE s.sent_by_user_id = $1
+          AND c.user_id = $1
+          AND c.ga_id = $2
+          ${whereRest}
+        ORDER BY ${orderSql}
+        LIMIT $${li} OFFSET $${oi}
+      `
+      const r = await pool.query(dataSql, dataParams)
       res.json({
         ok: true,
-        sendSessions: r.rows.map((row) => ({
-          id: row.id,
-          linkCode: row.link_code,
-          customerId: row.customer_id,
-          status: row.status,
-          maskedPhone: row.target_phone_masked,
-          packageId: row.package_id,
-          sentAt: row.sent_at,
-          createdAt: row.created_at,
-        })),
+        total: countR.rows[0]?.total ?? 0,
+        limit,
+        offset,
+        sendSessions: r.rows.map((row) => mapSendSessionListRow(row)),
       })
     } catch (e) {
       handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.patch('/contracts/send-sessions/:id/cancel', ...chain, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const userGa = parseGaId(req.user?.gaId)
+      const uid = getAuthUserId(req)
+      if (!uid) {
+        res.status(401).json({ ok: false, message: '로그인이 필요합니다.' })
+        return
+      }
+      if (userGa == null) {
+        res.status(400).json({ ok: false, message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
+      const sid = String(req.params.id ?? '').trim()
+      if (!sid) {
+        res.status(400).json({ ok: false, message: '발송 세션 id가 필요합니다.' })
+        return
+      }
+      await client.query('BEGIN')
+      const lock = await client.query(
+        `
+        SELECT s.id, s.status
+        FROM contract_send_sessions s
+        JOIN customers c ON c.id = s.customer_id
+        WHERE s.id = $1
+          AND s.sent_by_user_id = $2
+          AND c.user_id = $2
+          AND c.ga_id = $3
+        FOR UPDATE OF contract_send_sessions
+        LIMIT 1
+        `,
+        [sid, uid, userGa],
+      )
+      if (lock.rowCount === 0) {
+        await client.query('ROLLBACK')
+        res.status(404).json({ ok: false, message: '발송 세션을 찾을 수 없습니다.' })
+        return
+      }
+      const st = String(lock.rows[0].status ?? '')
+      if (st === 'completed' || st === 'cancelled' || st === 'expired') {
+        await client.query('ROLLBACK')
+        res.status(409).json({ ok: false, message: '취소할 수 없는 상태입니다.' })
+        return
+      }
+      await client.query(
+        `
+        UPDATE contract_send_sessions
+        SET status = 'cancelled', updated_at = NOW()
+        WHERE id = $1
+        `,
+        [sid],
+      )
+      await client.query(
+        `
+        UPDATE contract_document_instances
+        SET status = 'cancelled', updated_at = NOW()
+        WHERE send_session_id = $1 AND status <> 'completed'
+        `,
+        [sid],
+      )
+      await client.query('COMMIT')
+      res.json({ ok: true })
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* ignore */
+      }
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
     }
   })
 
@@ -589,9 +806,15 @@ export function registerContractUserApi(apiRouter, ctx) {
       }
       const r = await pool.query(
         `
-        SELECT s.*
+        SELECT
+          s.*,
+          c.name AS customer_name,
+          c.customer_code,
+          ivs.status AS ivs_status,
+          ivs.otp_verified_at AS ivs_otp_verified_at
         FROM contract_send_sessions s
         JOIN customers c ON c.id = s.customer_id
+        LEFT JOIN identity_verification_sessions ivs ON ivs.id = s.identity_session_id
         WHERE s.id = $1
           AND s.sent_by_user_id = $2
           AND c.user_id = $2

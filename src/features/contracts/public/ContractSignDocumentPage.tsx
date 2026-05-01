@@ -127,7 +127,6 @@ export default function ContractSignDocumentPage() {
   const [actionError, setActionError] = useState('')
   const [saving, setSaving] = useState(false)
   const [signAck, setSignAck] = useState(false)
-  const [signatureDrafts, setSignatureDrafts] = useState<Record<string, string>>({})
   const [sigModalField, setSigModalField] = useState<{ id: string; label: string } | null>(null)
   const [pdfBytes, setPdfBytes] = useState<ArrayBuffer | null>(null)
   const [pdfFetchNonce, setPdfFetchNonce] = useState(0)
@@ -278,6 +277,7 @@ export default function ContractSignDocumentPage() {
   const openSignatureModal = (id: string, label: string) => {
     setPdfPreviewOpen(false)
     setFinalReviewOpen(false)
+    setActionError('')
     setSigModalField({ id, label })
   }
 
@@ -304,46 +304,6 @@ export default function ContractSignDocumentPage() {
       await reloadDetail()
     } catch (e) {
       setActionError(formatContractPublicActionError(e, 'values'))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const onSignField = async (fieldId: string) => {
-    if (!detail || detail.canEdit === false) {
-      return
-    }
-    if (!signAck) {
-      setActionError('전자서명 진술에 동의해 주세요.')
-      return
-    }
-    const dataUrl = signatureDrafts[fieldId]?.trim()
-    if (!dataUrl) {
-      setActionError('전자서명하기에서 서명을 작성한 뒤 적용해 주세요.')
-      return
-    }
-    setActionError('')
-    setSaving(true)
-    try {
-      await postContractPublicDocumentSign(linkCode, documentInstanceId, {
-        signatureImageData: dataUrl,
-        fieldId,
-        electronicSignAcknowledged: true,
-      })
-      setSignatureDrafts((prev) => {
-        const next = { ...prev }
-        delete next[fieldId]
-        return next
-      })
-      setSignAck(false)
-      setFinalPreviewConfirmed(false)
-      setFinalSubmitAck(false)
-      await reloadDetail()
-    } catch (e) {
-      if (import.meta.env.DEV) {
-        console.error('[contract public.sign]', e)
-      }
-      setActionError(formatContractPublicActionError(e, 'sign'))
     } finally {
       setSaving(false)
     }
@@ -658,15 +618,18 @@ export default function ContractSignDocumentPage() {
                 <p className="contract-public-sign-page__section-label">전자서명 (손사인)</p>
                 {signatureFields.map((f) => {
                   const signed = f.publicValue?.kind === 'signature' ? f.publicValue.signed : false
-                  const draftUrl = signatureDrafts[f.id]
                   return (
                     <div key={f.id} className="contract-public-sign-page__sig-row space-y-2">
                       <p className="text-sm text-[var(--text-main)]">
                         {f.label || f.fieldKey}
                         {f.required ? <span className="contract-public-sign-page__required"> *</span> : null}
-                        {signed ? <span className="contract-public-sign-page__success-inline">· 전자서명이 저장되었습니다</span> : null}
+                        {signed ? (
+                          <span className="contract-public-sign-page__success-inline">
+                            · 전자서명이 저장되었습니다
+                          </span>
+                        ) : null}
                       </p>
-                      {!canEdit || signed ? null : (
+                      {!canEdit ? null : signed ? (
                         <>
                           <label className="contract-public-sign-page__label-row">
                             <FormInput
@@ -677,42 +640,36 @@ export default function ContractSignDocumentPage() {
                             />
                             <span>본인은 본 계약서가 본인에게 발송된 문서임을 확인하고, 전자서명합니다.</span>
                           </label>
-                          {draftUrl ? (
-                            <div className="contract-public-sign-page__signature-preview">
-                              <img src={draftUrl} alt="" />
-                            </div>
-                          ) : null}
                           <FormButton
                             htmlType="button"
                             variant="secondary"
                             fullWidth
-                            disabled={saving}
+                            disabled={saving || !signAck}
+                            onClick={() => openSignatureModal(f.id, f.label || f.fieldKey)}
+                          >
+                            다시 서명하기
+                          </FormButton>
+                        </>
+                      ) : (
+                        <>
+                          <label className="contract-public-sign-page__label-row">
+                            <FormInput
+                              type="checkbox"
+                              checked={signAck}
+                              onChange={(ev) => setSignAck(ev.target.checked)}
+                              className="mt-0.5"
+                            />
+                            <span>본인은 본 계약서가 본인에게 발송된 문서임을 확인하고, 전자서명합니다.</span>
+                          </label>
+                          <FormButton
+                            htmlType="button"
+                            variant="secondary"
+                            fullWidth
+                            disabled={saving || !signAck}
                             onClick={() => openSignatureModal(f.id, f.label || f.fieldKey)}
                           >
                             전자서명하기
                           </FormButton>
-                          {draftUrl ? (
-                            <FormButton
-                              htmlType="button"
-                              variant="primary"
-                              fullWidth
-                              loading={saving}
-                              onClick={() => void onSignField(f.id)}
-                            >
-                              손사인 저장 (전자서명 적용)
-                            </FormButton>
-                          ) : null}
-                          {draftUrl ? (
-                            <FormButton
-                              htmlType="button"
-                              variant="secondary"
-                              fullWidth
-                              disabled={saving}
-                              onClick={() => openSignatureModal(f.id, f.label || f.fieldKey)}
-                            >
-                              다시 서명하기
-                            </FormButton>
-                          ) : null}
                         </>
                       )}
                     </div>
@@ -804,15 +761,14 @@ export default function ContractSignDocumentPage() {
           documentInstanceId={documentInstanceId}
           loadNonce={finalReviewLoadNonce}
           footerSlot={
-            <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
-              <FormButton htmlType="button" variant="secondary" fullWidth className="sm:w-auto" onClick={() => setFinalReviewOpen(false)}>
+            <div className="contract-public-sign-page__footer-actions">
+              <FormButton htmlType="button" variant="secondary" fullWidth onClick={() => setFinalReviewOpen(false)}>
                 수정하기
               </FormButton>
               <FormButton
                 htmlType="button"
                 variant="primary"
                 fullWidth
-                className="sm:w-auto"
                 onClick={() => {
                   setFinalPreviewConfirmed(true)
                   setFinalSubmitAck(false)
@@ -833,14 +789,22 @@ export default function ContractSignDocumentPage() {
           saveLabel="서명 적용"
           onClose={() => setSigModalField(null)}
           onSave={async (blob) => {
-            if (!sigModalField) {
+            if (!sigModalField || !detail) {
               return
             }
+            if (!signAck) {
+              throw new Error('전자서명 진술에 동의해 주세요.')
+            }
             const dataUrl = await blobToDataUrl(blob)
-            const fid = sigModalField.id
-            setSignatureDrafts((prev) => ({ ...prev, [fid]: dataUrl }))
+            await postContractPublicDocumentSign(linkCode, documentInstanceId, {
+              signatureImageData: dataUrl,
+              fieldId: sigModalField.id,
+              electronicSignAcknowledged: true,
+            })
+            setSignAck(false)
             setFinalPreviewConfirmed(false)
             setFinalSubmitAck(false)
+            await reloadDetail()
           }}
         />
 

@@ -70,10 +70,17 @@ export type SendSessionDetail = {
   id: string
   linkCode: string
   customerId: number
+  /** FC 내역·상세에서만 채움 */
+  customerName?: string | null
+  customerCode?: string | null
   packageId: string | null
   status: string
   maskedPhone: string
   identitySessionId: string | null
+  identityStatus?: string | null
+  identityVerifiedAt?: string | null
+  openedAt?: string | null
+  expiredAt?: string | null
   sentByUserId: string | null
   sentAt: string | null
   createdAt: string

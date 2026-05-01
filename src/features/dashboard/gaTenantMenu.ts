@@ -215,6 +215,11 @@ const CONTRACT_SIGNATURE_USER_SEND: GaTenantMenuItem = {
   path: '/contracts/signatures/send',
 }
 
+const CONTRACT_SIGNATURE_USER_HISTORY: GaTenantMenuItem = {
+  label: '전자문서 발송 내역',
+  path: '/contracts/signatures/history',
+}
+
 const CONTRACT_SIGNATURE_ADMIN_MENU: GaTenantMenuItem = {
   label: '전자서명 템플릿 관리',
   path: '/admin/contract-signatures',
@@ -287,7 +292,7 @@ export function buildAppMenuForSession(
       return itemsToEntries(LOSS_ADJUSTER_MENU)
     }
     if (role === 'GA_STAFF') {
-      return itemsToEntries([CONTRACT_SIGNATURE_USER_SEND, ...GA_STAFF_MENU])
+      return itemsToEntries([CONTRACT_SIGNATURE_USER_SEND, CONTRACT_SIGNATURE_USER_HISTORY, ...GA_STAFF_MENU])
     }
     if (role === 'GA_ADMIN' || role === 'USER') {
       const entries = buildGaTenantDashboardMenu(gaCode, gaName)
@@ -298,6 +303,11 @@ export function buildAppMenuForSession(
             type: 'link',
             label: CONTRACT_SIGNATURE_USER_SEND.label,
             path: CONTRACT_SIGNATURE_USER_SEND.path,
+          })
+          entries.splice(customerIdx + 2, 0, {
+            type: 'link',
+            label: CONTRACT_SIGNATURE_USER_HISTORY.label,
+            path: CONTRACT_SIGNATURE_USER_HISTORY.path,
           })
         }
       }

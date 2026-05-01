@@ -100,6 +100,7 @@ import { ContractSignatureTestRoute } from './features/contracts/testConsole/Con
 import ContractSignatureTestConsolePage from './features/contracts/testConsole/ContractSignatureTestConsolePage'
 import { ContractSignatureUserSendRoute } from './features/contracts/userSend/ContractSignatureUserSendRoute'
 import ContractSignatureSendPage from './features/contracts/userSend/ContractSignatureSendPage'
+import ContractSignatureHistoryPage from './features/contracts/userHistory/ContractSignatureHistoryPage'
 
 export const appRouter = createBrowserRouter([
   {
@@ -328,6 +329,7 @@ export const appRouter = createBrowserRouter([
                 element: <ContractSignatureUserSendRoute />,
                 children: [
                   { path: 'contracts/signatures/send', element: <ContractSignatureSendPage /> },
+                  { path: 'contracts/signatures/history', element: <ContractSignatureHistoryPage /> },
                 ],
               },
               {

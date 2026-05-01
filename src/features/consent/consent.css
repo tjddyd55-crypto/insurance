@@ -281,8 +281,8 @@
   padding: 16px;
 }
 
-/* 서명 전체 화면 모달 — 앱 다크 테마 토큰과 동기화 (고객 공개 서명·동의서 공통) */
-.consent-signature-overlay {
+/* 서명 모달 — 중앙 고정 다이얼로그(iOS·카카오 인앱: 풀스크린·body fixed 회피) */
+.consent-signature-backdrop {
   --consent-gap-section: 16px;
   --consent-gap-list: 12px;
   --consent-touch-min: 44px;
@@ -290,20 +290,65 @@
   --consent-signature-ink: var(--result-ink);
   position: fixed;
   inset: 0;
-  z-index: 10050;
-  height: 100dvh;
-  max-height: 100dvh;
-  overflow: hidden;
-  overscroll-behavior: none;
-  background: var(--bg-main);
-  color: var(--text-main);
+  z-index: 100040;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: max(16px, env(safe-area-inset-top)) 16px calc(16px + env(safe-area-inset-bottom));
+  background: var(--overlay-backdrop);
+  color: var(--text-main);
   animation: consent-fade-in 0.2s ease;
+  overscroll-behavior: contain;
 }
 
-.consent-signature-overlay--fullscreen {
-  z-index: 100040;
+.consent-signature-dialog {
+  width: min(92vw, 560px);
+  max-height: calc(100svh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-modal);
+}
+
+.consent-signature-dialog .consent-signature-modal-desc {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.consent-signature-dialog .consent-signature-header {
+  padding: 10px 12px 10px 14px;
+}
+
+.consent-signature-dialog .consent-signature-canvas-wrap {
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  padding: 12px;
+  max-height: none;
+  overflow: visible;
+}
+
+.consent-signature-dialog .consent-signature-canvas-surface {
+  width: 100%;
+  max-width: none;
+  height: 300px;
+  min-height: 260px;
+  max-height: 320px;
+}
+
+@media (min-width: 640px) {
+  .consent-signature-dialog .consent-signature-canvas-surface {
+    height: 340px;
+    min-height: 320px;
+    max-height: 360px;
+  }
+}
+
+.consent-signature-dialog .consent-signature-error {
+  margin-left: 12px;
+  margin-right: 12px;
 }
 
 .consent-signature-modal-desc {
@@ -448,7 +493,7 @@
   font-size: 13px;
 }
 
-.consent-signature-overlay .consent-btn:not(.consent-btn--secondary) {
+.consent-signature-backdrop .consent-btn:not(.consent-btn--secondary) {
   background: var(--primary);
   color: var(--text-on-primary);
 }

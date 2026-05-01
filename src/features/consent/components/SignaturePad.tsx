@@ -58,16 +58,17 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     if (!ctx) {
       return null
     }
-    const computed = window.getComputedStyle(canvas)
-    const signatureInk = computed.getPropertyValue('--consent-signature-ink').trim() || 'black'
+    const rawInk = computed.getPropertyValue('--consent-signature-ink').trim()
+    const strokeInk = rawInk && !rawInk.toLowerCase().startsWith('var(') ? rawInk : '#111111'
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
     ctx.clearRect(0, 0, cssW, cssH)
-    ctx.strokeStyle = signatureInk
-    ctx.lineWidth = 2.75
+    ctx.strokeStyle = strokeInk
+    ctx.lineWidth = 3
+    ctx.globalAlpha = 1
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
-    return { ctx, dpr, signatureInk }
+    return { ctx, dpr, strokeInk }
   }, [])
 
   const setupCanvas = useCallback(() => {
@@ -113,14 +114,15 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
       onDirtyChangeRef.current?.(false)
       return
     }
-    const { ctx, dpr, signatureInk } = drawKit
+    const { ctx, dpr, strokeInk } = drawKit
     const img = new Image()
     img.onload = () => {
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.scale(dpr, dpr)
       ctx.drawImage(img, 0, 0, cssW, cssH)
-      ctx.strokeStyle = signatureInk
-      ctx.lineWidth = 2.75
+      ctx.strokeStyle = strokeInk
+      ctx.lineWidth = 3
+      ctx.globalAlpha = 1
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
       isDirtyRef.current = true
@@ -197,17 +199,10 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     }
     window.addEventListener('resize', onResize)
     window.addEventListener('orientationchange', onResize)
-    const vv = window.visualViewport
-    if (vv) {
-      vv.addEventListener('resize', onResize)
-    }
     return () => {
       window.cancelAnimationFrame(t)
       window.removeEventListener('resize', onResize)
       window.removeEventListener('orientationchange', onResize)
-      if (vv) {
-        vv.removeEventListener('resize', onResize)
-      }
     }
   }, [setupCanvas, resizeCanvasPreservingStroke])
 

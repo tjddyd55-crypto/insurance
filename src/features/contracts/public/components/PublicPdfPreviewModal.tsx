@@ -98,8 +98,11 @@ export function PublicPdfPreviewModal({
       return
     }
     const prevOverflow = document.body.style.overflow
+    const prevHtmlOverflow = document.documentElement.style.overflow
+    document.documentElement.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
     return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow
       document.body.style.overflow = prevOverflow
     }
   }, [open])
