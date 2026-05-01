@@ -58,6 +58,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     if (!ctx) {
       return null
     }
+    const computed = getComputedStyle(document.documentElement)
     const rawInk = computed.getPropertyValue('--consent-signature-ink').trim()
     const strokeInk = rawInk && !rawInk.toLowerCase().startsWith('var(') ? rawInk : '#111111'
     ctx.setTransform(1, 0, 0, 1, 0, 0)

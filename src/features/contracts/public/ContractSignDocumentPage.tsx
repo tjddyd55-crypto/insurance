@@ -124,6 +124,8 @@ export default function ContractSignDocumentPage() {
   const [error, setError] = useState('')
   const [detail, setDetail] = useState<ContractDocumentDetailPayload | null>(null)
   const [drafts, setDrafts] = useState<Record<string, string | boolean>>({})
+  /** 필드별 마지막 적용 dataUrl — refetch 후에도 클라이언트에서 서명 초안 연속성 표시에 사용 */
+  const [signatureDrafts, setSignatureDrafts] = useState<Record<string, string>>({})
   const [actionError, setActionError] = useState('')
   const [saving, setSaving] = useState(false)
   const [signAck, setSignAck] = useState(false)
@@ -232,6 +234,7 @@ export default function ContractSignDocumentPage() {
         }
         setDetail(null)
         setDrafts({})
+        setSignatureDrafts({})
         if (e instanceof ApiError && e.status === 403) {
           setError('계약서 수신번호 인증이 필요합니다. 목록 화면에서 인증을 완료해 주세요.')
           return
@@ -783,7 +786,11 @@ export default function ContractSignDocumentPage() {
 
         <SignatureModal
           open={sigModalField != null}
-          padResetKey={sigModalField?.id}
+          padResetKey={
+            sigModalField
+              ? `${sigModalField.id}:${signatureDrafts[String(sigModalField.id)] ? 'has' : 'none'}`
+              : undefined
+          }
           title="전자서명 입력"
           description="손가락 또는 마우스로 서명하세요."
           saveLabel="서명 적용"
@@ -796,11 +803,13 @@ export default function ContractSignDocumentPage() {
               throw new Error('전자서명 진술에 동의해 주세요.')
             }
             const dataUrl = await blobToDataUrl(blob)
+            const signatureKey = String(sigModalField.id)
             await postContractPublicDocumentSign(linkCode, documentInstanceId, {
               signatureImageData: dataUrl,
               fieldId: sigModalField.id,
               electronicSignAcknowledged: true,
             })
+            setSignatureDrafts((prev) => ({ ...prev, [signatureKey]: dataUrl }))
             setSignAck(false)
             setFinalPreviewConfirmed(false)
             setFinalSubmitAck(false)
