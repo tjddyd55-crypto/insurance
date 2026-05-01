@@ -28,6 +28,22 @@ function escapeIlikePattern(raw) {
   return String(raw ?? '').replace(/[\\%_]/g, (ch) => `\\${ch}`)
 }
 
+/**
+ * 전자서명 발송 고객 검색 — 빈·짧은 q에서는 DB 전체 스캔 없이 빈 결과만 반환한다.
+ * - 한글/영문 등(숫자만이 아님): 2글자 이상
+ * - 숫자만: 4자리 이상(전화 끝 4자리·고객번호 일부)
+ */
+function isContractCustomerSearchQuerySufficient(raw) {
+  const q = String(raw ?? '').trim()
+  if (!q) {
+    return false
+  }
+  if (/^\d+$/.test(q)) {
+    return q.length >= 4
+  }
+  return q.length >= 2
+}
+
 const VERBOSE_CONTRACT_SEND_LOGS =
   process.env.NODE_ENV !== 'production' && !process.env.RAILWAY_ENVIRONMENT
 
@@ -342,19 +358,22 @@ export function registerContractUserApi(apiRouter, ctx) {
       const q = String(req.query.q ?? '').trim()
       const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 50)
 
+      if (!isContractCustomerSearchQuerySufficient(q)) {
+        res.json({ ok: true, customers: [] })
+        return
+      }
+
       /**
        * 고객 목록 GET /customers 와 동일한 상담일 조인 + 정렬을 쓰고,
        * 동일 로그인 유저·GA 내에서 (정규화 휴대폰 + 이름) 이 같으면 목록 우선순위상 1행만 노출한다.
        * 휴대폰 없음/짧은 값은 행마다 고유 dedupe_key 로 합치지 않는다.
        */
       const params = [userGa, uid]
-      let searchClause = ''
-      if (q) {
-        const pattern = `%${escapeIlikePattern(q)}%`
-        const rawId = /^\d+$/.test(q) ? Number(q) : null
-        const idParam = rawId != null && Number.isInteger(rawId) && rawId > 0 ? rawId : null
-        params.push(pattern, idParam)
-        searchClause = `
+      const pattern = `%${escapeIlikePattern(q)}%`
+      const rawId = /^\d+$/.test(q) ? Number(q) : null
+      const idParam = rawId != null && Number.isInteger(rawId) && rawId > 0 ? rawId : null
+      params.push(pattern, idParam)
+      const searchClause = `
           AND (
             c.name ILIKE $3 ESCAPE '\\'
             OR c.phone ILIKE $3 ESCAPE '\\'
@@ -362,7 +381,6 @@ export function registerContractUserApi(apiRouter, ctx) {
             OR ($4::int IS NOT NULL AND c.id = $4)
           )
         `
-      }
       params.push(limit)
       const limitIdx = params.length
 

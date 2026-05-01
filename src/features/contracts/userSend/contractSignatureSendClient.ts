@@ -37,6 +37,33 @@ export type UserContractCustomerSearchHit = {
   hasPhone: boolean
 }
 
+/** 이름 등: 2글자 이상, 숫자만: 4자리 이상일 때만 API 검색에 적합 */
+export function isContractCustomerSearchQueryReady(raw: string): boolean {
+  const q = raw.trim()
+  if (!q) {
+    return false
+  }
+  if (/^\d+$/.test(q)) {
+    return q.length >= 4
+  }
+  return q.length >= 2
+}
+
+/** 검색 버튼 클릭 시 노출할 유효성 메시지(통과 시 null) */
+export function getContractCustomerSearchValidationMessage(raw: string): string | null {
+  const q = raw.trim()
+  if (!q) {
+    return '고객 이름, 전화번호 일부 또는 고객번호를 입력한 뒤 검색해 주세요.'
+  }
+  if (/^\d+$/.test(q) && q.length < 4) {
+    return '전화번호·고객번호 검색은 숫자 4자리 이상 입력해 주세요.'
+  }
+  if (!/^\d+$/.test(q) && q.length < 2) {
+    return '검색어를 2글자 이상 입력해 주세요.'
+  }
+  return null
+}
+
 export async function listUserContractTemplates(
   token: string,
 ): Promise<UserContractTemplateItem[]> {
@@ -73,13 +100,14 @@ export async function searchCustomersForContractSend(
   token: string,
   q: string,
 ): Promise<UserContractCustomerSearchHit[]> {
-  const qs = new URLSearchParams()
-  if (q.trim()) {
-    qs.set('q', q.trim())
+  if (!isContractCustomerSearchQueryReady(q)) {
+    return []
   }
-  const suffix = qs.toString() ? `?${qs.toString()}` : ''
+  const trimmed = q.trim()
+  const qs = new URLSearchParams()
+  qs.set('q', trimmed)
   const body = await apiRequest<{ customers?: UserContractCustomerSearchHit[] }>(
-    `/api/contracts/customers/search${suffix}`,
+    `/api/contracts/customers/search?${qs.toString()}`,
     { method: 'GET', token },
   )
   const raw = body as { customers?: UserContractCustomerSearchHit[] }

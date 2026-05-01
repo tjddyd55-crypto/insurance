@@ -1,8 +1,8 @@
 /**
  * 전자서명 발송 — USER / GA_STAFF. 관리자 템플릿은 /admin/contract-signatures 에서만 관리.
  */
-import { useCallback, useEffect, useState } from 'react'
-import { FormInput, FormSelect, FormTextarea } from '../../../components/form'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import '../../pdf-engine/pdf-engine.css'
 import '../testConsole/contract-signature-console.css'
 import { useAuth } from '../../auth/AuthProvider'
@@ -17,6 +17,7 @@ import {
   createUserContractSendSession,
   getUserContractSendSessionDetail,
   listUserContractTemplates,
+  getContractCustomerSearchValidationMessage,
   searchCustomersForContractSend,
   type UserContractCustomerSearchHit,
   type UserContractTemplateItem,
@@ -25,6 +26,7 @@ import {
 export default function ContractSignatureSendPage() {
   const { token } = useAuth()
   const t = token?.trim() ?? ''
+  const customerSearchInputRef = useRef<HTMLInputElement>(null)
 
   const [bootError, setBootError] = useState<string | null>(null)
   const [templates, setTemplates] = useState<UserContractTemplateItem[]>([])
@@ -33,6 +35,8 @@ export default function ContractSignatureSendPage() {
   const [customerQuery, setCustomerQuery] = useState('')
   const [customerHits, setCustomerHits] = useState<UserContractCustomerSearchHit[]>([])
   const [customerSearchBusy, setCustomerSearchBusy] = useState(false)
+  const [customerSearchExecuted, setCustomerSearchExecuted] = useState(false)
+  const [customerSearchValidationError, setCustomerSearchValidationError] = useState<string | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<UserContractCustomerSearchHit | null>(null)
 
   const [sendBusy, setSendBusy] = useState(false)
@@ -60,29 +64,39 @@ export default function ContractSignatureSendPage() {
     void reloadTemplates()
   }, [reloadTemplates])
 
-  const runCustomerSearch = useCallback(async () => {
+  const executeCustomerSearch = useCallback(async () => {
     if (!t) {
       return
     }
+    const validationMsg = getContractCustomerSearchValidationMessage(customerQuery)
+    if (validationMsg) {
+      setCustomerSearchValidationError(validationMsg)
+      setCustomerHits([])
+      setCustomerSearchExecuted(false)
+      return
+    }
+    setCustomerSearchValidationError(null)
     setCustomerSearchBusy(true)
     try {
       const hits = await searchCustomersForContractSend(t, customerQuery)
       setCustomerHits(hits)
+      setCustomerSearchExecuted(true)
     } catch {
       setCustomerHits([])
+      setCustomerSearchExecuted(true)
     } finally {
       setCustomerSearchBusy(false)
     }
   }, [t, customerQuery])
 
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      if (t) {
-        void runCustomerSearch()
-      }
-    }, 280)
-    return () => window.clearTimeout(id)
-  }, [t, customerQuery, runCustomerSearch])
+  const clearCustomerSelection = useCallback(() => {
+    setSelectedCustomer(null)
+  }, [])
+
+  const focusSearchAndClearCustomer = useCallback(() => {
+    setSelectedCustomer(null)
+    customerSearchInputRef.current?.focus()
+  }, [])
 
   const refreshSessionDetail = useCallback(async () => {
     const sid = sessionDetail?.id ?? lastCreated?.id
@@ -179,11 +193,15 @@ export default function ContractSignatureSendPage() {
       : null
 
   const sendSessionPanelHint =
-    inactiveTemplateHint ||
-    (!senderPrefillSatisfied(selectedTpl ?? undefined) ? '발송 전 입력(설계사) 필수 항목을 모두 채워 주세요.' : null) ||
-    (selectedCustomer != null && !selectedCustomer.hasPhone
-      ? '선택한 고객에 유효한 휴대폰번호가 없습니다.'
-      : null)
+    selectedCustomer == null
+      ? '전자서명을 발송할 고객을 검색해 선택해 주세요.'
+      : inactiveTemplateHint ||
+        (!senderPrefillSatisfied(selectedTpl ?? undefined)
+          ? '발송 전 입력(설계사) 필수 항목을 모두 채워 주세요.'
+          : null) ||
+        (selectedCustomer != null && !selectedCustomer.hasPhone
+          ? '선택한 고객에 유효한 휴대폰번호가 없습니다.'
+          : null)
 
   return (
     <main className="insurance-dark-forms contract-signature-console">
@@ -202,64 +220,141 @@ export default function ContractSignatureSendPage() {
 
         <section className="contract-signature-console__section">
           <h2 className="contract-signature-console__section-title">1. 내 고객 검색</h2>
-          <p className="contract-signature-console__hint">
-            이름·전화번호 일부·고객번호로 검색합니다. 전화번호는 마스킹만 표시됩니다.
+          <p className="contract-signature-console__body-text" style={{ margin: '0 0 6px' }}>
+            전자서명을 발송할 고객을 검색해 선택하세요.
           </p>
-          <FormInput
-            type="search"
-            value={customerQuery}
-            onChange={(e) => setCustomerQuery(e.target.value)}
-            placeholder="검색어"
-            disabled={!t}
-            style={{ maxWidth: 360, marginBottom: 8 }}
-          />
-          {customerSearchBusy ? <p className="contract-signature-console__hint">검색 중…</p> : null}
-          <div className="contract-signature-console__scroll-x">
-            <table className="pdf-engine-table contract-signature-console__table--compact contract-signature-console__table--striped">
-              <thead>
-                <tr>
-                  <th>선택</th>
-                  <th>이름</th>
-                  <th>고객번호</th>
-                  <th>휴대폰(마스킹)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {customerHits.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <FormInput
-                        type="radio"
-                        name="cust-pick"
-                        checked={selectedCustomer?.id === c.id}
-                        value={String(c.id)}
-                        disabled={!t}
-                        onChange={() => setSelectedCustomer(c)}
-                      />
-                    </td>
-                    <td>{c.name}</td>
-                    <td>
-                      {c.customerCode?.trim() ? (
-                        c.customerCode
-                      ) : (
-                        <span className="contract-signature-console__hint">고객 ID: {c.id}</span>
-                      )}
-                    </td>
-                    <td>
-                      {c.hasPhone ? c.maskedPhone : '—'}
-                      {!c.hasPhone ? (
-                        <div className="contract-signature-console__hint--warning">번호 없음</div>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <p className="contract-signature-console__hint" style={{ marginTop: 0 }}>
+            고객 이름, 전화번호 일부 또는 고객번호를 입력해 검색하세요. (이름·기본 검색 2글자 이상, 숫자만 입력 시 4자리 이상)
+            휴대폰은 마스킹만 표시됩니다.
+          </p>
+          <div className="contract-signature-console__search-row" style={{ marginBottom: 8, alignItems: 'stretch' }}>
+            <FormInput
+              ref={customerSearchInputRef}
+              type="search"
+              value={customerQuery}
+              onChange={(e) => {
+                setCustomerQuery(e.target.value)
+                setCustomerSearchValidationError(null)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  void executeCustomerSearch()
+                }
+              }}
+              placeholder="이름 · 휴대폰 일부 · 고객번호"
+              disabled={!t}
+              className="max-w-md flex-1 min-w-[200px]"
+            />
+            <FormButton
+              htmlType="button"
+              variant="primary"
+              size="sm"
+              disabled={!t || customerSearchBusy}
+              onClick={() => void executeCustomerSearch()}
+            >
+              {customerSearchBusy ? '검색 중…' : '검색'}
+            </FormButton>
           </div>
+          {customerSearchValidationError ? (
+            <p className="contract-signature-console__inline-warning" role="status">
+              {customerSearchValidationError}
+            </p>
+          ) : null}
+
+          {selectedCustomer ? (
+            <div className="contract-signature-console__selected-card" style={{ marginTop: 12, marginBottom: 12 }}>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>선택 고객</div>
+              <div className="contract-signature-console__body-text" style={{ fontSize: '0.9375rem' }}>
+                {selectedCustomer.name}
+              </div>
+              <div className="contract-signature-console__hint" style={{ marginTop: 6 }}>
+                고객 ID: {selectedCustomer.id}
+                {selectedCustomer.customerCode?.trim() ? ` · 고객번호: ${selectedCustomer.customerCode}` : ''}
+              </div>
+              <div className="contract-signature-console__hint">휴대폰: {selectedCustomer.hasPhone ? selectedCustomer.maskedPhone : '—'}</div>
+              {!selectedCustomer.hasPhone ? (
+                <div className="contract-signature-console__hint--warning" style={{ marginTop: 4 }}>
+                  유효한 휴대폰 번호가 없어 발송할 수 없습니다.
+                </div>
+              ) : null}
+              <div className="contract-signature-console__btn-row">
+                <FormButton htmlType="button" variant="secondary" size="sm" disabled={!t} onClick={clearCustomerSelection}>
+                  선택 해제
+                </FormButton>
+                <FormButton htmlType="button" variant="secondary" size="sm" disabled={!t} onClick={focusSearchAndClearCustomer}>
+                  다른 고객 검색
+                </FormButton>
+              </div>
+            </div>
+          ) : null}
+
+          {customerSearchExecuted ? (
+            <div className="contract-signature-console__scroll-x">
+              <table className="pdf-engine-table contract-signature-console__table--compact contract-signature-console__table--striped">
+                <thead>
+                  <tr>
+                    <th>선택</th>
+                    <th>이름</th>
+                    <th>고객번호 · ID</th>
+                    <th>휴대폰(마스킹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customerHits.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="contract-signature-console__empty-state-text" style={{ padding: '0.75rem' }}>
+                        검색 결과가 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    customerHits.map((c) => (
+                      <tr key={c.id}>
+                        <td>
+                          <FormInput
+                            type="radio"
+                            name="cust-pick"
+                            checked={selectedCustomer?.id === c.id}
+                            value={String(c.id)}
+                            disabled={!t}
+                            onChange={() => setSelectedCustomer(c)}
+                          />
+                        </td>
+                        <td>{c.name}</td>
+                        <td>
+                          {c.customerCode?.trim() ? (
+                            <>
+                              {c.customerCode}
+                              <span className="contract-signature-console__hint"> (ID {c.id})</span>
+                            </>
+                          ) : (
+                            <span>고객 ID: {c.id}</span>
+                          )}
+                        </td>
+                        <td>
+                          {c.hasPhone ? c.maskedPhone : '—'}
+                          {!c.hasPhone ? (
+                            <div className="contract-signature-console__hint--warning">번호 없음</div>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="contract-signature-console__hint" style={{ marginTop: 8 }}>
+              검색어를 입력한 뒤 「검색」을 누르면 본인에게 등록된 고객만 결과로 표시됩니다.
+            </p>
+          )}
         </section>
 
         <section className="contract-signature-console__section">
           <h2 className="contract-signature-console__section-title">2. 전자서명 템플릿 (active)</h2>
+          {selectedCustomer == null ? (
+            <p className="contract-signature-console__hint">고객을 선택하면 템플릿을 고를 수 있습니다.</p>
+          ) : null}
           <div className="contract-signature-console__scroll-x">
             <table className="pdf-engine-table contract-signature-console__table--compact contract-signature-console__table--striped">
               <thead>
@@ -282,7 +377,7 @@ export default function ContractSignatureSendPage() {
                           name="tpl-pick"
                           checked={selectedTemplateId === row.id}
                           value={row.id}
-                          disabled={!t}
+                          disabled={!t || selectedCustomer == null}
                           onChange={() => setSelectedTemplateId(row.id)}
                         />
                       </td>
@@ -311,7 +406,9 @@ export default function ContractSignatureSendPage() {
             템플릿에 따라 설계사가 보내기 전에 채워야 하는 항목이 있습니다. 해당 값은 고객에게는 읽기 전용으로
             노출됩니다.
           </p>
-          {!selectedTemplateId ? (
+          {!selectedCustomer ? (
+            <p className="contract-signature-console__hint">먼저 1단계에서 고객을 검색·선택해 주세요.</p>
+          ) : !selectedTemplateId ? (
             <p className="contract-signature-console__hint">먼저 2단계에서 템플릿을 선택해 주세요.</p>
           ) : (selectedTpl?.senderFieldsForSend ?? []).length === 0 ? (
             <p className="contract-signature-console__hint">이 템플릿에는 발송 전 입력 항목이 없습니다.</p>
