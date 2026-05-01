@@ -189,7 +189,9 @@ function mapSendSessionDetailRow(row, docs, evidenceByDoc) {
  */
 function mapSendSessionListRow(row) {
   const st = String(row.session_status ?? '')
-  const canCancel = !['completed', 'cancelled', 'expired'].includes(st)
+  const hasCompletedDocument = Boolean(row.has_completed_document)
+  const canCancel =
+    !['completed', 'cancelled', 'expired'].includes(st) && !hasCompletedDocument
   const rawTitles = String(row.template_names ?? '').trim()
   const templateNames = rawTitles ? rawTitles.split(' · ').filter(Boolean) : []
   return {
@@ -681,6 +683,7 @@ export function registerContractUserApi(apiRouter, ctx) {
             COUNT(*)::int AS document_count,
             COUNT(*) FILTER (WHERE required = 1)::int AS required_document_count,
             COUNT(*) FILTER (WHERE status = 'completed')::int AS completed_document_count,
+            BOOL_OR(status = 'completed') AS has_completed_document,
             string_agg(title_snapshot, ' · ' ORDER BY sort_order ASC, created_at ASC) AS template_names,
             BOOL_OR(
               status = 'completed' AND signed_pdf_file_id IS NOT NULL
@@ -746,7 +749,7 @@ export function registerContractUserApi(apiRouter, ctx) {
           AND s.sent_by_user_id = $2
           AND c.user_id = $2
           AND c.ga_id = $3
-        FOR UPDATE OF contract_send_sessions
+        FOR UPDATE OF s
         LIMIT 1
         `,
         [sid, uid, userGa],
@@ -757,9 +760,49 @@ export function registerContractUserApi(apiRouter, ctx) {
         return
       }
       const st = String(lock.rows[0].status ?? '')
-      if (st === 'completed' || st === 'cancelled' || st === 'expired') {
+      if (st === 'cancelled') {
         await client.query('ROLLBACK')
-        res.status(409).json({ ok: false, message: '취소할 수 없는 상태입니다.' })
+        res.status(409).json({
+          ok: false,
+          error: 'already_cancelled',
+          message: '이미 취소된 전자서명 발송입니다.',
+        })
+        return
+      }
+      if (st === 'completed') {
+        await client.query('ROLLBACK')
+        res.status(409).json({
+          ok: false,
+          error: 'cannot_cancel_completed_session',
+          message: '완료된 전자서명 문서는 취소할 수 없습니다.',
+        })
+        return
+      }
+      if (st === 'expired') {
+        await client.query('ROLLBACK')
+        res.status(409).json({
+          ok: false,
+          error: 'cannot_cancel_expired_session',
+          message: '만료된 전자서명 발송은 취소할 수 없습니다.',
+        })
+        return
+      }
+      const docCk = await client.query(
+        `
+        SELECT EXISTS (
+          SELECT 1 FROM contract_document_instances
+          WHERE send_session_id = $1 AND status = 'completed'
+        ) AS ex
+        `,
+        [sid],
+      )
+      if (docCk.rows[0]?.ex) {
+        await client.query('ROLLBACK')
+        res.status(409).json({
+          ok: false,
+          error: 'cannot_cancel_completed_session',
+          message: '완료된 전자서명 문서는 취소할 수 없습니다.',
+        })
         return
       }
       await client.query(
@@ -770,16 +813,12 @@ export function registerContractUserApi(apiRouter, ctx) {
         `,
         [sid],
       )
-      await client.query(
-        `
-        UPDATE contract_document_instances
-        SET status = 'cancelled', updated_at = NOW()
-        WHERE send_session_id = $1 AND status <> 'completed'
-        `,
-        [sid],
-      )
       await client.query('COMMIT')
-      res.json({ ok: true })
+      res.json({
+        ok: true,
+        status: 'cancelled',
+        message: '전자서명 발송이 취소되었습니다.',
+      })
     } catch (e) {
       try {
         await client.query('ROLLBACK')

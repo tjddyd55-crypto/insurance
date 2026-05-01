@@ -157,10 +157,21 @@ export default function ContractSignPage() {
       </div>
     )
   } else if (session.blocked) {
+    const reason = session.blockedReason
+    const isCancelled = reason === 'cancelled'
     body = (
       <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-        <p className="font-medium">이 링크는 더 이상 사용할 수 없습니다.</p>
-        <p className="text-sm">만료되었거나 취소된 세션입니다. 담당자에게 문의해 주세요.</p>
+        {isCancelled ? (
+          <>
+            <p className="font-medium">취소된 전자서명 요청입니다.</p>
+            <p className="text-sm">담당자에게 문의해주세요.</p>
+          </>
+        ) : (
+          <>
+            <p className="font-medium">이 링크는 더 이상 사용할 수 없습니다.</p>
+            <p className="text-sm">만료되었거나 취소된 세션입니다. 담당자에게 문의해 주세요.</p>
+          </>
+        )}
       </div>
     )
   } else if (session.completed) {

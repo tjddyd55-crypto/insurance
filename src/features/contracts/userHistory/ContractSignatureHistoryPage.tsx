@@ -23,6 +23,17 @@ import { SendSessionHistoryList } from './components/SendSessionHistoryList'
 
 const PAGE_SIZE = 30
 
+function formatCancelFailureMessage(e: unknown): string {
+  if (e instanceof ApiError) {
+    const raw = e.message.trim()
+    if (!raw || raw === 'DB_ERROR' || raw.toUpperCase() === 'DB_ERROR') {
+      return '발송 취소 중 오류가 발생했습니다. 다시 시도해주세요.'
+    }
+    return raw
+  }
+  return '발송 취소 중 오류가 발생했습니다. 다시 시도해주세요.'
+}
+
 export default function ContractSignatureHistoryPage() {
   const navigate = useNavigate()
   const { token } = useAuth()
@@ -47,6 +58,7 @@ export default function ContractSignatureHistoryPage() {
   const [cancelBusy, setCancelBusy] = useState(false)
   /** 상세 패널이 열린 세션 ID — 취소 후 상세 갱신용 */
   const [panelSessionId, setPanelSessionId] = useState<string | null>(null)
+  const [cancelFeedback, setCancelFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebouncedQ(q.trim()), 320)
@@ -157,8 +169,10 @@ export default function ContractSignatureHistoryPage() {
       return
     }
     setCancelBusy(true)
+    setCancelFeedback(null)
     try {
-      await cancelUserSendSession(t, sendSessionId)
+      const result = await cancelUserSendSession(t, sendSessionId)
+      setCancelFeedback({ tone: 'success', text: result.message || '전자서명 발송이 취소되었습니다.' })
       await reloadListFirstPage()
       if (panelSessionId === sendSessionId) {
         setDetailLoading(true)
@@ -173,7 +187,7 @@ export default function ContractSignatureHistoryPage() {
         }
       }
     } catch (e) {
-      window.alert(e instanceof ApiError ? e.message : '취소에 실패했습니다.')
+      setCancelFeedback({ tone: 'error', text: formatCancelFailureMessage(e) })
     } finally {
       setCancelBusy(false)
     }
@@ -184,11 +198,17 @@ export default function ContractSignatureHistoryPage() {
       return
     }
     const ok = await confirm({
-      title: '발송 취소',
-      message: '이 발송을 취소할까요? 고객 링크로는 더 이상 진행할 수 없습니다.',
+      title: '전자서명 발송 취소',
+      message: (
+        <>
+          <p style={{ margin: '0 0 8px' }}>이 전자서명 발송을 취소하시겠습니까?</p>
+          <p style={{ margin: '0 0 8px' }}>취소하면 고객은 더 이상 링크에서 문서 작성·서명을 진행할 수 없습니다.</p>
+          <p style={{ margin: 0 }}>발송 이력은 삭제되지 않습니다.</p>
+        </>
+      ),
       tone: 'danger',
-      confirmLabel: '취소하기',
-      cancelLabel: '닫기',
+      confirmLabel: '발송 취소',
+      cancelLabel: '취소하지 않기',
     })
     if (!ok) {
       return
@@ -204,12 +224,21 @@ export default function ContractSignatureHistoryPage() {
     if (st === 'completed' || st === 'cancelled' || st === 'expired') {
       return
     }
+    if (detail.documents?.some((d) => d.status === 'completed')) {
+      return
+    }
     const ok = await confirm({
-      title: '발송 취소',
-      message: '이 발송을 취소할까요? 고객 링크로는 더 이상 진행할 수 없습니다.',
+      title: '전자서명 발송 취소',
+      message: (
+        <>
+          <p style={{ margin: '0 0 8px' }}>이 전자서명 발송을 취소하시겠습니까?</p>
+          <p style={{ margin: '0 0 8px' }}>취소하면 고객은 더 이상 링크에서 문서 작성·서명을 진행할 수 없습니다.</p>
+          <p style={{ margin: 0 }}>발송 이력은 삭제되지 않습니다.</p>
+        </>
+      ),
       tone: 'danger',
-      confirmLabel: '취소하기',
-      cancelLabel: '닫기',
+      confirmLabel: '발송 취소',
+      cancelLabel: '취소하지 않기',
     })
     if (!ok) {
       return
@@ -270,6 +299,18 @@ export default function ContractSignatureHistoryPage() {
           </div>
 
           <SendSessionHistoryFilters value={filter} onChange={setFilter} />
+
+          {cancelFeedback ? (
+            cancelFeedback.tone === 'success' ? (
+              <div className="contract-signature-console__notice" role="status" style={{ marginBottom: 8 }}>
+                {cancelFeedback.text}
+              </div>
+            ) : (
+              <div className="contract-signature-console__alert--danger" role="alert" style={{ marginBottom: 8 }}>
+                {cancelFeedback.text}
+              </div>
+            )
+          ) : null}
 
           {listError ? (
             <div className="contract-signature-console__alert--danger" role="alert">

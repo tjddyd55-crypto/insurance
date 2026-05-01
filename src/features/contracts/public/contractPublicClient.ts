@@ -25,6 +25,8 @@ export type ContractPublicSendSession = {
 export type ContractPublicSessionPayload = {
   sendSession: ContractPublicSendSession
   blocked: boolean
+  /** 터미널 상태일 때만: 취소 vs 만료 구분 (구 클라이언트 호환: 없으면 undefined) */
+  blockedReason?: 'cancelled' | 'expired' | null
   completed: boolean
   documentCount: number
   completedDocumentCount: number

@@ -124,9 +124,12 @@ function buildPublicEvidenceFromRow(ev, opts = {}) {
   return out
 }
 
-/** @param {import('express').Response} res @param {{ status: number, message: string, evidence?: unknown }} err */
+/** @param {import('express').Response} res @param {{ status: number, message: string, evidence?: unknown, code?: string }} err */
 function respondPublicMutationError(res, err) {
   const body = { success: false, message: err.message }
+  if (typeof err.code === 'string' && err.code.trim()) {
+    body.code = err.code.trim()
+  }
   if ('evidence' in err) {
     body.data = { evidence: err.evidence }
   }
@@ -452,6 +455,19 @@ async function resolveMutationBase(pool, linkCode, documentInstanceId) {
   }
   const sendStatus = String(row.status ?? '')
   const idStatus = await loadLatestIdentityStatus(pool, row.id)
+  if (TERMINAL_SESSION.has(sendStatus)) {
+    const message =
+      sendStatus === 'cancelled'
+        ? '취소된 전자서명 요청입니다. 담당자에게 문의해주세요.'
+        : '만료된 전자서명 링크입니다. 담당자에게 문의해주세요.'
+    return {
+      error: {
+        status: 403,
+        message,
+        code: sendStatus === 'cancelled' ? 'send_session_cancelled' : 'send_session_expired',
+      },
+    }
+  }
   if (!allowsDocumentMutation(sendStatus, idStatus)) {
     return { error: { status: 403, message: '계약서 수신번호 인증이 필요합니다.' } }
   }
@@ -1634,6 +1650,9 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const verified = isIdentityVerified(sendStatus, idStatus)
       const authenticationRequired = !verified && !TERMINAL_SESSION.has(sendStatus) && !COMPLETED_SESSION.has(sendStatus)
 
+      const blocked = TERMINAL_SESSION.has(sendStatus)
+      const blockedReason = !blocked ? null : sendStatus === 'cancelled' ? 'cancelled' : 'expired'
+
       const docs = await pool.query(
         `
         SELECT id, title_snapshot, required, sort_order, status
@@ -1672,7 +1691,8 @@ export function registerContractPublicApi(apiRouter, ctx) {
             authenticationRequired,
             openedAt: row.opened_at ? new Date(row.opened_at).toISOString() : null,
           },
-          blocked: TERMINAL_SESSION.has(sendStatus),
+          blocked,
+          blockedReason,
           completed: COMPLETED_SESSION.has(sendStatus),
           documentCount,
           completedDocumentCount,

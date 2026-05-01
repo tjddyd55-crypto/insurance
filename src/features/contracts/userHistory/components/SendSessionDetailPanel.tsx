@@ -42,7 +42,9 @@ export function SendSessionDetailPanel({
   const linkCode = detail?.linkCode ?? ''
   const publicUrl = linkCode ? buildCustomerPublicSignUrl(linkCode) : ''
   const sessionSt = detail?.status ?? ''
-  const canCancel = !['completed', 'cancelled', 'expired'].includes(String(sessionSt))
+  const hasCompletedDoc = detail?.documents?.some((d) => d.status === 'completed') ?? false
+  const canCancel =
+    detail != null && !['completed', 'cancelled', 'expired'].includes(String(sessionSt)) && !hasCompletedDoc
   const derivedSignedPending = detail?.documents?.some((d) => d.status === 'signed') ?? false
   const signedHint = listHints?.hasSignedNotCompleted ?? derivedSignedPending
 

@@ -94,12 +94,23 @@ export async function getUserSendSessionDetail(token: string, sendSessionId: str
   return s
 }
 
-export async function cancelUserSendSession(token: string, sendSessionId: string): Promise<void> {
-  await apiRequest(`/api/contracts/send-sessions/${encodeURIComponent(sendSessionId)}/cancel`, {
+export type CancelUserSendSessionResult = {
+  ok: true
+  status: string
+  message: string
+}
+
+export async function cancelUserSendSession(token: string, sendSessionId: string): Promise<CancelUserSendSessionResult> {
+  const body = await apiRequest<CancelUserSendSessionResult>(`/api/contracts/send-sessions/${encodeURIComponent(sendSessionId)}/cancel`, {
     method: 'PATCH',
     token,
     body: JSON.stringify({}),
   })
+  const b = body as CancelUserSendSessionResult & { ok?: boolean }
+  if (!b || b.ok !== true) {
+    throw new ApiError('발송 취소 응답이 올바르지 않습니다.', 500)
+  }
+  return b
 }
 
 export function buildCustomerPublicSignUrl(linkCode: string): string {
