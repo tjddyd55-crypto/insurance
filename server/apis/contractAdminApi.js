@@ -12,6 +12,7 @@ import {
 } from '../services/contractSenderPrefill.js'
 
 const CT_PREFIX = 'ct_'
+const CTF_PREFIX = 'ctf_'
 const PKG_PREFIX = 'pkg_'
 const CSS_PREFIX = 'css_'
 const CDI_PREFIX = 'cdi_'
@@ -260,9 +261,24 @@ export function registerContractAdminApi(apiRouter, ctx) {
       }
       const r = await pool.query(
         `
-        SELECT t.*, p.title AS pdf_engine_title, p.storage_key AS pdf_engine_storage_key
+        SELECT
+          t.*,
+          p.title AS pdf_engine_title,
+          p.storage_key AS pdf_engine_storage_key,
+          COALESCE(di.document_instance_count, 0)::int AS document_instance_count,
+          COALESCE(pi.package_item_count, 0)::int AS package_item_count
         FROM contract_templates t
         LEFT JOIN pdf_templates p ON p.id = t.pdf_template_id
+        LEFT JOIN (
+          SELECT template_id, COUNT(*)::int AS document_instance_count
+          FROM contract_document_instances
+          GROUP BY template_id
+        ) di ON di.template_id = t.id
+        LEFT JOIN (
+          SELECT template_id, COUNT(*)::int AS package_item_count
+          FROM contract_package_items
+          GROUP BY template_id
+        ) pi ON pi.template_id = t.id
         ${where}
         ORDER BY t.updated_at DESC
         LIMIT 500
@@ -284,6 +300,8 @@ export function registerContractAdminApi(apiRouter, ctx) {
           gaId: row.ga_id,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
+          documentInstanceCount: Number(row.document_instance_count ?? 0),
+          packageItemCount: Number(row.package_item_count ?? 0),
         })),
       })
     } catch (e) {
@@ -550,6 +568,141 @@ export function registerContractAdminApi(apiRouter, ctx) {
         row.id,
         status,
       ])
+      res.json({ ok: true, success: true })
+    } catch (e) {
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
+    }
+  })
+
+  apiRouter.post('/admin/contracts/templates/:id/duplicate', ...chain, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      const effectiveGa = await resolveEffectiveGaId(pool, req)
+      const isSuper = isSuperAdminRole(req.user?.role)
+      const acc = await assertContractTemplateAccess(client, req.params.id, effectiveGa, isSuper)
+      if (acc.error) {
+        await client.query('ROLLBACK')
+        res.status(acc.status ?? 400).json({ ok: false, message: acc.error })
+        return
+      }
+      const src = acc.row
+      const newTid = newId(CT_PREFIX)
+      const uid = getAuthUserId(req)
+      const baseTitle = String(src.title ?? '').trim() || '계약서 템플릿'
+      const copyTitle = `${baseTitle} (복사)`
+      await client.query(
+        `
+        INSERT INTO contract_templates (
+          id, title, description, category, pdf_file_id, pdf_file_path, pdf_hash, page_count,
+          pdf_template_id, status, version, created_by_user_id, ga_id, created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft', 1, $10, $11, NOW(), NOW())
+        `,
+        [
+          newTid,
+          copyTitle,
+          src.description,
+          src.category,
+          src.pdf_file_id ?? null,
+          src.pdf_file_path ?? null,
+          src.pdf_hash ?? null,
+          src.page_count ?? null,
+          src.pdf_template_id ?? null,
+          uid || null,
+          src.ga_id ?? null,
+        ],
+      )
+      const fieldsR = await client.query(`SELECT * FROM contract_template_fields WHERE template_id = $1`, [
+        src.id,
+      ])
+      for (const f of fieldsR.rows) {
+        const nf = newId(CTF_PREFIX)
+        await client.query(
+          `
+          INSERT INTO contract_template_fields (
+            id, template_id, field_key, field_label, field_type, page_no, x, y, width, height, font_size,
+            required, default_value, data_binding_key, sort_order, created_at, updated_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW(), NOW())
+          `,
+          [
+            nf,
+            newTid,
+            f.field_key,
+            f.field_label,
+            f.field_type,
+            f.page_no,
+            f.x,
+            f.y,
+            f.width ?? null,
+            f.height ?? null,
+            f.font_size ?? null,
+            f.required,
+            f.default_value ?? null,
+            f.data_binding_key ?? null,
+            f.sort_order ?? 0,
+          ],
+        )
+      }
+      await client.query('COMMIT')
+      res.status(201).json({ ok: true, success: true, data: { id: newTid } })
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* noop */
+      }
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
+    }
+  })
+
+  apiRouter.delete('/admin/contracts/templates/:id', ...chain, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const effectiveGa = await resolveEffectiveGaId(pool, req)
+      const isSuper = isSuperAdminRole(req.user?.role)
+      const acc = await assertContractTemplateAccess(client, req.params.id, effectiveGa, isSuper)
+      if (acc.error) {
+        res.status(acc.status ?? 400).json({ ok: false, message: acc.error })
+        return
+      }
+      const row = acc.row
+      if (String(row.status ?? '') !== 'draft') {
+        res.status(400).json({
+          ok: false,
+          message:
+            '삭제는 초안(draft)만 가능합니다. 발송·사용 이력이 있는 템플릿은 사용 중지(archived)로 전환하세요.',
+        })
+        return
+      }
+      const cntR = await client.query(
+        `SELECT COUNT(*)::int AS c FROM contract_document_instances WHERE template_id = $1`,
+        [row.id],
+      )
+      if (Number(cntR.rows[0]?.c ?? 0) > 0) {
+        res.status(400).json({
+          ok: false,
+          message: '발송 이력이 있는 템플릿은 삭제할 수 없습니다. 사용 중지(archived)로 전환하세요.',
+        })
+        return
+      }
+      const pkgR = await client.query(
+        `SELECT COUNT(*)::int AS c FROM contract_package_items WHERE template_id = $1`,
+        [row.id],
+      )
+      if (Number(pkgR.rows[0]?.c ?? 0) > 0) {
+        res.status(400).json({
+          ok: false,
+          message: '패키지에 포함된 템플릿은 삭제할 수 없습니다. 패키지에서 제거한 뒤 다시 시도하세요.',
+        })
+        return
+      }
+      await client.query(`DELETE FROM contract_templates WHERE id = $1`, [row.id])
       res.json({ ok: true, success: true })
     } catch (e) {
       handleDbError(e, req, res)

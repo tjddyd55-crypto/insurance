@@ -25,6 +25,35 @@ export type ContractTemplateListItem = {
   gaId: number | null
   createdAt: string
   updatedAt: string
+  /** contract_document_instances 건수(발송 이력 판단) */
+  documentInstanceCount: number
+  /** contract_package_items 건수 */
+  packageItemCount: number
+}
+
+export type ContractTemplateDetail = {
+  id: string
+  title: string
+  description: string | null
+  category: string | null
+  status: string
+  version: number
+  pdfTemplateId: number | null
+  pdfFileId: string | null
+  pdfFilePath: string | null
+  pdfHash: string | null
+  pageCount: number | null
+  gaId: number | null
+  contractTemplateFieldsCount: number
+  pdfEngine: {
+    id: number
+    title: string
+    storageKey: string
+    pageCount: number | null
+    isActive: boolean
+  } | null
+  createdAt: string
+  updatedAt: string
 }
 
 export type CreateSendSessionResult = {
@@ -157,7 +186,46 @@ export async function listContractTemplates(
   if (!raw?.templates || !Array.isArray(raw.templates)) {
     throw new ApiError('계약 템플릿 목록 응답 형식이 올바르지 않습니다.', 500)
   }
-  return raw.templates
+  return raw.templates.map((t) => ({
+    ...t,
+    documentInstanceCount: Number((t as ContractTemplateListItem).documentInstanceCount ?? 0),
+    packageItemCount: Number((t as ContractTemplateListItem).packageItemCount ?? 0),
+  }))
+}
+
+export async function fetchContractTemplateDetail(
+  token: string,
+  role: string | undefined,
+  templateId: string,
+  tenantGaId: number | null,
+): Promise<ContractTemplateDetail> {
+  const isSuper = role === 'SUPER_ADMIN'
+  const qs = tenantQs(tenantGaId, isSuper)
+  const body = await apiRequest<{ template?: ContractTemplateDetail }>(
+    `/api/admin/contracts/templates/${encodeURIComponent(templateId)}${qs}`,
+    { method: 'GET', token },
+  )
+  const tpl = (body as { template?: ContractTemplateDetail }).template
+  if (!tpl?.id) {
+    throw new ApiError('계약 템플릿 상세 응답이 올바르지 않습니다.', 500)
+  }
+  return tpl
+}
+
+export async function patchContractTemplate(
+  token: string,
+  role: string | undefined,
+  templateId: string,
+  payload: { title?: string; description?: string | null },
+  tenantGaId: number | null,
+): Promise<void> {
+  const isSuper = role === 'SUPER_ADMIN'
+  const qs = tenantQs(tenantGaId, isSuper)
+  await apiRequest(`/api/admin/contracts/templates/${encodeURIComponent(templateId)}${qs}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ ...payload, ...tenantBody(tenantGaId, isSuper) }),
+  })
 }
 
 export async function createContractTemplateFromPdfTemplate(
@@ -186,10 +254,11 @@ export async function createContractTemplateFromPdfTemplate(
   return id
 }
 
-export async function activateContractTemplate(
+export async function setContractTemplateStatus(
   token: string,
   role: string | undefined,
   templateId: string,
+  status: 'draft' | 'active' | 'archived',
   tenantGaId: number | null,
 ): Promise<void> {
   const isSuper = role === 'SUPER_ADMIN'
@@ -197,8 +266,55 @@ export async function activateContractTemplate(
   await apiRequest(`/api/admin/contracts/templates/${encodeURIComponent(templateId)}/status${qs}`, {
     method: 'PATCH',
     token,
-    body: JSON.stringify({ status: 'active', ...tenantBody(tenantGaId, isSuper) }),
+    body: JSON.stringify({ status, ...tenantBody(tenantGaId, isSuper) }),
   })
+}
+
+/** @deprecated setContractTemplateStatus(..., 'active') 사용 권장 */
+export async function activateContractTemplate(
+  token: string,
+  role: string | undefined,
+  templateId: string,
+  tenantGaId: number | null,
+): Promise<void> {
+  await setContractTemplateStatus(token, role, templateId, 'active', tenantGaId)
+}
+
+export async function deleteContractTemplate(
+  token: string,
+  role: string | undefined,
+  templateId: string,
+  tenantGaId: number | null,
+): Promise<void> {
+  const isSuper = role === 'SUPER_ADMIN'
+  const qs = tenantQs(tenantGaId, isSuper)
+  await apiRequest(`/api/admin/contracts/templates/${encodeURIComponent(templateId)}${qs}`, {
+    method: 'DELETE',
+    token,
+  })
+}
+
+export async function duplicateContractTemplate(
+  token: string,
+  role: string | undefined,
+  templateId: string,
+  tenantGaId: number | null,
+): Promise<string> {
+  const isSuper = role === 'SUPER_ADMIN'
+  const qs = tenantQs(tenantGaId, isSuper)
+  const body = await apiRequest<{ data?: { id?: string } }>(
+    `/api/admin/contracts/templates/${encodeURIComponent(templateId)}/duplicate${qs}`,
+    {
+      method: 'POST',
+      token,
+      body: JSON.stringify(tenantBody(tenantGaId, isSuper)),
+    },
+  )
+  const id = (body as { data?: { id?: string } }).data?.id
+  if (!id) {
+    throw new ApiError('복제 응답에 id가 없습니다.', 500)
+  }
+  return id
 }
 
 export async function searchCustomersForContractTest(
