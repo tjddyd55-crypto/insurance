@@ -50,6 +50,24 @@ function buildDraftsFromDetail(d: ContractDocumentDetailPayload): Record<string,
   return next
 }
 
+/** 서버 재조회 후에도 사용자가 이미 편집한 텍스트·선택·체크 값은 유지한다. */
+function mergeDraftsFromDetail(
+  prev: Record<string, string | boolean>,
+  detail: ContractDocumentDetailPayload,
+): Record<string, string | boolean> {
+  const fromServer = buildDraftsFromDetail(detail)
+  const next: Record<string, string | boolean> = { ...fromServer }
+  for (const f of detail.fields) {
+    if (f.fieldType === 'signature') {
+      continue
+    }
+    if (Object.prototype.hasOwnProperty.call(prev, f.id)) {
+      next[f.id] = prev[f.id]
+    }
+  }
+  return next
+}
+
 function sortFields(d: ContractDocumentDetailPayload) {
   return d.fields.slice().sort((a, b) => a.orderIndex - b.orderIndex)
 }
@@ -137,7 +155,7 @@ export default function ContractSignDocumentPage() {
       if (isCancelled?.()) {
         return
       }
-      setDrafts(buildDraftsFromDetail(d))
+      setDrafts((prev) => mergeDraftsFromDetail(prev, d))
     },
     [linkCode, documentInstanceId],
   )
@@ -811,8 +829,8 @@ export default function ContractSignDocumentPage() {
         />
 
         <SignatureModal
-          key={sigModalField?.id ?? 'contract-signature-modal'}
           open={sigModalField != null}
+          padResetKey={sigModalField?.id}
           title="전자서명 입력"
           description="손가락 또는 마우스로 서명하세요."
           saveLabel="서명 적용"

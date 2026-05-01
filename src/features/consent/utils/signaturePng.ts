@@ -28,6 +28,7 @@ function drawScaledCanvas(source: HTMLCanvasElement, scale: number): HTMLCanvasE
   }
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
+  ctx.clearRect(0, 0, next.width, next.height)
   ctx.drawImage(source, 0, 0, next.width, next.height)
   return next
 }

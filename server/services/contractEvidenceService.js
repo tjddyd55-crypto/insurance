@@ -270,6 +270,15 @@ export async function insertSignatureEvidenceRow(client, req, input) {
   const valuesHash = hashContractDocumentValuesForEvidence(input.valueRows)
   const { signatureImageHash, signatureFileId } = pickSignatureAggregation(input.valueRows)
 
+  const signedPdfHashNorm =
+    input.signedPdfHash != null && String(input.signedPdfHash).trim()
+      ? String(input.signedPdfHash).trim()
+      : null
+  const signedPdfFileIdNorm =
+    input.signedPdfFileId != null && String(input.signedPdfFileId).trim()
+      ? String(input.signedPdfFileId).trim()
+      : null
+
   const orig = input.documentInstance.original_pdf_hash
   const ctpdf = input.contractTemplate.pdf_hash
   const originalPdfHash = orig && String(orig).trim() ? String(orig).trim() : null
@@ -320,7 +329,7 @@ export async function insertSignatureEvidenceRow(client, req, input) {
     signatureFileId,
     signatureImageHash,
     signedAtIso,
-    signedPdfHash: null,
+    signedPdfHash: signedPdfHashNorm,
     targetPhoneHash,
     templateId,
     templateVersion,

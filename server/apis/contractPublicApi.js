@@ -953,6 +953,20 @@ export function registerContractPublicApi(apiRouter, ctx) {
         })
       } catch (e) {
         await client.query('ROLLBACK').catch(() => {})
+        const sc =
+          e && typeof e === 'object' && 'statusCode' in e ? Number(/** @type {{ statusCode?: unknown }} */ (e).statusCode) : NaN
+        if (Number.isFinite(sc) && sc >= 400 && sc < 500) {
+          const msg = e instanceof Error ? e.message : '요청을 처리할 수 없습니다.'
+          const codeRaw =
+            e && typeof e === 'object' && 'code' in e ? /** @type {{ code?: unknown }} */ (e).code : undefined
+          const code = typeof codeRaw === 'string' && codeRaw.trim() ? codeRaw.trim() : undefined
+          res.status(sc).json({
+            success: false,
+            message: msg,
+            ...(code ? { code } : {}),
+          })
+          return
+        }
         handleDbError(e, req, res)
         return
       } finally {

@@ -59,12 +59,10 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
       return null
     }
     const computed = window.getComputedStyle(canvas)
-    const signatureBg = computed.getPropertyValue('--consent-signature-bg').trim() || 'black'
     const signatureInk = computed.getPropertyValue('--consent-signature-ink').trim() || 'white'
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.scale(dpr, dpr)
-    ctx.fillStyle = signatureBg
-    ctx.fillRect(0, 0, cssW, cssH)
+    ctx.clearRect(0, 0, cssW, cssH)
     ctx.strokeStyle = signatureInk
     ctx.lineWidth = 2
     ctx.lineCap = 'round'

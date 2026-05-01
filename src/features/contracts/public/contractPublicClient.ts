@@ -4,6 +4,13 @@ function lc(code: string) {
   return encodeURIComponent(String(code ?? '').trim())
 }
 
+/** 공개 계약 플로우는 세션/장치 바인딩 쿠키 동반 요청이 필요하다. */
+type PublicMutationInit = Parameters<typeof apiRequest>[1]
+
+function publicRequest<T>(path: string, init?: PublicMutationInit): Promise<T> {
+  return apiRequest<T>(path, { ...init, credentials: 'include' })
+}
+
 export type ContractPublicSendSession = {
   id: string
   status: string
@@ -32,11 +39,11 @@ export type ContractPublicSessionPayload = {
 }
 
 export async function fetchContractPublicSession(linkCode: string): Promise<ContractPublicSessionPayload> {
-  return apiRequest<ContractPublicSessionPayload>(`/api/contracts/public/${lc(linkCode)}`)
+  return publicRequest<ContractPublicSessionPayload>(`/api/contracts/public/${lc(linkCode)}`)
 }
 
 export async function postContractPublicOpen(linkCode: string): Promise<{ opened: boolean; metaRecorded?: boolean }> {
-  return apiRequest(`/api/contracts/public/${lc(linkCode)}/open`, {
+  return publicRequest(`/api/contracts/public/${lc(linkCode)}/open`, {
     method: 'POST',
     body: JSON.stringify({}),
   })
@@ -51,7 +58,7 @@ export type ContractDocumentRow = {
 }
 
 export async function fetchContractPublicDocuments(linkCode: string): Promise<{ documents: ContractDocumentRow[] }> {
-  return apiRequest(`/api/contracts/public/${lc(linkCode)}/documents`)
+  return publicRequest(`/api/contracts/public/${lc(linkCode)}/documents`)
 }
 
 export async function postContractOtpSend(linkCode: string): Promise<{
@@ -59,14 +66,14 @@ export async function postContractOtpSend(linkCode: string): Promise<{
   maskedPhone?: string | null
   expiresInSeconds?: number
 }> {
-  return apiRequest(`/api/contracts/public/${lc(linkCode)}/otp/send`, {
+  return publicRequest(`/api/contracts/public/${lc(linkCode)}/otp/send`, {
     method: 'POST',
     body: JSON.stringify({}),
   })
 }
 
 export async function postContractOtpVerify(linkCode: string, code: string): Promise<{ verified?: boolean; status?: string }> {
-  return apiRequest(`/api/contracts/public/${lc(linkCode)}/otp/verify`, {
+  return publicRequest(`/api/contracts/public/${lc(linkCode)}/otp/verify`, {
     method: 'POST',
     body: JSON.stringify({ code: String(code ?? '').replace(/\D/g, '').slice(0, 6) }),
   })
@@ -77,7 +84,7 @@ export async function fetchContractOtpStatus(linkCode: string): Promise<{
   sendSessionStatus: string
   maskedPhone: string | null
 }> {
-  return apiRequest(`/api/contracts/public/${lc(linkCode)}/otp/status`)
+  return publicRequest(`/api/contracts/public/${lc(linkCode)}/otp/status`)
 }
 
 export type ContractPublicFieldValue =
@@ -137,9 +144,7 @@ export async function fetchContractPublicDocumentDetail(
   linkCode: string,
   documentInstanceId: string,
 ): Promise<ContractDocumentDetailPayload> {
-  return apiRequest(
-    `/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}`,
-  )
+  return publicRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}`)
 }
 
 export function resolveContractPdfPreviewAbsUrl(linkCode: string, documentInstanceId: string): string {
@@ -165,7 +170,7 @@ export async function postContractPublicDocumentValues(
   documentInstanceId: string,
   values: ContractPublicValueInput[],
 ): Promise<{ saved?: boolean }> {
-  return apiRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/values`, {
+  return publicRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/values`, {
     method: 'POST',
     body: JSON.stringify({ values }),
   })
@@ -180,7 +185,7 @@ export async function postContractPublicDocumentSign(
     electronicSignAcknowledged: true
   },
 ): Promise<{ fieldId?: string; valueHash?: string; fileId?: string }> {
-  return apiRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/sign`, {
+  return publicRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/sign`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
@@ -201,7 +206,7 @@ export async function postContractPublicDocumentComplete(
   signedPdfDownloadAvailable?: boolean
   signedPdfDownloadPath?: string
 }> {
-  return apiRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/complete`, {
+  return publicRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/complete`, {
     method: 'POST',
     body: JSON.stringify(body),
   })

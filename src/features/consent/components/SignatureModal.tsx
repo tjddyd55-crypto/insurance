@@ -12,9 +12,11 @@ export interface SignatureModalProps {
   saveLabel?: string
   /** 모달 본문 안내 (예: 손가락으로 서명) */
   description?: string
+  /** 서명 필드(또는 세션)가 바뀔 때 패드를 초기화하기 위한 키 */
+  padResetKey?: string
 }
 
-export function SignatureModal({ open, onClose, onSave, title, saveLabel, description }: SignatureModalProps) {
+export function SignatureModal({ open, onClose, onSave, title, saveLabel, description, padResetKey }: SignatureModalProps) {
   const signaturePadRef = useRef<SignaturePadHandle | null>(null)
   const [hasStroke, setHasStroke] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -27,13 +29,27 @@ export function SignatureModal({ open, onClose, onSave, title, saveLabel, descri
     if (!open) {
       return
     }
-    const prevOverflow = document.body.style.overflow
-    const prevTouch = document.body.style.touchAction
+    const scrollY = window.scrollY
+    const prevHtmlOverflow = document.documentElement.style.overflow
+    const prevBodyOverflow = document.body.style.overflow
+    const prevBodyTouch = document.body.style.touchAction
+    const prevBodyPosition = document.body.style.position
+    const prevBodyTop = document.body.style.top
+    const prevBodyWidth = document.body.style.width
+    document.documentElement.style.overflow = 'hidden'
     document.body.style.overflow = 'hidden'
     document.body.style.touchAction = 'none'
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${scrollY}px`
+    document.body.style.width = '100%'
     return () => {
-      document.body.style.overflow = prevOverflow
-      document.body.style.touchAction = prevTouch
+      document.documentElement.style.overflow = prevHtmlOverflow
+      document.body.style.overflow = prevBodyOverflow
+      document.body.style.touchAction = prevBodyTouch
+      document.body.style.position = prevBodyPosition
+      document.body.style.top = prevBodyTop
+      document.body.style.width = prevBodyWidth
+      window.scrollTo(0, scrollY)
     }
   }, [open])
 
@@ -79,21 +95,38 @@ export function SignatureModal({ open, onClose, onSave, title, saveLabel, descri
   }
 
   return (
-    <div className="consent-signature-overlay" role="dialog" aria-modal="true" aria-labelledby="consent-signature-title">
+    <div
+      className="consent-signature-overlay consent-signature-overlay--fullscreen"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="consent-signature-title"
+    >
       <header className="consent-signature-header">
+        <span className="consent-signature-header__spacer" aria-hidden />
         <h2 id="consent-signature-title" className="consent-signature-header__title">
           {titleText}
         </h2>
+        <button
+          type="button"
+          className="consent-signature-header__close"
+          onClick={() => !saving && onClose()}
+          disabled={saving}
+          aria-label="닫기"
+        >
+          닫기
+        </button>
       </header>
       {description?.trim() ? (
         <p className="consent-signature-modal-desc">{description.trim()}</p>
       ) : null}
       <div className="consent-signature-canvas-wrap">
-        <SignaturePad
-          ref={signaturePadRef}
-          className="consent-signature-canvas"
-          onDirtyChange={handleDirtyChange}
-        />
+        <div className="consent-signature-canvas-surface" key={padResetKey?.trim() ? padResetKey.trim() : 'signature-pad'}>
+          <SignaturePad
+            ref={signaturePadRef}
+            className="consent-signature-canvas"
+            onDirtyChange={handleDirtyChange}
+          />
+        </div>
       </div>
       {error ? <p className="consent-signature-error">{error}</p> : null}
       <footer className="consent-signature-footer">
