@@ -17,11 +17,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
-import type { PdfCustomerMapping, PdfFieldSpec, PdfFieldType, PdfPlacement } from '../types'
-import { PDF_CUSTOMER_MAPPINGS, PDF_FIELD_TYPES } from '../types'
-import { PdfOverlayCanvas, type OverlayMark, type OverlayPick } from './PdfOverlayCanvas'
+import type { PdfFieldSpec, PdfFieldType, PdfPlacement } from '../types'
+import { PDF_FIELD_TYPE_LABELS, PDF_FIELD_TYPES } from '../types'
+import { PdfOverlayCanvas, type OverlayMark, type OverlayPick, type PdfOverlayDebugMeta } from './PdfOverlayCanvas'
 import FormInput from '../../../components/form/FormInput'
-import FormSelect from '../../../components/form/FormSelect'
 
 interface Props {
   pdfBuffer: ArrayBuffer | null
@@ -31,6 +30,8 @@ interface Props {
   onSaveFields: () => void
   savingFields: boolean
   fieldsDirty: boolean
+  /** 좌표 화면 개발 로그용(스토리지 경로는 넣지 않음) */
+  templateId?: number
 }
 
 type DraftField = {
@@ -44,23 +45,6 @@ const EMPTY_DRAFT: DraftField = {
   fieldType: 'text',
   required: false,
 }
-
-/**
- * 관리자 에디터의 "자동 매핑" 드롭다운 라벨.
- * 서버 컨벤션 키(name/dob/phone/address) 는 코드에 남기되, UI 는 한국어로만 보여준다.
- * 신규 매핑 추가 시 이 맵과 서버 fieldSpec 의 ALLOWED_CUSTOMER_MAPPINGS 만 같이 수정한다.
- */
-const CUSTOMER_MAPPING_LABEL: Record<PdfCustomerMapping, string> = {
-  name: '이름 (display_name)',
-  dob: '생년월일 (customer_dob)',
-  phone: '전화번호 (phone_number)',
-  address: '주소 (customer_address)',
-}
-
-const CUSTOMER_MAPPING_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: '', label: '없음 (수동 입력)' },
-  ...PDF_CUSTOMER_MAPPINGS.map((m) => ({ value: m, label: CUSTOMER_MAPPING_LABEL[m] })),
-]
 
 /**
  * 필드의 "기본 텍스트 박스 크기" 가 없어 placement.width 가 null 인 경우(기존 점 배치)
@@ -105,6 +89,7 @@ export function PdfCoordinateEditor({
   onSaveFields,
   savingFields,
   fieldsDirty,
+  templateId,
 }: Props) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   /**
@@ -125,6 +110,20 @@ export function PdfCoordinateEditor({
   useEffect(() => {
     if (pageCount > 0) setNumPages(pageCount)
   }, [pageCount])
+
+  const overlayDebugMeta = useMemo((): PdfOverlayDebugMeta | undefined => {
+    if (templateId == null) return undefined
+    return {
+      pdfTemplateId: templateId,
+      serverPageCount: pageCount > 0 ? pageCount : undefined,
+      fetchUrlPath: `/api/admin/pdf-templates/${templateId}/file`,
+    }
+  }, [templateId, pageCount])
+
+  useEffect(() => {
+    /* 서버 pageCount 와 pdfjs 실제 페이지 수가 어긋나면, 열람 중 페이지가 범위를 벗어나지 않게 한다. */
+    setPageIndex((i) => Math.min(i, Math.max(0, numPages - 1)))
+  }, [numPages])
 
   const existingKeys = useMemo(() => new Set(fields.map((f) => f.fieldKey)), [fields])
 
@@ -170,7 +169,8 @@ export function PdfCoordinateEditor({
       fieldType: draft.fieldType,
       required: draft.required,
       orderIndex: fields.length,
-      customerMapping: null,
+      /** PDF 저장 시 서버가 비서명 필드는 모두 customer 로 정규화 — 여기서는 위치만 정의 */
+      inputRole: 'customer',
       options,
       placements: [],
     }
@@ -208,12 +208,6 @@ export function PdfCoordinateEditor({
           (!next.options || next.options.length === 0)
         ) {
           next.options = ['옵션1', '옵션2']
-        }
-        /* checkbox/radio 는 "값의 의미" 가 회원 속성과 직접 대응하지 않으므로 자동 매핑을 강제 해제.
-           UI 에서 드롭다운을 감추는 것만으로 데이터를 남겨 두면, 타입 전환 후 매핑이 슬쩍 살아있어
-           사용자 혼란과 서버 주입 부작용을 일으킨다. */
-        if (patch.fieldType === 'checkbox' || patch.fieldType === 'radio') {
-          next.customerMapping = null
         }
         return next
       }),
@@ -368,14 +362,12 @@ export function PdfCoordinateEditor({
       (selectedField.fieldType !== 'radio' && selectedField.fieldType !== 'checkbox')
     ) {
       if (activeOptionValue != null) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setActiveOptionValue(null)
       }
       return
     }
     const opts = selectedField.options ?? []
     if (activeOptionValue == null || !opts.includes(activeOptionValue)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveOptionValue(opts[0] ?? null)
     }
     /* selectedKey 가 바뀔 때만 재평가. options 가 바뀌면 handlePatchFieldOptions 에서 직접 맞춘다. */
@@ -392,33 +384,40 @@ export function PdfCoordinateEditor({
         {fields.length === 0 ? (
           <p className="pdf-engine-editor__hint">아직 필드가 없습니다.</p>
         ) : (
-          <ul className="pdf-engine-editor__fields">
-            {fields.map((f) => (
-              <li
-                key={f.fieldKey}
-                className={
-                  'pdf-engine-editor__field-item' +
-                  (f.fieldKey === selectedKey ? ' pdf-engine-editor__field-item--active' : '')
-                }
-                onClick={() => {
-                  setSelectedKey(f.fieldKey)
-                  setSelectedPlacementIndex(f.placements.length > 0 ? 0 : null)
-                }}
-              >
-                <div className="pdf-engine-editor__field-item-row">
-                  <strong>{f.label}</strong>
-                </div>
-                <div className="pdf-engine-editor__field-item-row">
-                  <span className="pdf-engine-editor__field-meta">
-                    {f.fieldType}
-                    {f.required ? ' · 필수' : ''}
-                    {' · 좌표 '}
-                    {f.placements.length}
-                    개
-                  </span>
+          <div className="pdf-engine-editor__field-cards">
+            {fields.map((f) => {
+              const active = f.fieldKey === selectedKey
+              const pickField = () => {
+                setSelectedKey(f.fieldKey)
+                setSelectedPlacementIndex(f.placements.length > 0 ? 0 : null)
+              }
+              return (
+                <div
+                  key={f.fieldKey}
+                  role="button"
+                  tabIndex={0}
+                  className={
+                    'pdf-engine-editor__field-card' +
+                    (active ? ' pdf-engine-editor__field-card--active' : '')
+                  }
+                  onClick={pickField}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      pickField()
+                    }
+                  }}
+                >
+                  <div className="pdf-engine-editor__field-card-main">
+                    <div className="pdf-engine-editor__field-card-title">{f.label}</div>
+                    <div className="pdf-engine-editor__field-card-meta">
+                      {PDF_FIELD_TYPE_LABELS[f.fieldType]} · {f.required ? '필수' : '선택'} · 좌표{' '}
+                      {f.placements.length}개
+                    </div>
+                  </div>
                   <button
                     type="button"
-                    className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
+                    className="pdf-engine-editor__btn pdf-engine-editor__btn--danger pdf-engine-editor__field-card-delete"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleRemoveField(f.fieldKey)
@@ -427,9 +426,9 @@ export function PdfCoordinateEditor({
                     삭제
                   </button>
                 </div>
-              </li>
-            ))}
-          </ul>
+              )
+            })}
+          </div>
         )}
       </aside>
 
@@ -455,7 +454,7 @@ export function PdfCoordinateEditor({
             >
               {PDF_FIELD_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {PDF_FIELD_TYPE_LABELS[t]}
                 </option>
               ))}
             </select>
@@ -470,22 +469,24 @@ export function PdfCoordinateEditor({
             />
           </label>
         </div>
-        <button
-          type="button"
-          className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
-          onClick={handleAddField}
-          disabled={!draft.label.trim()}
-        >
-          필드 추가
-        </button>
-        <button
-          type="button"
-          className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
-          onClick={onSaveFields}
-          disabled={savingFields || !fieldsDirty}
-        >
-          {savingFields ? '좌표 저장 중…' : '좌표 저장'}
-        </button>
+        <div className="pdf-engine-editor__define-actions">
+          <button
+            type="button"
+            className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
+            onClick={handleAddField}
+            disabled={!draft.label.trim()}
+          >
+            필드 추가
+          </button>
+          <button
+            type="button"
+            className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
+            onClick={onSaveFields}
+            disabled={savingFields || !fieldsDirty}
+          >
+            {savingFields ? '좌표 저장 중…' : '좌표 저장'}
+          </button>
+        </div>
 
         {selectedField ? (
           <>
@@ -515,7 +516,7 @@ export function PdfCoordinateEditor({
               >
                 {PDF_FIELD_TYPES.map((t) => (
                   <option key={t} value={t}>
-                    {t}
+                    {PDF_FIELD_TYPE_LABELS[t]}
                   </option>
                 ))}
               </select>
@@ -532,21 +533,10 @@ export function PdfCoordinateEditor({
               />
             </label>
 
-            {selectedField.fieldType !== 'checkbox' && selectedField.fieldType !== 'radio' ? (
-              <label className="pdf-engine-editor__label">
-                자동 매핑
-                <FormSelect
-                  value={selectedField.customerMapping ?? ''}
-                  onChange={(e) => {
-                    const raw = e.target.value
-                    const next = (PDF_CUSTOMER_MAPPINGS as readonly string[]).includes(raw)
-                      ? (raw as PdfCustomerMapping)
-                      : null
-                    handlePatchField(selectedField.fieldKey, { customerMapping: next })
-                  }}
-                  options={CUSTOMER_MAPPING_OPTIONS}
-                />
-              </label>
+            {selectedField.fieldType === 'signature' ? (
+              <p className="pdf-engine-editor__hint" style={{ marginTop: 6 }}>
+                손사인 위치만 지정합니다. 실제 서명은 전자서명 링크에서 작성합니다.
+              </p>
             ) : null}
 
             {selectedField.fieldType === 'radio' || selectedField.fieldType === 'checkbox' ? (
@@ -629,9 +619,6 @@ export function PdfCoordinateEditor({
                     patch,
                   )
                 }
-                onSaveFields={onSaveFields}
-                savingFields={savingFields}
-                fieldsDirty={fieldsDirty}
               />
             ) : null}
           </>
@@ -640,7 +627,13 @@ export function PdfCoordinateEditor({
         )}
       </aside>
 
-      <section className="pdf-engine-editor__panel">
+      <section className="pdf-engine-editor__panel pdf-engine-editor__panel--preview">
+        <p className="pdf-engine-editor__hint pdf-engine-editor__preview-hint">
+          왼쪽에서 필드를 선택한 뒤, PDF에서 드래그하여 좌표를 지정하세요.
+        </p>
+        <p className="pdf-engine-editor__hint pdf-engine-editor__preview-hint" style={{ marginTop: 6 }}>
+          페이지가 여러 장이면 아래 미리보기를 스크롤하며 작업하세요. A4에 가까운 크기로 표시됩니다.
+        </p>
         <div className="pdf-engine-editor__row">
           <label className="pdf-engine-editor__label" style={{ flex: '0 0 160px' }}>
             페이지 (1~{numPages})
@@ -649,9 +642,13 @@ export function PdfCoordinateEditor({
               min={1}
               max={numPages}
               value={pageIndex + 1}
-              onChange={(e) =>
-                setPageIndex(Math.max(0, Math.min(numPages - 1, (Number(e.target.value) || 1) - 1)))
-              }
+              onChange={(e) => {
+                const raw = Number(e.target.value)
+                const pageNo =
+                  Number.isFinite(raw) && !Number.isNaN(raw) ? Math.trunc(raw) : 1
+                const clamped = Math.max(1, Math.min(numPages, pageNo || 1))
+                setPageIndex(clamped - 1)
+              }}
             />
           </label>
           <span className="pdf-engine-editor__field-meta">
@@ -660,24 +657,27 @@ export function PdfCoordinateEditor({
               : '먼저 왼쪽에서 필드를 선택해 주세요.'}
           </span>
         </div>
-        <PdfOverlayCanvas
-          pdfBuffer={pdfBuffer}
-          pageIndex={pageIndex}
-          marks={marks}
-          clickEnabled={canvasClickEnabled}
-          onPick={handlePick}
-          onSelectMark={(markId) => {
-            const splitAt = markId.lastIndexOf('-')
-            if (splitAt <= 0) return
-            const key = markId.slice(0, splitAt)
-            const rawIndex = Number(markId.slice(splitAt + 1))
-            if (!Number.isInteger(rawIndex) || rawIndex < 0) return
-            setSelectedKey(key)
-            setSelectedPlacementIndex(rawIndex)
-          }}
-          onDocumentReady={handleDocumentReady}
-          mode="pick-box"
-        />
+        <div className="pdf-engine-editor__preview-scroll">
+          <PdfOverlayCanvas
+            pdfBuffer={pdfBuffer}
+            pageIndex={pageIndex}
+            marks={marks}
+            clickEnabled={canvasClickEnabled}
+            onPick={handlePick}
+            onSelectMark={(markId) => {
+              const splitAt = markId.lastIndexOf('-')
+              if (splitAt <= 0) return
+              const key = markId.slice(0, splitAt)
+              const rawIndex = Number(markId.slice(splitAt + 1))
+              if (!Number.isInteger(rawIndex) || rawIndex < 0) return
+              setSelectedKey(key)
+              setSelectedPlacementIndex(rawIndex)
+            }}
+            onDocumentReady={handleDocumentReady}
+            debugMeta={overlayDebugMeta}
+            mode="pick-box"
+          />
+        </div>
       </section>
     </div>
   )
@@ -694,18 +694,9 @@ export function PdfCoordinateEditor({
 interface PlacementMetaEditorProps {
   placement: PdfPlacement
   onPatch: (patch: Partial<PdfPlacement>) => void
-  onSaveFields: () => void
-  savingFields: boolean
-  fieldsDirty: boolean
 }
 
-function PlacementMetaEditor({
-  placement,
-  onPatch,
-  onSaveFields,
-  savingFields,
-  fieldsDirty,
-}: PlacementMetaEditorProps) {
+function PlacementMetaEditor({ placement, onPatch }: PlacementMetaEditorProps) {
   const handleNumericChange = (key: 'width' | 'height' | 'fontSize') => (e: React.ChangeEvent<HTMLInputElement>) => {
     const parsed = parseOptionalPositive(e.target.value)
     if (parsed === 'invalid') return
@@ -757,15 +748,6 @@ function PlacementMetaEditor({
       <p className="pdf-engine-editor__hint" style={{ margin: '4px 0 0' }}>
         텍스트는 좌표 박스 중앙 정렬로 출력됩니다.
       </p>
-      <button
-        type="button"
-        className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
-        onClick={onSaveFields}
-        disabled={savingFields || !fieldsDirty}
-        style={{ marginTop: 6 }}
-      >
-        {savingFields ? '좌표 저장 중…' : '좌표 저장'}
-      </button>
     </div>
   )
 }

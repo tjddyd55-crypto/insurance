@@ -26,8 +26,9 @@ function drawScaledCanvas(source: HTMLCanvasElement, scale: number): HTMLCanvasE
   if (!ctx) {
     throw new Error('서명 캔버스를 처리할 수 없습니다.')
   }
-  ctx.imageSmoothingEnabled = true
-  ctx.imageSmoothingQuality = 'high'
+  ctx.imageSmoothingEnabled = false
+  ctx.imageSmoothingQuality = 'low'
+  ctx.clearRect(0, 0, next.width, next.height)
   ctx.drawImage(source, 0, 0, next.width, next.height)
   return next
 }

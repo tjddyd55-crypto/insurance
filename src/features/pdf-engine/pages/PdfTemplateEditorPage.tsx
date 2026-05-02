@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
+import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { listGaCompanies, type GaCompanyRow } from '../../auth/authApi'
 import {
@@ -25,7 +26,7 @@ import {
   uploadAdminPdfTemplateFile,
 } from '../api/pdfTemplateApi'
 import { PdfCoordinateEditor } from '../components/PdfCoordinateEditor'
-import type { PdfFieldSpec, PdfTemplateSummary } from '../types'
+import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
 import '../pdf-engine.css'
 
 export default function PdfTemplateEditorPage() {
@@ -116,18 +117,18 @@ function CreateTemplateFlow({
       <form className="pdf-engine-form" onSubmit={handleSubmit}>
         <label className="pdf-engine-editor__label">
           소속 GA (미지정이면 전 GA 공용)
-          <select value={gaId} onChange={(e) => setGaId(e.target.value === '' ? '' : Number(e.target.value))}>
-            <option value="">(공용)</option>
-            {gaList.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name} ({g.code})
-              </option>
-            ))}
-          </select>
+          <FormSelect
+            value={gaId === '' ? '' : String(gaId)}
+            options={[
+              { value: '', label: '(공용)' },
+              ...gaList.map((g) => ({ value: String(g.id), label: `${g.name} (${g.code})` })),
+            ]}
+            onChange={(e) => setGaId(e.target.value === '' ? '' : Number(e.target.value))}
+          />
         </label>
         <label className="pdf-engine-editor__label">
           문서 제목
-          <input
+          <FormInput
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -136,7 +137,7 @@ function CreateTemplateFlow({
         </label>
         <label className="pdf-engine-editor__label">
           설명 (선택)
-          <textarea
+          <FormTextarea
             rows={2}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -145,19 +146,20 @@ function CreateTemplateFlow({
         </label>
         <label className="pdf-engine-editor__label">
           PDF 파일
-          <input
+          <FormInput
             type="file"
             accept="application/pdf"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
         </label>
-        <button
-          type="submit"
+        <FormButton
+          htmlType="submit"
+          variant="primary"
           className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
           disabled={submitting}
         >
           {submitting ? '등록 중…' : '등록하고 좌표 편집으로'}
-        </button>
+        </FormButton>
       </form>
     </main>
   )
@@ -166,6 +168,18 @@ function CreateTemplateFlow({
 // ────────────────────────────────────────────────────────────────────────
 // 편집 플로우: 서버에서 템플릿·필드·원본 PDF 로드 → 좌표 에디터 → 저장
 // ────────────────────────────────────────────────────────────────────────
+
+function coercePdfFieldSpecForEditor(f: PdfFieldSpec & { id?: number }): PdfFieldSpec {
+  const rest = { ...f } as PdfFieldSpec & { id?: number }
+  delete rest.id
+  const inputRole: PdfInputRole =
+    rest.fieldType === 'signature'
+      ? 'customer'
+      : rest.inputRole === 'sender' || rest.inputRole === 'disabled' || rest.inputRole === 'customer'
+        ? rest.inputRole
+        : 'customer'
+  return { ...rest, inputRole }
+}
 
 type LoadState =
   | { status: 'loading' }
@@ -189,12 +203,13 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
     try {
       const detail = await getAdminPdfTemplate(token, templateId)
       const pdfBuffer = await fetchAdminPdfTemplateFile(token, templateId)
-      setFields(detail.fields)
+      const coerced = detail.fields.map(coercePdfFieldSpecForEditor)
+      setFields(coerced)
       setFieldsDirty(false)
       setTitle(detail.template.title)
       setDescription(detail.template.description ?? '')
       setIsActive(detail.template.isActive)
-      setState({ status: 'ready', template: detail.template, fields: detail.fields, pdfBuffer })
+      setState({ status: 'ready', template: detail.template, fields: coerced, pdfBuffer })
     } catch (e) {
       setState({
         status: 'error',
@@ -222,7 +237,7 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
       }
       try {
         const saved = await saveAdminPdfTemplateFields(token, templateId, fields)
-        setFields(saved.fields)
+        setFields(saved.fields.map(coercePdfFieldSpecForEditor))
         setFieldsDirty(false)
         if (!options?.silent) {
           setToast('좌표가 저장되었습니다.')
@@ -286,16 +301,16 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
           <Link to="/admin/pdf-templates" className="pdf-engine-editor__btn">
             ← 목록으로
           </Link>
-          <button type="button" className="pdf-engine-editor__btn" onClick={() => void load()}>
+          <FormButton htmlType="button" className="pdf-engine-editor__btn" onClick={() => void load()}>
             다시 시도
-          </button>
+          </FormButton>
         </div>
       </main>
     )
   }
 
   return (
-    <main className="insurance-dark-forms pdf-engine-page">
+    <main className="insurance-dark-forms pdf-engine-page pdf-engine-page--editor">
       <div className="pdf-engine-page__header">
         <h1 className="pdf-engine-page__title">PDF 템플릿 편집</h1>
         {headerMeta}
@@ -304,28 +319,28 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
         <Link to="/admin/pdf-templates" className="pdf-engine-editor__btn">
           ← 목록
         </Link>
-        <button
-          type="button"
+        <FormButton
+          htmlType="button"
           className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
           disabled={saving}
           onClick={() => void handleSave()}
         >
           {saving ? '저장 중…' : '저장'}
-        </button>
+        </FormButton>
         {toast ? <span className="pdf-engine-page__hint">{toast}</span> : null}
       </div>
 
       <section className="pdf-engine-form pdf-engine-form--inline">
         <label className="pdf-engine-editor__label">
           문서 제목
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
+          <FormInput type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
         </label>
         <label className="pdf-engine-editor__label">
           설명
-          <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
+          <FormInput type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
         </label>
         <label className="pdf-engine-editor__label" style={{ flex: '0 0 auto' }}>
-          <input
+          <FormInput
             type="checkbox"
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
@@ -336,6 +351,7 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
       </section>
 
       <PdfCoordinateEditor
+        templateId={templateId}
         pdfBuffer={state.pdfBuffer}
         pageCount={state.template.pageCount}
         fields={fields}

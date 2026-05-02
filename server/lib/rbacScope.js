@@ -59,6 +59,12 @@ export function isGaInsurerManagerMutatorRole(role) {
   return n === 'SUPER_ADMIN' || n === 'GA_ADMIN' || n === 'GA_STAFF'
 }
 
+/** 전자서명 발송(본인 user_id 고객만) — USER · GA_STAFF */
+export function isContractUserSendRole(role) {
+  const n = normalizeRbacRole(role)
+  return n === 'USER' || n === 'GA_STAFF'
+}
+
 /** @param {unknown} v */
 export function parseCompanyScopeId(v) {
   const n = Number(v)

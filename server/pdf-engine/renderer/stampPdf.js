@@ -209,10 +209,46 @@ function dispatchStamp(fieldType) {
       return stampCheckbox
     case 'radio':
       return stampRadio
+    case 'signature':
+      /* 서명은 values 가 아닌 signaturePngByFieldKey 로만 처리한다. */
+      return () => {}
     default: {
       /* 스키마에서 이미 타입이 제한돼 있으므로 도달하면 개발자 오류. */
       throw new Error(`지원하지 않는 필드 타입: ${fieldType}`)
     }
+  }
+}
+
+/**
+ * 서명 PNG 를 placement 박스 안에 비율 유지로 배치한다.
+ *
+ * @param {import('pdf-lib').PDFDocument} pdfDoc
+ * @param {import('pdf-lib').PDFPage[]} pages
+ * @param {import('../schema/fieldSpec.js').FieldSpec} field
+ * @param {Uint8Array | Buffer} pngBytes
+ */
+async function stampSignatureField(pdfDoc, pages, field, pngBytes) {
+  let image
+  try {
+    image = await pdfDoc.embedPng(pngBytes)
+  } catch {
+    return
+  }
+  const iw = image.width
+  const ih = image.height
+  for (const placement of field.placements) {
+    const page = pages[placement.page]
+    if (!page) {
+      continue
+    }
+    const boxW = placement.width && placement.width > 0 ? placement.width : iw * 0.35
+    const boxH = placement.height && placement.height > 0 ? placement.height : ih * 0.35
+    const scale = Math.min(boxW / iw, boxH / ih)
+    const w = iw * scale
+    const h = ih * scale
+    const left = placement.x + (boxW - w) / 2
+    const bottom = placement.y + (boxH - h) / 2
+    page.drawImage(image, { x: left, y: bottom, width: w, height: h })
   }
 }
 
@@ -238,9 +274,10 @@ function needsFont(fieldType) {
  * @param {Buffer | Uint8Array} templatePdfBytes
  * @param {FieldSpec[]} fields
  * @param {Record<string, string>} values
+ * @param {Record<string, Buffer | Uint8Array>} [signaturePngByFieldKey]
  * @returns {Promise<Buffer>}
  */
-export async function stampPdf(templatePdfBytes, fields, values) {
+export async function stampPdf(templatePdfBytes, fields, values, signaturePngByFieldKey = {}) {
   const pdfDoc = await PDFDocument.load(templatePdfBytes)
   const pages = pdfDoc.getPages()
   if (pages.length === 0) {
@@ -261,6 +298,14 @@ export async function stampPdf(templatePdfBytes, fields, values) {
   const font = hasTextStamp ? await embedKoreanFont(pdfDoc) : null
 
   for (const field of fields) {
+    if (field.fieldType === 'signature') {
+      const png = signaturePngByFieldKey[field.fieldKey]
+      if (!png || png.length === 0) {
+        continue
+      }
+      await stampSignatureField(pdfDoc, pages, field, png)
+      continue
+    }
     const value = values[field.fieldKey] ?? ''
     if (shouldSkipEmpty(field.fieldType, value)) {
       continue

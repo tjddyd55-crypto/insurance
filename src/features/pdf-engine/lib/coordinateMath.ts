@@ -21,13 +21,13 @@ export interface PdfPageSize {
 }
 
 export interface CanvasSize {
-  /** 렌더된 캔버스의 CSS 픽셀 너비. */
+  /** 렌더된 캔버스의 버퍼 픽셀 너비( devicePixelRatio 반영 시 width 속성 값 ). */
   width: number
   height: number
 }
 
 export interface CanvasPoint {
-  /** 원점 좌상단, CSS 픽셀. */
+  /** 원점 좌상단, 캔버스 버퍼 픽셀(cssToCanvasPixels 등과 동일 기준). */
   x: number
   y: number
 }

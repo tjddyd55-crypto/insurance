@@ -17,9 +17,12 @@
   color: #0f172a;
 }
 
-/* 좌표 편집은 PDF 정밀 작업이므로 가로 폭을 최대한 활용한다. */
+/* 좌표 편집 — 좌우 여백을 줄이고 가로를 최대한 PDF 미리보기에 할당 */
 .pdf-engine-page--editor {
-  max-width: min(96vw, 1800px);
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px 12px 48px;
 }
 
 .pdf-engine-page__title {
@@ -100,20 +103,28 @@
 
 .pdf-engine-editor {
   display: grid;
-  grid-template-columns: 280px 360px minmax(0, 1fr);
+  grid-template-columns: 280px 360px minmax(720px, 1fr);
   gap: 16px;
   align-items: start;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
 }
 
-@media (max-width: 1500px) {
+@media (max-width: 1400px) {
   .pdf-engine-editor {
-    grid-template-columns: 260px 320px minmax(0, 1fr);
+    grid-template-columns: 260px 340px minmax(640px, 1fr);
   }
 }
 
 @media (max-width: 1024px) {
   .pdf-engine-editor {
     grid-template-columns: 1fr;
+    overflow-x: visible;
+  }
+
+  .pdf-engine-editor__panel--preview {
+    min-width: 0 !important;
   }
 }
 
@@ -131,6 +142,109 @@
 .pdf-engine-editor__panel--config {
   max-height: calc(100vh - 220px);
   overflow-y: auto;
+}
+
+/* 오른쪽: PDF 미리보기 — 남는 폭 사용 */
+.pdf-engine-editor__panel--preview {
+  min-width: min(720px, 100%);
+  min-height: 0;
+}
+
+.pdf-engine-editor__preview-scroll {
+  max-height: min(80vh, calc(100vh - 140px));
+  overflow-x: auto;
+  overflow-y: auto;
+  padding: 10px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  box-sizing: border-box;
+}
+
+.pdf-engine-editor__preview-canvas-host {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* A4 목표(794px)는 JS 래스터 스케일이 담당. 좁은 뷰에서는 호스트 폭에 맞춰 캔버스만 줄어든다. */
+.pdf-engine-editor__overlay--a4-page {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pdf-engine-editor__preview-hint {
+  margin: 0;
+}
+
+.pdf-engine-editor__field-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pdf-engine-editor__field-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.pdf-engine-editor__field-card:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.pdf-engine-editor__field-card--active {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.pdf-engine-editor__field-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.pdf-engine-editor__field-card-title {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.35;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.pdf-engine-editor__field-card-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.pdf-engine-editor__field-card-delete {
+  flex-shrink: 0;
+  align-self: flex-end;
+}
+
+.pdf-engine-editor__define-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pdf-engine-editor__define-actions > .pdf-engine-editor__btn {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .pdf-engine-editor__panel-title {
@@ -214,17 +328,18 @@
 .pdf-engine-editor__overlay {
   position: relative;
   display: inline-block;
-  max-width: 100%;
+  flex: 0 0 auto;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #fff;
-  overflow: auto;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
 .pdf-engine-editor__pdf-canvas {
   display: block;
-  max-width: 100%;
+  width: auto;
   height: auto;
+  max-width: none;
   cursor: crosshair;
 }
 
@@ -247,6 +362,31 @@
   color: #b91c1c;
   font-size: 13px;
   margin: 0 0 8px;
+}
+
+.pdf-engine-editor__error--fatal {
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.pdf-engine-editor__error--warning {
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+/* 미리보기 보조 메시지 — 렌더 실패가 의심될 때만 노출되며, 치명 오류와 구분해 색을 완화 */
+.pdf-engine-editor__error--soft {
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 8px 10px;
 }
 
 /* DEV 빌드에서만 보이는 원인 코드 배지 — UI 에 자리만 잡아준다. */

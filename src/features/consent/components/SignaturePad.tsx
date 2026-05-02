@@ -33,6 +33,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
   const pointerIdRef = useRef<number | null>(null)
   const prevPointRef = useRef<Point | null>(null)
   const onDirtyChangeRef = useRef<SignaturePadProps['onDirtyChange']>(onDirtyChange)
+  const isDirtyRef = useRef(false)
   const [isDirty, setIsDirty] = useState(false)
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
   }, [onDirtyChange])
 
   const markDirty = useCallback(() => {
+    isDirtyRef.current = true
     setIsDirty((prev) => {
       if (!prev) {
         onDirtyChangeRef.current?.(true)
@@ -48,36 +50,93 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     })
   }, [])
 
+  const applyBlankCanvas = useCallback((canvas: HTMLCanvasElement, cssW: number, cssH: number) => {
+    const dpr = window.devicePixelRatio || 1
+    canvas.width = Math.max(1, Math.floor(cssW * dpr))
+    canvas.height = Math.max(1, Math.floor(cssH * dpr))
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      return null
+    }
+    const computed = getComputedStyle(document.documentElement)
+    const rawInk = computed.getPropertyValue('--consent-signature-ink').trim()
+    const strokeInk = rawInk && !rawInk.toLowerCase().startsWith('var(') ? rawInk : '#111111'
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.scale(dpr, dpr)
+    ctx.clearRect(0, 0, cssW, cssH)
+    ctx.strokeStyle = strokeInk
+    ctx.lineWidth = 3
+    ctx.globalAlpha = 1
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    return { ctx, dpr, strokeInk }
+  }, [])
+
   const setupCanvas = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) {
       return
     }
     const rect = canvas.getBoundingClientRect()
-    const dpr = window.devicePixelRatio || 1
-    canvas.width = Math.max(1, Math.floor(rect.width * dpr))
-    canvas.height = Math.max(1, Math.floor(rect.height * dpr))
-    const ctx = canvas.getContext('2d')
-    if (!ctx) {
-      return
-    }
-    const computed = window.getComputedStyle(canvas)
-    const signatureBg = computed.getPropertyValue('--consent-signature-bg').trim() || 'black'
-    const signatureInk = computed.getPropertyValue('--consent-signature-ink').trim() || 'white'
-    ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.scale(dpr, dpr)
-    ctx.fillStyle = signatureBg
-    ctx.fillRect(0, 0, rect.width, rect.height)
-    ctx.strokeStyle = signatureInk
-    ctx.lineWidth = 2
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
+    const cssW = Math.max(1, rect.width)
+    const cssH = Math.max(1, rect.height)
+    applyBlankCanvas(canvas, cssW, cssH)
     drawingRef.current = false
     pointerIdRef.current = null
     prevPointRef.current = null
+    isDirtyRef.current = false
     setIsDirty(false)
     onDirtyChangeRef.current?.(false)
-  }, [])
+  }, [applyBlankCanvas])
+
+  const resizeCanvasPreservingStroke = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) {
+      return
+    }
+    const rect = canvas.getBoundingClientRect()
+    const cssW = Math.max(1, rect.width)
+    const cssH = Math.max(1, rect.height)
+    let backup: string | null = null
+    if (isDirtyRef.current) {
+      try {
+        backup = canvas.toDataURL('image/png')
+      } catch {
+        backup = null
+      }
+    }
+    const drawKit = applyBlankCanvas(canvas, cssW, cssH)
+    drawingRef.current = false
+    pointerIdRef.current = null
+    prevPointRef.current = null
+    if (!drawKit || !backup) {
+      isDirtyRef.current = false
+      setIsDirty(false)
+      onDirtyChangeRef.current?.(false)
+      return
+    }
+    const { ctx, dpr, strokeInk } = drawKit
+    const img = new Image()
+    img.onload = () => {
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.scale(dpr, dpr)
+      ctx.drawImage(img, 0, 0, cssW, cssH)
+      ctx.strokeStyle = strokeInk
+      ctx.lineWidth = 3
+      ctx.globalAlpha = 1
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      isDirtyRef.current = true
+      setIsDirty(true)
+      onDirtyChangeRef.current?.(true)
+    }
+    img.onerror = () => {
+      isDirtyRef.current = false
+      setIsDirty(false)
+      onDirtyChangeRef.current?.(false)
+    }
+    img.src = backup
+  }, [applyBlankCanvas])
 
   const toLocalPoint = useCallback((event: PointerEvent | ReactPointerEvent<HTMLCanvasElement>): Point => {
     const canvas = canvasRef.current
@@ -134,13 +193,19 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
 
   useEffect(() => {
     const t = window.requestAnimationFrame(() => setupCanvas())
-    const onResize = () => setupCanvas()
+    const onResize = () => {
+      window.requestAnimationFrame(() => {
+        resizeCanvasPreservingStroke()
+      })
+    }
     window.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
     return () => {
       window.cancelAnimationFrame(t)
       window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
     }
-  }, [setupCanvas])
+  }, [setupCanvas, resizeCanvasPreservingStroke])
 
   useImperativeHandle(
     ref,

@@ -38,6 +38,8 @@ export interface CustomerRecord {
   id: number
   userId: string
   name: string
+  /** `customers.customer_code` — 동일 GA 내 고객번호 */
+  customerCode?: string | null
   ssn: string
   /** null: 미선택·구데이터 */
   gender: 'male' | 'female' | null

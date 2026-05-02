@@ -7,7 +7,9 @@
 
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useConfirmDialog } from '../../../components/dialog'
 import { ApiError } from '../../../lib/apiClient'
+import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
 import { deleteAdminPdfTemplate, listAdminPdfTemplates } from '../api/pdfTemplateApi'
 import type { PdfTemplateSummary } from '../types'
@@ -15,6 +17,7 @@ import '../pdf-engine.css'
 
 export default function PdfTemplateListPage() {
   const { token } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const [rows, setRows] = useState<PdfTemplateSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -40,7 +43,12 @@ export default function PdfTemplateListPage() {
 
   const handleDelete = async (id: number, title: string) => {
     if (!token?.trim()) return
-    if (!window.confirm(`"${title}" 템플릿을 삭제할까요? 되돌릴 수 없습니다.`)) return
+    const ok = await confirm({
+      title: '템플릿 삭제',
+      message: `"${title}" 템플릿을 삭제할까요? 되돌릴 수 없습니다.`,
+      tone: 'danger',
+    })
+    if (!ok) return
     try {
       await deleteAdminPdfTemplate(token, id)
       setRows((prev) => prev.filter((r) => r.id !== id))
@@ -56,9 +64,9 @@ export default function PdfTemplateListPage() {
         <Link to="/admin/pdf-templates/new" className="pdf-engine-editor__btn pdf-engine-editor__btn--primary">
           새 템플릿 등록
         </Link>
-        <button type="button" className="pdf-engine-editor__btn" onClick={() => void load()}>
+        <FormButton htmlType="button" className="pdf-engine-editor__btn" onClick={() => void load()}>
           새로고침
-        </button>
+        </FormButton>
       </div>
 
       {error ? <div className="pdf-engine-page__error">{error}</div> : null}
@@ -115,18 +123,20 @@ export default function PdfTemplateListPage() {
                 >
                   수정
                 </Link>
-                <button
-                  type="button"
+                <FormButton
+                  htmlType="button"
+                  variant="danger"
                   className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
                   onClick={() => void handleDelete(r.id, r.title)}
                 >
                   삭제
-                </button>
+                </FormButton>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      {confirmDialog}
     </main>
   )
 }

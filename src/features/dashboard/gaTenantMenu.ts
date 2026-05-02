@@ -5,6 +5,7 @@
  */
 
 import { isAllowedForExpiredFrontend } from '../subscription/expiredAllowlist'
+import { canAccessContractSignatureAdminConsole } from '../contracts/testConsole/contractSignatureTestConsoleFlags'
 
 export type GaTenantMenuItem = { label: string; path: string }
 
@@ -209,6 +210,28 @@ export type AppMenuBuildOptions = {
 
 const AUDIT_LOG_ENTRY: GaTenantMenuItem = { label: '보안 감사 로그', path: '/admin/audit-logs' }
 
+const CONTRACT_SIGNATURE_USER_SEND: GaTenantMenuItem = {
+  label: '전자서명 발송',
+  path: '/contracts/signatures/send',
+}
+
+const CONTRACT_SIGNATURE_USER_HISTORY: GaTenantMenuItem = {
+  label: '전자문서 발송 내역',
+  path: '/contracts/signatures/history',
+}
+
+const CONTRACT_SIGNATURE_ADMIN_MENU: GaTenantMenuItem = {
+  label: '전자서명 템플릿 관리',
+  path: '/admin/contract-signatures',
+}
+
+function contractSignatureAdminMenuIfEnabled(role: string | undefined): GaTenantMenuItem | null {
+  if (!canAccessContractSignatureAdminConsole(role)) {
+    return null
+  }
+  return CONTRACT_SIGNATURE_ADMIN_MENU
+}
+
 const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
   { label: 'GA 관리', path: '/admin/ga' },
   { label: '담당자 관리', path: '/admin/delegates' },
@@ -223,8 +246,18 @@ const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
 ]
 
 function superAdminMenuWithPublicShortcuts(): GaTenantMenuItem[] {
+  const testItem = contractSignatureAdminMenuIfEnabled('SUPER_ADMIN')
+  const adminItems = [...SUPER_ADMIN_BASE]
+  if (testItem) {
+    const pdfIdx = adminItems.findIndex((i) => i.path === '/admin/pdf-templates')
+    if (pdfIdx >= 0) {
+      adminItems.splice(pdfIdx + 1, 0, testItem)
+    } else {
+      adminItems.push(testItem)
+    }
+  }
   return [
-    ...SUPER_ADMIN_BASE,
+    ...adminItems,
     /* SUPER_ADMIN 전용: FC·GA와 동일한 카드 UI 미리보기. "관리" 항목과 경로·라벨 혼동 방지 */
     { label: '보험사 설계사이트 (일반·카드)', path: '/insurance/insurer-sites' },
   ]
@@ -259,11 +292,30 @@ export function buildAppMenuForSession(
       return itemsToEntries(LOSS_ADJUSTER_MENU)
     }
     if (role === 'GA_STAFF') {
-      return itemsToEntries(GA_STAFF_MENU)
+      return itemsToEntries([CONTRACT_SIGNATURE_USER_SEND, CONTRACT_SIGNATURE_USER_HISTORY, ...GA_STAFF_MENU])
     }
     if (role === 'GA_ADMIN' || role === 'USER') {
       const entries = buildGaTenantDashboardMenu(gaCode, gaName)
+      if (role === 'USER') {
+        const customerIdx = entries.findIndex((e) => e.type === 'link' && e.path === '/customers')
+        if (customerIdx >= 0) {
+          entries.splice(customerIdx + 1, 0, {
+            type: 'link',
+            label: CONTRACT_SIGNATURE_USER_SEND.label,
+            path: CONTRACT_SIGNATURE_USER_SEND.path,
+          })
+          entries.splice(customerIdx + 2, 0, {
+            type: 'link',
+            label: CONTRACT_SIGNATURE_USER_HISTORY.label,
+            path: CONTRACT_SIGNATURE_USER_HISTORY.path,
+          })
+        }
+      }
       if (role === 'GA_ADMIN') {
+        const testEntry = contractSignatureAdminMenuIfEnabled('GA_ADMIN')
+        if (testEntry) {
+          entries.push({ type: 'link', label: testEntry.label, path: testEntry.path })
+        }
         entries.push(
           { type: 'divider' },
           { type: 'link', label: AUDIT_LOG_ENTRY.label, path: AUDIT_LOG_ENTRY.path },

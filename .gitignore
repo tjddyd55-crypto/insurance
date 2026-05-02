@@ -29,6 +29,9 @@ uploads/system/*
 uploads/system/insurers/*
 !uploads/system/insurers/.gitkeep
 
+# 로컬 개발 지시문(레포에 커밋하지 않음)
+dev/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

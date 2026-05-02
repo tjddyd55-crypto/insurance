@@ -148,21 +148,43 @@ export async function listCustomerForms(
   return apiRequest<InsuranceApplicationRecord[]>(`/api/customers/${customerId}/forms`, { token })
 }
 
-export async function searchCustomers(token: string, q: string): Promise<CustomerRecord[]> {
+export async function searchCustomers(
+  token: string,
+  q: string,
+  options?: { scopeGaId?: number | null },
+): Promise<CustomerRecord[]> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
   const query = new URLSearchParams()
-  if (q.trim()) {
-    query.set('q', q.trim())
+  const trimmed = q.trim()
+  if (trimmed) {
+    query.set('q', trimmed)
   }
-  const suffix = query.toString() ? `?${query.toString()}` : ''
-  try {
-    const rows = await apiRequest<CustomerRecord[]>(`/api/customers/search${suffix}`, { token })
-    return dedupeCustomersById(rows)
-  } catch {
-    return []
+  query.set('limit', '20')
+  const sga = options?.scopeGaId
+  if (sga != null && Number.isFinite(Number(sga)) && Number(sga) > 0) {
+    query.set('scope_ga_id', String(sga))
   }
+  const suffix = `?${query.toString()}`
+  const rows = await apiRequest<CustomerRecord[]>(`/api/customers/search${suffix}`, { token })
+  if (!Array.isArray(rows)) {
+    throw new ApiError('고객 검색 응답 형식이 올바르지 않습니다.', 500)
+  }
+  return dedupeCustomersById(
+    import.meta.env.DEV
+      ? rows.map((row, idx) => assertCustomerDataRecord(row, { listIndex: idx }))
+      : rows
+          .map((row) => {
+            try {
+              return assertCustomerDataRecord(row)
+            } catch (e) {
+              console.error('[searchCustomers] invalid row skipped', row, e)
+              return null
+            }
+          })
+          .filter((c): c is CustomerRecord => c != null),
+  )
 }
 
 export async function getCustomerById(

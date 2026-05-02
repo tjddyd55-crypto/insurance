@@ -153,7 +153,7 @@ export async function deleteTemplate(pool, id) {
 export async function listFields(pool, templateId) {
   const { rows } = await pool.query(
     `SELECT id, template_id, field_key, label, field_type, required, order_index,
-            customer_mapping, options, placements, created_at, updated_at
+            input_role, customer_mapping, options, placements, created_at, updated_at
        FROM pdf_template_fields
        WHERE template_id = $1
        ORDER BY order_index ASC, id ASC`,
@@ -183,8 +183,8 @@ export async function replaceTemplateFields(pool, templateId, fields) {
       await client.query(
         `INSERT INTO pdf_template_fields
            (template_id, field_key, label, field_type, required, order_index,
-            customer_mapping, options, placements)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, CAST($8 AS jsonb), CAST($9 AS jsonb))`,
+            input_role, customer_mapping, options, placements)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, CAST($8 AS jsonb), CAST($9 AS jsonb))`,
         [
           templateId,
           f.fieldKey,
@@ -192,7 +192,7 @@ export async function replaceTemplateFields(pool, templateId, fields) {
           f.fieldType,
           f.required,
           f.orderIndex ?? i,
-          f.customerMapping,
+          f.inputRole ?? 'customer',
           optionsJson,
           JSON.stringify(f.placements ?? []),
         ],

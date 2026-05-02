@@ -13,6 +13,72 @@ import type {
   PdfTemplateSummary,
 } from '../types'
 
+/** `%PDF` 시그니처 탐색 상한 — 선두 BOM·일부 프록시 프리픽스 뒤에 오는 경우까지 허용 */
+const PDF_SIGNATURE_SCAN_MAX_BYTES = 4096
+
+/**
+ * 본문 어딘가(상한 내)에 PDF 시그니처 `%PDF` 가 있는지.
+ * UTF-8 BOM(EF BB BF) 은 건너뛴 뒤 검사한다.
+ */
+function findPdfSignatureOffset(buf: ArrayBuffer): number {
+  if (buf.byteLength < 4) return -1
+  const u8 = new Uint8Array(buf)
+  let i = 0
+  if (
+    buf.byteLength >= 3 &&
+    u8[0] === 0xef &&
+    u8[1] === 0xbb &&
+    u8[2] === 0xbf
+  ) {
+    i = 3
+  }
+  const limit = Math.min(buf.byteLength, PDF_SIGNATURE_SCAN_MAX_BYTES)
+  for (; i <= limit - 4; i++) {
+    if (
+      u8[i] === 0x25 &&
+      u8[i + 1] === 0x50 &&
+      u8[i + 2] === 0x44 &&
+      u8[i + 3] === 0x46
+    ) {
+      return i
+    }
+  }
+  return -1
+}
+
+/**
+ * HTML/JSON 에러 본문처럼 보이면 true — 이 경우는 PDF 가 아니라 서버/프록시 오류로 본다.
+ */
+function bodyLooksLikeTextProtocolResponse(buf: ArrayBuffer): boolean {
+  const sliceLen = Math.min(buf.byteLength, 512)
+  const u8 = new Uint8Array(buf, 0, sliceLen)
+  let i = 0
+  if (
+    sliceLen >= 3 &&
+    u8[0] === 0xef &&
+    u8[1] === 0xbb &&
+    u8[2] === 0xbf
+  ) {
+    i = 3
+  }
+  while (i < sliceLen && (u8[i] === 9 || u8[i] === 10 || u8[i] === 13 || u8[i] === 32)) {
+    i += 1
+  }
+  if (i >= sliceLen) return false
+  const b = u8[i]
+  return b === 0x3c || b === 0x7b || b === 0x5b
+}
+
+function contentTypeSuggestsPdfBytes(ct: string): boolean {
+  const l = ct.toLowerCase()
+  return (
+    l.includes('application/pdf') ||
+    l.includes('application/octet-stream') ||
+    l.includes('binary/octet-stream') ||
+    l.includes('application/x-pdf')
+  )
+}
+
 /**
  * 실패 응답을 해석해 ApiError 로 변환한다.
  * JSON body 가 있으면 message/code 를 꺼내고, 없으면 HTTP status 로 대체한다.
@@ -171,17 +237,23 @@ export async function fetchAdminPdfTemplateFile(
     })
   }
 
-  /*
-   * 응답이 PDF 인지 Content-Type 으로 가볍게 확인한다. HTML 에러페이지가
-   * 200 으로 섞여 들어오는 엣지 케이스(프록시/게이트웨이)를 잡기 위함.
-   */
   const contentType = res.headers.get('content-type') ?? ''
   const contentLengthHeader = res.headers.get('content-length')
-  if (!contentType.toLowerCase().includes('pdf')) {
-    logger.warn('pdf-template.file.unexpected-content-type', {
+  const contentTypeLower = contentType.toLowerCase()
+  /*
+   * HTML/JSON 이 200 으로 온 경우 pdfjs 가 parse-failed 로만 드러나 사용자 혼란을 키운다.
+   * 본문을 읽기 전에 Content-Type 으로 차단한다.
+   */
+  if (contentTypeLower.includes('text/html') || contentTypeLower.includes('application/json')) {
+    logger.error('pdf-template.file.non-pdf-content-type', {
       templateId: id,
       contentType,
+      status: res.status,
     })
+    throw new ApiError(
+      'PDF 파일 대신 다른 응답을 받았습니다. 파일 경로 또는 접근 권한을 확인해주세요.',
+      res.status,
+    )
   }
 
   const buffer = await res.arrayBuffer()
@@ -204,9 +276,42 @@ export async function fetchAdminPdfTemplateFile(
       receivedByteLength: 0,
     })
     throw new ApiError(
-      '원본 PDF 를 가져오지 못했습니다. 업로드 직후라면 잠시 후 다시 시도해 주세요.',
+      'PDF 파일 데이터를 불러오지 못했습니다. 파일 저장 상태를 확인해주세요.',
       res.status,
     )
+  }
+
+  const pdfSigAt = findPdfSignatureOffset(buffer)
+  const hasPdfSignature = pdfSigAt >= 0
+  if (!hasPdfSignature) {
+    if (bodyLooksLikeTextProtocolResponse(buffer)) {
+      logger.error('pdf-template.file.body-looks-like-text-not-pdf', {
+        templateId: id,
+        byteLength: buffer.byteLength,
+        contentType,
+      })
+      throw new ApiError(
+        'PDF 파일 대신 다른 응답(HTML/JSON)을 받았습니다. 서버 응답과 파일 경로를 확인해주세요.',
+        res.status,
+      )
+    }
+    if (contentTypeSuggestsPdfBytes(contentTypeLower)) {
+      logger.warn('pdf-template.file.no-pdf-signature-trusting-binary-content-type', {
+        templateId: id,
+        byteLength: buffer.byteLength,
+        contentType,
+      })
+    } else {
+      logger.warn('pdf-template.file.no-pdf-signature-defer-to-pdfjs', {
+        templateId: id,
+        byteLength: buffer.byteLength,
+        contentType,
+      })
+    }
+    /*
+     * 시그니처만으로 거부하지 않는다 — CMap/오프셋 PDF·octet-stream 정상 응답은
+     * PDF.js 파싱 실패 시에만 `PdfOverlayCanvas` 가 치명 오류를 올린다.
+     */
   }
 
   /*
