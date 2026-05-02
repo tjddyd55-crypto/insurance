@@ -295,7 +295,13 @@ export function ContractTemplatePanel({
         </FormButton>
       </div>
 
-      <ul className="contract-signature-console__hint" style={{ margin: '0 0 10px', paddingLeft: 18, fontSize: 12 }}>
+      <ul
+        className={
+          'contract-signature-console__hint' +
+          (isAdminMobile ? ' contract-signature-console__template-legend' : '')
+        }
+        style={isAdminMobile ? { margin: '0 0 10px', fontSize: 12 } : { margin: '0 0 10px', paddingLeft: 18, fontSize: 12 }}
+      >
         <li>
           <strong>draft</strong>: 아직 발송 불가
         </li>

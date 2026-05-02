@@ -340,7 +340,7 @@ export default function ContractSignatureSendPage() {
                         void executeCustomerSearch()
                       }
                     }}
-                    placeholder="이름 · 휴대폰 일부 · 고객번호"
+                    placeholder="이름 · 전화번호 일부 · 고객번호"
                     disabled={!t}
                   />
                 </div>
@@ -658,7 +658,7 @@ export default function ContractSignatureSendPage() {
                   void executeCustomerSearch()
                 }
               }}
-              placeholder="이름 · 휴대폰 일부 · 고객번호"
+              placeholder="이름 · 전화번호 일부 · 고객번호"
               disabled={!t}
               className="max-w-md flex-1 min-w-[200px]"
             />
@@ -707,7 +707,7 @@ export default function ContractSignatureSendPage() {
 
           {customerSearchExecuted ? (
             <div className="contract-signature-console__scroll-x">
-              <table className="pdf-engine-table contract-signature-console__table--compact contract-signature-console__table--striped">
+              <table className="pdf-engine-table contract-signature-console__table--compact contract-signature-console__pick-table">
                 <thead>
                   <tr>
                     <th>선택</th>
@@ -724,13 +724,15 @@ export default function ContractSignatureSendPage() {
                       </td>
                     </tr>
                   ) : (
-                    customerHits.map((c) => (
-                      <tr key={c.id}>
+                    customerHits.map((c) => {
+                      const sel = selectedCustomer?.id === c.id
+                      return (
+                      <tr key={c.id} className={'contract-pick-row' + (sel ? ' contract-pick-row--selected' : '')}>
                         <td>
                           <FormInput
                             type="radio"
                             name="cust-pick"
-                            checked={selectedCustomer?.id === c.id}
+                            checked={sel}
                             value={String(c.id)}
                             disabled={!t}
                             onChange={() => setSelectedCustomer(c)}
@@ -752,7 +754,8 @@ export default function ContractSignatureSendPage() {
                           {!c.hasPhone ? <div className="contract-signature-console__hint--warning">번호 없음</div> : null}
                         </td>
                       </tr>
-                    ))
+                      )
+                    })
                   )}
                 </tbody>
               </table>
@@ -768,7 +771,7 @@ export default function ContractSignatureSendPage() {
           <h2 className="contract-signature-console__section-title">2. 전자서명 템플릿 (active)</h2>
           {selectedCustomer == null ? <p className="contract-signature-console__hint">고객을 선택하면 템플릿을 고를 수 있습니다.</p> : null}
           <div className="contract-signature-console__scroll-x">
-            <table className="pdf-engine-table contract-signature-console__table--compact contract-signature-console__table--striped">
+            <table className="pdf-engine-table contract-signature-console__table--compact contract-signature-console__pick-table">
               <thead>
                 <tr>
                   <th>선택</th>
@@ -781,20 +784,32 @@ export default function ContractSignatureSendPage() {
               <tbody>
                 {templates.map((row) => {
                   const noSig = row.signatureFieldCount < 1
+                  const inactive = String(row.status) !== 'active'
+                  const sel = selectedTemplateId === row.id
                   return (
-                    <tr key={row.id}>
+                    <tr
+                      key={row.id}
+                      className={
+                        'contract-pick-row' +
+                        (sel ? ' contract-pick-row--selected' : '') +
+                        (inactive ? ' contract-pick-row--inactive' : '')
+                      }
+                    >
                       <td>
                         <FormInput
                           type="radio"
                           name="tpl-pick"
-                          checked={selectedTemplateId === row.id}
+                          checked={sel}
                           value={row.id}
-                          disabled={!t || selectedCustomer == null}
+                          disabled={!t || selectedCustomer == null || inactive}
                           onChange={() => setSelectedTemplateId(row.id)}
                         />
                       </td>
                       <td>
                         {row.title}
+                        {inactive ? (
+                          <div className="contract-signature-console__hint--warning">비활성 템플릿은 발송할 수 없습니다.</div>
+                        ) : null}
                         {noSig ? (
                           <div className="contract-signature-console__hint--warning">
                             signature 필드 없음 — 손사인 단계가 제한될 수 있습니다.

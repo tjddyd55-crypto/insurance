@@ -62,6 +62,11 @@ export function SendSessionPanel({
             {error}
           </div>
         ) : null}
+        {!canSend && inactiveTemplateHint ? (
+          <p className="contract-signature-console__inline-warning" role="status" style={{ margin: '0 0 10px' }}>
+            {inactiveTemplateHint}
+          </p>
+        ) : null}
         <FormButton
           htmlType="button"
           variant="primary"
@@ -72,14 +77,11 @@ export function SendSessionPanel({
         >
           {busy ? '생성 중…' : '발송 세션 생성'}
         </FormButton>
-        {inactiveTemplateHint ? (
-          <p className="contract-signature-console__inline-warning" role="status" style={{ margin: '10px 0 0' }}>
-            {inactiveTemplateHint}
+        {canSend || !inactiveTemplateHint ? (
+          <p className="contract-signature-console__hint" style={{ marginTop: 10 }}>
+            선택한 고객에 등록된 휴대폰으로만 링크가 열립니다. 임의 번호 입력·발송은 할 수 없습니다.
           </p>
         ) : null}
-        <p className="contract-signature-console__hint" style={{ marginTop: 10 }}>
-          선택한 고객에 등록된 휴대폰으로만 링크가 열립니다. 임의 번호 입력·발송은 할 수 없습니다.
-        </p>
 
         {session ? (
           <div className="contract-mobile-success-banner" style={{ marginTop: 14 }}>
