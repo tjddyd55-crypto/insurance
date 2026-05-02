@@ -176,11 +176,126 @@ main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mo
 }
 
 main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-selected-customer {
-  margin-top: 14px;
-  padding: 14px 16px;
-  border-radius: 10px;
-  border: 1px solid rgba(96, 165, 250, 0.5);
-  background: color-mix(in srgb, rgba(59, 130, 246, 0.1) 40%, var(--bg-soft));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  margin-top: 4px;
+  border: 1px solid rgba(96, 165, 250, 0.55);
+  background: color-mix(in srgb, rgba(59, 130, 246, 0.08) 35%, var(--bg-card));
+  box-sizing: border-box;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-selected-customer__heading {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-sub);
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-selected-customer__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-selected-customer__name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.35;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-selected-customer__line {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-sub);
+  line-height: 1.45;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-selected-customer__warn {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--warning-text);
+  line-height: 1.4;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-selected-customer__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-selected-customer__actions button {
+  min-height: 44px;
+  width: 100%;
+}
+
+/* 검색 후보 카드: 선택 요약 카드와 시각적으로 구분 */
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-search-hit-list {
+  margin-top: 12px;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile
+  .contract-mobile-hit-card.contract-mobile-select-card {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile
+  .contract-mobile-hit-card.contract-mobile-select-card:hover {
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-hit-card__name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin: 0 0 6px;
+  color: var(--text-main);
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-hit-card__meta {
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* 템플릿 선택: 비선택은 동일 배경, 선택만 강조 (두 번째 행만 하이라이트되는 착시 방지) */
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-template-pick-list {
+  gap: 12px;
+  margin-top: 2px;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile
+  .contract-mobile-template-card.contract-mobile-select-card:not(.contract-mobile-select-card--selected) {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-template-card__title {
+  font-weight: 700;
+  font-size: 0.9375rem;
+  margin: 0 0 6px;
+  color: var(--text-main);
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-template-card__pdf {
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-template-card__stats {
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  margin: 0;
+  line-height: 1.4;
 }
 
 main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-summary__label {
@@ -194,6 +309,14 @@ main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mo
   flex-direction: column;
   gap: 10px;
   margin-bottom: 8px;
+  width: 100%;
+  max-width: 100%;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-search-row .contract-mobile-search-input-wrap {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile

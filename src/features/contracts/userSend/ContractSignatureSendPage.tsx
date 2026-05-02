@@ -149,6 +149,16 @@ export default function ContractSignatureSendPage() {
     customerSearchInputRef.current?.focus()
   }, [])
 
+  /** 모바일: 다른 고객 검색 — 선택·결과·검색어 초기화 후 입력 포커스 */
+  const resetMobileCustomerSearchFlow = useCallback(() => {
+    setSelectedCustomer(null)
+    setCustomerHits([])
+    setCustomerSearchExecuted(false)
+    setCustomerQuery('')
+    setCustomerSearchValidationError(null)
+    window.setTimeout(() => customerSearchInputRef.current?.focus(), 0)
+  }, [])
+
   const refreshSessionDetail = useCallback(async () => {
     const sid = sessionDetail?.id ?? lastCreated?.id
     if (!t || !sid) {
@@ -318,115 +328,114 @@ export default function ContractSignatureSendPage() {
           {mobileStepShell(
             {
               title: '1. 내 고객 검색',
-              desc: '전자서명을 발송할 고객을 검색해 선택하세요.',
+              desc: selectedCustomer
+                ? '선택한 고객에게 전자서명을 발송합니다.'
+                : '전자서명을 발송할 고객을 검색해 선택하세요.',
               active: step1Active,
               completed: step1Complete,
               locked: false,
             },
-            <>
-              <div className="contract-mobile-search-row" style={{ marginBottom: 8 }}>
-                <div className="contract-mobile-search-input-wrap">
-                  <FormInput
-                    ref={customerSearchInputRef}
-                    type="search"
-                    value={customerQuery}
-                    onChange={(e) => {
-                      setCustomerQuery(e.target.value)
-                      setCustomerSearchValidationError(null)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        void executeCustomerSearch()
-                      }
-                    }}
-                    placeholder="이름 · 전화번호 일부 · 고객번호"
-                    disabled={!t}
-                  />
-                </div>
-                <FormButton
-                  htmlType="button"
-                  variant="primary"
-                  size="sm"
-                  fullWidth
-                  disabled={!t || customerSearchBusy}
-                  onClick={() => void executeCustomerSearch()}
-                  className="contract-mobile-search-submit contract-mobile-btn-primary-wide"
-                >
-                  {customerSearchBusy ? '검색 중…' : '검색'}
-                </FormButton>
-              </div>
-              {customerSearchValidationError ? (
-                <p className="contract-signature-console__inline-warning" role="status">
-                  {customerSearchValidationError}
-                </p>
-              ) : null}
-
-              {!customerSearchExecuted && !customerSearchValidationError ? (
-                <p className="contract-signature-console__hint contract-signature-console__hint--flush">
-                  고객 이름, 전화번호 일부 또는 고객번호를 입력해 검색하세요.
-                </p>
-              ) : null}
-
-              {customerSearchExecuted ? (
-                <div className="contract-mobile-card-list" style={{ marginTop: 12 }}>
-                  {customerHits.length === 0 ? (
-                    <p className="contract-signature-console__hint">검색 결과가 없습니다.</p>
-                  ) : (
-                    customerHits.map((c) => (
-                      <FormButton
-                        key={c.id}
-                        htmlType="button"
-                        variant="secondary"
-                        fullWidth
-                        className={
-                          'contract-mobile-select-card' +
-                          (selectedCustomer?.id === c.id ? ' contract-mobile-select-card--selected' : '')
-                        }
-                        disabled={!t}
-                        onClick={() => setSelectedCustomer(c)}
-                      >
-                        <div className="contract-mobile-select-card__title">{c.name}</div>
-                        <p className="contract-mobile-select-card__meta">
-                          {c.customerCode?.trim()
-                            ? `고객번호 ${c.customerCode} · 고객 ID ${c.id}`
-                            : `고객 ID: ${c.id}`}
-                        </p>
-                        <p className="contract-mobile-select-card__meta">{c.hasPhone ? c.maskedPhone : '휴대폰 —'}</p>
-                        {!c.hasPhone ? (
-                          <div className="contract-mobile-select-card__warn">유효한 휴대폰 번호 없음</div>
-                        ) : null}
-                      </FormButton>
-                    ))
-                  )}
-                </div>
-              ) : null}
-
-              {selectedCustomer ? (
-                <div className="contract-mobile-summary">
-                  <div className="contract-mobile-summary__label">선택된 고객</div>
-                  <div>
-                    {selectedCustomer.name} · 고객 ID {selectedCustomer.id}
-                  </div>
-                  <div className="contract-signature-console__hint" style={{ marginTop: 6 }}>
-                    {selectedCustomer.hasPhone ? selectedCustomer.maskedPhone : '—'}
-                  </div>
+            selectedCustomer ? (
+              <div className="contract-mobile-selected-customer">
+                <div className="contract-mobile-selected-customer__heading">선택 고객</div>
+                <div className="contract-mobile-selected-customer__body">
+                  <div className="contract-mobile-selected-customer__name">{selectedCustomer.name}</div>
+                  <p className="contract-mobile-selected-customer__line">
+                    고객 ID: {selectedCustomer.id}
+                    {selectedCustomer.customerCode?.trim() ? ` · 고객번호 ${selectedCustomer.customerCode}` : ''}
+                  </p>
+                  <p className="contract-mobile-selected-customer__line">
+                    {selectedCustomer.hasPhone ? selectedCustomer.maskedPhone : '휴대폰 —'}
+                  </p>
                   {!selectedCustomer.hasPhone ? (
-                    <div className="contract-signature-console__hint--warning" style={{ marginTop: 6 }}>
-                      유효한 휴대폰 번호가 없어 발송할 수 없습니다.
-                    </div>
+                    <div className="contract-mobile-selected-customer__warn">유효한 휴대폰 번호가 없어 발송할 수 없습니다.</div>
                   ) : null}
-                  <div className="contract-mobile-action-grid" style={{ marginTop: 10 }}>
-                    <FormButton htmlType="button" variant="secondary" size="sm" disabled={!t} onClick={clearCustomerSelection}>
-                      선택 해제
-                    </FormButton>
-                    <FormButton htmlType="button" variant="secondary" size="sm" disabled={!t} onClick={focusSearchAndClearCustomer}>
-                      다른 고객 검색
-                    </FormButton>
-                  </div>
                 </div>
-              ) : null}
-            </>,
+                <div className="contract-mobile-selected-customer__actions">
+                  <FormButton htmlType="button" variant="secondary" size="sm" disabled={!t} onClick={clearCustomerSelection}>
+                    선택 해제
+                  </FormButton>
+                  <FormButton htmlType="button" variant="secondary" size="sm" disabled={!t} onClick={resetMobileCustomerSearchFlow}>
+                    다른 고객 검색
+                  </FormButton>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="contract-mobile-search-row">
+                  <div className="contract-mobile-search-input-wrap">
+                    <FormInput
+                      ref={customerSearchInputRef}
+                      type="search"
+                      value={customerQuery}
+                      onChange={(e) => {
+                        setCustomerQuery(e.target.value)
+                        setCustomerSearchValidationError(null)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          void executeCustomerSearch()
+                        }
+                      }}
+                      placeholder="이름 · 전화번호 일부 · 고객번호"
+                      disabled={!t}
+                    />
+                  </div>
+                  <FormButton
+                    htmlType="button"
+                    variant="primary"
+                    size="sm"
+                    fullWidth
+                    disabled={!t || customerSearchBusy}
+                    onClick={() => void executeCustomerSearch()}
+                    className="contract-mobile-search-submit"
+                  >
+                    {customerSearchBusy ? '검색 중…' : '검색'}
+                  </FormButton>
+                </div>
+                {customerSearchValidationError ? (
+                  <p className="contract-signature-console__inline-warning" role="status">
+                    {customerSearchValidationError}
+                  </p>
+                ) : null}
+
+                {!customerSearchExecuted && !customerSearchValidationError ? (
+                  <p className="contract-signature-console__hint contract-signature-console__hint--flush">
+                    고객 이름, 전화번호 일부 또는 고객번호를 입력해 검색하세요.
+                  </p>
+                ) : null}
+
+                {customerSearchExecuted ? (
+                  <div className="contract-mobile-card-list contract-mobile-search-hit-list">
+                    {customerHits.length === 0 ? (
+                      <p className="contract-signature-console__hint">검색 결과가 없습니다.</p>
+                    ) : (
+                      customerHits.map((c) => (
+                        <FormButton
+                          key={c.id}
+                          htmlType="button"
+                          variant="secondary"
+                          fullWidth
+                          className="contract-mobile-hit-card contract-mobile-select-card"
+                          disabled={!t}
+                          onClick={() => setSelectedCustomer(c)}
+                        >
+                          <div className="contract-mobile-hit-card__name">{c.name}</div>
+                          <p className="contract-mobile-hit-card__meta">
+                            {c.customerCode?.trim()
+                              ? `고객번호 ${c.customerCode} · 고객 ID ${c.id}`
+                              : `고객 ID: ${c.id}`}
+                          </p>
+                          <p className="contract-mobile-hit-card__meta">{c.hasPhone ? c.maskedPhone : '휴대폰 —'}</p>
+                          {!c.hasPhone ? <div className="contract-mobile-select-card__warn">유효한 휴대폰 번호 없음</div> : null}
+                        </FormButton>
+                      ))
+                    )}
+                  </div>
+                ) : null}
+              </>
+            ),
           )}
 
           {mobileStepShell(
@@ -438,7 +447,7 @@ export default function ContractSignatureSendPage() {
               locked: !step1Complete,
             },
             selectedCustomer == null ? null : (
-              <div className="contract-mobile-card-list">
+              <div className="contract-mobile-card-list contract-mobile-template-pick-list">
                 {templates.map((row) => {
                   const noSig = row.signatureFieldCount < 1
                   const inactive = String(row.status) !== 'active'
@@ -449,15 +458,15 @@ export default function ContractSignatureSendPage() {
                       variant="secondary"
                       fullWidth
                       className={
-                        'contract-mobile-select-card' +
+                        'contract-mobile-template-card contract-mobile-select-card' +
                         (selectedTemplateId === row.id ? ' contract-mobile-select-card--selected' : '')
                       }
                       disabled={!t || inactive}
                       onClick={() => setSelectedTemplateId(row.id)}
                     >
-                      <div className="contract-mobile-select-card__title">{row.title}</div>
-                      <p className="contract-mobile-select-card__meta">PDF: {row.pdfEngineTitle ?? '—'}</p>
-                      <p className="contract-mobile-select-card__meta">
+                      <div className="contract-mobile-template-card__title">{row.title}</div>
+                      <p className="contract-mobile-template-card__pdf">PDF: {row.pdfEngineTitle ?? '—'}</p>
+                      <p className="contract-mobile-template-card__stats">
                         필드 {row.pdfFieldCount}개 · 서명 필드 {row.signatureFieldCount}개
                       </p>
                       {inactive ? (
