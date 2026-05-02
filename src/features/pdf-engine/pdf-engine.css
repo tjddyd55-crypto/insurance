@@ -103,8 +103,8 @@
 
 .pdf-engine-editor {
   display: grid;
-  grid-template-columns: 240px 320px minmax(820px, 1fr);
-  gap: 12px;
+  grid-template-columns: 280px 360px minmax(720px, 1fr);
+  gap: 16px;
   align-items: start;
   width: 100%;
   min-width: 0;
@@ -113,7 +113,7 @@
 
 @media (max-width: 1400px) {
   .pdf-engine-editor {
-    grid-template-columns: 220px 300px minmax(720px, 1fr);
+    grid-template-columns: 260px 340px minmax(640px, 1fr);
   }
 }
 
@@ -144,9 +144,9 @@
   overflow-y: auto;
 }
 
-/* 오른쪽: PDF 미리보기 — 남는 폭 사용, 좁은 화면에서는 그리드 가로 스크롤로 820px 이상 확보 */
+/* 오른쪽: PDF 미리보기 — 남는 폭 사용 */
 .pdf-engine-editor__panel--preview {
-  min-width: 820px;
+  min-width: min(720px, 100%);
   min-height: 0;
 }
 
@@ -178,6 +178,73 @@
 
 .pdf-engine-editor__preview-hint {
   margin: 0;
+}
+
+.pdf-engine-editor__field-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pdf-engine-editor__field-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.pdf-engine-editor__field-card:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.pdf-engine-editor__field-card--active {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.pdf-engine-editor__field-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.pdf-engine-editor__field-card-title {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.35;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.pdf-engine-editor__field-card-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.pdf-engine-editor__field-card-delete {
+  flex-shrink: 0;
+  align-self: flex-end;
+}
+
+.pdf-engine-editor__define-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pdf-engine-editor__define-actions > .pdf-engine-editor__btn {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .pdf-engine-editor__panel-title {

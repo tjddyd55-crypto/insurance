@@ -56,13 +56,13 @@ export function isContractCustomerSearchQueryReady(raw: string): boolean {
 export function getContractCustomerSearchValidationMessage(raw: string): string | null {
   const q = raw.trim()
   if (!q) {
-    return '고객 이름, 전화번호 일부 또는 고객번호를 입력한 뒤 검색해 주세요.'
+    return '고객 이름, 전화번호 일부 또는 고객번호를 입력해 검색하세요.'
   }
   if (/^\d+$/.test(q) && q.length < 4) {
-    return '전화번호·고객번호 검색은 숫자 4자리 이상 입력해 주세요.'
+    return '전화번호 또는 고객번호는 4자리 이상 입력해주세요.'
   }
   if (!/^\d+$/.test(q) && q.length < 2) {
-    return '검색어를 2글자 이상 입력해 주세요.'
+    return '검색어를 2글자 이상 입력해주세요.'
   }
   return null
 }

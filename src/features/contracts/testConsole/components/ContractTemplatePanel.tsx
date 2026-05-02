@@ -279,7 +279,7 @@ export function ContractTemplatePanel({
         </li>
       </ul>
 
-      <div className="contract-signature-console__scroll-x contract-signature-console__template-table-wrap">
+      <div className="contract-signature-console__template-table-wrap">
         <table className="contract-signature-console__template-table pdf-engine-table">
           <colgroup>
             <col className="contract-signature-console__col-title" />
@@ -316,6 +316,24 @@ export function ContractTemplatePanel({
                   trow.status === 'draft' &&
                   trow.documentInstanceCount < 1 &&
                   trow.packageItemCount < 1
+                const deleteDisabledTitle = (() => {
+                  if (canHardDelete) {
+                    return '템플릿 삭제 (초안만 가능)'
+                  }
+                  if (trow.status === 'active') {
+                    return 'active 템플릿은 삭제할 수 없습니다. 상태변경으로 사용 중지(archived)하세요.'
+                  }
+                  if (trow.status === 'archived') {
+                    return '삭제는 초안(draft)만 가능합니다. 사용 중지된 템플릿은 목록에 보관됩니다.'
+                  }
+                  if (trow.documentInstanceCount >= 1) {
+                    return '발송·문서 이력이 있어 삭제할 수 없습니다. 사용 중지를 이용하세요.'
+                  }
+                  if (trow.packageItemCount >= 1) {
+                    return '패키지에 포함된 템플릿은 삭제할 수 없습니다.'
+                  }
+                  return '삭제할 수 없습니다.'
+                })()
                 return (
                   <tr key={trow.id} className="contract-signature-console__template-row">
                     <td>{trow.title}</td>
@@ -387,68 +405,34 @@ export function ContractTemplatePanel({
                         >
                           복제
                         </FormButton>
-                        {trow.status === 'active' ? (
-                          <FormButton
-                            htmlType="button"
-                            variant="secondary"
-                            size="sm"
-                            disabled={busy}
-                            onClick={() =>
-                              void (async () => {
-                                const ok = await confirm({
-                                  message: '이 템플릿을 사용 중지(archived)할까요?',
-                                  confirmLabel: '사용 중지',
-                                  cancelLabel: '취소',
-                                })
-                                if (!ok) {
-                                  return
-                                }
-                                await runOp(async () => {
-                                  await setContractTemplateStatus(token, role, trow.id, 'archived', tenantGaId)
-                                })
-                              })()
-                            }
-                          >
-                            사용중지
-                          </FormButton>
-                        ) : trow.status === 'archived' ? (
-                          <FormButton htmlType="button" variant="secondary" size="sm" disabled>
-                            사용중지됨
-                          </FormButton>
-                        ) : (
-                          <FormButton
-                            htmlType="button"
-                            variant="secondary"
-                            size="sm"
-                            disabled={busy || !canHardDelete}
-                            title={
-                              !canHardDelete
-                                ? '발송 이력이 있거나 패키지에 포함된 초안은 삭제할 수 없습니다. 사용 중지를 이용하세요.'
-                                : '템플릿 삭제'
-                            }
-                            onClick={() =>
-                              void (async () => {
-                                if (!canHardDelete) {
-                                  return
-                                }
-                                const ok = await confirm({
-                                  message: '이 초안 템플릿을 삭제할까요? 이 작업은 되돌릴 수 없습니다.',
-                                  confirmLabel: '삭제',
-                                  cancelLabel: '취소',
-                                  tone: 'danger',
-                                })
-                                if (!ok) {
-                                  return
-                                }
-                                await runOp(async () => {
-                                  await deleteContractTemplate(token, role, trow.id, tenantGaId)
-                                })
-                              })()
-                            }
-                          >
-                            삭제
-                          </FormButton>
-                        )}
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          disabled={busy || !canHardDelete}
+                          title={deleteDisabledTitle}
+                          onClick={() =>
+                            void (async () => {
+                              if (!canHardDelete) {
+                                return
+                              }
+                              const ok = await confirm({
+                                message: '이 초안 템플릿을 삭제할까요? 이 작업은 되돌릴 수 없습니다.',
+                                confirmLabel: '삭제',
+                                cancelLabel: '취소',
+                                tone: 'danger',
+                              })
+                              if (!ok) {
+                                return
+                              }
+                              await runOp(async () => {
+                                await deleteContractTemplate(token, role, trow.id, tenantGaId)
+                              })
+                            })()
+                          }
+                        >
+                          삭제
+                        </FormButton>
                       </div>
                     </td>
                   </tr>

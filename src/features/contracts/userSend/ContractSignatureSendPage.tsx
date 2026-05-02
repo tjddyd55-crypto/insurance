@@ -72,22 +72,34 @@ export default function ContractSignatureSendPage() {
     if (!t) {
       return
     }
-    const validationMsg = getContractCustomerSearchValidationMessage(customerQuery)
+    const rawFromDom = customerSearchInputRef.current?.value
+    const effectiveQuery = typeof rawFromDom === 'string' ? rawFromDom : customerQuery
+    const validationMsg = getContractCustomerSearchValidationMessage(effectiveQuery)
     if (validationMsg) {
       setCustomerSearchValidationError(validationMsg)
       setCustomerHits([])
       setCustomerSearchExecuted(false)
+      if (effectiveQuery !== customerQuery) {
+        setCustomerQuery(effectiveQuery)
+      }
       return
+    }
+    const trimmed = effectiveQuery.trim()
+    if (trimmed !== customerQuery) {
+      setCustomerQuery(trimmed)
     }
     setCustomerSearchValidationError(null)
     setCustomerSearchBusy(true)
     try {
-      const hits = await searchCustomersForContractSend(t, customerQuery)
+      const hits = await searchCustomersForContractSend(t, trimmed)
       setCustomerHits(hits)
       setCustomerSearchExecuted(true)
-    } catch {
+    } catch (e) {
       setCustomerHits([])
       setCustomerSearchExecuted(true)
+      setCustomerSearchValidationError(
+        e instanceof ApiError ? e.message : '고객 검색 중 오류가 발생했습니다.',
+      )
     } finally {
       setCustomerSearchBusy(false)
     }
@@ -256,8 +268,7 @@ export default function ContractSignatureSendPage() {
             전자서명을 발송할 고객을 검색해 선택하세요.
           </p>
           <p className="contract-signature-console__hint" style={{ marginTop: 0 }}>
-            고객 이름, 전화번호 일부 또는 고객번호를 입력해 검색하세요. (이름·기본 검색 2글자 이상, 숫자만 입력 시 4자리 이상)
-            휴대폰은 마스킹만 표시됩니다.
+            고객 이름, 전화번호 일부 또는 고객번호를 입력해 검색하세요.
           </p>
           <div className="contract-signature-console__search-row" style={{ marginBottom: 8, alignItems: 'stretch' }}>
             <FormInput
@@ -375,11 +386,11 @@ export default function ContractSignatureSendPage() {
                 </tbody>
               </table>
             </div>
-          ) : (
+          ) : !customerSearchValidationError ? (
             <p className="contract-signature-console__hint" style={{ marginTop: 8 }}>
-              검색어를 입력한 뒤 「검색」을 누르면 본인에게 등록된 고객만 결과로 표시됩니다.
+              「검색」을 누르면 본인에게 등록된 고객만 결과로 표시됩니다. 휴대폰 번호는 마스킹만 표시됩니다.
             </p>
-          )}
+          ) : null}
         </section>
 
         <section className="contract-signature-console__section">

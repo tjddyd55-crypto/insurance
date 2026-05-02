@@ -4,10 +4,12 @@
  */
 
 main.insurance-dark-forms.contract-signature-console .contract-signature-console__container {
-  max-width: 1100px;
+  width: min(1520px, calc(100vw - 32px));
+  max-width: 1520px;
   margin-inline: auto;
   padding-block: 1.5rem;
   padding-inline: var(--spacing-page-inline, 0.75rem);
+  box-sizing: border-box;
 }
 
 main.insurance-dark-forms.contract-signature-console .contract-signature-console__title {
@@ -296,7 +298,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
 
 main.insurance-dark-forms.contract-signature-console .contract-history-table {
   width: 100%;
-  min-width: 1040px;
+  min-width: 0;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
@@ -457,20 +459,29 @@ main.insurance-dark-forms.contract-signature-console .contract-status-badge[data
 }
 
 main.insurance-dark-forms.contract-signature-console .history-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
+  justify-content: flex-end;
   width: 100%;
 }
 
 main.insurance-dark-forms.contract-signature-console .history-actions__cancel {
-  grid-column: 1 / 2;
+  flex: 1 1 100%;
+  display: flex;
+  justify-content: flex-end;
+}
+
+main.insurance-dark-forms.contract-signature-console .history-actions__cancel button {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 72px;
 }
 
 main.insurance-dark-forms.contract-signature-console .history-actions button {
-  min-width: 0;
-  width: 100%;
+  min-width: 72px;
+  flex: 0 1 auto;
   height: 32px;
   padding-left: 8px;
   padding-right: 8px;
@@ -519,13 +530,15 @@ main.insurance-dark-forms.contract-signature-console .contract-session-doc-pendi
 /* 전자서명 템플릿 관리 표 (2번 영역) */
 
 main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-table-wrap {
-  overflow-x: auto;
+  overflow-x: visible;
   margin-bottom: 0.5rem;
+  width: 100%;
+  min-width: 0;
 }
 
 main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-table {
   width: 100%;
-  min-width: 1200px;
+  min-width: 0;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.8125rem;
@@ -567,7 +580,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
 }
 
 main.insurance-dark-forms.contract-signature-console .contract-signature-console__col-actions {
-  width: 300px;
+  width: 340px;
 }
 
 main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-row:hover td {
@@ -575,17 +588,20 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
 }
 
 main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-actions {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(52px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
   width: 100%;
-  max-width: 300px;
+  min-width: 0;
 }
 
 main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-actions > button {
-  min-width: 0;
-  padding-left: 0.35rem;
-  padding-right: 0.35rem;
+  flex: 0 1 auto;
+  min-width: 64px;
+  padding-left: 0.45rem;
+  padding-right: 0.45rem;
   font-size: 0.75rem;
   white-space: nowrap;
 }

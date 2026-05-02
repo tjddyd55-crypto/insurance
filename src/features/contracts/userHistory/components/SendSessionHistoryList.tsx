@@ -21,15 +21,15 @@ export function SendSessionHistoryList({ rows, busy, onDetail, onCopyLink, onOpe
     <div className="contract-signature-console__scroll-x">
       <table className="contract-history-table contract-signature-console__table--striped">
         <colgroup>
-          <col style={{ width: '88px' }} />
-          <col style={{ width: '112px' }} />
-          <col style={{ width: '210px' }} />
-          <col style={{ width: '84px' }} />
-          <col style={{ width: '80px' }} />
-          <col style={{ width: '124px' }} />
-          <col style={{ width: '124px' }} />
-          <col style={{ width: '118px' }} />
-          <col style={{ width: '220px' }} />
+          <col style={{ width: '8.5%' }} />
+          <col style={{ width: '9.5%' }} />
+          <col style={{ width: '17%' }} />
+          <col style={{ width: '7%' }} />
+          <col style={{ width: '7%' }} />
+          <col style={{ width: '10%' }} />
+          <col style={{ width: '10%' }} />
+          <col style={{ width: '8%' }} />
+          <col style={{ width: '23%' }} />
         </colgroup>
         <thead>
           <tr>
