@@ -186,11 +186,10 @@ export default function ContractSignDocumentPage() {
   const [saving, setSaving] = useState(false)
   const [signAck, setSignAck] = useState(false)
   const [sigModalField, setSigModalField] = useState<{ id: string; label: string } | null>(null)
-  const [inputReviewOpen, setInputReviewOpen] = useState(false)
-  const [inputReviewLoadNonce, setInputReviewLoadNonce] = useState(0)
+  const [contractPreviewOpen, setContractPreviewOpen] = useState(false)
+  const [contractPreviewLoadNonce, setContractPreviewLoadNonce] = useState(0)
   const [finalReviewOpen, setFinalReviewOpen] = useState(false)
   const [finalReviewLoadNonce, setFinalReviewLoadNonce] = useState(0)
-  const [inputPreviewConfirmed, setInputPreviewConfirmed] = useState(false)
   const [finalPreviewConfirmed, setFinalPreviewConfirmed] = useState(false)
   const [finalSubmitAcknowledged, setFinalSubmitAcknowledged] = useState(false)
   const [confirmationChecks, setConfirmationChecks] = useState<Record<string, boolean>>({})
@@ -249,7 +248,6 @@ export default function ContractSignDocumentPage() {
 
   useEffect(() => {
     setSignatureDrafts({})
-    setInputPreviewConfirmed(false)
     setFinalPreviewConfirmed(false)
     setFinalSubmitAcknowledged(false)
     setConfirmationChecks({})
@@ -318,25 +316,48 @@ export default function ContractSignDocumentPage() {
   )
   const signatureFields = useMemo(() => sortedFields.filter((f) => f.fieldType === 'signature'), [sortedFields])
 
-  const step1Complete = detail
-    ? allNonSignatureRequiredFilled(detail, drafts) && allSessionConfirmationsChecked(detail, confirmationChecks)
-    : false
+  /** 1단계: PDF 필드 중 서명 제외 필수 입력(문서 내 체크·텍스트·라디오 등). */
+  const customerInputStepComplete = detail ? allNonSignatureRequiredFilled(detail, drafts) : false
+  /** 2단계: 발송 시 설정한 고객 확인 항목(템플릿별). 항목이 없으면 true. */
+  const confirmationStepComplete = detail ? allSessionConfirmationsChecked(detail, confirmationChecks) : false
+  const canSign = customerInputStepComplete && confirmationStepComplete
   const basicsComplete = detail ? allRequiredFilled(detail, drafts) : false
-  /** 서명란이 없으면 서명 단계는 생략(2단계 확인 후 곧바로 4단계 가능). */
+  /** 서명란이 없으면 서명 단계는 생략 가능. */
   const step3Complete = detail
     ? signatureFields.length === 0 || signatureRequirementsComplete(detail)
     : false
 
   const canSubmitSend =
     Boolean(detail && detail.canEdit !== false && detail.document.status !== 'completed') &&
-    step1Complete &&
-    inputPreviewConfirmed &&
+    canSign &&
     step3Complete &&
     finalPreviewConfirmed &&
     finalSubmitAcknowledged
 
+  const buildCustomerValuePayload = (): ContractPublicValueInput[] => {
+    if (!detail) {
+      return []
+    }
+    const values: ContractPublicValueInput[] = []
+    for (const f of detail.fields) {
+      if (f.fieldType === 'signature') {
+        continue
+      }
+      if (f.readOnlyCustomerUi) {
+        continue
+      }
+      const raw = drafts[f.id]
+      if (f.fieldType === 'checkbox') {
+        values.push({ fieldId: f.id, fieldKey: f.fieldKey, value: Boolean(raw) })
+        continue
+      }
+      values.push({ fieldId: f.id, fieldKey: f.fieldKey, value: raw == null ? '' : String(raw) })
+    }
+    return values
+  }
+
   const openSignatureModal = (id: string, label: string) => {
-    setInputReviewOpen(false)
+    setContractPreviewOpen(false)
     setFinalReviewOpen(false)
     setActionError('')
     setSigModalField({ id, label })
@@ -349,22 +370,7 @@ export default function ContractSignDocumentPage() {
     setActionError('')
     setSaving(true)
     try {
-      const values: ContractPublicValueInput[] = []
-      for (const f of detail.fields) {
-        if (f.fieldType === 'signature') {
-          continue
-        }
-        if (f.readOnlyCustomerUi) {
-          continue
-        }
-        const raw = drafts[f.id]
-        if (f.fieldType === 'checkbox') {
-          values.push({ fieldId: f.id, fieldKey: f.fieldKey, value: Boolean(raw) })
-          continue
-        }
-        values.push({ fieldId: f.id, fieldKey: f.fieldKey, value: raw == null ? '' : String(raw) })
-      }
-      await postContractPublicDocumentValues(linkCode, documentInstanceId, values)
+      await postContractPublicDocumentValues(linkCode, documentInstanceId, buildCustomerValuePayload())
       await reloadDetail()
     } catch (e) {
       setActionError(formatContractPublicActionError(e, 'values'))
@@ -373,33 +379,15 @@ export default function ContractSignDocumentPage() {
     }
   }
 
-  const onOpenInputReview = async () => {
+  /** 단계 완료 조건 아님 — 현재 입력을 서버에 반영한 뒤 입력 반영본 PDF 미리보기만 연다. */
+  const onOpenContractPreview = async () => {
     if (!detail || detail.canEdit === false) {
-      return
-    }
-    if (!step1Complete) {
-      setActionError('필수 정보를 모두 입력·동의한 뒤 입력 내용 확인을 진행해 주세요.')
       return
     }
     setActionError('')
     setSaving(true)
     try {
-      const values: ContractPublicValueInput[] = []
-      for (const f of detail.fields) {
-        if (f.fieldType === 'signature') {
-          continue
-        }
-        if (f.readOnlyCustomerUi) {
-          continue
-        }
-        const raw = drafts[f.id]
-        if (f.fieldType === 'checkbox') {
-          values.push({ fieldId: f.id, fieldKey: f.fieldKey, value: Boolean(raw) })
-          continue
-        }
-        values.push({ fieldId: f.id, fieldKey: f.fieldKey, value: raw == null ? '' : String(raw) })
-      }
-      await postContractPublicDocumentValues(linkCode, documentInstanceId, values)
+      await postContractPublicDocumentValues(linkCode, documentInstanceId, buildCustomerValuePayload())
       await reloadDetail()
     } catch (e) {
       setActionError(formatContractPublicActionError(e, 'values'))
@@ -408,16 +396,16 @@ export default function ContractSignDocumentPage() {
       setSaving(false)
     }
     setSigModalField(null)
-    setInputReviewLoadNonce((n) => n + 1)
-    setInputReviewOpen(true)
+    setContractPreviewLoadNonce((n) => n + 1)
+    setContractPreviewOpen(true)
   }
 
   const onOpenFinalReview = async () => {
     if (!detail || detail.canEdit === false) {
       return
     }
-    if (!inputPreviewConfirmed) {
-      setActionError('입력 내용 확인(2단계)을 먼저 완료해 주세요.')
+    if (!canSign) {
+      setActionError('필수 정보 입력과 고객 확인 항목을 모두 완료한 뒤 최종 문서 확인을 진행해 주세요.')
       return
     }
     if (!step3Complete) {
@@ -431,22 +419,7 @@ export default function ContractSignDocumentPage() {
     setActionError('')
     setSaving(true)
     try {
-      const values: ContractPublicValueInput[] = []
-      for (const f of detail.fields) {
-        if (f.fieldType === 'signature') {
-          continue
-        }
-        if (f.readOnlyCustomerUi) {
-          continue
-        }
-        const raw = drafts[f.id]
-        if (f.fieldType === 'checkbox') {
-          values.push({ fieldId: f.id, fieldKey: f.fieldKey, value: Boolean(raw) })
-          continue
-        }
-        values.push({ fieldId: f.id, fieldKey: f.fieldKey, value: raw == null ? '' : String(raw) })
-      }
-      await postContractPublicDocumentValues(linkCode, documentInstanceId, values)
+      await postContractPublicDocumentValues(linkCode, documentInstanceId, buildCustomerValuePayload())
       await reloadDetail()
     } catch (e) {
       setActionError(formatContractPublicActionError(e, 'values'))
@@ -485,7 +458,6 @@ export default function ContractSignDocumentPage() {
       await reloadDetail()
       setFinalSubmitAcknowledged(false)
       setFinalPreviewConfirmed(false)
-      setInputPreviewConfirmed(false)
       const ev = data.evidenceSummary
       const completedAt = ev?.completedAt ?? ev?.signedAt ?? new Date().toISOString()
       setCompleteResult({
@@ -599,12 +571,34 @@ export default function ContractSignDocumentPage() {
 
         {actionError ? <div className="contract-public-sign-page__panel-danger">{actionError}</div> : null}
 
+        {canEdit && detail.fields.length > 0 ? (
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            fullWidth
+            className="mt-2"
+            loading={saving}
+            onClick={() => void onOpenContractPreview()}
+          >
+            계약서 미리보기
+          </FormButton>
+        ) : null}
+        {canEdit && detail.fields.length > 0 ? (
+          <p className="contract-public-sign-page__notice text-sm mt-1">
+            현재까지 입력한 내용이 반영된 계약서를 엽니다. 단계 완료와 무관하게 확인용으로만 사용할 수 있습니다.
+          </p>
+        ) : null}
+
         {detail.fields.length > 0 ? (
           <>
-            <div className={`contract-public-sign-page__card contract-public-sign-page__step-card${step1Complete ? ' contract-public-sign-page__step-card--done' : ''}`}>
+            <div
+              className={`contract-public-sign-page__card contract-public-sign-page__step-card${
+                customerInputStepComplete ? ' contract-public-sign-page__step-card--done' : ''
+              }`}
+            >
               <p className="contract-public-sign-page__card-title">1단계. 필수 정보 입력</p>
               <p className="contract-public-sign-page__notice mt-2">
-                계약서에 들어갈 필수 정보를 입력해주세요.
+                계약서에 직접 입력하실 항목을 작성해 주세요.
               </p>
               <div className="mt-4 space-y-4">
                 {agreementFields.length > 0 ? (
@@ -620,7 +614,6 @@ export default function ContractSignDocumentPage() {
                             checked={checked}
                             onChange={(ev) => {
                               setDrafts((prev) => ({ ...prev, [f.id]: ev.target.checked }))
-                              setInputPreviewConfirmed(false)
                               setFinalPreviewConfirmed(false)
                               setFinalSubmitAcknowledged(false)
                             }}
@@ -655,7 +648,6 @@ export default function ContractSignDocumentPage() {
                               options={[{ value: '', label: '선택' }, ...opts.map((o) => ({ value: o, label: o }))]}
                               onChange={(ev) => {
                                 setDrafts((prev) => ({ ...prev, [f.id]: ev.target.value }))
-                                setInputPreviewConfirmed(false)
                                 setFinalPreviewConfirmed(false)
                                 setFinalSubmitAcknowledged(false)
                               }}
@@ -678,7 +670,6 @@ export default function ContractSignDocumentPage() {
                               value={tv}
                               onChange={(ev) => {
                                 setDrafts((prev) => ({ ...prev, [f.id]: ev.target.value }))
-                                setInputPreviewConfirmed(false)
                                 setFinalPreviewConfirmed(false)
                                 setFinalSubmitAcknowledged(false)
                               }}
@@ -692,7 +683,6 @@ export default function ContractSignDocumentPage() {
                               value={tv}
                               onChange={(ev) => {
                                 setDrafts((prev) => ({ ...prev, [f.id]: ev.target.value }))
-                                setInputPreviewConfirmed(false)
                                 setFinalPreviewConfirmed(false)
                                 setFinalSubmitAcknowledged(false)
                               }}
@@ -705,12 +695,30 @@ export default function ContractSignDocumentPage() {
                   </div>
                 ) : null}
 
+                {canEdit ? (
+                  <FormButton htmlType="button" variant="secondary" fullWidth loading={saving} onClick={() => void onSaveValues()}>
+                    임시저장
+                  </FormButton>
+                ) : null}
+              </div>
+              {customerInputStepComplete ? (
+                <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">1단계 완료</p>
+              ) : (
+                <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">필수 항목을 입력해 주세요</p>
+              )}
+            </div>
+
+            <div
+              className={`contract-public-sign-page__card contract-public-sign-page__step-card${
+                confirmationStepComplete ? ' contract-public-sign-page__step-card--done' : ''
+              }`}
+            >
+              <p className="contract-public-sign-page__card-title">2단계. 고객 확인 항목</p>
+              <p className="contract-public-sign-page__notice mt-2">
+                담당자가 설정한 확인 항목입니다. 모두 체크해야 전자서명 단계로 진행할 수 있습니다.
+              </p>
               {(detail.confirmationItems?.length ?? 0) > 0 ? (
                 <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight space-y-3 mt-4">
-                  <p className="contract-public-sign-page__section-label">고객 확인 항목</p>
-                  <p className="contract-public-sign-page__notice text-sm">
-                    아래 내용을 확인 후 체크해주세요.
-                  </p>
                   {(detail.confirmationItems ?? []).map((c) => (
                     <label key={c.id} className="contract-public-sign-page__label-row">
                       <FormInput
@@ -719,7 +727,6 @@ export default function ContractSignDocumentPage() {
                         checked={Boolean(confirmationChecks[c.id])}
                         onChange={(ev) => {
                           setConfirmationChecks((prev) => ({ ...prev, [c.id]: ev.target.checked }))
-                          setInputPreviewConfirmed(false)
                           setFinalPreviewConfirmed(false)
                           setFinalSubmitAcknowledged(false)
                         }}
@@ -732,40 +739,13 @@ export default function ContractSignDocumentPage() {
                     </label>
                   ))}
                 </div>
-              ) : null}
-
-                {canEdit ? (
-                  <FormButton htmlType="button" variant="secondary" fullWidth loading={saving} onClick={() => void onSaveValues()}>
-                    임시저장
-                  </FormButton>
-                ) : null}
-              </div>
-              {step1Complete ? (
-                <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">1단계 완료</p>
               ) : (
-                <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">필수 항목을 입력해 주세요</p>
+                <p className="contract-public-sign-page__notice mt-4">이 문서에는 별도 고객 확인 항목이 없습니다.</p>
               )}
-            </div>
-
-            <div className={`contract-public-sign-page__card contract-public-sign-page__step-card${inputPreviewConfirmed ? ' contract-public-sign-page__step-card--done' : ''}`}>
-              <p className="contract-public-sign-page__card-title">2단계. 입력 내용 확인</p>
-              <p className="contract-public-sign-page__notice mt-2">
-                입력한 내용이 계약서에 올바르게 반영되었는지 확인해주세요.
-              </p>
-              <FormButton
-                htmlType="button"
-                variant={step1Complete ? 'primary' : 'secondary'}
-                fullWidth
-                className="mt-4"
-                disabled={!canEdit || saving || !step1Complete}
-                onClick={() => void onOpenInputReview()}
-              >
-                입력 내용 반영 문서 보기
-              </FormButton>
-              {inputPreviewConfirmed ? (
-                <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">입력 내용 확인 완료</p>
+              {confirmationStepComplete ? (
+                <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">2단계 완료</p>
               ) : (
-                <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">미확인</p>
+                <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">필수 확인 항목을 모두 체크해 주세요</p>
               )}
             </div>
 
@@ -774,8 +754,10 @@ export default function ContractSignDocumentPage() {
               <p className="contract-public-sign-page__notice mt-2">
                 계약서에 사용할 전자서명을 입력해주세요.
               </p>
-              {!inputPreviewConfirmed ? (
-                <p className="contract-public-sign-page__notice mt-3">먼저 2단계에서 입력 내용을 확인해 주세요.</p>
+              {!canSign ? (
+                <p className="contract-public-sign-page__notice mt-3">
+                  1단계 필수 입력과 2단계 고객 확인 항목을 모두 완료한 뒤 전자서명할 수 있습니다.
+                </p>
               ) : null}
               {signatureFields.length > 0 ? (
                 <div className="mt-4 space-y-4">
@@ -805,9 +787,9 @@ export default function ContractSignDocumentPage() {
                             </label>
                             <FormButton
                               htmlType="button"
-                              variant={inputPreviewConfirmed ? 'primary' : 'secondary'}
+                              variant={canSign ? 'primary' : 'secondary'}
                               fullWidth
-                              disabled={saving || !signAck || !inputPreviewConfirmed}
+                              disabled={saving || !signAck || !canSign}
                               onClick={() => openSignatureModal(f.id, f.label || f.fieldKey)}
                             >
                               다시 서명하기
@@ -826,9 +808,9 @@ export default function ContractSignDocumentPage() {
                             </label>
                             <FormButton
                               htmlType="button"
-                              variant={inputPreviewConfirmed ? 'primary' : 'secondary'}
+                              variant={canSign ? 'primary' : 'secondary'}
                               fullWidth
-                              disabled={saving || !signAck || !inputPreviewConfirmed}
+                              disabled={saving || !signAck || !canSign}
                               onClick={() => openSignatureModal(f.id, f.label || f.fieldKey)}
                             >
                               전자서명하기
@@ -852,20 +834,20 @@ export default function ContractSignDocumentPage() {
             <div className={`contract-public-sign-page__card contract-public-sign-page__step-card${finalPreviewConfirmed ? ' contract-public-sign-page__step-card--done' : ''}`}>
               <p className="contract-public-sign-page__card-title">4단계. 최종 문서 확인</p>
               <p className="contract-public-sign-page__notice mt-2">
-                입력 내용과 전자서명이 모두 반영된 최종 문서를 확인해주세요.
+                고객 입력값, 발송자 입력값, 고정 출력값 및 전자서명이 모두 반영된 최종 계약서를 확인해 주세요.
               </p>
               {!step3Complete ? (
                 <p className="contract-public-sign-page__notice mt-3">3단계 전자서명을 먼저 완료해 주세요.</p>
               ) : null}
               <FormButton
                 htmlType="button"
-                variant={step3Complete && inputPreviewConfirmed ? 'primary' : 'secondary'}
+                variant={step3Complete && canSign ? 'primary' : 'secondary'}
                 fullWidth
                 className="mt-4"
-                disabled={!canEdit || saving || !step3Complete || !inputPreviewConfirmed}
+                disabled={!canEdit || saving || !step3Complete || !canSign}
                 onClick={() => void onOpenFinalReview()}
               >
-                최종 서명 문서 보기
+                최종 문서 보기
               </FormButton>
               {finalPreviewConfirmed ? (
                 <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">최종 문서 확인 완료</p>
@@ -880,7 +862,7 @@ export default function ContractSignDocumentPage() {
             }`}>
                 <p className="contract-public-sign-page__card-title">5단계. 완료 및 전송</p>
                 <p className="contract-public-sign-page__notice mt-2">
-                  최종 문서를 확인한 뒤 전송을 완료해주세요.
+                  최종 문서를 확인하셨다면 아래 내용에 동의한 뒤 전송을 완료해 주세요.
                 </p>
                 <label className="contract-public-sign-page__label-row mt-4">
                   <FormInput
@@ -891,7 +873,8 @@ export default function ContractSignDocumentPage() {
                     className="mt-0.5"
                   />
                   <span>
-                    입력한 내용과 전자서명이 최종 문서에 올바르게 반영된 것을 확인했으며, 이 문서를 전송합니다.
+                    본인은 위 문서의 내용을 충분히 확인하였으며, 입력한 내용과 전자서명이 본인의 의사에 따라 직접
+                    작성·서명된 것임을 확인하고, 본 전자서명 문서를 제출하는 데 동의합니다.
                   </span>
                 </label>
                 <FormButton
@@ -915,43 +898,20 @@ export default function ContractSignDocumentPage() {
         </Link>
 
         <PublicPdfPreviewModal
-          open={inputReviewOpen}
-          onClose={() => setInputReviewOpen(false)}
-          title="입력 내용 확인"
-          subtitle="입력하신 내용이 계약서에 올바르게 반영되었는지 확인해주세요."
+          open={contractPreviewOpen}
+          onClose={() => setContractPreviewOpen(false)}
+          title="계약서 미리보기"
+          subtitle="현재까지 저장된 내용이 반영된 계약서입니다. 확인 후 닫기만 하시면 됩니다."
           pdfUrl={inputRenderedPdfSrc}
           initialPdfBytes={null}
           pageCount={Math.max(1, detail.pdfTemplate?.pageCount ?? 1)}
           initialPageNo={1}
           documentInstanceId={documentInstanceId}
-          loadNonce={inputReviewLoadNonce}
+          loadNonce={contractPreviewLoadNonce}
           footerSlot={
-            <div className="contract-public-sign-page__footer-actions">
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                fullWidth
-                onClick={() => {
-                  setInputReviewOpen(false)
-                  setInputPreviewConfirmed(false)
-                }}
-              >
-                수정하기
-              </FormButton>
-              <FormButton
-                htmlType="button"
-                variant="primary"
-                fullWidth
-                onClick={() => {
-                  setInputPreviewConfirmed(true)
-                  setFinalPreviewConfirmed(false)
-                  setFinalSubmitAcknowledged(false)
-                  setInputReviewOpen(false)
-                }}
-              >
-                확인했습니다
-              </FormButton>
-            </div>
+            <FormButton htmlType="button" variant="primary" fullWidth onClick={() => setContractPreviewOpen(false)}>
+              닫기
+            </FormButton>
           }
         />
 
