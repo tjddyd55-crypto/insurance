@@ -68,6 +68,15 @@ export type ContractTemplateDetail = {
   updatedAt: string
 }
 
+export type ContractSendConfirmationItem = {
+  id: string
+  label: string
+  required: boolean
+  sortOrder: number
+  checked: boolean
+  checkedAt: string | null
+}
+
 export type CreateSendSessionResult = {
   id: string
   linkCode: string
@@ -76,6 +85,7 @@ export type CreateSendSessionResult = {
   maskedPhone: string
   documentCount: number
   createdAt: string
+  confirmationItems?: { id: string; label: string; required: boolean }[]
 }
 
 export type SendSessionEvidence = {
@@ -127,6 +137,8 @@ export type SendSessionDetail = {
   createdAt: string
   completedAt: string | null
   documents: SendSessionDocumentDetail[]
+  /** 고객 확인 체크 항목(발송 시 정의·완료 후 체크 이력) */
+  confirmationItems?: ContractSendConfirmationItem[]
 }
 
 function tenantQs(tenantGaId: number | null, isSuper: boolean): string {
@@ -411,6 +423,9 @@ export async function getContractSendSessionDetail(
   const s = (body as { sendSession?: SendSessionDetail }).sendSession
   if (!s?.id) {
     throw new ApiError('발송 세션 상세 응답이 올바르지 않습니다.', 500)
+  }
+  if (!Array.isArray(s.confirmationItems)) {
+    s.confirmationItems = []
   }
   return s
 }

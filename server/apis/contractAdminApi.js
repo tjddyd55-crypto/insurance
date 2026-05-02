@@ -17,6 +17,11 @@ import {
   seedContractTemplateFieldSettings,
   effectiveContractFieldRole,
 } from '../services/contractTemplateFieldSettings.js'
+import {
+  insertConfirmationItemsForSendSession,
+  listConfirmationItemsWithValues,
+  parseConfirmationItemsFromBody,
+} from '../services/contractConfirmationItems.js'
 import { listFields } from '../pdf-engine/repository/pdfTemplateRepo.js'
 
 const CT_PREFIX = 'ct_'
@@ -1284,6 +1289,15 @@ export function registerContractAdminApi(apiRouter, ctx) {
         senderRoot,
         contractTemplatesOrdered.map((x) => String(x.id)),
       )
+
+      const confRaw = req.body?.confirmationItems ?? req.body?.confirmation_items
+      const confParsed = parseConfirmationItemsFromBody(confRaw)
+      if (!confParsed.ok) {
+        await client.query('ROLLBACK')
+        res.status(400).json({ ok: false, message: confParsed.message })
+        return
+      }
+
       for (const ct of contractTemplatesOrdered) {
         if (ct.pdfTemplateId == null) {
           await client.query('ROLLBACK')
@@ -1339,6 +1353,12 @@ export function registerContractAdminApi(apiRouter, ctx) {
         ],
       )
 
+      /** @type {{ id: string, label: string, required: boolean }[]} */
+      let insertedConfirmations = []
+      if (confParsed.items.length > 0) {
+        insertedConfirmations = await insertConfirmationItemsForSendSession(client, sendId, confParsed.items)
+      }
+
       for (let i = 0; i < contractTemplatesOrdered.length; i += 1) {
         const ct = contractTemplatesOrdered[i]
         const docId = newId(CDI_PREFIX)
@@ -1377,6 +1397,7 @@ export function registerContractAdminApi(apiRouter, ctx) {
           documentCount: contractTemplatesOrdered.length,
           createdAt: new Date().toISOString(),
         },
+        confirmationItems: insertedConfirmations,
       })
     } catch (e) {
       try {
@@ -1514,6 +1535,7 @@ export function registerContractAdminApi(apiRouter, ctx) {
           evidenceByDoc.set(String(er.document_instance_id), er)
         }
       }
+      const confirmationItems = await listConfirmationItemsWithValues(pool, row.id)
       res.json({
         ok: true,
         sendSession: {
@@ -1528,6 +1550,7 @@ export function registerContractAdminApi(apiRouter, ctx) {
           sentAt: row.sent_at,
           createdAt: row.created_at,
           completedAt: row.completed_at ?? null,
+          confirmationItems,
           documents: docs.rows.map((d) => {
             const ev = evidenceByDoc.get(String(d.id))
             return {

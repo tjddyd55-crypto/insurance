@@ -145,6 +145,15 @@ export type ContractDocumentDetailPayload = {
     signedAt: string | null
     completedAt?: string
   }
+  /** 세션 단위 고객 확인 체크 항목(PDF 필드와 무관) */
+  confirmationItems?: {
+    id: string
+    label: string
+    required: boolean
+    sortOrder: number
+    checked: boolean
+    checkedAt: string | null
+  }[]
 }
 
 export async function fetchContractPublicDocumentDetail(
@@ -213,6 +222,8 @@ export async function postContractPublicDocumentComplete(
     acknowledgeElectronicContract: true
     finalPreviewConfirmed: true
     finalSubmitAcknowledged: true
+    /** 완료 시점에 체크한 고객 확인 항목 id 목록 */
+    confirmationCheckedItemIds?: string[]
   },
 ): Promise<{
   status?: string
@@ -262,6 +273,8 @@ const PUBLIC_ACTION_CODE_MESSAGES: Record<string, string> = {
   required_fields_missing: '필수 항목을 모두 입력·서명해야 합니다.',
   final_preview_required: '최종 문서 확인 단계를 먼저 완료해 주세요.',
   final_submit_ack_required: '최종 전송 확인에 동의해 주세요.',
+  required_confirmations_missing: '필수 확인 항목을 모두 체크해 주세요.',
+  invalid_confirmation_payload: '확인 항목 정보 형식이 올바르지 않습니다.',
 }
 
 const SIGN_FALLBACK = '전자서명 저장 중 오류가 발생했습니다. 다시 시도해 주세요.'
@@ -313,6 +326,17 @@ export function formatContractPublicActionError(
 
 /** 문서 완료: 누락 필드 상세 + 안전한 폴백 */
 export function formatContractPublicCompleteError(e: unknown): string {
+  if (e instanceof ApiError && e.code === 'required_confirmations_missing') {
+    const pack = e.data as { missingConfirmations?: { id?: string; label?: string }[] } | undefined
+    const labels =
+      pack?.missingConfirmations
+        ?.map((m) => String(m.label ?? '').trim())
+        .filter((s) => s.length > 0) ?? []
+    if (labels.length > 0) {
+      return `${PUBLIC_ACTION_CODE_MESSAGES.required_confirmations_missing} (${labels.join(', ')})`
+    }
+    return PUBLIC_ACTION_CODE_MESSAGES.required_confirmations_missing
+  }
   if (e instanceof ApiError && e.code === 'required_fields_missing') {
     const pack = e.data as { missingFields?: ContractPublicMissingField[] } | undefined
     const labels =

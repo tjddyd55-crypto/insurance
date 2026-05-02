@@ -19,6 +19,11 @@ import {
   insertFixedPrefillDocumentValues,
   listSenderFieldsForContractTemplate,
 } from '../services/contractTemplateFieldSettings.js'
+import {
+  insertConfirmationItemsForSendSession,
+  listConfirmationItemsWithValues,
+  parseConfirmationItemsFromBody,
+} from '../services/contractConfirmationItems.js'
 
 const CSS_PREFIX = 'css_'
 const CDI_PREFIX = 'cdi_'
@@ -548,6 +553,13 @@ export function registerContractUserApi(apiRouter, ctx) {
         req.body?.sender_field_values
       const senderMaps = senderValuesByContractTemplates(senderRoot, parsed.ids)
 
+      const confRaw = req.body?.confirmationItems ?? req.body?.confirmation_items
+      const confParsed = parseConfirmationItemsFromBody(confRaw)
+      if (!confParsed.ok) {
+        res.status(400).json({ ok: false, message: confParsed.message })
+        return
+      }
+
       const contractTemplatesOrdered = /** @type {{ id: string, title: string, version: number, required: number, pdfHash: string | null, pdfTemplateId: number | null }[]} */ ([])
 
       await client.query('BEGIN')
@@ -624,6 +636,12 @@ export function registerContractUserApi(apiRouter, ctx) {
           uid || null,
         ],
       )
+
+      /** @type {{ id: string, label: string, required: boolean }[]} */
+      let insertedConfirmations = []
+      if (confParsed.items.length > 0) {
+        insertedConfirmations = await insertConfirmationItemsForSendSession(client, sendId, confParsed.items)
+      }
 
       for (let i = 0; i < contractTemplatesOrdered.length; i += 1) {
         const ct = contractTemplatesOrdered[i]
@@ -1025,9 +1043,13 @@ export function registerContractUserApi(apiRouter, ctx) {
           evidenceByDoc.set(String(er.document_instance_id), er)
         }
       }
+      const confirmationItems = await listConfirmationItemsWithValues(pool, row.id)
       res.json({
         ok: true,
-        sendSession: mapSendSessionDetailRow(row, docs, evidenceByDoc),
+        sendSession: {
+          ...mapSendSessionDetailRow(row, docs, evidenceByDoc),
+          confirmationItems,
+        },
       })
     } catch (e) {
       handleDbError(e, req, res)

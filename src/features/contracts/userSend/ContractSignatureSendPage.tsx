@@ -19,6 +19,8 @@ import {
   listUserContractTemplates,
   getContractCustomerSearchValidationMessage,
   searchCustomersForContractSend,
+  CONTRACT_SEND_CONFIRMATION_MAX_ITEMS,
+  CONTRACT_SEND_CONFIRMATION_MAX_LABEL_LEN,
   type UserContractCustomerSearchHit,
   type UserContractTemplateItem,
 } from './contractSignatureSendClient'
@@ -46,6 +48,8 @@ export default function ContractSignatureSendPage() {
   const [evidenceLoading, setEvidenceLoading] = useState(false)
   /** 설계사(sender) 필드 값 — 선택된 템플릿 내 fieldKey 로만 사용 */
   const [senderVals, setSenderVals] = useState<Record<string, string | boolean>>({})
+  /** 고객 확인 체크 항목 초안 — PDF 필드와 무관 */
+  const [confirmationDrafts, setConfirmationDrafts] = useState<{ key: string; label: string }[]>([])
 
   const reloadTemplates = useCallback(async () => {
     if (!t) {
@@ -116,6 +120,7 @@ export default function ContractSignatureSendPage() {
 
   useEffect(() => {
     setSenderVals({})
+    setConfirmationDrafts([])
   }, [selectedTemplateId])
 
   const senderPrefillSatisfied = (tpl: UserContractTemplateItem | null | undefined): boolean => {
@@ -141,6 +146,29 @@ export default function ContractSignatureSendPage() {
     return true
   }
 
+  const confirmationDraftValidationMessage = (() => {
+    if (confirmationDrafts.length === 0) {
+      return null
+    }
+    if (confirmationDrafts.length > CONTRACT_SEND_CONFIRMATION_MAX_ITEMS) {
+      return `확인 항목은 최대 ${CONTRACT_SEND_CONFIRMATION_MAX_ITEMS}개까지 추가할 수 있습니다.`
+    }
+    const nonEmpty = confirmationDrafts.filter((d) => d.label.trim() !== '')
+    if (nonEmpty.length !== confirmationDrafts.length) {
+      return '확인 항목 문구를 모두 입력하거나 빈 행을 삭제해 주세요.'
+    }
+    const lower = nonEmpty.map((d) => d.label.trim().toLowerCase())
+    if (new Set(lower).size !== lower.length) {
+      return '중복된 확인 문구가 있습니다.'
+    }
+    for (const d of nonEmpty) {
+      if (d.label.trim().length > CONTRACT_SEND_CONFIRMATION_MAX_LABEL_LEN) {
+        return `확인 항목 문구는 ${CONTRACT_SEND_CONFIRMATION_MAX_LABEL_LEN}자 이내입니다.`
+      }
+    }
+    return null
+  })()
+
   const selectedTpl = templates.find((x) => x.id === selectedTemplateId)
   const canSend =
     Boolean(selectedTemplateId) &&
@@ -148,7 +176,8 @@ export default function ContractSignatureSendPage() {
     selectedCustomer != null &&
     selectedCustomer.hasPhone &&
     String(selectedTpl.status) === 'active' &&
-    senderPrefillSatisfied(selectedTpl)
+    senderPrefillSatisfied(selectedTpl) &&
+    confirmationDraftValidationMessage == null
 
   const onCreateSendSession = async () => {
     if (!t || !selectedTemplateId || !selectedCustomer?.hasPhone) {
@@ -174,6 +203,10 @@ export default function ContractSignatureSendPage() {
         customerId: selectedCustomer.id,
         templateIds: [selectedTemplateId],
         senderInputValues,
+        confirmationItems:
+          confirmationDrafts.length > 0
+            ? confirmationDrafts.map((d) => ({ label: d.label.trim(), required: true as const }))
+            : undefined,
       })
       setLastCreated(created)
       const next = await getUserContractSendSessionDetail(t, created.id)
@@ -197,6 +230,7 @@ export default function ContractSignatureSendPage() {
         (!senderPrefillSatisfied(selectedTpl ?? undefined)
           ? '발송 전 입력값의 필수 항목을 모두 채워 주세요.'
           : null) ||
+        confirmationDraftValidationMessage ||
         (selectedCustomer != null && !selectedCustomer.hasPhone
           ? '선택한 고객에 유효한 휴대폰번호가 없습니다.'
           : null)
@@ -471,6 +505,74 @@ export default function ContractSignatureSendPage() {
                 )
               })}
             </div>
+          </section>
+        ) : null}
+
+        {selectedCustomer && selectedTemplateId ? (
+          <section className="contract-signature-console__section">
+            <h2 className="contract-signature-console__section-title">2-2. 고객 확인 체크 항목</h2>
+            <p className="contract-signature-console__body-text" style={{ margin: '0 0 8px' }}>
+              고객이 전자서명 전에 확인해야 할 내용을 체크 항목으로 추가할 수 있습니다.
+            </p>
+            <div className="space-y-3 mt-2">
+              {confirmationDrafts.map((row) => (
+                <div key={row.key} className="flex flex-wrap items-start gap-2">
+                  <FormInput
+                    type="text"
+                    className="flex-1 min-w-[200px] max-w-xl"
+                    value={row.label}
+                    placeholder="예: 본인임을 확인했습니다."
+                    disabled={!t}
+                    onChange={(e) => {
+                      const v = e.target.value
+                      setConfirmationDrafts((prev) =>
+                        prev.map((x) => (x.key === row.key ? { ...x, label: v } : x)),
+                      )
+                    }}
+                  />
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={!t}
+                    onClick={() =>
+                      setConfirmationDrafts((prev) => prev.filter((x) => x.key !== row.key))
+                    }
+                  >
+                    삭제
+                  </FormButton>
+                </div>
+              ))}
+            </div>
+            <div className="contract-signature-console__btn-row" style={{ marginTop: 12 }}>
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                size="sm"
+                disabled={
+                  !t ||
+                  !selectedTemplateId ||
+                  confirmationDrafts.length >= CONTRACT_SEND_CONFIRMATION_MAX_ITEMS
+                }
+                onClick={() =>
+                  setConfirmationDrafts((prev) => [
+                    ...prev,
+                    { key: `ccdraft_${crypto.randomUUID()}`, label: '' },
+                  ])
+                }
+              >
+                + 체크 항목 추가
+              </FormButton>
+            </div>
+            {confirmationDraftValidationMessage ? (
+              <p className="contract-signature-console__inline-warning" role="status" style={{ marginTop: 8 }}>
+                {confirmationDraftValidationMessage}
+              </p>
+            ) : (
+              <p className="contract-signature-console__hint" style={{ marginTop: 8 }}>
+                선택 사항입니다. 추가 시 고객이 모두 체크해야 다음 단계로 진행할 수 있습니다.
+              </p>
+            )}
           </section>
         ) : null}
 

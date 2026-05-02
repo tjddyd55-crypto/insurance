@@ -120,6 +120,25 @@ function allNonSignatureRequiredFilled(
   })
 }
 
+function allSessionConfirmationsChecked(
+  detail: ContractDocumentDetailPayload,
+  checks: Record<string, boolean>,
+) {
+  const items = detail.confirmationItems ?? []
+  if (items.length === 0) {
+    return true
+  }
+  for (const c of items) {
+    if (!c.required) {
+      continue
+    }
+    if (!checks[c.id]) {
+      return false
+    }
+  }
+  return true
+}
+
 /** 필수 전자서명 필드가 모두 저장되었는지(3단계 완료). */
 function signatureRequirementsComplete(detail: ContractDocumentDetailPayload) {
   return detail.fields.every((f) => {
@@ -174,6 +193,7 @@ export default function ContractSignDocumentPage() {
   const [inputPreviewConfirmed, setInputPreviewConfirmed] = useState(false)
   const [finalPreviewConfirmed, setFinalPreviewConfirmed] = useState(false)
   const [finalSubmitAcknowledged, setFinalSubmitAcknowledged] = useState(false)
+  const [confirmationChecks, setConfirmationChecks] = useState<Record<string, boolean>>({})
   const [successOpen, setSuccessOpen] = useState(false)
   const [completeResult, setCompleteResult] = useState<{
     evidenceSummary: ContractDocumentDetailPayload['evidenceSummary']
@@ -198,11 +218,41 @@ export default function ContractSignDocumentPage() {
     [linkCode, documentInstanceId],
   )
 
+  const confirmationItemsSig = useMemo(
+    () =>
+      JSON.stringify(
+        (detail?.confirmationItems ?? []).map((c) => ({
+          id: c.id,
+          checked: c.checked,
+        })),
+      ),
+    [detail?.confirmationItems],
+  )
+
+  useEffect(() => {
+    if (!detail) {
+      return
+    }
+    const items = detail.confirmationItems ?? []
+    setConfirmationChecks((prev) => {
+      const next: Record<string, boolean> = {}
+      for (const c of items) {
+        if (Object.prototype.hasOwnProperty.call(prev, c.id)) {
+          next[c.id] = Boolean(prev[c.id])
+        } else {
+          next[c.id] = Boolean(c.checked)
+        }
+      }
+      return next
+    })
+  }, [detail, confirmationItemsSig])
+
   useEffect(() => {
     setSignatureDrafts({})
     setInputPreviewConfirmed(false)
     setFinalPreviewConfirmed(false)
     setFinalSubmitAcknowledged(false)
+    setConfirmationChecks({})
   }, [linkCode, documentInstanceId])
 
   useEffect(() => {
@@ -268,7 +318,9 @@ export default function ContractSignDocumentPage() {
   )
   const signatureFields = useMemo(() => sortedFields.filter((f) => f.fieldType === 'signature'), [sortedFields])
 
-  const step1Complete = detail ? allNonSignatureRequiredFilled(detail, drafts) : false
+  const step1Complete = detail
+    ? allNonSignatureRequiredFilled(detail, drafts) && allSessionConfirmationsChecked(detail, confirmationChecks)
+    : false
   const basicsComplete = detail ? allRequiredFilled(detail, drafts) : false
   /** 서명란이 없으면 서명 단계는 생략(2단계 확인 후 곧바로 4단계 가능). */
   const step3Complete = detail
@@ -422,6 +474,13 @@ export default function ContractSignDocumentPage() {
         acknowledgeElectronicContract: true,
         finalPreviewConfirmed: true,
         finalSubmitAcknowledged: true,
+        ...(detail.confirmationItems?.length
+          ? {
+              confirmationCheckedItemIds: Object.entries(confirmationChecks)
+                .filter(([, v]) => v)
+                .map(([id]) => id),
+            }
+          : {}),
       })
       await reloadDetail()
       setFinalSubmitAcknowledged(false)
@@ -645,6 +704,35 @@ export default function ContractSignDocumentPage() {
                     })}
                   </div>
                 ) : null}
+
+              {(detail.confirmationItems?.length ?? 0) > 0 ? (
+                <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight space-y-3 mt-4">
+                  <p className="contract-public-sign-page__section-label">고객 확인 항목</p>
+                  <p className="contract-public-sign-page__notice text-sm">
+                    아래 내용을 확인 후 체크해주세요.
+                  </p>
+                  {(detail.confirmationItems ?? []).map((c) => (
+                    <label key={c.id} className="contract-public-sign-page__label-row">
+                      <FormInput
+                        type="checkbox"
+                        disabled={!canEdit}
+                        checked={Boolean(confirmationChecks[c.id])}
+                        onChange={(ev) => {
+                          setConfirmationChecks((prev) => ({ ...prev, [c.id]: ev.target.checked }))
+                          setInputPreviewConfirmed(false)
+                          setFinalPreviewConfirmed(false)
+                          setFinalSubmitAcknowledged(false)
+                        }}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        {c.label}
+                        {c.required ? <span className="contract-public-sign-page__required"> *</span> : null}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
 
                 {canEdit ? (
                   <FormButton htmlType="button" variant="secondary" fullWidth loading={saving} onClick={() => void onSaveValues()}>

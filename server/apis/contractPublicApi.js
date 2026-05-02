@@ -13,6 +13,11 @@ import {
   effectiveContractFieldRole,
   loadContractFieldSettingsMap,
 } from '../services/contractTemplateFieldSettings.js'
+import {
+  listConfirmationItemsWithValues,
+  upsertConfirmationValuesForComplete,
+  validateConfirmationCheckedForComplete,
+} from '../services/contractConfirmationItems.js'
 
 const TERMINAL_SESSION = new Set(['expired', 'cancelled'])
 const COMPLETED_SESSION = new Set(['completed'])
@@ -711,6 +716,22 @@ export function registerContractPublicApi(apiRouter, ctx) {
         })
         return
       }
+      const rawChecked =
+        req.body?.confirmationCheckedItemIds ?? req.body?.confirmation_checked_item_ids
+      /** @type {Set<string>} */
+      let confirmationCheckedSet = new Set()
+      if (rawChecked != null) {
+        if (!Array.isArray(rawChecked)) {
+          res.status(400).json({
+            success: false,
+            code: 'invalid_confirmation_payload',
+            error: 'invalid_confirmation_payload',
+            message: '확인 항목 정보 형식이 올바르지 않습니다.',
+          })
+          return
+        }
+        confirmationCheckedSet = new Set(rawChecked.map((x) => String(x).trim()).filter(Boolean))
+      }
       const { session } = base
       const docMeta = await pool.query(
         `
@@ -800,6 +821,32 @@ export function registerContractPublicApi(apiRouter, ctx) {
           res.status(403).json({ success: false, message: '계약서 수신번호 인증이 필요합니다.' })
           return
         }
+        const confQ = await client.query(
+          `
+          SELECT id, label, required, sort_order
+          FROM contract_confirmation_items
+          WHERE send_session_id = $1
+          ORDER BY sort_order ASC, id ASC
+          `,
+          [session.id],
+        )
+        if (confQ.rows.length > 0) {
+          const confVal = validateConfirmationCheckedForComplete(confQ.rows, confirmationCheckedSet)
+          if (!confVal.ok) {
+            await client.query('ROLLBACK')
+            res.status(400).json({
+              success: false,
+              code: confVal.code,
+              error: confVal.code,
+              message: confVal.message,
+              data:
+                confVal.missing && confVal.missing.length > 0
+                  ? { missingConfirmations: confVal.missing }
+                  : undefined,
+            })
+            return
+          }
+        }
         let signedPdfFileId = null
         let signedPdfHashHex = null
         const fileUserId = session.sent_by_user_id || session.customer_user_id
@@ -829,6 +876,14 @@ export function registerContractPublicApi(apiRouter, ctx) {
               console.error('[contract public complete] final pdf error')
             }
           }
+        }
+        if (confQ.rows.length > 0) {
+          await upsertConfirmationValuesForComplete(
+            client,
+            String(session.id),
+            confirmationCheckedSet,
+            confQ.rows,
+          )
         }
         try {
           await insertSignatureEvidenceRow(client, req, {
@@ -1498,6 +1553,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
           ? `/api/contracts/public/${encodeURIComponent(linkCode)}/documents/${encodeURIComponent(docId)}/signed-pdf`
           : null
       const signedPdfDownloadAvailable = signedPdfDownloadPath != null
+      const confirmationItems = await listConfirmationItemsWithValues(pool, String(doc.send_session_id))
       res.status(200).json({
         success: true,
         data: {
@@ -1519,6 +1575,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
           signedPdfDownloadAvailable,
           canEdit,
           evidenceSummary: evidenceSummary ?? undefined,
+          confirmationItems,
           notice:
             '휴대폰 인증 완료 후 문서 작성 및 전자서명을 진행합니다. 본 화면에서 입력·임시저장·전자서명·문서 완료까지 이어집니다.',
         },

@@ -4,6 +4,9 @@ import type {
   SendSessionDetail,
 } from '../testConsole/contractSignatureTestConsoleClient'
 
+export const CONTRACT_SEND_CONFIRMATION_MAX_ITEMS = 10
+export const CONTRACT_SEND_CONFIRMATION_MAX_LABEL_LEN = 200
+
 export type ContractSenderFieldDef = {
   fieldKey: string
   label: string
@@ -126,23 +129,29 @@ export async function createUserContractSendSession(
     senderInputValues?: Record<string, unknown>
     /** @deprecated senderInputValues 사용 */
     senderFieldValues?: Record<string, Record<string, unknown>>
+    /** 고객 공개 화면에서 전자서명 전 확인받을 체크 문구(PDF 필드 아님). */
+    confirmationItems?: { label: string; required?: boolean }[]
   },
 ): Promise<CreateSendSessionResult> {
-  const body = await apiRequest<{ sendSession?: CreateSendSessionResult }>(
-    '/api/contracts/send-sessions',
-    {
-      method: 'POST',
-      token,
-      body: JSON.stringify({
-        customerId: params.customerId,
-        templateIds: params.templateIds,
-        senderInputValues: params.senderInputValues ?? params.senderFieldValues,
-      }),
-    },
-  )
-  const s = (body as { sendSession?: CreateSendSessionResult }).sendSession
+  const body = await apiRequest<{
+    sendSession?: CreateSendSessionResult
+    confirmationItems?: { id: string; label: string; required: boolean }[]
+  }>('/api/contracts/send-sessions', {
+    method: 'POST',
+    token,
+    body: JSON.stringify({
+      customerId: params.customerId,
+      templateIds: params.templateIds,
+      senderInputValues: params.senderInputValues ?? params.senderFieldValues,
+      confirmationItems: params.confirmationItems,
+    }),
+  })
+  const s = body.sendSession
   if (!s?.id || !s.linkCode) {
     throw new ApiError('발송 세션 생성 응답이 올바르지 않습니다.', 500)
+  }
+  if (body.confirmationItems && Array.isArray(body.confirmationItems)) {
+    s.confirmationItems = body.confirmationItems
   }
   return s
 }
@@ -155,9 +164,12 @@ export async function getUserContractSendSessionDetail(
     `/api/contracts/send-sessions/${encodeURIComponent(sendSessionId)}`,
     { method: 'GET', token },
   )
-  const s = (body as { sendSession?: SendSessionDetail }).sendSession
+  const s = body.sendSession
   if (!s?.id || !s.linkCode) {
     throw new ApiError('발송 세션 상세 응답이 올바르지 않습니다.', 500)
+  }
+  if (!Array.isArray(s.confirmationItems)) {
+    s.confirmationItems = []
   }
   return s
 }

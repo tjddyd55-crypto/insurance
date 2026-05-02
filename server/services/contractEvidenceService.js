@@ -117,6 +117,31 @@ export function pickSignatureAggregation(rows) {
 }
 
 /**
+ * 증빙 해시용 — 고객 확인 체크 항목 스냅샷(sort_order, id 안정 정렬).
+ * @param {Array<{ id?: unknown, label?: unknown, required?: unknown, sort_order?: unknown, checked?: unknown, checked_at?: unknown }>} rows
+ */
+export function hashContractConfirmationsForEvidence(rows) {
+  if (!rows || rows.length === 0) {
+    return null
+  }
+  const sorted = [...rows].sort((a, b) => {
+    const so = Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0)
+    if (so !== 0) {
+      return so
+    }
+    return String(a.id ?? '').localeCompare(String(b.id ?? ''))
+  })
+  const normalized = sorted.map((r) => ({
+    id: String(r.id ?? ''),
+    label: String(r.label ?? ''),
+    required: r.required === true || r.required === 1,
+    checked: Boolean(r.checked),
+    checkedAt: r.checked_at != null ? new Date(r.checked_at).toISOString() : null,
+  }))
+  return sha256Hex(stableStringify(normalized))
+}
+
+/**
  * @param {{
  *   sendSessionId: string,
  *   documentInstanceId: string,
@@ -171,9 +196,14 @@ export function computeDocumentReferenceHash(src) {
  *   completedAtIso: string,
  *   ipHash: string | null,
  *   userAgentHash: string | null,
+ *   confirmationsHash?: string | null,
  * }} p
  */
 export function computeContractEvidenceHash(p) {
+  const ch =
+    p.confirmationsHash != null && String(p.confirmationsHash).trim()
+      ? String(p.confirmationsHash).trim()
+      : null
   const ordered = {
     completedAtIso: p.completedAtIso,
     customerId: p.customerId,
@@ -196,6 +226,7 @@ export function computeContractEvidenceHash(p) {
     templateVersion: p.templateVersion,
     userAgentHash: p.userAgentHash,
     valuesHash: p.valuesHash,
+    ...(ch ? { confirmationsHash: ch } : {}),
   }
   return sha256Hex(stableStringify(ordered))
 }
@@ -313,6 +344,25 @@ export async function insertSignatureEvidenceRow(client, req, input) {
   const ua = truncateUserAgent(req)
   const userAgentHash = ua ? sha256Hex(ua) : null
 
+  const confRows = await client.query(
+    `
+    SELECT
+      i.id,
+      i.label,
+      i.required,
+      i.sort_order,
+      COALESCE(v.checked, false) AS checked,
+      v.checked_at
+    FROM contract_confirmation_items i
+    LEFT JOIN contract_confirmation_item_values v
+      ON v.confirmation_item_id = i.id AND v.send_session_id = i.send_session_id
+    WHERE i.send_session_id = $1
+    ORDER BY i.sort_order ASC, i.id ASC
+    `,
+    [sendSessionId],
+  )
+  const confirmationsHash = hashContractConfirmationsForEvidence(confRows.rows)
+
   const evidenceHash = computeContractEvidenceHash({
     completedAtIso,
     customerId: Number.isFinite(customerId) ? customerId : null,
@@ -335,6 +385,7 @@ export async function insertSignatureEvidenceRow(client, req, input) {
     templateVersion,
     userAgentHash,
     valuesHash,
+    confirmationsHash,
   })
 
   const evidenceId = `sev_${randomUUID()}`

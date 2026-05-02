@@ -39,6 +39,27 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh }: Props) {
             <li>completedAt: {detail.completedAt ?? '—'}</li>
             <li>지정 휴대폰 인증 세션 ID: {detail.identitySessionId ?? '—'}</li>
           </ul>
+          {detail.confirmationItems != null && detail.confirmationItems.length > 0 ? (
+            <>
+              <h3 className="contract-signature-console__subsection-title">고객 확인 항목</h3>
+              <ul className="contract-signature-console__unordered-list">
+                {detail.confirmationItems.map((c) => (
+                  <li key={c.id}>
+                    {c.label}
+                    {c.required ? ' (필수)' : ''}:{' '}
+                    {c.checked ? (
+                      <>
+                        확인 완료
+                        {c.checkedAt ? ` — ${String(c.checkedAt).slice(0, 19)}` : ''}
+                      </>
+                    ) : (
+                      <span className="contract-signature-console__hint">미확인</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
           <h3 className="contract-signature-console__subsection-title">문서 / evidence</h3>
           <div className="contract-signature-console__scroll-x">
             <table className="pdf-engine-table contract-signature-console__table--compact">

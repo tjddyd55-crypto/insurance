@@ -84,6 +84,28 @@ export function SendSessionPanel({
           <div>
             <strong>문서 수</strong> {session.documents?.length ?? '—'}
           </div>
+          {session.confirmationItems && session.confirmationItems.length > 0 ? (
+            <div style={{ marginTop: 12 }}>
+              <strong>고객 확인 항목</strong>
+              <ul className="contract-signature-console__unordered-list" style={{ marginTop: 6 }}>
+                {session.confirmationItems.map((c) => (
+                  <li key={c.id}>
+                    <span>{c.label}</span>
+                    {c.required ? ' · 필수' : ''}
+                    {' — '}
+                    {c.checked ? (
+                      <span>
+                        확인 완료
+                        {c.checkedAt ? ` (${String(c.checkedAt).slice(0, 19)})` : ''}
+                      </span>
+                    ) : (
+                      <span className="contract-signature-console__hint">미확인</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <div>
             <strong>상태</strong> {session.status}
           </div>
