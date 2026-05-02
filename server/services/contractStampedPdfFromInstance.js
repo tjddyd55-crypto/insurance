@@ -66,7 +66,8 @@ export async function buildStampedPdfBufferFromInstance(executor, pdfTemplateId,
   }
   const fields = rawFields
     .filter((row) => shouldIncludeFieldForStamp(row, settingsMap))
-    .map((row, i) => rawFieldRowToSpec(row, i))  const textValues = /** @type {Record<string, string>} */ ({})
+    .map((row, i) => rawFieldRowToSpec(row, i))
+  const textValues = /** @type {Record<string, string>} */ ({})
   const signaturePngByFieldKey = /** @type {Record<string, Buffer>} */ ({})
 
   for (const row of valRows) {
