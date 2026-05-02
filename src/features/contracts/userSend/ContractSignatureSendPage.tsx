@@ -324,10 +324,7 @@ export default function ContractSignatureSendPage() {
               locked: false,
             },
             <>
-              <div
-                className="contract-mobile-search-row contract-mobile-search-row--split"
-                style={{ marginBottom: 8, alignItems: 'stretch' }}
-              >
+              <div className="contract-mobile-search-row" style={{ marginBottom: 8 }}>
                 <div className="contract-mobile-search-input-wrap">
                   <FormInput
                     ref={customerSearchInputRef}
@@ -354,8 +351,7 @@ export default function ContractSignatureSendPage() {
                   fullWidth
                   disabled={!t || customerSearchBusy}
                   onClick={() => void executeCustomerSearch()}
-                  className="contract-mobile-btn-primary-wide"
-                  style={{ marginTop: 0 }}
+                  className="contract-mobile-search-submit contract-mobile-btn-primary-wide"
                 >
                   {customerSearchBusy ? '검색 중…' : '검색'}
                 </FormButton>

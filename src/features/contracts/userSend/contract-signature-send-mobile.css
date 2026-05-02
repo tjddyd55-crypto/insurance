@@ -176,19 +176,23 @@ main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mo
   margin-bottom: 8px;
 }
 
-@media (min-width: 400px) {
-  main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-search-row--split {
-    flex-direction: row;
-    align-items: stretch;
-  }
-
-  main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-search-row--split > .contract-mobile-search-input-wrap {
-    flex: 1;
-    min-width: 0;
-  }
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile
+  .contract-mobile-search-row
+  .contract-mobile-search-input-wrap
+  input,
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile
+  .contract-mobile-search-row
+  .contract-mobile-search-input-wrap
+  input[type='search'] {
+  min-height: 46px;
 }
 
-main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-search-input-wrap input,
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-search-submit {
+  width: 100%;
+  min-height: 46px;
+  box-sizing: border-box;
+}
+
 main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-step input[type='text'],
 main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-mobile-step input[type='search'] {
   min-height: 44px;
