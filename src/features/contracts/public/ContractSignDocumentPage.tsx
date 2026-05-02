@@ -31,6 +31,9 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 function buildDraftsFromDetail(d: ContractDocumentDetailPayload): Record<string, string | boolean> {
   const next: Record<string, string | boolean> = {}
   for (const f of d.fields) {
+    if (f.hideFromCustomerInput) {
+      continue
+    }
     if (f.fieldType === 'signature') {
       continue
     }
@@ -58,6 +61,9 @@ function mergeDraftsFromDetail(
   const fromServer = buildDraftsFromDetail(detail)
   const next: Record<string, string | boolean> = { ...fromServer }
   for (const f of detail.fields) {
+    if (f.hideFromCustomerInput) {
+      continue
+    }
     if (f.fieldType === 'signature') {
       continue
     }
@@ -105,6 +111,9 @@ function allNonSignatureRequiredFilled(
 ) {
   return detail.fields.every((f) => {
     if (f.fieldType === 'signature') {
+      return true
+    }
+    if (f.hideFromCustomerInput) {
       return true
     }
     return isRequiredSatisfied(f, drafts)
@@ -244,9 +253,17 @@ export default function ContractSignDocumentPage() {
   }, [linkCode, documentInstanceId, paramsInvalid, reloadDetail])
 
   const sortedFields = useMemo(() => (detail ? sortFields(detail) : []), [detail])
-  const agreementFields = useMemo(() => sortedFields.filter((f) => f.fieldType === 'checkbox'), [sortedFields])
+  const agreementFields = useMemo(
+    () => sortedFields.filter((f) => f.fieldType === 'checkbox' && !f.hideFromCustomerInput),
+    [sortedFields],
+  )
   const inputFields = useMemo(
-    () => sortedFields.filter((f) => f.fieldType === 'text' || f.fieldType === 'textarea' || f.fieldType === 'radio'),
+    () =>
+      sortedFields.filter(
+        (f) =>
+          (f.fieldType === 'text' || f.fieldType === 'textarea' || f.fieldType === 'radio') &&
+          !f.hideFromCustomerInput,
+      ),
     [sortedFields],
   )
   const signatureFields = useMemo(() => sortedFields.filter((f) => f.fieldType === 'signature'), [sortedFields])
@@ -536,12 +553,11 @@ export default function ContractSignDocumentPage() {
                     <p className="contract-public-sign-page__section-label">확인·동의</p>
                     {agreementFields.map((f) => {
                       const checked = Boolean(drafts[f.id])
-                      const locked = Boolean(f.readOnlyCustomerUi)
                       return (
                         <label key={f.id} className="contract-public-sign-page__label-row">
                           <FormInput
                             type="checkbox"
-                            disabled={!canEdit || locked}
+                            disabled={!canEdit}
                             checked={checked}
                             onChange={(ev) => {
                               setDrafts((prev) => ({ ...prev, [f.id]: ev.target.checked }))
@@ -554,11 +570,6 @@ export default function ContractSignDocumentPage() {
                           <span>
                             {f.label || f.fieldKey}
                             {f.required ? <span className="contract-public-sign-page__required"> *</span> : null}
-                            {locked ? (
-                              <span className="contract-public-sign-page__notice" style={{ marginLeft: 6 }}>
-                                (설계사 입력)
-                              </span>
-                            ) : null}
                           </span>
                         </label>
                       )
@@ -570,7 +581,6 @@ export default function ContractSignDocumentPage() {
                   <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight space-y-3">
                     <p className="contract-public-sign-page__section-label">문서 입력</p>
                     {inputFields.map((f) => {
-                      const locked = Boolean(f.readOnlyCustomerUi)
                       if (f.fieldType === 'radio') {
                         const opts = Array.isArray(f.options) ? f.options.map((x) => String(x)) : []
                         const cur = String(drafts[f.id] ?? '')
@@ -579,14 +589,9 @@ export default function ContractSignDocumentPage() {
                             <p className="contract-public-sign-page__field-label">
                               {f.label || f.fieldKey}
                               {f.required ? <span className="contract-public-sign-page__required"> *</span> : null}
-                              {locked ? (
-                                <span className="contract-public-sign-page__notice" style={{ marginLeft: 6 }}>
-                                  (설계사 입력)
-                                </span>
-                              ) : null}
                             </p>
                             <FormSelect
-                              disabled={!canEdit || locked}
+                              disabled={!canEdit}
                               value={cur}
                               options={[{ value: '', label: '선택' }, ...opts.map((o) => ({ value: o, label: o }))]}
                               onChange={(ev) => {
@@ -607,15 +612,10 @@ export default function ContractSignDocumentPage() {
                           <p className="contract-public-sign-page__field-label">
                             {f.label || f.fieldKey}
                             {f.required ? <span className="contract-public-sign-page__required"> *</span> : null}
-                            {locked ? (
-                              <span className="contract-public-sign-page__notice" style={{ marginLeft: 6 }}>
-                                (설계사 입력)
-                              </span>
-                            ) : null}
                           </p>
                           {isTextarea ? (
                             <FormTextarea
-                              disabled={!canEdit || locked}
+                              disabled={!canEdit}
                               value={tv}
                               onChange={(ev) => {
                                 setDrafts((prev) => ({ ...prev, [f.id]: ev.target.value }))
@@ -629,7 +629,7 @@ export default function ContractSignDocumentPage() {
                           ) : (
                             <FormInput
                               type="text"
-                              disabled={!canEdit || locked}
+                              disabled={!canEdit}
                               value={tv}
                               onChange={(ev) => {
                                 setDrafts((prev) => ({ ...prev, [f.id]: ev.target.value }))

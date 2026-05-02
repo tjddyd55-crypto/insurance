@@ -1,24 +1,29 @@
 import { randomUUID } from 'node:crypto'
 import { listFields } from '../pdf-engine/repository/pdfTemplateRepo.js'
-import { inputRoleFromPdfFieldRow } from '../pdf-engine/schema/inputRole.js'
+import {
+  effectiveContractFieldRole,
+  loadContractFieldSettingsMap,
+} from './contractTemplateFieldSettings.js'
 import { normalizeContractFieldStoredValue } from './contractFieldValueNormalize.js'
 
 /**
  * 설계사(sender) 입력 값을 검증하고 contract_document_values 행 목록(SQL 파라미터)을 만든다.
  *
  * @param {import('pg').Pool | import('pg').PoolClient} db
+ * @param {string} contractTemplateId
  * @param {number} pdfTemplateId
  * @param {Record<string, unknown>} senderValuesByFieldKey
  */
-export async function assertSenderFieldValuesFilled(db, pdfTemplateId, senderValuesByFieldKey) {
+export async function assertSenderFieldValuesFilled(db, contractTemplateId, pdfTemplateId, senderValuesByFieldKey) {
   const fields = await listFields(db, pdfTemplateId)
+  const settingsMap = await loadContractFieldSettingsMap(db, contractTemplateId)
   const missed = []
   for (const f of fields) {
-    const role = inputRoleFromPdfFieldRow(f)
+    const fk = String(f.field_key)
+    const role = effectiveContractFieldRole(f, settingsMap.get(fk))
     if (role !== 'sender' || String(f.field_type) === 'signature') {
       continue
     }
-    const fk = String(f.field_key)
     const raw = Object.prototype.hasOwnProperty.call(senderValuesByFieldKey, fk)
       ? senderValuesByFieldKey[fk]
       : undefined
@@ -60,17 +65,25 @@ export async function assertSenderFieldValuesFilled(db, pdfTemplateId, senderVal
 /**
  * @param {import('pg').PoolClient} client
  * @param {string} documentInstanceId
+ * @param {string} contractTemplateId
  * @param {number} pdfTemplateId
  * @param {Record<string, unknown>} senderValuesByFieldKey
  */
-export async function insertSenderPrefillDocumentValues(client, documentInstanceId, pdfTemplateId, senderValuesByFieldKey) {
+export async function insertSenderPrefillDocumentValues(
+  client,
+  documentInstanceId,
+  contractTemplateId,
+  pdfTemplateId,
+  senderValuesByFieldKey,
+) {
   const fields = await listFields(client, pdfTemplateId)
+  const settingsMap = await loadContractFieldSettingsMap(client, contractTemplateId)
   for (const f of fields) {
-    const role = inputRoleFromPdfFieldRow(f)
+    const fk = String(f.field_key)
+    const role = effectiveContractFieldRole(f, settingsMap.get(fk))
     if (role !== 'sender' || String(f.field_type) === 'signature') {
       continue
     }
-    const fk = String(f.field_key)
     if (!Object.prototype.hasOwnProperty.call(senderValuesByFieldKey, fk)) {
       continue
     }
@@ -112,43 +125,6 @@ export function parseSenderFieldValuesPayload(raw) {
 }
 
 /**
- * 발송 전 설계사(sender) 입력 폼용 — PDF 템플릿별 필드 정의(서명 제외).
- *
- * @param {object[]} rows — `pdf_template_fields` SELECT 결과
- * @returns {Map<number, { fieldKey: string, label: string, required: boolean, fieldType: string, orderIndex: number, options: unknown }[]>}
- */
-export function groupSenderFieldsByPdfTemplateId(rows) {
-  /** @type {Map<number, { fieldKey: string, label: string, required: boolean, fieldType: string, orderIndex: number, options: unknown }[]>} */
-  const map = new Map()
-  for (const row of rows) {
-    const tid = Number(row.template_id)
-    if (!Number.isFinite(tid)) {
-      continue
-    }
-    const role = inputRoleFromPdfFieldRow(row)
-    const ft = String(row.field_type ?? '')
-    if (role !== 'sender' || ft === 'signature') {
-      continue
-    }
-    if (!map.has(tid)) {
-      map.set(tid, [])
-    }
-    map.get(tid).push({
-      fieldKey: String(row.field_key),
-      label: row.label != null && String(row.label).trim() !== '' ? String(row.label) : String(row.field_key),
-      required: Boolean(row.required),
-      fieldType: ft,
-      orderIndex: Number(row.order_index) || 0,
-      options: Array.isArray(row.options) ? row.options : null,
-    })
-  }
-  for (const arr of map.values()) {
-    arr.sort((a, b) => a.orderIndex - b.orderIndex)
-  }
-  return map
-}
-
-/**
  * @param {unknown} senderRoot — nested by ct_* id 또는 단일 객체(평면 fieldKey 맵).
  * @param {string[]} contractTemplateIds ct_ 포함 id
  */
@@ -163,7 +139,7 @@ export function senderValuesByContractTemplates(senderRoot, contractTemplateIds)
     return map
   }
   /** @type {Record<string, unknown>} */
-  const root = senderRoot
+  const root = /** @type {Record<string, unknown>} */ (senderRoot)
   const topKeys = Object.keys(root).filter((k) => typeof k === 'string' && k.startsWith('ct_'))
   if (topKeys.length > 0) {
     for (const id of ids) {

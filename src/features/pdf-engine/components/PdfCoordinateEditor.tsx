@@ -17,16 +17,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
-import type { PdfFieldSpec, PdfFieldType, PdfInputRole, PdfPlacement } from '../types'
-import {
-  PDF_FIELD_TYPE_LABELS,
-  PDF_FIELD_TYPES,
-  PDF_INPUT_ROLE_LABELS,
-  PDF_INPUT_ROLES,
-} from '../types'
+import type { PdfFieldSpec, PdfFieldType, PdfPlacement } from '../types'
+import { PDF_FIELD_TYPE_LABELS, PDF_FIELD_TYPES } from '../types'
 import { PdfOverlayCanvas, type OverlayMark, type OverlayPick, type PdfOverlayDebugMeta } from './PdfOverlayCanvas'
 import FormInput from '../../../components/form/FormInput'
-import FormSelect from '../../../components/form/FormSelect'
 
 interface Props {
   pdfBuffer: ArrayBuffer | null
@@ -51,13 +45,6 @@ const EMPTY_DRAFT: DraftField = {
   fieldType: 'text',
   required: false,
 }
-
-/**
- * 관리자 에디터의 입력 주체 옵션(서명 제외 — 서명은 항상 고객).
- */
-const INPUT_ROLE_OPTIONS_DETAIL: Array<{ value: PdfInputRole; label: string }> = PDF_INPUT_ROLES.map(
-  (role) => ({ value: role, label: PDF_INPUT_ROLE_LABELS[role] }),
-)
 
 /**
  * 필드의 "기본 텍스트 박스 크기" 가 없어 placement.width 가 null 인 경우(기존 점 배치)
@@ -182,6 +169,7 @@ export function PdfCoordinateEditor({
       fieldType: draft.fieldType,
       required: draft.required,
       orderIndex: fields.length,
+      /** PDF 저장 시 서버가 비서명 필드는 모두 customer 로 정규화 — 여기서는 위치만 정의 */
       inputRole: 'customer',
       options,
       placements: [],
@@ -220,12 +208,6 @@ export function PdfCoordinateEditor({
           (!next.options || next.options.length === 0)
         ) {
           next.options = ['옵션1', '옵션2']
-        }
-        if (patch.fieldType === 'signature' || next.fieldType === 'signature') {
-          next.inputRole = 'customer'
-        }
-        if (next.fieldType === 'signature' && next.inputRole === 'sender') {
-          next.inputRole = 'customer'
         }
         return next
       }),
@@ -399,6 +381,10 @@ export function PdfCoordinateEditor({
     <div className="pdf-engine-editor">
       <aside className="pdf-engine-editor__panel pdf-engine-editor__panel--fields">
         <h3 className="pdf-engine-editor__panel-title">등록된 필드 ({fields.length})</h3>
+        <p className="pdf-engine-editor__hint" style={{ marginBottom: 10 }}>
+          이 화면에서는 PDF 위에 입력될 위치만 지정합니다. 고객 입력, 발송자 입력, 고정 출력 설정은 전자서명 템플릿을 만들
+          때 설정합니다.
+        </p>
         {fields.length === 0 ? (
           <p className="pdf-engine-editor__hint">아직 필드가 없습니다.</p>
         ) : (
@@ -409,7 +395,7 @@ export function PdfCoordinateEditor({
                   <th>필드명</th>
                   <th>타입</th>
                   <th>필수</th>
-                  <th>입력 주체</th>
+                  <th>좌표 개수</th>
                   <th style={{ width: 56 }} />
                 </tr>
               </thead>
@@ -428,11 +414,10 @@ export function PdfCoordinateEditor({
                     >
                       <td>
                         <strong>{f.label}</strong>
-                        <div className="pdf-engine-editor__field-meta">좌표 {f.placements.length}개</div>
                       </td>
                       <td>{PDF_FIELD_TYPE_LABELS[f.fieldType]}</td>
                       <td>{f.required ? 'Y' : '—'}</td>
-                      <td>{PDF_INPUT_ROLE_LABELS[f.inputRole]}</td>
+                      <td>{f.placements.length}</td>
                       <td>
                         <button
                           type="button"
@@ -555,21 +540,9 @@ export function PdfCoordinateEditor({
 
             {selectedField.fieldType === 'signature' ? (
               <p className="pdf-engine-editor__hint" style={{ marginTop: 6 }}>
-                손사인은 항상 <strong>고객 입력</strong>입니다. 고객 공개 서명 단계에서만 작성됩니다.
+                손사인 위치만 지정합니다. 실제 서명은 전자서명 링크에서 작성합니다.
               </p>
-            ) : (
-              <label className="pdf-engine-editor__label">
-                입력 주체
-                <FormSelect
-                  value={selectedField.inputRole}
-                  onChange={(e) => {
-                    const raw = e.target.value as PdfInputRole
-                    handlePatchField(selectedField.fieldKey, { inputRole: raw })
-                  }}
-                  options={INPUT_ROLE_OPTIONS_DETAIL}
-                />
-              </label>
-            )}
+            ) : null}
 
             {selectedField.fieldType === 'radio' || selectedField.fieldType === 'checkbox' ? (
               <RadioOptionsEditor

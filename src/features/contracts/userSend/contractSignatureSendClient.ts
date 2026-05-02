@@ -122,7 +122,9 @@ export async function createUserContractSendSession(
   params: {
     customerId: number
     templateIds: string[]
-    /** 템플릿 ID(ct_…) → 필드키 → 값 — 설계사(sender) 입력 */
+    /** fieldKey → 값 (단일 템플릿 발송 시 평면 맵). */
+    senderInputValues?: Record<string, unknown>
+    /** @deprecated senderInputValues 사용 */
     senderFieldValues?: Record<string, Record<string, unknown>>
   },
 ): Promise<CreateSendSessionResult> {
@@ -134,7 +136,7 @@ export async function createUserContractSendSession(
       body: JSON.stringify({
         customerId: params.customerId,
         templateIds: params.templateIds,
-        senderFieldValues: params.senderFieldValues,
+        senderInputValues: params.senderInputValues ?? params.senderFieldValues,
       }),
     },
   )

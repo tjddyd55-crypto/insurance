@@ -3090,6 +3090,40 @@ async function ensureContractSelfSmsSchema(executor) {
   `)
 
   await executor.query(`
+    CREATE TABLE IF NOT EXISTS contract_template_field_settings (
+      template_id TEXT NOT NULL REFERENCES contract_templates(id) ON DELETE CASCADE,
+      field_key TEXT NOT NULL,
+      input_role TEXT NOT NULL,
+      fixed_value TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (template_id, field_key),
+      CONSTRAINT contract_template_field_settings_role_check
+        CHECK (input_role IN ('customer', 'sender', 'fixed'))
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_template_field_settings_template_id
+    ON contract_template_field_settings(template_id)
+  `)
+  /* 기존 계약 템플릿에 대해 PDF 필드 기준으로 설정 행 백필(이미 있으면 유지). */
+  await executor.query(`
+    INSERT INTO contract_template_field_settings (template_id, field_key, input_role, fixed_value, created_at, updated_at)
+    SELECT ct.id, pf.field_key,
+      CASE
+        WHEN pf.field_type::text = 'signature' THEN 'customer'
+        WHEN pf.input_role = 'disabled' THEN 'fixed'
+        WHEN pf.input_role = 'sender' THEN 'sender'
+        ELSE 'customer'
+      END,
+      CASE WHEN pf.input_role = 'disabled' THEN '' ELSE NULL END,
+      NOW(), NOW()
+    FROM contract_templates ct
+    INNER JOIN pdf_template_fields pf ON pf.template_id = ct.pdf_template_id
+    ON CONFLICT (template_id, field_key) DO NOTHING
+  `)
+
+  await executor.query(`
     CREATE TABLE IF NOT EXISTS contract_packages (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,

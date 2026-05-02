@@ -10,6 +10,14 @@ import {
   insertSenderPrefillDocumentValues,
   senderValuesByContractTemplates,
 } from '../services/contractSenderPrefill.js'
+import {
+  assertContractFieldSettingsValidForActivate,
+  insertFixedPrefillDocumentValues,
+  normalizeContractFieldInputRole,
+  seedContractTemplateFieldSettings,
+  effectiveContractFieldRole,
+} from '../services/contractTemplateFieldSettings.js'
+import { listFields } from '../pdf-engine/repository/pdfTemplateRepo.js'
 
 const CT_PREFIX = 'ct_'
 const CTF_PREFIX = 'ctf_'
@@ -334,6 +342,34 @@ export function registerContractAdminApi(apiRouter, ctx) {
           )
         : { rows: [] }
       const pr = pdfR.rows[0]
+      /** @type {Array<{ fieldKey: string, label: string, fieldType: string, required: boolean, placementCount: number, inputRole: string, fixedValue: string | null }>} */
+      let fieldInputSettings = []
+      if (row.pdf_template_id != null) {
+        const pdfFields = await listFields(pool, Number(row.pdf_template_id))
+        const stR = await pool.query(
+          `SELECT field_key, input_role, fixed_value FROM contract_template_field_settings WHERE template_id = $1`,
+          [row.id],
+        )
+        const sm = new Map()
+        for (const s of stR.rows) {
+          sm.set(String(s.field_key), { inputRole: s.input_role, fixedValue: s.fixed_value })
+        }
+        for (const pf of pdfFields) {
+          const fk = String(pf.field_key)
+          const st = sm.get(fk)
+          const role = effectiveContractFieldRole(pf, st)
+          const placements = Array.isArray(pf.placements) ? pf.placements : []
+          fieldInputSettings.push({
+            fieldKey: fk,
+            label: String(pf.label ?? ''),
+            fieldType: String(pf.field_type ?? ''),
+            required: Boolean(pf.required),
+            placementCount: placements.length,
+            inputRole: role,
+            fixedValue: role === 'fixed' ? (st?.fixedValue != null ? String(st.fixedValue) : '') : null,
+          })
+        }
+      }
       res.json({
         ok: true,
         template: {
@@ -350,6 +386,7 @@ export function registerContractAdminApi(apiRouter, ctx) {
           pageCount: row.page_count,
           gaId: row.ga_id,
           contractTemplateFieldsCount: fieldsR.rows[0]?.c ?? 0,
+          fieldInputSettings,
           pdfEngine: pr
             ? {
                 id: pr.id,
@@ -437,6 +474,9 @@ export function registerContractAdminApi(apiRouter, ctx) {
           effectiveGa,
         ],
       )
+      if (pdfTemplateId != null && Number.isInteger(pdfTemplateId)) {
+        await seedContractTemplateFieldSettings(client, id, pdfTemplateId)
+      }
       res.status(201).json({ ok: true, success: true, data: { id } })
     } catch (e) {
       if (e instanceof Error && e.message.includes('CONTRACT_OTP_PEPPER')) {
@@ -462,6 +502,8 @@ export function registerContractAdminApi(apiRouter, ctx) {
       const row = acc.row
       const sets = /** @type {string[]} */ ([])
       const params = /** @type {unknown[]} */ ([])
+      /** @type {number | null | 'clear'} */
+      let pdfSettingsResync = null
 
       if (req.body?.title != null) {
         const t = String(req.body.title).trim()
@@ -483,6 +525,7 @@ export function registerContractAdminApi(apiRouter, ctx) {
       if (req.body?.pdfTemplateId !== undefined || req.body?.pdf_template_id !== undefined) {
         const raw = req.body?.pdfTemplateId ?? req.body?.pdf_template_id
         if (raw === null || raw === '') {
+          pdfSettingsResync = 'clear'
           params.push(null)
           const i1 = params.length
           sets.push(`pdf_template_id = $${i1}`)
@@ -517,6 +560,7 @@ export function registerContractAdminApi(apiRouter, ctx) {
           sets.push(`pdf_file_path = $${params.length}`)
           params.push(pdfRow.page_count)
           sets.push(`page_count = $${params.length}`)
+          pdfSettingsResync = pid
         }
       }
       if (sets.length === 0) {
@@ -528,6 +572,12 @@ export function registerContractAdminApi(apiRouter, ctx) {
         `UPDATE contract_templates SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${params.length}`,
         params,
       )
+      if (pdfSettingsResync === 'clear') {
+        await client.query(`DELETE FROM contract_template_field_settings WHERE template_id = $1`, [row.id])
+      } else if (pdfSettingsResync != null && typeof pdfSettingsResync === 'number') {
+        await client.query(`DELETE FROM contract_template_field_settings WHERE template_id = $1`, [row.id])
+        await seedContractTemplateFieldSettings(client, row.id, pdfSettingsResync)
+      }
       res.json({ ok: true, success: true })
     } catch (e) {
       handleDbError(e, req, res)
@@ -561,6 +611,11 @@ export function registerContractAdminApi(apiRouter, ctx) {
         const fc = await countPdfEngineFields(client, pid)
         if (fc < 1) {
           res.status(400).json({ ok: false, message: 'PDF 템플릿에 좌표 필드가 없어 active로 전환할 수 없습니다.' })
+          return
+        }
+        const settingsOk = await assertContractFieldSettingsValidForActivate(client, row.id, Number(pid))
+        if (!settingsOk.ok) {
+          res.status(400).json({ ok: false, message: settingsOk.message ?? '필드 입력 방식 설정을 확인해 주세요.' })
           return
         }
       }
@@ -647,8 +702,105 @@ export function registerContractAdminApi(apiRouter, ctx) {
           ],
         )
       }
+      const settingsDup = await client.query(
+        `SELECT field_key, input_role, fixed_value FROM contract_template_field_settings WHERE template_id = $1`,
+        [src.id],
+      )
+      for (const s of settingsDup.rows) {
+        await client.query(
+          `
+          INSERT INTO contract_template_field_settings (template_id, field_key, input_role, fixed_value, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, NOW(), NOW())
+          `,
+          [newTid, String(s.field_key), String(s.input_role), s.fixed_value],
+        )
+      }
+      if (settingsDup.rowCount === 0 && src.pdf_template_id != null) {
+        await seedContractTemplateFieldSettings(client, newTid, Number(src.pdf_template_id))
+      }
       await client.query('COMMIT')
       res.status(201).json({ ok: true, success: true, data: { id: newTid } })
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* noop */
+      }
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
+    }
+  })
+
+  apiRouter.patch('/admin/contracts/templates/:id/field-input-settings', ...chain, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const effectiveGa = await resolveEffectiveGaId(pool, req)
+      const isSuper = isSuperAdminRole(req.user?.role)
+      const acc = await assertContractTemplateAccess(client, req.params.id, effectiveGa, isSuper)
+      if (acc.error) {
+        res.status(acc.status ?? 400).json({ ok: false, message: acc.error })
+        return
+      }
+      const row = acc.row
+      const pdfPid = row.pdf_template_id
+      if (pdfPid == null) {
+        res.status(400).json({ ok: false, message: '연결된 PDF 템플릿이 없습니다.' })
+        return
+      }
+      const items = req.body?.fieldSettings ?? req.body?.field_settings
+      if (!Array.isArray(items)) {
+        res.status(400).json({ ok: false, message: 'fieldSettings 배열이 필요합니다.' })
+        return
+      }
+      const pdfFields = await listFields(client, Number(pdfPid))
+      const keySet = new Map(pdfFields.map((f) => [String(f.field_key), f]))
+      await client.query('BEGIN')
+      for (const it of items) {
+        const fk = String(it?.fieldKey ?? it?.field_key ?? '').trim()
+        const pf = keySet.get(fk)
+        if (!pf) {
+          await client.query('ROLLBACK')
+          res.status(400).json({ ok: false, message: `알 수 없는 fieldKey: ${fk}` })
+          return
+        }
+        let role = normalizeContractFieldInputRole(it?.inputRole ?? it?.input_role)
+        const ft = String(pf.field_type ?? '')
+        if (ft === 'signature') {
+          role = 'customer'
+        }
+        if (role !== 'customer' && role !== 'sender' && role !== 'fixed') {
+          await client.query('ROLLBACK')
+          res.status(400).json({ ok: false, message: 'inputRole 값이 올바르지 않습니다.' })
+          return
+        }
+        let fixedValue = null
+        if (role === 'fixed') {
+          const rawFv = it?.fixedValue ?? it?.fixed_value
+          fixedValue = rawFv == null ? '' : String(rawFv)
+          if (fixedValue.trim() === '') {
+            await client.query('ROLLBACK')
+            res.status(400).json({
+              ok: false,
+              message: `고정 출력 필드「${pf.label ?? fk}」에는 고정 출력값이 필요합니다.`,
+            })
+            return
+          }
+        }
+        await client.query(
+          `
+          INSERT INTO contract_template_field_settings (template_id, field_key, input_role, fixed_value, created_at, updated_at)
+          VALUES ($1, $2, $3, $4, NOW(), NOW())
+          ON CONFLICT (template_id, field_key) DO UPDATE SET
+            input_role = EXCLUDED.input_role,
+            fixed_value = EXCLUDED.fixed_value,
+            updated_at = NOW()
+          `,
+          [row.id, fk, role, fixedValue],
+        )
+      }
+      await client.query('COMMIT')
+      res.json({ ok: true, success: true })
     } catch (e) {
       try {
         await client.query('ROLLBACK')
@@ -1123,7 +1275,11 @@ export function registerContractAdminApi(apiRouter, ctx) {
         }
       }
 
-      const senderRoot = req.body?.senderFieldValues ?? req.body?.sender_field_values
+      const senderRoot =
+        req.body?.senderInputValues ??
+        req.body?.sender_input_values ??
+        req.body?.senderFieldValues ??
+        req.body?.sender_field_values
       const senderMaps = senderValuesByContractTemplates(
         senderRoot,
         contractTemplatesOrdered.map((x) => String(x.id)),
@@ -1139,6 +1295,7 @@ export function registerContractAdminApi(apiRouter, ctx) {
         }
         const senderCheck = await assertSenderFieldValuesFilled(
           client,
+          String(ct.id),
           Number(ct.pdfTemplateId),
           senderMaps.get(String(ct.id)) ?? {},
         )
@@ -1200,9 +1357,11 @@ export function registerContractAdminApi(apiRouter, ctx) {
           await insertSenderPrefillDocumentValues(
             client,
             docId,
+            ct.id,
             pdfTm,
             senderMaps.get(String(ct.id)) ?? {},
           )
+          await insertFixedPrefillDocumentValues(client, docId, ct.id, pdfTm)
         }
       }
 

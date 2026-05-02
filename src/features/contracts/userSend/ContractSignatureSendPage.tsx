@@ -158,24 +158,22 @@ export default function ContractSignatureSendPage() {
     setSendError(null)
     try {
       const senderDefs = selectedTpl?.senderFieldsForSend ?? []
-      const senderFieldValues =
-        selectedTpl && senderDefs.length > 0
-          ? {
-              [selectedTpl.id]: Object.fromEntries(
-                senderDefs.map((d) => {
-                  const raw = senderVals[d.fieldKey]
-                  if (d.fieldType === 'checkbox') {
-                    return [d.fieldKey, Boolean(raw)]
-                  }
-                  return [d.fieldKey, raw == null ? '' : String(raw)]
-                }),
-              ),
-            }
+      const senderInputValues =
+        senderDefs.length > 0
+          ? Object.fromEntries(
+              senderDefs.map((d) => {
+                const raw = senderVals[d.fieldKey]
+                if (d.fieldType === 'checkbox') {
+                  return [d.fieldKey, Boolean(raw)]
+                }
+                return [d.fieldKey, raw == null ? '' : String(raw)]
+              }),
+            )
           : undefined
       const created = await createUserContractSendSession(t, {
         customerId: selectedCustomer.id,
         templateIds: [selectedTemplateId],
-        senderFieldValues,
+        senderInputValues,
       })
       setLastCreated(created)
       const next = await getUserContractSendSessionDetail(t, created.id)
@@ -197,7 +195,7 @@ export default function ContractSignatureSendPage() {
       ? '전자서명을 발송할 고객을 검색해 선택해 주세요.'
       : inactiveTemplateHint ||
         (!senderPrefillSatisfied(selectedTpl ?? undefined)
-          ? '발송 전 입력(설계사) 필수 항목을 모두 채워 주세요.'
+          ? '발송 전 입력값의 필수 항목을 모두 채워 주세요.'
           : null) ||
         (selectedCustomer != null && !selectedCustomer.hasPhone
           ? '선택한 고객에 유효한 휴대폰번호가 없습니다.'
@@ -400,19 +398,12 @@ export default function ContractSignatureSendPage() {
           </div>
         </section>
 
-        <section className="contract-signature-console__section">
-          <h2 className="contract-signature-console__section-title">2-1. 발송 전 입력 (설계사)</h2>
-          <p className="contract-signature-console__hint">
-            템플릿에 따라 설계사가 보내기 전에 채워야 하는 항목이 있습니다. 해당 값은 고객에게는 읽기 전용으로
-            노출됩니다.
-          </p>
-          {!selectedCustomer ? (
-            <p className="contract-signature-console__hint">먼저 1단계에서 고객을 검색·선택해 주세요.</p>
-          ) : !selectedTemplateId ? (
-            <p className="contract-signature-console__hint">먼저 2단계에서 템플릿을 선택해 주세요.</p>
-          ) : (selectedTpl?.senderFieldsForSend ?? []).length === 0 ? (
-            <p className="contract-signature-console__hint">이 템플릿에는 발송 전 입력 항목이 없습니다.</p>
-          ) : (
+        {selectedCustomer && selectedTemplateId && (selectedTpl?.senderFieldsForSend ?? []).length > 0 ? (
+          <section className="contract-signature-console__section">
+            <h2 className="contract-signature-console__section-title">2-1. 발송 전 입력값</h2>
+            <p className="contract-signature-console__hint">
+              고객에게 보내기 전에 계약서에 들어갈 값을 입력해주세요. 이 값은 고객이 수정할 수 없습니다.
+            </p>
             <div className="mt-4 space-y-4">
               {(selectedTpl?.senderFieldsForSend ?? []).map((d) => {
                 const fk = d.fieldKey
@@ -480,8 +471,8 @@ export default function ContractSignatureSendPage() {
                 )
               })}
             </div>
-          )}
-        </section>
+          </section>
+        ) : null}
 
         <section className="contract-signature-console__section">
           <h2 className="contract-signature-console__section-title">3. 발송 세션</h2>

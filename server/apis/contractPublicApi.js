@@ -7,8 +7,12 @@ import { getTemplateById, listFields } from '../pdf-engine/repository/pdfTemplat
 import { getTemplateObject } from '../pdf-engine/storage/pdfTemplateStorage.js'
 import { insertSignatureEvidenceRow, loadVerifiedIdentitySession } from '../services/contractEvidenceService.js'
 import { normalizeContractFieldStoredValue } from '../services/contractFieldValueNormalize.js'
-import { inputRoleAllowsCustomerEdit, inputRoleFromPdfFieldRow } from '../pdf-engine/schema/inputRole.js'
 import { buildStampedPdfBufferFromInstance } from '../services/contractStampedPdfFromInstance.js'
+import {
+  customerMayPostValuesForField,
+  effectiveContractFieldRole,
+  loadContractFieldSettingsMap,
+} from '../services/contractTemplateFieldSettings.js'
 
 const TERMINAL_SESSION = new Set(['expired', 'cancelled'])
 const COMPLETED_SESSION = new Set(['completed'])
@@ -342,11 +346,12 @@ function rowHasSignatureEvidence(valueRow) {
  * @param {Array<object>} rawFields
  * @param {Array<object>} valRows
  */
-function collectMissingRequiredFields(rawFields, valRows) {
+function collectMissingRequiredFields(rawFields, valRows, settingsMap) {
   const out = []
   for (const f of rawFields) {
-    const role = inputRoleFromPdfFieldRow(f)
-    if (role === 'disabled' || role === 'sender') {
+    const fk = String(f.field_key)
+    const role = effectiveContractFieldRole(f, settingsMap?.get(fk))
+    if (String(f.field_type) === 'signature' && role === 'customer') {
       continue
     }
     if (!f.required) {
@@ -356,8 +361,8 @@ function collectMissingRequiredFields(rawFields, valRows) {
     if (!requiredFieldSatisfied(f, vr)) {
       out.push({
         fieldId: String(f.id),
-        fieldKey: String(f.field_key),
-        fieldLabel: String(f.label ?? '').trim() || String(f.field_key),
+        fieldKey: fk,
+        fieldLabel: String(f.label ?? '').trim() || fk,
         fieldType: String(f.field_type ?? ''),
       })
     }
@@ -480,14 +485,18 @@ async function upsertDocumentValue(client, documentInstanceId, fieldRow, valueTe
   }
 }
 
-async function syncDocStatusAfterSign(client, pdfTemplateId, documentInstanceId) {
+async function syncDocStatusAfterSign(client, pdfTemplateId, documentInstanceId, contractTemplateId) {
   if (pdfTemplateId == null) {
     return
   }
   const fields = await listFields(client, Number(pdfTemplateId))
+  const settingsMap = contractTemplateId
+    ? await loadContractFieldSettingsMap(client, String(contractTemplateId))
+    : new Map()
   const sigFields = fields.filter(
     (f) =>
-      String(f.field_type) === 'signature' && inputRoleFromPdfFieldRow(f) === 'customer',
+      String(f.field_type) === 'signature' &&
+      effectiveContractFieldRole(f, settingsMap.get(String(f.field_key))) === 'customer',
   )
   if (sigFields.length === 0) {
     await client.query(`UPDATE contract_document_instances SET status = 'signing', updated_at = NOW() WHERE id = $1`, [
@@ -613,10 +622,15 @@ async function insertFinalSignedPdfFileRow(client, p) {
   return { fileId: String(ins.rows[0].id), hashHex }
 }
 
-function fieldRowToPublicDto(row) {
+function fieldRowToPublicDto(row, settingsMap) {
+  const fk = String(row.field_key)
+  const st = settingsMap?.get(fk)
+  const role = effectiveContractFieldRole(row, st)
+  const hideFromCustomerInput =
+    String(row.field_type) !== 'signature' && (role === 'sender' || role === 'fixed')
   return {
     id: String(row.id),
-    fieldKey: row.field_key,
+    fieldKey: fk,
     label: row.label ?? '',
     fieldType: row.field_type,
     required: Boolean(row.required),
@@ -624,7 +638,9 @@ function fieldRowToPublicDto(row) {
     placements: row.placements ?? [],
     options: row.options ?? null,
     customerMapping: null,
-    inputRole: inputRoleFromPdfFieldRow(row),
+    inputRole: role,
+    hideFromCustomerInput,
+    readOnlyCustomerUi: hideFromCustomerInput,
   }
 }
 
@@ -718,8 +734,10 @@ export function registerContractPublicApi(apiRouter, ctx) {
         return
       }
       const rawFields = await listFields(pool, Number(pdfTid))
+      const contractTemplateIdStr = String(dm0.template_id)
+      const settingsMapPre = await loadContractFieldSettingsMap(pool, contractTemplateIdStr)
       const valRowsPre = await loadValueRows(pool, docId)
-      const missingPre = collectMissingRequiredFields(rawFields, valRowsPre)
+      const missingPre = collectMissingRequiredFields(rawFields, valRowsPre, settingsMapPre)
       if (missingPre.length > 0) {
         res.status(400).json({
           success: false,
@@ -763,7 +781,8 @@ export function registerContractPublicApi(apiRouter, ctx) {
           return
         }
         const valRows = await loadValueRows(client, docId)
-        const missing = collectMissingRequiredFields(rawFields, valRows)
+        const settingsMapTx = await loadContractFieldSettingsMap(client, contractTemplateIdStr)
+        const missing = collectMissingRequiredFields(rawFields, valRows, settingsMapTx)
         if (missing.length > 0) {
           await client.query('ROLLBACK')
           res.status(400).json({
@@ -787,7 +806,9 @@ export function registerContractPublicApi(apiRouter, ctx) {
         const gaIdForFile = session.customer_ga_id
         if (fileUserId && gaIdForFile != null) {
           try {
-            const stamped = await buildStampedPdfBufferFromInstance(client, pdfTid, valRows)
+            const stamped = await buildStampedPdfBufferFromInstance(client, pdfTid, valRows, {
+              contractTemplateId: contractTemplateIdStr,
+            })
             const insPdf = await insertFinalSignedPdfFileRow(client, {
               userId: fileUserId,
               gaId: Number(gaIdForFile),
@@ -969,6 +990,8 @@ export function registerContractPublicApi(apiRouter, ctx) {
         res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
         return
       }
+      const contractTemplateIdSign = String(docMeta.rows[0].template_id)
+      const settingsMapSign = await loadContractFieldSettingsMap(pool, contractTemplateIdSign)
       const pdfTid = docMeta.rows[0]?.pdf_template_id
       if (pdfTid == null) {
         res.status(400).json({ success: false, message: 'PDF 템플릿이 연결되어 있지 않습니다.' })
@@ -977,7 +1000,8 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const rawFields = await listFields(pool, Number(pdfTid))
       const sigFields = rawFields.filter(
         (f) =>
-          String(f.field_type) === 'signature' && inputRoleFromPdfFieldRow(f) === 'customer',
+          String(f.field_type) === 'signature' &&
+          effectiveContractFieldRole(f, settingsMapSign.get(String(f.field_key))) === 'customer',
       )
       if (sigFields.length === 0) {
         res.status(400).json({ success: false, message: '이 문서에 서명 필드가 없습니다.' })
@@ -1070,7 +1094,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
         )
         outFileId = String(ins.rows[0].id)
         await upsertDocumentValue(client, docId, targetField, null, outFileId, hashHex)
-        await syncDocStatusAfterSign(client, pdfTid, docId)
+        await syncDocStatusAfterSign(client, pdfTid, docId, contractTemplateIdSign)
         await client.query(
           `
           UPDATE contract_send_sessions
@@ -1164,10 +1188,12 @@ export function registerContractPublicApi(apiRouter, ctx) {
         return
       }
       const rawFields = await listFields(pool, Number(pdfTid))
+      const contractTemplateIdForValues = String(docMeta.rows[0].template_id)
       const { byId } = fieldMapsFromRows(rawFields)
       const client = await pool.connect()
       try {
         await client.query('BEGIN')
+        const settingsMapPost = await loadContractFieldSettingsMap(client, contractTemplateIdForValues)
         for (const item of bodyVals) {
           const fid = item?.fieldId != null ? String(item.fieldId) : ''
           const fkey = item?.fieldKey != null ? String(item.fieldKey).trim() : ''
@@ -1178,7 +1204,8 @@ export function registerContractPublicApi(apiRouter, ctx) {
           if (!fkey || String(fieldRow.field_key) !== fkey) {
             throw Object.assign(new Error('fieldKey가 해당 필드와 일치하지 않습니다.'), { statusCode: 400 })
           }
-          if (!inputRoleAllowsCustomerEdit(inputRoleFromPdfFieldRow(fieldRow))) {
+          const role = effectiveContractFieldRole(fieldRow, settingsMapPost.get(String(fieldRow.field_key)))
+          if (!customerMayPostValuesForField(role, String(fieldRow.field_type))) {
             throw Object.assign(new Error('고객이 수정할 수 없는 필드입니다.'), { statusCode: 400 })
           }
           const normalized = normalizeContractFieldStoredValue(fieldRow, item?.value)
@@ -1292,7 +1319,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
       }
       const docR = await pool.query(
         `
-        SELECT cdi.id, ct.pdf_template_id
+        SELECT cdi.id, cdi.template_id, ct.pdf_template_id
         FROM contract_document_instances cdi
         INNER JOIN contract_templates ct ON ct.id = cdi.template_id
         WHERE cdi.id = $1 AND cdi.send_session_id = $2
@@ -1305,6 +1332,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
         return
       }
       const pdfTid = docR.rows[0].pdf_template_id
+      const contractTemplateIdRendered = String(docR.rows[0].template_id)
       if (pdfTid == null) {
         res.status(404).json({ success: false, message: 'PDF 템플릿이 연결되어 있지 않습니다.' })
         return
@@ -1314,7 +1342,10 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const excludeSignatures = mode === 'input'
       let stamped
       try {
-        stamped = await buildStampedPdfBufferFromInstance(pool, pdfTid, valRows, { excludeSignatures })
+        stamped = await buildStampedPdfBufferFromInstance(pool, pdfTid, valRows, {
+          excludeSignatures,
+          contractTemplateId: contractTemplateIdRendered,
+        })
       } catch (rendErr) {
         if (process.env.NODE_ENV !== 'production') {
           console.error('[contract public rendered-pdf]', {
@@ -1432,17 +1463,14 @@ export function registerContractPublicApi(apiRouter, ctx) {
           }
           const rawFields = await listFields(pool, Number(pdfTid))
           const valRows = await loadValueRows(pool, docId)
-          fields = rawFields
-            .filter((rf) => inputRoleFromPdfFieldRow(rf) !== 'disabled')
-            .map((rf) => {
-              const dto = fieldRowToPublicDto(rf)
-              const vr = findValueRowForTemplateField(rf, valRows)
-              dto.suggestedDefault = buildSuggestedDefault()
-              dto.publicValue = publicValueShape(rf, vr)
-              dto.readOnlyCustomerUi =
-                rf.field_type !== 'signature' && !inputRoleAllowsCustomerEdit(inputRoleFromPdfFieldRow(rf))
-              return dto
-            })
+          const settingsMapDoc = await loadContractFieldSettingsMap(pool, String(doc.template_id))
+          fields = rawFields.map((rf) => {
+            const dto = fieldRowToPublicDto(rf, settingsMapDoc)
+            const vr = findValueRowForTemplateField(rf, valRows)
+            dto.suggestedDefault = buildSuggestedDefault()
+            dto.publicValue = publicValueShape(rf, vr)
+            return dto
+          })
         }
       }
       const pdfPreviewPath = `/api/contracts/public/${encodeURIComponent(linkCode)}/documents/${encodeURIComponent(docId)}/pdf`

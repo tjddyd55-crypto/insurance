@@ -124,6 +124,8 @@ export type ContractDocumentDetailPayload = {
     orderIndex: number
     placements: unknown
     options: unknown
+    /** 고객 입력 단계에서 입력칸으로 쓰지 않음(sender·고정 출력 등) */
+    hideFromCustomerInput?: boolean
     /** 서버 정규화된 입력 주체(고객·설계사 등) */
     inputRole?: string
     /** 고객 화면에서 설계사(sender)가 넣은 값 — 읽기 전용 */

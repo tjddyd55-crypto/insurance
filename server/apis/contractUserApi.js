@@ -12,10 +12,13 @@ import {
 } from './contractAdminApi.js'
 import {
   assertSenderFieldValuesFilled,
-  groupSenderFieldsByPdfTemplateId,
   insertSenderPrefillDocumentValues,
   senderValuesByContractTemplates,
 } from '../services/contractSenderPrefill.js'
+import {
+  insertFixedPrefillDocumentValues,
+  listSenderFieldsForContractTemplate,
+} from '../services/contractTemplateFieldSettings.js'
 
 const CSS_PREFIX = 'css_'
 const CDI_PREFIX = 'cdi_'
@@ -304,24 +307,55 @@ export function registerContractUserApi(apiRouter, ctx) {
             .map((pid) => Number(pid)),
         ),
       ]
-      /** @type {Map<number, { fieldKey: string, label: string, required: boolean, fieldType: string, orderIndex: number }[]>} */
-      let senderByPdf = new Map()
+      const ctIdsForSettings = [...new Set(r.rows.map((row) => String(row.id)).filter(Boolean))]
+      const settingsByTemplateId = new Map()
+      if (ctIdsForSettings.length > 0) {
+        const sr = await pool.query(
+          `
+          SELECT template_id, field_key, input_role, fixed_value
+          FROM contract_template_field_settings
+          WHERE template_id = ANY($1::text[])
+          `,
+          [ctIdsForSettings],
+        )
+        for (const row of sr.rows) {
+          const tid = String(row.template_id)
+          if (!settingsByTemplateId.has(tid)) {
+            settingsByTemplateId.set(tid, new Map())
+          }
+          settingsByTemplateId.get(tid).set(String(row.field_key), {
+            inputRole: row.input_role,
+            fixedValue: row.fixed_value,
+          })
+        }
+      }
+      /** @type {Map<number, object[]>} */
+      const pdfFieldsByTemplateNum = new Map()
       if (pdfIds.length > 0) {
         const fr = await pool.query(
           `
-          SELECT template_id, field_key, label, required, field_type, order_index, input_role, customer_mapping
+          SELECT template_id, field_key, label, required, field_type, order_index, input_role, options, placements
           FROM pdf_template_fields
           WHERE template_id = ANY($1::int[])
+          ORDER BY template_id, order_index
           `,
           [pdfIds],
         )
-        senderByPdf = groupSenderFieldsByPdfTemplateId(fr.rows)
+        for (const row of fr.rows) {
+          const pid = Number(row.template_id)
+          if (!pdfFieldsByTemplateNum.has(pid)) {
+            pdfFieldsByTemplateNum.set(pid, [])
+          }
+          pdfFieldsByTemplateNum.get(pid).push(row)
+        }
       }
       res.json({
         ok: true,
         templates: r.rows.map((row) => {
           const pid = row.pdf_template_id != null ? Number(row.pdf_template_id) : NaN
-          const senderList = Number.isFinite(pid) ? senderByPdf.get(pid) ?? [] : []
+          const pdfRows = Number.isFinite(pid) ? pdfFieldsByTemplateNum.get(pid) ?? [] : []
+          const sm = settingsByTemplateId.get(String(row.id)) ?? new Map()
+          const senderList = listSenderFieldsForContractTemplate(pdfRows, sm)
           return {
             id: row.id,
             title: row.title,
@@ -507,7 +541,11 @@ export function registerContractUserApi(apiRouter, ctx) {
       }
       const snapshot = buildTargetPhoneSnapshot(cust.digits)
 
-      const senderRoot = req.body?.senderFieldValues ?? req.body?.sender_field_values
+      const senderRoot =
+        req.body?.senderInputValues ??
+        req.body?.sender_input_values ??
+        req.body?.senderFieldValues ??
+        req.body?.sender_field_values
       const senderMaps = senderValuesByContractTemplates(senderRoot, parsed.ids)
 
       const contractTemplatesOrdered = /** @type {{ id: string, title: string, version: number, required: number, pdfHash: string | null, pdfTemplateId: number | null }[]} */ ([])
@@ -533,6 +571,7 @@ export function registerContractUserApi(apiRouter, ctx) {
         }
         const senderCheck = await assertSenderFieldValuesFilled(
           client,
+          String(t.id),
           Number(t.pdf_template_id),
           senderMaps.get(String(t.id)) ?? {},
         )
@@ -604,9 +643,11 @@ export function registerContractUserApi(apiRouter, ctx) {
           await insertSenderPrefillDocumentValues(
             client,
             docId,
+            ct.id,
             pdfTm,
             senderMaps.get(String(ct.id)) ?? {},
           )
+          await insertFixedPrefillDocumentValues(client, docId, ct.id, pdfTm)
         }
       }
 

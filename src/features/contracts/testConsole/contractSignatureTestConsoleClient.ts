@@ -31,6 +31,16 @@ export type ContractTemplateListItem = {
   packageItemCount: number
 }
 
+export type ContractFieldInputSettingRow = {
+  fieldKey: string
+  label: string
+  fieldType: string
+  required: boolean
+  placementCount: number
+  inputRole: 'customer' | 'sender' | 'fixed'
+  fixedValue: string | null
+}
+
 export type ContractTemplateDetail = {
   id: string
   title: string
@@ -45,6 +55,8 @@ export type ContractTemplateDetail = {
   pageCount: number | null
   gaId: number | null
   contractTemplateFieldsCount: number
+  /** 연결 PDF 필드별 입력 방식(전자서명 템플릿 기준) */
+  fieldInputSettings: ContractFieldInputSettingRow[]
   pdfEngine: {
     id: number
     title: string
@@ -209,7 +221,29 @@ export async function fetchContractTemplateDetail(
   if (!tpl?.id) {
     throw new ApiError('계약 템플릿 상세 응답이 올바르지 않습니다.', 500)
   }
-  return tpl
+  return {
+    ...tpl,
+    fieldInputSettings: Array.isArray(tpl.fieldInputSettings) ? tpl.fieldInputSettings : [],
+  }
+}
+
+export async function patchContractTemplateFieldInputSettings(
+  token: string,
+  role: string | undefined,
+  templateId: string,
+  payload: { fieldSettings: Array<{ fieldKey: string; inputRole: string; fixedValue?: string | null }> },
+  tenantGaId: number | null,
+): Promise<void> {
+  const isSuper = role === 'SUPER_ADMIN'
+  const qs = tenantQs(tenantGaId, isSuper)
+  await apiRequest(
+    `/api/admin/contracts/templates/${encodeURIComponent(templateId)}/field-input-settings${qs}`,
+    {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify({ fieldSettings: payload.fieldSettings, ...tenantBody(tenantGaId, isSuper) }),
+    },
+  )
 }
 
 export async function patchContractTemplate(
@@ -336,6 +370,7 @@ export async function createContractSendSession(
     customerId: number
     templateIds: string[]
     tenantGaId: number | null
+    senderInputValues?: Record<string, unknown>
   },
 ): Promise<CreateSendSessionResult> {
   const isSuper = role === 'SUPER_ADMIN'
@@ -347,6 +382,9 @@ export async function createContractSendSession(
       body: JSON.stringify({
         customerId: params.customerId,
         templateIds: params.templateIds,
+        ...(params.senderInputValues && Object.keys(params.senderInputValues).length > 0
+          ? { senderInputValues: params.senderInputValues }
+          : {}),
         ...tenantBody(params.tenantGaId, isSuper),
       }),
     },

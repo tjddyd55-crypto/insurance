@@ -43,6 +43,7 @@ import {
   replaceTemplateFields,
   updateTemplateMeta,
 } from './pdf-engine/repository/pdfTemplateRepo.js'
+import { reconcileContractFieldSettingsAfterPdfSave } from './services/contractTemplateFieldSettings.js'
 import { getCustomerProfile } from './pdf-engine/repository/userProfileRepo.js'
 import { injectCustomerValues } from './pdf-engine/mapping/customerMapping.js'
 import {
@@ -327,6 +328,11 @@ export function registerPdfTemplateApi(apiRouter, deps) {
     }
     try {
       const fields = normalizeFieldSpecList(req.body?.fields)
+      for (const f of fields) {
+        if (f.fieldType !== 'signature') {
+          f.inputRole = 'customer'
+        }
+      }
       const template = await getTemplateById(pool, id)
       if (!template) {
         res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
@@ -344,6 +350,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         }
       }
       await replaceTemplateFields(pool, id, fields)
+      await reconcileContractFieldSettingsAfterPdfSave(pool, id)
       const rows = await listFields(pool, id)
       res.json({ fields: rows.map(fieldRowToDto) })
     } catch (error) {
