@@ -441,13 +441,16 @@ export default function ContractSignatureSendPage() {
     selectedCustomer.hasPhone &&
     String(selectedTpl.status) === 'active' &&
     senderPrefillSatisfied(selectedTpl) &&
-    confirmationDraftValidationMessage == null
+    confirmationDraftValidationMessage == null &&
+    (confirmationOnlySelected
+      ? confirmationTemplateFields.length > 0 && confirmationOnlyValuesMessage == null
+      : true)
 
   const attachmentPipelineBlocksSend =
     attachmentUploadBusy ||
     attachmentDrafts.some((a) => a.uploadStatus === 'uploading' || a.uploadStatus === 'error')
 
-  const effectiveCanSend = canSend && !attachmentPipelineBlocksSend && !confirmationOnlySelected
+  const effectiveCanSend = canSend && !attachmentPipelineBlocksSend
 
   const attachmentSendBlockHint = (() => {
     if (!attachmentPipelineBlocksSend) {
@@ -463,10 +466,6 @@ export default function ContractSignatureSendPage() {
 
   const onCreateSendSession = async () => {
     if (!t || !selectedTemplateId || !selectedCustomer?.hasPhone) {
-      return
-    }
-    if (selectedTpl?.templateMode === 'confirmation_only') {
-      setSendError('무좌표 확인서 발송은 고객 확인 화면 준비 후 지원됩니다.')
       return
     }
     setSendBusy(true)
@@ -524,7 +523,9 @@ export default function ContractSignatureSendPage() {
         (!senderPrefillSatisfied(selectedTpl ?? undefined) ? '발송 전 입력값의 필수 항목을 모두 채워 주세요.' : null) ||
         confirmationDraftValidationMessage ||
         (confirmationOnlySelected
-          ? '고객 확인 화면이 준비되면 무좌표 확인서 발송을 진행할 수 있습니다. 아래에서 항목 입력을 미리 확인할 수 있습니다.'
+          ? confirmationTemplateFields.length === 0
+            ? '이 템플릿에 등록된 확인서 항목이 없어 발송할 수 없습니다. 관리자 화면에서 항목을 추가해 주세요.'
+            : '무좌표 전자확인서는 공개 링크에서 내용 확인까지 지원합니다. 고객 전자서명·최종 완료는 이후 단계에서 제공됩니다.'
           : null) ||
         (selectedCustomer != null && !selectedCustomer.hasPhone
           ? '선택한 고객에 유효한 휴대폰번호가 없습니다.'
@@ -1055,7 +1056,7 @@ export default function ContractSignatureSendPage() {
             ? mobileStepShell(
                 {
                   title: '확인서 항목 입력',
-                  desc: '무좌표 확인서 발송은 다음 단계에서 활성화됩니다.',
+                  desc: '전자확인서 항목을 입력한 뒤 발송하면 고객이 공개 링크에서 내용을 확인할 수 있습니다.',
                   active: step2Complete && !step3Complete,
                   completed:
                     confirmationTemplateFields.length > 0 &&

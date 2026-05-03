@@ -95,7 +95,24 @@ export type ContractPublicFieldValue =
   | { kind: 'checkbox'; checked: boolean }
   | { kind: 'signature'; signed: boolean }
 
+export type ContractPublicConfirmationFieldRow = {
+  fieldKey: string
+  label: string
+  inputType: string
+  required: boolean
+  sortOrder: number
+  placeholder: string | null
+  helpText: string | null
+  valueText: string
+}
+
 export type ContractDocumentDetailPayload = {
+  /** 생략·구버전은 coordinate_pdf 로 간주 */
+  templateMode?: 'coordinate_pdf' | 'confirmation_only'
+  confirmationFields?: ContractPublicConfirmationFieldRow[]
+  /** confirmation_only: PDF 미제공 */
+  pdfAvailable?: boolean
+  completionAvailable?: boolean
   document: {
     id: string
     templateId: string
@@ -133,7 +150,7 @@ export type ContractDocumentDetailPayload = {
     suggestedDefault?: string | null
     publicValue?: ContractPublicFieldValue | null
   }[]
-  pdfPreviewUrl: string
+  pdfPreviewUrl: string | null
   signedPdfDownloadPath?: string | null
   /** false 이면 경로가 있어도 합성 미완료로 간주 */
   signedPdfDownloadAvailable?: boolean
@@ -228,10 +245,15 @@ export async function postContractPublicDocumentValues(
   linkCode: string,
   documentInstanceId: string,
   values: ContractPublicValueInput[],
+  options?: { confirmationCheckedItemIds?: string[] },
 ): Promise<{ saved?: boolean }> {
+  const body: Record<string, unknown> = { values }
+  if (options?.confirmationCheckedItemIds != null) {
+    body.confirmationCheckedItemIds = options.confirmationCheckedItemIds
+  }
   return publicRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/values`, {
     method: 'POST',
-    body: JSON.stringify({ values }),
+    body: JSON.stringify(body),
   })
 }
 
@@ -311,6 +333,9 @@ const PUBLIC_ACTION_CODE_MESSAGES: Record<string, string> = {
   required_confirmations_missing: '필수 확인 항목을 모두 체크해 주세요.',
   invalid_confirmation_payload: '확인 항목 정보 형식이 올바르지 않습니다.',
   required_attachments_missing: '필수 첨부자료를 모두 열람하고 확인해 주세요.',
+  confirmation_only_complete_not_ready: '전자확인서 최종 완료는 아직 지원하지 않습니다.',
+  confirmation_only_sign_not_ready: '전자확인서 전자서명은 아직 지원하지 않습니다.',
+  confirmation_only_field_values_not_applicable: '이 문서는 내용 확인만 가능합니다.',
 }
 
 const SIGN_FALLBACK = '전자서명 저장 중 오류가 발생했습니다. 다시 시도해 주세요.'

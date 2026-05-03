@@ -22,6 +22,7 @@ import {
   listSendSessionAttachmentsPublic,
   loadSendSessionAttachmentRow,
 } from '../services/contractSendAttachments.js'
+import { listSendSessionConfirmationFieldValuesForPublic } from '../services/contractSendSessionConfirmationFieldValues.js'
 
 const TERMINAL_SESSION = new Set(['expired', 'cancelled'])
 const COMPLETED_SESSION = new Set(['completed'])
@@ -389,7 +390,10 @@ function fieldMapsFromRows(rawFields) {
   return { byId, byKey }
 }
 
-async function resolveMutationBase(pool, linkCode, documentInstanceId) {
+/**
+ * @param {'values' | 'sign' | 'complete'} mutationKind
+ */
+async function resolveMutationBase(pool, linkCode, documentInstanceId, mutationKind = 'values') {
   const row = await loadSendSessionRow(pool, linkCode)
   if (!row) {
     return { error: { status: 404, message: '유효하지 않은 링크입니다.' } }
@@ -425,13 +429,25 @@ async function resolveMutationBase(pool, linkCode, documentInstanceId) {
     [doc.template_id],
   )
   if (String(tmR.rows[0]?.template_mode ?? 'coordinate_pdf') === 'confirmation_only') {
-    return {
-      error: {
-        status: 503,
-        code: 'confirmation_only_not_supported',
-        message: CONFIRMATION_ONLY_PUBLIC_MESSAGE,
-      },
+    if (mutationKind === 'complete') {
+      return {
+        error: {
+          status: 409,
+          code: 'confirmation_only_complete_not_ready',
+          message: CONFIRMATION_ONLY_COMPLETE_NOT_READY_MESSAGE,
+        },
+      }
     }
+    if (mutationKind === 'sign') {
+      return {
+        error: {
+          status: 409,
+          code: 'confirmation_only_sign_not_ready',
+          message: CONFIRMATION_ONLY_SIGN_NOT_READY_MESSAGE,
+        },
+      }
+    }
+    /** confirmation_only: values 단계에서 고객 확인 체크만 저장 허용(빈 values + confirmationCheckedItemIds). */
   }
   if (String(doc.status ?? '') === 'completed') {
     const evR = await pool.query(
@@ -714,26 +730,20 @@ function fieldRowToPublicDto(row, settingsMap) {
   }
 }
 
-const CONFIRMATION_ONLY_PUBLIC_MESSAGE =
-  '무좌표 확인서 링크는 아직 고객 확인 화면이 준비 중입니다. 담당자에게 문의해 주세요.'
+const CONFIRMATION_ONLY_SIGN_NOT_READY_MESSAGE =
+  '전자확인서 전자서명·최종 완료는 준비 중입니다. 내용과 첨부자료를 확인해 주시면 됩니다.'
+const CONFIRMATION_ONLY_VALUES_NOT_APPLICABLE_MESSAGE =
+  '전자확인서는 담당자가 입력한 내용을 확인만 하면 됩니다.'
+const CONFIRMATION_ONLY_COMPLETE_NOT_READY_MESSAGE =
+  '전자확인서 최종 완료는 아직 지원하지 않습니다. 담당자에게 문의해 주세요.'
+const CONFIRMATION_ONLY_PDF_NOT_AVAILABLE_MESSAGE = '전자확인서에는 PDF 원본이 없습니다.'
 
-/**
- * @param {import('pg').Pool} pool
- * @param {string} sendSessionId
- */
-async function sendSessionHasConfirmationOnlyDocument(pool, sendSessionId) {
-  const r = await pool.query(
-    `
-    SELECT 1
-    FROM contract_document_instances cdi
-    INNER JOIN contract_templates ct ON ct.id = cdi.template_id
-    WHERE cdi.send_session_id = $1
-      AND COALESCE(ct.template_mode, 'coordinate_pdf') = 'confirmation_only'
-    LIMIT 1
-    `,
-    [sendSessionId],
-  )
-  return r.rowCount > 0
+function respondConfirmationOnlyPdfNotAvailable(res) {
+  res.status(404).json({
+    success: false,
+    code: 'confirmation_only_pdf_not_available',
+    message: CONFIRMATION_ONLY_PDF_NOT_AVAILABLE_MESSAGE,
+  })
 }
 
 /**
@@ -776,7 +786,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
     try {
       const linkCode = String(req.params.linkCode ?? '').trim()
       const docId = String(req.params.documentInstanceId ?? '').trim()
-      const base = await resolveMutationBase(pool, linkCode, docId)
+      const base = await resolveMutationBase(pool, linkCode, docId, 'complete')
       if (base.error) {
         respondPublicMutationError(res, base.error)
         return
@@ -1118,7 +1128,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
     try {
       const linkCode = String(req.params.linkCode ?? '').trim()
       const docId = String(req.params.documentInstanceId ?? '').trim()
-      const base = await resolveMutationBase(pool, linkCode, docId)
+      const base = await resolveMutationBase(pool, linkCode, docId, 'sign')
       if (base.error) {
         respondPublicMutationError(res, base.error)
         return
@@ -1326,7 +1336,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
     try {
       const linkCode = String(req.params.linkCode ?? '').trim()
       const docId = String(req.params.documentInstanceId ?? '').trim()
-      const base = await resolveMutationBase(pool, linkCode, docId)
+      const base = await resolveMutationBase(pool, linkCode, docId, 'values')
       if (base.error) {
         respondPublicMutationError(res, base.error)
         return
@@ -1339,7 +1349,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
       }
       const docMeta = await pool.query(
         `
-        SELECT cdi.*, ct.pdf_template_id
+        SELECT cdi.*, ct.pdf_template_id, COALESCE(ct.template_mode, 'coordinate_pdf') AS contract_template_mode
         FROM contract_document_instances cdi
         INNER JOIN contract_templates ct ON ct.id = cdi.template_id
         WHERE cdi.id = $1 AND cdi.send_session_id = $2
@@ -1351,6 +1361,84 @@ export function registerContractPublicApi(apiRouter, ctx) {
         res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
         return
       }
+      const contractTemplateMode = String(docMeta.rows[0].contract_template_mode ?? 'coordinate_pdf')
+
+      if (contractTemplateMode === 'confirmation_only') {
+        if (bodyVals.length > 0) {
+          res.status(409).json({
+            success: false,
+            code: 'confirmation_only_field_values_not_applicable',
+            message: CONFIRMATION_ONLY_VALUES_NOT_APPLICABLE_MESSAGE,
+          })
+          return
+        }
+        const rawChecked = req.body?.confirmationCheckedItemIds ?? req.body?.confirmation_checked_item_ids
+        if (!Array.isArray(rawChecked)) {
+          res.status(400).json({
+            success: false,
+            code: 'invalid_confirmation_payload',
+            message: 'confirmationCheckedItemIds 배열이 필요합니다.',
+          })
+          return
+        }
+        const confirmationCheckedSet = new Set(rawChecked.map((x) => String(x).trim()).filter(Boolean))
+        const confQ = await pool.query(
+          `
+          SELECT id, label, required
+          FROM contract_confirmation_items
+          WHERE send_session_id = $1
+          ORDER BY sort_order ASC, id ASC
+          `,
+          [session.id],
+        )
+        const allowed = new Set(confQ.rows.map((x) => String(x.id)))
+        for (const cid of confirmationCheckedSet) {
+          if (!allowed.has(cid)) {
+            res.status(400).json({
+              success: false,
+              code: 'invalid_confirmation_selection',
+              message: '선택한 확인 항목이 유효하지 않습니다.',
+            })
+            return
+          }
+        }
+        const client = await pool.connect()
+        try {
+          await client.query('BEGIN')
+          await upsertConfirmationValuesForComplete(client, session.id, confirmationCheckedSet, confQ.rows)
+          await client.query(
+            `
+            UPDATE contract_document_instances
+            SET
+              status = CASE WHEN status IN ('pending', 'viewed') THEN 'signing' ELSE status END,
+              updated_at = NOW()
+            WHERE id = $1
+            `,
+            [docId],
+          )
+          await client.query(
+            `
+            UPDATE contract_send_sessions
+            SET
+              status = CASE WHEN status = 'identity_verified' THEN 'signing' ELSE status END,
+              updated_at = NOW()
+            WHERE id = $1
+              AND status = 'identity_verified'
+            `,
+            [session.id],
+          )
+          await client.query('COMMIT')
+        } catch (err) {
+          await client.query('ROLLBACK')
+          handleDbError(err, req, res)
+          return
+        } finally {
+          client.release()
+        }
+        res.status(200).json({ success: true, data: { saved: true } })
+        return
+      }
+
       const pdfTid = docMeta.rows[0]?.pdf_template_id
       if (pdfTid == null) {
         res.status(400).json({ success: false, message: 'PDF 템플릿이 없어 값을 저장할 수 없습니다.' })
@@ -1432,14 +1520,6 @@ export function registerContractPublicApi(apiRouter, ctx) {
         res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
         return
       }
-      if (await sendSessionHasConfirmationOnlyDocument(pool, row.id)) {
-        res.status(503).json({
-          success: false,
-          code: 'confirmation_only_not_supported',
-          message: CONFIRMATION_ONLY_PUBLIC_MESSAGE,
-        })
-        return
-      }
       const sendStatus = String(row.status ?? '')
       const idStatus = await loadLatestIdentityStatus(pool, row.id)
       if (!allowsDocumentDetail(sendStatus, idStatus)) {
@@ -1448,7 +1528,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
       }
       const docR = await pool.query(
         `
-        SELECT cdi.id, cdi.template_id, ct.pdf_template_id
+        SELECT cdi.id, cdi.template_id, ct.pdf_template_id, COALESCE(ct.template_mode, 'coordinate_pdf') AS contract_template_mode
         FROM contract_document_instances cdi
         INNER JOIN contract_templates ct ON ct.id = cdi.template_id
         WHERE cdi.id = $1 AND cdi.send_session_id = $2
@@ -1458,6 +1538,10 @@ export function registerContractPublicApi(apiRouter, ctx) {
       )
       if (docR.rowCount === 0) {
         res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
+        return
+      }
+      if (String(docR.rows[0].contract_template_mode ?? 'coordinate_pdf') === 'confirmation_only') {
+        respondConfirmationOnlyPdfNotAvailable(res)
         return
       }
       const pdfTid = docR.rows[0].pdf_template_id
@@ -1488,14 +1572,6 @@ export function registerContractPublicApi(apiRouter, ctx) {
         res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
         return
       }
-      if (await sendSessionHasConfirmationOnlyDocument(pool, row.id)) {
-        res.status(503).json({
-          success: false,
-          code: 'confirmation_only_not_supported',
-          message: CONFIRMATION_ONLY_PUBLIC_MESSAGE,
-        })
-        return
-      }
       const sendStatus = String(row.status ?? '')
       const idStatus = await loadLatestIdentityStatus(pool, row.id)
       if (!allowsDocumentDetail(sendStatus, idStatus)) {
@@ -1504,7 +1580,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
       }
       const docR = await pool.query(
         `
-        SELECT cdi.id, cdi.template_id, ct.pdf_template_id
+        SELECT cdi.id, cdi.template_id, ct.pdf_template_id, COALESCE(ct.template_mode, 'coordinate_pdf') AS contract_template_mode
         FROM contract_document_instances cdi
         INNER JOIN contract_templates ct ON ct.id = cdi.template_id
         WHERE cdi.id = $1 AND cdi.send_session_id = $2
@@ -1514,6 +1590,10 @@ export function registerContractPublicApi(apiRouter, ctx) {
       )
       if (docR.rowCount === 0) {
         res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
+        return
+      }
+      if (String(docR.rows[0].contract_template_mode ?? 'coordinate_pdf') === 'confirmation_only') {
+        respondConfirmationOnlyPdfNotAvailable(res)
         return
       }
       const pdfTid = docR.rows[0].pdf_template_id
@@ -1560,14 +1640,6 @@ export function registerContractPublicApi(apiRouter, ctx) {
         res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
         return
       }
-      if (await sendSessionHasConfirmationOnlyDocument(pool, row.id)) {
-        res.status(503).json({
-          success: false,
-          code: 'confirmation_only_not_supported',
-          message: CONFIRMATION_ONLY_PUBLIC_MESSAGE,
-        })
-        return
-      }
       const sendStatus = String(row.status ?? '')
       const idStatus = await loadLatestIdentityStatus(pool, row.id)
       if (!allowsDocumentDetail(sendStatus, idStatus)) {
@@ -1576,8 +1648,9 @@ export function registerContractPublicApi(apiRouter, ctx) {
       }
       const docR = await pool.query(
         `
-        SELECT cdi.id, cdi.status, cdi.signed_pdf_file_id
+        SELECT cdi.id, cdi.status, cdi.signed_pdf_file_id, COALESCE(ct.template_mode, 'coordinate_pdf') AS contract_template_mode
         FROM contract_document_instances cdi
+        INNER JOIN contract_templates ct ON ct.id = cdi.template_id
         WHERE cdi.id = $1 AND cdi.send_session_id = $2
         LIMIT 1
         `,
@@ -1585,6 +1658,10 @@ export function registerContractPublicApi(apiRouter, ctx) {
       )
       if (docR.rowCount === 0) {
         res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
+        return
+      }
+      if (String(docR.rows[0].contract_template_mode ?? 'coordinate_pdf') === 'confirmation_only') {
+        respondConfirmationOnlyPdfNotAvailable(res)
         return
       }
       if (String(docR.rows[0].status ?? '') !== 'completed') {
@@ -1611,14 +1688,6 @@ export function registerContractPublicApi(apiRouter, ctx) {
         res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
         return
       }
-      if (await sendSessionHasConfirmationOnlyDocument(pool, row.id)) {
-        res.status(503).json({
-          success: false,
-          code: 'confirmation_only_not_supported',
-          message: CONFIRMATION_ONLY_PUBLIC_MESSAGE,
-        })
-        return
-      }
       const sendStatus = String(row.status ?? '')
       const idStatus = await loadLatestIdentityStatus(pool, row.id)
       if (!allowsDocumentDetail(sendStatus, idStatus)) {
@@ -1643,14 +1712,6 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const row = await loadSendSessionRow(pool, linkCode)
       if (!row) {
         res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
-        return
-      }
-      if (await sendSessionHasConfirmationOnlyDocument(pool, row.id)) {
-        res.status(503).json({
-          success: false,
-          code: 'confirmation_only_not_supported',
-          message: CONFIRMATION_ONLY_PUBLIC_MESSAGE,
-        })
         return
       }
       const sendStatus = String(row.status ?? '')
@@ -1701,14 +1762,6 @@ export function registerContractPublicApi(apiRouter, ctx) {
         res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
         return
       }
-      if (await sendSessionHasConfirmationOnlyDocument(pool, row.id)) {
-        res.status(503).json({
-          success: false,
-          code: 'confirmation_only_not_supported',
-          message: CONFIRMATION_ONLY_PUBLIC_MESSAGE,
-        })
-        return
-      }
       const sendStatus = String(row.status ?? '')
       const idStatus = await loadLatestIdentityStatus(pool, row.id)
       if (!allowsDocumentDetail(sendStatus, idStatus)) {
@@ -1717,7 +1770,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
       }
       const docR = await pool.query(
         `
-        SELECT cdi.*, ct.pdf_template_id
+        SELECT cdi.*, ct.pdf_template_id, COALESCE(ct.template_mode, 'coordinate_pdf') AS contract_template_mode
         FROM contract_document_instances cdi
         INNER JOIN contract_templates ct ON ct.id = cdi.template_id
         WHERE cdi.id = $1 AND cdi.send_session_id = $2
@@ -1737,8 +1790,62 @@ export function registerContractPublicApi(apiRouter, ctx) {
         )
         doc.status = 'viewed'
       }
+      const contractTemplateMode = String(doc.contract_template_mode ?? 'coordinate_pdf')
+      const confirmationItems = await listConfirmationItemsWithValues(pool, String(doc.send_session_id))
+      const sendSessionAttachments = await listSendSessionAttachmentsPublic(pool, String(doc.send_session_id))
+      const canEdit =
+        allowsDocumentMutation(sendStatus, idStatus) && String(doc.status ?? '') !== 'completed'
+
+      if (contractTemplateMode === 'confirmation_only') {
+        const rawConf = await listSendSessionConfirmationFieldValuesForPublic(
+          pool,
+          String(row.id),
+          String(doc.template_id),
+        )
+        const confirmationFields = rawConf.map((r) => ({
+          fieldKey: String(r.field_key),
+          label: String(r.label ?? ''),
+          inputType: String(r.input_type ?? 'text'),
+          required: Boolean(r.required),
+          sortOrder: Number(r.sort_order ?? 0),
+          placeholder: r.placeholder != null ? String(r.placeholder) : null,
+          helpText: r.help_text != null ? String(r.help_text) : null,
+          valueText: String(r.value_text ?? ''),
+        }))
+        res.status(200).json({
+          success: true,
+          data: {
+            templateMode: 'confirmation_only',
+            document: {
+              id: String(doc.id),
+              templateId: String(doc.template_id),
+              title: String(doc.title_snapshot ?? ''),
+              status: String(doc.status ?? ''),
+              required: doc.required === 1 || doc.required === true,
+              sortOrder: Number(doc.sort_order ?? 0),
+              pdfTemplateId: null,
+              templateVersion: doc.template_version != null ? Number(doc.template_version) : null,
+              originalPdfHash: doc.original_pdf_hash ? String(doc.original_pdf_hash) : null,
+            },
+            confirmationFields,
+            fields: [],
+            pdfTemplate: null,
+            pdfPreviewUrl: null,
+            signedPdfDownloadPath: null,
+            signedPdfDownloadAvailable: false,
+            pdfAvailable: false,
+            completionAvailable: false,
+            canEdit,
+            confirmationItems,
+            sendSessionAttachments,
+            notice:
+              '담당자가 입력한 전자확인서 내용과 첨부자료를 확인해 주세요. 전자서명과 최종 완료는 순차적으로 지원될 예정입니다.',
+          },
+        })
+        return
+      }
+
       const pdfTid = doc.pdf_template_id
-      const maskedPhone = computeMaskedPhone(row)
       let pdfTemplate = null
       let fields = []
       if (pdfTid != null) {
@@ -1765,8 +1872,6 @@ export function registerContractPublicApi(apiRouter, ctx) {
         }
       }
       const pdfPreviewPath = `/api/contracts/public/${encodeURIComponent(linkCode)}/documents/${encodeURIComponent(docId)}/pdf`
-      const canEdit =
-        allowsDocumentMutation(sendStatus, idStatus) && String(doc.status ?? '') !== 'completed'
       let evidenceSummary = null
       if (String(doc.status ?? '') === 'completed') {
         const evR = await pool.query(
@@ -1789,11 +1894,12 @@ export function registerContractPublicApi(apiRouter, ctx) {
           ? `/api/contracts/public/${encodeURIComponent(linkCode)}/documents/${encodeURIComponent(docId)}/signed-pdf`
           : null
       const signedPdfDownloadAvailable = signedPdfDownloadPath != null
-      const confirmationItems = await listConfirmationItemsWithValues(pool, String(doc.send_session_id))
-      const sendSessionAttachments = await listSendSessionAttachmentsPublic(pool, String(doc.send_session_id))
       res.status(200).json({
         success: true,
         data: {
+          templateMode: 'coordinate_pdf',
+          pdfAvailable: true,
+          completionAvailable: true,
           document: {
             id: String(doc.id),
             templateId: String(doc.template_id),
@@ -1829,14 +1935,6 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const row = await loadSendSessionRow(pool, linkCode)
       if (!row) {
         res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
-        return
-      }
-      if (await sendSessionHasConfirmationOnlyDocument(pool, row.id)) {
-        res.status(503).json({
-          success: false,
-          code: 'confirmation_only_not_supported',
-          message: CONFIRMATION_ONLY_PUBLIC_MESSAGE,
-        })
         return
       }
       const sendStatus = String(row.status ?? '')
@@ -1879,14 +1977,6 @@ export function registerContractPublicApi(apiRouter, ctx) {
         res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
         return
       }
-      if (await sendSessionHasConfirmationOnlyDocument(pool, row.id)) {
-        res.status(503).json({
-          success: false,
-          code: 'confirmation_only_not_supported',
-          message: CONFIRMATION_ONLY_PUBLIC_MESSAGE,
-        })
-        return
-      }
       const sendStatus = String(row.status ?? '')
       if (TERMINAL_SESSION.has(sendStatus)) {
         res.status(409).json({ success: false, message: '만료되었거나 취소된 링크입니다.' })
@@ -1921,14 +2011,6 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const row = await loadSendSessionRow(pool, linkCode)
       if (!row) {
         res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
-        return
-      }
-      if (await sendSessionHasConfirmationOnlyDocument(pool, row.id)) {
-        res.status(503).json({
-          success: false,
-          code: 'confirmation_only_not_supported',
-          message: CONFIRMATION_ONLY_PUBLIC_MESSAGE,
-        })
         return
       }
       const sendStatus = String(row.status ?? '')

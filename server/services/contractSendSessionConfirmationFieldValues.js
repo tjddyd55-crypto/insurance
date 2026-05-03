@@ -22,3 +22,36 @@ export async function insertSendSessionConfirmationFieldValues(client, sendSessi
     )
   }
 }
+
+/**
+ * 고객 공개 화면용: 발송 시 저장한 value_text + 현재 템플릿 정의(라벨·타입 등).
+ * 정의 템플릿이 바뀌어도 값은 저장 테이블 기준이며, 라벨은 이 조회 시점의 정의를 따른다(스냅샷 미도입).
+ *
+ * @param {import('pg').Pool | import('pg').PoolClient} poolOrClient
+ * @param {string} sendSessionId
+ * @param {string} templateId contract_templates.id
+ */
+export async function listSendSessionConfirmationFieldValuesForPublic(poolOrClient, sendSessionId, templateId) {
+  const r = await poolOrClient.query(
+    `
+    SELECT
+      ctc.field_key,
+      ctc.label,
+      ctc.input_type,
+      ctc.required,
+      ctc.sort_order,
+      ctc.placeholder,
+      ctc.help_text,
+      COALESCE(v.value_text, '') AS value_text
+    FROM contract_template_confirmation_fields ctc
+    LEFT JOIN contract_send_session_confirmation_field_values v
+      ON v.send_session_id = $1
+      AND v.template_id = $2
+      AND v.field_key = ctc.field_key
+    WHERE ctc.template_id = $2
+    ORDER BY ctc.sort_order ASC, ctc.id ASC
+    `,
+    [sendSessionId, templateId],
+  )
+  return r.rows
+}

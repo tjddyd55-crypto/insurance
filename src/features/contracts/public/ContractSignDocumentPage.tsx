@@ -541,6 +541,30 @@ export default function ContractSignDocumentPage() {
     }
   }
 
+  const persistConfirmationOnlyChecks = useCallback(
+    async (checks: Record<string, boolean>) => {
+      if (!detail || (detail.templateMode ?? 'coordinate_pdf') !== 'confirmation_only') {
+        return
+      }
+      setActionError('')
+      setSaving(true)
+      try {
+        const confirmationCheckedItemIds = Object.entries(checks)
+          .filter(([, v]) => v)
+          .map(([id]) => id)
+        await postContractPublicDocumentValues(linkCode, documentInstanceId, [], {
+          confirmationCheckedItemIds,
+        })
+        await reloadDetail()
+      } catch (e) {
+        setActionError(formatContractPublicActionError(e, 'values'))
+      } finally {
+        setSaving(false)
+      }
+    },
+    [detail, linkCode, documentInstanceId, reloadDetail],
+  )
+
   const inputRenderedPdfSrc = !paramsInvalid ? resolveContractRenderedPdfAbsUrl(linkCode, documentInstanceId, 'input') : ''
   const finalRenderedPdfSrc = !paramsInvalid ? resolveContractRenderedPdfAbsUrl(linkCode, documentInstanceId, 'final') : ''
 
@@ -579,7 +603,245 @@ export default function ContractSignDocumentPage() {
             ? '작성·서명 진행 중'
             : detail.document.status
 
-    body = (
+    const isConfirmationOnly = (detail.templateMode ?? 'coordinate_pdf') === 'confirmation_only'
+    const sortedConfFields = isConfirmationOnly
+      ? (detail.confirmationFields ?? [])
+          .slice()
+          .sort((a, b) => a.sortOrder - b.sortOrder || a.fieldKey.localeCompare(b.fieldKey))
+      : []
+
+    if (isConfirmationOnly) {
+      body = (
+        <div className="contract-public-sign-page__stack">
+          <div className="contract-public-sign-page__card">
+            <p className="contract-public-sign-page__card-title">{detail.document.title || '문서'}</p>
+            <p className="contract-public-sign-page__meta">
+              {detail.document.required ? '필수 문서' : '선택 문서'} · {statusLabel}
+            </p>
+            <p className="contract-public-sign-page__caption">무좌표 전자확인서</p>
+          </div>
+
+          <p className="contract-public-sign-page__notice">{detail.notice}</p>
+          {actionError ? <div className="contract-public-sign-page__panel-danger">{actionError}</div> : null}
+
+          <div className="contract-public-sign-page__card">
+            <p className="contract-public-sign-page__card-title">전자확인서 내용</p>
+            <p className="contract-public-sign-page__notice mt-2">
+              담당자가 입력한 확인 내용입니다. 아래 내용과 첨부자료를 확인해 주세요.
+            </p>
+            <div className="mt-4 space-y-4">
+              {sortedConfFields.length > 0 ? (
+                sortedConfFields.map((row) => {
+                  const raw = String(row.valueText ?? '').trim()
+                  const display = raw.length > 0 ? raw : '—'
+                  const isTa = String(row.inputType ?? '').toLowerCase() === 'textarea'
+                  return (
+                    <div
+                      key={row.fieldKey}
+                      className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight space-y-1"
+                    >
+                      <p className="contract-public-sign-page__field-label">
+                        {row.label || row.fieldKey}
+                        {row.required ? <span className="contract-public-sign-page__required"> *</span> : null}
+                      </p>
+                      <p
+                        className={`text-sm text-[var(--text-main)] contract-public-sign-page__confirmation-value${
+                          isTa ? ' contract-public-sign-page__confirmation-value--multiline' : ''
+                        }`}
+                      >
+                        {display}
+                      </p>
+                      {row.helpText ? <p className="contract-public-sign-page__caption">{row.helpText}</p> : null}
+                    </div>
+                  )
+                })
+              ) : (
+                <p className="contract-public-sign-page__notice">표시할 확인 항목이 없습니다.</p>
+              )}
+            </div>
+          </div>
+
+          <p className="contract-public-sign-page__notice">
+            전자서명·최종 전송 및 완료 문서(PDF) 다운로드는 추후 단계에서 제공됩니다. 지금은 내용 확인과 첨부자료 확인까지만
+            진행할 수 있습니다.
+          </p>
+
+          <div className="contract-public-sign-page__card contract-public-sign-page__step-card contract-public-sign-page__step-card--active">
+            <p className="contract-public-sign-page__card-title">확인 사항</p>
+            <p className="contract-public-sign-page__notice mt-2">
+              아래 항목에 동의하고, 필요 시 첨부자료를 열람·확인해 주세요.
+            </p>
+
+            <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4 space-y-3">
+              <p className="contract-public-sign-page__section-label">고객 확인 체크</p>
+              {(detail.confirmationItems?.length ?? 0) > 0 ? (
+                (detail.confirmationItems ?? []).map((c) => (
+                  <label key={c.id} className="contract-public-sign-page__label-row">
+                    <FormInput
+                      type="checkbox"
+                      disabled={!canEdit || saving}
+                      checked={Boolean(confirmationChecks[c.id])}
+                      onChange={(ev) => {
+                        setConfirmationChecks((prev) => {
+                          const next = { ...prev, [c.id]: ev.target.checked }
+                          void persistConfirmationOnlyChecks(next)
+                          return next
+                        })
+                      }}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      {c.label}
+                      {c.required ? <span className="contract-public-sign-page__required"> *</span> : null}
+                    </span>
+                  </label>
+                ))
+              ) : (
+                <p className="contract-public-sign-page__notice">등록된 고객 확인 체크 문구가 없습니다.</p>
+              )}
+            </div>
+
+            {sortedSessionAttachments.length > 0 ? (
+              <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4 space-y-3">
+                <p className="contract-public-sign-page__section-label">첨부자료</p>
+                <ol className="contract-public-sign-page__attachment-list space-y-4">
+                  {sortedSessionAttachments.map((a, idx) => (
+                    <li key={a.id} className="contract-public-sign-page__attachment-item">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm text-[var(--text-main)] contract-public-sign-page__confirmation-value">
+                          {idx + 1}. {a.displayFilename}
+                        </span>
+                        {a.required ? (
+                          <span className="contract-public-sign-page__badge contract-public-sign-page__badge--required">
+                            필수
+                          </span>
+                        ) : null}
+                        {a.confirmed ? (
+                          <span className="contract-public-sign-page__badge contract-public-sign-page__badge--ok">
+                            확인 완료
+                          </span>
+                        ) : (
+                          <span className="contract-public-sign-page__badge contract-public-sign-page__badge--pending">
+                            미확인
+                          </span>
+                        )}
+                      </div>
+                      {!a.confirmed ? (
+                        <p className="contract-public-sign-page__caption mt-1">열람 후 확인 버튼을 눌러주세요.</p>
+                      ) : (
+                        <p className="contract-public-sign-page__status-ok mt-1 text-sm">
+                          {a.displayFilename} 문서를 확인했습니다.
+                        </p>
+                      )}
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        className="mt-2"
+                        disabled={!canEdit || saving}
+                        onClick={() => {
+                          setActionError('')
+                          setAttachmentModal(a)
+                          setAttachmentModalNonce((n) => n + 1)
+                        }}
+                      >
+                        {a.confirmed ? '다시 보기' : '열기'}
+                      </FormButton>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+
+            {sortedSessionAttachments.length > 0 ? (
+              <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4">
+                <p className="contract-public-sign-page__section-label">
+                  {attachmentsConfirmationComplete ? '첨부자료 확인 내역' : '첨부자료 확인 필요'}
+                </p>
+                {attachmentsConfirmationComplete ? (
+                  <ol className="contract-public-sign-page__compact-list mt-2 space-y-1">
+                    {sortedSessionAttachments.map((a, idx) => (
+                      <li key={`co-sum-ok-${a.id}`} className="text-sm text-[var(--text-main)]">
+                        {idx + 1}. {a.displayFilename} 문서를 확인했습니다.
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <ol className="contract-public-sign-page__compact-list mt-2 space-y-1">
+                    {sortedSessionAttachments.map((a, idx) => (
+                      <li key={`co-sum-pending-${a.id}`} className="text-sm contract-public-sign-page__status-pending">
+                        {idx + 1}. {a.displayFilename}
+                        {a.confirmed ? ` 문서를 확인했습니다.` : ' 확인 필요'}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            ) : null}
+
+            {confirmationStepComplete ? (
+              <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">
+                필수 확인을 마쳤습니다
+              </p>
+            ) : (
+              <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">
+                {!sessionChecksComplete
+                  ? '필수 확인 항목을 모두 체크해 주세요.'
+                  : !attachmentsConfirmationComplete
+                    ? '필수 첨부자료를 모두 열람·확인해 주세요.'
+                    : '확인을 완료해 주세요.'}
+              </p>
+            )}
+          </div>
+
+          <Link
+            className="contract-public-sign-page__link contract-public-sign-page__link--after-block"
+            to={`/contracts/sign/${encodeURIComponent(linkCode)}`}
+          >
+            ← 문서 목록
+          </Link>
+
+          <ContractAttachmentReviewModal
+            open={attachmentModal != null && !paramsInvalid}
+            onClose={() => setAttachmentModal(null)}
+            linkCode={linkCode}
+            attachment={attachmentModal}
+            loadNonce={attachmentModalNonce}
+            onActionError={(msg) => setActionError(msg)}
+            onConfirmed={(row) => {
+              setDetail((prev) => {
+                if (!prev?.sendSessionAttachments?.length) {
+                  return prev
+                }
+                return {
+                  ...prev,
+                  sendSessionAttachments: prev.sendSessionAttachments.map((at) =>
+                    at.id === row.attachmentId
+                      ? {
+                          ...at,
+                          viewed: row.viewed,
+                          confirmed: row.confirmed,
+                          confirmedAt: row.confirmedAt,
+                        }
+                      : at,
+                  ),
+                }
+              })
+              setAttachmentModal((prev) =>
+                prev && prev.id === row.attachmentId
+                  ? {
+                      ...prev,
+                      viewed: row.viewed,
+                      confirmed: row.confirmed,
+                      confirmedAt: row.confirmedAt,
+                    }
+                  : prev,
+              )
+            }}
+          />
+        </div>
+      )
+    } else {
+      body = (
       <div className="contract-public-sign-page__stack">
         <div className="contract-public-sign-page__card">
           <p className="contract-public-sign-page__card-title">{detail.document.title || '문서'}</p>
@@ -1229,6 +1491,7 @@ export default function ContractSignDocumentPage() {
         ) : null}
       </div>
     )
+    }
   }
 
   return (

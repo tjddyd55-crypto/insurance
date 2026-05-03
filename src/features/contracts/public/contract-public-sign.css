@@ -57,6 +57,15 @@
   color: var(--text-sub);
 }
 
+.contract-public-sign-page__confirmation-value {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.contract-public-sign-page__confirmation-value--multiline {
+  white-space: pre-wrap;
+}
+
 .contract-public-sign-page__badge {
   display: inline-block;
   border-radius: 4px;
