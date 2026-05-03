@@ -588,6 +588,17 @@
   border-left: 3px solid var(--border);
 }
 
+.contract-public-sign-page__step-card--active {
+  border-left-color: var(--color-primary, var(--interactive-primary, #3b82f6));
+  box-shadow: 0 0 0 1px var(--color-primary, var(--interactive-primary, #3b82f6));
+}
+
+.contract-public-sign-page__step-card--locked {
+  opacity: 0.72;
+  border-left-color: var(--border);
+}
+
+.contract-public-sign-page__step-card--completed,
 .contract-public-sign-page__step-card--done {
   border-left-color: var(--success);
 }
