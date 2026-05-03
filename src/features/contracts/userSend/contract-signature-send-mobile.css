@@ -539,6 +539,13 @@ main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mo
   margin-top: 6px;
 }
 
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile
+  .contract-signature-send-attach-row--mobile
+  .contract-signature-send-attach-row__status {
+  margin-top: 6px;
+  font-size: 0.8125rem;
+}
+
 main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-signature-send-attach-actions {
   margin-top: 12px;
   width: 100%;

@@ -21,13 +21,14 @@ const FormInput = forwardRef<HTMLInputElement, Props>(function FormInput(
   const inputType = String(props.type ?? '').toLowerCase()
   const isFileInput = inputType === 'file'
   const isCheckbox = inputType === 'checkbox'
-  const normalizedValue = isFileInput ? value ?? undefined : value ?? ''
+  const omitValueProp = isCheckbox || isFileInput
+  const normalizedValue = value ?? ''
 
   return (
     <input
       ref={ref}
       {...props}
-      {...(!isCheckbox ? { value: normalizedValue } : {})}
+      {...(!omitValueProp ? { value: normalizedValue } : {})}
       onChange={onChange}
       readOnly={readOnly}
       disabled={disabled}

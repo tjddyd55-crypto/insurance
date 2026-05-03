@@ -1,7 +1,7 @@
 /**
  * 전자서명 발송 — USER / GA_STAFF. 관리자 템플릿은 /admin/contract-signatures 에서만 관리.
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode, type ReactElement } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode, type ReactElement, type KeyboardEvent } from 'react'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { useMediaQuery } from '../../../hooks/useMediaQuery'
 import '../../pdf-engine/pdf-engine.css'
@@ -29,6 +29,69 @@ import {
 const MOBILE_FLOW_MQ = '(max-width: 768px)'
 
 const ATTACHMENT_FILE_ACCEPT = '.pdf,image/jpeg,image/png,image/webp,application/pdf'
+
+const ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024
+
+const ALLOWED_ATTACHMENT_MIMES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp'])
+
+function sniffContractSendAttachmentMime(file: File): string {
+  const raw = (file.type || '').trim().toLowerCase()
+  if (raw) {
+    return raw
+  }
+  const n = file.name.toLowerCase()
+  if (n.endsWith('.pdf')) {
+    return 'application/pdf'
+  }
+  if (n.endsWith('.jpg') || n.endsWith('.jpeg')) {
+    return 'image/jpeg'
+  }
+  if (n.endsWith('.png')) {
+    return 'image/png'
+  }
+  if (n.endsWith('.webp')) {
+    return 'image/webp'
+  }
+  return ''
+}
+
+function validateContractSendAttachmentFile(file: File): { ok: true; mime: string } | { ok: false; message: string } {
+  if (file.size > ATTACHMENT_MAX_BYTES) {
+    return { ok: false, message: '첨부파일은 파일당 최대 20MB까지 업로드할 수 있습니다.' }
+  }
+  const mime = sniffContractSendAttachmentMime(file)
+  if (!ALLOWED_ATTACHMENT_MIMES.has(mime)) {
+    return { ok: false, message: 'PDF 또는 이미지 파일만 첨부할 수 있습니다.' }
+  }
+  return { ok: true, mime }
+}
+
+function mapAttachmentUploadError(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 413) {
+      return '첨부파일은 파일당 최대 20MB까지 업로드할 수 있습니다.'
+    }
+    const m = err.message.trim()
+    if (/너무 큽|20\s*MB|413/i.test(m)) {
+      return '첨부파일은 파일당 최대 20MB까지 업로드할 수 있습니다.'
+    }
+    if (/pdf|이미지|mime|형식|invalid|허용/i.test(m) || err.code === 'attachment_file_invalid') {
+      return 'PDF 또는 이미지 파일만 첨부할 수 있습니다.'
+    }
+    if (m) {
+      return '첨부파일 업로드에 실패했습니다. 다시 시도해 주세요.'
+    }
+  }
+  return '첨부파일 업로드에 실패했습니다. 다시 시도해 주세요.'
+}
+
+function runPickRowKeyboardAction(e: KeyboardEvent, run: () => void) {
+  if (e.key !== 'Enter' && e.key !== ' ') {
+    return
+  }
+  e.preventDefault()
+  run()
+}
 
 type SendAttachmentDraftUploadStatus = 'uploading' | 'done' | 'error'
 
@@ -386,6 +449,11 @@ export default function ContractSignatureSendPage() {
     }
     setSendError(null)
     for (const file of Array.from(files)) {
+      const checked = validateContractSendAttachmentFile(file)
+      if (!checked.ok) {
+        setSendError(checked.message)
+        continue
+      }
       const key = `att_${crypto.randomUUID()}`
       let blocked = false
       setAttachmentDrafts((prev) => {
@@ -399,7 +467,7 @@ export default function ContractSignatureSendPage() {
             key,
             fileId: '',
             displayFilename: file.name,
-            mimeType: file.type || 'application/octet-stream',
+            mimeType: checked.mime,
             sizeBytes: file.size,
             required: true,
             uploadStatus: 'uploading',
@@ -429,7 +497,10 @@ export default function ContractSignatureSendPage() {
           ),
         )
       } catch (err) {
-        const msg = err instanceof ApiError ? err.message : '첨부 업로드에 실패했습니다.'
+        if (import.meta.env.DEV) {
+          console.error('[contract-send] attachment upload failed', err)
+        }
+        const msg = mapAttachmentUploadError(err)
         setSendError(msg)
         setAttachmentDrafts((prev) =>
           prev.map((x) => (x.key === key ? { ...x, uploadStatus: 'error' as const, error: msg } : x)),
@@ -475,8 +546,9 @@ export default function ContractSignatureSendPage() {
           accept={ATTACHMENT_FILE_ACCEPT}
           multiple
           onChange={(e) => {
-            const f = e.target.files
-            e.target.value = ''
+            const el = e.currentTarget
+            const f = el.files
+            el.value = ''
             void onAttachmentFilesChosen(f)
           }}
         />
@@ -493,25 +565,25 @@ export default function ContractSignatureSendPage() {
         )}
         <div className={isMobile ? 'contract-signature-send-attach-list' : 'space-y-2 mt-2'}>
           {attachmentDrafts.map((row) => {
-            const metaParts = [attachmentKindLabel(row.mimeType)]
-            if (row.uploadStatus === 'done') {
-              metaParts.push(formatAttachmentBytes(row.sizeBytes))
-            }
-            metaParts.push('필수 확인')
-            const metaLine = metaParts.join(' · ')
+            const summaryLine = [
+              attachmentKindLabel(row.mimeType),
+              formatAttachmentBytes(row.sizeBytes),
+              '필수 확인',
+            ].join(' · ')
             return (
               <div key={row.key} className={rowClass}>
                 <div className="contract-signature-send-attach-row__main">
                   <div className="contract-signature-send-attach-row__name">{row.displayFilename}</div>
-                  <div className="contract-signature-send-attach-row__meta">
+                  <div className="contract-signature-send-attach-row__meta">{summaryLine}</div>
+                  <div className="contract-signature-send-attach-row__status" role="status">
                     {row.uploadStatus === 'uploading' ? (
-                      <span className="contract-signature-console__hint">업로드 중…</span>
-                    ) : row.uploadStatus === 'error' ? (
-                      <span className="contract-signature-console__inline-warning" role="status">
-                        {row.error ?? '업로드 실패'}
-                      </span>
+                      <>상태: 업로드 중…</>
+                    ) : row.uploadStatus === 'done' ? (
+                      <>상태: 업로드 완료</>
                     ) : (
-                      metaLine
+                      <span className="contract-signature-console__inline-warning">
+                        업로드 실패: {row.error ?? '알 수 없는 오류'}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -1018,8 +1090,29 @@ export default function ContractSignatureSendPage() {
                   ) : (
                     customerHits.map((c) => {
                       const sel = selectedCustomer?.id === c.id
+                      const customerPickInteractive = Boolean(t)
                       return (
-                      <tr key={c.id} className={'contract-pick-row' + (sel ? ' contract-pick-row--selected' : '')}>
+                      <tr
+                        key={c.id}
+                        className={
+                          'contract-pick-row' +
+                          (sel ? ' contract-pick-row--selected' : '') +
+                          (customerPickInteractive ? ' contract-pick-row--interactive' : '')
+                        }
+                        onClick={() => {
+                          if (!t) {
+                            return
+                          }
+                          setSelectedCustomer(c)
+                        }}
+                        onKeyDown={(e) => {
+                          if (!t) {
+                            return
+                          }
+                          runPickRowKeyboardAction(e, () => setSelectedCustomer(c))
+                        }}
+                        tabIndex={customerPickInteractive ? 0 : undefined}
+                      >
                         <td>
                           <FormInput
                             type="radio"
@@ -1028,6 +1121,7 @@ export default function ContractSignatureSendPage() {
                             value={String(c.id)}
                             disabled={!t}
                             onChange={() => setSelectedCustomer(c)}
+                            onClick={(ev) => ev.stopPropagation()}
                           />
                         </td>
                         <td>{c.name}</td>
@@ -1078,14 +1172,29 @@ export default function ContractSignatureSendPage() {
                   const noSig = row.signatureFieldCount < 1
                   const inactive = String(row.status) !== 'active'
                   const sel = selectedTemplateId === row.id
+                  const tplRowInteractive = Boolean(t && selectedCustomer != null && !inactive)
                   return (
                     <tr
                       key={row.id}
                       className={
                         'contract-pick-row' +
                         (sel ? ' contract-pick-row--selected' : '') +
-                        (inactive ? ' contract-pick-row--inactive' : '')
+                        (inactive ? ' contract-pick-row--inactive' : '') +
+                        (tplRowInteractive ? ' contract-pick-row--interactive' : '')
                       }
+                      onClick={() => {
+                        if (!t || selectedCustomer == null || inactive) {
+                          return
+                        }
+                        setSelectedTemplateId(row.id)
+                      }}
+                      onKeyDown={(e) => {
+                        if (!tplRowInteractive) {
+                          return
+                        }
+                        runPickRowKeyboardAction(e, () => setSelectedTemplateId(row.id))
+                      }}
+                      tabIndex={tplRowInteractive ? 0 : undefined}
                     >
                       <td>
                         <FormInput
@@ -1095,6 +1204,7 @@ export default function ContractSignatureSendPage() {
                           value={row.id}
                           disabled={!t || selectedCustomer == null || inactive}
                           onChange={() => setSelectedTemplateId(row.id)}
+                          onClick={(ev) => ev.stopPropagation()}
                         />
                       </td>
                       <td>
