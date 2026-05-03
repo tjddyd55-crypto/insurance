@@ -508,3 +508,56 @@ main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mo
   max-width: 100% !important;
   min-height: 44px;
 }
+
+/* 발송 화면 · 첨부자료(모바일): 가로 스크롤 없이 카드형 */
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile
+  .contract-signature-send-attach-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  overflow-x: hidden;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile
+  .contract-signature-send-attach-row--mobile {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 12px;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-soft);
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile
+  .contract-signature-send-attach-row--mobile
+  .contract-signature-send-attach-row__meta {
+  margin-top: 6px;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-signature-send-attach-actions {
+  margin-top: 12px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-signature-send-attach-actions button {
+  width: 100%;
+  min-height: 44px;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-signature-send-attach-row__remove {
+  margin-top: 10px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-signature-send-attach-row__remove button {
+  min-height: 44px;
+}

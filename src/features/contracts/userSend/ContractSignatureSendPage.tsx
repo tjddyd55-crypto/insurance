@@ -28,6 +28,46 @@ import {
 
 const MOBILE_FLOW_MQ = '(max-width: 768px)'
 
+const ATTACHMENT_FILE_ACCEPT = '.pdf,image/jpeg,image/png,image/webp,application/pdf'
+
+type SendAttachmentDraftUploadStatus = 'uploading' | 'done' | 'error'
+
+type SendAttachmentDraftRow = {
+  key: string
+  fileId: string
+  displayFilename: string
+  mimeType: string
+  sizeBytes: number
+  required: boolean
+  uploadStatus: SendAttachmentDraftUploadStatus
+  error?: string | null
+}
+
+function formatAttachmentBytes(n: number): string {
+  if (!Number.isFinite(n) || n < 0) {
+    return '—'
+  }
+  if (n < 1024) {
+    return `${Math.round(n)}B`
+  }
+  if (n < 1024 * 1024) {
+    const kb = n / 1024
+    return `${kb >= 10240 ? Math.round(kb).toString() : kb.toFixed(1)}KB`
+  }
+  return `${(n / (1024 * 1024)).toFixed(1)}MB`
+}
+
+function attachmentKindLabel(mime: string): string {
+  const m = (mime || '').toLowerCase()
+  if (m.includes('pdf')) {
+    return 'PDF'
+  }
+  if (m.startsWith('image/')) {
+    return '이미지'
+  }
+  return '파일'
+}
+
 function mobileStepShell(
   opts: {
     title: string
@@ -89,9 +129,7 @@ export default function ContractSignatureSendPage() {
   const [evidenceLoading, setEvidenceLoading] = useState(false)
   const [senderVals, setSenderVals] = useState<Record<string, string | boolean>>({})
   const [confirmationDrafts, setConfirmationDrafts] = useState<{ key: string; label: string }[]>([])
-  const [attachmentDrafts, setAttachmentDrafts] = useState<
-    { key: string; fileId: string; displayFilename: string; required: boolean }[]
-  >([])
+  const [attachmentDrafts, setAttachmentDrafts] = useState<SendAttachmentDraftRow[]>([])
   const [attachmentUploadBusy, setAttachmentUploadBusy] = useState(false)
   const attachmentFileInputRef = useRef<HTMLInputElement>(null)
 
@@ -248,6 +286,24 @@ export default function ContractSignatureSendPage() {
     senderPrefillSatisfied(selectedTpl) &&
     confirmationDraftValidationMessage == null
 
+  const attachmentPipelineBlocksSend =
+    attachmentUploadBusy ||
+    attachmentDrafts.some((a) => a.uploadStatus === 'uploading' || a.uploadStatus === 'error')
+
+  const effectiveCanSend = canSend && !attachmentPipelineBlocksSend
+
+  const attachmentSendBlockHint = (() => {
+    if (!attachmentPipelineBlocksSend) {
+      return null
+    }
+    const hasUploading =
+      attachmentUploadBusy || attachmentDrafts.some((a) => a.uploadStatus === 'uploading')
+    if (hasUploading) {
+      return '첨부파일 업로드가 완료된 뒤 발송할 수 있습니다.'
+    }
+    return '업로드 실패한 첨부파일을 삭제하거나 다시 추가해 주세요.'
+  })()
+
   const onCreateSendSession = async () => {
     if (!t || !selectedTemplateId || !selectedCustomer?.hasPhone) {
       return
@@ -268,6 +324,9 @@ export default function ContractSignatureSendPage() {
               }),
             )
           : undefined
+      const readyAttachments = attachmentDrafts.filter(
+        (a) => a.uploadStatus === 'done' && String(a.fileId).trim() !== '',
+      )
       const created = await createUserContractSendSession(t, {
         customerId: selectedCustomer.id,
         templateIds: [selectedTemplateId],
@@ -277,8 +336,8 @@ export default function ContractSignatureSendPage() {
             ? confirmationDrafts.map((d) => ({ label: d.label.trim(), required: true as const }))
             : undefined,
         attachments:
-          attachmentDrafts.length > 0
-            ? attachmentDrafts.map((a) => ({ fileId: a.fileId, required: a.required }))
+          readyAttachments.length > 0
+            ? readyAttachments.map((a) => ({ fileId: a.fileId, required: a.required }))
             : undefined,
       })
       setLastCreated(created)
@@ -296,7 +355,8 @@ export default function ContractSignatureSendPage() {
     selectedTpl != null && String(selectedTpl.status) !== 'active' ? 'active 템플릿만 발송할 수 있습니다.' : null
 
   const sendSessionPanelHint =
-    selectedCustomer == null
+    attachmentSendBlockHint ||
+    (selectedCustomer == null
       ? '고객을 먼저 선택해 주세요.'
       : inactiveTemplateHint ||
         (!senderPrefillSatisfied(selectedTpl ?? undefined) ? '발송 전 입력값의 필수 항목을 모두 채워 주세요.' : null) ||
@@ -304,7 +364,7 @@ export default function ContractSignatureSendPage() {
         (selectedCustomer != null && !selectedCustomer.hasPhone
           ? '선택한 고객에 유효한 휴대폰번호가 없습니다.'
           : null) ||
-        (selectedTemplateId == null ? '전자서명 템플릿을 선택해 주세요.' : null)
+        (selectedTemplateId == null ? '전자서명 템플릿을 선택해 주세요.' : null))
 
   const step1Complete = Boolean(selectedCustomer)
   const step2Complete = Boolean(
@@ -321,53 +381,98 @@ export default function ContractSignatureSendPage() {
   const step4Active = step3Complete
 
   const onAttachmentFilesChosen = async (files: FileList | null) => {
-    if (!files?.length || !t || !selectedCustomer) {
+    if (!files?.length || !t || !selectedCustomer || !selectedTemplateId) {
       return
     }
     setSendError(null)
-    let count = attachmentDrafts.length
     for (const file of Array.from(files)) {
-      if (count >= CONTRACT_SEND_ATTACHMENTS_MAX) {
+      const key = `att_${crypto.randomUUID()}`
+      let blocked = false
+      setAttachmentDrafts((prev) => {
+        if (prev.length >= CONTRACT_SEND_ATTACHMENTS_MAX) {
+          blocked = true
+          return prev
+        }
+        return [
+          ...prev,
+          {
+            key,
+            fileId: '',
+            displayFilename: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            sizeBytes: file.size,
+            required: true,
+            uploadStatus: 'uploading',
+          },
+        ]
+      })
+      if (blocked) {
         setSendError(`첨부는 최대 ${CONTRACT_SEND_ATTACHMENTS_MAX}개까지 추가할 수 있습니다.`)
         break
       }
       setAttachmentUploadBusy(true)
       try {
         const up = await uploadUserContractSendAttachment(t, selectedCustomer.id, file)
-        setAttachmentDrafts((prev) => {
-          if (prev.length >= CONTRACT_SEND_ATTACHMENTS_MAX) {
-            return prev
-          }
-          return [
-            ...prev,
-            {
-              key: `att_${crypto.randomUUID()}`,
-              fileId: up.fileId,
-              displayFilename: up.displayFilename,
-              required: true,
-            },
-          ]
-        })
-        count += 1
+        setAttachmentDrafts((prev) =>
+          prev.map((x) =>
+            x.key === key
+              ? {
+                  ...x,
+                  fileId: up.fileId,
+                  displayFilename: up.displayFilename,
+                  mimeType: up.mimeType,
+                  sizeBytes: up.sizeBytes,
+                  uploadStatus: 'done' as const,
+                  error: null,
+                }
+              : x,
+          ),
+        )
       } catch (err) {
-        setSendError(err instanceof ApiError ? err.message : '첨부 업로드에 실패했습니다.')
+        const msg = err instanceof ApiError ? err.message : '첨부 업로드에 실패했습니다.'
+        setSendError(msg)
+        setAttachmentDrafts((prev) =>
+          prev.map((x) => (x.key === key ? { ...x, uploadStatus: 'error' as const, error: msg } : x)),
+        )
       } finally {
         setAttachmentUploadBusy(false)
       }
     }
   }
 
-  const renderSendAttachmentDrafts = () => {
-    if (!selectedCustomer || !selectedTemplateId) {
-      return null
+  const renderSendAttachmentSection = (layout: 'desktop' | 'mobile') => {
+    const isMobile = layout === 'mobile'
+    const rowClass =
+      'contract-signature-send-attach-row' + (isMobile ? ' contract-signature-send-attach-row--mobile' : '')
+
+    if (!selectedTemplateId) {
+      return (
+        <p className="contract-signature-console__hint contract-signature-send-attach--disabled">
+          전자서명 템플릿을 선택하면 첨부자료를 추가할 수 있습니다.
+        </p>
+      )
     }
+
+    if (!selectedCustomer) {
+      return (
+        <p className="contract-signature-console__hint contract-signature-send-attach--disabled">
+          고객을 선택한 뒤 첨부파일을 추가할 수 있습니다.
+        </p>
+      )
+    }
+
+    const addDisabled =
+      !t ||
+      attachmentUploadBusy ||
+      attachmentDrafts.length >= CONTRACT_SEND_ATTACHMENTS_MAX
+
     return (
       <>
         <FormInput
           ref={attachmentFileInputRef}
           type="file"
           style={{ display: 'none' }}
-          accept=".pdf,image/jpeg,image/png,image/gif,image/webp,application/pdf"
+          accept={ATTACHMENT_FILE_ACCEPT}
           multiple
           onChange={(e) => {
             const f = e.target.files
@@ -375,54 +480,79 @@ export default function ContractSignatureSendPage() {
             void onAttachmentFilesChosen(f)
           }}
         />
-        <p className="contract-signature-console__body-text" style={{ margin: '0 0 8px' }}>
-          고객은 첨부자료를 열람한 뒤 확인 버튼을 눌러야 전자서명을 진행할 수 있습니다.
-        </p>
-        <div className="space-y-2 mt-2">
-          {attachmentDrafts.map((row) => (
-            <div key={row.key} className="flex flex-wrap items-center gap-2">
-              <span className="contract-signature-console__body-text text-sm flex-1 min-w-[120px]">
-                {row.displayFilename}
-              </span>
-              <label className="flex items-center gap-2 text-sm whitespace-nowrap">
-                <FormInput
-                  type="checkbox"
-                  checked={row.required}
-                  disabled={!t || attachmentUploadBusy}
-                  onChange={(ev) =>
-                    setAttachmentDrafts((prev) =>
-                      prev.map((x) => (x.key === row.key ? { ...x, required: ev.target.checked } : x)),
-                    )
-                  }
-                />
-                필수 확인
-              </label>
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                size="sm"
-                disabled={!t || attachmentUploadBusy}
-                onClick={() => setAttachmentDrafts((prev) => prev.filter((x) => x.key !== row.key))}
-              >
-                삭제
-              </FormButton>
-            </div>
-          ))}
+        {isMobile ? null : (
+          <>
+            <p className="contract-signature-console__body-text" style={{ margin: '0 0 8px' }}>
+              고객이 전자서명 전에 확인해야 할 참고자료를 첨부할 수 있습니다.
+            </p>
+            <p className="contract-signature-console__hint" style={{ margin: '0 0 12px' }}>
+              첨부자료는 고객 화면의 「고객 확인 항목」 단계에서 열람되며, 고객이 모달 하단의 「이 첨부자료를 확인했습니다」 버튼을
+              눌러야 확인 완료됩니다.
+            </p>
+          </>
+        )}
+        <div className={isMobile ? 'contract-signature-send-attach-list' : 'space-y-2 mt-2'}>
+          {attachmentDrafts.map((row) => {
+            const metaParts = [attachmentKindLabel(row.mimeType)]
+            if (row.uploadStatus === 'done') {
+              metaParts.push(formatAttachmentBytes(row.sizeBytes))
+            }
+            metaParts.push('필수 확인')
+            const metaLine = metaParts.join(' · ')
+            return (
+              <div key={row.key} className={rowClass}>
+                <div className="contract-signature-send-attach-row__main">
+                  <div className="contract-signature-send-attach-row__name">{row.displayFilename}</div>
+                  <div className="contract-signature-send-attach-row__meta">
+                    {row.uploadStatus === 'uploading' ? (
+                      <span className="contract-signature-console__hint">업로드 중…</span>
+                    ) : row.uploadStatus === 'error' ? (
+                      <span className="contract-signature-console__inline-warning" role="status">
+                        {row.error ?? '업로드 실패'}
+                      </span>
+                    ) : (
+                      metaLine
+                    )}
+                  </div>
+                </div>
+                {isMobile ? (
+                  <div className="contract-signature-send-attach-row__remove">
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      size="sm"
+                      fullWidth
+                      disabled={!t || row.uploadStatus === 'uploading'}
+                      onClick={() => setAttachmentDrafts((prev) => prev.filter((x) => x.key !== row.key))}
+                    >
+                      삭제
+                    </FormButton>
+                  </div>
+                ) : (
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={!t || row.uploadStatus === 'uploading'}
+                    onClick={() => setAttachmentDrafts((prev) => prev.filter((x) => x.key !== row.key))}
+                  >
+                    삭제
+                  </FormButton>
+                )}
+              </div>
+            )
+          })}
         </div>
-        <div className="contract-signature-console__btn-row" style={{ marginTop: 12 }}>
+        <div className={isMobile ? 'contract-signature-send-attach-actions' : 'contract-signature-console__btn-row'} style={isMobile ? undefined : { marginTop: 12 }}>
           <FormButton
             htmlType="button"
             variant="secondary"
             size="sm"
-            disabled={
-              !t ||
-              attachmentUploadBusy ||
-              !selectedCustomer ||
-              attachmentDrafts.length >= CONTRACT_SEND_ATTACHMENTS_MAX
-            }
+            fullWidth={isMobile}
+            disabled={addDisabled}
             onClick={() => attachmentFileInputRef.current?.click()}
           >
-            + 파일 추가
+            + 첨부파일 추가
           </FormButton>
         </div>
         {attachmentDrafts.length >= CONTRACT_SEND_ATTACHMENTS_MAX ? (
@@ -431,9 +561,14 @@ export default function ContractSignatureSendPage() {
           </p>
         ) : (
           <p className="contract-signature-console__hint" style={{ marginTop: 8 }}>
-            PDF 또는 이미지(jpeg, png, gif, webp)만 업로드할 수 있습니다. (파일당 최대 20MB)
+            PDF 또는 이미지(JPEG, PNG, WebP)만 업로드할 수 있습니다. (파일당 최대 20MB)
           </p>
         )}
+        {isMobile ? (
+          <p className="contract-signature-console__hint" style={{ marginTop: 8 }}>
+            고객 화면에서 첨부를 열람한 뒤 확인을 완료해야 전자서명 단계로 넘어갈 수 있습니다.
+          </p>
+        ) : null}
       </>
     )
   }
@@ -710,14 +845,18 @@ export default function ContractSignatureSendPage() {
               )
             : null}
 
-          {selectedCustomer && selectedTemplateId ? (
-            <section className="contract-signature-console__section" style={{ marginTop: 16 }}>
-              <h2 className="contract-signature-console__section-title" style={{ fontSize: '1rem' }}>
-                첨부자료(참고)
-              </h2>
-              {renderSendAttachmentDrafts()}
-            </section>
-          ) : null}
+          {mobileStepShell(
+            {
+              title: '2-3. 첨부자료',
+              desc: selectedTemplateId
+                ? '고객이 전자서명 전에 확인할 자료를 첨부하세요.'
+                : '전자서명 템플릿을 선택하면 첨부자료를 추가할 수 있습니다.',
+              active: Boolean(selectedTemplateId && selectedCustomer),
+              completed: false,
+              locked: !selectedTemplateId,
+            },
+            renderSendAttachmentSection('mobile'),
+          )}
 
           {mobileStepShell(
             {
@@ -742,8 +881,8 @@ export default function ContractSignatureSendPage() {
                 busy={sendBusy}
                 lastCreated={lastCreated}
                 onCreate={() => void onCreateSendSession()}
-                canSend={canSend}
-                inactiveTemplateHint={canSend ? null : sendSessionPanelHint}
+                canSend={effectiveCanSend}
+                inactiveTemplateHint={effectiveCanSend ? null : sendSessionPanelHint}
                 detail={sessionDetail}
                 onRefresh={() => void refreshSessionDetail()}
                 error={sendError}
@@ -1109,31 +1248,19 @@ export default function ContractSignatureSendPage() {
           </section>
         ) : null}
 
-        {selectedCustomer && selectedTemplateId ? (
-          <section className="contract-signature-console__section">
-            <h2 className="contract-signature-console__section-title">2-3. 첨부자료(참고)</h2>
-            {renderSendAttachmentDrafts()}
-          </section>
-        ) : null}
+        <section className="contract-signature-console__section">
+          <h2 className="contract-signature-console__section-title">2-3. 첨부자료</h2>
+          {renderSendAttachmentSection('desktop')}
+        </section>
 
         <section className="contract-signature-console__section">
+          <h2 className="contract-signature-console__section-title">3. 발송 세션</h2>
           <SendSessionPanel
             busy={sendBusy}
             lastCreated={lastCreated}
             onCreate={() => void onCreateSendSession()}
-            canSend={canSend}
-            inactiveTemplateHint={
-              selectedCustomer == null
-                ? '전자서명을 발송할 고객을 검색해 선택해 주세요.'
-                : inactiveTemplateHint ||
-                  (!senderPrefillSatisfied(selectedTpl ?? undefined)
-                    ? '발송 전 입력값의 필수 항목을 모두 채워 주세요.'
-                    : null) ||
-                  confirmationDraftValidationMessage ||
-                  (selectedCustomer != null && !selectedCustomer.hasPhone
-                    ? '선택한 고객에 유효한 휴대폰번호가 없습니다.'
-                    : null)
-            }
+            canSend={effectiveCanSend}
+            inactiveTemplateHint={effectiveCanSend ? null : sendSessionPanelHint}
             detail={sessionDetail}
             onRefresh={() => void refreshSessionDetail()}
             error={sendError}
