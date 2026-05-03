@@ -1,7 +1,7 @@
 /**
  * 전자서명 발송 — USER / GA_STAFF. 관리자 템플릿은 /admin/contract-signatures 에서만 관리.
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode, type ReactElement, type KeyboardEvent, type ChangeEventHandler } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ReactElement, type KeyboardEvent, type ChangeEventHandler } from 'react'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { useMediaQuery } from '../../../hooks/useMediaQuery'
 import '../../pdf-engine/pdf-engine.css'
@@ -420,6 +420,20 @@ export default function ContractSignatureSendPage() {
     confirmationOnlySelected && confirmationTemplateFields.length > 0
       ? validateConfirmationOnlyFieldValues(confirmationTemplateFields, confirmationFieldValues)
       : null
+
+  /** confirmation_only 발송 API용(6단계에서 버튼 활성화 시 그대로 전달). 좌표형은 undefined. */
+  const confirmationFieldValuesPayload = useMemo((): Record<string, string> | undefined => {
+    if (!confirmationOnlySelected || confirmationTemplateFields.length === 0) {
+      return undefined
+    }
+    return Object.fromEntries(
+      confirmationTemplateFields.map((f) => [
+        f.fieldKey,
+        confirmationFieldValues[f.fieldKey] == null ? '' : String(confirmationFieldValues[f.fieldKey]),
+      ]),
+    )
+  }, [confirmationOnlySelected, confirmationTemplateFields, confirmationFieldValues])
+
   const canSend =
     Boolean(selectedTemplateId) &&
     selectedTpl != null &&
@@ -452,7 +466,7 @@ export default function ContractSignatureSendPage() {
       return
     }
     if (selectedTpl?.templateMode === 'confirmation_only') {
-      setSendError('무좌표 확인서 발송은 다음 단계에서 지원됩니다.')
+      setSendError('무좌표 확인서 발송은 고객 확인 화면 준비 후 지원됩니다.')
       return
     }
     setSendBusy(true)
@@ -478,6 +492,7 @@ export default function ContractSignatureSendPage() {
         customerId: selectedCustomer.id,
         templateIds: [selectedTemplateId],
         senderInputValues,
+        confirmationFieldValues: confirmationFieldValuesPayload,
         confirmationItems:
           confirmationDrafts.length > 0
             ? confirmationDrafts.map((d) => ({ label: d.label.trim(), required: true as const }))
@@ -509,7 +524,7 @@ export default function ContractSignatureSendPage() {
         (!senderPrefillSatisfied(selectedTpl ?? undefined) ? '발송 전 입력값의 필수 항목을 모두 채워 주세요.' : null) ||
         confirmationDraftValidationMessage ||
         (confirmationOnlySelected
-          ? '무좌표 확인서 발송은 다음 단계에서 활성화됩니다. 아래에서 항목 입력을 미리 확인할 수 있습니다.'
+          ? '고객 확인 화면이 준비되면 무좌표 확인서 발송을 진행할 수 있습니다. 아래에서 항목 입력을 미리 확인할 수 있습니다.'
           : null) ||
         (selectedCustomer != null && !selectedCustomer.hasPhone
           ? '선택한 고객에 유효한 휴대폰번호가 없습니다.'

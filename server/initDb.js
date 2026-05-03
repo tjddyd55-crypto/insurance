@@ -3390,6 +3390,23 @@ async function ensureContractSelfSmsSchema(executor) {
   `)
 
   await executor.query(`
+    CREATE TABLE IF NOT EXISTS contract_send_session_confirmation_field_values (
+      id TEXT PRIMARY KEY,
+      send_session_id TEXT NOT NULL REFERENCES contract_send_sessions(id) ON DELETE CASCADE,
+      template_id TEXT NOT NULL REFERENCES contract_templates(id) ON DELETE CASCADE,
+      field_key TEXT NOT NULL,
+      value_text TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(send_session_id, template_id, field_key)
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_csscfv_send_session
+    ON contract_send_session_confirmation_field_values(send_session_id)
+  `)
+
+  await executor.query(`
     CREATE TABLE IF NOT EXISTS signature_evidences (
       id TEXT PRIMARY KEY,
       send_session_id TEXT NOT NULL REFERENCES contract_send_sessions(id) ON DELETE CASCADE,

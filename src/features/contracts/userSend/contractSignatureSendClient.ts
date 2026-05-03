@@ -239,6 +239,8 @@ export async function createUserContractSendSession(
     senderFieldValues?: Record<string, Record<string, unknown>>
     /** 고객 공개 화면에서 전자서명 전 확인받을 체크 문구(PDF 필드 아님). */
     confirmationItems?: { label: string; required?: boolean }[]
+    /** confirmation_only: field_key → 표시값(서버에서 정의·필수 검증). */
+    confirmationFieldValues?: Record<string, string>
     /** 첨부 참고 문서(fileId는 업로드 API로 발급) */
     attachments?: { fileId: string; required?: boolean }[]
   },
@@ -254,6 +256,7 @@ export async function createUserContractSendSession(
       templateIds: params.templateIds,
       senderInputValues: params.senderInputValues ?? params.senderFieldValues,
       confirmationItems: params.confirmationItems,
+      confirmationFieldValues: params.confirmationFieldValues,
       attachments: params.attachments,
     }),
   })

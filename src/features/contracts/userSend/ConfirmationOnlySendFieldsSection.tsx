@@ -1,5 +1,6 @@
 /**
- * confirmation_only 발송 화면 — 관리자 정의 확인서 항목 입력(아직 서버 전송 없음).
+ * confirmation_only 발송 화면 — 관리자 정의 확인서 항목 입력.
+ * 발송 API·값 저장은 서버에 연결되었으나 고객 확인 화면 준비 전까지 발송 버튼은 비활성입니다.
  */
 import { FormInput, FormTextarea } from '../../../components/form'
 import type { UserContractConfirmationFieldRow } from './contractSignatureSendClient'
@@ -26,7 +27,7 @@ export function ConfirmationOnlySendFieldsSection({
   return (
     <div className="contract-signature-send-conf-only">
       <p className="contract-signature-console__body-text" style={{ margin: '0 0 8px' }}>
-        관리자가 정의한 확인서 항목 값을 입력합니다. 실제 발송은 다음 단계에서 연결됩니다.
+        관리자가 정의한 확인서 항목 값을 입력합니다. 고객 확인 화면이 준비되면 발송이 가능해집니다.
       </p>
       {loadError ? (
         <div className="contract-signature-console__alert--danger" role="alert">

@@ -36,10 +36,34 @@ import {
   insertSendSessionAttachmentsForSend,
   listSendSessionAttachmentsPublic,
 } from '../services/contractSendAttachments.js'
+import { insertSendSessionConfirmationFieldValues } from '../services/contractSendSessionConfirmationFieldValues.js'
 import multer from 'multer'
 
 const CSS_PREFIX = 'css_'
 const CDI_PREFIX = 'cdi_'
+
+/**
+ * @param {unknown} raw
+ * @returns {{ ok: true, map: Map<string, string> } | { ok: false, message: string }}
+ */
+function parseConfirmationFieldValuesFromBody(raw) {
+  if (raw == null || raw === '') {
+    return { ok: true, map: new Map() }
+  }
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    return { ok: false, message: 'confirmationFieldValues 형식이 올바르지 않습니다.' }
+  }
+  /** @type {Map<string, string>} */
+  const map = new Map()
+  for (const [k, v] of Object.entries(raw)) {
+    const key = String(k ?? '').trim()
+    if (!key) {
+      continue
+    }
+    map.set(key, v == null ? '' : String(v))
+  }
+  return { ok: true, map }
+}
 
 function newId(prefix) {
   return `${prefix}${randomUUID()}`
@@ -658,9 +682,15 @@ export function registerContractUserApi(apiRouter, ctx) {
         return
       }
 
-      const contractTemplatesOrdered = /** @type {{ id: string, title: string, version: number, required: number, pdfHash: string | null, pdfTemplateId: number | null }[]} */ ([])
+      /** @type {{ id: string, title: string, version: number, required: number, pdfHash: string | null, pdfTemplateId: number | null }[]} */
+      let contractTemplatesOrdered = []
+      /** @type {{ rows: { fieldKey: string, valueText: string }[] }[]} */
+      let confirmationFieldInsertPlans = []
 
       await client.query('BEGIN')
+
+      /** @type {{ row: Record<string, unknown>, id: string }[]} */
+      const templateAccs = []
       for (const tid of parsed.ids) {
         const tacc = await assertContractTemplateAccess(client, tid, userGa, false)
         if (tacc.error) {
@@ -674,36 +704,132 @@ export function registerContractUserApi(apiRouter, ctx) {
           res.status(400).json({ ok: false, message: `템플릿 ${tid}은(는) active 상태가 아닙니다.` })
           return
         }
-        if (t.pdf_template_id == null) {
-          await client.query('ROLLBACK')
-          res.status(400).json({ ok: false, message: `템플릿 ${tid}에 PDF 엔진이 연결되어 있지 않아 발송할 수 없습니다.` })
-          return
-        }
-        const senderCheck = await assertSenderFieldValuesFilled(
-          client,
-          String(t.id),
-          Number(t.pdf_template_id),
-          senderMaps.get(String(t.id)) ?? {},
-        )
-        if (!senderCheck.ok) {
-          await client.query('ROLLBACK')
-          res.status(senderCheck.status ?? 400).json({
-            ok: false,
-            message: senderCheck.message ?? '발송 전 입력이 올바르지 않습니다.',
-          })
-          return
-        }
-        contractTemplatesOrdered.push({
-          id: t.id,
-          title: t.title,
-          version: t.version,
-          required: 1,
-          pdfHash: t.pdf_template_id
-            ? createHash('sha256').update(`pdf_tmpl:${t.pdf_template_id}`, 'utf8').digest('hex')
-            : null,
-          pdfTemplateId: t.pdf_template_id,
-        })
+        templateAccs.push({ row: t, id: tid })
       }
+
+      const modes = new Set(
+        templateAccs.map(({ row: t }) => String(t.template_mode ?? 'coordinate_pdf')),
+      )
+      if (modes.size > 1) {
+        await client.query('ROLLBACK')
+        res.status(400).json({
+          ok: false,
+          message: '한 번의 발송에 좌표형 PDF 템플릿과 무좌표 확인서 템플릿을 함께 넣을 수 없습니다.',
+        })
+        return
+      }
+      const sessionTemplateMode = [...modes][0]
+
+      const confFieldBody =
+        req.body?.confirmationFieldValues ?? req.body?.confirmation_field_values
+      const confFieldParsed = parseConfirmationFieldValuesFromBody(confFieldBody)
+      if (!confFieldParsed.ok) {
+        await client.query('ROLLBACK')
+        res.status(400).json({ ok: false, message: confFieldParsed.message })
+        return
+      }
+
+      if (sessionTemplateMode === 'confirmation_only') {
+        for (const { row: t, id: tid } of templateAccs) {
+          if (t.pdf_template_id != null) {
+            await client.query('ROLLBACK')
+            res.status(400).json({
+              ok: false,
+              message: `무좌표 확인서 템플릿 ${tid}에 PDF 엔진이 연결되어 있어 발송할 수 없습니다.`,
+            })
+            return
+          }
+          const fr = await client.query(
+            `
+            SELECT field_key, required, sort_order, id
+            FROM contract_template_confirmation_fields
+            WHERE template_id = $1
+            ORDER BY sort_order ASC, id ASC
+            `,
+            [t.id],
+          )
+          if (fr.rowCount === 0) {
+            await client.query('ROLLBACK')
+            res.status(400).json({
+              ok: false,
+              message: `확인서 항목이 없는 템플릿은 발송할 수 없습니다. (${tid})`,
+            })
+            return
+          }
+          const defs = fr.rows
+          const allowed = new Set(defs.map((r) => String(r.field_key)))
+          for (const k of confFieldParsed.map.keys()) {
+            if (!allowed.has(k)) {
+              await client.query('ROLLBACK')
+              res.status(400).json({
+                ok: false,
+                message: `확인서 항목에 없는 fieldKey입니다: ${k}`,
+              })
+              return
+            }
+          }
+          const rowsToInsert = []
+          for (const def of defs) {
+            const fk = String(def.field_key)
+            const rawVal = confFieldParsed.map.has(fk) ? confFieldParsed.map.get(fk) : ''
+            const text = rawVal == null ? '' : String(rawVal)
+            if (def.required && text.trim() === '') {
+              await client.query('ROLLBACK')
+              res.status(400).json({
+                ok: false,
+                message: `필수 확인서 항목「${fk}」값을 입력해 주세요.`,
+              })
+              return
+            }
+            rowsToInsert.push({ fieldKey: fk, valueText: text })
+          }
+          confirmationFieldInsertPlans.push({ rows: rowsToInsert })
+          contractTemplatesOrdered.push({
+            id: t.id,
+            title: t.title,
+            version: t.version,
+            required: 1,
+            pdfHash: null,
+            pdfTemplateId: null,
+          })
+        }
+      } else {
+        for (const { row: t, id: tid } of templateAccs) {
+          if (t.pdf_template_id == null) {
+            await client.query('ROLLBACK')
+            res.status(400).json({
+              ok: false,
+              message: `템플릿 ${tid}에 PDF 엔진이 연결되어 있지 않아 발송할 수 없습니다.`,
+            })
+            return
+          }
+          const senderCheck = await assertSenderFieldValuesFilled(
+            client,
+            String(t.id),
+            Number(t.pdf_template_id),
+            senderMaps.get(String(t.id)) ?? {},
+          )
+          if (!senderCheck.ok) {
+            await client.query('ROLLBACK')
+            res.status(senderCheck.status ?? 400).json({
+              ok: false,
+              message: senderCheck.message ?? '발송 전 입력이 올바르지 않습니다.',
+            })
+            return
+          }
+          contractTemplatesOrdered.push({
+            id: t.id,
+            title: t.title,
+            version: t.version,
+            required: 1,
+            pdfHash: t.pdf_template_id
+              ? createHash('sha256').update(`pdf_tmpl:${t.pdf_template_id}`, 'utf8').digest('hex')
+              : null,
+            pdfTemplateId: t.pdf_template_id,
+          })
+        }
+      }
+
       debugCtx.activeTemplateCheckPassed = true
 
       const sendId = newId(CSS_PREFIX)
@@ -754,16 +880,23 @@ export function registerContractUserApi(apiRouter, ctx) {
           `,
           [docId, sendId, ct.id, ct.version, ct.title, ct.required, i, ct.pdfHash],
         )
-        const pdfTm = ct.pdfTemplateId != null ? Number(ct.pdfTemplateId) : NaN
-        if (Number.isFinite(pdfTm)) {
-          await insertSenderPrefillDocumentValues(
-            client,
-            docId,
-            ct.id,
-            pdfTm,
-            senderMaps.get(String(ct.id)) ?? {},
-          )
-          await insertFixedPrefillDocumentValues(client, docId, ct.id, pdfTm)
+        if (sessionTemplateMode === 'coordinate_pdf') {
+          const pdfTm = ct.pdfTemplateId != null ? Number(ct.pdfTemplateId) : NaN
+          if (Number.isFinite(pdfTm)) {
+            await insertSenderPrefillDocumentValues(
+              client,
+              docId,
+              ct.id,
+              pdfTm,
+              senderMaps.get(String(ct.id)) ?? {},
+            )
+            await insertFixedPrefillDocumentValues(client, docId, ct.id, pdfTm)
+          }
+        } else {
+          const plan = confirmationFieldInsertPlans[i]
+          if (plan?.rows?.length) {
+            await insertSendSessionConfirmationFieldValues(client, sendId, String(ct.id), plan.rows)
+          }
         }
       }
 
