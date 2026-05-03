@@ -1003,3 +1003,140 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-send-at
   color: var(--text-sub);
 }
 
+/* --- Contract template: confirmation_only field editor (mobile-friendly) --- */
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-fields-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-fields-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-label {
+  font-size: 0.75rem;
+  color: var(--text-sub);
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem 0.75rem;
+  background: var(--panel);
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-card-actions button {
+  min-height: 40px;
+  padding: 0.45rem 0.85rem;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  word-break: break-word;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-help {
+  margin: 0.25rem 0;
+  font-size: 0.8125rem;
+  color: var(--text-sub);
+  word-break: break-word;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-new {
+  margin-top: 0.25rem;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-card-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 0.65rem;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-label--checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item {
+  list-style: none;
+  margin: 0;
+  padding: 0.85rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  min-width: 0;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-label {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text-main);
+  word-break: break-word;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-meta {
+  font-size: 0.8125rem;
+  color: var(--text-sub);
+  word-break: break-word;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-meta code {
+  font-size: 0.78em;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-actions button {
+  min-height: 40px;
+  padding: 0.45rem 0.85rem;
+}
+

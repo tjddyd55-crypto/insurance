@@ -596,14 +596,26 @@ export function registerContractAdminApi(apiRouter, ctx) {
       const uid = getAuthUserId(req)
       const description = req.body?.description != null ? String(req.body.description) : null
       const category = req.body?.category != null ? String(req.body.category).trim() : null
+      const templateModeRaw = req.body?.templateMode ?? req.body?.template_mode ?? 'coordinate_pdf'
+      const templateMode = String(templateModeRaw).trim()
+      if (templateMode !== 'coordinate_pdf' && templateMode !== 'confirmation_only') {
+        res.status(400).json({ ok: false, message: 'templateMode 값이 올바르지 않습니다.' })
+        return
+      }
+      if (templateMode === 'confirmation_only' && pdfTemplateId != null) {
+        res
+          .status(400)
+          .json({ ok: false, message: '무좌표 확인서 템플릿(confirmation_only)에는 PDF 템플릿을 연결할 수 없습니다.' })
+        return
+      }
 
       await client.query(
         `
         INSERT INTO contract_templates (
           id, title, description, category, pdf_template_id, pdf_file_path, page_count,
-          status, version, created_by_user_id, ga_id, created_at, updated_at
+          template_mode, status, version, created_by_user_id, ga_id, created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, $10, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 1, $10, $11, NOW(), NOW())
         `,
         [
           id,
@@ -613,6 +625,7 @@ export function registerContractAdminApi(apiRouter, ctx) {
           pdfTemplateId,
           pdfRow ? String(pdfRow.storage_key) : null,
           pdfRow ? pdfRow.page_count : null,
+          templateMode,
           statusRaw,
           uid || null,
           effectiveGa,
@@ -747,20 +760,35 @@ export function registerContractAdminApi(apiRouter, ctx) {
         return
       }
       if (status === 'active') {
-        const pid = row.pdf_template_id
-        if (pid == null) {
-          res.status(400).json({ ok: false, message: 'active 전환에는 pdfTemplateId 연결이 필요합니다.' })
-          return
-        }
-        const fc = await countPdfEngineFields(client, pid)
-        if (fc < 1) {
-          res.status(400).json({ ok: false, message: 'PDF 템플릿에 좌표 필드가 없어 active로 전환할 수 없습니다.' })
-          return
-        }
-        const settingsOk = await assertContractFieldSettingsValidForActivate(client, row.id, Number(pid))
-        if (!settingsOk.ok) {
-          res.status(400).json({ ok: false, message: settingsOk.message ?? '필드 입력 방식 설정을 확인해 주세요.' })
-          return
+        const mode = String(row.template_mode ?? 'coordinate_pdf')
+        if (mode === 'confirmation_only') {
+          const cntR = await client.query(
+            `SELECT COUNT(*)::int AS c FROM contract_template_confirmation_fields WHERE template_id = $1`,
+            [row.id],
+          )
+          if (Number(cntR.rows[0]?.c ?? 0) < 1) {
+            res.status(400).json({
+              ok: false,
+              message: '확인서 항목을 1개 이상 등록한 뒤 active로 전환할 수 있습니다.',
+            })
+            return
+          }
+        } else {
+          const pid = row.pdf_template_id
+          if (pid == null) {
+            res.status(400).json({ ok: false, message: 'active 전환에는 pdfTemplateId 연결이 필요합니다.' })
+            return
+          }
+          const fc = await countPdfEngineFields(client, pid)
+          if (fc < 1) {
+            res.status(400).json({ ok: false, message: 'PDF 템플릿에 좌표 필드가 없어 active로 전환할 수 없습니다.' })
+            return
+          }
+          const settingsOk = await assertContractFieldSettingsValidForActivate(client, row.id, Number(pid))
+          if (!settingsOk.ok) {
+            res.status(400).json({ ok: false, message: settingsOk.message ?? '필드 입력 방식 설정을 확인해 주세요.' })
+            return
+          }
         }
       }
       await client.query(`UPDATE contract_templates SET status = $2, updated_at = NOW() WHERE id = $1`, [

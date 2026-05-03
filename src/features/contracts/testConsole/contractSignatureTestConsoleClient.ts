@@ -308,8 +308,38 @@ export async function createContractTemplateFromPdfTemplate(
     body: JSON.stringify({
       title,
       pdfTemplateId: params.pdfTemplateId,
+      templateMode: 'coordinate_pdf',
       status: 'draft',
       description: '전자서명 관리에서 선택한 PDF 템플릿으로 생성됨',
+      ...tenantBody(params.tenantGaId, isSuper),
+    }),
+  })
+  const id = (body as { data?: { id?: string } })?.data?.id
+  if (!id || typeof id !== 'string') {
+    throw new ApiError('계약 템플릿 생성 응답에 id가 없습니다.', 500)
+  }
+  return id
+}
+
+/** 무좌표 전자확인서용 템플릿 초안 생성(PDF 없음). */
+export async function createConfirmationOnlyContractTemplate(
+  token: string,
+  role: string | undefined,
+  params: { title: string; description?: string | null; tenantGaId: number | null },
+): Promise<string> {
+  const isSuper = role === 'SUPER_ADMIN'
+  const title = String(params.title ?? '').trim()
+  if (!title) {
+    throw new ApiError('제목을 입력하세요.', 400)
+  }
+  const body = await apiRequest<{ data?: { id?: string } }>(`/api/admin/contracts/templates`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({
+      title,
+      templateMode: 'confirmation_only',
+      status: 'draft',
+      description: params.description ?? '무좌표 전자확인서 템플릿',
       ...tenantBody(params.tenantGaId, isSuper),
     }),
   })
