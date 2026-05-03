@@ -1,22 +1,232 @@
 import { FormButton } from '../../../../components/form'
 import { useAuth } from '../../../auth/AuthProvider'
-import { downloadStaffSignedPdfFile, type SendSessionDetail } from '../contractSignatureTestConsoleClient'
+import {
+  downloadStaffEvidencePdfFile,
+  downloadStaffSignedPdfFile,
+  type SendSessionDetail,
+} from '../contractSignatureTestConsoleClient'
+import {
+  formatStaffSessionDateParts,
+  staffDocumentStatusLabel,
+  staffSendSessionDisplayLabel,
+} from '../../userHistory/sendSessionStaffDisplay'
 
 type Props = {
   detail: SendSessionDetail | null
   loading: boolean
   onRefresh: () => void
+  layout?: 'desktop' | 'mobile'
 }
 
-export function EvidenceStatusPanel({ detail, loading, onRefresh }: Props) {
+function publicSignUrl(linkCode: string): string {
+  if (typeof window === 'undefined') {
+    return `/contracts/sign/${linkCode}`
+  }
+  return `${window.location.origin}/contracts/sign/${linkCode}`
+}
+
+export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desktop' }: Props) {
   const { token } = useAuth()
   const t = token?.trim() ?? ''
+  const isMobile = layout === 'mobile'
+
+  const sessionCompleted = detail != null && detail.status === 'completed'
 
   async function downloadSignedPdf(docId: string) {
     if (!detail || !t) {
       return
     }
-    await downloadStaffSignedPdfFile(t, detail.id, docId)
+    const r = await downloadStaffSignedPdfFile(t, detail.id, docId)
+    if (!r.ok) {
+      window.alert(r.message)
+    }
+  }
+
+  async function downloadEvidencePdf() {
+    if (!detail || !t) {
+      return
+    }
+    const r = await downloadStaffEvidencePdfFile(t, detail.id)
+    if (!r.ok) {
+      window.alert(r.message)
+    }
+  }
+
+  const copyLink = async (linkCode: string) => {
+    const url = publicSignUrl(linkCode)
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      window.prompt('링크를 복사하세요', url)
+    }
+  }
+
+  const openTab = (linkCode: string) => {
+    window.open(publicSignUrl(linkCode), '_blank', 'noopener,noreferrer')
+  }
+
+  if (isMobile) {
+    return (
+      <div>
+        {!detail ? (
+          <>
+            <p className="contract-signature-console__empty-state-text">
+              발송 세션을 만든 뒤 새로고침하면 문서 상태와 evidence가 표시됩니다.
+            </p>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              size="sm"
+              fullWidth
+              disabled={loading}
+              onClick={onRefresh}
+              className="contract-mobile-btn-primary-wide"
+            >
+              {loading ? '불러오는 중…' : '상태 새로고침'}
+            </FormButton>
+          </>
+        ) : (
+          <>
+            {(() => {
+              const docs = detail.documents ?? []
+              const done = docs.filter((d) => d.status === 'completed').length
+              const total = Math.max(docs.length, 1)
+              const evPrefix =
+                docs.map((d) => d.evidence?.evidenceHashPrefix).find((p) => p && String(p).trim() !== '') ?? null
+              const sentParts = formatStaffSessionDateParts(detail.sentAt ?? detail.createdAt)
+              const doneParts = formatStaffSessionDateParts(detail.completedAt)
+              const statusLabel = staffSendSessionDisplayLabel(detail.status)
+              const anyPdfReady = docs.some(
+                (d) => d.status === 'completed' && Boolean(d.evidence?.hasSignedPdfFile),
+              )
+              return (
+                <div className="contract-mobile-summary">
+                  <div className="contract-mobile-evidence-kv">
+                    <div>
+                      <dt>상태</dt>
+                      <dd>{statusLabel}</dd>
+                    </div>
+                    <div>
+                      <dt>진행</dt>
+                      <dd>
+                        {done}/{total} 완료
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>발송일</dt>
+                      <dd>
+                        {sentParts
+                          ? `${sentParts.date} ${sentParts.time}`
+                          : '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>완료일</dt>
+                      <dd>
+                        {doneParts ? `${doneParts.date} ${doneParts.time}` : '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>증빙</dt>
+                      <dd>{evPrefix && String(evPrefix).trim() !== '' ? String(evPrefix).trim() : '—'}</dd>
+                    </div>
+                    <div>
+                      <dt>최종 PDF</dt>
+                      <dd>{anyPdfReady ? '다운로드 가능' : '준비 중 또는 없음'}</dd>
+                    </div>
+                    <div>
+                      <dt>증빙 PDF</dt>
+                      <dd>{sessionCompleted ? '다운로드 가능' : '세션 완료 후'}</dd>
+                    </div>
+                  </div>
+                  <div className="contract-mobile-action-grid">
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void copyLink(detail.linkCode)}
+                    >
+                      링크 복사
+                    </FormButton>
+                    <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => openTab(detail.linkCode)}>
+                      링크 열기
+                    </FormButton>
+                  </div>
+                  {docs.map((d) => {
+                    const ev = d.evidence
+                    const canDl = d.status === 'completed' && Boolean(ev?.hasSignedPdfFile)
+                    return (
+                      <div key={d.id} className="contract-mobile-doc-card">
+                        <div className="contract-mobile-doc-card__title">{d.titleSnapshot}</div>
+                        <div className="contract-signature-console__hint">문서 상태: {staffDocumentStatusLabel(d.status)}</div>
+                        <div className="contract-signature-console__hint" style={{ marginTop: 4 }}>
+                          evidence: {ev?.evidenceHashPrefix ?? '—'}
+                        </div>
+                        <div className="contract-session-pdf-dl-stack" style={{ marginTop: 8 }}>
+                          <FormButton
+                            htmlType="button"
+                            variant="secondary"
+                            size="sm"
+                            fullWidth
+                            className="contract-mobile-btn-primary-wide contract-session-pdf-dl-btn"
+                            disabled={!canDl}
+                            onClick={() => void downloadSignedPdf(d.id)}
+                          >
+                            완료 계약서 다운로드
+                          </FormButton>
+                          <FormButton
+                            htmlType="button"
+                            variant="secondary"
+                            size="sm"
+                            fullWidth
+                            className="contract-mobile-btn-primary-wide contract-session-pdf-dl-btn"
+                            disabled={!sessionCompleted || !t}
+                            onClick={() => void downloadEvidencePdf()}
+                          >
+                            증빙 PDF 다운로드
+                          </FormButton>
+                        </div>
+                        {!sessionCompleted ? (
+                          <p className="contract-signature-console__hint" style={{ marginTop: 8 }}>
+                            고객이 문서를 완료하면 증빙 PDF를 다운로드할 수 있습니다.
+                          </p>
+                        ) : null}
+                        {d.status === 'completed' && !canDl ? (
+                          <p className="contract-signature-console__hint" style={{ marginTop: 8 }}>
+                            완료 계약서 PDF 준비 중
+                          </p>
+                        ) : null}
+                      </div>
+                    )
+                  })}
+                  <div className="contract-mobile-action-grid contract-mobile-action-grid--stack">
+                    <FormButton htmlType="button" variant="secondary" size="sm" disabled={loading} onClick={onRefresh}>
+                      {loading ? '불러오는 중…' : '상태 새로고침'}
+                    </FormButton>
+                  </div>
+                </div>
+              )
+            })()}
+            <details style={{ marginTop: 14 }}>
+              <summary className="contract-signature-console__hint" style={{ cursor: 'pointer' }}>
+                테스트 절차 안내
+              </summary>
+              <ol className="contract-signature-console__ordered-list" style={{ marginTop: 8 }}>
+                <li>고객 공개 링크를 새 탭으로 엽니다.</li>
+                <li>마스킹된 번호가 맞는지 확인합니다.</li>
+                <li>인증번호 받기를 누릅니다.</li>
+                <li>개발 환경에서는 mock OTP 로그를 확인합니다.</li>
+                <li>인증번호를 입력합니다.</li>
+                <li>문서 상세에서 값을 입력합니다.</li>
+                <li>손사인을 저장합니다.</li>
+                <li>문서 완료를 진행합니다.</li>
+                <li>이 화면에서 상태 새로고침 후 evidenceHash(prefix)를 확인합니다.</li>
+              </ol>
+            </details>
+          </>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -74,14 +284,16 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh }: Props) {
                   <th>identityLevel</th>
                   <th>otpVerifiedAt</th>
                   <th>signedAt</th>
-                  <th>최종 PDF</th>
+                  <th>완료 계약서</th>
+                  <th>증빙 PDF</th>
                 </tr>
               </thead>
               <tbody>
-                {detail.documents.map((d) => {
+                {detail.documents.map((d, idx) => {
                   const ev = d.evidence
                   const hashShow = ev?.evidenceHash ?? '—'
                   const canDl = Boolean(ev?.hasSignedPdfFile)
+                  const n = detail.documents.length
                   return (
                     <tr key={d.id}>
                       <td>
@@ -108,6 +320,25 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh }: Props) {
                           <span className="contract-signature-console__hint">—</span>
                         )}
                       </td>
+                      {idx === 0 ? (
+                        <td rowSpan={Math.max(n, 1)}>
+                          {sessionCompleted && t ? (
+                            <FormButton
+                              htmlType="button"
+                              variant="secondary"
+                              size="sm"
+                              className="contract-session-pdf-dl-btn"
+                              onClick={() => void downloadEvidencePdf()}
+                            >
+                              다운로드
+                            </FormButton>
+                          ) : (
+                            <span className="contract-signature-console__hint">
+                              고객이 문서를 완료하면 다운로드할 수 있습니다.
+                            </span>
+                          )}
+                        </td>
+                      ) : null}
                     </tr>
                   )
                 })}

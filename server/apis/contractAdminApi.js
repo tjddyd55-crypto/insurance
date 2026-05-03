@@ -829,22 +829,14 @@ export function registerContractAdminApi(apiRouter, ctx) {
         return
       }
       const row = acc.row
-      if (String(row.status ?? '') !== 'draft') {
-        res.status(400).json({
-          ok: false,
-          message:
-            '삭제는 초안(draft)만 가능합니다. 발송·사용 이력이 있는 템플릿은 사용 중지(archived)로 전환하세요.',
-        })
-        return
-      }
       const cntR = await client.query(
         `SELECT COUNT(*)::int AS c FROM contract_document_instances WHERE template_id = $1`,
         [row.id],
       )
       if (Number(cntR.rows[0]?.c ?? 0) > 0) {
-        res.status(400).json({
+        res.status(409).json({
           ok: false,
-          message: '발송 이력이 있는 템플릿은 삭제할 수 없습니다. 사용 중지(archived)로 전환하세요.',
+          message: '이미 발송 이력이 있어 삭제할 수 없습니다. 사용중지로 변경하세요.',
         })
         return
       }

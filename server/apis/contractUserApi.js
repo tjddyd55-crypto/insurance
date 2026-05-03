@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { consentGetBuffer } from '../lib/consentStorage.js'
+import path from 'node:path'
+import { consentGetBuffer, consentPutObject } from '../lib/consentStorage.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { normalizeKrMobile, validateKrMobileDigits } from '../lib/phoneNormalize.js'
 import { maskKrMobileForDisplay } from '../utils/maskKrMobile.js'
@@ -24,6 +25,16 @@ import {
   listConfirmationItemsWithValues,
   parseConfirmationItemsFromBody,
 } from '../services/contractConfirmationItems.js'
+import {
+  buildSendSessionEvidencePdf,
+  encodeContractEvidenceContentDispositionFilename,
+} from '../services/contractEvidencePdfService.js'
+import {
+  parseAttachmentsFromBody,
+  insertSendSessionAttachmentsForSend,
+  listSendSessionAttachmentsPublic,
+} from '../services/contractSendAttachments.js'
+import multer from 'multer'
 
 const CSS_PREFIX = 'css_'
 const CDI_PREFIX = 'cdi_'
@@ -31,6 +42,25 @@ const CDI_PREFIX = 'cdi_'
 function newId(prefix) {
   return `${prefix}${randomUUID()}`
 }
+
+function safeContractAttachmentBaseName(name) {
+  const b = path.basename(String(name ?? 'file')).replace(/[\\/]/g, '')
+  const cleaned = b.replace(/[^\w.\-가-힣 ()[\]]+/g, '_').trim()
+  return cleaned.slice(0, 180) || 'file'
+}
+
+const uploadContractAttachment = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+})
+
+const CONTRACT_ATTACHMENT_UPLOAD_MIMES = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+])
 
 function escapeIlikePattern(raw) {
   return String(raw ?? '').replace(/[\\%_]/g, (ch) => `\\${ch}`)
@@ -127,6 +157,14 @@ function mapSendSessionCreateError(err) {
       message: '발송 링크 코드 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.',
     }
   }
+  const attachCode = /** @type {{ code?: string }} */ (err)?.code
+  if (attachCode === 'attachment_file_invalid' || attachCode === 'attachment_file_unreadable') {
+    return {
+      status: 400,
+      code: attachCode,
+      message: msg,
+    }
+  }
   return null
 }
 
@@ -212,6 +250,11 @@ function mapSendSessionDetailRow(row, docs, evidenceByDoc) {
       }
     }),
   }
+}
+
+function safeContractDownloadSegment(s) {
+  const t = String(s ?? '').trim()
+  return (t ? t.replace(/[/\\?%*:|"<>]/g, '_').slice(0, 72) : '문서') || '문서'
 }
 
 /**
@@ -560,6 +603,13 @@ export function registerContractUserApi(apiRouter, ctx) {
         return
       }
 
+      const attRaw = req.body?.attachments ?? req.body?.sessionAttachments ?? req.body?.session_attachments
+      const attParsed = parseAttachmentsFromBody(attRaw)
+      if (!attParsed.ok) {
+        res.status(400).json({ ok: false, message: attParsed.message })
+        return
+      }
+
       const contractTemplatesOrdered = /** @type {{ id: string, title: string, version: number, required: number, pdfHash: string | null, pdfTemplateId: number | null }[]} */ ([])
 
       await client.query('BEGIN')
@@ -669,6 +719,15 @@ export function registerContractUserApi(apiRouter, ctx) {
         }
       }
 
+      if (attParsed.items.length > 0) {
+        if (!uid) {
+          await client.query('ROLLBACK')
+          res.status(401).json({ ok: false, message: '로그인이 필요합니다.' })
+          return
+        }
+        await insertSendSessionAttachmentsForSend(client, sendId, customerId, uid, userGa, attParsed.items)
+      }
+
       await client.query('COMMIT')
       res.status(201).json({
         ok: true,
@@ -718,6 +777,108 @@ export function registerContractUserApi(apiRouter, ctx) {
       client.release()
     }
   })
+
+  apiRouter.post(
+    '/contracts/send-sessions/attachment-upload',
+    ...chain,
+    (req, res, next) => {
+      uploadContractAttachment.single('file')(req, res, (err) => {
+        if (err) {
+          const code = /** @type {{ code?: string }} */ (err)?.code
+          if (code === 'LIMIT_FILE_SIZE') {
+            res.status(413).json({ ok: false, message: '첨부 파일이 너무 큽니다. (최대 20MB)' })
+            return
+          }
+          res.status(400).json({ ok: false, message: '파일 업로드 처리 중 오류가 발생했습니다.' })
+          return
+        }
+        next()
+      })
+    },
+    async (req, res) => {
+      try {
+        const userGa = parseGaId(req.user?.gaId)
+        const uid = getAuthUserId(req)
+        if (!uid) {
+          res.status(401).json({ ok: false, message: '로그인이 필요합니다.' })
+          return
+        }
+        if (userGa == null) {
+          res.status(400).json({ ok: false, message: 'GA 컨텍스트가 없습니다.' })
+          return
+        }
+        const f = req.file
+        if (!f || !f.buffer || f.buffer.length === 0) {
+          res.status(400).json({ ok: false, message: '업로드할 파일이 없습니다.' })
+          return
+        }
+        const customerId = Number(req.body?.customerId ?? req.body?.customer_id)
+        if (!Number.isInteger(customerId) || customerId < 1) {
+          res.status(400).json({ ok: false, message: 'customerId가 올바르지 않습니다.' })
+          return
+        }
+        const cust = await assertCustomerForUserSend(pool, customerId, req)
+        if (cust.error) {
+          res.status(cust.status ?? 400).json({ ok: false, message: cust.error })
+          return
+        }
+        const mime = String(f.mimetype || '')
+          .toLowerCase()
+          .split(';')[0]
+          .trim()
+        if (!CONTRACT_ATTACHMENT_UPLOAD_MIMES.has(mime)) {
+          res.status(400).json({
+            ok: false,
+            message:
+              '허용되지 않는 파일 형식입니다. PDF 또는 이미지(jpeg, png, gif, webp)만 올릴 수 있습니다.',
+          })
+          return
+        }
+        const displayBase = safeContractAttachmentBaseName(f.originalname || 'attachment')
+        const storageKey = `contracts/send-attachments/${uid}/${randomUUID()}/${displayBase}`
+        try {
+          await consentPutObject(storageKey, f.buffer, mime)
+        } catch {
+          res.status(503).json({ ok: false, message: '파일을 저장소에 올리지 못했습니다.' })
+          return
+        }
+        const contentHash = createHash('sha256').update(f.buffer).digest('hex')
+        const ins = await pool.query(
+          `
+          INSERT INTO files (
+            user_id,
+            ga_id,
+            customer_id,
+            team_id,
+            folder_id,
+            original_name,
+            display_name,
+            file_path,
+            file_size,
+            mime_type,
+            content,
+            is_confirmed,
+            status
+          )
+          VALUES ($1, $2, $3, NULL, NULL, $4, $4, $5, $6, $7, '', true, 'active')
+          RETURNING id
+          `,
+          [String(uid), userGa, customerId, displayBase, storageKey, f.buffer.length, mime],
+        )
+        const fileId = String(ins.rows[0].id)
+        res.status(201).json({
+          ok: true,
+          fileId,
+          contentHash,
+          displayFilename: displayBase,
+          mimeType: mime,
+          sizeBytes: f.buffer.length,
+        })
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    },
+  )
 
   apiRouter.get('/contracts/send-sessions', ...chain, async (req, res) => {
     try {
@@ -1044,11 +1205,13 @@ export function registerContractUserApi(apiRouter, ctx) {
         }
       }
       const confirmationItems = await listConfirmationItemsWithValues(pool, row.id)
+      const sendSessionAttachments = await listSendSessionAttachmentsPublic(pool, row.id)
       res.json({
         ok: true,
         sendSession: {
           ...mapSendSessionDetailRow(row, docs, evidenceByDoc),
           confirmationItems,
+          sendSessionAttachments,
         },
       })
     } catch (e) {
@@ -1092,9 +1255,15 @@ export function registerContractUserApi(apiRouter, ctx) {
         }
         const d = await pool.query(
           `
-          SELECT status, signed_pdf_file_id
-          FROM contract_document_instances
-          WHERE id = $1 AND send_session_id = $2
+          SELECT
+            cdi.status,
+            cdi.signed_pdf_file_id,
+            cdi.title_snapshot,
+            c.name AS customer_name
+          FROM contract_document_instances cdi
+          INNER JOIN contract_send_sessions s2 ON s2.id = cdi.send_session_id
+          INNER JOIN customers c ON c.id = s2.customer_id
+          WHERE cdi.id = $1 AND cdi.send_session_id = $2
           LIMIT 1
           `,
           [docId, sid],
@@ -1129,7 +1298,11 @@ export function registerContractUserApi(apiRouter, ctx) {
           res.status(404).json({ ok: false, message: '파일을 찾을 수 없습니다.' })
           return
         }
+        const titleSnap = String(d.rows[0].title_snapshot ?? '').trim()
+        const custNm = String(d.rows[0].customer_name ?? '').trim()
+        const dlName = `${safeContractDownloadSegment(titleSnap)}_${safeContractDownloadSegment(custNm)}_완료계약서.pdf`
         res.setHeader('Content-Type', 'application/pdf')
+        res.setHeader('Content-Disposition', encodeContractEvidenceContentDispositionFilename(dlName))
         res.setHeader('Cache-Control', 'private, no-store')
         res.status(200).send(Buffer.from(buf))
       } catch (e) {
@@ -1137,4 +1310,58 @@ export function registerContractUserApi(apiRouter, ctx) {
       }
     },
   )
+
+  apiRouter.get('/contracts/send-sessions/:sendSessionId/evidence.pdf', ...chain, async (req, res) => {
+    try {
+      const userGa = parseGaId(req.user?.gaId)
+      const uid = getAuthUserId(req)
+      if (!uid) {
+        res.status(401).json({ ok: false, message: '로그인이 필요합니다.' })
+        return
+      }
+      if (userGa == null) {
+        res.status(400).json({ ok: false, message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
+      const sid = String(req.params.sendSessionId ?? '').trim()
+      const own = await pool.query(
+        `
+        SELECT s.id
+        FROM contract_send_sessions s
+        JOIN customers c ON c.id = s.customer_id
+        WHERE s.id = $1
+          AND s.sent_by_user_id = $2
+          AND c.user_id = $2
+          AND c.ga_id = $3
+        LIMIT 1
+        `,
+        [sid, uid, userGa],
+      )
+      if (own.rowCount === 0) {
+        res.status(404).json({ ok: false, message: '발송 세션을 찾을 수 없습니다.' })
+        return
+      }
+      const { buffer, downloadFilename } = await buildSendSessionEvidencePdf({ pool, sendSessionId: sid })
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', encodeContractEvidenceContentDispositionFilename(downloadFilename))
+      res.setHeader('Cache-Control', 'private, no-store')
+      res.status(200).send(buffer)
+    } catch (e) {
+      const code =
+        e && typeof e === 'object' && 'statusCode' in e ? Number(/** @type {{ statusCode?: unknown }} */ (e).statusCode) : NaN
+      if (code === 403) {
+        res.status(403).json({ ok: false, message: e instanceof Error ? e.message : '완료된 문서만 다운로드할 수 있습니다.' })
+        return
+      }
+      if (code === 404) {
+        res.status(404).json({ ok: false, message: e instanceof Error ? e.message : '발송 세션을 찾을 수 없습니다.' })
+        return
+      }
+      if (code === 400) {
+        res.status(400).json({ ok: false, message: e instanceof Error ? e.message : '요청이 올바르지 않습니다.' })
+        return
+      }
+      handleDbError(e, req, res)
+    }
+  })
 }

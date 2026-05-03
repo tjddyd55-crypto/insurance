@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useConfirmDialog } from '../../../../components/dialog'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../../components/form'
+import { useMediaQuery } from '../../../../hooks/useMediaQuery'
 import { ApiError } from '../../../../lib/apiClient'
 import type { ContractTemplateDetail, ContractTemplateListItem } from '../contractSignatureTestConsoleClient'
 import {
@@ -43,6 +44,28 @@ type Props = {
 
 type ModalKind = 'detail' | 'edit' | 'status' | null
 
+const MSG_DELETE_BLOCKED_HISTORY = '이미 발송 이력이 있어 삭제할 수 없습니다. 사용중지로 변경하세요.'
+const MSG_DELETE_BLOCKED_PACKAGE =
+  '패키지에 포함된 템플릿은 삭제할 수 없습니다. 패키지에서 제거한 뒤 다시 시도하세요.'
+
+function templateDeleteEligibility(trow: ContractTemplateListItem): { canDelete: boolean; blockReason: string | null } {
+  if (trow.documentInstanceCount >= 1) {
+    return { canDelete: false, blockReason: MSG_DELETE_BLOCKED_HISTORY }
+  }
+  if (trow.packageItemCount >= 1) {
+    return { canDelete: false, blockReason: MSG_DELETE_BLOCKED_PACKAGE }
+  }
+  return { canDelete: true, blockReason: null }
+}
+
+function formatTemplateIdShort(id: string): string {
+  const s = String(id ?? '')
+  if (s.length <= 16) {
+    return s
+  }
+  return `${s.slice(0, 12)}…`
+}
+
 function statusLabelShort(status: string): string {
   switch (status) {
     case 'draft':
@@ -67,6 +90,10 @@ function statusDescription(status: string): string {
     default:
       return ''
   }
+}
+
+function statusLineForCard(status: string): string {
+  return `${statusLabelShort(status)} · ${statusDescription(status)}`
 }
 
 function formatUpdatedAt(iso: string | undefined): string {
@@ -121,6 +148,7 @@ export function ContractTemplatePanel({
   onClearPdfFilter,
 }: Props) {
   const { confirm, confirmDialog } = useConfirmDialog()
+  const isAdminMobile = useMediaQuery('(max-width: 768px)')
   const [modal, setModal] = useState<{ kind: ModalKind; templateId: string } | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detail, setDetail] = useState<ContractTemplateDetail | null>(null)
@@ -267,7 +295,13 @@ export function ContractTemplatePanel({
         </FormButton>
       </div>
 
-      <ul className="contract-signature-console__hint" style={{ margin: '0 0 10px', paddingLeft: 18, fontSize: 12 }}>
+      <ul
+        className={
+          'contract-signature-console__hint' +
+          (isAdminMobile ? ' contract-signature-console__template-legend' : '')
+        }
+        style={isAdminMobile ? { margin: '0 0 10px', fontSize: 12 } : { margin: '0 0 10px', paddingLeft: 18, fontSize: 12 }}
+      >
         <li>
           <strong>draft</strong>: 아직 발송 불가
         </li>
@@ -279,169 +313,345 @@ export function ContractTemplatePanel({
         </li>
       </ul>
 
-      <div className="contract-signature-console__template-table-wrap">
-        <table className="contract-signature-console__template-table pdf-engine-table">
-          <colgroup>
-            <col className="contract-signature-console__col-title" />
-            <col className="contract-signature-console__col-status" />
-            <col className="contract-signature-console__col-pdf" />
-            <col className="contract-signature-console__col-id" />
-            <col className="contract-signature-console__col-date" />
-            <col className="contract-signature-console__col-actions" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th scope="col">제목</th>
-              <th scope="col">상태</th>
-              <th scope="col">연결 PDF</th>
-              <th scope="col">계약 템플릿 ID</th>
-              <th scope="col">수정일</th>
-              <th scope="col">동작</th>
-            </tr>
-          </thead>
-          <tbody>
-            {templates.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="contract-signature-console__empty-state-text" style={{ padding: '1rem' }}>
-                  표시할 전자서명 템플릿이 없습니다. 1번에서 PDF를 선택한 뒤 &ldquo;선택한 PDF로 템플릿 만들기&rdquo;를 눌러 초안을
-                  추가할 수 있습니다.
-                </td>
-              </tr>
-            ) : (
-              templates.map((trow) => {
-                const pid = trow.pdfTemplateId
-                const sigN = pid != null ? (pdfSignatureCountByPdfId.get(pid) ?? 0) : 0
-                const noSig = pid != null && sigN < 1
-                const canHardDelete =
-                  trow.status === 'draft' &&
-                  trow.documentInstanceCount < 1 &&
-                  trow.packageItemCount < 1
-                const deleteDisabledTitle = (() => {
-                  if (canHardDelete) {
-                    return '템플릿 삭제 (초안만 가능)'
-                  }
-                  if (trow.status === 'active') {
-                    return 'active 템플릿은 삭제할 수 없습니다. 상태변경으로 사용 중지(archived)하세요.'
-                  }
-                  if (trow.status === 'archived') {
-                    return '삭제는 초안(draft)만 가능합니다. 사용 중지된 템플릿은 목록에 보관됩니다.'
-                  }
-                  if (trow.documentInstanceCount >= 1) {
-                    return '발송·문서 이력이 있어 삭제할 수 없습니다. 사용 중지를 이용하세요.'
-                  }
-                  if (trow.packageItemCount >= 1) {
-                    return '패키지에 포함된 템플릿은 삭제할 수 없습니다.'
-                  }
-                  return '삭제할 수 없습니다.'
-                })()
-                return (
-                  <tr key={trow.id} className="contract-signature-console__template-row">
-                    <td>{trow.title}</td>
-                    <td>
-                      <span className="contract-signature-console__status-badge" title={statusDescription(trow.status)}>
-                        {statusLabelShort(trow.status)}
-                      </span>
-                      <div className="contract-signature-console__hint--flush" style={{ marginTop: 4 }}>
-                        {statusDescription(trow.status)}
-                      </div>
-                    </td>
-                    <td>
+      {isAdminMobile ? (
+        <div className="contract-signature-console__template-cards">
+          {templates.length === 0 ? (
+            <p className="contract-signature-console__empty-state-text" style={{ padding: '0.75rem 0' }}>
+              표시할 전자서명 템플릿이 없습니다. 1번에서 PDF를 선택한 뒤 &ldquo;선택한 PDF로 템플릿 만들기&rdquo;를 눌러 초안을
+              추가할 수 있습니다.
+            </p>
+          ) : (
+            templates.map((trow) => {
+              const pid = trow.pdfTemplateId
+              const sigN = pid != null ? (pdfSignatureCountByPdfId.get(pid) ?? 0) : 0
+              const noSig = pid != null && sigN < 1
+              const { canDelete, blockReason } = templateDeleteEligibility(trow)
+              const deleteTitle = canDelete ? '템플릿 영구 삭제' : (blockReason ?? '삭제할 수 없습니다.')
+              return (
+                <article key={trow.id} className="contract-signature-console__template-card">
+                  <h3 className="contract-signature-console__template-card-title">{trow.title}</h3>
+                  <div className="contract-signature-console__template-card-meta">
+                    <span className="contract-signature-console__template-card-label">상태</span>
+                    <span className="contract-signature-console__status-badge" title={statusDescription(trow.status)}>
+                      {statusLineForCard(trow.status)}
+                    </span>
+                  </div>
+                  <div className="contract-signature-console__template-card-meta">
+                    <span className="contract-signature-console__template-card-label">PDF</span>
+                    <span className="contract-signature-console__template-card-value">
                       {pid == null ? (
                         <span className="contract-signature-console__muted">—</span>
                       ) : (
                         <>
-                          <span>{trow.pdfEngineTitle ?? `PDF #${pid}`}</span>
+                          {trow.pdfEngineTitle ?? `PDF #${pid}`}
                           {noSig ? (
-                            <div className="contract-signature-console__hint--warning" style={{ marginTop: 4 }}>
-                              signature 필드 없음
+                            <div className="contract-signature-console__hint--warning" style={{ marginTop: 6 }}>
+                              서명(signature) 필드 없음 — 발송 단계에서 제한될 수 있습니다.
                             </div>
                           ) : null}
                         </>
                       )}
-                    </td>
-                    <td>
-                      <code style={{ fontSize: 11 }}>{trow.id}</code>
-                    </td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{formatUpdatedAt(trow.updatedAt)}</td>
-                    <td>
-                      <div className="contract-signature-console__template-actions">
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => setModal({ kind: 'detail', templateId: trow.id })}
-                        >
-                          상세
-                        </FormButton>
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => openEdit(trow)}
-                        >
-                          수정
-                        </FormButton>
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() => openStatus(trow)}
-                        >
-                          상태변경
-                        </FormButton>
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={busy}
-                          onClick={() =>
-                            void runOp(async () => {
-                              await duplicateContractTemplate(token, role, trow.id, tenantGaId)
+                    </span>
+                  </div>
+                  <div className="contract-signature-console__template-card-meta">
+                    <span className="contract-signature-console__template-card-label">ID</span>
+                    <code className="contract-signature-console__template-card-code">{formatTemplateIdShort(trow.id)}</code>
+                  </div>
+                  <div className="contract-signature-console__template-card-meta">
+                    <span className="contract-signature-console__template-card-label">수정일</span>
+                    <span>{formatUpdatedAt(trow.updatedAt)}</span>
+                  </div>
+                  <div className="contract-signature-console__template-card-actions">
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      size="sm"
+                      className="contract-signature-console__template-card-btn"
+                      disabled={busy}
+                      onClick={() => setModal({ kind: 'detail', templateId: trow.id })}
+                    >
+                      상세
+                    </FormButton>
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      size="sm"
+                      className="contract-signature-console__template-card-btn"
+                      disabled={busy}
+                      onClick={() => openEdit(trow)}
+                    >
+                      수정
+                    </FormButton>
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      size="sm"
+                      className="contract-signature-console__template-card-btn"
+                      disabled={busy}
+                      onClick={() => openStatus(trow)}
+                    >
+                      상태변경
+                    </FormButton>
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      size="sm"
+                      className="contract-signature-console__template-card-btn"
+                      disabled={busy}
+                      onClick={() =>
+                        void runOp(async () => {
+                          await duplicateContractTemplate(token, role, trow.id, tenantGaId)
+                        })
+                      }
+                    >
+                      복제
+                    </FormButton>
+                    {trow.status !== 'archived' ? (
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        size="sm"
+                        className="contract-signature-console__template-card-btn contract-signature-console__template-card-btn--span2"
+                        disabled={busy}
+                        onClick={() =>
+                          void (async () => {
+                            const ok = await confirm({
+                              message: '이 템플릿을 사용중지(archived)로 변경할까요?',
+                              confirmLabel: '사용중지',
+                              cancelLabel: '취소',
                             })
+                            if (!ok) {
+                              return
+                            }
+                            await runOp(async () => {
+                              await setContractTemplateStatus(token, role, trow.id, 'archived', tenantGaId)
+                            })
+                          })()
+                        }
+                      >
+                        사용중지
+                      </FormButton>
+                    ) : null}
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      size="sm"
+                      className="contract-signature-console__template-card-btn contract-signature-console__template-card-btn--span2"
+                      disabled={busy || !canDelete}
+                      title={deleteTitle}
+                      aria-describedby={!canDelete && blockReason ? `tpl-del-hint-${trow.id}` : undefined}
+                      onClick={() =>
+                        void (async () => {
+                          if (!canDelete) {
+                            return
                           }
-                        >
-                          복제
-                        </FormButton>
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={busy || !canHardDelete}
-                          title={deleteDisabledTitle}
-                          onClick={() =>
-                            void (async () => {
-                              if (!canHardDelete) {
-                                return
-                              }
-                              const ok = await confirm({
-                                message: '이 초안 템플릿을 삭제할까요? 이 작업은 되돌릴 수 없습니다.',
-                                confirmLabel: '삭제',
-                                cancelLabel: '취소',
-                                tone: 'danger',
-                              })
-                              if (!ok) {
-                                return
-                              }
-                              await runOp(async () => {
-                                await deleteContractTemplate(token, role, trow.id, tenantGaId)
-                              })
-                            })()
+                          const ok = await confirm({
+                            message:
+                              '이 전자서명 템플릿을 삭제하시겠습니까? 발송 이력이 없는 템플릿만 삭제할 수 있습니다.',
+                            confirmLabel: '삭제',
+                            cancelLabel: '취소',
+                            tone: 'danger',
+                          })
+                          if (!ok) {
+                            return
                           }
-                        >
-                          삭제
-                        </FormButton>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                          await runOp(async () => {
+                            await deleteContractTemplate(token, role, trow.id, tenantGaId)
+                          })
+                        })()
+                      }
+                    >
+                      삭제
+                    </FormButton>
+                  </div>
+                  {!canDelete && blockReason ? (
+                    <p id={`tpl-del-hint-${trow.id}`} className="contract-signature-console__template-card-delete-hint">
+                      {blockReason}
+                    </p>
+                  ) : null}
+                </article>
+              )
+            })
+          )}
+        </div>
+      ) : (
+        <div className="contract-signature-console__template-table-wrap">
+          <table className="contract-signature-console__template-table pdf-engine-table">
+            <colgroup>
+              <col className="contract-signature-console__col-title" />
+              <col className="contract-signature-console__col-status" />
+              <col className="contract-signature-console__col-pdf" />
+              <col className="contract-signature-console__col-id" />
+              <col className="contract-signature-console__col-date" />
+              <col className="contract-signature-console__col-actions" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col">제목</th>
+                <th scope="col">상태</th>
+                <th scope="col">연결 PDF</th>
+                <th scope="col">계약 템플릿 ID</th>
+                <th scope="col">수정일</th>
+                <th scope="col">동작</th>
+              </tr>
+            </thead>
+            <tbody>
+              {templates.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="contract-signature-console__empty-state-text" style={{ padding: '1rem' }}>
+                    표시할 전자서명 템플릿이 없습니다. 1번에서 PDF를 선택한 뒤 &ldquo;선택한 PDF로 템플릿 만들기&rdquo;를 눌러 초안을
+                    추가할 수 있습니다.
+                  </td>
+                </tr>
+              ) : (
+                templates.map((trow) => {
+                  const pid = trow.pdfTemplateId
+                  const sigN = pid != null ? (pdfSignatureCountByPdfId.get(pid) ?? 0) : 0
+                  const noSig = pid != null && sigN < 1
+                  const { canDelete, blockReason } = templateDeleteEligibility(trow)
+                  const deleteTitle = canDelete ? '템플릿 영구 삭제' : (blockReason ?? '삭제할 수 없습니다.')
+                  return (
+                    <tr key={trow.id} className="contract-signature-console__template-row">
+                      <td>{trow.title}</td>
+                      <td>
+                        <span className="contract-signature-console__status-badge" title={statusDescription(trow.status)}>
+                          {statusLabelShort(trow.status)}
+                        </span>
+                        <div className="contract-signature-console__hint--flush" style={{ marginTop: 4 }}>
+                          {statusDescription(trow.status)}
+                        </div>
+                      </td>
+                      <td>
+                        {pid == null ? (
+                          <span className="contract-signature-console__muted">—</span>
+                        ) : (
+                          <>
+                            <span>{trow.pdfEngineTitle ?? `PDF #${pid}`}</span>
+                            {noSig ? (
+                              <div className="contract-signature-console__hint--warning" style={{ marginTop: 4 }}>
+                                signature 필드 없음
+                              </div>
+                            ) : null}
+                          </>
+                        )}
+                      </td>
+                      <td>
+                        <code style={{ fontSize: 11 }}>{trow.id}</code>
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{formatUpdatedAt(trow.updatedAt)}</td>
+                      <td>
+                        <div className="contract-signature-console__template-actions">
+                          <FormButton
+                            htmlType="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => setModal({ kind: 'detail', templateId: trow.id })}
+                          >
+                            상세
+                          </FormButton>
+                          <FormButton
+                            htmlType="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => openEdit(trow)}
+                          >
+                            수정
+                          </FormButton>
+                          <FormButton
+                            htmlType="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() => openStatus(trow)}
+                          >
+                            상태변경
+                          </FormButton>
+                          <FormButton
+                            htmlType="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={busy}
+                            onClick={() =>
+                              void runOp(async () => {
+                                await duplicateContractTemplate(token, role, trow.id, tenantGaId)
+                              })
+                            }
+                          >
+                            복제
+                          </FormButton>
+                          {trow.status !== 'archived' ? (
+                            <FormButton
+                              htmlType="button"
+                              variant="secondary"
+                              size="sm"
+                              disabled={busy}
+                              title="보관(archived)로 전환하면 발송 목록에서 쓰지 않을 수 있습니다."
+                              onClick={() =>
+                                void (async () => {
+                                  const ok = await confirm({
+                                    message: '이 템플릿을 사용중지(archived)로 변경할까요?',
+                                    confirmLabel: '사용중지',
+                                    cancelLabel: '취소',
+                                  })
+                                  if (!ok) {
+                                    return
+                                  }
+                                  await runOp(async () => {
+                                    await setContractTemplateStatus(token, role, trow.id, 'archived', tenantGaId)
+                                  })
+                                })()
+                              }
+                            >
+                              사용중지
+                            </FormButton>
+                          ) : null}
+                          <FormButton
+                            htmlType="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={busy || !canDelete}
+                            title={deleteTitle}
+                            aria-describedby={!canDelete && blockReason ? `tpl-del-dt-${trow.id}` : undefined}
+                            onClick={() =>
+                              void (async () => {
+                                if (!canDelete) {
+                                  return
+                                }
+                                const ok = await confirm({
+                                  message:
+                                    '이 전자서명 템플릿을 삭제하시겠습니까? 발송 이력이 없는 템플릿만 삭제할 수 있습니다.',
+                                  confirmLabel: '삭제',
+                                  cancelLabel: '취소',
+                                  tone: 'danger',
+                                })
+                                if (!ok) {
+                                  return
+                                }
+                                await runOp(async () => {
+                                  await deleteContractTemplate(token, role, trow.id, tenantGaId)
+                                })
+                              })()
+                            }
+                          >
+                            삭제
+                          </FormButton>
+                        </div>
+                        {!canDelete && blockReason ? (
+                          <p id={`tpl-del-dt-${trow.id}`} className="contract-signature-console__inline-warning" style={{ marginTop: 8 }}>
+                            {blockReason}
+                          </p>
+                        ) : null}
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {modal?.kind === 'detail' ? (
         <div

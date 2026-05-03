@@ -154,6 +154,41 @@ export type ContractDocumentDetailPayload = {
     checked: boolean
     checkedAt: string | null
   }[]
+  /** 발송 시 첨부한 참고 문서(고객 모달에서 확인) */
+  sendSessionAttachments?: ContractSendSessionAttachmentPublic[]
+}
+
+export type ContractSendSessionAttachmentPublic = {
+  id: string
+  displayFilename: string
+  mimeType: string | null
+  sizeBytes: number | null
+  fileHash: string
+  required: boolean
+  sortOrder: number
+  viewed: boolean
+  viewedAt: string | null
+  confirmed: boolean
+  confirmedAt: string | null
+}
+
+export function resolveContractAttachmentViewAbsUrl(linkCode: string, attachmentId: string): string {
+  return resolveApiUrl(`/api/contracts/public/${lc(linkCode)}/attachments/${lc(attachmentId)}/view`)
+}
+
+export async function postContractPublicAttachmentConfirm(
+  linkCode: string,
+  attachmentId: string,
+): Promise<{
+  attachmentId: string
+  viewed: boolean
+  confirmed: boolean
+  confirmedAt: string | null
+}> {
+  return publicRequest(`/api/contracts/public/${lc(linkCode)}/attachments/${lc(attachmentId)}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  })
 }
 
 export async function fetchContractPublicDocumentDetail(
@@ -275,6 +310,7 @@ const PUBLIC_ACTION_CODE_MESSAGES: Record<string, string> = {
   final_submit_ack_required: '최종 전송 확인에 동의해 주세요.',
   required_confirmations_missing: '필수 확인 항목을 모두 체크해 주세요.',
   invalid_confirmation_payload: '확인 항목 정보 형식이 올바르지 않습니다.',
+  required_attachments_missing: '필수 첨부자료를 모두 열람하고 확인해 주세요.',
 }
 
 const SIGN_FALLBACK = '전자서명 저장 중 오류가 발생했습니다. 다시 시도해 주세요.'
@@ -326,6 +362,18 @@ export function formatContractPublicActionError(
 
 /** 문서 완료: 누락 필드 상세 + 안전한 폴백 */
 export function formatContractPublicCompleteError(e: unknown): string {
+  if (e instanceof ApiError && e.code === 'required_attachments_missing') {
+    const msg = PUBLIC_ACTION_CODE_MESSAGES.required_attachments_missing
+    const pack = e.data as { missingAttachments?: { filename?: string; id?: string }[] } | undefined
+    const names =
+      pack?.missingAttachments
+        ?.map((m) => String(m.filename ?? '').trim())
+        .filter((s) => s.length > 0) ?? []
+    if (names.length > 0) {
+      return `${msg} (${names.join(', ')})`
+    }
+    return msg
+  }
   if (e instanceof ApiError && e.code === 'required_confirmations_missing') {
     const pack = e.data as { missingConfirmations?: { id?: string; label?: string }[] } | undefined
     const labels =

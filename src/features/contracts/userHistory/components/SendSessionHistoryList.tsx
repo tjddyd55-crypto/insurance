@@ -10,9 +10,124 @@ type Props = {
   onCopyLink: (row: SendSessionHistoryListItem) => void
   onOpenLink: (row: SendSessionHistoryListItem) => void
   onCancel: (row: SendSessionHistoryListItem) => void
+  /** 모바일(768px 이하)에서 테이블 대신 카드 */
+  listLayout?: 'table' | 'cards'
 }
 
-export function SendSessionHistoryList({ rows, busy, onDetail, onCopyLink, onOpenLink, onCancel }: Props) {
+export function SendSessionHistoryList({
+  rows,
+  busy,
+  onDetail,
+  onCopyLink,
+  onOpenLink,
+  onCancel,
+  listLayout = 'table',
+}: Props) {
+  if (listLayout === 'cards') {
+    if (rows.length === 0 && !busy) {
+      return <p className="contract-signature-console__empty-state-text">표시할 발송 내역이 없습니다.</p>
+    }
+    if (rows.length === 0 && busy) {
+      return <p className="contract-signature-console__hint">불러오는 중…</p>
+    }
+    return (
+      <div className="contract-history-mobile-cards">
+        {rows.map((row) => {
+          const tpl = row.templateNames.length > 0 ? row.templateNames.join(', ') : '—'
+          const req = Math.max(0, row.requiredDocumentCount)
+          const done = Math.max(0, row.completedDocumentCount)
+          const denom = Math.max(req, row.documentCount)
+          const progress = denom <= 0 ? '—' : `${done}/${denom} ${done >= denom ? '완료' : '진행'}`
+          return (
+            <div key={row.id} className="contract-history-mobile-card">
+              <div className="contract-history-mobile-card__row">
+                <span className="contract-history-mobile-card__label">고객</span>
+                <span>
+                  {row.customerName || '—'}
+                  {row.customerCode ? (
+                    <span className="contract-signature-console__hint"> ({row.customerCode})</span>
+                  ) : null}
+                </span>
+              </div>
+              <div className="contract-history-mobile-card__row">
+                <span className="contract-history-mobile-card__label">연락처</span>
+                <span>{row.maskedPhone || '—'}</span>
+              </div>
+              <div className="contract-history-mobile-card__row">
+                <span className="contract-history-mobile-card__label">문서</span>
+                <span>{tpl}</span>
+              </div>
+              <div className="contract-history-mobile-card__row">
+                <span className="contract-history-mobile-card__label">상태</span>
+                <span>
+                  <SendSessionStatusBadge
+                    sessionStatus={row.status}
+                    hasSignedNotCompleted={row.hasSignedNotCompleted}
+                  />
+                </span>
+              </div>
+              <div className="contract-history-mobile-card__row">
+                <span className="contract-history-mobile-card__label">진행</span>
+                <span>{progress}</span>
+              </div>
+              <div className="contract-history-mobile-card__row">
+                <span className="contract-history-mobile-card__label">발송일</span>
+                <span>
+                  <ContractTableDateCell iso={row.sentAt ?? row.createdAt} />
+                </span>
+              </div>
+              <div className="contract-history-mobile-card__row">
+                <span className="contract-history-mobile-card__label">완료일</span>
+                <span>
+                  <ContractTableDateCell iso={row.completedAt} />
+                </span>
+              </div>
+              <div className="contract-history-mobile-card__row">
+                <span className="contract-history-mobile-card__label">증빙</span>
+                <span>
+                  <ContractTableHashCell prefix={row.evidenceHashPrefix} />
+                </span>
+              </div>
+              <div className="contract-history-mobile-card__actions">
+                <FormButton htmlType="button" variant="primary" size="sm" onClick={() => onDetail(row)}>
+                  상세
+                </FormButton>
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={!row.canCopyLink}
+                  onClick={() => onCopyLink(row)}
+                >
+                  링크 복사
+                </FormButton>
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={!row.canOpenLink}
+                  onClick={() => onOpenLink(row)}
+                >
+                  링크 열기
+                </FormButton>
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={!row.canCancel || busy}
+                  className="contract-history-mobile-card__actions--full"
+                  onClick={() => onCancel(row)}
+                >
+                  취소
+                </FormButton>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   if (rows.length === 0 && !busy) {
     return <p className="contract-signature-console__empty-state-text">표시할 발송 내역이 없습니다.</p>
   }

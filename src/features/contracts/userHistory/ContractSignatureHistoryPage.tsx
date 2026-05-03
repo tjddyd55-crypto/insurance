@@ -5,8 +5,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { FormButton, FormInput, FormSelect } from '../../../components/form'
 import { useConfirmDialog } from '../../../components/dialog'
+import { useMediaQuery } from '../../../hooks/useMediaQuery'
 import '../../pdf-engine/pdf-engine.css'
 import '../testConsole/contract-signature-console.css'
+import '../userSend/contract-signature-send-mobile.css'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
 import type { SendSessionDetail } from '../testConsole/contractSignatureTestConsoleClient'
@@ -34,11 +36,14 @@ function formatCancelFailureMessage(e: unknown): string {
   return '발송 취소 중 오류가 발생했습니다. 다시 시도해주세요.'
 }
 
+const HISTORY_MOBILE_MQ = '(max-width: 768px)'
+
 export default function ContractSignatureHistoryPage() {
   const navigate = useNavigate()
   const { token } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
   const t = token?.trim() ?? ''
+  const historyMobile = useMediaQuery(HISTORY_MOBILE_MQ)
 
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
@@ -207,7 +212,7 @@ export default function ContractSignatureHistoryPage() {
         </>
       ),
       tone: 'danger',
-      confirmLabel: '발송 취소',
+      confirmLabel: '발송취소',
       cancelLabel: '취소하지 않기',
     })
     if (!ok) {
@@ -237,7 +242,7 @@ export default function ContractSignatureHistoryPage() {
         </>
       ),
       tone: 'danger',
-      confirmLabel: '발송 취소',
+      confirmLabel: '발송취소',
       cancelLabel: '취소하지 않기',
     })
     if (!ok) {
@@ -247,7 +252,12 @@ export default function ContractSignatureHistoryPage() {
   }
 
   return (
-    <main className="insurance-dark-forms contract-signature-console">
+    <main
+      className={
+        'insurance-dark-forms contract-signature-console' +
+        (historyMobile ? ' contract-signature-flow--mobile' : '')
+      }
+    >
       <div className="contract-signature-console__container">
         <h1 className="contract-signature-console__title">전자문서 발송 내역</h1>
         <p className="contract-signature-console__lead">
@@ -331,6 +341,7 @@ export default function ContractSignatureHistoryPage() {
             <SendSessionHistoryList
               rows={rows}
               busy={listBusy || cancelBusy}
+              listLayout={historyMobile ? 'cards' : 'table'}
               onDetail={(row) => void openDetail(row)}
               onCopyLink={(row) => void copyLink(row.linkCode)}
               onOpenLink={(row) => openTab(row.linkCode)}
@@ -355,6 +366,7 @@ export default function ContractSignatureHistoryPage() {
         error={detailError}
         token={t}
         listHints={detailRowHints}
+        layout={historyMobile ? 'mobile' : 'desktop'}
         onClose={() => {
           setDetailOpen(false)
           setDetail(null)

@@ -2676,6 +2676,55 @@ export async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_memo_ga_id ON memo (ga_id)
   `)
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS calendar_items (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id),
+      owner_type VARCHAR(32) NOT NULL,
+      owner_id TEXT NOT NULL,
+      created_by TEXT NOT NULL,
+      assigned_to TEXT,
+      item_type VARCHAR(16) NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      description TEXT,
+      start_at TIMESTAMPTZ,
+      end_at TIMESTAMPTZ,
+      due_date DATE,
+      all_day BOOLEAN NOT NULL DEFAULT false,
+      status VARCHAR(16) NOT NULL DEFAULT 'pending',
+      priority VARCHAR(16) NOT NULL DEFAULT 'normal',
+      color VARCHAR(32),
+      location TEXT,
+      visibility VARCHAR(16) NOT NULL DEFAULT 'private',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      deleted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT calendar_items_owner_type_check CHECK (
+        owner_type IN ('user', 'team', 'customer', 'crm', 'workspace')
+      ),
+      CONSTRAINT calendar_items_item_type_check CHECK (item_type IN ('schedule', 'todo')),
+      CONSTRAINT calendar_items_status_check CHECK (status IN ('pending', 'completed', 'cancelled')),
+      CONSTRAINT calendar_items_priority_check CHECK (priority IN ('low', 'normal', 'high')),
+      CONSTRAINT calendar_items_visibility_check CHECK (visibility IN ('private', 'shared'))
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_calendar_items_owner
+    ON calendar_items (ga_id, owner_type, owner_id)
+    WHERE deleted_at IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_calendar_items_start
+    ON calendar_items (ga_id, start_at)
+    WHERE deleted_at IS NULL AND item_type = 'schedule'
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_calendar_items_due
+    ON calendar_items (ga_id, due_date)
+    WHERE deleted_at IS NULL AND item_type = 'todo'
+  `)
+
   await ensureSubscriptionSchema(pool)
   await ensureSignatureSchema(pool)
   await ensurePdfTemplateSchema(pool)
@@ -3261,6 +3310,34 @@ async function ensureContractSelfSmsSchema(executor) {
   await executor.query(`
     CREATE INDEX IF NOT EXISTS idx_contract_confirmation_item_values_send_session_id
     ON contract_confirmation_item_values(send_session_id)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS contract_send_session_attachments (
+      id TEXT PRIMARY KEY,
+      send_session_id TEXT NOT NULL REFERENCES contract_send_sessions(id) ON DELETE CASCADE,
+      file_id BIGINT NOT NULL REFERENCES files(id) ON DELETE RESTRICT,
+      display_filename TEXT NOT NULL,
+      mime_type TEXT,
+      size_bytes BIGINT,
+      content_hash TEXT NOT NULL,
+      required BOOLEAN NOT NULL DEFAULT true,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      viewed BOOLEAN NOT NULL DEFAULT false,
+      viewed_at TIMESTAMPTZ,
+      confirmed BOOLEAN NOT NULL DEFAULT false,
+      confirmed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_send_session_attachments_session
+    ON contract_send_session_attachments(send_session_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_send_session_attachments_file
+    ON contract_send_session_attachments(file_id)
   `)
 
   await executor.query(`

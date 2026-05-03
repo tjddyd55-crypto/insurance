@@ -7,6 +7,7 @@ import './contract-signature-console.css'
 import { useAuth } from '../../auth/AuthProvider'
 import { ApiError } from '../../../lib/apiClient'
 import { FormButton } from '../../../components/form'
+import { useMediaQuery } from '../../../hooks/useMediaQuery'
 import { ContractTemplatePanel } from './components/ContractTemplatePanel'
 import type { PdfPickRow } from './components/PdfTemplateSelector'
 import { PdfTemplateSelector } from './components/PdfTemplateSelector'
@@ -30,6 +31,7 @@ export default function ContractSignatureTestConsolePage() {
   const { token, user } = useAuth()
   const t = token?.trim() ?? ''
   const role = user?.role
+  const isAdminMobile = useMediaQuery('(max-width: 768px)')
   const tenantGaId = useMemo(() => resolveTenantGaId(role, user?.gaId ?? 0), [role, user?.gaId])
 
   const [bootError, setBootError] = useState<string | null>(null)
@@ -150,7 +152,12 @@ export default function ContractSignatureTestConsolePage() {
     role === 'SUPER_ADMIN' ? (pdfTemplateId: number) => `/admin/pdf-templates/${pdfTemplateId}` : undefined
 
   return (
-    <main className="insurance-dark-forms contract-signature-console">
+    <main
+      className={
+        'insurance-dark-forms contract-signature-console' +
+        (isAdminMobile ? ' contract-signature-console--admin-mobile' : '')
+      }
+    >
       <div className="contract-signature-console__container">
         <h1 className="contract-signature-console__title">전자서명 템플릿 관리</h1>
         <p className="contract-signature-console__lead">

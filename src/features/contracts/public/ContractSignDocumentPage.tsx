@@ -15,9 +15,28 @@ import {
   resolveContractRenderedPdfAbsUrl,
   type ContractDocumentDetailPayload,
   type ContractPublicValueInput,
+  type ContractSendSessionAttachmentPublic,
 } from './contractPublicClient'
 import { PublicPdfPreviewModal } from './components/PublicPdfPreviewModal'
+import { ContractAttachmentReviewModal } from './components/ContractAttachmentReviewModal'
 import { resolveApiUrl } from '../../../lib/apiClient'
+
+type PublicSignActiveStep = 1 | 2 | 3 | 4 | 5
+
+function publicStepCardClassName(step: PublicSignActiveStep, activeStep: PublicSignActiveStep): string {
+  const base = 'contract-public-sign-page__card contract-public-sign-page__step-card'
+  if (step > activeStep) {
+    return `${base} contract-public-sign-page__step-card--locked`
+  }
+  if (step === activeStep) {
+    return `${base} contract-public-sign-page__step-card--active`
+  }
+  return `${base} contract-public-sign-page__step-card--completed`
+}
+
+function isPublicStepLocked(step: PublicSignActiveStep, activeStep: PublicSignActiveStep): boolean {
+  return step > activeStep
+}
 
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -139,6 +158,16 @@ function allSessionConfirmationsChecked(
   return true
 }
 
+function allRequiredAttachmentsConfirmed(detail: ContractDocumentDetailPayload) {
+  const atts = detail.sendSessionAttachments ?? []
+  for (const a of atts) {
+    if (a.required && !a.confirmed) {
+      return false
+    }
+  }
+  return true
+}
+
 /** 필수 전자서명 필드가 모두 저장되었는지(3단계 완료). */
 function signatureRequirementsComplete(detail: ContractDocumentDetailPayload) {
   return detail.fields.every((f) => {
@@ -193,6 +222,8 @@ export default function ContractSignDocumentPage() {
   const [finalPreviewConfirmed, setFinalPreviewConfirmed] = useState(false)
   const [finalSubmitAcknowledged, setFinalSubmitAcknowledged] = useState(false)
   const [confirmationChecks, setConfirmationChecks] = useState<Record<string, boolean>>({})
+  const [attachmentModal, setAttachmentModal] = useState<ContractSendSessionAttachmentPublic | null>(null)
+  const [attachmentModalNonce, setAttachmentModalNonce] = useState(0)
   const [successOpen, setSuccessOpen] = useState(false)
   const [completeResult, setCompleteResult] = useState<{
     evidenceSummary: ContractDocumentDetailPayload['evidenceSummary']
@@ -301,6 +332,10 @@ export default function ContractSignDocumentPage() {
   }, [linkCode, documentInstanceId, paramsInvalid, reloadDetail])
 
   const sortedFields = useMemo(() => (detail ? sortFields(detail) : []), [detail])
+  const sortedSessionAttachments = useMemo(() => {
+    const raw = detail?.sendSessionAttachments ?? []
+    return raw.slice().sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id))
+  }, [detail?.sendSessionAttachments])
   const agreementFields = useMemo(
     () => sortedFields.filter((f) => f.fieldType === 'checkbox' && !f.hideFromCustomerInput),
     [sortedFields],
@@ -318,19 +353,42 @@ export default function ContractSignDocumentPage() {
 
   /** 1단계: PDF 필드 중 서명 제외 필수 입력(문서 내 체크·텍스트·라디오 등). */
   const customerInputStepComplete = detail ? allNonSignatureRequiredFilled(detail, drafts) : false
-  /** 2단계: 발송 시 설정한 고객 확인 항목(템플릿별). 항목이 없으면 true. */
-  const confirmationStepComplete = detail ? allSessionConfirmationsChecked(detail, confirmationChecks) : false
+  /** 2단계 A: 템플릿별 고객 확인 체크. 항목이 없으면 true. */
+  const sessionChecksComplete = detail ? allSessionConfirmationsChecked(detail, confirmationChecks) : false
+  /** 2단계 B: 필수 첨부자료 모달 확인. 첨부가 없으면 true. */
+  const attachmentsConfirmationComplete = detail ? allRequiredAttachmentsConfirmed(detail) : false
+  const confirmationStepComplete = sessionChecksComplete && attachmentsConfirmationComplete
   const canSign = customerInputStepComplete && confirmationStepComplete
   const basicsComplete = detail ? allRequiredFilled(detail, drafts) : false
-  /** 서명란이 없으면 서명 단계는 생략 가능. */
-  const step3Complete = detail
+  /** 서명란이 없거나 필수 서명이 모두 저장된 경우(2단계 이후에만 3단계 완료로 간주). */
+  const signatureSlotsComplete = detail
     ? signatureFields.length === 0 || signatureRequirementsComplete(detail)
     : false
+  const isStep1Complete = customerInputStepComplete
+  const isStep2Complete = confirmationStepComplete
+  const isStep3Complete = isStep1Complete && isStep2Complete && signatureSlotsComplete
+  const isStep4Complete = finalPreviewConfirmed
+
+  const activeStep = useMemo((): PublicSignActiveStep => {
+    if (!isStep1Complete) {
+      return 1
+    }
+    if (!isStep2Complete) {
+      return 2
+    }
+    if (!isStep3Complete) {
+      return 3
+    }
+    if (!isStep4Complete) {
+      return 4
+    }
+    return 5
+  }, [isStep1Complete, isStep2Complete, isStep3Complete, isStep4Complete])
 
   const canSubmitSend =
     Boolean(detail && detail.canEdit !== false && detail.document.status !== 'completed') &&
     canSign &&
-    step3Complete &&
+    isStep3Complete &&
     finalPreviewConfirmed &&
     finalSubmitAcknowledged
 
@@ -357,6 +415,9 @@ export default function ContractSignDocumentPage() {
   }
 
   const openSignatureModal = (id: string, label: string) => {
+    if (activeStep < 3 || !canSign) {
+      return
+    }
     setContractPreviewOpen(false)
     setFinalReviewOpen(false)
     setActionError('')
@@ -405,10 +466,10 @@ export default function ContractSignDocumentPage() {
       return
     }
     if (!canSign) {
-      setActionError('필수 정보 입력과 고객 확인 항목을 모두 완료한 뒤 최종 문서 확인을 진행해 주세요.')
+      setActionError('필수 정보 입력과 2단계(고객 확인 체크·첨부자료 확인)를 모두 완료한 뒤 최종 문서 확인을 진행해 주세요.')
       return
     }
-    if (!step3Complete) {
+    if (!isStep3Complete) {
       setActionError('전자서명(3단계)을 완료한 뒤 최종 문서 확인을 진행해 주세요.')
       return
     }
@@ -591,11 +652,7 @@ export default function ContractSignDocumentPage() {
 
         {detail.fields.length > 0 ? (
           <>
-            <div
-              className={`contract-public-sign-page__card contract-public-sign-page__step-card${
-                customerInputStepComplete ? ' contract-public-sign-page__step-card--done' : ''
-              }`}
-            >
+            <div className={publicStepCardClassName(1, activeStep)}>
               <p className="contract-public-sign-page__card-title">1단계. 필수 정보 입력</p>
               <p className="contract-public-sign-page__notice mt-2">
                 계약서에 직접 입력하실 항목을 작성해 주세요.
@@ -708,55 +765,136 @@ export default function ContractSignDocumentPage() {
               )}
             </div>
 
-            <div
-              className={`contract-public-sign-page__card contract-public-sign-page__step-card${
-                confirmationStepComplete ? ' contract-public-sign-page__step-card--done' : ''
-              }`}
-            >
+            <div className={publicStepCardClassName(2, activeStep)}>
               <p className="contract-public-sign-page__card-title">2단계. 고객 확인 항목</p>
               <p className="contract-public-sign-page__notice mt-2">
-                담당자가 설정한 확인 항목입니다. 모두 체크해야 전자서명 단계로 진행할 수 있습니다.
+                아래 내용을 확인해야 전자서명을 진행할 수 있습니다.
               </p>
-              {(detail.confirmationItems?.length ?? 0) > 0 ? (
-                <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight space-y-3 mt-4">
-                  {(detail.confirmationItems ?? []).map((c) => (
+              {isPublicStepLocked(2, activeStep) ? (
+                <p className="contract-public-sign-page__notice mt-3">1단계 문서 입력을 완료하면 진행할 수 있습니다.</p>
+              ) : null}
+
+              <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4 space-y-3">
+                <p className="contract-public-sign-page__section-label">고객 확인 체크 항목</p>
+                {(detail.confirmationItems?.length ?? 0) > 0 ? (
+                  (detail.confirmationItems ?? []).map((c) => (
                     <label key={c.id} className="contract-public-sign-page__label-row">
                       <FormInput
-                        type="checkbox"
-                        disabled={!canEdit}
-                        checked={Boolean(confirmationChecks[c.id])}
-                        onChange={(ev) => {
-                          setConfirmationChecks((prev) => ({ ...prev, [c.id]: ev.target.checked }))
-                          setFinalPreviewConfirmed(false)
-                          setFinalSubmitAcknowledged(false)
-                        }}
-                        className="mt-0.5"
-                      />
+                          type="checkbox"
+                          disabled={!canEdit || isPublicStepLocked(2, activeStep)}
+                          checked={Boolean(confirmationChecks[c.id])}
+                          onChange={(ev) => {
+                            setConfirmationChecks((prev) => ({ ...prev, [c.id]: ev.target.checked }))
+                            setFinalPreviewConfirmed(false)
+                            setFinalSubmitAcknowledged(false)
+                          }}
+                          className="mt-0.5"
+                        />
                       <span>
                         {c.label}
                         {c.required ? <span className="contract-public-sign-page__required"> *</span> : null}
                       </span>
                     </label>
-                  ))}
+                  ))
+                ) : (
+                  <p className="contract-public-sign-page__notice">이 문서 발송에 별도 고객 확인 체크 문구가 없습니다.</p>
+                )}
+              </div>
+
+              {sortedSessionAttachments.length > 0 ? (
+                <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4 space-y-3">
+                  <p className="contract-public-sign-page__section-label">첨부자료 확인</p>
+                  <ol className="contract-public-sign-page__attachment-list space-y-4">
+                    {sortedSessionAttachments.map((a, idx) => (
+                      <li key={a.id} className="contract-public-sign-page__attachment-item">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm text-[var(--text-main)]">
+                            {idx + 1}. {a.displayFilename}
+                          </span>
+                          {a.required ? (
+                            <span className="contract-public-sign-page__badge contract-public-sign-page__badge--required">
+                              필수
+                            </span>
+                          ) : null}
+                          {a.confirmed ? (
+                            <span className="contract-public-sign-page__badge contract-public-sign-page__badge--ok">확인 완료</span>
+                          ) : (
+                            <span className="contract-public-sign-page__badge contract-public-sign-page__badge--pending">미확인</span>
+                          )}
+                        </div>
+                        {!a.confirmed ? (
+                          <p className="contract-public-sign-page__caption mt-1">열람 후 확인 버튼을 눌러주세요.</p>
+                        ) : (
+                          <p className="contract-public-sign-page__status-ok mt-1 text-sm">
+                            {a.displayFilename} 문서를 확인했습니다.
+                          </p>
+                        )}
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          className="mt-2"
+                          disabled={!canEdit || isPublicStepLocked(2, activeStep)}
+                          onClick={() => {
+                            setActionError('')
+                            setAttachmentModal(a)
+                            setAttachmentModalNonce((n) => n + 1)
+                          }}
+                        >
+                          {a.confirmed ? '다시 보기' : '열기'}
+                        </FormButton>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
-              ) : (
-                <p className="contract-public-sign-page__notice mt-4">이 문서에는 별도 고객 확인 항목이 없습니다.</p>
-              )}
+              ) : null}
+
+              {sortedSessionAttachments.length > 0 ? (
+                <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4">
+                  <p className="contract-public-sign-page__section-label">
+                    {attachmentsConfirmationComplete ? '첨부자료 확인 내역' : '첨부자료 확인 필요'}
+                  </p>
+                  {attachmentsConfirmationComplete ? (
+                    <ol className="contract-public-sign-page__compact-list mt-2 space-y-1">
+                      {sortedSessionAttachments.map((a, idx) => (
+                        <li key={`sum-ok-${a.id}`} className="text-sm text-[var(--text-main)]">
+                          {idx + 1}. {a.displayFilename} 문서를 확인했습니다.
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <ol className="contract-public-sign-page__compact-list mt-2 space-y-1">
+                      {sortedSessionAttachments.map((a, idx) => (
+                        <li key={`sum-pending-${a.id}`} className="text-sm contract-public-sign-page__status-pending">
+                          {idx + 1}. {a.displayFilename}
+                          {a.confirmed ? ` 문서를 확인했습니다.` : ' 확인 필요'}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              ) : null}
+
               {confirmationStepComplete ? (
                 <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">2단계 완료</p>
               ) : (
-                <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">필수 확인 항목을 모두 체크해 주세요</p>
+                <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">
+                  {!sessionChecksComplete
+                    ? '필수 확인 항목을 모두 체크해 주세요.'
+                    : !attachmentsConfirmationComplete
+                      ? '필수 첨부자료를 모두 열람하고 확인해 주세요.'
+                      : '확인을 완료해 주세요.'}
+                </p>
               )}
             </div>
 
-            <div className={`contract-public-sign-page__card contract-public-sign-page__step-card${step3Complete ? ' contract-public-sign-page__step-card--done' : ''}`}>
+            <div className={publicStepCardClassName(3, activeStep)}>
               <p className="contract-public-sign-page__card-title">3단계. 전자서명</p>
               <p className="contract-public-sign-page__notice mt-2">
                 계약서에 사용할 전자서명을 입력해주세요.
               </p>
-              {!canSign ? (
+              {isPublicStepLocked(3, activeStep) ? (
                 <p className="contract-public-sign-page__notice mt-3">
-                  1단계 필수 입력과 2단계 고객 확인 항목을 모두 완료한 뒤 전자서명할 수 있습니다.
+                  고객 확인 항목을 완료하면 전자서명을 진행할 수 있습니다.
                 </p>
               ) : null}
               {signatureFields.length > 0 ? (
@@ -780,6 +918,7 @@ export default function ContractSignDocumentPage() {
                               <FormInput
                                 type="checkbox"
                                 checked={signAck}
+                                disabled={isPublicStepLocked(3, activeStep)}
                                 onChange={(ev) => setSignAck(ev.target.checked)}
                                 className="mt-0.5"
                               />
@@ -789,7 +928,7 @@ export default function ContractSignDocumentPage() {
                               htmlType="button"
                               variant={canSign ? 'primary' : 'secondary'}
                               fullWidth
-                              disabled={saving || !signAck || !canSign}
+                              disabled={saving || !signAck || !canSign || isPublicStepLocked(3, activeStep)}
                               onClick={() => openSignatureModal(f.id, f.label || f.fieldKey)}
                             >
                               다시 서명하기
@@ -801,6 +940,7 @@ export default function ContractSignDocumentPage() {
                               <FormInput
                                 type="checkbox"
                                 checked={signAck}
+                                disabled={isPublicStepLocked(3, activeStep)}
                                 onChange={(ev) => setSignAck(ev.target.checked)}
                                 className="mt-0.5"
                               />
@@ -810,7 +950,7 @@ export default function ContractSignDocumentPage() {
                               htmlType="button"
                               variant={canSign ? 'primary' : 'secondary'}
                               fullWidth
-                              disabled={saving || !signAck || !canSign}
+                              disabled={saving || !signAck || !canSign || isPublicStepLocked(3, activeStep)}
                               onClick={() => openSignatureModal(f.id, f.label || f.fieldKey)}
                             >
                               전자서명하기
@@ -824,27 +964,27 @@ export default function ContractSignDocumentPage() {
               ) : (
                 <p className="contract-public-sign-page__notice mt-3">이 문서에는 별도의 전자서명란이 없습니다.</p>
               )}
-              {step3Complete ? (
+              {isStep3Complete ? (
                 <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">3단계 완료</p>
               ) : (
                 <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">전자서명 진행 중</p>
               )}
             </div>
 
-            <div className={`contract-public-sign-page__card contract-public-sign-page__step-card${finalPreviewConfirmed ? ' contract-public-sign-page__step-card--done' : ''}`}>
+            <div className={publicStepCardClassName(4, activeStep)}>
               <p className="contract-public-sign-page__card-title">4단계. 최종 문서 확인</p>
               <p className="contract-public-sign-page__notice mt-2">
                 고객 입력값, 발송자 입력값, 고정 출력값 및 전자서명이 모두 반영된 최종 계약서를 확인해 주세요.
               </p>
-              {!step3Complete ? (
-                <p className="contract-public-sign-page__notice mt-3">3단계 전자서명을 먼저 완료해 주세요.</p>
+              {isPublicStepLocked(4, activeStep) ? (
+                <p className="contract-public-sign-page__notice mt-3">전자서명을 완료하면 최종 문서를 확인할 수 있습니다.</p>
               ) : null}
               <FormButton
                 htmlType="button"
-                variant={step3Complete && canSign ? 'primary' : 'secondary'}
+                variant={isStep3Complete && canSign ? 'primary' : 'secondary'}
                 fullWidth
                 className="mt-4"
-                disabled={!canEdit || saving || !step3Complete || !canSign}
+                disabled={!canEdit || saving || !isStep3Complete || !canSign}
                 onClick={() => void onOpenFinalReview()}
               >
                 최종 문서 보기
@@ -857,18 +997,21 @@ export default function ContractSignDocumentPage() {
             </div>
 
             {canEdit ? (
-              <div className={`contract-public-sign-page__card contract-public-sign-page__step-card${
-              finalPreviewConfirmed && finalSubmitAcknowledged ? ' contract-public-sign-page__step-card--done' : ''
-            }`}>
+              <div className={publicStepCardClassName(5, activeStep)}>
                 <p className="contract-public-sign-page__card-title">5단계. 완료 및 전송</p>
                 <p className="contract-public-sign-page__notice mt-2">
                   최종 문서를 확인하셨다면 아래 내용에 동의한 뒤 전송을 완료해 주세요.
                 </p>
+                {isPublicStepLocked(5, activeStep) ? (
+                  <p className="contract-public-sign-page__notice mt-3">
+                    최종 문서 확인을 완료하면 전송 단계로 진행할 수 있습니다.
+                  </p>
+                ) : null}
                 <label className="contract-public-sign-page__label-row mt-4">
                   <FormInput
                     type="checkbox"
                     checked={finalSubmitAcknowledged}
-                    disabled={!finalPreviewConfirmed}
+                    disabled={!finalPreviewConfirmed || isPublicStepLocked(5, activeStep)}
                     onChange={(ev) => setFinalSubmitAcknowledged(ev.target.checked)}
                     className="mt-0.5"
                   />
@@ -954,6 +1097,45 @@ export default function ContractSignDocumentPage() {
               </FormButton>
             </div>
           }
+        />
+
+        <ContractAttachmentReviewModal
+          open={attachmentModal != null && !paramsInvalid}
+          onClose={() => setAttachmentModal(null)}
+          linkCode={linkCode}
+          attachment={attachmentModal}
+          loadNonce={attachmentModalNonce}
+          onActionError={(msg) => setActionError(msg)}
+          onConfirmed={(row) => {
+            setDetail((prev) => {
+              if (!prev?.sendSessionAttachments?.length) {
+                return prev
+              }
+              return {
+                ...prev,
+                sendSessionAttachments: prev.sendSessionAttachments.map((a) =>
+                  a.id === row.attachmentId
+                    ? {
+                        ...a,
+                        viewed: row.viewed,
+                        confirmed: row.confirmed,
+                        confirmedAt: row.confirmedAt,
+                      }
+                    : a,
+                ),
+              }
+            })
+            setAttachmentModal((prev) =>
+              prev && prev.id === row.attachmentId
+                ? {
+                    ...prev,
+                    viewed: row.viewed,
+                    confirmed: row.confirmed,
+                    confirmedAt: row.confirmedAt,
+                  }
+                : prev,
+            )
+          }}
         />
 
         <SignatureModal

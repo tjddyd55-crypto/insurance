@@ -88,6 +88,18 @@ export type CreateSendSessionResult = {
   confirmationItems?: { id: string; label: string; required: boolean }[]
 }
 
+export type SendSessionAttachmentDetail = {
+  id: string
+  displayFilename: string
+  mimeType: string | null
+  required: boolean
+  sortOrder: number
+  viewed: boolean
+  viewedAt: string | null
+  confirmed: boolean
+  confirmedAt: string | null
+}
+
 export type SendSessionEvidence = {
   documentInstanceId: string
   documentTitle: string | null
@@ -139,6 +151,8 @@ export type SendSessionDetail = {
   documents: SendSessionDocumentDetail[]
   /** 고객 확인 체크 항목(발송 시 정의·완료 후 체크 이력) */
   confirmationItems?: ContractSendConfirmationItem[]
+  /** 발송 시 첨부한 참고 문서(고객 열람·확인 이력) */
+  sendSessionAttachments?: SendSessionAttachmentDetail[]
 }
 
 function tenantQs(tenantGaId: number | null, isSuper: boolean): string {
@@ -437,27 +451,113 @@ export function buildStaffSignedPdfAbsUrl(sendSessionId: string, documentInstanc
   )
 }
 
-export async function downloadStaffSignedPdfFile(
+/** 발송 세션 단위 전자서명 증빙 PDF (Bearer 인증) */
+export function buildStaffEvidencePdfAbsUrl(sendSessionId: string): string {
+  return resolveApiUrl(`/api/contracts/send-sessions/${encodeURIComponent(sendSessionId)}/evidence.pdf`)
+}
+
+export type ContractPdfDownloadResult = { ok: true } | { ok: false; message: string }
+
+/** Content-Disposition 헤더에서 파일명 추출 (filename* UTF-8 우선) */
+export function parseContentDispositionFilename(header: string | null): string | null {
+  if (header == null || String(header).trim() === '') {
+    return null
+  }
+  const h = String(header)
+  const star = /filename\*=(?:UTF-8''|utf-8'')([^;\n]+)/i.exec(h)
+  if (star?.[1]) {
+    try {
+      let v = star[1].trim()
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+        v = v.slice(1, -1)
+      }
+      return decodeURIComponent(v)
+    } catch {
+      /* fall through */
+    }
+  }
+  const quoted = /filename="([^"]+)"/i.exec(h)
+  if (quoted?.[1]) {
+    return quoted[1]
+  }
+  const plain = /filename=([^;\s]+)/i.exec(h)
+  if (plain?.[1]) {
+    return plain[1].replace(/^["']|["']$/g, '')
+  }
+  return null
+}
+
+async function readPdfDownloadErrorMessage(res: Response, generic5xx?: string): Promise<string> {
+  const ct = (res.headers.get('Content-Type') ?? '').toLowerCase()
+  if (ct.includes('application/json')) {
+    try {
+      const j = (await res.json()) as { message?: unknown }
+      if (typeof j?.message === 'string' && j.message.trim() !== '') {
+        return j.message.trim()
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  if (res.status === 401) {
+    return '로그인이 필요합니다.'
+  }
+  if (res.status === 403) {
+    return '다운로드 권한이 없습니다.'
+  }
+  if (res.status === 404) {
+    return '파일을 찾을 수 없습니다.'
+  }
+  if (res.status >= 500 && generic5xx) {
+    return generic5xx
+  }
+  return '다운로드에 실패했습니다.'
+}
+
+async function downloadAuthorizedPdf(
+  url: string,
   token: string,
-  sendSessionId: string,
-  documentInstanceId: string,
-): Promise<boolean> {
+  fallbackFilename: string,
+  options?: { generic5xx?: string },
+): Promise<ContractPdfDownloadResult> {
   const auth = token.trim()
   if (!auth) {
-    return false
+    return { ok: false, message: '로그인이 필요합니다.' }
   }
-  const res = await fetch(buildStaffSignedPdfAbsUrl(sendSessionId, documentInstanceId), {
-    headers: { Authorization: `Bearer ${auth}` },
-  })
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${auth}` } })
+  const fname = parseContentDispositionFilename(res.headers.get('Content-Disposition')) ?? fallbackFilename
   if (!res.ok) {
-    return false
+    const message = await readPdfDownloadErrorMessage(res, options?.generic5xx)
+    return { ok: false, message }
   }
   const blob = await res.blob()
   const u = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = u
-  a.download = 'signed-contract.pdf'
+  a.download = fname
   a.click()
   URL.revokeObjectURL(u)
-  return true
+  return { ok: true }
+}
+
+export async function downloadStaffSignedPdfFile(
+  token: string,
+  sendSessionId: string,
+  documentInstanceId: string,
+): Promise<ContractPdfDownloadResult> {
+  return downloadAuthorizedPdf(
+    buildStaffSignedPdfAbsUrl(sendSessionId, documentInstanceId),
+    token,
+    'signed-contract.pdf',
+  )
+}
+
+/** 완료 세션 기준 증빙 PDF (서버 즉시 생성) */
+export async function downloadStaffEvidencePdfFile(
+  token: string,
+  sendSessionId: string,
+): Promise<ContractPdfDownloadResult> {
+  return downloadAuthorizedPdf(buildStaffEvidencePdfAbsUrl(sendSessionId), token, 'evidence.pdf', {
+    generic5xx: '증빙 PDF 생성 중 오류가 발생했습니다.',
+  })
 }

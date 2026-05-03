@@ -142,6 +142,37 @@ export function hashContractConfirmationsForEvidence(rows) {
 }
 
 /**
+ * 증빙 해시용 — 첨부자료 확인 스냅샷(세션 단위).
+ * @param {Array<{ id?: unknown, display_filename?: unknown, mime_type?: unknown, size_bytes?: unknown, content_hash?: unknown, required?: unknown, sort_order?: unknown, viewed?: unknown, viewed_at?: unknown, confirmed?: unknown, confirmed_at?: unknown }>} rows
+ */
+export function hashContractSendAttachmentsForEvidence(rows) {
+  if (!rows || rows.length === 0) {
+    return null
+  }
+  const sorted = [...rows].sort((a, b) => {
+    const so = Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0)
+    if (so !== 0) {
+      return so
+    }
+    return String(a.id ?? '').localeCompare(String(b.id ?? ''))
+  })
+  const normalized = sorted.map((r) => ({
+    id: String(r.id ?? ''),
+    filename: String(r.display_filename ?? ''),
+    mimeType: r.mime_type == null ? null : String(r.mime_type),
+    sizeBytes: r.size_bytes == null ? null : Number(r.size_bytes),
+    fileHash: String(r.content_hash ?? ''),
+    required: r.required === true || r.required === 1,
+    sortOrder: Number(r.sort_order ?? 0),
+    viewed: Boolean(r.viewed),
+    viewedAt: r.viewed_at != null ? new Date(r.viewed_at).toISOString() : null,
+    confirmed: Boolean(r.confirmed),
+    confirmedAt: r.confirmed_at != null ? new Date(r.confirmed_at).toISOString() : null,
+  }))
+  return sha256Hex(stableStringify(normalized))
+}
+
+/**
  * @param {{
  *   sendSessionId: string,
  *   documentInstanceId: string,
@@ -197,6 +228,7 @@ export function computeDocumentReferenceHash(src) {
  *   ipHash: string | null,
  *   userAgentHash: string | null,
  *   confirmationsHash?: string | null,
+ *   attachmentsHash?: string | null,
  * }} p
  */
 export function computeContractEvidenceHash(p) {
@@ -204,6 +236,8 @@ export function computeContractEvidenceHash(p) {
     p.confirmationsHash != null && String(p.confirmationsHash).trim()
       ? String(p.confirmationsHash).trim()
       : null
+  const ah =
+    p.attachmentsHash != null && String(p.attachmentsHash).trim() ? String(p.attachmentsHash).trim() : null
   const ordered = {
     completedAtIso: p.completedAtIso,
     customerId: p.customerId,
@@ -227,6 +261,7 @@ export function computeContractEvidenceHash(p) {
     userAgentHash: p.userAgentHash,
     valuesHash: p.valuesHash,
     ...(ch ? { confirmationsHash: ch } : {}),
+    ...(ah ? { attachmentsHash: ah } : {}),
   }
   return sha256Hex(stableStringify(ordered))
 }
@@ -363,6 +398,28 @@ export async function insertSignatureEvidenceRow(client, req, input) {
   )
   const confirmationsHash = hashContractConfirmationsForEvidence(confRows.rows)
 
+  const attRows = await client.query(
+    `
+    SELECT
+      id,
+      display_filename,
+      mime_type,
+      size_bytes,
+      content_hash,
+      required,
+      sort_order,
+      viewed,
+      viewed_at,
+      confirmed,
+      confirmed_at
+    FROM contract_send_session_attachments
+    WHERE send_session_id = $1
+    ORDER BY sort_order ASC, id ASC
+    `,
+    [sendSessionId],
+  )
+  const attachmentsHash = hashContractSendAttachmentsForEvidence(attRows.rows)
+
   const evidenceHash = computeContractEvidenceHash({
     completedAtIso,
     customerId: Number.isFinite(customerId) ? customerId : null,
@@ -386,6 +443,7 @@ export async function insertSignatureEvidenceRow(client, req, input) {
     userAgentHash,
     valuesHash,
     confirmationsHash,
+    attachmentsHash,
   })
 
   const evidenceId = `sev_${randomUUID()}`

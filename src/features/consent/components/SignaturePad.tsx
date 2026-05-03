@@ -65,7 +65,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
     ctx.scale(dpr, dpr)
     ctx.clearRect(0, 0, cssW, cssH)
     ctx.strokeStyle = strokeInk
-    ctx.lineWidth = 3
+    ctx.lineWidth = 3.5
     ctx.globalAlpha = 1
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
@@ -122,7 +122,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
       ctx.scale(dpr, dpr)
       ctx.drawImage(img, 0, 0, cssW, cssH)
       ctx.strokeStyle = strokeInk
-      ctx.lineWidth = 3
+      ctx.lineWidth = 3.5
       ctx.globalAlpha = 1
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'

@@ -72,6 +72,8 @@ export default defineConfig([
       /* PDF 좌표 에디터 — 캔버스·필드 정의 UI 가 밀집해 있어 전면 Form* 치환은 범위 밖(기능 유지 우선). */
       'src/features/pdf-engine/components/PdfCoordinateEditor.tsx',
       'src/features/application/services/exportService.ts',
+      /* 첨부 업로드: 네이티브 file input 필수(FormInput/표시숨김 호환) */
+      'src/features/contracts/userSend/SendAttachmentFileInput.tsx',
     ],
     rules: {
       'no-restricted-globals': [
