@@ -1,7 +1,7 @@
 /**
  * 전자서명 발송 — USER / GA_STAFF. 관리자 템플릿은 /admin/contract-signatures 에서만 관리.
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode, type ReactElement, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode, type ReactElement, type KeyboardEvent, type ChangeEventHandler } from 'react'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { useMediaQuery } from '../../../hooks/useMediaQuery'
 import '../../pdf-engine/pdf-engine.css'
@@ -25,6 +25,7 @@ import {
   type UserContractCustomerSearchHit,
   type UserContractTemplateItem,
 } from './contractSignatureSendClient'
+import { SendAttachmentFileInput } from './SendAttachmentFileInput'
 
 const MOBILE_FLOW_MQ = '(max-width: 768px)'
 
@@ -443,17 +444,55 @@ export default function ContractSignatureSendPage() {
   const step3Active = step2Complete && !step3Complete
   const step4Active = step3Complete
 
-  const onAttachmentFilesChosen = async (files: FileList | null) => {
-    if (!files?.length || !t || !selectedCustomer || !selectedTemplateId) {
+  const processPickedAttachmentFiles = async (files: File[]) => {
+    if (files.length === 0) {
       return
     }
     setSendError(null)
-    for (const file of Array.from(files)) {
+
+    if (!t.trim()) {
+      setSendError('로그인 후 다시 시도해 주세요.')
+      return
+    }
+    if (!selectedCustomer) {
+      setSendError('고객을 선택한 뒤 첨부파일을 추가할 수 있습니다.')
+      return
+    }
+    if (!selectedTemplateId) {
+      setSendError('전자서명 템플릿을 선택한 뒤 첨부파일을 추가할 수 있습니다.')
+      return
+    }
+
+    for (const file of files) {
       const checked = validateContractSendAttachmentFile(file)
       if (!checked.ok) {
-        setSendError(checked.message)
+        if (import.meta.env.DEV) {
+          console.warn('[contract attachments] validation failed', {
+            name: file.name,
+            message: checked.message,
+          })
+        }
+        setAttachmentDrafts((prev) => {
+          if (prev.length >= CONTRACT_SEND_ATTACHMENTS_MAX) {
+            return prev
+          }
+          return [
+            ...prev,
+            {
+              key: `att_${crypto.randomUUID()}`,
+              fileId: '',
+              displayFilename: file.name,
+              mimeType: sniffContractSendAttachmentMime(file) || file.type || 'application/octet-stream',
+              sizeBytes: file.size,
+              required: true,
+              uploadStatus: 'error',
+              error: checked.message,
+            },
+          ]
+        })
         continue
       }
+
       const key = `att_${crypto.randomUUID()}`
       let blocked = false
       setAttachmentDrafts((prev) => {
@@ -511,6 +550,19 @@ export default function ContractSignatureSendPage() {
     }
   }
 
+  const handleAttachmentFileInputChange: ChangeEventHandler<HTMLInputElement> = (e) => {
+    const input = e.currentTarget
+    const picked = Array.from(input.files ?? [])
+    input.value = ''
+    if (import.meta.env.DEV && picked.length > 0) {
+      console.log(
+        '[contract attachments] file input changed',
+        picked.map((f) => ({ name: f.name, type: f.type, size: f.size })),
+      )
+    }
+    void processPickedAttachmentFiles(picked)
+  }
+
   const renderSendAttachmentSection = (layout: 'desktop' | 'mobile') => {
     const isMobile = layout === 'mobile'
     const rowClass =
@@ -539,18 +591,13 @@ export default function ContractSignatureSendPage() {
 
     return (
       <>
-        <FormInput
+        <SendAttachmentFileInput
           ref={attachmentFileInputRef}
-          type="file"
-          style={{ display: 'none' }}
           accept={ATTACHMENT_FILE_ACCEPT}
           multiple
-          onChange={(e) => {
-            const el = e.currentTarget
-            const f = el.files
-            el.value = ''
-            void onAttachmentFilesChosen(f)
-          }}
+          disabled={Boolean(addDisabled)}
+          className="contract-signature-send-attach-file-input"
+          onChange={handleAttachmentFileInputChange}
         />
         {isMobile ? null : (
           <>

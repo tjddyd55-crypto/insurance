@@ -896,6 +896,19 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   word-break: break-word;
 }
 
+/* 발송 화면 · 첨부 file input (display:none 대신 스크린리더 전용 숨김 — 모바일 onChange 안정화) */
+main.insurance-dark-forms.contract-signature-console .contract-signature-send-attach-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* 발송 화면 · 첨부자료 행(PC) */
 main.insurance-dark-forms.contract-signature-console .contract-signature-send-attach--disabled {
   margin: 0;
