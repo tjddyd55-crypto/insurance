@@ -7,6 +7,8 @@ import { maskKrMobileForDisplay } from '../utils/maskKrMobile.js'
 import {
   getAuthUserId,
   assertContractTemplateAccess,
+  assertConfirmationOnlyTemplateRow,
+  mapConfirmationFieldRow,
   buildTargetPhoneSnapshot,
   generateUniqueLinkCode,
   parseTemplateIdsArray,
@@ -422,6 +424,50 @@ export function registerContractUserApi(apiRouter, ctx) {
           }
         }),
       })
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  /** 발송 화면용: confirmation_only 템플릿의 확인서 항목 정의 조회(읽기 전용). coordinate_pdf이면 409. */
+  apiRouter.get('/contracts/templates/:templateId/confirmation-fields', ...chain, async (req, res) => {
+    try {
+      const userGa = parseGaId(req.user?.gaId)
+      if (userGa == null) {
+        res.status(400).json({ ok: false, message: 'GA 컨텍스트가 없습니다.' })
+        return
+      }
+      const templateId = String(req.params.templateId ?? '').trim()
+      if (!templateId) {
+        res.status(404).json({ ok: false, message: '템플릿을 찾을 수 없습니다.' })
+        return
+      }
+      const { row, error, status } = await assertContractTemplateAccess(pool, templateId, userGa, false)
+      if (error) {
+        res.status(status ?? 400).json({ ok: false, message: error })
+        return
+      }
+      if (String(row.status) !== 'active') {
+        res.status(403).json({ ok: false, message: '활성 템플릿만 확인 항목을 조회할 수 있습니다.' })
+        return
+      }
+      const modeErr = assertConfirmationOnlyTemplateRow(row)
+      if (modeErr) {
+        res
+          .status(modeErr.status)
+          .json({ ok: false, code: 'contract_template_not_confirmation_only', message: modeErr.error })
+        return
+      }
+      const r = await pool.query(
+        `
+        SELECT *
+        FROM contract_template_confirmation_fields
+        WHERE template_id = $1
+        ORDER BY sort_order ASC, id ASC
+        `,
+        [row.id],
+      )
+      res.json({ ok: true, fields: r.rows.map((f) => mapConfirmationFieldRow(f)) })
     } catch (e) {
       handleDbError(e, req, res)
     }

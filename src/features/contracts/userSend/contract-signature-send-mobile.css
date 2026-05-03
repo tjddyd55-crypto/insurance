@@ -669,3 +669,14 @@ main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mo
 main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-signature-send-attach-row__remove button {
   min-height: 44px;
 }
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile
+  .contract-signature-send-conf-only__control {
+  min-height: 44px;
+}
+
+main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile .contract-signature-send-conf-only__stack {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}

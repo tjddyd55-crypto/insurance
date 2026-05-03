@@ -16,6 +16,7 @@ import {
   createUserContractSendSession,
   getUserContractSendSessionDetail,
   listUserContractTemplates,
+  listUserContractTemplateConfirmationFields,
   getContractCustomerSearchValidationMessage,
   searchCustomersForContractSend,
   CONTRACT_SEND_CONFIRMATION_MAX_ITEMS,
@@ -24,8 +25,10 @@ import {
   uploadUserContractSendAttachment,
   type UserContractCustomerSearchHit,
   type UserContractTemplateItem,
+  type UserContractConfirmationFieldRow,
 } from './contractSignatureSendClient'
 import { SendAttachmentFileInput } from './SendAttachmentFileInput'
+import { ConfirmationOnlySendFieldsSection } from './ConfirmationOnlySendFieldsSection'
 
 const MOBILE_FLOW_MQ = '(max-width: 768px)'
 
@@ -92,6 +95,22 @@ function runPickRowKeyboardAction(e: KeyboardEvent, run: () => void) {
   }
   e.preventDefault()
   run()
+}
+
+function validateConfirmationOnlyFieldValues(
+  fields: UserContractConfirmationFieldRow[],
+  values: Record<string, string>,
+): string | null {
+  for (const f of fields) {
+    if (!f.required) {
+      continue
+    }
+    const raw = values[f.fieldKey]
+    if (raw == null || String(raw).trim() === '') {
+      return `「${f.label}」항목은 필수입니다.`
+    }
+  }
+  return null
 }
 
 type SendAttachmentDraftUploadStatus = 'uploading' | 'done' | 'error'
@@ -197,6 +216,11 @@ export default function ContractSignatureSendPage() {
   const [attachmentUploadBusy, setAttachmentUploadBusy] = useState(false)
   const attachmentFileInputRef = useRef<HTMLInputElement>(null)
 
+  const [confirmationTemplateFields, setConfirmationTemplateFields] = useState<UserContractConfirmationFieldRow[]>([])
+  const [confirmationFieldsLoading, setConfirmationFieldsLoading] = useState(false)
+  const [confirmationFieldsError, setConfirmationFieldsError] = useState<string | null>(null)
+  const [confirmationFieldValues, setConfirmationFieldValues] = useState<Record<string, string>>({})
+
   useEffect(() => {
     setAttachmentDrafts([])
   }, [selectedCustomer?.id])
@@ -294,6 +318,56 @@ export default function ContractSignatureSendPage() {
     setAttachmentDrafts([])
   }, [selectedTemplateId])
 
+  useEffect(() => {
+    if (!t || !selectedTemplateId) {
+      setConfirmationTemplateFields([])
+      setConfirmationFieldValues({})
+      setConfirmationFieldsError(null)
+      setConfirmationFieldsLoading(false)
+      return
+    }
+    const tpl = templates.find((x) => x.id === selectedTemplateId)
+    if (!tpl || tpl.templateMode !== 'confirmation_only') {
+      setConfirmationTemplateFields([])
+      setConfirmationFieldValues({})
+      setConfirmationFieldsError(null)
+      setConfirmationFieldsLoading(false)
+      return
+    }
+    let cancelled = false
+    setConfirmationFieldsLoading(true)
+    setConfirmationFieldsError(null)
+    void listUserContractTemplateConfirmationFields(t, selectedTemplateId)
+      .then((rows) => {
+        if (cancelled) {
+          return
+        }
+        setConfirmationTemplateFields(rows)
+        setConfirmationFieldValues((prev) => {
+          const next: Record<string, string> = {}
+          for (const f of rows) {
+            next[f.fieldKey] = prev[f.fieldKey] ?? ''
+          }
+          return next
+        })
+      })
+      .catch((e) => {
+        if (cancelled) {
+          return
+        }
+        setConfirmationTemplateFields([])
+        setConfirmationFieldsError(e instanceof ApiError ? e.message : '확인 항목을 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setConfirmationFieldsLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [t, selectedTemplateId, templates])
+
   const senderPrefillSatisfied = (tpl: UserContractTemplateItem | null | undefined): boolean => {
     const defs = tpl?.senderFieldsForSend
     if (!defs || defs.length === 0) {
@@ -341,6 +415,11 @@ export default function ContractSignatureSendPage() {
   })()
 
   const selectedTpl = templates.find((x) => x.id === selectedTemplateId)
+  const confirmationOnlySelected = selectedTpl?.templateMode === 'confirmation_only'
+  const confirmationOnlyValuesMessage =
+    confirmationOnlySelected && confirmationTemplateFields.length > 0
+      ? validateConfirmationOnlyFieldValues(confirmationTemplateFields, confirmationFieldValues)
+      : null
   const canSend =
     Boolean(selectedTemplateId) &&
     selectedTpl != null &&
@@ -354,7 +433,7 @@ export default function ContractSignatureSendPage() {
     attachmentUploadBusy ||
     attachmentDrafts.some((a) => a.uploadStatus === 'uploading' || a.uploadStatus === 'error')
 
-  const effectiveCanSend = canSend && !attachmentPipelineBlocksSend
+  const effectiveCanSend = canSend && !attachmentPipelineBlocksSend && !confirmationOnlySelected
 
   const attachmentSendBlockHint = (() => {
     if (!attachmentPipelineBlocksSend) {
@@ -370,6 +449,10 @@ export default function ContractSignatureSendPage() {
 
   const onCreateSendSession = async () => {
     if (!t || !selectedTemplateId || !selectedCustomer?.hasPhone) {
+      return
+    }
+    if (selectedTpl?.templateMode === 'confirmation_only') {
+      setSendError('무좌표 확인서 발송은 다음 단계에서 지원됩니다.')
       return
     }
     setSendBusy(true)
@@ -425,6 +508,9 @@ export default function ContractSignatureSendPage() {
       : inactiveTemplateHint ||
         (!senderPrefillSatisfied(selectedTpl ?? undefined) ? '발송 전 입력값의 필수 항목을 모두 채워 주세요.' : null) ||
         confirmationDraftValidationMessage ||
+        (confirmationOnlySelected
+          ? '무좌표 확인서 발송은 다음 단계에서 활성화됩니다. 아래에서 항목 입력을 미리 확인할 수 있습니다.'
+          : null) ||
         (selectedCustomer != null && !selectedCustomer.hasPhone
           ? '선택한 고객에 유효한 휴대폰번호가 없습니다.'
           : null) ||
@@ -838,7 +924,8 @@ export default function ContractSignatureSendPage() {
             selectedCustomer == null ? null : (
               <div className="contract-mobile-card-list contract-mobile-template-pick-list">
                 {templates.map((row) => {
-                  const noSig = row.signatureFieldCount < 1
+                  const isConfOnly = row.templateMode === 'confirmation_only'
+                  const noSig = !isConfOnly && row.signatureFieldCount < 1
                   const inactive = String(row.status) !== 'active'
                   return (
                     <FormButton
@@ -854,9 +941,13 @@ export default function ContractSignatureSendPage() {
                       onClick={() => setSelectedTemplateId(row.id)}
                     >
                       <div className="contract-mobile-template-card__title">{row.title}</div>
-                      <p className="contract-mobile-template-card__pdf">PDF: {row.pdfEngineTitle ?? '—'}</p>
+                      <p className="contract-mobile-template-card__pdf">
+                        PDF: {isConfOnly ? '무좌표 확인서' : row.pdfEngineTitle ?? '—'}
+                      </p>
                       <p className="contract-mobile-template-card__stats">
-                        필드 {row.pdfFieldCount}개 · 서명 필드 {row.signatureFieldCount}개
+                        {isConfOnly
+                          ? '확인서 항목 템플릿'
+                          : `필드 ${row.pdfFieldCount}개 · 서명 필드 ${row.signatureFieldCount}개`}
                       </p>
                       {inactive ? (
                         <div className="contract-mobile-select-card__warn">비활성 템플릿은 발송할 수 없습니다.</div>
@@ -942,6 +1033,31 @@ export default function ContractSignatureSendPage() {
                     )
                   })}
                 </div>,
+              )
+            : null}
+
+          {selectedCustomer && selectedTemplateId && selectedTpl?.templateMode === 'confirmation_only'
+            ? mobileStepShell(
+                {
+                  title: '확인서 항목 입력',
+                  desc: '무좌표 확인서 발송은 다음 단계에서 활성화됩니다.',
+                  active: step2Complete && !step3Complete,
+                  completed:
+                    confirmationTemplateFields.length > 0 &&
+                    confirmationOnlyValuesMessage == null &&
+                    !confirmationFieldsLoading &&
+                    !confirmationFieldsError,
+                  locked: !selectedCustomer || !selectedTemplateId,
+                },
+                <ConfirmationOnlySendFieldsSection
+                  fields={confirmationTemplateFields}
+                  values={confirmationFieldValues}
+                  onChange={(fk, v) => setConfirmationFieldValues((p) => ({ ...p, [fk]: v }))}
+                  loading={confirmationFieldsLoading}
+                  loadError={confirmationFieldsError}
+                  validationMessage={confirmationOnlyValuesMessage}
+                  disabled={!t}
+                />,
               )
             : null}
 
@@ -1216,7 +1332,8 @@ export default function ContractSignatureSendPage() {
               </thead>
               <tbody>
                 {templates.map((row) => {
-                  const noSig = row.signatureFieldCount < 1
+                  const isConfOnly = row.templateMode === 'confirmation_only'
+                  const noSig = !isConfOnly && row.signatureFieldCount < 1
                   const inactive = String(row.status) !== 'active'
                   const sel = selectedTemplateId === row.id
                   const tplRowInteractive = Boolean(t && selectedCustomer != null && !inactive)
@@ -1264,10 +1381,13 @@ export default function ContractSignatureSendPage() {
                             signature 필드 없음 — 손사인 단계가 제한될 수 있습니다.
                           </div>
                         ) : null}
+                        {isConfOnly ? (
+                          <div className="contract-signature-console__hint">무좌표 확인서(확인 항목만)</div>
+                        ) : null}
                       </td>
-                      <td>{row.pdfEngineTitle ?? '—'}</td>
-                      <td>{row.pdfFieldCount}</td>
-                      <td>{row.signatureFieldCount}</td>
+                      <td>{isConfOnly ? '—' : row.pdfEngineTitle ?? '—'}</td>
+                      <td>{isConfOnly ? '—' : row.pdfFieldCount}</td>
+                      <td>{isConfOnly ? '—' : row.signatureFieldCount}</td>
                     </tr>
                   )
                 })}
@@ -1348,7 +1468,22 @@ export default function ContractSignatureSendPage() {
           </section>
         ) : null}
 
-        {selectedCustomer && selectedTemplateId ? (
+        {selectedCustomer && selectedTemplateId && selectedTpl?.templateMode === 'confirmation_only' ? (
+          <section className="contract-signature-console__section">
+            <h2 className="contract-signature-console__section-title">2-1b. 확인서 항목 입력 (무좌표)</h2>
+            <ConfirmationOnlySendFieldsSection
+              fields={confirmationTemplateFields}
+              values={confirmationFieldValues}
+              onChange={(fk, v) => setConfirmationFieldValues((p) => ({ ...p, [fk]: v }))}
+              loading={confirmationFieldsLoading}
+              loadError={confirmationFieldsError}
+              validationMessage={confirmationOnlyValuesMessage}
+              disabled={!t}
+            />
+          </section>
+        ) : null}
+
+        {selectedCustomer && selectedTemplateId && selectedTpl?.templateMode !== 'confirmation_only' ? (
           <section className="contract-signature-console__section">
             <h2 className="contract-signature-console__section-title">2-2. 고객 확인 체크 항목</h2>
             <p className="contract-signature-console__body-text" style={{ margin: '0 0 8px' }}>

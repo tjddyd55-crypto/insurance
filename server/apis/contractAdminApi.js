@@ -39,7 +39,7 @@ const ALLOWED_CONFIRMATION_FIELD_INPUT_TYPES = new Set(['text', 'textarea', 'num
  * @param {unknown} row
  * @returns {{ error: string, status: number } | null}
  */
-function assertConfirmationOnlyTemplateRow(row) {
+export function assertConfirmationOnlyTemplateRow(row) {
   const mode = String(row?.template_mode ?? 'coordinate_pdf')
   if (mode !== 'confirmation_only') {
     return {
@@ -128,7 +128,7 @@ async function nextConfirmationFieldSortOrder(client, templateId) {
 /**
  * @param {Record<string, unknown>} row
  */
-function mapConfirmationFieldRow(row) {
+export function mapConfirmationFieldRow(row) {
   return {
     id: row.id,
     fieldKey: row.field_key,
