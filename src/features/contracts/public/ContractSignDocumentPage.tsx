@@ -47,6 +47,9 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   })
 }
 
+/** confirmation_only 전용; 서버 field_key 와 동일 */
+const CONFIRMATION_SIGNATURE_FIELD_ID = 'confirmation_signature'
+
 function buildDraftsFromDetail(d: ContractDocumentDetailPayload): Record<string, string | boolean> {
   const next: Record<string, string | boolean> = {}
   for (const f of d.fields) {
@@ -231,6 +234,7 @@ export default function ContractSignDocumentPage() {
     signedPdfDownloadAvailable?: boolean
     completedAt?: string
   } | null>(null)
+  const [coSignatureObjectUrl, setCoSignatureObjectUrl] = useState<string | null>(null)
 
   const reloadDetail = useCallback(
     async (isCancelled?: () => boolean) => {
@@ -278,10 +282,52 @@ export default function ContractSignDocumentPage() {
   }, [detail, confirmationItemsSig])
 
   useEffect(() => {
+    const mode = detail?.templateMode ?? 'coordinate_pdf'
+    const previewPath = detail?.confirmationSignature?.previewUrl
+    const hasSig = Boolean(detail?.confirmationSignature?.exists && previewPath)
+    if (mode !== 'confirmation_only' || !hasSig || !previewPath) {
+      setCoSignatureObjectUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev)
+        return null
+      })
+      return
+    }
+    const ac = new AbortController()
+    void (async () => {
+      try {
+        const res = await fetch(resolveApiUrl(previewPath), { credentials: 'include', signal: ac.signal })
+        if (!res.ok) {
+          return
+        }
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        setCoSignatureObjectUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev)
+          return url
+        })
+      } catch {
+        if (!ac.signal.aborted) {
+          setCoSignatureObjectUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev)
+            return null
+          })
+        }
+      }
+    })()
+    return () => {
+      ac.abort()
+    }
+  }, [detail?.templateMode, detail?.confirmationSignature?.exists, detail?.confirmationSignature?.previewUrl])
+
+  useEffect(() => {
     setSignatureDrafts({})
     setFinalPreviewConfirmed(false)
     setFinalSubmitAcknowledged(false)
     setConfirmationChecks({})
+    setCoSignatureObjectUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev)
+      return null
+    })
   }, [linkCode, documentInstanceId])
 
   useEffect(() => {
@@ -415,7 +461,12 @@ export default function ContractSignDocumentPage() {
   }
 
   const openSignatureModal = (id: string, label: string) => {
-    if (activeStep < 3 || !canSign) {
+    const editable = detail ? detail.canEdit !== false && detail.document.status !== 'completed' : false
+    if (detail && (detail.templateMode ?? 'coordinate_pdf') === 'confirmation_only') {
+      if (!editable || !confirmationStepComplete || !signAck) {
+        return
+      }
+    } else if (activeStep < 3 || !canSign) {
       return
     }
     setContractPreviewOpen(false)
@@ -662,8 +713,7 @@ export default function ContractSignDocumentPage() {
           </div>
 
           <p className="contract-public-sign-page__notice">
-            전자서명·최종 전송 및 완료 문서(PDF) 다운로드는 추후 단계에서 제공됩니다. 지금은 내용 확인과 첨부자료 확인까지만
-            진행할 수 있습니다.
+            필수 확인을 마친 뒤 전자서명을 남길 수 있습니다. 최종 전송·완료 문서(PDF)는 추후 단계에서 제공됩니다.
           </p>
 
           <div className="contract-public-sign-page__card contract-public-sign-page__step-card contract-public-sign-page__step-card--active">
@@ -793,12 +843,54 @@ export default function ContractSignDocumentPage() {
             )}
           </div>
 
-          <Link
-            className="contract-public-sign-page__link contract-public-sign-page__link--after-block"
-            to={`/contracts/sign/${encodeURIComponent(linkCode)}`}
-          >
-            ← 문서 목록
-          </Link>
+          <div className="contract-public-sign-page__card contract-public-sign-page__co-sign-card contract-public-sign-page__step-card contract-public-sign-page__step-card--active">
+            <p className="contract-public-sign-page__card-title">전자서명</p>
+            {!confirmationStepComplete ? (
+              <p className="contract-public-sign-page__notice mt-2">
+                필수 확인·첨부 확인을 마친 뒤 서명할 수 있습니다.
+              </p>
+            ) : (
+              <>
+                <p className="contract-public-sign-page__notice mt-2">
+                  아래 진술에 동의한 뒤 서명을 진행해 주세요. 최종 전송은 이후 단계에서 진행됩니다.
+                </p>
+                {detail.confirmationSignature?.exists && coSignatureObjectUrl ? (
+                  <div className="mt-4">
+                    <p className="contract-public-sign-page__status-ok text-sm">서명이 저장되었습니다.</p>
+                    <img
+                      src={coSignatureObjectUrl}
+                      alt="저장된 전자서명"
+                      className="contract-public-sign-page__co-signature-img"
+                    />
+                  </div>
+                ) : null}
+                {canEdit ? (
+                  <>
+                    <label className="contract-public-sign-page__label-row mt-4">
+                      <FormInput
+                        type="checkbox"
+                        checked={signAck}
+                        disabled={!confirmationStepComplete || saving}
+                        onChange={(ev) => setSignAck(ev.target.checked)}
+                        className="mt-0.5"
+                      />
+                      <span>본인은 위 전자확인서가 본인에게 발송된 문서임을 확인하고, 전자서명합니다.</span>
+                    </label>
+                    <FormButton
+                      htmlType="button"
+                      variant="primary"
+                      fullWidth
+                      className="mt-4 contract-public-sign-page__co-sign-cta"
+                      disabled={saving || !signAck || !confirmationStepComplete}
+                      onClick={() => openSignatureModal(CONFIRMATION_SIGNATURE_FIELD_ID, '전자서명')}
+                    >
+                      {detail.confirmationSignature?.exists ? '다시 서명하기' : '서명하기'}
+                    </FormButton>
+                  </>
+                ) : null}
+              </>
+            )}
+          </div>
 
           <ContractAttachmentReviewModal
             open={attachmentModal != null && !paramsInvalid}
@@ -838,6 +930,44 @@ export default function ContractSignDocumentPage() {
               )
             }}
           />
+
+          <SignatureModal
+            open={sigModalField != null}
+            padResetKey={
+              sigModalField
+                ? `${sigModalField.id}:${signatureDrafts[String(sigModalField.id)] ? 'has' : 'none'}`
+                : undefined
+            }
+            title="전자서명 입력"
+            description="손가락 또는 마우스로 서명하세요."
+            saveLabel="서명 저장"
+            onClose={() => setSigModalField(null)}
+            onSave={async (blob) => {
+              if (!sigModalField || !detail) {
+                return
+              }
+              if (!signAck) {
+                throw new Error('전자서명 진술에 동의해 주세요.')
+              }
+              const dataUrl = await blobToDataUrl(blob)
+              const signatureKey = String(sigModalField.id)
+              await postContractPublicDocumentSign(linkCode, documentInstanceId, {
+                signatureImageData: dataUrl,
+                fieldId: sigModalField.id,
+                electronicSignAcknowledged: true,
+              })
+              setSignatureDrafts((prev) => ({ ...prev, [signatureKey]: dataUrl }))
+              setSignAck(false)
+              await reloadDetail()
+            }}
+          />
+
+          <Link
+            className="contract-public-sign-page__link contract-public-sign-page__link--after-block"
+            to={`/contracts/sign/${encodeURIComponent(linkCode)}`}
+          >
+            ← 문서 목록
+          </Link>
         </div>
       )
     } else {

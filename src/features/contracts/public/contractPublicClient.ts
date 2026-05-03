@@ -106,12 +106,23 @@ export type ContractPublicConfirmationFieldRow = {
   valueText: string
 }
 
+export type ContractPublicConfirmationSignature = {
+  exists: boolean
+  fileId: string | null
+  /** 인증된 공개 GET URL (상대 경로) */
+  previewUrl: string | null
+}
+
 export type ContractDocumentDetailPayload = {
   /** 생략·구버전은 coordinate_pdf 로 간주 */
   templateMode?: 'coordinate_pdf' | 'confirmation_only'
   confirmationFields?: ContractPublicConfirmationFieldRow[]
+  /** confirmation_only: 서명 이미지 메타 */
+  confirmationSignature?: ContractPublicConfirmationSignature
   /** confirmation_only: PDF 미제공 */
   pdfAvailable?: boolean
+  /** 손사인 API 사용 가능 여부(confirmation_only 에서 true) */
+  signAvailable?: boolean
   completionAvailable?: boolean
   document: {
     id: string
@@ -333,8 +344,8 @@ const PUBLIC_ACTION_CODE_MESSAGES: Record<string, string> = {
   required_confirmations_missing: '필수 확인 항목을 모두 체크해 주세요.',
   invalid_confirmation_payload: '확인 항목 정보 형식이 올바르지 않습니다.',
   required_attachments_missing: '필수 첨부자료를 모두 열람하고 확인해 주세요.',
+  required_attachments_incomplete: '필수 첨부자료를 모두 확인한 뒤 서명할 수 있습니다.',
   confirmation_only_complete_not_ready: '전자확인서 최종 완료는 아직 지원하지 않습니다.',
-  confirmation_only_sign_not_ready: '전자확인서 전자서명은 아직 지원하지 않습니다.',
   confirmation_only_field_values_not_applicable: '이 문서는 내용 확인만 가능합니다.',
 }
 

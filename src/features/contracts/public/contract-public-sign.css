@@ -66,6 +66,19 @@
   white-space: pre-wrap;
 }
 
+.contract-public-sign-page__co-signature-img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.contract-public-sign-page__co-sign-cta {
+  min-height: 44px;
+}
+
 .contract-public-sign-page__badge {
   display: inline-block;
   border-radius: 4px;

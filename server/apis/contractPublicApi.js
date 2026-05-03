@@ -438,16 +438,7 @@ async function resolveMutationBase(pool, linkCode, documentInstanceId, mutationK
         },
       }
     }
-    if (mutationKind === 'sign') {
-      return {
-        error: {
-          status: 409,
-          code: 'confirmation_only_sign_not_ready',
-          message: CONFIRMATION_ONLY_SIGN_NOT_READY_MESSAGE,
-        },
-      }
-    }
-    /** confirmation_only: values 단계에서 고객 확인 체크만 저장 허용(빈 values + confirmationCheckedItemIds). */
+    /** confirmation_only: sign 은 전용 경로로 허용(values 단계는 별도 분기). */
   }
   if (String(doc.status ?? '') === 'completed') {
     const evR = await pool.query(
@@ -730,8 +721,38 @@ function fieldRowToPublicDto(row, settingsMap) {
   }
 }
 
-const CONFIRMATION_ONLY_SIGN_NOT_READY_MESSAGE =
-  '전자확인서 전자서명·최종 완료는 준비 중입니다. 내용과 첨부자료를 확인해 주시면 됩니다.'
+const CONFIRMATION_ONLY_SIGNATURE_FIELD_KEY = 'confirmation_signature'
+
+/**
+ * confirmation_only 서명 전: 필수 고객 확인 체크·필수 첨부 확인.
+ * @param {import('pg').Pool} pool
+ * @param {string} sendSessionId
+ * @returns {Promise<{ ok: true } | { ok: false, code: string, message: string }>}
+ */
+async function assertConfirmationOnlySignPreconditions(pool, sendSessionId) {
+  const items = await listConfirmationItemsWithValues(pool, sendSessionId)
+  for (const it of items) {
+    if (it.required && !it.checked) {
+      return {
+        ok: false,
+        code: 'required_confirmations_missing',
+        message: '필수 확인 항목을 모두 체크한 뒤 서명할 수 있습니다.',
+      }
+    }
+  }
+  const attachments = await listSendSessionAttachmentsPublic(pool, sendSessionId)
+  for (const a of attachments) {
+    if (a.required && !a.confirmed) {
+      return {
+        ok: false,
+        code: 'required_attachments_incomplete',
+        message: '필수 첨부자료를 모두 확인한 뒤 서명할 수 있습니다.',
+      }
+    }
+  }
+  return { ok: true }
+}
+
 const CONFIRMATION_ONLY_VALUES_NOT_APPLICABLE_MESSAGE =
   '전자확인서는 담당자가 입력한 내용을 확인만 하면 됩니다.'
 const CONFIRMATION_ONLY_COMPLETE_NOT_READY_MESSAGE =
@@ -1124,6 +1145,59 @@ export function registerContractPublicApi(apiRouter, ctx) {
     }
   })
 
+  apiRouter.get('/contracts/public/:linkCode/documents/:documentInstanceId/confirmation-signature', async (req, res) => {
+    try {
+      const linkCode = String(req.params.linkCode ?? '').trim()
+      const docId = String(req.params.documentInstanceId ?? '').trim()
+      const row = await loadSendSessionRow(pool, linkCode)
+      if (!row) {
+        res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
+        return
+      }
+      const sendStatus = String(row.status ?? '')
+      const idStatus = await loadLatestIdentityStatus(pool, row.id)
+      if (!allowsDocumentDetail(sendStatus, idStatus)) {
+        res.status(403).json({ success: false, message: '계약서 수신번호 인증이 필요합니다.' })
+        return
+      }
+      const docR = await pool.query(
+        `
+        SELECT cdi.id, COALESCE(ct.template_mode, 'coordinate_pdf') AS contract_template_mode
+        FROM contract_document_instances cdi
+        INNER JOIN contract_templates ct ON ct.id = cdi.template_id
+        WHERE cdi.id = $1 AND cdi.send_session_id = $2
+        LIMIT 1
+        `,
+        [docId, row.id],
+      )
+      if (!docR.rowCount) {
+        res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
+        return
+      }
+      if (String(docR.rows[0].contract_template_mode ?? 'coordinate_pdf') !== 'confirmation_only') {
+        res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
+        return
+      }
+      const valR = await pool.query(
+        `
+        SELECT value_file_id
+        FROM contract_document_values
+        WHERE document_instance_id = $1 AND field_key = $2
+        LIMIT 1
+        `,
+        [docId, CONFIRMATION_ONLY_SIGNATURE_FIELD_KEY],
+      )
+      const fid = valR.rows[0]?.value_file_id
+      if (fid == null || String(fid).trim() === '') {
+        res.status(404).json({ success: false, message: '저장된 서명이 없습니다.' })
+        return
+      }
+      await streamConsentFileInlineForPublic(pool, res, fid, 'confirmation-signature.png')
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
   apiRouter.post('/contracts/public/:linkCode/documents/:documentInstanceId/sign', async (req, res) => {
     try {
       const linkCode = String(req.params.linkCode ?? '').trim()
@@ -1157,7 +1231,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const { session } = base
       const docMeta = await pool.query(
         `
-        SELECT cdi.*, ct.pdf_template_id
+        SELECT cdi.*, ct.pdf_template_id, COALESCE(ct.template_mode, 'coordinate_pdf') AS contract_template_mode
         FROM contract_document_instances cdi
         INNER JOIN contract_templates ct ON ct.id = cdi.template_id
         WHERE cdi.id = $1 AND cdi.send_session_id = $2
@@ -1169,6 +1243,149 @@ export function registerContractPublicApi(apiRouter, ctx) {
         res.status(404).json({ success: false, message: '문서를 찾을 수 없습니다.' })
         return
       }
+      const contractTemplateModeSign = String(docMeta.rows[0].contract_template_mode ?? 'coordinate_pdf')
+
+      if (contractTemplateModeSign === 'confirmation_only') {
+        const gate = await assertConfirmationOnlySignPreconditions(pool, session.id)
+        if (!gate.ok) {
+          res.status(400).json({ success: false, code: gate.code, message: gate.message })
+          return
+        }
+        const rawFid = req.body?.fieldId
+        if (
+          rawFid != null &&
+          String(rawFid).trim() !== '' &&
+          String(rawFid).trim() !== CONFIRMATION_ONLY_SIGNATURE_FIELD_KEY
+        ) {
+          res.status(400).json({
+            success: false,
+            code: 'invalid_signature_field',
+            message: '유효하지 않은 서명 필드입니다.',
+          })
+          return
+        }
+        const fileUserIdCo = session.sent_by_user_id || session.customer_user_id
+        const gaIdCo = session.customer_ga_id
+        if (!fileUserIdCo || gaIdCo == null) {
+          res.status(503).json({
+            success: false,
+            code: 'signature_file_owner_missing',
+            message: '파일 저장에 필요한 담당·GA 정보가 없습니다.',
+          })
+          return
+        }
+        const storageKeyCo = `contracts/${session.id}/documents/${docId}/signature/${CONFIRMATION_ONLY_SIGNATURE_FIELD_KEY}.png`
+        const hashHexCo = createHash('sha256').update(buf).digest('hex')
+        const syntheticField = {
+          id: CONFIRMATION_ONLY_SIGNATURE_FIELD_KEY,
+          field_key: CONFIRMATION_ONLY_SIGNATURE_FIELD_KEY,
+          field_type: 'signature',
+        }
+        const signLogCtxCo = {
+          route: 'contract public sign confirmation_only',
+          linkCodePrefix: linkCode.length > 8 ? `${linkCode.slice(0, 8)}…` : linkCode,
+          documentInstanceId: docId,
+          sendSessionId: session.id,
+          customerId: session.customer_id,
+          gaId: gaIdCo,
+          fieldKey: CONFIRMATION_ONLY_SIGNATURE_FIELD_KEY,
+          hasSignatureImageData: true,
+          signatureByteLength: buf.length,
+        }
+        try {
+          await consentPutObject(storageKeyCo, buf, 'image/png')
+        } catch (e) {
+          logPublicSignFailure({ ...signLogCtxCo, uploadStage: 'object_storage' }, e)
+          res.status(503).json({
+            success: false,
+            code: 'signature_upload_failed',
+            message: '서명 이미지를 저장소에 올리지 못했습니다. 잠시 후 다시 시도해 주세요.',
+          })
+          return
+        }
+        let outFileIdCo = ''
+        const clientCo = await pool.connect()
+        try {
+          await clientCo.query('BEGIN')
+          const insCo = await clientCo.query(
+            `
+          INSERT INTO files (
+            user_id,
+            ga_id,
+            customer_id,
+            team_id,
+            folder_id,
+            original_name,
+            display_name,
+            file_path,
+            file_size,
+            mime_type,
+            content,
+            is_confirmed,
+            status
+          )
+          VALUES ($1, $2, $3, NULL, NULL, $4, $4, $5, $6, 'image/png', '', true, 'active')
+          RETURNING id
+          `,
+            [
+              fileUserIdCo,
+              gaIdCo,
+              session.customer_id,
+              `contract-signature-${CONFIRMATION_ONLY_SIGNATURE_FIELD_KEY}.png`,
+              storageKeyCo,
+              buf.length,
+            ],
+          )
+          outFileIdCo = String(insCo.rows[0].id)
+          await upsertDocumentValue(clientCo, docId, syntheticField, null, outFileIdCo, hashHexCo)
+          await clientCo.query(
+            `UPDATE contract_document_instances SET status = 'signed', updated_at = NOW() WHERE id = $1`,
+            [docId],
+          )
+          await clientCo.query(
+            `
+          UPDATE contract_send_sessions
+          SET
+            status = CASE WHEN status = 'identity_verified' THEN 'signing' ELSE status END,
+            updated_at = NOW()
+          WHERE id = $1
+            AND status = 'identity_verified'
+          `,
+            [session.id],
+          )
+          await clientCo.query('COMMIT')
+        } catch (e) {
+          await clientCo.query('ROLLBACK').catch(() => {})
+          logPublicSignFailure({ ...signLogCtxCo, uploadStage: 'database' }, e)
+          const mapped = mapPublicSignDatabaseError(e)
+          if (mapped) {
+            res.status(mapped.status).json({
+              success: false,
+              code: mapped.code,
+              message: mapped.message,
+            })
+            return
+          }
+          res.status(500).json({
+            success: false,
+            code: 'signature_save_failed',
+            message: '전자서명 저장 중 오류가 발생했습니다. 다시 시도해 주세요.',
+          })
+          return
+        } finally {
+          clientCo.release()
+        }
+        res.status(200).json({
+          success: true,
+          data: {
+            fieldId: CONFIRMATION_ONLY_SIGNATURE_FIELD_KEY,
+            valueHash: hashHexCo,
+            fileId: outFileIdCo,
+          },
+        })
+        return
+      }
+
       const contractTemplateIdSign = String(docMeta.rows[0].template_id)
       const settingsMapSign = await loadContractFieldSettingsMap(pool, contractTemplateIdSign)
       const pdfTid = docMeta.rows[0]?.pdf_template_id
@@ -1812,6 +2029,20 @@ export function registerContractPublicApi(apiRouter, ctx) {
           helpText: r.help_text != null ? String(r.help_text) : null,
           valueText: String(r.value_text ?? ''),
         }))
+        const sigRow = await pool.query(
+          `
+          SELECT value_file_id
+          FROM contract_document_values
+          WHERE document_instance_id = $1 AND field_key = $2
+          LIMIT 1
+          `,
+          [docId, CONFIRMATION_ONLY_SIGNATURE_FIELD_KEY],
+        )
+        const sigFileId = sigRow.rows[0]?.value_file_id
+        const hasSig = sigFileId != null && String(sigFileId).trim() !== ''
+        const previewPath = hasSig
+          ? `/api/contracts/public/${encodeURIComponent(linkCode)}/documents/${encodeURIComponent(docId)}/confirmation-signature`
+          : null
         res.status(200).json({
           success: true,
           data: {
@@ -1828,18 +2059,24 @@ export function registerContractPublicApi(apiRouter, ctx) {
               originalPdfHash: doc.original_pdf_hash ? String(doc.original_pdf_hash) : null,
             },
             confirmationFields,
+            confirmationSignature: {
+              exists: hasSig,
+              fileId: hasSig ? String(sigFileId) : null,
+              previewUrl: previewPath,
+            },
             fields: [],
             pdfTemplate: null,
             pdfPreviewUrl: null,
             signedPdfDownloadPath: null,
             signedPdfDownloadAvailable: false,
             pdfAvailable: false,
+            signAvailable: true,
             completionAvailable: false,
             canEdit,
             confirmationItems,
             sendSessionAttachments,
             notice:
-              '담당자가 입력한 전자확인서 내용과 첨부자료를 확인해 주세요. 전자서명과 최종 완료는 순차적으로 지원될 예정입니다.',
+              '담당자가 입력한 전자확인서 내용과 첨부자료를 확인한 뒤 전자서명을 남겨 주세요. 최종 전송은 순차적으로 지원될 예정입니다.',
           },
         })
         return
