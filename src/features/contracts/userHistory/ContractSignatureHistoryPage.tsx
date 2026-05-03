@@ -254,7 +254,7 @@ export default function ContractSignatureHistoryPage() {
   return (
     <main
       className={
-        'insurance-dark-forms contract-signature-console' +
+        'insurance-dark-forms contract-signature-console contract-signature-history-page' +
         (historyMobile ? ' contract-signature-flow--mobile' : '')
       }
     >
@@ -269,46 +269,115 @@ export default function ContractSignatureHistoryPage() {
         </p>
 
         <section className="contract-signature-console__section">
-          <div className="contract-signature-console__filter-row" style={{ justifyContent: 'space-between' }}>
-            <FormInput
-              type="search"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="고객명·고객번호·전화·템플릿명 검색"
-              disabled={!t}
-              style={{ maxWidth: 360, flex: '1 1 200px' }}
-            />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-              <label className="contract-signature-console__hint" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                정렬
-                <FormSelect
-                  className="form-select"
-                  value={sort}
+          {historyMobile ? (
+            <>
+              <div className="contract-history-mobile-toolbar">
+                <div className="contract-history-mobile-toolbar__search">
+                  <FormInput
+                    type="search"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="고객명·고객번호·전화·템플릿명 검색"
+                    disabled={!t}
+                    className="contract-history-mobile-toolbar__search-input"
+                  />
+                </div>
+                <div className="contract-history-mobile-toolbar__sort-row">
+                  <label className="contract-history-mobile-toolbar__sort-label">
+                    <span className="contract-history-mobile-toolbar__sort-text">정렬</span>
+                    <FormSelect
+                      className="form-select contract-history-mobile-toolbar__sort-select"
+                      value={sort}
+                      disabled={!t}
+                      options={[
+                        { value: 'sent_desc', label: '최신 발송순' },
+                        { value: 'completed_desc', label: '완료일순' },
+                      ]}
+                      onChange={(e) =>
+                        setSort(e.target.value === 'completed_desc' ? 'completed_desc' : 'sent_desc')
+                      }
+                    />
+                  </label>
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    size="sm"
+                    className="contract-history-mobile-toolbar__refresh"
+                    disabled={!t || listBusy}
+                    onClick={() => void reloadListFirstPage()}
+                  >
+                    새로고침
+                  </FormButton>
+                </div>
+                <FormButton
+                  htmlType="button"
+                  variant="primary"
+                  size="sm"
+                  className="contract-history-mobile-toolbar__send-wide"
                   disabled={!t}
-                  options={[
-                    { value: 'sent_desc', label: '최신 발송순' },
-                    { value: 'completed_desc', label: '완료일순' },
-                  ]}
-                  onChange={(e) => setSort(e.target.value === 'completed_desc' ? 'completed_desc' : 'sent_desc')}
-                  style={{ minWidth: 140 }}
+                  onClick={() => navigate('/contracts/signatures/send')}
+                >
+                  새 발송
+                </FormButton>
+              </div>
+              <div className="contract-history-mobile-toolbar__status-filters">
+                <SendSessionHistoryFilters value={filter} onChange={setFilter} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="contract-signature-console__filter-row" style={{ justifyContent: 'space-between' }}>
+                <FormInput
+                  type="search"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="고객명·고객번호·전화·템플릿명 검색"
+                  disabled={!t}
+                  style={{ maxWidth: 360, flex: '1 1 200px' }}
                 />
-              </label>
-              <FormButton htmlType="button" variant="secondary" size="sm" disabled={!t || listBusy} onClick={() => void reloadListFirstPage()}>
-                새로고침
-              </FormButton>
-              <FormButton
-                htmlType="button"
-                variant="primary"
-                size="sm"
-                disabled={!t}
-                onClick={() => navigate('/contracts/signatures/send')}
-              >
-                새 발송
-              </FormButton>
-            </div>
-          </div>
-
-          <SendSessionHistoryFilters value={filter} onChange={setFilter} />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                  <label
+                    className="contract-signature-console__hint"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    정렬
+                    <FormSelect
+                      className="form-select"
+                      value={sort}
+                      disabled={!t}
+                      options={[
+                        { value: 'sent_desc', label: '최신 발송순' },
+                        { value: 'completed_desc', label: '완료일순' },
+                      ]}
+                      onChange={(e) =>
+                        setSort(e.target.value === 'completed_desc' ? 'completed_desc' : 'sent_desc')
+                      }
+                      style={{ minWidth: 140 }}
+                    />
+                  </label>
+                  <FormButton
+                    htmlType="button"
+                    variant="secondary"
+                    size="sm"
+                    disabled={!t || listBusy}
+                    onClick={() => void reloadListFirstPage()}
+                  >
+                    새로고침
+                  </FormButton>
+                  <FormButton
+                    htmlType="button"
+                    variant="primary"
+                    size="sm"
+                    disabled={!t}
+                    onClick={() => navigate('/contracts/signatures/send')}
+                  >
+                    새 발송
+                  </FormButton>
+                </div>
+              </div>
+              <SendSessionHistoryFilters value={filter} onChange={setFilter} />
+            </>
+          )}
 
           {cancelFeedback ? (
             cancelFeedback.tone === 'success' ? (
