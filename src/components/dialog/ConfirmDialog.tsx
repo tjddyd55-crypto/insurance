@@ -22,6 +22,8 @@ export type ConfirmDialogProps = {
  *     다른 다이얼로그 풋터가 따라야 할 참고점이다.
  *   - busy 중에는 취소/확인 모두 disabled. 이 동작을 Button 에만 맡기지 않고
  *     backdrop/ESC 도 함께 잠궈 되돌릴 수 없는 동시 호출을 차단한다.
+ *   - usePortal + 높은 z-index: 전자문서 발송 상세 모달(z-index 100050) 위에
+ *     확인 레이어가 오도록 한다.
  */
 export function ConfirmDialog({
   open,
@@ -42,6 +44,8 @@ export function ConfirmDialog({
       closeOnBackdrop={!busy}
       closeOnEsc={!busy}
       panelClassName="max-w-lg"
+      usePortal
+      overlayClassName="!z-[100100]"
     >
       <h3 className="text-lg font-semibold text-[var(--text-main)]">{title}</h3>
       <div className="mt-3 text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words">{message}</div>

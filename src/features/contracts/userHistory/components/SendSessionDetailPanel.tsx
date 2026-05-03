@@ -320,7 +320,7 @@ export function SendSessionDetailPanel({
               disabled={!canCancel || cancelBusy}
               onClick={onCancelSession}
             >
-              취소
+              발송취소
             </FormButton>
             <FormButton htmlType="button" variant="secondary" size="sm" onClick={onClose}>
               닫기

@@ -212,7 +212,7 @@ export default function ContractSignatureHistoryPage() {
         </>
       ),
       tone: 'danger',
-      confirmLabel: '발송 취소',
+      confirmLabel: '발송취소',
       cancelLabel: '취소하지 않기',
     })
     if (!ok) {
@@ -242,7 +242,7 @@ export default function ContractSignatureHistoryPage() {
         </>
       ),
       tone: 'danger',
-      confirmLabel: '발송 취소',
+      confirmLabel: '발송취소',
       cancelLabel: '취소하지 않기',
     })
     if (!ok) {
