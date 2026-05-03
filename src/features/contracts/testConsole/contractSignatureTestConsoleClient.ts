@@ -12,6 +12,8 @@ import type { PdfTemplateDetail, PdfTemplateSummary } from '../../pdf-engine/typ
 import { searchCustomers } from '../../customers/api/customersApi'
 import type { CustomerRecord } from '../../customers/domain/types'
 
+export type ContractTemplateMode = 'coordinate_pdf' | 'confirmation_only'
+
 export type ContractTemplateListItem = {
   id: string
   title: string
@@ -19,6 +21,7 @@ export type ContractTemplateListItem = {
   category: string | null
   status: string
   version: number
+  templateMode: ContractTemplateMode
   pdfTemplateId: number | null
   pdfEngineTitle: string | null
   pageCount: number | null
@@ -48,6 +51,7 @@ export type ContractTemplateDetail = {
   category: string | null
   status: string
   version: number
+  templateMode: ContractTemplateMode
   pdfTemplateId: number | null
   pdfFileId: string | null
   pdfFilePath: string | null
@@ -226,6 +230,7 @@ export async function listContractTemplates(
   }
   return raw.templates.map((t) => ({
     ...t,
+    templateMode: t.templateMode === 'confirmation_only' ? 'confirmation_only' : 'coordinate_pdf',
     documentInstanceCount: Number((t as ContractTemplateListItem).documentInstanceCount ?? 0),
     packageItemCount: Number((t as ContractTemplateListItem).packageItemCount ?? 0),
   }))
@@ -249,6 +254,7 @@ export async function fetchContractTemplateDetail(
   }
   return {
     ...tpl,
+    templateMode: tpl.templateMode === 'confirmation_only' ? 'confirmation_only' : 'coordinate_pdf',
     fieldInputSettings: Array.isArray(tpl.fieldInputSettings) ? tpl.fieldInputSettings : [],
   }
 }

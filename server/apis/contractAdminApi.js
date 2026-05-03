@@ -26,6 +26,7 @@ import { listFields } from '../pdf-engine/repository/pdfTemplateRepo.js'
 
 const CT_PREFIX = 'ct_'
 const CTF_PREFIX = 'ctf_'
+const CTCF_PREFIX = 'ctcf_'
 const PKG_PREFIX = 'pkg_'
 const CSS_PREFIX = 'css_'
 const CDI_PREFIX = 'cdi_'
@@ -307,6 +308,7 @@ export function registerContractAdminApi(apiRouter, ctx) {
           category: row.category,
           status: row.status,
           version: row.version,
+          templateMode: row.template_mode ?? 'coordinate_pdf',
           pdfTemplateId: row.pdf_template_id,
           pdfEngineTitle: row.pdf_engine_title,
           pageCount: row.page_count,
@@ -384,6 +386,7 @@ export function registerContractAdminApi(apiRouter, ctx) {
           category: row.category,
           status: row.status,
           version: row.version,
+          templateMode: row.template_mode ?? 'coordinate_pdf',
           pdfTemplateId: row.pdf_template_id,
           pdfFileId: row.pdf_file_id,
           pdfFilePath: row.pdf_file_path,
@@ -657,9 +660,9 @@ export function registerContractAdminApi(apiRouter, ctx) {
         `
         INSERT INTO contract_templates (
           id, title, description, category, pdf_file_id, pdf_file_path, pdf_hash, page_count,
-          pdf_template_id, status, version, created_by_user_id, ga_id, created_at, updated_at
+          pdf_template_id, template_mode, status, version, created_by_user_id, ga_id, created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft', 1, $10, $11, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'draft', 1, $11, $12, NOW(), NOW())
         `,
         [
           newTid,
@@ -671,6 +674,9 @@ export function registerContractAdminApi(apiRouter, ctx) {
           src.pdf_hash ?? null,
           src.page_count ?? null,
           src.pdf_template_id ?? null,
+          src.template_mode != null && String(src.template_mode).trim() !== ''
+            ? String(src.template_mode).trim()
+            : 'coordinate_pdf',
           uid || null,
           src.ga_id ?? null,
         ],
@@ -722,6 +728,38 @@ export function registerContractAdminApi(apiRouter, ctx) {
       }
       if (settingsDup.rowCount === 0 && src.pdf_template_id != null) {
         await seedContractTemplateFieldSettings(client, newTid, Number(src.pdf_template_id))
+      }
+      const confDup = await client.query(
+        `
+        SELECT field_key, label, input_type, required, sort_order, placeholder, help_text
+        FROM contract_template_confirmation_fields
+        WHERE template_id = $1
+        ORDER BY sort_order, field_key
+        `,
+        [src.id],
+      )
+      for (const cf of confDup.rows) {
+        const ncf = newId(CTCF_PREFIX)
+        await client.query(
+          `
+          INSERT INTO contract_template_confirmation_fields (
+            id, template_id, field_key, label, input_type, required, sort_order, placeholder, help_text,
+            created_at, updated_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+          `,
+          [
+            ncf,
+            newTid,
+            String(cf.field_key),
+            String(cf.label),
+            String(cf.input_type),
+            Boolean(cf.required),
+            Number(cf.sort_order ?? 0),
+            cf.placeholder ?? null,
+            cf.help_text ?? null,
+          ],
+        )
       }
       await client.query('COMMIT')
       res.status(201).json({ ok: true, success: true, data: { id: newTid } })

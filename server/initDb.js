@@ -3100,6 +3100,55 @@ async function ensureContractSelfSmsSchema(executor) {
     ON contract_templates(ga_id, status)
   `)
 
+  /* 계약 템플릿 모드: 좌표형 PDF vs 무좌표 확인만(확장 예정). 기본은 기존 동작 유지. */
+  await executor.query(`
+    ALTER TABLE contract_templates
+    ADD COLUMN IF NOT EXISTS template_mode TEXT NOT NULL DEFAULT 'coordinate_pdf'
+  `)
+  await executor.query(`
+    UPDATE contract_templates
+    SET template_mode = 'coordinate_pdf'
+    WHERE template_mode IS NULL
+       OR template_mode NOT IN ('coordinate_pdf', 'confirmation_only')
+  `)
+  await executor.query(`
+    ALTER TABLE contract_templates DROP CONSTRAINT IF EXISTS contract_templates_template_mode_check
+  `)
+  await executor.query(`
+    ALTER TABLE contract_templates
+    ADD CONSTRAINT contract_templates_template_mode_check
+    CHECK (template_mode IN ('coordinate_pdf', 'confirmation_only'))
+  `)
+
+  /* confirmation_only 용 관리자 정의 동적 필드(좌표/PDF 필드 설정 테이블과 분리). */
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS contract_template_confirmation_fields (
+      id TEXT PRIMARY KEY,
+      template_id TEXT NOT NULL REFERENCES contract_templates(id) ON DELETE CASCADE,
+      field_key TEXT NOT NULL,
+      label TEXT NOT NULL,
+      input_type TEXT NOT NULL,
+      required BOOLEAN NOT NULL DEFAULT TRUE,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      placeholder TEXT,
+      help_text TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT contract_template_confirmation_fields_input_type_check
+        CHECK (input_type IN ('text', 'textarea', 'number', 'date')),
+      CONSTRAINT contract_template_confirmation_fields_template_key_uniq
+        UNIQUE (template_id, field_key)
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_template_confirmation_fields_template_id
+    ON contract_template_confirmation_fields(template_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_contract_template_confirmation_fields_sort
+    ON contract_template_confirmation_fields(template_id, sort_order)
+  `)
+
   await executor.query(`
     CREATE TABLE IF NOT EXISTS contract_template_fields (
       id TEXT PRIMARY KEY,

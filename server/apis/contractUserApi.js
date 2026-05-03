@@ -327,6 +327,7 @@ export function registerContractUserApi(apiRouter, ctx) {
           t.category,
           t.status,
           t.version,
+          t.template_mode,
           t.pdf_template_id,
           p.title AS pdf_engine_title,
           COALESCE(
@@ -411,6 +412,7 @@ export function registerContractUserApi(apiRouter, ctx) {
             category: row.category,
             status: row.status,
             version: row.version,
+            templateMode: row.template_mode ?? 'coordinate_pdf',
             pdfTemplateId: row.pdf_template_id,
             pdfEngineTitle: row.pdf_engine_title,
             pdfFieldCount: row.pdf_field_count,

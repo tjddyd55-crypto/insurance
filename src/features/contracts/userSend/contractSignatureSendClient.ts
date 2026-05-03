@@ -16,6 +16,8 @@ export type ContractSenderFieldDef = {
   options?: unknown
 }
 
+export type ContractTemplateMode = 'coordinate_pdf' | 'confirmation_only'
+
 export type UserContractTemplateItem = {
   id: string
   title: string
@@ -23,6 +25,8 @@ export type UserContractTemplateItem = {
   category: string | null
   status: string
   version: number
+  /** 서버 기본값 coordinate_pdf */
+  templateMode: ContractTemplateMode
   pdfTemplateId: number | null
   pdfEngineTitle: string | null
   pdfFieldCount: number
@@ -127,6 +131,7 @@ export async function listUserContractTemplates(
   }
   return raw.templates.map((row) => ({
     ...row,
+    templateMode: row.templateMode === 'confirmation_only' ? 'confirmation_only' : 'coordinate_pdf',
     senderFieldsForSend: Array.isArray(row.senderFieldsForSend) ? row.senderFieldsForSend : [],
   }))
 }
