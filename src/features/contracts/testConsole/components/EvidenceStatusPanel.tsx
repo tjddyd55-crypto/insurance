@@ -1,6 +1,10 @@
 import { FormButton } from '../../../../components/form'
 import { useAuth } from '../../../auth/AuthProvider'
-import { downloadStaffSignedPdfFile, type SendSessionDetail } from '../contractSignatureTestConsoleClient'
+import {
+  downloadStaffEvidencePdfFile,
+  downloadStaffSignedPdfFile,
+  type SendSessionDetail,
+} from '../contractSignatureTestConsoleClient'
 import {
   formatStaffSessionDateParts,
   staffDocumentStatusLabel,
@@ -26,11 +30,26 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
   const t = token?.trim() ?? ''
   const isMobile = layout === 'mobile'
 
+  const sessionCompleted = detail != null && detail.status === 'completed'
+
   async function downloadSignedPdf(docId: string) {
     if (!detail || !t) {
       return
     }
-    await downloadStaffSignedPdfFile(t, detail.id, docId)
+    const r = await downloadStaffSignedPdfFile(t, detail.id, docId)
+    if (!r.ok) {
+      window.alert(r.message)
+    }
+  }
+
+  async function downloadEvidencePdf() {
+    if (!detail || !t) {
+      return
+    }
+    const r = await downloadStaffEvidencePdfFile(t, detail.id)
+    if (!r.ok) {
+      window.alert(r.message)
+    }
   }
 
   const copyLink = async (linkCode: string) => {
@@ -115,6 +134,10 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
                       <dt>최종 PDF</dt>
                       <dd>{anyPdfReady ? '다운로드 가능' : '준비 중 또는 없음'}</dd>
                     </div>
+                    <div>
+                      <dt>증빙 PDF</dt>
+                      <dd>{sessionCompleted ? '다운로드 가능' : '세션 완료 후'}</dd>
+                    </div>
                   </div>
                   <div className="contract-mobile-action-grid">
                     <FormButton
@@ -139,20 +162,38 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
                         <div className="contract-signature-console__hint" style={{ marginTop: 4 }}>
                           evidence: {ev?.evidenceHashPrefix ?? '—'}
                         </div>
-                        {d.status === 'completed' && canDl ? (
+                        <div className="contract-session-pdf-dl-stack" style={{ marginTop: 8 }}>
                           <FormButton
                             htmlType="button"
                             variant="secondary"
                             size="sm"
                             fullWidth
-                            className="contract-mobile-btn-primary-wide"
+                            className="contract-mobile-btn-primary-wide contract-session-pdf-dl-btn"
+                            disabled={!canDl}
                             onClick={() => void downloadSignedPdf(d.id)}
                           >
-                            최종 PDF 다운로드
+                            완료 계약서 다운로드
                           </FormButton>
-                        ) : d.status === 'completed' ? (
+                          <FormButton
+                            htmlType="button"
+                            variant="secondary"
+                            size="sm"
+                            fullWidth
+                            className="contract-mobile-btn-primary-wide contract-session-pdf-dl-btn"
+                            disabled={!sessionCompleted || !t}
+                            onClick={() => void downloadEvidencePdf()}
+                          >
+                            증빙 PDF 다운로드
+                          </FormButton>
+                        </div>
+                        {!sessionCompleted ? (
                           <p className="contract-signature-console__hint" style={{ marginTop: 8 }}>
-                            최종 PDF 준비 중
+                            고객이 문서를 완료하면 증빙 PDF를 다운로드할 수 있습니다.
+                          </p>
+                        ) : null}
+                        {d.status === 'completed' && !canDl ? (
+                          <p className="contract-signature-console__hint" style={{ marginTop: 8 }}>
+                            완료 계약서 PDF 준비 중
                           </p>
                         ) : null}
                       </div>
@@ -243,14 +284,16 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
                   <th>identityLevel</th>
                   <th>otpVerifiedAt</th>
                   <th>signedAt</th>
-                  <th>최종 PDF</th>
+                  <th>완료 계약서</th>
+                  <th>증빙 PDF</th>
                 </tr>
               </thead>
               <tbody>
-                {detail.documents.map((d) => {
+                {detail.documents.map((d, idx) => {
                   const ev = d.evidence
                   const hashShow = ev?.evidenceHash ?? '—'
                   const canDl = Boolean(ev?.hasSignedPdfFile)
+                  const n = detail.documents.length
                   return (
                     <tr key={d.id}>
                       <td>
@@ -277,6 +320,25 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
                           <span className="contract-signature-console__hint">—</span>
                         )}
                       </td>
+                      {idx === 0 ? (
+                        <td rowSpan={Math.max(n, 1)}>
+                          {sessionCompleted && t ? (
+                            <FormButton
+                              htmlType="button"
+                              variant="secondary"
+                              size="sm"
+                              className="contract-session-pdf-dl-btn"
+                              onClick={() => void downloadEvidencePdf()}
+                            >
+                              다운로드
+                            </FormButton>
+                          ) : (
+                            <span className="contract-signature-console__hint">
+                              고객이 문서를 완료하면 다운로드할 수 있습니다.
+                            </span>
+                          )}
+                        </td>
+                      ) : null}
                     </tr>
                   )
                 })}

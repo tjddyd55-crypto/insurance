@@ -1,6 +1,6 @@
 import { FormButton } from '../../../../components/form'
 import type { CreateSendSessionResult, SendSessionDetail } from '../contractSignatureTestConsoleClient'
-import { downloadStaffSignedPdfFile } from '../contractSignatureTestConsoleClient'
+import { downloadStaffEvidencePdfFile, downloadStaffSignedPdfFile } from '../contractSignatureTestConsoleClient'
 
 function publicSignUrl(linkCode: string): string {
   if (typeof window === 'undefined') {
@@ -56,6 +56,11 @@ export function SendSessionPanel({
   const staffTok = staffAuthToken?.trim() ?? ''
   const isMobile = layout === 'mobile'
   const session = detail ?? (lastCreated ? mapLastToDetailShape(lastCreated) : null)
+  const sessionCompleted = Boolean(detail?.status === 'completed')
+
+  const notifyDownloadError = (message: string) => {
+    window.alert(message)
+  }
 
   const copyLink = async (linkCode: string) => {
     const url = publicSignUrl(linkCode)
@@ -173,26 +178,56 @@ export function SendSessionPanel({
                     <div key={d.id} className="contract-mobile-doc-card">
                       <div className="contract-mobile-doc-card__title">{d.titleSnapshot}</div>
                       <div className="contract-signature-console__hint">상태: {d.status}</div>
-                      <div style={{ marginTop: 8 }}>
-                        {d.status === 'completed' && canDl ? (
-                          <FormButton
-                            htmlType="button"
-                            variant="secondary"
-                            size="sm"
-                            className="contract-mobile-btn-primary-wide"
-                            style={{ marginTop: 0 }}
-                            onClick={() =>
-                              detail ? void downloadStaffSignedPdfFile(staffTok, detail.id, d.id) : undefined
+                      <div className="contract-session-pdf-dl-stack" style={{ marginTop: 8 }}>
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          className="contract-mobile-btn-primary-wide contract-session-pdf-dl-btn"
+                          disabled={!canDl}
+                          onClick={() => {
+                            if (!detail) {
+                              return
                             }
-                          >
-                            최종 PDF 다운로드
-                          </FormButton>
-                        ) : d.status === 'completed' ? (
-                          <span className="contract-signature-console__hint">최종 PDF 준비 중</span>
-                        ) : (
-                          <span className="contract-signature-console__hint">—</span>
-                        )}
+                            void downloadStaffSignedPdfFile(staffTok, detail.id, d.id).then((r) => {
+                              if (!r.ok) {
+                                notifyDownloadError(r.message)
+                              }
+                            })
+                          }}
+                        >
+                          완료 계약서 다운로드
+                        </FormButton>
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          className="contract-mobile-btn-primary-wide contract-session-pdf-dl-btn"
+                          disabled={!sessionCompleted}
+                          onClick={() => {
+                            if (!detail) {
+                              return
+                            }
+                            void downloadStaffEvidencePdfFile(staffTok, detail.id).then((r) => {
+                              if (!r.ok) {
+                                notifyDownloadError(r.message)
+                              }
+                            })
+                          }}
+                        >
+                          증빙 PDF 다운로드
+                        </FormButton>
                       </div>
+                      {!sessionCompleted ? (
+                        <p className="contract-signature-console__hint" style={{ margin: '8px 0 0' }}>
+                          고객이 문서를 완료하면 증빙 PDF를 다운로드할 수 있습니다.
+                        </p>
+                      ) : null}
+                      {d.status === 'completed' && !canDl ? (
+                        <p className="contract-signature-console__hint" style={{ margin: '8px 0 0' }}>
+                          완료 계약서 PDF 준비 중
+                        </p>
+                      ) : null}
                     </div>
                   )
                 })}
@@ -310,11 +345,12 @@ export function SendSessionPanel({
                   <tr>
                     <th>문서</th>
                     <th>상태</th>
-                    <th>최종 PDF</th>
+                    <th>완료 계약서</th>
+                    <th>증빙 PDF</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(detail?.documents ?? []).map((d) => {
+                  {(detail?.documents ?? []).map((d, idx) => {
                     const ev = d.evidence
                     const canDl = d.status === 'completed' && Boolean(ev?.hasSignedPdfFile)
                     return (
@@ -327,18 +363,54 @@ export function SendSessionPanel({
                               htmlType="button"
                               variant="secondary"
                               size="sm"
-                              onClick={() =>
-                                detail ? void downloadStaffSignedPdfFile(staffTok, detail.id, d.id) : undefined
-                              }
+                              className="contract-session-pdf-dl-btn"
+                              onClick={() => {
+                                if (!detail) {
+                                  return
+                                }
+                                void downloadStaffSignedPdfFile(staffTok, detail.id, d.id).then((r) => {
+                                  if (!r.ok) {
+                                    notifyDownloadError(r.message)
+                                  }
+                                })
+                              }}
                             >
                               다운로드
                             </FormButton>
                           ) : d.status === 'completed' ? (
-                            <span className="contract-signature-console__hint">최종 PDF 준비 중</span>
+                            <span className="contract-signature-console__hint">준비 중</span>
                           ) : (
                             <span className="contract-signature-console__hint">—</span>
                           )}
                         </td>
+                        {idx === 0 ? (
+                          <td rowSpan={Math.max((detail?.documents ?? []).length, 1)}>
+                            {sessionCompleted ? (
+                              <FormButton
+                                htmlType="button"
+                                variant="secondary"
+                                size="sm"
+                                className="contract-session-pdf-dl-btn"
+                                onClick={() => {
+                                  if (!detail) {
+                                    return
+                                  }
+                                  void downloadStaffEvidencePdfFile(staffTok, detail.id).then((r) => {
+                                    if (!r.ok) {
+                                      notifyDownloadError(r.message)
+                                    }
+                                  })
+                                }}
+                              >
+                                다운로드
+                              </FormButton>
+                            ) : (
+                              <span className="contract-signature-console__hint">
+                                고객이 문서를 완료하면 다운로드할 수 있습니다.
+                              </span>
+                            )}
+                          </td>
+                        ) : null}
                       </tr>
                     )
                   })}

@@ -366,6 +366,7 @@ export default function ContractSignatureHistoryPage() {
         error={detailError}
         token={t}
         listHints={detailRowHints}
+        layout={historyMobile ? 'mobile' : 'desktop'}
         onClose={() => {
           setDetailOpen(false)
           setDetail(null)
