@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { consentGetBuffer } from '../lib/consentStorage.js'
+import path from 'node:path'
+import { consentGetBuffer, consentPutObject } from '../lib/consentStorage.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { normalizeKrMobile, validateKrMobileDigits } from '../lib/phoneNormalize.js'
 import { maskKrMobileForDisplay } from '../utils/maskKrMobile.js'
@@ -24,6 +25,12 @@ import {
   listConfirmationItemsWithValues,
   parseConfirmationItemsFromBody,
 } from '../services/contractConfirmationItems.js'
+import {
+  parseAttachmentsFromBody,
+  insertSendSessionAttachmentsForSend,
+  listSendSessionAttachmentsPublic,
+} from '../services/contractSendAttachments.js'
+import multer from 'multer'
 
 const CSS_PREFIX = 'css_'
 const CDI_PREFIX = 'cdi_'
@@ -31,6 +38,25 @@ const CDI_PREFIX = 'cdi_'
 function newId(prefix) {
   return `${prefix}${randomUUID()}`
 }
+
+function safeContractAttachmentBaseName(name) {
+  const b = path.basename(String(name ?? 'file')).replace(/[\\/]/g, '')
+  const cleaned = b.replace(/[^\w.\-가-힣 ()[\]]+/g, '_').trim()
+  return cleaned.slice(0, 180) || 'file'
+}
+
+const uploadContractAttachment = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+})
+
+const CONTRACT_ATTACHMENT_UPLOAD_MIMES = new Set([
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+])
 
 function escapeIlikePattern(raw) {
   return String(raw ?? '').replace(/[\\%_]/g, (ch) => `\\${ch}`)
@@ -125,6 +151,14 @@ function mapSendSessionCreateError(err) {
       status: 503,
       code: 'link_code_collision',
       message: '발송 링크 코드 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+    }
+  }
+  const attachCode = /** @type {{ code?: string }} */ (err)?.code
+  if (attachCode === 'attachment_file_invalid' || attachCode === 'attachment_file_unreadable') {
+    return {
+      status: 400,
+      code: attachCode,
+      message: msg,
     }
   }
   return null
@@ -560,6 +594,13 @@ export function registerContractUserApi(apiRouter, ctx) {
         return
       }
 
+      const attRaw = req.body?.attachments ?? req.body?.sessionAttachments ?? req.body?.session_attachments
+      const attParsed = parseAttachmentsFromBody(attRaw)
+      if (!attParsed.ok) {
+        res.status(400).json({ ok: false, message: attParsed.message })
+        return
+      }
+
       const contractTemplatesOrdered = /** @type {{ id: string, title: string, version: number, required: number, pdfHash: string | null, pdfTemplateId: number | null }[]} */ ([])
 
       await client.query('BEGIN')
@@ -669,6 +710,15 @@ export function registerContractUserApi(apiRouter, ctx) {
         }
       }
 
+      if (attParsed.items.length > 0) {
+        if (!uid) {
+          await client.query('ROLLBACK')
+          res.status(401).json({ ok: false, message: '로그인이 필요합니다.' })
+          return
+        }
+        await insertSendSessionAttachmentsForSend(client, sendId, customerId, uid, userGa, attParsed.items)
+      }
+
       await client.query('COMMIT')
       res.status(201).json({
         ok: true,
@@ -718,6 +768,108 @@ export function registerContractUserApi(apiRouter, ctx) {
       client.release()
     }
   })
+
+  apiRouter.post(
+    '/contracts/send-sessions/attachment-upload',
+    ...chain,
+    (req, res, next) => {
+      uploadContractAttachment.single('file')(req, res, (err) => {
+        if (err) {
+          const code = /** @type {{ code?: string }} */ (err)?.code
+          if (code === 'LIMIT_FILE_SIZE') {
+            res.status(413).json({ ok: false, message: '첨부 파일이 너무 큽니다. (최대 20MB)' })
+            return
+          }
+          res.status(400).json({ ok: false, message: '파일 업로드 처리 중 오류가 발생했습니다.' })
+          return
+        }
+        next()
+      })
+    },
+    async (req, res) => {
+      try {
+        const userGa = parseGaId(req.user?.gaId)
+        const uid = getAuthUserId(req)
+        if (!uid) {
+          res.status(401).json({ ok: false, message: '로그인이 필요합니다.' })
+          return
+        }
+        if (userGa == null) {
+          res.status(400).json({ ok: false, message: 'GA 컨텍스트가 없습니다.' })
+          return
+        }
+        const f = req.file
+        if (!f || !f.buffer || f.buffer.length === 0) {
+          res.status(400).json({ ok: false, message: '업로드할 파일이 없습니다.' })
+          return
+        }
+        const customerId = Number(req.body?.customerId ?? req.body?.customer_id)
+        if (!Number.isInteger(customerId) || customerId < 1) {
+          res.status(400).json({ ok: false, message: 'customerId가 올바르지 않습니다.' })
+          return
+        }
+        const cust = await assertCustomerForUserSend(pool, customerId, req)
+        if (cust.error) {
+          res.status(cust.status ?? 400).json({ ok: false, message: cust.error })
+          return
+        }
+        const mime = String(f.mimetype || '')
+          .toLowerCase()
+          .split(';')[0]
+          .trim()
+        if (!CONTRACT_ATTACHMENT_UPLOAD_MIMES.has(mime)) {
+          res.status(400).json({
+            ok: false,
+            message:
+              '허용되지 않는 파일 형식입니다. PDF 또는 이미지(jpeg, png, gif, webp)만 올릴 수 있습니다.',
+          })
+          return
+        }
+        const displayBase = safeContractAttachmentBaseName(f.originalname || 'attachment')
+        const storageKey = `contracts/send-attachments/${uid}/${randomUUID()}/${displayBase}`
+        try {
+          await consentPutObject(storageKey, f.buffer, mime)
+        } catch {
+          res.status(503).json({ ok: false, message: '파일을 저장소에 올리지 못했습니다.' })
+          return
+        }
+        const contentHash = createHash('sha256').update(f.buffer).digest('hex')
+        const ins = await pool.query(
+          `
+          INSERT INTO files (
+            user_id,
+            ga_id,
+            customer_id,
+            team_id,
+            folder_id,
+            original_name,
+            display_name,
+            file_path,
+            file_size,
+            mime_type,
+            content,
+            is_confirmed,
+            status
+          )
+          VALUES ($1, $2, $3, NULL, NULL, $4, $4, $5, $6, $7, '', true, 'active')
+          RETURNING id
+          `,
+          [String(uid), userGa, customerId, displayBase, storageKey, f.buffer.length, mime],
+        )
+        const fileId = String(ins.rows[0].id)
+        res.status(201).json({
+          ok: true,
+          fileId,
+          contentHash,
+          displayFilename: displayBase,
+          mimeType: mime,
+          sizeBytes: f.buffer.length,
+        })
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    },
+  )
 
   apiRouter.get('/contracts/send-sessions', ...chain, async (req, res) => {
     try {
@@ -1044,11 +1196,13 @@ export function registerContractUserApi(apiRouter, ctx) {
         }
       }
       const confirmationItems = await listConfirmationItemsWithValues(pool, row.id)
+      const sendSessionAttachments = await listSendSessionAttachmentsPublic(pool, row.id)
       res.json({
         ok: true,
         sendSession: {
           ...mapSendSessionDetailRow(row, docs, evidenceByDoc),
           confirmationItems,
+          sendSessionAttachments,
         },
       })
     } catch (e) {

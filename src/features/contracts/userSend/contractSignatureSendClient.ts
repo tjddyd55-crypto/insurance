@@ -1,4 +1,4 @@
-import { ApiError, apiRequest } from '../../../lib/apiClient'
+import { ApiError, apiRequest, resolveApiUrl } from '../../../lib/apiClient'
 import type {
   CreateSendSessionResult,
   SendSessionDetail,
@@ -67,6 +67,53 @@ export function getContractCustomerSearchValidationMessage(raw: string): string 
   return null
 }
 
+export const CONTRACT_SEND_ATTACHMENTS_MAX = 20
+
+export async function uploadUserContractSendAttachment(
+  token: string,
+  customerId: number,
+  file: File,
+): Promise<{
+  fileId: string
+  displayFilename: string
+  contentHash: string
+  mimeType: string
+  sizeBytes: number
+}> {
+  const fd = new FormData()
+  fd.append('file', file)
+  fd.append('customerId', String(customerId))
+  const resolvedUrl = resolveApiUrl('/api/contracts/send-sessions/attachment-upload')
+  const res = await fetch(resolvedUrl, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token.trim()}` },
+    body: fd,
+  })
+  const payload = (await res.json().catch(() => ({}))) as {
+    ok?: boolean
+    fileId?: string
+    displayFilename?: string
+    contentHash?: string
+    mimeType?: string
+    sizeBytes?: number
+    message?: string
+  }
+  if (!res.ok || !payload.ok || !payload.fileId) {
+    const msg =
+      typeof payload.message === 'string' && payload.message.trim()
+        ? payload.message.trim()
+        : '첨부 파일 업로드에 실패했습니다.'
+    throw new ApiError(msg, res.status || 500)
+  }
+  return {
+    fileId: String(payload.fileId),
+    displayFilename: String(payload.displayFilename ?? file.name),
+    contentHash: String(payload.contentHash ?? ''),
+    mimeType: String(payload.mimeType ?? file.type ?? ''),
+    sizeBytes: Number(payload.sizeBytes ?? file.size),
+  }
+}
+
 export async function listUserContractTemplates(
   token: string,
 ): Promise<UserContractTemplateItem[]> {
@@ -131,6 +178,8 @@ export async function createUserContractSendSession(
     senderFieldValues?: Record<string, Record<string, unknown>>
     /** 고객 공개 화면에서 전자서명 전 확인받을 체크 문구(PDF 필드 아님). */
     confirmationItems?: { label: string; required?: boolean }[]
+    /** 첨부 참고 문서(fileId는 업로드 API로 발급) */
+    attachments?: { fileId: string; required?: boolean }[]
   },
 ): Promise<CreateSendSessionResult> {
   const body = await apiRequest<{
@@ -144,6 +193,7 @@ export async function createUserContractSendSession(
       templateIds: params.templateIds,
       senderInputValues: params.senderInputValues ?? params.senderFieldValues,
       confirmationItems: params.confirmationItems,
+      attachments: params.attachments,
     }),
   })
   const s = body.sendSession
@@ -170,6 +220,9 @@ export async function getUserContractSendSessionDetail(
   }
   if (!Array.isArray(s.confirmationItems)) {
     s.confirmationItems = []
+  }
+  if (!Array.isArray(s.sendSessionAttachments)) {
+    s.sendSessionAttachments = []
   }
   return s
 }

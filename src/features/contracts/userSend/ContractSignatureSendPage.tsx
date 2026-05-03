@@ -20,6 +20,8 @@ import {
   searchCustomersForContractSend,
   CONTRACT_SEND_CONFIRMATION_MAX_ITEMS,
   CONTRACT_SEND_CONFIRMATION_MAX_LABEL_LEN,
+  CONTRACT_SEND_ATTACHMENTS_MAX,
+  uploadUserContractSendAttachment,
   type UserContractCustomerSearchHit,
   type UserContractTemplateItem,
 } from './contractSignatureSendClient'
@@ -87,6 +89,15 @@ export default function ContractSignatureSendPage() {
   const [evidenceLoading, setEvidenceLoading] = useState(false)
   const [senderVals, setSenderVals] = useState<Record<string, string | boolean>>({})
   const [confirmationDrafts, setConfirmationDrafts] = useState<{ key: string; label: string }[]>([])
+  const [attachmentDrafts, setAttachmentDrafts] = useState<
+    { key: string; fileId: string; displayFilename: string; required: boolean }[]
+  >([])
+  const [attachmentUploadBusy, setAttachmentUploadBusy] = useState(false)
+  const attachmentFileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setAttachmentDrafts([])
+  }, [selectedCustomer?.id])
 
   const reloadTemplates = useCallback(async () => {
     if (!t) {
@@ -178,6 +189,7 @@ export default function ContractSignatureSendPage() {
   useEffect(() => {
     setSenderVals({})
     setConfirmationDrafts([])
+    setAttachmentDrafts([])
   }, [selectedTemplateId])
 
   const senderPrefillSatisfied = (tpl: UserContractTemplateItem | null | undefined): boolean => {
@@ -264,10 +276,15 @@ export default function ContractSignatureSendPage() {
           confirmationDrafts.length > 0
             ? confirmationDrafts.map((d) => ({ label: d.label.trim(), required: true as const }))
             : undefined,
+        attachments:
+          attachmentDrafts.length > 0
+            ? attachmentDrafts.map((a) => ({ fileId: a.fileId, required: a.required }))
+            : undefined,
       })
       setLastCreated(created)
       const next = await getUserContractSendSessionDetail(t, created.id)
       setSessionDetail(next)
+      setAttachmentDrafts([])
     } catch (e) {
       setSendError(e instanceof ApiError ? e.message : '발송 세션 생성에 실패했습니다.')
     } finally {
@@ -302,6 +319,124 @@ export default function ContractSignatureSendPage() {
   const step2Active = step1Complete && !step2Complete
   const step3Active = step2Complete && !step3Complete
   const step4Active = step3Complete
+
+  const onAttachmentFilesChosen = async (files: FileList | null) => {
+    if (!files?.length || !t || !selectedCustomer) {
+      return
+    }
+    setSendError(null)
+    let count = attachmentDrafts.length
+    for (const file of Array.from(files)) {
+      if (count >= CONTRACT_SEND_ATTACHMENTS_MAX) {
+        setSendError(`첨부는 최대 ${CONTRACT_SEND_ATTACHMENTS_MAX}개까지 추가할 수 있습니다.`)
+        break
+      }
+      setAttachmentUploadBusy(true)
+      try {
+        const up = await uploadUserContractSendAttachment(t, selectedCustomer.id, file)
+        setAttachmentDrafts((prev) => {
+          if (prev.length >= CONTRACT_SEND_ATTACHMENTS_MAX) {
+            return prev
+          }
+          return [
+            ...prev,
+            {
+              key: `att_${crypto.randomUUID()}`,
+              fileId: up.fileId,
+              displayFilename: up.displayFilename,
+              required: true,
+            },
+          ]
+        })
+        count += 1
+      } catch (err) {
+        setSendError(err instanceof ApiError ? err.message : '첨부 업로드에 실패했습니다.')
+      } finally {
+        setAttachmentUploadBusy(false)
+      }
+    }
+  }
+
+  const renderSendAttachmentDrafts = () => {
+    if (!selectedCustomer || !selectedTemplateId) {
+      return null
+    }
+    return (
+      <>
+        <FormInput
+          ref={attachmentFileInputRef}
+          type="file"
+          style={{ display: 'none' }}
+          accept=".pdf,image/jpeg,image/png,image/gif,image/webp,application/pdf"
+          multiple
+          onChange={(e) => {
+            const f = e.target.files
+            e.target.value = ''
+            void onAttachmentFilesChosen(f)
+          }}
+        />
+        <p className="contract-signature-console__body-text" style={{ margin: '0 0 8px' }}>
+          고객은 첨부자료를 열람한 뒤 확인 버튼을 눌러야 전자서명을 진행할 수 있습니다.
+        </p>
+        <div className="space-y-2 mt-2">
+          {attachmentDrafts.map((row) => (
+            <div key={row.key} className="flex flex-wrap items-center gap-2">
+              <span className="contract-signature-console__body-text text-sm flex-1 min-w-[120px]">
+                {row.displayFilename}
+              </span>
+              <label className="flex items-center gap-2 text-sm whitespace-nowrap">
+                <FormInput
+                  type="checkbox"
+                  checked={row.required}
+                  disabled={!t || attachmentUploadBusy}
+                  onChange={(ev) =>
+                    setAttachmentDrafts((prev) =>
+                      prev.map((x) => (x.key === row.key ? { ...x, required: ev.target.checked } : x)),
+                    )
+                  }
+                />
+                필수 확인
+              </label>
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                size="sm"
+                disabled={!t || attachmentUploadBusy}
+                onClick={() => setAttachmentDrafts((prev) => prev.filter((x) => x.key !== row.key))}
+              >
+                삭제
+              </FormButton>
+            </div>
+          ))}
+        </div>
+        <div className="contract-signature-console__btn-row" style={{ marginTop: 12 }}>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            disabled={
+              !t ||
+              attachmentUploadBusy ||
+              !selectedCustomer ||
+              attachmentDrafts.length >= CONTRACT_SEND_ATTACHMENTS_MAX
+            }
+            onClick={() => attachmentFileInputRef.current?.click()}
+          >
+            + 파일 추가
+          </FormButton>
+        </div>
+        {attachmentDrafts.length >= CONTRACT_SEND_ATTACHMENTS_MAX ? (
+          <p className="contract-signature-console__inline-warning" role="status" style={{ marginTop: 8 }}>
+            첨부는 최대 {CONTRACT_SEND_ATTACHMENTS_MAX}개까지 추가할 수 있습니다.
+          </p>
+        ) : (
+          <p className="contract-signature-console__hint" style={{ marginTop: 8 }}>
+            PDF 또는 이미지(jpeg, png, gif, webp)만 업로드할 수 있습니다. (파일당 최대 20MB)
+          </p>
+        )}
+      </>
+    )
+  }
 
   const mainClass =
     'insurance-dark-forms contract-signature-console' +
@@ -574,6 +709,15 @@ export default function ContractSignatureSendPage() {
                 </ul>,
               )
             : null}
+
+          {selectedCustomer && selectedTemplateId ? (
+            <section className="contract-signature-console__section" style={{ marginTop: 16 }}>
+              <h2 className="contract-signature-console__section-title" style={{ fontSize: '1rem' }}>
+                첨부자료(참고)
+              </h2>
+              {renderSendAttachmentDrafts()}
+            </section>
+          ) : null}
 
           {mobileStepShell(
             {
@@ -965,8 +1109,14 @@ export default function ContractSignatureSendPage() {
           </section>
         ) : null}
 
+        {selectedCustomer && selectedTemplateId ? (
+          <section className="contract-signature-console__section">
+            <h2 className="contract-signature-console__section-title">2-3. 첨부자료(참고)</h2>
+            {renderSendAttachmentDrafts()}
+          </section>
+        ) : null}
+
         <section className="contract-signature-console__section">
-          <h2 className="contract-signature-console__section-title">3. 발송 세션</h2>
           <SendSessionPanel
             busy={sendBusy}
             lastCreated={lastCreated}

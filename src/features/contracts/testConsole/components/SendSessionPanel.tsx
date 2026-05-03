@@ -9,6 +9,22 @@ function publicSignUrl(linkCode: string): string {
   return `${window.location.origin}/contracts/sign/${linkCode}`
 }
 
+function formatAttachmentCustomerConfirmAt(iso: string | null | undefined): string {
+  if (!iso) {
+    return ''
+  }
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) {
+    return String(iso).slice(0, 16)
+  }
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${y}.${m}.${day} ${h}:${min}`
+}
+
 type Props = {
   busy: boolean
   lastCreated: CreateSendSessionResult | null
@@ -125,6 +141,28 @@ export function SendSessionPanel({
                 </ul>
               </div>
             ) : null}
+            {session.sendSessionAttachments && session.sendSessionAttachments.length > 0 ? (
+              <div style={{ marginTop: 14 }}>
+                <strong style={{ fontSize: '0.8125rem' }}>첨부자료 확인</strong>
+                <ul className="contract-mobile-readonly-list" style={{ marginTop: 8 }}>
+                  {session.sendSessionAttachments.map((a) => (
+                    <li key={a.id}>
+                      <span>{a.displayFilename}</span>
+                      {a.required ? ' · 필수' : ''}
+                      {' — '}
+                      {a.confirmed ? (
+                        <span>
+                          확인 완료{' '}
+                          {a.confirmedAt ? formatAttachmentCustomerConfirmAt(a.confirmedAt) : ''}
+                        </span>
+                      ) : (
+                        <span className="contract-signature-console__hint">미확인</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {staffTok && (detail?.documents?.length ?? 0) > 0 ? (
               <div style={{ marginTop: 14 }}>
                 <strong style={{ fontSize: '0.8125rem' }}>문서</strong>
@@ -213,6 +251,28 @@ export function SendSessionPanel({
                       <span>
                         확인 완료
                         {c.checkedAt ? ` (${String(c.checkedAt).slice(0, 19)})` : ''}
+                      </span>
+                    ) : (
+                      <span className="contract-signature-console__hint">미확인</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {session.sendSessionAttachments && session.sendSessionAttachments.length > 0 ? (
+            <div style={{ marginTop: 12 }}>
+              <strong>첨부자료 확인</strong>
+              <ul className="contract-signature-console__unordered-list" style={{ marginTop: 6 }}>
+                {session.sendSessionAttachments.map((a) => (
+                  <li key={a.id}>
+                    <span>{a.displayFilename}</span>
+                    {a.required ? ' · 필수' : ''}
+                    {' — '}
+                    {a.confirmed ? (
+                      <span>
+                        확인 완료
+                        {a.confirmedAt ? ` (${formatAttachmentCustomerConfirmAt(a.confirmedAt)})` : ''}
                       </span>
                     ) : (
                       <span className="contract-signature-console__hint">미확인</span>
@@ -316,6 +376,7 @@ function mapLastToDetailShape(s: CreateSendSessionResult): SendSessionDetail {
     createdAt: s.createdAt,
     completedAt: null,
     documents: [],
+    sendSessionAttachments: [],
     ...(conf && conf.length > 0 ? { confirmationItems: conf } : {}),
   }
 }

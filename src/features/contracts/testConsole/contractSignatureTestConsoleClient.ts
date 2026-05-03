@@ -88,6 +88,18 @@ export type CreateSendSessionResult = {
   confirmationItems?: { id: string; label: string; required: boolean }[]
 }
 
+export type SendSessionAttachmentDetail = {
+  id: string
+  displayFilename: string
+  mimeType: string | null
+  required: boolean
+  sortOrder: number
+  viewed: boolean
+  viewedAt: string | null
+  confirmed: boolean
+  confirmedAt: string | null
+}
+
 export type SendSessionEvidence = {
   documentInstanceId: string
   documentTitle: string | null
@@ -139,6 +151,8 @@ export type SendSessionDetail = {
   documents: SendSessionDocumentDetail[]
   /** 고객 확인 체크 항목(발송 시 정의·완료 후 체크 이력) */
   confirmationItems?: ContractSendConfirmationItem[]
+  /** 발송 시 첨부한 참고 문서(고객 열람·확인 이력) */
+  sendSessionAttachments?: SendSessionAttachmentDetail[]
 }
 
 function tenantQs(tenantGaId: number | null, isSuper: boolean): string {

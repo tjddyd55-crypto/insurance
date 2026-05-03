@@ -18,6 +18,10 @@ import {
   upsertConfirmationValuesForComplete,
   validateConfirmationCheckedForComplete,
 } from '../services/contractConfirmationItems.js'
+import {
+  listSendSessionAttachmentsPublic,
+  loadSendSessionAttachmentRow,
+} from '../services/contractSendAttachments.js'
 
 const TERMINAL_SESSION = new Set(['expired', 'cancelled'])
 const COMPLETED_SESSION = new Set(['completed'])
@@ -581,6 +585,54 @@ async function respondWithPdfFromFileId(pool, res, fileId) {
 }
 
 /**
+ * 첨부자료 열람용 — MIME 에 맞춰 inline 스트리밍(storage 키 비노출).
+ * @param {import('pg').Pool} pool
+ * @param {import('express').Response} res
+ * @param {string | number} fileId
+ * @param {string} displayFilename
+ */
+async function streamConsentFileInlineForPublic(pool, res, fileId, displayFilename) {
+  const r = await pool.query(
+    `
+    SELECT file_path, mime_type, original_name, display_name
+    FROM files
+    WHERE id = $1::bigint
+    LIMIT 1
+    `,
+    [String(fileId).trim()],
+  )
+  if (!r.rowCount) {
+    res.status(404).json({ success: false, message: '파일을 찾을 수 없습니다.' })
+    return
+  }
+  const row = r.rows[0]
+  const key = String(row.file_path ?? '').trim()
+  if (!key) {
+    res.status(404).json({ success: false, message: '파일을 찾을 수 없습니다.' })
+    return
+  }
+  let buf
+  try {
+    buf = await consentGetBuffer(key)
+  } catch {
+    res.status(502).json({ success: false, message: '파일을 불러오지 못했습니다.' })
+    return
+  }
+  if (!buf || buf.length === 0) {
+    res.status(404).json({ success: false, message: '파일을 찾을 수 없습니다.' })
+    return
+  }
+  const mime = row.mime_type ? String(row.mime_type) : 'application/octet-stream'
+  const asciiName = String(displayFilename || row.display_name || row.original_name || 'file')
+    .replace(/[\r\n"]/g, '_')
+    .slice(0, 180)
+  res.setHeader('Content-Type', mime)
+  res.setHeader('Cache-Control', 'private, no-store')
+  res.setHeader('Content-Disposition', `inline; filename="${asciiName}"`)
+  res.status(200).send(Buffer.from(buf))
+}
+
+/**
  * @param {import('pg').PoolClient} client
  * @param {{
  *   userId: string,
@@ -846,6 +898,33 @@ export function registerContractPublicApi(apiRouter, ctx) {
             })
             return
           }
+        }
+        const attMissR = await client.query(
+          `
+          SELECT id, display_filename
+          FROM contract_send_session_attachments
+          WHERE send_session_id = $1
+            AND required = true
+            AND confirmed IS NOT TRUE
+          ORDER BY sort_order ASC, id ASC
+          `,
+          [session.id],
+        )
+        if (attMissR.rows.length > 0) {
+          await client.query('ROLLBACK')
+          res.status(400).json({
+            success: false,
+            code: 'required_attachments_missing',
+            error: 'required_attachments_missing',
+            message: '필수 첨부자료를 모두 확인해주세요.',
+            data: {
+              missingAttachments: attMissR.rows.map((r) => ({
+                id: String(r.id),
+                filename: String(r.display_filename ?? ''),
+              })),
+            },
+          })
+          return
         }
         let signedPdfFileId = null
         let signedPdfHashHex = null
@@ -1464,6 +1543,80 @@ export function registerContractPublicApi(apiRouter, ctx) {
     }
   })
 
+  apiRouter.get('/contracts/public/:linkCode/attachments/:attachmentId/view', async (req, res) => {
+    try {
+      const linkCode = String(req.params.linkCode ?? '').trim()
+      const attachmentId = String(req.params.attachmentId ?? '').trim()
+      const row = await loadSendSessionRow(pool, linkCode)
+      if (!row) {
+        res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
+        return
+      }
+      const sendStatus = String(row.status ?? '')
+      const idStatus = await loadLatestIdentityStatus(pool, row.id)
+      if (!allowsDocumentDetail(sendStatus, idStatus)) {
+        res.status(403).json({ success: false, message: '계약서 수신번호 인증이 필요합니다.' })
+        return
+      }
+      const att = await loadSendSessionAttachmentRow(pool, String(row.id), attachmentId)
+      if (!att) {
+        res.status(404).json({ success: false, message: '첨부자료를 찾을 수 없습니다.' })
+        return
+      }
+      await streamConsentFileInlineForPublic(pool, res, att.file_id, String(att.display_filename ?? 'file'))
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/contracts/public/:linkCode/attachments/:attachmentId/confirm', async (req, res) => {
+    try {
+      const linkCode = String(req.params.linkCode ?? '').trim()
+      const attachmentId = String(req.params.attachmentId ?? '').trim()
+      const row = await loadSendSessionRow(pool, linkCode)
+      if (!row) {
+        res.status(404).json({ success: false, message: '유효하지 않은 링크입니다.' })
+        return
+      }
+      const sendStatus = String(row.status ?? '')
+      const idStatus = await loadLatestIdentityStatus(pool, row.id)
+      if (!allowsDocumentMutation(sendStatus, idStatus)) {
+        res.status(403).json({ success: false, message: '계약서 수신번호 인증이 필요하거나 수정할 수 없는 상태입니다.' })
+        return
+      }
+      const att = await loadSendSessionAttachmentRow(pool, String(row.id), attachmentId)
+      if (!att) {
+        res.status(404).json({ success: false, message: '첨부자료를 찾을 수 없습니다.' })
+        return
+      }
+      const upd = await pool.query(
+        `
+        UPDATE contract_send_session_attachments
+        SET
+          viewed = true,
+          viewed_at = COALESCE(viewed_at, NOW()),
+          confirmed = true,
+          confirmed_at = COALESCE(confirmed_at, NOW()),
+          updated_at = NOW()
+        WHERE id = $1 AND send_session_id = $2
+        RETURNING id, viewed, confirmed, confirmed_at
+        `,
+        [attachmentId, String(row.id)],
+      )
+      const u = upd.rows[0]
+      res.status(200).json({
+        success: true,
+        ok: true,
+        attachmentId: String(u.id),
+        viewed: Boolean(u.viewed),
+        confirmed: Boolean(u.confirmed),
+        confirmedAt: u.confirmed_at ? new Date(u.confirmed_at).toISOString() : null,
+      })
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
   apiRouter.get('/contracts/public/:linkCode/documents/:documentInstanceId', async (req, res) => {
     try {
       const linkCode = String(req.params.linkCode ?? '').trim()
@@ -1554,6 +1707,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
           : null
       const signedPdfDownloadAvailable = signedPdfDownloadPath != null
       const confirmationItems = await listConfirmationItemsWithValues(pool, String(doc.send_session_id))
+      const sendSessionAttachments = await listSendSessionAttachmentsPublic(pool, String(doc.send_session_id))
       res.status(200).json({
         success: true,
         data: {
@@ -1576,6 +1730,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
           canEdit,
           evidenceSummary: evidenceSummary ?? undefined,
           confirmationItems,
+          sendSessionAttachments,
           notice:
             '휴대폰 인증 완료 후 문서 작성 및 전자서명을 진행합니다. 본 화면에서 입력·임시저장·전자서명·문서 완료까지 이어집니다.',
         },

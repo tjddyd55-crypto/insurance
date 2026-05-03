@@ -57,6 +57,61 @@
   color: var(--text-sub);
 }
 
+.contract-public-sign-page__badge {
+  display: inline-block;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.contract-public-sign-page__badge--required {
+  border: 1px solid var(--border);
+  color: var(--text-sub);
+}
+
+.contract-public-sign-page__badge--ok {
+  border: 1px solid var(--success);
+  color: var(--success);
+}
+
+.contract-public-sign-page__badge--pending {
+  border: 1px solid var(--border);
+  color: var(--text-sub);
+}
+
+.contract-public-sign-page__attachment-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style: decimal;
+}
+
+.contract-public-sign-page__attachment-item {
+  padding-left: 4px;
+}
+
+.contract-public-sign-page__compact-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style: decimal;
+}
+
+.contract-attachment-review-modal__img-outer {
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  min-height: 120px;
+  padding: 8px;
+}
+
+.contract-attachment-review-modal__img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
 .contract-public-sign-page__section-label {
   margin: 0 0 8px;
   font-size: 0.875rem;
@@ -525,6 +580,7 @@
   border-top: 1px solid var(--border);
   background: var(--bg-card);
   padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
 /* 5단계 전자서명 플로우 카드 */
