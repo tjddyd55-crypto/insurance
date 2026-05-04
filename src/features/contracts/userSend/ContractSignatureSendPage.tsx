@@ -991,7 +991,7 @@ export default function ContractSignatureSendPage() {
                     (senderPrefillSatisfied(selectedTpl ?? undefined) && confirmationDraftValidationMessage == null),
                   locked: !selectedCustomer || !selectedTemplateId,
                 },
-                <div className="mt-4 space-y-4">
+                <div className="contract-mobile-sender-fields mt-4 space-y-4">
                   {senderFields.map((d) => {
                     const fk = d.fieldKey
                     if (d.fieldType === 'checkbox') {

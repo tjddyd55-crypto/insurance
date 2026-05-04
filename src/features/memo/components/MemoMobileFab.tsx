@@ -45,6 +45,7 @@ const DRAG_THRESHOLD_PX = 8
 export function MemoMobileFab() {
   const navigate = useNavigate()
   const location = useLocation()
+  const isContractSignatureSendPage = location.pathname === '/contracts/signatures/send'
 
   const [bottomDvh, setBottomDvh] = useState<number>(() => loadFabBottomDvh())
   const [isDragging, setIsDragging] = useState(false)
@@ -127,7 +128,7 @@ export function MemoMobileFab() {
     <FormButton
       htmlType="button"
       aria-label="메모 — 탭하면 열기, 위아래로 드래그하면 위치 이동"
-      className={`memo-mobile-fab${isDragging ? ' memo-mobile-fab--dragging' : ''}`}
+      className={`memo-mobile-fab${isDragging ? ' memo-mobile-fab--dragging' : ''}${isContractSignatureSendPage ? ' memo-mobile-fab--contract-send' : ''}`}
       style={{ bottom: `${bottomDvh}dvh` }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
