@@ -827,22 +827,24 @@ export default function ContractSignatureSendPage() {
               locked: false,
             },
             selectedCustomer ? (
-              <div className="contract-mobile-selected-customer">
-                <div className="contract-mobile-selected-customer__heading">선택 고객</div>
-                <div className="contract-mobile-selected-customer__body">
-                  <div className="contract-mobile-selected-customer__name">{selectedCustomer.name}</div>
-                  <p className="contract-mobile-selected-customer__line">
+              <div className="contract-send-mobile-selected-customer">
+                <p className="contract-send-mobile-selected-customer__heading">선택 고객</p>
+                <div className="contract-send-mobile-selected-customer__body">
+                  <span className="contract-send-mobile-selected-customer__name">{selectedCustomer.name}</span>
+                  <span className="contract-send-mobile-selected-customer__line">
                     고객 ID: {selectedCustomer.id}
                     {selectedCustomer.customerCode?.trim() ? ` · 고객번호 ${selectedCustomer.customerCode}` : ''}
-                  </p>
-                  <p className="contract-mobile-selected-customer__line">
+                  </span>
+                  <span className="contract-send-mobile-selected-customer__line">
                     {selectedCustomer.hasPhone ? selectedCustomer.maskedPhone : '휴대폰 —'}
-                  </p>
+                  </span>
                   {!selectedCustomer.hasPhone ? (
-                    <div className="contract-mobile-selected-customer__warn">유효한 휴대폰 번호가 없어 발송할 수 없습니다.</div>
+                    <span className="contract-send-mobile-selected-customer__warn" role="status">
+                      유효한 휴대폰 번호가 없어 발송할 수 없습니다.
+                    </span>
                   ) : null}
                 </div>
-                <div className="contract-mobile-selected-customer__actions">
+                <div className="contract-send-mobile-selected-customer__actions">
                   <FormButton htmlType="button" variant="secondary" size="sm" disabled={!t} onClick={clearCustomerSelection}>
                     선택 해제
                   </FormButton>
@@ -898,29 +900,46 @@ export default function ContractSignatureSendPage() {
                 ) : null}
 
                 {customerSearchExecuted ? (
-                  <div className="contract-mobile-card-list contract-mobile-search-hit-list">
+                  <div className="contract-send-mobile-customer-result-list" role="list">
                     {customerHits.length === 0 ? (
                       <p className="contract-signature-console__hint">검색 결과가 없습니다.</p>
                     ) : (
                       customerHits.map((c) => (
-                        <FormButton
+                        /* eslint-disable-next-line no-restricted-syntax -- 모바일 검색 결과 카드: BEM 전용 네이티브 button */
+                        <button
                           key={c.id}
-                          htmlType="button"
-                          variant="secondary"
-                          fullWidth
-                          className="contract-mobile-hit-card contract-mobile-select-card"
+                          type="button"
+                          role="listitem"
+                          className="contract-send-mobile-customer-result-card"
                           disabled={!t}
-                          onClick={() => setSelectedCustomer(c)}
+                          onClick={() => {
+                            if (!t) {
+                              return
+                            }
+                            setSelectedCustomer(c)
+                          }}
+                          onKeyDown={(e) => {
+                            if (!t) {
+                              return
+                            }
+                            runPickRowKeyboardAction(e, () => setSelectedCustomer(c))
+                          }}
                         >
-                          <div className="contract-mobile-hit-card__name">{c.name}</div>
-                          <p className="contract-mobile-hit-card__meta">
+                          <span className="contract-send-mobile-customer-result-card__name">{c.name}</span>
+                          <span className="contract-send-mobile-customer-result-card__meta">
                             {c.customerCode?.trim()
                               ? `고객번호 ${c.customerCode} · 고객 ID ${c.id}`
                               : `고객 ID: ${c.id}`}
-                          </p>
-                          <p className="contract-mobile-hit-card__meta">{c.hasPhone ? c.maskedPhone : '휴대폰 —'}</p>
-                          {!c.hasPhone ? <div className="contract-mobile-select-card__warn">유효한 휴대폰 번호 없음</div> : null}
-                        </FormButton>
+                          </span>
+                          <span className="contract-send-mobile-customer-result-card__meta">
+                            {c.hasPhone ? c.maskedPhone : '휴대폰 —'}
+                          </span>
+                          {!c.hasPhone ? (
+                            <span className="contract-send-mobile-customer-result-card__warning" role="status">
+                              유효한 휴대폰 번호 없음
+                            </span>
+                          ) : null}
+                        </button>
                       ))
                     )}
                   </div>
@@ -938,42 +957,48 @@ export default function ContractSignatureSendPage() {
               locked: !step1Complete,
             },
             selectedCustomer == null ? null : (
-              <div className="contract-mobile-card-list contract-mobile-template-pick-list">
+              <div className="contract-send-mobile-template-list" role="list">
                 {templates.map((row) => {
                   const isConfOnly = row.templateMode === 'confirmation_only'
                   const noSig = !isConfOnly && row.signatureFieldCount < 1
                   const inactive = String(row.status) !== 'active'
+                  const selected = selectedTemplateId === row.id
                   return (
-                    <FormButton
+                    /* eslint-disable-next-line no-restricted-syntax -- 모바일 템플릿 선택 카드: BEM 전용 네이티브 button */
+                    <button
                       key={row.id}
-                      htmlType="button"
-                      variant="secondary"
-                      fullWidth
+                      type="button"
+                      role="listitem"
                       className={
-                        'contract-mobile-template-card contract-mobile-select-card' +
-                        (selectedTemplateId === row.id ? ' contract-mobile-select-card--selected' : '')
+                        'contract-send-mobile-template-card' +
+                        (selected ? ' contract-send-mobile-template-card--selected' : '')
                       }
                       disabled={!t || inactive}
                       onClick={() => setSelectedTemplateId(row.id)}
                     >
-                      <div className="contract-mobile-template-card__title">{row.title}</div>
-                      <p className="contract-mobile-template-card__pdf">
+                      <span className="contract-send-mobile-template-card__title">{row.title}</span>
+                      <span className="contract-send-mobile-template-card__mode">
+                        {isConfOnly ? '무좌표 전자확인서' : '좌표 기반 PDF'}
+                      </span>
+                      <span className="contract-send-mobile-template-card__pdf">
                         PDF: {isConfOnly ? '무좌표 확인서' : row.pdfEngineTitle ?? '—'}
-                      </p>
-                      <p className="contract-mobile-template-card__stats">
+                      </span>
+                      <span className="contract-send-mobile-template-card__stats">
                         {isConfOnly
                           ? '확인서 항목 템플릿'
                           : `필드 ${row.pdfFieldCount}개 · 서명 필드 ${row.signatureFieldCount}개`}
-                      </p>
+                      </span>
                       {inactive ? (
-                        <div className="contract-mobile-select-card__warn">비활성 템플릿은 발송할 수 없습니다.</div>
+                        <span className="contract-send-mobile-template-card__warning" role="status">
+                          비활성 템플릿은 발송할 수 없습니다.
+                        </span>
                       ) : null}
                       {noSig ? (
-                        <div className="contract-mobile-select-card__warn">
+                        <span className="contract-send-mobile-template-card__warning" role="status">
                           서명 필드가 없어 손사인 테스트가 제한될 수 있습니다.
-                        </div>
+                        </span>
                       ) : null}
-                    </FormButton>
+                    </button>
                   )
                 })}
               </div>
@@ -991,18 +1016,18 @@ export default function ContractSignatureSendPage() {
                     (senderPrefillSatisfied(selectedTpl ?? undefined) && confirmationDraftValidationMessage == null),
                   locked: !selectedCustomer || !selectedTemplateId,
                 },
-                <div className="mt-4 space-y-4">
+                <div className="contract-send-mobile-sender-fields">
                   {senderFields.map((d) => {
                     const fk = d.fieldKey
                     if (d.fieldType === 'checkbox') {
                       return (
-                        <label key={fk} className="contract-public-sign-page__label-row flex items-start gap-2">
+                        <label key={fk} className="contract-send-mobile-sender-fields__checkbox-row">
                           <FormInput
                             type="checkbox"
                             checked={Boolean(senderVals[fk])}
                             onChange={(ev) => setSenderVals((prev) => ({ ...prev, [fk]: ev.target.checked }))}
                           />
-                          <span>
+                          <span className="contract-send-mobile-sender-fields__checkbox-label">
                             {d.label || fk}
                             {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
                           </span>
@@ -1014,36 +1039,43 @@ export default function ContractSignatureSendPage() {
                       const opts = rawOpts.map((x) => String(x))
                       const cur = String(senderVals[fk] ?? '')
                       return (
-                        <div key={fk} className="space-y-1">
-                          <p className="contract-signature-console__hint" style={{ marginBottom: 4 }}>
+                        <div key={fk} className="contract-send-mobile-sender-fields__field">
+                          <p className="contract-send-mobile-sender-fields__hint">
                             {d.label || fk}
                             {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
                           </p>
-                          <FormSelect
-                            value={cur}
-                            options={[{ value: '', label: '선택' }, ...opts.map((o) => ({ value: o, label: o }))]}
-                            onChange={(ev) => setSenderVals((prev) => ({ ...prev, [fk]: ev.target.value }))}
-                          />
+                          <div className="contract-send-mobile-sender-fields__select-wrap">
+                            <FormSelect
+                              value={cur}
+                              options={[{ value: '', label: '선택' }, ...opts.map((o) => ({ value: o, label: o }))]}
+                              onChange={(ev) => setSenderVals((prev) => ({ ...prev, [fk]: ev.target.value }))}
+                            />
+                          </div>
                         </div>
                       )
                     }
                     const tv = String(senderVals[fk] ?? '')
                     const multiline = d.fieldType === 'textarea'
                     return (
-                      <label key={fk} className="block space-y-1">
-                        <span className="contract-signature-console__hint">
+                      <label key={fk} className="contract-send-mobile-sender-fields__field-label">
+                        <span className="contract-send-mobile-sender-fields__hint">
                           {d.label || fk}
                           {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
                         </span>
                         {multiline ? (
                           <FormTextarea
-                            className="pdf-engine-form__textarea w-full text-sm"
+                            className="contract-send-mobile-sender-fields__control pdf-engine-form__textarea"
                             rows={4}
                             value={tv}
                             onChange={(e) => setSenderVals((prev) => ({ ...prev, [fk]: e.target.value }))}
                           />
                         ) : (
-                          <FormInput type="text" value={tv} onChange={(e) => setSenderVals((prev) => ({ ...prev, [fk]: e.target.value }))} />
+                          <FormInput
+                            className="contract-send-mobile-sender-fields__control"
+                            type="text"
+                            value={tv}
+                            onChange={(e) => setSenderVals((prev) => ({ ...prev, [fk]: e.target.value }))}
+                          />
                         )}
                       </label>
                     )
@@ -1073,6 +1105,7 @@ export default function ContractSignatureSendPage() {
                   loadError={confirmationFieldsError}
                   validationMessage={confirmationOnlyValuesMessage}
                   disabled={!t}
+                  mobileSendLayout
                 />,
               )
             : null}
