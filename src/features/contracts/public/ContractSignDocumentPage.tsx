@@ -22,21 +22,351 @@ import { PublicPdfPreviewModal } from './components/PublicPdfPreviewModal'
 import { ContractAttachmentReviewModal } from './components/ContractAttachmentReviewModal'
 import { resolveApiUrl } from '../../../lib/apiClient'
 
-type PublicSignActiveStep = 1 | 2 | 3 | 4 | 5
+type PublicStepStatus = 'pending' | 'active' | 'complete' | 'skipped'
 
-function publicStepCardClassName(step: PublicSignActiveStep, activeStep: PublicSignActiveStep): string {
-  const base = 'contract-public-sign-page__card contract-public-sign-page__step-card'
-  if (step > activeStep) {
-    return `${base} contract-public-sign-page__step-card--locked`
-  }
-  if (step === activeStep) {
-    return `${base} contract-public-sign-page__step-card--active`
-  }
-  return `${base} contract-public-sign-page__step-card--completed`
+type PublicStepSlice = {
+  key: string
+  hasWork: boolean
+  isComplete: boolean
+  status: PublicStepStatus
+  isActive: boolean
 }
 
-function isPublicStepLocked(step: PublicSignActiveStep, activeStep: PublicSignActiveStep): boolean {
-  return step > activeStep
+function publicStepCardClassNameByStatus(status: PublicStepStatus): string {
+  const base = 'contract-public-sign-page__card contract-public-sign-page__step-card contract-public-sign-page__step-anchor'
+  if (status === 'complete') {
+    return `${base} contract-public-sign-page__step-card--completed`
+  }
+  if (status === 'active') {
+    return `${base} contract-public-sign-page__step-card--active`
+  }
+  return `${base} contract-public-sign-page__step-card--locked`
+}
+
+function mergePublicStepCardStatus(a: PublicStepSlice, b: PublicStepSlice): PublicStepStatus {
+  const done = (s: PublicStepSlice) => !s.hasWork || s.isComplete
+  if (!a.hasWork && !b.hasWork) {
+    return 'skipped'
+  }
+  if (done(a) && done(b)) {
+    return 'complete'
+  }
+  if (a.status === 'active' || b.status === 'active') {
+    return 'active'
+  }
+  if (a.status === 'pending' || b.status === 'pending') {
+    return 'pending'
+  }
+  return 'pending'
+}
+
+function requiredCustomerInputFieldCount(detail: ContractDocumentDetailPayload): number {
+  return detail.fields.filter(
+    (f) =>
+      !f.hideFromCustomerInput && !f.readOnlyCustomerUi && f.fieldType !== 'signature' && f.required,
+  ).length
+}
+
+function requiredConfirmationItemCount(detail: ContractDocumentDetailPayload): number {
+  return (detail.confirmationItems ?? []).filter((c) => c.required).length
+}
+
+function requiredAttachmentCount(detail: ContractDocumentDetailPayload): number {
+  return (detail.sendSessionAttachments ?? []).filter((a) => a.required).length
+}
+
+function signatureSlotCount(detail: ContractDocumentDetailPayload): number {
+  return detail.fields.filter((f) => f.fieldType === 'signature').length
+}
+
+function markFirstActiveSlice(chain: PublicStepSlice[]) {
+  for (const s of chain) {
+    s.isActive = s.status === 'active'
+  }
+  let seen = false
+  for (const s of chain) {
+    if (s.status !== 'active') {
+      continue
+    }
+    if (seen) {
+      s.status = 'pending'
+      s.isActive = false
+    } else {
+      s.isActive = true
+      seen = true
+    }
+  }
+}
+
+/** coordinate_pdf: vacuous every() 완료를 없음(skipped)·대기·진행·완료로 분리 */
+function buildCoordinatePdfStepState(
+  detail: ContractDocumentDetailPayload,
+  drafts: Record<string, string | boolean>,
+  confirmationChecks: Record<string, boolean>,
+  finalPreviewConfirmed: boolean,
+): {
+  input: PublicStepSlice
+  checks: PublicStepSlice
+  attachments: PublicStepSlice
+  signature: PublicStepSlice
+  finalReview: PublicStepSlice
+  submit: PublicStepSlice
+} {
+  const docCompleted = detail.document.status === 'completed'
+
+  const inputHasWork = requiredCustomerInputFieldCount(detail) > 0
+  const inputComplete = inputHasWork && allNonSignatureRequiredFilled(detail, drafts)
+
+  const checksHasWork = requiredConfirmationItemCount(detail) > 0
+  const checksComplete = checksHasWork && allSessionConfirmationsChecked(detail, confirmationChecks)
+
+  const attHasWork = requiredAttachmentCount(detail) > 0
+  const attComplete = attHasWork && allRequiredAttachmentsConfirmed(detail)
+
+  const sigHasWork = signatureSlotCount(detail) > 0
+  const sigComplete = sigHasWork && signatureRequirementsComplete(detail)
+
+  const finalHasWork = true
+  const finalComplete = finalPreviewConfirmed
+
+  const submitHasWork = true
+  const submitComplete = docCompleted
+
+  const inputSkipped = !inputHasWork
+  const checksSkipped = !checksHasWork
+  const attSkipped = !attHasWork
+  const sigSkipped = !sigHasWork
+
+  const gateAfterInput = inputSkipped || inputComplete
+  const gateAfterChecks = gateAfterInput && (checksSkipped || checksComplete)
+  const gateAfterAtt = gateAfterChecks && (attSkipped || attComplete)
+  const gateAfterSig = gateAfterAtt && (sigSkipped || sigComplete)
+  const gateAfterFinal = gateAfterSig && finalComplete
+
+  const input: PublicStepSlice = {
+    key: 'input',
+    hasWork: inputHasWork,
+    isComplete: inputComplete,
+    status: 'pending',
+    isActive: false,
+  }
+  if (inputSkipped) {
+    input.status = 'skipped'
+  } else if (inputComplete) {
+    input.status = 'complete'
+  } else {
+    input.status = 'active'
+  }
+
+  const checks: PublicStepSlice = {
+    key: 'confirmation_checks',
+    hasWork: checksHasWork,
+    isComplete: checksComplete,
+    status: 'pending',
+    isActive: false,
+  }
+  if (checksSkipped) {
+    checks.status = 'skipped'
+  } else if (!gateAfterInput) {
+    checks.status = 'pending'
+  } else if (checksComplete) {
+    checks.status = 'complete'
+  } else {
+    checks.status = 'active'
+  }
+
+  const attachments: PublicStepSlice = {
+    key: 'attachments',
+    hasWork: attHasWork,
+    isComplete: attComplete,
+    status: 'pending',
+    isActive: false,
+  }
+  if (attSkipped) {
+    attachments.status = 'skipped'
+  } else if (!gateAfterChecks) {
+    attachments.status = 'pending'
+  } else if (attComplete) {
+    attachments.status = 'complete'
+  } else {
+    attachments.status = 'active'
+  }
+
+  const signature: PublicStepSlice = {
+    key: 'signature',
+    hasWork: sigHasWork,
+    isComplete: sigComplete,
+    status: 'pending',
+    isActive: false,
+  }
+  if (sigSkipped) {
+    signature.status = 'skipped'
+  } else if (!gateAfterAtt) {
+    signature.status = 'pending'
+  } else if (sigComplete) {
+    signature.status = 'complete'
+  } else {
+    signature.status = 'active'
+  }
+
+  const finalReview: PublicStepSlice = {
+    key: 'final_review',
+    hasWork: finalHasWork,
+    isComplete: finalComplete,
+    status: 'pending',
+    isActive: false,
+  }
+  if (!gateAfterSig) {
+    finalReview.status = 'pending'
+  } else if (finalComplete) {
+    finalReview.status = 'complete'
+  } else {
+    finalReview.status = 'active'
+  }
+
+  const submit: PublicStepSlice = {
+    key: 'submit',
+    hasWork: submitHasWork,
+    isComplete: submitComplete,
+    status: 'pending',
+    isActive: false,
+  }
+  if (docCompleted) {
+    submit.status = 'complete'
+  } else if (!gateAfterFinal) {
+    submit.status = 'pending'
+  } else {
+    submit.status = 'active'
+  }
+
+  const chain = [input, checks, attachments, signature, finalReview, submit]
+  markFirstActiveSlice(chain)
+
+  return { input, checks, attachments, signature, finalReview, submit }
+}
+
+/** confirmation_only 전용 단계(표시/체크·첨부/서명/최종) */
+function buildConfirmationOnlyStepState(
+  detail: ContractDocumentDetailPayload,
+  confirmationChecks: Record<string, boolean>,
+): {
+  content: PublicStepSlice
+  checks: PublicStepSlice
+  attachments: PublicStepSlice
+  signature: PublicStepSlice
+  final: PublicStepSlice
+} {
+  const docCompleted = detail.document.status === 'completed'
+
+  const checksHasWork = requiredConfirmationItemCount(detail) > 0
+  const checksComplete = checksHasWork && allSessionConfirmationsChecked(detail, confirmationChecks)
+
+  const attHasWork = requiredAttachmentCount(detail) > 0
+  const attComplete = attHasWork && allRequiredAttachmentsConfirmed(detail)
+
+  const sigHasWork = true
+  const sigComplete = Boolean(detail.confirmationSignature?.exists)
+
+  const checksSkipped = !checksHasWork
+  const attSkipped = !attHasWork
+
+  const content: PublicStepSlice = {
+    key: 'content',
+    hasWork: false,
+    isComplete: false,
+    status: 'skipped',
+    isActive: false,
+  }
+
+  const checks: PublicStepSlice = {
+    key: 'co_checks',
+    hasWork: checksHasWork,
+    isComplete: checksComplete,
+    status: checksSkipped ? 'skipped' : checksComplete ? 'complete' : 'active',
+    isActive: false,
+  }
+  const attachments: PublicStepSlice = {
+    key: 'co_attachments',
+    hasWork: attHasWork,
+    isComplete: attComplete,
+    status: 'pending',
+    isActive: false,
+  }
+
+  if (attSkipped) {
+    attachments.status = 'skipped'
+  } else if (checksSkipped || checksComplete) {
+    attachments.status = attComplete ? 'complete' : 'active'
+  } else {
+    attachments.status = 'pending'
+  }
+
+  if (!checksSkipped && !checksComplete) {
+    checks.status = 'active'
+    attachments.status = attSkipped ? 'skipped' : 'pending'
+  }
+
+  const signature: PublicStepSlice = {
+    key: 'co_signature',
+    hasWork: sigHasWork,
+    isComplete: sigComplete,
+    status: 'pending',
+    isActive: false,
+  }
+  const afterConfirm =
+    (checksSkipped || checksComplete) && (attSkipped || attComplete)
+  if (!afterConfirm) {
+    signature.status = 'pending'
+  } else if (sigComplete) {
+    signature.status = 'complete'
+  } else {
+    signature.status = 'active'
+  }
+
+  const final: PublicStepSlice = {
+    key: 'co_final',
+    hasWork: true,
+    isComplete: docCompleted,
+    status: 'pending',
+    isActive: false,
+  }
+  if (docCompleted) {
+    final.status = 'complete'
+  } else if (sigComplete && detail.completionAvailable) {
+    final.status = 'active'
+  } else if (sigComplete) {
+    final.status = 'pending'
+  } else {
+    final.status = 'pending'
+  }
+
+  const chain = [checks, attachments, signature, final]
+  markFirstActiveSlice(chain)
+
+  return { content, checks, attachments, signature, final }
+}
+
+function scrollToPublicStepElement(el: HTMLElement | null | undefined) {
+  if (!el) {
+    return
+  }
+  const run = () => {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const focusEl = el.querySelector<HTMLElement>('[data-public-step-focus="true"]')
+    const t = focusEl ?? el
+    if (!focusEl && t.getAttribute('tabindex') == null) {
+      t.setAttribute('tabindex', '-1')
+    }
+    window.requestAnimationFrame(() => {
+      t.focus({ preventScroll: true })
+    })
+  }
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      run()
+      window.setTimeout(run, 160)
+    })
+  })
 }
 
 function blobToDataUrl(blob: Blob): Promise<string> {
@@ -225,43 +555,121 @@ export default function ContractSignDocumentPage() {
   const [pdfDownloadError, setPdfDownloadError] = useState('')
   const [pdfDownloadBusy, setPdfDownloadBusy] = useState(false)
 
-  /** 모달 open 시 body overflow 로 scrollY 가 0 으로 보이는 경우가 있어, 열 때 위치를 저장한다 */
-  const publicSignScrollAnchorRef = useRef(0)
-  const pendingScrollRestoreYRef = useRef<number | null>(null)
+  const confirmationChecksRef = useRef<Record<string, boolean>>({})
+  const draftsRef = useRef<Record<string, string | boolean>>({})
+  const finalPreviewConfirmedRef = useRef(false)
+
+  const coRefConfirmChecksSection = useRef<HTMLDivElement | null>(null)
+  const coRefConfirmAttachSection = useRef<HTMLDivElement | null>(null)
+  const coRefSignatureCard = useRef<HTMLDivElement | null>(null)
+  const coRefFinalCard = useRef<HTMLDivElement | null>(null)
+  const coRefCompletedDownloads = useRef<HTMLDivElement | null>(null)
+
+  const pdfRefStep1 = useRef<HTMLDivElement | null>(null)
+  const pdfRefStep2Checks = useRef<HTMLDivElement | null>(null)
+  const pdfRefStep2Attach = useRef<HTMLDivElement | null>(null)
+  const pdfRefStep3 = useRef<HTMLDivElement | null>(null)
+  const pdfRefStep4 = useRef<HTMLDivElement | null>(null)
+  const pdfRefStep5 = useRef<HTMLDivElement | null>(null)
+  const pdfRefCompletedPanel = useRef<HTMLDivElement | null>(null)
 
   const reloadDetail = useCallback(
-    async (isCancelled?: () => boolean) => {
+    async (
+      isCancelled?: () => boolean,
+    ): Promise<
+      { detail: ContractDocumentDetailPayload; drafts: Record<string, string | boolean> } | undefined
+    > => {
       const d = await fetchContractPublicDocumentDetail(linkCode, documentInstanceId)
       if (isCancelled?.()) {
-        return
+        return undefined
       }
       setDetail(d)
+      let merged: Record<string, string | boolean> = {}
+      setDrafts((prev) => {
+        merged = mergeDraftsFromDetail(prev, d)
+        return merged
+      })
       await Promise.resolve()
       if (isCancelled?.()) {
-        return
+        return undefined
       }
-      setDrafts((prev) => mergeDraftsFromDetail(prev, d))
+      draftsRef.current = merged
+      return { detail: d, drafts: merged }
     },
     [linkCode, documentInstanceId],
   )
 
+  const scrollToNextPublicStep = useCallback(
+    (
+      d: ContractDocumentDetailPayload,
+      draftsSnapshot: Record<string, string | boolean>,
+      checksOverride?: Record<string, boolean>,
+    ) => {
+      const checksMap = checksOverride ?? confirmationChecksRef.current
+      const mode = d.templateMode ?? 'coordinate_pdf'
+      if (mode === 'confirmation_only') {
+        if (d.document.status === 'completed') {
+          scrollToPublicStepElement(coRefCompletedDownloads.current)
+          return
+        }
+        const st = buildConfirmationOnlyStepState(d, checksMap)
+        if (st.checks.isActive) {
+          scrollToPublicStepElement(coRefConfirmChecksSection.current)
+        } else if (st.attachments.isActive) {
+          scrollToPublicStepElement(coRefConfirmAttachSection.current)
+        } else if (st.signature.isActive) {
+          scrollToPublicStepElement(coRefSignatureCard.current)
+        } else if (st.final.isActive) {
+          scrollToPublicStepElement(coRefFinalCard.current)
+        }
+        return
+      }
+      const st = buildCoordinatePdfStepState(
+        d,
+        draftsSnapshot,
+        checksMap,
+        finalPreviewConfirmedRef.current,
+      )
+      if (d.document.status === 'completed') {
+        scrollToPublicStepElement(pdfRefCompletedPanel.current)
+        return
+      }
+      if (st.input.isActive) {
+        scrollToPublicStepElement(pdfRefStep1.current)
+      } else if (st.checks.isActive) {
+        scrollToPublicStepElement(pdfRefStep2Checks.current)
+      } else if (st.attachments.isActive) {
+        scrollToPublicStepElement(pdfRefStep2Attach.current)
+      } else if (st.signature.isActive) {
+        scrollToPublicStepElement(pdfRefStep3.current)
+      } else if (st.finalReview.isActive) {
+        scrollToPublicStepElement(pdfRefStep4.current)
+      } else if (st.submit.isActive) {
+        scrollToPublicStepElement(pdfRefStep5.current)
+      }
+    },
+    [],
+  )
+
+  const scrollAfterAttachmentPatch = useCallback(
+    (nextDetail: ContractDocumentDetailPayload) => {
+      const mergedDrafts = mergeDraftsFromDetail(draftsRef.current, nextDetail)
+      scrollToNextPublicStep(nextDetail, mergedDrafts)
+    },
+    [scrollToNextPublicStep],
+  )
+
   useEffect(() => {
-    if (sigModalField != null) {
-      return
-    }
-    const y = pendingScrollRestoreYRef.current
-    if (y == null) {
-      return
-    }
-    pendingScrollRestoreYRef.current = null
-    const apply = () => window.scrollTo({ top: y, left: 0, behavior: 'auto' })
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        apply()
-        window.setTimeout(apply, 80)
-      })
-    })
-  }, [sigModalField])
+    confirmationChecksRef.current = confirmationChecks
+  }, [confirmationChecks])
+
+  useEffect(() => {
+    draftsRef.current = drafts
+  }, [drafts])
+
+  useEffect(() => {
+    finalPreviewConfirmedRef.current = finalPreviewConfirmed
+  }, [finalPreviewConfirmed])
 
   const confirmationItemsSig = useMemo(
     () =>
@@ -431,39 +839,57 @@ export default function ContractSignDocumentPage() {
   )
   const signatureFields = useMemo(() => sortedFields.filter((f) => f.fieldType === 'signature'), [sortedFields])
 
-  /** 1단계: PDF 필드 중 서명 제외 필수 입력(문서 내 체크·텍스트·라디오 등). */
   const customerInputStepComplete = detail ? allNonSignatureRequiredFilled(detail, drafts) : false
-  /** 2단계 A: 템플릿별 고객 확인 체크. 항목이 없으면 true. */
   const sessionChecksComplete = detail ? allSessionConfirmationsChecked(detail, confirmationChecks) : false
-  /** 2단계 B: 필수 첨부자료 모달 확인. 첨부가 없으면 true. */
   const attachmentsConfirmationComplete = detail ? allRequiredAttachmentsConfirmed(detail) : false
   const confirmationStepComplete = sessionChecksComplete && attachmentsConfirmationComplete
-  const canSign = customerInputStepComplete && confirmationStepComplete
-  const basicsComplete = detail ? allRequiredFilled(detail, drafts) : false
-  /** 서명란이 없거나 필수 서명이 모두 저장된 경우(2단계 이후에만 3단계 완료로 간주). */
-  const signatureSlotsComplete = detail
-    ? signatureFields.length === 0 || signatureRequirementsComplete(detail)
-    : false
-  const isStep1Complete = customerInputStepComplete
-  const isStep2Complete = confirmationStepComplete
-  const isStep3Complete = isStep1Complete && isStep2Complete && signatureSlotsComplete
-  const isStep4Complete = finalPreviewConfirmed
 
-  const activeStep = useMemo((): PublicSignActiveStep => {
-    if (!isStep1Complete) {
-      return 1
+  const coordinateStepState = useMemo(() => {
+    if (!detail || (detail.templateMode ?? 'coordinate_pdf') === 'confirmation_only') {
+      return null
     }
-    if (!isStep2Complete) {
-      return 2
+    return buildCoordinatePdfStepState(detail, drafts, confirmationChecks, finalPreviewConfirmed)
+  }, [detail, drafts, confirmationChecks, finalPreviewConfirmed])
+
+  const confirmationStepState = useMemo(() => {
+    if (!detail || (detail.templateMode ?? 'coordinate_pdf') !== 'confirmation_only') {
+      return null
     }
-    if (!isStep3Complete) {
-      return 3
-    }
-    if (!isStep4Complete) {
-      return 4
-    }
-    return 5
-  }, [isStep1Complete, isStep2Complete, isStep3Complete, isStep4Complete])
+    return buildConfirmationOnlyStepState(detail, confirmationChecks)
+  }, [detail, confirmationChecks])
+
+  const canSign =
+    detail && (detail.templateMode ?? 'coordinate_pdf') === 'confirmation_only'
+      ? customerInputStepComplete && confirmationStepComplete
+      : Boolean(
+          coordinateStepState &&
+            (!coordinateStepState.input.hasWork || coordinateStepState.input.isComplete) &&
+            (!coordinateStepState.checks.hasWork || coordinateStepState.checks.isComplete) &&
+            (!coordinateStepState.attachments.hasWork || coordinateStepState.attachments.isComplete),
+        )
+
+  const basicsComplete = detail ? allRequiredFilled(detail, drafts) : false
+  const isStep3Complete = coordinateStepState
+    ? !coordinateStepState.signature.hasWork || coordinateStepState.signature.isComplete
+    : detail
+      ? signatureFields.length === 0 || signatureRequirementsComplete(detail)
+      : false
+
+  const pdfCard2Status: PublicStepStatus =
+    coordinateStepState != null
+      ? mergePublicStepCardStatus(coordinateStepState.checks, coordinateStepState.attachments)
+      : 'pending'
+  const coordinateStep2Locked = Boolean(
+    coordinateStepState?.input.hasWork && !coordinateStepState.input.isComplete,
+  )
+  const coordinateStep3Locked = Boolean(coordinateStepState?.signature.status === 'pending')
+  const coordinateStep4Locked = Boolean(coordinateStepState?.finalReview.status === 'pending')
+  const coordinateStep5Locked = Boolean(coordinateStepState?.submit.status === 'pending')
+
+  const coConfirmCardStatus: PublicStepStatus =
+    confirmationStepState != null
+      ? mergePublicStepCardStatus(confirmationStepState.checks, confirmationStepState.attachments)
+      : 'pending'
 
   const canSubmitSend =
     Boolean(detail && detail.canEdit !== false && detail.document.status !== 'completed') &&
@@ -500,13 +926,18 @@ export default function ContractSignDocumentPage() {
       if (!editable || !confirmationStepComplete || !signAck) {
         return
       }
-    } else if (activeStep < 3 || !canSign) {
+    } else if (
+      !editable ||
+      !coordinateStepState ||
+      coordinateStepState.signature.status === 'pending' ||
+      !coordinateStepState.signature.hasWork ||
+      !canSign
+    ) {
       return
     }
     setContractPreviewOpen(false)
     setFinalReviewOpen(false)
     setActionError('')
-    publicSignScrollAnchorRef.current = window.scrollY
     setSigModalField({ id, label })
   }
 
@@ -518,7 +949,8 @@ export default function ContractSignDocumentPage() {
     setSaving(true)
     try {
       await postContractPublicDocumentValues(linkCode, documentInstanceId, buildCustomerValuePayload())
-      await reloadDetail()
+      const pack = await reloadDetail()
+      if (pack) scrollToNextPublicStep(pack.detail, pack.drafts)
     } catch (e) {
       setActionError(formatContractPublicActionError(e, 'values'))
     } finally {
@@ -535,7 +967,8 @@ export default function ContractSignDocumentPage() {
     setSaving(true)
     try {
       await postContractPublicDocumentValues(linkCode, documentInstanceId, buildCustomerValuePayload())
-      await reloadDetail()
+      const pack = await reloadDetail()
+      if (pack) scrollToNextPublicStep(pack.detail, pack.drafts)
     } catch (e) {
       setActionError(formatContractPublicActionError(e, 'values'))
       return
@@ -567,7 +1000,8 @@ export default function ContractSignDocumentPage() {
     setSaving(true)
     try {
       await postContractPublicDocumentValues(linkCode, documentInstanceId, buildCustomerValuePayload())
-      await reloadDetail()
+      const pack = await reloadDetail()
+      if (pack) scrollToNextPublicStep(pack.detail, pack.drafts)
     } catch (e) {
       setActionError(formatContractPublicActionError(e, 'values'))
       return
@@ -602,7 +1036,8 @@ export default function ContractSignDocumentPage() {
             }
           : {}),
       })
-      await reloadDetail()
+      const pack = await reloadDetail()
+      if (pack) scrollToNextPublicStep(pack.detail, pack.drafts)
       setFinalSubmitAcknowledged(false)
       setFinalPreviewConfirmed(false)
       const ev = data.evidenceSummary
@@ -657,7 +1092,8 @@ export default function ContractSignDocumentPage() {
           : {}),
       })
       setCoFinalAck(false)
-      await reloadDetail()
+      const pack = await reloadDetail()
+      if (pack) scrollToNextPublicStep(pack.detail, pack.drafts)
       const ev = data.evidenceSummary
       const completedAt =
         (typeof data.completedAt === 'string' ? data.completedAt : undefined) ??
@@ -698,14 +1134,15 @@ export default function ContractSignDocumentPage() {
         await postContractPublicDocumentValues(linkCode, documentInstanceId, [], {
           confirmationCheckedItemIds,
         })
-        await reloadDetail()
+        const pack = await reloadDetail()
+        if (pack) scrollToNextPublicStep(pack.detail, pack.drafts, checks)
       } catch (e) {
         setActionError(formatContractPublicActionError(e, 'values'))
       } finally {
         setSaving(false)
       }
     },
-    [detail, linkCode, documentInstanceId, reloadDetail],
+    [detail, linkCode, documentInstanceId, reloadDetail, scrollToNextPublicStep],
   )
 
   const inputRenderedPdfSrc = !paramsInvalid ? resolveContractRenderedPdfAbsUrl(linkCode, documentInstanceId, 'input') : ''
@@ -766,7 +1203,10 @@ export default function ContractSignDocumentPage() {
               </p>
               <p className="contract-public-sign-page__caption">무좌표 전자확인서</p>
             </div>
-            <div className="contract-public-sign-page__panel-success">
+            <div
+              ref={coRefCompletedDownloads}
+              className="contract-public-sign-page__panel-success contract-public-sign-page__step-anchor"
+            >
               <p className="contract-public-sign-page__panel-success-title">전자확인서가 완료되었습니다.</p>
               <p className="contract-public-sign-page__notice">
                 아래에서 <strong>완료 확인서 PDF</strong>를 저장할 수 있습니다. 이 문서는 확인·서명이 반영된 최종 확인서입니다.
@@ -861,13 +1301,16 @@ export default function ContractSignDocumentPage() {
             필수 확인을 마친 뒤 전자서명을 남기고, 안내에 따라 최종 완료하면 완료 확인서 PDF를 받을 수 있습니다.
           </p>
 
-          <div className="contract-public-sign-page__card contract-public-sign-page__step-card contract-public-sign-page__step-card--active">
+          <div className={publicStepCardClassNameByStatus(coConfirmCardStatus)}>
             <p className="contract-public-sign-page__card-title">확인 사항</p>
             <p className="contract-public-sign-page__notice mt-2">
               아래 항목에 동의하고, 필요 시 첨부자료를 열람·확인해 주세요.
             </p>
 
-            <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4 space-y-3">
+            <div
+              ref={coRefConfirmChecksSection}
+              className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4 space-y-3"
+            >
               <p className="contract-public-sign-page__section-label">고객 확인 체크</p>
               {(detail.confirmationItems?.length ?? 0) > 0 ? (
                 (detail.confirmationItems ?? []).map((c) => (
@@ -897,7 +1340,10 @@ export default function ContractSignDocumentPage() {
             </div>
 
             {sortedSessionAttachments.length > 0 ? (
-              <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4 space-y-3">
+              <div
+                ref={coRefConfirmAttachSection}
+                className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4 space-y-3"
+              >
                 <p className="contract-public-sign-page__section-label">첨부자료</p>
                 <ol className="contract-public-sign-page__attachment-list space-y-4">
                   {sortedSessionAttachments.map((a, idx) => (
@@ -973,9 +1419,13 @@ export default function ContractSignDocumentPage() {
               </div>
             ) : null}
 
-            {confirmationStepComplete ? (
+            {coConfirmCardStatus === 'complete' ? (
               <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">
                 필수 확인을 마쳤습니다
+              </p>
+            ) : coConfirmCardStatus === 'skipped' ? (
+              <p className="contract-public-sign-page__notice contract-public-sign-page__step-status">
+                필수 고객 확인·첨부 항목이 없습니다.
               </p>
             ) : (
               <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">
@@ -988,7 +1438,12 @@ export default function ContractSignDocumentPage() {
             )}
           </div>
 
-          <div className="contract-public-sign-page__card contract-public-sign-page__co-sign-card contract-public-sign-page__step-card contract-public-sign-page__step-card--active">
+          <div
+            ref={coRefSignatureCard}
+            className={`${publicStepCardClassNameByStatus(
+              confirmationStepState?.signature.status ?? 'pending',
+            )} contract-public-sign-page__co-sign-card`}
+          >
             <p className="contract-public-sign-page__card-title">전자서명</p>
             {!confirmationStepComplete ? (
               <p className="contract-public-sign-page__notice mt-2">
@@ -1038,7 +1493,10 @@ export default function ContractSignDocumentPage() {
           </div>
 
           <div className="contract-public-sign-page__co-final-section">
-            <div className="contract-public-sign-page__card">
+            <div
+              ref={coRefFinalCard}
+              className={publicStepCardClassNameByStatus(confirmationStepState?.final.status ?? 'pending')}
+            >
               <p className="contract-public-sign-page__card-title">최종 완료</p>
               <p className="contract-public-sign-page__notice mt-2">
                 확인서 내용·첨부·고객 확인 체크 및 전자서명을 모두 마쳤다면 동의 후 최종 완료를 눌러 주세요.
@@ -1084,7 +1542,7 @@ export default function ContractSignDocumentPage() {
                 if (!prev?.sendSessionAttachments?.length) {
                   return prev
                 }
-                return {
+                const next = {
                   ...prev,
                   sendSessionAttachments: prev.sendSessionAttachments.map((at) =>
                     at.id === row.attachmentId
@@ -1097,6 +1555,8 @@ export default function ContractSignDocumentPage() {
                       : at,
                   ),
                 }
+                window.requestAnimationFrame(() => scrollAfterAttachmentPatch(next))
+                return next
               })
               setAttachmentModal((prev) =>
                 prev && prev.id === row.attachmentId
@@ -1138,8 +1598,8 @@ export default function ContractSignDocumentPage() {
               })
               setSignatureDrafts((prev) => ({ ...prev, [signatureKey]: dataUrl }))
               setSignAck(false)
-              await reloadDetail()
-              pendingScrollRestoreYRef.current = publicSignScrollAnchorRef.current
+              const pack = await reloadDetail()
+              if (pack) scrollToNextPublicStep(pack.detail, pack.drafts)
             }}
           />
 
@@ -1168,7 +1628,10 @@ export default function ContractSignDocumentPage() {
         </div>
 
         {detail.document.status === 'completed' && detail.evidenceSummary ? (
-          <div className="contract-public-sign-page__panel-success">
+          <div
+            ref={pdfRefCompletedPanel}
+            className="contract-public-sign-page__panel-success contract-public-sign-page__step-anchor"
+          >
             <p className="contract-public-sign-page__panel-success-title">전자서명이 전송되었습니다.</p>
             <p>인증 방식: {detail.evidenceSummary.authenticationLabel}</p>
             {detail.evidenceSummary.completedAt ? <p>완료 시각: {detail.evidenceSummary.completedAt}</p> : null}
@@ -1234,7 +1697,10 @@ export default function ContractSignDocumentPage() {
 
         {detail.fields.length > 0 ? (
           <>
-            <div className={publicStepCardClassName(1, activeStep)}>
+            <div
+              ref={pdfRefStep1}
+              className={publicStepCardClassNameByStatus(coordinateStepState?.input.status ?? 'pending')}
+            >
               <p className="contract-public-sign-page__card-title">1단계. 필수 정보 입력</p>
               <p className="contract-public-sign-page__notice mt-2">
                 계약서에 직접 입력하실 항목을 작성해 주세요.
@@ -1340,30 +1806,39 @@ export default function ContractSignDocumentPage() {
                   </FormButton>
                 ) : null}
               </div>
-              {customerInputStepComplete ? (
+              {coordinateStepState?.input.status === 'complete' ? (
                 <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">1단계 완료</p>
+              ) : coordinateStepState?.input.status === 'skipped' ? (
+                <p className="contract-public-sign-page__notice contract-public-sign-page__step-status">
+                  고객 입력 필수 항목이 없습니다.
+                </p>
               ) : (
-                <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">필수 항목을 입력해 주세요</p>
+                <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">
+                  필수 항목을 입력해 주세요
+                </p>
               )}
             </div>
 
-            <div className={publicStepCardClassName(2, activeStep)}>
+            <div className={publicStepCardClassNameByStatus(pdfCard2Status)}>
               <p className="contract-public-sign-page__card-title">2단계. 고객 확인 항목</p>
               <p className="contract-public-sign-page__notice mt-2">
                 아래 내용을 확인해야 전자서명을 진행할 수 있습니다.
               </p>
-              {isPublicStepLocked(2, activeStep) ? (
+              {coordinateStep2Locked ? (
                 <p className="contract-public-sign-page__notice mt-3">1단계 문서 입력을 완료하면 진행할 수 있습니다.</p>
               ) : null}
 
-              <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4 space-y-3">
+              <div
+                ref={pdfRefStep2Checks}
+                className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4 space-y-3"
+              >
                 <p className="contract-public-sign-page__section-label">고객 확인 체크 항목</p>
                 {(detail.confirmationItems?.length ?? 0) > 0 ? (
                   (detail.confirmationItems ?? []).map((c) => (
                     <label key={c.id} className="contract-public-sign-page__label-row">
                       <FormInput
                           type="checkbox"
-                          disabled={!canEdit || isPublicStepLocked(2, activeStep)}
+                          disabled={!canEdit || coordinateStep2Locked}
                           checked={Boolean(confirmationChecks[c.id])}
                           onChange={(ev) => {
                             setConfirmationChecks((prev) => ({ ...prev, [c.id]: ev.target.checked }))
@@ -1384,7 +1859,10 @@ export default function ContractSignDocumentPage() {
               </div>
 
               {sortedSessionAttachments.length > 0 ? (
-                <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4 space-y-3">
+                <div
+                  ref={pdfRefStep2Attach}
+                  className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight mt-4 space-y-3"
+                >
                   <p className="contract-public-sign-page__section-label">첨부자료 확인</p>
                   <ol className="contract-public-sign-page__attachment-list space-y-4">
                     {sortedSessionAttachments.map((a, idx) => (
@@ -1415,7 +1893,7 @@ export default function ContractSignDocumentPage() {
                           htmlType="button"
                           variant="secondary"
                           className="mt-2"
-                          disabled={!canEdit || isPublicStepLocked(2, activeStep)}
+                          disabled={!canEdit || coordinateStep2Locked}
                           onClick={() => {
                             setActionError('')
                             setAttachmentModal(a)
@@ -1456,8 +1934,12 @@ export default function ContractSignDocumentPage() {
                 </div>
               ) : null}
 
-              {confirmationStepComplete ? (
+              {pdfCard2Status === 'complete' ? (
                 <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">2단계 완료</p>
+              ) : pdfCard2Status === 'skipped' ? (
+                <p className="contract-public-sign-page__notice contract-public-sign-page__step-status">
+                  필수 고객 확인·첨부 항목이 없습니다.
+                </p>
               ) : (
                 <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">
                   {!sessionChecksComplete
@@ -1469,12 +1951,15 @@ export default function ContractSignDocumentPage() {
               )}
             </div>
 
-            <div className={publicStepCardClassName(3, activeStep)}>
+            <div
+              ref={pdfRefStep3}
+              className={publicStepCardClassNameByStatus(coordinateStepState?.signature.status ?? 'pending')}
+            >
               <p className="contract-public-sign-page__card-title">3단계. 전자서명</p>
               <p className="contract-public-sign-page__notice mt-2">
                 계약서에 사용할 전자서명을 입력해주세요.
               </p>
-              {isPublicStepLocked(3, activeStep) ? (
+              {coordinateStep3Locked ? (
                 <p className="contract-public-sign-page__notice mt-3">
                   고객 확인 항목을 완료하면 전자서명을 진행할 수 있습니다.
                 </p>
@@ -1500,7 +1985,7 @@ export default function ContractSignDocumentPage() {
                               <FormInput
                                 type="checkbox"
                                 checked={signAck}
-                                disabled={isPublicStepLocked(3, activeStep)}
+                                disabled={coordinateStep3Locked}
                                 onChange={(ev) => setSignAck(ev.target.checked)}
                                 className="mt-0.5"
                               />
@@ -1510,7 +1995,7 @@ export default function ContractSignDocumentPage() {
                               htmlType="button"
                               variant={canSign ? 'primary' : 'secondary'}
                               fullWidth
-                              disabled={saving || !signAck || !canSign || isPublicStepLocked(3, activeStep)}
+                              disabled={saving || !signAck || !canSign || coordinateStep3Locked}
                               onClick={() => openSignatureModal(f.id, f.label || f.fieldKey)}
                             >
                               다시 서명하기
@@ -1522,7 +2007,7 @@ export default function ContractSignDocumentPage() {
                               <FormInput
                                 type="checkbox"
                                 checked={signAck}
-                                disabled={isPublicStepLocked(3, activeStep)}
+                                disabled={coordinateStep3Locked}
                                 onChange={(ev) => setSignAck(ev.target.checked)}
                                 className="mt-0.5"
                               />
@@ -1532,7 +2017,7 @@ export default function ContractSignDocumentPage() {
                               htmlType="button"
                               variant={canSign ? 'primary' : 'secondary'}
                               fullWidth
-                              disabled={saving || !signAck || !canSign || isPublicStepLocked(3, activeStep)}
+                              disabled={saving || !signAck || !canSign || coordinateStep3Locked}
                               onClick={() => openSignatureModal(f.id, f.label || f.fieldKey)}
                             >
                               전자서명하기
@@ -1546,19 +2031,26 @@ export default function ContractSignDocumentPage() {
               ) : (
                 <p className="contract-public-sign-page__notice mt-3">이 문서에는 별도의 전자서명란이 없습니다.</p>
               )}
-              {isStep3Complete ? (
+              {coordinateStepState?.signature.status === 'complete' ? (
                 <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">3단계 완료</p>
+              ) : coordinateStepState?.signature.status === 'skipped' ? (
+                <p className="contract-public-sign-page__notice contract-public-sign-page__step-status">
+                  서명란이 없어 이 단계는 생략됩니다.
+                </p>
               ) : (
                 <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">전자서명 진행 중</p>
               )}
             </div>
 
-            <div className={publicStepCardClassName(4, activeStep)}>
+            <div
+              ref={pdfRefStep4}
+              className={publicStepCardClassNameByStatus(coordinateStepState?.finalReview.status ?? 'pending')}
+            >
               <p className="contract-public-sign-page__card-title">4단계. 최종 문서 확인</p>
               <p className="contract-public-sign-page__notice mt-2">
                 고객 입력값, 발송자 입력값, 고정 출력값 및 전자서명이 모두 반영된 최종 계약서를 확인해 주세요.
               </p>
-              {isPublicStepLocked(4, activeStep) ? (
+              {coordinateStep4Locked ? (
                 <p className="contract-public-sign-page__notice mt-3">전자서명을 완료하면 최종 문서를 확인할 수 있습니다.</p>
               ) : null}
               <FormButton
@@ -1579,12 +2071,15 @@ export default function ContractSignDocumentPage() {
             </div>
 
             {canEdit ? (
-              <div className={publicStepCardClassName(5, activeStep)}>
+              <div
+                ref={pdfRefStep5}
+                className={publicStepCardClassNameByStatus(coordinateStepState?.submit.status ?? 'pending')}
+              >
                 <p className="contract-public-sign-page__card-title">5단계. 완료 및 전송</p>
                 <p className="contract-public-sign-page__notice mt-2">
                   최종 문서를 확인하셨다면 아래 내용에 동의한 뒤 전송을 완료해 주세요.
                 </p>
-                {isPublicStepLocked(5, activeStep) ? (
+                {coordinateStep5Locked ? (
                   <p className="contract-public-sign-page__notice mt-3">
                     최종 문서 확인을 완료하면 전송 단계로 진행할 수 있습니다.
                   </p>
@@ -1593,7 +2088,7 @@ export default function ContractSignDocumentPage() {
                   <FormInput
                     type="checkbox"
                     checked={finalSubmitAcknowledged}
-                    disabled={!finalPreviewConfirmed || isPublicStepLocked(5, activeStep)}
+                    disabled={!finalPreviewConfirmed || coordinateStep5Locked}
                     onChange={(ev) => setFinalSubmitAcknowledged(ev.target.checked)}
                     className="mt-0.5"
                   />
@@ -1671,8 +2166,14 @@ export default function ContractSignDocumentPage() {
                 fullWidth
                 onClick={() => {
                   setFinalPreviewConfirmed(true)
+                  finalPreviewConfirmedRef.current = true
                   setFinalSubmitAcknowledged(false)
                   setFinalReviewOpen(false)
+                  window.requestAnimationFrame(() => {
+                    if (detail && (detail.templateMode ?? 'coordinate_pdf') !== 'confirmation_only') {
+                      scrollToNextPublicStep(detail, mergeDraftsFromDetail(draftsRef.current, detail))
+                    }
+                  })
                 }}
               >
                 확인했습니다
@@ -1693,7 +2194,7 @@ export default function ContractSignDocumentPage() {
               if (!prev?.sendSessionAttachments?.length) {
                 return prev
               }
-              return {
+              const next = {
                 ...prev,
                 sendSessionAttachments: prev.sendSessionAttachments.map((a) =>
                   a.id === row.attachmentId
@@ -1706,6 +2207,8 @@ export default function ContractSignDocumentPage() {
                     : a,
                 ),
               }
+              window.requestAnimationFrame(() => scrollAfterAttachmentPatch(next))
+              return next
             })
             setAttachmentModal((prev) =>
               prev && prev.id === row.attachmentId
@@ -1749,8 +2252,8 @@ export default function ContractSignDocumentPage() {
             setSignAck(false)
             setFinalPreviewConfirmed(false)
             setFinalSubmitAcknowledged(false)
-            await reloadDetail()
-            pendingScrollRestoreYRef.current = publicSignScrollAnchorRef.current
+            const pack = await reloadDetail()
+            if (pack) scrollToNextPublicStep(pack.detail, pack.drafts)
           }}
         />
 
