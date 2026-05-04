@@ -75,8 +75,11 @@ function requiredAttachmentCount(detail: ContractDocumentDetailPayload): number 
   return (detail.sendSessionAttachments ?? []).filter((a) => a.required).length
 }
 
-function signatureSlotCount(detail: ContractDocumentDetailPayload): number {
-  return detail.fields.filter((f) => f.fieldType === 'signature').length
+/** coordinate_pdf 공개 화면에서 고객이 서명할 수 있는 슬롯(.hide / readOnly 제외). API에 슬롯이 안 내려오면 길이 0. */
+function coordinatePdfCustomerSignatureTargets(detail: ContractDocumentDetailPayload) {
+  return detail.fields.filter(
+    (f) => f.fieldType === 'signature' && !f.hideFromCustomerInput && !f.readOnlyCustomerUi,
+  )
 }
 
 function markFirstActiveSlice(chain: PublicStepSlice[]) {
@@ -98,7 +101,7 @@ function markFirstActiveSlice(chain: PublicStepSlice[]) {
   }
 }
 
-/** coordinate_pdf: vacuous every() 완료를 없음(skipped)·대기·진행·완료로 분리 */
+/** coordinate_pdf: 입력·확인·첨부는 없으면 skipped; 전자서명 단계는 항상 필수(손사인 정책). */
 function buildCoordinatePdfStepState(
   detail: ContractDocumentDetailPayload,
   drafts: Record<string, string | boolean>,
@@ -123,8 +126,9 @@ function buildCoordinatePdfStepState(
   const attHasWork = requiredAttachmentCount(detail) > 0
   const attComplete = attHasWork && allRequiredAttachmentsConfirmed(detail)
 
-  const sigHasWork = signatureSlotCount(detail) > 0
-  const sigComplete = sigHasWork && signatureRequirementsComplete(detail)
+  /** 손사인 필수 정책: 슬롯 유무와 관계없이 서명 단계는 skipped 하지 않는다. */
+  const sigHasWork = true
+  const sigComplete = signatureRequirementsComplete(detail)
 
   const finalHasWork = true
   const finalComplete = finalPreviewConfirmed
@@ -135,12 +139,11 @@ function buildCoordinatePdfStepState(
   const inputSkipped = !inputHasWork
   const checksSkipped = !checksHasWork
   const attSkipped = !attHasWork
-  const sigSkipped = !sigHasWork
 
   const gateAfterInput = inputSkipped || inputComplete
   const gateAfterChecks = gateAfterInput && (checksSkipped || checksComplete)
   const gateAfterAtt = gateAfterChecks && (attSkipped || attComplete)
-  const gateAfterSig = gateAfterAtt && (sigSkipped || sigComplete)
+  const gateAfterSig = gateAfterAtt && sigComplete
   const gateAfterFinal = gateAfterSig && finalComplete
 
   const input: PublicStepSlice = {
@@ -199,9 +202,7 @@ function buildCoordinatePdfStepState(
     status: 'pending',
     isActive: false,
   }
-  if (sigSkipped) {
-    signature.status = 'skipped'
-  } else if (!gateAfterAtt) {
+  if (!gateAfterAtt) {
     signature.status = 'pending'
   } else if (sigComplete) {
     signature.status = 'complete'
@@ -497,17 +498,16 @@ function allRequiredAttachmentsConfirmed(detail: ContractDocumentDetailPayload) 
   return true
 }
 
-/** 필수 전자서명 필드가 모두 저장되었는지(3단계 완료). */
-function signatureRequirementsComplete(detail: ContractDocumentDetailPayload) {
-  return detail.fields.every((f) => {
-    if (f.fieldType !== 'signature') {
-      return true
-    }
-    if (!f.required) {
-      return true
-    }
-    return f.publicValue?.kind === 'signature' ? f.publicValue.signed : false
-  })
+/**
+ * coordinate_pdf 3단계(전자서명) 완료. 고객 노출 서명 슬롯이 없으면 false(공집합 every 금지·데이터 미설정).
+ * 노출 슬롯이 있으면 required와 무관하게 모두 signed 여야 완료.
+ */
+function signatureRequirementsComplete(detail: ContractDocumentDetailPayload): boolean {
+  const targets = coordinatePdfCustomerSignatureTargets(detail)
+  if (targets.length === 0) {
+    return false
+  }
+  return targets.every((f) => f.publicValue?.kind === 'signature' && f.publicValue.signed)
 }
 
 export default function ContractSignDocumentPage() {
@@ -864,11 +864,12 @@ export default function ContractSignDocumentPage() {
         )
 
   const basicsComplete = detail ? allRequiredFilled(detail, drafts) : false
-  const isStep3Complete = coordinateStepState
-    ? !coordinateStepState.signature.hasWork || coordinateStepState.signature.isComplete
-    : detail
-      ? signatureFields.length === 0 || signatureRequirementsComplete(detail)
-      : false
+  const isStep3Complete =
+    detail == null
+      ? false
+      : (detail.templateMode ?? 'coordinate_pdf') === 'confirmation_only'
+        ? Boolean(detail.confirmationSignature?.exists)
+        : Boolean(coordinateStepState?.signature.isComplete)
 
   const pdfCard2Status: PublicStepStatus =
     coordinateStepState != null
@@ -925,7 +926,6 @@ export default function ContractSignDocumentPage() {
       !editable ||
       !coordinateStepState ||
       coordinateStepState.signature.status === 'pending' ||
-      !coordinateStepState.signature.hasWork ||
       !canSign
     ) {
       return
