@@ -30,6 +30,25 @@ import {
 import { SendAttachmentFileInput } from './SendAttachmentFileInput'
 import { ConfirmationOnlySendFieldsSection } from './ConfirmationOnlySendFieldsSection'
 
+/**
+ * 모바일 발송 단계에서 초록색(contract-mobile-step--completed)은
+ * 「현재 선택한 고객·템플릿으로 이미 만들어진 발송 세션」에만 붙어야 한다.
+ * 세션 id만 보고 완료 처리하면 이전 맥락 세션이 남아 3·4단계가 전부 완료로 보인다.
+ */
+function contractSendSessionDetailMatchesPick(
+  detail: SendSessionDetail | null,
+  customerId: number | undefined,
+  templateId: string | null,
+): boolean {
+  if (!detail || customerId == null || templateId == null || templateId === '') {
+    return false
+  }
+  if (detail.customerId !== customerId) {
+    return false
+  }
+  return detail.documents.some((d) => d.templateId === templateId)
+}
+
 const MOBILE_FLOW_MQ = '(max-width: 768px)'
 
 const ATTACHMENT_FILE_ACCEPT = '.pdf,image/jpeg,image/png,image/webp,application/pdf'
@@ -545,6 +564,26 @@ export default function ContractSignatureSendPage() {
           : null) ||
         (selectedTemplateId == null ? '전자서명 템플릿을 선택해 주세요.' : null))
 
+  const scopedSendSessionDetail = useMemo((): SendSessionDetail | null => {
+    if (!contractSendSessionDetailMatchesPick(sessionDetail, selectedCustomer?.id, selectedTemplateId)) {
+      return null
+    }
+    return sessionDetail
+  }, [sessionDetail, selectedCustomer?.id, selectedTemplateId])
+
+  const scopedLastCreated = useMemo((): CreateSendSessionResult | null => {
+    if (!lastCreated || !scopedSendSessionDetail) {
+      return null
+    }
+    if (lastCreated.id !== scopedSendSessionDetail.id) {
+      return null
+    }
+    if (lastCreated.customerId !== scopedSendSessionDetail.customerId) {
+      return null
+    }
+    return lastCreated
+  }, [lastCreated, scopedSendSessionDetail])
+
   const step1Complete = Boolean(selectedCustomer)
   const step2Complete = Boolean(
     selectedTemplateId &&
@@ -552,7 +591,7 @@ export default function ContractSignatureSendPage() {
       String(selectedTpl.status) === 'active' &&
       selectedCustomer?.hasPhone,
   )
-  const step3Complete = Boolean(sessionDetail?.id || lastCreated?.id)
+  const step3Complete = Boolean(scopedSendSessionDetail)
 
   const step1Active = !step1Complete
   const step2Active = step1Complete && !step2Complete
@@ -1024,9 +1063,8 @@ export default function ContractSignatureSendPage() {
                   title: '발송 전 입력값',
                   desc: '고객에게 보내기 전에 계약서에 들어갈 값을 입력해주세요.',
                   active: step3Active || (step2Complete && !step3Complete),
-                  completed:
-                    step3Complete ||
-                    (senderPrefillSatisfied(selectedTpl ?? undefined) && confirmationDraftValidationMessage == null),
+                  /** 발송 세션이 만들어진 뒤에만 완료(초록). 입력만 끝난 상태는 진행 중으로 둔다. */
+                  completed: step3Complete,
                   locked: !selectedCustomer || !selectedTemplateId,
                 },
                 <div className="contract-send-mobile-sender-fields">
@@ -1103,11 +1141,7 @@ export default function ContractSignatureSendPage() {
                   title: '확인서 항목 입력',
                   desc: '전자확인서 항목을 입력한 뒤 발송하면 고객이 공개 링크에서 내용을 확인할 수 있습니다.',
                   active: step2Complete && !step3Complete,
-                  completed:
-                    confirmationTemplateFields.length > 0 &&
-                    confirmationOnlyValuesMessage == null &&
-                    !confirmationFieldsLoading &&
-                    !confirmationFieldsError,
+                  completed: step3Complete,
                   locked: !selectedCustomer || !selectedTemplateId,
                 },
                 <ConfirmationOnlySendFieldsSection
@@ -1129,7 +1163,7 @@ export default function ContractSignatureSendPage() {
                   title: '고객 확인 항목',
                   desc: '이 템플릿에는 아래 확인 항목이 포함됩니다. 수정은 관리자 전자서명 템플릿 설정 화면에서 합니다.',
                   active: false,
-                  completed: step2Complete,
+                  completed: step3Complete,
                   locked: false,
                 },
                 <ul className="contract-mobile-readonly-list">
@@ -1198,7 +1232,7 @@ export default function ContractSignatureSendPage() {
               locked: !step3Complete,
             },
             <EvidenceStatusPanel
-              detail={sessionDetail}
+              detail={scopedSendSessionDetail}
               loading={evidenceLoading}
               onRefresh={() => void refreshSessionDetail()}
               layout="mobile"
@@ -1611,11 +1645,11 @@ export default function ContractSignatureSendPage() {
           <h2 className="contract-signature-console__section-title">3. 발송 세션</h2>
           <SendSessionPanel
             busy={sendBusy}
-            lastCreated={lastCreated}
+            lastCreated={scopedLastCreated}
             onCreate={() => void onCreateSendSession()}
             canSend={effectiveCanSend}
             inactiveTemplateHint={effectiveCanSend ? null : sendSessionPanelHint}
-            detail={sessionDetail}
+            detail={scopedSendSessionDetail}
             onRefresh={() => void refreshSessionDetail()}
             error={sendError}
             staffAuthToken={t}
@@ -1624,7 +1658,11 @@ export default function ContractSignatureSendPage() {
 
         <section className="contract-signature-console__section">
           <h2 className="contract-signature-console__section-title">4. 상태 · evidence</h2>
-          <EvidenceStatusPanel detail={sessionDetail} loading={evidenceLoading} onRefresh={() => void refreshSessionDetail()} />
+          <EvidenceStatusPanel
+            detail={scopedSendSessionDetail}
+            loading={evidenceLoading}
+            onRefresh={() => void refreshSessionDetail()}
+          />
         </section>
       </div>
     </main>
