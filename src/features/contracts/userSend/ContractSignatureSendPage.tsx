@@ -591,18 +591,56 @@ export default function ContractSignatureSendPage() {
   }, [lastCreated, scopedSendSessionDetail])
 
   const step1Complete = Boolean(selectedCustomer)
-  const step2Complete = Boolean(
+  /** 모바일 «2. 템플릿»·데스크톱 공통: 템플릿 선택 + active + 휴대폰 유효 */
+  const templatePickComplete = Boolean(
     selectedTemplateId &&
       selectedTpl != null &&
       String(selectedTpl.status) === 'active' &&
       selectedCustomer?.hasPhone,
   )
-  const step3Complete = Boolean(scopedSendSessionDetail)
+  const step2Complete = templatePickComplete
+
+  /** 좌표형에서만 confirmationDrafts 로 «고객 확인 문구» 단계가 생긴다. 행이 0이면 스킵. */
+  const customerConfirmDraftsApply = Boolean(
+    selectedCustomer &&
+      selectedTemplateId &&
+      selectedTpl &&
+      selectedTpl.templateMode !== 'confirmation_only' &&
+      confirmationDrafts.length > 0,
+  )
+  const customerConfirmDraftsStepSkipped = !customerConfirmDraftsApply
+  const customerConfirmDraftsStepComplete =
+    !customerConfirmDraftsApply || confirmationDraftValidationMessage == null
+
+  const confirmationOnlyReady =
+    !confirmationOnlySelected ||
+    (confirmationTemplateFields.length > 0 &&
+      confirmationOnlyValuesMessage == null &&
+      !confirmationFieldsLoading &&
+      !confirmationFieldsError)
+
+  const senderPrereqBlocked =
+    (selectedTpl?.senderFieldsForSend ?? []).length > 0 && !senderPrefillSatisfied(selectedTpl ?? undefined)
+
+  const currentSendSessionCreated = Boolean(scopedSendSessionDetail)
+
+  const step3Ready =
+    step1Complete &&
+    templatePickComplete &&
+    (customerConfirmDraftsStepSkipped || customerConfirmDraftsStepComplete) &&
+    confirmationOnlyReady &&
+    !senderPrereqBlocked &&
+    !attachmentPipelineBlocksSend
+
+  /** 하위 호환: numbered «3. 발송 세션» 완료 = 현재 맥락 세션 생성됨 */
+  const step3Complete = currentSendSessionCreated
 
   const step1Active = !step1Complete
-  const step2Active = step1Complete && !step2Complete
-  const step3Active = step2Complete && !step3Complete
-  const step4Active = step3Complete
+  const step2Active = step1Complete && !templatePickComplete
+  /** 3단계: 준비가 끝났고 아직 세션이 없을 때만 진행 중 */
+  const step3Active = step3Ready && !currentSendSessionCreated
+  /** 4단계: 세션 생성 후에만 진행 중(3과 동시 active 금지) */
+  const step4Active = currentSendSessionCreated
 
   const processPickedAttachmentFiles = async (files: File[]) => {
     if (files.length === 0) {
@@ -1068,9 +1106,12 @@ export default function ContractSignatureSendPage() {
                 {
                   title: '발송 전 입력값',
                   desc: '고객에게 보내기 전에 계약서에 들어갈 값을 입력해주세요.',
-                  active: step3Active || (step2Complete && !step3Complete),
-                  /** 발송 세션이 만들어진 뒤에만 완료(초록). 입력만 끝난 상태는 진행 중으로 둔다. */
-                  completed: step3Complete,
+                  active:
+                    templatePickComplete &&
+                    senderFields.length > 0 &&
+                    senderPrereqBlocked &&
+                    !currentSendSessionCreated,
+                  completed: false,
                   locked: !selectedCustomer || !selectedTemplateId,
                 },
                 <div className="contract-send-mobile-sender-fields">
@@ -1146,8 +1187,12 @@ export default function ContractSignatureSendPage() {
                 {
                   title: '확인서 항목 입력',
                   desc: '전자확인서 항목을 입력한 뒤 발송하면 고객이 공개 링크에서 내용을 확인할 수 있습니다.',
-                  active: step2Complete && !step3Complete,
-                  completed: step3Complete,
+                  active:
+                    templatePickComplete &&
+                    confirmationOnlySelected &&
+                    !confirmationOnlyReady &&
+                    !currentSendSessionCreated,
+                  completed: false,
                   locked: !selectedCustomer || !selectedTemplateId,
                 },
                 <ConfirmationOnlySendFieldsSection
@@ -1168,8 +1213,11 @@ export default function ContractSignatureSendPage() {
                 {
                   title: '고객 확인 항목',
                   desc: '이 템플릿에는 아래 확인 항목이 포함됩니다. 수정은 관리자 전자서명 템플릿 설정 화면에서 합니다.',
-                  active: false,
-                  completed: step3Complete,
+                  active:
+                    customerConfirmDraftsApply &&
+                    !customerConfirmDraftsStepComplete &&
+                    !currentSendSessionCreated,
+                  completed: false,
                   locked: false,
                 },
                 <ul className="contract-mobile-readonly-list">
@@ -1188,7 +1236,7 @@ export default function ContractSignatureSendPage() {
               desc: selectedTemplateId
                 ? '고객이 전자서명 전에 확인할 자료를 첨부하세요.'
                 : '전자서명 템플릿을 선택하면 첨부자료를 추가할 수 있습니다.',
-              active: Boolean(selectedTemplateId && selectedCustomer),
+              active: templatePickComplete && Boolean(selectedCustomer) && !currentSendSessionCreated,
               completed: false,
               locked: !selectedTemplateId,
             },
@@ -1201,7 +1249,7 @@ export default function ContractSignatureSendPage() {
               desc: null,
               active: step3Active,
               completed: step3Complete,
-              locked: !step2Complete,
+              locked: !step3Ready,
             },
             <>
               {selectedCustomer && selectedTpl && String(selectedTpl.status) === 'active' ? (
@@ -1216,11 +1264,11 @@ export default function ContractSignatureSendPage() {
               ) : null}
               <SendSessionPanel
                 busy={sendBusy}
-                lastCreated={lastCreated}
+                lastCreated={scopedLastCreated}
                 onCreate={() => void onCreateSendSession()}
                 canSend={effectiveCanSend}
                 inactiveTemplateHint={effectiveCanSend ? null : sendSessionPanelHint}
-                detail={sessionDetail}
+                detail={scopedSendSessionDetail}
                 onRefresh={() => void refreshSessionDetail()}
                 error={sendError}
                 staffAuthToken={t}
@@ -1236,7 +1284,7 @@ export default function ContractSignatureSendPage() {
               active: step4Active,
               /** 결과 확인 단계는 완료(초록)가 아니라 진행 중·대기만 사용 */
               completed: false,
-              locked: !step3Complete,
+              locked: !currentSendSessionCreated,
             },
             <EvidenceStatusPanel
               detail={scopedSendSessionDetail}
