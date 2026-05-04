@@ -79,19 +79,20 @@
   min-height: 44px;
 }
 
-.contract-public-sign-page__co-final-bar {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  margin-top: 1rem;
-  padding-top: 0.5rem;
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
-  background: linear-gradient(to top, var(--bg-main) 82%, transparent);
+/* 최종 완료 카드: 문서 일반 흐름(하단 sticky/고정 없음) */
+.contract-public-sign-page__co-final-section {
+  margin-top: 1.25rem;
 }
 
-.contract-public-sign-page__co-final-card {
-  border-radius: 12px;
-  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.08);
+.contract-public-sign-page__download-error {
+  margin: 0.5rem 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--danger-border);
+  background: var(--danger-bg);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--danger-text);
 }
 
 .contract-public-sign-page__co-final-cta {
@@ -630,14 +631,14 @@
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
-/* 5단계 전자서명 플로우 카드 */
+/* 5단계 전자서명 플로우 카드 — 전자문서 처리 톤: 좌측 초록 강조선, 배경 과잉 채색 없음 */
 .contract-public-sign-page__step-card {
-  border-left: 3px solid var(--border);
+  border-left: 4px solid var(--border);
 }
 
 .contract-public-sign-page__step-card--active {
-  border-left-color: var(--color-primary, var(--interactive-primary, #3b82f6));
-  box-shadow: 0 0 0 1px var(--color-primary, var(--interactive-primary, #3b82f6));
+  border-left-color: rgba(34, 197, 94, 0.95);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.2);
 }
 
 .contract-public-sign-page__step-card--locked {
@@ -647,7 +648,8 @@
 
 .contract-public-sign-page__step-card--completed,
 .contract-public-sign-page__step-card--done {
-  border-left-color: var(--success);
+  border-left-color: rgba(22, 163, 74, 0.88);
+  box-shadow: none;
 }
 
 .contract-public-sign-page__step-status {
