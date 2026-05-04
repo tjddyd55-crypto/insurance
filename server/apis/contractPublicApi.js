@@ -7,6 +7,7 @@ import { getTemplateById, listFields } from '../pdf-engine/repository/pdfTemplat
 import { getTemplateObject } from '../pdf-engine/storage/pdfTemplateStorage.js'
 import { insertSignatureEvidenceRow, loadVerifiedIdentitySession } from '../services/contractEvidenceService.js'
 import { normalizeContractFieldStoredValue } from '../services/contractFieldValueNormalize.js'
+import { insertConfirmationOnlySignatureEvidenceRow } from '../services/contractConfirmationOnlyEvidence.js'
 import { buildConfirmationCertificatePdfBuffer } from '../services/contractConfirmationPdfFromInstance.js'
 import { buildStampedPdfBufferFromInstance } from '../services/contractStampedPdfFromInstance.js'
 import {
@@ -1219,6 +1220,40 @@ export function registerContractPublicApi(apiRouter, ctx) {
             })
             return
           }
+          const valRowsConfirmation = await loadValueRows(client, docId)
+          try {
+            await insertConfirmationOnlySignatureEvidenceRow(client, req, {
+              sendSession: session,
+              documentInstance: docLocked,
+              identityRow,
+              contractTemplateTitle,
+              confirmationFieldRows: cfPdfRows,
+              documentValueRows: valRowsConfirmation,
+              signedPdfFileId,
+              signedPdfHash: signedPdfHashHex,
+            })
+          } catch (insErr) {
+            if (insErr && insErr.code === '23505') {
+              const evDup = await client.query(
+                `
+                SELECT evidence_hash, signed_at
+                FROM signature_evidences
+                WHERE document_instance_id = $1
+                ORDER BY created_at DESC
+                LIMIT 1
+                `,
+                [docId],
+              )
+              await client.query('ROLLBACK')
+              respondPublicMutationError(res, {
+                status: 409,
+                message: '이미 완료된 문서입니다.',
+                evidence: buildPublicEvidenceFromRow(evDup.rows[0]),
+              })
+              return
+            }
+            throw insErr
+          }
         } else {
           const valRows = await loadValueRows(client, docId)
           const settingsMapTx = await loadContractFieldSettingsMap(client, contractTemplateIdStr)
@@ -1330,22 +1365,19 @@ export function registerContractPublicApi(apiRouter, ctx) {
           [session.id],
         )
         await maybeCompleteSendSession(client, session.id)
-        let evidenceSummary = null
-        if (templateMode !== 'confirmation_only') {
-          const evRow = await client.query(
-            `
-            SELECT evidence_hash, signed_at
-            FROM signature_evidences
-            WHERE document_instance_id = $1
-            ORDER BY created_at DESC
-            LIMIT 1
-            `,
-            [docId],
-          )
-          evidenceSummary = buildPublicEvidenceFromRow(evRow.rows[0], {
-            completedAt: completedAtIso,
-          })
-        }
+        const evRow = await client.query(
+          `
+          SELECT evidence_hash, signed_at
+          FROM signature_evidences
+          WHERE document_instance_id = $1
+          ORDER BY created_at DESC
+          LIMIT 1
+          `,
+          [docId],
+        )
+        const evidenceSummary = buildPublicEvidenceFromRow(evRow.rows[0], {
+          completedAt: completedAtIso,
+        })
         const signedPdfPath =
           signedPdfFileId != null
             ? `/api/contracts/public/${encodeURIComponent(linkCode)}/documents/${encodeURIComponent(docId)}/signed-pdf`
@@ -2310,12 +2342,30 @@ export function registerContractPublicApi(apiRouter, ctx) {
           docCompleted && hasSignedPdf
             ? `/api/contracts/public/${encodeURIComponent(linkCode)}/documents/${encodeURIComponent(docId)}/signed-pdf`
             : null
+        let confirmationEvidenceSummary = null
+        if (docCompleted) {
+          const evConf = await pool.query(
+            `
+            SELECT evidence_hash, signed_at
+            FROM signature_evidences
+            WHERE document_instance_id = $1
+            ORDER BY created_at DESC
+            LIMIT 1
+            `,
+            [docId],
+          )
+          const completedAtIsoConf = doc.completed_at ? new Date(doc.completed_at).toISOString() : null
+          confirmationEvidenceSummary = buildPublicEvidenceFromRow(evConf.rows[0], {
+            completedAt: completedAtIsoConf,
+          })
+        }
         res.status(200).json({
           success: true,
           data: {
             templateMode: 'confirmation_only',
             completed: docCompleted,
-            evidenceAvailable: false,
+            evidenceAvailable: Boolean(confirmationEvidenceSummary),
+            evidenceSummary: confirmationEvidenceSummary ?? undefined,
             document: {
               id: String(doc.id),
               templateId: String(doc.template_id),

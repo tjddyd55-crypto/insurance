@@ -9,6 +9,7 @@ import { consentGetBuffer } from '../lib/consentStorage.js'
 import { listFields } from '../pdf-engine/repository/pdfTemplateRepo.js'
 import { listConfirmationItemsWithValues } from './contractConfirmationItems.js'
 import { listSendSessionAttachmentsPublic } from './contractSendAttachments.js'
+import { listSendSessionConfirmationFieldValuesForPublic } from './contractSendSessionConfirmationFieldValues.js'
 
 const A4_W = 595
 const A4_H = 842
@@ -242,13 +243,9 @@ export async function buildSendSessionEvidencePdf(ctx) {
   }
 
   const docs = await loadDocuments(pool, sid)
-  if (docs.some((d) => String(d.template_mode ?? '') === 'confirmation_only')) {
-    const e = new Error('무좌표 전자확인서는 아직 증빙 PDF를 제공하지 않습니다.')
-    /** @type {{ statusCode?: number, code?: string }} */ (e).statusCode = 400
-    /** @type {{ statusCode?: number, code?: string }} */ (e).code = 'confirmation_only_evidence_not_ready'
-    throw e
-  }
   const completedDocs = docs.filter((d) => String(d.status ?? '') === 'completed')
+  const completedCoordinateDocs = completedDocs.filter((d) => String(d.template_mode ?? '') !== 'confirmation_only')
+  const completedConfirmationDocs = completedDocs.filter((d) => String(d.template_mode ?? '') === 'confirmation_only')
   if (completedDocs.length === 0) {
     const e = new Error('완료된 문서만 다운로드할 수 있습니다.')
     /** @type {{ statusCode?: number }} */ (e).statusCode = 403
@@ -335,7 +332,7 @@ export async function buildSendSessionEvidencePdf(ctx) {
   y -= 6
 
   flushParagraph('— 섹션 3~6. 문서별 입력·서명·증빙 —')
-  for (const d of completedDocs) {
+  for (const d of completedCoordinateDocs) {
     flushParagraph(`▶ ${String(d.title_snapshot ?? d.id)}`)
     flushParagraph(`  계약 템플릿: ${d.contract_template_title ?? '—'}`)
     flushParagraph(`  PDF 템플릿: ${d.pdf_template_title ?? '—'}`)
@@ -406,6 +403,65 @@ export async function buildSendSessionEvidencePdf(ctx) {
       flushParagraph('  증빙 행이 없습니다.')
     }
     y -= 4
+  }
+
+  if (completedConfirmationDocs.length > 0) {
+    flushParagraph('— 무좌표 전자확인서: 확인서 항목·증빙 —')
+    for (const d of completedConfirmationDocs) {
+      flushParagraph(`▶ ${String(d.title_snapshot ?? d.id)} (전자확인서)`)
+      flushParagraph(`  계약 템플릿: ${d.contract_template_title ?? '—'}`)
+      flushParagraph('  PDF 템플릿: — (무좌표)')
+      flushParagraph('  [확인서 입력 항목]')
+      const cfRows = await listSendSessionConfirmationFieldValuesForPublic(pool, sid, String(d.template_id))
+      for (const r of cfRows) {
+        const lab = String(r.label ?? '').trim() || String(r.field_key ?? '')
+        const shown = String(r.value_text ?? '').trim() || '—'
+        flushParagraph(`  · ${lab}: ${shown}`)
+      }
+      flushParagraph('  [문서 인스턴스 값(서명 등)]')
+      const valsCo = await loadDocumentValues(pool, String(d.id))
+      for (const v of valsCo) {
+        const ft = String(v.field_type ?? '')
+        const fk = String(v.field_key ?? '')
+        if (ft === 'signature') {
+          flushParagraph(`  · ${fk}: 서명 저장됨 (파일/해시 기록)`)
+          continue
+        }
+        const shown = String(v.value_text ?? '').trim() || '—'
+        flushParagraph(`  · ${fk}: ${shown} (저장 시각: ${formatTsKor(v.updated_at)})`)
+      }
+      const evCo = await loadEvidenceForDoc(pool, sid, String(d.id))
+      flushParagraph('  [전자확인·증빙]')
+      if (evCo) {
+        flushParagraph(`  · evidenceHash: ${String(evCo.evidence_hash ?? '').trim() || '—'}`)
+        flushParagraph(`  · 완료 시각: ${formatTsKor(evCo.signed_at)}`)
+        flushParagraph(`  · 완료 확인서 PDF 해시: ${hashPrefix(evCo.signed_pdf_hash ?? evCo.document_hash, 24)}`)
+        flushParagraph(`  · 접속 IP(해시): ${hashPrefix(evCo.ip_hash)}`)
+        flushParagraph(`  · User-Agent: ${String(evCo.user_agent ?? '').trim() || '—'}`)
+        const sigBytesCo = await loadFileBuffer(pool, evCo.signature_file_id)
+        if (sigBytesCo) {
+          const imgCo = await tryEmbedRaster(pdfDoc, sigBytesCo)
+          if (imgCo) {
+            const maxW = 140
+            const scale = Math.min(maxW / imgCo.width, 40 / imgCo.height)
+            const w = imgCo.width * scale
+            const h = imgCo.height * scale
+            if (y < MARGIN + h + LINE_HEIGHT * 3) {
+              page = pdfDoc.addPage([A4_W, A4_H])
+              y = A4_H - MARGIN
+            }
+            y -= 4
+            page.drawText('  [서명 이미지(축소)]', { x: MARGIN, y, size: FONT_SIZE, font, color: rgb(0, 0, 0) })
+            y -= LINE_HEIGHT
+            page.drawImage(imgCo, { x: MARGIN + 10, y: y - h, width: w, height: h })
+            y -= h + 6
+          }
+        }
+      } else {
+        flushParagraph('  증빙 행이 없습니다.')
+      }
+      y -= 4
+    }
   }
 
   flushParagraph('— 섹션 4. 고객 확인 체크 항목 —')

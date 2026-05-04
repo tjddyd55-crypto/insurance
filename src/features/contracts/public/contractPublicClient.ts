@@ -126,7 +126,7 @@ export type ContractDocumentDetailPayload = {
   completionAvailable?: boolean
   /** confirmation_only 공개 상세(서버 data.completed) */
   completed?: boolean
-  /** confirmation_only 는 현재 false 고정 */
+  /** confirmation_only: signature_evidences 행 존재 시 true */
   evidenceAvailable?: boolean
   document: {
     id: string

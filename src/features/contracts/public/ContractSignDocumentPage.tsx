@@ -1729,14 +1729,14 @@ export default function ContractSignDocumentPage() {
                 문서명: <span className="font-medium">{detail.document.title || '문서'}</span>
               </p>
               {completeResult.completedAt ? <p>완료 시각: {completeResult.completedAt}</p> : null}
-              {!successIsConfirmation && completeResult.evidenceSummary?.evidenceHashPrefix ? (
+              {completeResult.evidenceSummary?.evidenceHashPrefix ? (
                 <p className="contract-public-sign-page__success-dialog-muted">
                   증빙번호(해시 일부): {completeResult.evidenceSummary.evidenceHashPrefix}
                 </p>
               ) : null}
               <p className="contract-public-sign-page__success-dialog-muted">
                 {successIsConfirmation
-                  ? '완료 확인서 PDF를 저장해 두시면 이후에도 동일 링크에서 다시 내려받을 수 있습니다. 증빙 PDF는 별도로 준비 중입니다.'
+                  ? '완료 확인서 PDF와 증빙 기록이 저장되었습니다. 완료 확인서는 아래에서 내려받을 수 있으며, 증빙 PDF는 담당자 발송 내역에서 받을 수 있습니다.'
                   : '담당자가 완료된 전자서명 문서를 확인할 수 있습니다. 이 화면은 닫으셔도 됩니다. 카카오톡으로 돌아가려면 상단 닫기 버튼을 눌러주세요.'}
               </p>
               <div className="contract-public-sign-page__success-dialog-actions">
