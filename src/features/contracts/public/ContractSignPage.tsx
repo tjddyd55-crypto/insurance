@@ -133,6 +133,8 @@ export default function ContractSignPage() {
     }
   }
 
+  const otpCodeValid = /^\d{6}$/.test(otpCode)
+
   const handleVerify = async () => {
     setOtpError('')
     setOtpVerifying(true)
@@ -232,9 +234,9 @@ export default function ContractSignPage() {
           />
           <FormButton
             htmlType="button"
-            variant="secondary"
+            variant={otpCodeValid ? 'primary' : 'secondary'}
             fullWidth
-            disabled={otpVerifying || otpCode.length !== 6}
+            disabled={otpVerifying || !otpCodeValid}
             loading={otpVerifying}
             onClick={() => void handleVerify()}
           >

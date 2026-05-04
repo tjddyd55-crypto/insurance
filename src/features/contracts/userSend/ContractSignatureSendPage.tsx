@@ -225,6 +225,19 @@ export default function ContractSignatureSendPage() {
     setAttachmentDrafts([])
   }, [selectedCustomer?.id])
 
+  /**
+   * 고객·템플릿이 바뀌면 이전 발송 세션 상태는 무효다.
+   * 확인서(confirmation_only) 발송 후 좌표형 계약서 템플릿으로 바꿀 때 등에
+   * sessionDetail/lastCreated 가 남아 3·4단계가 완료/초록으로 보이는 회귀를 막는다.
+   */
+  useEffect(() => {
+    setLastCreated(null)
+    setSessionDetail(null)
+    setSendError(null)
+    setSendBusy(false)
+    setEvidenceLoading(false)
+  }, [selectedCustomer?.id, selectedTemplateId])
+
   const reloadTemplates = useCallback(async () => {
     if (!t) {
       return

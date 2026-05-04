@@ -738,8 +738,8 @@
   box-shadow: 0 1px 2px var(--shadow-card);
   overflow-wrap: anywhere;
   transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
+    border-color 0.1s ease,
+    background 0.1s ease;
   -webkit-tap-highlight-color: transparent;
 }
 

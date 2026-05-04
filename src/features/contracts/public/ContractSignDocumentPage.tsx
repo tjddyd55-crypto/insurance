@@ -350,22 +350,17 @@ function scrollToPublicStepElement(el: HTMLElement | null | undefined) {
   if (!el) {
     return
   }
-  const run = () => {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  const focusTarget = () => {
     const focusEl = el.querySelector<HTMLElement>('[data-public-step-focus="true"]')
     const t = focusEl ?? el
     if (!focusEl && t.getAttribute('tabindex') == null) {
       t.setAttribute('tabindex', '-1')
     }
-    window.requestAnimationFrame(() => {
-      t.focus({ preventScroll: true })
-    })
+    t.focus({ preventScroll: true })
   }
   window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => {
-      run()
-      window.setTimeout(run, 160)
-    })
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    window.requestAnimationFrame(focusTarget)
   })
 }
 

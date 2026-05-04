@@ -144,9 +144,9 @@ main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mo
   box-sizing: border-box;
   min-height: 44px;
   transition:
-    border-color 0.12s ease,
-    background 0.12s ease,
-    box-shadow 0.12s ease;
+    border-color 0.08s ease,
+    background 0.08s ease,
+    box-shadow 0.08s ease;
 }
 
 main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile
@@ -308,9 +308,9 @@ main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mo
   box-sizing: border-box;
   min-height: 44px;
   transition:
-    border-color 0.12s ease,
-    background 0.12s ease,
-    box-shadow 0.12s ease;
+    border-color 0.08s ease,
+    background 0.08s ease,
+    box-shadow 0.08s ease;
 }
 
 main.insurance-dark-forms.contract-signature-console.contract-signature-flow--mobile
