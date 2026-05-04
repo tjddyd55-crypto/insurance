@@ -181,6 +181,7 @@ function mobileStepShell(
   children: ReactNode,
 ): ReactElement {
   const { title, desc, active, completed, locked } = opts
+  /* locked이면 진행 중/완료 배지·스타일이 동시에 켜지지 않도록 active를 잠긴다 */
   const visualActive = active && !locked
   const visualCompleted = completed && !visualActive
 
@@ -623,6 +624,13 @@ export default function ContractSignatureSendPage() {
     (selectedTpl?.senderFieldsForSend ?? []).length > 0 && !senderPrefillSatisfied(selectedTpl ?? undefined)
 
   const currentSendSessionCreated = Boolean(scopedSendSessionDetail)
+
+  /** 첨부는 선택 사항 — 업로드 진행/실패로 발송이 막힐 때만 단계 카드가 진행 중으로 표시 */
+  const attachmentStepActive =
+    !currentSendSessionCreated &&
+    Boolean(selectedCustomer) &&
+    Boolean(selectedTemplateId) &&
+    attachmentPipelineBlocksSend
 
   const step3Ready =
     step1Complete &&
@@ -1236,7 +1244,7 @@ export default function ContractSignatureSendPage() {
               desc: selectedTemplateId
                 ? '고객이 전자서명 전에 확인할 자료를 첨부하세요.'
                 : '전자서명 템플릿을 선택하면 첨부자료를 추가할 수 있습니다.',
-              active: templatePickComplete && Boolean(selectedCustomer) && !currentSendSessionCreated,
+              active: attachmentStepActive,
               completed: false,
               locked: !selectedTemplateId,
             },
