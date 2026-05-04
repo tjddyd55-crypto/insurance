@@ -181,20 +181,26 @@ function mobileStepShell(
   children: ReactNode,
 ): ReactElement {
   const { title, desc, active, completed, locked } = opts
+  const visualActive = active && !locked
+  const visualCompleted = completed && !visualActive
+
   const cls = [
     'contract-mobile-step',
     locked ? 'contract-mobile-step--locked' : '',
-    completed ? 'contract-mobile-step--completed' : '',
-    active && !locked ? 'contract-mobile-step--active' : '',
+    visualCompleted ? 'contract-mobile-step--completed' : '',
+    visualActive ? 'contract-mobile-step--active' : '',
   ]
     .filter(Boolean)
     .join(' ')
-  const badgeCls = completed
+
+  const badgeCls = visualCompleted
     ? 'contract-mobile-step__badge contract-mobile-step__badge--done'
-    : active && !locked
+    : visualActive
       ? 'contract-mobile-step__badge contract-mobile-step__badge--active'
       : 'contract-mobile-step__badge contract-mobile-step__badge--locked'
-  const badgeText = completed ? '완료' : active && !locked ? '진행 중' : '대기'
+
+  const badgeText = visualCompleted ? '완료' : visualActive ? '진행 중' : '대기'
+
   return (
     <section className={cls}>
       <div className="contract-mobile-step__head">
@@ -1228,6 +1234,7 @@ export default function ContractSignatureSendPage() {
               title: '4. 상태 · evidence',
               desc: null,
               active: step4Active,
+              /** 결과 확인 단계는 완료(초록)가 아니라 진행 중·대기만 사용 */
               completed: false,
               locked: !step3Complete,
             },
