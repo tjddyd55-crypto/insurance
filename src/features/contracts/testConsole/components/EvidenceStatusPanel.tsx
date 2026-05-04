@@ -31,6 +31,14 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
   const isMobile = layout === 'mobile'
 
   const sessionCompleted = detail != null && detail.status === 'completed'
+  const consoleIsConfirmation = detail?.templateMode === 'confirmation_only'
+  const signedCompleteDocDlLabel = consoleIsConfirmation
+    ? '완료 확인서 PDF 다운로드'
+    : '완료 계약서 PDF 다운로드'
+  const signedCompleteDocPendingLabel = consoleIsConfirmation
+    ? '완료 확인서 PDF 준비 중'
+    : '완료 계약서 PDF 준비 중'
+  const completedDocPdfLabel = consoleIsConfirmation ? '완료 확인서 PDF' : '완료 계약서 PDF'
 
   async function downloadSignedPdf(docId: string) {
     if (!detail || !t) {
@@ -131,7 +139,7 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
                       <dd>{evPrefix && String(evPrefix).trim() !== '' ? String(evPrefix).trim() : '—'}</dd>
                     </div>
                     <div>
-                      <dt>최종 PDF</dt>
+                      <dt>{completedDocPdfLabel}</dt>
                       <dd>{anyPdfReady ? '다운로드 가능' : '준비 중 또는 없음'}</dd>
                     </div>
                     <div>
@@ -172,7 +180,7 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
                             disabled={!canDl}
                             onClick={() => void downloadSignedPdf(d.id)}
                           >
-                            완료 계약서 다운로드
+                            {signedCompleteDocDlLabel}
                           </FormButton>
                           <FormButton
                             htmlType="button"
@@ -193,7 +201,7 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
                         ) : null}
                         {d.status === 'completed' && !canDl ? (
                           <p className="contract-signature-console__hint" style={{ marginTop: 8 }}>
-                            완료 계약서 PDF 준비 중
+                            {signedCompleteDocPendingLabel}
                           </p>
                         ) : null}
                       </div>
@@ -284,7 +292,7 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
                   <th>identityLevel</th>
                   <th>otpVerifiedAt</th>
                   <th>signedAt</th>
-                  <th>완료 계약서</th>
+                  <th>{completedDocPdfLabel}</th>
                   <th>증빙 PDF</th>
                 </tr>
               </thead>

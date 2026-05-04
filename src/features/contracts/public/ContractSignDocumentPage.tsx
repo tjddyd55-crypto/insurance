@@ -736,7 +736,10 @@ export default function ContractSignDocumentPage() {
             <div className="contract-public-sign-page__panel-success">
               <p className="contract-public-sign-page__panel-success-title">전자확인서가 완료되었습니다.</p>
               <p className="contract-public-sign-page__notice">
-                아래 버튼에서 완료 확인서 PDF를 저장할 수 있습니다. (전자서명 증빙 PDF는 추후 제공 예정입니다.)
+                아래에서 <strong>완료 확인서 PDF</strong>를 저장할 수 있습니다. 이 문서는 확인·서명이 반영된 최종 확인서입니다.
+              </p>
+              <p className="contract-public-sign-page__notice contract-public-sign-page__notice--secondary">
+                <strong>증빙 PDF</strong>는 본인확인·확인 항목·첨부·서명·해시 등 감사 기록을 담은 별도 문서이며, 고객 화면이 아니라 담당자 발송 내역에서 내려받을 수 있습니다.
               </p>
               {coSignedOk ? (
                 <FormButton
@@ -1148,11 +1151,11 @@ export default function ContractSignDocumentPage() {
                   className="mt-4"
                   onClick={() => void downloadPdfWithCredentials(p).catch(() => {})}
                 >
-                  최종 계약서 다운로드
+                  완료 계약서 PDF 다운로드
                 </FormButton>
               ) : (
                 <p className="contract-public-sign-page__panel-success-note">
-                  최종 PDF 다운로드는 준비 중입니다. 담당자 화면에서 증빙 상태를 확인할 수 있습니다.
+                  완료 계약서 PDF를 불러오는 중입니다. 담당자 화면에서 증빙 상태를 확인할 수 있습니다.
                 </p>
               )
             })()}
@@ -1736,7 +1739,7 @@ export default function ContractSignDocumentPage() {
               ) : null}
               <p className="contract-public-sign-page__success-dialog-muted">
                 {successIsConfirmation
-                  ? '완료 확인서 PDF와 증빙 기록이 저장되었습니다. 완료 확인서는 아래에서 내려받을 수 있으며, 증빙 PDF는 담당자 발송 내역에서 받을 수 있습니다.'
+                  ? '완료 확인서 PDF(최종 확인·서명 문서)와 증빙 PDF(감사 기록)가 저장되었습니다. 완료 확인서 PDF는 아래에서 내려받을 수 있으며, 증빙 PDF는 담당자 발송 내역에서 내려받을 수 있습니다.'
                   : '담당자가 완료된 전자서명 문서를 확인할 수 있습니다. 이 화면은 닫으셔도 됩니다. 카카오톡으로 돌아가려면 상단 닫기 버튼을 눌러주세요.'}
               </p>
               <div className="contract-public-sign-page__success-dialog-actions">
@@ -1751,15 +1754,17 @@ export default function ContractSignDocumentPage() {
                       onClick={() =>
                         void downloadPdfWithCredentials(
                           path,
-                          successIsConfirmation ? '완료 확인서.pdf' : 'signed-contract.pdf',
+                          successIsConfirmation ? '완료 확인서.pdf' : '완료 계약서.pdf',
                         ).catch(() => {})
                       }
                     >
-                      {successIsConfirmation ? '완료 확인서 PDF 다운로드' : '최종 계약서 다운로드'}
+                      {successIsConfirmation ? '완료 확인서 PDF 다운로드' : '완료 계약서 PDF 다운로드'}
                     </FormButton>
                   ) : (
                     <p className="contract-public-sign-page__success-dialog-muted">
-                      {successIsConfirmation ? '완료 확인서 PDF를 불러오는 중입니다.' : '최종 PDF 다운로드는 준비 중입니다.'}
+                      {successIsConfirmation
+                        ? '완료 확인서 PDF를 불러오는 중입니다.'
+                        : '완료 계약서 PDF를 불러오는 중입니다.'}
                     </p>
                   )
                 })()}

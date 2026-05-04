@@ -57,6 +57,14 @@ export function SendSessionPanel({
   const isMobile = layout === 'mobile'
   const session = detail ?? (lastCreated ? mapLastToDetailShape(lastCreated) : null)
   const sessionCompleted = Boolean(detail?.status === 'completed')
+  const consoleIsConfirmation = detail?.templateMode === 'confirmation_only'
+  const signedCompleteDocDlLabel = consoleIsConfirmation
+    ? '완료 확인서 PDF 다운로드'
+    : '완료 계약서 PDF 다운로드'
+  const signedCompleteDocPendingLabel = consoleIsConfirmation
+    ? '완료 확인서 PDF 준비 중'
+    : '완료 계약서 PDF 준비 중'
+  const completedDocColumnLabel = consoleIsConfirmation ? '완료 확인서 PDF' : '완료 계약서 PDF'
 
   const notifyDownloadError = (message: string) => {
     window.alert(message)
@@ -196,7 +204,7 @@ export function SendSessionPanel({
                             })
                           }}
                         >
-                          완료 계약서 다운로드
+                          {signedCompleteDocDlLabel}
                         </FormButton>
                         <FormButton
                           htmlType="button"
@@ -225,7 +233,7 @@ export function SendSessionPanel({
                       ) : null}
                       {d.status === 'completed' && !canDl ? (
                         <p className="contract-signature-console__hint" style={{ margin: '8px 0 0' }}>
-                          완료 계약서 PDF 준비 중
+                          {signedCompleteDocPendingLabel}
                         </p>
                       ) : null}
                     </div>
@@ -345,7 +353,7 @@ export function SendSessionPanel({
                   <tr>
                     <th>문서</th>
                     <th>상태</th>
-                    <th>완료 계약서</th>
+                    <th>{completedDocColumnLabel}</th>
                     <th>증빙 PDF</th>
                   </tr>
                 </thead>

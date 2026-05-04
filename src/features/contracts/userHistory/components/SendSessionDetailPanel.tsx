@@ -59,7 +59,7 @@ export function SendSessionDetailPanel({
   const sessionCompleted = detail != null && detail.status === 'completed'
   const isConfirmationSession = detail?.templateMode === 'confirmation_only'
   const canDownloadEvidencePdf = sessionCompleted
-  const evidencePdfDownloadLabel = isConfirmationSession ? '전자확인서 증빙 PDF' : '전자서명 증빙 PDF'
+  const evidencePdfDownloadLabel = '증빙 PDF'
   const preCompleteHint = '고객이 문서를 완료하면 다운로드할 수 있습니다.'
   const docs = detail?.documents ?? []
 
@@ -164,12 +164,12 @@ export function SendSessionDetailPanel({
             </p>
 
             <h3 className="contract-signature-console__section-title" style={{ marginTop: 12 }}>
-              완료 문서 다운로드
+              완료·증빙 PDF 다운로드
             </h3>
             <p className="contract-signature-console__hint" style={{ marginTop: 4 }}>
-                {isConfirmationSession
-                ? '무좌표 전자확인서는 완료 확인서 PDF로 남습니다. 전자확인서 증빙 PDF는 발송 내역에서 내려받을 수 있습니다.'
-                : '완료 계약서 PDF는 고객 입력값과 전자서명이 반영된 최종 문서입니다. 전자서명 증빙 PDF는 본인확인, 문서확인, 첨부자료 확인, 전자서명 및 제출 동의 기록을 정리한 증빙 문서입니다.'}
+              {isConfirmationSession
+                ? '완료 확인서 PDF는 고객이 확인·서명한 최종 문서입니다. 증빙 PDF는 본인확인·확인 항목·첨부·서명·해시 등 감사 기록을 담은 별도 문서로, 혼동되지 않게 구분되어 있습니다.'
+                : '완료 계약서 PDF는 고객 입력값과 전자서명이 반영된 최종 문서입니다. 증빙 PDF는 본인확인, 문서·첨부 확인, 전자서명 및 제출 동의 등 감사 기록을 정리한 별도 문서입니다.'}
             </p>
 
             {isMobile ? (
@@ -245,7 +245,7 @@ export function SendSessionDetailPanel({
                       <th className="contract-table-cell-center">상태</th>
                       <th className="contract-table-cell-center">완료일</th>
                       <th className="contract-table-cell-center">
-                        {isConfirmationSession ? '완료 확인서' : '완료 계약서'}
+                        {isConfirmationSession ? '완료 확인서 PDF' : '완료 계약서 PDF'}
                       </th>
                       <th className="contract-table-cell-center">{evidencePdfDownloadLabel}</th>
                     </tr>

@@ -489,7 +489,7 @@ export function buildStaffSignedPdfAbsUrl(sendSessionId: string, documentInstanc
   )
 }
 
-/** 발송 세션 단위 전자서명 증빙 PDF (Bearer 인증) */
+/** 발송 세션 단위 증빙 PDF (Bearer 인증) */
 export function buildStaffEvidencePdfAbsUrl(sendSessionId: string): string {
   return resolveApiUrl(`/api/contracts/send-sessions/${encodeURIComponent(sendSessionId)}/evidence.pdf`)
 }
