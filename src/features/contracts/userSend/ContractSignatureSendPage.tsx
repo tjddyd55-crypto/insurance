@@ -796,7 +796,7 @@ export default function ContractSignatureSendPage() {
 
   const mainClass =
     'insurance-dark-forms contract-signature-console' +
-    (isMobileFlow ? ' contract-signature-flow--mobile contract-signature-send-page' : '')
+    (isMobileFlow ? ' contract-signature-flow--mobile' : '')
 
   const senderFields = selectedTpl?.senderFieldsForSend ?? []
 
@@ -1014,18 +1014,16 @@ export default function ContractSignatureSendPage() {
                       const opts = rawOpts.map((x) => String(x))
                       const cur = String(senderVals[fk] ?? '')
                       return (
-                        <div key={fk} className="contract-mobile-sender-fields__field space-y-1">
+                        <div key={fk} className="space-y-1">
                           <p className="contract-signature-console__hint" style={{ marginBottom: 4 }}>
                             {d.label || fk}
                             {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
                           </p>
-                          <div className="contract-mobile-sender-fields__select-wrap">
-                            <FormSelect
-                              value={cur}
-                              options={[{ value: '', label: '선택' }, ...opts.map((o) => ({ value: o, label: o }))]}
-                              onChange={(ev) => setSenderVals((prev) => ({ ...prev, [fk]: ev.target.value }))}
-                            />
-                          </div>
+                          <FormSelect
+                            value={cur}
+                            options={[{ value: '', label: '선택' }, ...opts.map((o) => ({ value: o, label: o }))]}
+                            onChange={(ev) => setSenderVals((prev) => ({ ...prev, [fk]: ev.target.value }))}
+                          />
                         </div>
                       )
                     }
