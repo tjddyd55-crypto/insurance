@@ -1574,22 +1574,6 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 /*
- * 전자서명 발송(/contracts/signatures/send) — 카드·선택 UI와 겹침 완화.
- * 위치(dvh)는 기존과 동일하게 사용자 드래그·localStorage 가 유효하다.
- */
-@media (max-width: 768px) {
-  .memo-mobile-fab.memo-mobile-fab--contract-send {
-    right: 10px;
-    width: 50px;
-    height: 50px;
-    min-height: 50px;
-    font-size: 12px;
-    border-radius: 25px;
-    z-index: 480;
-  }
-}
-
-/*
  * 모바일 셸의 본문 스크롤 컨테이너.
  *
  * flex 자식에게 `min-height: 0` 을 함께 주지 않으면 기본값(auto)에 의해
