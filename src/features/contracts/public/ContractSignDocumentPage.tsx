@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { SignatureModal } from '../../consent/components/SignatureModal'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
@@ -185,14 +185,6 @@ function signatureRequirementsComplete(detail: ContractDocumentDetailPayload) {
   })
 }
 
-async function withScrollRestoreAfterSignSave(action: () => Promise<void>) {
-  const y = window.scrollY
-  await action()
-  window.requestAnimationFrame(() => {
-    window.scrollTo({ top: y, left: 0, behavior: 'auto' })
-  })
-}
-
 export default function ContractSignDocumentPage() {
   const { linkCode: linkCodeParam, documentInstanceId: docIdParam } = useParams<{
     linkCode: string
@@ -233,6 +225,10 @@ export default function ContractSignDocumentPage() {
   const [pdfDownloadError, setPdfDownloadError] = useState('')
   const [pdfDownloadBusy, setPdfDownloadBusy] = useState(false)
 
+  /** 모달 open 시 body overflow 로 scrollY 가 0 으로 보이는 경우가 있어, 열 때 위치를 저장한다 */
+  const publicSignScrollAnchorRef = useRef(0)
+  const pendingScrollRestoreYRef = useRef<number | null>(null)
+
   const reloadDetail = useCallback(
     async (isCancelled?: () => boolean) => {
       const d = await fetchContractPublicDocumentDetail(linkCode, documentInstanceId)
@@ -248,6 +244,24 @@ export default function ContractSignDocumentPage() {
     },
     [linkCode, documentInstanceId],
   )
+
+  useEffect(() => {
+    if (sigModalField != null) {
+      return
+    }
+    const y = pendingScrollRestoreYRef.current
+    if (y == null) {
+      return
+    }
+    pendingScrollRestoreYRef.current = null
+    const apply = () => window.scrollTo({ top: y, left: 0, behavior: 'auto' })
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        apply()
+        window.setTimeout(apply, 80)
+      })
+    })
+  }, [sigModalField])
 
   const confirmationItemsSig = useMemo(
     () =>
@@ -492,6 +506,7 @@ export default function ContractSignDocumentPage() {
     setContractPreviewOpen(false)
     setFinalReviewOpen(false)
     setActionError('')
+    publicSignScrollAnchorRef.current = window.scrollY
     setSigModalField({ id, label })
   }
 
@@ -1116,16 +1131,15 @@ export default function ContractSignDocumentPage() {
               }
               const dataUrl = await blobToDataUrl(blob)
               const signatureKey = String(sigModalField.id)
-              await withScrollRestoreAfterSignSave(async () => {
-                await postContractPublicDocumentSign(linkCode, documentInstanceId, {
-                  signatureImageData: dataUrl,
-                  fieldId: sigModalField.id,
-                  electronicSignAcknowledged: true,
-                })
-                setSignatureDrafts((prev) => ({ ...prev, [signatureKey]: dataUrl }))
-                setSignAck(false)
-                await reloadDetail()
+              await postContractPublicDocumentSign(linkCode, documentInstanceId, {
+                signatureImageData: dataUrl,
+                fieldId: sigModalField.id,
+                electronicSignAcknowledged: true,
               })
+              setSignatureDrafts((prev) => ({ ...prev, [signatureKey]: dataUrl }))
+              setSignAck(false)
+              await reloadDetail()
+              pendingScrollRestoreYRef.current = publicSignScrollAnchorRef.current
             }}
           />
 
@@ -1726,18 +1740,17 @@ export default function ContractSignDocumentPage() {
             }
             const dataUrl = await blobToDataUrl(blob)
             const signatureKey = String(sigModalField.id)
-            await withScrollRestoreAfterSignSave(async () => {
-              await postContractPublicDocumentSign(linkCode, documentInstanceId, {
-                signatureImageData: dataUrl,
-                fieldId: sigModalField.id,
-                electronicSignAcknowledged: true,
-              })
-              setSignatureDrafts((prev) => ({ ...prev, [signatureKey]: dataUrl }))
-              setSignAck(false)
-              setFinalPreviewConfirmed(false)
-              setFinalSubmitAcknowledged(false)
-              await reloadDetail()
+            await postContractPublicDocumentSign(linkCode, documentInstanceId, {
+              signatureImageData: dataUrl,
+              fieldId: sigModalField.id,
+              electronicSignAcknowledged: true,
             })
+            setSignatureDrafts((prev) => ({ ...prev, [signatureKey]: dataUrl }))
+            setSignAck(false)
+            setFinalPreviewConfirmed(false)
+            setFinalSubmitAcknowledged(false)
+            await reloadDetail()
+            pendingScrollRestoreYRef.current = publicSignScrollAnchorRef.current
           }}
         />
 
