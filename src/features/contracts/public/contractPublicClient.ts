@@ -124,6 +124,10 @@ export type ContractDocumentDetailPayload = {
   /** 손사인 API 사용 가능 여부(confirmation_only 에서 true) */
   signAvailable?: boolean
   completionAvailable?: boolean
+  /** confirmation_only 공개 상세(서버 data.completed) */
+  completed?: boolean
+  /** confirmation_only 는 현재 false 고정 */
+  evidenceAvailable?: boolean
   document: {
     id: string
     templateId: string
@@ -299,6 +303,7 @@ export async function postContractPublicDocumentComplete(
   evidenceSummary?: ContractDocumentDetailPayload['evidenceSummary']
   signedPdfDownloadAvailable?: boolean
   signedPdfDownloadPath?: string
+  completedAt?: string
 }> {
   return publicRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/complete`, {
     method: 'POST',
@@ -345,7 +350,8 @@ const PUBLIC_ACTION_CODE_MESSAGES: Record<string, string> = {
   invalid_confirmation_payload: '확인 항목 정보 형식이 올바르지 않습니다.',
   required_attachments_missing: '필수 첨부자료를 모두 열람하고 확인해 주세요.',
   required_attachments_incomplete: '필수 첨부자료를 모두 확인한 뒤 서명할 수 있습니다.',
-  confirmation_only_complete_not_ready: '전자확인서 최종 완료는 아직 지원하지 않습니다.',
+  confirmation_field_values_incomplete: '필수 확인서 항목이 비어 있습니다. 담당자에게 문의해 주세요.',
+  confirmation_only_signature_missing: '전자서명을 저장한 뒤 최종 완료할 수 있습니다.',
   confirmation_only_field_values_not_applicable: '이 문서는 내용 확인만 가능합니다.',
 }
 

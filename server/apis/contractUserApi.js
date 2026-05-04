@@ -226,6 +226,11 @@ async function assertCustomerForUserSend(client, customerId, req) {
 function mapSendSessionDetailRow(row, docs, evidenceByDoc) {
   const ivsStatus = row.ivs_status != null ? String(row.ivs_status) : null
   const ivsVerifiedAt = row.ivs_otp_verified_at ?? null
+  const firstModeRaw = docs.rows[0]?.contract_template_mode
+  const templateMode =
+    firstModeRaw != null && String(firstModeRaw).trim() === 'confirmation_only'
+      ? 'confirmation_only'
+      : 'coordinate_pdf'
   return {
     id: row.id,
     linkCode: row.link_code,
@@ -234,6 +239,7 @@ function mapSendSessionDetailRow(row, docs, evidenceByDoc) {
     customerCode: row.customer_code != null ? String(row.customer_code) : null,
     packageId: row.package_id,
     status: row.status,
+    templateMode,
     maskedPhone: row.target_phone_masked,
     identitySessionId: row.identity_session_id,
     identityStatus: ivsStatus,
@@ -246,6 +252,41 @@ function mapSendSessionDetailRow(row, docs, evidenceByDoc) {
     completedAt: row.completed_at ?? null,
     documents: docs.rows.map((d) => {
       const ev = evidenceByDoc.get(String(d.id))
+      const docSignedId = d.signed_pdf_file_id
+      const hasDocSigned = docSignedId != null && String(docSignedId).trim() !== ''
+      const evidenceOut = ev
+        ? {
+            documentInstanceId: d.id,
+            documentTitle: d.title_snapshot,
+            status: d.status,
+            completedAt: d.completed_at ?? null,
+            evidenceHash: ev.evidence_hash ? String(ev.evidence_hash) : null,
+            evidenceHashPrefix: ev.evidence_hash ? String(ev.evidence_hash).slice(0, 12) : null,
+            identityProvider: ev.provider != null ? String(ev.provider) : 'self_sms',
+            identityLevel: ev.level != null ? String(ev.level) : 'phone_possession',
+            otpVerifiedAt: ev.otp_verified_at ?? null,
+            signedAt: ev.signed_at ?? null,
+            hasSignatureFile: Boolean(ev.signature_file_id),
+            hasSignedPdfFile: Boolean(ev.signed_pdf_file_id || d.signed_pdf_file_id),
+            hasSignedPdfHash: Boolean(ev.signed_pdf_hash || d.signed_pdf_hash),
+          }
+        : hasDocSigned
+          ? {
+              documentInstanceId: d.id,
+              documentTitle: d.title_snapshot,
+              status: d.status,
+              completedAt: d.completed_at ?? null,
+              evidenceHash: null,
+              evidenceHashPrefix: null,
+              identityProvider: 'self_sms',
+              identityLevel: 'phone_possession',
+              otpVerifiedAt: null,
+              signedAt: d.completed_at ?? null,
+              hasSignatureFile: false,
+              hasSignedPdfFile: true,
+              hasSignedPdfHash: Boolean(d.signed_pdf_hash),
+            }
+          : null
       return {
         id: d.id,
         templateId: d.template_id,
@@ -256,23 +297,7 @@ function mapSendSessionDetailRow(row, docs, evidenceByDoc) {
         originalPdfHash: d.original_pdf_hash,
         createdAt: d.created_at,
         completedAt: d.completed_at ?? null,
-        evidence: ev
-          ? {
-              documentInstanceId: d.id,
-              documentTitle: d.title_snapshot,
-              status: d.status,
-              completedAt: d.completed_at ?? null,
-              evidenceHash: ev.evidence_hash ? String(ev.evidence_hash) : null,
-              evidenceHashPrefix: ev.evidence_hash ? String(ev.evidence_hash).slice(0, 12) : null,
-              identityProvider: ev.provider != null ? String(ev.provider) : 'self_sms',
-              identityLevel: ev.level != null ? String(ev.level) : 'phone_possession',
-              otpVerifiedAt: ev.otp_verified_at ?? null,
-              signedAt: ev.signed_at ?? null,
-              hasSignatureFile: Boolean(ev.signature_file_id),
-              hasSignedPdfFile: Boolean(ev.signed_pdf_file_id || d.signed_pdf_file_id),
-              hasSignedPdfHash: Boolean(ev.signed_pdf_hash),
-            }
-          : null,
+        evidence: evidenceOut,
       }
     }),
   }
@@ -1350,11 +1375,23 @@ export function registerContractUserApi(apiRouter, ctx) {
       const row = r.rows[0]
       const docs = await pool.query(
         `
-        SELECT id, template_id, template_version, title_snapshot, status, sort_order, original_pdf_hash,
-               signed_pdf_file_id, created_at, completed_at
-        FROM contract_document_instances
-        WHERE send_session_id = $1
-        ORDER BY sort_order ASC, created_at ASC
+        SELECT
+          cdi.id,
+          cdi.template_id,
+          cdi.template_version,
+          cdi.title_snapshot,
+          cdi.status,
+          cdi.sort_order,
+          cdi.original_pdf_hash,
+          cdi.signed_pdf_file_id,
+          cdi.signed_pdf_hash,
+          cdi.created_at,
+          cdi.completed_at,
+          COALESCE(ct.template_mode, 'coordinate_pdf') AS contract_template_mode
+        FROM contract_document_instances cdi
+        INNER JOIN contract_templates ct ON ct.id = cdi.template_id
+        WHERE cdi.send_session_id = $1
+        ORDER BY cdi.sort_order ASC, cdi.created_at ASC
         `,
         [row.id],
       )
@@ -1539,6 +1576,18 @@ export function registerContractUserApi(apiRouter, ctx) {
         return
       }
       if (code === 400) {
+        const errCode =
+          e && typeof e === 'object' && 'code' in e
+            ? String(/** @type {{ code?: unknown }} */ (e).code ?? '')
+            : ''
+        if (errCode === 'confirmation_only_evidence_not_ready') {
+          res.status(400).json({
+            ok: false,
+            code: 'confirmation_only_evidence_not_ready',
+            message: e instanceof Error ? e.message : '증빙 PDF를 아직 제공하지 않습니다.',
+          })
+          return
+        }
         res.status(400).json({ ok: false, message: e instanceof Error ? e.message : '요청이 올바르지 않습니다.' })
         return
       }

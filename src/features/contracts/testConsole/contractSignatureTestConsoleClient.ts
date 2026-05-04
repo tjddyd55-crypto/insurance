@@ -140,6 +140,8 @@ export type SendSessionDetail = {
   /** FC 내역·상세에서만 채움 */
   customerName?: string | null
   customerCode?: string | null
+  /** 세션에 연결된 템플릿 모드 (confirmation_only 등) */
+  templateMode?: string | null
   packageId: string | null
   status: string
   maskedPhone: string

@@ -184,7 +184,7 @@ function signatureRequirementsComplete(detail: ContractDocumentDetailPayload) {
   })
 }
 
-async function downloadPdfWithCredentials(pathFromApi: string) {
+async function downloadPdfWithCredentials(pathFromApi: string, downloadFilename = 'signed-contract.pdf') {
   const url = resolveApiUrl(pathFromApi.startsWith('/api/') ? pathFromApi : `/api${pathFromApi}`)
   const res = await fetch(url, { credentials: 'include' })
   if (!res.ok) {
@@ -194,7 +194,7 @@ async function downloadPdfWithCredentials(pathFromApi: string) {
   const u = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = u
-  a.download = 'signed-contract.pdf'
+  a.download = downloadFilename
   a.click()
   URL.revokeObjectURL(u)
 }
@@ -235,6 +235,7 @@ export default function ContractSignDocumentPage() {
     completedAt?: string
   } | null>(null)
   const [coSignatureObjectUrl, setCoSignatureObjectUrl] = useState<string | null>(null)
+  const [coFinalAck, setCoFinalAck] = useState(false)
 
   const reloadDetail = useCallback(
     async (isCancelled?: () => boolean) => {
@@ -324,6 +325,7 @@ export default function ContractSignDocumentPage() {
     setFinalPreviewConfirmed(false)
     setFinalSubmitAcknowledged(false)
     setConfirmationChecks({})
+    setCoFinalAck(false)
     setCoSignatureObjectUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev)
       return null
@@ -592,6 +594,63 @@ export default function ContractSignDocumentPage() {
     }
   }
 
+  const onConfirmationComplete = async () => {
+    if (!detail || detail.canEdit === false) {
+      return
+    }
+    if (!detail.completionAvailable) {
+      setActionError('필수 확인서 항목·고객 확인·첨부 확인·전자서명을 모두 마친 뒤 진행해 주세요.')
+      return
+    }
+    if (!coFinalAck) {
+      setActionError('최종 완료 안내에 동의해 주세요.')
+      return
+    }
+    setActionError('')
+    setSaving(true)
+    try {
+      const hasConfItems = (detail.confirmationItems?.length ?? 0) > 0
+      const data = await postContractPublicDocumentComplete(linkCode, documentInstanceId, {
+        acknowledgeElectronicContract: true,
+        /** 무좌표 전자확인서는 좌표형 최종 미리보기 단계가 없어 서버에서 이 값을 요구하지 않는다. */
+        finalPreviewConfirmed: true,
+        finalSubmitAcknowledged: true,
+        ...(hasConfItems
+          ? {
+              confirmationCheckedItemIds: Object.entries(confirmationChecks)
+                .filter(([, v]) => v)
+                .map(([id]) => id),
+            }
+          : {}),
+      })
+      setCoFinalAck(false)
+      await reloadDetail()
+      const ev = data.evidenceSummary
+      const completedAt =
+        (typeof data.completedAt === 'string' ? data.completedAt : undefined) ??
+        ev?.completedAt ??
+        ev?.signedAt ??
+        new Date().toISOString()
+      setCompleteResult({
+        evidenceSummary: ev,
+        signedPdfDownloadPath: data.signedPdfDownloadPath,
+        signedPdfDownloadAvailable: data.signedPdfDownloadAvailable,
+        completedAt,
+      })
+      setSuccessOpen(true)
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        const pack = e.data as { evidence?: { evidenceHashPrefix?: string | null } | null } | undefined
+        const prefix = pack?.evidence?.evidenceHashPrefix
+        setActionError(prefix ? `${e.message} (증빙 해시 일부: ${prefix})` : e.message)
+      } else {
+        setActionError(formatContractPublicCompleteError(e))
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const persistConfirmationOnlyChecks = useCallback(
     async (checks: Record<string, boolean>) => {
       if (!detail || (detail.templateMode ?? 'coordinate_pdf') !== 'confirmation_only') {
@@ -662,7 +721,51 @@ export default function ContractSignDocumentPage() {
       : []
 
     if (isConfirmationOnly) {
-      body = (
+      if (detail.document.status === 'completed') {
+        const coSignedPath = (detail.signedPdfDownloadPath ?? '').trim()
+        const coSignedOk = Boolean(coSignedPath) && detail.signedPdfDownloadAvailable !== false
+        body = (
+          <div className="contract-public-sign-page__stack">
+            <div className="contract-public-sign-page__card">
+              <p className="contract-public-sign-page__card-title">{detail.document.title || '문서'}</p>
+              <p className="contract-public-sign-page__meta">
+                {detail.document.required ? '필수 문서' : '선택 문서'} · {statusLabel}
+              </p>
+              <p className="contract-public-sign-page__caption">무좌표 전자확인서</p>
+            </div>
+            <div className="contract-public-sign-page__panel-success">
+              <p className="contract-public-sign-page__panel-success-title">전자확인서가 완료되었습니다.</p>
+              <p className="contract-public-sign-page__notice">
+                아래 버튼에서 완료 확인서 PDF를 저장할 수 있습니다. (전자서명 증빙 PDF는 추후 제공 예정입니다.)
+              </p>
+              {coSignedOk ? (
+                <FormButton
+                  htmlType="button"
+                  variant="secondary"
+                  fullWidth
+                  className="mt-4"
+                  onClick={() =>
+                    void downloadPdfWithCredentials(coSignedPath, '완료 확인서.pdf').catch(() => {})
+                  }
+                >
+                  완료 확인서 PDF 다운로드
+                </FormButton>
+              ) : (
+                <p className="contract-public-sign-page__panel-success-note mt-4">
+                  완료 확인서 파일을 불러오는 중입니다. 잠시 후 다시 시도하거나 목록에서 새로고침해 주세요.
+                </p>
+              )}
+            </div>
+            <Link
+              className="contract-public-sign-page__link contract-public-sign-page__link--after-block"
+              to={`/contracts/sign/${encodeURIComponent(linkCode)}`}
+            >
+              ← 문서 목록
+            </Link>
+          </div>
+        )
+      } else {
+        body = (
         <div className="contract-public-sign-page__stack">
           <div className="contract-public-sign-page__card">
             <p className="contract-public-sign-page__card-title">{detail.document.title || '문서'}</p>
@@ -713,7 +816,7 @@ export default function ContractSignDocumentPage() {
           </div>
 
           <p className="contract-public-sign-page__notice">
-            필수 확인을 마친 뒤 전자서명을 남길 수 있습니다. 최종 전송·완료 문서(PDF)는 추후 단계에서 제공됩니다.
+            필수 확인을 마친 뒤 전자서명을 남기고, 안내에 따라 최종 완료하면 완료 확인서 PDF를 받을 수 있습니다.
           </p>
 
           <div className="contract-public-sign-page__card contract-public-sign-page__step-card contract-public-sign-page__step-card--active">
@@ -852,7 +955,7 @@ export default function ContractSignDocumentPage() {
             ) : (
               <>
                 <p className="contract-public-sign-page__notice mt-2">
-                  아래 진술에 동의한 뒤 서명을 진행해 주세요. 최종 전송은 이후 단계에서 진행됩니다.
+                  아래 진술에 동의한 뒤 서명을 진행해 주세요. 서명 저장 후 최종 완료 단계로 진행할 수 있습니다.
                 </p>
                 {detail.confirmationSignature?.exists && coSignatureObjectUrl ? (
                   <div className="mt-4">
@@ -890,6 +993,41 @@ export default function ContractSignDocumentPage() {
                 ) : null}
               </>
             )}
+          </div>
+
+          <div className="contract-public-sign-page__co-final-bar">
+            <div className="contract-public-sign-page__card contract-public-sign-page__co-final-card">
+              <p className="contract-public-sign-page__card-title">최종 완료</p>
+              <p className="contract-public-sign-page__notice mt-2">
+                확인서 내용·첨부·고객 확인 체크 및 전자서명을 모두 마쳤다면 동의 후 최종 완료를 눌러 주세요.
+              </p>
+              <label className="contract-public-sign-page__label-row mt-4">
+                <FormInput
+                  type="checkbox"
+                  checked={coFinalAck}
+                  disabled={!canEdit || saving || !detail.completionAvailable}
+                  onChange={(ev) => setCoFinalAck(ev.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>위 내용을 확인했으며 전자확인서 절차를 최종 완료합니다.</span>
+              </label>
+              <FormButton
+                htmlType="button"
+                variant="primary"
+                fullWidth
+                className="mt-4 contract-public-sign-page__co-final-cta"
+                disabled={saving || !canEdit || !detail.completionAvailable || !coFinalAck}
+                loading={saving}
+                onClick={() => void onConfirmationComplete()}
+              >
+                최종 완료
+              </FormButton>
+              {canEdit && !detail.completionAvailable ? (
+                <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status mt-2">
+                  필수 확인서 값·고객 확인·첨부 확인·전자서명이 모두 완료되어야 합니다.
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <ContractAttachmentReviewModal
@@ -970,6 +1108,7 @@ export default function ContractSignDocumentPage() {
           </Link>
         </div>
       )
+      }
     } else {
       body = (
       <div className="contract-public-sign-page__stack">
@@ -1563,44 +1702,64 @@ export default function ContractSignDocumentPage() {
           }}
         />
 
-        {successOpen && completeResult ? (
+      </div>
+    )
+    }
+  }
+
+  const successIsConfirmation = (detail?.templateMode ?? 'coordinate_pdf') === 'confirmation_only'
+
+  return (
+    <div className="contract-public-sign-page">
+      <div className="contract-public-sign-page__inner">
+        <h1 className="contract-public-sign-page__h1">계약서 문서</h1>
+        {body}
+        {successOpen && completeResult && detail ? (
           <div
             className="contract-public-sign-page__success-backdrop"
             role="dialog"
             aria-modal="true"
-            aria-label="전송 완료"
+            aria-label={successIsConfirmation ? '전자확인서 완료' : '전송 완료'}
           >
             <div className="contract-public-sign-page__success-dialog">
-              <h2 className="contract-public-sign-page__success-dialog-title">전자서명이 전송되었습니다.</h2>
+              <h2 className="contract-public-sign-page__success-dialog-title">
+                {successIsConfirmation ? '전자확인서가 완료되었습니다.' : '전자서명이 전송되었습니다.'}
+              </h2>
               <p className="contract-public-sign-page__success-dialog-lead">
                 문서명: <span className="font-medium">{detail.document.title || '문서'}</span>
               </p>
               {completeResult.completedAt ? <p>완료 시각: {completeResult.completedAt}</p> : null}
-              {completeResult.evidenceSummary?.evidenceHashPrefix ? (
+              {!successIsConfirmation && completeResult.evidenceSummary?.evidenceHashPrefix ? (
                 <p className="contract-public-sign-page__success-dialog-muted">
                   증빙번호(해시 일부): {completeResult.evidenceSummary.evidenceHashPrefix}
                 </p>
               ) : null}
               <p className="contract-public-sign-page__success-dialog-muted">
-                담당자가 완료된 전자서명 문서를 확인할 수 있습니다. 이 화면은 닫으셔도 됩니다. 카카오톡으로 돌아가려면 상단
-                닫기 버튼을 눌러주세요.
+                {successIsConfirmation
+                  ? '완료 확인서 PDF를 저장해 두시면 이후에도 동일 링크에서 다시 내려받을 수 있습니다. 증빙 PDF는 별도로 준비 중입니다.'
+                  : '담당자가 완료된 전자서명 문서를 확인할 수 있습니다. 이 화면은 닫으셔도 됩니다. 카카오톡으로 돌아가려면 상단 닫기 버튼을 눌러주세요.'}
               </p>
               <div className="contract-public-sign-page__success-dialog-actions">
                 {(() => {
                   const path = (completeResult.signedPdfDownloadPath ?? '').trim()
-                  const canDl = completeResult.signedPdfDownloadAvailable === true && Boolean(path)
+                  const canDl = completeResult.signedPdfDownloadAvailable !== false && Boolean(path)
                   return canDl ? (
                     <FormButton
                       htmlType="button"
                       variant="primary"
                       fullWidth
-                      onClick={() => void downloadPdfWithCredentials(path).catch(() => {})}
+                      onClick={() =>
+                        void downloadPdfWithCredentials(
+                          path,
+                          successIsConfirmation ? '완료 확인서.pdf' : 'signed-contract.pdf',
+                        ).catch(() => {})
+                      }
                     >
-                      최종 계약서 다운로드
+                      {successIsConfirmation ? '완료 확인서 PDF 다운로드' : '최종 계약서 다운로드'}
                     </FormButton>
                   ) : (
                     <p className="contract-public-sign-page__success-dialog-muted">
-                      최종 PDF 다운로드는 준비 중입니다.
+                      {successIsConfirmation ? '완료 확인서 PDF를 불러오는 중입니다.' : '최종 PDF 다운로드는 준비 중입니다.'}
                     </p>
                   )
                 })()}
@@ -1619,16 +1778,6 @@ export default function ContractSignDocumentPage() {
             </div>
           </div>
         ) : null}
-      </div>
-    )
-    }
-  }
-
-  return (
-    <div className="contract-public-sign-page">
-      <div className="contract-public-sign-page__inner">
-        <h1 className="contract-public-sign-page__h1">계약서 문서</h1>
-        {body}
       </div>
     </div>
   )

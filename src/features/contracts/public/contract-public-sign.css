@@ -79,6 +79,25 @@
   min-height: 44px;
 }
 
+.contract-public-sign-page__co-final-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, var(--bg-main) 82%, transparent);
+}
+
+.contract-public-sign-page__co-final-card {
+  border-radius: 12px;
+  box-shadow: 0 -6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.contract-public-sign-page__co-final-cta {
+  min-height: 48px;
+}
+
 .contract-public-sign-page__badge {
   display: inline-block;
   border-radius: 4px;

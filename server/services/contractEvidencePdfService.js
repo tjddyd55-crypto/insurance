@@ -135,6 +135,7 @@ async function loadDocuments(pool, sendSessionId) {
       cdi.sort_order,
       cdi.completed_at,
       ct.title AS contract_template_title,
+      COALESCE(ct.template_mode, 'coordinate_pdf') AS template_mode,
       ct.pdf_template_id,
       pt.title AS pdf_template_title
     FROM contract_document_instances cdi
@@ -241,6 +242,12 @@ export async function buildSendSessionEvidencePdf(ctx) {
   }
 
   const docs = await loadDocuments(pool, sid)
+  if (docs.some((d) => String(d.template_mode ?? '') === 'confirmation_only')) {
+    const e = new Error('무좌표 전자확인서는 아직 증빙 PDF를 제공하지 않습니다.')
+    /** @type {{ statusCode?: number, code?: string }} */ (e).statusCode = 400
+    /** @type {{ statusCode?: number, code?: string }} */ (e).code = 'confirmation_only_evidence_not_ready'
+    throw e
+  }
   const completedDocs = docs.filter((d) => String(d.status ?? '') === 'completed')
   if (completedDocs.length === 0) {
     const e = new Error('완료된 문서만 다운로드할 수 있습니다.')
