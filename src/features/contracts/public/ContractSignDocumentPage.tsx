@@ -12,8 +12,8 @@ import {
   postContractPublicDocumentComplete,
   postContractPublicDocumentSign,
   postContractPublicDocumentValues,
-  downloadPublicContractPdf,
   resolveContractRenderedPdfAbsUrl,
+  resolveContractSignedPdfAbsUrl,
   type ContractDocumentDetailPayload,
   type ContractPublicValueInput,
   type ContractSendSessionAttachmentPublic,
@@ -23,6 +23,44 @@ import { ContractAttachmentReviewModal } from './components/ContractAttachmentRe
 import { resolveApiUrl } from '../../../lib/apiClient'
 
 type PublicStepStatus = 'pending' | 'active' | 'complete' | 'skipped'
+
+/** 완료된 문서이거나 서버가 다운로드를 막지 않는 경우 signed-pdf 링크를 노출한다. */
+function publicSignedPdfHrefEnabled(d: ContractDocumentDetailPayload): boolean {
+  if (d.document.status === 'completed') {
+    return true
+  }
+  return d.signedPdfDownloadAvailable !== false
+}
+
+function PublicSignedPdfAnchor({
+  href,
+  downloadName,
+  variant,
+  className = '',
+  children,
+}: {
+  href: string
+  downloadName: string
+  variant: 'primary' | 'secondary'
+  className?: string
+  children: string
+}) {
+  const cls =
+    variant === 'primary'
+      ? `button button--primary button--full ${className}`.trim()
+      : `button button--secondary button--full ${className}`.trim()
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      download={downloadName}
+      className={cls}
+    >
+      {children}
+    </a>
+  )
+}
 
 type PublicStepSlice = {
   key: string
@@ -522,6 +560,11 @@ export default function ContractSignDocumentPage() {
   const documentInstanceId = String(docIdParam ?? '').trim()
   const paramsInvalid = !linkCode || !documentInstanceId
 
+  const publicSignedPdfHref = useMemo(
+    () => (paramsInvalid ? '' : resolveContractSignedPdfAbsUrl(linkCode, documentInstanceId)),
+    [paramsInvalid, linkCode, documentInstanceId],
+  )
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [detail, setDetail] = useState<ContractDocumentDetailPayload | null>(null)
@@ -550,7 +593,6 @@ export default function ContractSignDocumentPage() {
   } | null>(null)
   const [coSignatureObjectUrl, setCoSignatureObjectUrl] = useState<string | null>(null)
   const [coFinalAck, setCoFinalAck] = useState(false)
-  const [pdfDownloadError, setPdfDownloadError] = useState('')
 
   const confirmationChecksRef = useRef<Record<string, boolean>>({})
   const draftsRef = useRef<Record<string, string | boolean>>({})
@@ -810,28 +852,6 @@ export default function ContractSignDocumentPage() {
       cancelled = true
     }
   }, [linkCode, documentInstanceId, paramsInvalid, reloadDetail])
-
-  useEffect(() => {
-    if (successOpen) {
-      setPdfDownloadError('')
-    }
-  }, [successOpen])
-
-  const runSignedPdfDownload = useCallback(async (path: string, filename: string) => {
-    const p = String(path ?? '').trim()
-    if (!p) {
-      return
-    }
-    setPdfDownloadError('')
-    setPdfDownloadBusy(true)
-    try {
-      await downloadPublicContractPdf(p, filename)
-    } catch (e) {
-      setPdfDownloadError(e instanceof Error ? e.message : '다운로드에 실패했습니다.')
-    } finally {
-      setPdfDownloadBusy(false)
-    }
-  }, [])
 
   const sortedFields = useMemo(() => (detail ? sortFields(detail) : []), [detail])
   const sortedSessionAttachments = useMemo(() => {
@@ -1226,8 +1246,7 @@ export default function ContractSignDocumentPage() {
 
     if (isConfirmationOnly) {
       if (detail.document.status === 'completed') {
-        const coSignedPath = (detail.signedPdfDownloadPath ?? '').trim()
-        const coSignedOk = Boolean(coSignedPath) && detail.signedPdfDownloadAvailable !== false
+        const coSignedOk = publicSignedPdfHrefEnabled(detail) && Boolean(publicSignedPdfHref)
         body = (
           <div className="contract-public-sign-page__stack">
             <div className="contract-public-sign-page__card">
@@ -1249,22 +1268,14 @@ export default function ContractSignDocumentPage() {
                 <strong>증빙 PDF</strong>는 본인확인·확인 항목·첨부·서명·해시 등 감사 기록을 담은 별도 문서이며, 고객 화면이 아니라 담당자 발송 내역에서 내려받을 수 있습니다.
               </p>
               {coSignedOk ? (
-                <>
-                  <FormButton
-                    htmlType="button"
-                    variant="secondary"
-                    fullWidth
-                    className="mt-4"
-                    onClick={() => runSignedPdfDownload(coSignedPath, '완료 확인서.pdf')}
-                  >
-                    완료 확인서 PDF 다운로드
-                  </FormButton>
-                  {pdfDownloadError ? (
-                    <p className="contract-public-sign-page__download-error mt-2">
-                      {pdfDownloadError}
-                    </p>
-                  ) : null}
-                </>
+                <PublicSignedPdfAnchor
+                  href={publicSignedPdfHref}
+                  downloadName="완료 확인서.pdf"
+                  variant="secondary"
+                  className="mt-4"
+                >
+                  완료 확인서 PDF 다운로드
+                </PublicSignedPdfAnchor>
               ) : (
                 <p className="contract-public-sign-page__panel-success-note mt-4">
                   완료 확인서 파일을 불러오는 중입니다. 잠시 후 다시 시도하거나 목록에서 새로고침해 주세요.
@@ -1677,25 +1688,16 @@ export default function ContractSignDocumentPage() {
               </p>
             ) : null}
             {(() => {
-              const p = (detail.signedPdfDownloadPath ?? '').trim()
-              const can = Boolean(p) && detail.signedPdfDownloadAvailable !== false
+              const can = publicSignedPdfHrefEnabled(detail) && Boolean(publicSignedPdfHref)
               return can ? (
-                <>
-                  <FormButton
-                    htmlType="button"
-                    variant="secondary"
-                    fullWidth
-                    className="mt-4"
-                    onClick={() => runSignedPdfDownload(p, '완료 계약서.pdf')}
-                  >
-                    완료 계약서 PDF 다운로드
-                  </FormButton>
-                  {pdfDownloadError ? (
-                    <p className="contract-public-sign-page__download-error mt-2">
-                      {pdfDownloadError}
-                    </p>
-                  ) : null}
-                </>
+                <PublicSignedPdfAnchor
+                  href={publicSignedPdfHref}
+                  downloadName="완료 계약서.pdf"
+                  variant="secondary"
+                  className="mt-4"
+                >
+                  완료 계약서 PDF 다운로드
+                </PublicSignedPdfAnchor>
               ) : (
                 <p className="contract-public-sign-page__panel-success-note">
                   완료 계약서 PDF를 불러오는 중입니다. 담당자 화면에서 증빙 상태를 확인할 수 있습니다.
@@ -2182,18 +2184,6 @@ export default function ContractSignDocumentPage() {
             <div className="contract-public-sign-page__footer-actions">
               <FormButton
                 htmlType="button"
-                variant="secondary"
-                fullWidth
-                onClick={() => {
-                  setFinalReviewOpen(false)
-                  setFinalPreviewConfirmed(false)
-                  setFinalSubmitAcknowledged(false)
-                }}
-              >
-                수정하기
-              </FormButton>
-              <FormButton
-                htmlType="button"
                 variant="primary"
                 fullWidth
                 onClick={() => {
@@ -2328,41 +2318,22 @@ export default function ContractSignDocumentPage() {
               </p>
               <div className="contract-public-sign-page__success-dialog-actions">
                 {(() => {
-                  const path =
-                    (completeResult.signedPdfDownloadPath ?? '').trim() ||
-                    (detail.signedPdfDownloadPath ?? '').trim()
                   const canDl =
-                    completeResult.signedPdfDownloadAvailable !== false &&
-                    detail.signedPdfDownloadAvailable !== false &&
-                    Boolean(path)
+                    Boolean(publicSignedPdfHref) &&
+                    (publicSignedPdfHrefEnabled(detail) || completeResult != null)
                   return canDl ? (
-                    <>
-                      <FormButton
-                        htmlType="button"
-                        variant="primary"
-                        fullWidth
-                        onClick={() =>
-                          runSignedPdfDownload(
-                            path,
-                            successIsConfirmation ? '완료 확인서.pdf' : '완료 계약서.pdf',
-                          )
-                        }
-                      >
-                        {successIsConfirmation ? '완료 확인서 PDF 다운로드' : '완료 계약서 PDF 다운로드'}
-                      </FormButton>
-                      {pdfDownloadError ? (
-                        <p className="contract-public-sign-page__download-error">
-                          {pdfDownloadError}
-                        </p>
-                      ) : null}
-                    </>
+                    <PublicSignedPdfAnchor
+                      href={publicSignedPdfHref}
+                      downloadName={successIsConfirmation ? '완료 확인서.pdf' : '완료 계약서.pdf'}
+                      variant="primary"
+                    >
+                      {successIsConfirmation ? '완료 확인서 PDF 다운로드' : '완료 계약서 PDF 다운로드'}
+                    </PublicSignedPdfAnchor>
                   ) : (
                     <p className="contract-public-sign-page__success-dialog-muted">
-                      {!path
-                        ? '완료 PDF가 아직 준비되지 않았습니다. 잠시 후 다시 시도해 주세요.'
-                        : successIsConfirmation
-                          ? '완료 확인서 PDF를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.'
-                          : '완료 계약서 PDF를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.'}
+                      {successIsConfirmation
+                        ? '완료 확인서 PDF 링크를 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.'
+                        : '완료 계약서 PDF 링크를 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.'}
                     </p>
                   )
                 })()}

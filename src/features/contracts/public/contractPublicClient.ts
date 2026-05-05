@@ -18,23 +18,29 @@ function normalizePublicPdfFetchPath(pathFromApi: string): string {
 }
 
 /**
- * 공개 세션 쿠키로 보호된 완료 PDF URL을 사용자 클릭 흐름 안에서 직접 연다.
+ * 공개 세션 쿠키로 보호된 완료 PDF URL을, 사용자 클릭 직후 동기적으로 연다.
  *
- * 모바일 브라우저는 fetch → blob → 지연된 a.click() 뿐 아니라 숨은 anchor 클릭도
- * 조용히 무시하는 경우가 있어, 새 탭 또는 현재 탭의 최상위 GET으로 반드시 반응을 만든다.
- * 서버가 Content-Disposition: attachment를 내려주므로 브라우저가 저장 UI를 처리한다.
+ * fetch → blob → 프로그램적 저장은 비동기 이후에 실행되어 모바일 Safari 등에서
+ * 다운로드가 조용히 막히는 경우가 있어, 최상위 GET(쿠키 자동 전달)로 통일한다.
  */
-export function downloadPublicContractPdf(pathFromApi: string, fallbackFilename: string): void {
+export function downloadPublicContractPdf(pathFromApi: string): void {
   const path = normalizePublicPdfFetchPath(pathFromApi)
   if (!path) {
     throw new Error('다운로드 경로가 없습니다.')
   }
   const url = resolveApiUrl(path)
-  const opened = window.open(url, '_blank', 'noopener,noreferrer')
-  if (opened) {
-    return
+  const a = document.createElement('a')
+  a.href = url
+  const name = String(fallbackFilename ?? '').trim()
+  if (name && !name.includes('/') && !name.includes('\\')) {
+    a.setAttribute('download', name)
   }
-  window.location.assign(url)
+  a.target = '_blank'
+  a.rel = 'noopener noreferrer'
+  a.style.display = 'none'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
 }
 
 function lc(code: string) {
