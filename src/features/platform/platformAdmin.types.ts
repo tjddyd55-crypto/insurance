@@ -1,0 +1,71 @@
+/** CRM 플랫폼 관리(조회 전용) API 응답 타입 */
+
+export type PlatformIndustryRow = {
+  id: string
+  code: string
+  name: string
+  status: string
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export type PlatformTenantsResponse = {
+  items: PlatformTenantRow[]
+}
+
+export type PlatformTenantRow = {
+  id: string
+  industryId: string | null
+  industryCode: string | null
+  code: string
+  name: string
+  status: string
+  legacyGaId: number | null
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export type PlatformIndustriesResponse = {
+  items: PlatformIndustryRow[]
+}
+
+export type PlatformMembershipRow = {
+  membershipId: string
+  userId: string
+  username: string
+  legacyRole: string
+  membershipRole: string
+  scopeType: string
+  scopeId: string | null
+  tenantId: string | null
+  tenantCode: string | null
+  industryId: string | null
+  industryCode: string | null
+  status: string
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export type PlatformMembershipsResponse = {
+  items: PlatformMembershipRow[]
+}
+
+export type PlatformExternalSummaryTenant = {
+  tenantId: string
+  tenantCode: string
+  tenantName: string
+  legacyGaId: number
+  gaCode: string
+  gaName: string
+}
+
+export type PlatformExternalSummaryCounts = {
+  total: number
+  active: number
+}
+
+export type PlatformExternalAccountsSummaryResponse = {
+  tenant: PlatformExternalSummaryTenant
+  insurerManagers: PlatformExternalSummaryCounts
+  lossAdjusters: PlatformExternalSummaryCounts
+}

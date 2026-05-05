@@ -60,6 +60,11 @@ import FeatureRequestPage from './features/feature-request/pages/FeatureRequestP
 import FeatureRequestsAdminPage from './features/feature-request/pages/FeatureRequestsAdminPage'
 import AdminAnalyticsPage from './features/analytics/pages/AdminAnalyticsPage'
 import AdminInsurerSitesPage from './features/insurer-sites/pages/AdminInsurerSitesPage'
+import PlatformHubPage from './features/platform/pages/PlatformHubPage'
+import IndustriesListPage from './features/platform/pages/industries/IndustriesListPage'
+import TenantsListPage from './features/platform/pages/tenants/TenantsListPage'
+import MembershipsListPage from './features/platform/pages/memberships/MembershipsListPage'
+import ExternalAccountsSummaryPage from './features/platform/pages/external-accounts/ExternalAccountsSummaryPage'
 import InsurerSitesPage from './features/insurer-sites/pages/InsurerSitesPage'
 import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
 import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
@@ -282,6 +287,14 @@ export const appRouter = createBrowserRouter([
                   { path: 'admin/subscription/policy', element: <SubscriptionPolicyPage /> },
                   { path: 'admin/subscription/users', element: <SubscriptionUsersPage /> },
                   { path: 'admin/subscription/settings', element: <AdminSubscriptionSettingsPage /> },
+                  { path: 'admin/platform', element: <PlatformHubPage /> },
+                  { path: 'admin/platform/industries', element: <IndustriesListPage /> },
+                  { path: 'admin/platform/tenants', element: <TenantsListPage /> },
+                  { path: 'admin/platform/memberships', element: <MembershipsListPage /> },
+                  {
+                    path: 'admin/platform/external-accounts',
+                    element: <ExternalAccountsSummaryPage />,
+                  },
                 ],
               },
               {

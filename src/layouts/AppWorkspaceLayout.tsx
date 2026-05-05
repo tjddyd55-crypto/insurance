@@ -74,6 +74,9 @@ function isActivePath(pathname: string, itemPath: string): boolean {
   if (itemPath === '/admin/analytics') {
     return pathname === '/admin/analytics'
   }
+  if (itemPath === '/admin/platform') {
+    return pathname === '/admin/platform' || pathname.startsWith('/admin/platform/')
+  }
   if (itemPath === '/admin/ga') {
     return pathname === '/admin/ga' || pathname === '/admin/create-ga'
   }
