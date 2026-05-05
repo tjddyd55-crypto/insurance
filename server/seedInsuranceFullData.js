@@ -7,6 +7,7 @@ export const SEED_DATA = [
   // ================= DB생명 =================
   {
     company: {
+      companyCode: 'INS_SEED_001',
       category: 'LIFE',
       name: 'DB생명',
       customer_center: '',
@@ -24,6 +25,7 @@ export const SEED_DATA = [
   // ================= 한화생명 =================
   {
     company: {
+      companyCode: 'INS_SEED_002',
       category: 'LIFE',
       name: '한화생명',
       customer_center: '1588-6363',
@@ -41,6 +43,7 @@ export const SEED_DATA = [
   // ================= IM라이프 =================
   {
     company: {
+      companyCode: 'INS_SEED_003',
       category: 'LIFE',
       name: 'IM라이프',
       customer_center: '1588-4770',
@@ -55,6 +58,7 @@ export const SEED_DATA = [
   // ================= 동양생명 =================
   {
     company: {
+      companyCode: 'INS_SEED_004',
       category: 'LIFE',
       name: '동양생명',
       customer_center: '1577-1004',
@@ -72,6 +76,7 @@ export const SEED_DATA = [
   // ================= 흥국생명 =================
   {
     company: {
+      companyCode: 'INS_SEED_005',
       category: 'LIFE',
       name: '흥국생명',
       customer_center: '1588-2288',
@@ -86,6 +91,7 @@ export const SEED_DATA = [
   // ================= 신한라이프 =================
   {
     company: {
+      companyCode: 'INS_SEED_006',
       category: 'LIFE',
       name: '신한라이프',
       customer_center: '1588-5580',
@@ -100,6 +106,7 @@ export const SEED_DATA = [
   // ================= 삼성화재 =================
   {
     company: {
+      companyCode: 'INS_SEED_007',
       category: 'NON_LIFE',
       name: '삼성화재',
       customer_center: '1588-5114',
@@ -122,6 +129,7 @@ export const SEED_DATA = [
   // ================= 현대해상 =================
   {
     company: {
+      companyCode: 'INS_SEED_008',
       category: 'NON_LIFE',
       name: '현대해상',
       customer_center: '1588-5656',
@@ -136,6 +144,7 @@ export const SEED_DATA = [
   // ================= KB손해보험 =================
   {
     company: {
+      companyCode: 'INS_SEED_009',
       category: 'NON_LIFE',
       name: 'KB손해보험',
       customer_center: '1544-0114',
@@ -164,12 +173,31 @@ export async function seedAll(pool) {
 
     for (const item of SEED_DATA) {
       const co = item.company
+      const rawCode = co.companyCode
+      if (rawCode == null || String(rawCode).trim() === '') {
+        throw new Error(`[seed] companyCode가 누락되었습니다: ${co.name ?? '(이름 없음)'}`)
+      }
+      const companyCode = String(rawCode).trim()
+      if (companyCode.length > 20) {
+        throw new Error(
+          `[seed] companyCode는 20자 이하여야 합니다: ${co.name ?? '(이름 없음)'} (${companyCode.length}자)`,
+        )
+      }
+
       const result = await client.query(
         `
         INSERT INTO insurance_company_master (
-          ga_id, category, name, customer_center, system_phone, incall_number, visit_info
+          ga_id,
+          category,
+          name,
+          customer_center,
+          system_phone,
+          incall_number,
+          visit_info,
+          company_code
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ON CONFLICT (company_code) DO NOTHING
         RETURNING id
         `,
         [
@@ -180,10 +208,21 @@ export async function seedAll(pool) {
           co.system_phone ?? '',
           co.incall_number ?? '',
           co.visit_info ?? '',
+          companyCode,
         ],
       )
 
-      const companyId = result.rows[0].id
+      let companyId = result.rows[0]?.id
+      if (companyId == null) {
+        const existing = await client.query(
+          `SELECT id FROM insurance_company_master WHERE company_code = $1 LIMIT 1`,
+          [companyCode],
+        )
+        companyId = existing.rows[0]?.id
+      }
+      if (companyId == null) {
+        throw new Error(`[seed] company_id를 확인할 수 없습니다: ${co.name ?? '(이름 없음)'} (${companyCode})`)
+      }
 
       for (const c of item.contacts ?? []) {
         await client.query(
