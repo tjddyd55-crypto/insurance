@@ -158,21 +158,21 @@ function buildCoordinatePdfStepState(
   const docCompleted = detail.document.status === 'completed'
 
   const inputHasWork = requiredCustomerInputFieldCount(detail) > 0
-  const inputComplete = inputHasWork && allNonSignatureRequiredFilled(detail, drafts)
+  const inputComplete = docCompleted || (inputHasWork && allNonSignatureRequiredFilled(detail, drafts))
 
   const checksHasWork = requiredConfirmationItemCount(detail) > 0
-  const checksComplete = checksHasWork && allSessionConfirmationsChecked(detail, confirmationChecks)
+  const checksComplete = docCompleted || (checksHasWork && allSessionConfirmationsChecked(detail, confirmationChecks))
 
   const attHasWork = requiredAttachmentCount(detail) > 0
-  const attComplete = attHasWork && allRequiredAttachmentsConfirmed(detail)
+  const attComplete = docCompleted || (attHasWork && allRequiredAttachmentsConfirmed(detail))
 
   /** 손사인 필수 정책: 슬롯 유무와 관계없이 서명 단계는 skipped 하지 않는다. */
   const sigHasWork = true
   const sigSignedComplete = signatureRequirementsComplete(detail)
-  const sigComplete = sigSignedComplete && signAck
+  const sigComplete = docCompleted || (sigSignedComplete && signAck)
 
   const finalHasWork = true
-  const finalComplete = finalPreviewConfirmed
+  const finalComplete = docCompleted || finalPreviewConfirmed
 
   const submitHasWork = true
   const submitComplete = docCompleted
@@ -701,11 +701,14 @@ export default function ContractSignDocumentPage() {
     if (signAck) {
       return
     }
+    if (detail?.document.status === 'completed') {
+      return
+    }
     setFinalPreviewConfirmed(false)
     setFinalSubmitAcknowledged(false)
     finalPreviewConfirmedRef.current = false
     setFinalReviewOpen(false)
-  }, [signAck])
+  }, [signAck, detail?.document.status])
 
   const scrollAfterAttachmentPatch = useCallback(
     (nextDetail: ContractDocumentDetailPayload) => {
@@ -796,6 +799,8 @@ export default function ContractSignDocumentPage() {
 
   useEffect(() => {
     setSignatureDrafts({})
+    setSignAck(false)
+    signAckRef.current = false
     setFinalPreviewConfirmed(false)
     setFinalSubmitAcknowledged(false)
     setConfirmationChecks({})
@@ -922,6 +927,7 @@ export default function ContractSignDocumentPage() {
   const coordinateStep5Locked = Boolean(coordinateStepState?.submit.status === 'pending')
 
   const handleCoordinateSignAckChange = useCallback((checked: boolean) => {
+    signAckRef.current = checked
     setSignAck(checked)
     if (!checked || !detail || (detail.templateMode ?? 'coordinate_pdf') === 'confirmation_only') {
       return
@@ -1092,8 +1098,6 @@ export default function ContractSignDocumentPage() {
       })
       const pack = await reloadDetail()
       if (pack) scrollToNextPublicStep(pack.detail, pack.drafts)
-      setFinalSubmitAcknowledged(false)
-      setFinalPreviewConfirmed(false)
       const ev = data.evidenceSummary
       const completedAt = ev?.completedAt ?? ev?.signedAt ?? new Date().toISOString()
       setCompleteResult({
@@ -1238,6 +1242,7 @@ export default function ContractSignDocumentPage() {
             : detail.document.status
 
     const isConfirmationOnly = (detail.templateMode ?? 'coordinate_pdf') === 'confirmation_only'
+    const finalReviewComplete = detail.document.status === 'completed' || finalPreviewConfirmed
     const sortedConfFields = isConfirmationOnly
       ? (detail.confirmationFields ?? [])
           .slice()
@@ -1641,7 +1646,6 @@ export default function ContractSignDocumentPage() {
                 electronicSignAcknowledged: true,
               })
               setSignatureDrafts((prev) => ({ ...prev, [signatureKey]: dataUrl }))
-              setSignAck(false)
               const pack = await reloadDetail()
               if (pack) scrollToNextPublicStep(pack.detail, pack.drafts)
             }}
@@ -2097,7 +2101,7 @@ export default function ContractSignDocumentPage() {
               >
                 최종 문서 보기
               </FormButton>
-              {finalPreviewConfirmed ? (
+              {finalReviewComplete ? (
                 <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">최종 문서 확인 완료</p>
               ) : (
                 <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">미확인</p>
@@ -2271,9 +2275,6 @@ export default function ContractSignDocumentPage() {
               electronicSignAcknowledged: true,
             })
             setSignatureDrafts((prev) => ({ ...prev, [signatureKey]: dataUrl }))
-            setSignAck(false)
-            setFinalPreviewConfirmed(false)
-            setFinalSubmitAcknowledged(false)
             const pack = await reloadDetail()
             if (pack) scrollToNextPublicStep(pack.detail, pack.drafts)
           }}
