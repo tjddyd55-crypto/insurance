@@ -17,10 +17,16 @@ import {
   truncateUserAgent,
 } from './contractEvidenceService.js'
 
+const CONFIRMATION_CONTENT_ACK_FIELD_KEY = '__confirmation_content_ack__'
+
+function normalizeConfirmationInputRole(raw) {
+  return String(raw ?? '').trim() === 'customer' ? 'customer' : 'sender'
+}
+
 /**
  * 확인서 발송 필드 값 + 문서 인스턴스 값(손사인 등) 스냅샷 해시.
  *
- * @param {Array<{ field_key?: unknown, value_text?: unknown, sort_order?: unknown }>} confirmationFieldRows listSendSessionConfirmationFieldValuesForPublic 결과
+ * @param {Array<{ field_key?: unknown, value_text?: unknown, sort_order?: unknown, input_role?: unknown, label?: unknown, input_type?: unknown, required?: unknown }>} confirmationFieldRows listSendSessionConfirmationFieldValuesForPublic + input_role 결합 결과
  * @param {Array<Record<string, unknown>>} documentValueRows contract_document_values
  */
 export function computeConfirmationOnlyValuesHash(confirmationFieldRows, documentValueRows) {
@@ -32,6 +38,7 @@ export function computeConfirmationOnlyValuesHash(confirmationFieldRows, documen
     })
     .map((r) => ({
       fieldKey: String(r.field_key ?? ''),
+      inputRole: normalizeConfirmationInputRole(r.input_role),
       valueText: r.value_text == null ? '' : String(r.value_text),
     }))
 
@@ -55,13 +62,27 @@ export function computeConfirmationOnlyValuesHash(confirmationFieldRows, documen
  *
  * @param {{
  *   templateMode: 'confirmation_only',
+ *   evidencePayloadVersion: number,
  *   templateId: string,
  *   templateName: string,
  *   sendSessionId: string,
  *   documentInstanceId: string,
  *   linkCode: string | null,
- *   fieldSchema: Array<{ fieldKey: string, label: string, inputType: string, required: boolean, sortOrder: number }>,
- *   fieldValues: Array<{ fieldKey: string, valueText: string }>,
+ *   confirmationFields: Array<{
+ *     fieldKey: string,
+ *     label: string,
+ *     inputType: string,
+ *     required: boolean,
+ *     sortOrder: number,
+ *     inputRole: 'sender' | 'customer',
+ *     valueText: string,
+ *     enteredBy: 'sender' | 'customer',
+ *   }>,
+ *   confirmationContentAcknowledgement: {
+ *     key: '__confirmation_content_ack__',
+ *     required: boolean,
+ *     acknowledged: boolean,
+ *   },
  *   confirmationChecks: Array<{ id: string, label: string, required: boolean, checked: boolean, checkedAt: string | null }>,
  *   attachments: Array<{
  *     id: string,
@@ -73,26 +94,40 @@ export function computeConfirmationOnlyValuesHash(confirmationFieldRows, documen
  *     confirmed: boolean,
  *     confirmedAt: string | null,
  *   }>,
- *   signatureFileId: string | null,
- *   signatureValueHash: string | null,
+ *   attachmentsSummary: { hasAttachments: boolean, status: 'none' | 'present' },
+ *   signatureSummary: {
+ *     exists: boolean,
+ *     signatureFileId: string | null,
+ *     signatureValueHash: string | null,
+ *     signatureImageHash: string | null,
+ *   },
+ *   authenticationSummary: {
+ *     identitySessionId: string,
+ *     provider: string,
+ *     level: string,
+ *     otpVerifiedAtIso: string | null,
+ *     targetPhoneHash: string | null,
+ *   },
  *   generatedConfirmationPdfHash: string,
  *   completedAtIso: string,
  * }} p
  */
 export function buildConfirmationOnlyEvidenceReferencePayload(p) {
   return {
+    evidencePayloadVersion: Number(p.evidencePayloadVersion ?? 2),
     templateMode: p.templateMode,
     templateId: p.templateId,
     templateName: p.templateName,
     sendSessionId: p.sendSessionId,
     documentInstanceId: p.documentInstanceId,
     linkCode: p.linkCode == null || String(p.linkCode).trim() === '' ? null : String(p.linkCode).trim(),
-    fieldSchema: p.fieldSchema,
-    fieldValues: p.fieldValues,
+    confirmationFields: p.confirmationFields,
+    confirmationContentAcknowledgement: p.confirmationContentAcknowledgement,
     confirmationChecks: p.confirmationChecks,
     attachments: p.attachments,
-    signatureFileId: p.signatureFileId == null ? null : String(p.signatureFileId),
-    signatureValueHash: p.signatureValueHash == null ? null : String(p.signatureValueHash),
+    attachmentsSummary: p.attachmentsSummary,
+    signatureSummary: p.signatureSummary,
+    authenticationSummary: p.authenticationSummary,
     generatedConfirmationPdfHash: String(p.generatedConfirmationPdfHash ?? '').trim() || null,
     completedAtIso: p.completedAtIso,
   }
@@ -221,33 +256,55 @@ export async function insertConfirmationOnlySignatureEvidenceRow(client, req, in
   )
   const attachmentsHash = hashContractSendAttachmentsForEvidence(attRowsDb.rows)
 
+  const ackRow = await client.query(
+    `
+    SELECT value_text
+    FROM contract_document_values
+    WHERE document_instance_id = $1
+      AND field_key = $2
+    LIMIT 1
+    `,
+    [documentInstanceId, CONFIRMATION_CONTENT_ACK_FIELD_KEY],
+  )
+  const confirmationContentAcknowledged = String(ackRow.rows[0]?.value_text ?? '').trim() === 'true'
+
   const sigRow = input.documentValueRows.find((r) => String(r.field_type ?? '') === 'signature') ?? null
   const signatureValueHash = sigRow?.value_hash != null ? String(sigRow.value_hash) : null
 
-  const fieldSchema = [...input.confirmationFieldRows]
+  const roleMapRows = await client.query(
+    `
+    SELECT field_key, input_role
+    FROM contract_template_confirmation_fields
+    WHERE template_id = $1
+    `,
+    [templateId],
+  )
+  const roleByFieldKey = new Map(
+    roleMapRows.rows.map((r) => [String(r.field_key ?? ''), normalizeConfirmationInputRole(r.input_role)]),
+  )
+
+  const sortedConfirmationRows = [...input.confirmationFieldRows]
     .sort((a, b) => {
       const so = Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0)
       if (so !== 0) return so
       return String(a.field_key ?? '').localeCompare(String(b.field_key ?? ''))
     })
-    .map((r) => ({
+
+  const confirmationFieldsPayload = sortedConfirmationRows.map((r) => {
+    const inputRole = roleByFieldKey.get(String(r.field_key ?? '')) ?? 'sender'
+    return {
       fieldKey: String(r.field_key ?? ''),
       label: String(r.label ?? ''),
       inputType: String(r.input_type ?? 'text'),
       required: r.required === true || r.required === 1,
       sortOrder: Number(r.sort_order ?? 0),
-    }))
-
-  const fieldValues = [...input.confirmationFieldRows]
-    .sort((a, b) => {
-      const so = Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0)
-      if (so !== 0) return so
-      return String(a.field_key ?? '').localeCompare(String(b.field_key ?? ''))
-    })
-    .map((r) => ({
-      fieldKey: String(r.field_key ?? ''),
+      inputRole,
       valueText: r.value_text == null ? '' : String(r.value_text),
-    }))
+      enteredBy: inputRole,
+    }
+  })
+
+  const senderFieldExists = confirmationFieldsPayload.some((row) => row.inputRole === 'sender')
 
   const confirmationRowsSorted = [...confRowsDb.rows].sort((a, b) => {
     const so = Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0)
@@ -273,24 +330,17 @@ export async function insertConfirmationOnlySignatureEvidenceRow(client, req, in
     confirmedAt: r.confirmed_at != null ? new Date(r.confirmed_at).toISOString() : null,
   }))
 
-  const refPayload = buildConfirmationOnlyEvidenceReferencePayload({
-    templateMode: 'confirmation_only',
-    templateId,
-    templateName,
-    sendSessionId,
-    documentInstanceId,
-    linkCode,
-    fieldSchema,
-    fieldValues,
-    confirmationChecks: checkPayload,
-    attachments: attachmentsPayload,
-    signatureFileId: signatureFileId,
-    signatureValueHash,
-    generatedConfirmationPdfHash: signedPdfHashNorm,
-    completedAtIso,
-  })
+  const attachmentsSummary = {
+    hasAttachments: attachmentsPayload.length > 0,
+    status: attachmentsPayload.length > 0 ? 'present' : 'none',
+  }
 
-  const documentReferenceHash = computeConfirmationOnlyDocumentReferenceHash(refPayload)
+  const signatureSummary = {
+    exists: signatureFileId != null && String(signatureFileId).trim() !== '',
+    signatureFileId: signatureFileId == null ? null : String(signatureFileId),
+    signatureValueHash: signatureValueHash == null ? null : String(signatureValueHash),
+    signatureImageHash: signatureImageHash == null ? null : String(signatureImageHash),
+  }
 
   const identitySessionId = String(idRow.id)
   const otpVerifiedAtIso =
@@ -304,6 +354,39 @@ export async function insertConfirmationOnlySignatureEvidenceRow(client, req, in
     input.sendSession.target_phone_hash != null && String(input.sendSession.target_phone_hash).trim()
       ? String(input.sendSession.target_phone_hash).trim()
       : null
+
+  const authenticationSummary = {
+    identitySessionId,
+    provider: String(idRow?.provider ?? 'self_sms'),
+    level: String(idRow?.level ?? 'phone_possession'),
+    otpVerifiedAtIso,
+    targetPhoneHash,
+  }
+
+  const refPayload = buildConfirmationOnlyEvidenceReferencePayload({
+    templateMode: 'confirmation_only',
+    evidencePayloadVersion: 2,
+    templateId,
+    templateName,
+    sendSessionId,
+    documentInstanceId,
+    linkCode,
+    confirmationFields: confirmationFieldsPayload,
+    confirmationContentAcknowledgement: {
+      key: CONFIRMATION_CONTENT_ACK_FIELD_KEY,
+      required: senderFieldExists,
+      acknowledged: confirmationContentAcknowledged,
+    },
+    confirmationChecks: checkPayload,
+    attachments: attachmentsPayload,
+    attachmentsSummary,
+    signatureSummary,
+    authenticationSummary,
+    generatedConfirmationPdfHash: signedPdfHashNorm,
+    completedAtIso,
+  })
+
+  const documentReferenceHash = computeConfirmationOnlyDocumentReferenceHash(refPayload)
 
   const ipRaw = extractClientIp(req)
   const ipHash = hashClientIp(ipRaw, secret)
