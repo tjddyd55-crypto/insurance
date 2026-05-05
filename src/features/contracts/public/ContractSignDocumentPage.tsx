@@ -287,9 +287,37 @@ function buildCoordinatePdfStepState(
   return { input, checks, attachments, signature, finalReview, submit }
 }
 
-/** confirmation_only 전용 단계(표시/체크·첨부/서명/최종) */
+function normalizeConfirmationInputRole(role: unknown): 'sender' | 'customer' {
+  return role === 'customer' ? 'customer' : 'sender'
+}
+
+function splitConfirmationFields(detail: ContractDocumentDetailPayload) {
+  const rows = (detail.confirmationFields ?? []).slice().sort((a, b) => a.sortOrder - b.sortOrder)
+  const senderFields = rows.filter((row) => normalizeConfirmationInputRole(row.inputRole) === 'sender')
+  const customerFields = rows.filter((row) => normalizeConfirmationInputRole(row.inputRole) === 'customer')
+  return { senderFields, customerFields }
+}
+
+function confirmationCustomerRequiredFieldsComplete(detail: ContractDocumentDetailPayload): boolean {
+  const { customerFields } = splitConfirmationFields(detail)
+  return customerFields.every((row) => {
+    if (!row.required) {
+      return true
+    }
+    return String(row.valueText ?? '').trim().length > 0
+  })
+}
+
+function confirmationContentStepComplete(detail: ContractDocumentDetailPayload): boolean {
+  const { senderFields } = splitConfirmationFields(detail)
+  const senderAcknowledged = senderFields.length === 0 || detail.confirmationContentAcknowledged === true
+  return senderAcknowledged && confirmationCustomerRequiredFieldsComplete(detail)
+}
+
+/** confirmation_only 전용 단계(내용 확인/입력·체크·첨부/서명/최종) */
 function buildConfirmationOnlyStepState(
   detail: ContractDocumentDetailPayload,
+  contentComplete: boolean,
   confirmationChecks: Record<string, boolean>,
 ): {
   content: PublicStepSlice
@@ -299,26 +327,35 @@ function buildConfirmationOnlyStepState(
   final: PublicStepSlice
 } {
   const docCompleted = detail.document.status === 'completed'
+  const { senderFields, customerFields } = splitConfirmationFields(detail)
+
+  const contentHasWork = senderFields.length > 0 || customerFields.length > 0
+  const content: PublicStepSlice = {
+    key: 'content',
+    hasWork: contentHasWork,
+    isComplete: docCompleted || contentComplete,
+    status: 'pending',
+    isActive: false,
+  }
+  if (!contentHasWork) {
+    content.status = 'skipped'
+  } else if (content.isComplete) {
+    content.status = 'complete'
+  } else {
+    content.status = 'active'
+  }
 
   const checksHasWork = requiredConfirmationItemCount(detail) > 0
-  const checksComplete = checksHasWork && allSessionConfirmationsChecked(detail, confirmationChecks)
+  const checksComplete = docCompleted || (checksHasWork && allSessionConfirmationsChecked(detail, confirmationChecks))
 
   const attHasWork = requiredAttachmentCount(detail) > 0
-  const attComplete = attHasWork && allRequiredAttachmentsConfirmed(detail)
+  const attComplete = docCompleted || (attHasWork && allRequiredAttachmentsConfirmed(detail))
 
   const sigHasWork = true
   const sigComplete = Boolean(detail.confirmationSignature?.exists)
 
   const checksSkipped = !checksHasWork
   const attSkipped = !attHasWork
-
-  const content: PublicStepSlice = {
-    key: 'content',
-    hasWork: false,
-    isComplete: false,
-    status: 'skipped',
-    isActive: false,
-  }
 
   const checks: PublicStepSlice = {
     key: 'co_checks',
@@ -337,13 +374,16 @@ function buildConfirmationOnlyStepState(
 
   if (attSkipped) {
     attachments.status = 'skipped'
-  } else if (checksSkipped || checksComplete) {
+  } else if ((checksSkipped || checksComplete) && (content.status === 'complete' || content.status === 'skipped')) {
     attachments.status = attComplete ? 'complete' : 'active'
   } else {
     attachments.status = 'pending'
   }
 
-  if (!checksSkipped && !checksComplete) {
+  if (content.status !== 'complete' && content.status !== 'skipped') {
+    checks.status = checksSkipped ? 'skipped' : 'pending'
+    attachments.status = attSkipped ? 'skipped' : 'pending'
+  } else if (!checksSkipped && !checksComplete) {
     checks.status = 'active'
     attachments.status = attSkipped ? 'skipped' : 'pending'
   }
@@ -356,7 +396,9 @@ function buildConfirmationOnlyStepState(
     isActive: false,
   }
   const afterConfirm =
-    (checksSkipped || checksComplete) && (attSkipped || attComplete)
+    (content.status === 'complete' || content.status === 'skipped') &&
+    (checksSkipped || checksComplete) &&
+    (attSkipped || attComplete)
   if (!afterConfirm) {
     signature.status = 'pending'
   } else if (sigComplete) {
@@ -382,7 +424,7 @@ function buildConfirmationOnlyStepState(
     final.status = 'pending'
   }
 
-  const chain = [checks, attachments, signature, final]
+  const chain = [content, checks, attachments, signature, final]
   markFirstActiveSlice(chain)
 
   return { content, checks, attachments, signature, final }
@@ -593,12 +635,14 @@ export default function ContractSignDocumentPage() {
   } | null>(null)
   const [coSignatureObjectUrl, setCoSignatureObjectUrl] = useState<string | null>(null)
   const [coFinalAck, setCoFinalAck] = useState(false)
+  const [confirmationContentAcknowledged, setConfirmationContentAcknowledged] = useState(false)
 
   const confirmationChecksRef = useRef<Record<string, boolean>>({})
   const draftsRef = useRef<Record<string, string | boolean>>({})
   const finalPreviewConfirmedRef = useRef(false)
   const signAckRef = useRef(false)
 
+  const coRefContentSection = useRef<HTMLDivElement | null>(null)
   const coRefConfirmChecksSection = useRef<HTMLDivElement | null>(null)
   const coRefConfirmAttachSection = useRef<HTMLDivElement | null>(null)
   const coRefSignatureCard = useRef<HTMLDivElement | null>(null)
@@ -652,8 +696,10 @@ export default function ContractSignDocumentPage() {
           scrollToPublicStepElement(coRefCompletedDownloads.current)
           return
         }
-        const st = buildConfirmationOnlyStepState(d, checksMap)
-        if (st.checks.isActive) {
+        const st = buildConfirmationOnlyStepState(d, confirmationContentStepComplete(d), checksMap)
+        if (st.content.isActive) {
+          scrollToPublicStepElement(coRefContentSection.current)
+        } else if (st.checks.isActive) {
           scrollToPublicStepElement(coRefConfirmChecksSection.current)
         } else if (st.attachments.isActive) {
           scrollToPublicStepElement(coRefConfirmAttachSection.current)
@@ -760,6 +806,13 @@ export default function ContractSignDocumentPage() {
   }, [detail, confirmationItemsSig])
 
   useEffect(() => {
+    if (!detail || (detail.templateMode ?? 'coordinate_pdf') !== 'confirmation_only') {
+      return
+    }
+    setConfirmationContentAcknowledged(detail.confirmationContentAcknowledged === true)
+  }, [detail])
+
+  useEffect(() => {
     const mode = detail?.templateMode ?? 'coordinate_pdf'
     const previewPath = detail?.confirmationSignature?.previewUrl
     const hasSig = Boolean(detail?.confirmationSignature?.exists && previewPath)
@@ -805,6 +858,7 @@ export default function ContractSignDocumentPage() {
     setFinalSubmitAcknowledged(false)
     setConfirmationChecks({})
     setCoFinalAck(false)
+    setConfirmationContentAcknowledged(false)
     setCoSignatureObjectUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev)
       return null
@@ -878,7 +932,6 @@ export default function ContractSignDocumentPage() {
   )
   const signatureFields = useMemo(() => sortedFields.filter((f) => f.fieldType === 'signature'), [sortedFields])
 
-  const customerInputStepComplete = detail ? allNonSignatureRequiredFilled(detail, drafts) : false
   const sessionChecksComplete = detail ? allSessionConfirmationsChecked(detail, confirmationChecks) : false
   const attachmentsConfirmationComplete = detail ? allRequiredAttachmentsConfirmed(detail) : false
   const confirmationStepComplete = sessionChecksComplete && attachmentsConfirmationComplete
@@ -894,12 +947,17 @@ export default function ContractSignDocumentPage() {
     if (!detail || (detail.templateMode ?? 'coordinate_pdf') !== 'confirmation_only') {
       return null
     }
-    return buildConfirmationOnlyStepState(detail, confirmationChecks)
+    return buildConfirmationOnlyStepState(detail, confirmationContentStepComplete(detail), confirmationChecks)
   }, [detail, confirmationChecks])
+
+  const confirmationContentComplete =
+    detail && (detail.templateMode ?? 'coordinate_pdf') === 'confirmation_only'
+      ? confirmationContentStepComplete(detail)
+      : false
 
   const canSign =
     detail && (detail.templateMode ?? 'coordinate_pdf') === 'confirmation_only'
-      ? customerInputStepComplete && confirmationStepComplete
+      ? confirmationContentComplete && confirmationStepComplete
       : Boolean(
           coordinateStepState &&
             (!coordinateStepState.input.hasWork || coordinateStepState.input.isComplete) &&
@@ -981,10 +1039,22 @@ export default function ContractSignDocumentPage() {
     return values
   }
 
+  const buildConfirmationOnlyCustomerValuePayload = (): Record<string, string> => {
+    if (!detail || (detail.templateMode ?? 'coordinate_pdf') !== 'confirmation_only') {
+      return {}
+    }
+    const payload: Record<string, string> = {}
+    const { customerFields } = splitConfirmationFields(detail)
+    for (const row of customerFields) {
+      payload[row.fieldKey] = String(row.valueText ?? '')
+    }
+    return payload
+  }
+
   const openSignatureModal = (id: string, label: string) => {
     const editable = detail ? detail.canEdit !== false && detail.document.status !== 'completed' : false
     if (detail && (detail.templateMode ?? 'coordinate_pdf') === 'confirmation_only') {
-      if (!editable || !confirmationStepComplete || !signAck) {
+      if (!editable || !confirmationContentComplete || !confirmationStepComplete || !signAck) {
         return
       }
     } else if (
@@ -1009,6 +1079,26 @@ export default function ContractSignDocumentPage() {
     setSaving(true)
     try {
       await postContractPublicDocumentValues(linkCode, documentInstanceId, buildCustomerValuePayload())
+      const pack = await reloadDetail()
+      if (pack) scrollToNextPublicStep(pack.detail, pack.drafts)
+    } catch (e) {
+      setActionError(formatContractPublicActionError(e, 'values'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const onSaveConfirmationOnlyContent = async () => {
+    if (!detail || detail.canEdit === false || (detail.templateMode ?? 'coordinate_pdf') !== 'confirmation_only') {
+      return
+    }
+    setActionError('')
+    setSaving(true)
+    try {
+      await postContractPublicDocumentValues(linkCode, documentInstanceId, [], {
+        confirmationFieldValues: buildConfirmationOnlyCustomerValuePayload(),
+        confirmationContentAcknowledged,
+      })
       const pack = await reloadDetail()
       if (pack) scrollToNextPublicStep(pack.detail, pack.drafts)
     } catch (e) {
@@ -1309,45 +1399,147 @@ export default function ContractSignDocumentPage() {
           <p className="contract-public-sign-page__notice">{detail.notice}</p>
           {actionError ? <div className="contract-public-sign-page__panel-danger">{actionError}</div> : null}
 
-          <div className="contract-public-sign-page__card">
-            <p className="contract-public-sign-page__card-title">전자확인서 내용</p>
+          <div
+            ref={coRefContentSection}
+            className={publicStepCardClassNameByStatus(confirmationStepState?.content.status ?? 'pending')}
+          >
+            <p className="contract-public-sign-page__card-title">1단계. 확인서 내용 작성/확인</p>
             <p className="contract-public-sign-page__notice mt-2">
-              담당자가 입력한 확인 내용입니다. 아래 내용과 첨부자료를 확인해 주세요.
+              발송자 입력 내용은 읽기 전용으로 확인하고, 고객 입력 항목은 직접 작성 후 저장해 주세요.
             </p>
-            <div className="mt-4 space-y-4">
-              {sortedConfFields.length > 0 ? (
-                sortedConfFields.map((row) => {
-                  const raw = String(row.valueText ?? '').trim()
-                  const display = raw.length > 0 ? raw : '—'
-                  const isTa = String(row.inputType ?? '').toLowerCase() === 'textarea'
-                  return (
-                    <div
-                      key={row.fieldKey}
-                      className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight space-y-1"
-                    >
-                      <p className="contract-public-sign-page__field-label">
-                        {row.label || row.fieldKey}
-                        {row.required ? <span className="contract-public-sign-page__required"> *</span> : null}
-                      </p>
-                      <p
-                        className={`text-sm text-[var(--text-main)] contract-public-sign-page__confirmation-value${
-                          isTa ? ' contract-public-sign-page__confirmation-value--multiline' : ''
-                        }`}
-                      >
-                        {display}
-                      </p>
-                      {row.helpText ? <p className="contract-public-sign-page__caption">{row.helpText}</p> : null}
+            {(() => {
+              const senderFields = sortedConfFields.filter((row) => normalizeConfirmationInputRole(row.inputRole) === 'sender')
+              const customerFields = sortedConfFields.filter(
+                (row) => normalizeConfirmationInputRole(row.inputRole) === 'customer',
+              )
+              return (
+                <div className="mt-4 space-y-4">
+                  {senderFields.length > 0 ? (
+                    <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight space-y-3">
+                      <p className="contract-public-sign-page__section-label">발송자가 입력한 내용</p>
+                      {senderFields.map((row) => {
+                        const raw = String(row.valueText ?? '').trim()
+                        const display = raw.length > 0 ? raw : '입력 없음'
+                        const isTa = String(row.inputType ?? '').toLowerCase() === 'textarea'
+                        return (
+                          <div key={`sender-${row.fieldKey}`} className="space-y-1">
+                            <p className="contract-public-sign-page__field-label">
+                              {row.label || row.fieldKey}
+                              {row.required ? <span className="contract-public-sign-page__required"> *</span> : null}
+                            </p>
+                            <p
+                              className={`text-sm text-[var(--text-main)] contract-public-sign-page__confirmation-value contract-public-sign-page__confirmation-readonly${
+                                isTa ? ' contract-public-sign-page__confirmation-value--multiline' : ''
+                              }`}
+                            >
+                              {display}
+                            </p>
+                            {row.helpText ? <p className="contract-public-sign-page__caption">{row.helpText}</p> : null}
+                          </div>
+                        )
+                      })}
+                      <label className="contract-public-sign-page__label-row">
+                        <FormInput
+                          type="checkbox"
+                          checked={confirmationContentAcknowledged}
+                          disabled={!canEdit || saving}
+                          onChange={(ev) => setConfirmationContentAcknowledged(ev.target.checked)}
+                          className="mt-0.5"
+                        />
+                        <span>위 내용을 확인했습니다.</span>
+                      </label>
                     </div>
-                  )
-                })
-              ) : (
-                <p className="contract-public-sign-page__notice">표시할 확인 항목이 없습니다.</p>
-              )}
-            </div>
+                  ) : null}
+
+                  {customerFields.length > 0 ? (
+                    <div className="contract-public-sign-page__subsection contract-public-sign-page__subsection--tight space-y-3">
+                      <p className="contract-public-sign-page__section-label">고객이 직접 입력할 내용</p>
+                      {customerFields.map((row) => {
+                        const valueText = String(row.valueText ?? '')
+                        const normalizedType = String(row.inputType ?? 'text').toLowerCase()
+                        return (
+                          <div key={`customer-${row.fieldKey}`} className="space-y-1">
+                            <p className="contract-public-sign-page__field-label">
+                              {row.label || row.fieldKey}
+                              {row.required ? <span className="contract-public-sign-page__required"> *</span> : null}
+                            </p>
+                            {normalizedType === 'textarea' ? (
+                              <FormTextarea
+                                disabled={!canEdit || saving}
+                                value={valueText}
+                                onChange={(ev) =>
+                                  setDetail((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          confirmationFields: (prev.confirmationFields ?? []).map((field) =>
+                                            field.fieldKey === row.fieldKey ? { ...field, valueText: ev.target.value } : field,
+                                          ),
+                                        }
+                                      : prev,
+                                  )
+                                }
+                                rows={4}
+                                className="w-full text-sm"
+                              />
+                            ) : (
+                              <FormInput
+                                type={normalizedType === 'date' ? 'date' : normalizedType === 'number' ? 'number' : 'text'}
+                                disabled={!canEdit || saving}
+                                value={valueText}
+                                onChange={(ev) =>
+                                  setDetail((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          confirmationFields: (prev.confirmationFields ?? []).map((field) =>
+                                            field.fieldKey === row.fieldKey ? { ...field, valueText: ev.target.value } : field,
+                                          ),
+                                        }
+                                      : prev,
+                                  )
+                                }
+                                className="w-full text-sm"
+                              />
+                            )}
+                            {row.helpText ? <p className="contract-public-sign-page__caption">{row.helpText}</p> : null}
+                          </div>
+                        )
+                      })}
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        fullWidth
+                        loading={saving}
+                        disabled={!canEdit}
+                        onClick={() => void onSaveConfirmationOnlyContent()}
+                      >
+                        확인서 입력 저장
+                      </FormButton>
+                    </div>
+                  ) : null}
+
+                  {senderFields.length === 0 && customerFields.length === 0 ? (
+                    <p className="contract-public-sign-page__notice">표시할 확인 항목이 없습니다.</p>
+                  ) : null}
+                </div>
+              )
+            })()}
+            {confirmationStepState?.content.status === 'complete' ? (
+              <p className="contract-public-sign-page__status-ok contract-public-sign-page__step-status">1단계 완료</p>
+            ) : confirmationStepState?.content.status === 'skipped' ? (
+              <p className="contract-public-sign-page__notice contract-public-sign-page__step-status">
+                확인서 입력/확인 항목이 없습니다.
+              </p>
+            ) : (
+              <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">
+                필수 customer 입력 저장과 sender 내용 확인을 완료해 주세요.
+              </p>
+            )}
           </div>
 
           <p className="contract-public-sign-page__notice">
-            필수 확인을 마친 뒤 전자서명을 남기고, 안내에 따라 최종 완료하면 완료 확인서 PDF를 받을 수 있습니다.
+            1단계와 필수 확인 절차를 마친 뒤 전자서명을 남기고, 안내에 따라 최종 완료하면 완료 확인서 PDF를 받을 수 있습니다.
           </p>
 
           <div className={publicStepCardClassNameByStatus(coConfirmCardStatus)}>
@@ -1478,7 +1670,9 @@ export default function ContractSignDocumentPage() {
               </p>
             ) : (
               <p className="contract-public-sign-page__status-pending contract-public-sign-page__step-status">
-                {!sessionChecksComplete
+                {!confirmationContentComplete
+                  ? '1단계(확인서 내용 작성/확인)를 먼저 완료해 주세요.'
+                  : !sessionChecksComplete
                   ? '필수 확인 항목을 모두 체크해 주세요.'
                   : !attachmentsConfirmationComplete
                     ? '필수 첨부자료를 모두 열람·확인해 주세요.'
@@ -1494,9 +1688,9 @@ export default function ContractSignDocumentPage() {
             )} contract-public-sign-page__co-sign-card`}
           >
             <p className="contract-public-sign-page__card-title">전자서명</p>
-            {!confirmationStepComplete ? (
+            {!confirmationContentComplete || !confirmationStepComplete ? (
               <p className="contract-public-sign-page__notice mt-2">
-                필수 확인·첨부 확인을 마친 뒤 서명할 수 있습니다.
+                1단계(내용 작성/확인)와 필수 확인·첨부 확인을 마친 뒤 서명할 수 있습니다.
               </p>
             ) : (
               <>
@@ -1519,7 +1713,7 @@ export default function ContractSignDocumentPage() {
                       <FormInput
                         type="checkbox"
                         checked={signAck}
-                        disabled={!confirmationStepComplete || saving}
+                          disabled={!confirmationContentComplete || !confirmationStepComplete || saving}
                         onChange={(ev) => setSignAck(ev.target.checked)}
                         className="mt-0.5"
                       />
@@ -1530,7 +1724,7 @@ export default function ContractSignDocumentPage() {
                       variant="primary"
                       fullWidth
                       className="mt-4 contract-public-sign-page__co-sign-cta"
-                      disabled={saving || !signAck || !confirmationStepComplete}
+                      disabled={saving || !signAck || !confirmationContentComplete || !confirmationStepComplete}
                       onClick={() => openSignatureModal(CONFIRMATION_SIGNATURE_FIELD_ID, '전자서명')}
                     >
                       {detail.confirmationSignature?.exists ? '다시 서명하기' : '서명하기'}

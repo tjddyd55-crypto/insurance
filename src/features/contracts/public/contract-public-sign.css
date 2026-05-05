@@ -66,6 +66,14 @@
   white-space: pre-wrap;
 }
 
+.contract-public-sign-page__confirmation-readonly {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-soft);
+  padding: 10px 12px;
+  min-height: 40px;
+}
+
 .contract-public-sign-page__co-signature-img {
   display: block;
   max-width: 100%;

@@ -99,6 +99,7 @@ export type ContractPublicConfirmationFieldRow = {
   fieldKey: string
   label: string
   inputType: string
+  inputRole: 'sender' | 'customer'
   required: boolean
   sortOrder: number
   placeholder: string | null
@@ -128,6 +129,8 @@ export type ContractDocumentDetailPayload = {
   completed?: boolean
   /** confirmation_only: signature_evidences 행 존재 시 true */
   evidenceAvailable?: boolean
+  confirmationContentAcknowledged?: boolean
+  customerInputComplete?: boolean
   document: {
     id: string
     templateId: string
@@ -227,7 +230,20 @@ export async function fetchContractPublicDocumentDetail(
   linkCode: string,
   documentInstanceId: string,
 ): Promise<ContractDocumentDetailPayload> {
-  return publicRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}`)
+  const data = await publicRequest<ContractDocumentDetailPayload>(
+    `/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}`,
+  )
+  if ((data.templateMode ?? 'coordinate_pdf') !== 'confirmation_only' || !Array.isArray(data.confirmationFields)) {
+    return data
+  }
+  return {
+    ...data,
+    confirmationFields: data.confirmationFields.map((row) => ({
+      ...row,
+      inputRole: row.inputRole === 'customer' ? 'customer' : 'sender',
+    })),
+    confirmationContentAcknowledged: data.confirmationContentAcknowledged === true,
+  }
 }
 
 export function resolveContractPdfPreviewAbsUrl(linkCode: string, documentInstanceId: string): string {
@@ -259,12 +275,22 @@ export type ContractPublicValueInput = {
 export async function postContractPublicDocumentValues(
   linkCode: string,
   documentInstanceId: string,
-  values: ContractPublicValueInput[],
-  options?: { confirmationCheckedItemIds?: string[] },
+  values: ContractPublicValueInput[] = [],
+  options?: {
+    confirmationCheckedItemIds?: string[]
+    confirmationFieldValues?: Record<string, string>
+    confirmationContentAcknowledged?: boolean
+  },
 ): Promise<{ saved?: boolean }> {
   const body: Record<string, unknown> = { values }
   if (options?.confirmationCheckedItemIds != null) {
     body.confirmationCheckedItemIds = options.confirmationCheckedItemIds
+  }
+  if (options?.confirmationFieldValues != null) {
+    body.confirmationFieldValues = options.confirmationFieldValues
+  }
+  if (options?.confirmationContentAcknowledged != null) {
+    body.confirmationContentAcknowledged = options.confirmationContentAcknowledged === true
   }
   return publicRequest(`/api/contracts/public/${lc(linkCode)}/documents/${lc(documentInstanceId)}/values`, {
     method: 'POST',
@@ -353,6 +379,11 @@ const PUBLIC_ACTION_CODE_MESSAGES: Record<string, string> = {
   confirmation_field_values_incomplete: '필수 확인서 항목이 비어 있습니다. 담당자에게 문의해 주세요.',
   confirmation_only_signature_missing: '전자서명을 저장한 뒤 최종 완료할 수 있습니다.',
   confirmation_only_field_values_not_applicable: '이 문서는 내용 확인만 가능합니다.',
+  confirmation_content_ack_required: '발송자가 입력한 내용을 확인해 주세요.',
+  confirmation_customer_values_required: '필수 입력 항목을 모두 작성하고 저장해 주세요.',
+  confirmation_sender_field_not_editable: '발송자 입력 항목은 고객이 수정할 수 없습니다.',
+  invalid_confirmation_field_key: '확인서 항목 키가 올바르지 않습니다.',
+  confirmation_customer_required_missing: '필수 확인서 항목 값을 입력해 주세요.',
 }
 
 const SIGN_FALLBACK = '전자서명 저장 중 오류가 발생했습니다. 다시 시도해 주세요.'

@@ -728,6 +728,66 @@ function fieldRowToPublicDto(row, settingsMap) {
 }
 
 const CONFIRMATION_ONLY_SIGNATURE_FIELD_KEY = 'confirmation_signature'
+const CONFIRMATION_ONLY_CONTENT_ACK_FIELD_KEY = '__confirmation_content_ack__'
+
+/**
+ * @param {unknown} raw
+ * @returns {'sender' | 'customer'}
+ */
+function normalizeConfirmationOnlyInputRole(raw) {
+  return String(raw ?? '').trim() === 'customer' ? 'customer' : 'sender'
+}
+
+/**
+ * confirmation_only 1단계(내용 확인/입력) 완료 여부 계산.
+ * sender 필드가 하나라도 있으면 content ack 필요, customer required는 값 필요.
+ * @param {Array<Record<string, unknown>>} rows
+ * @param {boolean} contentAck
+ */
+function computeConfirmationOnlyContentCompletion(rows, contentAck) {
+  const hasSenderFields = rows.some((r) => normalizeConfirmationOnlyInputRole(r.input_role) === 'sender')
+  const customerRequiredComplete = rows.every((r) => {
+    if (normalizeConfirmationOnlyInputRole(r.input_role) !== 'customer') {
+      return true
+    }
+    if (!Boolean(r.required)) {
+      return true
+    }
+    return String(r.value_text ?? '').trim().length > 0
+  })
+  const senderAckComplete = !hasSenderFields || contentAck
+  return {
+    hasSenderFields,
+    senderAckComplete,
+    customerRequiredComplete,
+    complete: senderAckComplete && customerRequiredComplete,
+  }
+}
+
+/**
+ * confirmation_only 필드값 + 템플릿 정의(input_role) 결합.
+ * @param {import('pg').Pool | import('pg').PoolClient} db
+ * @param {string} sendSessionId
+ * @param {string} templateId
+ */
+async function listConfirmationOnlyFieldRowsWithRole(db, sendSessionId, templateId) {
+  const rows = await listSendSessionConfirmationFieldValuesForPublic(db, sendSessionId, templateId)
+  const roleR = await db.query(
+    `
+    SELECT field_key, input_role
+    FROM contract_template_confirmation_fields
+    WHERE template_id = $1
+    `,
+    [templateId],
+  )
+  const roleByFieldKey = new Map(
+    roleR.rows.map((r) => [String(r.field_key ?? ''), normalizeConfirmationOnlyInputRole(r.input_role)]),
+  )
+  return rows.map((r) => ({
+    ...r,
+    input_role: roleByFieldKey.get(String(r.field_key)) ?? 'sender',
+  }))
+}
 
 /**
  * confirmation_only 서명 전: 필수 고객 확인 체크·필수 첨부 확인.
@@ -754,6 +814,44 @@ async function assertConfirmationOnlySignPreconditions(pool, sendSessionId) {
         code: 'required_attachments_incomplete',
         message: '필수 첨부자료를 모두 확인한 뒤 서명할 수 있습니다.',
       }
+    }
+  }
+  return { ok: true }
+}
+
+/**
+ * confirmation_only 전용: sender 내용 확인 체크 + customer required 값 입력 완료 확인.
+ * @param {import('pg').Pool} pool
+ * @param {string} sendSessionId
+ * @param {string} documentInstanceId
+ * @param {string} templateId
+ * @returns {Promise<{ ok: true } | { ok: false, code: string, message: string }>}
+ */
+async function assertConfirmationOnlyContentPreconditions(pool, sendSessionId, documentInstanceId, templateId) {
+  const rows = await listConfirmationOnlyFieldRowsWithRole(pool, sendSessionId, templateId)
+  const ackR = await pool.query(
+    `
+    SELECT value_text
+    FROM contract_document_values
+    WHERE document_instance_id = $1 AND field_key = $2
+    LIMIT 1
+    `,
+    [documentInstanceId, CONFIRMATION_ONLY_CONTENT_ACK_FIELD_KEY],
+  )
+  const contentAck = String(ackR.rows[0]?.value_text ?? '').trim() === 'true'
+  const content = computeConfirmationOnlyContentCompletion(rows, contentAck)
+  if (!content.senderAckComplete) {
+    return {
+      ok: false,
+      code: 'confirmation_content_ack_required',
+      message: '발송자가 입력한 내용을 확인해야 다음 단계로 진행할 수 있습니다.',
+    }
+  }
+  if (!content.customerRequiredComplete) {
+    return {
+      ok: false,
+      code: 'confirmation_customer_values_required',
+      message: '필수 입력 항목을 모두 작성하고 저장한 뒤 다음 단계로 진행할 수 있습니다.',
     }
   }
   return { ok: true }
@@ -916,16 +1014,19 @@ export function registerContractPublicApi(apiRouter, ctx) {
           return
         }
       } else {
-        const cfRows = await listSendSessionConfirmationFieldValuesForPublic(pool, session.id, contractTemplateIdStr)
-        for (const r of cfRows) {
-          if (r.required && String(r.value_text ?? '').trim() === '') {
-            res.status(400).json({
-              success: false,
-              code: 'confirmation_field_values_incomplete',
-              message: '필수 확인서 항목에 비어 있는 값이 있습니다. 담당자에게 문의해 주세요.',
-            })
-            return
-          }
+        const contentGate = await assertConfirmationOnlyContentPreconditions(
+          pool,
+          String(session.id),
+          docId,
+          contractTemplateIdStr,
+        )
+        if (!contentGate.ok) {
+          res.status(400).json({
+            success: false,
+            code: contentGate.code,
+            message: contentGate.message,
+          })
+          return
         }
         const sigPre = await pool.query(
           `
@@ -1098,7 +1199,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
             String(session.sent_by_user_id ?? '').trim() ||
             '—'
           const gaName = String(en.ga_name ?? '').trim() || '—'
-          const cfPdfRows = await listSendSessionConfirmationFieldValuesForPublic(
+          const cfPdfRows = await listConfirmationOnlyFieldRowsWithRole(
             client,
             String(session.id),
             contractTemplateIdStr,
@@ -1528,6 +1629,16 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const contractTemplateModeSign = String(docMeta.rows[0].contract_template_mode ?? 'coordinate_pdf')
 
       if (contractTemplateModeSign === 'confirmation_only') {
+        const contentGate = await assertConfirmationOnlyContentPreconditions(
+          pool,
+          String(session.id),
+          docId,
+          String(docMeta.rows[0].template_id),
+        )
+        if (!contentGate.ok) {
+          res.status(400).json({ success: false, code: contentGate.code, message: contentGate.message })
+          return
+        }
         const gate = await assertConfirmationOnlySignPreconditions(pool, session.id)
         if (!gate.ok) {
           res.status(400).json({ success: false, code: gate.code, message: gate.message })
@@ -1863,7 +1974,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const contractTemplateMode = String(docMeta.rows[0].contract_template_mode ?? 'coordinate_pdf')
 
       if (contractTemplateMode === 'confirmation_only') {
-        if (bodyVals.length > 0) {
+        if (Array.isArray(bodyVals) && bodyVals.length > 0) {
           res.status(409).json({
             success: false,
             code: 'confirmation_only_field_values_not_applicable',
@@ -1871,16 +1982,111 @@ export function registerContractPublicApi(apiRouter, ctx) {
           })
           return
         }
+        const confirmationFieldValuesRaw =
+          req.body?.confirmationFieldValues ?? req.body?.confirmation_field_values ?? null
+        let confirmationFieldInputMap = new Map()
+        if (confirmationFieldValuesRaw != null) {
+          if (
+            typeof confirmationFieldValuesRaw !== 'object' ||
+            Array.isArray(confirmationFieldValuesRaw)
+          ) {
+            res.status(400).json({
+              success: false,
+              code: 'invalid_confirmation_payload',
+              message: 'confirmationFieldValues 형식이 올바르지 않습니다.',
+            })
+            return
+          }
+          confirmationFieldInputMap = new Map(
+            Object.entries(confirmationFieldValuesRaw).map(([k, v]) => [String(k).trim(), v == null ? '' : String(v)]),
+          )
+          for (const k of confirmationFieldInputMap.keys()) {
+            if (!k) {
+              confirmationFieldInputMap.delete(k)
+            }
+          }
+        }
+        const hasAckInBody =
+          Object.prototype.hasOwnProperty.call(req.body ?? {}, 'confirmationContentAcknowledged') ||
+          Object.prototype.hasOwnProperty.call(req.body ?? {}, 'confirmation_content_acknowledged')
+        const confirmationContentAckRaw =
+          req.body?.confirmationContentAcknowledged ?? req.body?.confirmation_content_acknowledged
+        const confirmationContentAck = confirmationContentAckRaw === true
+        const existingAckR = await pool.query(
+          `
+          SELECT value_text
+          FROM contract_document_values
+          WHERE document_instance_id = $1 AND field_key = $2
+          LIMIT 1
+          `,
+          [docId, CONFIRMATION_ONLY_CONTENT_ACK_FIELD_KEY],
+        )
+        const existingContentAck = String(existingAckR.rows[0]?.value_text ?? '').trim() === 'true'
         const rawChecked = req.body?.confirmationCheckedItemIds ?? req.body?.confirmation_checked_item_ids
-        if (!Array.isArray(rawChecked)) {
+        if (rawChecked != null && !Array.isArray(rawChecked)) {
           res.status(400).json({
             success: false,
             code: 'invalid_confirmation_payload',
-            message: 'confirmationCheckedItemIds 배열이 필요합니다.',
+            message: 'confirmationCheckedItemIds 형식이 올바르지 않습니다.',
           })
           return
         }
-        const confirmationCheckedSet = new Set(rawChecked.map((x) => String(x).trim()).filter(Boolean))
+        const hasCheckedItemsInBody = Array.isArray(rawChecked)
+        const confirmationCheckedSet = new Set(
+          (hasCheckedItemsInBody ? rawChecked : []).map((x) => String(x).trim()).filter(Boolean),
+        )
+        const confirmationFieldRows = await listConfirmationOnlyFieldRowsWithRole(
+          pool,
+          String(session.id),
+          String(docMeta.rows[0].template_id),
+        )
+        const allowedFieldKeys = new Set(confirmationFieldRows.map((r) => String(r.field_key)))
+        const existingCustomerValues = new Map()
+        for (const r of confirmationFieldRows) {
+          if (normalizeConfirmationOnlyInputRole(r.input_role) !== 'customer') {
+            continue
+          }
+          existingCustomerValues.set(String(r.field_key), String(r.value_text ?? ''))
+        }
+        for (const k of confirmationFieldInputMap.keys()) {
+          if (!allowedFieldKeys.has(k)) {
+            res.status(400).json({
+              success: false,
+              code: 'invalid_confirmation_field_key',
+              message: `확인서 항목에 없는 fieldKey입니다: ${k}`,
+            })
+            return
+          }
+          const def = confirmationFieldRows.find((r) => String(r.field_key) === k)
+          if (def && normalizeConfirmationOnlyInputRole(def.input_role) !== 'customer') {
+            res.status(400).json({
+              success: false,
+              code: 'confirmation_sender_field_not_editable',
+              message: '발송자 입력 항목은 고객이 수정할 수 없습니다.',
+            })
+            return
+          }
+        }
+        for (const [k, v] of confirmationFieldInputMap.entries()) {
+          existingCustomerValues.set(k, String(v ?? ''))
+        }
+        for (const def of confirmationFieldRows) {
+          if (normalizeConfirmationOnlyInputRole(def.input_role) !== 'customer') {
+            continue
+          }
+          if (!Boolean(def.required)) {
+            continue
+          }
+          const valueText = String(existingCustomerValues.get(String(def.field_key)) ?? '')
+          if (valueText.trim() === '') {
+            res.status(400).json({
+              success: false,
+              code: 'confirmation_customer_required_missing',
+              message: `필수 확인서 항목「${String(def.label ?? def.field_key)}」값을 입력해 주세요.`,
+            })
+            return
+          }
+        }
         const confQ = await pool.query(
           `
           SELECT id, label, required
@@ -1890,21 +2096,78 @@ export function registerContractPublicApi(apiRouter, ctx) {
           `,
           [session.id],
         )
-        const allowed = new Set(confQ.rows.map((x) => String(x.id)))
-        for (const cid of confirmationCheckedSet) {
-          if (!allowed.has(cid)) {
-            res.status(400).json({
-              success: false,
-              code: 'invalid_confirmation_selection',
-              message: '선택한 확인 항목이 유효하지 않습니다.',
-            })
-            return
+        if (hasCheckedItemsInBody) {
+          const allowed = new Set(confQ.rows.map((x) => String(x.id)))
+          for (const cid of confirmationCheckedSet) {
+            if (!allowed.has(cid)) {
+              res.status(400).json({
+                success: false,
+                code: 'invalid_confirmation_selection',
+                message: '선택한 확인 항목이 유효하지 않습니다.',
+              })
+              return
+            }
           }
         }
         const client = await pool.connect()
         try {
           await client.query('BEGIN')
-          await upsertConfirmationValuesForComplete(client, session.id, confirmationCheckedSet, confQ.rows)
+          if (confirmationFieldInputMap.size > 0) {
+            for (const [fieldKey, valueText] of confirmationFieldInputMap.entries()) {
+              const ex = await client.query(
+                `
+                SELECT id
+                FROM contract_send_session_confirmation_field_values
+                WHERE send_session_id = $1 AND template_id = $2 AND field_key = $3
+                LIMIT 1
+                `,
+                [String(session.id), String(docMeta.rows[0].template_id), fieldKey],
+              )
+              if (ex.rowCount > 0) {
+                await client.query(
+                  `
+                  UPDATE contract_send_session_confirmation_field_values
+                  SET value_text = $1, updated_at = NOW()
+                  WHERE id = $2
+                  `,
+                  [String(valueText ?? ''), String(ex.rows[0].id)],
+                )
+              } else {
+                await client.query(
+                  `
+                  INSERT INTO contract_send_session_confirmation_field_values (
+                    id, send_session_id, template_id, field_key, value_text, created_at, updated_at
+                  )
+                  VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+                  `,
+                  [
+                    `csscfv_${randomUUID()}`,
+                    String(session.id),
+                    String(docMeta.rows[0].template_id),
+                    fieldKey,
+                    String(valueText ?? ''),
+                  ],
+                )
+              }
+            }
+          }
+          if (hasAckInBody) {
+            await upsertDocumentValue(
+              client,
+              docId,
+              {
+                id: CONFIRMATION_ONLY_CONTENT_ACK_FIELD_KEY,
+                field_key: CONFIRMATION_ONLY_CONTENT_ACK_FIELD_KEY,
+                field_type: 'checkbox',
+              },
+              confirmationContentAck ? 'true' : 'false',
+              null,
+              null,
+            )
+          }
+          if (hasCheckedItemsInBody) {
+            await upsertConfirmationValuesForComplete(client, session.id, confirmationCheckedSet, confQ.rows)
+          }
           await client.query(
             `
             UPDATE contract_document_instances
@@ -1934,7 +2197,11 @@ export function registerContractPublicApi(apiRouter, ctx) {
         } finally {
           client.release()
         }
-        res.status(200).json({ success: true, data: { saved: true } })
+        const persistedAck = hasAckInBody ? confirmationContentAck : existingContentAck
+        res.status(200).json({
+          success: true,
+          data: { saved: true, confirmationContentAcknowledged: persistedAck },
+        })
         return
       }
 
@@ -2305,15 +2572,27 @@ export function registerContractPublicApi(apiRouter, ctx) {
         allowsDocumentMutation(sendStatus, idStatus) && String(doc.status ?? '') !== 'completed'
 
       if (contractTemplateMode === 'confirmation_only') {
-        const rawConf = await listSendSessionConfirmationFieldValuesForPublic(
+        const rawConf = await listConfirmationOnlyFieldRowsWithRole(
           pool,
           String(row.id),
           String(doc.template_id),
         )
+        const ackR = await pool.query(
+          `
+          SELECT value_text
+          FROM contract_document_values
+          WHERE document_instance_id = $1 AND field_key = $2
+          LIMIT 1
+          `,
+          [docId, CONFIRMATION_ONLY_CONTENT_ACK_FIELD_KEY],
+        )
+        const confirmationContentAcknowledged = String(ackR.rows[0]?.value_text ?? '').trim() === 'true'
+        const contentStatus = computeConfirmationOnlyContentCompletion(rawConf, confirmationContentAcknowledged)
         const confirmationFields = rawConf.map((r) => ({
           fieldKey: String(r.field_key),
           label: String(r.label ?? ''),
           inputType: String(r.input_type ?? 'text'),
+          inputRole: normalizeConfirmationOnlyInputRole(r.input_role),
           required: Boolean(r.required),
           sortOrder: Number(r.sort_order ?? 0),
           placeholder: r.placeholder != null ? String(r.placeholder) : null,
@@ -2336,14 +2615,13 @@ export function registerContractPublicApi(apiRouter, ctx) {
           : null
         const docSt = String(doc.status ?? '')
         const docCompleted = docSt === 'completed'
-        const requiredFieldValsOk = rawConf.every((r) => !r.required || String(r.value_text ?? '').trim() !== '')
         const confItemsOk =
           confirmationItems.length === 0 || confirmationItems.every((it) => !it.required || it.checked)
         const attOk =
           sendSessionAttachments.length === 0 ||
           sendSessionAttachments.every((a) => !a.required || a.confirmed)
         const completionAvailable =
-          !docCompleted && canEdit && requiredFieldValsOk && confItemsOk && attOk && hasSig
+          !docCompleted && canEdit && contentStatus.complete && confItemsOk && attOk && hasSig
         const hasSignedPdf = doc.signed_pdf_file_id != null && String(doc.signed_pdf_file_id).trim() !== ''
         const signedPdfDownloadPath =
           docCompleted && hasSignedPdf
@@ -2385,6 +2663,8 @@ export function registerContractPublicApi(apiRouter, ctx) {
               originalPdfHash: doc.original_pdf_hash ? String(doc.original_pdf_hash) : null,
             },
             confirmationFields,
+            confirmationContentAcknowledged,
+            customerInputComplete: contentStatus.customerRequiredComplete,
             confirmationSignature: {
               exists: hasSig,
               fileId: hasSig ? String(sigFileId) : null,
