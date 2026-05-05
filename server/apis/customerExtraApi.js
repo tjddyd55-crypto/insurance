@@ -14,6 +14,7 @@ import {
   r2GetPresignedPutUrl,
 } from '../lib/consentStorage.js'
 import { recalculateStorageUsedForGa } from '../lib/storageUsedRecalculate.js'
+import { stripR2ObjectRootIfPresent, withR2ObjectRoot } from '../lib/r2KeyPolicy.js'
 import { runStorageUploadOrphanCleanup } from '../lib/storageOrphanCleanup.js'
 
 const CONSULTATION_BODY_MAX = 20000
@@ -205,11 +206,12 @@ function buildStorageObjectKey(gaIdPath, userId, fileNameRaw) {
   const userSeg = sanitizeUserIdForObjectKeySegment(userId)
   const safeName = sanitizeStorageFileNameForObjectKey(fileNameRaw)
   const ts = Date.now()
-  return `insurer/${gaIdPath}/${userSeg}/${ts}-${safeName}`
+  const relative = `insurer/${gaIdPath}/${userSeg}/${ts}-${safeName}`
+  return withR2ObjectRoot(relative)
 }
 
 function assertStorageObjectKey(key, gaPathCandidates, userId) {
-  const k = String(key ?? '').replace(/^\//, '')
+  const k = stripR2ObjectRootIfPresent(String(key ?? '').replace(/^\//, ''))
   if (!k || k.includes('..')) {
     return false
   }
