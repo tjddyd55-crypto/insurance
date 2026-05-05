@@ -66,6 +66,7 @@ import TenantsListPage from './features/platform/pages/tenants/TenantsListPage'
 import MembershipsListPage from './features/platform/pages/memberships/MembershipsListPage'
 import ExternalAccountsSummaryPage from './features/platform/pages/external-accounts/ExternalAccountsSummaryPage'
 import CustomerTemplatesPage from './features/platform/pages/customer-templates/CustomerTemplatesPage'
+import PlatformRegistriesPage from './features/platform/pages/registries/PlatformRegistriesPage'
 import InsurerSitesPage from './features/insurer-sites/pages/InsurerSitesPage'
 import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
 import { SuperAdminRoute } from './features/auth/SuperAdminRoute'
@@ -299,6 +300,10 @@ export const appRouter = createBrowserRouter([
                   {
                     path: 'admin/platform/customer-templates',
                     element: <CustomerTemplatesPage />,
+                  },
+                  {
+                    path: 'admin/platform/registries',
+                    element: <PlatformRegistriesPage />,
                   },
                 ],
               },

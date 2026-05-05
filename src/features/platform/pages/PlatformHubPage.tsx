@@ -28,6 +28,11 @@ const hubCards = [
     title: '고객관리 템플릿',
     description: '업종별 고객 템플릿 조회(정적)',
   },
+  {
+    to: '/admin/platform/registries',
+    title: '필드·기능 레지스트리',
+    description: 'Customer Field · Feature Module 정적 레지스트리',
+  },
 ] as const
 
 export type PlatformHubViewProps = {

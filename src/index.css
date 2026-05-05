@@ -10540,3 +10540,66 @@ textarea.memo-sticky-note__textarea::placeholder {
 .platform-admin-page__dense-list .platform-admin-page__mono {
   font-size: 12px;
 }
+
+/* ── Platform Registries (/admin/platform/registries) — modifier-scoped ── */
+
+.platform-registries-page--pc .platform-registries-page__summaries {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.platform-registries-page--mobile .platform-registries-page__compact-summary + .platform-registries-page__compact-summary {
+  margin-top: 10px;
+}
+
+.platform-registries-page--pc .platform-registries-page__domain-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.platform-registries-page--pc .platform-registries-page__domain-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary, #e5e7eb);
+}
+
+.platform-registries-page--pc .platform-registries-page__domain-list li,
+.platform-registries-page--mobile .platform-registries-page__domain-list--mobile li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.platform-registries-page--mobile .platform-registries-page__domain-list--mobile {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary, #e5e7eb);
+}
+
+.platform-registries-page--pc .platform-registries-page__registry-block + .platform-registries-page__registry-block {
+  margin-top: 28px;
+}
+
+.platform-registries-page--mobile .platform-registries-page__registry-title {
+  margin-top: 20px;
+}
+
+.platform-registries-page--mobile .platform-registries-page__mobile-table {
+  overflow-x: auto;
+  margin-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
+}
