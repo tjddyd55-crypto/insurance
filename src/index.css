@@ -10490,3 +10490,53 @@ textarea.memo-sticky-note__textarea::placeholder {
   margin: 12px 0 0;
   font-size: 12px;
 }
+
+.platform-admin-page--pc .platform-admin-page__subhead {
+  margin: 24px 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #f8fafc);
+}
+
+.platform-admin-page--mobile .platform-admin-page__subhead {
+  margin: 16px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #f8fafc);
+}
+
+.platform-admin-page--pc .platform-admin-page__template-detail {
+  margin-top: 28px;
+}
+
+.platform-admin-page--mobile .platform-admin-page__template-detail--mobile {
+  margin-top: 16px;
+}
+
+.platform-admin-page__mono-list {
+  margin: 0 0 12px;
+  padding-left: 1.25rem;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace;
+  font-size: 12px;
+  color: var(--text-secondary, #e5e7eb);
+  line-height: 1.5;
+}
+
+.platform-admin-page__dense-list {
+  margin: 0 0 12px;
+  padding-left: 1.1rem;
+  font-size: 12px;
+  color: var(--text-secondary, #e5e7eb);
+  line-height: 1.45;
+}
+
+.platform-admin-page__dense-list .platform-admin-page__mono {
+  font-size: 12px;
+}

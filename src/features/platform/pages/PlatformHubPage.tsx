@@ -23,6 +23,11 @@ const hubCards = [
     title: '보험 외부 계정 요약',
     description: '원수사 담당·손해사정사 건수 (yjasset)',
   },
+  {
+    to: '/admin/platform/customer-templates',
+    title: '고객관리 템플릿',
+    description: '업종별 고객 템플릿 조회(정적)',
+  },
 ] as const
 
 export type PlatformHubViewProps = {
