@@ -1,48 +1,5 @@
 import { apiRequest, resolveApiUrl, ApiError } from '../../../lib/apiClient'
 
-function normalizePublicPdfFetchPath(pathFromApi: string): string {
-  const t = String(pathFromApi ?? '').trim()
-  if (!t) {
-    return t
-  }
-  if (/^https?:\/\//i.test(t)) {
-    return t
-  }
-  if (t.startsWith('/api/')) {
-    return t
-  }
-  if (t.startsWith('/')) {
-    return `/api${t}`
-  }
-  return `/api/${t}`
-}
-
-/**
- * 공개 세션 쿠키로 보호된 완료 PDF URL을, 사용자 클릭 직후 동기적으로 연다.
- *
- * fetch → blob → 프로그램적 저장은 비동기 이후에 실행되어 모바일 Safari 등에서
- * 다운로드가 조용히 막히는 경우가 있어, 최상위 GET(쿠키 자동 전달)로 통일한다.
- */
-export function downloadPublicContractPdf(pathFromApi: string): void {
-  const path = normalizePublicPdfFetchPath(pathFromApi)
-  if (!path) {
-    throw new Error('다운로드 경로가 없습니다.')
-  }
-  const url = resolveApiUrl(path)
-  const a = document.createElement('a')
-  a.href = url
-  const name = String(fallbackFilename ?? '').trim()
-  if (name && !name.includes('/') && !name.includes('\\')) {
-    a.setAttribute('download', name)
-  }
-  a.target = '_blank'
-  a.rel = 'noopener noreferrer'
-  a.style.display = 'none'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-}
-
 function lc(code: string) {
   return encodeURIComponent(String(code ?? '').trim())
 }

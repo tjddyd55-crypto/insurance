@@ -84,17 +84,6 @@
   margin-top: 1.25rem;
 }
 
-.contract-public-sign-page__download-error {
-  margin: 0.5rem 0 0;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--danger-border);
-  background: var(--danger-bg);
-  font-size: 0.8125rem;
-  line-height: 1.45;
-  color: var(--danger-text);
-}
-
 .contract-public-sign-page__co-final-cta {
   min-height: 48px;
 }
@@ -650,8 +639,7 @@
   border-left-color: var(--border);
 }
 
-.contract-public-sign-page__step-card--completed,
-.contract-public-sign-page__step-card--done {
+.contract-public-sign-page__step-card--completed {
   border-left-color: rgba(22, 163, 74, 0.88);
   box-shadow: none;
 }
