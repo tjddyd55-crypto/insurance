@@ -14,7 +14,11 @@ import {
   r2GetPresignedPutUrl,
 } from '../lib/consentStorage.js'
 import { recalculateStorageUsedForGa } from '../lib/storageUsedRecalculate.js'
-import { stripR2ObjectRootIfPresent, withR2ObjectRoot } from '../lib/r2KeyPolicy.js'
+import {
+  isR2ObjectRootEnabled,
+  stripR2ObjectRootIfPresent,
+  withR2ObjectRoot,
+} from '../lib/r2KeyPolicy.js'
 import { runStorageUploadOrphanCleanup } from '../lib/storageOrphanCleanup.js'
 
 const CONSULTATION_BODY_MAX = 20000
@@ -206,7 +210,9 @@ function buildStorageObjectKey(gaIdPath, userId, fileNameRaw) {
   const userSeg = sanitizeUserIdForObjectKeySegment(userId)
   const safeName = sanitizeStorageFileNameForObjectKey(fileNameRaw)
   const ts = Date.now()
-  const relative = `insurer/${gaIdPath}/${userSeg}/${ts}-${safeName}`
+  const relative = isR2ObjectRootEnabled()
+    ? `files/${userSeg}/${ts}-${safeName}`
+    : `insurer/${gaIdPath}/${userSeg}/${ts}-${safeName}`
   return withR2ObjectRoot(relative)
 }
 
@@ -216,6 +222,15 @@ function assertStorageObjectKey(key, gaPathCandidates, userId) {
     return false
   }
   const userSeg = sanitizeUserIdForObjectKeySegment(userId)
+
+  const crmFilesPrefix = `files/${userSeg}/`
+  if (k.startsWith(crmFilesPrefix)) {
+    const fileSeg = k.slice(crmFilesPrefix.length)
+    if (!fileSeg.includes('/') && /^\d+-.+/.test(fileSeg)) {
+      return true
+    }
+  }
+
   const candidates = Array.isArray(gaPathCandidates)
     ? gaPathCandidates.map((v) => String(v ?? '').trim()).filter(Boolean)
     : []

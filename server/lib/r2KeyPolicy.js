@@ -3,6 +3,7 @@
  *
  * - CRM_R2_OBJECT_ROOT 가 비어 있으면(withR2ObjectRoot) 기존 상대키와 바이트 동일 패스스루.
  * - 값이 있으면 신규 업로드 키 앞에 root를 붙인다(production에서는 env 미설정으로 동작 변경 없음).
+ *   상대키 형태(insurer/, files/, insurer-news/ 등)는 각 도메인 모듈이 root 활성 여부에 따라 선택한다.
  * - 읽기/삭제 호출측은 DB 저장 키를 그대로 쓴다(strip은 assert 등 검증 단계에서만 사용).
  */
 
