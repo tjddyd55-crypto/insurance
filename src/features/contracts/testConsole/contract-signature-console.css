@@ -1128,6 +1128,27 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   font-size: 0.78em;
 }
 
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-role-help {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-role-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.42rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel-soft, var(--panel)) 85%, transparent);
+  color: var(--text-main);
+  font-size: 0.74rem;
+  line-height: 1.3;
+}
+
 main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-actions {
   display: flex;
   flex-wrap: wrap;

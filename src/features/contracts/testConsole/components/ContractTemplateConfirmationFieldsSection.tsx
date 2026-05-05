@@ -8,6 +8,7 @@ import {
   listContractTemplateConfirmationFields,
   updateContractTemplateConfirmationField,
   type ContractTemplateConfirmationField,
+  type ContractTemplateConfirmationFieldInputRole,
   type ContractTemplateConfirmationFieldInputType,
   type CreateContractTemplateConfirmationFieldInput,
   type UpdateContractTemplateConfirmationFieldInput,
@@ -29,11 +30,25 @@ const INPUT_TYPE_OPTIONS: Array<{ value: ContractTemplateConfirmationFieldInputT
   { value: 'date', label: '날짜' },
 ]
 
+const INPUT_ROLE_OPTIONS: Array<{ value: ContractTemplateConfirmationFieldInputRole; label: string }> = [
+  { value: 'sender', label: '발송자 입력' },
+  { value: 'customer', label: '고객 입력' },
+]
+
+function normalizeInputRole(raw: unknown): ContractTemplateConfirmationFieldInputRole {
+  return raw === 'customer' ? 'customer' : 'sender'
+}
+
+function inputRoleLabel(role: unknown): string {
+  return normalizeInputRole(role) === 'customer' ? '고객 입력' : '발송자 입력'
+}
+
 function emptyCreateDraft(): CreateContractTemplateConfirmationFieldInput {
   return {
     label: '',
     fieldKey: undefined,
     inputType: 'text',
+    inputRole: 'sender',
     required: false,
     sortOrder: undefined,
     placeholder: null,
@@ -45,6 +60,7 @@ function toUpdateDraft(row: ContractTemplateConfirmationField): UpdateContractTe
   return {
     label: row.label,
     inputType: row.inputType,
+    inputRole: normalizeInputRole(row.inputRole),
     required: row.required,
     sortOrder: row.sortOrder,
     placeholder: row.placeholder,
@@ -165,6 +181,22 @@ export function ContractTemplateConfirmationFieldsSection({
                   }}
                 />
               </label>
+              <label className="contract-signature-console__conf-label">
+                입력 주체
+                <FormSelect
+                  value={normalizeInputRole(createDraft.inputRole)}
+                  disabled={busy}
+                  options={INPUT_ROLE_OPTIONS}
+                  onChange={(e) => {
+                    setCreateDraft((d) => ({ ...d, inputRole: normalizeInputRole(e.target.value) }))
+                  }}
+                />
+                <span className="contract-signature-console__conf-role-help">
+                  {normalizeInputRole(createDraft.inputRole) === 'customer'
+                    ? '고객 입력: 고객이 공개 링크에서 직접 입력합니다.'
+                    : '발송자 입력: 발송자가 값을 입력하고 고객은 확인합니다.'}
+                </span>
+              </label>
               <label className="contract-signature-console__conf-label contract-signature-console__conf-label--checkbox">
                 <FormInput
                   type="checkbox"
@@ -243,6 +275,7 @@ export function ContractTemplateConfirmationFieldsSection({
                         ...createDraft,
                         label,
                         fieldKey: createDraft.fieldKey?.trim() || undefined,
+                        inputRole: normalizeInputRole(createDraft.inputRole),
                       }
                       await createContractTemplateConfirmationField(token, role, templateId, payload, tenantGaId)
                       setAddOpen(false)
@@ -294,6 +327,22 @@ export function ContractTemplateConfirmationFieldsSection({
                           }
                         }}
                       />
+                    </label>
+                    <label className="contract-signature-console__conf-label">
+                      입력 주체
+                      <FormSelect
+                        value={normalizeInputRole(editDraft.inputRole)}
+                        disabled={busy}
+                        options={INPUT_ROLE_OPTIONS}
+                        onChange={(e) => {
+                          setEditDraft((d) => (d ? { ...d, inputRole: normalizeInputRole(e.target.value) } : d))
+                        }}
+                      />
+                      <span className="contract-signature-console__conf-role-help">
+                        {normalizeInputRole(editDraft.inputRole) === 'customer'
+                          ? '고객 입력: 고객이 공개 링크에서 직접 입력합니다.'
+                          : '발송자 입력: 발송자가 값을 입력하고 고객은 확인합니다.'}
+                      </span>
                     </label>
                     <label className="contract-signature-console__conf-label contract-signature-console__conf-label--checkbox">
                       <FormInput
@@ -371,6 +420,7 @@ export function ContractTemplateConfirmationFieldsSection({
                             const payload: UpdateContractTemplateConfirmationFieldInput = {
                               label,
                               inputType: editDraft.inputType,
+                              inputRole: normalizeInputRole(editDraft.inputRole),
                               required: editDraft.required,
                               sortOrder: editDraft.sortOrder,
                               placeholder: editDraft.placeholder,
@@ -406,6 +456,10 @@ export function ContractTemplateConfirmationFieldsSection({
                       <code>{row.fieldKey}</code>
                       <span> · </span>
                       <span>{row.inputType}</span>
+                      <span> · </span>
+                      <span className="contract-signature-console__conf-role-chip">
+                        {inputRoleLabel(row.inputRole)}
+                      </span>
                       <span> · </span>
                       <span>순서 {row.sortOrder}</span>
                       <span> · </span>
