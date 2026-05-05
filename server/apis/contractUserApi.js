@@ -65,6 +65,17 @@ function parseConfirmationFieldValuesFromBody(raw) {
   return { ok: true, map }
 }
 
+/**
+ * confirmation_only 필드 입력 주체 정규화.
+ * - customer면 customer
+ * - 그 외/null/이상값은 sender
+ * @param {unknown} raw
+ * @returns {'sender' | 'customer'}
+ */
+function normalizeConfirmationFieldInputRole(raw) {
+  return String(raw ?? '').trim() === 'customer' ? 'customer' : 'sender'
+}
+
 function newId(prefix) {
   return `${prefix}${randomUUID()}`
 }
@@ -766,7 +777,7 @@ export function registerContractUserApi(apiRouter, ctx) {
           }
           const fr = await client.query(
             `
-            SELECT field_key, required, sort_order, id
+            SELECT field_key, required, sort_order, id, input_role
             FROM contract_template_confirmation_fields
             WHERE template_id = $1
             ORDER BY sort_order ASC, id ASC
@@ -782,7 +793,13 @@ export function registerContractUserApi(apiRouter, ctx) {
             return
           }
           const defs = fr.rows
-          const allowed = new Set(defs.map((r) => String(r.field_key)))
+          /** @type {Map<string, 'sender' | 'customer'>} */
+          const roleByFieldKey = new Map()
+          for (const def of defs) {
+            const fk = String(def.field_key)
+            roleByFieldKey.set(fk, normalizeConfirmationFieldInputRole(def.input_role))
+          }
+          const allowed = new Set(roleByFieldKey.keys())
           for (const k of confFieldParsed.map.keys()) {
             if (!allowed.has(k)) {
               await client.query('ROLLBACK')
@@ -792,10 +809,22 @@ export function registerContractUserApi(apiRouter, ctx) {
               })
               return
             }
+            if (roleByFieldKey.get(k) === 'customer') {
+              await client.query('ROLLBACK')
+              res.status(400).json({
+                ok: false,
+                message: '고객 입력 항목은 발송 시 값을 입력할 수 없습니다.',
+              })
+              return
+            }
           }
           const rowsToInsert = []
           for (const def of defs) {
             const fk = String(def.field_key)
+            const inputRole = normalizeConfirmationFieldInputRole(def.input_role)
+            if (inputRole === 'customer') {
+              continue
+            }
             const rawVal = confFieldParsed.map.has(fk) ? confFieldParsed.map.get(fk) : ''
             const text = rawVal == null ? '' : String(rawVal)
             if (def.required && text.trim() === '') {
