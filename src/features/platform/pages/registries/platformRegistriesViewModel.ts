@@ -2,15 +2,21 @@ import type {
   CustomerFieldRegistryEntry,
   FeatureModuleRegistryEntry,
   CustomerFieldRegistryDomain,
+  ListColumnRegistryEntry,
 } from '../../../customer-templates/registry/customerTemplateRegistry.types'
 
-/** field·feature 레지스트리 status 집합(동일) */
+/** field·feature·list-column 레지스트리 status 집합(동일) */
 export type RegistryItemStatus = 'active' | 'preview' | 'deprecated'
 
 export type StatusTotals = Readonly<Record<RegistryItemStatus, number>>
 
 export interface DomainTotalRow {
   readonly domain: CustomerFieldRegistryDomain | string
+  readonly count: number
+}
+
+export interface BucketCountRow {
+  readonly bucket: string
   readonly count: number
 }
 
@@ -54,6 +60,41 @@ export function countDomainsFromFeatures(
     .map(([domain, count]) => ({ domain, count }))
 }
 
+export function sortListColumns(
+  cols: Iterable<ListColumnRegistryEntry>,
+): ListColumnRegistryEntry[] {
+  return [...cols].sort((a, b) => a.columnKey.localeCompare(b.columnKey))
+}
+
+/** 리스트 컬럼 카탈로그 — 한 컬럼이 여러 domain이면 각 domain에 카운트 */
+export function countDomainsFromListColumns(
+  cols: Iterable<ListColumnRegistryEntry>,
+): DomainTotalRow[] {
+  const acc = new Map<string, number>()
+  for (const c of cols) {
+    for (const d of c.domains) {
+      acc.set(d, (acc.get(d) ?? 0) + 1)
+    }
+  }
+  return [...acc.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([domain, count]) => ({ domain, count }))
+}
+
+/** sourceType 마다 카탈로그 행 수 */
+export function countSourceTypesFromListColumns(
+  cols: Iterable<ListColumnRegistryEntry>,
+): BucketCountRow[] {
+  const acc = new Map<string, number>()
+  for (const c of cols) {
+    const k = c.sourceType
+    acc.set(k, (acc.get(k) ?? 0) + 1)
+  }
+  return [...acc.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([bucket, count]) => ({ bucket, count }))
+}
+
 export function countByStatus<const T extends { readonly status: RegistryItemStatus }>(
   items: Iterable<T>,
 ): StatusTotals {
@@ -68,10 +109,14 @@ export function countByStatus<const T extends { readonly status: RegistryItemSta
 export interface PlatformRegistriesViewProps {
   readonly fieldsSorted: CustomerFieldRegistryEntry[]
   readonly featuresSorted: FeatureModuleRegistryEntry[]
+  readonly listColumnsSorted: ListColumnRegistryEntry[]
   readonly fieldTotals: Readonly<{ total: number; byStatus: StatusTotals }>
   readonly featureTotals: Readonly<{ total: number; byStatus: StatusTotals }>
+  readonly listColumnTotals: Readonly<{ total: number; byStatus: StatusTotals }>
   readonly fieldDomains: DomainTotalRow[]
   readonly featureDomains: DomainTotalRow[]
+  readonly listColumnDomains: DomainTotalRow[]
+  readonly listColumnSourceTypes: BucketCountRow[]
 }
 
 export function storageMappingKind(mapping: CustomerFieldRegistryEntry['storageMapping']): string {
