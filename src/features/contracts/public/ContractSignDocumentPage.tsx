@@ -107,6 +107,8 @@ function buildCoordinatePdfStepState(
   drafts: Record<string, string | boolean>,
   confirmationChecks: Record<string, boolean>,
   finalPreviewConfirmed: boolean,
+  /** 좌표형 3단계 완료에 포함: 서명 저장과 별도로 진술 체크 필요 */
+  signAck: boolean,
 ): {
   input: PublicStepSlice
   checks: PublicStepSlice
@@ -128,7 +130,8 @@ function buildCoordinatePdfStepState(
 
   /** 손사인 필수 정책: 슬롯 유무와 관계없이 서명 단계는 skipped 하지 않는다. */
   const sigHasWork = true
-  const sigComplete = signatureRequirementsComplete(detail)
+  const sigSignedComplete = signatureRequirementsComplete(detail)
+  const sigComplete = sigSignedComplete && signAck
 
   const finalHasWork = true
   const finalComplete = finalPreviewConfirmed
@@ -553,6 +556,7 @@ export default function ContractSignDocumentPage() {
   const confirmationChecksRef = useRef<Record<string, boolean>>({})
   const draftsRef = useRef<Record<string, string | boolean>>({})
   const finalPreviewConfirmedRef = useRef(false)
+  const signAckRef = useRef(false)
 
   const coRefConfirmChecksSection = useRef<HTMLDivElement | null>(null)
   const coRefConfirmAttachSection = useRef<HTMLDivElement | null>(null)
@@ -624,6 +628,7 @@ export default function ContractSignDocumentPage() {
         draftsSnapshot,
         checksMap,
         finalPreviewConfirmedRef.current,
+        signAckRef.current,
       )
       if (d.document.status === 'completed') {
         scrollToPublicStepElement(pdfRefCompletedPanel.current)
@@ -645,6 +650,21 @@ export default function ContractSignDocumentPage() {
     },
     [],
   )
+
+  useEffect(() => {
+    signAckRef.current = signAck
+  }, [signAck])
+
+  /** 좌표형: 진술 체크 해제 시 최종 확인·전송 동의 상태를 남기지 않는다. */
+  useEffect(() => {
+    if (signAck) {
+      return
+    }
+    setFinalPreviewConfirmed(false)
+    setFinalSubmitAcknowledged(false)
+    finalPreviewConfirmedRef.current = false
+    setFinalReviewOpen(false)
+  }, [signAck])
 
   const scrollAfterAttachmentPatch = useCallback(
     (nextDetail: ContractDocumentDetailPayload) => {
@@ -843,8 +863,8 @@ export default function ContractSignDocumentPage() {
     if (!detail || (detail.templateMode ?? 'coordinate_pdf') === 'confirmation_only') {
       return null
     }
-    return buildCoordinatePdfStepState(detail, drafts, confirmationChecks, finalPreviewConfirmed)
-  }, [detail, drafts, confirmationChecks, finalPreviewConfirmed])
+    return buildCoordinatePdfStepState(detail, drafts, confirmationChecks, finalPreviewConfirmed, signAck)
+  }, [detail, drafts, confirmationChecks, finalPreviewConfirmed, signAck])
 
   const confirmationStepState = useMemo(() => {
     if (!detail || (detail.templateMode ?? 'coordinate_pdf') !== 'confirmation_only') {
@@ -881,6 +901,26 @@ export default function ContractSignDocumentPage() {
   const coordinateStep3Locked = Boolean(coordinateStepState?.signature.status === 'pending')
   const coordinateStep4Locked = Boolean(coordinateStepState?.finalReview.status === 'pending')
   const coordinateStep5Locked = Boolean(coordinateStepState?.submit.status === 'pending')
+
+  const handleCoordinateSignAckChange = useCallback((checked: boolean) => {
+    setSignAck(checked)
+    if (!checked || !detail || (detail.templateMode ?? 'coordinate_pdf') === 'confirmation_only') {
+      return
+    }
+    window.requestAnimationFrame(() => {
+      const merged = mergeDraftsFromDetail(draftsRef.current, detail)
+      const st = buildCoordinatePdfStepState(
+        detail,
+        merged,
+        confirmationChecksRef.current,
+        finalPreviewConfirmedRef.current,
+        true,
+      )
+      if (st.finalReview.isActive) {
+        scrollToPublicStepElement(pdfRefStep4.current)
+      }
+    })
+  }, [detail])
 
   const coConfirmCardStatus: PublicStepStatus =
     confirmationStepState != null
@@ -1981,7 +2021,7 @@ export default function ContractSignDocumentPage() {
                                 type="checkbox"
                                 checked={signAck}
                                 disabled={coordinateStep3Locked}
-                                onChange={(ev) => setSignAck(ev.target.checked)}
+                                onChange={(ev) => handleCoordinateSignAckChange(ev.target.checked)}
                                 className="mt-0.5"
                               />
                               <span>본인은 본 계약서가 본인에게 발송된 문서임을 확인하고, 전자서명합니다.</span>
@@ -2003,7 +2043,7 @@ export default function ContractSignDocumentPage() {
                                 type="checkbox"
                                 checked={signAck}
                                 disabled={coordinateStep3Locked}
-                                onChange={(ev) => setSignAck(ev.target.checked)}
+                                onChange={(ev) => handleCoordinateSignAckChange(ev.target.checked)}
                                 className="mt-0.5"
                               />
                               <span>본인은 본 계약서가 본인에게 발송된 문서임을 확인하고, 전자서명합니다.</span>
