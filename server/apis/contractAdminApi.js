@@ -34,6 +34,7 @@ const CDI_PREFIX = 'cdi_'
 const ALLOWED_TEMPLATE_STATUS = new Set(['draft', 'active', 'archived'])
 const TERMINAL_SESSION = new Set(['expired', 'cancelled', 'completed'])
 const ALLOWED_CONFIRMATION_FIELD_INPUT_TYPES = new Set(['text', 'textarea', 'number', 'date'])
+const ALLOWED_CONFIRMATION_FIELD_INPUT_ROLES = new Set(['sender', 'customer'])
 
 /**
  * @param {unknown} row
@@ -129,11 +130,17 @@ async function nextConfirmationFieldSortOrder(client, templateId) {
  * @param {Record<string, unknown>} row
  */
 export function mapConfirmationFieldRow(row) {
+  const inputRoleRaw = row.input_role
+  const inputRole =
+    inputRoleRaw != null && ALLOWED_CONFIRMATION_FIELD_INPUT_ROLES.has(String(inputRoleRaw).trim())
+      ? String(inputRoleRaw).trim()
+      : 'sender'
   return {
     id: row.id,
     fieldKey: row.field_key,
     label: row.label,
     inputType: row.input_type,
+    inputRole,
     required: Boolean(row.required),
     sortOrder: Number(row.sort_order ?? 0),
     placeholder: row.placeholder ?? null,
@@ -1087,6 +1094,18 @@ export function registerContractAdminApi(apiRouter, ctx) {
         })
         return
       }
+      const inputRoleRaw = req.body?.inputRole ?? req.body?.input_role
+      const inputRole =
+        inputRoleRaw === undefined || inputRoleRaw === null || inputRoleRaw === ''
+          ? 'sender'
+          : String(inputRoleRaw).trim()
+      if (!ALLOWED_CONFIRMATION_FIELD_INPUT_ROLES.has(inputRole)) {
+        res.status(400).json({
+          ok: false,
+          message: 'inputRole은 sender, customer 중 하나여야 합니다.',
+        })
+        return
+      }
       const required = normalizeConfirmationRequired(req.body?.required)
       let ph = null
       if (req.body?.placeholder !== undefined) {
@@ -1141,12 +1160,12 @@ export function registerContractAdminApi(apiRouter, ctx) {
         await client.query(
           `
           INSERT INTO contract_template_confirmation_fields (
-            id, template_id, field_key, label, input_type, required, sort_order, placeholder, help_text,
+            id, template_id, field_key, label, input_type, input_role, required, sort_order, placeholder, help_text,
             created_at, updated_at
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
           `,
-          [id, tpl.id, fieldKey, label, inputType, required, sortOrder, ph, ht],
+          [id, tpl.id, fieldKey, label, inputType, inputRole, required, sortOrder, ph, ht],
         )
       } catch (e) {
         if (/** @type {{ code?: string }} */ (e)?.code === '23505') {
@@ -1230,6 +1249,18 @@ export function registerContractAdminApi(apiRouter, ctx) {
         }
         params.push(it)
         sets.push(`input_type = $${params.length}`)
+      }
+      if (req.body?.inputRole !== undefined || req.body?.input_role !== undefined) {
+        const ir = String(req.body?.inputRole ?? req.body?.input_role ?? '').trim()
+        if (!ALLOWED_CONFIRMATION_FIELD_INPUT_ROLES.has(ir)) {
+          res.status(400).json({
+            ok: false,
+            message: 'inputRole은 sender, customer 중 하나여야 합니다.',
+          })
+          return
+        }
+        params.push(ir)
+        sets.push(`input_role = $${params.length}`)
       }
       if (req.body?.required !== undefined) {
         params.push(normalizeConfirmationRequired(req.body?.required))

@@ -17,12 +17,14 @@ function tenantBody(tenantGaId: number | null, isSuper: boolean): Record<string,
 }
 
 export type ContractTemplateConfirmationFieldInputType = 'text' | 'textarea' | 'number' | 'date'
+export type ContractTemplateConfirmationFieldInputRole = 'sender' | 'customer'
 
 export type ContractTemplateConfirmationField = {
   id: string
   fieldKey: string
   label: string
   inputType: ContractTemplateConfirmationFieldInputType
+  inputRole: ContractTemplateConfirmationFieldInputRole
   required: boolean
   sortOrder: number
   placeholder: string | null
@@ -35,6 +37,7 @@ export type CreateContractTemplateConfirmationFieldInput = {
   label: string
   fieldKey?: string
   inputType?: ContractTemplateConfirmationFieldInputType
+  inputRole?: ContractTemplateConfirmationFieldInputRole
   required?: boolean
   sortOrder?: number
   placeholder?: string | null
@@ -44,6 +47,7 @@ export type CreateContractTemplateConfirmationFieldInput = {
 export type UpdateContractTemplateConfirmationFieldInput = {
   label?: string
   inputType?: ContractTemplateConfirmationFieldInputType
+  inputRole?: ContractTemplateConfirmationFieldInputRole
   required?: boolean
   sortOrder?: number
   placeholder?: string | null
@@ -58,12 +62,21 @@ function coerceInputType(raw: unknown): ContractTemplateConfirmationFieldInputTy
   return 'text'
 }
 
+function coerceInputRole(raw: unknown): ContractTemplateConfirmationFieldInputRole {
+  const role = String(raw ?? 'sender').trim()
+  if (role === 'customer' || role === 'sender') {
+    return role
+  }
+  return 'sender'
+}
+
 function coerceField(raw: Record<string, unknown>): ContractTemplateConfirmationField {
   return {
     id: String(raw.id ?? ''),
     fieldKey: String(raw.fieldKey ?? raw.field_key ?? ''),
     label: String(raw.label ?? ''),
     inputType: coerceInputType(raw.inputType ?? raw.input_type),
+    inputRole: coerceInputRole(raw.inputRole ?? raw.input_role),
     required: Boolean(raw.required),
     sortOrder: Number(raw.sortOrder ?? raw.sort_order ?? 0),
     placeholder: raw.placeholder != null ? String(raw.placeholder) : null,
@@ -115,6 +128,7 @@ export async function createContractTemplateConfirmationField(
         label: payload.label,
         fieldKey: payload.fieldKey,
         inputType: payload.inputType,
+        inputRole: payload.inputRole,
         required: payload.required,
         sortOrder: payload.sortOrder,
         placeholder: payload.placeholder,
