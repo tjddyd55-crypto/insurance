@@ -1006,9 +1006,15 @@ export default function ContractSignDocumentPage() {
   }, [detail])
 
   const coConfirmCardStatus: PublicStepStatus =
-    confirmationStepState != null
-      ? mergePublicStepCardStatus(confirmationStepState.checks, confirmationStepState.attachments)
-      : 'pending'
+    confirmationStepState == null
+      ? 'pending'
+      : confirmationStepState.checks.status === 'active' || confirmationStepState.attachments.status === 'active'
+        ? 'active'
+        : confirmationStepState.checks.status === 'pending' || confirmationStepState.attachments.status === 'pending'
+          ? 'pending'
+          : confirmationStepState.checks.status === 'skipped' || confirmationStepState.attachments.status === 'skipped'
+            ? 'skipped'
+            : 'complete'
 
   const canSubmitSend =
     Boolean(detail && detail.canEdit !== false && detail.document.status !== 'completed') &&

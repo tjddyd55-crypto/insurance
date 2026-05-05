@@ -380,6 +380,7 @@ const PUBLIC_ACTION_CODE_MESSAGES: Record<string, string> = {
   confirmation_only_signature_missing: '전자서명을 저장한 뒤 최종 완료할 수 있습니다.',
   confirmation_only_field_values_not_applicable: '이 문서는 내용 확인만 가능합니다.',
   confirmation_content_ack_required: '발송자가 입력한 내용을 확인해 주세요.',
+  confirmation_customer_fields_required: '필수 확인서 항목을 입력해 주세요.',
   confirmation_customer_values_required: '필수 입력 항목을 모두 작성하고 저장해 주세요.',
   confirmation_sender_field_not_editable: '발송자 입력 항목은 고객이 수정할 수 없습니다.',
   invalid_confirmation_field_key: '확인서 항목 키가 올바르지 않습니다.',

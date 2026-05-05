@@ -850,8 +850,62 @@ async function assertConfirmationOnlyContentPreconditions(pool, sendSessionId, d
   if (!content.customerRequiredComplete) {
     return {
       ok: false,
-      code: 'confirmation_customer_values_required',
+      code: 'confirmation_customer_fields_required',
       message: '필수 입력 항목을 모두 작성하고 저장한 뒤 다음 단계로 진행할 수 있습니다.',
+    }
+  }
+  return { ok: true }
+}
+
+/**
+ * confirmation_only 서명 전 공통 게이트:
+ * - sender 내용 확인
+ * - customer 필수 입력 저장
+ * - 필수 고객 확인 체크
+ * - 필수 첨부 확인
+ * @param {import('pg').Pool} pool
+ * @param {{ sendSessionId: string, documentInstanceId: string, templateId: string }} p
+ * @returns {Promise<{ ok: true } | { ok: false, code: string, message: string }>}
+ */
+async function assertConfirmationOnlyPublicReadyForSign(pool, p) {
+  const contentGate = await assertConfirmationOnlyContentPreconditions(
+    pool,
+    p.sendSessionId,
+    p.documentInstanceId,
+    p.templateId,
+  )
+  if (!contentGate.ok) {
+    return contentGate
+  }
+  return assertConfirmationOnlySignPreconditions(pool, p.sendSessionId)
+}
+
+/**
+ * confirmation_only 최종 완료 전 공통 게이트:
+ * sign 게이트 + confirmation_signature 존재.
+ * @param {import('pg').Pool} pool
+ * @param {{ sendSessionId: string, documentInstanceId: string, templateId: string }} p
+ * @returns {Promise<{ ok: true } | { ok: false, code: string, message: string }>}
+ */
+async function assertConfirmationOnlyPublicReadyForComplete(pool, p) {
+  const signGate = await assertConfirmationOnlyPublicReadyForSign(pool, p)
+  if (!signGate.ok) {
+    return signGate
+  }
+  const sigPre = await pool.query(
+    `
+    SELECT value_file_id
+    FROM contract_document_values
+    WHERE document_instance_id = $1 AND field_key = $2
+    LIMIT 1
+    `,
+    [p.documentInstanceId, CONFIRMATION_ONLY_SIGNATURE_FIELD_KEY],
+  )
+  if (sigPre.rows[0]?.value_file_id == null || String(sigPre.rows[0].value_file_id).trim() === '') {
+    return {
+      ok: false,
+      code: 'confirmation_only_signature_missing',
+      message: '전자서명을 저장한 뒤 최종 완료할 수 있습니다.',
     }
   }
   return { ok: true }
@@ -1014,34 +1068,16 @@ export function registerContractPublicApi(apiRouter, ctx) {
           return
         }
       } else {
-        const contentGate = await assertConfirmationOnlyContentPreconditions(
-          pool,
-          String(session.id),
-          docId,
-          contractTemplateIdStr,
-        )
-        if (!contentGate.ok) {
+        const confirmationOnlyCompleteGate = await assertConfirmationOnlyPublicReadyForComplete(pool, {
+          sendSessionId: String(session.id),
+          documentInstanceId: docId,
+          templateId: contractTemplateIdStr,
+        })
+        if (!confirmationOnlyCompleteGate.ok) {
           res.status(400).json({
             success: false,
-            code: contentGate.code,
-            message: contentGate.message,
-          })
-          return
-        }
-        const sigPre = await pool.query(
-          `
-          SELECT value_file_id
-          FROM contract_document_values
-          WHERE document_instance_id = $1 AND field_key = $2
-          LIMIT 1
-          `,
-          [docId, CONFIRMATION_ONLY_SIGNATURE_FIELD_KEY],
-        )
-        if (sigPre.rows[0]?.value_file_id == null || String(sigPre.rows[0].value_file_id).trim() === '') {
-          res.status(400).json({
-            success: false,
-            code: 'confirmation_only_signature_missing',
-            message: '전자서명을 저장한 뒤 최종 완료할 수 있습니다.',
+            code: confirmationOnlyCompleteGate.code,
+            message: confirmationOnlyCompleteGate.message,
           })
           return
         }
@@ -1629,19 +1665,13 @@ export function registerContractPublicApi(apiRouter, ctx) {
       const contractTemplateModeSign = String(docMeta.rows[0].contract_template_mode ?? 'coordinate_pdf')
 
       if (contractTemplateModeSign === 'confirmation_only') {
-        const contentGate = await assertConfirmationOnlyContentPreconditions(
-          pool,
-          String(session.id),
-          docId,
-          String(docMeta.rows[0].template_id),
-        )
-        if (!contentGate.ok) {
-          res.status(400).json({ success: false, code: contentGate.code, message: contentGate.message })
-          return
-        }
-        const gate = await assertConfirmationOnlySignPreconditions(pool, session.id)
-        if (!gate.ok) {
-          res.status(400).json({ success: false, code: gate.code, message: gate.message })
+        const signGate = await assertConfirmationOnlyPublicReadyForSign(pool, {
+          sendSessionId: String(session.id),
+          documentInstanceId: docId,
+          templateId: String(docMeta.rows[0].template_id),
+        })
+        if (!signGate.ok) {
+          res.status(400).json({ success: false, code: signGate.code, message: signGate.message })
           return
         }
         const rawFid = req.body?.fieldId
@@ -2081,7 +2111,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
           if (valueText.trim() === '') {
             res.status(400).json({
               success: false,
-              code: 'confirmation_customer_required_missing',
+              code: 'confirmation_customer_fields_required',
               message: `필수 확인서 항목「${String(def.label ?? def.field_key)}」값을 입력해 주세요.`,
             })
             return
