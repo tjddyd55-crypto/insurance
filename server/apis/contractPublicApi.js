@@ -599,7 +599,14 @@ async function respondWithPdfFromFileId(pool, res, fileId, opts = {}) {
   res.setHeader('Content-Type', 'application/pdf')
   res.setHeader('Cache-Control', 'private, no-store')
   if (attachmentName) {
-    res.setHeader('Content-Disposition', `attachment; filename="${attachmentName}"`)
+    const ascii =
+      attachmentName
+        .replace(/[^\x20-\x7E]/g, '_')
+        .replace(/"/g, '_')
+        .trim()
+        .slice(0, 180) || 'document.pdf'
+    const star = encodeURIComponent(attachmentName)
+    res.setHeader('Content-Disposition', `attachment; filename="${ascii}"; filename*=UTF-8''${star}`)
   }
   res.status(200).send(Buffer.from(buf))
 }
@@ -2162,7 +2169,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
           res.status(404).json({ success: false, message: '완료 확인서 PDF 가 아직 준비되지 않았습니다.' })
           return
         }
-        await respondWithPdfFromFileId(pool, res, fidCo, { attachmentFilename: 'electronic-confirmation-complete.pdf' })
+        await respondWithPdfFromFileId(pool, res, fidCo, { attachmentFilename: '완료 확인서.pdf' })
         return
       }
       if (String(docR.rows[0].status ?? '') !== 'completed') {
@@ -2174,7 +2181,7 @@ export function registerContractPublicApi(apiRouter, ctx) {
         res.status(404).json({ success: false, message: '최종 PDF 가 아직 준비되지 않았습니다.' })
         return
       }
-      await respondWithPdfFromFileId(pool, res, fid)
+      await respondWithPdfFromFileId(pool, res, fid, { attachmentFilename: '완료 계약서.pdf' })
     } catch (e) {
       handleDbError(e, req, res)
     }

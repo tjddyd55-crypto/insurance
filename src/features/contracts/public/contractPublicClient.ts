@@ -1,29 +1,5 @@
 import { apiRequest, resolveApiUrl, ApiError } from '../../../lib/apiClient'
 
-function parseContentDispositionFilename(header: string | null): string | null {
-  if (!header) {
-    return null
-  }
-  const star = /filename\*=(?:UTF-8'')?([^;\n]+)/i.exec(header)
-  if (star?.[1]) {
-    const raw = star[1].trim().replace(/^"|"$/g, '')
-    try {
-      return decodeURIComponent(raw)
-    } catch {
-      return raw
-    }
-  }
-  const quoted = /filename="([^"]+)"/i.exec(header)
-  if (quoted?.[1]) {
-    return quoted[1].trim()
-  }
-  const plain = /filename=([^;\s]+)/i.exec(header)
-  if (plain?.[1]) {
-    return plain[1].trim().replace(/^"|"$/g, '')
-  }
-  return null
-}
-
 function normalizePublicPdfFetchPath(pathFromApi: string): string {
   const t = String(pathFromApi ?? '').trim()
   if (!t) {
@@ -42,68 +18,29 @@ function normalizePublicPdfFetchPath(pathFromApi: string): string {
 }
 
 /**
- * 고객 공개 세션 쿠키가 필요한 완료 PDF(signed-pdf 등) 다운로드.
- * blob + 임시 object URL로 저장하며, 즉시 revoke 하지 않는다(브라우저가 저장을 끊는 경우 방지).
+ * 공개 세션 쿠키로 보호된 완료 PDF URL을, 사용자 클릭 직후 동기적으로 연다.
+ *
+ * fetch → blob → 프로그램적 저장은 비동기 이후에 실행되어 모바일 Safari 등에서
+ * 다운로드가 조용히 막히는 경우가 있어, 최상위 GET(쿠키 자동 전달)로 통일한다.
  */
-export async function downloadPublicContractPdf(
-  pathFromApi: string,
-  fallbackFilename: string,
-): Promise<void> {
+export function downloadPublicContractPdf(pathFromApi: string, fallbackFilename: string): void {
   const path = normalizePublicPdfFetchPath(pathFromApi)
+  if (!path) {
+    throw new Error('다운로드 경로가 없습니다.')
+  }
   const url = resolveApiUrl(path)
-  const res = await fetch(url, { credentials: 'include' })
-  const ct = (res.headers.get('content-type') || '').toLowerCase()
-
-  if (!res.ok) {
-    let msg = '다운로드에 실패했습니다.'
-    const text = await res.text().catch(() => '')
-    if (text) {
-      try {
-        const j = JSON.parse(text) as { message?: string }
-        if (j.message != null && String(j.message).trim()) {
-          msg = String(j.message).trim()
-        } else {
-          msg = `다운로드에 실패했습니다. (${res.status})`
-        }
-      } catch {
-        msg = `다운로드에 실패했습니다. (${res.status})`
-      }
-    } else {
-      msg = `다운로드에 실패했습니다. (${res.status})`
-    }
-    throw new Error(msg)
-  }
-
-  if (ct.includes('application/json')) {
-    const j = (await res.json().catch(() => ({}))) as { message?: string }
-    throw new Error(
-      j.message != null && String(j.message).trim()
-        ? String(j.message).trim()
-        : '다운로드 응답이 올바르지 않습니다.',
-    )
-  }
-
-  const blob = await res.blob()
-  if (blob == null || blob.size < 1) {
-    throw new Error('다운로드된 파일이 비어 있습니다.')
-  }
-
-  let filename =
-    parseContentDispositionFilename(res.headers.get('content-disposition'))?.trim() || fallbackFilename
-  if (filename.includes('/') || filename.includes('\\')) {
-    filename = filename.replace(/^.*[/\\]/, '') || fallbackFilename
-  }
-
-  const objectUrl = URL.createObjectURL(blob)
   const a = document.createElement('a')
-  a.href = objectUrl
-  a.download = filename
-  a.rel = 'noopener'
+  a.href = url
+  const name = String(fallbackFilename ?? '').trim()
+  if (name && !name.includes('/') && !name.includes('\\')) {
+    a.setAttribute('download', name)
+  }
+  a.target = '_blank'
+  a.rel = 'noopener noreferrer'
   a.style.display = 'none'
   document.body.appendChild(a)
   a.click()
   a.remove()
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 2000)
 }
 
 function lc(code: string) {

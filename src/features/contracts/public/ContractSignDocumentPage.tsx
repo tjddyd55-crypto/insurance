@@ -551,7 +551,6 @@ export default function ContractSignDocumentPage() {
   const [coSignatureObjectUrl, setCoSignatureObjectUrl] = useState<string | null>(null)
   const [coFinalAck, setCoFinalAck] = useState(false)
   const [pdfDownloadError, setPdfDownloadError] = useState('')
-  const [pdfDownloadBusy, setPdfDownloadBusy] = useState(false)
 
   const confirmationChecksRef = useRef<Record<string, boolean>>({})
   const draftsRef = useRef<Record<string, string | boolean>>({})
@@ -1256,8 +1255,7 @@ export default function ContractSignDocumentPage() {
                     variant="secondary"
                     fullWidth
                     className="mt-4"
-                    loading={pdfDownloadBusy}
-                    onClick={() => void runSignedPdfDownload(coSignedPath, '완료 확인서.pdf')}
+                    onClick={() => runSignedPdfDownload(coSignedPath, '완료 확인서.pdf')}
                   >
                     완료 확인서 PDF 다운로드
                   </FormButton>
@@ -1688,8 +1686,7 @@ export default function ContractSignDocumentPage() {
                     variant="secondary"
                     fullWidth
                     className="mt-4"
-                    loading={pdfDownloadBusy}
-                    onClick={() => void runSignedPdfDownload(p, '완료 계약서.pdf')}
+                    onClick={() => runSignedPdfDownload(p, '완료 계약서.pdf')}
                   >
                     완료 계약서 PDF 다운로드
                   </FormButton>
@@ -2331,17 +2328,24 @@ export default function ContractSignDocumentPage() {
               </p>
               <div className="contract-public-sign-page__success-dialog-actions">
                 {(() => {
-                  const path = (completeResult.signedPdfDownloadPath ?? '').trim()
-                  const canDl = completeResult.signedPdfDownloadAvailable !== false && Boolean(path)
+                  const path =
+                    (completeResult.signedPdfDownloadPath ?? '').trim() ||
+                    (detail.signedPdfDownloadPath ?? '').trim()
+                  const canDl =
+                    completeResult.signedPdfDownloadAvailable !== false &&
+                    detail.signedPdfDownloadAvailable !== false &&
+                    Boolean(path)
                   return canDl ? (
                     <>
                       <FormButton
                         htmlType="button"
                         variant="primary"
                         fullWidth
-                        loading={pdfDownloadBusy}
                         onClick={() =>
-                          void runSignedPdfDownload(path, successIsConfirmation ? '완료 확인서.pdf' : '완료 계약서.pdf')
+                          runSignedPdfDownload(
+                            path,
+                            successIsConfirmation ? '완료 확인서.pdf' : '완료 계약서.pdf',
+                          )
                         }
                       >
                         {successIsConfirmation ? '완료 확인서 PDF 다운로드' : '완료 계약서 PDF 다운로드'}
@@ -2354,9 +2358,11 @@ export default function ContractSignDocumentPage() {
                     </>
                   ) : (
                     <p className="contract-public-sign-page__success-dialog-muted">
-                      {successIsConfirmation
-                        ? '완료 확인서 PDF를 불러오는 중입니다.'
-                        : '완료 계약서 PDF를 불러오는 중입니다.'}
+                      {!path
+                        ? '완료 PDF가 아직 준비되지 않았습니다. 잠시 후 다시 시도해 주세요.'
+                        : successIsConfirmation
+                          ? '완료 확인서 PDF를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.'
+                          : '완료 계약서 PDF를 불러올 수 없습니다. 잠시 후 다시 시도해 주세요.'}
                     </p>
                   )
                 })()}
