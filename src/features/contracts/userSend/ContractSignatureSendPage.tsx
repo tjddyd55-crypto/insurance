@@ -121,6 +121,9 @@ function validateConfirmationOnlyFieldValues(
   values: Record<string, string>,
 ): string | null {
   for (const f of fields) {
+    if (f.inputRole !== 'sender') {
+      continue
+    }
     if (!f.required) {
       continue
     }
@@ -455,6 +458,10 @@ export default function ContractSignatureSendPage() {
 
   const selectedTpl = templates.find((x) => x.id === selectedTemplateId)
   const confirmationOnlySelected = selectedTpl?.templateMode === 'confirmation_only'
+  const confirmationSenderTemplateFields = useMemo(
+    () => confirmationTemplateFields.filter((f) => f.inputRole === 'sender'),
+    [confirmationTemplateFields],
+  )
   const confirmationOnlyValuesMessage =
     confirmationOnlySelected && confirmationTemplateFields.length > 0
       ? validateConfirmationOnlyFieldValues(confirmationTemplateFields, confirmationFieldValues)
@@ -462,16 +469,16 @@ export default function ContractSignatureSendPage() {
 
   /** confirmation_only 발송 API용(6단계에서 버튼 활성화 시 그대로 전달). 좌표형은 undefined. */
   const confirmationFieldValuesPayload = useMemo((): Record<string, string> | undefined => {
-    if (!confirmationOnlySelected || confirmationTemplateFields.length === 0) {
+    if (!confirmationOnlySelected || confirmationSenderTemplateFields.length === 0) {
       return undefined
     }
     return Object.fromEntries(
-      confirmationTemplateFields.map((f) => [
+      confirmationSenderTemplateFields.map((f) => [
         f.fieldKey,
         confirmationFieldValues[f.fieldKey] == null ? '' : String(confirmationFieldValues[f.fieldKey]),
       ]),
     )
-  }, [confirmationOnlySelected, confirmationTemplateFields, confirmationFieldValues])
+  }, [confirmationOnlySelected, confirmationSenderTemplateFields, confirmationFieldValues])
 
   const canSend =
     Boolean(selectedTemplateId) &&

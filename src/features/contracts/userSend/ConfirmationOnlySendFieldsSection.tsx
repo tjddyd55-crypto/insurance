@@ -27,12 +27,17 @@ export function ConfirmationOnlySendFieldsSection({
   disabled = false,
   mobileSendLayout = false,
 }: Props) {
+  const senderFields = fields.filter((f) => f.inputRole === 'sender')
+  const customerFields = fields.filter((f) => f.inputRole === 'customer')
+  const hasSenderFields = senderFields.length > 0
+  const hasCustomerFields = customerFields.length > 0
+
   if (mobileSendLayout) {
     return (
       <div className="contract-send-mobile-confirmation-fields">
         <div className="contract-send-mobile-confirmation-fields__header">
           <p className="contract-send-mobile-confirmation-fields__desc">
-            관리자가 정의한 확인서 항목 값을 입력합니다. 고객 확인 화면이 준비되면 발송이 가능해집니다.
+            발송자 입력 항목은 지금 입력하고, 고객 입력 항목은 공개 링크에서 고객이 직접 작성합니다.
           </p>
         </div>
         {loadError ? (
@@ -46,8 +51,19 @@ export function ConfirmationOnlySendFieldsSection({
             등록된 확인 항목이 없습니다. 관리자 전자서명 템플릿에서 확인서 항목을 추가해 주세요.
           </p>
         ) : null}
+        {!loading && !loadError && !hasSenderFields && hasCustomerFields ? (
+          <p className="contract-signature-console__hint" role="status">
+            발송자가 입력할 항목은 없습니다. 고객이 공개 링크에서 직접 입력합니다.
+          </p>
+        ) : null}
+
+        {hasSenderFields ? (
+          <p className="contract-signature-console__hint" role="status">
+            발송자 입력 항목
+          </p>
+        ) : null}
         <div className="contract-send-mobile-confirmation-fields__list">
-          {fields.map((f) => {
+          {senderFields.map((f) => {
             const v = values[f.fieldKey] ?? ''
             const id = `conf-send-${f.fieldKey}`
             return (
@@ -95,6 +111,22 @@ export function ConfirmationOnlySendFieldsSection({
             )
           })}
         </div>
+        {hasCustomerFields ? (
+          <>
+            <p className="contract-signature-console__hint" role="status" style={{ marginTop: 8 }}>
+              고객 입력 예정 항목 (공개 링크에서 입력)
+            </p>
+            <ul className="contract-mobile-readonly-list">
+              {customerFields.map((f) => (
+                <li key={f.id}>
+                  {f.label}
+                  {f.required ? <span className="contract-signature-console__hint--warning"> (필수)</span> : null}
+                  <span className="contract-signature-console__hint"> · 고객이 공개 링크에서 입력합니다.</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
         {validationMessage ? (
           <p className="contract-send-mobile-confirmation-fields__error" role="status">
             {validationMessage}
@@ -107,7 +139,7 @@ export function ConfirmationOnlySendFieldsSection({
   return (
     <div className="contract-signature-send-conf-only">
       <p className="contract-signature-console__body-text" style={{ margin: '0 0 8px' }}>
-        관리자가 정의한 확인서 항목 값을 입력합니다. 고객 확인 화면이 준비되면 발송이 가능해집니다.
+        발송자 입력 항목은 지금 입력하고, 고객 입력 항목은 공개 링크에서 고객이 직접 작성합니다.
       </p>
       {loadError ? (
         <div className="contract-signature-console__alert--danger" role="alert">
@@ -120,8 +152,18 @@ export function ConfirmationOnlySendFieldsSection({
           등록된 확인 항목이 없습니다. 관리자 전자서명 템플릿에서 확인서 항목을 추가해 주세요.
         </p>
       ) : null}
+      {!loading && !loadError && !hasSenderFields && hasCustomerFields ? (
+        <p className="contract-signature-console__hint" role="status">
+          발송자가 입력할 항목은 없습니다. 고객이 공개 링크에서 직접 입력합니다.
+        </p>
+      ) : null}
+      {hasSenderFields ? (
+        <p className="contract-signature-console__hint" role="status">
+          발송자 입력 항목
+        </p>
+      ) : null}
       <div className="contract-signature-send-conf-only__stack">
-        {fields.map((f) => {
+        {senderFields.map((f) => {
           const v = values[f.fieldKey] ?? ''
           const id = `conf-send-${f.fieldKey}`
           return (
@@ -169,6 +211,22 @@ export function ConfirmationOnlySendFieldsSection({
           )
         })}
       </div>
+      {hasCustomerFields ? (
+        <>
+          <p className="contract-signature-console__hint" role="status" style={{ marginTop: 8 }}>
+            고객 입력 예정 항목 (공개 링크에서 입력)
+          </p>
+          <ul className="contract-mobile-readonly-list">
+            {customerFields.map((f) => (
+              <li key={f.id}>
+                {f.label}
+                {f.required ? <span className="contract-signature-console__hint--warning"> (필수)</span> : null}
+                <span className="contract-signature-console__hint"> · 고객이 공개 링크에서 입력합니다.</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
       {validationMessage ? (
         <p className="contract-signature-console__inline-warning" role="status" style={{ marginTop: 10 }}>
           {validationMessage}

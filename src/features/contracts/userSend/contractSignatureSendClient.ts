@@ -23,6 +23,7 @@ export type UserContractConfirmationFieldRow = {
   fieldKey: string
   label: string
   inputType: 'text' | 'textarea' | 'number' | 'date'
+  inputRole: 'sender' | 'customer'
   required: boolean
   sortOrder: number
   placeholder: string | null
@@ -37,12 +38,18 @@ function coerceUserConfirmationInputType(raw: unknown): UserContractConfirmation
   return 'text'
 }
 
+function coerceUserConfirmationInputRole(raw: unknown): UserContractConfirmationFieldRow['inputRole'] {
+  const role = String(raw ?? 'sender').trim()
+  return role === 'customer' ? 'customer' : 'sender'
+}
+
 function coerceUserConfirmationField(raw: Record<string, unknown>): UserContractConfirmationFieldRow {
   return {
     id: String(raw.id ?? ''),
     fieldKey: String(raw.fieldKey ?? raw.field_key ?? ''),
     label: String(raw.label ?? ''),
     inputType: coerceUserConfirmationInputType(raw.inputType ?? raw.input_type),
+    inputRole: coerceUserConfirmationInputRole(raw.inputRole ?? raw.input_role),
     required: Boolean(raw.required),
     sortOrder: Number(raw.sortOrder ?? raw.sort_order ?? 0),
     placeholder: raw.placeholder != null ? String(raw.placeholder) : null,
