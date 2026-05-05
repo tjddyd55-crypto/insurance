@@ -13,3 +13,31 @@ export type {
 
 export { insuranceCustomerTemplateV01 } from './insurance/insuranceCustomerTemplate'
 export { resolveCustomerTemplate } from './resolveCustomerTemplate'
+
+export { CUSTOMER_FIELD_REGISTRY_BY_KEY } from './registry/customerFieldRegistry'
+export { FEATURE_MODULE_REGISTRY_BY_ID } from './registry/featureModuleRegistry'
+export type {
+  CustomerFieldRegistryCategory,
+  CustomerFieldRegistryDomain,
+  CustomerFieldRegistryEntry,
+  CustomerFieldRegistryPrivacyLevel,
+  CustomerFieldRegistryStatus,
+  CustomerFieldRegistryValidation,
+  CustomerFieldRegistryValueType,
+  CustomerFieldStorageMapping,
+  FeatureModuleApiBinding,
+  FeatureModuleRegistryCategory,
+  FeatureModuleRegistryConfigSchema,
+  FeatureModuleRegistryEntry,
+  FeatureModuleRegistryModuleType,
+  FeatureModuleRegistryStatus,
+  FeatureModuleRouteBinding,
+} from './registry/customerTemplateRegistry.types'
+export {
+  CUSTOMER_FIELD_KEY_ALIAS_TO_CANONICAL,
+  getCustomerFieldDefinition,
+  getFeatureModuleDefinition,
+  resolveCanonicalFieldKey,
+  validateCustomerTemplateAgainstRegistries,
+} from './registry/customerTemplateRegistryUtils'
+export type { CustomerTemplateRegistryValidationResult } from './registry/customerTemplateRegistryUtils'
