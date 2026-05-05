@@ -26,12 +26,156 @@ import { listFields } from '../pdf-engine/repository/pdfTemplateRepo.js'
 
 const CT_PREFIX = 'ct_'
 const CTF_PREFIX = 'ctf_'
+const CTCF_PREFIX = 'ctcf_'
 const PKG_PREFIX = 'pkg_'
 const CSS_PREFIX = 'css_'
 const CDI_PREFIX = 'cdi_'
 
 const ALLOWED_TEMPLATE_STATUS = new Set(['draft', 'active', 'archived'])
 const TERMINAL_SESSION = new Set(['expired', 'cancelled', 'completed'])
+const ALLOWED_CONFIRMATION_FIELD_INPUT_TYPES = new Set(['text', 'textarea', 'number', 'date'])
+const ALLOWED_CONFIRMATION_FIELD_INPUT_ROLES = new Set(['sender', 'customer'])
+
+/**
+ * @param {unknown} row
+ * @returns {{ error: string, status: number } | null}
+ */
+export function assertConfirmationOnlyTemplateRow(row) {
+  const mode = String(row?.template_mode ?? 'coordinate_pdf')
+  if (mode !== 'confirmation_only') {
+    return {
+      error: '무좌표 확인서(confirmation_only) 템플릿에서만 확인 항목을 관리할 수 있습니다.',
+      status: 409,
+    }
+  }
+  return null
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {string | { error: string }}
+ */
+function normalizeConfirmationFieldKeyFromClient(raw) {
+  if (raw === undefined || raw === null || raw === '') {
+    return { error: 'fieldKey가 비어 있습니다.' }
+  }
+  const s = String(raw).trim()
+  if (!s) {
+    return { error: 'fieldKey가 비어 있습니다.' }
+  }
+  if (!/^[a-zA-Z][a-zA-Z0-9_]{0,127}$/.test(s)) {
+    return { error: 'fieldKey는 영문자로 시작하고 영문, 숫자, 밑줄(_)만 사용할 수 있습니다.' }
+  }
+  return s
+}
+
+/** @returns {string} */
+function deriveFieldKeyFromLabel(label) {
+  const ascii = String(label ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_\s-]/g, '')
+    .replace(/[\s-]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+  let key = ascii || 'field'
+  if (/^[0-9]/.test(key)) {
+    key = `f_${key}`
+  }
+  if (key.length > 120) {
+    key = key.slice(0, 120)
+  }
+  if (!/^[a-zA-Z]/.test(key)) {
+    key = `f_${key.replace(/^[^a-zA-Z]+/, '') || 'field'}`
+  }
+  return key.slice(0, 128)
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {string} templateId
+ * @param {string} baseKey
+ */
+async function allocateUniqueConfirmationFieldKey(client, templateId, baseKey) {
+  let k = baseKey
+  for (let n = 0; n < 200; n += 1) {
+    const ck = await client.query(
+      `SELECT 1 FROM contract_template_confirmation_fields WHERE template_id = $1 AND field_key = $2 LIMIT 1`,
+      [templateId, k],
+    )
+    if (ck.rowCount === 0) {
+      return k
+    }
+    k = `${baseKey}_${n + 2}`
+    if (k.length > 128) {
+      k = k.slice(0, 128)
+    }
+  }
+  return null
+}
+
+/**
+ * @param {import('pg').PoolClient} client
+ * @param {string} templateId
+ */
+async function nextConfirmationFieldSortOrder(client, templateId) {
+  const r = await client.query(
+    `SELECT COALESCE(MAX(sort_order), -1)::int AS m FROM contract_template_confirmation_fields WHERE template_id = $1`,
+    [templateId],
+  )
+  return Number(r.rows[0]?.m ?? -1) + 1
+}
+
+/**
+ * @param {Record<string, unknown>} row
+ */
+export function mapConfirmationFieldRow(row) {
+  const inputRoleRaw = row.input_role
+  const inputRole =
+    inputRoleRaw != null && ALLOWED_CONFIRMATION_FIELD_INPUT_ROLES.has(String(inputRoleRaw).trim())
+      ? String(inputRoleRaw).trim()
+      : 'sender'
+  return {
+    id: row.id,
+    fieldKey: row.field_key,
+    label: row.label,
+    inputType: row.input_type,
+    inputRole,
+    required: Boolean(row.required),
+    sortOrder: Number(row.sort_order ?? 0),
+    placeholder: row.placeholder ?? null,
+    helpText: row.help_text ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+/**
+ * @param {unknown} raw
+ */
+function normalizeConfirmationRequired(raw) {
+  if (raw === true || raw === 'true' || raw === 1 || raw === '1') {
+    return true
+  }
+  if (raw === false || raw === 'false' || raw === 0 || raw === '0') {
+    return false
+  }
+  return false
+}
+
+/**
+ * @param {unknown} raw
+ */
+function parseConfirmationSortOrder(raw) {
+  if (raw === undefined || raw === null || raw === '') {
+    return null
+  }
+  const n = Number(raw)
+  if (!Number.isFinite(n) || !Number.isInteger(n)) {
+    return { error: 'sortOrder는 정수여야 합니다.' }
+  }
+  return n
+}
 
 function newId(prefix) {
   return `${prefix}${randomUUID()}`
@@ -307,6 +451,7 @@ export function registerContractAdminApi(apiRouter, ctx) {
           category: row.category,
           status: row.status,
           version: row.version,
+          templateMode: row.template_mode ?? 'coordinate_pdf',
           pdfTemplateId: row.pdf_template_id,
           pdfEngineTitle: row.pdf_engine_title,
           pageCount: row.page_count,
@@ -384,6 +529,7 @@ export function registerContractAdminApi(apiRouter, ctx) {
           category: row.category,
           status: row.status,
           version: row.version,
+          templateMode: row.template_mode ?? 'coordinate_pdf',
           pdfTemplateId: row.pdf_template_id,
           pdfFileId: row.pdf_file_id,
           pdfFilePath: row.pdf_file_path,
@@ -457,14 +603,26 @@ export function registerContractAdminApi(apiRouter, ctx) {
       const uid = getAuthUserId(req)
       const description = req.body?.description != null ? String(req.body.description) : null
       const category = req.body?.category != null ? String(req.body.category).trim() : null
+      const templateModeRaw = req.body?.templateMode ?? req.body?.template_mode ?? 'coordinate_pdf'
+      const templateMode = String(templateModeRaw).trim()
+      if (templateMode !== 'coordinate_pdf' && templateMode !== 'confirmation_only') {
+        res.status(400).json({ ok: false, message: 'templateMode 값이 올바르지 않습니다.' })
+        return
+      }
+      if (templateMode === 'confirmation_only' && pdfTemplateId != null) {
+        res
+          .status(400)
+          .json({ ok: false, message: '무좌표 확인서 템플릿(confirmation_only)에는 PDF 템플릿을 연결할 수 없습니다.' })
+        return
+      }
 
       await client.query(
         `
         INSERT INTO contract_templates (
           id, title, description, category, pdf_template_id, pdf_file_path, page_count,
-          status, version, created_by_user_id, ga_id, created_at, updated_at
+          template_mode, status, version, created_by_user_id, ga_id, created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, $9, $10, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 1, $10, $11, NOW(), NOW())
         `,
         [
           id,
@@ -474,6 +632,7 @@ export function registerContractAdminApi(apiRouter, ctx) {
           pdfTemplateId,
           pdfRow ? String(pdfRow.storage_key) : null,
           pdfRow ? pdfRow.page_count : null,
+          templateMode,
           statusRaw,
           uid || null,
           effectiveGa,
@@ -608,20 +767,35 @@ export function registerContractAdminApi(apiRouter, ctx) {
         return
       }
       if (status === 'active') {
-        const pid = row.pdf_template_id
-        if (pid == null) {
-          res.status(400).json({ ok: false, message: 'active 전환에는 pdfTemplateId 연결이 필요합니다.' })
-          return
-        }
-        const fc = await countPdfEngineFields(client, pid)
-        if (fc < 1) {
-          res.status(400).json({ ok: false, message: 'PDF 템플릿에 좌표 필드가 없어 active로 전환할 수 없습니다.' })
-          return
-        }
-        const settingsOk = await assertContractFieldSettingsValidForActivate(client, row.id, Number(pid))
-        if (!settingsOk.ok) {
-          res.status(400).json({ ok: false, message: settingsOk.message ?? '필드 입력 방식 설정을 확인해 주세요.' })
-          return
+        const mode = String(row.template_mode ?? 'coordinate_pdf')
+        if (mode === 'confirmation_only') {
+          const cntR = await client.query(
+            `SELECT COUNT(*)::int AS c FROM contract_template_confirmation_fields WHERE template_id = $1`,
+            [row.id],
+          )
+          if (Number(cntR.rows[0]?.c ?? 0) < 1) {
+            res.status(400).json({
+              ok: false,
+              message: '확인서 항목을 1개 이상 등록한 뒤 active로 전환할 수 있습니다.',
+            })
+            return
+          }
+        } else {
+          const pid = row.pdf_template_id
+          if (pid == null) {
+            res.status(400).json({ ok: false, message: 'active 전환에는 pdfTemplateId 연결이 필요합니다.' })
+            return
+          }
+          const fc = await countPdfEngineFields(client, pid)
+          if (fc < 1) {
+            res.status(400).json({ ok: false, message: 'PDF 템플릿에 좌표 필드가 없어 active로 전환할 수 없습니다.' })
+            return
+          }
+          const settingsOk = await assertContractFieldSettingsValidForActivate(client, row.id, Number(pid))
+          if (!settingsOk.ok) {
+            res.status(400).json({ ok: false, message: settingsOk.message ?? '필드 입력 방식 설정을 확인해 주세요.' })
+            return
+          }
         }
       }
       await client.query(`UPDATE contract_templates SET status = $2, updated_at = NOW() WHERE id = $1`, [
@@ -657,9 +831,9 @@ export function registerContractAdminApi(apiRouter, ctx) {
         `
         INSERT INTO contract_templates (
           id, title, description, category, pdf_file_id, pdf_file_path, pdf_hash, page_count,
-          pdf_template_id, status, version, created_by_user_id, ga_id, created_at, updated_at
+          pdf_template_id, template_mode, status, version, created_by_user_id, ga_id, created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft', 1, $10, $11, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'draft', 1, $11, $12, NOW(), NOW())
         `,
         [
           newTid,
@@ -671,6 +845,9 @@ export function registerContractAdminApi(apiRouter, ctx) {
           src.pdf_hash ?? null,
           src.page_count ?? null,
           src.pdf_template_id ?? null,
+          src.template_mode != null && String(src.template_mode).trim() !== ''
+            ? String(src.template_mode).trim()
+            : 'coordinate_pdf',
           uid || null,
           src.ga_id ?? null,
         ],
@@ -722,6 +899,38 @@ export function registerContractAdminApi(apiRouter, ctx) {
       }
       if (settingsDup.rowCount === 0 && src.pdf_template_id != null) {
         await seedContractTemplateFieldSettings(client, newTid, Number(src.pdf_template_id))
+      }
+      const confDup = await client.query(
+        `
+        SELECT field_key, label, input_type, required, sort_order, placeholder, help_text
+        FROM contract_template_confirmation_fields
+        WHERE template_id = $1
+        ORDER BY sort_order, field_key
+        `,
+        [src.id],
+      )
+      for (const cf of confDup.rows) {
+        const ncf = newId(CTCF_PREFIX)
+        await client.query(
+          `
+          INSERT INTO contract_template_confirmation_fields (
+            id, template_id, field_key, label, input_type, required, sort_order, placeholder, help_text,
+            created_at, updated_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+          `,
+          [
+            ncf,
+            newTid,
+            String(cf.field_key),
+            String(cf.label),
+            String(cf.input_type),
+            Boolean(cf.required),
+            Number(cf.sort_order ?? 0),
+            cf.placeholder ?? null,
+            cf.help_text ?? null,
+          ],
+        )
       }
       await client.query('COMMIT')
       res.status(201).json({ ok: true, success: true, data: { id: newTid } })
@@ -812,6 +1021,330 @@ export function registerContractAdminApi(apiRouter, ctx) {
       } catch {
         /* noop */
       }
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
+    }
+  })
+
+  apiRouter.get('/admin/contracts/templates/:id/confirmation-fields', ...chain, async (req, res) => {
+    try {
+      const effectiveGa = await resolveEffectiveGaId(pool, req)
+      const isSuper = isSuperAdminRole(req.user?.role)
+      const { row, error, status } = await assertContractTemplateAccess(
+        pool,
+        req.params.id,
+        effectiveGa,
+        isSuper,
+      )
+      if (error) {
+        res.status(status ?? 400).json({ ok: false, message: error })
+        return
+      }
+      const modeErr = assertConfirmationOnlyTemplateRow(row)
+      if (modeErr) {
+        res.status(modeErr.status).json({ ok: false, message: modeErr.error })
+        return
+      }
+      const r = await pool.query(
+        `
+        SELECT *
+        FROM contract_template_confirmation_fields
+        WHERE template_id = $1
+        ORDER BY sort_order ASC, id ASC
+        `,
+        [row.id],
+      )
+      res.json({ ok: true, fields: r.rows.map((f) => mapConfirmationFieldRow(f)) })
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/admin/contracts/templates/:id/confirmation-fields', ...chain, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const effectiveGa = await resolveEffectiveGaId(pool, req)
+      const isSuper = isSuperAdminRole(req.user?.role)
+      const acc = await assertContractTemplateAccess(client, req.params.id, effectiveGa, isSuper)
+      if (acc.error) {
+        res.status(acc.status ?? 400).json({ ok: false, message: acc.error })
+        return
+      }
+      const tpl = acc.row
+      const modeErr = assertConfirmationOnlyTemplateRow(tpl)
+      if (modeErr) {
+        res.status(modeErr.status).json({ ok: false, message: modeErr.error })
+        return
+      }
+      const label = String(req.body?.label ?? '').trim()
+      if (!label) {
+        res.status(400).json({ ok: false, message: 'label은 필수입니다.' })
+        return
+      }
+      const inputTypeRaw = req.body?.inputType ?? req.body?.input_type
+      const inputType =
+        inputTypeRaw === undefined || inputTypeRaw === null || inputTypeRaw === ''
+          ? 'text'
+          : String(inputTypeRaw).trim()
+      if (!ALLOWED_CONFIRMATION_FIELD_INPUT_TYPES.has(inputType)) {
+        res.status(400).json({
+          ok: false,
+          message: 'inputType은 text, textarea, number, date 중 하나여야 합니다.',
+        })
+        return
+      }
+      const inputRoleRaw = req.body?.inputRole ?? req.body?.input_role
+      const inputRole =
+        inputRoleRaw === undefined || inputRoleRaw === null || inputRoleRaw === ''
+          ? 'sender'
+          : String(inputRoleRaw).trim()
+      if (!ALLOWED_CONFIRMATION_FIELD_INPUT_ROLES.has(inputRole)) {
+        res.status(400).json({
+          ok: false,
+          message: 'inputRole은 sender, customer 중 하나여야 합니다.',
+        })
+        return
+      }
+      const required = normalizeConfirmationRequired(req.body?.required)
+      let ph = null
+      if (req.body?.placeholder !== undefined) {
+        ph = req.body.placeholder == null ? null : String(req.body.placeholder)
+      }
+      let ht = null
+      if (req.body?.helpText !== undefined) {
+        ht = req.body.helpText == null ? null : String(req.body.helpText)
+      } else if (req.body?.help_text !== undefined) {
+        ht = req.body.help_text == null ? null : String(req.body.help_text)
+      }
+
+      const sortOrderParsed = parseConfirmationSortOrder(req.body?.sortOrder ?? req.body?.sort_order)
+      if (sortOrderParsed && typeof sortOrderParsed === 'object' && 'error' in sortOrderParsed) {
+        res.status(400).json({ ok: false, message: sortOrderParsed.error })
+        return
+      }
+      const sortOrder =
+        sortOrderParsed === null ? await nextConfirmationFieldSortOrder(client, tpl.id) : sortOrderParsed
+
+      const rawKey = req.body?.fieldKey ?? req.body?.field_key
+      let fieldKey
+      if (rawKey === undefined || rawKey === null || rawKey === '') {
+        const base = deriveFieldKeyFromLabel(label)
+        fieldKey = await allocateUniqueConfirmationFieldKey(client, tpl.id, base)
+        if (!fieldKey) {
+          res.status(500).json({ ok: false, message: 'fieldKey를 자동 할당할 수 없습니다.' })
+          return
+        }
+      } else {
+        const nk = normalizeConfirmationFieldKeyFromClient(rawKey)
+        if (typeof nk === 'object' && 'error' in nk) {
+          res.status(400).json({ ok: false, message: nk.error })
+          return
+        }
+        const ck = await client.query(
+          `SELECT 1 FROM contract_template_confirmation_fields WHERE template_id = $1 AND field_key = $2 LIMIT 1`,
+          [tpl.id, nk],
+        )
+        if (ck.rowCount > 0) {
+          res.status(409).json({
+            ok: false,
+            message: `이 템플릿에 같은 fieldKey「${nk}」가 이미 있습니다.`,
+          })
+          return
+        }
+        fieldKey = nk
+      }
+
+      const id = newId(CTCF_PREFIX)
+      try {
+        await client.query(
+          `
+          INSERT INTO contract_template_confirmation_fields (
+            id, template_id, field_key, label, input_type, input_role, required, sort_order, placeholder, help_text,
+            created_at, updated_at
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+          `,
+          [id, tpl.id, fieldKey, label, inputType, inputRole, required, sortOrder, ph, ht],
+        )
+      } catch (e) {
+        if (/** @type {{ code?: string }} */ (e)?.code === '23505') {
+          res.status(409).json({
+            ok: false,
+            message: '같은 템플릿에 중복된 fieldKey가 있습니다.',
+          })
+          return
+        }
+        throw e
+      }
+      const ins = await client.query(
+        `SELECT * FROM contract_template_confirmation_fields WHERE id = $1 LIMIT 1`,
+        [id],
+      )
+      const fr = ins.rows[0]
+      res.status(201).json({ ok: true, field: mapConfirmationFieldRow(fr) })
+    } catch (e) {
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
+    }
+  })
+
+  apiRouter.put('/admin/contracts/templates/:id/confirmation-fields/:fieldId', ...chain, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      if (
+        Object.prototype.hasOwnProperty.call(req.body ?? {}, 'fieldKey') ||
+        Object.prototype.hasOwnProperty.call(req.body ?? {}, 'field_key')
+      ) {
+        res.status(400).json({ ok: false, message: 'fieldKey는 변경할 수 없습니다.' })
+        return
+      }
+      const effectiveGa = await resolveEffectiveGaId(pool, req)
+      const isSuper = isSuperAdminRole(req.user?.role)
+      const acc = await assertContractTemplateAccess(client, req.params.id, effectiveGa, isSuper)
+      if (acc.error) {
+        res.status(acc.status ?? 400).json({ ok: false, message: acc.error })
+        return
+      }
+      const tpl = acc.row
+      const modeErr = assertConfirmationOnlyTemplateRow(tpl)
+      if (modeErr) {
+        res.status(modeErr.status).json({ ok: false, message: modeErr.error })
+        return
+      }
+      const fieldId = String(req.params.fieldId ?? '').trim()
+      if (!fieldId.startsWith(CTCF_PREFIX)) {
+        res.status(400).json({ ok: false, message: 'fieldId가 올바르지 않습니다.' })
+        return
+      }
+      const cur = await client.query(
+        `SELECT * FROM contract_template_confirmation_fields WHERE id = $1 AND template_id = $2 LIMIT 1`,
+        [fieldId, tpl.id],
+      )
+      if (cur.rowCount === 0) {
+        res.status(404).json({ ok: false, message: '확인 항목을 찾을 수 없습니다.' })
+        return
+      }
+      const sets = /** @type {string[]} */ ([])
+      const params = /** @type {unknown[]} */ ([])
+
+      if (req.body?.label !== undefined) {
+        const t = String(req.body.label).trim()
+        if (!t) {
+          res.status(400).json({ ok: false, message: 'label이 비어 있습니다.' })
+          return
+        }
+        params.push(t)
+        sets.push(`label = $${params.length}`)
+      }
+      if (req.body?.inputType !== undefined || req.body?.input_type !== undefined) {
+        const it = String(req.body?.inputType ?? req.body?.input_type ?? '').trim()
+        if (!ALLOWED_CONFIRMATION_FIELD_INPUT_TYPES.has(it)) {
+          res.status(400).json({
+            ok: false,
+            message: 'inputType은 text, textarea, number, date 중 하나여야 합니다.',
+          })
+          return
+        }
+        params.push(it)
+        sets.push(`input_type = $${params.length}`)
+      }
+      if (req.body?.inputRole !== undefined || req.body?.input_role !== undefined) {
+        const ir = String(req.body?.inputRole ?? req.body?.input_role ?? '').trim()
+        if (!ALLOWED_CONFIRMATION_FIELD_INPUT_ROLES.has(ir)) {
+          res.status(400).json({
+            ok: false,
+            message: 'inputRole은 sender, customer 중 하나여야 합니다.',
+          })
+          return
+        }
+        params.push(ir)
+        sets.push(`input_role = $${params.length}`)
+      }
+      if (req.body?.required !== undefined) {
+        params.push(normalizeConfirmationRequired(req.body?.required))
+        sets.push(`required = $${params.length}`)
+      }
+      if (req.body?.sortOrder !== undefined || req.body?.sort_order !== undefined) {
+        const so = parseConfirmationSortOrder(req.body?.sortOrder ?? req.body?.sort_order)
+        if (so && typeof so === 'object' && 'error' in so) {
+          res.status(400).json({ ok: false, message: so.error })
+          return
+        }
+        if (so === null) {
+          res.status(400).json({ ok: false, message: 'sortOrder가 필요합니다.' })
+          return
+        }
+        params.push(so)
+        sets.push(`sort_order = $${params.length}`)
+      }
+      if (req.body?.placeholder !== undefined) {
+        params.push(req.body.placeholder == null ? null : String(req.body.placeholder))
+        sets.push(`placeholder = $${params.length}`)
+      }
+      if (req.body?.helpText !== undefined || req.body?.help_text !== undefined) {
+        const hv = req.body?.helpText ?? req.body?.help_text
+        params.push(hv == null ? null : String(hv))
+        sets.push(`help_text = $${params.length}`)
+      }
+
+      if (sets.length === 0) {
+        res.status(400).json({ ok: false, message: '변경할 필드가 없습니다.' })
+        return
+      }
+      params.push(fieldId)
+      await client.query(
+        `
+        UPDATE contract_template_confirmation_fields
+        SET ${sets.join(', ')}, updated_at = NOW()
+        WHERE id = $${params.length} AND template_id = $${params.length + 1}
+        `,
+        [...params, tpl.id],
+      )
+      const upd = await client.query(
+        `SELECT * FROM contract_template_confirmation_fields WHERE id = $1 LIMIT 1`,
+        [fieldId],
+      )
+      res.json({ ok: true, field: mapConfirmationFieldRow(upd.rows[0]) })
+    } catch (e) {
+      handleDbError(e, req, res)
+    } finally {
+      client.release()
+    }
+  })
+
+  apiRouter.delete('/admin/contracts/templates/:id/confirmation-fields/:fieldId', ...chain, async (req, res) => {
+    const client = await pool.connect()
+    try {
+      const effectiveGa = await resolveEffectiveGaId(pool, req)
+      const isSuper = isSuperAdminRole(req.user?.role)
+      const acc = await assertContractTemplateAccess(client, req.params.id, effectiveGa, isSuper)
+      if (acc.error) {
+        res.status(acc.status ?? 400).json({ ok: false, message: acc.error })
+        return
+      }
+      const tpl = acc.row
+      const modeErr = assertConfirmationOnlyTemplateRow(tpl)
+      if (modeErr) {
+        res.status(modeErr.status).json({ ok: false, message: modeErr.error })
+        return
+      }
+      const fieldId = String(req.params.fieldId ?? '').trim()
+      if (!fieldId.startsWith(CTCF_PREFIX)) {
+        res.status(400).json({ ok: false, message: 'fieldId가 올바르지 않습니다.' })
+        return
+      }
+      const del = await client.query(
+        `DELETE FROM contract_template_confirmation_fields WHERE id = $1 AND template_id = $2`,
+        [fieldId, tpl.id],
+      )
+      if (del.rowCount === 0) {
+        res.status(404).json({ ok: false, message: '확인 항목을 찾을 수 없습니다.' })
+        return
+      }
+      res.json({ ok: true, success: true })
+    } catch (e) {
       handleDbError(e, req, res)
     } finally {
       client.release()

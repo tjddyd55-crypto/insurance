@@ -5,6 +5,7 @@ import { useMediaQuery } from '../../../../hooks/useMediaQuery'
 import { ApiError } from '../../../../lib/apiClient'
 import type { ContractTemplateDetail, ContractTemplateListItem } from '../contractSignatureTestConsoleClient'
 import {
+  createConfirmationOnlyContractTemplate,
   deleteContractTemplate,
   duplicateContractTemplate,
   fetchContractTemplateDetail,
@@ -12,6 +13,7 @@ import {
   patchContractTemplateFieldInputSettings,
   setContractTemplateStatus,
 } from '../contractSignatureTestConsoleClient'
+import { ContractTemplateConfirmationFieldsSection } from './ContractTemplateConfirmationFieldsSection'
 
 type FieldSettingDraft = {
   fieldKey: string
@@ -96,6 +98,14 @@ function statusLineForCard(status: string): string {
   return `${statusLabelShort(status)} · ${statusDescription(status)}`
 }
 
+function resolveTemplateMode(t: { templateMode?: string }): ContractTemplateMode {
+  return t.templateMode === 'confirmation_only' ? 'confirmation_only' : 'coordinate_pdf'
+}
+
+function templateModeShortLabel(mode: ContractTemplateMode): string {
+  return mode === 'confirmation_only' ? '확인서(무좌표)' : 'PDF 좌표형'
+}
+
 function formatUpdatedAt(iso: string | undefined): string {
   if (!iso || String(iso).trim() === '') {
     return '—'
@@ -156,6 +166,8 @@ export function ContractTemplatePanel({
   const [editDescription, setEditDescription] = useState('')
   const [fieldSettingsDraft, setFieldSettingsDraft] = useState<FieldSettingDraft[]>([])
   const [statusDraft, setStatusDraft] = useState<'draft' | 'active' | 'archived'>('draft')
+  const [confirmOnlyCreateOpen, setConfirmOnlyCreateOpen] = useState(false)
+  const [confirmOnlyTitle, setConfirmOnlyTitle] = useState('')
 
   const runOp = useCallback(
     async (fn: () => Promise<void>) => {
@@ -275,14 +287,19 @@ export function ContractTemplatePanel({
 
       {pdfTemplateId != null &&
       (pdfSignatureCountByPdfId.get(pdfTemplateId) ?? 0) < 1 &&
-      templates.length > 0 ? (
+      templates.some(
+        (t) => resolveTemplateMode(t) === 'coordinate_pdf' && t.pdfTemplateId === pdfTemplateId,
+      ) ? (
         <div className="contract-signature-console__alert--danger" role="alert" style={{ marginBottom: 10 }}>
           이 PDF에는 서명(signature) 필드가 없습니다. 전자서명 절차에서 고객 서명 단계가 제한되거나 진행 불가할 수 있습니다. PDF
           좌표 편집기에서 손사인 필드를 추가해 주세요.
         </div>
       ) : null}
 
-      <div className="contract-signature-console__toolbar" style={{ marginBottom: 10 }}>
+      <div
+        className="contract-signature-console__toolbar"
+        style={{ marginBottom: 10, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}
+      >
         <FormButton
           htmlType="button"
           variant="primary"
@@ -293,7 +310,22 @@ export function ContractTemplatePanel({
         >
           선택한 PDF로 템플릿 만들기
         </FormButton>
+        <FormButton
+          htmlType="button"
+          variant="secondary"
+          size="sm"
+          disabled={busy}
+          onClick={() => {
+            setConfirmOnlyTitle('')
+            setConfirmOnlyCreateOpen(true)
+          }}
+        >
+          무좌표 확인서 템플릿 추가
+        </FormButton>
       </div>
+      <p className="contract-signature-console__hint" style={{ margin: '0 0 10px', fontSize: 12 }}>
+        무좌표 확인서 템플릿은 PDF와 연결되지 않습니다. 목록에서 보려면 1번 영역에서 「PDF 선택 해제」로 전체 목록을 표시하세요.
+      </p>
 
       <ul
         className={
@@ -317,14 +349,15 @@ export function ContractTemplatePanel({
         <div className="contract-signature-console__template-cards">
           {templates.length === 0 ? (
             <p className="contract-signature-console__empty-state-text" style={{ padding: '0.75rem 0' }}>
-              표시할 전자서명 템플릿이 없습니다. 1번에서 PDF를 선택한 뒤 &ldquo;선택한 PDF로 템플릿 만들기&rdquo;를 눌러 초안을
-              추가할 수 있습니다.
+              표시할 템플릿이 없습니다. PDF 좌표형은 1번에서 PDF 선택 후 만들기, 무좌표 확인서는 「무좌표 확인서 템플릿 추가」로 만든 뒤 PDF
+              필터를 해제하면 목록에 표시됩니다.
             </p>
           ) : (
             templates.map((trow) => {
+              const tMode = resolveTemplateMode(trow)
               const pid = trow.pdfTemplateId
               const sigN = pid != null ? (pdfSignatureCountByPdfId.get(pid) ?? 0) : 0
-              const noSig = pid != null && sigN < 1
+              const noSig = tMode === 'coordinate_pdf' && pid != null && sigN < 1
               const { canDelete, blockReason } = templateDeleteEligibility(trow)
               const deleteTitle = canDelete ? '템플릿 영구 삭제' : (blockReason ?? '삭제할 수 없습니다.')
               return (
@@ -337,9 +370,15 @@ export function ContractTemplatePanel({
                     </span>
                   </div>
                   <div className="contract-signature-console__template-card-meta">
+                    <span className="contract-signature-console__template-card-label">모드</span>
+                    <span className="contract-signature-console__template-card-value">{templateModeShortLabel(tMode)}</span>
+                  </div>
+                  <div className="contract-signature-console__template-card-meta">
                     <span className="contract-signature-console__template-card-label">PDF</span>
                     <span className="contract-signature-console__template-card-value">
-                      {pid == null ? (
+                      {tMode === 'confirmation_only' ? (
+                        <span className="contract-signature-console__muted">— (무좌표)</span>
+                      ) : pid == null ? (
                         <span className="contract-signature-console__muted">—</span>
                       ) : (
                         <>
@@ -480,6 +519,7 @@ export function ContractTemplatePanel({
             <colgroup>
               <col className="contract-signature-console__col-title" />
               <col className="contract-signature-console__col-status" />
+              <col className="contract-signature-console__col-mode" />
               <col className="contract-signature-console__col-pdf" />
               <col className="contract-signature-console__col-id" />
               <col className="contract-signature-console__col-date" />
@@ -489,6 +529,7 @@ export function ContractTemplatePanel({
               <tr>
                 <th scope="col">제목</th>
                 <th scope="col">상태</th>
+                <th scope="col">모드</th>
                 <th scope="col">연결 PDF</th>
                 <th scope="col">계약 템플릿 ID</th>
                 <th scope="col">수정일</th>
@@ -498,16 +539,17 @@ export function ContractTemplatePanel({
             <tbody>
               {templates.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="contract-signature-console__empty-state-text" style={{ padding: '1rem' }}>
-                    표시할 전자서명 템플릿이 없습니다. 1번에서 PDF를 선택한 뒤 &ldquo;선택한 PDF로 템플릿 만들기&rdquo;를 눌러 초안을
-                    추가할 수 있습니다.
+                  <td colSpan={7} className="contract-signature-console__empty-state-text" style={{ padding: '1rem' }}>
+                    표시할 템플릿이 없습니다. PDF 좌표형은 1번에서 PDF 선택 후 만들기, 무좌표 확인서는 「무좌표 확인서 템플릿 추가」로 만든 뒤 PDF
+                    필터를 해제하면 목록에 표시됩니다.
                   </td>
                 </tr>
               ) : (
                 templates.map((trow) => {
+                  const tMode = resolveTemplateMode(trow)
                   const pid = trow.pdfTemplateId
                   const sigN = pid != null ? (pdfSignatureCountByPdfId.get(pid) ?? 0) : 0
-                  const noSig = pid != null && sigN < 1
+                  const noSig = tMode === 'coordinate_pdf' && pid != null && sigN < 1
                   const { canDelete, blockReason } = templateDeleteEligibility(trow)
                   const deleteTitle = canDelete ? '템플릿 영구 삭제' : (blockReason ?? '삭제할 수 없습니다.')
                   return (
@@ -521,8 +563,11 @@ export function ContractTemplatePanel({
                           {statusDescription(trow.status)}
                         </div>
                       </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{templateModeShortLabel(tMode)}</td>
                       <td>
-                        {pid == null ? (
+                        {tMode === 'confirmation_only' ? (
+                          <span className="contract-signature-console__muted">—</span>
+                        ) : pid == null ? (
                           <span className="contract-signature-console__muted">—</span>
                         ) : (
                           <>
@@ -671,6 +716,8 @@ export function ContractTemplatePanel({
               <p className="contract-signature-console__body-text">불러오는 중…</p>
             ) : detail ? (
               <dl className="contract-signature-console__detail-dl">
+                <dt>템플릿 모드</dt>
+                <dd>{templateModeShortLabel(resolveTemplateMode(detail))}</dd>
                 <dt>제목</dt>
                 <dd>{detail.title}</dd>
                 <dt>상태</dt>
@@ -725,8 +772,9 @@ export function ContractTemplatePanel({
               전자서명 템플릿 수정
             </h3>
             <p className="contract-signature-console__body-text" style={{ marginBottom: 12 }}>
-              선택한 PDF 템플릿의 필드별 입력 방식을 설정합니다. 고객 입력은 고객이 작성하고, 발송자 입력은 발송자가
-              보내기 전에 작성하며, 고정 출력은 모든 발송 건에 동일하게 출력됩니다.
+              {detail && resolveTemplateMode(detail) === 'confirmation_only'
+                ? '무좌표 전자확인서 템플릿입니다. 확인서에 표시할 동적 항목만 편집합니다. PDF 좌표 필드는 사용하지 않습니다.'
+                : '선택한 PDF 템플릿의 필드별 입력 방식을 설정합니다. 고객 입력은 고객이 작성하고, 발송자 입력은 발송자가 보내기 전에 작성하며, 고정 출력은 모든 발송 건에 동일하게 출력됩니다.'}
             </p>
             <div style={{ marginBottom: 10 }}>
               <div className="contract-signature-console__body-text" style={{ marginBottom: 6 }}>
@@ -744,6 +792,23 @@ export function ContractTemplatePanel({
               <p className="contract-signature-console__body-text">불러오는 중…</p>
             ) : detail ? (
               <>
+                <div style={{ marginBottom: 10 }}>
+                  <div className="contract-signature-console__body-text" style={{ marginBottom: 6 }}>
+                    템플릿 모드(변경 불가)
+                  </div>
+                  <FormInput value={templateModeShortLabel(resolveTemplateMode(detail))} readOnly disabled />
+                </div>
+                {resolveTemplateMode(detail) === 'confirmation_only' ? (
+                  <ContractTemplateConfirmationFieldsSection
+                    token={token}
+                    role={role}
+                    tenantGaId={tenantGaId}
+                    templateId={detail.id}
+                    disabled={busy}
+                    onError={onError}
+                  />
+                ) : (
+                  <>
                 <div style={{ marginBottom: 10 }}>
                   <div className="contract-signature-console__body-text" style={{ marginBottom: 6 }}>
                     연결 PDF 템플릿
@@ -858,6 +923,8 @@ export function ContractTemplatePanel({
                     </table>
                   </div>
                 )}
+                  </>
+                )}
               </>
             ) : (
               <p className="contract-signature-console__body-text">표시할 데이터가 없습니다.</p>
@@ -887,7 +954,12 @@ export function ContractTemplatePanel({
                         tenantGaId,
                       )
                       const d = detail
-                      if (d?.pdfTemplateId != null && fieldSettingsDraft.length > 0) {
+                      if (
+                        d &&
+                        resolveTemplateMode(d) === 'coordinate_pdf' &&
+                        d.pdfTemplateId != null &&
+                        fieldSettingsDraft.length > 0
+                      ) {
                         const fieldSettings = fieldSettingsDraft.map((row) => {
                           const meta = d.fieldInputSettings.find((x) => x.fieldKey === row.fieldKey)
                           const isSig = meta?.fieldType === 'signature'
@@ -933,7 +1005,10 @@ export function ContractTemplatePanel({
               상태 변경
             </h3>
             <p className="contract-signature-console__footnote" style={{ marginBottom: 8 }}>
-              active는 발송 가능, archived는 사용 중지입니다. active로 두려면 PDF에 좌표 필드가 있어야 합니다.
+              {templates.find((x) => x.id === modal.templateId) &&
+              resolveTemplateMode(templates.find((x) => x.id === modal.templateId)!) === 'confirmation_only'
+                ? 'active는 확인서 항목이 1개 이상 있어야 하며, archived는 사용 중지입니다.'
+                : 'active는 발송 가능, archived는 사용 중지입니다. active(PDF 좌표형)로 두려면 PDF에 좌표 필드가 있어야 합니다.'}
             </p>
             <FormSelect
               value={statusDraft}
@@ -967,6 +1042,78 @@ export function ContractTemplatePanel({
                 }
               >
                 적용
+              </FormButton>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {confirmOnlyCreateOpen ? (
+        <div
+          className="contract-signature-console__detail-backdrop"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setConfirmOnlyCreateOpen(false)
+            }
+          }}
+        >
+          <div
+            className="contract-signature-console__detail-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-label="무좌표 확인서 템플릿 추가"
+            style={{ maxWidth: 480 }}
+          >
+            <h3 className="contract-signature-console__subsection-title" style={{ marginTop: 0 }}>
+              무좌표 확인서 템플릿 추가
+            </h3>
+            <p className="contract-signature-console__body-text" style={{ marginBottom: 12 }}>
+              PDF 없이 초안(draft)으로 만듭니다. 목록에서는 PDF 필터를 해제해야 보일 수 있습니다.
+            </p>
+            <div style={{ marginBottom: 14 }}>
+              <div className="contract-signature-console__body-text" style={{ marginBottom: 6 }}>
+                템플릿 제목
+              </div>
+              <FormInput
+                value={confirmOnlyTitle}
+                onChange={(e) => setConfirmOnlyTitle(e.target.value)}
+                disabled={busy}
+                placeholder="예: 약관 확인서"
+              />
+            </div>
+            <div className="contract-signature-console__detail-actions">
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                size="sm"
+                disabled={busy}
+                onClick={() => setConfirmOnlyCreateOpen(false)}
+              >
+                취소
+              </FormButton>
+              <FormButton
+                htmlType="button"
+                variant="primary"
+                size="sm"
+                disabled={busy}
+                onClick={() => {
+                  const title = confirmOnlyTitle.trim()
+                  if (!title) {
+                    onError('제목을 입력하세요.')
+                    return
+                  }
+                  void runOp(async () => {
+                    await createConfirmationOnlyContractTemplate(token, role, {
+                      title,
+                      tenantGaId,
+                    })
+                    setConfirmOnlyCreateOpen(false)
+                    setConfirmOnlyTitle('')
+                  })
+                }}
+              >
+                만들기
               </FormButton>
             </div>
           </div>

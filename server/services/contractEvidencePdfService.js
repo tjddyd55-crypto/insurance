@@ -16,6 +16,7 @@ const MARGIN = 50
 const FONT_SIZE = 8.5
 const LINE_HEIGHT = 10
 const MAX_TEXT_WIDTH = A4_W - MARGIN * 2
+const CONFIRMATION_CONTENT_ACK_FIELD_KEY = '__confirmation_content_ack__'
 
 /**
  * @param {string} name
@@ -45,6 +46,10 @@ function hashPrefix(hex, n = 16) {
     return '—'
   }
   return s.length <= n ? s : `${s.slice(0, n)}…`
+}
+
+function normalizeConfirmationInputRole(raw) {
+  return String(raw ?? '').trim() === 'customer' ? 'customer' : 'sender'
 }
 
 /**
@@ -135,6 +140,7 @@ async function loadDocuments(pool, sendSessionId) {
       cdi.sort_order,
       cdi.completed_at,
       ct.title AS contract_template_title,
+      COALESCE(ct.template_mode, 'coordinate_pdf') AS template_mode,
       ct.pdf_template_id,
       pt.title AS pdf_template_title
     FROM contract_document_instances cdi
@@ -159,6 +165,55 @@ async function loadDocumentValues(pool, documentInstanceId) {
     [documentInstanceId],
   )
   return r.rows
+}
+
+async function loadConfirmationRoleAwareValues(pool, sendSessionId, templateId) {
+  const defR = await pool.query(
+    `
+    SELECT id, field_key, label, input_type, required, sort_order, input_role
+    FROM contract_template_confirmation_fields
+    WHERE template_id = $1
+    ORDER BY sort_order ASC, id ASC
+    `,
+    [templateId],
+  )
+  const valR = await pool.query(
+    `
+    SELECT field_key, value_text
+    FROM contract_send_session_confirmation_field_values
+    WHERE send_session_id = $1
+      AND template_id = $2
+    `,
+    [sendSessionId, templateId],
+  )
+  const valueByFieldKey = new Map(valR.rows.map((r) => [String(r.field_key ?? ''), String(r.value_text ?? '')]))
+  return defR.rows.map((r) => ({
+    fieldKey: String(r.field_key ?? ''),
+    label: String(r.label ?? '').trim() || String(r.field_key ?? ''),
+    inputType: String(r.input_type ?? 'text'),
+    required: r.required === true || r.required === 1,
+    sortOrder: Number(r.sort_order ?? 0),
+    inputRole: normalizeConfirmationInputRole(r.input_role),
+    valueText: valueByFieldKey.get(String(r.field_key ?? '')) ?? '',
+  }))
+}
+
+async function loadConfirmationContentAcknowledgement(pool, documentInstanceId) {
+  const ackR = await pool.query(
+    `
+    SELECT value_text, updated_at
+    FROM contract_document_values
+    WHERE document_instance_id = $1
+      AND field_key = $2
+    LIMIT 1
+    `,
+    [documentInstanceId, CONFIRMATION_CONTENT_ACK_FIELD_KEY],
+  )
+  const row = ackR.rows[0] ?? null
+  return {
+    acknowledged: String(row?.value_text ?? '').trim() === 'true',
+    acknowledgedAt: row?.updated_at != null ? new Date(row.updated_at).toISOString() : null,
+  }
 }
 
 async function loadEvidenceForDoc(pool, sendSessionId, documentInstanceId) {
@@ -242,6 +297,8 @@ export async function buildSendSessionEvidencePdf(ctx) {
 
   const docs = await loadDocuments(pool, sid)
   const completedDocs = docs.filter((d) => String(d.status ?? '') === 'completed')
+  const completedCoordinateDocs = completedDocs.filter((d) => String(d.template_mode ?? '') !== 'confirmation_only')
+  const completedConfirmationDocs = completedDocs.filter((d) => String(d.template_mode ?? '') === 'confirmation_only')
   if (completedDocs.length === 0) {
     const e = new Error('완료된 문서만 다운로드할 수 있습니다.')
     /** @type {{ statusCode?: number }} */ (e).statusCode = 403
@@ -328,7 +385,7 @@ export async function buildSendSessionEvidencePdf(ctx) {
   y -= 6
 
   flushParagraph('— 섹션 3~6. 문서별 입력·서명·증빙 —')
-  for (const d of completedDocs) {
+  for (const d of completedCoordinateDocs) {
     flushParagraph(`▶ ${String(d.title_snapshot ?? d.id)}`)
     flushParagraph(`  계약 템플릿: ${d.contract_template_title ?? '—'}`)
     flushParagraph(`  PDF 템플릿: ${d.pdf_template_title ?? '—'}`)
@@ -399,6 +456,121 @@ export async function buildSendSessionEvidencePdf(ctx) {
       flushParagraph('  증빙 행이 없습니다.')
     }
     y -= 4
+  }
+
+  if (completedConfirmationDocs.length > 0) {
+    flushParagraph('— 무좌표 전자확인서: 확인서 항목·증빙 —')
+    for (const d of completedConfirmationDocs) {
+      flushParagraph(`▶ ${String(d.title_snapshot ?? d.id)} (전자확인서)`)
+      flushParagraph(`  계약 템플릿: ${d.contract_template_title ?? '—'}`)
+      flushParagraph('  PDF 템플릿: — (무좌표)')
+      const cfRows = await loadConfirmationRoleAwareValues(pool, sid, String(d.template_id))
+      const senderRows = cfRows.filter((r) => r.inputRole === 'sender')
+      const customerRows = cfRows.filter((r) => r.inputRole === 'customer')
+      const contentAck = await loadConfirmationContentAcknowledgement(pool, String(d.id))
+
+      flushParagraph('  [발송자 입력 내용]')
+      if (senderRows.length === 0) {
+        flushParagraph('  · 발송자 입력 항목 없음')
+      } else {
+        for (const r of senderRows) {
+          const shown = String(r.valueText ?? '').trim() || '입력 없음'
+          flushParagraph(
+            `  · ${r.label} (${r.fieldKey}, type=${r.inputType}, required=${r.required ? 'Y' : 'N'}, role=sender): ${shown}`,
+          )
+        }
+      }
+
+      flushParagraph('  [고객 입력 내용]')
+      if (customerRows.length === 0) {
+        flushParagraph('  · 고객 입력 항목 없음')
+      } else {
+        for (const r of customerRows) {
+          const shown = String(r.valueText ?? '').trim() || '—'
+          flushParagraph(
+            `  · ${r.label} (${r.fieldKey}, type=${r.inputType}, required=${r.required ? 'Y' : 'N'}, role=customer): ${shown}`,
+          )
+        }
+      }
+
+      flushParagraph('  [발송자 입력 내용 고객 확인]')
+      if (senderRows.length === 0) {
+        flushParagraph('  · 발송자 입력 내용 없음')
+      } else {
+        flushParagraph(
+          `  · ${contentAck.acknowledged ? '확인 완료' : '미완료'} @ ${formatTsKor(contentAck.acknowledgedAt)}`,
+        )
+      }
+
+      flushParagraph('  [고객 확인 체크 항목]')
+      if (confirmations.length === 0) {
+        flushParagraph('  · 등록된 확인 체크 항목 없음')
+      } else {
+        for (const c of confirmations) {
+          const checked = c.checked === true ? '완료' : '미완료'
+          flushParagraph(`  · ${String(c.label ?? c.id)} (${c.required ? '필수' : '선택'}) — ${checked}`)
+        }
+      }
+
+      flushParagraph('  [첨부자료 확인]')
+      if (attachments.length === 0) {
+        flushParagraph('  · 첨부자료 없음')
+      } else {
+        let idx = 0
+        for (const a of attachments) {
+          idx += 1
+          flushParagraph(
+            `  ${idx}. ${a.displayFilename ?? a.id} / 해시=${String(a.fileHash ?? '').trim() || '—'} / 확인=${a.confirmed ? formatTsKor(a.confirmedAt) : '미확인'} / 열람=${a.viewed ? formatTsKor(a.viewedAt) : '—'}`,
+          )
+        }
+      }
+
+      flushParagraph('  [문서 인스턴스 값(서명 등)]')
+      const valsCo = await loadDocumentValues(pool, String(d.id))
+      for (const v of valsCo) {
+        const ft = String(v.field_type ?? '')
+        const fk = String(v.field_key ?? '')
+        if (ft === 'signature') {
+          flushParagraph(
+            `  · ${fk}: 서명 저장됨 (fileId=${v.value_file_id != null ? String(v.value_file_id) : '—'}, valueHash=${v.value_hash != null ? String(v.value_hash) : '—'}, updatedAt=${formatTsKor(v.updated_at)})`,
+          )
+          continue
+        }
+        const shown = String(v.value_text ?? '').trim() || '—'
+        flushParagraph(`  · ${fk}: ${shown} (저장 시각: ${formatTsKor(v.updated_at)})`)
+      }
+      const evCo = await loadEvidenceForDoc(pool, sid, String(d.id))
+      flushParagraph('  [전자확인·증빙]')
+      if (evCo) {
+        flushParagraph(`  · evidenceHash: ${String(evCo.evidence_hash ?? '').trim() || '—'}`)
+        flushParagraph(`  · 완료 시각: ${formatTsKor(evCo.signed_at)}`)
+        flushParagraph(`  · 완료 확인서 PDF 해시: ${hashPrefix(evCo.signed_pdf_hash ?? evCo.document_hash, 24)}`)
+        flushParagraph(`  · 접속 IP(해시): ${hashPrefix(evCo.ip_hash)}`)
+        flushParagraph(`  · User-Agent: ${String(evCo.user_agent ?? '').trim() || '—'}`)
+        const sigBytesCo = await loadFileBuffer(pool, evCo.signature_file_id)
+        if (sigBytesCo) {
+          const imgCo = await tryEmbedRaster(pdfDoc, sigBytesCo)
+          if (imgCo) {
+            const maxW = 140
+            const scale = Math.min(maxW / imgCo.width, 40 / imgCo.height)
+            const w = imgCo.width * scale
+            const h = imgCo.height * scale
+            if (y < MARGIN + h + LINE_HEIGHT * 3) {
+              page = pdfDoc.addPage([A4_W, A4_H])
+              y = A4_H - MARGIN
+            }
+            y -= 4
+            page.drawText('  [서명 이미지(축소)]', { x: MARGIN, y, size: FONT_SIZE, font, color: rgb(0, 0, 0) })
+            y -= LINE_HEIGHT
+            page.drawImage(imgCo, { x: MARGIN + 10, y: y - h, width: w, height: h })
+            y -= h + 6
+          }
+        }
+      } else {
+        flushParagraph('  증빙 행이 없습니다.')
+      }
+      y -= 4
+    }
   }
 
   flushParagraph('— 섹션 4. 고객 확인 체크 항목 —')

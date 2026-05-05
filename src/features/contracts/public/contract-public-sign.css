@@ -57,6 +57,45 @@
   color: var(--text-sub);
 }
 
+.contract-public-sign-page__confirmation-value {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.contract-public-sign-page__confirmation-value--multiline {
+  white-space: pre-wrap;
+}
+
+.contract-public-sign-page__confirmation-readonly {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-soft);
+  padding: 10px 12px;
+  min-height: 40px;
+}
+
+.contract-public-sign-page__co-signature-img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.contract-public-sign-page__co-sign-cta {
+  min-height: 44px;
+}
+
+/* 최종 완료 카드: 문서 일반 흐름(하단 sticky/고정 없음) */
+.contract-public-sign-page__co-final-section {
+  margin-top: 1.25rem;
+}
+
+.contract-public-sign-page__co-final-cta {
+  min-height: 48px;
+}
+
 .contract-public-sign-page__badge {
   display: inline-block;
   border-radius: 4px;
@@ -164,6 +203,12 @@
   font-size: 0.875rem;
   color: var(--text-sub);
   line-height: 1.5;
+}
+
+.contract-public-sign-page__notice--secondary {
+  margin-top: 10px;
+  font-size: 0.8125rem;
+  line-height: 1.55;
 }
 
 .contract-public-sign-page__label-row {
@@ -319,7 +364,7 @@
 
 .contract-public-sign-page .form-input:not([type='checkbox']):not([type='radio']):not([type='file']),
 .contract-public-sign-page .form-select {
-  min-height: 42px;
+  min-height: 44px;
   padding: 0 12px;
 }
 
@@ -583,14 +628,18 @@
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
-/* 5단계 전자서명 플로우 카드 */
+/* 5단계 전자서명 플로우 카드 — 전자문서 처리 톤: 좌측 초록 강조선, 배경 과잉 채색 없음 */
 .contract-public-sign-page__step-card {
-  border-left: 3px solid var(--border);
+  border-left: 4px solid var(--border);
+}
+
+.contract-public-sign-page__step-anchor {
+  scroll-margin-top: 72px;
 }
 
 .contract-public-sign-page__step-card--active {
-  border-left-color: var(--color-primary, var(--interactive-primary, #3b82f6));
-  box-shadow: 0 0 0 1px var(--color-primary, var(--interactive-primary, #3b82f6));
+  border-left-color: rgba(34, 197, 94, 0.95);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.2);
 }
 
 .contract-public-sign-page__step-card--locked {
@@ -598,12 +647,196 @@
   border-left-color: var(--border);
 }
 
-.contract-public-sign-page__step-card--completed,
-.contract-public-sign-page__step-card--done {
-  border-left-color: var(--success);
+.contract-public-sign-page__step-card--completed {
+  border-left-color: rgba(22, 163, 74, 0.88);
+  box-shadow: none;
 }
 
 .contract-public-sign-page__step-status {
   margin: 12px 0 0;
   font-size: 0.8125rem;
+}
+
+/* ─── 공개 링크 허브(문자→인증→문서 목록) — 다크톤, 모바일 터치 영역 ─── */
+.contract-public-link-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg-main);
+  color: var(--text-main);
+  padding: 24px 16px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
+.contract-public-link-page *,
+.contract-public-link-page *::before,
+.contract-public-link-page *::after {
+  box-sizing: border-box;
+}
+
+.contract-public-link-page__inner {
+  max-width: 32rem;
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.contract-public-link-page__title {
+  margin: 0 0 24px;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.contract-public-link-page__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.contract-public-link-page__loading {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-sub);
+}
+
+.contract-public-link-page__hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--text-sub);
+}
+
+.contract-public-link-page__doc-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.contract-public-link-page__doc-link {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-main);
+  text-align: left;
+  text-decoration: none;
+  box-shadow: 0 1px 2px var(--shadow-card);
+  overflow-wrap: anywhere;
+  transition:
+    border-color 0.1s ease,
+    background 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.contract-public-link-page__doc-link:hover {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+}
+
+.contract-public-link-page__doc-title {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  min-width: 0;
+  flex: 1;
+}
+
+.contract-public-link-page__doc-status {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--text-sub);
+}
+
+.contract-public-link-page__badge {
+  display: inline-block;
+  margin-right: 8px;
+  margin-bottom: 2px;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.contract-public-link-page__badge--req {
+  border: 1px solid color-mix(in srgb, var(--status-warn) 55%, var(--border));
+  color: var(--status-warn);
+  background: color-mix(in srgb, var(--status-warn) 12%, transparent);
+}
+
+.contract-public-link-page__badge--opt {
+  border: 1px solid var(--border);
+  color: var(--text-sub);
+  background: color-mix(in srgb, var(--bg-soft) 50%, transparent);
+}
+
+.contract-public-link-page__otp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.contract-public-link-page__otp-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-main);
+}
+
+.contract-public-link-page__actions-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.contract-public-link-page__actions-col .button {
+  min-height: 44px;
+  width: 100%;
+}
+
+.contract-public-link-page .form-input:not([type='checkbox']):not([type='radio']):not([type='file']),
+.contract-public-link-page .form-select {
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-main);
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.contract-public-link-page .form-input::placeholder,
+.contract-public-link-page .form-select::placeholder {
+  color: var(--placeholder);
+}
+
+.contract-public-link-page .form-input:focus:not(:disabled),
+.contract-public-link-page .form-select:focus:not(:disabled) {
+  outline: none;
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px var(--primary-soft);
+}
+
+.contract-public-link-page .status {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--danger-border);
+  background: var(--danger-bg);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--danger-text);
+}
+
+.contract-public-link-page .status--error {
+  color: var(--danger-text);
 }

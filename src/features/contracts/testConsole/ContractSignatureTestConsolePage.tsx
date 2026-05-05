@@ -169,7 +169,7 @@ export default function ContractSignatureTestConsolePage() {
             <li>
               현재 기능은 지정 휴대폰 인증 기반 전자서명입니다. NICE/KCB 실명 본인확인은 아직 연결되어 있지 않습니다.
             </li>
-            <li>최종 PDF 합성은 추후 지원 예정입니다.</li>
+            <li>발송·서명이 끝나면 담당자 화면에서 완료 문서 PDF와 증빙 PDF를 내려받을 수 있습니다.</li>
             <li>관리자용 임시 발송·세션 조회 API(`/api/admin/contracts/send-sessions`)는 호환용으로 유지될 수 있습니다.</li>
           </ul>
         </div>

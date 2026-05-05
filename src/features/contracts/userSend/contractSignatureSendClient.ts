@@ -16,6 +16,52 @@ export type ContractSenderFieldDef = {
   options?: unknown
 }
 
+export type ContractTemplateMode = 'coordinate_pdf' | 'confirmation_only'
+
+export type UserContractConfirmationFieldRow = {
+  id: string
+  fieldKey: string
+  label: string
+  inputType: 'text' | 'textarea' | 'number' | 'date'
+  inputRole: 'sender' | 'customer'
+  required: boolean
+  sortOrder: number
+  placeholder: string | null
+  helpText: string | null
+}
+
+function coerceUserConfirmationInputType(raw: unknown): UserContractConfirmationFieldRow['inputType'] {
+  const it = String(raw ?? 'text').trim()
+  if (it === 'textarea' || it === 'number' || it === 'date' || it === 'text') {
+    return it
+  }
+  return 'text'
+}
+
+function coerceUserConfirmationInputRole(raw: unknown): UserContractConfirmationFieldRow['inputRole'] {
+  const role = String(raw ?? 'sender').trim()
+  return role === 'customer' ? 'customer' : 'sender'
+}
+
+function coerceUserConfirmationField(raw: Record<string, unknown>): UserContractConfirmationFieldRow {
+  return {
+    id: String(raw.id ?? ''),
+    fieldKey: String(raw.fieldKey ?? raw.field_key ?? ''),
+    label: String(raw.label ?? ''),
+    inputType: coerceUserConfirmationInputType(raw.inputType ?? raw.input_type),
+    inputRole: coerceUserConfirmationInputRole(raw.inputRole ?? raw.input_role),
+    required: Boolean(raw.required),
+    sortOrder: Number(raw.sortOrder ?? raw.sort_order ?? 0),
+    placeholder: raw.placeholder != null ? String(raw.placeholder) : null,
+    helpText:
+      raw.helpText != null
+        ? String(raw.helpText)
+        : raw.help_text != null
+          ? String(raw.help_text)
+          : null,
+  }
+}
+
 export type UserContractTemplateItem = {
   id: string
   title: string
@@ -23,6 +69,8 @@ export type UserContractTemplateItem = {
   category: string | null
   status: string
   version: number
+  /** 서버 기본값 coordinate_pdf */
+  templateMode: ContractTemplateMode
   pdfTemplateId: number | null
   pdfEngineTitle: string | null
   pdfFieldCount: number
@@ -127,8 +175,28 @@ export async function listUserContractTemplates(
   }
   return raw.templates.map((row) => ({
     ...row,
+    templateMode: row.templateMode === 'confirmation_only' ? 'confirmation_only' : 'coordinate_pdf',
     senderFieldsForSend: Array.isArray(row.senderFieldsForSend) ? row.senderFieldsForSend : [],
   }))
+}
+
+/**
+ * confirmation_only 템플릿의 확인서 항목 정의 조회(발송 화면 전용, 읽기 전용).
+ * coordinate_pdf 템플릿이면 서버가 409를 반환한다.
+ */
+export async function listUserContractTemplateConfirmationFields(
+  token: string,
+  templateId: string,
+): Promise<UserContractConfirmationFieldRow[]> {
+  const body = await apiRequest<{ fields?: unknown[] }>(
+    `/api/contracts/templates/${encodeURIComponent(templateId)}/confirmation-fields`,
+    { method: 'GET', token },
+  )
+  const raw = body as { fields?: unknown[] }
+  if (!raw?.fields || !Array.isArray(raw.fields)) {
+    throw new ApiError('확인 항목 목록 응답 형식이 올바르지 않습니다.', 500)
+  }
+  return raw.fields.map((f) => coerceUserConfirmationField(f as Record<string, unknown>))
 }
 
 function dedupeContractSendHitsById(
@@ -178,6 +246,8 @@ export async function createUserContractSendSession(
     senderFieldValues?: Record<string, Record<string, unknown>>
     /** 고객 공개 화면에서 전자서명 전 확인받을 체크 문구(PDF 필드 아님). */
     confirmationItems?: { label: string; required?: boolean }[]
+    /** confirmation_only: field_key → 표시값(서버에서 정의·필수 검증). */
+    confirmationFieldValues?: Record<string, string>
     /** 첨부 참고 문서(fileId는 업로드 API로 발급) */
     attachments?: { fileId: string; required?: boolean }[]
   },
@@ -193,6 +263,7 @@ export async function createUserContractSendSession(
       templateIds: params.templateIds,
       senderInputValues: params.senderInputValues ?? params.senderFieldValues,
       confirmationItems: params.confirmationItems,
+      confirmationFieldValues: params.confirmationFieldValues,
       attachments: params.attachments,
     }),
   })

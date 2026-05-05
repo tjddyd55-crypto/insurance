@@ -12,6 +12,8 @@ import type { PdfTemplateDetail, PdfTemplateSummary } from '../../pdf-engine/typ
 import { searchCustomers } from '../../customers/api/customersApi'
 import type { CustomerRecord } from '../../customers/domain/types'
 
+export type ContractTemplateMode = 'coordinate_pdf' | 'confirmation_only'
+
 export type ContractTemplateListItem = {
   id: string
   title: string
@@ -19,6 +21,7 @@ export type ContractTemplateListItem = {
   category: string | null
   status: string
   version: number
+  templateMode: ContractTemplateMode
   pdfTemplateId: number | null
   pdfEngineTitle: string | null
   pageCount: number | null
@@ -48,6 +51,7 @@ export type ContractTemplateDetail = {
   category: string | null
   status: string
   version: number
+  templateMode: ContractTemplateMode
   pdfTemplateId: number | null
   pdfFileId: string | null
   pdfFilePath: string | null
@@ -136,6 +140,8 @@ export type SendSessionDetail = {
   /** FC 내역·상세에서만 채움 */
   customerName?: string | null
   customerCode?: string | null
+  /** 세션에 연결된 템플릿 모드 (confirmation_only 등) */
+  templateMode?: string | null
   packageId: string | null
   status: string
   maskedPhone: string
@@ -226,6 +232,7 @@ export async function listContractTemplates(
   }
   return raw.templates.map((t) => ({
     ...t,
+    templateMode: t.templateMode === 'confirmation_only' ? 'confirmation_only' : 'coordinate_pdf',
     documentInstanceCount: Number((t as ContractTemplateListItem).documentInstanceCount ?? 0),
     packageItemCount: Number((t as ContractTemplateListItem).packageItemCount ?? 0),
   }))
@@ -249,6 +256,7 @@ export async function fetchContractTemplateDetail(
   }
   return {
     ...tpl,
+    templateMode: tpl.templateMode === 'confirmation_only' ? 'confirmation_only' : 'coordinate_pdf',
     fieldInputSettings: Array.isArray(tpl.fieldInputSettings) ? tpl.fieldInputSettings : [],
   }
 }
@@ -302,8 +310,38 @@ export async function createContractTemplateFromPdfTemplate(
     body: JSON.stringify({
       title,
       pdfTemplateId: params.pdfTemplateId,
+      templateMode: 'coordinate_pdf',
       status: 'draft',
       description: '전자서명 관리에서 선택한 PDF 템플릿으로 생성됨',
+      ...tenantBody(params.tenantGaId, isSuper),
+    }),
+  })
+  const id = (body as { data?: { id?: string } })?.data?.id
+  if (!id || typeof id !== 'string') {
+    throw new ApiError('계약 템플릿 생성 응답에 id가 없습니다.', 500)
+  }
+  return id
+}
+
+/** 무좌표 전자확인서용 템플릿 초안 생성(PDF 없음). */
+export async function createConfirmationOnlyContractTemplate(
+  token: string,
+  role: string | undefined,
+  params: { title: string; description?: string | null; tenantGaId: number | null },
+): Promise<string> {
+  const isSuper = role === 'SUPER_ADMIN'
+  const title = String(params.title ?? '').trim()
+  if (!title) {
+    throw new ApiError('제목을 입력하세요.', 400)
+  }
+  const body = await apiRequest<{ data?: { id?: string } }>(`/api/admin/contracts/templates`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({
+      title,
+      templateMode: 'confirmation_only',
+      status: 'draft',
+      description: params.description ?? '무좌표 전자확인서 템플릿',
       ...tenantBody(params.tenantGaId, isSuper),
     }),
   })
@@ -451,7 +489,7 @@ export function buildStaffSignedPdfAbsUrl(sendSessionId: string, documentInstanc
   )
 }
 
-/** 발송 세션 단위 전자서명 증빙 PDF (Bearer 인증) */
+/** 발송 세션 단위 증빙 PDF (Bearer 인증) */
 export function buildStaffEvidencePdfAbsUrl(sendSessionId: string): string {
   return resolveApiUrl(`/api/contracts/send-sessions/${encodeURIComponent(sendSessionId)}/evidence.pdf`)
 }

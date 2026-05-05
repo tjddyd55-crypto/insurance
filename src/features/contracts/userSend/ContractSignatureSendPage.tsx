@@ -1,7 +1,7 @@
 /**
  * 전자서명 발송 — USER / GA_STAFF. 관리자 템플릿은 /admin/contract-signatures 에서만 관리.
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode, type ReactElement, type KeyboardEvent, type ChangeEventHandler } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ReactElement, type KeyboardEvent, type ChangeEventHandler } from 'react'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { useMediaQuery } from '../../../hooks/useMediaQuery'
 import '../../pdf-engine/pdf-engine.css'
@@ -16,6 +16,7 @@ import {
   createUserContractSendSession,
   getUserContractSendSessionDetail,
   listUserContractTemplates,
+  listUserContractTemplateConfirmationFields,
   getContractCustomerSearchValidationMessage,
   searchCustomersForContractSend,
   CONTRACT_SEND_CONFIRMATION_MAX_ITEMS,
@@ -24,8 +25,29 @@ import {
   uploadUserContractSendAttachment,
   type UserContractCustomerSearchHit,
   type UserContractTemplateItem,
+  type UserContractConfirmationFieldRow,
 } from './contractSignatureSendClient'
 import { SendAttachmentFileInput } from './SendAttachmentFileInput'
+import { ConfirmationOnlySendFieldsSection } from './ConfirmationOnlySendFieldsSection'
+
+/**
+ * 모바일 발송 단계에서 초록색(contract-mobile-step--completed)은
+ * 「현재 선택한 고객·템플릿으로 이미 만들어진 발송 세션」에만 붙어야 한다.
+ * 세션 id만 보고 완료 처리하면 이전 맥락 세션이 남아 3·4단계가 전부 완료로 보인다.
+ */
+function contractSendSessionDetailMatchesPick(
+  detail: SendSessionDetail | null,
+  customerId: number | undefined,
+  templateId: string | null,
+): boolean {
+  if (!detail || customerId == null || templateId == null || templateId === '') {
+    return false
+  }
+  if (detail.customerId !== customerId) {
+    return false
+  }
+  return detail.documents.some((d) => d.templateId === templateId)
+}
 
 const MOBILE_FLOW_MQ = '(max-width: 768px)'
 
@@ -94,6 +116,25 @@ function runPickRowKeyboardAction(e: KeyboardEvent, run: () => void) {
   run()
 }
 
+function validateConfirmationOnlyFieldValues(
+  fields: UserContractConfirmationFieldRow[],
+  values: Record<string, string>,
+): string | null {
+  for (const f of fields) {
+    if (f.inputRole !== 'sender') {
+      continue
+    }
+    if (!f.required) {
+      continue
+    }
+    const raw = values[f.fieldKey]
+    if (raw == null || String(raw).trim() === '') {
+      return `「${f.label}」항목은 필수입니다.`
+    }
+  }
+  return null
+}
+
 type SendAttachmentDraftUploadStatus = 'uploading' | 'done' | 'error'
 
 type SendAttachmentDraftRow = {
@@ -143,20 +184,27 @@ function mobileStepShell(
   children: ReactNode,
 ): ReactElement {
   const { title, desc, active, completed, locked } = opts
+  /* locked이면 진행 중/완료 배지·스타일이 동시에 켜지지 않도록 active를 잠긴다 */
+  const visualActive = active && !locked
+  const visualCompleted = completed && !visualActive
+
   const cls = [
     'contract-mobile-step',
     locked ? 'contract-mobile-step--locked' : '',
-    completed ? 'contract-mobile-step--completed' : '',
-    active && !locked ? 'contract-mobile-step--active' : '',
+    visualCompleted ? 'contract-mobile-step--completed' : '',
+    visualActive ? 'contract-mobile-step--active' : '',
   ]
     .filter(Boolean)
     .join(' ')
-  const badgeCls = completed
+
+  const badgeCls = visualCompleted
     ? 'contract-mobile-step__badge contract-mobile-step__badge--done'
-    : active && !locked
+    : visualActive
       ? 'contract-mobile-step__badge contract-mobile-step__badge--active'
       : 'contract-mobile-step__badge contract-mobile-step__badge--locked'
-  const badgeText = completed ? '완료' : active && !locked ? '진행 중' : '대기'
+
+  const badgeText = visualCompleted ? '완료' : visualActive ? '진행 중' : '대기'
+
   return (
     <section className={cls}>
       <div className="contract-mobile-step__head">
@@ -197,9 +245,27 @@ export default function ContractSignatureSendPage() {
   const [attachmentUploadBusy, setAttachmentUploadBusy] = useState(false)
   const attachmentFileInputRef = useRef<HTMLInputElement>(null)
 
+  const [confirmationTemplateFields, setConfirmationTemplateFields] = useState<UserContractConfirmationFieldRow[]>([])
+  const [confirmationFieldsLoading, setConfirmationFieldsLoading] = useState(false)
+  const [confirmationFieldsError, setConfirmationFieldsError] = useState<string | null>(null)
+  const [confirmationFieldValues, setConfirmationFieldValues] = useState<Record<string, string>>({})
+
   useEffect(() => {
     setAttachmentDrafts([])
   }, [selectedCustomer?.id])
+
+  /**
+   * 고객·템플릿이 바뀌면 이전 발송 세션 상태는 무효다.
+   * 확인서(confirmation_only) 발송 후 좌표형 계약서 템플릿으로 바꿀 때 등에
+   * sessionDetail/lastCreated 가 남아 3·4단계가 완료/초록으로 보이는 회귀를 막는다.
+   */
+  useEffect(() => {
+    setLastCreated(null)
+    setSessionDetail(null)
+    setSendError(null)
+    setSendBusy(false)
+    setEvidenceLoading(false)
+  }, [selectedCustomer?.id, selectedTemplateId])
 
   const reloadTemplates = useCallback(async () => {
     if (!t) {
@@ -294,6 +360,56 @@ export default function ContractSignatureSendPage() {
     setAttachmentDrafts([])
   }, [selectedTemplateId])
 
+  useEffect(() => {
+    if (!t || !selectedTemplateId) {
+      setConfirmationTemplateFields([])
+      setConfirmationFieldValues({})
+      setConfirmationFieldsError(null)
+      setConfirmationFieldsLoading(false)
+      return
+    }
+    const tpl = templates.find((x) => x.id === selectedTemplateId)
+    if (!tpl || tpl.templateMode !== 'confirmation_only') {
+      setConfirmationTemplateFields([])
+      setConfirmationFieldValues({})
+      setConfirmationFieldsError(null)
+      setConfirmationFieldsLoading(false)
+      return
+    }
+    let cancelled = false
+    setConfirmationFieldsLoading(true)
+    setConfirmationFieldsError(null)
+    void listUserContractTemplateConfirmationFields(t, selectedTemplateId)
+      .then((rows) => {
+        if (cancelled) {
+          return
+        }
+        setConfirmationTemplateFields(rows)
+        setConfirmationFieldValues((prev) => {
+          const next: Record<string, string> = {}
+          for (const f of rows) {
+            next[f.fieldKey] = prev[f.fieldKey] ?? ''
+          }
+          return next
+        })
+      })
+      .catch((e) => {
+        if (cancelled) {
+          return
+        }
+        setConfirmationTemplateFields([])
+        setConfirmationFieldsError(e instanceof ApiError ? e.message : '확인 항목을 불러오지 못했습니다.')
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setConfirmationFieldsLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [t, selectedTemplateId, templates])
+
   const senderPrefillSatisfied = (tpl: UserContractTemplateItem | null | undefined): boolean => {
     const defs = tpl?.senderFieldsForSend
     if (!defs || defs.length === 0) {
@@ -341,6 +457,29 @@ export default function ContractSignatureSendPage() {
   })()
 
   const selectedTpl = templates.find((x) => x.id === selectedTemplateId)
+  const confirmationOnlySelected = selectedTpl?.templateMode === 'confirmation_only'
+  const confirmationSenderTemplateFields = useMemo(
+    () => confirmationTemplateFields.filter((f) => f.inputRole === 'sender'),
+    [confirmationTemplateFields],
+  )
+  const confirmationOnlyValuesMessage =
+    confirmationOnlySelected && confirmationTemplateFields.length > 0
+      ? validateConfirmationOnlyFieldValues(confirmationTemplateFields, confirmationFieldValues)
+      : null
+
+  /** confirmation_only 발송 API용(6단계에서 버튼 활성화 시 그대로 전달). 좌표형은 undefined. */
+  const confirmationFieldValuesPayload = useMemo((): Record<string, string> | undefined => {
+    if (!confirmationOnlySelected || confirmationSenderTemplateFields.length === 0) {
+      return undefined
+    }
+    return Object.fromEntries(
+      confirmationSenderTemplateFields.map((f) => [
+        f.fieldKey,
+        confirmationFieldValues[f.fieldKey] == null ? '' : String(confirmationFieldValues[f.fieldKey]),
+      ]),
+    )
+  }, [confirmationOnlySelected, confirmationSenderTemplateFields, confirmationFieldValues])
+
   const canSend =
     Boolean(selectedTemplateId) &&
     selectedTpl != null &&
@@ -348,7 +487,10 @@ export default function ContractSignatureSendPage() {
     selectedCustomer.hasPhone &&
     String(selectedTpl.status) === 'active' &&
     senderPrefillSatisfied(selectedTpl) &&
-    confirmationDraftValidationMessage == null
+    confirmationDraftValidationMessage == null &&
+    (confirmationOnlySelected
+      ? confirmationTemplateFields.length > 0 && confirmationOnlyValuesMessage == null
+      : true)
 
   const attachmentPipelineBlocksSend =
     attachmentUploadBusy ||
@@ -395,6 +537,7 @@ export default function ContractSignatureSendPage() {
         customerId: selectedCustomer.id,
         templateIds: [selectedTemplateId],
         senderInputValues,
+        confirmationFieldValues: confirmationFieldValuesPayload,
         confirmationItems:
           confirmationDrafts.length > 0
             ? confirmationDrafts.map((d) => ({ label: d.label.trim(), required: true as const }))
@@ -425,24 +568,94 @@ export default function ContractSignatureSendPage() {
       : inactiveTemplateHint ||
         (!senderPrefillSatisfied(selectedTpl ?? undefined) ? '발송 전 입력값의 필수 항목을 모두 채워 주세요.' : null) ||
         confirmationDraftValidationMessage ||
+        (confirmationOnlySelected
+          ? confirmationTemplateFields.length === 0
+            ? '이 템플릿에 등록된 확인서 항목이 없어 발송할 수 없습니다. 관리자 화면에서 항목을 추가해 주세요.'
+            : '무좌표 전자확인서는 공개 링크에서 내용 확인까지 지원합니다. 고객 전자서명·최종 완료는 이후 단계에서 제공됩니다.'
+          : null) ||
         (selectedCustomer != null && !selectedCustomer.hasPhone
           ? '선택한 고객에 유효한 휴대폰번호가 없습니다.'
           : null) ||
         (selectedTemplateId == null ? '전자서명 템플릿을 선택해 주세요.' : null))
 
+  const scopedSendSessionDetail = useMemo((): SendSessionDetail | null => {
+    if (!contractSendSessionDetailMatchesPick(sessionDetail, selectedCustomer?.id, selectedTemplateId)) {
+      return null
+    }
+    return sessionDetail
+  }, [sessionDetail, selectedCustomer?.id, selectedTemplateId])
+
+  const scopedLastCreated = useMemo((): CreateSendSessionResult | null => {
+    if (!lastCreated || !scopedSendSessionDetail) {
+      return null
+    }
+    if (lastCreated.id !== scopedSendSessionDetail.id) {
+      return null
+    }
+    if (lastCreated.customerId !== scopedSendSessionDetail.customerId) {
+      return null
+    }
+    return lastCreated
+  }, [lastCreated, scopedSendSessionDetail])
+
   const step1Complete = Boolean(selectedCustomer)
-  const step2Complete = Boolean(
+  /** 모바일 «2. 템플릿»·데스크톱 공통: 템플릿 선택 + active + 휴대폰 유효 */
+  const templatePickComplete = Boolean(
     selectedTemplateId &&
       selectedTpl != null &&
       String(selectedTpl.status) === 'active' &&
       selectedCustomer?.hasPhone,
   )
-  const step3Complete = Boolean(sessionDetail?.id || lastCreated?.id)
+  const step2Complete = templatePickComplete
+
+  /** 좌표형에서만 confirmationDrafts 로 «고객 확인 문구» 단계가 생긴다. 행이 0이면 스킵. */
+  const customerConfirmDraftsApply = Boolean(
+    selectedCustomer &&
+      selectedTemplateId &&
+      selectedTpl &&
+      selectedTpl.templateMode !== 'confirmation_only' &&
+      confirmationDrafts.length > 0,
+  )
+  const customerConfirmDraftsStepSkipped = !customerConfirmDraftsApply
+  const customerConfirmDraftsStepComplete =
+    !customerConfirmDraftsApply || confirmationDraftValidationMessage == null
+
+  const confirmationOnlyReady =
+    !confirmationOnlySelected ||
+    (confirmationTemplateFields.length > 0 &&
+      confirmationOnlyValuesMessage == null &&
+      !confirmationFieldsLoading &&
+      !confirmationFieldsError)
+
+  const senderPrereqBlocked =
+    (selectedTpl?.senderFieldsForSend ?? []).length > 0 && !senderPrefillSatisfied(selectedTpl ?? undefined)
+
+  const currentSendSessionCreated = Boolean(scopedSendSessionDetail)
+
+  /** 첨부는 선택 사항 — 업로드 진행/실패로 발송이 막힐 때만 단계 카드가 진행 중으로 표시 */
+  const attachmentStepActive =
+    !currentSendSessionCreated &&
+    Boolean(selectedCustomer) &&
+    Boolean(selectedTemplateId) &&
+    attachmentPipelineBlocksSend
+
+  const step3Ready =
+    step1Complete &&
+    templatePickComplete &&
+    (customerConfirmDraftsStepSkipped || customerConfirmDraftsStepComplete) &&
+    confirmationOnlyReady &&
+    !senderPrereqBlocked &&
+    !attachmentPipelineBlocksSend
+
+  /** 하위 호환: numbered «3. 발송 세션» 완료 = 현재 맥락 세션 생성됨 */
+  const step3Complete = currentSendSessionCreated
 
   const step1Active = !step1Complete
-  const step2Active = step1Complete && !step2Complete
-  const step3Active = step2Complete && !step3Complete
-  const step4Active = step3Complete
+  const step2Active = step1Complete && !templatePickComplete
+  /** 3단계: 준비가 끝났고 아직 세션이 없을 때만 진행 중 */
+  const step3Active = step3Ready && !currentSendSessionCreated
+  /** 4단계: 세션 생성 후에만 진행 중(3과 동시 active 금지) */
+  const step4Active = currentSendSessionCreated
 
   const processPickedAttachmentFiles = async (files: File[]) => {
     if (files.length === 0) {
@@ -725,22 +938,24 @@ export default function ContractSignatureSendPage() {
               locked: false,
             },
             selectedCustomer ? (
-              <div className="contract-mobile-selected-customer">
-                <div className="contract-mobile-selected-customer__heading">선택 고객</div>
-                <div className="contract-mobile-selected-customer__body">
-                  <div className="contract-mobile-selected-customer__name">{selectedCustomer.name}</div>
-                  <p className="contract-mobile-selected-customer__line">
+              <div className="contract-send-mobile-selected-customer">
+                <p className="contract-send-mobile-selected-customer__heading">선택 고객</p>
+                <div className="contract-send-mobile-selected-customer__body">
+                  <span className="contract-send-mobile-selected-customer__name">{selectedCustomer.name}</span>
+                  <span className="contract-send-mobile-selected-customer__line">
                     고객 ID: {selectedCustomer.id}
                     {selectedCustomer.customerCode?.trim() ? ` · 고객번호 ${selectedCustomer.customerCode}` : ''}
-                  </p>
-                  <p className="contract-mobile-selected-customer__line">
+                  </span>
+                  <span className="contract-send-mobile-selected-customer__line">
                     {selectedCustomer.hasPhone ? selectedCustomer.maskedPhone : '휴대폰 —'}
-                  </p>
+                  </span>
                   {!selectedCustomer.hasPhone ? (
-                    <div className="contract-mobile-selected-customer__warn">유효한 휴대폰 번호가 없어 발송할 수 없습니다.</div>
+                    <span className="contract-send-mobile-selected-customer__warn" role="status">
+                      유효한 휴대폰 번호가 없어 발송할 수 없습니다.
+                    </span>
                   ) : null}
                 </div>
-                <div className="contract-mobile-selected-customer__actions">
+                <div className="contract-send-mobile-selected-customer__actions">
                   <FormButton htmlType="button" variant="secondary" size="sm" disabled={!t} onClick={clearCustomerSelection}>
                     선택 해제
                   </FormButton>
@@ -796,29 +1011,46 @@ export default function ContractSignatureSendPage() {
                 ) : null}
 
                 {customerSearchExecuted ? (
-                  <div className="contract-mobile-card-list contract-mobile-search-hit-list">
+                  <div className="contract-send-mobile-customer-result-list" role="list">
                     {customerHits.length === 0 ? (
                       <p className="contract-signature-console__hint">검색 결과가 없습니다.</p>
                     ) : (
                       customerHits.map((c) => (
-                        <FormButton
+                        /* eslint-disable-next-line no-restricted-syntax -- 모바일 검색 결과 카드: BEM 전용 네이티브 button */
+                        <button
                           key={c.id}
-                          htmlType="button"
-                          variant="secondary"
-                          fullWidth
-                          className="contract-mobile-hit-card contract-mobile-select-card"
+                          type="button"
+                          role="listitem"
+                          className="contract-send-mobile-customer-result-card"
                           disabled={!t}
-                          onClick={() => setSelectedCustomer(c)}
+                          onClick={() => {
+                            if (!t) {
+                              return
+                            }
+                            setSelectedCustomer(c)
+                          }}
+                          onKeyDown={(e) => {
+                            if (!t) {
+                              return
+                            }
+                            runPickRowKeyboardAction(e, () => setSelectedCustomer(c))
+                          }}
                         >
-                          <div className="contract-mobile-hit-card__name">{c.name}</div>
-                          <p className="contract-mobile-hit-card__meta">
+                          <span className="contract-send-mobile-customer-result-card__name">{c.name}</span>
+                          <span className="contract-send-mobile-customer-result-card__meta">
                             {c.customerCode?.trim()
                               ? `고객번호 ${c.customerCode} · 고객 ID ${c.id}`
                               : `고객 ID: ${c.id}`}
-                          </p>
-                          <p className="contract-mobile-hit-card__meta">{c.hasPhone ? c.maskedPhone : '휴대폰 —'}</p>
-                          {!c.hasPhone ? <div className="contract-mobile-select-card__warn">유효한 휴대폰 번호 없음</div> : null}
-                        </FormButton>
+                          </span>
+                          <span className="contract-send-mobile-customer-result-card__meta">
+                            {c.hasPhone ? c.maskedPhone : '휴대폰 —'}
+                          </span>
+                          {!c.hasPhone ? (
+                            <span className="contract-send-mobile-customer-result-card__warning" role="status">
+                              유효한 휴대폰 번호 없음
+                            </span>
+                          ) : null}
+                        </button>
                       ))
                     )}
                   </div>
@@ -836,37 +1068,48 @@ export default function ContractSignatureSendPage() {
               locked: !step1Complete,
             },
             selectedCustomer == null ? null : (
-              <div className="contract-mobile-card-list contract-mobile-template-pick-list">
+              <div className="contract-send-mobile-template-list" role="list">
                 {templates.map((row) => {
-                  const noSig = row.signatureFieldCount < 1
+                  const isConfOnly = row.templateMode === 'confirmation_only'
+                  const noSig = !isConfOnly && row.signatureFieldCount < 1
                   const inactive = String(row.status) !== 'active'
+                  const selected = selectedTemplateId === row.id
                   return (
-                    <FormButton
+                    /* eslint-disable-next-line no-restricted-syntax -- 모바일 템플릿 선택 카드: BEM 전용 네이티브 button */
+                    <button
                       key={row.id}
-                      htmlType="button"
-                      variant="secondary"
-                      fullWidth
+                      type="button"
+                      role="listitem"
                       className={
-                        'contract-mobile-template-card contract-mobile-select-card' +
-                        (selectedTemplateId === row.id ? ' contract-mobile-select-card--selected' : '')
+                        'contract-send-mobile-template-card' +
+                        (selected ? ' contract-send-mobile-template-card--selected' : '')
                       }
                       disabled={!t || inactive}
                       onClick={() => setSelectedTemplateId(row.id)}
                     >
-                      <div className="contract-mobile-template-card__title">{row.title}</div>
-                      <p className="contract-mobile-template-card__pdf">PDF: {row.pdfEngineTitle ?? '—'}</p>
-                      <p className="contract-mobile-template-card__stats">
-                        필드 {row.pdfFieldCount}개 · 서명 필드 {row.signatureFieldCount}개
-                      </p>
+                      <span className="contract-send-mobile-template-card__title">{row.title}</span>
+                      <span className="contract-send-mobile-template-card__mode">
+                        {isConfOnly ? '무좌표 전자확인서' : '좌표 기반 PDF'}
+                      </span>
+                      <span className="contract-send-mobile-template-card__pdf">
+                        PDF: {isConfOnly ? '무좌표 확인서' : row.pdfEngineTitle ?? '—'}
+                      </span>
+                      <span className="contract-send-mobile-template-card__stats">
+                        {isConfOnly
+                          ? '확인서 항목 템플릿'
+                          : `필드 ${row.pdfFieldCount}개 · 서명 필드 ${row.signatureFieldCount}개`}
+                      </span>
                       {inactive ? (
-                        <div className="contract-mobile-select-card__warn">비활성 템플릿은 발송할 수 없습니다.</div>
+                        <span className="contract-send-mobile-template-card__warning" role="status">
+                          비활성 템플릿은 발송할 수 없습니다.
+                        </span>
                       ) : null}
                       {noSig ? (
-                        <div className="contract-mobile-select-card__warn">
+                        <span className="contract-send-mobile-template-card__warning" role="status">
                           서명 필드가 없어 손사인 테스트가 제한될 수 있습니다.
-                        </div>
+                        </span>
                       ) : null}
-                    </FormButton>
+                    </button>
                   )
                 })}
               </div>
@@ -878,24 +1121,26 @@ export default function ContractSignatureSendPage() {
                 {
                   title: '발송 전 입력값',
                   desc: '고객에게 보내기 전에 계약서에 들어갈 값을 입력해주세요.',
-                  active: step3Active || (step2Complete && !step3Complete),
-                  completed:
-                    step3Complete ||
-                    (senderPrefillSatisfied(selectedTpl ?? undefined) && confirmationDraftValidationMessage == null),
+                  active:
+                    templatePickComplete &&
+                    senderFields.length > 0 &&
+                    senderPrereqBlocked &&
+                    !currentSendSessionCreated,
+                  completed: false,
                   locked: !selectedCustomer || !selectedTemplateId,
                 },
-                <div className="mt-4 space-y-4">
+                <div className="contract-send-mobile-sender-fields">
                   {senderFields.map((d) => {
                     const fk = d.fieldKey
                     if (d.fieldType === 'checkbox') {
                       return (
-                        <label key={fk} className="contract-public-sign-page__label-row flex items-start gap-2">
+                        <label key={fk} className="contract-send-mobile-sender-fields__checkbox-row">
                           <FormInput
                             type="checkbox"
                             checked={Boolean(senderVals[fk])}
                             onChange={(ev) => setSenderVals((prev) => ({ ...prev, [fk]: ev.target.checked }))}
                           />
-                          <span>
+                          <span className="contract-send-mobile-sender-fields__checkbox-label">
                             {d.label || fk}
                             {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
                           </span>
@@ -907,36 +1152,43 @@ export default function ContractSignatureSendPage() {
                       const opts = rawOpts.map((x) => String(x))
                       const cur = String(senderVals[fk] ?? '')
                       return (
-                        <div key={fk} className="space-y-1">
-                          <p className="contract-signature-console__hint" style={{ marginBottom: 4 }}>
+                        <div key={fk} className="contract-send-mobile-sender-fields__field">
+                          <p className="contract-send-mobile-sender-fields__hint">
                             {d.label || fk}
                             {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
                           </p>
-                          <FormSelect
-                            value={cur}
-                            options={[{ value: '', label: '선택' }, ...opts.map((o) => ({ value: o, label: o }))]}
-                            onChange={(ev) => setSenderVals((prev) => ({ ...prev, [fk]: ev.target.value }))}
-                          />
+                          <div className="contract-send-mobile-sender-fields__select-wrap">
+                            <FormSelect
+                              value={cur}
+                              options={[{ value: '', label: '선택' }, ...opts.map((o) => ({ value: o, label: o }))]}
+                              onChange={(ev) => setSenderVals((prev) => ({ ...prev, [fk]: ev.target.value }))}
+                            />
+                          </div>
                         </div>
                       )
                     }
                     const tv = String(senderVals[fk] ?? '')
                     const multiline = d.fieldType === 'textarea'
                     return (
-                      <label key={fk} className="block space-y-1">
-                        <span className="contract-signature-console__hint">
+                      <label key={fk} className="contract-send-mobile-sender-fields__field-label">
+                        <span className="contract-send-mobile-sender-fields__hint">
                           {d.label || fk}
                           {d.required ? <span className="contract-signature-console__hint--warning"> *</span> : null}
                         </span>
                         {multiline ? (
                           <FormTextarea
-                            className="pdf-engine-form__textarea w-full text-sm"
+                            className="contract-send-mobile-sender-fields__control pdf-engine-form__textarea"
                             rows={4}
                             value={tv}
                             onChange={(e) => setSenderVals((prev) => ({ ...prev, [fk]: e.target.value }))}
                           />
                         ) : (
-                          <FormInput type="text" value={tv} onChange={(e) => setSenderVals((prev) => ({ ...prev, [fk]: e.target.value }))} />
+                          <FormInput
+                            className="contract-send-mobile-sender-fields__control"
+                            type="text"
+                            value={tv}
+                            onChange={(e) => setSenderVals((prev) => ({ ...prev, [fk]: e.target.value }))}
+                          />
                         )}
                       </label>
                     )
@@ -945,13 +1197,42 @@ export default function ContractSignatureSendPage() {
               )
             : null}
 
+          {selectedCustomer && selectedTemplateId && selectedTpl?.templateMode === 'confirmation_only'
+            ? mobileStepShell(
+                {
+                  title: '확인서 항목 입력',
+                  desc: '전자확인서 항목을 입력한 뒤 발송하면 고객이 공개 링크에서 내용을 확인할 수 있습니다.',
+                  active:
+                    templatePickComplete &&
+                    confirmationOnlySelected &&
+                    !confirmationOnlyReady &&
+                    !currentSendSessionCreated,
+                  completed: false,
+                  locked: !selectedCustomer || !selectedTemplateId,
+                },
+                <ConfirmationOnlySendFieldsSection
+                  fields={confirmationTemplateFields}
+                  values={confirmationFieldValues}
+                  onChange={(fk, v) => setConfirmationFieldValues((p) => ({ ...p, [fk]: v }))}
+                  loading={confirmationFieldsLoading}
+                  loadError={confirmationFieldsError}
+                  validationMessage={confirmationOnlyValuesMessage}
+                  disabled={!t}
+                  mobileSendLayout
+                />,
+              )
+            : null}
+
           {selectedCustomer && selectedTemplateId && confirmationDrafts.length > 0
             ? mobileStepShell(
                 {
                   title: '고객 확인 항목',
                   desc: '이 템플릿에는 아래 확인 항목이 포함됩니다. 수정은 관리자 전자서명 템플릿 설정 화면에서 합니다.',
-                  active: false,
-                  completed: step2Complete,
+                  active:
+                    customerConfirmDraftsApply &&
+                    !customerConfirmDraftsStepComplete &&
+                    !currentSendSessionCreated,
+                  completed: false,
                   locked: false,
                 },
                 <ul className="contract-mobile-readonly-list">
@@ -970,7 +1251,7 @@ export default function ContractSignatureSendPage() {
               desc: selectedTemplateId
                 ? '고객이 전자서명 전에 확인할 자료를 첨부하세요.'
                 : '전자서명 템플릿을 선택하면 첨부자료를 추가할 수 있습니다.',
-              active: Boolean(selectedTemplateId && selectedCustomer),
+              active: attachmentStepActive,
               completed: false,
               locked: !selectedTemplateId,
             },
@@ -983,7 +1264,7 @@ export default function ContractSignatureSendPage() {
               desc: null,
               active: step3Active,
               completed: step3Complete,
-              locked: !step2Complete,
+              locked: !step3Ready,
             },
             <>
               {selectedCustomer && selectedTpl && String(selectedTpl.status) === 'active' ? (
@@ -998,11 +1279,11 @@ export default function ContractSignatureSendPage() {
               ) : null}
               <SendSessionPanel
                 busy={sendBusy}
-                lastCreated={lastCreated}
+                lastCreated={scopedLastCreated}
                 onCreate={() => void onCreateSendSession()}
                 canSend={effectiveCanSend}
                 inactiveTemplateHint={effectiveCanSend ? null : sendSessionPanelHint}
-                detail={sessionDetail}
+                detail={scopedSendSessionDetail}
                 onRefresh={() => void refreshSessionDetail()}
                 error={sendError}
                 staffAuthToken={t}
@@ -1016,11 +1297,12 @@ export default function ContractSignatureSendPage() {
               title: '4. 상태 · evidence',
               desc: null,
               active: step4Active,
+              /** 결과 확인 단계는 완료(초록)가 아니라 진행 중·대기만 사용 */
               completed: false,
-              locked: !step3Complete,
+              locked: !currentSendSessionCreated,
             },
             <EvidenceStatusPanel
-              detail={sessionDetail}
+              detail={scopedSendSessionDetail}
               loading={evidenceLoading}
               onRefresh={() => void refreshSessionDetail()}
               layout="mobile"
@@ -1216,7 +1498,8 @@ export default function ContractSignatureSendPage() {
               </thead>
               <tbody>
                 {templates.map((row) => {
-                  const noSig = row.signatureFieldCount < 1
+                  const isConfOnly = row.templateMode === 'confirmation_only'
+                  const noSig = !isConfOnly && row.signatureFieldCount < 1
                   const inactive = String(row.status) !== 'active'
                   const sel = selectedTemplateId === row.id
                   const tplRowInteractive = Boolean(t && selectedCustomer != null && !inactive)
@@ -1264,10 +1547,13 @@ export default function ContractSignatureSendPage() {
                             signature 필드 없음 — 손사인 단계가 제한될 수 있습니다.
                           </div>
                         ) : null}
+                        {isConfOnly ? (
+                          <div className="contract-signature-console__hint">무좌표 확인서(확인 항목만)</div>
+                        ) : null}
                       </td>
-                      <td>{row.pdfEngineTitle ?? '—'}</td>
-                      <td>{row.pdfFieldCount}</td>
-                      <td>{row.signatureFieldCount}</td>
+                      <td>{isConfOnly ? '—' : row.pdfEngineTitle ?? '—'}</td>
+                      <td>{isConfOnly ? '—' : row.pdfFieldCount}</td>
+                      <td>{isConfOnly ? '—' : row.signatureFieldCount}</td>
                     </tr>
                   )
                 })}
@@ -1348,7 +1634,22 @@ export default function ContractSignatureSendPage() {
           </section>
         ) : null}
 
-        {selectedCustomer && selectedTemplateId ? (
+        {selectedCustomer && selectedTemplateId && selectedTpl?.templateMode === 'confirmation_only' ? (
+          <section className="contract-signature-console__section">
+            <h2 className="contract-signature-console__section-title">2-1b. 확인서 항목 입력 (무좌표)</h2>
+            <ConfirmationOnlySendFieldsSection
+              fields={confirmationTemplateFields}
+              values={confirmationFieldValues}
+              onChange={(fk, v) => setConfirmationFieldValues((p) => ({ ...p, [fk]: v }))}
+              loading={confirmationFieldsLoading}
+              loadError={confirmationFieldsError}
+              validationMessage={confirmationOnlyValuesMessage}
+              disabled={!t}
+            />
+          </section>
+        ) : null}
+
+        {selectedCustomer && selectedTemplateId && selectedTpl?.templateMode !== 'confirmation_only' ? (
           <section className="contract-signature-console__section">
             <h2 className="contract-signature-console__section-title">2-2. 고객 확인 체크 항목</h2>
             <p className="contract-signature-console__body-text" style={{ margin: '0 0 8px' }}>
@@ -1414,11 +1715,11 @@ export default function ContractSignatureSendPage() {
           <h2 className="contract-signature-console__section-title">3. 발송 세션</h2>
           <SendSessionPanel
             busy={sendBusy}
-            lastCreated={lastCreated}
+            lastCreated={scopedLastCreated}
             onCreate={() => void onCreateSendSession()}
             canSend={effectiveCanSend}
             inactiveTemplateHint={effectiveCanSend ? null : sendSessionPanelHint}
-            detail={sessionDetail}
+            detail={scopedSendSessionDetail}
             onRefresh={() => void refreshSessionDetail()}
             error={sendError}
             staffAuthToken={t}
@@ -1427,7 +1728,11 @@ export default function ContractSignatureSendPage() {
 
         <section className="contract-signature-console__section">
           <h2 className="contract-signature-console__section-title">4. 상태 · evidence</h2>
-          <EvidenceStatusPanel detail={sessionDetail} loading={evidenceLoading} onRefresh={() => void refreshSessionDetail()} />
+          <EvidenceStatusPanel
+            detail={scopedSendSessionDetail}
+            loading={evidenceLoading}
+            onRefresh={() => void refreshSessionDetail()}
+          />
         </section>
       </div>
     </main>
