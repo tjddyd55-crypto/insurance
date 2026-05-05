@@ -124,3 +124,30 @@ export interface FeatureModuleRegistryEntry {
   readonly tenantConfigKeys: readonly string[]
   readonly status: FeatureModuleRegistryStatus
 }
+
+/** 고객 리스트 컬럼이 값을 어디서 가져오는지(표시 레이어만, 실제 렌더는 CustomersPage 책임) */
+export type ListColumnSourceType = 'field' | 'derived' | 'aggregate' | 'feature'
+
+export type ListColumnRegistryStatus = CustomerFieldRegistryStatus
+
+/**
+ * 리스트 컬럼 카탈로그 — 파생(ssnMasked)·집계(lastConsultDate) 등 form field 와 분리.
+ */
+export interface ListColumnRegistryEntry {
+  readonly columnKey: string
+  readonly label: string
+  readonly category: CustomerFieldRegistryCategory
+  readonly domains: readonly CustomerFieldRegistryDomain[]
+  readonly sourceType: ListColumnSourceType
+  /** sourceType=`field`: 백 필드(registry canonical 또는 alias 해석) */
+  readonly sourceFieldKey?: string
+  /** sourceType=`aggregate`|`feature`: 의존 featureId */
+  readonly featureDependency?: string
+  readonly valueType: CustomerFieldRegistryValueType
+  readonly privacyLevel: CustomerFieldRegistryPrivacyLevel
+  readonly sortable: boolean
+  readonly filterable: boolean
+  readonly visibleDefault: boolean
+  readonly description: string
+  readonly status: ListColumnRegistryStatus
+}

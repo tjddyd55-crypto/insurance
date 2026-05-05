@@ -1,6 +1,7 @@
 import type { CustomerIndustryTemplate } from '../customerTemplate.types'
 import { CUSTOMER_FIELD_REGISTRY_BY_KEY } from './customerFieldRegistry'
 import { FEATURE_MODULE_REGISTRY_BY_ID } from './featureModuleRegistry'
+import { LIST_COLUMN_REGISTRY_BY_KEY } from './listColumnRegistry'
 
 /**
  * insuranceCustomerTemplateV01 등 레거시 숏키 → canonical fieldKey.
@@ -54,13 +55,17 @@ export function getFeatureModuleDefinition(featureId: string) {
   return FEATURE_MODULE_REGISTRY_BY_ID[featureId] ?? null
 }
 
+export function getListColumnDefinition(columnKey: string) {
+  return LIST_COLUMN_REGISTRY_BY_KEY[columnKey] ?? null
+}
+
 export interface CustomerTemplateRegistryValidationResult {
   readonly errors: readonly string[]
   readonly warnings: readonly string[]
 }
 
 /**
- * 템플릿에 선언된 fieldKey / featureBinding 이 정적 레지스트리와 정합한지 검사한다.
+ * 템플릿에 선언된 fieldKey / featureBinding / listColumns 가 정적 레지스트리와 정합한지 검사한다.
  * — throw 하지 않고 결과 객체만 반환한다.
  */
 export function validateCustomerTemplateAgainstRegistries(
@@ -68,6 +73,20 @@ export function validateCustomerTemplateAgainstRegistries(
 ): CustomerTemplateRegistryValidationResult {
   const errors: string[] = []
   const warnings: string[] = []
+
+  const checkFeatureBinding = (featureId: string, context: string) => {
+    const mod = FEATURE_MODULE_REGISTRY_BY_ID[featureId]
+    if (!mod) {
+      errors.push(`Unknown ${context} featureId "${featureId}".`)
+      return
+    }
+    if (mod.status === 'deprecated') {
+      warnings.push(`${context}: feature "${featureId}" is deprecated in registry.`)
+    }
+    if (mod.status === 'preview') {
+      warnings.push(`${context}: feature "${featureId}" is preview in registry.`)
+    }
+  }
 
   for (const ff of template.formFields) {
     const canonical = resolveCanonicalFieldKey(ff.fieldKey)
@@ -90,31 +109,74 @@ export function validateCustomerTemplateAgainstRegistries(
     }
   }
 
-  const checkFeature = (featureId: string, context: string) => {
-    const mod = FEATURE_MODULE_REGISTRY_BY_ID[featureId]
-    if (!mod) {
-      errors.push(`Unknown ${context} featureId "${featureId}".`)
-      return
-    }
-    if (mod.status === 'deprecated') {
-      warnings.push(`${context}: feature "${featureId}" is deprecated in registry.`)
-    }
-    if (mod.status === 'preview') {
-      warnings.push(`${context}: feature "${featureId}" is preview in registry.`)
-    }
-  }
-
   for (const tab of template.detailTabs) {
-    checkFeature(tab.featureBinding, `detailTabs[${tab.tabId}]`)
+    checkFeatureBinding(tab.featureBinding, `detailTabs[${tab.tabId}]`)
   }
 
   for (const id of template.sharedFeatureBindings) {
-    checkFeature(id, 'sharedFeatureBindings')
+    checkFeatureBinding(id, 'sharedFeatureBindings')
   }
 
   for (const id of template.extensionFeatureBindings) {
-    checkFeature(id, 'extensionFeatureBindings')
+    checkFeatureBinding(id, 'extensionFeatureBindings')
   }
+
+  template.listColumns.forEach((lc, idx) => {
+    const ctx = `listColumns[${idx}]`
+    const lcEntry = LIST_COLUMN_REGISTRY_BY_KEY[lc.columnKey]
+    if (!lcEntry) {
+      errors.push(`${ctx}.columnKey "${lc.columnKey}" — not in list column catalog.`)
+      return
+    }
+    if (lcEntry.status === 'deprecated') {
+      warnings.push(`${ctx}.columnKey "${lc.columnKey}": deprecated in list column catalog.`)
+    }
+    if (lcEntry.status === 'preview') {
+      warnings.push(`${ctx}.columnKey "${lc.columnKey}": preview in list column catalog.`)
+    }
+
+    const src = lcEntry.sourceType
+    if (src === 'field') {
+      if (!lcEntry.sourceFieldKey) {
+        errors.push(
+          `${ctx}.columnKey "${lc.columnKey}": sourceType field requires catalog sourceFieldKey.`,
+        )
+        return
+      }
+      const fdef = getCustomerFieldDefinition(lcEntry.sourceFieldKey)
+      if (!fdef) {
+        errors.push(
+          `${ctx}.columnKey "${lc.columnKey}": catalog sourceFieldKey "${lcEntry.sourceFieldKey}" not found in field registry (or alias).`,
+        )
+      }
+      return
+    }
+
+    if (src === 'derived') {
+      if (lcEntry.sourceFieldKey) {
+        const fdef = getCustomerFieldDefinition(lcEntry.sourceFieldKey)
+        if (!fdef) {
+          errors.push(
+            `${ctx}.columnKey "${lc.columnKey}": derived catalog sourceFieldKey "${lcEntry.sourceFieldKey}" not found in field registry (or alias).`,
+          )
+        }
+      }
+      return
+    }
+
+    if (src === 'aggregate' || src === 'feature') {
+      if (!lcEntry.featureDependency) {
+        errors.push(
+          `${ctx}.columnKey "${lc.columnKey}": sourceType ${src} requires catalog featureDependency.`,
+        )
+        return
+      }
+      checkFeatureBinding(
+        lcEntry.featureDependency,
+        `${ctx}.columnKey(${lc.columnKey}).featureDependency`,
+      )
+    }
+  })
 
   return { errors, warnings }
 }

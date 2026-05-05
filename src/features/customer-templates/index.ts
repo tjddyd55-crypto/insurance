@@ -16,6 +16,7 @@ export { resolveCustomerTemplate } from './resolveCustomerTemplate'
 
 export { CUSTOMER_FIELD_REGISTRY_BY_KEY } from './registry/customerFieldRegistry'
 export { FEATURE_MODULE_REGISTRY_BY_ID } from './registry/featureModuleRegistry'
+export { LIST_COLUMN_REGISTRY_BY_KEY } from './registry/listColumnRegistry'
 export type {
   CustomerFieldRegistryCategory,
   CustomerFieldRegistryDomain,
@@ -32,11 +33,15 @@ export type {
   FeatureModuleRegistryModuleType,
   FeatureModuleRegistryStatus,
   FeatureModuleRouteBinding,
+  ListColumnRegistryEntry,
+  ListColumnRegistryStatus,
+  ListColumnSourceType,
 } from './registry/customerTemplateRegistry.types'
 export {
   CUSTOMER_FIELD_KEY_ALIAS_TO_CANONICAL,
   getCustomerFieldDefinition,
   getFeatureModuleDefinition,
+  getListColumnDefinition,
   resolveCanonicalFieldKey,
   validateCustomerTemplateAgainstRegistries,
 } from './registry/customerTemplateRegistryUtils'
