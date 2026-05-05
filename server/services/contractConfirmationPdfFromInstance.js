@@ -4,6 +4,7 @@
 
 import { PDFDocument, rgb } from 'pdf-lib'
 import { embedKoreanFont } from '../pdf-engine/renderer/fontProvider.js'
+import pool from '../db.js'
 
 const A4_W = 595
 const A4_H = 842
@@ -11,6 +12,7 @@ const MARGIN = 50
 const FONT_SIZE = 9
 const LINE_HEIGHT = 11
 const MAX_TEXT_WIDTH = A4_W - MARGIN * 2
+const CONFIRMATION_CONTENT_ACK_FIELD_KEY = '__confirmation_content_ack__'
 
 function formatTsKor(value) {
   if (value == null || value === '') {
@@ -64,6 +66,75 @@ function displayOrDash(s) {
   return t.length > 0 ? t : '—'
 }
 
+function normalizeConfirmationInputRole(raw) {
+  return String(raw ?? '').trim() === 'customer' ? 'customer' : 'sender'
+}
+
+/**
+ * @param {string} sendSessionId
+ * @param {string} documentInstanceId
+ */
+async function loadConfirmationFieldRowsForCertificate(sendSessionId, documentInstanceId) {
+  const templateR = await pool.query(
+    `
+    SELECT template_id
+    FROM contract_document_instances
+    WHERE id = $1
+    LIMIT 1
+    `,
+    [documentInstanceId],
+  )
+  const templateId = templateR.rows[0]?.template_id ? String(templateR.rows[0].template_id) : null
+  if (!templateId) {
+    return []
+  }
+  const defR = await pool.query(
+    `
+    SELECT id, field_key, label, required, sort_order, input_role
+    FROM contract_template_confirmation_fields
+    WHERE template_id = $1
+    ORDER BY sort_order ASC, id ASC
+    `,
+    [templateId],
+  )
+  if (defR.rows.length === 0) {
+    return []
+  }
+  const valR = await pool.query(
+    `
+    SELECT field_key, value_text
+    FROM contract_send_session_confirmation_field_values
+    WHERE send_session_id = $1
+      AND template_id = $2
+    `,
+    [sendSessionId, templateId],
+  )
+  const valueByFieldKey = new Map(valR.rows.map((r) => [String(r.field_key ?? ''), String(r.value_text ?? '')]))
+  return defR.rows.map((r) => ({
+    label: String(r.label ?? ''),
+    required: Boolean(r.required),
+    valueText: valueByFieldKey.get(String(r.field_key ?? '')) ?? '',
+    inputRole: normalizeConfirmationInputRole(r.input_role),
+  }))
+}
+
+/**
+ * @param {string} documentInstanceId
+ */
+async function loadConfirmationContentAcknowledged(documentInstanceId) {
+  const ackR = await pool.query(
+    `
+    SELECT value_text
+    FROM contract_document_values
+    WHERE document_instance_id = $1
+      AND field_key = $2
+    LIMIT 1
+    `,
+    [documentInstanceId, CONFIRMATION_CONTENT_ACK_FIELD_KEY],
+  )
+  return String(ackR.rows[0]?.value_text ?? '').trim() === 'true'
+}
+
 /**
  * @param {{
  *   documentTitle: string,
@@ -92,6 +163,24 @@ export async function buildConfirmationCertificatePdfBuffer(p) {
   if (!sig || !Buffer.isBuffer(sig) || sig.length < 32) {
     throw new Error('confirmation_certificate_signature_bytes_invalid')
   }
+
+  /** @type {Array<{ label: string, required: boolean, valueText: string, inputRole: 'sender' | 'customer' }>} */
+  let roleAwareFields = []
+  let confirmationContentAcknowledged = false
+  try {
+    roleAwareFields = await loadConfirmationFieldRowsForCertificate(String(p.sendSessionId), String(p.documentInstanceId))
+    confirmationContentAcknowledged = await loadConfirmationContentAcknowledged(String(p.documentInstanceId))
+  } catch {
+    roleAwareFields = (p.confirmationFields ?? []).map((row) => ({
+      label: row.label,
+      required: row.required,
+      valueText: row.valueText,
+      inputRole: 'sender',
+    }))
+    confirmationContentAcknowledged = false
+  }
+  const senderFields = roleAwareFields.filter((row) => row.inputRole === 'sender')
+  const customerFields = roleAwareFields.filter((row) => row.inputRole === 'customer')
 
   const pdfDoc = await PDFDocument.create()
   const font = await embedKoreanFont(pdfDoc)
@@ -146,16 +235,37 @@ export async function buildConfirmationCertificatePdfBuffer(p) {
   flushParagraph(`고객 열람 시각: ${formatTsKor(p.openedAtIso)}`)
   y -= 6
 
-  flushParagraph('— 확인서 항목(발송 시 저장된 값) —')
-  if (!p.confirmationFields.length) {
-    flushParagraph('해당 없음')
+  flushParagraph('— 발송자 입력 내용 —')
+  if (!senderFields.length) {
+    flushParagraph('발송자 입력 항목 없음')
   } else {
-    for (const row of p.confirmationFields) {
+    for (const row of senderFields) {
+      const req = row.required ? '[필수] ' : ''
+      const val = displayOrDash(row.valueText || '입력 없음')
+      flushParagraph(`· ${req}${displayOrDash(row.label)}`)
+      flushParagraph(`  ${val}`)
+    }
+  }
+  y -= 6
+
+  flushParagraph('— 고객 입력 내용 —')
+  if (!customerFields.length) {
+    flushParagraph('고객 입력 항목 없음')
+  } else {
+    for (const row of customerFields) {
       const req = row.required ? '[필수] ' : ''
       const val = displayOrDash(row.valueText)
       flushParagraph(`· ${req}${displayOrDash(row.label)}`)
       flushParagraph(`  ${val}`)
     }
+  }
+  y -= 6
+
+  flushParagraph('— 고객 확인(발송자 입력 내용) —')
+  if (!senderFields.length) {
+    flushParagraph('발송자 입력 내용 없음')
+  } else {
+    flushParagraph(`· 위 내용을 확인했습니다 — ${confirmationContentAcknowledged ? '확인 완료' : '미완료'}`)
   }
   y -= 6
 
