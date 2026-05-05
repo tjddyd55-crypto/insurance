@@ -709,6 +709,8 @@ async function ensureCrmPlatformMetaSchema(executor) {
  * ensureBootstrapAdminUser 이후에 호출할 것(신규 SUPER_ADMIN 반영).
  *
  * tenant 스코프: scope_id = tenants.id::text (platform 은 scope_id NULL).
+ * USER 계정 예전 오시드 보정: user 멤버십이 이미 있으면 중복 staff 삭제,
+ * 단독 staff 행은 role=user 로 업데이트.
  */
 async function seedCrmPlatformUserMemberships(executor) {
   await executor.query(`
@@ -718,6 +720,48 @@ async function seedCrmPlatformUserMemberships(executor) {
     WHERE m.scope_type = 'tenant'
       AND m.tenant_id IS NOT NULL
       AND m.scope_id IS DISTINCT FROM m.tenant_id::text
+  `)
+
+  await executor.query(`
+    DELETE FROM user_memberships m
+    USING users u, tenants t
+    WHERE m.user_id = u.id
+      AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+      AND UPPER(TRIM(COALESCE(u.role, ''))) = 'USER'
+      AND m.role = 'staff'
+      AND m.scope_type = 'tenant'
+      AND t.legacy_ga_id = u.ga_id
+      AND m.tenant_id IS NOT DISTINCT FROM t.id
+      AND m.scope_id IS NOT DISTINCT FROM t.id::text
+      AND EXISTS (
+        SELECT 1 FROM user_memberships m2
+        WHERE m2.user_id = m.user_id
+          AND m2.role = 'user'
+          AND m2.scope_type = 'tenant'
+          AND m2.tenant_id IS NOT DISTINCT FROM t.id
+          AND m2.scope_id IS NOT DISTINCT FROM t.id::text
+      )
+  `)
+
+  await executor.query(`
+    UPDATE user_memberships m
+    SET role = 'user', updated_at = NOW()
+    FROM users u, tenants t
+    WHERE m.user_id = u.id
+      AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+      AND UPPER(TRIM(COALESCE(u.role, ''))) = 'USER'
+      AND m.role = 'staff'
+      AND m.scope_type = 'tenant'
+      AND t.legacy_ga_id = u.ga_id
+      AND m.tenant_id IS NOT DISTINCT FROM t.id
+      AND m.scope_id IS NOT DISTINCT FROM t.id::text
+      AND NOT EXISTS (
+        SELECT 1 FROM user_memberships m2
+        WHERE m2.user_id = m.user_id
+          AND m2.role = 'user'
+          AND m2.scope_type = 'tenant'
+          AND m2.tenant_id IS NOT DISTINCT FROM t.id
+      )
   `)
 
   await executor.query(`
@@ -758,11 +802,28 @@ async function seedCrmPlatformUserMemberships(executor) {
     FROM users u
     INNER JOIN tenants t ON t.legacy_ga_id = u.ga_id AND t.code = 'yjasset'
     WHERE COALESCE(u.is_deleted, FALSE) IS NOT TRUE
-      AND UPPER(TRIM(COALESCE(u.role, ''))) IN ('GA_STAFF', 'USER')
+      AND UPPER(TRIM(COALESCE(u.role, ''))) = 'GA_STAFF'
       AND NOT EXISTS (
         SELECT 1 FROM user_memberships m
         WHERE m.user_id = u.id
           AND m.role = 'staff'
+          AND m.scope_type = 'tenant'
+          AND m.tenant_id IS NOT DISTINCT FROM t.id
+          AND m.scope_id IS NOT DISTINCT FROM t.id::text
+      )
+  `)
+
+  await executor.query(`
+    INSERT INTO user_memberships (user_id, role, scope_type, scope_id, tenant_id, industry_id, status)
+    SELECT u.id, 'user', 'tenant', t.id::text, t.id, t.industry_id, 'active'
+    FROM users u
+    INNER JOIN tenants t ON t.legacy_ga_id = u.ga_id AND t.code = 'yjasset'
+    WHERE COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+      AND UPPER(TRIM(COALESCE(u.role, ''))) = 'USER'
+      AND NOT EXISTS (
+        SELECT 1 FROM user_memberships m
+        WHERE m.user_id = u.id
+          AND m.role = 'user'
           AND m.scope_type = 'tenant'
           AND m.tenant_id IS NOT DISTINCT FROM t.id
           AND m.scope_id IS NOT DISTINCT FROM t.id::text

@@ -20,8 +20,11 @@ export function mapLegacyRoleToMembershipRole(legacyRole) {
   if (r === 'GA_ADMIN') {
     return { role: 'tenant_admin', scopeType: 'tenant' }
   }
-  if (r === 'GA_STAFF' || r === 'USER') {
+  if (r === 'GA_STAFF') {
     return { role: 'staff', scopeType: 'tenant' }
+  }
+  if (r === 'USER') {
+    return { role: 'user', scopeType: 'tenant' }
   }
   return null
 }
