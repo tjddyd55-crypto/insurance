@@ -3128,6 +3128,7 @@ async function ensureContractSelfSmsSchema(executor) {
       field_key TEXT NOT NULL,
       label TEXT NOT NULL,
       input_type TEXT NOT NULL,
+      input_role TEXT NOT NULL DEFAULT 'sender',
       required BOOLEAN NOT NULL DEFAULT TRUE,
       sort_order INTEGER NOT NULL DEFAULT 0,
       placeholder TEXT,
@@ -3136,6 +3137,8 @@ async function ensureContractSelfSmsSchema(executor) {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CONSTRAINT contract_template_confirmation_fields_input_type_check
         CHECK (input_type IN ('text', 'textarea', 'number', 'date')),
+      CONSTRAINT contract_template_confirmation_fields_input_role_check
+        CHECK (input_role IN ('sender', 'customer')),
       CONSTRAINT contract_template_confirmation_fields_template_key_uniq
         UNIQUE (template_id, field_key)
     )
@@ -3147,6 +3150,38 @@ async function ensureContractSelfSmsSchema(executor) {
   await executor.query(`
     CREATE INDEX IF NOT EXISTS idx_contract_template_confirmation_fields_sort
     ON contract_template_confirmation_fields(template_id, sort_order)
+  `)
+  await executor.query(`
+    ALTER TABLE contract_template_confirmation_fields
+    ADD COLUMN IF NOT EXISTS input_role TEXT
+  `)
+  await executor.query(`
+    UPDATE contract_template_confirmation_fields
+    SET input_role = 'sender'
+    WHERE input_role IS NULL
+       OR input_role NOT IN ('sender', 'customer')
+  `)
+  await executor.query(`
+    ALTER TABLE contract_template_confirmation_fields
+    ALTER COLUMN input_role SET DEFAULT 'sender'
+  `)
+  await executor.query(`
+    ALTER TABLE contract_template_confirmation_fields
+    ALTER COLUMN input_role SET NOT NULL
+  `)
+  await executor.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'contract_template_confirmation_fields_input_role_check'
+      ) THEN
+        ALTER TABLE contract_template_confirmation_fields
+        ADD CONSTRAINT contract_template_confirmation_fields_input_role_check
+          CHECK (input_role IN ('sender', 'customer'));
+      END IF;
+    END $$;
   `)
 
   await executor.query(`
