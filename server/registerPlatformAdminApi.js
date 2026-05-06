@@ -3,7 +3,8 @@
  * — industries 조회(GET)는 레거시 requireSuperAdmin
  * — industry 생성(POST)는 platform 컨텍스트 기반 플랫폼 슈퍼관리자 가드
  * — industries/:id/admins 조회·지정은 platform 컨텍스트 + 플랫폼 슈퍼
- * — industries/:id/tenants 생성은 platform 컨텍스트 + 업종관리자(또는 플랫폼 슈퍼)
+ * — industries/:id/tenants 목록(GET)은 platform 컨텍스트 + 업종관리자(또는 플랫폼 슈퍼); 업종 활성 필수
+ * — industries/:id/tenants 생성(POST)은 platform 컨텍스트 + 업종관리자(또는 플랫폼 슈퍼)
  * — tenants/:id/admins 조회·지정은 platform 컨텍스트 + 슈퍼 또는 해당 테넌트 소속 Industry Admin
  * — tenants 목록(GET 전체)·memberships/외부요약 등은 조회 전용 · 민감 필드 미포함
  */
@@ -868,6 +869,70 @@ export function registerPlatformAdminApi(apiRouter, deps) {
         handleDbError(e, req, res)
       } finally {
         client.release()
+      }
+    },
+  )
+
+  apiRouter.get(
+    '/admin/platform/industries/:industryId/tenants',
+    ...platformIndustryTenantCreateGuard,
+    async (req, res) => {
+      try {
+        const industryIdParsed = parsePositiveIndustryIdParam(req.params.industryId)
+        if (industryIdParsed == null) {
+          res.status(400).json({ message: '유효한 industryId 가 필요합니다.' })
+          return
+        }
+
+        const indChk = await pool.query(
+          `SELECT id, status FROM industries WHERE id = $1 LIMIT 1`,
+          [industryIdParsed],
+        )
+        if ((indChk.rowCount ?? 0) === 0) {
+          res.status(404).json({ message: '해당 업종을 찾을 수 없습니다.' })
+          return
+        }
+        const indSt = String(indChk.rows[0]?.status ?? '').trim().toLowerCase()
+        if (indSt !== 'active') {
+          res.status(400).json({ message: '활성 상태의 업종만 조회할 수 있습니다.' })
+          return
+        }
+
+        const { rows } = await pool.query(
+          `
+          SELECT
+            t.id,
+            t.industry_id,
+            i.code AS industry_code,
+            t.code,
+            t.name,
+            t.status,
+            t.legacy_ga_id,
+            t.created_at,
+            t.updated_at
+          FROM tenants t
+          LEFT JOIN industries i ON i.id = t.industry_id
+          WHERE t.industry_id = $1
+          ORDER BY t.id ASC
+          `,
+          [industryIdParsed],
+        )
+
+        res.json({
+          items: rows.map((row) => ({
+            id: String(row.id),
+            industryId: row.industry_id != null ? String(row.industry_id) : null,
+            industryCode: row.industry_code != null ? String(row.industry_code) : null,
+            code: row.code,
+            name: row.name,
+            status: row.status,
+            legacyGaId: row.legacy_ga_id != null ? Number(row.legacy_ga_id) : null,
+            createdAt: toIso(row.created_at),
+            updatedAt: toIso(row.updated_at),
+          })),
+        })
+      } catch (e) {
+        handleDbError(e, req, res)
       }
     },
   )
