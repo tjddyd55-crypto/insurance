@@ -1,6 +1,7 @@
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import type { IndustryDetailViewProps } from './IndustryDetailPage'
+import { IndustryTenantCreateSection, IndustryTenantsListSection } from './IndustryDetailTenantSections'
 
 export default function IndustryDetailMobileView({
   industryIdRaw,
@@ -20,14 +21,57 @@ export default function IndustryDetailMobileView({
   reload,
   onAssignSubmit,
   clearAssignFeedback,
+  tenantsForIndustry,
+  tenantsLoading,
+  tenantsError,
+  refetchTenants,
+  canCreateTenant,
+  industryInactive,
+  tenantCreateCode,
+  setTenantCreateCode,
+  tenantCreateName,
+  setTenantCreateName,
+  tenantCreateStatus,
+  setTenantCreateStatus,
+  tenantCreateLegacyGaId,
+  setTenantCreateLegacyGaId,
+  tenantCreateSubmitting,
+  tenantCreateSuccessMessage,
+  tenantCreateErrorMessage,
+  onTenantCreateSubmit,
+  clearTenantCreateFeedback,
 }: IndustryDetailViewProps) {
   const canAssign = Boolean(industryRow) && !industriesLoading && !industriesError
+
+  const tenantSectionProps = {
+    variant: 'mobile' as const,
+    industryRowPresent: Boolean(industryRow),
+    tenants: tenantsForIndustry,
+    tenantsLoading,
+    tenantsError,
+    onRetryTenants: refetchTenants,
+    canCreateTenant,
+    industryInactive,
+    tenantCreateCode,
+    setTenantCreateCode,
+    tenantCreateName,
+    setTenantCreateName,
+    tenantCreateStatus,
+    setTenantCreateStatus,
+    tenantCreateLegacyGaId,
+    setTenantCreateLegacyGaId,
+    tenantCreateSubmitting,
+    tenantCreateSuccessMessage,
+    tenantCreateErrorMessage,
+    onTenantCreateSubmit,
+    clearTenantCreateFeedback,
+  }
 
   return (
     <main className="page platform-industry-detail-page platform-admin-page platform-industry-detail-page--mobile platform-admin-page--mobile page--with-back">
       <header className="platform-admin-page__head">
-        <h1 className="platform-admin-page__title">Industry Admin</h1>
-        <p className="platform-admin-page__muted platform-admin-page__mono">id {industryIdRaw || '—'}</p>
+        <h1 className="platform-admin-page__title">Industry 관리</h1>
+        <p className="platform-admin-page__muted platform-admin-page__mono">id {industryIdRaw || '—'} · Tenant</p>
       </header>
 
       {industryParamInvalid ? (
@@ -127,7 +171,7 @@ export default function IndustryDetailMobileView({
       {canAssign ? (
         <section className="platform-admin-page__industry-create" aria-labelledby="m-assign">
           <h2 id="m-assign" className="platform-admin-page__stack-title">
-            Industry Admin 지정
+            Industry Admin 지정 (Super Admin)
           </h2>
           <form className="platform-admin-page__industry-create-form" onSubmit={onAssignSubmit}>
             <div className="platform-admin-page__form-field">
@@ -163,6 +207,9 @@ export default function IndustryDetailMobileView({
           </form>
         </section>
       ) : null}
+
+      <IndustryTenantsListSection variant="mobile" {...tenantSectionProps} />
+      <IndustryTenantCreateSection {...tenantSectionProps} />
     </main>
   )
 }

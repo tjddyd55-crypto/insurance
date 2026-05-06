@@ -44,6 +44,29 @@ export type PlatformTenantRow = {
   updatedAt: string | null
 }
 
+export type TenantStatus = 'active' | 'inactive'
+
+export type CreatePlatformTenantInput = {
+  code: string
+  name: string
+  status: TenantStatus
+  /** 생략 시 서버에 전달하지 않음(null·미포함) */
+  legacyGaId?: number | null
+}
+
+/** POST /admin/platform/industries/:id/tenants 201 — config·r2_key_prefix 없음 */
+export type CreatePlatformTenantResponse = {
+  id: string
+  industryId: string
+  industryCode: string
+  code: string
+  name: string
+  status: string
+  legacyGaId: number | null
+  createdAt: string | null
+  updatedAt: string | null
+}
+
 export type PlatformIndustriesResponse = {
   items: PlatformIndustryRow[]
 }

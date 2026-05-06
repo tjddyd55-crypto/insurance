@@ -3,6 +3,8 @@ import type {
   AssignPlatformIndustryAdminResult,
   CreateIndustryInput,
   CreateIndustryResponse,
+  CreatePlatformTenantInput,
+  CreatePlatformTenantResponse,
   PlatformExternalAccountsSummaryResponse,
   PlatformIndustriesResponse,
   PlatformIndustryAdminsResponse,
@@ -54,6 +56,24 @@ export function assignPlatformIndustryAdmin(
 
 export function fetchPlatformTenants(token: string) {
   return apiRequest<PlatformTenantsResponse>('/api/admin/platform/tenants', { method: 'GET', token })
+}
+
+export function createPlatformTenant(token: string, industryId: string, input: CreatePlatformTenantInput) {
+  const id = encodeURIComponent(industryId)
+  const body: Record<string, unknown> = {
+    code: input.code,
+    name: input.name,
+    status: input.status,
+    config: {},
+  }
+  if (input.legacyGaId != null && Number.isInteger(input.legacyGaId) && input.legacyGaId > 0) {
+    body.legacyGaId = input.legacyGaId
+  }
+  return apiRequest<CreatePlatformTenantResponse>(`/api/admin/platform/industries/${id}/tenants`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    token,
+  })
 }
 
 export function fetchPlatformMemberships(token: string) {

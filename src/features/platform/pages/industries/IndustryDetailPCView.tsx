@@ -1,6 +1,7 @@
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import type { IndustryDetailViewProps } from './IndustryDetailPage'
+import { IndustryTenantCreateSection, IndustryTenantsListSection } from './IndustryDetailTenantSections'
 
 export default function IndustryDetailPCView({
   industryIdRaw,
@@ -20,16 +21,58 @@ export default function IndustryDetailPCView({
   reload,
   onAssignSubmit,
   clearAssignFeedback,
+  tenantsForIndustry,
+  tenantsLoading,
+  tenantsError,
+  refetchTenants,
+  canCreateTenant,
+  industryInactive,
+  tenantCreateCode,
+  setTenantCreateCode,
+  tenantCreateName,
+  setTenantCreateName,
+  tenantCreateStatus,
+  setTenantCreateStatus,
+  tenantCreateLegacyGaId,
+  setTenantCreateLegacyGaId,
+  tenantCreateSubmitting,
+  tenantCreateSuccessMessage,
+  tenantCreateErrorMessage,
+  onTenantCreateSubmit,
+  clearTenantCreateFeedback,
 }: IndustryDetailViewProps) {
   const canAssign = Boolean(industryRow) && !industriesLoading && !industriesError
+  const tenantSectionProps = {
+    variant: 'pc' as const,
+    industryRowPresent: Boolean(industryRow),
+    tenants: tenantsForIndustry,
+    tenantsLoading,
+    tenantsError,
+    onRetryTenants: refetchTenants,
+    canCreateTenant,
+    industryInactive,
+    tenantCreateCode,
+    setTenantCreateCode,
+    tenantCreateName,
+    setTenantCreateName,
+    tenantCreateStatus,
+    setTenantCreateStatus,
+    tenantCreateLegacyGaId,
+    setTenantCreateLegacyGaId,
+    tenantCreateSubmitting,
+    tenantCreateSuccessMessage,
+    tenantCreateErrorMessage,
+    onTenantCreateSubmit,
+    clearTenantCreateFeedback,
+  }
 
   return (
     <main className="page platform-industry-detail-page platform-admin-page platform-industry-detail-page--pc platform-admin-page--pc page--with-back">
       <header className="platform-admin-page__head">
-        <h1 className="platform-admin-page__title">Industry Admin</h1>
+        <h1 className="platform-admin-page__title">Industry 관리</h1>
         <p className="platform-admin-page__lede">
-          업종 <span className="platform-admin-page__mono">{industryIdRaw || '—'}</span> · 목록 및 지정
-          (Super Admin)
+          업종 <span className="platform-admin-page__mono">{industryIdRaw || '—'}</span> · Industry Admin 및 Tenant ·
+          Super Admin 또는 해당 Industry Admin
         </p>
       </header>
 
@@ -143,7 +186,7 @@ export default function IndustryDetailPCView({
       {canAssign ? (
         <section className="platform-admin-page__industry-create" aria-labelledby="assign-heading">
           <h2 id="assign-heading" className="platform-admin-page__subhead">
-            Industry Admin 지정
+            Industry Admin 지정 (Super Admin)
           </h2>
           <form className="platform-admin-page__industry-create-form" onSubmit={onAssignSubmit}>
             <div className="platform-admin-page__form-field">
@@ -180,6 +223,9 @@ export default function IndustryDetailPCView({
           </form>
         </section>
       ) : null}
+
+      <IndustryTenantsListSection variant="pc" {...tenantSectionProps} />
+      <IndustryTenantCreateSection {...tenantSectionProps} />
     </main>
   )
 }
