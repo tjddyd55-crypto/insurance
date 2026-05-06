@@ -1,6 +1,7 @@
 /**
- * CRM-Platform RBAC — user_memberships 중심 헬퍼 (1차).
- * - requireAuth·JWT·기존 라우트에 연결하지 않는다(별도 rollout).
+ * CRM-Platform RBAC — user_memberships 중심 헬퍼.
+ * - `createAttachPlatformContext` 는 **requireAuth 다음** 신규 라우트에만 붙일 것(전역 적용 금지).
+ * - JWT·requireAuth 자체는 이 모듈이 수정하지 않는다.
  * @module platformRbac
  */
 
@@ -47,6 +48,11 @@ const CANONICAL_SET = new Set(CANONICAL_PLATFORM_ROLES)
  * @property {readonly string[]} tenantAdminTenantIds
  * @property {readonly string[]} staffTenantIds
  * @property {readonly string[]} userTenantIds
+ */
+
+/**
+ * requireAuth 통과 후 `createAttachPlatformContext` 가 `platformContext` 를 채운다.
+ * @typedef {import('express').Request & { platformContext?: EffectivePlatformContext }} RequestWithOptionalPlatformContext
  */
 
 /**
@@ -243,32 +249,82 @@ export function hasTenantAdminScope(context, tenantId) {
   return context.tenantAdminTenantIds.includes(key)
 }
 
+/**
+ * `attachPlatformContext` 이후 채워진 값을 반환한다. 없으면 `undefined`.
+ * @param {RequestWithOptionalPlatformContext} req
+ * @returns {EffectivePlatformContext | undefined}
+ */
+export function getPlatformContext(req) {
+  return req.platformContext
+}
+
+/**
+ * 핸들러 내부에서 컨텍스트가 반드시 있을 때 사용. 미들웨어 누락 시 Error.
+ * Express 응답으로 변환하지 않는다 — 호출부에서 try/catch 또는 정책에 맞게 처리.
+ * @param {RequestWithOptionalPlatformContext} req
+ * @returns {EffectivePlatformContext}
+ */
+export function requirePlatformContext(req) {
+  const c = req.platformContext
+  if (!c) {
+    throw new Error('[platformRbac] requirePlatformContext: run createAttachPlatformContext middleware after requireAuth')
+  }
+  return c
+}
+
+/** `requirePlatformContext` 와 동일. */
+export function ensurePlatformContext(req) {
+  return requirePlatformContext(req)
+}
+
+/**
+ * requireAuth 다음에 두고 `req.platformContext` 를 채운다.
+ *
+ * 정책:
+ * - `req.user` 가 없거나 `req.user.id` 가 비어 있으면 **`401`** JSON `{ message }` 후 종료(오용 방지).
+ * - 멤버십 로드 실패 시 **`next(err)`** — 상위에서 Express 오류 처리기로 넘김.
+ *
+ * @param {import('pg').Pool | { query: Function }} pool
+ * @returns {import('express').RequestHandler}
+ */
+export function createAttachPlatformContext(pool) {
+  if (pool == null || typeof pool.query !== 'function') {
+    throw new Error('[platformRbac] createAttachPlatformContext: pool.query 가 필요합니다')
+  }
+
+  /**
+   * @type {import('express').RequestHandler}
+   */
+  async function attachPlatformContextMiddleware(req, res, next) {
+    /** @type {RequestWithOptionalPlatformContext} */
+    const r = req
+    const u = r.user
+    if (
+      !u ||
+      u.id === undefined ||
+      u.id === null ||
+      String(u.id).trim() === ''
+    ) {
+      res.status(401).json({ message: '로그인이 필요합니다.' })
+      return
+    }
+    try {
+      const memberships = await loadActiveMembershipsForUser(pool, u.id)
+      r.platformContext = buildEffectivePlatformContext({ user: u, memberships })
+      next()
+    } catch (e) {
+      next(e)
+    }
+  }
+
+  return attachPlatformContextMiddleware
+}
+
+/** `createAttachPlatformContext` 의 별칭(동일 반환 RequestHandler). */
+export const attachPlatformContext = createAttachPlatformContext
+
 /*
- * ─── Phase 2 (미구현) ───────────────────────────────────────────────
- * 아래 패턴으로 Express 미들웨어를 붙일 수 있다. 지금은 라우트에 연결 금지.
- *
- * async function attachPlatformContext(pool) {
- *   return async (req, res, next) => {
- *     if (!req.user?.id) { return res.status(401).json({ message: '...' }); }
- *     const memberships = await loadActiveMembershipsForUser(pool, req.user.id);
- *     req.platformContext = buildEffectivePlatformContext({ user: req.user, memberships });
- *     next();
- *   };
- * }
- *
- * function requireIndustryAdminParam(paramName = 'industryId') {
- *   return (req, res, next) => {
- *     const raw = req.params[paramName];
- *     if (!hasIndustryAdminScope(req.platformContext, raw)) return res.status(403).json(...);
- *     next();
- *   };
- * }
- *
- * function requireTenantAdminParam(paramName = 'tenantId') {
- *   return (req, res, next) => {
- *     const raw = req.params[paramName];
- *     if (!hasTenantAdminScope(req.platformContext, raw)) return res.status(403).json(...);
- *     next();
- *   };
- * }
+ * ─── 이후 단계(미연결) ─────────────────────────────────────────────
+ * requireIndustryAdmin / requireTenantAdmin Express 미들웨어 및
+ * registerPlatformAdminApi 에의 일괄 적용은 별도 PR.
  */
