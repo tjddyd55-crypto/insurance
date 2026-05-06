@@ -1,0 +1,48 @@
+import type { IndustriesListViewProps } from './IndustriesListPage'
+
+export default function IndustriesListPCView({ items, loading, error, reload }: IndustriesListViewProps) {
+  return (
+    <main className="page platform-admin-page platform-admin-page--pc page--with-back">
+      <header className="platform-admin-page__head">
+        <h1 className="platform-admin-page__title">Industry 목록</h1>
+        <p className="platform-admin-page__lede">industries 테이블 · 조회 전용</p>
+      </header>
+      {error ? (
+        <div className="platform-admin-page__panel platform-admin-page__panel--error" role="alert">
+          <p>{error}</p>
+          <button type="button" className="platform-admin-page__btn" onClick={reload}>
+            다시 시도
+          </button>
+        </div>
+      ) : null}
+      {loading ? <p className="platform-admin-page__muted">불러오는 중…</p> : null}
+      {!loading && !error ? (
+        <div className="platform-admin-page__table-wrap">
+          <table className="platform-admin-page__table">
+            <thead>
+              <tr>
+                <th>코드</th>
+                <th>이름</th>
+                <th>상태</th>
+                <th>id</th>
+                <th>생성</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.code}</td>
+                  <td>{row.name}</td>
+                  <td>{row.status}</td>
+                  <td className="platform-admin-page__mono">{row.id}</td>
+                  <td className="platform-admin-page__muted">{row.createdAt ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {items.length === 0 ? <p className="platform-admin-page__muted">행이 없습니다.</p> : null}
+        </div>
+      ) : null}
+    </main>
+  )
+}

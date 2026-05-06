@@ -612,6 +612,225 @@ async function ensureCustomerClaimAppSchema(executor) {
   `)
 }
 
+/**
+ * CRM-Platform 1차 메타(industries / tenants / user_memberships).
+ * - 도메인 테이블·users.role·users.ga_id·R2 실제 경로에는 관여하지 않는다.
+ * - r2_key_prefix 는 기록용 템플릿 문자열(런타임 CRM_R2_OBJECT_ROOT 대체 안 함).
+ */
+async function ensureCrmPlatformMetaSchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS industries (
+      id BIGSERIAL PRIMARY KEY,
+      code TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      config JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS tenants (
+      id BIGSERIAL PRIMARY KEY,
+      industry_id BIGINT NOT NULL REFERENCES industries(id),
+      code TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      legacy_ga_id INTEGER UNIQUE REFERENCES ga_companies(id),
+      r2_key_prefix TEXT,
+      config JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_tenants_industry_id
+    ON tenants (industry_id)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS user_memberships (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL,
+      scope_type TEXT NOT NULL,
+      scope_id TEXT,
+      tenant_id BIGINT REFERENCES tenants(id),
+      industry_id BIGINT REFERENCES industries(id),
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_user_memberships_user_role_scope_scopeid
+    ON user_memberships (user_id, role, scope_type, (COALESCE(scope_id, '')))
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_memberships_user_id
+    ON user_memberships (user_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_memberships_tenant_id
+    ON user_memberships (tenant_id)
+    WHERE tenant_id IS NOT NULL
+  `)
+
+  await executor.query(`
+    INSERT INTO industries (code, name, status, config)
+    VALUES ('insurance', '보험', 'active', '{}'::jsonb)
+    ON CONFLICT (code) DO UPDATE SET
+      name = EXCLUDED.name,
+      status = EXCLUDED.status,
+      updated_at = NOW()
+  `)
+
+  await executor.query(`
+    INSERT INTO tenants (industry_id, code, name, status, legacy_ga_id, r2_key_prefix, config)
+    SELECT i.id, 'yjasset', '영진에셋', 'active', g.id,
+      'crm-platform/{environment}/insurance/tenants/yjasset',
+      '{}'::jsonb
+    FROM industries i
+    INNER JOIN ga_companies g ON g.code = 'YJASSET' AND g.is_deleted IS NOT TRUE
+    WHERE i.code = 'insurance'
+    LIMIT 1
+    ON CONFLICT (code) DO UPDATE SET
+      industry_id = EXCLUDED.industry_id,
+      name = EXCLUDED.name,
+      status = EXCLUDED.status,
+      legacy_ga_id = EXCLUDED.legacy_ga_id,
+      r2_key_prefix = EXCLUDED.r2_key_prefix,
+      updated_at = NOW()
+  `)
+}
+
+/**
+ * users / ga / tenants 를 읽기만 함. NOT EXISTS 로 멱등 시드.
+ * ensureBootstrapAdminUser 이후에 호출할 것(신규 SUPER_ADMIN 반영).
+ *
+ * tenant 스코프: scope_id = tenants.id::text (platform 은 scope_id NULL).
+ * USER 계정 예전 오시드 보정: user 멤버십이 이미 있으면 중복 staff 삭제,
+ * 단독 staff 행은 role=user 로 업데이트.
+ */
+async function seedCrmPlatformUserMemberships(executor) {
+  await executor.query(`
+    UPDATE user_memberships m
+    SET scope_id = m.tenant_id::text,
+        updated_at = NOW()
+    WHERE m.scope_type = 'tenant'
+      AND m.tenant_id IS NOT NULL
+      AND m.scope_id IS DISTINCT FROM m.tenant_id::text
+  `)
+
+  await executor.query(`
+    DELETE FROM user_memberships m
+    USING users u, tenants t
+    WHERE m.user_id = u.id
+      AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+      AND UPPER(TRIM(COALESCE(u.role, ''))) = 'USER'
+      AND m.role = 'staff'
+      AND m.scope_type = 'tenant'
+      AND t.legacy_ga_id = u.ga_id
+      AND m.tenant_id IS NOT DISTINCT FROM t.id
+      AND m.scope_id IS NOT DISTINCT FROM t.id::text
+      AND EXISTS (
+        SELECT 1 FROM user_memberships m2
+        WHERE m2.user_id = m.user_id
+          AND m2.role = 'user'
+          AND m2.scope_type = 'tenant'
+          AND m2.tenant_id IS NOT DISTINCT FROM t.id
+          AND m2.scope_id IS NOT DISTINCT FROM t.id::text
+      )
+  `)
+
+  await executor.query(`
+    UPDATE user_memberships m
+    SET role = 'user', updated_at = NOW()
+    FROM users u, tenants t
+    WHERE m.user_id = u.id
+      AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+      AND UPPER(TRIM(COALESCE(u.role, ''))) = 'USER'
+      AND m.role = 'staff'
+      AND m.scope_type = 'tenant'
+      AND t.legacy_ga_id = u.ga_id
+      AND m.tenant_id IS NOT DISTINCT FROM t.id
+      AND m.scope_id IS NOT DISTINCT FROM t.id::text
+      AND NOT EXISTS (
+        SELECT 1 FROM user_memberships m2
+        WHERE m2.user_id = m.user_id
+          AND m2.role = 'user'
+          AND m2.scope_type = 'tenant'
+          AND m2.tenant_id IS NOT DISTINCT FROM t.id
+      )
+  `)
+
+  await executor.query(`
+    INSERT INTO user_memberships (user_id, role, scope_type, scope_id, tenant_id, industry_id, status)
+    SELECT u.id, 'super_admin', 'platform', NULL, NULL, NULL, 'active'
+    FROM users u
+    WHERE COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+      AND UPPER(TRIM(COALESCE(u.role, ''))) = 'SUPER_ADMIN'
+      AND NOT EXISTS (
+        SELECT 1 FROM user_memberships m
+        WHERE m.user_id = u.id
+          AND m.role = 'super_admin'
+          AND m.scope_type = 'platform'
+          AND COALESCE(m.scope_id, '') = ''
+      )
+  `)
+
+  await executor.query(`
+    INSERT INTO user_memberships (user_id, role, scope_type, scope_id, tenant_id, industry_id, status)
+    SELECT u.id, 'tenant_admin', 'tenant', t.id::text, t.id, t.industry_id, 'active'
+    FROM users u
+    INNER JOIN tenants t ON t.legacy_ga_id = u.ga_id AND t.code = 'yjasset'
+    WHERE COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+      AND UPPER(TRIM(COALESCE(u.role, ''))) = 'GA_ADMIN'
+      AND NOT EXISTS (
+        SELECT 1 FROM user_memberships m
+        WHERE m.user_id = u.id
+          AND m.role = 'tenant_admin'
+          AND m.scope_type = 'tenant'
+          AND m.tenant_id IS NOT DISTINCT FROM t.id
+          AND m.scope_id IS NOT DISTINCT FROM t.id::text
+      )
+  `)
+
+  await executor.query(`
+    INSERT INTO user_memberships (user_id, role, scope_type, scope_id, tenant_id, industry_id, status)
+    SELECT u.id, 'staff', 'tenant', t.id::text, t.id, t.industry_id, 'active'
+    FROM users u
+    INNER JOIN tenants t ON t.legacy_ga_id = u.ga_id AND t.code = 'yjasset'
+    WHERE COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+      AND UPPER(TRIM(COALESCE(u.role, ''))) = 'GA_STAFF'
+      AND NOT EXISTS (
+        SELECT 1 FROM user_memberships m
+        WHERE m.user_id = u.id
+          AND m.role = 'staff'
+          AND m.scope_type = 'tenant'
+          AND m.tenant_id IS NOT DISTINCT FROM t.id
+          AND m.scope_id IS NOT DISTINCT FROM t.id::text
+      )
+  `)
+
+  await executor.query(`
+    INSERT INTO user_memberships (user_id, role, scope_type, scope_id, tenant_id, industry_id, status)
+    SELECT u.id, 'user', 'tenant', t.id::text, t.id, t.industry_id, 'active'
+    FROM users u
+    INNER JOIN tenants t ON t.legacy_ga_id = u.ga_id AND t.code = 'yjasset'
+    WHERE COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+      AND UPPER(TRIM(COALESCE(u.role, ''))) = 'USER'
+      AND NOT EXISTS (
+        SELECT 1 FROM user_memberships m
+        WHERE m.user_id = u.id
+          AND m.role = 'user'
+          AND m.scope_type = 'tenant'
+          AND m.tenant_id IS NOT DISTINCT FROM t.id
+          AND m.scope_id IS NOT DISTINCT FROM t.id::text
+      )
+  `)
+}
+
 export async function initDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -833,6 +1052,8 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE users ALTER COLUMN ga_id SET NOT NULL
   `)
+
+  await ensureCrmPlatformMetaSchema(pool)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS feature_requests (
@@ -1949,6 +2170,7 @@ export async function initDb() {
 
   await maybeDebugResetAllUsers()
   await ensureBootstrapAdminUser()
+  await seedCrmPlatformUserMemberships(pool)
   await seedConsentTemplatesIfNeeded()
 
   await pool.query(`

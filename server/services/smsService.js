@@ -10,7 +10,6 @@ import {
 const ALIGO_API_KEY = process.env.ALIGO_API_KEY
 const ALIGO_USER_ID = process.env.ALIGO_USER_ID
 const ALIGO_SENDER = process.env.ALIGO_SENDER
-const ALIGO_TEST_MODE = String(process.env.ALIGO_TEST_MODE ?? 'Y').trim().toUpperCase() || 'Y'
 
 /** 설정 시 JSON `{ phone, message }` POST로 전송 (예: EC2 중계 서버). Aligo·테스트모드보다 우선 */
 const SMS_HTTP_GATEWAY_URL = String(process.env.SMS_HTTP_GATEWAY_URL ?? '').trim()
@@ -45,6 +44,79 @@ function maskPhone(phoneDigits) {
     return '***'
   }
   return `***${d.slice(-4)}`
+}
+
+/** env 플래그를 true 로 해석한다. 참으로 명시된 값만 true, 그 외·공백·미설정은 false */
+function normalizeBooleanEnv(raw) {
+  const s = String(raw ?? '')
+    .trim()
+    .toUpperCase()
+  return s === '1' || s === 'TRUE' || s === 'YES' || s === 'Y' || s === 'ON' || s === 'T'
+}
+
+function normalizePhoneNumber(value) {
+  return String(value ?? '').replace(/\D/g, '')
+}
+
+function isDevelopmentDeploy() {
+  const appEnv = String(process.env.APP_ENV ?? '').trim().toLowerCase()
+  if (appEnv === 'development') {
+    return true
+  }
+  const rail = String(process.env.RAILWAY_ENVIRONMENT_NAME ?? '').trim().toLowerCase()
+  return rail === 'development'
+}
+
+/** TEST_RECIPIENTS: 공백/쉼표/세미콜론/파이프/줄바꿈으로 구분된 수신 테스트 번호(숫자만 정규화) */
+function getAllowedTestRecipients() {
+  const raw = String(process.env.TEST_RECIPIENTS ?? '')
+  const seen = new Set()
+  const parts = raw.split(/[\s,;|\n\r]+/).filter(Boolean)
+  for (const p of parts) {
+    const d = normalizePhoneNumber(p)
+    if (d.length > 0) {
+      seen.add(d)
+    }
+  }
+  return seen
+}
+
+/**
+ * 발송 허용 정책 (development 전용 차단만 반환값에 반영한다).
+ * production 은 `{ kind:'production' }` 로 기존 gateway/알리고 순서 유지.
+ * @returns {{ kind: 'production' } | { kind: 'mock', reason: string } | { kind: 'allow_real_test_recipient' }}
+ */
+function resolveSmsSendPolicy(receiverDigits) {
+  if (!isDevelopmentDeploy()) {
+    return { kind: 'production' }
+  }
+  if (normalizeBooleanEnv(process.env.DISABLE_REAL_SEND)) {
+    return { kind: 'mock', reason: 'real_send_disabled' }
+  }
+  if (!normalizeBooleanEnv(process.env.ALLOW_TEST_RECIPIENTS_ONLY)) {
+    return { kind: 'mock', reason: 'allowlist_disabled' }
+  }
+  const allowed = getAllowedTestRecipients()
+  if (allowed.size === 0) {
+    return { kind: 'mock', reason: 'no_test_recipients' }
+  }
+  if (!allowed.has(receiverDigits)) {
+    return { kind: 'mock', reason: 'recipient_not_allowed' }
+  }
+  return { kind: 'allow_real_test_recipient' }
+}
+
+/** Y/true/1/yes/on/t — 알리고 테스트·비발송 분기 및 testmode 파라미터 근거 */
+function isAligoTestModeOn() {
+  const raw = String(process.env.ALIGO_TEST_MODE ?? 'Y').trim()
+  const effective = raw === '' ? 'Y' : raw
+  const u = effective.toUpperCase()
+  return u === 'Y' || u === 'TRUE' || u === 'T' || u === '1' || u === 'YES' || u === 'ON'
+}
+
+/** 실제 알리고 POST 시 testmode_yn — 비테스트 분기에서는 N 고정으로 전송 신호 명확화 */
+function aligoFormTestmodeYn() {
+  return isAligoTestModeOn() ? 'Y' : 'N'
 }
 
 function sleep(ms) {
@@ -105,10 +177,10 @@ export function isSmsProviderConfigured() {
 
 /**
  * @param {{ phoneNumber: string, code: string, purpose: string, clientIp?: string }} params
- * @returns {Promise<{ success: boolean, sent?: boolean, test?: boolean, data?: unknown, error?: unknown, publicMessage?: string }>}
+ * @returns {Promise<{ success: boolean, ok?: boolean, sent?: boolean, test?: boolean, testRecipient?: boolean, mocked?: boolean, skipped?: boolean, reason?: string, data?: unknown, error?: unknown, publicMessage?: string, retryAfterSec?: number }>}
  */
 export async function sendVerificationCode({ phoneNumber, code, purpose, clientIp = '' }) {
-  const receiver = String(phoneNumber ?? '').replace(/[^0-9]/g, '')
+  const receiver = normalizePhoneNumber(phoneNumber)
   const purposeNorm = String(purpose ?? '')
   const messageGateway = `인증번호는 ${code} 입니다.`
   const messageAligo = `[인증번호] ${code} (3분 이내 입력해주세요)`
@@ -152,6 +224,45 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
     }
   }
 
+  const smsPolicy = resolveSmsSendPolicy(receiver)
+  /** development 화이트리스트로 실외부 발송이 허용된 경우 성공 응답에 testRecipient 플래그를 붙인다 */
+  let devApprovedTestRecipient = false
+  const realDispatchOk = (base) => {
+    const out = { ok: true, success: true, mocked: false, ...base }
+    if (devApprovedTestRecipient === true && out.sent === true) {
+      out.testRecipient = true
+    }
+    return out
+  }
+
+  if (smsPolicy.kind === 'mock') {
+    logSmsDelivery({
+      phone: receiver,
+      ip,
+      status: smsPolicy.reason,
+      purpose: purposeNorm,
+      channel: 'policy',
+    })
+    console.log('[SMS] mock success (development policy)', {
+      to: maskPhone(receiver),
+      purpose: purposeNorm,
+      reason: smsPolicy.reason,
+    })
+    return {
+      ok: true,
+      success: true,
+      sent: false,
+      test: true,
+      mocked: true,
+      skipped: true,
+      reason: smsPolicy.reason,
+    }
+  }
+
+  if (smsPolicy.kind === 'allow_real_test_recipient') {
+    devApprovedTestRecipient = true
+  }
+
   if (SMS_HTTP_GATEWAY_URL) {
     if (SMS_GATEWAY_HEALTH_CHECK) {
       const h = await checkSmsGatewayHealth()
@@ -188,7 +299,7 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
 
     if (response.status >= 200 && response.status < 300) {
       await finalizeOk('http')
-      return { success: true, sent: true, data: response.data }
+      return realDispatchOk({ sent: true, data: response.data })
     }
 
     await sleep(RETRY_DELAY_MS)
@@ -202,14 +313,19 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
 
     if (response.status >= 200 && response.status < 300) {
       await finalizeOk('http_retry')
-      return { success: true, sent: true, data: response.data }
+      return realDispatchOk({ sent: true, data: response.data })
     }
 
     await finalizeFail('gateway_reject', 'http')
     return { success: false, sent: false, data: response.data, publicMessage: SMS_PUBLIC_DELAY_MESSAGE }
   }
 
-  if (ALIGO_TEST_MODE === 'Y') {
+  /**
+   * ALIGO_TEST_MODE 가 Y/true/1 등이면 이 분기에서 실제 apis.aligo.in 호출을 하지 않는다(운영 검증 단계 포함).
+   * development 에서 ALLOW_TEST_RECIPIENTS 로 실수신 테스트를 할 때에는 ALIGO_TEST_MODE=N(또는 비활성)으로 두고,
+   * 아래 gateway 미설치 시 알리고 실호출까지 이어지게 한다.
+   */
+  if (isAligoTestModeOn()) {
     await finalizeOk('test_mode')
     if (IS_PRODUCTION) {
       console.log('[SMS TEST MODE] production — not sent', {
@@ -235,7 +351,7 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
       sender: String(ALIGO_SENDER),
       receiver,
       msg: messageAligo,
-      testmode_yn: ALIGO_TEST_MODE,
+      testmode_yn: aligoFormTestmodeYn(),
     })
     return axios.post(ALIGO_URL, body.toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
@@ -266,7 +382,7 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
       return { success: false, sent: false, data, publicMessage: SMS_PUBLIC_DELAY_MESSAGE }
     }
     await finalizeOk('aligo')
-    return { success: true, sent: true, data }
+    return realDispatchOk({ sent: true, data })
   } catch (error) {
     try {
       await sleep(RETRY_DELAY_MS)
@@ -274,7 +390,7 @@ export async function sendVerificationCode({ phoneNumber, code, purpose, clientI
       const data = await fetchAligoData()
       if (String(data?.result_code) === '1') {
         await finalizeOk('aligo_retry')
-        return { success: true, sent: true, data }
+        return realDispatchOk({ sent: true, data })
       }
       await finalizeFail('aligo_reject', 'aligo')
       return { success: false, sent: false, data, publicMessage: SMS_PUBLIC_DELAY_MESSAGE }

@@ -132,6 +132,7 @@ export async function deleteCustomerNewsletterHard(pool, args) {
     client.release()
   }
 
+  /** TODO(multi-tenant R2): 고객 소식 삭제 전 objectKey 허용 prefix 검증(insurer/, CRM_R2_OBJECT_ROOT 접두 등)으로 테넌트 밖 삭제 방지 — 후속 PR */
   if (isConsentR2Enabled() && objectKeys.size > 0) {
     for (const objectKey of objectKeys) {
       try {

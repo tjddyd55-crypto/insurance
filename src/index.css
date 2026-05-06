@@ -10231,3 +10231,428 @@ textarea.memo-sticky-note__textarea::placeholder {
     grid-template-columns: 1fr;
   }
 }
+
+/* ====== Platform admin 허브 (SUPER_ADMIN · 조회 전용) ====== */
+.platform-admin-page--pc,
+.platform-admin-page--mobile {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px 40px;
+  box-sizing: border-box;
+}
+
+.platform-admin-page__toolbar {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 16px 0;
+  box-sizing: border-box;
+}
+
+.platform-admin-page__back {
+  font-size: 14px;
+  color: var(--link, #60a5fa);
+  text-decoration: none;
+}
+
+.platform-admin-page__back:hover {
+  text-decoration: underline;
+}
+
+.platform-admin-page__head {
+  margin-bottom: 20px;
+}
+
+.platform-admin-page__title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary, #f8fafc);
+}
+
+.platform-admin-page__lede {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted, #94a3b8);
+  line-height: 1.5;
+}
+
+.platform-admin-page__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.platform-admin-page__grid--mobile {
+  grid-template-columns: 1fr;
+}
+
+.platform-admin-page__card {
+  display: block;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle, #1e293b);
+  background: var(--panel-bg, #111827);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.platform-admin-page__card:hover {
+  border-color: var(--brand, #3b82f6);
+  background: var(--panel-bg-hover, #1f2937);
+}
+
+.platform-admin-page__card-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #f8fafc);
+}
+
+.platform-admin-page__card-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary, #e5e7eb);
+  line-height: 1.45;
+}
+
+.platform-admin-page__muted {
+  color: var(--text-muted, #94a3b8);
+}
+
+.platform-admin-page__mono {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.platform-admin-page__panel {
+  padding: 14px 16px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-subtle, #334155);
+  background: var(--panel-bg, #111827);
+}
+
+.platform-admin-page__panel--error {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.platform-admin-page__panel--warn {
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.platform-admin-page__panel-title {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.platform-admin-page__btn {
+  margin-top: 10px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--brand, #2563eb);
+  background: var(--brand, #2563eb);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.platform-admin-page__btn:hover {
+  filter: brightness(1.06);
+}
+
+.platform-admin-page__table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle, #1e293b);
+  border-radius: 10px;
+  background: var(--panel-bg, #111827);
+}
+
+.platform-admin-page__table-wrap--wide {
+  max-width: 100%;
+}
+
+.platform-admin-page__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--text-secondary, #e5e7eb);
+}
+
+.platform-admin-page__table--compact th,
+.platform-admin-page__table--compact td {
+  padding: 8px 10px;
+}
+
+.platform-admin-page__table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted, #cbd5e1);
+  border-bottom: 1px solid var(--border-subtle, #334155);
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.platform-admin-page__table td {
+  border-bottom: 1px solid var(--border-subtle, #1e293b);
+  vertical-align: top;
+}
+
+.platform-admin-page__table tr:last-child td {
+  border-bottom: none;
+}
+
+.platform-admin-page__card-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.platform-admin-page__stack-card {
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle, #1e293b);
+  background: var(--panel-bg, #111827);
+}
+
+.platform-admin-page__stack-title {
+  font-weight: 600;
+  color: var(--text-primary, #f8fafc);
+  margin-bottom: 6px;
+}
+
+.platform-admin-page__stack-meta {
+  font-size: 13px;
+  color: var(--text-secondary, #e5e7eb);
+  line-height: 1.4;
+}
+
+.platform-admin-page__summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.platform-admin-page__summary-card {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle, #334155);
+  background: var(--panel-bg, #111827);
+}
+
+.platform-admin-page__summary-card-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #f8fafc);
+}
+
+.platform-admin-page__dl {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.platform-admin-page__dl dt {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #94a3b8);
+}
+
+.platform-admin-page__dl dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--text-secondary, #e5e7eb);
+}
+
+.platform-admin-page__stat {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.platform-admin-page__stat-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+}
+
+.platform-admin-page--pc .platform-admin-page__subhead {
+  margin: 24px 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #f8fafc);
+}
+
+.platform-admin-page--mobile .platform-admin-page__subhead {
+  margin: 16px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #f8fafc);
+}
+
+.platform-admin-page--pc .platform-admin-page__template-detail {
+  margin-top: 28px;
+}
+
+.platform-admin-page--mobile .platform-admin-page__template-detail--mobile {
+  margin-top: 16px;
+}
+
+.platform-admin-page__mono-list {
+  margin: 0 0 12px;
+  padding-left: 1.25rem;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace;
+  font-size: 12px;
+  color: var(--text-secondary, #e5e7eb);
+  line-height: 1.5;
+}
+
+.platform-admin-page__dense-list {
+  margin: 0 0 12px;
+  padding-left: 1.1rem;
+  font-size: 12px;
+  color: var(--text-secondary, #e5e7eb);
+  line-height: 1.45;
+}
+
+.platform-admin-page__dense-list .platform-admin-page__mono {
+  font-size: 12px;
+}
+
+/* ── Platform Registries (/admin/platform/registries) — modifier-scoped ── */
+
+.platform-registries-page--pc .platform-registries-page__summaries {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.platform-registries-page--mobile .platform-registries-page__compact-summary + .platform-registries-page__compact-summary {
+  margin-top: 10px;
+}
+
+.platform-registries-page--pc .platform-registries-page__domain-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.platform-registries-page--pc .platform-registries-page__domain-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary, #e5e7eb);
+}
+
+.platform-registries-page--pc .platform-registries-page__domain-list li,
+.platform-registries-page--mobile .platform-registries-page__domain-list--mobile li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.platform-registries-page--mobile .platform-registries-page__domain-list--mobile {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary, #e5e7eb);
+}
+
+.platform-registries-page--pc .platform-registries-page__registry-block + .platform-registries-page__registry-block {
+  margin-top: 28px;
+}
+
+.platform-registries-page--mobile .platform-registries-page__registry-title {
+  margin-top: 20px;
+}
+
+.platform-registries-page--mobile .platform-registries-page__mobile-table {
+  overflow-x: auto;
+  margin-bottom: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.platform-admin-page__inline-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.platform-admin-page__table td .platform-admin-page__inline-link {
+  margin-top: 0;
+}
+
+.platform-admin-page__inline-link:hover {
+  text-decoration: underline;
+  color: #93c5fd;
+}
+
+/* ── Customer template builder preview (/admin/platform/customer-templates/.../preview) ── */
+
+.customer-template-preview-page--pc .customer-template-preview-page__meta,
+.customer-template-preview-page--pc .customer-template-preview-page__summary {
+  margin-bottom: 16px;
+}
+
+.customer-template-preview-page--pc .customer-template-preview-page__validation {
+  margin-bottom: 20px;
+}
+
+.customer-template-preview-page--pc .customer-template-preview-page__block + .customer-template-preview-page__block {
+  margin-top: 28px;
+}
+
+.customer-template-preview-page--pc .customer-template-preview-page__ok,
+.customer-template-preview-page--mobile .customer-template-preview-page__ok {
+  color: #34d399;
+  font-weight: 600;
+}
+
+.customer-template-preview-page--pc .customer-template-preview-page__warn-list li {
+  color: #fbbf24;
+}
+
+.customer-template-preview-page--mobile .customer-template-preview-page__compact {
+  margin-bottom: 10px;
+}
+
+.customer-template-preview-page--mobile .customer-template-preview-page__scroll-table {
+  overflow-x: auto;
+  margin-bottom: 14px;
+  -webkit-overflow-scrolling: touch;
+}

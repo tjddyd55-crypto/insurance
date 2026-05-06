@@ -233,6 +233,7 @@ function contractSignatureAdminMenuIfEnabled(role: string | undefined): GaTenant
 }
 
 const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
+  { label: '플랫폼 관리', path: '/admin/platform' },
   { label: 'GA 관리', path: '/admin/ga' },
   { label: '담당자 관리', path: '/admin/delegates' },
   { label: '유저 관리', path: '/admin/users' },
