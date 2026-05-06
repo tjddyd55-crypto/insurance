@@ -4,13 +4,15 @@
  * — industry 생성(POST)는 platform 컨텍스트 기반 플랫폼 슈퍼관리자 가드
  * — industries/:id/admins 조회·지정은 platform 컨텍스트 + 플랫폼 슈퍼
  * — industries/:id/tenants 생성은 platform 컨텍스트 + 업종관리자(또는 플랫폼 슈퍼)
- * — tenants 목록(GET)·memberships/외부요약 등은 조회 전용 · 민감 필드 미포함
+ * — tenants/:id/admins 조회·지정은 platform 컨텍스트 + 슈퍼 또는 해당 테넌트 소속 Industry Admin
+ * — tenants 목록(GET 전체)·memberships/외부요약 등은 조회 전용 · 민감 필드 미포함
  */
 
 import {
   createAttachPlatformContext,
   createRequireIndustryAdmin,
   createRequirePlatformSuperAdmin,
+  createRequireTenantAdminManager,
 } from './lib/platformRbac.js'
 import { logSecurityEvent } from './lib/securityAudit.js'
 
@@ -247,6 +249,113 @@ function parsePositiveIndustryIdParam(raw) {
 }
 
 /**
+ * `tenantId` URL param — industryId 와 동일 규칙(양의 정수).
+ * @param {unknown} raw
+ * @returns {number | null}
+ */
+function parsePositiveTenantIdParam(raw) {
+  return parsePositiveIndustryIdParam(raw)
+}
+
+/**
+ * @param {object} row
+ */
+function mapTenantAdminMemberItem(row) {
+  return {
+    membershipId: String(row.membership_id),
+    userId: String(row.user_id),
+    username: String(row.username ?? ''),
+    legacyRole: String(row.legacy_role ?? ''),
+    membershipRole: String(row.membership_role ?? ''),
+    scopeType: String(row.scope_type ?? ''),
+    scopeId: row.scope_id != null ? String(row.scope_id) : '',
+    tenantId: row.tenant_id != null ? String(row.tenant_id) : '',
+    industryId: row.industry_id != null ? String(row.industry_id) : '',
+    status: String(row.status ?? ''),
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+  }
+}
+
+/**
+ * @param {object} row
+ * @param {'created' | 'already_active' | 'reactivated'} result
+ */
+function mapTenantAdminAssignResponse(row, result) {
+  return {
+    ...mapTenantAdminMemberItem(row),
+    result,
+  }
+}
+
+/**
+ * tenant_admin 멤버십 — 지정·recover 조회.
+ * @param {import('pg').Pool | import('pg').PoolClient} exec
+ * @param {number} tenantId
+ * @param {number} industryId
+ * @param {string} userId
+ */
+async function selectTenantAdminMembershipForUser(exec, tenantId, industryId, userId) {
+  const scopeIdStr = String(tenantId)
+  const { rows } = await exec.query(
+    `
+    SELECT
+      m.id AS membership_id,
+      m.user_id,
+      u.username,
+      u.role AS legacy_role,
+      m.role AS membership_role,
+      m.scope_type,
+      m.scope_id,
+      m.tenant_id,
+      m.industry_id,
+      m.status,
+      m.created_at,
+      m.updated_at
+    FROM user_memberships m
+    INNER JOIN users u ON u.id = m.user_id
+    WHERE m.user_id = $1
+      AND m.role = 'tenant_admin'
+      AND m.scope_type = 'tenant'
+      AND COALESCE(m.scope_id, '') = $2
+      AND m.tenant_id IS NOT DISTINCT FROM $3
+      AND m.industry_id IS NOT DISTINCT FROM $4
+    `,
+    [userId, scopeIdStr, tenantId, industryId],
+  )
+  return rows[0] ?? null
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} exec
+ * @param {number} membershipId
+ */
+async function selectTenantAdminMembershipById(exec, membershipId) {
+  const { rows } = await exec.query(
+    `
+    SELECT
+      m.id AS membership_id,
+      m.user_id,
+      u.username,
+      u.role AS legacy_role,
+      m.role AS membership_role,
+      m.scope_type,
+      m.scope_id,
+      m.tenant_id,
+      m.industry_id,
+      m.status,
+      m.created_at,
+      m.updated_at
+    FROM user_memberships m
+    INNER JOIN users u ON u.id = m.user_id
+    WHERE m.id = $1
+    `,
+    [membershipId],
+  )
+  return rows[0] ?? null
+}
+
+/**
  * @param {object} row
  */
 function mapIndustryAdminMemberItem(row) {
@@ -384,6 +493,12 @@ export function registerPlatformAdminApi(apiRouter, deps) {
     requireAuth,
     attachPlatformContext,
     requireIndustryAdminForIndustryRoute,
+  ]
+  const requireTenantAdminManage = createRequireTenantAdminManager(pool)
+  const platformTenantAdminManagerGuard = [
+    requireAuth,
+    attachPlatformContext,
+    requireTenantAdminManage,
   ]
 
   apiRouter.post(
@@ -950,6 +1065,342 @@ export function registerPlatformAdminApi(apiRouter, deps) {
           }
           res.status(409).json({ message: '이미 존재하는 테넌트 코드입니다.' })
           return
+        }
+        handleDbError(e, req, res)
+      } finally {
+        client.release()
+      }
+    },
+  )
+
+  apiRouter.get(
+    '/admin/platform/tenants/:tenantId/admins',
+    ...platformTenantAdminManagerGuard,
+    async (req, res) => {
+      try {
+        const tgt = /** @type {{ tenantId: number, industryId: number } | undefined} */ (
+          req.platformTenantAdminManage
+        )
+        if (tgt == null) {
+          res.status(500).json({ message: '플랫폼 테넌트 관리 컨텍스트가 없습니다.' })
+          return
+        }
+        const tenantIdParsed = tgt.tenantId
+        const scopeIdStr = String(tenantIdParsed)
+
+        const { rows } = await pool.query(
+          `
+          SELECT
+            m.id AS membership_id,
+            m.user_id,
+            u.username,
+            u.role AS legacy_role,
+            m.role AS membership_role,
+            m.scope_type,
+            m.scope_id,
+            m.tenant_id,
+            m.industry_id,
+            m.status,
+            m.created_at,
+            m.updated_at
+          FROM user_memberships m
+          INNER JOIN users u ON u.id = m.user_id
+          WHERE m.tenant_id IS NOT DISTINCT FROM $1
+            AND COALESCE(m.scope_id, '') = $2
+            AND m.role = 'tenant_admin'
+            AND m.scope_type = 'tenant'
+            AND m.status = 'active'
+            AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+            AND LOWER(TRIM(COALESCE(u.status::text, ''))) = 'active'
+          ORDER BY m.id ASC
+          `,
+          [tenantIdParsed, scopeIdStr],
+        )
+
+        res.json({
+          items: rows.map((row) => mapTenantAdminMemberItem(row)),
+        })
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    },
+  )
+
+  apiRouter.post(
+    '/admin/platform/tenants/:tenantId/admins',
+    ...platformTenantAdminManagerGuard,
+    async (req, res) => {
+      const tgt = /** @type {{ tenantId: number, industryId: number } | undefined} */ (
+        req.platformTenantAdminManage
+      )
+      if (tgt == null) {
+        res.status(500).json({ message: '플랫폼 테넌트 관리 컨텍스트가 없습니다.' })
+        return
+      }
+      const tenantIdParsed = tgt.tenantId
+      const industryIdParsed = tgt.industryId
+      const scopeIdStr = String(tenantIdParsed)
+
+      const body = req.body
+      const rawUserId = body?.userId
+      if (rawUserId === undefined || rawUserId === null) {
+        res.status(400).json({ message: 'userId가 필요합니다.' })
+        return
+      }
+      if (typeof rawUserId !== 'string') {
+        res.status(400).json({ message: 'userId는 문자열이어야 합니다.' })
+        return
+      }
+      const userIdTrim = rawUserId.trim()
+      if (userIdTrim === '') {
+        res.status(400).json({ message: 'userId가 필요합니다.' })
+        return
+      }
+
+      const client = await pool.connect()
+      try {
+        await client.query('BEGIN')
+
+        const tchk = await client.query(
+          `
+          SELECT id, industry_id, status
+          FROM tenants
+          WHERE id = $1
+          LIMIT 1
+          FOR UPDATE
+          `,
+          [tenantIdParsed],
+        )
+        if ((tchk.rowCount ?? 0) === 0) {
+          await client.query('ROLLBACK')
+          res.status(404).json({ message: '해당 테넌트를 찾을 수 없습니다.' })
+          return
+        }
+        /** @type {{ id?: unknown; industry_id?: unknown; status?: unknown }} */
+        const tRow0 = tchk.rows[0]
+        const tInd =
+          tRow0.industry_id != null ? Number(tRow0.industry_id) : Number.NaN
+        if (!Number.isSafeInteger(tInd) || tInd !== industryIdParsed) {
+          await client.query('ROLLBACK')
+          res.status(409).json({ message: '테넌트 업종 정보가 일치하지 않습니다.' })
+          return
+        }
+        const tenantSt = String(tRow0.status ?? '').trim().toLowerCase()
+        if (tenantSt !== 'active') {
+          await client.query('ROLLBACK')
+          res.status(400).json({ message: '활성 상태의 테넌트만 관리할 수 있습니다.' })
+          return
+        }
+
+        const userCheck = await client.query(
+          `
+          SELECT id
+          FROM users
+          WHERE id = $1
+            AND COALESCE(is_deleted, FALSE) IS NOT TRUE
+            AND LOWER(TRIM(COALESCE(status::text, ''))) = 'active'
+          LIMIT 1
+          `,
+          [userIdTrim],
+        )
+        if ((userCheck.rowCount ?? 0) === 0) {
+          await client.query('ROLLBACK')
+          res.status(404).json({
+            message: '사용자를 찾을 수 없거나 활성 상태가 아닙니다.',
+          })
+          return
+        }
+
+        const existing = await client.query(
+          `
+          SELECT id AS membership_id, status
+          FROM user_memberships
+          WHERE user_id = $1
+            AND role = 'tenant_admin'
+            AND scope_type = 'tenant'
+            AND COALESCE(scope_id, '') = $2
+            AND tenant_id IS NOT DISTINCT FROM $3
+            AND industry_id IS NOT DISTINCT FROM $4
+          FOR UPDATE
+          `,
+          [userIdTrim, scopeIdStr, tenantIdParsed, industryIdParsed],
+        )
+
+        if ((existing.rowCount ?? 0) > 0) {
+          /** @type {{ membership_id?: unknown; status?: unknown }} */
+          const ex = existing.rows[0]
+          const mid = Number(ex.membership_id)
+          const stRaw = String(ex.status ?? '').trim().toLowerCase()
+
+          if (stRaw === 'active') {
+            const fullActive = await selectTenantAdminMembershipById(client, mid)
+            await client.query('COMMIT')
+            if (fullActive != null) {
+              await logSecurityEvent(pool, {
+                actorUserId: String(req.user?.id ?? ''),
+                actorRole: String(req.user?.role ?? ''),
+                action: 'PLATFORM_TENANT_ADMIN_ASSIGN',
+                targetType: 'tenant',
+                targetId: String(tenantIdParsed),
+                meta: {
+                  tenantId: tenantIdParsed,
+                  industryId: industryIdParsed,
+                  userId: userIdTrim,
+                  result: 'already_active',
+                },
+              })
+              res
+                .status(200)
+                .json(
+                  mapTenantAdminAssignResponse(
+                    /** @type {object} */ (fullActive),
+                    'already_active',
+                  ),
+                )
+            } else {
+              handleDbError(new Error('[platform-admin] stale tenant admin membership'), req, res)
+            }
+            return
+          }
+
+          await client.query(
+            `
+            UPDATE user_memberships
+            SET status = 'active',
+                updated_at = NOW()
+            WHERE id = $1
+            `,
+            [mid],
+          )
+          const reactivatedRow = await selectTenantAdminMembershipById(client, mid)
+          await client.query('COMMIT')
+          if (reactivatedRow != null) {
+            await logSecurityEvent(pool, {
+              actorUserId: String(req.user?.id ?? ''),
+              actorRole: String(req.user?.role ?? ''),
+              action: 'PLATFORM_TENANT_ADMIN_ASSIGN',
+              targetType: 'tenant',
+              targetId: String(tenantIdParsed),
+              meta: {
+                tenantId: tenantIdParsed,
+                industryId: industryIdParsed,
+                userId: userIdTrim,
+                result: 'reactivated',
+              },
+            })
+            res
+              .status(200)
+              .json(
+                mapTenantAdminAssignResponse(
+                  /** @type {object} */ (reactivatedRow),
+                  'reactivated',
+                ),
+              )
+          } else {
+            handleDbError(new Error('[platform-admin] tenant admin reactivate inconsistent'), req, res)
+          }
+          return
+        }
+
+        /** @type {unknown} */
+        let insertErr = null
+        try {
+          const insRes = await client.query(
+            `
+            INSERT INTO user_memberships (
+              user_id,
+              role,
+              scope_type,
+              scope_id,
+              industry_id,
+              tenant_id,
+              status
+            )
+            VALUES ($1, 'tenant_admin', 'tenant', $2, $3, $4, 'active')
+            RETURNING id
+            `,
+            [userIdTrim, scopeIdStr, industryIdParsed, tenantIdParsed],
+          )
+          const newIdRaw = insRes.rows[0]?.id
+          const newId =
+            typeof newIdRaw === 'bigint'
+              ? Number(newIdRaw)
+              : typeof newIdRaw === 'number'
+                ? newIdRaw
+                : Number(newIdRaw)
+          const createdRow = await selectTenantAdminMembershipById(client, newId)
+          if (createdRow == null) {
+            throw new Error('[platform-admin] tenant_admin insert inconsistent')
+          }
+          await client.query('COMMIT')
+          await logSecurityEvent(pool, {
+            actorUserId: String(req.user?.id ?? ''),
+            actorRole: String(req.user?.role ?? ''),
+            action: 'PLATFORM_TENANT_ADMIN_ASSIGN',
+            targetType: 'tenant',
+            targetId: String(tenantIdParsed),
+            meta: {
+              tenantId: tenantIdParsed,
+              industryId: industryIdParsed,
+              userId: userIdTrim,
+              result: 'created',
+            },
+          })
+          res.status(201).json(mapTenantAdminAssignResponse(createdRow, 'created'))
+        } catch (ie) {
+          if (
+            ie &&
+            typeof ie === 'object' &&
+            'code' in ie &&
+            /** @type {{ code?: string }} */ (ie).code === '23505'
+          ) {
+            await client.query('ROLLBACK')
+            /** @type {unknown} */
+            const recovered = await selectTenantAdminMembershipForUser(
+              pool,
+              tenantIdParsed,
+              industryIdParsed,
+              userIdTrim,
+            )
+            const recSt =
+              recovered != null ? String(recovered.status ?? '').trim().toLowerCase() : ''
+            if (recovered != null && recSt === 'active') {
+              await logSecurityEvent(pool, {
+                actorUserId: String(req.user?.id ?? ''),
+                actorRole: String(req.user?.role ?? ''),
+                action: 'PLATFORM_TENANT_ADMIN_ASSIGN',
+                targetType: 'tenant',
+                targetId: String(tenantIdParsed),
+                meta: {
+                  tenantId: tenantIdParsed,
+                  industryId: industryIdParsed,
+                  userId: userIdTrim,
+                  result: 'already_active',
+                },
+              })
+              res
+                .status(200)
+                .json(
+                  mapTenantAdminAssignResponse(
+                    /** @type {object} */ (recovered),
+                    'already_active',
+                  ),
+                )
+            } else {
+              res.status(409).json({ message: '멤버십이 충돌했습니다.' })
+            }
+            return
+          }
+          insertErr = ie
+        }
+        if (insertErr != null) {
+          throw insertErr
+        }
+      } catch (e) {
+        try {
+          await client.query('ROLLBACK')
+        } catch {
+          /* already rolled back 또는 연결 상태 */
         }
         handleDbError(e, req, res)
       } finally {
