@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { IndustriesListViewProps } from './IndustriesListPage'
 import IndustriesIndustryCreateSection from './IndustriesIndustryCreateSection'
 
@@ -35,6 +36,11 @@ export default function IndustriesListMobileView({
                   {row.code} · {row.status}
                 </div>
                 <div className="platform-admin-page__stack-meta platform-admin-page__mono">id {row.id}</div>
+                <div className="platform-admin-page__stack-meta">
+                  <Link className="platform-admin-page__inline-link" to={`/admin/platform/industries/${row.id}`}>
+                    Industry Admin 관리 →
+                  </Link>
+                </div>
               </li>
             ))}
           </ul>

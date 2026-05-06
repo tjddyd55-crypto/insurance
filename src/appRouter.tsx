@@ -62,6 +62,7 @@ import AdminAnalyticsPage from './features/analytics/pages/AdminAnalyticsPage'
 import AdminInsurerSitesPage from './features/insurer-sites/pages/AdminInsurerSitesPage'
 import PlatformHubPage from './features/platform/pages/PlatformHubPage'
 import IndustriesListPage from './features/platform/pages/industries/IndustriesListPage'
+import IndustryDetailPage from './features/platform/pages/industries/IndustryDetailPage'
 import TenantsListPage from './features/platform/pages/tenants/TenantsListPage'
 import MembershipsListPage from './features/platform/pages/memberships/MembershipsListPage'
 import ExternalAccountsSummaryPage from './features/platform/pages/external-accounts/ExternalAccountsSummaryPage'
@@ -292,6 +293,7 @@ export const appRouter = createBrowserRouter([
                   { path: 'admin/subscription/settings', element: <AdminSubscriptionSettingsPage /> },
                   { path: 'admin/platform', element: <PlatformHubPage /> },
                   { path: 'admin/platform/industries', element: <IndustriesListPage /> },
+                  { path: 'admin/platform/industries/:industryId', element: <IndustryDetailPage /> },
                   { path: 'admin/platform/tenants', element: <TenantsListPage /> },
                   { path: 'admin/platform/memberships', element: <MembershipsListPage /> },
                   {

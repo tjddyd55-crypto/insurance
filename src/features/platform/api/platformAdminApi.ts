@@ -1,9 +1,11 @@
 import { apiRequest } from '../../../lib/apiClient'
 import type {
+  AssignPlatformIndustryAdminResult,
   CreateIndustryInput,
   CreateIndustryResponse,
   PlatformExternalAccountsSummaryResponse,
   PlatformIndustriesResponse,
+  PlatformIndustryAdminsResponse,
   PlatformMembershipsResponse,
   PlatformTenantsResponse,
 } from '../platformAdmin.types'
@@ -22,6 +24,30 @@ export function createIndustry(token: string, input: CreateIndustryInput) {
   return apiRequest<CreateIndustryResponse>('/api/admin/platform/industries', {
     method: 'POST',
     body: JSON.stringify(payload),
+    token,
+  })
+}
+
+export function fetchPlatformIndustryAdmins(token: string, industryId: string) {
+  const id = encodeURIComponent(industryId)
+  return apiRequest<PlatformIndustryAdminsResponse>(
+    `/api/admin/platform/industries/${id}/admins`,
+    {
+      method: 'GET',
+      token,
+    },
+  )
+}
+
+export function assignPlatformIndustryAdmin(
+  token: string,
+  industryId: string,
+  body: { userId: string },
+) {
+  const id = encodeURIComponent(industryId)
+  return apiRequest<AssignPlatformIndustryAdminResult>(`/api/admin/platform/industries/${id}/admins`, {
+    method: 'POST',
+    body: JSON.stringify(body),
     token,
   })
 }

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { IndustriesListViewProps } from './IndustriesListPage'
 import IndustriesIndustryCreateSection from './IndustriesIndustryCreateSection'
 
@@ -46,6 +47,14 @@ export default function IndustriesListPCView({
                     <td>{row.name}</td>
                     <td>{row.status}</td>
                     <td className="platform-admin-page__mono">{row.id}</td>
+                    <td>
+                      <Link
+                        className="platform-admin-page__inline-link"
+                        to={`/admin/platform/industries/${row.id}`}
+                      >
+                        관리
+                      </Link>
+                    </td>
                     <td className="platform-admin-page__muted">{row.createdAt ?? '—'}</td>
                   </tr>
                 ))}

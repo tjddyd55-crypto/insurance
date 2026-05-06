@@ -48,6 +48,31 @@ export type PlatformIndustriesResponse = {
   items: PlatformIndustryRow[]
 }
 
+/** GET /admin/platform/industries/:industryId/admins */
+export type PlatformIndustryAdminMember = {
+  membershipId: string
+  userId: string
+  username: string
+  legacyRole: string
+  membershipRole: string
+  scopeType: string
+  scopeId: string
+  industryId: string
+  status: string
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export type PlatformIndustryAdminsResponse = {
+  items: PlatformIndustryAdminMember[]
+}
+
+export type AssignIndustryAdminResultKind = 'created' | 'already_active' | 'reactivated'
+
+export type AssignPlatformIndustryAdminResult = PlatformIndustryAdminMember & {
+  result: AssignIndustryAdminResultKind
+}
+
 export type PlatformMembershipRow = {
   membershipId: string
   userId: string

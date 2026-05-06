@@ -1,0 +1,168 @@
+import FormButton from '../../../../components/form/FormButton'
+import FormInput from '../../../../components/form/FormInput'
+import type { IndustryDetailViewProps } from './IndustryDetailPage'
+
+export default function IndustryDetailMobileView({
+  industryIdRaw,
+  industryParamInvalid,
+  industriesLoading,
+  industriesError,
+  industryRow,
+  industryMissingFromList,
+  admins,
+  adminsLoading,
+  adminsError,
+  assignUserId,
+  setAssignUserId,
+  assignSubmitting,
+  assignSuccessMessage,
+  assignErrorMessage,
+  reload,
+  onAssignSubmit,
+  clearAssignFeedback,
+}: IndustryDetailViewProps) {
+  const canAssign = Boolean(industryRow) && !industriesLoading && !industriesError
+
+  return (
+    <main className="page platform-industry-detail-page platform-admin-page platform-industry-detail-page--mobile platform-admin-page--mobile page--with-back">
+      <header className="platform-admin-page__head">
+        <h1 className="platform-admin-page__title">Industry Admin</h1>
+        <p className="platform-admin-page__muted platform-admin-page__mono">id {industryIdRaw || '—'}</p>
+      </header>
+
+      {industryParamInvalid ? (
+        <div className="platform-admin-page__panel platform-admin-page__panel--error" role="alert">
+          <p>유효한 industry id가 필요합니다.</p>
+        </div>
+      ) : null}
+
+      {industriesLoading ? <p className="platform-admin-page__muted">업종 정보를 불러오는 중…</p> : null}
+
+      {industriesError ? (
+        <div className="platform-admin-page__panel platform-admin-page__panel--error" role="alert">
+          <p>{industriesError}</p>
+          <button type="button" className="platform-admin-page__btn" onClick={() => void reload()}>
+            다시 시도
+          </button>
+        </div>
+      ) : null}
+
+      {industryMissingFromList ? (
+        <div className="platform-admin-page__panel platform-admin-page__panel--warn" role="status">
+          <p>업종을 찾을 수 없습니다.</p>
+        </div>
+      ) : null}
+
+      {industryRow ? (
+        <section className="platform-admin-page__stack-card" aria-labelledby="m-summary">
+          <h2 id="m-summary" className="platform-admin-page__stack-title">
+            Industry 요약
+          </h2>
+          <dl className="platform-admin-page__dl">
+            <dt>id</dt>
+            <dd className="platform-admin-page__mono">{industryRow.id}</dd>
+            <dt>code</dt>
+            <dd>{industryRow.code}</dd>
+            <dt>name</dt>
+            <dd>{industryRow.name}</dd>
+            <dt>status</dt>
+            <dd>{industryRow.status}</dd>
+            <dt>createdAt</dt>
+            <dd className="platform-admin-page__mono">{industryRow.createdAt ?? '—'}</dd>
+            <dt>updatedAt</dt>
+            <dd className="platform-admin-page__mono">{industryRow.updatedAt ?? '—'}</dd>
+          </dl>
+        </section>
+      ) : null}
+
+      <section aria-labelledby="m-admins">
+        <h2 id="m-admins" className="platform-admin-page__stack-title">
+          Industry Admin 목록
+        </h2>
+        {adminsError ? (
+          <div className="platform-admin-page__panel platform-admin-page__panel--error" role="alert">
+            <p>{adminsError}</p>
+            <button type="button" className="platform-admin-page__btn" onClick={() => void reload()}>
+              다시 시도
+            </button>
+          </div>
+        ) : null}
+        {adminsLoading ? <p className="platform-admin-page__muted">목록을 불러오는 중…</p> : null}
+        {!adminsLoading && !adminsError && industryRow ? (
+          <ul className="platform-admin-page__card-list">
+            {admins.map((row) => (
+              <li key={row.membershipId} className="platform-admin-page__stack-card">
+                <div className="platform-admin-page__stack-title">{row.username}</div>
+                <div className="platform-admin-page__stack-meta platform-admin-page__mono">{row.userId}</div>
+                <div className="platform-admin-page__stack-meta">
+                  {row.legacyRole} · {row.membershipRole} · {row.status}
+                </div>
+                <div className="platform-admin-page__stack-meta platform-admin-page__mono">
+                  membership {row.membershipId}
+                </div>
+                <div className="platform-admin-page__stack-meta">
+                  {row.createdAt ?? '—'} → {row.updatedAt ?? '—'}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {!adminsLoading && !adminsError && industryRow && admins.length === 0 ? (
+          <p className="platform-admin-page__muted">등록된 Industry Admin 이 없습니다.</p>
+        ) : null}
+      </section>
+
+      {assignSuccessMessage ? (
+        <div className="platform-admin-page__panel platform-admin-page__panel--success" role="status">
+          <p>{assignSuccessMessage}</p>
+        </div>
+      ) : null}
+
+      {assignErrorMessage ? (
+        <div className="platform-admin-page__panel platform-admin-page__panel--error" role="alert">
+          <p>{assignErrorMessage}</p>
+        </div>
+      ) : null}
+
+      {canAssign ? (
+        <section className="platform-admin-page__industry-create" aria-labelledby="m-assign">
+          <h2 id="m-assign" className="platform-admin-page__stack-title">
+            Industry Admin 지정
+          </h2>
+          <form className="platform-admin-page__industry-create-form" onSubmit={onAssignSubmit}>
+            <div className="platform-admin-page__form-field">
+              <label className="dark-label" htmlFor="platform-industry-admin-userid-m">
+                userId <span className="platform-admin-page__required">*</span>
+              </label>
+              <p className="platform-admin-page__field-hint">기존 사용자 id(users.id)를 입력합니다.</p>
+              <FormInput
+                id="platform-industry-admin-userid-m"
+                name="userId"
+                autoComplete="off"
+                value={assignUserId}
+                onChange={(e) => {
+                  clearAssignFeedback()
+                  setAssignUserId(e.target.value)
+                }}
+                disabled={assignSubmitting}
+                placeholder="users.id"
+              />
+            </div>
+            <div className="platform-admin-page__form-actions">
+              <FormButton
+                htmlType="submit"
+                variant="primary"
+                loading={assignSubmitting}
+                loadingText="지정 중…"
+                disabled={assignSubmitting}
+                fullWidth
+              >
+                Industry Admin 지정
+              </FormButton>
+            </div>
+          </form>
+        </section>
+      ) : null}
+    </main>
+  )
+}
