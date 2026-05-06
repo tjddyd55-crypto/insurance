@@ -1,7 +1,8 @@
 /**
  * CRM-Platform 메타 API (SUPER_ADMIN / platform 컨텍스트).
  * — industries 조회(GET)는 레거시 requireSuperAdmin
- * — industry 생성(POST)는 platform 컨택스트 기반 플랫폼 슈퍼관리자 가드
+ * — industry 생성(POST)는 platform 컨텍스트 기반 플랫폼 슈퍼관리자 가드
+ * — industries/:id/admins 조회·지정은 platform 컨텍스트 + 플랫폼 슈퍼
  * — tenants/memberships/외부요약 등은 조회 전용 · 민감 필드 미포함
  */
 
@@ -105,6 +106,120 @@ function toIso(v) {
   }
   const d = v instanceof Date ? v : new Date(v)
   return Number.isNaN(d.getTime()) ? null : d.toISOString()
+}
+
+/**
+ * `industryId` URL param — 양의 정수 문자열만 허용 (앞뒤 공백 허용 후 검사).
+ * @param {unknown} raw
+ * @returns {number | null}
+ */
+function parsePositiveIndustryIdParam(raw) {
+  if (raw === undefined || raw === null) {
+    return null
+  }
+  const s = String(raw).trim()
+  if (!/^[1-9]\d*$/.test(s)) {
+    return null
+  }
+  const n = Number(s)
+  if (!Number.isSafeInteger(n) || n < 1) {
+    return null
+  }
+  return n
+}
+
+/**
+ * @param {object} row
+ */
+function mapIndustryAdminMemberItem(row) {
+  return {
+    membershipId: String(row.membership_id),
+    userId: String(row.user_id),
+    username: String(row.username ?? ''),
+    legacyRole: String(row.legacy_role ?? ''),
+    membershipRole: String(row.membership_role ?? ''),
+    scopeType: String(row.scope_type ?? ''),
+    scopeId: row.scope_id != null ? String(row.scope_id) : '',
+    industryId: row.industry_id != null ? String(row.industry_id) : '',
+    status: String(row.status ?? ''),
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+  }
+}
+
+/**
+ * @param {object} row
+ * @param {'created' | 'already_active' | 'reactivated'} result
+ */
+function mapIndustryAdminAssignResponse(row, result) {
+  return {
+    ...mapIndustryAdminMemberItem(row),
+    result,
+  }
+}
+
+/**
+ * 단일 industry_admin membership 행 + 사용자 (지정/조회 공용).
+ * @param {import('pg').Pool | import('pg').PoolClient} exec
+ * @param {number} industryId
+ * @param {string} userId
+ * @returns {Promise<object | null>}
+ */
+async function selectIndustryAdminMembershipForUser(exec, industryId, userId) {
+  const scopeIdStr = String(industryId)
+  const { rows } = await exec.query(
+    `
+    SELECT
+      m.id AS membership_id,
+      m.user_id,
+      u.username,
+      u.role AS legacy_role,
+      m.role AS membership_role,
+      m.scope_type,
+      m.scope_id,
+      m.industry_id,
+      m.status,
+      m.created_at,
+      m.updated_at
+    FROM user_memberships m
+    INNER JOIN users u ON u.id = m.user_id
+    WHERE m.user_id = $1
+      AND m.role = 'industry_admin'
+      AND m.scope_type = 'industry'
+      AND COALESCE(m.scope_id, '') = $2
+      AND m.industry_id = $3
+    `,
+    [userId, scopeIdStr, industryId],
+  )
+  return rows[0] ?? null
+}
+
+/**
+ * @param {import('pg').Pool | import('pg').PoolClient} exec
+ * @param {number} membershipId
+ */
+async function selectIndustryAdminMembershipById(exec, membershipId) {
+  const { rows } = await exec.query(
+    `
+    SELECT
+      m.id AS membership_id,
+      m.user_id,
+      u.username,
+      u.role AS legacy_role,
+      m.role AS membership_role,
+      m.scope_type,
+      m.scope_id,
+      m.industry_id,
+      m.status,
+      m.created_at,
+      m.updated_at
+    FROM user_memberships m
+    INNER JOIN users u ON u.id = m.user_id
+    WHERE m.id = $1
+    `,
+    [membershipId],
+  )
+  return rows[0] ?? null
 }
 
 /**
@@ -219,6 +334,299 @@ export function registerPlatformAdminApi(apiRouter, deps) {
           return
         }
         handleDbError(e, req, res)
+      }
+    },
+  )
+
+  apiRouter.get(
+    '/admin/platform/industries/:industryId/admins',
+    ...platformSuperCreateGuard,
+    async (req, res) => {
+      try {
+        const industryIdParsed = parsePositiveIndustryIdParam(req.params.industryId)
+        if (industryIdParsed == null) {
+          res.status(400).json({ message: '유효한 industryId 가 필요합니다.' })
+          return
+        }
+        const scopeIdStr = String(industryIdParsed)
+
+        const exists = await pool.query(`SELECT id FROM industries WHERE id = $1 LIMIT 1`, [
+          industryIdParsed,
+        ])
+        if ((exists.rowCount ?? 0) === 0) {
+          res.status(404).json({ message: '해당 업종을 찾을 수 없습니다.' })
+          return
+        }
+
+        const { rows } = await pool.query(
+          `
+          SELECT
+            m.id AS membership_id,
+            m.user_id,
+            u.username,
+            u.role AS legacy_role,
+            m.role AS membership_role,
+            m.scope_type,
+            m.scope_id,
+            m.industry_id,
+            m.status,
+            m.created_at,
+            m.updated_at
+          FROM user_memberships m
+          INNER JOIN users u ON u.id = m.user_id
+          WHERE m.industry_id = $1
+            AND m.role = 'industry_admin'
+            AND m.scope_type = 'industry'
+            AND COALESCE(m.scope_id, '') = $2
+            AND m.status = 'active'
+            AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+            AND LOWER(TRIM(COALESCE(u.status::text, ''))) = 'active'
+          ORDER BY m.id ASC
+          `,
+          [industryIdParsed, scopeIdStr],
+        )
+
+        res.json({
+          items: rows.map((row) => mapIndustryAdminMemberItem(row)),
+        })
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    },
+  )
+
+  apiRouter.post(
+    '/admin/platform/industries/:industryId/admins',
+    ...platformSuperCreateGuard,
+    async (req, res) => {
+      const industryIdParsed = parsePositiveIndustryIdParam(req.params.industryId)
+      if (industryIdParsed == null) {
+        res.status(400).json({ message: '유효한 industryId 가 필요합니다.' })
+        return
+      }
+      const body = req.body
+      const rawUserId = body?.userId
+      if (rawUserId === undefined || rawUserId === null) {
+        res.status(400).json({ message: 'userId가 필요합니다.' })
+        return
+      }
+      if (typeof rawUserId !== 'string') {
+        res.status(400).json({ message: 'userId는 문자열이어야 합니다.' })
+        return
+      }
+      const userIdTrim = rawUserId.trim()
+      if (userIdTrim === '') {
+        res.status(400).json({ message: 'userId가 필요합니다.' })
+        return
+      }
+
+      const scopeIdStr = String(industryIdParsed)
+
+      const client = await pool.connect()
+      try {
+        await client.query('BEGIN')
+
+        const existsInd = await client.query(`SELECT id FROM industries WHERE id = $1 LIMIT 1`, [
+          industryIdParsed,
+        ])
+        if ((existsInd.rowCount ?? 0) === 0) {
+          await client.query('ROLLBACK')
+          res.status(404).json({ message: '해당 업종을 찾을 수 없습니다.' })
+          return
+        }
+
+        const userCheck = await client.query(
+          `
+          SELECT id
+          FROM users
+          WHERE id = $1
+            AND COALESCE(is_deleted, FALSE) IS NOT TRUE
+            AND LOWER(TRIM(COALESCE(status::text, ''))) = 'active'
+          LIMIT 1
+          `,
+          [userIdTrim],
+        )
+        if ((userCheck.rowCount ?? 0) === 0) {
+          await client.query('ROLLBACK')
+          res.status(404).json({
+            message: '사용자를 찾을 수 없거나 활성 상태가 아닙니다.',
+          })
+          return
+        }
+
+        const existing = await client.query(
+          `
+          SELECT id AS membership_id, status
+          FROM user_memberships
+          WHERE user_id = $1
+            AND role = 'industry_admin'
+            AND scope_type = 'industry'
+            AND COALESCE(scope_id, '') = $2
+            AND industry_id = $3
+          FOR UPDATE
+          `,
+          [userIdTrim, scopeIdStr, industryIdParsed],
+        )
+
+        if ((existing.rowCount ?? 0) > 0) {
+          /** @type {{ membership_id?: unknown; status?: unknown }} */
+          const ex = existing.rows[0]
+          const mid = Number(ex.membership_id)
+          const stRaw = String(ex.status ?? '').trim().toLowerCase()
+
+          if (stRaw === 'active') {
+            const fullActive = await selectIndustryAdminMembershipById(client, mid)
+            await client.query('COMMIT')
+            if (fullActive != null) {
+              await logSecurityEvent(pool, {
+                actorUserId: String(req.user?.id ?? ''),
+                actorRole: String(req.user?.role ?? ''),
+                action: 'PLATFORM_INDUSTRY_ADMIN_ASSIGN',
+                targetType: 'user_membership',
+                targetId: String(mid),
+                meta: {
+                  industryId: industryIdParsed,
+                  userId: userIdTrim,
+                  result: 'already_active',
+                },
+              })
+              res
+                .status(200)
+                .json(mapIndustryAdminAssignResponse(fullActive, 'already_active'))
+            } else {
+              handleDbError(new Error('[platform-admin] stale membership'), req, res)
+            }
+            return
+          }
+
+          await client.query(
+            `
+            UPDATE user_memberships
+            SET status = 'active',
+                updated_at = NOW()
+            WHERE id = $1
+            `,
+            [mid],
+          )
+          const reactivatedRow = await selectIndustryAdminMembershipById(client, mid)
+          await client.query('COMMIT')
+          if (reactivatedRow != null) {
+            await logSecurityEvent(pool, {
+              actorUserId: String(req.user?.id ?? ''),
+              actorRole: String(req.user?.role ?? ''),
+              action: 'PLATFORM_INDUSTRY_ADMIN_ASSIGN',
+              targetType: 'user_membership',
+              targetId: String(mid),
+              meta: {
+                industryId: industryIdParsed,
+                userId: userIdTrim,
+                result: 'reactivated',
+              },
+            })
+            res
+              .status(200)
+              .json(mapIndustryAdminAssignResponse(reactivatedRow, 'reactivated'))
+          } else {
+            handleDbError(new Error('[platform-admin] reactivate inconsistent'), req, res)
+          }
+          return
+        }
+
+        /** @type {unknown} */
+        let insertErr = null
+        try {
+          const insRes = await client.query(
+            `
+            INSERT INTO user_memberships (
+              user_id,
+              role,
+              scope_type,
+              scope_id,
+              industry_id,
+              tenant_id,
+              status
+            )
+            VALUES ($1, 'industry_admin', 'industry', $2, $3, NULL, 'active')
+            RETURNING id
+            `,
+            [userIdTrim, scopeIdStr, industryIdParsed],
+          )
+          const newIdRaw = insRes.rows[0]?.id
+          const newId = typeof newIdRaw === 'bigint' ? Number(newIdRaw) : Number(newIdRaw)
+          const createdRow = await selectIndustryAdminMembershipById(client, newId)
+          if (createdRow == null) {
+            throw new Error('[platform-admin] insert inconsistent')
+          }
+          await client.query('COMMIT')
+          await logSecurityEvent(pool, {
+            actorUserId: String(req.user?.id ?? ''),
+            actorRole: String(req.user?.role ?? ''),
+            action: 'PLATFORM_INDUSTRY_ADMIN_ASSIGN',
+            targetType: 'user_membership',
+            targetId: String(newId),
+            meta: {
+              industryId: industryIdParsed,
+              userId: userIdTrim,
+              result: 'created',
+            },
+          })
+          res.status(201).json(mapIndustryAdminAssignResponse(createdRow, 'created'))
+        } catch (ie) {
+          if (
+            ie &&
+            typeof ie === 'object' &&
+            'code' in ie &&
+            /** @type {{ code?: string }} */ (ie).code === '23505'
+          ) {
+            await client.query('ROLLBACK')
+            /** @type {unknown} */
+            const recovered = await selectIndustryAdminMembershipForUser(
+              pool,
+              industryIdParsed,
+              userIdTrim,
+            )
+            const recSt =
+              recovered != null ? String(recovered.status ?? '').trim().toLowerCase() : ''
+            if (recovered != null && recSt === 'active') {
+              await logSecurityEvent(pool, {
+                actorUserId: String(req.user?.id ?? ''),
+                actorRole: String(req.user?.role ?? ''),
+                action: 'PLATFORM_INDUSTRY_ADMIN_ASSIGN',
+                targetType: 'user_membership',
+                targetId: String(recovered.membership_id),
+                meta: {
+                  industryId: industryIdParsed,
+                  userId: userIdTrim,
+                  result: 'already_active',
+                },
+              })
+              res
+                .status(200)
+                .json(
+                  mapIndustryAdminAssignResponse(
+                    /** @type {object} */ (recovered),
+                    'already_active',
+                  ),
+                )
+            } else {
+              res.status(409).json({ message: '멤버십이 충돌했습니다.' })
+            }
+            return
+          }
+          insertErr = ie
+        }
+        if (insertErr != null) {
+          throw insertErr
+        }
+      } catch (e) {
+        try {
+          await client.query('ROLLBACK')
+        } catch {
+          /* already rolled back 또는 연결 상태 */
+        }
+        handleDbError(e, req, res)
+      } finally {
+        client.release()
       }
     },
   )
