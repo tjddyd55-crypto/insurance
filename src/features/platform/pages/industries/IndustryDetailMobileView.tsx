@@ -1,7 +1,12 @@
+import { useMemo } from 'react'
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import type { IndustryDetailViewProps } from './IndustryDetailPage'
-import { IndustryTenantCreateSection, IndustryTenantsListSection } from './IndustryDetailTenantSections'
+import {
+  IndustryTenantAdminManageSection,
+  IndustryTenantCreateSection,
+  IndustryTenantsListSection,
+} from './IndustryDetailTenantSections'
 
 export default function IndustryDetailMobileView({
   industryIdRaw,
@@ -40,8 +45,30 @@ export default function IndustryDetailMobileView({
   tenantCreateErrorMessage,
   onTenantCreateSubmit,
   clearTenantCreateFeedback,
+  tenantAdminTargetTenantId,
+  tenantAdmins,
+  tenantAdminsLoading,
+  tenantAdminsError,
+  openTenantAdminManage,
+  closeTenantAdminManage,
+  refetchTenantAdmins,
+  tenantAssignUserId,
+  setTenantAssignUserId,
+  tenantAssignSubmitting,
+  tenantAssignSuccessMessage,
+  tenantAssignErrorMessage,
+  onTenantAdminAssignSubmit,
+  clearTenantAdminAssignFeedback,
 }: IndustryDetailViewProps) {
   const canAssign = Boolean(industryRow) && !industriesLoading && !industriesError
+  const tenantAdminPanelEnabled = Boolean(industryRow) && !industriesLoading && !industriesError
+
+  const selectedTenantForAdminManage = useMemo(() => {
+    if (tenantAdminTargetTenantId == null) {
+      return null
+    }
+    return tenantsForIndustry.find((t) => t.id === tenantAdminTargetTenantId) ?? null
+  }, [tenantsForIndustry, tenantAdminTargetTenantId])
 
   const tenantSectionProps = {
     variant: 'mobile' as const,
@@ -50,6 +77,9 @@ export default function IndustryDetailMobileView({
     tenantsLoading,
     tenantsError,
     onRetryTenants: refetchTenants,
+    tenantAdminTargetTenantId,
+    openTenantAdminManage,
+    tenantAdminPanelEnabled,
     canCreateTenant,
     industryInactive,
     tenantCreateCode,
@@ -209,6 +239,24 @@ export default function IndustryDetailMobileView({
       ) : null}
 
       <IndustryTenantsListSection variant="mobile" {...tenantSectionProps} />
+      <IndustryTenantAdminManageSection
+        variant="mobile"
+        industryRowPresent={Boolean(industryRow)}
+        tenantAdminTargetTenantId={tenantAdminTargetTenantId}
+        selectedTenant={selectedTenantForAdminManage}
+        tenantAdmins={tenantAdmins}
+        tenantAdminsLoading={tenantAdminsLoading}
+        tenantAdminsError={tenantAdminsError}
+        refetchTenantAdmins={refetchTenantAdmins}
+        tenantAssignUserId={tenantAssignUserId}
+        setTenantAssignUserId={setTenantAssignUserId}
+        tenantAssignSubmitting={tenantAssignSubmitting}
+        tenantAssignSuccessMessage={tenantAssignSuccessMessage}
+        tenantAssignErrorMessage={tenantAssignErrorMessage}
+        onTenantAdminAssignSubmit={onTenantAdminAssignSubmit}
+        clearTenantAdminAssignFeedback={clearTenantAdminAssignFeedback}
+        closeTenantAdminManage={closeTenantAdminManage}
+      />
       <IndustryTenantCreateSection {...tenantSectionProps} />
     </main>
   )

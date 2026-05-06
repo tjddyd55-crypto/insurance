@@ -2,15 +2,19 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { ApiError } from '../../../lib/apiClient'
 import {
   assignPlatformIndustryAdmin,
+  assignPlatformTenantAdmin,
   createPlatformTenant,
   fetchPlatformIndustryAdmins,
   fetchPlatformIndustries,
+  fetchPlatformTenantAdmins,
   fetchPlatformTenants,
 } from '../api/platformAdminApi'
 import type {
   AssignPlatformIndustryAdminResult,
+  AssignPlatformTenantAdminResult,
   PlatformIndustryAdminMember,
   PlatformIndustryRow,
+  PlatformTenantAdminMember,
   PlatformTenantRow,
   TenantStatus,
 } from '../platformAdmin.types'
@@ -54,6 +58,34 @@ function feedbackForAssignResult(result: AssignPlatformIndustryAdminResult['resu
     return '이미 Industry Admin으로 등록된 사용자입니다. (already_active)'
   }
   return 'Industry Admin 권한을 다시 활성화했습니다. (reactivated)'
+}
+
+function mapTenantAdminAssignError(err: unknown): string {
+  if (!(err instanceof ApiError)) {
+    return 'Tenant Admin 지정에 실패했습니다.'
+  }
+  if (err.status === 401) {
+    return '로그인이 필요하거나 세션이 만료되었습니다.'
+  }
+  if (err.status === 403) {
+    return 'Tenant Admin 지정 권한이 없습니다.'
+  }
+  if (err.status === 404 || err.status === 400 || err.status === 409) {
+    const msg = err.message.trim()
+    return msg !== '' ? msg : `요청을 처리할 수 없습니다. (${err.status})`
+  }
+  const msg = err.message.trim()
+  return msg !== '' ? msg : 'Tenant Admin 지정에 실패했습니다.'
+}
+
+function feedbackForTenantAdminAssign(result: AssignPlatformTenantAdminResult['result']): string {
+  if (result === 'created') {
+    return 'Tenant Admin으로 지정했습니다. (created)'
+  }
+  if (result === 'already_active') {
+    return '이미 이 테넌트의 Tenant Admin으로 등록된 사용자입니다. (already_active)'
+  }
+  return 'Tenant Admin 권한을 다시 활성화했습니다. (reactivated)'
 }
 
 function validateTenantCreateClient(input: {
@@ -163,6 +195,21 @@ export type UseIndustryAdminDetailStateResult = {
   tenantCreateErrorMessage: string | null
   onTenantCreateSubmit: (e: FormEvent<HTMLFormElement>) => Promise<void>
   clearTenantCreateFeedback: () => void
+  /** Tenant Admin 관리 (tenant 행 선택 시) */
+  tenantAdminTargetTenantId: string | null
+  tenantAdmins: PlatformTenantAdminMember[]
+  tenantAdminsLoading: boolean
+  tenantAdminsError: string | null
+  openTenantAdminManage: (tenantId: string) => void
+  closeTenantAdminManage: () => void
+  refetchTenantAdmins: () => Promise<void>
+  tenantAssignUserId: string
+  setTenantAssignUserId: (v: string) => void
+  tenantAssignSubmitting: boolean
+  tenantAssignSuccessMessage: string | null
+  tenantAssignErrorMessage: string | null
+  onTenantAdminAssignSubmit: (e: FormEvent<HTMLFormElement>) => Promise<void>
+  clearTenantAdminAssignFeedback: () => void
 }
 
 export function useIndustryAdminDetailState(
@@ -227,6 +274,16 @@ export function useIndustryAdminDetailState(
   const [tenantCreateSuccessMessage, setTenantCreateSuccessMessage] = useState<string | null>(null)
   const [tenantCreateErrorMessage, setTenantCreateErrorMessage] = useState<string | null>(null)
 
+  const [tenantAdminTargetTenantId, setTenantAdminTargetTenantId] = useState<string | null>(null)
+  const [tenantAdmins, setTenantAdmins] = useState<PlatformTenantAdminMember[]>([])
+  const [tenantAdminsLoading, setTenantAdminsLoading] = useState(false)
+  const [tenantAdminsError, setTenantAdminsError] = useState<string | null>(null)
+
+  const [tenantAssignUserId, setTenantAssignUserId] = useState('')
+  const [tenantAssignSubmitting, setTenantAssignSubmitting] = useState(false)
+  const [tenantAssignSuccessMessage, setTenantAssignSuccessMessage] = useState<string | null>(null)
+  const [tenantAssignErrorMessage, setTenantAssignErrorMessage] = useState<string | null>(null)
+
   const clearAssignFeedback = useCallback(() => {
     setAssignSuccessMessage(null)
     setAssignErrorMessage(null)
@@ -236,6 +293,72 @@ export function useIndustryAdminDetailState(
     setTenantCreateSuccessMessage(null)
     setTenantCreateErrorMessage(null)
   }, [])
+
+  const clearTenantAdminAssignFeedback = useCallback(() => {
+    setTenantAssignSuccessMessage(null)
+    setTenantAssignErrorMessage(null)
+  }, [])
+
+  useEffect(() => {
+    setTenantAdminTargetTenantId(null)
+    setTenantAdmins([])
+    setTenantAdminsError(null)
+    setTenantAssignUserId('')
+    setTenantAssignSuccessMessage(null)
+    setTenantAssignErrorMessage(null)
+  }, [industryIdKey])
+
+  const openTenantAdminManage = useCallback((tenantId: string) => {
+    setTenantAdminTargetTenantId(String(tenantId).trim())
+    setTenantAssignUserId('')
+    setTenantAssignSuccessMessage(null)
+    setTenantAssignErrorMessage(null)
+    setTenantAdmins([])
+  }, [])
+
+  const closeTenantAdminManage = useCallback(() => {
+    setTenantAdminTargetTenantId(null)
+    setTenantAdmins([])
+    setTenantAdminsError(null)
+    setTenantAdminsLoading(false)
+    setTenantAssignUserId('')
+    setTenantAssignSuccessMessage(null)
+    setTenantAssignErrorMessage(null)
+  }, [])
+
+  const refetchTenantAdmins = useCallback(async () => {
+    if (!token || tenantAdminTargetTenantId == null || industryParamInvalid) {
+      return
+    }
+    setTenantAdminsLoading(true)
+    setTenantAdminsError(null)
+    try {
+      const res = await fetchPlatformTenantAdmins(token, tenantAdminTargetTenantId)
+      setTenantAdmins(res.items)
+    } catch (e) {
+      setTenantAdmins([])
+      setTenantAdminsError(
+        e instanceof ApiError ? e.message : 'Tenant Admin 목록을 불러오지 못했습니다.',
+      )
+    } finally {
+      setTenantAdminsLoading(false)
+    }
+  }, [token, tenantAdminTargetTenantId, industryParamInvalid])
+
+  useEffect(() => {
+    if (
+      tenantAdminTargetTenantId == null ||
+      !token ||
+      industryParamInvalid ||
+      tenantAdminTargetTenantId.trim() === ''
+    ) {
+      setTenantAdmins([])
+      setTenantAdminsLoading(false)
+      setTenantAdminsError(null)
+      return
+    }
+    void refetchTenantAdmins()
+  }, [tenantAdminTargetTenantId, token, industryParamInvalid, refetchTenantAdmins])
 
   const refetchTenants = useCallback(async () => {
     if (!token || industryIdKey == null || industryParamInvalid) {
@@ -431,6 +554,52 @@ export function useIndustryAdminDetailState(
     ],
   )
 
+  const onTenantAdminAssignSubmit = useCallback(
+    async (e: FormEvent<HTMLFormElement>) => {
+      e.preventDefault()
+      if (!token || tenantAdminTargetTenantId == null || tenantAdminTargetTenantId.trim() === '') {
+        return
+      }
+
+      clearTenantAdminAssignFeedback()
+
+      const uid = tenantAssignUserId.trim()
+      if (!uid) {
+        setTenantAssignErrorMessage('userId를 입력해 주세요.')
+        return
+      }
+
+      setTenantAssignSubmitting(true)
+      try {
+        const out = await assignPlatformTenantAdmin(token, tenantAdminTargetTenantId, { userId: uid })
+        setTenantAssignSuccessMessage(feedbackForTenantAdminAssign(out.result))
+        setTenantAssignUserId('')
+        setTenantAdminsLoading(true)
+        setTenantAdminsError(null)
+        try {
+          const res = await fetchPlatformTenantAdmins(token, tenantAdminTargetTenantId)
+          setTenantAdmins(res.items)
+        } catch (ae) {
+          setTenantAdminsError(
+            ae instanceof ApiError ? ae.message : 'Tenant Admin 목록을 갱신하지 못했습니다.',
+          )
+        } finally {
+          setTenantAdminsLoading(false)
+        }
+      } catch (err) {
+        setTenantAssignErrorMessage(mapTenantAdminAssignError(err))
+      } finally {
+        setTenantAssignSubmitting(false)
+      }
+    },
+    [
+      token,
+      tenantAdminTargetTenantId,
+      tenantAssignUserId,
+      clearTenantAdminAssignFeedback,
+    ],
+  )
+
   return {
     industryIdKey,
     industryParamInvalid,
@@ -468,5 +637,19 @@ export function useIndustryAdminDetailState(
     tenantCreateErrorMessage,
     onTenantCreateSubmit,
     clearTenantCreateFeedback,
+    tenantAdminTargetTenantId,
+    tenantAdmins,
+    tenantAdminsLoading,
+    tenantAdminsError,
+    openTenantAdminManage,
+    closeTenantAdminManage,
+    refetchTenantAdmins,
+    tenantAssignUserId,
+    setTenantAssignUserId,
+    tenantAssignSubmitting,
+    tenantAssignSuccessMessage,
+    tenantAssignErrorMessage,
+    onTenantAdminAssignSubmit,
+    clearTenantAdminAssignFeedback,
   }
 }

@@ -1,7 +1,12 @@
+import { useMemo } from 'react'
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import type { IndustryDetailViewProps } from './IndustryDetailPage'
-import { IndustryTenantCreateSection, IndustryTenantsListSection } from './IndustryDetailTenantSections'
+import {
+  IndustryTenantAdminManageSection,
+  IndustryTenantCreateSection,
+  IndustryTenantsListSection,
+} from './IndustryDetailTenantSections'
 
 export default function IndustryDetailPCView({
   industryIdRaw,
@@ -40,8 +45,31 @@ export default function IndustryDetailPCView({
   tenantCreateErrorMessage,
   onTenantCreateSubmit,
   clearTenantCreateFeedback,
+  tenantAdminTargetTenantId,
+  tenantAdmins,
+  tenantAdminsLoading,
+  tenantAdminsError,
+  openTenantAdminManage,
+  closeTenantAdminManage,
+  refetchTenantAdmins,
+  tenantAssignUserId,
+  setTenantAssignUserId,
+  tenantAssignSubmitting,
+  tenantAssignSuccessMessage,
+  tenantAssignErrorMessage,
+  onTenantAdminAssignSubmit,
+  clearTenantAdminAssignFeedback,
 }: IndustryDetailViewProps) {
   const canAssign = Boolean(industryRow) && !industriesLoading && !industriesError
+  const tenantAdminPanelEnabled = Boolean(industryRow) && !industriesLoading && !industriesError
+
+  const selectedTenantForAdminManage = useMemo(() => {
+    if (tenantAdminTargetTenantId == null) {
+      return null
+    }
+    return tenantsForIndustry.find((t) => t.id === tenantAdminTargetTenantId) ?? null
+  }, [tenantsForIndustry, tenantAdminTargetTenantId])
+
   const tenantSectionProps = {
     variant: 'pc' as const,
     industryRowPresent: Boolean(industryRow),
@@ -49,6 +77,9 @@ export default function IndustryDetailPCView({
     tenantsLoading,
     tenantsError,
     onRetryTenants: refetchTenants,
+    tenantAdminTargetTenantId,
+    openTenantAdminManage,
+    tenantAdminPanelEnabled,
     canCreateTenant,
     industryInactive,
     tenantCreateCode,
@@ -225,6 +256,24 @@ export default function IndustryDetailPCView({
       ) : null}
 
       <IndustryTenantsListSection variant="pc" {...tenantSectionProps} />
+      <IndustryTenantAdminManageSection
+        variant="pc"
+        industryRowPresent={Boolean(industryRow)}
+        tenantAdminTargetTenantId={tenantAdminTargetTenantId}
+        selectedTenant={selectedTenantForAdminManage}
+        tenantAdmins={tenantAdmins}
+        tenantAdminsLoading={tenantAdminsLoading}
+        tenantAdminsError={tenantAdminsError}
+        refetchTenantAdmins={refetchTenantAdmins}
+        tenantAssignUserId={tenantAssignUserId}
+        setTenantAssignUserId={setTenantAssignUserId}
+        tenantAssignSubmitting={tenantAssignSubmitting}
+        tenantAssignSuccessMessage={tenantAssignSuccessMessage}
+        tenantAssignErrorMessage={tenantAssignErrorMessage}
+        onTenantAdminAssignSubmit={onTenantAdminAssignSubmit}
+        clearTenantAdminAssignFeedback={clearTenantAdminAssignFeedback}
+        closeTenantAdminManage={closeTenantAdminManage}
+      />
       <IndustryTenantCreateSection {...tenantSectionProps} />
     </main>
   )

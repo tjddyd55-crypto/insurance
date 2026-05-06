@@ -1,6 +1,7 @@
 import { apiRequest } from '../../../lib/apiClient'
 import type {
   AssignPlatformIndustryAdminResult,
+  AssignPlatformTenantAdminResult,
   CreateIndustryInput,
   CreateIndustryResponse,
   CreatePlatformTenantInput,
@@ -9,6 +10,7 @@ import type {
   PlatformIndustriesResponse,
   PlatformIndustryAdminsResponse,
   PlatformMembershipsResponse,
+  PlatformTenantAdminsResponse,
   PlatformTenantsResponse,
 } from '../platformAdmin.types'
 
@@ -56,6 +58,27 @@ export function assignPlatformIndustryAdmin(
 
 export function fetchPlatformTenants(token: string) {
   return apiRequest<PlatformTenantsResponse>('/api/admin/platform/tenants', { method: 'GET', token })
+}
+
+export function fetchPlatformTenantAdmins(token: string, tenantId: string) {
+  const id = encodeURIComponent(tenantId)
+  return apiRequest<PlatformTenantAdminsResponse>(`/api/admin/platform/tenants/${id}/admins`, {
+    method: 'GET',
+    token,
+  })
+}
+
+export function assignPlatformTenantAdmin(
+  token: string,
+  tenantId: string,
+  body: { userId: string },
+) {
+  const id = encodeURIComponent(tenantId)
+  return apiRequest<AssignPlatformTenantAdminResult>(`/api/admin/platform/tenants/${id}/admins`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    token,
+  })
 }
 
 export function createPlatformTenant(token: string, industryId: string, input: CreatePlatformTenantInput) {

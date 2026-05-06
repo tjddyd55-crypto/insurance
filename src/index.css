@@ -10435,6 +10435,61 @@ textarea.memo-sticky-note__textarea::placeholder {
   filter: brightness(1.06);
 }
 
+.platform-admin-page__btn--compact {
+  margin-top: 0;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+
+.platform-admin-page__tenant-admin-manage {
+  margin-top: 1.5rem;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle, #1e293b);
+  background: var(--panel-bg, #111827);
+}
+
+.platform-admin-page__tenant-admin-manage-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.platform-admin-page__tenant-admin-manage-head .platform-admin-page__btn {
+  margin-top: 0;
+}
+
+.platform-admin-page__tenant-admin-summary {
+  margin-bottom: 12px;
+}
+
+.platform-industry-detail-page--pc .platform-admin-page__table tbody tr.platform-admin-page__table-row--tenant-admin-selected td {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.platform-industry-detail-page--mobile .platform-admin-page__stack-card--tenant-admin-selected {
+  border-color: #3b82f6;
+}
+
+.platform-admin-page__tenant-admin-card-actions {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.platform-admin-page__tenant-admin-note {
+  font-size: 0.8rem;
+}
+
+.platform-admin-page__tenant-admin-mobile-list {
+  margin-bottom: 12px;
+}
+
 .platform-admin-page__table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border-subtle, #1e293b);

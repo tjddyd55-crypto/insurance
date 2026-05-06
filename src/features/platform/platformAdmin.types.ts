@@ -96,6 +96,32 @@ export type AssignPlatformIndustryAdminResult = PlatformIndustryAdminMember & {
   result: AssignIndustryAdminResultKind
 }
 
+/** GET /admin/platform/tenants/:tenantId/admins */
+export type PlatformTenantAdminMember = {
+  membershipId: string
+  userId: string
+  username: string
+  legacyRole: string
+  membershipRole: string
+  scopeType: string
+  scopeId: string
+  tenantId: string
+  industryId: string
+  status: string
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export type PlatformTenantAdminsResponse = {
+  items: PlatformTenantAdminMember[]
+}
+
+export type AssignTenantAdminResultKind = 'created' | 'already_active' | 'reactivated'
+
+export type AssignPlatformTenantAdminResult = PlatformTenantAdminMember & {
+  result: AssignTenantAdminResultKind
+}
+
 export type PlatformMembershipRow = {
   membershipId: string
   userId: string
