@@ -10603,3 +10603,56 @@ textarea.memo-sticky-note__textarea::placeholder {
   margin-bottom: 12px;
   -webkit-overflow-scrolling: touch;
 }
+
+.platform-admin-page__inline-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #60a5fa;
+  text-decoration: none;
+}
+
+.platform-admin-page__table td .platform-admin-page__inline-link {
+  margin-top: 0;
+}
+
+.platform-admin-page__inline-link:hover {
+  text-decoration: underline;
+  color: #93c5fd;
+}
+
+/* ── Customer template builder preview (/admin/platform/customer-templates/.../preview) ── */
+
+.customer-template-preview-page--pc .customer-template-preview-page__meta,
+.customer-template-preview-page--pc .customer-template-preview-page__summary {
+  margin-bottom: 16px;
+}
+
+.customer-template-preview-page--pc .customer-template-preview-page__validation {
+  margin-bottom: 20px;
+}
+
+.customer-template-preview-page--pc .customer-template-preview-page__block + .customer-template-preview-page__block {
+  margin-top: 28px;
+}
+
+.customer-template-preview-page--pc .customer-template-preview-page__ok,
+.customer-template-preview-page--mobile .customer-template-preview-page__ok {
+  color: #34d399;
+  font-weight: 600;
+}
+
+.customer-template-preview-page--pc .customer-template-preview-page__warn-list li {
+  color: #fbbf24;
+}
+
+.customer-template-preview-page--mobile .customer-template-preview-page__compact {
+  margin-bottom: 10px;
+}
+
+.customer-template-preview-page--mobile .customer-template-preview-page__scroll-table {
+  overflow-x: auto;
+  margin-bottom: 14px;
+  -webkit-overflow-scrolling: touch;
+}

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { CustomerIndustryTemplate } from '../../../customer-templates/customerTemplate.types'
 import type { CustomerTemplatesViewProps } from './CustomerTemplatesPage'
 
@@ -22,6 +23,12 @@ export default function CustomerTemplatesMobileView({ templates }: CustomerTempl
             <div className="platform-admin-page__stack-meta">
               shared {t.sharedFeatureBindings.length} · extension {t.extensionFeatureBindings.length}
             </div>
+            <Link
+              to={`/admin/platform/customer-templates/${encodeURIComponent(t.meta.templateId)}/preview`}
+              className="platform-admin-page__inline-link"
+            >
+              미리보기
+            </Link>
           </li>
         ))}
       </ul>
