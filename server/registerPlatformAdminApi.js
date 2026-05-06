@@ -3,11 +3,13 @@
  * — industries 조회(GET)는 레거시 requireSuperAdmin
  * — industry 생성(POST)는 platform 컨텍스트 기반 플랫폼 슈퍼관리자 가드
  * — industries/:id/admins 조회·지정은 platform 컨텍스트 + 플랫폼 슈퍼
- * — tenants/memberships/외부요약 등은 조회 전용 · 민감 필드 미포함
+ * — industries/:id/tenants 생성은 platform 컨텍스트 + 업종관리자(또는 플랫폼 슈퍼)
+ * — tenants 목록(GET)·memberships/외부요약 등은 조회 전용 · 민감 필드 미포함
  */
 
 import {
   createAttachPlatformContext,
+  createRequireIndustryAdmin,
   createRequirePlatformSuperAdmin,
 } from './lib/platformRbac.js'
 import { logSecurityEvent } from './lib/securityAudit.js'
@@ -15,6 +17,12 @@ import { logSecurityEvent } from './lib/securityAudit.js'
 const INDUSTRY_CODE_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/
 
 const INDUSTRY_STATUS_VALUES = /** @type {const} */ (['active', 'inactive'])
+
+/** tenant.status — industries 와 동일 허용값 */
+const TENANT_STATUS_VALUES = INDUSTRY_STATUS_VALUES
+
+/** 시드·운영 보호용 (신규 생성 금지) */
+const RESERVED_TENANT_CODE = 'yjasset'
 
 const MAX_CONFIG_JSON_LENGTH = 10_000
 
@@ -98,6 +106,116 @@ function parseIndustryCreateInput(body) {
   }
 
   return { ok: true, payload: { code, name, status, config } }
+}
+
+/**
+ * @param {unknown} body
+ * @returns
+ *   | {
+ *       ok: true
+ *       payload: {
+ *         code: string
+ *         name: string
+ *         status: string
+ *         legacyGaId: number | null
+ *         config: Record<string, unknown>
+ *       }
+ *     }
+ *   | { ok: false, status: number, message: string }}
+ */
+function parseTenantCreateInput(body) {
+  const raw = body && typeof body === 'object' && !Array.isArray(body) ? body : {}
+
+  if (raw.code === undefined || raw.code === null) {
+    return { ok: false, status: 400, message: 'code가 필요합니다.' }
+  }
+  if (typeof raw.code !== 'string') {
+    return { ok: false, status: 400, message: 'code는 문자열이어야 합니다.' }
+  }
+  const code = raw.code.trim().toLowerCase()
+  if (!code) {
+    return { ok: false, status: 400, message: 'code가 필요합니다.' }
+  }
+  if (!INDUSTRY_CODE_PATTERN.test(code)) {
+    return { ok: false, status: 400, message: 'code 형식이 올바르지 않습니다.' }
+  }
+  if (code === RESERVED_TENANT_CODE) {
+    return { ok: false, status: 400, message: '예약된 테넌트 코드입니다.' }
+  }
+
+  if (raw.name === undefined || raw.name === null) {
+    return { ok: false, status: 400, message: 'name이 필요합니다.' }
+  }
+  if (typeof raw.name !== 'string') {
+    return { ok: false, status: 400, message: 'name은 문자열이어야 합니다.' }
+  }
+  const name = raw.name.trim()
+  if (name.length < 1) {
+    return { ok: false, status: 400, message: 'name이 필요합니다.' }
+  }
+  if (name.length > 200) {
+    return { ok: false, status: 400, message: 'name은 200자 이하여야 합니다.' }
+  }
+
+  /** @type {string} */
+  let status
+  if (
+    raw.status === undefined ||
+    raw.status === null ||
+    String(raw.status).trim() === ''
+  ) {
+    status = 'active'
+  } else {
+    if (typeof raw.status !== 'string') {
+      return { ok: false, status: 400, message: 'status는 문자열이어야 합니다.' }
+    }
+    status = raw.status.trim().toLowerCase()
+    if (!TENANT_STATUS_VALUES.includes(/** @type {'active' | 'inactive'} */ (status))) {
+      return { ok: false, status: 400, message: 'status는 active 또는 inactive 여야 합니다.' }
+    }
+  }
+
+  /** @type {number | null} */
+  let legacyGaId = null
+  if (raw.legacyGaId !== undefined && raw.legacyGaId !== null) {
+    if (typeof raw.legacyGaId === 'number') {
+      if (!Number.isInteger(raw.legacyGaId) || raw.legacyGaId < 1) {
+        return { ok: false, status: 400, message: 'legacyGaId는 양의 정수여야 합니다.' }
+      }
+      legacyGaId = raw.legacyGaId
+    } else if (
+      typeof raw.legacyGaId === 'string' &&
+      /^[1-9]\d*$/.test(raw.legacyGaId.trim())
+    ) {
+      legacyGaId = Number(raw.legacyGaId.trim())
+    } else {
+      return { ok: false, status: 400, message: 'legacyGaId는 양의 정수여야 합니다.' }
+    }
+  }
+
+  /** @type {Record<string, unknown>} */
+  let config
+  if (raw.config === undefined) {
+    config = {}
+  } else if (raw.config === null) {
+    return { ok: false, status: 400, message: 'config는 plain object 여야 합니다.' }
+  } else if (!isPlainObject(raw.config)) {
+    return { ok: false, status: 400, message: 'config는 plain object 여야 합니다.' }
+  } else {
+    config = /** @type {Record<string, unknown>} */ (raw.config)
+  }
+
+  return { ok: true, payload: { code, name, status, legacyGaId, config } }
+}
+
+/**
+ * DB 기록용 R2 프리픽스 템플릿 ({environment} 는 리터럴, 런타임 치환 없음).
+ * @param {string} industryCode
+ * @param {string} tenantCode
+ */
+function buildTenantR2KeyPrefixTemplate(industryCode, tenantCode) {
+  const ic = String(industryCode ?? '').trim()
+  return `crm-platform/{environment}/${ic}/tenants/${tenantCode}`
 }
 
 function toIso(v) {
@@ -254,10 +372,18 @@ export function registerPlatformAdminApi(apiRouter, deps) {
 
   const attachPlatformContext = createAttachPlatformContext(pool)
   const requirePlatformSuperAdmin = createRequirePlatformSuperAdmin()
+  const requireIndustryAdminForIndustryRoute = createRequireIndustryAdmin({
+    industryIdParam: 'industryId',
+  })
   const platformSuperCreateGuard = [
     requireAuth,
     attachPlatformContext,
     requirePlatformSuperAdmin,
+  ]
+  const platformIndustryTenantCreateGuard = [
+    requireAuth,
+    attachPlatformContext,
+    requireIndustryAdminForIndustryRoute,
   ]
 
   apiRouter.post(
@@ -623,6 +749,207 @@ export function registerPlatformAdminApi(apiRouter, deps) {
           await client.query('ROLLBACK')
         } catch {
           /* already rolled back 또는 연결 상태 */
+        }
+        handleDbError(e, req, res)
+      } finally {
+        client.release()
+      }
+    },
+  )
+
+  apiRouter.post(
+    '/admin/platform/industries/:industryId/tenants',
+    ...platformIndustryTenantCreateGuard,
+    async (req, res) => {
+      const industryIdParsed = parsePositiveIndustryIdParam(req.params.industryId)
+      if (industryIdParsed == null) {
+        res.status(400).json({ message: '유효한 industryId 가 필요합니다.' })
+        return
+      }
+
+      const parsed = parseTenantCreateInput(req.body)
+      if (!parsed.ok) {
+        res.status(parsed.status).json({ message: parsed.message })
+        return
+      }
+
+      const { code, name, status, legacyGaId, config } = parsed.payload
+
+      /** @type {string} */
+      let configSerialized
+      try {
+        configSerialized = JSON.stringify(config)
+      } catch {
+        res.status(400).json({ message: 'config를 직렬화할 수 없습니다.' })
+        return
+      }
+      if (configSerialized.length > MAX_CONFIG_JSON_LENGTH) {
+        res
+          .status(400)
+          .json({ message: 'config JSON 크기는 10000자 이하여야 합니다.' })
+        return
+      }
+
+      const client = await pool.connect()
+      try {
+        await client.query('BEGIN')
+
+        const indRes = await client.query(
+          `SELECT id, code, status FROM industries WHERE id = $1 LIMIT 1`,
+          [industryIdParsed],
+        )
+        const indRow = indRes.rows[0]
+        if (!indRow) {
+          await client.query('ROLLBACK')
+          res.status(404).json({ message: '해당 업종을 찾을 수 없습니다.' })
+          return
+        }
+        const industrySt = String(indRow.status ?? '').trim().toLowerCase()
+        if (industrySt !== 'active') {
+          await client.query('ROLLBACK')
+          res
+            .status(400)
+            .json({ message: '활성 상태의 업종에만 테넌트를 생성할 수 있습니다.' })
+          return
+        }
+        const industryCode = String(indRow.code ?? '').trim()
+
+        const dupCode = await client.query(`SELECT id FROM tenants WHERE code = $1 LIMIT 1`, [code])
+        if ((dupCode.rowCount ?? 0) > 0) {
+          await client.query('ROLLBACK')
+          res.status(409).json({ message: '이미 존재하는 테넌트 코드입니다.' })
+          return
+        }
+
+        if (legacyGaId != null) {
+          const gaRes = await client.query(
+            `
+            SELECT id
+            FROM ga_companies
+            WHERE id = $1
+              AND COALESCE(is_deleted, FALSE) IS NOT TRUE
+            LIMIT 1
+            `,
+            [legacyGaId],
+          )
+          if ((gaRes.rowCount ?? 0) === 0) {
+            await client.query('ROLLBACK')
+            res.status(404).json({ message: '해당 GA를 찾을 수 없습니다.' })
+            return
+          }
+
+          const dupGa = await client.query(
+            `SELECT id FROM tenants WHERE legacy_ga_id = $1 LIMIT 1`,
+            [legacyGaId],
+          )
+          if ((dupGa.rowCount ?? 0) > 0) {
+            await client.query('ROLLBACK')
+            res.status(409).json({ message: '이미 다른 테넌트에 연결된 GA입니다.' })
+            return
+          }
+        }
+
+        const r2KeyPrefix = buildTenantR2KeyPrefixTemplate(industryCode, code)
+
+        let insRows = /** @type {object[]} */ ([])
+        try {
+          const insRes = await client.query(
+            `
+            INSERT INTO tenants (
+              industry_id,
+              code,
+              name,
+              status,
+              legacy_ga_id,
+              r2_key_prefix,
+              config
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+            RETURNING id, industry_id, code, name, status, legacy_ga_id, created_at, updated_at
+            `,
+            [industryIdParsed, code, name, status, legacyGaId, r2KeyPrefix, configSerialized],
+          )
+          insRows = insRes.rows
+        } catch (ie) {
+          try {
+            await client.query('ROLLBACK')
+          } catch {
+            /* already rolled back */
+          }
+          if (
+            ie &&
+            typeof ie === 'object' &&
+            'code' in ie &&
+            /** @type {{ code?: string; constraint?: string }} */ (ie).code === '23505'
+          ) {
+            const c = /** @type {{ constraint?: string }} */ (ie).constraint ?? ''
+            if (
+              c === 'tenants_legacy_ga_id_key' ||
+              String(c).toLowerCase().includes('legacy_ga_id')
+            ) {
+              res
+                .status(409)
+                .json({ message: '이미 다른 테넌트에 연결된 GA입니다.' })
+              return
+            }
+            res.status(409).json({ message: '이미 존재하는 테넌트 코드입니다.' })
+            return
+          }
+          throw ie
+        }
+
+        await client.query('COMMIT')
+
+        const row = insRows[0]
+        await logSecurityEvent(pool, {
+          actorUserId: String(req.user?.id ?? ''),
+          actorRole: String(req.user?.role ?? ''),
+          action: 'PLATFORM_TENANT_CREATE',
+          targetType: 'tenant',
+          targetId: String(row.id),
+          meta: {
+            industryId: industryIdParsed,
+            industryCode,
+            code: row.code,
+            legacyGaId,
+          },
+        })
+
+        res.status(201).json({
+          id: String(row.id),
+          industryId: String(row.industry_id),
+          industryCode,
+          code: row.code,
+          name: row.name,
+          status: row.status,
+          legacyGaId: row.legacy_ga_id != null ? Number(row.legacy_ga_id) : null,
+          createdAt: toIso(row.created_at),
+          updatedAt: toIso(row.updated_at),
+        })
+      } catch (e) {
+        try {
+          await client.query('ROLLBACK')
+        } catch {
+          /* already rolled back */
+        }
+        if (
+          e &&
+          typeof e === 'object' &&
+          'code' in e &&
+          /** @type {{ code?: string; constraint?: string }} */ (e).code === '23505'
+        ) {
+          const c = /** @type {{ constraint?: string }} */ (e).constraint ?? ''
+          if (
+            c === 'tenants_legacy_ga_id_key' ||
+            String(c).toLowerCase().includes('legacy_ga_id')
+          ) {
+            res
+              .status(409)
+              .json({ message: '이미 다른 테넌트에 연결된 GA입니다.' })
+            return
+          }
+          res.status(409).json({ message: '이미 존재하는 테넌트 코드입니다.' })
+          return
         }
         handleDbError(e, req, res)
       } finally {
