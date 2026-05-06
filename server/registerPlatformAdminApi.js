@@ -7,6 +7,7 @@
  * — industries/:id/tenants 생성(POST)은 platform 컨텍스트 + 업종관리자(또는 플랫폼 슈퍼)
  * — tenants/:id/admins 조회·지정은 platform 컨텍스트 + 슈퍼 또는 해당 테넌트 소속 Industry Admin
  * — tenants 목록(GET 전체)·memberships/외부요약 등은 조회 전용 · 민감 필드 미포함
+ * — users/search(GET)은 platform 컨텍스트 + 플랫폼 슈퍼관리자 전용(username·표시 이름 부분 검색)
  */
 
 import {
@@ -16,6 +17,7 @@ import {
   createRequireTenantAdminManager,
 } from './lib/platformRbac.js'
 import { logSecurityEvent } from './lib/securityAudit.js'
+import { normalizeRbacRole } from './lib/rbacScope.js'
 
 const INDUSTRY_CODE_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/
 
@@ -28,6 +30,63 @@ const TENANT_STATUS_VALUES = INDUSTRY_STATUS_VALUES
 const RESERVED_TENANT_CODE = 'yjasset'
 
 const MAX_CONFIG_JSON_LENGTH = 10_000
+
+const PLATFORM_USER_SEARCH_DEFAULT_LIMIT = 20
+const PLATFORM_USER_SEARCH_MAX_LIMIT = 50
+
+/**
+ * ILIKE 에 넣는 사용자 문자열 내 `%`, `_`, `\` 보호(admin/subscriptions/users 와 동일 규약).
+ * @param {string} segment
+ */
+function escapeILikeUserSegment(segment) {
+  return segment.replace(/[\\%_]/g, '\\$&')
+}
+
+/**
+ * @param {unknown} rawQ
+ * @param {unknown} rawLimit
+ * @returns
+ *   | { ok: true, q: string, ilikePattern: string, limit: number }
+ *   | { ok: false, status: number, message: string }}
+ */
+function parsePlatformUserSearchQuery(rawQ, rawLimit) {
+  if (rawQ === undefined || rawQ === null) {
+    return { ok: false, status: 400, message: 'q가 필요합니다.' }
+  }
+  if (Array.isArray(rawQ)) {
+    return { ok: false, status: 400, message: 'q는 단일 문자열이어야 합니다.' }
+  }
+  if (typeof rawQ !== 'string') {
+    return { ok: false, status: 400, message: 'q는 문자열이어야 합니다.' }
+  }
+  const q = rawQ.trim()
+  if (q.length < 2) {
+    return { ok: false, status: 400, message: 'q는 2자 이상이어야 합니다.' }
+  }
+
+  let limit = PLATFORM_USER_SEARCH_DEFAULT_LIMIT
+  if (rawLimit !== undefined && rawLimit !== null && String(rawLimit).trim() !== '') {
+    if (Array.isArray(rawLimit)) {
+      return { ok: false, status: 400, message: 'limit은 단일 값이어야 합니다.' }
+    }
+    const limRaw = typeof rawLimit === 'string' ? rawLimit.trim() : String(rawLimit)
+    const limNum = Number(limRaw)
+    if (!Number.isSafeInteger(limNum) || limNum < 1) {
+      return { ok: false, status: 400, message: 'limit은 양의 정수여야 합니다.' }
+    }
+    if (limNum > PLATFORM_USER_SEARCH_MAX_LIMIT) {
+      return {
+        ok: false,
+        status: 400,
+        message: `limit은 최대 ${PLATFORM_USER_SEARCH_MAX_LIMIT}까지 허용됩니다.`,
+      }
+    }
+    limit = limNum
+  }
+
+  const ilikePattern = `%${escapeILikeUserSegment(q)}%`
+  return { ok: true, q, ilikePattern, limit }
+}
 
 /**
  * @param {unknown} v
@@ -501,6 +560,63 @@ export function registerPlatformAdminApi(apiRouter, deps) {
     attachPlatformContext,
     requireTenantAdminManage,
   ]
+
+  apiRouter.get(
+    '/admin/platform/users/search',
+    ...platformSuperCreateGuard,
+    async (req, res) => {
+      try {
+        const parsed = parsePlatformUserSearchQuery(req.query.q, req.query.limit)
+        if (!parsed.ok) {
+          res.status(parsed.status).json({ message: parsed.message })
+          return
+        }
+        const { q, ilikePattern, limit } = parsed
+
+        const { rows } = await pool.query(
+          `
+          SELECT
+            u.id,
+            u.username,
+            u.display_name,
+            u.role,
+            u.status,
+            u.ga_id,
+            g.name AS ga_company_name
+          FROM users u
+          LEFT JOIN ga_companies g
+            ON g.id = u.ga_id
+            AND COALESCE(g.is_deleted, FALSE) IS NOT TRUE
+          WHERE COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+            AND LOWER(TRIM(COALESCE(u.status::text, ''))) = 'active'
+            AND (
+              u.username ILIKE $1 OR u.display_name ILIKE $1
+            )
+          ORDER BY
+            CASE WHEN LOWER(TRIM(u.username)) = LOWER($2::text) THEN 0 ELSE 1 END,
+            u.username ASC,
+            u.id ASC
+          LIMIT $3
+          `,
+          [ilikePattern, q, limit],
+        )
+
+        res.json({
+          items: rows.map((row) => ({
+            id: String(row.id),
+            username: row.username,
+            displayName: String(row.display_name ?? '').trim(),
+            role: normalizeRbacRole(row.role),
+            status: String(row.status ?? '').trim().toLowerCase(),
+            gaId: row.ga_id != null ? Number(row.ga_id) : null,
+            gaCompanyName: row.ga_company_name != null ? String(row.ga_company_name) : null,
+          })),
+        })
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    },
+  )
 
   apiRouter.post(
     '/admin/platform/industries',
