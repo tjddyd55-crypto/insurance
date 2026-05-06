@@ -323,8 +323,156 @@ export function createAttachPlatformContext(pool) {
 /** `createAttachPlatformContext` 의 별칭(동일 반환 RequestHandler). */
 export const attachPlatformContext = createAttachPlatformContext
 
+/**
+ * `forbiddenResponse`(index.js) 와 동일한 JSON 형태로 맞춘다. (순환 import 회피)
+ * @param {import('express').Response} res
+ * @param {string} [message]
+ */
+function sendForbidden(res, message = '권한이 없습니다.') {
+  res.status(403).json({
+    error: 'FORBIDDEN',
+    message,
+  })
+}
+
+/**
+ * @param {import('express').Response} res
+ * @param {string} message
+ */
+function sendPlatformContextMissing(res, message) {
+  res.status(500).json({ message })
+}
+
+/**
+ * @param {RequestWithOptionalPlatformContext} req
+ * @param {import('express').Response} res
+ * @returns {EffectivePlatformContext | null} 없으면 res 전송 후 null
+ */
+function readPlatformContextOrFail(req, res) {
+  const ctx = req.platformContext
+  if (!ctx) {
+    sendPlatformContextMissing(
+      res,
+      '플랫폼 권한 컨텍스트가 설정되지 않았습니다. requireAuth와 attachPlatformContext 순서를 확인하세요.',
+    )
+    return null
+  }
+  return ctx
+}
+
+/**
+ * requireAuth + attachPlatformContext 이후.
+ * `isPlatformSuperAdmin(context)` 가 false 이면 403.
+ * @returns {import('express').RequestHandler}
+ */
+export function createRequirePlatformSuperAdmin() {
+  return function requirePlatformSuperAdmin(req, res, next) {
+    /** @type {RequestWithOptionalPlatformContext} */
+    const r = req
+    const ctx = readPlatformContextOrFail(r, res)
+    if (!ctx) {
+      return
+    }
+    if (!isPlatformSuperAdmin(ctx)) {
+      sendForbidden(res)
+      return
+    }
+    next()
+  }
+}
+
+/**
+ * @typedef {Object} RequireIndustryAdminOptions
+ * @property {string} [industryIdParam] `req.params` 키 (기본 `industryId`)
+ * @property {string} [industryIdBodyKey] `req.body` 키 (기본 `industryId`)
+ */
+
+/**
+ * requireAuth + attachPlatformContext 이후.
+ * - Super Admin: 통과
+ * - `hasIndustryAdminScope`: 통과
+ * - industryId는 `req.params[industryIdParam]` 우선, 없으면 `req.body[industryIdBodyKey]`
+ * @param {RequireIndustryAdminOptions} [options]
+ * @returns {import('express').RequestHandler}
+ */
+export function createRequireIndustryAdmin(options = {}) {
+  const paramKey = options.industryIdParam ?? 'industryId'
+  const bodyKey = options.industryIdBodyKey ?? 'industryId'
+
+  return function requireIndustryAdmin(req, res, next) {
+    /** @type {RequestWithOptionalPlatformContext} */
+    const r = req
+    const ctx = readPlatformContextOrFail(r, res)
+    if (!ctx) {
+      return
+    }
+
+    const fromParams = r.params?.[paramKey]
+    const fromBody = r.body?.[bodyKey]
+    const raw = fromParams !== undefined && fromParams !== null && String(fromParams).trim() !== ''
+      ? fromParams
+      : fromBody
+
+    if (raw === undefined || raw === null || String(raw).trim() === '') {
+      res.status(400).json({ message: 'industryId가 필요합니다.' })
+      return
+    }
+
+    if (!hasIndustryAdminScope(ctx, raw)) {
+      sendForbidden(res)
+      return
+    }
+    next()
+  }
+}
+
+/**
+ * @typedef {Object} RequireTenantAdminOptions
+ * @property {string} [tenantIdParam] `req.params` 키 (기본 `tenantId`)
+ * @property {string} [tenantIdBodyKey] `req.body` 키 (기본 `tenantId`)
+ */
+
+/**
+ * requireAuth + attachPlatformContext 이후.
+ * - Super Admin: 통과
+ * - `hasTenantAdminScope`: 통과
+ * - tenantId는 `req.params[tenantIdParam]` 우선, 없으면 `req.body[tenantIdBodyKey]`
+ * @param {RequireTenantAdminOptions} [options]
+ * @returns {import('express').RequestHandler}
+ */
+export function createRequireTenantAdmin(options = {}) {
+  const paramKey = options.tenantIdParam ?? 'tenantId'
+  const bodyKey = options.tenantIdBodyKey ?? 'tenantId'
+
+  return function requireTenantAdmin(req, res, next) {
+    /** @type {RequestWithOptionalPlatformContext} */
+    const r = req
+    const ctx = readPlatformContextOrFail(r, res)
+    if (!ctx) {
+      return
+    }
+
+    const fromParams = r.params?.[paramKey]
+    const fromBody = r.body?.[bodyKey]
+    const raw = fromParams !== undefined && fromParams !== null && String(fromParams).trim() !== ''
+      ? fromParams
+      : fromBody
+
+    if (raw === undefined || raw === null || String(raw).trim() === '') {
+      res.status(400).json({ message: 'tenantId가 필요합니다.' })
+      return
+    }
+
+    if (!hasTenantAdminScope(ctx, raw)) {
+      sendForbidden(res)
+      return
+    }
+    next()
+  }
+}
+
 /*
- * ─── 이후 단계(미연결) ─────────────────────────────────────────────
- * requireIndustryAdmin / requireTenantAdmin Express 미들웨어 및
- * registerPlatformAdminApi 에의 일괄 적용은 별도 PR.
+ * ─── 미연결 ─────────────────────────────────────────────
+ * 위 가드는 신규 Industry/Tenant 관리 라우트에만 `[requireAuth, attach, …]` 순으로 장착.
+ * server/index.js 전역 또는 registerPlatformAdminApi 일괄 적용 금지.
  */
