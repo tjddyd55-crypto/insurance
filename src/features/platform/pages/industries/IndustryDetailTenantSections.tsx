@@ -2,6 +2,7 @@ import type { FormEvent } from 'react'
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import FormSelect from '../../../../components/form/FormSelect'
+import { PlatformUserSearchSelect } from '../../components/PlatformUserSearchSelect'
 import type { PlatformTenantAdminMember, PlatformTenantRow } from '../../platformAdmin.types'
 
 const TENANT_STATUS_OPTIONS = [
@@ -387,6 +388,7 @@ export type IndustryTenantAdminManageSectionProps = {
   onTenantAdminAssignSubmit: (e: FormEvent<HTMLFormElement>) => void
   clearTenantAdminAssignFeedback: () => void
   closeTenantAdminManage: () => void
+  token: string | null
 }
 
 export function IndustryTenantAdminManageSection({
@@ -406,6 +408,7 @@ export function IndustryTenantAdminManageSection({
   onTenantAdminAssignSubmit,
   clearTenantAdminAssignFeedback,
   closeTenantAdminManage,
+  token,
 }: IndustryTenantAdminManageSectionProps) {
   if (!industryRowPresent || tenantAdminTargetTenantId == null) {
     return null
@@ -551,13 +554,20 @@ export function IndustryTenantAdminManageSection({
             Tenant Admin 지정{' '}
             <span className="platform-admin-page__muted">(tenant {selectedTenant.code})</span>
           </h3>
+          <PlatformUserSearchSelect
+            token={token}
+            userIdValue={tenantAssignUserId}
+            setUserId={setTenantAssignUserId}
+            variant={variant}
+            disabled={tenantAssignSubmitting}
+            searchInputId={`${userIdFieldId}-search`}
+            onInteract={clearTenantAdminAssignFeedback}
+          />
           <div className="platform-admin-page__form-field">
             <label className="dark-label" htmlFor={userIdFieldId}>
               userId <span className="platform-admin-page__required">*</span>
             </label>
-            <p className="platform-admin-page__field-hint">
-              로그인 아이디(username)가 아니라 users.id UUID를 입력하세요.
-            </p>
+            <p className="platform-admin-page__field-hint">검색으로 선택했거나 users.id(UUID)를 직접 입력합니다.</p>
             <FormInput
               id={userIdFieldId}
               name="tenantAdminUserId"

@@ -143,6 +143,21 @@ export type PlatformMembershipsResponse = {
   items: PlatformMembershipRow[]
 }
 
+/** GET /admin/platform/users/search — 플랫폼 슈퍼 전용 */
+export type PlatformUserSearchItem = {
+  id: string
+  username: string
+  displayName: string
+  role: string
+  status: string
+  gaId: number | null
+  gaCompanyName: string | null
+}
+
+export type PlatformUserSearchResponse = {
+  items: PlatformUserSearchItem[]
+}
+
 export type PlatformExternalSummaryTenant = {
   tenantId: string
   tenantCode: string

@@ -7,6 +7,7 @@ import IndustryDetailPCView from './IndustryDetailPCView'
 
 export type IndustryDetailViewProps = UseIndustryAdminDetailStateResult & {
   industryIdRaw: string
+  token: string | null
 }
 
 export default function IndustryDetailPage() {
@@ -17,6 +18,7 @@ export default function IndustryDetailPage() {
   const viewProps: IndustryDetailViewProps = {
     ...state,
     industryIdRaw: industryIdRaw ?? '',
+    token,
   }
 
   return (

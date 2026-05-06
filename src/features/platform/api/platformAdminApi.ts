@@ -12,6 +12,7 @@ import type {
   PlatformMembershipsResponse,
   PlatformTenantAdminsResponse,
   PlatformTenantsResponse,
+  PlatformUserSearchResponse,
 } from '../platformAdmin.types'
 
 export function fetchPlatformIndustries(token: string) {
@@ -114,6 +115,19 @@ export function fetchPlatformMemberships(token: string) {
 
 export function fetchPlatformExternalSummary(token: string) {
   return apiRequest<PlatformExternalAccountsSummaryResponse>('/api/admin/platform/external-accounts/summary', {
+    method: 'GET',
+    token,
+  })
+}
+
+/** 플랫폼 사용자 검색(Super Admin 전용 API) */
+export function searchPlatformUsers(token: string, params: { q: string; limit?: number }) {
+  const sp = new URLSearchParams()
+  sp.set('q', params.q)
+  if (params.limit != null) {
+    sp.set('limit', String(params.limit))
+  }
+  return apiRequest<PlatformUserSearchResponse>(`/api/admin/platform/users/search?${sp.toString()}`, {
     method: 'GET',
     token,
   })

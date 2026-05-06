@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
+import { PlatformUserSearchSelect } from '../../components/PlatformUserSearchSelect'
 import type { IndustryDetailViewProps } from './IndustryDetailPage'
 import {
   IndustryTenantAdminManageSection,
@@ -59,6 +60,7 @@ export default function IndustryDetailMobileView({
   tenantAssignErrorMessage,
   onTenantAdminAssignSubmit,
   clearTenantAdminAssignFeedback,
+  token,
 }: IndustryDetailViewProps) {
   const canAssign = Boolean(industryRow) && !industriesLoading && !industriesError
   const tenantAdminPanelEnabled = Boolean(industryRow) && !industriesLoading && !industriesError
@@ -204,11 +206,20 @@ export default function IndustryDetailMobileView({
             Industry Admin 지정 (Super Admin)
           </h2>
           <form className="platform-admin-page__industry-create-form" onSubmit={onAssignSubmit}>
+            <PlatformUserSearchSelect
+              token={token}
+              userIdValue={assignUserId}
+              setUserId={setAssignUserId}
+              variant="mobile"
+              disabled={assignSubmitting}
+              searchInputId="platform-industry-assign-user-search-m"
+              onInteract={clearAssignFeedback}
+            />
             <div className="platform-admin-page__form-field">
               <label className="dark-label" htmlFor="platform-industry-admin-userid-m">
                 userId <span className="platform-admin-page__required">*</span>
               </label>
-              <p className="platform-admin-page__field-hint">기존 사용자 id(users.id)를 입력합니다.</p>
+              <p className="platform-admin-page__field-hint">검색으로 선택했거나 users.id(UUID)를 직접 입력합니다.</p>
               <FormInput
                 id="platform-industry-admin-userid-m"
                 name="userId"
@@ -256,6 +267,7 @@ export default function IndustryDetailMobileView({
         onTenantAdminAssignSubmit={onTenantAdminAssignSubmit}
         clearTenantAdminAssignFeedback={clearTenantAdminAssignFeedback}
         closeTenantAdminManage={closeTenantAdminManage}
+        token={token}
       />
       <IndustryTenantCreateSection {...tenantSectionProps} />
     </main>
