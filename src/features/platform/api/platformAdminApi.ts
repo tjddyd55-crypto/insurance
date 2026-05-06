@@ -1,5 +1,7 @@
 import { apiRequest } from '../../../lib/apiClient'
 import type {
+  CreateIndustryInput,
+  CreateIndustryResponse,
   PlatformExternalAccountsSummaryResponse,
   PlatformIndustriesResponse,
   PlatformMembershipsResponse,
@@ -8,6 +10,20 @@ import type {
 
 export function fetchPlatformIndustries(token: string) {
   return apiRequest<PlatformIndustriesResponse>('/api/admin/platform/industries', { method: 'GET', token })
+}
+
+export function createIndustry(token: string, input: CreateIndustryInput) {
+  const payload = {
+    code: input.code,
+    name: input.name,
+    status: input.status,
+    config: input.config ?? {},
+  }
+  return apiRequest<CreateIndustryResponse>('/api/admin/platform/industries', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    token,
+  })
 }
 
 export function fetchPlatformTenants(token: string) {

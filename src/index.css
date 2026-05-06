@@ -10352,6 +10352,69 @@ textarea.memo-sticky-note__textarea::placeholder {
   border-color: rgba(251, 191, 36, 0.45);
 }
 
+.platform-admin-page__panel--success {
+  border-color: rgba(52, 211, 153, 0.42);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.platform-admin-page--pc .platform-admin-page__industry-create,
+.platform-admin-page--mobile .platform-admin-page__industry-create {
+  margin-bottom: 20px;
+}
+
+.platform-admin-page--pc .platform-admin-page__industry-create-form,
+.platform-admin-page--mobile .platform-admin-page__industry-create-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.platform-admin-page--pc .platform-admin-page__form-field,
+.platform-admin-page--mobile .platform-admin-page__form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.platform-admin-page--pc .platform-admin-page__form-actions,
+.platform-admin-page--mobile .platform-admin-page__form-actions {
+  margin-top: 6px;
+}
+
+.platform-admin-page--pc .platform-admin-page__field-hint,
+.platform-admin-page--mobile .platform-admin-page__field-hint {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  margin: 4px 0 0;
+  color: #94a3b8;
+}
+
+.platform-admin-page--pc .platform-admin-page__field-hint strong,
+.platform-admin-page--mobile .platform-admin-page__field-hint strong {
+  color: #e5e7eb;
+  font-weight: 600;
+}
+
+.platform-admin-page--pc .platform-admin-page__field-error,
+.platform-admin-page--mobile .platform-admin-page__field-error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #f87171;
+}
+
+.platform-admin-page--pc .platform-admin-page__required,
+.platform-admin-page--mobile .platform-admin-page__required {
+  color: #fca5a5;
+}
+
+.platform-admin-page--pc .platform-admin-page__industry-create-feedback,
+.platform-admin-page--mobile .platform-admin-page__industry-create-feedback {
+  margin-top: 8px;
+  margin-bottom: 0;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+}
+
 .platform-admin-page__panel-title {
   margin: 0 0 6px;
   font-weight: 600;

@@ -1,10 +1,29 @@
-/** CRM 플랫폼 관리(조회 전용) API 응답 타입 */
+/** CRM 플랫폼 관리 API 타입 · 메타 테이블 */
 
 export type PlatformIndustryRow = {
   id: string
   code: string
   name: string
   status: string
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export type IndustryStatus = 'active' | 'inactive'
+
+export type CreateIndustryInput = {
+  code: string
+  name: string
+  status: IndustryStatus
+  config?: Record<string, unknown>
+}
+
+export type CreateIndustryResponse = {
+  id: string
+  code: string
+  name: string
+  status: string
+  config: Record<string, unknown>
   createdAt: string | null
   updatedAt: string | null
 }
