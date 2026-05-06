@@ -1,8 +1,103 @@
 /**
- * CRM-Platform 메타 조회 전용 API (SUPER_ADMIN).
- * — industries / tenants / user_memberships / 외부 계정 요약
- * — CUD 없음 · 민감 필드 미포함
+ * CRM-Platform 메타 API (SUPER_ADMIN / platform 컨텍스트).
+ * — industries 조회(GET)는 레거시 requireSuperAdmin
+ * — industry 생성(POST)는 platform 컨택스트 기반 플랫폼 슈퍼관리자 가드
+ * — tenants/memberships/외부요약 등은 조회 전용 · 민감 필드 미포함
  */
+
+import {
+  createAttachPlatformContext,
+  createRequirePlatformSuperAdmin,
+} from './lib/platformRbac.js'
+import { logSecurityEvent } from './lib/securityAudit.js'
+
+const INDUSTRY_CODE_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/
+
+const INDUSTRY_STATUS_VALUES = /** @type {const} */ (['active', 'inactive'])
+
+const MAX_CONFIG_JSON_LENGTH = 10_000
+
+/**
+ * @param {unknown} v
+ * @returns {v is Record<string, unknown>}
+ */
+function isPlainObject(v) {
+  if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+    return false
+  }
+  const p = Object.getPrototypeOf(v)
+  return p === Object.prototype || p === null
+}
+
+/**
+ * @param {unknown} body
+ * @returns
+ *   | { ok: true, payload: { code: string, name: string, status: string, config: Record<string, unknown> } }
+ *   | { ok: false, status: number, message: string }}
+ */
+function parseIndustryCreateInput(body) {
+  const raw = body && typeof body === 'object' && !Array.isArray(body) ? body : {}
+
+  if (raw.code === undefined || raw.code === null) {
+    return { ok: false, status: 400, message: 'code가 필요합니다.' }
+  }
+  if (typeof raw.code !== 'string') {
+    return { ok: false, status: 400, message: 'code는 문자열이어야 합니다.' }
+  }
+  const code = raw.code.trim().toLowerCase()
+  if (!code) {
+    return { ok: false, status: 400, message: 'code가 필요합니다.' }
+  }
+  if (!INDUSTRY_CODE_PATTERN.test(code)) {
+    return { ok: false, status: 400, message: 'code 형식이 올바르지 않습니다.' }
+  }
+
+  if (raw.name === undefined || raw.name === null) {
+    return { ok: false, status: 400, message: 'name이 필요합니다.' }
+  }
+  if (typeof raw.name !== 'string') {
+    return { ok: false, status: 400, message: 'name은 문자열이어야 합니다.' }
+  }
+  const name = raw.name.trim()
+  if (name.length < 1) {
+    return { ok: false, status: 400, message: 'name이 필요합니다.' }
+  }
+  if (name.length > 200) {
+    return { ok: false, status: 400, message: 'name은 200자 이하여야 합니다.' }
+  }
+
+  /** @type {string} */
+  let status
+  if (
+    raw.status === undefined ||
+    raw.status === null ||
+    String(raw.status).trim() === ''
+  ) {
+    status = 'active'
+  } else {
+    if (typeof raw.status !== 'string') {
+      return { ok: false, status: 400, message: 'status는 문자열이어야 합니다.' }
+    }
+    status = raw.status.trim().toLowerCase()
+    if (!INDUSTRY_STATUS_VALUES.includes(/** @type {'active' | 'inactive'} */ (status))) {
+      return { ok: false, status: 400, message: 'status는 active 또는 inactive 여야 합니다.' }
+    }
+  }
+
+  /** @type {Record<string, unknown>} */
+  let config
+  if (raw.config === undefined) {
+    config = {}
+  } else if (raw.config === null) {
+    return { ok: false, status: 400, message: 'config는 plain object 여야 합니다.' }
+  } else if (!isPlainObject(raw.config)) {
+    return { ok: false, status: 400, message: 'config는 plain object 여야 합니다.' }
+  } else {
+    config = /** @type {Record<string, unknown>} */ (raw.config)
+  }
+
+  return { ok: true, payload: { code, name, status, config } }
+}
 
 function toIso(v) {
   if (v == null) {
@@ -41,6 +136,92 @@ export function registerPlatformAdminApi(apiRouter, deps) {
       handleDbError(e, req, res)
     }
   })
+
+  const attachPlatformContext = createAttachPlatformContext(pool)
+  const requirePlatformSuperAdmin = createRequirePlatformSuperAdmin()
+  const platformSuperCreateGuard = [
+    requireAuth,
+    attachPlatformContext,
+    requirePlatformSuperAdmin,
+  ]
+
+  apiRouter.post(
+    '/admin/platform/industries',
+    ...platformSuperCreateGuard,
+    async (req, res) => {
+      const parsed = parseIndustryCreateInput(req.body)
+      if (!parsed.ok) {
+        res.status(parsed.status).json({ message: parsed.message })
+        return
+      }
+
+      const { code, name, status, config } = parsed.payload
+
+      /** @type {string} */
+      let configSerialized
+      try {
+        configSerialized = JSON.stringify(config)
+      } catch {
+        res.status(400).json({ message: 'config를 직렬화할 수 없습니다.' })
+        return
+      }
+      if (configSerialized.length > MAX_CONFIG_JSON_LENGTH) {
+        res
+          .status(400)
+          .json({ message: 'config JSON 크기는 10000자 이하여야 합니다.' })
+        return
+      }
+
+      try {
+        const { rows } = await pool.query(
+          `
+          INSERT INTO industries (code, name, status, config)
+          VALUES ($1, $2, $3, $4::jsonb)
+          RETURNING id, code, name, status, config, created_at, updated_at
+          `,
+          [code, name, status, configSerialized],
+        )
+        const row = rows[0]
+        await logSecurityEvent(pool, {
+          actorUserId: String(req.user?.id ?? ''),
+          actorRole: String(req.user?.role ?? ''),
+          action: 'PLATFORM_INDUSTRY_CREATE',
+          targetType: 'industry',
+          targetId: String(row.id),
+          meta: { code: row.code, name: row.name },
+        })
+
+        /** @type {Record<string, unknown>} */
+        const configOut =
+          row.config !== null &&
+          typeof row.config === 'object' &&
+          !Array.isArray(row.config)
+            ? /** @type {Record<string, unknown>} */ (row.config)
+            : {}
+
+        res.status(201).json({
+          id: String(row.id),
+          code: row.code,
+          name: row.name,
+          status: row.status,
+          config: configOut,
+          createdAt: toIso(row.created_at),
+          updatedAt: toIso(row.updated_at),
+        })
+      } catch (e) {
+        if (
+          e &&
+          typeof e === 'object' &&
+          'code' in e &&
+          /** @type {{ code?: string }} */ (e).code === '23505'
+        ) {
+          res.status(409).json({ message: '이미 존재하는 업종 코드입니다.' })
+          return
+        }
+        handleDbError(e, req, res)
+      }
+    },
+  )
 
   apiRouter.get('/admin/platform/tenants', ...guard, async (req, res) => {
     try {
