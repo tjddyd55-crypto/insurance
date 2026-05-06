@@ -7,7 +7,7 @@ import {
   fetchPlatformIndustryAdmins,
   fetchPlatformIndustries,
   fetchPlatformTenantAdmins,
-  fetchPlatformTenants,
+  fetchPlatformTenantsForIndustry,
 } from '../api/platformAdminApi'
 import type {
   AssignPlatformIndustryAdminResult,
@@ -246,16 +246,12 @@ export function useIndustryAdminDetailState(
 
   const canCreateTenant = Boolean(industryRow) && !industryInactive && !industriesLoading && !industriesError
 
-  const [tenantRowsAll, setTenantRowsAll] = useState<PlatformTenantRow[]>([])
+  const [scopedTenantRows, setScopedTenantRows] = useState<PlatformTenantRow[]>([])
   const [tenantsLoading, setTenantsLoading] = useState(false)
   const [tenantsError, setTenantsError] = useState<string | null>(null)
 
-  const tenantsForIndustry = useMemo(() => {
-    if (industryIdKey == null) {
-      return []
-    }
-    return tenantRowsAll.filter((r) => r.industryId === industryIdKey)
-  }, [tenantRowsAll, industryIdKey])
+  /** 서버 스코프 API 결과 — 업종별로만 채워짐(single source) */
+  const tenantsForIndustry = industryIdKey == null ? [] : scopedTenantRows
 
   const [admins, setAdmins] = useState<PlatformIndustryAdminMember[]>([])
   const [adminsLoading, setAdminsLoading] = useState(false)
@@ -367,10 +363,10 @@ export function useIndustryAdminDetailState(
     setTenantsLoading(true)
     setTenantsError(null)
     try {
-      const t = await fetchPlatformTenants(token)
-      setTenantRowsAll(t.items)
+      const t = await fetchPlatformTenantsForIndustry(token, industryIdKey)
+      setScopedTenantRows(t.items)
     } catch (e) {
-      setTenantRowsAll([])
+      setScopedTenantRows([])
       setTenantsError(
         e instanceof ApiError ? e.message : 'Tenant 목록을 불러오지 못했습니다.',
       )
@@ -385,7 +381,7 @@ export function useIndustryAdminDetailState(
       setIndustryRows([])
       setIndustriesFetched(false)
       setAdmins([])
-      setTenantRowsAll([])
+      setScopedTenantRows([])
       setTenantsError(null)
       return
     }
@@ -402,7 +398,7 @@ export function useIndustryAdminDetailState(
       const meta = res.items.find((r) => r.id === industryIdKey)
       if (!meta) {
         setAdmins([])
-        setTenantRowsAll([])
+        setScopedTenantRows([])
         return
       }
 
@@ -421,10 +417,10 @@ export function useIndustryAdminDetailState(
       }
 
       try {
-        const t = await fetchPlatformTenants(token)
-        setTenantRowsAll(t.items)
+        const t = await fetchPlatformTenantsForIndustry(token, industryIdKey)
+        setScopedTenantRows(t.items)
       } catch (te) {
-        setTenantRowsAll([])
+        setScopedTenantRows([])
         setTenantsError(
           te instanceof ApiError ? te.message : 'Tenant 목록을 불러오지 못했습니다.',
         )
@@ -435,7 +431,7 @@ export function useIndustryAdminDetailState(
       setIndustryRows([])
       setIndustriesFetched(true)
       setAdmins([])
-      setTenantRowsAll([])
+      setScopedTenantRows([])
       setIndustriesError(
         e instanceof ApiError ? e.message : 'Industry 목록을 불러오지 못했습니다.',
       )
@@ -528,8 +524,8 @@ export function useIndustryAdminDetailState(
         setTenantsLoading(true)
         setTenantsError(null)
         try {
-          const t = await fetchPlatformTenants(token)
-          setTenantRowsAll(t.items)
+          const t = await fetchPlatformTenantsForIndustry(token, industryIdKey)
+          setScopedTenantRows(t.items)
         } catch (te) {
           setTenantsError(
             te instanceof ApiError ? te.message : 'Tenant 목록을 갱신하지 못했습니다.',

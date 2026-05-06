@@ -60,6 +60,15 @@ export function fetchPlatformTenants(token: string) {
   return apiRequest<PlatformTenantsResponse>('/api/admin/platform/tenants', { method: 'GET', token })
 }
 
+/** 업종별 스코프 — 응답 스키마는 전체 목록 GET 과 동일 */
+export function fetchPlatformTenantsForIndustry(token: string, industryId: string) {
+  const id = encodeURIComponent(industryId)
+  return apiRequest<PlatformTenantsResponse>(`/api/admin/platform/industries/${id}/tenants`, {
+    method: 'GET',
+    token,
+  })
+}
+
 export function fetchPlatformTenantAdmins(token: string, tenantId: string) {
   const id = encodeURIComponent(tenantId)
   return apiRequest<PlatformTenantAdminsResponse>(`/api/admin/platform/tenants/${id}/admins`, {
