@@ -68,6 +68,8 @@ import MembershipsListPage from './features/platform/pages/memberships/Membershi
 import ExternalAccountsSummaryPage from './features/platform/pages/external-accounts/ExternalAccountsSummaryPage'
 import CustomerTemplatesPage from './features/platform/pages/customer-templates/CustomerTemplatesPage'
 import CustomerTemplatePreviewPage from './features/platform/pages/customer-templates/preview/CustomerTemplatePreviewPage'
+import IndustryModeLandingPage from './features/platform/pages/modes/IndustryModeLandingPage'
+import TenantModeLandingPage from './features/platform/pages/modes/TenantModeLandingPage'
 import PlatformRegistriesPage from './features/platform/pages/registries/PlatformRegistriesPage'
 import InsurerSitesPage from './features/insurer-sites/pages/InsurerSitesPage'
 import PrivacyPolicyPage from './features/legal/PrivacyPolicyPage'
@@ -312,6 +314,8 @@ export const appRouter = createBrowserRouter([
                     path: 'admin/platform/registries',
                     element: <PlatformRegistriesPage />,
                   },
+                  { path: 'admin/industry/:industryId', element: <IndustryModeLandingPage /> },
+                  { path: 'admin/tenant/:tenantId', element: <TenantModeLandingPage /> },
                 ],
               },
               {

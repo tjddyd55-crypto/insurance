@@ -10906,6 +10906,50 @@ textarea.memo-sticky-note__textarea::placeholder {
   color: #93c5fd;
 }
 
+/* ── Industry / Tenant mode landing placeholders (/admin/industry · /admin/tenant) ── */
+
+.platform-admin-page .platform-mode-landing__id-row {
+  margin-top: 8px;
+}
+
+.platform-admin-page .platform-mode-landing__p {
+  margin: 0 0 14px;
+  color: #cbd5e1;
+  line-height: 1.55;
+}
+
+.platform-admin-page .platform-mode-landing__subhead {
+  margin: 18px 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.platform-admin-page .platform-mode-landing__list {
+  margin: 0 0 18px;
+  padding-left: 1.35rem;
+  color: #e5e7eb;
+  line-height: 1.55;
+}
+
+.platform-admin-page .platform-mode-landing__list li + li {
+  margin-top: 6px;
+}
+
+.platform-admin-page .platform-mode-landing__link-row {
+  margin: 0;
+}
+
+.platform-admin-page .platform-mode-landing__link-row + .platform-mode-landing__link-row {
+  margin-top: 8px;
+}
+
+.platform-admin-page .platform-mode-landing__link-stack {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #334155;
+}
+
 /* ── Customer template builder preview (/admin/platform/customer-templates/.../preview) ── */
 
 .customer-template-preview-page--pc .customer-template-preview-page__meta,
