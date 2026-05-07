@@ -10950,6 +10950,33 @@ textarea.memo-sticky-note__textarea::placeholder {
   border-top: 1px solid #334155;
 }
 
+.platform-admin-page .platform-mode-landing--gate {
+  margin-bottom: 0;
+}
+
+.platform-admin-page .platform-mode-landing__gate-message {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.55;
+}
+
+.platform-admin-page .platform-mode-landing__gate-title {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.platform-admin-page .platform-mode-landing__gate-detail {
+  margin: 0 0 14px;
+  color: #94a3b8;
+  line-height: 1.55;
+}
+
+.platform-admin-page .platform-mode-landing__gate-actions {
+  margin-top: 12px;
+}
+
 /* ── Customer template builder preview (/admin/platform/customer-templates/.../preview) ── */
 
 .customer-template-preview-page--pc .customer-template-preview-page__meta,
