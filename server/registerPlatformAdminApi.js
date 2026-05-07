@@ -9,6 +9,7 @@
  * — tenants/:id/members 조회(GET)·staff|user 지정(POST)은 platform 컨텍스트 + 슈퍼 또는 Industry Admin(해당 테넌트) 또는 Tenant Admin(해당 테넌트)
  * — tenants 목록(GET 전체)·memberships/외부요약 등은 조회 전용 · 민감 필드 미포함
  * — users/search(GET)은 platform 컨텍스트 + 플랫폼 슈퍼관리자 전용(username·표시 이름 부분 검색)
+ * — me/access(GET)은 requireAuth + attachPlatformContext 만 — 본인 모드 진입 가능 요약(멤버십 raw 미포함)
  */
 
 import {
@@ -34,6 +35,118 @@ const RESERVED_TENANT_CODE = 'yjasset'
 const MAX_CONFIG_JSON_LENGTH = 10_000
 
 const PLATFORM_USER_SEARCH_DEFAULT_LIMIT = 20
+
+/** @typedef {'platform' | 'industry' | 'tenant' | 'work'} PlatformAccessMode */
+
+/** @type {readonly PlatformAccessMode[]} */
+const PLATFORM_ACCESS_DEFAULT_MODE_PRIORITY = Object.freeze([
+  'platform',
+  'industry',
+  'tenant',
+  'work',
+])
+
+/**
+ * 레거시 users.role 기준으로 기존 GA/업무 앱(고객관리 등) 화면에 들어갈 수 있는 역할인지.
+ * `normalizeRbacRole` 과 서버 rbacScope 의 VALID_USER_ROLES 와 정합.
+ * @param {unknown} legacyRole
+ */
+function legacyRoleAllowsWorkMode(legacyRole) {
+  const n = normalizeRbacRole(legacyRole)
+  switch (n) {
+    case 'SUPER_ADMIN':
+    case 'GA_ADMIN':
+    case 'GA_STAFF':
+    case 'USER':
+    case 'INSURER_MANAGER':
+    case 'LOSS_ADJUSTER':
+      return true
+    default:
+      return false
+  }
+}
+
+/**
+ * staff · user 테넌트 id 목록 통합(문자열 id, 오름차순, 중복 제거).
+ * @param {readonly string[]} staffTenantIds
+ * @param {readonly string[]} userTenantIds
+ */
+function mergeWorkTenantIds(staffTenantIds, userTenantIds) {
+  const merged = new Set([...staffTenantIds, ...userTenantIds])
+  return [...merged].sort()
+}
+
+/**
+ * @param {readonly PlatformAccessMode[]} modes
+ * @returns {PlatformAccessMode | null}
+ */
+function pickPlatformAccessDefaultMode(modes) {
+  for (const step of PLATFORM_ACCESS_DEFAULT_MODE_PRIORITY) {
+    if (modes.includes(step)) {
+      return step
+    }
+  }
+  return null
+}
+
+/**
+ * @param {unknown} reqUserId `req.user.id` (JWT와 동일 식별)
+ * @param {{
+ *   userId: string
+ *   isSuperAdmin: boolean
+ *   industryAdminIndustryIds: readonly string[]
+ *   tenantAdminTenantIds: readonly string[]
+ *   staffTenantIds: readonly string[]
+ *   userTenantIds: readonly string[]
+ * }} ctx
+ * @param {unknown} reqUserLegacyRole
+ */
+function buildPlatformAccessSummaryPayload(reqUserId, ctx, reqUserLegacyRole) {
+  if (!ctx) {
+    throw new Error('[platform-admin] platformContext required for access summary')
+  }
+
+  const industryAdminIndustryIds = [...ctx.industryAdminIndustryIds]
+  const tenantAdminTenantIds = [...ctx.tenantAdminTenantIds]
+  const staffTenantIds = [...ctx.staffTenantIds]
+  const userTenantIds = [...ctx.userTenantIds]
+  const workTenantIds = mergeWorkTenantIds(staffTenantIds, userTenantIds)
+
+  /** @type {PlatformAccessMode[]} */
+  const availableModes = []
+  if (ctx.isSuperAdmin === true) {
+    availableModes.push('platform')
+  }
+  if (industryAdminIndustryIds.length > 0) {
+    availableModes.push('industry')
+  }
+  if (tenantAdminTenantIds.length > 0) {
+    availableModes.push('tenant')
+  }
+  if (workTenantIds.length > 0 || legacyRoleAllowsWorkMode(reqUserLegacyRole)) {
+    availableModes.push('work')
+  }
+
+  return {
+    userId:
+      reqUserId === undefined || reqUserId === null
+        ? ''
+        : String(reqUserId).trim(),
+    legacyRole:
+      typeof reqUserLegacyRole === 'string'
+        ? reqUserLegacyRole.trim()
+        : String(reqUserLegacyRole ?? '').trim(),
+    isSuperAdmin: ctx.isSuperAdmin === true,
+    availableModes,
+    defaultMode: pickPlatformAccessDefaultMode(availableModes),
+    industryAdminIndustryIds,
+    tenantAdminTenantIds,
+    staffTenantIds,
+    userTenantIds,
+    workTenantIds,
+  }
+}
+
 const PLATFORM_USER_SEARCH_MAX_LIMIT = 50
 
 /**
@@ -706,6 +819,25 @@ export function registerPlatformAdminApi(apiRouter, deps) {
   })
 
   const attachPlatformContext = createAttachPlatformContext(pool)
+  const platformAccessSummaryGuard = [requireAuth, attachPlatformContext]
+
+  apiRouter.get('/admin/platform/me/access', ...platformAccessSummaryGuard, async (req, res) => {
+    try {
+      const ctx = /** @type {import('express').Request & { platformContext?: object }} */ (req)
+        .platformContext
+      const payload = buildPlatformAccessSummaryPayload(
+        req.user?.id,
+        /** @type {{ userId: string, isSuperAdmin: boolean, industryAdminIndustryIds: readonly string[], tenantAdminTenantIds: readonly string[], staffTenantIds: readonly string[], userTenantIds: readonly string[] }} */ (
+          ctx
+        ),
+        req.user?.role,
+      )
+      res.json(payload)
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
   const requirePlatformSuperAdmin = createRequirePlatformSuperAdmin()
   const requireIndustryAdminForIndustryRoute = createRequireIndustryAdmin({
     industryIdParam: 'industryId',
