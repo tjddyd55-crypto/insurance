@@ -206,3 +206,19 @@ export type PlatformExternalAccountsSummaryResponse = {
   insurerManagers: PlatformExternalSummaryCounts
   lossAdjusters: PlatformExternalSummaryCounts
 }
+
+/** GET /api/admin/platform/me/access — 모드 진입 가능 요약 */
+export type PlatformAccessMode = 'platform' | 'industry' | 'tenant' | 'work'
+
+export type PlatformAccessSummary = {
+  userId: string
+  legacyRole: string
+  isSuperAdmin: boolean
+  availableModes: PlatformAccessMode[]
+  defaultMode: PlatformAccessMode | null
+  industryAdminIndustryIds: string[]
+  tenantAdminTenantIds: string[]
+  staffTenantIds: string[]
+  userTenantIds: string[]
+  workTenantIds: string[]
+}

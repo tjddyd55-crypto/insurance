@@ -6,6 +6,8 @@ import type {
   CreateIndustryResponse,
   CreatePlatformTenantInput,
   CreatePlatformTenantResponse,
+  PlatformAccessMode,
+  PlatformAccessSummary,
   PlatformExternalAccountsSummaryResponse,
   PlatformIndustriesResponse,
   PlatformIndustryAdminsResponse,
@@ -17,6 +19,59 @@ import type {
   AssignPlatformTenantMemberResult,
   PlatformTenantMembershipRole,
 } from '../platformAdmin.types'
+
+const PLATFORM_ACCESS_MODES: readonly PlatformAccessMode[] = [
+  'platform',
+  'industry',
+  'tenant',
+  'work',
+]
+
+function isPlatformAccessMode(v: unknown): v is PlatformAccessMode {
+  return typeof v === 'string' && (PLATFORM_ACCESS_MODES as readonly string[]).includes(v)
+}
+
+function ensureStringArray(raw: unknown): string[] {
+  if (!Array.isArray(raw)) {
+    return []
+  }
+  return raw.map((x) => String(x))
+}
+
+/** 서버 페이로드를 클라에서 안전한 `PlatformAccessSummary` 로 통일한다. */
+export function normalizePlatformAccessSummary(raw: unknown): PlatformAccessSummary {
+  const o =
+    raw != null && typeof raw === 'object' && !Array.isArray(raw)
+      ? (raw as Record<string, unknown>)
+      : {}
+
+  const availableModes = ensureStringArray(o.availableModes).filter(isPlatformAccessMode)
+  let defaultMode: PlatformAccessMode | null = null
+  if (o.defaultMode != null && isPlatformAccessMode(o.defaultMode)) {
+    defaultMode = availableModes.includes(o.defaultMode) ? o.defaultMode : null
+  }
+
+  return {
+    userId: typeof o.userId === 'string' ? o.userId.trim() : String(o.userId ?? '').trim(),
+    legacyRole:
+      typeof o.legacyRole === 'string'
+        ? o.legacyRole.trim()
+        : String(o.legacyRole ?? '').trim(),
+    isSuperAdmin: o.isSuperAdmin === true,
+    availableModes,
+    defaultMode,
+    industryAdminIndustryIds: ensureStringArray(o.industryAdminIndustryIds),
+    tenantAdminTenantIds: ensureStringArray(o.tenantAdminTenantIds),
+    staffTenantIds: ensureStringArray(o.staffTenantIds),
+    userTenantIds: ensureStringArray(o.userTenantIds),
+    workTenantIds: ensureStringArray(o.workTenantIds),
+  }
+}
+
+export async function fetchPlatformAccessSummary(token: string): Promise<PlatformAccessSummary> {
+  const raw = await apiRequest<unknown>('/api/admin/platform/me/access', { method: 'GET', token })
+  return normalizePlatformAccessSummary(raw)
+}
 
 export function fetchPlatformIndustries(token: string) {
   return apiRequest<PlatformIndustriesResponse>('/api/admin/platform/industries', { method: 'GET', token })
