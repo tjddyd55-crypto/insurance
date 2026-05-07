@@ -314,10 +314,10 @@ export const appRouter = createBrowserRouter([
                     path: 'admin/platform/registries',
                     element: <PlatformRegistriesPage />,
                   },
-                  { path: 'admin/industry/:industryId', element: <IndustryModeLandingPage /> },
-                  { path: 'admin/tenant/:tenantId', element: <TenantModeLandingPage /> },
                 ],
               },
+              { path: 'admin/industry/:industryId', element: <IndustryModeLandingPage /> },
+              { path: 'admin/tenant/:tenantId', element: <TenantModeLandingPage /> },
               {
                 element: <AuditLogReaderRoute />,
                 children: [{ path: 'admin/audit-logs', element: <AuditLogsPage /> }],
