@@ -585,6 +585,101 @@ export function createRequireTenantAdminManager(pool) {
   return requireTenantAdminManage
 }
 
+/**
+ * Staff/User 테넌트 멤버십 API 전용 가드(requireAuth + attachPlatformContext 이후).
+ *
+ * 통과 조건(Super 또는 해당 테넌트 업종의 Industry Admin 또는 해당 테넌트의 Tenant Admin):
+ * - `tenantId`(params) 양의 정수, `tenants` 존재·활성
+ * - 성공 시 `req.platformTenantMemberManage = { tenantId, industryId }`
+ *
+ * 참고: `createRequireTenantAdminManager` 는 tenant_admin 지정만 허용(Super 또는 Industry Admin)한다.
+ * @param {import('pg').Pool | { query: Function }} pool
+ * @returns {import('express').RequestHandler}
+ */
+export function createRequireTenantMemberManager(pool) {
+  if (pool == null || typeof pool.query !== 'function') {
+    throw new Error('[platformRbac] createRequireTenantMemberManager: pool.query 가 필요합니다')
+  }
+
+  /** @typedef {RequestWithOptionalPlatformContext & { platformTenantMemberManage?: { tenantId: number; industryId: number }}} RequestWithTenantMemberManage */
+
+  /** @type {import('express').RequestHandler} */
+  async function requireTenantMemberManage(req, res, next) {
+    const ctx = readPlatformContextOrFail(req, res)
+    if (!ctx) {
+      return
+    }
+
+    /** @type {RequestWithTenantMemberManage} */
+    const r = req
+    delete r.platformTenantMemberManage
+
+    const tenantIdParsed = parsePositiveTenantIdParamForManage(req.params?.tenantId)
+    if (tenantIdParsed == null) {
+      res.status(400).json({ message: '유효한 tenantId 가 필요합니다.' })
+      return
+    }
+
+    try {
+      const { rows } = await pool.query(
+        `SELECT id, industry_id, status FROM tenants WHERE id = $1 LIMIT 1`,
+        [tenantIdParsed],
+      )
+      const row = rows[0]
+      if (!row) {
+        res.status(404).json({ message: '해당 테넌트를 찾을 수 없습니다.' })
+        return
+      }
+      const st = String(row.status ?? '').trim().toLowerCase()
+      if (st !== 'active') {
+        res.status(400).json({ message: '활성 상태의 테넌트만 관리할 수 있습니다.' })
+        return
+      }
+      const industryRaw = row.industry_id
+      const industryId =
+        typeof industryRaw === 'bigint'
+          ? Number(industryRaw)
+          : typeof industryRaw === 'number'
+            ? industryRaw
+            : Number(industryRaw)
+
+      const tidRaw = row.id
+      const tenantIdStable =
+        typeof tidRaw === 'bigint'
+          ? Number(tidRaw)
+          : typeof tidRaw === 'number'
+            ? tidRaw
+            : Number(tidRaw)
+
+      if (!Number.isSafeInteger(industryId) || industryId < 1) {
+        res.status(500).json({ message: '테넌트 업종 정보가 올바르지 않습니다.' })
+        return
+      }
+
+      if (!Number.isSafeInteger(tenantIdStable) || tenantIdStable < 1) {
+        res.status(400).json({ message: '유효한 tenantId 가 필요합니다.' })
+        return
+      }
+
+      if (!isPlatformSuperAdmin(ctx)) {
+        const industryOk = hasIndustryAdminScope(ctx, industryId)
+        const tenantOk = hasTenantAdminScope(ctx, tenantIdStable)
+        if (!(industryOk || tenantOk)) {
+          sendForbidden(res)
+          return
+        }
+      }
+
+      r.platformTenantMemberManage = { tenantId: tenantIdStable, industryId }
+      next()
+    } catch (e) {
+      next(e)
+    }
+  }
+
+  return requireTenantMemberManage
+}
+
 /*
  * ─── 미연결 ─────────────────────────────────────────────
  * 위 가드는 신규 Industry/Tenant 관리 라우트에만 `[requireAuth, attach, …]` 순으로 장착.
