@@ -1,4 +1,6 @@
 import type { CustomerIndustryTemplate } from '../../../customer-templates/customerTemplate.types'
+import { governmentCustomerTemplateV01 } from '../../../customer-templates/government/governmentCustomerTemplateV01'
+import { gymCustomerTemplateV01 } from '../../../customer-templates/gym/gymCustomerTemplateV01'
 import { insuranceCustomerTemplateV01 } from '../../../customer-templates/insurance/insuranceCustomerTemplate'
 
 /**
@@ -7,4 +9,6 @@ import { insuranceCustomerTemplateV01 } from '../../../customer-templates/insura
  */
 export const PLATFORM_ADMIN_STATIC_CUSTOMER_TEMPLATES: readonly CustomerIndustryTemplate[] = Object.freeze([
   insuranceCustomerTemplateV01,
+  governmentCustomerTemplateV01,
+  gymCustomerTemplateV01,
 ])
