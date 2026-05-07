@@ -3,12 +3,17 @@ import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import FormSelect from '../../../../components/form/FormSelect'
 import { PlatformUserSearchSelect } from '../../components/PlatformUserSearchSelect'
-import type { PlatformTenantAdminMember, PlatformTenantRow } from '../../platformAdmin.types'
+import type { PlatformTenantAdminMember, PlatformTenantMember, PlatformTenantRow } from '../../platformAdmin.types'
 
 const TENANT_STATUS_OPTIONS = [
   { value: 'active', label: 'active' },
   { value: 'inactive', label: 'inactive' },
 ] as const
+
+const TENANT_MEMBER_ROLE_OPTIONS: { value: 'staff' | 'user'; label: string }[] = [
+  { value: 'staff', label: 'staff' },
+  { value: 'user', label: 'user' },
+]
 
 export type IndustryDetailTenantSectionsProps = {
   variant: 'pc' | 'mobile'
@@ -591,6 +596,253 @@ export function IndustryTenantAdminManageSection({
               fullWidth={variant === 'mobile'}
             >
               Tenant Admin 지정
+            </FormButton>
+          </div>
+        </form>
+      ) : null}
+    </section>
+  )
+}
+
+export type IndustryTenantStaffUserManageSectionProps = {
+  variant: 'pc' | 'mobile'
+  industryRowPresent: boolean
+  tenantAdminTargetTenantId: string | null
+  selectedTenant: PlatformTenantRow | null
+  tenantMembers: PlatformTenantMember[]
+  tenantMembersLoading: boolean
+  tenantMembersError: string | null
+  refetchTenantMembers: () => Promise<void>
+  tenantMemberAssignUserId: string
+  setTenantMemberAssignUserId: (v: string) => void
+  tenantMemberAssignRole: 'staff' | 'user'
+  setTenantMemberAssignRole: (v: 'staff' | 'user') => void
+  tenantMemberAssignSubmitting: boolean
+  tenantMemberAssignSuccessMessage: string | null
+  tenantMemberAssignErrorMessage: string | null
+  onTenantMemberAssignSubmit: (e: FormEvent<HTMLFormElement>) => void
+  clearTenantMemberAssignFeedback: () => void
+  token: string | null
+}
+
+export function IndustryTenantStaffUserManageSection({
+  variant,
+  industryRowPresent,
+  tenantAdminTargetTenantId,
+  selectedTenant,
+  tenantMembers,
+  tenantMembersLoading,
+  tenantMembersError,
+  refetchTenantMembers,
+  tenantMemberAssignUserId,
+  setTenantMemberAssignUserId,
+  tenantMemberAssignRole,
+  setTenantMemberAssignRole,
+  tenantMemberAssignSubmitting,
+  tenantMemberAssignSuccessMessage,
+  tenantMemberAssignErrorMessage,
+  onTenantMemberAssignSubmit,
+  clearTenantMemberAssignFeedback,
+  token,
+}: IndustryTenantStaffUserManageSectionProps) {
+  if (!industryRowPresent || tenantAdminTargetTenantId == null) {
+    return null
+  }
+
+  const titleClass =
+    variant === 'pc' ? 'platform-admin-page__subhead' : 'platform-admin-page__stack-title'
+  const titleId =
+    variant === 'pc'
+      ? 'platform-tenant-staff-user-manage-heading'
+      : 'm-platform-tenant-staff-user-manage'
+  const userIdFieldId =
+    variant === 'pc' ? 'platform-tenant-member-user-id' : 'platform-tenant-member-user-id-m'
+  const roleFieldId =
+    variant === 'pc' ? 'platform-tenant-member-role' : 'platform-tenant-member-role-m'
+
+  return (
+    <section className="platform-admin-page__tenant-members-manage" aria-labelledby={titleId}>
+      <h2 id={titleId} className={titleClass}>
+        Staff / User 멤버 관리
+      </h2>
+
+      {selectedTenant == null ? (
+        <div className="platform-admin-page__panel platform-admin-page__panel--warn" role="status">
+          <p>
+            테넌트 id <span className="platform-admin-page__mono">{tenantAdminTargetTenantId}</span> 를 현재
+            업종 목록에서 찾을 수 없습니다. Tenant 목록을 새로고침한 뒤 다시 선택해 주세요.
+          </p>
+        </div>
+      ) : (
+        <div className="platform-admin-page__summary-card platform-admin-page__tenant-admin-summary">
+          <h3 className="platform-admin-page__panel-title">선택한 Tenant</h3>
+          <dl className="platform-admin-page__dl">
+            <dt>id</dt>
+            <dd className="platform-admin-page__mono">{selectedTenant.id}</dd>
+            <dt>code</dt>
+            <dd className="platform-admin-page__mono">{selectedTenant.code}</dd>
+            <dt>name</dt>
+            <dd>{selectedTenant.name}</dd>
+            <dt>status</dt>
+            <dd>{selectedTenant.status}</dd>
+          </dl>
+        </div>
+      )}
+
+      {tenantMembersError ? (
+        <div className="platform-admin-page__panel platform-admin-page__panel--error" role="alert">
+          <p>{tenantMembersError}</p>
+          <button type="button" className="platform-admin-page__btn" onClick={() => void refetchTenantMembers()}>
+            목록 다시 시도
+          </button>
+        </div>
+      ) : null}
+
+      {tenantMembersLoading ? (
+        <p className="platform-admin-page__muted">Staff/User 멤버 목록을 불러오는 중…</p>
+      ) : null}
+
+      {selectedTenant != null && !tenantMembersLoading && !tenantMembersError ? (
+        <>
+          {variant === 'pc' ? (
+            <div className="platform-admin-page__table-wrap platform-admin-page__table-wrap--wide">
+              <h3 className="platform-admin-page__panel-title">Staff / User 멤버 목록</h3>
+              <table className="platform-admin-page__table platform-admin-page__table--compact">
+                <thead>
+                  <tr>
+                    <th>membershipId</th>
+                    <th>userId</th>
+                    <th>username</th>
+                    <th>displayName</th>
+                    <th>legacyRole</th>
+                    <th>membershipRole</th>
+                    <th>status</th>
+                    <th>createdAt</th>
+                    <th>updatedAt</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tenantMembers.map((row) => (
+                    <tr key={row.membershipId}>
+                      <td className="platform-admin-page__mono">{row.membershipId}</td>
+                      <td className="platform-admin-page__mono">{row.userId}</td>
+                      <td>{row.username}</td>
+                      <td>{row.displayName ?? '—'}</td>
+                      <td>{row.legacyRole}</td>
+                      <td>{row.membershipRole}</td>
+                      <td>{row.status}</td>
+                      <td className="platform-admin-page__muted">{row.createdAt ?? '—'}</td>
+                      <td className="platform-admin-page__muted">{row.updatedAt ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {tenantMembers.length === 0 ? (
+                <p className="platform-admin-page__muted">등록된 Staff/User 멤버가 없습니다.</p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="platform-admin-page__tenant-admin-mobile-list">
+              <h3 className="platform-admin-page__stack-title">Staff / User 멤버 목록</h3>
+              {tenantMembers.length === 0 ? (
+                <p className="platform-admin-page__muted">등록된 Staff/User 멤버가 없습니다.</p>
+              ) : (
+                <ul className="platform-admin-page__card-list">
+                  {tenantMembers.map((row) => (
+                    <li key={row.membershipId} className="platform-admin-page__stack-card">
+                      <div className="platform-admin-page__stack-title">{row.username}</div>
+                      <div className="platform-admin-page__stack-meta">{row.displayName ?? '—'}</div>
+                      <div className="platform-admin-page__stack-meta platform-admin-page__mono">{row.userId}</div>
+                      <div className="platform-admin-page__stack-meta">
+                        {row.legacyRole} · {row.membershipRole} · {row.status}
+                      </div>
+                      <div className="platform-admin-page__stack-meta platform-admin-page__mono">
+                        membership {row.membershipId}
+                      </div>
+                      <div className="platform-admin-page__stack-meta">
+                        {row.createdAt ?? '—'} → {row.updatedAt ?? '—'}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </>
+      ) : null}
+
+      {tenantMemberAssignSuccessMessage ? (
+        <div className="platform-admin-page__panel platform-admin-page__panel--success" role="status">
+          <p>{tenantMemberAssignSuccessMessage}</p>
+        </div>
+      ) : null}
+
+      {tenantMemberAssignErrorMessage ? (
+        <div className="platform-admin-page__panel platform-admin-page__panel--error" role="alert">
+          <p>{tenantMemberAssignErrorMessage}</p>
+        </div>
+      ) : null}
+
+      {selectedTenant != null ? (
+        <form className="platform-admin-page__industry-create-form" onSubmit={onTenantMemberAssignSubmit}>
+          <h3 className="platform-admin-page__panel-title">
+            Staff 또는 User 로 지정{' '}
+            <span className="platform-admin-page__muted">(tenant {selectedTenant.code})</span>
+          </h3>
+          <PlatformUserSearchSelect
+            token={token}
+            userIdValue={tenantMemberAssignUserId}
+            setUserId={setTenantMemberAssignUserId}
+            variant={variant}
+            disabled={tenantMemberAssignSubmitting}
+            searchInputId={`${userIdFieldId}-search`}
+            onInteract={clearTenantMemberAssignFeedback}
+          />
+          <div className="platform-admin-page__form-field">
+            <label className="dark-label" htmlFor={roleFieldId}>
+              membershipRole <span className="platform-admin-page__required">*</span>
+            </label>
+            <FormSelect
+              id={roleFieldId}
+              name="tenantMemberMembershipRole"
+              value={tenantMemberAssignRole}
+              disabled={tenantMemberAssignSubmitting}
+              options={TENANT_MEMBER_ROLE_OPTIONS}
+              onChange={(e) => {
+                clearTenantMemberAssignFeedback()
+                const v = e.target.value === 'user' ? 'user' : 'staff'
+                setTenantMemberAssignRole(v)
+              }}
+            />
+          </div>
+          <div className="platform-admin-page__form-field">
+            <label className="dark-label" htmlFor={userIdFieldId}>
+              userId <span className="platform-admin-page__required">*</span>
+            </label>
+            <p className="platform-admin-page__field-hint">검색으로 선택했거나 users.id(UUID)를 직접 입력합니다.</p>
+            <FormInput
+              id={userIdFieldId}
+              name="tenantStaffUserMemberUserId"
+              autoComplete="off"
+              value={tenantMemberAssignUserId}
+              onChange={(e) => {
+                clearTenantMemberAssignFeedback()
+                setTenantMemberAssignUserId(e.target.value)
+              }}
+              disabled={tenantMemberAssignSubmitting}
+              placeholder="users.id (UUID)"
+            />
+          </div>
+          <div className="platform-admin-page__form-actions">
+            <FormButton
+              htmlType="submit"
+              variant="primary"
+              loading={tenantMemberAssignSubmitting}
+              loadingText="지정 중…"
+              disabled={tenantMemberAssignSubmitting}
+              fullWidth={variant === 'mobile'}
+            >
+              멤버 지정
             </FormButton>
           </div>
         </form>

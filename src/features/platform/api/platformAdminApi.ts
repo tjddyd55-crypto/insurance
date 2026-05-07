@@ -11,8 +11,11 @@ import type {
   PlatformIndustryAdminsResponse,
   PlatformMembershipsResponse,
   PlatformTenantAdminsResponse,
+  PlatformTenantMembersResponse,
   PlatformTenantsResponse,
   PlatformUserSearchResponse,
+  AssignPlatformTenantMemberResult,
+  PlatformTenantMembershipRole,
 } from '../platformAdmin.types'
 
 export function fetchPlatformIndustries(token: string) {
@@ -85,6 +88,34 @@ export function assignPlatformTenantAdmin(
 ) {
   const id = encodeURIComponent(tenantId)
   return apiRequest<AssignPlatformTenantAdminResult>(`/api/admin/platform/tenants/${id}/admins`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    token,
+  })
+}
+
+export function fetchPlatformTenantMembers(
+  token: string,
+  tenantId: string,
+  opts?: { membershipRole?: PlatformTenantMembershipRole },
+) {
+  const id = encodeURIComponent(tenantId)
+  const sp = new URLSearchParams()
+  if (opts?.membershipRole) {
+    sp.set('membershipRole', opts.membershipRole)
+  }
+  const qs = sp.toString()
+  const path = qs ? `/api/admin/platform/tenants/${id}/members?${qs}` : `/api/admin/platform/tenants/${id}/members`
+  return apiRequest<PlatformTenantMembersResponse>(path, { method: 'GET', token })
+}
+
+export function assignPlatformTenantMember(
+  token: string,
+  tenantId: string,
+  body: { userId: string; membershipRole: PlatformTenantMembershipRole },
+) {
+  const id = encodeURIComponent(tenantId)
+  return apiRequest<AssignPlatformTenantMemberResult>(`/api/admin/platform/tenants/${id}/members`, {
     method: 'POST',
     body: JSON.stringify(body),
     token,

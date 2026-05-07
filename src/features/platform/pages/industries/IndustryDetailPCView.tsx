@@ -6,6 +6,7 @@ import type { IndustryDetailViewProps } from './IndustryDetailPage'
 import {
   IndustryTenantAdminManageSection,
   IndustryTenantCreateSection,
+  IndustryTenantStaffUserManageSection,
   IndustryTenantsListSection,
 } from './IndustryDetailTenantSections'
 
@@ -60,6 +61,19 @@ export default function IndustryDetailPCView({
   tenantAssignErrorMessage,
   onTenantAdminAssignSubmit,
   clearTenantAdminAssignFeedback,
+  tenantMembers,
+  tenantMembersLoading,
+  tenantMembersError,
+  refetchTenantMembers,
+  tenantMemberAssignUserId,
+  setTenantMemberAssignUserId,
+  tenantMemberAssignRole,
+  setTenantMemberAssignRole,
+  tenantMemberAssignSubmitting,
+  tenantMemberAssignSuccessMessage,
+  tenantMemberAssignErrorMessage,
+  onTenantMemberAssignSubmit,
+  clearTenantMemberAssignFeedback,
   token,
 }: IndustryDetailViewProps) {
   const canAssign = Boolean(industryRow) && !industriesLoading && !industriesError
@@ -282,6 +296,26 @@ export default function IndustryDetailPCView({
         onTenantAdminAssignSubmit={onTenantAdminAssignSubmit}
         clearTenantAdminAssignFeedback={clearTenantAdminAssignFeedback}
         closeTenantAdminManage={closeTenantAdminManage}
+        token={token}
+      />
+      <IndustryTenantStaffUserManageSection
+        variant="pc"
+        industryRowPresent={Boolean(industryRow)}
+        tenantAdminTargetTenantId={tenantAdminTargetTenantId}
+        selectedTenant={selectedTenantForAdminManage}
+        tenantMembers={tenantMembers}
+        tenantMembersLoading={tenantMembersLoading}
+        tenantMembersError={tenantMembersError}
+        refetchTenantMembers={refetchTenantMembers}
+        tenantMemberAssignUserId={tenantMemberAssignUserId}
+        setTenantMemberAssignUserId={setTenantMemberAssignUserId}
+        tenantMemberAssignRole={tenantMemberAssignRole}
+        setTenantMemberAssignRole={setTenantMemberAssignRole}
+        tenantMemberAssignSubmitting={tenantMemberAssignSubmitting}
+        tenantMemberAssignSuccessMessage={tenantMemberAssignSuccessMessage}
+        tenantMemberAssignErrorMessage={tenantMemberAssignErrorMessage}
+        onTenantMemberAssignSubmit={onTenantMemberAssignSubmit}
+        clearTenantMemberAssignFeedback={clearTenantMemberAssignFeedback}
         token={token}
       />
       <IndustryTenantCreateSection {...tenantSectionProps} />

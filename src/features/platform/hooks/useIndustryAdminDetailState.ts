@@ -3,18 +3,23 @@ import { ApiError } from '../../../lib/apiClient'
 import {
   assignPlatformIndustryAdmin,
   assignPlatformTenantAdmin,
+  assignPlatformTenantMember,
   createPlatformTenant,
   fetchPlatformIndustryAdmins,
   fetchPlatformIndustries,
   fetchPlatformTenantAdmins,
+  fetchPlatformTenantMembers,
   fetchPlatformTenantsForIndustry,
 } from '../api/platformAdminApi'
 import type {
   AssignPlatformIndustryAdminResult,
   AssignPlatformTenantAdminResult,
+  AssignPlatformTenantMemberResult,
   PlatformIndustryAdminMember,
   PlatformIndustryRow,
   PlatformTenantAdminMember,
+  PlatformTenantMember,
+  PlatformTenantMembershipRole,
   PlatformTenantRow,
   TenantStatus,
 } from '../platformAdmin.types'
@@ -86,6 +91,34 @@ function feedbackForTenantAdminAssign(result: AssignPlatformTenantAdminResult['r
     return '이미 이 테넌트의 Tenant Admin으로 등록된 사용자입니다. (already_active)'
   }
   return 'Tenant Admin 권한을 다시 활성화했습니다. (reactivated)'
+}
+
+function mapTenantMemberAssignError(err: unknown): string {
+  if (!(err instanceof ApiError)) {
+    return 'Staff/User 지정에 실패했습니다.'
+  }
+  if (err.status === 401) {
+    return '로그인이 필요하거나 세션이 만료되었습니다.'
+  }
+  if (err.status === 403) {
+    return 'Staff/User 지정 권한이 없습니다.'
+  }
+  if (err.status === 404 || err.status === 400 || err.status === 409) {
+    const msg = err.message.trim()
+    return msg !== '' ? msg : `요청을 처리할 수 없습니다. (${err.status})`
+  }
+  const msg = err.message.trim()
+  return msg !== '' ? msg : 'Staff/User 지정에 실패했습니다.'
+}
+
+function feedbackForTenantMemberAssign(result: AssignPlatformTenantMemberResult['result']): string {
+  if (result === 'created') {
+    return 'Staff/User로 지정했습니다.'
+  }
+  if (result === 'already_active') {
+    return '이미 해당 역할로 등록된 사용자입니다.'
+  }
+  return '비활성 멤버십을 다시 활성화했습니다.'
 }
 
 function validateTenantCreateClient(input: {
@@ -210,6 +243,20 @@ export type UseIndustryAdminDetailStateResult = {
   tenantAssignErrorMessage: string | null
   onTenantAdminAssignSubmit: (e: FormEvent<HTMLFormElement>) => Promise<void>
   clearTenantAdminAssignFeedback: () => void
+  /** Staff/User 멤버 (선택한 tenant와 동일 타깃) */
+  tenantMembers: PlatformTenantMember[]
+  tenantMembersLoading: boolean
+  tenantMembersError: string | null
+  refetchTenantMembers: () => Promise<void>
+  tenantMemberAssignUserId: string
+  setTenantMemberAssignUserId: (v: string) => void
+  tenantMemberAssignRole: PlatformTenantMembershipRole
+  setTenantMemberAssignRole: (v: PlatformTenantMembershipRole) => void
+  tenantMemberAssignSubmitting: boolean
+  tenantMemberAssignSuccessMessage: string | null
+  tenantMemberAssignErrorMessage: string | null
+  onTenantMemberAssignSubmit: (e: FormEvent<HTMLFormElement>) => Promise<void>
+  clearTenantMemberAssignFeedback: () => void
 }
 
 export function useIndustryAdminDetailState(
@@ -280,6 +327,20 @@ export function useIndustryAdminDetailState(
   const [tenantAssignSuccessMessage, setTenantAssignSuccessMessage] = useState<string | null>(null)
   const [tenantAssignErrorMessage, setTenantAssignErrorMessage] = useState<string | null>(null)
 
+  const [tenantMembers, setTenantMembers] = useState<PlatformTenantMember[]>([])
+  const [tenantMembersLoading, setTenantMembersLoading] = useState(false)
+  const [tenantMembersError, setTenantMembersError] = useState<string | null>(null)
+  const [tenantMemberAssignUserId, setTenantMemberAssignUserId] = useState('')
+  const [tenantMemberAssignRole, setTenantMemberAssignRole] =
+    useState<PlatformTenantMembershipRole>('staff')
+  const [tenantMemberAssignSubmitting, setTenantMemberAssignSubmitting] = useState(false)
+  const [tenantMemberAssignSuccessMessage, setTenantMemberAssignSuccessMessage] = useState<string | null>(
+    null,
+  )
+  const [tenantMemberAssignErrorMessage, setTenantMemberAssignErrorMessage] = useState<string | null>(
+    null,
+  )
+
   const clearAssignFeedback = useCallback(() => {
     setAssignSuccessMessage(null)
     setAssignErrorMessage(null)
@@ -295,6 +356,11 @@ export function useIndustryAdminDetailState(
     setTenantAssignErrorMessage(null)
   }, [])
 
+  const clearTenantMemberAssignFeedback = useCallback(() => {
+    setTenantMemberAssignSuccessMessage(null)
+    setTenantMemberAssignErrorMessage(null)
+  }, [])
+
   useEffect(() => {
     setTenantAdminTargetTenantId(null)
     setTenantAdmins([])
@@ -302,6 +368,12 @@ export function useIndustryAdminDetailState(
     setTenantAssignUserId('')
     setTenantAssignSuccessMessage(null)
     setTenantAssignErrorMessage(null)
+    setTenantMembers([])
+    setTenantMembersError(null)
+    setTenantMemberAssignUserId('')
+    setTenantMemberAssignRole('staff')
+    setTenantMemberAssignSuccessMessage(null)
+    setTenantMemberAssignErrorMessage(null)
   }, [industryIdKey])
 
   const openTenantAdminManage = useCallback((tenantId: string) => {
@@ -310,6 +382,11 @@ export function useIndustryAdminDetailState(
     setTenantAssignSuccessMessage(null)
     setTenantAssignErrorMessage(null)
     setTenantAdmins([])
+    setTenantMemberAssignUserId('')
+    setTenantMemberAssignRole('staff')
+    setTenantMemberAssignSuccessMessage(null)
+    setTenantMemberAssignErrorMessage(null)
+    setTenantMembers([])
   }, [])
 
   const closeTenantAdminManage = useCallback(() => {
@@ -320,6 +397,13 @@ export function useIndustryAdminDetailState(
     setTenantAssignUserId('')
     setTenantAssignSuccessMessage(null)
     setTenantAssignErrorMessage(null)
+    setTenantMembers([])
+    setTenantMembersError(null)
+    setTenantMembersLoading(false)
+    setTenantMemberAssignUserId('')
+    setTenantMemberAssignRole('staff')
+    setTenantMemberAssignSuccessMessage(null)
+    setTenantMemberAssignErrorMessage(null)
   }, [])
 
   const refetchTenantAdmins = useCallback(async () => {
@@ -341,6 +425,25 @@ export function useIndustryAdminDetailState(
     }
   }, [token, tenantAdminTargetTenantId, industryParamInvalid])
 
+  const refetchTenantMembers = useCallback(async () => {
+    if (!token || tenantAdminTargetTenantId == null || industryParamInvalid) {
+      return
+    }
+    setTenantMembersLoading(true)
+    setTenantMembersError(null)
+    try {
+      const res = await fetchPlatformTenantMembers(token, tenantAdminTargetTenantId)
+      setTenantMembers(res.items)
+    } catch (e) {
+      setTenantMembers([])
+      setTenantMembersError(
+        e instanceof ApiError ? e.message : 'Staff/User 멤버 목록을 불러오지 못했습니다.',
+      )
+    } finally {
+      setTenantMembersLoading(false)
+    }
+  }, [token, tenantAdminTargetTenantId, industryParamInvalid])
+
   useEffect(() => {
     if (
       tenantAdminTargetTenantId == null ||
@@ -351,10 +454,20 @@ export function useIndustryAdminDetailState(
       setTenantAdmins([])
       setTenantAdminsLoading(false)
       setTenantAdminsError(null)
+      setTenantMembers([])
+      setTenantMembersLoading(false)
+      setTenantMembersError(null)
       return
     }
     void refetchTenantAdmins()
-  }, [tenantAdminTargetTenantId, token, industryParamInvalid, refetchTenantAdmins])
+    void refetchTenantMembers()
+  }, [
+    tenantAdminTargetTenantId,
+    token,
+    industryParamInvalid,
+    refetchTenantAdmins,
+    refetchTenantMembers,
+  ])
 
   const refetchTenants = useCallback(async () => {
     if (!token || industryIdKey == null || industryParamInvalid) {
@@ -596,6 +709,56 @@ export function useIndustryAdminDetailState(
     ],
   )
 
+  const onTenantMemberAssignSubmit = useCallback(
+    async (e: FormEvent<HTMLFormElement>) => {
+      e.preventDefault()
+      if (!token || tenantAdminTargetTenantId == null || tenantAdminTargetTenantId.trim() === '') {
+        return
+      }
+
+      clearTenantMemberAssignFeedback()
+
+      const uid = tenantMemberAssignUserId.trim()
+      if (!uid) {
+        setTenantMemberAssignErrorMessage('userId를 입력해 주세요.')
+        return
+      }
+
+      setTenantMemberAssignSubmitting(true)
+      try {
+        const out = await assignPlatformTenantMember(token, tenantAdminTargetTenantId, {
+          userId: uid,
+          membershipRole: tenantMemberAssignRole,
+        })
+        setTenantMemberAssignSuccessMessage(feedbackForTenantMemberAssign(out.result))
+        setTenantMemberAssignUserId('')
+        setTenantMembersLoading(true)
+        setTenantMembersError(null)
+        try {
+          const res = await fetchPlatformTenantMembers(token, tenantAdminTargetTenantId)
+          setTenantMembers(res.items)
+        } catch (ae) {
+          setTenantMembersError(
+            ae instanceof ApiError ? ae.message : 'Staff/User 멤버 목록을 갱신하지 못했습니다.',
+          )
+        } finally {
+          setTenantMembersLoading(false)
+        }
+      } catch (err) {
+        setTenantMemberAssignErrorMessage(mapTenantMemberAssignError(err))
+      } finally {
+        setTenantMemberAssignSubmitting(false)
+      }
+    },
+    [
+      token,
+      tenantAdminTargetTenantId,
+      tenantMemberAssignUserId,
+      tenantMemberAssignRole,
+      clearTenantMemberAssignFeedback,
+    ],
+  )
+
   return {
     industryIdKey,
     industryParamInvalid,
@@ -647,5 +810,18 @@ export function useIndustryAdminDetailState(
     tenantAssignErrorMessage,
     onTenantAdminAssignSubmit,
     clearTenantAdminAssignFeedback,
+    tenantMembers,
+    tenantMembersLoading,
+    tenantMembersError,
+    refetchTenantMembers,
+    tenantMemberAssignUserId,
+    setTenantMemberAssignUserId,
+    tenantMemberAssignRole,
+    setTenantMemberAssignRole,
+    tenantMemberAssignSubmitting,
+    tenantMemberAssignSuccessMessage,
+    tenantMemberAssignErrorMessage,
+    onTenantMemberAssignSubmit,
+    clearTenantMemberAssignFeedback,
   }
 }

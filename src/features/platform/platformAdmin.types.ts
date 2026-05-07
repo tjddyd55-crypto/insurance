@@ -122,6 +122,35 @@ export type AssignPlatformTenantAdminResult = PlatformTenantAdminMember & {
   result: AssignTenantAdminResultKind
 }
 
+/** 테넌트 Staff/User 멤버십 (GET/POST `/admin/platform/tenants/:tenantId/members`) */
+export type PlatformTenantMembershipRole = 'staff' | 'user'
+
+export type PlatformTenantMember = {
+  membershipId: string
+  userId: string
+  username: string
+  displayName?: string
+  legacyRole: string
+  membershipRole: string
+  scopeType: string
+  scopeId: string
+  tenantId: string
+  industryId: string
+  status: string
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export type PlatformTenantMembersResponse = {
+  items: PlatformTenantMember[]
+}
+
+export type AssignPlatformTenantMemberResultKind = 'created' | 'already_active' | 'reactivated'
+
+export type AssignPlatformTenantMemberResult = PlatformTenantMember & {
+  result: AssignPlatformTenantMemberResultKind
+}
+
 export type PlatformMembershipRow = {
   membershipId: string
   userId: string

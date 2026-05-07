@@ -10497,6 +10497,14 @@ textarea.memo-sticky-note__textarea::placeholder {
   background: var(--panel-bg, #111827);
 }
 
+.platform-admin-page__tenant-members-manage {
+  margin-top: 1.5rem;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle, #1e293b);
+  background: var(--panel-bg, #111827);
+}
+
 .platform-admin-page__tenant-admin-manage-head {
   display: flex;
   flex-wrap: wrap;
