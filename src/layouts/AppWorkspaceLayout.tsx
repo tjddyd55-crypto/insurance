@@ -126,8 +126,14 @@ function isActivePath(pathname: string, itemPath: string): boolean {
   return pathname === itemPath
 }
 
+/** B안 모드 랜딩에서도 PlatformModeSwitcher 노출 (appRouter 변경 없음). */
 function isPlatformAdminArea(pathname: string): boolean {
-  return pathname === '/admin/platform' || pathname.startsWith('/admin/platform/')
+  return (
+    pathname === '/admin/platform' ||
+    pathname.startsWith('/admin/platform/') ||
+    /^\/admin\/industry\/[^/]+/.test(pathname) ||
+    /^\/admin\/tenant\/[^/]+/.test(pathname)
+  )
 }
 
 function extractCustomerIdFromPath(path: string): string | null {

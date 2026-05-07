@@ -10309,6 +10309,13 @@ textarea.memo-sticky-note__textarea::placeholder {
   color: #64748b;
 }
 
+.platform-mode-switcher__notice {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #f87171;
+}
+
 .platform-mode-switcher__label {
   font-size: 12px;
   font-weight: 600;

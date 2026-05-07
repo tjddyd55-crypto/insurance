@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import { FormButton } from '../../../components/form'
 import { usePlatformAccess } from '../hooks/usePlatformAccess'
@@ -15,15 +16,69 @@ type Props = {
   token: string | null | undefined
 }
 
+/** 대시보드·업무 라우트( /admin 제외 )에서 work 모드로 추정 */
+function isWorkLikePath(pathname: string): boolean {
+  if (pathname.startsWith('/admin/')) {
+    return false
+  }
+  if (pathname === '/dashboard') {
+    return true
+  }
+  const prefixes = [
+    '/customers',
+    '/customer/',
+    '/memo',
+    '/storage',
+    '/team/',
+    '/application',
+    '/claim-requests',
+    '/feature-request',
+    '/profile',
+    '/insurer-managers',
+    '/loss-adjusters',
+    '/customer-car',
+    '/my-forms',
+    '/form',
+    '/account/',
+    '/insurance/',
+  ]
+  return prefixes.some((p) => pathname === p || pathname.startsWith(p))
+}
+
+function inferModeFromPathname(
+  pathname: string,
+  modes: readonly PlatformAccessMode[],
+): PlatformAccessMode | null {
+  if (pathname === '/admin/platform' || pathname.startsWith('/admin/platform/')) {
+    return modes.includes('platform') ? 'platform' : null
+  }
+  if (/^\/admin\/industry\/[^/]+/.test(pathname)) {
+    return modes.includes('industry') ? 'industry' : null
+  }
+  if (/^\/admin\/tenant\/[^/]+/.test(pathname)) {
+    return modes.includes('tenant') ? 'tenant' : null
+  }
+  if (isWorkLikePath(pathname)) {
+    return modes.includes('work') ? 'work' : null
+  }
+  return null
+}
+
 /**
- * 플랫폼 접근 요약 기반 모드 표시·선택(로컬 state만, 서버/스토어 미동기화).
- * `/admin/platform` 계열 라우트에서만 상위에서 마운트한다.
+ * 플랫폼 접근 요약 기반 모드 표시·선택 + 대상 라우트로 navigate (로컬 스토리지·서버 미동기화).
  */
 export default function PlatformModeSwitcher({ token }: Props) {
   const trimmed = typeof token === 'string' ? token.trim() : ''
+  const navigate = useNavigate()
+  const location = useLocation()
   const { loading, error, summary, reload } = usePlatformAccess(trimmed || null)
   const [activeMode, setActiveMode] = useState<PlatformAccessMode | null>(null)
   const [userPickedMode, setUserPickedMode] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    setNotice(null)
+  }, [location.pathname])
 
   useEffect(() => {
     if (error) {
@@ -36,11 +91,12 @@ export default function PlatformModeSwitcher({ token }: Props) {
     if (!trimmed) {
       setActiveMode(null)
       setUserPickedMode(false)
+      setNotice(null)
     }
   }, [trimmed])
 
   useEffect(() => {
-    if (!summary) {
+    if (!summary || error) {
       return
     }
     const modes = summary.availableModes
@@ -48,6 +104,13 @@ export default function PlatformModeSwitcher({ token }: Props) {
       setActiveMode(null)
       return
     }
+
+    const inferred = inferModeFromPathname(location.pathname, modes)
+    if (inferred != null) {
+      setActiveMode(inferred)
+      return
+    }
+
     if (!userPickedMode) {
       const next =
         summary.defaultMode != null && modes.includes(summary.defaultMode)
@@ -56,10 +119,11 @@ export default function PlatformModeSwitcher({ token }: Props) {
       setActiveMode(next)
       return
     }
+
     setActiveMode((prev) =>
       prev != null && !modes.includes(prev) ? modes[0] ?? null : prev,
     )
-  }, [summary, userPickedMode])
+  }, [summary, userPickedMode, error, location.pathname, trimmed])
 
   if (!trimmed) {
     return null
@@ -102,6 +166,8 @@ export default function PlatformModeSwitcher({ token }: Props) {
   }
 
   const modes = summary.availableModes
+  const blockNavigate = Boolean(loading || error)
+
   const defaultLabel =
     summary.defaultMode != null && modes.includes(summary.defaultMode)
       ? MODE_LABEL[summary.defaultMode]
@@ -122,6 +188,57 @@ export default function PlatformModeSwitcher({ token }: Props) {
   }
 
   const listLabel = modes.map((m) => MODE_LABEL[m]).join(', ')
+
+  const handleSelectMode = (next: PlatformAccessMode) => {
+    if (blockNavigate || !summary) {
+      return
+    }
+    if (!modes.includes(next)) {
+      return
+    }
+
+    setNotice(null)
+
+    if (next === 'platform') {
+      setUserPickedMode(true)
+      setActiveMode('platform')
+      navigate('/admin/platform', { replace: true })
+      return
+    }
+
+    if (next === 'industry') {
+      const id = summary.industryAdminIndustryIds[0]
+      if (id == null || String(id).trim() === '') {
+        setNotice('이동 가능한 업종이 없습니다.')
+        return
+      }
+      setUserPickedMode(true)
+      setActiveMode('industry')
+      navigate(`/admin/industry/${encodeURIComponent(String(id).trim())}`, { replace: true })
+      return
+    }
+
+    if (next === 'tenant') {
+      const id = summary.tenantAdminTenantIds[0]
+      if (id == null || String(id).trim() === '') {
+        setNotice('이동 가능한 테넌트가 없습니다.')
+        return
+      }
+      setUserPickedMode(true)
+      setActiveMode('tenant')
+      navigate(`/admin/tenant/${encodeURIComponent(String(id).trim())}`, { replace: true })
+      return
+    }
+
+    if (next === 'work') {
+      setUserPickedMode(true)
+      setActiveMode('work')
+      navigate('/dashboard', { replace: true })
+      return
+    }
+
+    setNotice('모드 이동 대상을 찾지 못했습니다.')
+  }
 
   return (
     <div className="platform-mode-switcher" role="region" aria-label="플랫폼 모드">
@@ -145,13 +262,11 @@ export default function PlatformModeSwitcher({ token }: Props) {
         <select
           id="platform-mode-switcher-select"
           className="platform-mode-switcher__select"
+          disabled={blockNavigate}
           value={activeMode ?? modes[0] ?? ''}
           onChange={(e) => {
             const next = e.target.value as PlatformAccessMode
-            if (modes.includes(next)) {
-              setUserPickedMode(true)
-              setActiveMode(next)
-            }
+            handleSelectMode(next)
           }}
         >
           {modes.map((m) => (
@@ -161,6 +276,11 @@ export default function PlatformModeSwitcher({ token }: Props) {
           ))}
         </select>
       </div>
+      {notice ? (
+        <p className="platform-mode-switcher__notice" role="alert">
+          {notice}
+        </p>
+      ) : null}
     </div>
   )
 }
