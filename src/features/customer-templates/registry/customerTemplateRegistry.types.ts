@@ -19,6 +19,7 @@ export type CustomerFieldRegistryCategory =
 export type CustomerFieldRegistryDomain =
   | 'core'
   | 'insurance'
+  | 'government'
   | 'gym'
   | 'alcohol'
   | 'gov_support'

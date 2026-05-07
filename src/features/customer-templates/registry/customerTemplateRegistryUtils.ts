@@ -89,7 +89,11 @@ export const CUSTOMER_FIELD_KEY_ALIAS_TO_CANONICAL: Readonly<
   ownerUserId: 'management.ownerUserId',
   lastConsultDate: 'management.lastConsultDate',
   memoSummary: 'management.memoSummary',
-  /** gym v0.1 템플릿명과 정합 — canonical 은 `gym.workoutGoal` */
+  /**
+   * gym 폼 호환키 → canonical registry fieldKey.
+   * `gym.fitnessGoal` 템플릿 키는 유지하고, 검증 단계에서만 `gym.workoutGoal` 로 해석한다.
+   * Form Renderer·persist 경로가 붙을 때는 별명을 그대로 쓸지, 저장 키를 canonical 로 통일할지 정책을 재검토할 것.
+   */
   'gym.fitnessGoal': 'gym.workoutGoal',
 })
 

@@ -5,9 +5,7 @@ import type { FeatureModuleRegistryEntry } from './customerTemplateRegistry.type
  * tenant.config.crm.featureFlags 키로 tabId 가 쓰일 수 있으나,
  * 본 레지스트리의 식별자는 featureBinding 문자열이다.
  */
-export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
-  Record<string, Readonly<FeatureModuleRegistryEntry>>
-> = Object.freeze({
+export const FEATURE_MODULE_REGISTRY_BY_ID = Object.freeze({
   'crm-storage-files': Object.freeze({
     featureId: 'crm-storage-files',
     label: '파일',
@@ -285,7 +283,7 @@ export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
     label: '운동 자동화',
     category: 'industry-extension',
     moduleType: 'backgroundJob',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     description: '운동 루틴·기록 자동화(후보).',
     requiredPermissions: Object.freeze([]),
     configSchema: Object.freeze({
@@ -302,7 +300,7 @@ export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
     label: '회원권 만료 알림',
     category: 'industry-extension',
     moduleType: 'backgroundJob',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     description: '만료 임박 알림 워크플로(후보).',
     requiredPermissions: Object.freeze([]),
     configSchema: Object.freeze({
@@ -319,7 +317,7 @@ export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
     label: '기본 정보',
     category: 'industry-extension',
     moduleType: 'detailTab',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     description: '이름·연락처·주소 등 기본 프로필 섹션(선언).',
     requiredPermissions: Object.freeze([]),
     configSchema: Object.freeze({
@@ -336,7 +334,7 @@ export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
     label: '회원권 / 프로그램 정보',
     category: 'industry-extension',
     moduleType: 'detailTab',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     description: '회원권·프로그램·회차 정보 섹션(선언).',
     requiredPermissions: Object.freeze([]),
     configSchema: Object.freeze({
@@ -353,7 +351,7 @@ export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
     label: '운동 목표 / 건강 메모',
     category: 'industry-extension',
     moduleType: 'detailTab',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     description: '운동 목표 및 건강 메모 섹션(선언).',
     requiredPermissions: Object.freeze([]),
     configSchema: Object.freeze({
@@ -370,7 +368,7 @@ export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
     label: '출석 / 예약 이력',
     category: 'industry-extension',
     moduleType: 'detailTab',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     description: '출석·예약 이력 패널(선언).',
     requiredPermissions: Object.freeze([]),
     configSchema: Object.freeze({
@@ -390,7 +388,7 @@ export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
     label: '결제 / 재등록 관리',
     category: 'industry-extension',
     moduleType: 'detailTab',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     description: '회비 결제 및 재등록 추적 섹션(선언).',
     requiredPermissions: Object.freeze([]),
     configSchema: Object.freeze({
@@ -406,12 +404,13 @@ export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
     tenantConfigKeys: Object.freeze(['gym.section.paymentRenewal']),
     status: 'preview',
   }),
+  /* 아래 다섯 featureId는 런타임 모듈이 아니다. 플랫폼 Preview·registry 검증(binding 후보)·문서 목적 선언이다. */
   'gym-attendance-tracking': Object.freeze({
     featureId: 'gym-attendance-tracking',
     label: '체육관 출석 추적',
     category: 'industry-extension',
     moduleType: 'panel',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     description: '방문 출석 로그 및 상태(후보·선언).',
     requiredPermissions: Object.freeze([]),
     configSchema: Object.freeze({
@@ -428,7 +427,7 @@ export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
     label: '체육관 예약 관리',
     category: 'industry-extension',
     moduleType: 'panel',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     description: 'PT·수업 예약 생성·변경(후보·선언).',
     requiredPermissions: Object.freeze([]),
     configSchema: Object.freeze({
@@ -445,7 +444,7 @@ export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
     label: '세션·회차 패키지',
     category: 'industry-extension',
     moduleType: 'panel',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     description: '횟수권·패키지 잔여량 관리(후보·선언).',
     requiredPermissions: Object.freeze([]),
     configSchema: Object.freeze({
@@ -462,7 +461,7 @@ export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
     label: '체육관 재등록 팔로업',
     category: 'industry-extension',
     moduleType: 'integration',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     description: '만료 전 재등록 캠페인 워크플로(후보·선언).',
     requiredPermissions: Object.freeze([]),
     configSchema: Object.freeze({
@@ -479,7 +478,7 @@ export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
     label: '트레이너 배정',
     category: 'industry-extension',
     moduleType: 'panel',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     description: '담당 코치 매칭·일정 호환성(후보·선언).',
     requiredPermissions: Object.freeze([]),
     configSchema: Object.freeze({
@@ -746,4 +745,5 @@ export const FEATURE_MODULE_REGISTRY_BY_ID: Readonly<
     tenantConfigKeys: Object.freeze(['gov.activityHub']),
     status: 'preview',
   }),
-})
+  // TODO(registry): domains 리터럴을 Entry 타입에 맞추면 `as unknown as` 제거 후보
+}) as unknown as Readonly<Record<string, Readonly<FeatureModuleRegistryEntry>>>

@@ -1,9 +1,7 @@
 import type { ListColumnRegistryEntry } from './customerTemplateRegistry.types'
 
 /** columnKey(SSOT for listColumns[].columnKey) → 정의 */
-export const LIST_COLUMN_REGISTRY_BY_KEY: Readonly<
-  Record<string, Readonly<ListColumnRegistryEntry>>
-> = Object.freeze({
+export const LIST_COLUMN_REGISTRY_BY_KEY = Object.freeze({
   name: Object.freeze({
     columnKey: 'name',
     label: '이름',
@@ -413,7 +411,7 @@ export const LIST_COLUMN_REGISTRY_BY_KEY: Readonly<
     columnKey: 'membershipType',
     label: '회원권 유형',
     category: 'gym',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     sourceType: 'field',
     sourceFieldKey: 'gym.membershipType',
     valueType: 'string',
@@ -425,14 +423,14 @@ export const LIST_COLUMN_REGISTRY_BY_KEY: Readonly<
     status: 'preview',
   }),
   /**
-   * 카탈로그 `programName`(지원사업명)은 gov.programName과 고정 연결됨.
-   * 체육관 프로그램 표시는 별도 컬럼 키로 둔다.
+   * `programName`(columnKey SSOT): `gov.programName` 과 고정 매핑 — 변경 금지(정부 템플릿 등 소비처 유지).
+   * 체육관은 다른 sourceField(`gym.programName`)를 쓰므로 **`gymProgramName`** 로 분리했다.
    */
   gymProgramName: Object.freeze({
     columnKey: 'gymProgramName',
     label: '프로그램명',
     category: 'gym',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     sourceType: 'field',
     sourceFieldKey: 'gym.programName',
     valueType: 'string',
@@ -447,7 +445,7 @@ export const LIST_COLUMN_REGISTRY_BY_KEY: Readonly<
     columnKey: 'membershipEndDate',
     label: '회원권 만료일',
     category: 'gym',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     sourceType: 'field',
     sourceFieldKey: 'gym.membershipEndDate',
     valueType: 'date',
@@ -462,7 +460,7 @@ export const LIST_COLUMN_REGISTRY_BY_KEY: Readonly<
     columnKey: 'remainingSessions',
     label: '잔여 횟수',
     category: 'gym',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     sourceType: 'field',
     sourceFieldKey: 'gym.remainingSessions',
     valueType: 'number',
@@ -477,7 +475,7 @@ export const LIST_COLUMN_REGISTRY_BY_KEY: Readonly<
     columnKey: 'trainerName',
     label: '담당 트레이너',
     category: 'gym',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     sourceType: 'field',
     sourceFieldKey: 'gym.trainerName',
     valueType: 'string',
@@ -492,7 +490,7 @@ export const LIST_COLUMN_REGISTRY_BY_KEY: Readonly<
     columnKey: 'lastVisitDate',
     label: '마지막 방문일',
     category: 'gym',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     sourceType: 'field',
     sourceFieldKey: 'gym.lastVisitDate',
     valueType: 'date',
@@ -507,7 +505,7 @@ export const LIST_COLUMN_REGISTRY_BY_KEY: Readonly<
     columnKey: 'nextReservationDate',
     label: '다음 예약일',
     category: 'gym',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     sourceType: 'field',
     sourceFieldKey: 'gym.nextReservationDate',
     valueType: 'date',
@@ -519,14 +517,14 @@ export const LIST_COLUMN_REGISTRY_BY_KEY: Readonly<
     status: 'preview',
   }),
   /**
-   * `paymentStatus`는 계약 입금 상태(contract.paymentStatus)에 연결됨.
-   * 체육관 회비 표시 전용 컬럼.
+   * `paymentStatus`(columnKey SSOT): 계약 입금 상태 `contract.paymentStatus` 에 고정 — 변경 금지.
+   * 체육관 회비 상태는 다른 sourceField(`gym.paymentStatus`) 이므로 **`gymPaymentStatus`** 로 분리했다.
    */
   gymPaymentStatus: Object.freeze({
     columnKey: 'gymPaymentStatus',
     label: '결제 상태',
     category: 'gym',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     sourceType: 'field',
     sourceFieldKey: 'gym.paymentStatus',
     valueType: 'string',
@@ -541,7 +539,7 @@ export const LIST_COLUMN_REGISTRY_BY_KEY: Readonly<
     columnKey: 'renewalStatus',
     label: '재등록 상태',
     category: 'gym',
-    domains: Object.freeze(['gym']),
+    domains: Object.freeze(['gym'] as const),
     sourceType: 'field',
     sourceFieldKey: 'gym.renewalStatus',
     valueType: 'string',
@@ -552,4 +550,5 @@ export const LIST_COLUMN_REGISTRY_BY_KEY: Readonly<
     description: '재등록·연장 여부.',
     status: 'preview',
   }),
-})
+  // TODO(registry): domains 리터럴을 Entry 타입에 맞추면 `as unknown as` 제거 후보
+}) as unknown as Readonly<Record<string, Readonly<ListColumnRegistryEntry>>>

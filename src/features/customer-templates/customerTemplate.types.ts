@@ -3,7 +3,7 @@
  * — 렌더/권한/API는 포함하지 않는다.
  */
 
-export type CustomerTemplateDomain = 'core' | 'insurance'
+export type CustomerTemplateDomain = 'core' | 'insurance' | 'government' | 'gym'
 
 /** 필드 민감도(표시 마스킹·감사 UI 등 향후 훅) */
 export type CustomerTemplatePrivacyLevel = 'normal' | 'sensitive' | 'identifying'
