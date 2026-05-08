@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import type { PdfFieldSpec, PdfFieldType, PdfPlacement } from '../types'
 import { PDF_FIELD_TYPE_LABELS, PDF_FIELD_TYPES } from '../types'
+import { genPdfFieldKeyFromLabel } from '../pdfFieldKey'
 import { PdfOverlayCanvas, type OverlayMark, type OverlayPick, type PdfOverlayDebugMeta } from './PdfOverlayCanvas'
 import FormInput from '../../../components/form/FormInput'
 
@@ -65,22 +66,6 @@ function parseOptionalPositive(raw: string): number | null | 'invalid' {
   return Math.round(n * 100) / 100
 }
 
-function genKeyFromLabel(label: string, existing: ReadonlySet<string>): string {
-  const base =
-    label
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 48) || 'field'
-  if (!existing.has(base)) return base
-  for (let i = 2; i < 200; i += 1) {
-    const candidate = `${base}_${i}`
-    if (!existing.has(candidate)) return candidate
-  }
-  return `${base}_${Date.now().toString(36)}`
-}
-
 export function PdfCoordinateEditor({
   pdfBuffer,
   pageCount,
@@ -125,6 +110,16 @@ export function PdfCoordinateEditor({
     setPageIndex((i) => Math.min(i, Math.max(0, numPages - 1)))
   }, [numPages])
 
+  /**
+   * 부모가 fieldKey 를 정규화(예: `2` → `field_2`)하면 선택 상태가 고아가 되므로 동기화한다.
+   */
+  useEffect(() => {
+    setSelectedKey((cur) => {
+      if (cur == null) return null
+      return fields.some((f) => f.fieldKey === cur) ? cur : null
+    })
+  }, [fields])
+
   const existingKeys = useMemo(() => new Set(fields.map((f) => f.fieldKey)), [fields])
 
   /** 왼쪽 필드 목록의 placement 들을 overlay 마커로 변환.
@@ -157,9 +152,9 @@ export function PdfCoordinateEditor({
   const handleAddField = () => {
     const labelTrim = draft.label.trim()
     if (!labelTrim) return
-    /* 내부 식별자는 라벨에서 자동 파생. 같은 템플릿 내 충돌은 genKeyFromLabel 이
+    /* 내부 식별자는 라벨에서 자동 파생. 같은 템플릿 내 충돌은 genPdfFieldKeyFromLabel 이
        suffix 로 회피하므로 사용자는 식별자를 의식할 필요가 없다. */
-    const key = genKeyFromLabel(labelTrim, existingKeys)
+    const key = genPdfFieldKeyFromLabel(labelTrim, existingKeys)
     /* radio 로 바로 만들면 기본 옵션 2개를 시드해 관리자가 빈 상태로 드래그했을 때
        "옵션이 비어 있다" 에러를 만나지 않도록 한다. */
     const options = draft.fieldType === 'radio' ? ['옵션1', '옵션2'] : null
@@ -459,13 +454,13 @@ export function PdfCoordinateEditor({
               ))}
             </select>
           </label>
-          <label className="pdf-engine-editor__label" style={{ flex: '0 0 auto' }}>
+          <label className="pdf-engine-editor__label pdf-engine-editor__label--checkbox-inline">
             필수
             <input
               type="checkbox"
+              className="pdf-engine-editor__input--checkbox-inline"
               checked={draft.required}
               onChange={(e) => setDraft({ ...draft, required: e.target.checked })}
-              style={{ width: 'auto' }}
             />
           </label>
         </div>
@@ -521,15 +516,15 @@ export function PdfCoordinateEditor({
                 ))}
               </select>
             </label>
-            <label className="pdf-engine-editor__label" style={{ flex: '0 0 auto' }}>
+            <label className="pdf-engine-editor__label pdf-engine-editor__label--checkbox-inline">
               필수
               <input
                 type="checkbox"
+                className="pdf-engine-editor__input--checkbox-inline"
                 checked={selectedField.required}
                 onChange={(e) =>
                   handlePatchField(selectedField.fieldKey, { required: e.target.checked })
                 }
-                style={{ width: 'auto' }}
               />
             </label>
 

@@ -269,6 +269,21 @@
   flex: 1 1 140px;
 }
 
+/* 타입·필수 한 줄: 라벨과 체크박스가 세로로 깨지지 않게 */
+.pdf-engine-editor__label--checkbox-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.pdf-engine-editor__input--checkbox-inline {
+  width: auto;
+  margin: 0;
+  flex-shrink: 0;
+}
+
 .pdf-engine-editor__label input,
 .pdf-engine-editor__label select,
 .pdf-engine-editor__label textarea {
