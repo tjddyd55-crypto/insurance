@@ -1,4 +1,5 @@
 import { ApiError, apiRequest } from '../../../lib/apiClient'
+import { getPublicOrigin } from '../../../lib/publicOrigin'
 import type { SendSessionDetail } from '../testConsole/contractSignatureTestConsoleClient'
 
 export type SendSessionHistoryListItem = {
@@ -113,9 +114,17 @@ export async function cancelUserSendSession(token: string, sendSessionId: string
   return b
 }
 
+/**
+ * 고객용 전자서명 공개 URL (복사·새 탭).
+ * Electron `file://` 문서에서는 `window.location.origin`이 `file://` 계열이 될 수 있어
+ * `getPublicOrigin()`(VITE_BASE_URL 등) 우선 — 없으면 상대 경로만 반환.
+ */
 export function buildCustomerPublicSignUrl(linkCode: string): string {
-  if (typeof window === 'undefined') {
-    return `/contracts/sign/${linkCode}`
+  const raw = String(linkCode ?? '').trim()
+  const path = `/contracts/sign/${encodeURIComponent(raw)}`
+  let base = getPublicOrigin().trim().replace(/\/$/, '')
+  if (!base || base.startsWith('file:')) {
+    return path
   }
-  return `${window.location.origin}/contracts/sign/${linkCode}`
+  return `${base}${path}`
 }

@@ -13,7 +13,7 @@ export function getPublicOrigin(): string {
   }
   if (typeof window !== 'undefined') {
     const o = window.location?.origin
-    if (o && o !== 'null') {
+    if (o && o !== 'null' && !/^file:/i.test(o)) {
       return o
     }
   }

@@ -1,5 +1,6 @@
 import { FormButton } from '../../../../components/form'
 import { useAuth } from '../../../auth/AuthProvider'
+import { buildCustomerPublicSignUrl } from '../../userHistory/contractSignatureHistoryClient'
 import {
   downloadStaffEvidencePdfFile,
   downloadStaffSignedPdfFile,
@@ -16,13 +17,6 @@ type Props = {
   loading: boolean
   onRefresh: () => void
   layout?: 'desktop' | 'mobile'
-}
-
-function publicSignUrl(linkCode: string): string {
-  if (typeof window === 'undefined') {
-    return `/contracts/sign/${linkCode}`
-  }
-  return `${window.location.origin}/contracts/sign/${linkCode}`
 }
 
 export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desktop' }: Props) {
@@ -61,7 +55,7 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
   }
 
   const copyLink = async (linkCode: string) => {
-    const url = publicSignUrl(linkCode)
+    const url = buildCustomerPublicSignUrl(linkCode)
     try {
       await navigator.clipboard.writeText(url)
     } catch {
@@ -70,7 +64,7 @@ export function EvidenceStatusPanel({ detail, loading, onRefresh, layout = 'desk
   }
 
   const openTab = (linkCode: string) => {
-    window.open(publicSignUrl(linkCode), '_blank', 'noopener,noreferrer')
+    window.open(buildCustomerPublicSignUrl(linkCode), '_blank', 'noopener,noreferrer')
   }
 
   if (isMobile) {
