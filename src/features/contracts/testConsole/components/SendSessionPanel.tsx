@@ -1,13 +1,7 @@
 import { FormButton } from '../../../../components/form'
+import { buildCustomerPublicSignUrl } from '../../userHistory/contractSignatureHistoryClient'
 import type { CreateSendSessionResult, SendSessionDetail } from '../contractSignatureTestConsoleClient'
 import { downloadStaffEvidencePdfFile, downloadStaffSignedPdfFile } from '../contractSignatureTestConsoleClient'
-
-function publicSignUrl(linkCode: string): string {
-  if (typeof window === 'undefined') {
-    return `/contracts/sign/${linkCode}`
-  }
-  return `${window.location.origin}/contracts/sign/${linkCode}`
-}
 
 function formatAttachmentCustomerConfirmAt(iso: string | null | undefined): string {
   if (!iso) {
@@ -71,7 +65,7 @@ export function SendSessionPanel({
   }
 
   const copyLink = async (linkCode: string) => {
-    const url = publicSignUrl(linkCode)
+    const url = buildCustomerPublicSignUrl(linkCode)
     try {
       await navigator.clipboard.writeText(url)
     } catch {
@@ -80,7 +74,7 @@ export function SendSessionPanel({
   }
 
   const openTab = (linkCode: string) => {
-    window.open(publicSignUrl(linkCode), '_blank', 'noopener,noreferrer')
+    window.open(buildCustomerPublicSignUrl(linkCode), '_blank', 'noopener,noreferrer')
   }
 
   if (isMobile) {
@@ -118,7 +112,7 @@ export function SendSessionPanel({
             <div className="contract-signature-console__hint" style={{ marginTop: 6 }}>
               고객에게 전달할 링크
             </div>
-            <div className="contract-mobile-link-preview">{publicSignUrl(session.linkCode)}</div>
+            <div className="contract-mobile-link-preview">{buildCustomerPublicSignUrl(session.linkCode)}</div>
             <div className="contract-mobile-action-grid">
               <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => void copyLink(session.linkCode)}>
                 링크 복사
@@ -333,7 +327,7 @@ export function SendSessionPanel({
           </div>
           <div style={{ marginTop: 8 }}>
             <strong>공개 링크</strong>{' '}
-            <code style={{ fontSize: 11, wordBreak: 'break-all' }}>{publicSignUrl(session.linkCode)}</code>
+            <code style={{ fontSize: 11, wordBreak: 'break-all' }}>{buildCustomerPublicSignUrl(session.linkCode)}</code>
           </div>
           <div className="contract-signature-console__btn-row">
             <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => void copyLink(session.linkCode)}>
