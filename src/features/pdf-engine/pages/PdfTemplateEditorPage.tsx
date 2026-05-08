@@ -26,6 +26,7 @@ import {
   uploadAdminPdfTemplateFile,
 } from '../api/pdfTemplateApi'
 import { PdfCoordinateEditor } from '../components/PdfCoordinateEditor'
+import { normalizePdfFieldKeys } from '../pdfFieldKey'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
 import '../pdf-engine.css'
 
@@ -204,12 +205,23 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
       const detail = await getAdminPdfTemplate(token, templateId)
       const pdfBuffer = await fetchAdminPdfTemplateFile(token, templateId)
       const coerced = detail.fields.map(coercePdfFieldSpecForEditor)
-      setFields(coerced)
-      setFieldsDirty(false)
+      const { fields: normalizedFields, keysChanged } = normalizePdfFieldKeys(coerced)
+      setFields(normalizedFields)
+      setFieldsDirty(keysChanged)
       setTitle(detail.template.title)
       setDescription(detail.template.description ?? '')
       setIsActive(detail.template.isActive)
-      setState({ status: 'ready', template: detail.template, fields: coerced, pdfBuffer })
+      setState({
+        status: 'ready',
+        template: detail.template,
+        fields: normalizedFields,
+        pdfBuffer,
+      })
+      if (keysChanged) {
+        setToast(
+          '일부 필드 식별자(key)가 유효한 형식으로 자동 보정되었습니다. 저장하면 서버에 반영됩니다.',
+        )
+      }
     } catch (e) {
       setState({
         status: 'error',
@@ -236,11 +248,19 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
         setToast(null)
       }
       try {
-        const saved = await saveAdminPdfTemplateFields(token, templateId, fields)
+        const { fields: fieldsToSave, keysChanged: keysNormalized } = normalizePdfFieldKeys(fields)
+        if (keysNormalized) {
+          setFields(fieldsToSave)
+        }
+        const saved = await saveAdminPdfTemplateFields(token, templateId, fieldsToSave)
         setFields(saved.fields.map(coercePdfFieldSpecForEditor))
         setFieldsDirty(false)
         if (!options?.silent) {
-          setToast('좌표가 저장되었습니다.')
+          setToast(
+            keysNormalized
+              ? '필드 식별자를 보정한 뒤 좌표가 저장되었습니다.'
+              : '좌표가 저장되었습니다.',
+          )
         }
         return true
       } catch (e) {
