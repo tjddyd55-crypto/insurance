@@ -67,7 +67,7 @@ export function CustomerWorkspaceActions({
               <span className="customer-mobile-action-btn__icon" aria-hidden>
                 📝
               </span>
-              <span className="customer-mobile-action-btn__text">자동차 신청서</span>
+              <span className="customer-mobile-action-btn__text">신청서</span>
             </FormButton>
           ) : null}
           {gaExcelEnabled ? (
@@ -135,7 +135,7 @@ export function CustomerWorkspaceActions({
           className="button button--secondary customer-workspace-action-button"
           onClick={() => onOpenAutoModal(customerId)}
         >
-          자동차 신청서
+          신청서
         </FormButton>
       ) : null}
       {gaExcelEnabled ? (

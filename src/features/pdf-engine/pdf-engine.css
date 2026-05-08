@@ -276,12 +276,57 @@
   gap: 8px;
   flex: 0 0 auto;
   white-space: nowrap;
+  line-height: 1.35;
+  align-self: center;
 }
 
 .pdf-engine-editor__input--checkbox-inline {
   width: auto;
   margin: 0;
   flex-shrink: 0;
+}
+
+/* 타입 select + 필수: 한 행 고정, 세로 가운데 정렬 */
+.pdf-engine-editor__row--type-required {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.pdf-engine-editor__label--field-type {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.pdf-engine-editor__config-divider {
+  margin: 16px 0;
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.pdf-engine-editor__config-block--add-field .pdf-engine-editor__panel-title,
+.pdf-engine-editor__config-block--selected-field .pdf-engine-editor__panel-title {
+  margin-bottom: 8px;
+}
+
+.pdf-engine-editor__config-selected-name {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.pdf-engine-editor__selected-save-row {
+  margin-bottom: 10px;
+}
+
+.pdf-engine-editor__selected-save-row .pdf-engine-editor__btn {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pdf-engine-editor__hint--muted-block {
+  margin: 0;
 }
 
 .pdf-engine-editor__label input,

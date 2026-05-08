@@ -39,6 +39,18 @@ function pathIsActive(pathname: string, itemPath: string): boolean {
   if (itemPath === '/application') {
     return pathname === '/application' || pathname.startsWith('/application/')
   }
+  if (itemPath === '/application/documents') {
+    if (pathname.startsWith('/application/documents/history')) {
+      return false
+    }
+    return pathname === '/application/documents' || pathname.startsWith('/application/documents/')
+  }
+  if (itemPath === '/application/documents/history') {
+    return (
+      pathname === '/application/documents/history' ||
+      pathname.startsWith('/application/documents/history/')
+    )
+  }
   if (itemPath === '/feature-request') {
     return pathname === '/feature-request' || pathname === '/feature-requests/my'
   }

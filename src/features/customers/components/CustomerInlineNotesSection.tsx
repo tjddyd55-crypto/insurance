@@ -212,7 +212,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
               disabled={!token?.trim()}
               onClick={() => onOpenAutoModal?.(customer.id)}
             >
-              자동차
+              신청서
             </Button>
           ) : null}
           {onOpenGaModal ? (

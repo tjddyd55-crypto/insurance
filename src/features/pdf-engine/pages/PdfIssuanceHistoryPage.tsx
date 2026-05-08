@@ -99,9 +99,10 @@ export default function PdfIssuanceHistoryPage() {
 
   return (
     <main className="insurance-dark-forms pdf-engine-page">
-      <h1 className="pdf-engine-page__title">발급 이력</h1>
+      <h1 className="pdf-engine-page__title">과거 작성한 신청서</h1>
       <p className="pdf-engine-page__hint">
-        과거에 발급한 문서를 다시 다운로드할 수 있습니다. 목록은 최근순으로 최대 200건까지 표시됩니다.
+        발급 완료된 PDF를 다시 다운로드할 수 있습니다. 목록은 최근순으로 최대 200건까지 표시됩니다.
+        이후 불러오기·일부 수정·재저장·재출력 기능은 별도 설계로 연결할 예정입니다.
       </p>
 
       {error ? <div className="pdf-engine-page__error">{error}</div> : null}

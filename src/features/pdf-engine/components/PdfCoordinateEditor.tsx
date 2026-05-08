@@ -23,6 +23,9 @@ import { genPdfFieldKeyFromLabel } from '../pdfFieldKey'
 import { PdfOverlayCanvas, type OverlayMark, type OverlayPick, type PdfOverlayDebugMeta } from './PdfOverlayCanvas'
 import FormInput from '../../../components/form/FormInput'
 
+/** 1차 UX: 좌표 숫자 편집 숨김. 고급 설정으로 되살릴 때 `true` 로 전환해 `PlacementMetaEditor` 를 연결. */
+const SHOW_PLACEMENT_NUMERIC_EDITOR = false
+
 interface Props {
   pdfBuffer: ArrayBuffer | null
   pageCount: number
@@ -428,86 +431,28 @@ export function PdfCoordinateEditor({
       </aside>
 
       <aside className="pdf-engine-editor__panel pdf-engine-editor__panel--config">
-        <h3 className="pdf-engine-editor__panel-title">필드 정의</h3>
-        <div className="pdf-engine-editor__row">
-          <label className="pdf-engine-editor__label">
-            라벨 (사용자에게 보이는 이름)
-            <input
-              type="text"
-              value={draft.label}
-              onChange={(e) => setDraft({ ...draft, label: e.target.value })}
-              placeholder="예: 성명"
-            />
-          </label>
-        </div>
-        <div className="pdf-engine-editor__row">
-          <label className="pdf-engine-editor__label">
-            타입
-            <select
-              value={draft.fieldType}
-              onChange={(e) => setDraft({ ...draft, fieldType: e.target.value as PdfFieldType })}
-            >
-              {PDF_FIELD_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {PDF_FIELD_TYPE_LABELS[t]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="pdf-engine-editor__label pdf-engine-editor__label--checkbox-inline">
-            필수
-            <input
-              type="checkbox"
-              className="pdf-engine-editor__input--checkbox-inline"
-              checked={draft.required}
-              onChange={(e) => setDraft({ ...draft, required: e.target.checked })}
-            />
-          </label>
-        </div>
-        <div className="pdf-engine-editor__define-actions">
-          <button
-            type="button"
-            className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
-            onClick={handleAddField}
-            disabled={!draft.label.trim()}
-          >
-            필드 추가
-          </button>
-          <button
-            type="button"
-            className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
-            onClick={onSaveFields}
-            disabled={savingFields || !fieldsDirty}
-          >
-            {savingFields ? '좌표 저장 중…' : '좌표 저장'}
-          </button>
-        </div>
-
-        {selectedField ? (
-          <>
-            <h3 className="pdf-engine-editor__panel-title" style={{ marginTop: 8 }}>
-              세부 설정: {selectedField.label}
-            </h3>
-            <p className="pdf-engine-editor__hint">
-              필드를 선택한 뒤 PDF에서 드래그하면 좌표가 지정됩니다.
-            </p>
+        <section
+          className="pdf-engine-editor__config-block pdf-engine-editor__config-block--add-field"
+          aria-label="새 필드 추가"
+        >
+          <h3 className="pdf-engine-editor__panel-title">새 필드 추가</h3>
+          <div className="pdf-engine-editor__row">
             <label className="pdf-engine-editor__label">
-              라벨
+              라벨 (사용자에게 보이는 이름)
               <input
                 type="text"
-                value={selectedField.label}
-                onChange={(e) => handlePatchField(selectedField.fieldKey, { label: e.target.value })}
+                value={draft.label}
+                onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+                placeholder="예: 성명"
               />
             </label>
-            <label className="pdf-engine-editor__label">
+          </div>
+          <div className="pdf-engine-editor__row pdf-engine-editor__row--type-required">
+            <label className="pdf-engine-editor__label pdf-engine-editor__label--field-type">
               타입
               <select
-                value={selectedField.fieldType}
-                onChange={(e) =>
-                  handlePatchField(selectedField.fieldKey, {
-                    fieldType: e.target.value as PdfFieldType,
-                  })
-                }
+                value={draft.fieldType}
+                onChange={(e) => setDraft({ ...draft, fieldType: e.target.value as PdfFieldType })}
               >
                 {PDF_FIELD_TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -521,110 +466,199 @@ export function PdfCoordinateEditor({
               <input
                 type="checkbox"
                 className="pdf-engine-editor__input--checkbox-inline"
-                checked={selectedField.required}
-                onChange={(e) =>
-                  handlePatchField(selectedField.fieldKey, { required: e.target.checked })
-                }
+                checked={draft.required}
+                onChange={(e) => setDraft({ ...draft, required: e.target.checked })}
               />
             </label>
+          </div>
+          <div className="pdf-engine-editor__define-actions pdf-engine-editor__define-actions--add-only">
+            <button
+              type="button"
+              className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
+              onClick={handleAddField}
+              disabled={!draft.label.trim()}
+            >
+              필드 추가
+            </button>
+          </div>
+        </section>
 
-            {selectedField.fieldType === 'signature' ? (
-              <p className="pdf-engine-editor__hint" style={{ marginTop: 6 }}>
-                손사인 위치만 지정합니다. 실제 서명은 전자서명 링크에서 작성합니다.
-              </p>
-            ) : null}
+        <div className="pdf-engine-editor__config-divider" role="presentation" />
 
-            {selectedField.fieldType === 'radio' || selectedField.fieldType === 'checkbox' ? (
-              <RadioOptionsEditor
-                options={selectedField.options ?? []}
-                activeOption={activeOptionValue}
-                onActiveChange={setActiveOptionValue}
-                onOptionsChange={(next) => handlePatchFieldOptions(selectedField.fieldKey, next)}
-                mode={selectedField.fieldType}
-              />
-            ) : null}
-
-            <h4 className="pdf-engine-editor__panel-title" style={{ marginTop: 8, fontSize: 13 }}>
-              좌표 목록
-            </h4>
-            {selectedField.fieldType === 'checkbox' || selectedField.fieldType === 'radio' ? (
-              <div className="pdf-engine-editor__row" style={{ marginTop: -4 }}>
+        <section
+          className="pdf-engine-editor__config-block pdf-engine-editor__config-block--selected-field"
+          aria-label="선택한 필드 설정"
+        >
+          {selectedField ? (
+            <>
+              <h3 className="pdf-engine-editor__panel-title">선택한 필드 설정</h3>
+              <p className="pdf-engine-editor__config-selected-name">{selectedField.label}</p>
+              <div className="pdf-engine-editor__selected-save-row">
                 <button
                   type="button"
-                  className="pdf-engine-editor__btn"
-                  onClick={() => setSelectedPlacementIndex(null)}
+                  className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
+                  onClick={onSaveFields}
+                  disabled={savingFields || !fieldsDirty}
                 >
-                  새 좌표 추가
+                  {savingFields ? '좌표 저장 중…' : '좌표 저장'}
                 </button>
-                <span className="pdf-engine-editor__field-meta">
-                  체크/라디오는 필요 시 여러 좌표를 추가할 수 있습니다.
-                </span>
               </div>
-            ) : null}
-            {selectedField.placements.length === 0 ? (
               <p className="pdf-engine-editor__hint">
-                아직 좌표가 없습니다. 오른쪽 PDF 위를 드래그해 추가하세요.
+                PDF 미리보기에서 드래그해 박스를 그리면 위치와 크기가 반영됩니다. 좌표 숫자는 PDF
+                위 박스로만 확인합니다.
               </p>
-            ) : (
-              <ul className="pdf-engine-editor__fields">
-                {selectedField.placements.map((p, i) => {
-                  const isActive = i === selectedPlacementIndex
-                  return (
-                    <li
-                      key={`${selectedField.fieldKey}-p-${i}`}
-                      className={
-                        'pdf-engine-editor__field-item' +
-                        (isActive ? ' pdf-engine-editor__field-item--active' : '')
-                      }
-                      onClick={() => setSelectedPlacementIndex(i)}
-                    >
-                      <div className="pdf-engine-editor__field-item-row">
-                        <span className="pdf-engine-editor__field-meta">
-                          p{p.page + 1} · x={p.x.toFixed(1)}, y={p.y.toFixed(1)}
-                          {p.width != null && p.height != null
-                            ? ` · ${p.width.toFixed(0)}×${p.height.toFixed(0)}pt`
-                            : ' · 점'}
-                          {p.fontSize ? ` · ${p.fontSize}pt` : ''}
-                          {p.optionValue ? ` · "${p.optionValue}"` : ''}
-                        </span>
-                        <button
-                          type="button"
-                          className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleRemovePlacement(selectedField.fieldKey, i)
-                          }}
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
+              <label className="pdf-engine-editor__label">
+                라벨
+                <input
+                  type="text"
+                  value={selectedField.label}
+                  onChange={(e) => handlePatchField(selectedField.fieldKey, { label: e.target.value })}
+                />
+              </label>
+              <div className="pdf-engine-editor__row pdf-engine-editor__row--type-required">
+                <label className="pdf-engine-editor__label pdf-engine-editor__label--field-type">
+                  타입
+                  <select
+                    value={selectedField.fieldType}
+                    onChange={(e) =>
+                      handlePatchField(selectedField.fieldKey, {
+                        fieldType: e.target.value as PdfFieldType,
+                      })
+                    }
+                  >
+                    {PDF_FIELD_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {PDF_FIELD_TYPE_LABELS[t]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="pdf-engine-editor__label pdf-engine-editor__label--checkbox-inline">
+                  필수
+                  <input
+                    type="checkbox"
+                    className="pdf-engine-editor__input--checkbox-inline"
+                    checked={selectedField.required}
+                    onChange={(e) =>
+                      handlePatchField(selectedField.fieldKey, { required: e.target.checked })
+                    }
+                  />
+                </label>
+              </div>
 
-            {selectedPlacement ? (
-              <PlacementMetaEditor
-                placement={selectedPlacement}
-                onPatch={(patch) =>
-                  handlePatchPlacement(
-                    selectedField.fieldKey,
-                    selectedPlacementIndex as number,
-                    patch,
-                  )
-                }
-              />
-            ) : null}
-          </>
-        ) : (
-          <p className="pdf-engine-editor__hint">왼쪽 등록된 필드를 선택하면 세부 설정이 표시됩니다.</p>
-        )}
+              {selectedField.fieldType === 'signature' ? (
+                <p className="pdf-engine-editor__hint" style={{ marginTop: 6 }}>
+                  손사인 위치만 지정합니다. 실제 서명은 전자서명 링크에서 작성합니다.
+                </p>
+              ) : null}
+
+              {selectedField.fieldType === 'radio' || selectedField.fieldType === 'checkbox' ? (
+                <RadioOptionsEditor
+                  options={selectedField.options ?? []}
+                  activeOption={activeOptionValue}
+                  onActiveChange={setActiveOptionValue}
+                  onOptionsChange={(next) => handlePatchFieldOptions(selectedField.fieldKey, next)}
+                  mode={selectedField.fieldType}
+                />
+              ) : null}
+
+              <h4 className="pdf-engine-editor__panel-title" style={{ marginTop: 8, fontSize: 13 }}>
+                좌표 목록
+              </h4>
+              {selectedField.fieldType === 'checkbox' || selectedField.fieldType === 'radio' ? (
+                <div className="pdf-engine-editor__row" style={{ marginTop: -4 }}>
+                  <button
+                    type="button"
+                    className="pdf-engine-editor__btn"
+                    onClick={() => setSelectedPlacementIndex(null)}
+                  >
+                    새 좌표 추가
+                  </button>
+                  <span className="pdf-engine-editor__field-meta">
+                    체크/라디오는 필요 시 여러 좌표를 추가할 수 있습니다.
+                  </span>
+                </div>
+              ) : null}
+              {selectedField.placements.length === 0 ? (
+                <p className="pdf-engine-editor__hint">
+                  아직 좌표가 없습니다. 오른쪽 PDF 위를 드래그해 추가하세요.
+                </p>
+              ) : (
+                <ul className="pdf-engine-editor__fields">
+                  {selectedField.placements.map((p, i) => {
+                    const isActive = i === selectedPlacementIndex
+                    const geomKind =
+                      p.width != null && p.height != null ? '영역 박스' : '위치 표시'
+                    const metaBits = [`페이지 ${p.page + 1}`, geomKind]
+                    if (p.optionValue) metaBits.push(`"${p.optionValue}"`)
+                    return (
+                      <li
+                        key={`${selectedField.fieldKey}-p-${i}`}
+                        className={
+                          'pdf-engine-editor__field-item' +
+                          (isActive ? ' pdf-engine-editor__field-item--active' : '')
+                        }
+                        onClick={() => setSelectedPlacementIndex(i)}
+                      >
+                        <div className="pdf-engine-editor__field-item-row">
+                          <span className="pdf-engine-editor__field-meta">
+                            {metaBits.join(' · ')}
+                          </span>
+                          <button
+                            type="button"
+                            className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleRemovePlacement(selectedField.fieldKey, i)
+                            }}
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+
+              {SHOW_PLACEMENT_NUMERIC_EDITOR && selectedPlacement ? (
+                <PlacementMetaEditor
+                  placement={selectedPlacement}
+                  onPatch={(patch) =>
+                    handlePatchPlacement(
+                      selectedField.fieldKey,
+                      selectedPlacementIndex as number,
+                      patch,
+                    )
+                  }
+                />
+              ) : null}
+            </>
+          ) : (
+            <>
+              {fieldsDirty ? (
+                <div className="pdf-engine-editor__selected-save-row">
+                  <button
+                    type="button"
+                    className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
+                    onClick={onSaveFields}
+                    disabled={savingFields}
+                  >
+                    {savingFields ? '좌표 저장 중…' : '좌표 저장'}
+                  </button>
+                </div>
+              ) : null}
+              <p className="pdf-engine-editor__hint pdf-engine-editor__hint--muted-block">
+                왼쪽에서 필드를 선택하면 세부 설정과 좌표 저장을 할 수 있습니다.
+              </p>
+            </>
+          )}
+        </section>
       </aside>
 
       <section className="pdf-engine-editor__panel pdf-engine-editor__panel--preview">
         <p className="pdf-engine-editor__hint pdf-engine-editor__preview-hint">
-          왼쪽에서 필드를 선택한 뒤, PDF에서 드래그하여 좌표를 지정하세요.
+          필드를 고른 뒤 PDF 위에서 드래그하면 박스가 생깁니다. 좌표는 박스 위치로만 확인합니다.
         </p>
         <p className="pdf-engine-editor__hint pdf-engine-editor__preview-hint" style={{ marginTop: 6 }}>
           페이지가 여러 장이면 아래 미리보기를 스크롤하며 작업하세요. A4에 가까운 크기로 표시됩니다.

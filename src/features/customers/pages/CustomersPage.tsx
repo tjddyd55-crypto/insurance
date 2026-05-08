@@ -143,7 +143,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
   const [activeMobileModal, setActiveMobileModal] = useState<
-    null | 'files' | 'consultations' | 'auto' | 'ga'
+    null | 'files' | 'consultations' | 'ga'
   >(null)
   const [activeMobileCustomerId, setActiveMobileCustomerId] = useState<number | null>(null)
   const [scrollRequestKey, setScrollRequestKey] = useState(0)
@@ -767,7 +767,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   )
 
   const openMobileModal = useCallback(
-    (modalType: 'files' | 'consultations' | 'auto' | 'ga', customerId: number) => {
+    (modalType: 'files' | 'consultations' | 'ga', customerId: number) => {
       if (!isMobile) {
         return
       }
@@ -822,9 +822,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   const handleOpenAutoModal = useCallback(
     (customerId: number) => {
-      openMobileModal('auto', customerId)
+      navigate(`/application/documents?customerId=${customerId}`)
     },
-    [openMobileModal],
+    [navigate],
   )
 
   const handleOpenGaModal = useCallback(
