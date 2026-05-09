@@ -645,6 +645,65 @@ export function registerPdfTemplateApi(apiRouter, deps) {
   })
 
   /*
+   * 발급 단건 메타 + 입력값 스냅샷 — "내용 불러오기"(재편집 후 재발급) 용도.
+   * 다운로드(`/file`) 와 같은 소유 규칙: SUPER_ADMIN 또는 user_id 일치만 valuesSnapshot 노출.
+   */
+  function issuanceValuesSnapshotToDto(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return {}
+    }
+    const out = {}
+    for (const [k, v] of Object.entries(raw)) {
+      const key = String(k)
+      if (v == null) {
+        out[key] = ''
+      } else if (typeof v === 'string') {
+        out[key] = v
+      } else if (typeof v === 'number' || typeof v === 'boolean') {
+        out[key] = String(v)
+      } else {
+        out[key] = JSON.stringify(v)
+      }
+    }
+    return out
+  }
+
+  apiRouter.get('/pdf-issuances/:id', requireAuth, async (req, res) => {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id < 1) {
+      res.status(400).json({ message: 'id 가 올바르지 않습니다.' })
+      return
+    }
+    try {
+      const row = await getIssuanceById(pool, id)
+      if (!row) {
+        res.status(404).json({ message: '이력을 찾을 수 없습니다.' })
+        return
+      }
+      const isSuper = isSuperAdminRole(req.user?.role)
+      const isOwner = row.user_id != null && row.user_id === String(req.user?.id ?? '')
+      if (!isSuper && !isOwner) {
+        res.status(404).json({ message: '이력을 찾을 수 없습니다.' })
+        return
+      }
+      res.json({
+        issuance: {
+          id: row.id,
+          templateId: row.template_id,
+          templateCode: row.template_code,
+          templateTitle: row.template_title,
+          gaId: row.ga_id,
+          userId: row.user_id,
+          createdAt: row.created_at,
+          valuesSnapshot: issuanceValuesSnapshotToDto(row.values_snapshot),
+        },
+      })
+    } catch (error) {
+      handleDbError(res, error)
+    }
+  })
+
+  /*
    * 보관된 PDF 재다운로드.
    *
    * 접근 규칙:

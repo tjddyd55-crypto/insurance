@@ -358,10 +358,29 @@ export interface PdfIssuanceSummary {
   createdAt: string
 }
 
+/** 단건 조회(JSON) — `values_snapshot` 기반 「내용 불러오기」용. 접근 규칙은 `/file` 과 동일. */
+export interface PdfIssuanceDetail {
+  id: number
+  templateId: number | null
+  templateCode: string
+  templateTitle: string
+  gaId: number | null
+  userId: string | null
+  createdAt: string
+  valuesSnapshot: Record<string, string>
+}
+
 export function listPdfIssuances(
   token: string,
 ): Promise<{ issuances: PdfIssuanceSummary[] }> {
   return apiRequest('/api/pdf-issuances', { method: 'GET', token })
+}
+
+export function getPdfIssuance(
+  token: string,
+  id: number,
+): Promise<{ issuance: PdfIssuanceDetail }> {
+  return apiRequest(`/api/pdf-issuances/${id}`, { method: 'GET', token })
 }
 
 /**

@@ -25,6 +25,8 @@ interface Props {
   title: string
   description?: string
   fields: PdfFieldSpec[]
+  /** 과거 발급 `values_snapshot` 등 — customerFacing 필드 키만 덮어쓴다. */
+  prefilledValues?: Record<string, string> | null
   submitting?: boolean
   onSubmit: (values: Record<string, string>) => Promise<void> | void
   submitLabel?: string
@@ -180,16 +182,19 @@ export function PdfTemplateForm({
   title,
   description,
   fields,
+  prefilledValues = null,
   submitting = false,
   onSubmit,
   submitLabel = '발급하기',
 }: Props) {
-  const [values, setValues] = useState<Record<string, string>>(() => initialValues(fields))
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    mergedInitialValues(fields, prefilledValues),
+  )
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setValues(initialValues(fields))
-  }, [fields])
+    setValues(mergedInitialValues(fields, prefilledValues))
+  }, [fields, prefilledValues])
 
   const sortedFields = useMemo(() => {
     return [...fields].filter(fieldIsCustomerFacing).sort((a, b) => a.orderIndex - b.orderIndex)

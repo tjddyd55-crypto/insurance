@@ -615,11 +615,44 @@
 .pdf-engine-issuance-list__head,
 .pdf-engine-issuance-list__row {
   display: grid;
-  grid-template-columns: 2fr 1.5fr 0.8fr 1fr;
+  grid-template-columns: 2fr 1.5fr 0.8fr minmax(220px, 1fr);
   gap: 12px;
   padding: 10px 14px;
   font-size: 13px;
   align-items: center;
+}
+
+.pdf-engine-issuance-list__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pdf-engine-prefill-banner {
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #1f2937;
+  color: #e5e7eb;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .pdf-engine-issuance-list__head {
+    display: none;
+  }
+  .pdf-engine-issuance-list__row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+
+  .pdf-engine-issuance-list__actions {
+    justify-content: flex-start;
+  }
 }
 
 .pdf-engine-issuance-list__head {
@@ -636,17 +669,6 @@
 
 .pdf-engine-issuance-list__row:last-child {
   border-bottom: none;
-}
-
-@media (max-width: 640px) {
-  .pdf-engine-issuance-list__head {
-    display: none;
-  }
-  .pdf-engine-issuance-list__row {
-    grid-template-columns: 1fr;
-    gap: 4px;
-    padding: 12px 14px;
-  }
 }
 
 /* ─── 체크박스 / 라디오 (사용자 폼) ──────────────────────────────── */

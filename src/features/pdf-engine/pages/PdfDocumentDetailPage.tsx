@@ -9,13 +9,13 @@
  * 폼 UI 의 세부는 `PdfTemplateForm` 에 있으므로, 이 페이지는 얇게 유지한다.
  */
 
-import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
-import { getPdfTemplate, renderPdfTemplate } from '../api/pdfTemplateApi'
+import { getPdfIssuance, getPdfTemplate, renderPdfTemplate } from '../api/pdfTemplateApi'
 import { PdfTemplateForm } from '../components/PdfTemplateForm'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
 import '../pdf-engine.css'
@@ -37,6 +37,12 @@ type LoadState =
   | { status: 'error'; message: string }
   | { status: 'ready'; template: PdfTemplateSummary; fields: PdfFieldSpec[] }
 
+type SourcePrefillState =
+  | { kind: 'none' }
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string }
+  | { kind: 'ready'; values: Record<string, string> }
+
 /** Blob → 브라우저 다운로드. URL 누수 방지를 위해 즉시 revoke 한다. */
 function triggerDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
@@ -56,8 +62,16 @@ function triggerDownload(blob: Blob, filename: string): void {
 export default function PdfDocumentDetailPage() {
   const { id: idParam } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const templateId = Number(idParam)
   const { token } = useAuth()
+
+  const sourceIssuanceId = useMemo(() => {
+    const raw = searchParams.get('sourceIssuanceId')
+    if (raw == null || raw === '') return null
+    const n = Number(raw)
+    return Number.isInteger(n) && n >= 1 ? n : null
+  }, [searchParams])
 
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [submitting, setSubmitting] = useState(false)
@@ -66,6 +80,7 @@ export default function PdfDocumentDetailPage() {
   const [previewValues, setPreviewValues] = useState<Record<string, string> | null>(null)
   const [saving, setSaving] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
+  const [sourcePrefill, setSourcePrefill] = useState<SourcePrefillState>({ kind: 'none' })
 
   const closePreview = () => {
     setPreviewOpen(false)
@@ -101,6 +116,44 @@ export default function PdfDocumentDetailPage() {
       cancelled = true
     }
   }, [token, templateId])
+
+  useEffect(() => {
+    if (!token?.trim()) return
+    if (state.status !== 'ready') return
+    if (sourceIssuanceId == null) {
+      setSourcePrefill({ kind: 'none' })
+      return
+    }
+    let cancelled = false
+    setSourcePrefill({ kind: 'loading' })
+    getPdfIssuance(token, sourceIssuanceId)
+      .then((res) => {
+        if (cancelled) return
+        const tid = res.issuance.templateId
+        if (tid == null || tid !== templateId) {
+          setSourcePrefill({
+            kind: 'error',
+            message:
+              '선택한 발급 이력의 템플릿과 현재 문서가 일치하지 않습니다. 목록에서 다시 선택해 주세요.',
+          })
+          return
+        }
+        setSourcePrefill({ kind: 'ready', values: res.issuance.valuesSnapshot })
+      })
+      .catch((e) => {
+        if (cancelled) return
+        setSourcePrefill({
+          kind: 'error',
+          message:
+            e instanceof ApiError
+              ? e.message
+              : '과거 발급 입력값을 불러오지 못했습니다.',
+        })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, state.status, templateId, sourceIssuanceId])
 
   const handleSubmit = async (values: Record<string, string>) => {
     if (!token || state.status !== 'ready') return
@@ -175,6 +228,53 @@ export default function PdfDocumentDetailPage() {
     )
   }
 
+  if (
+    state.status === 'ready' &&
+    sourceIssuanceId != null &&
+    sourcePrefill.kind === 'loading'
+  ) {
+    return (
+      <main className="insurance-dark-forms pdf-engine-page">
+        <div className="pdf-engine-page__toolbar">
+          <Link to="/application/documents" className="pdf-engine-editor__btn">
+            ← 문서 목록
+          </Link>
+        </div>
+        <p className="pdf-engine-page__hint">과거 작성한 신청서에서 입력값을 불러오는 중…</p>
+      </main>
+    )
+  }
+
+  if (
+    state.status === 'ready' &&
+    sourceIssuanceId != null &&
+    sourcePrefill.kind === 'error'
+  ) {
+    return (
+      <main className="insurance-dark-forms pdf-engine-page">
+        <div className="pdf-engine-page__toolbar">
+          <Link to="/application/documents" className="pdf-engine-editor__btn">
+            ← 문서 목록
+          </Link>
+          <Link to="/application/documents/history" className="pdf-engine-editor__btn">
+            과거 작성 목록
+          </Link>
+        </div>
+        <div className="pdf-engine-page__error">{sourcePrefill.message}</div>
+        <div className="pdf-engine-page__toolbar">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="pdf-engine-editor__btn"
+            onClick={() => navigate(0)}
+          >
+            다시 시도
+          </FormButton>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="insurance-dark-forms pdf-engine-page">
       <div className="pdf-engine-page__toolbar">
@@ -182,10 +282,18 @@ export default function PdfDocumentDetailPage() {
           ← 문서 목록
         </Link>
       </div>
+      {sourcePrefill.kind === 'ready' ? (
+        <div className="pdf-engine-prefill-banner" role="status">
+          과거 작성한 신청서에서 불러온 내용입니다. 수정 후 다시 출력하면 새 발급 이력으로 저장됩니다.
+        </div>
+      ) : null}
       <PdfTemplateForm
         title={state.template.title}
         description={state.template.description}
         fields={state.fields}
+        prefilledValues={
+          sourcePrefill.kind === 'ready' ? sourcePrefill.values : null
+        }
         submitting={submitting}
         onSubmit={handleSubmit}
         submitLabel="결과보기"
