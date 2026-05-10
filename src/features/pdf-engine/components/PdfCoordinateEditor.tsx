@@ -552,6 +552,20 @@ export function PdfCoordinateEditor({
                 </p>
               ) : null}
 
+              {selectedField.fieldType === 'text' || selectedField.fieldType === 'textarea' ? (
+                <p className="pdf-engine-editor__hint" style={{ marginTop: 6 }}>
+                  여기에서는 필드명·타입·PDF 위 박스 영역 중심으로 지정하면 됩니다. 글자 크기는 신청 입력
+                  화면에서 필드별로 조절하며, 기본은 11pt 입니다.
+                </p>
+              ) : null}
+
+              {selectedField.fieldType === 'radio' ? (
+                <p className="pdf-engine-editor__hint" style={{ marginTop: 6 }}>
+                  각 옵션 박스는 실제로 원 표시가 들어갈 작은 영역을 기준으로 잡습니다(텍스트 라벨 전체를
+                  박스로 크게 잡을 필요 없음).
+                </p>
+              ) : null}
+
               {selectedField.fieldType === 'radio' || selectedField.fieldType === 'checkbox' ? (
                 <RadioOptionsEditor
                   options={selectedField.options ?? []}
@@ -763,14 +777,14 @@ function PlacementMetaEditor({ placement, onPatch }: PlacementMetaEditorProps) {
       </div>
       <div className="pdf-engine-editor__row">
         <label className="pdf-engine-editor__label">
-          글자 크기 (pt)
+          글자 크기 (pt, 선택 입력)
           <FormInput
             type="number"
             min={0}
             step={1}
             value={numericInputValue(placement.fontSize)}
             onChange={handleNumericChange('fontSize')}
-            placeholder="기본 11"
+            placeholder="비우면 기본값(신청 입력 11pt)"
           />
         </label>
       </div>

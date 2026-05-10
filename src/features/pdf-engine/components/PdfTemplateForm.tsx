@@ -46,6 +46,39 @@ function initialValues(fields: PdfFieldSpec[]): Record<string, string> {
   return out
 }
 
+export function splitPdfSnapshot(snapshot: Record<string, string>): {
+  values: Record<string, string>
+  fontSizes: Record<string, number>
+} {
+  const { _pdf_fs: fsRaw, ...rest } = snapshot
+  let fontSizes: Record<string, number> = {}
+  if (typeof fsRaw === 'string' && fsRaw.trim()) {
+    try {
+      const p = JSON.parse(fsRaw)
+      if (p && typeof p === 'object' && !Array.isArray(p)) {
+        fontSizes = p as Record<string, number>
+      }
+    } catch {
+      fontSizes = {}
+    }
+  }
+  return { values: rest, fontSizes }
+}
+
+export function mergedInitialValues(
+  fields: PdfFieldSpec[],
+  prefilledValues: Record<string, string> | null | undefined,
+): Record<string, string> {
+  const base = initialValues(fields)
+  if (!prefilledValues) return base
+  const merged = { ...base }
+  const { values: snap } = splitPdfSnapshot(prefilledValues)
+  for (const key of Object.keys(snap)) {
+    merged[key] = snap[key]
+  }
+  return merged
+}
+
 function isEmpty(value: string): boolean {
   return !value || !value.trim()
 }

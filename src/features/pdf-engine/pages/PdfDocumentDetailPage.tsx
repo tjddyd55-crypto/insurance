@@ -1,22 +1,26 @@
 /**
- * 사용자용 문서 상세 — 폼 입력 → PDF 발급.
- *
- * 책임:
- *   - 서버에서 단건 템플릿(필드 포함) 로드
- *   - `PdfTemplateForm` 에 위임해 입력 받고, submit 시 render API 호출
- *   - Blob → 브라우저 다운로드 트리거(메모리 정리까지)
- *
- * 폼 UI 의 세부는 `PdfTemplateForm` 에 있으므로, 이 페이지는 얇게 유지한다.
+ * 사용자용 문서 상세 — PC/모바일 분리 뷰 + 실시간 PDF 오버레이 미리보기.
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { FormButton } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
-import { getPdfIssuance, getPdfTemplate, renderPdfTemplate } from '../api/pdfTemplateApi'
-import { PdfTemplateForm } from '../components/PdfTemplateForm'
+import {
+  fetchPdfTemplateFile,
+  getPdfIssuance,
+  getPdfTemplate,
+  renderPdfTemplate,
+} from '../api/pdfTemplateApi'
+import { mergedInitialValues, splitPdfSnapshot } from '../components/PdfTemplateForm'
+import PdfDocumentApplicantPCView from './pdf-document/PdfDocumentApplicantPCView'
+import PdfDocumentApplicantMobileView from './pdf-document/PdfDocumentApplicantMobileView'
+import type { PdfDocumentApplicantViewProps } from './pdf-document/pdfDocumentApplicantViewProps'
+import { clampApplicantFontSizePt } from '../lib/pdfApplicantTypography'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
 import '../pdf-engine.css'
 
@@ -30,6 +34,24 @@ function coercePdfFieldSpecForForm(f: PdfFieldSpec & { id?: number }): PdfFieldS
         ? rest.inputRole
         : 'customer'
   return { ...rest, inputRole }
+}
+
+function pickFontSnapshotsFromIssuance(
+  fields: PdfFieldSpec[],
+  snapFonts: Record<string, number>,
+): Record<string, number> {
+  const textKeys = new Set(
+    fields.filter((f) => f.fieldType === 'text' || f.fieldType === 'textarea').map((f) => f.fieldKey),
+  )
+  const out: Record<string, number> = {}
+  for (const [k0, v0] of Object.entries(snapFonts)) {
+    const k = String(k0)
+    if (!textKeys.has(k)) continue
+    const n = Number(v0)
+    if (!Number.isFinite(n) || n <= 0) continue
+    out[k] = clampApplicantFontSizePt(n)
+  }
+  return out
 }
 
 type LoadState =
@@ -78,13 +100,20 @@ export default function PdfDocumentDetailPage() {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewValues, setPreviewValues] = useState<Record<string, string> | null>(null)
+  const [previewFonts, setPreviewFonts] = useState<Record<string, number>>({})
   const [saving, setSaving] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [sourcePrefill, setSourcePrefill] = useState<SourcePrefillState>({ kind: 'none' })
 
+  const [pdfBuffer, setPdfBuffer] = useState<ArrayBuffer | null>(null)
+  const [applicantValues, setApplicantValues] = useState<Record<string, string>>({})
+  const [fontOverrides, setFontOverrides] = useState<Record<string, number>>({})
+  const [focusedFieldKey, setFocusedFieldKey] = useState<string | null>(null)
+
   const closePreview = () => {
     setPreviewOpen(false)
     setPreviewValues(null)
+    setPreviewFonts({})
     setPreviewError(null)
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl)
@@ -116,6 +145,24 @@ export default function PdfDocumentDetailPage() {
       cancelled = true
     }
   }, [token, templateId])
+
+  useEffect(() => {
+    if (!token?.trim() || state.status !== 'ready') {
+      setPdfBuffer(null)
+      return
+    }
+    let cancelled = false
+    fetchPdfTemplateFile(token, templateId)
+      .then((buf) => {
+        if (!cancelled) setPdfBuffer(buf)
+      })
+      .catch(() => {
+        if (!cancelled) setPdfBuffer(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, state.status, templateId])
 
   useEffect(() => {
     if (!token?.trim()) return
@@ -155,33 +202,58 @@ export default function PdfDocumentDetailPage() {
     }
   }, [token, state.status, templateId, sourceIssuanceId])
 
-  const handleSubmit = async (values: Record<string, string>) => {
-    if (!token || state.status !== 'ready') return
-    setSubmitting(true)
-    try {
-      const blob = await renderPdfTemplate(token, templateId, values, { preview: true })
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl)
+  useEffect(() => {
+    if (state.status !== 'ready') return
+    if (sourceIssuanceId != null && sourcePrefill.kind !== 'ready') return
+    const issuanceSnapshot = sourcePrefill.kind === 'ready' ? sourcePrefill.values : null
+    const { fontSizes: snapFsRaw } =
+      issuanceSnapshot != null ? splitPdfSnapshot(issuanceSnapshot) : { fontSizes: {} as Record<string, number> }
+    const mergedVals = mergedInitialValues(state.fields, issuanceSnapshot)
+    setApplicantValues(mergedVals)
+    setFontOverrides(pickFontSnapshotsFromIssuance(state.fields, snapFsRaw))
+    setFocusedFieldKey(null)
+  }, [
+    templateId,
+    state.status === 'ready' ? state.template.id : 0,
+    sourceIssuanceId,
+    sourcePrefill.kind,
+  ])
+
+  const handleSubmitApplicant = useCallback(
+    async (values: Record<string, string>, persistFonts: Record<string, number>) => {
+      if (!token || state.status !== 'ready') return
+      setSubmitting(true)
+      try {
+        const blob = await renderPdfTemplate(token, templateId, values, {
+          preview: true,
+          fontSizes: Object.keys(persistFonts).length > 0 ? persistFonts : undefined,
+        })
+        setPreviewUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev)
+          return URL.createObjectURL(blob)
+        })
+        setPreviewValues(values)
+        setPreviewFonts(persistFonts)
+        setPreviewError(null)
+        setPreviewOpen(true)
+      } catch (e) {
+        const message = e instanceof ApiError ? e.message : 'PDF 생성에 실패했습니다.'
+        throw new Error(message)
+      } finally {
+        setSubmitting(false)
       }
-      const nextUrl = URL.createObjectURL(blob)
-      setPreviewUrl(nextUrl)
-      setPreviewValues(values)
-      setPreviewError(null)
-      setPreviewOpen(true)
-    } catch (e) {
-      const message = e instanceof ApiError ? e.message : 'PDF 생성에 실패했습니다.'
-      throw new Error(message)
-    } finally {
-      setSubmitting(false)
-    }
-  }
+    },
+    [token, templateId, state.status, state.status === 'ready' ? state.template.id : 0],
+  )
 
   const handleSaveFromPreview = async () => {
     if (!token || state.status !== 'ready' || !previewValues) return
     setSaving(true)
     setPreviewError(null)
     try {
-      const blob = await renderPdfTemplate(token, templateId, previewValues)
+      const blob = await renderPdfTemplate(token, templateId, previewValues, {
+        fontSizes: Object.keys(previewFonts).length > 0 ? previewFonts : undefined,
+      })
       triggerDownload(blob, `${state.template.code}.pdf`)
       closePreview()
     } catch (e) {
@@ -200,16 +272,53 @@ export default function PdfDocumentDetailPage() {
     }
   }, [previewUrl])
 
+  const prefillBanner = useMemo<ReactNode>(
+    () =>
+      sourcePrefill.kind === 'ready' ? (
+        <div className="pdf-engine-prefill-banner" role="status">
+          과거 작성한 신청서에서 불러온 내용입니다. 수정 후 다시 출력하면 새 발급 이력으로 저장됩니다.
+        </div>
+      ) : null,
+    [sourcePrefill.kind],
+  )
+
+  const applicantViewProps = useMemo<PdfDocumentApplicantViewProps | null>(() => {
+    if (state.status !== 'ready') return null
+    return {
+      template: state.template,
+      fields: state.fields,
+      pdfBuffer,
+      values: applicantValues,
+      fontOverrides,
+      focusedFieldKey,
+      prefillBanner,
+      submitting,
+      onChangeValues: setApplicantValues,
+      onChangeFontOverrides: setFontOverrides,
+      onFocusedFieldChange: setFocusedFieldKey,
+      onSubmitApplicant: handleSubmitApplicant,
+    }
+  }, [
+    state,
+    pdfBuffer,
+    applicantValues,
+    fontOverrides,
+    focusedFieldKey,
+    prefillBanner,
+    submitting,
+    handleSubmitApplicant,
+  ])
+
   if (state.status === 'loading') {
     return (
-      <main className="insurance-dark-forms pdf-engine-page">
+      <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--pc page--with-back">
         <p className="pdf-engine-page__hint">문서를 불러오는 중…</p>
       </main>
     )
   }
   if (state.status === 'error') {
     return (
-      <main className="insurance-dark-forms pdf-engine-page">
+      <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--pc page--with-back">
         <div className="pdf-engine-page__error">{state.message}</div>
         <div className="pdf-engine-page__toolbar">
           <Link to="/application/documents" className="pdf-engine-editor__btn">
@@ -234,7 +343,7 @@ export default function PdfDocumentDetailPage() {
     sourcePrefill.kind === 'loading'
   ) {
     return (
-      <main className="insurance-dark-forms pdf-engine-page">
+      <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--mobile page--with-back">
         <div className="pdf-engine-page__toolbar">
           <Link to="/application/documents" className="pdf-engine-editor__btn">
             ← 문서 목록
@@ -251,7 +360,7 @@ export default function PdfDocumentDetailPage() {
     sourcePrefill.kind === 'error'
   ) {
     return (
-      <main className="insurance-dark-forms pdf-engine-page">
+      <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--mobile page--with-back">
         <div className="pdf-engine-page__toolbar">
           <Link to="/application/documents" className="pdf-engine-editor__btn">
             ← 문서 목록
@@ -275,28 +384,16 @@ export default function PdfDocumentDetailPage() {
     )
   }
 
+  if (!applicantViewProps) {
+    return null
+  }
+
   return (
-    <main className="insurance-dark-forms pdf-engine-page">
-      <div className="pdf-engine-page__toolbar">
-        <Link to="/application/documents" className="pdf-engine-editor__btn">
-          ← 문서 목록
-        </Link>
-      </div>
-      {sourcePrefill.kind === 'ready' ? (
-        <div className="pdf-engine-prefill-banner" role="status">
-          과거 작성한 신청서에서 불러온 내용입니다. 수정 후 다시 출력하면 새 발급 이력으로 저장됩니다.
-        </div>
-      ) : null}
-      <PdfTemplateForm
-        title={state.template.title}
-        description={state.template.description}
-        fields={state.fields}
-        prefilledValues={
-          sourcePrefill.kind === 'ready' ? sourcePrefill.values : null
-        }
-        submitting={submitting}
-        onSubmit={handleSubmit}
-        submitLabel="결과보기"
+    <>
+      <ResponsiveLayout<PdfDocumentApplicantViewProps>
+        PC={PdfDocumentApplicantPCView}
+        Mobile={PdfDocumentApplicantMobileView}
+        viewProps={applicantViewProps}
       />
       <Modal
         open={previewOpen}
@@ -342,6 +439,6 @@ export default function PdfDocumentDetailPage() {
           </div>
         </div>
       </Modal>
-    </main>
+    </>
   )
 }

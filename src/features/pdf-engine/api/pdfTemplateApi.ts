@@ -211,11 +211,28 @@ export function saveAdminPdfTemplateFields(
   })
 }
 
+/**
+ * 사용자 권한으로 템플릿 원본 PDF 를 바이너리로 받는다(신청 미리보기 오버레이용).
+ */
+export async function fetchPdfTemplateFile(token: string, id: number): Promise<ArrayBuffer> {
+  const url = resolveApiUrl(`/api/pdf-templates/${id}/file`)
+  return fetchAuthorizedPdfTemplateBuffer(token, url, id, 'user')
+}
+
 export async function fetchAdminPdfTemplateFile(
   token: string,
   id: number,
 ): Promise<ArrayBuffer> {
   const url = resolveApiUrl(`/api/admin/pdf-templates/${id}/file`)
+  return fetchAuthorizedPdfTemplateBuffer(token, url, id, 'admin')
+}
+
+async function fetchAuthorizedPdfTemplateBuffer(
+  token: string,
+  url: string,
+  templateId: number,
+  kind: 'admin' | 'user',
+): Promise<ArrayBuffer> {
   let res: Response
   try {
     res = await fetch(url, {
@@ -224,7 +241,8 @@ export async function fetchAdminPdfTemplateFile(
     })
   } catch (networkError) {
     logger.error('pdf-template.file.network-failed', {
-      templateId: id,
+      templateId,
+      kind,
       url,
       error: networkError,
     })
@@ -233,7 +251,8 @@ export async function fetchAdminPdfTemplateFile(
 
   if (!res.ok) {
     throw await toApiError(res, '원본 PDF 를 불러오지 못했습니다.', 'pdf-template.file.http-error', {
-      templateId: id,
+      templateId,
+      kind,
     })
   }
 
@@ -246,7 +265,8 @@ export async function fetchAdminPdfTemplateFile(
    */
   if (contentTypeLower.includes('text/html') || contentTypeLower.includes('application/json')) {
     logger.error('pdf-template.file.non-pdf-content-type', {
-      templateId: id,
+      templateId,
+      kind,
       contentType,
       status: res.status,
     })
@@ -269,7 +289,8 @@ export async function fetchAdminPdfTemplateFile(
    */
   if (buffer.byteLength === 0) {
     logger.error('pdf-template.file.empty-body', {
-      templateId: id,
+      templateId,
+      kind,
       status: res.status,
       contentType,
       declaredLength,
@@ -286,7 +307,8 @@ export async function fetchAdminPdfTemplateFile(
   if (!hasPdfSignature) {
     if (bodyLooksLikeTextProtocolResponse(buffer)) {
       logger.error('pdf-template.file.body-looks-like-text-not-pdf', {
-        templateId: id,
+        templateId,
+        kind,
         byteLength: buffer.byteLength,
         contentType,
       })
@@ -297,13 +319,15 @@ export async function fetchAdminPdfTemplateFile(
     }
     if (contentTypeSuggestsPdfBytes(contentTypeLower)) {
       logger.warn('pdf-template.file.no-pdf-signature-trusting-binary-content-type', {
-        templateId: id,
+        templateId,
+        kind,
         byteLength: buffer.byteLength,
         contentType,
       })
     } else {
       logger.warn('pdf-template.file.no-pdf-signature-defer-to-pdfjs', {
-        templateId: id,
+        templateId,
+        kind,
         byteLength: buffer.byteLength,
         contentType,
       })
@@ -319,7 +343,8 @@ export async function fetchAdminPdfTemplateFile(
    * 프로덕션 debug 는 조용히 버려지므로 용량 부담은 없다.
    */
   logger.debug('pdf-template.file.loaded', {
-    templateId: id,
+    templateId,
+    kind,
     status: res.status,
     contentType,
     declaredLength,
@@ -419,16 +444,23 @@ export async function renderPdfTemplate(
   token: string,
   id: number,
   values: Record<string, string>,
-  options?: { preview?: boolean },
+  options?: { preview?: boolean; fontSizes?: Record<string, number> },
 ): Promise<Blob> {
   const query = options?.preview ? '?preview=1' : ''
   const url = resolveApiUrl(`/api/pdf-templates/${id}/render${query}`)
+  const payload: { values: Record<string, string>; fontSizes?: Record<string, number> } = {
+    values,
+  }
+  const fs = options?.fontSizes
+  if (fs && typeof fs === 'object' && Object.keys(fs).length > 0) {
+    payload.fontSizes = fs
+  }
   let res: Response
   try {
     res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader(token) },
-      body: JSON.stringify({ values }),
+      body: JSON.stringify(payload),
     })
   } catch (networkError) {
     logger.error('pdf-template.render.network-failed', {

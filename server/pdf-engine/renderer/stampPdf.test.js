@@ -149,6 +149,43 @@ test('stampPdf: radio 는 선택된 옵션의 placement 만 체크', async (t) =
   assert.ok(outF.byteLength > 0)
 })
 
+test('stampPdf: fontSize override 가 달라지면 출력 바이트가 달라질 수 있다', async (t) => {
+  if (!(await hasFont())) {
+    t.skip('한글 폰트 파일이 없어 skip')
+    return
+  }
+  const template = await buildBlankPdf()
+  const fields = normalizeFieldSpecList([
+    {
+      fieldKey: 'memo',
+      label: '메모',
+      fieldType: 'textarea',
+      required: false,
+      orderIndex: 0,
+      placements: [{ page: 0, x: 60, y: 760, width: 300, height: 120, fontSize: 11 }],
+    },
+  ])
+  const longText =
+    '같은 문자열을 다른 런타임 글자 크기로 스탬프할 때 스트림 길이나 압축 결과가 달라질 수 있어 회귀 스모크로 비교한다.'
+  const small = await stampPdf(
+    template,
+    fields,
+    { memo: longText },
+    {},
+    { memo: 8 },
+  )
+  const large = await stampPdf(
+    template,
+    fields,
+    { memo: longText },
+    {},
+    { memo: 22 },
+  )
+  await PDFDocument.load(small)
+  await PDFDocument.load(large)
+  assert.notEqual(small.compare(large), 0)
+})
+
 test('stampPdf: 잘못된 페이지 인덱스 placement 는 건너뛰고 성공', async (t) => {
   if (!(await hasFont())) {
     t.skip('한글 폰트 파일이 없어 skip')
