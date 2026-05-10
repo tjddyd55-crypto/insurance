@@ -8,7 +8,9 @@ export default function CustomerTemplatesPCView({ templates }: CustomerTemplates
       <header className="platform-admin-page__head">
         <h1 className="platform-admin-page__title">고객관리 템플릿</h1>
         <p className="platform-admin-page__lede">
-          업종별 정의(정적 조회). 현재 API·DB 저장 없음 · CustomersPage 미연결.
+          업종별 정적 정의(조회만). 목록 원천은 <code className="platform-admin-page__mono">STATIC_CUSTOMER_INDUSTRY_TEMPLATES</code> 이며, 세션 업종 코드로 붙일 때는{' '}
+          <code className="platform-admin-page__mono">getCustomerIndustryTemplateByIndustryCode</code> 를 사용한다.
+          현재 고객 등록 폼(CustomersPage)과는 아직 연결되지 않았고, API·DB로 템플릿을 고치는 빌더는 없다.
         </p>
       </header>
 
