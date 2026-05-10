@@ -10399,6 +10399,317 @@ textarea.memo-sticky-note__textarea::placeholder {
   gap: 16px;
 }
 
+.platform-admin-page__grid-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .platform-admin-page__grid-two {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 동적 CRM 템플릿 에디터: 패널 내부 폼 줄 (platform-hub 공용 form-field 와 분리) */
+.platform-admin-page--pc .platform-admin-panel {
+  padding: 14px 16px;
+  border-radius: 10px;
+  margin-bottom: 0;
+  border: 1px solid var(--border-subtle, #334155);
+  background: var(--panel-bg, #111827);
+}
+
+.platform-admin-page--pc .platform-admin-panel__title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.platform-admin-page--pc .platform-admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.platform-admin-page--pc .platform-admin-field__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.platform-admin-page--pc .platform-admin-field__control {
+  background: #020617;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 8px 12px;
+  outline: none;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.platform-admin-page--pc .platform-admin-field__control.mono {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace;
+  font-size: 12px;
+}
+
+.platform-admin-page--pc .platform-admin-field__control:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+}
+
+.platform-admin-page--pc .platform-admin-field__control::placeholder {
+  color: #64748b;
+}
+
+.platform-admin-page--pc .platform-admin-field--stack .platform-admin-field__control {
+  min-height: 88px;
+  resize: vertical;
+}
+
+/* 동적 고객 템플릿 빌더 (탭·카드 레이아웃) — platform-admin-page 내에서만 */
+.platform-admin-page--pc .crm-template-builder__tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.platform-admin-page--pc .crm-template-builder__tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+}
+
+.platform-admin-page--pc .crm-template-builder__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.platform-admin-page--pc .crm-template-builder__card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.platform-admin-page--pc .crm-template-builder__card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  background: #0f172a;
+}
+
+.platform-admin-page--pc .crm-template-builder__card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.platform-admin-page--pc .crm-template-builder__card-title {
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.platform-admin-page--pc .crm-template-builder__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.platform-admin-page--pc .crm-template-builder__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.platform-admin-page--pc .crm-template-builder__full-row {
+  grid-column: 1 / -1;
+}
+
+.platform-admin-page--pc .crm-template-builder__options-block {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #334155;
+}
+
+.platform-admin-page--pc .crm-template-builder__option-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 900px) {
+  .platform-admin-page--pc .crm-template-builder__option-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.platform-admin-page--pc .crm-template-builder__chip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.platform-admin-page--pc .crm-template-builder__chip-list code {
+  color: #cbd5e1;
+}
+
+.platform-admin-page--pc .crm-template-builder__chip-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #334155;
+  background: #020617;
+  font-size: 12px;
+}
+
+.platform-admin-page--pc .crm-template-builder__chip-remove {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.platform-admin-page--pc .crm-template-builder__chip-remove:hover {
+  color: #fca5a5;
+}
+
+.platform-admin-page--pc .crm-template-builder__advanced {
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px dashed #475569;
+}
+
+.platform-admin-page--pc .crm-template-builder__advanced summary {
+  cursor: pointer;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.platform-admin-page--pc .crm-template-builder__advanced-pre {
+  max-height: 380px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: #020617;
+  border: 1px solid #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .platform-admin-page--pc .crm-template-builder__preview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-mock-card {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px dashed #475569;
+  background: #020617;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-mock-line1 {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-mock-line2 {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-dl {
+  margin: 0;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-dl dt {
+  color: #cbd5e1;
+  font-weight: 600;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-dl dd {
+  margin: 2px 0 0;
+  color: #e5e7eb;
+}
+
+.platform-admin-page--pc .crm-template-builder__detail-preview-tab {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #334155;
+}
+
+.platform-admin-page--pc .crm-template-builder__detail-preview-tab h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: #f8fafc;
+}
+
+.platform-admin-page--pc .crm-template-builder__nested {
+  border-top: 1px solid #1e293b;
+  padding-top: 12px;
+}
+
+.platform-admin-page--pc .crm-template-builder__field-order li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.platform-admin-page--pc .crm-template-builder__field-order-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
 .platform-admin-page__grid--mobile {
   grid-template-columns: 1fr;
 }

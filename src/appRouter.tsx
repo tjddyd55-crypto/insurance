@@ -68,6 +68,8 @@ import MembershipsListPage from './features/platform/pages/memberships/Membershi
 import ExternalAccountsSummaryPage from './features/platform/pages/external-accounts/ExternalAccountsSummaryPage'
 import CustomerTemplatesPage from './features/platform/pages/customer-templates/CustomerTemplatesPage'
 import CustomerTemplatePreviewPage from './features/platform/pages/customer-templates/preview/CustomerTemplatePreviewPage'
+import CrmCustomerManagementTemplatesListPage from './features/platform/pages/crm-templates/CrmCustomerManagementTemplatesListPage'
+import CrmCustomerManagementTemplateEditorPage from './features/platform/pages/crm-templates/CrmCustomerManagementTemplateEditorPage'
 import IndustryModeLandingPage from './features/platform/pages/modes/IndustryModeLandingPage'
 import TenantModeLandingPage from './features/platform/pages/modes/TenantModeLandingPage'
 import PlatformRegistriesPage from './features/platform/pages/registries/PlatformRegistriesPage'
@@ -301,6 +303,18 @@ export const appRouter = createBrowserRouter([
                   {
                     path: 'admin/platform/external-accounts',
                     element: <ExternalAccountsSummaryPage />,
+                  },
+                  {
+                    path: 'admin/platform/crm-customer-management-templates/new',
+                    element: <CrmCustomerManagementTemplateEditorPage />,
+                  },
+                  {
+                    path: 'admin/platform/crm-customer-management-templates/:id/edit',
+                    element: <CrmCustomerManagementTemplateEditorPage />,
+                  },
+                  {
+                    path: 'admin/platform/crm-customer-management-templates',
+                    element: <CrmCustomerManagementTemplatesListPage />,
                   },
                   {
                     path: 'admin/platform/customer-templates/:templateId/preview',

@@ -24,9 +24,14 @@ const hubCards = [
     description: '원수사 담당·손해사정사 건수 (yjasset)',
   },
   {
+    to: '/admin/platform/crm-customer-management-templates',
+    title: '동적 고객관리 템플릿 빌더',
+    description: '업종별 폼·목록·상세 탭을 DB에 저장(보험 제외)',
+  },
+  {
     to: '/admin/platform/customer-templates',
-    title: '고객관리 템플릿',
-    description: '업종별 고객 템플릿 조회(정적)',
+    title: '고객관리 템플릿(정적)',
+    description: '코드 기반 정적 템플릿·프리뷰 SSOT',
   },
   {
     to: '/admin/platform/registries',
