@@ -1,8 +1,8 @@
 import type { CustomerIndustryTemplate } from '../customerTemplate.types'
 
 /**
- * 국가지원 사업 CRM 고객 템플릿 v0.1 — 코드 선언만 (DB/CustomersPage 미연결).
- * 필드는 canonical fieldKey 사용. 보험 전용 extension/필드 없음.
+ * 국가지원 사업 CRM 고객 템플릿 v0.1 — canonical fieldKey.
+ * 코어 컬럼은 customers 테이블, 그 외는 `crm_extension.fields`에 저장된다.
  *
  * formFields 순서 = 기본고객 → 사업장 → 지원사업 → 기대출 → 계약 → 문서 → 내부관리(담당·유입·우선·상담·메모요약).
  * detailTabs: 문서 → 내부 관리 → 메모/처리 이력(formFields 말미와 흐름 정합).

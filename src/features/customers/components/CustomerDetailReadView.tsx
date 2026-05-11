@@ -11,6 +11,7 @@ import {
 import { CustomerCarsReadSection } from './CustomerCarsReadSection'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
+import { governmentDetailSummaryRows, isGovernmentIndustryTemplate } from '../utils/governmentCustomerUi'
 import { industryTemplateReadPreviewRows, industryTemplateReadPreviewRowsForFieldKeys } from '../utils/industryCustomerReadSummary'
 
 export type CustomerDetailInsuranceDisplay = {
@@ -74,9 +75,31 @@ export default function CustomerDetailReadView({
       .sort((a, b) => a.order - b.order)
 
     const fallbackRows = industryTemplateReadPreviewRows(c, crmIndustryTemplate, 28)
+    const govSummaryRows = isGovernmentIndustryTemplate(crmIndustryTemplate)
+      ? governmentDetailSummaryRows(c, crmIndustryTemplate)
+      : null
 
     return (
       <div className="customer-detail-read">
+        {govSummaryRows != null && govSummaryRows.length > 0 ? (
+          <section className="customer-detail-read__section" aria-labelledby="gov-ops-summary-heading">
+            <div className="customer-detail-read__section-header">
+              <h4 id="gov-ops-summary-heading" className="customer-detail-read__section-title">
+                지원·접수 현황
+              </h4>
+            </div>
+            <div className="customer-detail-read__section-body">
+              <div className="customer-detail-read__info-list">
+                {govSummaryRows.map((r) => (
+                  <DetailReadInfoRow key={`gov-ops-${r.canonicalKey}`}>
+                    <span className="customer-detail-read__info-label">{r.label}:</span>{' '}
+                    <span className="customer-detail-read__info-value">{r.value}</span>
+                  </DetailReadInfoRow>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
         {dynTabs.length > 0
           ? dynTabs.map((tab) => {
               const rows = industryTemplateReadPreviewRowsForFieldKeys(

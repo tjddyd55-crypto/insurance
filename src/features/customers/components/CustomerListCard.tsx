@@ -3,6 +3,8 @@ import { EXPANDABLE_CARD_INVALID_ID, useExpandableCard } from '../../../hooks/us
 import { FormButton, FormInput } from '../../../components/form'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
 import type { CustomerRecord } from '../domain/types'
+import { getCustomerListMetrics } from '../utils/customerListMetrics'
+import { formatGovernmentCardMetaSecondaryLine, isGovernmentIndustryTemplate } from '../utils/governmentCustomerUi'
 import { formatIndustryCustomerListSecondaryLine } from '../utils/industryCustomerListSummary'
 import { formatDateYmdInput } from '../utils/insuranceInfo'
 import type { CustomerEditFormState } from '../types/customerEditForm'
@@ -288,6 +290,8 @@ const CustomerListCard = memo(function CustomerListCard({
                     <>
                       상령일: {ins.dateText} · 상담일: {recentConsultText}
                     </>
+                  ) : isGovernmentIndustryTemplate(crmIndustryTemplate) ? (
+                    formatGovernmentCardMetaSecondaryLine(c, crmIndustryTemplate)
                   ) : (
                     formatIndustryCustomerListSecondaryLine(c, crmIndustryTemplate)
                   )}
