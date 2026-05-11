@@ -282,6 +282,7 @@ export default function IndustryDetailMobileView({
         clearTenantAdminAssignFeedback={clearTenantAdminAssignFeedback}
         closeTenantAdminManage={closeTenantAdminManage}
         token={token}
+        refetchTenants={refetchTenants}
       />
       <IndustryTenantStaffUserManageSection
         variant="mobile"

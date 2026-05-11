@@ -1328,6 +1328,7 @@ export function registerPlatformAdminApi(apiRouter, deps) {
             t.name,
             t.status,
             t.legacy_ga_id,
+            t.crm_customer_template_id,
             t.created_at,
             t.updated_at
           FROM tenants t
@@ -1347,6 +1348,10 @@ export function registerPlatformAdminApi(apiRouter, deps) {
             name: row.name,
             status: row.status,
             legacyGaId: row.legacy_ga_id != null ? Number(row.legacy_ga_id) : null,
+            crmCustomerTemplateId:
+              row.crm_customer_template_id != null && row.crm_customer_template_id !== ''
+                ? Number(row.crm_customer_template_id)
+                : null,
             createdAt: toIso(row.created_at),
             updatedAt: toIso(row.updated_at),
           })),
@@ -1465,7 +1470,7 @@ export function registerPlatformAdminApi(apiRouter, deps) {
               config
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
-            RETURNING id, industry_id, code, name, status, legacy_ga_id, created_at, updated_at
+            RETURNING id, industry_id, code, name, status, legacy_ga_id, crm_customer_template_id, created_at, updated_at
             `,
             [industryIdParsed, code, name, status, legacyGaId, r2KeyPrefix, configSerialized],
           )
@@ -1523,6 +1528,10 @@ export function registerPlatformAdminApi(apiRouter, deps) {
           name: row.name,
           status: row.status,
           legacyGaId: row.legacy_ga_id != null ? Number(row.legacy_ga_id) : null,
+          crmCustomerTemplateId:
+            row.crm_customer_template_id != null && row.crm_customer_template_id !== ''
+              ? Number(row.crm_customer_template_id)
+              : null,
           createdAt: toIso(row.created_at),
           updatedAt: toIso(row.updated_at),
         })
@@ -2269,6 +2278,7 @@ export function registerPlatformAdminApi(apiRouter, deps) {
           t.name,
           t.status,
           t.legacy_ga_id,
+          t.crm_customer_template_id,
           t.created_at,
           t.updated_at
         FROM tenants t
@@ -2284,6 +2294,10 @@ export function registerPlatformAdminApi(apiRouter, deps) {
           name: row.name,
           status: row.status,
           legacyGaId: row.legacy_ga_id != null ? Number(row.legacy_ga_id) : null,
+          crmCustomerTemplateId:
+            row.crm_customer_template_id != null && row.crm_customer_template_id !== ''
+              ? Number(row.crm_customer_template_id)
+              : null,
           createdAt: toIso(row.created_at),
           updatedAt: toIso(row.updated_at),
         })),

@@ -4,6 +4,7 @@ import FormInput from '../../../../components/form/FormInput'
 import FormSelect from '../../../../components/form/FormSelect'
 import { PlatformUserSearchSelect } from '../../components/PlatformUserSearchSelect'
 import type { PlatformTenantAdminMember, PlatformTenantMember, PlatformTenantRow } from '../../platformAdmin.types'
+import { IndustryTenantCrmTemplateSection } from './IndustryTenantCrmTemplateSection'
 
 const TENANT_STATUS_OPTIONS = [
   { value: 'active', label: 'active' },
@@ -394,6 +395,7 @@ export type IndustryTenantAdminManageSectionProps = {
   clearTenantAdminAssignFeedback: () => void
   closeTenantAdminManage: () => void
   token: string | null
+  refetchTenants: () => void | Promise<void>
 }
 
 export function IndustryTenantAdminManageSection({
@@ -414,6 +416,7 @@ export function IndustryTenantAdminManageSection({
   clearTenantAdminAssignFeedback,
   closeTenantAdminManage,
   token,
+  refetchTenants,
 }: IndustryTenantAdminManageSectionProps) {
   if (!industryRowPresent || tenantAdminTargetTenantId == null) {
     return null
@@ -461,6 +464,15 @@ export function IndustryTenantAdminManageSection({
           </dl>
         </div>
       )}
+
+      {selectedTenant != null ? (
+        <IndustryTenantCrmTemplateSection
+          variant={variant}
+          token={token}
+          selectedTenant={selectedTenant}
+          refetchTenants={refetchTenants}
+        />
+      ) : null}
 
       {tenantAdminsError ? (
         <div className="platform-admin-page__panel platform-admin-page__panel--error" role="alert">

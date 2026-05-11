@@ -297,6 +297,7 @@ export default function IndustryDetailPCView({
         clearTenantAdminAssignFeedback={clearTenantAdminAssignFeedback}
         closeTenantAdminManage={closeTenantAdminManage}
         token={token}
+        refetchTenants={refetchTenants}
       />
       <IndustryTenantStaffUserManageSection
         variant="pc"

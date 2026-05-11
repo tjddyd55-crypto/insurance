@@ -40,6 +40,8 @@ export type PlatformTenantRow = {
   name: string
   status: string
   legacyGaId: number | null
+  /** 서버가 필드를 내려주지 않으면 미지정과 동일하게 취급 */
+  crmCustomerTemplateId?: number | null
   createdAt: string | null
   updatedAt: string | null
 }
@@ -63,6 +65,7 @@ export type CreatePlatformTenantResponse = {
   name: string
   status: string
   legacyGaId: number | null
+  crmCustomerTemplateId: number | null
   createdAt: string | null
   updatedAt: string | null
 }
