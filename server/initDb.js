@@ -702,6 +702,35 @@ async function ensureCrmPlatformMetaSchema(executor) {
       r2_key_prefix = EXCLUDED.r2_key_prefix,
       updated_at = NOW()
   `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS crm_customer_management_templates (
+      id BIGSERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      industry_code TEXT NOT NULL REFERENCES industries(code) ON UPDATE CASCADE ON DELETE RESTRICT,
+      description TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'active',
+      revision INT NOT NULL DEFAULT 1,
+      form_fields JSONB NOT NULL DEFAULT '[]'::jsonb,
+      list_columns JSONB NOT NULL DEFAULT '[]'::jsonb,
+      detail_tabs JSONB NOT NULL DEFAULT '[]'::jsonb,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      shared_feature_bindings JSONB NOT NULL DEFAULT '[]'::jsonb,
+      extension_feature_bindings JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT ccmt_status_check CHECK (status IN ('active', 'archived'))
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_ccmt_industry_status_updated
+    ON crm_customer_management_templates (industry_code, status, updated_at DESC)
+  `)
+
+  await executor.query(`
+    ALTER TABLE tenants
+    ADD COLUMN IF NOT EXISTS crm_customer_template_id BIGINT REFERENCES crm_customer_management_templates(id) ON DELETE SET NULL
+  `)
 }
 
 /**
@@ -1277,6 +1306,11 @@ export async function initDb() {
   await pool.query(`
     ALTER TABLE customers
     ADD COLUMN IF NOT EXISTS customer_code VARCHAR(50)
+  `)
+
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS crm_extension JSONB NOT NULL DEFAULT CAST('{"v":1,"fields":{}}' AS jsonb)
   `)
   await pool.query(`
     DO $$
