@@ -28,6 +28,7 @@ import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.
 import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
 import { parseGaId } from './lib/parseGaId.js'
+import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import {
   isContractUserSendRole,
   isGaInsurerManagerMutatorRole,
@@ -47,6 +48,7 @@ import { registerSubscriptionAdminApi } from './registerSubscriptionAdminApi.js'
 import { registerPdfTemplateApi } from './registerPdfTemplateApi.js'
 import { registerInsurerSitesApi } from './registerInsurerSitesApi.js'
 import { registerPlatformAdminApi } from './registerPlatformAdminApi.js'
+import { registerCrmCustomerTemplateAdminApi } from './registerCrmCustomerTemplateAdminApi.js'
 import { registerContractPublicOtpApi } from './apis/contractPublicOtpApi.js'
 import { registerContractPublicApi } from './apis/contractPublicApi.js'
 import { registerContractAdminApi } from './apis/contractAdminApi.js'
@@ -1499,6 +1501,7 @@ registerPdfTemplateApi(apiRouter, {
 
 registerInsurerSitesApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 registerPlatformAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
+registerCrmCustomerTemplateAdminApi(apiRouter, { pool, requireAuth, requireSuperAdmin, handleDbError })
 
 registerSubscriptionEndpoints(apiRouter, { requireAuth })
 
@@ -2172,6 +2175,7 @@ async function handleLogin(req, res) {
         gaId: Number.isInteger(managerGaId) ? managerGaId : null,
         eventType: 'login',
       })
+      const managerCrmBoot = await selectCrmBootstrapExtendedForLegacyGa(pool, managerGaId)
       res.json({
         token: managerToken,
         user: {
@@ -2184,6 +2188,9 @@ async function handleLogin(req, res) {
           company_id: managerCompanyId ?? undefined,
           display_name: displayName,
           team_id: null,
+          crm_industry_code: managerCrmBoot.industryCode,
+          tenant_crm: managerCrmBoot.tenantCrm,
+          crm_dynamic_industry_template: managerCrmBoot.crmDynamicIndustryTemplate,
         },
       })
       return
@@ -2276,6 +2283,15 @@ async function handleLogin(req, res) {
     })
     void recordAnalyticsEvent(pool, { userId: uid, gaId: gaIdInt, eventType: 'login' })
 
+    let userCrmBoot = {
+      industryCode: null,
+      tenantCrm: null,
+      crmDynamicIndustryTemplate: null,
+    }
+    if (gaIdInt != null) {
+      userCrmBoot = await selectCrmBootstrapExtendedForLegacyGa(pool, gaIdInt)
+    }
+
     res.json({
       token,
       user: {
@@ -2287,6 +2303,9 @@ async function handleLogin(req, res) {
         ga_name: gaName,
         display_name: userDisplayName,
         team_id: userTeamId,
+        crm_industry_code: userCrmBoot.industryCode,
+        tenant_crm: userCrmBoot.tenantCrm,
+        crm_dynamic_industry_template: userCrmBoot.crmDynamicIndustryTemplate,
       },
     })
   } catch (error) {
