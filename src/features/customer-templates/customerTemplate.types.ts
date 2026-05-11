@@ -18,6 +18,10 @@ export interface CustomerTemplateMeta {
   version: string
   /** 이 타입 정의 호환 레이어(예 "0.1") */
   schemaVersion: string
+  /** DB 동적 템플릿 primary key (`dynamic:{id}` 와 함께 사용) */
+  dynamicTemplateDbId?: number
+  /** 동적 템플릿 활성 상태(서버 원본 보존용) */
+  status?: string
 }
 
 export interface CustomerTemplateFormField {
@@ -29,6 +33,12 @@ export interface CustomerTemplateFormField {
   order: number
   privacyLevel: CustomerTemplatePrivacyLevel
   domain: CustomerTemplateDomain
+  placeholder?: string
+  sectionId?: string
+  sectionLabel?: string
+  options?: ReadonlyArray<{ value: string; label: string }>
+  /** 빌더 전용 — 코어 DB 컬럼 vs crm_extension */
+  storage?: 'core' | 'extension'
 }
 
 export interface CustomerTemplateListColumn {
@@ -37,6 +47,8 @@ export interface CustomerTemplateListColumn {
   order: number
   visibleDefault: boolean
   domain: CustomerTemplateDomain
+  /** 동적 목록 등 레지스트리 없이 목록 표시값을 만들 때(canonical 원천 키) */
+  sourceFieldKey?: string
 }
 
 export interface CustomerTemplateDetailTab {
@@ -47,6 +59,8 @@ export interface CustomerTemplateDetailTab {
   order: number
   domain: CustomerTemplateDomain
   visibleDefault: boolean
+  /** 동적 빌더: 탭별로 묶을 폼 필드 키(비어 있으면 정적 레이아웃 미리보기 규약 사용) */
+  fieldKeys?: readonly string[]
 }
 
 /** 단일 업종(customer) 템플릿 레코드 — 보험은 extensionFeatureBindings 채운다 */
@@ -59,6 +73,8 @@ export interface CustomerIndustryTemplate {
   sharedFeatureBindings: readonly string[]
   /** 업종 전용 기능 슬롯(예: 보험) */
   extensionFeatureBindings: readonly string[]
+  /** 동적 빌더 원본 메타(선택) */
+  metadata?: Record<string, unknown>
 }
 
 /** tenant.config 에 넣게 될 CRM 오버레이 구조 예시(.crm) */

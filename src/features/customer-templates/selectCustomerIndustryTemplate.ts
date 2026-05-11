@@ -40,3 +40,25 @@ export function resolveCustomerIndustryTemplateForTenant(
   if (!base) return null
   return resolveCustomerTemplate(base, tenantConfig)
 }
+
+/**
+ * 세션에 실려 온 동적 템플릿 → 정적 fallback.
+ * - 보험(insurance)은 동적 템플릿을 무시하고 정적 보험 템플릿만 사용한다.
+ */
+export function resolveCustomerIndustryTemplatePreferringDynamic(
+  industryCode: string | null | undefined,
+  tenantConfig: TenantConfigWithCrm | null | undefined,
+  dynamicTemplate: CustomerIndustryTemplate | null | undefined,
+): CustomerIndustryTemplate | null {
+  const key = normalizeIndustryLookupKey(industryCode)
+  if (key === 'insurance') {
+    const base = getCustomerIndustryTemplateByIndustryCode('insurance')
+    if (!base) return null
+    return resolveCustomerTemplate(base, tenantConfig ?? null)
+  }
+  const dynKey = dynamicTemplate ? normalizeIndustryLookupKey(dynamicTemplate.meta.industryCode) : null
+  if (dynamicTemplate && key && dynKey && dynKey === key) {
+    return resolveCustomerTemplate(dynamicTemplate, tenantConfig ?? null)
+  }
+  return resolveCustomerIndustryTemplateForTenant(industryCode, tenantConfig ?? null)
+}

@@ -1,4 +1,5 @@
 import { ApiError, apiRequest, resolveApiUrl } from '../../lib/apiClient'
+import type { TenantCrmConfig } from '../customer-templates/customerTemplate.types'
 import {
   normalizeSubscriptionFromApi,
   type SubscriptionSnapshot,
@@ -41,6 +42,15 @@ export interface AuthUser {
    * 구세션/비대상 역할에서는 null 또는 undefined 로 남는다.
    */
   subscription?: SubscriptionSnapshot | null
+  /** 서버가 내려준 동적 CRM 템플릿 JSON(로그인 브리지), useCustomerCrmIndustryContext 에서 parse */
+  crmDynamicIndustryTemplate?: unknown
+
+  /**
+   * 로그인 시 테넌트·업종 브리지(`crm_industry_code`). 없거나 null 이면 보험 템플릿 폴백.
+   */
+  crmIndustryCode?: string | null
+  /** tenants.config.crm 패치 */
+  tenantCrm?: TenantCrmConfig | null
 }
 
 export interface LoginResponse {
@@ -56,6 +66,9 @@ export interface LoginResponse {
     display_name?: string | null
     team_id?: string | null
     subscription?: SubscriptionResponsePayload | null
+    crm_industry_code?: string | null
+    tenant_crm?: unknown
+    crm_dynamic_industry_template?: unknown
   }
 }
 
@@ -322,6 +335,12 @@ export async function verifyPhoneChangeCode(token: string, phoneNumber: string, 
   )
 }
 
+function parseLoginTenantCrm(raw: unknown): TenantCrmConfig | null {
+  if (raw == null) return null
+  if (typeof raw !== 'object' || Array.isArray(raw)) return null
+  return raw as TenantCrmConfig
+}
+
 export async function login(username: string, password: string) {
   const raw = await apiRequest<LoginResponse>('/api/auth/login', {
     method: 'POST',
@@ -345,6 +364,12 @@ export async function login(username: string, password: string) {
   const teamId =
     typeof rawTeam === 'string' && rawTeam.trim() ? rawTeam.trim() : null
   const subscription = normalizeSubscriptionFromApi(raw.user.subscription)
+
+  const crmIc = raw.user.crm_industry_code
+  const crmIndustryCode =
+    crmIc == null ? null : typeof crmIc === 'string' && crmIc.trim() ? crmIc.trim() : String(crmIc).trim()
+  const tenantCrm = parseLoginTenantCrm(raw.user.tenant_crm)
+
   return {
     token: raw.token,
     user: {
@@ -358,6 +383,11 @@ export async function login(username: string, password: string) {
       displayName,
       teamId,
       subscription,
+      crmIndustryCode: crmIndustryCode || null,
+      tenantCrm,
+      ...(raw.user.crm_dynamic_industry_template != null
+        ? { crmDynamicIndustryTemplate: raw.user.crm_dynamic_industry_template }
+        : {}),
     },
   } satisfies { token: string; user: AuthUser }
 }

@@ -19,7 +19,10 @@ export { STATIC_CUSTOMER_INDUSTRY_TEMPLATES } from './staticCustomerIndustryTemp
 export {
   getCustomerIndustryTemplateByIndustryCode,
   resolveCustomerIndustryTemplateForTenant,
+  resolveCustomerIndustryTemplatePreferringDynamic,
 } from './selectCustomerIndustryTemplate'
+
+export { parseDynamicIndustryTemplateFromApi } from './parseDynamicIndustryTemplateFromApi'
 
 export { CUSTOMER_FIELD_REGISTRY_BY_KEY } from './registry/customerFieldRegistry'
 export { FEATURE_MODULE_REGISTRY_BY_ID } from './registry/featureModuleRegistry'
