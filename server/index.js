@@ -29,6 +29,8 @@ import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryRe
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
 import { parseGaId } from './lib/parseGaId.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
+import { mapCustomerRow } from './lib/customerRowMap.js'
+import { stringifyCrmExtensionForDb } from './lib/customerCrmExtension.js'
 import {
   isContractUserSendRole,
   isGaInsurerManagerMutatorRole,
@@ -475,103 +477,6 @@ function normalizeCustomerNotesInput(raw) {
   }
   const items = normalizeCustomerNoteItemsArray(itemsRaw)
   return { items, insuranceHistory }
-}
-
-function mapCustomerNotesJson(raw) {
-  if (raw == null) {
-    return { items: [], insuranceHistory: '' }
-  }
-  if (Array.isArray(raw)) {
-    return { items: normalizeCustomerNoteItemsArray(raw), insuranceHistory: '' }
-  }
-  if (typeof raw === 'object') {
-    const insuranceHistory = String(raw.insuranceHistory ?? '').trim()
-    const items = normalizeCustomerNoteItemsArray(raw.items)
-    return { items, insuranceHistory }
-  }
-  return { items: [], insuranceHistory: '' }
-}
-
-function mapCustomerRow(row) {
-  const renewalRaw = row.renewal_date ?? ''
-  const renewalDate =
-    renewalRaw instanceof Date
-      ? normalizeExpiryDate(renewalRaw.toISOString().slice(0, 10))
-      : normalizeExpiryDate(String(renewalRaw))
-
-  const g = String(row.gender ?? '').trim()
-  const gender = g === 'male' || g === 'female' ? g : null
-
-  let isDriver = null
-  if (row.is_driver === true) {
-    isDriver = true
-  } else if (row.is_driver === false) {
-    isDriver = false
-  }
-
-  const nextRaw = row.next_age_date ?? null
-  let nextAgeDate = null
-  if (nextRaw instanceof Date) {
-    nextAgeDate = normalizeExpiryDate(nextRaw.toISOString().slice(0, 10))
-  } else if (nextRaw) {
-    nextAgeDate = normalizeExpiryDate(String(nextRaw).slice(0, 10))
-  }
-
-  const insRaw = row.insurance_age
-  const insuranceAge =
-    insRaw != null && insRaw !== '' && Number.isFinite(Number(insRaw)) ? Number(insRaw) : null
-
-  const lastConsultRaw = row.last_consult_date ?? row.lastConsultDate ?? null
-  let lastConsultDate = null
-  if (lastConsultRaw instanceof Date) {
-    lastConsultDate = lastConsultRaw.toISOString().slice(0, 10)
-  } else if (lastConsultRaw) {
-    const parsed = new Date(String(lastConsultRaw))
-    if (!Number.isNaN(parsed.getTime())) {
-      lastConsultDate = parsed.toISOString().slice(0, 10)
-    } else {
-      const ymd = String(lastConsultRaw).slice(0, 10)
-      lastConsultDate = /^\d{4}-\d{2}-\d{2}$/.test(ymd) ? ymd : null
-    }
-  }
-
-  let birthDate = null
-  const bdRaw = row.birth_date
-  if (bdRaw instanceof Date) {
-    birthDate = bdRaw.toISOString().slice(0, 10)
-  } else if (bdRaw) {
-    birthDate = String(bdRaw).slice(0, 10)
-  }
-
-  return {
-    id: Number(row.id),
-    userId: String(row.user_id),
-    name: row.name ?? '',
-    customerCode: row.customer_code != null ? String(row.customer_code) : null,
-    birthDate,
-    ssn: row.ssn ?? '',
-    gender,
-    insuranceAge,
-    nextAgeDate: nextAgeDate || null,
-    isDriver,
-    carType: row.car_type ?? '',
-    notes: mapCustomerNotesJson(row.notes),
-    phone: row.phone ?? row.phone_number ?? '',
-    carrier: row.carrier ?? '',
-    address: row.address ?? '',
-    height: row.height ?? '',
-    weight: row.weight ?? '',
-    job: row.job ?? '',
-    driving: row.driving ?? '',
-    medical: row.medical ?? '',
-    carNumber: row.car_number ?? '',
-    carModel: row.car_model ?? '',
-    carYear: row.car_year ?? '',
-    renewalDate,
-    lastConsultDate,
-    isFavorite: row.is_favorite === true,
-    createdAt: toIsoString(row.created_at),
-  }
 }
 
 function normalizePhoneNumber(value) {
@@ -5402,19 +5307,27 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
     const renewalDateRaw = normalizeExpiryDate(String(data.renewalDate ?? data.renewal_date ?? ''))
     const renewalDateSql = renewalDateRaw || null
 
+    const birthRaw = String(data.birthDate ?? data.birth_date ?? '').trim()
+    const birthDateSql = birthRaw ? normalizeExpiryDate(birthRaw.slice(0, 10)) || null : null
+
+    const crmExtSql = stringifyCrmExtensionForDb(data.crmExtension ?? data.crm_extension)
+
     const inserted = await safeQuery(pool,
       `
       INSERT INTO customers (
         user_id, ga_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         gender, insurance_age, next_age_date, is_driver, car_type,
         car_number, car_model, car_year, renewal_date,
-        notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb))
+        notes,
+        birth_date,
+        crm_extension
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb))
       RETURNING
         id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
-        is_favorite, created_at
+        is_favorite, created_at,
+        crm_extension
       `,
       [
         userId,
@@ -5439,6 +5352,8 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         carYear,
         renewalDateSql,
         JSON.stringify(notes),
+        birthDateSql,
+        crmExtSql,
       ],
     )
 
@@ -5620,19 +5535,27 @@ apiRouter.post('/customer/external-create', async (req, res) => {
     const renewalDateRaw = normalizeExpiryDate(String(data.renewalDate ?? data.renewal_date ?? ''))
     const renewalDateSql = renewalDateRaw || null
 
+    const birthRaw = String(data.birthDate ?? data.birth_date ?? '').trim()
+    const birthDateSql = birthRaw ? normalizeExpiryDate(birthRaw.slice(0, 10)) || null : null
+
+    const crmExtSql = stringifyCrmExtensionForDb(data.crmExtension ?? data.crm_extension)
+
     const inserted = await safeQuery(pool,
       `
       INSERT INTO customers (
         user_id, ga_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
         gender, insurance_age, next_age_date, is_driver, car_type,
         car_number, car_model, car_year, renewal_date,
-        notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb))
+        notes,
+        birth_date,
+        crm_extension
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb))
       RETURNING
         id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
-        is_favorite, created_at
+        is_favorite, created_at,
+        crm_extension
       `,
       [
         refUserId,
@@ -5657,6 +5580,8 @@ apiRouter.post('/customer/external-create', async (req, res) => {
         carYear,
         renewalDateSql,
         JSON.stringify(notes),
+        birthDateSql,
+        crmExtSql,
       ],
     )
 
@@ -5789,6 +5714,12 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       vals.push(nextAgeDateToSqlDate(nextAgeDateObj))
     }
 
+    if (hasKey('crmExtension') || hasKey('crm_extension')) {
+      const rawExt = hasKey('crmExtension') ? data.crmExtension : data.crm_extension
+      parts.push(`crm_extension = CAST($${n++} AS jsonb)`)
+      vals.push(stringifyCrmExtensionForDb(rawExt))
+    }
+
     if (parts.length === 0) {
       res.status(400).json({ message: '수정할 필드가 없습니다.' })
       return
@@ -5804,7 +5735,8 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
         id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
-        is_favorite, created_at
+        is_favorite, created_at,
+        crm_extension
       `,
       vals,
     )
@@ -5852,7 +5784,8 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
           c.car_number, c.car_model, c.car_year, c.renewal_date,
           c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
           c.is_favorite, c.created_at,
-          c.customer_code
+          c.customer_code,
+          c.crm_extension
     `
 
     let result
@@ -5957,6 +5890,7 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
           c.car_number, c.car_model, c.car_year, c.renewal_date,
           c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
           c.is_favorite, c.created_at,
+          c.crm_extension,
           lc.last_consult_date
         FROM customers c
         LEFT JOIN (
@@ -6019,6 +5953,7 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
         c.car_number, c.car_model, c.car_year, c.renewal_date,
         c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
         c.is_favorite, c.created_at,
+        c.crm_extension,
         lc.last_consult_date
       FROM customers c
       LEFT JOIN (

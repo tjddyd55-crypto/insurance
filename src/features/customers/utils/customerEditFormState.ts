@@ -27,6 +27,8 @@ export function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
     gender: c.gender ?? null,
     ssn: c.ssn ?? '',
     phone: c.phone ?? '',
+    carrier: (c.carrier ?? '').trim(),
+    birthDate: c.birthDate ? String(c.birthDate).slice(0, 10) : '',
     address: c.address ?? '',
     addressDetail: '',
     zonecode: '',
@@ -38,6 +40,7 @@ export function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
     medical: c.medical ?? '',
     insuranceHistory: normalizeCustomerNotesBag(c.notes).insuranceHistory,
     cars: customerRecordToCarFormItems(c),
+    crmExtensionFields: { ...(c.crmExtension?.fields ?? {}) },
   }
 }
 

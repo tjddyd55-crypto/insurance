@@ -5,6 +5,8 @@ export type CustomerEditFormState = {
   gender: 'male' | 'female' | null
   ssn: string
   phone: string
+  carrier: string
+  birthDate: string
   address: string
   addressDetail: string
   zonecode: string
@@ -17,4 +19,5 @@ export type CustomerEditFormState = {
   medical: string
   insuranceHistory: string
   cars: CustomerCarFormItem[]
+  crmExtensionFields: Record<string, string>
 }

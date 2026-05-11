@@ -1,3 +1,5 @@
+import type { CustomerCrmExtension } from './crmExtension'
+
 export interface CustomerNote {
   id: string
   content: string
@@ -44,6 +46,8 @@ export interface CustomerRecord {
   /** null: 미선택·구데이터 */
   gender: 'male' | 'female' | null
   insuranceAge: number | null
+  /** YYYY-MM-DD (customers.birth_date) */
+  birthDate?: string | null
   /** YYYY-MM-DD */
   nextAgeDate: string | null
   isDriver: boolean | null
@@ -73,5 +77,7 @@ export interface CustomerRecord {
   lastConsultDate?: string | null
   /** 중요 고객(즐겨찾기) — 목록 상단 정렬·필터에 사용 */
   isFavorite: boolean
+  /** 업종별 확장 필드 (government / gym 등) — canonical fieldKey SSOT */
+  crmExtension?: CustomerCrmExtension
   createdAt: string
 }

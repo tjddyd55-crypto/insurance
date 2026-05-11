@@ -1,6 +1,8 @@
 /**
- * GET 검색 등에서 customers 행을 API 응답 형태로 매핑 (index.js mapCustomerRow 와 동일 규약).
+ * Customers 테이블 행 → 공개 API 형식 (server/index.js 와 동일 규약).
  */
+import { parseCrmExtensionFromDb } from './customerCrmExtension.js'
+
 export function normalizeExpiryDate(value) {
   if (typeof value !== 'string') {
     return ''
@@ -30,17 +32,24 @@ export function toIsoString(value) {
   return parsed.toISOString()
 }
 
-function normalizeNoteItemsFromDb(itemsRaw) {
+function normalizeCustomerNoteItemsArray(itemsRaw) {
   if (!Array.isArray(itemsRaw)) {
     return []
   }
-  return itemsRaw
-    .map((item) => ({
-      id: String(item?.id ?? '').trim(),
-      content: String(item?.content ?? '').trim(),
-      createdAt: String(item?.createdAt ?? '').trim(),
-    }))
-    .filter((n) => n.id && n.content && n.createdAt)
+  const out = []
+  for (const item of itemsRaw) {
+    if (!item || typeof item !== 'object') {
+      continue
+    }
+    const id = String(item.id ?? '').trim()
+    const content = String(item.content ?? '').trim()
+    const createdAt = String(item.createdAt ?? new Date().toISOString()).trim()
+    if (!id || !content) {
+      continue
+    }
+    out.push({ id, content, createdAt })
+  }
+  return out
 }
 
 /** API 응답: { items, insuranceHistory } — 레거시 배열도 수용 */
@@ -49,11 +58,11 @@ export function mapCustomerNotesJson(raw) {
     return { items: [], insuranceHistory: '' }
   }
   if (Array.isArray(raw)) {
-    return { items: normalizeNoteItemsFromDb(raw), insuranceHistory: '' }
+    return { items: normalizeCustomerNoteItemsArray(raw), insuranceHistory: '' }
   }
   if (typeof raw === 'object') {
     const insuranceHistory = String(raw.insuranceHistory ?? '').trim()
-    const items = normalizeNoteItemsFromDb(raw.items)
+    const items = normalizeCustomerNoteItemsArray(raw.items)
     return { items, insuranceHistory }
   }
   return { items: [], insuranceHistory: '' }
@@ -102,10 +111,22 @@ export function mapCustomerRow(row) {
     }
   }
 
+  let birthDate = null
+  const bdRaw = row.birth_date
+  if (bdRaw instanceof Date) {
+    birthDate = bdRaw.toISOString().slice(0, 10)
+  } else if (bdRaw) {
+    birthDate = String(bdRaw).slice(0, 10)
+  }
+
+  const crmParsed = parseCrmExtensionFromDb(row.crm_extension ?? row.crmExtension)
+
   return {
     id: Number(row.id),
     userId: String(row.user_id),
     name: row.name ?? '',
+    customerCode: row.customer_code != null ? String(row.customer_code) : null,
+    birthDate,
     ssn: row.ssn ?? '',
     gender,
     insuranceAge,
@@ -127,6 +148,7 @@ export function mapCustomerRow(row) {
     renewalDate,
     lastConsultDate,
     isFavorite: row.is_favorite === true,
+    crmExtension: crmParsed,
     createdAt: toIsoString(row.created_at),
   }
 }
