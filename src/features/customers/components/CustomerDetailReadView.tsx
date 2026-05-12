@@ -11,8 +11,9 @@ import {
 import { CustomerCarsReadSection } from './CustomerCarsReadSection'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
-import { governmentDetailSummaryRows, isGovernmentIndustryTemplate } from '../utils/governmentCustomerUi'
+import { governmentDetailSummaryRows, isGovernmentIndustryTemplate, buildGovernmentProgressMvp } from '../utils/governmentCustomerUi'
 import { industryTemplateReadPreviewRows, industryTemplateReadPreviewRowsForFieldKeys } from '../utils/industryCustomerReadSummary'
+import GovernmentProgressReadSection from './GovernmentProgressReadSection'
 
 export type CustomerDetailInsuranceDisplay = {
   ageText: string
@@ -78,6 +79,9 @@ export default function CustomerDetailReadView({
     const govSummaryRows = isGovernmentIndustryTemplate(crmIndustryTemplate)
       ? governmentDetailSummaryRows(c, crmIndustryTemplate)
       : null
+    const govProgressModel = isGovernmentIndustryTemplate(crmIndustryTemplate)
+      ? buildGovernmentProgressMvp(c, crmIndustryTemplate)
+      : null
 
     return (
       <div className="customer-detail-read">
@@ -100,6 +104,7 @@ export default function CustomerDetailReadView({
             </div>
           </section>
         ) : null}
+        {govProgressModel ? <GovernmentProgressReadSection model={govProgressModel} /> : null}
         {dynTabs.length > 0
           ? dynTabs.map((tab) => {
               const rows = industryTemplateReadPreviewRowsForFieldKeys(
