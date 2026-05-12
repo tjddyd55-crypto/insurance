@@ -32,6 +32,13 @@ export type PlatformTenantsResponse = {
   items: PlatformTenantRow[]
 }
 
+/** 테넌트 라이선스 정책(좌석 수와 별도 — 동시 접속·기기 등) */
+export type PlatformTenantLicensePolicy = {
+  /** null·미포함 = 무제한 */
+  maxConcurrentSessionsPerUser: number | null
+  maxRegisteredDevicesPerUser: number | null
+}
+
 export type PlatformTenantRow = {
   id: string
   industryId: string | null
@@ -44,6 +51,13 @@ export type PlatformTenantRow = {
   crmCustomerTemplateId?: number | null
   createdAt: string | null
   updatedAt: string | null
+  /** null = 무제한(좌석 미설정 레거시) */
+  seatLimit?: number | null
+  /** staff/user 활성 멤버십 좌석 집계 */
+  activeSeatCount?: number
+  remainingSeats?: number | null
+  licensePolicy?: PlatformTenantLicensePolicy
+  billingEntitlement?: Record<string, unknown>
 }
 
 export type TenantStatus = 'active' | 'inactive'
@@ -134,6 +148,12 @@ export type PlatformTenantMember = {
   username: string
   displayName?: string
   legacyRole: string
+  /** users.status (membership 과 별개 계정 상태) */
+  userAccountStatus?: string
+  lastLoginAt?: string | null
+  lastLoginIp?: string | null
+  activeSessionCount?: number
+  registeredDeviceCount?: number
   membershipRole: string
   scopeType: string
   scopeId: string
@@ -152,6 +172,16 @@ export type AssignPlatformTenantMemberResultKind = 'created' | 'already_active' 
 
 export type AssignPlatformTenantMemberResult = PlatformTenantMember & {
   result: AssignPlatformTenantMemberResultKind
+}
+
+/** PATCH `/admin/platform/industries/:industryId/tenants/:tenantId/seat-billing` — 보낸 필드만 갱신 */
+export type PatchPlatformTenantSeatBillingInput = {
+  seatLimit?: number | null
+  licensePolicy?: {
+    maxConcurrentSessionsPerUser?: number | null
+    maxRegisteredDevicesPerUser?: number | null
+  }
+  billingEntitlement?: Record<string, unknown>
 }
 
 export type PlatformMembershipRow = {

@@ -7,6 +7,7 @@ import type {
   CreateIndustryResponse,
   CreatePlatformTenantInput,
   CreatePlatformTenantResponse,
+  PatchPlatformTenantSeatBillingInput,
   PlatformAccessMode,
   PlatformAccessSummary,
   PlatformExternalAccountsSummaryResponse,
@@ -121,6 +122,29 @@ function normalizeTenantRows(items: PlatformTenantRow[]): PlatformTenantRow[] {
   return items.map((row) => ({
     ...row,
     crmCustomerTemplateId: coercePositiveIntId(row.crmCustomerTemplateId),
+    seatLimit:
+      row.seatLimit === undefined
+        ? undefined
+        : row.seatLimit === null
+          ? null
+          : Number(row.seatLimit),
+    activeSeatCount: Number(row.activeSeatCount ?? 0) || 0,
+    remainingSeats:
+      row.remainingSeats === undefined
+        ? undefined
+        : row.remainingSeats === null
+          ? null
+          : Number(row.remainingSeats),
+    licensePolicy: row.licensePolicy ?? {
+      maxConcurrentSessionsPerUser: null,
+      maxRegisteredDevicesPerUser: null,
+    },
+    billingEntitlement:
+      typeof row.billingEntitlement === 'object' &&
+      row.billingEntitlement != null &&
+      !Array.isArray(row.billingEntitlement)
+        ? row.billingEntitlement
+        : {},
   }))
 }
 
@@ -204,6 +228,27 @@ export function createPlatformTenant(token: string, industryId: string, input: C
     body: JSON.stringify(body),
     token,
   })
+}
+
+/** 좌석·라이선스 정책·청구 메타(요금 라인은 자유 JSON) */
+export function patchPlatformTenantSeatBilling(
+  token: string,
+  industryId: string,
+  tenantId: string,
+  input: PatchPlatformTenantSeatBillingInput,
+) {
+  const encInd = encodeURIComponent(industryId)
+  const encT = encodeURIComponent(tenantId)
+  return apiRequest<PlatformTenantRow>(
+    `/api/admin/platform/industries/${encInd}/tenants/${encT}/seat-billing`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+      token,
+    },
+  ).then((row) =>
+    normalizeTenantRows([row])[0],
+  )
 }
 
 export function fetchPlatformMemberships(token: string) {

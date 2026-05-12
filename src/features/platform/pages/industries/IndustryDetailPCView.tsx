@@ -9,6 +9,7 @@ import {
   IndustryTenantStaffUserManageSection,
   IndustryTenantsListSection,
 } from './IndustryDetailTenantSections'
+import { IndustryTenantSeatBillingSection } from './IndustryTenantSeatBillingSection'
 
 export default function IndustryDetailPCView({
   industryIdRaw,
@@ -75,6 +76,7 @@ export default function IndustryDetailPCView({
   onTenantMemberAssignSubmit,
   clearTenantMemberAssignFeedback,
   token,
+  industryIdKey,
 }: IndustryDetailViewProps) {
   const canAssign = Boolean(industryRow) && !industriesLoading && !industriesError
   const tenantAdminPanelEnabled = Boolean(industryRow) && !industriesLoading && !industriesError
@@ -296,6 +298,15 @@ export default function IndustryDetailPCView({
         onTenantAdminAssignSubmit={onTenantAdminAssignSubmit}
         clearTenantAdminAssignFeedback={clearTenantAdminAssignFeedback}
         closeTenantAdminManage={closeTenantAdminManage}
+        token={token}
+        refetchTenants={refetchTenants}
+      />
+      <IndustryTenantSeatBillingSection
+        variant="pc"
+        industryRowPresent={Boolean(industryRow)}
+        industryIdForApi={industryRow?.id ?? industryIdKey}
+        tenantAdminTargetTenantId={tenantAdminTargetTenantId}
+        selectedTenant={selectedTenantForAdminManage}
         token={token}
         refetchTenants={refetchTenants}
       />

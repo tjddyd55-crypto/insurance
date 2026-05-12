@@ -739,6 +739,79 @@ async function ensureCrmPlatformMetaSchema(executor) {
     ALTER TABLE tenants
     ADD COLUMN IF NOT EXISTS crm_customer_template_id BIGINT REFERENCES crm_customer_management_templates(id) ON DELETE SET NULL
   `)
+
+  await executor.query(`
+    ALTER TABLE tenants
+    ADD COLUMN IF NOT EXISTS seat_limit INTEGER
+  `)
+  await executor.query(`
+    ALTER TABLE tenants
+    ADD COLUMN IF NOT EXISTS license_policy JSONB NOT NULL DEFAULT '{}'::jsonb
+  `)
+  await executor.query(`
+    ALTER TABLE tenants
+    ADD COLUMN IF NOT EXISTS billing_entitlement JSONB NOT NULL DEFAULT '{}'::jsonb
+  `)
+  await executor.query(`
+    ALTER TABLE tenants
+    DROP CONSTRAINT IF EXISTS tenants_seat_limit_check
+  `)
+  await executor.query(`
+    ALTER TABLE tenants
+    ADD CONSTRAINT tenants_seat_limit_check
+    CHECK (seat_limit IS NULL OR (seat_limit >= 1 AND seat_limit <= 500000))
+  `)
+
+  await executor.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ
+  `)
+  await executor.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS last_login_ip TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS last_login_user_agent TEXT
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS user_auth_sessions (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      revoked_at TIMESTAMPTZ,
+      ip_inet TEXT,
+      user_agent TEXT,
+      fingerprint TEXT
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_auth_sessions_user_active
+    ON user_auth_sessions (user_id)
+    WHERE revoked_at IS NULL AND expires_at > NOW()
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS user_registered_devices (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      fingerprint TEXT NOT NULL,
+      label TEXT,
+      registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      revoked_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (user_id, fingerprint)
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_registered_devices_user
+    ON user_registered_devices (user_id)
+    WHERE revoked_at IS NULL
+  `)
 }
 
 /**

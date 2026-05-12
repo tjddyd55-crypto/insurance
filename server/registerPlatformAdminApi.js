@@ -5,6 +5,7 @@
  * — industries/:id/admins 조회·지정은 platform 컨텍스트 + 플랫폼 슈퍼
  * — industries/:id/tenants 목록(GET)은 platform 컨텍스트 + 업종관리자(또는 플랫폼 슈퍼); 업종 활성 필수
  * — industries/:id/tenants 생성(POST)은 platform 컨텍스트 + 업종관리자(또는 플랫폼 슈퍼)
+ * — industries/:id/tenants/:id/seat-billing 수정(PATCH)은 platform 컨텍스트 + 업종관리자(또는 플랫폼 슈퍼) — 좌석·라이선스 정책·청구 메타
  * — tenants/:id/admins 조회·지정은 platform 컨텍스트 + 슈퍼 또는 해당 테넌트 소속 Industry Admin
  * — tenants/:id/members 조회(GET)·staff|user 지정(POST)은 platform 컨텍스트 + 슈퍼 또는 Industry Admin(해당 테넌트) 또는 Tenant Admin(해당 테넌트)
  * — tenants 목록(GET 전체)·memberships/외부요약 등은 조회 전용 · 민감 필드 미포함
@@ -21,6 +22,16 @@ import {
 } from './lib/platformRbac.js'
 import { logSecurityEvent } from './lib/securityAudit.js'
 import { normalizeRbacRole } from './lib/rbacScope.js'
+import {
+  assertSeatAvailableForNewActivation,
+  billingEntitlementFromInput,
+  computeRemainingSeats,
+  countActiveTenantSeatMemberships,
+  mergeLicensePolicyForPatch,
+  parseLicensePolicyFromRow,
+  parseSeatLimitColumn,
+  parseSeatLimitForApiPatch,
+} from './lib/tenantSeatPolicy.js'
 
 const INDUSTRY_CODE_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/
 
@@ -433,6 +444,45 @@ function parsePositiveTenantIdParam(raw) {
 }
 
 /**
+ * 테넌트 행 + 활성 좌석 수 → 플랫폼 관리자 API 응답(좌석·정책·청구 메타 포함).
+ * @param {object} row
+ * @param {number} activeSeatCount
+ */
+function mapIndustryTenantRowExtended(row, activeSeatCount) {
+  const lim = parseSeatLimitColumn(row.seat_limit)
+  const lp = parseLicensePolicyFromRow(row.license_policy)
+  const ent =
+    row.billing_entitlement != null &&
+    typeof row.billing_entitlement === 'object' &&
+    !Array.isArray(row.billing_entitlement)
+      ? /** @type {Record<string, unknown>} */ (row.billing_entitlement)
+      : {}
+  return {
+    id: String(row.id),
+    industryId: row.industry_id != null ? String(row.industry_id) : null,
+    industryCode: row.industry_code != null ? String(row.industry_code) : null,
+    code: row.code,
+    name: row.name,
+    status: row.status,
+    legacyGaId: row.legacy_ga_id != null ? Number(row.legacy_ga_id) : null,
+    crmCustomerTemplateId:
+      row.crm_customer_template_id != null && row.crm_customer_template_id !== ''
+        ? Number(row.crm_customer_template_id)
+        : null,
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+    seatLimit: lim,
+    activeSeatCount,
+    remainingSeats: computeRemainingSeats(lim, activeSeatCount),
+    licensePolicy: {
+      maxConcurrentSessionsPerUser: lp.maxConcurrentSessionsPerUser,
+      maxRegisteredDevicesPerUser: lp.maxRegisteredDevicesPerUser,
+    },
+    billingEntitlement: ent,
+  }
+}
+
+/**
  * @param {object} row
  */
 function mapTenantAdminMemberItem(row) {
@@ -527,6 +577,11 @@ function mapTenantStaffUserMemberItem(row) {
     username: String(row.username ?? ''),
     displayName: String(row.display_name ?? '').trim(),
     legacyRole: String(row.legacy_role ?? ''),
+    userAccountStatus: String(row.user_account_status ?? ''),
+    lastLoginAt: toIso(row.last_login_at),
+    lastLoginIp: row.last_login_ip != null ? String(row.last_login_ip) : null,
+    activeSessionCount: Number(row.active_session_count ?? 0) || 0,
+    registeredDeviceCount: Number(row.registered_device_count ?? 0) || 0,
     membershipRole: String(row.membership_role ?? ''),
     scopeType: String(row.scope_type ?? ''),
     scopeId: row.scope_id != null ? String(row.scope_id) : '',
@@ -573,6 +628,22 @@ async function selectTenantStaffUserMembershipForUser(
       u.username,
       u.display_name,
       u.role AS legacy_role,
+      LOWER(TRIM(COALESCE(u.status::text, ''))) AS user_account_status,
+      u.last_login_at,
+      u.last_login_ip,
+      (
+        SELECT COUNT(*)::int
+        FROM user_auth_sessions s
+        WHERE s.user_id = u.id
+          AND s.revoked_at IS NULL
+          AND s.expires_at > NOW()
+      ) AS active_session_count,
+      (
+        SELECT COUNT(*)::int
+        FROM user_registered_devices d
+        WHERE d.user_id = u.id
+          AND d.revoked_at IS NULL
+      ) AS registered_device_count,
       m.role AS membership_role,
       m.scope_type,
       m.scope_id,
@@ -608,6 +679,22 @@ async function selectTenantStaffUserMembershipById(exec, membershipId) {
       u.username,
       u.display_name,
       u.role AS legacy_role,
+      LOWER(TRIM(COALESCE(u.status::text, ''))) AS user_account_status,
+      u.last_login_at,
+      u.last_login_ip,
+      (
+        SELECT COUNT(*)::int
+        FROM user_auth_sessions s
+        WHERE s.user_id = u.id
+          AND s.revoked_at IS NULL
+          AND s.expires_at > NOW()
+      ) AS active_session_count,
+      (
+        SELECT COUNT(*)::int
+        FROM user_registered_devices d
+        WHERE d.user_id = u.id
+          AND d.revoked_at IS NULL
+      ) AS registered_device_count,
       m.role AS membership_role,
       m.scope_type,
       m.scope_id,
@@ -1329,8 +1416,23 @@ export function registerPlatformAdminApi(apiRouter, deps) {
             t.status,
             t.legacy_ga_id,
             t.crm_customer_template_id,
+            t.seat_limit,
+            t.license_policy,
+            t.billing_entitlement,
             t.created_at,
-            t.updated_at
+            t.updated_at,
+            (
+              SELECT COUNT(*)::int
+              FROM user_memberships m
+              INNER JOIN users u ON u.id = m.user_id
+              WHERE m.scope_type = 'tenant'
+                AND m.tenant_id IS NOT DISTINCT FROM t.id
+                AND COALESCE(m.scope_id, '') = t.id::text
+                AND m.role IN ('staff', 'user')
+                AND LOWER(TRIM(COALESCE(m.status::text, ''))) = 'active'
+                AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+                AND LOWER(TRIM(COALESCE(u.status::text, ''))) = 'active'
+            ) AS active_seat_count
           FROM tenants t
           LEFT JOIN industries i ON i.id = t.industry_id
           WHERE t.industry_id = $1
@@ -1340,22 +1442,193 @@ export function registerPlatformAdminApi(apiRouter, deps) {
         )
 
         res.json({
-          items: rows.map((row) => ({
-            id: String(row.id),
-            industryId: row.industry_id != null ? String(row.industry_id) : null,
-            industryCode: row.industry_code != null ? String(row.industry_code) : null,
-            code: row.code,
-            name: row.name,
-            status: row.status,
-            legacyGaId: row.legacy_ga_id != null ? Number(row.legacy_ga_id) : null,
-            crmCustomerTemplateId:
-              row.crm_customer_template_id != null && row.crm_customer_template_id !== ''
-                ? Number(row.crm_customer_template_id)
-                : null,
-            createdAt: toIso(row.created_at),
-            updatedAt: toIso(row.updated_at),
-          })),
+          items: rows.map((row) => {
+            const active = Number(row.active_seat_count ?? 0) || 0
+            return mapIndustryTenantRowExtended(row, active)
+          }),
         })
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    },
+  )
+
+  apiRouter.patch(
+    '/admin/platform/industries/:industryId/tenants/:tenantId/seat-billing',
+    ...platformIndustryTenantCreateGuard,
+    async (req, res) => {
+      try {
+        const industryIdParsed = parsePositiveIndustryIdParam(req.params.industryId)
+        const tenantIdParsed = parsePositiveTenantIdParam(req.params.tenantId)
+        if (industryIdParsed == null || tenantIdParsed == null) {
+          res.status(400).json({ message: '유효한 industryId·tenantId 가 필요합니다.' })
+          return
+        }
+
+        const body = req.body != null && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {}
+        const hasSeatKey = Object.prototype.hasOwnProperty.call(body, 'seatLimit')
+          || Object.prototype.hasOwnProperty.call(body, 'seat_limit')
+        const hasLpKey =
+          Object.prototype.hasOwnProperty.call(body, 'licensePolicy')
+          || Object.prototype.hasOwnProperty.call(body, 'license_policy')
+        const hasBeKey =
+          Object.prototype.hasOwnProperty.call(body, 'billingEntitlement')
+          || Object.prototype.hasOwnProperty.call(body, 'billing_entitlement')
+
+        const rawSeat = Object.prototype.hasOwnProperty.call(body, 'seatLimit')
+          ? body.seatLimit
+          : Object.prototype.hasOwnProperty.call(body, 'seat_limit')
+            ? body.seat_limit
+            : undefined
+        const seatParsed = parseSeatLimitForApiPatch(rawSeat)
+        if (seatParsed.kind === 'error') {
+          res.status(400).json({ message: seatParsed.message })
+          return
+        }
+        /** @type {unknown} */
+        let licensePatchInput = undefined
+        if (hasLpKey) {
+          licensePatchInput =
+            Object.prototype.hasOwnProperty.call(body, 'licensePolicy') ? body.licensePolicy : body.license_policy
+        }
+
+        /** @type {unknown} */
+        let billingRaw = undefined
+        if (hasBeKey) {
+          billingRaw =
+            Object.prototype.hasOwnProperty.call(body, 'billingEntitlement')
+              ? body.billingEntitlement
+              : body.billing_entitlement
+        }
+
+        if (!hasSeatKey && !hasLpKey && !hasBeKey) {
+          res.status(400).json({
+            message: 'seatLimit, licensePolicy, billingEntitlement 중 하나 이상을 보내야 합니다.',
+          })
+          return
+        }
+
+        const indChk = await pool.query(`SELECT id, status FROM industries WHERE id = $1 LIMIT 1`, [
+          industryIdParsed,
+        ])
+        if ((indChk.rowCount ?? 0) === 0) {
+          res.status(404).json({ message: '해당 업종을 찾을 수 없습니다.' })
+          return
+        }
+        const indSt = String(indChk.rows[0]?.status ?? '').trim().toLowerCase()
+        if (indSt !== 'active') {
+          res.status(400).json({ message: '활성 상태의 업종만 테넌트 정책을 수정할 수 있습니다.' })
+          return
+        }
+
+        const client = await pool.connect()
+        try {
+          await client.query('BEGIN')
+          const tRes = await client.query(
+            `
+            SELECT id, industry_id, seat_limit, license_policy, billing_entitlement, status
+            FROM tenants
+            WHERE id = $1
+            FOR UPDATE
+            `,
+            [tenantIdParsed],
+          )
+          if ((tRes.rowCount ?? 0) === 0) {
+            await client.query('ROLLBACK')
+            res.status(404).json({ message: '해당 테넌트를 찾을 수 없습니다.' })
+            return
+          }
+          const t0 = /** @type {{ seat_limit?: unknown; license_policy?: unknown; billing_entitlement?: unknown; industry_id?: unknown }} */ (
+            tRes.rows[0]
+          )
+          const tInd =
+            /** @type {unknown} */
+            (t0.industry_id) != null ? Number(t0.industry_id) : Number.NaN
+          if (!Number.isSafeInteger(tInd) || tInd !== industryIdParsed) {
+            await client.query('ROLLBACK')
+            res.status(409).json({ message: '테넌트가 해당 업종에 속하지 않습니다.' })
+            return
+          }
+          const tenantSt = String(t0.status ?? '').trim().toLowerCase()
+          if (tenantSt !== 'active') {
+            await client.query('ROLLBACK')
+            res.status(400).json({ message: '활성 상태의 테넌트만 정책을 수정할 수 있습니다.' })
+            return
+          }
+
+          let nextSeat = t0.seat_limit
+          if (seatParsed.kind === 'set') {
+            nextSeat = seatParsed.value
+          }
+
+          let nextLp = t0.license_policy
+          if (hasLpKey) {
+            const m = mergeLicensePolicyForPatch(t0.license_policy, licensePatchInput)
+            if (!m.ok) {
+              await client.query('ROLLBACK')
+              res.status(400).json({ message: m.message })
+              return
+            }
+            nextLp = m.merged
+          }
+
+          let nextBe = t0.billing_entitlement
+          if (hasBeKey) {
+            const parsedBe = billingEntitlementFromInput(billingRaw ?? null)
+            if (parsedBe === null) {
+              await client.query('ROLLBACK')
+              res.status(400).json({ message: 'billingEntitlement JSON 크기가 너무 큽니다.' })
+              return
+            }
+            nextBe = parsedBe ?? {}
+          }
+
+          const updRes = await client.query(
+            `
+            UPDATE tenants
+            SET seat_limit = $2,
+                license_policy = $3::jsonb,
+                billing_entitlement = $4::jsonb,
+                updated_at = NOW()
+            WHERE id = $1
+              AND industry_id = $5
+            RETURNING
+              *,
+              (SELECT code FROM industries i WHERE i.id = tenants.industry_id) AS industry_code
+            `,
+            [tenantIdParsed, nextSeat, JSON.stringify(nextLp ?? {}), JSON.stringify(nextBe ?? {}), industryIdParsed],
+          )
+          if ((updRes.rowCount ?? 0) === 0) {
+            await client.query('ROLLBACK')
+            res.status(404).json({ message: '테넌트를 갱신할 수 없습니다.' })
+            return
+          }
+
+          await client.query('COMMIT')
+
+          const outRow = updRes.rows[0]
+          const activeSeatCount = await countActiveTenantSeatMemberships(pool, tenantIdParsed)
+
+          await logSecurityEvent(pool, {
+            actorUserId: String(req.user?.id ?? ''),
+            actorRole: String(req.user?.role ?? ''),
+            action: 'PLATFORM_TENANT_SEAT_BILLING_PATCH',
+            targetType: 'tenant',
+            targetId: String(tenantIdParsed),
+            meta: { industryId: industryIdParsed, fields: { seat: hasSeatKey, license: hasLpKey, billing: hasBeKey } },
+          })
+
+          res.json(mapIndustryTenantRowExtended(outRow, activeSeatCount))
+        } catch (err) {
+          try {
+            await client.query('ROLLBACK')
+          } catch {
+            /* already rolled back */
+          }
+          throw err
+        } finally {
+          client.release()
+        }
       } catch (e) {
         handleDbError(e, req, res)
       }
@@ -1939,6 +2212,22 @@ export function registerPlatformAdminApi(apiRouter, deps) {
             u.username,
             u.display_name,
             u.role AS legacy_role,
+            LOWER(TRIM(COALESCE(u.status::text, ''))) AS user_account_status,
+            u.last_login_at,
+            u.last_login_ip,
+            (
+              SELECT COUNT(*)::int
+              FROM user_auth_sessions s
+              WHERE s.user_id = u.id
+                AND s.revoked_at IS NULL
+                AND s.expires_at > NOW()
+            ) AS active_session_count,
+            (
+              SELECT COUNT(*)::int
+              FROM user_registered_devices d
+              WHERE d.user_id = u.id
+                AND d.revoked_at IS NULL
+            ) AS registered_device_count,
             m.role AS membership_role,
             m.scope_type,
             m.scope_id,
@@ -2000,7 +2289,7 @@ export function registerPlatformAdminApi(apiRouter, deps) {
 
         const tchk = await client.query(
           `
-          SELECT id, industry_id, status
+          SELECT id, industry_id, status, seat_limit
           FROM tenants
           WHERE id = $1
           LIMIT 1
@@ -2013,7 +2302,7 @@ export function registerPlatformAdminApi(apiRouter, deps) {
           res.status(404).json({ message: '해당 테넌트를 찾을 수 없습니다.' })
           return
         }
-        /** @type {{ industry_id?: unknown; status?: unknown }} */
+        /** @type {{ industry_id?: unknown; status?: unknown; seat_limit?: unknown }} */
         const tRow0 = tchk.rows[0]
         const tInd = tRow0.industry_id != null ? Number(tRow0.industry_id) : Number.NaN
         if (!Number.isSafeInteger(tInd) || tInd !== industryIdParsed) {
@@ -2073,6 +2362,8 @@ export function registerPlatformAdminApi(apiRouter, deps) {
           }
         }
 
+        const activeSeatTotal = await countActiveTenantSeatMemberships(client, tenantIdParsed)
+
         const sameRow = locked.rows.find(
           (rw) => String(rw.role ?? '').trim().toLowerCase() === membershipRole,
         )
@@ -2118,6 +2409,16 @@ export function registerPlatformAdminApi(apiRouter, deps) {
             return
           }
 
+          const seatGuardRe = assertSeatAvailableForNewActivation({
+            seatLimitColumn: tRow0.seat_limit,
+            activeSeatCountBefore: activeSeatTotal,
+          })
+          if (!seatGuardRe.ok) {
+            await client.query('ROLLBACK')
+            res.status(409).json({ message: seatGuardRe.message })
+            return
+          }
+
           await client.query(
             `
             UPDATE user_memberships
@@ -2160,6 +2461,16 @@ export function registerPlatformAdminApi(apiRouter, deps) {
         /** @type {unknown} */
         let insertErr = null
         try {
+          const seatGuardIns = assertSeatAvailableForNewActivation({
+            seatLimitColumn: tRow0.seat_limit,
+            activeSeatCountBefore: activeSeatTotal,
+          })
+          if (!seatGuardIns.ok) {
+            await client.query('ROLLBACK')
+            res.status(409).json({ message: seatGuardIns.message })
+            return
+          }
+
           const insRes = await client.query(
             `
             INSERT INTO user_memberships (
@@ -2279,28 +2590,32 @@ export function registerPlatformAdminApi(apiRouter, deps) {
           t.status,
           t.legacy_ga_id,
           t.crm_customer_template_id,
+          t.seat_limit,
+          t.license_policy,
+          t.billing_entitlement,
           t.created_at,
-          t.updated_at
+          t.updated_at,
+          (
+            SELECT COUNT(*)::int
+            FROM user_memberships m
+            INNER JOIN users u ON u.id = m.user_id
+            WHERE m.scope_type = 'tenant'
+              AND m.tenant_id IS NOT DISTINCT FROM t.id
+              AND COALESCE(m.scope_id, '') = t.id::text
+              AND m.role IN ('staff', 'user')
+              AND LOWER(TRIM(COALESCE(m.status::text, ''))) = 'active'
+              AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+              AND LOWER(TRIM(COALESCE(u.status::text, ''))) = 'active'
+          ) AS active_seat_count
         FROM tenants t
         LEFT JOIN industries i ON i.id = t.industry_id
         ORDER BY t.id ASC
       `)
       res.json({
-        items: rows.map((row) => ({
-          id: String(row.id),
-          industryId: row.industry_id != null ? String(row.industry_id) : null,
-          industryCode: row.industry_code != null ? String(row.industry_code) : null,
-          code: row.code,
-          name: row.name,
-          status: row.status,
-          legacyGaId: row.legacy_ga_id != null ? Number(row.legacy_ga_id) : null,
-          crmCustomerTemplateId:
-            row.crm_customer_template_id != null && row.crm_customer_template_id !== ''
-              ? Number(row.crm_customer_template_id)
-              : null,
-          createdAt: toIso(row.created_at),
-          updatedAt: toIso(row.updated_at),
-        })),
+        items: rows.map((row) => {
+          const active = Number(row.active_seat_count ?? 0) || 0
+          return mapIndustryTenantRowExtended(row, active)
+        }),
       })
     } catch (e) {
       handleDbError(e, req, res)

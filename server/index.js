@@ -40,6 +40,7 @@ import {
   resolveTenantGaIdForRequest,
 } from './lib/rbacScope.js'
 import { logSecurityEvent, writeSecurityAudit } from './lib/securityAudit.js'
+import { recordSuccessfulUserLoginSession, resolveMinConcurrentSessionCapForUser } from './lib/authSessions.js'
 import { registerConsentApi } from './registerConsentApi.js'
 import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
 import { registerSignatureApi } from './registerSignatureApi.js'
@@ -2195,6 +2196,13 @@ async function handleLogin(req, res) {
     }
     if (gaIdInt != null) {
       userCrmBoot = await selectCrmBootstrapExtendedForLegacyGa(pool, gaIdInt)
+    }
+
+    try {
+      const cap = await resolveMinConcurrentSessionCapForUser(pool, uid)
+      await recordSuccessfulUserLoginSession(pool, uid, req, cap)
+    } catch (e) {
+      console.error('[authSessions] login session audit failed', e)
     }
 
     res.json({

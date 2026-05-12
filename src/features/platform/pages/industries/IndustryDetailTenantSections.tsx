@@ -106,6 +106,8 @@ export function IndustryTenantsListSection({
               <th>code</th>
               <th>name</th>
               <th>status</th>
+              <th>활성/계약 좌석</th>
+              <th>남은 좌석</th>
               <th>legacyGaId</th>
               <th>createdAt</th>
               <th>updatedAt</th>
@@ -128,6 +130,15 @@ export function IndustryTenantsListSection({
                 <td className="platform-admin-page__mono">{row.code}</td>
                 <td>{row.name}</td>
                 <td>{row.status}</td>
+                <td className="platform-admin-page__mono">
+                  {row.activeSeatCount ?? 0} /{' '}
+                  {row.seatLimit == null || row.seatLimit === undefined ? '∞' : row.seatLimit}
+                </td>
+                <td>
+                  {row.seatLimit == null || row.seatLimit === undefined
+                    ? '—'
+                    : String(row.remainingSeats ?? 0)}
+                </td>
                 <td className="platform-admin-page__mono">{row.legacyGaId ?? '—'}</td>
                 <td className="platform-admin-page__muted">{row.createdAt ?? '—'}</td>
                 <td className="platform-admin-page__muted">{row.updatedAt ?? '—'}</td>
@@ -173,6 +184,13 @@ export function IndustryTenantsListSection({
               <div className="platform-admin-page__stack-meta platform-admin-page__mono">{row.code}</div>
               <div className="platform-admin-page__stack-meta">
                 id {row.id} · status {row.status}
+              </div>
+              <div className="platform-admin-page__stack-meta">
+                좌석: 활성 {row.activeSeatCount ?? 0}
+                {' / 계약 '}
+                {row.seatLimit == null || row.seatLimit === undefined
+                  ? '무제한'
+                  : `${row.seatLimit} · 남은 ${row.remainingSeats ?? 0}`}
               </div>
               <div className="platform-admin-page__stack-meta platform-admin-page__mono">
                 legacyGaId {row.legacyGaId ?? '—'}
@@ -697,6 +715,13 @@ export function IndustryTenantStaffUserManageSection({
             <dd>{selectedTenant.name}</dd>
             <dt>status</dt>
             <dd>{selectedTenant.status}</dd>
+            <dt>좌석</dt>
+            <dd>
+              활성 {selectedTenant.activeSeatCount ?? 0}
+              {selectedTenant.seatLimit == null || selectedTenant.seatLimit === undefined
+                ? ' · 계약 무제한'
+                : ` · 계약 ${selectedTenant.seatLimit} · 남은 ${selectedTenant.remainingSeats ?? 0}`}
+            </dd>
           </dl>
         </div>
       )}
@@ -728,7 +753,12 @@ export function IndustryTenantStaffUserManageSection({
                     <th>displayName</th>
                     <th>legacyRole</th>
                     <th>membershipRole</th>
-                    <th>status</th>
+                    <th>계정 상태</th>
+                    <th>membership 상태</th>
+                    <th>마지막 로그인</th>
+                    <th>IP</th>
+                    <th>세션 수</th>
+                    <th>기기 수</th>
                     <th>createdAt</th>
                     <th>updatedAt</th>
                   </tr>
@@ -742,7 +772,12 @@ export function IndustryTenantStaffUserManageSection({
                       <td>{row.displayName ?? '—'}</td>
                       <td>{row.legacyRole}</td>
                       <td>{row.membershipRole}</td>
+                      <td>{row.userAccountStatus ?? '—'}</td>
                       <td>{row.status}</td>
+                      <td className="platform-admin-page__muted">{row.lastLoginAt ?? '—'}</td>
+                      <td className="platform-admin-page__mono">{row.lastLoginIp ?? '—'}</td>
+                      <td>{row.activeSessionCount ?? 0}</td>
+                      <td>{row.registeredDeviceCount ?? 0}</td>
                       <td className="platform-admin-page__muted">{row.createdAt ?? '—'}</td>
                       <td className="platform-admin-page__muted">{row.updatedAt ?? '—'}</td>
                     </tr>
@@ -766,10 +801,20 @@ export function IndustryTenantStaffUserManageSection({
                       <div className="platform-admin-page__stack-meta">{row.displayName ?? '—'}</div>
                       <div className="platform-admin-page__stack-meta platform-admin-page__mono">{row.userId}</div>
                       <div className="platform-admin-page__stack-meta">
-                        {row.legacyRole} · {row.membershipRole} · {row.status}
+                        계정 {row.userAccountStatus ?? '—'} · 멤버십 {row.status}
+                      </div>
+                      <div className="platform-admin-page__stack-meta">
+                        세션 {row.activeSessionCount ?? 0} · 기기 {row.registeredDeviceCount ?? 0} · 최근 IP{' '}
+                        {row.lastLoginIp ?? '—'}
+                      </div>
+                      <div className="platform-admin-page__stack-meta platform-admin-page__muted">
+                        마지막 로그인 {row.lastLoginAt ?? '—'}
                       </div>
                       <div className="platform-admin-page__stack-meta platform-admin-page__mono">
                         membership {row.membershipId}
+                      </div>
+                      <div className="platform-admin-page__stack-meta platform-admin-page__muted">
+                        {row.legacyRole} · {row.membershipRole}
                       </div>
                       <div className="platform-admin-page__stack-meta">
                         {row.createdAt ?? '—'} → {row.updatedAt ?? '—'}
