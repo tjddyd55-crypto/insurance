@@ -277,6 +277,10 @@ export default function CrmCustomerManagementTemplateEditorPage() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           serializedPayloadPreview={serializedPayloadPreview}
+          onClearValidationIssues={() => {
+            setValidationIssues([])
+            setStatusText(null)
+          }}
         />
 
       </main>

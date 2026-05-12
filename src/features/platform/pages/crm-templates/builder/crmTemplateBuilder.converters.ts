@@ -1,4 +1,10 @@
-import type { CustomerIndustryTemplate, CustomerTemplateDetailTab, CustomerTemplateFormField, CustomerTemplateListColumn } from '../../../../customer-templates/customerTemplate.types'
+import type {
+  CustomerIndustryTemplate,
+  CustomerTemplateDetailTab,
+  CustomerTemplateFormField,
+  CustomerTemplateListColumn,
+  CustomerTemplateMeta,
+} from '../../../../customer-templates/customerTemplate.types'
 
 import {
   CRM_TEMPLATE_BUILDER_ALLOWED_FIELD_TYPES,
@@ -147,21 +153,15 @@ export function draftToSaveBody(params: {
   }
 }
 
-/** 미리보기·등록 폼 위젯 — CustomerIndustryTemplate */
-export function draftToPreviewIndustryTemplate(
-  draft: CrmTemplateDraft,
-  industryCodeRaw: string,
-  meta?: { templateId: string; version: string; dynamicTemplateDbId?: number; status?: string },
+/**
+ * 서버/스크립트와 동일한 snake_case 저장 바디 → CustomerIndustryTemplate
+ * (draftToSaveBody 결과 또는 fixtures/buildLiquorCompanyDynamicCrmTemplateBody 등)
+ */
+export function customerIndustryTemplateFromApiSaveBody(
+  body: Record<string, unknown>,
+  meta: CustomerTemplateMeta,
 ): CustomerIndustryTemplate {
-  const ic = industryCodeRaw.trim().toLowerCase() || 'unknown'
-  const body = draftToSaveBody({
-    name: '__preview__',
-    industry_code: ic,
-    description: '',
-    status: 'active',
-    draft,
-  })
-
+  const ic = String(body.industry_code ?? meta.industryCode ?? '').trim().toLowerCase() || 'unknown'
   const formFieldsRaw = Array.isArray(body.form_fields) ? body.form_fields : []
   const listColumnsRaw = Array.isArray(body.list_columns) ? body.list_columns : []
   const detailTabsRaw = Array.isArray(body.detail_tabs) ? body.detail_tabs : []
@@ -212,20 +212,11 @@ export function draftToPreviewIndustryTemplate(
     }
   })
 
-  const m = meta ?? {
-    templateId: 'preview',
-    version: 'preview',
-    schemaVersion: 'customer-template.dynamic.v1',
-  }
-
   return {
     meta: {
-      templateId: m.templateId,
+      ...meta,
       industryCode: ic,
-      version: m.version,
-      schemaVersion: 'customer-template.dynamic.v1',
-      ...(meta?.dynamicTemplateDbId != null ? { dynamicTemplateDbId: meta.dynamicTemplateDbId } : {}),
-      ...(meta?.status != null ? { status: meta.status } : {}),
+      schemaVersion: meta.schemaVersion ?? 'customer-template.dynamic.v1',
     },
     formFields,
     listColumns,
@@ -235,4 +226,44 @@ export function draftToPreviewIndustryTemplate(
       ? [...(body.extension_feature_bindings as string[])]
       : [],
   }
+}
+
+/** 저장 API 본문(snake_case) → 빌더 draft (프리셋 적용용) */
+export function crmTemplateSaveApiBodyToDraft(body: Record<string, unknown>): CrmTemplateDraft {
+  const ic = String(body.industry_code ?? '').trim().toLowerCase() || 'unknown'
+  const tpl = customerIndustryTemplateFromApiSaveBody(body, {
+    templateId: 'preset',
+    industryCode: ic,
+    version: '0.1',
+    schemaVersion: 'customer-template.dynamic.v1',
+  })
+  return customerIndustryTemplateToDraft(tpl)
+}
+
+/** 미리보기·등록 폼 위젯 — CustomerIndustryTemplate */
+export function draftToPreviewIndustryTemplate(
+  draft: CrmTemplateDraft,
+  industryCodeRaw: string,
+  meta?: { templateId: string; version: string; dynamicTemplateDbId?: number; status?: string },
+): CustomerIndustryTemplate {
+  const ic = industryCodeRaw.trim().toLowerCase() || 'unknown'
+  const body = draftToSaveBody({
+    name: '__preview__',
+    industry_code: ic,
+    description: '',
+    status: 'active',
+    draft,
+  })
+  const m = meta ?? {
+    templateId: 'preview',
+    version: 'preview',
+  }
+  return customerIndustryTemplateFromApiSaveBody(body, {
+    templateId: m.templateId,
+    industryCode: ic,
+    version: m.version,
+    schemaVersion: 'customer-template.dynamic.v1',
+    ...(meta?.dynamicTemplateDbId != null ? { dynamicTemplateDbId: meta.dynamicTemplateDbId } : {}),
+    ...(meta?.status != null ? { status: meta.status } : {}),
+  })
 }

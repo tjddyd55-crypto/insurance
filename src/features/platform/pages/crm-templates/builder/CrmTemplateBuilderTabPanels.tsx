@@ -11,6 +11,7 @@ import {
   type CrmTemplateBuilderFieldType,
 } from './crmTemplateBuilder.constants'
 import { newLocalId } from './crmTemplateBuilder.converters'
+import { buildLiquorCrmTemplatePresetDraft, LIQUOR_CRM_TEMPLATE_PRESET_NAME } from './presets/liquorDynamicCrmTemplatePreset'
 
 import { formatIndustryCustomerListSecondaryLine } from '../../../../customers/utils/industryCustomerListSummary'
 import { industryTemplateReadPreviewRowsForFieldKeys } from '../../../../customers/utils/industryCustomerReadSummary'
@@ -65,6 +66,7 @@ export default function CrmTemplateBuilderTabPanels({
   activeTab,
   setActiveTab,
   serializedPayloadPreview,
+  onClearValidationIssues,
 }: {
   industries: IndustryOption[]
   name: string
@@ -86,6 +88,8 @@ export default function CrmTemplateBuilderTabPanels({
   activeTab: CrmTemplateBuilderTabId
   setActiveTab: (t: CrmTemplateBuilderTabId) => void
   serializedPayloadPreview: string
+  /** 프리셋 적용 시 검증 메시지 초기화(부모 상태) */
+  onClearValidationIssues?: () => void
 }) {
   const [showAdvancedPayload, setShowAdvancedPayload] = useState(false)
   const industriesFiltered = useMemo(
@@ -161,6 +165,27 @@ export default function CrmTemplateBuilderTabPanels({
                 ))}
               </select>
               <p className="platform-admin-page__field-hint">보험(insurance) 업종은 동적 템플릿 생성 대상이 아닙니다.</p>
+              {industryCode.trim().toLowerCase() === 'liquor' ? (
+                <div className="platform-admin-field mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    className="filter-button filter-button--workspace-active w-fit text-sm"
+                    onClick={() => {
+                      const next = buildLiquorCrmTemplatePresetDraft()
+                      setDraft(next)
+                      setStatus('active')
+                      setName((n) => (String(n).trim() ? n : LIQUOR_CRM_TEMPLATE_PRESET_NAME))
+                      onClearValidationIssues?.()
+                      setActiveTab('form')
+                    }}
+                  >
+                    주류회사 샘플 불러오기
+                  </button>
+                  <p className="platform-admin-page__muted m-0 text-sm">
+                    등록 폼·목록·상세 탭 필드가 픽스처와 동일하게 채워집니다. 템플릿명이 비어 있으면 기본 이름이 들어갑니다.
+                  </p>
+                </div>
+              ) : null}
             </label>
             <label className="platform-admin-field platform-admin-field--stack">
               <span className="platform-admin-field__label">설명</span>
