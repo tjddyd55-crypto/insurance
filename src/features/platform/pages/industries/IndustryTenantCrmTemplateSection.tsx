@@ -13,6 +13,13 @@ function isTemplateActive(status: unknown): boolean {
   return String(status ?? '').trim().toLowerCase() === 'active'
 }
 
+/** API/DB BIGINT id 가 JSON 에서 문자열로 올 수 있어 선택·매칭은 숫자로 정규화한다 */
+function coerceTemplateRowId(id: unknown): number | null {
+  const n = typeof id === 'number' ? id : Number(id)
+  if (!Number.isInteger(n) || n < 1) return null
+  return n
+}
+
 export type IndustryTenantCrmTemplateSectionProps = {
   variant: 'pc' | 'mobile'
   token: string | null
@@ -87,7 +94,7 @@ export function IndustryTenantCrmTemplateSection({
 
   const currentRow = useMemo(() => {
     if (savedId == null) return null
-    return templateRows.find((r) => r.id === savedId) ?? null
+    return templateRows.find((r) => coerceTemplateRowId(r.id) === savedId) ?? null
   }, [savedId, templateRows])
 
   const isSavedArchived =
@@ -109,7 +116,7 @@ export function IndustryTenantCrmTemplateSection({
 
   const selectValue = useMemo(() => {
     if (draftId == null) return ''
-    if (!activeTemplates.some((t) => t.id === draftId)) return ''
+    if (!activeTemplates.some((t) => coerceTemplateRowId(t.id) === draftId)) return ''
     return String(draftId)
   }, [draftId, activeTemplates])
 
