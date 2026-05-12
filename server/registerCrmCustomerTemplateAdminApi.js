@@ -22,21 +22,29 @@ export function registerCrmCustomerTemplateAdminApi(router, deps) {
   router.get('/admin/platform/crm-customer-management-templates', guard, async (req, res) => {
     try {
       const ind = req.query.industry_code != null ? String(req.query.industry_code).trim().toLowerCase() : ''
-      let sql = `
+      const includeArchivedRaw = req.query.include_archived
+      const includeArchived =
+        String(includeArchivedRaw ?? '').trim() === '1' ||
+        String(includeArchivedRaw ?? '').trim().toLowerCase() === 'true'
+      const vals = []
+      const where = []
+      if (ind) {
+        vals.push(ind)
+        where.push(`industry_code = $${vals.length}`)
+      }
+      if (!includeArchived) {
+        where.push(`status IN ('active', 'draft')`)
+      }
+      const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+      const orderSql = ind
+        ? `ORDER BY updated_at DESC`
+        : `ORDER BY industry_code ASC, updated_at DESC`
+      const sql = `
         SELECT *
         FROM crm_customer_management_templates
-        ORDER BY industry_code ASC, updated_at DESC
+        ${whereSql}
+        ${orderSql}
       `
-      const vals = []
-      if (ind) {
-        sql = `
-          SELECT *
-          FROM crm_customer_management_templates
-          WHERE industry_code = $1
-          ORDER BY updated_at DESC
-        `
-        vals.push(ind)
-      }
       const r = await pool.query(sql, vals)
       res.json({
         success: true,
@@ -133,9 +141,10 @@ export function registerCrmCustomerTemplateAdminApi(router, deps) {
         res.status(400).json({ message: 'invalid id' })
         return
       }
-      const cur = await pool.query(`SELECT id, revision FROM crm_customer_management_templates WHERE id = $1 LIMIT 1`, [
-        id,
-      ])
+      const cur = await pool.query(
+        `SELECT id, revision, status FROM crm_customer_management_templates WHERE id = $1 LIMIT 1`,
+        [id],
+      )
       if (cur.rowCount === 0) {
         res.status(404).json({ message: 'not found' })
         return
@@ -144,6 +153,7 @@ export function registerCrmCustomerTemplateAdminApi(router, deps) {
         typeof cur.rows[0].revision === 'number' && Number.isInteger(cur.rows[0].revision)
           ? cur.rows[0].revision
           : 1
+      const prevStatus = String(cur.rows[0].status ?? 'active').trim().toLowerCase()
 
       const normalized = normalizeCrmCustomerManagementTemplateBody(req.body)
       if (!normalized.ok) {
@@ -151,6 +161,22 @@ export function registerCrmCustomerTemplateAdminApi(router, deps) {
         return
       }
       const d = normalized.data
+
+      const nextStatus = d.status
+      if (nextStatus === 'archived' && prevStatus !== 'archived') {
+        const ten = await pool.query(
+          `SELECT COUNT(*)::int AS c FROM tenants WHERE crm_customer_template_id = $1`,
+          [id],
+        )
+        const cnt = ten.rows[0]?.c ?? 0
+        if (cnt > 0) {
+          res.status(409).json({
+            message:
+              '이 템플릿을 사용 중인 테넌트가 있어 보관할 수 없습니다. 테넌트 관리에서 고객 관리 템플릿 연결을 해제한 뒤 다시 시도하세요.',
+          })
+          return
+        }
+      }
 
       const indCheck = await pool.query(`SELECT code FROM industries WHERE code = $1 LIMIT 1`, [d.industryCode])
       if (indCheck.rowCount === 0) {

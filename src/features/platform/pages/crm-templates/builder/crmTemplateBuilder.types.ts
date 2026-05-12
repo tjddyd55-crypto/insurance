@@ -1,4 +1,10 @@
-import type { CrmTemplateBuilderFieldType } from './crmTemplateBuilder.constants'
+import type {
+  CrmTemplateBuilderFieldType,
+  CrmTemplateLifecycleStatus,
+  CrmTemplateListColumnDisplayType,
+} from './crmTemplateBuilder.constants'
+
+export type { CrmTemplateLifecycleStatus }
 
 export type CrmTemplateBuilderTabId = 'basic' | 'form' | 'list' | 'detail' | 'preview'
 
@@ -20,6 +26,7 @@ export type CrmDraftListColumn = {
   label: string
   sourceFieldKey: string
   visibleDefault: boolean
+  displayType: CrmTemplateListColumnDisplayType
 }
 
 export type CrmDraftDetailTab = {

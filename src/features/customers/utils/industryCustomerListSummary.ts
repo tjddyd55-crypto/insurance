@@ -10,6 +10,39 @@ function trimOrDash(raw: unknown): string | null {
   return s ? s : null
 }
 
+function resolveListColumnDisplayMode(
+  col: { displayType?: string },
+  template: CustomerIndustryTemplate,
+  sourceFieldKey: string,
+): 'text' | 'date' | 'number' {
+  const configured = String(col.displayType ?? 'auto').trim().toLowerCase()
+  if (configured === 'text' || configured === 'date' || configured === 'number') {
+    return configured
+  }
+  const field = template.formFields.find((f) => f.fieldKey.trim() === sourceFieldKey.trim())
+  const w = String(field?.widget ?? 'text').toLowerCase()
+  if (w === 'date') return 'date'
+  if (w === 'number') return 'number'
+  return 'text'
+}
+
+function formatListColumnCellDisplay(raw: string | null, mode: 'text' | 'date' | 'number'): string | null {
+  if (raw == null) return null
+  const s = typeof raw === 'string' ? raw.trim() : String(raw).trim()
+  if (!s) return null
+  if (mode === 'number') {
+    const normalized = s.replace(/,/g, '')
+    const n = Number(normalized)
+    if (Number.isFinite(n)) return String(n)
+    return s
+  }
+  if (mode === 'date') {
+    const d = formatDateYmdInput(s)
+    return d === '-' ? null : d
+  }
+  return s
+}
+
 /**
  * 목록 칼럼 `sourceFieldKey` 중 DB CustomerRecord 에 바로 꺼낼 수 있는 것만 문자열화한다.
  * 확장 필드·동적 빌더 목록 컬럼은 crm_extension.fields 등에서 조회한다.
@@ -79,18 +112,26 @@ export function formatIndustryCustomerListSecondaryLine(
 
     let v: string | null = null
     if (col.columnKey === 'lastConsultDate') {
-      v = industryListColumnValue(customer, 'customer.lastConsultDate')
+      const raw = industryListColumnValue(customer, 'customer.lastConsultDate')
+      v = formatListColumnCellDisplay(
+        raw,
+        resolveListColumnDisplayMode(col, template, 'customer.lastConsultDate'),
+      )
     } else {
       const sfk = typeof col.sourceFieldKey === 'string' && col.sourceFieldKey.trim()
         ? col.sourceFieldKey.trim()
         : null
       if (sfk) {
-        v = industryListColumnValue(customer, sfk)
+        const raw = industryListColumnValue(customer, sfk)
+        const mode = resolveListColumnDisplayMode(col, template, sfk)
+        v = formatListColumnCellDisplay(raw, mode)
       } else {
         const def = getListColumnDefinition(col.columnKey)
         if (!def?.sourceFieldKey) continue
         if (def.sourceType === 'aggregate' && col.columnKey !== 'lastConsultDate') continue
-        v = industryListColumnValue(customer, String(def.sourceFieldKey))
+        const sk = String(def.sourceFieldKey)
+        const raw = industryListColumnValue(customer, sk)
+        v = formatListColumnCellDisplay(raw, resolveListColumnDisplayMode(col, template, sk))
       }
     }
     if (!v) continue

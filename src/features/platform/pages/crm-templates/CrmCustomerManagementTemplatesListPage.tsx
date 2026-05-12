@@ -16,6 +16,7 @@ export default function CrmCustomerManagementTemplatesListPage() {
   const [rows, setRows] = useState<CrmTemplateListRow[]>([])
   const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [includeArchived, setIncludeArchived] = useState(false)
 
   const load = useCallback(async () => {
     if (!token?.trim()) {
@@ -26,14 +27,14 @@ export default function CrmCustomerManagementTemplatesListPage() {
     setLoading(true)
     setErr(null)
     try {
-      const data = await listCrmCustomerManagementTemplates(token)
+      const data = await listCrmCustomerManagementTemplates(token, undefined, { includeArchived })
       setRows(data)
     } catch (e) {
       setErr(e instanceof Error ? e.message : '목록을 불러오지 못했습니다.')
     } finally {
       setLoading(false)
     }
-  }, [token])
+  }, [token, includeArchived])
 
   useEffect(() => {
     void load()
@@ -94,6 +95,14 @@ export default function CrmCustomerManagementTemplatesListPage() {
         <button type="button" className="filter-button ml-4" disabled={loading} onClick={() => void load()}>
           새로고침
         </button>
+        <label className="platform-admin-page__toolbar-check ml-4 flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={includeArchived}
+            onChange={(e) => setIncludeArchived(e.target.checked)}
+          />
+          <span className="platform-admin-page__muted text-sm">보관(archived) 템플릿 포함</span>
+        </label>
         <Link
           to="/admin/platform/crm-customer-management-templates/new"
           className="filter-button filter-button--workspace-active ml-auto"

@@ -19,11 +19,16 @@ export type CrmTemplateListRow = CrmCustomerManagementTemplateApiRow & {
 export async function listCrmCustomerManagementTemplates(
   token: string,
   industryCode?: string,
+  opts?: { includeArchived?: boolean },
 ): Promise<CrmTemplateListRow[]> {
-  const qs =
-    industryCode?.trim()
-      ? `?industry_code=${encodeURIComponent(industryCode.trim().toLowerCase())}`
-      : ''
+  const params = new URLSearchParams()
+  if (industryCode?.trim()) {
+    params.set('industry_code', industryCode.trim().toLowerCase())
+  }
+  if (opts?.includeArchived) {
+    params.set('include_archived', '1')
+  }
+  const qs = params.toString() ? `?${params.toString()}` : ''
   const raw = await apiRequest<{ success?: boolean; data?: unknown }>(
     `/api/admin/platform/crm-customer-management-templates${qs}`,
     { method: 'GET', token },

@@ -3,8 +3,17 @@
  * — 렌더/권한/API는 포함하지 않는다.
  */
 
-/** 동적 CRM 빌더에서 industry_code 그대로 domain에 쓰는 경우 포함 */
-export type CustomerTemplateDomain = 'core' | 'insurance' | 'government' | 'gym' | 'liquor'
+/**
+ * 동적 CRM 빌더에서 임의 `industry_code`가 그대로 domain에 매핑될 수 있다.
+ * 알려진 상수 업종 외 문자열도 허용한다.
+ */
+export type CustomerTemplateDomain =
+  | 'core'
+  | 'insurance'
+  | 'government'
+  | 'gym'
+  | 'liquor'
+  | (string & {})
 
 /** 필드 민감도(표시 마스킹·감사 UI 등 향후 훅) */
 export type CustomerTemplatePrivacyLevel = 'normal' | 'sensitive' | 'identifying'
@@ -50,6 +59,11 @@ export interface CustomerTemplateListColumn {
   domain: CustomerTemplateDomain
   /** 동적 목록 등 레지스트리 없이 목록 표시값을 만들 때(canonical 원천 키) */
   sourceFieldKey?: string
+  /**
+   * 목록 카드 한 줄 표시 포맷
+   * - auto: 연결된 폼 필드(widget) 타입에 맞춤
+   */
+  displayType?: 'auto' | 'text' | 'date' | 'number'
 }
 
 export interface CustomerTemplateDetailTab {

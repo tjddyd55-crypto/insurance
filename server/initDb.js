@@ -719,8 +719,16 @@ async function ensureCrmPlatformMetaSchema(executor) {
       extension_feature_bindings JSONB NOT NULL DEFAULT '[]'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      CONSTRAINT ccmt_status_check CHECK (status IN ('active', 'archived'))
+      CONSTRAINT ccmt_status_check CHECK (status IN ('active', 'draft', 'archived'))
     )
+  `)
+  await executor.query(`
+    ALTER TABLE crm_customer_management_templates
+    DROP CONSTRAINT IF EXISTS ccmt_status_check
+  `)
+  await executor.query(`
+    ALTER TABLE crm_customer_management_templates
+    ADD CONSTRAINT ccmt_status_check CHECK (status IN ('active', 'draft', 'archived'))
   `)
   await executor.query(`
     CREATE INDEX IF NOT EXISTS idx_ccmt_industry_status_updated

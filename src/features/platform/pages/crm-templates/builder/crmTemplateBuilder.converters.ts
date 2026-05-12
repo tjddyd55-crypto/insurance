@@ -8,7 +8,9 @@ import type {
 
 import {
   CRM_TEMPLATE_BUILDER_ALLOWED_FIELD_TYPES,
+  CRM_TEMPLATE_LIST_COLUMN_DISPLAY_TYPES,
   type CrmTemplateBuilderFieldType,
+  type CrmTemplateLifecycleStatus,
 } from './crmTemplateBuilder.constants'
 import type { CrmDraftDetailTab, CrmDraftFormField, CrmDraftListColumn, CrmTemplateDraft } from './crmTemplateBuilder.types'
 
@@ -31,6 +33,13 @@ function normalizeFieldType(raw: string): CrmTemplateBuilderFieldType {
   return (CRM_TEMPLATE_BUILDER_ALLOWED_FIELD_TYPES as readonly string[]).includes(t)
     ? (t as CrmTemplateBuilderFieldType)
     : 'text'
+}
+
+function normalizeListDisplayType(raw: string): CrmDraftListColumn['displayType'] {
+  const d = String(raw ?? 'auto').trim().toLowerCase()
+  return (CRM_TEMPLATE_LIST_COLUMN_DISPLAY_TYPES as readonly string[]).includes(d)
+    ? (d as CrmDraftListColumn['displayType'])
+    : 'auto'
 }
 
 export function customerIndustryTemplateToDraft(tpl: CustomerIndustryTemplate): CrmTemplateDraft {
@@ -69,6 +78,7 @@ function listColumnResolvedToDraft(c: CustomerTemplateListColumn): CrmDraftListC
     label: c.label,
     sourceFieldKey: String(c.sourceFieldKey ?? ''),
     visibleDefault: c.visibleDefault !== false,
+    displayType: normalizeListDisplayType(String(c.displayType ?? 'auto')),
   }
 }
 
@@ -87,7 +97,7 @@ export function draftToSaveBody(params: {
   name: string
   industry_code: string
   description: string
-  status: 'active' | 'archived'
+  status: CrmTemplateLifecycleStatus
   draft: CrmTemplateDraft
 }): Record<string, unknown> {
   const ic = params.industry_code.trim().toLowerCase()
@@ -127,6 +137,7 @@ export function draftToSaveBody(params: {
     sourceFieldKey: c.sourceFieldKey.trim(),
     order: (idx + 1) * 10,
     visibleDefault: c.visibleDefault,
+    displayType: c.displayType ?? 'auto',
     domain: ic,
   }))
 
@@ -194,6 +205,7 @@ export function customerIndustryTemplateFromApiSaveBody(
       order: Number.isFinite(Number(raw.order)) ? Number(raw.order) : 0,
       visibleDefault: raw.visibleDefault === false ? false : true,
       domain: ic as CustomerTemplateListColumn['domain'],
+      displayType: normalizeListDisplayType(String(raw.displayType ?? raw.display_type ?? 'auto')),
     }
   })
 

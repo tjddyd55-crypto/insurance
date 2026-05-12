@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthProvider'
+import { ApiError } from '../../../../lib/apiClient'
 import CustomerIndustryTemplateFields from '../../../customers/components/CustomerIndustryTemplateFields'
 import type { CustomerEditFormState } from '../../../customers/types/customerEditForm'
 
@@ -13,6 +14,7 @@ import {
 import { validateCrmTemplateDraft } from './builder/crmTemplateBuilder.validation'
 import { mockCustomerRecordFromPreviewBinder } from './builder/mockCustomerForCrmTemplatePreview'
 import CrmTemplateBuilderTabPanels from './builder/CrmTemplateBuilderTabPanels'
+import type { CrmTemplateLifecycleStatus } from './builder/crmTemplateBuilder.constants'
 import type { CrmTemplateBuilderTabId, CrmTemplateDraft, CrmTemplateValidationIssue } from './builder/crmTemplateBuilder.types'
 
 import {
@@ -65,7 +67,7 @@ export default function CrmCustomerManagementTemplateEditorPage() {
   const [name, setName] = useState('')
   const [industryCode, setIndustryCode] = useState('')
   const [description, setDescription] = useState('')
-  const [status, setStatus] = useState<'active' | 'archived'>('active')
+  const [status, setStatus] = useState<CrmTemplateLifecycleStatus>('draft')
   const [draft, setDraft] = useState<CrmTemplateDraft>(() => emptyDraft())
   const [industries, setIndustries] = useState<{ id: number; code: string; name: string }[]>([])
   const [statusText, setStatusText] = useState<string | null>(null)
@@ -82,6 +84,12 @@ export default function CrmCustomerManagementTemplateEditorPage() {
   } | null>(null)
 
   const [previewBinder, setPreviewBinder] = useState<CustomerEditFormState>(() => buildPreviewBinder())
+
+  useEffect(() => {
+    if (isNew) {
+      setStatus('draft')
+    }
+  }, [isNew])
 
   useEffect(() => {
     if (!token?.trim()) return
@@ -110,8 +118,10 @@ export default function CrmCustomerManagementTemplateEditorPage() {
         setName(String(row.name ?? ''))
         setIndustryCode(String(row.industry_code ?? '').toLowerCase())
         setDescription(String(row.description ?? ''))
-        const st = String(row.status ?? 'active').toLowerCase() === 'archived' ? 'archived' : 'active'
-        setStatus(st)
+        const stRaw = String(row.status ?? 'active').trim().toLowerCase()
+        setStatus(
+          stRaw === 'archived' ? 'archived' : stRaw === 'draft' ? 'draft' : 'active',
+        )
         setDraft(customerIndustryTemplateToDraft(resolved))
         const rev = typeof row.revision === 'number' ? row.revision : Number(row.revision)
         setRevision(Number.isFinite(rev) ? rev : 1)
@@ -168,7 +178,7 @@ export default function CrmCustomerManagementTemplateEditorPage() {
       return
     }
 
-    const issues = validateCrmTemplateDraft({ name, industryCode, draft })
+    const issues = validateCrmTemplateDraft({ name, industryCode, status, draft })
     if (issues.length > 0) {
       setValidationIssues(issues)
       setActiveTab(firstTabWithIssues(issues))
@@ -211,6 +221,11 @@ export default function CrmCustomerManagementTemplateEditorPage() {
       }
       setStatusText('저장했습니다.')
     } catch (e) {
+      if (e instanceof ApiError && e.status === 409) {
+        setActiveTab('basic')
+        setStatusText(e.message)
+        return
+      }
       const msg = e instanceof Error ? e.message : '저장에 실패했습니다.'
       setStatusText(msg)
       if (/400|fieldKey|options|form_fields|industry/i.test(msg)) {

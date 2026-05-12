@@ -13,6 +13,14 @@ export const CRM_TEMPLATE_BUILDER_ALLOWED_FIELD_TYPES = [
 
 export type CrmTemplateBuilderFieldType = (typeof CRM_TEMPLATE_BUILDER_ALLOWED_FIELD_TYPES)[number]
 
+export const CRM_TEMPLATE_LIST_COLUMN_DISPLAY_TYPES = ['auto', 'text', 'date', 'number'] as const
+
+export type CrmTemplateListColumnDisplayType = (typeof CRM_TEMPLATE_LIST_COLUMN_DISPLAY_TYPES)[number]
+
+export const CRM_TEMPLATE_LIFECYCLE_STATUSES = ['draft', 'active', 'archived'] as const
+
+export type CrmTemplateLifecycleStatus = (typeof CRM_TEMPLATE_LIFECYCLE_STATUSES)[number]
+
 /** 코어 DB 경로 허용 키(extension 이 아닌 storage: core 일 때만) */
 export const CRM_TEMPLATE_CORE_STORAGE_KEYS = [
   'customer.name',

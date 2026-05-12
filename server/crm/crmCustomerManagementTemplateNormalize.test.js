@@ -86,6 +86,34 @@ test('normalize: 유효한 gym 페이로드 허용', () => {
   assert.deepEqual(r.data.detailTabs[0].fieldKeys, ['gym.code', 'gym.plan'])
 })
 
+test('normalize: draft 상태 저장', () => {
+  const r = normalizeCrmCustomerManagementTemplateBody({
+    ...validGymPayload(),
+    status: 'draft',
+  })
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  assert.equal(r.data.status, 'draft')
+})
+
+test('normalize: list column displayType date', () => {
+  const p = validGymPayload()
+  p.list_columns = [
+    {
+      columnKey: 'planCol',
+      label: '플랜',
+      sourceFieldKey: 'gym.plan',
+      order: 10,
+      visibleDefault: true,
+      displayType: 'date',
+    },
+  ]
+  const r = normalizeCrmCustomerManagementTemplateBody(p)
+  assert.equal(r.ok, true)
+  if (!r.ok) return
+  assert.equal(r.data.listColumns[0].displayType, 'date')
+})
+
 test('normalize: 코어 저장은 허용 키만', () => {
   const r = normalizeCrmCustomerManagementTemplateBody({
     name: 'bad core',

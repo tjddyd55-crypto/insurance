@@ -1,20 +1,26 @@
 import {
   CRM_TEMPLATE_CORE_STORAGE_KEYS,
   CRM_TEMPLATE_FIELD_KEY_REGEX,
+  CRM_TEMPLATE_LIFECYCLE_STATUSES,
   CRM_TEMPLATE_TAB_ID_REGEX,
 } from './crmTemplateBuilder.constants'
-import type { CrmTemplateDraft, CrmTemplateValidationIssue } from './crmTemplateBuilder.types'
+import type { CrmTemplateDraft, CrmTemplateLifecycleStatus, CrmTemplateValidationIssue } from './crmTemplateBuilder.types'
 
 const CORE_SET = new Set<string>(CRM_TEMPLATE_CORE_STORAGE_KEYS)
 
 export function validateCrmTemplateDraft(params: {
   name: string
   industryCode: string
+  status: CrmTemplateLifecycleStatus
   draft: CrmTemplateDraft
 }): CrmTemplateValidationIssue[] {
   const issues: CrmTemplateValidationIssue[] = []
   const name = params.name.trim()
   const industryCode = params.industryCode.trim().toLowerCase()
+
+  if (!(CRM_TEMPLATE_LIFECYCLE_STATUSES as readonly string[]).includes(params.status)) {
+    issues.push({ tab: 'basic', message: '상태는 draft·active·archived 중 하나여야 합니다.' })
+  }
 
   if (!name) {
     issues.push({ tab: 'basic', message: '템플릿명을 입력해 주세요.' })
@@ -91,8 +97,22 @@ export function validateCrmTemplateDraft(params: {
         issues.push({
           tab: 'form',
           localId: f.localId,
-          message: '선택형(select/radio/checkbox) 필드에는 옵션이 필요합니다.',
+          message: '선택형 필드에는 value가 채워진 옵션이 최소 1개 필요합니다.',
         })
+      } else {
+        const seen = new Set<string>()
+        for (const o of nonEmptyOpts) {
+          const v = String(o.value ?? '').trim()
+          if (seen.has(v)) {
+            issues.push({
+              tab: 'form',
+              localId: f.localId,
+              message: `옵션 value가 중복됩니다: "${v}"`,
+            })
+            break
+          }
+          seen.add(v)
+        }
       }
     }
   }
@@ -113,7 +133,7 @@ export function validateCrmTemplateDraft(params: {
       issues.push({
         tab: 'list',
         localId: c.localId,
-        message: '표시 원본 필드를 선택 또는 입력해 주세요.',
+        message: '목록 원본 필드를 등록 폼 필드 목록에서 선택해 주세요.',
       })
     } else if (!keySet.has(src)) {
       issues.push({

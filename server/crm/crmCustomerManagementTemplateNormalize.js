@@ -72,7 +72,7 @@ function normalizeOptions(raw) {
  *       name: string,
  *       industryCode: string,
  *       description: string,
- *       status: 'active'|'archived',
+ *       status: 'active'|'draft'|'archived',
  *       formFields: object[],
  *       listColumns: object[],
  *       detailTabs: object[],
@@ -100,7 +100,8 @@ export function normalizeCrmCustomerManagementTemplateBody(body) {
 
   const description = String(b.description ?? '').trim().slice(0, 2000)
   const statusRaw = String(b.status ?? 'active').trim().toLowerCase()
-  const status = statusRaw === 'archived' ? 'archived' : 'active'
+  const status =
+    statusRaw === 'archived' ? 'archived' : statusRaw === 'draft' ? 'draft' : 'active'
 
   const formIn = Array.isArray(b.form_fields) ? b.form_fields : Array.isArray(b.formFields) ? b.formFields : []
   if (formIn.length === 0) {
@@ -199,6 +200,10 @@ export function normalizeCrmCustomerManagementTemplateBody(body) {
         message: `목록 컬럼의 sourceFieldKey("${sourceFieldKey}")가 form_fields 에 없습니다.`,
       }
     }
+    const displayTypeRaw = String(rawC.displayType ?? rawC.display_type ?? 'auto')
+      .trim()
+      .toLowerCase()
+    const displayType = ['auto', 'text', 'date', 'number'].includes(displayTypeRaw) ? displayTypeRaw : 'auto'
     listOrder += 10
     const order = Number.isFinite(Number(rawC.order)) ? Number(rawC.order) : listOrder
     listColumns.push({
@@ -208,6 +213,7 @@ export function normalizeCrmCustomerManagementTemplateBody(body) {
       order,
       visibleDefault: rawC.visibleDefault === false ? false : true,
       domain: String(rawC.domain ?? industryCode).trim().slice(0, 64) || industryCode,
+      displayType,
     })
   }
 

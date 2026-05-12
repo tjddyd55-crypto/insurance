@@ -67,6 +67,8 @@ export function mapCrmCustomerManagementRowToIndustryTemplatePayload(row) {
 
   const listColumns = listColumnsIn.map((c) => {
     const o = c && typeof c === 'object' && !Array.isArray(c) ? c : {}
+    const displayRaw = String(o.displayType ?? o.display_type ?? 'auto').trim().toLowerCase()
+    const displayType = ['auto', 'text', 'date', 'number'].includes(displayRaw) ? displayRaw : 'auto'
     return {
       columnKey: String(o.columnKey ?? '').trim(),
       label: String(o.label ?? '').trim(),
@@ -74,6 +76,7 @@ export function mapCrmCustomerManagementRowToIndustryTemplatePayload(row) {
       order: Number.isFinite(Number(o.order)) ? Number(o.order) : 0,
       visibleDefault: o.visibleDefault === false ? false : true,
       domain: String(o.domain ?? industryCode).trim() || industryCode,
+      displayType,
     }
   })
 
