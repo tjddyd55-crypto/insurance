@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import FormButton from '../../../../components/form/FormButton'
 import FormSelect, { type FormSelectOption } from '../../../../components/form/FormSelect'
 import { ApiError } from '../../../../lib/apiClient'
+import { coercePositiveIntId } from '../../../../lib/numericIds'
 import {
   listCrmCustomerManagementTemplates,
   patchTenantCrmCustomerTemplate,
@@ -11,13 +12,6 @@ import type { PlatformTenantRow } from '../../platformAdmin.types'
 
 function isTemplateActive(status: unknown): boolean {
   return String(status ?? '').trim().toLowerCase() === 'active'
-}
-
-/** API/DB BIGINT id 가 JSON 에서 문자열로 올 수 있어 선택·매칭은 숫자로 정규화한다 */
-function coerceTemplateRowId(id: unknown): number | null {
-  const n = typeof id === 'number' ? id : Number(id)
-  if (!Number.isInteger(n) || n < 1) return null
-  return n
 }
 
 export type IndustryTenantCrmTemplateSectionProps = {
@@ -40,7 +34,7 @@ export function IndustryTenantCrmTemplateSection({
 
   const industryCodeLower = (selectedTenant.industryCode?.trim() ?? '').toLowerCase()
 
-  const savedId = selectedTenant.crmCustomerTemplateId ?? null
+  const savedId = coercePositiveIntId(selectedTenant.crmCustomerTemplateId ?? null)
 
   const allowDynamic = industryAllowsDynamicCrmCustomerTemplates(industryCodeLower)
 
@@ -57,7 +51,7 @@ export function IndustryTenantCrmTemplateSection({
   const [feedbackErr, setFeedbackErr] = useState<string | null>(null)
 
   useEffect(() => {
-    setDraftId(selectedTenant.crmCustomerTemplateId ?? null)
+    setDraftId(coercePositiveIntId(selectedTenant.crmCustomerTemplateId ?? null))
   }, [selectedTenant.id, selectedTenant.crmCustomerTemplateId])
 
   useEffect(() => {
@@ -94,7 +88,7 @@ export function IndustryTenantCrmTemplateSection({
 
   const currentRow = useMemo(() => {
     if (savedId == null) return null
-    return templateRows.find((r) => coerceTemplateRowId(r.id) === savedId) ?? null
+    return templateRows.find((r) => coercePositiveIntId(r.id) === savedId) ?? null
   }, [savedId, templateRows])
 
   const isSavedArchived =
@@ -116,7 +110,7 @@ export function IndustryTenantCrmTemplateSection({
 
   const selectValue = useMemo(() => {
     if (draftId == null) return ''
-    if (!activeTemplates.some((t) => coerceTemplateRowId(t.id) === draftId)) return ''
+    if (!activeTemplates.some((t) => coercePositiveIntId(t.id) === draftId)) return ''
     return String(draftId)
   }, [draftId, activeTemplates])
 

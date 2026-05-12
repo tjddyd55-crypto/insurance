@@ -1,4 +1,5 @@
 import { ApiError, apiRequest } from '../../../lib/apiClient'
+import { coercePositiveIntId } from '../../../lib/numericIds'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
 
 export interface CrmCustomerManagementTemplateApiRow extends Record<string, unknown> {
@@ -38,7 +39,10 @@ export async function listCrmCustomerManagementTemplates(
     console.error('[listCrmCustomerManagementTemplates] invalid:', raw)
     throw new ApiError('템플릿 목록을 불러오지 못했습니다.', 500)
   }
-  return data as CrmTemplateListRow[]
+  return (data as CrmTemplateListRow[]).map((row) => {
+    const nid = coercePositiveIntId(row.id)
+    return nid != null ? { ...row, id: nid } : row
+  })
 }
 
 export async function fetchCrmCustomerManagementTemplate(token: string, id: number) {

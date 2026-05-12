@@ -152,6 +152,22 @@ export function normalizeCrmCustomerManagementTemplateBody(body) {
     if ((typeRaw === 'select' || typeRaw === 'radio' || typeRaw === 'checkbox') && options.length === 0) {
       return { ok: false, status: 400, message: `${fk}: select/radio/checkbox 는 options 가 필요합니다.` }
     }
+    if (
+      (typeRaw === 'select' || typeRaw === 'radio' || typeRaw === 'checkbox') &&
+      options.length > 0
+    ) {
+      const seenVal = new Set()
+      for (const opt of options) {
+        if (seenVal.has(opt.value)) {
+          return {
+            ok: false,
+            status: 400,
+            message: `${fk}: 옵션 value가 중복됩니다: "${opt.value}"`,
+          }
+        }
+        seenVal.add(opt.value)
+      }
+    }
 
     orderCursor += 10
     const order = Number.isFinite(Number(rawF.order)) ? Number(rawF.order) : orderCursor

@@ -60,6 +60,33 @@ test('normalize: select 는 options 필수', () => {
   assert.ok(String(r.message).includes('options'))
 })
 
+test('normalize: select options duplicate value 거부', () => {
+  const p = {
+    name: 'dup opt',
+    industry_code: 'gym',
+    form_fields: [
+      {
+        fieldKey: 'gym.dup',
+        label: 'dup',
+        type: 'select',
+        storage: 'extension',
+        order: 10,
+        options: [
+          { value: 'x', label: '1' },
+          { value: 'x', label: '2' },
+        ],
+      },
+    ],
+    list_columns: [
+      { columnKey: 'c1', label: 'C', sourceFieldKey: 'gym.dup', order: 10, visibleDefault: true },
+    ],
+    detail_tabs: [{ tabId: 'main', label: 'M', order: 10, fieldKeys: ['gym.dup'] }],
+  }
+  const r = normalizeCrmCustomerManagementTemplateBody(p)
+  assert.equal(r.ok, false)
+  assert.ok(String(r.message).includes('옵션 value가 중복'))
+})
+
 test('normalize: list_columns sourceFieldKey 가 form 에 없으면 거부', () => {
   const p = validGymPayload()
   p.list_columns = [{ columnKey: 'bad', label: 'L', sourceFieldKey: 'missing.key' }]

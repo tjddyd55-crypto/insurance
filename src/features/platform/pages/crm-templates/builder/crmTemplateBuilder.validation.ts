@@ -133,13 +133,14 @@ export function validateCrmTemplateDraft(params: {
       issues.push({
         tab: 'list',
         localId: c.localId,
-        message: '목록 원본 필드를 등록 폼 필드 목록에서 선택해 주세요.',
+        message:
+          '원본 필드 키(sourceFieldKey)를 입력해 주세요. 등록 폼 필드의 fieldKey와 동일한 canonical 키여야 합니다.',
       })
     } else if (!keySet.has(src)) {
       issues.push({
         tab: 'list',
         localId: c.localId,
-        message: `목록 원본 필드 "${src}" 가 등록 폼에 존재하지 않습니다.`,
+        message: `목록 원본 필드 "${src}" 가 등록 폼 fieldKey 목록에 없습니다. 먼저 등록 폼에 해당 키를 추가하세요.`,
       })
     }
   }

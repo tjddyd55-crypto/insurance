@@ -243,12 +243,16 @@ export function registerCrmCustomerTemplateAdminApi(router, deps) {
       const tplRaw = req.body?.crm_customer_template_id ?? req.body?.crmCustomerTemplateId
       let nextFk = null
       if (tplRaw !== null && tplRaw !== undefined && String(tplRaw).trim() !== '') {
-        const tplId =
-          typeof tplRaw === 'number' && Number.isInteger(tplRaw) && tplRaw > 0
-            ? tplRaw
-            : typeof tplRaw === 'string' && /^\d+$/.test(tplRaw.trim())
-              ? Number(tplRaw.trim())
-              : NaN
+        let tplId = NaN
+        if (typeof tplRaw === 'number' && Number.isInteger(tplRaw) && tplRaw > 0) {
+          tplId = tplRaw
+        } else {
+          const s = String(tplRaw).trim()
+          if (/^\d+$/.test(s)) {
+            const n = Number(s)
+            if (Number.isSafeInteger(n) && n > 0) tplId = n
+          }
+        }
 
         if (!Number.isInteger(tplId)) {
           res.status(400).json({ message: 'crm_customer_template_id 형식 오류' })

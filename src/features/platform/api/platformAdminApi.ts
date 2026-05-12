@@ -1,4 +1,5 @@
 import { apiRequest } from '../../../lib/apiClient'
+import { coercePositiveIntId } from '../../../lib/numericIds'
 import type {
   AssignPlatformIndustryAdminResult,
   AssignPlatformTenantAdminResult,
@@ -12,6 +13,7 @@ import type {
   PlatformIndustriesResponse,
   PlatformIndustryAdminsResponse,
   PlatformMembershipsResponse,
+  PlatformTenantRow,
   PlatformTenantAdminsResponse,
   PlatformTenantMembersResponse,
   PlatformTenantsResponse,
@@ -115,8 +117,17 @@ export function assignPlatformIndustryAdmin(
   })
 }
 
+function normalizeTenantRows(items: PlatformTenantRow[]): PlatformTenantRow[] {
+  return items.map((row) => ({
+    ...row,
+    crmCustomerTemplateId: coercePositiveIntId(row.crmCustomerTemplateId),
+  }))
+}
+
 export function fetchPlatformTenants(token: string) {
-  return apiRequest<PlatformTenantsResponse>('/api/admin/platform/tenants', { method: 'GET', token })
+  return apiRequest<PlatformTenantsResponse>('/api/admin/platform/tenants', { method: 'GET', token }).then((r) => ({
+    items: normalizeTenantRows(r.items),
+  }))
 }
 
 /** 업종별 스코프 — 응답 스키마는 전체 목록 GET 과 동일 */
@@ -125,7 +136,7 @@ export function fetchPlatformTenantsForIndustry(token: string, industryId: strin
   return apiRequest<PlatformTenantsResponse>(`/api/admin/platform/industries/${id}/tenants`, {
     method: 'GET',
     token,
-  })
+  }).then((r) => ({ items: normalizeTenantRows(r.items) }))
 }
 
 export function fetchPlatformTenantAdmins(token: string, tenantId: string) {

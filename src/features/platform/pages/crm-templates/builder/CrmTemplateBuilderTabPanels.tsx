@@ -42,6 +42,23 @@ function moveRow<T>(list: readonly T[], index: number, dir: -1 | 1): T[] {
   return out
 }
 
+/** 비어 있지 않은 option value 기준 중복 행 표시용 */
+function duplicateOptionValueIndices(options: readonly { value: string; label: string }[]): Set<number> {
+  const byVal = new Map<string, number[]>()
+  options.forEach((o, idx) => {
+    const v = String(o.value ?? '').trim()
+    if (!v) return
+    const arr = byVal.get(v) ?? []
+    arr.push(idx)
+    byVal.set(v, arr)
+  })
+  const dup = new Set<number>()
+  for (const arr of byVal.values()) {
+    if (arr.length > 1) arr.forEach((i) => dup.add(i))
+  }
+  return dup
+}
+
 function issuesFor(instances: readonly CrmTemplateValidationIssue[], localId?: string) {
   return instances.filter((i) => (localId ? i.localId === localId : !i.localId))
 }
@@ -665,33 +682,41 @@ function FieldOptionsEditor({
   const move = (i: number, dir: -1 | 1) => onChange(moveRow(options, i, dir))
   const patch = (i: number, patch: Partial<{ value: string; label: string }>) =>
     onChange(options.map((o, ix) => (ix === i ? { ...o, ...patch } : o)))
+  const dupIdx = useMemo(() => duplicateOptionValueIndices(options), [options])
 
   return (
     <div className="crm-template-builder__options-block">
       <div className="platform-admin-page__muted text-sm mb-2">선택 옵션 (label / value)</div>
       {options.map((opt, idx) => (
-        <div key={idx} className="crm-template-builder__option-row">
-          <input
-            className="platform-admin-field__control"
-            placeholder="표시 라벨"
-            value={opt.label}
-            onChange={(e) => patch(idx, { label: e.target.value })}
-          />
-          <input
-            className="platform-admin-field__control platform-admin-page__mono"
-            placeholder="값"
-            value={opt.value}
-            onChange={(e) => patch(idx, { value: e.target.value })}
-          />
-          <button type="button" className="filter-button text-xs px-2" onClick={() => move(idx, -1)}>
-            ↑
-          </button>
-          <button type="button" className="filter-button text-xs px-2" onClick={() => move(idx, 1)}>
-            ↓
-          </button>
-          <button type="button" className="filter-button text-xs px-2" onClick={() => onChange(options.filter((_, ix) => ix !== idx))}>
-            삭제
-          </button>
+        <div key={idx} className="mb-2">
+          <div className="crm-template-builder__option-row">
+            <input
+              className="platform-admin-field__control"
+              placeholder="표시 라벨"
+              value={opt.label}
+              onChange={(e) => patch(idx, { label: e.target.value })}
+            />
+            <input
+              className="platform-admin-field__control platform-admin-page__mono"
+              placeholder="값"
+              value={opt.value}
+              onChange={(e) => patch(idx, { value: e.target.value })}
+            />
+            <button type="button" className="filter-button text-xs px-2" onClick={() => move(idx, -1)}>
+              ↑
+            </button>
+            <button type="button" className="filter-button text-xs px-2" onClick={() => move(idx, 1)}>
+              ↓
+            </button>
+            <button type="button" className="filter-button text-xs px-2" onClick={() => onChange(options.filter((_, ix) => ix !== idx))}>
+              삭제
+            </button>
+          </div>
+          {dupIdx.has(idx) ? (
+            <p className="platform-admin-page__field-error text-xs mt-1 mb-0">
+              value가 다른 옵션과 중복되었습니다. 저장 시 거절됩니다.
+            </p>
+          ) : null}
         </div>
       ))}
       <button
@@ -812,24 +837,26 @@ function ListColumnsTab({
                   onChange={(e) => patchCol(c.localId, { columnKey: e.target.value })}
                 />
               </label>
-              <label className="platform-admin-field">
+              <div className="platform-admin-field crm-template-builder__full-row">
                 <span className="platform-admin-field__label">
-                  원본 필드 <span className="platform-admin-page__required">*</span>
+                  원본 필드 (sourceFieldKey) <span className="platform-admin-page__required">*</span>
                 </span>
+                <p className="platform-admin-page__field-hint text-sm mt-0 mb-2">
+                  등록 폼의 fieldKey와 동일한 canonical 키여야 합니다. 위에서 고르거나 아래에 직접 입력·자동완성할 수
+                  있습니다.
+                </p>
                 <select
-                  className="platform-admin-field__control platform-admin-page__mono"
+                  className="platform-admin-field__control platform-admin-page__mono mb-2"
                   value={sourceKeysWithValues.includes(c.sourceFieldKey.trim()) ? c.sourceFieldKey.trim() : ''}
                   onChange={(e) => {
                     const v = e.target.value
                     patchCol(c.localId, {
                       sourceFieldKey: v,
-                      columnKey: v.replace(/\./g, '_'),
+                      columnKey: v.trim() ? v.trim().replace(/\./g, '_') : c.columnKey,
                     })
                   }}
                 >
-                  <option value="" disabled>
-                    등록 폼 필드 선택… (직접 키 입력은 지원하지 않습니다)
-                  </option>
+                  <option value="">— 등록 폼 필드에서 선택 —</option>
                   {sourceOptions.map((so) =>
                     so.fk ? (
                       <option key={so.fk} value={so.fk}>
@@ -838,7 +865,24 @@ function ListColumnsTab({
                     ) : null,
                   )}
                 </select>
-              </label>
+                <input
+                  className="platform-admin-field__control platform-admin-page__mono"
+                  list={`crm-list-src-${c.localId}`}
+                  placeholder="등록 폼 fieldKey와 동일한 값"
+                  autoComplete="off"
+                  value={c.sourceFieldKey}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    const nextColumnKey = v.trim() ? v.trim().replace(/\./g, '_') : c.columnKey
+                    patchCol(c.localId, { sourceFieldKey: v, columnKey: nextColumnKey })
+                  }}
+                />
+                <datalist id={`crm-list-src-${c.localId}`}>
+                  {sourceKeysWithValues.map((k) => (
+                    <option key={k} value={k} />
+                  ))}
+                </datalist>
+              </div>
               <label className="platform-admin-field">
                 <span className="platform-admin-field__label">표시 타입</span>
                 <select
