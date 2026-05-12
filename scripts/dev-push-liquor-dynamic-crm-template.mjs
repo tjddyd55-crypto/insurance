@@ -8,9 +8,10 @@
  *
  * 사용:
  *   $env:INSURANCE_DEV_ADMIN_JWT="<jwt>"
- *   node scripts/dev-push-liquor-dynamic-crm-template.mjs https://insurance-dev.up.railway.app [--tenant=N]
+ *   node scripts/dev-push-liquor-dynamic-crm-template.mjs https://insurance-dev.up.railway.app [--tenant=id] [--force-new]
  *
- * --tenant=N 이 있으면 PATCH /backend/admin/platform/tenants/:id/crm-customer-template
+ * 기본 동작: 같은 industry_code 에 동일 이름(주류회사 고객관리 템플릿)의 active 행이 있으면 POST 하지 않고 그 id 로 종료합니다.
+ * --force-new 가 있으면 항상 POST 로 신규 행을 추가합니다.
  */
 
 import process from 'node:process'
@@ -20,6 +21,7 @@ const tokenRaw = process.env.INSURANCE_DEV_ADMIN_JWT ?? process.argv[4] ?? ''
 
 const tenantFlag = process.argv.find((x) => x.startsWith('--tenant='))
 const tenantId = tenantFlag ? Number(tenantFlag.slice('--tenant='.length).trim()) : NaN
+const forceNew = process.argv.includes('--force-new')
 
 if (!origin?.startsWith('http')) {
   console.error('사용법: node scripts/dev-push-liquor-dynamic-crm-template.mjs <origin> [--tenant=id]')
@@ -37,6 +39,8 @@ const base = `${origin.replace(/\/$/, '')}/backend`
 
 const fixtureMod = await import('../server/crm/fixtures/liquorCompanyDynamicCrmTemplateBody.js')
 const body = fixtureMod.buildLiquorCompanyDynamicCrmTemplateBody()
+const wantName = String(body.name ?? '').trim()
+const wantIc = String(body.industry_code ?? '').trim().toLowerCase()
 
 async function fetchJson(url, init) {
   const method = init?.method ?? 'GET'
@@ -59,20 +63,57 @@ async function fetchJson(url, init) {
   return json
 }
 
-const created = await fetchJson(`${base}/admin/platform/crm-customer-management-templates`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(body),
-})
-
-const row = created?.data?.row
-const id = typeof row?.id === 'number' ? row.id : Number(row?.id)
-if (!Number.isInteger(id) || id < 1) {
-  console.error('응답에 템플릿 id 없음:', created)
-  process.exit(2)
+/** @returns {unknown[]|null} */
+function extractList(payload) {
+  const d = payload && typeof payload === 'object' && !Array.isArray(payload) ? payload.data : payload
+  return Array.isArray(d) ? d : null
 }
 
-console.log('생성 완료 crm_customer_management_templates id=', id)
+let id /** @type {number} */
+
+if (!forceNew) {
+  const listUrl = `${base}/admin/platform/crm-customer-management-templates?industry_code=${encodeURIComponent(wantIc)}`
+  const listed = await fetchJson(listUrl, { method: 'GET' })
+  const rows = extractList(listed) ?? []
+  const hit = rows.find((r) => {
+    if (!r || typeof r !== 'object') return false
+    const o = /** @type {Record<string, unknown>} */ (r)
+    const nm = String(o.name ?? '').trim()
+    const ic = String(o.industry_code ?? o.industryCode ?? '').trim().toLowerCase()
+    const st = String(o.status ?? '').trim().toLowerCase()
+    return nm === wantName && ic === wantIc && st === 'active'
+  })
+  if (hit && typeof hit === 'object') {
+    const rawId = /** @type {Record<string, unknown>} */ (hit).id
+    const n = typeof rawId === 'number' ? rawId : Number(rawId)
+    if (Number.isInteger(n) && n > 0) {
+      id = n
+      console.log('기존 활성 템플릿 재사용 — id=', id)
+    }
+  }
+}
+
+if (id === undefined) {
+  const created = await fetchJson(`${base}/admin/platform/crm-customer-management-templates`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  const row = created?.data?.row
+  const nid = typeof row?.id === 'number' ? row.id : Number(row?.id)
+  if (!Number.isInteger(nid) || nid < 1) {
+    console.error('응답에 템플릿 id 없음:', created)
+    process.exit(2)
+  }
+  id = nid
+  console.log('생성 완료 crm_customer_management_templates id=', id)
+}
+
+if (!(Number.isInteger(id) && id > 0)) {
+  console.error('템플릿 id 를 결정하지 못했습니다.')
+  process.exit(2)
+}
 
 if (Number.isInteger(tenantId) && tenantId > 0) {
   const patched = await fetchJson(`${base}/admin/platform/tenants/${tenantId}/crm-customer-template`, {
