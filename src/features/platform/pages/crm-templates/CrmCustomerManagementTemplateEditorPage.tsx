@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthProvider'
 import CustomerIndustryTemplateFields from '../../../customers/components/CustomerIndustryTemplateFields'
 import type { CustomerEditFormState } from '../../../customers/types/customerEditForm'
@@ -56,8 +56,11 @@ function firstTabWithIssues(issues: { tab: CrmTemplateBuilderTabId }[]): CrmTemp
 export default function CrmCustomerManagementTemplateEditorPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const { token } = useAuth()
-  const isNew = id === 'new'
+  /** `/crm-customer-management-templates/new` 라우트에는 `:id` 없음 */
+  const isNew =
+    id === 'new' || /\/crm-customer-management-templates\/new\/?$/.test(pathname)
 
   const [name, setName] = useState('')
   const [industryCode, setIndustryCode] = useState('')
