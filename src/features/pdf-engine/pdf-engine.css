@@ -786,10 +786,24 @@
   font-weight: 700;
 }
 
-.pdf-engine-preview__header p {
-  margin: 4px 0 0;
-  color: #475569;
+.pdf-engine-preview__filename-chip {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default, #334155);
+  background: var(--bg-input, #020617);
+  color: var(--text-primary, #f8fafc);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.pdf-engine-preview__subtitle {
+  margin: 10px 0 0;
+  color: var(--text-sub, #94a3b8);
   font-size: 13px;
+  line-height: 1.45;
 }
 
 .pdf-engine-preview__frame-wrap {

@@ -5,6 +5,8 @@ type StorageFileListProps = {
   folders: StorageFolderRow[]
   files: StorageFileRow[]
   loading: boolean
+  /** 목록 조회 실패 시에만 설정 — 빈 목록 안내와 구분한다 */
+  listFetchError?: string
   selectedFileId: number | null
   expandedFolderIds: Set<number>
   onToggleFolder: (folderId: number) => void
@@ -54,6 +56,7 @@ export default function StorageFileList({
   folders,
   files,
   loading,
+  listFetchError = '',
   selectedFileId,
   expandedFolderIds,
   onToggleFolder,
@@ -68,8 +71,15 @@ export default function StorageFileList({
   if (loading) {
     return <p className="storage-file-list__empty">불러오는 중…</p>
   }
+  if (listFetchError.trim()) {
+    return (
+      <p className="storage-file-list__empty" role="alert">
+        {listFetchError.trim()}
+      </p>
+    )
+  }
   if (files.length === 0 && folders.length === 0) {
-    return <p className="storage-file-list__empty">파일이 없습니다.</p>
+    return <p className="storage-file-list__empty">등록된 파일 없음</p>
   }
 
   const filesByFolderId = new Map<number | null, StorageFileRow[]>()

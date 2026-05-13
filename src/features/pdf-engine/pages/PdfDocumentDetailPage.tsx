@@ -10,6 +10,7 @@ import { FormButton } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
 import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
+import { getCustomerById } from '../../customers/api/customersApi'
 import {
   fetchPdfTemplateFile,
   getPdfIssuance,
@@ -90,7 +91,7 @@ function triggerDownload(blob: Blob, filename: string): void {
 }
 
 export default function PdfDocumentDetailPage() {
-  const { id: idParam } = useParams<{ id: string }>()
+  const { id: idParam, customerId: routeCustomerId } = useParams<{ id?: string; customerId?: string }>()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const templateId = Number(idParam)
@@ -98,6 +99,11 @@ export default function PdfDocumentDetailPage() {
   const { listPath, historyPath } = usePdfDocumentsWorkspacePaths()
 
   const issuerParam = searchParams.get('issuerCustomerName')
+  const workspaceCustomerIdFromRoute = useMemo(() => {
+    const n = Number(routeCustomerId)
+    return Number.isInteger(n) && n >= 1 ? n : null
+  }, [routeCustomerId])
+
   const issuerCustomerLabel = useMemo(() => {
     if (!issuerParam?.trim()) return ''
     try {
@@ -123,6 +129,7 @@ export default function PdfDocumentDetailPage() {
   const [saving, setSaving] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [sourcePrefill, setSourcePrefill] = useState<SourcePrefillState>({ kind: 'none' })
+  const [fallbackCustomerLabel, setFallbackCustomerLabel] = useState('')
 
   const [pdfBuffer, setPdfBuffer] = useState<ArrayBuffer | null>(null)
   const [applicantValues, setApplicantValues] = useState<Record<string, string>>({})
@@ -139,6 +146,35 @@ export default function PdfDocumentDetailPage() {
       setPreviewUrl(null)
     }
   }
+
+  useEffect(() => {
+    if (!token?.trim()) {
+      setFallbackCustomerLabel('')
+      return
+    }
+    if (issuerCustomerLabel.trim()) {
+      setFallbackCustomerLabel('')
+      return
+    }
+    if (workspaceCustomerIdFromRoute == null) {
+      setFallbackCustomerLabel('')
+      return
+    }
+    let cancelled = false
+    getCustomerById(token, workspaceCustomerIdFromRoute)
+      .then((row) => {
+        if (cancelled) return
+        const name = row?.name?.trim()
+        setFallbackCustomerLabel(name ?? '')
+      })
+      .catch(() => {
+        if (cancelled) return
+        setFallbackCustomerLabel('')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [issuerCustomerLabel, token, workspaceCustomerIdFromRoute])
 
   useEffect(() => {
     if (!token?.trim()) return
@@ -238,14 +274,16 @@ export default function PdfDocumentDetailPage() {
     sourcePrefill.kind,
   ])
 
+  const displayCustomerLabel = issuerCustomerLabel.trim() || fallbackCustomerLabel.trim()
+
   const resultPdfFilename = useMemo(() => {
     if (state.status !== 'ready') return '고객_신청서.pdf'
     return buildPdfIssuanceDisplayFilename({
-      customerLabel: issuerCustomerLabel || undefined,
+      customerLabel: displayCustomerLabel || undefined,
       templateTitle: state.template.title,
       templateCode: state.template.code,
     })
-  }, [state, issuerCustomerLabel])
+  }, [state, displayCustomerLabel])
 
   const handleSubmitApplicant = useCallback(
     async (values: Record<string, string>, persistFonts: Record<string, number>) => {
@@ -438,10 +476,16 @@ export default function PdfDocumentDetailPage() {
         <div className="pdf-engine-preview">
           <header className="pdf-engine-preview__header">
             <h3>결과 미리보기</h3>
-            <p className="pdf-engine-preview__filename" title={resultPdfFilename}>
-              파일: {resultPdfFilename}
+            <div
+              className="pdf-engine-preview__filename-chip"
+              title={resultPdfFilename}
+              aria-label={`발급 PDF 파일명 ${resultPdfFilename}`}
+            >
+              {resultPdfFilename}
+            </div>
+            <p className="pdf-engine-preview__subtitle">
+              저장 파일명은 위와 동일합니다. 내장 PDF 뷰어 상단에 보이는 이름은 브라우저/OS 표시 차이일 수 있습니다.
             </p>
-            <p>내용을 확인한 뒤 저장하거나, 수정으로 돌아갈 수 있습니다.</p>
           </header>
           {previewError ? <div className="pdf-engine-page__error">{previewError}</div> : null}
           <div className="pdf-engine-preview__frame-wrap">

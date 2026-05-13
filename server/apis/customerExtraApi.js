@@ -2037,6 +2037,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
       const scope = await resolveStorageCustomerScope(
+        req,
         pool,
         res,
         userId,
@@ -2091,6 +2092,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
       const scope = await resolveStorageCustomerScope(
+        req,
         pool,
         res,
         userId,

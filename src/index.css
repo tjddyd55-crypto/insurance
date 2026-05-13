@@ -8895,6 +8895,12 @@ textarea.memo-sticky-note__textarea::placeholder {
   color: var(--text-sub);
 }
 
+.storage-workspace__folder-warning {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-sub, #94a3b8);
+}
+
 .storage-bar {
   display: block;
   width: 100%;

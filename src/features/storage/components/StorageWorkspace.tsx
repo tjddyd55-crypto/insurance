@@ -155,7 +155,12 @@ export default function StorageWorkspace({
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  /** 업로드·이름변경·열기 등 액션 실패 등 (파일 목록 자체 성공 여부와 분리) */
   const [error, setError] = useState('')
+  /** 폴더 목록(/storage/folders)만 실패 — 파일 목록이 성공했어도 탭 전체를 DB 에러처럼 보이지 않게 한다 */
+  const [foldersLoadError, setFoldersLoadError] = useState('')
+  /** 파일 목록(/storage/files) 로드 실패 */
+  const [filesListError, setFilesListError] = useState('')
   const [folderPickerOpen, setFolderPickerOpen] = useState(false)
 
   const [createFolderOpen, setCreateFolderOpen] = useState(false)
@@ -207,6 +212,8 @@ export default function StorageWorkspace({
     setSearchText('')
     setKindFilter('all')
     setError('')
+    setFoldersLoadError('')
+    setFilesListError('')
   }, [customerId, token])
 
   useEffect(() => {
@@ -225,10 +232,22 @@ export default function StorageWorkspace({
     async (signal?: AbortSignal) => {
       if (!token?.trim()) {
         setFolders([])
+        setFoldersLoadError('')
         return
       }
-      const rows = await listStorageFolders(token, storageFolderScope, { signal })
-      setFolders(rows)
+      setFoldersLoadError('')
+      try {
+        const rows = await listStorageFolders(token, storageFolderScope, { signal })
+        setFolders(rows)
+      } catch (e) {
+        if (isAbortError(e)) {
+          return
+        }
+        setFolders([])
+        setFoldersLoadError(
+          e instanceof Error ? e.message : '폴더 목록을 불러오지 못했습니다. 폴더 기능 없이 파일만 표시합니다.',
+        )
+      }
     },
     [storageFolderScope, token],
   )
@@ -301,13 +320,13 @@ export default function StorageWorkspace({
     }
     const controller = new AbortController()
     setLoading(true)
-    setError('')
+    setFilesListError('')
     void loadFiles(controller.signal)
       .catch((e) => {
         if (isAbortError(e)) {
           return
         }
-        setError(e instanceof Error ? e.message : '파일 목록을 불러오지 못했습니다.')
+        setFilesListError(e instanceof Error ? e.message : '파일 목록을 불러오지 못했습니다.')
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -646,12 +665,18 @@ export default function StorageWorkspace({
         {selectedFolderId !== null ? ` · 선택 폴더: ${folders.find((folder) => folder.id === selectedFolderId)?.name ?? '폴더'}` : ''}
       </div>
 
+      {foldersLoadError ? (
+        <p className="storage-workspace__folder-warning" role="status">
+          {foldersLoadError}
+        </p>
+      ) : null}
       {error ? <p className="storage-workspace__error">{error}</p> : null}
 
       <StorageFileList
         folders={folders}
         files={filteredFiles}
         loading={loading}
+        listFetchError={filesListError}
         selectedFileId={selectedFileId}
         expandedFolderIds={expandedFolderIds}
         onToggleFolder={(folderId) => {
