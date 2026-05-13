@@ -104,6 +104,8 @@ type PageProps = {
   previewInnerWidth: number
   /** 미리보기 패널(뷰포트) 높이 — 0이면 너비 기준만 사용 */
   previewMaxHeight: number
+  /** 작성 미리보기 패널 확대(수동) 시 fit contain 배율에 곱함 — 1이면 fit과 동일 */
+  uiScaleMultiplier: number
   parentScrollRef?: MutableRefObject<HTMLDivElement | null>
   pageAnchorsRef: MutableRefObject<(HTMLDivElement | null)[]>
 }
@@ -118,6 +120,7 @@ const ApplicantPdfPageRow = forwardRef<HTMLDivElement | null, PageProps>(functio
     highlightedFieldKey,
     previewInnerWidth,
     previewMaxHeight,
+    uiScaleMultiplier,
     parentScrollRef,
     pageAnchorsRef,
   }: PageProps,
@@ -155,14 +158,21 @@ const ApplicantPdfPageRow = forwardRef<HTMLDivElement | null, PageProps>(functio
           hostW > 0 ? hostW : previewInnerWidth > 0 ? previewInnerWidth : TARGET_PAGE_CSS_WIDTH_PX
         const targetCssW = Math.max(MIN_PAGE_CSS_WIDTH_PX, Math.min(TARGET_PAGE_CSS_WIDTH_PX, innerW))
         const scaleW = targetCssW / base.width
-        let scale = scaleW
+        let containScale = scaleW
         const pad = 12
         const maxH = previewMaxHeight > pad ? previewMaxHeight - pad : 0
         if (maxH > 0) {
           const scaleH = maxH / base.height
-          scale = Math.min(scaleW, scaleH)
+          containScale = Math.min(scaleW, scaleH)
         }
-        const vp = pageObj.getViewport({ scale })
+        const uMul =
+          typeof uiScaleMultiplier === 'number' &&
+          Number.isFinite(uiScaleMultiplier) &&
+          uiScaleMultiplier > 0
+            ? Math.min(2, Math.max(0.5, uiScaleMultiplier))
+            : 1
+        const finalScale = containScale * uMul
+        const vp = pageObj.getViewport({ scale: finalScale })
 
         await new Promise<void>((r) => requestAnimationFrame(() => r()))
         if (cancelled || myGen !== genRef.current) return
@@ -237,7 +247,7 @@ const ApplicantPdfPageRow = forwardRef<HTMLDivElement | null, PageProps>(functio
         pageRenderTaskRef.current = null
       }
     }
-  }, [pdfDoc, pageIndex, previewInnerWidth, previewMaxHeight, parentScrollRef])
+  }, [pdfDoc, pageIndex, previewInnerWidth, previewMaxHeight, uiScaleMultiplier, parentScrollRef])
 
   const overlays = useMemo(() => {
     if (!viewport) return null
@@ -451,6 +461,19 @@ const ApplicantPdfPageRow = forwardRef<HTMLDivElement | null, PageProps>(functio
   )
 })
 
+const ZOOM_UI_MIN = 0.5
+const ZOOM_UI_MAX = 2
+
+export type ApplicantSidePreviewScale = {
+  mode: 'fit' | 'manual'
+  multiplier: number
+}
+
+export const DEFAULT_APPLICANT_SIDE_PREVIEW_SCALE: ApplicantSidePreviewScale = {
+  mode: 'fit',
+  multiplier: 1,
+}
+
 type StackProps = {
   pdfBuffer: ArrayBuffer | null
   fields: PdfFieldSpec[]
@@ -460,11 +483,13 @@ type StackProps = {
   className?: string
   /** PC 미리보기 창 — 있으면 너비·높이로 contain 스케일에 사용 */
   previewContainerRef?: MutableRefObject<HTMLDivElement | null>
+  /** PC 작성 미리보기 확대·축소 — 없으면 fit 만 (배율 1) */
+  sidePreviewScale?: ApplicantSidePreviewScale
 }
 
 export const PdfApplicantPreviewStack = forwardRef<PdfApplicantPreviewHandle, StackProps>(
   function PdfApplicantPreviewStack(
-    { pdfBuffer, fields, values, fontSizeOverrides, highlightedFieldKey, className, previewContainerRef },
+    { pdfBuffer, fields, values, fontSizeOverrides, highlightedFieldKey, className, previewContainerRef, sidePreviewScale },
     refOut,
   ) {
     const scrollRootRef = useRef<HTMLDivElement | null>(null)
@@ -476,6 +501,13 @@ export const PdfApplicantPreviewStack = forwardRef<PdfApplicantPreviewHandle, St
     const [pages, setPages] = useState(1)
     const [innerW, setInnerW] = useState(0)
     const [previewMaxHeight, setPreviewMaxHeight] = useState(0)
+
+    const uiScaleMultiplier = useMemo(() => {
+      if (!sidePreviewScale || sidePreviewScale.mode !== 'manual') return 1
+      const m = Number(sidePreviewScale.multiplier)
+      if (!Number.isFinite(m) || m <= 0) return 1
+      return Math.min(ZOOM_UI_MAX, Math.max(ZOOM_UI_MIN, m))
+    }, [sidePreviewScale])
 
     useEffect(() => {
       const el = previewContainerRef?.current ?? scrollRootRef.current
@@ -575,6 +607,7 @@ export const PdfApplicantPreviewStack = forwardRef<PdfApplicantPreviewHandle, St
             highlightedFieldKey={highlightedFieldKey}
             previewInnerWidth={innerW}
             previewMaxHeight={previewMaxHeight}
+            uiScaleMultiplier={uiScaleMultiplier}
             parentScrollRef={scrollRootRef}
             pageAnchorsRef={pageAnchorsRef}
           />
