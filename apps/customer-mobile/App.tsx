@@ -7,9 +7,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView, type WebViewNavigation } from 'react-native-webview'
 import { AppLayout } from './AppLayout'
 import { ExpoUpdateOverlay, type ExpoUpdatePhase } from './components/ExpoUpdateOverlay'
-
-const CUSTOMER_HOME_URL = 'https://insurance-production-7bd8.up.railway.app/customer-app'
-const SERVICE_HOST = new URL(CUSTOMER_HOME_URL).hostname
+import {
+  CUSTOMER_APP_WEB_SERVICE_HOST,
+  CUSTOMER_APP_WEB_VIEW_URL,
+} from './customerAppWebViewConfig'
 
 /**
  * incognito 를 켜면(특히 Android WebView) localStorage/DOM Storage 가 세션 단위로 격리되거나
@@ -52,6 +53,10 @@ function AppContent() {
   const currentUrlRef = useRef('')
 
   useEffect(() => {
+    console.log('[InsuranceCustomerApp] WebView 시작 URL:', CUSTOMER_APP_WEB_VIEW_URL)
+  }, [])
+
+  useEffect(() => {
     if (Platform.OS !== 'android') return
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       const currentUrl = currentUrlRef.current
@@ -79,11 +84,23 @@ function AppContent() {
       <View style={[styles.mainWebWrap, { paddingTop: mainWebPaddingTop }]}>
         <WebView
           ref={webViewRef}
-          source={{ uri: CUSTOMER_HOME_URL, headers: WEB_FETCH_BYPASS_CACHE_HEADERS }}
+          source={{ uri: CUSTOMER_APP_WEB_VIEW_URL, headers: WEB_FETCH_BYPASS_CACHE_HEADERS }}
           style={styles.webview}
           javaScriptEnabled
           domStorageEnabled
           {...WEBVIEW_ALWAYS_FRESH_PROPS}
+          onLoadEnd={(e) => {
+            const url = e.nativeEvent.url
+            if (url) {
+              console.log('[InsuranceCustomerApp] WebView 로드 완료 url:', url)
+            }
+          }}
+          onHttpError={(e) => {
+            console.warn('[InsuranceCustomerApp] WebView HTTP', e.nativeEvent.statusCode, e.nativeEvent.url)
+          }}
+          onError={(e) => {
+            console.warn('[InsuranceCustomerApp] WebView error:', e.nativeEvent.description, e.nativeEvent.url)
+          }}
           onShouldStartLoadWithRequest={(request: MainWebViewLoadRequest) => {
             const requestUrl = request.url
             const lower = requestUrl.toLowerCase()
@@ -94,7 +111,7 @@ function AppContent() {
             try {
               const parsed = new URL(requestUrl)
               if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return true
-              if (parsed.hostname.toLowerCase() !== SERVICE_HOST.toLowerCase()) {
+              if (parsed.hostname.toLowerCase() !== CUSTOMER_APP_WEB_SERVICE_HOST.toLowerCase()) {
                 void openExternal(requestUrl)
                 return false
               }
