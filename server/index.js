@@ -21,7 +21,14 @@ import { registerCustomerCarsApi } from './apis/customerCarsApi.js'
 import { recordAnalyticsEvent } from './lib/analyticsEvents.js'
 import { ensureYesterdayAnalyticsAggregated } from './lib/analyticsAggregation.js'
 import { tickAnalyticsAggregationScheduler } from './lib/analyticsScheduler.js'
-import { verifySignupPhoneProof } from './lib/signupPhoneProof.js'
+import { verifySignupPhoneProof, verifyRegistrationSignupPhoneProof } from './lib/signupPhoneProof.js'
+import { evaluateTenantMembershipLoginBlock, pickPrimaryTenantMembershipForLogin } from './lib/tenantMembershipAuth.js'
+import {
+  evaluateTenantRegistrationCodeForSignup,
+  incrementTenantRegistrationUsedCount,
+  normalizeIndustryCodeParam,
+  normalizeTenantRegistrationCodeRaw,
+} from './lib/tenantRegistrationCodes.js'
 import { signInviteSignup, verifyInviteSignupSignature } from './lib/inviteSignupSignature.js'
 import { purgeExpiredSmsVerificationCodes } from './services/purgeExpiredSmsCodes.js'
 import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.js'
@@ -31,6 +38,13 @@ import { parseGaId } from './lib/parseGaId.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import { mapCustomerRow } from './lib/customerRowMap.js'
 import { stringifyCrmExtensionForDb } from './lib/customerCrmExtension.js'
+import { buildCustomerRowVisibilityWhere, resolveCustomerApiAccessScope } from './lib/customerAccessScope.js'
+import {
+  assertCustomerRowAccessibleByVisibility,
+  offsetSqlPlaceholders,
+  resolveCustomerVisibilitySqlForSelect,
+  resolveCustomerVisibilitySqlForUpdate,
+} from './lib/customerRowVisibilitySql.js'
 import {
   isContractUserSendRole,
   isGaInsurerManagerMutatorRole,
@@ -566,34 +580,22 @@ function resolveLinkedCustomerIdFromRequest(body, formData) {
   return n
 }
 
-async function assertCustomerOwnedByUser(customerId, userId, gaId) {
+async function assertCustomerOwnedByUser(req, customerId) {
   if (customerId == null) {
     return true
   }
-  const g = parseGaId(gaId)
-  if (g == null) {
-    return false
-  }
-  const r = await safeQuery(pool,
-    `SELECT 1 FROM customers WHERE id = $1 AND user_id = $2 AND ga_id = $3`,
-    [customerId, userId, g],
-  )
-  return r.rows.length > 0
+  return assertCustomerRowAccessibleByVisibility(pool, safeQuery, req, Number(customerId), {
+    requireNonDeleted: false,
+  })
 }
 
-async function assertCustomerActiveAndOwnedByUser(customerId, userId, gaId) {
+async function assertCustomerActiveAndOwnedByUser(req, customerId) {
   if (customerId == null) {
     return false
   }
-  const g = parseGaId(gaId)
-  if (g == null) {
-    return false
-  }
-  const r = await safeQuery(pool,
-    `SELECT 1 FROM customers WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL`,
-    [customerId, userId, g],
-  )
-  return r.rows.length > 0
+  return assertCustomerRowAccessibleByVisibility(pool, safeQuery, req, Number(customerId), {
+    requireNonDeleted: true,
+  })
 }
 
 function mapContactRow(row) {
@@ -891,6 +893,21 @@ async function requireAuth(req, res, next) {
     const teamIdRaw = decoded.teamId ?? decoded.team_id
     const teamId =
       typeof teamIdRaw === 'string' && teamIdRaw.trim() ? teamIdRaw.trim() : null
+    const customerScope = resolveCustomerApiAccessScope({
+      legacyReqRole: role,
+      customerAccessJwt: decoded.customerAccess ?? decoded.customer_access,
+      tenantDbIdJwt: decoded.tenantDbId ?? decoded.tenant_db_id,
+    })
+    const membRoleDecoded = decoded.tenantMembershipRole ?? decoded.tenant_membership_role
+    const tenantMembershipRoleStr =
+      typeof membRoleDecoded === 'string' && membRoleDecoded.trim()
+        ? membRoleDecoded.trim().toLowerCase()
+        : ''
+    const membTypeDecoded = decoded.membershipType ?? decoded.membership_type
+    const membershipTypeStr =
+      typeof membTypeDecoded === 'string' && membTypeDecoded.trim()
+        ? membTypeDecoded.trim().toLowerCase()
+        : ''
     req.user = {
       id: String(userId),
       username: typeof decoded.username === 'string' ? decoded.username : '',
@@ -901,6 +918,10 @@ async function requireAuth(req, res, next) {
       companyId: companyIdJwt,
       displayName,
       teamId,
+      customerAccess: customerScope.access,
+      customerTenantDbId: customerScope.tenantDbId,
+      tenantMembershipRole: tenantMembershipRoleStr,
+      membershipType: membershipTypeStr,
     }
 
     if (role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER') {
@@ -1472,15 +1493,24 @@ apiRouter.post('/agent/customer-app-links', requireAuth, async (req, res, next) 
       customerId = Number(createdCustomer.id)
       customerCode = String(createdCustomer.customer_code ?? '')
     } else {
-      const customerCheck = await pool.query(
+      const vis = resolveCustomerVisibilitySqlForSelect(req, agentId, gaId)
+      if (vis.blocked) {
+        res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+        return
+      }
+      const plc = vis.params.length
+      const idPh = `$${plc + 1}`
+      const customerCheck = await safeQuery(
+        pool,
         `
-        SELECT id, customer_code
-        FROM customers
-        WHERE id = $1
-          AND ga_id = $2
+        SELECT c.id, c.customer_code
+        FROM customers c
+        WHERE c.id = ${idPh}
+          AND (${vis.clause})
+          AND c.deleted_at IS NULL
         LIMIT 1
         `,
-        [customerId, gaId],
+        [...vis.params, customerId],
       )
       if (customerCheck.rowCount === 0) {
         res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
@@ -1697,8 +1727,88 @@ apiRouter.get('/health', (_req, res) => {
   res.json({ ok: true })
 })
 
+async function attachTenantMembershipSignup(poolExec, params) {
+  const userId = String(params?.userId ?? '').trim()
+  const rbacRole = String(params?.rbacRole ?? 'user').trim().toLowerCase()
+  const membershipType = String(params?.membershipType ?? 'agent').trim().toLowerCase()
+  const customerAccess = String(params?.customerAccess ?? 'own').trim().toLowerCase()
+  const gaParsed = parseGaId(params?.gaId)
+  if (!userId || gaParsed == null) {
+    return
+  }
+
+  /** @type {number | undefined} */
+  let tenantDbId = params?.tenantDbId != null ? Number(params.tenantDbId) : undefined
+  /** @type {number | undefined} */
+  let industryId = params?.industryId != null ? Number(params.industryId) : undefined
+
+  if (!(typeof tenantDbId === 'number' && Number.isSafeInteger(tenantDbId) && tenantDbId > 0)) {
+    const lr = await systemQuery(
+      poolExec,
+      `SELECT id, industry_id FROM tenants WHERE legacy_ga_id = $1 ORDER BY id ASC LIMIT 1`,
+      [gaParsed],
+    )
+    const tw = lr.rows[0]
+    if (!tw) {
+      return
+    }
+    tenantDbId = Number(tw.id)
+    industryId = Number(tw.industry_id)
+  }
+
+  if (!(typeof industryId === 'number' && Number.isSafeInteger(industryId) && industryId > 0)) {
+    const lr2 = await systemQuery(poolExec, `SELECT industry_id FROM tenants WHERE id = $1 LIMIT 1`, [
+      tenantDbId,
+    ])
+    industryId = Number(lr2.rows[0]?.industry_id)
+  }
+
+  if (
+    !(typeof tenantDbId === 'number' && Number.isSafeInteger(tenantDbId) && tenantDbId > 0) ||
+    !(typeof industryId === 'number' && Number.isSafeInteger(industryId) && industryId > 0)
+  ) {
+    return
+  }
+
+  if (!rbacRole || !['user', 'staff', 'tenant_admin'].includes(rbacRole)) {
+    return
+  }
+
+  const scopeId = String(tenantDbId)
+
+  await poolExec.query(
+    `
+    INSERT INTO user_memberships (
+      user_id, role, scope_type, scope_id, tenant_id, industry_id, status, membership_type, customer_access
+    )
+    SELECT
+      $1::text,
+      $2::text,
+      'tenant',
+      $3::text,
+      $4::bigint,
+      $5::bigint,
+      'active',
+      $6::text,
+      $7::text
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM user_memberships m
+      WHERE m.user_id = $1
+        AND m.scope_type = 'tenant'
+        AND m.tenant_id IS NOT DISTINCT FROM $4
+        AND COALESCE(m.scope_id, '') IS NOT DISTINCT FROM $3
+        AND LOWER(TRIM(COALESCE(m.role::text, ''))) = $2::text
+    )
+    `,
+    [userId, rbacRole, scopeId, tenantDbId, industryId, membershipType, customerAccess],
+  )
+}
+
+
 async function handleRegister(req, res) {
   try {
+    const body = req.body ?? {}
     const {
       username,
       password,
@@ -1718,137 +1828,211 @@ async function handleRegister(req, res) {
       inviteTs: inviteTsCamel,
       sig: sigLoose,
       ts: tsLoose,
-    } = req.body ?? {}
+    } = body
+
     const displayName = String(nameRaw ?? displayNameRaw ?? '').trim()
     if (!displayName) {
       res.status(400).json({ message: '이름을 입력해 주세요.' })
       return
     }
 
-    const code = normalizeInviteCode(inviteRaw ?? inviteAlt ?? '')
-    if (!code) {
-      res.status(400).json({ message: 'GA 코드 없음' })
-      return
-    }
-
-    const phoneNorm = normalizeKrMobile(req.body?.phone_number ?? req.body?.phoneNumber)
+    const phoneNorm = normalizeKrMobile(body?.phone_number ?? body?.phoneNumber)
     const phoneErr = validateKrMobileDigits(phoneNorm)
     if (phoneErr) {
       res.status(400).json({ message: phoneErr })
       return
     }
 
-    const gaCheck = await systemQuery(
-      pool,
-      `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
-      [code],
-    )
-    if (gaCheck.rows.length === 0) {
-      res.status(400).json({ message: '유효하지 않은 코드입니다' })
-      return
-    }
-    const gaRow = gaCheck.rows[0]
-    if (String(gaRow.status ?? '').toLowerCase() !== 'active') {
-      res.status(400).json({ message: '가입할 수 없는 GA입니다' })
-      return
-    }
-    const gaId = parseGaId(gaRow.id)
-    if (gaId == null) {
-      res.status(400).json({ message: '유효하지 않은 코드입니다' })
-      return
-    }
+    const industrySignup = normalizeIndustryCodeParam(body.industry_code ?? body.industryCode ?? '')
+    const regCodeNorm = normalizeTenantRegistrationCodeRaw(body.registration_code ?? body.registrationCode ?? '')
+    /** 보험(legacy GA) 또는 기타 업종: industryCode + 가입 코드가 함께 오면 테넌트 코드 경로 */
+    const tenantRegSignup = industrySignup.length > 0 && regCodeNorm.length >= 3
 
-    const refUserId = String(refUserSnake ?? refUserCamel ?? '').trim()
-    let invitedByUserId = null
-    if (refUserId) {
-      const refUserRes = await systemQuery(
-        pool,
-        `
-        SELECT id, role, ga_id, status, is_deleted
-        FROM users
-        WHERE id = $1
-        LIMIT 1
-        `,
-        [refUserId],
-      )
-      const refRow = refUserRes.rows[0]
-      if (!refRow || refRow.is_deleted) {
-        res.status(400).json({ message: '유효하지 않은 초대 링크입니다.' })
-        return
-      }
-      if (String(refRow.status ?? '').toLowerCase() !== 'active') {
-        res.status(400).json({ message: '초대를 받을 수 없는 계정 상태입니다.' })
-        return
-      }
-      if (normalizeUserRole(refRow.role) !== 'USER') {
-        res.status(400).json({ message: '일반 설계사(USER) 계정으로만 회원 초대가 가능합니다.' })
-        return
-      }
-      const refGaId = parseGaId(refRow.ga_id)
-      if (refGaId == null || refGaId !== gaId) {
-        res.status(400).json({ message: '소속 GA가 초대 담당자와 일치하지 않습니다.' })
-        return
-      }
-
-      const inviteSigRaw = String(inviteSigSnake ?? inviteSigCamel ?? sigLoose ?? '').trim()
-      const inviteTsRaw = inviteTsSnake ?? inviteTsCamel ?? tsLoose
-      const hasInviteSignaturePayload = Boolean(inviteSigRaw) || inviteTsRaw != null
-      if (hasInviteSignaturePayload) {
-        const inviteTsMs = Number(inviteTsRaw)
-        const sigCheck = verifyInviteSignupSignature(INVITE_SIGNUP_SECRET, {
-          gaCodeNormalized: code,
-          refUserId,
-          tsMs: inviteTsMs,
-          sig: inviteSigRaw,
-        })
-        if (!sigCheck.ok) {
-          const msg =
-            sigCheck.reason === 'expired'
-              ? '초대 링크가 만료되었습니다. 담당자에게 새 링크를 요청해 주세요.'
-              : '유효하지 않거나 변조된 초대 링크입니다. 담당자가 공유한 링크로 다시 시도해 주세요.'
-          res.status(400).json({ message: msg })
-          return
-        }
-      }
-
-      invitedByUserId = refUserId
-    }
+    /** @type {number | null} */
+    let gaId = null
+    let gaLegacyInviteCodeNormalized = ''
+    /** @type {{ tenantPk: number; industryPk: number; codeRowId: number } | null} */
+    let tenantRegMeta = null
 
     const proofRaw = String(signupProofSnake ?? signupProofCamel ?? '').trim()
-
-    function respondProofMismatch(signupProof) {
-      if (signupProof.phoneDigits !== phoneNorm) {
-        res.status(400).json({ message: '인증된 휴대폰 번호와 가입 폼의 번호가 일치하지 않습니다.' })
-        return true
-      }
-      if (signupProof.inviteCodeNormalized !== code) {
-        res
-          .status(400)
-          .json({ message: '인증 시점의 GA 코드와 현재 입력이 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
-        return true
-      }
-      if (signupProof.gaId !== gaId) {
-        res.status(400).json({ message: 'GA 정보가 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
-        return true
-      }
-      return false
-    }
-
     if (!proofRaw) {
       res.status(400).json({ message: '휴대폰 인증이 필요합니다.' })
       return
     }
-    let signupProof
-    try {
-      signupProof = verifySignupPhoneProof(proofRaw, JWT_SECRET)
-    } catch {
-      res.status(400).json({
-        message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
+
+    let invitedByUserId = null
+
+    if (tenantRegSignup) {
+      const refEarly = String(refUserSnake ?? refUserCamel ?? '').trim()
+      if (refEarly) {
+        res.status(400).json({ message: '초대 매개변수와 업종별 가입 코드를 함께 사용할 수 없습니다.' })
+        return
+      }
+
+      const ev = await evaluateTenantRegistrationCodeForSignup(pool, {
+        industryCodeNorm: industrySignup,
+        registrationCodeNorm: regCodeNorm,
       })
-      return
-    }
-    if (respondProofMismatch(signupProof)) {
-      return
+      if (!ev.ok) {
+        res.status(ev.status).json({ message: ev.message })
+        return
+      }
+      gaId = ev.gaId
+      tenantRegMeta = {
+        tenantPk: Number(ev.row.tenant_pk),
+        industryPk: Number(ev.row.tenant_industry_id),
+        codeRowId: Number(ev.row.id),
+      }
+
+      let rp
+      try {
+        rp = verifyRegistrationSignupPhoneProof(proofRaw, JWT_SECRET)
+      } catch {
+        rp = null
+      }
+      if (!rp) {
+        res.status(400).json({
+          message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
+        })
+        return
+      }
+      if (rp.phoneDigits !== phoneNorm) {
+        res.status(400).json({ message: '인증된 휴대폰 번호와 가입 폼의 번호가 일치하지 않습니다.' })
+        return
+      }
+      if (rp.industryCodeNormalized !== industrySignup) {
+        res.status(400).json({ message: '인증 업종 정보가 일치하지 않습니다.' })
+        return
+      }
+      if (rp.registrationCodeNormalized !== regCodeNorm) {
+        res.status(400).json({ message: '인증 시점 가입 코드와 현재 입력이 일치하지 않습니다.' })
+        return
+      }
+      if (gaId == null || rp.gaId !== gaId) {
+        res.status(400).json({ message: '가입 코드와 소속 정보가 일치하지 않습니다.' })
+        return
+      }
+      if (tenantRegMeta.tenantPk !== rp.tenantId) {
+        res.status(400).json({ message: '가입 코드와 소속 정보가 일치하지 않습니다.' })
+        return
+      }
+      const drCheck = String(ev.row.default_role ?? 'user').trim().toLowerCase()
+      const dtCheck = String(ev.row.default_membership_type ?? 'agent').trim().toLowerCase()
+      const daCheck = String(ev.row.default_customer_access ?? 'own').trim().toLowerCase()
+      if (!(drCheck === 'user' && dtCheck === 'agent' && daCheck === 'own')) {
+        res.status(400).json({ message: '이 경로에서는 일반 agent(본인 고객) 가입만 허용됩니다.' })
+        return
+      }
+    } else {
+      gaLegacyInviteCodeNormalized = normalizeInviteCode(inviteRaw ?? inviteAlt ?? '')
+      if (!gaLegacyInviteCodeNormalized) {
+        res.status(400).json({ message: 'GA 코드 없음' })
+        return
+      }
+
+      const gaCheck = await systemQuery(
+        pool,
+        `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
+        [gaLegacyInviteCodeNormalized],
+      )
+      if (gaCheck.rows.length === 0) {
+        res.status(400).json({ message: '유효하지 않은 코드입니다' })
+        return
+      }
+      const gaRow = gaCheck.rows[0]
+      if (String(gaRow.status ?? '').toLowerCase() !== 'active') {
+        res.status(400).json({ message: '가입할 수 없는 GA입니다' })
+        return
+      }
+      const parsedGaId = parseGaId(gaRow.id)
+      if (parsedGaId == null) {
+        res.status(400).json({ message: '유효하지 않은 코드입니다' })
+        return
+      }
+      gaId = parsedGaId
+
+      const refUserId = String(refUserSnake ?? refUserCamel ?? '').trim()
+      if (refUserId) {
+        const refUserRes = await systemQuery(
+          pool,
+          `
+          SELECT id, role, ga_id, status, is_deleted
+          FROM users
+          WHERE id = $1
+          LIMIT 1
+          `,
+          [refUserId],
+        )
+        const refRow = refUserRes.rows[0]
+        if (!refRow || refRow.is_deleted) {
+          res.status(400).json({ message: '유효하지 않은 초대 링크입니다.' })
+          return
+        }
+        if (String(refRow.status ?? '').toLowerCase() !== 'active') {
+          res.status(400).json({ message: '초대를 받을 수 없는 계정 상태입니다.' })
+          return
+        }
+        if (normalizeUserRole(refRow.role) !== 'USER') {
+          res.status(400).json({ message: '일반 설계사(USER) 계정으로만 회원 초대가 가능합니다.' })
+          return
+        }
+        const refGaId = parseGaId(refRow.ga_id)
+        if (refGaId == null || gaId == null || refGaId !== gaId) {
+          res.status(400).json({ message: '소속 GA가 초대 담당자와 일치하지 않습니다.' })
+          return
+        }
+
+        const inviteSigRaw = String(inviteSigSnake ?? inviteSigCamel ?? sigLoose ?? '').trim()
+        const inviteTsRaw = inviteTsSnake ?? inviteTsCamel ?? tsLoose
+        const hasInviteSignaturePayload = Boolean(inviteSigRaw) || inviteTsRaw != null
+        if (hasInviteSignaturePayload) {
+          const inviteTsMs = Number(inviteTsRaw)
+          const sigCheck = verifyInviteSignupSignature(INVITE_SIGNUP_SECRET, {
+            gaCodeNormalized: gaLegacyInviteCodeNormalized,
+            refUserId,
+            tsMs: inviteTsMs,
+            sig: inviteSigRaw,
+          })
+          if (!sigCheck.ok) {
+            const msg =
+              sigCheck.reason === 'expired'
+                ? '초대 링크가 만료되었습니다. 담당자에게 새 링크를 요청해 주세요.'
+                : '유효하지 않거나 변조된 초대 링크입니다. 담당자가 공유한 링크로 다시 시도해 주세요.'
+            res.status(400).json({ message: msg })
+            return
+          }
+        }
+
+        invitedByUserId = refUserId
+      }
+
+      let signupProofLegacy
+      try {
+        signupProofLegacy = verifySignupPhoneProof(proofRaw, JWT_SECRET)
+      } catch {
+        signupProofLegacy = null
+      }
+      if (!signupProofLegacy) {
+        res.status(400).json({
+          message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
+        })
+        return
+      }
+      if (signupProofLegacy.phoneDigits !== phoneNorm) {
+        res.status(400).json({ message: '인증된 휴대폰 번호와 가입 폼의 번호가 일치하지 않습니다.' })
+        return
+      }
+      if (signupProofLegacy.inviteCodeNormalized !== gaLegacyInviteCodeNormalized) {
+        res.status(400).json({
+          message:
+            '인증 시점의 GA 코드와 현재 입력이 일치하지 않습니다. 인증을 다시 진행해 주세요.',
+        })
+        return
+      }
+      if (signupProofLegacy.gaId !== gaId) {
+        res.status(400).json({ message: 'GA 정보가 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
+        return
+      }
     }
 
     const phoneDup = await systemQuery(
@@ -1879,28 +2063,72 @@ async function handleRegister(req, res) {
       res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
       return
     }
+
     const passwordHash = await bcrypt.hash(password, 10)
     const id = randomUUID()
-
-    /*
-     * invited_by_user_id 는 NOT NULL + FK(users.id) 제약을 가진다 (initDb.js §1815-1832).
-     * 초대 링크(ref_user_id) 를 통해 들어온 경우 해당 유저 id 를,
-     * 그렇지 않은 셀프 가입(GA 코드만 입력) 인 경우 자기 자신의 id 를 기록한다.
-     * 후자는 initDb bootstrap 이 기존 유저에 대해 수행하는
-     *   `UPDATE users SET invited_by_user_id = id WHERE invited_by_user_id IS NULL`
-     * 과 동일한 컨벤션이므로 데이터 모델 일관성이 유지된다.
-     * → 초대 없이 가입한 유저는 쿼리상 `invited_by_user_id = id` 로 식별 가능.
-     */
     const effectiveInvitedByUserId = invitedByUserId ?? id
 
-    const inserted = await safeQuery(pool,
-      `
-      INSERT INTO users (id, username, password_hash, role, ga_id, display_name, phone_number, invited_by_user_id)
-      VALUES ($1, $2, $3, 'USER', $4, $5, $6, $7)
-      RETURNING created_at
-      `,
-      [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm, effectiveInvitedByUserId],
-    )
+    const client = await pool.connect()
+    let createdAtIso = ''
+    try {
+      await client.query('BEGIN')
+
+      const insRow = await safeQuery(client,
+        `
+        INSERT INTO users (id, username, password_hash, role, ga_id, display_name, phone_number, invited_by_user_id)
+        VALUES ($1, $2, $3, 'USER', $4, $5, $6, $7)
+        RETURNING created_at
+        `,
+        [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm, effectiveInvitedByUserId],
+      )
+      createdAtIso = toIsoString(insRow.rows[0].created_at)
+
+      if (tenantRegSignup && tenantRegMeta != null) {
+        const evAgain = await evaluateTenantRegistrationCodeForSignup(client, {
+          industryCodeNorm: industrySignup,
+          registrationCodeNorm: regCodeNorm,
+        })
+        if (!evAgain.ok) {
+          await client.query('ROLLBACK')
+          res.status(evAgain.status).json({ message: evAgain.message })
+          return
+        }
+        const bumped = await incrementTenantRegistrationUsedCount(client, tenantRegMeta.codeRowId)
+        if (!bumped.incremented) {
+          await client.query('ROLLBACK')
+          res.status(400).json({ message: '가입 코드를 사용할 수 없습니다. 새 코드를 받아 주세요.' })
+          return
+        }
+        await attachTenantMembershipSignup(client, {
+          userId: id,
+          gaId,
+          tenantDbId: tenantRegMeta.tenantPk,
+          industryId: tenantRegMeta.industryPk,
+          rbacRole: 'user',
+          membershipType: 'agent',
+          customerAccess: 'own',
+        })
+      } else {
+        await attachTenantMembershipSignup(client, {
+          userId: id,
+          gaId,
+          rbacRole: 'user',
+          membershipType: 'agent',
+          customerAccess: 'own',
+        })
+      }
+
+      await client.query('COMMIT')
+    } catch (e) {
+      try {
+        await client.query('ROLLBACK')
+      } catch {
+        /* */
+      }
+      client.release()
+      throw e
+    }
+    client.release()
 
     if (phoneNorm) {
       await pool.query(`DELETE FROM sms_verification_codes WHERE purpose = 'SIGNUP' AND phone_number = $1`, [
@@ -1908,12 +2136,12 @@ async function handleRegister(req, res) {
       ])
     }
 
-    res.status(201).json({
-      id,
-      username: normalizedUsername,
-      ga_id: gaId,
-      createdAt: toIsoString(inserted.rows[0].created_at),
-    })
+    const payload = { id, username: normalizedUsername, ga_id: gaId, createdAt: createdAtIso }
+    if (tenantRegSignup && industrySignup) {
+      payload.industry_code = industrySignup
+    }
+
+    res.status(201).json(payload)
   } catch (error) {
     if (error?.code === '23505') {
       res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
@@ -1922,6 +2150,7 @@ async function handleRegister(req, res) {
     handleDbError(error, req, res)
   }
 }
+
 
 async function auditLoginFailure(pool, username, reason) {
   try {
@@ -2160,6 +2389,102 @@ async function handleLogin(req, res) {
 
     const userDisplayName = String(user.display_name ?? user.username ?? '').trim()
     const userTeamId = user.team_id != null ? String(user.team_id) : null
+    const gaIdIntPre = gaId != null && Number.isInteger(gaId) ? gaId : null
+
+    let userCrmBoot = {
+      industryCode: null,
+      tenantCrm: null,
+      crmDynamicIndustryTemplate: null,
+      tenantDbId: null,
+    }
+    if (gaIdIntPre != null) {
+      userCrmBoot = await selectCrmBootstrapExtendedForLegacyGa(pool, gaIdIntPre)
+    }
+
+    if (role !== 'SUPER_ADMIN' && gaIdIntPre != null) {
+      const blk = await evaluateTenantMembershipLoginBlock(pool, uid, gaIdIntPre)
+      if (blk.blocked) {
+        res.status(403).json({ message: '소속 테넌트 접근이 제한되어 로그인할 수 없습니다.' })
+        return
+      }
+    }
+
+    /** @type {number | null} */
+    let tenantDbJwt = userCrmBoot.tenantDbId
+    /** @type {string | null} */
+    let tenantIndustryJwt =
+      typeof userCrmBoot.industryCode === 'string' && userCrmBoot.industryCode.trim()
+        ? userCrmBoot.industryCode.trim().toLowerCase()
+        : null
+    /** @type {Record<string, unknown> | null} */
+    let membershipPayload = null
+    let tenantMembershipRoleJwt = ''
+    let membershipTypeJwt = ''
+    const roleNormJwt = normalizeUserRole(role)
+    let customerAccessJwt = 'own'
+    if (roleNormJwt === 'USER') {
+      membershipTypeJwt = 'agent'
+      customerAccessJwt = 'own'
+    } else if (roleNormJwt === 'GA_STAFF') {
+      membershipTypeJwt = 'staff'
+      customerAccessJwt = 'tenant'
+    } else if (roleNormJwt === 'GA_ADMIN') {
+      membershipTypeJwt = 'admin'
+      customerAccessJwt = 'tenant'
+    } else if (roleNormJwt === 'SUPER_ADMIN') {
+      membershipTypeJwt = 'owner'
+      customerAccessJwt = 'tenant'
+    } else {
+      membershipTypeJwt = 'staff'
+      customerAccessJwt = 'tenant'
+    }
+
+    if (gaIdIntPre != null) {
+      const pick = await pickPrimaryTenantMembershipForLogin(pool, uid, gaIdIntPre)
+      if (pick != null && pick.tenant_id != null) {
+        tenantDbJwt = typeof pick.tenant_id === 'number' ? pick.tenant_id : Number(pick.tenant_id)
+        const tic = pick.tenant_industry_code != null ? String(pick.tenant_industry_code).trim() : ''
+        if (tic) {
+          tenantIndustryJwt = tic.toLowerCase()
+        }
+        const caJwt = String(pick.customer_access ?? '').trim().toLowerCase()
+        if (caJwt === 'none' || caJwt === 'own' || caJwt === 'tenant' || caJwt === 'assigned') {
+          customerAccessJwt = caJwt
+        }
+        const mtJwt = String(pick.membership_type ?? '').trim().toLowerCase()
+        if (mtJwt === 'agent' || mtJwt === 'staff' || mtJwt === 'admin' || mtJwt === 'owner') {
+          membershipTypeJwt = mtJwt
+        }
+        tenantMembershipRoleJwt = String(pick.membership_rbac_role ?? '').trim()
+
+        membershipPayload = {
+          id: pick.membership_id != null ? String(pick.membership_id) : '',
+          tenantId:
+            pick.tenant_id != null
+              ? String(pick.tenant_id)
+              : tenantDbJwt != null
+                ? String(tenantDbJwt)
+                : '',
+          industryCode:
+            tenantIndustryJwt != null && tenantIndustryJwt !== '' ? tenantIndustryJwt : '',
+          tenantCode: pick.tenant_code != null ? String(pick.tenant_code) : '',
+          rbacRole:
+            tenantMembershipRoleJwt || String(pick.membership_rbac_role ?? '').trim(),
+          membershipType: membershipTypeJwt || String(pick.membership_type ?? '').trim(),
+          customerAccess:
+            ['none', 'own', 'tenant', 'assigned'].includes(customerAccessJwt) ?
+              customerAccessJwt
+            : 'own',
+          crm_customer_template_id:
+            pick.crm_customer_template_id != null ?
+              typeof pick.crm_customer_template_id === 'number'
+                ? pick.crm_customer_template_id
+                : Number(pick.crm_customer_template_id)
+            : null,
+        }
+      }
+    }
+
     const token = jwt.sign(
       {
         userId: user.id,
@@ -2171,12 +2496,22 @@ async function handleLogin(req, res) {
         gaName,
         displayName: userDisplayName,
         teamId: userTeamId,
+        tenantDbId: tenantDbJwt,
+        tenant_db_id: tenantDbJwt,
+        tenantIndustryCode: tenantIndustryJwt,
+        tenant_industry_code: tenantIndustryJwt,
+        customerAccess: customerAccessJwt,
+        customer_access: customerAccessJwt,
+        tenantMembershipRole: tenantMembershipRoleJwt,
+        tenant_membership_role: tenantMembershipRoleJwt,
+        membershipType: membershipTypeJwt,
+        membership_type: membershipTypeJwt,
       },
       JWT_SECRET,
       { expiresIn: '7d' },
     )
 
-    const gaIdInt = gaId != null && Number.isInteger(gaId) ? gaId : null
+    const gaIdInt = gaIdIntPre
     void logSecurityEvent(pool, {
       actorUserId: uid,
       actorRole: role,
@@ -2188,15 +2523,6 @@ async function handleLogin(req, res) {
       meta: { username: user.username },
     })
     void recordAnalyticsEvent(pool, { userId: uid, gaId: gaIdInt, eventType: 'login' })
-
-    let userCrmBoot = {
-      industryCode: null,
-      tenantCrm: null,
-      crmDynamicIndustryTemplate: null,
-    }
-    if (gaIdInt != null) {
-      userCrmBoot = await selectCrmBootstrapExtendedForLegacyGa(pool, gaIdInt)
-    }
 
     try {
       const cap = await resolveMinConcurrentSessionCapForUser(pool, uid)
@@ -2219,6 +2545,12 @@ async function handleLogin(req, res) {
         crm_industry_code: userCrmBoot.industryCode,
         tenant_crm: userCrmBoot.tenantCrm,
         crm_dynamic_industry_template: userCrmBoot.crmDynamicIndustryTemplate,
+        tenant_db_id: tenantDbJwt,
+        tenant_industry_code: tenantIndustryJwt,
+        membership: membershipPayload,
+        membership_customer_access: customerAccessJwt,
+        membership_type: membershipTypeJwt,
+        tenant_membership_role: tenantMembershipRoleJwt,
       },
     })
   } catch (error) {
@@ -5116,7 +5448,7 @@ apiRouter.post('/forms', requireAuth, async (req, res) => {
     const linkedId = resolveLinkedCustomerIdFromRequest(req.body, formData)
     let customerIdFk = null
     if (linkedId != null) {
-      const usable = await assertCustomerActiveAndOwnedByUser(linkedId, userId, gaId)
+      const usable = await assertCustomerActiveAndOwnedByUser(req, linkedId)
       if (!usable) {
         res.status(400).json({ message: '유효하지 않은 고객 연결입니다.' })
         return
@@ -5282,6 +5614,24 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
       return
     }
 
+    if ((req.user?.customerAccess ?? 'own') === 'none') {
+      res.status(403).json({ message: '고객 정보에 접근할 수 없는 계정입니다.' })
+      return
+    }
+
+    let custTenantId = Number(req.user?.customerTenantDbId)
+    if (!Number.isSafeInteger(custTenantId) || custTenantId < 1) {
+      const tr = await safeQuery(
+        pool,
+        `SELECT id FROM tenants WHERE legacy_ga_id = $1 ORDER BY id ASC LIMIT 1`,
+        [gaId],
+      )
+      custTenantId = Number(tr.rows[0]?.id ?? 0)
+      if (!(Number.isSafeInteger(custTenantId) && custTenantId > 0)) {
+        custTenantId = null
+      }
+    }
+
     const data = req.body ?? {}
     const name = String(data.name ?? '').trim()
     if (!name) {
@@ -5328,8 +5678,9 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         car_number, car_model, car_year, renewal_date,
         notes,
         birth_date,
-        crm_extension
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb))
+        crm_extension,
+        tenant_id, owner_user_id, created_by_user_id, visibility_scope
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb), $25, $26, $27, $28)
       RETURNING
         id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
@@ -5362,6 +5713,10 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         JSON.stringify(notes),
         birthDateSql,
         crmExtSql,
+        custTenantId,
+        userId,
+        userId,
+        String(req.user?.customerAccess ?? 'own').trim().toLowerCase() || 'own',
       ],
     )
 
@@ -5733,12 +6088,26 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       return
     }
 
-    vals.push(customerId, userId, gaId)
+    if ((req.user?.customerAccess ?? 'own') === 'none') {
+      res.status(403).json({ message: '고객 정보에 접근할 수 없는 계정입니다.' })
+      return
+    }
+
+    const visCtx = resolveCustomerVisibilitySqlForUpdate(req, userId, gaId)
+    if (visCtx.blocked) {
+      res.status(403).json({ message: '고객 정보에 접근할 수 없는 계정입니다.' })
+      return
+    }
+
+    const fieldParamCount = n - 1
+    const visWhere = offsetSqlPlaceholders(visCtx.clause, fieldParamCount)
+    vals.push(...visCtx.params, customerId)
+    const idPh = `$${vals.length}`
     const updated = await safeQuery(pool,
       `
       UPDATE customers
       SET ${parts.join(', ')}
-      WHERE id = $${n++} AND user_id = $${n++} AND ga_id = $${n++} AND deleted_at IS NULL
+      WHERE ${idPh} AND (${visWhere}) AND deleted_at IS NULL
       RETURNING
         id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
@@ -5783,9 +6152,17 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
       return
     }
 
+    const accessJwt = req.user?.customerAccess ?? 'own'
+    if (role !== 'SUPER_ADMIN' && accessJwt === 'none') {
+      res.json([])
+      return
+    }
+
     const q = String(req.query.q ?? '').trim()
     const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 50)
-    const isGaWide = role === 'SUPER_ADMIN' || GA_DELEGATE_ROLES.includes(role)
+    const isGaWide =
+      role === 'SUPER_ADMIN' ||
+      (GA_DELEGATE_ROLES.includes(role) && accessJwt !== 'none' && accessJwt !== 'own' && accessJwt !== 'assigned')
 
     const selectList = `
           c.id, c.user_id, c.name, c.birth_date, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
@@ -5812,17 +6189,23 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
           [gaId, limit],
         )
       } else {
+        const vis = resolveCustomerVisibilitySqlForSelect(req, userId, gaId)
+        if (vis.blocked) {
+          res.json([])
+          return
+        }
+        const limPh = `$${vis.params.length + 1}`
         result = await safeQuery(
           pool,
           `
         SELECT
           ${selectList}
         FROM customers c
-        WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
+        WHERE (${vis.clause}) AND c.deleted_at IS NULL
         ORDER BY c.created_at DESC
-        LIMIT $3
+        LIMIT ${limPh}
         `,
-          [userId, gaId, limit],
+          [...vis.params, limit],
         )
       }
     } else {
@@ -5849,23 +6232,32 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
           [gaId, pattern, idParam, limit],
         )
       } else {
+        const vis = resolveCustomerVisibilitySqlForSelect(req, userId, gaId)
+        if (vis.blocked) {
+          res.json([])
+          return
+        }
+        const p0 = vis.params.length
+        const patPh = `$${p0 + 1}`
+        const idPh = `$${p0 + 2}`
+        const limPh = `$${p0 + 3}`
         result = await safeQuery(
           pool,
           `
         SELECT
           ${selectList}
         FROM customers c
-        WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
+        WHERE (${vis.clause}) AND c.deleted_at IS NULL
           AND (
-            c.name ILIKE $3 ESCAPE '\\'
-            OR c.phone ILIKE $3 ESCAPE '\\'
-            OR (c.customer_code IS NOT NULL AND c.customer_code ILIKE $3 ESCAPE '\\')
-            OR ($4::int IS NOT NULL AND c.id = $4)
+            c.name ILIKE ${patPh} ESCAPE '\\'
+            OR c.phone ILIKE ${patPh} ESCAPE '\\'
+            OR (c.customer_code IS NOT NULL AND c.customer_code ILIKE ${patPh} ESCAPE '\\')
+            OR (${idPh}::int IS NOT NULL AND c.id = ${idPh})
           )
         ORDER BY c.created_at DESC
-        LIMIT $5
+        LIMIT ${limPh}
         `,
-          [userId, gaId, pattern, idParam, limit],
+          [...vis.params, pattern, idParam, limit],
         )
       }
     }
@@ -5889,6 +6281,25 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
     }
 
     const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 2000)
+
+    const accessEarly = req.user?.customerAccess ?? 'own'
+    if (accessEarly === 'none') {
+      res.json({ data: [], total: 0 })
+      return
+    }
+
+    const vis = resolveCustomerVisibilitySqlForSelect(req, userId, gaId)
+    if (vis.blocked) {
+      res.json({ data: [], total: 0 })
+      return
+    }
+
+    const plc = vis.params.length
+    const lcUserPlace = `$${plc + 2}`
+    const lcGaPlace = `$${plc + 3}`
+    const limitPlace = `$${plc + 4}`
+    const listParams = [...vis.params, userId, gaId, limit]
+
     const [result, countResult] = await Promise.all([
       safeQuery(
         pool,
@@ -5906,22 +6317,23 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
             cc.customer_id,
             MAX(cc.consultation_date) AS last_consult_date
           FROM customer_consultations cc
-          WHERE cc.user_id = $1 AND cc.ga_id = $2
+          WHERE cc.user_id = ${lcUserPlace} AND cc.ga_id = ${lcGaPlace}
           GROUP BY cc.customer_id
         ) lc ON lc.customer_id = c.id
-        WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
+        WHERE (${vis.clause}) AND c.deleted_at IS NULL
         ORDER BY lc.last_consult_date DESC NULLS LAST, c.renewal_date ASC NULLS LAST, c.created_at DESC
-        LIMIT $3
+        LIMIT ${limitPlace}
         `,
-        [userId, gaId, limit],
+        listParams,
       ),
-      safeQuery(pool,
+      safeQuery(
+        pool,
         `
         SELECT COUNT(*) AS c
-        FROM customers
-        WHERE user_id = $1 AND ga_id = $2 AND deleted_at IS NULL
+        FROM customers c
+        WHERE (${vis.clause}) AND c.deleted_at IS NULL
         `,
-        [userId, gaId],
+        vis.params,
       ),
     ])
 
@@ -5953,6 +6365,24 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
       return
     }
 
+    const accessEarly = req.user?.customerAccess ?? 'own'
+    if (accessEarly === 'none') {
+      res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+      return
+    }
+
+    const vis = resolveCustomerVisibilitySqlForSelect(req, userId, gaId)
+    if (vis.blocked) {
+      res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+      return
+    }
+
+    const plc = vis.params.length
+    const cidPlace = `$${plc + 1}`
+    const lcUserPlace = `$${plc + 2}`
+    const lcGaPlace = `$${plc + 3}`
+    const detailParams = [...vis.params, customerId, userId, gaId]
+
     const result = await safeQuery(
       pool,
       `
@@ -5969,13 +6399,13 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
           cc.customer_id,
           MAX(cc.consultation_date) AS last_consult_date
         FROM customer_consultations cc
-        WHERE cc.user_id = $2 AND cc.ga_id = $3
+        WHERE cc.user_id = ${lcUserPlace} AND cc.ga_id = ${lcGaPlace}
         GROUP BY cc.customer_id
       ) lc ON lc.customer_id = c.id
-      WHERE c.id = $1 AND c.user_id = $2 AND c.ga_id = $3 AND c.deleted_at IS NULL
+      WHERE c.id = ${cidPlace} AND (${vis.clause}) AND c.deleted_at IS NULL
       LIMIT 1
       `,
-      [customerId, userId, gaId],
+      detailParams,
     )
 
     if (result.rowCount === 0) {
@@ -6007,11 +6437,27 @@ apiRouter.get('/customers/:id/forms', requireAuth, async (req, res) => {
       return
     }
 
-    const check = await safeQuery(pool, `SELECT 1 FROM customers WHERE id = $1 AND user_id = $2 AND ga_id = $3`, [
-      customerId,
-      userId,
-      gaId,
-    ])
+    if ((req.user?.customerAccess ?? 'own') === 'none') {
+      res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+      return
+    }
+
+    const visCk = resolveCustomerVisibilitySqlForSelect(req, userId, gaId)
+    if (visCk.blocked) {
+      res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+      return
+    }
+    const ckPlc = visCk.params.length
+    const ckIdPh = `$${ckPlc + 1}`
+    const check = await safeQuery(
+      pool,
+      `
+      SELECT 1 FROM customers c
+      WHERE c.id = ${ckIdPh} AND (${visCk.clause}) AND c.deleted_at IS NULL
+      LIMIT 1
+      `,
+      [...visCk.params, customerId],
+    )
 
     if (check.rowCount === 0) {
       res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
@@ -6052,13 +6498,23 @@ apiRouter.delete('/customers/:id', requireAuth, async (req, res) => {
       return
     }
 
+    const visCtx = resolveCustomerVisibilitySqlForUpdate(req, userId, gaId)
+    if (visCtx.blocked) {
+      res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+      return
+    }
+
+    const plc = visCtx.params.length
+    const idPh = `$${plc + 1}`
     const deleted = await safeQuery(pool,
       `
       UPDATE customers
       SET deleted_at = NOW()
-      WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
+      WHERE id = ${idPh}
+        AND (${visCtx.clause})
+        AND deleted_at IS NULL
       `,
-      [customerId, userId, gaId],
+      [...visCtx.params, customerId],
     )
 
     if (deleted.rowCount === 0) {
@@ -6138,12 +6594,12 @@ apiRouter.put('/forms/:id', requireAuth, async (req, res) => {
     const linkedId = resolveLinkedCustomerIdFromRequest(req.body, formData)
     let customerIdFk = null
     if (linkedId != null) {
-      const owned = await assertCustomerOwnedByUser(linkedId, userId, gaId)
+      const owned = await assertCustomerOwnedByUser(req, linkedId)
       if (!owned) {
         res.status(400).json({ message: '유효하지 않은 고객 연결입니다.' })
         return
       }
-      const active = await assertCustomerActiveAndOwnedByUser(linkedId, userId, gaId)
+      const active = await assertCustomerActiveAndOwnedByUser(req, linkedId)
       if (!active) {
         const sameAsBefore =
           prevFormCustomerId != null && Number.isInteger(prevFormCustomerId) && prevFormCustomerId === linkedId

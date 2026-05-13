@@ -8,6 +8,7 @@ import {
   register as registerApi,
   sendSignupPhoneCode,
   validateGaCodeForSignup,
+  validateTenantRegistrationCodeForSignup,
   verifySignupPhoneCode,
 } from '../authApi'
 import { FormButton, FormInput } from '../../../components/form'
@@ -31,11 +32,15 @@ type VerifySignupResponseLike = {
   }
 }
 
-export function RegisterPage() {
+export type SignupIndustry = 'insurance' | 'gym' | 'government'
+
+export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?: SignupIndustry }) {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { isAuthenticated, login } = useAuth()
+  const tenantCodeMode = signupIndustry === 'gym' || signupIndustry === 'government'
   const [gaCode, setGaCode] = useState('')
+  const [registrationCode, setRegistrationCode] = useState('')
   const [gaInfo, setGaInfo] = useState<string | null>(null)
   const [gaError, setGaError] = useState('')
   const [inviteRefUserId, setInviteRefUserId] = useState('')
@@ -98,6 +103,9 @@ export function RegisterPage() {
   }, [resendLeft])
 
   useEffect(() => {
+    if (tenantCodeMode) {
+      return
+    }
     const raw = gaCode.trim()
     if (!raw) {
       setGaInfo(null)
@@ -134,7 +142,50 @@ export function RegisterPage() {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [gaCode])
+  }, [gaCode, tenantCodeMode])
+
+  useEffect(() => {
+    if (!tenantCodeMode) {
+      return
+    }
+    const raw = registrationCode.trim()
+    if (!raw) {
+      setGaInfo(null)
+      setGaError('')
+      return
+    }
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const data = await validateTenantRegistrationCodeForSignup({
+            industryCode: signupIndustry,
+            registrationCode: raw,
+          })
+          if (cancelled) {
+            return
+          }
+          if (data.ok && data.tenantName?.trim()) {
+            setGaInfo(data.tenantName.trim())
+            setGaError('')
+          } else {
+            setGaInfo(null)
+            setGaError(data.message ?? '조회 되지 않습니다.')
+          }
+        } catch {
+          if (cancelled) {
+            return
+          }
+          setGaInfo(null)
+          setGaError('조회 되지 않습니다.')
+        }
+      })()
+    }, 400)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [registrationCode, signupIndustry, tenantCodeMode])
 
   const resetUsernameCheck = () => {
     setUsernameCheck('idle')
@@ -161,6 +212,7 @@ export function RegisterPage() {
 
   const phoneDigits = normalizeKrMobile(phone)
   const gaCodeTrim = gaCode.trim()
+  const regCodeTrim = registrationCode.trim().replace(/\s+/g, '').toUpperCase()
   const needsPhoneAuth = true
 
   const requestSignupSms = async () => {
@@ -171,13 +223,24 @@ export function RegisterPage() {
       setErrorMessage(pErr)
       return
     }
-    if (!gaCodeTrim) {
+    if (tenantCodeMode) {
+      if (!regCodeTrim) {
+        setErrorMessage('테넌트 가입 코드를 먼저 입력하세요.')
+        return
+      }
+    } else if (!gaCodeTrim) {
       setErrorMessage('GA 코드를 먼저 입력하세요.')
       return
     }
     setSmsSubmitting(true)
     try {
-      const r = await sendSignupPhoneCode({ inviteCode: gaCodeTrim, phoneNumber: phoneDigits })
+      const r = tenantCodeMode
+        ? await sendSignupPhoneCode({
+            industryCode: signupIndustry,
+            registrationCode: regCodeTrim,
+            phoneNumber: phoneDigits,
+          })
+        : await sendSignupPhoneCode({ inviteCode: gaCodeTrim, phoneNumber: phoneDigits })
       setInfoMessage(r.message ?? '인증번호를 발송했습니다.')
       if (r.debugCode) {
         setDebugCodeHint(`(개발용) 인증번호: ${r.debugCode}`)
@@ -206,7 +269,12 @@ export function RegisterPage() {
   const handleVerifyCode = async () => {
     setErrorMessage('')
     setInfoMessage('')
-    if (!gaCodeTrim) {
+    if (tenantCodeMode) {
+      if (!regCodeTrim) {
+        setErrorMessage('테넌트 가입 코드를 입력하세요.')
+        return
+      }
+    } else if (!gaCodeTrim) {
       setErrorMessage('GA 코드를 입력하세요.')
       return
     }
@@ -221,11 +289,18 @@ export function RegisterPage() {
     }
     setSmsSubmitting(true)
     try {
-      const r = (await verifySignupPhoneCode({
-        inviteCode: gaCodeTrim,
-        phoneNumber: phoneDigits,
-        code: smsCode.trim(),
-      })) as VerifySignupResponseLike
+      const r = (tenantCodeMode
+        ? await verifySignupPhoneCode({
+            industryCode: signupIndustry,
+            registrationCode: regCodeTrim,
+            phoneNumber: phoneDigits,
+            code: smsCode.trim(),
+          })
+        : await verifySignupPhoneCode({
+            inviteCode: gaCodeTrim,
+            phoneNumber: phoneDigits,
+            code: smsCode.trim(),
+          })) as VerifySignupResponseLike
       const verified = Boolean(r?.success || r?.data?.success || r?.ok || r?.data?.ok)
       const proof = String(r.signup_phone_proof ?? r.data?.signup_phone_proof ?? '').trim()
 
@@ -264,15 +339,26 @@ export function RegisterPage() {
       return
     }
 
-    const code = gaCodeTrim
     const nameTrim = name.trim()
     const userTrim = username.trim()
     const refTrim = inviteRefUserId.trim()
     const sigTrim = inviteSig.trim()
     const tsTrim = inviteTs.trim()
-    if (!code) {
-      setErrorMessage('GA 코드를 입력하세요.')
-      return
+    if (tenantCodeMode) {
+      if (!regCodeTrim) {
+        setErrorMessage('테넌트 가입 코드를 입력하세요.')
+        return
+      }
+      if (refTrim) {
+        setErrorMessage('테넌트 가입 경로에서는 담당자 초대(ref) 매개변수와 함께 가입할 수 없습니다.')
+        return
+      }
+    } else {
+      const code = gaCodeTrim
+      if (!code) {
+        setErrorMessage('GA 코드를 입력하세요.')
+        return
+      }
     }
     if (!userTrim) {
       setErrorMessage('아이디를 입력하세요.')
@@ -308,17 +394,29 @@ export function RegisterPage() {
         return
       }
       setUsernameCheck('available')
-      await registerApi({
-        username: userTrim,
-        password,
-        inviteCode: code,
-        refUserId: refTrim || undefined,
-        inviteSig: sigTrim || undefined,
-        inviteTs: tsTrim || undefined,
-        name: nameTrim,
-        phoneNumber: phoneDigits || undefined,
-        signupPhoneProof: signupPhoneProof ?? undefined,
-      })
+      if (tenantCodeMode) {
+        await registerApi({
+          username: userTrim,
+          password,
+          industryCode: signupIndustry,
+          registrationCode: regCodeTrim,
+          name: nameTrim,
+          phoneNumber: phoneDigits || undefined,
+          signupPhoneProof: signupPhoneProof ?? undefined,
+        })
+      } else {
+        await registerApi({
+          username: userTrim,
+          password,
+          inviteCode: gaCodeTrim,
+          refUserId: refTrim || undefined,
+          inviteSig: sigTrim || undefined,
+          inviteTs: tsTrim || undefined,
+          name: nameTrim,
+          phoneNumber: phoneDigits || undefined,
+          signupPhoneProof: signupPhoneProof ?? undefined,
+        })
+      }
       const session = await loginApi(userTrim, password)
       login(session)
       navigate('/dashboard', { replace: true })
@@ -357,29 +455,54 @@ export function RegisterPage() {
   return (
     <main className="auth-page">
       <section className="card auth-card">
-        <h1>회원가입</h1>
+        <h1>
+          {tenantCodeMode ?
+            signupIndustry === 'gym' ?
+              '회원가입 · 체육관'
+            : '회원가입 · 공공기관'
+          : '회원가입'}
+        </h1>
 
         <form className="auth-form auth-form--register" onSubmit={(e) => void handleSignup(e)}>
           <FormInput type="hidden" name="invite_ref_user_id" value={inviteRefUserId} aria-hidden />
           <FormInput type="hidden" name="invite_sig" value={inviteSig} aria-hidden />
           <FormInput type="hidden" name="invite_ts" value={inviteTs} aria-hidden />
-          <label className="field">
-            <span className="field__label">GA 코드</span>
-            <p className="text-xs text-gray-400 mb-2">부여받은 코드를 입력하세요.</p>
-            <FormInput
-              value={gaCode}
-              onChange={(e) => {
-                setGaCode(e.target.value.toUpperCase())
-                setIsVerified(false)
-                setSignupPhoneProof(null)
-              }}
-              autoComplete="off"
-              placeholder="부여받은 소속코드를 입력하세요"
-              required
-            />
-            {gaInfo ? <div className="ga-success">{`조회결과: ${gaInfo}`}</div> : null}
-            {gaError ? <div className="ga-error">{gaError}</div> : null}
-          </label>
+          {tenantCodeMode ?
+            <label className="field">
+              <span className="field__label">가입 코드</span>
+              <p className="text-xs text-gray-400 mb-2">테넌트에서 발급한 코드입니다. 업종별 화면에 맞는 코드만 입력하세요.</p>
+              <FormInput
+                value={registrationCode}
+                onChange={(e) => {
+                  setRegistrationCode(e.target.value.toUpperCase().replace(/\s+/g, ''))
+                  setIsVerified(false)
+                  setSignupPhoneProof(null)
+                }}
+                autoComplete="off"
+                placeholder="가입 코드"
+                required
+              />
+              {gaInfo ? <div className="ga-success">{`사업장: ${gaInfo}`}</div> : null}
+              {gaError ? <div className="ga-error">{gaError}</div> : null}
+            </label>
+          : <label className="field">
+              <span className="field__label">GA 코드</span>
+              <p className="text-xs text-gray-400 mb-2">부여받은 코드를 입력하세요.</p>
+              <FormInput
+                value={gaCode}
+                onChange={(e) => {
+                  setGaCode(e.target.value.toUpperCase())
+                  setIsVerified(false)
+                  setSignupPhoneProof(null)
+                }}
+                autoComplete="off"
+                placeholder="부여받은 소속코드를 입력하세요"
+                required
+              />
+              {gaInfo ? <div className="ga-success">{`조회결과: ${gaInfo}`}</div> : null}
+              {gaError ? <div className="ga-error">{gaError}</div> : null}
+            </label>
+          }
 
           <label className="field">
             <span className="field__label">아이디</span>

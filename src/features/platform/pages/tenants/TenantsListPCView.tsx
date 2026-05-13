@@ -1,4 +1,9 @@
+import { Link } from 'react-router-dom'
 import type { TenantsListViewProps } from './TenantsListPage'
+
+function isTenantManageable(row: TenantsListViewProps['items'][number]): boolean {
+  return String(row.status ?? '').trim().toLowerCase() === 'active'
+}
 
 export default function TenantsListPCView({ items, loading, error, reload }: TenantsListViewProps) {
   return (
@@ -27,6 +32,7 @@ export default function TenantsListPCView({ items, loading, error, reload }: Ten
                 <th>상태</th>
                 <th>legacy GA id</th>
                 <th>tenant id</th>
+                <th aria-label="가입 코드 및 사용자 관리">운영</th>
               </tr>
             </thead>
             <tbody>
@@ -38,6 +44,18 @@ export default function TenantsListPCView({ items, loading, error, reload }: Ten
                   <td>{row.status}</td>
                   <td className="platform-admin-page__mono">{row.legacyGaId ?? '—'}</td>
                   <td className="platform-admin-page__mono">{row.id}</td>
+                  <td>
+                    {isTenantManageable(row) ? (
+                      <Link
+                        className="platform-admin-page__btn platform-admin-page__btn--compact"
+                        to={`/admin/platform/tenants/${encodeURIComponent(row.id)}`}
+                      >
+                        코드·사용자
+                      </Link>
+                    ) : (
+                      <span className="platform-admin-page__muted">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

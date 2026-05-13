@@ -63,6 +63,7 @@ import AdminInsurerSitesPage from './features/insurer-sites/pages/AdminInsurerSi
 import PlatformHubPage from './features/platform/pages/PlatformHubPage'
 import IndustriesListPage from './features/platform/pages/industries/IndustriesListPage'
 import IndustryDetailPage from './features/platform/pages/industries/IndustryDetailPage'
+import PlatformTenantManagePage from './features/platform/pages/tenants/platform-tenant-manage/PlatformTenantManagePage'
 import TenantsListPage from './features/platform/pages/tenants/TenantsListPage'
 import MembershipsListPage from './features/platform/pages/memberships/MembershipsListPage'
 import ExternalAccountsSummaryPage from './features/platform/pages/external-accounts/ExternalAccountsSummaryPage'
@@ -122,9 +123,12 @@ export const appRouter = createBrowserRouter([
     children: [
       { index: true, element: <PublicHomeEntry /> },
       { path: 'login', element: <LoginPage /> },
-      { path: 'register', element: <RegisterPage /> },
+      { path: 'register', element: <RegisterPage signupIndustry="insurance" /> },
       { path: 'password-reset', element: <PasswordResetPage /> },
-      { path: 'signup', element: <Navigate to="/register" replace /> },
+      { path: 'signup', element: <Navigate to="/signup/insurance" replace /> },
+      { path: 'signup/insurance', element: <RegisterPage signupIndustry="insurance" /> },
+      { path: 'signup/gym', element: <RegisterPage signupIndustry="gym" /> },
+      { path: 'signup/government', element: <RegisterPage signupIndustry="government" /> },
       { path: 'privacy', element: <PrivacyPolicyPage /> },
       { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
       { path: 'introduction', element: <IntroductionPage /> },
@@ -299,6 +303,10 @@ export const appRouter = createBrowserRouter([
                   { path: 'admin/platform/industries', element: <IndustriesListPage /> },
                   { path: 'admin/platform/industries/:industryId', element: <IndustryDetailPage /> },
                   { path: 'admin/platform/tenants', element: <TenantsListPage /> },
+                  {
+                    path: 'admin/platform/tenants/:tenantId',
+                    element: <PlatformTenantManagePage />,
+                  },
                   { path: 'admin/platform/memberships', element: <MembershipsListPage /> },
                   {
                     path: 'admin/platform/external-accounts',

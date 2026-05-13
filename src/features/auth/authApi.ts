@@ -192,12 +192,16 @@ export async function fetchSignedInviteSignupUrl(token: string): Promise<{ path:
 export async function register(payload: {
   username: string
   password: string
-  inviteCode: string
+  /** GA 코드(insurance 기본) */
+  inviteCode?: string
+  /** 테넌트 가입 코드 경로 */
+  industryCode?: string
+  registrationCode?: string
   /** 초대 담당자(users.id) — 있을 때만 서버에서 GA 일치 검증 */
   refUserId?: string
   /** 서버 HMAC — 초대 링크 경유 시에만 사용 */
   inviteSig?: string
-  /** 링크 발급 시각(ms) — 초대 링크 경유 시에만 사용 */
+  /** 링크 발행 시각(ms) — 초대 링크 경유 시에만 사용 */
   inviteTs?: string | number
   name: string
   /** 완화 모드에서는 생략 가능 */
@@ -208,8 +212,17 @@ export async function register(payload: {
     const body: Record<string, string> = {
       username: payload.username.trim(),
       password: payload.password,
-      invite_code: payload.inviteCode.trim(),
       name: payload.name.trim(),
+    }
+    const ind = payload.industryCode?.trim().toLowerCase()
+    const reg = payload.registrationCode?.trim().toUpperCase().replace(/\s+/g, '')
+    if (ind && reg) {
+      body.industry_code = ind
+      body.registration_code = reg
+    } else if (payload.inviteCode?.trim()) {
+      body.invite_code = payload.inviteCode.trim()
+    } else {
+      throw new Error('GA 코드 또는 업종 가입 코드가 필요합니다.')
     }
     const refUserId = payload.refUserId?.trim()
     const inviteSig = payload.inviteSig?.trim()
@@ -243,24 +256,42 @@ export async function register(payload: {
   }
 }
 
-export async function sendSignupPhoneCode(payload: { inviteCode: string; phoneNumber: string }) {
+export async function sendSignupPhoneCode(
+  payload:
+    | { inviteCode: string; phoneNumber: string }
+    | { industryCode: string; registrationCode: string; phoneNumber: string },
+) {
+  const body: Record<string, string> = { phone_number: payload.phoneNumber }
+  if ('inviteCode' in payload) {
+    body.invite_code = payload.inviteCode.trim()
+  } else {
+    body.industry_code = payload.industryCode.trim().toLowerCase()
+    body.registration_code = payload.registrationCode.trim().toUpperCase().replace(/\s+/g, '')
+  }
   return apiRequest<{ ok?: boolean; message?: string; debugCode?: string }>(
     '/api/auth/send-signup-phone-code',
     {
       method: 'POST',
-      body: JSON.stringify({
-        invite_code: payload.inviteCode.trim(),
-        phone_number: payload.phoneNumber,
-      }),
+      body: JSON.stringify(body),
     },
   )
 }
 
-export async function verifySignupPhoneCode(payload: {
-  inviteCode: string
-  phoneNumber: string
-  code: string
-}) {
+export async function verifySignupPhoneCode(
+  payload:
+    | { inviteCode: string; phoneNumber: string; code: string }
+    | { industryCode: string; registrationCode: string; phoneNumber: string; code: string },
+) {
+  const body: Record<string, string> = {
+    phone_number: payload.phoneNumber,
+    code: payload.code.trim(),
+  }
+  if ('inviteCode' in payload) {
+    body.invite_code = payload.inviteCode.trim()
+  } else {
+    body.industry_code = payload.industryCode.trim().toLowerCase()
+    body.registration_code = payload.registrationCode.trim().toUpperCase().replace(/\s+/g, '')
+  }
   return apiRequest<{
     ok?: boolean
     success?: boolean
@@ -274,12 +305,31 @@ export async function verifySignupPhoneCode(payload: {
     }
   }>('/api/auth/verify-signup-phone-code', {
     method: 'POST',
-    body: JSON.stringify({
-      invite_code: payload.inviteCode.trim(),
-      phone_number: payload.phoneNumber,
-      code: payload.code.trim(),
-    }),
+    body: JSON.stringify(body),
   })
+}
+
+export async function validateTenantRegistrationCodeForSignup(payload: {
+  industryCode: string
+  registrationCode: string
+}): Promise<{ ok: boolean; message?: string; tenantName?: string }> {
+  try {
+    const res = await fetch(resolveApiUrl('/api/auth/validate-tenant-registration-code'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        industry_code: payload.industryCode.trim().toLowerCase(),
+        registration_code: payload.registrationCode.trim().toUpperCase().replace(/\s+/g, ''),
+      }),
+    })
+    const data = (await res.json()) as { ok?: boolean; message?: string; tenantName?: string }
+    if (!res.ok) {
+      return { ok: false, message: data.message ?? '가입 코드를 확인할 수 없습니다.' }
+    }
+    return { ok: Boolean(data.ok), tenantName: data.tenantName, message: data.message }
+  } catch {
+    return { ok: false, message: '네트워크 오류로 코드를 확인하지 못했습니다.' }
+  }
 }
 
 export interface MeResponse {

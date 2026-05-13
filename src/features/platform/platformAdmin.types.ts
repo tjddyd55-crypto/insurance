@@ -155,6 +155,9 @@ export type PlatformTenantMember = {
   activeSessionCount?: number
   registeredDeviceCount?: number
   membershipRole: string
+  membershipType?: string
+  customerAccess?: string
+  phoneNumber?: string
   scopeType: string
   scopeId: string
   tenantId: string
@@ -172,6 +175,66 @@ export type AssignPlatformTenantMemberResultKind = 'created' | 'already_active' 
 
 export type AssignPlatformTenantMemberResult = PlatformTenantMember & {
   result: AssignPlatformTenantMemberResultKind
+}
+
+/** GET/POST `/admin/platform/tenants/:tenantId/registration-codes` 등 */
+export type PlatformTenantRegistrationCode = {
+  id: string
+  code: string
+  tenantId: string
+  industryCode: string
+  defaultMembershipType: string
+  defaultCustomerAccess: string
+  defaultRole: string
+  status: string
+  expiresAt: string | null
+  maxUses: number | null
+  usedCount: number
+  createdAt: string | null
+  updatedAt: string | null
+}
+
+export type PlatformTenantRegistrationCodesResponse = {
+  items: PlatformTenantRegistrationCode[]
+}
+
+export type CreateTenantRegistrationCodeInput = {
+  code: string
+  maxUses?: number | null
+  expiresAt?: string | null
+}
+
+export type PatchTenantRegistrationCodeInput = {
+  status?: 'active' | 'inactive'
+  maxUses?: number | null
+  expiresAt?: string | null
+}
+
+/** GET `/admin/platform/tenants/:tenantId/users` 등 */
+export type PlatformTenantStaffUser = PlatformTenantMember
+
+export type PlatformTenantStaffUsersResponse = {
+  items: PlatformTenantStaffUser[]
+}
+
+export type CreatePlatformTenantStaffUserInput = {
+  username: string
+  displayName: string
+  password: string
+  rbacRole: 'staff' | 'user' | 'tenant_admin'
+  membershipType: 'agent' | 'staff' | 'admin' | 'owner'
+  customerAccess: 'none' | 'own' | 'tenant' | 'assigned'
+  status?: string
+  membershipStatus?: 'active' | 'inactive'
+}
+
+export type PatchPlatformTenantStaffUserInput = {
+  displayName?: string
+  rbacRole?: 'staff' | 'user' | 'tenant_admin'
+  membershipType?: 'agent' | 'staff' | 'admin' | 'owner'
+  customerAccess?: 'none' | 'own' | 'tenant' | 'assigned'
+  status?: 'active' | 'inactive' | 'blocked'
+  membershipStatus?: 'active' | 'inactive'
 }
 
 /** PATCH `/admin/platform/industries/:industryId/tenants/:tenantId/seat-billing` — 보낸 필드만 갱신 */

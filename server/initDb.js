@@ -677,8 +677,108 @@ async function ensureCrmPlatformMetaSchema(executor) {
   `)
 
   await executor.query(`
+    ALTER TABLE user_memberships
+    ADD COLUMN IF NOT EXISTS membership_type TEXT NOT NULL DEFAULT 'agent'
+  `)
+  await executor.query(`
+    ALTER TABLE user_memberships
+    ADD COLUMN IF NOT EXISTS customer_access TEXT NOT NULL DEFAULT 'own'
+  `)
+  await executor.query(`
+    UPDATE user_memberships
+    SET
+      membership_type = CASE LOWER(TRIM(COALESCE(role::text, '')))
+          WHEN 'staff' THEN 'staff'
+          WHEN 'tenant_admin' THEN 'admin'
+          ELSE 'agent'
+        END,
+      customer_access = CASE LOWER(TRIM(COALESCE(role::text, '')))
+          WHEN 'staff' THEN 'none'
+          WHEN 'tenant_admin' THEN 'tenant'
+          ELSE 'own'
+        END,
+      updated_at = NOW()
+    WHERE scope_type = 'tenant'
+      AND membership_type = 'agent'
+      AND customer_access = 'own'
+      AND LOWER(TRIM(COALESCE(role::text, ''))) IN ('staff', 'tenant_admin', 'user')
+  `)
+  await executor.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'user_memberships_customer_access_chk'
+      ) THEN
+        ALTER TABLE user_memberships
+        ADD CONSTRAINT user_memberships_customer_access_chk
+        CHECK (customer_access IN ('none', 'own', 'tenant', 'assigned'));
+      END IF;
+    END $$;
+  `)
+  await executor.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'user_memberships_membership_type_chk'
+      ) THEN
+        ALTER TABLE user_memberships
+        ADD CONSTRAINT user_memberships_membership_type_chk
+        CHECK (membership_type IN ('agent', 'staff', 'admin', 'owner'));
+      END IF;
+    END $$;
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS tenant_registration_codes (
+      id BIGSERIAL PRIMARY KEY,
+      code TEXT NOT NULL,
+      tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      industry_code TEXT NOT NULL REFERENCES industries(code) ON UPDATE CASCADE ON DELETE RESTRICT,
+      default_membership_type TEXT NOT NULL DEFAULT 'agent',
+      default_customer_access TEXT NOT NULL DEFAULT 'own',
+      default_role TEXT NOT NULL DEFAULT 'user',
+      status TEXT NOT NULL DEFAULT 'active',
+      expires_at TIMESTAMPTZ,
+      max_uses INTEGER,
+      used_count INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT tenant_reg_codes_default_membership_chk
+        CHECK (default_membership_type IN ('agent', 'staff', 'admin', 'owner')),
+      CONSTRAINT tenant_reg_codes_customer_access_chk
+        CHECK (default_customer_access IN ('none', 'own', 'tenant', 'assigned')),
+      CONSTRAINT tenant_reg_codes_default_role_chk
+        CHECK (default_role IN ('user', 'staff', 'tenant_admin')),
+      CONSTRAINT tenant_reg_codes_status_chk
+        CHECK (status IN ('active', 'inactive')),
+      CONSTRAINT tenant_reg_codes_max_uses_chk
+        CHECK (max_uses IS NULL OR (max_uses >= 0 AND max_uses <= 100000000))
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS tenant_registration_codes_code_uk
+    ON tenant_registration_codes (code)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS tenant_registration_codes_tenant_idx
+    ON tenant_registration_codes (tenant_id, status)
+  `)
+
+  await executor.query(`
     INSERT INTO industries (code, name, status, config)
     VALUES ('insurance', '보험', 'active', '{}'::jsonb)
+    ON CONFLICT (code) DO UPDATE SET
+      name = EXCLUDED.name,
+      status = EXCLUDED.status,
+      updated_at = NOW()
+  `)
+
+  await executor.query(`
+    INSERT INTO industries (code, name, status, config)
+    VALUES ('gym', '체육관', 'active', '{}'::jsonb),
+           ('government', '정부지원', 'active', '{}'::jsonb)
     ON CONFLICT (code) DO UPDATE SET
       name = EXCLUDED.name,
       status = EXCLUDED.status,
@@ -1408,6 +1508,41 @@ export async function initDb() {
         ADD CONSTRAINT customers_customer_code_key UNIQUE (customer_code);
       END IF;
     END $$;
+  `)
+
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS tenant_id BIGINT REFERENCES tenants(id) ON DELETE SET NULL
+  `)
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
+  `)
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
+  `)
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS visibility_scope TEXT NOT NULL DEFAULT 'own'
+  `)
+  await pool.query(`
+    UPDATE customers c
+    SET tenant_id = t.id
+    FROM tenants t
+    WHERE c.ga_id = t.legacy_ga_id
+      AND c.tenant_id IS NULL
+  `)
+  await pool.query(`
+    UPDATE customers SET owner_user_id = user_id WHERE owner_user_id IS NULL
+  `)
+  await pool.query(`
+    UPDATE customers SET created_by_user_id = user_id WHERE created_by_user_id IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customers_tenant_id
+    ON customers (tenant_id)
+    WHERE tenant_id IS NOT NULL
   `)
 
   await pool.query(`

@@ -7,17 +7,25 @@ import type {
   CreateIndustryResponse,
   CreatePlatformTenantInput,
   CreatePlatformTenantResponse,
+  CreatePlatformTenantStaffUserInput,
+  CreateTenantRegistrationCodeInput,
   PatchPlatformTenantSeatBillingInput,
+  PatchPlatformTenantStaffUserInput,
+  PatchTenantRegistrationCodeInput,
   PlatformAccessMode,
   PlatformAccessSummary,
   PlatformExternalAccountsSummaryResponse,
   PlatformIndustriesResponse,
   PlatformIndustryAdminsResponse,
   PlatformMembershipsResponse,
+  PlatformTenantRegistrationCode,
+  PlatformTenantRegistrationCodesResponse,
   PlatformTenantRow,
   PlatformTenantAdminsResponse,
   PlatformTenantMembersResponse,
   PlatformTenantsResponse,
+  PlatformTenantStaffUser,
+  PlatformTenantStaffUsersResponse,
   PlatformUserSearchResponse,
   AssignPlatformTenantMemberResult,
   PlatformTenantMembershipRole,
@@ -273,4 +281,130 @@ export function searchPlatformUsers(token: string, params: { q: string; limit?: 
     method: 'GET',
     token,
   })
+}
+
+export function fetchPlatformTenantSummary(token: string, tenantId: string) {
+  const id = encodeURIComponent(tenantId)
+  return apiRequest<PlatformTenantRow>(`/api/admin/platform/tenants/${id}`, { method: 'GET', token }).then((row) =>
+    normalizeTenantRows([row])[0],
+  )
+}
+
+export function fetchPlatformTenantStaffUsers(token: string, tenantId: string) {
+  const id = encodeURIComponent(tenantId)
+  return apiRequest<PlatformTenantStaffUsersResponse>(`/api/admin/platform/tenants/${id}/users`, {
+    method: 'GET',
+    token,
+  })
+}
+
+export function createPlatformTenantStaffUser(
+  token: string,
+  tenantId: string,
+  input: CreatePlatformTenantStaffUserInput,
+) {
+  const id = encodeURIComponent(tenantId)
+  return apiRequest<{ userId: string; username: string }>(`/api/admin/platform/tenants/${id}/users`, {
+    method: 'POST',
+    body: JSON.stringify({
+      username: input.username,
+      displayName: input.displayName,
+      password: input.password,
+      rbacRole: input.rbacRole,
+      membershipType: input.membershipType,
+      customerAccess: input.customerAccess,
+      ...(input.status != null ? { status: input.status } : {}),
+      ...(input.membershipStatus != null ? { membershipStatus: input.membershipStatus } : {}),
+    }),
+    token,
+  })
+}
+
+export function patchPlatformTenantStaffUser(
+  token: string,
+  tenantId: string,
+  userId: string,
+  input: PatchPlatformTenantStaffUserInput,
+) {
+  const tid = encodeURIComponent(tenantId)
+  const uid = encodeURIComponent(userId)
+  const body = {
+    ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
+    ...(input.rbacRole !== undefined ? { rbacRole: input.rbacRole } : {}),
+    ...(input.membershipType !== undefined ? { membershipType: input.membershipType } : {}),
+    ...(input.customerAccess !== undefined ? { customerAccess: input.customerAccess } : {}),
+    ...(input.status !== undefined ? { status: input.status } : {}),
+    ...(input.membershipStatus !== undefined ? { membershipStatus: input.membershipStatus } : {}),
+  }
+  return apiRequest<PlatformTenantStaffUser>(`/api/admin/platform/tenants/${tid}/users/${uid}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+    token,
+  })
+}
+
+export function patchPlatformTenantStaffUserStatus(token: string, tenantId: string, userId: string, status: string) {
+  const tid = encodeURIComponent(tenantId)
+  const uid = encodeURIComponent(userId)
+  return apiRequest<PlatformTenantStaffUser>(`/api/admin/platform/tenants/${tid}/users/${uid}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+    token,
+  })
+}
+
+function normalizeTenantRegCode(raw: PlatformTenantRegistrationCode): PlatformTenantRegistrationCode {
+  return {
+    ...raw,
+    maxUses:
+      raw.maxUses === undefined
+        ? null
+        : raw.maxUses === null
+          ? null
+          : Number(raw.maxUses),
+    usedCount: Number(raw.usedCount ?? 0) || 0,
+  }
+}
+
+export function fetchTenantRegistrationCodes(token: string, tenantId: string) {
+  const id = encodeURIComponent(tenantId)
+  return apiRequest<PlatformTenantRegistrationCodesResponse>(
+    `/api/admin/platform/tenants/${id}/registration-codes`,
+    { method: 'GET', token },
+  ).then((r) => ({ items: r.items.map(normalizeTenantRegCode) }))
+}
+
+export function createTenantRegistrationCode(
+  token: string,
+  tenantId: string,
+  input: CreateTenantRegistrationCodeInput,
+) {
+  const id = encodeURIComponent(tenantId)
+  return apiRequest<PlatformTenantRegistrationCode>(`/api/admin/platform/tenants/${id}/registration-codes`, {
+    method: 'POST',
+    body: JSON.stringify({
+      code: input.code,
+      maxUses: input.maxUses,
+      expiresAt: input.expiresAt,
+    }),
+    token,
+  }).then(normalizeTenantRegCode)
+}
+
+export function patchTenantRegistrationCode(
+  token: string,
+  tenantId: string,
+  codeId: string,
+  input: PatchTenantRegistrationCodeInput,
+) {
+  const tid = encodeURIComponent(tenantId)
+  const cid = encodeURIComponent(codeId)
+  return apiRequest<PlatformTenantRegistrationCode>(
+    `/api/admin/platform/tenants/${tid}/registration-codes/${cid}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+      token,
+    },
+  ).then(normalizeTenantRegCode)
 }

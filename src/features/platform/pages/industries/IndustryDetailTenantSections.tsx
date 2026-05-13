@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import FormButton from '../../../../components/form/FormButton'
 import FormInput from '../../../../components/form/FormInput'
 import FormSelect from '../../../../components/form/FormSelect'
@@ -111,6 +112,7 @@ export function IndustryTenantsListSection({
               <th>legacyGaId</th>
               <th>createdAt</th>
               <th>updatedAt</th>
+              <th aria-label="가입 코드 및 사용자 관리">가입 코드·사용자</th>
               <th aria-label="Tenant Admin 관리">Tenant Admin</th>
             </tr>
           </thead>
@@ -142,6 +144,18 @@ export function IndustryTenantsListSection({
                 <td className="platform-admin-page__mono">{row.legacyGaId ?? '—'}</td>
                 <td className="platform-admin-page__muted">{row.createdAt ?? '—'}</td>
                 <td className="platform-admin-page__muted">{row.updatedAt ?? '—'}</td>
+                <td>
+                  {isTenantActiveForAdmin(row) ? (
+                    <Link
+                      className="platform-admin-page__btn platform-admin-page__btn--compact"
+                      to={`/admin/platform/tenants/${encodeURIComponent(row.id)}`}
+                    >
+                      코드·사용자
+                    </Link>
+                  ) : (
+                    <span className="platform-admin-page__muted">—</span>
+                  )}
+                </td>
                 <td>
                   <button
                     type="button"
@@ -199,6 +213,14 @@ export function IndustryTenantsListSection({
                 {row.createdAt ?? '—'} → {row.updatedAt ?? '—'}
               </div>
               <div className="platform-admin-page__tenant-admin-card-actions">
+                {isTenantActiveForAdmin(row) ? (
+                  <Link
+                    className="platform-admin-page__btn platform-admin-page__btn--compact"
+                    to={`/admin/platform/tenants/${encodeURIComponent(row.id)}`}
+                  >
+                    가입 코드·사용자
+                  </Link>
+                ) : null}
                 <button
                   type="button"
                   className="platform-admin-page__btn platform-admin-page__btn--compact"

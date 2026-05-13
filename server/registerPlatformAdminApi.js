@@ -8,7 +8,9 @@
  * — industries/:id/tenants/:id/seat-billing 수정(PATCH)은 platform 컨텍스트 + 업종관리자(또는 플랫폼 슈퍼) — 좌석·라이선스 정책·청구 메타
  * — tenants/:id/admins 조회·지정은 platform 컨텍스트 + 슈퍼 또는 해당 테넌트 소속 Industry Admin
  * — tenants/:id/members 조회(GET)·staff|user 지정(POST)은 platform 컨텍스트 + 슈퍼 또는 Industry Admin(해당 테넌트) 또는 Tenant Admin(해당 테넌트)
- * — tenants 목록(GET 전체)·memberships/외부요약 등은 조회 전용 · 민감 필드 미포함
+ * — tenants 목록(GET 전체)·`/tenants/:tenantId`(GET 단일)·memberships/외부요약 등은 조회 전용 · 민감 필드 미포함
+ * — tenants/:tenantId/users 조회(GET)·생성(POST)·수정(PATCH)·상태 PATCH(/users/:userId/status) — 멤버 매니저 가드
+ * — tenants/:tenantId/registration-codes 조회(GET)·생성(POST)·수정(PATCH inactive·maxUses·expiresAt 등) — MVP 일반(agent/own/user) 코드만 생성
  * — users/search(GET)은 platform 컨텍스트 + 플랫폼 슈퍼관리자 전용(username·표시 이름 부분 검색)
  * — me/access(GET)은 requireAuth + attachPlatformContext 만 — 본인 모드 진입 가능 요약(멤버십 raw 미포함)
  */
@@ -20,6 +22,10 @@ import {
   createRequireTenantAdminManager,
   createRequireTenantMemberManager,
 } from './lib/platformRbac.js'
+import bcrypt from 'bcryptjs'
+import { randomUUID } from 'node:crypto'
+import { normalizeTenantRegistrationCodeRaw } from './lib/tenantRegistrationCodes.js'
+import { parseGaId } from './lib/parseGaId.js'
 import { logSecurityEvent } from './lib/securityAudit.js'
 import { normalizeRbacRole } from './lib/rbacScope.js'
 import {
@@ -569,6 +575,24 @@ function parseTenantMemberAssignBody(body) {
   return { ok: true, userId, membershipRole: mr }
 }
 
+function mapTenantRegistrationCodeRow(row) {
+  return {
+    id: String(row.id),
+    code: String(row.code ?? ''),
+    tenantId: String(row.tenant_id ?? ''),
+    industryCode: String(row.industry_code ?? ''),
+    defaultMembershipType: String(row.default_membership_type ?? ''),
+    defaultCustomerAccess: String(row.default_customer_access ?? ''),
+    defaultRole: String(row.default_role ?? ''),
+    status: String(row.status ?? ''),
+    expiresAt: toIso(row.expires_at),
+    maxUses: row.max_uses == null ? null : Number(row.max_uses),
+    usedCount: Number(row.used_count ?? 0) || 0,
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
+  }
+}
+
 /** staff | user 멤버 목록·지정 응답 행 매핑. */
 function mapTenantStaffUserMemberItem(row) {
   return {
@@ -590,6 +614,9 @@ function mapTenantStaffUserMemberItem(row) {
     status: String(row.status ?? ''),
     createdAt: toIso(row.created_at),
     updatedAt: toIso(row.updated_at),
+    membershipType: String(row.membership_type ?? ''),
+    customerAccess: String(row.customer_access ?? ''),
+    phoneNumber: row.phone_number != null ? String(row.phone_number ?? '') : '',
   }
 }
 
@@ -2235,7 +2262,10 @@ export function registerPlatformAdminApi(apiRouter, deps) {
             m.industry_id,
             m.status,
             m.created_at,
-            m.updated_at
+            m.updated_at,
+            m.membership_type,
+            m.customer_access,
+            u.phone_number AS phone_number
           FROM user_memberships m
           INNER JOIN users u ON u.id = m.user_id
           WHERE m.scope_type = 'tenant'
@@ -2574,6 +2604,1058 @@ export function registerPlatformAdminApi(apiRouter, deps) {
         handleDbError(e, req, res)
       } finally {
         client.release()
+      }
+    },
+  )
+
+  apiRouter.get(
+    '/admin/platform/tenants/:tenantId/users',
+    ...platformTenantMemberManagerGuard,
+    async (req, res) => {
+      try {
+        const mgr = /** @type {{ tenantId: number; industryId: number } | undefined} */ (
+          req.platformTenantMemberManage
+        )
+        if (mgr == null) {
+          res.status(500).json({ message: '플랫폼 테넌트 멤버 관리 컨텍스트가 없습니다.' })
+          return
+        }
+        const tenantIdParsed = mgr.tenantId
+        const scopeIdStr = String(tenantIdParsed)
+        const oaRaw = String(req.query.onlyActive ?? req.query.only_active ?? '').trim().toLowerCase()
+        const seatsView = oaRaw === '1' || oaRaw === 'true'
+
+        const activeMembershipSql = seatsView ?
+            `
+            AND m.status = 'active'
+            AND LOWER(TRIM(COALESCE(u.status::text, ''))) = 'active'`
+          : ''
+
+        const { rows } = await pool.query(
+          `
+          SELECT
+            m.id AS membership_id,
+            m.user_id,
+            u.username,
+            u.display_name,
+            u.role AS legacy_role,
+            u.phone_number,
+            LOWER(TRIM(COALESCE(u.status::text, ''))) AS user_account_status,
+            u.last_login_at,
+            u.last_login_ip,
+            (
+              SELECT COUNT(*)::int
+              FROM user_auth_sessions s
+              WHERE s.user_id = u.id
+                AND s.revoked_at IS NULL
+                AND s.expires_at > NOW()
+            ) AS active_session_count,
+            (
+              SELECT COUNT(*)::int
+              FROM user_registered_devices d
+              WHERE d.user_id = u.id
+                AND d.revoked_at IS NULL
+            ) AS registered_device_count,
+            m.role AS membership_role,
+            m.scope_type,
+            m.scope_id,
+            m.tenant_id,
+            m.industry_id,
+            m.membership_type,
+            m.customer_access,
+            m.status,
+            m.created_at,
+            m.updated_at
+          FROM user_memberships m
+          INNER JOIN users u ON u.id = m.user_id
+          WHERE m.scope_type = 'tenant'
+            AND m.tenant_id IS NOT DISTINCT FROM $1
+            AND COALESCE(m.scope_id, '') = $2
+            AND m.role IN ('staff','user','tenant_admin')
+            AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+            ${activeMembershipSql}
+          ORDER BY m.updated_at DESC NULLS LAST, m.id DESC
+          `,
+          [tenantIdParsed, scopeIdStr],
+        )
+
+        res.json({ items: rows.map((row) => mapTenantStaffUserMemberItem(row)) })
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    },
+  )
+
+  apiRouter.post(
+    '/admin/platform/tenants/:tenantId/users',
+    ...platformTenantMemberManagerGuard,
+    async (req, res) => {
+      try {
+        const mgr = /** @type {{ tenantId: number; industryId: number } | undefined} */ (
+          req.platformTenantMemberManage
+        )
+        if (mgr == null) {
+          res.status(500).json({ message: '플랫폼 테넌트 멤버 관리 컨텍스트가 없습니다.' })
+          return
+        }
+        const tenantIdParsed = mgr.tenantId
+        const industryIdParsed = mgr.industryId
+        const scopeIdStr = String(tenantIdParsed)
+
+        const raw = req.body ?? {}
+        const username = String(raw.username ?? '').trim().toLowerCase()
+        const displayName = String(raw.display_name ?? raw.displayName ?? '').trim()
+        const password = String(raw.password ?? '')
+        const rbacNorm = String(raw.rbacRole ?? raw.membershipRole ?? '').trim().toLowerCase()
+        const membershipTypeNorm = String(raw.membershipType ?? raw.membership_type ?? '').trim().toLowerCase()
+        const customerAccessNorm = String(raw.customerAccess ?? raw.customer_access ?? '').trim().toLowerCase()
+
+        const userAcctStatusNorm = String(raw.status ?? raw.userStatus ?? 'active').trim().toLowerCase()
+        const membStatusNorm = String(raw.membershipStatus ?? raw.membership_status ?? 'active')
+          .trim()
+          .toLowerCase()
+
+        if (!username || username.length < 3) {
+          res.status(400).json({ message: '유효한 로그인 아이디(username)가 필요합니다.' })
+          return
+        }
+        if (!displayName) {
+          res.status(400).json({ message: '이름(displayName)을 입력해 주세요.' })
+          return
+        }
+        if (password.trim().length < 8) {
+          res.status(400).json({ message: '비밀번호는 8자 이상입니다.' })
+          return
+        }
+        if (!(rbacNorm === 'staff' || rbacNorm === 'user' || rbacNorm === 'tenant_admin')) {
+          res.status(400).json({
+            message: 'rbacRole(또는 membershipRole)은 staff, user, tenant_admin 중 하나여야 합니다.',
+          })
+          return
+        }
+        const memTypesAllowed = /** @type {const} */ (['agent', 'staff', 'admin', 'owner'])
+        if (!(memTypesAllowed).includes(membershipTypeNorm)) {
+          res.status(400).json({ message: `membershipType은 ${memTypesAllowed.join(', ')} 중 하나여야 합니다.` })
+          return
+        }
+        const custAccAllowed = /** @type {const} */ (['none', 'own', 'tenant', 'assigned'])
+        if (!(custAccAllowed).includes(customerAccessNorm)) {
+          res.status(400).json({ message: `customerAccess은 ${custAccAllowed.join(', ')} 중 하나여야 합니다.` })
+          return
+        }
+        if (!(userAcctStatusNorm === 'active' || userAcctStatusNorm === 'inactive' || userAcctStatusNorm === 'blocked')) {
+          res.status(400).json({ message: 'status는 active, inactive 또는 blocked 입니다.' })
+          return
+        }
+        const membershipStatusDb =
+          membStatusNorm === 'inactive' || membStatusNorm === 'active' ? membStatusNorm : ''
+        if (!membershipStatusDb) {
+          res.status(400).json({ message: 'membershipStatus는 active 또는 inactive 입니다.' })
+          return
+        }
+
+        /** CRM 설계사/스태프는 legacy users.role USER 고정 가입 스태프는 tenant 멤버십으로 구분한다. TODO: GA_STAFF 별도 레거시가 필요하면 확장 */
+        const legacyUserRole = 'USER'
+
+        const tchk = await pool.query(
+          `
+          SELECT id, legacy_ga_id, industry_id, status
+          FROM tenants WHERE id = $1 LIMIT 1`,
+          [tenantIdParsed],
+        )
+        const tRow = tchk.rows[0]
+        if (!tRow) {
+          res.status(404).json({ message: '테넌트를 찾을 수 없습니다.' })
+          return
+        }
+        const tIndustry = Number(tRow.industry_id)
+        if (!(Number.isSafeInteger(tIndustry) && tIndustry === industryIdParsed)) {
+          res.status(409).json({ message: '테넌트 업종이 일치하지 않습니다.' })
+          return
+        }
+        const tenantSt = String(tRow.status ?? '').trim().toLowerCase()
+        if (tenantSt !== 'active') {
+          res.status(400).json({ message: '활성 테넌트에만 사용자를 생성할 수 있습니다.' })
+          return
+        }
+
+        const gaIdInt = parseGaId(tRow.legacy_ga_id)
+        if (!(typeof gaIdInt === 'number' && Number.isInteger(gaIdInt) && gaIdInt >= 1)) {
+          res.status(400).json({ message: '테넌트에 연결된 GA가 없습니다.' })
+          return
+        }
+
+        const dup = await pool.query(
+          `SELECT 1 FROM users WHERE username = $1 LIMIT 1`,
+          [username],
+        )
+        if ((dup.rowCount ?? 0) > 0) {
+          res.status(409).json({ message: '이미 존재하는 아이디입니다.' })
+          return
+        }
+
+        const userIdNew = randomUUID()
+        const passHash = await bcrypt.hash(password, 10)
+
+        const client = await pool.connect()
+        try {
+          await client.query('BEGIN')
+          await client.query(
+            `
+            INSERT INTO users (
+              id, username, password_hash, role, ga_id,
+              display_name, phone_number,
+              invited_by_user_id,
+              status
+            ) VALUES (
+              $1, $2, $3, $4::text, $5::integer,
+              $6, $7::text,
+              $1::text,
+              $8::text
+            )
+            `,
+            [
+              userIdNew,
+              username,
+              passHash,
+              legacyUserRole,
+              gaIdInt,
+              displayName,
+              '',
+              userAcctStatusNorm,
+            ],
+          )
+
+          await client.query(
+            `
+            INSERT INTO user_memberships (
+              user_id, role, scope_type, scope_id,
+              tenant_id, industry_id, status,
+              membership_type, customer_access
+            ) VALUES (
+              $1::text,
+              $2::text,
+              'tenant',
+              $3::text,
+              $4::bigint,
+              $5::bigint,
+              $6::text,
+              $7::text,
+              $8::text
+            )
+            `,
+            [
+              userIdNew,
+              rbacNorm,
+              scopeIdStr,
+              tenantIdParsed,
+              industryIdParsed,
+              membershipStatusDb,
+              membershipTypeNorm,
+              customerAccessNorm,
+            ],
+          )
+          await client.query('COMMIT')
+        } catch (e) {
+          try {
+            await client.query('ROLLBACK')
+          } catch {
+            /* */
+          }
+          throw e
+        } finally {
+          client.release()
+        }
+
+        await logSecurityEvent(pool, {
+          actorUserId: String(req.user?.id ?? ''),
+          actorRole: String(req.user?.role ?? ''),
+          action: 'PLATFORM_TENANT_USER_CREATE',
+          targetType: 'user',
+          targetId: userIdNew,
+          meta: { tenantId: tenantIdParsed, username },
+        })
+
+        res.status(201).json({ userId: userIdNew, username })
+      } catch (e) {
+        if (/** @type {any} */ (e)?.code === '23505') {
+          res.status(409).json({ message: '이미 존재하는 아이디입니다.' })
+          return
+        }
+        handleDbError(e, req, res)
+      }
+    },
+  )
+
+  apiRouter.get(
+    '/admin/platform/tenants/:tenantId',
+    ...platformTenantMemberManagerGuard,
+    async (req, res) => {
+      try {
+        const mgr = /** @type {{ tenantId: number; industryId: number } | undefined} */ (
+          req.platformTenantMemberManage
+        )
+        if (mgr == null) {
+          res.status(500).json({ message: '플랫폼 테넌트 멤버 관리 컨텍스트가 없습니다.' })
+          return
+        }
+        const tenantIdStable = mgr.tenantId
+
+        const { rows } = await pool.query(
+          `
+          SELECT
+            t.id,
+            t.industry_id,
+            i.code AS industry_code,
+            t.code,
+            t.name,
+            t.status,
+            t.legacy_ga_id,
+            t.crm_customer_template_id,
+            t.seat_limit,
+            t.license_policy,
+            t.billing_entitlement,
+            t.created_at,
+            t.updated_at,
+            (
+              SELECT COUNT(*)::int
+              FROM user_memberships m
+              INNER JOIN users u ON u.id = m.user_id
+              WHERE m.scope_type = 'tenant'
+                AND m.tenant_id IS NOT DISTINCT FROM t.id
+                AND COALESCE(m.scope_id, '') = t.id::text
+                AND m.role IN ('staff', 'user')
+                AND LOWER(TRIM(COALESCE(m.status::text, ''))) = 'active'
+                AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+                AND LOWER(TRIM(COALESCE(u.status::text, ''))) = 'active'
+            ) AS active_seat_count
+          FROM tenants t
+          LEFT JOIN industries i ON i.id = t.industry_id
+          WHERE t.id = $1
+          LIMIT 1
+          `,
+          [tenantIdStable],
+        )
+
+        const row = rows[0]
+        if (!row) {
+          res.status(404).json({ message: '테넌트를 찾을 수 없습니다.' })
+          return
+        }
+        const active = Number(row.active_seat_count ?? 0) || 0
+        res.json(mapIndustryTenantRowExtended(row, active))
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    },
+  )
+
+  apiRouter.get(
+    '/admin/platform/tenants/:tenantId/registration-codes',
+    ...platformTenantMemberManagerGuard,
+    async (req, res) => {
+      try {
+        const mgr = /** @type {{ tenantId: number } | undefined} */ (req.platformTenantMemberManage)
+        if (mgr == null) {
+          res.status(500).json({ message: '플랫폼 테넌트 멤버 관리 컨텍스트가 없습니다.' })
+          return
+        }
+        const { rows } = await pool.query(
+          `
+          SELECT
+            rc.id,
+            rc.code,
+            rc.tenant_id,
+            rc.industry_code,
+            rc.default_membership_type,
+            rc.default_customer_access,
+            rc.default_role,
+            rc.status,
+            rc.expires_at,
+            rc.max_uses,
+            rc.used_count,
+            rc.created_at,
+            rc.updated_at
+          FROM tenant_registration_codes rc
+          WHERE rc.tenant_id = $1
+          ORDER BY rc.id DESC
+          `,
+          [mgr.tenantId],
+        )
+
+        res.json({ items: rows.map((rw) => mapTenantRegistrationCodeRow(rw)) })
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    },
+  )
+
+  apiRouter.post(
+    '/admin/platform/tenants/:tenantId/registration-codes',
+    ...platformTenantMemberManagerGuard,
+    async (req, res) => {
+      try {
+        const mgr = /** @type {{ tenantId: number } | undefined} */ (req.platformTenantMemberManage)
+        if (mgr == null) {
+          res.status(500).json({ message: '플랫폼 테넌트 멤버 관리 컨텍스트가 없습니다.' })
+          return
+        }
+        const tenantIdStable = mgr.tenantId
+
+        const rawBody = req.body ?? {}
+        const codeNorm = normalizeTenantRegistrationCodeRaw(rawBody.code ?? rawBody.registrationCode)
+        const maxUsesRaw = rawBody.maxUses ?? rawBody.max_uses
+        let maxUsesParsed = null
+        if (maxUsesRaw !== undefined && maxUsesRaw !== null && String(maxUsesRaw).trim() !== '') {
+          const n = Number(maxUsesRaw)
+          if (!Number.isInteger(n) || n < 0) {
+            res.status(400).json({ message: 'maxUses는 0 이상의 정수이거나 비워두면 무제한입니다.' })
+            return
+          }
+          maxUsesParsed = n
+        }
+
+        let expiresAtDb = null
+        const expRaw = rawBody.expiresAt ?? rawBody.expires_at ?? null
+        if (expRaw != null && String(expRaw).trim() !== '') {
+          const d = new Date(expRaw)
+          if (Number.isNaN(d.getTime())) {
+            res.status(400).json({ message: 'expiresAt이 올바른 날짜·시각이 아닙니다.' })
+            return
+          }
+          expiresAtDb = d.toISOString()
+        }
+
+        if (!codeNorm || codeNorm.length < 3 || codeNorm.length > 48) {
+          res.status(400).json({ message: '코드는 3~48자(공백 제거 후)여야 합니다.' })
+          return
+        }
+
+        const { rows: insRows } = await pool.query(
+          `
+          INSERT INTO tenant_registration_codes (
+            code,
+            tenant_id,
+            industry_code,
+            default_membership_type,
+            default_customer_access,
+            default_role,
+            status,
+            expires_at,
+            max_uses
+          )
+          SELECT
+            $1::text,
+            t.id,
+            ic.code::text,
+            'agent',
+            'own',
+            'user',
+            'active',
+            $2::timestamptz,
+            $3::integer
+          FROM tenants t
+          INNER JOIN industries ic ON ic.id = t.industry_id
+          WHERE t.id = $4
+            AND LOWER(TRIM(COALESCE(t.status::text, ''))) = 'active'
+          RETURNING
+            id,
+            code,
+            tenant_id,
+            industry_code,
+            default_membership_type,
+            default_customer_access,
+            default_role,
+            status,
+            expires_at,
+            max_uses,
+            used_count,
+            created_at,
+            updated_at
+          `,
+          [codeNorm, expiresAtDb, maxUsesParsed, tenantIdStable],
+        )
+
+        if (insRows.length === 0) {
+          res.status(400).json({ message: '활성 테넌트에만 가입 코드를 생성할 수 있습니다.' })
+          return
+        }
+
+        await logSecurityEvent(pool, {
+          actorUserId: String(req.user?.id ?? ''),
+          actorRole: String(req.user?.role ?? ''),
+          action: 'PLATFORM_TENANT_REG_CODE_CREATE',
+          targetType: 'tenant_registration_code',
+          targetId: String(insRows[0]?.id ?? ''),
+          meta: { tenantId: tenantIdStable, code: codeNorm },
+        })
+
+        res.status(201).json(mapTenantRegistrationCodeRow(insRows[0]))
+      } catch (e) {
+        if (/** @type {any} */ (e)?.code === '23505') {
+          res.status(409).json({ message: '이미 사용 중인 가입 코드입니다.' })
+          return
+        }
+        handleDbError(e, req, res)
+      }
+    },
+  )
+
+  apiRouter.patch(
+    '/admin/platform/tenants/:tenantId/registration-codes/:codeId',
+    ...platformTenantMemberManagerGuard,
+    async (req, res) => {
+      try {
+        const mgr = /** @type {{ tenantId: number } | undefined} */ (req.platformTenantMemberManage)
+        if (mgr == null) {
+          res.status(500).json({ message: '플랫폼 테넌트 멤버 관리 컨텍스트가 없습니다.' })
+          return
+        }
+        const codeIdParsed = parsePositiveIndustryIdParam(req.params.codeId)
+        if (codeIdParsed == null) {
+          res.status(400).json({ message: '유효한 codeId가 필요합니다.' })
+          return
+        }
+
+        const rawBody = req.body ?? {}
+        const patch = {}
+
+        const stNorm = rawBody.status != null ? String(rawBody.status).trim().toLowerCase() : ''
+        if (stNorm) {
+          if (stNorm !== 'active' && stNorm !== 'inactive') {
+            res.status(400).json({ message: 'status는 active 또는 inactive 입니다.' })
+            return
+          }
+          patch.status = stNorm
+        }
+
+        let maxUsesSet = undefined
+        if (Object.prototype.hasOwnProperty.call(rawBody, 'maxUses') ||
+          Object.prototype.hasOwnProperty.call(rawBody, 'max_uses')) {
+          const rawMu = rawBody.maxUses ?? rawBody.max_uses
+          if (rawMu === null || rawMu === '') {
+            maxUsesSet = null
+          } else {
+            const n = Number(rawMu)
+            if (!Number.isInteger(n) || n < 0) {
+              res.status(400).json({ message: 'maxUses는 0 이상 정수이거나 null(무제한)입니다.' })
+              return
+            }
+            maxUsesSet = n
+          }
+        }
+
+        let expiresSet = undefined
+        if (Object.prototype.hasOwnProperty.call(rawBody, 'expiresAt') ||
+          Object.prototype.hasOwnProperty.call(rawBody, 'expires_at')) {
+          const expRaw = rawBody.expiresAt ?? rawBody.expires_at ?? null
+          if (expRaw === null || expRaw === '') {
+            expiresSet = null
+          } else {
+            const d = new Date(expRaw)
+            if (Number.isNaN(d.getTime())) {
+              res.status(400).json({ message: 'expiresAt이 올바른 날짜·시각이 아닙니다.' })
+              return
+            }
+            expiresSet = d.toISOString()
+          }
+        }
+
+        if (!patch.status && maxUsesSet === undefined && expiresSet === undefined) {
+          res.status(400).json({ message: '갱신할 필드가 없습니다.' })
+          return
+        }
+
+        const sets = []
+        const params = []
+        let pi = 1
+        if (patch.status) {
+          sets.push(`status = $${pi}::text`)
+          params.push(patch.status)
+          pi += 1
+        }
+        if (maxUsesSet !== undefined) {
+          sets.push(`max_uses = $${pi}::integer`)
+          params.push(maxUsesSet)
+          pi += 1
+        }
+        if (expiresSet !== undefined) {
+          sets.push(`expires_at = $${pi}::timestamptz`)
+          params.push(expiresSet)
+          pi += 1
+        }
+        sets.push('updated_at = NOW()')
+
+        params.push(codeIdParsed, mgr.tenantId)
+        const idIx = pi
+        const tenantIx = pi + 1
+
+        const { rows } = await pool.query(
+          `
+          UPDATE tenant_registration_codes rc
+          SET ${sets.join(', ')}
+          WHERE rc.id = $${idIx}::bigint
+            AND rc.tenant_id IS NOT DISTINCT FROM $${tenantIx}::bigint
+          RETURNING
+            id,
+            code,
+            tenant_id,
+            industry_code,
+            default_membership_type,
+            default_customer_access,
+            default_role,
+            status,
+            expires_at,
+            max_uses,
+            used_count,
+            created_at,
+            updated_at
+          `,
+          params,
+        )
+
+        if (rows.length === 0) {
+          res.status(404).json({ message: '가입 코드를 찾지 못했습니다.' })
+          return
+        }
+
+        await logSecurityEvent(pool, {
+          actorUserId: String(req.user?.id ?? ''),
+          actorRole: String(req.user?.role ?? ''),
+          action: 'PLATFORM_TENANT_REG_CODE_PATCH',
+          targetType: 'tenant_registration_code',
+          targetId: String(rows[0]?.id ?? ''),
+          meta: {
+            tenantId: mgr.tenantId,
+            codeId: codeIdParsed,
+            patchKeys: [...(patch.status ? ['status'] : []), ...(maxUsesSet !== undefined ? ['maxUses'] : []), ...(expiresSet !== undefined ? ['expiresAt'] : [])],
+          },
+        })
+
+        res.json(mapTenantRegistrationCodeRow(rows[0]))
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    },
+  )
+
+  /**
+   * `userId` 문자열 라우트 파라미터(공백 허용 X).
+   * @param {unknown} raw
+   */
+  function parseUrlUserIdParam(raw) {
+    const s = String(raw ?? '').trim()
+    return s !== '' ? s : null
+  }
+
+  apiRouter.patch(
+    '/admin/platform/tenants/:tenantId/users/:userId/status',
+    ...platformTenantMemberManagerGuard,
+    async (req, res) => {
+      try {
+        const mgr = /** @type {{ tenantId: number; industryId: number } | undefined} */ (
+          req.platformTenantMemberManage
+        )
+        if (mgr == null) {
+          res.status(500).json({ message: '플랫폼 테넌트 멤버 관리 컨텍스트가 없습니다.' })
+          return
+        }
+
+        const userIdTrim = parseUrlUserIdParam(req.params.userId)
+        if (userIdTrim == null) {
+          res.status(400).json({ message: 'userId 파라미터가 필요합니다.' })
+          return
+        }
+
+        const rawStatus = req.body?.status ?? req.body?.userStatus ?? req.body?.user_status
+        const userStat = String(rawStatus ?? '').trim().toLowerCase()
+        if (!(userStat === 'active' || userStat === 'inactive' || userStat === 'blocked')) {
+          res.status(400).json({ message: 'status는 active, inactive 또는 blocked 입니다.' })
+          return
+        }
+
+        const membershipAuto =
+          userStat === 'active' ? 'active' : 'inactive'
+
+        const tenantIdStable = mgr.tenantId
+        const scopeIdStr = String(tenantIdStable)
+
+        const client = await pool.connect()
+        try {
+          await client.query('BEGIN')
+
+          const mRes = await client.query(
+            `
+            UPDATE user_memberships m
+            SET status = $4::text, updated_at = NOW()
+            FROM users u
+            WHERE m.user_id = u.id
+              AND u.id::text = $1::text
+              AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+              AND m.scope_type = 'tenant'
+              AND m.tenant_id IS NOT DISTINCT FROM $2::bigint
+              AND COALESCE(m.scope_id, '') = $3
+              AND m.role IN ('staff','user','tenant_admin')
+            RETURNING m.id
+            `,
+            [userIdTrim, tenantIdStable, scopeIdStr, membershipAuto],
+          )
+
+          if (mRes.rowCount === 0) {
+            await client.query('ROLLBACK')
+            res.status(404).json({ message: '해당 테넌트 사용자 멤버십을 찾을 수 없습니다.' })
+            return
+          }
+
+          await client.query(
+            `
+            UPDATE users
+            SET status = $2::text, updated_at = NOW()
+            WHERE id::text = $1::text
+              AND COALESCE(is_deleted, FALSE) IS NOT TRUE
+            `,
+            [userIdTrim, userStat],
+          )
+
+          await client.query('COMMIT')
+        } catch (e) {
+          try {
+            await client.query('ROLLBACK')
+          } catch {
+            /* */
+          }
+          throw e
+        } finally {
+          client.release()
+        }
+
+        await logSecurityEvent(pool, {
+          actorUserId: String(req.user?.id ?? ''),
+          actorRole: String(req.user?.role ?? ''),
+          action: 'PLATFORM_TENANT_USER_STATUS_PATCH',
+          targetType: 'user',
+          targetId: userIdTrim,
+          meta: { tenantId: tenantIdStable, userStatus: userStat, membershipStatus: membershipAuto },
+        })
+
+        const { rows: listRows } = await pool.query(
+          `
+          SELECT
+            m.id AS membership_id,
+            m.user_id,
+            u.username,
+            u.display_name,
+            u.role AS legacy_role,
+            u.phone_number,
+            LOWER(TRIM(COALESCE(u.status::text, ''))) AS user_account_status,
+            u.last_login_at,
+            u.last_login_ip,
+            (
+              SELECT COUNT(*)::int
+              FROM user_auth_sessions s
+              WHERE s.user_id = u.id
+                AND s.revoked_at IS NULL
+                AND s.expires_at > NOW()
+            ) AS active_session_count,
+            (
+              SELECT COUNT(*)::int
+              FROM user_registered_devices d
+              WHERE d.user_id = u.id
+                AND d.revoked_at IS NULL
+            ) AS registered_device_count,
+            m.role AS membership_role,
+            m.scope_type,
+            m.scope_id,
+            m.tenant_id,
+            m.industry_id,
+            m.membership_type,
+            m.customer_access,
+            m.status,
+            m.created_at,
+            m.updated_at
+          FROM user_memberships m
+          INNER JOIN users u ON u.id = m.user_id
+          WHERE u.id::text = $3::text
+            AND m.scope_type = 'tenant'
+            AND m.tenant_id IS NOT DISTINCT FROM $1
+            AND COALESCE(m.scope_id, '') = $2
+            AND m.role IN ('staff','user','tenant_admin')
+            AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+          LIMIT 1
+          `,
+          [tenantIdStable, scopeIdStr, userIdTrim],
+        )
+
+        if (listRows[0]) {
+          res.json(mapTenantStaffUserMemberItem(listRows[0]))
+          return
+        }
+        res.json({ ok: true, userId: userIdTrim })
+      } catch (e) {
+        handleDbError(e, req, res)
+      }
+    },
+  )
+
+  apiRouter.patch(
+    '/admin/platform/tenants/:tenantId/users/:userId',
+    ...platformTenantMemberManagerGuard,
+    async (req, res) => {
+      try {
+        const mgr = /** @type {{ tenantId: number; industryId: number } | undefined} */ (
+          req.platformTenantMemberManage
+        )
+        if (mgr == null) {
+          res.status(500).json({ message: '플랫폼 테넌트 멤버 관리 컨텍스트가 없습니다.' })
+          return
+        }
+
+        const userIdTrim = parseUrlUserIdParam(req.params.userId)
+        if (userIdTrim == null) {
+          res.status(400).json({ message: 'userId 파라미터가 필요합니다.' })
+          return
+        }
+
+        const tenantIdStable = mgr.tenantId
+        const scopeIdStr = String(tenantIdStable)
+        const industryIdStable = mgr.industryId
+
+        const rawBody = req.body ?? {}
+        let displayUpd = undefined
+        if (Object.prototype.hasOwnProperty.call(rawBody, 'display_name') ||
+          Object.prototype.hasOwnProperty.call(rawBody, 'displayName')) {
+          const dn = String(rawBody.display_name ?? rawBody.displayName ?? '').trim()
+          displayUpd = dn
+          if (!dn) {
+            res.status(400).json({ message: '표시 이름이 비어 있습니다.' })
+            return
+          }
+        }
+
+        let rbacUpd = undefined
+        const rawRb = rawBody.rbacRole ?? rawBody.membershipRole
+        if (rawRb !== undefined && rawRb !== null && String(rawRb).trim() !== '') {
+          rbacUpd = String(rawRb).trim().toLowerCase()
+          if (!(rbacUpd === 'staff' || rbacUpd === 'user' || rbacUpd === 'tenant_admin')) {
+            res.status(400).json({ message: 'rbacRole은 staff, user, tenant_admin 중 하나입니다.' })
+            return
+          }
+        }
+
+        let memTypeUpd = undefined
+        const rawMt = rawBody.membershipType ?? rawBody.membership_type
+        if (rawMt !== undefined && rawMt !== null && String(rawMt).trim() !== '') {
+          memTypeUpd = String(rawMt).trim().toLowerCase()
+          const allowedMt = /** @type {const} */ (['agent', 'staff', 'admin', 'owner'])
+          if (!(allowedMt).includes(memTypeUpd)) {
+            res.status(400).json({ message: `membershipType은 ${allowedMt.join(', ')} 중 하나입니다.` })
+            return
+          }
+        }
+
+        let custAccUpd = undefined
+        const rawCa = rawBody.customerAccess ?? rawBody.customer_access
+        if (rawCa !== undefined && rawCa !== null && String(rawCa).trim() !== '') {
+          custAccUpd = String(rawCa).trim().toLowerCase()
+          const allowedCa = /** @type {const} */ (['none', 'own', 'tenant', 'assigned'])
+          if (!(allowedCa).includes(custAccUpd)) {
+            res.status(400).json({ message: `customerAccess는 ${allowedCa.join(', ')} 중 하나입니다.` })
+            return
+          }
+        }
+
+        let userStsUpd = undefined
+        const rawUs = rawBody.status ?? rawBody.userStatus ?? rawBody.user_status
+        if (rawUs !== undefined && rawUs !== null && String(rawUs).trim() !== '') {
+          userStsUpd = String(rawUs).trim().toLowerCase()
+          if (!(userStsUpd === 'active' || userStsUpd === 'inactive' || userStsUpd === 'blocked')) {
+            res.status(400).json({ message: 'status는 active, inactive 또는 blocked 입니다.' })
+            return
+          }
+        }
+
+        let membStsUpd = undefined
+        const rawMs = rawBody.membershipStatus ?? rawBody.membership_status
+        if (rawMs !== undefined && rawMs !== null && String(rawMs).trim() !== '') {
+          const msLower = String(rawMs).trim().toLowerCase()
+          if (!(msLower === 'active' || msLower === 'inactive')) {
+            res.status(400).json({ message: 'membershipStatus는 active 또는 inactive 입니다.' })
+            return
+          }
+          membStsUpd = msLower
+        }
+
+        const hasMembershipPatch =
+          rbacUpd != null || memTypeUpd != null || custAccUpd != null || membStsUpd != null
+
+        if (!(displayUpd !== undefined || userStsUpd != null || hasMembershipPatch)) {
+          res.status(400).json({ message: '수정할 필드가 없습니다.' })
+          return
+        }
+
+        const client = await pool.connect()
+        try {
+          await client.query('BEGIN')
+
+          const mSel = await client.query(
+            `
+            SELECT
+              m.id AS membership_id
+            FROM user_memberships m
+            INNER JOIN users u ON u.id = m.user_id
+            WHERE u.id::text = $3::text
+              AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+              AND m.scope_type = 'tenant'
+              AND m.tenant_id IS NOT DISTINCT FROM $1::bigint
+              AND COALESCE(m.scope_id, '') = $2
+              AND m.role IN ('staff','user','tenant_admin')
+            LIMIT 1
+            FOR UPDATE OF m
+            `,
+            [tenantIdStable, scopeIdStr, userIdTrim],
+          )
+
+          if (mSel.rowCount === 0) {
+            await client.query('ROLLBACK')
+            res.status(404).json({ message: '해당 테넌트 사용자 멤버십을 찾을 수 없습니다.' })
+            return
+          }
+
+          if (displayUpd !== undefined) {
+            await client.query(`UPDATE users SET display_name = $2, updated_at = NOW() WHERE id::text = $1::text`, [
+              userIdTrim,
+              displayUpd,
+            ])
+          }
+
+          if (userStsUpd != null) {
+            await client.query(`UPDATE users SET status = $2::text, updated_at = NOW() WHERE id::text = $1::text`, [
+              userIdTrim,
+              userStsUpd,
+            ])
+          }
+
+          let effectiveMembSts = membStsUpd ?? null
+          if (userStsUpd !== undefined && userStsUpd !== 'active') {
+            effectiveMembSts = 'inactive'
+          }
+
+          const membershipId = /** @type {string | bigint} */ (mSel.rows[0]?.membership_id)
+          const shouldPatchMembership =
+            rbacUpd != null ||
+            memTypeUpd != null ||
+            custAccUpd != null ||
+            effectiveMembSts != null
+
+          if (shouldPatchMembership) {
+            await client.query(
+              `
+              UPDATE user_memberships
+              SET
+                role = COALESCE($2::text, role),
+                membership_type = COALESCE($3::text, membership_type),
+                customer_access = COALESCE($4::text, customer_access),
+                status = COALESCE($5::text, status),
+                industry_id = $6::bigint,
+                updated_at = NOW()
+              WHERE id = $1::bigint
+              `,
+              [
+                membershipId,
+                rbacUpd ?? null,
+                memTypeUpd ?? null,
+                custAccUpd ?? null,
+                effectiveMembSts,
+                industryIdStable,
+              ],
+            )
+          }
+
+          await client.query('COMMIT')
+        } catch (e) {
+          try {
+            await client.query('ROLLBACK')
+          } catch {
+            /* */
+          }
+          throw e
+        } finally {
+          client.release()
+        }
+
+        await logSecurityEvent(pool, {
+          actorUserId: String(req.user?.id ?? ''),
+          actorRole: String(req.user?.role ?? ''),
+          action: 'PLATFORM_TENANT_USER_PATCH',
+          targetType: 'user',
+          targetId: userIdTrim,
+          meta: {
+            tenantId: tenantIdStable,
+            ...(displayUpd !== undefined ? { displayName: true } : {}),
+            ...(userStsUpd != null ? { userStatus: userStsUpd } : {}),
+            ...(rbacUpd != null ? { rbacRole: rbacUpd } : {}),
+            ...(memTypeUpd != null ? { membershipType: memTypeUpd } : {}),
+            ...(custAccUpd != null ? { customerAccess: custAccUpd } : {}),
+            ...(membStsUpd != null ? { membershipStatus: membStsUpd } : {}),
+          },
+        })
+
+        const { rows: refreshed } = await pool.query(
+          `
+          SELECT
+            m.id AS membership_id,
+            m.user_id,
+            u.username,
+            u.display_name,
+            u.role AS legacy_role,
+            u.phone_number,
+            LOWER(TRIM(COALESCE(u.status::text, ''))) AS user_account_status,
+            u.last_login_at,
+            u.last_login_ip,
+            (
+              SELECT COUNT(*)::int
+              FROM user_auth_sessions s
+              WHERE s.user_id = u.id
+                AND s.revoked_at IS NULL
+                AND s.expires_at > NOW()
+            ) AS active_session_count,
+            (
+              SELECT COUNT(*)::int
+              FROM user_registered_devices d
+              WHERE d.user_id = u.id
+                AND d.revoked_at IS NULL
+            ) AS registered_device_count,
+            m.role AS membership_role,
+            m.scope_type,
+            m.scope_id,
+            m.tenant_id,
+            m.industry_id,
+            m.membership_type,
+            m.customer_access,
+            m.status,
+            m.created_at,
+            m.updated_at
+          FROM user_memberships m
+          INNER JOIN users u ON u.id = m.user_id
+          WHERE u.id::text = $3::text
+            AND m.scope_type = 'tenant'
+            AND m.tenant_id IS NOT DISTINCT FROM $1
+            AND COALESCE(m.scope_id, '') = $2
+            AND m.role IN ('staff','user','tenant_admin')
+            AND COALESCE(u.is_deleted, FALSE) IS NOT TRUE
+          LIMIT 1
+          `,
+          [tenantIdStable, scopeIdStr, userIdTrim],
+        )
+
+        if (!refreshed[0]) {
+          res.status(500).json({ message: '갱신 결과를 불러오지 못했습니다.' })
+          return
+        }
+
+        res.json(mapTenantStaffUserMemberItem(refreshed[0]))
+      } catch (e) {
+        handleDbError(e, req, res)
       }
     },
   )
