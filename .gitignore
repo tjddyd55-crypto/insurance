@@ -32,6 +32,9 @@ uploads/system/insurers/*
 # 로컬 개발 지시문(레포에 커밋하지 않음)
 dev/
 
+# Expo (고객 모바일 앱 등)
+apps/customer-mobile/.expo/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
