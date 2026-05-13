@@ -158,9 +158,8 @@ export function PdfCoordinateEditor({
     /* 내부 식별자는 라벨에서 자동 파생. 같은 템플릿 내 충돌은 genPdfFieldKeyFromLabel 이
        suffix 로 회피하므로 사용자는 식별자를 의식할 필요가 없다. */
     const key = genPdfFieldKeyFromLabel(labelTrim, existingKeys)
-    /* radio 로 바로 만들면 기본 옵션 2개를 시드해 관리자가 빈 상태로 드래그했을 때
-       "옵션이 비어 있다" 에러를 만나지 않도록 한다. */
-    const options = draft.fieldType === 'radio' ? ['옵션1', '옵션2'] : null
+    /* 신규 radio 는 옵션 목록 비어 시작 — 사용자가 "옵션 추가" 후 좌표를 찍는다. */
+    const options = draft.fieldType === 'radio' ? [] : null
     const next: PdfFieldSpec = {
       fieldKey: key,
       label: labelTrim,
@@ -175,7 +174,7 @@ export function PdfCoordinateEditor({
     onChange([...fields, next])
     setSelectedKey(key)
     setSelectedPlacementIndex(null)
-    setActiveOptionValue(options?.[0] ?? null)
+    setActiveOptionValue(null)
     setDraft(EMPTY_DRAFT)
   }
 
@@ -193,48 +192,123 @@ export function PdfCoordinateEditor({
     onChange(
       fields.map((f) => {
         if (f.fieldKey !== key) return f
-        const next: PdfFieldSpec = { ...f, ...patch }
-        /* 타입이 checkbox/radio 가 아닌 값으로 바뀌면 options 와 placement.optionValue 를 제거한다.
-           서버 정규화에서 걸러지지만, UI 상태도 일관되게 유지해야 편집 중 혼란이 없다. */
-        if (patch.fieldType && patch.fieldType !== 'radio' && patch.fieldType !== 'checkbox') {
+        const nextBase: PdfFieldSpec = { ...f, ...patch }
+
+        /* 타입 전환 규칙만 분리 처리 — 라벨/필수 등 일반 패치는 그대로 다음으로 유지된다. */
+        if (!patch.fieldType) return nextBase
+
+        const prevType = f.fieldType
+        const newType = patch.fieldType
+        let next: PdfFieldSpec = nextBase
+
+        if (newType !== 'radio' && newType !== 'checkbox') {
           next.options = null
           next.placements = next.placements.map((p) => ({ ...p, optionValue: null }))
+        } else if (newType === 'radio' && prevType !== 'radio') {
+          /* checkbox → radio: 옵션/placement 는 유지하되 optionValue 가 없는 항목은 제거 */
+          if (prevType === 'checkbox' && Array.isArray(next.options) && next.options.length > 0) {
+            const allow = new Set(next.options)
+            next.placements = next.placements.filter(
+              (p) => p.optionValue != null && allow.has(p.optionValue),
+            )
+          } else {
+            next.options = []
+            next.placements = []
+          }
+        } else if (newType === 'checkbox' && prevType !== 'checkbox') {
+          if (!next.options?.length) next.options = ['옵션1', '옵션2']
+          const allow = new Set(next.options)
+          next.placements = next.placements.filter(
+            (p) => p.optionValue != null && allow.has(p.optionValue),
+          )
         }
-        /* checkbox/radio 로 새로 전환되는 경우, 옵션이 아직 없으면 기본 옵션 2개를 시드. */
-        if (
-          (patch.fieldType === 'radio' || patch.fieldType === 'checkbox') &&
-          (!next.options || next.options.length === 0)
-        ) {
-          next.options = ['옵션1', '옵션2']
-        }
+
         return next
       }),
     )
   }
 
-  /**
-   * radio 전용: options 배열을 교체한다.
-   * 옵션이 제거되면 그 옵션을 대표하던 placement 의 optionValue 를 남은 첫 옵션으로 이주시킨다.
-   * 이 "이주" 정책이 없으면 저장 시점에 서버가 전체 필드를 거부하므로 UX 가 깨진다.
-   */
-  const handlePatchFieldOptions = (key: string, nextOptions: string[]) => {
-    onChange(
-      fields.map((f) => {
-        if (f.fieldKey !== key) return f
-        const allowed = new Set(nextOptions)
-        const fallback = nextOptions[0] ?? null
-        const placements = f.placements.map((p) => {
-          if (p.optionValue && allowed.has(p.optionValue)) return p
-          return { ...p, optionValue: fallback }
-        })
-        return { ...f, options: nextOptions, placements }
-      }),
-    )
-    /* 활성 옵션이 제거됐다면 첫 옵션으로 재정렬. */
-    if (!activeOptionValue || !nextOptions.includes(activeOptionValue)) {
-      setActiveOptionValue(nextOptions[0] ?? null)
-    }
-  }
+  const addSelectableOption = useCallback(
+    (key: string, trimmed: string): boolean => {
+      const t = trimmed.trim()
+      if (!t) return false
+      const target = fields.find((f) => f.fieldKey === key)
+      if (!target || (target.fieldType !== 'radio' && target.fieldType !== 'checkbox')) return false
+      const opts = [...(target.options ?? [])]
+      if (opts.some((o) => o.trim() === t)) {
+        window.alert('같은 필드 안에 이미 같은 이름의 옵션이 있습니다.')
+        return false
+      }
+      onChange(
+        fields.map((f) => (f.fieldKey === key ? { ...f, options: [...opts, t] } : f)),
+      )
+      setActiveOptionValue(t)
+      return true
+    },
+    [fields, onChange],
+  )
+
+  const renameSelectableOptionAt = useCallback(
+    (key: string, index: number, raw: string) => {
+      const f = fields.find((x) => x.fieldKey === key)
+      if (!f || (f.fieldType !== 'radio' && f.fieldType !== 'checkbox')) {
+        return
+      }
+      const opts = [...(f.options ?? [])]
+      const anchor = opts[index]
+      if (anchor === undefined) return
+
+      const trimmed = raw.trim()
+      const nextLabel = trimmed === '' ? anchor : trimmed
+
+      if (trimmed !== '' && opts.some((o, j) => j !== index && String(o ?? '').trim() === nextLabel)) {
+        window.alert('다른 옵션과 같은 이름은 사용할 수 없습니다.')
+        return
+      }
+
+      opts[index] = raw
+
+      const placements = f.placements.map((p) =>
+        p.optionValue === anchor ? { ...p, optionValue: nextLabel } : p,
+      )
+
+      onChange(fields.map((ff) => (ff.fieldKey === key ? { ...ff, options: opts, placements } : ff)))
+
+      if (activeOptionValue === anchor) {
+        setActiveOptionValue(nextLabel)
+      }
+    },
+    [fields, onChange, activeOptionValue],
+  )
+
+  const removeSelectableOptionAt = useCallback(
+    (key: string, index: number) => {
+      const f = fields.find((x) => x.fieldKey === key)
+      if (!f || (f.fieldType !== 'radio' && f.fieldType !== 'checkbox')) return
+      const opts = [...(f.options ?? [])]
+      const anchor = opts[index]
+      if (anchor === undefined) return
+
+      if (f.fieldType === 'checkbox' && opts.length <= 1) {
+        window.alert('체크박스 필드는 최소 1개의 옵션이 필요합니다.')
+        return
+      }
+
+      opts.splice(index, 1)
+      const nextPlacements = f.placements.filter((p) => p.optionValue !== anchor)
+
+      onChange(
+        fields.map((ff) => (ff.fieldKey === key ? { ...ff, options: opts, placements: nextPlacements } : ff)),
+      )
+
+      /* radio: 활성 해제 두어 "옵션을 고른 뒤 드래그" 흐름 유지 · checkbox 는 남은 첫 옵션으로 */
+      if (activeOptionValue === anchor) {
+        if (f.fieldType === 'radio') setActiveOptionValue(null)
+        else setActiveOptionValue(opts[0] ?? null)
+      }
+    },
+    [fields, onChange, activeOptionValue],
+  )
 
   const handleRemovePlacement = (key: string, index: number) => {
     onChange(
@@ -284,10 +358,20 @@ export function PdfCoordinateEditor({
         return
       }
       const target = fields.find((f) => f.fieldKey === selectedKey) ?? null
-      /* checkbox/radio 는 "어느 옵션 좌표를 그릴지" 선택이 전제. 선택된 옵션이 없으면
-         첫 옵션으로 폴백하고, 그마저 없으면 placement 생성을 거부해 오염 데이터 방지. */
       let optionValue: string | null = null
-      if (target?.fieldType === 'radio' || target?.fieldType === 'checkbox') {
+
+      if (target?.fieldType === 'radio') {
+        const opts = target.options ?? []
+        if (opts.length === 0) {
+          window.alert('라디오 필드에 아직 옵션이 없습니다. 먼저 옵션을 추가해 주세요.')
+          return
+        }
+        if (!activeOptionValue || !opts.includes(activeOptionValue)) {
+          window.alert('먼저 라디오 옵션을 추가하거나 선택해 주세요.')
+          return
+        }
+        optionValue = activeOptionValue
+      } else if (target?.fieldType === 'checkbox') {
         const opts = target.options ?? []
         if (opts.length === 0) {
           window.alert('선택형 필드에 옵션이 없습니다. 먼저 옵션을 1개 이상 추가해 주세요.')
@@ -350,10 +434,7 @@ export function PdfCoordinateEditor({
       ? selectedField.placements[selectedPlacementIndex] ?? null
       : null
 
-  /* 선택된 필드/옵션 정합성 동기화.
-     "선택 중 필드가 checkbox/radio 이고, activeOptionValue 가 그 필드의 options 에 없으면"
-     첫 옵션으로 재설정한다. 이 동기화가 없으면 필드 전환 후 엉뚱한 옵션 placement 가
-     생성될 수 있다. */
+  /* 선택형 필드: checkbox 는 첫 옵션으로 활성 폴백 · radio 는 목록 변경 시 활성 값만 무효면 해제한다. */
   useEffect(() => {
     if (
       !selectedField ||
@@ -364,16 +445,29 @@ export function PdfCoordinateEditor({
       }
       return
     }
-    const opts = selectedField.options ?? []
-    if (activeOptionValue == null || !opts.includes(activeOptionValue)) {
-      setActiveOptionValue(opts[0] ?? null)
-    }
-    /* selectedKey 가 바뀔 때만 재평가. options 가 바뀌면 handlePatchFieldOptions 에서 직접 맞춘다. */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedKey])
 
-  /** 박스 모드로 드래그 픽을 받는다. 이는 필드가 선택되어 있을 때만 활성화. */
-  const canvasClickEnabled = Boolean(selectedKey)
+    const opts = selectedField.options ?? []
+
+    if (selectedField.fieldType === 'checkbox') {
+      if (activeOptionValue == null || !opts.includes(activeOptionValue)) {
+        setActiveOptionValue(opts[0] ?? null)
+      }
+      return
+    }
+
+    if (activeOptionValue != null && !opts.includes(activeOptionValue)) {
+      setActiveOptionValue(null)
+    }
+  }, [selectedKey, selectedField?.fieldType, JSON.stringify(selectedField?.options ?? null), activeOptionValue])
+
+  const radioPlacementBlocked =
+    selectedField?.fieldType === 'radio' &&
+    ((selectedField.options ?? []).length === 0 ||
+      activeOptionValue == null ||
+      !(selectedField.options ?? []).includes(activeOptionValue))
+
+  /** 박스 모드로 드래그 픽을 받는다. 라디오는 활성 옵션이 있을 때만 허용한다. */
+  const canvasClickEnabled = Boolean(selectedKey) && !radioPlacementBlocked
 
   return (
     <div className="pdf-engine-editor">
@@ -571,9 +665,20 @@ export function PdfCoordinateEditor({
                   options={selectedField.options ?? []}
                   activeOption={activeOptionValue}
                   onActiveChange={setActiveOptionValue}
-                  onOptionsChange={(next) => handlePatchFieldOptions(selectedField.fieldKey, next)}
+                  onAdd={(label) => addSelectableOption(selectedField.fieldKey, label)}
+                  onRenameAt={(index, raw) => renameSelectableOptionAt(selectedField.fieldKey, index, raw)}
+                  onRemoveAt={(index) => removeSelectableOptionAt(selectedField.fieldKey, index)}
                   mode={selectedField.fieldType}
                 />
+              ) : null}
+
+              {selectedField.fieldType === 'radio' &&
+              ((selectedField.options ?? []).length === 0 ||
+                activeOptionValue == null ||
+                !(selectedField.options ?? []).includes(activeOptionValue)) ? (
+                <p className="pdf-engine-editor__hint" style={{ marginTop: 8, color: '#fdba74' }}>
+                  먼저 라디오 옵션을 추가하거나 목록에서 선택한 뒤, PDF 위에서 드래그해 주세요.
+                </p>
               ) : null}
 
               <h4 className="pdf-engine-editor__panel-title" style={{ marginTop: 8, fontSize: 13 }}>
@@ -700,6 +805,11 @@ export function PdfCoordinateEditor({
               : '먼저 왼쪽에서 필드를 선택해 주세요.'}
           </span>
         </div>
+        {radioPlacementBlocked ? (
+          <p className="pdf-engine-editor__hint pdf-engine-editor__preview-hint" style={{ color: '#fdba74' }}>
+            먼저 라디오 옵션을 추가하거나 선택해 주세요. (활성 옵션이 있어야 좌표 드래그가 가능합니다.)
+          </p>
+        ) : null}
         <div className="pdf-engine-editor__preview-scroll">
           <PdfOverlayCanvas
             pdfBuffer={pdfBuffer}
@@ -796,20 +906,17 @@ function PlacementMetaEditor({ placement, onPatch }: PlacementMetaEditorProps) {
 }
 
 /**
- * radio 필드의 옵션 목록 편집 + "현재 편집 중 옵션" 선택 UI.
+ * radio/checkbox 필드의 옵션 목록 편집 + "현재 편집 중 옵션" 선택 UI.
  *
- * 설계 의도:
- *   - 옵션 입력은 별도 서브컴포넌트로 분리해 radio 가 아닌 타입에서는 import 자체가 동작하지 않는 코드가
- *     실행되지 않도록 한다(관심사 분리).
- *   - "활성 옵션(activeOption)" 개념은 "새 placement 가 대표할 옵션" 을 의미한다. 편집 흐름:
- *     옵션을 하나 고르고 → PDF 위를 드래그하면 그 옵션의 체크 박스가 생긴다. 각 옵션마다
- *     이 동작을 반복해 선택지 개수만큼 placement 를 만든다.
+ * 선택지 추가/삭제/이름변경과 placement 의 optionValue 정합성은 부모(PdfCoordinateEditor)가 책임진다.
  */
 interface RadioOptionsEditorProps {
   options: string[]
   activeOption: string | null
   onActiveChange: (next: string | null) => void
-  onOptionsChange: (next: string[]) => void
+  onAdd: (trimmedLabel: string) => boolean
+  onRenameAt: (index: number, rawLabel: string) => void
+  onRemoveAt: (index: number) => void
   mode: 'radio' | 'checkbox'
 }
 
@@ -817,36 +924,35 @@ function RadioOptionsEditor({
   options,
   activeOption,
   onActiveChange,
-  onOptionsChange,
+  onAdd,
+  onRenameAt,
+  onRemoveAt,
   mode,
 }: RadioOptionsEditorProps) {
   const [draft, setDraft] = useState('')
 
+  const duplicateTrimmedLabels = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const o of options) {
+      const t = o.trim()
+      if (!t) continue
+      counts.set(t, (counts.get(t) ?? 0) + 1)
+    }
+    return [...counts.entries()]
+      .filter(([, n]) => n > 1)
+      .map(([label]) => label)
+  }, [options])
+
+  const blankOptionRows = useMemo(
+    () => options.map((o) => o.trim() === ''),
+    [options],
+  )
+
   const handleAdd = () => {
     const v = draft.trim()
     if (!v) return
-    if (options.includes(v)) {
-      setDraft('')
-      return
-    }
-    onOptionsChange([...options, v])
-    onActiveChange(v)
-    setDraft('')
-  }
-
-  const handleRemove = (target: string) => {
-    const next = options.filter((o) => o !== target)
-    onOptionsChange(next)
-  }
-
-  const handleRename = (index: number, nextValue: string) => {
-    const trimmed = nextValue.trim()
-    /* 중복 값 입력은 저장하지 않는다 — 같은 옵션 2개는 업무상 의미가 없다. */
-    if (!trimmed || options.some((o, i) => i !== index && o === trimmed)) return
-    const next = options.map((o, i) => (i === index ? trimmed : o))
-    /* 현재 활성 옵션이 이름변경 대상이라면 활성 값도 갱신해 placement 생성 시 일관성 유지. */
-    if (activeOption === options[index]) onActiveChange(trimmed)
-    onOptionsChange(next)
+    const ok = onAdd(v)
+    if (ok) setDraft('')
   }
 
   return (
@@ -855,15 +961,29 @@ function RadioOptionsEditor({
         {mode === 'radio' ? '라디오 옵션' : '체크박스 옵션'} ({options.length})
       </h4>
       <p className="pdf-engine-editor__hint" style={{ margin: '0 0 6px' }}>
-        옵션을 선택하고 PDF 위를 드래그하면, 해당 라벨 전용 좌표가 추가됩니다.
+        {mode === 'radio'
+          ? '라디오는 옵션을 추가하고 목록에서 하나를 선택한 뒤 PDF 위를 드래그해야 해당 옵션 전용 좌표가 생깁니다.'
+          : '옵션을 선택하고 PDF 위를 드래그하면, 해당 라벨 전용 좌표가 추가됩니다.'}
       </p>
+      {duplicateTrimmedLabels.length > 0 ? (
+        <p className="pdf-engine-editor__hint" style={{ color: '#fca5a5', margin: '0 0 6px' }}>
+          중복된 옵션 이름이 있습니다 ({duplicateTrimmedLabels.join(', ')}). 수정하거나 저장이 거절될 수
+          있습니다.
+        </p>
+      ) : null}
+      {blankOptionRows.some(Boolean) ? (
+        <p className="pdf-engine-editor__hint" style={{ color: '#fca5a5', margin: '0 0 6px' }}>
+          이름이 비어 있는 옵션이 있습니다. 저장 전에 작성하거나 삭제해 주세요.
+        </p>
+      ) : null}
       {options.length === 0 ? (
         <p className="pdf-engine-editor__hint">아직 옵션이 없습니다.</p>
       ) : (
         <ul className="pdf-engine-editor__fields">
           {options.map((opt, i) => (
+            // eslint-disable-next-line react/no-array-index-key -- 문자열 라벨만 저장해 노드별 안정적 id 부재
             <li
-              key={`${opt}-${i}`}
+              key={`opt-${i}`}
               className={
                 'pdf-engine-editor__field-item' +
                 (opt === activeOption ? ' pdf-engine-editor__field-item--active' : '')
@@ -874,7 +994,7 @@ function RadioOptionsEditor({
                 <FormInput
                   type="text"
                   value={opt}
-                  onChange={(e) => handleRename(i, e.target.value)}
+                  onChange={(e) => onRenameAt(i, e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                 />
                 <button
@@ -882,7 +1002,7 @@ function RadioOptionsEditor({
                   className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
                   onClick={(e) => {
                     e.stopPropagation()
-                    handleRemove(opt)
+                    onRemoveAt(i)
                   }}
                 >
                   삭제
@@ -898,6 +1018,12 @@ function RadioOptionsEditor({
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="새 옵션 이름"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              handleAdd()
+            }
+          }}
         />
         <button
           type="button"
