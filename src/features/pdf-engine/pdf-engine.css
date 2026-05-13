@@ -496,6 +496,24 @@
   background: #fef2f2;
 }
 
+.pdf-engine-editor__btn--sm {
+  padding: 2px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.pdf-engine-editor__btn--ghost-danger {
+  color: #94a3b8;
+  border-color: #334155;
+  background: transparent;
+}
+
+.pdf-engine-editor__btn--ghost-danger:hover {
+  color: #fca5a5;
+  border-color: #7f1d1d;
+  background: rgba(127, 29, 29, 0.12);
+}
+
 .pdf-engine-editor__btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;

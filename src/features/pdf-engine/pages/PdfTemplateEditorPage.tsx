@@ -26,10 +26,21 @@ import {
   uploadAdminPdfTemplateFile,
 } from '../api/pdfTemplateApi'
 import { PdfCoordinateEditor } from '../components/PdfCoordinateEditor'
-import { validatePdfTemplateFieldsForSave } from '../validatePdfTemplateFieldsForSave'
+import { validatePdfTemplateFieldsForSave, dedupeRadioPlacementsInFields } from '../validatePdfTemplateFieldsForSave'
 import { normalizePdfFieldKeys } from '../pdfFieldKey'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
 import '../pdf-engine.css'
+
+function radioPlacementsChangedByDedupe(before: PdfFieldSpec[], after: PdfFieldSpec[]): boolean {
+  const map = new Map(before.map((f) => [f.fieldKey, f]))
+  for (const nf of after) {
+    if (nf.fieldType !== 'radio') continue
+    const pf = map.get(nf.fieldKey)
+    if (!pf || pf.fieldType !== 'radio') continue
+    if (JSON.stringify(pf.placements) !== JSON.stringify(nf.placements)) return true
+  }
+  return false
+}
 
 export default function PdfTemplateEditorPage() {
   const { id: idParam } = useParams<{ id: string }>()
@@ -250,15 +261,20 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
       }
       try {
         const { fields: fieldsToSave, keysChanged: keysNormalized } = normalizePdfFieldKeys(fields)
-        if (keysNormalized) {
-          setFields(fieldsToSave)
+        const dedupedFields = dedupeRadioPlacementsInFields(fieldsToSave)
+        const radioDeduped = radioPlacementsChangedByDedupe(fieldsToSave, dedupedFields)
+        if (keysNormalized || radioDeduped) {
+          setFields(dedupedFields)
+          if (radioDeduped && !keysNormalized) {
+            setFieldsDirty(true)
+          }
         }
-        const validationError = validatePdfTemplateFieldsForSave(fieldsToSave)
+        const validationError = validatePdfTemplateFieldsForSave(dedupedFields)
         if (validationError) {
           setToast(validationError)
           return false
         }
-        const saved = await saveAdminPdfTemplateFields(token, templateId, fieldsToSave)
+        const saved = await saveAdminPdfTemplateFields(token, templateId, dedupedFields)
         setFields(saved.fields.map(coercePdfFieldSpecForEditor))
         setFieldsDirty(false)
         if (!options?.silent) {

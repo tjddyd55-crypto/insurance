@@ -4,9 +4,11 @@
  * UX 원칙: "라벨 우선 + 박스 우선".
  *   1) 왼쪽 패널에서 라벨·타입·필수만 입력해 필드를 정의한다.
  *      (내부 식별자 `fieldKey` 는 라벨에서 자동 파생 — 관리자가 다룰 필요 없음.)
- *   2) 필드를 선택한 상태로 오른쪽 PDF 위를 "드래그" 하면 박스 placement 가 추가된다.
+ *   2) 필드를 선택한 상태로 오른쪽 PDF 위를 "드래그" 하면 좌표 초안이 만들어진다.
  *      — 드래그 거리가 너무 짧으면(실수 클릭) 무시된다.
- *   3) 등록된 placement 를 좌측에서 골라 width/height/fontSize/align 을 바로 편집한다.
+ *   3) radio: PDF에서 드래그한 뒤 "선택 옵션 좌표 저장"으로만 배치가 확정된다(옵션당 1좌표 upsert).
+ *      checkbox·기타: 기존처럼 즉시 반영하거나 목록에서 수정할 placement 를 고른 뒤 덮어쓴다.
+ *   4) 등록된 placement 를 좌측에서 골라 width/height/fontSize/align 을 바로 편집한다.
  *
  * 저장 형식:
  *   - 좌표·크기는 PDF 포인트(원점 좌하단). 해상도 무관.
@@ -50,6 +52,34 @@ const EMPTY_DRAFT: DraftField = {
   required: false,
 }
 
+const MARK_ID_IDX = '@@idx@@'
+const MARK_ID_PENDING = '@@pending@@'
+
+/** 오버레이·목록 표시용: 라디오는 option당 마지막 placement 만(레거시 다중 불러오기 호환). */
+function effectiveRadioPlacementsOrdered(placements: PdfPlacement[], options: string[]): PdfPlacement[] {
+  const optsSet = new Set(options)
+  const lastBy = new Map<string, PdfPlacement>()
+  for (const p of placements) {
+    const ov = p.optionValue != null ? String(p.optionValue).trim() : ''
+    if (!ov || !optsSet.has(ov)) continue
+    lastBy.set(ov, p)
+  }
+  const out: PdfPlacement[] = []
+  for (const opt of options) {
+    const kept = lastBy.get(opt)
+    if (kept != null) out.push(kept)
+  }
+  return out
+}
+
+function lastPlacementIndexForOption(field: PdfFieldSpec, optionValue: string): number {
+  let last = -1
+  for (let i = 0; i < field.placements.length; i += 1) {
+    if (field.placements[i].optionValue === optionValue) last = i
+  }
+  return last
+}
+
 /**
  * 필드의 "기본 텍스트 박스 크기" 가 없어 placement.width 가 null 인 경우(기존 점 배치)
  * 편집 UI 의 숫자 입력에 표시할 값은 빈 문자열이 되어야 한다. 0 을 보여주면
@@ -91,6 +121,10 @@ export function PdfCoordinateEditor({
    * 필드가 바뀌면 해당 필드의 첫 옵션으로 자동 동기화된다.
    */
   const [activeOptionValue, setActiveOptionValue] = useState<string | null>(null)
+  /**
+   * radio: PDF 위에서 드래그한 미확정 배치. "선택 옵션 좌표 저장" 시에만 placements 로 반영된다.
+   */
+  const [pendingRadioPlacement, setPendingRadioPlacement] = useState<PdfPlacement | null>(null)
   const [draft, setDraft] = useState<DraftField>(EMPTY_DRAFT)
   const [pageIndex, setPageIndex] = useState(0)
   const [numPages, setNumPages] = useState(pageCount > 0 ? pageCount : 1)
@@ -123,6 +157,17 @@ export function PdfCoordinateEditor({
     })
   }, [fields])
 
+  useEffect(() => {
+    const f = fields.find((x) => x.fieldKey === selectedKey)
+    if (f?.fieldType !== 'radio') {
+      setPendingRadioPlacement(null)
+    }
+  }, [fields, selectedKey])
+
+  useEffect(() => {
+    setPendingRadioPlacement(null)
+  }, [selectedKey, activeOptionValue])
+
   const existingKeys = useMemo(() => new Set(fields.map((f) => f.fieldKey)), [fields])
 
   /** 왼쪽 필드 목록의 placement 들을 overlay 마커로 변환.
@@ -131,14 +176,62 @@ export function PdfCoordinateEditor({
     const out: OverlayMark[] = []
     for (const f of fields) {
       const isActiveField = f.fieldKey === selectedKey
+
+      if (f.fieldType === 'radio') {
+        const opts = f.options ?? []
+        let rowPlacements = effectiveRadioPlacementsOrdered(f.placements, opts)
+        const pendingForRow =
+          isActiveField &&
+          pendingRadioPlacement != null &&
+          activeOptionValue != null &&
+          pendingRadioPlacement.optionValue === activeOptionValue
+        if (pendingForRow) {
+          rowPlacements = rowPlacements.filter((p) => p.optionValue !== activeOptionValue)
+          rowPlacements = [...rowPlacements, pendingRadioPlacement]
+        }
+        for (let i = 0; i < rowPlacements.length; i += 1) {
+          const p = rowPlacements[i]
+          const isPendingOverlay =
+            pendingForRow && i === rowPlacements.length - 1 && p === pendingRadioPlacement
+          const storageIdx =
+            !isPendingOverlay && p.optionValue ? lastPlacementIndexForOption(f, p.optionValue) : -1
+          const markId = isPendingOverlay
+            ? `${f.fieldKey}${MARK_ID_PENDING}`
+            : `${f.fieldKey}${MARK_ID_IDX}${storageIdx}`
+          const baseLabel = f.label || `필드 ${f.orderIndex + 1}`
+          const pendingSuffix = isPendingOverlay ? ' · 미저장' : ''
+          const composedLabel = p.optionValue
+            ? `${baseLabel} · ${p.optionValue}${pendingSuffix}`
+            : baseLabel
+          const placementSelected =
+            isActiveField &&
+            (isPendingOverlay ||
+              (selectedPlacementIndex != null &&
+                storageIdx >= 0 &&
+                selectedPlacementIndex === storageIdx))
+
+          out.push({
+            id: markId,
+            pageIndex: p.page,
+            x: p.x,
+            y: p.y,
+            width: p.width,
+            height: p.height,
+            label: composedLabel,
+            selected: placementSelected,
+          })
+        }
+        continue
+      }
+
+      /* checkbox · text 등 */
       for (let i = 0; i < f.placements.length; i += 1) {
         const p = f.placements[i]
         const isActivePlacement = isActiveField && i === selectedPlacementIndex
         const baseLabel = f.label || `필드 ${f.orderIndex + 1}`
-        /* radio 는 "어느 옵션" 인지 라벨에 같이 표기해야 관리자가 화면에서 즉시 구분할 수 있다. */
         const composedLabel = p.optionValue ? `${baseLabel} · ${p.optionValue}` : baseLabel
         out.push({
-          id: `${f.fieldKey}-${i}`,
+          id: `${f.fieldKey}${MARK_ID_IDX}${i}`,
           pageIndex: p.page,
           x: p.x,
           y: p.y,
@@ -150,7 +243,7 @@ export function PdfCoordinateEditor({
       }
     }
     return out
-  }, [fields, selectedKey, selectedPlacementIndex])
+  }, [fields, selectedKey, selectedPlacementIndex, pendingRadioPlacement, activeOptionValue])
 
   const handleAddField = () => {
     const labelTrim = draft.label.trim()
@@ -175,6 +268,7 @@ export function PdfCoordinateEditor({
     setSelectedKey(key)
     setSelectedPlacementIndex(null)
     setActiveOptionValue(null)
+    setPendingRadioPlacement(null)
     setDraft(EMPTY_DRAFT)
   }
 
@@ -185,6 +279,7 @@ export function PdfCoordinateEditor({
     if (selectedKey === key) {
       setSelectedKey(null)
       setSelectedPlacementIndex(null)
+      setPendingRadioPlacement(null)
     }
   }
 
@@ -391,6 +486,13 @@ export function PdfCoordinateEditor({
         align: 'center',
         optionValue,
       }
+
+      if (target?.fieldType === 'radio') {
+        setPendingRadioPlacement(placement)
+        setSelectedPlacementIndex(null)
+        return
+      }
+
       let nextIndex = 0
       const nextFields = fields.map((f) => {
         if (f.fieldKey !== selectedKey) return f
@@ -403,9 +505,8 @@ export function PdfCoordinateEditor({
           return { ...f, placements: [placement] }
         }
         /*
-         * 기본 동작은 "선택된 좌표 수정(덮어쓰기)".
-         * 사용자가 같은 필드에서 좌표를 다시 찍을 때 이전 박스가 남아 누적되는 혼란을 방지한다.
-         * 새 좌표를 추가하고 싶을 때는 좌표 목록의 "새 좌표 추가" 버튼으로 선택을 해제한 상태에서 찍는다.
+         * 체크박스: "선택된 좌표 수정(덮어쓰기)" 또는 선택 해제 상태에서 새 placement 추가.
+         * 새 좌표를 더하려면 좌표 목록의 "새 좌표 추가" 로 선택을 해제한 뒤 드래그한다.
          */
         if (selectedPlacementIndex != null && f.placements[selectedPlacementIndex]) {
           nextIndex = selectedPlacementIndex
@@ -418,11 +519,35 @@ export function PdfCoordinateEditor({
         return { ...f, placements: [...f.placements, placement] }
       })
       onChange(nextFields)
-      /* 방금 추가한 placement 를 자동 선택해, 관리자가 곧바로 메타 편집을 이어갈 수 있게 한다. */
+      /* 방금 추가/수정한 placement 를 자동 선택한다. */
       setSelectedPlacementIndex(nextIndex)
     },
     [fields, onChange, selectedKey, activeOptionValue, selectedPlacementIndex],
   )
+
+  const handleCommitRadioPlacement = useCallback(() => {
+    if (!selectedKey) return
+    const target = fields.find((f) => f.fieldKey === selectedKey)
+    if (!target || target.fieldType !== 'radio') return
+    const opts = target.options ?? []
+    if (!activeOptionValue || !opts.includes(activeOptionValue)) {
+      window.alert('좌표를 저장할 옵션을 먼저 선택해 주세요.')
+      return
+    }
+    if (!pendingRadioPlacement) {
+      window.alert('PDF 위에서 영역을 먼저 드래그해 주세요.')
+      return
+    }
+    const finalPlacement: PdfPlacement = {
+      ...pendingRadioPlacement,
+      optionValue: activeOptionValue,
+    }
+    const nextPlacements = target.placements.filter((p) => p.optionValue !== activeOptionValue)
+    const merged = [...nextPlacements, finalPlacement]
+    onChange(fields.map((f) => (f.fieldKey === selectedKey ? { ...f, placements: merged } : f)))
+    setPendingRadioPlacement(null)
+    setSelectedPlacementIndex(merged.length - 1)
+  }, [activeOptionValue, fields, onChange, pendingRadioPlacement, selectedKey])
 
   const handleDocumentReady = useCallback((doc: PDFDocumentProxy) => {
     setNumPages(Math.max(1, doc.numPages))
@@ -481,8 +606,16 @@ export function PdfCoordinateEditor({
               const active = f.fieldKey === selectedKey
               const pickField = () => {
                 setSelectedKey(f.fieldKey)
-                setSelectedPlacementIndex(f.placements.length > 0 ? 0 : null)
+                if (f.fieldType === 'radio') {
+                  setSelectedPlacementIndex(null)
+                } else {
+                  setSelectedPlacementIndex(f.placements.length > 0 ? 0 : null)
+                }
               }
+              const placementDisplayCount =
+                f.fieldType === 'radio'
+                  ? effectiveRadioPlacementsOrdered(f.placements, f.options ?? []).length
+                  : f.placements.length
               return (
                 <div
                   key={f.fieldKey}
@@ -504,7 +637,7 @@ export function PdfCoordinateEditor({
                     <div className="pdf-engine-editor__field-card-title">{f.label}</div>
                     <div className="pdf-engine-editor__field-card-meta">
                       {PDF_FIELD_TYPE_LABELS[f.fieldType]} · {f.required ? '필수' : '선택'} · 좌표{' '}
-                      {f.placements.length}개
+                      {placementDisplayCount}개
                     </div>
                   </div>
                   <button
@@ -598,8 +731,9 @@ export function PdfCoordinateEditor({
                 </button>
               </div>
               <p className="pdf-engine-editor__hint">
-                PDF 미리보기에서 드래그해 박스를 그리면 위치와 크기가 반영됩니다. 좌표 숫자는 PDF
-                위 박스로만 확인합니다.
+                {selectedField.fieldType === 'radio'
+                  ? '라디오: PDF 에 드래그한 뒤 좌표 목록 위의 「선택 옵션 좌표 저장」으로 확정해야 서버 저장과 발급 PDF 에 반영됩니다. 다른 필드 타입은 드래그만으로 즉시 반영됩니다.'
+                  : 'PDF 미리보기에서 드래그해 박스를 그리면 위치와 크기가 반영됩니다. 좌표 숫자는 PDF 위 박스로만 확인합니다.'}
               </p>
               <label className="pdf-engine-editor__label">
                 라벨
@@ -655,8 +789,8 @@ export function PdfCoordinateEditor({
 
               {selectedField.fieldType === 'radio' ? (
                 <p className="pdf-engine-editor__hint" style={{ marginTop: 6 }}>
-                  각 옵션 박스는 실제로 원 표시가 들어갈 작은 영역을 기준으로 잡습니다(텍스트 라벨 전체를
-                  박스로 크게 잡을 필요 없음).
+                  옵션을 선택한 뒤 PDF 에서 영역을 드래그하고, 아래「선택 옵션 좌표 저장」으로 확정합니다. 옵션
+                  하나당 저장 좌표는 1개입니다(다시 저장하면 교체).
                 </p>
               ) : null}
 
@@ -677,14 +811,15 @@ export function PdfCoordinateEditor({
                 activeOptionValue == null ||
                 !(selectedField.options ?? []).includes(activeOptionValue)) ? (
                 <p className="pdf-engine-editor__hint" style={{ marginTop: 8, color: '#fdba74' }}>
-                  먼저 라디오 옵션을 추가하거나 목록에서 선택한 뒤, PDF 위에서 드래그해 주세요.
+                  먼저 라디오 옵션을 추가하거나 목록에서 선택한 뒤, PDF 에서 영역을 드래그하고「선택 옵션
+                  좌표 저장」으로 반영해 주세요.
                 </p>
               ) : null}
 
               <h4 className="pdf-engine-editor__panel-title" style={{ marginTop: 8, fontSize: 13 }}>
                 좌표 목록
               </h4>
-              {selectedField.fieldType === 'checkbox' || selectedField.fieldType === 'radio' ? (
+              {selectedField.fieldType === 'checkbox' ? (
                 <div className="pdf-engine-editor__row" style={{ marginTop: -4 }}>
                   <button
                     type="button"
@@ -694,11 +829,95 @@ export function PdfCoordinateEditor({
                     새 좌표 추가
                   </button>
                   <span className="pdf-engine-editor__field-meta">
-                    체크/라디오는 필요 시 여러 좌표를 추가할 수 있습니다.
+                    체크박스는 옵션별로 여러 좌표가 필요할 때 선택을 해제한 뒤 드래그하면 추가됩니다.
                   </span>
                 </div>
               ) : null}
-              {selectedField.placements.length === 0 ? (
+
+              {selectedField.fieldType === 'radio' &&
+              (selectedField.options ?? []).length > 0 &&
+              activeOptionValue != null &&
+              (selectedField.options ?? []).includes(activeOptionValue) ? (
+                <div
+                  className="pdf-engine-editor__row"
+                  style={{ marginTop: -4, flexWrap: 'wrap', gap: 8, alignItems: 'center' }}
+                >
+                  <button
+                    type="button"
+                    className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
+                    onClick={handleCommitRadioPlacement}
+                  >
+                    선택 옵션 좌표 저장
+                  </button>
+                  <span className="pdf-engine-editor__field-meta">
+                    PDF 에서 드래그한 뒤 누르면 선택한 옵션 좌표가 확정되며, 기존 좌표는 교체됩니다.
+                  </span>
+                </div>
+              ) : null}
+
+              {selectedField.fieldType === 'radio' && pendingRadioPlacement ? (
+                <p className="pdf-engine-editor__hint" style={{ marginTop: 6 }} role="status">
+                  미저장 드래그가 있습니다. 「선택 옵션 좌표 저장」으로 반영하거나, 다른 옵션을 고르면
+                  초안이 지워집니다.
+                </p>
+              ) : null}
+
+              {selectedField.fieldType === 'radio' ? (
+                effectiveRadioPlacementsOrdered(
+                  selectedField.placements,
+                  selectedField.options ?? [],
+                ).length === 0 && !pendingRadioPlacement ? (
+                  <p className="pdf-engine-editor__hint">
+                    아직 저장된 좌표가 없습니다. 옵션을 선택하고 PDF 에서 드래그한 뒤「선택 옵션 좌표
+                    저장」을 누르세요.
+                  </p>
+                ) : (
+                  <ul className="pdf-engine-editor__fields">
+                    {effectiveRadioPlacementsOrdered(
+                      selectedField.placements,
+                      selectedField.options ?? [],
+                    ).map((p) => {
+                      const storageIdx =
+                        p.optionValue != null
+                          ? lastPlacementIndexForOption(selectedField, String(p.optionValue))
+                          : -1
+                      const isActive = storageIdx >= 0 && storageIdx === selectedPlacementIndex
+                      const geomKind =
+                        p.width != null && p.height != null ? '영역 박스' : '위치 표시'
+                      const metaBits = [`페이지 ${p.page + 1}`, geomKind]
+                      if (p.optionValue) metaBits.push(`"${p.optionValue}"`)
+                      return (
+                        <li
+                          key={`${selectedField.fieldKey}-r-${String(p.optionValue ?? '')}`}
+                          className={
+                            'pdf-engine-editor__field-item' +
+                            (isActive ? ' pdf-engine-editor__field-item--active' : '')
+                          }
+                          onClick={() => {
+                            if (storageIdx >= 0) setSelectedPlacementIndex(storageIdx)
+                          }}
+                        >
+                          <div className="pdf-engine-editor__field-item-row">
+                            <span className="pdf-engine-editor__field-meta">{metaBits.join(' · ')}</span>
+                            {storageIdx >= 0 ? (
+                              <button
+                                type="button"
+                                className="pdf-engine-editor__btn pdf-engine-editor__btn--danger pdf-engine-editor__btn--sm pdf-engine-editor__btn--ghost-danger"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleRemovePlacement(selectedField.fieldKey, storageIdx)
+                                }}
+                              >
+                                삭제
+                              </button>
+                            ) : null}
+                          </div>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )
+              ) : selectedField.placements.length === 0 ? (
                 <p className="pdf-engine-editor__hint">
                   아직 좌표가 없습니다. 오른쪽 PDF 위를 드래그해 추가하세요.
                 </p>
@@ -725,7 +944,7 @@ export function PdfCoordinateEditor({
                           </span>
                           <button
                             type="button"
-                            className="pdf-engine-editor__btn pdf-engine-editor__btn--danger"
+                            className="pdf-engine-editor__btn pdf-engine-editor__btn--danger pdf-engine-editor__btn--sm pdf-engine-editor__btn--ghost-danger"
                             onClick={(e) => {
                               e.stopPropagation()
                               handleRemovePlacement(selectedField.fieldKey, i)
@@ -801,13 +1020,16 @@ export function PdfCoordinateEditor({
           </label>
           <span className="pdf-engine-editor__field-meta">
             {selectedField
-              ? `선택됨: ${selectedField.label} — PDF 위를 드래그해 박스를 지정하세요`
+              ? selectedField.fieldType === 'radio'
+                ? `선택됨: ${selectedField.label} — 드래그 후 「선택 옵션 좌표 저장」으로 확정`
+                : `선택됨: ${selectedField.label} — PDF 위를 드래그해 박스를 지정하세요`
               : '먼저 왼쪽에서 필드를 선택해 주세요.'}
           </span>
         </div>
         {radioPlacementBlocked ? (
           <p className="pdf-engine-editor__hint pdf-engine-editor__preview-hint" style={{ color: '#fdba74' }}>
-            먼저 라디오 옵션을 추가하거나 선택해 주세요. (활성 옵션이 있어야 좌표 드래그가 가능합니다.)
+            먼저 라디오 옵션을 추가하거나 목록에서 선택해 주세요. (활성 옵션을 고른 뒤 PDF 에서 영역을
+            드래그하고 패널에서 확정 저장합니다.)
           </p>
         ) : null}
         <div className="pdf-engine-editor__preview-scroll">
@@ -818,10 +1040,16 @@ export function PdfCoordinateEditor({
             clickEnabled={canvasClickEnabled}
             onPick={handlePick}
             onSelectMark={(markId) => {
-              const splitAt = markId.lastIndexOf('-')
-              if (splitAt <= 0) return
-              const key = markId.slice(0, splitAt)
-              const rawIndex = Number(markId.slice(splitAt + 1))
+              if (markId.endsWith(MARK_ID_PENDING)) {
+                const key = markId.slice(0, -MARK_ID_PENDING.length)
+                setSelectedKey(key)
+                setSelectedPlacementIndex(null)
+                return
+              }
+              const ix = markId.indexOf(MARK_ID_IDX)
+              if (ix < 0) return
+              const key = markId.slice(0, ix)
+              const rawIndex = Number(markId.slice(ix + MARK_ID_IDX.length))
               if (!Number.isInteger(rawIndex) || rawIndex < 0) return
               setSelectedKey(key)
               setSelectedPlacementIndex(rawIndex)
@@ -962,7 +1190,7 @@ function RadioOptionsEditor({
       </h4>
       <p className="pdf-engine-editor__hint" style={{ margin: '0 0 6px' }}>
         {mode === 'radio'
-          ? '라디오는 옵션을 추가하고 목록에서 하나를 선택한 뒤 PDF 위를 드래그해야 해당 옵션 전용 좌표가 생깁니다.'
+          ? '라디오는 옵션을 추가하고 목록에서 선택한 뒤 PDF 에서 영역을 드래그하고, 좌표 목록의「선택 옵션 좌표 저장」으로 확정해야 합니다.'
           : '옵션을 선택하고 PDF 위를 드래그하면, 해당 라벨 전용 좌표가 추가됩니다.'}
       </p>
       {duplicateTrimmedLabels.length > 0 ? (
