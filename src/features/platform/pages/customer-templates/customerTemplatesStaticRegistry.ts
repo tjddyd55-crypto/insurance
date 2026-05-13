@@ -1,10 +1,9 @@
 import type { CustomerIndustryTemplate } from '../../../customer-templates/customerTemplate.types'
-import { insuranceCustomerTemplateV01 } from '../../../customer-templates/insurance/insuranceCustomerTemplate'
+import { STATIC_CUSTOMER_INDUSTRY_TEMPLATES } from '../../../customer-templates/staticCustomerIndustryTemplates'
 
 /**
- * Super Admin 조회용 정적 템플릿 목록(v0.1).
- * 추후 업종별 템플릿 파일이 늘면 여기만 추가한다.
+ * Super Admin 조회용 정적 템플릿 목록.
+ * 새 업종 템플릿을 선언하면 `staticCustomerIndustryTemplates` 한곳에만 추가하면 된다.
  */
-export const PLATFORM_ADMIN_STATIC_CUSTOMER_TEMPLATES: readonly CustomerIndustryTemplate[] = Object.freeze([
-  insuranceCustomerTemplateV01,
-])
+export const PLATFORM_ADMIN_STATIC_CUSTOMER_TEMPLATES: readonly CustomerIndustryTemplate[] =
+  STATIC_CUSTOMER_INDUSTRY_TEMPLATES

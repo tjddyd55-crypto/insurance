@@ -276,12 +276,57 @@
   gap: 8px;
   flex: 0 0 auto;
   white-space: nowrap;
+  line-height: 1.35;
+  align-self: center;
 }
 
 .pdf-engine-editor__input--checkbox-inline {
   width: auto;
   margin: 0;
   flex-shrink: 0;
+}
+
+/* 타입 select + 필수: 한 행 고정, 세로 가운데 정렬 */
+.pdf-engine-editor__row--type-required {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.pdf-engine-editor__label--field-type {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.pdf-engine-editor__config-divider {
+  margin: 16px 0;
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+}
+
+.pdf-engine-editor__config-block--add-field .pdf-engine-editor__panel-title,
+.pdf-engine-editor__config-block--selected-field .pdf-engine-editor__panel-title {
+  margin-bottom: 8px;
+}
+
+.pdf-engine-editor__config-selected-name {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.pdf-engine-editor__selected-save-row {
+  margin-bottom: 10px;
+}
+
+.pdf-engine-editor__selected-save-row .pdf-engine-editor__btn {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pdf-engine-editor__hint--muted-block {
+  margin: 0;
 }
 
 .pdf-engine-editor__label input,
@@ -570,11 +615,44 @@
 .pdf-engine-issuance-list__head,
 .pdf-engine-issuance-list__row {
   display: grid;
-  grid-template-columns: 2fr 1.5fr 0.8fr 1fr;
+  grid-template-columns: 2fr 1.5fr 0.8fr minmax(220px, 1fr);
   gap: 12px;
   padding: 10px 14px;
   font-size: 13px;
   align-items: center;
+}
+
+.pdf-engine-issuance-list__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pdf-engine-prefill-banner {
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #1f2937;
+  color: #e5e7eb;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .pdf-engine-issuance-list__head {
+    display: none;
+  }
+  .pdf-engine-issuance-list__row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+
+  .pdf-engine-issuance-list__actions {
+    justify-content: flex-start;
+  }
 }
 
 .pdf-engine-issuance-list__head {
@@ -591,17 +669,6 @@
 
 .pdf-engine-issuance-list__row:last-child {
   border-bottom: none;
-}
-
-@media (max-width: 640px) {
-  .pdf-engine-issuance-list__head {
-    display: none;
-  }
-  .pdf-engine-issuance-list__row {
-    grid-template-columns: 1fr;
-    gap: 4px;
-    padding: 12px 14px;
-  }
 }
 
 /* ─── 체크박스 / 라디오 (사용자 폼) ──────────────────────────────── */
@@ -735,5 +802,230 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 0 0 16px;
+}
+
+/* ─── 사용자 문서 신청(PC/모바일) ───────────────────────────────── */
+
+.insurance-dark-forms.pdf-document-detail-page {
+  background: #0b111a;
+  color: #e5e7eb;
+}
+
+.insurance-dark-forms.pdf-document-detail-page .pdf-engine-page__hint {
+  color: #94a3b8;
+}
+
+.insurance-dark-forms.pdf-document-detail-page.pdf-engine-page {
+  margin: 0 auto;
+}
+
+.insurance-dark-forms.pdf-document-detail-page.pdf-document-detail-page--pc.insurance-dark-forms.pdf-engine-page {
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 24px 20px 64px;
+}
+
+.pdf-document-detail-page__split {
+  display: grid;
+  grid-template-columns: minmax(280px, 440px) minmax(340px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  /* PC 뷰는 ResponsiveLayout 에서 폭 필터링 — 협각 창 폴백 */
+  .pdf-document-detail-page--pc .pdf-document-detail-page__split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.pdf-document-detail-page__form-col {
+  min-width: 0;
+}
+
+.pdf-document-detail-page__preview-col {
+  background: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.pdf-document-detail-page__preview-title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.pdf-document-detail-page__preview-scroll {
+  overflow: auto;
+  max-height: min(864px, calc(100vh - 160px));
+  border-radius: 8px;
+  background: #0b111a;
+}
+
+.pdf-document-detail-page--mobile .pdf-document-detail-page__mobile-form {
+  padding-bottom: 86px;
+}
+
+.pdf-document-detail-page__mobile-preview-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(11, 17, 26, 0.92);
+  border-top: 1px solid #1e293b;
+  backdrop-filter: blur(6px);
+  z-index: 900;
+}
+
+.pdf-document-detail-page__mobile-preview-btn {
+  width: 100%;
+}
+
+.pdf-document-detail-page__live-preview-inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pdf-document-detail-page__live-preview-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.pdf-document-detail-page__live-preview-header h3 {
+  margin: 0;
+  font-size: 17px;
+  color: #f8fafc;
+}
+
+.pdf-document-detail-page__live-preview-body {
+  margin-top: 12px;
+  flex: 1;
+  overflow: auto;
+  max-height: min(92vh - 140px, 900px);
+  background: #0b111a;
+}
+
+.pdf-document-detail-page__live-preview-modal {
+  padding: 16px;
+  border-radius: 12px;
+  background: #111827;
+  border: 1px solid #1e293b;
+}
+
+.insurance-dark-forms .pdf-document-detail-page__live-preview-modal {
+  border-color: #1e293b;
+}
+
+.pdf-applicant-preview-stack .pdf-engine-editor__overlay {
+  box-shadow: none;
+  border: none;
+}
+
+.pdf-applicant-preview__page-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.pdf-applicant-preview__fatal {
+  color: #f87171;
+  font-size: 13px;
+}
+
+.pdf-applicant-form-panel .pdf-engine-form__label-required::after {
+  color: #f87171;
+}
+
+.pdf-applicant-form-panel__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pdf-applicant-form-panel__controls .pdf-engine-form__input,
+.pdf-applicant-form-panel__controls .pdf-engine-form__textarea {
+  flex: 1;
+  min-width: 160px;
+}
+
+.pdf-applicant-form-panel__field--active .pdf-engine-form__label {
+  color: #60a5fa;
+}
+
+.pdf-applicant-form-panel__field--active {
+  border-left: 2px solid #3b82f6;
+  padding-left: 10px;
+  margin-left: -12px;
+  border-radius: 2px;
+}
+
+.pdf-applicant-form-panel__side-tools {
+  flex: 0 0 auto;
+  padding-top: 2px;
+}
+
+.pdf-applicant-font-stepper {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  background: #1f2937;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 4px 6px;
+}
+
+.pdf-applicant-font-stepper__value {
+  font-size: 12px;
+  color: #e5e7eb;
+  padding: 0 4px;
+  min-width: 36px;
+  text-align: center;
+}
+
+.pdf-applicant-font-stepper__btn {
+  appearance: none;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: #020617;
+  color: #e5e7eb;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+}
+
+.pdf-applicant-font-stepper__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pdf-applicant-font-stepper__btn:not(:disabled):hover {
+  background: #111827;
+  border-color: #3b82f6;
+}
+
+.pdf-applicant-field-foot {
+  font-size: 12px;
+  color: #cbd5e1;
+  margin: 6px 0 4px;
+}
+
+.pdf-applicant-field-foot--muted {
+  color: #94a3b8;
+}
+
+.pdf-applicant-inline-hint {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
 }
 

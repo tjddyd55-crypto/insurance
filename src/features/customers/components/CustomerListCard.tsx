@@ -1,8 +1,11 @@
 ﻿import { memo, useState, type Dispatch, type FormEvent, type KeyboardEvent, type SetStateAction } from 'react'
 import { EXPANDABLE_CARD_INVALID_ID, useExpandableCard } from '../../../hooks/useExpandableCard'
 import { FormButton, FormInput } from '../../../components/form'
+import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
 import type { CustomerRecord } from '../domain/types'
 import { getCustomerListMetrics } from '../utils/customerListMetrics'
+import { formatGovernmentCardMetaSecondaryLine, isGovernmentIndustryTemplate } from '../utils/governmentCustomerUi'
+import { formatIndustryCustomerListSecondaryLine } from '../utils/industryCustomerListSummary'
 import { formatDateYmdInput } from '../utils/insuranceInfo'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import CustomerDetailReadView from './CustomerDetailReadView'
@@ -127,6 +130,9 @@ export type CustomerListCardProps = {
    * 자식 카드는 그 값을 그대로 내려받아 쓰면 된다 — 훅이 여러 곳에서 중복 호출되지 않는다.
    */
   variant: 'pc' | 'mobile'
+  /** 고객 목록 요약: 보험 GA 는 레거시 KPI, 그 외 업종은 정적 템플릿 listColumns 기반 */
+  crmIsInsuranceLayout: boolean
+  crmIndustryTemplate: CustomerIndustryTemplate
 }
 
 const CustomerListCard = memo(function CustomerListCard({
@@ -158,6 +164,8 @@ const CustomerListCard = memo(function CustomerListCard({
   token,
   onToggleFavorite,
   variant,
+  crmIsInsuranceLayout,
+  crmIndustryTemplate,
 }: CustomerListCardProps) {
   const isMobile = variant === 'mobile'
   const [mobileInfoExpanded, setMobileInfoExpanded] = useState(false)
@@ -271,12 +279,22 @@ const CustomerListCard = memo(function CustomerListCard({
                   <span className="text-sm text-[var(--text-secondary)] font-normal">
                     {genderSummaryLabel(c)}
                   </span>
-                  <span className="text-sm text-[var(--text-secondary)] font-normal">
-                    보험나이 {ins.ageText}
-                  </span>
+                  {crmIsInsuranceLayout ? (
+                    <span className="text-sm text-[var(--text-secondary)] font-normal">
+                      보험나이 {ins.ageText}
+                    </span>
+                  ) : null}
                 </div>
                 <div className="text-sm text-[var(--text-secondary)] customer-card-summary-meta mt-0.5">
-                  상령일: {ins.dateText} · 상담일: {recentConsultText}
+                  {crmIsInsuranceLayout ? (
+                    <>
+                      상령일: {ins.dateText} · 상담일: {recentConsultText}
+                    </>
+                  ) : isGovernmentIndustryTemplate(crmIndustryTemplate) ? (
+                    formatGovernmentCardMetaSecondaryLine(c, crmIndustryTemplate)
+                  ) : (
+                    formatIndustryCustomerListSecondaryLine(c, crmIndustryTemplate)
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -444,6 +462,8 @@ const CustomerListCard = memo(function CustomerListCard({
                     setEditForm={setEditForm}
                     onEditSubmit={onEditSubmit}
                     onCancelEdit={onCancelEdit}
+                    isInsuranceLayout={crmIsInsuranceLayout}
+                    crmIndustryTemplate={crmIndustryTemplate}
                   />
                 ) : (
                   <CustomerDetailReadView
@@ -453,6 +473,8 @@ const CustomerListCard = memo(function CustomerListCard({
                     expandedId={expandedId}
                     fetchCarsEnabled={expanded && editingId !== c.id}
                     onOpenRelatedCustomer={onOpenRelatedCustomer}
+                    crmIsInsuranceLayout={crmIsInsuranceLayout}
+                    crmIndustryTemplate={crmIndustryTemplate}
                   />
                 )}
               <div className="customer-expand-section-divider" role="presentation" />

@@ -1,6 +1,11 @@
 import { randomInt } from 'node:crypto'
 import { parseGaId } from './lib/parseGaId.js'
-import { issueSignupPhoneProof, issuePhoneChangeProof, verifyPhoneChangeProof } from './lib/signupPhoneProof.js'
+import { issueSignupPhoneProof, issueRegistrationSignupPhoneProof, issuePhoneChangeProof, verifyPhoneChangeProof } from './lib/signupPhoneProof.js'
+import {
+  evaluateTenantRegistrationCodeForSignup,
+  normalizeIndustryCodeParam,
+  normalizeTenantRegistrationCodeRaw,
+} from './lib/tenantRegistrationCodes.js'
 import { systemQuery } from './utils/dbSafeQuery.js'
 import { sendVerificationCode } from './services/smsService.js'
 import { consumeAnonymousSmsVerificationCode, consumeSmsVerificationCode } from './services/consumeSmsVerificationCode.js'
@@ -113,6 +118,30 @@ export function registerUserProfileApi(apiRouter, ctx) {
     }
   })
 
+  apiRouter.post('/auth/validate-tenant-registration-code', async (req, res) => {
+    try {
+      const industryNorm = normalizeIndustryCodeParam(req.body?.industry_code ?? req.body?.industryCode ?? '')
+      const regNorm = normalizeTenantRegistrationCodeRaw(
+        req.body?.registration_code ?? req.body?.registrationCode ?? req.body?.tenant_registration_code ?? '',
+      )
+      const ev = await evaluateTenantRegistrationCodeForSignup(pool, {
+        industryCodeNorm: industryNorm,
+        registrationCodeNorm: regNorm,
+      })
+      if (!ev.ok) {
+        res.status(ev.status).json({ ok: false, message: ev.message })
+        return
+      }
+      res.json({
+        ok: true,
+        tenantName: String(ev.row.tenant_name ?? '').trim(),
+        industryCode: industryNorm,
+      })
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
   apiRouter.post('/auth/send-signup-phone-code', async (req, res) => {
     const clientIp = getClientIp(req)
     let phoneNorm = ''
@@ -127,10 +156,18 @@ export function registerUserProfileApi(apiRouter, ctx) {
       }
 
       const inviteRaw = req.body?.invite_code ?? req.body?.inviteCode
-      const inviteNorm = normalizeInviteCode(inviteRaw ?? '')
-      if (!inviteNorm) {
-        res.status(400).json({ message: 'GA 코드(초대 코드)를 입력해 주세요.' })
-        return
+      const industryNorm = normalizeIndustryCodeParam(req.body?.industry_code ?? req.body?.industryCode ?? '')
+      const regNorm = normalizeTenantRegistrationCodeRaw(
+        req.body?.registration_code ?? req.body?.registrationCode ?? req.body?.tenant_registration_code ?? '',
+      )
+      const useTenantRegistration = industryNorm.length > 0 && regNorm.length >= 3
+
+      if (!useTenantRegistration) {
+        const inviteNorm = normalizeInviteCode(inviteRaw ?? '')
+        if (!inviteNorm) {
+          res.status(400).json({ message: 'GA 코드(초대 코드)를 입력해 주세요.' })
+          return
+        }
       }
 
       phoneNorm = normalizeKrMobile(req.body?.phoneNumber ?? req.body?.phone_number)
@@ -140,18 +177,30 @@ export function registerUserProfileApi(apiRouter, ctx) {
         return
       }
 
-      const gaCheck = await systemQuery(
-        pool,
-        `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
-        [inviteNorm],
-      )
-      if (gaCheck.rows.length === 0) {
-        res.status(400).json({ message: '유효하지 않은 코드입니다' })
-        return
-      }
-      if (String(gaCheck.rows[0].status ?? '').toLowerCase() !== 'active') {
-        res.status(400).json({ message: '가입할 수 없는 GA입니다' })
-        return
+      if (useTenantRegistration) {
+        const ev = await evaluateTenantRegistrationCodeForSignup(pool, {
+          industryCodeNorm: industryNorm,
+          registrationCodeNorm: regNorm,
+        })
+        if (!ev.ok) {
+          res.status(ev.status).json({ message: ev.message })
+          return
+        }
+      } else {
+        const inviteNorm = normalizeInviteCode(inviteRaw ?? '')
+        const gaCheck = await systemQuery(
+          pool,
+          `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
+          [inviteNorm],
+        )
+        if (gaCheck.rows.length === 0) {
+          res.status(400).json({ message: '유효하지 않은 코드입니다' })
+          return
+        }
+        if (String(gaCheck.rows[0].status ?? '').toLowerCase() !== 'active') {
+          res.status(400).json({ message: '가입할 수 없는 GA입니다' })
+          return
+        }
       }
 
       if (await isUserSignupPhoneDuplicate(pool, phoneNorm)) {
@@ -328,10 +377,29 @@ export function registerUserProfileApi(apiRouter, ctx) {
     const tx = await pool.connect()
     try {
       const inviteRaw = req.body?.invite_code ?? req.body?.inviteCode
-      const inviteNorm = normalizeInviteCode(inviteRaw ?? '')
-      if (!inviteNorm) {
-        res.status(400).json({ message: 'GA 코드(초대 코드)를 입력해 주세요.' })
-        return
+      const industryNorm = normalizeIndustryCodeParam(req.body?.industry_code ?? req.body?.industryCode ?? '')
+      const regNorm = normalizeTenantRegistrationCodeRaw(
+        req.body?.registration_code ?? req.body?.registrationCode ?? req.body?.tenant_registration_code ?? '',
+      )
+      const useTenantRegistration = industryNorm.length > 0 && regNorm.length >= 3
+
+      let inviteNorm = ''
+      /** @type {string} 소진율 리밋/락 키 세그먼트 */
+      let lockScope = ''
+      /** @type {number | null} */
+      let gaId = null
+      /** @type {number | null} */
+      let tenantPkForProof = null
+
+      if (useTenantRegistration) {
+        lockScope = `${industryNorm}:${regNorm}`
+      } else {
+        inviteNorm = normalizeInviteCode(inviteRaw ?? '')
+        if (!inviteNorm) {
+          res.status(400).json({ message: 'GA 코드(초대 코드)를 입력해 주세요.' })
+          return
+        }
+        lockScope = inviteNorm
       }
 
       const phoneNorm = normalizeKrMobile(req.body?.phoneNumber ?? req.body?.phone_number)
@@ -346,29 +414,49 @@ export function registerUserProfileApi(apiRouter, ctx) {
         return
       }
 
-      const lock = await assertNotVerifyLocked(SMS_PURPOSE_SIGNUP, phoneNorm, inviteNorm, clientIp)
+      const lock = await assertNotVerifyLocked(SMS_PURPOSE_SIGNUP, phoneNorm, lockScope, clientIp)
       if (!lock.ok) {
         res.status(429).json({ message: lock.message, retryAfterSec: lock.retryAfterSec })
         return
       }
 
-      const gaCheck = await systemQuery(
-        pool,
-        `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
-        [inviteNorm],
-      )
-      if (gaCheck.rows.length === 0) {
-        res.status(400).json({ message: '유효하지 않은 코드입니다' })
-        return
-      }
-      if (String(gaCheck.rows[0].status ?? '').toLowerCase() !== 'active') {
-        res.status(400).json({ message: '가입할 수 없는 GA입니다' })
-        return
-      }
-      const gaId = parseGaId(gaCheck.rows[0].id)
-      if (gaId == null) {
-        res.status(400).json({ message: '유효하지 않은 코드입니다' })
-        return
+      if (useTenantRegistration) {
+        const ev = await evaluateTenantRegistrationCodeForSignup(pool, {
+          industryCodeNorm: industryNorm,
+          registrationCodeNorm: regNorm,
+        })
+        if (!ev.ok) {
+          res.status(ev.status).json({ message: ev.message })
+          return
+        }
+        gaId = ev.gaId
+        tenantPkForProof = ev.tenantDbId
+        const dtCheck = String(ev.row.default_membership_type ?? 'agent').trim().toLowerCase()
+        const daCheck = String(ev.row.default_customer_access ?? 'own').trim().toLowerCase()
+        const drCheck = String(ev.row.default_role ?? 'user').trim().toLowerCase()
+        if (dtCheck !== 'agent' || daCheck !== 'own' || drCheck !== 'user') {
+          res.status(400).json({ message: '이 경로에서는 일반 agent(본인 고객) 가입만 허용됩니다.' })
+          return
+        }
+      } else {
+        const gaCheck = await systemQuery(
+          pool,
+          `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
+          [inviteNorm],
+        )
+        if (gaCheck.rows.length === 0) {
+          res.status(400).json({ message: '유효하지 않은 코드입니다' })
+          return
+        }
+        if (String(gaCheck.rows[0].status ?? '').toLowerCase() !== 'active') {
+          res.status(400).json({ message: '가입할 수 없는 GA입니다' })
+          return
+        }
+        gaId = parseGaId(gaCheck.rows[0].id)
+        if (gaId == null) {
+          res.status(400).json({ message: '유효하지 않은 코드입니다' })
+          return
+        }
       }
 
       if (await isUserSignupPhoneDuplicate(pool, phoneNorm)) {
@@ -384,7 +472,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
       })
       if (consumed.rowCount === 0) {
         await tx.query('ROLLBACK')
-        await recordVerifyFailure(SMS_PURPOSE_SIGNUP, phoneNorm, inviteNorm, clientIp)
+        await recordVerifyFailure(SMS_PURPOSE_SIGNUP, phoneNorm, lockScope, clientIp)
         logSmsVerifyFailure({
           phone: phoneNorm,
           ip: clientIp,
@@ -418,14 +506,23 @@ export function registerUserProfileApi(apiRouter, ctx) {
         userAgent: clientUa,
       }).catch(() => {})
 
-      await clearVerifyFailures(SMS_PURPOSE_SIGNUP, phoneNorm, inviteNorm, clientIp)
+      await clearVerifyFailures(SMS_PURPOSE_SIGNUP, phoneNorm, lockScope, clientIp)
 
-      const signup_phone_proof = issueSignupPhoneProof({
-        JWT_SECRET,
-        phoneDigits: phoneNorm,
-        inviteCodeNormalized: inviteNorm,
-        gaId,
-      })
+      const signup_phone_proof = useTenantRegistration
+        ? issueRegistrationSignupPhoneProof({
+            JWT_SECRET,
+            phoneDigits: phoneNorm,
+            industryCodeNormalized: industryNorm,
+            registrationCodeNormalized: regNorm,
+            gaId: gaId ?? 0,
+            tenantId: tenantPkForProof ?? 0,
+          })
+        : issueSignupPhoneProof({
+            JWT_SECRET,
+            phoneDigits: phoneNorm,
+            inviteCodeNormalized: inviteNorm,
+            gaId: gaId ?? 0,
+          })
 
       res.json({
         ok: true,

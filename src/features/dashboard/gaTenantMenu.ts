@@ -77,8 +77,8 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
  *   1. 고객관리 : 고객리스트 · 청구관리
  *   2. 소식지   : 고객 소식지 · 원수사 연락처 · 원수사 소식지 · 손해사정사 소식지 · 세무사 소식지(개발중)
  *   3. 팀관리   : 팀원리스트 · 팀 게시판 · 팀 자료 · (팀 관리 — 오너만)
- *   4. 신청서   : 자동차신청서* · 동행상담신청서 · 다이렉트자동차*(개발중) · 렌트(사고대차)(개발중)
- *                 (* 표시된 항목은 영진에셋 또는 YJASSET 코드일 때만 노출)
+ *   4. 신청서   : 신청서 작성(PDF 좌표 템플릿) · 과거 작성한 신청서 · 렌트(사고대차)(개발중)
+ *                 — 레거시 자동차 전용 허브(`/application`·폼 작성) 메뉴는 숨긴다(URL 직접 진입은 가능).
  *   5. 내정보   : 내 저장공간 · 내정보관리 · 문의, 요청
  *
  * ## 배지 / 비활성 정책
@@ -102,37 +102,25 @@ export function buildGaTenantDashboardMenu(
   gaCode: string | undefined,
   gaName: string | undefined,
 ): GaTenantDashboardMenuEntry[] {
-  const carHubEnabled =
-    String(gaName ?? '').trim() === '영진에셋' || isCarInsuranceFeatureEnabledForGa(gaCode)
-
-  const applicationItems: GaTenantDashboardMenuEntry[] = []
-  if (carHubEnabled) {
-    applicationItems.push({ type: 'link', label: '자동차신청서', path: '/application' })
-    /* 좌표 기반 PDF 자동화 사용자 테스트 진입점 */
-    applicationItems.push({
+  const applicationItems: GaTenantDashboardMenuEntry[] = [
+    { type: 'link', label: '신청서 작성', path: '/application/documents' },
+    { type: 'link', label: '과거 작성한 신청서', path: '/application/documents/history' },
+    {
       type: 'link',
-      label: '동행상담신청서',
-      path: '/application/documents',
-    })
-    applicationItems.push({
-      type: 'link',
-      label: '다이렉트자동차',
+      label: '렌트(사고대차)',
       path: '#',
       disabled: true,
       badge: DEV_BADGE,
-    })
-  }
-  applicationItems.push({
-    type: 'link',
-    label: '렌트(사고대차)',
-    path: '#',
-    disabled: true,
-    badge: DEV_BADGE,
-  })
+    },
+  ]
   return [
     { type: 'section', label: '고객관리' },
     { type: 'link', label: '고객리스트', path: '/customers' },
     { type: 'link', label: '청구관리', path: '/claim-requests' },
+
+    { type: 'section', label: '알림 및 할 일' },
+    { type: 'link', label: '할 일', path: '/todos' },
+    { type: 'link', label: '알림', path: '/notifications' },
 
     { type: 'section', label: '소식지' },
     { type: 'link', label: '고객 소식지', path: '/claim-requests?claimTab=news-all' },

@@ -8,32 +8,12 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { UserRole } from './authApi'
+import type { AuthUser, UserRole } from './authApi'
 import {
   normalizeSubscriptionFromApi,
   type SubscriptionSnapshot,
 } from '../subscription/policy'
-
-interface AuthUser {
-  id: string
-  username: string
-  role: UserRole
-  gaId: number
-  gaCode: string
-  gaName: string
-  companyId: number | null
-  displayName: string
-  /** users.team_id. 구세션에 없으면 null */
-  teamId: string | null
-  /**
-   * 서버가 내려준 구독 스냅샷(정규화 후).
-   *
-   * - subscription 이 없는 구세션/비대상 역할은 null 또는 undefined 로 남는다.
-   * - 프론트 가드/메뉴 필터는 subscription.effectiveStatus === 'EXPIRED' 만
-   *   검사하므로, null/undefined 는 "EXPIRED 아님" 으로 안전하게 취급된다.
-   */
-  subscription?: SubscriptionSnapshot | null
-}
+import type { TenantCrmConfig } from '../customer-templates/customerTemplate.types'
 
 interface AuthSession {
   token: string
@@ -97,6 +77,12 @@ function parseCompanyScopeId(value: unknown): number | null {
   return null
 }
 
+function parseStoredTenantCrm(raw: unknown): TenantCrmConfig | null {
+  if (raw == null) return null
+  if (typeof raw !== 'object' || Array.isArray(raw)) return null
+  return raw as TenantCrmConfig
+}
+
 function parseTeamIdField(value: unknown): string | null {
   if (typeof value === 'string' && value.trim()) {
     return value.trim()
@@ -136,6 +122,10 @@ function readStoredSession(): AuthSession | null {
       companyId?: unknown
       displayName?: unknown
       teamId?: unknown
+      subscription?: unknown
+      crmIndustryCode?: unknown
+      tenantCrm?: unknown
+      crmDynamicIndustryTemplate?: unknown
     }
     const gaCode = typeof u.gaCode === 'string' ? u.gaCode.trim().toUpperCase() : ''
     const gaName = typeof u.gaName === 'string' ? u.gaName.trim() : ''
@@ -150,6 +140,10 @@ function readStoredSession(): AuthSession | null {
       return null
     }
 
+    const crmRaw = u.crmIndustryCode
+    const crmIndustryCode =
+      crmRaw == null ? undefined : typeof crmRaw === 'string' && crmRaw.trim() ? crmRaw.trim() : String(crmRaw).trim()
+
     return {
       token: parsed.token,
       user: {
@@ -162,6 +156,12 @@ function readStoredSession(): AuthSession | null {
         companyId: role === 'INSURER_MANAGER' ? companyIdRaw : null,
         displayName: displayNameRaw,
         teamId,
+        subscription: normalizeSubscriptionFromApi(u.subscription),
+        ...(crmIndustryCode ? { crmIndustryCode } : {}),
+        tenantCrm: parseStoredTenantCrm(u.tenantCrm),
+        ...(u.crmDynamicIndustryTemplate !== undefined && u.crmDynamicIndustryTemplate !== null
+          ? { crmDynamicIndustryTemplate: u.crmDynamicIndustryTemplate }
+          : {}),
       },
     }
   } catch {
@@ -226,6 +226,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           displayName,
           teamId,
           subscription,
+      crmIndustryCode: nextSession.user.crmIndustryCode ?? undefined,
+      tenantCrm: nextSession.user.tenantCrm ?? null,
+      crmDynamicIndustryTemplate: nextSession.user.crmDynamicIndustryTemplate,
         },
       }
       setSession(normalized)

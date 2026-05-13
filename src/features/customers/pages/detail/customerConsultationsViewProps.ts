@@ -35,4 +35,6 @@ export type CustomerConsultationsViewProps = {
   onSetConsultDate: (value: string) => void
   onSubmit: (e: FormEvent) => void | Promise<void>
   onDelete: (consultId: number) => void | Promise<void>
+  /** 상담 본문 텍스트(parse 후)로 할 일 초안을 띄운다. */
+  onAddTodoFromConsultation?: (consultId: number, plainBody: string) => void
 }

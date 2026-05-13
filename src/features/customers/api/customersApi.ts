@@ -1,6 +1,7 @@
 import type { InsuranceApplicationRecord } from '../../application/domain/types'
 import { ApiError, apiRequest } from '../../../lib/apiClient'
 import type { CustomerNote, CustomerNotesBag, CustomerRecord } from '../domain/types'
+import { normalizeCustomerCrmExtension, type CustomerCrmExtension } from '../domain/crmExtension'
 import type { CustomerCarFormItem } from '../types/customerCarForm'
 
 export type ListCustomersResult = {
@@ -55,11 +56,14 @@ export function assertCustomerDataRecord(
   const phoneFromCamel = typeof row.phoneNumber === 'string' ? row.phoneNumber.trim() : ''
   const phone = phoneFromPrimary || phoneFromSnake || phoneFromCamel
 
+  const crmExtension = normalizeCustomerCrmExtension(row.crmExtension ?? row.crm_extension)
+
   return {
     ...withFlag,
     phone,
     phoneNumber: phone,
     isFavorite: withFlag.isFavorite === true,
+    crmExtension,
   }
 }
 
@@ -229,6 +233,9 @@ export interface SaveCustomerPayload {
   carModel?: string
   carYear?: string
   renewalDate?: string
+  /** YYYY-MM-DD */
+  birthDate?: string
+  crmExtension?: CustomerCrmExtension
   /** 다건 자동차(서버가 무시할 수 있음 — 대표차량은 car_* 로 동기화) */
   cars?: CustomerCarFormItem[]
   isFavorite?: boolean
@@ -271,11 +278,13 @@ export function customerRecordToUpdatePayload(
   customer: CustomerRecord,
   notes: CustomerNotesBag,
 ): UpdateCustomerPayload {
+  const extFields = customer.crmExtension?.fields
+  const hasExtension = extFields != null && typeof extFields === 'object' && Object.keys(extFields).length > 0
   return {
     name: customer.name.trim(),
     ssn: customer.ssn,
     phone: customer.phone,
-    carrier: '',
+    carrier: String(customer.carrier ?? '').trim(),
     address: customer.address,
     height: customer.height,
     weight: customer.weight,
@@ -291,6 +300,14 @@ export function customerRecordToUpdatePayload(
     carYear: String(customer.carYear ?? '').replace(/\D/g, ''),
     renewalDate: normalizeCustomerRenewalDateForPut(customer.renewalDate),
     isFavorite: customer.isFavorite === true,
+    ...(hasExtension
+      ? {
+          crmExtension: {
+            v: customer.crmExtension?.v ?? 1,
+            fields: { ...(customer.crmExtension?.fields ?? {}) },
+          } satisfies CustomerCrmExtension,
+        }
+      : {}),
   }
 }
 

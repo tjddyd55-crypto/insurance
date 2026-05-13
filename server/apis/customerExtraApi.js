@@ -1,4 +1,6 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
+import { buildCustomerRowVisibilityWhere } from '../lib/customerAccessScope.js'
+import { assertCustomerRowAccessibleByVisibility } from '../lib/customerRowVisibilitySql.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { mapCustomerRow } from '../lib/customerRowMap.js'
 import { recordAnalyticsEvent } from '../lib/analyticsEvents.js'
@@ -399,17 +401,19 @@ function escapeIlikePattern(raw) {
 }
 
 const CUSTOMER_SELECT_LIST = `
-  c.id, c.user_id, c.name, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
+  c.id, c.user_id, c.name, c.birth_date, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
   c.car_number, c.car_model, c.car_year, c.renewal_date,
   c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
-  c.is_favorite, c.created_at
+  c.is_favorite, c.created_at,
+  c.crm_extension
 `
 
 const CUSTOMER_SELECT_LIST_NO_ALIAS = `
-  id, user_id, name, ssn, phone, carrier, address, height, weight, job, driving, medical,
+  id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
   car_number, car_model, car_year, renewal_date,
   gender, insurance_age, next_age_date, is_driver, car_type, notes,
-  is_favorite, created_at
+  is_favorite, created_at,
+  crm_extension
 `
 
 /**
@@ -418,45 +422,18 @@ const CUSTOMER_SELECT_LIST_NO_ALIAS = `
  * @param {string} userId
  * @param {number} gaId
  */
-async function assertCustomerActiveOwned(pool, customerId, userId, gaId) {
-  const r = await safeQuery(
-    pool,
-    `
-    SELECT 1 FROM customers
-    WHERE id = $1 AND user_id = $2 AND ga_id = $3 AND deleted_at IS NULL
-    LIMIT 1
-    `,
-    [customerId, userId, gaId],
-  )
-  return r.rowCount > 0
+async function assertCustomerActiveOwned(pool, req, customerId) {
+  return assertCustomerRowAccessibleByVisibility(pool, safeQuery, req, customerId, { requireNonDeleted: true })
 }
 
 /**
- * 고객 파일 API 전용: customer_id만으로는 불충분 — 세션 GA·담당자와 customers 행을 반드시 대조한다.
- * - 고객 GA ≠ 세션 GA → 403
- * - 담당 설계사 ≠ 세션 사용자 → 404 (정보 최소 노출)
+ * 고객 파일 API: customer_access + tenant 고객 가시성과 일치해야 한다.
  */
-async function assertCustomerFileAccess(pool, customerId, sessionUserId, sessionGaId, res) {
-  const r = await safeQuery(
-    pool,
-    `
-    SELECT id, user_id, ga_id FROM customers
-    WHERE id = $1 AND deleted_at IS NULL
-    LIMIT 1
-    `,
-    [customerId],
-  )
-  if (r.rowCount === 0) {
-    res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
-    return false
-  }
-  const row = r.rows[0]
-  const customerGa = parseGaId(row.ga_id)
-  if (customerGa == null || customerGa !== sessionGaId) {
-    res.status(403).json({ message: '권한 없습니다.' })
-    return false
-  }
-  if (String(row.user_id) !== String(sessionUserId)) {
+async function assertCustomerFileAccess(pool, req, customerId, res) {
+  const okRow = await assertCustomerRowAccessibleByVisibility(pool, safeQuery, req, customerId, {
+    requireNonDeleted: true,
+  })
+  if (!okRow) {
     res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
     return false
   }
@@ -646,7 +623,7 @@ async function resolveStorageCustomerScope(pool, res, userId, gaId, rawCustomerI
     res.status(400).json({ message: '잘못된 고객 ID입니다.' })
     return { ok: false, customerId: null }
   }
-  const ok = await assertCustomerFileAccess(pool, customerId, userId, gaId, res)
+  const ok = await assertCustomerFileAccess(pool, req, customerId, res)
   if (!ok) {
     return { ok: false, customerId: null }
   }
@@ -679,17 +656,29 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const q = String(req.query.q ?? '').trim()
       const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 500)
 
+      const access = req.user?.customerAccess ?? 'own'
+      if (access === 'none') {
+        res.json([])
+        return
+      }
+      const vw = buildCustomerRowVisibilityWhere({
+        access,
+        userId,
+        gaId,
+        tenantDbId: req.user?.customerTenantDbId ?? null,
+      })
+
       if (!q) {
         const result = await safeQuery(
           pool,
           `
           SELECT ${CUSTOMER_SELECT_LIST_NO_ALIAS}
           FROM customers c
-          WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
+          WHERE ${vw.clause}
           ORDER BY c.created_at DESC
-          LIMIT $3
+          LIMIT $${vw.params.length + 1}
           `,
-          [userId, gaId, limit],
+          [...vw.params, limit],
         )
         res.json(result.rows.map(mapCustomerRow))
         return
@@ -701,12 +690,12 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         `
         SELECT ${CUSTOMER_SELECT_LIST}
         FROM customers c
-        WHERE c.user_id = $1 AND c.ga_id = $2 AND c.deleted_at IS NULL
-          AND (c.name ILIKE $3 ESCAPE '\\' OR c.phone ILIKE $3 ESCAPE '\\')
+        WHERE ${vw.clause}
+          AND (c.name ILIKE $${vw.params.length + 1} ESCAPE '\\' OR c.phone ILIKE $${vw.params.length + 1} ESCAPE '\\')
         ORDER BY c.created_at DESC
-        LIMIT $4
+        LIMIT $${vw.params.length + 2}
         `,
-        [userId, gaId, pattern, limit],
+        [...vw.params, pattern, limit],
       )
       res.json(result.rows.map(mapCustomerRow))
     } catch (error) {
@@ -760,7 +749,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (customerId == null) {
         return
       }
-      if (!(await assertCustomerActiveOwned(pool, customerId, userId, gaId))) {
+      if (!(await assertCustomerActiveOwned(pool, req, customerId))) {
         res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
         return
       }
@@ -826,7 +815,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (customerId == null) {
         return
       }
-      if (!(await assertCustomerActiveOwned(pool, customerId, userId, gaId))) {
+      if (!(await assertCustomerActiveOwned(pool, req, customerId))) {
         res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
         return
       }
@@ -881,7 +870,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(400).json({ message: '잘못된 상담 ID입니다.' })
         return
       }
-      if (!(await assertCustomerActiveOwned(pool, customerId, userId, gaId))) {
+      if (!(await assertCustomerActiveOwned(pool, req, customerId))) {
         res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
         return
       }
@@ -931,11 +920,11 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
 
-      if (!(await assertCustomerActiveOwned(pool, customerId, userId, gaId))) {
+      if (!(await assertCustomerActiveOwned(pool, req, customerId))) {
         res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
         return
       }
-      if (!(await assertCustomerActiveOwned(pool, relatedCustomerId, userId, gaId))) {
+      if (!(await assertCustomerActiveOwned(pool, req, relatedCustomerId))) {
         res.status(404).json({ message: '연결 대상 고객을 찾을 수 없습니다.' })
         return
       }
@@ -986,7 +975,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       if (customerId == null) {
         return
       }
-      if (!(await assertCustomerActiveOwned(pool, customerId, userId, gaId))) {
+      if (!(await assertCustomerActiveOwned(pool, req, customerId))) {
         res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
         return
       }
@@ -1048,7 +1037,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(400).json({ message: '유효하지 않은 요청입니다.' })
         return
       }
-      if (!(await assertCustomerActiveOwned(pool, customerId, userId, gaId))) {
+      if (!(await assertCustomerActiveOwned(pool, req, customerId))) {
         res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
         return
       }
@@ -1949,7 +1938,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     }
     const peekRow = peek.rows[0]
     if (peekRow.customer_id != null) {
-      const ok = await assertCustomerFileAccess(pool, Number(peekRow.customer_id), userId, gaId, res)
+      const ok = await assertCustomerFileAccess(pool, req, Number(peekRow.customer_id), res)
       if (!ok) {
         return
       }
@@ -2751,7 +2740,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
       if (file.customer_id != null) {
-        const scope = await assertCustomerFileAccess(pool, Number(file.customer_id), userId, gaId, res)
+        const scope = await assertCustomerFileAccess(pool, req, Number(file.customer_id), res)
         if (!scope) {
           return
         }
@@ -2821,7 +2810,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
       if (file.customer_id != null) {
-        const scope = await assertCustomerFileAccess(pool, Number(file.customer_id), userId, gaId, res)
+        const scope = await assertCustomerFileAccess(pool, req, Number(file.customer_id), res)
         if (!scope) {
           return
         }

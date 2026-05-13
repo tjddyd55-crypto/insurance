@@ -17,6 +17,10 @@ import { saveCustomerCarsForCustomer } from '../../features/customers/utils/cust
 import type { SaveCustomerPayload } from '../../features/customers/api/customersApi'
 
 import type { CustomerNote } from '../../features/customers/domain/types'
+import {
+  buildCrmExtensionPayloadForSave,
+  normalizeBirthDateForSaveApi,
+} from '../../features/customers/domain/crmExtension'
 
 import {
 
@@ -32,9 +36,12 @@ import {
   CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER,
   CUSTOMER_MEDICAL_QUESTION_TEXT,
 } from '../../features/customers/utils/customerDisplayFormat'
+import CustomerIndustryTemplateFields from '../../features/customers/components/CustomerIndustryTemplateFields'
 import { CustomerCarsEditor } from '../../features/customers/components/CustomerCarsEditor'
 import { CustomerDrivingRadioGroup } from '../../features/customers/components/CustomerDrivingRadioGroup'
 import { CustomerFormSection } from '../../features/customers/components/CustomerFormSection'
+import { useCustomerCrmIndustryContext } from '../../features/customers/hooks/useCustomerCrmIndustryContext'
+import { getCustomerIndustryTemplateFormValidationError } from '../../features/customers/utils/customerIndustryTemplateFormValidation'
 import type { CustomerCarFormItem } from '../../features/customers/types/customerCarForm'
 import {
   createEmptyCustomerCar,
@@ -146,6 +153,12 @@ export type CustomerFormState = {
 
   phone: string
 
+  /** 통신사 등 — customers.carrier */
+  carrier: string
+
+  /** 생년월일 YYYY-MM-DD — customers.birth_date */
+  birthDate: string
+
   /**
    * 기본주소 — 카카오(다음) 우편번호 서비스로 선택된 도로명/지번 주소.
    * 사용자가 타이핑으로 수정할 수 없도록 UI 에서 readonly 로 고정.
@@ -180,6 +193,11 @@ export type CustomerFormState = {
 
   noteDraft: string
 
+  /**
+   * 업종 확장 저장소 — 서버 customers.crm_extension.fields (government / gym SSOT 키)
+   */
+  crmExtensionFields: Record<string, string>
+
 }
 
 
@@ -193,6 +211,10 @@ const EMPTY_FORM: CustomerFormState = {
   ssn: '',
 
   phone: '',
+
+  carrier: '',
+
+  birthDate: '',
 
   address: '',
 
@@ -220,6 +242,8 @@ const EMPTY_FORM: CustomerFormState = {
 
   noteDraft: '',
 
+  crmExtensionFields: {},
+
 }
 
 
@@ -240,6 +264,16 @@ export function createEmptyCustomerForm(): CustomerFormState {
 
 }
 
+/** 보험 외 업종 신규 등록: 차량 기본 행 없음(레거시 API는 그대로, 차량 저장 스킵). */
+export function createEmptyIndustryCustomerForm(): CustomerFormState {
+  return {
+    ...EMPTY_FORM,
+    notes: [],
+    noteDraft: '',
+    cars: [],
+  }
+}
+
 
 
 /** 저장/전송 전 검증 — 통과 시 null (필수: 이름만) */
@@ -256,6 +290,10 @@ export function getCustomerFormValidationError(form: CustomerFormState): string 
 export function customerFormStateToSavePayload(form: CustomerFormState): SaveCustomerPayload {
 
   const name = form.name.trim()
+
+  const birthDateOpt = normalizeBirthDateForSaveApi(form.birthDate)
+
+  const extOpt = buildCrmExtensionPayloadForSave(form.crmExtensionFields)
 
   /*
    * 서버 스키마의 customers.address 는 단일 문자열 컬럼이다. UI 는 "우편번호 / 기본주소 / 상세주소"
@@ -279,7 +317,7 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
 
     phone: form.phone,
 
-    carrier: '',
+    carrier: String(form.carrier ?? '').trim(),
 
     address: mergedAddress,
 
@@ -313,6 +351,10 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
       items: form.notes,
       insuranceHistory: form.insuranceHistory.trim(),
     },
+
+    ...(birthDateOpt != null ? { birthDate: birthDateOpt } : {}),
+
+    ...(extOpt ? { crmExtension: extOpt } : {}),
 
   }
 
@@ -722,14 +764,19 @@ export type CustomerFormProps = {
 export function CustomerForm({ onStatusMessage, onInternalSaveSuccess }: CustomerFormProps) {
 
   const { token } = useAuth()
+  const industryCtx = useCustomerCrmIndustryContext()
 
-  const [form, setForm] = useState<CustomerFormState>(() => createEmptyCustomerForm())
+  const [form, setForm] = useState<CustomerFormState>(() =>
+    industryCtx.isInsuranceLayout ? createEmptyCustomerForm() : createEmptyIndustryCustomerForm(),
+  )
 
 
 
   async function handleSubmit() {
 
-    const err = getCustomerFormValidationError(form)
+    const err = industryCtx.isInsuranceLayout
+      ? getCustomerFormValidationError(form)
+      : getCustomerIndustryTemplateFormValidationError(form, industryCtx.resolvedTemplate)
 
     if (err) {
 
@@ -757,22 +804,26 @@ export function CustomerForm({ onStatusMessage, onInternalSaveSuccess }: Custome
 
       const created = await saveCustomer(token, payload)
 
-      try {
-        await saveCustomerCarsForCustomer({
-          token,
-          customerId: created.id,
-          formCars: form.cars,
-        })
-      } catch {
-        onStatusMessage?.(
-          '고객 정보를 저장했습니다. 자동차 정보 일부 저장에 실패했습니다. 고객 수정 화면에서 다시 확인해 주세요.',
-        )
-        setForm(createEmptyCustomerForm())
-        onInternalSaveSuccess?.()
-        return
+      if (industryCtx.isInsuranceLayout) {
+        try {
+          await saveCustomerCarsForCustomer({
+            token,
+            customerId: created.id,
+            formCars: form.cars,
+          })
+        } catch {
+          onStatusMessage?.(
+            '고객 정보를 저장했습니다. 자동차 정보 일부 저장에 실패했습니다. 고객 수정 화면에서 다시 확인해 주세요.',
+          )
+          setForm(createEmptyCustomerForm())
+          onInternalSaveSuccess?.()
+          return
+        }
       }
 
-      setForm(createEmptyCustomerForm())
+      setForm(
+        industryCtx.isInsuranceLayout ? createEmptyCustomerForm() : createEmptyIndustryCustomerForm(),
+      )
 
       onStatusMessage?.('저장했습니다.')
 
@@ -799,7 +850,23 @@ export function CustomerForm({ onStatusMessage, onInternalSaveSuccess }: Custome
     >
       <h2 className="dashboard-section-title">신규 고객</h2>
 
-      <CustomerFormFields form={form} onFormChange={setForm} radioSuffix="internal" onStatusMessage={onStatusMessage} />
+      {industryCtx.isInsuranceLayout ? (
+        <CustomerFormFields
+          form={form}
+          onFormChange={setForm}
+          radioSuffix="internal"
+          onStatusMessage={onStatusMessage}
+        />
+      ) : (
+        <CustomerIndustryTemplateFields
+          template={industryCtx.resolvedTemplate}
+          variant="create"
+          radioSuffix="internal"
+          value={form}
+          onPatch={(patch) => setForm((prev) => ({ ...prev, ...patch }))}
+          onStatusMessage={onStatusMessage}
+        />
+      )}
 
       <FormButton className="button button--primary button--full" htmlType="submit" variant="primary">
         저장

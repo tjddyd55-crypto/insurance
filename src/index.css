@@ -4547,6 +4547,101 @@ div.cta-button.customers-page__action-btn[role='button'] {
   min-width: 0;
 }
 
+/* Government 진행 현황 MVP — customer-detail-read 자식으로만 스코프 */
+.customer-detail-read .government-progress-mvp__summary-line {
+  margin: 0 0 0.65rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-sub);
+}
+
+.customer-detail-read .government-progress-mvp__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  margin: 0 0 0.85rem;
+  padding: 0;
+  list-style: none;
+}
+
+.customer-detail-read .government-progress-mvp__badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  border: 1px solid #334155;
+  color: #e5e7eb;
+  background: #111827;
+}
+
+.customer-detail-read .government-progress-mvp__badge--danger {
+  color: #fecaca;
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.14);
+}
+
+.customer-detail-read .government-progress-mvp__badge--warn {
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.45);
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.customer-detail-read .government-progress-mvp__badge--ok {
+  color: #bbf7d0;
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.customer-detail-read .government-progress-mvp__badge--info {
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.45);
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.customer-detail-read .government-progress-mvp__badge--muted {
+  color: #94a3b8;
+  border-color: #334155;
+  background: #0f172a;
+}
+
+.customer-detail-read .government-progress-mvp__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.65rem 1rem;
+}
+
+.customer-detail-read .government-progress-mvp__cell {
+  padding: 0.5rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid #1e293b;
+  background: #111827;
+  min-width: 0;
+}
+
+.customer-detail-read .government-progress-mvp__cell-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 0.2rem;
+}
+
+.customer-detail-read .government-progress-mvp__cell-value {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #f8fafc;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.customer-detail-read .government-progress-mvp__cell-note {
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: #fde68a;
+  line-height: 1.35;
+}
+
 .customer-relations-strip--in-detail {
   padding: 0.25rem 0 0.5rem;
 }
@@ -10232,6 +10327,123 @@ textarea.memo-sticky-note__textarea::placeholder {
   }
 }
 
+/* ====== Platform mode switcher strip (/admin/platform 전용) ====== */
+.platform-mode-switcher-host {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 16px;
+  border-bottom: 1px solid #1e293b;
+  background: #111827;
+}
+
+.platform-mode-switcher-host--pc {
+  max-width: 100%;
+}
+
+.platform-mode-switcher-host--mobile {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.platform-mode-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+.platform-mode-switcher--loading,
+.platform-mode-switcher--error {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.platform-mode-switcher--error {
+  color: #94a3b8;
+}
+
+.platform-mode-switcher__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.platform-mode-switcher__row--pick {
+  gap: 10px;
+}
+
+.platform-mode-switcher__meta {
+  color: #cbd5e1;
+  font-size: 12px;
+}
+
+.platform-mode-switcher__strong {
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+.platform-mode-switcher__mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  font-size: 12px;
+  color: #e5e7eb;
+}
+
+.platform-mode-switcher__muted {
+  color: #94a3b8;
+}
+
+.platform-mode-switcher__loading-inline {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.platform-mode-switcher__notice {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #f87171;
+}
+
+.platform-mode-switcher__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.platform-mode-switcher__select {
+  min-width: 180px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #020617;
+  color: #f8fafc;
+  font-size: 13px;
+  outline: none;
+}
+
+.platform-mode-switcher__select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+}
+
+.platform-mode-switcher__retry {
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .platform-mode-switcher__row--meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 /* ====== Platform admin 허브 (SUPER_ADMIN · 조회 전용) ====== */
 .platform-admin-page--pc,
 .platform-admin-page--mobile {
@@ -10280,6 +10492,317 @@ textarea.memo-sticky-note__textarea::placeholder {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
+}
+
+.platform-admin-page__grid-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .platform-admin-page__grid-two {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 동적 CRM 템플릿 에디터: 패널 내부 폼 줄 (platform-hub 공용 form-field 와 분리) */
+.platform-admin-page--pc .platform-admin-panel {
+  padding: 14px 16px;
+  border-radius: 10px;
+  margin-bottom: 0;
+  border: 1px solid var(--border-subtle, #334155);
+  background: var(--panel-bg, #111827);
+}
+
+.platform-admin-page--pc .platform-admin-panel__title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.platform-admin-page--pc .platform-admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.platform-admin-page--pc .platform-admin-field__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.platform-admin-page--pc .platform-admin-field__control {
+  background: #020617;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 8px 12px;
+  outline: none;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.platform-admin-page--pc .platform-admin-field__control.mono {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    'Liberation Mono',
+    monospace;
+  font-size: 12px;
+}
+
+.platform-admin-page--pc .platform-admin-field__control:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+}
+
+.platform-admin-page--pc .platform-admin-field__control::placeholder {
+  color: #64748b;
+}
+
+.platform-admin-page--pc .platform-admin-field--stack .platform-admin-field__control {
+  min-height: 88px;
+  resize: vertical;
+}
+
+/* 동적 고객 템플릿 빌더 (탭·카드 레이아웃) — platform-admin-page 내에서만 */
+.platform-admin-page--pc .crm-template-builder__tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.platform-admin-page--pc .crm-template-builder__tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+}
+
+.platform-admin-page--pc .crm-template-builder__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.platform-admin-page--pc .crm-template-builder__card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.platform-admin-page--pc .crm-template-builder__card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  background: #0f172a;
+}
+
+.platform-admin-page--pc .crm-template-builder__card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.platform-admin-page--pc .crm-template-builder__card-title {
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.platform-admin-page--pc .crm-template-builder__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.platform-admin-page--pc .crm-template-builder__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.platform-admin-page--pc .crm-template-builder__full-row {
+  grid-column: 1 / -1;
+}
+
+.platform-admin-page--pc .crm-template-builder__options-block {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #334155;
+}
+
+.platform-admin-page--pc .crm-template-builder__option-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 900px) {
+  .platform-admin-page--pc .crm-template-builder__option-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.platform-admin-page--pc .crm-template-builder__chip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.platform-admin-page--pc .crm-template-builder__chip-list code {
+  color: #cbd5e1;
+}
+
+.platform-admin-page--pc .crm-template-builder__chip-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #334155;
+  background: #020617;
+  font-size: 12px;
+}
+
+.platform-admin-page--pc .crm-template-builder__chip-remove {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.platform-admin-page--pc .crm-template-builder__chip-remove:hover {
+  color: #fca5a5;
+}
+
+.platform-admin-page--pc .crm-template-builder__advanced {
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px dashed #475569;
+}
+
+.platform-admin-page--pc .crm-template-builder__advanced summary {
+  cursor: pointer;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.platform-admin-page--pc .crm-template-builder__advanced-pre {
+  max-height: 380px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: #020617;
+  border: 1px solid #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .platform-admin-page--pc .crm-template-builder__preview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-mock-card {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px dashed #475569;
+  background: #020617;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-mock-line1 {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-mock-line2 {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-dl {
+  margin: 0;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-dl dt {
+  color: #cbd5e1;
+  font-weight: 600;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-dl dd {
+  margin: 2px 0 0;
+  color: #e5e7eb;
+}
+
+.platform-admin-page--pc .crm-template-builder__detail-preview-tab {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #334155;
+}
+
+.platform-admin-page--pc .crm-template-builder__detail-preview-tab h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: #f8fafc;
+}
+
+.platform-admin-page--pc .crm-template-builder__nested {
+  border-top: 1px solid #1e293b;
+  padding-top: 12px;
+}
+
+.platform-admin-page--pc .crm-template-builder__field-order li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.platform-admin-page--pc .crm-template-builder__field-order-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
 }
 
 .platform-admin-page__grid--mobile {
@@ -10352,9 +10875,120 @@ textarea.memo-sticky-note__textarea::placeholder {
   border-color: rgba(251, 191, 36, 0.45);
 }
 
+.platform-admin-page__panel--success {
+  border-color: rgba(52, 211, 153, 0.42);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.platform-admin-page--pc .platform-admin-page__industry-create,
+.platform-admin-page--mobile .platform-admin-page__industry-create {
+  margin-bottom: 20px;
+}
+
+.platform-admin-page--pc .platform-admin-page__industry-create-form,
+.platform-admin-page--mobile .platform-admin-page__industry-create-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.platform-admin-page--pc .platform-admin-page__form-field,
+.platform-admin-page--mobile .platform-admin-page__form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.platform-admin-page--pc .platform-admin-page__form-actions,
+.platform-admin-page--mobile .platform-admin-page__form-actions {
+  margin-top: 6px;
+}
+
+.platform-admin-page--pc .platform-admin-page__field-hint,
+.platform-admin-page--mobile .platform-admin-page__field-hint {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  margin: 4px 0 0;
+  color: #94a3b8;
+}
+
+.platform-admin-page--pc .platform-admin-page__field-hint strong,
+.platform-admin-page--mobile .platform-admin-page__field-hint strong {
+  color: #e5e7eb;
+  font-weight: 600;
+}
+
+.platform-admin-page--pc .platform-admin-page__field-error,
+.platform-admin-page--mobile .platform-admin-page__field-error {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #f87171;
+}
+
+.platform-admin-page--pc .platform-admin-page__required,
+.platform-admin-page--mobile .platform-admin-page__required {
+  color: #fca5a5;
+}
+
+.platform-admin-page--pc .platform-admin-page__industry-create-feedback,
+.platform-admin-page--mobile .platform-admin-page__industry-create-feedback {
+  margin-top: 8px;
+  margin-bottom: 0;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+}
+
 .platform-admin-page__panel-title {
   margin: 0 0 6px;
   font-weight: 600;
+}
+
+.platform-admin-page__user-search-results {
+  margin-top: 10px;
+}
+
+.platform-admin-page__user-search-hit {
+  padding: 0;
+  list-style: none;
+}
+
+.platform-admin-page__user-search-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 12px 14px;
+  text-align: left;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, #334155);
+  background: #1f2937;
+  color: #e5e7eb;
+  cursor: pointer;
+  font: inherit;
+}
+
+.platform-admin-page__user-search-pick:hover:not(:disabled) {
+  border-color: #3b82f6;
+}
+
+.platform-admin-page__user-search-pick:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.platform-admin-page__user-search-pick-title {
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.platform-admin-page__user-search-selected {
+  margin-top: 12px;
+}
+
+.platform-admin-page__user-search-results--pc {
+  max-height: 260px;
+  overflow-y: auto;
 }
 
 .platform-admin-page__btn {
@@ -10370,6 +11004,69 @@ textarea.memo-sticky-note__textarea::placeholder {
 
 .platform-admin-page__btn:hover {
   filter: brightness(1.06);
+}
+
+.platform-admin-page__btn--compact {
+  margin-top: 0;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+
+.platform-admin-page__tenant-admin-manage {
+  margin-top: 1.5rem;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle, #1e293b);
+  background: var(--panel-bg, #111827);
+}
+
+.platform-admin-page__tenant-members-manage {
+  margin-top: 1.5rem;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle, #1e293b);
+  background: var(--panel-bg, #111827);
+}
+
+.platform-admin-page__tenant-admin-manage-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.platform-admin-page__tenant-admin-manage-head .platform-admin-page__btn {
+  margin-top: 0;
+}
+
+.platform-admin-page__tenant-admin-summary {
+  margin-bottom: 12px;
+}
+
+.platform-industry-detail-page--pc .platform-admin-page__table tbody tr.platform-admin-page__table-row--tenant-admin-selected td {
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.platform-industry-detail-page--mobile .platform-admin-page__stack-card--tenant-admin-selected {
+  border-color: #3b82f6;
+}
+
+.platform-admin-page__tenant-admin-card-actions {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.platform-admin-page__tenant-admin-note {
+  font-size: 0.8rem;
+}
+
+.platform-admin-page__tenant-admin-mobile-list {
+  margin-bottom: 12px;
 }
 
 .platform-admin-page__table-wrap {
@@ -10620,6 +11317,212 @@ textarea.memo-sticky-note__textarea::placeholder {
 .platform-admin-page__inline-link:hover {
   text-decoration: underline;
   color: #93c5fd;
+}
+
+/* ── Industry / Tenant mode landing placeholders (/admin/industry · /admin/tenant) ── */
+
+.platform-admin-page .platform-mode-landing__id-row {
+  margin-top: 8px;
+}
+
+.platform-admin-page .platform-mode-landing__p {
+  margin: 0 0 14px;
+  color: #cbd5e1;
+  line-height: 1.55;
+}
+
+.platform-admin-page .platform-mode-landing__subhead {
+  margin: 18px 0 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.platform-admin-page .platform-mode-landing__list {
+  margin: 0 0 18px;
+  padding-left: 1.35rem;
+  color: #e5e7eb;
+  line-height: 1.55;
+}
+
+.platform-admin-page .platform-mode-landing__list li + li {
+  margin-top: 6px;
+}
+
+.platform-admin-page .platform-mode-landing__link-row {
+  margin: 0;
+}
+
+.platform-admin-page .platform-mode-landing__link-row + .platform-mode-landing__link-row {
+  margin-top: 8px;
+}
+
+.platform-admin-page .platform-mode-landing__link-stack {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #334155;
+}
+
+.platform-admin-page .platform-mode-landing--gate {
+  margin-bottom: 0;
+}
+
+.platform-admin-page .platform-mode-landing__gate-message {
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.55;
+}
+
+.platform-admin-page .platform-mode-landing__gate-title {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.platform-admin-page .platform-mode-landing__gate-detail {
+  margin: 0 0 14px;
+  color: #94a3b8;
+  line-height: 1.55;
+}
+
+.platform-admin-page .platform-mode-landing__gate-actions {
+  margin-top: 12px;
+}
+
+/* ── Tenant Mode hub (/admin/tenant/:tenantId) ── */
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__intro {
+  margin-bottom: 16px;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__section {
+  margin-bottom: 16px;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__section .platform-mode-landing__subhead {
+  margin-top: 0;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__note {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__dl {
+  margin: 0;
+  display: grid;
+  gap: 10px 16px;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__dl-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 160px) 1fr;
+  gap: 10px 16px;
+  align-items: baseline;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #1e293b;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__dl-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__dl dt {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__dl dd {
+  margin: 0;
+  font-size: 14px;
+  color: #e5e7eb;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__status-line {
+  margin: 0 0 14px;
+  font-size: 14px;
+  color: #e5e7eb;
+  line-height: 1.5;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__callout {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #1f2937;
+  color: #e5e7eb;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__callout strong {
+  display: block;
+  margin-bottom: 6px;
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__link-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: #e5e7eb;
+  line-height: 1.65;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__link-list li + li {
+  margin-top: 8px;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__muted-link {
+  font-size: 14px;
+  color: #94a3b8;
+  line-height: 1.55;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__loading {
+  margin-bottom: 16px;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__alert {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #111827;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__alert--warn {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__alert-text {
+  margin: 0;
+  font-size: 14px;
+  color: #e5e7eb;
+  line-height: 1.55;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__retry {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #111827;
+  color: #e5e7eb;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.platform-admin-page.tenant-mode-hub .tenant-mode-hub__retry:hover {
+  background: #1f2937;
 }
 
 /* ── Customer template builder preview (/admin/platform/customer-templates/.../preview) ── */

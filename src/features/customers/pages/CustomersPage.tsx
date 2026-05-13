@@ -21,6 +21,9 @@ import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { deleteCustomer, listCustomers, updateCustomer } from '../api/customersApi'
 import { listCustomerCars } from '../api/customerCarsApi'
 import type { CustomerRecord } from '../domain/types'
+import {
+  buildCrmExtensionPayloadForSave,
+} from '../domain/crmExtension'
 import type { CustomerSortType } from '../types/customerListSort'
 import { customerNoteItems } from '../domain/types'
 import { buildKakaoCustomerCopyText } from '../utils/customerText'
@@ -52,6 +55,7 @@ import CustomerExcelSelectToolbar from '../components/CustomerExcelSelectToolbar
 import CustomerListCard, { type CustomerSsnDupHighlight } from '../components/CustomerListCard'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import { useCustomerExpandedCardScroll } from '../hooks/useCustomerExpandedCardScroll'
+import { useCustomerCrmIndustryContext } from '../hooks/useCustomerCrmIndustryContext'
 import { useCustomerExcelSelection } from '../hooks/useCustomerExcelSelection'
 import { getCustomerListMetrics } from '../utils/customerListMetrics'
 import {
@@ -70,6 +74,7 @@ import {
   normalizeCustomerEditCarYearForApi,
   normalizeCustomerEditRenewalDateForApi,
 } from '../utils/customerEditFormState'
+import { getCustomerIndustryTemplateFormValidationError } from '../utils/customerIndustryTemplateFormValidation'
 import { normalizeCustomerCarsForSave, pickPrimaryCustomerCar } from '../utils/customerCarFormUtils'
 import {
   customerCarRecordToFormItem,
@@ -113,6 +118,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     navigate(CUSTOMER_LIST_PATH, { replace: true })
   }, [navigate])
   const { user, token } = useAuth()
+  const crmIndustry = useCustomerCrmIndustryContext()
+  const crmIndustryRef = useRef(crmIndustry)
+  crmIndustryRef.current = crmIndustry
   const { gaSettings } = useGaSettings()
   const { confirm, confirmDialog } = useConfirmDialog()
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
@@ -143,7 +151,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
   const [activeMobileModal, setActiveMobileModal] = useState<
-    null | 'files' | 'consultations' | 'auto' | 'ga'
+    null | 'files' | 'consultations' | 'ga'
   >(null)
   const [activeMobileCustomerId, setActiveMobileCustomerId] = useState<number | null>(null)
   const [scrollRequestKey, setScrollRequestKey] = useState(0)
@@ -627,22 +635,49 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       setStatusText(msg)
       return
     }
-    const name = activeEditForm.name.trim()
-    if (!name) {
-      const msg = '이름은 필수입니다.'
-      setStatusText(msg)
-      return
+    const crm = crmIndustryRef.current
+    if (crm.isInsuranceLayout) {
+      const name = activeEditForm.name.trim()
+      if (!name) {
+        const msg = '이름은 필수입니다.'
+        setStatusText(msg)
+        return
+      }
+    } else {
+      const verr = getCustomerIndustryTemplateFormValidationError(activeEditForm, crm.resolvedTemplate)
+      if (verr) {
+        setStatusText(verr)
+        return
+      }
     }
+    const name = activeEditForm.name.trim()
     const normalizedCars = normalizeCustomerCarsForSave(activeEditForm.cars)
     const primaryCar = pickPrimaryCustomerCar(normalizedCars)
     const carYearForApi = normalizeCustomerEditCarYearForApi(primaryCar?.carYear)
     const renewalDateForApi = normalizeCustomerEditRenewalDateForApi(primaryCar?.renewalDate)
     try {
+      const industryExt =
+        crm.isInsuranceLayout ?
+          {}
+        : {
+            crmExtension: buildCrmExtensionPayloadForSave(activeEditForm.crmExtensionFields) ?? {
+              v: 1,
+              fields: {},
+            },
+          }
       await updateCustomer(token, activeEditingId, {
         name,
         ssn: activeEditForm.ssn,
         phone: activeEditForm.phone,
-        carrier: '',
+        carrier: String(activeEditForm.carrier ?? '').trim(),
+        ...(normalizeBirthDateForSaveApi(activeEditForm.birthDate) != null ||
+        String(activeEditForm.birthDate ?? '').trim().length === 0
+          ? {
+              birthDate: String(activeEditForm.birthDate ?? '')
+                .trim()
+                .slice(0, 10),
+            }
+          : {}),
         address: formatAddressForSave({
           zonecode: activeEditForm.zonecode ?? '',
           baseAddress: activeEditForm.address ?? '',
@@ -665,9 +700,10 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         carYear: carYearForApi,
         renewalDate: renewalDateForApi,
         isFavorite: base.isFavorite === true,
+        ...industryExt,
       })
       try {
-        if (token) {
+        if (token?.trim() && crmIndustryRef.current.isInsuranceLayout) {
           await saveCustomerCarsForCustomer({
             token,
             customerId: activeEditingId,
@@ -749,6 +785,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       if (!token?.trim()) {
         return
       }
+      if (!crmIndustryRef.current.isInsuranceLayout) {
+        return
+      }
       const customerId = cl.id
       void (async () => {
         try {
@@ -767,7 +806,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   )
 
   const openMobileModal = useCallback(
-    (modalType: 'files' | 'consultations' | 'auto' | 'ga', customerId: number) => {
+    (modalType: 'files' | 'consultations' | 'ga', customerId: number) => {
       if (!isMobile) {
         return
       }
@@ -822,9 +861,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   const handleOpenAutoModal = useCallback(
     (customerId: number) => {
-      openMobileModal('auto', customerId)
+      navigate(`/application/documents?customerId=${customerId}`)
     },
-    [openMobileModal],
+    [navigate],
   )
 
   const handleOpenGaModal = useCallback(
@@ -1195,6 +1234,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               token={token}
               onToggleFavorite={handleToggleFavorite}
               variant={isMobile ? 'mobile' : 'pc'}
+              crmIsInsuranceLayout={crmIndustry.isInsuranceLayout}
+              crmIndustryTemplate={crmIndustry.resolvedTemplate}
             />
           ))}
         </ul>

@@ -18,6 +18,7 @@
  *
  *   GET   /pdf-templates                       — 사용자용 목록(본인 GA + 공용, 활성만)
  *   GET   /pdf-templates/:id                   — 사용자용 단건(권한 내)
+ *   GET   /pdf-templates/:id/file              — 사용자용 원본 PDF(권한 내, 활성만)
  *   POST  /pdf-templates/:id/render            — 입력값 → 스탬핑 PDF 스트리밍
  *
  * 권한 체계:
@@ -53,6 +54,7 @@ import {
   listIssuancesByUser,
 } from './pdf-engine/repository/pdfIssuanceRepo.js'
 import { stampPdf } from './pdf-engine/renderer/stampPdf.js'
+import { assertAllTextLayoutsWithEmbeddedFont } from './pdf-engine/renderer/pdfTextLayout.js'
 import {
   buildTemplateStorageKey,
   deleteTemplateObject,
@@ -144,6 +146,39 @@ function isPreviewRenderRequest(req) {
     .trim()
     .toLowerCase()
   return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'preview'
+}
+
+const PDF_RUNTIME_FIELD_KEY_REGEX = /^[a-z][a-z0-9_]{0,63}$/
+
+function sanitizeClientPdfTemplateValues(raw) {
+  const base =
+    raw && typeof raw === 'object' && !Array.isArray(raw) ? { ...raw } : {}
+  delete base._pdf_fs
+  return base
+}
+
+/**
+ * 사용자 발급 화면에서만 전달되는 pt 단위 폰트 오버라이드.
+ *
+ * @param {import('./pdf-engine/schema/fieldSpec.js').FieldSpec[]} fields
+ */
+function sanitizePdfFontOverrides(fields, raw) {
+  const textKeys = new Set(
+    fields
+      .filter((f) => f.fieldType === 'text' || f.fieldType === 'textarea')
+      .map((f) => f.fieldKey),
+  )
+  const out = {}
+  if (!raw || typeof raw !== 'object') return out
+  for (const [k0, v0] of Object.entries(raw)) {
+    const k = String(k0 ?? '')
+    if (!PDF_RUNTIME_FIELD_KEY_REGEX.test(k)) continue
+    if (!textKeys.has(k)) continue
+    const n = Number(v0)
+    if (!Number.isFinite(n) || n <= 0) continue
+    out[k] = Math.min(40, Math.max(6, Math.round(n * 10) / 10))
+  }
+  return out
 }
 
 /**
@@ -513,6 +548,56 @@ export function registerPdfTemplateApi(apiRouter, deps) {
     }
   })
 
+  apiRouter.get('/pdf-templates/:id/file', requireAuth, async (req, res) => {
+    const id = parseTemplateId(req.params.id)
+    if (!id) {
+      res.status(400).json({ message: 'id 가 올바르지 않습니다.', code: 'invalid-id' })
+      return
+    }
+    let template
+    try {
+      template = await getTemplateById(pool, id)
+    } catch (error) {
+      console.error('[pdf-templates] user file lookup 실패', { id, error })
+      res.status(500).json({
+        message: '템플릿 조회 중 오류가 발생했습니다.',
+        code: 'template-lookup-failed',
+      })
+      return
+    }
+    if (!template || !canAccessTemplateForRequest(template, req, isSuperAdminRole) || !template.is_active) {
+      res.status(404).json({
+        message: '템플릿을 찾을 수 없습니다.',
+        code: 'template-not-found',
+      })
+      return
+    }
+    try {
+      const buf = await getTemplateObject(template.storage_key)
+      if (!buf || buf.length === 0) {
+        res.status(502).json({
+          message: '원본 PDF 가 비어 있습니다. 관리자에게 문의해 주세요.',
+          code: 'storage-empty-object',
+        })
+        return
+      }
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Length', String(buf.length))
+      res.setHeader('Cache-Control', 'private, max-age=0, must-revalidate')
+      res.send(buf)
+    } catch (error) {
+      console.error('[pdf-templates] user storage fetch 실패', {
+        id,
+        storageKey: template.storage_key,
+        error,
+      })
+      res.status(502).json({
+        message: '원본 PDF 를 가져오지 못했습니다.',
+        code: 'storage-fetch-failed',
+      })
+    }
+  })
+
   apiRouter.post('/pdf-templates/:id/render', requireAuth, async (req, res) => {
     const id = parseTemplateId(req.params.id)
     if (!id) {
@@ -546,6 +631,11 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         req.body && typeof req.body.values === 'object' && req.body.values !== null
           ? req.body.values
           : {}
+      const valuesForInject = sanitizeClientPdfTemplateValues(valuesRaw)
+      const fontOverridesRaw =
+        req.body && typeof req.body.fontSizes === 'object' && req.body.fontSizes !== null
+          ? req.body.fontSizes
+          : {}
       /*
        * 고객 자동 매핑: 사용자가 보낸 값을 기본으로 두고, 필드 정의에
        * customerMapping 이 설정되어 있으면 서버 DB 의 프로필 값으로 덮어쓴다.
@@ -554,14 +644,31 @@ export function registerPdfTemplateApi(apiRouter, deps) {
        */
       const needsMapping = fields.some((f) => f.customerMapping)
       const profile = needsMapping && req.user?.id ? await getCustomerProfile(pool, req.user.id) : null
-      const valuesWithProfile = injectCustomerValues(fields, valuesRaw, profile)
+      const valuesWithProfile = injectCustomerValues(fields, valuesForInject, profile)
       const validation = validateRenderValues(fields, valuesWithProfile)
       if (!validation.ok) {
         res.status(400).json({ message: validation.error })
         return
       }
+      const fontOverrides = sanitizePdfFontOverrides(fields, fontOverridesRaw)
+      const layoutCheck = await assertAllTextLayoutsWithEmbeddedFont(
+        fields,
+        validation.normalized,
+        fontOverrides,
+      )
+      if (!layoutCheck.ok) {
+        res.status(400).json({ message: layoutCheck.message ?? '입력값이 허용된 영역을 초과했습니다.' })
+        return
+      }
+
       const templateBytes = await getTemplateObject(template.storage_key)
-      const rendered = await stampPdf(templateBytes, fields, validation.normalized)
+      const rendered = await stampPdf(
+        templateBytes,
+        fields,
+        validation.normalized,
+        {},
+        fontOverrides,
+      )
 
       /*
        * 발급 이력 기록. 스탬핑이 성공한 뒤에만 저장한다 — 실패한 바이트를 보존할 이유가 없다.
@@ -574,6 +681,13 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         try {
           const storageKey = buildIssuanceStorageKey()
           await putIssuanceObject(storageKey, Buffer.from(rendered))
+          const valuesSnapshot =
+            Object.keys(fontOverrides).length > 0
+              ? {
+                  ...validation.normalized,
+                  _pdf_fs: JSON.stringify(fontOverrides),
+                }
+              : { ...validation.normalized }
           const row = await createIssuance(pool, {
             templateId: template.id,
             userId: req.user?.id ?? null,
@@ -581,7 +695,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
             templateCode: template.code,
             templateTitle: template.title,
             storageKey,
-            valuesSnapshot: validation.normalized,
+            valuesSnapshot,
             byteLength: rendered.length ?? rendered.byteLength ?? 0,
           })
           issuanceId = row?.id ?? null
@@ -638,6 +752,65 @@ export function registerPdfTemplateApi(apiRouter, deps) {
           byteLength: row.byte_length,
           createdAt: row.created_at,
         })),
+      })
+    } catch (error) {
+      handleDbError(res, error)
+    }
+  })
+
+  /*
+   * 발급 단건 메타 + 입력값 스냅샷 — "내용 불러오기"(재편집 후 재발급) 용도.
+   * 다운로드(`/file`) 와 같은 소유 규칙: SUPER_ADMIN 또는 user_id 일치만 valuesSnapshot 노출.
+   */
+  function issuanceValuesSnapshotToDto(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return {}
+    }
+    const out = {}
+    for (const [k, v] of Object.entries(raw)) {
+      const key = String(k)
+      if (v == null) {
+        out[key] = ''
+      } else if (typeof v === 'string') {
+        out[key] = v
+      } else if (typeof v === 'number' || typeof v === 'boolean') {
+        out[key] = String(v)
+      } else {
+        out[key] = JSON.stringify(v)
+      }
+    }
+    return out
+  }
+
+  apiRouter.get('/pdf-issuances/:id', requireAuth, async (req, res) => {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id < 1) {
+      res.status(400).json({ message: 'id 가 올바르지 않습니다.' })
+      return
+    }
+    try {
+      const row = await getIssuanceById(pool, id)
+      if (!row) {
+        res.status(404).json({ message: '이력을 찾을 수 없습니다.' })
+        return
+      }
+      const isSuper = isSuperAdminRole(req.user?.role)
+      const isOwner = row.user_id != null && row.user_id === String(req.user?.id ?? '')
+      if (!isSuper && !isOwner) {
+        res.status(404).json({ message: '이력을 찾을 수 없습니다.' })
+        return
+      }
+      res.json({
+        issuance: {
+          id: row.id,
+          templateId: row.template_id,
+          templateCode: row.template_code,
+          templateTitle: row.template_title,
+          gaId: row.ga_id,
+          userId: row.user_id,
+          createdAt: row.created_at,
+          valuesSnapshot: issuanceValuesSnapshotToDto(row.values_snapshot),
+        },
       })
     } catch (error) {
       handleDbError(res, error)

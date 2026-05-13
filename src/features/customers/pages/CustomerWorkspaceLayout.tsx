@@ -229,7 +229,7 @@ export default function CustomerWorkspaceLayout() {
     if (!selectedCustomerId) {
       return
     }
-    moveTo(`/customers/${selectedCustomerId}/auto-form`)
+    navigate(`/application/documents?customerId=${selectedCustomerId}`)
   }
 
   const handleClickGaExcel = () => {

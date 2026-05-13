@@ -1,4 +1,5 @@
 import { type Dispatch, type FormEvent, type SetStateAction } from 'react'
+import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
 import { InsuranceInline } from '../../../components/customer/CustomerForm'
 import {
   AddressSearchField,
@@ -15,6 +16,7 @@ import {
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import { CustomerCarsEditor } from './CustomerCarsEditor'
 import { CustomerDrivingRadioGroup } from './CustomerDrivingRadioGroup'
+import CustomerIndustryTemplateFields from './CustomerIndustryTemplateFields'
 import { CustomerFormSection } from './CustomerFormSection'
 
 type CustomerEditFormProps = {
@@ -23,6 +25,8 @@ type CustomerEditFormProps = {
   setEditForm: Dispatch<SetStateAction<CustomerEditFormState | null>>
   onEditSubmit: (e: FormEvent<HTMLFormElement>) => void | Promise<void>
   onCancelEdit: () => void
+  isInsuranceLayout: boolean
+  crmIndustryTemplate: CustomerIndustryTemplate
 }
 
 export default function CustomerEditForm({
@@ -31,7 +35,10 @@ export default function CustomerEditForm({
   setEditForm,
   onEditSubmit,
   onCancelEdit,
+  isInsuranceLayout,
+  crmIndustryTemplate,
 }: CustomerEditFormProps) {
+
   return (
     <>
       <div className="customer-edit-banner" role="status">
@@ -43,8 +50,9 @@ export default function CustomerEditForm({
           void onEditSubmit(e)
         }}
       >
-        <div className="field-grid-customers">
-          <div className="customer-form-compact-grid field--wide">
+        {isInsuranceLayout ? (
+          <div className="field-grid-customers">
+            <div className="customer-form-compact-grid field--wide">
           <label className="field">
             <span className="field__label">이름</span>
             <FormInput
@@ -216,6 +224,15 @@ export default function CustomerEditForm({
             </label>
           </CustomerFormSection>
         </div>
+        ) : (
+          <CustomerIndustryTemplateFields
+            template={crmIndustryTemplate}
+            variant="edit"
+            radioSuffix={`edit-${customerId}`}
+            value={editForm}
+            onPatch={(patch) => setEditForm((prev) => (prev ? { ...prev, ...patch } : prev))}
+          />
+        )}
         <div className="customer-edit-actions">
           <FormButton className="button-save" htmlType="submit" variant="primary">
             수정 저장

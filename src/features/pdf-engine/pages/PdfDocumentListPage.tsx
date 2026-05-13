@@ -6,8 +6,9 @@
  */
 
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
+import { parseSelectedCustomerId } from '../../customers/utils/customerWorkspaceNavigation'
 import { useAuth } from '../../auth/AuthProvider'
 import { listPdfTemplates } from '../api/pdfTemplateApi'
 import type { PdfTemplateSummary } from '../types'
@@ -15,6 +16,8 @@ import '../pdf-engine.css'
 
 export default function PdfDocumentListPage() {
   const { token } = useAuth()
+  const [searchParams] = useSearchParams()
+  const linkedCustomerId = parseSelectedCustomerId(searchParams.get('customerId'))
   const [rows, setRows] = useState<PdfTemplateSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -47,15 +50,20 @@ export default function PdfDocumentListPage() {
 
   return (
     <main className="insurance-dark-forms pdf-engine-page">
-      <h1 className="pdf-engine-page__title">문서</h1>
+      <h1 className="pdf-engine-page__title">신청서 작성</h1>
       <p className="pdf-engine-page__hint">
-        원하는 문서를 선택하고, 안내에 따라 값을 입력하면 PDF 로 발급됩니다.
+        PDF 템플릿 기반으로 작성 가능한 문서만 표시됩니다. 항목을 선택한 뒤 안내에 따라 입력하면 PDF로
+        발급할 수 있습니다.
       </p>
       <p className="pdf-engine-page__hint">
-        <Link to="/application/documents/history">과거 발급 이력 보기 →</Link>
+        <Link to="/application/documents/history">과거 작성·발급 목록(다운로드) →</Link>
       </p>
-
-      {error ? <div className="pdf-engine-page__error">{error}</div> : null}
+      {linkedCustomerId != null ? (
+        <p className="pdf-engine-page__hint" role="status">
+          참고: 고객 #{linkedCustomerId}에서 이동했습니다. 문서와 고객 카드 자동 연동은 다음 단계에서
+          붙일 예정입니다.
+        </p>
+      ) : null}
       {loading ? <p className="pdf-engine-page__hint">불러오는 중…</p> : null}
 
       {!loading && rows.length === 0 && !error ? (

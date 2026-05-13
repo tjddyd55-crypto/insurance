@@ -4,7 +4,8 @@ import { FEATURE_MODULE_REGISTRY_BY_ID } from './featureModuleRegistry'
 import { LIST_COLUMN_REGISTRY_BY_KEY } from './listColumnRegistry'
 
 /**
- * insuranceCustomerTemplateV01 등 레거시 숏키 → canonical fieldKey.
+ * insuranceCustomerTemplate 등 레거시 숏키 → canonical fieldKey.
+ * `ssn` 은 보험 레거시(`insurance.ssn`)용 — 국가지원 템플릿은 `customer.ssn` canonical 사용.
  * 템플릿을 canonical 로 일괄 치환하기 전까지 이 맵이 단일 해석 경로다.
  */
 export const CUSTOMER_FIELD_KEY_ALIAS_TO_CANONICAL: Readonly<
@@ -38,6 +39,62 @@ export const CUSTOMER_FIELD_KEY_ALIAS_TO_CANONICAL: Readonly<
   renewalDate: 'insurance.renewalDate',
   isFavorite: 'customer.isFavorite',
   customerCode: 'customer.customerCode',
+  carrier: 'customer.carrier',
+  homeType: 'customer.homeType',
+  deposit: 'customer.deposit',
+  monthlyRent: 'customer.monthlyRent',
+  creditScoreKcb: 'customer.creditScoreKcb',
+  creditScoreNice: 'customer.creditScoreNice',
+  // 국가지원·사업장 (canonical 직접 사용 권장)
+  businessName: 'business.name',
+  ownerName: 'business.ownerName',
+  openedAt: 'business.openedAt',
+  businessNumber: 'business.registrationNumber',
+  businessAddress: 'business.address',
+  businessCategory: 'business.category',
+  businessType: 'business.type',
+  placeType: 'business.placeType',
+  businessPhone: 'business.phone',
+  productName: 'gov.productName',
+  applicationType: 'gov.applicationType',
+  caseNumber: 'gov.caseNumber',
+  programName: 'gov.programName',
+  agency: 'gov.agency',
+  department: 'gov.department',
+  govStatus: 'gov.status',
+  submittedAt: 'gov.submittedAt',
+  dueDate: 'gov.dueDate',
+  supportAmount: 'gov.supportAmount',
+  approvalAmount: 'gov.approvalAmount',
+  result: 'gov.result',
+  supportProgram: 'gov.supportProgram',
+  documentStatus: 'gov.documentStatus',
+  applicationStatus: 'gov.applicationStatus',
+  existingLoans: 'loan.existingLoans',
+  totalFee: 'contract.totalFee',
+  depositAmount: 'contract.depositAmount',
+  balanceAmount: 'contract.balanceAmount',
+  paymentStatus: 'contract.paymentStatus',
+  paymentDueDate: 'contract.paymentDueDate',
+  certificateDelegated: 'contract.certificateDelegated',
+  certificateType: 'contract.certificateType',
+  contractStatus: 'contract.status',
+  paymentMemo: 'contract.paymentMemo',
+  signatureStatus: 'document.signatureStatus',
+  lastSentAt: 'document.lastSentAt',
+  lastCompletedAt: 'document.lastCompletedAt',
+  hasLegalEvidence: 'document.hasLegalEvidence',
+  source: 'management.source',
+  priority: 'management.priority',
+  ownerUserId: 'management.ownerUserId',
+  lastConsultDate: 'management.lastConsultDate',
+  memoSummary: 'management.memoSummary',
+  /**
+   * gym 폼 호환키 → canonical registry fieldKey.
+   * `gym.fitnessGoal` 템플릿 키는 유지하고, 검증 단계에서만 `gym.workoutGoal` 로 해석한다.
+   * Form Renderer·persist 경로가 붙을 때는 별명을 그대로 쓸지, 저장 키를 canonical 로 통일할지 정책을 재검토할 것.
+   */
+  'gym.fitnessGoal': 'gym.workoutGoal',
 })
 
 export function resolveCanonicalFieldKey(fieldKey: string): string {

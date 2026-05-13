@@ -7,7 +7,7 @@ export default function CustomerTemplatesMobileView({ templates }: CustomerTempl
     <main className="page platform-admin-page platform-admin-page--mobile page--with-back">
       <header className="platform-admin-page__head">
         <h1 className="platform-admin-page__title">고객관리 템플릿</h1>
-        <p className="platform-admin-page__muted">정적 조회 · API 없음</p>
+        <p className="platform-admin-page__muted">정적 조회 · SSOT: STATIC_CUSTOMER_INDUSTRY_TEMPLATES</p>
       </header>
 
       <ul className="platform-admin-page__card-list">

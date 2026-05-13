@@ -15,6 +15,7 @@ import { useAuth } from '../features/auth/AuthProvider'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
 import { ExpiredBanner } from '../features/subscription/components/ExpiredBanner'
+import PlatformModeSwitcher from '../features/platform/components/PlatformModeSwitcher'
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import { fetchTeamMembers } from '../features/team/api/teamApi'
 import MemoPanel from './MemoPanel'
@@ -57,7 +58,16 @@ function isActivePath(pathname: string, itemPath: string): boolean {
     return pathname === '/application' || pathname.startsWith('/application/')
   }
   if (itemPath === '/application/documents') {
+    if (pathname.startsWith('/application/documents/history')) {
+      return false
+    }
     return pathname === '/application/documents' || pathname.startsWith('/application/documents/')
+  }
+  if (itemPath === '/application/documents/history') {
+    return (
+      pathname === '/application/documents/history' ||
+      pathname.startsWith('/application/documents/history/')
+    )
   }
   if (itemPath === '/feature-request') {
     return pathname === '/feature-request' || pathname === '/feature-requests/my'
@@ -67,6 +77,12 @@ function isActivePath(pathname: string, itemPath: string): boolean {
   }
   if (itemPath === '/profile') {
     return pathname === '/profile'
+  }
+  if (itemPath === '/todos') {
+    return pathname === '/todos'
+  }
+  if (itemPath === '/notifications') {
+    return pathname === '/notifications'
   }
   if (itemPath.startsWith('/internal/')) {
     return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
@@ -123,6 +139,16 @@ function isActivePath(pathname: string, itemPath: string): boolean {
     return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
   }
   return pathname === itemPath
+}
+
+/** B안 모드 랜딩에서도 PlatformModeSwitcher 노출 (appRouter 변경 없음). */
+function isPlatformAdminArea(pathname: string): boolean {
+  return (
+    pathname === '/admin/platform' ||
+    pathname.startsWith('/admin/platform/') ||
+    /^\/admin\/industry\/[^/]+/.test(pathname) ||
+    /^\/admin\/tenant\/[^/]+/.test(pathname)
+  )
 }
 
 function extractCustomerIdFromPath(path: string): string | null {
@@ -265,6 +291,12 @@ function AppWorkspaceLayoutMobileShell() {
         </header>
       ) : null}
 
+      {isPlatformAdminArea(location.pathname) && token?.trim() ? (
+        <div className="platform-mode-switcher-host platform-mode-switcher-host--mobile">
+          <PlatformModeSwitcher token={token} />
+        </div>
+      ) : null}
+
       {/*
        * 오버레이 드로어:
        *   - 과거에는 `<nav>` 를 `<main>` 앞에 인라인으로 렌더해 본문이 드로어 만큼
@@ -396,7 +428,7 @@ function AppWorkspaceLayoutMobileShell() {
 function AppWorkspaceLayoutPCShell() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, logout, isAuthenticated } = useAuth()
+  const { user, logout, isAuthenticated, token } = useAuth()
   const { isMinimized, setIsMinimized } = useMemoWorkspace()
   const workspaceChromeHeaderRef = useRef<HTMLElement>(null)
 
@@ -524,6 +556,12 @@ function AppWorkspaceLayoutPCShell() {
           navigate('/login', { replace: true })
         }}
       />
+
+      {isPlatformAdminArea(location.pathname) && token?.trim() ? (
+        <div className="platform-mode-switcher-host platform-mode-switcher-host--pc">
+          <PlatformModeSwitcher token={token} />
+        </div>
+      ) : null}
 
       <div className="workspace-root workspace-root--app-pc">
         <div className="workspace-main workspace-main--app">

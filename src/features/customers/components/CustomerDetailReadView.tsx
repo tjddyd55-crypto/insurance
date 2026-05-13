@@ -10,6 +10,10 @@ import {
 } from '../utils/customerDisplayFormat'
 import { CustomerCarsReadSection } from './CustomerCarsReadSection'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
+import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
+import { governmentDetailSummaryRows, isGovernmentIndustryTemplate, buildGovernmentProgressMvp } from '../utils/governmentCustomerUi'
+import { industryTemplateReadPreviewRows, industryTemplateReadPreviewRowsForFieldKeys } from '../utils/industryCustomerReadSummary'
+import GovernmentProgressReadSection from './GovernmentProgressReadSection'
 
 export type CustomerDetailInsuranceDisplay = {
   ageText: string
@@ -51,6 +55,8 @@ type CustomerDetailReadViewProps = {
   /** 펼친 읽기 모드에서만 customer_cars API 조회 */
   fetchCarsEnabled: boolean
   onOpenRelatedCustomer: (customerId: number, customerName?: string) => void
+  crmIsInsuranceLayout: boolean
+  crmIndustryTemplate: CustomerIndustryTemplate
 }
 
 export default function CustomerDetailReadView({
@@ -60,7 +66,117 @@ export default function CustomerDetailReadView({
   expandedId,
   fetchCarsEnabled,
   onOpenRelatedCustomer,
+  crmIsInsuranceLayout,
+  crmIndustryTemplate,
 }: CustomerDetailReadViewProps) {
+  if (!crmIsInsuranceLayout) {
+    const dynTabs = [...crmIndustryTemplate.detailTabs]
+      .filter((t) => t.visibleDefault !== false)
+      .filter((t) => Array.isArray(t.fieldKeys) && t.fieldKeys.length > 0)
+      .sort((a, b) => a.order - b.order)
+
+    const fallbackRows = industryTemplateReadPreviewRows(c, crmIndustryTemplate, 28)
+    const govSummaryRows = isGovernmentIndustryTemplate(crmIndustryTemplate)
+      ? governmentDetailSummaryRows(c, crmIndustryTemplate)
+      : null
+    const govProgressModel = isGovernmentIndustryTemplate(crmIndustryTemplate)
+      ? buildGovernmentProgressMvp(c, crmIndustryTemplate)
+      : null
+
+    return (
+      <div className="customer-detail-read">
+        {govSummaryRows != null && govSummaryRows.length > 0 ? (
+          <section className="customer-detail-read__section" aria-labelledby="gov-ops-summary-heading">
+            <div className="customer-detail-read__section-header">
+              <h4 id="gov-ops-summary-heading" className="customer-detail-read__section-title">
+                지원·접수 현황
+              </h4>
+            </div>
+            <div className="customer-detail-read__section-body">
+              <div className="customer-detail-read__info-list">
+                {govSummaryRows.map((r) => (
+                  <DetailReadInfoRow key={`gov-ops-${r.canonicalKey}`}>
+                    <span className="customer-detail-read__info-label">{r.label}:</span>{' '}
+                    <span className="customer-detail-read__info-value">{r.value}</span>
+                  </DetailReadInfoRow>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
+        {govProgressModel ? <GovernmentProgressReadSection model={govProgressModel} /> : null}
+        {dynTabs.length > 0
+          ? dynTabs.map((tab) => {
+              const rows = industryTemplateReadPreviewRowsForFieldKeys(
+                c,
+                crmIndustryTemplate,
+                tab.fieldKeys ?? [],
+                48,
+              )
+              return (
+                <section key={tab.tabId} className="customer-detail-read__section" aria-labelledby={`tab-${tab.tabId}`}>
+                  <div className="customer-detail-read__section-header">
+                    <h4 id={`tab-${tab.tabId}`} className="customer-detail-read__section-title">
+                      {tab.label}
+                    </h4>
+                  </div>
+                  <div className="customer-detail-read__section-body">
+                    {rows.length === 0 ? (
+                      <p className="customer-detail-read__api-warn" style={{ margin: 0 }}>
+                        이 탭에 표시할 저장 값이 없습니다.
+                      </p>
+                    ) : (
+                      <div className="customer-detail-read__info-list">
+                        {rows.map((r) => (
+                          <DetailReadInfoRow key={`${tab.tabId}-${r.canonicalKey}`}>
+                            <span className="customer-detail-read__info-label">{r.label}:</span>{' '}
+                            <span className="customer-detail-read__info-value">{r.value}</span>
+                          </DetailReadInfoRow>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )
+            })
+          : (
+              <section className="customer-detail-read__section" aria-labelledby="crm-industry-read-heading">
+                <div className="customer-detail-read__section-header">
+                  <h4 id="crm-industry-read-heading" className="customer-detail-read__section-title">
+                    업종 CRM 저장값 ({crmIndustryTemplate.meta.industryCode})
+                  </h4>
+                </div>
+                <div className="customer-detail-read__section-body">
+                  {fallbackRows.length === 0 ? (
+                    <p className="customer-detail-read__api-warn" style={{ margin: 0 }}>
+                      표시할 저장 필드 값이 없습니다.
+                    </p>
+                  ) : (
+                    <div className="customer-detail-read__info-list">
+                      {fallbackRows.map((r) => (
+                        <DetailReadInfoRow key={r.canonicalKey}>
+                          <span className="customer-detail-read__info-label">{r.label}:</span>{' '}
+                          <span className="customer-detail-read__info-value">{r.value}</span>
+                        </DetailReadInfoRow>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+        {token?.trim() ? (
+          <CustomerRelationsStrip
+            customerId={c.id}
+            customerName={c.name}
+            token={token}
+            focusedCustomerId={expandedId}
+            onOpenCustomer={onOpenRelatedCustomer}
+          />
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div className="customer-detail-read">
       <div className="customer-detail-read__info-list">

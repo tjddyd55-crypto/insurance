@@ -26,6 +26,7 @@ import {
   uploadAdminPdfTemplateFile,
 } from '../api/pdfTemplateApi'
 import { PdfCoordinateEditor } from '../components/PdfCoordinateEditor'
+import { validatePdfTemplateFieldsForSave } from '../validatePdfTemplateFieldsForSave'
 import { normalizePdfFieldKeys } from '../pdfFieldKey'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
 import '../pdf-engine.css'
@@ -252,6 +253,11 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
         if (keysNormalized) {
           setFields(fieldsToSave)
         }
+        const validationError = validatePdfTemplateFieldsForSave(fieldsToSave)
+        if (validationError) {
+          setToast(validationError)
+          return false
+        }
         const saved = await saveAdminPdfTemplateFields(token, templateId, fieldsToSave)
         setFields(saved.fields.map(coercePdfFieldSpecForEditor))
         setFieldsDirty(false)
@@ -285,8 +291,10 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
         description: description.trim(),
         isActive,
       })
-      await persistFields({ silent: true })
-      setToast('저장되었습니다.')
+      const coordsSaved = await persistFields({ silent: true })
+      if (coordsSaved) {
+        setToast('저장되었습니다.')
+      }
     } catch (e) {
       setToast(e instanceof ApiError ? `저장 실패: ${e.message}` : '저장 실패')
     } finally {

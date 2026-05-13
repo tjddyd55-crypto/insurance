@@ -11,8 +11,18 @@ export type {
   TenantCrmConfig,
 } from './customerTemplate.types'
 
+export { governmentCustomerTemplateV01 } from './government/governmentCustomerTemplateV01'
+export { gymCustomerTemplateV01 } from './gym/gymCustomerTemplateV01'
 export { insuranceCustomerTemplateV01 } from './insurance/insuranceCustomerTemplate'
 export { resolveCustomerTemplate } from './resolveCustomerTemplate'
+export { STATIC_CUSTOMER_INDUSTRY_TEMPLATES } from './staticCustomerIndustryTemplates'
+export {
+  getCustomerIndustryTemplateByIndustryCode,
+  resolveCustomerIndustryTemplateForTenant,
+  resolveCustomerIndustryTemplatePreferringDynamic,
+} from './selectCustomerIndustryTemplate'
+
+export { parseDynamicIndustryTemplateFromApi } from './parseDynamicIndustryTemplateFromApi'
 
 export { CUSTOMER_FIELD_REGISTRY_BY_KEY } from './registry/customerFieldRegistry'
 export { FEATURE_MODULE_REGISTRY_BY_ID } from './registry/featureModuleRegistry'

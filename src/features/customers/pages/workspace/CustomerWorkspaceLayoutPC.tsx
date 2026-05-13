@@ -167,7 +167,7 @@ export default function CustomerWorkspaceLayoutPC({
               disabled={!selectedCustomerId}
               onClick={onClickCarForm}
             >
-              자동차 신청서
+              신청서
             </FormButton>
           ) : null}
           {showGaExcelEntry ? (

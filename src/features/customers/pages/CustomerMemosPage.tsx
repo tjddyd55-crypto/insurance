@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
 import { useAuth } from '../../auth/AuthProvider'
+import { TodoEditorDialog, type TodoCreatePrefill } from '../../todos/components/TodoEditorDialog'
+import { firstLineTodoTitle } from '../../todos/utils/todoCopy'
+import { suggestDueDateFromText } from '../../todos/utils/suggestDueDateFromText'
 import { getCustomerById, type UpdateCustomerBody } from '../api/customersApi'
 import { CustomerInlineNotesSection } from '../components/CustomerInlineNotesSection'
 import type { CustomerNotesBag, CustomerRecord } from '../domain/types'
@@ -9,10 +12,15 @@ import type { CustomerNotesBag, CustomerRecord } from '../domain/types'
 export default function CustomerMemosPage() {
   const { customerId: customerIdParam } = useParams()
   const customerId = Number(customerIdParam)
-  const { token } = useAuth()
+  const { token, user } = useAuth()
+  const gaIdNumeric =
+    user?.gaId != null && Number.isFinite(Number(user.gaId)) ? Number(user.gaId) : null
   const [customer, setCustomer] = useState<CustomerRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [statusText, setStatusText] = useState('')
+  const [memoTodoDialogOpen, setMemoTodoDialogOpen] = useState(false)
+  const [memoTodoSession, setMemoTodoSession] = useState(0)
+  const [memoTodoPrefill, setMemoTodoPrefill] = useState<TodoCreatePrefill | null>(null)
 
   const loadCustomer = useCallback(async () => {
     if (!token?.trim() || !customerId || customerId < 1) {
@@ -36,6 +44,26 @@ export default function CustomerMemosPage() {
   useEffect(() => {
     void loadCustomer()
   }, [loadCustomer])
+
+  const addTodoFromMemo = useCallback(
+    (payload: { noteId: string; memoText: string }) => {
+      const txt = payload.memoText.trim() || '(메모 내용 없음)'
+      setMemoTodoPrefill({
+        sourceType: 'customer_memo',
+        sourceId: payload.noteId,
+        title: firstLineTodoTitle(txt),
+        description: txt,
+        dueDate: suggestDueDateFromText(txt),
+        relatedEntityType: 'customer',
+        relatedEntityId: String(customerId),
+        lockRelated: true,
+        lockedCustomerSummary: customer?.name,
+      })
+      setMemoTodoSession((k) => k + 1)
+      setMemoTodoDialogOpen(true)
+    },
+    [customer?.name, customerId],
+  )
 
   if (!customerId || customerId < 1) {
     return (
@@ -68,28 +96,43 @@ export default function CustomerMemosPage() {
   }
 
   return (
-    <section className="customer-workspace-home">
-      <h3 className="customer-workspace-home__title">고객 메모</h3>
-      <p className="customer-workspace-home__desc">
-        고객 #{customer.id} · {customer.name}
-      </p>
-      <CustomerInlineNotesSection
-        key={customer.id}
-        customer={customer}
-        token={token}
-        showFileShortcut={false}
-        onPersisted={(customerIdFromNotes: number, newMemo: CustomerNotesBag) => {
-          setCustomer((prev) => {
-            if (!prev || prev.id !== customerIdFromNotes) {
-              return prev
-            }
-            const nextNotes = newMemo as unknown as UpdateCustomerBody['notes']
-            return { ...prev, notes: nextNotes }
-          })
+    <>
+      <section className="customer-workspace-home">
+        <h3 className="customer-workspace-home__title">고객 메모</h3>
+        <p className="customer-workspace-home__desc">
+          고객 #{customer.id} · {customer.name}
+        </p>
+        <CustomerInlineNotesSection
+          key={customer.id}
+          customer={customer}
+          token={token}
+          showFileShortcut={false}
+          onPersisted={(customerIdFromNotes: number, newMemo: CustomerNotesBag) => {
+            setCustomer((prev) => {
+              if (!prev || prev.id !== customerIdFromNotes) {
+                return prev
+              }
+              const nextNotes = newMemo as unknown as UpdateCustomerBody['notes']
+              return { ...prev, notes: nextNotes }
+            })
+          }}
+          onStatusMessage={setStatusText}
+          onAddTodoFromMemo={addTodoFromMemo}
+        />
+        {statusText ? <p className="customer-workspace-home__selected">{statusText}</p> : null}
+      </section>
+      <TodoEditorDialog
+        open={memoTodoDialogOpen}
+        onClose={() => {
+          setMemoTodoDialogOpen(false)
+          setMemoTodoPrefill(null)
         }}
-        onStatusMessage={setStatusText}
+        token={token}
+        gaId={gaIdNumeric}
+        sessionKey={memoTodoSession}
+        prefill={memoTodoPrefill}
+        onCommitted={() => {}}
       />
-      {statusText ? <p className="customer-workspace-home__selected">{statusText}</p> : null}
-    </section>
+    </>
   )
 }

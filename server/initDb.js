@@ -677,8 +677,108 @@ async function ensureCrmPlatformMetaSchema(executor) {
   `)
 
   await executor.query(`
+    ALTER TABLE user_memberships
+    ADD COLUMN IF NOT EXISTS membership_type TEXT NOT NULL DEFAULT 'agent'
+  `)
+  await executor.query(`
+    ALTER TABLE user_memberships
+    ADD COLUMN IF NOT EXISTS customer_access TEXT NOT NULL DEFAULT 'own'
+  `)
+  await executor.query(`
+    UPDATE user_memberships
+    SET
+      membership_type = CASE LOWER(TRIM(COALESCE(role::text, '')))
+          WHEN 'staff' THEN 'staff'
+          WHEN 'tenant_admin' THEN 'admin'
+          ELSE 'agent'
+        END,
+      customer_access = CASE LOWER(TRIM(COALESCE(role::text, '')))
+          WHEN 'staff' THEN 'none'
+          WHEN 'tenant_admin' THEN 'tenant'
+          ELSE 'own'
+        END,
+      updated_at = NOW()
+    WHERE scope_type = 'tenant'
+      AND membership_type = 'agent'
+      AND customer_access = 'own'
+      AND LOWER(TRIM(COALESCE(role::text, ''))) IN ('staff', 'tenant_admin', 'user')
+  `)
+  await executor.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'user_memberships_customer_access_chk'
+      ) THEN
+        ALTER TABLE user_memberships
+        ADD CONSTRAINT user_memberships_customer_access_chk
+        CHECK (customer_access IN ('none', 'own', 'tenant', 'assigned'));
+      END IF;
+    END $$;
+  `)
+  await executor.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'user_memberships_membership_type_chk'
+      ) THEN
+        ALTER TABLE user_memberships
+        ADD CONSTRAINT user_memberships_membership_type_chk
+        CHECK (membership_type IN ('agent', 'staff', 'admin', 'owner'));
+      END IF;
+    END $$;
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS tenant_registration_codes (
+      id BIGSERIAL PRIMARY KEY,
+      code TEXT NOT NULL,
+      tenant_id BIGINT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+      industry_code TEXT NOT NULL REFERENCES industries(code) ON UPDATE CASCADE ON DELETE RESTRICT,
+      default_membership_type TEXT NOT NULL DEFAULT 'agent',
+      default_customer_access TEXT NOT NULL DEFAULT 'own',
+      default_role TEXT NOT NULL DEFAULT 'user',
+      status TEXT NOT NULL DEFAULT 'active',
+      expires_at TIMESTAMPTZ,
+      max_uses INTEGER,
+      used_count INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT tenant_reg_codes_default_membership_chk
+        CHECK (default_membership_type IN ('agent', 'staff', 'admin', 'owner')),
+      CONSTRAINT tenant_reg_codes_customer_access_chk
+        CHECK (default_customer_access IN ('none', 'own', 'tenant', 'assigned')),
+      CONSTRAINT tenant_reg_codes_default_role_chk
+        CHECK (default_role IN ('user', 'staff', 'tenant_admin')),
+      CONSTRAINT tenant_reg_codes_status_chk
+        CHECK (status IN ('active', 'inactive')),
+      CONSTRAINT tenant_reg_codes_max_uses_chk
+        CHECK (max_uses IS NULL OR (max_uses >= 0 AND max_uses <= 100000000))
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS tenant_registration_codes_code_uk
+    ON tenant_registration_codes (code)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS tenant_registration_codes_tenant_idx
+    ON tenant_registration_codes (tenant_id, status)
+  `)
+
+  await executor.query(`
     INSERT INTO industries (code, name, status, config)
     VALUES ('insurance', '보험', 'active', '{}'::jsonb)
+    ON CONFLICT (code) DO UPDATE SET
+      name = EXCLUDED.name,
+      status = EXCLUDED.status,
+      updated_at = NOW()
+  `)
+
+  await executor.query(`
+    INSERT INTO industries (code, name, status, config)
+    VALUES ('gym', '체육관', 'active', '{}'::jsonb),
+           ('government', '정부지원', 'active', '{}'::jsonb)
     ON CONFLICT (code) DO UPDATE SET
       name = EXCLUDED.name,
       status = EXCLUDED.status,
@@ -701,6 +801,119 @@ async function ensureCrmPlatformMetaSchema(executor) {
       legacy_ga_id = EXCLUDED.legacy_ga_id,
       r2_key_prefix = EXCLUDED.r2_key_prefix,
       updated_at = NOW()
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS crm_customer_management_templates (
+      id BIGSERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      industry_code TEXT NOT NULL REFERENCES industries(code) ON UPDATE CASCADE ON DELETE RESTRICT,
+      description TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'active',
+      revision INT NOT NULL DEFAULT 1,
+      form_fields JSONB NOT NULL DEFAULT '[]'::jsonb,
+      list_columns JSONB NOT NULL DEFAULT '[]'::jsonb,
+      detail_tabs JSONB NOT NULL DEFAULT '[]'::jsonb,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      shared_feature_bindings JSONB NOT NULL DEFAULT '[]'::jsonb,
+      extension_feature_bindings JSONB NOT NULL DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT ccmt_status_check CHECK (status IN ('active', 'draft', 'archived'))
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE crm_customer_management_templates
+    DROP CONSTRAINT IF EXISTS ccmt_status_check
+  `)
+  await executor.query(`
+    ALTER TABLE crm_customer_management_templates
+    ADD CONSTRAINT ccmt_status_check CHECK (status IN ('active', 'draft', 'archived'))
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_ccmt_industry_status_updated
+    ON crm_customer_management_templates (industry_code, status, updated_at DESC)
+  `)
+
+  await executor.query(`
+    ALTER TABLE tenants
+    ADD COLUMN IF NOT EXISTS crm_customer_template_id BIGINT REFERENCES crm_customer_management_templates(id) ON DELETE SET NULL
+  `)
+
+  await executor.query(`
+    ALTER TABLE tenants
+    ADD COLUMN IF NOT EXISTS seat_limit INTEGER
+  `)
+  await executor.query(`
+    ALTER TABLE tenants
+    ADD COLUMN IF NOT EXISTS license_policy JSONB NOT NULL DEFAULT '{}'::jsonb
+  `)
+  await executor.query(`
+    ALTER TABLE tenants
+    ADD COLUMN IF NOT EXISTS billing_entitlement JSONB NOT NULL DEFAULT '{}'::jsonb
+  `)
+  await executor.query(`
+    ALTER TABLE tenants
+    DROP CONSTRAINT IF EXISTS tenants_seat_limit_check
+  `)
+  await executor.query(`
+    ALTER TABLE tenants
+    ADD CONSTRAINT tenants_seat_limit_check
+    CHECK (seat_limit IS NULL OR (seat_limit >= 1 AND seat_limit <= 500000))
+  `)
+
+  await executor.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ
+  `)
+  await executor.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS last_login_ip TEXT
+  `)
+  await executor.query(`
+    ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS last_login_user_agent TEXT
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS user_auth_sessions (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      revoked_at TIMESTAMPTZ,
+      ip_inet TEXT,
+      user_agent TEXT,
+      fingerprint TEXT
+    )
+  `)
+  await executor.query(`
+    DROP INDEX IF EXISTS idx_user_auth_sessions_user_active
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_auth_sessions_user_active
+    ON user_auth_sessions (user_id, expires_at DESC)
+    WHERE revoked_at IS NULL
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS user_registered_devices (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      fingerprint TEXT NOT NULL,
+      label TEXT,
+      registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      revoked_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (user_id, fingerprint)
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_registered_devices_user
+    ON user_registered_devices (user_id)
+    WHERE revoked_at IS NULL
   `)
 }
 
@@ -1278,6 +1491,11 @@ export async function initDb() {
     ALTER TABLE customers
     ADD COLUMN IF NOT EXISTS customer_code VARCHAR(50)
   `)
+
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS crm_extension JSONB NOT NULL DEFAULT CAST('{"v":1,"fields":{}}' AS jsonb)
+  `)
   await pool.query(`
     DO $$
     BEGIN
@@ -1290,6 +1508,41 @@ export async function initDb() {
         ADD CONSTRAINT customers_customer_code_key UNIQUE (customer_code);
       END IF;
     END $$;
+  `)
+
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS tenant_id BIGINT REFERENCES tenants(id) ON DELETE SET NULL
+  `)
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS owner_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
+  `)
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
+  `)
+  await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS visibility_scope TEXT NOT NULL DEFAULT 'own'
+  `)
+  await pool.query(`
+    UPDATE customers c
+    SET tenant_id = t.id
+    FROM tenants t
+    WHERE c.ga_id = t.legacy_ga_id
+      AND c.tenant_id IS NULL
+  `)
+  await pool.query(`
+    UPDATE customers SET owner_user_id = user_id WHERE owner_user_id IS NULL
+  `)
+  await pool.query(`
+    UPDATE customers SET created_by_user_id = user_id WHERE created_by_user_id IS NULL
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customers_tenant_id
+    ON customers (tenant_id)
+    WHERE tenant_id IS NOT NULL
   `)
 
   await pool.query(`
@@ -2404,6 +2657,55 @@ export async function initDb() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_customer_consultations_user
     ON customer_consultations(user_id)
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS todos (
+      id BIGSERIAL PRIMARY KEY,
+      tenant_id INTEGER REFERENCES tenants(id) ON DELETE SET NULL,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      assignee_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      title VARCHAR(500) NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      due_date DATE,
+      due_time TIME,
+      status TEXT NOT NULL DEFAULT 'pending',
+      priority TEXT NOT NULL DEFAULT 'normal',
+      source_type TEXT NOT NULL DEFAULT 'manual',
+      source_id TEXT,
+      related_entity_type TEXT,
+      related_entity_id TEXT,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      completed_at TIMESTAMPTZ,
+      canceled_at TIMESTAMPTZ,
+      CONSTRAINT todos_status_chk CHECK (status IN ('pending', 'completed', 'canceled')),
+      CONSTRAINT todos_priority_chk CHECK (priority IN ('low', 'normal', 'high')),
+      CONSTRAINT todos_source_type_chk CHECK (
+        source_type IN (
+          'manual',
+          'customer_memo',
+          'consultation_note',
+          'pdf_document',
+          'e_document',
+          'system'
+        )
+      )
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_todos_ga_owner_status_due
+    ON todos (ga_id, owner_user_id, status, due_date)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_todos_ga_assignee_status_due
+    ON todos (ga_id, assignee_user_id, status, due_date)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_todos_ga_updated
+    ON todos (ga_id, updated_at DESC)
   `)
 
   await pool.query(`

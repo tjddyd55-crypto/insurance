@@ -21,6 +21,8 @@ type Props = {
   onOpenGaModal?: (customerId: number) => void
   onPersisted: (customerId: number, newMemo: CustomerNotesBag) => void | Promise<void>
   onStatusMessage: (msg: string) => void
+  /** 메모 줄에서 플랫폼 할 일 초안 생성 */
+  onAddTodoFromMemo?: (payload: { noteId: string; memoText: string }) => void
 }
 
 export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSection({
@@ -33,6 +35,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
   onOpenGaModal,
   onPersisted,
   onStatusMessage,
+  onAddTodoFromMemo,
 }: Props) {
   const [memoOpen, setMemoOpen] = useState(false)
   const [draft, setDraft] = useState('')
@@ -212,7 +215,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
               disabled={!token?.trim()}
               onClick={() => onOpenAutoModal?.(customer.id)}
             >
-              자동차
+              신청서
             </Button>
           ) : null}
           {onOpenGaModal ? (
@@ -274,11 +277,38 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
                   </div>
                   <small style={{ opacity: 0.75 }}>{new Date(note.createdAt).toLocaleString('ko-KR')}</small>
                 </div>
-                <FormButton
-                  htmlType="button"
-                  aria-label="메모 삭제"
-                  title="삭제"
-                  disabled={saving}
+                <div style={{ flexShrink: 0, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                  {onAddTodoFromMemo ? (
+                    <FormButton
+                      htmlType="button"
+                      aria-label="할 일로 추가"
+                      title="할 일로 추가"
+                      disabled={saving}
+                      style={{
+                        flexShrink: 0,
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        background: '#111827',
+                        color: '#e5e7eb',
+                        cursor: saving ? 'default' : 'pointer',
+                        fontSize: '0.75rem',
+                        lineHeight: 1,
+                        padding: '4px 8px',
+                        borderRadius: 6,
+                        opacity: saving ? 0.5 : 1,
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAddTodoFromMemo({ noteId: note.id, memoText: note.content })
+                      }}
+                    >
+                      할 일로 추가
+                    </FormButton>
+                  ) : null}
+                  <FormButton
+                    htmlType="button"
+                    aria-label="메모 삭제"
+                    title="삭제"
+                    disabled={saving}
                   style={{
                     flexShrink: 0,
                     border: 'none',
@@ -296,6 +326,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
                 >
                   ×
                 </FormButton>
+                </div>
               </li>
             )
           })}

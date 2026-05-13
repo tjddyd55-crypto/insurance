@@ -13,6 +13,7 @@ export default function CustomerConsultationsPageMobile({
   onSetConsultDate,
   onSubmit,
   onDelete,
+  onAddTodoFromConsultation,
 }: CustomerConsultationsViewProps) {
   return (
     <div className="content-wrapper page-shell">
@@ -62,18 +63,32 @@ export default function CustomerConsultationsPageMobile({
                       justifyContent: 'space-between',
                       gap: 8,
                       marginBottom: 6,
+                      flexWrap: 'wrap',
                     }}
                   >
                     <div style={{ fontWeight: 600 }}>{dateLabel}</div>
-                    <FormButton
-                      htmlType="button"
-                      variant="action"
-                      className="filter-button"
-                      disabled={busy}
-                      onClick={() => void onDelete(r.id)}
-                    >
-                      삭제
-                    </FormButton>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <FormButton
+                        htmlType="button"
+                        variant="action"
+                        className="filter-button"
+                        disabled={busy}
+                        onClick={() => void onDelete(r.id)}
+                      >
+                        삭제
+                      </FormButton>
+                      {onAddTodoFromConsultation ? (
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          className="filter-button"
+                          disabled={busy}
+                          onClick={() => onAddTodoFromConsultation(r.id, text)}
+                        >
+                          할 일로 추가
+                        </FormButton>
+                      ) : null}
+                    </div>
                   </div>
                   <div style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{text || '—'}</div>
                 </li>
