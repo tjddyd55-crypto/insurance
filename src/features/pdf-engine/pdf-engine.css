@@ -898,6 +898,53 @@
   background: #0b111a;
 }
 
+/* 데스크톱 — 좌측 폼만 스크롤, 우측 미리보기는 뷰포트 안에 sticky + 높이 고정 */
+@media (min-width: 1024px) {
+  .insurance-dark-forms.pdf-document-detail-page.pdf-document-detail-page--pc.pdf-engine-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 16px 20px 32px;
+    box-sizing: border-box;
+  }
+
+  .pdf-document-detail-page--pc .pdf-document-detail-page__split--pc-sticky {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+  }
+
+  .pdf-document-detail-page--pc .pdf-document-detail-page__form-col {
+    max-height: min(calc(100dvh - 112px), calc(100vh - 112px));
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 8px;
+  }
+
+  .pdf-document-detail-page--pc .pdf-document-detail-page__preview-col {
+    position: sticky;
+    top: 8px;
+    align-self: start;
+    max-height: min(calc(100dvh - 96px), calc(100vh - 96px));
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .pdf-document-detail-page--pc .pdf-document-detail-page__preview-title {
+    flex-shrink: 0;
+  }
+
+  .pdf-document-detail-page--pc .pdf-document-detail-page__preview-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: min(calc(100dvh - 200px), calc(100vh - 200px));
+    height: min(calc(100dvh - 200px), calc(100vh - 200px));
+    overflow: auto;
+  }
+}
+
 .pdf-document-detail-page--mobile .pdf-document-detail-page__mobile-form {
   padding-bottom: 86px;
 }

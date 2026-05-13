@@ -1,6 +1,7 @@
 /**
  * 사용자 PDF 신청 페이지 — 데스크톱: 좌측 폼 + 우측 PDF 오버레이 미리보기.
  */
+import { useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { PdfApplicantPreviewStack } from '../../components/PdfApplicantPreviewStack'
 import { PdfApplicantFormPanel } from '../../components/PdfApplicantFormPanel'
@@ -23,6 +24,8 @@ export default function PdfDocumentApplicantPCView(props: PdfDocumentApplicantVi
     onSubmitApplicant,
   } = props
 
+  const previewPaneRef = useRef<HTMLDivElement | null>(null)
+
   return (
     <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--pc page--with-back">
       <div className="pdf-engine-page__toolbar">
@@ -31,7 +34,7 @@ export default function PdfDocumentApplicantPCView(props: PdfDocumentApplicantVi
         </Link>
       </div>
       {prefillBanner}
-      <div className="pdf-document-detail-page__split">
+      <div className="pdf-document-detail-page__split pdf-document-detail-page__split--pc-sticky">
         <section className="pdf-document-detail-page__form-col" aria-label="신청서 입력">
           <PdfApplicantFormPanel
             title={template.title}
@@ -50,8 +53,9 @@ export default function PdfDocumentApplicantPCView(props: PdfDocumentApplicantVi
         </section>
         <section className="pdf-document-detail-page__preview-col" aria-label="PDF 미리보기">
           <h3 className="pdf-document-detail-page__preview-title">미리보기</h3>
-          <div className="pdf-document-detail-page__preview-scroll">
+          <div ref={previewPaneRef} className="pdf-document-detail-page__preview-scroll">
             <PdfApplicantPreviewStack
+              previewContainerRef={previewPaneRef}
               pdfBuffer={pdfBuffer}
               fields={fields}
               values={values}

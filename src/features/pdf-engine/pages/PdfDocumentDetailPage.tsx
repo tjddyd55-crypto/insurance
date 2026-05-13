@@ -16,6 +16,7 @@ import {
   getPdfIssuance,
   getPdfTemplate,
   renderPdfTemplate,
+  requestPdfRenderPreviewUrl,
 } from '../api/pdfTemplateApi'
 import { mergedInitialValues, splitPdfSnapshot } from '../components/PdfTemplateForm'
 import PdfDocumentApplicantPCView from './pdf-document/PdfDocumentApplicantPCView'
@@ -305,7 +306,12 @@ export default function PdfDocumentDetailPage() {
         setPreviewError(null)
         setPreviewOpen(true)
       } catch (e) {
-        const message = e instanceof ApiError ? e.message : 'PDF 생성에 실패했습니다.'
+        const message =
+          e instanceof ApiError
+            ? e.message
+            : e instanceof Error
+              ? e.message
+              : 'PDF 생성에 실패했습니다.'
         throw new Error(message)
       } finally {
         setSubmitting(false)

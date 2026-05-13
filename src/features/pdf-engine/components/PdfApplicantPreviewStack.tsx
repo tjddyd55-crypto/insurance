@@ -102,6 +102,8 @@ type PageProps = {
   fontSizeOverrides?: Record<string, number>
   highlightedFieldKey: string | null
   previewInnerWidth: number
+  /** 미리보기 패널(뷰포트) 높이 — 0이면 너비 기준만 사용 */
+  previewMaxHeight: number
   parentScrollRef?: MutableRefObject<HTMLDivElement | null>
   pageAnchorsRef: MutableRefObject<(HTMLDivElement | null)[]>
 }
@@ -115,6 +117,7 @@ const ApplicantPdfPageRow = forwardRef<HTMLDivElement | null, PageProps>(functio
     fontSizeOverrides,
     highlightedFieldKey,
     previewInnerWidth,
+    previewMaxHeight,
     parentScrollRef,
     pageAnchorsRef,
   }: PageProps,
@@ -151,7 +154,14 @@ const ApplicantPdfPageRow = forwardRef<HTMLDivElement | null, PageProps>(functio
         const innerW =
           hostW > 0 ? hostW : previewInnerWidth > 0 ? previewInnerWidth : TARGET_PAGE_CSS_WIDTH_PX
         const targetCssW = Math.max(MIN_PAGE_CSS_WIDTH_PX, Math.min(TARGET_PAGE_CSS_WIDTH_PX, innerW))
-        const scale = targetCssW / base.width
+        const scaleW = targetCssW / base.width
+        let scale = scaleW
+        const pad = 12
+        const maxH = previewMaxHeight > pad ? previewMaxHeight - pad : 0
+        if (maxH > 0) {
+          const scaleH = maxH / base.height
+          scale = Math.min(scaleW, scaleH)
+        }
         const vp = pageObj.getViewport({ scale })
 
         await new Promise<void>((r) => requestAnimationFrame(() => r()))
@@ -227,7 +237,7 @@ const ApplicantPdfPageRow = forwardRef<HTMLDivElement | null, PageProps>(functio
         pageRenderTaskRef.current = null
       }
     }
-  }, [pdfDoc, pageIndex, previewInnerWidth, parentScrollRef])
+  }, [pdfDoc, pageIndex, previewInnerWidth, previewMaxHeight, parentScrollRef])
 
   const overlays = useMemo(() => {
     if (!viewport) return null
@@ -448,11 +458,13 @@ type StackProps = {
   fontSizeOverrides?: Record<string, number>
   highlightedFieldKey: string | null
   className?: string
+  /** PC 미리보기 창 — 있으면 너비·높이로 contain 스케일에 사용 */
+  previewContainerRef?: MutableRefObject<HTMLDivElement | null>
 }
 
 export const PdfApplicantPreviewStack = forwardRef<PdfApplicantPreviewHandle, StackProps>(
   function PdfApplicantPreviewStack(
-    { pdfBuffer, fields, values, fontSizeOverrides, highlightedFieldKey, className },
+    { pdfBuffer, fields, values, fontSizeOverrides, highlightedFieldKey, className, previewContainerRef },
     refOut,
   ) {
     const scrollRootRef = useRef<HTMLDivElement | null>(null)
@@ -463,15 +475,20 @@ export const PdfApplicantPreviewStack = forwardRef<PdfApplicantPreviewHandle, St
     const [fatal, setFatal] = useState<string | null>(null)
     const [pages, setPages] = useState(1)
     const [innerW, setInnerW] = useState(0)
+    const [previewMaxHeight, setPreviewMaxHeight] = useState(0)
 
     useEffect(() => {
-      const el = scrollRootRef.current
+      const el = previewContainerRef?.current ?? scrollRootRef.current
       if (!el) return
-      const obs = new ResizeObserver(() => setInnerW(el.clientWidth))
+      const update = () => {
+        setInnerW(el.clientWidth)
+        setPreviewMaxHeight(el.clientHeight)
+      }
+      const obs = new ResizeObserver(update)
       obs.observe(el)
-      queueMicrotask(() => setInnerW(el.clientWidth))
+      queueMicrotask(update)
       return () => obs.disconnect()
-    }, [pdfBuffer])
+    }, [pdfBuffer, previewContainerRef])
 
     useEffect(() => {
       if (!pdfBuffer) {
@@ -557,6 +574,7 @@ export const PdfApplicantPreviewStack = forwardRef<PdfApplicantPreviewHandle, St
             fontSizeOverrides={fontSizeOverrides}
             highlightedFieldKey={highlightedFieldKey}
             previewInnerWidth={innerW}
+            previewMaxHeight={previewMaxHeight}
             parentScrollRef={scrollRootRef}
             pageAnchorsRef={pageAnchorsRef}
           />
