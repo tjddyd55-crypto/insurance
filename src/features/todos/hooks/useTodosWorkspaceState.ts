@@ -4,6 +4,7 @@ import { ApiError } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import type { TodoDto } from '../domain/todoTypes'
 import { completeTodo, listTodos, reopenTodo } from '../api/todosApi'
+import { buildRelatedEntityHref } from '../utils/relatedEntityNavigate'
 
 export type TodoQuickFilter =
   | 'all'
@@ -103,12 +104,10 @@ export function useTodosWorkspaceState() {
 
   const onRelatedNavigate = useCallback(
     (row: TodoDto) => {
-      if (row.relatedEntityType === 'customer' && row.relatedEntityId) {
-        const id = Number(row.relatedEntityId)
-        if (Number.isInteger(id) && id > 0) {
-          navigate(`/customers/${id}/memos`, { replace: false })
-          return true
-        }
+      const href = buildRelatedEntityHref(row.relatedEntityType, row.relatedEntityId)
+      if (href) {
+        navigate(href, { replace: false })
+        return true
       }
       return false
     },
