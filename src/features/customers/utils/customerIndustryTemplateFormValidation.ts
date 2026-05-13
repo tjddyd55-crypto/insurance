@@ -1,5 +1,6 @@
 import type { CustomerIndustryTemplate, CustomerTemplateFormField } from '../../customer-templates/customerTemplate.types'
 import { resolveCanonicalFieldKey } from '../../customer-templates'
+import { normalizeBirthDateForSaveApi } from '../domain/crmExtension'
 
 /** `CustomerFormState` / `CustomerEditFormState` 와 호환되는 업종 템플릿 검증용 슬라이스 */
 export type IndustryTemplateFormValidationInput = {
@@ -49,6 +50,9 @@ export function getCustomerIndustryTemplateFormValidationError(
         break
       case 'customer.birthDate':
         if (!form.birthDate?.trim()) return `${label}은(는) 필수입니다.`
+        if (!normalizeBirthDateForSaveApi(form.birthDate)) {
+          return `${label}은(는) YYYY-MM-DD 또는 YYMMDD 6자리(예 990315)로 입력해 주세요.`
+        }
         break
       case 'customer.ssn':
       case 'insurance.ssn':

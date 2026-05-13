@@ -151,3 +151,20 @@ test('normalize: 코어 저장은 허용 키만', () => {
   })
   assert.equal(r.ok, false)
 })
+
+test('normalize: customer.birthDate 와 customer.ssn 동시 코어 필드 거부', () => {
+  const r = normalizeCrmCustomerManagementTemplateBody({
+    name: 'rrn mix',
+    industry_code: 'gym',
+    form_fields: [
+      { fieldKey: 'customer.birthDate', label: '앞자리', type: 'text', storage: 'core', order: 10 },
+      { fieldKey: 'customer.ssn', label: '주민', type: 'text', storage: 'core', order: 20 },
+    ],
+    list_columns: [
+      { columnKey: 'n', label: 'N', sourceFieldKey: 'customer.birthDate', order: 10, visibleDefault: true },
+    ],
+    detail_tabs: [{ tabId: 'm', label: 'M', fieldKeys: ['customer.birthDate'] }],
+  })
+  assert.equal(r.ok, false)
+  assert.ok(String(r.message).includes('birthDate') || String(r.message).includes('ssn'))
+})

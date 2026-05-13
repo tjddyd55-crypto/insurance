@@ -8,9 +8,12 @@ import {
   CRM_TEMPLATE_BUILDER_ALLOWED_FIELD_TYPES,
   CRM_TEMPLATE_CORE_STORAGE_KEYS,
   CRM_TEMPLATE_DEFAULT_SHARED_BINDINGS,
+  CRM_TEMPLATE_EXTENSION_KEY_INPUT_PLACEHOLDER,
   CRM_TEMPLATE_LIST_COLUMN_DISPLAY_TYPES,
   type CrmTemplateBuilderFieldType,
 } from './crmTemplateBuilder.constants'
+import type { NationalIdCoreFieldMode } from './crmTemplateDefaultCustomerFields'
+import { appendMissingDefaultCustomerCoreFields, inferNationalIdCoreFieldMode } from './crmTemplateDefaultCustomerFields'
 import { newLocalId } from './crmTemplateBuilder.converters'
 import { CRM_TEMPLATE_BUILDER_SAMPLE_PRESETS } from './presets/crmTemplateBuilderSamplePresets'
 
@@ -86,6 +89,10 @@ export default function CrmTemplateBuilderTabPanels({
   setActiveTab,
   serializedPayloadPreview,
   onClearValidationIssues,
+  isNewTemplate = false,
+  nationalIdMode = 'birthDateSix',
+  setNationalIdMode,
+  onNationalIdModeUserSelect,
 }: {
   industries: IndustryOption[]
   name: string
@@ -109,6 +116,10 @@ export default function CrmTemplateBuilderTabPanels({
   serializedPayloadPreview: string
   /** 프리셋 적용 시 검증 메시지 초기화(부모 상태) */
   onClearValidationIssues?: () => void
+  isNewTemplate?: boolean
+  nationalIdMode?: NationalIdCoreFieldMode
+  setNationalIdMode?: (mode: NationalIdCoreFieldMode) => void
+  onNationalIdModeUserSelect?: (mode: NationalIdCoreFieldMode) => void
 }) {
   const [showAdvancedPayload, setShowAdvancedPayload] = useState(false)
   const industriesFiltered = useMemo(
@@ -208,8 +219,11 @@ export default function CrmTemplateBuilderTabPanels({
                         if (!id) return
                         const preset = CRM_TEMPLATE_BUILDER_SAMPLE_PRESETS.find((p) => p.id === id)
                         if (!preset) return
+                        const presetDraft = preset.buildDraft()
                         setIndustryCode(preset.industryCode)
-                        setDraft(preset.buildDraft())
+                        setDraft(presetDraft)
+                        const inferred = inferNationalIdCoreFieldMode(presetDraft.formFields)
+                        setNationalIdMode?.(inferred)
                         setStatus('active')
                         setName((n) => (String(n).trim() ? n : preset.suggestedTemplateName))
                         onClearValidationIssues?.()
@@ -304,6 +318,12 @@ export default function CrmTemplateBuilderTabPanels({
             draft={draft}
             setDraft={setDraft}
             validationIssues={validationIssues.filter((x) => x.tab === 'form')}
+            isNewTemplate={isNewTemplate}
+            nationalIdMode={nationalIdMode}
+            onNationalIdModeUserSelect={onNationalIdModeUserSelect}
+            onRestoreDefaultCustomerFields={() =>
+              setDraft((d) => appendMissingDefaultCustomerCoreFields(d, nationalIdMode))
+            }
           />
         ) : null}
 
@@ -455,11 +475,30 @@ function FormFieldsTab({
   draft,
   setDraft,
   validationIssues,
+  isNewTemplate,
+  nationalIdMode,
+  onNationalIdModeUserSelect,
+  onRestoreDefaultCustomerFields,
 }: {
   draft: CrmTemplateDraft
   setDraft: (fn: CrmTemplateDraft | ((p: CrmTemplateDraft) => CrmTemplateDraft)) => void
   validationIssues: readonly CrmTemplateValidationIssue[]
+  isNewTemplate: boolean
+  nationalIdMode: NationalIdCoreFieldMode
+  onNationalIdModeUserSelect?: (mode: NationalIdCoreFieldMode) => void
+  onRestoreDefaultCustomerFields?: () => void
 }) {
+  const extensionKeyDupCounts = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const row of draft.formFields) {
+      if (row.storage !== 'extension') continue
+      const k = row.fieldKey.trim()
+      if (!k) continue
+      m.set(k, (m.get(k) ?? 0) + 1)
+    }
+    return m
+  }, [draft.formFields])
+
   function patchField(localId: string, patch: Partial<CrmDraftFormField>) {
     setDraft({
       ...draft,
@@ -471,35 +510,80 @@ function FormFieldsTab({
     setDraft({ ...draft, formFields: moveRow(draft.formFields, idx, dir) })
   }
 
+  function firstUnusedCoreKey(excludeLocalId: string): string {
+    for (const ck of CRM_TEMPLATE_CORE_STORAGE_KEYS) {
+      const taken = draft.formFields.some(
+        (o) => o.localId !== excludeLocalId && o.storage === 'core' && o.fieldKey.trim() === ck,
+      )
+      if (!taken) return ck
+    }
+    return CRM_TEMPLATE_CORE_STORAGE_KEYS[0] ?? 'customer.name'
+  }
+
   return (
     <section className="platform-admin-panel">
-      <div className="crm-template-builder__section-head">
-        <h2 className="platform-admin-panel__title">등록 폼 필드</h2>
-        <button
-          type="button"
-          className="filter-button filter-button--workspace-active"
-          onClick={() =>
-            setDraft({
-              ...draft,
-              formFields: [
-                ...draft.formFields,
-                {
-                  localId: newLocalId(),
-                  storage: 'extension',
-                  fieldKey: '',
-                  label: '',
-                  fieldType: 'text',
-                  required: false,
-                  placeholder: '',
-                  visibleDefault: true,
-                  options: [],
-                },
-              ],
-            })
-          }
-        >
-          + 필드 추가
-        </button>
+      <div className="crm-template-builder__section-head flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="platform-admin-panel__title m-0">등록 폼 필드</h2>
+          {!isNewTemplate ? (
+            <p className="platform-admin-page__muted text-sm mt-1 mb-0">
+              기존 템플릿은 불러온 필드만 표시됩니다. 기본 고객 정보는 자동 추가되지 않으며, 빠진 항목은 아래 복원으로
+              채울 수 있습니다.
+            </p>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-2 sm:items-end shrink-0">
+          <label className="platform-admin-field mb-0 flex flex-col gap-1 min-w-[260px]">
+            <span className="platform-admin-field__label text-sm">주민번호 입력 방식</span>
+            <select
+              className="platform-admin-field__control"
+              value={nationalIdMode}
+              disabled={!onNationalIdModeUserSelect}
+              onChange={(e) => {
+                const v = e.target.value === 'fullSsn' ? 'fullSsn' : 'birthDateSix'
+                onNationalIdModeUserSelect?.(v)
+              }}
+            >
+              <option value="birthDateSix">주민번호 앞자리만 (customer.birthDate)</option>
+              <option value="fullSsn">주민번호 전체 (customer.ssn)</option>
+            </select>
+          </label>
+          <div className="flex flex-wrap gap-2 justify-end">
+            <button
+              type="button"
+              className="filter-button"
+              onClick={() => onRestoreDefaultCustomerFields?.()}
+              title="이미 있는 필드 키는 건너뜁니다"
+            >
+              기본 필드 복원
+            </button>
+            <button
+              type="button"
+              className="filter-button filter-button--workspace-active"
+              onClick={() =>
+                setDraft({
+                  ...draft,
+                  formFields: [
+                    ...draft.formFields,
+                    {
+                      localId: newLocalId(),
+                      storage: 'extension',
+                      fieldKey: '',
+                      label: '',
+                      fieldType: 'text',
+                      required: false,
+                      placeholder: '',
+                      visibleDefault: true,
+                      options: [],
+                    },
+                  ],
+                })
+              }
+            >
+              + 필드 추가
+            </button>
+          </div>
+        </div>
       </div>
       <p className="platform-admin-page__field-hint mb-4">
         코어 필드는 표준 고객 DB 컬럼에 매핑됩니다. 확장 필드는 <code className="platform-admin-page__mono">crm_extension</code>에
@@ -582,9 +666,9 @@ function FormFieldsTab({
                       storage: e.target.value as 'core' | 'extension',
                       fieldKey:
                         e.target.value === 'core'
-                          ? CRM_TEMPLATE_CORE_STORAGE_KEYS[0] ?? ''
+                          ? firstUnusedCoreKey(f.localId)
                           : f.fieldKey &&
-                              !(CRM_TEMPLATE_CORE_STORAGE_KEYS as readonly string[]).includes(f.fieldKey)
+                              !(CRM_TEMPLATE_CORE_STORAGE_KEYS as readonly string[]).includes(f.fieldKey.trim())
                             ? f.fieldKey
                             : '',
                     })
@@ -600,17 +684,27 @@ function FormFieldsTab({
                   <select
                     className="platform-admin-field__control platform-admin-page__mono"
                     value={
-                      (CRM_TEMPLATE_CORE_STORAGE_KEYS as readonly string[]).includes(f.fieldKey)
-                        ? f.fieldKey
-                        : CRM_TEMPLATE_CORE_STORAGE_KEYS[0]
+                      (CRM_TEMPLATE_CORE_STORAGE_KEYS as readonly string[]).includes(f.fieldKey.trim())
+                        ? f.fieldKey.trim()
+                        : firstUnusedCoreKey(f.localId)
                     }
                     onChange={(e) => patchField(f.localId, { fieldKey: e.target.value })}
                   >
-                    {CRM_TEMPLATE_CORE_STORAGE_KEYS.map((ck) => (
-                      <option key={ck} value={ck}>
-                        {ck}
-                      </option>
-                    ))}
+                    {CRM_TEMPLATE_CORE_STORAGE_KEYS.map((ck) => {
+                      const selfKey = f.fieldKey.trim()
+                      const isSelf = selfKey === ck
+                      const usedByOther = draft.formFields.some(
+                        (o) => o.localId !== f.localId && o.storage === 'core' && o.fieldKey.trim() === ck,
+                      )
+                      const disabled = usedByOther && !isSelf
+                      const labelSuffix = usedByOther ? ' · 이미 사용 중' : ''
+                      return (
+                        <option key={ck} value={ck} disabled={disabled}>
+                          {ck}
+                          {labelSuffix}
+                        </option>
+                      )
+                    })}
                   </select>
                 </label>
               ) : (
@@ -621,12 +715,18 @@ function FormFieldsTab({
                   </span>
                   <input
                     className="platform-admin-field__control platform-admin-page__mono"
-                    placeholder="예: biz.customField1"
+                    placeholder={CRM_TEMPLATE_EXTENSION_KEY_INPUT_PLACEHOLDER}
                     value={f.fieldKey}
                     onChange={(e) => patchField(f.localId, { fieldKey: e.target.value })}
                   />
                 </label>
               )}
+              {f.storage === 'extension' && f.fieldKey.trim() && (extensionKeyDupCounts.get(f.fieldKey.trim()) ?? 0) > 1 ? (
+                <p className="platform-admin-page__field-error crm-template-builder__full-row m-0 col-span-full">
+                  확장 필드 키 &quot;{f.fieldKey.trim()}&quot; 이(가) 다른 필드와 중복됩니다. 각 canonical 키는 한 번만 사용할 수
+                  있습니다.
+                </p>
+              ) : null}
               <label className="platform-admin-field flex flex-row items-center gap-2">
                 <input
                   type="checkbox"

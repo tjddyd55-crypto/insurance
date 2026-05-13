@@ -30,13 +30,48 @@ export function buildCrmExtensionPayloadForSave(
   return { v: 1, fields: out }
 }
 
-/** YYYY-MM-DD 만 통과, 그 외·공백은 undefined (필드 생략용) */
-export function normalizeBirthDateForSaveApi(raw: string | undefined | null): string | undefined {
-  const s = String(raw ?? '').trim().slice(0, 10)
-  if (!s) {
+/**
+ * 한국 업무에서 많이 쓰는 연도 피벗(yy ≤ 68 → 2000년대 그 외 1900년대).
+ */
+function isoDateFromYyMmDdDigits(yyMmDdDigits: string): string | undefined {
+  if (!/^\d{6}$/.test(yyMmDdDigits)) return undefined
+  const yy = Number(yyMmDdDigits.slice(0, 2))
+  const mm = Number(yyMmDdDigits.slice(2, 4))
+  const dd = Number(yyMmDdDigits.slice(4, 6))
+  if (!Number.isFinite(yy) || !Number.isFinite(mm) || !Number.isFinite(dd)) return undefined
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return undefined
+  const yyyy = yy <= 68 ? 2000 + yy : 1900 + yy
+  const utc = Date.UTC(yyyy, mm - 1, dd)
+  const d = new Date(utc)
+  if (
+    d.getUTCFullYear() !== yyyy ||
+    d.getUTCMonth() !== mm - 1 ||
+    d.getUTCDate() !== dd
+  ) {
     return undefined
   }
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : undefined
+  return `${String(yyyy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+}
+
+/**
+ * - YYYY-MM-DD 그대로
+ * - YYMMDD 숫자 6자리 → YYYY-MM-DD (저장 가능할 때만)
+ * 그 외·공백은 undefined (필드 생략용)
+ */
+export function normalizeBirthDateForSaveApi(raw: string | undefined | null): string | undefined {
+  const trimmed = String(raw ?? '').trim()
+  if (!trimmed) return undefined
+
+  const isoLike = trimmed.slice(0, 10)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoLike)) return isoLike
+
+  const digits = trimmed.replace(/\D/g, '').slice(0, 6)
+  if (digits.length === 6) {
+    const iso = isoDateFromYyMmDdDigits(digits)
+    return iso
+  }
+
+  return undefined
 }
 
 export function normalizeCustomerCrmExtension(raw: unknown): CustomerCrmExtension {

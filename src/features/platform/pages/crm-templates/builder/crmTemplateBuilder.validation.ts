@@ -43,7 +43,8 @@ export function validateCrmTemplateDraft(params: {
     })
   }
 
-  const keySet = new Set<string>()
+  const formFieldKeys = new Set<string>()
+  /** 코어 선택 키 / 확장 입력 키 모두 폼 레벨에서 유일해야 한다(storage 혼합 시에도 fieldKey 하나로 참조된다). */
   for (const f of draft.formFields) {
     if (f.storage === 'extension') {
       const fk = f.fieldKey.trim()
@@ -71,15 +72,17 @@ export function validateCrmTemplateDraft(params: {
       }
     }
 
-    const fkDup = (f.storage === 'core' || f.storage === 'extension') && f.fieldKey.trim()
-    if (fkDup && keySet.has(fkDup)) {
-      issues.push({
-        tab: 'form',
-        localId: f.localId,
-        message: `필드 키가 중복됩니다: "${fkDup}"`,
-      })
+    const fkDupRaw = (f.storage === 'core' || f.storage === 'extension') && f.fieldKey.trim()
+    if (fkDupRaw) {
+      if (formFieldKeys.has(fkDupRaw)) {
+        issues.push({
+          tab: 'form',
+          localId: f.localId,
+          message: `이미 등록 폼에서 사용 중인 필드 키입니다: "${fkDupRaw}"`,
+        })
+      }
+      formFieldKeys.add(fkDupRaw)
     }
-    if (fkDup) keySet.add(fkDup)
 
     if (!f.label.trim()) {
       issues.push({
@@ -89,9 +92,9 @@ export function validateCrmTemplateDraft(params: {
       })
     }
 
-    const needOpt =
+    const needOpts =
       f.fieldType === 'select' || f.fieldType === 'radio' || f.fieldType === 'checkbox'
-    if (needOpt) {
+    if (needOpts) {
       const nonEmptyOpts = f.options.filter((o) => String(o.value ?? '').trim().length > 0)
       if (nonEmptyOpts.length === 0) {
         issues.push({
@@ -117,6 +120,20 @@ export function validateCrmTemplateDraft(params: {
     }
   }
 
+  const coreKeys = new Set(
+    draft.formFields.filter((f) => f.storage === 'core').map((f) => f.fieldKey.trim()),
+  )
+  const hasBirth = coreKeys.has('customer.birthDate')
+  const hasFull =
+    coreKeys.has('customer.ssn') || coreKeys.has('insurance.ssn')
+  if (hasBirth && hasFull) {
+    issues.push({
+      tab: 'form',
+      message:
+        '등록 폼에 주민번호 앞자리(customer.birthDate)와 전체 주민번호(customer.ssn 또는 insurance.ssn)를 동시에 둘 수 없습니다.',
+    })
+  }
+
   for (const c of draft.listColumns) {
     if (!c.label.trim()) {
       issues.push({ tab: 'list', localId: c.localId, message: '컬럼 라벨을 입력해 주세요.' })
@@ -136,7 +153,7 @@ export function validateCrmTemplateDraft(params: {
         message:
           '원본 필드 키(sourceFieldKey)를 입력해 주세요. 등록 폼 필드의 fieldKey와 동일한 canonical 키여야 합니다.',
       })
-    } else if (!keySet.has(src)) {
+    } else if (!formFieldKeys.has(src)) {
       issues.push({
         tab: 'list',
         localId: c.localId,
@@ -170,7 +187,7 @@ export function validateCrmTemplateDraft(params: {
 
     for (const fk of t.fieldKeys) {
       const k = String(fk).trim()
-      if (!keySet.has(k)) {
+      if (!formFieldKeys.has(k)) {
         issues.push({
           tab: 'detail',
           localId: t.localId,

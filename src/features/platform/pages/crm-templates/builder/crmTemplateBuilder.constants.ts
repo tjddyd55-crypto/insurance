@@ -39,6 +39,10 @@ export const CRM_TEMPLATE_CORE_STORAGE_KEYS = [
 
 export const CRM_TEMPLATE_FIELD_KEY_REGEX = /^[a-zA-Z][a-zA-Z0-9_.]*$/
 
+/** 확장(canonical) 키 직접 입력 시 플레이스홀더 가이드 */
+export const CRM_TEMPLATE_EXTENSION_KEY_INPUT_PLACEHOLDER =
+  '예: biz.customField1 · gym.membershipType · gov.caseNumber'
+
 export const CRM_TEMPLATE_TAB_ID_REGEX = /^[a-zA-Z][a-zA-Z0-9_-]*$/
 
 export const CRM_TEMPLATE_DEFAULT_SHARED_BINDINGS = ['crm-storage-files', 'crm-consultations'] as const

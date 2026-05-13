@@ -190,6 +190,19 @@ export function normalizeCrmCustomerManagementTemplateBody(body) {
     })
   }
 
+  const coreFk = new Set()
+  for (const x of formFields) {
+    if (x.storage === 'core') coreFk.add(x.fieldKey)
+  }
+  if (coreFk.has('customer.birthDate') && (coreFk.has('customer.ssn') || coreFk.has('insurance.ssn'))) {
+    return {
+      ok: false,
+      status: 400,
+      message:
+        '등록 폼에 customer.birthDate(주민번호 앞자리)와 customer.ssn/insurance.ssn(주민번호 전체)를 동시에 둘 수 없습니다.',
+    }
+  }
+
   const listIn = Array.isArray(b.list_columns) ? b.list_columns : Array.isArray(b.listColumns) ? b.listColumns : []
   const listColumns = []
   let listOrder = 0

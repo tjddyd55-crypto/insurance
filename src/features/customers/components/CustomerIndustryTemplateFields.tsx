@@ -135,14 +135,25 @@ export default function CustomerIndustryTemplateFields({
     }
 
     if (canon === 'customer.birthDate') {
+      const phRaw = String(field.placeholder ?? '').trim()
       blocks.push(
         <label className="field" key={`${canon}-${i}`}>
           <span className="field__label">{field.label}</span>
           <FormInput
             className="field__control"
-            placeholder="YYYY-MM-DD"
+            inputMode="numeric"
+            autoComplete="bday"
+            placeholder={phRaw || 'YYMMDD 6자리 또는 YYYY-MM-DD'}
             value={value.birthDate}
-            onChange={(e) => onPatch({ birthDate: e.target.value.slice(0, 10) })}
+            maxLength={10}
+            onChange={(e) => {
+              const v = e.target.value
+              if (v.includes('-')) {
+                onPatch({ birthDate: v.replace(/[^\d-]/g, '').slice(0, 10) })
+                return
+              }
+              onPatch({ birthDate: v.replace(/\D/g, '').slice(0, 6) })
+            }}
           />
         </label>,
       )

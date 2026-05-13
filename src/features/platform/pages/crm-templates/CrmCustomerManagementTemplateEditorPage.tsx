@@ -12,6 +12,12 @@ import {
   emptyDraft,
 } from './builder/crmTemplateBuilder.converters'
 import { validateCrmTemplateDraft } from './builder/crmTemplateBuilder.validation'
+import {
+  applyNationalIdCoreFieldModeToDraft,
+  createDefaultCustomerFormFields,
+  inferNationalIdCoreFieldMode,
+  type NationalIdCoreFieldMode,
+} from './builder/crmTemplateDefaultCustomerFields'
 import { mockCustomerRecordFromPreviewBinder } from './builder/mockCustomerForCrmTemplatePreview'
 import CrmTemplateBuilderTabPanels from './builder/CrmTemplateBuilderTabPanels'
 import type { CrmTemplateLifecycleStatus } from './builder/crmTemplateBuilder.constants'
@@ -56,19 +62,21 @@ function firstTabWithIssues(issues: { tab: CrmTemplateBuilderTabId }[]): CrmTemp
 }
 
 export default function CrmCustomerManagementTemplateEditorPage() {
-  const { id } = useParams<{ id: string }>()
+  const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const { token } = useAuth()
-  /** `/crm-customer-management-templates/new` 라우트에는 `:id` 없음 */
-  const isNew =
-    id === 'new' || /\/crm-customer-management-templates\/new\/?$/.test(pathname)
+  /** `/crm-customer-management-templates/new` 에는 `:id` 세그먼트가 없음 */
+  const isNew = id === 'new' || /\/crm-customer-management-templates\/new\/?$/.test(pathname)
 
+  const { token } = useAuth()
+  const [nationalIdMode, setNationalIdMode] = useState<NationalIdCoreFieldMode>('birthDateSix')
   const [name, setName] = useState('')
   const [industryCode, setIndustryCode] = useState('')
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState<CrmTemplateLifecycleStatus>('draft')
-  const [draft, setDraft] = useState<CrmTemplateDraft>(() => emptyDraft())
+  const [draft, setDraft] = useState<CrmTemplateDraft>(() =>
+    isNew ? { ...emptyDraft(), formFields: createDefaultCustomerFormFields('birthDateSix') } : emptyDraft(),
+  )
   const [industries, setIndustries] = useState<{ id: number; code: string; name: string }[]>([])
   const [statusText, setStatusText] = useState<string | null>(null)
   const [loading, setLoading] = useState(!isNew)
@@ -122,7 +130,9 @@ export default function CrmCustomerManagementTemplateEditorPage() {
         setStatus(
           stRaw === 'archived' ? 'archived' : stRaw === 'draft' ? 'draft' : 'active',
         )
-        setDraft(customerIndustryTemplateToDraft(resolved))
+        const loadedDraft = customerIndustryTemplateToDraft(resolved)
+        setDraft(loadedDraft)
+        setNationalIdMode(inferNationalIdCoreFieldMode(loadedDraft.formFields))
         const rev = typeof row.revision === 'number' ? row.revision : Number(row.revision)
         setRevision(Number.isFinite(rev) ? rev : 1)
         setPreviewMeta({
@@ -295,6 +305,13 @@ export default function CrmCustomerManagementTemplateEditorPage() {
           onClearValidationIssues={() => {
             setValidationIssues([])
             setStatusText(null)
+          }}
+          isNewTemplate={isNew}
+          nationalIdMode={nationalIdMode}
+          setNationalIdMode={setNationalIdMode}
+          onNationalIdModeUserSelect={(mode) => {
+            setNationalIdMode(mode)
+            setDraft((prev) => applyNationalIdCoreFieldModeToDraft(prev, mode))
           }}
         />
 
