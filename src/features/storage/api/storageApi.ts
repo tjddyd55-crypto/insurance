@@ -327,14 +327,22 @@ export async function downloadStorageFile(token: string, fileId: number): Promis
 /**
  * 이미지/PDF 등 브라우저가 볼 수 있는 파일은 새 탭에서 열고, 그 외 파일은 브라우저 기본 동작에 맡긴다.
  * 서버 다운로드 권한 검증을 통과한 blob URL만 사용하므로 원본 저장소 URL을 직접 노출하지 않는다.
+ *
+ * 브라우저마다 `window.open(blob:)` 이 null 을 반환하며도 탭이 열리는 경우가 있어 오탐 팝업 차단 메시지를 피한다.
+ * `File` 로 표시명을 붙인 뒤 `<a target="_blank">` 로 열면 내장 PDF 뷰어 다운로드 파일명에도 유리하다.
  */
 export async function openStorageFile(token: string, fileId: number): Promise<void> {
-  const { blob } = await fetchStorageFileBlob(token, fileId)
-  const objectUrl = URL.createObjectURL(blob)
-  const win = window.open(objectUrl, '_blank', 'noopener,noreferrer')
-  if (!win) {
-    URL.revokeObjectURL(objectUrl)
-    throw new ApiError('팝업이 차단되어 파일을 열지 못했습니다.', 400)
-  }
+  const { blob, fileName } = await fetchStorageFileBlob(token, fileId)
+  const safeBase = fileName?.trim() || `file-${fileId}`
+  const mime = blob.type?.trim() || 'application/octet-stream'
+  const named = new File([blob], safeBase, { type: mime })
+  const objectUrl = URL.createObjectURL(named)
+  const a = document.createElement('a')
+  a.href = objectUrl
+  a.target = '_blank'
+  a.rel = 'noopener noreferrer'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
 }

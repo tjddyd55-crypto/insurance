@@ -74,13 +74,16 @@ function coercePdfBlob(blob: Blob): Blob {
   return new Blob([blob], { type: 'application/pdf' })
 }
 
-/** Blob → 브라우저 다운로드. URL 누수 방지를 위해 즉시 revoke 한다. */
+/** Blob → 브라우저 다운로드. File 로 감싸 저장 대화상자·일부 PDF 뷰어의 기본 파일명을 정렬한다. */
 function triggerDownload(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob)
+  const safeName = filename.trim() || 'document.pdf'
+  const typed = blob.type?.includes('pdf') ? blob : new Blob([blob], { type: 'application/pdf' })
+  const file = new File([typed], safeName, { type: 'application/pdf' })
+  const url = URL.createObjectURL(file)
   try {
     const a = document.createElement('a')
     a.href = url
-    a.download = filename
+    a.download = safeName
     a.rel = 'noopener'
     document.body.appendChild(a)
     a.click()
@@ -288,6 +291,11 @@ export default function PdfDocumentDetailPage() {
   const handleSubmitApplicant = useCallback(
     async (values: Record<string, string>, persistFonts: Record<string, number>) => {
       if (!token || state.status !== 'ready') return
+      const previewFilename = buildPdfIssuanceDisplayFilename({
+        customerLabel: displayCustomerLabel || undefined,
+        templateTitle: state.template.title,
+        templateCode: state.template.code,
+      })
       setSubmitting(true)
       try {
         const blobRaw = await renderPdfTemplate(token, templateId, values, {
@@ -295,9 +303,10 @@ export default function PdfDocumentDetailPage() {
           fontSizes: Object.keys(persistFonts).length > 0 ? persistFonts : undefined,
         })
         const blob = coercePdfBlob(blobRaw)
+        const previewFile = new File([blob], previewFilename, { type: 'application/pdf' })
         setPreviewUrl((prev) => {
           if (prev) URL.revokeObjectURL(prev)
-          return URL.createObjectURL(blob)
+          return URL.createObjectURL(previewFile)
         })
         setPreviewValues(values)
         setPreviewFonts(persistFonts)
@@ -310,7 +319,7 @@ export default function PdfDocumentDetailPage() {
         setSubmitting(false)
       }
     },
-    [token, templateId, state.status, state.status === 'ready' ? state.template.id : 0],
+    [token, templateId, state, displayCustomerLabel],
   )
 
   const handleSaveFromPreview = async () => {

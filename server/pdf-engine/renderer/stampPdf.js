@@ -88,11 +88,14 @@ function stampCheckMarkLines({ page, placement }) {
   page.drawLine({ start: p2, end: p3, thickness, color })
 }
 
+/** radio 선택: 빨간색 테두리 원만(내부 비채움). pdf-lib 는 color·borderColor 를 동시에 넣으면 채워진 원처럼 보일 수 있어 테두리만 지정한다. */
+const STAMP_RADIO_OUTLINE = rgb(0.937, 0.267, 0.267)
+
 /**
- * radio: 선택 영역 안에 채워진 원(지름=min(w,h)×0.8).
+ * radio: 선택 영역 안에 빨간 테두리 원(지름=min(w,h)×0.8).
  * drawCircle 의 size 파라미터는 반경(semi-axis 류).
  */
-function stampRadioCircleFilled({ page, placement }) {
+function stampRadioCircleOutline({ page, placement }) {
   const boxW = placement.width && placement.width > 0 ? placement.width : DEFAULT_FONT_SIZE_PT
   const boxH = placement.height && placement.height > 0 ? placement.height : DEFAULT_FONT_SIZE_PT
   const diameter = Math.min(boxW, boxH) * 0.8
@@ -103,9 +106,8 @@ function stampRadioCircleFilled({ page, placement }) {
     x: cx,
     y: cy,
     size: r,
-    color: STAMP_COLOR_BLACK,
-    borderColor: STAMP_COLOR_BLACK,
-    borderWidth: Math.max(0.5, r * 0.08),
+    borderColor: STAMP_RADIO_OUTLINE,
+    borderWidth: Math.max(1, r * 0.12),
   })
 }
 
@@ -127,7 +129,7 @@ function stampCheckbox({ page, placement, value }) {
 function stampRadio({ page, placement, value }) {
   if (!value) return
   if (placement.optionValue !== value) return
-  stampRadioCircleFilled({ page, placement })
+  stampRadioCircleOutline({ page, placement })
 }
 
 function dispatchStamp(fieldType) {

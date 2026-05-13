@@ -62,6 +62,7 @@ function formatDate(raw: string): string {
 export default function PdfIssuanceHistoryPage() {
   const { token } = useAuth()
   const navigate = useNavigate()
+  const { workspaceCustomerId, issuerQuerySuffix } = usePdfDocumentsWorkspacePaths()
   const [rows, setRows] = useState<PdfIssuanceSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
