@@ -10,6 +10,9 @@ import {
 } from '../../api/customerExtraApi'
 import CustomerConsultationsPageMobile from '../../pages/detail/CustomerConsultationsPageMobile'
 import { localYmd } from '../../utils/consultationBodyFormat'
+import { TodoEditorDialog, type TodoCreatePrefill } from '../../../todos/components/TodoEditorDialog'
+import { firstLineTodoTitle } from '../../../todos/utils/todoCopy'
+import { suggestDueDateFromText } from '../../../todos/utils/suggestDueDateFromText'
 
 type CustomerConsultationsModalProps = {
   customerId: number
@@ -28,8 +31,13 @@ export default function CustomerConsultationsModal({
   onDeleted,
   onClose,
 }: CustomerConsultationsModalProps) {
-  const { token } = useAuth()
+  const { token, user } = useAuth()
+  const gaIdNumeric =
+    user?.gaId != null && Number.isFinite(Number(user.gaId)) ? Number(user.gaId) : null
   const { confirm, confirmDialog } = useConfirmDialog()
+  const [todoDialogOpen, setTodoDialogOpen] = useState(false)
+  const [todoDialogSession, setTodoDialogSession] = useState(0)
+  const [todoPrefill, setTodoPrefill] = useState<TodoCreatePrefill | null>(null)
   const [rows, setRows] = useState<CustomerConsultationRow[]>([])
   const [body, setBody] = useState('')
   const [consultDate, setConsultDate] = useState(() => localYmd())
@@ -138,6 +146,25 @@ export default function CustomerConsultationsModal({
     [confirm, customerId, onDeleted, token],
   )
 
+  const openTodoFromConsultation = useCallback(
+    (consultId: number, plainBody: string) => {
+      const bodyText = plainBody.trim() || '(상담 내용 없음)'
+      setTodoPrefill({
+        sourceType: 'consultation_note',
+        sourceId: String(consultId),
+        title: firstLineTodoTitle(bodyText),
+        description: bodyText,
+        dueDate: suggestDueDateFromText(bodyText),
+        relatedEntityType: 'customer',
+        relatedEntityId: String(customerId),
+        lockRelated: true,
+      })
+      setTodoDialogSession((k) => k + 1)
+      setTodoDialogOpen(true)
+    },
+    [customerId],
+  )
+
   /*
    * `confirmDialog` 는 `mobile-modal-overlay` **바깥** 형제로 렌더한다.
    *   - overlay 안에 두면 backdrop 클릭이 overlay(onClose) 로 버블돼 모달이
@@ -169,11 +196,25 @@ export default function CustomerConsultationsModal({
                 onSetConsultDate={setConsultDate}
                 onSubmit={handleSubmit}
                 onDelete={handleDelete}
+                onAddTodoFromConsultation={openTodoFromConsultation}
               />
             </div>
           </div>
         </div>
       </div>
+      <TodoEditorDialog
+        open={todoDialogOpen}
+        usePortal
+        onClose={() => {
+          setTodoDialogOpen(false)
+          setTodoPrefill(null)
+        }}
+        token={token ?? ''}
+        gaId={gaIdNumeric}
+        sessionKey={todoDialogSession}
+        prefill={todoPrefill}
+        onCommitted={() => {}}
+      />
       {confirmDialog}
     </>
   )

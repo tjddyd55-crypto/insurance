@@ -15,13 +15,22 @@ import { localYmd } from '../utils/consultationBodyFormat'
 import CustomerConsultationsPageMobile from './detail/CustomerConsultationsPageMobile'
 import CustomerConsultationsPagePC from './detail/CustomerConsultationsPagePC'
 import type { CustomerConsultationsViewProps } from './detail/customerConsultationsViewProps'
+import { TodoEditorDialog, type TodoCreatePrefill } from '../../todos/components/TodoEditorDialog'
+import { firstLineTodoTitle } from '../../todos/utils/todoCopy'
+import { suggestDueDateFromText } from '../../todos/utils/suggestDueDateFromText'
 
 export default function CustomerConsultationsPage() {
   const { customerId } = useParams()
   const navigate = useNavigate()
   const resolvedCustomerId = Number(customerId)
-  const { token } = useAuth()
+  const { token, user } = useAuth()
+  const gaIdNumeric =
+    user?.gaId != null && Number.isFinite(Number(user.gaId)) ? Number(user.gaId) : null
   const { confirm, confirmDialog } = useConfirmDialog()
+
+  const [todoDialogOpen, setTodoDialogOpen] = useState(false)
+  const [todoDialogSession, setTodoDialogSession] = useState(0)
+  const [todoPrefill, setTodoPrefill] = useState<TodoCreatePrefill | null>(null)
   const [rows, setRows] = useState<CustomerConsultationRow[]>([])
   const [body, setBody] = useState('')
   const [consultDate, setConsultDate] = useState(() => localYmd())
@@ -109,6 +118,25 @@ export default function CustomerConsultationsPage() {
     }
   }
 
+  const openTodoFromConsultation = useCallback(
+    (consultId: number, plainBody: string) => {
+      const bodyText = plainBody.trim() || '(상담 내용 없음)'
+      setTodoPrefill({
+        sourceType: 'consultation_note',
+        sourceId: String(consultId),
+        title: firstLineTodoTitle(bodyText),
+        description: bodyText,
+        dueDate: suggestDueDateFromText(bodyText),
+        relatedEntityType: 'customer',
+        relatedEntityId: String(resolvedCustomerId),
+        lockRelated: true,
+      })
+      setTodoDialogSession((k) => k + 1)
+      setTodoDialogOpen(true)
+    },
+    [resolvedCustomerId],
+  )
+
   if (!validId) {
     return (
       <div className="content-wrapper page-shell">
@@ -147,6 +175,7 @@ export default function CustomerConsultationsPage() {
     onSetConsultDate: setConsultDate,
     onSubmit: onSubmitConsultation,
     onDelete: onDeleteConsultation,
+    onAddTodoFromConsultation: openTodoFromConsultation,
   }
 
   return (
@@ -155,6 +184,20 @@ export default function CustomerConsultationsPage() {
         PC={CustomerConsultationsPagePC}
         Mobile={CustomerConsultationsPageMobile}
         viewProps={viewProps}
+      />
+      <TodoEditorDialog
+        open={todoDialogOpen}
+        onClose={() => {
+          setTodoDialogOpen(false)
+          setTodoPrefill(null)
+        }}
+        token={token ?? ''}
+        gaId={gaIdNumeric}
+        sessionKey={todoDialogSession}
+        prefill={todoPrefill}
+        onCommitted={() => {
+          /* 목록 새로고침은 할 일 페이지에서 처리; 상담 화면은 그대로 */
+        }}
       />
       {confirmDialog}
     </>

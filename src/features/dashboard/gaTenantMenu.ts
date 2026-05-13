@@ -118,6 +118,10 @@ export function buildGaTenantDashboardMenu(
     { type: 'link', label: '고객리스트', path: '/customers' },
     { type: 'link', label: '청구관리', path: '/claim-requests' },
 
+    { type: 'section', label: '알림 및 할 일' },
+    { type: 'link', label: '할 일', path: '/todos' },
+    { type: 'link', label: '알림', path: '/notifications' },
+
     { type: 'section', label: '소식지' },
     { type: 'link', label: '고객 소식지', path: '/claim-requests?claimTab=news-all' },
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },

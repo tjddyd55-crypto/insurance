@@ -2660,6 +2660,55 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS todos (
+      id BIGSERIAL PRIMARY KEY,
+      tenant_id INTEGER REFERENCES tenants(id) ON DELETE SET NULL,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      assignee_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      title VARCHAR(500) NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      due_date DATE,
+      due_time TIME,
+      status TEXT NOT NULL DEFAULT 'pending',
+      priority TEXT NOT NULL DEFAULT 'normal',
+      source_type TEXT NOT NULL DEFAULT 'manual',
+      source_id TEXT,
+      related_entity_type TEXT,
+      related_entity_id TEXT,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      completed_at TIMESTAMPTZ,
+      canceled_at TIMESTAMPTZ,
+      CONSTRAINT todos_status_chk CHECK (status IN ('pending', 'completed', 'canceled')),
+      CONSTRAINT todos_priority_chk CHECK (priority IN ('low', 'normal', 'high')),
+      CONSTRAINT todos_source_type_chk CHECK (
+        source_type IN (
+          'manual',
+          'customer_memo',
+          'consultation_note',
+          'pdf_document',
+          'e_document',
+          'system'
+        )
+      )
+    )
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_todos_ga_owner_status_due
+    ON todos (ga_id, owner_user_id, status, due_date)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_todos_ga_assignee_status_due
+    ON todos (ga_id, assignee_user_id, status, due_date)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_todos_ga_updated
+    ON todos (ga_id, updated_at DESC)
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_files (
       id BIGSERIAL PRIMARY KEY,
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,

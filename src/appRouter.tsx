@@ -97,6 +97,8 @@ import { LossAdjusterNewsletterHubPage } from './features/insurer-news/pages/Los
 import { LossAdjusterNewsletterPortalLayout } from './features/insurer-news/pages/LossAdjusterNewsletterPortalLayout'
 import MemoRoutePage from './features/memo/pages/MemoRoutePage'
 import MyStoragePage from './features/storage/pages/MyStoragePage'
+import TodosWorkspacePage from './features/todos/pages/TodosWorkspacePage'
+import NotificationsPlaceholderPage from './features/todos/pages/NotificationsPlaceholderPage'
 import AppWorkspaceLayout from './layouts/AppWorkspaceLayout'
 import ClaimRequestsRoutePage from './features/claim-requests/pages/ClaimRequestsRoutePage'
 import CustomerAppConnectPage from './features/customer-app/pages/CustomerAppConnectPage'
@@ -277,6 +279,8 @@ export const appRouter = createBrowserRouter([
                 ],
               },
               { path: 'storage', element: <MyStoragePage /> },
+              { path: 'todos', element: <TodosWorkspacePage /> },
+              { path: 'notifications', element: <NotificationsPlaceholderPage /> },
               { path: 'team/members', element: <TeamMembersPage /> },
               { path: 'team/manage', element: <Navigate to="/team/members" replace /> },
               { path: 'team/menu-settings', element: <Navigate to="/team/members" replace /> },

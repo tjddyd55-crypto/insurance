@@ -78,6 +78,12 @@ function isActivePath(pathname: string, itemPath: string): boolean {
   if (itemPath === '/profile') {
     return pathname === '/profile'
   }
+  if (itemPath === '/todos') {
+    return pathname === '/todos'
+  }
+  if (itemPath === '/notifications') {
+    return pathname === '/notifications'
+  }
   if (itemPath.startsWith('/internal/')) {
     return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
   }
