@@ -1,0 +1,7 @@
+# EAS 업로드 아카이브 축소 (로컬 빌드 산출물·캐시는 서버에서 재생성)
+node_modules/
+android/app/build/
+android/build/
+android/.gradle/
+.expo/
+**/.DS_Store

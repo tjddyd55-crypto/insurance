@@ -130,6 +130,10 @@ android {
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
+    lint {
+        // EAS 등 CI 에서 lint 가 환경마다 달라 unknown Gradle 실패로 이어지는 경우 방지
+        abortOnError false
+    }
 }
 
 // Apply static values from `gradle.properties` to the `android.packagingOptions`

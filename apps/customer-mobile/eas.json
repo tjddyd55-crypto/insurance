@@ -23,7 +23,8 @@
         "EXPO_PUBLIC_CUSTOMER_APP_URL": "https://insurance-production-7bd8.up.railway.app/customer-app"
       },
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "resourceClass": "large"
       }
     }
   },
