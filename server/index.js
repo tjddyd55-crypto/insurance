@@ -6297,9 +6297,10 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
     }
 
     const plc = vis.params.length
-    const lcUserPlace = `$${plc + 2}`
-    const lcGaPlace = `$${plc + 3}`
-    const limitPlace = `$${plc + 4}`
+    // listParams = [...vis.params, userId, gaId, limit] → placeholders $1..$plc, then userId, gaId, limit
+    const lcUserPlace = `$${plc + 1}`
+    const lcGaPlace = `$${plc + 2}`
+    const limitPlace = `$${plc + 3}`
     const listParams = [...vis.params, userId, gaId, limit]
 
     const [result, countResult] = await Promise.all([
@@ -6319,12 +6320,12 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
             cc.customer_id,
             MAX(cc.consultation_date) AS last_consult_date
           FROM customer_consultations cc
-          WHERE cc.user_id = ${lcUserPlace} AND cc.ga_id = ${lcGaPlace}
+          WHERE cc.user_id = ${lcUserPlace}::text AND cc.ga_id = ${lcGaPlace}::integer
           GROUP BY cc.customer_id
         ) lc ON lc.customer_id = c.id
         WHERE (${vis.clause}) AND c.deleted_at IS NULL
         ORDER BY lc.last_consult_date DESC NULLS LAST, c.renewal_date ASC NULLS LAST, c.created_at DESC
-        LIMIT ${limitPlace}
+        LIMIT ${limitPlace}::integer
         `,
         listParams,
       ),
@@ -6401,7 +6402,7 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
           cc.customer_id,
           MAX(cc.consultation_date) AS last_consult_date
         FROM customer_consultations cc
-        WHERE cc.user_id = ${lcUserPlace} AND cc.ga_id = ${lcGaPlace}
+        WHERE cc.user_id = ${lcUserPlace}::text AND cc.ga_id = ${lcGaPlace}::integer
         GROUP BY cc.customer_id
       ) lc ON lc.customer_id = c.id
       WHERE c.id = ${cidPlace} AND (${vis.clause}) AND c.deleted_at IS NULL

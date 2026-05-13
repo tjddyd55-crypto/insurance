@@ -520,12 +520,15 @@ export const PdfApplicantPreviewStack = forwardRef<PdfApplicantPreviewHandle, St
 
     const scrollToField = useCallback(
       (fieldKey: string) => {
-        const pi = pageContainingField(fields, fieldKey)
-        if (pi == null) return
+        const field = fields.find((f) => f.fieldKey === fieldKey)
+        const piRaw = pageIndexForApplicantFocus(field, values)
+        if (piRaw == null || !Number.isFinite(piRaw)) return
+        const pi = Math.trunc(piRaw)
+        if (pi < 0 || pi >= pages) return
         const el = pageAnchorsRef.current[pi]
         el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       },
-      [fields],
+      [fields, pages, values],
     )
 
     useImperativeHandle(refOut, () => ({ scrollToField }), [scrollToField])
