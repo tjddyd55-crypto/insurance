@@ -19,6 +19,7 @@ export default function PdfDocumentApplicantMobileView(props: PdfDocumentApplica
     focusedFieldKey,
     prefillBanner,
     submitting,
+    documentsListPath,
     onChangeValues,
     onChangeFontOverrides,
     onFocusedFieldChange,
@@ -36,7 +37,7 @@ export default function PdfDocumentApplicantMobileView(props: PdfDocumentApplica
   return (
     <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--mobile page--with-back">
       <div className="pdf-engine-page__toolbar">
-        <Link to="/application/documents" className="pdf-engine-editor__btn">
+        <Link to={documentsListPath} className="pdf-engine-editor__btn">
           ← 문서 목록
         </Link>
       </div>

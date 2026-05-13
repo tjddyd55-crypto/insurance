@@ -16,6 +16,7 @@ export default function PdfDocumentApplicantPCView(props: PdfDocumentApplicantVi
     focusedFieldKey,
     prefillBanner,
     submitting,
+    documentsListPath,
     onChangeValues,
     onChangeFontOverrides,
     onFocusedFieldChange,
@@ -25,7 +26,7 @@ export default function PdfDocumentApplicantPCView(props: PdfDocumentApplicantVi
   return (
     <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--pc page--with-back">
       <div className="pdf-engine-page__toolbar">
-        <Link to="/application/documents" className="pdf-engine-editor__btn">
+        <Link to={documentsListPath} className="pdf-engine-editor__btn">
           ← 문서 목록
         </Link>
       </div>

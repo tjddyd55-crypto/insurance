@@ -33,6 +33,7 @@ export type CustomerWorkspaceTab =
   | 'files'
   | 'consultations'
   | 'auto'
+  | 'pdf-documents'
   | 'ga-excel'
   | 'memos'
   | 'claims'
@@ -49,6 +50,9 @@ export type CustomerWorkspaceTab =
 function resolveWorkspacePathTab(pathname: string): CustomerWorkspaceTab | null {
   if (pathname.includes('/claim-requests')) {
     return 'claims'
+  }
+  if (pathname.includes('/application-documents')) {
+    return 'pdf-documents'
   }
   if (pathname.includes('/consultations')) {
     return 'consultations'
@@ -229,7 +233,9 @@ export default function CustomerWorkspaceLayout() {
     if (!selectedCustomerId) {
       return
     }
-    navigate(`/application/documents?customerId=${selectedCustomerId}`)
+    const issuer = selectedCustomerLabel?.trim()
+    const qs = issuer ? `?issuerCustomerName=${encodeURIComponent(issuer)}` : ''
+    navigate(`/customers/${selectedCustomerId}/application-documents${qs}`)
   }
 
   const handleClickGaExcel = () => {

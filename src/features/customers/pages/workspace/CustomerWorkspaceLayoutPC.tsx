@@ -10,6 +10,7 @@ type WorkspaceActiveTab =
   | 'files'
   | 'consultations'
   | 'auto'
+  | 'pdf-documents'
   | 'ga-excel'
   | 'memos'
   | 'claims'
@@ -47,6 +48,9 @@ export type CustomerWorkspaceLayoutPCProps = {
 function rightTitle(pathname: string): string {
   if (pathname.includes('/auto-form')) {
     return '자동차 신청서'
+  }
+  if (pathname.includes('/application-documents')) {
+    return '신청서 작성'
   }
   if (pathname.includes('/files')) {
     return '고객 파일 작업'
@@ -163,7 +167,7 @@ export default function CustomerWorkspaceLayoutPC({
             <FormButton
               htmlType="button"
               variant="action"
-              className={`filter-button${activeTab === 'auto' ? ' filter-button--workspace-active' : ''}`}
+              className={`filter-button${activeTab === 'pdf-documents' ? ' filter-button--workspace-active' : ''}`}
               disabled={!selectedCustomerId}
               onClick={onClickCarForm}
             >

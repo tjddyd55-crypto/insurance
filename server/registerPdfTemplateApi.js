@@ -148,6 +148,18 @@ function isPreviewRenderRequest(req) {
   return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'preview'
 }
 
+/** 스탬핑 결과는 항상 PDF — 템플릿 메타에 남은 xlsx 등 확장자는 표시명에서 제거 후 .pdf 고정 */
+function buildPdfRenderContentDispositionBasename(template) {
+  const pick = String(template?.title ?? template?.code ?? 'document').trim()
+  const noCtrl = pick
+    .replace(/[\r\n\u0000]/g, '')
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/\s+/g, ' ')
+  const stripped = noCtrl.replace(/\.(pdf|xlsx?|docx?|png|jpe?g)$/i, '').trim()
+  const base = (stripped.length ? stripped : 'document').slice(0, 120)
+  return `${base}.pdf`
+}
+
 const PDF_RUNTIME_FIELD_KEY_REGEX = /^[a-z][a-z0-9_]{0,63}$/
 
 function sanitizeClientPdfTemplateValues(raw) {
@@ -704,11 +716,13 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         }
       }
 
-      const filename = encodeURIComponent(`${template.code}.pdf`)
+      const displayBase = buildPdfRenderContentDispositionBasename(template)
+      const filenameStar = encodeURIComponent(displayBase)
+      const asciiFallback = displayBase.replace(/[^\x20-\x7E]/g, '_') || 'document.pdf'
       res.setHeader('Content-Type', 'application/pdf')
       res.setHeader(
         'Content-Disposition',
-        `${previewOnly ? 'inline' : 'attachment'}; filename="document.pdf"; filename*=UTF-8''${filename}`,
+        `${previewOnly ? 'inline' : 'attachment'}; filename="${asciiFallback}"; filename*=UTF-8''${filenameStar}`,
       )
       res.setHeader('Cache-Control', 'private, no-store')
       if (!previewOnly && issuanceId != null) {

@@ -22,6 +22,8 @@ import PdfDocumentApplicantMobileView from './pdf-document/PdfDocumentApplicantM
 import type { PdfDocumentApplicantViewProps } from './pdf-document/pdfDocumentApplicantViewProps'
 import { clampApplicantFontSizePt } from '../lib/pdfApplicantTypography'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
+import { usePdfDocumentsWorkspacePaths } from '../utils/pdfCustomerWorkspacePaths'
+import { buildPdfIssuanceDisplayFilename } from '../utils/pdfIssuanceFilename'
 import '../pdf-engine.css'
 
 function coercePdfFieldSpecForForm(f: PdfFieldSpec & { id?: number }): PdfFieldSpec {
@@ -65,6 +67,12 @@ type SourcePrefillState =
   | { kind: 'error'; message: string }
   | { kind: 'ready'; values: Record<string, string> }
 
+/** fetch 응답 Blob 이 빈 타입이어도 뷰어·다운로드가 PDF 로 인식하도록 고정한다. */
+function coercePdfBlob(blob: Blob): Blob {
+  if (blob && blob.type === 'application/pdf') return blob
+  return new Blob([blob], { type: 'application/pdf' })
+}
+
 /** Blob → 브라우저 다운로드. URL 누수 방지를 위해 즉시 revoke 한다. */
 function triggerDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
@@ -87,6 +95,17 @@ export default function PdfDocumentDetailPage() {
   const [searchParams] = useSearchParams()
   const templateId = Number(idParam)
   const { token } = useAuth()
+  const { listPath, historyPath } = usePdfDocumentsWorkspacePaths()
+
+  const issuerParam = searchParams.get('issuerCustomerName')
+  const issuerCustomerLabel = useMemo(() => {
+    if (!issuerParam?.trim()) return ''
+    try {
+      return decodeURIComponent(issuerParam.trim())
+    } catch {
+      return issuerParam.trim()
+    }
+  }, [issuerParam])
 
   const sourceIssuanceId = useMemo(() => {
     const raw = searchParams.get('sourceIssuanceId')
@@ -219,15 +238,25 @@ export default function PdfDocumentDetailPage() {
     sourcePrefill.kind,
   ])
 
+  const resultPdfFilename = useMemo(() => {
+    if (state.status !== 'ready') return '고객_신청서.pdf'
+    return buildPdfIssuanceDisplayFilename({
+      customerLabel: issuerCustomerLabel || undefined,
+      templateTitle: state.template.title,
+      templateCode: state.template.code,
+    })
+  }, [state, issuerCustomerLabel])
+
   const handleSubmitApplicant = useCallback(
     async (values: Record<string, string>, persistFonts: Record<string, number>) => {
       if (!token || state.status !== 'ready') return
       setSubmitting(true)
       try {
-        const blob = await renderPdfTemplate(token, templateId, values, {
+        const blobRaw = await renderPdfTemplate(token, templateId, values, {
           preview: true,
           fontSizes: Object.keys(persistFonts).length > 0 ? persistFonts : undefined,
         })
+        const blob = coercePdfBlob(blobRaw)
         setPreviewUrl((prev) => {
           if (prev) URL.revokeObjectURL(prev)
           return URL.createObjectURL(blob)
@@ -251,10 +280,10 @@ export default function PdfDocumentDetailPage() {
     setSaving(true)
     setPreviewError(null)
     try {
-      const blob = await renderPdfTemplate(token, templateId, previewValues, {
+      const blobRaw = await renderPdfTemplate(token, templateId, previewValues, {
         fontSizes: Object.keys(previewFonts).length > 0 ? previewFonts : undefined,
       })
-      triggerDownload(blob, `${state.template.code}.pdf`)
+      triggerDownload(coercePdfBlob(blobRaw), resultPdfFilename)
       closePreview()
     } catch (e) {
       const message = e instanceof ApiError ? e.message : 'PDF 저장에 실패했습니다.'
@@ -293,6 +322,7 @@ export default function PdfDocumentDetailPage() {
       focusedFieldKey,
       prefillBanner,
       submitting,
+      documentsListPath: listPath,
       onChangeValues: setApplicantValues,
       onChangeFontOverrides: setFontOverrides,
       onFocusedFieldChange: setFocusedFieldKey,
@@ -306,6 +336,7 @@ export default function PdfDocumentDetailPage() {
     focusedFieldKey,
     prefillBanner,
     submitting,
+    listPath,
     handleSubmitApplicant,
   ])
 
@@ -321,7 +352,7 @@ export default function PdfDocumentDetailPage() {
       <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--pc page--with-back">
         <div className="pdf-engine-page__error">{state.message}</div>
         <div className="pdf-engine-page__toolbar">
-          <Link to="/application/documents" className="pdf-engine-editor__btn">
+          <Link to={listPath} className="pdf-engine-editor__btn">
             ← 문서 목록
           </Link>
           <FormButton
@@ -345,7 +376,7 @@ export default function PdfDocumentDetailPage() {
     return (
       <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--mobile page--with-back">
         <div className="pdf-engine-page__toolbar">
-          <Link to="/application/documents" className="pdf-engine-editor__btn">
+          <Link to={listPath} className="pdf-engine-editor__btn">
             ← 문서 목록
           </Link>
         </div>
@@ -362,10 +393,10 @@ export default function PdfDocumentDetailPage() {
     return (
       <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--mobile page--with-back">
         <div className="pdf-engine-page__toolbar">
-          <Link to="/application/documents" className="pdf-engine-editor__btn">
+          <Link to={listPath} className="pdf-engine-editor__btn">
             ← 문서 목록
           </Link>
-          <Link to="/application/documents/history" className="pdf-engine-editor__btn">
+          <Link to={historyPath} className="pdf-engine-editor__btn">
             과거 작성 목록
           </Link>
         </div>
@@ -401,18 +432,21 @@ export default function PdfDocumentDetailPage() {
           if (saving) return
           closePreview()
         }}
-        ariaLabel="PDF 결과 미리보기"
+        ariaLabel={`PDF 결과 미리보기 · ${resultPdfFilename}`}
         panelClassName="pdf-engine-preview-modal"
       >
         <div className="pdf-engine-preview">
           <header className="pdf-engine-preview__header">
             <h3>결과 미리보기</h3>
+            <p className="pdf-engine-preview__filename" title={resultPdfFilename}>
+              파일: {resultPdfFilename}
+            </p>
             <p>내용을 확인한 뒤 저장하거나, 수정으로 돌아갈 수 있습니다.</p>
           </header>
           {previewError ? <div className="pdf-engine-page__error">{previewError}</div> : null}
           <div className="pdf-engine-preview__frame-wrap">
             {previewUrl ? (
-              <iframe title="PDF 미리보기" src={previewUrl} className="pdf-engine-preview__frame" />
+              <iframe title={resultPdfFilename} src={previewUrl} className="pdf-engine-preview__frame" />
             ) : (
               <p className="pdf-engine-page__hint">미리보기 파일을 준비하지 못했습니다.</p>
             )}

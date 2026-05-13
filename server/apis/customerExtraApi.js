@@ -608,7 +608,7 @@ async function getOwnedStorageFile(pool, fileId, userId, gaId) {
   return row.rowCount > 0 ? row.rows[0] : null
 }
 
-async function resolveStorageCustomerScope(pool, res, userId, gaId, rawCustomerId, opts = {}) {
+async function resolveStorageCustomerScope(req, pool, res, userId, gaId, rawCustomerId, opts = {}) {
   const required = opts.required === true
   const provided = rawCustomerId != null && String(rawCustomerId).trim() !== ''
   if (!provided) {
@@ -1105,6 +1105,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
 
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     const scope = await resolveStorageCustomerScope(
+      req,
       pool,
       res,
       userId,
@@ -1281,6 +1282,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       return
     }
     const scope = await resolveStorageCustomerScope(
+      req,
       pool,
       res,
       userId,
@@ -1465,6 +1467,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     }
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     const scope = await resolveStorageCustomerScope(
+      req,
       pool,
       res,
       userId,
@@ -1563,6 +1566,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
     }
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     const scope = await resolveStorageCustomerScope(
+      req,
       pool,
       res,
       userId,
@@ -1838,6 +1842,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       return
     }
     const scope = await resolveStorageCustomerScope(
+      req,
       pool,
       res,
       userId,

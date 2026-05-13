@@ -6061,8 +6061,20 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
 
     if (hasKey('isFavorite') || hasKey('is_favorite')) {
       const v = hasKey('isFavorite') ? data.isFavorite : data.is_favorite
+      let b = null
+      if (v === true) b = true
+      else if (v === false) b = false
+      else if (typeof v === 'string') {
+        const s = v.trim().toLowerCase()
+        if (s === 'true') b = true
+        else if (s === 'false') b = false
+      }
+      if (b === null) {
+        res.status(400).json({ message: '즐겨찾기(isFavorite) 값은 true/false만 허용됩니다.' })
+        return
+      }
       parts.push(`is_favorite = $${n++}`)
-      vals.push(v === true)
+      vals.push(b)
     }
 
     if (hasKey('notes')) {
@@ -6109,7 +6121,7 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       `
       UPDATE customers
       SET ${parts.join(', ')}
-      WHERE ${idPh} AND (${visWhere}) AND deleted_at IS NULL
+      WHERE id = ${idPh}::integer AND (${visWhere}) AND deleted_at IS NULL
       RETURNING
         id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,

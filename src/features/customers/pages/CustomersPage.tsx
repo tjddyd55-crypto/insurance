@@ -861,9 +861,14 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   const handleOpenAutoModal = useCallback(
     (customerId: number) => {
-      navigate(`/application/documents?customerId=${customerId}`)
+      const hit =
+        customers.find((c) => c.id === customerId) ??
+        advSearchHits?.find((c) => c.id === customerId)
+      const name = hit?.name?.trim() ?? ''
+      const qs = name ? `?issuerCustomerName=${encodeURIComponent(name)}` : ''
+      navigate(`/customers/${customerId}/application-documents${qs}`)
     },
-    [navigate],
+    [navigate, customers, advSearchHits],
   )
 
   const handleOpenGaModal = useCallback(

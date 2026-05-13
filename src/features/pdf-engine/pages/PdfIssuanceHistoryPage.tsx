@@ -19,6 +19,11 @@ import {
   listPdfIssuances,
   type PdfIssuanceSummary,
 } from '../api/pdfTemplateApi'
+import {
+  appendQueryToHref,
+  buildPdfDocumentDetailHref,
+  usePdfDocumentsWorkspacePaths,
+} from '../utils/pdfCustomerWorkspacePaths'
 import '../pdf-engine.css'
 
 /** Blob → 브라우저 다운로드 트리거. URL 누수 방지를 위해 즉시 revoke. */
@@ -104,9 +109,11 @@ export default function PdfIssuanceHistoryPage() {
     (row: PdfIssuanceSummary) => {
       const tid = row.templateId
       if (tid == null || !Number.isInteger(tid) || tid < 1) return
-      navigate(`/application/documents/${tid}?sourceIssuanceId=${row.id}`)
+      const base = buildPdfDocumentDetailHref(workspaceCustomerId, tid)
+      const extra = [`sourceIssuanceId=${row.id}`, issuerQuerySuffix.trim()].filter(Boolean).join('&')
+      navigate(appendQueryToHref(base, extra))
     },
-    [navigate],
+    [issuerQuerySuffix, navigate, workspaceCustomerId],
   )
 
   return (

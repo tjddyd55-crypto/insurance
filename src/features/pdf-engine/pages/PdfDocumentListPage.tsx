@@ -5,19 +5,32 @@
  * 발급/폼은 상세 페이지로 위임하여 "목록은 네비게이션, 상세는 작업" 경계를 유지한다.
  */
 
-import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ApiError } from '../../../lib/apiClient'
 import { parseSelectedCustomerId } from '../../customers/utils/customerWorkspaceNavigation'
 import { useAuth } from '../../auth/AuthProvider'
 import { listPdfTemplates } from '../api/pdfTemplateApi'
 import type { PdfTemplateSummary } from '../types'
+import {
+  appendQueryToHref,
+  buildPdfDocumentDetailHref,
+  usePdfDocumentsWorkspacePaths,
+} from '../utils/pdfCustomerWorkspacePaths'
 import '../pdf-engine.css'
 
 export default function PdfDocumentListPage() {
   const { token } = useAuth()
+  const params = useParams<{ customerId?: string }>()
   const [searchParams] = useSearchParams()
-  const linkedCustomerId = parseSelectedCustomerId(searchParams.get('customerId'))
+  const { workspaceCustomerId, historyPath, issuerQuerySuffix } = usePdfDocumentsWorkspacePaths()
+
+  const linkedCustomerId = useMemo(() => {
+    const fromPath = parseSelectedCustomerId(params.customerId ?? null)
+    if (fromPath != null) return fromPath
+    return parseSelectedCustomerId(searchParams.get('customerId'))
+  }, [params.customerId, searchParams])
+
   const [rows, setRows] = useState<PdfTemplateSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -56,12 +69,13 @@ export default function PdfDocumentListPage() {
         발급할 수 있습니다.
       </p>
       <p className="pdf-engine-page__hint">
-        <Link to="/application/documents/history">과거 작성·발급 목록(다운로드) →</Link>
+        <Link to={historyPath}>과거 작성·발급 목록(다운로드) →</Link>
       </p>
       {linkedCustomerId != null ? (
         <p className="pdf-engine-page__hint" role="status">
-          참고: 고객 #{linkedCustomerId}에서 이동했습니다. 문서와 고객 카드 자동 연동은 다음 단계에서
-          붙일 예정입니다.
+          {workspaceCustomerId != null
+            ? `고객 작업 영역 · 고객 #${linkedCustomerId}`
+            : `참고: 고객 #${linkedCustomerId}에서 이동했습니다. 문서와 고객 카드 자동 연동은 다음 단계에서 붙일 예정입니다.`}
         </p>
       ) : null}
       {loading ? <p className="pdf-engine-page__hint">불러오는 중…</p> : null}
@@ -73,7 +87,10 @@ export default function PdfDocumentListPage() {
       <ul className="pdf-engine-doc-list">
         {rows.map((r) => (
           <li key={r.id} className="pdf-engine-doc-list__item">
-            <Link to={`/application/documents/${r.id}`} className="pdf-engine-doc-list__link">
+            <Link
+              to={appendQueryToHref(buildPdfDocumentDetailHref(workspaceCustomerId, r.id), issuerQuerySuffix)}
+              className="pdf-engine-doc-list__link"
+            >
               <strong>{r.title}</strong>
               {r.description ? (
                 <span className="pdf-engine-editor__field-meta">{r.description}</span>
