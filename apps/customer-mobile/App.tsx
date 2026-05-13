@@ -11,10 +11,15 @@ import { ExpoUpdateOverlay, type ExpoUpdatePhase } from './components/ExpoUpdate
 const CUSTOMER_HOME_URL = 'https://insurance-production-7bd8.up.railway.app/customer-app'
 const SERVICE_HOST = new URL(CUSTOMER_HOME_URL).hostname
 
+/**
+ * incognito 를 켜면(특히 Android WebView) localStorage/DOM Storage 가 세션 단위로 격리되거나
+ * 쓰기가 반영되지 않는 경우가 있어, 고객앱(/customer-app) 세션(customerAppSession)이 남지 않고
+ * 홈·연결 화면이 깨지는 문제가 발생할 수 있다. 캐시 무효화만 유지하고 비시크릿 컨텍스트를 쓴다.
+ */
 const WEBVIEW_ALWAYS_FRESH_PROPS = {
   cacheEnabled: false,
   cacheMode: 'LOAD_NO_CACHE' as const,
-  incognito: true,
+  incognito: false,
 }
 
 const WEB_FETCH_BYPASS_CACHE_HEADERS = {
