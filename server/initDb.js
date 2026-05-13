@@ -789,9 +789,12 @@ async function ensureCrmPlatformMetaSchema(executor) {
     )
   `)
   await executor.query(`
+    DROP INDEX IF EXISTS idx_user_auth_sessions_user_active
+  `)
+  await executor.query(`
     CREATE INDEX IF NOT EXISTS idx_user_auth_sessions_user_active
-    ON user_auth_sessions (user_id)
-    WHERE revoked_at IS NULL AND expires_at > NOW()
+    ON user_auth_sessions (user_id, expires_at DESC)
+    WHERE revoked_at IS NULL
   `)
 
   await executor.query(`
