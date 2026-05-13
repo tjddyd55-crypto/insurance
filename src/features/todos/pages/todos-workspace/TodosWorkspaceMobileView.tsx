@@ -8,6 +8,16 @@ import type { TodosWorkspaceViewProps } from './todosWorkspaceViewProps'
 
 const CARD = 'rounded-xl border border-[#1e293b] bg-[#111827] p-3'
 
+const FILTER_CHIP =
+  'todo-filter-chip text-xs px-2 py-1 rounded-lg border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3b82f6]'
+const FILTER_INACTIVE = 'todo-filter-chip--inactive border-[#334155] bg-[#020617] text-[#e5e7eb]'
+const FILTER_ACTIVE =
+  'todo-filter-chip--active border-[#2563eb] bg-[#2563eb] text-white shadow-[0_0_0_1px_rgba(37,99,235,0.4)]'
+
+function filterChipClass(active: boolean): string {
+  return `${FILTER_CHIP} ${active ? FILTER_ACTIVE : FILTER_INACTIVE}`
+}
+
 export default function TodosWorkspaceMobileView({
   todos,
   loading,
@@ -57,9 +67,7 @@ export default function TodosWorkspaceMobileView({
             <button
               key={k}
               type="button"
-              className={`text-xs px-2 py-1 rounded-lg border ${
-                quickFilter === k ? 'border-[#2563eb] bg-[#1e3a8a]' : 'border-[#334155] bg-[#020617]'
-              }`}
+              className={filterChipClass(quickFilter === k)}
               onClick={() => setQuickFilter(k)}
             >
               {label}
@@ -77,28 +85,34 @@ export default function TodosWorkspaceMobileView({
             <button
               key={k}
               type="button"
-              className={`text-xs px-2 py-1 rounded-lg border ${
-                relatedFilter === k ? 'border-[#2563eb] bg-[#1e3a8a]' : 'border-[#334155] bg-[#020617]'
-              }`}
+              className={filterChipClass(relatedFilter === k)}
               onClick={() => setRelatedFilter(k)}
             >
               {label}
             </button>
           ))}
         </div>
-        <select
-          className="w-full rounded-lg border border-[#334155] bg-[#020617] text-[#f8fafc] text-xs py-2 px-2"
-          value={sourceFilter}
-          onChange={(e) => setSourceFilter(e.target.value)}
-        >
-          <option value="all">출처: 전체</option>
-          <option value="manual">직접 작성</option>
-          <option value="customer_memo">고객 메모</option>
-          <option value="consultation_note">상담 내역</option>
-          <option value="pdf_document">PDF 문서</option>
-          <option value="e_document">전자문서</option>
-          <option value="system">시스템</option>
-        </select>
+        <label className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-[#cbd5e1]">출처</span>
+          <select
+            aria-label="할 일 출처 필터"
+            className={`w-full rounded-lg border text-xs py-2 px-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3b82f6] ${
+              sourceFilter === 'all'
+                ? 'border-[#334155] bg-[#020617] text-[#f8fafc]'
+                : 'border-[#2563eb] bg-[#2563eb] text-white shadow-[0_0_0_1px_rgba(37,99,235,0.35)]'
+            }`}
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+          >
+            <option value="all">출처: 전체</option>
+            <option value="manual">직접 작성</option>
+            <option value="customer_memo">고객 메모</option>
+            <option value="consultation_note">상담 내역</option>
+            <option value="pdf_document">PDF 문서</option>
+            <option value="e_document">전자문서</option>
+            <option value="system">시스템</option>
+          </select>
+        </label>
       </section>
 
       {loading ? (

@@ -8,11 +8,15 @@ import {
 } from '../../utils/todoCopy'
 import type { TodosWorkspaceViewProps } from './todosWorkspaceViewProps'
 
-const FILTER_BUTTON = 'px-2 py-1 text-xs rounded-lg border border-[#334155] bg-[#111827] text-[#e5e7eb]'
-const FILTER_ON = ' border-[#2563eb] bg-[#1e3a8a]'
+const FILTER_CHIP =
+  'todo-filter-chip px-2 py-1 text-xs rounded-lg border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3b82f6]'
+const FILTER_CHIP_INACTIVE =
+  'todo-filter-chip--inactive border-[#334155] bg-[#111827] text-[#e5e7eb] hover:bg-[#1f2937]'
+const FILTER_CHIP_ACTIVE =
+  'todo-filter-chip--active border-[#2563eb] bg-[#2563eb] text-white shadow-[0_0_0_1px_rgba(37,99,235,0.4)]'
 
-function filterButtonClass(on: boolean): string {
-  return `${FILTER_BUTTON}${on ? FILTER_ON : ''}`
+function filterChipClass(active: boolean): string {
+  return `${FILTER_CHIP} ${active ? FILTER_CHIP_ACTIVE : FILTER_CHIP_INACTIVE}`
 }
 
 function sourceTypeOptions() {
@@ -77,7 +81,7 @@ export default function TodosWorkspacePCView({
             <button
               key={k}
               type="button"
-              className={filterButtonClass(quickFilter === k)}
+              className={filterChipClass(quickFilter === k)}
               onClick={() => setQuickFilter(k)}
             >
               {label}
@@ -96,16 +100,21 @@ export default function TodosWorkspacePCView({
             <button
               key={k}
               type="button"
-              className={filterButtonClass(relatedFilter === k)}
+              className={filterChipClass(relatedFilter === k)}
               onClick={() => setRelatedFilter(k)}
             >
               {label}
             </button>
           ))}
-          <label className="ml-auto text-xs text-[#94a3b8] flex items-center gap-2">
-            출처
+          <label className="ml-auto flex flex-col items-end gap-1 text-right min-w-[11rem]">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-[#cbd5e1]">출처</span>
             <select
-              className="rounded-lg border border-[#334155] bg-[#020617] text-[#f8fafc] text-xs py-1 px-2"
+              aria-label="할 일 출처 필터"
+              className={`w-full rounded-lg border text-xs py-1.5 px-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3b82f6] ${
+                sourceFilter === 'all'
+                  ? 'border-[#334155] bg-[#020617] text-[#f8fafc]'
+                  : 'border-[#2563eb] bg-[#2563eb] text-white shadow-[0_0_0_1px_rgba(37,99,235,0.35)]'
+              }`}
               value={sourceFilter}
               onChange={(e) => setSourceFilter(e.target.value)}
             >

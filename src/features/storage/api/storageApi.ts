@@ -1,4 +1,4 @@
-import { ApiError, apiRequest, resolveApiUrl } from '../../../lib/apiClient'
+import { ApiError, apiRequest, resolveAbsoluteApiUrl, resolveApiUrl } from '../../../lib/apiClient'
 
 export type StorageFolderRow = {
   id: number
@@ -325,24 +325,16 @@ export async function downloadStorageFile(token: string, fileId: number): Promis
 }
 
 /**
- * 이미지/PDF 등 브라우저가 볼 수 있는 파일은 새 탭에서 열고, 그 외 파일은 브라우저 기본 동작에 맡긴다.
- * 서버 다운로드 권한 검증을 통과한 blob URL만 사용하므로 원본 저장소 URL을 직접 노출하지 않는다.
- *
- * 브라우저마다 `window.open(blob:)` 이 null 을 반환하며도 탭이 열리는 경우가 있어 오탐 팝업 차단 메시지를 피한다.
- * `File` 로 표시명을 붙인 뒤 `<a target="_blank">` 로 열면 내장 PDF 뷰어 다운로드 파일명에도 유리하다.
+ * 미리보기/새 탭 열기: 짧은 수명 open token 으로 서버가 `Content-Disposition: inline` 과
+ * path 끝 파일명을 주는 GET URL 을 연다. (blob URL 은 Chrome 내장 PDF 뷰어 저장명이 UUID 로 남는다)
  */
 export async function openStorageFile(token: string, fileId: number): Promise<void> {
-  const { blob, fileName } = await fetchStorageFileBlob(token, fileId)
-  const safeBase = fileName?.trim() || `file-${fileId}`
-  const mime = blob.type?.trim() || 'application/octet-stream'
-  const named = new File([blob], safeBase, { type: mime })
-  const objectUrl = URL.createObjectURL(named)
-  const a = document.createElement('a')
-  a.href = objectUrl
-  a.target = '_blank'
-  a.rel = 'noopener noreferrer'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000)
+  assertToken(token)
+  const { openUrl } = await apiRequest<{ openUrl: string }>(`/api/storage/files/${fileId}/open-token`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({}),
+  })
+  const href = resolveAbsoluteApiUrl(openUrl)
+  window.open(href, '_blank', 'noopener,noreferrer')
 }

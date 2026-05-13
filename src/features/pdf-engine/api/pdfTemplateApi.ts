@@ -437,6 +437,36 @@ export async function fetchPdfIssuanceFile(token: string, id: number): Promise<B
 }
 
 /**
+ * 미리보기용: PDF 바이트를 서버에 토큰으로 두고, iframe/window.open 에 붙일 GET URL 을 반환한다.
+ * (blob iframe 은 내장 뷰어 다운로드명이 UUID 로 남는다)
+ */
+export function requestPdfRenderPreviewUrl(
+  token: string,
+  id: number,
+  values: Record<string, string>,
+  options?: { fontSizes?: Record<string, number>; displayFilename?: string },
+): Promise<{ previewUrl: string; downloadFilename: string }> {
+  const payload: {
+    values: Record<string, string>
+    fontSizes?: Record<string, number>
+    displayFilename?: string
+  } = { values }
+  const fs = options?.fontSizes
+  if (fs && typeof fs === 'object' && Object.keys(fs).length > 0) {
+    payload.fontSizes = fs
+  }
+  const df = options?.displayFilename?.trim()
+  if (df) {
+    payload.displayFilename = df
+  }
+  return apiRequest(`/api/pdf-templates/${id}/render-preview`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify(payload),
+  })
+}
+
+/**
  * 입력값을 전송하고 스탬핑된 PDF 바이너리를 받는다.
  * 브라우저에서 다운로드 트리거는 호출측에서 Blob + anchor 로 처리.
  */

@@ -22,6 +22,11 @@ import {
   withR2ObjectRoot,
 } from '../lib/r2KeyPolicy.js'
 import { runStorageUploadOrphanCleanup } from '../lib/storageOrphanCleanup.js'
+import {
+  getStorageOpenMeta,
+  issueStorageOpenToken,
+  toSinglePathFilename,
+} from '../lib/inlinePreviewTokens.js'
 
 const CONSULTATION_BODY_MAX = 20000
 
@@ -298,6 +303,32 @@ function buildAttachmentContentDisposition(displayNameRaw) {
       .slice(0, 200) || 'download'
   const star = encodeURIComponent(name)
   return `attachment; filename="${ascii}"; filename*=UTF-8''${star}`
+}
+
+/**
+ * 인라인 미리보기(새 탭 PDF 뷰어) — filename 이 주소창·뷰어 다운로드 기본명에 반영되도록.
+ * @param {string} displayNameRaw
+ */
+function buildInlineContentDisposition(displayNameRaw) {
+  const name = String(displayNameRaw ?? '').trim() || 'document'
+  const ascii =
+    name
+      .replace(/["\r\n\\]/g, '_')
+      .replace(/[^\x20-\x7E]/g, '_')
+      .trim()
+      .slice(0, 200) || 'document'
+  const star = encodeURIComponent(name)
+  return `inline; filename="${ascii}"; filename*=UTF-8''${star}`
+}
+
+function inferDefaultExtFromStorageFile(file) {
+  const mime = String(file.mime_type ?? '').toLowerCase()
+  if (mime.includes('pdf')) return '.pdf'
+  if (mime.includes('png')) return '.png'
+  if (mime.includes('jpeg')) return '.jpg'
+  if (mime.includes('spreadsheet') || mime.includes('excel') || mime.includes('sheet')) return '.xlsx'
+  if (mime.includes('csv')) return '.csv'
+  return '.bin'
 }
 
 function normalizeGaCodePath(raw) {
@@ -2786,6 +2817,116 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
       res.json(mapCustomerFileRow(upd.rows[0]))
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/storage/files/:fileId/open-token', requireAuth, async (req, res) => {
+    try {
+      if (!isConsentR2Enabled()) {
+        res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+        return
+      }
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
+      const fileId = Number(req.params.fileId)
+      if (!Number.isInteger(fileId) || fileId < 1) {
+        res.status(400).json({ message: '잘못된 파일 ID입니다.' })
+        return
+      }
+      const file = await getOwnedStorageFile(pool, fileId, userId, gaId)
+      if (!file) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      if (file.customer_id != null) {
+        const scope = await assertCustomerFileAccess(pool, req, Number(file.customer_id), res)
+        if (!scope) {
+          return
+        }
+      }
+      const downloadName = String(file.display_name ?? file.original_name ?? '').trim() || 'download'
+      const extHint = inferDefaultExtFromStorageFile(file)
+      const pathSegment = toSinglePathFilename(downloadName, `file-${fileId}`, extHint)
+      const token = issueStorageOpenToken({
+        userId,
+        gaId,
+        fileId,
+        pathSegment,
+        customerId: file.customer_id != null ? Number(file.customer_id) : null,
+      })
+      res.json({
+        openUrl: `/api/storage/files/open/${token}/${encodeURIComponent(pathSegment)}`,
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.get('/storage/files/open/:token/:filename', async (req, res) => {
+    try {
+      if (!isConsentR2Enabled()) {
+        res.status(503).send('Service Unavailable')
+        return
+      }
+      const token = String(req.params.token ?? '').trim()
+      let decoded
+      try {
+        decoded = decodeURIComponent(String(req.params.filename ?? '').trim())
+      } catch {
+        res.status(400).send('Bad Request')
+        return
+      }
+      const meta = getStorageOpenMeta(token)
+      if (!meta) {
+        res.status(410).json({ message: '만료되었거나 유효하지 않은 링크입니다.' })
+        return
+      }
+      if (decoded !== meta.pathSegment) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      const { userId, gaId, fileId, customerId } = meta
+      const file = await getOwnedStorageFile(pool, fileId, userId, gaId)
+      if (!file) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      const fc = file.customer_id != null ? Number(file.customer_id) : null
+      const mc = meta.customerId != null ? Number(meta.customerId) : null
+      if (fc !== mc) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      const objectKey = resolveStorageFileObjectKey(file.file_path)
+      if (!objectKey) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      let buffer
+      try {
+        buffer = await consentGetBuffer(objectKey)
+      } catch (e) {
+        console.warn('[storage open] read failed', fileId, objectKey, e)
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      const downloadName = String(file.display_name ?? file.original_name ?? '').trim() || 'download'
+      const mimeRaw = file.mime_type != null ? String(file.mime_type).trim() : ''
+      const contentType = mimeRaw || 'application/octet-stream'
+      res.setHeader('Content-Type', contentType)
+      res.setHeader('Content-Disposition', buildInlineContentDisposition(downloadName))
+      res.setHeader('Content-Length', String(buffer.length))
+      res.setHeader('Cache-Control', 'private, max-age=300')
+      res.end(buffer)
     } catch (error) {
       handleDbError(error, req, res)
     }

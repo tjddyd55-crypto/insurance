@@ -67,6 +67,11 @@ import {
   putIssuanceObject,
 } from './pdf-engine/storage/pdfIssuanceStorage.js'
 import { canAccessTemplateForUser } from './pdf-engine/security/templateAccess.js'
+import {
+  getPdfPreviewEntry,
+  issuePdfPreviewPdf,
+  toSinglePathFilename,
+} from './lib/inlinePreviewTokens.js'
 
 const uploadPdf = multer({
   storage: multer.memoryStorage(),
@@ -158,6 +163,22 @@ function buildPdfRenderContentDispositionBasename(template) {
   const stripped = noCtrl.replace(/\.(pdf|xlsx?|docx?|png|jpe?g)$/i, '').trim()
   const base = (stripped.length ? stripped : 'document').slice(0, 120)
   return `${base}.pdf`
+}
+
+/**
+ * 인라인 PDF 스트리밍(Content-Disposition) — 토큰 GET URL 용.
+ * @param {string} displayBase
+ */
+function buildInlinePdfContentDisposition(displayBase) {
+  const name = String(displayBase ?? '').trim() || 'document.pdf'
+  const ascii =
+    name
+      .replace(/["\r\n\\]/g, '_')
+      .replace(/[^\x20-\x7E]/g, '_')
+      .trim()
+      .slice(0, 200) || 'document.pdf'
+  const star = encodeURIComponent(name)
+  return `inline; filename="${ascii}"; filename*=UTF-8''${star}`
 }
 
 const PDF_RUNTIME_FIELD_KEY_REGEX = /^[a-z][a-z0-9_]{0,63}$/
@@ -734,6 +755,126 @@ export function registerPdfTemplateApi(apiRouter, deps) {
       console.error('[pdf-templates] render 실패', error)
       const msg = error instanceof Error ? error.message : 'PDF 생성에 실패했습니다.'
       res.status(500).json({ message: msg })
+    }
+  })
+
+  apiRouter.post('/pdf-templates/:id/render-preview', requireAuth, async (req, res) => {
+    const id = parseTemplateId(req.params.id)
+    if (!id) {
+      res.status(400).json({ message: 'id 가 올바르지 않습니다.' })
+      return
+    }
+    try {
+      const template = await getTemplateById(pool, id)
+      if (!canAccessTemplateForRequest(template, req, isSuperAdminRole) || !template.is_active) {
+        res.status(404).json({ message: '템플릿을 찾을 수 없습니다.' })
+        return
+      }
+      const fieldRows = await listFields(pool, id)
+      const fields = fieldRows.map((row) =>
+        normalizeFieldSpec(
+          {
+            fieldKey: row.field_key,
+            label: row.label,
+            fieldType: row.field_type,
+            required: row.required,
+            orderIndex: row.order_index,
+            inputRole: row.input_role,
+            options: Array.isArray(row.options) ? row.options : null,
+            placements: Array.isArray(row.placements) ? row.placements : [],
+          },
+          row.order_index,
+        ),
+      )
+      const valuesRaw =
+        req.body && typeof req.body.values === 'object' && req.body.values !== null
+          ? req.body.values
+          : {}
+      const valuesForInject = sanitizeClientPdfTemplateValues(valuesRaw)
+      const fontOverridesRaw =
+        req.body && typeof req.body.fontSizes === 'object' && req.body.fontSizes !== null
+          ? req.body.fontSizes
+          : {}
+      const needsMapping = fields.some((f) => f.customerMapping)
+      const profile = needsMapping && req.user?.id ? await getCustomerProfile(pool, req.user.id) : null
+      const valuesWithProfile = injectCustomerValues(fields, valuesForInject, profile)
+      const validation = validateRenderValues(fields, valuesWithProfile)
+      if (!validation.ok) {
+        res.status(400).json({ message: validation.error })
+        return
+      }
+      const fontOverrides = sanitizePdfFontOverrides(fields, fontOverridesRaw)
+      const layoutCheck = await assertAllTextLayoutsWithEmbeddedFont(
+        fields,
+        validation.normalized,
+        fontOverrides,
+      )
+      if (!layoutCheck.ok) {
+        res.status(400).json({ message: layoutCheck.message ?? '입력값이 허용된 영역을 초과했습니다.' })
+        return
+      }
+
+      const templateBytes = await getTemplateObject(template.storage_key)
+      const rendered = await stampPdf(
+        templateBytes,
+        fields,
+        validation.normalized,
+        {},
+        fontOverrides,
+      )
+
+      const rawDisplay =
+        req.body && typeof req.body.displayFilename === 'string' ? String(req.body.displayFilename).trim() : ''
+      const pathSegment = toSinglePathFilename(
+        rawDisplay || buildPdfRenderContentDispositionBasename(template),
+        buildPdfRenderContentDispositionBasename(template),
+        '.pdf',
+      )
+      const token = issuePdfPreviewPdf(Buffer.from(rendered), {
+        pathSegment,
+        userId: req.user?.id ? String(req.user.id) : null,
+      })
+      res.json({
+        previewUrl: `/api/pdf-render-previews/${token}/${encodeURIComponent(pathSegment)}`,
+        downloadFilename: pathSegment,
+      })
+    } catch (error) {
+      if (error && typeof error === 'object' && 'httpStatus' in error && error.httpStatus === 400) {
+        res.status(400).json({ message: error instanceof Error ? error.message : '요청이 올바르지 않습니다.' })
+        return
+      }
+      console.error('[pdf-templates] render-preview 실패', error)
+      const msg = error instanceof Error ? error.message : 'PDF 생성에 실패했습니다.'
+      res.status(500).json({ message: msg })
+    }
+  })
+
+  apiRouter.get('/pdf-render-previews/:token/:filename', async (req, res) => {
+    try {
+      const token = String(req.params.token ?? '').trim()
+      let decoded
+      try {
+        decoded = decodeURIComponent(String(req.params.filename ?? '').trim())
+      } catch {
+        res.status(400).send('Bad Request')
+        return
+      }
+      const entry = getPdfPreviewEntry(token)
+      if (!entry) {
+        res.status(410).json({ message: '만료되었거나 유효하지 않은 미리보기입니다.' })
+        return
+      }
+      if (decoded !== entry.pathSegment) {
+        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        return
+      }
+      res.setHeader('Content-Type', 'application/pdf')
+      res.setHeader('Content-Disposition', buildInlinePdfContentDisposition(entry.pathSegment))
+      res.setHeader('Content-Length', String(entry.buffer.length))
+      res.setHeader('Cache-Control', 'private, max-age=300')
+      res.end(entry.buffer)
+    } catch (error) {
+      handleDbError(res, error)
     }
   })
 

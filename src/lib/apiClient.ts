@@ -1,4 +1,5 @@
 import { safeApiResponse } from './safeApiResponse'
+import { getPublicOrigin } from './publicOrigin'
 
 export class ApiError extends Error {
   status: number
@@ -123,6 +124,29 @@ export function resolveApiUrl(path: string): string {
   }
 
   return path
+}
+
+/**
+ * `window.open` / iframe `src` 등 Bearer 헤더 없이 열리는 탭용 절대 URL.
+ * 웹은 상대 경로로도 동작하지만 Electron `file://` 등에서는 origin 결합이 필요하다.
+ */
+export function resolveAbsoluteApiUrl(path: string): string {
+  const resolved = resolveApiUrl(path)
+  if (/^https?:\/\//i.test(resolved)) {
+    return resolved
+  }
+  const origin = getPublicOrigin().trim().replace(/\/$/, '')
+  if (origin) {
+    return `${origin}${resolved.startsWith('/') ? resolved : `/${resolved}`}`
+  }
+  if (
+    typeof window !== 'undefined' &&
+    window.location?.origin &&
+    !/^file:/i.test(window.location.origin)
+  ) {
+    return `${window.location.origin}${resolved.startsWith('/') ? resolved : `/${resolved}`}`
+  }
+  return resolved
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {

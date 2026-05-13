@@ -8,7 +8,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { FormButton } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
-import { ApiError } from '../../../lib/apiClient'
+import { ApiError, resolveAbsoluteApiUrl } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import { getCustomerById } from '../../customers/api/customersApi'
 import {
@@ -144,10 +144,7 @@ export default function PdfDocumentDetailPage() {
     setPreviewValues(null)
     setPreviewFonts({})
     setPreviewError(null)
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl)
-      setPreviewUrl(null)
-    }
+    setPreviewUrl(null)
   }
 
   useEffect(() => {
@@ -298,16 +295,11 @@ export default function PdfDocumentDetailPage() {
       })
       setSubmitting(true)
       try {
-        const blobRaw = await renderPdfTemplate(token, templateId, values, {
-          preview: true,
+        const { previewUrl: relUrl } = await requestPdfRenderPreviewUrl(token, templateId, values, {
           fontSizes: Object.keys(persistFonts).length > 0 ? persistFonts : undefined,
+          displayFilename: previewFilename,
         })
-        const blob = coercePdfBlob(blobRaw)
-        const previewFile = new File([blob], previewFilename, { type: 'application/pdf' })
-        setPreviewUrl((prev) => {
-          if (prev) URL.revokeObjectURL(prev)
-          return URL.createObjectURL(previewFile)
-        })
+        setPreviewUrl(resolveAbsoluteApiUrl(relUrl))
         setPreviewValues(values)
         setPreviewFonts(persistFonts)
         setPreviewError(null)
@@ -339,14 +331,6 @@ export default function PdfDocumentDetailPage() {
       setSaving(false)
     }
   }
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl)
-      }
-    }
-  }, [previewUrl])
 
   const prefillBanner = useMemo<ReactNode>(
     () =>
@@ -493,7 +477,7 @@ export default function PdfDocumentDetailPage() {
               {resultPdfFilename}
             </div>
             <p className="pdf-engine-preview__subtitle">
-              저장 파일명은 위와 동일합니다. 내장 PDF 뷰어 상단에 보이는 이름은 브라우저/OS 표시 차이일 수 있습니다.
+              미리보기는 서버 인라인 URL로 열립니다. 저장·뷰어 내부 다운로드 파일명은 위와 같이 맞춰집니다.
             </p>
           </header>
           {previewError ? <div className="pdf-engine-page__error">{previewError}</div> : null}
