@@ -9,9 +9,10 @@
    *
    * 토큰 구분:
    * 1) **search-adjacent** — `.customers-page__search-row` 안의 `customer-filter-chip`.
-   *    검색 input 과 **같은 행·같은 시각적 높이**(한 줄 정렬).
-   * 2) **inline card action** — 카드 상세 `.customer-detail-action-button`.
-   *    고객명 라인 옆 **작은 인라인** 버튼. 검색 input 높이와 맞추지 않는다.
+   *    검색 input 과 **같은 행·같은 시각적 높이**(38px, 한 줄 정렬).
+   * 2) **inline card action** — 카드 상세 `.customer-detail-action-button.button.button--small`.
+   *    고객명 옆 복사/수정/삭제. 검색행 버튼과 **높이를 공유하지 않지만**,
+   *    텍스트 상·하 여백이 있는 **인라인 버튼 토큰**(약 32px)을 쓴다. 납작한 라벨(26px대)이 되지 않게 한다.
    *
    * 필터 칩 기본: `.button.button--secondary.button--small` + `.customer-filter-chip`
    * =============================================================================
@@ -78,11 +79,11 @@
     min-width: 0;
   }
 
-  /* ─── 카드 내부: 복사 / 수정 / 삭제 (inline card action) ─── */
+  /* ─── 카드 내부: 복사 / 수정 / 삭제 (inline card action, 검색행 38px과 분리) ─── */
   .customers-page--pc .customer-detail-action-button.button.button--small {
-    height: 26px;
-    min-height: 26px;
-    padding: 0 10px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
