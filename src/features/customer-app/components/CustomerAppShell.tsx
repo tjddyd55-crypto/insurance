@@ -102,10 +102,11 @@ export default function CustomerAppShell({ children, title = '고객 앱', showC
       window.clearTimeout(closeGuideTimerRef.current)
       closeGuideTimerRef.current = null
     }
-    closeCustomerApp()
     if (isCustomerAppNativeWebView()) {
+      closeCustomerApp()
       return
     }
+    closeCustomerApp()
     closeGuideTimerRef.current = window.setTimeout(() => {
       setCloseGuideVisible(true)
       closeGuideTimerRef.current = null
