@@ -25,8 +25,8 @@ export type CustomerWorkspaceLayoutPCProps = {
   activeTab: WorkspaceActiveTab
   showCarInsuranceInWorkspace: boolean
   showGaExcelEntry: boolean
-  gaExcelEnabledForDesigner: boolean
-  gaExcelDisabledReason: string | undefined
+  /** 설정 미완료 등 안내용(버튼은 항상 활성 — 고객 선택 시) */
+  gaExcelMenuTitleHint: string | undefined
   onClickFiles: () => void
   onClickConsultations: () => void
   onClickCarForm: () => void
@@ -86,8 +86,7 @@ export default function CustomerWorkspaceLayoutPC({
   activeTab,
   showCarInsuranceInWorkspace,
   showGaExcelEntry,
-  gaExcelEnabledForDesigner,
-  gaExcelDisabledReason,
+  gaExcelMenuTitleHint,
   onClickFiles,
   onClickConsultations,
   onClickCarForm,
@@ -179,8 +178,8 @@ export default function CustomerWorkspaceLayoutPC({
               htmlType="button"
               variant="action"
               className={`filter-button${activeTab === 'ga-excel' ? ' filter-button--workspace-active' : ''}`}
-              disabled={!selectedCustomerId || !gaExcelEnabledForDesigner}
-              title={gaExcelEnabledForDesigner ? undefined : gaExcelDisabledReason}
+              disabled={!selectedCustomerId}
+              title={gaExcelMenuTitleHint}
               onClick={onClickGaExcel}
             >
               GA 고객 데이터 보기
