@@ -767,6 +767,55 @@
   color: inherit;
 }
 
+/*
+ * PDF 신청서 목록은 단독 페이지와 고객 작업영역 embedded에서 같은 컴포넌트를 사용한다.
+ * 고객 작업영역 내부 톤은 .pdf-engine-page--workspace-embedded에서만 조정한다.
+ * 단독 페이지 톤을 바꾸기 위해 이 modifier를 사용하지 않는다.
+ */
+.pdf-engine-page.pdf-engine-page--workspace-embedded {
+  max-width: none;
+  margin: 0;
+  padding: 16px 4px 48px;
+  box-sizing: border-box;
+  background: transparent;
+  color: var(--text-primary, #f8fafc);
+}
+
+.pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-page__title {
+  color: var(--text-primary, #f8fafc);
+}
+
+.pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-page__hint {
+  color: var(--text-secondary, #94a3b8);
+}
+
+.pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-page__hint a {
+  color: var(--link, #60a5fa);
+}
+
+.pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-doc-list {
+  gap: 10px;
+}
+
+.pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-doc-list__item {
+  border: 1px solid var(--border-default, #334155);
+  border-radius: 10px;
+  background: var(--bg-card, #111827);
+}
+
+.pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-doc-list__item:hover {
+  border-color: color-mix(in srgb, var(--primary, #3b82f6) 50%, var(--border-default, #334155));
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.35);
+}
+
+.pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-doc-list__link {
+  color: var(--text-primary, #f8fafc);
+}
+
+.pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-editor__field-meta {
+  color: var(--text-secondary, #94a3b8);
+}
+
 /* ─── 사용자 미리보기 모달 ──────────────────────────────────────── */
 
 .pdf-engine-preview-modal {
