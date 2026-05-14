@@ -3437,6 +3437,30 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 /* ======================================================================
+ * 할 일 PC 테이블 (알림 및 할 일 → 할 일)
+ * ----------------------------------------------------------------------
+ * 컬럼 순서·세로 정렬은 TodosWorkspacePCView 마크업과 짝.
+ * ====================================================================== */
+.todos-page--pc .todos-page--pc__table th,
+.todos-page--pc .todos-page--pc__table td {
+  vertical-align: middle;
+}
+
+.todos-page--pc .todos-page--pc__table .todos-page--pc__th-done,
+.todos-page--pc .todos-page--pc__table .todos-page--pc__td-done {
+  width: 3.25rem;
+  max-width: 3.75rem;
+  text-align: center;
+}
+
+.todos-page--pc .todos-page--pc__table .todos-page--pc__cb-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.5rem;
+}
+
+/* ======================================================================
  * 고객 리스트 상단·필터 칩 버튼 (중요 고객 / 필터 / 정렬 / 퀵필터)
  * ----------------------------------------------------------------------
  * FormButton → `.button.button--secondary.button--small` + `.customer-filter-chip`
@@ -7720,6 +7744,12 @@ a.contacts-public-auth__link {
   display: flex !important;
   align-items: center;
   justify-content: center;
+}
+
+/* 검색행의 중요 고객·필터 칩 — 라벨/아이콘이 버튼 박스 정중앙에 오도록 보정 */
+.customers-page--mobile .customers-page__search-row button.customer-filter-chip.button.button--small {
+  line-height: 1.15;
+  gap: 0;
 }
 
 .customers-page--mobile .customer-expand-summary {
