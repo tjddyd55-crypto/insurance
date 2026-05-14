@@ -59,26 +59,28 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
           autoComplete="off"
           aria-label="이름 또는 전화번호 검색"
         />
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          size="sm"
-          className={`favorite-btn customer-filter-chip${favoriteOnly ? ' favorite-btn--on customer-filter-chip--active' : ''}`}
-          aria-pressed={favoriteOnly}
-          onClick={() => setFavoriteOnly((v) => !v)}
-        >
-          중요 고객
-        </FormButton>
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          size="sm"
-          className={`customers-page__filter-toggle customer-filter-chip${showFilters ? ' customers-page__filter-toggle--on customer-filter-chip--active' : ''}`}
-          aria-expanded={showFilters}
-          onClick={() => setShowFilters((v) => !v)}
-        >
-          필터
-        </FormButton>
+        <div className="customers-page__search-actions" role="group" aria-label="고객 목록 빠른 필터">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            className={`favorite-btn customer-filter-chip${favoriteOnly ? ' favorite-btn--on customer-filter-chip--active' : ''}`}
+            aria-pressed={favoriteOnly}
+            onClick={() => setFavoriteOnly((v) => !v)}
+          >
+            중요 고객
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            className={`customers-page__filter-toggle customer-filter-chip${showFilters ? ' customers-page__filter-toggle--on customer-filter-chip--active' : ''}`}
+            aria-expanded={showFilters}
+            onClick={() => setShowFilters((v) => !v)}
+          >
+            필터
+          </FormButton>
+        </div>
       </div>
     )
   }

@@ -7730,6 +7730,15 @@ a.contacts-public-auth__link {
   margin-bottom: 6px;
 }
 
+.customers-page--mobile .customers-page__search-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
 .customers-page--mobile .customers-page__search-input {
   height: 44px;
   min-height: 44px;
