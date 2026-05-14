@@ -35,7 +35,8 @@ export function resolveCustomerAppWebViewUrl(): string {
     if (href.endsWith('/')) {
       href = href.slice(0, -1)
     }
-    return href
+    u.searchParams.set('appWebView', '1')
+    return u.toString()
   } catch {
     console.warn('[InsuranceCustomerApp] EXPO_PUBLIC_CUSTOMER_APP_URL parse error → default')
     return DEFAULT_CUSTOMER_APP_WEB_URL

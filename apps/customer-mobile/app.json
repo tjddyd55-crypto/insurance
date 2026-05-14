@@ -7,6 +7,7 @@
     "icon": "../mobile/assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "scheme": "insurancecustomer",
     "splash": {
       "image": "../mobile/assets/splash-icon.png",
       "resizeMode": "contain",

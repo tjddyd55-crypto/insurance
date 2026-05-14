@@ -1303,6 +1303,20 @@ async function touchContactLastUpdatedAt(client, gaId = null) {
   )
 }
 
+function buildCustomerAppUniversalLinkOpenUrl(req, linkCode) {
+  const envPage = String(process.env.CUSTOMER_APP_LINK_PAGE_BASE ?? '').trim()
+  const legacy = String(process.env.CUSTOMER_APP_UNIVERSAL_BASE ?? '')
+    .trim()
+    .replace(/\/customer-app\/connect\/?$/i, '/customer-app/link')
+  const fallback = `${req.protocol}://${req.get('host')}/customer-app/link`
+  const base = (envPage || legacy || fallback).replace(/\/+$/, '')
+  return `${base}?code=${encodeURIComponent(String(linkCode))}`
+}
+
+function buildCustomerAppNativeDeepLink(linkCode) {
+  return `insurancecustomer://connect?code=${encodeURIComponent(String(linkCode))}`
+}
+
 const app = express()
 app.use(
   cors({
@@ -1535,12 +1549,9 @@ apiRouter.post('/agent/customer-app-links', requireAuth, async (req, res, next) 
       [agentId, customerId],
     )
 
-    const baseUrl =
-      String(process.env.CUSTOMER_APP_UNIVERSAL_BASE ?? '').trim() ||
-      `${req.protocol}://${req.get('host')}/customer-app/connect`
-
     if (existing.rowCount > 0) {
       const row = existing.rows[0]
+      const lc = String(row.link_code)
       const deviceCountRow = await pool.query(
         `
         SELECT COUNT(*)::int AS c
@@ -1555,9 +1566,9 @@ apiRouter.post('/agent/customer-app-links', requireAuth, async (req, res, next) 
         success: true,
         data: {
           linkId: Number(row.id),
-          linkCode: String(row.link_code),
-          connectUrl: `insurance://customer-app/connect/${String(row.link_code)}`,
-          universalUrl: `${baseUrl}/${String(row.link_code)}`,
+          linkCode: lc,
+          connectUrl: buildCustomerAppNativeDeepLink(lc),
+          universalUrl: buildCustomerAppUniversalLinkOpenUrl(req, lc),
           customerId,
           customerCode,
           status: String(row.status ?? 'active'),
@@ -1602,8 +1613,8 @@ apiRouter.post('/agent/customer-app-links', requireAuth, async (req, res, next) 
       data: {
         linkId: Number(created.id),
         linkCode: String(created.link_code),
-        connectUrl: `insurance://customer-app/connect/${String(created.link_code)}`,
-        universalUrl: `${baseUrl}/${String(created.link_code)}`,
+        connectUrl: buildCustomerAppNativeDeepLink(String(created.link_code)),
+        universalUrl: buildCustomerAppUniversalLinkOpenUrl(req, String(created.link_code)),
         customerId,
         customerCode,
         status: String(created.status ?? 'active'),

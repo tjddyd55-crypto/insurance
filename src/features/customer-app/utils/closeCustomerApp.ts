@@ -1,6 +1,6 @@
 /**
- * 고객앱 [닫기]: WebView 브릿지 → 카카오톡 인앱 스킴 → window.close 계열.
- * 뒤로가기(history.back / navigate(-1))는 사용하지 않는다.
+ * 고객앱 [닫기]: 네이티브 WebView 브릿지 → Android 브릿지 → 카카오톡 인앱 스킴 → window.close 계열.
+ * Expo 고객앱은 `CUSTOMER_APP_CLOSE` 메시지로 WebView 뒤로/홈 처리( App.tsx onMessage ).
  */
 
 type AndroidBridge = {
@@ -26,7 +26,8 @@ export function closeCustomerApp(): void {
   }
 
   if (w.ReactNativeWebView && typeof w.ReactNativeWebView.postMessage === 'function') {
-    w.ReactNativeWebView.postMessage(JSON.stringify({ type: 'CLOSE_CUSTOMER_APP' }))
+    const payload = JSON.stringify({ type: 'CUSTOMER_APP_CLOSE' })
+    w.ReactNativeWebView.postMessage(payload)
     return
   }
 

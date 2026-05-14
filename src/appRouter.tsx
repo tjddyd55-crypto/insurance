@@ -103,6 +103,7 @@ import AppWorkspaceLayout from './layouts/AppWorkspaceLayout'
 import ClaimRequestsRoutePage from './features/claim-requests/pages/ClaimRequestsRoutePage'
 import CustomerAppConnectPage from './features/customer-app/pages/CustomerAppConnectPage'
 import CustomerAppHomePage from './features/customer-app/pages/CustomerAppHomePage'
+import CustomerAppLinkOpenPage from './features/customer-app/pages/CustomerAppLinkOpenPage'
 import CustomerAppRequestComposePage from './features/customer-app/pages/CustomerAppRequestComposePage'
 import CustomerAppRequestsPage from './features/customer-app/pages/CustomerAppRequestsPage'
 import CustomerAppRequestDetailPage from './features/customer-app/pages/CustomerAppRequestDetailPage'
@@ -148,6 +149,7 @@ export const appRouter = createBrowserRouter([
         element: <Outlet />,
         children: [
           { index: true, element: <CustomerAppConnectPage /> },
+          { path: 'link', element: <CustomerAppLinkOpenPage /> },
           { path: 'connect/:linkCode', element: <CustomerAppConnectPage /> },
           {
             element: <CustomerAppMainLayout />,

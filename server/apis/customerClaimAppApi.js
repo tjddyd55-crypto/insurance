@@ -30,6 +30,25 @@ const DEFAULT_PAGE_SIZE = 20
 const MAX_PAGE_SIZE = 100
 
 /**
+ * 고객앱 연결용 https fallback (/customer-app/link?code=…).
+ * @param {import('express').Request} req
+ * @param {string} linkCode
+ */
+function buildCustomerAppUniversalLinkOpenUrl(req, linkCode) {
+  const envPage = String(process.env.CUSTOMER_APP_LINK_PAGE_BASE ?? '').trim()
+  const legacy = String(process.env.CUSTOMER_APP_UNIVERSAL_BASE ?? '')
+    .trim()
+    .replace(/\/customer-app\/connect\/?$/i, '/customer-app/link')
+  const fallback = `${req.protocol}://${req.get('host')}/customer-app/link`
+  const base = (envPage || legacy || fallback).replace(/\/+$/, '')
+  return `${base}?code=${encodeURIComponent(String(linkCode))}`
+}
+
+function buildCustomerAppNativeDeepLink(linkCode) {
+  return `insurancecustomer://connect?code=${encodeURIComponent(String(linkCode))}`
+}
+
+/**
  * @param {unknown} value
  */
 function parsePositiveInt(value) {
@@ -968,19 +987,17 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       }
 
       const existing = await findActiveLink(pool, agentId, finalCustomerId)
-      const baseUrl =
-        String(process.env.CUSTOMER_APP_UNIVERSAL_BASE ?? '').trim() ||
-        `${req.protocol}://${req.get('host')}/customer-app/connect`
       if (existing) {
         const deviceCount = await countActiveDevices(pool, agentId, finalCustomerId)
+        const lc = String(existing.link_code)
         res.json({
           success: true,
           data: {
             linkId: Number(existing.id),
-            linkCode: String(existing.link_code),
-            agentCode: String(existing.link_code),
-            connectUrl: `insurance://customer-app/connect/${String(existing.link_code)}`,
-            universalUrl: `${baseUrl}/${String(existing.link_code)}`,
+            linkCode: lc,
+            agentCode: lc,
+            connectUrl: buildCustomerAppNativeDeepLink(lc),
+            universalUrl: buildCustomerAppUniversalLinkOpenUrl(req, lc),
             customerId: finalCustomerId,
             customerCode,
             status: String(existing.status),
@@ -1031,8 +1048,8 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           linkId: Number(created.id),
           linkCode: String(created.link_code),
           agentCode: String(created.link_code),
-          connectUrl: `insurance://customer-app/connect/${String(created.link_code)}`,
-          universalUrl: `${baseUrl}/${String(created.link_code)}`,
+          connectUrl: buildCustomerAppNativeDeepLink(String(created.link_code)),
+          universalUrl: buildCustomerAppUniversalLinkOpenUrl(req, String(created.link_code)),
           customerId: finalCustomerId,
           customerCode,
           status: String(created.status),
@@ -1062,9 +1079,6 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         res.status(permission.status).json({ message: permission.message })
         return
       }
-      const baseUrl =
-        String(process.env.CUSTOMER_APP_UNIVERSAL_BASE ?? '').trim() ||
-        `${req.protocol}://${req.get('host')}/customer-app/connect`
       const link = await findLatestLink(pool, agentId, customerId)
       if (!link) {
         res.json({
@@ -1082,13 +1096,14 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       const deviceCount = isUsable ? await countActiveDevices(pool, agentId, customerId) : 0
       const connected = Boolean(link.last_connected_at) || deviceCount > 0
       const connectionState = !isUsable ? 'expired' : connected ? 'connected' : 'link_created'
+      const lc = String(link.link_code)
       res.json({
         success: true,
         data: {
           linkId: Number(link.id),
-          linkCode: String(link.link_code),
-          connectUrl: `insurance://customer-app/connect/${String(link.link_code)}`,
-          universalUrl: `${baseUrl}/${String(link.link_code)}`,
+          linkCode: lc,
+          connectUrl: buildCustomerAppNativeDeepLink(lc),
+          universalUrl: buildCustomerAppUniversalLinkOpenUrl(req, lc),
           status,
           connectionState,
           createdAt: link.created_at ? new Date(link.created_at).toISOString() : null,

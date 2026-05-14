@@ -4,6 +4,7 @@ import FormButton from '../../../components/form/FormButton'
 import { getCustomerAppMe } from '../api/customerAppApi'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 import { closeCustomerApp } from '../utils/closeCustomerApp'
+import { isCustomerAppNativeWebView } from '../utils/customerAppEnvironment'
 import '../customer-app.css'
 
 /**
@@ -97,9 +98,13 @@ export default function CustomerAppShell({ children, title = '고객 앱', showC
 
   const handleClose = useCallback(() => {
     setCloseGuideVisible(false)
-    closeCustomerApp()
     if (closeGuideTimerRef.current != null) {
       window.clearTimeout(closeGuideTimerRef.current)
+      closeGuideTimerRef.current = null
+    }
+    closeCustomerApp()
+    if (isCustomerAppNativeWebView()) {
+      return
     }
     closeGuideTimerRef.current = window.setTimeout(() => {
       setCloseGuideVisible(true)

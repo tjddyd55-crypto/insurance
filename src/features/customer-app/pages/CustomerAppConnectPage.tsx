@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput } from '../../../components/form'
 import { ApiError } from '../../../lib/apiClient'
@@ -42,6 +42,7 @@ function hasRequiredDesignatedProfile(prefill: CustomerAppConnectPrefill | null)
 
 export default function CustomerAppConnectPage() {
   const { linkCode: linkCodeParam } = useParams<{ linkCode?: string }>()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const session = useCustomerAppSession()
   const [linkCode, setLinkCode] = useState(String(linkCodeParam ?? '').trim().toUpperCase())
@@ -59,6 +60,18 @@ export default function CustomerAppConnectPage() {
   const [installResult, setInstallResult] = useState('')
 
   const didAutoConnectRef = useRef(false)
+
+  useEffect(() => {
+    const qp = String(searchParams.get('code') ?? searchParams.get('token') ?? '').trim()
+    if (linkCodeParam || !qp) {
+      return
+    }
+    const qs = new URLSearchParams(window.location.search)
+    qs.delete('code')
+    qs.delete('token')
+    const tail = qs.toString() ? `?${qs.toString()}` : ''
+    navigate(`/customer-app/connect/${encodeURIComponent(qp)}${tail}`, { replace: true })
+  }, [linkCodeParam, navigate, searchParams])
 
   useEffect(() => {
     didAutoConnectRef.current = false
@@ -288,6 +301,7 @@ export default function CustomerAppConnectPage() {
     }
     const existing = readCustomerAppSession()
     if (existing?.linkCode?.toUpperCase() === code) {
+      navigate('/customer-app/home', { replace: true })
       return
     }
     if (didAutoConnectRef.current) {
@@ -309,6 +323,7 @@ export default function CustomerAppConnectPage() {
         }
         persistAfterConnect(connected, code, deviceId)
         setServerDesignatedProfileIncomplete(false)
+        navigate('/customer-app/home', { replace: true })
       } catch (autoErr) {
         didAutoConnectRef.current = false
         if (!cancelled) {
@@ -328,7 +343,7 @@ export default function CustomerAppConnectPage() {
     return () => {
       cancelled = true
     }
-  }, [isDesignatedLink, prefill?.isActive, prefillLoading, designatedConnectBlocked, linkCodeParam, persistAfterConnect])
+  }, [isDesignatedLink, prefill?.isActive, prefillLoading, designatedConnectBlocked, linkCodeParam, persistAfterConnect, navigate])
 
   if (linkCodeParam && prefillLoading) {
     return (

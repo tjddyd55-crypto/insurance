@@ -4,7 +4,7 @@ import { Alert, BackHandler, Linking, Platform, StyleSheet, View } from 'react-n
 import { StatusBar } from 'expo-status-bar'
 import * as Updates from 'expo-updates'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { WebView, type WebViewNavigation } from 'react-native-webview'
+import { WebView, type WebViewMessageEvent, type WebViewNavigation } from 'react-native-webview'
 import { AppLayout } from './AppLayout'
 import { ExpoUpdateOverlay, type ExpoUpdatePhase } from './components/ExpoUpdateOverlay'
 import {
@@ -46,14 +46,80 @@ async function openExternal(url: string): Promise<boolean> {
   }
 }
 
+function buildCustomerAppConnectUrl(baseHref: string, linkCode: string): string {
+  const code = encodeURIComponent(linkCode)
+  try {
+    const u = new URL(baseHref)
+    const p = u.pathname.replace(/\/$/, '')
+    u.pathname = `${p}/connect/${code}`
+    return u.toString()
+  } catch {
+    return `${baseHref.replace(/\/?$/, '')}/connect/${code}`
+  }
+}
+
+/** insurancecustomer://connect?code=… 또는 …/connect/CODE */
+function parseInsuranceCustomerDeepLink(url: string): string | null {
+  const raw = String(url ?? '').trim()
+  if (!/^insurancecustomer:\/\//i.test(raw)) {
+    return null
+  }
+  const pathMatch = /^insurancecustomer:\/\/connect\/([^?#/]+)/i.exec(raw)
+  if (pathMatch?.[1]) {
+    try {
+      return decodeURIComponent(pathMatch[1]).trim().toUpperCase()
+    } catch {
+      return pathMatch[1].trim().toUpperCase()
+    }
+  }
+  try {
+    const u = new URL(raw.replace(/^insurancecustomer:/i, 'https:'))
+    const q = u.searchParams.get('code') ?? u.searchParams.get('token')
+    if (q?.trim()) {
+      return q.trim().toUpperCase()
+    }
+  } catch {
+    /* noop */
+  }
+  return null
+}
+
+const applyConnectFromNativeRef = { current: null as null | ((code: string) => void) }
+
 function AppContent() {
   const insets = useSafeAreaInsets()
   const webViewRef = useRef<ElementRef<typeof WebView>>(null)
   const canGoBackRef = useRef(false)
   const currentUrlRef = useRef('')
+  const [webViewUri, setWebViewUri] = useState(CUSTOMER_APP_WEB_VIEW_URL)
 
   useEffect(() => {
     console.log('[InsuranceCustomerApp] WebView 시작 URL:', CUSTOMER_APP_WEB_VIEW_URL)
+  }, [])
+
+  useEffect(() => {
+    applyConnectFromNativeRef.current = (code: string) => {
+      const c = String(code ?? '').trim()
+      if (!c) return
+      const next = buildCustomerAppConnectUrl(CUSTOMER_APP_WEB_VIEW_URL, c)
+      setWebViewUri(next)
+    }
+    return () => {
+      applyConnectFromNativeRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleUrl = (url: string | null) => {
+      if (!url) return
+      const code = parseInsuranceCustomerDeepLink(url)
+      if (code && applyConnectFromNativeRef.current) {
+        applyConnectFromNativeRef.current(code)
+      }
+    }
+    void Linking.getInitialURL().then(handleUrl)
+    const sub = Linking.addEventListener('url', (ev) => handleUrl(ev.url))
+    return () => sub.remove()
   }, [])
 
   useEffect(() => {
@@ -78,17 +144,40 @@ function AppContent() {
 
   const mainWebPaddingTop = Platform.OS === 'ios' ? Math.max(0, insets.top - 7) : Math.max(0, insets.top - 4)
 
+  const handleWebMessage = (event: WebViewMessageEvent) => {
+    try {
+      const data = JSON.parse(String(event.nativeEvent.data ?? '{}')) as { type?: string }
+      const t = data?.type
+      if (t !== 'CUSTOMER_APP_CLOSE' && t !== 'CLOSE_CUSTOMER_APP') {
+        return
+      }
+      if (canGoBackRef.current && webViewRef.current) {
+        webViewRef.current.goBack()
+        return
+      }
+      const home = CUSTOMER_APP_WEB_VIEW_URL
+      if (webViewRef.current) {
+        webViewRef.current.injectJavaScript(`window.location.replace(${JSON.stringify(home)}); true;`)
+      } else {
+        setWebViewUri(home)
+      }
+    } catch {
+      /* noop */
+    }
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" backgroundColor="#0f1115" />
       <View style={[styles.mainWebWrap, { paddingTop: mainWebPaddingTop }]}>
         <WebView
           ref={webViewRef}
-          source={{ uri: CUSTOMER_APP_WEB_VIEW_URL, headers: WEB_FETCH_BYPASS_CACHE_HEADERS }}
+          source={{ uri: webViewUri, headers: WEB_FETCH_BYPASS_CACHE_HEADERS }}
           style={styles.webview}
           javaScriptEnabled
           domStorageEnabled
           {...WEBVIEW_ALWAYS_FRESH_PROPS}
+          onMessage={handleWebMessage}
           onLoadEnd={(e) => {
             const url = e.nativeEvent.url
             if (url) {
@@ -106,6 +195,13 @@ function AppContent() {
             const lower = requestUrl.toLowerCase()
             if (lower.startsWith('tel:') || lower.startsWith('mailto:') || looksLikeFileDownload(requestUrl)) {
               void openExternal(requestUrl)
+              return false
+            }
+            if (/^insurancecustomer:\/\//i.test(requestUrl)) {
+              const code = parseInsuranceCustomerDeepLink(requestUrl)
+              if (code && applyConnectFromNativeRef.current) {
+                applyConnectFromNativeRef.current(code)
+              }
               return false
             }
             try {
