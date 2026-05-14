@@ -7824,6 +7824,60 @@ a.contacts-public-auth__link {
   padding: 10px;
 }
 
+/* 모바일 카드 펼침: 고객앱 링크 pill + 복사 버튼 (목록 전용 — main.tsx 에서 항상 로드되는 index.css) */
+.customers-page--mobile .customer-mobile-expanded-app-link {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0 0 10px;
+  margin: 0 0 10px;
+  border-bottom: 1px solid var(--border-subtle, #1e293b);
+  box-sizing: border-box;
+}
+
+.customers-page--mobile .customer-mobile-expanded-app-link .customer-workspace-layout__claim-link-tools,
+.customers-page--mobile .customer-mobile-expanded-app-link .customer-header-app-link-compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.customers-page--mobile .customer-mobile-expanded-app-link .customer-workspace-app-link-bar__pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 32px;
+  height: 32px;
+  padding: 0 12px;
+  line-height: 1;
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.customers-page--mobile .customer-mobile-expanded-app-link .customer-header-app-link-compact__copy {
+  box-sizing: border-box;
+  min-height: 32px;
+  height: 32px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.customers-page--mobile .customer-mobile-expanded-app-link .customer-workspace-layout__claim-copy-result {
+  flex-basis: 100%;
+  max-width: 100%;
+  text-align: center;
+}
+
 .customers-page--mobile .customer-detail-toolbar {
   align-items: flex-start !important;
   gap: 8px !important;
@@ -7840,30 +7894,53 @@ a.contacts-public-auth__link {
   min-width: min(100%, 4.5rem);
 }
 
+/* 한 줄: 고객명 | 수정·삭제 */
 .customers-page--mobile .customer-detail-toolbar--mobile-actions {
-  flex-direction: column;
-  align-items: stretch;
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+  margin-bottom: 8px;
+  width: 100%;
 }
 
 .customers-page--mobile .customer-detail-toolbar--mobile-actions .customer-detail-toolbar__title {
-  width: 100%;
+  min-width: 0;
+  width: auto;
+  display: flex;
+  align-items: center;
+}
+
+.customers-page--mobile .customer-detail-toolbar--mobile-actions .customer-info-label {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
 }
 
 .customers-page--mobile .customer-detail-action-bar--edit-delete-row {
-  width: 100%;
-  justify-content: stretch;
-  gap: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 6px;
+  width: auto;
 }
 
 .customers-page--mobile .customer-detail-action-bar--edit-delete-row .customer-detail-action-button.button {
-  flex: 1 1 0;
+  flex: 0 0 auto;
   min-width: 0;
-  min-height: 40px;
-  padding-left: 12px;
-  padding-right: 12px;
-  border-radius: 10px;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-sizing: border-box;
 }
 
 .customers-page--mobile .customer-mobile-copy-feedback {
@@ -9623,7 +9700,7 @@ textarea.memo-sticky-note__textarea::placeholder {
    아이콘 버튼은 `.customers-page--pc .customer-card__actions .icon-box button` 등으로만 제한한다.
    ========================= */
 
-.customers-page--mobile button,
+.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__copy):not(.customer-filter-chip):not(.customers-page__action-btn),
 .customers-page--mobile a {
   min-height: unset !important;
   height: auto !important;

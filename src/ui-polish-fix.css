@@ -13,7 +13,7 @@
     gap: 7px 8px !important;
     margin: 8px 0 10px !important;
     padding: 8px 8px 10px !important;
-    border-top: 1px solid color-mix(in srgb, var(--border, #2b3544) 78%, transparent) !important;
+    /* 위쪽 구분선은 생략: `.customer-mobile-expanded-app-link` 의 border-bottom 과 겹쳐 두 줄처럼 보임 */
     border-bottom: 1px solid color-mix(in srgb, var(--border, #2b3544) 78%, transparent) !important;
     background: transparent !important;
   }
