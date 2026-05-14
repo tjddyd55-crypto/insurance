@@ -31,6 +31,41 @@
     font-size: 13px;
   }
 
+  /*
+   * 좌측 고객 목록 패널 — 검색은 전체 폭, 중요/필터는 다음 줄 2열.
+   * 뷰포트가 넓어도 패널 폭은 좁을 수 있어 한 줄 flex nowrap 만으로는 칩이 잘린다.
+   */
+  .customers-page--pc .customers-page__search-row.customer-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+
+  .customers-page--pc .customers-page__search-row.customer-filter-bar > .customers-page__search-input {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .customers-page--pc .customers-page__search-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .customers-page--pc .customers-page__search-actions .customer-filter-chip.button.button--small {
+    width: 100%;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    white-space: nowrap;
+  }
+
   .customers-page--pc .customer-workspace-action-bar {
     display: flex;
     align-items: center;
