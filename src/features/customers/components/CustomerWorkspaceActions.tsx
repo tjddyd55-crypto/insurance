@@ -176,16 +176,16 @@ export function CustomerWorkspaceActions({
           신청서
         </FormButton>
       ) : null}
-      {gaExcelEnabled ? (
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          className="button button--secondary customer-workspace-action-button"
-          onClick={() => onOpenGaModal(customerId)}
-        >
-          GA 데이터 보기
-        </FormButton>
-      ) : null}
+      <FormButton
+        htmlType="button"
+        variant="secondary"
+        className="button button--secondary customer-workspace-action-button"
+        disabled={!gaExcelEnabled}
+        title={!gaExcelEnabled ? 'GA 엑셀 기능이 비활성화되어 있습니다.' : undefined}
+        onClick={() => onOpenGaModal(customerId)}
+      >
+        GA 데이터 보기
+      </FormButton>
     </div>
   )
 }
