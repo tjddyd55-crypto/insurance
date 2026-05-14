@@ -9,6 +9,10 @@ export type BaseDialogProps = {
   panelClassName?: string
   overlayClassName?: string
   initialFocusRef?: React.RefObject<HTMLElement | null>
+  /**
+   * 기본 true. 입력·작성·수정 모달에서는 false 로 두고, Escape 는 필요 시 `onEscapeRequest` 로
+   * 미저장 확인을 거친다(AGENTS.md 모달 UX 규칙).
+   */
   closeOnBackdrop?: boolean
   closeOnEsc?: boolean
   /** 설정 시 Escape 키는 `onClose` 대신 이 콜백만 호출한다(미저장 확인 등). */

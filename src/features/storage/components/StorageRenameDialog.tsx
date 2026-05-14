@@ -21,7 +21,7 @@ export default function StorageRenameDialog({
   onSubmit,
 }: StorageRenameDialogProps) {
   return (
-    <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName="max-w-md">
+    <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName="max-w-md" closeOnBackdrop={false}>
       <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">{title}</div>
       <form
         onSubmit={(event) => {

@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useConfirmDialog } from '../../../components/dialog'
 import { FormTextarea, FormButton } from '../../../components/form'
 import { Button } from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
@@ -89,10 +90,27 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
     )
   }, [memos])
 
-  function closeMemoModal() {
+  const closeMemoModal = useCallback(() => {
     setDraft('')
     setMemoOpen(false)
-  }
+  }, [])
+
+  const requestCloseMemoModal = useCallback(async () => {
+    if (!draft.trim()) {
+      closeMemoModal()
+      return
+    }
+    const ok = await confirm({
+      title: '메모 입력',
+      message: '작성 중인 내용이 있습니다. 닫을까요?',
+      confirmLabel: '닫기',
+      cancelLabel: '계속 작성',
+      tone: 'warning',
+    })
+    if (ok) {
+      closeMemoModal()
+    }
+  }, [closeMemoModal, confirm, draft])
 
   function openMemoModal() {
     setDraft('')
@@ -333,7 +351,19 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
         </ul>
       )}
 
-      <Modal open={memoOpen} onClose={closeMemoModal} ariaLabel="메모 입력">
+      {/*
+       * 입력 모달: 데이터 유실 방지를 위해 바깥(backdrop) 클릭으로 닫지 않는다.
+       * 닫기는 저장 성공·취소·미저장 확인 후에만 수행한다.
+       */}
+      <Modal
+        open={memoOpen}
+        onClose={closeMemoModal}
+        ariaLabel="메모 입력"
+        closeOnBackdrop={false}
+        onEscapeRequest={() => {
+          void requestCloseMemoModal()
+        }}
+      >
         <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">메모 입력</div>
         <FormTextarea
           className="w-full border border-[var(--border-default)] rounded-lg p-2 mb-3 bg-[var(--bg-card)] text-[var(--text-primary)] box-border min-h-[120px]"
@@ -354,6 +384,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
           </Button>
         </div>
       </Modal>
+      {confirmDialog}
     </div>
   )
 })
