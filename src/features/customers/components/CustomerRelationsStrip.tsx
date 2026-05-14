@@ -202,6 +202,26 @@ export function CustomerRelationsStrip({
     minHeight: 36,
   }
 
+  const requestCloseRelationsModal = useCallback(async () => {
+    if (linking) {
+      return
+    }
+    if (!searchQ.trim()) {
+      setModalOpen(false)
+      return
+    }
+    const ok = await confirm({
+      title: '연계 고객 검색',
+      message: '검색어가 입력되어 있습니다. 닫을까요?',
+      confirmLabel: '닫기',
+      cancelLabel: '계속',
+      tone: 'warning',
+    })
+    if (ok) {
+      setModalOpen(false)
+    }
+  }, [confirm, linking, searchQ])
+
   return (
     <section className="customer-relations-strip customer-detail-read__section customer-relations-strip--in-detail mt-5">
       <div className="customer-detail-read__section-header">
@@ -323,11 +343,16 @@ export function CustomerRelationsStrip({
         <div
           className="modal-overlay"
           role="presentation"
-          onClick={() => (linking ? null : setModalOpen(false))}
+          onClick={(e) => {
+            /* 연계 고객 검색: 입력 유실 방지 — backdrop 클릭으로 닫지 않음(명시적 닫기만). */
+            e.stopPropagation()
+          }}
           onKeyDown={(e) => {
-            if (e.key === 'Escape' && !linking) {
-              setModalOpen(false)
+            if (e.key !== 'Escape' || linking) {
+              return
             }
+            e.preventDefault()
+            void requestCloseRelationsModal()
           }}
         >
           <div
@@ -462,7 +487,7 @@ export function CustomerRelationsStrip({
                 variant="action"
                 className="filter-button"
                 disabled={linking}
-                onClick={() => setModalOpen(false)}
+                onClick={() => void requestCloseRelationsModal()}
               >
                 닫기
               </FormButton>

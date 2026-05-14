@@ -1,4 +1,5 @@
 import { type CSSProperties, type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
+import { useConfirmDialog } from '../../../components/dialog'
 import { FormInput, FormTextarea, FormButton } from '../../../components/form'
 import { Button } from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
@@ -33,6 +34,8 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
   const latestRef = useRef<HTMLLIElement | null>(null)
   const pendingScrollRef = useRef(false)
   const draftTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const consultModalBaselineRef = useRef({ date: '' })
+  const { confirm, confirmDialog } = useConfirmDialog()
 
   const fetchPage = useCallback(
     async (startOffset: number, append: boolean) => {
@@ -96,11 +99,32 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
   }, [consultModalOpen])
 
   function openConsultModal() {
+    const today = localYmd()
+    consultModalBaselineRef.current = { date: today }
     setModalError('')
-    setConsultDate(localYmd())
+    setConsultDate(today)
     setDraft('')
     setConsultModalOpen(true)
   }
+
+  const requestCloseConsultModal = useCallback(async () => {
+    const dirty =
+      draft.trim().length > 0 || consultDate !== consultModalBaselineRef.current.date
+    if (!dirty) {
+      setConsultModalOpen(false)
+      return
+    }
+    const ok = await confirm({
+      title: '상담 입력',
+      message: '작성 중인 내용이 있습니다. 닫을까요?',
+      confirmLabel: '닫기',
+      cancelLabel: '계속 작성',
+      tone: 'warning',
+    })
+    if (ok) {
+      setConsultModalOpen(false)
+    }
+  }, [confirm, consultDate, draft])
 
   const onModalSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -264,6 +288,10 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
         onClose={() => setConsultModalOpen(false)}
         ariaLabel="상담 입력"
         initialFocusRef={draftTextareaRef}
+        closeOnBackdrop={false}
+        onEscapeRequest={() => {
+          void requestCloseConsultModal()
+        }}
       >
         <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">상담 입력</div>
         <form onSubmit={(ev) => void onModalSubmit(ev)}>
@@ -297,7 +325,7 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
             </p>
           ) : null}
           <div className="flex gap-2 justify-end flex-wrap">
-            <Button type="button" variant="secondary" onClick={() => setConsultModalOpen(false)}>
+            <Button type="button" variant="secondary" onClick={() => void requestCloseConsultModal()}>
               취소
             </Button>
             <Button type="submit" disabled={saving}>
@@ -306,6 +334,7 @@ export function CustomerConsultationSection({ customerId, token, onMutated }: Pr
           </div>
         </form>
       </Modal>
+      {confirmDialog}
     </div>
   )
 }
