@@ -1,9 +1,20 @@
 @media (min-width: 1024px) {
   /*
-   * PC 고객관리 필터/정렬/퀵필터 UI
+   * =============================================================================
+   * PC 고객관리 좌측 목록 패널 — 검색행·필터 칩·카드 인라인 액션 (SSOT)
+   * =============================================================================
    *
-   * 필터 칩은 공용 `.button.button--secondary.button--small` + `.customer-filter-chip` 를 쓴다.
-   * 이 파일은 PC 레이아웃(행 간격)과 PC에서만 미세 조정할 치수만 담는다.
+   * 이 파일이 다음 UI의 **최종 소유**다. `ui-polish-fix.css` / `mobile-ui-foundation.css`
+   * 에서 이 영역을 임시로 덮어쓰지 않는다(회귀 방지).
+   *
+   * 토큰 구분:
+   * 1) **search-adjacent** — `.customers-page__search-row` 안의 `customer-filter-chip`.
+   *    검색 input 과 **같은 행·같은 시각적 높이**(한 줄 정렬).
+   * 2) **inline card action** — 카드 상세 `.customer-detail-action-button`.
+   *    고객명 라인 옆 **작은 인라인** 버튼. 검색 input 높이와 맞추지 않는다.
+   *
+   * 필터 칩 기본: `.button.button--secondary.button--small` + `.customer-filter-chip`
+   * =============================================================================
    */
 
   .app-workspace-layout-root .workspace-main.workspace-main--app .app-main-content.app-main-content--workspace-outlet-host {
@@ -31,39 +42,56 @@
     font-size: 13px;
   }
 
-  /*
-   * 좌측 고객 목록 패널 — 검색은 전체 폭, 중요/필터는 다음 줄 2열.
-   * 뷰포트가 넓어도 패널 폭은 좁을 수 있어 한 줄 flex nowrap 만으로는 칩이 잘린다.
-   */
+  /* ─── 검색행: [검색 input] [중요 고객] [필터] 한 줄 ─── */
   .customers-page--pc .customers-page__search-row.customer-filter-bar {
-    flex-direction: column;
-    align-items: stretch;
-    flex-wrap: nowrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
     min-width: 0;
   }
 
   .customers-page--pc .customers-page__search-row.customer-filter-bar > .customers-page__search-input {
-    flex: 0 0 auto;
     width: 100%;
     min-width: 0;
+    max-width: none;
   }
 
   .customers-page--pc .customers-page__search-actions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 8px;
-    width: 100%;
-    min-width: 0;
+    display: contents;
   }
 
-  .customers-page--pc .customers-page__search-actions .customer-filter-chip.button.button--small {
-    width: 100%;
-    min-width: 0;
+  /* search-adjacent: input 과 동일 높이·중앙 정렬 */
+  .customers-page--pc .customers-page__search-row.customer-filter-bar .customer-filter-chip.button.button--small {
+    height: 38px;
+    min-height: 38px;
+    padding: 0 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-sizing: border-box;
+    line-height: 1;
     white-space: nowrap;
+    box-sizing: border-box;
+    border-radius: 8px;
+    width: auto;
+    min-width: 0;
+  }
+
+  /* ─── 카드 내부: 복사 / 수정 / 삭제 (inline card action) ─── */
+  .customers-page--pc .customer-detail-action-button.button.button--small {
+    height: 26px;
+    min-height: 26px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    box-sizing: border-box;
+    border-radius: 6px;
   }
 
   .customers-page--pc .customer-workspace-action-bar {
