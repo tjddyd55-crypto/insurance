@@ -54,24 +54,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
     setMemos(customerNoteItems(customer))
   }, [serverNotesSignature, customer])
 
-  const [expandedMemoIds, setExpandedMemoIds] = useState<Set<string>>(() => new Set())
   const { confirm, confirmDialog } = useConfirmDialog()
-
-  useEffect(() => {
-    setExpandedMemoIds(new Set())
-  }, [serverNotesSignature])
-
-  const toggleMemoExpanded = useCallback((id: string) => {
-    setExpandedMemoIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }, [])
 
   const insuranceHistory = normalizeCustomerNotesBag(customer.notes).insuranceHistory
 
@@ -254,11 +237,10 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
           {sortedItems.map((note) => {
-            const memoOpen = expandedMemoIds.has(note.id)
             return (
               <li
                 key={note.id}
-                className={memoOpen ? 'customer-inline-memo-row customer-inline-memo-row--open' : 'customer-inline-memo-row'}
+                className="customer-inline-memo-row"
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -269,17 +251,8 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
                   fontSize: '0.9rem',
                 }}
               >
-                <div
-                  className="customer-inline-memo-row__body"
-                  style={{ minWidth: 0, flex: 1 }}
-                  onClick={() => toggleMemoExpanded(note.id)}
-                >
-                  <div
-                    className={memoOpen ? undefined : 'customer-inline-memo-row__text--clamped'}
-                    style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
-                  >
-                    {note.content}
-                  </div>
+                <div className="customer-inline-memo-row__body" style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{note.content}</div>
                   <small style={{ opacity: 0.75 }}>{new Date(note.createdAt).toLocaleString('ko-KR')}</small>
                 </div>
                 <div style={{ flexShrink: 0, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
