@@ -151,6 +151,11 @@ function AppContent() {
       if (t !== 'CUSTOMER_APP_CLOSE' && t !== 'CLOSE_CUSTOMER_APP') {
         return
       }
+      /** 웹 [닫기]: 고객앱 WebView 전용 — Android 는 프로세스 종료, iOS 는 뒤로가기·홈 폴백 */
+      if (Platform.OS === 'android') {
+        BackHandler.exitApp()
+        return
+      }
       if (canGoBackRef.current && webViewRef.current) {
         webViewRef.current.goBack()
         return
