@@ -30,6 +30,9 @@ const WEB_FETCH_BYPASS_CACHE_HEADERS = {
 
 type MainWebViewLoadRequest = WebViewNavigation & { isTopFrame?: boolean }
 
+/** 문서 로드 전에 실행 — RN 브릿지보다 먼저 WebView 여부를 웹·localStorage 에 심는다 */
+const INJECT_WEBVIEW_ENV_FLAG = `(function(){try{window.__INSURANCE_CUSTOMER_APP_WEBVIEW__=true;}catch(e){}try{localStorage.setItem('insurance.customer-app.webview','1');}catch(e){}})();true;`
+
 function looksLikeFileDownload(url: string): boolean {
   const lower = url.toLowerCase()
   return lower.includes('.pdf') || lower.includes('/download')
@@ -182,6 +185,7 @@ function AppContent() {
           javaScriptEnabled
           domStorageEnabled
           {...WEBVIEW_ALWAYS_FRESH_PROPS}
+          injectedJavaScriptBeforeContentLoaded={INJECT_WEBVIEW_ENV_FLAG}
           onMessage={handleWebMessage}
           onLoadEnd={(e) => {
             const url = e.nativeEvent.url
