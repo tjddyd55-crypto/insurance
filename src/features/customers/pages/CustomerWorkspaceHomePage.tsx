@@ -87,7 +87,7 @@ export default function CustomerWorkspaceHomePage() {
   )
 
   return (
-    <section className="customer-workspace-home">
+    <section className="customer-workspace-home customer-workspace-home--landing">
       <div className="customer-workspace-home__intro">
         <h3 className="customer-workspace-home__title">고객 작업영역</h3>
         <p className="customer-workspace-home__desc">

@@ -24,6 +24,7 @@ export default function PdfDocumentListPage() {
   const params = useParams<{ customerId?: string }>()
   const [searchParams] = useSearchParams()
   const { workspaceCustomerId, historyPath, issuerQuerySuffix } = usePdfDocumentsWorkspacePaths()
+  const isWorkspaceEmbedded = workspaceCustomerId != null
 
   const linkedCustomerId = useMemo(() => {
     const fromPath = parseSelectedCustomerId(params.customerId ?? null)
@@ -62,7 +63,9 @@ export default function PdfDocumentListPage() {
   }, [token])
 
   return (
-    <main className="insurance-dark-forms pdf-engine-page">
+    <main
+      className={`insurance-dark-forms pdf-engine-page${isWorkspaceEmbedded ? ' pdf-engine-page--workspace-embedded' : ''}`}
+    >
       <h1 className="pdf-engine-page__title">신청서 작성</h1>
       <p className="pdf-engine-page__hint">
         PDF 템플릿 기반으로 작성 가능한 문서만 표시됩니다. 항목을 선택한 뒤 안내에 따라 입력하면 PDF로

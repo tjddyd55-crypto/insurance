@@ -350,3 +350,43 @@
     display: none;
   }
 }
+
+/*
+ * 기본 고객 작업영역 landing 화면의 카드 계층은 customer-workspace-home--landing에서만 조정한다.
+ * 메모 등 다른 workspace-home 재사용 화면에 영향 주지 않는다.
+ */
+@media (min-width: 1024px) {
+  .customer-workspace-home.customer-workspace-home--landing {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  .customer-workspace-home.customer-workspace-home--landing .customer-workspace-home__intro,
+  .customer-workspace-home.customer-workspace-home--landing .customer-workspace-recent {
+    border: 1px solid var(--border-subtle, #1e293b);
+    background: var(--bg-elevated, #1f2937);
+    color: var(--text-primary, #e5e7eb);
+    border-radius: 12px;
+    box-shadow: none;
+  }
+
+  .customer-workspace-home.customer-workspace-home--landing .customer-workspace-home__title {
+    color: var(--text-primary, #f8fafc);
+  }
+
+  .customer-workspace-home.customer-workspace-home--landing .customer-workspace-home__desc,
+  .customer-workspace-home.customer-workspace-home--landing .customer-workspace-home__selected {
+    color: var(--text-secondary, #94a3b8);
+  }
+
+  .customer-workspace-home.customer-workspace-home--landing .customer-workspace-recent__header h4 {
+    color: var(--text-primary, #f8fafc);
+  }
+
+  .customer-workspace-home.customer-workspace-home--landing .customer-workspace-recent__header p {
+    color: var(--text-secondary, #94a3b8);
+  }
+}
