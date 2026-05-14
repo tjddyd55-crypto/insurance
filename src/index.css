@@ -3226,27 +3226,9 @@ button.filter-button:focus-visible {
   flex-direction: column;
 }
 
-/* 고객 카드 [메모] — 펼친 행은 좌측 파란 강조바 + 아주 연한 배경 */
-.customer-inline-notes .customer-inline-memo-row--open {
-  box-shadow: inset 3px 0 0 #2563eb;
-  background-color: rgba(0, 0, 0, 0.045);
-}
-
+/* 고객 카드 [메모] — 본문은 조회 전용(클릭 토글·선택 하이라이트 없음) */
 .customer-inline-notes .customer-inline-memo-row__body {
-  cursor: pointer;
-}
-
-/* 읽기 전용 메모 본문: 클릭만 사용(포커스 링 비표시). 삭제/할 일 버튼은 기본 focus-visible 유지 */
-.customer-inline-notes .customer-inline-memo-row__body:focus,
-.customer-inline-notes .customer-inline-memo-row__body:focus-visible {
-  outline: none;
-}
-
-.customer-inline-notes .customer-inline-memo-row__text--clamped {
-  display: -webkit-box;
-  -webkit-line-clamp: 5;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  cursor: default;
 }
 
 .customers-excel-toolbar {
