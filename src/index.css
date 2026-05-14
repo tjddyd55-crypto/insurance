@@ -3236,6 +3236,12 @@ button.filter-button:focus-visible {
   cursor: pointer;
 }
 
+/* 읽기 전용 메모 본문: 클릭만 사용(포커스 링 비표시). 삭제/할 일 버튼은 기본 focus-visible 유지 */
+.customer-inline-notes .customer-inline-memo-row__body:focus,
+.customer-inline-notes .customer-inline-memo-row__body:focus-visible {
+  outline: none;
+}
+
 .customer-inline-notes .customer-inline-memo-row__text--clamped {
   display: -webkit-box;
   -webkit-line-clamp: 5;
@@ -8828,6 +8834,12 @@ a.contacts-public-auth__link {
   overflow: hidden;
   text-overflow: ellipsis;
   transition: all 0.15s ease;
+}
+
+/* 메모 목록 항목은 조회·선택용 — 클릭 시 포커스 링만 숨김(내부 버튼 없음) */
+.memo-sidebar__list .memo-list-item:focus,
+.memo-sidebar__list .memo-list-item:focus-visible {
+  outline: none;
 }
 
 .memo-list-item:hover {

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useConfirmDialog } from '../../../components/dialog'
 import { FormTextarea, FormButton } from '../../../components/form'
 import { Button } from '../../../components/ui/Button'
@@ -55,6 +55,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
   }, [serverNotesSignature, customer])
 
   const [expandedMemoIds, setExpandedMemoIds] = useState<Set<string>>(() => new Set())
+  const { confirm, confirmDialog } = useConfirmDialog()
 
   useEffect(() => {
     setExpandedMemoIds(new Set())
@@ -71,16 +72,6 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
       return next
     })
   }, [])
-
-  const onMemoRowKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLDivElement>, id: string) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault()
-        toggleMemoExpanded(id)
-      }
-    },
-    [toggleMemoExpanded],
-  )
 
   const insuranceHistory = normalizeCustomerNotesBag(customer.notes).insuranceHistory
 
@@ -279,13 +270,9 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
                 }}
               >
                 <div
-                  role="button"
-                  tabIndex={0}
                   className="customer-inline-memo-row__body"
                   style={{ minWidth: 0, flex: 1 }}
-                  aria-expanded={memoOpen}
                   onClick={() => toggleMemoExpanded(note.id)}
-                  onKeyDown={(e) => onMemoRowKeyDown(e, note.id)}
                 >
                   <div
                     className={memoOpen ? undefined : 'customer-inline-memo-row__text--clamped'}
@@ -376,7 +363,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
           autoCapitalize="off"
         />
         <div className="flex gap-2 justify-end flex-wrap">
-          <Button type="button" variant="secondary" onClick={closeMemoModal}>
+          <Button type="button" variant="secondary" onClick={() => void requestCloseMemoModal()}>
             취소
           </Button>
           <Button type="button" disabled={saving || !draft.trim()} onClick={handleMemoSave}>
