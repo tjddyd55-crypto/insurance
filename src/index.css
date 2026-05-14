@@ -9619,14 +9619,9 @@ textarea.memo-sticky-note__textarea::placeholder {
 
 /* =========================
    고객관리 강제 오버라이드
+   PC: .customers-page--pc button 전역 리셋은 !important 로 텍스트 버튼(필터칩·복사/수정/삭제) 높이를 깨므로 두지 않는다.
+   아이콘 버튼은 `.customers-page--pc .customer-card__actions .icon-box button` 등으로만 제한한다.
    ========================= */
-
-.customers-page--pc button,
-.customers-page--pc a {
-  min-height: unset !important;
-  height: auto !important;
-  padding: 0 !important;
-}
 
 .customers-page--mobile button,
 .customers-page--mobile a {
