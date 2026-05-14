@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FormButton } from '../../../../components/form'
 import { useAuth } from '../../../auth/AuthProvider'
+import { copyTextToClipboard } from '../../../../lib/clipboard'
 import {
   createCustomerAppLink,
   getCustomerAppLink,
@@ -125,11 +126,11 @@ export default function CustomerHeaderAppLinkCompact({ customerId }: Props) {
         notifyCustomerAppLinkUpdated()
         await loadStatus()
       }
-      if (!navigator?.clipboard?.writeText) {
-        throw new Error('clipboard unavailable')
+      const copied = await copyTextToClipboard(url)
+      if (!copied) {
+        throw new Error('클립보드에 복사하지 못했습니다.')
       }
-      await navigator.clipboard.writeText(url)
-      setFeedback('연결 링크 복사 완료')
+      setFeedback('연결 링크가 복사되었습니다.')
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : '연결 링크 복사 실패')
     } finally {

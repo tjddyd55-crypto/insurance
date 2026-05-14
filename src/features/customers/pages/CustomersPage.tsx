@@ -16,6 +16,7 @@ import {
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useConfirmDialog } from '../../../components/dialog'
 import { getPublicOrigin } from '../../../lib/publicOrigin'
+import { copyTextToClipboard } from '../../../lib/clipboard'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { deleteCustomer, listCustomers, updateCustomer } from '../api/customersApi'
@@ -87,7 +88,6 @@ import {
 } from '../utils/customerWorkspaceNavigation'
 import {
   INVITE_COPY_POINTER_DEBOUNCE_MS,
-  copyTextWithWebViewFallback,
 } from '../utils/customerInviteClipboard'
 import { coerceCustomersStatePayload } from '../utils/customerStateGuards'
 import {
@@ -737,12 +737,15 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   const copyCustomer = useCallback(async (rec: CustomerRecord) => {
     const text = buildKakaoCustomerCopyText(rec)
-    try {
-      await navigator.clipboard.writeText(text)
-      setStatusText('복사되었습니다.')
-    } catch {
-      setStatusText('복사에 실패했습니다.')
+    const ok = await copyTextToClipboard(text)
+    if (ok) {
+      setStatusText('고객정보가 복사되었습니다.')
+    } else {
+      setStatusText('고객정보 복사에 실패했습니다. 직접 선택해 복사해 주세요.')
     }
+    requestAnimationFrame(() => {
+      document.getElementById('customers-page-status')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
   }, [])
 
   const handleDeleteCustomer = useCallback(
@@ -1006,12 +1009,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       return
     }
     const inviteUrl = `${origin}/customer/register?ref=${encodeURIComponent(refUsername)}&ga=${encodeURIComponent(gaCode)}`
-    const copied = await copyTextWithWebViewFallback(inviteUrl)
+    const copied = await copyTextToClipboard(inviteUrl)
     if (copied) {
-      setStatusText('링크 복사 완료')
+      setStatusText('등록 링크가 복사되었습니다.')
       return
     }
-    setStatusText('복사 실패')
+    setStatusText('복사에 실패했습니다. 링크를 직접 선택해 복사해 주세요.')
   }, [user?.username, user?.gaCode])
 
   const invokeInviteCopyFromPointer = useCallback(() => {
@@ -1041,10 +1044,14 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     [invokeInviteCopyFromPointer],
   )
 
-  const onCustomerRegisterInviteCopyClick = useCallback((e: MouseEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-  }, [])
+  const onCustomerRegisterInviteCopyClick = useCallback(
+    (e: MouseEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      e.stopPropagation()
+      invokeInviteCopyFromPointer()
+    },
+    [invokeInviteCopyFromPointer],
+  )
 
   const onCustomerRegisterInviteCopyKeyDown = useCallback(
     (e: KeyboardEvent<HTMLDivElement>) => {
@@ -1152,7 +1159,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           </FormButton>
         </div>
       )}
-      {statusText ? <p className="customers-page__status">{statusText}</p> : null}
+      {statusText ? (
+        <p id="customers-page-status" className="customers-page__status" role="status" aria-live="polite">
+          {statusText}
+        </p>
+      ) : null}
     </header>
   )
 

@@ -23,6 +23,7 @@ function CustomerPageHeaderActions({
   setStatusText,
   onCreateCustomer,
   onCustomerRegisterInviteCopyTouchStart,
+  onCustomerRegisterInviteCopyMouseDown,
   onCustomerRegisterInviteCopyClick,
   onCustomerRegisterInviteCopyKeyDown,
   enterExcelSelectMode,
@@ -44,6 +45,7 @@ function CustomerPageHeaderActions({
         style={{ touchAction: 'manipulation' }}
         aria-label="고객 등록 링크 복사"
         onTouchStart={onCustomerRegisterInviteCopyTouchStart}
+        onMouseDown={onCustomerRegisterInviteCopyMouseDown}
         onClick={onCustomerRegisterInviteCopyClick}
         onKeyDown={onCustomerRegisterInviteCopyKeyDown}
       >
