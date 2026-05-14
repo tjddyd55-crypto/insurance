@@ -4,6 +4,11 @@ import {
   fetchCustomerGaExcelData,
   type GaCustomerExcelDataRow,
 } from '../api/gaCustomerExcelApi'
+import {
+  MSG_GA_EXCEL_COLUMN_FALLBACK,
+  MSG_GA_EXCEL_FETCH_FAILED,
+  normalizeGaCustomerExcelDisplay,
+} from '../utils/gaCustomerDataView'
 
 /**
  * [데이터·상태 훅] GA 고객 데이터 페이지.
@@ -29,6 +34,7 @@ export type UseGaCustomerExcelDataResult = {
   sortIdx: number | null
   sortAsc: boolean
   onHeaderClick: (idx: number) => void
+  clearColumnSort: () => void
 }
 
 export function useGaCustomerExcelData(customerId: number): UseGaCustomerExcelDataResult {
@@ -64,14 +70,26 @@ export function useGaCustomerExcelData(customerId: number): UseGaCustomerExcelDa
     setLoading(true)
     try {
       const data = await fetchCustomerGaExcelData(token, customerId)
-      setHeaders(data.displayHeaders)
-      setColIds(data.displayColumnIds)
-      setRows(data.rows)
-      if (data.message) {
-        setInfo(data.message)
+      const normalized = normalizeGaCustomerExcelDisplay({
+        displayHeaders: data.displayHeaders,
+        displayColumnIds: data.displayColumnIds,
+        rows: data.rows,
+        displayColumnFallback: data.displayColumnFallback,
+      })
+      setHeaders(normalized.displayHeaders)
+      setColIds(normalized.displayColumnIds)
+      setRows(normalized.rows)
+      const infoParts: string[] = []
+      if (data.message?.trim()) {
+        infoParts.push(data.message.trim())
       }
+      if (data.displayColumnFallback || normalized.clientAppliedFallback) {
+        infoParts.push(MSG_GA_EXCEL_COLUMN_FALLBACK)
+      }
+      setInfo(infoParts.join(' '))
     } catch (e) {
-      setError(e instanceof Error ? e.message : '데이터를 불러오지 못했습니다.')
+      console.warn('[useGaCustomerExcelData] fetch failed', { customerId, error: e })
+      setError(MSG_GA_EXCEL_FETCH_FAILED)
       setRows([])
     } finally {
       setLoading(false)
@@ -109,6 +127,11 @@ export function useGaCustomerExcelData(customerId: number): UseGaCustomerExcelDa
     [sortIdx],
   )
 
+  const clearColumnSort = useCallback(() => {
+    setSortIdx(null)
+    setSortAsc(true)
+  }, [])
+
   return {
     loading,
     error,
@@ -119,5 +142,6 @@ export function useGaCustomerExcelData(customerId: number): UseGaCustomerExcelDa
     sortIdx,
     sortAsc,
     onHeaderClick,
+    clearColumnSort,
   }
 }

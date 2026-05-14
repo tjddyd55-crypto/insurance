@@ -111,6 +111,8 @@ export async function fetchCustomerGaExcelData(
   rows: GaCustomerExcelDataRow[]
   sourceRowCount?: number
   message: string
+  /** 서버가 표시 열 비어 있음을 샘플/행 키로 보강했을 때 */
+  displayColumnFallback?: boolean
 }> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)

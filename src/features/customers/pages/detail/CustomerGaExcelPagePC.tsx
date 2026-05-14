@@ -2,6 +2,12 @@ import { useParams } from 'react-router-dom'
 import { EmptyState, LoadingState, StatusMessage } from '../../../../components/feedback'
 import { FormButton } from '../../../../components/form'
 import { useGaCustomerExcelData } from '../../hooks/useGaCustomerExcelData'
+import {
+  formatGaCellDisplay,
+  MSG_GA_EXCEL_NO_DISPLAY_KEYS,
+  MSG_GA_EXCEL_NO_MAPPED_DATA,
+  MSG_GA_EXCEL_UPLOAD_HINT,
+} from '../../utils/gaCustomerDataView'
 
 /**
  * [PC 전용 View] GA 고객 데이터 테이블 — PC 브라우저·Electron 화면.
@@ -20,6 +26,10 @@ export default function CustomerGaExcelPagePC() {
   const { loading, error, info, headers, colIds, sortedRows, sortIdx, sortAsc, onHeaderClick } =
     useGaCustomerExcelData(customerId)
 
+  const emptyMappingMessage = `${MSG_GA_EXCEL_NO_MAPPED_DATA} ${MSG_GA_EXCEL_UPLOAD_HINT}`
+  const showTable = !loading && !error && sortedRows.length > 0 && colIds.length > 0
+  const showBrokenColumns = !loading && !error && sortedRows.length > 0 && colIds.length === 0
+
   return (
     <main className="page customer-ga-excel-page customer-ga-excel-page--pc p-3">
       <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-1">GA 고객 데이터</h2>
@@ -31,9 +41,11 @@ export default function CustomerGaExcelPagePC() {
 
       {loading ? (
         <LoadingState message="불러오는 중…" />
-      ) : headers.length === 0 ? (
-        <EmptyState message="표시할 열이 설정되어 있지 않습니다." />
-      ) : (
+      ) : error ? null : sortedRows.length === 0 ? (
+        <EmptyState message={emptyMappingMessage} />
+      ) : showBrokenColumns ? (
+        <EmptyState message={`${MSG_GA_EXCEL_NO_DISPLAY_KEYS} ${MSG_GA_EXCEL_UPLOAD_HINT}`} />
+      ) : showTable ? (
         <div className="ga-table-scroll overflow-x-auto border border-[var(--border-default)] rounded-md">
           <table className="admin-data-table" style={{ minWidth: 400 }}>
             <thead>
@@ -57,14 +69,14 @@ export default function CustomerGaExcelPagePC() {
               {sortedRows.map((r) => (
                 <tr key={r.rowIndex}>
                   {colIds.map((cid) => (
-                    <td key={cid}>{r.cells[cid] ?? ''}</td>
+                    <td key={cid}>{formatGaCellDisplay(r.cells[cid])}</td>
                   ))}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
     </main>
   )
 }

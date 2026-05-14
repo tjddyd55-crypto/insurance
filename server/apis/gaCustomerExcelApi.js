@@ -365,6 +365,59 @@ function buildVisibleColumnOrder(sampleColumns, visibilityMap) {
   return { displayColumnIds, displayHeaders }
 }
 
+function stringifyExcelCellMap(rawCells) {
+  const cells = typeof rawCells === 'object' && rawCells != null ? rawCells : {}
+  const out = {}
+  for (const [k, v] of Object.entries(cells)) {
+    out[String(k)] = v == null ? '' : String(v)
+  }
+  return out
+}
+
+/** 표시 열이 비었을 때 row_data 키 정렬 (고정 col_n·헤더 문자열 혼재) */
+function sortGaFallbackColumnIds(ids) {
+  const prioritySubstrings = [
+    'name',
+    'customer',
+    '고객',
+    '이름',
+    'phone',
+    'mobile',
+    'tel',
+    '연락',
+    '휴대',
+    'birth',
+    '생년',
+    'company',
+    '보험사',
+    'insurer',
+    'product',
+    '상품',
+    'premium',
+    '보험료',
+    'contract',
+    '계약',
+    'status',
+    '상태',
+  ]
+  const score = (id) => {
+    const s = String(id).toLowerCase()
+    let best = prioritySubstrings.length
+    for (let i = 0; i < prioritySubstrings.length; i += 1) {
+      const p = prioritySubstrings[i]
+      if (s.includes(p.toLowerCase())) {
+        best = Math.min(best, i)
+      }
+    }
+    return best
+  }
+  return [...new Set(ids)].sort((a, b) => {
+    const da = score(a) - score(b)
+    if (da !== 0) return da
+    return String(a).localeCompare(String(b), 'ko')
+  })
+}
+
 /**
  * 로그인 유저의 GA 엑셀 데이터와 고객을 매칭한 조회 페이로드 생성
  * @returns {Promise<{ status: number, body: object }>}
@@ -394,7 +447,7 @@ async function buildUserGaExcelCustomerPayload(pool, { userId, gaId, customerId 
   const customerRow = cust.rows[0]
 
   const visibilityMap = await loadUserColumnVisibilityMap(pool, userId, gaId)
-  const { displayColumnIds, displayHeaders } = buildVisibleColumnOrder(settings.sampleColumns, visibilityMap)
+  let { displayColumnIds, displayHeaders } = buildVisibleColumnOrder(settings.sampleColumns, visibilityMap)
 
   const rowsRes = await safeQuery(
     pool,
@@ -419,27 +472,51 @@ async function buildUserGaExcelCustomerPayload(pool, { userId, gaId, customerId 
         rows: [],
         sourceRowCount: 0,
         message: '업로드된 고객 데이터가 없습니다',
+        displayColumnFallback: false,
       },
     }
   }
 
-  const outRows = []
+  const matchedFullRows = []
   for (const r of rowsRes.rows) {
-    const cells = typeof r.row_data === 'object' && r.row_data != null ? r.row_data : {}
+    const cells = stringifyExcelCellMap(r.row_data)
     if (!rowMatchesCustomer(cells, matchRules, customerRow)) {
       continue
     }
-    const displayCells = {}
-    for (const colId of displayColumnIds) {
-      const key = String(colId)
-      const v = cells[key]
-      displayCells[key] = v == null ? '' : String(v)
+    matchedFullRows.push({ rowIndex: Number(r.row_index), cells })
+  }
+
+  let displayColumnFallback = false
+  if (displayColumnIds.length === 0 && matchedFullRows.length > 0) {
+    displayColumnFallback = true
+    if (settings.sampleColumns.length > 0) {
+      displayColumnIds = settings.sampleColumns.map((c) => String(c.id))
+      displayHeaders = settings.sampleColumns.map((c) => String(c.header))
+    } else {
+      const keySet = new Set()
+      for (const mr of matchedFullRows) {
+        for (const k of Object.keys(mr.cells)) {
+          keySet.add(k)
+        }
+      }
+      displayColumnIds = sortGaFallbackColumnIds([...keySet])
+      displayHeaders = displayColumnIds.map((id) => String(id))
     }
-    outRows.push({ rowIndex: Number(r.row_index), cells: displayCells })
+  }
+
+  const outRows = []
+  for (const mr of matchedFullRows) {
+    const displayCells = {}
+    for (let i = 0; i < displayColumnIds.length; i += 1) {
+      const colId = String(displayColumnIds[i])
+      const v = mr.cells[colId]
+      displayCells[colId] = v == null ? '' : String(v)
+    }
+    outRows.push({ rowIndex: mr.rowIndex, cells: displayCells })
   }
 
   let message = ''
-  if (outRows.length === 0) {
+  if (matchedFullRows.length === 0) {
     message = '매칭되는 행이 없습니다.'
   }
 
@@ -451,6 +528,7 @@ async function buildUserGaExcelCustomerPayload(pool, { userId, gaId, customerId 
       rows: outRows,
       sourceRowCount,
       message,
+      displayColumnFallback,
     },
   }
 }
