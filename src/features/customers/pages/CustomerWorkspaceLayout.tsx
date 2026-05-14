@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useAuth } from '../../auth/AuthProvider'
+import { useGaSettings } from '../../ga-settings/useGaSettings'
 import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '../api/gaCustomerExcelApi'
 import { getCustomerById } from '../api/customersApi'
 import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
@@ -91,6 +92,7 @@ export default function CustomerWorkspaceLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { token, user } = useAuth()
+  const { gaSettings } = useGaSettings()
   const isMobile = useIsMobile()
   const [searchParams] = useSearchParams()
   const openRelatedCustomerRef = useRef<((customerId: number, customerName?: string) => void) | null>(null)
@@ -188,9 +190,8 @@ export default function CustomerWorkspaceLayout() {
     }
   }, [isMobile, token, user?.role])
 
-  const showGaExcelEntry =
-    excelCap != null &&
-    (excelCap.showDesignerUi || (excelCap.featureEnabled && !excelCap.configReady && Boolean(excelCap.message)))
+  /** GA 엑셀 탭 노출은 테넌트 `use_ga_excel` 과 동일 기준(고객 카드 액션과 일치). 데이터·설정 완료 여부는 진입 후 안내한다. */
+  const showGaExcelEntry = gaSettings.use_ga_excel === true
 
   const showCarInsuranceInWorkspace = isGaCarInsuranceHubEnabled(user?.gaCode, user?.gaName)
 
@@ -239,7 +240,7 @@ export default function CustomerWorkspaceLayout() {
   }
 
   const handleClickGaExcel = () => {
-    if (!selectedCustomerId || !excelCap?.showDesignerUi) {
+    if (!selectedCustomerId) {
       return
     }
     moveTo(`/customers/${selectedCustomerId}/ga-excel`)
@@ -274,8 +275,10 @@ export default function CustomerWorkspaceLayout() {
     activeTab,
     showCarInsuranceInWorkspace,
     showGaExcelEntry,
-    gaExcelEnabledForDesigner: Boolean(excelCap?.showDesignerUi),
-    gaExcelDisabledReason: excelCap?.message || '고객 엑셀 기능을 사용할 수 없습니다.',
+    gaExcelMenuTitleHint:
+      selectedCustomerId && excelCap != null && !excelCap.showDesignerUi
+        ? String(excelCap.message ?? '').trim() || '내정보관리에서 GA 고객 엑셀 설정을 완료해 주세요.'
+        : undefined,
     onClickFiles: handleClickFiles,
     onClickConsultations: handleClickConsultations,
     onClickCarForm: handleClickCarForm,
