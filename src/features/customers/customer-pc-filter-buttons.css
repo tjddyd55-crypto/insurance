@@ -9,17 +9,17 @@
    *
    * 실제 DOM (코드 기준, 추정 금지):
    * - FormButton `size="sm"` → `src/components/ui/Button.tsx` 가 **`button--small` 만** 붙인다. (`button--sm` 없음)
-   * - 검색행: `div.customers-page__search-row.customer-filter-bar` > `input.form-input...customers-page__search-input`
-   *   + `div.customers-page__search-actions`(`display:contents`) 안의
-   *   `button.button.button--secondary.button--small.*.customer-filter-chip`
-   * - 고객명 행: `div.customer-detail-toolbar` > `div.customer-detail-action-bar` >
-   *   `button.button.button--secondary|danger.button--small.customer-detail-action-button`
+   * - 검색행: `div.customers-page__search-row.customer-filter-bar` > `input...customers-page__search-input`
+   *   + `div.customers-page__search-actions`(실제 박스, **inline-flex** 로 칩 그룹) >
+   *   `button...customer-filter-chip`
+   * - `display: contents` 는 쓰지 않는다. 그리드 자식이 input 과 actions div 두 개만 있어야 폭이 안정적이다.
+   * - 고객명 행: `button...customer-detail-action-button` — 높이는 **의미 클래스에 직접** 지정(`.button--small` 조합에만 의존하지 않음).
    *
    * 토큰 구분:
-   * 1) **search-adjacent** — 검색행 칩. input 과 같은 행·38px.
-   * 2) **inline card action** — 위 DOM 의 `button.customer-detail-action-button.button--small` 전용(32px).
+   * 1) **search-adjacent** — `.customers-page__search-actions` 안 칩, 38px.
+   * 2) **inline card action** — `.customer-expand-detail .customer-detail-action-button`, 32px.
    *
-   * 필터 칩: `.button.button--secondary.button--small` + `.customer-filter-chip`
+   * 하단 필터 패널 칩: 기존 `.customers-page--pc .customer-filter-chip.button.button--small` 규칙 유지.
    * =============================================================================
    */
 
@@ -48,58 +48,57 @@
     font-size: 13px;
   }
 
-  /* ─── 검색행: [검색 input] [중요 고객] [필터] 한 줄 (grid + contents 로 3열) ─── */
+  /* ─── 검색행: [검색 input] | [actions: 중요 고객 + 필터] — 2컬럼 grid, actions 는 실제 박스 ─── */
   .customers-page--pc .customers-page__search-row.customer-filter-bar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) max-content max-content;
+    grid-template-columns: minmax(0, 1fr) max-content;
     align-items: center;
-    gap: 6px;
+    column-gap: 6px;
     width: 100%;
     min-width: 0;
   }
 
-  /* FormInput → input.form-input.field--*.search-input.customers-page__search-input */
   .customers-page--pc .customers-page__search-row.customer-filter-bar > input.customers-page__search-input {
-    width: 100%;
     min-width: 0;
+    width: 100%;
     max-width: none;
     flex: none;
     box-sizing: border-box;
   }
 
   .customers-page--pc .customers-page__search-actions {
-    display: contents;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: max-content;
+    flex: 0 0 auto;
   }
 
-  /* search-adjacent: input 과 동일 높이·칩 폭은 내용 기준으로 보존 */
-  .customers-page--pc .customers-page__search-row.customer-filter-bar .customer-filter-chip.button.button--small {
+  .customers-page--pc .customers-page__search-actions .customer-filter-chip {
     height: 38px;
     min-height: 38px;
+    flex: 0 0 auto;
+    white-space: nowrap;
     padding: 0 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     line-height: 1;
-    white-space: nowrap;
     box-sizing: border-box;
     border-radius: 8px;
-    width: auto;
-    flex-shrink: 0;
   }
 
-  /* 고객명 옆 행: 툴바 박스 높이가 액션 버튼(32px)을 수용 */
-  .customers-page--pc .customer-detail-toolbar {
-    align-items: center;
-    min-height: 32px;
-  }
-
+  /* 고객명 옆 행 */
+  .customers-page--pc .customer-detail-toolbar,
   .customers-page--pc .customer-detail-action-bar {
-    align-items: center;
     min-height: 32px;
+    display: flex;
+    align-items: center;
   }
 
-  /* expand-detail 내부 실제 button 태그 + .button--small (FormButton size sm) */
-  .customers-page--pc .customer-expand-detail button.customer-detail-action-button.button--small {
+  /* 복사/수정/삭제: 의미 클래스에 직접 박스 높이( index 의 line-height·타 규칙과 무관하게 32px 유지 ) */
+  .customers-page--pc .customer-expand-detail .customer-detail-action-button {
     height: 32px;
     min-height: 32px;
     padding: 0 12px;
@@ -112,6 +111,7 @@
     white-space: nowrap;
     box-sizing: border-box;
     border-radius: 6px;
+    flex-shrink: 0;
   }
 
   .customers-page--pc .customer-workspace-action-bar {
