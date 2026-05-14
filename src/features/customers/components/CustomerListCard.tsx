@@ -121,6 +121,9 @@ export type CustomerListCardProps = {
   onOpenGaModal: (customerId: number) => void
   onOpenPersonalMessage: (customerId: number) => void
   onOpenClaims: (customerId: number) => void
+  onOpenMemos: (customerId: number) => void
+  /** 모바일 카드 상단 복사 피드백(부모 `CustomersPage` 상태) */
+  mobileCopyFeedback: { customerId: number; message: string } | null
   onOpenRelatedCustomer: (customerId: number, customerName?: string) => void
   token: string | null
   onToggleFavorite: (c: CustomerRecord) => void | Promise<void>
@@ -161,6 +164,8 @@ const CustomerListCard = memo(function CustomerListCard({
   onOpenGaModal,
   onOpenPersonalMessage,
   onOpenClaims,
+  onOpenMemos,
+  mobileCopyFeedback,
   onOpenRelatedCustomer,
   token,
   onToggleFavorite,
@@ -419,7 +424,19 @@ const CustomerListCard = memo(function CustomerListCard({
                   onOpenGaModal={onOpenGaModal}
                   onOpenPersonalMessage={onOpenPersonalMessage}
                   onOpenClaims={onOpenClaims}
+                  onOpenMemos={onOpenMemos}
+                  onCopyCustomerInfo={() => void onCopyCustomer(c)}
                 />
+                {mobileCopyFeedback?.customerId === c.id ? (
+                  <p
+                    id={`customer-${c.id}-copy-feedback`}
+                    className="customer-mobile-copy-feedback"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {mobileCopyFeedback.message}
+                  </p>
+                ) : null}
                 <FormButton
                   htmlType="button"
                   variant="secondary"
@@ -433,7 +450,9 @@ const CustomerListCard = memo(function CustomerListCard({
 
             {!isMobile || mobileInfoExpanded ? (
               <>
-                <div className="customer-detail-toolbar">
+                <div
+                  className={`customer-detail-toolbar${isMobile ? ' customer-detail-toolbar--mobile-actions' : ''}`}
+                >
                   <div className="customer-detail-toolbar__title">
                     <span className="customer-info-label">
                       <span className="customer-info-label__icon" aria-hidden>
@@ -442,18 +461,22 @@ const CustomerListCard = memo(function CustomerListCard({
                       {c.name}
                     </span>
                   </div>
-                  <div className="customer-detail-action-bar">
-                    <FormButton
-                      htmlType="button"
-                      variant="secondary"
-                      size="sm"
-                      className="customer-detail-action-button"
-                      title="카톡 복사 형식으로 복사"
-                      aria-label="복사"
-                      onClick={() => void onCopyCustomer(c)}
-                    >
-                      복사
-                    </FormButton>
+                  <div
+                    className={`customer-detail-action-bar${isMobile ? ' customer-detail-action-bar--edit-delete-row' : ''}`}
+                  >
+                    {!isMobile ? (
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        size="sm"
+                        className="customer-detail-action-button"
+                        title="카톡 복사 형식으로 복사"
+                        aria-label="복사"
+                        onClick={() => void onCopyCustomer(c)}
+                      >
+                        복사
+                      </FormButton>
+                    ) : null}
                     {editingId !== c.id ? (
                       <FormButton
                         htmlType="button"

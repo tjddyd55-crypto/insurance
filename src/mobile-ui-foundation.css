@@ -167,26 +167,36 @@
   .customer-detail-feature-actions--mobile-priority .customer-mobile-action-btn,
   .customer-detail-feature-actions--mobile-priority button.customer-mobile-action-btn {
     width: 100% !important;
-    min-height: 34px !important;
-    height: 34px !important;
-    padding: 0 10px !important;
+    min-height: 42px !important;
+    height: auto !important;
+    max-height: none !important;
+    padding: 8px 10px !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     gap: 0 !important;
     color: #fff !important;
-    font-size: 0.86rem !important;
-    font-weight: 900 !important;
+    font-size: 0.82rem !important;
+    font-weight: 800 !important;
+    line-height: 1.15 !important;
     text-align: center !important;
+    white-space: normal !important;
     background: linear-gradient(180deg, var(--m-primary) 0%, var(--m-primary-strong) 100%) !important;
     border: 1px solid color-mix(in srgb, #60a5fa 22%, transparent) !important;
+  }
+
+  .customer-detail-feature-actions--mobile-priority .customer-mobile-action-btn:disabled,
+  .customer-detail-feature-actions--mobile-priority button.customer-mobile-action-btn:disabled {
+    opacity: 0.55 !important;
   }
 
   .customer-detail-feature-actions--mobile-priority .customer-mobile-action-btn__text {
     width: 100% !important;
     text-align: center !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    word-break: keep-all !important;
+    line-height: 1.15 !important;
   }
 }

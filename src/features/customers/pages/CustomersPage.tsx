@@ -51,7 +51,6 @@ import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 import CustomerMobileModals from '../components/CustomerMobileModals'
 import CustomerPageHeaderActions from '../components/CustomerPageHeaderActions'
 import { CustomerFilterControls } from '../components/CustomerFilterControls'
-import { CustomerWorkspaceActions } from '../components/CustomerWorkspaceActions'
 import CustomerExcelSelectToolbar from '../components/CustomerExcelSelectToolbar'
 import CustomerListCard, { type CustomerSsnDupHighlight } from '../components/CustomerListCard'
 import type { CustomerEditFormState } from '../types/customerEditForm'
@@ -130,6 +129,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const customersRef = useRef<CustomerRecord[]>([])
   customersRef.current = customers
   const [statusText, setStatusText] = useState('')
+  const [mobileCopyFeedback, setMobileCopyFeedback] = useState<{
+    customerId: number
+    message: string
+  } | null>(null)
+  const mobileCopyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const tab = searchParams.get('mode') === 'create' ? 'create' : 'list'
   const selectedCustomerIdFromQuery = useMemo(
@@ -735,18 +739,40 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     [handleUpdateCustomer],
   )
 
-  const copyCustomer = useCallback(async (rec: CustomerRecord) => {
-    const text = buildKakaoCustomerCopyText(rec)
-    const ok = await copyTextToClipboard(text)
-    if (ok) {
-      setStatusText('고객정보가 복사되었습니다.')
-    } else {
-      setStatusText('고객정보 복사에 실패했습니다. 직접 선택해 복사해 주세요.')
-    }
-    requestAnimationFrame(() => {
-      document.getElementById('customers-page-status')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-    })
-  }, [])
+  const copyCustomer = useCallback(
+    async (rec: CustomerRecord) => {
+      const text = buildKakaoCustomerCopyText(rec)
+      const ok = await copyTextToClipboard(text)
+      const msg = ok ? '고객정보가 복사되었습니다.' : '복사에 실패했습니다.'
+      setStatusText(msg)
+      if (isMobile) {
+        if (mobileCopyFeedbackTimerRef.current != null) {
+          window.clearTimeout(mobileCopyFeedbackTimerRef.current)
+        }
+        setMobileCopyFeedback({ customerId: rec.id, message: msg })
+        mobileCopyFeedbackTimerRef.current = window.setTimeout(() => {
+          setMobileCopyFeedback(null)
+          mobileCopyFeedbackTimerRef.current = null
+        }, 4500)
+      }
+      const scrollCopyUi = () => {
+        if (isMobile) {
+          document
+            .getElementById(`customer-${rec.id}-copy-feedback`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+          return
+        }
+        document.getElementById('customers-page-status')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
+      queueMicrotask(() => {
+        requestAnimationFrame(() => {
+          scrollCopyUi()
+          window.setTimeout(scrollCopyUi, 120)
+        })
+      })
+    },
+    [isMobile],
+  )
 
   const handleDeleteCustomer = useCallback(
     async (c: CustomerRecord) => {
@@ -906,6 +932,15 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       )
     },
     [navigate],
+  )
+
+  const handleOpenMemos = useCallback(
+    (customerId: number) => {
+      const next = new URLSearchParams(searchParams)
+      next.set('customerId', String(customerId))
+      navigate(buildCustomerWorkspacePath({ customerId, tab: 'memos', query: next }))
+    },
+    [navigate, searchParams],
   )
 
   const handleCustomerConsultationCreated = useCallback(
@@ -1159,11 +1194,14 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           </FormButton>
         </div>
       )}
-      {statusText ? (
-        <p id="customers-page-status" className="customers-page__status" role="status" aria-live="polite">
-          {statusText}
-        </p>
-      ) : null}
+      <p
+        id="customers-page-status"
+        className={`customers-page__status${statusText ? '' : ' customers-page__status--empty'}`}
+        role="status"
+        aria-live="polite"
+      >
+        {statusText}
+      </p>
     </header>
   )
 
@@ -1246,6 +1284,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               onOpenGaModal={handleOpenGaModal}
               onOpenPersonalMessage={handleOpenPersonalMessage}
               onOpenClaims={handleOpenClaims}
+              onOpenMemos={handleOpenMemos}
+              mobileCopyFeedback={mobileCopyFeedback}
               onOpenRelatedCustomer={handleOpenRelatedCustomer}
               token={token}
               onToggleFavorite={handleToggleFavorite}
