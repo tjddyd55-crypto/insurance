@@ -1,6 +1,8 @@
 /**
  * 고객앱 [닫기]: 네이티브 WebView 브릿지 → Android 브릿지 → 카카오톡 인앱 스킴 → window.close 계열.
- * Expo 고객앱은 `CUSTOMER_APP_CLOSE` 메시지로 WebView 뒤로/홈 처리( App.tsx onMessage ).
+ * Expo 고객앱은 `CUSTOMER_APP_CLOSE` 메시지로 네이티브에서 처리한다( App.tsx onMessage ).
+ * - Android: `BackHandler.exitApp()` 으로 앱 종료
+ * - iOS 등: WebView 뒤로가기 가능 시 `goBack()`, 아니면 `/customer-app` 홈으로 이동
  */
 
 type AndroidBridge = {
