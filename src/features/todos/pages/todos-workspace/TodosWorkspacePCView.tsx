@@ -134,44 +134,34 @@ export default function TodosWorkspacePCView({
         <p className="text-[#94a3b8]">표시할 할 일이 없습니다.</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-[#1e293b]">
-          <table className="min-w-full text-sm border-collapse">
+          <table className="todos-page--pc__table min-w-full text-sm border-collapse">
             <thead>
               <tr className="bg-[#1f2937] text-left text-[#cbd5e1]">
-                <th className="p-2 w-10" />
-                <th className="p-2">제목</th>
-                <th className="p-2">연결</th>
-                <th className="p-2">마감일</th>
-                <th className="p-2">우선순위</th>
-                <th className="p-2">상태</th>
-                <th className="p-2">출처</th>
+                <th className="todos-page--pc__th-done p-2 w-12 text-center font-semibold">완료</th>
+                <th className="p-2 font-semibold">연결</th>
+                <th className="p-2 font-semibold">제목</th>
+                <th className="p-2 font-semibold">마감일</th>
+                <th className="p-2 font-semibold">우선순위</th>
+                <th className="p-2 font-semibold">상태</th>
+                <th className="p-2 font-semibold">출처</th>
               </tr>
             </thead>
             <tbody>
               {todos.map((row) => (
                 <tr key={row.id} className="border-t border-[#1e293b]">
-                  <td className="p-2 align-top">
-                    <input
-                      type="checkbox"
-                      className="accent-[#2563eb]"
-                      checked={row.status === 'completed'}
-                      disabled={row.status === 'canceled'}
-                      onChange={() => void toggleDone(row)}
-                      title={row.status === 'completed' ? '완료 취소' : '완료 처리'}
-                    />
+                  <td className="todos-page--pc__td-done p-2 align-middle text-center">
+                    <span className="todos-page--pc__cb-wrap inline-flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        className="accent-[#2563eb]"
+                        checked={row.status === 'completed'}
+                        disabled={row.status === 'canceled'}
+                        onChange={() => void toggleDone(row)}
+                        title={row.status === 'completed' ? '완료 취소' : '완료 처리'}
+                      />
+                    </span>
                   </td>
-                  <td className="p-2 align-top">
-                    <button
-                      type="button"
-                      className="text-left bg-transparent border-none p-0 cursor-pointer text-[#60a5fa] hover:underline"
-                      onClick={() => openEdit(row)}
-                    >
-                      {row.title}
-                    </button>
-                    {row.description ? (
-                      <div className="text-xs text-[#94a3b8] line-clamp-2 mt-1 whitespace-pre-wrap">{row.description}</div>
-                    ) : null}
-                  </td>
-                  <td className="p-2 align-top text-[#e5e7eb]">
+                  <td className="p-2 align-middle text-[#e5e7eb]">
                     {row.relatedEntityType === 'customer' && row.relatedEntityId ? (
                       <button
                         type="button"
@@ -188,13 +178,25 @@ export default function TodosWorkspacePCView({
                       <span className="text-[#64748b]">연결 없음</span>
                     )}
                   </td>
-                  <td className="p-2 align-top whitespace-nowrap">
+                  <td className="p-2 align-middle">
+                    <button
+                      type="button"
+                      className="text-left bg-transparent border-none p-0 cursor-pointer text-[#60a5fa] hover:underline"
+                      onClick={() => openEdit(row)}
+                    >
+                      {row.title}
+                    </button>
+                    {row.description ? (
+                      <div className="text-xs text-[#94a3b8] line-clamp-2 mt-1 whitespace-pre-wrap">{row.description}</div>
+                    ) : null}
+                  </td>
+                  <td className="p-2 align-middle whitespace-nowrap">
                     {row.dueDate ?? '—'}
                     {row.dueTime ? ` ${row.dueTime}` : ''}
                   </td>
-                  <td className="p-2 align-top">{todoPriorityLabel(row.priority)}</td>
-                  <td className="p-2 align-top">{todoStatusLabel(row.status)}</td>
-                  <td className="p-2 align-top">{todoSourceLabel(row.sourceType)}</td>
+                  <td className="p-2 align-middle">{todoPriorityLabel(row.priority)}</td>
+                  <td className="p-2 align-middle">{todoStatusLabel(row.status)}</td>
+                  <td className="p-2 align-middle">{todoSourceLabel(row.sourceType)}</td>
                 </tr>
               ))}
             </tbody>
