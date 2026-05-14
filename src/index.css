@@ -7829,21 +7829,31 @@ a.contacts-public-auth__link {
   display: flex;
   justify-content: center;
   width: 100%;
-  padding: 0 0 10px;
-  margin: 0 0 10px;
+  margin-top: 6px;
+  padding-top: 4px;
+  padding-bottom: 8px;
+  margin-bottom: 0;
   border-bottom: 1px solid var(--border-subtle, #1e293b);
   box-sizing: border-box;
 }
 
 .customers-page--mobile .customer-mobile-expanded-app-link .customer-workspace-layout__claim-link-tools,
 .customers-page--mobile .customer-mobile-expanded-app-link .customer-header-app-link-compact {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
   gap: 8px;
   width: 100%;
   min-width: 0;
+  flex-wrap: wrap;
+}
+
+/* 앱 링크 줄 바로 아래 2열 그리드: 위쪽 중복 border 없음 — 아래만 얕게 구분(한 줄) */
+.customers-page--mobile .customer-mobile-expanded-app-link + .customer-detail-feature-actions--mobile-priority.customer-detail-feature-actions--mobile-grid-8 {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: none;
+  border-bottom: 1px solid var(--border-subtle, #1e293b);
 }
 
 .customers-page--mobile .customer-mobile-expanded-app-link .customer-workspace-app-link-bar__pill {
@@ -7930,9 +7940,9 @@ a.contacts-public-auth__link {
 
 .customers-page--mobile .customer-detail-action-bar--edit-delete-row .customer-detail-action-button.button {
   flex: 0 0 auto;
-  min-width: 0;
-  min-height: 30px;
-  height: 30px;
+  min-width: 56px;
+  min-height: 32px;
+  height: 32px;
   padding: 0 10px;
   border-radius: 8px;
   white-space: nowrap;
