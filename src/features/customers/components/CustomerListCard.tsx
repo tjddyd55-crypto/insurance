@@ -4,7 +4,8 @@ import { FormButton, FormInput } from '../../../components/form'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
 import type { CustomerRecord } from '../domain/types'
 import { getCustomerListMetrics } from '../utils/customerListMetrics'
-import { formatGovernmentCardMetaSecondaryLine, isGovernmentIndustryTemplate } from '../utils/governmentCustomerUi'
+import { isGovernmentIndustryTemplate } from '../utils/governmentCustomerUi'
+import { buildGovernmentCustomerStatusSummary, formatGovernmentListMetaSecondaryLine } from '../utils/governmentCustomerStatusSummary'
 import { formatIndustryCustomerListSecondaryLine } from '../utils/industryCustomerListSummary'
 import { formatDateYmdInput } from '../utils/insuranceInfo'
 import type { CustomerEditFormState } from '../types/customerEditForm'
@@ -207,6 +208,15 @@ const CustomerListCard = memo(function CustomerListCard({
   const hasPhone = typeof phone === 'string' && phone.trim() !== ''
   const smsHref = customerPhoneHref(phone, 'sms')
   const telHref = customerPhoneHref(phone, 'tel')
+  const isGovTemplate = isGovernmentIndustryTemplate(crmIndustryTemplate)
+  const govListSummary = isGovTemplate ? buildGovernmentCustomerStatusSummary(c, crmIndustryTemplate) : null
+  const govMetaLine =
+    govListSummary != null &&
+    (govListSummary.hasAnySignal || govListSummary.secondaryLine.trim().length > 0)
+      ? formatGovernmentListMetaSecondaryLine(govListSummary)
+      : govListSummary != null
+        ? formatIndustryCustomerListSecondaryLine(c, crmIndustryTemplate)
+        : null
 
   function handleSummaryKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     if (isSelectMode) {
@@ -290,8 +300,23 @@ const CustomerListCard = memo(function CustomerListCard({
                     <>
                       상령일: {ins.dateText} · 상담일: {recentConsultText}
                     </>
-                  ) : isGovernmentIndustryTemplate(crmIndustryTemplate) ? (
-                    formatGovernmentCardMetaSecondaryLine(c, crmIndustryTemplate)
+                  ) : govListSummary != null ? (
+                    <div className="gov-customer-list-summary">
+                      {govListSummary.badges.length > 0 ? (
+                        <div className="gov-customer-list-badges" role="list" aria-label="진행 상태">
+                          {govListSummary.badges.map((b, i) => (
+                            <span
+                              key={`${b.label}-${i}`}
+                              role="listitem"
+                              className={`gov-customer-list-badge gov-customer-list-badge--${b.tone}`}
+                            >
+                              {b.label}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      <div className="gov-customer-list-meta-line">{govMetaLine}</div>
+                    </div>
                   ) : (
                     formatIndustryCustomerListSecondaryLine(c, crmIndustryTemplate)
                   )}

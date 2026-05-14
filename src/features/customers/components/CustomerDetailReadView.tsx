@@ -13,6 +13,11 @@ import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
 import { governmentDetailSummaryRows, isGovernmentIndustryTemplate, buildGovernmentProgressMvp } from '../utils/governmentCustomerUi'
 import { industryTemplateReadPreviewRows, industryTemplateReadPreviewRowsForFieldKeys } from '../utils/industryCustomerReadSummary'
+import {
+  buildGovernmentCustomerStatusSummary,
+  buildGovernmentDetailStatusCardRows,
+} from '../utils/governmentCustomerStatusSummary'
+import GovernmentDetailStatusSummaryCard from './GovernmentDetailStatusSummaryCard'
 import GovernmentProgressReadSection from './GovernmentProgressReadSection'
 
 export type CustomerDetailInsuranceDisplay = {
@@ -82,9 +87,17 @@ export default function CustomerDetailReadView({
     const govProgressModel = isGovernmentIndustryTemplate(crmIndustryTemplate)
       ? buildGovernmentProgressMvp(c, crmIndustryTemplate)
       : null
+    const govStatusSummary = isGovernmentIndustryTemplate(crmIndustryTemplate)
+      ? buildGovernmentCustomerStatusSummary(c, crmIndustryTemplate)
+      : null
+    const govStatusCardRows =
+      govStatusSummary != null ? buildGovernmentDetailStatusCardRows(c, crmIndustryTemplate, govStatusSummary) : []
 
     return (
       <div className="customer-detail-read">
+        {govStatusSummary != null ? (
+          <GovernmentDetailStatusSummaryCard summary={govStatusSummary} rows={govStatusCardRows} />
+        ) : null}
         {govSummaryRows != null && govSummaryRows.length > 0 ? (
           <section className="customer-detail-read__section" aria-labelledby="gov-ops-summary-heading">
             <div className="customer-detail-read__section-header">

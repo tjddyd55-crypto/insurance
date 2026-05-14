@@ -3,6 +3,7 @@ import type { CustomerIndustryTemplate } from '../../customer-templates/customer
 import type { CustomerRecord } from '../domain/types'
 import { readIndustryCanonDisplayValue } from './industryCustomerReadSummary'
 import { formatIndustryCustomerListSecondaryLine } from './industryCustomerListSummary'
+import { buildGovernmentCustomerStatusSummary, formatGovernmentListMetaSecondaryLine } from './governmentCustomerStatusSummary'
 
 function rawExtTrim(customer: CustomerRecord, canonicalKey: string): string {
   return readIndustryCanonDisplayValue(customer, canonicalKey).trim()
@@ -44,17 +45,6 @@ export function isGovernmentIndustryTemplate(template: CustomerIndustryTemplate)
   return template.meta.industryCode === 'government'
 }
 
-/** 고객 카드 두 번째 줄: 운영에 바로 필요한 순서(comma 아님 middle dot 구분). */
-const GOVERNMENT_CARD_SUMMARY_KEYS: readonly string[] = [
-  'gov.status',
-  'gov.programName',
-  'gov.productName',
-  'gov.caseNumber',
-  'gov.submittedAt',
-  'gov.assignee',
-  'business.name',
-]
-
 /** 상세 상단 카드 전체 줄(항목 많음 · 빈 값은 — 표시로 운영 가시성 확보). */
 const GOVERNMENT_DETAIL_SUMMARY_KEYS: readonly string[] = [
   'gov.programName',
@@ -87,19 +77,14 @@ export function displayGovernmentCrValue(customer: CustomerRecord, canonicalKey:
   return '—'
 }
 
-/** 목록 카드 메타 줄(정부 업종 한정). 빈 확장이라도 상태·상품 라인 노출 가능. */
+/** 목록 카드 메타 한 줄(정부 업종 한정) — `governmentCustomerStatusSummary`와 동일 소스. */
 export function formatGovernmentCardMetaSecondaryLine(
   customer: CustomerRecord,
   template: CustomerIndustryTemplate,
 ): string {
-  const parts: string[] = []
-  for (const k of GOVERNMENT_CARD_SUMMARY_KEYS) {
-    const v = displayGovernmentCrValue(customer, k).trim()
-    if (v === '—') continue
-    parts.push(`${labelForCanonKey(template, k)}: ${v}`)
-  }
-  if (parts.length > 0) {
-    return parts.join(' · ')
+  const summary = buildGovernmentCustomerStatusSummary(customer, template)
+  if (summary.hasAnySignal || summary.secondaryLine.trim().length > 0) {
+    return formatGovernmentListMetaSecondaryLine(summary)
   }
   return formatIndustryCustomerListSecondaryLine(customer, template)
 }
@@ -270,6 +255,16 @@ export function buildGovernmentProgressMvp(
   rows.push({
     label: '필요자금 · 승인금액',
     value: `${supportDisp} / ${approvalDisp}`,
+  })
+
+  rows.push({
+    label: labelForCanonKey(template, 'contract.paymentStatus'),
+    value: formatDisplayOrMissing(customer, 'contract.paymentStatus', '미입력'),
+  })
+
+  rows.push({
+    label: labelForCanonKey(template, 'contract.depositStatus'),
+    value: formatDisplayOrMissing(customer, 'contract.depositStatus', '미입력'),
   })
 
   rows.push({
