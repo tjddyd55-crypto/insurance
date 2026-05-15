@@ -56,3 +56,13 @@ export function normalizeCustomerEditRenewalDateForApi(raw: string | undefined):
   const head = s.slice(0, 10)
   return /^\d{4}-\d{2}-\d{2}$/.test(head) ? head : ''
 }
+
+/** 생년월일 저장용 — 빈 값은 `''`, 유효 YYYY-MM-DD만 허용, 그 외는 payload 에서 제외(null). */
+export function normalizeBirthDateForSaveApi(raw: string | null | undefined): string | null {
+  const s = String(raw ?? '').trim()
+  if (!s) {
+    return ''
+  }
+  const head = s.slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(head) ? head : null
+}

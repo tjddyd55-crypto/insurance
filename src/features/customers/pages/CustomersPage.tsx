@@ -71,6 +71,7 @@ import {
 import { buildSsnDuplicateHighlightByCustomerId } from '../utils/customerSsnDuplicateHighlight'
 import {
   recordToEditForm,
+  normalizeBirthDateForSaveApi,
   normalizeCustomerEditCarYearForApi,
   normalizeCustomerEditRenewalDateForApi,
 } from '../utils/customerEditFormState'
@@ -661,6 +662,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     const primaryCar = pickPrimaryCustomerCar(normalizedCars)
     const carYearForApi = normalizeCustomerEditCarYearForApi(primaryCar?.carYear)
     const renewalDateForApi = normalizeCustomerEditRenewalDateForApi(primaryCar?.renewalDate)
+    const birthDateForApi = normalizeBirthDateForSaveApi(activeEditForm.birthDate)
     try {
       const industryExt =
         crm.isInsuranceLayout ?
@@ -676,14 +678,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         ssn: activeEditForm.ssn,
         phone: activeEditForm.phone,
         carrier: String(activeEditForm.carrier ?? '').trim(),
-        ...(normalizeBirthDateForSaveApi(activeEditForm.birthDate) != null ||
-        String(activeEditForm.birthDate ?? '').trim().length === 0
-          ? {
-              birthDate: String(activeEditForm.birthDate ?? '')
-                .trim()
-                .slice(0, 10),
-            }
-          : {}),
+        ...(birthDateForApi != null ? { birthDate: birthDateForApi } : {}),
         address: formatAddressForSave({
           zonecode: activeEditForm.zonecode ?? '',
           baseAddress: activeEditForm.address ?? '',
