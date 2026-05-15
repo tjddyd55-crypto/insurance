@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton, FormInput } from '../../../components/form'
@@ -16,11 +16,6 @@ import {
   writeCustomerAppSession,
 } from '../session/customerAppSession'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
-}
 
 function resolveDevicePlatform(): 'android' | 'ios' | 'web' {
   if (/android/i.test(navigator.userAgent)) {
@@ -55,11 +50,18 @@ export default function CustomerAppConnectPage() {
   const [prefillError, setPrefillError] = useState('')
   const [prefill, setPrefill] = useState<CustomerAppConnectPrefill | null>(null)
   const [serverDesignatedProfileIncomplete, setServerDesignatedProfileIncomplete] = useState(false)
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [installHintOpen, setInstallHintOpen] = useState(false)
-  const [installResult, setInstallResult] = useState('')
+  const [homeScreenHintOpen, setHomeScreenHintOpen] = useState(false)
 
-  const didAutoConnectRef = useRef(false)
+  /** `/customer-app` 단독 진입: 이미 이 브라우저에 세션이 있으면 홈으로 (링크의 code 경로는 제외) */
+  useEffect(() => {
+    if (linkCodeParam) {
+      return
+    }
+    const existing = readCustomerAppSession()
+    if (existing?.appToken) {
+      navigate('/customer-app/home', { replace: true })
+    }
+  }, [linkCodeParam, navigate])
 
   useEffect(() => {
     const qp = String(searchParams.get('code') ?? searchParams.get('token') ?? '').trim()
@@ -74,9 +76,20 @@ export default function CustomerAppConnectPage() {
   }, [linkCodeParam, navigate, searchParams])
 
   useEffect(() => {
-    didAutoConnectRef.current = false
     setServerDesignatedProfileIncomplete(false)
   }, [linkCodeParam])
+
+  /** 이미 이 링크로 연결된 세션이 있으면 연결 화면을 건너뛴다 */
+  useEffect(() => {
+    if (!linkCodeParam || prefillLoading) {
+      return
+    }
+    const code = String(linkCodeParam).trim().toUpperCase()
+    const existing = readCustomerAppSession()
+    if (existing?.appToken && String(existing.linkCode ?? '').trim().toUpperCase() === code) {
+      navigate('/customer-app/home', { replace: true })
+    }
+  }, [linkCodeParam, prefillLoading, navigate])
 
   useEffect(() => {
     const code = String(linkCodeParam ?? '').trim().toUpperCase()
@@ -105,7 +118,7 @@ export default function CustomerAppConnectPage() {
           return
         }
         setPrefill(null)
-        setPrefillError(prefillLoadError instanceof Error ? prefillLoadError.message : '고객 정보 자동 입력에 실패했습니다.')
+        setPrefillError(prefillLoadError instanceof Error ? prefillLoadError.message : '연결 링크를 확인할 수 없습니다.')
       })
       .finally(() => {
         if (!cancelled) {
@@ -116,18 +129,6 @@ export default function CustomerAppConnectPage() {
       cancelled = true
     }
   }, [linkCodeParam])
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (event: Event) => {
-      const installEvent = event as BeforeInstallPromptEvent
-      event.preventDefault()
-      setDeferredPrompt(installEvent)
-    }
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-    }
-  }, [])
 
   const platform = useMemo(() => {
     const ua = navigator.userAgent.toLowerCase()
@@ -146,6 +147,9 @@ export default function CustomerAppConnectPage() {
   const designatedPrefillProfileIncomplete = isDesignatedLink && Boolean(prefill?.isActive) && !hasRequiredDesignatedProfile(prefill)
   const designatedConnectBlocked =
     isDesignatedLink && Boolean(prefill?.isActive) && (designatedPrefillProfileIncomplete || serverDesignatedProfileIncomplete)
+
+  const showPrefillFailure =
+    Boolean(linkCodeParam) && !prefillLoading && prefill == null && Boolean(prefillError.trim())
 
   const persistAfterConnect = useCallback(
     (connected: Awaited<ReturnType<typeof connectCustomerApp>>, code: string, deviceId: string) => {
@@ -261,95 +265,43 @@ export default function CustomerAppConnectPage() {
     })
   }
 
-  const handleStartClaim = async () => {
+  /** 지정 고객 링크: 최초 1회만 고객이 눌러 연결 (자동 연결 없음) */
+  const handleDesignatedConnect = async () => {
     if (designatedConnectBlocked) {
       return
     }
     if (!prefill?.isActive) {
-      setError('해당 링크는 만료되었거나 사용할 수 없습니다.')
+      setError('연결 링크가 만료되었거나 올바르지 않습니다. 담당자에게 새 링크를 요청해 주세요.')
       return
     }
     await handleConnectViaServerProfile(linkCode.trim().toUpperCase(), true)
   }
 
-  const handleAddToHome = async () => {
-    setInstallResult('')
-    setError('')
-    if (designatedConnectBlocked) {
-      return
-    }
-    if (isDesignatedLink && prefill?.isActive) {
-      await handleConnectViaServerProfile(linkCode.trim().toUpperCase(), false)
-    }
-    if (deferredPrompt) {
-      await deferredPrompt.prompt()
-      const choice = await deferredPrompt.userChoice
-      setInstallResult(choice.outcome === 'accepted' ? '홈 화면 추가 요청을 완료했습니다.' : '홈 화면 추가를 취소했습니다.')
-      setDeferredPrompt(null)
-      return
-    }
-    setInstallHintOpen(true)
-  }
-
-  useEffect(() => {
-    if (!isDesignatedLink || !prefill?.isActive || prefillLoading || designatedConnectBlocked) {
-      return
-    }
-    const code = String(linkCodeParam ?? '').trim().toUpperCase()
-    if (!code) {
-      return
-    }
-    const existing = readCustomerAppSession()
-    if (existing?.linkCode?.toUpperCase() === code) {
-      navigate('/customer-app/home', { replace: true })
-      return
-    }
-    if (didAutoConnectRef.current) {
-      return
-    }
-    didAutoConnectRef.current = true
-    let cancelled = false
-    void (async () => {
-      try {
-        const deviceId = resolveCustomerDeviceId()
-        const connected = await connectCustomerApp({
-          linkCode: code,
-          deviceId,
-          devicePlatform: resolveDevicePlatform(),
-          appVersion: 'web-1.0.0',
-        })
-        if (cancelled) {
-          return
-        }
-        persistAfterConnect(connected, code, deviceId)
-        setServerDesignatedProfileIncomplete(false)
-        navigate('/customer-app/home', { replace: true })
-      } catch (autoErr) {
-        didAutoConnectRef.current = false
-        if (!cancelled) {
-          if (
-            autoErr instanceof ApiError &&
-            autoErr.status === 422 &&
-            autoErr.code === CUSTOMER_APP_PROFILE_INCOMPLETE_CODE
-          ) {
-            setServerDesignatedProfileIncomplete(true)
-            setError('')
-          } else {
-            setError(autoErr instanceof Error ? autoErr.message : '연결에 실패했습니다.')
-          }
-        }
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [isDesignatedLink, prefill?.isActive, prefillLoading, designatedConnectBlocked, linkCodeParam, persistAfterConnect, navigate])
-
   if (linkCodeParam && prefillLoading) {
     return (
       <main className="content-wrapper py-6 max-w-xl">
         <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4">
-          <StatusMessage message="고객 전용 링크 정보를 확인하고 있습니다." />
+          <StatusMessage message="연결 링크를 확인하고 있습니다." />
+        </section>
+      </main>
+    )
+  }
+
+  if (showPrefillFailure) {
+    return (
+      <main className="content-wrapper py-6 max-w-xl">
+        <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 space-y-3">
+          <h1 className="text-lg font-semibold">연결할 수 없습니다</h1>
+          <StatusMessage
+            message={
+              prefillError.trim() ||
+              '연결 링크가 만료되었거나 올바르지 않습니다. 담당자에게 새 링크를 요청해 주세요.'
+            }
+            tone="error"
+          />
+          <FormButton htmlType="button" variant="secondary" onClick={() => navigate('/customer-app', { replace: true })}>
+            처음으로
+          </FormButton>
         </section>
       </main>
     )
@@ -357,16 +309,32 @@ export default function CustomerAppConnectPage() {
 
   if (isDesignatedLink) {
     const displayName = String(prefill?.customerName ?? '').trim() || '고객'
+    const agentLine = String(prefill?.agentName ?? '').trim()
+    const gaLine = String(prefill?.gaCompanyName ?? '').trim()
     return (
       <main className="content-wrapper py-6 max-w-xl">
         <section className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-elevated)] px-5 py-6 space-y-4 text-center">
           <div className="text-3xl" aria-hidden="true">
             🛡️
           </div>
-          <h1 className="text-xl font-semibold">{displayName}님의 전용 페이지입니다</h1>
+          <h1 className="text-xl font-semibold">{displayName} 고객님 맞으신가요?</h1>
           <p className="text-sm leading-6 text-[var(--text-secondary)]">
-            보험금 청구 자료 제출, 담당 설계사 메시지 확인, 소식지 확인을 이곳에서 할 수 있습니다.
+            연결하면 이 브라우저에서 청구·문의·소식지·내 정보를 이용할 수 있습니다.
           </p>
+          {(agentLine || gaLine) && (
+            <ul className="text-xs text-[var(--text-secondary)] text-left list-none p-0 m-0 space-y-1">
+              {agentLine ? (
+                <li>
+                  <span className="text-[var(--text-primary)] font-semibold">담당</span> {agentLine}
+                </li>
+              ) : null}
+              {gaLine ? (
+                <li>
+                  <span className="text-[var(--text-primary)] font-semibold">소속</span> {gaLine}
+                </li>
+              ) : null}
+            </ul>
+          )}
 
           {prefill?.isActive ? (
             <div className="space-y-2">
@@ -374,27 +342,22 @@ export default function CustomerAppConnectPage() {
                 htmlType="button"
                 variant="primary"
                 className="w-full min-h-[44px]"
-                onClick={() => void handleStartClaim()}
+                onClick={() => void handleDesignatedConnect()}
                 loading={loading}
                 disabled={designatedConnectBlocked}
               >
-                청구하기
+                연결하기
               </FormButton>
-              <FormButton
-                htmlType="button"
-                variant="secondary"
-                className="w-full min-h-[44px]"
-                onClick={() => void handleAddToHome()}
-                loading={loading}
-                disabled={designatedConnectBlocked}
+              <button
+                type="button"
+                className="w-full text-sm text-[var(--text-secondary)] underline underline-offset-2 bg-transparent border-0 p-2 cursor-pointer"
+                onClick={() => setHomeScreenHintOpen((v) => !v)}
               >
-                홈 화면에 추가
-              </FormButton>
+                자주 쓰시나요? 홈 화면에 추가하는 방법
+              </button>
             </div>
           ) : (
-            <StatusMessage
-              message="해당 링크는 만료되었거나 사용할 수 없습니다. 담당 설계사에게 새 링크를 요청해 주세요."
-            />
+            <StatusMessage message="연결 링크가 만료되었거나 올바르지 않습니다. 담당자에게 새 링크를 요청해 주세요." tone="error" />
           )}
 
           {designatedConnectBlocked ? (
@@ -404,32 +367,33 @@ export default function CustomerAppConnectPage() {
             </div>
           ) : null}
 
-          <p className="text-xs text-[var(--text-secondary)]">
-            홈 화면에 추가하면 다음부터 앱처럼 바로 열 수 있습니다.
-          </p>
-          <StatusMessage message={installResult} />
           <StatusMessage message={prefillError} />
           <StatusMessage message={designatedConnectBlocked ? '' : error} tone="error" />
         </section>
 
-        {installHintOpen ? (
+        {homeScreenHintOpen ? (
           <section className="mt-3 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 space-y-2">
             <h2 className="text-sm font-semibold">
-              {platform === 'ios-safari' ? 'iPhone 홈 화면 추가 방법' : '홈 화면 추가 안내'}
+              {platform === 'ios-safari' ? 'iPhone · 홈 화면에 추가' : 'Android · 홈 화면에 추가'}
             </h2>
             {platform === 'ios-safari' ? (
               <ol className="text-xs leading-6 text-[var(--text-secondary)] list-decimal pl-4">
-                <li>하단 또는 상단의 공유 버튼을 누르세요.</li>
-                <li>홈 화면에 추가를 선택하세요.</li>
-                <li>오른쪽 위 추가를 누르세요.</li>
+                <li>Safari 하단 또는 상단의 공유 버튼을 누릅니다.</li>
+                <li>홈 화면에 추가를 선택합니다.</li>
+                <li>오른쪽 위 추가를 누릅니다.</li>
+              </ol>
+            ) : platform === 'android-chrome' ? (
+              <ol className="text-xs leading-6 text-[var(--text-secondary)] list-decimal pl-4">
+                <li>Chrome 오른쪽 상단 메뉴(⋮)를 누릅니다.</li>
+                <li>홈 화면에 추가를 선택합니다.</li>
+                <li>안내에 따라 추가를 완료합니다.</li>
               </ol>
             ) : (
-              <ol className="text-xs leading-6 text-[var(--text-secondary)] list-decimal pl-4">
-                <li>브라우저 메뉴를 연 뒤 홈 화면에 추가 또는 앱 설치를 선택하세요.</li>
-                <li>표시되는 안내를 따라 추가를 완료하세요.</li>
-              </ol>
+              <p className="text-xs leading-6 text-[var(--text-secondary)] m-0">
+                브라우저 메뉴에서 이 사이트를 홈 화면에 추가·바로가기로 저장하는 기능을 찾아 주세요.
+              </p>
             )}
-            <FormButton htmlType="button" variant="secondary" className="w-full min-h-[44px]" onClick={() => setInstallHintOpen(false)}>
+            <FormButton htmlType="button" variant="secondary" className="w-full min-h-[44px]" onClick={() => setHomeScreenHintOpen(false)}>
               닫기
             </FormButton>
           </section>
@@ -443,7 +407,8 @@ export default function CustomerAppConnectPage() {
       <section className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 space-y-3">
         <h1 className="text-lg font-semibold">고객 앱 연결</h1>
         <p className="text-sm text-[var(--text-secondary)]">
-          설계사가 전달한 링크 코드를 입력하면 바로 연결됩니다. 회원가입이나 비밀번호 입력은 필요하지 않습니다.
+          설계사가 보낸 연결 링크를 눌러 주세요. 링크에 코드가 없으면 아래에 코드를 입력한 뒤 연결하기를 누릅니다. 회원가입이나 비밀번호는 필요하지
+          않습니다.
         </p>
         <FormInput
           className="w-full"
