@@ -124,6 +124,8 @@ export default function StorageFileList({
           <FormButton
             htmlType="button"
             variant="action"
+            size="sm"
+            className="storage-file-list__action-button storage-file-list__action-button--open"
             onClick={(event) => {
               event.stopPropagation()
               onOpen(file)
@@ -134,6 +136,8 @@ export default function StorageFileList({
           <FormButton
             htmlType="button"
             variant="action"
+            size="sm"
+            className="storage-file-list__action-button storage-file-list__action-button--download"
             onClick={(event) => {
               event.stopPropagation()
               onDownload(file)
@@ -143,7 +147,9 @@ export default function StorageFileList({
           </FormButton>
           <FormButton
             htmlType="button"
-            variant="action"
+            variant="secondary"
+            size="sm"
+            className="storage-file-list__action-button storage-file-list__action-button--rename"
             onClick={(event) => {
               event.stopPropagation()
               onRename(file)
@@ -153,7 +159,9 @@ export default function StorageFileList({
           </FormButton>
           <FormButton
             htmlType="button"
-            variant="action"
+            variant="danger"
+            size="sm"
+            className="storage-file-list__action-button storage-file-list__action-button--delete"
             onClick={(event) => {
               event.stopPropagation()
               onDelete(file)

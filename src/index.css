@@ -9581,9 +9581,60 @@ textarea.memo-sticky-note__textarea::placeholder {
 }
 
 .storage-file-list__actions {
-  display: inline-flex;
+  display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  align-items: center;
+}
+
+.storage-file-list .storage-file-list__action-button.button,
+.storage-file-list button.storage-file-list__action-button {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle, #1e293b);
+  background: var(--bg-elevated, #141821);
+  color: var(--text-primary, #e5e7eb);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.storage-file-list .storage-file-list__action-button--rename.button,
+.storage-file-list button.storage-file-list__action-button--rename {
+  background: color-mix(in srgb, var(--bg-card, #111827) 92%, var(--bg-elevated, #141821));
+  color: var(--text-secondary, #cbd5e1);
+  font-weight: 600;
+}
+
+.storage-file-list .storage-file-list__action-button--delete.button,
+.storage-file-list button.storage-file-list__action-button--delete {
+  border-color: color-mix(in srgb, var(--danger, #ef4444) 35%, var(--border-subtle, #1e293b));
+  background: color-mix(in srgb, var(--danger, #ef4444) 14%, var(--bg-elevated, #141821));
+  color: var(--danger, #ef4444);
+}
+
+.storage-file-list .storage-file-list__action-button--delete.button:hover,
+.storage-file-list button.storage-file-list__action-button--delete:hover {
+  background: color-mix(in srgb, var(--danger, #ef4444) 22%, var(--bg-elevated, #141821));
+}
+
+@media (max-width: 767px) {
+  .storage-file-list__actions {
+    gap: 8px;
+  }
+
+  .storage-file-list .storage-file-list__action-button.button,
+  .storage-file-list button.storage-file-list__action-button {
+    min-height: 36px;
+    height: 36px;
+    padding: 0 12px;
+  }
 }
 
 .storage-file-list__empty {
@@ -9721,7 +9772,7 @@ textarea.memo-sticky-note__textarea::placeholder {
    아이콘 버튼은 `.customers-page--pc .customer-card__actions .icon-box button` 등으로만 제한한다.
    ========================= */
 
-.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__copy):not(.customer-filter-chip):not(.customers-page__action-btn),
+.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__copy):not(.customer-filter-chip):not(.customers-page__action-btn):not(.storage-file-list__action-button),
 .customers-page--mobile a {
   min-height: unset !important;
   height: auto !important;
@@ -10269,6 +10320,38 @@ textarea.memo-sticky-note__textarea::placeholder {
   border-radius: 12px;
   padding: 16px;
   color: var(--text-secondary);
+}
+
+/* 모바일 고객 메모(워크스페이스 시트): 상담 탭과 동일한 페이지 셸·카드 톤 */
+@media (max-width: 767px) {
+  .workspace-mobile-outlet-modal__body .customer-memos-mobile-shell.content-wrapper.page-shell {
+    min-height: 100%;
+    box-sizing: border-box;
+    background: transparent;
+    color: inherit;
+  }
+
+  .workspace-mobile-outlet-modal__body .customer-memos-mobile-shell .customer-workspace-home.customer-memos-page--mobile {
+    background: var(--bg-card);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+  }
+
+  .workspace-mobile-outlet-modal__body .customer-memos-mobile-shell .customer-workspace-home__title {
+    color: var(--text-primary);
+  }
+
+  .workspace-mobile-outlet-modal__body .customer-memos-mobile-shell .customer-workspace-home__desc {
+    color: var(--text-secondary);
+  }
+
+  .workspace-mobile-outlet-modal__body .customer-memos-mobile-shell .customer-inline-notes .customer-section-title {
+    color: var(--text-primary);
+  }
+
+  .workspace-mobile-outlet-modal__body .customer-memos-mobile-shell .customer-inline-memo-row--workspace-mobile {
+    border-top: 1px solid var(--border-default);
+  }
 }
 
 /* mobile touch min size */
