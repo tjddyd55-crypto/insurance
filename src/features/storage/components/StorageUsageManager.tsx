@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FormButton } from '../../../components/form'
-import { deleteStorageFile, downloadStorageFile, openStorageFile } from '../api/storageApi'
+import { createStorageFileDownloadUrl, deleteStorageFile, openStorageFile } from '../api/storageApi'
 import {
   getStorageUsageBreakdown,
   type StorageUsageBreakdown,
@@ -105,6 +105,56 @@ export default function StorageUsageManager({ token, onStorageChanged }: Storage
 
   const hasActiveFilter = sourceFilter !== 'all' || searchText.trim().length > 0 || sortMode !== 'size-desc'
 
+  const usageDownloadRef = useRef<Record<number, string>>({})
+  const [usageDownloadHrefByFileId, setUsageDownloadHrefByFileId] = useState<Record<number, string>>({})
+  const [usageDownloadFailedIds, setUsageDownloadFailedIds] = useState<ReadonlySet<number>>(() => new Set())
+
+  const filteredUsageDownloadKey = useMemo(() => {
+    return filteredItems
+      .map((item) => item.storageFileId)
+      .filter((id): id is number => typeof id === 'number' && id > 0)
+      .sort((a, b) => a - b)
+      .join(',')
+  }, [filteredItems])
+
+  useEffect(() => {
+    if (!open || !token.trim()) {
+      usageDownloadRef.current = {}
+      setUsageDownloadHrefByFileId({})
+      setUsageDownloadFailedIds(new Set())
+      return
+    }
+    let cancelled = false
+    const run = async () => {
+      const next: Record<number, string> = {}
+      const failed = new Set<number>()
+      for (const item of filteredItems) {
+        const fid = item.storageFileId
+        if (!fid) {
+          continue
+        }
+        try {
+          const href = await createStorageFileDownloadUrl(token, fid)
+          if (cancelled) {
+            return
+          }
+          next[fid] = href
+        } catch {
+          failed.add(fid)
+        }
+      }
+      usageDownloadRef.current = next
+      if (!cancelled) {
+        setUsageDownloadHrefByFileId({ ...next })
+        setUsageDownloadFailedIds(failed)
+      }
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [open, token, filteredItems, filteredUsageDownloadKey])
+
   const resetFilters = useCallback(() => {
     setSourceFilter('all')
     setSearchText('')
@@ -160,7 +210,7 @@ export default function StorageUsageManager({ token, onStorageChanged }: Storage
     }
   }, [onStorageChanged, token])
 
-  const handleOpen = useCallback(async (item: StorageUsageItem) => {
+  const handleOpenStorageFile = useCallback(async (item: StorageUsageItem) => {
     if (!token?.trim() || !item.storageFileId) {
       return
     }
@@ -168,17 +218,6 @@ export default function StorageUsageManager({ token, onStorageChanged }: Storage
       await openStorageFile(token, item.storageFileId)
     } catch (openError) {
       setError(openError instanceof Error ? openError.message : '파일 열기에 실패했습니다.')
-    }
-  }, [token])
-
-  const handleDownload = useCallback(async (item: StorageUsageItem) => {
-    if (!token?.trim() || !item.storageFileId) {
-      return
-    }
-    try {
-      await downloadStorageFile(token, item.storageFileId)
-    } catch (downloadError) {
-      setError(downloadError instanceof Error ? downloadError.message : '다운로드에 실패했습니다.')
     }
   }, [token])
 
@@ -307,8 +346,20 @@ export default function StorageUsageManager({ token, onStorageChanged }: Storage
                   <div className="storage-usage-manager__item-actions">
                     {item.storageFileId ? (
                       <>
-                        <button type="button" onClick={() => void handleOpen(item)}>열기</button>
-                        <button type="button" onClick={() => void handleDownload(item)}>다운</button>
+                        <button type="button" onClick={() => void handleOpenStorageFile(item)}>열기</button>
+                        {usageDownloadHrefByFileId[item.storageFileId] ? (
+                          <a
+                            href={usageDownloadHrefByFileId[item.storageFileId]}
+                            download
+                            className="button button--small"
+                          >
+                            다운
+                          </a>
+                        ) : (
+                          <button type="button" disabled>
+                            {usageDownloadFailedIds.has(item.storageFileId) ? '준비 실패' : '준비 중'}
+                          </button>
+                        )}
                       </>
                     ) : null}
                     <button type="button" onClick={() => handleGoSource(item)}>원본관리</button>

@@ -1,5 +1,7 @@
 import { FormButton } from '../../../components/form'
-import type { StorageFileRow, StorageFolderRow } from '../api/storageApi'
+import type { StorageFileRow, StorageFolderRow, StorageFileDownloadLinkEntry } from '../api/storageApi'
+
+export type { StorageFileDownloadLinkEntry } from '../api/storageApi'
 
 type StorageFileListProps = {
   folders: StorageFolderRow[]
@@ -12,7 +14,9 @@ type StorageFileListProps = {
   onToggleFolder: (folderId: number) => void
   onSelectFile: (id: number) => void
   onOpen: (file: StorageFileRow) => void
-  onDownload: (file: StorageFileRow) => void
+  /** 클릭 시점에 href가 준비된 경우에만 브라우저 기본 다운로드(비동기 발급 없음) */
+  downloadLinksByFileId: Record<number, StorageFileDownloadLinkEntry>
+  downloadLinkFailedIds: ReadonlySet<number>
   onRename: (file: StorageFileRow) => void
   onDelete: (file: StorageFileRow) => void
   onRenameFolder: (folder: StorageFolderRow) => void
@@ -62,7 +66,8 @@ export default function StorageFileList({
   onToggleFolder,
   onSelectFile,
   onOpen,
-  onDownload,
+  downloadLinksByFileId,
+  downloadLinkFailedIds,
   onRename,
   onDelete,
   onRenameFolder,
@@ -96,6 +101,9 @@ export default function StorageFileList({
 
   const renderFileRow = (file: StorageFileRow, nested = false) => {
     const selected = selectedFileId === file.id
+    const downloadEntry = downloadLinksByFileId[file.id]
+    const downloadHref = downloadEntry?.href?.trim() ?? ''
+    const downloadFailed = downloadLinkFailedIds.has(file.id)
     return (
       <div
         key={file.id}
@@ -133,18 +141,31 @@ export default function StorageFileList({
           >
             열기
           </FormButton>
-          <FormButton
-            htmlType="button"
-            variant="action"
-            size="sm"
-            className="storage-file-list__action-button storage-file-list__action-button--download"
-            onClick={(event) => {
-              event.stopPropagation()
-              onDownload(file)
-            }}
-          >
-            다운로드
-          </FormButton>
+          {downloadHref ? (
+            <a
+              href={downloadHref}
+              download
+              className="button button--small storage-file-list__action-button storage-file-list__action-button--download"
+              onClick={(event) => {
+                event.stopPropagation()
+              }}
+            >
+              다운로드
+            </a>
+          ) : (
+            <FormButton
+              htmlType="button"
+              variant="action"
+              size="sm"
+              disabled
+              className="storage-file-list__action-button storage-file-list__action-button--download"
+              onClick={(event) => {
+                event.stopPropagation()
+              }}
+            >
+              {downloadFailed ? '준비 실패' : '준비 중'}
+            </FormButton>
+          )}
           <FormButton
             htmlType="button"
             variant="secondary"

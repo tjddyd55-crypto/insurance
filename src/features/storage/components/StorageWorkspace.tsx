@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
+  createStorageFileDownloadUrl,
   createStorageFolder,
   deleteStorageFile,
   deleteStorageFolder,
-  downloadStorageFile,
   getPersonalStorageQuota,
   listStorageFiles,
   listStorageFolders,
@@ -14,6 +14,7 @@ import {
   renameStorageFolder,
   revokeStorageStagedUpload,
   saveStorageFile,
+  type StorageFileDownloadLinkEntry,
   type StorageFileRow,
   type StorageFolderRow,
 } from '../api/storageApi'
@@ -200,6 +201,61 @@ export default function StorageWorkspace({
       return haystack.includes(query)
     })
   }, [files, kindFilter, searchText, selectedFolderId])
+
+  const FILE_DOWNLOAD_TTL_MS = 8 * 60 * 1000
+  const fileDownloadLinksRef = useRef<Record<number, StorageFileDownloadLinkEntry>>({})
+  const [fileDownloadLinks, setFileDownloadLinks] = useState<Record<number, StorageFileDownloadLinkEntry>>({})
+  const [fileDownloadFailedIds, setFileDownloadFailedIds] = useState<ReadonlySet<number>>(() => new Set())
+
+  const filteredFileIdsKey = useMemo(
+    () =>
+      filteredFiles
+        .map((f) => f.id)
+        .sort((a, b) => a - b)
+        .join(','),
+    [filteredFiles],
+  )
+
+  useEffect(() => {
+    if (!token?.trim()) {
+      fileDownloadLinksRef.current = {}
+      setFileDownloadLinks({})
+      setFileDownloadFailedIds(new Set())
+      return
+    }
+    let cancelled = false
+    const run = async () => {
+      const now = Date.now()
+      const tok = token.trim()
+      const next: Record<number, StorageFileDownloadLinkEntry> = {}
+      const failed = new Set<number>()
+      for (const file of filteredFiles) {
+        const cached = fileDownloadLinksRef.current[file.id]
+        if (cached && now - cached.createdAt < FILE_DOWNLOAD_TTL_MS) {
+          next[file.id] = cached
+          continue
+        }
+        try {
+          const href = await createStorageFileDownloadUrl(tok, file.id)
+          if (cancelled) {
+            return
+          }
+          next[file.id] = { href, createdAt: Date.now() }
+        } catch {
+          failed.add(file.id)
+        }
+      }
+      fileDownloadLinksRef.current = next
+      if (!cancelled) {
+        setFileDownloadLinks({ ...next })
+        setFileDownloadFailedIds(failed)
+      }
+    }
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [token, filteredFileIdsKey, filteredFiles])
 
   useEffect(() => {
     if (!token?.trim()) {
@@ -552,25 +608,6 @@ export default function StorageWorkspace({
     [token],
   )
 
-  const downloadFile = useCallback(
-    async (file: StorageFileRow) => {
-      if (!token?.trim()) {
-        return
-      }
-      setError('')
-      try {
-        await downloadStorageFile(token, file.id)
-      } catch (e) {
-        setError(
-          e instanceof Error
-            ? e.message
-            : '파일 다운로드에 실패했습니다. 파일을 열어 다시 다운로드해 주세요.',
-        )
-      }
-    },
-    [token],
-  )
-
   const quotaPercent = useMemo(() => {
     if (!quota) {
       return null
@@ -699,9 +736,8 @@ export default function StorageWorkspace({
         onOpen={(file) => {
           void openFile(file)
         }}
-        onDownload={(file) => {
-          void downloadFile(file)
-        }}
+        downloadLinksByFileId={fileDownloadLinks}
+        downloadLinkFailedIds={fileDownloadFailedIds}
         onRename={openRenameFileDialog}
         onDelete={(file) => setDeleteTarget({ kind: 'file', file })}
         onRenameFolder={openRenameFolderDialog}
