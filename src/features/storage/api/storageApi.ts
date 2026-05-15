@@ -1,4 +1,4 @@
-import { ApiError, apiRequest, resolveAbsoluteApiUrl, resolveApiUrl } from '../../../lib/apiClient'
+import { ApiError, apiRequest, resolveAbsoluteApiUrl } from '../../../lib/apiClient'
 
 export type StorageFolderRow = {
   id: number
@@ -281,47 +281,38 @@ export function parseContentDispositionFilename(headerValue: string | null): str
   return null
 }
 
-async function fetchStorageFileBlob(token: string, fileId: number): Promise<{ blob: Blob; fileName: string | null }> {
+/**
+ * 짧은 수명 `open` URL(attachment) — 브라우저가 직접 GET 하므로 Authorization 헤더 없이도 동작합니다.
+ */
+export async function createStorageFileDownloadUrl(token: string, fileId: number): Promise<string> {
   assertToken(token)
-  const url = resolveApiUrl(`/api/storage/files/${fileId}/download`)
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token.trim()}`,
-    },
+  const { openUrl } = await apiRequest<{ openUrl: string }>(`/api/storage/files/${fileId}/open-token`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ disposition: 'attachment' }),
   })
-  if (!response.ok) {
-    let message = '파일을 불러오지 못했습니다.'
-    try {
-      const payload = (await response.json()) as { message?: string }
-      if (payload?.message) {
-        message = payload.message
-      }
-    } catch {
-      // ignore
-    }
-    throw new ApiError(message, response.status)
-  }
-  return {
-    blob: await response.blob(),
-    fileName: parseContentDispositionFilename(response.headers.get('Content-Disposition')),
-  }
+  return resolveAbsoluteApiUrl(openUrl)
 }
 
 /**
- * 스토리지 파일 다운로드: 서버가 보낸 Content-Disposition(표시명)을 그대로 저장 파일명으로 사용합니다.
+ * 스토리지 파일 다운로드: `open-token`(attachment) + 새 창과 동일한 방식으로 트리거합니다.
+ * fetch+blob 은 비동기 이후 사용자 제스처가 끊겨 PC/모바일에서 막히는 경우가 있어 사용하지 않습니다.
  */
 export async function downloadStorageFile(token: string, fileId: number): Promise<void> {
-  const { blob, fileName } = await fetchStorageFileBlob(token, fileId)
-  const objectUrl = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = objectUrl
-  a.download = fileName ?? `file-${fileId}`
-  a.rel = 'noopener'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(objectUrl)
+  assertToken(token)
+  const href = await createStorageFileDownloadUrl(token, fileId)
+  const opened = window.open(href, '_blank', 'noopener,noreferrer')
+  if (opened) {
+    return
+  }
+  const fallback = document.createElement('a')
+  fallback.href = href
+  fallback.target = '_blank'
+  fallback.rel = 'noopener noreferrer'
+  fallback.style.display = 'none'
+  document.body.appendChild(fallback)
+  fallback.click()
+  fallback.remove()
 }
 
 /**

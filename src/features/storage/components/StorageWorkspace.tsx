@@ -560,7 +560,11 @@ export default function StorageWorkspace({
       try {
         await downloadStorageFile(token, file.id)
       } catch (e) {
-        setError(e instanceof Error ? e.message : '다운로드에 실패했습니다.')
+        setError(
+          e instanceof Error
+            ? e.message
+            : '파일 다운로드에 실패했습니다. 파일을 열어 다시 다운로드해 주세요.',
+        )
       }
     },
     [token],
