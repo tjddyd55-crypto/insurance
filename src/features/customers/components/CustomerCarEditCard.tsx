@@ -1,5 +1,6 @@
 import { FormButton, FormInput } from '../../../components/form'
 import type { CustomerCarFormItem } from '../types/customerCarForm'
+import { toDateInputValue } from '../utils/toDateInputValue'
 
 export type CustomerCarEditCardProps = {
   index: number
@@ -70,7 +71,7 @@ export function CustomerCarEditCard({
         <FormInput
           className="field__control"
           type="date"
-          value={car.renewalDate ? car.renewalDate.slice(0, 10) : ''}
+          value={toDateInputValue(car.renewalDate)}
           disabled={disabled}
           onChange={(e) => onChange({ ...car, renewalDate: e.target.value })}
         />
