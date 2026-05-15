@@ -281,6 +281,24 @@ export function parseContentDispositionFilename(headerValue: string | null): str
   return null
 }
 
+export type DownloadStorageFileOptions = {
+  /** 모바일 WebView 등: Authorization 없이 짧은 수명 URL로 이동해 다운로드 트리거 */
+  preferNavigation?: boolean
+}
+
+/**
+ * 짧은 수명 `open` URL(attachment) — 브라우저가 직접 GET 하므로 모바일 다운로드에 유리합니다.
+ */
+export async function createStorageFileDownloadUrl(token: string, fileId: number): Promise<string> {
+  assertToken(token)
+  const { openUrl } = await apiRequest<{ openUrl: string }>(`/api/storage/files/${fileId}/open-token`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify({ disposition: 'attachment' }),
+  })
+  return resolveAbsoluteApiUrl(openUrl)
+}
+
 async function fetchStorageFileBlob(token: string, fileId: number): Promise<{ blob: Blob; fileName: string | null }> {
   assertToken(token)
   const url = resolveApiUrl(`/api/storage/files/${fileId}/download`)
@@ -310,8 +328,18 @@ async function fetchStorageFileBlob(token: string, fileId: number): Promise<{ bl
 
 /**
  * 스토리지 파일 다운로드: 서버가 보낸 Content-Disposition(표시명)을 그대로 저장 파일명으로 사용합니다.
+ * `preferNavigation` 이 true 이면 fetch+blob 대신 짧은 수명 attachment URL 로 이동합니다(모바일).
  */
-export async function downloadStorageFile(token: string, fileId: number): Promise<void> {
+export async function downloadStorageFile(
+  token: string,
+  fileId: number,
+  options: DownloadStorageFileOptions = {},
+): Promise<void> {
+  if (options.preferNavigation) {
+    const href = await createStorageFileDownloadUrl(token, fileId)
+    window.location.assign(href)
+    return
+  }
   const { blob, fileName } = await fetchStorageFileBlob(token, fileId)
   const objectUrl = URL.createObjectURL(blob)
   const a = document.createElement('a')

@@ -10,7 +10,7 @@ const PDF_PREVIEW_TTL_MS = 10 * 60 * 1000
 /** 렌더 미리보기 1건 상한 (바이트) — 템플릿 업로드 한도와 맞춤 */
 export const MAX_PDF_PREVIEW_BYTES = 25 * 1024 * 1024
 
-/** @type {Map<string, { userId: string, gaId: number, fileId: number, pathSegment: string, customerId: number | null, expiresAt: number }>} */
+/** @type {Map<string, { userId: string, gaId: number, fileId: number, pathSegment: string, customerId: number | null, disposition: 'inline' | 'attachment', expiresAt: number }>} */
 const storageOpens = new Map()
 
 /** @type {Map<string, { buffer: Buffer, pathSegment: string, expiresAt: number, userId: string | null }>} */
@@ -42,17 +42,19 @@ function startJanitor() {
 startJanitor()
 
 /**
- * @param {{ userId: string, gaId: number, fileId: number, pathSegment: string, customerId?: number | null }} meta
+ * @param {{ userId: string, gaId: number, fileId: number, pathSegment: string, customerId?: number | null, disposition?: 'inline' | 'attachment' }} meta
  */
 export function issueStorageOpenToken(meta) {
   purgeMap(storageOpens)
   const token = randomToken()
+  const disposition = meta.disposition === 'attachment' ? 'attachment' : 'inline'
   storageOpens.set(token, {
     userId: meta.userId,
     gaId: meta.gaId,
     fileId: meta.fileId,
     pathSegment: meta.pathSegment,
     customerId: meta.customerId != null ? Number(meta.customerId) : null,
+    disposition,
     expiresAt: Date.now() + STORAGE_OPEN_TTL_MS,
   })
   return token

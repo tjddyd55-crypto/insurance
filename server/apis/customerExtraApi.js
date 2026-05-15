@@ -2856,12 +2856,21 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const downloadName = String(file.display_name ?? file.original_name ?? '').trim() || 'download'
       const extHint = inferDefaultExtFromStorageFile(file)
       const pathSegment = toSinglePathFilename(downloadName, `file-${fileId}`, extHint)
+      let disposition = 'inline'
+      const body = req.body
+      if (body && typeof body === 'object' && !Array.isArray(body)) {
+        const d = String(body.disposition ?? '').trim().toLowerCase()
+        if (d === 'attachment') {
+          disposition = 'attachment'
+        }
+      }
       const token = issueStorageOpenToken({
         userId,
         gaId,
         fileId,
         pathSegment,
         customerId: file.customer_id != null ? Number(file.customer_id) : null,
+        disposition,
       })
       res.json({
         openUrl: `/api/storage/files/open/${token}/${encodeURIComponent(pathSegment)}`,
@@ -2922,10 +2931,19 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const downloadName = String(file.display_name ?? file.original_name ?? '').trim() || 'download'
       const mimeRaw = file.mime_type != null ? String(file.mime_type).trim() : ''
       const contentType = mimeRaw || 'application/octet-stream'
+      const disposition = meta.disposition === 'attachment' ? 'attachment' : 'inline'
       res.setHeader('Content-Type', contentType)
-      res.setHeader('Content-Disposition', buildInlineContentDisposition(downloadName))
+      res.setHeader(
+        'Content-Disposition',
+        disposition === 'attachment'
+          ? buildAttachmentContentDisposition(downloadName)
+          : buildInlineContentDisposition(downloadName),
+      )
       res.setHeader('Content-Length', String(buffer.length))
-      res.setHeader('Cache-Control', 'private, max-age=300')
+      res.setHeader(
+        'Cache-Control',
+        disposition === 'attachment' ? 'private, no-store' : 'private, max-age=300',
+      )
       res.end(buffer)
     } catch (error) {
       handleDbError(error, req, res)

@@ -557,13 +557,14 @@ export default function StorageWorkspace({
       if (!token?.trim()) {
         return
       }
+      setError('')
       try {
-        await downloadStorageFile(token, file.id)
+        await downloadStorageFile(token, file.id, { preferNavigation: isMobile })
       } catch (e) {
         setError(e instanceof Error ? e.message : '다운로드에 실패했습니다.')
       }
     },
-    [token],
+    [isMobile, token],
   )
 
   const quotaPercent = useMemo(() => {

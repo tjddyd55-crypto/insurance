@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
+import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import CustomerFilesPagePC from './detail/CustomerFilesPagePC'
 
@@ -30,5 +31,5 @@ export default function CustomerFilesPage() {
     )
   }
 
-  return <CustomerFilesPagePC token={token} customerId={customerId} />
+  return <CustomerFilesPagePC token={token} customerId={customerId} variant={isMobile ? 'mobile' : 'pc'} />
 }
