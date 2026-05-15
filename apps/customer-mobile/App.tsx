@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import type { ElementRef } from 'react'
 import { Alert, BackHandler, Linking, Platform, StyleSheet, View } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
-import * as Updates from 'expo-updates'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from 'react-native-webview'
 import { AppLayout } from './AppLayout'
 import { ExpoUpdateOverlay, type ExpoUpdatePhase } from './components/ExpoUpdateOverlay'
+import { runCustomerExpoUpdateOnLaunch } from './lib/checkCustomerExpoUpdate'
 import {
   CUSTOMER_APP_WEB_SERVICE_HOST,
   CUSTOMER_APP_WEB_VIEW_URL,
@@ -246,26 +246,13 @@ export default function App() {
 
   useEffect(() => {
     let mounted = true
-    void (async () => {
-      try {
-        if (!Updates.isEnabled) return
-        setUpdatePhase('checking')
-        const update = await Updates.checkForUpdateAsync()
-        if (!mounted) return
-        if (!update.isAvailable) {
-          setUpdatePhase('idle')
-          return
+    void runCustomerExpoUpdateOnLaunch({
+      onPhase: (phase) => {
+        if (mounted) {
+          setUpdatePhase(phase)
         }
-        setUpdatePhase('downloading')
-        await Updates.fetchUpdateAsync()
-        if (!mounted) return
-        setUpdatePhase('reloading')
-        await Updates.reloadAsync()
-      } catch {
-        /* OTA 확인 실패 시 앱 사용은 계속 진행한다. 오버레이도 숨긴다. */
-        if (mounted) setUpdatePhase('error')
-      }
-    })()
+      },
+    })
     return () => {
       mounted = false
     }

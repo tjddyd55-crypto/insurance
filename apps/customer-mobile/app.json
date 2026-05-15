@@ -33,7 +33,8 @@
     "runtimeVersion": "production",
     "updates": {
       "url": "https://u.expo.dev/c774705b-e9b2-44d3-b5d7-6ba9968e4c70",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "NEVER"
     },
     "plugins": [
       [
