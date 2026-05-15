@@ -109,6 +109,9 @@ export type CustomerListCardProps = {
   editForm: CustomerEditFormState | null
   setEditForm: Dispatch<SetStateAction<CustomerEditFormState | null>>
   onEditSubmit: (e: FormEvent<HTMLFormElement>) => void | Promise<void>
+  onEditSaveRequest: () => void | Promise<void>
+  editSaving: boolean
+  editStatusText?: string
   carFeatureEnabled: boolean
   gaExcelEnabled: boolean
   onCopyCustomer: (c: CustomerRecord) => void
@@ -152,6 +155,9 @@ const CustomerListCard = memo(function CustomerListCard({
   editForm,
   setEditForm,
   onEditSubmit,
+  onEditSaveRequest,
+  editSaving,
+  editStatusText,
   carFeatureEnabled,
   gaExcelEnabled,
   onCopyCustomer,
@@ -509,6 +515,9 @@ const CustomerListCard = memo(function CustomerListCard({
                     editForm={editForm}
                     setEditForm={setEditForm}
                     onEditSubmit={onEditSubmit}
+                    onEditSaveRequest={onEditSaveRequest}
+                    saving={editSaving}
+                    statusText={editStatusText}
                     onCancelEdit={onCancelEdit}
                     isInsuranceLayout={crmIsInsuranceLayout}
                     crmIndustryTemplate={crmIndustryTemplate}

@@ -154,6 +154,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   })
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
+  const [editSaving, setEditSaving] = useState(false)
+  const editSavingRef = useRef(false)
   const [activeMobileModal, setActiveMobileModal] = useState<
     null | 'files' | 'consultations' | 'ga'
   >(null)
@@ -731,12 +733,26 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     }
   }, [token, user?.role, cancelEdit, loadCustomers])
 
+  const handleEditSaveRequest = useCallback(async () => {
+    if (editSavingRef.current) {
+      return
+    }
+    editSavingRef.current = true
+    setEditSaving(true)
+    try {
+      await handleUpdateCustomer()
+    } finally {
+      editSavingRef.current = false
+      setEditSaving(false)
+    }
+  }, [handleUpdateCustomer])
+
   const handleEditFormSubmit = useCallback(
     async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault()
-      await handleUpdateCustomer()
+      await handleEditSaveRequest()
     },
-    [handleUpdateCustomer],
+    [handleEditSaveRequest],
   )
 
   const copyCustomer = useCallback(
@@ -1274,6 +1290,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               editForm={editForm}
               setEditForm={setEditForm}
               onEditSubmit={handleEditFormSubmit}
+              onEditSaveRequest={handleEditSaveRequest}
+              editSaving={editSaving}
+              editStatusText={editingId === c.id ? statusText : undefined}
               carFeatureEnabled={carFeatureEnabled}
               gaExcelEnabled={gaExcelEnabled}
               onCopyCustomer={copyCustomer}

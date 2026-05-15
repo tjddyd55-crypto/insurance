@@ -23,7 +23,12 @@ type CustomerEditFormProps = {
   customerId: number
   editForm: CustomerEditFormState
   setEditForm: Dispatch<SetStateAction<CustomerEditFormState | null>>
+  /** PC·모바일 공통: Enter 등으로 폼 submit 시 부모가 `preventDefault` 등을 쓸 때 호출(레거시 경로 유지). */
   onEditSubmit: (e: FormEvent<HTMLFormElement>) => void | Promise<void>
+  /** 저장 요청 — submit 이벤트와 분리된 직접 저장 경로(모바일 터치 안정화). */
+  onEditSaveRequest: () => void | Promise<void>
+  saving?: boolean
+  statusText?: string
   onCancelEdit: () => void
   isInsuranceLayout: boolean
   crmIndustryTemplate: CustomerIndustryTemplate
@@ -33,12 +38,14 @@ export default function CustomerEditForm({
   customerId,
   editForm,
   setEditForm,
-  onEditSubmit,
+  onEditSubmit: _onEditSubmit,
+  onEditSaveRequest,
+  saving = false,
+  statusText,
   onCancelEdit,
   isInsuranceLayout,
   crmIndustryTemplate,
 }: CustomerEditFormProps) {
-
   return (
     <>
       <div className="customer-edit-banner" role="status">
@@ -46,8 +53,10 @@ export default function CustomerEditForm({
       </div>
       <form
         className="customer-edit-form"
+        noValidate
         onSubmit={(e) => {
-          void onEditSubmit(e)
+          e.preventDefault()
+          void onEditSaveRequest()
         }}
       >
         {isInsuranceLayout ? (
@@ -233,8 +242,23 @@ export default function CustomerEditForm({
             onPatch={(patch) => setEditForm((prev) => (prev ? { ...prev, ...patch } : prev))}
           />
         )}
+        {statusText?.trim() ? (
+          <p className="customer-edit-form__status" role="status" aria-live="polite">
+            {statusText}
+          </p>
+        ) : null}
         <div className="customer-edit-actions">
-          <FormButton className="button-save" htmlType="submit" variant="primary">
+          <FormButton
+            className="button-save"
+            htmlType="button"
+            variant="primary"
+            disabled={saving}
+            loading={saving}
+            loadingText="저장 중…"
+            onClick={() => {
+              void onEditSaveRequest()
+            }}
+          >
             수정 저장
           </FormButton>
           <FormButton
