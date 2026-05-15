@@ -24,6 +24,8 @@ type Props = {
   onStatusMessage: (msg: string) => void
   /** 메모 줄에서 플랫폼 할 일 초안 생성 */
   onAddTodoFromMemo?: (payload: { noteId: string; memoText: string }) => void
+  /** 모바일 고객 메모 전용 화면: 구분선을 다크 테마 토큰에 맞춤 */
+  workspaceMobileMemo?: boolean
 }
 
 export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSection({
@@ -37,6 +39,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
   onPersisted,
   onStatusMessage,
   onAddTodoFromMemo,
+  workspaceMobileMemo = false,
 }: Props) {
   const [memoOpen, setMemoOpen] = useState(false)
   const [draft, setDraft] = useState('')
@@ -240,13 +243,13 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
             return (
               <li
                 key={note.id}
-                className="customer-inline-memo-row"
+                className={`customer-inline-memo-row${workspaceMobileMemo ? ' customer-inline-memo-row--workspace-mobile' : ''}`}
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   gap: 8,
                   alignItems: 'flex-start',
-                  borderTop: '1px solid rgba(0,0,0,0.08)',
+                  ...(workspaceMobileMemo ? {} : { borderTop: '1px solid rgba(0,0,0,0.08)' }),
                   padding: '8px 0',
                   fontSize: '0.9rem',
                 }}

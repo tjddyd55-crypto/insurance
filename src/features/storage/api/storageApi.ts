@@ -295,29 +295,47 @@ export async function createStorageFileDownloadUrl(token: string, fileId: number
 }
 
 /**
- * 스토리지 파일 다운로드: `open-token`(attachment) + 새 창과 동일한 방식으로 트리거합니다.
- * fetch+blob 은 비동기 이후 사용자 제스처가 끊겨 PC/모바일에서 막히는 경우가 있어 사용하지 않습니다.
+ * 다운로드 전용: 짧은 수명 attachment URL 을 숨김 iframe(또는 예외 시 숨김 anchor)으로 로드합니다.
+ * 화면 이동·새 탭·window.open 없이 브라우저가 Content-Disposition: attachment 만 처리하게 합니다.
+ * fetch + Blob 은 사용하지 않습니다.
  */
 export async function downloadStorageFile(token: string, fileId: number): Promise<void> {
   assertToken(token)
-  const href = await createStorageFileDownloadUrl(token, fileId)
-  const opened = window.open(href, '_blank', 'noopener,noreferrer')
-  if (opened) {
-    return
+
+  const iframe = document.createElement('iframe')
+  iframe.style.display = 'none'
+  iframe.setAttribute('aria-hidden', 'true')
+  document.body.appendChild(iframe)
+
+  let href: string
+  try {
+    href = await createStorageFileDownloadUrl(token, fileId)
+  } catch (error) {
+    iframe.remove()
+    throw error
   }
-  const fallback = document.createElement('a')
-  fallback.href = href
-  fallback.target = '_blank'
-  fallback.rel = 'noopener noreferrer'
-  fallback.style.display = 'none'
-  document.body.appendChild(fallback)
-  fallback.click()
-  fallback.remove()
+
+  try {
+    iframe.src = href
+    window.setTimeout(() => {
+      iframe.remove()
+    }, 60_000)
+  } catch {
+    iframe.remove()
+    const a = document.createElement('a')
+    a.href = href
+    a.download = ''
+    a.rel = 'noopener noreferrer'
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
 }
 
 /**
- * 미리보기/새 탭 열기: 짧은 수명 open token 으로 서버가 `Content-Disposition: inline` 과
- * path 끝 파일명을 주는 GET URL 을 연다. (blob URL 은 Chrome 내장 PDF 뷰어 저장명이 UUID 로 남는다)
+ * 열기(확인용): inline open-token 으로 새 창/내장 뷰어에서 미리보기합니다.
+ * (`window.open` — 다운로드 전용 로직과 합치지 말 것)
  */
 export async function openStorageFile(token: string, fileId: number): Promise<void> {
   assertToken(token)
