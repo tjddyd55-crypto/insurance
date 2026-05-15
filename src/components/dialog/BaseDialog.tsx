@@ -23,6 +23,12 @@ export type BaseDialogProps = {
    */
   panelPreset?: 'default' | 'largeForm'
   usePortal?: boolean
+  /**
+   * true 이면 모달이 열린 동안 `history.pushState` 로 sentinel 을 쌓고,
+   * Android 뒤로가기 / 브라우저 back(popstate) 시 라우트 이탈 대신 `onEscapeRequest`(또는 onClose) 를 호출한다.
+   * 미저장 확인 등은 `onEscapeRequest` 안에서 처리한다. 기본 false(대부분의 다이얼로그는 변경 없음).
+   */
+  closeOnHistoryBack?: boolean
 }
 
 export function BaseDialog({
@@ -38,8 +44,16 @@ export function BaseDialog({
   onEscapeRequest,
   panelPreset = 'default',
   usePortal = false,
+  closeOnHistoryBack = false,
 }: BaseDialogProps) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const openRef = useRef(open)
+  openRef.current = open
+  const onEscapeRequestRef = useRef(onEscapeRequest)
+  onEscapeRequestRef.current = onEscapeRequest
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  const historyBackArmedRef = useRef(false)
 
   const panelSizingClasses =
     panelPreset === 'largeForm'
@@ -66,6 +80,42 @@ export function BaseDialog({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [closeOnEsc, onClose, onEscapeRequest, open])
+
+  useEffect(() => {
+    if (!closeOnHistoryBack || !open) {
+      return
+    }
+    window.history.pushState({ __BASE_DIALOG_BACK_TRAP__: true }, '', window.location.href)
+    historyBackArmedRef.current = true
+
+    const onPopState = () => {
+      if (!openRef.current) {
+        return
+      }
+      historyBackArmedRef.current = false
+      const esc = onEscapeRequestRef.current
+      if (esc) {
+        esc()
+      } else {
+        onCloseRef.current()
+      }
+      window.queueMicrotask(() => {
+        if (openRef.current && closeOnHistoryBack) {
+          window.history.pushState({ __BASE_DIALOG_BACK_TRAP__: true }, '', window.location.href)
+          historyBackArmedRef.current = true
+        }
+      })
+    }
+
+    window.addEventListener('popstate', onPopState)
+    return () => {
+      window.removeEventListener('popstate', onPopState)
+      if (historyBackArmedRef.current) {
+        historyBackArmedRef.current = false
+        window.history.go(-1)
+      }
+    }
+  }, [open, closeOnHistoryBack])
 
   useEffect(() => {
     if (!open) {

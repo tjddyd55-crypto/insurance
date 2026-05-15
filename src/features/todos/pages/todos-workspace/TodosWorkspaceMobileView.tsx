@@ -124,21 +124,33 @@ export default function TodosWorkspaceMobileView({
           {todos.map((row) => (
             <li key={row.id} className={CARD}>
               <div className="flex gap-2">
-                <input
-                  type="checkbox"
-                  className="accent-[#2563eb] mt-1"
-                  checked={row.status === 'completed'}
-                  disabled={row.status === 'canceled'}
-                  onChange={() => void toggleDone(row)}
-                />
-                <div className="min-w-0 flex-1">
-                  <button
-                    type="button"
-                    className="text-left w-full bg-transparent border-none p-0 cursor-pointer text-[#60a5fa] font-semibold"
-                    onClick={() => openEdit(row)}
-                  >
-                    {row.title}
-                  </button>
+                <div
+                  className="shrink-0 pt-1"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <input
+                    type="checkbox"
+                    className="accent-[#2563eb] mt-0"
+                    checked={row.status === 'completed'}
+                    disabled={row.status === 'canceled'}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => void toggleDone(row)}
+                  />
+                </div>
+                <div
+                  className="min-w-0 flex-1 rounded-lg outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-[#3b82f6] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111827]"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openEdit(row)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      openEdit(row)
+                    }
+                  }}
+                >
+                  <div className="text-left w-full text-[#60a5fa] font-semibold">{row.title}</div>
                   <div className="text-xs text-[#94a3b8] mt-1 space-y-1">
                     <div>
                       연결:{' '}
@@ -146,7 +158,10 @@ export default function TodosWorkspaceMobileView({
                         <button
                           type="button"
                           className="text-[#60a5fa] underline bg-transparent border-none p-0 cursor-pointer"
-                          onClick={() => onRelatedNavigate(row)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onRelatedNavigate(row)
+                          }}
                         >
                           {row.customerName?.trim() ? row.customerName : `고객 #${row.relatedEntityId}`}
                         </button>
