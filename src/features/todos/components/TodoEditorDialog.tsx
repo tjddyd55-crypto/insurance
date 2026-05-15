@@ -277,6 +277,7 @@ export function TodoEditorDialog({
         ariaLabel={mode === 'edit' ? '할 일 수정' : '할 일 추가'}
         panelPreset="largeForm"
         closeOnBackdrop={false}
+        closeOnHistoryBack
         usePortal={usePortal}
         onEscapeRequest={() => void handleRequestClose()}
       >
