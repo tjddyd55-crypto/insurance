@@ -1,4 +1,4 @@
-import { ApiError, apiRequest, resolveAbsoluteApiUrl, resolveApiUrl } from '../../../lib/apiClient'
+import { ApiError, apiRequest, resolveAbsoluteApiUrl } from '../../../lib/apiClient'
 
 export type StorageFolderRow = {
   id: number
@@ -281,13 +281,8 @@ export function parseContentDispositionFilename(headerValue: string | null): str
   return null
 }
 
-export type DownloadStorageFileOptions = {
-  /** 모바일 WebView 등: Authorization 없이 짧은 수명 URL로 이동해 다운로드 트리거 */
-  preferNavigation?: boolean
-}
-
 /**
- * 짧은 수명 `open` URL(attachment) — 브라우저가 직접 GET 하므로 모바일 다운로드에 유리합니다.
+ * 짧은 수명 `open` URL(attachment) — 브라우저가 직접 GET 하므로 Authorization 헤더 없이도 동작합니다.
  */
 export async function createStorageFileDownloadUrl(token: string, fileId: number): Promise<string> {
   assertToken(token)
@@ -299,57 +294,25 @@ export async function createStorageFileDownloadUrl(token: string, fileId: number
   return resolveAbsoluteApiUrl(openUrl)
 }
 
-async function fetchStorageFileBlob(token: string, fileId: number): Promise<{ blob: Blob; fileName: string | null }> {
-  assertToken(token)
-  const url = resolveApiUrl(`/api/storage/files/${fileId}/download`)
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${token.trim()}`,
-    },
-  })
-  if (!response.ok) {
-    let message = '파일을 불러오지 못했습니다.'
-    try {
-      const payload = (await response.json()) as { message?: string }
-      if (payload?.message) {
-        message = payload.message
-      }
-    } catch {
-      // ignore
-    }
-    throw new ApiError(message, response.status)
-  }
-  return {
-    blob: await response.blob(),
-    fileName: parseContentDispositionFilename(response.headers.get('Content-Disposition')),
-  }
-}
-
 /**
- * 스토리지 파일 다운로드: 서버가 보낸 Content-Disposition(표시명)을 그대로 저장 파일명으로 사용합니다.
- * `preferNavigation` 이 true 이면 fetch+blob 대신 짧은 수명 attachment URL 로 이동합니다(모바일).
+ * 스토리지 파일 다운로드: `open-token`(attachment) + 새 창과 동일한 방식으로 트리거합니다.
+ * fetch+blob 은 비동기 이후 사용자 제스처가 끊겨 PC/모바일에서 막히는 경우가 있어 사용하지 않습니다.
  */
-export async function downloadStorageFile(
-  token: string,
-  fileId: number,
-  options: DownloadStorageFileOptions = {},
-): Promise<void> {
-  if (options.preferNavigation) {
-    const href = await createStorageFileDownloadUrl(token, fileId)
-    window.location.assign(href)
+export async function downloadStorageFile(token: string, fileId: number): Promise<void> {
+  assertToken(token)
+  const href = await createStorageFileDownloadUrl(token, fileId)
+  const opened = window.open(href, '_blank', 'noopener,noreferrer')
+  if (opened) {
     return
   }
-  const { blob, fileName } = await fetchStorageFileBlob(token, fileId)
-  const objectUrl = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = objectUrl
-  a.download = fileName ?? `file-${fileId}`
-  a.rel = 'noopener'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  URL.revokeObjectURL(objectUrl)
+  const fallback = document.createElement('a')
+  fallback.href = href
+  fallback.target = '_blank'
+  fallback.rel = 'noopener noreferrer'
+  fallback.style.display = 'none'
+  document.body.appendChild(fallback)
+  fallback.click()
+  fallback.remove()
 }
 
 /**
