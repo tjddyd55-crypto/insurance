@@ -171,6 +171,28 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
     })
   }
 
+  async function requestRemoveNote(id: string) {
+    if (savingLock.current) {
+      return
+    }
+    const ok = await confirm({
+      title: '메모 삭제',
+      message: (
+        <>
+          <p className="m-0 mb-2">메모를 삭제하시겠습니까?</p>
+          <p className="m-0 text-sm text-[var(--text-secondary)]">삭제한 메모는 되돌릴 수 없습니다.</p>
+        </>
+      ),
+      confirmLabel: '삭제',
+      cancelLabel: '취소',
+      tone: 'danger',
+    })
+    if (!ok) {
+      return
+    }
+    removeNote(id)
+  }
+
   return (
     <div className="customer-inline-notes mt-5">
       <div className="flex justify-between items-center mb-2 gap-2">
@@ -224,15 +246,27 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
               GA
             </Button>
           ) : null}
-          <Button
-            type="button"
-            variant="secondary"
-            className="!px-3 !py-1.5 text-xs shrink-0"
-            disabled={saving || !token?.trim()}
-            onClick={openMemoModal}
-          >
-            메모 추가
-          </Button>
+          {workspaceMobileMemo ? (
+            <FormButton
+              htmlType="button"
+              variant="action"
+              className="filter-button shrink-0"
+              disabled={saving || !token?.trim()}
+              onClick={openMemoModal}
+            >
+              메모 추가
+            </FormButton>
+          ) : (
+            <Button
+              type="button"
+              variant="secondary"
+              className="!px-3 !py-1.5 text-xs shrink-0"
+              disabled={saving || !token?.trim()}
+              onClick={openMemoModal}
+            >
+              메모 추가
+            </Button>
+          )}
         </div>
       </div>
       {sortedItems.length === 0 ? (
@@ -249,14 +283,16 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
                   justifyContent: 'space-between',
                   gap: 8,
                   alignItems: 'flex-start',
-                  ...(workspaceMobileMemo ? {} : { borderTop: '1px solid rgba(0,0,0,0.08)' }),
-                  padding: '8px 0',
+                  ...(workspaceMobileMemo ? {} : { borderTop: '1px solid var(--border-subtle)' }),
+                  padding: '12px 0',
                   fontSize: '0.9rem',
                 }}
               >
                 <div className="customer-inline-memo-row__body" style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{note.content}</div>
-                  <small style={{ opacity: 0.75 }}>{new Date(note.createdAt).toLocaleString('ko-KR')}</small>
+                  <small className="customer-inline-memo-row__meta block mt-1">
+                    {new Date(note.createdAt).toLocaleString('ko-KR')}
+                  </small>
                 </div>
                 <div style={{ flexShrink: 0, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
                   {onAddTodoFromMemo ? (
@@ -302,7 +338,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
                   }}
                   onClick={(e) => {
                     e.stopPropagation()
-                    removeNote(note.id)
+                    void requestRemoveNote(note.id)
                   }}
                 >
                   ×

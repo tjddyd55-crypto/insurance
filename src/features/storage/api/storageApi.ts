@@ -28,6 +28,12 @@ export type StorageFileRow = {
   deletedAt: string | null
 }
 
+/** 목록에 표시된 파일의 사전 발급 다운로드(open-token attachment) URL */
+export type StorageFileDownloadLinkEntry = {
+  href: string
+  createdAt: number
+}
+
 export type StorageFilePresignResponse = {
   /** presign 시 생성된 uploading 행 id — save 시 반드시 전달 */
   fileId: number
@@ -292,45 +298,6 @@ export async function createStorageFileDownloadUrl(token: string, fileId: number
     body: JSON.stringify({ disposition: 'attachment' }),
   })
   return resolveAbsoluteApiUrl(openUrl)
-}
-
-/**
- * 다운로드 전용: 짧은 수명 attachment URL 을 숨김 iframe(또는 예외 시 숨김 anchor)으로 로드합니다.
- * 화면 이동·새 탭·window.open 없이 브라우저가 Content-Disposition: attachment 만 처리하게 합니다.
- * fetch + Blob 은 사용하지 않습니다.
- */
-export async function downloadStorageFile(token: string, fileId: number): Promise<void> {
-  assertToken(token)
-
-  const iframe = document.createElement('iframe')
-  iframe.style.display = 'none'
-  iframe.setAttribute('aria-hidden', 'true')
-  document.body.appendChild(iframe)
-
-  let href: string
-  try {
-    href = await createStorageFileDownloadUrl(token, fileId)
-  } catch (error) {
-    iframe.remove()
-    throw error
-  }
-
-  try {
-    iframe.src = href
-    window.setTimeout(() => {
-      iframe.remove()
-    }, 60_000)
-  } catch {
-    iframe.remove()
-    const a = document.createElement('a')
-    a.href = href
-    a.download = ''
-    a.rel = 'noopener noreferrer'
-    a.style.display = 'none'
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-  }
 }
 
 /**
