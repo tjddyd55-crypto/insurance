@@ -5,6 +5,7 @@ import CustomerFilesPagePC from './detail/CustomerFilesPagePC'
 export default function CustomerFilesPage() {
   const { customerId: customerIdParam } = useParams<{ customerId: string }>()
   const { user, token } = useAuth()
+  const isMobile = useIsMobile()
 
   const customerId = Number(customerIdParam)
   const validId = Number.isInteger(customerId) && customerId > 0
