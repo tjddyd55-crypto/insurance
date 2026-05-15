@@ -1864,11 +1864,16 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           c.birth_date,
           c.phone,
           l.customer_id,
+          l.agent_id,
           l.status,
           l.expires_at,
-          t.customer_id AS generic_target_customer_id
+          t.customer_id AS generic_target_customer_id,
+          COALESCE(NULLIF(TRIM(u.display_name), ''), NULLIF(TRIM(u.username), ''), '') AS agent_display_name,
+          COALESCE(NULLIF(TRIM(g.name), ''), '') AS ga_company_name
         FROM customer_app_links l
         INNER JOIN customers c ON c.id = l.customer_id
+        LEFT JOIN users u ON u.id = l.agent_id
+        LEFT JOIN ga_companies g ON g.id = u.ga_id
         LEFT JOIN agent_app_link_targets t ON t.agent_id = l.agent_id
         WHERE l.link_code = $1
         ORDER BY l.created_at DESC
@@ -1897,6 +1902,8 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           name: String(row?.name ?? '').trim(),
           birthDate: deriveCustomerBirthDate(row),
           phone: String(row?.phone ?? '').trim(),
+          agentName: String(row?.agent_display_name ?? '').trim(),
+          gaCompanyName: String(row?.ga_company_name ?? '').trim(),
         },
       })
     } catch (error) {

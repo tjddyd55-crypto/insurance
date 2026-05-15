@@ -27,6 +27,9 @@ export interface CustomerAppConnectPrefill {
   name: string
   birthDate: string
   phone: string
+  /** 링크 미리보기용 (GET /prefill) */
+  agentName?: string
+  gaCompanyName?: string
 }
 
 export interface CustomerAppMe {

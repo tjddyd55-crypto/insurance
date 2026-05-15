@@ -125,6 +125,11 @@ export default function CustomerAppProfilePage() {
           저장
         </FormButton>
 
+        <p className="text-xs text-[var(--text-secondary)] leading-5 mt-4 mb-0 px-0">
+          자주 이용하시면 브라우저에서 <strong className="text-[var(--text-main)] font-medium">홈 화면에 추가</strong>해 앱처럼 쓸 수 있습니다.
+          Android: Chrome 메뉴(⋮) → 홈 화면에 추가 · iPhone: Safari 공유 → 홈 화면에 추가
+        </p>
+
         <div className="customer-app-profile__danger">
           <FormButton
             htmlType="button"
@@ -133,7 +138,7 @@ export default function CustomerAppProfilePage() {
             onClick={async () => {
               const ok = await confirm({
                 title: '연결 해제',
-                message: '연결을 해제하시겠어요? 다시 이용하려면 QR 로 재연결이 필요합니다.',
+                message: '연결을 해제하시겠어요? 다시 이용하려면 설계사가 보낸 연결 링크로 다시 연결해 주세요.',
                 tone: 'danger',
               })
               if (!ok) {
@@ -146,7 +151,7 @@ export default function CustomerAppProfilePage() {
             연결 해제
           </FormButton>
           <p className="customer-app-profile__danger-help">
-            다른 기기에서 이용하거나 다시 QR 로 연결하려면 연결 해제를 눌러 주세요.
+            다른 기기에서 이용하거나 링크로 다시 연결하려면 연결 해제를 눌러 주세요.
           </p>
         </div>
       </div>

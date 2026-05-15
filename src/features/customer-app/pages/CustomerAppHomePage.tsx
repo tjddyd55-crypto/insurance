@@ -142,6 +142,13 @@ export default function CustomerAppHomePage() {
         onClose={() => setFsOpen(false)}
         altBase="고객 메시지"
       />
+
+      <footer className="customer-app-home__pwa-hint px-3 pb-6 pt-2 max-w-xl mx-auto" aria-label="홈 화면에 추가 안내">
+        <p className="text-xs text-[var(--text-secondary)] leading-5 m-0">
+          자주 이용하시면 브라우저에서 <strong className="text-[var(--text-main)] font-medium">홈 화면에 추가</strong>해 앱처럼 쓸 수 있습니다.
+          Android: Chrome 메뉴(⋮) → 홈 화면에 추가 · iPhone: Safari 공유 → 홈 화면에 추가
+        </p>
+      </footer>
     </>
   )
 }
