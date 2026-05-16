@@ -174,15 +174,9 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
         <div className="workspace-mobile-outlet-modal__header">
           <span className="workspace-mobile-outlet-modal__spacer" aria-hidden />
           <h2 className="workspace-mobile-outlet-modal__title">{title}</h2>
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            size="sm"
-            className="workspace-mobile-outlet-modal__close"
-            onClick={handleClose}
-          >
+          <button type="button" className="workspace-mobile-outlet-modal__close" onClick={handleClose}>
             닫기
-          </FormButton>
+          </button>
         </div>
         <div className="workspace-mobile-outlet-modal__body">
           {outlet}
