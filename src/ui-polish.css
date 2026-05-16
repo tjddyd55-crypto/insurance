@@ -34,7 +34,9 @@
   .mobile-root .customers-page__top-actions button {
     min-height: 40px;
     border-radius: var(--mobile-control-radius);
-    font-size: 0.82rem;
+    font-size: var(--customer-mobile-font-button, 14px);
+    line-height: var(--customer-mobile-line-button, 1.22);
+    letter-spacing: var(--customer-mobile-letter-button, 0.012em);
     font-weight: 700;
     padding: 0 10px;
     white-space: nowrap;
@@ -56,7 +58,8 @@
   .mobile-root .customer-search-row input {
     min-height: 42px;
     border-radius: var(--mobile-control-radius);
-    font-size: 0.9rem;
+    font-size: var(--customer-mobile-font-base, 16px);
+    letter-spacing: var(--customer-mobile-letter-base, 0.005em);
   }
 
   .customers-page--mobile .customers-page__result-count,
@@ -64,7 +67,9 @@
   .customers-page--mobile .customer-filter-result,
   .mobile-root .customer-filter-result {
     margin: 8px 0 10px;
-    font-size: 0.83rem;
+    font-size: var(--customer-mobile-font-small, 14px);
+    line-height: var(--customer-mobile-line-base, 1.45);
+    letter-spacing: var(--customer-mobile-letter-base, 0.005em);
     color: var(--ui-polish-text-muted);
   }
 
@@ -90,22 +95,24 @@
 
   .customers-page--mobile .customer-card-text-name,
   .mobile-root .customer-card-text-name {
-    line-height: 1.25;
+    line-height: var(--customer-mobile-line-tight, 1.32);
   }
 
   .customers-page--mobile .customer-card-name-primary,
   .mobile-root .customer-card-name-primary {
-    font-size: 1rem;
-    letter-spacing: -0.01em;
+    font-size: var(--customer-mobile-font-title, 18px);
+    font-weight: 800;
+    letter-spacing: var(--customer-mobile-letter-readable, 0.01em);
   }
 
   .customers-page--mobile .customer-card-summary-meta,
   .mobile-root .customer-card-summary-meta {
     margin-top: 3px;
-    font-size: 0.78rem;
+    font-size: var(--customer-mobile-font-subtitle, 15px);
     color: var(--ui-polish-text-muted);
     white-space: normal;
-    line-height: 1.35;
+    line-height: var(--customer-mobile-line-base, 1.45);
+    letter-spacing: var(--customer-mobile-letter-base, 0.005em);
   }
 
   .customers-page--mobile .customer-card__actions,
@@ -144,7 +151,8 @@
     min-width: 28px;
     text-align: center;
     color: color-mix(in srgb, var(--text-primary, #e6ecf2) 85%, var(--ui-polish-primary) 15%);
-    font-size: 0.95rem;
+    font-size: var(--customer-mobile-font-subtitle, 15px);
+    letter-spacing: var(--customer-mobile-letter-base, 0.005em);
   }
 
   .customers-page--mobile .customer-expand-detail,
