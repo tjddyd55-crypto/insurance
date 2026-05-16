@@ -46,9 +46,10 @@
     justify-content: center !important;
     flex-direction: row !important;
     gap: 0 !important;
-    font-size: 0.82rem !important;
+    font-size: var(--customer-mobile-font-button-strong, 15px) !important;
     font-weight: 800 !important;
-    line-height: 1.15 !important;
+    line-height: var(--customer-mobile-line-button, 1.22) !important;
+    letter-spacing: var(--customer-mobile-letter-button, 0.012em) !important;
     color: #fff !important;
     background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%) !important;
     border: 1px solid color-mix(in srgb, #60a5fa 22%, transparent) !important;
@@ -72,7 +73,7 @@
     text-overflow: clip !important;
     white-space: normal !important;
     word-break: keep-all !important;
-    line-height: 1.15 !important;
+    line-height: var(--customer-mobile-line-button, 1.22) !important;
     text-align: center !important;
   }
 
@@ -82,7 +83,9 @@
     height: 32px !important;
     margin-top: 8px !important;
     border-radius: 999px !important;
-    font-size: 0.82rem !important;
+    font-size: var(--customer-mobile-font-button, 14px) !important;
+    line-height: var(--customer-mobile-line-button, 1.22) !important;
+    letter-spacing: var(--customer-mobile-letter-button, 0.012em) !important;
   }
 }
 
@@ -224,8 +227,10 @@
     grid-column: 2 !important;
     margin: 0 !important;
     text-align: center !important;
-    font-size: 1rem !important;
+    font-size: var(--customer-mobile-font-title, 18px) !important;
     font-weight: 900 !important;
+    line-height: var(--customer-mobile-line-tight, 1.32) !important;
+    letter-spacing: var(--customer-mobile-letter-readable, 0.01em) !important;
     color: var(--m-text, var(--text-primary, #fff)) !important;
     white-space: nowrap !important;
     overflow: hidden !important;
@@ -245,9 +250,10 @@
     border-radius: 0 !important;
     background: transparent !important;
     color: var(--m-text-sub, var(--text-secondary, #aeb8c5)) !important;
-    font-size: 14px !important;
+    font-size: var(--customer-mobile-font-subtitle, 15px) !important;
     font-weight: 700 !important;
-    line-height: 1.2 !important;
+    line-height: var(--customer-mobile-line-button, 1.22) !important;
+    letter-spacing: var(--customer-mobile-letter-button, 0.012em) !important;
     box-shadow: none !important;
     cursor: pointer !important;
     font-family: inherit !important;
