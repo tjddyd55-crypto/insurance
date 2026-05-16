@@ -343,3 +343,41 @@ Windows 환경에서 `core.autocrlf=true`로 인해 `git status`에 수백 개 �
 | `features/storage/components/StorageToolbar.tsx` | ✅ 완료 — 이미 `isMobile: boolean` prop 을 받고 있었음. 내부 훅 호출 없음 (현행 유지) |
 | `features/storage/components/StorageWorkspace.tsx` | ✅ 완료 — `variant: 'pc' \| 'mobile'` **필수** prop 도입, 내부 `useIsMobile` 제거. 기존 단일 호출처였던 `MyStoragePage` 는 `ResponsiveLayout<MyStorageViewProps>` + `MyStoragePagePCView` / `MyStoragePageMobileView` 로 분리해 variant 를 명시 주입 |
 | `features/memo/components/MemoElectronFabDock.tsx` | ✅ 완료 — `isMobile?: boolean` prop 을 받아 PC/Mobile UI 를 분기(단일 `+` FAB vs. `[추가]/[정리]` 듀얼 pill). 훅 직접 호출 없음. `MainWorkspaceLayout`(Tier 1) 에서 주입 |
+
+## Cursor Cloud specific instructions
+
+### 서비스 개요
+
+| 서비스 | 포트 | 실행 명령 |
+|---|---|---|
+| Express 백엔드 | 3001 | `node server/index.js` |
+| Vite 프론트엔드 | 3000 | `vite` |
+| **동시 실행** | 3000+3001 | `npm run dev` (concurrently) |
+
+### 필수 사전 조건
+
+- **PostgreSQL 16+** — 서버 기동 시 `DATABASE_URL` 환경변수가 없으면 즉시 crash.
+- `.env` 파일(루트)에 최소 `DATABASE_URL`, `JWT_SECRET` 설정 필요.
+- `INSURANCE_ENABLE_ADMIN_BOOTSTRAP=true` + `INSURANCE_ADMIN_BOOTSTRAP_USERNAME` / `PASSWORD` 설정 시 서버 기동 시 admin 계정 자동 생성.
+
+### 개발 서버 시작
+
+```bash
+# PostgreSQL 시작 (Cloud VM에서)
+sudo pg_ctlcluster 16 main start
+
+# 환경변수 로드 후 dev 서버 시작
+export $(grep -v "^#" .env | xargs)
+npm run dev
+```
+
+### 주의사항
+
+- `server/db.js`의 `dotenv.config()` 경로가 Windows 절대 경로(`D:/workspace/insurance/server/.env`)로 하드코딩되어 있음. Linux에서는 해당 파일이 없어도 `DATABASE_URL`이 환경변수로 이미 설정되어 있으면 정상 동작함 (dotenv는 이미 존재하는 env var를 덮어쓰지 않음).
+- `npm run dev` 실행 전에 반드시 `.env`의 변수들을 `export`로 셸에 주입하거나, 프로세스 앞에 env를 붙여야 함.
+- Redis, R2(S3), SMS Gateway는 모두 선택 사항이며 미설정 시 인메모리/로컬 폴백으로 동작.
+- `INSURANCE_SIGNUP_PHONE_RELAXED=1` 설정 시 SMS 인증 없이 회원가입 가능 (개발용).
+- 테스트: `npm test` — Node.js 내장 test runner 사용, DB 불필요 (순수 유닛 테스트).
+- 린트: `npx eslint src --ext .js,.jsx,.ts,.tsx` — 기존 코드에 ~228개 pre-existing 에러 있음 (Form* 컴포넌트 사용 규칙 위반). 신규 코드에서 새 에러를 추가하지 않을 것.
+- 빌드: `npx vite build` — 프로덕션 번들 생성 (~8초).
+- 로그인 테스트 계정: `admin` / 설정한 `INSURANCE_ADMIN_BOOTSTRAP_PASSWORD` 값.
