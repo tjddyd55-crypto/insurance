@@ -15,7 +15,8 @@ export type NormalizedGaCustomerExcelDisplay = {
   clientAppliedFallback: boolean
 }
 
-export const MSG_GA_EXCEL_NO_MAPPED_DATA = '매핑된 GA 고객 데이터가 없습니다.'
+export const MSG_GA_EXCEL_NO_MAPPED_DATA =
+  'GA 업로드 데이터가 없거나 현재 고객과 매칭된 데이터가 없습니다.'
 export const MSG_GA_EXCEL_UPLOAD_HINT = '업로드는 내정보관리 페이지에서 진행합니다.'
 export const MSG_GA_EXCEL_COLUMN_FALLBACK = '표시 열 설정이 없어 기본 항목으로 표시합니다.'
 export const MSG_GA_EXCEL_FETCH_FAILED = 'GA 데이터를 불러오지 못했습니다.'
