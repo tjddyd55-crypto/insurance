@@ -35,6 +35,11 @@ import { logger } from '../../../lib/logger'
 import { getPdfJsCmapAndStandardFontUrls } from '../../../lib/pdfjs/pdfDocumentInitParams'
 import { setupPdfWorker } from '../../../lib/pdfjs/setupWorker'
 import type { PdfFieldSpec } from '../types'
+import {
+  PDF_STAMP_RADIO_OUTLINE_CSS,
+  stampRadioBorderWidthFromRadius,
+  stampRadioDiameterFromBox,
+} from '../lib/pdfStampRadioPreviewMath'
 
 setupPdfWorker()
 
@@ -359,7 +364,9 @@ const ApplicantPdfPageRow = forwardRef<HTMLDivElement | null, PageProps>(functio
             /* 선택되지 않은 옵션 좌표에는 라디오 마커를 그리지 않는다 */
             continue
           }
-          const dia = Math.min(cssBox.width, cssBox.height) * 0.8
+          const dia = stampRadioDiameterFromBox(cssBox.width, cssBox.height)
+          const r = dia / 2
+          const borderW = stampRadioBorderWidthFromRadius(r)
           const hl = isHi
           out.push(
             <div
@@ -372,8 +379,9 @@ const ApplicantPdfPageRow = forwardRef<HTMLDivElement | null, PageProps>(functio
                 height: dia,
                 borderRadius: '50%',
                 pointerEvents: 'none',
-                background: '#000',
-                border: `${Math.max(0.55, dia * 0.05)}px solid #111`,
+                boxSizing: 'border-box',
+                background: 'transparent',
+                border: `${borderW}px solid ${PDF_STAMP_RADIO_OUTLINE_CSS}`,
                 boxShadow: hl ? '0 0 0 2px rgba(59,130,246,0.85)' : undefined,
               }}
               aria-hidden

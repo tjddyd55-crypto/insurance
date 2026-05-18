@@ -29,6 +29,11 @@ import {
 import { logger } from '../../../lib/logger'
 import { getPdfJsCmapAndStandardFontUrls } from '../../../lib/pdfjs/pdfDocumentInitParams'
 import { setupPdfWorker } from '../../../lib/pdfjs/setupWorker'
+import {
+  PDF_STAMP_RADIO_OUTLINE_CSS,
+  stampRadioBorderWidthFromRadius,
+  stampRadioDiameterFromBox,
+} from '../lib/pdfStampRadioPreviewMath'
 
 setupPdfWorker()
 
@@ -85,6 +90,10 @@ export interface OverlayMark {
   label: string
   /** 선택된 상태(강조). */
   selected?: boolean
+  /**
+   * true 이면 stampPdf 라디오와 동일: placement 박스 안에 빨간 테두리 원만 추가(저장 필드 타입 변경 없음).
+   */
+  stampRadioOutline?: boolean
 }
 
 export interface OverlayPick {
@@ -344,6 +353,21 @@ export function PdfOverlayCanvas({
         ctx.strokeStyle = m.selected ? BOX_STROKE_SELECTED : BOX_STROKE_DEFAULT
         ctx.lineWidth = m.selected ? 2 : 1.5
         ctx.strokeRect(boxX, boxY, widthPx, heightPx)
+
+        if (m.stampRadioOutline) {
+          const diaPt = stampRadioDiameterFromBox(m.width as number, m.height as number)
+          const scalePdfToPx = markCanvas.width / pageSize.widthPt
+          const rPdf = diaPt / 2
+          const rPx = rPdf * scalePdfToPx
+          const cxPx = boxX + widthPx / 2
+          const cyPx = boxY + heightPx / 2
+          const lw = stampRadioBorderWidthFromRadius(rPx)
+          ctx.beginPath()
+          ctx.arc(cxPx, cyPx, rPx, 0, Math.PI * 2)
+          ctx.strokeStyle = PDF_STAMP_RADIO_OUTLINE_CSS
+          ctx.lineWidth = lw
+          ctx.stroke()
+        }
 
         drawMarkLabel(ctx, m.label, boxX + 2, boxY - 4)
       } else {

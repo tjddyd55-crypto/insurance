@@ -223,6 +223,7 @@ export function PdfCoordinateEditor({
             height: p.height,
             label: composedLabel,
             selected: placementSelected,
+            stampRadioOutline: true,
           })
         }
         continue
