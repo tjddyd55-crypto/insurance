@@ -442,7 +442,7 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
           htmlType="button"
           variant="secondary"
           className="pdf-applicant-form__load-customer-btn"
-          disabled={submitting || loadingCustomerData || effectiveCustomerId == null}
+          disabled={submitting || loadingCustomerData}
           onClick={() => onLoadCustomerData?.()}
         >
           {loadingCustomerData ? '불러오는 중…' : loadCustomerButtonLabel}
@@ -457,18 +457,6 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
           >
             다른 고객 검색해서 불러오기
           </button>
-        ) : null}
-
-        {workspaceCustomerId == null && effectiveCustomerId == null && onShowCustomerSearch && !showCustomerSearch ? (
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            className="pdf-applicant-form__load-customer-btn"
-            disabled={submitting || loadingCustomerData}
-            onClick={onShowCustomerSearch}
-          >
-            고객 검색해서 불러오기
-          </FormButton>
         ) : null}
 
         {showCustomerSearch ? (
