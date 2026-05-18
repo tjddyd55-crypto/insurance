@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useAuth } from '../../auth/AuthProvider'
-import { useGaSettings } from '../../ga-settings/useGaSettings'
 import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '../api/gaCustomerExcelApi'
 import { getCustomerById } from '../api/customersApi'
 import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
@@ -92,7 +91,6 @@ export default function CustomerWorkspaceLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { token, user } = useAuth()
-  const { gaSettings } = useGaSettings()
   const isMobile = useIsMobile()
   const [searchParams] = useSearchParams()
   const openRelatedCustomerRef = useRef<((customerId: number, customerName?: string) => void) | null>(null)
@@ -190,8 +188,11 @@ export default function CustomerWorkspaceLayout() {
     }
   }, [isMobile, token, user?.role])
 
-  /** GA 엑셀 탭 노출은 테넌트 `use_ga_excel` 과 동일 기준(고객 카드 액션과 일치). 데이터·설정 완료 여부는 진입 후 안내한다. */
-  const showGaExcelEntry = gaSettings.use_ga_excel === true
+  /**
+   * 우측 패널 GA 버튼은 `use_ga_excel` 과 무관하게 항상 노출한다.
+   * (고객 카드 모바일 그리드의 GA 액션과 동일 정책 — 데이터/설정 여부는 화면·버튼 title 로 안내)
+   */
+  const showGaExcelEntry = true
 
   const showCarInsuranceInWorkspace = isGaCarInsuranceHubEnabled(user?.gaCode, user?.gaName)
 
