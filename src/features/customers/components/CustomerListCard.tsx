@@ -180,6 +180,8 @@ const CustomerListCard = memo(function CustomerListCard({
   crmIndustryTemplate,
 }: CustomerListCardProps) {
   const isMobile = variant === 'mobile'
+  /** 상단 액션바: 보기에서는 복사/수정/삭제(PC)·수정/삭제(모바일), 수정 중에는 저장/취소만 */
+  const isEditingThisCard = editingId === c.id && Boolean(editForm)
   const [mobileInfoExpanded, setMobileInfoExpanded] = useState(false)
   const validCustomerId =
     c != null &&
@@ -417,7 +419,7 @@ const CustomerListCard = memo(function CustomerListCard({
             onClick={(e) => e.stopPropagation()}
             onTransitionEnd={handleDetailTransitionEnd}
           >
-            {!(editingId === c.id && editForm) && isMobile ? (
+            {!isEditingThisCard && isMobile ? (
               <>
                 <CustomerWorkspaceActions
                   variant="mobile"
@@ -469,52 +471,16 @@ const CustomerListCard = memo(function CustomerListCard({
                   </div>
                   <div
                     className={`customer-detail-action-bar${
-                      isMobile
-                        ? editingId === c.id && editForm
+                      isEditingThisCard
+                        ? isMobile
                           ? ' customer-detail-action-bar--mobile-save-cancel-row'
-                          : ' customer-detail-action-bar--edit-delete-row'
-                        : ''
+                          : ' customer-detail-action-bar--pc-save-cancel-row'
+                        : isMobile
+                          ? ' customer-detail-action-bar--edit-delete-row'
+                          : ''
                     }`}
                   >
-                    {!isMobile ? (
-                      <>
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          className="customer-detail-action-button"
-                          title="카톡 복사 형식으로 복사"
-                          aria-label="복사"
-                          onClick={() => void onCopyCustomer(c)}
-                        >
-                          복사
-                        </FormButton>
-                        {editingId !== c.id ? (
-                          <FormButton
-                            htmlType="button"
-                            variant="secondary"
-                            size="sm"
-                            className="customer-detail-action-button"
-                            title="고객 정보 수정"
-                            aria-label="수정"
-                            onClick={() => onStartEdit(c)}
-                          >
-                            수정
-                          </FormButton>
-                        ) : null}
-                        <FormButton
-                          htmlType="button"
-                          variant="danger"
-                          size="sm"
-                          className="customer-detail-action-button customer-detail-action-button--danger"
-                          title="고객 삭제"
-                          aria-label="삭제"
-                          onClick={() => void onDeleteCustomer(c)}
-                        >
-                          삭제
-                        </FormButton>
-                      </>
-                    ) : editingId === c.id && editForm ? (
+                    {isEditingThisCard ? (
                       <>
                         <FormButton
                           htmlType="button"
@@ -541,6 +507,42 @@ const CustomerListCard = memo(function CustomerListCard({
                           onClick={onCancelEdit}
                         >
                           취소
+                        </FormButton>
+                      </>
+                    ) : !isMobile ? (
+                      <>
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          className="customer-detail-action-button"
+                          title="카톡 복사 형식으로 복사"
+                          aria-label="복사"
+                          onClick={() => void onCopyCustomer(c)}
+                        >
+                          복사
+                        </FormButton>
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          className="customer-detail-action-button"
+                          title="고객 정보 수정"
+                          aria-label="수정"
+                          onClick={() => onStartEdit(c)}
+                        >
+                          수정
+                        </FormButton>
+                        <FormButton
+                          htmlType="button"
+                          variant="danger"
+                          size="sm"
+                          className="customer-detail-action-button customer-detail-action-button--danger"
+                          title="고객 삭제"
+                          aria-label="삭제"
+                          onClick={() => void onDeleteCustomer(c)}
+                        >
+                          삭제
                         </FormButton>
                       </>
                     ) : (
