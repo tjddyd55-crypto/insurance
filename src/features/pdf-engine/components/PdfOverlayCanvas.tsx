@@ -32,7 +32,6 @@ import { setupPdfWorker } from '../../../lib/pdfjs/setupWorker'
 import {
   PDF_STAMP_RADIO_OUTLINE_CSS,
   stampRadioBorderWidthFromRadius,
-  stampRadioDiameterFromBox,
 } from '../lib/pdfStampRadioPreviewMath'
 
 setupPdfWorker()
@@ -348,25 +347,30 @@ export function PdfOverlayCanvas({
         const boxX = cx
         const boxY = cyBottom - heightPx
 
-        ctx.fillStyle = m.selected ? BOX_FILL_SELECTED : BOX_FILL_DEFAULT
-        ctx.fillRect(boxX, boxY, widthPx, heightPx)
-        ctx.strokeStyle = m.selected ? BOX_STROKE_SELECTED : BOX_STROKE_DEFAULT
-        ctx.lineWidth = m.selected ? 2 : 1.5
-        ctx.strokeRect(boxX, boxY, widthPx, heightPx)
-
         if (m.stampRadioOutline) {
-          const diaPt = stampRadioDiameterFromBox(m.width as number, m.height as number)
-          const scalePdfToPx = markCanvas.width / pageSize.widthPt
-          const rPdf = diaPt / 2
-          const rPx = rPdf * scalePdfToPx
           const cxPx = boxX + widthPx / 2
           const cyPx = boxY + heightPx / 2
-          const lw = stampRadioBorderWidthFromRadius(rPx)
+          const rx = widthPx / 2
+          const ry = heightPx / 2
+          const lw = stampRadioBorderWidthFromRadius(Math.min(rx, ry))
           ctx.beginPath()
-          ctx.arc(cxPx, cyPx, rPx, 0, Math.PI * 2)
+          ctx.ellipse(cxPx, cyPx, rx, ry, 0, 0, Math.PI * 2)
           ctx.strokeStyle = PDF_STAMP_RADIO_OUTLINE_CSS
           ctx.lineWidth = lw
           ctx.stroke()
+          if (m.selected) {
+            ctx.beginPath()
+            ctx.ellipse(cxPx, cyPx, rx, ry, 0, 0, Math.PI * 2)
+            ctx.strokeStyle = BOX_STROKE_SELECTED
+            ctx.lineWidth = 2
+            ctx.stroke()
+          }
+        } else {
+          ctx.fillStyle = m.selected ? BOX_FILL_SELECTED : BOX_FILL_DEFAULT
+          ctx.fillRect(boxX, boxY, widthPx, heightPx)
+          ctx.strokeStyle = m.selected ? BOX_STROKE_SELECTED : BOX_STROKE_DEFAULT
+          ctx.lineWidth = m.selected ? 2 : 1.5
+          ctx.strokeRect(boxX, boxY, widthPx, heightPx)
         }
 
         drawMarkLabel(ctx, m.label, boxX + 2, boxY - 4)

@@ -38,7 +38,6 @@ import type { PdfFieldSpec } from '../types'
 import {
   PDF_STAMP_RADIO_OUTLINE_CSS,
   stampRadioBorderWidthFromRadius,
-  stampRadioDiameterFromBox,
 } from '../lib/pdfStampRadioPreviewMath'
 
 setupPdfWorker()
@@ -364,19 +363,19 @@ const ApplicantPdfPageRow = forwardRef<HTMLDivElement | null, PageProps>(functio
             /* 선택되지 않은 옵션 좌표에는 라디오 마커를 그리지 않는다 */
             continue
           }
-          const dia = stampRadioDiameterFromBox(cssBox.width, cssBox.height)
-          const r = dia / 2
-          const borderW = stampRadioBorderWidthFromRadius(r)
+          const borderW = stampRadioBorderWidthFromRadius(
+            Math.min(cssBox.width, cssBox.height) / 2,
+          )
           const hl = isHi
           out.push(
             <div
               key={`${field.fieldKey}-${lp}-r-${ov ?? ''}`}
               style={{
                 position: 'absolute',
-                left: cssBox.left + (cssBox.width - dia) / 2,
-                top: cssBox.top + (cssBox.height - dia) / 2,
-                width: dia,
-                height: dia,
+                left: cssBox.left,
+                top: cssBox.top,
+                width: cssBox.width,
+                height: cssBox.height,
                 borderRadius: '50%',
                 pointerEvents: 'none',
                 boxSizing: 'border-box',

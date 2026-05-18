@@ -1,6 +1,7 @@
 /**
- * stampPdf.js stampRadioCircleOutline 과 동일한 기하 비율(미리보기·좌표 편집기에서 재사용).
- * 좌표/값 저장 구조와 무관 — 화면 표시만 맞춘다.
+ * PDF 라디오 미리보기·좌표 편집기용 테두리 색/두께.
+ * 미리보기/편집기는 placement 박스 width·height 전체에 맞춘 타원(또는 원) 테두리만 그린다.
+ * stampPdf.js 의 min(w,h)×0.8 원형 스탬프와는 별도(서버 최종 PDF 전용).
  */
 
 /** stampPdf 의 STAMP_RADIO_OUTLINE 과 동일 채널값 (rgb(0.937, 0.267, 0.267)) */
