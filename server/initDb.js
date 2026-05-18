@@ -3274,6 +3274,29 @@ export async function initDb() {
   await ensurePdfTemplateSchema(pool)
   await ensureContractSelfSmsSchema(pool)
   await ensureInsurerSitesSchema(pool)
+  await ensurePublicCustomerInviteSessionsSchema(pool)
+}
+
+/** GA 초대 고객 등록(/customer/register) — 제출 세션(httpOnly cookie) 및 최초 제출 시각(3시간 수정 창구) */
+async function ensurePublicCustomerInviteSessionsSchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS public_customer_invite_sessions (
+      id BIGSERIAL PRIMARY KEY,
+      secret_token TEXT NOT NULL UNIQUE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      ref_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      first_submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_public_customer_invite_sessions_customer
+    ON public_customer_invite_sessions(customer_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_public_customer_invite_sessions_ref_ga
+    ON public_customer_invite_sessions(ref_user_id, ga_id)
+  `)
 }
 
 /**

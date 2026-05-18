@@ -1760,6 +1760,38 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   flex-shrink: 0;
 }
 
+.invite-registration-page.page {
+  padding-top: max(24px, env(safe-area-inset-top));
+  padding-inline: max(14px, env(safe-area-inset-left));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+
+.invite-registration-complete__lead {
+  margin: 0 0 6px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.invite-registration-complete__muted {
+  margin: 14px 0 0;
+  font-size: 0.9375rem;
+  color: var(--text-muted, #64748b);
+}
+
+.invite-registration-complete__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.page-header-notice {
+  margin: 6px 0 0;
+  color: #ef4444;
+  font-size: 0.9375rem;
+}
+
 .page--with-back .page-header {
   padding-left: 12px;
 }

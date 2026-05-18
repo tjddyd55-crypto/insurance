@@ -21,6 +21,7 @@ export function ElectronTitleBar() {
   const active = Boolean(api?.minimize && api?.maximize && api?.close)
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
+  const hideBackForInviteRegister = location.pathname.startsWith('/customer/register')
 
   useLayoutEffect(() => {
     const el = document.documentElement
@@ -52,14 +53,16 @@ export function ElectronTitleBar() {
   return (
     <header className="top-title-bar electron-title-bar title-bar" role="banner">
       <div className="title-left no-drag">
-        <FormButton
-          htmlType="button"
-          className="back-btn no-drag"
-          aria-label={BACK_LABEL}
-          onClick={handleBack}
-        >
-          ←
-        </FormButton>
+        {hideBackForInviteRegister ? null : (
+          <FormButton
+            htmlType="button"
+            className="back-btn no-drag"
+            aria-label={BACK_LABEL}
+            onClick={handleBack}
+          >
+            ←
+          </FormButton>
+        )}
       </div>
 
       <div className="title-center">

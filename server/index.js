@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs'
 import cors from 'cors'
 import express from 'express'
 import jwt from 'jsonwebtoken'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, randomBytes } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import pool from './db.js'
@@ -39,6 +39,14 @@ import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategor
 import { parseGaId } from './lib/parseGaId.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import { mapCustomerRow } from './lib/customerRowMap.js'
+import {
+  PUBLIC_INVITE_REG_COOKIE,
+  buildInviteRegClearCookieHeader,
+  buildInviteRegSetCookieHeader,
+  editableDeadlineMsFromFirstSubmitted,
+  injectCustomerRegisterInviteMeta,
+  readCookieFromHeader,
+} from './lib/customerInviteRegistrationPublic.js'
 import { stringifyCrmExtensionForDb } from './lib/customerCrmExtension.js'
 import { buildCustomerRowVisibilityWhere, resolveCustomerApiAccessScope } from './lib/customerAccessScope.js'
 import {
@@ -5887,6 +5895,50 @@ apiRouter.post('/customer/external-create', async (req, res) => {
       return
     }
 
+    const inviteRegistration = Boolean(data.inviteRegistration ?? data.invite_registration)
+    if (inviteRegistration) {
+      /* GA 초대 /customer/register 전용 — refUsername·GA 검증 분기만 허용 */
+      if (!refUsername) {
+        logExternalCreateError('INVITE_REG_REQUIRES_USERNAME', {})
+        res.status(400).json({ message: '잘못된 접근입니다.' })
+        return
+      }
+      const secureInviteCookie = RUNNING_IN_PRODUCTION
+      const incomingTok = readCookieFromHeader(req.headers.cookie, PUBLIC_INVITE_REG_COOKIE)
+      if (incomingTok) {
+        const exist = await safeQuery(
+          pool,
+          `
+          SELECT s.ref_user_id, s.ga_id, s.first_submitted_at
+          FROM public_customer_invite_sessions s
+          JOIN customers c ON c.id = s.customer_id AND c.deleted_at IS NULL
+          WHERE s.secret_token = $1
+          LIMIT 1
+          `,
+          [incomingTok],
+        )
+        if (exist.rowCount > 0) {
+          const er = exist.rows[0]
+          const sameScope = String(er.ref_user_id) === refUserId && Number(er.ga_id) === Number(refGaId)
+          if (sameScope) {
+            const ded = editableDeadlineMsFromFirstSubmitted(er.first_submitted_at)
+            res.status(409).json({
+              success: false,
+              code: 'ALREADY_SUBMITTED',
+              message:
+                Date.now() < ded
+                  ? '이미 등록 정보가 있습니다. 수정은 아래 수정하기로 진행해 주세요.'
+                  : '이미 등록이 완료되었습니다.',
+              editableUntil: new Date(ded).toISOString(),
+              canEdit: Date.now() < ded,
+            })
+            return
+          }
+          res.append('Set-Cookie', buildInviteRegClearCookieHeader({ secure: secureInviteCookie }))
+        }
+      }
+    }
+
     const name = String(data.name ?? '').trim()
     if (!name) {
       res.status(400).json({ message: '이름은 필수입니다' })
@@ -5970,7 +6022,249 @@ apiRouter.post('/customer/external-create', async (req, res) => {
     )
 
     void recordAnalyticsEvent(pool, { userId: refUserId, gaId: refGaId, eventType: 'customer_created' })
-    res.status(201).json({ success: true, data: mapCustomerRow(inserted.rows[0]) })
+
+    let inviteSessionMeta = null
+    if (inviteRegistration) {
+      const newTok = randomBytes(32).toString('hex')
+      const sessIns = await safeQuery(
+        pool,
+        `
+        INSERT INTO public_customer_invite_sessions (secret_token, customer_id, ref_user_id, ga_id)
+        VALUES ($1, $2, $3, $4)
+        RETURNING first_submitted_at
+        `,
+        [newTok, inserted.rows[0].id, refUserId, refGaId],
+      )
+      const firstSubmittedAt = sessIns.rows[0].first_submitted_at
+      const deadlineMs = editableDeadlineMsFromFirstSubmitted(firstSubmittedAt)
+      const maxAgeSec = Math.max(0, Math.ceil((deadlineMs - Date.now()) / 1000))
+      res.append(
+        'Set-Cookie',
+        buildInviteRegSetCookieHeader(newTok, maxAgeSec, { secure: RUNNING_IN_PRODUCTION }),
+      )
+      inviteSessionMeta = {
+        editableUntil: new Date(deadlineMs).toISOString(),
+        canEdit: Date.now() < deadlineMs,
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      data: mapCustomerRow(inserted.rows[0]),
+      ...(inviteSessionMeta ? { inviteRegistration: inviteSessionMeta } : {}),
+    })
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
+
+apiRouter.get('/customer/external-invite-session', async (req, res) => {
+  try {
+    const token = readCookieFromHeader(req.headers.cookie, PUBLIC_INVITE_REG_COOKIE)
+    if (!token) {
+      res.json({ hasSubmission: false })
+      return
+    }
+    const sess = await safeQuery(
+      pool,
+      `
+      SELECT s.customer_id, s.ref_user_id, s.ga_id, s.first_submitted_at
+      FROM public_customer_invite_sessions s
+      INNER JOIN customers c ON c.id = s.customer_id AND c.deleted_at IS NULL
+      WHERE s.secret_token = $1
+      LIMIT 1
+      `,
+      [token],
+    )
+    if (sess.rowCount === 0) {
+      res.json({ hasSubmission: false })
+      return
+    }
+    const row = sess.rows[0]
+    const deadlineMs = editableDeadlineMsFromFirstSubmitted(row.first_submitted_at)
+    const canEdit = Date.now() < deadlineMs
+    if (!canEdit) {
+      res.json({
+        hasSubmission: true,
+        locked: true,
+        editableUntil: new Date(deadlineMs).toISOString(),
+        canEdit: false,
+      })
+      return
+    }
+    const cust = await safeQuery(
+      pool,
+      `
+      SELECT
+        id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        car_number, car_model, car_year, renewal_date,
+        gender, insurance_age, next_age_date, is_driver, car_type, notes,
+        is_favorite, created_at,
+        crm_extension
+      FROM customers
+      WHERE id = $1 AND deleted_at IS NULL
+      LIMIT 1
+      `,
+      [row.customer_id],
+    )
+    if (cust.rowCount === 0) {
+      res.json({ hasSubmission: false })
+      return
+    }
+    res.json({
+      hasSubmission: true,
+      locked: false,
+      editableUntil: new Date(deadlineMs).toISOString(),
+      canEdit: true,
+      customer: mapCustomerRow(cust.rows[0]),
+    })
+  } catch (error) {
+    handleDbError(error, req, res)
+  }
+})
+
+apiRouter.patch('/customer/external-invite-registration', async (req, res) => {
+  try {
+    const data = req.body ?? {}
+    const token = readCookieFromHeader(req.headers.cookie, PUBLIC_INVITE_REG_COOKIE)
+    if (!token) {
+      res.status(401).json({ message: '세션이 없습니다. 담당자가 보낸 링크로 다시 접속해 주세요.' })
+      return
+    }
+    const tokRow = await safeQuery(
+      pool,
+      `
+      SELECT s.customer_id, s.ref_user_id, s.ga_id, s.first_submitted_at
+      FROM public_customer_invite_sessions s
+      INNER JOIN customers c ON c.id = s.customer_id AND c.deleted_at IS NULL
+      WHERE s.secret_token = $1
+      LIMIT 1
+      `,
+      [token],
+    )
+    if (tokRow.rowCount === 0) {
+      res.status(401).json({ message: '유효하지 않은 초대 세션입니다.' })
+      return
+    }
+    const sid = tokRow.rows[0]
+    const deadlineMs = editableDeadlineMsFromFirstSubmitted(sid.first_submitted_at)
+    if (Date.now() >= deadlineMs) {
+      res.status(403).json({
+        message: '수정 가능 시간이 지났습니다.',
+        code: 'EDIT_WINDOW_CLOSED',
+      })
+      return
+    }
+
+    const name = String(data.name ?? '').trim()
+    if (!name) {
+      res.status(400).json({ message: '이름은 필수입니다' })
+      return
+    }
+    const ssn = String(data.ssn ?? '').trim()
+    let isDriver = null
+    if (data.isDriver === true || data.is_driver === true) {
+      isDriver = true
+    } else if (data.isDriver === false || data.is_driver === false) {
+      isDriver = false
+    }
+    const carType = String(data.carType ?? data.car_type ?? '').trim()
+    const { age: insuranceAge, nextAgeDate: nextAgeDateObj } = calculateInsuranceInfoFromRrn(ssn)
+    const nextAgeSql = nextAgeDateToSqlDate(nextAgeDateObj)
+    const genderRaw = String(data.gender ?? '').trim()
+    const gender = genderRaw === 'male' || genderRaw === 'female' ? genderRaw : ''
+    const notes = normalizeCustomerNotesInput(data.notes)
+    const driving =
+      isDriver === true ? '운전함' : isDriver === false ? '운전 안함' : String(data.driving ?? '').trim()
+    const carNumber = String(data.carNumber ?? data.car_number ?? '').trim()
+    const carModel = String(data.carModel ?? data.car_model ?? '').trim()
+    const carYear = String(data.carYear ?? data.car_year ?? '').trim()
+    const renewalDateRaw = normalizeExpiryDate(String(data.renewalDate ?? data.renewal_date ?? ''))
+    const renewalDateSql = renewalDateRaw || null
+    const birthRaw = String(data.birthDate ?? data.birth_date ?? '').trim()
+    const birthDateSql = birthRaw ? normalizeExpiryDate(birthRaw.slice(0, 10)) || null : null
+    const crmExtSql = stringifyCrmExtensionForDb(data.crmExtension ?? data.crm_extension)
+
+    const customerId = Number(sid.customer_id)
+    const refAgentId = String(sid.ref_user_id)
+    const refGaPk = Number(sid.ga_id)
+
+    const updated = await safeQuery(
+      pool,
+      `
+      UPDATE customers
+      SET
+        name = $1,
+        ssn = $2,
+        phone = $3,
+        carrier = $4,
+        address = $5,
+        height = $6,
+        weight = $7,
+        job = $8,
+        driving = $9,
+        medical = $10,
+        gender = $11,
+        insurance_age = $12,
+        next_age_date = $13,
+        is_driver = $14,
+        car_type = $15,
+        car_number = $16,
+        car_model = $17,
+        car_year = $18,
+        renewal_date = $19,
+        notes = CAST($20 AS jsonb),
+        birth_date = $21,
+        crm_extension = CAST($22 AS jsonb)
+      WHERE id = $23 AND user_id = $24 AND ga_id = $25 AND deleted_at IS NULL
+      RETURNING
+        id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
+        car_number, car_model, car_year, renewal_date,
+        gender, insurance_age, next_age_date, is_driver, car_type, notes,
+        is_favorite, created_at,
+        crm_extension
+      `,
+      [
+        name,
+        ssn,
+        String(data.phone ?? '').trim(),
+        String(data.carrier ?? '').trim(),
+        String(data.address ?? '').trim(),
+        String(data.height ?? '').trim(),
+        String(data.weight ?? '').trim(),
+        String(data.job ?? '').trim(),
+        driving,
+        String(data.medical ?? '').trim(),
+        gender,
+        insuranceAge,
+        nextAgeSql,
+        isDriver,
+        carType,
+        carNumber,
+        carModel,
+        carYear,
+        renewalDateSql,
+        JSON.stringify(notes),
+        birthDateSql,
+        crmExtSql,
+        customerId,
+        refAgentId,
+        refGaPk,
+      ],
+    )
+    if (updated.rowCount === 0) {
+      res.status(404).json({ message: '고객 정보를 수정할 수 없습니다.' })
+      return
+    }
+
+    res.json({
+      success: true,
+      data: mapCustomerRow(updated.rows[0]),
+      inviteRegistration: {
+        editableUntil: new Date(deadlineMs).toISOString(),
+        canEdit: true,
+      },
+    })
   } catch (error) {
     handleDbError(error, req, res)
   }
@@ -6761,6 +7055,20 @@ if (fs.existsSync(DIST_PATH)) {
 
     if (p.includes('.') || p.startsWith('/assets/')) {
       return next()
+    }
+
+    if (p.startsWith('/customer/register')) {
+      try {
+        const htmlPath = path.join(DIST_PATH, 'index.html')
+        const raw = fs.readFileSync(htmlPath, 'utf8')
+        res.type('html').send(injectCustomerRegisterInviteMeta(raw))
+        return
+      } catch (err) {
+        console.warn(
+          '[spa] customer/register meta inject failed:',
+          err instanceof Error ? err.message : String(err),
+        )
+      }
     }
 
     res.sendFile(path.join(DIST_PATH, 'index.html'))

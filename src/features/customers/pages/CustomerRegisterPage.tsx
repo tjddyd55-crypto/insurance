@@ -1,2 +1,6 @@
-/** 고객 외부 등록 전용 경로(`/customer/register`) — 화면은 CustomerInputPage 와 동일 */
-export { default } from './CustomerInputPage'
+/** 고객 외부 등록 전용 경로(`/customer/register`) — GA 초대 링크 UX */
+import CustomerInputPage from './CustomerInputPage'
+
+export default function CustomerRegisterPage() {
+  return <CustomerInputPage inviteRegistrationFlow />
+}
