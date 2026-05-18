@@ -80,19 +80,22 @@ export function CustomerWorkspaceActions({
             </span>
             <MobileActionText>신청서</MobileActionText>
           </FormButton>
-          {gaExcelEnabled ? (
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              className="button button--secondary customer-mobile-action-btn"
-              onClick={() => onOpenGaModal(customerId)}
-            >
-              <span className="customer-mobile-action-btn__icon" aria-hidden>
-                📊
-              </span>
-              <MobileActionText>GA 데이터 보기</MobileActionText>
-            </FormButton>
-          ) : null}
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="button button--secondary customer-mobile-action-btn"
+            title={
+              !gaExcelEnabled
+                ? '업로드된 GA 데이터가 없어도 화면에서 확인할 수 있습니다.'
+                : undefined
+            }
+            onClick={() => onOpenGaModal(customerId)}
+          >
+            <span className="customer-mobile-action-btn__icon" aria-hidden>
+              📊
+            </span>
+            <MobileActionText>GA 데이터 보기</MobileActionText>
+          </FormButton>
           <FormButton
             htmlType="button"
             variant="secondary"
@@ -172,16 +175,19 @@ export function CustomerWorkspaceActions({
           신청서
         </FormButton>
       ) : null}
-      {gaExcelEnabled ? (
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          className="button button--secondary customer-workspace-action-button"
-          onClick={() => onOpenGaModal(customerId)}
-        >
-          GA 데이터 보기
-        </FormButton>
-      ) : null}
+      <FormButton
+        htmlType="button"
+        variant="secondary"
+        className="button button--secondary customer-workspace-action-button"
+        onClick={() => onOpenGaModal(customerId)}
+        title={
+          !gaExcelEnabled
+            ? '업로드된 GA 데이터가 없어도 화면에서 확인할 수 있습니다.'
+            : undefined
+        }
+      >
+        GA 데이터 보기
+      </FormButton>
     </div>
   )
 }
