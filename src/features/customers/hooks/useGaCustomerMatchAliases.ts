@@ -5,7 +5,7 @@ import {
   saveGaCustomerMatchAliases,
 } from '../api/gaCustomerMatchAliasesApi'
 import {
-  aliasesToTextareaValue,
+  aliasesToCommaSeparatedInputValue,
   parseGaMatchAliasInput,
 } from '../utils/gaCustomerMatchAliasInput'
 
@@ -43,7 +43,7 @@ export function useGaCustomerMatchAliases(customerId: number): UseGaCustomerMatc
       const data = await fetchGaCustomerMatchAliases(token, customerId)
       setCustomerName(data.customerName ?? '')
       setSavedAliases(data.aliases ?? [])
-      setInputText(aliasesToTextareaValue(data.aliases ?? []))
+      setInputText(aliasesToCommaSeparatedInputValue(data.aliases ?? []))
     } catch {
       setError('예외 매칭값을 불러오지 못했습니다.')
       setCustomerName('')
@@ -70,7 +70,7 @@ export function useGaCustomerMatchAliases(customerId: number): UseGaCustomerMatc
       const data = await saveGaCustomerMatchAliases(token, customerId, parsed)
       setCustomerName(data.customerName ?? '')
       setSavedAliases(data.aliases ?? [])
-      setInputText(aliasesToTextareaValue(data.aliases ?? []))
+      setInputText(aliasesToCommaSeparatedInputValue(data.aliases ?? []))
       setSaveMessage('저장되었습니다.')
       return true
     } catch {

@@ -60,14 +60,16 @@ export default function CustomerGaExcelPageMobile({ routeCustomerId }: CustomerG
 
   return (
     <main className="page customer-ga-excel-page customer-ga-excel-page--mobile p-3">
-      <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-1">GA 고객 데이터</h2>
-      <p className="text-sm text-[var(--text-secondary)] mb-3">
-        업로드는 내정보관리 페이지에서 진행합니다. 여기서는 고객 매핑 결과만 확인할 수 있습니다.
-      </p>
+      <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">GA 고객 데이터</h2>
       <GaCustomerMatchAliasesCard
         customerId={customerId}
+        layout="mobile"
         onSaved={() => void reload()}
       />
+      <div className="text-sm text-[var(--text-secondary)] mb-3 space-y-1">
+        <p className="m-0">업로드는 내정보관리 페이지에서 진행합니다.</p>
+        <p className="m-0">입력칸은 쉼표(,)로 구분합니다.</p>
+      </div>
 
       <StatusMessage message={error} tone="error" />
       <StatusMessage message={info} tone="default" />

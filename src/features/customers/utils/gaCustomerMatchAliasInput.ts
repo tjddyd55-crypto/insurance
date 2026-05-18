@@ -24,6 +24,12 @@ export function parseGaMatchAliasInput(raw: string | string[]): string[] {
   return out
 }
 
+/** 텍스트 영역 등 줄바꿈 표기용 */
 export function aliasesToTextareaValue(aliases: string[]): string {
   return aliases.join('\n')
+}
+
+/** 단일 줄 input 에서 쉼표로 구분해 표시 */
+export function aliasesToCommaSeparatedInputValue(aliases: string[]): string {
+  return aliases.join(', ')
 }
