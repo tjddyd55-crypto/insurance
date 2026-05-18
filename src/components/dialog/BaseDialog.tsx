@@ -112,7 +112,18 @@ export function BaseDialog({
       window.removeEventListener('popstate', onPopState)
       if (historyBackArmedRef.current) {
         historyBackArmedRef.current = false
-        window.history.go(-1)
+        // 정상 닫기(저장/취소) 시 history.back/go(-1) 하면 sentinel 이전 항목(메뉴 등)으로
+        // SPA 가 이탈할 수 있다. trap 플래그만 제거하고 현재 URL 은 유지한다.
+        try {
+          const currentState =
+            typeof window.history.state === 'object' && window.history.state != null
+              ? { ...(window.history.state as Record<string, unknown>) }
+              : {}
+          delete currentState.__BASE_DIALOG_BACK_TRAP__
+          window.history.replaceState(currentState, '', window.location.href)
+        } catch {
+          // no-op
+        }
       }
     }
   }, [open, closeOnHistoryBack])
