@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import RichTextContent from '../../../components/rich-text/RichTextContent'
-import { NewsletterAttachmentList } from '../../insurer-news/components/NewsletterAttachmentList'
+import CustomerAppNewsAttachmentList from '../components/CustomerAppNewsAttachmentList'
 import CustomerAppNewsImageGallery from '../components/CustomerAppNewsImageGallery'
 import { getCustomerNewsDetail, markCustomerNewsRead, type CustomerAppNewsDetail } from '../api/customerAppApi'
 import { buildCustomerNewsGalleryUrls } from '../model/buildCustomerNewsGalleryUrls'
@@ -87,7 +87,9 @@ export default function CustomerAppNewsDetailPage() {
             emptyText="본문이 없습니다."
           />
           <div className="insurer-news-detail-after">
-            <NewsletterAttachmentList attachments={detail.attachments ?? []} />
+            {session ? (
+              <CustomerAppNewsAttachmentList attachments={detail.attachments ?? []} appToken={session.appToken} />
+            ) : null}
           </div>
         </article>
       ) : null}

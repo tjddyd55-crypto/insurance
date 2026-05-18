@@ -116,16 +116,19 @@ export interface CustomerAppNewsDetail {
   updatedAt: string | null
   isPinned: boolean
   heroImageUrl?: string | null
-  attachments?: Array<{
-    id: string
-    kind: 'image' | 'file'
-    url: string
-    fileName: string
-    sortOrder: number
-    objectKey?: string
-    mimeType?: string
-    size?: number
-  }>
+  attachments?: CustomerAppNewsAttachment[]
+}
+
+export type CustomerAppNewsAttachment = {
+  id: string
+  kind: 'image' | 'file'
+  url: string
+  fileName: string
+  sortOrder: number
+  mimeType?: string | null
+  size?: number | null
+  openUrl?: string
+  downloadUrl?: string
 }
 
 let reconnectTask: Promise<string | null> | null = null

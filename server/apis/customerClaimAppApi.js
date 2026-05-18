@@ -9,11 +9,19 @@ import {
   logR2EnvDiagnosticCheck,
   r2GetPresignedPutUrl,
 } from '../lib/consentStorage.js'
+import {
+  assertCustomerNewsMessageObjectKey,
+  buildCustomerNewsMessageObjectKey,
+  customerNewsAttachmentKindFromMime,
+  validateCustomerNewsMessageUpload,
+} from '../lib/customerNewsMessageAttachments.js'
 
 const CUSTOMER_APP_TOKEN_KIND = 'CUSTOMER_APP'
 const CUSTOMER_APP_TOKEN_EXPIRES_IN = '180d'
 const CUSTOMER_CLAIM_FILE_ACCESS_TOKEN_KIND = 'CUSTOMER_CLAIM_FILE_ACCESS'
 const CUSTOMER_CLAIM_FILE_ACCESS_TOKEN_EXPIRES_IN = '15m'
+const CUSTOMER_NEWS_ATTACHMENT_ACCESS_TOKEN_KIND = 'CUSTOMER_NEWS_ATTACHMENT_ACCESS'
+const CUSTOMER_NEWS_ATTACHMENT_ACCESS_TOKEN_EXPIRES_IN = '15m'
 const CUSTOMER_LINK_ACTIVE = 'active'
 const CUSTOMER_DEVICE_ACTIVE = 'active'
 const CUSTOMER_CLAIM_STATUSES = new Set(['requested', 'processing', 'done', 'rejected', 'canceled'])
@@ -1549,10 +1557,15 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         .toLowerCase()
       const scope = scopeRaw === 'personal' ? 'personal' : 'all'
       const targetCustomerId = parsePositiveInt(req.body?.targetCustomerId)
-      if (!title || !content) {
-        res.status(400).json({ message: '제목과 내용을 입력해 주세요.' })
+      if (!title) {
+        res.status(400).json({ message: '제목을 입력해 주세요.' })
         return
       }
+      if (!content && attachments.length === 0) {
+        res.status(400).json({ message: '메시지 내용 또는 첨부파일을 추가해 주세요.' })
+        return
+      }
+      const bodyText = content || '(첨부파일)'
       if (scope === 'personal' && targetCustomerId == null) {
         res.status(422).json({ message: '개별 소식지는 대상 고객을 선택해 주세요.' })
         return
@@ -1587,7 +1600,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         insurerName: '고객 소식지',
         insurerSlug: 'customer-news',
         newsChannel: 'INSURER',
-        summary: content.slice(0, 300),
+        summary: bodyText.slice(0, 300),
         publishedAt: new Date().toISOString(),
         publisherId: agentId,
         customerVisible: true,
@@ -1604,7 +1617,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           (id, ga_id, company_id, company_name_snapshot, title, status, body_text, payload, created_at, updated_at)
         VALUES ($1, $2, NULL, $3, $4, 'PUBLISHED', $5, $6::jsonb, NOW(), NOW())
         `,
-        [id, gaId, '고객 소식지', title, content, JSON.stringify(payload)],
+        [id, gaId, '고객 소식지', title, bodyText, JSON.stringify(payload)],
       )
       await writeLinkAudit(pool, {
         agentId,
@@ -1628,14 +1641,122 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         data: {
           id,
           title,
-          content,
+          content: bodyText,
           sendPush,
           isPinned,
           scope,
           targetCustomerId: scope === 'personal' ? targetCustomerId : null,
+          attachments,
         },
       })
     } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.post('/agent/customer-news/attachments/presign', requireAuth, async (req, res) => {
+    try {
+      const agentId = String(req.user?.id ?? '').trim()
+      if (!agentId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      if (!isConsentR2Enabled()) {
+        logR2EnvDiagnosticCheck()
+        res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+        return
+      }
+      const body = req.body && typeof req.body === 'object' ? req.body : {}
+      const fileName = sanitizeFileName(body.fileName)
+      const contentType = String(body.contentType ?? '').trim().split(';')[0].trim()
+      const sizeBytes = Number(body.sizeBytes ?? body.size ?? 0)
+      const validated = validateCustomerNewsMessageUpload(contentType, sizeBytes)
+      if (!validated.ok) {
+        res.status(400).json({ message: validated.message })
+        return
+      }
+      const gaId = await resolveAgentGaId(pool, agentId)
+      if (gaId == null) {
+        res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
+        return
+      }
+      const gaPath = await resolveGaPathByGaId(pool, gaId)
+      if (!gaPath) {
+        res.status(400).json({ message: '저장 경로를 구성할 수 없습니다.' })
+        return
+      }
+      const quota = await loadAgentStorageQuota(pool, agentId, gaId)
+      if (quota && quota.limit > 0 && quota.used + sizeBytes > quota.limit) {
+        res.status(413).json({ message: '저장 공간이 부족합니다.' })
+        return
+      }
+      const objectKey = buildCustomerNewsMessageObjectKey(gaPath, agentId, fileName)
+      const cacheControl = getR2InsurerAttachmentsCacheControl()
+      const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
+      if (!uploadUrl) {
+        res.status(503).json({ message: '업로드 URL을 만들 수 없습니다.' })
+        return
+      }
+      const putHeaders = {}
+      if (cacheControl) {
+        putHeaders['Cache-Control'] = cacheControl
+      }
+      const cdnBase = getR2PublicCdnBase().replace(/\/$/, '')
+      res.json({
+        uploadUrl,
+        objectKey,
+        fileUrl: `${cdnBase}/${objectKey.replace(/^\//, '')}`,
+        putHeaders,
+        kind: customerNewsAttachmentKindFromMime(contentType),
+      })
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.put('/agent/customer-news/attachments/upload-proxy', requireAuth, async (req, res) => {
+    try {
+      const agentId = String(req.user?.id ?? '').trim()
+      if (!agentId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      if (!isConsentR2Enabled()) {
+        logR2EnvDiagnosticCheck()
+        res.status(503).json({ message: '파일 저장소가 구성되지 않았습니다.' })
+        return
+      }
+      const objectKey = String(req.query.objectKey ?? req.headers['x-object-key'] ?? '').trim()
+      const contentType = String(req.query.contentType ?? req.headers['content-type'] ?? '')
+        .trim()
+        .split(';')[0]
+        .trim()
+      const sizeBytes = Number(req.headers['x-file-size'] ?? req.query.fileSize ?? 0)
+      const gaId = await resolveAgentGaId(pool, agentId)
+      if (gaId == null) {
+        res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
+        return
+      }
+      const gaPath = await resolveGaPathByGaId(pool, gaId)
+      if (!gaPath || !objectKey || !assertCustomerNewsMessageObjectKey(objectKey, agentId, gaPath)) {
+        res.status(403).json({ message: '허용되지 않은 업로드 경로입니다.' })
+        return
+      }
+      const validated = validateCustomerNewsMessageUpload(contentType, sizeBytes)
+      if (!validated.ok) {
+        res.status(400).json({ message: validated.message })
+        return
+      }
+      const buffer = await readRawBodyBuffer(req, sizeBytes || MAX_IMAGE_BYTES + 1)
+      await consentPutInsurerAttachment(objectKey, buffer, contentType)
+      res.status(204).end()
+    } catch (error) {
+      if (error && typeof error === 'object' && 'httpStatus' in error && typeof error.httpStatus === 'number') {
+        res.status(error.httpStatus).json({
+          message: error instanceof Error ? error.message : '요청을 처리할 수 없습니다.',
+        })
+        return
+      }
       handleDbError(error, req, res)
     }
   })
@@ -2662,6 +2783,332 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
     }
   })
 
+  /**
+   * @param {string} url
+   */
+  function objectKeyFromCdnUrl(url) {
+    const raw = String(url ?? '').trim()
+    if (!raw) {
+      return ''
+    }
+    const cdnBase = getR2PublicCdnBase().replace(/\/$/, '')
+    if (raw.startsWith(`${cdnBase}/`)) {
+      return raw.slice(cdnBase.length + 1)
+    }
+    try {
+      const parsed = new URL(raw)
+      return parsed.pathname.replace(/^\//, '')
+    } catch {
+      return ''
+    }
+  }
+
+  /**
+   * @param {string} objectKey
+   * @param {string} agentId
+   * @param {string} gaPath
+   */
+  function assertCustomerNewsAttachmentReadable(objectKey, agentId, gaPath) {
+    const key = String(objectKey ?? '').trim().replace(/^\//, '')
+    if (!key) {
+      return false
+    }
+    if (assertCustomerNewsMessageObjectKey(key, agentId, gaPath)) {
+      return true
+    }
+    const userSeg = sanitizeUserIdForObjectKeySegment(agentId)
+    return key.includes(`/${userSeg}/`) && (key.includes('/insurer-news/') || key.includes('/customer-news'))
+  }
+
+  /**
+   * @param {{
+   *  newsId: string
+   *  attachmentId: string
+   *  agentId: string
+   *  customerId: number
+   *  deviceId: string
+   * }} payload
+   */
+  function signCustomerNewsAttachmentAccessToken(payload) {
+    return jwt.sign(
+      {
+        kind: CUSTOMER_NEWS_ATTACHMENT_ACCESS_TOKEN_KIND,
+        newsId: payload.newsId,
+        attachmentId: payload.attachmentId,
+        agentId: payload.agentId,
+        customerId: payload.customerId,
+        deviceId: payload.deviceId,
+      },
+      jwtSecret,
+      { expiresIn: CUSTOMER_NEWS_ATTACHMENT_ACCESS_TOKEN_EXPIRES_IN },
+    )
+  }
+
+  /**
+   * @param {string} rawToken
+   */
+  function verifyCustomerNewsAttachmentAccessToken(rawToken) {
+    try {
+      const decoded = jwt.verify(rawToken, jwtSecret)
+      if (!decoded || typeof decoded !== 'object') {
+        return null
+      }
+      const payload = /** @type {{
+       *  kind?: unknown
+       *  newsId?: unknown
+       *  attachmentId?: unknown
+       *  agentId?: unknown
+       *  customerId?: unknown
+       *  deviceId?: unknown
+       * }} */ (decoded)
+      if (String(payload.kind ?? '') !== CUSTOMER_NEWS_ATTACHMENT_ACCESS_TOKEN_KIND) {
+        return null
+      }
+      const newsId = String(payload.newsId ?? '').trim()
+      const attachmentId = String(payload.attachmentId ?? '').trim()
+      const agentId = String(payload.agentId ?? '').trim()
+      const customerId = parsePositiveInt(payload.customerId)
+      const deviceId = String(payload.deviceId ?? '').trim()
+      if (!newsId || !attachmentId || !agentId || customerId == null || !deviceId) {
+        return null
+      }
+      return { newsId, attachmentId, agentId, customerId, deviceId }
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   */
+  async function resolveCustomerAppContextForNewsAttachment(req, res) {
+    const bearer = readBearerToken(req)
+    if (bearer) {
+      try {
+        const decoded = jwt.verify(bearer, jwtSecret)
+        if (!decoded || typeof decoded !== 'object') {
+          res.status(401).json({ message: '고객 앱 토큰이 유효하지 않습니다.' })
+          return null
+        }
+        const payload = /** @type {{ kind?: unknown, agentId?: unknown, customerId?: unknown, deviceId?: unknown, linkId?: unknown }} */ (decoded)
+        if (String(payload.kind ?? '') !== CUSTOMER_APP_TOKEN_KIND) {
+          res.status(401).json({ message: '고객 앱 토큰이 유효하지 않습니다.' })
+          return null
+        }
+        const agentId = String(payload.agentId ?? '').trim()
+        const customerId = parsePositiveInt(payload.customerId)
+        const deviceId = String(payload.deviceId ?? '').trim()
+        const linkId = parsePositiveInt(payload.linkId)
+        if (!agentId || customerId == null || !deviceId || linkId == null) {
+          res.status(401).json({ message: '고객 앱 토큰이 유효하지 않습니다.' })
+          return null
+        }
+        const contextCheck = await ensureCustomerAppActiveContext(pool, agentId, customerId, deviceId)
+        if (!contextCheck.ok) {
+          res.status(contextCheck.status).json({ message: contextCheck.message })
+          return null
+        }
+        return { agentId, customerId, deviceId, linkId }
+      } catch {
+        res.status(401).json({ message: '고객 앱 토큰이 유효하지 않습니다.' })
+        return null
+      }
+    }
+    const accessToken = String(req.query.accessToken ?? '').trim()
+    const tokenPayload = verifyCustomerNewsAttachmentAccessToken(accessToken)
+    if (!tokenPayload) {
+      res.status(401).json({ message: '첨부파일 접근 권한이 없습니다.' })
+      return null
+    }
+    const contextCheck = await ensureCustomerAppActiveContext(
+      pool,
+      tokenPayload.agentId,
+      tokenPayload.customerId,
+      tokenPayload.deviceId,
+    )
+    if (!contextCheck.ok) {
+      res.status(contextCheck.status).json({ message: contextCheck.message })
+      return null
+    }
+    return {
+      agentId: tokenPayload.agentId,
+      customerId: tokenPayload.customerId,
+      deviceId: tokenPayload.deviceId,
+      linkId: null,
+      newsId: tokenPayload.newsId,
+      attachmentId: tokenPayload.attachmentId,
+    }
+  }
+
+  /**
+   * @param {import('express').Request} req
+   * @param {string} newsId
+   * @param {string} attachmentId
+   * @param {{ agentId: string, customerId: number, deviceId: string }} context
+   * @param {boolean} download
+   */
+  function buildCustomerNewsAttachmentAccessUrl(req, newsId, attachmentId, context, download = false) {
+    const token = signCustomerNewsAttachmentAccessToken({
+      newsId,
+      attachmentId,
+      agentId: context.agentId,
+      customerId: context.customerId,
+      deviceId: context.deviceId,
+    })
+    const qs = new URLSearchParams({ accessToken: token })
+    if (download) {
+      qs.set('download', '1')
+    }
+    return buildAbsoluteBackendUrl(
+      req,
+      `/api/customer-app/news/${encodeURIComponent(newsId)}/attachments/${encodeURIComponent(attachmentId)}/download?${qs.toString()}`,
+    )
+  }
+
+  /**
+   * @param {import('express').Request} req
+   * @param {string} newsId
+   * @param {{ agentId: string, customerId: number, deviceId: string }} context
+   * @param {Array<{ id: string, kind: string, url: string, fileName: string, sortOrder: number, objectKey?: string, mimeType?: string, size?: number }>} attachments
+   */
+  function mapCustomerNewsAttachmentsForApp(req, newsId, context, attachments) {
+    return attachments.map((row) => {
+      const id = String(row.id ?? '').trim()
+      return {
+        id,
+        kind: row.kind === 'file' ? 'file' : 'image',
+        fileName: row.fileName,
+        sortOrder: row.sortOrder,
+        mimeType: row.mimeType ?? null,
+        size: row.size ?? null,
+        url: buildCustomerNewsAttachmentAccessUrl(req, newsId, id, context, false),
+        openUrl: buildCustomerNewsAttachmentAccessUrl(req, newsId, id, context, false),
+        downloadUrl: buildCustomerNewsAttachmentAccessUrl(req, newsId, id, context, true),
+      }
+    })
+  }
+
+  /**
+   * @param {import('pg').Pool} dbPool
+   * @param {string} newsId
+   * @param {number} gaId
+   * @param {string} agentId
+   * @param {number} customerId
+   */
+  async function loadCustomerNewsRowForCustomerApp(dbPool, newsId, gaId, agentId, customerId) {
+    const row = await dbPool.query(
+      `
+      SELECT id, title, body_text, updated_at, payload
+      FROM insurance_company_newsletters
+      WHERE id = $1
+        AND ga_id = $2
+        AND status = 'PUBLISHED'
+        AND COALESCE((payload->>'customerVisible')::boolean, false) = true
+        AND COALESCE(NULLIF(TRIM(payload->>'publisherId'), ''), '') = $3
+        AND (
+          COALESCE(NULLIF(TRIM(payload->>'customerNewsScope'), ''), 'all') = 'all'
+          OR (
+            COALESCE(NULLIF(TRIM(payload->>'customerNewsScope'), ''), 'all') = 'personal'
+            AND COALESCE(NULLIF(TRIM(payload->>'targetCustomerId'), '')::int, 0) = $4
+          )
+        )
+      LIMIT 1
+      `,
+      [newsId, gaId, agentId, customerId],
+    )
+    if (row.rowCount === 0) {
+      return null
+    }
+    return row.rows[0]
+  }
+
+  /**
+   * @param {object} payload
+   * @param {string} attachmentId
+   */
+  function findCustomerNewsAttachmentInPayload(payload, attachmentId) {
+    const list = Array.isArray(payload?.attachments) ? payload.attachments : []
+    const target = String(attachmentId ?? '').trim()
+    return (
+      list.find((item) => item && String(item.id ?? '').trim() === target) ??
+      null
+    )
+  }
+
+  apiRouter.get('/customer-app/news/:newsId/attachments/:attachmentId/download', async (req, res) => {
+      try {
+        const context = await resolveCustomerAppContextForNewsAttachment(req, res)
+        if (!context) {
+          return
+        }
+        const newsId = String(req.params.newsId ?? '').trim()
+        const attachmentId = String(req.params.attachmentId ?? '').trim()
+        if (!newsId || !attachmentId) {
+          res.status(400).json({ message: '유효한 newsId와 attachmentId가 필요합니다.' })
+          return
+        }
+        if (context.newsId && context.newsId !== newsId) {
+          res.status(403).json({ message: '첨부파일 접근 권한이 없습니다.' })
+          return
+        }
+        if (context.attachmentId && context.attachmentId !== attachmentId) {
+          res.status(403).json({ message: '첨부파일 접근 권한이 없습니다.' })
+          return
+        }
+        const gaId = await resolveAgentGaId(pool, context.agentId)
+        if (gaId == null) {
+          res.status(404).json({ message: '연결된 설계사 정보를 찾을 수 없습니다.' })
+          return
+        }
+        const gaPath = await resolveGaPathByGaId(pool, gaId)
+        if (!gaPath) {
+          res.status(400).json({ message: '저장 경로를 확인할 수 없습니다.' })
+          return
+        }
+        const newsRow = await loadCustomerNewsRowForCustomerApp(
+          pool,
+          newsId,
+          gaId,
+          context.agentId,
+          context.customerId,
+        )
+        if (!newsRow) {
+          res.status(404).json({ message: '소식지를 찾을 수 없습니다.' })
+          return
+        }
+        const payload = newsRow.payload && typeof newsRow.payload === 'object' ? newsRow.payload : {}
+        const attachment = findCustomerNewsAttachmentInPayload(payload, attachmentId)
+        if (!attachment) {
+          res.status(404).json({ message: '첨부파일을 찾을 수 없습니다.' })
+          return
+        }
+        const objectKey =
+          String(attachment.objectKey ?? '').trim() ||
+          objectKeyFromCdnUrl(String(attachment.url ?? ''))
+        if (!objectKey || !assertCustomerNewsAttachmentReadable(objectKey, context.agentId, gaPath)) {
+          res.status(403).json({ message: '허용되지 않은 첨부파일입니다.' })
+          return
+        }
+        let buffer
+        try {
+          buffer = await consentGetBuffer(objectKey)
+        } catch {
+          res.status(404).json({ message: '첨부파일을 불러오지 못했습니다.' })
+          return
+        }
+        const mode = resolveDownloadMode(req)
+        const fileName = String(attachment.fileName ?? '').trim() || 'download'
+        const contentType = String(attachment.mimeType ?? '').trim() || 'application/octet-stream'
+        res.setHeader('Content-Type', contentType)
+        res.setHeader('Content-Disposition', buildContentDisposition(fileName, mode))
+        res.setHeader('Content-Length', String(buffer.length))
+        res.end(buffer)
+      } catch (error) {
+        handleDbError(error, req, res)
+      }
+    })
+
   apiRouter.get('/customer-app/news', requireCustomerAppAuth, async (req, res) => {
     try {
       const context = req.customerApp
@@ -2756,43 +3203,35 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         res.status(404).json({ message: '연결된 설계사 정보를 찾을 수 없습니다.' })
         return
       }
-      const row = await pool.query(
-        `
-        SELECT id, title, body_text, updated_at, payload
-        FROM insurance_company_newsletters
-        WHERE id = $1
-          AND ga_id = $2
-          AND status = 'PUBLISHED'
-          AND COALESCE((payload->>'customerVisible')::boolean, false) = true
-          AND COALESCE(NULLIF(TRIM(payload->>'publisherId'), ''), '') = $3
-          AND (
-            COALESCE(NULLIF(TRIM(payload->>'customerNewsScope'), ''), 'all') = 'all'
-            OR (
-              COALESCE(NULLIF(TRIM(payload->>'customerNewsScope'), ''), 'all') = 'personal'
-              AND COALESCE(NULLIF(TRIM(payload->>'targetCustomerId'), '')::int, 0) = $4
-            )
-          )
-        LIMIT 1
-        `,
-        [newsId, gaId, context.agentId, context.customerId],
+      const row = await loadCustomerNewsRowForCustomerApp(
+        pool,
+        newsId,
+        gaId,
+        context.agentId,
+        context.customerId,
       )
-      if (row.rowCount === 0) {
+      if (!row) {
         res.status(404).json({ message: '소식지를 찾을 수 없습니다.' })
         return
       }
+      const payload = row.payload && typeof row.payload === 'object' ? row.payload : {}
+      const rawAttachments = normalizeCustomerNewsAttachments(payload.attachments)
+      const attachments = mapCustomerNewsAttachmentsForApp(req, newsId, context, rawAttachments)
+      const firstImage = attachments.find((a) => a.kind === 'image')
+      const heroImageUrl = firstImage?.openUrl ?? attachments[0]?.openUrl ?? null
       res.json({
         success: true,
         data: {
-          id: String(row.rows[0].id),
+          id: String(row.id),
           title:
-            String(row.rows[0].payload?.customerNewsScope ?? 'all') === 'personal'
+            String(payload.customerNewsScope ?? 'all') === 'personal'
               ? `${(await loadCustomerAppProfile(pool, context))?.name || '고객'} 고객님께`
-              : String(row.rows[0].title ?? ''),
-          content: String(row.rows[0].body_text ?? ''),
-          updatedAt: row.rows[0].updated_at ? new Date(row.rows[0].updated_at).toISOString() : null,
-          isPinned: Boolean(row.rows[0].payload?.pinned),
-          heroImageUrl: String(row.rows[0].payload?.heroImageUrl ?? '').trim() || null,
-          attachments: Array.isArray(row.rows[0].payload?.attachments) ? row.rows[0].payload.attachments : [],
+              : String(row.title ?? ''),
+          content: String(row.body_text ?? ''),
+          updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
+          isPinned: Boolean(payload.pinned),
+          heroImageUrl,
+          attachments,
         },
       })
     } catch (error) {

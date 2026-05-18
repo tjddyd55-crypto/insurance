@@ -3,10 +3,12 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import FileUploader from '../../../../components/common/FileUploader'
 import { FormButton, FormTextarea } from '../../../../components/form'
 import { useAuth } from '../../../auth/AuthProvider'
-import { uploadNewsletterAttachments } from '../../../insurer-news/services/insurerNews.service'
-import type { LocalAttachmentDraft } from '../../../insurer-news/types'
 import { useInsurerNewsForm } from '../../../insurer-news/hooks/useInsurerNewsForm'
 import { validateInsurerNewsFile } from '../../../insurer-news/utils/validateInsurerNewsFile'
+import {
+  uploadCustomerNewsMessageAttachments,
+  type CustomerNewsMessageAttachmentDraft,
+} from '../../model/customerNewsMessageAttachmentUpload'
 import {
   createCustomerNews,
   listAgentCustomerNews,
@@ -109,16 +111,19 @@ export default function ClaimRequestsPersonalPCStandalone() {
     setError('')
     setUploadBusyText(form.attachments.length > 0 ? '파일 업로드 중...' : null)
     try {
-      const uploaded = await uploadNewsletterAttachments(token, form.attachments, {
-        presignInsurerCode: 'CUSTOMER_NEWS',
-      })
-      form.replaceAttachments(uploaded)
+      const uploaded = await uploadCustomerNewsMessageAttachments(
+        token,
+        form.attachments as CustomerNewsMessageAttachmentDraft[],
+      )
+      form.replaceAttachments(uploaded as Parameters<typeof form.replaceAttachments>[0])
       if (uploaded.some((row) => row.status === 'failed')) {
-        setError('일부 파일 업로드에 실패했습니다. 실패 항목을 정리하고 다시 시도해 주세요.')
+        setError('첨부파일 업로드에 실패했습니다. 파일을 다시 선택해 주세요.')
         return
       }
       const attachments = uploaded
-        .filter((row): row is LocalAttachmentDraft & { cdnUrl: string; objectKey: string } => Boolean(row.cdnUrl && row.objectKey))
+        .filter((row): row is CustomerNewsMessageAttachmentDraft & { cdnUrl: string; objectKey: string } =>
+          Boolean(row.cdnUrl && row.objectKey),
+        )
         .map((row, index) => ({
           kind: row.kind,
           url: row.cdnUrl,
@@ -262,6 +267,11 @@ export default function ClaimRequestsPersonalPCStandalone() {
               {form.attachments.map((attachment) => (
                 <div key={attachment.localId} className="personal-message-draft-files__item">
                   <span>{attachment.file.name}</span>
+                  {'status' in attachment && attachment.status === 'failed' ? (
+                    <span className="personal-message-draft-files__status personal-message-draft-files__status--err">
+                      업로드 실패
+                    </span>
+                  ) : null}
                   <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => form.removeAttachment(attachment.localId)} disabled={busy}>
                     삭제
                   </FormButton>
