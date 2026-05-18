@@ -33,6 +33,7 @@ export const ALLOWED_FIELD_TYPES = Object.freeze([
 ])
 
 import { INPUT_ROLES, parseInputRoleString } from './inputRole.js'
+import { normalizeFieldDataMapping, parseFieldDataMapping } from './fieldDataMapping.js'
 
 /** @deprecated 저장 시 항상 null — 전자계약 플로우는 inputRole 만 사용한다. */
 export const ALLOWED_CUSTOMER_MAPPINGS = Object.freeze([])
@@ -72,6 +73,7 @@ const MAX_OPTION_LENGTH = 120
  *   required: boolean,
  *   orderIndex: number,
  *   inputRole: 'customer' | 'sender' | 'disabled',
+ *   dataMapping: import('./fieldDataMapping.js').PdfFieldDataMapping,
  *   customerMapping: null,
  *   options: string[] | null,
  *   placements: Placement[],
@@ -254,6 +256,10 @@ export function normalizeFieldSpec(raw, fallbackOrder = 0) {
     }
   }
 
+  const dataMapping = normalizeFieldDataMapping(
+    src.dataMapping ?? src.customerMapping ?? null,
+  )
+
   return {
     fieldKey,
     label,
@@ -261,9 +267,29 @@ export function normalizeFieldSpec(raw, fallbackOrder = 0) {
     required,
     orderIndex,
     inputRole,
+    dataMapping,
     customerMapping: null,
     options,
     placements,
+  }
+}
+
+/**
+ * DB row 의 customer_mapping 컬럼을 FieldSpec.dataMapping 으로 병합한다.
+ *
+ * @param {FieldSpec} field
+ * @param {unknown} customerMappingRaw
+ * @returns {FieldSpec}
+ */
+export function fieldSpecWithDbMapping(field, customerMappingRaw) {
+  const fromDb = parseFieldDataMapping(customerMappingRaw)
+  const hasDb =
+    customerMappingRaw != null &&
+    String(customerMappingRaw).trim() !== '' &&
+    (fromDb.dataSourceType === 'customer' || fromDb.fallbackText || fromDb.transformType)
+  return {
+    ...field,
+    dataMapping: hasDb ? fromDb : field.dataMapping,
   }
 }
 

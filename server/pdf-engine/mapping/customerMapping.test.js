@@ -49,13 +49,31 @@ test('injectCustomerValues: 매핑 없는 필드는 사용자 입력 그대로',
   assert.deepEqual(result, { memo: '수기 메모' })
 })
 
-test('injectCustomerValues: 프로필에 값이 있으면 사용자 입력을 덮어쓴다', () => {
+test('injectCustomerValues: 고객 데이터가 있으면 overwrite 로 덮어쓴다', () => {
   const fields = [
-    { fieldKey: 'customer_name', customerMapping: 'name' },
-    { fieldKey: 'customer_phone', customerMapping: 'phone' },
+    {
+      fieldKey: 'customer_name',
+      dataMapping: {
+        dataSourceType: 'customer',
+        customerFieldKey: 'name',
+        customerFieldLabel: null,
+        fallbackText: null,
+        transformType: null,
+      },
+    },
+    {
+      fieldKey: 'customer_phone',
+      dataMapping: {
+        dataSourceType: 'customer',
+        customerFieldKey: 'phone',
+        customerFieldLabel: null,
+        fallbackText: null,
+        transformType: null,
+      },
+    },
   ]
-  const profile = { display_name: '홍길동', phone_number: '010-0000-0000' }
-  const result = injectCustomerValues(fields, { customer_name: '임의값', customer_phone: '' }, profile)
+  const customer = { name: '홍길동', phone: '010-0000-0000' }
+  const result = injectCustomerValues(fields, { customer_name: '임의값', customer_phone: '' }, customer)
   assert.equal(result.customer_name, '홍길동')
   assert.equal(result.customer_phone, '010-0000-0000')
 })

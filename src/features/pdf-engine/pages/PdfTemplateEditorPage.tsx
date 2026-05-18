@@ -28,7 +28,9 @@ import {
 import { PdfCoordinateEditor } from '../components/PdfCoordinateEditor'
 import { validatePdfTemplateFieldsForSave, dedupeRadioPlacementsInFields } from '../validatePdfTemplateFieldsForSave'
 import { normalizePdfFieldKeys } from '../pdfFieldKey'
+import { normalizePdfFieldDataMapping } from '../lib/resolvePdfFieldValue'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
+import { DEFAULT_PDF_FIELD_DATA_MAPPING } from '../types'
 import '../pdf-engine.css'
 
 function radioPlacementsChangedByDedupe(before: PdfFieldSpec[], after: PdfFieldSpec[]): boolean {
@@ -191,7 +193,11 @@ function coercePdfFieldSpecForEditor(f: PdfFieldSpec & { id?: number }): PdfFiel
       : rest.inputRole === 'sender' || rest.inputRole === 'disabled' || rest.inputRole === 'customer'
         ? rest.inputRole
         : 'customer'
-  return { ...rest, inputRole }
+  return {
+    ...rest,
+    inputRole,
+    dataMapping: normalizePdfFieldDataMapping(rest.dataMapping ?? DEFAULT_PDF_FIELD_DATA_MAPPING),
+  }
 }
 
 type LoadState =

@@ -10,6 +10,12 @@ export type PdfDocumentApplicantViewProps = {
   focusedFieldKey: string | null
   prefillBanner: ReactNode | null
   submitting: boolean
+  workspaceCustomerId: number | null
+  customerLoadHint: string | null
+  loadingCustomerData: boolean
+  overwriteCustomerOnLoad: boolean
+  onToggleOverwriteCustomerOnLoad: () => void
+  onLoadCustomerData: () => void
   /** ← 문서 목록 링크 (고객 작업 영역 embed 시 `/customers/.../application-documents`) */
   documentsListPath: string
   onChangeValues: Dispatch<SetStateAction<Record<string, string>>>

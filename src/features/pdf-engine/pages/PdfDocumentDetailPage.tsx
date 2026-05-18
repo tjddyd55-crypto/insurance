@@ -23,7 +23,10 @@ import PdfDocumentApplicantPCView from './pdf-document/PdfDocumentApplicantPCVie
 import PdfDocumentApplicantMobileView from './pdf-document/PdfDocumentApplicantMobileView'
 import type { PdfDocumentApplicantViewProps } from './pdf-document/pdfDocumentApplicantViewProps'
 import { clampApplicantFontSizePt } from '../lib/pdfApplicantTypography'
+import { applyCustomerDataToPdfValues } from '../lib/resolvePdfFieldValue'
+import { normalizePdfFieldDataMapping } from '../lib/resolvePdfFieldValue'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
+import { DEFAULT_PDF_FIELD_DATA_MAPPING } from '../types'
 import { usePdfDocumentsWorkspacePaths } from '../utils/pdfCustomerWorkspacePaths'
 import { buildPdfIssuanceDisplayFilename } from '../utils/pdfIssuanceFilename'
 import '../pdf-engine.css'
@@ -37,7 +40,11 @@ function coercePdfFieldSpecForForm(f: PdfFieldSpec & { id?: number }): PdfFieldS
       : rest.inputRole === 'sender' || rest.inputRole === 'disabled' || rest.inputRole === 'customer'
         ? rest.inputRole
         : 'customer'
-  return { ...rest, inputRole }
+  return {
+    ...rest,
+    inputRole,
+    dataMapping: normalizePdfFieldDataMapping(rest.dataMapping ?? DEFAULT_PDF_FIELD_DATA_MAPPING),
+  }
 }
 
 function pickFontSnapshotsFromIssuance(
@@ -139,6 +146,12 @@ export default function PdfDocumentDetailPage() {
   const [applicantValues, setApplicantValues] = useState<Record<string, string>>({})
   const [fontOverrides, setFontOverrides] = useState<Record<string, number>>({})
   const [focusedFieldKey, setFocusedFieldKey] = useState<string | null>(null)
+  const [loadingCustomerData, setLoadingCustomerData] = useState(false)
+  const [overwriteCustomerOnLoad, setOverwriteCustomerOnLoad] = useState(false)
+  const [customerLoadHint, setCustomerLoadHint] = useState<string | null>(null)
+  const [cachedCustomer, setCachedCustomer] = useState<Awaited<
+    ReturnType<typeof getCustomerById>
+  > | null>(null)
 
   const closePreview = () => {
     setPreviewOpen(false)
@@ -286,6 +299,52 @@ export default function PdfDocumentDetailPage() {
     })
   }, [state, displayCustomerLabel])
 
+  const handleLoadCustomerData = useCallback(async () => {
+    if (!token?.trim()) return
+    if (workspaceCustomerIdFromRoute == null) {
+      setCustomerLoadHint('고객을 먼저 선택해 주세요.')
+      return
+    }
+    if (state.status !== 'ready') return
+    setLoadingCustomerData(true)
+    setCustomerLoadHint(null)
+    try {
+      const customer =
+        cachedCustomer?.id === workspaceCustomerIdFromRoute
+          ? cachedCustomer
+          : await getCustomerById(token, workspaceCustomerIdFromRoute)
+      setCachedCustomer(customer)
+      setApplicantValues((prev) =>
+        applyCustomerDataToPdfValues(state.fields, prev, customer, {
+          overwriteMode: overwriteCustomerOnLoad,
+        }),
+      )
+      const mappedCount = state.fields.filter(
+        (f) =>
+          f.dataMapping.dataSourceType === 'customer' &&
+          f.dataMapping.customerFieldKey &&
+          (f.fieldType === 'text' || f.fieldType === 'textarea'),
+      ).length
+      setCustomerLoadHint(
+        mappedCount > 0
+          ? `매핑된 ${mappedCount}개 항목에 고객 정보를 반영했습니다.`
+          : '고객 데이터 매핑이 설정된 텍스트 필드가 없습니다.',
+      )
+    } catch (e) {
+      setCustomerLoadHint(
+        e instanceof ApiError ? e.message : '고객 데이터를 불러오지 못했습니다.',
+      )
+    } finally {
+      setLoadingCustomerData(false)
+    }
+  }, [
+    token,
+    workspaceCustomerIdFromRoute,
+    state,
+    cachedCustomer,
+    overwriteCustomerOnLoad,
+  ])
+
   const handleSubmitApplicant = useCallback(
     async (values: Record<string, string>, persistFonts: Record<string, number>) => {
       if (!token || state.status !== 'ready') return
@@ -299,6 +358,8 @@ export default function PdfDocumentDetailPage() {
         const { previewUrl: relUrl } = await requestPdfRenderPreviewUrl(token, templateId, values, {
           fontSizes: Object.keys(persistFonts).length > 0 ? persistFonts : undefined,
           displayFilename: previewFilename,
+          customerId: workspaceCustomerIdFromRoute ?? undefined,
+          overwriteCustomerMapping: overwriteCustomerOnLoad,
         })
         setPreviewUrl(resolveAbsoluteApiUrl(relUrl))
         setPreviewValues(values)
@@ -317,7 +378,7 @@ export default function PdfDocumentDetailPage() {
         setSubmitting(false)
       }
     },
-    [token, templateId, state, displayCustomerLabel],
+    [token, templateId, state, displayCustomerLabel, workspaceCustomerIdFromRoute, overwriteCustomerOnLoad],
   )
 
   const handleSaveFromPreview = async () => {
@@ -327,6 +388,8 @@ export default function PdfDocumentDetailPage() {
     try {
       const blobRaw = await renderPdfTemplate(token, templateId, previewValues, {
         fontSizes: Object.keys(previewFonts).length > 0 ? previewFonts : undefined,
+        customerId: workspaceCustomerIdFromRoute ?? undefined,
+        overwriteCustomerMapping: overwriteCustomerOnLoad,
       })
       triggerDownload(coercePdfBlob(blobRaw), resultPdfFilename)
       closePreview()
@@ -359,6 +422,12 @@ export default function PdfDocumentDetailPage() {
       focusedFieldKey,
       prefillBanner,
       submitting,
+      workspaceCustomerId: workspaceCustomerIdFromRoute,
+      customerLoadHint,
+      loadingCustomerData,
+      overwriteCustomerOnLoad,
+      onToggleOverwriteCustomerOnLoad: () => setOverwriteCustomerOnLoad((v) => !v),
+      onLoadCustomerData: handleLoadCustomerData,
       documentsListPath: listPath,
       onChangeValues: setApplicantValues,
       onChangeFontOverrides: setFontOverrides,
@@ -375,6 +444,11 @@ export default function PdfDocumentDetailPage() {
     submitting,
     listPath,
     handleSubmitApplicant,
+    workspaceCustomerIdFromRoute,
+    customerLoadHint,
+    loadingCustomerData,
+    overwriteCustomerOnLoad,
+    handleLoadCustomerData,
   ])
 
   if (state.status === 'loading') {

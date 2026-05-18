@@ -11,6 +11,8 @@
  *     호출측에서 외부 트랜잭션을 도입해야 하지만, Phase 1 에서는 독립으로 충분하다.
  */
 
+import { serializeFieldDataMapping } from '../schema/fieldDataMapping.js'
+
 /** @typedef {import('../schema/fieldSpec.js').FieldSpec} FieldSpec */
 
 /**
@@ -180,11 +182,12 @@ export async function replaceTemplateFields(pool, templateId, fields) {
          "type 이 radio 가 아닌데 options 가 남아 있는" 비일관 상태를 원천 차단한다. */
       const optionsJson =
         f.fieldType === 'radio' && Array.isArray(f.options) ? JSON.stringify(f.options) : null
+      const mappingSerialized = serializeFieldDataMapping(f.dataMapping)
       await client.query(
         `INSERT INTO pdf_template_fields
            (template_id, field_key, label, field_type, required, order_index,
             input_role, customer_mapping, options, placements)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NULL, CAST($8 AS jsonb), CAST($9 AS jsonb))`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CAST($9 AS jsonb), CAST($10 AS jsonb))`,
         [
           templateId,
           f.fieldKey,
@@ -193,6 +196,7 @@ export async function replaceTemplateFields(pool, templateId, fields) {
           f.required,
           f.orderIndex ?? i,
           f.inputRole ?? 'customer',
+          mappingSerialized,
           optionsJson,
           JSON.stringify(f.placements ?? []),
         ],

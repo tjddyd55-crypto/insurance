@@ -29,6 +29,7 @@
 import multer from 'multer'
 import { PDFDocument } from 'pdf-lib'
 import {
+  fieldSpecWithDbMapping,
   normalizeFieldSpec,
   normalizeFieldSpecList,
   validateRenderValues,
@@ -45,8 +46,8 @@ import {
   updateTemplateMeta,
 } from './pdf-engine/repository/pdfTemplateRepo.js'
 import { reconcileContractFieldSettingsAfterPdfSave } from './services/contractTemplateFieldSettings.js'
-import { getCustomerProfile } from './pdf-engine/repository/userProfileRepo.js'
-import { injectCustomerValues } from './pdf-engine/mapping/customerMapping.js'
+import { applyCustomerMappingToValues } from './pdf-engine/mapping/resolvePdfFieldValue.js'
+import { getCustomerForPdfMapping } from './pdf-engine/repository/customerPdfProfileRepo.js'
 import {
   createIssuance,
   getIssuanceById,
@@ -132,18 +133,59 @@ function templateToDto(row) {
 }
 
 function fieldRowToDto(row) {
+  const base = normalizeFieldSpec(
+    {
+      fieldKey: row.field_key,
+      label: row.label,
+      fieldType: row.field_type,
+      required: row.required,
+      orderIndex: row.order_index,
+      inputRole: row.input_role,
+      options: Array.isArray(row.options) ? row.options : null,
+      placements: Array.isArray(row.placements) ? row.placements : [],
+    },
+    row.order_index,
+  )
+  const withMapping = fieldSpecWithDbMapping(base, row.customer_mapping)
   return {
     id: row.id,
-    fieldKey: row.field_key,
-    label: row.label,
-    fieldType: row.field_type,
-    required: row.required,
-    orderIndex: row.order_index,
+    ...withMapping,
     inputRole: inputRoleFromPdfFieldRow(row),
-    customerMapping: null,
-    options: Array.isArray(row.options) ? row.options : null,
-    placements: Array.isArray(row.placements) ? row.placements : [],
   }
+}
+
+function fieldRowsToSpecs(rows) {
+  return rows.map((row) => fieldRowToDto(row))
+}
+
+function parseBodyCustomerId(body) {
+  if (!body || typeof body !== 'object') return null
+  const raw = body.customerId
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 1) return null
+  return n
+}
+
+/**
+ * @param {import('pg').Pool} pool
+ * @param {import('express').Request} req
+ * @param {import('./pdf-engine/schema/fieldSpec.js').FieldSpec[]} fields
+ * @param {Record<string, unknown>} valuesForInject
+ * @param {boolean} overwriteMode
+ */
+async function resolvePdfValuesWithCustomerMapping(pool, req, fields, valuesForInject, overwriteMode) {
+  const customerId = parseBodyCustomerId(req.body)
+  let customer = null
+  if (customerId != null) {
+    customer = await getCustomerForPdfMapping(pool, (text, params) => pool.query(text, params), req, customerId)
+    if (!customer) {
+      return { ok: false, status: 404, message: '고객을 찾을 수 없습니다.' }
+    }
+  }
+  const valuesWithProfile = applyCustomerMappingToValues(fields, valuesForInject, customer, {
+    overwriteMode,
+  })
+  return { ok: true, values: valuesWithProfile }
 }
 
 function isPreviewRenderRequest(req) {
@@ -645,21 +687,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         return
       }
       const fieldRows = await listFields(pool, id)
-      const fields = fieldRows.map((row) =>
-        normalizeFieldSpec(
-          {
-            fieldKey: row.field_key,
-            label: row.label,
-            fieldType: row.field_type,
-            required: row.required,
-            orderIndex: row.order_index,
-            inputRole: row.input_role,
-            options: Array.isArray(row.options) ? row.options : null,
-            placements: Array.isArray(row.placements) ? row.placements : [],
-          },
-          row.order_index,
-        ),
-      )
+      const fields = fieldRowsToSpecs(fieldRows)
       const valuesRaw =
         req.body && typeof req.body.values === 'object' && req.body.values !== null
           ? req.body.values
@@ -669,15 +697,19 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         req.body && typeof req.body.fontSizes === 'object' && req.body.fontSizes !== null
           ? req.body.fontSizes
           : {}
-      /*
-       * 고객 자동 매핑: 사용자가 보낸 값을 기본으로 두고, 필드 정의에
-       * customerMapping 이 설정되어 있으면 서버 DB 의 프로필 값으로 덮어쓴다.
-       * 프로필 값이 비어 있으면 사용자가 입력한 값이 그대로 유지되므로
-       * "값 없음" 인 계정도 수동 입력으로 발급을 이어갈 수 있다.
-       */
-      const needsMapping = fields.some((f) => f.customerMapping)
-      const profile = needsMapping && req.user?.id ? await getCustomerProfile(pool, req.user.id) : null
-      const valuesWithProfile = injectCustomerValues(fields, valuesForInject, profile)
+      const overwriteMapping = req.body?.overwriteCustomerMapping === true
+      const mapped = await resolvePdfValuesWithCustomerMapping(
+        pool,
+        req,
+        fields,
+        valuesForInject,
+        overwriteMapping,
+      )
+      if (!mapped.ok) {
+        res.status(mapped.status).json({ message: mapped.message })
+        return
+      }
+      const valuesWithProfile = mapped.values
       const validation = validateRenderValues(fields, valuesWithProfile)
       if (!validation.ok) {
         res.status(400).json({ message: validation.error })
@@ -771,21 +803,7 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         return
       }
       const fieldRows = await listFields(pool, id)
-      const fields = fieldRows.map((row) =>
-        normalizeFieldSpec(
-          {
-            fieldKey: row.field_key,
-            label: row.label,
-            fieldType: row.field_type,
-            required: row.required,
-            orderIndex: row.order_index,
-            inputRole: row.input_role,
-            options: Array.isArray(row.options) ? row.options : null,
-            placements: Array.isArray(row.placements) ? row.placements : [],
-          },
-          row.order_index,
-        ),
-      )
+      const fields = fieldRowsToSpecs(fieldRows)
       const valuesRaw =
         req.body && typeof req.body.values === 'object' && req.body.values !== null
           ? req.body.values
@@ -795,9 +813,19 @@ export function registerPdfTemplateApi(apiRouter, deps) {
         req.body && typeof req.body.fontSizes === 'object' && req.body.fontSizes !== null
           ? req.body.fontSizes
           : {}
-      const needsMapping = fields.some((f) => f.customerMapping)
-      const profile = needsMapping && req.user?.id ? await getCustomerProfile(pool, req.user.id) : null
-      const valuesWithProfile = injectCustomerValues(fields, valuesForInject, profile)
+      const overwriteMapping = req.body?.overwriteCustomerMapping === true
+      const mapped = await resolvePdfValuesWithCustomerMapping(
+        pool,
+        req,
+        fields,
+        valuesForInject,
+        overwriteMapping,
+      )
+      if (!mapped.ok) {
+        res.status(mapped.status).json({ message: mapped.message })
+        return
+      }
+      const valuesWithProfile = mapped.values
       const validation = validateRenderValues(fields, valuesWithProfile)
       if (!validation.ok) {
         res.status(400).json({ message: validation.error })

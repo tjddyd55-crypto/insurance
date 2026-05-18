@@ -20,7 +20,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import type { PdfFieldSpec, PdfFieldType, PdfPlacement } from '../types'
-import { PDF_FIELD_TYPE_LABELS, PDF_FIELD_TYPES } from '../types'
+import { DEFAULT_PDF_FIELD_DATA_MAPPING, PDF_FIELD_TYPE_LABELS, PDF_FIELD_TYPES } from '../types'
+import {
+  PdfFieldDataMappingControls,
+  formatPdfFieldMappingSummary,
+} from './PdfFieldDataMappingControls'
 import { genPdfFieldKeyFromLabel } from '../pdfFieldKey'
 import { PdfOverlayCanvas, type OverlayMark, type OverlayPick, type PdfOverlayDebugMeta } from './PdfOverlayCanvas'
 import FormInput from '../../../components/form/FormInput'
@@ -261,6 +265,7 @@ export function PdfCoordinateEditor({
       orderIndex: fields.length,
       /** PDF 저장 시 서버가 비서명 필드는 모두 customer 로 정규화 — 여기서는 위치만 정의 */
       inputRole: 'customer',
+      dataMapping: { ...DEFAULT_PDF_FIELD_DATA_MAPPING },
       options,
       placements: [],
     }
@@ -598,6 +603,35 @@ export function PdfCoordinateEditor({
     <div className="pdf-engine-editor">
       <aside className="pdf-engine-editor__panel pdf-engine-editor__panel--fields">
         <h3 className="pdf-engine-editor__panel-title">등록된 필드 ({fields.length})</h3>
+        {fields.length > 0 ? (
+          <div className="pdf-engine-editor__mapping-table" role="table" aria-label="필드별 고객 데이터 매핑">
+            <div className="pdf-engine-editor__mapping-table-head" role="row">
+              <span role="columnheader">필드명</span>
+              <span role="columnheader">매핑</span>
+            </div>
+            {fields.map((f) => (
+              <div
+                key={`map-${f.fieldKey}`}
+                role="row"
+                className={
+                  'pdf-engine-editor__mapping-table-row' +
+                  (f.fieldKey === selectedKey ? ' pdf-engine-editor__mapping-table-row--active' : '')
+                }
+                onClick={() => {
+                  setSelectedKey(f.fieldKey)
+                  setSelectedPlacementIndex(f.placements.length > 0 ? 0 : null)
+                }}
+              >
+                <span role="cell" className="pdf-engine-editor__mapping-table-label">
+                  {f.label}
+                </span>
+                <span role="cell" className="pdf-engine-editor__mapping-table-summary">
+                  {formatPdfFieldMappingSummary(f.dataMapping)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
         {fields.length === 0 ? (
           <p className="pdf-engine-editor__hint">아직 필드가 없습니다.</p>
         ) : (
@@ -637,7 +671,7 @@ export function PdfCoordinateEditor({
                     <div className="pdf-engine-editor__field-card-title">{f.label}</div>
                     <div className="pdf-engine-editor__field-card-meta">
                       {PDF_FIELD_TYPE_LABELS[f.fieldType]} · {f.required ? '필수' : '선택'} · 좌표{' '}
-                      {placementDisplayCount}개
+                      {placementDisplayCount}개 · {formatPdfFieldMappingSummary(f.dataMapping)}
                     </div>
                   </div>
                   <button
@@ -743,6 +777,39 @@ export function PdfCoordinateEditor({
                   onChange={(e) => handlePatchField(selectedField.fieldKey, { label: e.target.value })}
                 />
               </label>
+              {selectedField.fieldType === 'text' || selectedField.fieldType === 'textarea' ? (
+                <div className="pdf-engine-editor__mapping-block">
+                  <h4 className="pdf-engine-editor__panel-title" style={{ fontSize: 13, marginTop: 8 }}>
+                    고객 데이터 매핑
+                  </h4>
+                  <PdfFieldDataMappingControls
+                    mapping={selectedField.dataMapping}
+                    onChange={(dataMapping) =>
+                      handlePatchField(selectedField.fieldKey, { dataMapping })
+                    }
+                  />
+                  <label className="pdf-engine-editor__label" style={{ marginTop: 8 }}>
+                    값 없을 때 기본 문구 (선택)
+                    <input
+                      type="text"
+                      value={selectedField.dataMapping.fallbackText ?? ''}
+                      onChange={(e) =>
+                        handlePatchField(selectedField.fieldKey, {
+                          dataMapping: {
+                            ...selectedField.dataMapping,
+                            fallbackText: e.target.value.trim() || null,
+                          },
+                        })
+                      }
+                      placeholder="고객 데이터가 비어 있을 때"
+                    />
+                  </label>
+                </div>
+              ) : (
+                <p className="pdf-engine-editor__hint">
+                  체크·라디오·서명 필드는 고객 데이터 자동 매핑을 지원하지 않습니다.
+                </p>
+              )}
               <div className="pdf-engine-editor__row pdf-engine-editor__row--type-required">
                 <label className="pdf-engine-editor__label pdf-engine-editor__label--field-type">
                   타입

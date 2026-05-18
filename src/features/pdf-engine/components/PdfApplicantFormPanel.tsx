@@ -83,6 +83,12 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
     submitting,
     focusedFieldKey,
     submitLabel = '결과보기',
+    workspaceCustomerId = null,
+    customerLoadHint = null,
+    loadingCustomerData = false,
+    overwriteCustomerOnLoad = false,
+    onToggleOverwriteCustomerOnLoad,
+    onLoadCustomerData,
     onChangeValues,
     onChangeFontOverrides,
     onFocusedFieldChange,
@@ -368,6 +374,34 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
         <h2>{title}</h2>
         {description ? <p>{description}</p> : null}
       </header>
+
+      <div className="pdf-applicant-form__customer-load">
+        <FormButton
+          htmlType="button"
+          variant="secondary"
+          className="pdf-applicant-form__load-customer-btn"
+          disabled={submitting || loadingCustomerData || workspaceCustomerId == null}
+          onClick={() => onLoadCustomerData?.()}
+        >
+          {loadingCustomerData ? '불러오는 중…' : '고객데이터 불러오기'}
+        </FormButton>
+        {onToggleOverwriteCustomerOnLoad ? (
+          <label className="pdf-applicant-form__overwrite">
+            <input
+              type="checkbox"
+              checked={overwriteCustomerOnLoad}
+              onChange={() => onToggleOverwriteCustomerOnLoad()}
+              disabled={submitting || loadingCustomerData}
+            />
+            기존 입력값 덮어쓰기
+          </label>
+        ) : null}
+        <p className="pdf-applicant-form__customer-load-hint">
+          {workspaceCustomerId == null
+            ? '고객을 먼저 선택해 주세요.'
+            : customerLoadHint ?? '매핑된 고객 정보가 좌표 입력값에 채워집니다.'}
+        </p>
+      </div>
 
       {submitHint ? (
         <div className="pdf-engine-page__error" role="status">

@@ -444,12 +444,19 @@ export function requestPdfRenderPreviewUrl(
   token: string,
   id: number,
   values: Record<string, string>,
-  options?: { fontSizes?: Record<string, number>; displayFilename?: string },
+  options?: {
+    fontSizes?: Record<string, number>
+    displayFilename?: string
+    customerId?: number
+    overwriteCustomerMapping?: boolean
+  },
 ): Promise<{ previewUrl: string; downloadFilename: string }> {
   const payload: {
     values: Record<string, string>
     fontSizes?: Record<string, number>
     displayFilename?: string
+    customerId?: number
+    overwriteCustomerMapping?: boolean
   } = { values }
   const fs = options?.fontSizes
   if (fs && typeof fs === 'object' && Object.keys(fs).length > 0) {
@@ -458,6 +465,12 @@ export function requestPdfRenderPreviewUrl(
   const df = options?.displayFilename?.trim()
   if (df) {
     payload.displayFilename = df
+  }
+  if (options?.customerId != null && Number.isInteger(options.customerId) && options.customerId >= 1) {
+    payload.customerId = options.customerId
+  }
+  if (options?.overwriteCustomerMapping === true) {
+    payload.overwriteCustomerMapping = true
   }
   return apiRequest(`/api/pdf-templates/${id}/render-preview`, {
     method: 'POST',
@@ -474,16 +487,32 @@ export async function renderPdfTemplate(
   token: string,
   id: number,
   values: Record<string, string>,
-  options?: { preview?: boolean; fontSizes?: Record<string, number> },
+  options?: {
+    preview?: boolean
+    fontSizes?: Record<string, number>
+    customerId?: number
+    overwriteCustomerMapping?: boolean
+  },
 ): Promise<Blob> {
   const query = options?.preview ? '?preview=1' : ''
   const url = resolveApiUrl(`/api/pdf-templates/${id}/render${query}`)
-  const payload: { values: Record<string, string>; fontSizes?: Record<string, number> } = {
+  const payload: {
+    values: Record<string, string>
+    fontSizes?: Record<string, number>
+    customerId?: number
+    overwriteCustomerMapping?: boolean
+  } = {
     values,
   }
   const fs = options?.fontSizes
   if (fs && typeof fs === 'object' && Object.keys(fs).length > 0) {
     payload.fontSizes = fs
+  }
+  if (options?.customerId != null && Number.isInteger(options.customerId) && options.customerId >= 1) {
+    payload.customerId = options.customerId
+  }
+  if (options?.overwriteCustomerMapping === true) {
+    payload.overwriteCustomerMapping = true
   }
   let res: Response
   try {

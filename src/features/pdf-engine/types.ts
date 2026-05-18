@@ -54,6 +54,25 @@ export interface PdfPlacement {
   optionValue: string | null
 }
 
+export type PdfFieldDataSourceType = 'manual' | 'customer'
+
+/** 템플릿에 저장되는 매핑 메타 — 실제 고객 값은 저장하지 않는다. */
+export interface PdfFieldDataMapping {
+  dataSourceType: PdfFieldDataSourceType
+  customerFieldKey: string | null
+  customerFieldLabel: string | null
+  fallbackText: string | null
+  transformType: string | null
+}
+
+export const DEFAULT_PDF_FIELD_DATA_MAPPING: PdfFieldDataMapping = {
+  dataSourceType: 'manual',
+  customerFieldKey: null,
+  customerFieldLabel: null,
+  fallbackText: null,
+  transformType: null,
+}
+
 export interface PdfFieldSpec {
   fieldKey: string
   label: string
@@ -62,6 +81,8 @@ export interface PdfFieldSpec {
   orderIndex: number
   /** 고객 공개 서명 단계 / 설계사 발송 전 입력 / 미사용 */
   inputRole: PdfInputRole
+  /** 좌표 필드 ↔ 고객 데이터 매핑 (템플릿 저장용) */
+  dataMapping: PdfFieldDataMapping
   /**
    * checkbox/radio 타입의 선택지(사용자에게 보이는 세부 라벨).
    * 다른 타입은 null.

@@ -21,6 +21,12 @@ export default function PdfDocumentApplicantPCView(props: PdfDocumentApplicantVi
     focusedFieldKey,
     prefillBanner,
     submitting,
+    workspaceCustomerId,
+    customerLoadHint,
+    loadingCustomerData,
+    overwriteCustomerOnLoad,
+    onToggleOverwriteCustomerOnLoad,
+    onLoadCustomerData,
     documentsListPath,
     onChangeValues,
     onChangeFontOverrides,
@@ -78,6 +84,12 @@ export default function PdfDocumentApplicantPCView(props: PdfDocumentApplicantVi
             onFocusedFieldChange={onFocusedFieldChange}
             onSubmit={onSubmitApplicant}
             submitLabel="결과보기"
+            workspaceCustomerId={workspaceCustomerId}
+            customerLoadHint={customerLoadHint}
+            loadingCustomerData={loadingCustomerData}
+            overwriteCustomerOnLoad={overwriteCustomerOnLoad}
+            onToggleOverwriteCustomerOnLoad={onToggleOverwriteCustomerOnLoad}
+            onLoadCustomerData={onLoadCustomerData}
           />
         </section>
         <section className="pdf-document-detail-page__preview-col" aria-label="PDF 미리보기">

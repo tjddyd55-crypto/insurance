@@ -19,6 +19,12 @@ export default function PdfDocumentApplicantMobileView(props: PdfDocumentApplica
     focusedFieldKey,
     prefillBanner,
     submitting,
+    workspaceCustomerId,
+    customerLoadHint,
+    loadingCustomerData,
+    overwriteCustomerOnLoad,
+    onToggleOverwriteCustomerOnLoad,
+    onLoadCustomerData,
     documentsListPath,
     onChangeValues,
     onChangeFontOverrides,
@@ -56,6 +62,12 @@ export default function PdfDocumentApplicantMobileView(props: PdfDocumentApplica
           onFocusedFieldChange={onFocusedFieldChange}
           onSubmit={onSubmitApplicant}
           submitLabel="결과보기"
+          workspaceCustomerId={workspaceCustomerId}
+          customerLoadHint={customerLoadHint}
+          loadingCustomerData={loadingCustomerData}
+          overwriteCustomerOnLoad={overwriteCustomerOnLoad}
+          onToggleOverwriteCustomerOnLoad={onToggleOverwriteCustomerOnLoad}
+          onLoadCustomerData={onLoadCustomerData}
         />
       </section>
       <div className="pdf-document-detail-page__mobile-preview-dock">
