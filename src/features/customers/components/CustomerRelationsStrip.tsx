@@ -12,7 +12,7 @@ import type { CustomerRecord } from '../domain/types'
 import { formatCustomerPhoneUi } from '../utils/customerDisplayFormat'
 import { parseBirthDateFromRrn } from '../utils/insuranceAge'
 
-const CHIPS_VISIBLE = 5
+
 
 type Props = {
   customerId: number
@@ -59,8 +59,6 @@ export function CustomerRelationsStrip({
   const [searchBusy, setSearchBusy] = useState(false)
   const [searchPool, setSearchPool] = useState<CustomerRecord[]>([])
   const [linking, setLinking] = useState(false)
-  const [showAllChips, setShowAllChips] = useState(false)
-
   const relatedIdSet = useMemo(() => new Set(relations.map((r) => r.relatedCustomerId)), [relations])
 
   const loadRelations = useCallback(async () => {
@@ -84,10 +82,6 @@ export function CustomerRelationsStrip({
   useEffect(() => {
     void loadRelations()
   }, [loadRelations])
-
-  useEffect(() => {
-    setShowAllChips(false)
-  }, [customerId])
 
   useEffect(() => {
     if (!modalOpen || !token?.trim()) {
@@ -184,24 +178,6 @@ export function CustomerRelationsStrip({
     }
   }
 
-  const visibleRelations = showAllChips ? relations : relations.slice(0, CHIPS_VISIBLE)
-  const moreCount = relations.length - CHIPS_VISIBLE
-
-  const scrollRowStyle: CSSProperties = {
-    overflowX: 'auto',
-    WebkitOverflowScrolling: 'touch',
-    paddingBottom: 6,
-    marginBottom: 4,
-  }
-
-  const innerRowStyle: CSSProperties = {
-    display: 'inline-flex',
-    flexWrap: 'nowrap',
-    gap: 8,
-    alignItems: 'center',
-    minHeight: 36,
-  }
-
   const requestCloseRelationsModal = useCallback(async () => {
     if (linking) {
       return
@@ -224,34 +200,48 @@ export function CustomerRelationsStrip({
 
   return (
     <section className="customer-relations-strip customer-detail-read__section customer-relations-strip--in-detail mt-5">
-      <div className="customer-detail-read__section-header">
+      <div className="customer-detail-read__section-header customer-relations-strip__title-row">
         <h4 className="customer-detail-read__section-title">연계 고객</h4>
+        <FormButton
+          htmlType="button"
+          variant="action"
+          className="filter-button customer-relations-strip__inline-add"
+          onClick={() => {
+            setError('')
+            setNotice('')
+            setModalOpen(true)
+            setSearchPool([])
+          }}
+        >
+          + 추가
+        </FormButton>
       </div>
       <div className="customer-detail-read__section-body">
-      {loading ? (
-        <p style={{ fontSize: '0.9rem', color: '#666' }}>불러오는 중…</p>
-      ) : error ? (
-        <p style={{ color: '#b00020', fontSize: '0.9rem' }} role="alert">
-          {error}
-        </p>
-      ) : notice ? (
-        <p style={{ color: '#1f9d55', fontSize: '0.9rem' }} role="status">
-          {notice}
-        </p>
-      ) : null}
-      <div style={scrollRowStyle}>
-        <div style={innerRowStyle}>
-          {visibleRelations.map((r) => {
-            const phoneTip = r.relatedPhone?.trim() ? `전화: ${r.relatedPhone.trim()}` : `고객 #${r.relatedCustomerId}`
+        {loading ? (
+          <p style={{ fontSize: '0.9rem', color: '#666' }}>불러오는 중…</p>
+        ) : error ? (
+          <p style={{ color: '#b00020', fontSize: '0.9rem' }} role="alert">
+            {error}
+          </p>
+        ) : notice ? (
+          <p style={{ color: '#1f9d55', fontSize: '0.9rem' }} role="status">
+            {notice}
+          </p>
+        ) : null}
+        <div className="customer-relations-strip__chip-grid">
+          {relations.map((r) => {
+            const displayName = r.relatedName?.trim() ? r.relatedName.trim() : '이름 미등록'
+            const phoneTip = r.relatedPhone?.trim() ? `전화: ${r.relatedPhone.trim()}` : `${displayName} (연결됨)`
             const isFocused = focusedCustomerId != null && focusedCustomerId === r.relatedCustomerId
             return (
               <div
                 key={r.relatedCustomerId}
-                className="related-customer-tag"
+                className="related-customer-tag customer-relations-strip__chip-cell"
                 style={{
                   ...chipWrap,
                   border: isFocused ? '2px solid #2563eb' : '1px solid rgba(0,0,0,0.18)',
                   boxShadow: isFocused ? '0 0 0 1px rgba(37,99,235,0.2)' : undefined,
+                  justifySelf: 'start',
                 }}
               >
                 <FormButton
@@ -268,13 +258,13 @@ export function CustomerRelationsStrip({
                   title={phoneTip}
                   onClick={() => onOpenCustomer(r.relatedCustomerId, r.relatedName)}
                 >
-                  {r.relatedName?.trim() || `고객 #${r.relatedCustomerId}`}
+                  {displayName}
                 </FormButton>
                 <FormButton
                   htmlType="button"
                   variant="action"
                   className="delete-btn related-customer-tag__remove"
-                  aria-label={`${r.relatedName ?? ''} 연결 해제`}
+                  aria-label={`${displayName} 연결 해제`}
                   title="연결 해제"
                   style={{
                     border: 'none',
@@ -295,48 +285,11 @@ export function CustomerRelationsStrip({
               </div>
             )
           })}
-          {!showAllChips && moreCount > 0 ? (
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className="filter-button"
-              style={{ minHeight: 0, padding: '4px 10px', fontSize: '0.875rem', flexShrink: 0 }}
-              onClick={() => setShowAllChips(true)}
-            >
-              +{moreCount} 더보기
-            </FormButton>
-          ) : null}
-          {showAllChips && relations.length > CHIPS_VISIBLE ? (
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className="link-btn"
-              style={{ flexShrink: 0, minHeight: 0, fontSize: '0.875rem' }}
-              onClick={() => setShowAllChips(false)}
-            >
-              접기
-            </FormButton>
-          ) : null}
-          <FormButton
-            htmlType="button"
-            variant="action"
-            className="filter-button related-customer-add"
-            style={{ minHeight: 0, flexShrink: 0, padding: '4px 10px', fontSize: '0.875rem' }}
-            onClick={() => {
-              setError('')
-              setNotice('')
-              setModalOpen(true)
-              setSearchPool([])
-            }}
-          >
-            + 추가
-          </FormButton>
         </div>
-      </div>
-      <p style={{ fontSize: '0.8rem', color: '#777', margin: '8px 0 0' }}>
-        {customerName}님과 연결된 다른 고객입니다. 이름을 누르면 해당 고객 상세로 이동합니다. 칩에 마우스를 올리면 전화번호
-        힌트가 표시됩니다.
-      </p>
+        <p style={{ fontSize: '0.8rem', color: '#777', margin: '8px 0 0' }}>
+          {customerName}님과 연결된 다른 고객입니다. 이름을 누르면 해당 고객 상세로 이동합니다. 칩에 마우스를 올리면 전화번호
+          힌트가 표시됩니다.
+        </p>
       </div>
 
       {modalOpen ? (

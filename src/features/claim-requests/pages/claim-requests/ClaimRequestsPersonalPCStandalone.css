@@ -172,11 +172,23 @@
   resize: vertical;
 }
 
-.personal-message-compose__footer {
+.personal-message-detail__actions {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 8px;
-  margin-top: auto;
+  margin-top: 10px;
+}
+
+.personal-message-panel__title-suffix {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.personal-message-compose__footer-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
 }
 
 .personal-message-empty,

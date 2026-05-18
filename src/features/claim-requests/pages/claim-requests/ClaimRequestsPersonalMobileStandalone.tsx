@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
+import { useConfirmDialog } from '../../../../components/dialog'
 import { useAuth } from '../../../auth/AuthProvider'
 import {
   createCustomerNews,
   deleteCustomerNews,
   listAgentCustomerNews,
   listLinkedCustomers,
+  updateCustomerNews,
   type AgentCustomerNewsItem,
   type LinkedCustomerItem,
 } from '../../api/claimRequestsApi'
+import { salutationHonorific } from '../../utils/personalMessageLabels'
 import ClaimRequestsPersonalMobileView from './ClaimRequestsPersonalMobileView'
 
-function parsePositiveInt(raw: string | null): number | null {
+function parsePositiveInt(raw: string | null | undefined): number | null {
   const n = Number(raw)
   return Number.isInteger(n) && n > 0 ? n : null
 }
@@ -29,6 +32,7 @@ function formatDateTime(iso: string | null): string {
 
 export default function ClaimRequestsPersonalMobileStandalone() {
   const { token } = useAuth()
+  const { confirm, confirmDialog } = useConfirmDialog()
   const { customerId: customerIdParam } = useParams<{ customerId?: string }>()
   const [searchParams] = useSearchParams()
   const activeCustomerId = useMemo(() => {
@@ -40,11 +44,13 @@ export default function ClaimRequestsPersonalMobileStandalone() {
   }, [customerIdParam, searchParams])
 
   const [linkedCustomers, setLinkedCustomers] = useState<LinkedCustomerItem[]>([])
+  const [resolvedCustomerName, setResolvedCustomerName] = useState('')
   const [history, setHistory] = useState<AgentCustomerNewsItem[]>([])
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [actionBusy, setActionBusy] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
 
@@ -52,6 +58,8 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     () => linkedCustomers.find((item) => item.customerId === activeCustomerId) ?? null,
     [activeCustomerId, linkedCustomers],
   )
+
+  const honorific = useMemo(() => salutationHonorific(resolvedCustomerName || targetCustomer?.customerName), [resolvedCustomerName, targetCustomer])
 
   const loadLinkedCustomers = useCallback(async () => {
     if (!token) {
@@ -77,6 +85,10 @@ export default function ClaimRequestsPersonalMobileStandalone() {
         targetCustomerId: activeCustomerId,
       })
       setHistory(personal)
+      const nameRow = personal.find((r) => r.targetCustomerName?.trim())
+      if (nameRow?.targetCustomerName?.trim()) {
+        setResolvedCustomerName(nameRow.targetCustomerName.trim())
+      }
     } catch (loadError) {
       setHistory([])
       setError(loadError instanceof Error ? loadError.message : '개인메시지를 불러오지 못했습니다.')
@@ -98,9 +110,17 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     setResult('')
     setError('')
     setDeletingId(null)
+    setEditingId(null)
   }, [activeCustomerId])
 
-  const handleSend = async () => {
+  useEffect(() => {
+    const fromLink = targetCustomer?.customerName?.trim()
+    if (fromLink) {
+      setResolvedCustomerName(fromLink)
+    }
+  }, [targetCustomer])
+
+  const handleSendOrSave = async () => {
     if (!token) {
       return
     }
@@ -117,33 +137,57 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     setError('')
     setResult('')
     try {
-      const title = targetCustomer ? `${targetCustomer.customerName} 고객님께` : '개인메시지'
-      const created = await createCustomerNews(token, {
-        title,
-        content,
-        scope: 'personal',
-        targetCustomerId: activeCustomerId,
-        sendPush: true,
-      })
-      setResult(`개인메시지 발송 완료: ${created.id}`)
+      if (editingId) {
+        await updateCustomerNews(token, editingId, {
+          title: honorific,
+          content,
+          sendPush: true,
+        })
+        setResult('개인메시지를 저장했습니다.')
+        setEditingId(null)
+      } else {
+        await createCustomerNews(token, {
+          title: honorific,
+          content,
+          scope: 'personal',
+          targetCustomerId: activeCustomerId,
+          sendPush: true,
+        })
+        setResult('개인메시지 발송했습니다.')
+      }
       setMessage('')
       await loadHistory()
     } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : '개인메시지 발송에 실패했습니다.')
+      setError(sendError instanceof Error ? sendError.message : '처리에 실패했습니다.')
     } finally {
       setActionBusy(false)
     }
+  }
+
+  const handleStartEdit = (item: AgentCustomerNewsItem) => {
+    setEditingId(item.id)
+    setMessage(String(item.content ?? ''))
+    setError('')
+    setResult('')
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setMessage('')
+    setError('')
   }
 
   const handleDeleteMessage = async (item: AgentCustomerNewsItem) => {
     if (!token) {
       return
     }
-    if (
-      !window.confirm(
-        '이 개인 소식지를 완전히 삭제할까요? 고객 앱에서도 보이지 않으며 복구할 수 없습니다.',
-      )
-    ) {
+    const ok = await confirm({
+      title: '개인메시지 삭제',
+      message: '이 개인메시지를 삭제할까요? 고객앱에서도 더 이상 보이지 않습니다.',
+      tone: 'danger',
+      confirmLabel: '삭제',
+    })
+    if (!ok) {
       return
     }
     setDeletingId(item.id)
@@ -153,6 +197,10 @@ export default function ClaimRequestsPersonalMobileStandalone() {
       await deleteCustomerNews(token, item.id, { targetCustomerId: item.targetCustomerId ?? activeCustomerId })
       setHistory((prev) => prev.filter((row) => row.id !== item.id))
       setResult('소식지를 삭제했습니다.')
+      if (editingId === item.id) {
+        setEditingId(null)
+        setMessage('')
+      }
       await loadHistory()
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : '소식지 삭제에 실패했습니다.')
@@ -161,21 +209,30 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     }
   }
 
+  const targetHeading = honorific
+
   return (
-    <ClaimRequestsPersonalMobileView
-      targetCustomer={targetCustomer}
-      targetCustomerId={activeCustomerId}
-      message={message}
-      history={history}
-      loading={loading}
-      actionBusy={actionBusy}
-      deletingId={deletingId}
-      resultMessage={result}
-      errorMessage={error}
-      onMessageChange={setMessage}
-      onSend={() => void handleSend()}
-      onDeleteMessage={(item) => void handleDeleteMessage(item)}
-      formatDateTime={formatDateTime}
-    />
+    <>
+      <ClaimRequestsPersonalMobileView
+        targetHeading={targetHeading}
+        targetCustomer={targetCustomer}
+        targetCustomerId={activeCustomerId}
+        message={message}
+        history={history}
+        loading={loading}
+        actionBusy={actionBusy}
+        deletingId={deletingId}
+        editingId={editingId}
+        resultMessage={result}
+        errorMessage={error}
+        onMessageChange={setMessage}
+        onSend={() => void handleSendOrSave()}
+        onStartEdit={(item) => handleStartEdit(item)}
+        onCancelEdit={handleCancelEdit}
+        onDeleteMessage={(item) => void handleDeleteMessage(item)}
+        formatDateTime={formatDateTime}
+      />
+      {confirmDialog}
+    </>
   )
 }

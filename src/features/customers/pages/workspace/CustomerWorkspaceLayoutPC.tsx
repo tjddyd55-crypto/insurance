@@ -114,7 +114,7 @@ export default function CustomerWorkspaceLayoutPC({
         <div className="customer-workspace-layout__customer-meta">
           <div className="customer-workspace-layout__title-row">
             <h2 className="customer-workspace-layout__title">
-              {selectedCustomerId ? selectedCustomerLabel || `고객 #${selectedCustomerId}` : rightTitle(pathname)}
+              {selectedCustomerId ? selectedCustomerLabel || '선택 고객' : rightTitle(pathname)}
               {selectedCustomerId ? (
                 <span className="customer-workspace-layout__title-sub">
                   {genderLabel}

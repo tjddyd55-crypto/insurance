@@ -24,6 +24,56 @@
     color: var(--m-text, #e6ecf2) !important;
   }
 
+  .claim-requests-personal-mobile__target-heading {
+    margin: 0 0 4px !important;
+    font-size: 0.82rem !important;
+    line-height: 1.3 !important;
+    font-weight: 700 !important;
+    color: var(--m-text-sub, #aeb8c5) !important;
+  }
+
+  .claim-requests-personal-mobile__compose-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    margin-top: 8px !important;
+    align-items: center !important;
+  }
+
+  .claim-requests-personal-mobile__secondary-button {
+    flex: 0 0 auto !important;
+    min-height: 40px !important;
+    padding: 0 12px !important;
+    font-size: 0.82rem !important;
+    font-weight: 800 !important;
+  }
+
+  .claim-requests-personal-mobile__history-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    flex: 0 0 auto !important;
+    justify-content: flex-end !important;
+  }
+
+  .claim-requests-personal-mobile__edit-button {
+    flex: 0 0 auto !important;
+    min-width: 56px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 10px !important;
+    border-radius: var(--m-radius-md, 10px) !important;
+    border: 1px solid var(--m-border-soft, rgba(148, 163, 184, 0.28)) !important;
+    background: rgba(30, 41, 59, 0.45) !important;
+    color: var(--m-text, #e6ecf2) !important;
+    font-size: 0.78rem !important;
+    font-weight: 800 !important;
+  }
+
+  .claim-requests-personal-mobile__edit-button:disabled {
+    opacity: 0.55 !important;
+  }
+
   .claim-requests-personal-mobile__target-meta,
   .claim-requests-personal-mobile__history-date,
   .claim-requests-personal-mobile__attachments {

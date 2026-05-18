@@ -251,7 +251,7 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
               >
                 <span className="customer-recent-mobile-modal__rank">{index + 1}</span>
                 <span className="customer-recent-mobile-modal__main">
-                  <strong>{customer.name || `고객 #${customer.id}`}</strong>
+                  <strong>{customer.name || '선택 고객'}</strong>
                   <small>{formatPhone(customer.phone)} · {formatRegisteredAt(customer.createdAt)}</small>
                 </span>
                 <span className="customer-recent-mobile-modal__action">열기</span>

@@ -4878,6 +4878,61 @@ div.cta-button.customers-page__action-btn[role='button'] {
   margin-top: 0;
 }
 
+/* 연계 고객: 제목 행에 +추가, 칩은 최대 4열 후 줄바꿈(가로 스크롤 없음) */
+.customer-relations-strip--in-detail .customer-relations-strip__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+.customer-relations-strip--in-detail .customer-relations-strip__title-row .customer-detail-read__section-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.customer-relations-strip--in-detail .customer-relations-strip__inline-add {
+  flex: 0 0 auto;
+  padding: 4px 11px;
+  min-height: 0;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid #334155;
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.customer-relations-strip--in-detail .customer-relations-strip__inline-add:hover {
+  background: #1f2937;
+}
+
+.customer-relations-strip--in-detail .customer-relations-strip__chip-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, auto));
+  gap: 8px 10px;
+  width: 100%;
+  overflow-x: visible;
+  align-content: start;
+}
+
+.customer-relations-strip--in-detail .customer-relations-strip__chip-cell {
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  .customer-relations-strip--in-detail .customer-relations-strip__chip-grid {
+    grid-template-columns: repeat(2, minmax(0, auto));
+  }
+}
+
+@media (max-width: 400px) {
+  .customer-relations-strip--in-detail .customer-relations-strip__chip-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .customer-car-edit-card {
   padding: 12px 12px 4px;
   border: 1px solid var(--border-muted);

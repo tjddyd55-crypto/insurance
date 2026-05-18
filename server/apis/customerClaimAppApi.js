@@ -1773,14 +1773,8 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         res.status(400).json({ message: '소식지 ID가 필요합니다.' })
         return
       }
-      const title = String(req.body?.title ?? '').trim() || '고객 메시지'
-      const content = String(req.body?.content ?? '').trim()
-      const sendPush = Boolean(req.body?.sendPush)
-      if (!content) {
-        res.status(400).json({ message: '내용을 입력해 주세요.' })
-        return
-      }
-      const attachments = normalizeCustomerNewsAttachments(req.body?.attachments)
+      const bodyObj = req.body && typeof req.body === 'object' ? req.body : {}
+      const sendPush = Boolean(bodyObj.sendPush)
       const gaId = await resolveAgentGaId(pool, agentId)
       if (gaId == null) {
         res.status(400).json({ message: 'GA 컨텍스트를 확인할 수 없습니다.' })
@@ -1788,7 +1782,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       }
       const existing = await pool.query(
         `
-        SELECT id, payload
+        SELECT id, title, payload
         FROM insurance_company_newsletters
         WHERE id = $1
           AND ga_id = $2
@@ -1802,22 +1796,70 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         return
       }
       const prevPayload = existing.rows[0].payload || {}
+      const prevRowTitle = String(existing.rows[0].title ?? '').trim()
       const publisherId = String(prevPayload?.publisherId ?? '').trim()
       if (publisherId && publisherId !== agentId) {
         res.status(403).json({ message: '이 소식지를 수정할 권한이 없습니다.' })
         return
       }
       const prevScope = String(prevPayload?.customerNewsScope ?? 'all') === 'personal' ? 'personal' : 'all'
-      if (prevScope !== 'all') {
-        res.status(403).json({ message: '개별 소식지는 여기서 수정할 수 없습니다.' })
+      const hasAttachmentsField = Object.prototype.hasOwnProperty.call(bodyObj, 'attachments')
+      const attachmentsNext = hasAttachmentsField
+        ? normalizeCustomerNewsAttachments(bodyObj.attachments)
+        : Array.isArray(prevPayload.attachments)
+          ? prevPayload.attachments
+          : []
+
+      const contentTrim = String(bodyObj.content ?? '').trim()
+      if (!contentTrim && attachmentsNext.length === 0) {
+        res.status(400).json({ message: '내용을 입력해 주세요.' })
         return
       }
+      const bodyText = contentTrim || '(첨부파일)'
+
+      const titleInput = String(bodyObj.title ?? '').trim()
+      const titleForRow = titleInput || prevRowTitle || '고객 메시지'
+
+      let targetCustomerName = String(prevPayload?.targetCustomerName ?? '')
+      if (prevScope === 'personal') {
+        const tgtRaw = prevPayload?.targetCustomerId
+        const tgtId = tgtRaw != null && Number.isFinite(Number(tgtRaw)) ? Number(tgtRaw) : null
+        const bodyTarget = parsePositiveInt(bodyObj.targetCustomerId)
+        if (tgtId != null && bodyTarget != null && bodyTarget !== tgtId) {
+          res.status(400).json({ message: '대상 고객을 바꿀 수 없습니다.' })
+          return
+        }
+        if (tgtId != null && tgtId > 0) {
+          const customerRow = await pool.query(
+            `
+            SELECT name
+            FROM customers
+            WHERE id = $1
+              AND user_id = $2
+            LIMIT 1
+            `,
+            [tgtId, agentId],
+          )
+          if (customerRow.rowCount > 0) {
+            targetCustomerName = String(customerRow.rows[0].name ?? targetCustomerName)
+          }
+        }
+      }
+
+      const heroCandidate = attachmentsNext.find((item) => item.kind === 'image')?.url
+      const heroImageUrl =
+        heroCandidate != null && String(heroCandidate).trim()
+          ? String(heroCandidate).trim()
+          : prevPayload.heroImageUrl ?? null
+
       const nextPayload = {
         ...prevPayload,
-        summary: content.slice(0, 300),
-        heroImageUrl: attachments.find((item) => item.kind === 'image')?.url ?? null,
-        attachments,
+        summary: bodyText.slice(0, 300),
+        heroImageUrl,
+        attachments: attachmentsNext,
+        ...(prevScope === 'personal' ? { targetCustomerName } : {}),
       }
+
       await pool.query(
         `
         UPDATE insurance_company_newsletters
@@ -1828,7 +1870,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         WHERE id = $4
           AND ga_id = $5
         `,
-        [title, content, JSON.stringify(nextPayload), newsId, gaId],
+        [titleForRow, bodyText, JSON.stringify(nextPayload), newsId, gaId],
       )
       await writeLinkAudit(pool, {
         agentId,
@@ -1841,18 +1883,18 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           newsletterId: newsId,
           sendPush,
           heroImageUrl: nextPayload.heroImageUrl,
-          attachments,
-          scope: 'all',
+          attachments: attachmentsNext,
+          scope: prevScope,
         },
       })
       res.json({
         success: true,
         data: {
           id: newsId,
-          title,
-          content,
+          title: titleForRow,
+          content: bodyText,
           sendPush,
-          scope: 'all',
+          scope: prevScope,
         },
       })
     } catch (error) {

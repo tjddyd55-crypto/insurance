@@ -123,7 +123,7 @@ export default function CustomerWorkspaceLayout() {
       return selectedCustomer.name.trim()
     }
     if (selectedCustomerId) {
-      return `고객 #${selectedCustomerId}`
+      return '선택 고객'
     }
     return ''
   }, [selectedCustomer, selectedCustomerId])
