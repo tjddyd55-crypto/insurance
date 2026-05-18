@@ -7945,6 +7945,32 @@ a.contacts-public-auth__link {
   gap: 6px;
 }
 
+.customers-page--mobile .customer-detail-action-bar--mobile-save-cancel-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px;
+  width: auto;
+  min-width: 0;
+}
+
+.customers-page--mobile .customer-detail-action-bar--mobile-save-cancel-row .customer-detail-action-button.button {
+  flex: 1 1 0;
+  min-width: 72px;
+  max-width: 120px;
+  min-height: 32px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-sizing: border-box;
+}
+
 .customers-page--mobile .customer-detail-action-bar--edit-delete-row {
   display: inline-flex;
   align-items: center;

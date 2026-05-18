@@ -115,6 +115,12 @@
     letter-spacing: var(--customer-mobile-letter-button);
   }
 
+  .customers-page--mobile .customer-detail-action-bar--mobile-save-cancel-row .customer-detail-action-button.button {
+    font-size: var(--customer-mobile-font-button);
+    line-height: var(--customer-mobile-line-button);
+    letter-spacing: var(--customer-mobile-letter-button);
+  }
+
   .customers-page--mobile .customer-detail-action-bar--edit-delete-row .customer-detail-action-button.button {
     font-size: var(--customer-mobile-font-button);
     line-height: var(--customer-mobile-line-button);

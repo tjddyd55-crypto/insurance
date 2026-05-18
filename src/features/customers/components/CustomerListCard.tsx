@@ -468,45 +468,107 @@ const CustomerListCard = memo(function CustomerListCard({
                     </span>
                   </div>
                   <div
-                    className={`customer-detail-action-bar${isMobile ? ' customer-detail-action-bar--edit-delete-row' : ''}`}
+                    className={`customer-detail-action-bar${
+                      isMobile
+                        ? editingId === c.id && editForm
+                          ? ' customer-detail-action-bar--mobile-save-cancel-row'
+                          : ' customer-detail-action-bar--edit-delete-row'
+                        : ''
+                    }`}
                   >
                     {!isMobile ? (
-                      <FormButton
-                        htmlType="button"
-                        variant="secondary"
-                        size="sm"
-                        className="customer-detail-action-button"
-                        title="카톡 복사 형식으로 복사"
-                        aria-label="복사"
-                        onClick={() => void onCopyCustomer(c)}
-                      >
-                        복사
-                      </FormButton>
-                    ) : null}
-                    {editingId !== c.id ? (
-                      <FormButton
-                        htmlType="button"
-                        variant="secondary"
-                        size="sm"
-                        className="customer-detail-action-button"
-                        title="고객 정보 수정"
-                        aria-label="수정"
-                        onClick={() => onStartEdit(c)}
-                      >
-                        수정
-                      </FormButton>
-                    ) : null}
-                    <FormButton
-                      htmlType="button"
-                      variant="danger"
-                      size="sm"
-                      className="customer-detail-action-button customer-detail-action-button--danger"
-                      title="고객 삭제"
-                      aria-label="삭제"
-                      onClick={() => void onDeleteCustomer(c)}
-                    >
-                      삭제
-                    </FormButton>
+                      <>
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          className="customer-detail-action-button"
+                          title="카톡 복사 형식으로 복사"
+                          aria-label="복사"
+                          onClick={() => void onCopyCustomer(c)}
+                        >
+                          복사
+                        </FormButton>
+                        {editingId !== c.id ? (
+                          <FormButton
+                            htmlType="button"
+                            variant="secondary"
+                            size="sm"
+                            className="customer-detail-action-button"
+                            title="고객 정보 수정"
+                            aria-label="수정"
+                            onClick={() => onStartEdit(c)}
+                          >
+                            수정
+                          </FormButton>
+                        ) : null}
+                        <FormButton
+                          htmlType="button"
+                          variant="danger"
+                          size="sm"
+                          className="customer-detail-action-button customer-detail-action-button--danger"
+                          title="고객 삭제"
+                          aria-label="삭제"
+                          onClick={() => void onDeleteCustomer(c)}
+                        >
+                          삭제
+                        </FormButton>
+                      </>
+                    ) : editingId === c.id && editForm ? (
+                      <>
+                        <FormButton
+                          htmlType="button"
+                          variant="primary"
+                          size="sm"
+                          className="customer-detail-action-button customer-detail-action-button--save-inline"
+                          title="변경 저장"
+                          aria-label="저장"
+                          disabled={editSaving}
+                          loading={editSaving}
+                          loadingText="저장 중…"
+                          onClick={() => void onEditSaveRequest()}
+                        >
+                          저장
+                        </FormButton>
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          className="customer-detail-action-button customer-detail-action-button--cancel-inline"
+                          title="편집 취소"
+                          aria-label="취소"
+                          disabled={editSaving}
+                          onClick={onCancelEdit}
+                        >
+                          취소
+                        </FormButton>
+                      </>
+                    ) : (
+                      <>
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          className="customer-detail-action-button"
+                          title="고객 정보 수정"
+                          aria-label="수정"
+                          onClick={() => onStartEdit(c)}
+                        >
+                          수정
+                        </FormButton>
+                        <FormButton
+                          htmlType="button"
+                          variant="danger"
+                          size="sm"
+                          className="customer-detail-action-button customer-detail-action-button--danger"
+                          title="고객 삭제"
+                          aria-label="삭제"
+                          onClick={() => void onDeleteCustomer(c)}
+                        >
+                          삭제
+                        </FormButton>
+                      </>
+                    )}
                   </div>
                 </div>
                 {editingId === c.id && editForm ? (
