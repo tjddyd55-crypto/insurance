@@ -1,11 +1,24 @@
 import { Link, useParams } from 'react-router-dom'
+import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useAuth } from '../../auth/AuthProvider'
 import CustomerFilesPagePC from './detail/CustomerFilesPagePC'
+
+type CustomerFilesViewProps = {
+  token: string
+  customerId: number
+}
+
+function CustomerFilesPCView({ token, customerId }: CustomerFilesViewProps) {
+  return <CustomerFilesPagePC token={token} customerId={customerId} variant="pc" />
+}
+
+function CustomerFilesMobileView({ token, customerId }: CustomerFilesViewProps) {
+  return <CustomerFilesPagePC token={token} customerId={customerId} variant="mobile" />
+}
 
 export default function CustomerFilesPage() {
   const { customerId: customerIdParam } = useParams<{ customerId: string }>()
   const { user, token } = useAuth()
-  const isMobile = useIsMobile()
 
   const customerId = Number(customerIdParam)
   const validId = Number.isInteger(customerId) && customerId > 0
@@ -31,5 +44,11 @@ export default function CustomerFilesPage() {
     )
   }
 
-  return <CustomerFilesPagePC token={token} customerId={customerId} />
+  return (
+    <ResponsiveLayout<CustomerFilesViewProps>
+      PC={CustomerFilesPCView}
+      Mobile={CustomerFilesMobileView}
+      viewProps={{ token, customerId }}
+    />
+  )
 }
