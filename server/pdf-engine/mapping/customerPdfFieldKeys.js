@@ -2,6 +2,8 @@
  * PDF 매핑에 허용되는 고객 필드 키 — customers API(mapCustomerRow) 와 1:1.
  */
 
+import { resolveCustomerBirthDateYmd } from '../../lib/customerBirthDateResolve.js'
+
 export const CUSTOMER_PDF_FIELD_OPTIONS = Object.freeze([
   { key: 'name', label: '고객명' },
   { key: 'phone', label: '연락처' },
@@ -77,7 +79,7 @@ export function pickCustomerPdfFieldValue(customer, fieldKey) {
     case 'phone':
       return String(c.phone ?? c.phoneNumber ?? '').trim()
     case 'birthDate':
-      return formatDateYmd(c.birthDate)
+      return resolveCustomerBirthDateYmd(c)
     case 'residentRegistrationNumber':
       return String(c.ssn ?? '').trim()
     case 'gender':

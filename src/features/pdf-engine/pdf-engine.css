@@ -1313,6 +1313,99 @@
   color: #94a3b8;
 }
 
+.pdf-applicant-form__customer-context {
+  margin: 0;
+  font-size: 13px;
+  color: #e5e7eb;
+}
+
+.pdf-applicant-form__customer-context--muted {
+  color: #94a3b8;
+}
+
+.pdf-applicant-form__customer-link {
+  margin-left: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #60a5fa;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.pdf-applicant-form__customer-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pdf-applicant-form__customer-search {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.pdf-applicant-form__customer-search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pdf-applicant-form__customer-search-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.pdf-applicant-form__customer-search-error {
+  margin: 0;
+  font-size: 12px;
+  color: #ef4444;
+}
+
+.pdf-applicant-form__customer-search-empty {
+  margin: 0;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.pdf-applicant-form__customer-search-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.pdf-applicant-form__customer-search-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #1f2937;
+}
+
+.pdf-applicant-form__customer-search-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: #f8fafc;
+}
+
+.pdf-applicant-form__customer-search-phone {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.pdf-applicant-form__customer-search-pick {
+  flex-shrink: 0;
+}
+
 .pdf-engine-page--mobile .pdf-engine-mapping-controls {
   grid-template-columns: 1fr;
 }

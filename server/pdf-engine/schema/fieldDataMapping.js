@@ -97,6 +97,9 @@ export function normalizeFieldDataMapping(raw) {
 
   let customerFieldKey =
     typeof src.customerFieldKey === 'string' ? src.customerFieldKey.trim() : null
+  if (customerFieldKey === 'dob') {
+    customerFieldKey = 'birthDate'
+  }
   if (customerFieldKey && !isAllowedCustomerPdfFieldKey(customerFieldKey)) {
     customerFieldKey = null
   }

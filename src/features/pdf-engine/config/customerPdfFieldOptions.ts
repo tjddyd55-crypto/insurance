@@ -3,6 +3,7 @@
  */
 
 import type { CustomerRecord } from '../../customers/domain/types'
+import { resolveCustomerBirthDateYmd } from '../../customers/utils/resolveCustomerBirthDateYmd'
 
 export type CustomerPdfFieldKey =
   | 'name'
@@ -82,7 +83,7 @@ export function pickCustomerPdfFieldValue(customer: CustomerRecord, fieldKey: Cu
     case 'phone':
       return (customer.phone || customer.phoneNumber || '').trim()
     case 'birthDate':
-      return formatDateYmd(customer.birthDate ?? null)
+      return resolveCustomerBirthDateYmd(customer)
     case 'residentRegistrationNumber':
       return customer.ssn.trim()
     case 'gender':

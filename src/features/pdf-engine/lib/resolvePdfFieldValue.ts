@@ -16,6 +16,9 @@ export function normalizePdfFieldDataMapping(
   const typeRaw = raw.dataSourceType === 'customer' ? 'customer' : 'manual'
   let customerFieldKey =
     typeof raw.customerFieldKey === 'string' ? raw.customerFieldKey.trim() : null
+  if (customerFieldKey === 'dob') {
+    customerFieldKey = 'birthDate'
+  }
   if (customerFieldKey && !isCustomerPdfFieldKey(customerFieldKey)) {
     customerFieldKey = null
   }

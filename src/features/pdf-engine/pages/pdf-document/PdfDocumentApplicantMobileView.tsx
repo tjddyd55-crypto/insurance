@@ -20,11 +20,26 @@ export default function PdfDocumentApplicantMobileView(props: PdfDocumentApplica
     prefillBanner,
     submitting,
     workspaceCustomerId,
+    workspaceCustomerLabel,
+    selectedCustomer,
+    effectiveCustomerId,
+    loadCustomerButtonLabel,
     customerLoadHint,
     loadingCustomerData,
     overwriteCustomerOnLoad,
     onToggleOverwriteCustomerOnLoad,
     onLoadCustomerData,
+    showCustomerSearch,
+    onShowCustomerSearch,
+    onHideCustomerSearch,
+    customerSearchQuery,
+    onCustomerSearchQueryChange,
+    customerSearchBusy,
+    customerSearchError,
+    customerSearchResults,
+    onCustomerSearchSubmit,
+    onSelectSearchedCustomer,
+    onClearSelectedCustomer,
     documentsListPath,
     onChangeValues,
     onChangeFontOverrides,
@@ -63,11 +78,26 @@ export default function PdfDocumentApplicantMobileView(props: PdfDocumentApplica
           onSubmit={onSubmitApplicant}
           submitLabel="결과보기"
           workspaceCustomerId={workspaceCustomerId}
+          workspaceCustomerLabel={workspaceCustomerLabel}
+          selectedCustomer={selectedCustomer}
+          effectiveCustomerId={effectiveCustomerId}
+          loadCustomerButtonLabel={loadCustomerButtonLabel}
           customerLoadHint={customerLoadHint}
           loadingCustomerData={loadingCustomerData}
           overwriteCustomerOnLoad={overwriteCustomerOnLoad}
           onToggleOverwriteCustomerOnLoad={onToggleOverwriteCustomerOnLoad}
           onLoadCustomerData={onLoadCustomerData}
+          showCustomerSearch={showCustomerSearch}
+          onShowCustomerSearch={onShowCustomerSearch}
+          onHideCustomerSearch={onHideCustomerSearch}
+          customerSearchQuery={customerSearchQuery}
+          onCustomerSearchQueryChange={onCustomerSearchQueryChange}
+          customerSearchBusy={customerSearchBusy}
+          customerSearchError={customerSearchError}
+          customerSearchResults={customerSearchResults}
+          onCustomerSearchSubmit={onCustomerSearchSubmit}
+          onSelectSearchedCustomer={onSelectSearchedCustomer}
+          onClearSelectedCustomer={onClearSelectedCustomer}
         />
       </section>
       <div className="pdf-document-detail-page__mobile-preview-dock">

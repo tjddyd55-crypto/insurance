@@ -64,6 +64,26 @@ test('applyCustomerMappingToValues: empty manual only', () => {
   assert.equal(out.memo, '유지')
 })
 
+test('resolvePdfFieldValue: birthDate from ssn when birthDate column empty', () => {
+  const field = {
+    dataMapping: {
+      dataSourceType: 'customer',
+      customerFieldKey: 'birthDate',
+      customerFieldLabel: '생년월일',
+      fallbackText: null,
+      transformType: null,
+    },
+  }
+  assert.equal(
+    resolvePdfFieldValue({
+      field,
+      manualValue: '',
+      customer: { name: '테스트', birthDate: null, ssn: '900102-1******' },
+    }),
+    '1990-01-02',
+  )
+})
+
 test('applyCustomerMappingToValues: overwrite mode', () => {
   const fields = [
     {

@@ -13,6 +13,7 @@ import {
   applicantTextLineStats,
   truncateApplicantTextToFit,
 } from '../lib/pdfApplicantTypography'
+import type { PdfSelectedCustomerSummary } from '../pages/pdf-document/pdfDocumentApplicantViewProps'
 import type { PdfFieldSpec } from '../types'
 
 function parseCheckboxJsonArray(raw: string): string[] {
@@ -35,6 +36,27 @@ export interface PdfApplicantFormPanelProps {
   submitting: boolean
   focusedFieldKey: string | null
   submitLabel?: string
+  workspaceCustomerId?: number | null
+  workspaceCustomerLabel?: string | null
+  selectedCustomer?: PdfSelectedCustomerSummary | null
+  effectiveCustomerId?: number | null
+  loadCustomerButtonLabel?: string
+  customerLoadHint?: string | null
+  loadingCustomerData?: boolean
+  overwriteCustomerOnLoad?: boolean
+  onToggleOverwriteCustomerOnLoad?: () => void
+  onLoadCustomerData?: () => void
+  showCustomerSearch?: boolean
+  onShowCustomerSearch?: () => void
+  onHideCustomerSearch?: () => void
+  customerSearchQuery?: string
+  onCustomerSearchQueryChange?: (query: string) => void
+  customerSearchBusy?: boolean
+  customerSearchError?: string | null
+  customerSearchResults?: PdfSelectedCustomerSummary[]
+  onCustomerSearchSubmit?: () => void
+  onSelectSearchedCustomer?: (customer: PdfSelectedCustomerSummary) => void
+  onClearSelectedCustomer?: () => void
   onChangeValues: Dispatch<SetStateAction<Record<string, string>>>
   onChangeFontOverrides: Dispatch<SetStateAction<Record<string, number>>>
   onFocusedFieldChange: (key: string | null) => void
@@ -84,11 +106,26 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
     focusedFieldKey,
     submitLabel = '결과보기',
     workspaceCustomerId = null,
+    workspaceCustomerLabel = null,
+    selectedCustomer = null,
+    effectiveCustomerId = null,
+    loadCustomerButtonLabel = '고객 데이터 불러오기',
     customerLoadHint = null,
     loadingCustomerData = false,
     overwriteCustomerOnLoad = false,
     onToggleOverwriteCustomerOnLoad,
     onLoadCustomerData,
+    showCustomerSearch = false,
+    onShowCustomerSearch,
+    onHideCustomerSearch,
+    customerSearchQuery = '',
+    onCustomerSearchQueryChange,
+    customerSearchBusy = false,
+    customerSearchError = null,
+    customerSearchResults = [],
+    onCustomerSearchSubmit,
+    onSelectSearchedCustomer,
+    onClearSelectedCustomer,
     onChangeValues,
     onChangeFontOverrides,
     onFocusedFieldChange,
@@ -376,15 +413,130 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
       </header>
 
       <div className="pdf-applicant-form__customer-load">
+        {selectedCustomer ? (
+          <p className="pdf-applicant-form__customer-context">
+            선택 고객: <strong>{selectedCustomer.name}</strong>
+            {onClearSelectedCustomer ? (
+              <button
+                type="button"
+                className="pdf-applicant-form__customer-link"
+                onClick={onClearSelectedCustomer}
+                disabled={submitting || loadingCustomerData}
+              >
+                선택 해제
+              </button>
+            ) : null}
+          </p>
+        ) : workspaceCustomerId != null && workspaceCustomerLabel ? (
+          <p className="pdf-applicant-form__customer-context">
+            현재 고객: <strong>{workspaceCustomerLabel}</strong>
+          </p>
+        ) : workspaceCustomerId == null && !selectedCustomer ? (
+          <p className="pdf-applicant-form__customer-context pdf-applicant-form__customer-context--muted">
+            고객이 선택되지 않았습니다. 고객을 검색해서 데이터를 불러올 수 있습니다.
+          </p>
+        ) : null}
+
         <FormButton
           htmlType="button"
           variant="secondary"
           className="pdf-applicant-form__load-customer-btn"
-          disabled={submitting || loadingCustomerData || workspaceCustomerId == null}
+          disabled={submitting || loadingCustomerData || effectiveCustomerId == null}
           onClick={() => onLoadCustomerData?.()}
         >
-          {loadingCustomerData ? '불러오는 중…' : '고객데이터 불러오기'}
+          {loadingCustomerData ? '불러오는 중…' : loadCustomerButtonLabel}
         </FormButton>
+
+        {workspaceCustomerId != null && onShowCustomerSearch && !showCustomerSearch ? (
+          <button
+            type="button"
+            className="pdf-applicant-form__customer-link"
+            onClick={onShowCustomerSearch}
+            disabled={submitting || loadingCustomerData}
+          >
+            다른 고객 검색해서 불러오기
+          </button>
+        ) : null}
+
+        {workspaceCustomerId == null && effectiveCustomerId == null && onShowCustomerSearch && !showCustomerSearch ? (
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="pdf-applicant-form__load-customer-btn"
+            disabled={submitting || loadingCustomerData}
+            onClick={onShowCustomerSearch}
+          >
+            고객 검색해서 불러오기
+          </FormButton>
+        ) : null}
+
+        {showCustomerSearch ? (
+          <div className="pdf-applicant-form__customer-search">
+            <div className="pdf-applicant-form__customer-search-row" role="search">
+              <FormInput
+                type="search"
+                className="pdf-applicant-form__customer-search-input"
+                placeholder="이름 또는 전화번호"
+                value={customerSearchQuery}
+                onChange={(e) => onCustomerSearchQueryChange?.(e.target.value)}
+                disabled={submitting || customerSearchBusy}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    onCustomerSearchSubmit?.()
+                  }
+                }}
+              />
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                disabled={submitting || customerSearchBusy || !customerSearchQuery.trim()}
+                onClick={() => onCustomerSearchSubmit?.()}
+              >
+                {customerSearchBusy ? '검색 중…' : '검색'}
+              </FormButton>
+            </div>
+            {onHideCustomerSearch ? (
+              <button
+                type="button"
+                className="pdf-applicant-form__customer-link"
+                onClick={onHideCustomerSearch}
+                disabled={submitting || customerSearchBusy}
+              >
+                검색 닫기
+              </button>
+            ) : null}
+            {customerSearchError ? (
+              <p className="pdf-applicant-form__customer-search-error" role="alert">
+                {customerSearchError}
+              </p>
+            ) : null}
+            {customerSearchResults.length > 0 ? (
+              <ul className="pdf-applicant-form__customer-search-list">
+                {customerSearchResults.map((row) => (
+                  <li key={row.id}>
+                    <span className="pdf-applicant-form__customer-search-name">{row.name}</span>
+                    {row.phone ? (
+                      <span className="pdf-applicant-form__customer-search-phone">{row.phone}</span>
+                    ) : null}
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      className="pdf-applicant-form__customer-search-pick"
+                      disabled={submitting || loadingCustomerData}
+                      onClick={() => onSelectSearchedCustomer?.(row)}
+                    >
+                      선택
+                    </FormButton>
+                  </li>
+                ))}
+              </ul>
+            ) : customerSearchBusy ? null : customerSearchQuery.trim() ? (
+              <p className="pdf-applicant-form__customer-search-empty">검색 결과가 없습니다.</p>
+            ) : null}
+          </div>
+        ) : null}
+
         {onToggleOverwriteCustomerOnLoad ? (
           <label className="pdf-applicant-form__overwrite">
             <input
@@ -397,9 +549,7 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
           </label>
         ) : null}
         <p className="pdf-applicant-form__customer-load-hint">
-          {workspaceCustomerId == null
-            ? '고객을 먼저 선택해 주세요.'
-            : customerLoadHint ?? '매핑된 고객 정보가 좌표 입력값에 채워집니다.'}
+          {customerLoadHint ?? '매핑된 항목의 고객 정보가 입력값에 반영됩니다.'}
         </p>
       </div>
 

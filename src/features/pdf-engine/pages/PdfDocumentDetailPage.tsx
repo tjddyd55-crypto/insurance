@@ -10,7 +10,8 @@ import { FormButton } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
 import { ApiError, resolveAbsoluteApiUrl } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
-import { getCustomerById } from '../../customers/api/customersApi'
+import { getCustomerById, searchCustomers } from '../../customers/api/customersApi'
+import type { CustomerRecord } from '../../customers/domain/types'
 import {
   fetchPdfTemplateFile,
   getPdfIssuance,
@@ -21,7 +22,10 @@ import {
 import { mergedInitialValues, splitPdfSnapshot } from '../components/PdfTemplateForm'
 import PdfDocumentApplicantPCView from './pdf-document/PdfDocumentApplicantPCView'
 import PdfDocumentApplicantMobileView from './pdf-document/PdfDocumentApplicantMobileView'
-import type { PdfDocumentApplicantViewProps } from './pdf-document/pdfDocumentApplicantViewProps'
+import type {
+  PdfDocumentApplicantViewProps,
+  PdfSelectedCustomerSummary,
+} from './pdf-document/pdfDocumentApplicantViewProps'
 import { clampApplicantFontSizePt } from '../lib/pdfApplicantTypography'
 import { applyCustomerDataToPdfValues } from '../lib/resolvePdfFieldValue'
 import { normalizePdfFieldDataMapping } from '../lib/resolvePdfFieldValue'
@@ -106,7 +110,7 @@ export default function PdfDocumentDetailPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const templateId = Number(idParam)
-  const { token } = useAuth()
+  const { token, user } = useAuth()
   const { listPath, historyPath } = usePdfDocumentsWorkspacePaths()
 
   const issuerParam = searchParams.get('issuerCustomerName')
@@ -149,9 +153,18 @@ export default function PdfDocumentDetailPage() {
   const [loadingCustomerData, setLoadingCustomerData] = useState(false)
   const [overwriteCustomerOnLoad, setOverwriteCustomerOnLoad] = useState(false)
   const [customerLoadHint, setCustomerLoadHint] = useState<string | null>(null)
-  const [cachedCustomer, setCachedCustomer] = useState<Awaited<
-    ReturnType<typeof getCustomerById>
-  > | null>(null)
+  const [cachedCustomer, setCachedCustomer] = useState<CustomerRecord | null>(null)
+  const [selectedCustomer, setSelectedCustomer] = useState<PdfSelectedCustomerSummary | null>(null)
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false)
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('')
+  const [customerSearchBusy, setCustomerSearchBusy] = useState(false)
+  const [customerSearchError, setCustomerSearchError] = useState<string | null>(null)
+  const [customerSearchResults, setCustomerSearchResults] = useState<PdfSelectedCustomerSummary[]>([])
+
+  const effectiveCustomerId = useMemo(
+    () => selectedCustomer?.id ?? workspaceCustomerIdFromRoute ?? null,
+    [selectedCustomer, workspaceCustomerIdFromRoute],
+  )
 
   const closePreview = () => {
     setPreviewOpen(false)
@@ -290,19 +303,79 @@ export default function PdfDocumentDetailPage() {
 
   const displayCustomerLabel = issuerCustomerLabel.trim() || fallbackCustomerLabel.trim()
 
+  const workspaceCustomerLabel = displayCustomerLabel.trim() || null
+
+  const loadCustomerButtonLabel = useMemo(() => {
+    if (selectedCustomer) return '선택 고객 데이터 불러오기'
+    if (workspaceCustomerIdFromRoute != null) return '현재 고객 데이터 불러오기'
+    return '고객 검색해서 불러오기'
+  }, [selectedCustomer, workspaceCustomerIdFromRoute])
+
+  const effectiveCustomerLabelForFilename = useMemo(() => {
+    if (selectedCustomer?.name?.trim()) return selectedCustomer.name.trim()
+    return displayCustomerLabel.trim()
+  }, [selectedCustomer, displayCustomerLabel])
+
   const resultPdfFilename = useMemo(() => {
     if (state.status !== 'ready') return '고객_신청서.pdf'
     return buildPdfIssuanceDisplayFilename({
-      customerLabel: displayCustomerLabel || undefined,
+      customerLabel: effectiveCustomerLabelForFilename || undefined,
       templateTitle: state.template.title,
       templateCode: state.template.code,
     })
-  }, [state, displayCustomerLabel])
+  }, [state, effectiveCustomerLabelForFilename])
+
+  const scopeGaId = user?.gaId ?? null
+
+  const handleCustomerSearchSubmit = useCallback(async () => {
+    if (!token?.trim()) return
+    const q = customerSearchQuery.trim()
+    if (!q) {
+      setCustomerSearchError('검색어를 입력해 주세요.')
+      return
+    }
+    setCustomerSearchBusy(true)
+    setCustomerSearchError(null)
+    try {
+      const rows = await searchCustomers(token, q, {
+        scopeGaId: scopeGaId != null && Number(scopeGaId) > 0 ? Number(scopeGaId) : null,
+      })
+      setCustomerSearchResults(
+        rows.map((row) => ({
+          id: row.id,
+          name: row.name?.trim() || `고객 #${row.id}`,
+          phone: (row.phone || row.phoneNumber || '').trim() || undefined,
+        })),
+      )
+    } catch (e) {
+      setCustomerSearchResults([])
+      setCustomerSearchError(
+        e instanceof ApiError ? e.message : '고객 검색에 실패했습니다.',
+      )
+    } finally {
+      setCustomerSearchBusy(false)
+    }
+  }, [token, customerSearchQuery, scopeGaId])
+
+  const handleSelectSearchedCustomer = useCallback((customer: PdfSelectedCustomerSummary) => {
+    setSelectedCustomer(customer)
+    setCachedCustomer(null)
+    setShowCustomerSearch(false)
+    setCustomerSearchError(null)
+    setCustomerLoadHint(null)
+  }, [])
+
+  const handleClearSelectedCustomer = useCallback(() => {
+    setSelectedCustomer(null)
+    setCachedCustomer(null)
+    setCustomerLoadHint(null)
+  }, [])
 
   const handleLoadCustomerData = useCallback(async () => {
     if (!token?.trim()) return
-    if (workspaceCustomerIdFromRoute == null) {
-      setCustomerLoadHint('고객을 먼저 선택해 주세요.')
+    if (effectiveCustomerId == null) {
+      setShowCustomerSearch(true)
+      setCustomerLoadHint('고객을 검색해서 선택한 뒤 데이터를 불러올 수 있습니다.')
       return
     }
     if (state.status !== 'ready') return
@@ -310,9 +383,13 @@ export default function PdfDocumentDetailPage() {
     setCustomerLoadHint(null)
     try {
       const customer =
-        cachedCustomer?.id === workspaceCustomerIdFromRoute
+        cachedCustomer?.id === effectiveCustomerId
           ? cachedCustomer
-          : await getCustomerById(token, workspaceCustomerIdFromRoute)
+          : await getCustomerById(token, effectiveCustomerId)
+      if (!customer) {
+        setCustomerLoadHint('고객 정보를 찾을 수 없습니다.')
+        return
+      }
       setCachedCustomer(customer)
       setApplicantValues((prev) =>
         applyCustomerDataToPdfValues(state.fields, prev, customer, {
@@ -339,7 +416,7 @@ export default function PdfDocumentDetailPage() {
     }
   }, [
     token,
-    workspaceCustomerIdFromRoute,
+    effectiveCustomerId,
     state,
     cachedCustomer,
     overwriteCustomerOnLoad,
@@ -349,7 +426,7 @@ export default function PdfDocumentDetailPage() {
     async (values: Record<string, string>, persistFonts: Record<string, number>) => {
       if (!token || state.status !== 'ready') return
       const previewFilename = buildPdfIssuanceDisplayFilename({
-        customerLabel: displayCustomerLabel || undefined,
+        customerLabel: effectiveCustomerLabelForFilename || undefined,
         templateTitle: state.template.title,
         templateCode: state.template.code,
       })
@@ -358,7 +435,7 @@ export default function PdfDocumentDetailPage() {
         const { previewUrl: relUrl } = await requestPdfRenderPreviewUrl(token, templateId, values, {
           fontSizes: Object.keys(persistFonts).length > 0 ? persistFonts : undefined,
           displayFilename: previewFilename,
-          customerId: workspaceCustomerIdFromRoute ?? undefined,
+          customerId: effectiveCustomerId ?? undefined,
           overwriteCustomerMapping: overwriteCustomerOnLoad,
         })
         setPreviewUrl(resolveAbsoluteApiUrl(relUrl))
@@ -378,7 +455,7 @@ export default function PdfDocumentDetailPage() {
         setSubmitting(false)
       }
     },
-    [token, templateId, state, displayCustomerLabel, workspaceCustomerIdFromRoute, overwriteCustomerOnLoad],
+    [token, templateId, state, effectiveCustomerLabelForFilename, effectiveCustomerId, overwriteCustomerOnLoad],
   )
 
   const handleSaveFromPreview = async () => {
@@ -388,7 +465,7 @@ export default function PdfDocumentDetailPage() {
     try {
       const blobRaw = await renderPdfTemplate(token, templateId, previewValues, {
         fontSizes: Object.keys(previewFonts).length > 0 ? previewFonts : undefined,
-        customerId: workspaceCustomerIdFromRoute ?? undefined,
+        customerId: effectiveCustomerId ?? undefined,
         overwriteCustomerMapping: overwriteCustomerOnLoad,
       })
       triggerDownload(coercePdfBlob(blobRaw), resultPdfFilename)
@@ -423,11 +500,29 @@ export default function PdfDocumentDetailPage() {
       prefillBanner,
       submitting,
       workspaceCustomerId: workspaceCustomerIdFromRoute,
+      workspaceCustomerLabel,
+      selectedCustomer,
+      effectiveCustomerId,
+      loadCustomerButtonLabel,
       customerLoadHint,
       loadingCustomerData,
       overwriteCustomerOnLoad,
       onToggleOverwriteCustomerOnLoad: () => setOverwriteCustomerOnLoad((v) => !v),
       onLoadCustomerData: handleLoadCustomerData,
+      showCustomerSearch,
+      onShowCustomerSearch: () => setShowCustomerSearch(true),
+      onHideCustomerSearch: () => {
+        setShowCustomerSearch(false)
+        setCustomerSearchError(null)
+      },
+      customerSearchQuery,
+      onCustomerSearchQueryChange: setCustomerSearchQuery,
+      customerSearchBusy,
+      customerSearchError,
+      customerSearchResults,
+      onCustomerSearchSubmit: handleCustomerSearchSubmit,
+      onSelectSearchedCustomer: handleSelectSearchedCustomer,
+      onClearSelectedCustomer: handleClearSelectedCustomer,
       documentsListPath: listPath,
       onChangeValues: setApplicantValues,
       onChangeFontOverrides: setFontOverrides,
@@ -445,10 +540,22 @@ export default function PdfDocumentDetailPage() {
     listPath,
     handleSubmitApplicant,
     workspaceCustomerIdFromRoute,
+    workspaceCustomerLabel,
+    selectedCustomer,
+    effectiveCustomerId,
+    loadCustomerButtonLabel,
     customerLoadHint,
     loadingCustomerData,
     overwriteCustomerOnLoad,
     handleLoadCustomerData,
+    showCustomerSearch,
+    customerSearchQuery,
+    customerSearchBusy,
+    customerSearchError,
+    customerSearchResults,
+    handleCustomerSearchSubmit,
+    handleSelectSearchedCustomer,
+    handleClearSelectedCustomer,
   ])
 
   if (state.status === 'loading') {

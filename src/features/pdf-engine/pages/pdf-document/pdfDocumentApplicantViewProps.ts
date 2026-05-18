@@ -1,6 +1,12 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import type { PdfFieldSpec, PdfTemplateSummary } from '../../types'
 
+export type PdfSelectedCustomerSummary = {
+  id: number
+  name: string
+  phone?: string
+}
+
 export type PdfDocumentApplicantViewProps = {
   template: PdfTemplateSummary
   fields: PdfFieldSpec[]
@@ -11,11 +17,26 @@ export type PdfDocumentApplicantViewProps = {
   prefillBanner: ReactNode | null
   submitting: boolean
   workspaceCustomerId: number | null
+  workspaceCustomerLabel: string | null
+  selectedCustomer: PdfSelectedCustomerSummary | null
+  effectiveCustomerId: number | null
+  loadCustomerButtonLabel: string
   customerLoadHint: string | null
   loadingCustomerData: boolean
   overwriteCustomerOnLoad: boolean
   onToggleOverwriteCustomerOnLoad: () => void
   onLoadCustomerData: () => void
+  showCustomerSearch: boolean
+  onShowCustomerSearch: () => void
+  onHideCustomerSearch: () => void
+  customerSearchQuery: string
+  onCustomerSearchQueryChange: (query: string) => void
+  customerSearchBusy: boolean
+  customerSearchError: string | null
+  customerSearchResults: PdfSelectedCustomerSummary[]
+  onCustomerSearchSubmit: () => void
+  onSelectSearchedCustomer: (customer: PdfSelectedCustomerSummary) => void
+  onClearSelectedCustomer: () => void
   /** ← 문서 목록 링크 (고객 작업 영역 embed 시 `/customers/.../application-documents`) */
   documentsListPath: string
   onChangeValues: Dispatch<SetStateAction<Record<string, string>>>
