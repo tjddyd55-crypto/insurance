@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, ipcMain, shell } = require('electron')
 const axios = require('axios')
 const path = require('path')
 const semver = require('semver')
@@ -249,6 +249,70 @@ async function checkForceUpdateFromServer() {
   return false
 }
 
+/**
+ * 새 창(window.open)·탑레벨 will-navigate로 원격 페이지를 불러오는 것을 막고
+ * http(s) 만 OS 기본 브라우저로 넘긴다. (javascript:, file:, data: 등 차단)
+ * @param {string} raw
+ */
+function isTrustedHttpOrHttpsUrl(raw) {
+  if (typeof raw !== 'string') return false
+  const trimmed = raw.trim()
+  if (!trimmed) return false
+  try {
+    const u = new URL(trimmed)
+    return u.protocol === 'http:' || u.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 메인 창이 통째로 외부 origin 으로 이동하면 안 된다는 전제.
+ * - 패키지(file://): http(s) 어디로든 외부 브라우저
+ * - 개발(localhost:3000): 동일 origin 풀페이지 로드만 인앱
+ */
+function isTopLevelExternalHttpNavigation(currentUrl, navigatedUrl) {
+  if (!isTrustedHttpOrHttpsUrl(navigatedUrl)) return false
+  try {
+    const next = new URL(navigatedUrl)
+    let cur
+    try {
+      cur = new URL(currentUrl)
+    } catch {
+      return true
+    }
+    if (cur.protocol === 'file:') return true
+    if ((cur.protocol === 'http:' || cur.protocol === 'https:') && cur.origin === next.origin) {
+      return false
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * @param {import('electron').BrowserWindow} browserWindow
+ */
+function attachExternalBrowseGuards(browserWindow) {
+  const wc = browserWindow.webContents
+
+  wc.setWindowOpenHandler(({ url }) => {
+    if (!isTrustedHttpOrHttpsUrl(url)) {
+      console.warn('[external-link] denied window.open (non-http(s)):', String(url ?? '').slice(0, 200))
+      return { action: 'deny' }
+    }
+    void shell.openExternal(url)
+    return { action: 'deny' }
+  })
+
+  wc.on('will-navigate', (event, navigatedUrl) => {
+    if (!isTopLevelExternalHttpNavigation(wc.getURL(), navigatedUrl)) return
+    event.preventDefault()
+    void shell.openExternal(navigatedUrl)
+  })
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -263,6 +327,8 @@ function createWindow() {
       nodeIntegration: false,
     },
   })
+
+  attachExternalBrowseGuards(mainWindow)
 
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show()
