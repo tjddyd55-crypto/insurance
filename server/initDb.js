@@ -1673,6 +1673,26 @@ export async function initDb() {
   `)
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS ga_customer_match_aliases (
+      id SERIAL PRIMARY KEY,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      alias_value TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT ga_customer_match_aliases_value_len CHECK (char_length(alias_value) <= 100)
+    )
+  `)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS ga_customer_match_aliases_ga_customer_value_uk
+    ON ga_customer_match_aliases(ga_id, customer_id, alias_value)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_ga_customer_match_aliases_lookup
+    ON ga_customer_match_aliases(ga_id, customer_id)
+  `)
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS user_excel_data (
       id BIGSERIAL PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

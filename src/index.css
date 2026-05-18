@@ -9929,6 +9929,104 @@ textarea.memo-sticky-note__textarea::placeholder {
   word-break: break-word;
 }
 
+.customer-ga-excel-page--pc .ga-match-aliases-card,
+.customer-ga-excel-page--mobile .ga-match-aliases-card {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: #111827;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  color: #e5e7eb;
+}
+
+.customer-ga-excel-page--pc .ga-match-aliases-card__title,
+.customer-ga-excel-page--mobile .ga-match-aliases-card__title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.customer-ga-excel-page--pc .ga-match-aliases-card__desc,
+.customer-ga-excel-page--mobile .ga-match-aliases-card__desc {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+.customer-ga-excel-page--pc .ga-match-aliases-card__default,
+.customer-ga-excel-page--mobile .ga-match-aliases-card__default {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.customer-ga-excel-page--pc .ga-match-aliases-card__default-label,
+.customer-ga-excel-page--mobile .ga-match-aliases-card__default-label {
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.customer-ga-excel-page--pc .ga-match-aliases-card__empty,
+.customer-ga-excel-page--mobile .ga-match-aliases-card__empty {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.customer-ga-excel-page--pc .ga-match-aliases-card__label,
+.customer-ga-excel-page--mobile .ga-match-aliases-card__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.customer-ga-excel-page--pc .ga-match-aliases-card__textarea,
+.customer-ga-excel-page--mobile .ga-match-aliases-card__textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 88px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: #020617;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+  resize: vertical;
+  outline: none;
+}
+
+.customer-ga-excel-page--pc .ga-match-aliases-card__textarea::placeholder,
+.customer-ga-excel-page--mobile .ga-match-aliases-card__textarea::placeholder {
+  color: #64748b;
+}
+
+.customer-ga-excel-page--pc .ga-match-aliases-card__textarea:focus,
+.customer-ga-excel-page--mobile .ga-match-aliases-card__textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+}
+
+.customer-ga-excel-page--pc .ga-match-aliases-card__help,
+.customer-ga-excel-page--mobile .ga-match-aliases-card__help {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.customer-ga-excel-page--pc .ga-match-aliases-card__actions,
+.customer-ga-excel-page--mobile .ga-match-aliases-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 @media (max-width: 768px) {
   .insurance-contacts-cards {
     grid-template-columns: 1fr;

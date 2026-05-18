@@ -1,6 +1,10 @@
 import multer from 'multer'
 import * as XLSX from 'xlsx'
 import { safeQuery, systemQuery } from '../utils/dbSafeQuery.js'
+import {
+  listGaCustomerMatchAliases,
+  normalizeGaExactMatchValue,
+} from '../lib/gaCustomerMatchAliases.js'
 
 const uploadExcel = multer({
   storage: multer.memoryStorage(),
@@ -237,7 +241,20 @@ function blockNonDesignerExcelUser(req, res) {
   return false
 }
 
-function rowMatchesCustomer(cells, matchRules, customerRow) {
+function rowMatchesCustomer(cells, matchRules, customerRow, options = {}) {
+  const aliasValues = Array.isArray(options.aliasValues) ? options.aliasValues : []
+  const customerNameExact = normalizeGaExactMatchValue(customerRow.name ?? '')
+  const nameExactMatchSet = new Set()
+  if (customerNameExact) {
+    nameExactMatchSet.add(customerNameExact)
+  }
+  for (const alias of aliasValues) {
+    const n = normalizeGaExactMatchValue(alias)
+    if (n && n !== customerNameExact) {
+      nameExactMatchSet.add(n)
+    }
+  }
+
   for (const rule of matchRules) {
     const colId = String(rule.columnId ?? '').trim()
     const dbField = String(rule.dbField ?? '').trim()
@@ -248,6 +265,12 @@ function rowMatchesCustomer(cells, matchRules, customerRow) {
     const dbNorm = getCustomerNormalizedField(customerRow, dbField)
     if (dbField === 'birth_date') {
       if (excelNorm === '' || dbNorm === '' || !birthComparableEquals(excelNorm, dbNorm)) {
+        return false
+      }
+      continue
+    }
+    if (dbField === 'name') {
+      if (excelNorm === '' || !nameExactMatchSet.has(excelNorm)) {
         return false
       }
       continue
@@ -461,6 +484,7 @@ async function buildUserGaExcelCustomerPayload(pool, { userId, gaId, customerId 
   )
 
   const matchRules = settings.matchRules
+  const aliasValues = await listGaCustomerMatchAliases(pool, gaId, customerId)
   const sourceRowCount = rowsRes.rows.length
 
   if (sourceRowCount === 0) {
@@ -480,7 +504,7 @@ async function buildUserGaExcelCustomerPayload(pool, { userId, gaId, customerId 
   const matchedFullRows = []
   for (const r of rowsRes.rows) {
     const cells = stringifyExcelCellMap(r.row_data)
-    if (!rowMatchesCustomer(cells, matchRules, customerRow)) {
+    if (!rowMatchesCustomer(cells, matchRules, customerRow, { aliasValues })) {
       continue
     }
     matchedFullRows.push({ rowIndex: Number(r.row_index), cells })

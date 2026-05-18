@@ -35,6 +35,7 @@ export type UseGaCustomerExcelDataResult = {
   sortAsc: boolean
   onHeaderClick: (idx: number) => void
   clearColumnSort: () => void
+  reload: () => Promise<void>
 }
 
 export function useGaCustomerExcelData(customerId: number): UseGaCustomerExcelDataResult {
@@ -143,5 +144,6 @@ export function useGaCustomerExcelData(customerId: number): UseGaCustomerExcelDa
     sortAsc,
     onHeaderClick,
     clearColumnSort,
+    reload: load,
   }
 }

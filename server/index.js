@@ -17,6 +17,7 @@ import { registerMemoApi } from './apis/memoApi.js'
 import { registerTodosApi } from './apis/todosApi.js'
 import { registerSuperAdminAnalyticsApi } from './registerSuperAdminAnalyticsApi.js'
 import { registerGaCustomerExcelApi } from './apis/gaCustomerExcelApi.js'
+import { registerGaCustomerMatchAliasesApi } from './apis/gaCustomerMatchAliasesApi.js'
 import { registerCustomerClaimAppApi } from './apis/customerClaimAppApi.js'
 import { registerCustomerCarsApi } from './apis/customerCarsApi.js'
 import { recordAnalyticsEvent } from './lib/analyticsEvents.js'
@@ -1418,6 +1419,13 @@ registerGaCustomerExcelApi(apiRouter, {
   handleDbError,
   parseGaId,
   requireInsuranceFormUserId,
+})
+
+registerGaCustomerMatchAliasesApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+  parseGaId,
 })
 
 registerNotificationsApi(apiRouter, { pool, requireAuth, handleDbError })

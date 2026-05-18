@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { EmptyState, LoadingState, StatusMessage } from '../../../../components/feedback'
 import { FormButton } from '../../../../components/form'
+import GaCustomerMatchAliasesCard from '../../components/GaCustomerMatchAliasesCard'
 import { useGaCustomerExcelData } from '../../hooks/useGaCustomerExcelData'
 import {
   formatGaCellDisplay,
@@ -23,7 +24,7 @@ import {
 export default function CustomerGaExcelPagePC() {
   const { customerId: customerIdParam } = useParams()
   const customerId = Number(customerIdParam)
-  const { loading, error, info, headers, colIds, sortedRows, sortIdx, sortAsc, onHeaderClick } =
+  const { loading, error, info, headers, colIds, sortedRows, sortIdx, sortAsc, onHeaderClick, reload } =
     useGaCustomerExcelData(customerId)
 
   const emptyMappingMessage = `${MSG_GA_EXCEL_NO_MAPPED_DATA} ${MSG_GA_EXCEL_UPLOAD_HINT}`
@@ -36,6 +37,11 @@ export default function CustomerGaExcelPagePC() {
       <p className="text-sm text-[var(--text-secondary)] mb-3">
         업로드는 내정보관리 페이지에서 진행합니다. 여기서는 고객 매핑 결과만 확인할 수 있습니다.
       </p>
+      <GaCustomerMatchAliasesCard
+        customerId={customerId}
+        onSaved={() => void reload()}
+      />
+
       <StatusMessage message={error} tone="error" />
       <StatusMessage message={info} tone="default" />
 
