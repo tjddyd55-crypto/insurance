@@ -4105,6 +4105,10 @@ div.cta-button.customers-page__action-btn[role='button'] {
   white-space: nowrap;
 }
 
+.customers-page--pc .customer-detail-action-bar--pc-save-cancel-row {
+  flex-wrap: nowrap;
+}
+
 .customers-page .customer-expand-detail {
   margin-top: 8px;
   padding: 12px;
@@ -4482,6 +4486,19 @@ div.cta-button.customers-page__action-btn[role='button'] {
   line-height: 1.45;
   opacity: 0.72;
   user-select: none;
+}
+
+.customer-detail-read .customer-detail-read__ssn-gender-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1.25rem;
+  width: 100%;
+}
+
+.customer-detail-read .customer-detail-read__ssn-gender-cluster__gender {
+  flex-shrink: 0;
 }
 
 .customer-detail-read__info-main {
@@ -10019,8 +10036,10 @@ textarea.memo-sticky-note__textarea::placeholder {
 .customer-ga-excel-page--pc .ga-match-aliases-toolbar__field.field--readonly,
 .customer-ga-excel-page--mobile .ga-match-aliases-toolbar__field.field--readonly {
   box-sizing: border-box;
-  flex: 1 1 160px;
-  min-width: 0;
+  flex: 0 0 auto;
+  width: clamp(160px, 18vw, 220px);
+  max-width: 220px;
+  min-width: 160px;
   padding: 8px 12px;
   margin: 0;
   background: #020617;
@@ -10053,6 +10072,23 @@ textarea.memo-sticky-note__textarea::placeholder {
   width: 100%;
   font-size: 13px;
   color: #94a3b8;
+}
+
+.customer-ga-excel-page--pc .ga-match-aliases-bundle__comma-hint--pc,
+.customer-ga-excel-page--mobile .ga-match-aliases-bundle__comma-hint--mobile {
+  margin: 0;
+  width: 100%;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #94a3b8;
+}
+
+.customer-ga-excel-page--pc .ga-match-aliases-bundle__comma-hint--pc {
+  text-align: right;
+}
+
+.customer-ga-excel-page--mobile .ga-match-aliases-bundle__comma-hint--mobile {
+  text-align: left;
 }
 
 .customer-ga-excel-page--pc .ga-match-aliases-bundle__feedback--pc,

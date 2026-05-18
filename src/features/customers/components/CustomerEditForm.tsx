@@ -13,6 +13,7 @@ import {
   CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER,
   CUSTOMER_MEDICAL_QUESTION_TEXT,
 } from '../utils/customerDisplayFormat'
+import { resolveGenderAfterSsnInput } from '../utils/inferGenderFromResidentNumberDigits'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import { CustomerCarsEditor } from './CustomerCarsEditor'
 import { CustomerDrivingRadioGroup } from './CustomerDrivingRadioGroup'
@@ -108,9 +109,18 @@ export default function CustomerEditForm({
               name="customer-ssn"
               autoComplete="off"
               value={editForm.ssn ?? ''}
-              onChange={(e) =>
-                setEditForm((prev) => (prev ? { ...prev, ssn: e.target.value } : prev))
-              }
+              onChange={(e) => {
+                const next = e.target.value
+                setEditForm((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        ssn: next,
+                        gender: resolveGenderAfterSsnInput(prev.gender, next),
+                      }
+                    : prev,
+                )
+              }}
             />
           </label>
           <label className="field">

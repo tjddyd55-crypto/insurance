@@ -2,6 +2,7 @@ import type { CustomerRecord } from '../domain/types'
 import { normalizeCustomerNotesBag } from '../domain/types'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import { customerRecordToCarFormItems } from './customerCarFormUtils'
+import { inferGenderFromResidentNumberDigits } from './inferGenderFromResidentNumberDigits'
 
 export function inferIsDriverFromDriving(driving: string): boolean | null {
   const t = String(driving ?? '').trim()
@@ -22,9 +23,10 @@ export function recordToEditForm(c: CustomerRecord): CustomerEditFormState {
   if (isDriver == null) {
     isDriver = inferIsDriverFromDriving(c.driving)
   }
+  const storedGender = c.gender ?? null
   return {
     name: c.name ?? '',
-    gender: c.gender ?? null,
+    gender: storedGender ?? inferGenderFromResidentNumberDigits(c.ssn ?? '') ?? null,
     ssn: c.ssn ?? '',
     phone: c.phone ?? '',
     carrier: (c.carrier ?? '').trim(),

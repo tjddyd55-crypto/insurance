@@ -5,6 +5,7 @@ import { getDDay, getDDayBadgeClass } from '../utils/dday'
 import {
   CUSTOMER_MEDICAL_QUESTION_HINT,
   CUSTOMER_MEDICAL_QUESTION_TEXT,
+  formatCustomerGenderReadLabel,
   formatCustomerPhoneUi,
   formatCustomerSsnUi,
 } from '../utils/customerDisplayFormat'
@@ -194,8 +195,18 @@ export default function CustomerDetailReadView({
     <div className="customer-detail-read">
       <div className="customer-detail-read__info-list">
         <DetailReadInfoRow>
-          <span className="customer-detail-read__info-label">주민번호:</span>{' '}
-          <span className="customer-detail-read__info-value">{formatCustomerSsnUi(c.ssn) || '—'}</span>
+          <div className="customer-detail-read__ssn-gender-cluster">
+            <span className="customer-detail-read__ssn-gender-cluster__ssn">
+              <span className="customer-detail-read__info-label">주민번호:</span>{' '}
+              <span className="customer-detail-read__info-value">{formatCustomerSsnUi(c.ssn) || '—'}</span>
+            </span>
+            <span className="customer-detail-read__ssn-gender-cluster__gender">
+              <span className="customer-detail-read__info-label">성별:</span>{' '}
+              <span className="customer-detail-read__info-value">
+                {formatCustomerGenderReadLabel(c.gender, c.ssn)}
+              </span>
+            </span>
+          </div>
         </DetailReadInfoRow>
         <DetailReadInfoRow>
           <div className="customer-detail-read__info-main--cluster">

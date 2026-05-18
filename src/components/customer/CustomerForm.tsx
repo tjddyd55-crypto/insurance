@@ -36,6 +36,7 @@ import {
   CUSTOMER_MEDICAL_HISTORY_PLACEHOLDER,
   CUSTOMER_MEDICAL_QUESTION_TEXT,
 } from '../../features/customers/utils/customerDisplayFormat'
+import { resolveGenderAfterSsnInput } from '../../features/customers/utils/inferGenderFromResidentNumberDigits'
 import CustomerIndustryTemplateFields from '../../features/customers/components/CustomerIndustryTemplateFields'
 import { CustomerCarsEditor } from '../../features/customers/components/CustomerCarsEditor'
 import { CustomerDrivingRadioGroup } from '../../features/customers/components/CustomerDrivingRadioGroup'
@@ -495,7 +496,14 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
           className="field__control"
           placeholder="주민번호"
           value={form.ssn}
-          onChange={(e) => onFormChange({ ...form, ssn: e.target.value })}
+          onChange={(e) => {
+            const next = e.target.value
+            onFormChange({
+              ...form,
+              ssn: next,
+              gender: resolveGenderAfterSsnInput(form.gender, next),
+            })
+          }}
         />
 
       </label>

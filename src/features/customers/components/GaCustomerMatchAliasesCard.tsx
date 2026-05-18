@@ -52,7 +52,7 @@ export default function GaCustomerMatchAliasesCard({
         className="ga-match-aliases-toolbar__field"
         value={inputText}
         onChange={(e) => setInputText(e.target.value)}
-        placeholder="이지은(S3)"
+        placeholder=""
         disabled={saving || !Number.isFinite(customerId) || customerId < 1}
         autoComplete="off"
         spellCheck={false}
@@ -80,9 +80,9 @@ export default function GaCustomerMatchAliasesCard({
       <div className={`ga-match-aliases-toolbar ga-match-aliases-toolbar--${layout}`}>
         {toolbar}
       </div>
-      <span id={`${inputId}-hint`} className="visually-hidden">
-        입력은 쉼표로 구분합니다.
-      </span>
+      <p id={`${inputId}-hint`} className={`ga-match-aliases-bundle__comma-hint ga-match-aliases-bundle__comma-hint--${layout}`}>
+        입력칸은 쉼표(,)로 구분합니다.
+      </p>
       <div className={`ga-match-aliases-bundle__feedback ga-match-aliases-bundle__feedback--${layout}`}>
         <StatusMessage message={error} tone="error" />
         <StatusMessage message={saveMessage} tone="default" />
