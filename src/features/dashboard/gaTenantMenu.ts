@@ -72,14 +72,17 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
 /**
  * 대시보드 GA 메뉴 (USER / GA_ADMIN).
  *
- * ## 구조 — 5 개 카테고리 섹션
+ * ## 구조 — 카테고리 섹션 (USER/GA_ADMIN 공통)
  *
- *   1. 고객관리 : 고객리스트 · 청구관리
- *   2. 소식지   : 고객 소식지 · 원수사 연락처 · 원수사 소식지 · 손해사정사 소식지 · 세무사 소식지(개발중)
- *   3. 팀관리   : 팀원리스트 · 팀 게시판 · 팀 자료 · (팀 관리 — 오너만)
- *   4. 신청서   : 신청서 작성(PDF 좌표 템플릿) · 과거 작성한 신청서 · 렌트(사고대차)(개발중)
- *                 — 레거시 자동차 전용 허브(`/application`·폼 작성) 메뉴는 숨긴다(URL 직접 진입은 가능).
- *   5. 내정보   : 내 저장공간 · 내정보관리 · 문의, 요청
+ *   1. 할일 및 알림 · 할일 · 알림
+ *   2. 고객관리 · 고객리스트 · 고객소식지 · 청구관리
+ *   3. 소식지 · 원수사소식지 · 손해사정사 소식지 · 세무사 소식지(개발중 플레이스홀더, 요구 목록에 없어서도 기존 연결 유지)
+ *   4. 신청서 · 신청서 작성 · 신청서 작성내역 · 렌트(사고대차)(개발중)
+ *   5. 전자서명(USER 한정) · 전자서명 발송 · 전자서명 발송내역 — inject via buildGaTenantDashboardMenu 옵션
+ *   6. 팀관리 · 팀원리스트 · 팀 게시판 · 팀 자료 · (팀 관리 — 오너만, `/team/files` 뒤 주입)
+ *   7. 업무편의 · 원수사 연락처 · 설계사이트
+ *   8. 내정보 · 내 저장공간 · 내정보관리 · 문의요청
+ *   — 레거시 자동차 전용 허브(`/application` 메뉴 노출 등) 규칙 기존대로.
  *
  * ## 배지 / 비활성 정책
  *
@@ -98,13 +101,24 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
  */
 const DEV_BADGE = '개발중'
 
+type BuildGaTenantDashboardMenuOptions = {
+  /** USER 역할에게만 신청서 아래 「전자서명」 블록을 붙인다. */
+  includeUserContractSignatures?: boolean
+}
+
 export function buildGaTenantDashboardMenu(
   gaCode: string | undefined,
   gaName: string | undefined,
+  options: BuildGaTenantDashboardMenuOptions = {},
 ): GaTenantDashboardMenuEntry[] {
+  const { includeUserContractSignatures = false } = options
+
+  void gaCode
+  void gaName
+
   const applicationItems: GaTenantDashboardMenuEntry[] = [
     { type: 'link', label: '신청서 작성', path: '/application/documents' },
-    { type: 'link', label: '과거 작성한 신청서', path: '/application/documents/history' },
+    { type: 'link', label: '신청서 작성내역', path: '/application/documents/history' },
     {
       type: 'link',
       label: '렌트(사고대차)',
@@ -113,35 +127,58 @@ export function buildGaTenantDashboardMenu(
       badge: DEV_BADGE,
     },
   ]
-  return [
-    { type: 'section', label: '고객관리' },
-    { type: 'link', label: '고객리스트', path: '/customers' },
-    { type: 'link', label: '청구관리', path: '/claim-requests' },
 
-    { type: 'section', label: '알림 및 할 일' },
-    { type: 'link', label: '할 일', path: '/todos' },
+  const userContractSignatures: GaTenantDashboardMenuEntry[] = [
+    { type: 'section', label: '전자서명' },
+    {
+      type: 'link',
+      label: CONTRACT_SIGNATURE_USER_SEND.label,
+      path: CONTRACT_SIGNATURE_USER_SEND.path,
+    },
+    {
+      type: 'link',
+      label: CONTRACT_SIGNATURE_USER_HISTORY.label,
+      path: CONTRACT_SIGNATURE_USER_HISTORY.path,
+    },
+  ]
+
+  return [
+    { type: 'section', label: '할일 및 알림' },
+    { type: 'link', label: '할일', path: '/todos' },
     { type: 'link', label: '알림', path: '/notifications' },
 
+    { type: 'section', label: '고객관리' },
+    { type: 'link', label: '고객리스트', path: '/customers' },
+    {
+      type: 'link',
+      label: '고객소식지',
+      path: '/claim-requests?claimTab=news-all',
+    },
+    { type: 'link', label: '청구관리', path: '/claim-requests' },
+
     { type: 'section', label: '소식지' },
-    { type: 'link', label: '고객 소식지', path: '/claim-requests?claimTab=news-all' },
-    { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
-    { type: 'link', label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
-    { type: 'link', label: '원수사 소식지', path: '/portal/newsletters' },
+    { type: 'link', label: '원수사소식지', path: '/portal/newsletters' },
     { type: 'link', label: '손해사정사 소식지', path: '/portal/adjuster-news' },
     { type: 'link', label: '세무사 소식지', path: '#', disabled: true, badge: DEV_BADGE },
+
+    { type: 'section', label: '신청서' },
+    ...applicationItems,
+
+    ...(includeUserContractSignatures ? userContractSignatures : []),
 
     { type: 'section', label: '팀관리' },
     { type: 'link', label: '팀원리스트', path: '/team/members' },
     { type: 'link', label: '팀 게시판', path: '/team/posts' },
     { type: 'link', label: '팀 자료', path: '/team/files' },
 
-    { type: 'section', label: '신청서' },
-    ...applicationItems,
+    { type: 'section', label: '업무편의' },
+    { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
+    { type: 'link', label: '설계사이트', path: '/insurance/insurer-sites' },
 
     { type: 'section', label: '내정보' },
     { type: 'link', label: '내 저장공간', path: '/storage' },
     { type: 'link', label: '내정보관리', path: '/profile' },
-    { type: 'link', label: '문의, 요청', path: '/feature-request' },
+    { type: 'link', label: '문의요청', path: '/feature-request' },
   ]
 }
 
@@ -204,7 +241,7 @@ const CONTRACT_SIGNATURE_USER_SEND: GaTenantMenuItem = {
 }
 
 const CONTRACT_SIGNATURE_USER_HISTORY: GaTenantMenuItem = {
-  label: '전자문서 발송 내역',
+  label: '전자서명 발송내역',
   path: '/contracts/signatures/history',
 }
 
@@ -284,22 +321,9 @@ export function buildAppMenuForSession(
       return itemsToEntries([CONTRACT_SIGNATURE_USER_SEND, CONTRACT_SIGNATURE_USER_HISTORY, ...GA_STAFF_MENU])
     }
     if (role === 'GA_ADMIN' || role === 'USER') {
-      const entries = buildGaTenantDashboardMenu(gaCode, gaName)
-      if (role === 'USER') {
-        const customerIdx = entries.findIndex((e) => e.type === 'link' && e.path === '/customers')
-        if (customerIdx >= 0) {
-          entries.splice(customerIdx + 1, 0, {
-            type: 'link',
-            label: CONTRACT_SIGNATURE_USER_SEND.label,
-            path: CONTRACT_SIGNATURE_USER_SEND.path,
-          })
-          entries.splice(customerIdx + 2, 0, {
-            type: 'link',
-            label: CONTRACT_SIGNATURE_USER_HISTORY.label,
-            path: CONTRACT_SIGNATURE_USER_HISTORY.path,
-          })
-        }
-      }
+      const entries = buildGaTenantDashboardMenu(gaCode, gaName, {
+        includeUserContractSignatures: role === 'USER',
+      })
       if (role === 'GA_ADMIN') {
         const testEntry = contractSignatureAdminMenuIfEnabled('GA_ADMIN')
         if (testEntry) {
