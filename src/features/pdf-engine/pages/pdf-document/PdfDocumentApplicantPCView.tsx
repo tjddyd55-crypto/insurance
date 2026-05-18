@@ -47,6 +47,7 @@ export default function PdfDocumentApplicantPCView(props: PdfDocumentApplicantVi
     onChangeFontOverrides,
     onFocusedFieldChange,
     onSubmitApplicant,
+    pdfCarPicker,
   } = props
 
   const previewPaneRef = useRef<HTMLDivElement | null>(null)
@@ -120,6 +121,7 @@ export default function PdfDocumentApplicantPCView(props: PdfDocumentApplicantVi
             onCustomerSearchSubmit={onCustomerSearchSubmit}
             onSelectSearchedCustomer={onSelectSearchedCustomer}
             onClearSelectedCustomer={onClearSelectedCustomer}
+            pdfCarPicker={pdfCarPicker}
           />
         </section>
         <section className="pdf-document-detail-page__preview-col" aria-label="PDF 미리보기">

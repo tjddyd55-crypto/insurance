@@ -1,10 +1,18 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
+import type { CustomerCarRecord } from '../../../customers/api/customerCarsApi'
 import type { PdfFieldSpec, PdfTemplateSummary } from '../../types'
 
 export type PdfSelectedCustomerSummary = {
   id: number
   name: string
   phone?: string
+}
+
+/** 자동차 관련 매핑이 있는 템플릿만 전달된다. 차량 선택·오버레이 동기화에 사용한다. */
+export type PdfApplicantCarPickerUi = {
+  cars: CustomerCarRecord[]
+  selectedCarId: number | null
+  onSelectCarId: (carId: number | null) => void
 }
 
 export type PdfDocumentApplicantViewProps = {
@@ -46,4 +54,6 @@ export type PdfDocumentApplicantViewProps = {
     values: Record<string, string>,
     fontOverrides: Record<string, number>,
   ) => Promise<void> | void
+
+  pdfCarPicker: PdfApplicantCarPickerUi | null
 }

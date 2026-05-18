@@ -1,5 +1,6 @@
 import type { CustomerRecord } from '../../customers/domain/types'
 import {
+  isCustomerPdfCarFieldKey,
   isCustomerPdfFieldKey,
   labelForCustomerPdfFieldKey,
   pickCustomerPdfFieldValue,
@@ -98,6 +99,26 @@ export function applyCustomerDataToPdfValues(
     if (overwriteMode || !manual) {
       out[key] = next
     }
+  }
+  return out
+}
+
+/** 차량 선택 변경 시 — 차량 매핑 필드만 덮어쓴다(수동 매핑·일반 고객 필드는 유지). */
+export function overwriteCarMappedPdfValuesFromCustomer(
+  fields: PdfFieldSpec[],
+  values: Record<string, string>,
+  mergedCustomerWithCarOverlay: CustomerRecord,
+): Record<string, string> {
+  const out = { ...values }
+  for (const field of fields) {
+    const m = normalizePdfFieldDataMapping(field.dataMapping)
+    if (m.dataSourceType !== 'customer' || !m.customerFieldKey || !isCustomerPdfCarFieldKey(m.customerFieldKey)) {
+      continue
+    }
+    if (field.fieldType !== 'text' && field.fieldType !== 'textarea') continue
+    const fk = field.fieldKey
+    const fromCust = pickCustomerPdfFieldValue(mergedCustomerWithCarOverlay, m.customerFieldKey)
+    out[fk] = fromCust || m.fallbackText || ''
   }
   return out
 }

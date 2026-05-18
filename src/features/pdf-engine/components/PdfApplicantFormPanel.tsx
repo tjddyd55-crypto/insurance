@@ -5,7 +5,7 @@
 
 import { useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, CompositionEvent, Dispatch, FormEvent, ClipboardEvent, SetStateAction } from 'react'
-import { FormButton, FormInput, FormTextarea } from '../../../components/form'
+import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { PDF_APPLICANT_DEFAULT_FONT_PT, PDF_APPLICANT_FONT_MAX_PT, PDF_APPLICANT_FONT_MIN_PT } from '../lib/pdfApplicantConstants'
 import {
   clampApplicantFontSizePt,
@@ -13,7 +13,6 @@ import {
   applicantTextLineStats,
   truncateApplicantTextToFit,
 } from '../lib/pdfApplicantTypography'
-import type { PdfSelectedCustomerSummary } from '../pages/pdf-document/pdfDocumentApplicantViewProps'
 import type { PdfFieldSpec } from '../types'
 
 function parseCheckboxJsonArray(raw: string): string[] {
@@ -61,6 +60,7 @@ export interface PdfApplicantFormPanelProps {
   onChangeFontOverrides: Dispatch<SetStateAction<Record<string, number>>>
   onFocusedFieldChange: (key: string | null) => void
   onSubmit: (values: Record<string, string>, fontOverrides: Record<string, number>) => Promise<void> | void
+  pdfCarPicker?: PdfApplicantCarPickerUi | null
 }
 
 function customerFields(fields: PdfFieldSpec[]): PdfFieldSpec[] {
@@ -130,6 +130,7 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
     onChangeFontOverrides,
     onFocusedFieldChange,
     onSubmit,
+    pdfCarPicker = null,
   } = props
 
   const sorted = useMemo(() => customerFields(fields), [fields])
@@ -551,6 +552,47 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
         <p className="pdf-applicant-form__customer-load-hint">
           {customerLoadHint ?? '매핑된 항목의 고객 정보가 입력값에 반영됩니다.'}
         </p>
+
+        {pdfCarPicker ? (
+          <div className="pdf-applicant-form__car-picker" aria-label="PDF 고객 데이터용 차량 선택">
+            <div className="pdf-applicant-form__car-picker-label">적용 차량</div>
+            {pdfCarPicker.cars.length === 0 ? (
+              <p className="pdf-applicant-form__car-picker-empty" role="status">
+                등록된 차량이 없습니다. 차량 정보가 매핑된 필드는 비워 둡니다.
+              </p>
+            ) : pdfCarPicker.cars.length === 1 ? (
+              <p className="pdf-applicant-form__car-picker-single" role="status">
+                <strong>
+                  {pdfCarPicker.cars[0].carNumber?.trim() ||
+                    pdfCarPicker.cars[0].carModel?.trim() ||
+                    '1번 차량'}
+                </strong>
+                {pdfCarPicker.cars[0].carModel?.trim() && pdfCarPicker.cars[0].carNumber?.trim() ? (
+                  <span className="pdf-applicant-form__car-picker-sub"> · {pdfCarPicker.cars[0].carModel.trim()}</span>
+                ) : null}
+              </p>
+            ) : (
+              <FormSelect
+                className="pdf-applicant-form__car-picker-select"
+                aria-label="적용할 차량 선택"
+                value={pdfCarPicker.selectedCarId != null ? String(pdfCarPicker.selectedCarId) : ''}
+                disabled={submitting || loadingCustomerData}
+                options={pdfCarPicker.cars.map((c, idx) => {
+                  const num = `${idx + 1}번`
+                  const tail = c.carNumber?.trim() || c.carModel?.trim() || '번호 미등록'
+                  return { value: String(c.id), label: `${num} · ${tail}` }
+                })}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  const next = raw ? Number(raw) : null
+                  pdfCarPicker.onSelectCarId(
+                    next != null && Number.isInteger(next) && next > 0 ? next : null,
+                  )
+                }}
+              />
+            )}
+          </div>
+        ) : null}
       </div>
 
       {submitHint ? (

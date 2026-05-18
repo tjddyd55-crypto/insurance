@@ -25,6 +25,19 @@ export type CustomerPdfFieldKey =
   | 'weight'
   | 'medical'
 
+/** PDF 매핑 중 자동차 정보(다중 차량 선택과 연동되는 키만). driverLicense 등은 제외. */
+const CUSTOMER_PDF_CAR_FIELD_KEYS = new Set<CustomerPdfFieldKey>([
+  'carNumber',
+  'carModel',
+  'carYear',
+  'carInsuranceExpiryDate',
+  'carType',
+])
+
+export function isCustomerPdfCarFieldKey(key: string | null | undefined): key is CustomerPdfFieldKey {
+  return typeof key === 'string' && CUSTOMER_PDF_CAR_FIELD_KEYS.has(key as CustomerPdfFieldKey)
+}
+
 export const CUSTOMER_PDF_FIELD_OPTIONS: ReadonlyArray<{
   key: CustomerPdfFieldKey
   label: string

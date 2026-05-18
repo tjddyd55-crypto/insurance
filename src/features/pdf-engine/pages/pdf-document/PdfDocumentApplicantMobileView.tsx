@@ -45,6 +45,7 @@ export default function PdfDocumentApplicantMobileView(props: PdfDocumentApplica
     onChangeFontOverrides,
     onFocusedFieldChange,
     onSubmitApplicant,
+    pdfCarPicker,
   } = props
 
   const previewRef = useRef<PdfApplicantPreviewHandle | null>(null)
@@ -98,6 +99,7 @@ export default function PdfDocumentApplicantMobileView(props: PdfDocumentApplica
           onCustomerSearchSubmit={onCustomerSearchSubmit}
           onSelectSearchedCustomer={onSelectSearchedCustomer}
           onClearSelectedCustomer={onClearSelectedCustomer}
+          pdfCarPicker={pdfCarPicker}
         />
       </section>
       <div className="pdf-document-detail-page__mobile-preview-dock">

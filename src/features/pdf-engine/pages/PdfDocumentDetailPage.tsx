@@ -11,6 +11,7 @@ import Modal from '../../../components/ui/Modal'
 import { ApiError, resolveAbsoluteApiUrl } from '../../../lib/apiClient'
 import { useAuth } from '../../auth/AuthProvider'
 import { getCustomerById, searchCustomers } from '../../customers/api/customersApi'
+import { listCustomerCars, type CustomerCarRecord } from '../../customers/api/customerCarsApi'
 import type { CustomerRecord } from '../../customers/domain/types'
 import {
   fetchPdfTemplateFile,
@@ -27,8 +28,13 @@ import type {
   PdfSelectedCustomerSummary,
 } from './pdf-document/pdfDocumentApplicantViewProps'
 import { clampApplicantFontSizePt } from '../lib/pdfApplicantTypography'
-import { applyCustomerDataToPdfValues } from '../lib/resolvePdfFieldValue'
-import { normalizePdfFieldDataMapping } from '../lib/resolvePdfFieldValue'
+import {
+  applyCustomerDataToPdfValues,
+  normalizePdfFieldDataMapping,
+  overwriteCarMappedPdfValuesFromCustomer,
+} from '../lib/resolvePdfFieldValue'
+import { hasCarMappedFields } from '../lib/hasCarMappedFields'
+import { customerWithSelectedCar, sortCustomerCarsForPicker } from '../lib/customerPdfCarOverlay'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
 import { DEFAULT_PDF_FIELD_DATA_MAPPING } from '../types'
 import { usePdfDocumentsWorkspacePaths } from '../utils/pdfCustomerWorkspacePaths'
@@ -160,6 +166,25 @@ export default function PdfDocumentDetailPage() {
   const [customerSearchBusy, setCustomerSearchBusy] = useState(false)
   const [customerSearchError, setCustomerSearchError] = useState<string | null>(null)
   const [customerSearchResults, setCustomerSearchResults] = useState<PdfSelectedCustomerSummary[]>([])
+  const [pdfCustomerCars, setPdfCustomerCars] = useState<CustomerCarRecord[]>([])
+  const [selectedPdfCarId, setSelectedPdfCarId] = useState<number | null>(null)
+
+  const hasCarPdfMapping = state.status === 'ready' && hasCarMappedFields(state.fields)
+
+  const pdfCarsSignature = useMemo(
+    () => pdfCustomerCars.map((c) => `${c.id}:${c.carNumber}:${c.carModel}:${c.carYear}:${c.renewalDate ?? ''}`).join('|'),
+    [pdfCustomerCars],
+  )
+
+  const pdfOverlayCarRecord = useMemo(() => {
+    if (!hasCarPdfMapping || pdfCustomerCars.length === 0) {
+      return null
+    }
+    if (selectedPdfCarId != null) {
+      return pdfCustomerCars.find((c) => c.id === selectedPdfCarId) ?? pdfCustomerCars[0] ?? null
+    }
+    return pdfCustomerCars[0] ?? null
+  }, [hasCarPdfMapping, pdfCustomerCars, selectedPdfCarId])
 
   const effectiveCustomerId = useMemo(
     () => selectedCustomer?.id ?? workspaceCustomerIdFromRoute ?? null,
@@ -301,6 +326,58 @@ export default function PdfDocumentDetailPage() {
     sourcePrefill.kind,
   ])
 
+  useEffect(() => {
+    if (!token?.trim() || !hasCarPdfMapping || effectiveCustomerId == null) {
+      setPdfCustomerCars([])
+      setSelectedPdfCarId(null)
+      return
+    }
+    let cancelled = false
+    listCustomerCars(token, effectiveCustomerId)
+      .then((rows) => {
+        if (cancelled) {
+          return
+        }
+        const sorted = sortCustomerCarsForPicker(rows)
+        setPdfCustomerCars(sorted)
+        setSelectedPdfCarId((prev) => {
+          if (prev != null && sorted.some((c) => c.id === prev)) {
+            return prev
+          }
+          return sorted[0]?.id ?? null
+        })
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPdfCustomerCars([])
+          setSelectedPdfCarId(null)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [token, hasCarPdfMapping, effectiveCustomerId])
+
+  /** 자동차 매핑 로드 후 — 선택 차량 기준 차량 매핑 필드 동기화(미리보기·생성은 applicantValues 따라감). */
+  useEffect(() => {
+    if (state.status !== 'ready') {
+      return
+    }
+    const fields = state.fields
+    if (!hasCarMappedFields(fields) || cachedCustomer == null) {
+      return
+    }
+    const merged = customerWithSelectedCar(cachedCustomer, pdfOverlayCarRecord)
+    setApplicantValues((prev) => overwriteCarMappedPdfValuesFromCustomer(fields, prev, merged))
+  }, [
+    state.status === 'ready' ? state.template.id : 0,
+    cachedCustomer?.id,
+    hasCarPdfMapping,
+    pdfCarsSignature,
+    pdfOverlayCarRecord?.id ?? -1,
+    selectedPdfCarId,
+  ])
+
   const displayCustomerLabel = issuerCustomerLabel.trim() || fallbackCustomerLabel.trim()
 
   const workspaceCustomerLabel = displayCustomerLabel.trim() || null
@@ -391,8 +468,25 @@ export default function PdfDocumentDetailPage() {
         return
       }
       setCachedCustomer(customer)
+      const fields = state.fields
+      const useCarMerge = hasCarMappedFields(fields)
+      let overlayCarResolved: CustomerCarRecord | null = null
+      if (useCarMerge) {
+        const rawCars = await listCustomerCars(token, effectiveCustomerId)
+        const sorted = sortCustomerCarsForPicker(rawCars)
+        setPdfCustomerCars(sorted)
+        const keep = selectedPdfCarId != null && sorted.some((c) => c.id === selectedPdfCarId)
+        const sid = keep ? selectedPdfCarId : sorted[0]?.id ?? null
+        setSelectedPdfCarId(sid)
+        overlayCarResolved = sid != null ? sorted.find((c) => c.id === sid) ?? null : null
+      }
+
+      const customerForPdf = useCarMerge
+        ? customerWithSelectedCar(customer, overlayCarResolved)
+        : customer
+
       setApplicantValues((prev) =>
-        applyCustomerDataToPdfValues(state.fields, prev, customer, {
+        applyCustomerDataToPdfValues(fields, prev, customerForPdf, {
           overwriteMode: overwriteCustomerOnLoad,
         }),
       )
@@ -420,6 +514,7 @@ export default function PdfDocumentDetailPage() {
     state,
     cachedCustomer,
     overwriteCustomerOnLoad,
+    selectedPdfCarId,
   ])
 
   const handleSubmitApplicant = useCallback(
@@ -528,6 +623,14 @@ export default function PdfDocumentDetailPage() {
       onChangeFontOverrides: setFontOverrides,
       onFocusedFieldChange: setFocusedFieldKey,
       onSubmitApplicant: handleSubmitApplicant,
+      pdfCarPicker:
+        hasCarPdfMapping ?
+          {
+            cars: pdfCustomerCars,
+            selectedCarId: selectedPdfCarId,
+            onSelectCarId: setSelectedPdfCarId,
+          }
+        : null,
     }
   }, [
     state,
@@ -556,6 +659,9 @@ export default function PdfDocumentDetailPage() {
     handleCustomerSearchSubmit,
     handleSelectSearchedCustomer,
     handleClearSelectedCustomer,
+    hasCarPdfMapping,
+    pdfCustomerCars,
+    selectedPdfCarId,
   ])
 
   if (state.status === 'loading') {
