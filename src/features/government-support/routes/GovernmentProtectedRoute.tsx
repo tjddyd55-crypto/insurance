@@ -1,5 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { resolveGovernmentAccessState } from '../lib/governmentAccess'
 import { useGovernmentAccess } from '../hooks/useGovernmentAccess'
 
 type GovernmentProtectedRouteProps = {
@@ -11,7 +12,7 @@ type GovernmentProtectedRouteProps = {
  */
 export default function GovernmentProtectedRoute({ requireAdmin = false }: GovernmentProtectedRouteProps) {
   const { token, isAuthenticated } = useAuth()
-  const { loading, summary } = usePlatformAccess(token)
+  const { loading, summary } = useGovernmentAccess(token)
   const state = resolveGovernmentAccessState(summary, loading, Boolean(isAuthenticated && token))
 
   if (!isAuthenticated || !token) {
@@ -38,11 +39,7 @@ export default function GovernmentProtectedRoute({ requireAdmin = false }: Gover
       </main>
     )
   }
-  if (
-    requireAdmin &&
-    !summary?.isGovernmentIndustryAdmin &&
-    !summary?.isSuperAdmin
-  ) {
+  if (requireAdmin && !summary?.isGovernmentIndustryAdmin && !summary?.isSuperAdmin) {
     return <Navigate to="/government/workspace" replace />
   }
   return <Outlet />

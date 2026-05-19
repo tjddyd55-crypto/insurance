@@ -118,6 +118,14 @@ import ContractSignatureTestConsolePage from './features/contracts/testConsole/C
 import { ContractSignatureUserSendRoute } from './features/contracts/userSend/ContractSignatureUserSendRoute'
 import ContractSignatureSendPage from './features/contracts/userSend/ContractSignatureSendPage'
 import ContractSignatureHistoryPage from './features/contracts/userHistory/ContractSignatureHistoryPage'
+import GovernmentLoginPage from './features/government-support/pages/GovernmentLoginPage'
+import GovernmentSignupPage from './features/government-support/pages/GovernmentSignupPage'
+import GovernmentJoinPage from './features/government-support/pages/GovernmentJoinPage'
+import GovernmentWorkspacePage from './features/government-support/pages/GovernmentWorkspacePage'
+import GovernmentAdminHubPage from './features/government-support/pages/admin/GovernmentAdminHubPage'
+import GovernmentAdminAgenciesPage from './features/government-support/pages/admin/GovernmentAdminAgenciesPage'
+import GovernmentPlaceholderPage from './features/government-support/components/GovernmentPlaceholderPage'
+import GovernmentProtectedRoute from './features/government-support/routes/GovernmentProtectedRoute'
 
 export const appRouter = createBrowserRouter([
   {
@@ -132,6 +140,50 @@ export const appRouter = createBrowserRouter([
       { path: 'signup/insurance', element: <RegisterPage signupIndustry="insurance" /> },
       { path: 'signup/gym', element: <RegisterPage signupIndustry="gym" /> },
       { path: 'signup/government', element: <RegisterPage signupIndustry="government" /> },
+      { path: 'government/login', element: <GovernmentLoginPage /> },
+      { path: 'government/signup', element: <GovernmentSignupPage /> },
+      { path: 'government/join', element: <GovernmentJoinPage /> },
+      { path: 'government/join/:agencyCode', element: <GovernmentJoinPage /> },
+      {
+        element: <GovernmentProtectedRoute />,
+        children: [
+          { path: 'government/workspace', element: <GovernmentWorkspacePage /> },
+          { path: 'government/customers', element: <Navigate to="/government/workspace" replace /> },
+          {
+            path: 'government/settings',
+            element: (
+              <GovernmentPlaceholderPage title="설정" description="정부지원 CRM 설정 (준비 중)" />
+            ),
+          },
+        ],
+      },
+      {
+        element: <GovernmentProtectedRoute requireAdmin />,
+        children: [
+          { path: 'government/admin', element: <GovernmentAdminHubPage /> },
+          { path: 'government/admin/agencies', element: <GovernmentAdminAgenciesPage /> },
+          {
+            path: 'government/admin/templates',
+            element: (
+              <GovernmentPlaceholderPage
+                title="고객관리 템플릿"
+                description="government-support는 코드형 CRM입니다. 동적 빌더 템플릿은 보험 플랫폼과 별도입니다."
+                backTo="/government/admin"
+              />
+            ),
+          },
+          {
+            path: 'government/admin/pdf-templates',
+            element: (
+              <GovernmentPlaceholderPage
+                title="PDF 좌표 템플릿"
+                description="기존 PDF 엔진 템플릿을 government 필드 매핑과 함께 사용합니다."
+                backTo="/government/admin"
+              />
+            ),
+          },
+        ],
+      },
       { path: 'privacy', element: <PrivacyPolicyPage /> },
       { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
       { path: 'introduction', element: <IntroductionPage /> },
