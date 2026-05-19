@@ -1270,6 +1270,8 @@ export async function initDb() {
   `)
 
   await ensureCrmPlatformMetaSchema(pool)
+  const { ensureGovernmentSupportSchema } = await import('./lib/governmentSupport/schema.js')
+  await ensureGovernmentSupportSchema(pool)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS feature_requests (

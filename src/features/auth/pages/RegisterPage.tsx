@@ -83,6 +83,17 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   }, [searchParams])
 
   useEffect(() => {
+    if (signupIndustry !== 'government') {
+      return
+    }
+    const stored = sessionStorage.getItem('government_join_agency_code')?.trim()
+    if (stored) {
+      setRegistrationCode(stored.toUpperCase())
+      sessionStorage.removeItem('government_join_agency_code')
+    }
+  }, [signupIndustry])
+
+  useEffect(() => {
     if (secondsLeft <= 0) {
       return
     }
