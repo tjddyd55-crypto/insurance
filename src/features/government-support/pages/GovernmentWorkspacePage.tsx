@@ -60,7 +60,7 @@ export default function GovernmentWorkspacePage() {
 
   return (
     <main
-      className={`page government-page government-workspace ${isMobile ? 'government-page--mobile' : ''}`}
+      className={`page government-page government-workspace ${isMobile ? 'government-page--mobile' : 'government-page--pc'}`}
     >
       <header className="government-workspace__header">
         <div>
