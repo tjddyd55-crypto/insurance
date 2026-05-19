@@ -562,6 +562,20 @@ export function registerGovernmentSupportApi(router, deps) {
         res.status(403).json({ message: 'tenant 접근 권한이 없습니다.' })
         return
       }
+      const rawCaseId = b.applicationCaseId ?? b.application_case_id ?? null
+      let applicationCaseId = null
+      if (rawCaseId != null && String(rawCaseId).trim() !== '') {
+        const caseId = String(rawCaseId).trim()
+        const ac = await pool.query(
+          `SELECT id FROM gov_support_application_cases WHERE id = $1::bigint AND profile_id = $2::bigint LIMIT 1`,
+          [caseId, profileId],
+        )
+        if ((ac.rowCount ?? 0) === 0) {
+          res.status(400).json({ message: '신청/청약 건이 프로필과 일치하지 않습니다.' })
+          return
+        }
+        applicationCaseId = caseId
+      }
       const r = await pool.query(
         `
         INSERT INTO gov_support_edoc_links (
@@ -572,7 +586,7 @@ export function registerGovernmentSupportApi(router, deps) {
         [
           tenantId,
           profileId,
-          b.applicationCaseId ?? b.application_case_id ?? null,
+          applicationCaseId,
           String(b.documentName ?? b.document_name ?? '정부지원 전자문서'),
           String(b.recipient ?? ''),
           String(b.signStatus ?? b.sign_status ?? '대기'),
@@ -677,8 +691,15 @@ export function registerGovernmentSupportApi(router, deps) {
       }
       let caseRow = null
       if (caseId) {
-        const cr = await pool.query(`SELECT * FROM gov_support_application_cases WHERE id = $1::bigint`, [caseId])
-        caseRow = cr.rows[0] ?? null
+        const cr = await pool.query(
+          `SELECT * FROM gov_support_application_cases WHERE id = $1::bigint AND profile_id = $2::bigint LIMIT 1`,
+          [caseId, profileId],
+        )
+        if ((cr.rowCount ?? 0) === 0) {
+          res.status(404).json({ message: '신청/청약 건을 찾을 수 없습니다.' })
+          return
+        }
+        caseRow = cr.rows[0]
       }
       const p = mapGovSupportProfileRow(pr.rows[0])
       const mapping = buildGovernmentPdfFieldMapping(p, caseRow)

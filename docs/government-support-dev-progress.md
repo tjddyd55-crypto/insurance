@@ -111,7 +111,7 @@
 **커밋:** `feat(government): prepare pdf coordinate mapping`
 
 - `governmentPdfFieldMapping.ts` — 프로필 flatten → PDF 필드 키
-- `GET /api/government-support/profiles/:id/pdf-field-map`
+- `GET /api/government-support/profiles/:id/pdf-mapping`
 
 ---
 
@@ -169,3 +169,69 @@
 3. `governmentContractAdapter` → 신청건 ID 기준 발송·이력 API
 4. R2 서류 업로드를 `customerExtraApi` 패턴으로 `profile_id`/`case_id` 스코프 연결
 5. `/todos` tenant 필터 + 신청건 메타 연동
+
+---
+
+## 1차 구현 검수 (2026-05-19)
+
+**브랜치:** `develop` (HEAD `3d71812` 이후 보정 커밋 예정)  
+**범위:** 정적 코드·빌드·테스트 검수 (브라우저 E2E는 미실행)
+
+### 자동 검증
+
+| 항목 | 결과 |
+|------|------|
+| `git status` | 작업 트리 clean (`docs/ops/platform-mode-first-iteration.md` untracked만 존재, government 무관) |
+| `npm run build` | ✅ 성공 |
+| `npm test` | ✅ 114 pass |
+
+### 라우트 구조 (`appRouter.tsx`)
+
+| 경로 | 게이트 | 비고 |
+|------|--------|------|
+| `/government/login`, `/signup`, `/join`, `/join/:agencyCode` | 없음 (공개) | `AppLayout` 하위, `ProtectedRoute` 밖 |
+| `/government/workspace`, `/customers`, `/settings` | `GovernmentProtectedRoute` | 구독(`RequireActiveSubscription`) 미경유 — government 전용 |
+| `/government/admin/*` | `GovernmentProtectedRoute requireAdmin` | industry_admin·super_admin |
+| `/signup/government` | 공개 | 기존 유지 |
+| `/login`, `/register`, `/customers`, `/contracts/*`, `/admin/platform` | 기존 `ProtectedRoute` 트리 | government 라우트와 **형제 관계**, `path: '*'` catch-all( `/dashboard` )과 **충돌 없음** |
+
+### 기존 보험 기능 회귀 (정적)
+
+| 영역 | 판정 | 근거 |
+|------|------|------|
+| 로그인·회원가입 | ✅ 낮음 | `RegisterPage` government 분기는 `signupIndustry === 'government'` 일 때만 sessionStorage 프리필 |
+| 고객관리 | ✅ 없음 | `CustomersPage` / `CustomerWorkspaceLayout` 미수정 |
+| 전자문서 | ✅ 낮음 | contracts 라우트·모듈 미수정; workspace 탭은 기존 `/contracts/signatures/send` 링크만 |
+| PDF 좌표 | ✅ 없음 | `features/pdf-engine` 미수정 |
+| 플랫폼 관리 | ✅ 낮음 | `/admin/platform`은 `SuperAdminRoute` 유지, government admin은 별도 prefix |
+
+### API `tenant_id` / 스코프 점검
+
+| 엔드포인트 | 스코프 |
+|------------|--------|
+| `GET /profiles` | `resolveGovernmentTenantScopeForQuery` → `WHERE tenant_id = ANY(...)` |
+| `POST /profiles` | `canAccessGovernmentTenant(ctx, body.tenantId)` |
+| `GET/PATCH /profiles/:id` 및 하위 prior-loans, application-cases | 프로필 `tenant_id` → `canAccessGovernmentTenant` |
+| `PATCH prior-loans/:id`, `PATCH application-cases/:id`, `PATCH documents/:id` | 행 `tenant_id` 검사 |
+| `GET/POST admin/agencies` | industry_admin 전용, government 업종 tenant 목록 |
+| `GET pdf-mapping` | 프로필 tenant 검사 + **보정:** `applicationCaseId`는 동일 `profile_id` 소속만 허용 |
+| `POST edoc-links` | **보정:** `applicationCaseId` 프로필 일치 검증 추가 |
+
+`profilePatchFromBody`에 `tenant_id` 없음 → PATCH로 tenant 이전 불가.
+
+### API unwrap (클라이언트)
+
+- `apiRequest` → `safeApiResponse`로 envelope 1회 unwrap.
+- `governmentProfilesApi` / `governmentSupportApi`는 `unwrapData` / `unwrapList`가 **이미 unwrap된 payload**와 `{ success, data }` **둘 다** 처리. `.data.data` 이중 접근 패턴 없음.
+
+### 검수 중 보정 (최소 diff)
+
+| 파일 | 내용 |
+|------|------|
+| `server/registerGovernmentSupportApi.js` | PDF 매핑·전자문서 링크 생성 시 신청건 ID가 타 프로필 건을 참조하지 못하도록 `profile_id` 일치 검증 |
+
+### 수동 확인 권장 (미실행)
+
+- government industry_admin 계정으로 대행사 등록 → agencyCode 가입 → workspace CRUD
+- 보험 GA 계정으로 `/customers`, `/contracts/signatures/send` 기존 동작
+- government-only 멤버가 `/contracts/signatures/send` 링크 클릭 시 구독/권한 게이트 동작 (알려진 제한)
