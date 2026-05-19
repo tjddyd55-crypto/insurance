@@ -15,6 +15,9 @@ const CANONICAL_PLATFORM_ROLES = Object.freeze([
   'tenant_admin',
   'staff',
   'user',
+  'government_industry_admin',
+  'government_agency_admin',
+  'government_staff',
 ])
 
 const CANONICAL_SET = new Set(CANONICAL_PLATFORM_ROLES)
@@ -48,6 +51,9 @@ const CANONICAL_SET = new Set(CANONICAL_PLATFORM_ROLES)
  * @property {readonly string[]} tenantAdminTenantIds
  * @property {readonly string[]} staffTenantIds
  * @property {readonly string[]} userTenantIds
+ * @property {readonly string[]} governmentIndustryAdminIndustryIds
+ * @property {readonly string[]} governmentAgencyAdminTenantIds
+ * @property {readonly string[]} governmentStaffTenantIds
  */
 
 /**
@@ -169,6 +175,36 @@ export function buildEffectivePlatformContext({ user, memberships }) {
       if (tid !== null) {
         userTenants.add(tid)
       }
+      continue
+    }
+
+    if (pr === 'government_industry_admin' && scopeType === 'industry') {
+      const iid =
+        normalizeIdKey(m.industry_id) ??
+        normalizeIdKey(m.scope_id)
+      if (iid !== null) {
+        governmentIndustryAdmin.add(iid)
+      }
+      continue
+    }
+
+    if (pr === 'government_agency_admin' && scopeType === 'tenant') {
+      const tid =
+        normalizeIdKey(m.tenant_id) ??
+        normalizeIdKey(m.scope_id)
+      if (tid !== null) {
+        governmentAgencyAdmin.add(tid)
+      }
+      continue
+    }
+
+    if (pr === 'government_staff' && scopeType === 'tenant') {
+      const tid =
+        normalizeIdKey(m.tenant_id) ??
+        normalizeIdKey(m.scope_id)
+      if (tid !== null) {
+        governmentStaff.add(tid)
+      }
     }
   }
 
@@ -184,6 +220,9 @@ export function buildEffectivePlatformContext({ user, memberships }) {
     tenantAdminTenantIds: Object.freeze([...tenantAdmin].sort()),
     staffTenantIds: Object.freeze([...staffTenants].sort()),
     userTenantIds: Object.freeze([...userTenants].sort()),
+    governmentIndustryAdminIndustryIds: Object.freeze([...governmentIndustryAdmin].sort()),
+    governmentAgencyAdminTenantIds: Object.freeze([...governmentAgencyAdmin].sort()),
+    governmentStaffTenantIds: Object.freeze([...governmentStaff].sort()),
   })
 
   return context

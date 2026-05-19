@@ -58,6 +58,9 @@
 
 ---
 
-## 1단계 — 권한 구조
+## 1단계 — 권한 구조 (완료)
 
-_(진행 시 업데이트)_
+- `server/lib/platformRbac.js` — `government_*` 멤버십 역할·컨텍스트 필드 확장
+- `server/lib/governmentSupport/constants.js`, `governmentAccess.js`
+- `server/registerGovernmentSupportApi.js` — `GET /api/government-support/me/access`
+- `src/features/government-support/` — 역할 상수, API, `useGovernmentAccess`, `GovernmentProtectedRoute`
