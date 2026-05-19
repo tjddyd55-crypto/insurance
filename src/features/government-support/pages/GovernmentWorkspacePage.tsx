@@ -244,7 +244,11 @@ export default function GovernmentWorkspacePage() {
                 </FormButton>
                 {ws.cases.map((c) => (
                   <div key={c.id} style={{ marginTop: '0.75rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: 8 }}>
-                    <p style={{ margin: '0 0 0.5rem', color: '#f8fafc' }}>{c.productName || '접수상품'}</p>
+                    <Field
+                      label="접수상품명"
+                      value={c.productName}
+                      onChange={(v) => void ws.updateCaseField(c.id, { productName: v })}
+                    />
                     <select
                       value={c.progressStatus}
                       onChange={(e) => void ws.updateCaseStatus(c.id, e.target.value)}

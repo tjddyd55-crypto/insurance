@@ -144,6 +144,16 @@ export function useGovernmentWorkspaceState(token: string | null, defaultTenantI
     [token, reloadDetail, reloadProfiles],
   )
 
+  const updateCaseField = useCallback(
+    async (caseId: string, patch: Partial<GovApplicationCase>) => {
+      if (!token) return
+      await patchGovApplicationCase(token, caseId, patch)
+      await reloadDetail()
+      await reloadProfiles()
+    },
+    [token, reloadDetail, reloadProfiles],
+  )
+
   return {
     loading,
     error,
@@ -164,6 +174,7 @@ export function useGovernmentWorkspaceState(token: string | null, defaultTenantI
     removePriorLoan,
     addApplicationCase,
     updateCaseStatus,
+    updateCaseField,
     reloadProfiles,
   }
 }
