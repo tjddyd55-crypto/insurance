@@ -22,6 +22,45 @@ type CrmTemplateMutationPayload = {
   resolved: CustomerIndustryTemplate
 }
 
+export type TenantCrmCustomerTemplatePatchResult = {
+  id: number
+  crmCustomerTemplateId: number | null
+}
+
+/** PATCH tenant crm-customer-template — safeApiResponse 가 data 만 반환하는 경우와 envelope 유지를 모두 처리 */
+function unwrapTenantCrmCustomerTemplatePatchPayload(raw: unknown): TenantCrmCustomerTemplatePatchResult | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+
+  const nested = o.data
+  if (nested && typeof nested === 'object') {
+    const parsed = parseTenantCrmTemplatePatchRow(nested as Record<string, unknown>)
+    if (parsed) return parsed
+  }
+
+  return parseTenantCrmTemplatePatchRow(o)
+}
+
+function parseTenantCrmTemplatePatchRow(row: Record<string, unknown>): TenantCrmCustomerTemplatePatchResult | null {
+  const id = coercePositiveIntId(row.id)
+  if (id == null) return null
+  const fkRaw = row.crm_customer_template_id ?? row.crmCustomerTemplateId
+  let crmCustomerTemplateId: number | null = null
+  if (fkRaw !== null && fkRaw !== undefined && String(fkRaw).trim() !== '') {
+    const fk = coercePositiveIntId(fkRaw)
+    if (fk == null) return null
+    crmCustomerTemplateId = fk
+  }
+  return { id, crmCustomerTemplateId }
+}
+
+function extractApiErrorMessage(raw: unknown, fallback: string): string {
+  if (!raw || typeof raw !== 'object') return fallback
+  const o = raw as { message?: string }
+  const msg = typeof o.message === 'string' ? o.message.trim() : ''
+  return msg || fallback
+}
+
 /** apiRequest + safeApiResponse 가 `{ success, data }` 의 data 만 반환하는 경우와 row/resolved 직접 반환을 모두 처리 */
 function unwrapCrmTemplateMutationPayload(raw: unknown): CrmTemplateMutationPayload | null {
   if (!raw || typeof raw !== 'object') return null
@@ -111,8 +150,12 @@ export async function updateCrmCustomerManagementTemplate(token: string, id: num
   return data
 }
 
-export async function patchTenantCrmCustomerTemplate(token: string, tenantId: number, templateId: number | null) {
-  const raw = await apiRequest<{ success?: boolean; data?: unknown; message?: string }>(
+export async function patchTenantCrmCustomerTemplate(
+  token: string,
+  tenantId: number,
+  templateId: number | null,
+): Promise<TenantCrmCustomerTemplatePatchResult> {
+  const raw = await apiRequest<unknown>(
     `/api/admin/platform/tenants/${tenantId}/crm-customer-template`,
     {
       method: 'PATCH',
@@ -120,10 +163,11 @@ export async function patchTenantCrmCustomerTemplate(token: string, tenantId: nu
       body: JSON.stringify({ crm_customer_template_id: templateId }),
     },
   )
-  if (!raw || typeof raw !== 'object' || (raw as { data?: unknown }).data == null) {
-    throw new ApiError(String((raw as { message?: string })?.message ?? '테넌트 설정에 실패했습니다.'), 400)
+  const parsed = unwrapTenantCrmCustomerTemplatePatchPayload(raw)
+  if (!parsed) {
+    throw new ApiError(extractApiErrorMessage(raw, '테넌트 설정에 실패했습니다.'), 400)
   }
-  return (raw as { data: unknown }).data
+  return parsed
 }
 
 export async function listPlatformIndustriesSimple(token: string): Promise<{ id: number; code: string; name: string }[]> {
