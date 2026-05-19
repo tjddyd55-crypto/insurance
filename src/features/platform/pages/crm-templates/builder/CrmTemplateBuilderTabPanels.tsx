@@ -779,7 +779,8 @@ function FormFieldsTab({
                     onChange={(e) => patchField(f.localId, { fieldKey: e.target.value })}
                   />
                   <p className="platform-admin-page__field-hint text-xs mt-1 mb-0">
-                    라벨만 바꿔도 저장된 키는 유지됩니다. 신규 필드는 라벨 입력 시 자동 생성됩니다.
+                    신규 필드의 내부 키는 미리보기 반영 또는 저장 시 자동 생성됩니다. 기존 필드의 내부 키는 라벨을
+                    수정해도 유지됩니다.
                   </p>
                 </label>
               )}
@@ -1258,7 +1259,7 @@ function DetailTabFieldsEditor({
               onChange={(e) => patchTab(tab.localId, { tabId: e.target.value })}
             />
             <p className="platform-admin-page__field-hint text-xs mt-1 mb-0">
-              탭 이름만 바꿔도 저장된 ID는 유지됩니다. 신규 탭은 이름 입력 시 자동 생성됩니다.
+              신규 탭의 내부 ID는 미리보기 반영 또는 저장 시 자동 생성됩니다. 기존 탭 ID는 이름을 수정해도 유지됩니다.
             </p>
           </label>
         </details>
