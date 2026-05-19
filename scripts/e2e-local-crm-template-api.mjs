@@ -157,6 +157,41 @@ async function main() {
     ok('existing template GET', true, 'skipped (no other row)')
   }
 
+  const indList = await req('/api/admin/platform/industries', { token })
+  const govInd = (indList.json?.items ?? []).find((i) => String(i.code).toLowerCase() === 'government')
+  if (govInd?.id) {
+    const tenantsRes = await req(`/api/admin/platform/industries/${govInd.id}/tenants`, { token })
+    const tenant =
+      (tenantsRes.json?.items ?? []).find((t) => String(t.code).toLowerCase() === 'seuseung') ??
+      (tenantsRes.json?.items ?? []).find((t) => String(t.status).toLowerCase() === 'active')
+    const govTplRes = await req(
+      '/api/admin/platform/crm-customer-management-templates?industry_code=government',
+      { token },
+    )
+    const tpl =
+      (govTplRes.json?.data ?? []).find((r) => Number(r.id) === 1) ?? (govTplRes.json?.data ?? [])[0]
+    if (tenant?.id && tpl?.id) {
+      const patch = await req(`/api/admin/platform/tenants/${tenant.id}/crm-customer-template`, {
+        method: 'PATCH',
+        token,
+        body: JSON.stringify({ crm_customer_template_id: tpl.id }),
+      })
+      const patchData = patch.json?.data
+      ok(
+        'patch tenant crm template (HTTP envelope)',
+        patch.status === 200 &&
+          patchData != null &&
+          Number(patchData.id) === Number(tenant.id) &&
+          Number(patchData.crm_customer_template_id) === Number(tpl.id),
+        `tenant=${tenant.code} templateId=${tpl.id} body=${JSON.stringify(patchData)}`,
+      )
+    } else {
+      ok('patch tenant crm template (HTTP envelope)', true, 'skipped (no government tenant/template in DB)')
+    }
+  } else {
+    ok('patch tenant crm template (HTTP envelope)', true, 'skipped (no government industry)')
+  }
+
   console.log('\n--- summary ---')
   const failed = results.filter((r) => !r.pass)
   if (failed.length) {

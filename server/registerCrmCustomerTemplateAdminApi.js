@@ -234,9 +234,16 @@ export function registerCrmCustomerTemplateAdminApi(router, deps) {
    * 테넌트가 사용할 동적 템플릿 id 고정(null 이면 업종 디폴트로 복귀).
    */
   router.patch('/admin/platform/tenants/:tenantId/crm-customer-template', guard, async (req, res) => {
+    const tenantIdParam = req.params.tenantId
+    let tenantId = NaN
+    let tplIdForLog = null
     try {
-      const tenantId = Number(req.params.tenantId)
+      tenantId = Number(tenantIdParam)
       if (!Number.isInteger(tenantId) || tenantId < 1) {
+        console.warn('[crm-customer-template] PATCH tenant link rejected', {
+          tenantId: tenantIdParam,
+          reason: 'invalid_tenant_id',
+        })
         res.status(400).json({ message: 'invalid tenantId' })
         return
       }
@@ -255,9 +262,15 @@ export function registerCrmCustomerTemplateAdminApi(router, deps) {
         }
 
         if (!Number.isInteger(tplId)) {
+          console.warn('[crm-customer-template] PATCH tenant link rejected', {
+            tenantId,
+            crmCustomerTemplateId: String(tplRaw),
+            reason: 'invalid_template_id_format',
+          })
           res.status(400).json({ message: 'crm_customer_template_id 형식 오류' })
           return
         }
+        tplIdForLog = tplId
 
         const tplR2 = await pool.query(
           `
@@ -271,6 +284,11 @@ export function registerCrmCustomerTemplateAdminApi(router, deps) {
           [tplId, tenantId],
         )
         if (tplR2.rowCount === 0) {
+          console.warn('[crm-customer-template] PATCH tenant link rejected', {
+            tenantId,
+            crmCustomerTemplateId: tplId,
+            reason: 'template_not_found_or_industry_mismatch_or_inactive',
+          })
           res.status(400).json({ message: '템플릿이 존재하지 않거나 업종과 맞지 않거나 비활성입니다.' })
           return
         }
@@ -279,6 +297,11 @@ export function registerCrmCustomerTemplateAdminApi(router, deps) {
 
       const tRow = await pool.query(`SELECT id FROM tenants WHERE id = $1 LIMIT 1`, [tenantId])
       if (tRow.rowCount === 0) {
+        console.warn('[crm-customer-template] PATCH tenant link rejected', {
+          tenantId,
+          crmCustomerTemplateId: tplIdForLog,
+          reason: 'tenant_not_found',
+        })
         res.status(404).json({ message: 'tenant not found' })
         return
       }
@@ -294,6 +317,12 @@ export function registerCrmCustomerTemplateAdminApi(router, deps) {
       )
       res.json({ success: true, data: u.rows[0] })
     } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e)
+      console.error('[crm-customer-template] PATCH tenant link failed', {
+        tenantId: Number.isInteger(tenantId) ? tenantId : tenantIdParam,
+        crmCustomerTemplateId: tplIdForLog,
+        message: errMsg,
+      })
       handleDbError(e, req, res)
     }
   })
