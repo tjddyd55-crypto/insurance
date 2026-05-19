@@ -15,6 +15,11 @@ import {
 import type { NationalIdCoreFieldMode } from './crmTemplateDefaultCustomerFields'
 import { appendMissingDefaultCustomerCoreFields, inferNationalIdCoreFieldMode } from './crmTemplateDefaultCustomerFields'
 import { newLocalId } from './crmTemplateBuilder.converters'
+import CrmTemplateBuilderSplitLayout from './CrmTemplateBuilderSplitLayout'
+import { sourceFieldKeyToColumnKey } from './crmTemplateFieldKeyAuto'
+import CrmTemplateDetailTabsPreview from './preview/CrmTemplateDetailTabsPreview'
+import CrmTemplateFormPreview from './preview/CrmTemplateFormPreview'
+import CrmTemplateListPreview from './preview/CrmTemplateListPreview'
 import { CRM_TEMPLATE_BUILDER_SAMPLE_PRESETS } from './presets/crmTemplateBuilderSamplePresets'
 
 import { formatIndustryCustomerListSecondaryLine } from '../../../../customers/utils/industryCustomerListSummary'
@@ -80,6 +85,7 @@ export default function CrmTemplateBuilderTabPanels({
   revision,
   draft,
   setDraft,
+  previewDraft,
   previewTemplate,
   previewBinder,
   setPreviewBinder,
@@ -106,6 +112,8 @@ export default function CrmTemplateBuilderTabPanels({
   revision: number | null
   draft: CrmTemplateDraft
   setDraft: (next: CrmTemplateDraft | ((p: CrmTemplateDraft) => CrmTemplateDraft)) => void
+  /** 미리보기용 — 비어 있는 내부 키를 채운 draft (편집 draft와 분리) */
+  previewDraft: CrmTemplateDraft
   previewTemplate: CustomerIndustryTemplate | null
   previewBinder: CustomerEditFormState
   setPreviewBinder: Dispatch<SetStateAction<CustomerEditFormState>>
@@ -127,15 +135,16 @@ export default function CrmTemplateBuilderTabPanels({
     [industries],
   )
 
+  /** 미리보기·저장과 동일하게 정규화된 키 목록(라벨만 있는 신규 필드도 포함) */
   const formFieldPickList = useMemo(
     () =>
-      draft.formFields
+      previewDraft.formFields
         .map((f) => ({
           key: f.fieldKey.trim(),
           label: f.label.trim() || f.fieldKey.trim(),
         }))
         .filter((x) => x.key.length > 0),
-    [draft.formFields],
+    [previewDraft.formFields],
   )
 
   const fieldsOrder = useMemo(() => formFieldPickList.map((x) => x.key), [formFieldPickList])
@@ -145,7 +154,7 @@ export default function CrmTemplateBuilderTabPanels({
     { id: 'form', label: '등록 폼' },
     { id: 'list', label: '목록 컬럼' },
     { id: 'detail', label: '상세 탭' },
-    { id: 'preview', label: '미리보기' },
+    { id: 'preview', label: '전체 미리보기' },
   ]
 
 
@@ -317,6 +326,9 @@ export default function CrmTemplateBuilderTabPanels({
           <FormFieldsTab
             draft={draft}
             setDraft={setDraft}
+            previewDraft={previewDraft}
+            previewTemplate={previewTemplate}
+            industryCode={industryCode}
             validationIssues={validationIssues.filter((x) => x.tab === 'form')}
             isNewTemplate={isNewTemplate}
             nationalIdMode={nationalIdMode}
@@ -328,13 +340,21 @@ export default function CrmTemplateBuilderTabPanels({
         ) : null}
 
         {activeTab === 'list' ? (
-          <ListColumnsTab draft={draft} setDraft={setDraft} validationIssues={validationIssues.filter((x) => x.tab === 'list')} />
+          <ListColumnsTab
+            draft={draft}
+            setDraft={setDraft}
+            previewDraft={previewDraft}
+            validationIssues={validationIssues.filter((x) => x.tab === 'list')}
+          />
         ) : null}
 
         {activeTab === 'detail' ? (
           <DetailTabsTab
             draft={draft}
             setDraft={setDraft}
+            previewDraft={previewDraft}
+            previewTemplate={previewTemplate}
+            industryCode={industryCode}
             formFieldPickList={formFieldPickList}
             fieldsOrder={fieldsOrder}
             validationIssues={validationIssues.filter((x) => x.tab === 'detail')}
@@ -474,6 +494,9 @@ function BindingsEditor({
 function FormFieldsTab({
   draft,
   setDraft,
+  previewDraft,
+  previewTemplate,
+  industryCode,
   validationIssues,
   isNewTemplate,
   nationalIdMode,
@@ -482,6 +505,9 @@ function FormFieldsTab({
 }: {
   draft: CrmTemplateDraft
   setDraft: (fn: CrmTemplateDraft | ((p: CrmTemplateDraft) => CrmTemplateDraft)) => void
+  previewDraft: CrmTemplateDraft
+  previewTemplate: CustomerIndustryTemplate | null
+  industryCode: string
   validationIssues: readonly CrmTemplateValidationIssue[]
   isNewTemplate: boolean
   nationalIdMode: NationalIdCoreFieldMode
@@ -521,6 +547,8 @@ function FormFieldsTab({
   }
 
   return (
+    <CrmTemplateBuilderSplitLayout
+      settings={
     <section className="platform-admin-panel">
       <div className="crm-template-builder__section-head flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -586,9 +614,8 @@ function FormFieldsTab({
         </div>
       </div>
       <p className="platform-admin-page__field-hint mb-4">
-        코어 필드는 표준 고객 DB 컬럼에 매핑됩니다. 확장 필드는 <code className="platform-admin-page__mono">crm_extension</code>에
-        저장되며{' '}
-        <span className="platform-admin-page__mono">예: biz.customField1</span> 형태의 네임스페이스 키를 사용합니다.
+        라벨과 표시 타입만 입력하면 됩니다. 내부 저장 키는 자동 생성되며, 필요 시 각 필드의 「개발자 정보」에서 확인할 수
+        있습니다.
       </p>
 
       {validationIssues.find((x) => !x.localId) ? (
@@ -678,55 +705,6 @@ function FormFieldsTab({
                   <option value="core">코어 고객 컬럼</option>
                 </select>
               </label>
-              {f.storage === 'core' ? (
-                <label className="platform-admin-field">
-                  <span className="platform-admin-field__label">코어 필드 키</span>
-                  <select
-                    className="platform-admin-field__control platform-admin-page__mono"
-                    value={
-                      (CRM_TEMPLATE_CORE_STORAGE_KEYS as readonly string[]).includes(f.fieldKey.trim())
-                        ? f.fieldKey.trim()
-                        : firstUnusedCoreKey(f.localId)
-                    }
-                    onChange={(e) => patchField(f.localId, { fieldKey: e.target.value })}
-                  >
-                    {CRM_TEMPLATE_CORE_STORAGE_KEYS.map((ck) => {
-                      const selfKey = f.fieldKey.trim()
-                      const isSelf = selfKey === ck
-                      const usedByOther = draft.formFields.some(
-                        (o) => o.localId !== f.localId && o.storage === 'core' && o.fieldKey.trim() === ck,
-                      )
-                      const disabled = usedByOther && !isSelf
-                      const labelSuffix = usedByOther ? ' · 이미 사용 중' : ''
-                      return (
-                        <option key={ck} value={ck} disabled={disabled}>
-                          {ck}
-                          {labelSuffix}
-                        </option>
-                      )
-                    })}
-                  </select>
-                </label>
-              ) : (
-                <label className="platform-admin-field">
-                  <span className="platform-admin-field__label">
-                    확장 필드 키 (canonical)
-                    <span className="platform-admin-page__required">*</span>
-                  </span>
-                  <input
-                    className="platform-admin-field__control platform-admin-page__mono"
-                    placeholder={CRM_TEMPLATE_EXTENSION_KEY_INPUT_PLACEHOLDER}
-                    value={f.fieldKey}
-                    onChange={(e) => patchField(f.localId, { fieldKey: e.target.value })}
-                  />
-                </label>
-              )}
-              {f.storage === 'extension' && f.fieldKey.trim() && (extensionKeyDupCounts.get(f.fieldKey.trim()) ?? 0) > 1 ? (
-                <p className="platform-admin-page__field-error crm-template-builder__full-row m-0 col-span-full">
-                  확장 필드 키 &quot;{f.fieldKey.trim()}&quot; 이(가) 다른 필드와 중복됩니다. 각 canonical 키는 한 번만 사용할 수
-                  있습니다.
-                </p>
-              ) : null}
               <label className="platform-admin-field flex flex-row items-center gap-2">
                 <input
                   type="checkbox"
@@ -760,6 +738,58 @@ function FormFieldsTab({
               />
             )}
 
+            <details className="crm-template-builder__advanced mt-3">
+              <summary>개발자 정보 (내부 키)</summary>
+              {f.storage === 'core' ? (
+                <label className="platform-admin-field mt-2">
+                  <span className="platform-admin-field__label">코어 DB 키</span>
+                  <select
+                    className="platform-admin-field__control platform-admin-page__mono"
+                    value={
+                      (CRM_TEMPLATE_CORE_STORAGE_KEYS as readonly string[]).includes(f.fieldKey.trim())
+                        ? f.fieldKey.trim()
+                        : firstUnusedCoreKey(f.localId)
+                    }
+                    onChange={(e) => patchField(f.localId, { fieldKey: e.target.value })}
+                  >
+                    {CRM_TEMPLATE_CORE_STORAGE_KEYS.map((ck) => {
+                      const selfKey = f.fieldKey.trim()
+                      const isSelf = selfKey === ck
+                      const usedByOther = draft.formFields.some(
+                        (o) => o.localId !== f.localId && o.storage === 'core' && o.fieldKey.trim() === ck,
+                      )
+                      const disabled = usedByOther && !isSelf
+                      const labelSuffix = usedByOther ? ' · 이미 사용 중' : ''
+                      return (
+                        <option key={ck} value={ck} disabled={disabled}>
+                          {ck}
+                          {labelSuffix}
+                        </option>
+                      )
+                    })}
+                  </select>
+                </label>
+              ) : (
+                <label className="platform-admin-field mt-2">
+                  <span className="platform-admin-field__label">확장 필드 키 (fieldKey)</span>
+                  <input
+                    className="platform-admin-field__control platform-admin-page__mono"
+                    placeholder={CRM_TEMPLATE_EXTENSION_KEY_INPUT_PLACEHOLDER}
+                    value={f.fieldKey}
+                    onChange={(e) => patchField(f.localId, { fieldKey: e.target.value })}
+                  />
+                  <p className="platform-admin-page__field-hint text-xs mt-1 mb-0">
+                    라벨만 바꿔도 저장된 키는 유지됩니다. 신규 필드는 라벨 입력 시 자동 생성됩니다.
+                  </p>
+                </label>
+              )}
+            </details>
+            {f.storage === 'extension' && f.fieldKey.trim() && (extensionKeyDupCounts.get(f.fieldKey.trim()) ?? 0) > 1 ? (
+              <p className="platform-admin-page__field-error m-0 mt-2">
+                내부 키가 다른 필드와 겹칩니다. 「개발자 정보」에서 키를 조정해 주세요.
+              </p>
+            ) : null}
+
             {issuesFor(validationIssues, f.localId).map((iss, ix) => (
               <p key={ix} className="platform-admin-page__field-error">
                 {iss.message}
@@ -769,6 +799,9 @@ function FormFieldsTab({
         ))}
       </div>
     </section>
+      }
+      preview={<CrmTemplateFormPreview template={previewTemplate} draft={previewDraft} />}
+    />
   )
 }
 
@@ -833,10 +866,12 @@ function FieldOptionsEditor({
 function ListColumnsTab({
   draft,
   setDraft,
+  previewDraft,
   validationIssues,
 }: {
   draft: CrmTemplateDraft
   setDraft: (fn: CrmTemplateDraft | ((p: CrmTemplateDraft) => CrmTemplateDraft)) => void
+  previewDraft: CrmTemplateDraft
   validationIssues: readonly CrmTemplateValidationIssue[]
 }) {
   function patchCol(localId: string, patch: Partial<CrmDraftListColumn>) {
@@ -850,13 +885,22 @@ function ListColumnsTab({
     setDraft({ ...draft, listColumns: moveRow(draft.listColumns, idx, dir) })
   }
 
-  const sourceOptions = draft.formFields.map((f) => ({
-    fk: f.fieldKey.trim(),
-    label: `${f.label || '(이름 없음)'} (${f.fieldKey.trim() || '키 없음'})`,
-  }))
-  const sourceKeysWithValues = sourceOptions.map((so) => so.fk).filter((k) => k.length > 0)
+  const formFieldOptions = previewDraft.formFields
+    .filter((f) => f.fieldKey.trim().length > 0)
+    .map((f) => ({
+      fk: f.fieldKey.trim(),
+      label: f.label.trim() || f.fieldKey.trim(),
+    }))
+
+  function pickSourceField(localId: string, fk: string) {
+    const used = new Set(draft.listColumns.filter((c) => c.localId !== localId).map((c) => c.columnKey.trim()))
+    const columnKey = fk.trim() ? sourceFieldKeyToColumnKey(fk, used) : ''
+    patchCol(localId, { sourceFieldKey: fk, columnKey })
+  }
 
   return (
+    <CrmTemplateBuilderSplitLayout
+      settings={
     <section className="platform-admin-panel">
       <div className="crm-template-builder__section-head">
         <h2 className="platform-admin-panel__title">목록(카드) 컬럼</h2>
@@ -929,60 +973,54 @@ function ListColumnsTab({
                   onChange={(e) => patchCol(c.localId, { label: e.target.value })}
                 />
               </label>
-              <label className="platform-admin-field">
-                <span className="platform-admin-field__label">표시 이름 (기술 키)</span>
-                <input
-                  className="platform-admin-field__control platform-admin-page__mono"
-                  value={c.columnKey}
-                  onChange={(e) => patchCol(c.localId, { columnKey: e.target.value })}
-                />
-              </label>
-              <div className="platform-admin-field crm-template-builder__full-row">
+              <label className="platform-admin-field crm-template-builder__full-row">
                 <span className="platform-admin-field__label">
-                  원본 필드 (sourceFieldKey) <span className="platform-admin-page__required">*</span>
+                  표시할 등록 폼 필드 <span className="platform-admin-page__required">*</span>
                 </span>
-                <p className="platform-admin-page__field-hint text-sm mt-0 mb-2">
-                  등록 폼의 fieldKey와 동일한 canonical 키여야 합니다. 위에서 고르거나 아래에 직접 입력·자동완성할 수
-                  있습니다.
-                </p>
                 <select
-                  className="platform-admin-field__control platform-admin-page__mono mb-2"
-                  value={sourceKeysWithValues.includes(c.sourceFieldKey.trim()) ? c.sourceFieldKey.trim() : ''}
+                  className="platform-admin-field__control"
+                  value={formFieldOptions.some((o) => o.fk === c.sourceFieldKey.trim()) ? c.sourceFieldKey.trim() : ''}
                   onChange={(e) => {
-                    const v = e.target.value
+                    const fk = e.target.value
+                    const used = new Set(
+                      draft.listColumns.filter((col) => col.localId !== c.localId).map((col) => col.columnKey.trim()),
+                    )
+                    const columnKey = fk.trim() ? sourceFieldKeyToColumnKey(fk, used) : ''
+                    const picked = formFieldOptions.find((o) => o.fk === fk)
                     patchCol(c.localId, {
-                      sourceFieldKey: v,
-                      columnKey: v.trim() ? v.trim().replace(/\./g, '_') : c.columnKey,
+                      sourceFieldKey: fk,
+                      columnKey,
+                      ...(picked && !c.label.trim() ? { label: picked.label } : {}),
                     })
                   }}
                 >
-                  <option value="">— 등록 폼 필드에서 선택 —</option>
-                  {sourceOptions.map((so) =>
-                    so.fk ? (
-                      <option key={so.fk} value={so.fk}>
-                        {so.label}
-                      </option>
-                    ) : null,
-                  )}
-                </select>
-                <input
-                  className="platform-admin-field__control platform-admin-page__mono"
-                  list={`crm-list-src-${c.localId}`}
-                  placeholder="등록 폼 fieldKey와 동일한 값"
-                  autoComplete="off"
-                  value={c.sourceFieldKey}
-                  onChange={(e) => {
-                    const v = e.target.value
-                    const nextColumnKey = v.trim() ? v.trim().replace(/\./g, '_') : c.columnKey
-                    patchCol(c.localId, { sourceFieldKey: v, columnKey: nextColumnKey })
-                  }}
-                />
-                <datalist id={`crm-list-src-${c.localId}`}>
-                  {sourceKeysWithValues.map((k) => (
-                    <option key={k} value={k} />
+                  <option value="">— 등록 폼 필드 선택 —</option>
+                  {formFieldOptions.map((o) => (
+                    <option key={o.fk} value={o.fk}>
+                      {o.label}
+                    </option>
                   ))}
-                </datalist>
-              </div>
+                </select>
+              </label>
+              <details className="crm-template-builder__advanced crm-template-builder__full-row">
+                <summary>개발자 정보 (내부 키)</summary>
+                <label className="platform-admin-field mt-2">
+                  <span className="platform-admin-field__label">컬럼 키 (columnKey)</span>
+                  <input
+                    className="platform-admin-field__control platform-admin-page__mono"
+                    value={c.columnKey}
+                    onChange={(e) => patchCol(c.localId, { columnKey: e.target.value })}
+                  />
+                </label>
+                <label className="platform-admin-field">
+                  <span className="platform-admin-field__label">원본 필드 키 (sourceFieldKey)</span>
+                  <input
+                    className="platform-admin-field__control platform-admin-page__mono"
+                    value={c.sourceFieldKey}
+                    onChange={(e) => pickSourceField(c.localId, e.target.value)}
+                  />
+                </label>
+              </details>
               <label className="platform-admin-field">
                 <span className="platform-admin-field__label">표시 타입</span>
                 <select
@@ -1024,6 +1062,9 @@ function ListColumnsTab({
         ))}
       </div>
     </section>
+      }
+      preview={<CrmTemplateListPreview draft={previewDraft} />}
+    />
   )
 }
 
@@ -1032,12 +1073,18 @@ type FormFieldPick = { key: string; label: string }
 function DetailTabsTab({
   draft,
   setDraft,
+  previewDraft,
+  previewTemplate,
+  industryCode,
   formFieldPickList,
   fieldsOrder,
   validationIssues,
 }: {
   draft: CrmTemplateDraft
   setDraft: (fn: CrmTemplateDraft | ((p: CrmTemplateDraft) => CrmTemplateDraft)) => void
+  previewDraft: CrmTemplateDraft
+  previewTemplate: CustomerIndustryTemplate | null
+  industryCode: string
   formFieldPickList: readonly FormFieldPick[]
   fieldsOrder: readonly string[]
   validationIssues: readonly CrmTemplateValidationIssue[]
@@ -1054,6 +1101,8 @@ function DetailTabsTab({
   }
 
   return (
+    <CrmTemplateBuilderSplitLayout
+      settings={
     <section className="platform-admin-panel">
       <div className="crm-template-builder__section-head">
         <h2 className="platform-admin-panel__title">상세 탭</h2>
@@ -1068,7 +1117,7 @@ function DetailTabsTab({
                 ...draft.detailTabs,
                 {
                   localId: newLocalId(),
-                  tabId: `tab_${draft.detailTabs.length + 1}`,
+                  tabId: '',
                   label: '',
                   visibleDefault: true,
                   fieldKeys: [],
@@ -1081,7 +1130,7 @@ function DetailTabsTab({
         </button>
       </div>
       <p className="platform-admin-page__field-hint mb-4">
-        탭별로 「등록 폼」 필드를 체크해 포함합니다. 등록 폼에 없는 키가 남아 있으면 저장이 거절됩니다.
+        탭 이름을 입력하고 등록 폼 필드를 선택하세요. 오른쪽에서 상세 화면 미리보기를 확인할 수 있습니다.
       </p>
 
       <div className="crm-template-builder__card-stack">
@@ -1105,6 +1154,9 @@ function DetailTabsTab({
         ))}
       </div>
     </section>
+      }
+      preview={<CrmTemplateDetailTabsPreview template={previewTemplate} draft={previewDraft} />}
+    />
   )
 }
 
@@ -1179,17 +1231,6 @@ function DetailTabFieldsEditor({
       <div className="crm-template-builder__grid">
         <label className="platform-admin-field">
           <span className="platform-admin-field__label">
-            탭 ID <span className="platform-admin-page__required">*</span>
-          </span>
-          <input
-            className="platform-admin-field__control platform-admin-page__mono"
-            placeholder="예: main, extras"
-            value={tab.tabId}
-            onChange={(e) => patchTab(tab.localId, { tabId: e.target.value })}
-          />
-        </label>
-        <label className="platform-admin-field">
-          <span className="platform-admin-field__label">
             탭 이름 <span className="platform-admin-page__required">*</span>
           </span>
           <input
@@ -1206,6 +1247,21 @@ function DetailTabFieldsEditor({
           />
           <span className="platform-admin-field__label mb-0">탭 표시</span>
         </label>
+        <details className="crm-template-builder__advanced crm-template-builder__full-row">
+          <summary>개발자 정보 (탭 ID)</summary>
+          <label className="platform-admin-field mt-2">
+            <span className="platform-admin-field__label">탭 ID (tabId)</span>
+            <input
+              className="platform-admin-field__control platform-admin-page__mono"
+              placeholder="예: liquor_basic"
+              value={tab.tabId}
+              onChange={(e) => patchTab(tab.localId, { tabId: e.target.value })}
+            />
+            <p className="platform-admin-page__field-hint text-xs mt-1 mb-0">
+              탭 이름만 바꿔도 저장된 ID는 유지됩니다. 신규 탭은 이름 입력 시 자동 생성됩니다.
+            </p>
+          </label>
+        </details>
       </div>
 
       <div className="crm-template-builder__nested mt-4">
@@ -1218,10 +1274,7 @@ function DetailTabFieldsEditor({
                 checked={tab.fieldKeys.includes(pf.key)}
                 onChange={(e) => toggleInclude(pf.key, e.target.checked)}
               />
-              <span className="min-w-0">
-                <span className="block text-sm text-[#f8fafc]">{pf.label}</span>
-                <code className="platform-admin-page__mono text-xs break-all">{pf.key}</code>
-              </span>
+              <span className="min-w-0 text-sm text-[#f8fafc]">{pf.label}</span>
             </label>
           ))}
         </div>
@@ -1230,10 +1283,7 @@ function DetailTabFieldsEditor({
         <ol className="crm-template-builder__field-order mt-2">
           {tab.fieldKeys.map((fk, fkIdx) => (
             <li key={`${fk}-${fkIdx}`}>
-              <div className="min-w-0">
-                <div className="text-sm truncate">{labelForKey(fk)}</div>
-                <code className="platform-admin-page__mono text-xs">{fk}</code>
-              </div>
+              <div className="min-w-0 text-sm truncate">{labelForKey(fk)}</div>
               <div className="crm-template-builder__field-order-actions">
                 <button type="button" className="filter-button text-xs px-2" onClick={() => moveFieldInsideTab(fkIdx, -1)}>
                   ↑
