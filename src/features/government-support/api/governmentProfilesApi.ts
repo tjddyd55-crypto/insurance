@@ -77,6 +77,15 @@ export async function createGovPriorLoan(token: string, profileId: string, body:
   return unwrapData<{ id: string }>(raw)
 }
 
+export async function patchGovPriorLoan(token: string, loanId: string, body: Partial<GovPriorLoan>) {
+  const raw = await apiRequest<unknown>(`/api/government-support/prior-loans/${loanId}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify(body),
+  })
+  return unwrapData<{ id: string }>(raw)
+}
+
 export async function deleteGovPriorLoan(token: string, loanId: string) {
   await apiRequest(`/api/government-support/prior-loans/${loanId}`, { method: 'DELETE', token })
 }

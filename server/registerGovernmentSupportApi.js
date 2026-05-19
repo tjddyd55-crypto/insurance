@@ -309,6 +309,57 @@ export function registerGovernmentSupportApi(router, deps) {
     }
   })
 
+  router.patch('/government-support/prior-loans/:loanId', ...requireGovernmentMember, async (req, res) => {
+    try {
+      const ctx = req.platformContext
+      const loanId = String(req.params.loanId ?? '').trim()
+      const b = req.body ?? {}
+      const ex = await pool.query(`SELECT tenant_id FROM gov_support_prior_loans WHERE id = $1::bigint`, [loanId])
+      if ((ex.rowCount ?? 0) === 0) {
+        res.status(404).json({ message: '기대출 항목을 찾을 수 없습니다.' })
+        return
+      }
+      if (!canAccessGovernmentTenant(ctx, ex.rows[0].tenant_id)) {
+        res.status(403).json({ message: 'tenant 접근 권한이 없습니다.' })
+        return
+      }
+      const r = await pool.query(
+        `
+        UPDATE gov_support_prior_loans SET
+          has_prior = COALESCE($2, has_prior),
+          lender_name = COALESCE($3, lender_name),
+          remaining_amount = COALESCE($4, remaining_amount),
+          received_at = COALESCE($5, received_at),
+          policy_included = COALESCE($6, policy_included),
+          memo = COALESCE($7, memo),
+          updated_at = NOW()
+        WHERE id = $1::bigint
+        RETURNING *
+        `,
+        [
+          loanId,
+          b.hasPrior != null ? String(b.hasPrior) : null,
+          b.lenderName != null ? String(b.lenderName) : null,
+          b.remainingAmount != null ? String(b.remainingAmount) : null,
+          b.receivedAt != null ? String(b.receivedAt) : null,
+          b.policyIncluded != null ? String(b.policyIncluded) : null,
+          b.memo != null ? String(b.memo) : null,
+        ],
+      )
+      const row = r.rows[0]
+      res.json({
+        success: true,
+        data: {
+          id: String(row.id),
+          lenderName: String(row.lender_name ?? ''),
+          remainingAmount: String(row.remaining_amount ?? ''),
+        },
+      })
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
   router.delete('/government-support/prior-loans/:loanId', ...requireGovernmentMember, async (req, res) => {
     try {
       const ctx = req.platformContext

@@ -3,6 +3,7 @@ import {
   createGovApplicationCase,
   createGovPriorLoan,
   createGovProfile,
+  patchGovPriorLoan,
   deleteGovPriorLoan,
   fetchGovApplicationCases,
   fetchGovPriorLoans,
@@ -105,6 +106,15 @@ export function useGovernmentWorkspaceState(token: string | null, defaultTenantI
     await reloadDetail()
   }, [token, selectedId, reloadDetail])
 
+  const updatePriorLoan = useCallback(
+    async (loanId: string, patch: Partial<GovPriorLoan>) => {
+      if (!token) return
+      await patchGovPriorLoan(token, loanId, patch)
+      await reloadDetail()
+    },
+    [token, reloadDetail],
+  )
+
   const removePriorLoan = useCallback(
     async (loanId: string) => {
       if (!token) return
@@ -150,6 +160,7 @@ export function useGovernmentWorkspaceState(token: string | null, defaultTenantI
     saveProfile,
     addProfile,
     addPriorLoan,
+    updatePriorLoan,
     removePriorLoan,
     addApplicationCase,
     updateCaseStatus,

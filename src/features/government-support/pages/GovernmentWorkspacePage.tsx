@@ -5,6 +5,10 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import { GOVERNMENT_APPLICATION_STATUSES } from '../constants/governmentApplicationStatuses'
 import { GOVERNMENT_EDOC_TEMPLATES } from '../adapters/governmentContractAdapter'
+import {
+  GOVERNMENT_DOCUMENT_TYPES,
+  GOVERNMENT_SCHEDULE_TYPES,
+} from '../constants/governmentDocumentTypes'
 import { useGovernmentAccess } from '../hooks/useGovernmentAccess'
 import { useGovernmentWorkspaceState, type GovernmentWorkspaceTab } from '../hooks/useGovernmentWorkspaceState'
 import '../government-support.css'
@@ -204,8 +208,26 @@ export default function GovernmentWorkspacePage() {
                 <ul style={{ marginTop: '1rem', padding: 0, listStyle: 'none' }}>
                   {ws.priorLoans.map((loan) => (
                     <li key={loan.id} style={{ border: '1px solid #334155', borderRadius: 8, padding: '0.75rem', marginBottom: '0.5rem' }}>
-                      <Field label="대출 상호" value={loan.lenderName} onChange={() => {}} />
-                      <Field label="남은 금액" value={loan.remainingAmount} onChange={() => {}} />
+                      <Field
+                        label="대출 상호"
+                        value={loan.lenderName}
+                        onChange={(v) => void ws.updatePriorLoan(loan.id, { lenderName: v })}
+                      />
+                      <Field
+                        label="남은 금액"
+                        value={loan.remainingAmount}
+                        onChange={(v) => void ws.updatePriorLoan(loan.id, { remainingAmount: v })}
+                      />
+                      <Field
+                        label="받은 날짜"
+                        value={loan.receivedAt}
+                        onChange={(v) => void ws.updatePriorLoan(loan.id, { receivedAt: v })}
+                      />
+                      <Field
+                        label="메모"
+                        value={loan.memo}
+                        onChange={(v) => void ws.updatePriorLoan(loan.id, { memo: v })}
+                      />
                       <FormButton type="button" variant="secondary" onClick={() => void ws.removePriorLoan(loan.id)}>
                         삭제
                       </FormButton>
@@ -256,13 +278,29 @@ export default function GovernmentWorkspacePage() {
             ) : null}
 
             {ws.tab === 'documents' ? (
-              <p className="government-page__muted">서류관리 — 프로필 저장 시 서류 체크리스트가 자동 생성됩니다. (API 탭 연동)</p>
+              <div>
+                <p className="government-page__muted">
+                  서류관리 — 프로필 조회 시 체크리스트가 자동 생성됩니다. 파일 업로드는 기존 R2 구조와 연동 예정.
+                </p>
+                <ul style={{ marginTop: '0.75rem', color: '#e5e7eb' }}>
+                  {GOVERNMENT_DOCUMENT_TYPES.map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
 
             {ws.tab === 'schedule' ? (
-              <p className="government-page__muted">
-                일정관리 — 기존 <Link to="/todos">할일/일정</Link> 모듈과 연동 예정 (tenant·신청건 기준).
-              </p>
+              <div>
+                <p className="government-page__muted">
+                  일정관리 — 기존 <Link to="/todos">할일/일정</Link> 모듈과 연동 예정 (tenant·신청건 기준).
+                </p>
+                <ul style={{ marginTop: '0.75rem', color: '#e5e7eb' }}>
+                  {GOVERNMENT_SCHEDULE_TYPES.map((name) => (
+                    <li key={name}>{name}</li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
 
             {ws.tab === 'memo' ? (
