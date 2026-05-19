@@ -1045,6 +1045,9 @@ async function seedCrmPlatformUserMemberships(executor) {
 }
 
 export async function initDb() {
+  const startedAt = Date.now()
+  console.log('[initDb] 시작 (idempotent DDL·시드 — 원격 DB면 수 분 소요될 수 있음)')
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -3275,6 +3278,8 @@ export async function initDb() {
   await ensureContractSelfSmsSchema(pool)
   await ensureInsurerSitesSchema(pool)
   await ensurePublicCustomerInviteSessionsSchema(pool)
+
+  console.log(`[initDb] 완료 (${Date.now() - startedAt}ms)`)
 }
 
 /** GA 초대 고객 등록(/customer/register) — 제출 세션(httpOnly cookie) 및 최초 제출 시각(3시간 수정 창구) */

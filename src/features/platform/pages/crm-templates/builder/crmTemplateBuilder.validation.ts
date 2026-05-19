@@ -52,13 +52,13 @@ export function validateCrmTemplateDraft(params: {
         issues.push({
           tab: 'form',
           localId: f.localId,
-          message: '확장 필드의 필드 키(canonical)를 입력해 주세요.',
+          message: '확장 필드의 라벨을 입력해 주세요. 저장 시 내부 키가 자동으로 생성됩니다.',
         })
       } else if (!CRM_TEMPLATE_FIELD_KEY_REGEX.test(fk)) {
         issues.push({
           tab: 'form',
           localId: f.localId,
-          message: `필드 키 형식이 올바르지 않습니다: "${fk}" (영문으로 시작, 영숫자·_. 만 허용)`,
+          message: '확장 필드 설정을 확인해 주세요. 내부 키 형식이 올바르지 않습니다.',
         })
       }
     } else {
@@ -78,7 +78,7 @@ export function validateCrmTemplateDraft(params: {
         issues.push({
           tab: 'form',
           localId: f.localId,
-          message: `이미 등록 폼에서 사용 중인 필드 키입니다: "${fkDupRaw}"`,
+          message: '같은 내부 키를 쓰는 필드가 두 개 이상 있습니다. 고급 설정에서 키를 확인해 주세요.',
         })
       }
       formFieldKeys.add(fkDupRaw)
@@ -136,13 +136,13 @@ export function validateCrmTemplateDraft(params: {
 
   for (const c of draft.listColumns) {
     if (!c.label.trim()) {
-      issues.push({ tab: 'list', localId: c.localId, message: '컬럼 라벨을 입력해 주세요.' })
+      issues.push({ tab: 'list', localId: c.localId, message: '표시 항목 라벨을 입력해 주세요.' })
     }
     if (!CRM_TEMPLATE_FIELD_KEY_REGEX.test(String(c.columnKey ?? '').trim())) {
       issues.push({
         tab: 'list',
         localId: c.localId,
-        message: '컬럼 키는 영문으로 시작해야 하며 영숫자·_. 만 사용할 수 있습니다.',
+        message: '목록 표시 항목 설정을 확인해 주세요. 표시할 등록 폼 필드를 선택해 주세요.',
       })
     }
     const src = c.sourceFieldKey.trim()
@@ -150,14 +150,14 @@ export function validateCrmTemplateDraft(params: {
       issues.push({
         tab: 'list',
         localId: c.localId,
-        message:
-          '원본 필드 키(sourceFieldKey)를 입력해 주세요. 등록 폼 필드의 fieldKey와 동일한 canonical 키여야 합니다.',
+        message: '목록에 표시할 등록 폼 필드를 선택해 주세요.',
       })
     } else if (!formFieldKeys.has(src)) {
       issues.push({
         tab: 'list',
         localId: c.localId,
-        message: `목록 원본 필드 "${src}" 가 등록 폼 fieldKey 목록에 없습니다. 먼저 등록 폼에 해당 키를 추가하세요.`,
+        message:
+          '선택한 필드가 등록 폼에 없습니다. 등록 폼에서 필드를 추가하거나 다른 필드를 선택해 주세요.',
       })
     }
   }
@@ -169,8 +169,7 @@ export function validateCrmTemplateDraft(params: {
       issues.push({
         tab: 'detail',
         localId: t.localId,
-        message:
-          '탭 ID는 영문으로 시작해야 하며 영숫자·하이픈·밑줄만 허용됩니다.',
+        message: '탭 이름을 입력해 주세요. 저장 시 탭 식별자가 자동으로 생성됩니다.',
       })
     } else if (tabIds.has(tid)) {
       issues.push({
@@ -191,7 +190,7 @@ export function validateCrmTemplateDraft(params: {
         issues.push({
           tab: 'detail',
           localId: t.localId,
-          message: `탭 "${t.label || tid}"에 없는 필드 키가 포함되어 있습니다: "${k}"`,
+          message: `탭 "${t.label || tid}"에 등록 폼에 없는 필드가 포함되어 있습니다. 필드 선택을 확인해 주세요.`,
         })
       }
     }

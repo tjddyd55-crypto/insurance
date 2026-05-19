@@ -7084,6 +7084,30 @@ app.use((error, _req, res, _next) => {
   res.status(500).json({ message: '서버 오류가 발생했습니다.' })
 })
 
+async function runInitDbOnStartup() {
+  const skipRequested = process.env.INSURANCE_SKIP_INIT_DB === 'true'
+  const maySkipInitDb =
+    skipRequested && process.env.NODE_ENV !== 'production' && !process.env.RAILWAY_ENVIRONMENT
+
+  if (skipRequested && !maySkipInitDb) {
+    console.warn(
+      '[server] INSURANCE_SKIP_INIT_DB=true 무시됨 — production 또는 Railway 환경에서는 initDb를 생략하지 않습니다.',
+    )
+  }
+
+  if (maySkipInitDb) {
+    console.warn(
+      '[server] INSURANCE_SKIP_INIT_DB=true — initDb 생략(로컬 개발 전용). 스키마 변경 후에는 false 로 재기동하세요.',
+    )
+    return
+  }
+
+  const t0 = Date.now()
+  console.log('[server] initDb 시작…')
+  await initDb()
+  console.log(`[server] initDb 완료 (${Date.now() - t0}ms)`)
+}
+
 async function startServer() {
   if (JWT_SECRET === DEFAULT_JWT_SECRET && RUNNING_IN_PRODUCTION) {
     console.error('='.repeat(70))
@@ -7093,7 +7117,7 @@ async function startServer() {
     throw new Error('보안 차단: 기본 JWT_SECRET 사용 금지')
   }
 
-  await initDb()
+  await runInitDbOnStartup()
   await seedInsuranceCompanyDirectory()
   await logInsuranceFormsDbDiagnostics('startup')
   await ensureYesterdayAnalyticsAggregated(pool)

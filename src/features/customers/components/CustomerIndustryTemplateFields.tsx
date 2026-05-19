@@ -49,6 +49,7 @@ export default function CustomerIndustryTemplateFields({
   variant,
   radioSuffix,
   onStatusMessage,
+  readOnlyPreview = false,
 }: {
   template: CustomerIndustryTemplate
   value: IndustryTemplateFormBinder & IndustryCreateExtras
@@ -56,7 +57,12 @@ export default function CustomerIndustryTemplateFields({
   variant: 'create' | 'edit'
   radioSuffix: string
   onStatusMessage?: (message: string) => void
+  /** 빌더 인라인 미리보기 — patch·주소검색·외부 API side effect 차단 */
+  readOnlyPreview?: boolean
 }) {
+  const emitPatch: (patch: Patch) => void = readOnlyPreview ? () => {} : onPatch
+  const inputLock = readOnlyPreview ? ({ readOnly: true, disabled: true } as const) : {}
+
   const fields = [...template.formFields]
     .filter((f) => f.visibleDefault !== false)
     .sort((a, b) => a.order - b.order)
@@ -65,6 +71,7 @@ export default function CustomerIndustryTemplateFields({
   const blocks: JSX.Element[] = []
 
   function pushDraftNoteFixed(draft: string) {
+    if (readOnlyPreview) return
     const trimmed = draft.trim()
     if (!trimmed) return
     if (trimmed.length > NOTE_MAX_LENGTH) {
@@ -76,7 +83,7 @@ export default function CustomerIndustryTemplateFields({
       content: trimmed,
       createdAt: new Date().toISOString(),
     }
-    onPatch({
+    emitPatch({
       notes: [...(value.notes ?? []), newNote],
       noteDraft: '',
     })
@@ -97,7 +104,8 @@ export default function CustomerIndustryTemplateFields({
             className="field__control"
             placeholder={field.label}
             value={value.name}
-            onChange={(e) => onPatch({ name: e.target.value })}
+            onChange={(e) => emitPatch({ name: e.target.value })}
+            {...inputLock}
           />
         </label>,
       )
@@ -112,7 +120,8 @@ export default function CustomerIndustryTemplateFields({
             className="field__control"
             placeholder={field.label}
             value={value.phone}
-            onChange={(e) => onPatch({ phone: e.target.value })}
+            onChange={(e) => emitPatch({ phone: e.target.value })}
+            {...inputLock}
           />
         </label>,
       )
@@ -127,7 +136,8 @@ export default function CustomerIndustryTemplateFields({
             className="field__control"
             placeholder={field.label}
             value={value.carrier}
-            onChange={(e) => onPatch({ carrier: e.target.value })}
+            onChange={(e) => emitPatch({ carrier: e.target.value })}
+            {...inputLock}
           />
         </label>,
       )
@@ -149,11 +159,12 @@ export default function CustomerIndustryTemplateFields({
             onChange={(e) => {
               const v = e.target.value
               if (v.includes('-')) {
-                onPatch({ birthDate: v.replace(/[^\d-]/g, '').slice(0, 10) })
+                emitPatch({ birthDate: v.replace(/[^\d-]/g, '').slice(0, 10) })
                 return
               }
-              onPatch({ birthDate: v.replace(/\D/g, '').slice(0, 6) })
+              emitPatch({ birthDate: v.replace(/\D/g, '').slice(0, 6) })
             }}
+            {...inputLock}
           />
         </label>,
       )
@@ -168,7 +179,8 @@ export default function CustomerIndustryTemplateFields({
             className="field__control"
             placeholder={field.label}
             value={value.ssn}
-            onChange={(e) => onPatch({ ssn: e.target.value })}
+            onChange={(e) => emitPatch({ ssn: e.target.value })}
+            {...inputLock}
           />
         </label>,
       )
@@ -185,7 +197,8 @@ export default function CustomerIndustryTemplateFields({
                 type="radio"
                 name={`gender-industry-${radioSuffix}`}
                 checked={value.gender === 'male'}
-                onChange={() => onPatch({ gender: 'male' })}
+                onChange={() => emitPatch({ gender: 'male' })}
+                {...inputLock}
               />{' '}
               남
             </label>
@@ -194,7 +207,7 @@ export default function CustomerIndustryTemplateFields({
                 type="radio"
                 name={`gender-industry-${radioSuffix}`}
                 checked={value.gender === 'female'}
-                onChange={() => onPatch({ gender: 'female' })}
+                onChange={() => emitPatch({ gender: 'female' })}
               />{' '}
               여
             </label>
@@ -210,13 +223,14 @@ export default function CustomerIndustryTemplateFields({
           <span className="field__label">{field.label}</span>
           <AddressSearchField
             className="address-search-field"
+            previewStatic={readOnlyPreview}
             value={{
               zonecode: value.zonecode,
               baseAddress: value.address,
               detailAddress: value.addressDetail,
             }}
             onChange={(next: AddressSearchValue) =>
-              onPatch({
+              emitPatch({
                 zonecode: next.zonecode,
                 address: next.baseAddress,
                 addressDetail: next.detailAddress,
@@ -239,13 +253,14 @@ export default function CustomerIndustryTemplateFields({
             aria-label={field.label}
             value={memoVal}
             onChange={(e) =>
-              onPatch({
+              emitPatch({
                 crmExtensionFields: {
                   ...value.crmExtensionFields,
                   'customer.memo': e.target.value,
                 },
               })
             }
+            {...inputLock}
           />
           <span className="text-xs mt-1 block opacity-90" style={{ color: 'var(--text-sub)' }}>
             「customer.memo」 값은 crm_extension(확장 JSON)의 fields 맵에 저장됩니다.
@@ -263,7 +278,8 @@ export default function CustomerIndustryTemplateFields({
             className="field__control"
             placeholder={field.label}
             value={value.job}
-            onChange={(e) => onPatch({ job: e.target.value })}
+            onChange={(e) => emitPatch({ job: e.target.value })}
+            {...inputLock}
           />
         </label>,
       )
@@ -277,7 +293,8 @@ export default function CustomerIndustryTemplateFields({
           <FormInput
             className="field__control"
             value={value.height}
-            onChange={(e) => onPatch({ height: e.target.value })}
+            onChange={(e) => emitPatch({ height: e.target.value })}
+            {...inputLock}
           />
         </label>,
       )
@@ -291,7 +308,8 @@ export default function CustomerIndustryTemplateFields({
           <FormInput
             className="field__control"
             value={value.weight}
-            onChange={(e) => onPatch({ weight: e.target.value })}
+            onChange={(e) => emitPatch({ weight: e.target.value })}
+            {...inputLock}
           />
         </label>,
       )
@@ -309,7 +327,7 @@ export default function CustomerIndustryTemplateFields({
           const selectItems = [{ value: '', label: '(선택)' }, ...opts.map((o) => ({ value: o.value, label: o.label }))]
 
           const patchExt = (next: string) =>
-            onPatch({
+            emitPatch({
               crmExtensionFields: {
                 ...value.crmExtensionFields,
                 [canon]: next,
@@ -323,6 +341,7 @@ export default function CustomerIndustryTemplateFields({
                 value={rawVal}
                 options={selectItems}
                 onChange={(e) => patchExt(e.target.value)}
+                {...inputLock}
               />
             )
           }
@@ -337,6 +356,7 @@ export default function CustomerIndustryTemplateFields({
                       name={`industry-radio-${radioSuffix}-${canon}`}
                       checked={rawVal === o.value}
                       onChange={() => patchExt(o.value)}
+                      {...inputLock}
                     />{' '}
                     {o.label}
                   </label>
@@ -365,6 +385,7 @@ export default function CustomerIndustryTemplateFields({
                           }
                           patchExt(toCsv(next))
                         }}
+                        {...inputLock}
                       />
                       <span>{o.label}</span>
                     </label>
@@ -382,6 +403,7 @@ export default function CustomerIndustryTemplateFields({
                 placeholder={fdef.placeholder || field.label}
                 value={rawVal}
                 onChange={(e) => patchExt(e.target.value)}
+                {...inputLock}
               />
             )
           }
@@ -393,6 +415,7 @@ export default function CustomerIndustryTemplateFields({
                 type="date"
                 value={String(rawVal).slice(0, 10)}
                 onChange={(e) => patchExt(e.target.value.slice(0, 10))}
+                {...inputLock}
               />
             )
           }
@@ -406,6 +429,7 @@ export default function CustomerIndustryTemplateFields({
                 placeholder={fdef.placeholder || field.label}
                 value={rawVal}
                 onChange={(e) => patchExt(e.target.value)}
+                {...inputLock}
               />
             )
           }
@@ -416,6 +440,7 @@ export default function CustomerIndustryTemplateFields({
               placeholder={fdef.placeholder || field.label}
               value={rawVal}
               onChange={(e) => patchExt(e.target.value)}
+              {...inputLock}
             />
           )
         })()}
@@ -425,7 +450,7 @@ export default function CustomerIndustryTemplateFields({
 
   /** create 전용 노트 리스트(UI 전용 노트 블록) */
   const notesExtra =
-    variant === 'create' && value.noteDraft !== undefined ? (
+    !readOnlyPreview && variant === 'create' && value.noteDraft !== undefined ? (
       <div className="field field--wide">
         <span className="field__label">메모 (최대 {NOTE_MAX_LENGTH}자)</span>
         <div className="flex flex-wrap gap-2 items-center mt-1">
@@ -435,7 +460,7 @@ export default function CustomerIndustryTemplateFields({
             placeholder="메모 입력"
             value={value.noteDraft ?? ''}
             maxLength={NOTE_MAX_LENGTH}
-            onChange={(e) => onPatch({ noteDraft: e.target.value.slice(0, NOTE_MAX_LENGTH) })}
+            onChange={(e) => emitPatch({ noteDraft: e.target.value.slice(0, NOTE_MAX_LENGTH) })}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()

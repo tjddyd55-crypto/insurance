@@ -45,6 +45,11 @@ export interface AddressSearchFieldProps {
   zonecodePlaceholder?: string
   /** 비활성 여부(예: 저장 진행 중). */
   disabled?: boolean
+  /**
+   * 빌더 미리보기 전용 — 주소 검색 버튼·카카오 스크립트 로드·모달을 사용하지 않는다.
+   * disabled 와 별도로 side effect 차단용이다.
+   */
+  previewStatic?: boolean
 }
 
 const EMPTY_VALUE: AddressSearchValue = {
@@ -57,11 +62,6 @@ const EMPTY_VALUE: AddressSearchValue = {
 function buildBaseAddress(data: DaumPostcodeData): string {
   const primary = data.addressType === 'R' ? data.roadAddress || data.jibunAddress : data.jibunAddress || data.roadAddress
   const building = data.buildingName?.trim()
-  /*
-   * buildingName 은 도로명 주소 선택 시 "래미안", "e편한세상 101동" 처럼 입주자에게 중요한 정보.
-   * 도로명 주소를 우선 택했더라도 건물명이 있으면 붙여 주는 편이 일반 사용자에게 친숙하다.
-   * 지번 주소만 있을 때는 building 이 공란일 확률이 높아 자연히 생략된다.
-   */
   if (data.addressType === 'R' && building) {
     return `${primary} (${building})`
   }
@@ -77,6 +77,7 @@ export default function AddressSearchField({
   searchButtonLabel = '주소 검색',
   zonecodePlaceholder = '우편번호',
   disabled,
+  previewStatic = false,
 }: AddressSearchFieldProps) {
   const [open, setOpen] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -84,21 +85,18 @@ export default function AddressSearchField({
   const instanceRef = useRef<DaumPostcodeInstance | null>(null)
   const detailInputRef = useRef<HTMLInputElement | null>(null)
 
-  /**
-   * 모달을 여는 유일한 엔트리포인트. 이전 로드 실패 상태를 여기서 초기화하고 open 을 true 로 만든다.
-   * useEffect 안에서 동기적으로 setState 하지 않도록 "열림 직전" 에 상태를 정돈한다.
-   */
   const openDialog = useCallback(() => {
-    if (disabled) return
+    if (disabled || previewStatic) return
     setLoadError(null)
     setOpen(true)
-  }, [disabled])
+  }, [disabled, previewStatic])
 
   const patch = useCallback(
     (next: Partial<AddressSearchValue>) => {
+      if (previewStatic) return
       onChange({ ...(value ?? EMPTY_VALUE), ...next })
     },
-    [onChange, value],
+    [onChange, previewStatic, value],
   )
 
   const handleSelect = useCallback(
@@ -106,15 +104,9 @@ export default function AddressSearchField({
       patch({
         zonecode: data.zonecode ?? '',
         baseAddress: buildBaseAddress(data),
-        /*
-         * 기본주소가 바뀌면 이전 상세주소는 대부분 의미가 없다(다른 건물로 이동).
-         * 그러나 재검색 중 같은 건물 내 호수만 바꾸려는 경우를 배려해, 명시적 삭제는 하지 않는다.
-         * 상세주소는 사용자가 스스로 지우거나 덮어쓰도록 둔다.
-         */
         detailAddress: value?.detailAddress ?? '',
       })
       setOpen(false)
-      /* 모달이 닫힌 뒤(다음 프레임) 상세주소에 포커스 — 입력 흐름을 끊지 않는 배려. */
       window.setTimeout(() => {
         detailInputRef.current?.focus()
       }, 0)
@@ -122,9 +114,8 @@ export default function AddressSearchField({
     [patch, value?.detailAddress],
   )
 
-  /* 모달이 열려 있는 동안에만 위젯을 embed 한다. 닫히면 embed 엘리먼트가 unmount 되므로 안전. */
   useEffect(() => {
-    if (!open) {
+    if (!open || previewStatic) {
       instanceRef.current = null
       return
     }
@@ -132,7 +123,6 @@ export default function AddressSearchField({
     loadKakaoPostcode()
       .then((Postcode) => {
         if (cancelled || !embedRef.current) return
-        /* 동일 모달이 재열릴 때 이전 embed 노드를 비워 주지 않으면 위젯이 중첩된다. */
         embedRef.current.innerHTML = ''
         const instance = new Postcode({
           oncomplete: handleSelect,
@@ -151,33 +141,37 @@ export default function AddressSearchField({
     return () => {
       cancelled = true
     }
-  }, [open, handleSelect])
+  }, [open, handleSelect, previewStatic])
 
   const current = value ?? EMPTY_VALUE
   const rootClass = ['customer-address-field', className].filter(Boolean).join(' ')
+  const frozen = Boolean(disabled || previewStatic)
 
   return (
     <div className={rootClass}>
-      <div className="customer-address-field__search-row">
-        <FormButton
-          htmlType="button"
-          variant="secondary"
-          size="sm"
-          fullWidth
-          disabled={disabled}
-          onClick={openDialog}
-        >
-          {searchButtonLabel}
-        </FormButton>
-      </div>
+      {!previewStatic ? (
+        <div className="customer-address-field__search-row">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            fullWidth
+            disabled={frozen}
+            onClick={openDialog}
+          >
+            {searchButtonLabel}
+          </FormButton>
+        </div>
+      ) : null}
 
       <FormInput
         className="field__control address-search-field__zonecode"
         placeholder={zonecodePlaceholder}
         value={current.zonecode}
         readOnly
+        disabled={frozen}
         aria-label="우편번호"
-        onClick={openDialog}
+        onClick={previewStatic ? undefined : openDialog}
       />
 
       <FormInput
@@ -185,8 +179,9 @@ export default function AddressSearchField({
         placeholder={addressPlaceholder}
         value={current.baseAddress}
         readOnly
+        disabled={frozen}
         aria-label="기본 주소"
-        onClick={openDialog}
+        onClick={previewStatic ? undefined : openDialog}
       />
 
       <FormInput
@@ -194,44 +189,47 @@ export default function AddressSearchField({
         className="field__control address-search-field__detail"
         placeholder={detailPlaceholder}
         value={current.detailAddress}
-        disabled={disabled}
+        readOnly={previewStatic}
+        disabled={frozen}
         aria-label="상세 주소"
-        onChange={(event) => patch({ detailAddress: event.target.value })}
+        onChange={previewStatic ? undefined : (event) => patch({ detailAddress: event.target.value })}
       />
 
-      <BaseDialog
-        open={open}
-        onClose={() => setOpen(false)}
-        ariaLabel="주소 검색"
-        panelClassName="address-search-field__dialog"
-        usePortal
-      >
-        <div className="address-search-field__dialog-head">
-          <span>주소 검색</span>
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setOpen(false)}
-            aria-label="닫기"
-          >
-            닫기
-          </FormButton>
-        </div>
-        {loadError ? (
-          <p className="address-search-field__error">
-            {loadError}
-            <br />
-            네트워크 상태를 확인하고 다시 시도해 주세요.
-          </p>
-        ) : null}
-        <div
-          ref={embedRef}
-          className="address-search-field__embed"
-          role="region"
-          aria-label="카카오 우편번호 검색 위젯"
-        />
-      </BaseDialog>
+      {!previewStatic ? (
+        <BaseDialog
+          open={open}
+          onClose={() => setOpen(false)}
+          ariaLabel="주소 검색"
+          panelClassName="address-search-field__dialog"
+          usePortal
+        >
+          <div className="address-search-field__dialog-head">
+            <span>주소 검색</span>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setOpen(false)}
+              aria-label="닫기"
+            >
+              닫기
+            </FormButton>
+          </div>
+          {loadError ? (
+            <p className="address-search-field__error">
+              {loadError}
+              <br />
+              네트워크 상태를 확인하고 다시 시도해 주세요.
+            </p>
+          ) : null}
+          <div
+            ref={embedRef}
+            className="address-search-field__embed"
+            role="region"
+            aria-label="카카오 우편번호 검색 위젯"
+          />
+        </BaseDialog>
+      ) : null}
     </div>
   )
 }

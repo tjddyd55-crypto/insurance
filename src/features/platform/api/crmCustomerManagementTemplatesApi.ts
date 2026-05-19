@@ -17,6 +17,28 @@ export type CrmTemplateListRow = CrmCustomerManagementTemplateApiRow & {
   resolved: CustomerIndustryTemplate | null
 }
 
+type CrmTemplateMutationPayload = {
+  row: CrmCustomerManagementTemplateApiRow
+  resolved: CustomerIndustryTemplate
+}
+
+/** apiRequest + safeApiResponse 가 `{ success, data }` 의 data 만 반환하는 경우와 row/resolved 직접 반환을 모두 처리 */
+function unwrapCrmTemplateMutationPayload(raw: unknown): CrmTemplateMutationPayload | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  const nested = o.data
+  if (nested && typeof nested === 'object') {
+    const inner = nested as Record<string, unknown>
+    if (inner.row != null && inner.resolved != null) {
+      return inner as CrmTemplateMutationPayload
+    }
+  }
+  if (o.row != null && o.resolved != null) {
+    return o as CrmTemplateMutationPayload
+  }
+  return null
+}
+
 export async function listCrmCustomerManagementTemplates(
   token: string,
   industryCode?: string,
@@ -50,11 +72,11 @@ export async function fetchCrmCustomerManagementTemplate(token: string, id: numb
     `/api/admin/platform/crm-customer-management-templates/${id}`,
     { method: 'GET', token },
   )
-  const data = raw && typeof raw === 'object' ? (raw as { data?: unknown }).data : null
-  if (!data || typeof data !== 'object') {
+  const data = unwrapCrmTemplateMutationPayload(raw)
+  if (!data) {
     throw new ApiError('템플릿을 불러오지 못했습니다.', 500)
   }
-  return data as { row: CrmCustomerManagementTemplateApiRow; resolved: CustomerIndustryTemplate }
+  return data
 }
 
 export async function createCrmCustomerManagementTemplate(token: string, body: unknown) {
@@ -65,11 +87,12 @@ export async function createCrmCustomerManagementTemplate(token: string, body: u
   if (!raw || typeof raw !== 'object') {
     throw new ApiError('저장에 실패했습니다.', 500)
   }
-  const o = raw as { data?: unknown; message?: string }
-  if (!o.data) {
+  const o = raw as { message?: string }
+  const data = unwrapCrmTemplateMutationPayload(raw)
+  if (!data) {
     throw new ApiError(String(o.message ?? '저장에 실패했습니다.'), 400)
   }
-  return o.data as { row: CrmCustomerManagementTemplateApiRow; resolved: CustomerIndustryTemplate }
+  return data
 }
 
 export async function updateCrmCustomerManagementTemplate(token: string, id: number, body: unknown) {
@@ -80,11 +103,12 @@ export async function updateCrmCustomerManagementTemplate(token: string, id: num
   if (!raw || typeof raw !== 'object') {
     throw new ApiError('저장에 실패했습니다.', 500)
   }
-  const o = raw as { data?: unknown; message?: string }
-  if (!o.data) {
+  const o = raw as { message?: string }
+  const data = unwrapCrmTemplateMutationPayload(raw)
+  if (!data) {
     throw new ApiError(String(o.message ?? '저장에 실패했습니다.'), 400)
   }
-  return o.data as { row: CrmCustomerManagementTemplateApiRow; resolved: CustomerIndustryTemplate }
+  return data
 }
 
 export async function patchTenantCrmCustomerTemplate(token: string, tenantId: number, templateId: number | null) {

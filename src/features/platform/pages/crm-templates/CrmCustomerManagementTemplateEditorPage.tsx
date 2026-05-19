@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthProvider'
 import { ApiError } from '../../../../lib/apiClient'
-import CustomerIndustryTemplateFields from '../../../customers/components/CustomerIndustryTemplateFields'
 import type { CustomerEditFormState } from '../../../customers/types/customerEditForm'
 
 import {
@@ -11,6 +10,7 @@ import {
   draftToSaveBody,
   emptyDraft,
 } from './builder/crmTemplateBuilder.converters'
+import { normalizeCrmTemplateDraftKeys } from './builder/crmTemplateFieldKeyAuto'
 import { validateCrmTemplateDraft } from './builder/crmTemplateBuilder.validation'
 import {
   applyNationalIdCoreFieldModeToDraft,
@@ -150,16 +150,21 @@ export default function CrmCustomerManagementTemplateEditorPage() {
       .finally(() => setLoading(false))
   }, [id, isNew, token])
 
+  const previewDraft = useMemo(
+    () => normalizeCrmTemplateDraftKeys(draft, industryCode.trim().toLowerCase()),
+    [draft, industryCode],
+  )
+
   const previewTemplate = useMemo(() => {
     const ic = industryCode.trim().toLowerCase()
     if (!ic) return null
-    return draftToPreviewIndustryTemplate(draft, ic, {
+    return draftToPreviewIndustryTemplate(previewDraft, ic, {
       templateId: previewMeta?.templateId ?? 'preview',
       version: previewMeta?.version ?? 'preview',
       dynamicTemplateDbId: previewMeta?.dynamicTemplateDbId,
       status: previewMeta?.templateStatus,
     })
-  }, [draft, industryCode, previewMeta])
+  }, [previewDraft, industryCode, previewMeta])
 
   const serializedPayloadPreview = useMemo(() => {
     try {
@@ -188,7 +193,8 @@ export default function CrmCustomerManagementTemplateEditorPage() {
       return
     }
 
-    const issues = validateCrmTemplateDraft({ name, industryCode, status, draft })
+    const normalizedDraft = normalizeCrmTemplateDraftKeys(draft, industryCode.trim().toLowerCase())
+    const issues = validateCrmTemplateDraft({ name, industryCode, status, draft: normalizedDraft })
     if (issues.length > 0) {
       setValidationIssues(issues)
       setActiveTab(firstTabWithIssues(issues))
@@ -196,13 +202,16 @@ export default function CrmCustomerManagementTemplateEditorPage() {
       return
     }
     setValidationIssues([])
+    if (JSON.stringify(normalizedDraft) !== JSON.stringify(draft)) {
+      setDraft(normalizedDraft)
+    }
 
     const payload = draftToSaveBody({
       name,
       industry_code: industryCode,
       description,
       status,
-      draft,
+      draft: normalizedDraft,
     })
 
     try {
@@ -294,6 +303,7 @@ export default function CrmCustomerManagementTemplateEditorPage() {
           revision={revision}
           draft={draft}
           setDraft={setDraft}
+          previewDraft={previewDraft}
           previewTemplate={previewTemplate}
           previewBinder={previewBinder}
           setPreviewBinder={setPreviewBinder}
