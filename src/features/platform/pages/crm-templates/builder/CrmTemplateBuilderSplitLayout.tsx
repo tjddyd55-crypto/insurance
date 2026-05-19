@@ -4,13 +4,18 @@ type Props = {
   settings: ReactNode
   preview: ReactNode
   previewTitle?: string
+  /** 미리보기 제목 아래 안내 문구. 미지정 시 기본 문구 사용 */
+  previewHint?: string
 }
 
 /** 빌더 설정(좌) + 실시간 미리보기(우). 좁은 화면에서는 세로 배치·미리보기 접기. */
+const DEFAULT_PREVIEW_HINT = '실제 저장·등록은 되지 않습니다. 설정 변경이 바로 반영됩니다.'
+
 export default function CrmTemplateBuilderSplitLayout({
   settings,
   preview,
   previewTitle = '실시간 미리보기',
+  previewHint = DEFAULT_PREVIEW_HINT,
 }: Props) {
   const [previewOpen, setPreviewOpen] = useState(true)
   const [isWide, setIsWide] = useState(() =>
@@ -34,9 +39,7 @@ export default function CrmTemplateBuilderSplitLayout({
         <header className="crm-template-builder__split-preview-head">
           <div>
             <h3 className="crm-template-builder__split-preview-title">{previewTitle}</h3>
-            <p className="platform-admin-page__field-hint m-0 text-xs">
-              실제 저장·등록은 되지 않습니다. 설정 변경이 바로 반영됩니다.
-            </p>
+            <p className="platform-admin-page__field-hint m-0 text-xs">{previewHint}</p>
           </div>
           {!isWide ? (
             <button

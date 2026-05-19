@@ -136,13 +136,13 @@ export function validateCrmTemplateDraft(params: {
 
   for (const c of draft.listColumns) {
     if (!c.label.trim()) {
-      issues.push({ tab: 'list', localId: c.localId, message: '컬럼 라벨을 입력해 주세요.' })
+      issues.push({ tab: 'list', localId: c.localId, message: '표시 항목 라벨을 입력해 주세요.' })
     }
     if (!CRM_TEMPLATE_FIELD_KEY_REGEX.test(String(c.columnKey ?? '').trim())) {
       issues.push({
         tab: 'list',
         localId: c.localId,
-        message: '목록 컬럼 설정을 확인해 주세요. 표시할 등록 폼 필드를 선택해 주세요.',
+        message: '목록 표시 항목 설정을 확인해 주세요. 표시할 등록 폼 필드를 선택해 주세요.',
       })
     }
     const src = c.sourceFieldKey.trim()

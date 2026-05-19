@@ -11693,7 +11693,92 @@ textarea.memo-sticky-note__textarea::placeholder {
   border-top: 1px solid #1e293b;
 }
 
+.platform-admin-page--pc .crm-template-builder__list-tab-lede {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #111827;
+  color: #e5e7eb;
+}
+
 .platform-admin-page--pc .crm-template-builder__preview-list-wrap {
+  min-width: 0;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-list-customer-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  background: #111827;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-list-customer-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.35;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-list-customer-card-rows {
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-list-customer-card-row {
+  display: grid;
+  grid-template-columns: minmax(88px, 38%) minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-list-customer-card-row dt {
+  margin: 0;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-list-customer-card-row dd {
+  margin: 0;
+  color: #e5e7eb;
+  word-break: break-word;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-list-compact-line {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px dashed #475569;
+  background: #020617;
+  line-height: 1.45;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-list-compact-line-label {
+  display: block;
+  margin-bottom: 4px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-list-table-fallback {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #1e293b;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-list-table-fallback summary {
+  cursor: pointer;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.platform-admin-page--pc .crm-template-builder__preview-list-table-scroll {
   overflow-x: auto;
 }
 
@@ -11718,24 +11803,10 @@ textarea.memo-sticky-note__textarea::placeholder {
   font-weight: 600;
 }
 
-.platform-admin-page--pc .crm-template-builder__preview-table-row--muted td {
-  color: #94a3b8;
-}
-
-.platform-admin-page--pc .crm-template-builder__preview-list-cards {
-  display: none;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-}
-
 @media (max-width: 1023px) {
-  .platform-admin-page--pc .crm-template-builder__preview-table {
-    display: none;
-  }
-
-  .platform-admin-page--pc .crm-template-builder__preview-list-cards {
-    display: flex;
+  .platform-admin-page--pc .crm-template-builder__preview-list-customer-card-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 }
 

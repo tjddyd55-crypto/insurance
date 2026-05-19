@@ -94,7 +94,7 @@ async function main() {
     if ((await inlineAddrInBuilder.count()) === 0) pass('inline preview: no address search trigger')
     else fail('inline preview: no address search trigger', `count=${await inlineAddrInBuilder.count()}`)
 
-    await clickTab(page, '목록 컬럼')
+    await clickTab(page, '목록 표시 항목')
     const qaInListSelect = page.locator('option', { hasText: 'QA커스텀필드' })
     if (await qaInListSelect.count()) pass('list column can reference new field')
     else pass('list column tab', 'preset columns present')

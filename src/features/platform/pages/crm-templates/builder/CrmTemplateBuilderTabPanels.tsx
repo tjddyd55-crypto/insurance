@@ -152,7 +152,7 @@ export default function CrmTemplateBuilderTabPanels({
   const tabs: { id: CrmTemplateBuilderTabId; label: string }[] = [
     { id: 'basic', label: '기본 정보' },
     { id: 'form', label: '등록 폼' },
-    { id: 'list', label: '목록 컬럼' },
+    { id: 'list', label: '목록 표시 항목' },
     { id: 'detail', label: '상세 탭' },
     { id: 'preview', label: '전체 미리보기' },
   ]
@@ -344,6 +344,7 @@ export default function CrmTemplateBuilderTabPanels({
             draft={draft}
             setDraft={setDraft}
             previewDraft={previewDraft}
+            industryCode={industryCode}
             validationIssues={validationIssues.filter((x) => x.tab === 'list')}
           />
         ) : null}
@@ -868,11 +869,13 @@ function ListColumnsTab({
   draft,
   setDraft,
   previewDraft,
+  industryCode,
   validationIssues,
 }: {
   draft: CrmTemplateDraft
   setDraft: (fn: CrmTemplateDraft | ((p: CrmTemplateDraft) => CrmTemplateDraft)) => void
   previewDraft: CrmTemplateDraft
+  industryCode: string
   validationIssues: readonly CrmTemplateValidationIssue[]
 }) {
   function patchCol(localId: string, patch: Partial<CrmDraftListColumn>) {
@@ -901,10 +904,22 @@ function ListColumnsTab({
 
   return (
     <CrmTemplateBuilderSplitLayout
+      previewTitle="목록 카드 미리보기"
+      previewHint="고객관리 목록 화면의 카드 요약입니다. 실제 저장·등록은 되지 않으며, 설정 변경이 바로 반영됩니다."
       settings={
     <section className="platform-admin-panel">
+      <div className="crm-template-builder__list-tab-lede platform-admin-page__field-hint text-sm mb-4">
+        <p className="m-0">
+          등록된 데이터를 목록에서 볼 때 카드·리스트에 표시할 항목을 설정합니다. 목록에서 한 건을
+          선택하면 상세 탭 화면으로 이동합니다.
+        </p>
+        <p className="m-0 mt-2 platform-admin-page__muted text-xs">
+          등록 폼은 데이터 입력, 목록 표시 항목은 목록 카드 요약, 상세 탭은 선택한 건의 상세
+          화면 구성입니다.
+        </p>
+      </div>
       <div className="crm-template-builder__section-head">
-        <h2 className="platform-admin-panel__title">목록(카드) 컬럼</h2>
+        <h2 className="platform-admin-panel__title">목록 표시 항목</h2>
         <button
           type="button"
           className="filter-button filter-button--workspace-active"
@@ -927,7 +942,7 @@ function ListColumnsTab({
             })
           }
         >
-          + 컬럼 추가
+          + 표시 항목 추가
         </button>
       </div>
       {draft.formFields.length === 0 ? (
@@ -940,7 +955,7 @@ function ListColumnsTab({
         {draft.listColumns.map((c, idx) => (
           <article key={c.localId} className="crm-template-builder__card">
             <header className="crm-template-builder__card-head">
-              <span className="crm-template-builder__card-title">컬럼 {idx + 1}</span>
+              <span className="crm-template-builder__card-title">표시 항목 {idx + 1}</span>
               <div className="crm-template-builder__card-actions">
                 <button type="button" className="filter-button text-xs px-2" onClick={() => move(idx, -1)}>
                   ↑
@@ -1064,7 +1079,7 @@ function ListColumnsTab({
       </div>
     </section>
       }
-      preview={<CrmTemplateListPreview draft={previewDraft} />}
+      preview={<CrmTemplateListPreview draft={previewDraft} industryCode={industryCode} />}
     />
   )
 }
