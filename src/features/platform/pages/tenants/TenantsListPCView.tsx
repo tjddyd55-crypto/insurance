@@ -50,7 +50,7 @@ export default function TenantsListPCView({ items, loading, error, reload }: Ten
                         className="platform-admin-page__btn platform-admin-page__btn--compact"
                         to={`/admin/platform/tenants/${encodeURIComponent(row.id)}`}
                       >
-                        코드·사용자
+                        가입 코드·사용자
                       </Link>
                     ) : (
                       <span className="platform-admin-page__muted">—</span>
