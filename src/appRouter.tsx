@@ -335,6 +335,7 @@ export const appRouter = createBrowserRouter([
                     element: <PdfIssuanceHistoryPage />,
                   },
                   { path: ':customerId/application-documents/:id', element: <PdfDocumentDetailPage /> },
+                  { path: ':customerId/signatures', element: <ContractSignatureHistoryPage /> },
                   { path: ':customerId/claim-requests', element: <ClaimRequestsRoutePage /> },
                 ],
               },

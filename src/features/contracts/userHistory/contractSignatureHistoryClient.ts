@@ -41,6 +41,7 @@ export type ListUserSendSessionsResult = {
 export async function listUserSendSessions(
   token: string,
   params: {
+    customerId?: number
     q?: string
     filter?: 'all' | 'in_progress' | 'completed' | 'expired' | 'cancelled'
     sort?: 'sent_desc' | 'completed_desc'
@@ -49,6 +50,9 @@ export async function listUserSendSessions(
   },
 ): Promise<ListUserSendSessionsResult> {
   const qs = new URLSearchParams()
+  if (params.customerId != null && Number.isInteger(params.customerId) && params.customerId > 0) {
+    qs.set('customerId', String(params.customerId))
+  }
   if (params.q?.trim()) {
     qs.set('q', params.q.trim())
   }

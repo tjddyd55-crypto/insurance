@@ -28,6 +28,9 @@ function resolveMobileSheetTitle(pathname: string, search: string): string {
   if (pathname.includes('/application-documents')) {
     return '신청서'
   }
+  if (pathname.includes('/signatures')) {
+    return '전자서명'
+  }
   if (pathname.includes('/memos')) {
     return '메모'
   }
@@ -110,7 +113,7 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
 
   const isMobileDetailRoute = useMemo(
     () =>
-      /^\/customers\/\d+\/(?:files|consultations|ga-excel|memos|auto-form|application-documents|claim-requests)(?:\/|$)/.test(
+      /^\/customers\/\d+\/(?:files|consultations|ga-excel|memos|auto-form|application-documents|signatures|claim-requests)(?:\/|$)/.test(
         location.pathname,
       ),
     [location.pathname],

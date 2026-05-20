@@ -19,6 +19,7 @@ import { getPublicOrigin } from '../../../lib/publicOrigin'
 import { copyTextToClipboard } from '../../../lib/clipboard'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
+import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
 import { deleteCustomer, listCustomers, updateCustomer } from '../api/customersApi'
 import { listCustomerCars } from '../api/customerCarsApi'
 import type { CustomerRecord } from '../domain/types'
@@ -124,6 +125,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const { gaSettings } = useGaSettings()
   const { confirm, confirmDialog } = useConfirmDialog()
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
+  const contractSignaturesEnabled = canAccessContractSignatureUserSend(user?.role)
   const gaExcelEnabled = gaSettings.use_ga_excel === true
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [customersTotalCount, setCustomersTotalCount] = useState(0)
@@ -954,6 +956,15 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     [navigate, searchParams],
   )
 
+  const handleOpenSignatures = useCallback(
+    (customerId: number) => {
+      const next = new URLSearchParams(searchParams)
+      next.set('customerId', String(customerId))
+      navigate(buildCustomerWorkspacePath({ customerId, tab: 'signatures', query: next }))
+    },
+    [navigate, searchParams],
+  )
+
   const handleCustomerConsultationCreated = useCallback(
     (customerId: number, row: Pick<CustomerConsultationRow, 'consultationDate' | 'createdAt'>) => {
       const dateFromRow = normalizeYmd(row.consultationDate)
@@ -1289,6 +1300,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               editSaving={editSaving}
               editStatusText={editingId === c.id ? statusText : undefined}
               carFeatureEnabled={carFeatureEnabled}
+              contractSignaturesEnabled={contractSignaturesEnabled}
               gaExcelEnabled={gaExcelEnabled}
               onCopyCustomer={copyCustomer}
               onStartEdit={startEdit}
@@ -1297,6 +1309,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               onOpenFilesModal={handleOpenFilesModal}
               onOpenConsultationsModal={handleOpenConsultationsModal}
               onOpenAutoModal={handleOpenAutoModal}
+              onOpenSignatures={handleOpenSignatures}
               onOpenGaModal={handleOpenGaModal}
               onOpenPersonalMessage={handleOpenPersonalMessage}
               onOpenClaims={handleOpenClaims}

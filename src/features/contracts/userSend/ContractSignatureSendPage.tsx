@@ -2,6 +2,7 @@
  * 전자서명 발송 — USER / GA_STAFF. 관리자 템플릿은 /admin/contract-signatures 에서만 관리.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ReactElement, type KeyboardEvent, type ChangeEventHandler } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { FormButton, FormInput, FormSelect, FormTextarea } from '../../../components/form'
 import { useMediaQuery } from '../../../hooks/useMediaQuery'
 import '../../pdf-engine/pdf-engine.css'
@@ -29,6 +30,8 @@ import {
 } from './contractSignatureSendClient'
 import { SendAttachmentFileInput } from './SendAttachmentFileInput'
 import { ConfirmationOnlySendFieldsSection } from './ConfirmationOnlySendFieldsSection'
+import { getCustomerById } from '../../customers/api/customersApi'
+import { customerRecordToContractSendHit } from './customerRecordToContractSendHit'
 
 /**
  * 모바일 발송 단계에서 초록색(contract-mobile-step--completed)은
@@ -217,11 +220,22 @@ function mobileStepShell(
   )
 }
 
+function parseContractSendCustomerId(raw: string | null): number | null {
+  const n = Number(raw)
+  return Number.isInteger(n) && n > 0 ? n : null
+}
+
 export default function ContractSignatureSendPage() {
   const { token } = useAuth()
   const t = token?.trim() ?? ''
+  const [searchParams] = useSearchParams()
+  const queryCustomerId = useMemo(
+    () => parseContractSendCustomerId(searchParams.get('customerId')),
+    [searchParams],
+  )
   const isMobileFlow = useMediaQuery(MOBILE_FLOW_MQ)
   const customerSearchInputRef = useRef<HTMLInputElement>(null)
+  const prefilledCustomerIdRef = useRef<number | null>(null)
 
   const [bootError, setBootError] = useState<string | null>(null)
   const [templates, setTemplates] = useState<UserContractTemplateItem[]>([])
@@ -283,6 +297,40 @@ export default function ContractSignatureSendPage() {
   useEffect(() => {
     void reloadTemplates()
   }, [reloadTemplates])
+
+  useEffect(() => {
+    if (!t || queryCustomerId == null) {
+      return
+    }
+    if (prefilledCustomerIdRef.current === queryCustomerId) {
+      return
+    }
+    let cancelled = false
+    void getCustomerById(t, queryCustomerId)
+      .then((c) => {
+        if (cancelled) {
+          return
+        }
+        const hit = customerRecordToContractSendHit(c)
+        prefilledCustomerIdRef.current = queryCustomerId
+        setSelectedCustomer(hit)
+        setCustomerQuery(hit.name)
+        setCustomerHits([hit])
+        setCustomerSearchExecuted(true)
+        setCustomerSearchValidationError(null)
+      })
+      .catch((e) => {
+        if (cancelled) {
+          return
+        }
+        setCustomerSearchValidationError(
+          e instanceof ApiError ? e.message : '고객 정보를 불러오지 못했습니다.',
+        )
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [t, queryCustomerId])
 
   const executeCustomerSearch = useCallback(async () => {
     if (!t) {

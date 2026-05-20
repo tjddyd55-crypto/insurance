@@ -4,6 +4,7 @@ export const WORKSPACE_SIDE_DETAIL_TABS = [
   'ga-excel',
   'memos',
   'auto-form',
+  'signatures',
   'claim-requests',
 ] as const
 
@@ -33,6 +34,9 @@ export function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
 export function resolveCustomerWorkspaceTab(pathname: string): CustomerWorkspaceTab {
   if (pathname.includes('/claim-requests')) {
     return 'claim-requests'
+  }
+  if (pathname.includes('/signatures')) {
+    return 'signatures'
   }
   if (pathname.includes('/consultations')) {
     return 'consultations'

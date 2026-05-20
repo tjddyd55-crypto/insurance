@@ -6,6 +6,7 @@ import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '
 import { getCustomerById } from '../api/customersApi'
 import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
 import useIsMobile from '../../../hooks/useIsMobile'
+import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
 import CustomersPageContainer from './customers/CustomersPageContainer'
 import CustomerWorkspaceLayoutPC, { type CustomerWorkspaceLayoutPCProps } from './workspace/CustomerWorkspaceLayoutPC'
 import CustomerWorkspaceLayoutMobile from './workspace/CustomerWorkspaceLayoutMobile'
@@ -53,6 +54,9 @@ function resolveWorkspacePathTab(pathname: string): CustomerWorkspaceTab | null 
   }
   if (pathname.includes('/application-documents')) {
     return 'pdf-documents'
+  }
+  if (pathname.includes('/signatures')) {
+    return 'signatures'
   }
   if (pathname.includes('/consultations')) {
     return 'consultations'
@@ -195,6 +199,7 @@ export default function CustomerWorkspaceLayout() {
   const showGaExcelEntry = true
 
   const showCarInsuranceInWorkspace = isGaCarInsuranceHubEnabled(user?.gaCode, user?.gaName)
+  const showContractSignaturesInWorkspace = canAccessContractSignatureUserSend(user?.role)
 
   const moveTo = (path: string) => {
     const href = buildCustomerWorkspaceHref(path, searchParams, selectedCustomerId)
@@ -268,6 +273,13 @@ export default function CustomerWorkspaceLayout() {
     navigate(`/customers/${selectedCustomerId}/claim-requests?customerId=${selectedCustomerId}&claimTab=news-personal`)
   }
 
+  const handleClickSignatures = () => {
+    if (!selectedCustomerId) {
+      return
+    }
+    moveTo(`/customers/${selectedCustomerId}/signatures`)
+  }
+
   const rightPanelProps: CustomerWorkspaceLayoutPCProps = {
     pathname: location.pathname,
     selectedCustomerId,
@@ -275,6 +287,7 @@ export default function CustomerWorkspaceLayout() {
     selectedCustomer,
     activeTab,
     showCarInsuranceInWorkspace,
+    showContractSignaturesInWorkspace,
     showGaExcelEntry,
     gaExcelMenuTitleHint:
       selectedCustomerId && excelCap != null && !excelCap.showDesignerUi
@@ -287,6 +300,7 @@ export default function CustomerWorkspaceLayout() {
     onClickMemos: handleClickMemos,
     onClickClaims: handleClickClaims,
     onClickPersonalMessage: handleClickPersonalMessage,
+    onClickSignatures: handleClickSignatures,
     openRelatedCustomerRef,
   }
 

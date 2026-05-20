@@ -1133,8 +1133,18 @@ export function registerContractUserApi(apiRouter, ctx) {
       const sortRaw = String(req.query.sort ?? 'sent_desc').trim().toLowerCase()
       const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 100)
       const offset = Math.max(Number(req.query.offset) || 0, 0)
+      const customerIdRaw = req.query.customerId ?? req.query.customer_id
+      const customerIdFilter =
+        customerIdRaw != null && String(customerIdRaw).trim() !== ''
+          ? Number(customerIdRaw)
+          : NaN
 
       const baseParams = [uid, userGa]
+      let customerIdClause = ''
+      if (Number.isInteger(customerIdFilter) && customerIdFilter > 0) {
+        baseParams.push(customerIdFilter)
+        customerIdClause = ` AND s.customer_id = $${baseParams.length} `
+      }
       let searchClause = ''
       if (qSearch) {
         const pattern = `%${escapeIlikePattern(qSearch)}%`
@@ -1170,7 +1180,7 @@ export function registerContractUserApi(apiRouter, ctx) {
           ? 's.completed_at DESC NULLS LAST, s.created_at DESC'
           : 's.created_at DESC'
 
-      const whereRest = `${searchClause}${filterClause}`
+      const whereRest = `${searchClause}${filterClause}${customerIdClause}`
 
       const countSql = `
         SELECT COUNT(*)::int AS total

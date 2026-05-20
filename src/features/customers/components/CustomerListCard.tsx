@@ -113,6 +113,7 @@ export type CustomerListCardProps = {
   editSaving: boolean
   editStatusText?: string
   carFeatureEnabled: boolean
+  contractSignaturesEnabled: boolean
   gaExcelEnabled: boolean
   onCopyCustomer: (c: CustomerRecord) => void
   onStartEdit: (c: CustomerRecord) => void
@@ -121,6 +122,7 @@ export type CustomerListCardProps = {
   onOpenFilesModal: (customerId: number) => void
   onOpenConsultationsModal: (customerId: number) => void
   onOpenAutoModal: (customerId: number) => void
+  onOpenSignatures: (customerId: number) => void
   onOpenGaModal: (customerId: number) => void
   onOpenPersonalMessage: (customerId: number) => void
   onOpenClaims: (customerId: number) => void
@@ -159,6 +161,7 @@ const CustomerListCard = memo(function CustomerListCard({
   editSaving,
   editStatusText,
   carFeatureEnabled,
+  contractSignaturesEnabled,
   gaExcelEnabled,
   onCopyCustomer,
   onStartEdit,
@@ -167,6 +170,7 @@ const CustomerListCard = memo(function CustomerListCard({
   onOpenFilesModal,
   onOpenConsultationsModal,
   onOpenAutoModal,
+  onOpenSignatures,
   onOpenGaModal,
   onOpenPersonalMessage,
   onOpenClaims,
@@ -425,10 +429,12 @@ const CustomerListCard = memo(function CustomerListCard({
                   variant="mobile"
                   customerId={c.id}
                   carFeatureEnabled={carFeatureEnabled}
+                  contractSignaturesEnabled={contractSignaturesEnabled}
                   gaExcelEnabled={gaExcelEnabled}
                   onOpenFilesModal={onOpenFilesModal}
                   onOpenConsultationsModal={onOpenConsultationsModal}
                   onOpenAutoModal={onOpenAutoModal}
+                  onOpenSignatures={onOpenSignatures}
                   onOpenGaModal={onOpenGaModal}
                   onOpenPersonalMessage={onOpenPersonalMessage}
                   onOpenClaims={onOpenClaims}
