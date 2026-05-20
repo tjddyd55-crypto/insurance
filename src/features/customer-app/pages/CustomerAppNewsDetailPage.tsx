@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import RichTextContent from '../../../components/rich-text/RichTextContent'
@@ -6,6 +6,7 @@ import CustomerAppNewsAttachmentList from '../components/CustomerAppNewsAttachme
 import CustomerAppNewsImageGallery from '../components/CustomerAppNewsImageGallery'
 import { getCustomerNewsDetail, markCustomerNewsRead, type CustomerAppNewsDetail } from '../api/customerAppApi'
 import { buildCustomerNewsGalleryUrls } from '../model/buildCustomerNewsGalleryUrls'
+import type { CustomerAppNewsAttachment } from '../api/customerAppApi'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 
 function formatDateTime(iso: string | null): string {
@@ -57,6 +58,19 @@ export default function CustomerAppNewsDetailPage() {
     }
   }, [hasInvalidNewsId, navigate, newsId, session])
 
+  const gallerySlideActions = useMemo(() => {
+    const rows = [...(detail?.attachments ?? [])]
+      .filter((row) => row.kind === 'image' || String(row.mimeType ?? '').toLowerCase().startsWith('image/'))
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+    return rows.map((row: CustomerAppNewsAttachment) => ({
+      openUrl: String(row.openUrl ?? row.url ?? '').trim(),
+      downloadUrl: String(row.downloadUrl ?? row.openUrl ?? row.url ?? '').trim(),
+      fileName: row.fileName,
+    }))
+  }, [detail?.attachments])
+
+  const hasBodyContent = Boolean(detail?.content?.trim())
+
   return (
     <>
       <StatusMessage message={hasInvalidNewsId ? '잘못된 소식지 번호입니다.' : error} tone="error" />
@@ -79,13 +93,17 @@ export default function CustomerAppNewsDetailPage() {
                 attachments: detail.attachments ?? [],
               })}
               altBase="고객 소식지 이미지"
+              slideActions={gallerySlideActions}
+              appToken={session?.appToken ?? ''}
             />
           </div>
-          <RichTextContent
-            value={detail.content || ''}
-            className="insurer-news-detail-body insurer-news-detail-text rich-text-content"
-            emptyText="본문이 없습니다."
-          />
+          {hasBodyContent ? (
+            <RichTextContent
+              value={detail.content || ''}
+              className="insurer-news-detail-body insurer-news-detail-text rich-text-content"
+              emptyText=""
+            />
+          ) : null}
           <div className="insurer-news-detail-after">
             {session ? (
               <CustomerAppNewsAttachmentList attachments={detail.attachments ?? []} appToken={session.appToken} />

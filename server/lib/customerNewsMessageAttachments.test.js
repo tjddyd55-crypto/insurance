@@ -4,10 +4,16 @@ import assert from 'node:assert/strict'
 import {
   assertCustomerNewsAttachmentReadable,
   assertCustomerNewsMessageObjectKey,
+  assertCustomerNewsPayloadAttachmentStorageKey,
   buildCustomerNewsMessageObjectKey,
+  classifyCustomerNewsObjectKeyPrefixType,
+  CUSTOMER_NEWS_ATTACHMENT_ONLY_TITLE,
   findCustomerNewsAttachmentInPayload,
   normalizeCustomerNewsAttachments,
+  resolveCustomerNewsAttachmentForDownload,
   resolveCustomerNewsAttachmentObjectKey,
+  resolveCustomerNewsDisplayTitle,
+  validateCustomerNewsMessageCreateInput,
   validateCustomerNewsMessageUpload,
 } from './customerNewsMessageAttachments.js'
 
@@ -23,6 +29,29 @@ test('validateCustomerNewsMessageUpload: pdf ok', () => {
 
 test('validateCustomerNewsMessageUpload: rejects doc', () => {
   const r = validateCustomerNewsMessageUpload('application/msword', 1024)
+  assert.equal(r.ok, false)
+})
+
+test('validateCustomerNewsMessageCreateInput: attachment-only ok', () => {
+  const r = validateCustomerNewsMessageCreateInput({
+    title: '',
+    content: '',
+    attachments: [
+      {
+        kind: 'image',
+        objectKey: 'insurer/ga1/agent/customer-news-attachments/a.jpg',
+        fileName: 'photo.jpg',
+      },
+    ],
+  })
+  assert.equal(r.ok, true)
+  assert.equal(r.titleForRow, CUSTOMER_NEWS_ATTACHMENT_ONLY_TITLE)
+  assert.equal(r.bodyText, '')
+  assert.equal(r.attachments.length, 1)
+})
+
+test('validateCustomerNewsMessageCreateInput: all empty rejected', () => {
+  const r = validateCustomerNewsMessageCreateInput({ title: '', content: '', attachments: [] })
   assert.equal(r.ok, false)
 })
 
@@ -51,17 +80,36 @@ test('normalizeCustomerNewsAttachments: preserves stored attachment id', () => {
   assert.equal(rows[0].mimeType, 'image/jpeg')
 })
 
-test('normalizeCustomerNewsAttachments: generates id only when missing', () => {
-  const rows = normalizeCustomerNewsAttachments([
-    {
-      kind: 'image',
-      url: 'https://cdn.example.com/a.jpg',
-      objectKey: 'insurer/ga1/agent/customer-news-attachments/a.jpg',
-      fileName: 'photo.jpg',
-    },
-  ])
-  assert.equal(rows.length, 1)
-  assert.match(rows[0].id, /^[0-9a-f-]{36}$/i)
+test('normalizeCustomerNewsAttachments: stable id when missing', () => {
+  const payload = {
+    kind: 'image',
+    url: 'https://cdn.example.com/a.jpg',
+    objectKey: 'insurer/ga1/agent/customer-news-attachments/a.jpg',
+    fileName: 'photo.jpg',
+  }
+  const first = normalizeCustomerNewsAttachments([payload])
+  const second = normalizeCustomerNewsAttachments([payload])
+  assert.equal(first.length, 1)
+  assert.equal(second.length, 1)
+  assert.equal(first[0].id, second[0].id)
+  assert.match(first[0].id, /^[0-9a-f]{32}$/)
+})
+
+test('resolveCustomerNewsAttachmentForDownload: finds stable id across reads', () => {
+  const payload = {
+    attachments: [
+      {
+        kind: 'image',
+        objectKey: 'files/agent-1/123-photo.jpg',
+        fileName: 'photo.jpg',
+        mimeType: 'image/jpeg',
+      },
+    ],
+  }
+  const normalized = normalizeCustomerNewsAttachments(payload.attachments)
+  const found = resolveCustomerNewsAttachmentForDownload(payload, normalized[0].id)
+  assert.equal(found?.fileName, 'photo.jpg')
+  assert.equal(found?.objectKey, 'files/agent-1/123-photo.jpg')
 })
 
 test('findCustomerNewsAttachmentInPayload: matches id and attachmentId', () => {
@@ -117,6 +165,74 @@ test('resolveCustomerNewsAttachmentObjectKey: extracts from cdn url', () => {
     'https://cdn.example.com',
   )
   assert.equal(key, 'insurer/ga1/agent/customer-news-attachments/a.jpg')
+})
+
+test('resolveCustomerNewsAttachmentObjectKey: skips accessToken download url', () => {
+  const key = resolveCustomerNewsAttachmentObjectKey(
+    {
+      objectKey: 'files/agent-1/123-photo.jpg',
+      url: 'https://app.example.com/backend/customer-app/news/n1/attachments/a1/download?accessToken=abc',
+    },
+    'https://cdn.example.com',
+  )
+  assert.equal(key, 'files/agent-1/123-photo.jpg')
+})
+
+test('assertCustomerNewsPayloadAttachmentStorageKey: storage files path', () => {
+  const attachment = {
+    kind: 'image',
+    objectKey: 'files/agent-1/123-photo.jpg',
+    fileName: 'photo.jpg',
+  }
+  assert.equal(assertCustomerNewsPayloadAttachmentStorageKey('files/agent-1/123-photo.jpg', attachment), true)
+})
+
+test('assertCustomerNewsPayloadAttachmentStorageKey: CRM R2 root prefix', () => {
+  const prev = process.env.CRM_R2_OBJECT_ROOT
+  process.env.CRM_R2_OBJECT_ROOT = 'crm-platform/production'
+  try {
+    const attachment = {
+      objectKey: 'crm-platform/production/files/agent-1/123-photo.jpg',
+      fileName: 'photo.jpg',
+    }
+    assert.equal(
+      assertCustomerNewsPayloadAttachmentStorageKey(
+        'files/agent-1/123-photo.jpg',
+        attachment,
+      ),
+      true,
+    )
+  } finally {
+    if (prev == null) {
+      delete process.env.CRM_R2_OBJECT_ROOT
+    } else {
+      process.env.CRM_R2_OBJECT_ROOT = prev
+    }
+  }
+})
+
+test('classifyCustomerNewsObjectKeyPrefixType: storage files', () => {
+  assert.equal(classifyCustomerNewsObjectKeyPrefixType('files/agent-1/123-photo.jpg'), 'storage-files')
+})
+
+test('resolveCustomerNewsDisplayTitle: attachment-only fallback', () => {
+  assert.equal(
+    resolveCustomerNewsDisplayTitle({
+      title: CUSTOMER_NEWS_ATTACHMENT_ONLY_TITLE,
+      attachments: [{ fileName: 'photo.jpg', objectKey: 'files/a/1.jpg' }],
+    }),
+    'photo.jpg',
+  )
+})
+
+test('resolveCustomerNewsDisplayTitle: attachment-only without fileName', () => {
+  assert.equal(
+    resolveCustomerNewsDisplayTitle({
+      title: '',
+      attachments: [{ objectKey: 'files/a/1.jpg' }],
+    }),
+    CUSTOMER_NEWS_ATTACHMENT_ONLY_TITLE,
+  )
 })
 
 test('assertCustomerNewsAttachmentReadable: customer-news message key', () => {

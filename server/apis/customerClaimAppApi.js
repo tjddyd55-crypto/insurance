@@ -9,14 +9,20 @@ import {
   logR2EnvDiagnosticCheck,
   r2GetPresignedPutUrl,
 } from '../lib/consentStorage.js'
+import { stripR2ObjectRootIfPresent, withR2ObjectRoot } from '../lib/r2KeyPolicy.js'
 import {
-  assertCustomerNewsAttachmentReadable,
   assertCustomerNewsMessageObjectKey,
+  assertCustomerNewsPayloadAttachmentStorageKey,
   buildCustomerNewsMessageObjectKey,
+  classifyCustomerNewsObjectKeyPrefixType,
   customerNewsAttachmentKindFromMime,
   findCustomerNewsAttachmentInPayload,
+  isSafeCustomerNewsStorageObjectKey,
   normalizeCustomerNewsAttachments,
-  resolveCustomerNewsAttachmentObjectKey,
+  resolveCustomerNewsAttachmentForDownload,
+  resolveCustomerNewsAttachmentStorageKey,
+  resolveCustomerNewsDisplayTitle,
+  validateCustomerNewsMessageCreateInput,
   validateCustomerNewsMessageUpload,
 } from '../lib/customerNewsMessageAttachments.js'
 
@@ -604,6 +610,29 @@ async function ensureAgentLinkCustomer(pool, agentId, gaId) {
  * @param {number} customerId
  * @param {string} deviceId
  */
+/**
+ * accessToken 첨부 다운로드: deviceId 없이 agent·customer 관계만 확인한다.
+ * @param {import('pg').Pool} pool
+ * @param {string} agentId
+ * @param {number} customerId
+ */
+async function ensureCustomerAppAgentCustomerLink(pool, agentId, customerId) {
+  const r = await pool.query(
+    `
+    SELECT id
+    FROM customers
+    WHERE id = $1
+      AND user_id = $2
+    LIMIT 1
+    `,
+    [customerId, agentId],
+  )
+  if (r.rowCount === 0) {
+    return { ok: false, status: 403, message: '고객 정보를 확인할 수 없습니다.' }
+  }
+  return { ok: true }
+}
+
 async function ensureCustomerAppActiveContext(pool, agentId, customerId, deviceId) {
   const r = await pool.query(
     `
@@ -1507,21 +1536,23 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       const content = String(req.body?.content ?? '').trim()
       const sendPush = Boolean(req.body?.sendPush)
       const isPinned = Boolean(req.body?.isPinned)
-      const attachments = normalizeCustomerNewsAttachments(req.body?.attachments)
+      const validated = validateCustomerNewsMessageCreateInput({
+        title,
+        content,
+        attachments: req.body?.attachments,
+      })
+      if (!validated.ok) {
+        res.status(400).json({ message: validated.message })
+        return
+      }
+      const attachments = normalizeCustomerNewsAttachments(validated.attachments)
+      const bodyText = validated.bodyText
+      const titleForRow = validated.titleForRow
       const scopeRaw = String(req.body?.scope ?? 'all')
         .trim()
         .toLowerCase()
       const scope = scopeRaw === 'personal' ? 'personal' : 'all'
       const targetCustomerId = parsePositiveInt(req.body?.targetCustomerId)
-      if (!title) {
-        res.status(400).json({ message: '제목을 입력해 주세요.' })
-        return
-      }
-      if (!content && attachments.length === 0) {
-        res.status(400).json({ message: '메시지 내용 또는 첨부파일을 추가해 주세요.' })
-        return
-      }
-      const bodyText = content || '(첨부파일)'
       if (scope === 'personal' && targetCustomerId == null) {
         res.status(422).json({ message: '개별 소식지는 대상 고객을 선택해 주세요.' })
         return
@@ -1573,7 +1604,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           (id, ga_id, company_id, company_name_snapshot, title, status, body_text, payload, created_at, updated_at)
         VALUES ($1, $2, NULL, $3, $4, 'PUBLISHED', $5, $6::jsonb, NOW(), NOW())
         `,
-        [id, gaId, '고객 소식지', title, bodyText, JSON.stringify(payload)],
+        [id, gaId, '고객 소식지', titleForRow, bodyText, JSON.stringify(payload)],
       )
       await writeLinkAudit(pool, {
         agentId,
@@ -1759,22 +1790,25 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         return
       }
       const prevScope = String(prevPayload?.customerNewsScope ?? 'all') === 'personal' ? 'personal' : 'all'
+      const contentTrim = String(bodyObj.content ?? '').trim()
       const hasAttachmentsField = Object.prototype.hasOwnProperty.call(bodyObj, 'attachments')
       const attachmentsNext = hasAttachmentsField
         ? normalizeCustomerNewsAttachments(bodyObj.attachments)
         : Array.isArray(prevPayload.attachments)
           ? prevPayload.attachments
           : []
-
-      const contentTrim = String(bodyObj.content ?? '').trim()
-      if (!contentTrim && attachmentsNext.length === 0) {
-        res.status(400).json({ message: '내용을 입력해 주세요.' })
+      const titleInput = String(bodyObj.title ?? '').trim()
+      const validated = validateCustomerNewsMessageCreateInput({
+        title: titleInput || prevRowTitle,
+        content: contentTrim,
+        attachments: attachmentsNext,
+      })
+      if (!validated.ok) {
+        res.status(400).json({ message: validated.message })
         return
       }
-      const bodyText = contentTrim || '(첨부파일)'
-
-      const titleInput = String(bodyObj.title ?? '').trim()
-      const titleForRow = titleInput || prevRowTitle || '고객 메시지'
+      const bodyText = validated.bodyText
+      const titleForRow = validated.titleForRow
 
       let targetCustomerName = String(prevPayload?.targetCustomerName ?? '')
       if (prevScope === 'personal') {
@@ -2848,17 +2882,30 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
     if (accessToken) {
       const tokenPayload = verifyCustomerNewsAttachmentAccessToken(accessToken)
       if (!tokenPayload) {
+        logCustomerAppAttachmentDenied({
+          reason: 'access_token_invalid',
+          newsId: String(req.params.newsId ?? '').trim(),
+          attachmentId: String(req.params.attachmentId ?? '').trim(),
+          hasObjectKey: false,
+          objectKeyPrefixType: 'unknown',
+        })
         res.status(401).json({ message: '첨부파일 접근 권한이 없습니다.' })
         return null
       }
-      const contextCheck = await ensureCustomerAppActiveContext(
+      const customerCheck = await ensureCustomerAppAgentCustomerLink(
         pool,
         tokenPayload.agentId,
         tokenPayload.customerId,
-        tokenPayload.deviceId,
       )
-      if (!contextCheck.ok) {
-        res.status(contextCheck.status).json({ message: contextCheck.message })
+      if (!customerCheck.ok) {
+        logCustomerAppAttachmentDenied({
+          reason: 'customer_agent_mismatch',
+          newsId: tokenPayload.newsId,
+          attachmentId: tokenPayload.attachmentId,
+          hasObjectKey: false,
+          objectKeyPrefixType: 'unknown',
+        })
+        res.status(customerCheck.status).json({ message: customerCheck.message })
         return null
       }
       return {
@@ -2988,6 +3035,36 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
     return row.rows[0]
   }
 
+  /**
+   * @param {Record<string, unknown>} meta
+   */
+  function logCustomerAppAttachmentDenied(meta) {
+    console.log('[customer-app-attachment] denied', meta)
+  }
+
+  /**
+   * @param {string} storageKey
+   */
+  async function readCustomerNewsAttachmentBuffer(storageKey) {
+    const primary = String(storageKey ?? '').trim().replace(/^\//, '')
+    if (!primary) {
+      throw new Error('missing storage key')
+    }
+    try {
+      return await consentGetBuffer(primary)
+    } catch {
+      const stripped = stripR2ObjectRootIfPresent(primary)
+      const withRoot = withR2ObjectRoot(stripped)
+      if (withRoot !== primary) {
+        return await consentGetBuffer(withRoot)
+      }
+      if (stripped !== primary) {
+        return await consentGetBuffer(stripped)
+      }
+      throw new Error('storage read failed')
+    }
+  }
+
   apiRouter.get('/customer-app/news/:newsId/attachments/:attachmentId/download', async (req, res) => {
       try {
         const context = await resolveCustomerAppContextForNewsAttachment(req, res)
@@ -3000,22 +3077,31 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           res.status(400).json({ message: '유효한 newsId와 attachmentId가 필요합니다.' })
           return
         }
-        if (context.newsId && context.newsId !== newsId) {
+        if (context.newsId && String(context.newsId) !== newsId) {
+          logCustomerAppAttachmentDenied({
+            reason: 'token_news_id_mismatch',
+            newsId,
+            attachmentId,
+            hasObjectKey: false,
+            objectKeyPrefixType: 'unknown',
+          })
           res.status(403).json({ message: '첨부파일 접근 권한이 없습니다.' })
           return
         }
-        if (context.attachmentId && context.attachmentId !== attachmentId) {
+        if (context.attachmentId && String(context.attachmentId) !== attachmentId) {
+          logCustomerAppAttachmentDenied({
+            reason: 'token_attachment_id_mismatch',
+            newsId,
+            attachmentId,
+            hasObjectKey: false,
+            objectKeyPrefixType: 'unknown',
+          })
           res.status(403).json({ message: '첨부파일 접근 권한이 없습니다.' })
           return
         }
         const gaId = await resolveAgentGaId(pool, context.agentId)
         if (gaId == null) {
           res.status(404).json({ message: '연결된 설계사 정보를 찾을 수 없습니다.' })
-          return
-        }
-        const gaPath = await resolveGaPathByGaId(pool, gaId)
-        if (!gaPath) {
-          res.status(400).json({ message: '저장 경로를 확인할 수 없습니다.' })
           return
         }
         const newsRow = await loadCustomerNewsRowForCustomerApp(
@@ -3030,25 +3116,59 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           return
         }
         const payload = newsRow.payload && typeof newsRow.payload === 'object' ? newsRow.payload : {}
-        const normalizedAttachments = normalizeCustomerNewsAttachments(payload.attachments)
-        let attachment = normalizedAttachments.find((row) => row.id === attachmentId) ?? null
-        if (!attachment) {
-          const legacyRow = findCustomerNewsAttachmentInPayload(payload, attachmentId)
-          attachment = legacyRow ? normalizeCustomerNewsAttachments([legacyRow])[0] ?? null : null
-        }
+        const attachment = resolveCustomerNewsAttachmentForDownload(payload, attachmentId)
         if (!attachment) {
           res.status(404).json({ message: '첨부파일을 찾을 수 없습니다.' })
           return
         }
-        const objectKey = resolveCustomerNewsAttachmentObjectKey(attachment, getR2PublicCdnBase())
-        if (!objectKey || !assertCustomerNewsAttachmentReadable(objectKey, context.agentId, gaPath)) {
+        const cdnBase = getR2PublicCdnBase()
+        const storageKey = resolveCustomerNewsAttachmentStorageKey(attachment, cdnBase)
+        const hasObjectKey = Boolean(String(attachment.objectKey ?? '').trim())
+        const objectKeyPrefixType = classifyCustomerNewsObjectKeyPrefixType(storageKey)
+        if (!storageKey) {
+          logCustomerAppAttachmentDenied({
+            reason: 'object_key_resolve_failed',
+            newsId,
+            attachmentId,
+            hasObjectKey,
+            objectKeyPrefixType,
+          })
+          res.status(403).json({ message: '허용되지 않은 첨부파일입니다.' })
+          return
+        }
+        if (!assertCustomerNewsPayloadAttachmentStorageKey(storageKey, attachment, cdnBase)) {
+          logCustomerAppAttachmentDenied({
+            reason: 'payload_object_key_mismatch',
+            newsId,
+            attachmentId,
+            hasObjectKey,
+            objectKeyPrefixType,
+          })
+          res.status(403).json({ message: '허용되지 않은 첨부파일입니다.' })
+          return
+        }
+        if (!isSafeCustomerNewsStorageObjectKey(storageKey)) {
+          logCustomerAppAttachmentDenied({
+            reason: 'object_key_unsafe',
+            newsId,
+            attachmentId,
+            hasObjectKey,
+            objectKeyPrefixType,
+          })
           res.status(403).json({ message: '허용되지 않은 첨부파일입니다.' })
           return
         }
         let buffer
         try {
-          buffer = await consentGetBuffer(objectKey)
+          buffer = await readCustomerNewsAttachmentBuffer(storageKey)
         } catch {
+          logCustomerAppAttachmentDenied({
+            reason: 'storage_read_failed',
+            newsId,
+            attachmentId,
+            hasObjectKey,
+            objectKeyPrefixType,
+          })
           res.status(404).json({ message: '첨부파일을 불러오지 못했습니다.' })
           return
         }
@@ -3120,13 +3240,15 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
             rowScope === 'personal' &&
             Number.isFinite(Number(row.payload?.targetCustomerId)) &&
             Number(row.payload?.targetCustomerId) === context.customerId
-          const fallbackTitle = '개인소식지'
-          const displayTitle = isPersonalForMe
-            ? `${profile?.name || '고객'} 고객님께`
-            : String(row.title ?? '')
+          const displayTitle = resolveCustomerNewsDisplayTitle({
+            title: row.title,
+            attachments: row.payload?.attachments,
+            scope: rowScope,
+            customerName: isPersonalForMe ? profile?.name || '고객' : '',
+          })
           return {
             id: String(row.id),
-            title: displayTitle || fallbackTitle,
+            title: displayTitle,
             summary: String(row.body_text ?? '').slice(0, 140),
             updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
             isRead: row.read_id != null,
@@ -3174,14 +3296,19 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       const attachments = mapCustomerNewsAttachmentsForApp(req, newsId, context, rawAttachments)
       const firstImage = attachments.find((a) => a.kind === 'image')
       const heroImageUrl = firstImage?.openUrl ?? attachments[0]?.openUrl ?? null
+      const profile = await loadCustomerAppProfile(pool, context)
+      const rowScope = String(payload.customerNewsScope ?? 'all') === 'personal' ? 'personal' : 'all'
+      const displayTitle = resolveCustomerNewsDisplayTitle({
+        title: row.title,
+        attachments: payload.attachments,
+        scope: rowScope,
+        customerName: rowScope === 'personal' ? profile?.name || '고객' : '',
+      })
       res.json({
         success: true,
         data: {
           id: String(row.id),
-          title:
-            String(payload.customerNewsScope ?? 'all') === 'personal'
-              ? `${(await loadCustomerAppProfile(pool, context))?.name || '고객'} 고객님께`
-              : String(row.title ?? ''),
+          title: displayTitle,
           content: String(row.body_text ?? ''),
           updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : null,
           isPinned: Boolean(payload.pinned),

@@ -132,8 +132,10 @@ export default function ClaimRequestsAllNewsMobileStandalone() {
     }
     const nextTitle = title.trim()
     const nextContent = content.trim()
-    if (isRichTextEmpty(nextContent)) {
-      setError('전체소식지 내용을 입력해 주세요.')
+    const hasContent = !isRichTextEmpty(nextContent)
+    const hasAttachments = attachments.length > 0
+    if (!hasContent && !hasAttachments) {
+      setError('전체소식지 내용 또는 첨부파일을 추가해 주세요.')
       return
     }
     const blocked = attachments.find((item) => item.status === 'failed')
@@ -160,7 +162,7 @@ export default function ClaimRequestsAllNewsMobileStandalone() {
       }
 
       const created = await createCustomerNews(token, {
-        title: nextTitle || '전체소식지',
+        title: nextTitle || undefined,
         content: nextContent,
         scope: 'all',
         targetCustomerId: null,

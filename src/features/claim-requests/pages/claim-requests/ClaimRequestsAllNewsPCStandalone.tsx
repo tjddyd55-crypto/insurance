@@ -237,8 +237,10 @@ export default function ClaimRequestsAllNewsPCStandalone() {
     }
     const nextTitle = title.trim()
     const nextBody = description.trim()
-    if (!nextBody) {
-      setError('설명을 입력해 주세요.')
+    const hasBody = Boolean(nextBody)
+    const hasAttachments = attachments.length > 0
+    if (!hasBody && !hasAttachments) {
+      setError('설명 또는 첨부 이미지를 추가해 주세요.')
       return
     }
     const blocked = attachments.find((item) => item.status === 'failed')
@@ -283,14 +285,14 @@ export default function ClaimRequestsAllNewsPCStandalone() {
       const editingId = activeHomeItem?.id?.trim()
       if (editingId) {
         await updateCustomerNews(token, editingId, {
-          title: nextTitle || '고객 메시지',
+          title: nextTitle || undefined,
           content: nextBody,
           sendPush: true,
           attachments: imagePayload,
         })
       } else {
         await createCustomerNews(token, {
-          title: nextTitle || '고객 메시지',
+          title: nextTitle || undefined,
           content: nextBody,
           scope: 'all',
           targetCustomerId: null,
