@@ -77,3 +77,93 @@ export function assertCustomerNewsMessageObjectKey(objectKey, agentId, gaPath) {
 export function customerNewsAttachmentKindFromMime(raw) {
   return String(raw ?? '').trim() === 'application/pdf' ? 'file' : 'image'
 }
+
+/**
+ * @param {unknown} raw
+ */
+function sanitizeCustomerNewsAttachmentFileName(raw, fallbackIndex) {
+  const name = String(raw ?? '').trim()
+  const base = name || `attachment-${fallbackIndex + 1}`
+  return base.replace(/[^\w.\-()\u3131-\u318e\uac00-\ud7a3]/g, '_').slice(0, 120) || `attachment-${fallbackIndex + 1}`
+}
+
+/**
+ * payload.attachments 항목 1개 정규화. 저장된 id 를 유지해 고객앱 download URL 과 DB payload 가 일치해야 한다.
+ * @param {unknown} item
+ * @param {number} index
+ */
+export function normalizeCustomerNewsAttachmentRow(item, index) {
+  if (!item || typeof item !== 'object') {
+    return null
+  }
+  const row = /** @type {{ id?: unknown, attachmentId?: unknown, kind?: unknown, url?: unknown, objectKey?: unknown, fileName?: unknown, mimeType?: unknown, size?: unknown, sortOrder?: unknown }} */ (
+    item
+  )
+  const kind = String(row.kind ?? '') === 'file' ? 'file' : 'image'
+  const url = String(row.url ?? '').trim()
+  const objectKey = String(row.objectKey ?? '').trim()
+  const fileName = sanitizeCustomerNewsAttachmentFileName(row.fileName, index)
+  const mimeType = String(row.mimeType ?? '').trim().slice(0, 120)
+  const size = Number(row.size ?? 0)
+  const sortOrder = Number.isFinite(Number(row.sortOrder)) ? Number(row.sortOrder) : index
+  if (!url && !objectKey) {
+    return null
+  }
+  const idRaw = String(row.id ?? row.attachmentId ?? '').trim()
+  const id = idRaw || randomUUID()
+  return {
+    id,
+    kind,
+    url,
+    fileName,
+    sortOrder,
+    ...(objectKey ? { objectKey } : {}),
+    ...(mimeType ? { mimeType } : {}),
+    ...(Number.isFinite(size) && size > 0 ? { size } : {}),
+  }
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {ReturnType<typeof normalizeCustomerNewsAttachmentRow>[]}
+ */
+export function normalizeCustomerNewsAttachments(raw) {
+  if (!Array.isArray(raw)) {
+    return []
+  }
+  return raw
+    .map((item, index) => normalizeCustomerNewsAttachmentRow(item, index))
+    .filter(Boolean)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+}
+
+/**
+ * @param {object | null | undefined} payload
+ * @param {string} attachmentId
+ */
+export function findCustomerNewsAttachmentInPayload(payload, attachmentId) {
+  const list = Array.isArray(payload?.attachments) ? payload.attachments : []
+  const target = String(attachmentId ?? '').trim()
+  if (!target || list.length === 0) {
+    return null
+  }
+  for (const item of list) {
+    if (!item || typeof item !== 'object') {
+      continue
+    }
+    const row = /** @type {{ id?: unknown, attachmentId?: unknown }} */ (item)
+    const id = String(row.id ?? '').trim()
+    const altId = String(row.attachmentId ?? '').trim()
+    if (id === target || altId === target) {
+      return item
+    }
+  }
+  if (/^\d+$/.test(target)) {
+    const idx = Number(target)
+    if (idx >= 1 && idx <= list.length) {
+      const legacy = list[idx - 1]
+      return legacy && typeof legacy === 'object' ? legacy : null
+    }
+  }
+  return null
+}

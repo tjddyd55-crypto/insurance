@@ -662,3 +662,34 @@
   font-size: 13px;
 }
 
+.customer-app-news-attachments__images {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.customer-app-news-attachments__figure {
+  margin: 0;
+}
+
+.customer-app-news-attachments__image {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #020617;
+}
+
+.customer-app-news-attachments__caption {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.customer-app-news-attachments__list--fallback {
+  margin-bottom: 0;
+}
+
