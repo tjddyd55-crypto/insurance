@@ -168,9 +168,12 @@ export default function CustomerAppNewsAttachmentList({ attachments, appToken }:
           {images.map((row) => {
             if (brokenImageIds.has(row.id)) {
               return (
-                <ul key={row.id} className="customer-app-news-attachments__list customer-app-news-attachments__list--fallback">
-                  {renderFileRow(row)}
-                </ul>
+                <div key={row.id} className="customer-app-news-attachments__broken">
+                  <p className="customer-app-news-attachments__broken-text">이미지를 불러오지 못했습니다.</p>
+                  <ul className="customer-app-news-attachments__list customer-app-news-attachments__list--fallback">
+                    {renderFileRow(row)}
+                  </ul>
+                </div>
               )
             }
             return (

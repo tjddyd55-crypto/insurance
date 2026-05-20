@@ -35,6 +35,9 @@ export default function CustomerAppHomePage() {
   const [loading, setLoading] = useState(true)
   const [homeNewsId, setHomeNewsId] = useState<string | null>(null)
   const [galleryUrls, setGalleryUrls] = useState<string[]>([])
+  const [gallerySlideActions, setGallerySlideActions] = useState<
+    { openUrl: string; downloadUrl?: string; fileName?: string }[]
+  >([])
   const [summaryText, setSummaryText] = useState('')
   const [slideTitle, setSlideTitle] = useState('')
   const [fsOpen, setFsOpen] = useState(false)
@@ -57,6 +60,7 @@ export default function CustomerAppHomePage() {
         if (!latest) {
           setHomeNewsId(null)
           setGalleryUrls([])
+          setGallerySlideActions([])
           setSummaryText('')
           setSlideTitle('')
           setError('')
@@ -70,8 +74,19 @@ export default function CustomerAppHomePage() {
           heroImageUrl: detail.heroImageUrl,
           attachments: detail.attachments,
         })
+        const slideActions = (detail.attachments ?? [])
+          .filter(
+            (row) => row.kind === 'image' || String(row.mimeType ?? '').toLowerCase().startsWith('image/'),
+          )
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((row) => ({
+            openUrl: String(row.openUrl ?? row.url ?? '').trim(),
+            downloadUrl: String(row.downloadUrl ?? row.openUrl ?? row.url ?? '').trim(),
+            fileName: row.fileName,
+          }))
         setHomeNewsId(latest.id)
         setGalleryUrls(urls)
+        setGallerySlideActions(slideActions)
         setSummaryText(String(detail.content ?? '').trim())
         setSlideTitle(String(detail.title ?? '').trim())
         setError('')
@@ -82,6 +97,7 @@ export default function CustomerAppHomePage() {
         setError(loadError instanceof Error ? loadError.message : '소식지 정보를 불러오지 못했습니다.')
         setHomeNewsId(null)
         setGalleryUrls([])
+        setGallerySlideActions([])
       } finally {
         if (mounted) {
           setLoading(false)
@@ -118,6 +134,8 @@ export default function CustomerAppHomePage() {
             alwaysShowPager
             showSlideCounter={false}
             onRequestFullscreen={openFullscreen}
+            slideActions={gallerySlideActions}
+            appToken={session?.appToken ?? ''}
           />
         ) : null}
 
