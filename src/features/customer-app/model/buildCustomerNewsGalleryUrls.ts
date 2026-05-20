@@ -1,6 +1,7 @@
 export type NewsAttachmentLike = {
   kind: string
   url: string
+  openUrl?: string
   sortOrder: number
   mimeType?: string
 }
@@ -26,7 +27,9 @@ export function buildCustomerNewsGalleryUrls(params: {
   const rows = [...(params.attachments ?? [])]
     .filter(isImageAttachment)
     .sort((a, b) => a.sortOrder - b.sortOrder)
-  const fromAttachments = rows.map((row) => String(row.url ?? '').trim()).filter(Boolean)
+  const fromAttachments = rows
+    .map((row) => String(row.openUrl ?? row.url ?? '').trim())
+    .filter(Boolean)
 
   const out: string[] = []
   const seen = new Set<string>()

@@ -13,6 +13,8 @@ import {
   assertCustomerNewsMessageObjectKey,
   buildCustomerNewsMessageObjectKey,
   customerNewsAttachmentKindFromMime,
+  findCustomerNewsAttachmentInPayload,
+  normalizeCustomerNewsAttachments,
   validateCustomerNewsMessageUpload,
 } from '../lib/customerNewsMessageAttachments.js'
 
@@ -183,54 +185,6 @@ function buildRequesterFromCustomerRowStrict(row) {
     return null
   }
   return { name, birthDate, phone }
-}
-
-/**
- * @param {unknown} raw
- * @returns {{
- *  id: string
- *  kind: 'image' | 'file'
- *  url: string
- *  fileName: string
- *  sortOrder: number
- *  objectKey?: string
- *  mimeType?: string
- *  size?: number
- * }[]}
- */
-function normalizeCustomerNewsAttachments(raw) {
-  if (!Array.isArray(raw)) {
-    return []
-  }
-  return raw
-    .map((item, index) => {
-      if (!item || typeof item !== 'object') {
-        return null
-      }
-      const row = /** @type {{ kind?: unknown, url?: unknown, objectKey?: unknown, fileName?: unknown, mimeType?: unknown, size?: unknown, sortOrder?: unknown }} */ (item)
-      const kind = String(row.kind ?? '') === 'file' ? 'file' : 'image'
-      const url = String(row.url ?? '').trim()
-      const objectKey = String(row.objectKey ?? '').trim()
-      const fileName = sanitizeFileName(row.fileName ?? `${kind}-${index + 1}`)
-      const mimeType = String(row.mimeType ?? '').trim().slice(0, 120)
-      const size = Number(row.size ?? 0)
-      const sortOrder = Number.isFinite(Number(row.sortOrder)) ? Number(row.sortOrder) : index
-      if (!url) {
-        return null
-      }
-      return {
-        id: randomUUID(),
-        kind,
-        url,
-        fileName,
-        sortOrder,
-        ...(objectKey ? { objectKey } : {}),
-        ...(mimeType ? { mimeType } : {}),
-        ...(Number.isFinite(size) && size > 0 ? { size } : {}),
-      }
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.sortOrder - b.sortOrder)
 }
 
 /**
@@ -3063,19 +3017,6 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
       return null
     }
     return row.rows[0]
-  }
-
-  /**
-   * @param {object} payload
-   * @param {string} attachmentId
-   */
-  function findCustomerNewsAttachmentInPayload(payload, attachmentId) {
-    const list = Array.isArray(payload?.attachments) ? payload.attachments : []
-    const target = String(attachmentId ?? '').trim()
-    return (
-      list.find((item) => item && String(item.id ?? '').trim() === target) ??
-      null
-    )
   }
 
   apiRouter.get('/customer-app/news/:newsId/attachments/:attachmentId/download', async (req, res) => {
