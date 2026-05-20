@@ -125,11 +125,6 @@ export default function CustomerAppProfilePage() {
           저장
         </FormButton>
 
-        <p className="text-xs text-[var(--text-secondary)] leading-5 mt-4 mb-0 px-0">
-          자주 이용하시면 브라우저에서 <strong className="text-[var(--text-main)] font-medium">홈 화면에 추가</strong>해 앱처럼 쓸 수 있습니다.
-          Android: Chrome 메뉴(⋮) → 홈 화면에 추가 · iPhone: Safari 공유 → 홈 화면에 추가
-        </p>
-
         <div className="customer-app-profile__danger">
           <FormButton
             htmlType="button"

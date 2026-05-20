@@ -10,11 +10,13 @@ import {
   r2GetPresignedPutUrl,
 } from '../lib/consentStorage.js'
 import {
+  assertCustomerNewsAttachmentReadable,
   assertCustomerNewsMessageObjectKey,
   buildCustomerNewsMessageObjectKey,
   customerNewsAttachmentKindFromMime,
   findCustomerNewsAttachmentInPayload,
   normalizeCustomerNewsAttachments,
+  resolveCustomerNewsAttachmentObjectKey,
   validateCustomerNewsMessageUpload,
 } from '../lib/customerNewsMessageAttachments.js'
 
@@ -2780,43 +2782,6 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
   })
 
   /**
-   * @param {string} url
-   */
-  function objectKeyFromCdnUrl(url) {
-    const raw = String(url ?? '').trim()
-    if (!raw) {
-      return ''
-    }
-    const cdnBase = getR2PublicCdnBase().replace(/\/$/, '')
-    if (raw.startsWith(`${cdnBase}/`)) {
-      return raw.slice(cdnBase.length + 1)
-    }
-    try {
-      const parsed = new URL(raw)
-      return parsed.pathname.replace(/^\//, '')
-    } catch {
-      return ''
-    }
-  }
-
-  /**
-   * @param {string} objectKey
-   * @param {string} agentId
-   * @param {string} gaPath
-   */
-  function assertCustomerNewsAttachmentReadable(objectKey, agentId, gaPath) {
-    const key = String(objectKey ?? '').trim().replace(/^\//, '')
-    if (!key) {
-      return false
-    }
-    if (assertCustomerNewsMessageObjectKey(key, agentId, gaPath)) {
-      return true
-    }
-    const userSeg = sanitizeUserIdForObjectKeySegment(agentId)
-    return key.includes(`/${userSeg}/`) && (key.includes('/insurer-news/') || key.includes('/customer-news'))
-  }
-
-  /**
    * @param {{
    *  newsId: string
    *  attachmentId: string
@@ -2879,6 +2844,32 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
    * @param {import('express').Response} res
    */
   async function resolveCustomerAppContextForNewsAttachment(req, res) {
+    const accessToken = String(req.query.accessToken ?? '').trim()
+    if (accessToken) {
+      const tokenPayload = verifyCustomerNewsAttachmentAccessToken(accessToken)
+      if (!tokenPayload) {
+        res.status(401).json({ message: '첨부파일 접근 권한이 없습니다.' })
+        return null
+      }
+      const contextCheck = await ensureCustomerAppActiveContext(
+        pool,
+        tokenPayload.agentId,
+        tokenPayload.customerId,
+        tokenPayload.deviceId,
+      )
+      if (!contextCheck.ok) {
+        res.status(contextCheck.status).json({ message: contextCheck.message })
+        return null
+      }
+      return {
+        agentId: tokenPayload.agentId,
+        customerId: tokenPayload.customerId,
+        deviceId: tokenPayload.deviceId,
+        linkId: null,
+        newsId: tokenPayload.newsId,
+        attachmentId: tokenPayload.attachmentId,
+      }
+    }
     const bearer = readBearerToken(req)
     if (bearer) {
       try {
@@ -2911,30 +2902,8 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         return null
       }
     }
-    const accessToken = String(req.query.accessToken ?? '').trim()
-    const tokenPayload = verifyCustomerNewsAttachmentAccessToken(accessToken)
-    if (!tokenPayload) {
-      res.status(401).json({ message: '첨부파일 접근 권한이 없습니다.' })
-      return null
-    }
-    const contextCheck = await ensureCustomerAppActiveContext(
-      pool,
-      tokenPayload.agentId,
-      tokenPayload.customerId,
-      tokenPayload.deviceId,
-    )
-    if (!contextCheck.ok) {
-      res.status(contextCheck.status).json({ message: contextCheck.message })
-      return null
-    }
-    return {
-      agentId: tokenPayload.agentId,
-      customerId: tokenPayload.customerId,
-      deviceId: tokenPayload.deviceId,
-      linkId: null,
-      newsId: tokenPayload.newsId,
-      attachmentId: tokenPayload.attachmentId,
-    }
+    res.status(401).json({ message: '첨부파일 접근 권한이 없습니다.' })
+    return null
   }
 
   /**
@@ -2958,7 +2927,7 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
     }
     return buildAbsoluteBackendUrl(
       req,
-      `/api/customer-app/news/${encodeURIComponent(newsId)}/attachments/${encodeURIComponent(attachmentId)}/download?${qs.toString()}`,
+      `/backend/customer-app/news/${encodeURIComponent(newsId)}/attachments/${encodeURIComponent(attachmentId)}/download?${qs.toString()}`,
     )
   }
 
@@ -3061,14 +3030,17 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
           return
         }
         const payload = newsRow.payload && typeof newsRow.payload === 'object' ? newsRow.payload : {}
-        const attachment = findCustomerNewsAttachmentInPayload(payload, attachmentId)
+        const normalizedAttachments = normalizeCustomerNewsAttachments(payload.attachments)
+        let attachment = normalizedAttachments.find((row) => row.id === attachmentId) ?? null
+        if (!attachment) {
+          const legacyRow = findCustomerNewsAttachmentInPayload(payload, attachmentId)
+          attachment = legacyRow ? normalizeCustomerNewsAttachments([legacyRow])[0] ?? null : null
+        }
         if (!attachment) {
           res.status(404).json({ message: '첨부파일을 찾을 수 없습니다.' })
           return
         }
-        const objectKey =
-          String(attachment.objectKey ?? '').trim() ||
-          objectKeyFromCdnUrl(String(attachment.url ?? ''))
+        const objectKey = resolveCustomerNewsAttachmentObjectKey(attachment, getR2PublicCdnBase())
         if (!objectKey || !assertCustomerNewsAttachmentReadable(objectKey, context.agentId, gaPath)) {
           res.status(403).json({ message: '허용되지 않은 첨부파일입니다.' })
           return

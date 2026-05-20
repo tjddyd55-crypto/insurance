@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { stripR2ObjectRootIfPresent } from './r2KeyPolicy.js'
 
 export const CUSTOMER_NEWS_MESSAGE_ALLOWED_MIME = new Set([
   'image/jpeg',
@@ -10,6 +11,16 @@ export const CUSTOMER_NEWS_MESSAGE_ALLOWED_MIME = new Set([
 
 export const CUSTOMER_NEWS_MESSAGE_MAX_IMAGE_BYTES = 10 * 1024 * 1024
 export const CUSTOMER_NEWS_MESSAGE_MAX_PDF_BYTES = 10 * 1024 * 1024
+
+/**
+ * @param {string} userId
+ */
+function sanitizeAgentObjectKeySegment(userId) {
+  const s = String(userId ?? '')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .slice(0, 128)
+  return s || '_'
+}
 
 /**
  * @param {string} contentType
@@ -42,9 +53,7 @@ export function validateCustomerNewsMessageUpload(contentType, sizeBytes) {
  * @param {string} fileName
  */
 export function buildCustomerNewsMessageObjectKey(gaPath, agentId, fileName) {
-  const userSeg = String(agentId ?? '')
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .slice(0, 128) || '_'
+  const userSeg = sanitizeAgentObjectKeySegment(agentId)
   const safeName =
     String(fileName ?? 'file')
       .trim()
@@ -59,15 +68,71 @@ export function buildCustomerNewsMessageObjectKey(gaPath, agentId, fileName) {
  * @param {string} gaPath
  */
 export function assertCustomerNewsMessageObjectKey(objectKey, agentId, gaPath) {
-  const key = String(objectKey ?? '').trim().replace(/^\//, '')
+  const key = stripR2ObjectRootIfPresent(String(objectKey ?? '').trim().replace(/^\//, ''))
   if (!key) {
     return false
   }
-  const userSeg = String(agentId ?? '')
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .slice(0, 128) || '_'
+  const userSeg = sanitizeAgentObjectKeySegment(agentId)
   const prefix = `insurer/${gaPath}/${userSeg}/customer-news-attachments/`
   return key.startsWith(prefix)
+}
+
+/**
+ * payload 첨부 1건에서 R2 objectKey 를 복원한다. objectKey 필드를 우선하고 CDN url 은 fallback.
+ * @param {unknown} attachment
+ * @param {string} [cdnBase]
+ */
+export function resolveCustomerNewsAttachmentObjectKey(attachment, cdnBase = '') {
+  if (!attachment || typeof attachment !== 'object') {
+    return ''
+  }
+  const row = /** @type {{ objectKey?: unknown, url?: unknown }} */ (attachment)
+  const objectKey = String(row.objectKey ?? '').trim().replace(/^\//, '')
+  if (objectKey) {
+    return objectKey
+  }
+  const url = String(row.url ?? '').trim()
+  if (!url) {
+    return ''
+  }
+  const base = String(cdnBase ?? '').replace(/\/$/, '')
+  if (base && url.startsWith(`${base}/`)) {
+    return url.slice(base.length + 1).replace(/^\//, '')
+  }
+  try {
+    const parsed = new URL(url)
+    return parsed.pathname.replace(/^\//, '')
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * 고객앱 소식지 첨부 다운로드 허용 objectKey 인지 검증한다.
+ * @param {string} objectKey
+ * @param {string} agentId
+ * @param {string} gaPath
+ */
+export function assertCustomerNewsAttachmentReadable(objectKey, agentId, gaPath) {
+  const key = stripR2ObjectRootIfPresent(String(objectKey ?? '').trim().replace(/^\//, ''))
+  if (!key || key.includes('..')) {
+    return false
+  }
+  if (assertCustomerNewsMessageObjectKey(key, agentId, gaPath)) {
+    return true
+  }
+  const userSeg = sanitizeAgentObjectKeySegment(agentId)
+  if (key.includes(`/${userSeg}/`) && (key.includes('/insurer-news/') || key.includes('/customer-news'))) {
+    return true
+  }
+  const crmFilesPrefix = `files/${userSeg}/`
+  if (key.startsWith(crmFilesPrefix)) {
+    const fileSeg = key.slice(crmFilesPrefix.length)
+    if (!fileSeg.includes('/') && /^\d+-.+/.test(fileSeg)) {
+      return true
+    }
+  }
+  return false
 }
 
 /**

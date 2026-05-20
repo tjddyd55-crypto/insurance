@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type TouchEvent } from 'react'
+import { resolveAbsoluteApiUrl } from '../../../lib/apiClient'
 
 type Props = {
   imageUrls: string[]
@@ -25,7 +26,7 @@ export default function CustomerAppNewsImageGallery({
 }: Props) {
   const [index, setIndex] = useState(0)
   const touchStartX = useRef<number | null>(null)
-  const urls = imageUrls.filter(Boolean)
+  const urls = imageUrls.filter(Boolean).map((url) => resolveAbsoluteApiUrl(url))
   const n = urls.length
   const urlsSignature = urls.join('|')
 
