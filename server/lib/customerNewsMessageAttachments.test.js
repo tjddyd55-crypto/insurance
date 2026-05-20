@@ -2,10 +2,12 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  assertCustomerNewsAttachmentReadable,
   assertCustomerNewsMessageObjectKey,
   buildCustomerNewsMessageObjectKey,
   findCustomerNewsAttachmentInPayload,
   normalizeCustomerNewsAttachments,
+  resolveCustomerNewsAttachmentObjectKey,
   validateCustomerNewsMessageUpload,
 } from './customerNewsMessageAttachments.js'
 
@@ -94,4 +96,53 @@ test('normalizeCustomerNewsAttachments: keeps objectKey-only legacy rows', () =>
   assert.equal(rows.length, 1)
   assert.equal(rows[0].id, 'legacy-1')
   assert.equal(rows[0].objectKey, 'insurer/ga1/agent/customer-news-attachments/legacy.jpg')
+})
+
+test('resolveCustomerNewsAttachmentObjectKey: prefers objectKey over url', () => {
+  const key = resolveCustomerNewsAttachmentObjectKey(
+    {
+      objectKey: 'insurer/ga1/agent/customer-news-attachments/a.jpg',
+      url: 'https://cdn.example.com/other.jpg',
+    },
+    'https://cdn.example.com',
+  )
+  assert.equal(key, 'insurer/ga1/agent/customer-news-attachments/a.jpg')
+})
+
+test('resolveCustomerNewsAttachmentObjectKey: extracts from cdn url', () => {
+  const key = resolveCustomerNewsAttachmentObjectKey(
+    {
+      url: 'https://cdn.example.com/insurer/ga1/agent/customer-news-attachments/a.jpg',
+    },
+    'https://cdn.example.com',
+  )
+  assert.equal(key, 'insurer/ga1/agent/customer-news-attachments/a.jpg')
+})
+
+test('assertCustomerNewsAttachmentReadable: customer-news message key', () => {
+  const key = buildCustomerNewsMessageObjectKey('ga1', 'agent-1', 'photo.jpg')
+  assert.equal(assertCustomerNewsAttachmentReadable(key, 'agent-1', 'ga1'), true)
+})
+
+test('assertCustomerNewsAttachmentReadable: storage files prefix', () => {
+  assert.equal(assertCustomerNewsAttachmentReadable('files/agent-1/123-photo.jpg', 'agent-1', 'ga1'), true)
+})
+
+test('assertCustomerNewsAttachmentReadable: strips CRM R2 root prefix', () => {
+  const prev = process.env.CRM_R2_OBJECT_ROOT
+  process.env.CRM_R2_OBJECT_ROOT = 'crm-platform/development'
+  try {
+    const key = 'crm-platform/development/insurer/ga1/agent-1/customer-news-attachments/a.jpg'
+    assert.equal(assertCustomerNewsAttachmentReadable(key, 'agent-1', 'ga1'), true)
+  } finally {
+    if (prev == null) {
+      delete process.env.CRM_R2_OBJECT_ROOT
+    } else {
+      process.env.CRM_R2_OBJECT_ROOT = prev
+    }
+  }
+})
+
+test('assertCustomerNewsAttachmentReadable: rejects unrelated key', () => {
+  assert.equal(assertCustomerNewsAttachmentReadable('other/agent-1/secret.pdf', 'agent-1', 'ga1'), false)
 })

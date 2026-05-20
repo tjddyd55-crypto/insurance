@@ -678,6 +678,7 @@
   width: 100%;
   max-width: 100%;
   height: auto;
+  object-fit: contain;
   border-radius: 10px;
   border: 1px solid #334155;
   background: #020617;

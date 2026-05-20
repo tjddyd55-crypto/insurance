@@ -59,7 +59,7 @@ function CustomerAppNewsImageAttachment({
   appToken: string
   onError: () => void
 }) {
-  const src = resolveAttachmentOpenUrl(row)
+  const src = resolveAbsoluteApiUrl(resolveAttachmentOpenUrl(row))
   if (!src) {
     onError()
     return null
