@@ -49,19 +49,28 @@ export function formatEvidenceHashForTable(prefix: string | null | undefined, ma
 export function staffDocumentStatusLabel(status: string): string {
   const s = String(status ?? '').trim()
   if (s === 'pending') {
-    return '대기'
+    return '대기중'
   }
-  if (s === 'viewed') {
+  if (s === 'sent') {
+    return '발송완료'
+  }
+  if (s === 'viewed' || s === 'opened') {
     return '열람'
   }
   if (s === 'signing') {
     return '작성 중'
   }
-  if (s === 'signed') {
-    return '서명됨'
+  if (s === 'signed' || s === 'completed') {
+    return '서명완료'
   }
-  if (s === 'completed') {
-    return '완료'
+  if (s === 'expired') {
+    return '만료'
+  }
+  if (s === 'cancelled') {
+    return '취소'
+  }
+  if (s === 'failed') {
+    return '실패'
   }
   return s || '—'
 }
@@ -78,20 +87,26 @@ export function staffSendSessionDisplayLabel(
   if (st === 'expired') {
     return '만료'
   }
+  if (st === 'failed') {
+    return '실패'
+  }
   if (st === 'completed') {
-    return '완료'
+    return '서명완료'
   }
   if (st === 'pending') {
-    return '발송됨'
+    return '대기중'
+  }
+  if (st === 'sent') {
+    return '발송완료'
   }
   if (st === 'opened') {
     return '열람'
   }
   if (st === 'identity_verified') {
-    return '인증 완료'
+    return '본인인증 완료'
   }
   if (st === 'signing') {
-    return signedPending ? '서명 완료' : '작성 중'
+    return signedPending ? '서명완료' : '작성 중'
   }
   return st || '—'
 }

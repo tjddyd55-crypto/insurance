@@ -5,10 +5,9 @@ import {
   downloadStaffEvidencePdfFile,
   downloadStaffSignedPdfFile,
 } from '../../testConsole/contractSignatureTestConsoleClient'
-import { buildCustomerPublicSignUrl } from '../contractSignatureHistoryClient'
 import { SendSessionStatusBadge } from './SendSessionStatusBadge'
-import { formatStaffSessionDate, staffDocumentStatusLabel, staffSendSessionDisplayLabel } from '../sendSessionStaffDisplay'
-import { ContractTableDateCell, ContractTableHashCell } from './ContractTableCells'
+import { formatStaffSessionDate, staffDocumentStatusLabel } from '../sendSessionStaffDisplay'
+import { ContractTableDateCell } from './ContractTableCells'
 
 type Props = {
   open: boolean
@@ -49,7 +48,6 @@ export function SendSessionDetailPanel({
   }
 
   const linkCode = detail?.linkCode ?? ''
-  const publicUrl = linkCode ? buildCustomerPublicSignUrl(linkCode) : ''
   const sessionSt = detail?.status ?? ''
   const hasCompletedDoc = detail?.documents?.some((d) => d.status === 'completed') ?? false
   const canCancel =
@@ -116,10 +114,10 @@ export function SendSessionDetailPanel({
       className="contract-signature-console__detail-backdrop"
       role="dialog"
       aria-modal="true"
-      aria-label="발송 세션 상세"
+      aria-label="발송 상세"
     >
       <div className="contract-signature-console__detail-dialog">
-        <h2 className="contract-signature-console__section-title">발송 세션 상세</h2>
+        <h2 className="contract-signature-console__section-title">발송 상세</h2>
         {downloadMessage ? (
           <div className="contract-signature-console__alert--danger" role="alert">
             {downloadMessage}
@@ -134,42 +132,29 @@ export function SendSessionDetailPanel({
         {detail ? (
           <>
             <p className="contract-signature-console__hint">
-              고객: {detail.customerName ?? '—'}{' '}
-              {detail.customerCode ? <span>({detail.customerCode})</span> : null}
+              고객: {detail.customerName ?? '—'}
+              {detail.customerCode ? ` (${detail.customerCode})` : ''}
             </p>
-            <p className="contract-signature-console__hint">마스킹 연락처: {detail.maskedPhone ?? '—'}</p>
-            <p className="contract-signature-console__hint">
-              발송 링크:{' '}
-              <code style={{ fontSize: 12, wordBreak: 'break-all' }} title={publicUrl}>
-                {publicUrl}
-              </code>
+            <p className="contract-signature-console__hint">연락처: {detail.maskedPhone ?? '—'}</p>
+            <p className="contract-signature-console__hint" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span>상태</span>
+              <SendSessionStatusBadge sessionStatus={detail.status} hasSignedNotCompleted={signedHint} />
             </p>
             <p className="contract-signature-console__hint">
-              세션 상태:{' '}
-              <SendSessionStatusBadge sessionStatus={detail.status} hasSignedNotCompleted={signedHint} />{' '}
-              <span className="contract-signature-console__hint">
-                (
-                {staffSendSessionDisplayLabel(detail.status, {
-                  hasSignedNotCompleted: signedHint,
-                })}
-                )
-              </span>
-            </p>
-            <p className="contract-signature-console__hint">
-              인증 상태: {detail.identityStatus ?? '—'}
-              {detail.identityVerifiedAt ? ` · ${formatStaffSessionDate(detail.identityVerifiedAt)}` : ''}
+              발송일: {detail.sentAt ? formatStaffSessionDate(detail.sentAt) : formatStaffSessionDate(detail.createdAt)}
             </p>
             <p className="contract-signature-console__hint">
               열람: {detail.openedAt ? formatStaffSessionDate(detail.openedAt) : '—'}
             </p>
+            <p className="contract-signature-console__hint">
+              완료일: {detail.completedAt ? formatStaffSessionDate(detail.completedAt) : '—'}
+            </p>
 
             <h3 className="contract-signature-console__section-title" style={{ marginTop: 12 }}>
-              완료·증빙 PDF 다운로드
+              완료 문서 다운로드
             </h3>
             <p className="contract-signature-console__hint" style={{ marginTop: 4 }}>
-              {isConfirmationSession
-                ? '완료 확인서 PDF는 고객이 확인·서명한 최종 문서입니다. 증빙 PDF는 본인확인·확인 항목·첨부·서명·해시 등 감사 기록을 담은 별도 문서로, 혼동되지 않게 구분되어 있습니다.'
-                : '완료 계약서 PDF는 고객 입력값과 전자서명이 반영된 최종 문서입니다. 증빙 PDF는 본인확인, 문서·첨부 확인, 전자서명 및 제출 동의 등 감사 기록을 정리한 별도 문서입니다.'}
+              고객이 서명을 완료하면 최종 문서와 증빙 PDF를 내려받을 수 있습니다.
             </p>
 
             {isMobile ? (
@@ -194,9 +179,6 @@ export function SendSessionDetailPanel({
                       </div>
                       <div className="contract-signature-console__hint">
                         완료일: {d.completedAt ? formatStaffSessionDate(d.completedAt) : '—'}
-                      </div>
-                      <div className="contract-signature-console__hint">
-                        증빙: <ContractTableHashCell prefix={ev?.evidenceHashPrefix ?? null} />
                       </div>
                       <div className="contract-session-pdf-dl-stack" style={{ marginTop: 10 }}>
                         <FormButton
@@ -241,7 +223,7 @@ export function SendSessionDetailPanel({
                   </colgroup>
                   <thead>
                     <tr>
-                      <th className="contract-table-cell-left">문서명</th>
+                      <th className="contract-table-cell-left">양식명</th>
                       <th className="contract-table-cell-center">상태</th>
                       <th className="contract-table-cell-center">완료일</th>
                       <th className="contract-table-cell-center">

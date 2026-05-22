@@ -26,6 +26,11 @@ import { SendSessionHistoryList } from './components/SendSessionHistoryList'
 
 const PAGE_SIZE = 30
 
+function parseScopedCustomerId(raw: string | null | undefined): number | null {
+  const n = Number(raw)
+  return Number.isInteger(n) && n > 0 ? n : null
+}
+
 function formatCancelFailureMessage(e: unknown): string {
   if (e instanceof ApiError) {
     const raw = e.message.trim()
@@ -96,6 +101,7 @@ export default function ContractSignatureHistoryPage() {
     setListError(null)
     try {
       const res = await listUserSendSessions(t, {
+        customerId: scopedCustomerId ?? undefined,
         q: debouncedQ || undefined,
         filter,
         sort,
@@ -287,12 +293,12 @@ export default function ContractSignatureHistoryPage() {
     >
       <div className="contract-signature-console__container">
         <h1 className="contract-signature-console__title">
-          {embeddedInCustomerWorkspace ? '전자서명' : '전자문서 발송 내역'}
+          {embeddedInCustomerWorkspace ? '전자서명' : '전자서명 발송 내역'}
         </h1>
         <p className="contract-signature-console__lead">
           {embeddedInCustomerWorkspace
-            ? '선택한 고객에게 발송한 전자서명 문서의 진행 상태와 완료 증빙을 확인합니다.'
-            : '내가 고객에게 발송한 전자서명 문서의 진행 상태와 완료 증빙을 확인합니다.'}
+            ? '이 고객에게 발송한 전자서명 진행 상태를 확인합니다.'
+            : '발송한 전자서명의 진행 상태를 확인합니다.'}
         </p>
 
         <p className="contract-signature-console__notice">
@@ -432,7 +438,7 @@ export default function ContractSignatureHistoryPage() {
 
           {!listBusy && rows.length === 0 && !listError ? (
             <div>
-              <p className="contract-signature-console__empty-state-text">아직 발송한 전자문서가 없습니다.</p>
+              <p className="contract-signature-console__empty-state-text">아직 발송한 전자서명이 없습니다.</p>
               <Link className="contract-signature-console__hint" to={sendPageHref}>
                 전자서명 발송하기
               </Link>
