@@ -27,6 +27,7 @@ export const EXPIRED_ALLOW_API_PREFIXES = Object.freeze([
   '/api/account/',
   // 본 구독 API — 자기 상태 조회, 향후 결제 진입점
   '/api/subscription/',
+  '/api/billing/',
   // 문의·요청 (단건 + 목록)
   '/api/feature-request',
   '/api/feature-requests/',

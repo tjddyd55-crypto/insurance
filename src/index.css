@@ -2650,6 +2650,95 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   color: var(--text-sub);
 }
 
+.billing-page__notice {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #111827;
+  color: #e5e7eb;
+}
+
+.billing-page__notice p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.billing-page__card {
+  max-width: none;
+  margin: 0 0 16px;
+  padding: 16px;
+}
+
+.billing-page__section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0 0 12px;
+}
+
+.billing-page__meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 16px;
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+
+.billing-page__meta dt {
+  color: var(--text-sub);
+}
+
+.billing-page__meta dd {
+  margin: 0;
+  color: var(--text-main);
+}
+
+.billing-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.billing-page__invoice-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.billing-page__invoice-item {
+  padding: 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.billing-page__invoice-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.billing-page__invoice-sub {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.billing-page__policy-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-sub);
+  font-size: 13px;
+  display: grid;
+  gap: 6px;
+}
+
 .profile-page__excel-field {
   margin-top: 16px;
 }

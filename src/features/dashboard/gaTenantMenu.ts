@@ -265,6 +265,7 @@ const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
   { label: '구독 정책', path: '/admin/subscription/policy' },
   { label: '구독 유저', path: '/admin/subscription/users' },
   { label: '구독 설정', path: '/admin/subscription/settings' },
+  { label: '결제 설정', path: '/admin/subscription/billing' },
   { label: '운영 통계', path: '/admin/analytics' },
   { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
   { label: '보험사 설계사이트 관리', path: '/admin/insurer-sites' },

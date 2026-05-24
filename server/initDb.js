@@ -3279,6 +3279,7 @@ export async function initDb() {
   await ensureInsurerSitesSchema(pool)
   await ensurePublicCustomerInviteSessionsSchema(pool)
   await ensureReferralSchema(pool)
+  await ensureBillingSchema(pool)
 
   console.log(`[initDb] 완료 (${Date.now() - startedAt}ms)`)
 }
@@ -3331,6 +3332,148 @@ async function ensureReferralSchema(executor) {
 
   const { backfillReferralCodesForExistingUsers } = await import('./referrals/referralService.js')
   await backfillReferralCodesForExistingUsers(executor)
+}
+
+/** 월 이용료·가상 결제 — PG live 연동은 추후 */
+async function ensureBillingSchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS payment_settings (
+      id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      provider TEXT NOT NULL DEFAULT 'toss',
+      mode TEXT NOT NULL DEFAULT 'virtual',
+      client_key TEXT,
+      secret_key_ciphertext TEXT,
+      webhook_secret_ciphertext TEXT,
+      is_enabled BOOLEAN NOT NULL DEFAULT false,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE payment_settings DROP CONSTRAINT IF EXISTS payment_settings_mode_check
+  `)
+  await executor.query(`
+    ALTER TABLE payment_settings
+    ADD CONSTRAINT payment_settings_mode_check
+    CHECK (mode IN ('virtual', 'live'))
+  `)
+  await executor.query(`
+    ALTER TABLE payment_settings DROP CONSTRAINT IF EXISTS payment_settings_provider_check
+  `)
+  await executor.query(`
+    ALTER TABLE payment_settings
+    ADD CONSTRAINT payment_settings_provider_check
+    CHECK (provider IN ('toss', 'none'))
+  `)
+  await executor.query(`
+    INSERT INTO payment_settings (id, provider, mode, is_enabled)
+    VALUES (1, 'toss', 'virtual', false)
+    ON CONFLICT (id) DO NOTHING
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS billing_plans (
+      id SERIAL PRIMARY KEY,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      cycle TEXT NOT NULL DEFAULT 'monthly',
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    INSERT INTO billing_plans (code, name, amount, cycle, is_active)
+    VALUES ('monthly_basic', '월 이용료', 8000, 'monthly', true)
+    ON CONFLICT (code) DO UPDATE
+      SET name = EXCLUDED.name,
+          amount = EXCLUDED.amount,
+          cycle = EXCLUDED.cycle,
+          is_active = EXCLUDED.is_active,
+          updated_at = NOW()
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS billing_subscriptions (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      plan_code TEXT NOT NULL REFERENCES billing_plans(code),
+      status TEXT NOT NULL DEFAULT 'none',
+      current_period_start TIMESTAMPTZ,
+      current_period_end TIMESTAMPTZ,
+      next_billing_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions DROP CONSTRAINT IF EXISTS billing_subscriptions_status_check
+  `)
+  await executor.query(`
+    ALTER TABLE billing_subscriptions
+    ADD CONSTRAINT billing_subscriptions_status_check
+    CHECK (status IN ('none', 'trial', 'active', 'past_due', 'cancelled', 'expired'))
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_billing_subscriptions_status
+    ON billing_subscriptions (status)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS payment_invoices (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      subscription_id BIGINT REFERENCES billing_subscriptions(id) ON DELETE SET NULL,
+      plan_code TEXT NOT NULL REFERENCES billing_plans(code),
+      base_amount INTEGER NOT NULL,
+      referral_discount_amount INTEGER NOT NULL DEFAULT 0,
+      referee_first_month_discount_amount INTEGER NOT NULL DEFAULT 0,
+      discount_amount INTEGER NOT NULL DEFAULT 0,
+      final_amount INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      billing_period_start TIMESTAMPTZ,
+      billing_period_end TIMESTAMPTZ,
+      due_at TIMESTAMPTZ NOT NULL,
+      paid_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE payment_invoices DROP CONSTRAINT IF EXISTS payment_invoices_status_check
+  `)
+  await executor.query(`
+    ALTER TABLE payment_invoices
+    ADD CONSTRAINT payment_invoices_status_check
+    CHECK (status IN ('pending', 'paid', 'failed', 'cancelled', 'expired'))
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_payment_invoices_user_created
+    ON payment_invoices (user_id, created_at DESC)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_payment_invoices_status
+    ON payment_invoices (status)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS payment_transactions (
+      id BIGSERIAL PRIMARY KEY,
+      invoice_id BIGINT NOT NULL REFERENCES payment_invoices(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      mode TEXT NOT NULL,
+      provider_transaction_id TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      raw_response JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_payment_transactions_invoice
+    ON payment_transactions (invoice_id)
+  `)
 }
 
 /** GA 초대 고객 등록(/customer/register) — 제출 세션(httpOnly cookie) 및 최초 제출 시각(3시간 수정 창구) */
