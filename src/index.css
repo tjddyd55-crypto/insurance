@@ -2594,6 +2594,62 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   min-width: 0;
 }
 
+.profile-page__referral-code-display {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.profile-page__referral-code-label {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.profile-page__referral-code-value {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-main);
+}
+
+.profile-page__subsection-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 16px 0 8px;
+}
+
+.profile-page__referral-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-page__referral-list-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+.profile-page__referral-list-sep {
+  color: var(--text-sub);
+}
+
+.profile-page__referral-list-status {
+  color: var(--text-sub);
+}
+
 .profile-page__excel-field {
   margin-top: 16px;
 }

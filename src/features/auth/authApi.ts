@@ -207,6 +207,8 @@ export async function register(payload: {
   /** 완화 모드에서는 생략 가능 */
   phoneNumber?: string
   signupPhoneProof?: string
+  /** 선택 — 추천인 코드 */
+  referralCode?: string
 }) {
   try {
     const body: Record<string, string> = {
@@ -240,6 +242,10 @@ export async function register(payload: {
     const proof = payload.signupPhoneProof?.trim()
     if (proof) {
       body.signup_phone_proof = proof
+    }
+    const referralCode = payload.referralCode?.trim().toUpperCase().replace(/\s+/g, '')
+    if (referralCode) {
+      body.referral_code = referralCode
     }
     return await apiRequest<{ id: string; username: string; ga_id: number; createdAt: string }>(
       '/api/auth/register',

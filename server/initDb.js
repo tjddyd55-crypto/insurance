@@ -3278,8 +3278,59 @@ export async function initDb() {
   await ensureContractSelfSmsSchema(pool)
   await ensureInsurerSitesSchema(pool)
   await ensurePublicCustomerInviteSessionsSchema(pool)
+  await ensureReferralSchema(pool)
 
   console.log(`[initDb] 완료 (${Date.now() - startedAt}ms)`)
+}
+
+/** 추천코드·추천 관계 — 결제 할인은 추후 결제 모듈에서 연동 */
+async function ensureReferralSchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS referral_codes (
+      id BIGSERIAL PRIMARY KEY,
+      owner_user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      code VARCHAR(8) NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_referral_codes_code
+    ON referral_codes (code)
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS referral_relationships (
+      id BIGSERIAL PRIMARY KEY,
+      referrer_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      referred_user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      code VARCHAR(8) NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      activated_at TIMESTAMPTZ,
+      deactivated_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    ALTER TABLE referral_relationships DROP CONSTRAINT IF EXISTS referral_relationships_status_check
+  `)
+  await executor.query(`
+    ALTER TABLE referral_relationships
+    ADD CONSTRAINT referral_relationships_status_check
+    CHECK (status IN ('pending', 'active', 'inactive'))
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_referral_relationships_referrer
+    ON referral_relationships (referrer_user_id)
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_referral_relationships_pair
+    ON referral_relationships (referrer_user_id, referred_user_id)
+  `)
+
+  const { backfillReferralCodesForExistingUsers } = await import('./referrals/referralService.js')
+  await backfillReferralCodesForExistingUsers(executor)
 }
 
 /** GA 초대 고객 등록(/customer/register) — 제출 세션(httpOnly cookie) 및 최초 제출 시각(3시간 수정 창구) */

@@ -18,6 +18,7 @@ import { UserGaExcelManagePanel } from '../../profile/components/UserGaExcelMana
 import { CustomerExcelImportPanel } from '../../customers/components/CustomerExcelImportPanel'
 import PCOnlySection from '../../../components/PCOnlySection'
 import { SubscriptionStatusCard } from '../../subscription/components/SubscriptionStatusCard'
+import { fetchReferralSummary, type ReferralSummaryResponse } from '../../referrals/referralApi'
 
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
@@ -56,11 +57,42 @@ export function ProfilePage() {
   const [teamCopyNotice, setTeamCopyNotice] = useState('')
   const teamCopyFeedbackTimerRef = useRef<number | null>(null)
 
+  const [referralSummary, setReferralSummary] = useState<ReferralSummaryResponse | null>(null)
+  const [referralLoadError, setReferralLoadError] = useState('')
+  const [referralCodeCopied, setReferralCodeCopied] = useState(false)
+  const [referralCopyNotice, setReferralCopyNotice] = useState('')
+  const referralCopyFeedbackTimerRef = useRef<number | null>(null)
+
   const clearTeamCopyFeedbackTimer = () => {
     if (teamCopyFeedbackTimerRef.current != null) {
       window.clearTimeout(teamCopyFeedbackTimerRef.current)
       teamCopyFeedbackTimerRef.current = null
     }
+  }
+
+  const scheduleTeamCopyNotice = (message: string, ms: number) => {
+    clearTeamCopyFeedbackTimer()
+    setTeamCopyNotice(message)
+    teamCopyFeedbackTimerRef.current = window.setTimeout(() => {
+      setTeamCopyNotice('')
+      teamCopyFeedbackTimerRef.current = null
+    }, ms)
+  }
+
+  const clearReferralCopyFeedbackTimer = () => {
+    if (referralCopyFeedbackTimerRef.current != null) {
+      window.clearTimeout(referralCopyFeedbackTimerRef.current)
+      referralCopyFeedbackTimerRef.current = null
+    }
+  }
+
+  const scheduleReferralCopyNotice = (message: string, ms: number) => {
+    clearReferralCopyFeedbackTimer()
+    setReferralCopyNotice(message)
+    referralCopyFeedbackTimerRef.current = window.setTimeout(() => {
+      setReferralCopyNotice('')
+      referralCopyFeedbackTimerRef.current = null
+    }, ms)
   }
 
   const loadMyTeamId = useCallback(async () => {
@@ -85,17 +117,11 @@ export function ProfilePage() {
       if (teamCopyFeedbackTimerRef.current != null) {
         window.clearTimeout(teamCopyFeedbackTimerRef.current)
       }
+      if (referralCopyFeedbackTimerRef.current != null) {
+        window.clearTimeout(referralCopyFeedbackTimerRef.current)
+      }
     }
   }, [])
-
-  const scheduleTeamCopyNotice = (message: string, ms: number) => {
-    clearTeamCopyFeedbackTimer()
-    setTeamCopyNotice(message)
-    teamCopyFeedbackTimerRef.current = window.setTimeout(() => {
-      setTeamCopyNotice('')
-      teamCopyFeedbackTimerRef.current = null
-    }, ms)
-  }
 
   const copyTeamCode = async () => {
     clearTeamCopyFeedbackTimer()
@@ -113,6 +139,26 @@ export function ProfilePage() {
       }, 1500)
     } catch {
       scheduleTeamCopyNotice('복사에 실패했습니다.', 2000)
+    }
+  }
+
+  const copyReferralCode = async () => {
+    clearReferralCopyFeedbackTimer()
+    setReferralCopyNotice('')
+    const code = referralSummary?.referralCode?.trim()
+    if (!code) {
+      scheduleReferralCopyNotice('추천코드를 불러오지 못했습니다.', 2000)
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(code)
+      setReferralCodeCopied(true)
+      referralCopyFeedbackTimerRef.current = window.setTimeout(() => {
+        setReferralCodeCopied(false)
+        referralCopyFeedbackTimerRef.current = null
+      }, 1500)
+    } catch {
+      scheduleReferralCopyNotice('복사에 실패했습니다.', 2000)
     }
   }
 
@@ -212,9 +258,24 @@ export function ProfilePage() {
     }
   }, [token])
 
+  const loadReferralSummary = useCallback(async () => {
+    if (!token) {
+      return
+    }
+    setReferralLoadError('')
+    try {
+      const summary = await fetchReferralSummary(token)
+      setReferralSummary(summary)
+    } catch (e) {
+      setReferralSummary(null)
+      setReferralLoadError(e instanceof Error ? e.message : '추천 정보를 불러오지 못했습니다.')
+    }
+  }, [token])
+
   useEffect(() => {
     void load()
-  }, [load])
+    void loadReferralSummary()
+  }, [load, loadReferralSummary])
 
   useEffect(() => {
     if (!token || !user || !me) {
@@ -548,6 +609,50 @@ export function ProfilePage() {
             {teamActionInfo}
           </p>
         ) : null}
+      </section>
+
+      <div className="section-divider" />
+
+      <section>
+        <h2 className="profile-page__section-title">추천 코드</h2>
+        <div className="profile-page__team-row">
+          <div className="profile-page__referral-code-display">
+            <span className="profile-page__referral-code-label">내 추천코드</span>
+            <span className="profile-page__referral-code-value">{referralSummary?.referralCode ?? '—'}</span>
+          </div>
+          <FormButton htmlType="button" variant="action" className="cta-button profile-page__team-btn" onClick={() => void copyReferralCode()}>
+            {referralCodeCopied ? '복사됨 ✓' : '복사'}
+          </FormButton>
+        </div>
+        {referralCopyNotice ? (
+          <p className="status text-sm" role="status" style={{ marginTop: 8 }}>
+            {referralCopyNotice}
+          </p>
+        ) : null}
+        {referralLoadError ? (
+          <p className="status status--error text-sm" role="alert" style={{ marginTop: 8 }}>
+            {referralLoadError}
+          </p>
+        ) : null}
+        <p className="status text-sm" style={{ marginTop: 8 }}>
+          추천받은 사용자가 유료 이용 중일 때만 할인 대상입니다.
+        </p>
+        <p className="status text-sm">추천 할인은 최대 3명까지 적용됩니다.</p>
+
+        <h3 className="profile-page__subsection-title">내가 추천한 사람</h3>
+        {referralSummary?.referredUsers?.length ? (
+          <ul className="profile-page__referral-list">
+            {referralSummary.referredUsers.map((row, index) => (
+              <li key={`${row.name}-${index}`} className="profile-page__referral-list-item">
+                <span className="profile-page__referral-list-name">{row.name}</span>
+                <span className="profile-page__referral-list-sep">·</span>
+                <span className="profile-page__referral-list-status">{row.statusLabel}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="status text-sm">아직 추천한 사용자가 없습니다.</p>
+        )}
       </section>
 
       <div className="section-divider" />
