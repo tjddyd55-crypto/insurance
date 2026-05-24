@@ -10,6 +10,13 @@ import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import { initDb } from './initDb.js'
 import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
 import { registerUserProfileApi } from './registerUserProfileApi.js'
+import { registerReferralApi } from './registerReferralApi.js'
+import {
+  createReferralRelationship,
+  validateReferralCodeForSignup,
+} from './referrals/referralService.js'
+import { ensureReferralCodeForUser, normalizeReferralCode } from './referrals/referralCode.js'
+import { readPolicyActive } from './subscription/appSettings.js'
 import { registerCustomerExtraApi } from './apis/customerExtraApi.js'
 import { registerTeamApi } from './apis/teamApi.js'
 import { registerNotificationsApi } from './apis/notificationsApi.js'
@@ -1419,6 +1426,12 @@ registerUserProfileApi(apiRouter, {
   normalizeInviteCode,
 })
 
+registerReferralApi(apiRouter, {
+  pool,
+  requireAuth,
+  handleDbError,
+})
+
 registerTeamApi(apiRouter, { pool, requireAuth, handleDbError })
 
 registerGaCustomerExcelApi(apiRouter, {
@@ -1859,6 +1872,8 @@ async function handleRegister(req, res) {
       inviteTs: inviteTsCamel,
       sig: sigLoose,
       ts: tsLoose,
+      referral_code: referralCodeSnake,
+      referralCode: referralCodeCamel,
     } = body
 
     const displayName = String(nameRaw ?? displayNameRaw ?? '').trim()
@@ -2095,6 +2110,23 @@ async function handleRegister(req, res) {
       return
     }
 
+    const referralCodeNorm = normalizeReferralCode(referralCodeSnake ?? referralCodeCamel ?? '')
+    /** @type {{ referrerUserId: string; code: string } | null} */
+    let referralForSignup = null
+    if (referralCodeNorm) {
+      const referralCheck = await validateReferralCodeForSignup(pool, referralCodeNorm)
+      if (!referralCheck.ok) {
+        res.status(400).json({ message: referralCheck.message })
+        return
+      }
+      if (referralCheck.referrerUserId && referralCheck.code) {
+        referralForSignup = {
+          referrerUserId: referralCheck.referrerUserId,
+          code: referralCheck.code,
+        }
+      }
+    }
+
     const passwordHash = await bcrypt.hash(password, 10)
     const id = randomUUID()
     const effectiveInvitedByUserId = invitedByUserId ?? id
@@ -2147,6 +2179,32 @@ async function handleRegister(req, res) {
           membershipType: 'agent',
           customerAccess: 'own',
         })
+      }
+
+      await ensureReferralCodeForUser(client, id)
+      if (referralForSignup) {
+        const policyActive = await readPolicyActive()
+        try {
+          await createReferralRelationship(client, {
+            referredUserId: id,
+            referrerUserId: referralForSignup.referrerUserId,
+            code: referralForSignup.code,
+            policyActive,
+          })
+          await ensureReferralCodeForUser(client, referralForSignup.referrerUserId)
+        } catch (referralErr) {
+          await client.query('ROLLBACK')
+          client.release()
+          if (referralErr?.message === 'referral_self_not_allowed') {
+            res.status(400).json({ message: '본인 추천 코드는 사용할 수 없습니다.' })
+            return
+          }
+          if (referralErr?.message === 'referral_already_applied') {
+            res.status(409).json({ message: '이미 추천 코드가 적용된 계정입니다.' })
+            return
+          }
+          throw referralErr
+        }
       }
 
       await client.query('COMMIT')

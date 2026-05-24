@@ -13,6 +13,7 @@ import {
 } from '../authApi'
 import { FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../AuthProvider'
+import { validateReferralCodeForSignup } from '../../referrals/referralApi'
 
 type UsernameCheck = 'idle' | 'checking' | 'available' | 'taken' | 'invalid'
 
@@ -62,6 +63,10 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [resendLeft, setResendLeft] = useState(0)
   const [debugCodeHint, setDebugCodeHint] = useState('')
+  const [referralCode, setReferralCode] = useState('')
+  const [referralCodeHint, setReferralCodeHint] = useState('')
+  const [referralCodeError, setReferralCodeError] = useState('')
+  const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -197,6 +202,49 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
       window.clearTimeout(timer)
     }
   }, [registrationCode, signupIndustry, tenantCodeMode])
+
+  useEffect(() => {
+    const raw = referralCode.trim().toUpperCase().replace(/\s+/g, '')
+    if (!raw) {
+      setReferralCodeHint('')
+      setReferralCodeError('')
+      setReferralCodeValid(null)
+      return
+    }
+
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const data = await validateReferralCodeForSignup(raw)
+          if (cancelled) {
+            return
+          }
+          if (data.valid) {
+            setReferralCodeValid(true)
+            setReferralCodeHint(data.message ?? '추천 코드가 적용되었습니다.')
+            setReferralCodeError('')
+          } else {
+            setReferralCodeValid(false)
+            setReferralCodeHint('')
+            setReferralCodeError(data.message ?? '유효하지 않은 추천인 코드입니다.')
+          }
+        } catch {
+          if (cancelled) {
+            return
+          }
+          setReferralCodeValid(false)
+          setReferralCodeHint('')
+          setReferralCodeError('유효하지 않은 추천인 코드입니다.')
+        }
+      })()
+    }, 400)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [referralCode])
 
   const resetUsernameCheck = () => {
     setUsernameCheck('idle')
@@ -396,6 +444,12 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
       return
     }
 
+    const referralCodeNorm = referralCode.trim().toUpperCase().replace(/\s+/g, '')
+    if (referralCodeNorm && referralCodeValid === false) {
+      setErrorMessage('유효하지 않은 추천인 코드입니다.')
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const available = await checkUsernameAvailability(userTrim)
@@ -414,6 +468,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
           name: nameTrim,
           phoneNumber: phoneDigits || undefined,
           signupPhoneProof: signupPhoneProof ?? undefined,
+          referralCode: referralCodeNorm || undefined,
         })
       } else {
         await registerApi({
@@ -426,6 +481,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
           name: nameTrim,
           phoneNumber: phoneDigits || undefined,
           signupPhoneProof: signupPhoneProof ?? undefined,
+          referralCode: referralCodeNorm || undefined,
         })
       }
       const session = await loginApi(userTrim, password)
@@ -579,6 +635,22 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
               placeholder="실명 또는 표시 이름"
               required
             />
+          </label>
+
+          <label className="field">
+            <span className="field__label">추천인 코드</span>
+            <FormInput
+              value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+              autoComplete="off"
+              placeholder="추천인 코드가 있으면 입력해 주세요"
+            />
+            {referralCodeHint ? (
+              <p className="status" style={{ color: 'var(--success)' }}>
+                {referralCodeHint}
+              </p>
+            ) : null}
+            {referralCodeError ? <p className="status status--error">{referralCodeError}</p> : null}
           </label>
 
           <div className="verify-section">
