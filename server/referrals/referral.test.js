@@ -13,8 +13,8 @@ import { computeReferralRelationshipStatus, referralStatusLabel } from './referr
 test('referral policy constants match product spec', () => {
   assert.equal(BASE_MONTHLY_PRICE, 8000)
   assert.equal(REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL, 1000)
-  assert.equal(MAX_REFERRER_DISCOUNT_COUNT, 3)
-  assert.equal(MAX_REFERRER_DISCOUNT_AMOUNT, 3000)
+  assert.equal(MAX_REFERRER_DISCOUNT_COUNT, 8)
+  assert.equal(MAX_REFERRER_DISCOUNT_AMOUNT, 8000)
   assert.equal(MAX_REFERRER_DISCOUNT_COUNT * REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL, MAX_REFERRER_DISCOUNT_AMOUNT)
 })
 

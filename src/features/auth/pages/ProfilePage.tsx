@@ -637,7 +637,7 @@ export function ProfilePage() {
         <p className="status text-sm" style={{ marginTop: 8 }}>
           추천받은 사용자가 유료 이용 중일 때만 할인 대상입니다.
         </p>
-        <p className="status text-sm">추천 할인은 최대 3명까지 적용됩니다.</p>
+        <p className="status text-sm">추천 할인은 최대 8명까지 적용됩니다.</p>
 
         <h3 className="profile-page__subsection-title">내가 추천한 사람</h3>
         {referralSummary?.referredUsers?.length ? (
@@ -653,6 +653,16 @@ export function ProfilePage() {
         ) : (
           <p className="status text-sm">아직 추천한 사용자가 없습니다.</p>
         )}
+      </section>
+
+      <div className="section-divider" />
+
+      <section>
+        <h2 className="profile-page__section-title">결제 관리</h2>
+        <p className="status text-sm">월 이용료 구독 상태와 결제 내역을 확인할 수 있습니다.</p>
+        <Link to="/account/billing" className="button button--secondary button--full" style={{ marginTop: 8 }}>
+          결제 관리로 이동
+        </Link>
       </section>
 
       <div className="section-divider" />

@@ -16,6 +16,8 @@ import AuditLogsPage from './features/admin/pages/AuditLogsPage'
 import SubscriptionPolicyPage from './features/admin/pages/SubscriptionPolicyPage'
 import SubscriptionUsersPage from './features/admin/pages/SubscriptionUsersPage'
 import AdminSubscriptionSettingsPage from './features/admin/pages/AdminSubscriptionSettingsPage'
+import AdminBillingSettingsPage from './features/billing/pages/AdminBillingSettingsPage'
+import AccountBillingPage from './features/billing/pages/AccountBillingPage'
 import { AccountResetPage } from './features/account/pages/AccountResetPage'
 import { LoginPage } from './features/auth/pages/LoginPage'
 import { PasswordResetPage } from './features/auth/pages/PasswordResetPage'
@@ -364,6 +366,7 @@ export const appRouter = createBrowserRouter([
                   { path: 'admin/subscription/policy', element: <SubscriptionPolicyPage /> },
                   { path: 'admin/subscription/users', element: <SubscriptionUsersPage /> },
                   { path: 'admin/subscription/settings', element: <AdminSubscriptionSettingsPage /> },
+                  { path: 'admin/subscription/billing', element: <AdminBillingSettingsPage /> },
                   { path: 'admin/platform', element: <PlatformHubPage /> },
                   { path: 'admin/platform/industries', element: <IndustriesListPage /> },
                   { path: 'admin/platform/industries/:industryId', element: <IndustryDetailPage /> },
@@ -410,6 +413,7 @@ export const appRouter = createBrowserRouter([
                 children: [{ path: 'admin/audit-logs', element: <AuditLogsPage /> }],
               },
               { path: 'profile', element: <ProfilePage /> },
+              { path: 'account/billing', element: <AccountBillingPage /> },
               { path: 'account/reset', element: <AccountResetPage /> },
               { path: 'feature-request', element: <FeatureRequestPage /> },
               { path: 'claim-requests', element: <ClaimRequestsRoutePage /> },

@@ -11,6 +11,7 @@ import { initDb } from './initDb.js'
 import { registerAuthAccountSmsApi } from './registerAuthAccountSmsApi.js'
 import { registerUserProfileApi } from './registerUserProfileApi.js'
 import { registerReferralApi } from './registerReferralApi.js'
+import { registerBillingApi } from './registerBillingApi.js'
 import {
   createReferralRelationship,
   validateReferralCodeForSignup,
@@ -1429,6 +1430,13 @@ registerUserProfileApi(apiRouter, {
 registerReferralApi(apiRouter, {
   pool,
   requireAuth,
+  handleDbError,
+})
+
+registerBillingApi(apiRouter, {
+  pool,
+  requireAuth,
+  requireSuperAdmin,
   handleDbError,
 })
 
