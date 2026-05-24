@@ -4,6 +4,12 @@ import {
   encryptPaymentSecret,
   maskPaymentCredential,
 } from './paymentSettingsCrypto.js'
+import {
+  mapPaymentSettingsAdminRow,
+  mapPaymentSettingsPublicRow,
+  normalizePaymentMode,
+  normalizePaymentProvider,
+} from './paymentSettingsNormalize.js'
 
 const DEFAULT_ROW_ID = 1
 
@@ -37,12 +43,13 @@ export async function getPaymentSettingsPublic(executor) {
     `,
     [DEFAULT_ROW_ID],
   )
-  const row = r.rows[0] ?? {}
+  const row = r.rows[0]
+  const mapped = mapPaymentSettingsPublicRow(row)
   return {
-    provider: String(row.provider ?? 'toss'),
-    mode: String(row.mode ?? 'virtual'),
-    isEnabled: row.is_enabled === true,
-    updatedAt: row.updated_at ?? null,
+    provider: mapped.provider,
+    mode: mapped.mode,
+    isEnabled: mapped.isEnabled,
+    updatedAt: mapped.updatedAt,
   }
 }
 
@@ -62,16 +69,18 @@ export async function getPaymentSettingsAdmin(executor) {
     `,
     [DEFAULT_ROW_ID],
   )
-  const row = r.rows[0] ?? {}
+  const row = r.rows[0]
+  const mapped = mapPaymentSettingsAdminRow(row)
   return {
-    provider: String(row.provider ?? 'toss'),
-    mode: String(row.mode ?? 'virtual'),
-    clientKeyMasked: maskPaymentCredential(row.client_key),
-    hasSecretKey: Boolean(String(row.secret_key_ciphertext ?? '').trim()),
-    hasWebhookSecret: Boolean(String(row.webhook_secret_ciphertext ?? '').trim()),
-    isEnabled: row.is_enabled === true,
+    provider: mapped.provider,
+    mode: mapped.mode,
+    clientKeyMasked: maskPaymentCredential(mapped.clientKey || null),
+    hasClientKey: mapped.clientKey.length > 0,
+    hasSecretKey: mapped.secretKeyCiphertext.length > 0,
+    hasWebhookSecret: mapped.webhookSecretCiphertext.length > 0,
+    isEnabled: mapped.isEnabled,
     canStoreSecrets: canStorePaymentSecrets(),
-    updatedAt: row.updated_at ?? null,
+    updatedAt: mapped.updatedAt,
   }
 }
 
@@ -87,19 +96,13 @@ export async function updatePaymentSettings(executor, body, actorUserId) {
   let n = 1
 
   if (Object.prototype.hasOwnProperty.call(body, 'mode')) {
-    const mode = String(body.mode ?? '').trim().toLowerCase()
-    if (mode !== 'virtual' && mode !== 'live') {
-      throw new Error('invalid_payment_mode')
-    }
+    const mode = normalizePaymentMode(body.mode)
     sets.push(`mode = $${n++}`)
     vals.push(mode)
   }
 
   if (Object.prototype.hasOwnProperty.call(body, 'provider')) {
-    const provider = String(body.provider ?? '').trim().toLowerCase()
-    if (provider !== 'toss' && provider !== 'none') {
-      throw new Error('invalid_payment_provider')
-    }
+    const provider = normalizePaymentProvider(body.provider)
     sets.push(`provider = $${n++}`)
     vals.push(provider)
   }

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { calculateInvoicePricing } from './pricing.js'
 import { getPaymentSettingsAdmin, updatePaymentSettings } from './paymentSettings.js'
+import { normalizePaymentMode } from './paymentSettingsNormalize.js'
 import { maskPaymentCredential, canStorePaymentSecrets } from './paymentSettingsCrypto.js'
 import { BASE_MONTHLY_PRICE, MAX_REFERRER_DISCOUNT_COUNT, REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL } from '../referrals/policy.js'
 
@@ -146,11 +147,65 @@ test('calculateInvoicePricing — referred user first payment discount', async (
   assert.equal(pricing.finalAmount, 6000)
 })
 
-test('payment settings admin response never includes raw secret', async () => {
-  const calls = []
+test('getPaymentSettingsAdmin returns virtual defaults when row is missing', async () => {
+  const executor = {
+    query: async (sql) => {
+      if (String(sql).includes('INSERT INTO payment_settings')) {
+        return { rows: [], rowCount: 0 }
+      }
+      return { rows: [], rowCount: 0 }
+    },
+  }
+  const settings = await getPaymentSettingsAdmin(executor)
+  assert.equal(settings.mode, 'virtual')
+  assert.equal(settings.provider, 'toss')
+  assert.equal(settings.isEnabled, false)
+  assert.equal(settings.hasClientKey, false)
+  assert.equal(settings.hasSecretKey, false)
+  assert.equal(settings.hasWebhookSecret, false)
+})
+
+test('getPaymentSettingsAdmin coerces empty mode to virtual', async () => {
+  const executor = {
+    query: async (sql) => {
+      if (String(sql).includes('INSERT INTO payment_settings')) {
+        return { rows: [], rowCount: 0 }
+      }
+      return {
+        rows: [{ provider: null, mode: '', is_enabled: false, updated_at: null }],
+        rowCount: 1,
+      }
+    },
+  }
+  const settings = await getPaymentSettingsAdmin(executor)
+  assert.equal(settings.mode, 'virtual')
+})
+
+test('updatePaymentSettings stores empty mode as virtual', async () => {
+  let savedMode = ''
   const executor = {
     query: async (sql, params) => {
-      calls.push(String(sql))
+      if (String(sql).includes('INSERT INTO payment_settings')) {
+        return { rows: [], rowCount: 0 }
+      }
+      if (String(sql).includes('UPDATE payment_settings')) {
+        savedMode = String(params?.[0] ?? '')
+        return { rows: [], rowCount: 1 }
+      }
+      return {
+        rows: [{ provider: 'toss', mode: 'virtual', is_enabled: false, updated_at: new Date().toISOString() }],
+        rowCount: 1,
+      }
+    },
+  }
+  const result = await updatePaymentSettings(executor, { mode: '' }, 'admin')
+  assert.equal(result.mode, 'virtual')
+  assert.equal(savedMode, 'virtual')
+})
+
+test('payment settings admin response never includes raw secret', async () => {
+  const executor = {
+    query: async (sql) => {
       if (String(sql).includes('INSERT INTO payment_settings')) {
         return { rows: [], rowCount: 0 }
       }
@@ -172,6 +227,7 @@ test('payment settings admin response never includes raw secret', async () => {
   }
   const settings = await getPaymentSettingsAdmin(executor)
   assert.equal(settings.hasSecretKey, true)
+  assert.equal(settings.hasClientKey, true)
   assert.ok(!('secretKey' in settings))
   assert.ok(!('secret_key' in settings))
   assert.equal(settings.clientKeyMasked, maskPaymentCredential('test_ck_abcd1234'))

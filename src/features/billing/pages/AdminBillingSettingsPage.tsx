@@ -12,8 +12,15 @@ import {
   mockPayAdminBillingInvoice,
   updateAdminBillingSettings,
   type BillingInvoice,
+  type PaymentMode,
   type PaymentSettingsAdmin,
 } from '../api/billingApi'
+import {
+  normalizePaymentMode,
+  normalizePaymentProvider,
+  PAYMENT_MODE_OPTIONS,
+  PAYMENT_PROVIDER_OPTIONS,
+} from '../billingConfig'
 
 export default function AdminBillingSettingsPage() {
   const { token, user } = useAuth()
@@ -42,9 +49,9 @@ export default function AdminBillingSettingsPage() {
         fetchAdminBillingSubscriptions(token),
       ])
       setSettings(s)
-      setMode(s.mode === 'live' ? 'live' : 'virtual')
-      setProvider(s.provider || 'toss')
-      setIsEnabled(s.isEnabled)
+      setMode(normalizePaymentMode(s.mode))
+      setProvider(normalizePaymentProvider(s.provider))
+      setIsEnabled(Boolean(s.isEnabled))
       setInvoices(inv.invoices)
       setSubscriptionCount(subs.subscriptions.length)
     } catch (e) {
@@ -63,14 +70,16 @@ export default function AdminBillingSettingsPage() {
     setSaveOk('')
     try {
       const updated = await updateAdminBillingSettings(token, {
-        mode,
-        provider,
+        mode: normalizePaymentMode(mode),
+        provider: normalizePaymentProvider(provider),
         isEnabled,
         clientKey: clientKey.trim() || undefined,
         secretKey: secretKey.trim() || undefined,
         webhookSecret: webhookSecret.trim() || undefined,
       })
       setSettings(updated)
+      setMode(normalizePaymentMode(updated.mode))
+      setProvider(normalizePaymentProvider(updated.provider))
       setClientKey('')
       setSecretKey('')
       setWebhookSecret('')
@@ -107,6 +116,10 @@ export default function AdminBillingSettingsPage() {
     )
   }
 
+  const selectedMode: PaymentMode = normalizePaymentMode(mode)
+  const selectedProvider = normalizePaymentProvider(provider)
+  const isVirtualMode = normalizePaymentMode(settings?.mode ?? selectedMode) === 'virtual'
+
   return (
     <main className="page page--with-back billing-admin-page">
       <header className="page-header">
@@ -119,16 +132,18 @@ export default function AdminBillingSettingsPage() {
       <section className="card auth-card billing-page__card">
         <h2 className="billing-page__section-title">결제 모드</h2>
         <FieldWrapper label="모드">
-          <FormSelect value={mode} onChange={(e) => setMode(e.target.value === 'live' ? 'live' : 'virtual')}>
-            <option value="virtual">가상 결제</option>
-            <option value="live">실결제 준비중</option>
-          </FormSelect>
+          <FormSelect
+            value={selectedMode}
+            options={[...PAYMENT_MODE_OPTIONS]}
+            onChange={(e) => setMode(normalizePaymentMode(e.target.value))}
+          />
         </FieldWrapper>
         <FieldWrapper label="PG사">
-          <FormSelect value={provider} onChange={(e) => setProvider(e.target.value)}>
-            <option value="toss">Toss Payments</option>
-            <option value="none">미설정</option>
-          </FormSelect>
+          <FormSelect
+            value={selectedProvider}
+            options={[...PAYMENT_PROVIDER_OPTIONS]}
+            onChange={(e) => setProvider(normalizePaymentProvider(e.target.value))}
+          />
         </FieldWrapper>
         <label className="field">
           <span className="field__label">실결제 사용</span>
@@ -139,20 +154,20 @@ export default function AdminBillingSettingsPage() {
       <section className="card auth-card billing-page__card">
         <h2 className="billing-page__section-title">PG 키 (선택)</h2>
         <p className="status text-sm">
-          virtual 모드에서는 키 없이 운영할 수 있습니다. 시크릿 키 저장은 서버 `PAYMENT_SETTINGS_SECRET_KEY` 설정 후 가능합니다.
+          가상 결제 모드에서는 키 없이 운영할 수 있습니다.
         </p>
         {settings?.clientKeyMasked ? (
           <p className="status text-sm">저장된 클라이언트 키: {settings.clientKeyMasked}</p>
         ) : null}
         {settings?.hasSecretKey ? <p className="status text-sm">시크릿 키: 저장됨 (마스킹)</p> : null}
         {settings?.hasWebhookSecret ? <p className="status text-sm">웹훅 시크릿: 저장됨 (마스킹)</p> : null}
-        {!settings?.canStoreSecrets ? (
-          <p className="status text-sm">시크릿 키 저장: 서버 암호화 키 미설정으로 현재 저장 불가</p>
-        ) : null}
         <FieldWrapper label="클라이언트 키 (새로 저장)">
           <FormInput value={clientKey} onChange={(e) => setClientKey(e.target.value)} autoComplete="off" />
         </FieldWrapper>
         <FieldWrapper label="시크릿 키 (새로 저장, 원문 재표시 없음)">
+          {!settings?.canStoreSecrets ? (
+            <p className="status text-sm">서버 암호화 키 미설정으로 현재 저장 불가</p>
+          ) : null}
           <FormInput
             type="password"
             value={secretKey}
@@ -161,6 +176,9 @@ export default function AdminBillingSettingsPage() {
           />
         </FieldWrapper>
         <FieldWrapper label="웹훅 시크릿 (선택)">
+          {!settings?.canStoreSecrets ? (
+            <p className="status text-sm">서버 암호화 키 미설정으로 현재 저장 불가</p>
+          ) : null}
           <FormInput
             type="password"
             value={webhookSecret}
@@ -196,7 +214,7 @@ export default function AdminBillingSettingsPage() {
                   <span>{INVOICE_STATUS_LABEL[row.status] ?? row.status}</span>
                 </div>
                 <p className="billing-page__invoice-sub">{formatBillingDate(row.createdAt)}</p>
-                {settings?.mode === 'virtual' && row.status === 'pending' ? (
+                {isVirtualMode && row.status === 'pending' ? (
                   <FormButton
                     htmlType="button"
                     variant="secondary"
