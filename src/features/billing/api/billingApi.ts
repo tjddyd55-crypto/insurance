@@ -1,6 +1,11 @@
 import { apiRequest } from '../../../lib/apiClient'
+import {
+  normalizePaymentMode,
+  normalizePaymentProvider,
+  type PaymentMode,
+} from '../billingConfig'
 
-export type PaymentMode = 'virtual' | 'live'
+export type { PaymentMode }
 export type InvoiceStatus = 'pending' | 'paid' | 'failed' | 'cancelled' | 'expired'
 export type BillingSubscriptionStatus = 'none' | 'trial' | 'active' | 'past_due' | 'cancelled' | 'expired'
 
@@ -40,6 +45,7 @@ export interface PaymentSettingsAdmin {
   provider: string
   mode: PaymentMode
   clientKeyMasked: string | null
+  hasClientKey: boolean
   hasSecretKey: boolean
   hasWebhookSecret: boolean
   isEnabled: boolean
@@ -81,7 +87,28 @@ export async function mockPayBillingInvoice(token: string, invoiceId: number): P
 }
 
 export async function fetchAdminBillingSettings(token: string): Promise<PaymentSettingsAdmin> {
-  return apiRequest<PaymentSettingsAdmin>('/api/admin/billing/settings', { method: 'GET', token })
+  const raw = await apiRequest<Record<string, unknown>>('/api/admin/billing/settings', { method: 'GET', token })
+  return {
+    provider: normalizePaymentProvider(raw.provider),
+    mode: normalizePaymentMode(raw.mode),
+    clientKeyMasked:
+      typeof raw.clientKeyMasked === 'string'
+        ? raw.clientKeyMasked
+        : typeof raw.client_key_masked === 'string'
+          ? raw.client_key_masked
+          : null,
+    hasClientKey: Boolean(raw.hasClientKey ?? raw.has_client_key),
+    hasSecretKey: Boolean(raw.hasSecretKey ?? raw.has_secret_key),
+    hasWebhookSecret: Boolean(raw.hasWebhookSecret ?? raw.has_webhook_secret),
+    isEnabled: Boolean(raw.isEnabled ?? raw.is_enabled),
+    canStoreSecrets: Boolean(raw.canStoreSecrets ?? raw.can_store_secrets),
+    updatedAt:
+      typeof raw.updatedAt === 'string'
+        ? raw.updatedAt
+        : typeof raw.updated_at === 'string'
+          ? raw.updated_at
+          : null,
+  }
 }
 
 export async function updateAdminBillingSettings(
