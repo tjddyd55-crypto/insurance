@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { StatusMessage } from '../../../components/feedback'
 import { FormButton } from '../../../components/form'
 import { getCustomerClaimRequestDetail, type CustomerAppClaimRequestDetail } from '../api/customerAppApi'
+import CustomerAppClaimAttachmentList from '../components/CustomerAppClaimAttachmentList'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
 import { resolveClaimStatusMeta } from '../utils/claimStatus'
 
@@ -15,20 +16,6 @@ function formatDateTime(iso: string | null): string {
     return iso
   }
   return date.toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })
-}
-
-function formatFileSize(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 1) {
-    return '0 KB'
-  }
-  if (bytes >= 1024 * 1024) {
-    return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-  }
-  return `${Math.ceil(bytes / 1024)} KB`
-}
-
-function isImageFile(contentType: string): boolean {
-  return String(contentType ?? '').startsWith('image/')
 }
 
 export default function CustomerAppRequestDetailPage() {
@@ -118,33 +105,7 @@ export default function CustomerAppRequestDetailPage() {
             <section className="customer-app-claim-card">
               <h2 className="customer-app-claim-section-title">첨부 파일</h2>
               <p className="customer-app-claim-section-description">제출한 이미지와 PDF를 확인할 수 있습니다.</p>
-              {detail.files.length === 0 ? (
-                <div className="customer-app-claim-empty customer-app-claim-empty--in-card">첨부 파일이 없습니다.</div>
-              ) : (
-                <div className="customer-app-claim-detail-files">
-                  {detail.files.map((file) => (
-                    <a
-                      key={file.id}
-                      href={file.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="customer-app-claim-detail-file"
-                    >
-                      {isImageFile(file.contentType) ? (
-                        <img className="customer-app-claim-detail-file__thumb" src={file.url} alt="" loading="lazy" />
-                      ) : (
-                        <span className="customer-app-claim-detail-file__placeholder">PDF</span>
-                      )}
-                      <span>
-                        <span className="customer-app-claim-detail-file__name">{file.fileName}</span>
-                        <span className="customer-app-claim-detail-file__meta">
-                          {formatFileSize(file.fileSize)} · 열기
-                        </span>
-                      </span>
-                    </a>
-                  ))}
-                </div>
-              )}
+              <CustomerAppClaimAttachmentList files={detail.files} />
             </section>
 
             <section className="customer-app-claim-card">

@@ -77,6 +77,7 @@ export interface CustomerAppClaimRequestDetailFile {
   sortOrder: number
   uploadedAt: string | null
   url: string
+  openUrl?: string
   downloadUrl?: string
 }
 
