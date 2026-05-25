@@ -334,14 +334,16 @@
   font-size: 12px;
 }
 
-.customer-app-claim-detail-files {
+.customer-app-claim-attachment-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 12px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-.customer-app-claim-detail-file {
+.customer-app-claim-attachment {
   display: grid;
   grid-template-columns: 72px minmax(0, 1fr);
   gap: 10px;
@@ -350,18 +352,22 @@
   border-radius: 14px;
   border: 1px solid #1e293b;
   background: #1f2937;
-  text-decoration: none;
 }
 
-.customer-app-claim-detail-file__thumb {
+.customer-app-claim-attachment__preview {
+  flex: 0 0 auto;
+}
+
+.customer-app-claim-attachment__thumb {
   width: 72px;
   height: 72px;
   border-radius: 12px;
   object-fit: cover;
   background: #020617;
+  display: block;
 }
 
-.customer-app-claim-detail-file__placeholder {
+.customer-app-claim-attachment__placeholder {
   width: 72px;
   height: 72px;
   border-radius: 12px;
@@ -374,7 +380,14 @@
   font-weight: 900;
 }
 
-.customer-app-claim-detail-file__name {
+.customer-app-claim-attachment__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.customer-app-claim-attachment__name {
   font-size: 0.86rem;
   font-weight: 850;
   color: #f8fafc;
@@ -382,10 +395,33 @@
   overflow-wrap: anywhere;
 }
 
-.customer-app-claim-detail-file__meta {
-  margin-top: 4px;
+.customer-app-claim-attachment__meta {
   font-size: 0.76rem;
   color: #94a3b8;
+}
+
+.customer-app-claim-attachment__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.customer-app-claim-attachment__action,
+.customer-app-claim-attachment button,
+.customer-app-claim-attachment a {
+  cursor: pointer;
+}
+
+.customer-app-claim-attachment__action:disabled,
+.customer-app-claim-attachment button:disabled {
+  cursor: not-allowed;
+}
+
+.customer-app-claim-attachment__action {
+  min-height: 34px;
+  padding: 6px 12px;
+  font-size: 13px;
 }
 
 .customer-app-claim-timeline {
