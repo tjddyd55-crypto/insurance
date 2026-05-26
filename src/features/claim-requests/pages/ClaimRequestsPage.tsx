@@ -7,6 +7,7 @@ import PCOnlySection from '../../../components/PCOnlySection'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { NewsletterList } from '../../insurer-news/components/NewsletterList'
 import type { NewsletterItem } from '../../insurer-news/types'
+import ClaimRequestFileActions from '../components/ClaimRequestFileActions'
 import { useAuth } from '../../auth/AuthProvider'
 import ClaimRequestsPageMobileView from './claim-requests/ClaimRequestsPageMobileView'
 import ClaimRequestsPagePCView from './claim-requests/ClaimRequestsPagePCView'
@@ -651,26 +652,12 @@ export default function ClaimRequestsPage() {
                   <li key={file.id} className="claim-requests-page__file-item">
                     <span className="claim-requests-page__file-name" title={file.fileName}>{file.fileName}</span>
                     <span className="claim-requests-page__file-size">{(file.fileSize / 1024 / 1024).toFixed(1)} MB</span>
-                    <div className="claim-requests-page__file-actions">
-                      <FormButton
-                        htmlType="button"
-                        variant="secondary"
-                        onClick={() => {
-                          void handleOpenClaimFile(file)
-                        }}
-                      >
-                        열기
-                      </FormButton>
-                      <FormButton
-                        htmlType="button"
-                        variant="secondary"
-                        onClick={() => {
-                          void handleDownloadClaimFile(file)
-                        }}
-                      >
-                        다운로드
-                      </FormButton>
-                    </div>
+                    <ClaimRequestFileActions
+                      file={file}
+                      useNativeLinks={isMobile}
+                      onOpenFile={handleOpenClaimFile}
+                      onDownloadFile={handleDownloadClaimFile}
+                    />
                   </li>
                 ))}
               </ul>
