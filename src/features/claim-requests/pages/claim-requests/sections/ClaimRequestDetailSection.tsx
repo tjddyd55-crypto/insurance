@@ -1,4 +1,5 @@
 import { FormButton, FormSelect, FormTextarea } from '../../../../../components/form'
+import ClaimRequestFileActions from '../../../components/ClaimRequestFileActions'
 import type {
   ClaimRequestDetail,
   ClaimRequestFileItem,
@@ -19,6 +20,7 @@ type ClaimRequestDetailSectionProps = {
   onUpdateStatus: () => MaybePromise
   onOpenFile: (file: ClaimRequestFileItem) => MaybePromise
   onDownloadFile: (file: ClaimRequestFileItem) => MaybePromise
+  useNativeFileLinks?: boolean
   formatDateTime: (iso: string | null) => string
   statusLabel: (status: ClaimRequestStatus) => string
 }
@@ -35,6 +37,7 @@ export default function ClaimRequestDetailSection({
   onUpdateStatus,
   onOpenFile,
   onDownloadFile,
+  useNativeFileLinks = false,
   formatDateTime,
   statusLabel,
 }: ClaimRequestDetailSectionProps) {
@@ -59,6 +62,7 @@ export default function ClaimRequestDetailSection({
         onUpdateStatus={onUpdateStatus}
         onOpenFile={onOpenFile}
         onDownloadFile={onDownloadFile}
+        useNativeFileLinks={useNativeFileLinks}
         formatDateTime={formatDateTime}
         statusLabel={statusLabel}
       />
@@ -82,6 +86,7 @@ export function ClaimRequestDetailBody({
   onUpdateStatus,
   onOpenFile,
   onDownloadFile,
+  useNativeFileLinks = false,
   formatDateTime,
   statusLabel,
 }: ClaimRequestDetailBodyProps) {
@@ -128,14 +133,12 @@ export function ClaimRequestDetailBody({
                   {file.fileName}
                 </span>
                 <span className="claim-requests-page__file-size">{(file.fileSize / 1024 / 1024).toFixed(1)} MB</span>
-                <div className="claim-requests-page__file-actions">
-                  <FormButton htmlType="button" variant="secondary" onClick={() => void onOpenFile(file)}>
-                    열기
-                  </FormButton>
-                  <FormButton htmlType="button" variant="secondary" onClick={() => void onDownloadFile(file)}>
-                    다운로드
-                  </FormButton>
-                </div>
+                <ClaimRequestFileActions
+                  file={file}
+                  useNativeLinks={useNativeFileLinks}
+                  onOpenFile={onOpenFile}
+                  onDownloadFile={onDownloadFile}
+                />
               </li>
             ))}
           </ul>

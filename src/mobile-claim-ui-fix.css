@@ -6,19 +6,28 @@
 
   .claim-requests-page--mobile {
     width: 100% !important;
-    max-width: 430px !important;
-    margin: 0 auto !important;
+    max-width: 100% !important;
+    margin: 0 !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 10px !important;
     font-size: 14px !important;
     line-height: 1.35 !important;
+    box-sizing: border-box !important;
+    overflow-x: clip !important;
+  }
+
+  .claim-requests-page--mobile .claim-requests-page__card,
+  .claim-requests-page--mobile .claim-requests-page__list-section,
+  .claim-requests-page--mobile .claim-requests-page__request-list {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
   }
 
   .claim-requests-page--mobile .claim-requests-page__card {
-    width: 100% !important;
     padding: 12px !important;
-    box-sizing: border-box !important;
     overflow: hidden !important;
   }
 
@@ -167,6 +176,10 @@
     align-items: flex-start !important;
     justify-content: space-between !important;
     gap: 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
     padding: 10px !important;
     border-radius: 12px !important;
     border: 1px solid var(--m-border-soft, rgba(148, 163, 184, 0.18)) !important;
@@ -233,7 +246,7 @@
 
   .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) > .customer-ui-modal-panel {
     width: 100% !important;
-    max-width: 430px !important;
+    max-width: 100% !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
     min-height: 100dvh !important;

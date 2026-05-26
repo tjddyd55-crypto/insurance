@@ -178,6 +178,7 @@ export default function ClaimRequestsClaimsMobileView({
               onUpdateStatus={onUpdateStatus}
               onOpenFile={onOpenFile}
               onDownloadFile={onDownloadFile}
+              useNativeFileLinks
               formatDateTime={formatDateTime}
               statusLabel={statusLabel}
             />

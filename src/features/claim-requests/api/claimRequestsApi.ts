@@ -1,4 +1,9 @@
-import { ApiError, apiRequest, resolveApiUrl } from '../../../lib/apiClient'
+import { ApiError, apiRequest, resolveAbsoluteApiUrl, resolveApiUrl } from '../../../lib/apiClient'
+import {
+  resolveAgentClaimFileDownloadAuthHref,
+  resolveAgentClaimFileOpenHref,
+  shouldUseNativeAgentClaimFileLinks,
+} from '../utils/claimRequestFileActions'
 
 export type ClaimRequestStatus = 'requested' | 'processing' | 'done' | 'rejected' | 'canceled'
 
@@ -60,6 +65,18 @@ function isDirectCdnUrl(url: string): boolean {
   return !/\/(backend|api)\/(agent|customer-app)\/customer-claim-files\/\d+\/download/i.test(trimmed)
 }
 
+function shouldUseDirectClaimFileNavigation(): boolean {
+  return shouldUseNativeAgentClaimFileLinks()
+}
+
+function navigateClaimFileUrl(url: string, errorMessage: string): void {
+  const href = resolveAbsoluteApiUrl(String(url ?? '').trim())
+  if (!href) {
+    throw new ApiError(errorMessage, 400)
+  }
+  window.location.assign(href)
+}
+
 function triggerBrowserDownload(url: string, fileName: string): void {
   const a = document.createElement('a')
   a.href = url
@@ -106,11 +123,21 @@ async function fetchAgentClaimFileBlob(
 }
 
 export async function openClaimRequestFile(token: string, file: ClaimRequestFileItem): Promise<void> {
-  const directUrl = String(file.url ?? '').trim()
-  if (directUrl && isDirectCdnUrl(directUrl)) {
-    window.open(directUrl, '_blank', 'noopener,noreferrer')
+  const openHref = resolveAgentClaimFileOpenHref(file)
+  if (!openHref) {
+    throw new ApiError('파일을 열 수 없습니다. 다시 시도해 주세요.', 400)
+  }
+
+  if (shouldUseDirectClaimFileNavigation()) {
+    navigateClaimFileUrl(openHref, '파일을 열 수 없습니다. 다시 시도해 주세요.')
     return
   }
+
+  if (isDirectCdnUrl(openHref)) {
+    window.open(openHref, '_blank', 'noopener,noreferrer')
+    return
+  }
+
   const { blob } = await fetchAgentClaimFileBlob(token, file.id, 'inline')
   const objectUrl = URL.createObjectURL(blob)
   window.open(objectUrl, '_blank', 'noopener,noreferrer')
@@ -119,6 +146,15 @@ export async function openClaimRequestFile(token: string, file: ClaimRequestFile
 
 export async function downloadClaimRequestFile(token: string, file: ClaimRequestFileItem): Promise<void> {
   const fileName = file.fileName ?? `claim-file-${file.id}`
+  const downloadAuthHref = resolveAgentClaimFileDownloadAuthHref(file)
+
+  if (shouldUseDirectClaimFileNavigation()) {
+    if (!downloadAuthHref) {
+      throw new ApiError('파일을 다운로드할 수 없습니다. 다시 시도해 주세요.', 400)
+    }
+    navigateClaimFileUrl(downloadAuthHref, '파일을 다운로드할 수 없습니다. 다시 시도해 주세요.')
+    return
+  }
 
   try {
     const { blob, fileName: responseFileName } = await fetchAgentClaimFileBlob(token, file.id, 'attachment')
@@ -131,7 +167,7 @@ export async function downloadClaimRequestFile(token: string, file: ClaimRequest
     if (!fallbackUrl || !isDirectCdnUrl(fallbackUrl)) {
       throw downloadError
     }
-    triggerBrowserDownload(fallbackUrl, fileName)
+    triggerBrowserDownload(resolveAbsoluteApiUrl(fallbackUrl), fileName)
   }
 }
 
