@@ -16,6 +16,16 @@ export function resolveClaimAttachmentDownloadUrl(file: CustomerAppClaimAttachme
   return String(file.downloadUrl ?? file.openUrl ?? file.url ?? '').trim()
 }
 
+export function resolveClaimAttachmentOpenHref(file: CustomerAppClaimAttachmentFile): string {
+  const href = resolveClaimAttachmentOpenUrl(file)
+  return href ? resolveAbsoluteApiUrl(href) : ''
+}
+
+export function resolveClaimAttachmentDownloadHref(file: CustomerAppClaimAttachmentFile): string {
+  const href = resolveClaimAttachmentDownloadUrl(file)
+  return href ? resolveAbsoluteApiUrl(href) : ''
+}
+
 export function shouldUseDirectClaimAttachmentNavigation(): boolean {
   if (typeof window === 'undefined') {
     return false
@@ -30,27 +40,8 @@ export function shouldUseDirectClaimAttachmentNavigation(): boolean {
   }
 }
 
-export function handleOpenClaimAttachment(file: CustomerAppClaimAttachmentFile): void {
-  const url = resolveAbsoluteApiUrl(resolveClaimAttachmentOpenUrl(file))
-  if (!url) {
-    window.alert('파일을 열 수 없습니다.')
-    return
-  }
-  if (shouldUseDirectClaimAttachmentNavigation()) {
-    window.location.href = url
-    return
-  }
-  const opened = window.open(url, '_blank', 'noopener,noreferrer')
-  if (!opened) {
-    window.location.href = url
-  }
+export function getClaimAttachmentOpenLinkTarget(): '_self' | '_blank' {
+  return shouldUseDirectClaimAttachmentNavigation() ? '_self' : '_blank'
 }
 
-export function handleDownloadClaimAttachment(file: CustomerAppClaimAttachmentFile): void {
-  const url = resolveAbsoluteApiUrl(resolveClaimAttachmentDownloadUrl(file))
-  if (!url) {
-    window.alert('파일을 다운로드할 수 없습니다.')
-    return
-  }
-  window.location.href = url
-}
+export const CLAIM_ATTACHMENT_DOWNLOAD_LINK_TARGET = '_self' as const
