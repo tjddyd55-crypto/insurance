@@ -28,7 +28,29 @@
 
   .claim-requests-page--mobile .claim-requests-page__card {
     padding: 12px !important;
+  }
+
+  .claim-requests-page--mobile .claim-requests-page__card:not(.claim-requests-page__list-section) {
     overflow: hidden !important;
+  }
+
+  .claim-requests-page--mobile .claim-requests-page__list-section {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .claim-requests-page--mobile .claim-requests-page__list-section .claim-requests-page__request-list {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    flex: 0 0 auto !important;
+  }
+
+  .claim-requests-page--mobile .claim-requests-page__list-section .claim-requests-page__request-card {
+    flex: 0 0 auto !important;
   }
 
   .claim-requests-page--mobile .claim-requests-page__section-header {
