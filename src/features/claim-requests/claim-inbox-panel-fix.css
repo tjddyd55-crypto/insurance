@@ -51,4 +51,74 @@
   .claim-inbox__list-item:last-child {
     margin-bottom: 0;
   }
+
+  /*
+   * ClaimInboxPage 모바일: workspace 전체를 하나의 카드로 감싸 list-panel 높이 drift 시에도
+   * 배경이 끊기지 않게 한다. list 내부 중복 배경은 제거한다.
+   */
+  .claim-inbox.content-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .claim-inbox .claim-inbox__workspace {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    border: 1px solid rgba(148, 163, 184, 0.18) !important;
+    background: #1e2633 !important;
+    border-radius: 16px !important;
+    padding: 12px !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16) !important;
+  }
+
+  .claim-inbox .claim-inbox__list-panel {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    align-self: stretch !important;
+    border: 0 !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .claim-inbox .claim-inbox__list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    flex: 0 0 auto !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding-bottom: 96px !important;
+  }
+
+  .claim-inbox .claim-inbox__list-item {
+    position: relative !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
 }

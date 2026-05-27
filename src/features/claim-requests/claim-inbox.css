@@ -560,6 +560,8 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    min-height: 0;
+    overflow: visible;
   }
 
   .claim-inbox__list-panel,
@@ -567,6 +569,8 @@
     width: 100%;
     max-width: 100%;
     padding: 12px;
+    min-height: 0;
+    overflow: visible;
   }
 
   .claim-inbox__panel-header {
