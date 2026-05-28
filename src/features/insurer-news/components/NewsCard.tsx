@@ -54,6 +54,12 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
     setHeroImageFailed(false)
   }, [item.id, heroImageSrc])
 
+  const mobileImagePlaceholder = (
+    <div className="news-card__placeholder news-card__placeholder--no-image" aria-hidden>
+      <span className="news-card__placeholder-label">이미지 없음</span>
+    </div>
+  )
+
   const media = isMobile ? (
     <>
       {heroImageSrc && !heroImageFailed ? (
@@ -65,11 +71,7 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
           onError={() => setHeroImageFailed(true)}
         />
       ) : (
-        <div className="news-card__placeholder news-card__placeholder--content" aria-hidden>
-          <span className="news-card__placeholder-label news-card__placeholder-label--headline">
-            {headline}
-          </span>
-        </div>
+        mobileImagePlaceholder
       )}
       <div className="news-card__overlay">
         <div className="news-card__overlay-name">{companyName}</div>
