@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import type { NewsletterItem } from '../types'
 import FormButton from '../../../components/form/FormButton'
+import { resolveInsurerNewsImageUrl } from '../utils/resolveInsurerNewsImageUrl'
 
 /**
  * PC/Mobile 분기는 `variant` prop 으로 승격 (AGENTS.md §8-5 Tier 4/3 참조).
@@ -43,10 +45,25 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
   const companyName = item.insurerName?.trim() || '—'
   const dateLabel = formatPublishedDateLabel(item.publishedAt)
   const headline = item.summary?.trim() || item.title?.trim() || '본문 내용이 없습니다.'
+  const heroImageSrc = isMobile
+    ? resolveInsurerNewsImageUrl(item.heroImageUrl)
+    : String(item.heroImageUrl ?? '').trim()
+  const [heroImageFailed, setHeroImageFailed] = useState(false)
+
+  useEffect(() => {
+    setHeroImageFailed(false)
+  }, [item.id, heroImageSrc])
+
   const media = isMobile ? (
     <>
-      {item.heroImageUrl ? (
-        <img className="news-card__mobile-image" src={item.heroImageUrl} alt="" loading="lazy" />
+      {heroImageSrc && !heroImageFailed ? (
+        <img
+          className="news-card__mobile-image"
+          src={heroImageSrc}
+          alt=""
+          loading="lazy"
+          onError={() => setHeroImageFailed(true)}
+        />
       ) : (
         <div className="news-card__placeholder news-card__placeholder--content" aria-hidden>
           <span className="news-card__placeholder-label news-card__placeholder-label--headline">
@@ -61,8 +78,8 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
     </>
   ) : (
     <div className="news-card__media">
-      {item.heroImageUrl ? (
-        <img src={item.heroImageUrl} alt="" loading="lazy" />
+      {heroImageSrc ? (
+        <img src={heroImageSrc} alt="" loading="lazy" />
       ) : (
         <div className="news-card__placeholder news-card__placeholder--content" aria-hidden>
           <span className="news-card__placeholder-label news-card__placeholder-label--headline">

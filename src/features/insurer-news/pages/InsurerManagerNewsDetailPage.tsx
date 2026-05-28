@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
 import { deleteManagerNewsletter, getNewsletterDetail, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
+import { buildInsurerNewsGalleryUrls } from '../utils/buildInsurerNewsGalleryUrls'
 import { formatInsurerNewsDateTime } from '../utils/formatInsurerNewsDate'
 import type { NewsChannel, NewsletterDetail } from '../types'
 
@@ -151,7 +152,9 @@ export function InsurerManagerNewsDetailPage({
         <div className="insurer-news-detail-body" style={{ marginBottom: 8 }}>
           {detail.bodyText || '본문이 없습니다.'}
         </div>
-        {galleryUrls.length > 0 ? <NewsletterImageGallery imageUrls={galleryUrls} altBase="소식지 이미지" /> : null}
+        {galleryUrls.length > 0 ? (
+          <NewsletterImageGallery imageUrls={galleryUrls} altBase="소식지 이미지" />
+        ) : null}
         <NewsletterAttachmentList attachments={detail.attachments} />
       </article>
       {confirmDialog}
