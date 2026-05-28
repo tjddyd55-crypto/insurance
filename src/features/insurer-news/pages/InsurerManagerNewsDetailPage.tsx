@@ -85,12 +85,11 @@ export function InsurerManagerNewsDetailPage({
     )
   }
 
-  const imageRows = detail.attachments.filter((a) => a.kind === 'image').sort((a, b) => a.sortOrder - b.sortOrder)
-  const galleryUrls = imageRows.length
-    ? imageRows.map((a) => a.url)
-    : detail.heroImageUrl
-      ? [detail.heroImageUrl]
-      : []
+  const galleryUrls = buildInsurerNewsGalleryUrls({
+    heroImageUrl: detail.heroImageUrl,
+    heroImageOpenUrl: detail.heroImageOpenUrl,
+    attachments: detail.attachments,
+  })
   const role = user?.role ?? ''
   const isGaDeleteRole = role === 'GA_ADMIN' || role === 'GA_STAFF'
   const isManagerRole = role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER'

@@ -1,6 +1,6 @@
 import { resolveAbsoluteApiUrl } from '../../../lib/apiClient'
 import { cdnUrlForObjectKey } from '../lib/insurerNewsCdn'
-import type { NewsletterAttachment } from '../types'
+import type { NewsletterAttachment, NewsletterItem } from '../types'
 
 const OBJECT_KEY_PREFIXES = ['crm-platform/', 'insurer/', 'insurer-news/', 'files/', 'platform-assets/']
 
@@ -50,4 +50,35 @@ export function resolveInsurerNewsAttachmentDisplayUrl(
   row: Pick<NewsletterAttachment, 'url' | 'objectKey'> & { openUrl?: string | null },
 ): string {
   return resolveInsurerNewsImageUrl(pickInsurerNewsAttachmentUrl(row))
+}
+
+function isAbsoluteHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value)
+}
+
+/** 목록 카드용 raw URL: openUrl → 공개 http(s) heroImageUrl (CDN/objectKey 추정 제외) */
+export function pickInsurerNewsListCardImageRaw(
+  item: Pick<NewsletterItem, 'heroImageOpenUrl' | 'heroImageUrl'>,
+): string {
+  const openUrl = String(item.heroImageOpenUrl ?? '').trim()
+  if (openUrl) {
+    return openUrl
+  }
+  const heroUrl = String(item.heroImageUrl ?? '').trim()
+  if (heroUrl && isAbsoluteHttpUrl(heroUrl) && !looksLikeObjectKey(heroUrl)) {
+    return heroUrl
+  }
+  return ''
+}
+
+export function hasInsurerNewsListCardImage(
+  item: Pick<NewsletterItem, 'heroImageOpenUrl' | 'heroImageUrl'>,
+): boolean {
+  return Boolean(String(item.heroImageOpenUrl ?? '').trim() || String(item.heroImageUrl ?? '').trim())
+}
+
+export function resolveInsurerNewsListCardImageUrl(
+  item: Pick<NewsletterItem, 'heroImageOpenUrl' | 'heroImageUrl'>,
+): string {
+  return resolveInsurerNewsImageUrl(pickInsurerNewsListCardImageRaw(item))
 }

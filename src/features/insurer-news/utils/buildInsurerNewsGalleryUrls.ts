@@ -15,8 +15,10 @@ function isImageAttachment(row: NewsletterAttachment): boolean {
  */
 export function buildInsurerNewsGalleryUrls(params: {
   heroImageUrl?: string | null
+  heroImageOpenUrl?: string | null
   attachments?: NewsletterAttachment[] | null
 }): string[] {
+  const heroOpenRaw = String(params.heroImageOpenUrl ?? '').trim()
   const heroRaw = String(params.heroImageUrl ?? '').trim()
   const rows = [...(params.attachments ?? [])]
     .filter(isImageAttachment)
@@ -35,12 +37,18 @@ export function buildInsurerNewsGalleryUrls(params: {
     out.push(url)
   }
 
+  const heroOpenResolved = heroOpenRaw ? resolveInsurerNewsImageUrl(heroOpenRaw) : ''
   const heroResolved = heroRaw ? resolveInsurerNewsAttachmentDisplayUrl({ url: heroRaw }) : ''
-  if (heroResolved && !fromAttachments.includes(heroResolved)) {
+  if (heroOpenResolved && !fromAttachments.includes(heroOpenResolved)) {
+    push(heroOpenResolved)
+  } else if (heroResolved && !fromAttachments.includes(heroResolved)) {
     push(heroResolved)
   }
   for (const url of fromAttachments) {
     push(url)
+  }
+  if (out.length === 0 && heroOpenResolved) {
+    push(heroOpenResolved)
   }
   if (out.length === 0 && heroResolved) {
     push(heroResolved)

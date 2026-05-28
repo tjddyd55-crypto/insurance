@@ -1379,6 +1379,7 @@ registerInsurerNewsApi(apiRouter, {
   effectiveTenantGaId,
   parseGaId,
   resolveTenantGaIdForRequest,
+  jwtSecret: JWT_SECRET,
 })
 
 function normalizeInviteCode(raw) {
