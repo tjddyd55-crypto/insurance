@@ -87,7 +87,6 @@ export function InsurerManagerNewsDetailPage({
 
   const galleryUrls = buildInsurerNewsGalleryUrls({
     heroImageUrl: detail.heroImageUrl,
-    heroImageOpenUrl: detail.heroImageOpenUrl,
     attachments: detail.attachments,
   })
   const role = user?.role ?? ''
@@ -152,7 +151,7 @@ export function InsurerManagerNewsDetailPage({
           {detail.bodyText || '본문이 없습니다.'}
         </div>
         {galleryUrls.length > 0 ? (
-          <NewsletterImageGallery imageUrls={galleryUrls} altBase="소식지 이미지" />
+          <NewsletterImageGallery imageUrls={galleryUrls} altBase="소식지 이미지" resolveUrls />
         ) : null}
         <NewsletterAttachmentList attachments={detail.attachments} />
       </article>
