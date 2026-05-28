@@ -209,17 +209,19 @@
   border: 1px solid var(--border);
 }
 
-.news-card.news-card--mobile .news-card__placeholder--no-image {
+.news-card.news-card--mobile .news-card__placeholder--load-failed {
   align-items: center;
   justify-content: center;
-  padding: 8px;
+  padding: 12px;
+  text-align: center;
 }
 
-.news-card.news-card--mobile .news-card__placeholder--no-image .news-card__placeholder-label {
+.news-card.news-card--mobile .news-card__placeholder--load-failed .news-card__placeholder-label {
   font-size: 0.75rem;
   color: var(--text-sub);
-  text-align: center;
-  white-space: nowrap;
+  line-height: 1.4;
+  white-space: normal;
+  word-break: keep-all;
 }
 
 .insurer-news-hub__section-title {

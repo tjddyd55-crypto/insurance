@@ -45,34 +45,46 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
   const companyName = item.insurerName?.trim() || '—'
   const dateLabel = formatPublishedDateLabel(item.publishedAt)
   const headline = item.summary?.trim() || item.title?.trim() || '본문 내용이 없습니다.'
-  const heroImageSrc = isMobile
-    ? resolveInsurerNewsImageUrl(item.heroImageUrl)
-    : String(item.heroImageUrl ?? '').trim()
-  const [heroImageFailed, setHeroImageFailed] = useState(false)
+  const rawImageUrl = String(item.heroImageUrl ?? '').trim()
+  const imageUrl = isMobile ? resolveInsurerNewsImageUrl(item.heroImageUrl) : rawImageUrl
+  const hasImageUrl = Boolean(rawImageUrl)
+  const [imageLoadFailed, setImageLoadFailed] = useState(false)
 
   useEffect(() => {
-    setHeroImageFailed(false)
-  }, [item.id, heroImageSrc])
+    setImageLoadFailed(false)
+  }, [item.id, rawImageUrl, imageUrl])
 
-  const mobileImagePlaceholder = (
-    <div className="news-card__placeholder news-card__placeholder--no-image" aria-hidden>
-      <span className="news-card__placeholder-label">이미지 없음</span>
+  const shouldShowImage = hasImageUrl && !imageLoadFailed
+  const shouldShowTextPreview = isMobile && !hasImageUrl
+  const shouldShowImageFailed = isMobile && hasImageUrl && imageLoadFailed
+
+  const textPreviewPlaceholder = (
+    <div className="news-card__placeholder news-card__placeholder--content" aria-hidden>
+      <span className="news-card__placeholder-label news-card__placeholder-label--headline">
+        {headline}
+      </span>
+    </div>
+  )
+
+  const imageLoadFailedPlaceholder = (
+    <div className="news-card__placeholder news-card__placeholder--load-failed" role="status">
+      <span className="news-card__placeholder-label">이미지를 불러오지 못했습니다.</span>
     </div>
   )
 
   const media = isMobile ? (
     <>
-      {heroImageSrc && !heroImageFailed ? (
+      {shouldShowImage ? (
         <img
           className="news-card__mobile-image"
-          src={heroImageSrc}
+          src={imageUrl}
           alt=""
           loading="lazy"
-          onError={() => setHeroImageFailed(true)}
+          onError={() => setImageLoadFailed(true)}
         />
-      ) : (
-        mobileImagePlaceholder
-      )}
+      ) : null}
+      {shouldShowTextPreview ? textPreviewPlaceholder : null}
+      {shouldShowImageFailed ? imageLoadFailedPlaceholder : null}
       <div className="news-card__overlay">
         <div className="news-card__overlay-name">{companyName}</div>
         <div className="news-card__overlay-date">{dateLabel}</div>
@@ -80,14 +92,10 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
     </>
   ) : (
     <div className="news-card__media">
-      {heroImageSrc ? (
-        <img src={heroImageSrc} alt="" loading="lazy" />
+      {hasImageUrl ? (
+        <img src={imageUrl} alt="" loading="lazy" />
       ) : (
-        <div className="news-card__placeholder news-card__placeholder--content" aria-hidden>
-          <span className="news-card__placeholder-label news-card__placeholder-label--headline">
-            {headline}
-          </span>
-        </div>
+        textPreviewPlaceholder
       )}
       <div className="news-card__overlay">
         <div className="news-card__overlay-name">{companyName}</div>
