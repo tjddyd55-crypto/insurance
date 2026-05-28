@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { NewsletterItem } from '../types'
 import FormButton from '../../../components/form/FormButton'
-import {
-  hasInsurerNewsListCardImage,
-  pickInsurerNewsListCardImageRaw,
-  resolveInsurerNewsListCardImageUrl,
-} from '../utils/resolveInsurerNewsImageUrl'
+import { resolveInsurerNewsImageUrl } from '../utils/resolveInsurerNewsImageUrl'
 
 /**
  * PC/Mobile 분기는 `variant` prop 으로 승격 (AGENTS.md §8-5 Tier 4/3 참조).
@@ -49,22 +45,18 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
   const companyName = item.insurerName?.trim() || '—'
   const dateLabel = formatPublishedDateLabel(item.publishedAt)
   const headline = item.summary?.trim() || item.title?.trim() || '본문 내용이 없습니다.'
-  const rawImageUrl = isMobile
-    ? pickInsurerNewsListCardImageRaw(item)
-    : String(item.heroImageUrl ?? '').trim()
-  const imageUrl = isMobile ? resolveInsurerNewsListCardImageUrl(item) : rawImageUrl
-  const hasImageUrl = isMobile ? hasInsurerNewsListCardImage(item) : Boolean(rawImageUrl)
+  const rawImageUrl = String(item.heroImageUrl ?? '').trim()
+  const imageUrl = isMobile ? resolveInsurerNewsImageUrl(item.heroImageUrl) : rawImageUrl
+  const hasImageUrl = Boolean(rawImageUrl)
   const [imageLoadFailed, setImageLoadFailed] = useState(false)
 
   useEffect(() => {
     setImageLoadFailed(false)
   }, [item.id, rawImageUrl, imageUrl])
 
-  const canAttemptImageLoad = Boolean(imageUrl)
-  const shouldShowImage = hasImageUrl && canAttemptImageLoad && !imageLoadFailed
+  const shouldShowImage = hasImageUrl && !imageLoadFailed
   const shouldShowTextPreview = isMobile && !hasImageUrl
-  const shouldShowImageFailed =
-    isMobile && hasImageUrl && ((canAttemptImageLoad && imageLoadFailed) || !canAttemptImageLoad)
+  const shouldShowImageFailed = isMobile && hasImageUrl && imageLoadFailed
 
   const textPreviewPlaceholder = (
     <div className="news-card__placeholder news-card__placeholder--content" aria-hidden>
