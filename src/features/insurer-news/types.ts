@@ -25,6 +25,8 @@ export interface NewsletterAttachment {
   id: string
   kind: 'image' | 'file'
   url: string
+  /** img src / inline 열기용 — Bearer 없이 accessToken 쿼리 포함 */
+  openUrl?: string
   fileName: string
   sortOrder: number
   objectKey?: string
@@ -44,6 +46,8 @@ export interface NewsletterItem {
   title: string
   summary: string
   heroImageUrl: string | null
+  /** 목록·카드 img src — 서버가 발급한 inline open URL (accessToken 포함) */
+  heroImageOpenUrl?: string | null
   publishedAt: string
   status: NewsletterPublishStatus
   hasImages: boolean

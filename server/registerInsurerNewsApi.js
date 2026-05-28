@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import jwt from 'jsonwebtoken'
 import { safeQuery, systemQuery } from './utils/dbSafeQuery.js'
 import {
+  consentGetBuffer,
   consentPutInsurerAttachment,
   getR2InsurerAttachmentsCacheControl,
   getR2PublicCdnBase,
@@ -33,6 +35,8 @@ const NEWS_CHANNEL_INSURER = 'INSURER'
 const NEWS_CHANNEL_LOSS_ADJUSTER = 'LOSS_ADJUSTER'
 const LOSS_ADJUSTER_R2_CATEGORY = INSURER_R2_CATEGORY.LOSS_ADJUSTER
 const LEGACY_LOSS_ADJUSTER_R2_CATEGORY = 'LossAdjuster'
+const INSURER_NEWS_ATTACHMENT_ACCESS_TOKEN_KIND = 'insurer_news_attachment_access'
+const INSURER_NEWS_ATTACHMENT_ACCESS_TOKEN_EXPIRES_IN = '30m'
 
 /** @param {unknown} role */
 function newsChannelByRole(role) {
@@ -441,7 +445,220 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     effectiveTenantGaId,
     parseGaId,
     resolveTenantGaIdForRequest,
+    jwtSecret,
   } = ctx
+
+  /**
+   * @param {string} fileNameRaw
+   */
+  function buildInlineContentDisposition(fileNameRaw) {
+    const name = String(fileNameRaw ?? '').trim() || 'image'
+    const ascii =
+      name
+        .replace(/["\r\n\\]/g, '_')
+        .replace(/[^\x20-\x7E]/g, '_')
+        .trim()
+        .slice(0, 200) || 'image'
+    const star = encodeURIComponent(name)
+    return `inline; filename="${ascii}"; filename*=UTF-8''${star}`
+  }
+
+  /**
+   * @param {string} newsletterId
+   * @param {string} attachmentId
+   * @param {string} accessToken
+   */
+  function buildInsurerNewsAttachmentOpenPath(newsletterId, attachmentId, accessToken) {
+    const qs = new URLSearchParams({ accessToken })
+    return `/api/insurer-news/${encodeURIComponent(newsletterId)}/attachments/${encodeURIComponent(attachmentId)}/open?${qs.toString()}`
+  }
+
+  /**
+   * @param {{
+   *  newsletterId: string
+   *  attachmentId: string
+   *  userId: string
+   *  gaId: number
+   * }} payload
+   */
+  function signInsurerNewsAttachmentAccessToken(payload) {
+    return jwt.sign(
+      {
+        kind: INSURER_NEWS_ATTACHMENT_ACCESS_TOKEN_KIND,
+        newsletterId: String(payload.newsletterId),
+        attachmentId: String(payload.attachmentId),
+        userId: String(payload.userId),
+        gaId: Number(payload.gaId),
+      },
+      jwtSecret,
+      { expiresIn: INSURER_NEWS_ATTACHMENT_ACCESS_TOKEN_EXPIRES_IN },
+    )
+  }
+
+  /**
+   * @param {string} rawToken
+   */
+  function verifyInsurerNewsAttachmentAccessToken(rawToken) {
+    try {
+      const decoded = jwt.verify(rawToken, jwtSecret)
+      if (!decoded || typeof decoded !== 'object') {
+        return null
+      }
+      const payload = /** @type {{
+       *  kind?: unknown
+       *  newsletterId?: unknown
+       *  attachmentId?: unknown
+       *  userId?: unknown
+       *  gaId?: unknown
+       * }} */ (decoded)
+      if (String(payload.kind ?? '') !== INSURER_NEWS_ATTACHMENT_ACCESS_TOKEN_KIND) {
+        return null
+      }
+      const newsletterId = String(payload.newsletterId ?? '').trim()
+      const attachmentId = String(payload.attachmentId ?? '').trim()
+      const userId = String(payload.userId ?? '').trim()
+      const gaId = Number(payload.gaId)
+      if (!newsletterId || !attachmentId || !userId || !Number.isInteger(gaId) || gaId < 1) {
+        return null
+      }
+      return { newsletterId, attachmentId, userId, gaId }
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * @param {import('express').Request} req
+   * @param {number} gaId
+   */
+  function buildAttachmentAccessContext(req, gaId) {
+    const userId = String(req.user?.id ?? '').trim()
+    const gaIdNum = Number(gaId)
+    if (!userId || !Number.isInteger(gaIdNum) || gaIdNum < 1) {
+      return null
+    }
+    return { userId, gaId: gaIdNum }
+  }
+
+  /**
+   * @param {import('express').Request} req
+   * @param {string} newsletterId
+   * @param {string} attachmentId
+   * @param {string} userId
+   * @param {number} gaId
+   */
+  function buildInsurerNewsAttachmentOpenUrl(req, newsletterId, attachmentId, userId, gaId) {
+    if (!newsletterId || !attachmentId || !userId || !Number.isInteger(gaId) || gaId < 1) {
+      return null
+    }
+    const accessToken = signInsurerNewsAttachmentAccessToken({
+      newsletterId,
+      attachmentId,
+      userId,
+      gaId,
+    })
+    return buildInsurerNewsAttachmentOpenPath(newsletterId, attachmentId, accessToken)
+  }
+
+  /**
+   * @param {string} storageKey
+   */
+  async function readInsurerNewsAttachmentBuffer(storageKey) {
+    const primary = String(storageKey ?? '').trim().replace(/^\//, '')
+    if (!primary) {
+      throw Object.assign(new Error('저장 경로가 없습니다.'), { httpStatus: 404 })
+    }
+    try {
+      return await consentGetBuffer(primary)
+    } catch {
+      const stripped = stripR2ObjectRootIfPresent(primary)
+      const withRoot = withR2ObjectRoot(stripped)
+      if (withRoot !== primary) {
+        return await consentGetBuffer(withRoot)
+      }
+      if (stripped !== primary) {
+        return await consentGetBuffer(stripped)
+      }
+      throw Object.assign(new Error('첨부파일을 불러오지 못했습니다.'), { httpStatus: 404 })
+    }
+  }
+
+  /**
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   * @param {string} newsletterId
+   * @param {string} attachmentId
+   */
+  async function resolveInsurerNewsAttachmentAccess(req, res, newsletterId, attachmentId) {
+    const accessToken = String(req.query.accessToken ?? '').trim()
+    if (accessToken) {
+      const tokenPayload = verifyInsurerNewsAttachmentAccessToken(accessToken)
+      if (
+        !tokenPayload ||
+        tokenPayload.newsletterId !== newsletterId ||
+        tokenPayload.attachmentId !== attachmentId
+      ) {
+        res.status(401).json({ message: '첨부파일 접근 권한이 없습니다.' })
+        return null
+      }
+      const userRes = await safeQuery(
+        pool,
+        `
+        SELECT id, role, ga_id
+        FROM users
+        WHERE id = $1
+          AND ga_id = $2
+        LIMIT 1
+        `,
+        [tokenPayload.userId, tokenPayload.gaId],
+      )
+      if (userRes.rowCount === 0) {
+        res.status(401).json({ message: '첨부파일 접근 권한이 없습니다.' })
+        return null
+      }
+      const userRow = userRes.rows[0]
+      req.user = {
+        id: String(userRow.id),
+        role: String(userRow.role ?? ''),
+        gaId: Number(userRow.ga_id),
+      }
+      return tokenPayload
+    }
+
+    const bearer = String(req.headers.authorization ?? '').trim()
+    const token = bearer.startsWith('Bearer ') ? bearer.slice(7).trim() : ''
+    if (!token) {
+      res.status(401).json({ message: '첨부파일 접근 권한이 없습니다.' })
+      return null
+    }
+    try {
+      const decoded = jwt.verify(token, jwtSecret)
+      if (!decoded || typeof decoded !== 'object') {
+        res.status(401).json({ message: '첨부파일 접근 권한이 없습니다.' })
+        return null
+      }
+      const payload = /** @type {{ id?: unknown, role?: unknown, gaId?: unknown }} */ (decoded)
+      const userId = String(payload.id ?? '').trim()
+      if (!userId) {
+        res.status(401).json({ message: '첨부파일 접근 권한이 없습니다.' })
+        return null
+      }
+      req.user = {
+        id: userId,
+        role: String(payload.role ?? ''),
+        gaId: Number(payload.gaId),
+      }
+      return {
+        newsletterId,
+        attachmentId,
+        userId,
+        gaId: Number(payload.gaId),
+      }
+    } catch {
+      res.status(401).json({ message: '첨부파일 접근 권한이 없습니다.' })
+      return null
+    }
+  }
 
   async function loadNewsManagerScopeByUser(user) {
     if (isLossAdjusterRole(user?.role)) {
@@ -544,8 +761,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    * @param {object} row newsletter row
    * @param {object[]} attRows
    */
-  function mapNewsletterDetail(row, attRows) {
+  function mapNewsletterDetail(row, attRows, req = null, accessContext = null) {
     const payload = row.payload && typeof row.payload === 'object' ? row.payload : {}
+    const newsletterId = String(row.id)
     const attachments = [...attRows]
       .sort((a, b) => Number(a.sort_order) - Number(b.sort_order))
       .map((a) => {
@@ -553,10 +771,22 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         const dbKind = String(a.kind ?? '')
         const isFile =
           mime === 'application/pdf' || dbKind === 'file' || dbKind === 'pdf'
+        const attachmentId = String(a.id)
+        const openUrl =
+          accessContext && req
+            ? buildInsurerNewsAttachmentOpenUrl(
+                req,
+                newsletterId,
+                attachmentId,
+                accessContext.userId,
+                accessContext.gaId,
+              )
+            : null
         return {
-          id: String(a.id),
+          id: attachmentId,
           kind: isFile ? 'file' : 'image',
           url: String(a.url),
+          openUrl: openUrl ?? undefined,
           fileName: String(a.file_name),
           sortOrder: Number(a.sort_order),
           objectKey: String(a.object_key),
@@ -588,6 +818,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       title: '',
       summary,
       heroImageUrl: images[0]?.url ?? null,
+      heroImageOpenUrl: images[0]?.openUrl ?? null,
       publishedAt,
       status: String(row.status ?? 'DRAFT'),
       hasImages: images.length > 0,
@@ -756,7 +987,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    * @param {object} row
    * @param {string} gaCodeUpper
    */
-  function mapNewsletterListRow(row, gaCodeUpper) {
+  function mapNewsletterListRow(row, gaCodeUpper, req = null, accessContext = null) {
     const payload = row.payload && typeof row.payload === 'object' ? row.payload : {}
     const newsChannel = normalizeNewsChannel(payload.newsChannel)
     const insurerCode = String(payload.insurerCode ?? '').trim()
@@ -767,9 +998,21 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       String(row.body_text ?? '').trim() ||
       String(payload.summary ?? '').trim() ||
       '요약 없음'
+    const newsletterId = String(row.id)
+    const heroAttachmentId = row.hero_attachment_id ? String(row.hero_attachment_id) : null
+    const heroImageOpenUrl =
+      heroAttachmentId && req && accessContext
+        ? buildInsurerNewsAttachmentOpenUrl(
+            req,
+            newsletterId,
+            heroAttachmentId,
+            accessContext.userId,
+            accessContext.gaId,
+          )
+        : null
 
     return {
-      id: String(row.id),
+      id: newsletterId,
       gaCode: gaCodeUpper,
       insurerCode: insurerCode || '—',
       insurerName: insurerName || String(row.company_name_snapshot ?? ''),
@@ -779,6 +1022,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       title: '',
       summary,
       heroImageUrl: row.hero_url ? String(row.hero_url) : null,
+      heroImageOpenUrl,
       publishedAt,
       status: String(row.status ?? 'DRAFT'),
       hasImages: Number(row.img_cnt ?? 0) > 0,
@@ -936,7 +1180,51 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   }
 
   /**
-   * 삭제 권한: 작성자(채널 매니저) 또는 GA_ADMIN/GA_STAFF
+   * 첨부 inline 스트림 — 피드(GA) 또는 매니저 권한.
+   * @param {import('express').Request} req
+   * @param {object} newsletterRow
+   * @param {string|null} expectedChannel
+   */
+  async function assertCanOpenInsurerNewsAttachment(req, newsletterRow, expectedChannel = null) {
+    if (!newsletterRow) {
+      throw Object.assign(new Error('소식을 찾을 수 없습니다.'), { httpStatus: 404 })
+    }
+    const rowPayload = newsletterRow.payload && typeof newsletterRow.payload === 'object' ? newsletterRow.payload : {}
+    if (Boolean(rowPayload.customerVisible)) {
+      throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
+    }
+    const insurerSlug = String(rowPayload.insurerSlug ?? '').trim().toLowerCase()
+    const insurerCode = String(rowPayload.insurerCode ?? '').trim().toUpperCase()
+    if (insurerSlug === 'customer-news' || insurerCode === 'CUSTOMER_NEWS') {
+      throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
+    }
+    if (isNewsManagerRole(req.user?.role)) {
+      await assertCanAccessNewsletterRow(newsletterRow, req, expectedChannel)
+      return
+    }
+    if (String(newsletterRow.status ?? '') !== 'PUBLISHED') {
+      throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
+    }
+    if (expectedChannel) {
+      const rowChannel = normalizeNewsChannel(rowPayload.newsChannel)
+      if (rowChannel !== normalizeNewsChannel(expectedChannel)) {
+        throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
+      }
+    }
+    if (isSuperAdminRole(req.user?.role)) {
+      const tokenGaId = Number(req.user?.gaId)
+      if (!Number.isInteger(tokenGaId) || tokenGaId < 1 || Number(newsletterRow.ga_id) !== tokenGaId) {
+        throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
+      }
+      return
+    }
+    const tenantGa = effectiveTenantGaId(req)
+    if (tenantGa == null || Number(newsletterRow.ga_id) !== tenantGa) {
+      throw Object.assign(new Error('접근할 수 없습니다.'), { httpStatus: 403 })
+    }
+  }
+
+  /**
    * @param {object} row
    * @param {import('express').Request} req
    * @param {string|null} expectedChannel
@@ -974,6 +1262,90 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     }
     return null
   }
+
+  apiRouter.get('/insurer-news/:newsletterId/attachments/:attachmentId/open', async (req, res) => {
+    try {
+      const newsletterId = String(req.params.newsletterId ?? '').trim()
+      const attachmentId = String(req.params.attachmentId ?? '').trim()
+      if (!newsletterId || !attachmentId) {
+        res.status(400).json({ message: '유효한 newsletterId와 attachmentId가 필요합니다.' })
+        return
+      }
+
+      const access = await resolveInsurerNewsAttachmentAccess(req, res, newsletterId, attachmentId)
+      if (!access) {
+        return
+      }
+
+      const joinRes = await safeQuery(
+        pool,
+        `
+        SELECT n.*,
+          a.id AS att_id,
+          a.object_key,
+          a.file_name,
+          a.mime_type,
+          a.url AS att_url
+        FROM insurance_company_newsletters n
+        INNER JOIN insurance_company_newsletter_attachments a
+          ON a.newsletter_id = n.id
+        WHERE n.id = $1
+          AND a.id = $2
+          AND n.ga_id = $3
+        LIMIT 1
+        `,
+        [newsletterId, attachmentId, access.gaId],
+      )
+      if (joinRes.rowCount === 0) {
+        res.status(404).json({ message: '첨부파일을 찾을 수 없습니다.' })
+        return
+      }
+
+      const row = joinRes.rows[0]
+      const rowPayload = row.payload && typeof row.payload === 'object' ? row.payload : {}
+      const channel = normalizeNewsChannel(rowPayload.newsChannel)
+      try {
+        await assertCanOpenInsurerNewsAttachment(req, row, channel)
+      } catch (authErr) {
+        const status =
+          authErr && typeof authErr === 'object' && 'httpStatus' in authErr && typeof authErr.httpStatus === 'number'
+            ? authErr.httpStatus
+            : 403
+        res.status(status).json({
+          message: authErr instanceof Error ? authErr.message : '접근할 수 없습니다.',
+        })
+        return
+      }
+
+      const storageKey = String(row.object_key ?? '').trim()
+      if (!storageKey) {
+        res.status(404).json({ message: '첨부파일을 찾을 수 없습니다.' })
+        return
+      }
+
+      let buffer
+      try {
+        buffer = await readInsurerNewsAttachmentBuffer(storageKey)
+      } catch (readErr) {
+        const status =
+          readErr && typeof readErr === 'object' && 'httpStatus' in readErr && typeof readErr.httpStatus === 'number'
+            ? readErr.httpStatus
+            : 404
+        res.status(status).json({
+          message: readErr instanceof Error ? readErr.message : '첨부파일을 불러오지 못했습니다.',
+        })
+        return
+      }
+
+      const mime = String(row.mime_type ?? 'application/octet-stream').trim() || 'application/octet-stream'
+      res.setHeader('Content-Type', mime)
+      res.setHeader('Content-Disposition', buildInlineContentDisposition(row.file_name))
+      res.setHeader('Cache-Control', 'private, max-age=300')
+      res.send(buffer)
+    } catch (eOpen) {
+      handleDbError(eOpen, req, res)
+    }
+  })
 
   apiRouter.get('/insurer-news/feed', requireAuth, forbidInsurerOnFeed, async (req, res) => {
     try {
@@ -1025,7 +1397,10 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
             WHERE a.newsletter_id = n.id AND a.mime_type = 'application/pdf') AS pdf_cnt,
           (SELECT a.url FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
-            ORDER BY a.sort_order ASC LIMIT 1) AS hero_url
+            ORDER BY a.sort_order ASC LIMIT 1) AS hero_url,
+          (SELECT a.id FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
+            ORDER BY a.sort_order ASC LIMIT 1) AS hero_attachment_id
         FROM insurance_company_newsletters n
         INNER JOIN ga_companies g ON g.id = n.ga_id
         WHERE n.ga_id = $1
@@ -1044,7 +1419,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       params.push(limit)
 
       const nRes = await safeQuery(pool, listSql, params)
-      const newsletters = nRes.rows.map((row) => mapNewsletterListRow(row, gaCodeUpper))
+      const accessContext = buildAttachmentAccessContext(req, gaId)
+      const newsletters = nRes.rows.map((row) => mapNewsletterListRow(row, gaCodeUpper, req, accessContext))
       const insurers =
         channel === NEWS_CHANNEL_LOSS_ADJUSTER
           ? buildInsurerListFromNewsletters(gaCodeUpper, newsletters)
@@ -1087,7 +1463,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
       const attRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [newsletterId, gaId])
-      res.json(mapNewsletterDetail(nRes.rows[0], attRes.rows))
+      const accessContext = buildAttachmentAccessContext(req, gaId)
+      res.json(mapNewsletterDetail(nRes.rows[0], attRes.rows, req, accessContext))
     } catch (e87) {
       handleDbError(e87, req, res)
     }
@@ -1428,7 +1805,10 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
             WHERE a.newsletter_id = n.id AND a.mime_type = 'application/pdf') AS pdf_cnt,
           (SELECT a.url FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
-            ORDER BY a.sort_order ASC LIMIT 1) AS hero_url
+            ORDER BY a.sort_order ASC LIMIT 1) AS hero_url,
+          (SELECT a.id FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
+            ORDER BY a.sort_order ASC LIMIT 1) AS hero_attachment_id
         FROM insurance_company_newsletters n
         INNER JOIN ga_companies g ON g.id = n.ga_id
         WHERE n.ga_id = $1
@@ -1449,7 +1829,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       q += ` ORDER BY n.created_at DESC`
 
       const nRes = await safeQuery(pool, q, params)
-      const newsletters = nRes.rows.map((row) => mapNewsletterListRow(row, gaCodeUpper))
+      const accessContext = buildAttachmentAccessContext(req, gaId)
+      const newsletters = nRes.rows.map((row) => mapNewsletterListRow(row, gaCodeUpper, req, accessContext))
       res.json(newsletters)
     } catch (e90) {
       handleDbError(e90, req, res)
@@ -1485,7 +1866,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
       await assertCanAccessNewsletterRow(nRes.rows[0], req, channel)
       const attRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [newsletterId, gaIdForSelect])
-      res.json(mapNewsletterDetail(nRes.rows[0], attRes.rows))
+      const accessContext = buildAttachmentAccessContext(req, gaIdForSelect)
+      res.json(mapNewsletterDetail(nRes.rows[0], attRes.rows, req, accessContext))
     } catch (e91) {
       handleDbError(e91, req, res)
     }
@@ -1584,7 +1966,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       })
 
       const attRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [id, normalizedScope.gaId])
-      res.status(201).json(mapNewsletterDetail(insertedNewsletterRow, attRes.rows))
+      const accessContext = buildAttachmentAccessContext(req, normalizedScope.gaId)
+      res.status(201).json(mapNewsletterDetail(insertedNewsletterRow, attRes.rows, req, accessContext))
     } catch (e92) {
       if (e92 && typeof e92 === 'object' && 'httpStatus' in e92 && typeof e92.httpStatus === 'number') {
         res.status(e92.httpStatus).json({ message: e92 instanceof Error ? e92.message : '요청을 처리할 수 없습니다.' })
@@ -1716,7 +2099,8 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         [newsletterId, scope.gaId, channel],
       )
       const attRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [newsletterId, scope.gaId])
-      res.json(mapNewsletterDetail(fresh.rows[0], attRes.rows))
+      const accessContext = buildAttachmentAccessContext(req, scope.gaId)
+      res.json(mapNewsletterDetail(fresh.rows[0], attRes.rows, req, accessContext))
     } catch (e93) {
       if (e93 && typeof e93 === 'object' && 'httpStatus' in e93 && typeof e93.httpStatus === 'number') {
         res.status(e93.httpStatus).json({ message: e93 instanceof Error ? e93.message : '요청을 처리할 수 없습니다.' })
