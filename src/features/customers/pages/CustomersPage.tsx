@@ -45,13 +45,13 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
 import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPolicy'
-import { searchCustomersAdvanced, type CustomerConsultationRow } from '../api/customerExtraApi'
+import { searchCustomersAdvanced } from '../api/customerExtraApi'
 import { formatAddressForSave, FormButton, FormInput, FormTextarea } from '../../../components/form'
 import { useGaSettings } from '../../ga-settings/useGaSettings'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 import CustomerMobileModals from '../components/CustomerMobileModals'
 import CustomerPageHeaderActions from '../components/CustomerPageHeaderActions'
-import { CustomerFilterControls } from '../components/CustomerFilterControls'
+import { CustomerFilterControls, type CustomerConsultationFilter } from '../components/CustomerFilterControls'
 import CustomerExcelSelectToolbar from '../components/CustomerExcelSelectToolbar'
 import CustomerListCard, { type CustomerSsnDupHighlight } from '../components/CustomerListCard'
 import type { CustomerEditFormState } from '../types/customerEditForm'
@@ -70,6 +70,7 @@ import {
   parseYmdMs,
 } from '../utils/customerListFilters'
 import { buildSsnDuplicateHighlightByCustomerId } from '../utils/customerSsnDuplicateHighlight'
+import { CUSTOMERS_LIST_REFRESH_EVENT } from '../utils/customerListRefresh'
 import {
   recordToEditForm,
   normalizeBirthDateForSaveApi,
@@ -228,6 +229,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const [advSearchLoading, setAdvSearchLoading] = useState(false)
   const [favoriteOnly, setFavoriteOnly] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
+  const [consultationFilterDraft, setConsultationFilterDraft] = useState<CustomerConsultationFilter>('')
+  const [consultationCutoffDraft, setConsultationCutoffDraft] = useState('')
+  const [appliedConsultationFilter, setAppliedConsultationFilter] = useState<CustomerConsultationFilter>('')
+  const [appliedConsultationCutoff, setAppliedConsultationCutoff] = useState('')
+  const [consultationFilterMessage, setConsultationFilterMessage] = useState('')
   const [showScrollToTop, setShowScrollToTop] = useState(false)
   const [customerCreateExitModalOpen, setCustomerCreateExitModalOpen] = useState(false)
   /** 터치→합성 mouse/click 등으로 초대 복사가 두 번 도는 것 방지 */
@@ -312,9 +318,22 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       keyword.trim() !== '' ||
       advancedFiltersActive ||
       favoriteOnly ||
-      advSearchHits != null,
-    [keyword, advancedFiltersActive, favoriteOnly, advSearchHits],
+      advSearchHits != null ||
+      appliedConsultationFilter !== '',
+    [keyword, advancedFiltersActive, favoriteOnly, advSearchHits, appliedConsultationFilter],
   )
+
+  const applyConsultationFilter = useCallback(() => {
+    if (consultationFilterDraft === 'no_since' && !consultationCutoffDraft.trim()) {
+      setConsultationFilterMessage('기준 날짜를 선택해 주세요.')
+      return
+    }
+    setConsultationFilterMessage('')
+    setAppliedConsultationFilter(consultationFilterDraft)
+    setAppliedConsultationCutoff(
+      consultationFilterDraft === 'no_since' ? consultationCutoffDraft.trim() : '',
+    )
+  }, [consultationCutoffDraft, consultationFilterDraft])
 
   const sortedCustomers = useMemo(() => {
     const copy = [...filteredCustomers]
@@ -401,9 +420,22 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       setCustomersTotalCount(0)
       return
     }
+    if (appliedConsultationFilter === 'no_since' && !appliedConsultationCutoff.trim()) {
+      setStatusText('기준 날짜를 선택해 주세요.')
+      return
+    }
     setIsLoading(true)
     try {
-      const { customers: rows, total } = await listCustomers(token)
+      const listOpts =
+        appliedConsultationFilter === 'none'
+          ? { consultationFilter: 'none' as const }
+          : appliedConsultationFilter === 'no_since'
+            ? {
+                consultationFilter: 'no_since' as const,
+                consultationCutoffDate: appliedConsultationCutoff.trim(),
+              }
+            : {}
+      const { customers: rows, total } = await listCustomers(token, listOpts)
       const safeData = coerceCustomersStatePayload(rows)
       setCustomers(safeData)
       setCustomersTotalCount(total)
@@ -412,7 +444,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     } finally {
       setIsLoading(false)
     }
-  }, [token, user?.role])
+  }, [token, user?.role, appliedConsultationFilter, appliedConsultationCutoff])
 
   const handleToggleFavorite = useCallback(
     async (c: CustomerRecord) => {
@@ -533,6 +565,14 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     }
     void loadCustomers()
   }, [user?.role, loadCustomers])
+
+  useEffect(() => {
+    const handler = () => {
+      void loadCustomers()
+    }
+    window.addEventListener(CUSTOMERS_LIST_REFRESH_EVENT, handler)
+    return () => window.removeEventListener(CUSTOMERS_LIST_REFRESH_EVENT, handler)
+  }, [loadCustomers])
 
   /**
    * 카드 펼침(expandedId) 은 요약 클릭 이벤트로만 바꾼다.
@@ -1244,6 +1284,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           advancedFiltersActive={advancedFiltersActive}
           applyQuickFilter={applyQuickFilter}
           resetAdvancedFilters={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
+          consultationFilter={consultationFilterDraft}
+          setConsultationFilter={setConsultationFilterDraft}
+          consultationCutoffDate={consultationCutoffDraft}
+          setConsultationCutoffDate={setConsultationCutoffDraft}
+          onApplyConsultationFilter={applyConsultationFilter}
+          consultationFilterMessage={consultationFilterMessage}
         />
       ) : null}
 

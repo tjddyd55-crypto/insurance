@@ -30,6 +30,51 @@ import {
 
 const CONSULTATION_BODY_MAX = 20000
 
+function mapConsultationApiRow(row, fallbackDate) {
+  return {
+    id: Number(row.id),
+    customerId: Number(row.customer_id),
+    userId: String(row.user_id),
+    gaId: Number(row.ga_id),
+    body: row.body ?? '',
+    consultationDate: row.consultation_date
+      ? String(row.consultation_date).slice(0, 10)
+      : fallbackDate ?? null,
+    createdAt: row.created_at ? new Date(row.created_at).toISOString() : '',
+  }
+}
+
+/** @returns {{ ok: true, content: string, consultDate: string } | { ok: false, status: number, message: string }} */
+function parseConsultationWriteBody(reqBody, { requireContent = true, defaultDateToToday = true } = {}) {
+  const rawBody = reqBody?.body ?? reqBody?.content
+  const hasBodyField = rawBody !== undefined && rawBody !== null
+  const content = hasBodyField ? String(rawBody).trim() : ''
+  if (requireContent && !content) {
+    return { ok: false, status: 400, message: '상담 내용을 입력해 주세요.' }
+  }
+  if (hasBodyField && content.length > CONSULTATION_BODY_MAX) {
+    return {
+      ok: false,
+      status: 400,
+      message: `상담 내용은 ${CONSULTATION_BODY_MAX}자 이하로 입력해 주세요.`,
+    }
+  }
+
+  const consultDateRaw = reqBody?.consultationDate ?? reqBody?.consultation_date
+  let consultDate = consultDateRaw == null ? '' : String(consultDateRaw).trim()
+  if (!consultDate && defaultDateToToday) {
+    consultDate = new Date().toISOString().slice(0, 10)
+  }
+  if (consultDateRaw != null && String(consultDateRaw).trim() && !/^\d{4}-\d{2}-\d{2}$/.test(consultDate)) {
+    return { ok: false, status: 400, message: '상담 일자는 YYYY-MM-DD 형식이어야 합니다.' }
+  }
+  if (consultDate && !/^\d{4}-\d{2}-\d{2}$/.test(consultDate)) {
+    return { ok: false, status: 400, message: '상담 일자는 YYYY-MM-DD 형식이어야 합니다.' }
+  }
+
+  return { ok: true, content, consultDate, hasBodyField, hasDateField: consultDateRaw != null && String(consultDateRaw).trim() !== '' }
+}
+
 const CUSTOMER_FILE_ALLOWED_MIME = new Set([
   'application/pdf',
   'image/jpeg',
@@ -785,24 +830,9 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
 
-      const rawBody = req.body?.body ?? req.body?.content ?? ''
-      const content = String(rawBody ?? '').trim()
-      if (!content) {
-        res.status(400).json({ message: '상담 내용을 입력해 주세요.' })
-        return
-      }
-
-      const consultDateRaw = req.body?.consultationDate ?? req.body?.consultation_date
-      let consultDate = String(consultDateRaw ?? '').trim()
-      if (!consultDate) {
-        consultDate = new Date().toISOString().slice(0, 10)
-      }
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(consultDate)) {
-        res.status(400).json({ message: '상담 일자는 YYYY-MM-DD 형식이어야 합니다.' })
-        return
-      }
-      if (content.length > CONSULTATION_BODY_MAX) {
-        res.status(400).json({ message: `상담 내용은 ${CONSULTATION_BODY_MAX}자 이하로 입력해 주세요.` })
+      const parsed = parseConsultationWriteBody(req.body, { requireContent: true, defaultDateToToday: true })
+      if (!parsed.ok) {
+        res.status(parsed.status).json({ message: parsed.message })
         return
       }
 
@@ -813,19 +843,11 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         VALUES ($1, $2, $3, $4, $5::DATE)
         RETURNING id, customer_id, user_id, ga_id, body, consultation_date, created_at
         `,
-        [customerId, userId, gaId, content, consultDate],
+        [customerId, userId, gaId, parsed.content, parsed.consultDate],
       )
       const row = ins.rows[0]
       recordAnalyticsEvent(pool, { userId, gaId, eventType: 'team_message_created' })
-      res.status(201).json({
-        id: Number(row.id),
-        customerId: Number(row.customer_id),
-        userId: String(row.user_id),
-        gaId: Number(row.ga_id),
-        body: row.body ?? '',
-        consultationDate: row.consultation_date ? String(row.consultation_date).slice(0, 10) : consultDate,
-        createdAt: row.created_at ? new Date(row.created_at).toISOString() : '',
-      })
+      res.status(201).json(mapConsultationApiRow(row, parsed.consultDate))
     } catch (error) {
       handleDbError(error, req, res)
     }
@@ -865,17 +887,88 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         `,
         [customerId, userId, gaId, limit, offset],
       )
-      res.json(
-        r.rows.map((row) => ({
-          id: Number(row.id),
-          customerId: Number(row.customer_id),
-          userId: String(row.user_id),
-          gaId: Number(row.ga_id),
-          body: row.body ?? '',
-          consultationDate: row.consultation_date ? String(row.consultation_date).slice(0, 10) : null,
-          createdAt: row.created_at ? new Date(row.created_at).toISOString() : '',
-        })),
+      res.json(r.rows.map((row) => mapConsultationApiRow(row)))
+    } catch (error) {
+      handleDbError(error, req, res)
+    }
+  })
+
+  apiRouter.patch('/customers/:id/consultations/:consultId', requireAuth, async (req, res) => {
+    try {
+      const userId = req.user?.id ? String(req.user.id) : ''
+      if (!userId) {
+        res.status(401).json({ message: '로그인이 필요합니다.' })
+        return
+      }
+      const gaId = requireGaIdFromUser(req, res)
+      if (gaId == null) {
+        return
+      }
+      const customerId = parseCustomerIdParam(req, res)
+      if (customerId == null) {
+        return
+      }
+      const consultId = Number(req.params.consultId)
+      if (!Number.isInteger(consultId) || consultId < 1) {
+        res.status(400).json({ message: '잘못된 상담 ID입니다.' })
+        return
+      }
+      if (!(await assertCustomerActiveOwned(pool, req, customerId))) {
+        res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
+        return
+      }
+
+      const parsed = parseConsultationWriteBody(req.body, { requireContent: false, defaultDateToToday: false })
+      if (!parsed.ok) {
+        res.status(parsed.status).json({ message: parsed.message })
+        return
+      }
+      if (!parsed.hasBodyField && !parsed.hasDateField) {
+        res.status(400).json({ message: '수정할 상담 날짜 또는 내용을 입력해 주세요.' })
+        return
+      }
+
+      const existing = await safeQuery(
+        pool,
+        `
+        SELECT id, body, consultation_date
+        FROM customer_consultations
+        WHERE id = $1 AND customer_id = $2 AND user_id = $3 AND ga_id = $4
+        LIMIT 1
+        `,
+        [consultId, customerId, userId, gaId],
       )
+      if (existing.rowCount === 0) {
+        res.status(404).json({ message: '상담 기록을 찾을 수 없습니다.' })
+        return
+      }
+      const prev = existing.rows[0]
+      const nextBody = parsed.hasBodyField ? parsed.content : String(prev.body ?? '')
+      const nextDate = parsed.hasDateField
+        ? parsed.consultDate
+        : prev.consultation_date
+          ? String(prev.consultation_date).slice(0, 10)
+          : null
+      if (!nextBody.trim()) {
+        res.status(400).json({ message: '상담 내용을 입력해 주세요.' })
+        return
+      }
+      if (!nextDate || !/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) {
+        res.status(400).json({ message: '상담 일자는 YYYY-MM-DD 형식이어야 합니다.' })
+        return
+      }
+
+      const upd = await safeQuery(
+        pool,
+        `
+        UPDATE customer_consultations
+        SET body = $5, consultation_date = $6::DATE
+        WHERE id = $1 AND customer_id = $2 AND user_id = $3 AND ga_id = $4
+        RETURNING id, customer_id, user_id, ga_id, body, consultation_date, created_at
+        `,
+        [consultId, customerId, userId, gaId, nextBody, nextDate],
+      )
+      res.json(mapConsultationApiRow(upd.rows[0], nextDate))
     } catch (error) {
       handleDbError(error, req, res)
     }

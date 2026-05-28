@@ -1,6 +1,6 @@
 import { EmptyState, StatusMessage } from '../../../../components/feedback'
 import { FormButton, FormInput, FormTextarea } from '../../../../components/form'
-import { parseConsultationStoredBody } from '../../utils/consultationBodyFormat'
+import CustomerConsultationHistoryList from '../../components/CustomerConsultationHistoryList'
 import type { CustomerConsultationsViewProps } from './customerConsultationsViewProps'
 
 export default function CustomerConsultationsPageMobile({
@@ -9,8 +9,16 @@ export default function CustomerConsultationsPageMobile({
   consultDate,
   busy,
   rows,
+  editingConsultId,
+  editConsultDate,
+  editConsultBody,
   onSetBody,
   onSetConsultDate,
+  onStartEdit,
+  onCancelEdit,
+  onSetEditConsultDate,
+  onSetEditConsultBody,
+  onSaveEdit,
   onSubmit,
   onDelete,
   onAddTodoFromConsultation,
@@ -41,60 +49,20 @@ export default function CustomerConsultationsPageMobile({
         {rows.length === 0 ? (
           <EmptyState message="등록된 상담이 없습니다." className="!my-0 !text-left" />
         ) : (
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {rows.map((r) => {
-              const { dateLabel, text } = parseConsultationStoredBody(
-                r.body,
-                r.createdAt,
-                r.consultationDate ?? null,
-              )
-              return (
-                <li
-                  key={r.id}
-                  style={{
-                    borderBottom: '1px solid var(--border-default)',
-                    padding: '12px 0',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 8,
-                      marginBottom: 6,
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <div style={{ fontWeight: 600 }}>{dateLabel}</div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <FormButton
-                        htmlType="button"
-                        variant="action"
-                        className="filter-button"
-                        disabled={busy}
-                        onClick={() => void onDelete(r.id)}
-                      >
-                        삭제
-                      </FormButton>
-                      {onAddTodoFromConsultation ? (
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          className="filter-button"
-                          disabled={busy}
-                          onClick={() => onAddTodoFromConsultation(r.id, text)}
-                        >
-                          할 일로 추가
-                        </FormButton>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{text || '—'}</div>
-                </li>
-              )
-            })}
-          </ul>
+          <CustomerConsultationHistoryList
+            rows={rows}
+            busy={busy}
+            editingConsultId={editingConsultId}
+            editConsultDate={editConsultDate}
+            editConsultBody={editConsultBody}
+            onStartEdit={onStartEdit}
+            onCancelEdit={onCancelEdit}
+            onSetEditConsultDate={onSetEditConsultDate}
+            onSetEditConsultBody={onSetEditConsultBody}
+            onSaveEdit={onSaveEdit}
+            onDelete={onDelete}
+            onAddTodoFromConsultation={onAddTodoFromConsultation}
+          />
         )}
       </section>
     </div>

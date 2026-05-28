@@ -220,7 +220,20 @@ const CustomerListCard = memo(function CustomerListCard({
   }
 
   const ins = customerInsuranceDisplay(c)
-  const recentConsultText = c.lastConsultDate ? formatDateYmdInput(c.lastConsultDate) : '-'
+  const lastConsultAt = c.lastConsultationAt ?? c.lastConsultDate
+  const consultCount = c.consultationCount ?? 0
+  const consultSummary = c.lastConsultationSummary ?? c.lastConsultationMemo
+  const recentConsultText = lastConsultAt
+    ? formatDateYmdInput(lastConsultAt)
+    : '상담 내역 없음'
+  const consultMetaSuffix =
+    consultCount > 0
+      ? consultSummary
+        ? ` · ${consultSummary}`
+        : consultCount > 1
+          ? ` · ${consultCount}건`
+          : ''
+      : ''
   const phone = resolveCustomerListPhone(c)
   const hasPhone = typeof phone === 'string' && phone.trim() !== ''
   const smsHref = customerPhoneHref(phone, 'sms')
@@ -315,7 +328,8 @@ const CustomerListCard = memo(function CustomerListCard({
                 <div className="text-sm text-[var(--text-secondary)] customer-card-summary-meta mt-0.5">
                   {crmIsInsuranceLayout ? (
                     <>
-                      상령일: {ins.dateText} · 상담일: {recentConsultText}
+                      상령일: {ins.dateText} · 상담: {recentConsultText}
+                      {consultMetaSuffix}
                     </>
                   ) : govListSummary != null ? (
                     <div className="gov-customer-list-summary">

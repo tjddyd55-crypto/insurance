@@ -95,11 +95,32 @@ function dedupeCustomersById(rows: CustomerRecord[]): CustomerRecord[] {
   return deduped
 }
 
-export async function listCustomers(token: string, limit = 500): Promise<ListCustomersResult> {
+export type ListCustomersOptions = {
+  limit?: number
+  consultationFilter?: '' | 'none' | 'no_since'
+  consultationCutoffDate?: string
+}
+
+export async function listCustomers(
+  token: string,
+  limitOrOpts: number | ListCustomersOptions = 500,
+): Promise<ListCustomersResult> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  const query = limit ? `?limit=${encodeURIComponent(String(limit))}` : ''
+  const opts: ListCustomersOptions =
+    typeof limitOrOpts === 'number' ? { limit: limitOrOpts } : limitOrOpts ?? {}
+  const q = new URLSearchParams()
+  if (opts.limit != null) {
+    q.set('limit', String(opts.limit))
+  }
+  if (opts.consultationFilter === 'none' || opts.consultationFilter === 'no_since') {
+    q.set('consultationFilter', opts.consultationFilter)
+  }
+  if (opts.consultationCutoffDate?.trim()) {
+    q.set('consultationCutoffDate', opts.consultationCutoffDate.trim())
+  }
+  const query = q.toString() ? `?${q.toString()}` : ''
   const body = await apiRequest<{ data?: unknown; total?: unknown } | unknown[]>(`/api/customers${query}`, { token })
 
   let rawRows: unknown[]

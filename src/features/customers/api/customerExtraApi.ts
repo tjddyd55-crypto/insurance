@@ -121,6 +121,32 @@ export async function deleteCustomerConsultation(
   })
 }
 
+export async function updateCustomerConsultation(
+  token: string,
+  customerId: number,
+  consultId: number,
+  payload: { body?: string; consultationDate?: string },
+): Promise<CustomerConsultationRow> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  const bodyPayload: { body?: string; consultationDate?: string } = {}
+  if (payload.body != null) {
+    bodyPayload.body = payload.body
+  }
+  if (payload.consultationDate?.trim()) {
+    bodyPayload.consultationDate = payload.consultationDate.trim()
+  }
+  return apiRequest<CustomerConsultationRow>(
+    `/api/customers/${customerId}/consultations/${consultId}`,
+    {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(bodyPayload),
+    },
+  )
+}
+
 export async function listCustomerRelations(
   token: string,
   customerId: number,

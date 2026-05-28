@@ -9,9 +9,11 @@ import {
   createCustomerConsultation,
   deleteCustomerConsultation,
   listCustomerConsultations,
+  updateCustomerConsultation,
   type CustomerConsultationRow,
 } from '../api/customerExtraApi'
-import { localYmd } from '../utils/consultationBodyFormat'
+import { localYmd, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
+import { dispatchCustomersListRefresh } from '../utils/customerListRefresh'
 import CustomerConsultationsPageMobile from './detail/CustomerConsultationsPageMobile'
 import CustomerConsultationsPagePC from './detail/CustomerConsultationsPagePC'
 import type { CustomerConsultationsViewProps } from './detail/customerConsultationsViewProps'
@@ -34,6 +36,9 @@ export default function CustomerConsultationsPage() {
   const [rows, setRows] = useState<CustomerConsultationRow[]>([])
   const [body, setBody] = useState('')
   const [consultDate, setConsultDate] = useState(() => localYmd())
+  const [editingConsultId, setEditingConsultId] = useState<number | null>(null)
+  const [editConsultDate, setEditConsultDate] = useState('')
+  const [editConsultBody, setEditConsultBody] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [notFound, setNotFound] = useState(false)
@@ -86,6 +91,7 @@ export default function CustomerConsultationsPage() {
       await createCustomerConsultation(token, resolvedCustomerId, t, { consultationDate: consultDate })
       setBody('')
       await loadAll()
+      dispatchCustomersListRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다.')
     } finally {
@@ -111,6 +117,10 @@ export default function CustomerConsultationsPage() {
     try {
       await deleteCustomerConsultation(token, resolvedCustomerId, consultId)
       setRows((prev) => prev.filter((item) => item.id !== consultId))
+      if (editingConsultId === consultId) {
+        setEditingConsultId(null)
+      }
+      dispatchCustomersListRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : '삭제에 실패했습니다.')
     } finally {
@@ -136,6 +146,46 @@ export default function CustomerConsultationsPage() {
     },
     [resolvedCustomerId],
   )
+
+  const onStartEdit = useCallback((row: CustomerConsultationRow) => {
+    const { text } = parseConsultationStoredBody(row.body, row.createdAt, row.consultationDate ?? null)
+    setEditingConsultId(row.id)
+    setEditConsultDate(row.consultationDate ?? localYmd())
+    setEditConsultBody(text)
+    setError('')
+  }, [])
+
+  const onCancelEdit = useCallback(() => {
+    setEditingConsultId(null)
+    setEditConsultDate('')
+    setEditConsultBody('')
+  }, [])
+
+  const onSaveEdit = async (consultId: number) => {
+    if (!token?.trim() || !validId) {
+      return
+    }
+    const t = editConsultBody.trim()
+    if (!t) {
+      setError('상담 내용을 입력해 주세요.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await updateCustomerConsultation(token, resolvedCustomerId, consultId, {
+        body: t,
+        consultationDate: editConsultDate,
+      })
+      setEditingConsultId(null)
+      await loadAll()
+      dispatchCustomersListRefresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '수정에 실패했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   if (!validId) {
     return (
@@ -171,8 +221,16 @@ export default function CustomerConsultationsPage() {
     consultDate,
     busy,
     rows,
+    editingConsultId,
+    editConsultDate,
+    editConsultBody,
     onSetBody: setBody,
     onSetConsultDate: setConsultDate,
+    onStartEdit,
+    onCancelEdit,
+    onSetEditConsultDate: setEditConsultDate,
+    onSetEditConsultBody: setEditConsultBody,
+    onSaveEdit,
     onSubmit: onSubmitConsultation,
     onDelete: onDeleteConsultation,
     onAddTodoFromConsultation: openTodoFromConsultation,

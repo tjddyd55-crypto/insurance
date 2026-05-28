@@ -48,6 +48,11 @@ import { parseGaId } from './lib/parseGaId.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import { mapCustomerRow } from './lib/customerRowMap.js'
 import {
+  buildConsultationFilterSql,
+  buildCustomerConsultationSummaryJoin,
+  parseConsultationFilterQuery,
+} from './lib/customerConsultationListQuery.js'
+import {
   PUBLIC_INVITE_REG_COOKIE,
   buildInviteRegClearCookieHeader,
   buildInviteRegSetCookieHeader,
@@ -6675,6 +6680,12 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
       return
     }
 
+    const consultFilter = parseConsultationFilterQuery(req.query)
+    if (consultFilter.error) {
+      res.status(400).json({ message: consultFilter.error })
+      return
+    }
+
     const limit = Math.min(Math.max(Number(req.query.limit) || 500, 1), 2000)
 
     const accessEarly = req.user?.customerAccess ?? 'own'
@@ -6690,11 +6701,24 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
     }
 
     const plc = vis.params.length
-    // listParams = [...vis.params, userId, gaId, limit] → placeholders $1..$plc, then userId, gaId, limit
     const lcUserPlace = `$${plc + 1}`
     const lcGaPlace = `$${plc + 2}`
-    const limitPlace = `$${plc + 3}`
-    const listParams = [...vis.params, userId, gaId, limit]
+    const filterBuilt = buildConsultationFilterSql(consultFilter.mode, consultFilter.cutoffDate)
+    let filterClause = ''
+    const filterParams = []
+    if (filterBuilt.clause) {
+      if (consultFilter.mode === 'no_since' && consultFilter.cutoffDate) {
+        const cutoffPlace = `$${plc + 3}`
+        filterClause = ` AND ${filterBuilt.clause.replace('$CUTOFF', cutoffPlace)}`
+        filterParams.push(consultFilter.cutoffDate)
+      } else {
+        filterClause = ` AND ${filterBuilt.clause}`
+      }
+    }
+    const limitPlace = `$${plc + 3 + filterParams.length}`
+    const listParams = [...vis.params, userId, gaId, ...filterParams, limit]
+    const countParams = [...vis.params, userId, gaId, ...filterParams]
+    const summaryJoin = buildCustomerConsultationSummaryJoin(lcUserPlace, lcGaPlace)
 
     const [result, countResult] = await Promise.all([
       safeQuery(
@@ -6706,17 +6730,12 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
           c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
           c.is_favorite, c.created_at,
           c.crm_extension,
-          lc.last_consult_date
+          lc.last_consult_date,
+          lc.consultation_count,
+          lcm.last_consultation_body
         FROM customers c
-        LEFT JOIN (
-          SELECT
-            cc.customer_id,
-            MAX(cc.consultation_date) AS last_consult_date
-          FROM customer_consultations cc
-          WHERE cc.user_id = ${lcUserPlace}::text AND cc.ga_id = ${lcGaPlace}::integer
-          GROUP BY cc.customer_id
-        ) lc ON lc.customer_id = c.id
-        WHERE (${vis.clause}) AND c.deleted_at IS NULL
+        ${summaryJoin}
+        WHERE (${vis.clause}) AND c.deleted_at IS NULL${filterClause}
         ORDER BY lc.last_consult_date DESC NULLS LAST, c.renewal_date ASC NULLS LAST, c.created_at DESC
         LIMIT ${limitPlace}::integer
         `,
@@ -6727,9 +6746,10 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
         `
         SELECT COUNT(*) AS c
         FROM customers c
-        WHERE (${vis.clause}) AND c.deleted_at IS NULL
+        ${summaryJoin}
+        WHERE (${vis.clause}) AND c.deleted_at IS NULL${filterClause}
         `,
-        vis.params,
+        countParams,
       ),
     ])
 
@@ -6775,9 +6795,8 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
 
     const plc = vis.params.length
     const cidPlace = `$${plc + 1}`
-    const lcUserPlace = `$${plc + 2}`
-    const lcGaPlace = `$${plc + 3}`
     const detailParams = [...vis.params, customerId, userId, gaId]
+    const summaryJoin = buildCustomerConsultationSummaryJoin(`$${plc + 2}`, `$${plc + 3}`)
 
     const result = await safeQuery(
       pool,
@@ -6788,16 +6807,11 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
         c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
         c.is_favorite, c.created_at,
         c.crm_extension,
-        lc.last_consult_date
+        lc.last_consult_date,
+        lc.consultation_count,
+        lcm.last_consultation_body
       FROM customers c
-      LEFT JOIN (
-        SELECT
-          cc.customer_id,
-          MAX(cc.consultation_date) AS last_consult_date
-        FROM customer_consultations cc
-        WHERE cc.user_id = ${lcUserPlace}::text AND cc.ga_id = ${lcGaPlace}::integer
-        GROUP BY cc.customer_id
-      ) lc ON lc.customer_id = c.id
+      ${summaryJoin}
       WHERE c.id = ${cidPlace} AND (${vis.clause}) AND c.deleted_at IS NULL
       LIMIT 1
       `,

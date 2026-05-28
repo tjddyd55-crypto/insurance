@@ -31,8 +31,16 @@ export type CustomerConsultationsViewProps = {
   consultDate: string
   busy: boolean
   rows: CustomerConsultationRow[]
+  editingConsultId: number | null
+  editConsultDate: string
+  editConsultBody: string
   onSetBody: (value: string) => void
   onSetConsultDate: (value: string) => void
+  onStartEdit: (row: CustomerConsultationRow) => void
+  onCancelEdit: () => void
+  onSetEditConsultDate: (value: string) => void
+  onSetEditConsultBody: (value: string) => void
+  onSaveEdit: (consultId: number) => void | Promise<void>
   onSubmit: (e: FormEvent) => void | Promise<void>
   onDelete: (consultId: number) => void | Promise<void>
   /** 상담 본문 텍스트(parse 후)로 할 일 초안을 띄운다. */

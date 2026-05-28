@@ -1,6 +1,8 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import { FormButton, FormInput, FormSelect } from '../../../components/form'
 
+export type CustomerConsultationFilter = '' | 'none' | 'no_since'
+
 type CustomerSortType = 'age' | 'car' | 'recent' | null
 
 type CustomerAdvancedFilters = {
@@ -32,6 +34,12 @@ type FilterPanelProps = {
   advancedFiltersActive: boolean
   applyQuickFilter: (type: 'AGE_UNDER_30_MALE' | 'AGE_OVER_40_FEMALE') => void
   resetAdvancedFilters: () => void
+  consultationFilter: CustomerConsultationFilter
+  setConsultationFilter: Dispatch<SetStateAction<CustomerConsultationFilter>>
+  consultationCutoffDate: string
+  setConsultationCutoffDate: Dispatch<SetStateAction<string>>
+  onApplyConsultationFilter: () => void
+  consultationFilterMessage: string
 }
 
 export type CustomerFilterControlsProps = SearchRowProps | FilterPanelProps
@@ -96,10 +104,62 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
     advancedFiltersActive,
     applyQuickFilter,
     resetAdvancedFilters,
+    consultationFilter,
+    setConsultationFilter,
+    consultationCutoffDate,
+    setConsultationCutoffDate,
+    onApplyConsultationFilter,
+    consultationFilterMessage,
   } = props
 
   return (
     <>
+      <div className="customers-advanced-filters customers-advanced-filters--consultation" role="search" aria-label="상담 필터">
+        <div className="customers-advanced-filters__grid">
+          <label className="customers-advanced-filters__field">
+            <span>상담 필터</span>
+            <FormSelect
+              value={consultationFilter}
+              onChange={(e) =>
+                setConsultationFilter(e.target.value as CustomerConsultationFilter)
+              }
+              options={[
+                { value: '', label: '전체' },
+                { value: 'none', label: '상담 내역 없음' },
+                { value: 'no_since', label: '기준 날짜 이후 상담 없음' },
+              ]}
+            />
+          </label>
+          {consultationFilter === 'no_since' ? (
+            <label className="customers-advanced-filters__field">
+              <span>기준 날짜</span>
+              <FormInput
+                type="date"
+                value={consultationCutoffDate}
+                onChange={(e) => setConsultationCutoffDate(e.target.value)}
+                aria-label="기준 날짜"
+              />
+            </label>
+          ) : null}
+        </div>
+        <div className="customers-advanced-filters__quick filter-group customer-filter-panel-actions">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            size="sm"
+            className="customer-filter-chip"
+            onClick={onApplyConsultationFilter}
+          >
+            상담 필터 적용
+          </FormButton>
+        </div>
+        {consultationFilterMessage ? (
+          <p className="customer-filter-controls__loading text-[var(--text-secondary)]" role="status">
+            {consultationFilterMessage}
+          </p>
+        ) : null}
+      </div>
+
       <div className="customer-filter-controls__stack">
         <label className="customer-filter-controls__deep-row">
           <FormInput

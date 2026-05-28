@@ -6,10 +6,12 @@ import {
   createCustomerConsultation,
   deleteCustomerConsultation,
   listCustomerConsultations,
+  updateCustomerConsultation,
   type CustomerConsultationRow,
 } from '../../api/customerExtraApi'
 import CustomerConsultationsPageMobile from '../../pages/detail/CustomerConsultationsPageMobile'
-import { localYmd } from '../../utils/consultationBodyFormat'
+import { localYmd, parseConsultationStoredBody } from '../../utils/consultationBodyFormat'
+import { dispatchCustomersListRefresh } from '../../utils/customerListRefresh'
 import { TodoEditorDialog, type TodoCreatePrefill } from '../../../todos/components/TodoEditorDialog'
 import { firstLineTodoTitle } from '../../../todos/utils/todoCopy'
 import { suggestDueDateFromText } from '../../../todos/utils/suggestDueDateFromText'
@@ -41,6 +43,9 @@ export default function CustomerConsultationsModal({
   const [rows, setRows] = useState<CustomerConsultationRow[]>([])
   const [body, setBody] = useState('')
   const [consultDate, setConsultDate] = useState(() => localYmd())
+  const [editingConsultId, setEditingConsultId] = useState<number | null>(null)
+  const [editConsultDate, setEditConsultDate] = useState('')
+  const [editConsultBody, setEditConsultBody] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -97,6 +102,7 @@ export default function CustomerConsultationsModal({
         setRows(nextRows)
         setBody('')
         onCreated?.(created)
+        dispatchCustomersListRefresh()
       } catch (submitError) {
         setError(submitError instanceof Error ? submitError.message : '상담 저장에 실패했습니다.')
       } finally {
@@ -136,14 +142,63 @@ export default function CustomerConsultationsModal({
       try {
         await deleteCustomerConsultation(token, customerId, consultId)
         setRows((prev) => prev.filter((item) => item.id !== consultId))
+        if (editingConsultId === consultId) {
+          setEditingConsultId(null)
+        }
         onDeleted?.(consultId)
+        dispatchCustomersListRefresh()
       } catch (deleteError) {
         setError(deleteError instanceof Error ? deleteError.message : '삭제에 실패했습니다.')
       } finally {
         setBusy(false)
       }
     },
-    [confirm, customerId, onDeleted, token],
+    [confirm, customerId, editingConsultId, onDeleted, token],
+  )
+
+  const handleStartEdit = useCallback((row: CustomerConsultationRow) => {
+    const { text } = parseConsultationStoredBody(row.body, row.createdAt, row.consultationDate ?? null)
+    setEditingConsultId(row.id)
+    setEditConsultDate(row.consultationDate ?? localYmd())
+    setEditConsultBody(text)
+    setError('')
+  }, [])
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingConsultId(null)
+    setEditConsultDate('')
+    setEditConsultBody('')
+  }, [])
+
+  const handleSaveEdit = useCallback(
+    async (consultId: number) => {
+      if (!token?.trim()) {
+        setError('로그인이 필요합니다.')
+        return
+      }
+      const t = editConsultBody.trim()
+      if (!t) {
+        setError('상담 내용을 입력해 주세요.')
+        return
+      }
+      setBusy(true)
+      setError('')
+      try {
+        await updateCustomerConsultation(token, customerId, consultId, {
+          body: t,
+          consultationDate: editConsultDate,
+        })
+        const nextRows = await listCustomerConsultations(token, customerId, { limit: 100 })
+        setRows(nextRows)
+        setEditingConsultId(null)
+        dispatchCustomersListRefresh()
+      } catch (saveError) {
+        setError(saveError instanceof Error ? saveError.message : '수정에 실패했습니다.')
+      } finally {
+        setBusy(false)
+      }
+    },
+    [customerId, editConsultBody, editConsultDate, token],
   )
 
   const openTodoFromConsultation = useCallback(
@@ -192,8 +247,16 @@ export default function CustomerConsultationsModal({
                 consultDate={consultDate}
                 busy={busy}
                 rows={rows}
+                editingConsultId={editingConsultId}
+                editConsultDate={editConsultDate}
+                editConsultBody={editConsultBody}
                 onSetBody={setBody}
                 onSetConsultDate={setConsultDate}
+                onStartEdit={handleStartEdit}
+                onCancelEdit={handleCancelEdit}
+                onSetEditConsultDate={setEditConsultDate}
+                onSetEditConsultBody={setEditConsultBody}
+                onSaveEdit={handleSaveEdit}
                 onSubmit={handleSubmit}
                 onDelete={handleDelete}
                 onAddTodoFromConsultation={openTodoFromConsultation}
