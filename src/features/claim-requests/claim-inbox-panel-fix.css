@@ -65,6 +65,8 @@
     min-height: auto !important;
     height: auto !important;
     overflow: visible !important;
+    /* 플로팅 메모 FAB 회피 — 목록 카드 내부가 아닌 페이지 하단에만 여백 */
+    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .claim-inbox .claim-inbox__workspace {
@@ -77,7 +79,7 @@
     border: 1px solid rgba(148, 163, 184, 0.18) !important;
     background: #1e2633 !important;
     border-radius: 16px !important;
-    padding: 12px !important;
+    padding: 12px 12px 12px !important;
     box-sizing: border-box !important;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16) !important;
   }
@@ -110,7 +112,7 @@
     flex: 0 0 auto !important;
     background: transparent !important;
     border-radius: 0 !important;
-    padding-bottom: 96px !important;
+    padding-bottom: 0 !important;
   }
 
   .claim-inbox .claim-inbox__list-item {
