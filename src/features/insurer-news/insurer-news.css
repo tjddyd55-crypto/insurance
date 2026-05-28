@@ -209,6 +209,19 @@
   border: 1px solid var(--border);
 }
 
+.news-card.news-card--mobile .news-card__placeholder--no-image {
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.news-card.news-card--mobile .news-card__placeholder--no-image .news-card__placeholder-label {
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  text-align: center;
+  white-space: nowrap;
+}
+
 .insurer-news-hub__section-title {
   font-size: 1.05rem;
   font-weight: 700;
