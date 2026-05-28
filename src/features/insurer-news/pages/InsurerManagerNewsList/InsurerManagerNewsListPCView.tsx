@@ -108,7 +108,12 @@ export default function InsurerManagerNewsListPCView({
         <p className="insurer-news-muted">{subtitle}</p>
       </header>
       {error ? <div className="insurer-news-empty">{error}</div> : null}
-      <NewsletterList items={items} emptyMessage={emptyMessage} onOpenItem={openDetailModal} />
+      <NewsletterList
+        items={items}
+        emptyMessage={emptyMessage}
+        variant="pc"
+        onOpenItem={openDetailModal}
+      />
       {selectedItem ? (
         <div className="news-modal" role="dialog" aria-modal="true" onClick={closeDetailModal}>
           <div className="news-modal-content" onClick={(e) => e.stopPropagation()}>

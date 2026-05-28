@@ -632,6 +632,30 @@
   margin: 0;
 }
 
+.insurer-news-gallery__load-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 120px;
+  margin-bottom: 12px;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text-sub);
+  font-size: 0.875rem;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.insurer-news-gallery__load-failed a {
+  color: var(--primary);
+  font-size: 0.8125rem;
+  text-decoration: underline;
+}
+
 .insurer-news-gallery--detail {
   border: none;
   border-radius: 0;

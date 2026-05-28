@@ -36,6 +36,7 @@ export default function InsurerManagerNewsListMobileView({
       <NewsletterList
         items={items}
         emptyMessage={emptyMessage}
+        variant="mobile"
         onOpenItem={(id) => navigate(`${openPathPrefix}/${id}`)}
       />
     </main>
