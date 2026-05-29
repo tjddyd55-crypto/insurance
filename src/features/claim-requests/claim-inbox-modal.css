@@ -90,4 +90,9 @@
   .claim-inbox__status-editor-row {
     grid-template-columns: 1fr;
   }
+
+  .claim-inbox__modal-panel {
+    max-width: none;
+    margin-inline: 0;
+  }
 }

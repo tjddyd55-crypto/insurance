@@ -390,3 +390,27 @@
     color: var(--text-secondary, #94a3b8);
   }
 }
+
+/* ─── 모바일 폭 정리 (보험 CRM — feature root scoped) ─────────────── */
+@media (max-width: 767px) {
+  .customers-page--mobile {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+    box-sizing: border-box;
+    --m-page-pad: 16px;
+  }
+
+  .customer-ui-modal-panel.workspace-mobile-outlet-modal:has(.customers-page--mobile),
+  .customer-ui-modal-panel.workspace-mobile-outlet-modal:has(.customer-workspace-home),
+  .customer-ui-modal-panel.workspace-mobile-outlet-modal:has(.pdf-engine-page),
+  .customer-ui-modal-panel.workspace-mobile-outlet-modal:has(.insurer-news-page) {
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
+
+  .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) > .customer-ui-modal-panel {
+    max-width: none !important;
+    margin-inline: 0 !important;
+  }
+}
