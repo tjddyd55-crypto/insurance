@@ -1230,13 +1230,13 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
  *
  * 값 조정 가이드:
  *   ·  0    → 모서리까지 꽉 채움 (카드가 뷰포트 가장자리에 붙음)
- *   ·  8px  → 현재 기본값. 가로 공간을 최대한 쓰면서 카드 그림자가 잘리지 않는다.
- *   ·  12px → 여백을 조금 넉넉히.
+ *   ·  8px  → 좁은 거터 (legacy; mobile-page-layout.css 가 16px 로 통일)
+ *   ·  16px → mobile-page-layout.css 기본값 (콘텐츠 내부 gutter)
  *
  * 카드/리스트 아이템 **내부** 좌우 여백은 가독성 축이므로 이 변수에 포함하지 않는다.
  */
 :root {
-  --mobile-h-padding: 8px;
+  --mobile-h-padding: 16px;
 }
 
 .app-root .page,

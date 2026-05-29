@@ -13,6 +13,13 @@
   margin: 0 auto;
 }
 
+.mobile-root .insurer-news-page {
+  max-width: none;
+  margin-inline: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 /* fallback: 루트 클래스(.pc-root / .mobile-root) 바깥에서 쓰일 때만 적용된다. */
 .news-grid {
   display: grid;

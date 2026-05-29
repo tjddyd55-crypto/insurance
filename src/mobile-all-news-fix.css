@@ -15,15 +15,15 @@
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior-y: contain !important;
-    padding: 14px 10px calc(96px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: var(--mobile-page-padding-x, 16px) var(--mobile-page-padding-x, 16px) calc(96px + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .claim-requests-all-news-mobile {
     width: 100% !important;
-    max-width: 430px !important;
+    max-width: none !important;
     height: auto !important;
     min-height: auto !important;
-    margin: 0 auto !important;
+    margin-inline: 0 !important;
     padding-bottom: 88px !important;
     display: flex !important;
     flex-direction: column !important;
@@ -362,7 +362,7 @@
 
   .all-news-preview-v2-panel {
     width: 100% !important;
-    max-width: 430px !important;
+    max-width: none !important;
     height: 100dvh !important;
     min-height: 0 !important;
     display: flex !important;

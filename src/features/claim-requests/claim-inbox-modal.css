@@ -32,7 +32,7 @@
 
 .claim-inbox__modal-panel {
   width: 100%;
-  max-width: 430px;
+  max-width: none;
   height: 100dvh;
   min-height: 0;
   display: flex;

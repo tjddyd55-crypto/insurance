@@ -1,0 +1,179 @@
+/**
+ * Mobile page layout SSOT — full-width shell, content-inner gutter only.
+ *
+ * Loads last in main.tsx so scattered 430px / centered mobile rules are overridden.
+ * PC/tablet rules are untouched (max-width: 767px only).
+ */
+@media (max-width: 767px) {
+  :root {
+    --mobile-page-padding-x: 16px;
+    --mobile-section-gap: 16px;
+    --mobile-card-padding: 16px;
+    --mobile-h-padding: 16px;
+    --m-page-max: 100%;
+    --m-page-pad: var(--mobile-page-padding-x);
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  /* App shell — viewport full width, no centering */
+  .mobile-root,
+  .mobile-root.mobile-workspace-layout,
+  .app-shell,
+  .app-main {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin-inline: 0;
+    box-sizing: border-box;
+  }
+
+  /*
+   * Scroll shell owns vertical padding only; horizontal gutter lives on page roots.
+   * Overrides index.css @768px .content-wrapper horizontal padding.
+   */
+  .mobile-root .mobile-workspace-content,
+  .mobile-root .mobile-workspace-content.content-wrapper,
+  .mobile-root .mobile-workspace-content.content-wrapper--mobile {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    margin-inline: 0 !important;
+    padding-left: max(0px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(0px, env(safe-area-inset-right, 0px)) !important;
+    box-sizing: border-box;
+  }
+
+  /* Route page roots inside mobile shell */
+  .mobile-root .mobile-workspace-content .page,
+  .mobile-root .mobile-workspace-content main.page,
+  .mobile-root .mobile-workspace-content .page-shell,
+  .mobile-root .mobile-workspace-content .storage-workspace {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0;
+    margin-inline: 0 !important;
+    padding-left: max(var(--mobile-page-padding-x), env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(var(--mobile-page-padding-x), env(safe-area-inset-right, 0px)) !important;
+    box-sizing: border-box;
+  }
+
+  /* Feature pages that center with max-width on all viewports */
+  .mobile-root .insurer-news-page,
+  .mobile-root .pdf-engine-page,
+  .mobile-root .pdf-engine-form,
+  .mobile-root .claim-inbox,
+  .mobile-root .consent-admin__inner,
+  .mobile-root .government-page,
+  .mobile-root .government-page--gate {
+    max-width: none;
+    width: 100%;
+    margin-inline: 0;
+    box-sizing: border-box;
+  }
+
+  /* Full-screen mobile modals / outlet panels — no 430px phone frame */
+  .mobile-modal,
+  .workspace-mobile-outlet-modal,
+  .customer-ui-modal-panel.workspace-mobile-outlet-modal,
+  .claim-requests-page__detail-modal-panel,
+  .claim-inbox__modal-panel,
+  .all-news-preview-v2-panel,
+  .claim-requests-personal-mobile,
+  .claim-requests-all-news-mobile {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin-inline: 0;
+    box-sizing: border-box;
+  }
+
+  /* Cards / sections — full width inside guttered page */
+  .mobile-root .page-card,
+  .mobile-root .form-card,
+  .mobile-root .list-card,
+  .mobile-root .section-card,
+  .mobile-root .admin-user-card,
+  .mobile-root .admin-ga-card,
+  .mobile-root .claim-requests-page__card,
+  .mobile-root .claim-requests-page__panel,
+  .mobile-root .claim-requests-page__section,
+  .mobile-root .mobile-card,
+  .mobile-root .pdf-engine-form,
+  .mobile-root .government-form-panel {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .mobile-root input,
+  .mobile-root select,
+  .mobile-root textarea,
+  .mobile-root button,
+  .mobile-root .form-button {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Grid / flex children — prevent horizontal overflow without clipping cards */
+  .mobile-root [class*='grid'] > *,
+  .mobile-root [class*='__list'] > *,
+  .mobile-root [class*='__row'] > * {
+    min-width: 0;
+  }
+
+  .mobile-root .news-grid {
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+  }
+
+  .mobile-root .news-card,
+  .mobile-root .news-card.news-card--mobile {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    box-sizing: border-box;
+  }
+
+  /* Long text — wrap instead of forcing horizontal scroll */
+  .mobile-root p,
+  .mobile-root li,
+  .mobile-root td,
+  .mobile-root th,
+  .mobile-root h1,
+  .mobile-root h2,
+  .mobile-root h3,
+  .mobile-root h4,
+  .mobile-root .admin-user-card__value,
+  .mobile-root .admin-ga-card__value {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  /* Tables — scroll inside container, do not expand page width */
+  .mobile-root table {
+    max-width: 100%;
+  }
+
+  .mobile-root .table-container,
+  .mobile-root .table-scroll,
+  .mobile-root [class*='table-wrap'] {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Memo FAB is fixed — must not affect content width calculations */
+  .memo-mobile-fab {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right, 0px));
+  }
+}
