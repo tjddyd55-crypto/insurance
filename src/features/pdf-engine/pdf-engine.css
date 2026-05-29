@@ -1460,3 +1460,28 @@
   margin-bottom: 10px;
 }
 
+/* ─── 모바일 폭 정리 (보험 CRM — feature root scoped) ─────────────── */
+@media (max-width: 767px) {
+  .mobile-root .pdf-engine-page,
+  .insurance-dark-forms.pdf-document-detail-page.pdf-engine-page,
+  .pdf-document-detail-page--mobile {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+    padding-inline: 16px;
+    box-sizing: border-box;
+  }
+
+  .mobile-root .pdf-engine-page .pdf-engine-form,
+  .mobile-root .pdf-engine-page .pdf-engine-card,
+  .mobile-root .pdf-engine-page .pdf-engine-doc-list,
+  .pdf-document-detail-page--mobile .pdf-engine-form,
+  .pdf-document-detail-page--mobile .pdf-applicant-form,
+  .pdf-document-detail-page--mobile .pdf-document-detail-page__mobile-form {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin-inline: 0;
+    box-sizing: border-box;
+  }
+}

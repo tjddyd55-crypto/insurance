@@ -479,7 +479,7 @@
     max-width: none;
     min-width: 0;
     margin: 0;
-    padding: 14px 10px calc(88px + env(safe-area-inset-bottom, 0px));
+    padding: 14px 16px calc(88px + env(safe-area-inset-bottom, 0px));
     box-sizing: border-box;
   }
 
@@ -639,7 +639,16 @@
 
   .claim-inbox__modal-panel {
     width: 100%;
-    max-width: 430px;
-    margin: 0 auto;
+    max-width: none;
+    margin-inline: 0;
+  }
+
+  .page.claim-requests-page--mobile {
+    --m-page-pad: 16px;
+  }
+
+  .customer-ui-modal-panel.workspace-mobile-outlet-modal:has(.claim-requests-page--mobile) {
+    max-width: none !important;
+    margin-inline: 0 !important;
   }
 }

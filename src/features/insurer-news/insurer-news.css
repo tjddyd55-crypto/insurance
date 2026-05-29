@@ -902,3 +902,42 @@
 .insurer-news-upload-row__status--err {
   color: var(--danger);
 }
+
+/* ─── 모바일 폭 정리 (보험 CRM — feature root scoped) ─────────────── */
+@media (max-width: 767px) {
+  .mobile-root .insurer-news-page,
+  .insurer-news-page.insurer-news-page--mobile {
+    width: 100%;
+    max-width: none;
+    margin-inline: 0;
+    padding-inline: 16px;
+    box-sizing: border-box;
+  }
+
+  .mobile-root .insurer-news-page .news-grid,
+  .mobile-root .insurer-news-page .news-list,
+  .mobile-root .insurer-news-page .assessor-list,
+  .insurer-news-page.insurer-news-page--mobile .news-grid,
+  .insurer-news-page.insurer-news-page--mobile .news-list,
+  .insurer-news-page.insurer-news-page--mobile .assessor-list {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    padding-inline: 0;
+    box-sizing: border-box;
+  }
+
+  .mobile-root .insurer-news-page .news-card,
+  .mobile-root .insurer-news-page .news-card.news-card--mobile,
+  .insurer-news-page.insurer-news-page--mobile .news-card {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .mobile-root .insurer-news-page .insurer-news-detail-article {
+    margin-inline: -16px;
+    width: calc(100% + 32px);
+  }
+}

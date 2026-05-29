@@ -1,11 +1,11 @@
 @media (max-width: 767px) {
   .claim-requests-page__detail-modal-panel {
     width: 100% !important;
-    max-width: 430px !important;
+    max-width: none !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
     min-height: 100dvh !important;
-    margin: 0 auto !important;
+    margin-inline: 0 !important;
     padding: 0 !important;
     border: 0 !important;
     border-radius: 0 !important;
