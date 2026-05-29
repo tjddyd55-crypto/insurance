@@ -9,15 +9,30 @@ function isImageAttachment(row: NewsletterAttachment): boolean {
   return mime.startsWith('image/')
 }
 
+function resolveHeroGalleryUrl(params: {
+  heroImageObjectKey?: string | null
+  heroImageUrl?: string | null
+}): string {
+  const heroObjectKey = String(params.heroImageObjectKey ?? '').trim()
+  if (heroObjectKey) {
+    return resolveInsurerNewsAttachmentDisplayUrl({ objectKey: heroObjectKey, url: '' })
+  }
+  const heroRaw = String(params.heroImageUrl ?? '').trim()
+  if (heroRaw) {
+    return resolveInsurerNewsAttachmentDisplayUrl({ url: heroRaw })
+  }
+  return ''
+}
+
 /**
  * 원수사 소식지 상세·목록에서 쓸 이미지 URL 목록(절대 URL, 중복 제거).
  * attachments 순서(sortOrder)를 유지하고 hero 는 목록에 없을 때만 맨 앞에 붙인다.
  */
 export function buildInsurerNewsGalleryUrls(params: {
   heroImageUrl?: string | null
+  heroImageObjectKey?: string | null
   attachments?: NewsletterAttachment[] | null
 }): string[] {
-  const heroRaw = String(params.heroImageUrl ?? '').trim()
   const rows = [...(params.attachments ?? [])]
     .filter(isImageAttachment)
     .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -35,7 +50,7 @@ export function buildInsurerNewsGalleryUrls(params: {
     out.push(url)
   }
 
-  const heroResolved = heroRaw ? resolveInsurerNewsAttachmentDisplayUrl({ url: heroRaw }) : ''
+  const heroResolved = resolveHeroGalleryUrl(params)
   if (heroResolved && !fromAttachments.includes(heroResolved)) {
     push(heroResolved)
   }

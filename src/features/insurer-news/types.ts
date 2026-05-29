@@ -44,6 +44,8 @@ export interface NewsletterItem {
   title: string
   summary: string
   heroImageUrl: string | null
+  /** 대표 이미지 R2 object_key — 구형 heroImageUrl 보다 CDN URL 생성에 우선 */
+  heroImageObjectKey?: string | null
   publishedAt: string
   status: NewsletterPublishStatus
   hasImages: boolean

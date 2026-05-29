@@ -8,6 +8,8 @@ import {
 } from '../../services/insurerNews.service'
 import type { NewsletterDetail, NewsletterItem } from '../../types'
 import type { InsurerManagerNewsListViewProps } from './insurerManagerNewsListViewProps'
+import { buildInsurerNewsGalleryUrls } from '../../utils/buildInsurerNewsGalleryUrls'
+import { resolveInsurerNewsListCardImageUrl } from '../../utils/resolveInsurerNewsImageUrl'
 
 const ZOOM_MIN = 0.5
 const ZOOM_MAX = 3
@@ -97,7 +99,25 @@ export default function InsurerManagerNewsListPCView({
     })()
   }
 
-  const heroImageUrl = selectedDetail?.heroImageUrl || selectedItem?.heroImageUrl
+  const heroDownloadUrl = selectedDetail
+    ? buildInsurerNewsGalleryUrls({
+        heroImageUrl: selectedDetail.heroImageUrl,
+        heroImageObjectKey: selectedDetail.heroImageObjectKey,
+        attachments: selectedDetail.attachments,
+      })[0] ?? ''
+    : selectedItem
+      ? resolveInsurerNewsListCardImageUrl(selectedItem)
+      : ''
+
+  const modalGalleryUrls = selectedDetail
+    ? buildInsurerNewsGalleryUrls({
+        heroImageUrl: selectedDetail.heroImageUrl,
+        heroImageObjectKey: selectedDetail.heroImageObjectKey,
+        attachments: selectedDetail.attachments,
+      })
+    : selectedItem
+      ? [resolveInsurerNewsListCardImageUrl(selectedItem)].filter(Boolean)
+      : []
 
   return (
     <main className="page page--with-back insurer-news-page insurer-news-page--pc">
@@ -134,9 +154,9 @@ export default function InsurerManagerNewsListPCView({
               >
                 －
               </FormButton>
-              {heroImageUrl ? (
+              {heroDownloadUrl ? (
                 <a
-                  href={heroImageUrl}
+                  href={heroDownloadUrl}
                   download
                   className="button filter-button download-btn"
                   target="_blank"
@@ -167,21 +187,9 @@ export default function InsurerManagerNewsListPCView({
                     {(selectedDetail?.bodyText?.trim() || selectedItem.summary?.trim()) ? (
                       <div className="news-text">{selectedDetail?.bodyText?.trim() || selectedItem.summary}</div>
                     ) : null}
-                    {(() => {
-                      const imageRows =
-                        selectedDetail?.attachments
-                          ?.filter((a) => a.kind === 'image')
-                          .sort((a, b) => a.sortOrder - b.sortOrder)
-                          .map((a) => a.url) ?? []
-                      const imageUrls = imageRows.length
-                        ? imageRows
-                        : selectedDetail?.heroImageUrl
-                          ? [selectedDetail.heroImageUrl]
-                          : selectedItem.heroImageUrl
-                            ? [selectedItem.heroImageUrl]
-                            : []
-                      return imageUrls.map((url) => <img key={url} src={url} alt="" />)
-                    })()}
+                    {modalGalleryUrls.map((url) => (
+                      <img key={url} src={url} alt="" />
+                    ))}
                   </div>
                 </div>
               ) : null}
