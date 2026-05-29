@@ -102,7 +102,7 @@ export function InsurerManagerNewsDetailPage({
     void (async () => {
       const confirmed = await confirm({
         title: '소식지 삭제',
-        message: '이 소식지를 삭제하시겠습니까?',
+        message: '이 소식지를 삭제하시겠습니까? 삭제하면 첨부 파일도 함께 영구 삭제됩니다.',
         tone: 'danger',
       })
       if (!confirmed) {

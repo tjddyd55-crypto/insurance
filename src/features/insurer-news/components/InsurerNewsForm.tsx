@@ -179,6 +179,9 @@ export function InsurerNewsForm({
 
       <div className="field">
         <span className="field__label">파일</span>
+        <p className="insurer-news-muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
+          첨부를 제거하고 저장하면 해당 파일이 스토리지에서 영구 삭제됩니다.
+        </p>
         <FileUploader
           accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
           validateFile={validateNewsletterFile}

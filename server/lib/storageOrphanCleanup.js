@@ -1,5 +1,6 @@
 import { safeQuery } from '../utils/dbSafeQuery.js'
 import { r2DeleteStorageObjectOrThrow, r2StorageObjectExists } from './consentStorage.js'
+import { isInsurerNewsAttachmentObjectKeyReferenced } from './insurerNewsAttachmentStorage.js'
 
 /**
  * 오래된 uploading / failed 파일 행을 정리한다.
@@ -61,6 +62,11 @@ export async function runStorageUploadOrphanCleanup(pool, opts) {
     }
     stats.uploading += 1
     try {
+      if (await isInsurerNewsAttachmentObjectKeyReferenced(pool, objectKey)) {
+        stats.errors.push(`uploading#${id}: referenced by newsletter attachment`)
+        console.warn('[storage orphan cleanup] skip newsletter attachment key', id, objectKey)
+        continue
+      }
       const exists = await r2StorageObjectExists(objectKey)
       if (exists) {
         await r2DeleteStorageObjectOrThrow(objectKey)
@@ -107,6 +113,11 @@ export async function runStorageUploadOrphanCleanup(pool, opts) {
     }
     stats.failed += 1
     try {
+      if (await isInsurerNewsAttachmentObjectKeyReferenced(pool, objectKey)) {
+        stats.errors.push(`failed#${id}: referenced by newsletter attachment`)
+        console.warn('[storage orphan cleanup] skip newsletter attachment key', id, objectKey)
+        continue
+      }
       const exists = await r2StorageObjectExists(objectKey)
       if (exists) {
         await r2DeleteStorageObjectOrThrow(objectKey)

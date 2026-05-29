@@ -13,6 +13,10 @@ import {
   r2StorageObjectExists,
 } from './lib/consentStorage.js'
 import {
+  deleteInsurerNewsR2ObjectsAfterDb,
+  isInsurerNewsAttachmentObjectKeyReferenced,
+} from './lib/insurerNewsAttachmentStorage.js'
+import {
   isGaInsurerManagerMutatorRole,
   isInsurerManagerRole,
   isLossAdjusterRole,
@@ -316,6 +320,10 @@ function collectAttachmentObjectKeys(attachments) {
 
 async function rollbackUploadedOrphans(objectKeys) {
   for (const k of objectKeys) {
+    if (await isInsurerNewsAttachmentObjectKeyReferenced(pool, k)) {
+      insurerNewsLog.warn({ event: 'orphan-skip-referenced', objectKey: k, phase: 'db-failed-cleanup' })
+      continue
+    }
     insurerNewsLog.warn({ event: 'orphan', objectKey: k, phase: 'db-failed-cleanup' })
     try {
       await r2DeleteObject(k)
@@ -2109,6 +2117,13 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
 
       const orphanKeys = collectAttachmentObjectKeys(rowsToInsert)
 
+      const prevAttRes = await safeQuery(pool, SQL_ATTACHMENTS_BY_NEWSLETTER_GA, [newsletterId, scope.gaId])
+      const prevObjectKeys = prevAttRes.rows
+        .map((row) => String(row.object_key ?? '').trim())
+        .filter(Boolean)
+      const nextObjectKeySet = new Set(collectAttachmentObjectKeys(rowsToInsert))
+      const removedObjectKeys = prevObjectKeys.filter((key) => !nextObjectKeySet.has(key))
+
       try {
         await assertAttachmentsExistInR2(rowsToInsert)
       } catch (r2Err) {
@@ -2150,6 +2165,14 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         throw err
       }
 
+      if (removedObjectKeys.length > 0) {
+        await deleteInsurerNewsR2ObjectsAfterDb(removedObjectKeys, {
+          op: 'newsletter-patch',
+          newsletterId,
+          actorUserId: req.user?.id ?? null,
+        })
+      }
+
       insurerNewsLog.info({
         event: 'upload-success',
         stage: 'db-commit',
@@ -2157,6 +2180,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         newsletterId,
         attachmentCount: rowsToInsert.length,
         objectKeys: orphanKeys,
+        removedObjectKeys,
       })
 
       const fresh = await safeQuery(
@@ -2223,26 +2247,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         [newsletterId, gaId],
       )
 
-      if (isConsentR2Enabled()) {
-        for (const row of attRes.rows) {
-          const objectKey = String(row.object_key ?? '').trim()
-          if (!objectKey) {
-            continue
-          }
-          try {
-            await r2DeleteObject(objectKey)
-          } catch (errDel) {
-            insurerNewsLog.error({
-              event: 'newsletter-delete-r2-fail',
-              newsletterId,
-              objectKey,
-              err: errDel instanceof Error ? errDel.message : String(errDel),
-            })
-            res.status(502).json({ message: '스토리지에서 첨부 파일을 삭제하지 못했습니다.' })
-            return
-          }
-        }
-      }
+      const objectKeys = attRes.rows
+        .map((row) => String(row.object_key ?? '').trim())
+        .filter(Boolean)
 
       await withTransaction(async (client) => {
         await deleteAttachmentsForNewsletter(client, newsletterId, gaId)
@@ -2252,13 +2259,21 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         ])
       })
 
+      const r2Stats = await deleteInsurerNewsR2ObjectsAfterDb(objectKeys, {
+        op: 'newsletter-delete',
+        newsletterId,
+        actorUserId: req.user?.id ?? null,
+        actorRole: req.user?.role ?? null,
+      })
+
       insurerNewsLog.info({
         event: 'newsletter-delete',
         newsletterId,
         actorUserId: req.user?.id ?? null,
         actorRole: req.user?.role ?? null,
+        r2Stats,
       })
-      res.json({ ok: true })
+      res.json({ ok: true, r2Delete: r2Stats })
     } catch (e94) {
       if (e94 && typeof e94 === 'object' && 'httpStatus' in e94 && typeof e94.httpStatus === 'number') {
         res.status(e94.httpStatus).json({ message: e94 instanceof Error ? e94.message : '요청을 처리할 수 없습니다.' })
@@ -2290,22 +2305,18 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         req,
       )
 
-      const objectKey = String(row.rows[0].object_key ?? '')
-      if (isConsentR2Enabled() && objectKey) {
-        try {
-          await r2DeleteObject(objectKey)
-        } catch (errDel) {
-          insurerNewsLog.error({
-            event: 'attachment-delete-r2-fail',
-            objectKey,
-            err: errDel instanceof Error ? errDel.message : String(errDel),
-          })
-          res.status(502).json({ message: '스토리지에서 파일을 삭제하지 못했습니다.' })
-          return
-        }
-      }
+      const objectKey = String(row.rows[0].object_key ?? '').trim()
+      const newsletterId = String(row.rows[0].newsletter_id ?? '')
 
       await safeQuery(pool, `DELETE FROM insurance_company_newsletter_attachments WHERE id = $1`, [attachmentId])
+
+      await deleteInsurerNewsR2ObjectsAfterDb(objectKey ? [objectKey] : [], {
+        op: 'attachment-delete',
+        attachmentId,
+        newsletterId,
+        actorUserId: req.user?.id ?? null,
+      })
+
       res.status(204).end()
     } catch (e95) {
       handleDbError(e95, req, res)
