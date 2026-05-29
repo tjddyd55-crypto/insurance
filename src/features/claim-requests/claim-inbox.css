@@ -428,7 +428,7 @@
 
 .claim-inbox__modal-panel {
   width: 100%;
-  max-width: none;
+  max-width: 430px;
   height: 100dvh;
   min-height: 100dvh;
   display: flex;
@@ -639,7 +639,7 @@
 
   .claim-inbox__modal-panel {
     width: 100%;
-    max-width: none;
-    margin-inline: 0;
+    max-width: 430px;
+    margin: 0 auto;
   }
 }

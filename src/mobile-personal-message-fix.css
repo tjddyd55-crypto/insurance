@@ -1,8 +1,8 @@
 @media (max-width: 767px) {
   .claim-requests-personal-mobile {
     width: 100% !important;
-    max-width: none !important;
-    margin-inline: 0 !important;
+    max-width: 430px !important;
+    margin: 0 auto !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 10px !important;

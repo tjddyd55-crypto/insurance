@@ -17,8 +17,8 @@
     --m-radius-lg: 14px;
     --m-header-h: 56px;
     --m-control-h: 42px;
-    --m-page-max: 100%;
-    --m-page-pad: var(--mobile-page-padding-x, 16px);
+    --m-page-max: 430px;
+    --m-page-pad: 10px;
   }
 
   /* Mobile page and sheet baseline */
@@ -37,11 +37,11 @@
   .mobile-modal,
   .customer-ui-modal-backdrop:has(.claim-requests-page__detail-section) > .customer-ui-modal-panel {
     width: 100% !important;
-    max-width: none !important;
+    max-width: var(--m-page-max) !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
     min-height: 100dvh !important;
-    margin-inline: 0 !important;
+    margin: 0 auto !important;
     border-radius: 0 !important;
     border: 0 !important;
     background: var(--m-bg) !important;

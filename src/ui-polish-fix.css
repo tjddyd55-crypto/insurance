@@ -107,9 +107,9 @@
     inset: 0 !important;
     z-index: 12001 !important;
     width: 100% !important;
-    max-width: none !important;
+    max-width: 430px !important;
     height: 100dvh !important;
-    margin-inline: 0 !important;
+    margin: 0 auto !important;
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;
@@ -188,11 +188,11 @@
 
   .customer-ui-modal-panel.workspace-mobile-outlet-modal {
     width: 100% !important;
-    max-width: none !important;
+    max-width: 430px !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
     min-height: 100dvh !important;
-    margin-inline: 0 !important;
+    margin: 0 auto !important;
     padding: 0 !important;
     border-radius: 0 !important;
     border: 0 !important;

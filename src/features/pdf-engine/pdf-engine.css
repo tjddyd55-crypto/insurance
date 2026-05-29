@@ -530,16 +530,6 @@
   gap: 16px;
 }
 
-@media (max-width: 767px) {
-  .mobile-root .pdf-engine-page,
-  .mobile-root .pdf-engine-form {
-    max-width: none;
-    width: 100%;
-    margin-inline: 0;
-    box-sizing: border-box;
-  }
-}
-
 .pdf-engine-form__header h2 {
   margin: 0 0 4px;
   font-size: 20px;
