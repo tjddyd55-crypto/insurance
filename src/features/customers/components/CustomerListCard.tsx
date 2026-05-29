@@ -7,8 +7,6 @@ import { getCustomerListMetrics } from '../utils/customerListMetrics'
 import { isGovernmentIndustryTemplate } from '../utils/governmentCustomerUi'
 import { buildGovernmentCustomerStatusSummary, formatGovernmentListMetaSecondaryLine } from '../utils/governmentCustomerStatusSummary'
 import { formatIndustryCustomerListSecondaryLine } from '../utils/industryCustomerListSummary'
-import { formatDateYmdInput } from '../utils/insuranceInfo'
-import { formatCustomerInflowSourceLabel } from '../config/customerInflowSource.config'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import CustomerDetailReadView from './CustomerDetailReadView'
 import CustomerEditForm from './CustomerEditForm'
@@ -221,21 +219,6 @@ const CustomerListCard = memo(function CustomerListCard({
   }
 
   const ins = customerInsuranceDisplay(c)
-  const lastConsultAt = c.lastConsultationAt ?? c.lastConsultDate
-  const consultCount = c.consultationCount ?? 0
-  const consultSummary = c.lastConsultationSummary ?? c.lastConsultationMemo
-  const recentConsultText = lastConsultAt
-    ? formatDateYmdInput(lastConsultAt)
-    : '상담 내역 없음'
-  const consultMetaSuffix =
-    consultCount > 0
-      ? consultSummary
-        ? ` · ${consultSummary}`
-        : consultCount > 1
-          ? ` · ${consultCount}건`
-          : ''
-      : ''
-  const inflowLabel = formatCustomerInflowSourceLabel(c.inflowSource)
   const phone = resolveCustomerListPhone(c)
   const hasPhone = typeof phone === 'string' && phone.trim() !== ''
   const smsHref = customerPhoneHref(phone, 'sms')
@@ -329,11 +312,7 @@ const CustomerListCard = memo(function CustomerListCard({
                 </div>
                 <div className="text-sm text-[var(--text-secondary)] customer-card-summary-meta mt-0.5">
                   {crmIsInsuranceLayout ? (
-                    <>
-                      유입: {inflowLabel} · 상령일: {ins.dateText} · 상담: {recentConsultText}
-                      {consultCount > 0 ? ` (${consultCount}건)` : ''}
-                      {consultMetaSuffix}
-                    </>
+                    <>상령일: {ins.dateText}</>
                   ) : govListSummary != null ? (
                     <div className="gov-customer-list-summary">
                       {govListSummary.badges.length > 0 ? (
