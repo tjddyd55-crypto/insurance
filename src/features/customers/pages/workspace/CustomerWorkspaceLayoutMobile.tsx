@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { FormButton } from '../../../../components/form'
 import Modal from '../../../../components/ui/Modal'
+import CustomerWorkspaceCloseButton from '../../components/CustomerWorkspaceCloseButton'
 import { useAuth } from '../../../auth/AuthProvider'
 import { listCustomers } from '../../api/customersApi'
 import type { CustomerRecord } from '../../domain/types'
@@ -174,9 +175,10 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
         <div className="workspace-mobile-outlet-modal__header">
           <span className="workspace-mobile-outlet-modal__spacer" aria-hidden />
           <h2 className="workspace-mobile-outlet-modal__title">{title}</h2>
-          <button type="button" className="workspace-mobile-outlet-modal__close" onClick={handleClose}>
-            닫기
-          </button>
+          <CustomerWorkspaceCloseButton
+            className="workspace-mobile-outlet-modal__close"
+            onClick={handleClose}
+          />
         </div>
         <div className="workspace-mobile-outlet-modal__body">
           {outlet}

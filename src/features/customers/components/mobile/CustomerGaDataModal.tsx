@@ -1,5 +1,5 @@
 import { EmptyState, LoadingState } from '../../../../components/feedback'
-import { FormButton } from '../../../../components/form'
+import CustomerWorkspaceCloseButton from '../CustomerWorkspaceCloseButton'
 import { useGaSettings } from '../../../ga-settings/useGaSettings'
 import CustomerGaExcelPageMobile from '../../pages/detail/CustomerGaExcelPageMobile'
 
@@ -17,9 +17,7 @@ export default function CustomerGaDataModal({ customerId, onClose }: CustomerGaD
         <div className="mobile-modal-header">
           <span className="mobile-modal-header__spacer" aria-hidden />
           <span className="mobile-modal-header__title">GA 데이터</span>
-          <FormButton htmlType="button" variant="action" className="mobile-btn mobile-btn--close" onClick={onClose}>
-            닫기
-          </FormButton>
+          <CustomerWorkspaceCloseButton onClick={onClose} />
         </div>
         <div className="mobile-modal-body">
           <div className="mobile-modal-content">

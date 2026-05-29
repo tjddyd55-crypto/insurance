@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useConfirmDialog } from '../../../../components/dialog'
-import { FormButton } from '../../../../components/form'
+import CustomerWorkspaceCloseButton from '../CustomerWorkspaceCloseButton'
 import { useAuth } from '../../../auth/AuthProvider'
 import {
   createCustomerConsultation,
@@ -180,9 +180,7 @@ export default function CustomerConsultationsModal({
           <div className="mobile-modal-header">
             <span className="mobile-modal-header__spacer" aria-hidden />
             <span className="mobile-modal-header__title">상담</span>
-            <FormButton htmlType="button" variant="action" className="mobile-btn mobile-btn--close" onClick={onClose}>
-              닫기
-            </FormButton>
+            <CustomerWorkspaceCloseButton onClick={onClose} />
           </div>
           <div className="mobile-modal-body">
             <div className="mobile-modal-content">
