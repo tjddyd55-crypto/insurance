@@ -95,11 +95,71 @@ function dedupeCustomersById(rows: CustomerRecord[]): CustomerRecord[] {
   return deduped
 }
 
-export async function listCustomers(token: string, limit = 500): Promise<ListCustomersResult> {
+export type ListCustomersOptions = {
+  limit?: number
+  consultationFilter?: '' | 'none' | 'has' | 'no_since'
+  consultationStatus?: 'all' | 'none' | 'has' | 'no_since'
+  consultationCutoffDate?: string
+  noConsultationSince?: string
+  consultationKeyword?: string
+  consultationFrom?: string
+  consultationTo?: string
+  inflowSource?: string
+  sort?: string
+}
+
+function appendListCustomersQuery(q: URLSearchParams, opts: ListCustomersOptions) {
+  if (opts.limit != null) {
+    q.set('limit', String(opts.limit))
+  }
+  const status =
+    opts.consultationStatus ??
+    (opts.consultationFilter === 'none' || opts.consultationFilter === 'has' || opts.consultationFilter === 'no_since'
+      ? opts.consultationFilter
+      : undefined)
+  if (status === 'none' || status === 'has' || status === 'no_since') {
+    q.set('consultationStatus', status)
+  } else if (opts.consultationFilter === 'none' || opts.consultationFilter === 'no_since') {
+    q.set('consultationFilter', opts.consultationFilter)
+  }
+  const cutoff = (opts.noConsultationSince ?? opts.consultationCutoffDate)?.trim()
+  if (cutoff) {
+    q.set('noConsultationSince', cutoff)
+  }
+  const keyword = opts.consultationKeyword?.trim()
+  if (keyword) {
+    q.set('consultationKeyword', keyword)
+  }
+  const from = opts.consultationFrom?.trim()
+  if (from) {
+    q.set('consultationFrom', from)
+  }
+  const to = opts.consultationTo?.trim()
+  if (to) {
+    q.set('consultationTo', to)
+  }
+  const inflow = opts.inflowSource?.trim()
+  if (inflow) {
+    q.set('inflowSource', inflow)
+  }
+  const sort = opts.sort?.trim()
+  if (sort) {
+    q.set('sort', sort)
+  }
+}
+
+export async function listCustomers(
+  token: string,
+  limitOrOpts: number | ListCustomersOptions = 500,
+): Promise<ListCustomersResult> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  const query = limit ? `?limit=${encodeURIComponent(String(limit))}` : ''
+  const opts: ListCustomersOptions =
+    typeof limitOrOpts === 'number' ? { limit: limitOrOpts } : limitOrOpts ?? {}
+  const q = new URLSearchParams()
+  appendListCustomersQuery(q, opts)
+  const query = q.toString() ? `?${q.toString()}` : ''
   const body = await apiRequest<{ data?: unknown; total?: unknown } | unknown[]>(`/api/customers${query}`, { token })
 
   let rawRows: unknown[]
@@ -239,6 +299,8 @@ export interface SaveCustomerPayload {
   /** 다건 자동차(서버가 무시할 수 있음 — 대표차량은 car_* 로 동기화) */
   cars?: CustomerCarFormItem[]
   isFavorite?: boolean
+  /** 유입 경로 — 미지정·빈 문자열은 null 저장 */
+  inflowSource?: string | null
 }
 
 export interface UpdateCustomerCarPayload {
@@ -300,6 +362,7 @@ export function customerRecordToUpdatePayload(
     carYear: String(customer.carYear ?? '').replace(/\D/g, ''),
     renewalDate: normalizeCustomerRenewalDateForPut(customer.renewalDate),
     isFavorite: customer.isFavorite === true,
+    inflowSource: customer.inflowSource ?? null,
     ...(hasExtension
       ? {
           crmExtension: {

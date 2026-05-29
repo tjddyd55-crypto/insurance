@@ -8,6 +8,7 @@ import { isGovernmentIndustryTemplate } from '../utils/governmentCustomerUi'
 import { buildGovernmentCustomerStatusSummary, formatGovernmentListMetaSecondaryLine } from '../utils/governmentCustomerStatusSummary'
 import { formatIndustryCustomerListSecondaryLine } from '../utils/industryCustomerListSummary'
 import { formatDateYmdInput } from '../utils/insuranceInfo'
+import { formatCustomerInflowSourceLabel } from '../config/customerInflowSource.config'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import CustomerDetailReadView from './CustomerDetailReadView'
 import CustomerEditForm from './CustomerEditForm'
@@ -113,6 +114,7 @@ export type CustomerListCardProps = {
   editSaving: boolean
   editStatusText?: string
   carFeatureEnabled: boolean
+  contractSignaturesEnabled: boolean
   gaExcelEnabled: boolean
   onCopyCustomer: (c: CustomerRecord) => void
   onStartEdit: (c: CustomerRecord) => void
@@ -121,6 +123,7 @@ export type CustomerListCardProps = {
   onOpenFilesModal: (customerId: number) => void
   onOpenConsultationsModal: (customerId: number) => void
   onOpenAutoModal: (customerId: number) => void
+  onOpenSignatures: (customerId: number) => void
   onOpenGaModal: (customerId: number) => void
   onOpenPersonalMessage: (customerId: number) => void
   onOpenClaims: (customerId: number) => void
@@ -159,6 +162,7 @@ const CustomerListCard = memo(function CustomerListCard({
   editSaving,
   editStatusText,
   carFeatureEnabled,
+  contractSignaturesEnabled,
   gaExcelEnabled,
   onCopyCustomer,
   onStartEdit,
@@ -167,6 +171,7 @@ const CustomerListCard = memo(function CustomerListCard({
   onOpenFilesModal,
   onOpenConsultationsModal,
   onOpenAutoModal,
+  onOpenSignatures,
   onOpenGaModal,
   onOpenPersonalMessage,
   onOpenClaims,
@@ -216,7 +221,21 @@ const CustomerListCard = memo(function CustomerListCard({
   }
 
   const ins = customerInsuranceDisplay(c)
-  const recentConsultText = c.lastConsultDate ? formatDateYmdInput(c.lastConsultDate) : '-'
+  const lastConsultAt = c.lastConsultationAt ?? c.lastConsultDate
+  const consultCount = c.consultationCount ?? 0
+  const consultSummary = c.lastConsultationSummary ?? c.lastConsultationMemo
+  const recentConsultText = lastConsultAt
+    ? formatDateYmdInput(lastConsultAt)
+    : '상담 내역 없음'
+  const consultMetaSuffix =
+    consultCount > 0
+      ? consultSummary
+        ? ` · ${consultSummary}`
+        : consultCount > 1
+          ? ` · ${consultCount}건`
+          : ''
+      : ''
+  const inflowLabel = formatCustomerInflowSourceLabel(c.inflowSource)
   const phone = resolveCustomerListPhone(c)
   const hasPhone = typeof phone === 'string' && phone.trim() !== ''
   const smsHref = customerPhoneHref(phone, 'sms')
@@ -311,7 +330,9 @@ const CustomerListCard = memo(function CustomerListCard({
                 <div className="text-sm text-[var(--text-secondary)] customer-card-summary-meta mt-0.5">
                   {crmIsInsuranceLayout ? (
                     <>
-                      상령일: {ins.dateText} · 상담일: {recentConsultText}
+                      유입: {inflowLabel} · 상령일: {ins.dateText} · 상담: {recentConsultText}
+                      {consultCount > 0 ? ` (${consultCount}건)` : ''}
+                      {consultMetaSuffix}
                     </>
                   ) : govListSummary != null ? (
                     <div className="gov-customer-list-summary">
@@ -425,10 +446,12 @@ const CustomerListCard = memo(function CustomerListCard({
                   variant="mobile"
                   customerId={c.id}
                   carFeatureEnabled={carFeatureEnabled}
+                  contractSignaturesEnabled={contractSignaturesEnabled}
                   gaExcelEnabled={gaExcelEnabled}
                   onOpenFilesModal={onOpenFilesModal}
                   onOpenConsultationsModal={onOpenConsultationsModal}
                   onOpenAutoModal={onOpenAutoModal}
+                  onOpenSignatures={onOpenSignatures}
                   onOpenGaModal={onOpenGaModal}
                   onOpenPersonalMessage={onOpenPersonalMessage}
                   onOpenClaims={onOpenClaims}

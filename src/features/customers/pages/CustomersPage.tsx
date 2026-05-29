@@ -19,6 +19,7 @@ import { getPublicOrigin } from '../../../lib/publicOrigin'
 import { copyTextToClipboard } from '../../../lib/clipboard'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
+import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
 import { deleteCustomer, listCustomers, updateCustomer } from '../api/customersApi'
 import { listCustomerCars } from '../api/customerCarsApi'
 import type { CustomerRecord } from '../domain/types'
@@ -44,13 +45,14 @@ import useIsMobile from '../../../hooks/useIsMobile'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { ExitConfirmDialog } from '../../../components/ExitConfirmDialog'
 import { MSG_CUSTOMER_CREATE_EXIT } from '../../../navigation/backNavigationPolicy'
-import { searchCustomersAdvanced, type CustomerConsultationRow } from '../api/customerExtraApi'
+import { searchCustomersAdvanced } from '../api/customerExtraApi'
 import { formatAddressForSave, FormButton, FormInput, FormTextarea } from '../../../components/form'
 import { useGaSettings } from '../../ga-settings/useGaSettings'
 import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 import CustomerMobileModals from '../components/CustomerMobileModals'
 import CustomerPageHeaderActions from '../components/CustomerPageHeaderActions'
-import { CustomerFilterControls } from '../components/CustomerFilterControls'
+import { CustomerFilterControls, type CustomerConsultationFilter } from '../components/CustomerFilterControls'
+import type { CustomerListSortValue } from '../config/customerInflowSource.config'
 import CustomerExcelSelectToolbar from '../components/CustomerExcelSelectToolbar'
 import CustomerListCard, { type CustomerSsnDupHighlight } from '../components/CustomerListCard'
 import type { CustomerEditFormState } from '../types/customerEditForm'
@@ -69,6 +71,7 @@ import {
   parseYmdMs,
 } from '../utils/customerListFilters'
 import { buildSsnDuplicateHighlightByCustomerId } from '../utils/customerSsnDuplicateHighlight'
+import { CUSTOMERS_LIST_REFRESH_EVENT } from '../utils/customerListRefresh'
 import {
   recordToEditForm,
   normalizeBirthDateForSaveApi,
@@ -124,6 +127,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const { gaSettings } = useGaSettings()
   const { confirm, confirmDialog } = useConfirmDialog()
   const carFeatureEnabled = isCarInsuranceFeatureEnabledForGa(user?.gaCode)
+  const contractSignaturesEnabled = canAccessContractSignatureUserSend(user?.role)
   const gaExcelEnabled = gaSettings.use_ga_excel === true
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [customersTotalCount, setCustomersTotalCount] = useState(0)
@@ -226,6 +230,21 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const [advSearchLoading, setAdvSearchLoading] = useState(false)
   const [favoriteOnly, setFavoriteOnly] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
+  const [consultationFilterDraft, setConsultationFilterDraft] = useState<CustomerConsultationFilter>('')
+  const [consultationCutoffDraft, setConsultationCutoffDraft] = useState('')
+  const [consultationKeywordDraft, setConsultationKeywordDraft] = useState('')
+  const [consultationFromDraft, setConsultationFromDraft] = useState('')
+  const [consultationToDraft, setConsultationToDraft] = useState('')
+  const [inflowSourceDraft, setInflowSourceDraft] = useState('')
+  const [listSortDraft, setListSortDraft] = useState<CustomerListSortValue>('')
+  const [appliedConsultationFilter, setAppliedConsultationFilter] = useState<CustomerConsultationFilter>('')
+  const [appliedConsultationCutoff, setAppliedConsultationCutoff] = useState('')
+  const [appliedConsultationKeyword, setAppliedConsultationKeyword] = useState('')
+  const [appliedConsultationFrom, setAppliedConsultationFrom] = useState('')
+  const [appliedConsultationTo, setAppliedConsultationTo] = useState('')
+  const [appliedInflowSource, setAppliedInflowSource] = useState('')
+  const [appliedListSort, setAppliedListSort] = useState<CustomerListSortValue>('')
+  const [consultationFilterMessage, setConsultationFilterMessage] = useState('')
   const [showScrollToTop, setShowScrollToTop] = useState(false)
   const [customerCreateExitModalOpen, setCustomerCreateExitModalOpen] = useState(false)
   /** 터치→합성 mouse/click 등으로 초대 복사가 두 번 도는 것 방지 */
@@ -310,9 +329,51 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       keyword.trim() !== '' ||
       advancedFiltersActive ||
       favoriteOnly ||
-      advSearchHits != null,
-    [keyword, advancedFiltersActive, favoriteOnly, advSearchHits],
+      advSearchHits != null ||
+      appliedConsultationFilter !== '' ||
+      appliedConsultationKeyword.trim() !== '' ||
+      appliedConsultationFrom.trim() !== '' ||
+      appliedConsultationTo.trim() !== '' ||
+      appliedInflowSource.trim() !== '' ||
+      appliedListSort !== '',
+    [
+      keyword,
+      advancedFiltersActive,
+      favoriteOnly,
+      advSearchHits,
+      appliedConsultationFilter,
+      appliedConsultationKeyword,
+      appliedConsultationFrom,
+      appliedConsultationTo,
+      appliedInflowSource,
+      appliedListSort,
+    ],
   )
+
+  const applyConsultationFilter = useCallback(() => {
+    if (consultationFilterDraft === 'no_since' && !consultationCutoffDraft.trim()) {
+      setConsultationFilterMessage('기준 날짜를 선택해 주세요.')
+      return
+    }
+    setConsultationFilterMessage('')
+    setAppliedConsultationFilter(consultationFilterDraft)
+    setAppliedConsultationCutoff(
+      consultationFilterDraft === 'no_since' ? consultationCutoffDraft.trim() : '',
+    )
+    setAppliedConsultationKeyword(consultationKeywordDraft.trim())
+    setAppliedConsultationFrom(consultationFromDraft.trim())
+    setAppliedConsultationTo(consultationToDraft.trim())
+    setAppliedInflowSource(inflowSourceDraft.trim())
+    setAppliedListSort(listSortDraft)
+  }, [
+    consultationCutoffDraft,
+    consultationFilterDraft,
+    consultationFromDraft,
+    consultationKeywordDraft,
+    consultationToDraft,
+    inflowSourceDraft,
+    listSortDraft,
+  ])
 
   const sortedCustomers = useMemo(() => {
     const copy = [...filteredCustomers]
@@ -323,7 +384,13 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     if (sortType === null) {
       copy.sort((a, b) => {
         const f = favoriteFirst(a, b)
-        return f !== 0 ? f : tieName(a, b)
+        if (f !== 0) {
+          return f
+        }
+        if (appliedListSort) {
+          return 0
+        }
+        return tieName(a, b)
       })
     } else if (sortType === 'age') {
       copy.sort((a, b) => {
@@ -362,7 +429,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       })
     }
     return copy
-  }, [filteredCustomers, sortType])
+  }, [filteredCustomers, sortType, appliedListSort])
 
   const allVisibleIds = useMemo(() => sortedCustomers.map((c) => String(c.id)), [sortedCustomers])
   const defaultSelectedColumns = useMemo(() => ['name'], [])
@@ -399,9 +466,35 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       setCustomersTotalCount(0)
       return
     }
+    if (appliedConsultationFilter === 'no_since' && !appliedConsultationCutoff.trim()) {
+      setStatusText('기준 날짜를 선택해 주세요.')
+      return
+    }
     setIsLoading(true)
     try {
-      const { customers: rows, total } = await listCustomers(token)
+      const listOpts: Parameters<typeof listCustomers>[1] = {}
+      if (appliedConsultationFilter === 'none' || appliedConsultationFilter === 'has') {
+        listOpts.consultationStatus = appliedConsultationFilter
+      } else if (appliedConsultationFilter === 'no_since') {
+        listOpts.consultationStatus = 'no_since'
+        listOpts.noConsultationSince = appliedConsultationCutoff.trim()
+      }
+      if (appliedConsultationKeyword.trim()) {
+        listOpts.consultationKeyword = appliedConsultationKeyword.trim()
+      }
+      if (appliedConsultationFrom.trim()) {
+        listOpts.consultationFrom = appliedConsultationFrom.trim()
+      }
+      if (appliedConsultationTo.trim()) {
+        listOpts.consultationTo = appliedConsultationTo.trim()
+      }
+      if (appliedInflowSource.trim()) {
+        listOpts.inflowSource = appliedInflowSource.trim()
+      }
+      if (appliedListSort) {
+        listOpts.sort = appliedListSort
+      }
+      const { customers: rows, total } = await listCustomers(token, listOpts)
       const safeData = coerceCustomersStatePayload(rows)
       setCustomers(safeData)
       setCustomersTotalCount(total)
@@ -410,7 +503,17 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     } finally {
       setIsLoading(false)
     }
-  }, [token, user?.role])
+  }, [
+    token,
+    user?.role,
+    appliedConsultationFilter,
+    appliedConsultationCutoff,
+    appliedConsultationKeyword,
+    appliedConsultationFrom,
+    appliedConsultationTo,
+    appliedInflowSource,
+    appliedListSort,
+  ])
 
   const handleToggleFavorite = useCallback(
     async (c: CustomerRecord) => {
@@ -531,6 +634,14 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     }
     void loadCustomers()
   }, [user?.role, loadCustomers])
+
+  useEffect(() => {
+    const handler = () => {
+      void loadCustomers()
+    }
+    window.addEventListener(CUSTOMERS_LIST_REFRESH_EVENT, handler)
+    return () => window.removeEventListener(CUSTOMERS_LIST_REFRESH_EVENT, handler)
+  }, [loadCustomers])
 
   /**
    * 카드 펼침(expandedId) 은 요약 클릭 이벤트로만 바꾼다.
@@ -701,6 +812,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         carYear: carYearForApi,
         renewalDate: renewalDateForApi,
         isFavorite: base.isFavorite === true,
+        inflowSource: activeEditForm.inflowSource.trim() || null,
         ...industryExt,
       })
       try {
@@ -950,6 +1062,15 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       const next = new URLSearchParams(searchParams)
       next.set('customerId', String(customerId))
       navigate(buildCustomerWorkspacePath({ customerId, tab: 'memos', query: next }))
+    },
+    [navigate, searchParams],
+  )
+
+  const handleOpenSignatures = useCallback(
+    (customerId: number) => {
+      const next = new URLSearchParams(searchParams)
+      next.set('customerId', String(customerId))
+      navigate(buildCustomerWorkspacePath({ customerId, tab: 'signatures', query: next }))
     },
     [navigate, searchParams],
   )
@@ -1233,6 +1354,22 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           advancedFiltersActive={advancedFiltersActive}
           applyQuickFilter={applyQuickFilter}
           resetAdvancedFilters={() => setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })}
+          consultationFilter={consultationFilterDraft}
+          setConsultationFilter={setConsultationFilterDraft}
+          consultationCutoffDate={consultationCutoffDraft}
+          setConsultationCutoffDate={setConsultationCutoffDraft}
+          consultationKeyword={consultationKeywordDraft}
+          setConsultationKeyword={setConsultationKeywordDraft}
+          consultationFrom={consultationFromDraft}
+          setConsultationFrom={setConsultationFromDraft}
+          consultationTo={consultationToDraft}
+          setConsultationTo={setConsultationToDraft}
+          inflowSource={inflowSourceDraft}
+          setInflowSource={setInflowSourceDraft}
+          listSort={listSortDraft}
+          setListSort={setListSortDraft}
+          onApplyConsultationFilter={applyConsultationFilter}
+          consultationFilterMessage={consultationFilterMessage}
         />
       ) : null}
 
@@ -1289,6 +1426,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               editSaving={editSaving}
               editStatusText={editingId === c.id ? statusText : undefined}
               carFeatureEnabled={carFeatureEnabled}
+              contractSignaturesEnabled={contractSignaturesEnabled}
               gaExcelEnabled={gaExcelEnabled}
               onCopyCustomer={copyCustomer}
               onStartEdit={startEdit}
@@ -1297,6 +1435,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               onOpenFilesModal={handleOpenFilesModal}
               onOpenConsultationsModal={handleOpenConsultationsModal}
               onOpenAutoModal={handleOpenAutoModal}
+              onOpenSignatures={handleOpenSignatures}
               onOpenGaModal={handleOpenGaModal}
               onOpenPersonalMessage={handleOpenPersonalMessage}
               onOpenClaims={handleOpenClaims}

@@ -20,4 +20,6 @@ export type CustomerEditFormState = {
   insuranceHistory: string
   cars: CustomerCarFormItem[]
   crmExtensionFields: Record<string, string>
+  /** 유입 경로 — 빈 문자열은 미지정 */
+  inflowSource: string
 }

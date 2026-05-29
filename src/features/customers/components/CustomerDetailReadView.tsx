@@ -9,6 +9,7 @@ import {
   formatCustomerPhoneUi,
   formatCustomerSsnUi,
 } from '../utils/customerDisplayFormat'
+import { formatCustomerInflowSourceLabel } from '../config/customerInflowSource.config'
 import { CustomerCarsReadSection } from './CustomerCarsReadSection'
 import { CustomerRelationsStrip } from './CustomerRelationsStrip'
 import type { CustomerIndustryTemplate } from '../../customer-templates/customerTemplate.types'
@@ -220,6 +221,12 @@ export default function CustomerDetailReadView({
               <MaturityDdayBadge maturityYmd={ins.maturityYmd} />
             </span>
           </div>
+        </DetailReadInfoRow>
+        <DetailReadInfoRow>
+          <span className="customer-detail-read__info-label">유입 경로:</span>{' '}
+          <span className="customer-detail-read__info-value">
+            {formatCustomerInflowSourceLabel(c.inflowSource)}
+          </span>
         </DetailReadInfoRow>
         <DetailReadInfoRow>
           <span className="customer-detail-read__info-label">핸드폰번호:</span>{' '}

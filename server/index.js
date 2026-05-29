@@ -48,6 +48,11 @@ import { parseGaId } from './lib/parseGaId.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import { mapCustomerRow } from './lib/customerRowMap.js'
 import {
+  buildCustomerConsultationSummaryJoin,
+  buildCustomerListWhereExtras,
+} from './lib/customerConsultationListQuery.js'
+import { normalizeInflowSourceForDb } from './lib/customerInflowSource.js'
+import {
   PUBLIC_INVITE_REG_COOKIE,
   buildInviteRegClearCookieHeader,
   buildInviteRegSetCookieHeader,
@@ -5766,6 +5771,12 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
 
     const crmExtSql = stringifyCrmExtensionForDb(data.crmExtension ?? data.crm_extension)
 
+    const inflowParsed = normalizeInflowSourceForDb(data.inflowSource ?? data.inflow_source)
+    if (!inflowParsed.ok) {
+      res.status(400).json({ message: inflowParsed.message })
+      return
+    }
+
     const inserted = await safeQuery(pool,
       `
       INSERT INTO customers (
@@ -5775,14 +5786,16 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         notes,
         birth_date,
         crm_extension,
+        inflow_source,
         tenant_id, owner_user_id, created_by_user_id, visibility_scope
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb), $25, $26, $27, $28)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CAST($22 AS jsonb), $23, CAST($24 AS jsonb), $25, $26, $27, $28, $29)
       RETURNING
         id, user_id, name, birth_date, ssn, phone, carrier, address, height, weight, job, driving, medical,
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
         is_favorite, created_at,
-        crm_extension
+        crm_extension,
+        inflow_source
       `,
       [
         userId,
@@ -5809,6 +5822,7 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
         JSON.stringify(notes),
         birthDateSql,
         crmExtSql,
+        inflowParsed.value,
         custTenantId,
         userId,
         userId,
@@ -6477,6 +6491,18 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
       vals.push(stringifyCrmExtensionForDb(rawExt))
     }
 
+    if (hasKey('inflowSource') || hasKey('inflow_source')) {
+      const inflowParsed = normalizeInflowSourceForDb(
+        hasKey('inflowSource') ? data.inflowSource : data.inflow_source,
+      )
+      if (!inflowParsed.ok) {
+        res.status(400).json({ message: inflowParsed.message })
+        return
+      }
+      parts.push(`inflow_source = $${n++}`)
+      vals.push(inflowParsed.value)
+    }
+
     if (parts.length === 0) {
       res.status(400).json({ message: '수정할 필드가 없습니다.' })
       return
@@ -6507,7 +6533,8 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
         car_number, car_model, car_year, renewal_date,
         gender, insurance_age, next_age_date, is_driver, car_type, notes,
         is_favorite, created_at,
-        crm_extension
+        crm_extension,
+        inflow_source
       `,
       vals,
     )
@@ -6689,11 +6716,25 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
     }
 
     const plc = vis.params.length
-    // listParams = [...vis.params, userId, gaId, limit] → placeholders $1..$plc, then userId, gaId, limit
     const lcUserPlace = `$${plc + 1}`
     const lcGaPlace = `$${plc + 2}`
-    const limitPlace = `$${plc + 3}`
-    const listParams = [...vis.params, userId, gaId, limit]
+    const filterBuilt = buildCustomerListWhereExtras(req.query, {
+      userPlaceholder: lcUserPlace,
+      gaPlaceholder: lcGaPlace,
+      paramStart: plc + 3,
+    })
+    if (filterBuilt.errors.length > 0) {
+      res.status(400).json({ message: filterBuilt.errors[0] })
+      return
+    }
+    const filterClause =
+      filterBuilt.whereFragments.length > 0 ? ` AND ${filterBuilt.whereFragments.join(' AND ')}` : ''
+    const filterParams = filterBuilt.params
+    const limitPlace = `$${plc + 3 + filterParams.length}`
+    const listParams = [...vis.params, userId, gaId, ...filterParams, limit]
+    const countParams = [...vis.params, userId, gaId, ...filterParams]
+    const summaryJoin = buildCustomerConsultationSummaryJoin(lcUserPlace, lcGaPlace)
+    const orderBy = filterBuilt.orderBy
 
     const [result, countResult] = await Promise.all([
       safeQuery(
@@ -6705,18 +6746,14 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
           c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
           c.is_favorite, c.created_at,
           c.crm_extension,
-          lc.last_consult_date
+          c.inflow_source,
+          lc.last_consult_date,
+          lc.consultation_count,
+          lcm.last_consultation_body
         FROM customers c
-        LEFT JOIN (
-          SELECT
-            cc.customer_id,
-            MAX(cc.consultation_date) AS last_consult_date
-          FROM customer_consultations cc
-          WHERE cc.user_id = ${lcUserPlace}::text AND cc.ga_id = ${lcGaPlace}::integer
-          GROUP BY cc.customer_id
-        ) lc ON lc.customer_id = c.id
-        WHERE (${vis.clause}) AND c.deleted_at IS NULL
-        ORDER BY lc.last_consult_date DESC NULLS LAST, c.renewal_date ASC NULLS LAST, c.created_at DESC
+        ${summaryJoin}
+        WHERE (${vis.clause}) AND c.deleted_at IS NULL${filterClause}
+        ORDER BY ${orderBy}
         LIMIT ${limitPlace}::integer
         `,
         listParams,
@@ -6726,9 +6763,10 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
         `
         SELECT COUNT(*) AS c
         FROM customers c
-        WHERE (${vis.clause}) AND c.deleted_at IS NULL
+        ${summaryJoin}
+        WHERE (${vis.clause}) AND c.deleted_at IS NULL${filterClause}
         `,
-        vis.params,
+        countParams,
       ),
     ])
 
@@ -6774,9 +6812,8 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
 
     const plc = vis.params.length
     const cidPlace = `$${plc + 1}`
-    const lcUserPlace = `$${plc + 2}`
-    const lcGaPlace = `$${plc + 3}`
     const detailParams = [...vis.params, customerId, userId, gaId]
+    const summaryJoin = buildCustomerConsultationSummaryJoin(`$${plc + 2}`, `$${plc + 3}`)
 
     const result = await safeQuery(
       pool,
@@ -6787,16 +6824,12 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
         c.gender, c.insurance_age, c.next_age_date, c.is_driver, c.car_type, c.notes,
         c.is_favorite, c.created_at,
         c.crm_extension,
-        lc.last_consult_date
+        c.inflow_source,
+        lc.last_consult_date,
+        lc.consultation_count,
+        lcm.last_consultation_body
       FROM customers c
-      LEFT JOIN (
-        SELECT
-          cc.customer_id,
-          MAX(cc.consultation_date) AS last_consult_date
-        FROM customer_consultations cc
-        WHERE cc.user_id = ${lcUserPlace}::text AND cc.ga_id = ${lcGaPlace}::integer
-        GROUP BY cc.customer_id
-      ) lc ON lc.customer_id = c.id
+      ${summaryJoin}
       WHERE c.id = ${cidPlace} AND (${vis.clause}) AND c.deleted_at IS NULL
       LIMIT 1
       `,

@@ -2,6 +2,8 @@
  * Customers 테이블 행 → 공개 API 형식 (server/index.js 와 동일 규약).
  */
 import { parseCrmExtensionFromDb } from './customerCrmExtension.js'
+import { summarizeConsultationBody } from './customerConsultationListQuery.js'
+import { inflowSourceFromDbRow } from './customerInflowSource.js'
 
 export function normalizeExpiryDate(value) {
   if (typeof value !== 'string') {
@@ -121,6 +123,18 @@ export function mapCustomerRow(row) {
 
   const crmParsed = parseCrmExtensionFromDb(row.crm_extension ?? row.crmExtension)
 
+  const consultCountRaw = row.consultation_count ?? row.consultationCount
+  const consultationCount =
+    consultCountRaw != null && consultCountRaw !== '' && Number.isFinite(Number(consultCountRaw))
+      ? Number(consultCountRaw)
+      : 0
+
+  const lastConsultationSummary = summarizeConsultationBody(
+    row.last_consultation_body ?? row.lastConsultationBody ?? row.last_consultation_memo,
+  )
+
+  const inflowSource = inflowSourceFromDbRow(row)
+
   return {
     id: Number(row.id),
     userId: String(row.user_id),
@@ -147,6 +161,12 @@ export function mapCustomerRow(row) {
     carYear: row.car_year ?? '',
     renewalDate,
     lastConsultDate,
+    lastConsultationAt: lastConsultDate,
+    lastConsultationMemo: lastConsultationSummary,
+    lastConsultationSummary,
+    consultationCount,
+    hasConsultation: consultationCount > 0,
+    inflowSource,
     isFavorite: row.is_favorite === true,
     crmExtension: crmParsed,
     createdAt: toIsoString(row.created_at),
