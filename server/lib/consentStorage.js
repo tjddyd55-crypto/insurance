@@ -309,5 +309,9 @@ export async function r2GetPresignedPutUrl(key, contentType, expiresSec = 900, o
 
 /** 공개 CDN 베이스 (끝 슬래시 없음). R2 커스텀 도메인 또는 Workers. */
 export function getR2PublicCdnBase() {
-  return String(process.env.R2_PUBLIC_CDN_BASE ?? 'https://cdn.platform-assets.com').replace(/\/$/, '')
+  return String(
+    process.env.R2_PUBLIC_CDN_BASE ??
+      process.env.R2_PUBLIC_URL ??
+      'https://cdn.platform-assets.com',
+  ).replace(/\/$/, '')
 }

@@ -87,6 +87,7 @@ export function InsurerManagerNewsDetailPage({
 
   const galleryUrls = buildInsurerNewsGalleryUrls({
     heroImageUrl: detail.heroImageUrl,
+    heroImageObjectKey: detail.heroImageObjectKey,
     attachments: detail.attachments,
   })
   const role = user?.role ?? ''

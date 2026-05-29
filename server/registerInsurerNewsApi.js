@@ -10,6 +10,7 @@ import {
   logR2EnvDiagnosticCheck,
   r2DeleteObject,
   r2GetPresignedPutUrl,
+  r2StorageObjectExists,
 } from './lib/consentStorage.js'
 import {
   isGaInsurerManagerMutatorRole,
@@ -818,6 +819,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       title: '',
       summary,
       heroImageUrl: images[0]?.url ?? null,
+      heroImageObjectKey: images[0]?.objectKey ?? null,
       heroImageOpenUrl: images[0]?.openUrl ?? null,
       publishedAt,
       status: String(row.status ?? 'DRAFT'),
@@ -1022,6 +1024,7 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       title: '',
       summary,
       heroImageUrl: row.hero_url ? String(row.hero_url) : null,
+      heroImageObjectKey: row.hero_object_key ? String(row.hero_object_key) : null,
       heroImageOpenUrl,
       publishedAt,
       status: String(row.status ?? 'DRAFT'),
@@ -1087,6 +1090,31 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         storageCategory: scope.storageCategory,
       }),
     )
+  }
+
+  /** @param {ReturnType<typeof prepareAttachmentsForWrite>} normalized */
+  async function assertAttachmentsExistInR2(normalized) {
+    if (!isConsentR2Enabled()) {
+      return
+    }
+    for (const a of normalized) {
+      const objectKey = String(a.objectKey ?? '').trim()
+      if (!objectKey) {
+        continue
+      }
+      const exists = await r2StorageObjectExists(objectKey)
+      if (!exists) {
+        insurerNewsLog.error({
+          event: 'upload-fail',
+          stage: 'r2-head',
+          reason: 'object-not-found',
+          objectKey,
+        })
+        throw Object.assign(new Error('업로드된 파일을 스토리지에서 찾을 수 없습니다. 다시 업로드해 주세요.'), {
+          httpStatus: 400,
+        })
+      }
+    }
   }
 
   /**
@@ -1398,6 +1426,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           (SELECT a.url FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
             ORDER BY a.sort_order ASC LIMIT 1) AS hero_url,
+          (SELECT a.object_key FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
+            ORDER BY a.sort_order ASC LIMIT 1) AS hero_object_key,
           (SELECT a.id FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
             ORDER BY a.sort_order ASC LIMIT 1) AS hero_attachment_id
@@ -1725,6 +1756,18 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         }
       }
 
+      const exists = await r2StorageObjectExists(objectKey)
+      if (!exists) {
+        insurerNewsLog.error({
+          event: 'upload-fail',
+          stage: 'upload-complete',
+          reason: 'object-not-found',
+          objectKey,
+        })
+        res.status(400).json({ message: '스토리지에 파일이 없습니다. 업로드를 다시 시도해 주세요.' })
+        return
+      }
+
       insurerNewsLog.info({
         event: 'upload-complete',
         stage: 'r2-put',
@@ -1806,6 +1849,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
           (SELECT a.url FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
             ORDER BY a.sort_order ASC LIMIT 1) AS hero_url,
+          (SELECT a.object_key FROM insurance_company_newsletter_attachments a
+            WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
+            ORDER BY a.sort_order ASC LIMIT 1) AS hero_object_key,
           (SELECT a.id FROM insurance_company_newsletter_attachments a
             WHERE a.newsletter_id = n.id AND a.mime_type <> 'application/pdf'
             ORDER BY a.sort_order ASC LIMIT 1) AS hero_attachment_id
@@ -1913,6 +1959,19 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
 
       const orphanKeys = collectAttachmentObjectKeys(rowsToInsert)
+
+      try {
+        await assertAttachmentsExistInR2(rowsToInsert)
+      } catch (r2Err) {
+        if (r2Err && typeof r2Err === 'object' && 'httpStatus' in r2Err) {
+          const st = Number(r2Err.httpStatus) || 400
+          res.status(st).json({
+            message: r2Err instanceof Error ? r2Err.message : '요청을 처리할 수 없습니다.',
+          })
+          return
+        }
+        throw r2Err
+      }
 
       const id = randomUUID()
       /** @type {Record<string, unknown> | null} */
@@ -2049,6 +2108,19 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       }
 
       const orphanKeys = collectAttachmentObjectKeys(rowsToInsert)
+
+      try {
+        await assertAttachmentsExistInR2(rowsToInsert)
+      } catch (r2Err) {
+        if (r2Err && typeof r2Err === 'object' && 'httpStatus' in r2Err) {
+          const st = Number(r2Err.httpStatus) || 400
+          res.status(st).json({
+            message: r2Err instanceof Error ? r2Err.message : '요청을 처리할 수 없습니다.',
+          })
+          return
+        }
+        throw r2Err
+      }
 
       // TODO: diff 기반 첨부 업데이트로 개선 예정 (현재는 전체 삭제 후 재삽입)
 

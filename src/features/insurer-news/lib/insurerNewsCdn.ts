@@ -4,6 +4,18 @@ export function getInsurerNewsCdnBase(): string {
   return String(raw ?? 'https://cdn.platform-assets.com').replace(/\/$/, '')
 }
 
+/** CDN 공개 URL path — bucket 이름 prefix(`platform-assets/`)는 제거한다. */
+export function normalizeInsurerNewsObjectKeyForCdn(objectKey: string): string {
+  return String(objectKey ?? '')
+    .trim()
+    .replace(/^\//, '')
+    .replace(/^platform-assets\//, '')
+}
+
 export function cdnUrlForObjectKey(objectKey: string): string {
-  return `${getInsurerNewsCdnBase()}/${objectKey.replace(/^\//, '')}`
+  const key = normalizeInsurerNewsObjectKeyForCdn(objectKey)
+  if (!key) {
+    return ''
+  }
+  return `${getInsurerNewsCdnBase()}/${key}`
 }
