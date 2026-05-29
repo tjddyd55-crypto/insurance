@@ -1,7 +1,12 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import { FormButton, FormInput, FormSelect } from '../../../components/form'
+import {
+  CUSTOMER_INFLOW_SOURCE_FILTER_OPTIONS,
+  CUSTOMER_LIST_SORT_OPTIONS,
+  type CustomerListSortValue,
+} from '../config/customerInflowSource.config'
 
-export type CustomerConsultationFilter = '' | 'none' | 'no_since'
+export type CustomerConsultationFilter = '' | 'none' | 'has' | 'no_since'
 
 type CustomerSortType = 'age' | 'car' | 'recent' | null
 
@@ -38,6 +43,16 @@ type FilterPanelProps = {
   setConsultationFilter: Dispatch<SetStateAction<CustomerConsultationFilter>>
   consultationCutoffDate: string
   setConsultationCutoffDate: Dispatch<SetStateAction<string>>
+  consultationKeyword: string
+  setConsultationKeyword: Dispatch<SetStateAction<string>>
+  consultationFrom: string
+  setConsultationFrom: Dispatch<SetStateAction<string>>
+  consultationTo: string
+  setConsultationTo: Dispatch<SetStateAction<string>>
+  inflowSource: string
+  setInflowSource: Dispatch<SetStateAction<string>>
+  listSort: CustomerListSortValue
+  setListSort: Dispatch<SetStateAction<CustomerListSortValue>>
   onApplyConsultationFilter: () => void
   consultationFilterMessage: string
 }
@@ -108,16 +123,34 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
     setConsultationFilter,
     consultationCutoffDate,
     setConsultationCutoffDate,
+    consultationKeyword,
+    setConsultationKeyword,
+    consultationFrom,
+    setConsultationFrom,
+    consultationTo,
+    setConsultationTo,
+    inflowSource,
+    setInflowSource,
+    listSort,
+    setListSort,
     onApplyConsultationFilter,
     consultationFilterMessage,
   } = props
 
   return (
     <>
-      <div className="customers-advanced-filters customers-advanced-filters--consultation" role="search" aria-label="상담 필터">
+      <div className="customers-advanced-filters customers-advanced-filters--consultation" role="search" aria-label="상담·유입 필터">
         <div className="customers-advanced-filters__grid">
           <label className="customers-advanced-filters__field">
-            <span>상담 필터</span>
+            <span>유입 경로</span>
+            <FormSelect
+              value={inflowSource}
+              onChange={(e) => setInflowSource(e.target.value)}
+              options={CUSTOMER_INFLOW_SOURCE_FILTER_OPTIONS}
+            />
+          </label>
+          <label className="customers-advanced-filters__field">
+            <span>상담 상태</span>
             <FormSelect
               value={consultationFilter}
               onChange={(e) =>
@@ -126,21 +159,58 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
               options={[
                 { value: '', label: '전체' },
                 { value: 'none', label: '상담 내역 없음' },
-                { value: 'no_since', label: '기준 날짜 이후 상담 없음' },
+                { value: 'has', label: '상담 내역 있음' },
+                { value: 'no_since', label: '이 날짜 이후 상담 없음' },
               ]}
             />
           </label>
           {consultationFilter === 'no_since' ? (
             <label className="customers-advanced-filters__field">
-              <span>기준 날짜</span>
+              <span>기준일</span>
               <FormInput
                 type="date"
                 value={consultationCutoffDate}
                 onChange={(e) => setConsultationCutoffDate(e.target.value)}
-                aria-label="기준 날짜"
+                aria-label="기준일 — 이후 상담 없는 고객"
               />
             </label>
           ) : null}
+          <label className="customers-advanced-filters__field">
+            <span>상담 내용 검색</span>
+            <FormInput
+              type="search"
+              value={consultationKeyword}
+              onChange={(e) => setConsultationKeyword(e.target.value)}
+              placeholder="키워드 (예: 부재, 다음주)"
+              aria-label="상담 내용 키워드"
+            />
+          </label>
+          <label className="customers-advanced-filters__field">
+            <span>상담일 시작</span>
+            <FormInput
+              type="date"
+              value={consultationFrom}
+              onChange={(e) => setConsultationFrom(e.target.value)}
+              aria-label="상담일 시작"
+            />
+          </label>
+          <label className="customers-advanced-filters__field">
+            <span>상담일 종료</span>
+            <FormInput
+              type="date"
+              value={consultationTo}
+              onChange={(e) => setConsultationTo(e.target.value)}
+              aria-label="상담일 종료"
+            />
+          </label>
+          <label className="customers-advanced-filters__field">
+            <span>정렬</span>
+            <FormSelect
+              value={listSort}
+              onChange={(e) => setListSort(e.target.value as CustomerListSortValue)}
+              options={CUSTOMER_LIST_SORT_OPTIONS}
+            />
+          </label>
         </div>
         <div className="customers-advanced-filters__quick filter-group customer-filter-panel-actions">
           <FormButton
@@ -150,7 +220,7 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
             className="customer-filter-chip"
             onClick={onApplyConsultationFilter}
           >
-            상담 필터 적용
+            필터 적용
           </FormButton>
         </div>
         {consultationFilterMessage ? (
@@ -181,7 +251,7 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
         role="group"
         aria-label="목록 정렬 (같은 버튼을 다시 누르면 해제되어 이름 가나다순)"
       >
-        <span className="customers-sort-row__label">정렬</span>
+        <span className="customers-sort-row__label">빠른 정렬</span>
         <div className="customers-sort-row__buttons filter-group">
           <FormButton
             htmlType="button"

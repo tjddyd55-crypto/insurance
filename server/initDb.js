@@ -1502,6 +1502,15 @@ export async function initDb() {
     ADD COLUMN IF NOT EXISTS crm_extension JSONB NOT NULL DEFAULT CAST('{"v":1,"fields":{}}' AS jsonb)
   `)
   await pool.query(`
+    ALTER TABLE customers
+    ADD COLUMN IF NOT EXISTS inflow_source TEXT,
+    ADD COLUMN IF NOT EXISTS inflow_source_note TEXT
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customers_inflow_source
+    ON customers(inflow_source)
+  `)
+  await pool.query(`
     DO $$
     BEGIN
       IF NOT EXISTS (
@@ -2682,6 +2691,10 @@ export async function initDb() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_customer_consultations_user
     ON customer_consultations(user_id)
+  `)
+  await pool.query(`
+    ALTER TABLE customer_consultations
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   `)
 
   await pool.query(`

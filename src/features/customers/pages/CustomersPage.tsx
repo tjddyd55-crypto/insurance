@@ -52,6 +52,7 @@ import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 import CustomerMobileModals from '../components/CustomerMobileModals'
 import CustomerPageHeaderActions from '../components/CustomerPageHeaderActions'
 import { CustomerFilterControls, type CustomerConsultationFilter } from '../components/CustomerFilterControls'
+import type { CustomerListSortValue } from '../config/customerInflowSource.config'
 import CustomerExcelSelectToolbar from '../components/CustomerExcelSelectToolbar'
 import CustomerListCard, { type CustomerSsnDupHighlight } from '../components/CustomerListCard'
 import type { CustomerEditFormState } from '../types/customerEditForm'
@@ -231,8 +232,18 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const [showFilters, setShowFilters] = useState(false)
   const [consultationFilterDraft, setConsultationFilterDraft] = useState<CustomerConsultationFilter>('')
   const [consultationCutoffDraft, setConsultationCutoffDraft] = useState('')
+  const [consultationKeywordDraft, setConsultationKeywordDraft] = useState('')
+  const [consultationFromDraft, setConsultationFromDraft] = useState('')
+  const [consultationToDraft, setConsultationToDraft] = useState('')
+  const [inflowSourceDraft, setInflowSourceDraft] = useState('')
+  const [listSortDraft, setListSortDraft] = useState<CustomerListSortValue>('')
   const [appliedConsultationFilter, setAppliedConsultationFilter] = useState<CustomerConsultationFilter>('')
   const [appliedConsultationCutoff, setAppliedConsultationCutoff] = useState('')
+  const [appliedConsultationKeyword, setAppliedConsultationKeyword] = useState('')
+  const [appliedConsultationFrom, setAppliedConsultationFrom] = useState('')
+  const [appliedConsultationTo, setAppliedConsultationTo] = useState('')
+  const [appliedInflowSource, setAppliedInflowSource] = useState('')
+  const [appliedListSort, setAppliedListSort] = useState<CustomerListSortValue>('')
   const [consultationFilterMessage, setConsultationFilterMessage] = useState('')
   const [showScrollToTop, setShowScrollToTop] = useState(false)
   const [customerCreateExitModalOpen, setCustomerCreateExitModalOpen] = useState(false)
@@ -319,8 +330,24 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       advancedFiltersActive ||
       favoriteOnly ||
       advSearchHits != null ||
-      appliedConsultationFilter !== '',
-    [keyword, advancedFiltersActive, favoriteOnly, advSearchHits, appliedConsultationFilter],
+      appliedConsultationFilter !== '' ||
+      appliedConsultationKeyword.trim() !== '' ||
+      appliedConsultationFrom.trim() !== '' ||
+      appliedConsultationTo.trim() !== '' ||
+      appliedInflowSource.trim() !== '' ||
+      appliedListSort !== '',
+    [
+      keyword,
+      advancedFiltersActive,
+      favoriteOnly,
+      advSearchHits,
+      appliedConsultationFilter,
+      appliedConsultationKeyword,
+      appliedConsultationFrom,
+      appliedConsultationTo,
+      appliedInflowSource,
+      appliedListSort,
+    ],
   )
 
   const applyConsultationFilter = useCallback(() => {
@@ -333,7 +360,20 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     setAppliedConsultationCutoff(
       consultationFilterDraft === 'no_since' ? consultationCutoffDraft.trim() : '',
     )
-  }, [consultationCutoffDraft, consultationFilterDraft])
+    setAppliedConsultationKeyword(consultationKeywordDraft.trim())
+    setAppliedConsultationFrom(consultationFromDraft.trim())
+    setAppliedConsultationTo(consultationToDraft.trim())
+    setAppliedInflowSource(inflowSourceDraft.trim())
+    setAppliedListSort(listSortDraft)
+  }, [
+    consultationCutoffDraft,
+    consultationFilterDraft,
+    consultationFromDraft,
+    consultationKeywordDraft,
+    consultationToDraft,
+    inflowSourceDraft,
+    listSortDraft,
+  ])
 
   const sortedCustomers = useMemo(() => {
     const copy = [...filteredCustomers]
@@ -344,7 +384,13 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     if (sortType === null) {
       copy.sort((a, b) => {
         const f = favoriteFirst(a, b)
-        return f !== 0 ? f : tieName(a, b)
+        if (f !== 0) {
+          return f
+        }
+        if (appliedListSort) {
+          return 0
+        }
+        return tieName(a, b)
       })
     } else if (sortType === 'age') {
       copy.sort((a, b) => {
@@ -383,7 +429,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       })
     }
     return copy
-  }, [filteredCustomers, sortType])
+  }, [filteredCustomers, sortType, appliedListSort])
 
   const allVisibleIds = useMemo(() => sortedCustomers.map((c) => String(c.id)), [sortedCustomers])
   const defaultSelectedColumns = useMemo(() => ['name'], [])
@@ -426,15 +472,28 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     }
     setIsLoading(true)
     try {
-      const listOpts =
-        appliedConsultationFilter === 'none'
-          ? { consultationFilter: 'none' as const }
-          : appliedConsultationFilter === 'no_since'
-            ? {
-                consultationFilter: 'no_since' as const,
-                consultationCutoffDate: appliedConsultationCutoff.trim(),
-              }
-            : {}
+      const listOpts: Parameters<typeof listCustomers>[1] = {}
+      if (appliedConsultationFilter === 'none' || appliedConsultationFilter === 'has') {
+        listOpts.consultationStatus = appliedConsultationFilter
+      } else if (appliedConsultationFilter === 'no_since') {
+        listOpts.consultationStatus = 'no_since'
+        listOpts.noConsultationSince = appliedConsultationCutoff.trim()
+      }
+      if (appliedConsultationKeyword.trim()) {
+        listOpts.consultationKeyword = appliedConsultationKeyword.trim()
+      }
+      if (appliedConsultationFrom.trim()) {
+        listOpts.consultationFrom = appliedConsultationFrom.trim()
+      }
+      if (appliedConsultationTo.trim()) {
+        listOpts.consultationTo = appliedConsultationTo.trim()
+      }
+      if (appliedInflowSource.trim()) {
+        listOpts.inflowSource = appliedInflowSource.trim()
+      }
+      if (appliedListSort) {
+        listOpts.sort = appliedListSort
+      }
       const { customers: rows, total } = await listCustomers(token, listOpts)
       const safeData = coerceCustomersStatePayload(rows)
       setCustomers(safeData)
@@ -444,7 +503,17 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     } finally {
       setIsLoading(false)
     }
-  }, [token, user?.role, appliedConsultationFilter, appliedConsultationCutoff])
+  }, [
+    token,
+    user?.role,
+    appliedConsultationFilter,
+    appliedConsultationCutoff,
+    appliedConsultationKeyword,
+    appliedConsultationFrom,
+    appliedConsultationTo,
+    appliedInflowSource,
+    appliedListSort,
+  ])
 
   const handleToggleFavorite = useCallback(
     async (c: CustomerRecord) => {
@@ -743,6 +812,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         carYear: carYearForApi,
         renewalDate: renewalDateForApi,
         isFavorite: base.isFavorite === true,
+        inflowSource: activeEditForm.inflowSource.trim() || null,
         ...industryExt,
       })
       try {
@@ -1288,6 +1358,16 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           setConsultationFilter={setConsultationFilterDraft}
           consultationCutoffDate={consultationCutoffDraft}
           setConsultationCutoffDate={setConsultationCutoffDraft}
+          consultationKeyword={consultationKeywordDraft}
+          setConsultationKeyword={setConsultationKeywordDraft}
+          consultationFrom={consultationFromDraft}
+          setConsultationFrom={setConsultationFromDraft}
+          consultationTo={consultationToDraft}
+          setConsultationTo={setConsultationToDraft}
+          inflowSource={inflowSourceDraft}
+          setInflowSource={setInflowSourceDraft}
+          listSort={listSortDraft}
+          setListSort={setListSortDraft}
           onApplyConsultationFilter={applyConsultationFilter}
           consultationFilterMessage={consultationFilterMessage}
         />

@@ -962,9 +962,9 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         pool,
         `
         UPDATE customer_consultations
-        SET body = $5, consultation_date = $6::DATE
+        SET body = $5, consultation_date = $6::DATE, updated_at = NOW()
         WHERE id = $1 AND customer_id = $2 AND user_id = $3 AND ga_id = $4
-        RETURNING id, customer_id, user_id, ga_id, body, consultation_date, created_at
+        RETURNING id, customer_id, user_id, ga_id, body, consultation_date, created_at, updated_at
         `,
         [consultId, customerId, userId, gaId, nextBody, nextDate],
       )

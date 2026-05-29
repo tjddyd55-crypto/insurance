@@ -6,10 +6,12 @@ import {
   AddressSearchField,
   FormButton,
   FormInput,
+  FormSelect,
   FormTextarea,
   formatAddressForSave,
   type AddressSearchValue,
 } from '../form'
+import { CUSTOMER_INFLOW_SOURCE_FORM_OPTIONS } from '../../features/customers/config/customerInflowSource.config'
 
 import { saveCustomer } from '../../features/customers/api/customersApi'
 import { saveCustomerCarsForCustomer } from '../../features/customers/utils/customerCarsSaveUtils'
@@ -199,6 +201,9 @@ export type CustomerFormState = {
    */
   crmExtensionFields: Record<string, string>
 
+  /** 유입 경로 — 빈 문자열은 미지정 */
+  inflowSource: string
+
 }
 
 
@@ -244,6 +249,8 @@ const EMPTY_FORM: CustomerFormState = {
   noteDraft: '',
 
   crmExtensionFields: {},
+
+  inflowSource: '',
 
 }
 
@@ -356,6 +363,8 @@ export function customerFormStateToSavePayload(form: CustomerFormState): SaveCus
     ...(birthDateOpt != null ? { birthDate: birthDateOpt } : {}),
 
     ...(extOpt ? { crmExtension: extOpt } : {}),
+
+    inflowSource: form.inflowSource.trim() || null,
 
   }
 
@@ -517,6 +526,19 @@ export function CustomerFormFields({ form, onFormChange, radioSuffix, onStatusMe
           placeholder="전화번호"
           value={form.phone}
           onChange={(e) => onFormChange({ ...form, phone: e.target.value })}
+        />
+
+      </label>
+
+      <label className="field">
+
+        <span className="field__label">유입 경로</span>
+
+        <FormSelect
+          className="field__control"
+          value={form.inflowSource}
+          onChange={(e) => onFormChange({ ...form, inflowSource: e.target.value })}
+          options={CUSTOMER_INFLOW_SOURCE_FORM_OPTIONS}
         />
 
       </label>

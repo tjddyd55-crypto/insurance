@@ -2,9 +2,18 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   buildConsultationFilterSql,
+  buildCustomerListWhereExtras,
+  parseConsultationDateRangeQuery,
   parseConsultationFilterQuery,
+  parseConsultationKeywordQuery,
+  parseCustomerListSortQuery,
   summarizeConsultationBody,
 } from './customerConsultationListQuery.js'
+import {
+  CUSTOMER_INFLOW_SOURCE_OPTIONS,
+  normalizeInflowSourceForDb,
+  parseInflowSourceFilterQuery,
+} from './customerInflowSource.js'
 
 test('parseConsultationFilterQuery — empty is no filter', () => {
   assert.deepEqual(parseConsultationFilterQuery({}), { mode: null, cutoffDate: null, error: null })
@@ -13,6 +22,19 @@ test('parseConsultationFilterQuery — empty is no filter', () => {
 test('parseConsultationFilterQuery — none', () => {
   assert.deepEqual(parseConsultationFilterQuery({ consultationFilter: 'none' }), {
     mode: 'none',
+    cutoffDate: null,
+    error: null,
+  })
+  assert.deepEqual(parseConsultationFilterQuery({ consultationStatus: 'none' }), {
+    mode: 'none',
+    cutoffDate: null,
+    error: null,
+  })
+})
+
+test('parseConsultationFilterQuery — has', () => {
+  assert.deepEqual(parseConsultationFilterQuery({ consultationStatus: 'has' }), {
+    mode: 'has',
     cutoffDate: null,
     error: null,
   })
@@ -33,11 +55,32 @@ test('parseConsultationFilterQuery — no_since with valid date', () => {
     }),
     { mode: 'no_since', cutoffDate: '2026-05-20', error: null },
   )
+  assert.deepEqual(
+    parseConsultationFilterQuery({
+      consultationStatus: 'no_since',
+      noConsultationSince: '2026-05-20',
+    }),
+    { mode: 'no_since', cutoffDate: '2026-05-20', error: null },
+  )
+})
+
+test('parseConsultationFilterQuery — noConsultationSince alone implies no_since', () => {
+  assert.deepEqual(parseConsultationFilterQuery({ noConsultationSince: '2026-05-20' }), {
+    mode: 'no_since',
+    cutoffDate: '2026-05-20',
+    error: null,
+  })
 })
 
 test('buildConsultationFilterSql — none', () => {
   const { clause, params } = buildConsultationFilterSql('none', null)
   assert.match(clause, /consultation_count/)
+  assert.equal(params.length, 0)
+})
+
+test('buildConsultationFilterSql — has', () => {
+  const { clause, params } = buildConsultationFilterSql('has', null)
+  assert.match(clause, /consultation_count > 0/)
   assert.equal(params.length, 0)
 })
 
@@ -59,4 +102,68 @@ test('summarizeConsultationBody — trims and truncates', () => {
   const s = summarizeConsultationBody(long)
   assert.ok(s && s.endsWith('…'))
   assert.equal(s.length, 81)
+})
+
+test('parseConsultationKeywordQuery — trims empty', () => {
+  assert.deepEqual(parseConsultationKeywordQuery({ consultationKeyword: '  부재  ' }), {
+    value: '부재',
+    error: null,
+  })
+  assert.deepEqual(parseConsultationKeywordQuery({ consultationKeyword: '   ' }), {
+    value: null,
+    error: null,
+  })
+})
+
+test('parseConsultationDateRangeQuery — validates order', () => {
+  assert.deepEqual(parseConsultationDateRangeQuery({ consultationFrom: '2026-05-01', consultationTo: '2026-05-31' }), {
+    from: '2026-05-01',
+    to: '2026-05-31',
+    error: null,
+  })
+  const bad = parseConsultationDateRangeQuery({ consultationFrom: '2026-06-01', consultationTo: '2026-05-01' })
+  assert.match(bad.error ?? '', /종료일/)
+})
+
+test('parseCustomerListSortQuery — aliases', () => {
+  assert.equal(parseCustomerListSortQuery({ sort: 'lastConsultAsc' }).mode, 'last_consult_asc')
+  assert.equal(parseCustomerListSortQuery({ sort: 'noConsultFirst' }).mode, 'no_consult_first')
+})
+
+test('buildCustomerListWhereExtras — combines inflow and keyword', () => {
+  const built = buildCustomerListWhereExtras(
+    {
+      inflowSource: '소개',
+      consultationKeyword: '부재',
+      consultationStatus: 'has',
+    },
+    { userPlaceholder: '$5', gaPlaceholder: '$6', paramStart: 7 },
+  )
+  assert.equal(built.errors.length, 0)
+  assert.ok(built.whereFragments.some((f) => f.includes('inflow_source')))
+  assert.ok(built.whereFragments.some((f) => f.includes('ILIKE')))
+  assert.ok(built.whereFragments.some((f) => f.includes('consultation_count')))
+  assert.equal(built.params.length, 2)
+})
+
+test('normalizeInflowSourceForDb — 미지정 is null', () => {
+  assert.deepEqual(normalizeInflowSourceForDb('미지정'), { ok: true, value: null })
+  assert.deepEqual(normalizeInflowSourceForDb('소개'), { ok: true, value: '소개' })
+  assert.equal(normalizeInflowSourceForDb('잘못된값').ok, false)
+})
+
+test('parseInflowSourceFilterQuery — 미지정 filter', () => {
+  assert.deepEqual(parseInflowSourceFilterQuery({ inflowSource: '미지정' }), {
+    value: '__unset__',
+    error: null,
+  })
+  assert.deepEqual(parseInflowSourceFilterQuery({ inflowSource: 'DB수급' }), {
+    value: 'DB수급',
+    error: null,
+  })
+})
+
+test('CUSTOMER_INFLOW_SOURCE_OPTIONS contains expected labels', () => {
+  assert.ok(CUSTOMER_INFLOW_SOURCE_OPTIONS.includes('DB수급'))
+  assert.ok(CUSTOMER_INFLOW_SOURCE_OPTIONS.includes('광고/마케팅'))
 })

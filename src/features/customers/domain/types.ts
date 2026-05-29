@@ -82,6 +82,10 @@ export interface CustomerRecord {
   lastConsultationSummary?: string | null
   /** 상담 내역 건수 */
   consultationCount?: number
+  /** 상담 내역 1건 이상 여부 */
+  hasConsultation?: boolean
+  /** 유입 경로 (미지정·null 허용) */
+  inflowSource?: string | null
   /** 중요 고객(즐겨찾기) — 목록 상단 정렬·필터에 사용 */
   isFavorite: boolean
   /** 업종별 확장 필드 (government / gym 등) — canonical fieldKey SSOT */

@@ -3,6 +3,7 @@
  */
 import { parseCrmExtensionFromDb } from './customerCrmExtension.js'
 import { summarizeConsultationBody } from './customerConsultationListQuery.js'
+import { inflowSourceFromDbRow } from './customerInflowSource.js'
 
 export function normalizeExpiryDate(value) {
   if (typeof value !== 'string') {
@@ -132,6 +133,8 @@ export function mapCustomerRow(row) {
     row.last_consultation_body ?? row.lastConsultationBody ?? row.last_consultation_memo,
   )
 
+  const inflowSource = inflowSourceFromDbRow(row)
+
   return {
     id: Number(row.id),
     userId: String(row.user_id),
@@ -162,6 +165,8 @@ export function mapCustomerRow(row) {
     lastConsultationMemo: lastConsultationSummary,
     lastConsultationSummary,
     consultationCount,
+    hasConsultation: consultationCount > 0,
+    inflowSource,
     isFavorite: row.is_favorite === true,
     crmExtension: crmParsed,
     createdAt: toIsoString(row.created_at),
