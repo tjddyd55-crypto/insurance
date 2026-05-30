@@ -1,6 +1,6 @@
 import { FormButton, FormInput, FormTextarea } from '../../../components/form'
-import CustomerConsultationFollowUpFields from './CustomerConsultationFollowUpFields'
-import { formatFollowUpMetaLabel } from '../config/customerConsultationFollowUp.config'
+import CustomerConsultationContactResultField from './CustomerConsultationContactResultField'
+import { formatContactResultMetaLabel } from '../config/customerConsultationFollowUp.config'
 import { parseConsultationStoredBody } from '../utils/consultationBodyFormat'
 import type { CustomerConsultationRow } from '../api/customerExtraApi'
 
@@ -11,17 +11,11 @@ type CustomerConsultationHistoryListProps = {
   editConsultDate: string
   editConsultBody: string
   editContactResult: string
-  editFollowUpStatus: string
-  editNextContactDate: string
-  editFollowUpNote: string
   onStartEdit: (row: CustomerConsultationRow) => void
   onCancelEdit: () => void
   onSetEditConsultDate: (value: string) => void
   onSetEditConsultBody: (value: string) => void
   onSetEditContactResult: (value: string) => void
-  onSetEditFollowUpStatus: (value: string) => void
-  onSetEditNextContactDate: (value: string) => void
-  onSetEditFollowUpNote: (value: string) => void
   onSaveEdit: (consultId: number) => void | Promise<void>
   onDelete: (consultId: number) => void | Promise<void>
   onAddTodoFromConsultation?: (consultId: number, plainBody: string) => void
@@ -34,17 +28,11 @@ export default function CustomerConsultationHistoryList({
   editConsultDate,
   editConsultBody,
   editContactResult,
-  editFollowUpStatus,
-  editNextContactDate,
-  editFollowUpNote,
   onStartEdit,
   onCancelEdit,
   onSetEditConsultDate,
   onSetEditConsultBody,
   onSetEditContactResult,
-  onSetEditFollowUpStatus,
-  onSetEditNextContactDate,
-  onSetEditFollowUpNote,
   onSaveEdit,
   onDelete,
   onAddTodoFromConsultation,
@@ -57,7 +45,7 @@ export default function CustomerConsultationHistoryList({
           r.createdAt,
           r.consultationDate ?? null,
         )
-        const followUpMeta = formatFollowUpMetaLabel(r)
+        const contactMeta = formatContactResultMetaLabel(r)
         const isEditing = editingConsultId === r.id
         return (
           <li
@@ -84,15 +72,9 @@ export default function CustomerConsultationHistoryList({
                   style={{ width: '100%', padding: 8 }}
                   maxLength={19500}
                 />
-                <CustomerConsultationFollowUpFields
+                <CustomerConsultationContactResultField
                   contactResult={editContactResult}
-                  followUpStatus={editFollowUpStatus}
-                  nextContactDate={editNextContactDate}
-                  followUpNote={editFollowUpNote}
                   onContactResultChange={onSetEditContactResult}
-                  onFollowUpStatusChange={onSetEditFollowUpStatus}
-                  onNextContactDateChange={onSetEditNextContactDate}
-                  onFollowUpNoteChange={onSetEditFollowUpNote}
                   disabled={busy}
                 />
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -155,12 +137,12 @@ export default function CustomerConsultationHistoryList({
                   </div>
                 </div>
                 <div style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{text || '—'}</div>
-                {followUpMeta ? (
+                {contactMeta ? (
                   <div
-                    className="customer-consultation-history__follow-up-meta"
+                    className="customer-consultation-history__contact-meta"
                     style={{ marginTop: 8, fontSize: '0.875rem', color: 'var(--text-secondary)' }}
                   >
-                    {followUpMeta}
+                    {contactMeta}
                   </div>
                 ) : null}
               </>
