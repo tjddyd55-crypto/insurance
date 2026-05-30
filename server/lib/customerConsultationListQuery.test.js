@@ -3,7 +3,6 @@ import test from 'node:test'
 import {
   buildConsultationFilterSql,
   buildCustomerListWhereExtras,
-  buildFollowUpFilterSql,
   parseConsultationDateRangeQuery,
   parseConsultationFilterQuery,
   parseConsultationKeywordQuery,
@@ -15,13 +14,7 @@ import {
   normalizeInflowSourceForDb,
   parseInflowSourceFilterQuery,
 } from './customerInflowSource.js'
-import {
-  normalizeContactResultForDb,
-  normalizeFollowUpStatusForDb,
-  normalizeNextContactDateForDb,
-  parseFollowUpFilterQuery,
-  parseNextContactDateRangeQuery,
-} from './customerConsultationFollowUp.js'
+import { normalizeContactResultForDb } from './customerConsultationFollowUp.js'
 
 test('parseConsultationFilterQuery — empty is no filter', () => {
   assert.deepEqual(parseConsultationFilterQuery({}), { mode: null, cutoffDate: null, error: null })
@@ -176,67 +169,8 @@ test('CUSTOMER_INFLOW_SOURCE_OPTIONS contains expected labels', () => {
   assert.ok(CUSTOMER_INFLOW_SOURCE_OPTIONS.includes('광고/마케팅'))
 })
 
-test('parseFollowUpFilterQuery — today', () => {
-  assert.deepEqual(parseFollowUpFilterQuery({ followUpFilter: 'today' }), {
-    mode: 'today',
-    error: null,
-  })
-})
-
-test('parseFollowUpFilterQuery — invalid', () => {
-  assert.match(parseFollowUpFilterQuery({ followUpFilter: 'bad' }).error ?? '', /잘못된/)
-})
-
-test('buildFollowUpFilterSql — overdue uses date compare', () => {
-  const sql = buildFollowUpFilterSql('overdue', '$5', '$6')
-  assert.match(sql, /next_contact_date < CURRENT_DATE/)
-  assert.match(sql, /follow_up_status/)
-})
-
-test('buildFollowUpFilterSql — needed uses 후속필요', () => {
-  const sql = buildFollowUpFilterSql('needed', '$5', '$6')
-  assert.match(sql, /follow_up_status = '후속필요'/)
-})
-
-test('parseNextContactDateRangeQuery — valid range', () => {
-  assert.deepEqual(parseNextContactDateRangeQuery({ nextContactFrom: '2026-05-01', nextContactTo: '2026-05-31' }), {
-    from: '2026-05-01',
-    to: '2026-05-31',
-    error: null,
-  })
-})
-
-test('buildCustomerListWhereExtras — follow-up and next contact range', () => {
-  const built = buildCustomerListWhereExtras(
-    {
-      followUpFilter: 'today',
-      nextContactFrom: '2026-05-01',
-      nextContactTo: '2026-05-31',
-    },
-    { userPlaceholder: '$5', gaPlaceholder: '$6', paramStart: 7 },
-  )
-  assert.equal(built.errors.length, 0)
-  assert.ok(built.whereFragments.some((f) => f.includes('CURRENT_DATE')))
-  assert.ok(built.whereFragments.some((f) => f.includes('fu.follow_up_next_contact_date')))
-  assert.equal(built.params.length, 2)
-})
-
-test('parseCustomerListSortQuery — follow-up sorts', () => {
-  assert.equal(parseCustomerListSortQuery({ sort: 'nextContactAsc' }).mode, 'next_contact_asc')
-  assert.equal(parseCustomerListSortQuery({ sort: 'overdueFollowUpFirst' }).mode, 'overdue_follow_up_first')
-})
-
 test('normalizeContactResultForDb — 미지정 and valid', () => {
   assert.deepEqual(normalizeContactResultForDb('미지정'), { ok: true, value: null })
   assert.deepEqual(normalizeContactResultForDb('부재중'), { ok: true, value: '부재중' })
   assert.equal(normalizeContactResultForDb('없는값').ok, false)
-})
-
-test('normalizeFollowUpStatusForDb — valid', () => {
-  assert.deepEqual(normalizeFollowUpStatusForDb('후속필요'), { ok: true, value: '후속필요' })
-})
-
-test('normalizeNextContactDateForDb — YYYY-MM-DD', () => {
-  assert.deepEqual(normalizeNextContactDateForDb('2026-05-20'), { ok: true, value: '2026-05-20' })
-  assert.equal(normalizeNextContactDateForDb('bad').ok, false)
 })

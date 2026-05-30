@@ -12,7 +12,7 @@ import {
   updateCustomerConsultation,
   type CustomerConsultationRow,
 } from '../api/customerExtraApi'
-import { normalizeContactResult, normalizeFollowUpStatus } from '../config/customerConsultationFollowUp.config'
+import { normalizeContactResult } from '../config/customerConsultationFollowUp.config'
 import { localYmd, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
 import { dispatchCustomersListRefresh } from '../utils/customerListRefresh'
 import CustomerConsultationsPageMobile from './detail/CustomerConsultationsPageMobile'
@@ -22,7 +22,7 @@ import { TodoEditorDialog, type TodoCreatePrefill } from '../../todos/components
 import { firstLineTodoTitle } from '../../todos/utils/todoCopy'
 import { suggestDueDateFromText } from '../../todos/utils/suggestDueDateFromText'
 
-function emptyFollowUpToNull(value: string): string | null {
+function emptyContactResultToNull(value: string): string | null {
   const trimmed = value.trim()
   return trimmed ? trimmed : null
 }
@@ -43,16 +43,10 @@ export default function CustomerConsultationsPage() {
   const [body, setBody] = useState('')
   const [consultDate, setConsultDate] = useState(() => localYmd())
   const [contactResult, setContactResult] = useState('')
-  const [followUpStatus, setFollowUpStatus] = useState('')
-  const [nextContactDate, setNextContactDate] = useState('')
-  const [followUpNote, setFollowUpNote] = useState('')
   const [editingConsultId, setEditingConsultId] = useState<number | null>(null)
   const [editConsultDate, setEditConsultDate] = useState('')
   const [editConsultBody, setEditConsultBody] = useState('')
   const [editContactResult, setEditContactResult] = useState('')
-  const [editFollowUpStatus, setEditFollowUpStatus] = useState('')
-  const [editNextContactDate, setEditNextContactDate] = useState('')
-  const [editFollowUpNote, setEditFollowUpNote] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [notFound, setNotFound] = useState(false)
@@ -89,13 +83,6 @@ export default function CustomerConsultationsPage() {
     void loadAll()
   }, [loadAll])
 
-  const resetCreateFollowUpFields = () => {
-    setContactResult('')
-    setFollowUpStatus('')
-    setNextContactDate('')
-    setFollowUpNote('')
-  }
-
   const onSubmitConsultation = async (e: FormEvent) => {
     e.preventDefault()
     if (!token?.trim() || !validId) {
@@ -111,13 +98,10 @@ export default function CustomerConsultationsPage() {
     try {
       await createCustomerConsultation(token, resolvedCustomerId, t, {
         consultationDate: consultDate,
-        contactResult: emptyFollowUpToNull(contactResult),
-        followUpStatus: emptyFollowUpToNull(followUpStatus),
-        nextContactDate: emptyFollowUpToNull(nextContactDate),
-        followUpNote: emptyFollowUpToNull(followUpNote),
+        contactResult: emptyContactResultToNull(contactResult),
       })
       setBody('')
-      resetCreateFollowUpFields()
+      setContactResult('')
       await loadAll()
       dispatchCustomersListRefresh()
     } catch (err) {
@@ -181,9 +165,6 @@ export default function CustomerConsultationsPage() {
     setEditConsultDate(row.consultationDate ?? localYmd())
     setEditConsultBody(text)
     setEditContactResult(normalizeContactResult(row.contactResult))
-    setEditFollowUpStatus(normalizeFollowUpStatus(row.followUpStatus))
-    setEditNextContactDate(row.nextContactDate ?? '')
-    setEditFollowUpNote(row.followUpNote ?? '')
     setError('')
   }, [])
 
@@ -192,9 +173,6 @@ export default function CustomerConsultationsPage() {
     setEditConsultDate('')
     setEditConsultBody('')
     setEditContactResult('')
-    setEditFollowUpStatus('')
-    setEditNextContactDate('')
-    setEditFollowUpNote('')
   }, [])
 
   const onSaveEdit = async (consultId: number) => {
@@ -212,10 +190,7 @@ export default function CustomerConsultationsPage() {
       await updateCustomerConsultation(token, resolvedCustomerId, consultId, {
         body: t,
         consultationDate: editConsultDate,
-        contactResult: emptyFollowUpToNull(editContactResult),
-        followUpStatus: emptyFollowUpToNull(editFollowUpStatus),
-        nextContactDate: emptyFollowUpToNull(editNextContactDate),
-        followUpNote: emptyFollowUpToNull(editFollowUpNote),
+        contactResult: emptyContactResultToNull(editContactResult),
       })
       setEditingConsultId(null)
       await loadAll()
@@ -252,32 +227,20 @@ export default function CustomerConsultationsPage() {
     body,
     consultDate,
     contactResult,
-    followUpStatus,
-    nextContactDate,
-    followUpNote,
     busy,
     rows,
     editingConsultId,
     editConsultDate,
     editConsultBody,
     editContactResult,
-    editFollowUpStatus,
-    editNextContactDate,
-    editFollowUpNote,
     onSetBody: setBody,
     onSetConsultDate: setConsultDate,
     onSetContactResult: setContactResult,
-    onSetFollowUpStatus: setFollowUpStatus,
-    onSetNextContactDate: setNextContactDate,
-    onSetFollowUpNote: setFollowUpNote,
     onStartEdit,
     onCancelEdit,
     onSetEditConsultDate: setEditConsultDate,
     onSetEditConsultBody: setEditConsultBody,
     onSetEditContactResult: setEditContactResult,
-    onSetEditFollowUpStatus: setEditFollowUpStatus,
-    onSetEditNextContactDate: setEditNextContactDate,
-    onSetEditFollowUpNote: setEditFollowUpNote,
     onSaveEdit,
     onSubmit: onSubmitConsultation,
     onDelete: onDeleteConsultation,
