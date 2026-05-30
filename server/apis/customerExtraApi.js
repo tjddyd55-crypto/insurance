@@ -28,9 +28,24 @@ import {
   toSinglePathFilename,
 } from '../lib/inlinePreviewTokens.js'
 
+import {
+  normalizeContactResultForDb,
+  normalizeFollowUpNoteForDb,
+  normalizeFollowUpStatusForDb,
+  normalizeNextContactDateForDb,
+} from '../lib/customerConsultationFollowUp.js'
+
 const CONSULTATION_BODY_MAX = 20000
 
 function mapConsultationApiRow(row, fallbackDate) {
+  const nextContactRaw = row.next_contact_date
+  let nextContactDate = null
+  if (nextContactRaw instanceof Date) {
+    nextContactDate = nextContactRaw.toISOString().slice(0, 10)
+  } else if (nextContactRaw) {
+    const ymd = String(nextContactRaw).slice(0, 10)
+    nextContactDate = /^\d{4}-\d{2}-\d{2}$/.test(ymd) ? ymd : null
+  }
   return {
     id: Number(row.id),
     customerId: Number(row.customer_id),
@@ -40,7 +55,12 @@ function mapConsultationApiRow(row, fallbackDate) {
     consultationDate: row.consultation_date
       ? String(row.consultation_date).slice(0, 10)
       : fallbackDate ?? null,
+    contactResult: row.contact_result ? String(row.contact_result) : null,
+    followUpStatus: row.follow_up_status ? String(row.follow_up_status) : null,
+    nextContactDate,
+    followUpNote: row.follow_up_note ? String(row.follow_up_note) : null,
     createdAt: row.created_at ? new Date(row.created_at).toISOString() : '',
+    updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : undefined,
   }
 }
 
@@ -72,7 +92,67 @@ function parseConsultationWriteBody(reqBody, { requireContent = true, defaultDat
     return { ok: false, status: 400, message: '상담 일자는 YYYY-MM-DD 형식이어야 합니다.' }
   }
 
-  return { ok: true, content, consultDate, hasBodyField, hasDateField: consultDateRaw != null && String(consultDateRaw).trim() !== '' }
+  const contactResultRaw = reqBody?.contactResult ?? reqBody?.contact_result
+  const followUpStatusRaw = reqBody?.followUpStatus ?? reqBody?.follow_up_status
+  const nextContactDateRaw = reqBody?.nextContactDate ?? reqBody?.next_contact_date
+  const followUpNoteRaw = reqBody?.followUpNote ?? reqBody?.follow_up_note
+
+  const hasContactResultField = contactResultRaw !== undefined
+  const hasFollowUpStatusField = followUpStatusRaw !== undefined
+  const hasNextContactDateField = nextContactDateRaw !== undefined
+  const hasFollowUpNoteField = followUpNoteRaw !== undefined
+
+  let contactResult = null
+  if (hasContactResultField) {
+    const n = normalizeContactResultForDb(contactResultRaw)
+    if (!n.ok) {
+      return { ok: false, status: 400, message: n.message }
+    }
+    contactResult = n.value
+  }
+
+  let followUpStatus = null
+  if (hasFollowUpStatusField) {
+    const n = normalizeFollowUpStatusForDb(followUpStatusRaw)
+    if (!n.ok) {
+      return { ok: false, status: 400, message: n.message }
+    }
+    followUpStatus = n.value
+  }
+
+  let nextContactDate = null
+  if (hasNextContactDateField) {
+    const n = normalizeNextContactDateForDb(nextContactDateRaw)
+    if (!n.ok) {
+      return { ok: false, status: 400, message: n.message }
+    }
+    nextContactDate = n.value
+  }
+
+  let followUpNote = null
+  if (hasFollowUpNoteField) {
+    const n = normalizeFollowUpNoteForDb(followUpNoteRaw)
+    if (!n.ok) {
+      return { ok: false, status: 400, message: n.message }
+    }
+    followUpNote = n.value
+  }
+
+  return {
+    ok: true,
+    content,
+    consultDate,
+    hasBodyField,
+    hasDateField: consultDateRaw != null && String(consultDateRaw).trim() !== '',
+    contactResult,
+    followUpStatus,
+    nextContactDate,
+    followUpNote,
+    hasContactResultField,
+    hasFollowUpStatusField,
+    hasNextContactDateField,
+    hasFollowUpNoteField,
+  }
 }
 
 const CUSTOMER_FILE_ALLOWED_MIME = new Set([
@@ -839,11 +919,25 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const ins = await safeQuery(
         pool,
         `
-        INSERT INTO customer_consultations (customer_id, user_id, ga_id, body, consultation_date)
-        VALUES ($1, $2, $3, $4, $5::DATE)
-        RETURNING id, customer_id, user_id, ga_id, body, consultation_date, created_at
+        INSERT INTO customer_consultations (
+          customer_id, user_id, ga_id, body, consultation_date,
+          contact_result, follow_up_status, next_contact_date, follow_up_note
+        )
+        VALUES ($1, $2, $3, $4, $5::DATE, $6, $7, $8::DATE, $9)
+        RETURNING id, customer_id, user_id, ga_id, body, consultation_date,
+          contact_result, follow_up_status, next_contact_date, follow_up_note, created_at, updated_at
         `,
-        [customerId, userId, gaId, parsed.content, parsed.consultDate],
+        [
+          customerId,
+          userId,
+          gaId,
+          parsed.content,
+          parsed.consultDate,
+          parsed.contactResult,
+          parsed.followUpStatus,
+          parsed.nextContactDate,
+          parsed.followUpNote,
+        ],
       )
       const row = ins.rows[0]
       recordAnalyticsEvent(pool, { userId, gaId, eventType: 'team_message_created' })
@@ -879,7 +973,8 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
       const r = await safeQuery(
         pool,
         `
-        SELECT id, customer_id, user_id, ga_id, body, consultation_date, created_at
+        SELECT id, customer_id, user_id, ga_id, body, consultation_date,
+          contact_result, follow_up_status, next_contact_date, follow_up_note, created_at, updated_at
         FROM customer_consultations
         WHERE customer_id = $1 AND user_id = $2 AND ga_id = $3
         ORDER BY consultation_date DESC NULLS LAST, created_at DESC, id DESC
@@ -923,15 +1018,22 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(parsed.status).json({ message: parsed.message })
         return
       }
-      if (!parsed.hasBodyField && !parsed.hasDateField) {
-        res.status(400).json({ message: '수정할 상담 날짜 또는 내용을 입력해 주세요.' })
+      if (
+        !parsed.hasBodyField &&
+        !parsed.hasDateField &&
+        !parsed.hasContactResultField &&
+        !parsed.hasFollowUpStatusField &&
+        !parsed.hasNextContactDateField &&
+        !parsed.hasFollowUpNoteField
+      ) {
+        res.status(400).json({ message: '수정할 상담 필드를 입력해 주세요.' })
         return
       }
 
       const existing = await safeQuery(
         pool,
         `
-        SELECT id, body, consultation_date
+        SELECT id, body, consultation_date, contact_result, follow_up_status, next_contact_date, follow_up_note
         FROM customer_consultations
         WHERE id = $1 AND customer_id = $2 AND user_id = $3 AND ga_id = $4
         LIMIT 1
@@ -958,15 +1060,54 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         return
       }
 
+      const nextContactResult = parsed.hasContactResultField
+        ? parsed.contactResult
+        : prev.contact_result
+          ? String(prev.contact_result)
+          : null
+      const nextFollowUpStatus = parsed.hasFollowUpStatusField
+        ? parsed.followUpStatus
+        : prev.follow_up_status
+          ? String(prev.follow_up_status)
+          : null
+      const nextContactDateValue = parsed.hasNextContactDateField
+        ? parsed.nextContactDate
+        : prev.next_contact_date
+          ? String(prev.next_contact_date).slice(0, 10)
+          : null
+      const nextFollowUpNote = parsed.hasFollowUpNoteField
+        ? parsed.followUpNote
+        : prev.follow_up_note
+          ? String(prev.follow_up_note)
+          : null
+
       const upd = await safeQuery(
         pool,
         `
         UPDATE customer_consultations
-        SET body = $5, consultation_date = $6::DATE, updated_at = NOW()
+        SET body = $5,
+            consultation_date = $6::DATE,
+            contact_result = $7,
+            follow_up_status = $8,
+            next_contact_date = $9::DATE,
+            follow_up_note = $10,
+            updated_at = NOW()
         WHERE id = $1 AND customer_id = $2 AND user_id = $3 AND ga_id = $4
-        RETURNING id, customer_id, user_id, ga_id, body, consultation_date, created_at, updated_at
+        RETURNING id, customer_id, user_id, ga_id, body, consultation_date,
+          contact_result, follow_up_status, next_contact_date, follow_up_note, created_at, updated_at
         `,
-        [consultId, customerId, userId, gaId, nextBody, nextDate],
+        [
+          consultId,
+          customerId,
+          userId,
+          gaId,
+          nextBody,
+          nextDate,
+          nextContactResult,
+          nextFollowUpStatus,
+          nextContactDateValue,
+          nextFollowUpNote,
+        ],
       )
       res.json(mapConsultationApiRow(upd.rows[0], nextDate))
     } catch (error) {

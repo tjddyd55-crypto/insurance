@@ -49,6 +49,7 @@ import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmB
 import { mapCustomerRow } from './lib/customerRowMap.js'
 import {
   buildCustomerConsultationSummaryJoin,
+  buildCustomerFollowUpSummaryJoin,
   buildCustomerListWhereExtras,
 } from './lib/customerConsultationListQuery.js'
 import { normalizeInflowSourceForDb } from './lib/customerInflowSource.js'
@@ -6735,7 +6736,7 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
     const limitPlace = `$${plc + 3 + filterParams.length}`
     const listParams = [...vis.params, userId, gaId, ...filterParams, limit]
     const countParams = [...vis.params, userId, gaId, ...filterParams]
-    const summaryJoin = buildCustomerConsultationSummaryJoin(lcUserPlace, lcGaPlace)
+    const summaryJoin = `${buildCustomerConsultationSummaryJoin(lcUserPlace, lcGaPlace)}${buildCustomerFollowUpSummaryJoin(lcUserPlace, lcGaPlace)}`
     const orderBy = filterBuilt.orderBy
 
     const [result, countResult] = await Promise.all([
@@ -6751,7 +6752,11 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
           c.inflow_source,
           lc.last_consult_date,
           lc.consultation_count,
-          lcm.last_consultation_body
+          lcm.last_consultation_body,
+          fu.follow_up_next_contact_date,
+          fu.follow_up_status,
+          fu.follow_up_contact_result,
+          fu.follow_up_note
         FROM customers c
         ${summaryJoin}
         WHERE (${vis.clause}) AND c.deleted_at IS NULL${filterClause}
@@ -6815,7 +6820,7 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
     const plc = vis.params.length
     const cidPlace = `$${plc + 1}`
     const detailParams = [...vis.params, customerId, userId, gaId]
-    const summaryJoin = buildCustomerConsultationSummaryJoin(`$${plc + 2}`, `$${plc + 3}`)
+    const summaryJoin = `${buildCustomerConsultationSummaryJoin(`$${plc + 2}`, `$${plc + 3}`)}${buildCustomerFollowUpSummaryJoin(`$${plc + 2}`, `$${plc + 3}`)}`
 
     const result = await safeQuery(
       pool,
@@ -6829,7 +6834,11 @@ apiRouter.get('/customers/:id', requireAuth, async (req, res) => {
         c.inflow_source,
         lc.last_consult_date,
         lc.consultation_count,
-        lcm.last_consultation_body
+        lcm.last_consultation_body,
+        fu.follow_up_next_contact_date,
+        fu.follow_up_status,
+        fu.follow_up_contact_result,
+        fu.follow_up_note
       FROM customers c
       ${summaryJoin}
       WHERE c.id = ${cidPlace} AND (${vis.clause}) AND c.deleted_at IS NULL

@@ -1,5 +1,7 @@
 /** 고객 유입 경로 — UI/API 공통 옵션 */
 
+import { CUSTOMER_FOLLOW_UP_SORT_OPTIONS } from './customerConsultationFollowUp.config'
+
 export const CUSTOMER_INFLOW_SOURCE_VALUES = [
   'DB수급',
   '소개',
@@ -34,6 +36,9 @@ export type CustomerListSortValue =
   | 'lastConsultDesc'
   | 'lastConsultAsc'
   | 'noConsultFirst'
+  | 'nextContactAsc'
+  | 'nextContactDesc'
+  | 'overdueFollowUpFirst'
 
 export const CUSTOMER_LIST_SORT_OPTIONS: Array<{ value: CustomerListSortValue; label: string }> = [
   { value: '', label: '기본(마지막 상담일)' },
@@ -42,4 +47,5 @@ export const CUSTOMER_LIST_SORT_OPTIONS: Array<{ value: CustomerListSortValue; l
   { value: 'lastConsultDesc', label: '마지막 상담일 최신순' },
   { value: 'lastConsultAsc', label: '마지막 상담일 오래된순' },
   { value: 'noConsultFirst', label: '상담 없음 우선' },
+  ...CUSTOMER_FOLLOW_UP_SORT_OPTIONS,
 ]

@@ -12,6 +12,7 @@ import {
   updateCustomerConsultation,
   type CustomerConsultationRow,
 } from '../api/customerExtraApi'
+import { normalizeContactResult, normalizeFollowUpStatus } from '../config/customerConsultationFollowUp.config'
 import { localYmd, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
 import { dispatchCustomersListRefresh } from '../utils/customerListRefresh'
 import CustomerConsultationsPageMobile from './detail/CustomerConsultationsPageMobile'
@@ -20,6 +21,11 @@ import type { CustomerConsultationsViewProps } from './detail/customerConsultati
 import { TodoEditorDialog, type TodoCreatePrefill } from '../../todos/components/TodoEditorDialog'
 import { firstLineTodoTitle } from '../../todos/utils/todoCopy'
 import { suggestDueDateFromText } from '../../todos/utils/suggestDueDateFromText'
+
+function emptyFollowUpToNull(value: string): string | null {
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
 
 export default function CustomerConsultationsPage() {
   const { customerId } = useParams()
@@ -36,9 +42,17 @@ export default function CustomerConsultationsPage() {
   const [rows, setRows] = useState<CustomerConsultationRow[]>([])
   const [body, setBody] = useState('')
   const [consultDate, setConsultDate] = useState(() => localYmd())
+  const [contactResult, setContactResult] = useState('')
+  const [followUpStatus, setFollowUpStatus] = useState('')
+  const [nextContactDate, setNextContactDate] = useState('')
+  const [followUpNote, setFollowUpNote] = useState('')
   const [editingConsultId, setEditingConsultId] = useState<number | null>(null)
   const [editConsultDate, setEditConsultDate] = useState('')
   const [editConsultBody, setEditConsultBody] = useState('')
+  const [editContactResult, setEditContactResult] = useState('')
+  const [editFollowUpStatus, setEditFollowUpStatus] = useState('')
+  const [editNextContactDate, setEditNextContactDate] = useState('')
+  const [editFollowUpNote, setEditFollowUpNote] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [notFound, setNotFound] = useState(false)
@@ -75,6 +89,13 @@ export default function CustomerConsultationsPage() {
     void loadAll()
   }, [loadAll])
 
+  const resetCreateFollowUpFields = () => {
+    setContactResult('')
+    setFollowUpStatus('')
+    setNextContactDate('')
+    setFollowUpNote('')
+  }
+
   const onSubmitConsultation = async (e: FormEvent) => {
     e.preventDefault()
     if (!token?.trim() || !validId) {
@@ -88,8 +109,15 @@ export default function CustomerConsultationsPage() {
     setBusy(true)
     setError('')
     try {
-      await createCustomerConsultation(token, resolvedCustomerId, t, { consultationDate: consultDate })
+      await createCustomerConsultation(token, resolvedCustomerId, t, {
+        consultationDate: consultDate,
+        contactResult: emptyFollowUpToNull(contactResult),
+        followUpStatus: emptyFollowUpToNull(followUpStatus),
+        nextContactDate: emptyFollowUpToNull(nextContactDate),
+        followUpNote: emptyFollowUpToNull(followUpNote),
+      })
       setBody('')
+      resetCreateFollowUpFields()
       await loadAll()
       dispatchCustomersListRefresh()
     } catch (err) {
@@ -152,6 +180,10 @@ export default function CustomerConsultationsPage() {
     setEditingConsultId(row.id)
     setEditConsultDate(row.consultationDate ?? localYmd())
     setEditConsultBody(text)
+    setEditContactResult(normalizeContactResult(row.contactResult))
+    setEditFollowUpStatus(normalizeFollowUpStatus(row.followUpStatus))
+    setEditNextContactDate(row.nextContactDate ?? '')
+    setEditFollowUpNote(row.followUpNote ?? '')
     setError('')
   }, [])
 
@@ -159,6 +191,10 @@ export default function CustomerConsultationsPage() {
     setEditingConsultId(null)
     setEditConsultDate('')
     setEditConsultBody('')
+    setEditContactResult('')
+    setEditFollowUpStatus('')
+    setEditNextContactDate('')
+    setEditFollowUpNote('')
   }, [])
 
   const onSaveEdit = async (consultId: number) => {
@@ -176,6 +212,10 @@ export default function CustomerConsultationsPage() {
       await updateCustomerConsultation(token, resolvedCustomerId, consultId, {
         body: t,
         consultationDate: editConsultDate,
+        contactResult: emptyFollowUpToNull(editContactResult),
+        followUpStatus: emptyFollowUpToNull(editFollowUpStatus),
+        nextContactDate: emptyFollowUpToNull(editNextContactDate),
+        followUpNote: emptyFollowUpToNull(editFollowUpNote),
       })
       setEditingConsultId(null)
       await loadAll()
@@ -207,29 +247,37 @@ export default function CustomerConsultationsPage() {
     )
   }
 
-  /*
-   * View 분기는 `ResponsiveLayout<ViewProps>` 에 위임한다 (AGENTS §8-2 원칙 1).
-   * 두 View 는 공통 `CustomerConsultationsViewProps` 시그니처를 공유하므로
-   * container 는 `useIsMobile` 을 직접 호출하지 않는다.
-   *
-   * `confirmDialog` 는 `useConfirmDialog` 훅이 제공하는 포털 기반 다이얼로그이므로
-   * View 와 같은 서브트리에 형제로 렌더해야 confirm 호출 시 정상 동작한다.
-   */
   const viewProps: CustomerConsultationsViewProps = {
     error,
     body,
     consultDate,
+    contactResult,
+    followUpStatus,
+    nextContactDate,
+    followUpNote,
     busy,
     rows,
     editingConsultId,
     editConsultDate,
     editConsultBody,
+    editContactResult,
+    editFollowUpStatus,
+    editNextContactDate,
+    editFollowUpNote,
     onSetBody: setBody,
     onSetConsultDate: setConsultDate,
+    onSetContactResult: setContactResult,
+    onSetFollowUpStatus: setFollowUpStatus,
+    onSetNextContactDate: setNextContactDate,
+    onSetFollowUpNote: setFollowUpNote,
     onStartEdit,
     onCancelEdit,
     onSetEditConsultDate: setEditConsultDate,
     onSetEditConsultBody: setEditConsultBody,
+    onSetEditContactResult: setEditContactResult,
+    onSetEditFollowUpStatus: setEditFollowUpStatus,
+    onSetEditNextContactDate: setEditNextContactDate,
+    onSetEditFollowUpNote: setEditFollowUpNote,
     onSaveEdit,
     onSubmit: onSubmitConsultation,
     onDelete: onDeleteConsultation,
@@ -253,9 +301,7 @@ export default function CustomerConsultationsPage() {
         gaId={gaIdNumeric}
         sessionKey={todoDialogSession}
         prefill={todoPrefill}
-        onCommitted={() => {
-          /* 목록 새로고침은 할 일 페이지에서 처리; 상담 화면은 그대로 */
-        }}
+        onCommitted={() => {}}
       />
       {confirmDialog}
     </>

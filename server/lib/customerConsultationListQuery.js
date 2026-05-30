@@ -2,6 +2,11 @@
  * 고객 목록 API — 상담 요약 JOIN·필터 (단일 진실 원천).
  */
 import { parseInflowSourceFilterQuery } from './customerInflowSource.js'
+import {
+  parseFollowUpFilterQuery,
+  parseNextContactDateRangeQuery,
+  sqlFollowUpNotClosed,
+} from './customerConsultationFollowUp.js'
 
 /** @typedef {'none' | 'has' | 'no_since' | null} ConsultationFilterMode */
 
@@ -126,6 +131,15 @@ export function parseCustomerListSortQuery(query) {
     noconsultfirst: 'no_consult_first',
     no_consult_first: 'no_consult_first',
     noConsultFirst: 'no_consult_first',
+    nextcontactasc: 'next_contact_asc',
+    next_contact_asc: 'next_contact_asc',
+    nextContactAsc: 'next_contact_asc',
+    nextcontactdesc: 'next_contact_desc',
+    next_contact_desc: 'next_contact_desc',
+    nextContactDesc: 'next_contact_desc',
+    overduefollowupfirst: 'overdue_follow_up_first',
+    overdue_follow_up_first: 'overdue_follow_up_first',
+    overdueFollowUpFirst: 'overdue_follow_up_first',
   }
   const key = raw in map ? raw : raw.toLowerCase()
   const mode = map[key]
@@ -150,6 +164,18 @@ export function buildCustomerListOrderBy(sortMode) {
       return 'lc.last_consult_date ASC NULLS FIRST, c.created_at DESC, c.id DESC'
     case 'no_consult_first':
       return `(CASE WHEN lc.consultation_count IS NULL OR lc.consultation_count = 0 THEN 0 ELSE 1 END) ASC, lc.last_consult_date ASC NULLS FIRST, c.created_at DESC, c.id DESC`
+    case 'next_contact_asc':
+      return 'fu.follow_up_next_contact_date ASC NULLS LAST, c.created_at DESC, c.id DESC'
+    case 'next_contact_desc':
+      return 'fu.follow_up_next_contact_date DESC NULLS LAST, c.created_at DESC, c.id DESC'
+    case 'overdue_follow_up_first':
+      return `(CASE
+        WHEN fu.follow_up_next_contact_date IS NOT NULL
+          AND fu.follow_up_next_contact_date < CURRENT_DATE
+          AND ${sqlFollowUpNotClosed('fu')}
+        THEN 0 ELSE 1 END) ASC,
+        fu.follow_up_next_contact_date ASC NULLS LAST,
+        c.created_at DESC, c.id DESC`
     default:
       return 'lc.last_consult_date DESC NULLS LAST, c.renewal_date ASC NULLS LAST, c.created_at DESC, c.id DESC'
   }
@@ -180,6 +206,101 @@ export function buildCustomerConsultationSummaryJoin(userPlaceholder, gaPlacehol
           ORDER BY cc2.consultation_date DESC NULLS LAST, cc2.created_at DESC, cc2.id DESC
           LIMIT 1
         ) lcm ON true`
+}
+
+/**
+ * 고객별 활성 후속관리(가장 빠른 next_contact_date) 요약.
+ * @param {string} userPlaceholder
+ * @param {string} gaPlaceholder
+ */
+export function buildCustomerFollowUpSummaryJoin(userPlaceholder, gaPlaceholder) {
+  const notClosed = sqlFollowUpNotClosed('ff')
+  return `
+        LEFT JOIN LATERAL (
+          SELECT
+            ff.next_contact_date AS follow_up_next_contact_date,
+            ff.follow_up_status AS follow_up_status,
+            ff.contact_result AS follow_up_contact_result,
+            ff.follow_up_note AS follow_up_note
+          FROM customer_consultations ff
+          WHERE ff.customer_id = c.id
+            AND ff.user_id = ${userPlaceholder}::text
+            AND ff.ga_id = ${gaPlaceholder}::integer
+            AND ff.next_contact_date IS NOT NULL
+            AND ${notClosed}
+          ORDER BY ff.next_contact_date ASC, ff.id ASC
+          LIMIT 1
+        ) fu ON true`
+}
+
+/**
+ * @param {string} userPlaceholder
+ * @param {string} gaPlaceholder
+ * @param {string} alias
+ */
+function buildFollowUpExistsPrefix(userPlaceholder, gaPlaceholder, alias) {
+  return `EXISTS (
+      SELECT 1 FROM customer_consultations ${alias}
+      WHERE ${alias}.customer_id = c.id
+        AND ${alias}.user_id = ${userPlaceholder}::text
+        AND ${alias}.ga_id = ${gaPlaceholder}::integer`
+}
+
+/**
+ * @param {'today' | 'overdue' | 'scheduled' | 'needed' | 'open' | 'none'} mode
+ * @param {string} userPlaceholder
+ * @param {string} gaPlaceholder
+ * @returns {string}
+ */
+export function buildFollowUpFilterSql(mode, userPlaceholder, gaPlaceholder) {
+  const alias = 'cfu'
+  const notClosed = sqlFollowUpNotClosed(alias)
+  const prefix = buildFollowUpExistsPrefix(userPlaceholder, gaPlaceholder, alias)
+
+  if (mode === 'today') {
+    return `${prefix}
+        AND ${alias}.next_contact_date = CURRENT_DATE
+        AND ${notClosed}
+    )`
+  }
+  if (mode === 'overdue') {
+    return `${prefix}
+        AND ${alias}.next_contact_date IS NOT NULL
+        AND ${alias}.next_contact_date < CURRENT_DATE
+        AND ${notClosed}
+    )`
+  }
+  if (mode === 'scheduled') {
+    return `${prefix}
+        AND ${alias}.next_contact_date IS NOT NULL
+        AND ${notClosed}
+    )`
+  }
+  if (mode === 'needed') {
+    return `${prefix}
+        AND ${alias}.follow_up_status = '후속필요'
+        AND ${notClosed}
+    )`
+  }
+  if (mode === 'open') {
+    return `${prefix}
+        AND ${notClosed}
+        AND (
+          ${alias}.next_contact_date IS NOT NULL
+          OR ${alias}.follow_up_status = '후속필요'
+        )
+    )`
+  }
+  if (mode === 'none') {
+    return `NOT ${prefix}
+        AND ${notClosed}
+        AND (
+          ${alias}.next_contact_date IS NOT NULL
+          OR ${alias}.follow_up_status = '후속필요'
+        )
+    )`
+  }
+  return ''
 }
 
 /**
@@ -282,6 +403,27 @@ export function buildCustomerListWhereExtras(query, ctx) {
     }
     parts.push(')')
     whereFragments.push(parts.join('\n'))
+  }
+
+  const followUp = parseFollowUpFilterQuery(query)
+  if (followUp.error) {
+    errors.push(followUp.error)
+  }
+  if (followUp.mode) {
+    whereFragments.push(buildFollowUpFilterSql(followUp.mode, ctx.userPlaceholder, ctx.gaPlaceholder))
+  }
+
+  const nextContactRange = parseNextContactDateRangeQuery(query)
+  if (nextContactRange.error) {
+    errors.push(nextContactRange.error)
+  }
+  if (nextContactRange.from) {
+    whereFragments.push(`fu.follow_up_next_contact_date >= $${nextIdx++}::date`)
+    params.push(nextContactRange.from)
+  }
+  if (nextContactRange.to) {
+    whereFragments.push(`fu.follow_up_next_contact_date <= $${nextIdx++}::date`)
+    params.push(nextContactRange.to)
   }
 
   const sort = parseCustomerListSortQuery(query)

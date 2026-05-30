@@ -3,6 +3,7 @@
  */
 import { parseCrmExtensionFromDb } from './customerCrmExtension.js'
 import { summarizeConsultationBody } from './customerConsultationListQuery.js'
+import { isClosedFollowUpStatus } from './customerConsultationFollowUp.js'
 import { inflowSourceFromDbRow } from './customerInflowSource.js'
 
 export function normalizeExpiryDate(value) {
@@ -135,6 +136,38 @@ export function mapCustomerRow(row) {
 
   const inflowSource = inflowSourceFromDbRow(row)
 
+  const followUpNextRaw =
+    row.follow_up_next_contact_date ?? row.followUpNextContactDate ?? row.next_contact_date ?? null
+  let nextContactDate = null
+  if (followUpNextRaw instanceof Date) {
+    nextContactDate = followUpNextRaw.toISOString().slice(0, 10)
+  } else if (followUpNextRaw) {
+    const ymd = String(followUpNextRaw).slice(0, 10)
+    nextContactDate = /^\d{4}-\d{2}-\d{2}$/.test(ymd) ? ymd : null
+  }
+
+  const followUpStatusRaw = row.follow_up_status ?? row.followUpStatus ?? null
+  const followUpStatus =
+    followUpStatusRaw == null || String(followUpStatusRaw).trim() === ''
+      ? null
+      : String(followUpStatusRaw).trim()
+
+  const contactResultRaw = row.follow_up_contact_result ?? row.followUpContactResult ?? row.contact_result ?? null
+  const contactResult =
+    contactResultRaw == null || String(contactResultRaw).trim() === ''
+      ? null
+      : String(contactResultRaw).trim()
+
+  const followUpNotePreview = summarizeConsultationBody(
+    row.follow_up_note ?? row.followUpNote ?? row.follow_up_note_preview,
+    80,
+  )
+
+  const todayYmd = new Date().toISOString().slice(0, 10)
+  const followUpOpen = nextContactDate != null && !isClosedFollowUpStatus(followUpStatus)
+  const overdueFollowUp = followUpOpen && nextContactDate < todayYmd
+  const todayFollowUp = followUpOpen && nextContactDate === todayYmd
+
   return {
     id: Number(row.id),
     userId: String(row.user_id),
@@ -167,6 +200,12 @@ export function mapCustomerRow(row) {
     consultationCount,
     hasConsultation: consultationCount > 0,
     inflowSource,
+    nextContactDate,
+    followUpStatus,
+    contactResult,
+    followUpNotePreview,
+    overdueFollowUp,
+    todayFollowUp,
     isFavorite: row.is_favorite === true,
     crmExtension: crmParsed,
     createdAt: toIsoString(row.created_at),
