@@ -3,7 +3,7 @@ import { FormButton } from '../../../components/form'
 type CustomerWorkspaceCloseButtonProps = {
   onClick: () => void
   disabled?: boolean
-  /** outlet 모달 헤더 등 레거시 hook class (예: workspace-mobile-outlet-modal__close) */
+  /** 추가 hook class — workspace-mobile-outlet-modal__close 는 전역 CSS와 충돌하므로 사용하지 않는다 */
   className?: string
 }
 

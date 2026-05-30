@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import Modal from '../../../../components/ui/Modal'
+import CustomerWorkspaceCloseButton from '../../../customers/components/CustomerWorkspaceCloseButton'
 import type {
   ClaimRequestDetail,
   ClaimRequestListItem,
@@ -158,12 +159,10 @@ export default function ClaimRequestsClaimsMobileView({
           ariaLabel="청구 상세"
           panelClassName="claim-requests-page__detail-modal-panel"
         >
-          <div className="modal-header claim-requests-page__modal-header">
+          <div className="modal-header claim-requests-page__modal-header mobile-modal-header">
             <div />
             <h2 className="modal-title claim-requests-page__modal-title">청구 상세</h2>
-            <button type="button" className="close-btn claim-requests-page__modal-close" onClick={onCloseMobileDetail}>
-              닫기
-            </button>
+            <CustomerWorkspaceCloseButton onClick={onCloseMobileDetail} />
           </div>
           <div className="modal-body claim-requests-page__detail-modal-body">
             <ClaimRequestDetailBody
