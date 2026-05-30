@@ -52,6 +52,7 @@ import { CustomerRelationsStrip } from '../components/CustomerRelationsStrip'
 import CustomerMobileModals from '../components/CustomerMobileModals'
 import CustomerPageHeaderActions from '../components/CustomerPageHeaderActions'
 import { CustomerFilterControls, type CustomerConsultationFilter } from '../components/CustomerFilterControls'
+import type { FollowUpFilterValue } from '../config/customerConsultationFollowUp.config'
 import type { CustomerListSortValue } from '../config/customerInflowSource.config'
 import CustomerExcelSelectToolbar from '../components/CustomerExcelSelectToolbar'
 import CustomerListCard, { type CustomerSsnDupHighlight } from '../components/CustomerListCard'
@@ -236,6 +237,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const [consultationFromDraft, setConsultationFromDraft] = useState('')
   const [consultationToDraft, setConsultationToDraft] = useState('')
   const [inflowSourceDraft, setInflowSourceDraft] = useState('')
+  const [followUpFilterDraft, setFollowUpFilterDraft] = useState<FollowUpFilterValue>('')
+  const [nextContactFromDraft, setNextContactFromDraft] = useState('')
+  const [nextContactToDraft, setNextContactToDraft] = useState('')
   const [listSortDraft, setListSortDraft] = useState<CustomerListSortValue>('')
   const [appliedConsultationFilter, setAppliedConsultationFilter] = useState<CustomerConsultationFilter>('')
   const [appliedConsultationCutoff, setAppliedConsultationCutoff] = useState('')
@@ -243,6 +247,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const [appliedConsultationFrom, setAppliedConsultationFrom] = useState('')
   const [appliedConsultationTo, setAppliedConsultationTo] = useState('')
   const [appliedInflowSource, setAppliedInflowSource] = useState('')
+  const [appliedFollowUpFilter, setAppliedFollowUpFilter] = useState<FollowUpFilterValue>('')
+  const [appliedNextContactFrom, setAppliedNextContactFrom] = useState('')
+  const [appliedNextContactTo, setAppliedNextContactTo] = useState('')
   const [appliedListSort, setAppliedListSort] = useState<CustomerListSortValue>('')
   const [consultationFilterMessage, setConsultationFilterMessage] = useState('')
   const [showScrollToTop, setShowScrollToTop] = useState(false)
@@ -335,6 +342,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       appliedConsultationFrom.trim() !== '' ||
       appliedConsultationTo.trim() !== '' ||
       appliedInflowSource.trim() !== '' ||
+      appliedFollowUpFilter !== '' ||
+      appliedNextContactFrom.trim() !== '' ||
+      appliedNextContactTo.trim() !== '' ||
       appliedListSort !== '',
     [
       keyword,
@@ -346,6 +356,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       appliedConsultationFrom,
       appliedConsultationTo,
       appliedInflowSource,
+      appliedFollowUpFilter,
+      appliedNextContactFrom,
+      appliedNextContactTo,
       appliedListSort,
     ],
   )
@@ -364,6 +377,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     setAppliedConsultationFrom(consultationFromDraft.trim())
     setAppliedConsultationTo(consultationToDraft.trim())
     setAppliedInflowSource(inflowSourceDraft.trim())
+    setAppliedFollowUpFilter(followUpFilterDraft)
+    setAppliedNextContactFrom(nextContactFromDraft.trim())
+    setAppliedNextContactTo(nextContactToDraft.trim())
     setAppliedListSort(listSortDraft)
   }, [
     consultationCutoffDraft,
@@ -371,8 +387,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     consultationFromDraft,
     consultationKeywordDraft,
     consultationToDraft,
+    followUpFilterDraft,
     inflowSourceDraft,
     listSortDraft,
+    nextContactFromDraft,
+    nextContactToDraft,
   ])
 
   const sortedCustomers = useMemo(() => {
@@ -491,6 +510,15 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       if (appliedInflowSource.trim()) {
         listOpts.inflowSource = appliedInflowSource.trim()
       }
+      if (appliedFollowUpFilter) {
+        listOpts.followUpFilter = appliedFollowUpFilter
+      }
+      if (appliedNextContactFrom.trim()) {
+        listOpts.nextContactFrom = appliedNextContactFrom.trim()
+      }
+      if (appliedNextContactTo.trim()) {
+        listOpts.nextContactTo = appliedNextContactTo.trim()
+      }
       if (appliedListSort) {
         listOpts.sort = appliedListSort
       }
@@ -512,6 +540,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     appliedConsultationFrom,
     appliedConsultationTo,
     appliedInflowSource,
+    appliedFollowUpFilter,
+    appliedNextContactFrom,
+    appliedNextContactTo,
     appliedListSort,
   ])
 
@@ -1366,6 +1397,12 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           setConsultationTo={setConsultationToDraft}
           inflowSource={inflowSourceDraft}
           setInflowSource={setInflowSourceDraft}
+          followUpFilter={followUpFilterDraft}
+          setFollowUpFilter={setFollowUpFilterDraft}
+          nextContactFrom={nextContactFromDraft}
+          setNextContactFrom={setNextContactFromDraft}
+          nextContactTo={nextContactToDraft}
+          setNextContactTo={setNextContactToDraft}
           listSort={listSortDraft}
           setListSort={setListSortDraft}
           onApplyConsultationFilter={applyConsultationFilter}

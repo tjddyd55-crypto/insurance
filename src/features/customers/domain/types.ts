@@ -86,6 +86,13 @@ export interface CustomerRecord {
   hasConsultation?: boolean
   /** 유입 경로 (미지정·null 허용) */
   inflowSource?: string | null
+  /** 다음 연락 예정일 (활성 후속관리 기준) */
+  nextContactDate?: string | null
+  followUpStatus?: string | null
+  contactResult?: string | null
+  followUpNotePreview?: string | null
+  overdueFollowUp?: boolean
+  todayFollowUp?: boolean
   /** 중요 고객(즐겨찾기) — 목록 상단 정렬·필터에 사용 */
   isFavorite: boolean
   /** 업종별 확장 필드 (government / gym 등) — canonical fieldKey SSOT */

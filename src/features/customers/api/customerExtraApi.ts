@@ -17,7 +17,21 @@ export type CustomerConsultationRow = {
   gaId: number
   body: string
   consultationDate?: string | null
+  contactResult?: string | null
+  followUpStatus?: string | null
+  nextContactDate?: string | null
+  followUpNote?: string | null
   createdAt: string
+  updatedAt?: string
+}
+
+export type CustomerConsultationWritePayload = {
+  body?: string
+  consultationDate?: string
+  contactResult?: string | null
+  followUpStatus?: string | null
+  nextContactDate?: string | null
+  followUpNote?: string | null
 }
 
 export type CustomerRelationRow = {
@@ -90,15 +104,27 @@ export async function createCustomerConsultation(
   token: string,
   customerId: number,
   body: string,
-  opts?: { consultationDate?: string },
+  opts?: CustomerConsultationWritePayload,
 ): Promise<CustomerConsultationRow> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  const payload: { body: string; consultationDate?: string } = { body }
+  const payload: CustomerConsultationWritePayload = { body }
   const d = opts?.consultationDate?.trim()
   if (d) {
     payload.consultationDate = d
+  }
+  if (opts?.contactResult !== undefined) {
+    payload.contactResult = opts.contactResult
+  }
+  if (opts?.followUpStatus !== undefined) {
+    payload.followUpStatus = opts.followUpStatus
+  }
+  if (opts?.nextContactDate !== undefined) {
+    payload.nextContactDate = opts.nextContactDate
+  }
+  if (opts?.followUpNote !== undefined) {
+    payload.followUpNote = opts.followUpNote
   }
   return apiRequest<CustomerConsultationRow>(`/api/customers/${customerId}/consultations`, {
     method: 'POST',
@@ -119,6 +145,44 @@ export async function deleteCustomerConsultation(
     method: 'DELETE',
     token,
   })
+}
+
+export async function updateCustomerConsultation(
+  token: string,
+  customerId: number,
+  consultId: number,
+  payload: CustomerConsultationWritePayload,
+): Promise<CustomerConsultationRow> {
+  if (!token?.trim()) {
+    throw new ApiError('로그인이 필요합니다.', 401)
+  }
+  const bodyPayload: CustomerConsultationWritePayload = {}
+  if (payload.body != null) {
+    bodyPayload.body = payload.body
+  }
+  if (payload.consultationDate?.trim()) {
+    bodyPayload.consultationDate = payload.consultationDate.trim()
+  }
+  if (payload.contactResult !== undefined) {
+    bodyPayload.contactResult = payload.contactResult
+  }
+  if (payload.followUpStatus !== undefined) {
+    bodyPayload.followUpStatus = payload.followUpStatus
+  }
+  if (payload.nextContactDate !== undefined) {
+    bodyPayload.nextContactDate = payload.nextContactDate
+  }
+  if (payload.followUpNote !== undefined) {
+    bodyPayload.followUpNote = payload.followUpNote
+  }
+  return apiRequest<CustomerConsultationRow>(
+    `/api/customers/${customerId}/consultations/${consultId}`,
+    {
+      method: 'PATCH',
+      token,
+      body: JSON.stringify(bodyPayload),
+    },
+  )
 }
 
 export async function listCustomerRelations(

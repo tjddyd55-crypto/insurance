@@ -2694,6 +2694,34 @@ export async function initDb() {
     ALTER TABLE customer_consultations
     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   `)
+  await pool.query(`
+    ALTER TABLE customer_consultations
+    ADD COLUMN IF NOT EXISTS contact_result TEXT
+  `)
+  await pool.query(`
+    ALTER TABLE customer_consultations
+    ADD COLUMN IF NOT EXISTS follow_up_status TEXT
+  `)
+  await pool.query(`
+    ALTER TABLE customer_consultations
+    ADD COLUMN IF NOT EXISTS next_contact_date DATE
+  `)
+  await pool.query(`
+    ALTER TABLE customer_consultations
+    ADD COLUMN IF NOT EXISTS follow_up_note TEXT
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_consultations_next_contact_date
+    ON customer_consultations(next_contact_date)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_consultations_follow_up_status
+    ON customer_consultations(follow_up_status)
+  `)
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_consultations_customer_next_contact
+    ON customer_consultations(customer_id, next_contact_date)
+  `)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS todos (

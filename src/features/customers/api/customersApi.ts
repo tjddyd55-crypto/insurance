@@ -106,6 +106,9 @@ export type ListCustomersOptions = {
   consultationTo?: string
   inflowSource?: string
   sort?: string
+  followUpFilter?: string
+  nextContactFrom?: string
+  nextContactTo?: string
 }
 
 function appendListCustomersQuery(q: URLSearchParams, opts: ListCustomersOptions) {
@@ -145,6 +148,18 @@ function appendListCustomersQuery(q: URLSearchParams, opts: ListCustomersOptions
   const sort = opts.sort?.trim()
   if (sort) {
     q.set('sort', sort)
+  }
+  const followUpFilter = opts.followUpFilter?.trim()
+  if (followUpFilter) {
+    q.set('followUpFilter', followUpFilter)
+  }
+  const nextContactFrom = opts.nextContactFrom?.trim()
+  if (nextContactFrom) {
+    q.set('nextContactFrom', nextContactFrom)
+  }
+  const nextContactTo = opts.nextContactTo?.trim()
+  if (nextContactTo) {
+    q.set('nextContactTo', nextContactTo)
   }
 }
 

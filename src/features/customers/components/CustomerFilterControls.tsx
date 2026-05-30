@@ -5,6 +5,10 @@ import {
   CUSTOMER_LIST_SORT_OPTIONS,
   type CustomerListSortValue,
 } from '../config/customerInflowSource.config'
+import {
+  FOLLOW_UP_FILTER_OPTIONS,
+  type FollowUpFilterValue,
+} from '../config/customerConsultationFollowUp.config'
 
 export type CustomerConsultationFilter = '' | 'none' | 'has' | 'no_since'
 
@@ -51,6 +55,12 @@ type FilterPanelProps = {
   setConsultationTo: Dispatch<SetStateAction<string>>
   inflowSource: string
   setInflowSource: Dispatch<SetStateAction<string>>
+  followUpFilter: FollowUpFilterValue
+  setFollowUpFilter: Dispatch<SetStateAction<FollowUpFilterValue>>
+  nextContactFrom: string
+  setNextContactFrom: Dispatch<SetStateAction<string>>
+  nextContactTo: string
+  setNextContactTo: Dispatch<SetStateAction<string>>
   listSort: CustomerListSortValue
   setListSort: Dispatch<SetStateAction<CustomerListSortValue>>
   onApplyConsultationFilter: () => void
@@ -131,6 +141,12 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
     setConsultationTo,
     inflowSource,
     setInflowSource,
+    followUpFilter,
+    setFollowUpFilter,
+    nextContactFrom,
+    setNextContactFrom,
+    nextContactTo,
+    setNextContactTo,
     listSort,
     setListSort,
     onApplyConsultationFilter,
@@ -201,6 +217,32 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
               value={consultationTo}
               onChange={(e) => setConsultationTo(e.target.value)}
               aria-label="상담일 종료"
+            />
+          </label>
+          <label className="customers-advanced-filters__field">
+            <span>후속관리</span>
+            <FormSelect
+              value={followUpFilter}
+              onChange={(e) => setFollowUpFilter(e.target.value as FollowUpFilterValue)}
+              options={FOLLOW_UP_FILTER_OPTIONS}
+            />
+          </label>
+          <label className="customers-advanced-filters__field">
+            <span>다음 연락 시작</span>
+            <FormInput
+              type="date"
+              value={nextContactFrom}
+              onChange={(e) => setNextContactFrom(e.target.value)}
+              aria-label="다음 연락 예정일 시작"
+            />
+          </label>
+          <label className="customers-advanced-filters__field">
+            <span>다음 연락 종료</span>
+            <FormInput
+              type="date"
+              value={nextContactTo}
+              onChange={(e) => setNextContactTo(e.target.value)}
+              aria-label="다음 연락 예정일 종료"
             />
           </label>
           <label className="customers-advanced-filters__field">
