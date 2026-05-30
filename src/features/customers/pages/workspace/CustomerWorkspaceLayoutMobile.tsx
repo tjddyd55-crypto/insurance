@@ -178,10 +178,7 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
         <div className="workspace-mobile-outlet-modal__header">
           <span className="workspace-mobile-outlet-modal__spacer" aria-hidden />
           <h2 className="workspace-mobile-outlet-modal__title">{title}</h2>
-          <CustomerWorkspaceCloseButton
-            className="workspace-mobile-outlet-modal__close"
-            onClick={handleClose}
-          />
+          <CustomerWorkspaceCloseButton onClick={handleClose} />
         </div>
         <div className="workspace-mobile-outlet-modal__body">
           {outlet}
