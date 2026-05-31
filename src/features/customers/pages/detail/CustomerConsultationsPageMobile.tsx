@@ -1,6 +1,7 @@
 import { EmptyState, StatusMessage } from '../../../../components/feedback'
 import CustomerConsultationHistoryListMobile from '../../components/CustomerConsultationHistoryListMobile'
 import {
+  CUSTOMER_WORKSPACE_MOBILE_SCOPE_CLASS,
   CustomerWorkspacePrimaryActionButton,
   CustomerWorkspaceSectionHead,
   CustomerWorkspaceSectionHeadActions,
@@ -29,7 +30,9 @@ export default function CustomerConsultationsPageMobile({
   onAddTodoFromConsultation,
 }: CustomerConsultationsMobileViewProps) {
   return (
-    <div className="content-wrapper page-shell customer-consultations-mobile-shell customer-inline-notes--workspace-mobile">
+    <div
+      className={`content-wrapper page-shell customer-consultations-mobile-shell ${CUSTOMER_WORKSPACE_MOBILE_SCOPE_CLASS}`}
+    >
       <StatusMessage message={listError} tone="error" className="!mt-0" />
 
       <section style={{ marginTop: 24 }}>

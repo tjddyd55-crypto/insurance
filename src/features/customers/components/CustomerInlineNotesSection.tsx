@@ -200,7 +200,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
   }
 
   return (
-    <div className={`customer-inline-notes mt-5${workspaceMobileMemo ? ' customer-inline-notes--workspace-mobile' : ''}`}>
+    <div className={`customer-inline-notes mt-5${workspaceMobileMemo ? ' customer-inline-notes--workspace-mobile customer-workspace-mobile-scope' : ''}`}>
       <div className="flex justify-between items-center mb-2 gap-2">
         <div className="customer-section-title !mt-0">[메모]</div>
         <div className="flex items-center gap-2 shrink-0">

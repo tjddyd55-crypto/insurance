@@ -77,7 +77,7 @@ export default function CustomerMemosPage() {
       </section>
     )
     return isMobile ? (
-      <div className="content-wrapper page-shell customer-memos-mobile-shell">{inner}</div>
+      <div className="content-wrapper page-shell customer-memos-mobile-shell customer-workspace-mobile-scope">{inner}</div>
     ) : (
       inner
     )
@@ -91,7 +91,7 @@ export default function CustomerMemosPage() {
       </section>
     )
     return isMobile ? (
-      <div className="content-wrapper page-shell customer-memos-mobile-shell">{inner}</div>
+      <div className="content-wrapper page-shell customer-memos-mobile-shell customer-workspace-mobile-scope">{inner}</div>
     ) : (
       inner
     )
@@ -108,7 +108,7 @@ export default function CustomerMemosPage() {
       </section>
     )
     return isMobile ? (
-      <div className="content-wrapper page-shell customer-memos-mobile-shell">{inner}</div>
+      <div className="content-wrapper page-shell customer-memos-mobile-shell customer-workspace-mobile-scope">{inner}</div>
     ) : (
       inner
     )
@@ -145,7 +145,7 @@ export default function CustomerMemosPage() {
   return (
     <>
       {isMobile ? (
-        <div className="content-wrapper page-shell customer-memos-mobile-shell">{mainSection}</div>
+        <div className="content-wrapper page-shell customer-memos-mobile-shell customer-workspace-mobile-scope">{mainSection}</div>
       ) : (
         mainSection
       )}

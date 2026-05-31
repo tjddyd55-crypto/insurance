@@ -75,7 +75,7 @@ export default function CustomerConsultationsModal({
             <CustomerWorkspaceCloseButton onClick={handleWorkspaceClose} />
           </div>
           <div className="mobile-modal-body">
-            <div className="mobile-modal-content">
+            <div className="mobile-modal-content customer-workspace-mobile-scope">
               <CustomerConsultationsPageMobile
                 {...mobileViewProps}
                 onAddTodoFromConsultation={openTodoFromConsultation}
