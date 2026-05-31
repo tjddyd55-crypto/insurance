@@ -70,7 +70,7 @@ export default function CustomerConsultationHistoryListMobile({
                 ) : null}
               </div>
             </div>
-            <div style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{text || '—'}</div>
+            <div className="customer-consultation-item__body">{text || '—'}</div>
             {contactMeta ? (
               <div
                 className="customer-consultation-history__contact-meta"

@@ -250,7 +250,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
             <FormButton
               htmlType="button"
               variant="action"
-              className="customer-workspace-action-button customer-workspace-action-button--primary shrink-0"
+              className="customer-workspace-action-button customer-workspace-action-button--primary"
               disabled={saving || !token?.trim()}
               onClick={openMemoModal}
             >

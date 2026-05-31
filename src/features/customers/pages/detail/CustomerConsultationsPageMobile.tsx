@@ -25,16 +25,16 @@ export default function CustomerConsultationsPageMobile({
   onAddTodoFromConsultation,
 }: CustomerConsultationsMobileViewProps) {
   return (
-    <div className="content-wrapper page-shell">
+    <div className="content-wrapper page-shell customer-consultations-mobile-shell">
       <StatusMessage message={listError} tone="error" className="!mt-0" />
 
       <section style={{ marginTop: 24 }}>
-        <div className="flex justify-between items-center mb-2 gap-2">
+        <div className="customer-consultations-mobile-shell__section-head">
           <div className="customer-section-title !mt-0">[상담]</div>
           <FormButton
             htmlType="button"
             variant="action"
-            className="customer-workspace-action-button customer-workspace-action-button--primary shrink-0"
+            className="customer-workspace-action-button customer-workspace-action-button--primary"
             disabled={busy}
             onClick={onOpenAddModal}
           >
