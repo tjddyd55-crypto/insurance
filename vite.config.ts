@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -10,15 +10,38 @@ const insurancePkg = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'package.json'), 'utf-8'),
 ) as { version: string }
 
+/*
+ * 매 빌드마다 유일한 식별자. JS 번들(__INSURANCE_WEB_BUILD_ID__)과 dist/version.json 에
+ * 동일하게 박혀, 실행 중인 세션이 새 배포를 감지하는 기준이 된다.
+ * (모바일 WebView 처럼 문서를 자동 reload 하지 않는 환경에서 "옛 번들 고착" 을 끊기 위함)
+ */
+const WEB_BUILD_ID = process.env.INSURANCE_WEB_BUILD_ID?.trim() || Date.now().toString()
+
+/** dist/version.json 을 방출한다. 클라이언트는 이 파일을 polling 해 buildId 변화를 본다. */
+function emitVersionManifest(buildId: string, version: string): Plugin {
+  return {
+    name: 'insurance-version-manifest',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify({ buildId, version }),
+      })
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
     __INSURANCE_WEB_APP_VERSION__: JSON.stringify(insurancePkg.version),
+    __INSURANCE_WEB_BUILD_ID__: JSON.stringify(WEB_BUILD_ID),
   },
   // Web (Railway/Express): absolute /assets/... so deep routes like /customer/register work.
   // Desktop packaged build: use `npm run build:web -- --base ./` (see build:desktop script).
   base: '/',
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), emitVersionManifest(WEB_BUILD_ID, insurancePkg.version)],
   build: {
     outDir: 'dist',
   },
