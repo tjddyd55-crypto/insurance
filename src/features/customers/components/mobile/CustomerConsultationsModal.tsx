@@ -1,18 +1,9 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { useConfirmDialog } from '../../../../components/dialog'
-import CustomerWorkspaceCloseButton from '../CustomerWorkspaceCloseButton'
+import { useCallback, useState } from 'react'
 import { useAuth } from '../../../auth/AuthProvider'
-import {
-  createCustomerConsultation,
-  deleteCustomerConsultation,
-  listCustomerConsultations,
-  updateCustomerConsultation,
-  type CustomerConsultationRow,
-} from '../../api/customerExtraApi'
+import CustomerWorkspaceCloseButton from '../CustomerWorkspaceCloseButton'
+import { useMobileConsultationsState } from '../../hooks/useMobileConsultationsState'
 import CustomerConsultationsPageMobile from '../../pages/detail/CustomerConsultationsPageMobile'
-import { localYmd, parseConsultationStoredBody } from '../../utils/consultationBodyFormat'
-import { dispatchCustomersListRefresh } from '../../utils/customerListRefresh'
-import { normalizeContactResult } from '../../config/customerConsultationFollowUp.config'
+import type { CustomerConsultationRow } from '../../api/customerExtraApi'
 import { TodoEditorDialog, type TodoCreatePrefill } from '../../../todos/components/TodoEditorDialog'
 import { firstLineTodoTitle } from '../../../todos/utils/todoCopy'
 import { suggestDueDateFromText } from '../../../todos/utils/suggestDueDateFromText'
@@ -20,10 +11,6 @@ import { suggestDueDateFromText } from '../../../todos/utils/suggestDueDateFromT
 type CustomerConsultationsModalProps = {
   customerId: number
   onCreated?: (row: CustomerConsultationRow) => void
-  /**
-   * 삭제 성공 시 부모에게 알린다. 부모가 자체 목록을 캐싱하고 있다면 이 콜백으로
-   * 동기화한다. 모달 내부 `rows` state 는 삭제 즉시 자체 제거한다.
-   */
   onDeleted?: (consultId: number) => void
   onClose: () => void
 }
@@ -37,177 +24,21 @@ export default function CustomerConsultationsModal({
   const { token, user } = useAuth()
   const gaIdNumeric =
     user?.gaId != null && Number.isFinite(Number(user.gaId)) ? Number(user.gaId) : null
-  const { confirm, confirmDialog } = useConfirmDialog()
+
+  const { mobileViewProps, confirmDialog, closeFormModal } = useMobileConsultationsState(
+    customerId,
+    token,
+    { onCreated, onDeleted },
+  )
+
   const [todoDialogOpen, setTodoDialogOpen] = useState(false)
   const [todoDialogSession, setTodoDialogSession] = useState(0)
   const [todoPrefill, setTodoPrefill] = useState<TodoCreatePrefill | null>(null)
-  const [rows, setRows] = useState<CustomerConsultationRow[]>([])
-  const [body, setBody] = useState('')
-  const [consultDate, setConsultDate] = useState(() => localYmd())
-  const [contactResult, setContactResult] = useState('')
-  const [editingConsultId, setEditingConsultId] = useState<number | null>(null)
-  const [editConsultDate, setEditConsultDate] = useState('')
-  const [editConsultBody, setEditConsultBody] = useState('')
-  const [editContactResult, setEditContactResult] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
 
-  useEffect(() => {
-    if (!token?.trim()) {
-      setRows([])
-      return
-    }
-    let cancelled = false
-    setBusy(true)
-    setError('')
-    void listCustomerConsultations(token, customerId, { limit: 100 })
-      .then((nextRows) => {
-        if (!cancelled) {
-          setRows(nextRows)
-        }
-      })
-      .catch((loadError) => {
-        if (!cancelled) {
-          setRows([])
-          setError(loadError instanceof Error ? loadError.message : '상담 내역을 불러오지 못했습니다.')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setBusy(false)
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [customerId, token])
-
-  const handleSubmit = useCallback(
-    async (event: FormEvent) => {
-      event.preventDefault()
-      if (!token?.trim()) {
-        setError('로그인이 필요합니다.')
-        return
-      }
-      const content = body.trim()
-      if (!content) {
-        setError('상담 내용을 입력해 주세요.')
-        return
-      }
-
-      setBusy(true)
-      setError('')
-      try {
-        const created = await createCustomerConsultation(token, customerId, content, {
-          consultationDate: consultDate,
-          contactResult: contactResult.trim() || null,
-        })
-        const nextRows = await listCustomerConsultations(token, customerId, { limit: 100 })
-        setRows(nextRows)
-        setBody('')
-        setContactResult('')
-        onCreated?.(created)
-        dispatchCustomersListRefresh()
-      } catch (submitError) {
-        setError(submitError instanceof Error ? submitError.message : '상담 저장에 실패했습니다.')
-      } finally {
-        setBusy(false)
-      }
-    },
-    [body, consultDate, contactResult, customerId, onCreated, token],
-  )
-
-  /*
-   * 상담 항목 삭제.
-   * 라우트 페이지(`CustomerConsultationsPage`) 의 onDeleteConsultation 와 동일한
-   * UX 규칙을 따른다:
-   *   1) `useConfirmDialog` 로 사용자 확인을 받는다.
-   *   2) 서버에서 삭제에 성공한 경우에만 로컬 `rows` 에서 제거한다 (낙관적 갱신 금지).
-   *   3) 실패 시 에러 메시지를 표시하고 목록은 그대로 둔다.
-   * 모달 내부 목록은 재조회하지 않고 직접 필터링해 네트워크 비용을 아낀다
-   * (`onDeleted` 콜백으로 부모에게도 알림 → 바깥 캐시 동기화 가능).
-   */
-  const handleDelete = useCallback(
-    async (consultId: number) => {
-      if (!token?.trim()) {
-        setError('로그인이 필요합니다.')
-        return
-      }
-      const confirmed = await confirm({
-        title: '상담 삭제',
-        message: '정말 삭제하시겠습니까?',
-        confirmLabel: '삭제',
-        tone: 'danger',
-      })
-      if (!confirmed) {
-        return
-      }
-      setBusy(true)
-      setError('')
-      try {
-        await deleteCustomerConsultation(token, customerId, consultId)
-        setRows((prev) => prev.filter((item) => item.id !== consultId))
-        if (editingConsultId === consultId) {
-          setEditingConsultId(null)
-        }
-        onDeleted?.(consultId)
-        dispatchCustomersListRefresh()
-      } catch (deleteError) {
-        setError(deleteError instanceof Error ? deleteError.message : '삭제에 실패했습니다.')
-      } finally {
-        setBusy(false)
-      }
-    },
-    [confirm, customerId, editingConsultId, onDeleted, token],
-  )
-
-  const handleStartEdit = useCallback((row: CustomerConsultationRow) => {
-    const { text } = parseConsultationStoredBody(row.body, row.createdAt, row.consultationDate ?? null)
-    setEditingConsultId(row.id)
-    setEditConsultDate(row.consultationDate ?? localYmd())
-    setEditConsultBody(text)
-    setEditContactResult(normalizeContactResult(row.contactResult))
-    setError('')
-  }, [])
-
-  const handleCancelEdit = useCallback(() => {
-    setEditingConsultId(null)
-    setEditConsultDate('')
-    setEditConsultBody('')
-    setEditContactResult('')
-  }, [])
-
-  const handleSaveEdit = useCallback(
-    async (consultId: number) => {
-      if (!token?.trim()) {
-        setError('로그인이 필요합니다.')
-        return
-      }
-      const t = editConsultBody.trim()
-      if (!t) {
-        setError('상담 내용을 입력해 주세요.')
-        return
-      }
-      setBusy(true)
-      setError('')
-      try {
-        await updateCustomerConsultation(token, customerId, consultId, {
-          body: t,
-          consultationDate: editConsultDate,
-          contactResult: editContactResult.trim() || null,
-        })
-        const nextRows = await listCustomerConsultations(token, customerId, { limit: 100 })
-        setRows(nextRows)
-        setEditingConsultId(null)
-        dispatchCustomersListRefresh()
-      } catch (saveError) {
-        setError(saveError instanceof Error ? saveError.message : '수정에 실패했습니다.')
-      } finally {
-        setBusy(false)
-      }
-    },
-    [customerId, editConsultBody, editConsultDate, editContactResult, token],
-  )
+  const handleWorkspaceClose = useCallback(() => {
+    closeFormModal()
+    onClose()
+  }, [closeFormModal, onClose])
 
   const openTodoFromConsultation = useCallback(
     (consultId: number, plainBody: string) => {
@@ -228,47 +59,25 @@ export default function CustomerConsultationsModal({
     [customerId],
   )
 
-  /*
-   * `confirmDialog` 는 `mobile-modal-overlay` **바깥** 형제로 렌더한다.
-   *   - overlay 안에 두면 backdrop 클릭이 overlay(onClose) 로 버블돼 모달이
-   *     닫히는 회귀 발생 (BaseDialog 자체에서 stopPropagation 을 걸어두긴 했지만
-   *     이중 방어로 DOM 상으로도 분리한다).
-   *   - overlay z-index(9999) 보다 BaseDialog z-index(10000) 가 높아야 하는 것은
-   *     `BaseDialog.tsx` 쪽에서 보장한다.
-   */
   return (
     <>
-      <div className="mobile-modal-overlay" role="dialog" aria-modal="true" aria-label="상담" onClick={onClose}>
+      <div
+        className="mobile-modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="상담"
+        onClick={handleWorkspaceClose}
+      >
         <div className="mobile-modal" onClick={(e) => e.stopPropagation()}>
           <div className="mobile-modal-header">
             <span className="mobile-modal-header__spacer" aria-hidden />
             <span className="mobile-modal-header__title">상담</span>
-            <CustomerWorkspaceCloseButton onClick={onClose} />
+            <CustomerWorkspaceCloseButton onClick={handleWorkspaceClose} />
           </div>
           <div className="mobile-modal-body">
             <div className="mobile-modal-content">
               <CustomerConsultationsPageMobile
-                error={error}
-                body={body}
-                consultDate={consultDate}
-                contactResult={contactResult}
-                busy={busy}
-                rows={rows}
-                editingConsultId={editingConsultId}
-                editConsultDate={editConsultDate}
-                editConsultBody={editConsultBody}
-                editContactResult={editContactResult}
-                onSetBody={setBody}
-                onSetConsultDate={setConsultDate}
-                onSetContactResult={setContactResult}
-                onStartEdit={handleStartEdit}
-                onCancelEdit={handleCancelEdit}
-                onSetEditConsultDate={setEditConsultDate}
-                onSetEditConsultBody={setEditConsultBody}
-                onSetEditContactResult={setEditContactResult}
-                onSaveEdit={handleSaveEdit}
-                onSubmit={handleSubmit}
-                onDelete={handleDelete}
+                {...mobileViewProps}
                 onAddTodoFromConsultation={openTodoFromConsultation}
               />
             </div>

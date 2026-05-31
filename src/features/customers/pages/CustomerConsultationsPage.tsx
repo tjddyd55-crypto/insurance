@@ -12,12 +12,16 @@ import {
   updateCustomerConsultation,
   type CustomerConsultationRow,
 } from '../api/customerExtraApi'
+import { useMobileConsultationsState } from '../hooks/useMobileConsultationsState'
 import { normalizeContactResult } from '../config/customerConsultationFollowUp.config'
 import { localYmd, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
 import { dispatchCustomersListRefresh } from '../utils/customerListRefresh'
 import CustomerConsultationsPageMobile from './detail/CustomerConsultationsPageMobile'
 import CustomerConsultationsPagePC from './detail/CustomerConsultationsPagePC'
-import type { CustomerConsultationsViewProps } from './detail/customerConsultationsViewProps'
+import type {
+  CustomerConsultationsMobileViewProps,
+  CustomerConsultationsPCViewProps,
+} from './detail/customerConsultationsViewProps'
 import { TodoEditorDialog, type TodoCreatePrefill } from '../../todos/components/TodoEditorDialog'
 import { firstLineTodoTitle } from '../../todos/utils/todoCopy'
 import { suggestDueDateFromText } from '../../todos/utils/suggestDueDateFromText'
@@ -52,6 +56,11 @@ export default function CustomerConsultationsPage() {
   const [notFound, setNotFound] = useState(false)
 
   const validId = Number.isInteger(resolvedCustomerId) && resolvedCustomerId > 0
+
+  const { mobileViewProps, confirmDialog: mobileConfirmDialog } = useMobileConsultationsState(
+    resolvedCustomerId,
+    validId ? token : null,
+  )
 
   useEffect(() => {
     if (!token?.trim() || !validId) {
@@ -222,7 +231,7 @@ export default function CustomerConsultationsPage() {
     )
   }
 
-  const viewProps: CustomerConsultationsViewProps = {
+  const pcViewProps: CustomerConsultationsPCViewProps = {
     error,
     body,
     consultDate,
@@ -247,12 +256,18 @@ export default function CustomerConsultationsPage() {
     onAddTodoFromConsultation: openTodoFromConsultation,
   }
 
+  const mobileRouteViewProps: CustomerConsultationsMobileViewProps = {
+    ...mobileViewProps,
+    onAddTodoFromConsultation: openTodoFromConsultation,
+  }
+
   return (
     <>
-      <ResponsiveLayout<CustomerConsultationsViewProps>
+      <ResponsiveLayout<CustomerConsultationsPCViewProps, CustomerConsultationsMobileViewProps>
         PC={CustomerConsultationsPagePC}
         Mobile={CustomerConsultationsPageMobile}
-        viewProps={viewProps}
+        pcViewProps={pcViewProps}
+        mobileViewProps={mobileRouteViewProps}
       />
       <TodoEditorDialog
         open={todoDialogOpen}
@@ -267,6 +282,7 @@ export default function CustomerConsultationsPage() {
         onCommitted={() => {}}
       />
       {confirmDialog}
+      {mobileConfirmDialog}
     </>
   )
 }
