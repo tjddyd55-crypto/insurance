@@ -86,8 +86,11 @@
     word-break: break-word;
   }
 
-  /* ── 액션 버튼 (SSOT) ── */
-  .customer-workspace-mobile-scope button.customer-workspace-action-button {
+  /* ── 액션 버튼 (SSOT) ──
+   * 다운로드는 네이티브 다운로드 시맨틱을 위해 <a> 로 렌더되므로 a.* 도 함께 매칭한다.
+   * 전역 `button:not(.__close)` 규칙은 <a> 를 건드리지 않으므로 a 쪽은 동점 경쟁이 없다. */
+  .customer-workspace-mobile-scope button.customer-workspace-action-button,
+  .customer-workspace-mobile-scope a.customer-workspace-action-button {
     appearance: none;
     -webkit-appearance: none;
     box-sizing: border-box;
@@ -131,7 +134,8 @@
     color: #dbeafe;
   }
 
-  .customer-workspace-mobile-scope button.customer-workspace-action-button--secondary {
+  .customer-workspace-mobile-scope button.customer-workspace-action-button--secondary,
+  .customer-workspace-mobile-scope a.customer-workspace-action-button--secondary {
     background: rgba(15, 23, 42, 0.92);
     border-color: rgba(148, 163, 184, 0.32);
     color: #e5e7eb;
@@ -149,7 +153,8 @@
     color: #eff6ff;
   }
 
-  .customer-workspace-mobile-scope button.customer-workspace-action-button--secondary:hover:not(:disabled) {
+  .customer-workspace-mobile-scope button.customer-workspace-action-button--secondary:hover:not(:disabled),
+  .customer-workspace-mobile-scope a.customer-workspace-action-button--secondary:hover {
     background: rgba(30, 41, 59, 0.96);
     border-color: rgba(148, 163, 184, 0.45);
     color: #f8fafc;
@@ -161,12 +166,14 @@
     color: #fee2e2;
   }
 
-  .customer-workspace-mobile-scope button.customer-workspace-action-button:active:not(:disabled) {
+  .customer-workspace-mobile-scope button.customer-workspace-action-button:active:not(:disabled),
+  .customer-workspace-mobile-scope a.customer-workspace-action-button:active {
     transform: none;
     opacity: 0.92;
   }
 
-  .customer-workspace-mobile-scope button.customer-workspace-action-button:focus-visible {
+  .customer-workspace-mobile-scope button.customer-workspace-action-button:focus-visible,
+  .customer-workspace-mobile-scope a.customer-workspace-action-button:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.28);
   }
