@@ -3,7 +3,7 @@
  * DOM: button.customer-workspace-action-button (+ --primary | --secondary | --danger)
  * 전역 button / .button / mobile-ui-foundation 전역 규칙은 수정하지 않는다.
  */
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .customer-workspace-mobile-scope .customer-workspace-section-head,
   .mobile-modal .customer-workspace-section-head,
   .workspace-mobile-outlet-modal .customer-workspace-section-head,
