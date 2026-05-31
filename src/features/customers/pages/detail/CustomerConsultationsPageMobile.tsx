@@ -34,7 +34,7 @@ export default function CustomerConsultationsPageMobile({
           <FormButton
             htmlType="button"
             variant="action"
-            className="filter-button shrink-0"
+            className="customer-workspace-action-button customer-workspace-action-button--primary shrink-0"
             disabled={busy}
             onClick={onOpenAddModal}
           >
