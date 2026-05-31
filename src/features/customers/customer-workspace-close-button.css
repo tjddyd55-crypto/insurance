@@ -2,7 +2,7 @@
  * 고객 작업영역 모바일 패널 닫기 — 고객 수정 "취소" 버튼과 동일한 secondary pill.
  * 스코프: .customer-workspace-close-button (보험 CRM 고객 작업영역 전용).
  */
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   .workspace-mobile-outlet-modal__header .customer-workspace-close-button.button,
   .mobile-modal-header .customer-workspace-close-button.button {
     grid-column: 3;
