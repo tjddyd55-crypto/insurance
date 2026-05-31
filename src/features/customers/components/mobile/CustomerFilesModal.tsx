@@ -18,9 +18,16 @@ export default function CustomerFilesModal({ customerId, onClose }: CustomerFile
         <h2 className="workspace-mobile-outlet-modal__title">고객 파일</h2>
         <CustomerWorkspaceCloseButton onClick={onClose} />
       </div>
-      <div className="workspace-mobile-outlet-modal__body">
+      <div className="workspace-mobile-outlet-modal__body customer-workspace-mobile-scope">
         {token?.trim() ? (
-          <StorageWorkspace token={token} customerId={customerId} title="" subtitle={undefined} variant="mobile" />
+          <StorageWorkspace
+            token={token}
+            customerId={customerId}
+            title=""
+            subtitle={undefined}
+            variant="mobile"
+            actionVariant="workspace"
+          />
         ) : (
           <div style={{ padding: 16 }}>로그인이 필요합니다.</div>
         )}

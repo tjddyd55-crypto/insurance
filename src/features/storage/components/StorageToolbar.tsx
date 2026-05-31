@@ -1,5 +1,7 @@
 import FileUploader from '../../../components/common/FileUploader'
 import { FormButton } from '../../../components/form'
+import { CustomerWorkspaceSecondaryActionButton } from '../../customers/components/CustomerWorkspaceActionButtons'
+import type { StorageActionVariant } from './StorageFileList'
 import type { StorageFolderRow } from '../api/storageApi'
 import FolderPicker from './FolderPicker'
 
@@ -18,6 +20,8 @@ type StorageToolbarProps = {
   onUploadFiles: (files: File[]) => void
   onUploadInvalidBatch?: (failures: { file: File; message: string }[]) => void
   uploading: boolean
+  /** 액션 버튼 스타일 — 기본 'storage' */
+  actionVariant?: StorageActionVariant
 }
 
 export default function StorageToolbar({
@@ -33,13 +37,20 @@ export default function StorageToolbar({
   onUploadFiles,
   onUploadInvalidBatch,
   uploading,
+  actionVariant = 'storage',
 }: StorageToolbarProps) {
   return (
     <div className={`storage-toolbar${isMobile ? ' storage-toolbar--mobile' : ''}`}>
       <div className="storage-toolbar__row">
-        <FormButton htmlType="button" variant="secondary" onClick={onOpenCreateFolder}>
-          폴더 생성
-        </FormButton>
+        {actionVariant === 'workspace' ? (
+          <CustomerWorkspaceSecondaryActionButton onClick={onOpenCreateFolder}>
+            폴더 생성
+          </CustomerWorkspaceSecondaryActionButton>
+        ) : (
+          <FormButton htmlType="button" variant="secondary" onClick={onOpenCreateFolder}>
+            폴더 생성
+          </FormButton>
+        )}
         <FolderPicker
           folders={folderOptions}
           selectedFolderId={selectedFolderId}

@@ -19,7 +19,7 @@ import {
   type StorageFolderRow,
 } from '../api/storageApi'
 import StorageDeleteDialog from './StorageDeleteDialog'
-import StorageFileList from './StorageFileList'
+import StorageFileList, { type StorageActionVariant } from './StorageFileList'
 import StorageRenameDialog from './StorageRenameDialog'
 import StorageToolbar from './StorageToolbar'
 
@@ -61,6 +61,11 @@ type StorageWorkspaceProps = {
   subtitle?: string
   headerSlot?: ReactNode
   variant: 'pc' | 'mobile'
+  /**
+   * 행/툴바 액션 버튼 스타일. 기본 'storage'(내 저장공간).
+   * 고객 작업영역 모달에서만 'workspace'(메모·상담과 동일 SSOT 버튼)로 넘긴다.
+   */
+  actionVariant?: StorageActionVariant
 }
 
 function normalizeName(raw: string, maxLength: number): string {
@@ -144,6 +149,7 @@ export default function StorageWorkspace({
   subtitle,
   headerSlot,
   variant,
+  actionVariant = 'storage',
 }: StorageWorkspaceProps) {
   const isMobile = variant === 'mobile'
   const [folders, setFolders] = useState<StorageFolderRow[]>([])
@@ -649,6 +655,7 @@ export default function StorageWorkspace({
 
       <StorageToolbar
         isMobile={isMobile}
+        actionVariant={actionVariant}
         folderOptions={folderOptions}
         selectedFolderId={selectedFolderId}
         folderPickerOpen={folderPickerOpen}
@@ -717,6 +724,7 @@ export default function StorageWorkspace({
       <StorageFileList
         folders={folders}
         files={filteredFiles}
+        actionVariant={actionVariant}
         loading={loading}
         listFetchError={filesListError}
         selectedFileId={selectedFileId}

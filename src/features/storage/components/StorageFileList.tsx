@@ -1,7 +1,20 @@
 import { FormButton } from '../../../components/form'
+import {
+  CUSTOMER_WORKSPACE_ACTION_SECONDARY_CLASS,
+  CustomerWorkspaceDangerActionButton,
+  CustomerWorkspaceItemActions,
+  CustomerWorkspaceSecondaryActionButton,
+} from '../../customers/components/CustomerWorkspaceActionButtons'
 import type { StorageFileRow, StorageFolderRow, StorageFileDownloadLinkEntry } from '../api/storageApi'
 
 export type { StorageFileDownloadLinkEntry } from '../api/storageApi'
+
+/**
+ * 파일 행 액션 버튼 스타일 분기.
+ * - 'storage'(기본): 내 저장공간 등 기존 storage-file-list 버튼(36px). MyStoragePage 회귀 차단용 기본값.
+ * - 'workspace': 고객 작업영역 모달 — 메모·상담과 동일한 SSOT 버튼(44px).
+ */
+export type StorageActionVariant = 'storage' | 'workspace'
 
 type StorageFileListProps = {
   folders: StorageFolderRow[]
@@ -21,6 +34,8 @@ type StorageFileListProps = {
   onDelete: (file: StorageFileRow) => void
   onRenameFolder: (folder: StorageFolderRow) => void
   onDeleteFolder: (folder: StorageFolderRow) => void
+  /** 액션 버튼 스타일 — 기본 'storage' */
+  actionVariant?: StorageActionVariant
 }
 
 function renderFileIcon(file: StorageFileRow): string {
@@ -72,6 +87,7 @@ export default function StorageFileList({
   onDelete,
   onRenameFolder,
   onDeleteFolder,
+  actionVariant = 'storage',
 }: StorageFileListProps) {
   if (loading) {
     return <p className="storage-file-list__empty">불러오는 중…</p>
@@ -128,69 +144,119 @@ export default function StorageFileList({
             <div className="storage-file-list__sub">{formatFileSize(file.fileSize)} · {formatDate(file.createdAt)}</div>
           </div>
         </div>
-        <div className="storage-file-list__actions">
-          <FormButton
-            htmlType="button"
-            variant="action"
-            size="sm"
-            className="storage-file-list__action-button storage-file-list__action-button--open"
-            onClick={(event) => {
-              event.stopPropagation()
-              onOpen(file)
-            }}
-          >
-            열기
-          </FormButton>
-          {downloadHref ? (
-            <a
-              href={downloadHref}
-              download
-              className="button button--small storage-file-list__action-button storage-file-list__action-button--download"
+        {actionVariant === 'workspace' ? (
+          <CustomerWorkspaceItemActions>
+            <CustomerWorkspaceSecondaryActionButton
               onClick={(event) => {
                 event.stopPropagation()
+                onOpen(file)
               }}
             >
-              다운로드
-            </a>
-          ) : (
+              열기
+            </CustomerWorkspaceSecondaryActionButton>
+            {downloadHref ? (
+              <a
+                href={downloadHref}
+                download
+                className={CUSTOMER_WORKSPACE_ACTION_SECONDARY_CLASS}
+                onClick={(event) => {
+                  event.stopPropagation()
+                }}
+              >
+                다운로드
+              </a>
+            ) : (
+              <CustomerWorkspaceSecondaryActionButton
+                disabled
+                onClick={(event) => {
+                  event.stopPropagation()
+                }}
+              >
+                {downloadFailed ? '준비 실패' : '준비 중'}
+              </CustomerWorkspaceSecondaryActionButton>
+            )}
+            <CustomerWorkspaceSecondaryActionButton
+              onClick={(event) => {
+                event.stopPropagation()
+                onRename(file)
+              }}
+            >
+              이름 변경
+            </CustomerWorkspaceSecondaryActionButton>
+            <CustomerWorkspaceDangerActionButton
+              onClick={(event) => {
+                event.stopPropagation()
+                onDelete(file)
+              }}
+            >
+              삭제
+            </CustomerWorkspaceDangerActionButton>
+          </CustomerWorkspaceItemActions>
+        ) : (
+          <div className="storage-file-list__actions">
             <FormButton
               htmlType="button"
               variant="action"
               size="sm"
-              disabled
-              className="storage-file-list__action-button storage-file-list__action-button--download"
+              className="storage-file-list__action-button storage-file-list__action-button--open"
               onClick={(event) => {
                 event.stopPropagation()
+                onOpen(file)
               }}
             >
-              {downloadFailed ? '준비 실패' : '준비 중'}
+              열기
             </FormButton>
-          )}
-          <FormButton
-            htmlType="button"
-            variant="secondary"
-            size="sm"
-            className="storage-file-list__action-button storage-file-list__action-button--rename"
-            onClick={(event) => {
-              event.stopPropagation()
-              onRename(file)
-            }}
-          >
-            이름 변경
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            variant="danger"
-            size="sm"
-            className="storage-file-list__action-button storage-file-list__action-button--delete"
-            onClick={(event) => {
-              event.stopPropagation()
-              onDelete(file)
-            }}
-          >
-            삭제
-          </FormButton>
-        </div>
+            {downloadHref ? (
+              <a
+                href={downloadHref}
+                download
+                className="button button--small storage-file-list__action-button storage-file-list__action-button--download"
+                onClick={(event) => {
+                  event.stopPropagation()
+                }}
+              >
+                다운로드
+              </a>
+            ) : (
+              <FormButton
+                htmlType="button"
+                variant="action"
+                size="sm"
+                disabled
+                className="storage-file-list__action-button storage-file-list__action-button--download"
+                onClick={(event) => {
+                  event.stopPropagation()
+                }}
+              >
+                {downloadFailed ? '준비 실패' : '준비 중'}
+              </FormButton>
+            )}
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              size="sm"
+              className="storage-file-list__action-button storage-file-list__action-button--rename"
+              onClick={(event) => {
+                event.stopPropagation()
+                onRename(file)
+              }}
+            >
+              이름 변경
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="danger"
+              size="sm"
+              className="storage-file-list__action-button storage-file-list__action-button--delete"
+              onClick={(event) => {
+                event.stopPropagation()
+                onDelete(file)
+              }}
+            >
+              삭제
+            </FormButton>
+          </div>
+        )}
       </div>
     )
   }
