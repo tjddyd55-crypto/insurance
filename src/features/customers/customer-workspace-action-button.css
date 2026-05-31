@@ -1,12 +1,13 @@
 /**
- * 고객 작업영역(모바일) — 메모/상담 등 인라인 액션 버튼 공통 스타일.
- * SSOT scope: .customer-workspace-mobile-scope (+ legacy outlet/modal/page modifiers)
- * 전역 button / .filter-button / .button 수정 금지.
+ * 고객 작업영역(모바일) — 메모/상담 인라인 액션 버튼 SSOT.
+ * DOM: button.customer-workspace-action-button (+ --primary | --secondary | --danger)
+ * 전역 button / .button / mobile-ui-foundation 전역 규칙은 수정하지 않는다.
  */
 @media (max-width: 767px) {
   .customer-workspace-mobile-scope .customer-workspace-section-head,
   .mobile-modal .customer-workspace-section-head,
-  .workspace-mobile-outlet-modal .customer-workspace-section-head {
+  .workspace-mobile-outlet-modal .customer-workspace-section-head,
+  .customer-consultations-mobile-shell .customer-workspace-section-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -15,36 +16,44 @@
     margin-bottom: 8px;
   }
 
+  .customer-workspace-section-head-actions,
   .customer-workspace-mobile-scope .customer-workspace-section-head-actions,
   .mobile-modal .customer-workspace-section-head-actions,
-  .workspace-mobile-outlet-modal .customer-workspace-section-head-actions {
-    flex-shrink: 0;
+  .workspace-mobile-outlet-modal .customer-workspace-section-head-actions,
+  .customer-consultations-mobile-shell .customer-workspace-section-head-actions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 8px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
   }
 
+  .customer-workspace-item-actions,
   .customer-workspace-mobile-scope .customer-workspace-item-actions,
   .mobile-modal .customer-workspace-item-actions,
   .workspace-mobile-outlet-modal .customer-workspace-item-actions,
   .customer-inline-notes--workspace-mobile .customer-workspace-item-actions,
   .customer-consultations-mobile-shell .customer-workspace-item-actions {
-    flex-shrink: 0;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: flex-end;
     gap: 8px;
     max-width: 100%;
   }
 
-  .customer-workspace-mobile-scope .customer-workspace-item-actions--stacked,
-  .mobile-modal .customer-workspace-item-actions--stacked,
-  .workspace-mobile-outlet-modal .customer-workspace-item-actions--stacked,
+  .customer-workspace-item-actions--stacked,
+  .customer-consultations-mobile-shell .customer-workspace-item-actions,
   .customer-consultations-mobile-shell .customer-workspace-item-actions--stacked {
     justify-content: flex-start;
-    margin-top: 10px;
     width: 100%;
+    margin-top: 14px;
+  }
+
+  .customer-inline-notes--workspace-mobile .customer-workspace-item-actions {
+    justify-content: flex-end;
+    flex-shrink: 0;
+    margin-top: 0;
   }
 
   .customer-workspace-mobile-scope .customer-consultation-item--mobile,
@@ -75,44 +84,44 @@
     word-break: break-word;
   }
 
-  .customer-workspace-mobile-scope .customer-workspace-action-button,
-  .customer-workspace-mobile-scope button.customer-workspace-action-button,
-  .mobile-modal .customer-workspace-action-button,
-  .mobile-modal button.customer-workspace-action-button,
-  .workspace-mobile-outlet-modal .customer-workspace-action-button,
+  .customer-workspace-layout button.customer-workspace-action-button,
+  .mobile-workspace-content button.customer-workspace-action-button,
   .workspace-mobile-outlet-modal button.customer-workspace-action-button,
-  .customer-inline-notes--workspace-mobile .customer-workspace-action-button,
+  .mobile-modal button.customer-workspace-action-button,
+  .customer-workspace-mobile-scope button.customer-workspace-action-button,
   .customer-inline-notes--workspace-mobile button.customer-workspace-action-button,
-  .customer-consultations-mobile-shell .customer-workspace-action-button,
-  .customer-consultations-mobile-shell button.customer-workspace-action-button {
-    box-sizing: border-box;
+  .customer-consultations-mobile-shell button.customer-workspace-action-button,
+  button.customer-workspace-action-button {
     appearance: none;
+    -webkit-appearance: none;
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: auto;
     min-width: 0;
     max-width: none;
-    min-height: var(--m-control-h, 42px);
+    min-height: 44px;
     height: auto;
-    padding: 8px 14px;
-    border-radius: 8px;
-    border: 1px solid #334155;
-    background: #111827;
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: rgba(15, 23, 42, 0.92);
     color: #e5e7eb;
-    font-size: var(--customer-mobile-font-button, 14px);
-    font-weight: 600;
-    line-height: 1.22;
-    letter-spacing: var(--customer-mobile-letter-button, 0.012em);
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
     white-space: nowrap;
+    text-decoration: none;
+    transform: none;
+    box-shadow: none;
     flex-shrink: 0;
     touch-action: manipulation;
     cursor: pointer;
     font-family: inherit;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
-    box-shadow: none;
-    transform: none;
     opacity: 1;
     transition:
       background-color 0.15s ease,
@@ -120,119 +129,169 @@
       color 0.15s ease;
   }
 
-  .customer-workspace-mobile-scope .customer-workspace-action-button:hover:not(:disabled),
-  .mobile-modal .customer-workspace-action-button:hover:not(:disabled),
-  .workspace-mobile-outlet-modal .customer-workspace-action-button:hover:not(:disabled),
-  .customer-inline-notes--workspace-mobile .customer-workspace-action-button:hover:not(:disabled),
-  .customer-consultations-mobile-shell .customer-workspace-action-button:hover:not(:disabled) {
-    border-color: #475569;
-    background: #1f2937;
+  button.customer-workspace-action-button.customer-workspace-action-button--primary {
+    background: rgba(37, 99, 235, 0.18);
+    border-color: rgba(96, 165, 250, 0.48);
+    color: #dbeafe;
+  }
+
+  button.customer-workspace-action-button.customer-workspace-action-button--secondary {
+    background: rgba(15, 23, 42, 0.92);
+    border-color: rgba(148, 163, 184, 0.32);
+    color: #e5e7eb;
+  }
+
+  button.customer-workspace-action-button.customer-workspace-action-button--danger {
+    background: rgba(127, 29, 29, 0.24);
+    border-color: rgba(248, 113, 113, 0.42);
+    color: #fecaca;
+  }
+
+  .customer-workspace-layout button.customer-workspace-action-button--primary:hover:not(:disabled),
+  .mobile-workspace-content button.customer-workspace-action-button--primary:hover:not(:disabled),
+  .workspace-mobile-outlet-modal button.customer-workspace-action-button--primary:hover:not(:disabled),
+  .mobile-modal button.customer-workspace-action-button--primary:hover:not(:disabled),
+  .customer-workspace-mobile-scope button.customer-workspace-action-button--primary:hover:not(:disabled),
+  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button--primary:hover:not(:disabled),
+  .customer-consultations-mobile-shell button.customer-workspace-action-button--primary:hover:not(:disabled),
+  button.customer-workspace-action-button--primary:hover:not(:disabled) {
+    background: rgba(37, 99, 235, 0.28);
+    border-color: rgba(96, 165, 250, 0.62);
+    color: #eff6ff;
+  }
+
+  .customer-workspace-layout button.customer-workspace-action-button--secondary:hover:not(:disabled),
+  .mobile-workspace-content button.customer-workspace-action-button--secondary:hover:not(:disabled),
+  .workspace-mobile-outlet-modal button.customer-workspace-action-button--secondary:hover:not(:disabled),
+  .mobile-modal button.customer-workspace-action-button--secondary:hover:not(:disabled),
+  .customer-workspace-mobile-scope button.customer-workspace-action-button--secondary:hover:not(:disabled),
+  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button--secondary:hover:not(:disabled),
+  .customer-consultations-mobile-shell button.customer-workspace-action-button--secondary:hover:not(:disabled),
+  button.customer-workspace-action-button--secondary:hover:not(:disabled) {
+    background: rgba(30, 41, 59, 0.96);
+    border-color: rgba(148, 163, 184, 0.45);
     color: #f8fafc;
   }
 
-  .customer-workspace-mobile-scope .customer-workspace-action-button:active:not(:disabled),
-  .mobile-modal .customer-workspace-action-button:active:not(:disabled),
-  .workspace-mobile-outlet-modal .customer-workspace-action-button:active:not(:disabled),
-  .customer-inline-notes--workspace-mobile .customer-workspace-action-button:active:not(:disabled),
-  .customer-consultations-mobile-shell .customer-workspace-action-button:active:not(:disabled) {
+  .customer-workspace-layout button.customer-workspace-action-button--danger:hover:not(:disabled),
+  .mobile-workspace-content button.customer-workspace-action-button--danger:hover:not(:disabled),
+  .workspace-mobile-outlet-modal button.customer-workspace-action-button--danger:hover:not(:disabled),
+  .mobile-modal button.customer-workspace-action-button--danger:hover:not(:disabled),
+  .customer-workspace-mobile-scope button.customer-workspace-action-button--danger:hover:not(:disabled),
+  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button--danger:hover:not(:disabled),
+  .customer-consultations-mobile-shell button.customer-workspace-action-button--danger:hover:not(:disabled),
+  button.customer-workspace-action-button--danger:hover:not(:disabled) {
+    background: rgba(127, 29, 29, 0.36);
+    border-color: rgba(248, 113, 113, 0.55);
+    color: #fee2e2;
+  }
+
+  .customer-workspace-layout button.customer-workspace-action-button:active:not(:disabled),
+  .mobile-workspace-content button.customer-workspace-action-button:active:not(:disabled),
+  .workspace-mobile-outlet-modal button.customer-workspace-action-button:active:not(:disabled),
+  .mobile-modal button.customer-workspace-action-button:active:not(:disabled),
+  .customer-workspace-mobile-scope button.customer-workspace-action-button:active:not(:disabled),
+  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button:active:not(:disabled),
+  .customer-consultations-mobile-shell button.customer-workspace-action-button:active:not(:disabled),
+  button.customer-workspace-action-button:active:not(:disabled) {
     transform: none;
     opacity: 0.92;
   }
 
-  .customer-workspace-mobile-scope .customer-workspace-action-button:focus-visible,
-  .mobile-modal .customer-workspace-action-button:focus-visible,
-  .workspace-mobile-outlet-modal .customer-workspace-action-button:focus-visible,
-  .customer-inline-notes--workspace-mobile .customer-workspace-action-button:focus-visible,
-  .customer-consultations-mobile-shell .customer-workspace-action-button:focus-visible {
+  .customer-workspace-layout button.customer-workspace-action-button:focus-visible,
+  .mobile-workspace-content button.customer-workspace-action-button:focus-visible,
+  .workspace-mobile-outlet-modal button.customer-workspace-action-button:focus-visible,
+  .mobile-modal button.customer-workspace-action-button:focus-visible,
+  .customer-workspace-mobile-scope button.customer-workspace-action-button:focus-visible,
+  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button:focus-visible,
+  .customer-consultations-mobile-shell button.customer-workspace-action-button:focus-visible,
+  button.customer-workspace-action-button:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.28);
   }
 
-  .customer-workspace-mobile-scope .customer-workspace-action-button:disabled,
-  .mobile-modal .customer-workspace-action-button:disabled,
-  .workspace-mobile-outlet-modal .customer-workspace-action-button:disabled,
-  .customer-inline-notes--workspace-mobile .customer-workspace-action-button:disabled,
-  .customer-consultations-mobile-shell .customer-workspace-action-button:disabled {
+  .customer-workspace-layout button.customer-workspace-action-button:disabled,
+  .mobile-workspace-content button.customer-workspace-action-button:disabled,
+  .workspace-mobile-outlet-modal button.customer-workspace-action-button:disabled,
+  .mobile-modal button.customer-workspace-action-button:disabled,
+  .customer-workspace-mobile-scope button.customer-workspace-action-button:disabled,
+  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button:disabled,
+  .customer-consultations-mobile-shell button.customer-workspace-action-button:disabled,
+  button.customer-workspace-action-button:disabled {
     opacity: 0.5;
     cursor: default;
   }
 
-  .customer-workspace-mobile-scope .customer-workspace-action-button--primary,
-  .mobile-modal .customer-workspace-action-button--primary,
-  .workspace-mobile-outlet-modal .customer-workspace-action-button--primary,
-  .customer-inline-notes--workspace-mobile .customer-workspace-action-button--primary,
-  .customer-consultations-mobile-shell .customer-workspace-action-button--primary {
-    border: 1px solid #334155;
-    background: transparent;
-    color: #e5e7eb;
-  }
-
-  .customer-workspace-mobile-scope .customer-workspace-action-button--primary:hover:not(:disabled),
-  .mobile-modal .customer-workspace-action-button--primary:hover:not(:disabled),
-  .workspace-mobile-outlet-modal .customer-workspace-action-button--primary:hover:not(:disabled),
-  .customer-inline-notes--workspace-mobile .customer-workspace-action-button--primary:hover:not(:disabled),
-  .customer-consultations-mobile-shell .customer-workspace-action-button--primary:hover:not(:disabled) {
-    background: #1f2937;
-    border-color: #475569;
-    color: #f8fafc;
-  }
-
-  .customer-workspace-mobile-scope .customer-workspace-action-button--secondary,
-  .mobile-modal .customer-workspace-action-button--secondary,
-  .workspace-mobile-outlet-modal .customer-workspace-action-button--secondary,
-  .customer-inline-notes--workspace-mobile .customer-workspace-action-button--secondary,
-  .customer-consultations-mobile-shell .customer-workspace-action-button--secondary {
-    border-color: rgba(255, 255, 255, 0.15);
-    background: #111827;
-    color: #e5e7eb;
-  }
-
-  .customer-workspace-mobile-scope .customer-workspace-action-button--danger,
-  .mobile-modal .customer-workspace-action-button--danger,
-  .workspace-mobile-outlet-modal .customer-workspace-action-button--danger,
-  .customer-inline-notes--workspace-mobile .customer-workspace-action-button--danger,
-  .customer-consultations-mobile-shell .customer-workspace-action-button--danger {
-    border-color: rgba(239, 68, 68, 0.35);
-    background: #111827;
-    color: #fca5a5;
-  }
-
-  .customer-workspace-mobile-scope .customer-workspace-action-button--danger:hover:not(:disabled),
-  .mobile-modal .customer-workspace-action-button--danger:hover:not(:disabled),
-  .workspace-mobile-outlet-modal .customer-workspace-action-button--danger:hover:not(:disabled),
-  .customer-inline-notes--workspace-mobile .customer-workspace-action-button--danger:hover:not(:disabled),
-  .customer-consultations-mobile-shell .customer-workspace-action-button--danger:hover:not(:disabled) {
-    border-color: rgba(239, 68, 68, 0.5);
-    background: rgba(239, 68, 68, 0.12);
-    color: #fecaca;
-  }
-
-  .customer-workspace-mobile-scope .customer-workspace-action-icon-button,
-  .mobile-modal .customer-workspace-action-icon-button,
-  .workspace-mobile-outlet-modal .customer-workspace-action-icon-button,
-  .customer-inline-notes--workspace-mobile .customer-workspace-action-icon-button,
-  .customer-consultations-mobile-shell .customer-workspace-action-icon-button {
-    min-width: var(--m-control-h, 42px);
-    min-height: var(--m-control-h, 42px);
-    width: var(--m-control-h, 42px);
-    height: var(--m-control-h, 42px);
+  .customer-workspace-layout button.customer-workspace-action-icon-button,
+  .mobile-workspace-content button.customer-workspace-action-icon-button,
+  .workspace-mobile-outlet-modal button.customer-workspace-action-icon-button,
+  .mobile-modal button.customer-workspace-action-icon-button,
+  .customer-workspace-mobile-scope button.customer-workspace-action-icon-button,
+  .customer-inline-notes--workspace-mobile button.customer-workspace-action-icon-button,
+  .customer-consultations-mobile-shell button.customer-workspace-action-icon-button,
+  button.customer-workspace-action-icon-button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
     padding: 0;
-    border: none;
-    background: transparent;
+    border-radius: 12px;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(15, 23, 42, 0.72);
     color: #e5e7eb;
     font-size: 1.35rem;
     line-height: 1;
-    opacity: 0.75;
-    border-radius: 8px;
+    opacity: 0.85;
   }
 
-  .customer-workspace-mobile-scope .customer-workspace-action-icon-button:hover:not(:disabled),
-  .mobile-modal .customer-workspace-action-icon-button:hover:not(:disabled),
-  .workspace-mobile-outlet-modal .customer-workspace-action-icon-button:hover:not(:disabled),
-  .customer-inline-notes--workspace-mobile .customer-workspace-action-icon-button:hover:not(:disabled),
-  .customer-consultations-mobile-shell .customer-workspace-action-icon-button:hover:not(:disabled) {
+  .customer-workspace-layout button.customer-workspace-action-icon-button:hover:not(:disabled),
+  .mobile-workspace-content button.customer-workspace-action-icon-button:hover:not(:disabled),
+  .workspace-mobile-outlet-modal button.customer-workspace-action-icon-button:hover:not(:disabled),
+  .mobile-modal button.customer-workspace-action-icon-button:hover:not(:disabled),
+  .customer-workspace-mobile-scope button.customer-workspace-action-icon-button:hover:not(:disabled),
+  .customer-inline-notes--workspace-mobile button.customer-workspace-action-icon-button:hover:not(:disabled),
+  .customer-consultations-mobile-shell button.customer-workspace-action-icon-button:hover:not(:disabled),
+  button.customer-workspace-action-icon-button:hover:not(:disabled) {
     opacity: 1;
-    background: rgba(255, 255, 255, 0.06);
-    border: none;
+    background: rgba(30, 41, 59, 0.92);
+    border-color: rgba(148, 163, 184, 0.38);
+  }
+
+  /*
+   * mobile-ui-foundation(.mobile-modal button), index.css(.mobile-root .button) 등
+   * 후행/동급 규칙이 padding·font-size·height를 덮는 경우 — scope 안에서만 !important.
+   */
+  .mobile-workspace-content button.customer-workspace-action-button,
+  .workspace-mobile-outlet-modal button.customer-workspace-action-button,
+  .customer-workspace-layout button.customer-workspace-action-button,
+  .mobile-modal button.customer-workspace-action-button,
+  .customer-workspace-mobile-scope button.customer-workspace-action-button,
+  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button,
+  .customer-consultations-mobile-shell button.customer-workspace-action-button {
+    min-height: 44px !important;
+    height: auto !important;
+    padding: 10px 16px !important;
+    border-radius: 12px !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    transform: none !important;
+  }
+
+  .mobile-workspace-content button.customer-workspace-action-icon-button,
+  .workspace-mobile-outlet-modal button.customer-workspace-action-icon-button,
+  .customer-workspace-layout button.customer-workspace-action-icon-button,
+  .mobile-modal button.customer-workspace-action-icon-button,
+  .customer-workspace-mobile-scope button.customer-workspace-action-icon-button,
+  .customer-inline-notes--workspace-mobile button.customer-workspace-action-icon-button,
+  .customer-consultations-mobile-shell button.customer-workspace-action-icon-button {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+    transform: none !important;
   }
 }
