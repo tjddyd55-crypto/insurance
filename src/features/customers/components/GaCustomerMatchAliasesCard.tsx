@@ -1,6 +1,7 @@
 import { useId } from 'react'
 import { FormButton, FormInput } from '../../../components/form'
 import { StatusMessage } from '../../../components/feedback'
+import { CustomerWorkspacePrimaryActionButton } from './CustomerWorkspaceActionButtons'
 import { useGaCustomerMatchAliases } from '../hooks/useGaCustomerMatchAliases'
 
 export type GaCustomerMatchAliasesCardProps = {
@@ -58,17 +59,24 @@ export default function GaCustomerMatchAliasesCard({
         spellCheck={false}
         aria-describedby={`${inputId}-hint`}
       />
-      <FormButton
-        htmlType="button"
-        variant="primary"
-        size="sm"
-        disabled={
-          saving || loading || !Number.isFinite(customerId) || customerId < 1
-        }
-        onClick={() => void handleSave()}
-      >
-        {saving ? '저장 중…' : '저장'}
-      </FormButton>
+      {layout === 'mobile' ? (
+        <CustomerWorkspacePrimaryActionButton
+          disabled={saving || loading || !Number.isFinite(customerId) || customerId < 1}
+          onClick={() => void handleSave()}
+        >
+          {saving ? '저장 중…' : '저장'}
+        </CustomerWorkspacePrimaryActionButton>
+      ) : (
+        <FormButton
+          htmlType="button"
+          variant="primary"
+          size="sm"
+          disabled={saving || loading || !Number.isFinite(customerId) || customerId < 1}
+          onClick={() => void handleSave()}
+        >
+          {saving ? '저장 중…' : '저장'}
+        </FormButton>
+      )}
     </>
   )
 
