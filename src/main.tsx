@@ -27,6 +27,7 @@ import './features/customers/customer-pc-filter-buttons.css'
 import { appRouter } from './appRouter'
 import { ElectronForceUpdateGate } from './components/ElectronForceUpdateGate'
 import { DesktopUpdateDialog } from './features/desktop-update/DesktopUpdateDialog'
+import { WebAppUpdateBanner } from './features/web-update/WebAppUpdateBanner'
 import { AuthProvider } from './features/auth/AuthProvider'
 import { initColorScheme } from './theme/colorScheme'
 
@@ -54,6 +55,7 @@ createRoot(document.getElementById('root')!).render(
         <ElectronForceUpdateGate>
           <RouterProvider router={appRouter} />
           <DesktopUpdateDialog />
+          <WebAppUpdateBanner />
         </ElectronForceUpdateGate>
       </AuthProvider>
     </QueryClientProvider>
