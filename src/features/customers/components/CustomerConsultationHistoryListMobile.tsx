@@ -30,27 +30,19 @@ export default function CustomerConsultationHistoryListMobile({
         return (
           <li
             key={r.id}
+            className="customer-consultation-item customer-consultation-item--mobile"
             style={{
               borderBottom: '1px solid var(--border-default)',
               padding: '12px 0',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 8,
-                marginBottom: 6,
-                flexWrap: 'wrap',
-              }}
-            >
-              <div style={{ fontWeight: 600 }}>{dateLabel}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div className="customer-consultation-item__header">
+              <div className="customer-consultation-item__date">{dateLabel}</div>
+              <div className="customer-workspace-item-actions">
                 <FormButton
                   htmlType="button"
-                  variant="secondary"
-                  className="filter-button"
+                  variant="action"
+                  className="customer-workspace-action-button customer-workspace-action-button--secondary"
                   disabled={busy}
                   onClick={() => onOpenEditModal(r)}
                 >
@@ -59,7 +51,7 @@ export default function CustomerConsultationHistoryListMobile({
                 <FormButton
                   htmlType="button"
                   variant="action"
-                  className="filter-button"
+                  className="customer-workspace-action-button customer-workspace-action-button--danger"
                   disabled={busy}
                   onClick={() => void onDelete(r.id)}
                 >
@@ -68,8 +60,8 @@ export default function CustomerConsultationHistoryListMobile({
                 {onAddTodoFromConsultation ? (
                   <FormButton
                     htmlType="button"
-                    variant="secondary"
-                    className="filter-button"
+                    variant="action"
+                    className="customer-workspace-action-button customer-workspace-action-button--secondary"
                     disabled={busy}
                     onClick={() => onAddTodoFromConsultation(r.id, text)}
                   >
