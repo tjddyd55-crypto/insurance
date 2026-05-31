@@ -1,15 +1,23 @@
 /**
- * 고객 작업영역(모바일) — 메모/상담 인라인 액션 버튼 SSOT.
- * DOM: button.customer-workspace-action-button (+ --primary | --secondary | --danger)
+ * 고객 작업영역(모바일) 액션 버튼 SSOT.
+ *
+ * 적용 범위: 루트에 `customer-workspace-mobile-scope` 가 붙은 작업영역 콘텐츠
+ * (메모: `customer-inline-notes--workspace-mobile`, 상담: `customer-consultations-mobile-shell`,
+ *  이후 파일/GA 등). 버튼 DOM 은 `button.customer-workspace-action-button`
+ * (+ `--primary | --secondary | --danger`) 또는 `button.customer-workspace-action-icon-button`.
+ *
+ * specificity 설계:
+ *   - 본 파일은 main.tsx 에서 `mobile-ui-foundation.css` 보다 "뒤"에 import 된다.
+ *   - 전역 `.workspace-mobile-outlet-modal button:not(.__close)` (0,2,1) 와
+ *     `.customer-workspace-mobile-scope button.customer-workspace-action-button` (0,2,1) 는 동점이며,
+ *     cascade 순서(후행 import)로 본 규칙이 이긴다. 따라서 !important 없이 동작한다.
+ *   - 이 import 순서를 깨면 버튼이 전역 규칙에 덮인다. main.tsx 순서를 유지할 것.
+ *
  * 전역 button / .button / mobile-ui-foundation 전역 규칙은 수정하지 않는다.
  */
 @media (max-width: 768px) {
-  .customer-workspace-section-head,
-  .customer-workspace-mobile-scope .customer-workspace-section-head,
-  .mobile-modal .customer-workspace-section-head,
-  .workspace-mobile-outlet-modal .customer-workspace-section-head,
-  .customer-memos-mobile-shell .customer-workspace-section-head,
-  .customer-consultations-mobile-shell .customer-workspace-section-head {
+  /* ── 섹션 헤더 ([메모]/[상담] + 우측 추가 버튼) ── */
+  .customer-workspace-mobile-scope .customer-workspace-section-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -18,12 +26,7 @@
     margin-bottom: 8px;
   }
 
-  .customer-workspace-section-head-actions,
-  .customer-workspace-mobile-scope .customer-workspace-section-head-actions,
-  .mobile-modal .customer-workspace-section-head-actions,
-  .workspace-mobile-outlet-modal .customer-workspace-section-head-actions,
-  .customer-memos-mobile-shell .customer-workspace-section-head-actions,
-  .customer-consultations-mobile-shell .customer-workspace-section-head-actions {
+  .customer-workspace-mobile-scope .customer-workspace-section-head-actions {
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -32,13 +35,8 @@
     flex-shrink: 0;
   }
 
-  .customer-workspace-item-actions,
-  .customer-workspace-mobile-scope .customer-workspace-item-actions,
-  .mobile-modal .customer-workspace-item-actions,
-  .workspace-mobile-outlet-modal .customer-workspace-item-actions,
-  .customer-inline-notes--workspace-mobile .customer-workspace-item-actions,
-  .customer-memos-mobile-shell .customer-workspace-item-actions,
-  .customer-consultations-mobile-shell .customer-workspace-item-actions {
+  /* ── 항목 액션 묶음 (공통 기본) ── */
+  .customer-workspace-mobile-scope .customer-workspace-item-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -46,66 +44,50 @@
     max-width: 100%;
   }
 
-  .customer-consultations-mobile-shell .customer-consultation-item--mobile .customer-workspace-item-actions {
-    justify-content: flex-start;
-    width: 100%;
-    margin-top: 14px;
-  }
-
+  /* 메모: 본문 우측 inline */
   .customer-inline-notes--workspace-mobile .customer-workspace-item-actions {
     justify-content: flex-end;
     flex-shrink: 0;
     margin-top: 0;
   }
 
+  /* 상담: 본문 아래 full-width */
+  .customer-consultations-mobile-shell .customer-consultation-item--mobile .customer-workspace-item-actions {
+    justify-content: flex-start;
+    width: 100%;
+    margin-top: 14px;
+  }
+
   .customer-consultations-mobile-shell .customer-consultations-mobile-section {
     margin-top: 0;
   }
 
-  .customer-workspace-mobile-scope .customer-consultation-item--mobile,
-  .mobile-modal .customer-consultation-item--mobile,
-  .workspace-mobile-outlet-modal .customer-consultation-item--mobile,
-  .customer-memos-mobile-shell .customer-consultation-item--mobile,
-  .customer-consultations-mobile-shell .customer-consultation-item--mobile {
+  /* ── 상담 항목 본문 구조 ── */
+  .customer-workspace-mobile-scope .customer-consultation-item--mobile {
     display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 0;
   }
 
-  .customer-workspace-mobile-scope .customer-consultation-item__content,
-  .workspace-mobile-outlet-modal .customer-consultation-item__content,
-  .customer-consultations-mobile-shell .customer-consultation-item__content {
+  .customer-workspace-mobile-scope .customer-consultation-item__content {
     min-width: 0;
   }
 
-  .customer-workspace-mobile-scope .customer-consultation-item__date,
-  .mobile-modal .customer-consultation-item__date,
-  .workspace-mobile-outlet-modal .customer-consultation-item__date,
-  .customer-consultations-mobile-shell .customer-consultation-item__date {
+  .customer-workspace-mobile-scope .customer-consultation-item__date {
     font-weight: 600;
     color: var(--text-primary, #f8fafc);
     line-height: 1.35;
   }
 
-  .customer-workspace-mobile-scope .customer-consultation-item__body,
-  .mobile-modal .customer-consultation-item__body,
-  .workspace-mobile-outlet-modal .customer-consultation-item__body,
-  .customer-consultations-mobile-shell .customer-consultation-item__body {
+  .customer-workspace-mobile-scope .customer-consultation-item__body {
     min-width: 0;
     white-space: pre-wrap;
     word-break: break-word;
   }
 
-  .customer-workspace-layout button.customer-workspace-action-button,
-  .mobile-workspace-content button.customer-workspace-action-button,
-  .workspace-mobile-outlet-modal button.customer-workspace-action-button,
-  .mobile-modal button.customer-workspace-action-button,
-  .customer-workspace-mobile-scope button.customer-workspace-action-button,
-  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button,
-  .customer-memos-mobile-shell button.customer-workspace-action-button,
-  .customer-consultations-mobile-shell button.customer-workspace-action-button,
-  button.customer-workspace-action-button {
+  /* ── 액션 버튼 (SSOT) ── */
+  .customer-workspace-mobile-scope button.customer-workspace-action-button {
     appearance: none;
     -webkit-appearance: none;
     box-sizing: border-box;
@@ -143,114 +125,59 @@
       color 0.15s ease;
   }
 
-  button.customer-workspace-action-button.customer-workspace-action-button--primary {
+  .customer-workspace-mobile-scope button.customer-workspace-action-button--primary {
     background: rgba(37, 99, 235, 0.18);
     border-color: rgba(96, 165, 250, 0.48);
     color: #dbeafe;
   }
 
-  button.customer-workspace-action-button.customer-workspace-action-button--secondary {
+  .customer-workspace-mobile-scope button.customer-workspace-action-button--secondary {
     background: rgba(15, 23, 42, 0.92);
     border-color: rgba(148, 163, 184, 0.32);
     color: #e5e7eb;
   }
 
-  button.customer-workspace-action-button.customer-workspace-action-button--danger {
+  .customer-workspace-mobile-scope button.customer-workspace-action-button--danger {
     background: rgba(127, 29, 29, 0.24);
     border-color: rgba(248, 113, 113, 0.42);
     color: #fecaca;
   }
 
-  .customer-workspace-layout button.customer-workspace-action-button--primary:hover:not(:disabled),
-  .mobile-workspace-content button.customer-workspace-action-button--primary:hover:not(:disabled),
-  .workspace-mobile-outlet-modal button.customer-workspace-action-button--primary:hover:not(:disabled),
-  .mobile-modal button.customer-workspace-action-button--primary:hover:not(:disabled),
-  .customer-workspace-mobile-scope button.customer-workspace-action-button--primary:hover:not(:disabled),
-  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button--primary:hover:not(:disabled),
-  .customer-memos-mobile-shell button.customer-workspace-action-button--primary:hover:not(:disabled),
-  .customer-consultations-mobile-shell button.customer-workspace-action-button--primary:hover:not(:disabled),
-  button.customer-workspace-action-button--primary:hover:not(:disabled) {
+  .customer-workspace-mobile-scope button.customer-workspace-action-button--primary:hover:not(:disabled) {
     background: rgba(37, 99, 235, 0.28);
     border-color: rgba(96, 165, 250, 0.62);
     color: #eff6ff;
   }
 
-  .customer-workspace-layout button.customer-workspace-action-button--secondary:hover:not(:disabled),
-  .mobile-workspace-content button.customer-workspace-action-button--secondary:hover:not(:disabled),
-  .workspace-mobile-outlet-modal button.customer-workspace-action-button--secondary:hover:not(:disabled),
-  .mobile-modal button.customer-workspace-action-button--secondary:hover:not(:disabled),
-  .customer-workspace-mobile-scope button.customer-workspace-action-button--secondary:hover:not(:disabled),
-  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button--secondary:hover:not(:disabled),
-  .customer-memos-mobile-shell button.customer-workspace-action-button--secondary:hover:not(:disabled),
-  .customer-consultations-mobile-shell button.customer-workspace-action-button--secondary:hover:not(:disabled),
-  button.customer-workspace-action-button--secondary:hover:not(:disabled) {
+  .customer-workspace-mobile-scope button.customer-workspace-action-button--secondary:hover:not(:disabled) {
     background: rgba(30, 41, 59, 0.96);
     border-color: rgba(148, 163, 184, 0.45);
     color: #f8fafc;
   }
 
-  .customer-workspace-layout button.customer-workspace-action-button--danger:hover:not(:disabled),
-  .mobile-workspace-content button.customer-workspace-action-button--danger:hover:not(:disabled),
-  .workspace-mobile-outlet-modal button.customer-workspace-action-button--danger:hover:not(:disabled),
-  .mobile-modal button.customer-workspace-action-button--danger:hover:not(:disabled),
-  .customer-workspace-mobile-scope button.customer-workspace-action-button--danger:hover:not(:disabled),
-  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button--danger:hover:not(:disabled),
-  .customer-memos-mobile-shell button.customer-workspace-action-button--danger:hover:not(:disabled),
-  .customer-consultations-mobile-shell button.customer-workspace-action-button--danger:hover:not(:disabled),
-  button.customer-workspace-action-button--danger:hover:not(:disabled) {
+  .customer-workspace-mobile-scope button.customer-workspace-action-button--danger:hover:not(:disabled) {
     background: rgba(127, 29, 29, 0.36);
     border-color: rgba(248, 113, 113, 0.55);
     color: #fee2e2;
   }
 
-  .customer-workspace-layout button.customer-workspace-action-button:active:not(:disabled),
-  .mobile-workspace-content button.customer-workspace-action-button:active:not(:disabled),
-  .workspace-mobile-outlet-modal button.customer-workspace-action-button:active:not(:disabled),
-  .mobile-modal button.customer-workspace-action-button:active:not(:disabled),
-  .customer-workspace-mobile-scope button.customer-workspace-action-button:active:not(:disabled),
-  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button:active:not(:disabled),
-  .customer-memos-mobile-shell button.customer-workspace-action-button:active:not(:disabled),
-  .customer-consultations-mobile-shell button.customer-workspace-action-button:active:not(:disabled),
-  button.customer-workspace-action-button:active:not(:disabled) {
+  .customer-workspace-mobile-scope button.customer-workspace-action-button:active:not(:disabled) {
     transform: none;
     opacity: 0.92;
   }
 
-  .customer-workspace-layout button.customer-workspace-action-button:focus-visible,
-  .mobile-workspace-content button.customer-workspace-action-button:focus-visible,
-  .workspace-mobile-outlet-modal button.customer-workspace-action-button:focus-visible,
-  .mobile-modal button.customer-workspace-action-button:focus-visible,
-  .customer-workspace-mobile-scope button.customer-workspace-action-button:focus-visible,
-  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button:focus-visible,
-  .customer-memos-mobile-shell button.customer-workspace-action-button:focus-visible,
-  .customer-consultations-mobile-shell button.customer-workspace-action-button:focus-visible,
-  button.customer-workspace-action-button:focus-visible {
+  .customer-workspace-mobile-scope button.customer-workspace-action-button:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.28);
   }
 
-  .customer-workspace-layout button.customer-workspace-action-button:disabled,
-  .mobile-workspace-content button.customer-workspace-action-button:disabled,
-  .workspace-mobile-outlet-modal button.customer-workspace-action-button:disabled,
-  .mobile-modal button.customer-workspace-action-button:disabled,
-  .customer-workspace-mobile-scope button.customer-workspace-action-button:disabled,
-  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button:disabled,
-  .customer-memos-mobile-shell button.customer-workspace-action-button:disabled,
-  .customer-consultations-mobile-shell button.customer-workspace-action-button:disabled,
-  button.customer-workspace-action-button:disabled {
+  .customer-workspace-mobile-scope button.customer-workspace-action-button:disabled {
     opacity: 0.5;
     cursor: default;
   }
 
-  .customer-workspace-layout button.customer-workspace-action-icon-button,
-  .mobile-workspace-content button.customer-workspace-action-icon-button,
-  .workspace-mobile-outlet-modal button.customer-workspace-action-icon-button,
-  .mobile-modal button.customer-workspace-action-icon-button,
-  .customer-workspace-mobile-scope button.customer-workspace-action-icon-button,
-  .customer-inline-notes--workspace-mobile button.customer-workspace-action-icon-button,
-  .customer-memos-mobile-shell button.customer-workspace-action-icon-button,
-  .customer-consultations-mobile-shell button.customer-workspace-action-icon-button,
-  button.customer-workspace-action-icon-button {
+  /* ── 아이콘 삭제 버튼 (메모 X) ── */
+  .customer-workspace-mobile-scope button.customer-workspace-action-icon-button {
     width: 44px;
     min-width: 44px;
     height: 44px;
@@ -265,57 +192,9 @@
     opacity: 0.85;
   }
 
-  .customer-workspace-layout button.customer-workspace-action-icon-button:hover:not(:disabled),
-  .mobile-workspace-content button.customer-workspace-action-icon-button:hover:not(:disabled),
-  .workspace-mobile-outlet-modal button.customer-workspace-action-icon-button:hover:not(:disabled),
-  .mobile-modal button.customer-workspace-action-icon-button:hover:not(:disabled),
-  .customer-workspace-mobile-scope button.customer-workspace-action-icon-button:hover:not(:disabled),
-  .customer-inline-notes--workspace-mobile button.customer-workspace-action-icon-button:hover:not(:disabled),
-  .customer-memos-mobile-shell button.customer-workspace-action-icon-button:hover:not(:disabled),
-  .customer-consultations-mobile-shell button.customer-workspace-action-icon-button:hover:not(:disabled),
-  button.customer-workspace-action-icon-button:hover:not(:disabled) {
+  .customer-workspace-mobile-scope button.customer-workspace-action-icon-button:hover:not(:disabled) {
     opacity: 1;
     background: rgba(30, 41, 59, 0.92);
     border-color: rgba(148, 163, 184, 0.38);
-  }
-
-  /*
-   * mobile-ui-foundation(.mobile-modal button), index.css(.mobile-root .button) 등
-   * 후행/동급 규칙이 padding·font-size·height를 덮는 경우 — scope 안에서만 !important.
-   */
-  .mobile-workspace-content button.customer-workspace-action-button,
-  .workspace-mobile-outlet-modal button.customer-workspace-action-button,
-  .customer-workspace-layout button.customer-workspace-action-button,
-  .mobile-modal button.customer-workspace-action-button,
-  .customer-workspace-mobile-scope button.customer-workspace-action-button,
-  .customer-inline-notes--workspace-mobile button.customer-workspace-action-button,
-  .customer-memos-mobile-shell button.customer-workspace-action-button,
-  .customer-consultations-mobile-shell button.customer-workspace-action-button {
-    min-height: 44px !important;
-    height: auto !important;
-    padding: 10px 16px !important;
-    border-radius: 12px !important;
-    font-size: 16px !important;
-    font-weight: 700 !important;
-    line-height: 1.2 !important;
-    white-space: nowrap !important;
-    transform: none !important;
-  }
-
-  .mobile-workspace-content button.customer-workspace-action-icon-button,
-  .workspace-mobile-outlet-modal button.customer-workspace-action-icon-button,
-  .customer-workspace-layout button.customer-workspace-action-icon-button,
-  .mobile-modal button.customer-workspace-action-icon-button,
-  .customer-workspace-mobile-scope button.customer-workspace-action-icon-button,
-  .customer-inline-notes--workspace-mobile button.customer-workspace-action-icon-button,
-  .customer-memos-mobile-shell button.customer-workspace-action-icon-button,
-  .customer-consultations-mobile-shell button.customer-workspace-action-icon-button {
-    width: 44px !important;
-    min-width: 44px !important;
-    height: 44px !important;
-    min-height: 44px !important;
-    padding: 0 !important;
-    border-radius: 12px !important;
-    transform: none !important;
   }
 }
