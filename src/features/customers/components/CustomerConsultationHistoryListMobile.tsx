@@ -40,17 +40,19 @@ export default function CustomerConsultationHistoryListMobile({
               padding: '12px 0',
             }}
           >
-            <div className="customer-consultation-item__date">{dateLabel}</div>
-            <div className="customer-consultation-item__body">{text || '—'}</div>
-            {contactMeta ? (
-              <div
-                className="customer-consultation-history__contact-meta customer-consultation-item__meta"
-                style={{ marginTop: 8, fontSize: '0.875rem', color: 'var(--text-secondary)' }}
-              >
-                {contactMeta}
-              </div>
-            ) : null}
-            <CustomerWorkspaceItemActions layout="stacked">
+            <div className="customer-consultation-item__content">
+              <div className="customer-consultation-item__date">{dateLabel}</div>
+              <div className="customer-consultation-item__body">{text || '—'}</div>
+              {contactMeta ? (
+                <div
+                  className="customer-consultation-history__contact-meta customer-consultation-item__meta"
+                  style={{ marginTop: 8, fontSize: '0.875rem', color: 'var(--text-secondary)' }}
+                >
+                  {contactMeta}
+                </div>
+              ) : null}
+            </div>
+            <CustomerWorkspaceItemActions>
               <CustomerWorkspaceSecondaryActionButton disabled={busy} onClick={() => onOpenEditModal(r)}>
                 수정
               </CustomerWorkspaceSecondaryActionButton>

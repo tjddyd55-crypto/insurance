@@ -35,7 +35,7 @@ export default function CustomerConsultationsPageMobile({
     >
       <StatusMessage message={listError} tone="error" className="!mt-0" />
 
-      <section style={{ marginTop: 24 }}>
+      <div className="customer-consultations-mobile-section">
         <CustomerWorkspaceSectionHead
           title="[상담]"
           actions={
@@ -58,7 +58,7 @@ export default function CustomerConsultationsPageMobile({
             onAddTodoFromConsultation={onAddTodoFromConsultation}
           />
         )}
-      </section>
+      </div>
 
       <CustomerConsultationFormModal
         open={formModalOpen}
