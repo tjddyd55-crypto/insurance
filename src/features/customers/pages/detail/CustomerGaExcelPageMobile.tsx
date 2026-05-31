@@ -59,7 +59,7 @@ export default function CustomerGaExcelPageMobile({ routeCustomerId }: CustomerG
   ]
 
   return (
-    <main className="page customer-ga-excel-page customer-ga-excel-page--mobile p-3">
+    <main className="page customer-ga-excel-page customer-ga-excel-page--mobile customer-workspace-mobile-scope p-3">
       <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">GA 고객 데이터</h2>
       <GaCustomerMatchAliasesCard
         customerId={customerId}
