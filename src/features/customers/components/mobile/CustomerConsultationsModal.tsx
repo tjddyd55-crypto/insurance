@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import Modal from '../../../../components/ui/Modal'
 import { useAuth } from '../../../auth/AuthProvider'
 import CustomerWorkspaceCloseButton from '../CustomerWorkspaceCloseButton'
 import { useMobileConsultationsState } from '../../hooks/useMobileConsultationsState'
@@ -61,29 +62,24 @@ export default function CustomerConsultationsModal({
 
   return (
     <>
-      <div
-        className="mobile-modal-overlay"
-        role="dialog"
-        aria-modal="true"
-        aria-label="상담"
-        onClick={handleWorkspaceClose}
+      <Modal
+        open
+        onClose={handleWorkspaceClose}
+        ariaLabel="상담"
+        panelClassName="workspace-mobile-outlet-modal"
       >
-        <div className="mobile-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="mobile-modal-header">
-            <span className="mobile-modal-header__spacer" aria-hidden />
-            <span className="mobile-modal-header__title">상담</span>
-            <CustomerWorkspaceCloseButton onClick={handleWorkspaceClose} />
-          </div>
-          <div className="mobile-modal-body">
-            <div className="mobile-modal-content customer-workspace-mobile-scope">
-              <CustomerConsultationsPageMobile
-                {...mobileViewProps}
-                onAddTodoFromConsultation={openTodoFromConsultation}
-              />
-            </div>
-          </div>
+        <div className="workspace-mobile-outlet-modal__header">
+          <span className="workspace-mobile-outlet-modal__spacer" aria-hidden />
+          <h2 className="workspace-mobile-outlet-modal__title">상담</h2>
+          <CustomerWorkspaceCloseButton onClick={handleWorkspaceClose} />
         </div>
-      </div>
+        <div className="workspace-mobile-outlet-modal__body">
+          <CustomerConsultationsPageMobile
+            {...mobileViewProps}
+            onAddTodoFromConsultation={openTodoFromConsultation}
+          />
+        </div>
+      </Modal>
       <TodoEditorDialog
         open={todoDialogOpen}
         usePortal

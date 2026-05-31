@@ -4,9 +4,11 @@
  * 전역 button / .button / mobile-ui-foundation 전역 규칙은 수정하지 않는다.
  */
 @media (max-width: 768px) {
+  .customer-workspace-section-head,
   .customer-workspace-mobile-scope .customer-workspace-section-head,
   .mobile-modal .customer-workspace-section-head,
   .workspace-mobile-outlet-modal .customer-workspace-section-head,
+  .customer-memos-mobile-shell .customer-workspace-section-head,
   .customer-consultations-mobile-shell .customer-workspace-section-head {
     display: flex;
     align-items: center;
@@ -20,6 +22,7 @@
   .customer-workspace-mobile-scope .customer-workspace-section-head-actions,
   .mobile-modal .customer-workspace-section-head-actions,
   .workspace-mobile-outlet-modal .customer-workspace-section-head-actions,
+  .customer-memos-mobile-shell .customer-workspace-section-head-actions,
   .customer-consultations-mobile-shell .customer-workspace-section-head-actions {
     display: flex;
     align-items: center;
@@ -34,6 +37,7 @@
   .mobile-modal .customer-workspace-item-actions,
   .workspace-mobile-outlet-modal .customer-workspace-item-actions,
   .customer-inline-notes--workspace-mobile .customer-workspace-item-actions,
+  .customer-memos-mobile-shell .customer-workspace-item-actions,
   .customer-consultations-mobile-shell .customer-workspace-item-actions {
     display: flex;
     flex-wrap: wrap;
@@ -42,9 +46,7 @@
     max-width: 100%;
   }
 
-  .customer-workspace-item-actions--stacked,
-  .customer-consultations-mobile-shell .customer-workspace-item-actions,
-  .customer-consultations-mobile-shell .customer-workspace-item-actions--stacked {
+  .customer-consultations-mobile-shell .customer-consultation-item--mobile .customer-workspace-item-actions {
     justify-content: flex-start;
     width: 100%;
     margin-top: 14px;
@@ -56,14 +58,25 @@
     margin-top: 0;
   }
 
+  .customer-consultations-mobile-shell .customer-consultations-mobile-section {
+    margin-top: 0;
+  }
+
   .customer-workspace-mobile-scope .customer-consultation-item--mobile,
   .mobile-modal .customer-consultation-item--mobile,
   .workspace-mobile-outlet-modal .customer-consultation-item--mobile,
+  .customer-memos-mobile-shell .customer-consultation-item--mobile,
   .customer-consultations-mobile-shell .customer-consultation-item--mobile {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: 0;
+  }
+
+  .customer-workspace-mobile-scope .customer-consultation-item__content,
+  .workspace-mobile-outlet-modal .customer-consultation-item__content,
+  .customer-consultations-mobile-shell .customer-consultation-item__content {
+    min-width: 0;
   }
 
   .customer-workspace-mobile-scope .customer-consultation-item__date,
@@ -90,6 +103,7 @@
   .mobile-modal button.customer-workspace-action-button,
   .customer-workspace-mobile-scope button.customer-workspace-action-button,
   .customer-inline-notes--workspace-mobile button.customer-workspace-action-button,
+  .customer-memos-mobile-shell button.customer-workspace-action-button,
   .customer-consultations-mobile-shell button.customer-workspace-action-button,
   button.customer-workspace-action-button {
     appearance: none;
@@ -153,6 +167,7 @@
   .mobile-modal button.customer-workspace-action-button--primary:hover:not(:disabled),
   .customer-workspace-mobile-scope button.customer-workspace-action-button--primary:hover:not(:disabled),
   .customer-inline-notes--workspace-mobile button.customer-workspace-action-button--primary:hover:not(:disabled),
+  .customer-memos-mobile-shell button.customer-workspace-action-button--primary:hover:not(:disabled),
   .customer-consultations-mobile-shell button.customer-workspace-action-button--primary:hover:not(:disabled),
   button.customer-workspace-action-button--primary:hover:not(:disabled) {
     background: rgba(37, 99, 235, 0.28);
@@ -166,6 +181,7 @@
   .mobile-modal button.customer-workspace-action-button--secondary:hover:not(:disabled),
   .customer-workspace-mobile-scope button.customer-workspace-action-button--secondary:hover:not(:disabled),
   .customer-inline-notes--workspace-mobile button.customer-workspace-action-button--secondary:hover:not(:disabled),
+  .customer-memos-mobile-shell button.customer-workspace-action-button--secondary:hover:not(:disabled),
   .customer-consultations-mobile-shell button.customer-workspace-action-button--secondary:hover:not(:disabled),
   button.customer-workspace-action-button--secondary:hover:not(:disabled) {
     background: rgba(30, 41, 59, 0.96);
@@ -179,6 +195,7 @@
   .mobile-modal button.customer-workspace-action-button--danger:hover:not(:disabled),
   .customer-workspace-mobile-scope button.customer-workspace-action-button--danger:hover:not(:disabled),
   .customer-inline-notes--workspace-mobile button.customer-workspace-action-button--danger:hover:not(:disabled),
+  .customer-memos-mobile-shell button.customer-workspace-action-button--danger:hover:not(:disabled),
   .customer-consultations-mobile-shell button.customer-workspace-action-button--danger:hover:not(:disabled),
   button.customer-workspace-action-button--danger:hover:not(:disabled) {
     background: rgba(127, 29, 29, 0.36);
@@ -192,6 +209,7 @@
   .mobile-modal button.customer-workspace-action-button:active:not(:disabled),
   .customer-workspace-mobile-scope button.customer-workspace-action-button:active:not(:disabled),
   .customer-inline-notes--workspace-mobile button.customer-workspace-action-button:active:not(:disabled),
+  .customer-memos-mobile-shell button.customer-workspace-action-button:active:not(:disabled),
   .customer-consultations-mobile-shell button.customer-workspace-action-button:active:not(:disabled),
   button.customer-workspace-action-button:active:not(:disabled) {
     transform: none;
@@ -204,6 +222,7 @@
   .mobile-modal button.customer-workspace-action-button:focus-visible,
   .customer-workspace-mobile-scope button.customer-workspace-action-button:focus-visible,
   .customer-inline-notes--workspace-mobile button.customer-workspace-action-button:focus-visible,
+  .customer-memos-mobile-shell button.customer-workspace-action-button:focus-visible,
   .customer-consultations-mobile-shell button.customer-workspace-action-button:focus-visible,
   button.customer-workspace-action-button:focus-visible {
     outline: none;
@@ -216,6 +235,7 @@
   .mobile-modal button.customer-workspace-action-button:disabled,
   .customer-workspace-mobile-scope button.customer-workspace-action-button:disabled,
   .customer-inline-notes--workspace-mobile button.customer-workspace-action-button:disabled,
+  .customer-memos-mobile-shell button.customer-workspace-action-button:disabled,
   .customer-consultations-mobile-shell button.customer-workspace-action-button:disabled,
   button.customer-workspace-action-button:disabled {
     opacity: 0.5;
@@ -228,6 +248,7 @@
   .mobile-modal button.customer-workspace-action-icon-button,
   .customer-workspace-mobile-scope button.customer-workspace-action-icon-button,
   .customer-inline-notes--workspace-mobile button.customer-workspace-action-icon-button,
+  .customer-memos-mobile-shell button.customer-workspace-action-icon-button,
   .customer-consultations-mobile-shell button.customer-workspace-action-icon-button,
   button.customer-workspace-action-icon-button {
     width: 44px;
@@ -250,6 +271,7 @@
   .mobile-modal button.customer-workspace-action-icon-button:hover:not(:disabled),
   .customer-workspace-mobile-scope button.customer-workspace-action-icon-button:hover:not(:disabled),
   .customer-inline-notes--workspace-mobile button.customer-workspace-action-icon-button:hover:not(:disabled),
+  .customer-memos-mobile-shell button.customer-workspace-action-icon-button:hover:not(:disabled),
   .customer-consultations-mobile-shell button.customer-workspace-action-icon-button:hover:not(:disabled),
   button.customer-workspace-action-icon-button:hover:not(:disabled) {
     opacity: 1;
@@ -267,6 +289,7 @@
   .mobile-modal button.customer-workspace-action-button,
   .customer-workspace-mobile-scope button.customer-workspace-action-button,
   .customer-inline-notes--workspace-mobile button.customer-workspace-action-button,
+  .customer-memos-mobile-shell button.customer-workspace-action-button,
   .customer-consultations-mobile-shell button.customer-workspace-action-button {
     min-height: 44px !important;
     height: auto !important;
@@ -285,6 +308,7 @@
   .mobile-modal button.customer-workspace-action-icon-button,
   .customer-workspace-mobile-scope button.customer-workspace-action-icon-button,
   .customer-inline-notes--workspace-mobile button.customer-workspace-action-icon-button,
+  .customer-memos-mobile-shell button.customer-workspace-action-icon-button,
   .customer-consultations-mobile-shell button.customer-workspace-action-icon-button {
     width: 44px !important;
     min-width: 44px !important;
