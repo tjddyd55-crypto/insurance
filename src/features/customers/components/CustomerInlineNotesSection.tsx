@@ -3,6 +3,12 @@ import { useConfirmDialog } from '../../../components/dialog'
 import { FormTextarea, FormButton } from '../../../components/form'
 import { Button } from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
+import {
+  CustomerWorkspaceIconDeleteButton,
+  CustomerWorkspaceItemActions,
+  CustomerWorkspacePrimaryActionButton,
+  CustomerWorkspaceSecondaryActionButton,
+} from './CustomerWorkspaceActionButtons'
 import { customerRecordToUpdatePayload, updateCustomer } from '../api/customersApi'
 import type { CustomerNote, CustomerNotesBag, CustomerRecord } from '../domain/types'
 import { customerNoteItems, normalizeCustomerNotesBag } from '../domain/types'
@@ -247,15 +253,12 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
             </Button>
           ) : null}
           {workspaceMobileMemo ? (
-            <FormButton
-              htmlType="button"
-              variant="action"
-              className="customer-workspace-action-button customer-workspace-action-button--primary"
+            <CustomerWorkspacePrimaryActionButton
               disabled={saving || !token?.trim()}
               onClick={openMemoModal}
             >
               메모 추가
-            </FormButton>
+            </CustomerWorkspacePrimaryActionButton>
           ) : (
             <Button
               type="button"
@@ -294,79 +297,82 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
                     {new Date(note.createdAt).toLocaleString('ko-KR')}
                   </small>
                 </div>
-                <div
-                  className={workspaceMobileMemo ? 'customer-workspace-item-actions' : undefined}
-                  style={
-                    workspaceMobileMemo
-                      ? undefined
-                      : { flexShrink: 0, display: 'flex', gap: 6, alignItems: 'flex-start' }
-                  }
-                >
-                  {onAddTodoFromMemo ? (
-                    <FormButton
-                      htmlType="button"
-                      aria-label="할 일로 추가"
-                      title="할 일로 추가"
-                      variant="action"
-                      className={
-                        workspaceMobileMemo
-                          ? 'customer-workspace-action-button customer-workspace-action-button--secondary'
-                          : undefined
-                      }
+                {workspaceMobileMemo ? (
+                  <CustomerWorkspaceItemActions>
+                    {onAddTodoFromMemo ? (
+                      <CustomerWorkspaceSecondaryActionButton
+                        aria-label="할 일로 추가"
+                        title="할 일로 추가"
+                        disabled={saving}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onAddTodoFromMemo({ noteId: note.id, memoText: note.content })
+                        }}
+                      >
+                        할 일로 추가
+                      </CustomerWorkspaceSecondaryActionButton>
+                    ) : null}
+                    <CustomerWorkspaceIconDeleteButton
+                      ariaLabel="메모 삭제"
                       disabled={saving}
-                      style={
-                        workspaceMobileMemo
-                          ? undefined
-                          : {
-                              flexShrink: 0,
-                              border: '1px solid rgba(255,255,255,0.15)',
-                              background: '#111827',
-                              color: '#e5e7eb',
-                              cursor: saving ? 'default' : 'pointer',
-                              fontSize: '0.75rem',
-                              lineHeight: 1,
-                              padding: '4px 8px',
-                              borderRadius: 6,
-                              opacity: saving ? 0.5 : 1,
-                            }
-                      }
                       onClick={(e) => {
                         e.stopPropagation()
-                        onAddTodoFromMemo({ noteId: note.id, memoText: note.content })
+                        void requestRemoveNote(note.id)
+                      }}
+                    />
+                  </CustomerWorkspaceItemActions>
+                ) : (
+                  <div style={{ flexShrink: 0, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                    {onAddTodoFromMemo ? (
+                      <FormButton
+                        htmlType="button"
+                        aria-label="할 일로 추가"
+                        title="할 일로 추가"
+                        disabled={saving}
+                        style={{
+                          flexShrink: 0,
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          background: '#111827',
+                          color: '#e5e7eb',
+                          cursor: saving ? 'default' : 'pointer',
+                          fontSize: '0.75rem',
+                          lineHeight: 1,
+                          padding: '4px 8px',
+                          borderRadius: 6,
+                          opacity: saving ? 0.5 : 1,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onAddTodoFromMemo({ noteId: note.id, memoText: note.content })
+                        }}
+                      >
+                        할 일로 추가
+                      </FormButton>
+                    ) : null}
+                    <FormButton
+                      htmlType="button"
+                      aria-label="메모 삭제"
+                      title="삭제"
+                      disabled={saving}
+                      style={{
+                        flexShrink: 0,
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: saving ? 'default' : 'pointer',
+                        fontSize: '1.1rem',
+                        lineHeight: 1,
+                        padding: '2px 6px',
+                        opacity: 0.75,
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void requestRemoveNote(note.id)
                       }}
                     >
-                      할 일로 추가
+                      ×
                     </FormButton>
-                  ) : null}
-                  <FormButton
-                    htmlType="button"
-                    aria-label="메모 삭제"
-                    title="삭제"
-                    variant="action"
-                    className={workspaceMobileMemo ? 'customer-workspace-action-icon-button' : undefined}
-                    disabled={saving}
-                    style={
-                      workspaceMobileMemo
-                        ? undefined
-                        : {
-                            flexShrink: 0,
-                            border: 'none',
-                            background: 'transparent',
-                            cursor: saving ? 'default' : 'pointer',
-                            fontSize: '1.1rem',
-                            lineHeight: 1,
-                            padding: '2px 6px',
-                            opacity: 0.75,
-                          }
-                    }
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      void requestRemoveNote(note.id)
-                    }}
-                  >
-                    ×
-                  </FormButton>
-                </div>
+                  </div>
+                )}
               </li>
             )
           })}

@@ -1,4 +1,8 @@
-import { FormButton } from '../../../components/form'
+import {
+  CustomerWorkspaceDangerActionButton,
+  CustomerWorkspaceItemActions,
+  CustomerWorkspaceSecondaryActionButton,
+} from './CustomerWorkspaceActionButtons'
 import { formatContactResultMetaLabel } from '../config/customerConsultationFollowUp.config'
 import { parseConsultationStoredBody } from '../utils/consultationBodyFormat'
 import type { CustomerConsultationRow } from '../api/customerExtraApi'
@@ -30,55 +34,40 @@ export default function CustomerConsultationHistoryListMobile({
         return (
           <li
             key={r.id}
-            className="customer-consultation-item customer-consultation-item--mobile"
+            className="customer-consultation-item customer-consultation-item--mobile customer-inline-memo-row customer-inline-memo-row--workspace-mobile"
             style={{
               borderBottom: '1px solid var(--border-default)',
               padding: '12px 0',
             }}
           >
-            <div className="customer-consultation-item__header">
-              <div className="customer-consultation-item__date">{dateLabel}</div>
-              <div className="customer-workspace-item-actions">
-                <FormButton
-                  htmlType="button"
-                  variant="action"
-                  className="customer-workspace-action-button customer-workspace-action-button--secondary"
-                  disabled={busy}
-                  onClick={() => onOpenEditModal(r)}
-                >
-                  수정
-                </FormButton>
-                <FormButton
-                  htmlType="button"
-                  variant="action"
-                  className="customer-workspace-action-button customer-workspace-action-button--danger"
-                  disabled={busy}
-                  onClick={() => void onDelete(r.id)}
-                >
-                  삭제
-                </FormButton>
-                {onAddTodoFromConsultation ? (
-                  <FormButton
-                    htmlType="button"
-                    variant="action"
-                    className="customer-workspace-action-button customer-workspace-action-button--secondary"
-                    disabled={busy}
-                    onClick={() => onAddTodoFromConsultation(r.id, text)}
-                  >
-                    할 일로 추가
-                  </FormButton>
-                ) : null}
-              </div>
-            </div>
+            <div className="customer-consultation-item__date">{dateLabel}</div>
             <div className="customer-consultation-item__body">{text || '—'}</div>
             {contactMeta ? (
               <div
-                className="customer-consultation-history__contact-meta"
+                className="customer-consultation-history__contact-meta customer-consultation-item__meta"
                 style={{ marginTop: 8, fontSize: '0.875rem', color: 'var(--text-secondary)' }}
               >
                 {contactMeta}
               </div>
             ) : null}
+            <CustomerWorkspaceItemActions>
+              <CustomerWorkspaceSecondaryActionButton disabled={busy} onClick={() => onOpenEditModal(r)}>
+                수정
+              </CustomerWorkspaceSecondaryActionButton>
+              <CustomerWorkspaceDangerActionButton disabled={busy} onClick={() => void onDelete(r.id)}>
+                삭제
+              </CustomerWorkspaceDangerActionButton>
+              {onAddTodoFromConsultation ? (
+                <CustomerWorkspaceSecondaryActionButton
+                  aria-label="할 일로 추가"
+                  title="할 일로 추가"
+                  disabled={busy}
+                  onClick={() => onAddTodoFromConsultation(r.id, text)}
+                >
+                  할 일로 추가
+                </CustomerWorkspaceSecondaryActionButton>
+              ) : null}
+            </CustomerWorkspaceItemActions>
           </li>
         )
       })}

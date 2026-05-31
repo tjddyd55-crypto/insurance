@@ -1,6 +1,10 @@
 import { EmptyState, StatusMessage } from '../../../../components/feedback'
-import { FormButton } from '../../../../components/form'
 import CustomerConsultationHistoryListMobile from '../../components/CustomerConsultationHistoryListMobile'
+import {
+  CustomerWorkspacePrimaryActionButton,
+  CustomerWorkspaceSectionHead,
+  CustomerWorkspaceSectionHeadActions,
+} from '../../components/CustomerWorkspaceActionButtons'
 import CustomerConsultationFormModal from '../../components/mobile/CustomerConsultationFormModal'
 import type { CustomerConsultationsMobileViewProps } from './customerConsultationsViewProps'
 
@@ -25,22 +29,20 @@ export default function CustomerConsultationsPageMobile({
   onAddTodoFromConsultation,
 }: CustomerConsultationsMobileViewProps) {
   return (
-    <div className="content-wrapper page-shell customer-consultations-mobile-shell">
+    <div className="content-wrapper page-shell customer-consultations-mobile-shell customer-inline-notes--workspace-mobile">
       <StatusMessage message={listError} tone="error" className="!mt-0" />
 
       <section style={{ marginTop: 24 }}>
-        <div className="customer-consultations-mobile-shell__section-head">
-          <div className="customer-section-title !mt-0">[상담]</div>
-          <FormButton
-            htmlType="button"
-            variant="action"
-            className="customer-workspace-action-button customer-workspace-action-button--primary"
-            disabled={busy}
-            onClick={onOpenAddModal}
-          >
-            상담 추가
-          </FormButton>
-        </div>
+        <CustomerWorkspaceSectionHead
+          title="[상담]"
+          actions={
+            <CustomerWorkspaceSectionHeadActions>
+              <CustomerWorkspacePrimaryActionButton disabled={busy} onClick={onOpenAddModal}>
+                상담 추가
+              </CustomerWorkspacePrimaryActionButton>
+            </CustomerWorkspaceSectionHeadActions>
+          }
+        />
 
         {rows.length === 0 ? (
           <EmptyState message="등록된 상담이 없습니다." className="!my-0 !text-left" />
