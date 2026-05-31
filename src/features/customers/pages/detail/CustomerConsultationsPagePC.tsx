@@ -2,7 +2,7 @@ import { EmptyState, StatusMessage } from '../../../../components/feedback'
 import { FormButton, FormInput, FormTextarea } from '../../../../components/form'
 import CustomerConsultationContactResultField from '../../components/CustomerConsultationContactResultField'
 import CustomerConsultationHistoryList from '../../components/CustomerConsultationHistoryList'
-import type { CustomerConsultationsViewProps } from './customerConsultationsViewProps'
+import type { CustomerConsultationsPCViewProps } from './customerConsultationsViewProps'
 
 export default function CustomerConsultationsPagePC({
   error,
@@ -27,7 +27,7 @@ export default function CustomerConsultationsPagePC({
   onSubmit,
   onDelete,
   onAddTodoFromConsultation,
-}: CustomerConsultationsViewProps) {
+}: CustomerConsultationsPCViewProps) {
   const isEditing = editingConsultId != null
 
   return (
