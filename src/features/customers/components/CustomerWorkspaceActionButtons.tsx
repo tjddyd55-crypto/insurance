@@ -1,5 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
-import { FormButton } from '../../../components/form'
+
+/** 고객 작업영역 모바일 — 액션 버튼 CSS scope (outlet·modal·페이지 shell 공통) */
+export const CUSTOMER_WORKSPACE_MOBILE_SCOPE_CLASS = 'customer-workspace-mobile-scope'
 
 /** 메모·상담 workspace 모바일 액션 버튼 — className SSOT */
 export const CUSTOMER_WORKSPACE_ACTION_PRIMARY_CLASS =
@@ -10,6 +12,8 @@ export const CUSTOMER_WORKSPACE_ACTION_DANGER_CLASS =
   'customer-workspace-action-button customer-workspace-action-button--danger'
 export const CUSTOMER_WORKSPACE_ACTION_ICON_CLASS = 'customer-workspace-action-icon-button'
 export const CUSTOMER_WORKSPACE_ITEM_ACTIONS_CLASS = 'customer-workspace-item-actions'
+export const CUSTOMER_WORKSPACE_ITEM_ACTIONS_STACKED_CLASS =
+  'customer-workspace-item-actions customer-workspace-item-actions--stacked'
 
 type WorkspaceActionButtonProps = Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
@@ -23,6 +27,24 @@ type WorkspaceIconActionButtonProps = WorkspaceActionButtonProps & {
   ariaLabel: string
 }
 
+type WorkspaceItemActionsProps = {
+  children: ReactNode
+  /** memo: 본문 우측 inline / consultation: 본문 아래 stacked */
+  layout?: 'inline' | 'stacked'
+}
+
+/** outlet·modal·페이지 shell에 scope 클래스 부여 */
+export function CustomerWorkspaceMobileScope({
+  className = '',
+  children,
+}: {
+  className?: string
+  children: ReactNode
+}) {
+  const merged = [CUSTOMER_WORKSPACE_MOBILE_SCOPE_CLASS, className].filter(Boolean).join(' ')
+  return <div className={merged}>{children}</div>
+}
+
 /** [메모]/[상담] 섹션 헤더 우측 — 메모 추가·상담 추가 */
 export function CustomerWorkspacePrimaryActionButton({
   children,
@@ -30,15 +52,14 @@ export function CustomerWorkspacePrimaryActionButton({
   ...props
 }: WorkspaceActionButtonProps) {
   return (
-    <FormButton
-      htmlType="button"
-      variant="action"
+    <button
+      type="button"
       className={CUSTOMER_WORKSPACE_ACTION_PRIMARY_CLASS}
       disabled={disabled}
       {...props}
     >
       {children}
-    </FormButton>
+    </button>
   )
 }
 
@@ -49,15 +70,14 @@ export function CustomerWorkspaceSecondaryActionButton({
   ...props
 }: WorkspaceActionButtonProps) {
   return (
-    <FormButton
-      htmlType="button"
-      variant="action"
+    <button
+      type="button"
       className={CUSTOMER_WORKSPACE_ACTION_SECONDARY_CLASS}
       disabled={disabled}
       {...props}
     >
       {children}
-    </FormButton>
+    </button>
   )
 }
 
@@ -68,15 +88,14 @@ export function CustomerWorkspaceDangerActionButton({
   ...props
 }: WorkspaceActionButtonProps) {
   return (
-    <FormButton
-      htmlType="button"
-      variant="action"
+    <button
+      type="button"
       className={CUSTOMER_WORKSPACE_ACTION_DANGER_CLASS}
       disabled={disabled}
       {...props}
     >
       {children}
-    </FormButton>
+    </button>
   )
 }
 
@@ -88,23 +107,22 @@ export function CustomerWorkspaceIconDeleteButton({
   ...props
 }: WorkspaceIconActionButtonProps) {
   return (
-    <FormButton
-      htmlType="button"
+    <button
+      type="button"
       aria-label={ariaLabel}
       title={ariaLabel}
-      variant="action"
       className={CUSTOMER_WORKSPACE_ACTION_ICON_CLASS}
       disabled={disabled}
       {...props}
     >
       {children}
-    </FormButton>
+    </button>
   )
 }
 
 /** 섹션 헤더 우측 버튼 묶음 — 메모 화면과 동일 wrapper */
 export function CustomerWorkspaceSectionHeadActions({ children }: { children: ReactNode }) {
-  return <div className="flex items-center gap-2 shrink-0">{children}</div>
+  return <div className="customer-workspace-section-head-actions">{children}</div>
 }
 
 /** 섹션 헤더 — [메모]/[상담] + 우측 액션 */
@@ -116,7 +134,7 @@ export function CustomerWorkspaceSectionHead({
   actions?: ReactNode
 }) {
   return (
-    <div className="flex justify-between items-center mb-2 gap-2">
+    <div className="customer-workspace-section-head">
       <div className="customer-section-title !mt-0">{title}</div>
       {actions}
     </div>
@@ -124,6 +142,13 @@ export function CustomerWorkspaceSectionHead({
 }
 
 /** 항목 하단/우측 액션 버튼 묶음 */
-export function CustomerWorkspaceItemActions({ children }: { children: ReactNode }) {
-  return <div className={CUSTOMER_WORKSPACE_ITEM_ACTIONS_CLASS}>{children}</div>
+export function CustomerWorkspaceItemActions({
+  children,
+  layout = 'inline',
+}: WorkspaceItemActionsProps) {
+  const className =
+    layout === 'stacked'
+      ? CUSTOMER_WORKSPACE_ITEM_ACTIONS_STACKED_CLASS
+      : CUSTOMER_WORKSPACE_ITEM_ACTIONS_CLASS
+  return <div className={className}>{children}</div>
 }

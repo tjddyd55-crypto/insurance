@@ -34,7 +34,7 @@ export default function CustomerConsultationHistoryListMobile({
         return (
           <li
             key={r.id}
-            className="customer-consultation-item customer-consultation-item--mobile customer-inline-memo-row customer-inline-memo-row--workspace-mobile"
+            className="customer-consultation-item customer-consultation-item--mobile"
             style={{
               borderBottom: '1px solid var(--border-default)',
               padding: '12px 0',
@@ -50,7 +50,7 @@ export default function CustomerConsultationHistoryListMobile({
                 {contactMeta}
               </div>
             ) : null}
-            <CustomerWorkspaceItemActions>
+            <CustomerWorkspaceItemActions layout="stacked">
               <CustomerWorkspaceSecondaryActionButton disabled={busy} onClick={() => onOpenEditModal(r)}>
                 수정
               </CustomerWorkspaceSecondaryActionButton>
