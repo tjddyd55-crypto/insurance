@@ -145,18 +145,6 @@
     letter-spacing: var(--customer-mobile-letter-base);
   }
 
-  /* 고객 파일(스토리지) 액션 — 높이 36px 유지, 글자만 */
-  .workspace-mobile-outlet-modal .storage-file-list .storage-file-list__action-button.button,
-  .workspace-mobile-outlet-modal .storage-file-list button.storage-file-list__action-button,
-  .workspace-mobile-outlet-modal .storage-file-list a.storage-file-list__action-button,
-  .customers-page--mobile .storage-file-list .storage-file-list__action-button.button,
-  .customers-page--mobile .storage-file-list button.storage-file-list__action-button,
-  .customers-page--mobile .storage-file-list a.storage-file-list__action-button {
-    font-size: var(--customer-mobile-font-button);
-    line-height: 1.2;
-    letter-spacing: var(--customer-mobile-letter-readable);
-  }
-
   /* 최근 등록 고객 모달 (모바일 뷰포트) */
   .customer-recent-mobile-modal .customer-recent-mobile-modal__header h2 {
     font-size: var(--customer-mobile-font-title);
