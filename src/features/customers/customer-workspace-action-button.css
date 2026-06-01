@@ -12,6 +12,8 @@
  *     `.customer-workspace-mobile-scope button.customer-workspace-action-button` (0,2,1) 는 동점이며,
  *     cascade 순서(후행 import)로 본 규칙이 이긴다. 따라서 !important 없이 동작한다.
  *   - 이 import 순서를 깨면 버튼이 전역 규칙에 덮인다. main.tsx 순서를 유지할 것.
+ *   - index.css `.customers-page--mobile button:not(...)` 리셋은 workspace SSOT 클래스를
+ *     :not() 예외로 제외한다(모달 inline render 시 pill 회귀 방지).
  *
  * 전역 button / .button / mobile-ui-foundation 전역 규칙은 수정하지 않는다.
  */
