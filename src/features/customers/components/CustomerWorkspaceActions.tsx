@@ -7,10 +7,12 @@ export type CustomerWorkspaceActionsProps = {
   variant: CustomerWorkspaceActionsVariant
   customerId: number
   carFeatureEnabled: boolean
+  contractSignaturesEnabled: boolean
   gaExcelEnabled: boolean
   onOpenFilesModal: (customerId: number) => void
   onOpenConsultationsModal: (customerId: number) => void
   onOpenAutoModal: (customerId: number) => void
+  onOpenSignatures: (customerId: number) => void
   onOpenGaModal: (customerId: number) => void
   onOpenPersonalMessage: (customerId: number) => void
   onOpenClaims: (customerId: number) => void
@@ -28,10 +30,12 @@ export function CustomerWorkspaceActions({
   variant,
   customerId,
   carFeatureEnabled,
+  contractSignaturesEnabled,
   gaExcelEnabled,
   onOpenFilesModal,
   onOpenConsultationsModal,
   onOpenAutoModal,
+  onOpenSignatures,
   onOpenGaModal,
   onOpenPersonalMessage,
   onOpenClaims,
@@ -80,6 +84,19 @@ export function CustomerWorkspaceActions({
             </span>
             <MobileActionText>신청서</MobileActionText>
           </FormButton>
+          {contractSignaturesEnabled ? (
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="button button--secondary customer-mobile-action-btn"
+              onClick={() => onOpenSignatures(customerId)}
+            >
+              <span className="customer-mobile-action-btn__icon" aria-hidden>
+                ✍️
+              </span>
+              <MobileActionText>전자서명</MobileActionText>
+            </FormButton>
+          ) : null}
           <FormButton
             htmlType="button"
             variant="secondary"
