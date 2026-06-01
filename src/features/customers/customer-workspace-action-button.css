@@ -299,15 +299,15 @@
     align-items: center;
     justify-content: center;
     width: auto;
-    min-width: 0;
+    min-width: 64px;
     max-width: none;
     min-height: 44px;
     height: auto;
     padding: 10px 16px;
     border-radius: 12px;
     gap: 6px;
-    border: 1px solid rgba(148, 163, 184, 0.26);
-    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(148, 163, 184, 0.38);
+    background: rgba(30, 41, 59, 0.92);
     color: #e5e7eb;
     font-size: 15px;
     font-weight: 700;
@@ -337,9 +337,9 @@
   .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--primary {
-    background: rgba(37, 99, 235, 0.18);
-    border-color: rgba(96, 165, 250, 0.48);
-    color: #dbeafe;
+    background: rgba(37, 99, 235, 0.32);
+    border-color: rgba(96, 165, 250, 0.65);
+    color: #eff6ff;
   }
 
   .customer-ui-modal-panel.customer-workspace-form-modal
@@ -349,9 +349,9 @@
   .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--secondary {
-    background: rgba(15, 23, 42, 0.92);
-    border-color: rgba(148, 163, 184, 0.32);
-    color: #e5e7eb;
+    background: rgba(30, 41, 59, 0.96);
+    border-color: rgba(148, 163, 184, 0.45);
+    color: #f1f5f9;
   }
 
   .customer-ui-modal-panel.customer-workspace-form-modal
@@ -361,9 +361,9 @@
   .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--primary:hover:not(:disabled) {
-    background: rgba(37, 99, 235, 0.28);
-    border-color: rgba(96, 165, 250, 0.62);
-    color: #eff6ff;
+    background: rgba(37, 99, 235, 0.42);
+    border-color: rgba(96, 165, 250, 0.78);
+    color: #ffffff;
   }
 
   .customer-ui-modal-panel.customer-workspace-form-modal
@@ -373,8 +373,8 @@
   .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--secondary:hover:not(:disabled) {
-    background: rgba(30, 41, 59, 0.96);
-    border-color: rgba(148, 163, 184, 0.45);
+    background: rgba(51, 65, 85, 0.98);
+    border-color: rgba(148, 163, 184, 0.55);
     color: #f8fafc;
   }
 
