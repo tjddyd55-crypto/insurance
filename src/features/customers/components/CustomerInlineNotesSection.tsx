@@ -4,10 +4,10 @@ import { FormTextarea, FormButton } from '../../../components/form'
 import { Button } from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
 import {
-  CustomerWorkspaceIconDeleteButton,
   CustomerWorkspaceItemActions,
   CustomerWorkspacePrimaryActionButton,
   CustomerWorkspaceSecondaryActionButton,
+  CustomerWorkspaceDangerActionButton,
 } from './CustomerWorkspaceActionButtons'
 import { customerRecordToUpdatePayload, updateCustomer } from '../api/customersApi'
 import type { CustomerNote, CustomerNotesBag, CustomerRecord } from '../domain/types'
@@ -49,6 +49,8 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
 }: Props) {
   const [memoOpen, setMemoOpen] = useState(false)
   const [draft, setDraft] = useState('')
+  const [memoMode, setMemoMode] = useState<'create' | 'edit'>('create')
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   /** 상담 목록(rows)과 같이 메모만 별도 state — 타이핑·낙관적 반영은 여기서만 처리 */
   const [memos, setMemos] = useState<CustomerNote[]>(() => customerNoteItems(customer))
   const [saving, setSaving] = useState(false)
@@ -75,6 +77,8 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
 
   const closeMemoModal = useCallback(() => {
     setDraft('')
+    setMemoMode('create')
+    setEditingNoteId(null)
     setMemoOpen(false)
   }, [])
 
@@ -84,7 +88,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
       return
     }
     const ok = await confirm({
-      title: '메모 입력',
+      title: memoMode === 'edit' ? '메모 수정' : '메모 추가',
       message: '작성 중인 내용이 있습니다. 닫을까요?',
       confirmLabel: '닫기',
       cancelLabel: '계속 작성',
@@ -93,10 +97,19 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
     if (ok) {
       closeMemoModal()
     }
-  }, [closeMemoModal, confirm, draft])
+  }, [closeMemoModal, confirm, draft, memoMode])
 
   function openMemoModal() {
     setDraft('')
+    setMemoMode('create')
+    setEditingNoteId(null)
+    setMemoOpen(true)
+  }
+
+  function openEditMemoModal(note: CustomerNote) {
+    setDraft(note.content ?? '')
+    setMemoMode('edit')
+    setEditingNoteId(note.id)
     setMemoOpen(true)
   }
 
@@ -143,22 +156,33 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
       onStatusMessage(`메모는 ${NOTE_MAX_LENGTH}자 이하로 입력해주세요.`)
       return
     }
-    const tempId = makePendingMemoId()
-    const optimistic: CustomerNote = {
-      id: tempId,
-      content: trimmed,
-      createdAt: new Date().toISOString(),
+    let nextForApi: CustomerNote[]
+    let rollback: () => void
+
+    if (memoMode === 'edit' && editingNoteId) {
+      const snapshot = memos
+      nextForApi = snapshot.map((m) => (m.id === editingNoteId ? { ...m, content: trimmed } : m))
+      rollback = () => setMemos(snapshot)
+      setMemos(nextForApi)
+      closeMemoModal()
+    } else {
+      const tempId = makePendingMemoId()
+      const optimistic: CustomerNote = {
+        id: tempId,
+        content: trimmed,
+        createdAt: new Date().toISOString(),
+      }
+      nextForApi = [optimistic, ...memos]
+      rollback = () => {
+        setMemos((prev) => prev.filter((m) => m.id !== tempId))
+      }
+      setMemos(nextForApi)
+      closeMemoModal()
     }
-    const nextForApi = [optimistic, ...memos]
 
     savingLock.current = true
     setSaving(true)
-    setMemos(nextForApi)
-    closeMemoModal()
-
-    void commitNotesToServer(nextForApi, () => {
-      setMemos((prev) => prev.filter((m) => m.id !== tempId))
-    })
+    void commitNotesToServer(nextForApi, rollback)
   }
 
   function removeNote(id: string) {
@@ -277,28 +301,63 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
       ) : (
         <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
           {sortedItems.map((note) => {
+            const dateToShow = note.createdAt
             return (
               <li
                 key={note.id}
                 className={`customer-inline-memo-row${workspaceMobileMemo ? ' customer-inline-memo-row--workspace-mobile' : ''}`}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 8,
-                  alignItems: 'flex-start',
-                  ...(workspaceMobileMemo ? {} : { borderTop: '1px solid var(--border-subtle)' }),
-                  padding: '12px 0',
-                  fontSize: '0.9rem',
-                }}
               >
-                <div className="customer-inline-memo-row__body" style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{note.content}</div>
-                  <small className="customer-inline-memo-row__meta block mt-1">
-                    {new Date(note.createdAt).toLocaleString('ko-KR')}
-                  </small>
+                <div
+                  className="customer-inline-memo-row__body"
+                  style={
+                    workspaceMobileMemo
+                      ? undefined
+                      : {
+                          minWidth: 0,
+                          flex: 1,
+                        }
+                  }
+                >
+                  {workspaceMobileMemo ? (
+                    <>
+                      <div className="customer-workspace-item-date">
+                        {new Date(dateToShow).toLocaleString('ko-KR')}
+                      </div>
+                      <div className="customer-workspace-item-body">{note.content}</div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{note.content}</div>
+                      <small className="customer-inline-memo-row__meta block mt-1">
+                        {new Date(dateToShow).toLocaleString('ko-KR')}
+                      </small>
+                    </>
+                  )}
                 </div>
                 {workspaceMobileMemo ? (
                   <CustomerWorkspaceItemActions>
+                    <CustomerWorkspaceSecondaryActionButton
+                      aria-label="메모 수정"
+                      title="메모 수정"
+                      disabled={saving}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openEditMemoModal(note)
+                      }}
+                    >
+                      수정
+                    </CustomerWorkspaceSecondaryActionButton>
+                    <CustomerWorkspaceDangerActionButton
+                      aria-label="메모 삭제"
+                      title="메모 삭제"
+                      disabled={saving}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void requestRemoveNote(note.id)
+                      }}
+                    >
+                      삭제
+                    </CustomerWorkspaceDangerActionButton>
                     {onAddTodoFromMemo ? (
                       <CustomerWorkspaceSecondaryActionButton
                         aria-label="할 일로 추가"
@@ -309,17 +368,9 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
                           onAddTodoFromMemo({ noteId: note.id, memoText: note.content })
                         }}
                       >
-                        할 일로 추가
+                        +할일
                       </CustomerWorkspaceSecondaryActionButton>
                     ) : null}
-                    <CustomerWorkspaceIconDeleteButton
-                      ariaLabel="메모 삭제"
-                      disabled={saving}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        void requestRemoveNote(note.id)
-                      }}
-                    />
                   </CustomerWorkspaceItemActions>
                 ) : (
                   <div style={{ flexShrink: 0, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
@@ -386,13 +437,15 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
       <Modal
         open={memoOpen}
         onClose={closeMemoModal}
-        ariaLabel="메모 입력"
+        ariaLabel={memoMode === 'edit' ? '메모 수정' : '메모 추가'}
         closeOnBackdrop={false}
         onEscapeRequest={() => {
           void requestCloseMemoModal()
         }}
       >
-        <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">메모 입력</div>
+        <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">
+          {memoMode === 'edit' ? '메모 수정' : '메모 추가'}
+        </div>
         <FormTextarea
           className="w-full border border-[var(--border-default)] rounded-lg p-2 mb-3 bg-[var(--bg-card)] text-[var(--text-primary)] box-border min-h-[120px]"
           value={draft}
@@ -408,7 +461,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
             취소
           </Button>
           <Button type="button" disabled={saving || !draft.trim()} onClick={handleMemoSave}>
-            확인
+            저장
           </Button>
         </div>
       </Modal>

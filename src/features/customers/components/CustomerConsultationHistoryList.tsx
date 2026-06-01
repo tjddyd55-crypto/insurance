@@ -131,7 +131,7 @@ export default function CustomerConsultationHistoryList({
                         disabled={busy}
                         onClick={() => onAddTodoFromConsultation(r.id, text)}
                       >
-                        할 일로 추가
+                        +할일
                       </FormButton>
                     ) : null}
                   </div>
