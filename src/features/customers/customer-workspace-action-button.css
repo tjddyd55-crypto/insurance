@@ -226,4 +226,40 @@
     background: rgba(30, 41, 59, 0.92);
     border-color: rgba(148, 163, 184, 0.38);
   }
+
+  /* ── 작성/수정 모달 footer + textarea (메모·상담 공통) ── */
+  .customer-workspace-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .customer-workspace-form-textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 120px;
+    margin-bottom: 12px;
+    padding: 8px;
+    border: 1px solid var(--border-default, #334155);
+    border-radius: 0.5rem;
+    background: var(--bg-card, #111827);
+    color: var(--text-primary, #f8fafc);
+    font-size: inherit;
+    line-height: 1.45;
+    letter-spacing: var(--customer-mobile-letter-base, 0.005em);
+    resize: vertical;
+  }
+
+  .customer-workspace-form-textarea::placeholder {
+    color: var(--text-muted, #64748b);
+  }
+
+  .customer-workspace-form-textarea:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+  }
 }

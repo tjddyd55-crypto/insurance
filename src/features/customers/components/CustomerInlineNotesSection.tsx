@@ -9,6 +9,10 @@ import {
   CustomerWorkspaceSecondaryActionButton,
   CustomerWorkspaceDangerActionButton,
 } from './CustomerWorkspaceActionButtons'
+import {
+  CUSTOMER_WORKSPACE_FORM_TEXTAREA_CLASS,
+  CustomerWorkspaceFormModalFooter,
+} from './CustomerWorkspaceFormModalFooter'
 import { customerRecordToUpdatePayload, updateCustomer } from '../api/customersApi'
 import type { CustomerNote, CustomerNotesBag, CustomerRecord } from '../domain/types'
 import { customerNoteItems, normalizeCustomerNotesBag } from '../domain/types'
@@ -447,23 +451,37 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
           {memoMode === 'edit' ? '메모 수정' : '메모 추가'}
         </div>
         <FormTextarea
-          className="w-full border border-[var(--border-default)] rounded-lg p-2 mb-3 bg-[var(--bg-card)] text-[var(--text-primary)] box-border min-h-[120px]"
+          className={
+            workspaceMobileMemo
+              ? CUSTOMER_WORKSPACE_FORM_TEXTAREA_CLASS
+              : 'w-full border border-[var(--border-default)] rounded-lg p-2 mb-3 bg-[var(--bg-card)] text-[var(--text-primary)] box-border min-h-[120px]'
+          }
           value={draft}
           maxLength={NOTE_MAX_LENGTH}
+          rows={workspaceMobileMemo ? 4 : undefined}
           onChange={(e) => setDraft(e.target.value.slice(0, NOTE_MAX_LENGTH))}
           placeholder="메모 내용"
           spellCheck={false}
           autoCorrect="off"
           autoCapitalize="off"
         />
-        <div className="flex gap-2 justify-end flex-wrap">
-          <Button type="button" variant="secondary" onClick={() => void requestCloseMemoModal()}>
-            취소
-          </Button>
-          <Button type="button" disabled={saving || !draft.trim()} onClick={handleMemoSave}>
-            저장
-          </Button>
-        </div>
+        {workspaceMobileMemo ? (
+          <CustomerWorkspaceFormModalFooter
+            onCancel={() => void requestCloseMemoModal()}
+            onSave={handleMemoSave}
+            busy={saving}
+            saveDisabled={!draft.trim()}
+          />
+        ) : (
+          <div className="flex gap-2 justify-end flex-wrap">
+            <Button type="button" variant="secondary" onClick={() => void requestCloseMemoModal()}>
+              취소
+            </Button>
+            <Button type="button" disabled={saving || !draft.trim()} onClick={handleMemoSave}>
+              저장
+            </Button>
+          </div>
+        )}
       </Modal>
       {confirmDialog}
     </div>
