@@ -14,7 +14,12 @@ import {
 } from '../api/customerExtraApi'
 import { useMobileConsultationsState } from '../hooks/useMobileConsultationsState'
 import { normalizeContactResult } from '../config/customerConsultationFollowUp.config'
-import { localYmd, normalizeDateForDateInput, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
+import {
+  localYmd,
+  parseConsultationStoredBody,
+  resolveConsultationDateForEditForm,
+  resolveConsultationDateForSave,
+} from '../utils/consultationBodyFormat'
 import { dispatchCustomersListRefresh } from '../utils/customerListRefresh'
 import CustomerConsultationsPageMobile from './detail/CustomerConsultationsPageMobile'
 import CustomerConsultationsPagePC from './detail/CustomerConsultationsPagePC'
@@ -49,6 +54,7 @@ export default function CustomerConsultationsPage() {
   const [contactResult, setContactResult] = useState('')
   const [editingConsultId, setEditingConsultId] = useState<number | null>(null)
   const [editConsultDate, setEditConsultDate] = useState('')
+  const [editOriginalConsultDate, setEditOriginalConsultDate] = useState('')
   const [editConsultBody, setEditConsultBody] = useState('')
   const [editContactResult, setEditContactResult] = useState('')
   const [error, setError] = useState('')
@@ -169,9 +175,15 @@ export default function CustomerConsultationsPage() {
   )
 
   const onStartEdit = useCallback((row: CustomerConsultationRow) => {
-    const { text } = parseConsultationStoredBody(row.body, row.createdAt, row.consultationDate ?? null)
+    const { dateLabel, text } = parseConsultationStoredBody(
+      row.body,
+      row.createdAt,
+      row.consultationDate ?? null,
+    )
+    const existingDate = resolveConsultationDateForEditForm(row.consultationDate, dateLabel)
     setEditingConsultId(row.id)
-    setEditConsultDate(normalizeDateForDateInput(row.consultationDate) ?? localYmd())
+    setEditOriginalConsultDate(existingDate)
+    setEditConsultDate(existingDate)
     setEditConsultBody(text)
     setEditContactResult(normalizeContactResult(row.contactResult))
     setError('')
@@ -180,6 +192,7 @@ export default function CustomerConsultationsPage() {
   const onCancelEdit = useCallback(() => {
     setEditingConsultId(null)
     setEditConsultDate('')
+    setEditOriginalConsultDate('')
     setEditConsultBody('')
     setEditContactResult('')
   }, [])
@@ -193,12 +206,17 @@ export default function CustomerConsultationsPage() {
       setError('상담 내용을 입력해 주세요.')
       return
     }
+    const dateToSave = resolveConsultationDateForSave(editConsultDate, editOriginalConsultDate, 'edit')
+    if (!dateToSave) {
+      setError('상담 일자를 확인해 주세요.')
+      return
+    }
     setBusy(true)
     setError('')
     try {
       await updateCustomerConsultation(token, resolvedCustomerId, consultId, {
         body: t,
-        consultationDate: editConsultDate,
+        consultationDate: dateToSave,
         contactResult: emptyContactResultToNull(editContactResult),
       })
       setEditingConsultId(null)
