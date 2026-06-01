@@ -10069,8 +10069,8 @@ textarea.memo-sticky-note__textarea::placeholder {
    아이콘 버튼은 `.customers-page--pc .customer-card__actions .icon-box button` 등으로만 제한한다.
    ========================= */
 
-.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__copy):not(.customer-filter-chip):not(.customers-page__action-btn):not(.storage-file-list__action-button),
-.customers-page--mobile a:not(.storage-file-list__action-button) {
+.customers-page--mobile button:not(.customer-detail-action-button):not(.customer-mobile-action-btn):not(.customer-detail-toggle-btn):not(.customer-header-app-link-compact__copy):not(.customer-filter-chip):not(.customers-page__action-btn):not(.storage-file-list__action-button):not(.customer-workspace-action-button):not(.customer-workspace-action-icon-button),
+.customers-page--mobile a:not(.storage-file-list__action-button):not(.customer-workspace-action-button) {
   min-height: unset !important;
   height: auto !important;
   padding: 0 !important;
