@@ -788,6 +788,7 @@ export default function StorageWorkspace({
             : `"${deleteTarget?.folder.name}" 폴더를 삭제합니다.`
         }
         loading={submitting}
+        footerVariant={actionVariant}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
           void submitDelete()
