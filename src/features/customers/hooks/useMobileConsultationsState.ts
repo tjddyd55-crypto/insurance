@@ -9,7 +9,12 @@ import {
 } from '../api/customerExtraApi'
 import { normalizeContactResult } from '../config/customerConsultationFollowUp.config'
 import type { CustomerConsultationsMobileViewProps } from '../pages/detail/customerConsultationsViewProps'
-import { localYmd, normalizeDateForDateInput, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
+import {
+  localYmd,
+  parseConsultationStoredBody,
+  resolveConsultationDateForEditForm,
+  resolveConsultationDateForSave,
+} from '../utils/consultationBodyFormat'
 import { dispatchCustomersListRefresh } from '../utils/customerListRefresh'
 
 function emptyContactResultToNull(value: string): string | null {
@@ -35,6 +40,7 @@ export function useMobileConsultationsState(
   const [formModalOpen, setFormModalOpen] = useState(false)
   const [formModalTitle, setFormModalTitle] = useState<'상담 추가' | '상담 수정'>('상담 추가')
   const [editingConsultId, setEditingConsultId] = useState<number | null>(null)
+  const [editingOriginalConsultDate, setEditingOriginalConsultDate] = useState('')
   const [formConsultDate, setFormConsultDate] = useState(() => localYmd())
   const [formBody, setFormBody] = useState('')
   const [formContactResult, setFormContactResult] = useState('')
@@ -45,6 +51,7 @@ export function useMobileConsultationsState(
     setFormContactResult('')
     setFormError('')
     setEditingConsultId(null)
+    setEditingOriginalConsultDate('')
   }, [])
 
   const closeFormModal = useCallback(() => {
@@ -89,11 +96,17 @@ export function useMobileConsultationsState(
   }, [resetFormFields])
 
   const openEditModal = useCallback((row: CustomerConsultationRow) => {
-    const { text } = parseConsultationStoredBody(row.body, row.createdAt, row.consultationDate ?? null)
+    const { dateLabel, text } = parseConsultationStoredBody(
+      row.body,
+      row.createdAt,
+      row.consultationDate ?? null,
+    )
+    const existingDate = resolveConsultationDateForEditForm(row.consultationDate, dateLabel)
     setFormError('')
     setFormModalTitle('상담 수정')
     setEditingConsultId(row.id)
-    setFormConsultDate(normalizeDateForDateInput(row.consultationDate) ?? localYmd())
+    setEditingOriginalConsultDate(existingDate)
+    setFormConsultDate(existingDate)
     setFormBody(text)
     setFormContactResult(normalizeContactResult(row.contactResult))
     setFormModalOpen(true)
@@ -143,19 +156,29 @@ export function useMobileConsultationsState(
       setFormError('상담 내용을 입력해 주세요.')
       return
     }
+    const isEdit = formModalTitle === '상담 수정' && editingConsultId != null
+    const dateToSave = resolveConsultationDateForSave(
+      formConsultDate,
+      editingOriginalConsultDate,
+      isEdit ? 'edit' : 'create',
+    )
+    if (!dateToSave) {
+      setFormError('상담 일자를 확인해 주세요.')
+      return
+    }
     setBusy(true)
     setFormError('')
     try {
       if (formModalTitle === '상담 추가') {
         const created = await createCustomerConsultation(token, customerId, content, {
-          consultationDate: formConsultDate,
+          consultationDate: dateToSave,
           contactResult: emptyContactResultToNull(formContactResult),
         })
         options.onCreated?.(created)
       } else if (editingConsultId != null) {
         await updateCustomerConsultation(token, customerId, editingConsultId, {
           body: content,
-          consultationDate: formConsultDate,
+          consultationDate: dateToSave,
           contactResult: emptyContactResultToNull(formContactResult),
         })
       }
@@ -171,6 +194,7 @@ export function useMobileConsultationsState(
     closeFormModal,
     customerId,
     editingConsultId,
+    editingOriginalConsultDate,
     formBody,
     formConsultDate,
     formContactResult,

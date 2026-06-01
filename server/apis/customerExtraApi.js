@@ -34,6 +34,7 @@ import {
   normalizeFollowUpStatusForDb,
   normalizeNextContactDateForDb,
 } from '../lib/customerConsultationFollowUp.js'
+import { formatConsultationDateYmd } from '../lib/consultationDateFormat.js'
 
 const CONSULTATION_BODY_MAX = 20000
 
@@ -52,9 +53,7 @@ function mapConsultationApiRow(row, fallbackDate) {
     userId: String(row.user_id),
     gaId: Number(row.ga_id),
     body: row.body ?? '',
-    consultationDate: row.consultation_date
-      ? String(row.consultation_date).slice(0, 10)
-      : fallbackDate ?? null,
+    consultationDate: formatConsultationDateYmd(row.consultation_date) ?? fallbackDate ?? null,
     contactResult: row.contact_result ? String(row.contact_result) : null,
     followUpStatus: row.follow_up_status ? String(row.follow_up_status) : null,
     nextContactDate,
