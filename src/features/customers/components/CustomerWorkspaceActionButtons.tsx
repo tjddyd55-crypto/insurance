@@ -15,9 +15,14 @@ export const CUSTOMER_WORKSPACE_ITEM_ACTIONS_CLASS = 'customer-workspace-item-ac
 export const CUSTOMER_WORKSPACE_ITEM_ACTIONS_STACKED_CLASS =
   'customer-workspace-item-actions customer-workspace-item-actions--stacked'
 
-type WorkspaceActionButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type'> & {
+/** SSOT class는 항상 유지하고, 호출부 className(예: storage-toolbar__*)만 뒤에 병합한다. */
+type WorkspaceActionButtonProps = Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  'type' | 'className'
+> & {
   children: ReactNode
   disabled?: boolean
+  className?: string
 }
 
 function mergeWorkspaceActionClass(baseClass: string, className?: string): string {
@@ -50,15 +55,15 @@ export function CustomerWorkspaceMobileScope({
 export function CustomerWorkspacePrimaryActionButton({
   children,
   disabled,
-  className,
-  ...props
+  className = '',
+  ...rest
 }: WorkspaceActionButtonProps) {
   return (
     <button
       type="button"
       className={mergeWorkspaceActionClass(CUSTOMER_WORKSPACE_ACTION_PRIMARY_CLASS, className)}
       disabled={disabled}
-      {...props}
+      {...rest}
     >
       {children}
     </button>
@@ -69,15 +74,15 @@ export function CustomerWorkspacePrimaryActionButton({
 export function CustomerWorkspaceSecondaryActionButton({
   children,
   disabled,
-  className,
-  ...props
+  className = '',
+  ...rest
 }: WorkspaceActionButtonProps) {
   return (
     <button
       type="button"
       className={mergeWorkspaceActionClass(CUSTOMER_WORKSPACE_ACTION_SECONDARY_CLASS, className)}
       disabled={disabled}
-      {...props}
+      {...rest}
     >
       {children}
     </button>
@@ -88,15 +93,15 @@ export function CustomerWorkspaceSecondaryActionButton({
 export function CustomerWorkspaceDangerActionButton({
   children,
   disabled,
-  className,
-  ...props
+  className = '',
+  ...rest
 }: WorkspaceActionButtonProps) {
   return (
     <button
       type="button"
       className={mergeWorkspaceActionClass(CUSTOMER_WORKSPACE_ACTION_DANGER_CLASS, className)}
       disabled={disabled}
-      {...props}
+      {...rest}
     >
       {children}
     </button>
@@ -108,8 +113,8 @@ export function CustomerWorkspaceIconDeleteButton({
   ariaLabel,
   children = '×',
   disabled,
-  className,
-  ...props
+  className = '',
+  ...rest
 }: WorkspaceIconActionButtonProps) {
   return (
     <button
@@ -118,7 +123,7 @@ export function CustomerWorkspaceIconDeleteButton({
       title={ariaLabel}
       className={mergeWorkspaceActionClass(CUSTOMER_WORKSPACE_ACTION_ICON_CLASS, className)}
       disabled={disabled}
-      {...props}
+      {...rest}
     >
       {children}
     </button>
@@ -151,9 +156,9 @@ export function CustomerWorkspaceItemActions({
   children,
   layout = 'inline',
 }: WorkspaceItemActionsProps) {
-  const className =
+  const wrapperClassName =
     layout === 'stacked'
       ? CUSTOMER_WORKSPACE_ITEM_ACTIONS_STACKED_CLASS
       : CUSTOMER_WORKSPACE_ITEM_ACTIONS_CLASS
-  return <div className={className}>{children}</div>
+  return <div className={wrapperClassName}>{children}</div>
 }
