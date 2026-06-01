@@ -14,7 +14,7 @@ import {
 } from '../api/customerExtraApi'
 import { useMobileConsultationsState } from '../hooks/useMobileConsultationsState'
 import { normalizeContactResult } from '../config/customerConsultationFollowUp.config'
-import { localYmd, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
+import { localYmd, normalizeDateForDateInput, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
 import { dispatchCustomersListRefresh } from '../utils/customerListRefresh'
 import CustomerConsultationsPageMobile from './detail/CustomerConsultationsPageMobile'
 import CustomerConsultationsPagePC from './detail/CustomerConsultationsPagePC'
@@ -171,7 +171,7 @@ export default function CustomerConsultationsPage() {
   const onStartEdit = useCallback((row: CustomerConsultationRow) => {
     const { text } = parseConsultationStoredBody(row.body, row.createdAt, row.consultationDate ?? null)
     setEditingConsultId(row.id)
-    setEditConsultDate(row.consultationDate ?? localYmd())
+    setEditConsultDate(normalizeDateForDateInput(row.consultationDate) ?? localYmd())
     setEditConsultBody(text)
     setEditContactResult(normalizeContactResult(row.contactResult))
     setError('')

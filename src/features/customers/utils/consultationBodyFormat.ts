@@ -6,6 +6,31 @@ function normalizeYmd(value: unknown): string | null {
   return s
 }
 
+/**
+ * `input[type="date"]` 전용 YYYY-MM-DD 정규화.
+ * - 이미 YYYY-MM-DD면 그대로 사용
+ * - ISO datetime 등은 앞 10글자(YYYY-MM-DD)만 사용 가능할 때만 사용
+ * - 그 외는 Date 파싱이 가능하면 toISOString().slice(0, 10)
+ */
+export function normalizeDateForDateInput(value: unknown): string | null {
+  const raw = String(value ?? '').trim()
+  if (!raw) return null
+
+  const direct = normalizeYmd(raw)
+  if (direct) return direct
+
+  const head = raw.slice(0, 10)
+  const headYmd = normalizeYmd(head)
+  if (headYmd) return headYmd
+
+  const d = new Date(raw)
+  if (!Number.isNaN(d.getTime())) {
+    return d.toISOString().slice(0, 10)
+  }
+
+  return null
+}
+
 export function parseConsultationStoredBody(
   raw: string,
   createdAtIso: string,
