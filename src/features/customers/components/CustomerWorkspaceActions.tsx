@@ -175,6 +175,16 @@ export function CustomerWorkspaceActions({
           신청서
         </FormButton>
       ) : null}
+      {contractSignaturesEnabled ? (
+        <FormButton
+          htmlType="button"
+          variant="secondary"
+          className="button button--secondary customer-workspace-action-button"
+          onClick={() => onOpenSignatures(customerId)}
+        >
+          전자서명
+        </FormButton>
+      ) : null}
       <FormButton
         htmlType="button"
         variant="secondary"

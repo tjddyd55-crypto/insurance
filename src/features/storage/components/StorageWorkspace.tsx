@@ -757,6 +757,7 @@ export default function StorageWorkspace({
         title="폴더 생성"
         value={createFolderName}
         loading={submitting}
+        footerVariant={actionVariant}
         onChange={setCreateFolderName}
         onClose={() => setCreateFolderOpen(false)}
         onSubmit={() => {

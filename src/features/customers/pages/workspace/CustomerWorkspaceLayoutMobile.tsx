@@ -177,7 +177,7 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
           <h2 className="workspace-mobile-outlet-modal__title">{title}</h2>
           <CustomerWorkspaceCloseButton onClick={handleClose} />
         </div>
-        <div className="workspace-mobile-outlet-modal__body">
+        <div className="workspace-mobile-outlet-modal__body customer-workspace-mobile-scope">
           {outlet}
         </div>
       </Modal>

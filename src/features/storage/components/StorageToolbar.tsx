@@ -40,10 +40,27 @@ export default function StorageToolbar({
   actionVariant = 'storage',
 }: StorageToolbarProps) {
   return (
-    <div className={`storage-toolbar${isMobile ? ' storage-toolbar--mobile' : ''}`}>
-      <div className="storage-toolbar__row">
+    <div
+      className={[
+        'storage-toolbar',
+        isMobile ? 'storage-toolbar--mobile' : '',
+        isMobile && actionVariant === 'workspace' ? 'storage-toolbar--workspace' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <div
+        className={
+          isMobile && actionVariant === 'workspace'
+            ? 'storage-toolbar__row storage-toolbar__row--workspace-controls'
+            : 'storage-toolbar__row'
+        }
+      >
         {actionVariant === 'workspace' ? (
-          <CustomerWorkspaceSecondaryActionButton onClick={onOpenCreateFolder}>
+          <CustomerWorkspaceSecondaryActionButton
+            className={isMobile ? 'storage-toolbar__workspace-control' : undefined}
+            onClick={onOpenCreateFolder}
+          >
             폴더 생성
           </CustomerWorkspaceSecondaryActionButton>
         ) : (
@@ -59,6 +76,7 @@ export default function StorageToolbar({
           onOpen={onOpenFolderPicker}
           onClose={onCloseFolderPicker}
           onSelect={onSelectFolder}
+          actionVariant={actionVariant}
         />
         {!isMobile ? (
           <FileUploader
