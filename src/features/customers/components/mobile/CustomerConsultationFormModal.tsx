@@ -1,7 +1,11 @@
 import Modal from '../../../../components/ui/Modal'
 import { StatusMessage } from '../../../../components/feedback'
-import { FormButton, FormInput, FormTextarea } from '../../../../components/form'
+import { FormInput, FormTextarea } from '../../../../components/form'
 import CustomerConsultationContactResultField from '../CustomerConsultationContactResultField'
+import {
+  CUSTOMER_WORKSPACE_FORM_TEXTAREA_CLASS,
+  CustomerWorkspaceFormModalFooter,
+} from '../CustomerWorkspaceFormModalFooter'
 
 type CustomerConsultationFormModalProps = {
   open: boolean
@@ -59,7 +63,7 @@ export default function CustomerConsultationFormModal({
         <label style={{ display: 'block' }}>
           <span className="block mb-1 text-[var(--text-secondary)]">상담 내용</span>
           <FormTextarea
-            className="w-full border border-[var(--border-default)] rounded-lg p-2 bg-[var(--bg-card)] text-[var(--text-primary)] box-border min-h-[120px]"
+            className={CUSTOMER_WORKSPACE_FORM_TEXTAREA_CLASS}
             value={body}
             onChange={(ev) => onBodyChange(ev.target.value)}
             rows={4}
@@ -74,14 +78,12 @@ export default function CustomerConsultationFormModal({
           disabled={busy}
         />
       </div>
-      <div className="flex gap-2 justify-end flex-wrap mt-4">
-        <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={onCancel}>
-          취소
-        </FormButton>
-        <FormButton htmlType="button" variant="action" disabled={busy || !body.trim()} onClick={() => void onSave()}>
-          {busy ? '저장 중…' : '저장'}
-        </FormButton>
-      </div>
+      <CustomerWorkspaceFormModalFooter
+        onCancel={onCancel}
+        onSave={onSave}
+        busy={busy}
+        saveDisabled={!body.trim()}
+      />
     </Modal>
   )
 }
