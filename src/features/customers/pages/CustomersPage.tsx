@@ -162,7 +162,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const [editSaving, setEditSaving] = useState(false)
   const editSavingRef = useRef(false)
   const [activeMobileModal, setActiveMobileModal] = useState<
-    null | 'files' | 'consultations' | 'ga'
+    null | 'files' | 'consultations' | 'ga' | 'signatures'
   >(null)
   const [activeMobileCustomerId, setActiveMobileCustomerId] = useState<number | null>(null)
   const [scrollRequestKey, setScrollRequestKey] = useState(0)
@@ -958,7 +958,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   )
 
   const openMobileModal = useCallback(
-    (modalType: 'files' | 'consultations' | 'ga', customerId: number) => {
+    (modalType: 'files' | 'consultations' | 'ga' | 'signatures', customerId: number) => {
       if (!isMobile) {
         return
       }
@@ -1068,11 +1068,15 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   const handleOpenSignatures = useCallback(
     (customerId: number) => {
+      if (isMobile) {
+        openMobileModal('signatures', customerId)
+        return
+      }
       const next = new URLSearchParams(searchParams)
       next.set('customerId', String(customerId))
       navigate(buildCustomerWorkspacePath({ customerId, tab: 'signatures', query: next }))
     },
-    [navigate, searchParams],
+    [isMobile, navigate, openMobileModal, searchParams],
   )
 
   const handleCustomerConsultationCreated = useCallback(

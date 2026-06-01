@@ -1,8 +1,8 @@
 /**
  * FC/USER 전자문서 발송 내역 — 본인이 발송한 세션만 조회.
  */
-import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { FormButton, FormInput, FormSelect } from '../../../components/form'
 import { useConfirmDialog } from '../../../components/dialog'
 import { useMediaQuery } from '../../../hooks/useMediaQuery'
@@ -10,6 +10,7 @@ import '../../pdf-engine/pdf-engine.css'
 import '../testConsole/contract-signature-console.css'
 import '../userSend/contract-signature-send-mobile.css'
 import { useAuth } from '../../auth/AuthProvider'
+import { canAccessContractSignatureUserSend } from '../testConsole/contractSignatureTestConsoleFlags'
 import { ApiError } from '../../../lib/apiClient'
 import type { SendSessionDetail } from '../testConsole/contractSignatureTestConsoleClient'
 import {
@@ -25,6 +26,11 @@ import { SendSessionHistoryList } from './components/SendSessionHistoryList'
 
 const PAGE_SIZE = 30
 
+function parseScopedCustomerId(raw: string | null | undefined): number | null {
+  const n = Number(raw)
+  return Number.isInteger(n) && n > 0 ? n : null
+}
+
 function formatCancelFailureMessage(e: unknown): string {
   if (e instanceof ApiError) {
     const raw = e.message.trim()
@@ -38,12 +44,41 @@ function formatCancelFailureMessage(e: unknown): string {
 
 const HISTORY_MOBILE_MQ = '(max-width: 768px)'
 
-export default function ContractSignatureHistoryPage() {
+type ContractSignatureHistoryPageProps = {
+  /** 모바일 고객카드 outlet 모달 — route path 없이 고객 scope 주입 */
+  workspaceCustomerId?: number
+}
+
+export default function ContractSignatureHistoryPage({
+  workspaceCustomerId,
+}: ContractSignatureHistoryPageProps = {}) {
   const navigate = useNavigate()
-  const { token } = useAuth()
+  const params = useParams<{ customerId?: string }>()
+  const [searchParams] = useSearchParams()
+  const { token, user } = useAuth()
   const { confirm, confirmDialog } = useConfirmDialog()
   const t = token?.trim() ?? ''
   const historyMobile = useMediaQuery(HISTORY_MOBILE_MQ)
+
+  const scopedCustomerId = useMemo(() => {
+    if (workspaceCustomerId != null && workspaceCustomerId > 0) {
+      return workspaceCustomerId
+    }
+    const fromPath = parseScopedCustomerId(params.customerId ?? null)
+    if (fromPath != null) {
+      return fromPath
+    }
+    return parseScopedCustomerId(searchParams.get('customerId'))
+  }, [params.customerId, searchParams, workspaceCustomerId])
+
+  const embeddedInCustomerWorkspace =
+    scopedCustomerId != null &&
+    (params.customerId != null || (workspaceCustomerId != null && workspaceCustomerId > 0))
+
+  const sendPageHref =
+    scopedCustomerId != null
+      ? `/contracts/signatures/send?customerId=${scopedCustomerId}`
+      : '/contracts/signatures/send'
 
   const [q, setQ] = useState('')
   const [debouncedQ, setDebouncedQ] = useState('')
@@ -78,6 +113,7 @@ export default function ContractSignatureHistoryPage() {
     setListError(null)
     try {
       const res = await listUserSendSessions(t, {
+        customerId: scopedCustomerId ?? undefined,
         q: debouncedQ || undefined,
         filter,
         sort,
@@ -93,7 +129,7 @@ export default function ContractSignatureHistoryPage() {
     } finally {
       setListBusy(false)
     }
-  }, [t, debouncedQ, filter, sort])
+  }, [t, debouncedQ, filter, sort, scopedCustomerId])
 
   useEffect(() => {
     void reloadListFirstPage()
@@ -106,6 +142,7 @@ export default function ContractSignatureHistoryPage() {
     setMoreBusy(true)
     try {
       const res = await listUserSendSessions(t, {
+        customerId: scopedCustomerId ?? undefined,
         q: debouncedQ || undefined,
         filter,
         sort,
@@ -251,17 +288,29 @@ export default function ContractSignatureHistoryPage() {
     void runCancel(detail.id)
   }
 
+  if (user && !canAccessContractSignatureUserSend(user.role)) {
+    if (embeddedInCustomerWorkspace && scopedCustomerId != null) {
+      return <Navigate to={`/customers/${scopedCustomerId}/files`} replace />
+    }
+    return <Navigate to="/dashboard" replace />
+  }
+
   return (
     <main
       className={
         'insurance-dark-forms contract-signature-console contract-signature-history-page' +
-        (historyMobile ? ' contract-signature-flow--mobile' : '')
+        (historyMobile ? ' contract-signature-flow--mobile' : '') +
+        (embeddedInCustomerWorkspace ? ' contract-signature-history-page--workspace' : '')
       }
     >
       <div className="contract-signature-console__container">
-        <h1 className="contract-signature-console__title">전자문서 발송 내역</h1>
+        <h1 className="contract-signature-console__title">
+          {embeddedInCustomerWorkspace ? '전자서명' : '전자서명 발송 내역'}
+        </h1>
         <p className="contract-signature-console__lead">
-          내가 고객에게 발송한 전자서명 문서의 진행 상태와 완료 증빙을 확인합니다.
+          {embeddedInCustomerWorkspace
+            ? '이 고객에게 발송한 전자서명 진행 상태를 확인합니다.'
+            : '발송한 전자서명의 진행 상태를 확인합니다.'}
         </p>
 
         <p className="contract-signature-console__notice">
@@ -315,7 +364,7 @@ export default function ContractSignatureHistoryPage() {
                   size="sm"
                   className="contract-history-mobile-toolbar__send-wide"
                   disabled={!t}
-                  onClick={() => navigate('/contracts/signatures/send')}
+                  onClick={() => navigate(sendPageHref)}
                 >
                   새 발송
                 </FormButton>
@@ -369,7 +418,7 @@ export default function ContractSignatureHistoryPage() {
                     variant="primary"
                     size="sm"
                     disabled={!t}
-                    onClick={() => navigate('/contracts/signatures/send')}
+                    onClick={() => navigate(sendPageHref)}
                   >
                     새 발송
                   </FormButton>
@@ -401,8 +450,8 @@ export default function ContractSignatureHistoryPage() {
 
           {!listBusy && rows.length === 0 && !listError ? (
             <div>
-              <p className="contract-signature-console__empty-state-text">아직 발송한 전자문서가 없습니다.</p>
-              <Link className="contract-signature-console__hint" to="/contracts/signatures/send">
+              <p className="contract-signature-console__empty-state-text">아직 발송한 전자서명이 없습니다.</p>
+              <Link className="contract-signature-console__hint" to={sendPageHref}>
                 전자서명 발송하기
               </Link>
             </div>
