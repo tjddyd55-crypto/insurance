@@ -19,6 +19,8 @@ export type ModalProps = {
   onEscapeRequest?: () => void
   /** `largeForm` 는 넓은 폼 모달용(기본 w/max-w/p 제거). */
   panelPreset?: 'default' | 'largeForm'
+  /** true 이면 document.body 에 portal 렌더(중첩 outlet 모달 안 confirm 등). */
+  usePortal?: boolean
 }
 
 export default function Modal({
@@ -32,6 +34,7 @@ export default function Modal({
   closeOnEsc = true,
   onEscapeRequest,
   panelPreset = 'default',
+  usePortal = false,
 }: ModalProps) {
   return (
     <BaseDialog
@@ -44,6 +47,7 @@ export default function Modal({
       closeOnEsc={closeOnEsc}
       onEscapeRequest={onEscapeRequest}
       panelPreset={panelPreset}
+      usePortal={usePortal}
     >
       {children}
     </BaseDialog>

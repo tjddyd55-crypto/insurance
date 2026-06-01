@@ -44,7 +44,14 @@ function formatCancelFailureMessage(e: unknown): string {
 
 const HISTORY_MOBILE_MQ = '(max-width: 768px)'
 
-export default function ContractSignatureHistoryPage() {
+type ContractSignatureHistoryPageProps = {
+  /** 모바일 고객카드 outlet 모달 — route path 없이 고객 scope 주입 */
+  workspaceCustomerId?: number
+}
+
+export default function ContractSignatureHistoryPage({
+  workspaceCustomerId,
+}: ContractSignatureHistoryPageProps = {}) {
   const navigate = useNavigate()
   const params = useParams<{ customerId?: string }>()
   const [searchParams] = useSearchParams()
@@ -54,14 +61,19 @@ export default function ContractSignatureHistoryPage() {
   const historyMobile = useMediaQuery(HISTORY_MOBILE_MQ)
 
   const scopedCustomerId = useMemo(() => {
+    if (workspaceCustomerId != null && workspaceCustomerId > 0) {
+      return workspaceCustomerId
+    }
     const fromPath = parseScopedCustomerId(params.customerId ?? null)
     if (fromPath != null) {
       return fromPath
     }
     return parseScopedCustomerId(searchParams.get('customerId'))
-  }, [params.customerId, searchParams])
+  }, [params.customerId, searchParams, workspaceCustomerId])
 
-  const embeddedInCustomerWorkspace = scopedCustomerId != null && params.customerId != null
+  const embeddedInCustomerWorkspace =
+    scopedCustomerId != null &&
+    (params.customerId != null || (workspaceCustomerId != null && workspaceCustomerId > 0))
 
   const sendPageHref =
     scopedCustomerId != null

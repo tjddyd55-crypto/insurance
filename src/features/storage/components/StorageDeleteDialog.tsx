@@ -1,12 +1,10 @@
 import Modal from '../../../components/ui/Modal'
 import { FormButton } from '../../../components/form'
-import {
-  CustomerWorkspaceMobileScope,
-  CustomerWorkspacePrimaryActionButton,
-  CustomerWorkspaceSecondaryActionButton,
-} from '../../customers/components/CustomerWorkspaceActionButtons'
-import { CUSTOMER_WORKSPACE_MODAL_ACTIONS_CLASS } from '../../customers/components/CustomerWorkspaceFormModalFooter'
+import { CustomerWorkspaceMobileScope } from '../../customers/components/CustomerWorkspaceActionButtons'
+import { CustomerWorkspaceFormModalFooter } from '../../customers/components/CustomerWorkspaceFormModalFooter'
 import type { StorageActionVariant } from './StorageFileList'
+
+const WORKSPACE_DELETE_PANEL_CLASS = 'max-w-lg w-[92vw] customer-workspace-form-modal'
 
 type StorageDeleteDialogProps = {
   open: boolean
@@ -15,7 +13,7 @@ type StorageDeleteDialogProps = {
   loading?: boolean
   onClose: () => void
   onConfirm: () => void
-  /** 고객 작업영역 모바일 — 메모/상담·폴더 생성 모달과 동일 footer 버튼 */
+  /** 고객 작업영역 모바일 — 메모/상담·이름 변경 모달과 동일 footer 버튼 */
   footerVariant?: StorageActionVariant
 }
 
@@ -29,20 +27,7 @@ export default function StorageDeleteDialog({
   footerVariant = 'storage',
 }: StorageDeleteDialogProps) {
   const useWorkspaceFooter = footerVariant === 'workspace'
-  const panelClassName = useWorkspaceFooter
-    ? 'max-w-lg w-[92vw] customer-workspace-form-modal'
-    : 'max-w-md'
-
-  const workspaceFooter = (
-    <div className={CUSTOMER_WORKSPACE_MODAL_ACTIONS_CLASS}>
-      <CustomerWorkspaceSecondaryActionButton disabled={loading} onClick={onClose}>
-        취소
-      </CustomerWorkspaceSecondaryActionButton>
-      <CustomerWorkspacePrimaryActionButton disabled={loading} onClick={onConfirm}>
-        {loading ? '처리 중…' : '확인'}
-      </CustomerWorkspacePrimaryActionButton>
-    </div>
-  )
+  const panelClassName = useWorkspaceFooter ? WORKSPACE_DELETE_PANEL_CLASS : 'max-w-md'
 
   const storageFooter = (
     <div className="flex justify-end gap-2 mt-4">
@@ -63,11 +48,18 @@ export default function StorageDeleteDialog({
         ariaLabel={title}
         panelClassName={panelClassName}
         closeOnBackdrop={false}
+        usePortal
       >
         <CustomerWorkspaceMobileScope>
           <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">{title}</div>
           <p className="text-sm text-[var(--text-secondary)]">{description}</p>
-          {workspaceFooter}
+          <CustomerWorkspaceFormModalFooter
+            onCancel={onClose}
+            onSave={onConfirm}
+            busy={loading}
+            saveLabel="확인"
+            busySaveLabel="처리 중…"
+          />
         </CustomerWorkspaceMobileScope>
       </Modal>
     )

@@ -16,6 +16,8 @@ type Props = {
   saveDisabled?: boolean
   saveLabel?: string
   cancelLabel?: string
+  /** busy 시 primary 라벨 — 기본 '저장 중…' */
+  busySaveLabel?: string
 }
 
 /**
@@ -30,6 +32,7 @@ export function CustomerWorkspaceFormModalFooter({
   saveDisabled = false,
   saveLabel = '저장',
   cancelLabel = '취소',
+  busySaveLabel = '저장 중…',
 }: Props) {
   return (
     <div className={CUSTOMER_WORKSPACE_MODAL_ACTIONS_CLASS}>
@@ -40,7 +43,7 @@ export function CustomerWorkspaceFormModalFooter({
         disabled={busy || saveDisabled}
         onClick={() => void onSave()}
       >
-        {busy ? '저장 중…' : saveLabel}
+        {busy ? busySaveLabel : saveLabel}
       </CustomerWorkspacePrimaryActionButton>
     </div>
   )

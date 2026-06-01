@@ -2,10 +2,11 @@ import type { CustomerConsultationRow } from '../api/customerExtraApi'
 import CustomerConsultationsModal from './mobile/CustomerConsultationsModal'
 import CustomerFilesModal from './mobile/CustomerFilesModal'
 import CustomerGaDataModal from './mobile/CustomerGaDataModal'
+import CustomerSignaturesModal from './mobile/CustomerSignaturesModal'
 
 export type CustomerMobileModalsProps = {
   isMobile: boolean
-  activeMobileModal: null | 'files' | 'consultations' | 'ga'
+  activeMobileModal: null | 'files' | 'consultations' | 'ga' | 'signatures'
   activeMobileCustomerId: number | null
   closeMobileModal: () => void
   handleCustomerConsultationCreated: (
@@ -39,6 +40,9 @@ export default function CustomerMobileModals({
       ) : null}
       {activeMobileModal === 'ga' ? (
         <CustomerGaDataModal customerId={activeMobileCustomerId} onClose={closeMobileModal} />
+      ) : null}
+      {activeMobileModal === 'signatures' ? (
+        <CustomerSignaturesModal customerId={activeMobileCustomerId} onClose={closeMobileModal} />
       ) : null}
     </>
   )
