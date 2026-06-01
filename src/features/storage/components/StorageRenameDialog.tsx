@@ -1,12 +1,10 @@
 import { FormButton, FormInput } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
-import {
-  CustomerWorkspaceMobileScope,
-  CustomerWorkspacePrimaryActionButton,
-  CustomerWorkspaceSecondaryActionButton,
-} from '../../customers/components/CustomerWorkspaceActionButtons'
-import { CUSTOMER_WORKSPACE_MODAL_ACTIONS_CLASS } from '../../customers/components/CustomerWorkspaceFormModalFooter'
+import { CustomerWorkspaceMobileScope } from '../../customers/components/CustomerWorkspaceActionButtons'
+import { CustomerWorkspaceFormModalFooter } from '../../customers/components/CustomerWorkspaceFormModalFooter'
 import type { StorageActionVariant } from './StorageFileList'
+
+const WORKSPACE_RENAME_PANEL_CLASS = 'max-w-lg w-[92vw] customer-workspace-form-modal'
 
 type StorageRenameDialogProps = {
   open: boolean
@@ -31,25 +29,9 @@ export default function StorageRenameDialog({
   footerVariant = 'storage',
 }: StorageRenameDialogProps) {
   const useWorkspaceFooter = footerVariant === 'workspace'
-  const panelClassName = useWorkspaceFooter
-    ? 'max-w-lg w-[92vw] customer-workspace-form-modal'
-    : 'max-w-md'
+  const panelClassName = useWorkspaceFooter ? WORKSPACE_RENAME_PANEL_CLASS : 'max-w-md'
 
   const saveDisabled = !value.trim()
-
-  const workspaceFooter = (
-    <div className={CUSTOMER_WORKSPACE_MODAL_ACTIONS_CLASS}>
-      <CustomerWorkspaceSecondaryActionButton disabled={loading} onClick={onClose}>
-        취소
-      </CustomerWorkspaceSecondaryActionButton>
-      <CustomerWorkspacePrimaryActionButton
-        disabled={loading || saveDisabled}
-        onClick={() => void onSubmit()}
-      >
-        {loading ? '저장 중…' : '저장'}
-      </CustomerWorkspacePrimaryActionButton>
-    </div>
-  )
 
   const storageFooter = (
     <div className="flex justify-end gap-2 mt-4">
@@ -83,7 +65,12 @@ export default function StorageRenameDialog({
         <CustomerWorkspaceMobileScope>
           <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">{title}</div>
           {formBody}
-          {workspaceFooter}
+          <CustomerWorkspaceFormModalFooter
+            onCancel={onClose}
+            onSave={onSubmit}
+            busy={loading}
+            saveDisabled={saveDisabled}
+          />
         </CustomerWorkspaceMobileScope>
       </Modal>
     )
