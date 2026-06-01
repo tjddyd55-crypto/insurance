@@ -227,8 +227,11 @@
     border-color: rgba(148, 163, 184, 0.38);
   }
 
-  /* ── 작성/수정 모달 footer + textarea (메모·상담 공통) ── */
-  .customer-workspace-modal-actions {
+  /* ── 작성/수정 모달 (portal · 메모/상담 공통) ──
+   * textarea: .field--editable(#000) 보다 후행 규칙으로 입력칸 검정(#020617) 고정.
+   * footer: CustomerWorkspaceMobileScope 안에서 목록 액션과 동일 button.customer-workspace-action-button 사용. */
+  .customer-ui-modal-panel.customer-workspace-form-modal .customer-workspace-modal-actions,
+  .customer-workspace-mobile-scope .customer-workspace-modal-actions {
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
@@ -236,30 +239,173 @@
     margin-top: 16px;
   }
 
-  .customer-workspace-form-textarea {
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    textarea.customer-workspace-form-textarea,
+  .customer-workspace-mobile-scope textarea.customer-workspace-form-textarea,
+  textarea.customer-workspace-form-textarea {
     display: block;
     width: 100%;
     box-sizing: border-box;
     min-height: 120px;
     margin-bottom: 12px;
     padding: 8px;
-    border: 1px solid var(--border-default, #334155);
+    border: 1px solid #334155;
     border-radius: 0.5rem;
-    background: var(--bg-card, #111827);
-    color: var(--text-primary, #f8fafc);
+    background-color: #020617;
+    color: #f8fafc;
     font-size: inherit;
     line-height: 1.45;
     letter-spacing: var(--customer-mobile-letter-base, 0.005em);
     resize: vertical;
   }
 
-  .customer-workspace-form-textarea::placeholder {
-    color: var(--text-muted, #64748b);
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    textarea.customer-workspace-form-textarea::placeholder,
+  .customer-workspace-mobile-scope textarea.customer-workspace-form-textarea::placeholder,
+  textarea.customer-workspace-form-textarea::placeholder {
+    color: #64748b;
   }
 
-  .customer-workspace-form-textarea:focus {
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    textarea.customer-workspace-form-textarea:focus,
+  .customer-workspace-mobile-scope textarea.customer-workspace-form-textarea:focus,
+  textarea.customer-workspace-form-textarea:focus {
     outline: none;
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    textarea.customer-workspace-form-textarea:disabled,
+  .customer-workspace-mobile-scope textarea.customer-workspace-form-textarea:disabled,
+  textarea.customer-workspace-form-textarea:disabled {
+    opacity: 0.65;
+    cursor: default;
+  }
+
+  /* portal 모달: scope 래퍼 안 footer 버튼 — 전역 .button 과 분리된 동일 SSOT */
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button,
+  .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button {
+    appearance: none;
+    -webkit-appearance: none;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    min-height: 42px;
+    height: auto;
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(148, 163, 184, 0.26);
+    background: rgba(15, 23, 42, 0.88);
+    color: #e5e7eb;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    text-decoration: none;
+    transform: none;
+    box-shadow: none;
+    flex-shrink: 0;
+    touch-action: manipulation;
+    cursor: pointer;
+    font-family: inherit;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    opacity: 1;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--primary,
+  .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--primary {
+    background: rgba(37, 99, 235, 0.18);
+    border-color: rgba(96, 165, 250, 0.48);
+    color: #dbeafe;
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--secondary,
+  .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--secondary {
+    background: rgba(15, 23, 42, 0.92);
+    border-color: rgba(148, 163, 184, 0.32);
+    color: #e5e7eb;
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--primary:hover:not(:disabled),
+  .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--primary:hover:not(:disabled) {
+    background: rgba(37, 99, 235, 0.28);
+    border-color: rgba(96, 165, 250, 0.62);
+    color: #eff6ff;
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--secondary:hover:not(:disabled),
+  .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--secondary:hover:not(:disabled) {
+    background: rgba(30, 41, 59, 0.96);
+    border-color: rgba(148, 163, 184, 0.45);
+    color: #f8fafc;
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button:active:not(:disabled),
+  .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button:active:not(:disabled) {
+    transform: none;
+    opacity: 0.92;
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button:focus-visible,
+  .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.28);
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button:disabled,
+  .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
 }

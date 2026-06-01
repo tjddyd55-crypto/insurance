@@ -5,6 +5,7 @@ import { Button } from '../../../components/ui/Button'
 import Modal from '../../../components/ui/Modal'
 import {
   CustomerWorkspaceItemActions,
+  CustomerWorkspaceMobileScope,
   CustomerWorkspacePrimaryActionButton,
   CustomerWorkspaceSecondaryActionButton,
   CustomerWorkspaceDangerActionButton,
@@ -443,44 +444,58 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
         onClose={closeMemoModal}
         ariaLabel={memoMode === 'edit' ? '메모 수정' : '메모 추가'}
         closeOnBackdrop={false}
+        panelClassName={workspaceMobileMemo ? 'customer-workspace-form-modal' : undefined}
         onEscapeRequest={() => {
           void requestCloseMemoModal()
         }}
       >
-        <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">
-          {memoMode === 'edit' ? '메모 수정' : '메모 추가'}
-        </div>
-        <FormTextarea
-          className={
-            workspaceMobileMemo
-              ? CUSTOMER_WORKSPACE_FORM_TEXTAREA_CLASS
-              : 'w-full border border-[var(--border-default)] rounded-lg p-2 mb-3 bg-[var(--bg-card)] text-[var(--text-primary)] box-border min-h-[120px]'
-          }
-          value={draft}
-          maxLength={NOTE_MAX_LENGTH}
-          rows={workspaceMobileMemo ? 4 : undefined}
-          onChange={(e) => setDraft(e.target.value.slice(0, NOTE_MAX_LENGTH))}
-          placeholder="메모 내용"
-          spellCheck={false}
-          autoCorrect="off"
-          autoCapitalize="off"
-        />
         {workspaceMobileMemo ? (
-          <CustomerWorkspaceFormModalFooter
-            onCancel={() => void requestCloseMemoModal()}
-            onSave={handleMemoSave}
-            busy={saving}
-            saveDisabled={!draft.trim()}
-          />
+          <CustomerWorkspaceMobileScope>
+            <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">
+              {memoMode === 'edit' ? '메모 수정' : '메모 추가'}
+            </div>
+            <FormTextarea
+              className={CUSTOMER_WORKSPACE_FORM_TEXTAREA_CLASS}
+              value={draft}
+              maxLength={NOTE_MAX_LENGTH}
+              rows={4}
+              onChange={(e) => setDraft(e.target.value.slice(0, NOTE_MAX_LENGTH))}
+              placeholder="메모 내용"
+              spellCheck={false}
+              autoCorrect="off"
+              autoCapitalize="off"
+            />
+            <CustomerWorkspaceFormModalFooter
+              onCancel={() => void requestCloseMemoModal()}
+              onSave={handleMemoSave}
+              busy={saving}
+              saveDisabled={!draft.trim()}
+            />
+          </CustomerWorkspaceMobileScope>
         ) : (
-          <div className="flex gap-2 justify-end flex-wrap">
-            <Button type="button" variant="secondary" onClick={() => void requestCloseMemoModal()}>
-              취소
-            </Button>
-            <Button type="button" disabled={saving || !draft.trim()} onClick={handleMemoSave}>
-              저장
-            </Button>
-          </div>
+          <>
+            <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">
+              {memoMode === 'edit' ? '메모 수정' : '메모 추가'}
+            </div>
+            <FormTextarea
+              className="w-full border border-[var(--border-default)] rounded-lg p-2 mb-3 bg-[var(--bg-card)] text-[var(--text-primary)] box-border min-h-[120px]"
+              value={draft}
+              maxLength={NOTE_MAX_LENGTH}
+              onChange={(e) => setDraft(e.target.value.slice(0, NOTE_MAX_LENGTH))}
+              placeholder="메모 내용"
+              spellCheck={false}
+              autoCorrect="off"
+              autoCapitalize="off"
+            />
+            <div className="flex gap-2 justify-end flex-wrap">
+              <Button type="button" variant="secondary" onClick={() => void requestCloseMemoModal()}>
+                취소
+              </Button>
+              <Button type="button" disabled={saving || !draft.trim()} onClick={handleMemoSave}>
+                저장
+              </Button>
+            </div>
+          </>
         )}
       </Modal>
       {confirmDialog}
