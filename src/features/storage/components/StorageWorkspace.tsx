@@ -770,6 +770,7 @@ export default function StorageWorkspace({
         title={renameTarget?.kind === 'file' ? '파일 이름 변경' : '폴더 이름 변경'}
         value={renameTarget?.value ?? ''}
         loading={submitting}
+        footerVariant={actionVariant}
         onChange={(value) => {
           setRenameTarget((prev) => (prev ? { ...prev, value } : prev))
         }}
