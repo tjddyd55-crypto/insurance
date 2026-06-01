@@ -9,7 +9,7 @@ import {
 } from '../api/customerExtraApi'
 import { normalizeContactResult } from '../config/customerConsultationFollowUp.config'
 import type { CustomerConsultationsMobileViewProps } from '../pages/detail/customerConsultationsViewProps'
-import { localYmd, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
+import { localYmd, normalizeDateForDateInput, parseConsultationStoredBody } from '../utils/consultationBodyFormat'
 import { dispatchCustomersListRefresh } from '../utils/customerListRefresh'
 
 function emptyContactResultToNull(value: string): string | null {
@@ -93,7 +93,7 @@ export function useMobileConsultationsState(
     setFormError('')
     setFormModalTitle('상담 수정')
     setEditingConsultId(row.id)
-    setFormConsultDate(row.consultationDate ?? localYmd())
+    setFormConsultDate(normalizeDateForDateInput(row.consultationDate) ?? localYmd())
     setFormBody(text)
     setFormContactResult(normalizeContactResult(row.contactResult))
     setFormModalOpen(true)
