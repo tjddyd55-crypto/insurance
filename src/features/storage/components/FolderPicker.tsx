@@ -1,5 +1,7 @@
 import { FormButton, FormSelect } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
+import { CustomerWorkspaceSecondaryActionButton } from '../../customers/components/CustomerWorkspaceActionButtons'
+import type { StorageActionVariant } from './StorageFileList'
 import type { StorageFolderRow } from '../api/storageApi'
 
 type FolderOption = StorageFolderRow | { id: null; name: '전체'; createdAt: string }
@@ -12,6 +14,7 @@ type FolderPickerProps = {
   onOpen: () => void
   onClose: () => void
   onSelect: (folderId: number | null) => void
+  actionVariant?: StorageActionVariant
 }
 
 export default function FolderPicker({
@@ -22,6 +25,7 @@ export default function FolderPicker({
   onOpen,
   onClose,
   onSelect,
+  actionVariant = 'storage',
 }: FolderPickerProps) {
   if (!isMobile) {
     const selectOptions = folders.map((folder) => ({
@@ -45,9 +49,18 @@ export default function FolderPicker({
 
   return (
     <>
-      <FormButton htmlType="button" variant="secondary" className="storage-toolbar__folder-trigger" onClick={onOpen}>
-        {selected?.name ?? '전체'} ▼
-      </FormButton>
+      {actionVariant === 'workspace' ? (
+        <CustomerWorkspaceSecondaryActionButton
+          className="storage-toolbar__workspace-control storage-toolbar__folder-trigger storage-toolbar__folder-trigger--workspace"
+          onClick={onOpen}
+        >
+          {selected?.name ?? '전체'} ▼
+        </CustomerWorkspaceSecondaryActionButton>
+      ) : (
+        <FormButton htmlType="button" variant="secondary" className="storage-toolbar__folder-trigger" onClick={onOpen}>
+          {selected?.name ?? '전체'} ▼
+        </FormButton>
+      )}
 
       <Modal open={isOpen} onClose={onClose} ariaLabel="폴더 선택" panelClassName="storage-folder-sheet">
         <div className="storage-folder-sheet__title">폴더 선택</div>

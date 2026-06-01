@@ -183,7 +183,8 @@
   .mobile-modal button,
   .mobile-modal .button,
   .mobile-modal .form-button,
-  .workspace-mobile-outlet-modal button:not(.workspace-mobile-outlet-modal__close) {
+  .workspace-mobile-outlet-modal
+    button:not(.workspace-mobile-outlet-modal__close):not(.customer-workspace-action-button) {
     min-height: var(--m-control-h);
     border-radius: var(--m-radius-md);
     font-weight: 800;

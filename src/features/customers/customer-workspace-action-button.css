@@ -408,4 +408,53 @@
     opacity: 0.5;
     cursor: default;
   }
+
+  /* ── 고객 파일 툴바: 폴더 생성 + 전체(폴더 선택) 높이·정렬 통일 ── */
+  .customer-workspace-mobile-scope
+    .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
+    .storage-toolbar__row--workspace-controls,
+  .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
+    .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
+    .storage-toolbar__row--workspace-controls {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .customer-workspace-mobile-scope
+    .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
+    .storage-toolbar__row--workspace-controls
+    > *,
+  .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
+    .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
+    .storage-toolbar__row--workspace-controls
+    > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .customer-workspace-mobile-scope
+    .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
+    button.customer-workspace-action-button.storage-toolbar__workspace-control,
+  .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
+    .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
+    button.customer-workspace-action-button.storage-toolbar__workspace-control {
+    width: 100%;
+    min-height: 42px;
+    height: auto;
+    max-height: none;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .customer-workspace-mobile-scope
+    .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
+    .storage-toolbar__folder-trigger--workspace,
+  .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
+    .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
+    .storage-toolbar__folder-trigger--workspace {
+    min-width: 0;
+    max-width: none;
+  }
 }
