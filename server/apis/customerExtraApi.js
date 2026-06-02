@@ -6,7 +6,6 @@ import { mapCustomerRow } from '../lib/customerRowMap.js'
 import { recordAnalyticsEvent } from '../lib/analyticsEvents.js'
 import { isGaTenantAdminRole } from '../lib/rbacScope.js'
 import {
-  consentGetBuffer,
   consentPutInsurerAttachment,
   getR2InsurerAttachmentsCacheControl,
   getR2PublicCdnBase,
@@ -22,6 +21,10 @@ import {
   withR2ObjectRoot,
 } from '../lib/r2KeyPolicy.js'
 import { runStorageUploadOrphanCleanup } from '../lib/storageOrphanCleanup.js'
+import {
+  readStorageFileBufferFromPath,
+  STORAGE_FILE_READ_USER_MESSAGE,
+} from '../lib/storageFileObjectKey.js'
 import {
   getStorageOpenMeta,
   issueStorageOpenToken,
@@ -399,18 +402,6 @@ function parseStorageObjectKeyFromPublicUrl(fileUrl) {
     return null
   }
   return u.slice(base.length + 1).replace(/^\//, '')
-}
-
-/** DB file_path → R2/로컬 객체 키 (presign URL 생성 로직은 변경하지 않음) */
-function resolveStorageFileObjectKey(filePath) {
-  const raw = String(filePath ?? '').trim()
-  if (!raw) {
-    return null
-  }
-  if (/^https?:\/\//i.test(raw)) {
-    return parseStorageObjectKeyFromPublicUrl(raw)
-  }
-  return raw.replace(/^\//, '')
 }
 
 /**
@@ -3148,17 +3139,17 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
         return
       }
-      const objectKey = resolveStorageFileObjectKey(file.file_path)
-      if (!objectKey) {
-        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
-        return
-      }
       let buffer
       try {
-        buffer = await consentGetBuffer(objectKey)
+        buffer = await readStorageFileBufferFromPath(file.file_path)
       } catch (e) {
-        console.warn('[storage open] read failed', fileId, objectKey, e)
-        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        console.warn('[storage open] read failed', fileId, e)
+        res.status(404).json({
+          message:
+            e && typeof e === 'object' && 'message' in e && String(e.message).trim()
+              ? String(e.message)
+              : STORAGE_FILE_READ_USER_MESSAGE,
+        })
         return
       }
       const downloadName = String(file.display_name ?? file.original_name ?? '').trim() || 'download'
@@ -3214,17 +3205,17 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
           return
         }
       }
-      const objectKey = resolveStorageFileObjectKey(file.file_path)
-      if (!objectKey) {
-        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
-        return
-      }
       let buffer
       try {
-        buffer = await consentGetBuffer(objectKey)
+        buffer = await readStorageFileBufferFromPath(file.file_path)
       } catch (e) {
-        console.warn('[storage download] read failed', fileId, objectKey, e)
-        res.status(404).json({ message: '파일을 찾을 수 없습니다.' })
+        console.warn('[storage download] read failed', fileId, e)
+        res.status(404).json({
+          message:
+            e && typeof e === 'object' && 'message' in e && String(e.message).trim()
+              ? String(e.message)
+              : STORAGE_FILE_READ_USER_MESSAGE,
+        })
         return
       }
       const downloadName = String(file.display_name ?? file.original_name ?? '').trim() || 'download'
