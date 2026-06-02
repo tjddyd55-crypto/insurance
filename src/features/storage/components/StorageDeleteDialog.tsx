@@ -42,14 +42,7 @@ export default function StorageDeleteDialog({
 
   if (useWorkspaceFooter) {
     return (
-      <Modal
-        open={open}
-        onClose={onClose}
-        ariaLabel={title}
-        panelClassName={panelClassName}
-        closeOnBackdrop={false}
-        usePortal
-      >
+      <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName={panelClassName} closeOnBackdrop={false}>
         <CustomerWorkspaceMobileScope>
           <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">{title}</div>
           <p className="text-sm text-[var(--text-secondary)]">{description}</p>
