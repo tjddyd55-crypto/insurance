@@ -26,6 +26,11 @@ import {
   STORAGE_FILE_READ_USER_MESSAGE,
 } from '../lib/storageFileObjectKey.js'
 import {
+  INSURANCE_STORAGE_CATEGORY,
+  assertInsuranceUserOrLegacyStorageKey,
+  buildInsuranceUserStorageKey,
+} from '../lib/insuranceStorageLayout.js'
+import {
   getStorageOpenMeta,
   issueStorageOpenToken,
   toSinglePathFilename,
@@ -340,59 +345,36 @@ function sanitizeStorageFileNameForObjectKey(fileNameRaw) {
   return safe
 }
 
-function buildStorageObjectKey(gaIdPath, userId, fileNameRaw) {
-  const userSeg = sanitizeUserIdForObjectKeySegment(userId)
-  const safeName = sanitizeStorageFileNameForObjectKey(fileNameRaw)
-  const ts = Date.now()
-  const relative = isR2ObjectRootEnabled()
-    ? `files/${userSeg}/${ts}-${safeName}`
-    : `insurer/${gaIdPath}/${userSeg}/${ts}-${safeName}`
-  return withR2ObjectRoot(relative)
+function buildStorageObjectKey(gaCode, userId, customerId, fileNameRaw) {
+  const originalName = sanitizeStorageFileNameForObjectKey(fileNameRaw)
+  const category =
+    customerId != null
+      ? INSURANCE_STORAGE_CATEGORY.CUSTOMER_FILES
+      : INSURANCE_STORAGE_CATEGORY.PERSONAL_FILES
+  return buildInsuranceUserStorageKey({
+    gaCode,
+    userId,
+    category,
+    customerId: customerId ?? null,
+    originalName,
+    now: new Date(),
+  })
 }
 
-function assertStorageObjectKey(key, gaPathCandidates, userId) {
-  const k = stripR2ObjectRootIfPresent(String(key ?? '').replace(/^\//, ''))
-  if (!k || k.includes('..')) {
-    return false
-  }
-  const userSeg = sanitizeUserIdForObjectKeySegment(userId)
-
-  const crmFilesPrefix = `files/${userSeg}/`
-  if (k.startsWith(crmFilesPrefix)) {
-    const fileSeg = k.slice(crmFilesPrefix.length)
-    if (!fileSeg.includes('/') && /^\d+-.+/.test(fileSeg)) {
-      return true
-    }
-  }
-
+/**
+ * @param {string} key
+ * @param {string[]} gaPathCandidates
+ * @param {string} userId
+ * @param {{ customerId?: number | null }} [scope]
+ */
+function assertStorageObjectKey(key, gaPathCandidates, userId, scope = {}) {
   const candidates = Array.isArray(gaPathCandidates)
     ? gaPathCandidates.map((v) => String(v ?? '').trim()).filter(Boolean)
     : []
-  if (candidates.length === 0) {
-    return false
-  }
-  for (const gaPath of candidates) {
-    const newPrefix = `insurer/${gaPath}/${userSeg}/`
-    if (k.startsWith(newPrefix)) {
-      const fileSeg = k.slice(newPrefix.length)
-      if (!fileSeg.includes('/') && /^\d+-.+/.test(fileSeg)) {
-        return true
-      }
-    }
-    const legacyPrefix = `platform-assets/insurer/${gaPath}/${userSeg}/files/storage/`
-    if (k.startsWith(legacyPrefix)) {
-      const legacyRest = k.slice(legacyPrefix.length)
-      const parts = legacyRest.split('/').filter(Boolean)
-      if (parts.length !== 3) {
-        continue
-      }
-      const [y, mo, fileSeg] = parts
-      if (/^\d{4}$/.test(y) && /^\d{2}$/.test(mo) && /^\d+_.+/.test(fileSeg)) {
-        return true
-      }
-    }
-  }
-  return false
+  return (
+    candidates.length > 0 &&
+    assertInsuranceUserOrLegacyStorageKey(String(key ?? ''), candidates, userId, scope)
+  )
 }
 
 function parseStorageObjectKeyFromPublicUrl(fileUrl) {
@@ -1437,7 +1419,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         res.status(400).json({ message: '저장 공간 한도를 초과했습니다.' })
         return
       }
-      objectKey = buildStorageObjectKey(gaIdPath, userId, fileName)
+      objectKey = buildStorageObjectKey(gaIdPath, userId, customerId, fileName)
       const ins = await safeQuery(
         presignClient,
         `

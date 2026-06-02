@@ -56,9 +56,9 @@ test('validateCustomerNewsMessageCreateInput: all empty rejected', () => {
 })
 
 test('assertCustomerNewsMessageObjectKey: agent scoped', () => {
-  const key = buildCustomerNewsMessageObjectKey('ga1', 'agent-1', 'test.pdf')
-  assert.equal(assertCustomerNewsMessageObjectKey(key, 'agent-1', 'ga1'), true)
-  assert.equal(assertCustomerNewsMessageObjectKey(key, 'agent-2', 'ga1'), false)
+  const key = buildCustomerNewsMessageObjectKey('ga1', 'agent-1', 'test.pdf', 519, 'msg_1')
+  assert.equal(assertCustomerNewsMessageObjectKey(key, 'agent-1', 'ga1', 519), true)
+  assert.equal(assertCustomerNewsMessageObjectKey(key, 'agent-2', 'ga1', 519), false)
 })
 
 test('normalizeCustomerNewsAttachments: preserves stored attachment id', () => {
@@ -236,7 +236,7 @@ test('resolveCustomerNewsDisplayTitle: attachment-only without fileName', () => 
 })
 
 test('assertCustomerNewsAttachmentReadable: customer-news message key', () => {
-  const key = buildCustomerNewsMessageObjectKey('ga1', 'agent-1', 'photo.jpg')
+  const key = buildCustomerNewsMessageObjectKey('ga1', 'agent-1', 'photo.jpg', 10, 'draft')
   assert.equal(assertCustomerNewsAttachmentReadable(key, 'agent-1', 'ga1'), true)
 })
 

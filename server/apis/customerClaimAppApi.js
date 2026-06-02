@@ -11,6 +11,11 @@ import {
 } from '../lib/consentStorage.js'
 import { stripR2ObjectRootIfPresent, withR2ObjectRoot } from '../lib/r2KeyPolicy.js'
 import {
+  INSURANCE_STORAGE_CATEGORY,
+  assertInsuranceUserOrLegacyStorageKey,
+  buildInsuranceUserStorageKey,
+} from '../lib/insuranceStorageLayout.js'
+import {
   assertCustomerNewsMessageObjectKey,
   assertCustomerNewsPayloadAttachmentStorageKey,
   buildCustomerNewsMessageObjectKey,
@@ -251,10 +256,35 @@ async function readRawBodyBuffer(req, maxBytes) {
  * @param {string} agentId
  * @param {number} customerId
  */
-function assertClaimStorageKeyScope(storageKey, agentId, customerId) {
-  const key = String(storageKey ?? '').trim()
+/**
+ * @param {string} storageKey
+ * @param {string} agentId
+ * @param {number} customerId
+ * @param {string} gaCode
+ */
+function assertClaimStorageKeyScope(storageKey, agentId, customerId, gaCode = '') {
+  const key = stripR2ObjectRootIfPresent(String(storageKey ?? '').trim().replace(/^\//, ''))
   if (!key || key.includes('..')) {
     return false
+  }
+  /** @type {string[]} */
+  const gaCandidates = []
+  const gaNorm = String(gaCode ?? '').trim()
+  if (gaNorm) {
+    gaCandidates.push(gaNorm)
+  }
+  if (key.startsWith('insurance/')) {
+    const parts = key.split('/').filter(Boolean)
+    if (parts[0] === 'insurance' && parts[1]) {
+      gaCandidates.push(parts[1])
+    }
+  }
+  const uniqueGa = [...new Set(gaCandidates)]
+  if (
+    uniqueGa.length > 0 &&
+    assertInsuranceUserOrLegacyStorageKey(key, uniqueGa, agentId, { customerId })
+  ) {
+    return true
   }
   const userSeg = sanitizeUserIdForObjectKeySegment(agentId)
   return key.startsWith(`insurer/`) && key.includes(`/${userSeg}/customer-app-claims/`)
@@ -1729,7 +1759,19 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         res.status(413).json({ message: '저장 공간이 부족합니다.' })
         return
       }
-      const objectKey = buildCustomerNewsMessageObjectKey(gaPath, agentId, fileName)
+      const customerId = Number(body.customerId ?? body.targetCustomerId ?? body.customer_id)
+      if (!Number.isInteger(customerId) || customerId < 1) {
+        res.status(400).json({ message: 'customerId가 필요합니다.' })
+        return
+      }
+      const messageId = String(body.messageId ?? body.message_id ?? 'draft').trim() || 'draft'
+      const objectKey = buildCustomerNewsMessageObjectKey(
+        gaPath,
+        agentId,
+        fileName,
+        customerId,
+        messageId,
+      )
       const cacheControl = getR2InsurerAttachmentsCacheControl()
       const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
       if (!uploadUrl) {
@@ -2440,8 +2482,16 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         res.status(400).json({ message: '저장 경로를 구성할 수 없습니다.' })
         return
       }
-      const userSeg = sanitizeUserIdForObjectKeySegment(context.agentId)
-      const objectKey = `insurer/${gaPath}/${userSeg}/customer-app-claims/${Date.now()}-${randomUUID()}-${fileName}`
+      const claimDraftId = String(source?.claimId ?? source?.claim_id ?? `pending-${randomUUID()}`)
+      const objectKey = buildInsuranceUserStorageKey({
+        gaCode: gaPath,
+        userId: context.agentId,
+        category: INSURANCE_STORAGE_CATEGORY.CUSTOMER_CLAIM_APP_FILES,
+        customerId: context.customerId,
+        claimId: claimDraftId,
+        originalName: fileName,
+        now: new Date(),
+      })
       const useR2DirectUpload = isConsentR2Enabled()
       if (!useR2DirectUpload) {
         logR2EnvDiagnosticCheck()
@@ -2473,8 +2523,18 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
   apiRouter.put('/customer-app/claim-files/upload-proxy', requireCustomerAppAuth, async (req, res) => {
     try {
       const context = req.customerApp
+      const gaId = await resolveAgentGaId(pool, context.agentId)
+      const gaPath = gaId != null ? await resolveGaPathByGaId(pool, gaId) : null
       const storageKey = String(req.query.storageKey ?? req.headers['x-storage-key'] ?? '').trim()
-      if (!storageKey || !assertClaimStorageKeyScope(storageKey, context.agentId, context.customerId)) {
+      if (
+        !storageKey ||
+        !assertClaimStorageKeyScope(
+          storageKey,
+          context.agentId,
+          context.customerId,
+          gaPath ?? '',
+        )
+      ) {
         res.status(422).json({ message: '허용되지 않은 파일 경로입니다.' })
         return
       }
@@ -2531,8 +2591,18 @@ export function registerCustomerClaimAppApi(apiRouter, ctx) {
         fileSize: Number(file?.fileSize ?? 0),
         sortOrder: index,
       }))
+      const claimGaId = await resolveAgentGaId(pool, context.agentId)
+      const claimGaPath = claimGaId != null ? await resolveGaPathByGaId(pool, claimGaId) : null
       for (const file of files) {
-        if (!file.storageKey || !assertClaimStorageKeyScope(file.storageKey, context.agentId, context.customerId)) {
+        if (
+          !file.storageKey ||
+          !assertClaimStorageKeyScope(
+            file.storageKey,
+            context.agentId,
+            context.customerId,
+            claimGaPath ?? '',
+          )
+        ) {
           res.status(422).json({ message: '허용되지 않은 파일 경로입니다.' })
           return
         }

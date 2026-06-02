@@ -9,6 +9,11 @@ import {
   r2DeleteStorageObjectOrThrow,
   r2GetPresignedPutUrl,
 } from '../lib/consentStorage.js'
+import {
+  buildInsuranceTeamStorageKey,
+  assertInsuranceTeamStorageKey,
+  normalizeInsuranceGaCode,
+} from '../lib/insuranceStorageLayout.js'
 
 function isInsurerManagerRole(role) {
   const normalized = String(role ?? '')
@@ -156,13 +161,48 @@ function teamPostMaxBytesForMime(contentType) {
 }
 
 /**
+ * @param {import('pg').Pool} pool
+ * @param {number} gaId
+ * @param {unknown} gaCodeRaw
+ */
+async function resolveTeamGaCode(pool, gaId, gaCodeRaw) {
+  const fromSession = normalizeInsuranceGaCode(gaCodeRaw)
+  if (fromSession) {
+    return fromSession
+  }
+  const row = await safeQuery(
+    pool,
+    `
+    SELECT code
+    FROM ga_companies
+    WHERE id = $1
+      AND is_deleted = false
+    LIMIT 1
+    `,
+    [gaId],
+  )
+  if (row.rowCount > 0) {
+    const fromDb = normalizeInsuranceGaCode(row.rows[0]?.code)
+    if (fromDb) {
+      return fromDb
+    }
+  }
+  return `ga${gaId}`
+}
+
+/**
  * @param {string} objectKey
  * @param {number} gaId
  * @param {string} teamId
+ * @param {string} [gaCode]
  */
-function assertTeamPostAttachmentKey(objectKey, gaId, teamId) {
-  const prefix = `teams/${gaId}/${teamId}/attachments/`
+function assertTeamPostAttachmentKey(objectKey, gaId, teamId, gaCode = '') {
   const k = String(objectKey ?? '').trim()
+  const gaNorm = normalizeInsuranceGaCode(gaCode) || String(gaId)
+  if (assertInsuranceTeamStorageKey(k, gaNorm, teamId)) {
+    return true
+  }
+  const prefix = `teams/${gaId}/${teamId}/attachments/`
   return k.startsWith(prefix) && k.length > prefix.length + 4
 }
 
@@ -1691,8 +1731,13 @@ export function registerTeamApi(apiRouter, ctx) {
         return
       }
 
-      const safeSeg = fileNameRaw.replace(/[^\w.\-()\u3131-\u318e\uac00-\ud7a3]/g, '_').slice(0, 120)
-      const objectKey = `teams/${gaId}/${me.teamId}/attachments/${randomUUID()}-${safeSeg}`
+      const gaCode = await resolveTeamGaCode(pool, gaId, req.user?.gaCode)
+      const objectKey = buildInsuranceTeamStorageKey({
+        gaCode,
+        teamId: me.teamId,
+        originalName: fileNameRaw,
+        now: new Date(),
+      })
 
       const cacheControl = getR2InsurerAttachmentsCacheControl()
       const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
@@ -1786,11 +1831,12 @@ export function registerTeamApi(apiRouter, ctx) {
         return
       }
 
+      const gaCode = await resolveTeamGaCode(pool, gaId, req.user?.gaCode)
       const base = getR2PublicCdnBase()
       for (const a of attachments) {
         const objectKey = String(a?.objectKey ?? '').trim()
         const fileName = String(a?.fileName ?? 'file').trim() || 'file'
-        if (!objectKey || !assertTeamPostAttachmentKey(objectKey, gaId, me.teamId)) {
+        if (!objectKey || !assertTeamPostAttachmentKey(objectKey, gaId, me.teamId, gaCode)) {
           res.status(400).json({ message: '유효하지 않은 첨부입니다.' })
           return
         }

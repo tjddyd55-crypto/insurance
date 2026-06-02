@@ -1,5 +1,11 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { stripR2ObjectRootIfPresent } from './r2KeyPolicy.js'
+import {
+  INSURANCE_STORAGE_CATEGORY,
+  assertInsuranceUserOrLegacyStorageKey,
+  assertInsuranceUserStorageKey,
+  buildInsuranceUserStorageKey,
+} from './insuranceStorageLayout.js'
 
 export const CUSTOMER_NEWS_ATTACHMENT_ONLY_TITLE = '첨부파일 안내'
 
@@ -50,33 +56,56 @@ export function validateCustomerNewsMessageUpload(contentType, sizeBytes) {
 }
 
 /**
- * @param {string} gaPath
+ * 개인메시지 첨부 presign 키 (SSOT: customer-messages).
+ * @param {string} gaCode
  * @param {string} agentId
  * @param {string} fileName
+ * @param {number | string} customerId
+ * @param {string} [messageId]
  */
-export function buildCustomerNewsMessageObjectKey(gaPath, agentId, fileName) {
-  const userSeg = sanitizeAgentObjectKeySegment(agentId)
+export function buildCustomerNewsMessageObjectKey(gaCode, agentId, fileName, customerId, messageId) {
   const safeName =
     String(fileName ?? 'file')
       .trim()
       .replace(/[^\w.\-()\u3131-\u318e\uac00-\ud7a3]/g, '_')
       .slice(0, 120) || 'file'
-  return `insurer/${gaPath}/${userSeg}/customer-news-attachments/${Date.now()}-${randomUUID()}-${safeName}`
+  return buildInsuranceUserStorageKey({
+    gaCode,
+    userId: agentId,
+    category: INSURANCE_STORAGE_CATEGORY.CUSTOMER_MESSAGES,
+    customerId,
+    messageId: messageId ?? 'draft',
+    originalName: safeName,
+    now: new Date(),
+  })
 }
 
 /**
  * @param {string} objectKey
  * @param {string} agentId
- * @param {string} gaPath
+ * @param {string} gaCode
+ * @param {number | string} [customerId]
  */
-export function assertCustomerNewsMessageObjectKey(objectKey, agentId, gaPath) {
+export function assertCustomerNewsMessageObjectKey(objectKey, agentId, gaCode, customerId) {
   const key = stripR2ObjectRootIfPresent(String(objectKey ?? '').trim().replace(/^\//, ''))
   if (!key) {
     return false
   }
   const userSeg = sanitizeAgentObjectKeySegment(agentId)
-  const prefix = `insurer/${gaPath}/${userSeg}/customer-news-attachments/`
-  return key.startsWith(prefix)
+  const legacyPrefix = `insurer/${gaCode}/${userSeg}/customer-news-attachments/`
+  if (key.startsWith(legacyPrefix)) {
+    return true
+  }
+  if (
+    assertInsuranceUserStorageKey(key, gaCode, agentId, INSURANCE_STORAGE_CATEGORY.CUSTOMER_MESSAGES, {
+      customerId: customerId ?? null,
+    })
+  ) {
+    return true
+  }
+  return assertInsuranceUserOrLegacyStorageKey(key, [gaCode], agentId, {
+    customerId: customerId ?? null,
+  })
 }
 
 /**
