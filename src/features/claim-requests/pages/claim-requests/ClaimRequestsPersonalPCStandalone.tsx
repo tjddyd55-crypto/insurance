@@ -225,6 +225,7 @@ export default function ClaimRequestsPersonalPCStandalone() {
       const uploaded = await uploadCustomerNewsMessageAttachments(
         token,
         form.attachments as CustomerNewsMessageAttachmentDraft[],
+        activeCustomerId,
       )
       form.replaceAttachments(uploaded as Parameters<typeof form.replaceAttachments>[0])
       if (uploaded.some((row) => row.status === 'failed')) {

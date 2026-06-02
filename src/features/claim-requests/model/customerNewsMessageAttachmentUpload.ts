@@ -35,6 +35,7 @@ export function createCustomerNewsMessageAttachmentDraft(file: File): CustomerNe
 export async function uploadCustomerNewsMessageAttachment(
   token: string,
   item: CustomerNewsMessageAttachmentDraft,
+  customerId: number,
 ): Promise<CustomerNewsMessageAttachmentDraft> {
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
@@ -57,6 +58,7 @@ export async function uploadCustomerNewsMessageAttachment(
       fileName: item.file.name || 'file',
       contentType,
       sizeBytes: item.file.size,
+      customerId,
     }),
   })
 
@@ -118,6 +120,7 @@ export async function uploadCustomerNewsMessageAttachment(
 export async function uploadCustomerNewsMessageAttachments(
   token: string,
   drafts: CustomerNewsMessageAttachmentDraft[],
+  customerId: number,
 ): Promise<CustomerNewsMessageAttachmentDraft[]> {
   const out: CustomerNewsMessageAttachmentDraft[] = []
   for (const item of drafts) {
@@ -130,7 +133,7 @@ export async function uploadCustomerNewsMessageAttachments(
       continue
     }
     out.push({ ...item, status: 'uploading' })
-    const uploaded = await uploadCustomerNewsMessageAttachment(token, item)
+    const uploaded = await uploadCustomerNewsMessageAttachment(token, item, customerId)
     out.push(uploaded)
   }
   return out

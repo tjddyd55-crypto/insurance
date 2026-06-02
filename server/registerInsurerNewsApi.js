@@ -25,6 +25,12 @@ import {
 import { INSURER_R2_ACTIVE_CATEGORY, INSURER_R2_CATEGORY } from './lib/insurerR2Layout.js'
 import { insurerNewsLog } from './lib/logger.js'
 import { isR2ObjectRootEnabled, stripR2ObjectRootIfPresent, withR2ObjectRoot } from './lib/r2KeyPolicy.js'
+import {
+  INSURANCE_STORAGE_CATEGORY,
+  buildInsuranceSharedStorageKey,
+  normalizeInsuranceGaCode,
+  assertInsuranceSharedStorageKey,
+} from './lib/insuranceStorageLayout.js'
 
 /** 프론트 `attachmentUploadPolicy.ts` 와 동기화 */
 const ALLOWED_UPLOAD_MIME = new Set([
@@ -228,6 +234,21 @@ function maxBytesForMime(contentType) {
  */
 function assertNewsObjectKeyScoped(objectKey, gaIdPath, storageCategory, companySlug, allowLegacyLossAdjusterCategory = false) {
   const k = stripR2ObjectRootIfPresent(String(objectKey ?? '').trim().replace(/^\//, ''))
+  const gaCode = normalizeInsuranceGaCode(gaIdPath)
+  const isLossAdjusterCategory = storageCategory === LOSS_ADJUSTER_R2_CATEGORY
+  const sharedCategory = isLossAdjusterCategory
+    ? INSURANCE_STORAGE_CATEGORY.ADJUSTER_NEWSLETTERS
+    : INSURANCE_STORAGE_CATEGORY.INSURER_NEWSLETTERS
+  if (
+    gaCode &&
+    assertInsuranceSharedStorageKey(k, gaCode, sharedCategory, {
+      insurerCode: companySlug,
+      adjusterCode: companySlug,
+      companySlug,
+    })
+  ) {
+    return true
+  }
   const parts = k.split('/')
 
   if (parts[0] === 'insurer-news' && parts.length === 6) {
@@ -1582,14 +1603,24 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         return
       }
 
-      const safeSeg = fileNameRaw.replace(/[^\w.\-()\u3131-\u318e\uac00-\ud7a3]/g, '_').slice(0, 120)
-      const now = new Date()
-      const yyyy = String(now.getUTCFullYear())
-      const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
-      const relativeKey = isR2ObjectRootEnabled()
-        ? `insurer-news/${scope.storageCategory}/${yyyy}/${mm}/${scope.companySlug}/${randomUUID()}_${safeSeg}`
-        : `insurer/${scope.gaIdPath}/${scope.storageCategory}/${yyyy}/${mm}/${scope.companySlug}/${randomUUID()}_${safeSeg}`
-      const objectKey = withR2ObjectRoot(relativeKey)
+      const gaCode =
+        normalizeInsuranceGaCode(scope.gaCodeRaw) || normalizeInsuranceGaCode(scope.gaIdPath) || scope.gaIdPath
+      const isLossAdjuster = scope.newsChannel === NEWS_CHANNEL_LOSS_ADJUSTER
+      const objectKey = isLossAdjuster
+        ? buildInsuranceSharedStorageKey({
+            gaCode,
+            category: INSURANCE_STORAGE_CATEGORY.ADJUSTER_NEWSLETTERS,
+            adjusterCode: scope.companySlug,
+            originalName: fileNameRaw,
+            now: new Date(),
+          })
+        : buildInsuranceSharedStorageKey({
+            gaCode,
+            category: INSURANCE_STORAGE_CATEGORY.INSURER_NEWSLETTERS,
+            insurerCode: scope.companySlug,
+            originalName: fileNameRaw,
+            now: new Date(),
+          })
 
       const cacheControl = getR2InsurerAttachmentsCacheControl()
       const uploadUrl = await r2GetPresignedPutUrl(objectKey, contentType, 900, { cacheControl })
