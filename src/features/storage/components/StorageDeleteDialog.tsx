@@ -11,7 +11,7 @@ type StorageDeleteDialogProps = {
   loading?: boolean
   onClose: () => void
   onConfirm: () => void
-  /** 고객 작업영역 모바일 — 메모/상담·이름 변경 모달과 동일 footer 버튼 */
+  /** 고객 작업영역 모바일 — 이름 변경 모달과 동일 shell/footer */
   footerVariant?: StorageActionVariant
 }
 
@@ -52,8 +52,9 @@ export default function StorageDeleteDialog({
           onCancel={onClose}
           onSave={onConfirm}
           busy={loading}
-          saveLabel="확인"
-          busySaveLabel="처리 중…"
+          saveLabel="삭제"
+          busySaveLabel="삭제 중…"
+          confirmTone="danger"
         />
       </CustomerWorkspaceFormModalShell>
     )

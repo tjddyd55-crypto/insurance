@@ -1,4 +1,5 @@
 import {
+  CustomerWorkspaceDangerActionButton,
   CustomerWorkspacePrimaryActionButton,
   CustomerWorkspaceSecondaryActionButton,
 } from './CustomerWorkspaceActionButtons'
@@ -16,8 +17,10 @@ type Props = {
   saveDisabled?: boolean
   saveLabel?: string
   cancelLabel?: string
-  /** busy 시 primary 라벨 — 기본 '저장 중…' */
+  /** busy 시 primary/danger 라벨 — 기본 '저장 중…' */
   busySaveLabel?: string
+  /** 삭제 확인 등 — danger surface */
+  confirmTone?: 'primary' | 'danger'
 }
 
 /**
@@ -33,18 +36,19 @@ export function CustomerWorkspaceFormModalFooter({
   saveLabel = '저장',
   cancelLabel = '취소',
   busySaveLabel = '저장 중…',
+  confirmTone = 'primary',
 }: Props) {
+  const ConfirmButton =
+    confirmTone === 'danger' ? CustomerWorkspaceDangerActionButton : CustomerWorkspacePrimaryActionButton
+
   return (
     <div className={CUSTOMER_WORKSPACE_MODAL_ACTIONS_CLASS}>
       <CustomerWorkspaceSecondaryActionButton disabled={busy} onClick={onCancel}>
         {cancelLabel}
       </CustomerWorkspaceSecondaryActionButton>
-      <CustomerWorkspacePrimaryActionButton
-        disabled={busy || saveDisabled}
-        onClick={() => void onSave()}
-      >
+      <ConfirmButton disabled={busy || saveDisabled} onClick={() => void onSave()}>
         {busy ? busySaveLabel : saveLabel}
-      </CustomerWorkspacePrimaryActionButton>
+      </ConfirmButton>
     </div>
   )
 }
