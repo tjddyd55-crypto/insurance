@@ -1,32 +1,47 @@
 ---
-description: R2 스토리지 업로드 기본 경로 규칙 — 모든 R2 업로드는 platform-assets/insurer/{gaCode}/ 를 prefix로 사용해야 한다
+description: R2 스토리지 업로드 SSOT — platform-assets 버킷, insurance/{gaCode}/ 하위 category 상수·중앙 helper만 사용
 globs: server/**/*.{js,ts}, src/**/*.{js,ts,tsx}
 alwaysApply: false
 ---
 
-# R2 STORAGE BASE PATH RULE
+# R2 STORAGE SSOT
 
-모든 파일 업로드는 아래 경로를 기준으로 시작해야 한다.
+- **버킷**: `platform-assets` (S3 Key 에는 보통 포함하지 않음 — `consentStorage` 가 버킷 분리)
+- **최상위 prefix**: `insurance/{gaCode}/`
+- **단일 진실 원천**: `server/lib/insuranceStorageLayout.js`
+
+## 구조
 
 ```
-platform-assets/insurer/{gaCode}/
+platform-assets/          ← 버킷
+└── insurance/
+    └── {gaCode}/
+        ├── shared/       ← GA 공통(원수사·손해사정사 소식지, GA 공지, 공통 고객소식지)
+        ├── users/{userId}/  ← 담당자·고객 민감 자료
+        └── teams/{teamId}/  ← 팀 파일
 ```
 
----
+## category 상수 (임의 문자열 금지)
 
-## 규칙
+`INSURANCE_STORAGE_CATEGORY` — `customer-files`, `personal-files`, `customer-claim-app-files`, `customer-messages`, `customer-newsletters`, `shared-customer-newsletters`, `insurer-newsletters`, `adjuster-newsletters`, `ga-notices`, `team-files`, `contract-documents`, `signature-documents`, `temp-uploads`
 
-1. 모든 R2 업로드는 반드시 위 경로를 prefix 로 사용한다.
-2. `{gaCode}` 는 필수 값이며, 없는 경우 업로드를 허용하지 않는다.
-3. 이 경로 이전에 다른 prefix 를 추가하는 것을 금지한다.
+## 필수 helper
 
-## 예시 (허용)
+- `buildInsuranceUserStorageKey({ gaCode, userId, category, … })`
+- `buildInsuranceSharedStorageKey({ gaCode, category, … })`
+- `buildInsuranceTeamStorageKey({ gaCode, teamId, category, … })`
 
-- `platform-assets/insurer/yjasset/...`
-- `platform-assets/insurer/abcga/...`
+API·서비스에서 R2 key 문자열을 직접 조합하지 말 것.
 
-## 금지
+## shared vs users
 
-- `platform-assets/user/...`
-- `platform-assets/temp/...`
-- `platform-assets/insurer/`  ← gaCode 없이 사용 금지
+| shared | users/{userId} |
+|--------|----------------|
+| 원수사·손해사정사 소식지 | 고객 파일, 개인 파일, 개인메시지, 개별 고객소식지, 청구앱 파일 |
+| GA 공지, 공통 고객소식지 | 상담 첨부, 전자서명·계약 문서, temp-uploads |
+
+고객 개인정보·청구·계약 관련 파일은 **shared 금지**.
+
+## 레거시 읽기
+
+기존 `insurer/`, `insurer-news/`, `files/{userId}/` 키는 `assertInsuranceUserOrLegacyStorageKey` · `readStorageFileBufferFromPath` 로 읽기만 허용. **신규 업로드는 SSOT 경로만.**
