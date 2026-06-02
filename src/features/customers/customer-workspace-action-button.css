@@ -381,6 +381,30 @@
   .customer-ui-modal-panel.customer-workspace-form-modal
     .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
+    button.customer-workspace-action-button--danger,
+  .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--danger {
+    background: rgba(127, 29, 29, 0.42);
+    border-color: rgba(248, 113, 113, 0.55);
+    color: #fee2e2;
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--danger:hover:not(:disabled),
+  .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--danger:hover:not(:disabled) {
+    background: rgba(153, 27, 27, 0.52);
+    border-color: rgba(248, 113, 113, 0.68);
+    color: #ffffff;
+  }
+
+  .customer-ui-modal-panel.customer-workspace-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
     button.customer-workspace-action-button:active:not(:disabled),
   .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
@@ -523,6 +547,68 @@
     background: #020617;
     color: #f8fafc;
     font-size: 15px;
+  }
+
+  /*
+   * 고객 파일 workspace 삭제 확인(inline) — outlet 안 nested backdrop.
+   * rename(portal) 과 달리 body portal 이 아니므로 이 경로가 삭제 모달 전용이다.
+   */
+  .customer-files-mobile-shell.customer-workspace-mobile-scope
+    .customer-ui-modal-panel.customer-workspace-delete-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button,
+  .workspace-mobile-outlet-modal
+    .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
+    .customer-ui-modal-panel.customer-workspace-delete-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button {
+    min-height: 44px;
+    padding: 10px 16px;
+    min-width: 64px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    border: 1px solid rgba(148, 163, 184, 0.38);
+    background: rgba(30, 41, 59, 0.92);
+    color: #e5e7eb;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .customer-files-mobile-shell.customer-workspace-mobile-scope
+    .customer-ui-modal-panel.customer-workspace-delete-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--secondary,
+  .workspace-mobile-outlet-modal
+    .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
+    .customer-ui-modal-panel.customer-workspace-delete-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--secondary {
+    background: rgba(30, 41, 59, 0.96);
+    border-color: rgba(148, 163, 184, 0.45);
+    color: #f1f5f9;
+  }
+
+  .customer-files-mobile-shell.customer-workspace-mobile-scope
+    .customer-ui-modal-panel.customer-workspace-delete-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--danger,
+  .workspace-mobile-outlet-modal
+    .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
+    .customer-ui-modal-panel.customer-workspace-delete-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--danger {
+    background: rgba(127, 29, 29, 0.42);
+    border-color: rgba(248, 113, 113, 0.55);
+    color: #fee2e2;
   }
 
   /*

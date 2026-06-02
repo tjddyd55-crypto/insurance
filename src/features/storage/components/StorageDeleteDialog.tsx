@@ -1,7 +1,12 @@
 import { FormButton } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
-import { CustomerWorkspaceFormModalShell } from '../../customers/components/CustomerWorkspaceFormModalShell'
-import { CustomerWorkspaceFormModalFooter } from '../../customers/components/CustomerWorkspaceFormModalFooter'
+import {
+  CustomerWorkspaceDangerActionButton,
+  CustomerWorkspaceMobileScope,
+  CustomerWorkspaceSecondaryActionButton,
+} from '../../customers/components/CustomerWorkspaceActionButtons'
+import { CUSTOMER_WORKSPACE_FORM_MODAL_PANEL_CLASS } from '../../customers/components/CustomerWorkspaceFormModalShell'
+import { CUSTOMER_WORKSPACE_MODAL_ACTIONS_CLASS } from '../../customers/components/CustomerWorkspaceFormModalFooter'
 import type { StorageActionVariant } from './StorageFileList'
 
 type StorageDeleteDialogProps = {
@@ -11,10 +16,14 @@ type StorageDeleteDialogProps = {
   loading?: boolean
   onClose: () => void
   onConfirm: () => void
-  /** 고객 작업영역 모바일 — 메모/상담·이름 변경 모달과 동일 footer 버튼 */
+  /** 고객 작업영역 모바일 — 이름 변경 모달과 동일 footer DOM (inline, portal 없음) */
   footerVariant?: StorageActionVariant
 }
 
+/**
+ * workspace 삭제 확인: 이름 변경(fd9293f)과 동일하게 inline Modal + 직접 footer 버튼.
+ * portal/shell 경로는 outlet 중첩 시 삭제 모달 footer만 cascade가 깨지는 실기기 회귀가 있어 사용하지 않는다.
+ */
 export default function StorageDeleteDialog({
   open,
   title,
@@ -37,25 +46,32 @@ export default function StorageDeleteDialog({
     </div>
   )
 
+  const workspaceFooter = (
+    <div className={CUSTOMER_WORKSPACE_MODAL_ACTIONS_CLASS}>
+      <CustomerWorkspaceSecondaryActionButton disabled={loading} onClick={onClose}>
+        취소
+      </CustomerWorkspaceSecondaryActionButton>
+      <CustomerWorkspaceDangerActionButton disabled={loading} onClick={onConfirm}>
+        {loading ? '삭제 중…' : '삭제'}
+      </CustomerWorkspaceDangerActionButton>
+    </div>
+  )
+
   if (useWorkspaceFooter) {
     return (
-      <CustomerWorkspaceFormModalShell
+      <Modal
         open={open}
         onClose={onClose}
         ariaLabel={title}
+        panelClassName={`${CUSTOMER_WORKSPACE_FORM_MODAL_PANEL_CLASS} customer-workspace-delete-form-modal`}
         closeOnBackdrop={false}
-        usePortal
       >
-        <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">{title}</div>
-        <p className="text-sm text-[var(--text-secondary)]">{description}</p>
-        <CustomerWorkspaceFormModalFooter
-          onCancel={onClose}
-          onSave={onConfirm}
-          busy={loading}
-          saveLabel="확인"
-          busySaveLabel="처리 중…"
-        />
-      </CustomerWorkspaceFormModalShell>
+        <CustomerWorkspaceMobileScope>
+          <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">{title}</div>
+          <p className="text-sm text-[var(--text-secondary)]">{description}</p>
+          {workspaceFooter}
+        </CustomerWorkspaceMobileScope>
+      </Modal>
     )
   }
 
