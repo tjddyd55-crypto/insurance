@@ -1,10 +1,8 @@
-import Modal from '../../../components/ui/Modal'
 import { FormButton } from '../../../components/form'
-import { CustomerWorkspaceMobileScope } from '../../customers/components/CustomerWorkspaceActionButtons'
+import Modal from '../../../components/ui/Modal'
+import { CustomerWorkspaceFormModalShell } from '../../customers/components/CustomerWorkspaceFormModalShell'
 import { CustomerWorkspaceFormModalFooter } from '../../customers/components/CustomerWorkspaceFormModalFooter'
 import type { StorageActionVariant } from './StorageFileList'
-
-const WORKSPACE_DELETE_PANEL_CLASS = 'max-w-lg w-[92vw] customer-workspace-form-modal'
 
 type StorageDeleteDialogProps = {
   open: boolean
@@ -27,7 +25,6 @@ export default function StorageDeleteDialog({
   footerVariant = 'storage',
 }: StorageDeleteDialogProps) {
   const useWorkspaceFooter = footerVariant === 'workspace'
-  const panelClassName = useWorkspaceFooter ? WORKSPACE_DELETE_PANEL_CLASS : 'max-w-md'
 
   const storageFooter = (
     <div className="flex justify-end gap-2 mt-4">
@@ -42,24 +39,28 @@ export default function StorageDeleteDialog({
 
   if (useWorkspaceFooter) {
     return (
-      <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName={panelClassName} closeOnBackdrop={false}>
-        <CustomerWorkspaceMobileScope>
-          <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">{title}</div>
-          <p className="text-sm text-[var(--text-secondary)]">{description}</p>
-          <CustomerWorkspaceFormModalFooter
-            onCancel={onClose}
-            onSave={onConfirm}
-            busy={loading}
-            saveLabel="확인"
-            busySaveLabel="처리 중…"
-          />
-        </CustomerWorkspaceMobileScope>
-      </Modal>
+      <CustomerWorkspaceFormModalShell
+        open={open}
+        onClose={onClose}
+        ariaLabel={title}
+        closeOnBackdrop={false}
+        usePortal
+      >
+        <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">{title}</div>
+        <p className="text-sm text-[var(--text-secondary)]">{description}</p>
+        <CustomerWorkspaceFormModalFooter
+          onCancel={onClose}
+          onSave={onConfirm}
+          busy={loading}
+          saveLabel="확인"
+          busySaveLabel="처리 중…"
+        />
+      </CustomerWorkspaceFormModalShell>
     )
   }
 
   return (
-    <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName={panelClassName} closeOnBackdrop={false}>
+    <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName="max-w-md" closeOnBackdrop={false}>
       <div className="text-lg font-semibold mb-2 text-[var(--text-primary)]">{title}</div>
       <p className="text-sm text-[var(--text-secondary)]">{description}</p>
       {storageFooter}

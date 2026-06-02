@@ -1,10 +1,8 @@
 import { FormButton, FormInput } from '../../../components/form'
 import Modal from '../../../components/ui/Modal'
-import { CustomerWorkspaceMobileScope } from '../../customers/components/CustomerWorkspaceActionButtons'
+import { CustomerWorkspaceFormModalShell } from '../../customers/components/CustomerWorkspaceFormModalShell'
 import { CustomerWorkspaceFormModalFooter } from '../../customers/components/CustomerWorkspaceFormModalFooter'
 import type { StorageActionVariant } from './StorageFileList'
-
-const WORKSPACE_RENAME_PANEL_CLASS = 'max-w-lg w-[92vw] customer-workspace-form-modal'
 
 type StorageRenameDialogProps = {
   open: boolean
@@ -29,8 +27,6 @@ export default function StorageRenameDialog({
   footerVariant = 'storage',
 }: StorageRenameDialogProps) {
   const useWorkspaceFooter = footerVariant === 'workspace'
-  const panelClassName = useWorkspaceFooter ? WORKSPACE_RENAME_PANEL_CLASS : 'max-w-md'
-
   const saveDisabled = !value.trim()
 
   const storageFooter = (
@@ -61,23 +57,27 @@ export default function StorageRenameDialog({
 
   if (useWorkspaceFooter) {
     return (
-      <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName={panelClassName} closeOnBackdrop={false}>
-        <CustomerWorkspaceMobileScope>
-          <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">{title}</div>
-          {formBody}
-          <CustomerWorkspaceFormModalFooter
-            onCancel={onClose}
-            onSave={onSubmit}
-            busy={loading}
-            saveDisabled={saveDisabled}
-          />
-        </CustomerWorkspaceMobileScope>
-      </Modal>
+      <CustomerWorkspaceFormModalShell
+        open={open}
+        onClose={onClose}
+        ariaLabel={title}
+        closeOnBackdrop={false}
+        usePortal
+      >
+        <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">{title}</div>
+        {formBody}
+        <CustomerWorkspaceFormModalFooter
+          onCancel={onClose}
+          onSave={onSubmit}
+          busy={loading}
+          saveDisabled={saveDisabled}
+        />
+      </CustomerWorkspaceFormModalShell>
     )
   }
 
   return (
-    <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName={panelClassName} closeOnBackdrop={false}>
+    <Modal open={open} onClose={onClose} ariaLabel={title} panelClassName="max-w-md" closeOnBackdrop={false}>
       <div className="text-lg font-semibold mb-3 text-[var(--text-primary)]">{title}</div>
       {formBody}
     </Modal>

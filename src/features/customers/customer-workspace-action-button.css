@@ -412,7 +412,7 @@
   }
 
   /* ── 고객 파일 툴바: 폴더 생성 + 전체(폴더 선택) 높이·정렬 통일 ── */
-  .customer-workspace-mobile-scope
+  .customer-files-mobile-shell.customer-workspace-mobile-scope
     .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
     .storage-toolbar__row--workspace-controls,
   .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
@@ -425,6 +425,10 @@
     margin-bottom: 16px;
   }
 
+  .customer-files-mobile-shell.customer-workspace-mobile-scope
+    .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
+    .storage-toolbar__row--workspace-controls
+    > *,
   .customer-workspace-mobile-scope
     .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
     .storage-toolbar__row--workspace-controls
@@ -437,12 +441,18 @@
     min-width: 0;
   }
 
+  .customer-files-mobile-shell.customer-workspace-mobile-scope
+    .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
+    button.customer-workspace-action-button.storage-toolbar__workspace-control,
   .customer-workspace-mobile-scope
     .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
     button.customer-workspace-action-button.storage-toolbar__workspace-control,
   .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
     .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
     button.customer-workspace-action-button.storage-toolbar__workspace-control,
+  .customer-files-mobile-shell.customer-workspace-mobile-scope
+    .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
+    button.customer-workspace-action-button.storage-toolbar__folder-trigger--workspace,
   .customer-workspace-mobile-scope
     .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
     button.customer-workspace-action-button.storage-toolbar__folder-trigger--workspace,
@@ -461,6 +471,9 @@
     border-color: rgba(148, 163, 184, 0.38);
   }
 
+  .customer-files-mobile-shell.customer-workspace-mobile-scope
+    .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
+    .storage-toolbar__folder-trigger--workspace,
   .customer-workspace-mobile-scope
     .storage-toolbar.storage-toolbar--workspace.storage-toolbar--mobile
     .storage-toolbar__folder-trigger--workspace,
@@ -472,6 +485,7 @@
   }
 
   /* ── 고객 파일: 파일명 검색 + 전체 형식 (workspace 모바일) ── */
+  .customer-files-mobile-shell.customer-workspace-mobile-scope .storage-workspace__filters,
   .customer-workspace-mobile-scope .storage-workspace__filters,
   .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope .storage-workspace__filters {
     display: flex;
@@ -481,6 +495,7 @@
     margin-bottom: 10px;
   }
 
+  .customer-files-mobile-shell.customer-workspace-mobile-scope .storage-workspace__search,
   .customer-workspace-mobile-scope .storage-workspace__search,
   .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope .storage-workspace__search {
     flex: 1 1 12rem;
@@ -495,6 +510,7 @@
     font-size: 15px;
   }
 
+  .customer-files-mobile-shell.customer-workspace-mobile-scope .storage-workspace__kind-filter,
   .customer-workspace-mobile-scope .storage-workspace__kind-filter,
   .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope .storage-workspace__kind-filter {
     flex: 0 1 auto;
@@ -510,22 +526,16 @@
   }
 
   /*
-   * outlet 내부 중첩 form 모달(파일·폴더 삭제/이름변경/생성) footer —
-   * StorageRenameDialog 와 StorageDeleteDialog 가 동일 DOM·동일 cascade 경로를 타도록 보강.
-   * index.css `.customers-page--mobile button:not(...)` reset(padding/min-height !important) 과
-   * workspace-mobile-outlet-modal 전역 button 규칙이 겹치는 경우 footer pill 만 고정한다.
+   * 고객 파일 workspace form 모달(portal) footer —
+   * outlet 중첩 backdrop 밖(body)에서 상담/메모 footer pill 과 동일 SSOT.
+   * customers-page button reset 영향 밖이므로 !important 없이 고정한다.
    */
-  .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
-    .customer-ui-modal-panel.customer-workspace-form-modal
+  .customer-ui-modal-backdrop > .customer-ui-modal-panel.customer-workspace-form-modal
     .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
-    button.customer-workspace-action-button,
-  .customers-page--mobile
-    .customer-ui-modal-panel.customer-workspace-form-modal
-    .customer-workspace-modal-actions
     button.customer-workspace-action-button {
-    min-height: 44px !important;
-    padding: 10px 16px !important;
+    min-height: 44px;
+    padding: 10px 16px;
     min-width: 64px;
     border-radius: 12px;
     font-size: 15px;
@@ -539,13 +549,8 @@
     justify-content: center;
   }
 
-  .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
-    .customer-ui-modal-panel.customer-workspace-form-modal
+  .customer-ui-modal-backdrop > .customer-ui-modal-panel.customer-workspace-form-modal
     .customer-workspace-mobile-scope
-    .customer-workspace-modal-actions
-    button.customer-workspace-action-button--primary,
-  .customers-page--mobile
-    .customer-ui-modal-panel.customer-workspace-form-modal
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--primary {
     background: rgba(37, 99, 235, 0.32);
@@ -553,13 +558,8 @@
     color: #eff6ff;
   }
 
-  .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
-    .customer-ui-modal-panel.customer-workspace-form-modal
+  .customer-ui-modal-backdrop > .customer-ui-modal-panel.customer-workspace-form-modal
     .customer-workspace-mobile-scope
-    .customer-workspace-modal-actions
-    button.customer-workspace-action-button--secondary,
-  .customers-page--mobile
-    .customer-ui-modal-panel.customer-workspace-form-modal
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--secondary {
     background: rgba(30, 41, 59, 0.96);
