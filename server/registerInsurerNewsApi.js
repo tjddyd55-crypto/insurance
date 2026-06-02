@@ -257,7 +257,6 @@ function assertNewsObjectKeyScoped(objectKey, gaIdPath, storageCategory, company
     const mm = parts[3]
     const slugSeg = parts[4]
     const fileSeg = parts[5]
-    const isLossAdjusterCategory = storageCategory === LOSS_ADJUSTER_R2_CATEGORY
     const isLegacyLossAdjusterCategory =
       catSeg === LEGACY_LOSS_ADJUSTER_R2_CATEGORY || catSeg === INSURER_R2_ACTIVE_CATEGORY
     const categoryMatches =
@@ -283,7 +282,6 @@ function assertNewsObjectKeyScoped(objectKey, gaIdPath, storageCategory, company
   if (parts.length < 6) {
     return false
   }
-  const isLossAdjusterCategory = storageCategory === LOSS_ADJUSTER_R2_CATEGORY
   const isLegacyLossAdjusterCategory =
     parts[2] === LEGACY_LOSS_ADJUSTER_R2_CATEGORY || parts[2] === INSURER_R2_ACTIVE_CATEGORY
   const categoryMatches =
