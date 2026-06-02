@@ -653,6 +653,15 @@
     color: #f1f5f9;
   }
 
+  .customer-ui-modal-backdrop > .customer-ui-modal-panel.customer-workspace-form-modal
+    .customer-workspace-mobile-scope
+    .customer-workspace-modal-actions
+    button.customer-workspace-action-button--danger {
+    background: rgba(127, 29, 29, 0.42);
+    border-color: rgba(248, 113, 113, 0.55);
+    color: #fee2e2;
+  }
+
   /* ── 전자서명 outlet 모바일 — customers-page button reset 상쇄 (FormButton .button) ──
    * reset: `.customers-page--mobile button:not(...)` ≈ (0,10,1) + !important
    * → outlet 실제 DOM 경로 + button.class 체인으로 specificity 를 reset 보다 높인다. */
