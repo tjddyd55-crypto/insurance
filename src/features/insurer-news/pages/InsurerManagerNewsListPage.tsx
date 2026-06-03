@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useAuth } from '../../auth/AuthProvider'
 import {
@@ -100,6 +100,10 @@ export function InsurerManagerNewsListPage({
     )
   }
 
+  const handleItemDeleted = useCallback((newsletterId: string) => {
+    setItems((prev) => prev.filter((item) => item.id !== newsletterId))
+  }, [])
+
   const viewProps: InsurerManagerNewsListViewProps = {
     items,
     error,
@@ -109,6 +113,7 @@ export function InsurerManagerNewsListPage({
     openPathPrefix,
     channel,
     fetchScope,
+    onItemDeleted: handleItemDeleted,
   }
 
   return (

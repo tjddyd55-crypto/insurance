@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useNewsletterDelete } from '../../hooks/useNewsletterDelete'
 import { NewsletterList } from '../../components/NewsletterList'
 import type { InsurerManagerNewsListViewProps } from './insurerManagerNewsListViewProps'
 
@@ -21,8 +22,12 @@ export default function InsurerManagerNewsListMobileView({
   subtitle,
   emptyMessage,
   openPathPrefix,
+  channel,
+  onItemDeleted,
 }: InsurerManagerNewsListViewProps) {
   const navigate = useNavigate()
+  const { canDelete, deleteNewsletter, busyId, error: deleteError, notice, confirmDialog } =
+    useNewsletterDelete(channel)
 
   return (
     <main className="page page--with-back insurer-news-page insurer-news-page--mobile">
@@ -33,12 +38,32 @@ export default function InsurerManagerNewsListMobileView({
         <p className="insurer-news-muted">{subtitle}</p>
       </header>
       {error ? <div className="insurer-news-empty">{error}</div> : null}
+      {notice ? (
+        <p className="status" role="status" style={{ marginBottom: 12 }}>
+          {notice}
+        </p>
+      ) : null}
+      {deleteError ? (
+        <p className="status status--error" role="alert" style={{ marginBottom: 12 }}>
+          {deleteError}
+        </p>
+      ) : null}
       <NewsletterList
         items={items}
         emptyMessage={emptyMessage}
         variant="mobile"
         onOpenItem={(id) => navigate(`${openPathPrefix}/${id}`)}
+        canDeleteItem={canDelete}
+        onDeleteItem={
+          onItemDeleted
+            ? (item) => {
+                void deleteNewsletter(item, () => onItemDeleted(item.id))
+              }
+            : undefined
+        }
+        deleteBusyId={busyId}
       />
+      {confirmDialog}
     </main>
   )
 }

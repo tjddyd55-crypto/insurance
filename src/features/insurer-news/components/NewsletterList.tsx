@@ -11,6 +11,7 @@ type Props = {
   variant: 'pc' | 'mobile'
   onOpenItem?: (id: string) => void
   onDeleteItem?: (item: NewsletterItem) => void
+  canDeleteItem?: (item: NewsletterItem) => boolean
   deleteBusyId?: string | null
   noSearchResults?: boolean
 }
@@ -21,6 +22,7 @@ export function NewsletterList({
   variant,
   onOpenItem,
   onDeleteItem,
+  canDeleteItem,
   deleteBusyId,
   noSearchResults,
 }: Props) {
@@ -40,7 +42,11 @@ export function NewsletterList({
           item={item}
           variant={variant}
           onOpen={onOpenItem ? () => onOpenItem(item.id) : undefined}
-          onDelete={onDeleteItem ? () => onDeleteItem(item) : undefined}
+          onDelete={
+            onDeleteItem && (!canDeleteItem || canDeleteItem(item))
+              ? () => onDeleteItem(item)
+              : undefined
+          }
           deleteBusy={Boolean(deleteBusyId && deleteBusyId === item.id)}
         />
       ))}

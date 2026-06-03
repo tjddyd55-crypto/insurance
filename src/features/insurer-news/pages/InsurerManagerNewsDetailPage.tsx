@@ -1,11 +1,11 @@
 import { FormButton } from '../../../components/form'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useConfirmDialog } from '../../../components/dialog'
 import { useAuth } from '../../auth/AuthProvider'
 import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
-import { deleteManagerNewsletter, getNewsletterDetail, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
+import { useNewsletterDelete } from '../hooks/useNewsletterDelete'
+import { getNewsletterDetail, getNewsletterDetailForInsurerManager } from '../services/insurerNews.service'
 import { buildInsurerNewsGalleryUrls } from '../utils/buildInsurerNewsGalleryUrls'
 import { formatInsurerNewsDateTime } from '../utils/formatInsurerNewsDate'
 import type { NewsChannel, NewsletterDetail } from '../types'
@@ -27,10 +27,9 @@ export function InsurerManagerNewsDetailPage({
   const requiresCompanyScope = detailScope === 'manager' && channel !== 'LOSS_ADJUSTER'
   const canFetch = Boolean(token?.trim() && gaCode && (!requiresCompanyScope || companyId != null) && newsletterId)
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
-  const { confirm, confirmDialog } = useConfirmDialog()
+  const { canDelete, deleteNewsletter, busyId, error: deleteError, notice, confirmDialog } =
+    useNewsletterDelete(channel)
   const [loading, setLoading] = useState(true)
-  const [deleteBusy, setDeleteBusy] = useState(false)
-  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     if (!canFetch) {
@@ -90,34 +89,16 @@ export function InsurerManagerNewsDetailPage({
     heroImageObjectKey: detail.heroImageObjectKey,
     attachments: detail.attachments,
   })
-  const role = user?.role ?? ''
-  const isGaDeleteRole = role === 'GA_ADMIN' || role === 'GA_STAFF'
-  const isManagerRole = role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER'
-  const isAuthor = Boolean(detail.publisherId && String(detail.publisherId) === String(user?.id ?? ''))
-  const canDelete = isGaDeleteRole || (isManagerRole && isAuthor)
+  const showDelete = canDelete(detail)
+  const deleteBusy = Boolean(newsletterId && busyId === newsletterId)
+
   const handleDelete = () => {
-    if (!newsletterId || !token?.trim() || deleteBusy) {
+    if (!newsletterId || !detail) {
       return
     }
-    void (async () => {
-      const confirmed = await confirm({
-        title: '소식지 삭제',
-        message: '이 소식지를 삭제하시겠습니까? 삭제하면 첨부 파일도 함께 영구 삭제됩니다.',
-        tone: 'danger',
-      })
-      if (!confirmed) {
-        return
-      }
-      setDeleteError('')
-      setDeleteBusy(true)
-      try {
-        await deleteManagerNewsletter(token, newsletterId, { channel })
-        navigate(listPath, { replace: true })
-      } catch (e) {
-        setDeleteError(e instanceof Error ? e.message : '소식지 삭제에 실패했습니다.')
-        setDeleteBusy(false)
-      }
-    })()
+    void deleteNewsletter(detail, () => {
+      navigate(listPath, { replace: true })
+    })
   }
 
   return (
@@ -130,11 +111,17 @@ export function InsurerManagerNewsDetailPage({
           <time dateTime={detail.publishedAt} style={{ fontSize: '0.95rem' }}>
             {formatInsurerNewsDateTime(detail.publishedAt)}
           </time>
-          {canDelete ? (
+          {notice ? (
+            <p className="status" role="status" style={{ marginTop: 8 }}>
+              {notice}
+            </p>
+          ) : null}
+          {showDelete ? (
             <div style={{ marginTop: 10 }}>
               <FormButton
                 htmlType="button"
                 className="button button--secondary"
+                loading={deleteBusy}
                 disabled={deleteBusy || !token?.trim() || !newsletterId}
                 onClick={handleDelete}
               >

@@ -1206,6 +1206,62 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
    * @param {import('express').Request} req
    * @param {string|null} expectedChannel
    */
+  /**
+   * @param {object} row
+   * @param {string} channel
+   */
+  async function resolveNewsletterAttachmentDeleteScope(row, channel) {
+    const payload = row.payload && typeof row.payload === 'object' ? row.payload : {}
+    const gaId = Number(row.ga_id)
+    let gaCodeRaw = String(payload.gaCode ?? '').trim()
+    if (!gaCodeRaw) {
+      const gRes = await safeQuery(pool, `SELECT code FROM ga_companies WHERE id = $1 LIMIT 1`, [gaId])
+      if (gRes.rowCount) {
+        gaCodeRaw = String(gRes.rows[0].code ?? '').trim()
+      }
+    }
+    let companySlug = String(payload.insurerSlug ?? '').trim()
+    if (!companySlug && row.company_id != null) {
+      const cRes = await safeQuery(
+        pool,
+        `SELECT name FROM insurance_company_master WHERE id = $1 AND ga_id = $2 LIMIT 1`,
+        [Number(row.company_id), gaId],
+      )
+      if (cRes.rowCount) {
+        companySlug = slugifyCompanySegment(cRes.rows[0].name)
+      }
+    }
+    if (!companySlug) {
+      companySlug = 'insurer'
+    }
+    return {
+      gaIdPath: normalizeGaIdForPath(gaId),
+      gaCodeRaw,
+      storageCategory: storageCategoryForChannel(channel),
+      companySlug,
+    }
+  }
+
+  /**
+   * @param {string[]} objectKeys
+   * @param {Awaited<ReturnType<typeof resolveNewsletterAttachmentDeleteScope>>} scope
+   */
+  function assertNewsletterAttachmentKeysDeletable(objectKeys, scope) {
+    for (const objectKey of objectKeys) {
+      if (
+        !assertNewsObjectKeyScoped(objectKey, {
+          gaIdPath: scope.gaIdPath,
+          gaCodeRaw: scope.gaCodeRaw,
+          storageCategory: scope.storageCategory,
+          companySlug: scope.companySlug,
+          allowLegacyLossAdjusterCategory: true,
+        })
+      ) {
+        throw Object.assign(new Error('첨부 파일 경로를 확인할 수 없어 삭제할 수 없습니다.'), { httpStatus: 400 })
+      }
+    }
+  }
+
   async function assertCanDeleteNewsletterRow(row, req, expectedChannel = null) {
     await assertCanAccessNewsletterRow(row, req, expectedChannel)
     if (isGaInsurerManagerMutatorRole(req.user.role)) {
@@ -2215,6 +2271,9 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
       const objectKeys = attRes.rows
         .map((row) => String(row.object_key ?? '').trim())
         .filter(Boolean)
+
+      const deleteScope = await resolveNewsletterAttachmentDeleteScope(nRes.rows[0], channel)
+      assertNewsletterAttachmentKeysDeletable(objectKeys, deleteScope)
 
       await withTransaction(async (client) => {
         await deleteAttachmentsForNewsletter(client, newsletterId, gaId)

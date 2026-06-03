@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { FormButton } from '../../../../components/form'
 import { useAuth } from '../../../auth/AuthProvider'
+import { useNewsletterDelete } from '../../hooks/useNewsletterDelete'
 import { NewsletterList } from '../../components/NewsletterList'
 import {
   getNewsletterDetail,
@@ -40,8 +41,11 @@ export default function InsurerManagerNewsListPCView({
   emptyMessage,
   channel,
   fetchScope,
+  onItemDeleted,
 }: InsurerManagerNewsListViewProps) {
   const { user, token } = useAuth()
+  const { canDelete, deleteNewsletter, busyId, error: deleteError, notice, confirmDialog } =
+    useNewsletterDelete(channel)
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
 
@@ -119,6 +123,20 @@ export default function InsurerManagerNewsListPCView({
       ? [resolveNewsletterHeroViewUrl(selectedItem)].filter(Boolean)
       : []
 
+  const deleteTarget = selectedDetail ?? selectedItem
+  const showDeleteInModal = Boolean(deleteTarget && canDelete(deleteTarget))
+  const modalDeleteBusy = Boolean(deleteTarget && busyId === deleteTarget.id)
+
+  const handleModalDelete = () => {
+    if (!deleteTarget) {
+      return
+    }
+    void deleteNewsletter(deleteTarget, () => {
+      onItemDeleted?.(deleteTarget.id)
+      closeDetailModal()
+    })
+  }
+
   return (
     <main className="page page--with-back insurer-news-page insurer-news-page--pc">
       <header className="page-header page-header--has-inline-back" style={{ marginBottom: 16 }}>
@@ -128,6 +146,16 @@ export default function InsurerManagerNewsListPCView({
         <p className="insurer-news-muted">{subtitle}</p>
       </header>
       {error ? <div className="insurer-news-empty">{error}</div> : null}
+      {notice ? (
+        <p className="status" role="status" style={{ marginBottom: 12 }}>
+          {notice}
+        </p>
+      ) : null}
+      {deleteError ? (
+        <p className="status status--error" role="alert" style={{ marginBottom: 12 }}>
+          {deleteError}
+        </p>
+      ) : null}
       <NewsletterList
         items={items}
         emptyMessage={emptyMessage}
@@ -165,6 +193,19 @@ export default function InsurerManagerNewsListPCView({
                   다운로드
                 </a>
               ) : null}
+              {showDeleteInModal ? (
+                <FormButton
+                  htmlType="button"
+                  variant="danger"
+                  size="sm"
+                  className="filter-button"
+                  loading={modalDeleteBusy}
+                  disabled={modalDeleteBusy}
+                  onClick={handleModalDelete}
+                >
+                  삭제
+                </FormButton>
+              ) : null}
               <FormButton
                 htmlType="button"
                 variant="action"
@@ -197,6 +238,7 @@ export default function InsurerManagerNewsListPCView({
           </div>
         </div>
       ) : null}
+      {confirmDialog}
     </main>
   )
 }
