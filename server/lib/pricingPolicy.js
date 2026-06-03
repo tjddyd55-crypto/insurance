@@ -5,6 +5,12 @@
 
 export const VAT_RATE = 0.1
 
+/** @deprecated plan별 referral_discount_unit_supply_amount 우선 */
+export const DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT = 1000
+
+/** @deprecated plan별 referral_discount_start_count 우선 */
+export const DEFAULT_REFERRAL_DISCOUNT_START_COUNT = 1
+
 /** @typedef {'STANDARD_MONTHLY' | 'DISCOUNT_MONTHLY'} BillingPlanKey */
 
 /** DB billing_plans.code 와 매핑 */
@@ -55,6 +61,19 @@ export function buildBillingPlanDefinition(key) {
     DISCOUNT_MONTHLY: '할인 이용료',
   }
   const supplyAmount = supplyByKey[key] ?? supplyByKey.STANDARD_MONTHLY
+  const referralByKey = {
+    STANDARD_MONTHLY: {
+      allowsReferralDiscount: true,
+      referralDiscountStartCount: 1,
+      referralDiscountUnitSupplyAmount: DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT,
+    },
+    DISCOUNT_MONTHLY: {
+      allowsReferralDiscount: true,
+      referralDiscountStartCount: 4,
+      referralDiscountUnitSupplyAmount: DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT,
+    },
+  }
+  const referral = referralByKey[key] ?? referralByKey.STANDARD_MONTHLY
   const priced = calculateVatIncludedPrice(supplyAmount)
   const displayPrice = `${priced.totalAmount.toLocaleString('ko-KR')}원`
   return {
@@ -68,7 +87,9 @@ export function buildBillingPlanDefinition(key) {
     totalAmount: priced.totalAmount,
     displayPrice,
     displayPriceWithVatNote: `${displayPrice} / 월 (VAT 포함)`,
-    allowsReferralDiscount: key !== 'DISCOUNT_MONTHLY',
+    allowsReferralDiscount: referral.allowsReferralDiscount,
+    referralDiscountStartCount: referral.referralDiscountStartCount,
+    referralDiscountUnitSupplyAmount: referral.referralDiscountUnitSupplyAmount,
   }
 }
 
@@ -83,13 +104,35 @@ export function buildBillingPlanDefinition(key) {
  *   vat_rate?: number | null;
  *   apply_vat?: boolean | null;
  *   allows_referral_discount?: boolean;
+ *   referral_discount_start_count?: number | null;
+ *   referral_discount_unit_supply_amount?: number | null;
  *   is_active?: boolean;
  *   description?: string | null;
  * }} row
  */
+function resolveReferralDiscountSettings(row) {
+  const allowsReferralDiscount = row.allows_referral_discount !== false
+  const referralDiscountStartCount = Math.max(
+    1,
+    Math.round(Number(row.referral_discount_start_count ?? DEFAULT_REFERRAL_DISCOUNT_START_COUNT) || 1),
+  )
+  const referralDiscountUnitSupplyAmount = Math.max(
+    1,
+    Math.round(
+      Number(row.referral_discount_unit_supply_amount ?? DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT) ||
+        DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT,
+    ),
+  )
+  return {
+    allowsReferralDiscount,
+    referralDiscountStartCount,
+    referralDiscountUnitSupplyAmount,
+  }
+}
+
 export function buildPlanDefinitionFromDbRow(row) {
   const dbCode = String(row.code ?? '').trim()
-  const allowsReferralDiscount = row.allows_referral_discount !== false
+  const referral = resolveReferralDiscountSettings(row)
   const applyVat = row.apply_vat !== false
   const vatRate = applyVat ? Number(row.vat_rate ?? VAT_RATE) || VAT_RATE : 0
 
@@ -112,7 +155,7 @@ export function buildPlanDefinitionFromDbRow(row) {
     if (staticPlan) {
       return {
         ...staticPlan,
-        allowsReferralDiscount,
+        ...referral,
         isActive: row.is_active !== false,
         description: row.description ?? null,
       }
@@ -134,7 +177,7 @@ export function buildPlanDefinitionFromDbRow(row) {
     totalAmount,
     displayPrice,
     displayPriceWithVatNote: `${displayPrice} / 월 (VAT 포함)`,
-    allowsReferralDiscount,
+    ...referral,
     isActive: row.is_active !== false,
     description: row.description ?? null,
   }
@@ -181,6 +224,83 @@ export function calculateDiscountedTotalAmount(baseSupplyAmount, supplyDiscountA
   const discount = Math.max(Math.round(Number(supplyDiscountAmount) || 0), 0)
   const finalSupply = Math.max(baseSupply - discount, 0)
   return calculateVatIncludedPrice(finalSupply)
+}
+
+/**
+ * 요금제별 추천인 할인(공급가 기준).
+ * eligibleReferralCount = max(0, referralCount - startCount + 1)
+ * @param {{
+ *   allowsReferralDiscount?: boolean;
+ *   referralDiscountStartCount?: number;
+ *   referralDiscountUnitSupplyAmount?: number;
+ *   supplyAmount?: number;
+ * }} plan
+ * @param {number} activeReferralCount
+ */
+export function calculateReferralDiscountForPlan(plan, activeReferralCount) {
+  if (plan?.allowsReferralDiscount === false) {
+    return {
+      activeReferralCount: Math.max(0, Math.round(Number(activeReferralCount) || 0)),
+      eligibleReferralCount: 0,
+      appliedReferralCount: 0,
+      referralDiscountSupplyAmount: 0,
+    }
+  }
+
+  const referralCount = Math.max(0, Math.round(Number(activeReferralCount) || 0))
+  const startCount = Math.max(
+    1,
+    Math.round(Number(plan?.referralDiscountStartCount ?? DEFAULT_REFERRAL_DISCOUNT_START_COUNT) || 1),
+  )
+  const unitAmount = Math.max(
+    1,
+    Math.round(
+      Number(plan?.referralDiscountUnitSupplyAmount ?? DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT) ||
+        DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT,
+    ),
+  )
+  const planSupply = Math.max(Math.round(Number(plan?.supplyAmount) || 0), 0)
+  const eligibleReferralCount = Math.max(0, referralCount - startCount + 1)
+  const rawDiscount = eligibleReferralCount * unitAmount
+  const referralDiscountSupplyAmount = Math.min(rawDiscount, planSupply)
+
+  return {
+    activeReferralCount: referralCount,
+    eligibleReferralCount,
+    appliedReferralCount: eligibleReferralCount,
+    referralDiscountSupplyAmount,
+  }
+}
+
+/**
+ * @param {{
+ *   allowsReferralDiscount?: boolean;
+ *   referralDiscountStartCount?: number;
+ *   referralDiscountUnitSupplyAmount?: number;
+ *   supplyAmount?: number;
+ * }} plan
+ * @returns {number | null}
+ */
+export function calculateFreeReferralCount(plan) {
+  if (plan?.allowsReferralDiscount === false) {
+    return null
+  }
+  const startCount = Math.max(
+    1,
+    Math.round(Number(plan?.referralDiscountStartCount ?? DEFAULT_REFERRAL_DISCOUNT_START_COUNT) || 1),
+  )
+  const unitAmount = Math.max(
+    1,
+    Math.round(
+      Number(plan?.referralDiscountUnitSupplyAmount ?? DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT) ||
+        DEFAULT_REFERRAL_DISCOUNT_UNIT_SUPPLY_AMOUNT,
+    ),
+  )
+  const supply = Math.max(Math.round(Number(plan?.supplyAmount) || 0), 0)
+  if (unitAmount <= 0 || supply <= 0) {
+    return null
+  }
+  return startCount + Math.ceil(supply / unitAmount) - 1
 }
 
 /**

@@ -1,11 +1,10 @@
 import {
-  MAX_REFERRER_DISCOUNT_COUNT,
   REFEREE_FIRST_MONTH_DISCOUNT_AMOUNT,
-  REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL,
 } from '../referrals/policy.js'
 import {
   BILLING_PLANS,
   calculateDiscountedTotalAmount,
+  calculateReferralDiscountForPlan,
 } from '../lib/pricingPolicy.js'
 import { readPolicyActive } from '../subscription/appSettings.js'
 import { computeReferralRelationshipStatus } from '../referrals/referralStatus.js'
@@ -134,8 +133,9 @@ export async function calculateInvoicePricing(executor, userId, options = {}) {
     userId,
     options.policyActive,
   )
-  const appliedReferralCount = Math.min(activeReferralCount, MAX_REFERRER_DISCOUNT_COUNT)
-  const referralDiscountAmount = appliedReferralCount * REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL
+  const referralPricing = calculateReferralDiscountForPlan(plan, activeReferralCount)
+  const referralDiscountAmount = referralPricing.referralDiscountSupplyAmount
+  const appliedReferralCount = referralPricing.appliedReferralCount
 
   let refereeFirstMonthDiscountAmount = 0
   const hasPaidBefore = await userHasPaidInvoice(executor, userId)

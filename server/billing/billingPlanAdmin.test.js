@@ -26,7 +26,9 @@ function createMockExecutor(state) {
           cycle: 'monthly',
           is_active: params[6],
           allows_referral_discount: params[7],
-          description: params[8],
+          referral_discount_start_count: Number(params[8]),
+          referral_discount_unit_supply_amount: Number(params[9]),
+          description: params[9 + 1],
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }
@@ -51,8 +53,10 @@ function createMockExecutor(state) {
           state.plans[code].vat_rate = Number(params[4])
           state.plans[code].apply_vat = params[5]
           state.plans[code].allows_referral_discount = params[6]
-          state.plans[code].description = params[7]
-          state.plans[code].is_active = params[8]
+          state.plans[code].referral_discount_start_count = Number(params[7])
+          state.plans[code].referral_discount_unit_supply_amount = Number(params[8])
+          state.plans[code].description = params[9]
+          state.plans[code].is_active = params[10]
         }
         return { rows: [], rowCount: 1 }
       }

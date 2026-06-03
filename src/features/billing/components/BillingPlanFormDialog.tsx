@@ -13,6 +13,8 @@ export type BillingPlanFormValues = {
   supplyAmount: string
   applyVat: boolean
   allowsReferralDiscount: boolean
+  referralDiscountStartCount: string
+  referralDiscountUnitSupplyAmount: string
   description: string
   isActive: boolean
 }
@@ -33,6 +35,8 @@ const emptyValues: BillingPlanFormValues = {
   supplyAmount: '',
   applyVat: true,
   allowsReferralDiscount: true,
+  referralDiscountStartCount: '1',
+  referralDiscountUnitSupplyAmount: '1000',
   description: '',
   isActive: true,
 }
@@ -59,6 +63,8 @@ export function BillingPlanFormDialog({
         supplyAmount: String(initialPlan.supplyAmount),
         applyVat: initialPlan.applyVat,
         allowsReferralDiscount: initialPlan.allowsReferralDiscount,
+        referralDiscountStartCount: String(initialPlan.referralDiscountStartCount ?? 1),
+        referralDiscountUnitSupplyAmount: String(initialPlan.referralDiscountUnitSupplyAmount ?? 1000),
         description: initialPlan.description ?? '',
         isActive: initialPlan.isActive,
       })
@@ -93,6 +99,18 @@ export function BillingPlanFormDialog({
     if (!Number.isFinite(supplyAmount) || supplyAmount <= 0) {
       setLocalError('공급가는 1원 이상이어야 합니다.')
       return
+    }
+    const referralDiscountStartCount = Math.round(Number(values.referralDiscountStartCount))
+    const referralDiscountUnitSupplyAmount = Math.round(Number(values.referralDiscountUnitSupplyAmount))
+    if (values.allowsReferralDiscount) {
+      if (!Number.isFinite(referralDiscountStartCount) || referralDiscountStartCount < 1) {
+        setLocalError('할인 시작 추천인 수는 1 이상이어야 합니다.')
+        return
+      }
+      if (!Number.isFinite(referralDiscountUnitSupplyAmount) || referralDiscountUnitSupplyAmount < 1) {
+        setLocalError('1명당 할인 공급가는 1원 이상이어야 합니다.')
+        return
+      }
     }
     setLocalError('')
     void onSubmit({ ...values, code, name, supplyAmount: String(supplyAmount) })
@@ -168,6 +186,32 @@ export function BillingPlanFormDialog({
             disabled={busy}
           />
         </label>
+        {values.allowsReferralDiscount ? (
+          <>
+            <FieldWrapper label="할인 시작 추천인 수" helperText="예: monthly_basic=1, monthly_discount=4">
+              <FormInput
+                type="number"
+                min={1}
+                value={values.referralDiscountStartCount}
+                onChange={(e) =>
+                  setValues((prev) => ({ ...prev, referralDiscountStartCount: e.target.value }))
+                }
+                disabled={busy}
+              />
+            </FieldWrapper>
+            <FieldWrapper label="1명당 할인 공급가 (원)" helperText="기본 1,000원">
+              <FormInput
+                type="number"
+                min={1}
+                value={values.referralDiscountUnitSupplyAmount}
+                onChange={(e) =>
+                  setValues((prev) => ({ ...prev, referralDiscountUnitSupplyAmount: e.target.value }))
+                }
+                disabled={busy}
+              />
+            </FieldWrapper>
+          </>
+        ) : null}
         <FieldWrapper label="설명">
           <FormTextarea
             value={values.description}

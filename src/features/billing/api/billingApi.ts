@@ -225,6 +225,9 @@ export interface BillingPlanAdminRow {
   displayPrice: string
   displayPriceWithVatNote: string
   allowsReferralDiscount: boolean
+  referralDiscountStartCount: number
+  referralDiscountUnitSupplyAmount: number
+  freeReferralCount: number | null
   isActive: boolean
   description: string | null
   cycle: string
@@ -303,6 +306,8 @@ export async function createAdminBillingPlan(
     applyVat?: boolean
     vatRate?: number
     allowsReferralDiscount?: boolean
+    referralDiscountStartCount?: number
+    referralDiscountUnitSupplyAmount?: number
     description?: string
     isActive?: boolean
   },
@@ -323,6 +328,8 @@ export async function updateAdminBillingPlan(
     applyVat?: boolean
     vatRate?: number
     allowsReferralDiscount?: boolean
+    referralDiscountStartCount?: number
+    referralDiscountUnitSupplyAmount?: number
     description?: string
     isActive?: boolean
   },
