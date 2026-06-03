@@ -6,10 +6,10 @@ import {
 import {
   BILLING_PLANS,
   calculateDiscountedTotalAmount,
-  resolveBillingPlan,
 } from '../lib/pricingPolicy.js'
 import { readPolicyActive } from '../subscription/appSettings.js'
 import { computeReferralRelationshipStatus } from '../referrals/referralStatus.js'
+import { resolveBillingPlanForUser } from './planResolver.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 
 /**
@@ -85,10 +85,11 @@ export async function userWasReferred(executor, userId) {
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {string} userId
- * @param {{ policyActive?: boolean; planCode?: string }} [options]
+ * @param {{ policyActive?: boolean; planCode?: string; resolvedPlan?: Awaited<ReturnType<typeof resolveBillingPlanForUser>> }} [options]
  * @returns {Promise<{
  *   planCode: string;
  *   planKey: string;
+ *   planSource: string;
  *   baseSupplyAmount: number;
  *   baseAmount: number;
  *   vatAmount: number;
@@ -102,13 +103,16 @@ export async function userWasReferred(executor, userId) {
  * }>}
  */
 export async function calculateInvoicePricing(executor, userId, options = {}) {
-  const plan = resolveBillingPlan(options.planCode)
+  const resolved =
+    options.resolvedPlan ??
+    (await resolveBillingPlanForUser(executor, userId, { explicitPlanCode: options.planCode }))
+  const plan = resolved.plan
 
-  // TODO: 추천인/GA/관리자 할인 등 자동 plan 선택 조건 확정 후 planCode 결정 로직 연결
-  if (plan.key === 'DISCOUNT_MONTHLY') {
+  if (!plan.allowsReferralDiscount) {
     return {
       planCode: plan.dbCode,
       planKey: plan.key,
+      planSource: resolved.source,
       baseSupplyAmount: plan.supplyAmount,
       baseAmount: plan.totalAmount,
       vatAmount: plan.vatAmount,
@@ -145,6 +149,7 @@ export async function calculateInvoicePricing(executor, userId, options = {}) {
   return {
     planCode: plan.dbCode,
     planKey: plan.key,
+    planSource: resolved.source,
     baseSupplyAmount,
     baseAmount: basePriced.totalAmount,
     vatAmount: finalPriced.vatAmount,

@@ -68,6 +68,37 @@ export function buildBillingPlanDefinition(key) {
     totalAmount: priced.totalAmount,
     displayPrice,
     displayPriceWithVatNote: `${displayPrice} / 월 (VAT 포함)`,
+    allowsReferralDiscount: key !== 'DISCOUNT_MONTHLY',
+  }
+}
+
+/**
+ * billing_plans 행 → 요금제 정의 (SSOT 정적 정의 우선, 없으면 DB amount 기준).
+ * @param {{ code: string; name: string; amount: number; allows_referral_discount?: boolean }} row
+ */
+export function buildPlanDefinitionFromDbRow(row) {
+  const dbCode = String(row.code ?? '').trim()
+  const staticPlan = Object.values(BILLING_PLANS).find((plan) => plan.dbCode === dbCode)
+  const allowsReferralDiscount = row.allows_referral_discount !== false
+  if (staticPlan) {
+    return { ...staticPlan, allowsReferralDiscount }
+  }
+  const totalAmount = Math.max(Math.round(Number(row.amount) || 0), 0)
+  const supplyAmount = Math.round(totalAmount / (1 + VAT_RATE))
+  const priced = calculateVatIncludedPrice(supplyAmount)
+  const displayPrice = `${totalAmount.toLocaleString('ko-KR')}원`
+  return {
+    key: dbCode,
+    code: dbCode,
+    dbCode,
+    label: String(row.name ?? dbCode),
+    supplyAmount: priced.supplyAmount,
+    vatRate: VAT_RATE,
+    vatAmount: totalAmount - priced.supplyAmount,
+    totalAmount,
+    displayPrice,
+    displayPriceWithVatNote: `${displayPrice} / 월 (VAT 포함)`,
+    allowsReferralDiscount,
   }
 }
 
@@ -82,16 +113,19 @@ export const DEFAULT_BILLING_PLAN_KEY = 'STANDARD_MONTHLY'
  * @param {unknown} planCodeOrDbCode
  * @returns {typeof BILLING_PLANS.STANDARD_MONTHLY}
  */
-export function resolveBillingPlan(planCodeOrDbCode) {
+export function resolveBillingPlan(planCodeOrDbCode, dbRow) {
   const raw = String(planCodeOrDbCode ?? '').trim()
+  if (dbRow && String(dbRow.code ?? '').trim()) {
+    return buildPlanDefinitionFromDbRow(dbRow)
+  }
   if (!raw) {
     return BILLING_PLANS[DEFAULT_BILLING_PLAN_KEY]
   }
   if (raw in BILLING_PLANS) {
     return BILLING_PLANS[/** @type {BillingPlanKey} */ (raw)]
   }
-  const fromDb = Object.values(BILLING_PLANS).find((plan) => plan.dbCode === raw)
-  return fromDb ?? BILLING_PLANS[DEFAULT_BILLING_PLAN_KEY]
+  const fromDbCode = Object.values(BILLING_PLANS).find((plan) => plan.dbCode === raw)
+  return fromDbCode ?? BILLING_PLANS[DEFAULT_BILLING_PLAN_KEY]
 }
 
 /** @returns {number} 표준 월 공급가 (추천인 할인 계산 기준) */

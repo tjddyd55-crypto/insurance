@@ -3425,29 +3425,54 @@ async function ensureBillingSchema(executor) {
       amount INTEGER NOT NULL,
       cycle TEXT NOT NULL DEFAULT 'monthly',
       is_active BOOLEAN NOT NULL DEFAULT true,
+      allows_referral_discount BOOLEAN NOT NULL DEFAULT true,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `)
   await executor.query(`
-    INSERT INTO billing_plans (code, name, amount, cycle, is_active)
-    VALUES ('monthly_basic', '월 이용료', 8800, 'monthly', true)
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS allows_referral_discount BOOLEAN NOT NULL DEFAULT true
+  `)
+  await executor.query(`
+    INSERT INTO billing_plans (code, name, amount, cycle, is_active, allows_referral_discount)
+    VALUES ('monthly_basic', '월 이용료', 8800, 'monthly', true, true)
     ON CONFLICT (code) DO UPDATE
       SET name = EXCLUDED.name,
           amount = EXCLUDED.amount,
           cycle = EXCLUDED.cycle,
           is_active = EXCLUDED.is_active,
+          allows_referral_discount = EXCLUDED.allows_referral_discount,
           updated_at = NOW()
   `)
   await executor.query(`
-    INSERT INTO billing_plans (code, name, amount, cycle, is_active)
-    VALUES ('monthly_discount', '할인 이용료', 5500, 'monthly', true)
+    INSERT INTO billing_plans (code, name, amount, cycle, is_active, allows_referral_discount)
+    VALUES ('monthly_discount', '할인 이용료', 5500, 'monthly', true, false)
     ON CONFLICT (code) DO UPDATE
       SET name = EXCLUDED.name,
           amount = EXCLUDED.amount,
           cycle = EXCLUDED.cycle,
           is_active = EXCLUDED.is_active,
+          allows_referral_discount = EXCLUDED.allows_referral_discount,
           updated_at = NOW()
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS ga_billing_settings (
+      ga_id INTEGER PRIMARY KEY REFERENCES ga_companies(id) ON DELETE CASCADE,
+      default_plan_code TEXT NOT NULL REFERENCES billing_plans(code),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS user_billing_settings (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      override_plan_code TEXT NOT NULL REFERENCES billing_plans(code),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
   `)
 
   await executor.query(`

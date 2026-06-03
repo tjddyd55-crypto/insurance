@@ -2781,6 +2781,29 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   color: #94a3b8;
 }
 
+.billing-admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.billing-admin-tabs__btn {
+  border: 1px solid #334155;
+  background: #111827;
+  color: #e5e7eb;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.billing-admin-tabs__btn--active {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.16);
+  color: #f8fafc;
+}
+
 .billing-page__policy-list {
   margin: 0;
   padding-left: 18px;

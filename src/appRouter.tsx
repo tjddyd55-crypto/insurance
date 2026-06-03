@@ -14,9 +14,7 @@ import GaCompanyManagePage from './features/admin/pages/GaCompanyManagePage'
 import UserManagementPage from './features/admin/pages/UserManagementPage'
 import AuditLogsPage from './features/admin/pages/AuditLogsPage'
 import SubscriptionPolicyPage from './features/admin/pages/SubscriptionPolicyPage'
-import SubscriptionUsersPage from './features/admin/pages/SubscriptionUsersPage'
-import AdminSubscriptionSettingsPage from './features/admin/pages/AdminSubscriptionSettingsPage'
-import AdminBillingSettingsPage from './features/billing/pages/AdminBillingSettingsPage'
+import AdminBillingManagePage, { AdminBillingLegacyRedirect } from './features/billing/pages/AdminBillingManagePage'
 import AccountBillingPage from './features/billing/pages/AccountBillingPage'
 import { AccountResetPage } from './features/account/pages/AccountResetPage'
 import { LoginPage } from './features/auth/pages/LoginPage'
@@ -363,10 +361,11 @@ export const appRouter = createBrowserRouter([
               {
                 element: <SuperAdminRoute />,
                 children: [
+                  { path: 'admin/billing/manage', element: <AdminBillingManagePage /> },
                   { path: 'admin/subscription/policy', element: <SubscriptionPolicyPage /> },
-                  { path: 'admin/subscription/users', element: <SubscriptionUsersPage /> },
-                  { path: 'admin/subscription/settings', element: <AdminSubscriptionSettingsPage /> },
-                  { path: 'admin/subscription/billing', element: <AdminBillingSettingsPage /> },
+                  { path: 'admin/subscription/users', element: <AdminBillingLegacyRedirect tab="users" /> },
+                  { path: 'admin/subscription/settings', element: <AdminBillingLegacyRedirect tab="payment" /> },
+                  { path: 'admin/subscription/billing', element: <AdminBillingLegacyRedirect tab="payment" /> },
                   { path: 'admin/platform', element: <PlatformHubPage /> },
                   { path: 'admin/platform/industries', element: <IndustriesListPage /> },
                   { path: 'admin/platform/industries/:industryId', element: <IndustryDetailPage /> },

@@ -7,6 +7,13 @@ import {
   listInvoicesForUser,
   updateBillingSubscriptionStatusAdmin,
 } from './billing/billingService.js'
+import {
+  listBillingPlansAdmin,
+  listBillingUsersAdmin,
+  listGaBillingPlansAdmin,
+  updateGaDefaultBillingPlan,
+  updateUserBillingPlanOverride,
+} from './billing/billingPlanService.js'
 import { REFUND_POLICY_NOTICE } from './billing/policy.js'
 import {
   getPaymentSettingsAdmin,
@@ -14,6 +21,12 @@ import {
   updatePaymentSettings,
 } from './billing/paymentSettings.js'
 import { isSubscriptionSubjectRole } from './subscription/policy.js'
+import {
+  BASE_MONTHLY_PRICE,
+  MAX_REFERRER_DISCOUNT_COUNT,
+  REFEREE_FIRST_MONTH_DISCOUNT_AMOUNT,
+  REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL,
+} from './referrals/policy.js'
 
 /**
  * @param {import('express').Router} apiRouter
@@ -51,6 +64,9 @@ export function registerBillingApi(apiRouter, ctx) {
       },
       invalid_subscription_status: { status: 400, message: '구독 상태 값이 올바르지 않습니다.' },
       subscription_not_found: { status: 404, message: '구독 정보를 찾을 수 없습니다.' },
+      ga_not_found: { status: 404, message: 'GA를 찾을 수 없습니다.' },
+      user_not_found: { status: 404, message: '사용자를 찾을 수 없습니다.' },
+      invalid_plan_code: { status: 400, message: '요금제 코드가 올바르지 않습니다.' },
     })
     const mapped = table[code]
     if (mapped) {
@@ -138,6 +154,81 @@ export function registerBillingApi(apiRouter, ctx) {
     } finally {
       client.release()
     }
+  })
+
+  apiRouter.get('/admin/billing/plans', requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const plans = await listBillingPlansAdmin(pool)
+      res.json({ plans })
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.get('/admin/billing/ga-plans', requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const gaPlans = await listGaBillingPlansAdmin(pool)
+      res.json({ gaPlans })
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.patch('/admin/billing/ga-plans/:gaId', requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const gaId = Number(req.params.gaId)
+      const planCode = String(req.body?.planCode ?? req.body?.plan_code ?? '').trim()
+      if (!Number.isFinite(gaId) || gaId <= 0 || !planCode) {
+        res.status(400).json({ message: 'GA와 요금제를 확인해 주세요.' })
+        return
+      }
+      const updated = await updateGaDefaultBillingPlan(pool, gaId, planCode)
+      res.json(updated)
+    } catch (e) {
+      if (mapBillingError(e, res)) return
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.get('/admin/billing/users', requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const users = await listBillingUsersAdmin(pool)
+      res.json({ users })
+    } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.patch('/admin/billing/users/:userId/plan', requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const userId = String(req.params.userId ?? '').trim()
+      if (!userId) {
+        res.status(400).json({ message: '사용자 ID가 필요합니다.' })
+        return
+      }
+      const rawPlan = req.body?.planCode ?? req.body?.plan_code
+      const planCode =
+        rawPlan == null || String(rawPlan).trim() === '' ? null : String(rawPlan).trim()
+      const updated = await updateUserBillingPlanOverride(pool, userId, planCode)
+      res.json(updated)
+    } catch (e) {
+      if (mapBillingError(e, res)) return
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.get('/admin/billing/referral-policy', requireAuth, requireSuperAdmin, async (_req, res) => {
+    res.json({
+      baseMonthlySupplyAmount: BASE_MONTHLY_PRICE,
+      referrerDiscountPerActiveReferral: REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL,
+      refereeFirstMonthDiscountAmount: REFEREE_FIRST_MONTH_DISCOUNT_AMOUNT,
+      maxReferrerDiscountCount: MAX_REFERRER_DISCOUNT_COUNT,
+      notes: [
+        '추천인 할인은 공급가 기준이며 VAT 포함 결제금액으로 환산됩니다.',
+        '할인 요금제(DISCOUNT_MONTHLY)와 추천인 할인은 중첩되지 않습니다.',
+        'GA별 기본 요금제는 다음 invoice 생성부터 적용됩니다.',
+      ],
+    })
   })
 
   apiRouter.get('/admin/billing/settings', requireAuth, requireSuperAdmin, async (req, res) => {

@@ -205,3 +205,120 @@ export const BILLING_STATUS_LABEL: Record<BillingSubscriptionStatus, string> = {
   cancelled: '해지',
   expired: '만료',
 }
+
+export type BillingPlanSource =
+  | 'explicit'
+  | 'user_override'
+  | 'ga_default'
+  | 'general_default'
+  | 'system_default'
+
+export interface BillingPlanAdminRow {
+  planCode: string
+  dbCode: string
+  label: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  displayPrice: string
+  displayPriceWithVatNote: string
+  allowsReferralDiscount: boolean
+  cycle: string
+}
+
+export interface GaBillingPlanAdminRow {
+  gaId: number
+  gaName: string
+  gaCode: string
+  defaultPlanCode: string | null
+  effectivePlanCode: string
+  planLabel: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  displayPriceWithVatNote: string
+  userCount: number
+  usesGeneralFallback: boolean
+}
+
+export interface BillingUserAdminRow {
+  userId: string
+  userName: string
+  gaId: number
+  gaCode: string
+  gaName: string
+  gaDefaultPlanCode: string | null
+  userOverridePlanCode: string | null
+  effectivePlanCode: string
+  effectivePlanSource: BillingPlanSource
+  effectivePlanLabel: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  displayPriceWithVatNote: string
+  subscriptionStatus: BillingSubscriptionStatus
+  latestInvoicePlanCode: string | null
+  latestInvoiceAmount: number | null
+  latestInvoiceStatus: InvoiceStatus | null
+}
+
+export interface ReferralBillingPolicyAdmin {
+  baseMonthlySupplyAmount: number
+  referrerDiscountPerActiveReferral: number
+  refereeFirstMonthDiscountAmount: number
+  maxReferrerDiscountCount: number
+  notes: string[]
+}
+
+export const BILLING_PLAN_SOURCE_LABEL: Record<BillingPlanSource, string> = {
+  explicit: '명시 지정',
+  user_override: '사용자 예외',
+  ga_default: 'GA 기본',
+  general_default: 'GENERAL 기본',
+  system_default: '시스템 기본',
+}
+
+export async function fetchAdminBillingPlans(token: string): Promise<{ plans: BillingPlanAdminRow[] }> {
+  return apiRequest('/api/admin/billing/plans', { method: 'GET', token })
+}
+
+export async function fetchAdminGaBillingPlans(token: string): Promise<{ gaPlans: GaBillingPlanAdminRow[] }> {
+  return apiRequest('/api/admin/billing/ga-plans', { method: 'GET', token })
+}
+
+export async function updateAdminGaBillingPlan(
+  token: string,
+  gaId: number,
+  planCode: string,
+): Promise<{ gaId: number; defaultPlanCode: string; planLabel: string }> {
+  return apiRequest(`/api/admin/billing/ga-plans/${gaId}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ planCode }),
+  })
+}
+
+export async function fetchAdminBillingUsers(token: string): Promise<{ users: BillingUserAdminRow[] }> {
+  return apiRequest('/api/admin/billing/users', { method: 'GET', token })
+}
+
+export async function updateAdminUserBillingPlan(
+  token: string,
+  userId: string,
+  planCode: string | null,
+): Promise<{
+  userId: string
+  userOverridePlanCode: string | null
+  effectivePlanCode: string
+  effectivePlanSource: BillingPlanSource
+}> {
+  return apiRequest(`/api/admin/billing/users/${encodeURIComponent(userId)}/plan`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ planCode }),
+  })
+}
+
+export async function fetchAdminReferralBillingPolicy(token: string): Promise<ReferralBillingPolicyAdmin> {
+  return apiRequest('/api/admin/billing/referral-policy', { method: 'GET', token })
+}
