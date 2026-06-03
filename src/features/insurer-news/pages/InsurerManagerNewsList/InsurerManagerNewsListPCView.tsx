@@ -9,7 +9,7 @@ import {
 import type { NewsletterDetail, NewsletterItem } from '../../types'
 import type { InsurerManagerNewsListViewProps } from './insurerManagerNewsListViewProps'
 import { buildInsurerNewsGalleryUrls } from '../../utils/buildInsurerNewsGalleryUrls'
-import { resolveInsurerNewsListCardImageUrl } from '../../utils/resolveInsurerNewsImageUrl'
+import { resolveNewsletterHeroViewUrl } from '../../utils/resolveNewsletterAttachmentViewUrl'
 
 const ZOOM_MIN = 0.5
 const ZOOM_MAX = 3
@@ -106,7 +106,7 @@ export default function InsurerManagerNewsListPCView({
         attachments: selectedDetail.attachments,
       })[0] ?? ''
     : selectedItem
-      ? resolveInsurerNewsListCardImageUrl(selectedItem)
+      ? resolveNewsletterHeroViewUrl(selectedItem)
       : ''
 
   const modalGalleryUrls = selectedDetail
@@ -116,7 +116,7 @@ export default function InsurerManagerNewsListPCView({
         attachments: selectedDetail.attachments,
       })
     : selectedItem
-      ? [resolveInsurerNewsListCardImageUrl(selectedItem)].filter(Boolean)
+      ? [resolveNewsletterHeroViewUrl(selectedItem)].filter(Boolean)
       : []
 
   return (

@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { NewsletterItem } from '../types'
 import FormButton from '../../../components/form/FormButton'
-import { resolveInsurerNewsListCardImageUrl, insurerNewsListItemHasImageSource } from '../utils/resolveInsurerNewsImageUrl'
+import {
+  newsletterItemHasImageSource,
+  resolveNewsletterHeroViewUrl,
+} from '../utils/resolveNewsletterAttachmentViewUrl'
 
 /**
  * PC/Mobile 분기는 `variant` prop 으로 승격 (AGENTS.md §8-5 Tier 4/3 참조).
@@ -45,8 +48,8 @@ export function NewsCard({ item, onOpen, onDelete, deleteBusy, variant }: Props)
   const companyName = item.insurerName?.trim() || '—'
   const dateLabel = formatPublishedDateLabel(item.publishedAt)
   const headline = item.summary?.trim() || item.title?.trim() || '본문 내용이 없습니다.'
-  const hasImageUrl = insurerNewsListItemHasImageSource(item)
-  const imageUrl = resolveInsurerNewsListCardImageUrl(item)
+  const hasImageUrl = newsletterItemHasImageSource(item)
+  const imageUrl = resolveNewsletterHeroViewUrl(item)
   const [imageLoadFailed, setImageLoadFailed] = useState(false)
 
   useEffect(() => {

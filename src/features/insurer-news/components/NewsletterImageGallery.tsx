@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { resolveInsurerNewsImageUrl } from '../utils/resolveInsurerNewsImageUrl'
+import { resolveInsurerNewsImageUrl } from '../utils/resolveNewsletterAttachmentViewUrl'
 
 type Props = {
   imageUrls: string[]
