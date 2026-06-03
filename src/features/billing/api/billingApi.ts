@@ -220,10 +220,18 @@ export interface BillingPlanAdminRow {
   supplyAmount: number
   vatAmount: number
   totalAmount: number
+  vatRate: number
+  applyVat: boolean
   displayPrice: string
   displayPriceWithVatNote: string
   allowsReferralDiscount: boolean
+  isActive: boolean
+  description: string | null
   cycle: string
+  gaUsageCount: number
+  userUsageCount: number
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 export interface GaBillingPlanAdminRow {
@@ -278,8 +286,64 @@ export const BILLING_PLAN_SOURCE_LABEL: Record<BillingPlanSource, string> = {
   system_default: '시스템 기본',
 }
 
-export async function fetchAdminBillingPlans(token: string): Promise<{ plans: BillingPlanAdminRow[] }> {
-  return apiRequest('/api/admin/billing/plans', { method: 'GET', token })
+export async function fetchAdminBillingPlans(
+  token: string,
+  options?: { activeOnly?: boolean },
+): Promise<{ plans: BillingPlanAdminRow[] }> {
+  const q = options?.activeOnly ? '?activeOnly=true' : ''
+  return apiRequest(`/api/admin/billing/plans${q}`, { method: 'GET', token })
+}
+
+export async function createAdminBillingPlan(
+  token: string,
+  body: {
+    code: string
+    name: string
+    supplyAmount: number
+    applyVat?: boolean
+    vatRate?: number
+    allowsReferralDiscount?: boolean
+    description?: string
+    isActive?: boolean
+  },
+): Promise<{ plan: BillingPlanAdminRow }> {
+  return apiRequest('/api/admin/billing/plans', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminBillingPlan(
+  token: string,
+  code: string,
+  body: {
+    name?: string
+    supplyAmount?: number
+    applyVat?: boolean
+    vatRate?: number
+    allowsReferralDiscount?: boolean
+    description?: string
+    isActive?: boolean
+  },
+): Promise<{ plan: BillingPlanAdminRow }> {
+  return apiRequest(`/api/admin/billing/plans/${encodeURIComponent(code)}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify(body),
+  })
+}
+
+export async function setAdminBillingPlanStatus(
+  token: string,
+  code: string,
+  isActive: boolean,
+): Promise<{ plan: BillingPlanAdminRow; usage: { gaCount: number; userCount: number }; warning: string | null }> {
+  return apiRequest(`/api/admin/billing/plans/${encodeURIComponent(code)}/status`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ isActive }),
+  })
 }
 
 export async function fetchAdminGaBillingPlans(token: string): Promise<{ gaPlans: GaBillingPlanAdminRow[] }> {

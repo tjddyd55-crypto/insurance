@@ -2713,10 +2713,30 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 }
 
 .billing-page__section-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-main);
   margin: 0 0 12px;
+}
+
+.billing-page__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.billing-page__section-head .billing-page__section-title {
+  margin: 0;
+}
+
+.billing-plan-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  overflow-y: auto;
 }
 
 .billing-page__meta {
