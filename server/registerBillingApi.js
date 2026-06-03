@@ -8,9 +8,12 @@ import {
   updateBillingSubscriptionStatusAdmin,
 } from './billing/billingService.js'
 import {
+  createBillingPlanAdmin,
   listBillingPlansAdmin,
   listBillingUsersAdmin,
   listGaBillingPlansAdmin,
+  setBillingPlanActiveAdmin,
+  updateBillingPlanAdmin,
   updateGaDefaultBillingPlan,
   updateUserBillingPlanOverride,
 } from './billing/billingPlanService.js'
@@ -66,7 +69,12 @@ export function registerBillingApi(apiRouter, ctx) {
       subscription_not_found: { status: 404, message: '구독 정보를 찾을 수 없습니다.' },
       ga_not_found: { status: 404, message: 'GA를 찾을 수 없습니다.' },
       user_not_found: { status: 404, message: '사용자를 찾을 수 없습니다.' },
-      invalid_plan_code: { status: 400, message: '요금제 코드가 올바르지 않습니다.' },
+      invalid_plan_code: { status: 400, message: '요금제 코드는 영문 소문자, 숫자, 밑줄(_)만 사용할 수 있습니다.' },
+      duplicate_plan_code: { status: 409, message: '이미 사용 중인 요금제 코드입니다.' },
+      invalid_plan_name: { status: 400, message: '요금제명을 입력해 주세요.' },
+      invalid_supply_amount: { status: 400, message: '공급가는 1원 이상이어야 합니다.' },
+      inactive_billing_plan: { status: 400, message: '비활성 요금제는 선택할 수 없습니다.' },
+      plan_not_found: { status: 404, message: '요금제를 찾을 수 없습니다.' },
     })
     const mapped = table[code]
     if (mapped) {
@@ -158,9 +166,51 @@ export function registerBillingApi(apiRouter, ctx) {
 
   apiRouter.get('/admin/billing/plans', requireAuth, requireSuperAdmin, async (req, res) => {
     try {
-      const plans = await listBillingPlansAdmin(pool)
+      const activeOnly = String(req.query?.activeOnly ?? req.query?.active_only ?? '') === 'true'
+      const plans = await listBillingPlansAdmin(pool, { activeOnly })
       res.json({ plans })
     } catch (e) {
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.post('/admin/billing/plans', requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const plan = await createBillingPlanAdmin(pool, req.body ?? {})
+      res.status(201).json({ plan })
+    } catch (e) {
+      if (mapBillingError(e, res)) return
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.patch('/admin/billing/plans/:code', requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const code = String(req.params.code ?? '').trim()
+      if (!code) {
+        res.status(400).json({ message: '요금제 코드가 필요합니다.' })
+        return
+      }
+      const plan = await updateBillingPlanAdmin(pool, code, req.body ?? {})
+      res.json({ plan })
+    } catch (e) {
+      if (mapBillingError(e, res)) return
+      handleDbError(e, req, res)
+    }
+  })
+
+  apiRouter.patch('/admin/billing/plans/:code/status', requireAuth, requireSuperAdmin, async (req, res) => {
+    try {
+      const code = String(req.params.code ?? '').trim()
+      const isActive = req.body?.isActive ?? req.body?.is_active
+      if (!code || typeof isActive !== 'boolean') {
+        res.status(400).json({ message: '요금제 코드와 활성 상태가 필요합니다.' })
+        return
+      }
+      const result = await setBillingPlanActiveAdmin(pool, code, isActive)
+      res.json(result)
+    } catch (e) {
+      if (mapBillingError(e, res)) return
       handleDbError(e, req, res)
     }
   })

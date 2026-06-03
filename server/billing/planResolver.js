@@ -22,7 +22,7 @@ import { systemQuery } from '../utils/dbSafeQuery.js'
 export async function resolveBillingPlanForUser(executor, userId, options = {}) {
   const explicit = String(options.explicitPlanCode ?? '').trim()
   if (explicit) {
-    const plan = await fetchBillingPlanDefinition(executor, explicit)
+    const plan = await fetchBillingPlanDefinition(executor, explicit, { requireActive: true })
     return {
       planCode: plan.dbCode,
       planKey: plan.key,
@@ -53,8 +53,14 @@ export async function resolveBillingPlanForUser(executor, userId, options = {}) 
     }
   }
 
+  const assignedPlanOptions = { allowInactive: true, requireActive: false }
+
   if (userRow.override_plan_code) {
-    const plan = await fetchBillingPlanDefinition(executor, String(userRow.override_plan_code))
+    const plan = await fetchBillingPlanDefinition(
+      executor,
+      String(userRow.override_plan_code),
+      assignedPlanOptions,
+    )
     return {
       planCode: plan.dbCode,
       planKey: plan.key,
@@ -67,7 +73,7 @@ export async function resolveBillingPlanForUser(executor, userId, options = {}) 
   if (Number.isFinite(gaId) && gaId > 0) {
     const gaPlanCode = await getGaDefaultPlanCode(executor, gaId)
     if (gaPlanCode) {
-      const plan = await fetchBillingPlanDefinition(executor, gaPlanCode)
+      const plan = await fetchBillingPlanDefinition(executor, gaPlanCode, assignedPlanOptions)
       return {
         planCode: plan.dbCode,
         planKey: plan.key,
@@ -79,7 +85,7 @@ export async function resolveBillingPlanForUser(executor, userId, options = {}) 
 
   const generalPlanCode = await getGeneralGaDefaultPlanCode(executor)
   if (generalPlanCode) {
-    const plan = await fetchBillingPlanDefinition(executor, generalPlanCode)
+    const plan = await fetchBillingPlanDefinition(executor, generalPlanCode, assignedPlanOptions)
     return {
       planCode: plan.dbCode,
       planKey: plan.key,

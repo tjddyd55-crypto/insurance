@@ -2,10 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom'
 import { FieldWrapper, FormButton, FormInput, FormSelect } from '../../../components/form'
 import { StatusMessage } from '../../../components/feedback'
+import { ConfirmDialog } from '../../../components/dialog/ConfirmDialog'
 import { useAuth } from '../../auth/AuthProvider'
+import {
+  BillingPlanFormDialog,
+  buildBillingPlanSelectOptions,
+  type BillingPlanFormValues,
+} from '../components/BillingPlanFormDialog'
 import {
   BILLING_PLAN_SOURCE_LABEL,
   BILLING_STATUS_LABEL,
+  createAdminBillingPlan,
   fetchAdminBillingInvoices,
   fetchAdminBillingPlans,
   fetchAdminBillingSettings,
@@ -16,6 +23,8 @@ import {
   formatWon,
   INVOICE_STATUS_LABEL,
   mockPayAdminBillingInvoice,
+  setAdminBillingPlanStatus,
+  updateAdminBillingPlan,
   updateAdminBillingSettings,
   updateAdminGaBillingPlan,
   updateAdminUserBillingPlan,
@@ -46,13 +55,6 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id']
 
-function planSelectOptions(plans: BillingPlanAdminRow[]) {
-  return plans.map((plan) => ({
-    value: plan.dbCode,
-    label: `${plan.label} (${plan.displayPriceWithVatNote})`,
-  }))
-}
-
 export default function AdminBillingManagePage() {
   const { token, user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -82,6 +84,13 @@ export default function AdminBillingManagePage() {
   const [saveOk, setSaveOk] = useState('')
   const [saveError, setSaveError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  const [planFormOpen, setPlanFormOpen] = useState(false)
+  const [planFormMode, setPlanFormMode] = useState<'create' | 'edit'>('create')
+  const [editingPlan, setEditingPlan] = useState<BillingPlanAdminRow | null>(null)
+  const [planFormError, setPlanFormError] = useState('')
+  const [deactivateTarget, setDeactivateTarget] = useState<BillingPlanAdminRow | null>(null)
+  const [deactivateBusy, setDeactivateBusy] = useState(false)
 
   const setTab = (tab: TabId) => {
     setSearchParams({ tab }, { replace: true })
@@ -127,8 +136,103 @@ export default function AdminBillingManagePage() {
     void load()
   }, [load])
 
-  const planOptions = useMemo(() => planSelectOptions(plans), [plans])
+  const selectedPlanCodes = useMemo(() => {
+    const codes = [
+      ...Object.values(gaDrafts),
+      ...Object.values(userDrafts),
+      ...gaPlans.map((row) => row.defaultPlanCode ?? row.effectivePlanCode),
+      ...billingUsers.map((row) => row.userOverridePlanCode ?? row.effectivePlanCode),
+    ]
+    return codes.filter(Boolean)
+  }, [gaDrafts, userDrafts, gaPlans, billingUsers])
+
+  const planOptions = useMemo(
+    () => buildBillingPlanSelectOptions(plans, selectedPlanCodes),
+    [plans, selectedPlanCodes],
+  )
   const isVirtualMode = normalizePaymentMode(settings?.mode ?? mode) === 'virtual'
+
+  const openCreatePlan = () => {
+    setPlanFormMode('create')
+    setEditingPlan(null)
+    setPlanFormError('')
+    setPlanFormOpen(true)
+  }
+
+  const openEditPlan = (plan: BillingPlanAdminRow) => {
+    setPlanFormMode('edit')
+    setEditingPlan(plan)
+    setPlanFormError('')
+    setPlanFormOpen(true)
+  }
+
+  const onSubmitPlanForm = async (values: BillingPlanFormValues) => {
+    if (!token?.trim() || busy) return
+    setBusy(true)
+    setPlanFormError('')
+    try {
+      const payload = {
+        code: values.code,
+        name: values.name,
+        supplyAmount: Number(values.supplyAmount),
+        applyVat: values.applyVat,
+        allowsReferralDiscount: values.allowsReferralDiscount,
+        description: values.description.trim() || undefined,
+        isActive: values.isActive,
+      }
+      if (planFormMode === 'create') {
+        await createAdminBillingPlan(token, payload)
+        setActionInfo('요금제가 추가되었습니다.')
+      } else if (editingPlan) {
+        await updateAdminBillingPlan(token, editingPlan.dbCode, {
+          name: payload.name,
+          supplyAmount: payload.supplyAmount,
+          applyVat: payload.applyVat,
+          allowsReferralDiscount: payload.allowsReferralDiscount,
+          description: payload.description ?? null,
+          isActive: payload.isActive,
+        })
+        setActionInfo('요금제가 수정되었습니다. 다음 invoice 생성부터 적용됩니다.')
+      }
+      setPlanFormOpen(false)
+      await load()
+    } catch (e) {
+      setPlanFormError(e instanceof Error ? e.message : '요금제 저장에 실패했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const onConfirmDeactivatePlan = async () => {
+    if (!token?.trim() || !deactivateTarget || deactivateBusy) return
+    setDeactivateBusy(true)
+    setActionError('')
+    try {
+      const result = await setAdminBillingPlanStatus(token, deactivateTarget.dbCode, false)
+      setActionInfo(result.warning ?? '요금제가 비활성화되었습니다.')
+      setDeactivateTarget(null)
+      await load()
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : '비활성화에 실패했습니다.')
+    } finally {
+      setDeactivateBusy(false)
+    }
+  }
+
+  const onActivatePlan = async (plan: BillingPlanAdminRow) => {
+    if (!token?.trim() || busy) return
+    setBusy(true)
+    setActionError('')
+    try {
+      await setAdminBillingPlanStatus(token, plan.dbCode, true)
+      setActionInfo('요금제가 활성화되었습니다.')
+      await load()
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : '활성화에 실패했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const onSaveGaPlan = async (gaId: number) => {
     if (!token?.trim() || busy) return
@@ -258,7 +362,12 @@ export default function AdminBillingManagePage() {
 
       {activeTab === 'plans' ? (
         <section className="card auth-card billing-page__card">
-          <h2 className="billing-page__section-title">등록 요금제</h2>
+          <div className="billing-page__section-head">
+            <h2 className="billing-page__section-title">등록 요금제</h2>
+            <FormButton htmlType="button" variant="primary" disabled={busy} onClick={openCreatePlan}>
+              요금제 추가
+            </FormButton>
+          </div>
           {plans.length === 0 ? (
             <p className="status text-sm">등록된 요금제가 없습니다.</p>
           ) : (
@@ -269,7 +378,9 @@ export default function AdminBillingManagePage() {
                     <strong>
                       {plan.label} ({plan.dbCode})
                     </strong>
-                    <span>{plan.displayPriceWithVatNote}</span>
+                    <span>
+                      {plan.isActive ? plan.displayPriceWithVatNote : '비활성'}
+                    </span>
                   </div>
                   <p className="billing-page__invoice-sub">
                     {formatPricingBreakdown({
@@ -279,6 +390,43 @@ export default function AdminBillingManagePage() {
                     })}
                     {plan.allowsReferralDiscount ? '' : ' · 추천인 할인 미적용'}
                   </p>
+                  {plan.description ? (
+                    <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">{plan.description}</p>
+                  ) : null}
+                  {(plan.gaUsageCount > 0 || plan.userUsageCount > 0) && !plan.isActive ? (
+                    <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">
+                      사용 중 GA {plan.gaUsageCount} · 사용자 예외 {plan.userUsageCount}
+                    </p>
+                  ) : null}
+                  <div className="billing-page__actions">
+                    <FormButton
+                      htmlType="button"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => openEditPlan(plan)}
+                    >
+                      수정
+                    </FormButton>
+                    {plan.isActive ? (
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => setDeactivateTarget(plan)}
+                      >
+                        비활성화
+                      </FormButton>
+                    ) : (
+                      <FormButton
+                        htmlType="button"
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => void onActivatePlan(plan)}
+                      >
+                        활성화
+                      </FormButton>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -512,6 +660,41 @@ export default function AdminBillingManagePage() {
           </section>
         </>
       ) : null}
+
+      <BillingPlanFormDialog
+        open={planFormOpen}
+        mode={planFormMode}
+        initialPlan={editingPlan}
+        busy={busy}
+        error={planFormError}
+        onClose={() => {
+          if (busy) return
+          setPlanFormOpen(false)
+        }}
+        onSubmit={onSubmitPlanForm}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deactivateTarget)}
+        title="요금제 비활성화"
+        message={
+          deactivateTarget
+            ? `이 요금제(${deactivateTarget.label})를 비활성화합니다. 이미 생성된 청구서는 변경되지 않으며, 다음 청구서부터 신규 선택이 제한됩니다.${
+                deactivateTarget.gaUsageCount > 0 || deactivateTarget.userUsageCount > 0
+                  ? ` (사용 중 GA ${deactivateTarget.gaUsageCount} · 사용자 예외 ${deactivateTarget.userUsageCount})`
+                  : ''
+              }`
+            : ''
+        }
+        confirmLabel="비활성화"
+        tone="danger"
+        busy={deactivateBusy}
+        onConfirm={() => void onConfirmDeactivatePlan()}
+        onCancel={() => {
+          if (deactivateBusy) return
+          setDeactivateTarget(null)
+        }}
+      />
     </main>
   )
 }

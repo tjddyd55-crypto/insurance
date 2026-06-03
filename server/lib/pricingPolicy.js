@@ -73,32 +73,70 @@ export function buildBillingPlanDefinition(key) {
 }
 
 /**
- * billing_plans 행 → 요금제 정의 (SSOT 정적 정의 우선, 없으면 DB amount 기준).
- * @param {{ code: string; name: string; amount: number; allows_referral_discount?: boolean }} row
+ * billing_plans 행 → 요금제 정의.
+ * amount = VAT 포함 결제금액(total). supply_amount 우선.
+ * @param {{
+ *   code: string;
+ *   name: string;
+ *   amount: number;
+ *   supply_amount?: number | null;
+ *   vat_rate?: number | null;
+ *   apply_vat?: boolean | null;
+ *   allows_referral_discount?: boolean;
+ *   is_active?: boolean;
+ *   description?: string | null;
+ * }} row
  */
 export function buildPlanDefinitionFromDbRow(row) {
   const dbCode = String(row.code ?? '').trim()
-  const staticPlan = Object.values(BILLING_PLANS).find((plan) => plan.dbCode === dbCode)
   const allowsReferralDiscount = row.allows_referral_discount !== false
-  if (staticPlan) {
-    return { ...staticPlan, allowsReferralDiscount }
+  const applyVat = row.apply_vat !== false
+  const vatRate = applyVat ? Number(row.vat_rate ?? VAT_RATE) || VAT_RATE : 0
+
+  let supplyAmount
+  let vatAmount
+  let totalAmount
+
+  if (row.supply_amount != null && Number.isFinite(Number(row.supply_amount))) {
+    supplyAmount = Math.max(Math.round(Number(row.supply_amount)), 0)
+    if (applyVat && vatRate > 0) {
+      const priced = calculateVatIncludedPrice(supplyAmount, vatRate)
+      vatAmount = priced.vatAmount
+      totalAmount = priced.totalAmount
+    } else {
+      vatAmount = 0
+      totalAmount = supplyAmount
+    }
+  } else {
+    const staticPlan = Object.values(BILLING_PLANS).find((plan) => plan.dbCode === dbCode)
+    if (staticPlan) {
+      return {
+        ...staticPlan,
+        allowsReferralDiscount,
+        isActive: row.is_active !== false,
+        description: row.description ?? null,
+      }
+    }
+    totalAmount = Math.max(Math.round(Number(row.amount) || 0), 0)
+    supplyAmount = Math.round(totalAmount / (1 + VAT_RATE))
+    vatAmount = totalAmount - supplyAmount
   }
-  const totalAmount = Math.max(Math.round(Number(row.amount) || 0), 0)
-  const supplyAmount = Math.round(totalAmount / (1 + VAT_RATE))
-  const priced = calculateVatIncludedPrice(supplyAmount)
+
   const displayPrice = `${totalAmount.toLocaleString('ko-KR')}원`
   return {
     key: dbCode,
     code: dbCode,
     dbCode,
     label: String(row.name ?? dbCode),
-    supplyAmount: priced.supplyAmount,
-    vatRate: VAT_RATE,
-    vatAmount: totalAmount - priced.supplyAmount,
+    supplyAmount,
+    vatRate: applyVat ? vatRate : 0,
+    vatAmount,
     totalAmount,
     displayPrice,
     displayPriceWithVatNote: `${displayPrice} / 월 (VAT 포함)`,
     allowsReferralDiscount,
+    isActive: row.is_active !== false,
+    description: row.description ?? null,
   }
 }
 

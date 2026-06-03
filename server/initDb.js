@@ -3435,22 +3435,48 @@ async function ensureBillingSchema(executor) {
     ADD COLUMN IF NOT EXISTS allows_referral_discount BOOLEAN NOT NULL DEFAULT true
   `)
   await executor.query(`
-    INSERT INTO billing_plans (code, name, amount, cycle, is_active, allows_referral_discount)
-    VALUES ('monthly_basic', '월 이용료', 8800, 'monthly', true, true)
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS supply_amount INTEGER
+  `)
+  await executor.query(`
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS vat_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.1
+  `)
+  await executor.query(`
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS apply_vat BOOLEAN NOT NULL DEFAULT true
+  `)
+  await executor.query(`
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS description TEXT
+  `)
+  await executor.query(`
+    INSERT INTO billing_plans (
+      code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active, allows_referral_discount
+    )
+    VALUES ('monthly_basic', '월 이용료', 8800, 8000, 0.1, true, 'monthly', true, true)
     ON CONFLICT (code) DO UPDATE
       SET name = EXCLUDED.name,
           amount = EXCLUDED.amount,
+          supply_amount = EXCLUDED.supply_amount,
+          vat_rate = EXCLUDED.vat_rate,
+          apply_vat = EXCLUDED.apply_vat,
           cycle = EXCLUDED.cycle,
           is_active = EXCLUDED.is_active,
           allows_referral_discount = EXCLUDED.allows_referral_discount,
           updated_at = NOW()
   `)
   await executor.query(`
-    INSERT INTO billing_plans (code, name, amount, cycle, is_active, allows_referral_discount)
-    VALUES ('monthly_discount', '할인 이용료', 5500, 'monthly', true, false)
+    INSERT INTO billing_plans (
+      code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active, allows_referral_discount
+    )
+    VALUES ('monthly_discount', '할인 이용료', 5500, 5000, 0.1, true, 'monthly', true, false)
     ON CONFLICT (code) DO UPDATE
       SET name = EXCLUDED.name,
           amount = EXCLUDED.amount,
+          supply_amount = EXCLUDED.supply_amount,
+          vat_rate = EXCLUDED.vat_rate,
+          apply_vat = EXCLUDED.apply_vat,
           cycle = EXCLUDED.cycle,
           is_active = EXCLUDED.is_active,
           allows_referral_discount = EXCLUDED.allows_referral_discount,
