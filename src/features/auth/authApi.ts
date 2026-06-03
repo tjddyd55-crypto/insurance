@@ -165,7 +165,23 @@ export async function checkUsernameAvailability(username: string): Promise<boole
 }
 
 /** 회원가입 GA 코드 자동 조회 — GET /api/ga/validate */
-export type ValidateGaSignupResponse = { success: boolean; gaName?: string }
+export type ValidateGaSignupResponse = { success: boolean; gaName?: string; isGeneral?: boolean }
+
+export type SignupPhonePolicyResponse = { devBypassEnabled?: boolean }
+
+/** develop/test 가입 SMS·중복 완화 여부 — GET /api/auth/signup-phone-policy */
+export async function fetchSignupPhonePolicy(): Promise<SignupPhonePolicyResponse> {
+  const url = resolveApiUrl('/api/auth/signup-phone-policy')
+  try {
+    const res = await fetch(url, { method: 'GET' })
+    if (!res.ok) {
+      return { devBypassEnabled: false }
+    }
+    return (await res.json()) as SignupPhonePolicyResponse
+  } catch {
+    return { devBypassEnabled: false }
+  }
+}
 
 export async function validateGaCodeForSignup(code: string): Promise<ValidateGaSignupResponse> {
   const c = code.trim()

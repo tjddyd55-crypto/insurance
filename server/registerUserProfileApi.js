@@ -29,6 +29,10 @@ import {
   isGeneralGaCompanyCode,
   resolveSignupGaCompany,
 } from './lib/generalGa.js'
+import {
+  isDevSignupPhoneBypassEnabled,
+  shouldSkipSignupPhoneDuplicateCheck,
+} from './lib/devSignupPhoneBypass.js'
 
 const SMS_PURPOSE_SIGNUP = 'SIGNUP'
 const SMS_PURPOSE_PHONE_CHANGE = 'PHONE_CHANGE'
@@ -93,6 +97,13 @@ export function registerUserProfileApi(apiRouter, ctx) {
     }
     next()
   }
+
+  /** 회원가입 화면: dev SMS/중복 완화 정책(비로그인 공개) */
+  apiRouter.get('/auth/signup-phone-policy', async (_req, res) => {
+    res.json({
+      devBypassEnabled: isDevSignupPhoneBypassEnabled(),
+    })
+  })
 
   /** 회원가입 화면: GA 코드 존재·활성 여부 및 회사명 조회(비로그인 공개) */
   apiRouter.get('/ga/validate', async (req, res) => {
@@ -193,7 +204,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         }
       }
 
-      if (await isUserSignupPhoneDuplicate(pool, phoneNorm)) {
+      if (!shouldSkipSignupPhoneDuplicateCheck() && (await isUserSignupPhoneDuplicate(pool, phoneNorm))) {
         res.status(409).json({ message: '이미 가입된 휴대폰 번호입니다.' })
         return
       }
@@ -438,7 +449,7 @@ export function registerUserProfileApi(apiRouter, ctx) {
         }
       }
 
-      if (await isUserSignupPhoneDuplicate(pool, phoneNorm)) {
+      if (!shouldSkipSignupPhoneDuplicateCheck() && (await isUserSignupPhoneDuplicate(pool, phoneNorm))) {
         res.status(409).json({ message: '이미 가입된 휴대폰 번호입니다.' })
         return
       }

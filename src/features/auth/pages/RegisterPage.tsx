@@ -10,6 +10,7 @@ import {
   validateGaCodeForSignup,
   validateTenantRegistrationCodeForSignup,
   verifySignupPhoneCode,
+  fetchSignupPhonePolicy,
 } from '../authApi'
 import { FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../AuthProvider'
@@ -82,6 +83,20 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   const [referralCodeHint, setReferralCodeHint] = useState('')
   const [referralCodeError, setReferralCodeError] = useState('')
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null)
+  const [devPhoneBypassEnabled, setDevPhoneBypassEnabled] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const policy = await fetchSignupPhonePolicy()
+      if (!cancelled) {
+        setDevPhoneBypassEnabled(Boolean(policy.devBypassEnabled))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -280,7 +295,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
   const phoneDigits = normalizeKrMobile(phone)
   const gaCodeTrim = gaCode.trim()
   const regCodeTrim = registrationCode.trim().replace(/\s+/g, '').toUpperCase()
-  const needsPhoneAuth = true
+  const needsPhoneAuth = !devPhoneBypassEnabled
 
   const requestSignupSms = async () => {
     setErrorMessage('')
@@ -398,7 +413,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
       setErrorMessage(phoneErrSubmit)
       return
     }
-    if (!isVerified) {
+    if (needsPhoneAuth && !isVerified) {
       setErrorMessage('휴대폰 인증을 완료해 주세요.')
       return
     }
@@ -654,6 +669,11 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
           </label>
 
           <div className="verify-section">
+            {devPhoneBypassEnabled ? (
+              <p className="status" style={{ color: 'var(--text-secondary)' }}>
+                develop 환경: 휴대폰 SMS 인증 없이 가입할 수 있습니다. (테스트용)
+              </p>
+            ) : null}
             <div className="verify-overlay" aria-hidden="true" />
             <label className="field">
               <span className="field__label">휴대폰 번호</span>

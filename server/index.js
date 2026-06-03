@@ -46,6 +46,12 @@ import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryRe
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
 import { parseGaId } from './lib/parseGaId.js'
 import { isGeneralGaCompanyCode, resolveSignupGaCompany } from './lib/generalGa.js'
+import {
+  isDevSignupPhoneBypassEnabled,
+  resolveDevSignupPhoneForStorage,
+  shouldBypassSmsProofForSignup,
+  shouldSkipSignupPhoneDuplicateCheck,
+} from './lib/devSignupPhoneBypass.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import { mapCustomerRow } from './lib/customerRowMap.js'
 import {
@@ -1902,6 +1908,7 @@ async function handleRegister(req, res) {
       res.status(400).json({ message: phoneErr })
       return
     }
+    const devPhoneBypass = isDevSignupPhoneBypassEnabled()
 
     const industrySignup = normalizeIndustryCodeParam(body.industry_code ?? body.industryCode ?? '')
     const regCodeNorm = normalizeTenantRegistrationCodeRaw(body.registration_code ?? body.registrationCode ?? '')
@@ -1915,7 +1922,7 @@ async function handleRegister(req, res) {
     let tenantRegMeta = null
 
     const proofRaw = String(signupProofSnake ?? signupProofCamel ?? '').trim()
-    if (!proofRaw) {
+    if (!proofRaw && !shouldBypassSmsProofForSignup()) {
       res.status(400).json({ message: '휴대폰 인증이 필요합니다.' })
       return
     }
@@ -1945,36 +1952,38 @@ async function handleRegister(req, res) {
       }
 
       let rp
-      try {
-        rp = verifyRegistrationSignupPhoneProof(proofRaw, JWT_SECRET)
-      } catch {
-        rp = null
-      }
-      if (!rp) {
-        res.status(400).json({
-          message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
-        })
-        return
-      }
-      if (rp.phoneDigits !== phoneNorm) {
-        res.status(400).json({ message: '인증된 휴대폰 번호와 가입 폼의 번호가 일치하지 않습니다.' })
-        return
-      }
-      if (rp.industryCodeNormalized !== industrySignup) {
-        res.status(400).json({ message: '인증 업종 정보가 일치하지 않습니다.' })
-        return
-      }
-      if (rp.registrationCodeNormalized !== regCodeNorm) {
-        res.status(400).json({ message: '인증 시점 가입 코드와 현재 입력이 일치하지 않습니다.' })
-        return
-      }
-      if (gaId == null || rp.gaId !== gaId) {
-        res.status(400).json({ message: '가입 코드와 소속 정보가 일치하지 않습니다.' })
-        return
-      }
-      if (tenantRegMeta.tenantPk !== rp.tenantId) {
-        res.status(400).json({ message: '가입 코드와 소속 정보가 일치하지 않습니다.' })
-        return
+      if (!shouldBypassSmsProofForSignup()) {
+        try {
+          rp = verifyRegistrationSignupPhoneProof(proofRaw, JWT_SECRET)
+        } catch {
+          rp = null
+        }
+        if (!rp) {
+          res.status(400).json({
+            message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
+          })
+          return
+        }
+        if (rp.phoneDigits !== phoneNorm) {
+          res.status(400).json({ message: '인증된 휴대폰 번호와 가입 폼의 번호가 일치하지 않습니다.' })
+          return
+        }
+        if (rp.industryCodeNormalized !== industrySignup) {
+          res.status(400).json({ message: '인증 업종 정보가 일치하지 않습니다.' })
+          return
+        }
+        if (rp.registrationCodeNormalized !== regCodeNorm) {
+          res.status(400).json({ message: '인증 시점 가입 코드와 현재 입력이 일치하지 않습니다.' })
+          return
+        }
+        if (gaId == null || rp.gaId !== gaId) {
+          res.status(400).json({ message: '가입 코드와 소속 정보가 일치하지 않습니다.' })
+          return
+        }
+        if (tenantRegMeta.tenantPk !== rp.tenantId) {
+          res.status(400).json({ message: '가입 코드와 소속 정보가 일치하지 않습니다.' })
+          return
+        }
       }
       const drCheck = String(ev.row.default_role ?? 'user').trim().toLowerCase()
       const dtCheck = String(ev.row.default_membership_type ?? 'agent').trim().toLowerCase()
@@ -2056,49 +2065,34 @@ async function handleRegister(req, res) {
       }
 
       let signupProofLegacy
-      try {
-        signupProofLegacy = verifySignupPhoneProof(proofRaw, JWT_SECRET)
-      } catch {
-        signupProofLegacy = null
+      if (!shouldBypassSmsProofForSignup()) {
+        try {
+          signupProofLegacy = verifySignupPhoneProof(proofRaw, JWT_SECRET)
+        } catch {
+          signupProofLegacy = null
+        }
+        if (!signupProofLegacy) {
+          res.status(400).json({
+            message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
+          })
+          return
+        }
+        if (signupProofLegacy.phoneDigits !== phoneNorm) {
+          res.status(400).json({ message: '인증된 휴대폰 번호와 가입 폼의 번호가 일치하지 않습니다.' })
+          return
+        }
+        if (signupProofLegacy.inviteCodeNormalized !== gaLegacyInviteCodeNormalized) {
+          res.status(400).json({
+            message:
+              '인증 시점의 GA 코드와 현재 입력이 일치하지 않습니다. 인증을 다시 진행해 주세요.',
+          })
+          return
+        }
+        if (signupProofLegacy.gaId !== gaId) {
+          res.status(400).json({ message: 'GA 정보가 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
+          return
+        }
       }
-      if (!signupProofLegacy) {
-        res.status(400).json({
-          message: '휴대폰 인증이 만료되었거나 유효하지 않습니다. 인증부터 다시 진행해 주세요.',
-        })
-        return
-      }
-      if (signupProofLegacy.phoneDigits !== phoneNorm) {
-        res.status(400).json({ message: '인증된 휴대폰 번호와 가입 폼의 번호가 일치하지 않습니다.' })
-        return
-      }
-      if (signupProofLegacy.inviteCodeNormalized !== gaLegacyInviteCodeNormalized) {
-        res.status(400).json({
-          message:
-            '인증 시점의 GA 코드와 현재 입력이 일치하지 않습니다. 인증을 다시 진행해 주세요.',
-        })
-        return
-      }
-      if (signupProofLegacy.gaId !== gaId) {
-        res.status(400).json({ message: 'GA 정보가 일치하지 않습니다. 인증을 다시 진행해 주세요.' })
-        return
-      }
-    }
-
-    const phoneDup = await systemQuery(
-      pool,
-      `
-      SELECT 1
-      FROM users
-      WHERE is_deleted = false
-        AND role = 'USER'
-        AND regexp_replace(COALESCE(phone_number, ''), '[^0-9]', '', 'g') = $1
-      LIMIT 1
-      `,
-      [phoneNorm],
-    )
-    if (phoneDup.rowCount > 0) {
-      res.status(409).json({ message: '이미 가입된 휴대폰 번호입니다.' })
-      return
     }
 
     const validationMessage = validateCredentials(username, password)
@@ -2112,6 +2106,29 @@ async function handleRegister(req, res) {
       res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
       return
     }
+
+    if (!shouldSkipSignupPhoneDuplicateCheck()) {
+      const phoneDup = await systemQuery(
+        pool,
+        `
+        SELECT 1
+        FROM users
+        WHERE is_deleted = false
+          AND role = 'USER'
+          AND regexp_replace(COALESCE(phone_number, ''), '[^0-9]', '', 'g') = $1
+        LIMIT 1
+        `,
+        [phoneNorm],
+      )
+      if (phoneDup.rowCount > 0) {
+        res.status(409).json({ message: '이미 가입된 휴대폰 번호입니다.' })
+        return
+      }
+    }
+
+    const phoneForStorage = devPhoneBypass
+      ? resolveDevSignupPhoneForStorage(phoneNorm, normalizedUsername)
+      : phoneNorm
 
     const referralCodeNorm = normalizeReferralCode(referralCodeSnake ?? referralCodeCamel ?? '')
     /** @type {{ referrerUserId: string; code: string } | null} */
@@ -2145,7 +2162,7 @@ async function handleRegister(req, res) {
         VALUES ($1, $2, $3, 'USER', $4, $5, $6, $7)
         RETURNING created_at
         `,
-        [id, normalizedUsername, passwordHash, gaId, displayName, phoneNorm, effectiveInvitedByUserId],
+        [id, normalizedUsername, passwordHash, gaId, displayName, phoneForStorage, effectiveInvitedByUserId],
       )
       createdAtIso = toIsoString(insRow.rows[0].created_at)
 
