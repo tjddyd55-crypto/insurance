@@ -29,8 +29,8 @@ import {
   INSURANCE_STORAGE_CATEGORY,
   buildInsuranceSharedStorageKey,
   normalizeInsuranceGaCode,
-  assertInsuranceSharedStorageKey,
 } from './lib/insuranceStorageLayout.js'
+import { assertNewsObjectKeyScoped } from './lib/insurerNewsObjectKeyScope.js'
 
 /** 프론트 `attachmentUploadPolicy.ts` 와 동기화 */
 const ALLOWED_UPLOAD_MIME = new Set([
@@ -223,93 +223,6 @@ function maxBytesForMime(contentType) {
     return MAX_PDF_BYTES
   }
   return MAX_IMAGE_BYTES
-}
-
-/**
- * @param {string} objectKey
- * @param {string} gaIdPath
- * @param {string} storageCategory
- * @param {string} companySlug
- * @param {boolean} [allowLegacyLossAdjusterCategory]
- */
-function assertNewsObjectKeyScoped(objectKey, gaIdPath, storageCategory, companySlug, allowLegacyLossAdjusterCategory = false) {
-  const k = stripR2ObjectRootIfPresent(String(objectKey ?? '').trim().replace(/^\//, ''))
-  const gaCode = normalizeInsuranceGaCode(gaIdPath)
-  const isLossAdjusterCategory = storageCategory === LOSS_ADJUSTER_R2_CATEGORY
-  const sharedCategory = isLossAdjusterCategory
-    ? INSURANCE_STORAGE_CATEGORY.ADJUSTER_NEWSLETTERS
-    : INSURANCE_STORAGE_CATEGORY.INSURER_NEWSLETTERS
-  if (
-    gaCode &&
-    assertInsuranceSharedStorageKey(k, gaCode, sharedCategory, {
-      insurerCode: companySlug,
-      adjusterCode: companySlug,
-      companySlug,
-    })
-  ) {
-    return true
-  }
-  const parts = k.split('/')
-
-  if (parts[0] === 'insurer-news' && parts.length === 6) {
-    const catSeg = parts[1]
-    const yyyy = parts[2]
-    const mm = parts[3]
-    const slugSeg = parts[4]
-    const fileSeg = parts[5]
-    const isLegacyLossAdjusterCategory =
-      catSeg === LEGACY_LOSS_ADJUSTER_R2_CATEGORY || catSeg === INSURER_R2_ACTIVE_CATEGORY
-    const categoryMatches =
-      catSeg === storageCategory ||
-      (allowLegacyLossAdjusterCategory &&
-        isLossAdjusterCategory &&
-        isLegacyLossAdjusterCategory)
-    if (!categoryMatches) {
-      return false
-    }
-    if (!/^\d{4}$/.test(yyyy) || !/^\d{2}$/.test(mm)) {
-      return false
-    }
-    if (slugSeg !== companySlug) {
-      return false
-    }
-    if (!fileSeg || !String(fileSeg).trim()) {
-      return false
-    }
-    return true
-  }
-
-  if (parts.length < 6) {
-    return false
-  }
-  const isLegacyLossAdjusterCategory =
-    parts[2] === LEGACY_LOSS_ADJUSTER_R2_CATEGORY || parts[2] === INSURER_R2_ACTIVE_CATEGORY
-  const categoryMatches =
-    parts[2] === storageCategory ||
-    (allowLegacyLossAdjusterCategory &&
-      isLossAdjusterCategory &&
-      isLegacyLossAdjusterCategory)
-  if (parts[0] !== 'insurer' || parts[1] !== gaIdPath || !categoryMatches) {
-    return false
-  }
-  let companyIndex = 4
-  if (/^\d{4}$/.test(parts[3]) && /^\d{2}$/.test(parts[4])) {
-    companyIndex = 5
-  } else if (/^\d{4}-\d{2}$/.test(parts[3])) {
-    companyIndex = 4
-  } else {
-    return false
-  }
-  if (parts[companyIndex] !== companySlug) {
-    return false
-  }
-  if (parts.length !== companyIndex + 2) {
-    return false
-  }
-  if (!parts[companyIndex + 1] || !String(parts[companyIndex + 1]).trim()) {
-    return false
-  }
-  return true
 }
 
 /**
@@ -879,7 +792,15 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
     if (!objectKey || !url) {
       throw Object.assign(new Error('첨부 objectKey와 url이 필요합니다.'), { httpStatus: 400 })
     }
-    if (!assertNewsObjectKeyScoped(objectKey, scope.gaIdPath, scope.storageCategory, scope.companySlug, true)) {
+    if (
+      !assertNewsObjectKeyScoped(objectKey, {
+        gaIdPath: scope.gaIdPath,
+        gaCodeRaw: scope.gaCodeRaw,
+        storageCategory: scope.storageCategory,
+        companySlug: scope.companySlug,
+        allowLegacyLossAdjusterCategory: true,
+      })
+    ) {
       throw Object.assign(new Error('허용되지 않은 저장 경로입니다.'), { httpStatus: 400 })
     }
     if (!assertCdnUrlMatchesKey(url, objectKey)) {
@@ -1106,13 +1027,14 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
   /**
    * 이미지·PDF 를 업로드 그대로 저장합니다 (PDF 를 이미지로 변환하지 않음).
    * @param {unknown[]} attIn
-   * @param {{ gaIdPath: string, companySlug: string }} scope
+   * @param {{ gaIdPath: string, gaCodeRaw?: string, companySlug: string, storageCategory: string }} scope
    * @returns {ReturnType<typeof assertAttachmentInput>[]}
    */
   function prepareAttachmentsForWrite(attIn, scope) {
     return attIn.map((a) =>
       assertAttachmentInput(a, {
         gaIdPath: scope.gaIdPath,
+        gaCodeRaw: scope.gaCodeRaw,
         companySlug: scope.companySlug,
         storageCategory: scope.storageCategory,
       }),
@@ -1685,7 +1607,14 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(403).json({ message: '업로드 범위를 확인할 수 없습니다.' })
         return
       }
-      if (!assertNewsObjectKeyScoped(objectKey, scope.gaIdPath, scope.storageCategory, scope.companySlug)) {
+      if (
+        !assertNewsObjectKeyScoped(objectKey, {
+          gaIdPath: scope.gaIdPath,
+          gaCodeRaw: scope.gaCodeRaw,
+          storageCategory: scope.storageCategory,
+          companySlug: scope.companySlug,
+        })
+      ) {
         res.status(400).json({ message: '허용되지 않은 저장 경로입니다.' })
         return
       }
@@ -1756,7 +1685,14 @@ export function registerInsurerNewsApi(apiRouter, ctx) {
         res.status(403).json({ message: '업로드 범위를 확인할 수 없습니다.' })
         return
       }
-      if (!assertNewsObjectKeyScoped(objectKey, scope.gaIdPath, scope.storageCategory, scope.companySlug)) {
+      if (
+        !assertNewsObjectKeyScoped(objectKey, {
+          gaIdPath: scope.gaIdPath,
+          gaCodeRaw: scope.gaCodeRaw,
+          storageCategory: scope.storageCategory,
+          companySlug: scope.companySlug,
+        })
+      ) {
         insurerNewsLog.error({
           event: 'upload-fail',
           stage: 'upload-complete',

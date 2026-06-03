@@ -105,6 +105,24 @@ describe('insuranceStorageLayout builders', () => {
       now: FIXED,
     })
     assert.match(key, /^insurance\/yjasset\/shared\/insurer-newsletters\/meritz\/2026\/06\/\d+-fire-notice\.pdf$/)
+    assert.equal(
+      assertInsuranceSharedStorageKey(key, 'yjasset', INSURANCE_STORAGE_CATEGORY.INSURER_NEWSLETTERS, {
+        companySlug: 'meritz',
+      }),
+      true,
+    )
+    assert.equal(
+      assertInsuranceSharedStorageKey(key, 'yjasset', INSURANCE_STORAGE_CATEGORY.INSURER_NEWSLETTERS, {
+        companySlug: 'other',
+      }),
+      false,
+    )
+    assert.equal(
+      assertInsuranceSharedStorageKey(key, 'otherga', INSURANCE_STORAGE_CATEGORY.INSURER_NEWSLETTERS, {
+        companySlug: 'meritz',
+      }),
+      false,
+    )
   })
 
   test('adjuster-newsletters key', () => {

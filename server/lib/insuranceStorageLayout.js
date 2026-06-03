@@ -478,7 +478,19 @@ export function assertInsuranceSharedStorageKey(objectKey, gaCode, category, sco
       category === INSURANCE_STORAGE_CATEGORY.INSURER_NEWSLETTERS ||
       category === INSURANCE_STORAGE_CATEGORY.ADJUSTER_NEWSLETTERS
     ) {
-      return /^[^/]+\/\d{4}\/\d{2}\/\d+-.+/.test(rest)
+      if (!/^[^/]+\/\d{4}\/\d{2}\/\d+-.+/.test(rest)) {
+        return false
+      }
+      const codeSeg = rest.split('/')[0]
+      const expectedCode = sanitizeInsurancePathSegment(
+        category === INSURANCE_STORAGE_CATEGORY.INSURER_NEWSLETTERS
+          ? (scope.insurerCode ?? scope.companySlug)
+          : (scope.adjusterCode ?? scope.companySlug),
+      )
+      if (expectedCode && expectedCode !== '_' && codeSeg !== expectedCode) {
+        return false
+      }
+      return true
     }
     if (category === INSURANCE_STORAGE_CATEGORY.SHARED_CUSTOMER_NEWSLETTERS) {
       return /^[^/]+\/\d{4}\/\d{2}\/\d+-.+/.test(rest)
