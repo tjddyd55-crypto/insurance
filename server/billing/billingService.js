@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { MONTHLY_BASIC_PLAN_CODE } from './policy.js'
 import { calculateInvoicePricing, getDefaultBillingPlan } from './pricing.js'
+import { resolveBillingPlanForUser } from './planResolver.js'
 import { calculateVatIncludedPrice } from '../lib/pricingPolicy.js'
 import { getPaymentSettingsPublic } from './paymentSettings.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
@@ -211,7 +212,10 @@ export async function createPendingInvoice(executor, userId, options = {}) {
     throw new Error('pending_invoice_exists')
   }
 
-  const pricing = await calculateInvoicePricing(executor, userId, { planCode: options.planCode })
+  const resolved = await resolveBillingPlanForUser(executor, userId, {
+    explicitPlanCode: options.planCode,
+  })
+  const pricing = await calculateInvoicePricing(executor, userId, { resolvedPlan: resolved })
   const now = new Date()
   const periodStart = now
   const periodEnd = addDays(now, 30)
@@ -253,7 +257,7 @@ export async function createPendingInvoice(executor, userId, options = {}) {
   const invoiceId = Number(ins.rows[0].id)
   const rows = await listInvoicesForUser(executor, userId, { limit: 1 })
   const created = rows.find((row) => row.id === invoiceId) ?? rows[0]
-  return { invoice: created, pricing, paymentMode: settings.mode }
+  return { invoice: created, pricing, planSource: resolved.source, paymentMode: settings.mode }
 }
 
 /**
