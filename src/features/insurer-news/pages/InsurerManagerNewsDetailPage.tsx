@@ -1,7 +1,9 @@
 import { FormButton } from '../../../components/form'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import GaRegistrationRequiredNotice from '../../../components/GaRegistrationRequiredNotice'
 import { useAuth } from '../../auth/AuthProvider'
+import { isGeneralGaUser } from '../../auth/generalGa'
 import { NewsletterAttachmentList } from '../components/NewsletterAttachmentList'
 import { NewsletterImageGallery } from '../components/NewsletterImageGallery'
 import { useNewsletterDelete } from '../hooks/useNewsletterDelete'
@@ -24,8 +26,11 @@ export function InsurerManagerNewsDetailPage({
   const navigate = useNavigate()
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
+  const isGeneralTenant = isGeneralGaUser(gaCode)
   const requiresCompanyScope = detailScope === 'manager' && channel !== 'LOSS_ADJUSTER'
-  const canFetch = Boolean(token?.trim() && gaCode && (!requiresCompanyScope || companyId != null) && newsletterId)
+  const canFetch =
+    !isGeneralTenant &&
+    Boolean(token?.trim() && gaCode && (!requiresCompanyScope || companyId != null) && newsletterId)
   const [detail, setDetail] = useState<NewsletterDetail | null>(null)
   const { canDelete, deleteNewsletter, busyId, error: deleteError, notice, confirmDialog } =
     useNewsletterDelete(channel)
@@ -50,6 +55,10 @@ export function InsurerManagerNewsDetailPage({
       cancelled = true
     }
   }, [canFetch, detailScope, channel, token, gaCode, companyId, newsletterId, requiresCompanyScope])
+
+  if (isGeneralTenant) {
+    return <GaRegistrationRequiredNotice />
+  }
 
   if (!gaCode || (requiresCompanyScope && companyId == null)) {
     return null

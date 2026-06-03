@@ -2420,6 +2420,47 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   margin: 0 0 4px;
 }
 
+.signup-app-download {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--divider-auth);
+  display: grid;
+  gap: 10px;
+}
+
+.signup-app-download__title {
+  margin: 0;
+  font-size: 1rem;
+  color: #f8fafc;
+}
+
+.signup-app-download__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.signup-download-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.ga-registration-required-page__body {
+  margin-top: 16px;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+  max-width: 560px;
+}
+
+.ga-registration-required-page__text {
+  margin: 0;
+  color: #e5e7eb;
+  line-height: 1.6;
+}
+
 .dashboard-card {
   display: grid;
   gap: 10px;

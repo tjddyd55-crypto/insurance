@@ -24,6 +24,11 @@ import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.
 import { logSmsVerifyFailure } from './services/smsStructuredLog.js'
 import { SMS_PUBLIC_DELAY_MESSAGE } from './services/smsPublicMessages.js'
 import { buildSubscriptionResponseForUser } from './subscription/applyToResponseUser.js'
+import {
+  GENERAL_GA_DISPLAY_NAME,
+  isGeneralGaCompanyCode,
+  resolveSignupGaCompany,
+} from './lib/generalGa.js'
 
 const SMS_PURPOSE_SIGNUP = 'SIGNUP'
 const SMS_PURPOSE_PHONE_CHANGE = 'PHONE_CHANGE'
@@ -94,25 +99,22 @@ export function registerUserProfileApi(apiRouter, ctx) {
     try {
       const inviteNorm = normalizeInviteCode(String(req.query?.code ?? ''))
       if (!inviteNorm) {
+        res.json({ success: true, gaName: GENERAL_GA_DISPLAY_NAME, isGeneral: true })
+        return
+      }
+      let resolved
+      try {
+        resolved = await resolveSignupGaCompany(pool, inviteNorm)
+      } catch {
         res.json({ success: false })
         return
       }
-      const gaRow = await systemQuery(
-        pool,
-        `SELECT name, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
-        [inviteNorm],
-      )
-      if (gaRow.rows.length === 0) {
-        res.json({ success: false })
-        return
-      }
-      const row = gaRow.rows[0]
-      if (String(row.status ?? '').toLowerCase() !== 'active') {
-        res.json({ success: false })
-        return
-      }
-      const gaName = String(row.name ?? '').trim()
-      res.json({ success: true, gaName: gaName || inviteNorm })
+      const gaName = String(resolved.name ?? '').trim()
+      res.json({
+        success: true,
+        gaName: gaName || resolved.codeNormalized,
+        isGeneral: isGeneralGaCompanyCode(resolved.codeNormalized),
+      })
     } catch (e) {
       handleDbError(e, req, res)
     }
@@ -162,14 +164,6 @@ export function registerUserProfileApi(apiRouter, ctx) {
       )
       const useTenantRegistration = industryNorm.length > 0 && regNorm.length >= 3
 
-      if (!useTenantRegistration) {
-        const inviteNorm = normalizeInviteCode(inviteRaw ?? '')
-        if (!inviteNorm) {
-          res.status(400).json({ message: 'GA 코드(초대 코드)를 입력해 주세요.' })
-          return
-        }
-      }
-
       phoneNorm = normalizeKrMobile(req.body?.phoneNumber ?? req.body?.phone_number)
       const phoneErr = validateKrMobileDigits(phoneNorm)
       if (phoneErr) {
@@ -187,18 +181,14 @@ export function registerUserProfileApi(apiRouter, ctx) {
           return
         }
       } else {
-        const inviteNorm = normalizeInviteCode(inviteRaw ?? '')
-        const gaCheck = await systemQuery(
-          pool,
-          `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
-          [inviteNorm],
-        )
-        if (gaCheck.rows.length === 0) {
+        try {
+          await resolveSignupGaCompany(pool, inviteRaw ?? '')
+        } catch (gaResolveErr) {
+          if (gaResolveErr?.code === 'inactive_ga') {
+            res.status(400).json({ message: '가입할 수 없는 GA입니다' })
+            return
+          }
           res.status(400).json({ message: '유효하지 않은 코드입니다' })
-          return
-        }
-        if (String(gaCheck.rows[0].status ?? '').toLowerCase() !== 'active') {
-          res.status(400).json({ message: '가입할 수 없는 GA입니다' })
           return
         }
       }
@@ -394,11 +384,19 @@ export function registerUserProfileApi(apiRouter, ctx) {
       if (useTenantRegistration) {
         lockScope = `${industryNorm}:${regNorm}`
       } else {
-        inviteNorm = normalizeInviteCode(inviteRaw ?? '')
-        if (!inviteNorm) {
-          res.status(400).json({ message: 'GA 코드(초대 코드)를 입력해 주세요.' })
+        let resolvedGa
+        try {
+          resolvedGa = await resolveSignupGaCompany(pool, inviteRaw ?? '')
+        } catch (gaResolveErr) {
+          if (gaResolveErr?.code === 'inactive_ga') {
+            res.status(400).json({ message: '가입할 수 없는 GA입니다' })
+            return
+          }
+          res.status(400).json({ message: '유효하지 않은 코드입니다' })
           return
         }
+        inviteNorm = resolvedGa.codeNormalized
+        gaId = resolvedGa.id
         lockScope = inviteNorm
       }
 
@@ -436,25 +434,6 @@ export function registerUserProfileApi(apiRouter, ctx) {
         const drCheck = String(ev.row.default_role ?? 'user').trim().toLowerCase()
         if (dtCheck !== 'agent' || daCheck !== 'own' || drCheck !== 'user') {
           res.status(400).json({ message: '이 경로에서는 일반 agent(본인 고객) 가입만 허용됩니다.' })
-          return
-        }
-      } else {
-        const gaCheck = await systemQuery(
-          pool,
-          `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
-          [inviteNorm],
-        )
-        if (gaCheck.rows.length === 0) {
-          res.status(400).json({ message: '유효하지 않은 코드입니다' })
-          return
-        }
-        if (String(gaCheck.rows[0].status ?? '').toLowerCase() !== 'active') {
-          res.status(400).json({ message: '가입할 수 없는 GA입니다' })
-          return
-        }
-        gaId = parseGaId(gaCheck.rows[0].id)
-        if (gaId == null) {
-          res.status(400).json({ message: '유효하지 않은 코드입니다' })
           return
         }
       }

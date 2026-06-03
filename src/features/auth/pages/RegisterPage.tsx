@@ -14,8 +14,23 @@ import {
 import { FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../AuthProvider'
 import { validateReferralCodeForSignup } from '../../referrals/referralApi'
+import { SignupAppDownloadSection } from '../components/SignupAppDownloadSection'
 
 type UsernameCheck = 'idle' | 'checking' | 'available' | 'taken' | 'invalid'
+
+const INVITE_REF_USER_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function parseSignupRefQueryParam(ref: string): { inviteRefUserId: string; referralFromUrl: string } {
+  const trimmed = ref.trim()
+  if (!trimmed) {
+    return { inviteRefUserId: '', referralFromUrl: '' }
+  }
+  if (INVITE_REF_USER_UUID_RE.test(trimmed)) {
+    return { inviteRefUserId: trimmed, referralFromUrl: '' }
+  }
+  return { inviteRefUserId: '', referralFromUrl: trimmed.toUpperCase().replace(/\s+/g, '') }
+}
 
 const CODE_TTL_SEC = 180
 const RESEND_COOLDOWN_SEC = 60
@@ -79,8 +94,12 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
     if (ga) {
       setGaCode((prev) => (prev.trim() !== '' ? prev : ga.toUpperCase()))
     }
-    const ref = searchParams.get('ref')?.trim()
-    setInviteRefUserId(ref ?? '')
+    const refRaw = searchParams.get('ref')?.trim() ?? ''
+    const { inviteRefUserId: refUserId, referralFromUrl } = parseSignupRefQueryParam(refRaw)
+    setInviteRefUserId(refUserId)
+    if (referralFromUrl) {
+      setReferralCode((prev) => (prev.trim() !== '' ? prev : referralFromUrl))
+    }
     const sig = searchParams.get('sig')?.trim()
     setInviteSig(sig ?? '')
     const ts = searchParams.get('ts')?.trim()
@@ -113,7 +132,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
     }
     const raw = gaCode.trim()
     if (!raw) {
-      setGaInfo(null)
+      setGaInfo('공용 소속(기본)으로 가입됩니다.')
       setGaError('')
       return
     }
@@ -276,9 +295,6 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
         setErrorMessage('테넌트 가입 코드를 먼저 입력하세요.')
         return
       }
-    } else if (!gaCodeTrim) {
-      setErrorMessage('GA 코드를 먼저 입력하세요.')
-      return
     }
     setSmsSubmitting(true)
     try {
@@ -288,7 +304,10 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
             registrationCode: regCodeTrim,
             phoneNumber: phoneDigits,
           })
-        : await sendSignupPhoneCode({ inviteCode: gaCodeTrim, phoneNumber: phoneDigits })
+        : await sendSignupPhoneCode({
+            inviteCode: gaCodeTrim || undefined,
+            phoneNumber: phoneDigits,
+          })
       setInfoMessage(r.message ?? '인증번호를 발송했습니다.')
       if (r.debugCode) {
         setDebugCodeHint(`(개발용) 인증번호: ${r.debugCode}`)
@@ -322,9 +341,6 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
         setErrorMessage('테넌트 가입 코드를 입력하세요.')
         return
       }
-    } else if (!gaCodeTrim) {
-      setErrorMessage('GA 코드를 입력하세요.')
-      return
     }
     const pErr = validateKrMobileDigits(phoneDigits)
     if (pErr) {
@@ -345,7 +361,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
             code: smsCode.trim(),
           })
         : await verifySignupPhoneCode({
-            inviteCode: gaCodeTrim,
+            inviteCode: gaCodeTrim || undefined,
             phoneNumber: phoneDigits,
             code: smsCode.trim(),
           })) as VerifySignupResponseLike
@@ -399,12 +415,6 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
       }
       if (refTrim) {
         setErrorMessage('테넌트 가입 경로에서는 담당자 초대(ref) 매개변수와 함께 가입할 수 없습니다.')
-        return
-      }
-    } else {
-      const code = gaCodeTrim
-      if (!code) {
-        setErrorMessage('GA 코드를 입력하세요.')
         return
       }
     }
@@ -463,7 +473,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
         await registerApi({
           username: userTrim,
           password,
-          inviteCode: gaCodeTrim,
+          inviteCode: gaCodeTrim || undefined,
           refUserId: refTrim || undefined,
           inviteSig: sigTrim || undefined,
           inviteTs: tsTrim || undefined,
@@ -542,8 +552,10 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
               {gaError ? <div className="ga-error">{gaError}</div> : null}
             </label>
           : <label className="field">
-              <span className="field__label">GA 코드</span>
-              <p className="text-xs text-gray-400 mb-2">부여받은 코드를 입력하세요.</p>
+              <span className="field__label">GA 코드 (선택)</span>
+              <p className="text-xs text-gray-400 mb-2">
+                소속 코드가 있으면 입력하세요. 비워 두면 공용 소속으로 가입됩니다.
+              </p>
               <FormInput
                 value={gaCode}
                 onChange={(e) => {
@@ -552,8 +564,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
                   setSignupPhoneProof(null)
                 }}
                 autoComplete="off"
-                placeholder="부여받은 소속코드를 입력하세요"
-                required
+                placeholder="소속 코드 (없으면 비워 두세요)"
               />
               {gaInfo ? <div className="ga-success">{`조회결과: ${gaInfo}`}</div> : null}
               {gaError ? <div className="ga-error">{gaError}</div> : null}
@@ -722,6 +733,8 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
             {isSubmitting ? '가입 중…' : '가입'}
           </FormButton>
         </form>
+
+        <SignupAppDownloadSection />
 
         <div className="switch-text">
           이미 계정이 있나요?

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
+import GaRegistrationRequiredNotice from '../../../components/GaRegistrationRequiredNotice'
 import { useAuth } from '../../auth/AuthProvider'
+import { isGeneralGaUser } from '../../auth/generalGa'
 import {
   getAllPublishedForGa,
   getNewslettersForInsurerManagerCompany,
@@ -51,6 +53,7 @@ export function InsurerManagerNewsListPage({
   const { user, token } = useAuth()
   const gaCode = user?.gaCode ?? ''
   const companyId = user?.companyId
+  const isGeneralTenant = isGeneralGaUser(gaCode)
   /*
    * GA 전체 공개 피드(`fetchScope === 'ga'`) 는 회사 소속이 없어도 조회 가능하다.
    * 손해사정사 채널은 회사 단위 격리가 아니라 GA 단위로 공유되므로 역시 회사 스코프가
@@ -62,7 +65,7 @@ export function InsurerManagerNewsListPage({
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!token?.trim() || !gaCode || (requiresCompanyScope && companyId == null)) {
+    if (isGeneralTenant || !token?.trim() || !gaCode || (requiresCompanyScope && companyId == null)) {
       return
     }
     let cancelled = false
@@ -85,7 +88,11 @@ export function InsurerManagerNewsListPage({
     return () => {
       cancelled = true
     }
-  }, [fetchScope, channel, token, gaCode, companyId, requiresCompanyScope])
+  }, [fetchScope, channel, token, gaCode, companyId, requiresCompanyScope, isGeneralTenant])
+
+  if (isGeneralTenant) {
+    return <GaRegistrationRequiredNotice />
+  }
 
   if (!gaCode || (requiresCompanyScope && companyId == null)) {
     return (
