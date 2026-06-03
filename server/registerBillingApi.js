@@ -274,9 +274,10 @@ export function registerBillingApi(apiRouter, ctx) {
       refereeFirstMonthDiscountAmount: REFEREE_FIRST_MONTH_DISCOUNT_AMOUNT,
       maxReferrerDiscountCount: MAX_REFERRER_DISCOUNT_COUNT,
       notes: [
-        '추천인 할인은 공급가 기준이며 VAT 포함 결제금액으로 환산됩니다.',
-        '할인 요금제(DISCOUNT_MONTHLY)와 추천인 할인은 중첩되지 않습니다.',
-        'GA별 기본 요금제는 다음 invoice 생성부터 적용됩니다.',
+        '1. 정상 요금제(monthly_basic): 공급가 8,000원 · 1명째부터 추천인 1명당 공급가 1,000원 할인 · 8명 추천 시 무료',
+        '2. 할인 요금제(monthly_discount): 공급가 5,000원 · 1~3명까지는 추천인 할인 없음 · 4명째부터 추천인 1명당 공급가 1,000원 할인 · 8명 추천 시 무료',
+        '3. 할인은 공급가 기준으로 적용하고, 부가세는 할인 후 공급가에 적용합니다.',
+        '4. 기존 invoice 금액은 변경하지 않고, 다음 invoice 생성부터 적용됩니다.',
       ],
     })
   })
