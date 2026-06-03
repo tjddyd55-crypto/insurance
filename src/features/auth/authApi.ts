@@ -221,10 +221,12 @@ export async function register(payload: {
     if (ind && reg) {
       body.industry_code = ind
       body.registration_code = reg
-    } else if (payload.inviteCode?.trim()) {
-      body.invite_code = payload.inviteCode.trim()
     } else {
-      throw new Error('GA 코드 또는 업종 가입 코드가 필요합니다.')
+      const invite = payload.inviteCode?.trim()
+      if (invite) {
+        body.invite_code = invite
+      }
+      /* GA 코드 없음 → 서버가 GENERAL(공용) 소속으로 처리 */
     }
     const refUserId = payload.refUserId?.trim()
     const inviteSig = payload.inviteSig?.trim()
@@ -264,12 +266,15 @@ export async function register(payload: {
 
 export async function sendSignupPhoneCode(
   payload:
-    | { inviteCode: string; phoneNumber: string }
+    | { inviteCode?: string; phoneNumber: string }
     | { industryCode: string; registrationCode: string; phoneNumber: string },
 ) {
   const body: Record<string, string> = { phone_number: payload.phoneNumber }
   if ('inviteCode' in payload) {
-    body.invite_code = payload.inviteCode.trim()
+    const invite = payload.inviteCode?.trim()
+    if (invite) {
+      body.invite_code = invite
+    }
   } else {
     body.industry_code = payload.industryCode.trim().toLowerCase()
     body.registration_code = payload.registrationCode.trim().toUpperCase().replace(/\s+/g, '')
@@ -285,7 +290,7 @@ export async function sendSignupPhoneCode(
 
 export async function verifySignupPhoneCode(
   payload:
-    | { inviteCode: string; phoneNumber: string; code: string }
+    | { inviteCode?: string; phoneNumber: string; code: string }
     | { industryCode: string; registrationCode: string; phoneNumber: string; code: string },
 ) {
   const body: Record<string, string> = {
@@ -293,7 +298,10 @@ export async function verifySignupPhoneCode(
     code: payload.code.trim(),
   }
   if ('inviteCode' in payload) {
-    body.invite_code = payload.inviteCode.trim()
+    const invite = payload.inviteCode?.trim()
+    if (invite) {
+      body.invite_code = invite
+    }
   } else {
     body.industry_code = payload.industryCode.trim().toLowerCase()
     body.registration_code = payload.registrationCode.trim().toUpperCase().replace(/\s+/g, '')

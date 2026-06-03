@@ -45,6 +45,7 @@ import { normalizeKrMobile, validateKrMobileDigits } from './lib/phoneNormalize.
 import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
 import { coerceMeritzFireToNonLifeCategory } from './lib/insuranceCompanyCategoryRules.js'
 import { parseGaId } from './lib/parseGaId.js'
+import { isGeneralGaCompanyCode, resolveSignupGaCompany } from './lib/generalGa.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import { mapCustomerRow } from './lib/customerRowMap.js'
 import {
@@ -1985,35 +1986,24 @@ async function handleRegister(req, res) {
         return
       }
     } else {
-      gaLegacyInviteCodeNormalized = normalizeInviteCode(inviteRaw ?? inviteAlt ?? '')
-      if (!gaLegacyInviteCodeNormalized) {
-        res.status(400).json({ message: 'GA 코드 없음' })
-        return
-      }
-
-      const gaCheck = await systemQuery(
-        pool,
-        `SELECT id, status FROM ga_companies WHERE code = $1 AND is_deleted = false`,
-        [gaLegacyInviteCodeNormalized],
-      )
-      if (gaCheck.rows.length === 0) {
+      const explicitInviteInput = String(inviteRaw ?? inviteAlt ?? '').trim()
+      let resolvedSignupGa
+      try {
+        resolvedSignupGa = await resolveSignupGaCompany(pool, explicitInviteInput)
+      } catch (gaResolveErr) {
+        if (gaResolveErr?.code === 'inactive_ga') {
+          res.status(400).json({ message: '가입할 수 없는 GA입니다' })
+          return
+        }
         res.status(400).json({ message: '유효하지 않은 코드입니다' })
         return
       }
-      const gaRow = gaCheck.rows[0]
-      if (String(gaRow.status ?? '').toLowerCase() !== 'active') {
-        res.status(400).json({ message: '가입할 수 없는 GA입니다' })
-        return
-      }
-      const parsedGaId = parseGaId(gaRow.id)
-      if (parsedGaId == null) {
-        res.status(400).json({ message: '유효하지 않은 코드입니다' })
-        return
-      }
-      gaId = parsedGaId
+      gaLegacyInviteCodeNormalized = resolvedSignupGa.codeNormalized
+      gaId = resolvedSignupGa.id
 
       const refUserId = String(refUserSnake ?? refUserCamel ?? '').trim()
-      if (refUserId) {
+      /** 담당자 초대 링크(명시 GA + ref) — 추천인 코드만 있는 가입과 분리 */
+      if (refUserId && explicitInviteInput) {
         const refUserRes = await systemQuery(
           pool,
           `
@@ -3600,6 +3590,24 @@ apiRouter.patch('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, res
     const body = req.body && typeof req.body === 'object' ? req.body : {}
     const beforeName = String(exists.rows[0].name ?? '')
     const beforeCode = String(exists.rows[0].code ?? '')
+    if (isGeneralGaCompanyCode(beforeCode)) {
+      const triesCodeChange = Object.prototype.hasOwnProperty.call(body, 'code')
+      const triesNameChange =
+        Object.prototype.hasOwnProperty.call(body, 'name') &&
+        String(body.name ?? '').trim() !== beforeName.trim()
+      const triesStatusChange = Object.prototype.hasOwnProperty.call(body, 'status')
+      if (triesCodeChange || triesNameChange) {
+        res.status(400).json({ message: '시스템 기본 GA(공용)의 코드·이름은 변경할 수 없습니다.' })
+        return
+      }
+      if (triesStatusChange) {
+        const st = parseEntityStatus(body.status)
+        if (st && st !== 'active') {
+          res.status(400).json({ message: '시스템 기본 GA(공용)는 비활성·차단 상태로 변경할 수 없습니다.' })
+          return
+        }
+      }
+    }
     let nextName = beforeName
     let nextCode = beforeCode
 
@@ -3743,6 +3751,19 @@ apiRouter.delete('/admin/ga/:id', requireAuth, requireSuperAdmin, async (req, re
     const id = Number(req.params.id)
     if (!Number.isInteger(id) || id < 1) {
       res.status(400).json({ message: '잘못된 GA ID입니다.' })
+      return
+    }
+    const gaRow = await systemQuery(
+      pool,
+      `SELECT code FROM ga_companies WHERE id = $1 AND is_deleted = false`,
+      [id],
+    )
+    if (gaRow.rowCount === 0) {
+      res.status(404).json({ message: 'GA를 찾을 수 없습니다.' })
+      return
+    }
+    if (isGeneralGaCompanyCode(gaRow.rows[0]?.code)) {
+      res.status(400).json({ message: '시스템 기본 GA(공용)는 삭제할 수 없습니다.' })
       return
     }
     const upd = await systemQuery(

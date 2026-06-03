@@ -17,6 +17,28 @@ function normalizeLink(value: unknown, fallback: string): string {
   return text || fallback
 }
 
+function firstNonEmptyLink(...candidates: unknown[]): string {
+  for (const c of candidates) {
+    const text = String(c ?? '').trim()
+    if (text) {
+      return text
+    }
+  }
+  return ''
+}
+
+/** 가입 화면용 PC·모바일 다운로드 URL (env 별칭 지원) */
+export const SIGNUP_APP_DOWNLOAD_LINKS = Object.freeze({
+  desktop: firstNonEmptyLink(
+    import.meta.env.VITE_DESKTOP_APP_DOWNLOAD_URL,
+    import.meta.env.VITE_DOWNLOAD_PC_URL,
+  ),
+  mobile: firstNonEmptyLink(
+    import.meta.env.VITE_MOBILE_APP_DOWNLOAD_URL,
+    import.meta.env.VITE_DOWNLOAD_FC_MOBILE_URL,
+  ),
+})
+
 export const DOWNLOAD_LINKS: DownloadLinkMap = Object.freeze({
   pc: normalizeLink(import.meta.env.VITE_DOWNLOAD_PC_URL, DEFAULT_DOWNLOAD_LINKS.pc),
   fcMobile: normalizeLink(import.meta.env.VITE_DOWNLOAD_FC_MOBILE_URL, DEFAULT_DOWNLOAD_LINKS.fcMobile),

@@ -7,6 +7,7 @@ import {
 } from './lib/companyDirectorySanitize.js'
 import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
 import { INSURER_SITES_SEED, insurerSiteBundledLogoPath } from './insurerSitesSeedData.js'
+import { ensureGeneralGaCompany } from './lib/generalGa.js'
 
 /**
  * ⚠️ 디버그 전용: insurance_forms 등 user_id FK는 ON DELETE CASCADE 로 함께 정리됨.
@@ -1115,6 +1116,8 @@ export async function initDb() {
     ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
     `,
   )
+
+  await ensureGeneralGaCompany(pool)
 
   await pool.query(`
     ALTER TABLE users
