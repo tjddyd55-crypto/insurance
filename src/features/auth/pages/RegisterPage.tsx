@@ -16,6 +16,10 @@ import { FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../AuthProvider'
 import { validateReferralCodeForSignup } from '../../referrals/referralApi'
 import { SignupAppDownloadSection } from '../components/SignupAppDownloadSection'
+import {
+  getSignupUsernameValidationError,
+  SIGNUP_USERNAME_RULE_MESSAGE,
+} from '../signupUsername'
 
 type UsernameCheck = 'idle' | 'checking' | 'available' | 'taken' | 'invalid'
 
@@ -279,7 +283,7 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
       setUsernameCheck('idle')
       return
     }
-    if (u.length < 3 || u.length > 30 || /\s/.test(u)) {
+    if (getSignupUsernameValidationError(u)) {
       setUsernameCheck('invalid')
       return
     }
@@ -437,8 +441,10 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
       setErrorMessage('아이디를 입력하세요.')
       return
     }
-    if (userTrim.length < 3 || userTrim.length > 30 || /\s/.test(userTrim)) {
-      setErrorMessage('아이디는 3~30자이며 공백을 포함할 수 없습니다.')
+    const usernameValidationError = getSignupUsernameValidationError(userTrim)
+    if (usernameValidationError) {
+      setUsernameCheck('invalid')
+      setErrorMessage(usernameValidationError)
       return
     }
     if (!password) {
@@ -523,12 +529,19 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
       return <p className="status status--error">이미 사용 중인 아이디입니다.</p>
     }
     if (usernameCheck === 'invalid') {
-      return <p className="status status--error">아이디는 3~30자이며 공백을 포함할 수 없습니다.</p>
+      const msg = getSignupUsernameValidationError(username.trim())
+      return (
+        <p className="status status--error">{msg ?? SIGNUP_USERNAME_RULE_MESSAGE}</p>
+      )
     }
     return null
   }
 
-  const signupSubmitDisabled = isSubmitting || (needsPhoneAuth && !isVerified)
+  const usernameValidationError = getSignupUsernameValidationError(username)
+  const signupSubmitDisabled =
+    isSubmitting ||
+    (needsPhoneAuth && !isVerified) ||
+    Boolean(usernameValidationError)
 
   const smsRequestDisabled = smsSubmitting || resendLeft > 0 || isVerified
   const smsConfirmDisabled = smsSubmitting || smsCode.trim().length !== 6 || isVerified
