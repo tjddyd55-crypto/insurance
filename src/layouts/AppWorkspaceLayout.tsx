@@ -14,6 +14,7 @@ import PCHeader from '../components/layout/PCHeader'
 import { useAuth } from '../features/auth/AuthProvider'
 import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaTenantBarShared'
 import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
+import { isSpecialNewsletterAccount } from '../features/auth/roleGuards'
 import { ExpiredBanner } from '../features/subscription/components/ExpiredBanner'
 import PlatformModeSwitcher from '../features/platform/components/PlatformModeSwitcher'
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
@@ -258,7 +259,7 @@ function AppWorkspaceLayoutMobileShell() {
   }, [token, user?.id, user?.role, user?.teamId])
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
-  const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
+  const isNewsManager = isSpecialNewsletterAccount(user?.role)
   const workspaceHeaderTitle = tenantChrome && !isNewsManager
     ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')
     : '업무 메뉴'
@@ -539,7 +540,7 @@ function AppWorkspaceLayoutPCShell() {
   const showMemoPanel = isMemoOpen && !isMinimized
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
-  const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
+  const isNewsManager = isSpecialNewsletterAccount(user?.role)
   const showGaUserActions = tenantChrome && !isNewsManager
   const workspaceHeaderTitle = tenantChrome
     ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')

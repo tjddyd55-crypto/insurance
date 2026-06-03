@@ -33,6 +33,11 @@ export function isNewsManagerRole(role: string | undefined): role is UserRole {
   return role === 'INSURER_MANAGER' || role === 'LOSS_ADJUSTER'
 }
 
+/** 원수사·손해사정사 전용 계정(설계사 사이트 메뉴 비노출) */
+export function isSpecialNewsletterAccount(role: string | undefined): boolean {
+  return isNewsManagerRole(role)
+}
+
 /** 원수사 연락처·일반화재·담당자 등 서버에서 GA_ADMIN·GA_STAFF·SUPER_ADMIN 쓰기 허용 */
 export function canMutateInsuranceDirectory(role: string | undefined): boolean {
   return role === 'GA_ADMIN' || role === 'GA_STAFF' || role === 'SUPER_ADMIN'

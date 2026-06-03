@@ -1,15 +1,17 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from './AuthProvider'
+import { resolveAuthLandingPath } from './landing'
+import { isSpecialNewsletterAccount } from './roleGuards'
 
-/** 채널 담당자(INSURER_MANAGER / LOSS_ADJUSTER)는 하위 업무 접근 불가 */
+/** 설계사 업무 라우트 — INSURER_MANAGER / LOSS_ADJUSTER 는 소식지 전용 홈으로 리다이렉트 */
 export function RequireNotInsurerManagerRoute() {
   const { user, isAuthenticated } = useAuth()
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/login?required=1" replace />
   }
-  if (user.role === 'INSURER_MANAGER' || user.role === 'LOSS_ADJUSTER') {
-    return <Navigate to="/dashboard" replace />
+  if (isSpecialNewsletterAccount(user.role)) {
+    return <Navigate to={resolveAuthLandingPath(false, user.role)} replace />
   }
   return <Outlet />
 }

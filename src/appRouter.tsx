@@ -219,10 +219,10 @@ export const appRouter = createBrowserRouter([
               { path: 'adjuster/news/:newsletterId', element: <LossAdjusterManagerNewsDetailPage /> },
             ],
           },
-          { path: 'insurance/insurer-sites', element: <InsurerSitesPage /> },
           {
             element: <RequireNotInsurerManagerRoute />,
             children: [
+              { path: 'insurance/insurer-sites', element: <InsurerSitesPage /> },
               { path: 'insurance/company-registry', element: <CompanyRegistryPage /> },
               { path: 'insurance/history', element: <InsuranceUpdatesPage /> },
               { path: 'internal/consent', element: <ConsentCompanyPage /> },
