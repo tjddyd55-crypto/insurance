@@ -15,6 +15,7 @@ import {
   type BillingInvoice,
   type BillingMeResponse,
 } from '../api/billingApi'
+import { BILLING_PLANS, formatPricingBreakdown } from '../pricingPolicy'
 
 export default function AccountBillingPage() {
   const { token } = useAuth()
@@ -49,7 +50,7 @@ export default function AccountBillingPage() {
     try {
       const result = await createBillingInvoice(token)
       setActionInfo(
-        `결제 요청이 생성되었습니다. 청구 금액 ${formatWon(result.invoice.finalAmount)} (가상 결제 모드)`,
+        `결제 요청이 생성되었습니다. 청구 금액 ${formatWon(result.invoice.finalAmount)} (VAT 포함 · 가상 결제 모드)`,
       )
       await load()
     } catch (e) {
@@ -76,12 +77,15 @@ export default function AccountBillingPage() {
   }
 
   const pendingInvoice = invoices.find((row) => row.status === 'pending')
+  const monthlyPriceNote =
+    me?.standardPlan?.displayPriceWithVatNote ?? BILLING_PLANS.STANDARD_MONTHLY.displayPriceWithVatNote
 
   return (
     <main className="page page--with-back billing-page">
       <header className="page-header">
         <h1>결제 관리</h1>
         <p>월 이용료 구독 · 결제 내역</p>
+        <p className="billing-page__price-note">{monthlyPriceNote}</p>
       </header>
 
       {me?.isVirtualMode ? (
@@ -142,6 +146,15 @@ export default function AccountBillingPage() {
                   기본 {formatWon(row.baseAmount)} · 할인 {formatWon(row.discountAmount)} ·{' '}
                   {formatBillingDate(row.createdAt)}
                 </p>
+                {row.baseSupplyAmount != null && row.vatAmount != null ? (
+                  <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">
+                    {formatPricingBreakdown({
+                      supplyAmount: row.finalSupplyAmount ?? row.baseSupplyAmount,
+                      vatAmount: row.vatAmount,
+                      totalAmount: row.finalAmount,
+                    })}
+                  </p>
+                ) : null}
               </li>
             ))}
           </ul>

@@ -4,6 +4,7 @@
 /** @typedef {'none' | 'trial' | 'active' | 'past_due' | 'cancelled' | 'expired'} BillingSubscriptionStatus */
 
 export const MONTHLY_BASIC_PLAN_CODE = 'monthly_basic'
+export const MONTHLY_DISCOUNT_PLAN_CODE = 'monthly_discount'
 export const MONTHLY_BASIC_PLAN_NAME = '월 이용료'
 export const BILLING_CYCLE_MONTHLY = 'monthly'
 

@@ -2771,6 +2771,16 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   color: var(--text-sub);
 }
 
+.billing-page__invoice-sub--muted {
+  color: #94a3b8;
+}
+
+.billing-page__price-note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
 .billing-page__policy-list {
   margin: 0;
   padding-left: 18px;

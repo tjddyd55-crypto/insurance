@@ -1,9 +1,13 @@
 import {
-  BASE_MONTHLY_PRICE,
   MAX_REFERRER_DISCOUNT_COUNT,
   REFEREE_FIRST_MONTH_DISCOUNT_AMOUNT,
   REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL,
 } from '../referrals/policy.js'
+import {
+  BILLING_PLANS,
+  calculateDiscountedTotalAmount,
+  resolveBillingPlan,
+} from '../lib/pricingPolicy.js'
 import { readPolicyActive } from '../subscription/appSettings.js'
 import { computeReferralRelationshipStatus } from '../referrals/referralStatus.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
@@ -81,18 +85,46 @@ export async function userWasReferred(executor, userId) {
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {string} userId
- * @param {{ policyActive?: boolean }} [options]
+ * @param {{ policyActive?: boolean; planCode?: string }} [options]
  * @returns {Promise<{
+ *   planCode: string;
+ *   planKey: string;
+ *   baseSupplyAmount: number;
  *   baseAmount: number;
+ *   vatAmount: number;
  *   referralDiscountAmount: number;
  *   refereeFirstMonthDiscountAmount: number;
  *   discountAmount: number;
+ *   finalSupplyAmount: number;
  *   finalAmount: number;
  *   activeReferralCount: number;
  *   appliedReferralCount: number;
  * }>}
  */
 export async function calculateInvoicePricing(executor, userId, options = {}) {
+  const plan = resolveBillingPlan(options.planCode)
+
+  // TODO: 추천인/GA/관리자 할인 등 자동 plan 선택 조건 확정 후 planCode 결정 로직 연결
+  if (plan.key === 'DISCOUNT_MONTHLY') {
+    return {
+      planCode: plan.dbCode,
+      planKey: plan.key,
+      baseSupplyAmount: plan.supplyAmount,
+      baseAmount: plan.totalAmount,
+      vatAmount: plan.vatAmount,
+      referralDiscountAmount: 0,
+      refereeFirstMonthDiscountAmount: 0,
+      discountAmount: 0,
+      finalSupplyAmount: plan.supplyAmount,
+      finalAmount: plan.totalAmount,
+      activeReferralCount: 0,
+      appliedReferralCount: 0,
+    }
+  }
+
+  const baseSupplyAmount = plan.supplyAmount
+  const basePriced = calculateDiscountedTotalAmount(baseSupplyAmount, 0)
+
   const activeReferralCount = await countActiveReferralsForReferrer(
     executor,
     userId,
@@ -107,16 +139,26 @@ export async function calculateInvoicePricing(executor, userId, options = {}) {
     refereeFirstMonthDiscountAmount = REFEREE_FIRST_MONTH_DISCOUNT_AMOUNT
   }
 
-  const discountAmount = referralDiscountAmount + refereeFirstMonthDiscountAmount
-  const finalAmount = Math.max(BASE_MONTHLY_PRICE - discountAmount, 0)
+  const supplyDiscountAmount = referralDiscountAmount + refereeFirstMonthDiscountAmount
+  const finalPriced = calculateDiscountedTotalAmount(baseSupplyAmount, supplyDiscountAmount)
 
   return {
-    baseAmount: BASE_MONTHLY_PRICE,
+    planCode: plan.dbCode,
+    planKey: plan.key,
+    baseSupplyAmount,
+    baseAmount: basePriced.totalAmount,
+    vatAmount: finalPriced.vatAmount,
     referralDiscountAmount,
     refereeFirstMonthDiscountAmount,
-    discountAmount,
-    finalAmount,
+    discountAmount: basePriced.totalAmount - finalPriced.totalAmount,
+    finalSupplyAmount: finalPriced.supplyAmount,
+    finalAmount: finalPriced.totalAmount,
     activeReferralCount,
     appliedReferralCount,
   }
+}
+
+/** @returns {typeof BILLING_PLANS.STANDARD_MONTHLY} */
+export function getDefaultBillingPlan() {
+  return BILLING_PLANS.STANDARD_MONTHLY
 }

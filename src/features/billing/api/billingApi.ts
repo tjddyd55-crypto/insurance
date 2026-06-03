@@ -12,11 +12,15 @@ export type BillingSubscriptionStatus = 'none' | 'trial' | 'active' | 'past_due'
 export interface BillingInvoice {
   id: number
   planCode: string
+  baseSupplyAmount?: number
   baseAmount: number
+  vatAmount?: number
   referralDiscountAmount: number
   refereeFirstMonthDiscountAmount: number
   discountAmount: number
+  finalSupplyAmount?: number
   finalAmount: number
+  isLegacySupplyPricing?: boolean
   status: InvoiceStatus
   billingPeriodStart: string | null
   billingPeriodEnd: string | null
@@ -25,6 +29,15 @@ export interface BillingInvoice {
   createdAt: string | null
   userId?: string
   userName?: string
+}
+
+export interface BillingStandardPlanSummary {
+  label: string
+  supplyAmount: number
+  vatAmount: number
+  totalAmount: number
+  displayPrice: string
+  displayPriceWithVatNote: string
 }
 
 export interface BillingMeResponse {
@@ -39,6 +52,7 @@ export interface BillingMeResponse {
   accessPlan: string
   accessExpiresAt: string | null
   refundPolicyNotice: string[]
+  standardPlan?: BillingStandardPlanSummary
 }
 
 export interface PaymentSettingsAdmin {
@@ -74,12 +88,19 @@ export async function fetchBillingInvoices(token: string): Promise<{ invoices: B
   return apiRequest<{ invoices: BillingInvoice[] }>('/api/billing/invoices', { method: 'GET', token })
 }
 
-export async function createBillingInvoice(token: string): Promise<{
+export async function createBillingInvoice(
+  token: string,
+  options?: { planCode?: string },
+): Promise<{
   invoice: BillingInvoice
   pricing: Record<string, number>
   paymentMode: PaymentMode
 }> {
-  return apiRequest('/api/billing/invoices', { method: 'POST', token })
+  return apiRequest('/api/billing/invoices', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(options?.planCode ? { planCode: options.planCode } : {}),
+  })
 }
 
 export async function mockPayBillingInvoice(token: string, invoiceId: number): Promise<{ ok: boolean }> {
