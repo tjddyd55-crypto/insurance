@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { MONTHLY_BASIC_PLAN_CODE } from './policy.js'
-import { calculateInvoicePricing } from './pricing.js'
+import { calculateInvoicePricing, getDefaultBillingPlan } from './pricing.js'
+import { calculateVatIncludedPrice } from '../lib/pricingPolicy.js'
 import { getPaymentSettingsPublic } from './paymentSettings.js'
 import { systemQuery } from '../utils/dbSafeQuery.js'
 
@@ -38,6 +39,7 @@ export async function getBillingMe(executor, userId) {
     [userId],
   )
   const userRow = userR.rows[0] ?? null
+  const defaultPlan = getDefaultBillingPlan()
 
   return {
     paymentMode: settings.mode,
@@ -50,6 +52,14 @@ export async function getBillingMe(executor, userId) {
     nextBillingAt: sub?.next_billing_at ?? null,
     accessPlan: userRow?.subscription_plan ?? 'FREE',
     accessExpiresAt: userRow?.subscription_expires_at ?? null,
+    standardPlan: {
+      label: defaultPlan.label,
+      supplyAmount: defaultPlan.supplyAmount,
+      vatAmount: defaultPlan.vatAmount,
+      totalAmount: defaultPlan.totalAmount,
+      displayPrice: defaultPlan.displayPrice,
+      displayPriceWithVatNote: defaultPlan.displayPriceWithVatNote,
+    },
   }
 }
 
@@ -116,28 +126,73 @@ export async function listInvoicesAdmin(executor, opts = {}) {
 }
 
 function mapInvoiceRow(row) {
+  const baseAmountStored = Number(row.base_amount ?? 0)
+  const finalAmountStored = Number(row.final_amount ?? 0)
+  const referralDiscountAmount = Number(row.referral_discount_amount ?? 0)
+  const refereeFirstMonthDiscountAmount = Number(row.referee_first_month_discount_amount ?? 0)
+  const discountAmountStored = Number(row.discount_amount ?? 0)
+
+  const isLegacySupplyPricing =
+    baseAmountStored > 0 && baseAmountStored <= 8000 && finalAmountStored <= baseAmountStored
+
+  if (isLegacySupplyPricing) {
+    const legacyPriced = calculateVatIncludedPrice(finalAmountStored)
+    return {
+      id: Number(row.id),
+      planCode: String(row.plan_code ?? MONTHLY_BASIC_PLAN_CODE),
+      baseSupplyAmount: baseAmountStored,
+      baseAmount: calculateVatIncludedPrice(baseAmountStored).totalAmount,
+      vatAmount: legacyPriced.vatAmount,
+      referralDiscountAmount,
+      refereeFirstMonthDiscountAmount,
+      discountAmount: calculateVatIncludedPrice(baseAmountStored).totalAmount - legacyPriced.totalAmount,
+      finalSupplyAmount: finalAmountStored,
+      finalAmount: legacyPriced.totalAmount,
+      status: String(row.status ?? 'pending'),
+      billingPeriodStart: row.billing_period_start ?? null,
+      billingPeriodEnd: row.billing_period_end ?? null,
+      dueAt: row.due_at ?? null,
+      paidAt: row.paid_at ?? null,
+      createdAt: row.created_at ?? null,
+      isLegacySupplyPricing: true,
+    }
+  }
+
+  const supplyDiscountAmount = referralDiscountAmount + refereeFirstMonthDiscountAmount
+  const defaultPlan = getDefaultBillingPlan()
+  const baseSupplyAmount =
+    baseAmountStored === defaultPlan.totalAmount
+      ? defaultPlan.supplyAmount
+      : calculateVatIncludedPrice(Math.max(baseAmountStored - discountAmountStored, 0)).supplyAmount
+  const priced = calculateVatIncludedPrice(Math.max(baseSupplyAmount - supplyDiscountAmount, 0))
+
   return {
     id: Number(row.id),
     planCode: String(row.plan_code ?? MONTHLY_BASIC_PLAN_CODE),
-    baseAmount: Number(row.base_amount ?? 0),
-    referralDiscountAmount: Number(row.referral_discount_amount ?? 0),
-    refereeFirstMonthDiscountAmount: Number(row.referee_first_month_discount_amount ?? 0),
-    discountAmount: Number(row.discount_amount ?? 0),
-    finalAmount: Number(row.final_amount ?? 0),
+    baseSupplyAmount,
+    baseAmount: baseAmountStored,
+    vatAmount: priced.vatAmount,
+    referralDiscountAmount,
+    refereeFirstMonthDiscountAmount,
+    discountAmount: discountAmountStored,
+    finalSupplyAmount: priced.supplyAmount,
+    finalAmount: finalAmountStored,
     status: String(row.status ?? 'pending'),
     billingPeriodStart: row.billing_period_start ?? null,
     billingPeriodEnd: row.billing_period_end ?? null,
     dueAt: row.due_at ?? null,
     paidAt: row.paid_at ?? null,
     createdAt: row.created_at ?? null,
+    isLegacySupplyPricing: false,
   }
 }
 
 /**
  * @param {import('pg').Pool | import('pg').PoolClient} executor
  * @param {string} userId
+ * @param {{ planCode?: string }} [options]
  */
-export async function createPendingInvoice(executor, userId) {
+export async function createPendingInvoice(executor, userId, options = {}) {
   const settings = await getPaymentSettingsPublic(executor)
   if (settings.mode === 'live' && !settings.isEnabled) {
     throw new Error('live_payment_not_enabled')
@@ -156,7 +211,7 @@ export async function createPendingInvoice(executor, userId) {
     throw new Error('pending_invoice_exists')
   }
 
-  const pricing = await calculateInvoicePricing(executor, userId)
+  const pricing = await calculateInvoicePricing(executor, userId, { planCode: options.planCode })
   const now = new Date()
   const periodStart = now
   const periodEnd = addDays(now, 30)
@@ -183,7 +238,7 @@ export async function createPendingInvoice(executor, userId) {
     `,
     [
       userId,
-      MONTHLY_BASIC_PLAN_CODE,
+      pricing.planCode,
       pricing.baseAmount,
       pricing.referralDiscountAmount,
       pricing.refereeFirstMonthDiscountAmount,

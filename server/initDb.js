@@ -3429,7 +3429,17 @@ async function ensureBillingSchema(executor) {
   `)
   await executor.query(`
     INSERT INTO billing_plans (code, name, amount, cycle, is_active)
-    VALUES ('monthly_basic', '월 이용료', 8000, 'monthly', true)
+    VALUES ('monthly_basic', '월 이용료', 8800, 'monthly', true)
+    ON CONFLICT (code) DO UPDATE
+      SET name = EXCLUDED.name,
+          amount = EXCLUDED.amount,
+          cycle = EXCLUDED.cycle,
+          is_active = EXCLUDED.is_active,
+          updated_at = NOW()
+  `)
+  await executor.query(`
+    INSERT INTO billing_plans (code, name, amount, cycle, is_active)
+    VALUES ('monthly_discount', '할인 이용료', 5500, 'monthly', true)
     ON CONFLICT (code) DO UPDATE
       SET name = EXCLUDED.name,
           amount = EXCLUDED.amount,

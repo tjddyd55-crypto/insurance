@@ -5,6 +5,7 @@ import { getPaymentSettingsAdmin, updatePaymentSettings } from './paymentSetting
 import { normalizePaymentMode } from './paymentSettingsNormalize.js'
 import { maskPaymentCredential, canStorePaymentSecrets } from './paymentSettingsCrypto.js'
 import { BASE_MONTHLY_PRICE, MAX_REFERRER_DISCOUNT_COUNT, REFERRER_DISCOUNT_PER_ACTIVE_REFERRAL } from '../referrals/policy.js'
+import { BILLING_PLANS } from '../lib/pricingPolicy.js'
 
 test('calculateInvoicePricing — 0 active referrals', async () => {
   const executor = {
@@ -25,9 +26,20 @@ test('calculateInvoicePricing — 0 active referrals', async () => {
     },
   }
   const pricing = await calculateInvoicePricing(executor, 'user-1')
-  assert.equal(pricing.baseAmount, BASE_MONTHLY_PRICE)
-  assert.equal(pricing.finalAmount, 8000)
+  assert.equal(pricing.baseSupplyAmount, BASE_MONTHLY_PRICE)
+  assert.equal(pricing.baseAmount, BILLING_PLANS.STANDARD_MONTHLY.totalAmount)
+  assert.equal(pricing.finalAmount, 8800)
   assert.equal(pricing.referralDiscountAmount, 0)
+})
+
+test('calculateInvoicePricing — DISCOUNT_MONTHLY plan', async () => {
+  const executor = {
+    query: async () => ({ rows: [], rowCount: 0 }),
+  }
+  const pricing = await calculateInvoicePricing(executor, 'user-1', { planCode: 'DISCOUNT_MONTHLY' })
+  assert.equal(pricing.planCode, 'monthly_discount')
+  assert.equal(pricing.baseSupplyAmount, 5000)
+  assert.equal(pricing.finalAmount, 5500)
 })
 
 test('calculateInvoicePricing — 1 active referral', async () => {
@@ -61,7 +73,7 @@ test('calculateInvoicePricing — 1 active referral', async () => {
   }
   const pricing = await calculateInvoicePricing(executor, 'user-1', { policyActive: true })
   assert.equal(pricing.activeReferralCount, 1)
-  assert.equal(pricing.finalAmount, 7000)
+  assert.equal(pricing.finalAmount, 7700)
 })
 
 test('calculateInvoicePricing — 8 active referrals is free', async () => {
@@ -144,7 +156,7 @@ test('calculateInvoicePricing — referred user first payment discount', async (
   }
   const pricing = await calculateInvoicePricing(executor, 'user-ref')
   assert.equal(pricing.refereeFirstMonthDiscountAmount, 2000)
-  assert.equal(pricing.finalAmount, 6000)
+  assert.equal(pricing.finalAmount, 6600)
 })
 
 test('getPaymentSettingsAdmin returns virtual defaults when row is missing', async () => {

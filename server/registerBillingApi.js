@@ -100,7 +100,8 @@ export function registerBillingApi(apiRouter, ctx) {
   apiRouter.post('/billing/invoices', requireAuth, requireBillingSubject, async (req, res) => {
     try {
       const userId = String(req.user?.id ?? '').trim()
-      const result = await createPendingInvoice(pool, userId)
+      const planCode = typeof req.body?.planCode === 'string' ? req.body.planCode.trim() : undefined
+      const result = await createPendingInvoice(pool, userId, { planCode: planCode || undefined })
       res.status(201).json(result)
     } catch (e) {
       if (mapBillingError(e, res)) return

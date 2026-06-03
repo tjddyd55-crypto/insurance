@@ -15,6 +15,7 @@ import {
   type PaymentMode,
   type PaymentSettingsAdmin,
 } from '../api/billingApi'
+import { BILLING_PLANS, formatPricingBreakdown } from '../pricingPolicy'
 import {
   normalizePaymentMode,
   normalizePaymentProvider,
@@ -125,6 +126,7 @@ export default function AdminBillingSettingsPage() {
       <header className="page-header">
         <h1>결제 설정</h1>
         <p>PG 연동 준비 · 가상 결제 운영</p>
+        <p className="billing-page__price-note">{BILLING_PLANS.STANDARD_MONTHLY.displayPriceWithVatNote}</p>
       </header>
 
       {loadError ? <StatusMessage tone="error" message={loadError} /> : null}
@@ -213,7 +215,16 @@ export default function AdminBillingSettingsPage() {
                   </strong>
                   <span>{INVOICE_STATUS_LABEL[row.status] ?? row.status}</span>
                 </div>
-                <p className="billing-page__invoice-sub">{formatBillingDate(row.createdAt)}</p>
+                <p className="billing-page__invoice-sub">
+                  {formatBillingDate(row.createdAt)}
+                  {row.baseSupplyAmount != null && row.vatAmount != null
+                    ? ` · ${formatPricingBreakdown({
+                        supplyAmount: row.finalSupplyAmount ?? row.baseSupplyAmount,
+                        vatAmount: row.vatAmount,
+                        totalAmount: row.finalAmount,
+                      })}`
+                    : ''}
+                </p>
                 {isVirtualMode && row.status === 'pending' ? (
                   <FormButton
                     htmlType="button"
