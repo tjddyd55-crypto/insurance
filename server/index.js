@@ -52,6 +52,7 @@ import {
   shouldBypassSmsProofForSignup,
   shouldSkipSignupPhoneDuplicateCheck,
 } from './lib/devSignupPhoneBypass.js'
+import { isValidSignupUsername, validateSignupUsername } from './lib/signupUsername.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import { mapCustomerRow } from './lib/customerRowMap.js'
 import {
@@ -2103,6 +2104,12 @@ async function handleRegister(req, res) {
       return
     }
 
+    const signupUsernameMessage = validateSignupUsername(username)
+    if (signupUsernameMessage) {
+      res.status(400).json({ message: signupUsernameMessage })
+      return
+    }
+
     const normalizedUsername = username.trim()
     if (await isUsernameTakenGlobally(pool, normalizedUsername)) {
       res.status(409).json({ message: '이미 사용 중인 아이디입니다.' })
@@ -2730,7 +2737,7 @@ apiRouter.post('/auth/login', handleLogin)
 apiRouter.get('/auth/username-availability', async (req, res) => {
   try {
     const raw = String(req.query.username ?? '').trim()
-    if (!raw || raw.length < 3 || raw.length > 30 || /\s/.test(raw)) {
+    if (!isValidSignupUsername(raw)) {
       res.json({ available: false })
       return
     }
