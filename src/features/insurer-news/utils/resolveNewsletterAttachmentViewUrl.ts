@@ -62,6 +62,9 @@ export function resolveNewsletterAttachmentViewUrl(
   return resolveAbsoluteApiUrl(legacyUrl)
 }
 
+/** @deprecated {@link resolveNewsletterAttachmentViewUrl} */
+export const resolveInsurerNewsAttachmentDisplayUrl = resolveNewsletterAttachmentViewUrl
+
 /** 목록 카드·hero — objectKey 우선, 구형 heroImageUrl fallback */
 export function resolveNewsletterHeroViewUrl(
   item: Pick<NewsletterItem, 'heroImageObjectKey' | 'heroImageUrl'>,

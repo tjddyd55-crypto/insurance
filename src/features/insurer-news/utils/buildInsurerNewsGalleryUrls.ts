@@ -15,11 +15,11 @@ function resolveHeroGalleryUrl(params: {
 }): string {
   const heroObjectKey = String(params.heroImageObjectKey ?? '').trim()
   if (heroObjectKey) {
-    return resolveInsurerNewsAttachmentDisplayUrl({ objectKey: heroObjectKey, url: '' })
+    return resolveNewsletterAttachmentViewUrl({ objectKey: heroObjectKey, url: '' })
   }
   const heroRaw = String(params.heroImageUrl ?? '').trim()
   if (heroRaw) {
-    return resolveInsurerNewsAttachmentDisplayUrl({ url: heroRaw })
+    return resolveNewsletterAttachmentViewUrl({ url: heroRaw })
   }
   return ''
 }
