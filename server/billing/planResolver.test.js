@@ -104,6 +104,8 @@ const basePlans = {
     cycle: 'monthly',
     is_active: true,
     allows_referral_discount: true,
+    referral_discount_start_count: 1,
+    referral_discount_unit_supply_amount: 1000,
     description: null,
   },
   monthly_discount: {
@@ -115,7 +117,9 @@ const basePlans = {
     apply_vat: true,
     cycle: 'monthly',
     is_active: true,
-    allows_referral_discount: false,
+    allows_referral_discount: true,
+    referral_discount_start_count: 4,
+    referral_discount_unit_supply_amount: 1000,
     description: null,
   },
 }

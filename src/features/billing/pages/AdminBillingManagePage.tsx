@@ -36,7 +36,7 @@ import {
   type PaymentSettingsAdmin,
   type ReferralBillingPolicyAdmin,
 } from '../api/billingApi'
-import { formatPricingBreakdown } from '../pricingPolicy'
+import { formatPricingBreakdown, formatReferralDiscountPolicySummary } from '../pricingPolicy'
 import {
   normalizePaymentMode,
   normalizePaymentProvider,
@@ -177,6 +177,12 @@ export default function AdminBillingManagePage() {
         supplyAmount: Number(values.supplyAmount),
         applyVat: values.applyVat,
         allowsReferralDiscount: values.allowsReferralDiscount,
+        referralDiscountStartCount: values.allowsReferralDiscount
+          ? Number(values.referralDiscountStartCount)
+          : undefined,
+        referralDiscountUnitSupplyAmount: values.allowsReferralDiscount
+          ? Number(values.referralDiscountUnitSupplyAmount)
+          : undefined,
         description: values.description.trim() || undefined,
         isActive: values.isActive,
       }
@@ -189,6 +195,8 @@ export default function AdminBillingManagePage() {
           supplyAmount: payload.supplyAmount,
           applyVat: payload.applyVat,
           allowsReferralDiscount: payload.allowsReferralDiscount,
+          referralDiscountStartCount: payload.referralDiscountStartCount,
+          referralDiscountUnitSupplyAmount: payload.referralDiscountUnitSupplyAmount,
           description: payload.description ?? null,
           isActive: payload.isActive,
         })
@@ -388,7 +396,9 @@ export default function AdminBillingManagePage() {
                       vatAmount: plan.vatAmount,
                       totalAmount: plan.totalAmount,
                     })}
-                    {plan.allowsReferralDiscount ? '' : ' · 추천인 할인 미적용'}
+                  </p>
+                  <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">
+                    {formatReferralDiscountPolicySummary(plan)}
                   </p>
                   {plan.description ? (
                     <p className="billing-page__invoice-sub billing-page__invoice-sub--muted">{plan.description}</p>

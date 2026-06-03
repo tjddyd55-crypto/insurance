@@ -3449,10 +3449,19 @@ async function ensureBillingSchema(executor) {
     ADD COLUMN IF NOT EXISTS description TEXT
   `)
   await executor.query(`
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS referral_discount_start_count INTEGER NOT NULL DEFAULT 1
+  `)
+  await executor.query(`
+    ALTER TABLE billing_plans
+    ADD COLUMN IF NOT EXISTS referral_discount_unit_supply_amount INTEGER NOT NULL DEFAULT 1000
+  `)
+  await executor.query(`
     INSERT INTO billing_plans (
-      code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active, allows_referral_discount
+      code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active,
+      allows_referral_discount, referral_discount_start_count, referral_discount_unit_supply_amount
     )
-    VALUES ('monthly_basic', '월 이용료', 8800, 8000, 0.1, true, 'monthly', true, true)
+    VALUES ('monthly_basic', '월 이용료', 8800, 8000, 0.1, true, 'monthly', true, true, 1, 1000)
     ON CONFLICT (code) DO UPDATE
       SET name = EXCLUDED.name,
           amount = EXCLUDED.amount,
@@ -3462,13 +3471,16 @@ async function ensureBillingSchema(executor) {
           cycle = EXCLUDED.cycle,
           is_active = EXCLUDED.is_active,
           allows_referral_discount = EXCLUDED.allows_referral_discount,
+          referral_discount_start_count = EXCLUDED.referral_discount_start_count,
+          referral_discount_unit_supply_amount = EXCLUDED.referral_discount_unit_supply_amount,
           updated_at = NOW()
   `)
   await executor.query(`
     INSERT INTO billing_plans (
-      code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active, allows_referral_discount
+      code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active,
+      allows_referral_discount, referral_discount_start_count, referral_discount_unit_supply_amount
     )
-    VALUES ('monthly_discount', '할인 이용료', 5500, 5000, 0.1, true, 'monthly', true, false)
+    VALUES ('monthly_discount', '할인 이용료', 5500, 5000, 0.1, true, 'monthly', true, true, 4, 1000)
     ON CONFLICT (code) DO UPDATE
       SET name = EXCLUDED.name,
           amount = EXCLUDED.amount,
@@ -3478,6 +3490,8 @@ async function ensureBillingSchema(executor) {
           cycle = EXCLUDED.cycle,
           is_active = EXCLUDED.is_active,
           allows_referral_discount = EXCLUDED.allows_referral_discount,
+          referral_discount_start_count = EXCLUDED.referral_discount_start_count,
+          referral_discount_unit_supply_amount = EXCLUDED.referral_discount_unit_supply_amount,
           updated_at = NOW()
   `)
 

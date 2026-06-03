@@ -3,6 +3,7 @@ import {
   BILLING_PLANS,
   VAT_RATE,
   buildPlanDefinitionFromDbRow,
+  calculateFreeReferralCount,
   calculateVatIncludedPrice,
   resolveBillingPlan,
 } from '../lib/pricingPolicy.js'
@@ -11,11 +12,13 @@ import { systemQuery } from '../utils/dbSafeQuery.js'
 
 const PLAN_ROW_SELECT = `
   code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active,
-  allows_referral_discount, description, created_at, updated_at
+  allows_referral_discount, referral_discount_start_count, referral_discount_unit_supply_amount,
+  description, created_at, updated_at
 `
 
 function mapPlanRowToAdminDto(row) {
   const plan = buildPlanDefinitionFromDbRow(row)
+  const freeReferralCount = calculateFreeReferralCount(plan)
   return {
     planCode: plan.code,
     dbCode: plan.dbCode,
@@ -28,6 +31,9 @@ function mapPlanRowToAdminDto(row) {
     displayPrice: plan.displayPrice,
     displayPriceWithVatNote: plan.displayPriceWithVatNote,
     allowsReferralDiscount: plan.allowsReferralDiscount,
+    referralDiscountStartCount: plan.referralDiscountStartCount,
+    referralDiscountUnitSupplyAmount: plan.referralDiscountUnitSupplyAmount,
+    freeReferralCount,
     isActive: row.is_active !== false,
     description: row.description ?? null,
     cycle: String(row.cycle ?? 'monthly'),
@@ -57,6 +63,8 @@ export async function listBillingPlanRows(executor, opts = {}) {
       bp.cycle,
       bp.is_active,
       bp.allows_referral_discount,
+      bp.referral_discount_start_count,
+      bp.referral_discount_unit_supply_amount,
       bp.description,
       bp.created_at,
       bp.updated_at,
@@ -148,6 +156,8 @@ export async function fetchBillingPlanDefinition(executor, planCodeOrDbCode, opt
  *   applyVat?: boolean;
  *   vatRate?: number;
  *   allowsReferralDiscount?: boolean;
+ *   referralDiscountStartCount?: number;
+ *   referralDiscountUnitSupplyAmount?: number;
  *   description?: string | null;
  *   isActive?: boolean;
  * }} body
@@ -194,6 +204,14 @@ export async function createBillingPlanAdmin(executor, body) {
   }
   const amounts = computeBillingPlanAmounts(body)
   const allowsReferralDiscount = body.allowsReferralDiscount !== false
+  const referralDiscountStartCount = Math.max(
+    1,
+    Math.round(Number(body.referralDiscountStartCount ?? 1) || 1),
+  )
+  const referralDiscountUnitSupplyAmount = Math.max(
+    1,
+    Math.round(Number(body.referralDiscountUnitSupplyAmount ?? 1000) || 1000),
+  )
   const description = String(body.description ?? '').trim() || null
   const isActive = body.isActive !== false
 
@@ -202,9 +220,10 @@ export async function createBillingPlanAdmin(executor, body) {
     `
     INSERT INTO billing_plans (
       code, name, amount, supply_amount, vat_rate, apply_vat, cycle, is_active,
-      allows_referral_discount, description
+      allows_referral_discount, referral_discount_start_count, referral_discount_unit_supply_amount,
+      description
     )
-    VALUES ($1, $2, $3, $4, $5, $6, 'monthly', $7, $8, $9)
+    VALUES ($1, $2, $3, $4, $5, $6, 'monthly', $7, $8, $9, $10, $11)
     `,
     [
       code,
@@ -215,6 +234,8 @@ export async function createBillingPlanAdmin(executor, body) {
       amounts.applyVat,
       isActive,
       allowsReferralDiscount,
+      referralDiscountStartCount,
+      referralDiscountUnitSupplyAmount,
       description,
     ],
   )
@@ -255,6 +276,14 @@ export async function updateBillingPlanAdmin(executor, code, body) {
     body.allowsReferralDiscount != null
       ? body.allowsReferralDiscount !== false
       : existing.allows_referral_discount !== false
+  const referralDiscountStartCount =
+    body.referralDiscountStartCount != null
+      ? Math.max(1, Math.round(Number(body.referralDiscountStartCount) || 1))
+      : Math.max(1, Math.round(Number(existing.referral_discount_start_count ?? 1) || 1))
+  const referralDiscountUnitSupplyAmount =
+    body.referralDiscountUnitSupplyAmount != null
+      ? Math.max(1, Math.round(Number(body.referralDiscountUnitSupplyAmount) || 1000))
+      : Math.max(1, Math.round(Number(existing.referral_discount_unit_supply_amount ?? 1000) || 1000))
   const description =
     body.description != null ? String(body.description).trim() || null : existing.description ?? null
   const isActive = body.isActive != null ? body.isActive !== false : existing.is_active !== false
@@ -269,8 +298,10 @@ export async function updateBillingPlanAdmin(executor, code, body) {
         vat_rate = $5,
         apply_vat = $6,
         allows_referral_discount = $7,
-        description = $8,
-        is_active = $9,
+        referral_discount_start_count = $8,
+        referral_discount_unit_supply_amount = $9,
+        description = $10,
+        is_active = $11,
         updated_at = NOW()
     WHERE code = $1
     `,
@@ -282,6 +313,8 @@ export async function updateBillingPlanAdmin(executor, code, body) {
       amounts.vatRate,
       amounts.applyVat,
       allowsReferralDiscount,
+      referralDiscountStartCount,
+      referralDiscountUnitSupplyAmount,
       description,
       isActive,
     ],
