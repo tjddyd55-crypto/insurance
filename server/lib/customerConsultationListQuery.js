@@ -10,6 +10,45 @@ import {
 
 /** @typedef {'none' | 'has' | 'no_since' | null} ConsultationFilterMode */
 
+/** @type {Record<string, string>} */
+const CONSULTATION_STATUS_ALIASES = {
+  all: '',
+  none: 'none',
+  no_consultation: 'none',
+  has: 'has',
+  has_consultation: 'has',
+  no_since: 'no_since',
+  no_consultation_since: 'no_since',
+}
+
+/**
+ * @param {unknown} raw
+ */
+function normalizeConsultationStatusRaw(raw) {
+  const s = String(raw ?? '')
+    .trim()
+    .toLowerCase()
+  if (!s) {
+    return ''
+  }
+  return CONSULTATION_STATUS_ALIASES[s] ?? s
+}
+
+/**
+ * @param {Record<string, unknown>} query
+ * @returns {string}
+ */
+function readConsultationReferenceDate(query) {
+  const cutoffRaw =
+    query?.consultationReferenceDate ??
+    query?.consultation_reference_date ??
+    query?.noConsultationSince ??
+    query?.no_consultation_since ??
+    query?.consultationCutoffDate ??
+    query?.consultation_cutoff_date
+  return cutoffRaw == null ? '' : String(cutoffRaw).trim()
+}
+
 /**
  * @param {unknown} raw
  */
@@ -29,17 +68,12 @@ export function parseConsultationFilterQuery(query) {
   const legacyRaw = query?.consultationFilter ?? query?.consultation_filter
   const filterRaw =
     statusRaw != null && String(statusRaw).trim() !== ''
-      ? String(statusRaw).trim().toLowerCase()
+      ? normalizeConsultationStatusRaw(statusRaw)
       : legacyRaw == null
         ? ''
-        : String(legacyRaw).trim().toLowerCase()
+        : normalizeConsultationStatusRaw(legacyRaw)
 
-  const cutoffRaw =
-    query?.noConsultationSince ??
-    query?.no_consultation_since ??
-    query?.consultationCutoffDate ??
-    query?.consultation_cutoff_date
-  const cutoff = cutoffRaw == null ? '' : String(cutoffRaw).trim()
+  const cutoff = readConsultationReferenceDate(query)
 
   if (!filterRaw || filterRaw === 'all') {
     if (/^\d{4}-\d{2}-\d{2}$/.test(cutoff)) {
@@ -322,6 +356,8 @@ export function buildConsultationFilterSql(mode, cutoffDate) {
     }
   }
   if (mode === 'no_since' && cutoffDate) {
+    // lc.last_consult_date = MAX(consultation_date) 이므로
+    // NOT EXISTS (... consultation_date >= cutoff) 와 동치 (기준일 당일 상담도 제외).
     return {
       clause: '(lc.last_consult_date IS NULL OR lc.last_consult_date < $CUTOFF::date)',
       params: [cutoffDate],

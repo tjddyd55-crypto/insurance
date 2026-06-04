@@ -73,6 +73,34 @@ test('parseConsultationFilterQuery — noConsultationSince alone implies no_sinc
   })
 })
 
+test('parseConsultationFilterQuery — consultationReferenceDate alias', () => {
+  assert.deepEqual(
+    parseConsultationFilterQuery({
+      consultationStatus: 'no_consultation_since',
+      consultationReferenceDate: '2026-06-01',
+    }),
+    { mode: 'no_since', cutoffDate: '2026-06-01', error: null },
+  )
+})
+
+test('parseConsultationFilterQuery — has_consultation and no_consultation aliases', () => {
+  assert.deepEqual(parseConsultationFilterQuery({ consultationStatus: 'has_consultation' }), {
+    mode: 'has',
+    cutoffDate: null,
+    error: null,
+  })
+  assert.deepEqual(parseConsultationFilterQuery({ consultationStatus: 'no_consultation' }), {
+    mode: 'none',
+    cutoffDate: null,
+    error: null,
+  })
+})
+
+test('buildConsultationFilterSql — no_since excludes consult on or after reference date', () => {
+  const { clause } = buildConsultationFilterSql('no_since', '2026-06-01')
+  assert.match(clause, /lc\.last_consult_date IS NULL OR lc\.last_consult_date < \$CUTOFF::date/)
+})
+
 test('buildConsultationFilterSql — none', () => {
   const { clause, params } = buildConsultationFilterSql('none', null)
   assert.match(clause, /consultation_count/)

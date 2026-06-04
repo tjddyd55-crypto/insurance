@@ -3127,6 +3127,77 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   align-items: center;
 }
 
+.customers-advanced-filters--consultation-primary {
+  margin-bottom: 8px;
+}
+
+.customers-advanced-filters--consultation-keyword {
+  margin-bottom: 8px;
+  padding-top: 10px;
+  border-style: dashed;
+  background: color-mix(in srgb, var(--bg) 92%, var(--text-sub) 8%);
+}
+
+.customers-advanced-filters__section-hint {
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  color: var(--text-sub);
+}
+
+.customers-advanced-filters__field--wide {
+  grid-column: 1 / -1;
+}
+
+.customers-advanced-filters__grid--consultation-primary {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.customers-advanced-filters__details {
+  margin-bottom: 10px;
+  padding: 0 12px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  box-sizing: border-box;
+}
+
+.customers-advanced-filters__details-summary {
+  cursor: pointer;
+  padding: 10px 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-main);
+  list-style: none;
+}
+
+.customers-advanced-filters__details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.customers-advanced-filters__details-summary::before {
+  content: '▸ ';
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.customers-advanced-filters__details[open] .customers-advanced-filters__details-summary::before,
+.customers-advanced-filters__details--open .customers-advanced-filters__details-summary::before {
+  transform: rotate(90deg);
+}
+
+.customers-advanced-filters__grid--consultation-detail {
+  margin-top: 4px;
+}
+
+.customers-page--mobile .customers-advanced-filters__grid--consultation-primary,
+.customers-page--mobile .customers-advanced-filters__grid--consultation-detail {
+  grid-template-columns: 1fr;
+}
+
+.customers-page--mobile .customers-advanced-filters--consultation-keyword {
+  padding: 10px;
+}
+
 /* 고객관리: CTA·필터 계층 (리스트 중심 UI) */
 .filter-group {
   display: flex;

@@ -98,8 +98,16 @@ function dedupeCustomersById(rows: CustomerRecord[]): CustomerRecord[] {
 export type ListCustomersOptions = {
   limit?: number
   consultationFilter?: '' | 'none' | 'has' | 'no_since'
-  consultationStatus?: 'all' | 'none' | 'has' | 'no_since'
+  consultationStatus?:
+    | 'all'
+    | 'none'
+    | 'has'
+    | 'no_since'
+    | 'has_consultation'
+    | 'no_consultation'
+    | 'no_consultation_since'
   consultationCutoffDate?: string
+  consultationReferenceDate?: string
   noConsultationSince?: string
   consultationKeyword?: string
   consultationFrom?: string
@@ -120,13 +128,20 @@ function appendListCustomersQuery(q: URLSearchParams, opts: ListCustomersOptions
     (opts.consultationFilter === 'none' || opts.consultationFilter === 'has' || opts.consultationFilter === 'no_since'
       ? opts.consultationFilter
       : undefined)
+  const statusParamMap: Record<string, string> = {
+    none: 'no_consultation',
+    has: 'has_consultation',
+    no_since: 'no_consultation_since',
+  }
   if (status === 'none' || status === 'has' || status === 'no_since') {
-    q.set('consultationStatus', status)
+    q.set('consultationStatus', statusParamMap[status] ?? status)
+    q.set('consultationFilter', status)
   } else if (opts.consultationFilter === 'none' || opts.consultationFilter === 'no_since') {
     q.set('consultationFilter', opts.consultationFilter)
   }
-  const cutoff = (opts.noConsultationSince ?? opts.consultationCutoffDate)?.trim()
+  const cutoff = (opts.consultationReferenceDate ?? opts.noConsultationSince ?? opts.consultationCutoffDate)?.trim()
   if (cutoff) {
+    q.set('consultationReferenceDate', cutoff)
     q.set('noConsultationSince', cutoff)
   }
   const keyword = opts.consultationKeyword?.trim()
