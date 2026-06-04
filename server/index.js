@@ -55,6 +55,7 @@ import {
 import { isValidSignupUsername, validateSignupUsername } from './lib/signupUsername.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import { mapCustomerRow } from './lib/customerRowMap.js'
+import { dedupeCustomersForSearch } from './lib/customerSearchDedupe.js'
 import {
   buildCustomerConsultationSummaryJoin,
   buildCustomerFollowUpSummaryJoin,
@@ -6729,7 +6730,16 @@ apiRouter.get('/customers/search', requireAuth, async (req, res) => {
       }
     }
 
-    res.json(result.rows.map(mapCustomerRow))
+    const mapped = result.rows.map(mapCustomerRow)
+    const { customers, meta } = dedupeCustomersForSearch(mapped)
+    if (process.env.NODE_ENV !== 'production' && meta.beforeCount !== meta.afterCount) {
+      console.info('[customers/search] search deduped', {
+        q: q || null,
+        before: meta.beforeCount,
+        after: meta.afterCount,
+      })
+    }
+    res.json(customers)
   } catch (error) {
     handleDbError(error, req, res)
   }
