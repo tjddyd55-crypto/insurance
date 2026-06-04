@@ -78,9 +78,19 @@ export function resolveApplicationCustomerAutoMatch(
   return { kind: 'skipped', reason: 'multiple distinct customers', count: rows.length }
 }
 
-export function logApplicationCustomerAutoMatchDebug(result: ApplicationCustomerAutoMatchResult): void {
+export function logApplicationCustomerAutoMatchDebug(
+  result: ApplicationCustomerAutoMatchResult,
+  hints?: PdfCustomerSearchHints,
+): void {
   if (!import.meta.env.DEV) {
     return
+  }
+  if (hints) {
+    console.debug('auto match hint', {
+      name: hints.name || undefined,
+      phone: hints.phone ? '[redacted]' : undefined,
+      birth: hints.birthDate || hints.residentRegistrationNumber ? '[set]' : undefined,
+    })
   }
   if (result.kind === 'selected') {
     console.debug(`auto match selected: customerId=${result.customer.id}`)
@@ -92,5 +102,37 @@ export function logApplicationCustomerAutoMatchDebug(result: ApplicationCustomer
   }
   if (result.reason === 'no candidates') {
     console.debug('auto match skipped: no candidates')
+    return
   }
+  if (result.reason === 'no query') {
+    console.debug('auto match skipped: no hint')
+  }
+}
+
+export function logManualCustomerSearchDebug(q: string, resultCount: number): void {
+  if (!import.meta.env.DEV) {
+    return
+  }
+  console.debug('manual customer search', { q, resultCount })
+}
+
+export function logManualCustomerSearchResultsRendered(): void {
+  if (!import.meta.env.DEV) {
+    return
+  }
+  console.debug('manual customer search results rendered')
+}
+
+export function logManualCustomerCandidateSelected(customerId: number): void {
+  if (!import.meta.env.DEV) {
+    return
+  }
+  console.debug(`manual customer candidate selected: customerId=${customerId}`)
+}
+
+export function logSelectedCustomerDataLoaded(customerId: number): void {
+  if (!import.meta.env.DEV) {
+    return
+  }
+  console.debug(`selected customer data loaded: customerId=${customerId}`)
 }
