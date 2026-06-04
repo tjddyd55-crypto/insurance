@@ -43,6 +43,10 @@ import {
   buildApplicationCustomerSearchQuery,
   extractCustomerSearchHintsFromPdfForm,
   logApplicationCustomerAutoMatchDebug,
+  logManualCustomerCandidateSelected,
+  logManualCustomerSearchDebug,
+  logManualCustomerSearchResultsRendered,
+  logSelectedCustomerDataLoaded,
   resolveApplicationCustomerAutoMatch,
 } from '../lib/pdfApplicationCustomerAutoMatch'
 import '../pdf-engine.css'
@@ -166,7 +170,11 @@ export default function PdfDocumentDetailPage() {
   const [overwriteCustomerOnLoad, setOverwriteCustomerOnLoad] = useState(false)
   const [customerLoadHint, setCustomerLoadHint] = useState<string | null>(null)
   const [cachedCustomer, setCachedCustomer] = useState<CustomerRecord | null>(null)
-  const [selectedCustomer, setSelectedCustomer] = useState<PdfSelectedCustomerSummary | null>(null)
+  /** 검색 결과에서 “선택”한 고객 후보 — 아직 신청서 필드에 반영 전 */
+  const [selectedCustomerCandidate, setSelectedCustomerCandidate] =
+    useState<PdfSelectedCustomerSummary | null>(null)
+  /** “선택 고객 데이터 불러오기”로 실제 반영된 고객 */
+  const [appliedCustomer, setAppliedCustomer] = useState<PdfSelectedCustomerSummary | null>(null)
   const [showCustomerSearch, setShowCustomerSearch] = useState(false)
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
   const [customerSearchBusy, setCustomerSearchBusy] = useState(false)
@@ -174,8 +182,8 @@ export default function PdfDocumentDetailPage() {
   const [customerSearchResults, setCustomerSearchResults] = useState<PdfSelectedCustomerSummary[]>([])
   const [pdfCustomerCars, setPdfCustomerCars] = useState<CustomerCarRecord[]>([])
   const [selectedPdfCarId, setSelectedPdfCarId] = useState<number | null>(null)
-  const autoMatchAttemptedRef = useRef(false)
-  const manualCustomerSelectionRef = useRef(false)
+  const hasAttemptedAutoMatchRef = useRef(false)
+  const hasManualCustomerInteractionRef = useRef(false)
 
   const hasCarPdfMapping = state.status === 'ready' && hasCarMappedFields(state.fields)
 
@@ -195,8 +203,8 @@ export default function PdfDocumentDetailPage() {
   }, [hasCarPdfMapping, pdfCustomerCars, selectedPdfCarId])
 
   const effectiveCustomerId = useMemo(
-    () => selectedCustomer?.id ?? workspaceCustomerIdFromRoute ?? null,
-    [selectedCustomer, workspaceCustomerIdFromRoute],
+    () => appliedCustomer?.id ?? workspaceCustomerIdFromRoute ?? null,
+    [appliedCustomer, workspaceCustomerIdFromRoute],
   )
 
   const closePreview = () => {
@@ -391,15 +399,16 @@ export default function PdfDocumentDetailPage() {
   const workspaceCustomerLabel = displayCustomerLabel.trim() || null
 
   const loadCustomerButtonLabel = useMemo(() => {
-    if (selectedCustomer) return '선택 고객 데이터 불러오기'
+    if (selectedCustomerCandidate) return '선택 고객 데이터 불러오기'
     if (workspaceCustomerIdFromRoute != null) return '현재 고객 데이터 불러오기'
     return '고객 검색해서 불러오기'
-  }, [selectedCustomer, workspaceCustomerIdFromRoute])
+  }, [selectedCustomerCandidate, workspaceCustomerIdFromRoute])
 
   const effectiveCustomerLabelForFilename = useMemo(() => {
-    if (selectedCustomer?.name?.trim()) return selectedCustomer.name.trim()
+    if (appliedCustomer?.name?.trim()) return appliedCustomer.name.trim()
+    if (selectedCustomerCandidate?.name?.trim()) return selectedCustomerCandidate.name.trim()
     return displayCustomerLabel.trim()
-  }, [selectedCustomer, displayCustomerLabel])
+  }, [appliedCustomer, selectedCustomerCandidate, displayCustomerLabel])
 
   const resultPdfFilename = useMemo(() => {
     if (state.status !== 'ready') return '고객_신청서.pdf'
@@ -422,7 +431,7 @@ export default function PdfDocumentDetailPage() {
   )
 
   const loadCustomerIntoApplicantForm = useCallback(
-    async (customerId: number) => {
+    async (customerId: number, appliedSummary?: PdfSelectedCustomerSummary | null) => {
       if (!token?.trim() || state.status !== 'ready') {
         return
       }
@@ -438,6 +447,10 @@ export default function PdfDocumentDetailPage() {
           return
         }
         setCachedCustomer(customer)
+        const summary =
+          appliedSummary ?? customerRecordToSearchSummary(customer)
+        setAppliedCustomer(summary)
+        logSelectedCustomerDataLoaded(customerId)
         const fields = state.fields
         const useCarMerge = hasCarMappedFields(fields)
         let overlayCarResolved: CustomerCarRecord | null = null
@@ -485,6 +498,7 @@ export default function PdfDocumentDetailPage() {
       cachedCustomer,
       overwriteCustomerOnLoad,
       selectedPdfCarId,
+      customerRecordToSearchSummary,
     ],
   )
 
@@ -495,24 +509,21 @@ export default function PdfDocumentDetailPage() {
       setCustomerSearchError('검색어를 입력해 주세요.')
       return
     }
+    hasManualCustomerInteractionRef.current = true
+    hasAttemptedAutoMatchRef.current = true
     setCustomerSearchBusy(true)
     setCustomerSearchError(null)
+    setSelectedCustomerCandidate(null)
     try {
       const rows = await searchCustomers(token, q, {
         scopeGaId: scopeGaId != null && Number(scopeGaId) > 0 ? Number(scopeGaId) : null,
       })
-      const match = resolveApplicationCustomerAutoMatch(rows)
-      logApplicationCustomerAutoMatchDebug(match)
-      if (match.kind === 'selected') {
-        manualCustomerSelectionRef.current = true
-        setSelectedCustomer(customerRecordToSearchSummary(match.customer))
-        setCustomerSearchResults([])
-        setShowCustomerSearch(false)
-        setCustomerSearchError(null)
-        await loadCustomerIntoApplicantForm(match.customer.id)
-        return
+      logManualCustomerSearchDebug(q, rows.length)
+      const summaries = rows.map(customerRecordToSearchSummary)
+      setCustomerSearchResults(summaries)
+      if (summaries.length > 0) {
+        logManualCustomerSearchResultsRendered()
       }
-      setCustomerSearchResults(rows.map(customerRecordToSearchSummary))
     } catch (e) {
       setCustomerSearchResults([])
       setCustomerSearchError(
@@ -521,13 +532,7 @@ export default function PdfDocumentDetailPage() {
     } finally {
       setCustomerSearchBusy(false)
     }
-  }, [
-    token,
-    customerSearchQuery,
-    scopeGaId,
-    customerRecordToSearchSummary,
-    loadCustomerIntoApplicantForm,
-  ])
+  }, [token, customerSearchQuery, scopeGaId, customerRecordToSearchSummary])
 
   useEffect(() => {
     if (state.status !== 'ready' || !token?.trim()) {
@@ -536,13 +541,16 @@ export default function PdfDocumentDetailPage() {
     if (workspaceCustomerIdFromRoute != null) {
       return
     }
-    if (selectedCustomer != null) {
+    if (appliedCustomer != null) {
       return
     }
-    if (manualCustomerSelectionRef.current) {
+    if (selectedCustomerCandidate != null) {
       return
     }
-    if (autoMatchAttemptedRef.current) {
+    if (hasManualCustomerInteractionRef.current) {
+      return
+    }
+    if (hasAttemptedAutoMatchRef.current) {
       return
     }
     if (sourceIssuanceId != null && sourcePrefill.kind === 'loading') {
@@ -555,7 +563,7 @@ export default function PdfDocumentDetailPage() {
       return
     }
 
-    autoMatchAttemptedRef.current = true
+    hasAttemptedAutoMatchRef.current = true
     let cancelled = false
 
     void (async () => {
@@ -567,12 +575,13 @@ export default function PdfDocumentDetailPage() {
           return
         }
         const match = resolveApplicationCustomerAutoMatch(rows)
-        logApplicationCustomerAutoMatchDebug(match)
+        logApplicationCustomerAutoMatchDebug(match, hints)
         if (match.kind !== 'selected') {
           return
         }
-        setSelectedCustomer(customerRecordToSearchSummary(match.customer))
-        await loadCustomerIntoApplicantForm(match.customer.id)
+        const summary = customerRecordToSearchSummary(match.customer)
+        setSelectedCustomerCandidate(summary)
+        await loadCustomerIntoApplicantForm(match.customer.id, summary)
       } catch {
         // 수동 검색으로 fallback
       }
@@ -585,7 +594,8 @@ export default function PdfDocumentDetailPage() {
     state.status,
     token,
     workspaceCustomerIdFromRoute,
-    selectedCustomer,
+    appliedCustomer,
+    selectedCustomerCandidate,
     sourceIssuanceId,
     sourcePrefill.kind,
     issuerCustomerLabel,
@@ -598,31 +608,46 @@ export default function PdfDocumentDetailPage() {
 
   const handleSelectSearchedCustomer = useCallback(
     (customer: PdfSelectedCustomerSummary) => {
-      manualCustomerSelectionRef.current = true
-      setSelectedCustomer(customer)
+      hasManualCustomerInteractionRef.current = true
+      hasAttemptedAutoMatchRef.current = true
+      setSelectedCustomerCandidate(customer)
       setCachedCustomer(null)
       setShowCustomerSearch(false)
       setCustomerSearchError(null)
-      setCustomerLoadHint(null)
+      setCustomerLoadHint('「선택 고객 데이터 불러오기」를 눌러 신청서에 반영하세요.')
+      logManualCustomerCandidateSelected(customer.id)
     },
     [],
   )
 
   const handleClearSelectedCustomer = useCallback(() => {
-    setSelectedCustomer(null)
+    setSelectedCustomerCandidate(null)
+    setAppliedCustomer(null)
     setCachedCustomer(null)
     setCustomerLoadHint(null)
   }, [])
 
   const handleLoadCustomerData = useCallback(async () => {
     if (!token?.trim()) return
-    if (effectiveCustomerId == null) {
-      setShowCustomerSearch(true)
-      setCustomerLoadHint('고객을 검색해서 선택한 뒤 데이터를 불러올 수 있습니다.')
+    if (selectedCustomerCandidate != null) {
+      await loadCustomerIntoApplicantForm(
+        selectedCustomerCandidate.id,
+        selectedCustomerCandidate,
+      )
       return
     }
-    await loadCustomerIntoApplicantForm(effectiveCustomerId)
-  }, [token, effectiveCustomerId, loadCustomerIntoApplicantForm])
+    if (workspaceCustomerIdFromRoute != null) {
+      await loadCustomerIntoApplicantForm(workspaceCustomerIdFromRoute)
+      return
+    }
+    setShowCustomerSearch(true)
+    setCustomerLoadHint('고객을 검색해서 선택한 뒤 데이터를 불러올 수 있습니다.')
+  }, [
+    token,
+    selectedCustomerCandidate,
+    workspaceCustomerIdFromRoute,
+    loadCustomerIntoApplicantForm,
+  ])
 
   const handleSubmitApplicant = useCallback(
     async (values: Record<string, string>, persistFonts: Record<string, number>) => {
@@ -703,7 +728,7 @@ export default function PdfDocumentDetailPage() {
       submitting,
       workspaceCustomerId: workspaceCustomerIdFromRoute,
       workspaceCustomerLabel,
-      selectedCustomer,
+      selectedCustomer: selectedCustomerCandidate,
       effectiveCustomerId,
       loadCustomerButtonLabel,
       customerLoadHint,
@@ -751,7 +776,7 @@ export default function PdfDocumentDetailPage() {
     handleSubmitApplicant,
     workspaceCustomerIdFromRoute,
     workspaceCustomerLabel,
-    selectedCustomer,
+    selectedCustomerCandidate,
     effectiveCustomerId,
     loadCustomerButtonLabel,
     customerLoadHint,
