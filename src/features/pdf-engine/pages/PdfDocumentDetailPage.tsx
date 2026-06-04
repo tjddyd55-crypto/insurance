@@ -2,7 +2,7 @@
  * 사용자용 문서 상세 — PC/모바일 분리 뷰 + 실시간 PDF 오버레이 미리보기.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
@@ -39,6 +39,12 @@ import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
 import { DEFAULT_PDF_FIELD_DATA_MAPPING } from '../types'
 import { usePdfDocumentsWorkspacePaths } from '../utils/pdfCustomerWorkspacePaths'
 import { buildPdfIssuanceDisplayFilename } from '../utils/pdfIssuanceFilename'
+import {
+  buildApplicationCustomerSearchQuery,
+  extractCustomerSearchHintsFromPdfForm,
+  logApplicationCustomerAutoMatchDebug,
+  resolveApplicationCustomerAutoMatch,
+} from '../lib/pdfApplicationCustomerAutoMatch'
 import '../pdf-engine.css'
 
 function coercePdfFieldSpecForForm(f: PdfFieldSpec & { id?: number }): PdfFieldSpec {
@@ -168,6 +174,8 @@ export default function PdfDocumentDetailPage() {
   const [customerSearchResults, setCustomerSearchResults] = useState<PdfSelectedCustomerSummary[]>([])
   const [pdfCustomerCars, setPdfCustomerCars] = useState<CustomerCarRecord[]>([])
   const [selectedPdfCarId, setSelectedPdfCarId] = useState<number | null>(null)
+  const autoMatchAttemptedRef = useRef(false)
+  const manualCustomerSelectionRef = useRef(false)
 
   const hasCarPdfMapping = state.status === 'ready' && hasCarMappedFields(state.fields)
 
@@ -404,6 +412,82 @@ export default function PdfDocumentDetailPage() {
 
   const scopeGaId = user?.gaId ?? null
 
+  const customerRecordToSearchSummary = useCallback(
+    (row: CustomerRecord): PdfSelectedCustomerSummary => ({
+      id: row.id,
+      name: row.name?.trim() || `고객 #${row.id}`,
+      phone: (row.phone || row.phoneNumber || '').trim() || undefined,
+    }),
+    [],
+  )
+
+  const loadCustomerIntoApplicantForm = useCallback(
+    async (customerId: number) => {
+      if (!token?.trim() || state.status !== 'ready') {
+        return
+      }
+      setLoadingCustomerData(true)
+      setCustomerLoadHint(null)
+      try {
+        const customer =
+          cachedCustomer?.id === customerId
+            ? cachedCustomer
+            : await getCustomerById(token, customerId)
+        if (!customer) {
+          setCustomerLoadHint('고객 정보를 찾을 수 없습니다.')
+          return
+        }
+        setCachedCustomer(customer)
+        const fields = state.fields
+        const useCarMerge = hasCarMappedFields(fields)
+        let overlayCarResolved: CustomerCarRecord | null = null
+        if (useCarMerge) {
+          const rawCars = await listCustomerCars(token, customerId)
+          const sorted = sortCustomerCarsForPicker(rawCars)
+          setPdfCustomerCars(sorted)
+          const keep = selectedPdfCarId != null && sorted.some((c) => c.id === selectedPdfCarId)
+          const sid = keep ? selectedPdfCarId : sorted[0]?.id ?? null
+          setSelectedPdfCarId(sid)
+          overlayCarResolved = sid != null ? sorted.find((c) => c.id === sid) ?? null : null
+        }
+
+        const customerForPdf = useCarMerge
+          ? customerWithSelectedCar(customer, overlayCarResolved)
+          : customer
+
+        setApplicantValues((prev) =>
+          applyCustomerDataToPdfValues(fields, prev, customerForPdf, {
+            overwriteMode: overwriteCustomerOnLoad,
+          }),
+        )
+        const mappedCount = state.fields.filter(
+          (f) =>
+            f.dataMapping.dataSourceType === 'customer' &&
+            f.dataMapping.customerFieldKey &&
+            (f.fieldType === 'text' || f.fieldType === 'textarea'),
+        ).length
+        setCustomerLoadHint(
+          mappedCount > 0
+            ? `매핑된 ${mappedCount}개 항목에 고객 정보를 반영했습니다.`
+            : '고객 데이터 매핑이 설정된 텍스트 필드가 없습니다.',
+        )
+      } catch (e) {
+        setCustomerLoadHint(
+          e instanceof ApiError ? e.message : '고객 데이터를 불러오지 못했습니다.',
+        )
+      } finally {
+        setLoadingCustomerData(false)
+      }
+    },
+    [
+      token,
+      state,
+      cachedCustomer,
+      overwriteCustomerOnLoad,
+      selectedPdfCarId,
+    ],
+  )
+
   const handleCustomerSearchSubmit = useCallback(async () => {
     if (!token?.trim()) return
     const q = customerSearchQuery.trim()
@@ -417,13 +501,18 @@ export default function PdfDocumentDetailPage() {
       const rows = await searchCustomers(token, q, {
         scopeGaId: scopeGaId != null && Number(scopeGaId) > 0 ? Number(scopeGaId) : null,
       })
-      setCustomerSearchResults(
-        rows.map((row) => ({
-          id: row.id,
-          name: row.name?.trim() || `고객 #${row.id}`,
-          phone: (row.phone || row.phoneNumber || '').trim() || undefined,
-        })),
-      )
+      const match = resolveApplicationCustomerAutoMatch(rows)
+      logApplicationCustomerAutoMatchDebug(match)
+      if (match.kind === 'selected') {
+        manualCustomerSelectionRef.current = true
+        setSelectedCustomer(customerRecordToSearchSummary(match.customer))
+        setCustomerSearchResults([])
+        setShowCustomerSearch(false)
+        setCustomerSearchError(null)
+        await loadCustomerIntoApplicantForm(match.customer.id)
+        return
+      }
+      setCustomerSearchResults(rows.map(customerRecordToSearchSummary))
     } catch (e) {
       setCustomerSearchResults([])
       setCustomerSearchError(
@@ -432,15 +521,92 @@ export default function PdfDocumentDetailPage() {
     } finally {
       setCustomerSearchBusy(false)
     }
-  }, [token, customerSearchQuery, scopeGaId])
+  }, [
+    token,
+    customerSearchQuery,
+    scopeGaId,
+    customerRecordToSearchSummary,
+    loadCustomerIntoApplicantForm,
+  ])
 
-  const handleSelectSearchedCustomer = useCallback((customer: PdfSelectedCustomerSummary) => {
-    setSelectedCustomer(customer)
-    setCachedCustomer(null)
-    setShowCustomerSearch(false)
-    setCustomerSearchError(null)
-    setCustomerLoadHint(null)
-  }, [])
+  useEffect(() => {
+    if (state.status !== 'ready' || !token?.trim()) {
+      return
+    }
+    if (workspaceCustomerIdFromRoute != null) {
+      return
+    }
+    if (selectedCustomer != null) {
+      return
+    }
+    if (manualCustomerSelectionRef.current) {
+      return
+    }
+    if (autoMatchAttemptedRef.current) {
+      return
+    }
+    if (sourceIssuanceId != null && sourcePrefill.kind === 'loading') {
+      return
+    }
+
+    const hints = extractCustomerSearchHintsFromPdfForm(state.fields, applicantValues)
+    const q = buildApplicationCustomerSearchQuery(hints, issuerCustomerLabel)
+    if (!q) {
+      return
+    }
+
+    autoMatchAttemptedRef.current = true
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const rows = await searchCustomers(token, q, {
+          scopeGaId: scopeGaId != null && Number(scopeGaId) > 0 ? Number(scopeGaId) : null,
+        })
+        if (cancelled) {
+          return
+        }
+        const match = resolveApplicationCustomerAutoMatch(rows)
+        logApplicationCustomerAutoMatchDebug(match)
+        if (match.kind !== 'selected') {
+          return
+        }
+        setSelectedCustomer(customerRecordToSearchSummary(match.customer))
+        await loadCustomerIntoApplicantForm(match.customer.id)
+      } catch {
+        // 수동 검색으로 fallback
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [
+    state.status,
+    token,
+    workspaceCustomerIdFromRoute,
+    selectedCustomer,
+    sourceIssuanceId,
+    sourcePrefill.kind,
+    issuerCustomerLabel,
+    applicantValues,
+    scopeGaId,
+    state.status === 'ready' ? state.fields : null,
+    customerRecordToSearchSummary,
+    loadCustomerIntoApplicantForm,
+  ])
+
+  const handleSelectSearchedCustomer = useCallback(
+    (customer: PdfSelectedCustomerSummary) => {
+      manualCustomerSelectionRef.current = true
+      setSelectedCustomer(customer)
+      setCachedCustomer(null)
+      setShowCustomerSearch(false)
+      setCustomerSearchError(null)
+      setCustomerLoadHint(null)
+    },
+    [],
+  )
 
   const handleClearSelectedCustomer = useCallback(() => {
     setSelectedCustomer(null)
@@ -455,67 +621,8 @@ export default function PdfDocumentDetailPage() {
       setCustomerLoadHint('고객을 검색해서 선택한 뒤 데이터를 불러올 수 있습니다.')
       return
     }
-    if (state.status !== 'ready') return
-    setLoadingCustomerData(true)
-    setCustomerLoadHint(null)
-    try {
-      const customer =
-        cachedCustomer?.id === effectiveCustomerId
-          ? cachedCustomer
-          : await getCustomerById(token, effectiveCustomerId)
-      if (!customer) {
-        setCustomerLoadHint('고객 정보를 찾을 수 없습니다.')
-        return
-      }
-      setCachedCustomer(customer)
-      const fields = state.fields
-      const useCarMerge = hasCarMappedFields(fields)
-      let overlayCarResolved: CustomerCarRecord | null = null
-      if (useCarMerge) {
-        const rawCars = await listCustomerCars(token, effectiveCustomerId)
-        const sorted = sortCustomerCarsForPicker(rawCars)
-        setPdfCustomerCars(sorted)
-        const keep = selectedPdfCarId != null && sorted.some((c) => c.id === selectedPdfCarId)
-        const sid = keep ? selectedPdfCarId : sorted[0]?.id ?? null
-        setSelectedPdfCarId(sid)
-        overlayCarResolved = sid != null ? sorted.find((c) => c.id === sid) ?? null : null
-      }
-
-      const customerForPdf = useCarMerge
-        ? customerWithSelectedCar(customer, overlayCarResolved)
-        : customer
-
-      setApplicantValues((prev) =>
-        applyCustomerDataToPdfValues(fields, prev, customerForPdf, {
-          overwriteMode: overwriteCustomerOnLoad,
-        }),
-      )
-      const mappedCount = state.fields.filter(
-        (f) =>
-          f.dataMapping.dataSourceType === 'customer' &&
-          f.dataMapping.customerFieldKey &&
-          (f.fieldType === 'text' || f.fieldType === 'textarea'),
-      ).length
-      setCustomerLoadHint(
-        mappedCount > 0
-          ? `매핑된 ${mappedCount}개 항목에 고객 정보를 반영했습니다.`
-          : '고객 데이터 매핑이 설정된 텍스트 필드가 없습니다.',
-      )
-    } catch (e) {
-      setCustomerLoadHint(
-        e instanceof ApiError ? e.message : '고객 데이터를 불러오지 못했습니다.',
-      )
-    } finally {
-      setLoadingCustomerData(false)
-    }
-  }, [
-    token,
-    effectiveCustomerId,
-    state,
-    cachedCustomer,
-    overwriteCustomerOnLoad,
-    selectedPdfCarId,
-  ])
+    await loadCustomerIntoApplicantForm(effectiveCustomerId)
+  }, [token, effectiveCustomerId, loadCustomerIntoApplicantForm])
 
   const handleSubmitApplicant = useCallback(
     async (values: Record<string, string>, persistFonts: Record<string, number>) => {

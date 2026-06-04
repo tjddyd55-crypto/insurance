@@ -3,6 +3,11 @@ import { ApiError, apiRequest } from '../../../lib/apiClient'
 import type { CustomerNote, CustomerNotesBag, CustomerRecord } from '../domain/types'
 import { normalizeCustomerCrmExtension, type CustomerCrmExtension } from '../domain/crmExtension'
 import type { CustomerCarFormItem } from '../types/customerCarForm'
+import {
+  dedupeCustomersById,
+  dedupeCustomersForSearch,
+  logCustomerSearchDedupeDebug,
+} from '../utils/customerSearchDedupe'
 
 export type ListCustomersResult = {
   customers: CustomerRecord[]
@@ -80,19 +85,6 @@ function normalizeCustomerMutationResponse(raw: unknown): unknown {
     return o.data
   }
   return raw
-}
-
-function dedupeCustomersById(rows: CustomerRecord[]): CustomerRecord[] {
-  const seen = new Set<number>()
-  const deduped: CustomerRecord[] = []
-  for (const row of rows) {
-    if (seen.has(row.id)) {
-      continue
-    }
-    seen.add(row.id)
-    deduped.push(row)
-  }
-  return deduped
 }
 
 export type ListCustomersOptions = {
@@ -265,20 +257,22 @@ export async function searchCustomers(
   if (!Array.isArray(rows)) {
     throw new ApiError('고객 검색 응답 형식이 올바르지 않습니다.', 500)
   }
-  return dedupeCustomersById(
-    import.meta.env.DEV
-      ? rows.map((row, idx) => assertCustomerDataRecord(row, { listIndex: idx }))
-      : rows
-          .map((row) => {
-            try {
-              return assertCustomerDataRecord(row)
-            } catch (e) {
-              console.error('[searchCustomers] invalid row skipped', row, e)
-              return null
-            }
-          })
-          .filter((c): c is CustomerRecord => c != null),
-  )
+  const parsed = import.meta.env.DEV
+    ? rows.map((row, idx) => assertCustomerDataRecord(row, { listIndex: idx }))
+    : rows
+        .map((row) => {
+          try {
+            return assertCustomerDataRecord(row)
+          } catch (e) {
+            console.error('[searchCustomers] invalid row skipped', row, e)
+            return null
+          }
+        })
+        .filter((c): c is CustomerRecord => c != null)
+
+  const { customers, meta } = dedupeCustomersForSearch(parsed)
+  logCustomerSearchDedupeDebug(meta)
+  return customers
 }
 
 export async function getCustomerById(
