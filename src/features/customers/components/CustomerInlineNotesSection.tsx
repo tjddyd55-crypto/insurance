@@ -74,6 +74,9 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
 
   const insuranceHistory = normalizeCustomerNotesBag(customer.notes).insuranceHistory
 
+  /** 고객 메모 전용 화면(모바일·PC) — 수정/삭제/+할일 액션 SSOT */
+  const useWorkspaceMemoItemActions = workspaceMobileMemo || !showFileShortcut
+
   const sortedItems = useMemo(() => {
     return [...memos].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -212,12 +215,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
     }
     const ok = await confirm({
       title: '메모 삭제',
-      message: (
-        <>
-          <p className="m-0 mb-2">메모를 삭제하시겠습니까?</p>
-          <p className="m-0 text-sm text-[var(--text-secondary)]">삭제한 메모는 되돌릴 수 없습니다.</p>
-        </>
-      ),
+      message: '이 메모를 삭제합니다.',
       confirmLabel: '삭제',
       cancelLabel: '취소',
       tone: 'danger',
@@ -229,7 +227,15 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
   }
 
   return (
-    <div className={`customer-inline-notes mt-5${workspaceMobileMemo ? ' customer-inline-notes--workspace-mobile customer-workspace-mobile-scope' : ''}`}>
+    <div
+      className={`customer-inline-notes mt-5${
+        workspaceMobileMemo
+          ? ' customer-inline-notes--workspace-mobile customer-workspace-mobile-scope'
+          : useWorkspaceMemoItemActions
+            ? ' customer-inline-notes--workspace-pc'
+            : ''
+      }`}
+    >
       <div className="flex justify-between items-center mb-2 gap-2">
         <div className="customer-section-title !mt-0">[메모]</div>
         <div className="flex items-center gap-2 shrink-0">
@@ -307,23 +313,59 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
         <ul style={{ listStyle: 'none', padding: 0, margin: '8px 0 0' }}>
           {sortedItems.map((note) => {
             const dateToShow = note.createdAt
-            return (
-              <li
-                key={note.id}
-                className={`customer-inline-memo-row${workspaceMobileMemo ? ' customer-inline-memo-row--workspace-mobile' : ''}`}
-              >
-                <div
-                  className="customer-inline-memo-row__body"
-                  style={
-                    workspaceMobileMemo
-                      ? undefined
-                      : {
-                          minWidth: 0,
-                          flex: 1,
-                        }
-                  }
+            const rowClassName = [
+              'customer-inline-memo-row',
+              workspaceMobileMemo
+                ? 'customer-inline-memo-row--workspace-mobile'
+                : useWorkspaceMemoItemActions
+                  ? 'customer-inline-memo-row--workspace-pc'
+                  : '',
+            ]
+              .filter(Boolean)
+              .join(' ')
+            const memoItemActions = (
+              <CustomerWorkspaceItemActions layout={workspaceMobileMemo ? 'inline' : 'stacked'}>
+                <CustomerWorkspaceSecondaryActionButton
+                  aria-label="메모 수정"
+                  title="메모 수정"
+                  disabled={saving}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openEditMemoModal(note)
+                  }}
                 >
-                  {workspaceMobileMemo ? (
+                  수정
+                </CustomerWorkspaceSecondaryActionButton>
+                <CustomerWorkspaceDangerActionButton
+                  aria-label="메모 삭제"
+                  title="메모 삭제"
+                  disabled={saving}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void requestRemoveNote(note.id)
+                  }}
+                >
+                  삭제
+                </CustomerWorkspaceDangerActionButton>
+                {onAddTodoFromMemo ? (
+                  <CustomerWorkspaceSecondaryActionButton
+                    aria-label="+할일"
+                    title="+할일"
+                    disabled={saving}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onAddTodoFromMemo({ noteId: note.id, memoText: note.content })
+                    }}
+                  >
+                    +할일
+                  </CustomerWorkspaceSecondaryActionButton>
+                ) : null}
+              </CustomerWorkspaceItemActions>
+            )
+            return (
+              <li key={note.id} className={rowClassName}>
+                <div className="customer-inline-memo-row__body">
+                  {useWorkspaceMemoItemActions ? (
                     <>
                       <div className="customer-workspace-item-date">
                         {new Date(dateToShow).toLocaleString('ko-KR')}
@@ -339,96 +381,7 @@ export const CustomerInlineNotesSection = memo(function CustomerInlineNotesSecti
                     </>
                   )}
                 </div>
-                {workspaceMobileMemo ? (
-                  <CustomerWorkspaceItemActions>
-                    <CustomerWorkspaceSecondaryActionButton
-                      aria-label="메모 수정"
-                      title="메모 수정"
-                      disabled={saving}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openEditMemoModal(note)
-                      }}
-                    >
-                      수정
-                    </CustomerWorkspaceSecondaryActionButton>
-                    <CustomerWorkspaceDangerActionButton
-                      aria-label="메모 삭제"
-                      title="메모 삭제"
-                      disabled={saving}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        void requestRemoveNote(note.id)
-                      }}
-                    >
-                      삭제
-                    </CustomerWorkspaceDangerActionButton>
-                    {onAddTodoFromMemo ? (
-                      <CustomerWorkspaceSecondaryActionButton
-                        aria-label="할 일로 추가"
-                        title="할 일로 추가"
-                        disabled={saving}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onAddTodoFromMemo({ noteId: note.id, memoText: note.content })
-                        }}
-                      >
-                        +할일
-                      </CustomerWorkspaceSecondaryActionButton>
-                    ) : null}
-                  </CustomerWorkspaceItemActions>
-                ) : (
-                  <div style={{ flexShrink: 0, display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-                    {onAddTodoFromMemo ? (
-                      <FormButton
-                        htmlType="button"
-                        aria-label="할 일로 추가"
-                        title="할 일로 추가"
-                        disabled={saving}
-                        style={{
-                          flexShrink: 0,
-                          border: '1px solid rgba(255,255,255,0.15)',
-                          background: '#111827',
-                          color: '#e5e7eb',
-                          cursor: saving ? 'default' : 'pointer',
-                          fontSize: '0.75rem',
-                          lineHeight: 1,
-                          padding: '4px 8px',
-                          borderRadius: 6,
-                          opacity: saving ? 0.5 : 1,
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onAddTodoFromMemo({ noteId: note.id, memoText: note.content })
-                        }}
-                      >
-                        할 일로 추가
-                      </FormButton>
-                    ) : null}
-                    <FormButton
-                      htmlType="button"
-                      aria-label="메모 삭제"
-                      title="삭제"
-                      disabled={saving}
-                      style={{
-                        flexShrink: 0,
-                        border: 'none',
-                        background: 'transparent',
-                        cursor: saving ? 'default' : 'pointer',
-                        fontSize: '1.1rem',
-                        lineHeight: 1,
-                        padding: '2px 6px',
-                        opacity: 0.75,
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        void requestRemoveNote(note.id)
-                      }}
-                    >
-                      ×
-                    </FormButton>
-                  </div>
-                )}
+                {useWorkspaceMemoItemActions ? memoItemActions : null}
               </li>
             )
           })}
