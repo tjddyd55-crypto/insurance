@@ -231,6 +231,70 @@
   line-height: 1.35;
 }
 
+/* 다크 테마 PDF 템플릿 편집 — 등록 필드 카드·패널 가독성 */
+.insurance-dark-forms.pdf-engine-page--editor {
+  color: #e5e7eb;
+}
+
+.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-page__title {
+  color: #f8fafc;
+}
+
+.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-page__hint {
+  color: #94a3b8;
+}
+
+.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__panel {
+  background: #111827;
+  border-color: #1e293b;
+  color: #e5e7eb;
+}
+
+.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__panel-title {
+  color: #f8fafc;
+}
+
+.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__label {
+  color: #cbd5e1;
+}
+
+.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card {
+  background: #111827;
+  border-color: rgba(148, 163, 184, 0.25);
+  color: #e5e7eb;
+}
+
+.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card:hover {
+  border-color: rgba(148, 163, 184, 0.45);
+  background: #172033;
+}
+
+.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card:focus {
+  outline-color: #60a5fa;
+}
+
+.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card--active {
+  background: rgba(37, 99, 235, 0.16);
+  border-color: rgba(96, 165, 250, 0.85);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+}
+
+.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card-title {
+  color: #f8fafc;
+}
+
+.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card-meta {
+  color: #cbd5e1;
+}
+
+.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card--active .pdf-engine-editor__field-card-title {
+  color: #f8fafc;
+}
+
+.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card--active .pdf-engine-editor__field-card-meta {
+  color: #e5e7eb;
+}
+
 .pdf-engine-editor__field-card-delete {
   flex-shrink: 0;
   align-self: flex-end;

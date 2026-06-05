@@ -8,6 +8,45 @@ import {
 import type { PdfFieldDataMapping, PdfFieldSpec } from '../types'
 import { DEFAULT_PDF_FIELD_DATA_MAPPING } from '../types'
 
+/** 서버 `fieldDataMapping.js` LEGACY_MAPPING_KEYS 와 동기화 */
+const LEGACY_CUSTOMER_MAPPING_STRINGS: Record<string, string> = {
+  name: 'name',
+  phone: 'phone',
+  dob: 'birthDate',
+  address: 'address',
+}
+
+function legacyCustomerMappingFromString(str: string): PdfFieldDataMapping | null {
+  const legacyKey = LEGACY_CUSTOMER_MAPPING_STRINGS[str]
+  const fieldKey = legacyKey ?? (isCustomerPdfFieldKey(str) ? str : null)
+  if (!fieldKey) {
+    return null
+  }
+  return {
+    dataSourceType: 'customer',
+    customerFieldKey: fieldKey,
+    customerFieldLabel: labelForCustomerPdfFieldKey(fieldKey),
+    fallbackText: null,
+    transformType: null,
+  }
+}
+
+/** API/DB 응답 필드에서 매핑 원본(dataMapping · customerMapping)을 읽는다. */
+export function readPdfFieldDataMappingFromField(
+  field: PdfFieldSpec & { customerMapping?: unknown },
+): PdfFieldDataMapping {
+  const raw = field.dataMapping ?? field.customerMapping ?? null
+  return normalizePdfFieldDataMapping(raw as Partial<PdfFieldDataMapping> | string | null | undefined)
+}
+
+/** PUT 저장 직전 — 모든 필드에 명시적 dataMapping 을 보장한다. */
+export function pdfFieldSpecsForSavePayload(fields: PdfFieldSpec[]): PdfFieldSpec[] {
+  return fields.map((field) => ({
+    ...field,
+    dataMapping: readPdfFieldDataMappingFromField(field),
+  }))
+}
+
 export function normalizePdfFieldDataMapping(
   raw: Partial<PdfFieldDataMapping> | string | null | undefined,
 ): PdfFieldDataMapping {
@@ -26,17 +65,13 @@ export function normalizePdfFieldDataMapping(
           return normalizePdfFieldDataMapping(parsed)
         }
       } catch {
-        return { ...DEFAULT_PDF_FIELD_DATA_MAPPING }
+        const legacy = legacyCustomerMappingFromString(str)
+        return legacy ?? { ...DEFAULT_PDF_FIELD_DATA_MAPPING }
       }
     }
-    if (isCustomerPdfFieldKey(str)) {
-      return {
-        dataSourceType: 'customer',
-        customerFieldKey: str,
-        customerFieldLabel: labelForCustomerPdfFieldKey(str),
-        fallbackText: null,
-        transformType: null,
-      }
+    const legacy = legacyCustomerMappingFromString(str)
+    if (legacy) {
+      return legacy
     }
     return { ...DEFAULT_PDF_FIELD_DATA_MAPPING }
   }
