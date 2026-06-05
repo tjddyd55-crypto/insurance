@@ -264,6 +264,7 @@ function issuanceSummaryDto(row) {
     createdAt: row.created_at,
     customerId,
     customerLabel,
+    vehicleSnapshot: row.vehicle_snapshot ?? null,
   }
 }
 

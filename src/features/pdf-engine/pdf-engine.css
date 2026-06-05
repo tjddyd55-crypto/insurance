@@ -950,7 +950,22 @@
 .pdf-engine-preview__actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.pdf-engine-issuance-list__customer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pdf-engine-issuance-list__vehicle {
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-all;
 }
 
 /* 에디터 상단의 메타(제목/설명/활성) 한 줄 폼. */

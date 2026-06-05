@@ -50,9 +50,11 @@ import { usePdfDocumentsWorkspacePaths } from '../utils/pdfCustomerWorkspacePath
 import { buildPdfIssuanceDisplayFilename } from '../utils/pdfIssuanceFilename'
 import {
   buildPdfIssuanceSaveAttribution,
+  resolveIssuanceAttributionForDownload,
   resolvePdfIssuanceLoadWarning,
   resolvePdfIssuanceUnassignedNotice,
   resolvePdfMappingCustomerId,
+  type PdfIssuanceSaveAttribution,
 } from '../utils/pdfIssuanceAttribution'
 import {
   buildApplicationCustomerSearchQuery,
@@ -215,6 +217,10 @@ export default function PdfDocumentDetailPage() {
   const [customerCarsFetchComplete, setCustomerCarsFetchComplete] = useState(false)
   const hasAttemptedAutoMatchRef = useRef(false)
   const hasManualCustomerInteractionRef = useRef(false)
+  const previewIssuanceAttributionRef = useRef<PdfIssuanceSaveAttribution>({})
+  const appliedCustomerRef = useRef<PdfSelectedCustomerSummary | null>(null)
+  const appliedCustomerCarRef = useRef<number | null>(null)
+  const customerCarsRef = useRef<CustomerCarRecord[]>([])
 
   const hasCarPdfMapping = state.status === 'ready' && hasCarMappedFields(state.fields)
 
@@ -222,6 +228,18 @@ export default function PdfDocumentDetailPage() {
     () => resolvePdfMappingCustomerId(appliedCustomer),
     [appliedCustomer],
   )
+
+  useEffect(() => {
+    appliedCustomerRef.current = appliedCustomer
+  }, [appliedCustomer])
+
+  useEffect(() => {
+    appliedCustomerCarRef.current = appliedCustomerCar
+  }, [appliedCustomerCar])
+
+  useEffect(() => {
+    customerCarsRef.current = customerCars
+  }, [customerCars])
 
   const effectiveCustomerId = useMemo(
     () => appliedCustomer?.id ?? workspaceCustomerIdFromRoute ?? null,
@@ -429,7 +447,9 @@ export default function PdfDocumentDetailPage() {
         setCachedCustomer(customer)
         const summary =
           appliedSummary ?? customerRecordToSearchSummary(customer)
+        setSelectedCustomerCandidate(null)
         setAppliedCustomer(summary)
+        appliedCustomerRef.current = summary
         didApplyCustomer = true
         logSelectedCustomerDataLoaded(customerId)
         const fields = state.fields
@@ -718,10 +738,17 @@ export default function PdfDocumentDetailPage() {
       })
       setSubmitting(true)
       try {
+        previewIssuanceAttributionRef.current = buildPdfIssuanceSaveAttribution(
+          appliedCustomerRef.current,
+          appliedCustomerCarRef.current,
+          customerCarsRef.current,
+        )
         const { previewUrl: relUrl } = await requestPdfRenderPreviewUrl(token, templateId, values, {
           fontSizes: Object.keys(persistFonts).length > 0 ? persistFonts : undefined,
           displayFilename: previewFilename,
-          customerId: mappingCustomerId,
+          customerId:
+            resolvePdfMappingCustomerId(appliedCustomerRef.current) ??
+            previewIssuanceAttributionRef.current.issuanceCustomerId,
           overwriteCustomerMapping: overwriteCustomerOnLoad,
         })
         setPreviewUrl(resolveAbsoluteApiUrl(relUrl))
@@ -744,26 +771,32 @@ export default function PdfDocumentDetailPage() {
     [token, templateId, state, effectiveCustomerLabelForFilename, mappingCustomerId, overwriteCustomerOnLoad],
   )
 
-  const handleSaveFromPreview = async () => {
+  const handleDownloadFromPreview = async () => {
     if (!token || state.status !== 'ready' || !previewValues) return
     setSaving(true)
     setPreviewError(null)
     try {
-      const attribution = buildPdfIssuanceSaveAttribution(
-        appliedCustomer,
-        appliedCustomerCar,
-        customerCars,
+      const liveAttribution = buildPdfIssuanceSaveAttribution(
+        appliedCustomerRef.current,
+        appliedCustomerCarRef.current,
+        customerCarsRef.current,
       )
+      const attribution = resolveIssuanceAttributionForDownload(
+        liveAttribution,
+        previewIssuanceAttributionRef.current,
+      )
+      const mappingId =
+        resolvePdfMappingCustomerId(appliedCustomerRef.current) ??
+        (attribution.issuanceCustomerId != null ? attribution.issuanceCustomerId : undefined)
       const blobRaw = await renderPdfTemplate(token, templateId, previewValues, {
         fontSizes: Object.keys(previewFonts).length > 0 ? previewFonts : undefined,
-        customerId: mappingCustomerId,
+        customerId: mappingId,
         overwriteCustomerMapping: overwriteCustomerOnLoad,
         ...attribution,
       })
       triggerDownload(coercePdfBlob(blobRaw), resultPdfFilename)
-      closePreview()
     } catch (e) {
-      const message = e instanceof ApiError ? e.message : 'PDF 저장에 실패했습니다.'
+      const message = e instanceof ApiError ? e.message : 'PDF 다운로드에 실패했습니다.'
       setPreviewError(message)
     } finally {
       setSaving(false)
@@ -978,6 +1011,8 @@ export default function PdfDocumentDetailPage() {
           if (saving) return
           closePreview()
         }}
+        closeOnBackdrop={false}
+        closeOnEsc={false}
         ariaLabel={`PDF 결과 미리보기 · ${resultPdfFilename}`}
         panelClassName="pdf-engine-preview-modal"
       >
@@ -992,7 +1027,7 @@ export default function PdfDocumentDetailPage() {
               {resultPdfFilename}
             </div>
             <p className="pdf-engine-preview__subtitle">
-              미리보기는 서버 인라인 URL로 열립니다. 저장·뷰어 내부 다운로드 파일명은 위와 같이 맞춰집니다.
+              미리보기는 서버 인라인 URL로 열립니다. 「다운로드」로 PDF 파일을 받을 수 있으며, 발급 이력은 다운로드 시 저장됩니다.
             </p>
           </header>
           {previewError ? <div className="pdf-engine-page__error">{previewError}</div> : null}
@@ -1017,10 +1052,19 @@ export default function PdfDocumentDetailPage() {
               htmlType="button"
               variant="primary"
               className="pdf-engine-editor__btn pdf-engine-editor__btn--primary"
-              onClick={handleSaveFromPreview}
+              onClick={handleDownloadFromPreview}
               disabled={saving || !previewValues}
             >
-              {saving ? '저장 중…' : '저장하기'}
+              {saving ? '다운로드 중…' : '다운로드'}
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="secondary"
+              className="pdf-engine-editor__btn"
+              onClick={closePreview}
+              disabled={saving}
+            >
+              닫기
             </FormButton>
           </div>
         </div>

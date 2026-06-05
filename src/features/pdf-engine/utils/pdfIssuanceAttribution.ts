@@ -92,3 +92,25 @@ export function resolveIssuanceCustomerDisplayLabel(input: {
   if (input.customerId == null) return '고객 미지정'
   return input.customerLabel?.trim() || `고객 #${input.customerId}`
 }
+
+export function formatVehicleSnapshotLabel(
+  snapshot: PdfIssuanceVehicleSnapshot | Record<string, unknown> | null | undefined,
+): string | null {
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return null
+  const carNumber = String(snapshot.carNumber ?? '').trim()
+  const carModel = String(snapshot.carModel ?? '').trim()
+  if (carNumber && carModel) return `${carNumber} · ${carModel}`
+  if (carNumber) return carNumber
+  if (carModel) return carModel
+  return null
+}
+
+/** 미리보기 시점 스냅샷과 현재 appliedCustomer 중 유효한 귀속 payload 를 고른다. */
+export function resolveIssuanceAttributionForDownload(
+  live: PdfIssuanceSaveAttribution,
+  previewSnapshot: PdfIssuanceSaveAttribution,
+): PdfIssuanceSaveAttribution {
+  if (live.issuanceCustomerId != null) return live
+  if (previewSnapshot.issuanceCustomerId != null) return previewSnapshot
+  return {}
+}

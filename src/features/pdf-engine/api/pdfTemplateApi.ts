@@ -383,6 +383,7 @@ export interface PdfIssuanceSummary {
   createdAt: string
   customerId: number | null
   customerLabel: string | null
+  vehicleSnapshot: Record<string, unknown> | null
 }
 
 /** 단건 조회(JSON) — `values_snapshot` 기반 「내용 불러오기」용. 접근 규칙은 `/file` 과 동일. */

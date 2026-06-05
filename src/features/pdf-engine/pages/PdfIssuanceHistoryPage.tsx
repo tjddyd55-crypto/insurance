@@ -24,7 +24,7 @@ import {
   buildPdfDocumentDetailHref,
   usePdfDocumentsWorkspacePaths,
 } from '../utils/pdfCustomerWorkspacePaths'
-import { resolveIssuanceCustomerDisplayLabel } from '../utils/pdfIssuanceAttribution'
+import { resolveIssuanceCustomerDisplayLabel, formatVehicleSnapshotLabel } from '../utils/pdfIssuanceAttribution'
 import '../pdf-engine.css'
 
 /** Blob → 브라우저 다운로드 트리거. URL 누수 방지를 위해 즉시 revoke. */
@@ -150,11 +150,18 @@ export default function PdfIssuanceHistoryPage() {
                 <strong>{row.templateTitle}</strong>
                 <span className="pdf-engine-editor__field-meta"> #{row.id}</span>
               </span>
-              <span>
-                {resolveIssuanceCustomerDisplayLabel({
-                  customerId: row.customerId,
-                  customerLabel: row.customerLabel,
-                })}
+              <span className="pdf-engine-issuance-list__customer">
+                <span>
+                  {resolveIssuanceCustomerDisplayLabel({
+                    customerId: row.customerId,
+                    customerLabel: row.customerLabel,
+                  })}
+                </span>
+                {formatVehicleSnapshotLabel(row.vehicleSnapshot) ? (
+                  <span className="pdf-engine-issuance-list__vehicle">
+                    {formatVehicleSnapshotLabel(row.vehicleSnapshot)}
+                  </span>
+                ) : null}
               </span>
               <span>{formatDate(row.createdAt)}</span>
               <span>{formatBytes(row.byteLength)}</span>

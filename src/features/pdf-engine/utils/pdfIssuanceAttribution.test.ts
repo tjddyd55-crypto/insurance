@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildPdfIssuanceSaveAttribution,
+  formatVehicleSnapshotLabel,
+  resolveIssuanceAttributionForDownload,
   resolvePdfIssuanceLoadWarning,
   resolvePdfIssuanceUnassignedNotice,
   resolveIssuanceCustomerDisplayLabel,
@@ -89,5 +91,24 @@ describe('pdfIssuanceAttribution', () => {
     expect(
       resolveIssuanceCustomerDisplayLabel({ customerId: 5, customerLabel: 'Lee' }),
     ).toBe('Lee')
+  })
+
+  it('resolveIssuanceAttributionForDownload: live 우선, 없으면 preview 스냅샷', () => {
+    expect(
+      resolveIssuanceAttributionForDownload(
+        { issuanceCustomerId: 2, customerSnapshot: { id: 2, name: 'B' } },
+        { issuanceCustomerId: 1, customerSnapshot: { id: 1, name: 'A' } },
+      ).issuanceCustomerId,
+    ).toBe(2)
+    expect(
+      resolveIssuanceAttributionForDownload({}, { issuanceCustomerId: 1, customerSnapshot: { id: 1, name: 'A' } })
+        .issuanceCustomerId,
+    ).toBe(1)
+  })
+
+  it('formatVehicleSnapshotLabel', () => {
+    expect(formatVehicleSnapshotLabel({ id: 1, carNumber: '12가3456', carModel: '소나타', carYear: '2020' })).toBe(
+      '12가3456 · 소나타',
+    )
   })
 })
