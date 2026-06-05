@@ -7,20 +7,30 @@ import { resolveCustomerVisibilitySqlForSelect } from '../../lib/customerRowVisi
 import { parseGaId } from '../../lib/parseGaId.js'
 
 /**
+ * @param {unknown} value
+ * @returns {number | null}
+ */
+export function normalizeCustomerId(value) {
+  const n = Number(value)
+  return Number.isSafeInteger(n) && n > 0 ? n : null
+}
+
+/**
  * @param {import('pg').Pool} pool
  * @param {typeof import('../../utils/dbSafeQuery.js').safeQuery} safeQueryExec
  * @param {import('express').Request} req
- * @param {number} customerId
+ * @param {unknown} customerId
  * @returns {Promise<ReturnType<typeof mapCustomerRow> | null>}
  */
 export async function getCustomerForPdfMapping(pool, safeQueryExec, req, customerId) {
+  const cid = normalizeCustomerId(customerId)
+  if (cid == null) {
+    return null
+  }
+
   const userId = req.user?.id ? String(req.user.id) : ''
   const gaId = parseGaId(req.user?.gaId)
   if (!userId || gaId == null) {
-    return null
-  }
-  const cid = Number(customerId)
-  if (!Number.isInteger(cid) || cid < 1) {
     return null
   }
 
@@ -36,9 +46,7 @@ export async function getCustomerForPdfMapping(pool, safeQueryExec, req, custome
 
   const plc = vis.params.length
   const cidPlace = `$${plc + 1}`
-  const result = await safeQueryExec(
-    pool,
-    `
+  const sql = `
     SELECT
       c.id, c.user_id, c.name, c.birth_date, c.ssn, c.phone, c.carrier, c.address, c.height, c.weight, c.job, c.driving, c.medical,
       c.car_number, c.car_model, c.car_year, c.renewal_date,
@@ -47,9 +55,12 @@ export async function getCustomerForPdfMapping(pool, safeQueryExec, req, custome
     FROM customers c
     WHERE c.id = ${cidPlace} AND (${vis.clause}) AND c.deleted_at IS NULL
     LIMIT 1
-    `,
-    [...vis.params, cid],
-  )
+  `
+  if (!String(sql).trim()) {
+    return null
+  }
+
+  const result = await safeQueryExec(pool, sql, [...vis.params, cid])
 
   if ((result.rowCount ?? 0) === 0) {
     return null

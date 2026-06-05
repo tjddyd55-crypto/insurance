@@ -48,6 +48,7 @@ import {
 import { reconcileContractFieldSettingsAfterPdfSave } from './services/contractTemplateFieldSettings.js'
 import { applyCustomerMappingToValues } from './pdf-engine/mapping/resolvePdfFieldValue.js'
 import { getCustomerForPdfMapping } from './pdf-engine/repository/customerPdfProfileRepo.js'
+import { safeQuery } from './utils/dbSafeQuery.js'
 import {
   createIssuance,
   getIssuanceById,
@@ -177,10 +178,7 @@ async function resolvePdfValuesWithCustomerMapping(pool, req, fields, valuesForI
   const customerId = parseBodyCustomerId(req.body)
   let customer = null
   if (customerId != null) {
-    customer = await getCustomerForPdfMapping(pool, (text, params) => pool.query(text, params), req, customerId)
-    if (!customer) {
-      return { ok: false, status: 404, message: '고객을 찾을 수 없습니다.' }
-    }
+    customer = await getCustomerForPdfMapping(pool, safeQuery, req, customerId)
   }
   const valuesWithProfile = applyCustomerMappingToValues(fields, valuesForInject, customer, {
     overwriteMode,
