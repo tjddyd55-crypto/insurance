@@ -24,6 +24,7 @@ import {
   buildPdfDocumentDetailHref,
   usePdfDocumentsWorkspacePaths,
 } from '../utils/pdfCustomerWorkspacePaths'
+import { resolveIssuanceCustomerDisplayLabel } from '../utils/pdfIssuanceAttribution'
 import '../pdf-engine.css'
 
 /** Blob → 브라우저 다운로드 트리거. URL 누수 방지를 위해 즉시 revoke. */
@@ -73,7 +74,7 @@ export default function PdfIssuanceHistoryPage() {
     let cancelled = false
     setLoading(true)
     setError(null)
-    listPdfIssuances(token)
+    listPdfIssuances(token, { customerId: workspaceCustomerId })
       .then((res) => {
         if (cancelled) return
         setRows(res.issuances)
@@ -88,7 +89,7 @@ export default function PdfIssuanceHistoryPage() {
     return () => {
       cancelled = true
     }
-  }, [token])
+  }, [token, workspaceCustomerId])
 
   const handleDownload = useCallback(
     async (row: PdfIssuanceSummary) => {
@@ -121,8 +122,10 @@ export default function PdfIssuanceHistoryPage() {
     <main className="insurance-dark-forms pdf-engine-page">
       <h1 className="pdf-engine-page__title">과거 작성한 신청서</h1>
       <p className="pdf-engine-page__hint">
-        발급 완료된 PDF를 다시 다운로드하거나, 과거 입력값을 불러와 수정한 뒤 새로 발급할 수 있습니다. 목록은
-        최근순으로 최대 200건까지 표시됩니다.
+        {workspaceCustomerId != null
+          ? '선택한 고객에게 귀속된 발급 이력만 표시합니다. 고객 미지정 내역은 전체 과거 작성 목록에서 확인할 수 있습니다.'
+          : '발급 완료된 PDF를 다시 다운로드하거나, 과거 입력값을 불러와 수정한 뒤 새로 발급할 수 있습니다. 고객 미지정 내역도 함께 표시됩니다.'}{' '}
+        목록은 최근순으로 최대 200건까지 표시됩니다.
       </p>
 
       {error ? <div className="pdf-engine-page__error">{error}</div> : null}
@@ -136,6 +139,7 @@ export default function PdfIssuanceHistoryPage() {
         <div className="pdf-engine-issuance-list">
           <div className="pdf-engine-issuance-list__head">
             <span>문서</span>
+            <span>고객</span>
             <span>발급 일시</span>
             <span>용량</span>
             <span>작업</span>
@@ -145,6 +149,12 @@ export default function PdfIssuanceHistoryPage() {
               <span>
                 <strong>{row.templateTitle}</strong>
                 <span className="pdf-engine-editor__field-meta"> #{row.id}</span>
+              </span>
+              <span>
+                {resolveIssuanceCustomerDisplayLabel({
+                  customerId: row.customerId,
+                  customerLabel: row.customerLabel,
+                })}
               </span>
               <span>{formatDate(row.createdAt)}</span>
               <span>{formatBytes(row.byteLength)}</span>

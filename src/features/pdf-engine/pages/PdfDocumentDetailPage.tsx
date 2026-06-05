@@ -49,6 +49,12 @@ import { DEFAULT_PDF_FIELD_DATA_MAPPING } from '../types'
 import { usePdfDocumentsWorkspacePaths } from '../utils/pdfCustomerWorkspacePaths'
 import { buildPdfIssuanceDisplayFilename } from '../utils/pdfIssuanceFilename'
 import {
+  buildPdfIssuanceSaveAttribution,
+  resolvePdfIssuanceLoadWarning,
+  resolvePdfIssuanceUnassignedNotice,
+  resolvePdfMappingCustomerId,
+} from '../utils/pdfIssuanceAttribution'
+import {
   buildApplicationCustomerSearchQuery,
   extractCustomerSearchHintsFromPdfForm,
   logApplicationCustomerAutoMatchDebug,
@@ -109,7 +115,12 @@ type SourcePrefillState =
   | { kind: 'none' }
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
-  | { kind: 'ready'; values: Record<string, string> }
+  | {
+      kind: 'ready'
+      values: Record<string, string>
+      loadWarning: string | null
+      unassignedNotice: string | null
+    }
 
 /** fetch 응답 Blob 이 빈 타입이어도 뷰어·다운로드가 PDF 로 인식하도록 고정한다. */
 function coercePdfBlob(blob: Blob): Blob {
@@ -206,6 +217,11 @@ export default function PdfDocumentDetailPage() {
   const hasManualCustomerInteractionRef = useRef(false)
 
   const hasCarPdfMapping = state.status === 'ready' && hasCarMappedFields(state.fields)
+
+  const mappingCustomerId = useMemo(
+    () => resolvePdfMappingCustomerId(appliedCustomer),
+    [appliedCustomer],
+  )
 
   const effectiveCustomerId = useMemo(
     () => appliedCustomer?.id ?? workspaceCustomerIdFromRoute ?? null,
@@ -313,7 +329,16 @@ export default function PdfDocumentDetailPage() {
           })
           return
         }
-        setSourcePrefill({ kind: 'ready', values: res.issuance.valuesSnapshot })
+        setSourcePrefill({
+          kind: 'ready',
+          values: res.issuance.valuesSnapshot,
+          loadWarning: resolvePdfIssuanceLoadWarning({
+            issuanceCustomerId: res.issuance.customerId,
+            issuanceCustomerLabel: res.issuance.customerLabel,
+            contextCustomerId: workspaceCustomerIdFromRoute,
+          }),
+          unassignedNotice: resolvePdfIssuanceUnassignedNotice(res.issuance.customerId),
+        })
       })
       .catch((e) => {
         if (cancelled) return
@@ -328,7 +353,7 @@ export default function PdfDocumentDetailPage() {
     return () => {
       cancelled = true
     }
-  }, [token, state.status, templateId, sourceIssuanceId])
+  }, [token, state.status, templateId, sourceIssuanceId, workspaceCustomerIdFromRoute])
 
   useEffect(() => {
     if (state.status !== 'ready') return
@@ -696,7 +721,7 @@ export default function PdfDocumentDetailPage() {
         const { previewUrl: relUrl } = await requestPdfRenderPreviewUrl(token, templateId, values, {
           fontSizes: Object.keys(persistFonts).length > 0 ? persistFonts : undefined,
           displayFilename: previewFilename,
-          customerId: effectiveCustomerId ?? undefined,
+          customerId: mappingCustomerId,
           overwriteCustomerMapping: overwriteCustomerOnLoad,
         })
         setPreviewUrl(resolveAbsoluteApiUrl(relUrl))
@@ -716,7 +741,7 @@ export default function PdfDocumentDetailPage() {
         setSubmitting(false)
       }
     },
-    [token, templateId, state, effectiveCustomerLabelForFilename, effectiveCustomerId, overwriteCustomerOnLoad],
+    [token, templateId, state, effectiveCustomerLabelForFilename, mappingCustomerId, overwriteCustomerOnLoad],
   )
 
   const handleSaveFromPreview = async () => {
@@ -724,10 +749,16 @@ export default function PdfDocumentDetailPage() {
     setSaving(true)
     setPreviewError(null)
     try {
+      const attribution = buildPdfIssuanceSaveAttribution(
+        appliedCustomer,
+        appliedCustomerCar,
+        customerCars,
+      )
       const blobRaw = await renderPdfTemplate(token, templateId, previewValues, {
         fontSizes: Object.keys(previewFonts).length > 0 ? previewFonts : undefined,
-        customerId: effectiveCustomerId ?? undefined,
+        customerId: mappingCustomerId,
         overwriteCustomerMapping: overwriteCustomerOnLoad,
+        ...attribution,
       })
       triggerDownload(coercePdfBlob(blobRaw), resultPdfFilename)
       closePreview()
@@ -739,15 +770,26 @@ export default function PdfDocumentDetailPage() {
     }
   }
 
-  const prefillBanner = useMemo<ReactNode>(
-    () =>
-      sourcePrefill.kind === 'ready' ? (
+  const prefillBanner = useMemo<ReactNode>(() => {
+    if (sourcePrefill.kind !== 'ready') return null
+    return (
+      <>
         <div className="pdf-engine-prefill-banner" role="status">
           과거 작성한 신청서에서 불러온 내용입니다. 수정 후 다시 출력하면 새 발급 이력으로 저장됩니다.
         </div>
-      ) : null,
-    [sourcePrefill.kind],
-  )
+        {sourcePrefill.unassignedNotice ? (
+          <div className="pdf-engine-prefill-banner pdf-engine-prefill-banner--notice" role="status">
+            {sourcePrefill.unassignedNotice}
+          </div>
+        ) : null}
+        {sourcePrefill.loadWarning ? (
+          <div className="pdf-engine-prefill-banner pdf-engine-prefill-banner--warning" role="status">
+            {sourcePrefill.loadWarning}
+          </div>
+        ) : null}
+      </>
+    )
+  }, [sourcePrefill])
 
   const applicantViewProps = useMemo<PdfDocumentApplicantViewProps | null>(() => {
     if (state.status !== 'ready') return null

@@ -3914,6 +3914,27 @@ async function ensurePdfTemplateSchema(executor) {
     CREATE INDEX IF NOT EXISTS pdf_issuances_ga_created_idx
     ON pdf_issuances (ga_id, created_at DESC)
   `)
+  /*
+   * 발급 이력 고객 귀속 — customer_id 만 필터/귀속 기준.
+   * 과거 row 는 NULL 유지(이름·전화 backfill 금지). snapshot 은 표시용.
+   */
+  await executor.query(`
+    ALTER TABLE pdf_issuances
+    ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL
+  `)
+  await executor.query(`
+    ALTER TABLE pdf_issuances
+    ADD COLUMN IF NOT EXISTS customer_snapshot JSONB
+  `)
+  await executor.query(`
+    ALTER TABLE pdf_issuances
+    ADD COLUMN IF NOT EXISTS vehicle_snapshot JSONB
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS pdf_issuances_customer_created_idx
+    ON pdf_issuances (customer_id, created_at DESC)
+    WHERE customer_id IS NOT NULL
+  `)
 }
 
 /**

@@ -689,7 +689,7 @@
   flex-direction: column;
   gap: 2px;
   margin-top: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #1e293b;
   border-radius: 8px;
   overflow: hidden;
 }
@@ -697,7 +697,7 @@
 .pdf-engine-issuance-list__head,
 .pdf-engine-issuance-list__row {
   display: grid;
-  grid-template-columns: 2fr 1.5fr 0.8fr minmax(220px, 1fr);
+  grid-template-columns: 1.6fr 1fr 1.4fr 0.7fr minmax(220px, 1fr);
   gap: 12px;
   padding: 10px 14px;
   font-size: 13px;
@@ -720,6 +720,18 @@
   color: #e5e7eb;
   font-size: 14px;
   line-height: 1.5;
+}
+
+.pdf-engine-prefill-banner--notice {
+  border-color: #475569;
+  background: #111827;
+  color: #cbd5e1;
+}
+
+.pdf-engine-prefill-banner--warning {
+  border-color: #b45309;
+  background: rgba(180, 83, 9, 0.12);
+  color: #fde68a;
 }
 
 @media (max-width: 640px) {
