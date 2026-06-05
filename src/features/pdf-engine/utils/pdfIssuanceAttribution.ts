@@ -22,21 +22,43 @@ export type PdfIssuanceSaveAttribution = {
   vehicleSnapshot?: PdfIssuanceVehicleSnapshot
 }
 
-/** appliedCustomer·적용 차량 기준으로 발급 저장 payload 를 만든다. 미적용 시 빈 객체. */
+/** API/검색 row 에서 id 또는 customerId 를 읽어 summary 로 만든다. */
+export function parsePdfCustomerSummaryFromUnknown(
+  row: unknown,
+): PdfSelectedCustomerSummary | null {
+  if (!row || typeof row !== 'object' || Array.isArray(row)) return null
+  const o = row as Record<string, unknown>
+  const rawId = o.id ?? o.customerId
+  const id = Number(rawId)
+  if (!Number.isInteger(id) || id < 1) return null
+  const nameRaw = o.name ?? o.customerName
+  const name = String(nameRaw ?? '').trim() || `고객 #${id}`
+  const phoneRaw = o.phone ?? o.phoneNumber ?? o.phone_number
+  const phone =
+    phoneRaw == null || phoneRaw === '' ? undefined : String(phoneRaw).trim() || undefined
+  return phone ? { id, name, phone } : { id, name }
+}
+
+/**
+ * 발급 저장 payload.
+ * issuanceCustomerId = attributionCustomer?.id ?? appliedCustomer?.id
+ */
 export function buildPdfIssuanceSaveAttribution(
+  attributionCustomer: PdfSelectedCustomerSummary | null,
   appliedCustomer: PdfSelectedCustomerSummary | null,
   appliedCustomerCarId: number | null,
   customerCars: CustomerCarRecord[],
 ): PdfIssuanceSaveAttribution {
-  if (appliedCustomer == null) {
+  const source = attributionCustomer ?? appliedCustomer
+  if (source == null) {
     return {}
   }
   const out: PdfIssuanceSaveAttribution = {
-    issuanceCustomerId: appliedCustomer.id,
+    issuanceCustomerId: source.id,
     customerSnapshot: {
-      id: appliedCustomer.id,
-      name: appliedCustomer.name,
-      ...(appliedCustomer.phone?.trim() ? { phone: appliedCustomer.phone.trim() } : {}),
+      id: source.id,
+      name: source.name,
+      ...(source.phone?.trim() ? { phone: source.phone.trim() } : {}),
     },
   }
   if (appliedCustomerCarId != null) {
@@ -62,6 +84,20 @@ export function resolvePdfMappingCustomerId(
   const id = appliedCustomer?.id
   if (id == null || !Number.isInteger(id) || id < 1) return undefined
   return id
+}
+
+export function resolvePdfCustomerStatusMessage(input: {
+  attributionCustomer: PdfSelectedCustomerSummary | null
+  appliedCustomer: PdfSelectedCustomerSummary | null
+}): string {
+  const { attributionCustomer, appliedCustomer } = input
+  if (appliedCustomer != null) {
+    return `${appliedCustomer.name} 고객 데이터를 신청서에 반영했습니다.`
+  }
+  if (attributionCustomer != null) {
+    return `이 신청서는 ${attributionCustomer.name} 고객에게 귀속됩니다. 고객 데이터는 아직 불러오지 않았습니다.`
+  }
+  return '고객이 선택되지 않았습니다. 고객 없이 작성하면 고객 미지정 내역으로 저장됩니다.'
 }
 
 export function resolvePdfIssuanceLoadWarning(input: {
@@ -105,7 +141,7 @@ export function formatVehicleSnapshotLabel(
   return null
 }
 
-/** 미리보기 시점 스냅샷과 현재 appliedCustomer 중 유효한 귀속 payload 를 고른다. */
+/** 미리보기 시점 스냅샷과 현재 live 귀속 중 유효한 payload 를 고른다. */
 export function resolveIssuanceAttributionForDownload(
   live: PdfIssuanceSaveAttribution,
   previewSnapshot: PdfIssuanceSaveAttribution,

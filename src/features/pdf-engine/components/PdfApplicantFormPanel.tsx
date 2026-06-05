@@ -45,6 +45,9 @@ export interface PdfApplicantFormPanelProps {
   submitLabel?: string
   workspaceCustomerId?: number | null
   workspaceCustomerLabel?: string | null
+  attributionCustomer?: PdfSelectedCustomerSummary | null
+  appliedCustomer?: PdfSelectedCustomerSummary | null
+  customerStatusMessage?: string
   selectedCustomer?: PdfSelectedCustomerSummary | null
   effectiveCustomerId?: number | null
   loadCustomerButtonLabel?: string
@@ -115,6 +118,9 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
     submitLabel = '결과보기',
     workspaceCustomerId = null,
     workspaceCustomerLabel = null,
+    attributionCustomer = null,
+    appliedCustomer = null,
+    customerStatusMessage = '',
     selectedCustomer = null,
     effectiveCustomerId = null,
     loadCustomerButtonLabel = '고객 데이터 불러오기',
@@ -422,27 +428,32 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
       </header>
 
       <div className="pdf-applicant-form__customer-load">
-        {selectedCustomer ? (
+        <p
+          className={
+            'pdf-applicant-form__customer-context' +
+            (attributionCustomer == null && appliedCustomer == null
+              ? ' pdf-applicant-form__customer-context--muted'
+              : '')
+          }
+          role="status"
+        >
+          {customerStatusMessage}
+        </p>
+        {attributionCustomer != null &&
+        onClearSelectedCustomer &&
+        (workspaceCustomerId == null || attributionCustomer.id !== workspaceCustomerId) ? (
+          <button
+            type="button"
+            className="pdf-applicant-form__customer-link"
+            onClick={onClearSelectedCustomer}
+            disabled={submitting || loadingCustomerData}
+          >
+            귀속 고객 선택 해제
+          </button>
+        ) : null}
+        {selectedCustomer && selectedCustomer.id !== attributionCustomer?.id ? (
           <p className="pdf-applicant-form__customer-context">
-            선택 고객: <strong>{selectedCustomer.name}</strong>
-            {onClearSelectedCustomer ? (
-              <button
-                type="button"
-                className="pdf-applicant-form__customer-link"
-                onClick={onClearSelectedCustomer}
-                disabled={submitting || loadingCustomerData}
-              >
-                선택 해제
-              </button>
-            ) : null}
-          </p>
-        ) : workspaceCustomerId != null && workspaceCustomerLabel ? (
-          <p className="pdf-applicant-form__customer-context">
-            현재 고객: <strong>{workspaceCustomerLabel}</strong>
-          </p>
-        ) : workspaceCustomerId == null && !selectedCustomer ? (
-          <p className="pdf-applicant-form__customer-context pdf-applicant-form__customer-context--muted">
-            고객이 선택되지 않았습니다. 고객을 검색해서 데이터를 불러올 수 있습니다.
+            검색 후보: <strong>{selectedCustomer.name}</strong>
           </p>
         ) : null}
 
@@ -456,7 +467,7 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
           {loadingCustomerData ? '불러오는 중…' : loadCustomerButtonLabel}
         </FormButton>
 
-        {workspaceCustomerId != null && onShowCustomerSearch && !showCustomerSearch ? (
+        {workspaceCustomerId != null && onShowCustomerSearch && !showCustomerSearch && attributionCustomer != null ? (
           <button
             type="button"
             className="pdf-applicant-form__customer-link"

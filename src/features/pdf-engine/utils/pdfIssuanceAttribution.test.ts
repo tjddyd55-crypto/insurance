@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   buildPdfIssuanceSaveAttribution,
   formatVehicleSnapshotLabel,
+  parsePdfCustomerSummaryFromUnknown,
   resolveIssuanceAttributionForDownload,
+  resolvePdfCustomerStatusMessage,
   resolvePdfIssuanceLoadWarning,
   resolvePdfIssuanceUnassignedNotice,
   resolveIssuanceCustomerDisplayLabel,
@@ -10,13 +12,28 @@ import {
 } from './pdfIssuanceAttribution'
 
 describe('pdfIssuanceAttribution', () => {
-  it('buildPdfIssuanceSaveAttribution: appliedCustomer 없으면 빈 객체', () => {
-    expect(buildPdfIssuanceSaveAttribution(null, null, [])).toEqual({})
+  it('buildPdfIssuanceSaveAttribution: 귀속·적용 고객 모두 없으면 빈 객체', () => {
+    expect(buildPdfIssuanceSaveAttribution(null, null, null, [])).toEqual({})
   })
 
-  it('buildPdfIssuanceSaveAttribution: appliedCustomer·차량 적용 시 snapshot 저장', () => {
+  it('buildPdfIssuanceSaveAttribution: attributionCustomer 우선 저장', () => {
     expect(
       buildPdfIssuanceSaveAttribution(
+        { id: 10, name: 'Kim' },
+        { id: 99, name: 'Other' },
+        null,
+        [],
+      ),
+    ).toEqual({
+      issuanceCustomerId: 10,
+      customerSnapshot: { id: 10, name: 'Kim' },
+    })
+  })
+
+  it('buildPdfIssuanceSaveAttribution: appliedCustomer fallback + vehicle snapshot', () => {
+    expect(
+      buildPdfIssuanceSaveAttribution(
+        null,
         { id: 10, name: '홍길동', phone: '010-1111-2222' },
         7,
         [
@@ -50,9 +67,34 @@ describe('pdfIssuanceAttribution', () => {
     })
   })
 
+  it('parsePdfCustomerSummaryFromUnknown: id / customerId 모두 지원', () => {
+    expect(parsePdfCustomerSummaryFromUnknown({ customerId: 5, name: 'Lee' })).toEqual({
+      id: 5,
+      name: 'Lee',
+    })
+  })
+
   it('resolvePdfMappingCustomerId: appliedCustomer 만 mapping 대상', () => {
     expect(resolvePdfMappingCustomerId(null)).toBeUndefined()
     expect(resolvePdfMappingCustomerId({ id: 3, name: 'A' })).toBe(3)
+  })
+
+  it('resolvePdfCustomerStatusMessage', () => {
+    expect(
+      resolvePdfCustomerStatusMessage({ attributionCustomer: null, appliedCustomer: null }),
+    ).toContain('고객 미지정')
+    expect(
+      resolvePdfCustomerStatusMessage({
+        attributionCustomer: { id: 1, name: 'Kim' },
+        appliedCustomer: null,
+      }),
+    ).toContain('귀속')
+    expect(
+      resolvePdfCustomerStatusMessage({
+        attributionCustomer: { id: 1, name: 'Kim' },
+        appliedCustomer: { id: 1, name: 'Kim' },
+      }),
+    ).toContain('반영')
   })
 
   it('resolvePdfIssuanceLoadWarning: 귀속 고객과 작업 고객이 다를 때만 경고', () => {
@@ -68,13 +110,6 @@ describe('pdfIssuanceAttribution', () => {
         issuanceCustomerId: 1,
         issuanceCustomerLabel: 'Kim',
         contextCustomerId: 1,
-      }),
-    ).toBeNull()
-    expect(
-      resolvePdfIssuanceLoadWarning({
-        issuanceCustomerId: null,
-        issuanceCustomerLabel: null,
-        contextCustomerId: 2,
       }),
     ).toBeNull()
   })

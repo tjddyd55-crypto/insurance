@@ -31,6 +31,11 @@ export type PdfDocumentApplicantViewProps = {
   submitting: boolean
   workspaceCustomerId: number | null
   workspaceCustomerLabel: string | null
+  /** 귀속 고객 — 발급 이력 customer_id 기준 */
+  attributionCustomer: PdfSelectedCustomerSummary | null
+  /** 필드 자동입력 완료 고객 */
+  appliedCustomer: PdfSelectedCustomerSummary | null
+  customerStatusMessage: string
   selectedCustomer: PdfSelectedCustomerSummary | null
   effectiveCustomerId: number | null
   loadCustomerButtonLabel: string

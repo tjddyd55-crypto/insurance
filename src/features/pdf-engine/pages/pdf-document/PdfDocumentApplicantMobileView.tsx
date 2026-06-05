@@ -21,6 +21,9 @@ export default function PdfDocumentApplicantMobileView(props: PdfDocumentApplica
     submitting,
     workspaceCustomerId,
     workspaceCustomerLabel,
+    attributionCustomer,
+    appliedCustomer,
+    customerStatusMessage,
     selectedCustomer,
     effectiveCustomerId,
     loadCustomerButtonLabel,
@@ -80,6 +83,9 @@ export default function PdfDocumentApplicantMobileView(props: PdfDocumentApplica
           submitLabel="결과보기"
           workspaceCustomerId={workspaceCustomerId}
           workspaceCustomerLabel={workspaceCustomerLabel}
+          attributionCustomer={attributionCustomer}
+          appliedCustomer={appliedCustomer}
+          customerStatusMessage={customerStatusMessage}
           selectedCustomer={selectedCustomer}
           effectiveCustomerId={effectiveCustomerId}
           loadCustomerButtonLabel={loadCustomerButtonLabel}
