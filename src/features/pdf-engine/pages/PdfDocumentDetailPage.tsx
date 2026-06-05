@@ -40,6 +40,10 @@ import {
   listCarMappedPdfFieldKeys,
 } from '../lib/hasCarMappedFields'
 import { customerWithSelectedCar, resolveCustomerCarsForPicker } from '../lib/customerPdfCarOverlay'
+import {
+  collectCustomerRawCarFields,
+  listCustomerKeysWithCarWords,
+} from '../../customers/utils/resolveCustomerCarsForDisplay'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
 import { DEFAULT_PDF_FIELD_DATA_MAPPING } from '../types'
 import { usePdfDocumentsWorkspacePaths } from '../utils/pdfCustomerWorkspacePaths'
@@ -52,6 +56,7 @@ import {
   logManualCustomerSearchDebug,
   logManualCustomerSearchResultsRendered,
   logCustomerCarPickerDebug,
+  logCustomerCarSourceDebug,
   logSelectedCustomerDataLoaded,
   resolveApplicationCustomerAutoMatch,
 } from '../lib/pdfApplicationCustomerAutoMatch'
@@ -411,6 +416,20 @@ export default function PdfDocumentDetailPage() {
           rawCars = []
         }
         const sortedCars = resolveCustomerCarsForPicker(rawCars, customer)
+        logCustomerCarSourceDebug({
+          customerId,
+          listCustomerCarsCount: rawCars.length,
+          customerKeysWithCarWords: listCustomerKeysWithCarWords(customer),
+          customerRawCarFields: collectCustomerRawCarFields(customer),
+          resolvedCars: sortedCars.map((car) => ({
+            id: car.id,
+            carNumber: car.carNumber,
+            carModel: car.carModel,
+            carYear: car.carYear,
+            renewalDate: car.renewalDate,
+            carType: car.carType,
+          })),
+        })
         setCustomerCars(sortedCars)
         setSelectedCustomerCarCandidate(null)
         setAppliedCustomerCar(null)

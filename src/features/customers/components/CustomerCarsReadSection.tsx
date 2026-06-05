@@ -2,7 +2,7 @@ import type { CustomerRecord } from '../domain/types'
 import { CustomerCarsReadGrid } from './CustomerCarsReadGrid'
 import { useCustomerCars } from '../hooks/useCustomerCars'
 import { customerCarRecordToFormItem } from '../utils/customerCarsSaveUtils'
-import { customerRecordToCarFormItemsForDisplay } from '../utils/customerCarFormUtils'
+import { resolveCustomerCarsForPicker } from '../utils/resolveCustomerCarsForDisplay'
 import type { CustomerCarFormItem } from '../types/customerCarForm'
 
 export type CustomerCarsReadSectionProps = {
@@ -19,20 +19,18 @@ export function CustomerCarsReadSection({ customer, token, enabled }: CustomerCa
     enabled: shouldFetch,
   })
 
-  const fallback: CustomerCarFormItem[] = customerRecordToCarFormItemsForDisplay(customer)
-
-  let displayCars: CustomerCarFormItem[] = fallback
+  let displayCars: CustomerCarFormItem[] = []
   let showApiWarning = false
 
   if (shouldFetch) {
     if (errorMessage) {
-      displayCars = fallback
+      displayCars = resolveCustomerCarsForPicker([], customer).map(customerCarRecordToFormItem)
       showApiWarning = true
     } else if (!isLoading) {
-      displayCars = cars.length > 0 ? cars.map(customerCarRecordToFormItem) : fallback
-    } else {
-      displayCars = []
+      displayCars = resolveCustomerCarsForPicker(cars, customer).map(customerCarRecordToFormItem)
     }
+  } else {
+    displayCars = resolveCustomerCarsForPicker([], customer).map(customerCarRecordToFormItem)
   }
 
   return (
