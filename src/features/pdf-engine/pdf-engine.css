@@ -1317,46 +1317,102 @@
 
 .pdf-applicant-form__car-picker {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 10px;
-  row-gap: 6px;
   margin-top: 8px;
   padding-top: 10px;
   border-top: 1px solid #1e293b;
+}
+
+.pdf-applicant-form__car-picker-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .pdf-applicant-form__car-picker-label {
   font-size: 12px;
   font-weight: 600;
   color: #cbd5e1;
-  flex-shrink: 0;
 }
 
-.pdf-applicant-form__car-picker-select {
-  flex: 1;
-  min-width: 140px;
-  max-width: 420px;
-  background-color: #020617;
-  color: #f8fafc;
-  border: 1px solid #334155;
-}
-
+.pdf-applicant-form__car-picker-intro,
 .pdf-applicant-form__car-picker-empty,
-.pdf-applicant-form__car-picker-single {
+.pdf-applicant-form__car-picker-hint,
+.pdf-applicant-form__car-picker-note {
   margin: 0;
   font-size: 12px;
+  color: #94a3b8;
+}
+
+.pdf-applicant-form__car-picker-intro {
   color: #e5e7eb;
 }
 
-.pdf-applicant-form__car-picker-single strong {
-  color: #f8fafc;
-  font-weight: 700;
+.pdf-applicant-form__car-picker-hint {
+  color: #60a5fa;
 }
 
-.pdf-applicant-form__car-picker-sub {
-  font-weight: 500;
+.pdf-applicant-form__car-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pdf-applicant-form__car-picker-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  background: #111827;
+}
+
+.pdf-applicant-form__car-picker-item--selected {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.28);
+}
+
+.pdf-applicant-form__car-picker-item--applied {
+  background: #1f2937;
+}
+
+.pdf-applicant-form__car-picker-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pdf-applicant-form__car-picker-item-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.pdf-applicant-form__car-picker-item-meta,
+.pdf-applicant-form__car-picker-item-detail {
+  font-size: 12px;
   color: #94a3b8;
+  line-height: 1.4;
+}
+
+.pdf-applicant-form__car-picker-select-btn {
+  flex-shrink: 0;
+}
+
+.pdf-applicant-form__car-picker-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .pdf-applicant-form__customer-context {

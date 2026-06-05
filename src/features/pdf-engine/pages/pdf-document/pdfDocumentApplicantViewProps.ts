@@ -8,11 +8,16 @@ export type PdfSelectedCustomerSummary = {
   phone?: string
 }
 
-/** 자동차 관련 매핑이 있는 템플릿만 전달된다. 차량 선택·오버레이 동기화에 사용한다. */
+/** 고객 데이터 불러오기 후 차량 선택·적용 UI */
 export type PdfApplicantCarPickerUi = {
   cars: CustomerCarRecord[]
-  selectedCarId: number | null
-  onSelectCarId: (carId: number | null) => void
+  selectedCarCandidateId: number | null
+  appliedCarId: number | null
+  hasCarMappedFields: boolean
+  carLoadHint: string | null
+  carApplyHint: string | null
+  onSelectCarCandidate: (carId: number) => void
+  onApplySelectedCar: () => void
 }
 
 export type PdfDocumentApplicantViewProps = {

@@ -13,7 +13,15 @@ import {
   applicantTextLineStats,
   truncateApplicantTextToFit,
 } from '../lib/pdfApplicantTypography'
+import {
+  formatCustomerCarPickerSummary,
+  formatCustomerCarRenewalYmd,
+} from '../lib/customerPdfCarOverlay'
 import type { PdfFieldSpec } from '../types'
+import type {
+  PdfApplicantCarPickerUi,
+  PdfSelectedCustomerSummary,
+} from '../pages/pdf-document/pdfDocumentApplicantViewProps'
 
 function parseCheckboxJsonArray(raw: string): string[] {
   if (!raw) return []
@@ -542,43 +550,93 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
         </p>
 
         {pdfCarPicker ? (
-          <div className="pdf-applicant-form__car-picker" aria-label="PDF 고객 데이터용 차량 선택">
-            <div className="pdf-applicant-form__car-picker-label">적용 차량</div>
+          <div className="pdf-applicant-form__car-picker" aria-label="고객 차량 선택">
+            <div className="pdf-applicant-form__car-picker-head">
+              <div className="pdf-applicant-form__car-picker-label">고객 차량 선택</div>
+              {pdfCarPicker.carLoadHint ? (
+                <p className="pdf-applicant-form__car-picker-intro" role="status">
+                  {pdfCarPicker.carLoadHint}
+                </p>
+              ) : null}
+            </div>
             {pdfCarPicker.cars.length === 0 ? (
               <p className="pdf-applicant-form__car-picker-empty" role="status">
-                등록된 차량이 없습니다. 차량 정보가 매핑된 필드는 비워 둡니다.
-              </p>
-            ) : pdfCarPicker.cars.length === 1 ? (
-              <p className="pdf-applicant-form__car-picker-single" role="status">
-                <strong>
-                  {pdfCarPicker.cars[0].carNumber?.trim() ||
-                    pdfCarPicker.cars[0].carModel?.trim() ||
-                    '1번 차량'}
-                </strong>
-                {pdfCarPicker.cars[0].carModel?.trim() && pdfCarPicker.cars[0].carNumber?.trim() ? (
-                  <span className="pdf-applicant-form__car-picker-sub"> · {pdfCarPicker.cars[0].carModel.trim()}</span>
-                ) : null}
+                등록된 차량 정보가 없습니다.
               </p>
             ) : (
-              <FormSelect
-                className="pdf-applicant-form__car-picker-select"
-                aria-label="적용할 차량 선택"
-                value={pdfCarPicker.selectedCarId != null ? String(pdfCarPicker.selectedCarId) : ''}
-                disabled={submitting || loadingCustomerData}
-                options={pdfCarPicker.cars.map((c, idx) => {
-                  const num = `${idx + 1}번`
-                  const tail = c.carNumber?.trim() || c.carModel?.trim() || '번호 미등록'
-                  return { value: String(c.id), label: `${num} · ${tail}` }
-                })}
-                onChange={(e) => {
-                  const raw = e.target.value
-                  const next = raw ? Number(raw) : null
-                  pdfCarPicker.onSelectCarId(
-                    next != null && Number.isInteger(next) && next > 0 ? next : null,
-                  )
-                }}
-              />
+              <>
+                <ul className="pdf-applicant-form__car-picker-list">
+                  {pdfCarPicker.cars.map((car) => {
+                    const isCandidate = pdfCarPicker.selectedCarCandidateId === car.id
+                    const isApplied = pdfCarPicker.appliedCarId === car.id
+                    const renewal = formatCustomerCarRenewalYmd(car.renewalDate)
+                    return (
+                      <li
+                        key={car.id}
+                        className={
+                          'pdf-applicant-form__car-picker-item' +
+                          (isCandidate ? ' pdf-applicant-form__car-picker-item--selected' : '') +
+                          (isApplied ? ' pdf-applicant-form__car-picker-item--applied' : '')
+                        }
+                      >
+                        <div className="pdf-applicant-form__car-picker-item-body">
+                          <strong className="pdf-applicant-form__car-picker-item-title">
+                            {car.carNumber?.trim() || `차량 #${car.id}`}
+                          </strong>
+                          <span className="pdf-applicant-form__car-picker-item-meta">
+                            {formatCustomerCarPickerSummary(car)}
+                          </span>
+                          {renewal ? (
+                            <span className="pdf-applicant-form__car-picker-item-detail">
+                              갱신일 {renewal}
+                              {car.carType?.trim() ? ` · 용도/차종 ${car.carType.trim()}` : ''}
+                            </span>
+                          ) : car.carType?.trim() ? (
+                            <span className="pdf-applicant-form__car-picker-item-detail">
+                              용도/차종 {car.carType.trim()}
+                            </span>
+                          ) : null}
+                        </div>
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          className="pdf-applicant-form__car-picker-select-btn"
+                          disabled={submitting || loadingCustomerData}
+                          onClick={() => pdfCarPicker.onSelectCarCandidate(car.id)}
+                        >
+                          {isCandidate ? '선택됨' : '이 차량 선택'}
+                        </FormButton>
+                      </li>
+                    )
+                  })}
+                </ul>
+                <div className="pdf-applicant-form__car-picker-actions">
+                  <FormButton
+                    htmlType="button"
+                    variant="primary"
+                    className="pdf-applicant-form__car-picker-apply-btn"
+                    disabled={
+                      submitting ||
+                      loadingCustomerData ||
+                      pdfCarPicker.selectedCarCandidateId == null
+                    }
+                    onClick={() => pdfCarPicker.onApplySelectedCar()}
+                  >
+                    선택 차량 적용
+                  </FormButton>
+                  {!pdfCarPicker.hasCarMappedFields ? (
+                    <p className="pdf-applicant-form__car-picker-note" role="status">
+                      이 신청서에는 자동차 관련 매핑 필드가 없습니다. 적용해도 입력값은 바뀌지 않습니다.
+                    </p>
+                  ) : null}
+                </div>
+              </>
             )}
+            {pdfCarPicker.carApplyHint ? (
+              <p className="pdf-applicant-form__car-picker-hint" role="status">
+                {pdfCarPicker.carApplyHint}
+              </p>
+            ) : null}
           </div>
         ) : null}
       </div>
