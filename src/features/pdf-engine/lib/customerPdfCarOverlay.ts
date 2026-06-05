@@ -27,6 +27,27 @@ export function customerWithSelectedCar(
   }
 }
 
+export function formatCustomerCarRenewalYmd(renewalDate: string | null | undefined): string {
+  if (!renewalDate?.trim()) return ''
+  return String(renewalDate).trim().slice(0, 10)
+}
+
+/** 차량 선택 UI 한 줄 요약 */
+export function formatCustomerCarPickerSummary(car: CustomerCarRecord): string {
+  const parts: string[] = []
+  const num = car.carNumber?.trim()
+  const model = car.carModel?.trim()
+  const year = car.carYear?.trim()
+  const renewal = formatCustomerCarRenewalYmd(car.renewalDate)
+  const type = car.carType?.trim()
+  if (num) parts.push(num)
+  if (model) parts.push(model)
+  if (year) parts.push(`연식 ${year}`)
+  if (renewal) parts.push(`갱신 ${renewal}`)
+  if (type) parts.push(type)
+  return parts.join(' · ') || `차량 #${car.id}`
+}
+
 export function sortCustomerCarsForPicker(cars: CustomerCarRecord[]): CustomerCarRecord[] {
   return [...cars].sort((a, b) => {
     if (a.isPrimary !== b.isPrimary) {

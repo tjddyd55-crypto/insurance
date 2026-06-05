@@ -33,7 +33,8 @@ import {
   normalizePdfFieldDataMapping,
   overwriteCarMappedPdfValuesFromCustomer,
 } from '../lib/resolvePdfFieldValue'
-import { hasCarMappedFields } from '../lib/hasCarMappedFields'
+import { isCustomerPdfCarFieldKey } from '../config/customerPdfFieldOptions'
+import { countCarMappedPdfInputFields, hasCarMappedFields } from '../lib/hasCarMappedFields'
 import { customerWithSelectedCar, sortCustomerCarsForPicker } from '../lib/customerPdfCarOverlay'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
 import { DEFAULT_PDF_FIELD_DATA_MAPPING } from '../types'
@@ -180,27 +181,16 @@ export default function PdfDocumentDetailPage() {
   const [customerSearchBusy, setCustomerSearchBusy] = useState(false)
   const [customerSearchError, setCustomerSearchError] = useState<string | null>(null)
   const [customerSearchResults, setCustomerSearchResults] = useState<PdfSelectedCustomerSummary[]>([])
-  const [pdfCustomerCars, setPdfCustomerCars] = useState<CustomerCarRecord[]>([])
-  const [selectedPdfCarId, setSelectedPdfCarId] = useState<number | null>(null)
+  const [customerCars, setCustomerCars] = useState<CustomerCarRecord[]>([])
+  /** 사용자가 선택한 차량 후보 — 아직 신청서 필드에 반영 전 */
+  const [selectedCustomerCarCandidate, setSelectedCustomerCarCandidate] = useState<number | null>(null)
+  /** “선택 차량 적용”으로 실제 반영된 차량 id */
+  const [appliedCustomerCar, setAppliedCustomerCar] = useState<number | null>(null)
+  const [carApplyHint, setCarApplyHint] = useState<string | null>(null)
   const hasAttemptedAutoMatchRef = useRef(false)
   const hasManualCustomerInteractionRef = useRef(false)
 
   const hasCarPdfMapping = state.status === 'ready' && hasCarMappedFields(state.fields)
-
-  const pdfCarsSignature = useMemo(
-    () => pdfCustomerCars.map((c) => `${c.id}:${c.carNumber}:${c.carModel}:${c.carYear}:${c.renewalDate ?? ''}`).join('|'),
-    [pdfCustomerCars],
-  )
-
-  const pdfOverlayCarRecord = useMemo(() => {
-    if (!hasCarPdfMapping || pdfCustomerCars.length === 0) {
-      return null
-    }
-    if (selectedPdfCarId != null) {
-      return pdfCustomerCars.find((c) => c.id === selectedPdfCarId) ?? pdfCustomerCars[0] ?? null
-    }
-    return pdfCustomerCars[0] ?? null
-  }, [hasCarPdfMapping, pdfCustomerCars, selectedPdfCarId])
 
   const effectiveCustomerId = useMemo(
     () => appliedCustomer?.id ?? workspaceCustomerIdFromRoute ?? null,
@@ -342,58 +332,6 @@ export default function PdfDocumentDetailPage() {
     sourcePrefill.kind,
   ])
 
-  useEffect(() => {
-    if (!token?.trim() || !hasCarPdfMapping || effectiveCustomerId == null) {
-      setPdfCustomerCars([])
-      setSelectedPdfCarId(null)
-      return
-    }
-    let cancelled = false
-    listCustomerCars(token, effectiveCustomerId)
-      .then((rows) => {
-        if (cancelled) {
-          return
-        }
-        const sorted = sortCustomerCarsForPicker(rows)
-        setPdfCustomerCars(sorted)
-        setSelectedPdfCarId((prev) => {
-          if (prev != null && sorted.some((c) => c.id === prev)) {
-            return prev
-          }
-          return sorted[0]?.id ?? null
-        })
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPdfCustomerCars([])
-          setSelectedPdfCarId(null)
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [token, hasCarPdfMapping, effectiveCustomerId])
-
-  /** 자동차 매핑 로드 후 — 선택 차량 기준 차량 매핑 필드 동기화(미리보기·생성은 applicantValues 따라감). */
-  useEffect(() => {
-    if (state.status !== 'ready') {
-      return
-    }
-    const fields = state.fields
-    if (!hasCarMappedFields(fields) || cachedCustomer == null) {
-      return
-    }
-    const merged = customerWithSelectedCar(cachedCustomer, pdfOverlayCarRecord)
-    setApplicantValues((prev) => overwriteCarMappedPdfValuesFromCustomer(fields, prev, merged))
-  }, [
-    state.status === 'ready' ? state.template.id : 0,
-    cachedCustomer?.id,
-    hasCarPdfMapping,
-    pdfCarsSignature,
-    pdfOverlayCarRecord?.id ?? -1,
-    selectedPdfCarId,
-  ])
-
   const displayCustomerLabel = issuerCustomerLabel.trim() || fallbackCustomerLabel.trim()
 
   const workspaceCustomerLabel = displayCustomerLabel.trim() || null
@@ -452,37 +390,36 @@ export default function PdfDocumentDetailPage() {
         setAppliedCustomer(summary)
         logSelectedCustomerDataLoaded(customerId)
         const fields = state.fields
-        const useCarMerge = hasCarMappedFields(fields)
-        let overlayCarResolved: CustomerCarRecord | null = null
-        if (useCarMerge) {
-          const rawCars = await listCustomerCars(token, customerId)
-          const sorted = sortCustomerCarsForPicker(rawCars)
-          setPdfCustomerCars(sorted)
-          const keep = selectedPdfCarId != null && sorted.some((c) => c.id === selectedPdfCarId)
-          const sid = keep ? selectedPdfCarId : sorted[0]?.id ?? null
-          setSelectedPdfCarId(sid)
-          overlayCarResolved = sid != null ? sorted.find((c) => c.id === sid) ?? null : null
-        }
 
-        const customerForPdf = useCarMerge
-          ? customerWithSelectedCar(customer, overlayCarResolved)
-          : customer
+        const rawCars = await listCustomerCars(token, customerId)
+        const sortedCars = sortCustomerCarsForPicker(rawCars)
+        setCustomerCars(sortedCars)
+        setSelectedCustomerCarCandidate(null)
+        setAppliedCustomerCar(null)
+        setCarApplyHint(null)
 
         setApplicantValues((prev) =>
-          applyCustomerDataToPdfValues(fields, prev, customerForPdf, {
+          applyCustomerDataToPdfValues(fields, prev, customer, {
             overwriteMode: overwriteCustomerOnLoad,
+            skipCarMappedFields: true,
           }),
         )
-        const mappedCount = state.fields.filter(
-          (f) =>
-            f.dataMapping.dataSourceType === 'customer' &&
-            f.dataMapping.customerFieldKey &&
-            (f.fieldType === 'text' || f.fieldType === 'textarea'),
-        ).length
+        const mappedCount = state.fields.filter((f) => {
+          const m = normalizePdfFieldDataMapping(f.dataMapping)
+          if (m.dataSourceType !== 'customer' || !m.customerFieldKey) return false
+          if (f.fieldType !== 'text' && f.fieldType !== 'textarea') return false
+          return !isCustomerPdfCarFieldKey(m.customerFieldKey)
+        }).length
+        const carHint =
+          sortedCars.length > 0
+            ? ' 등록된 차량은 아래에서 선택 후 「선택 차량 적용」을 눌러 반영할 수 있습니다.'
+            : ''
         setCustomerLoadHint(
           mappedCount > 0
-            ? `매핑된 ${mappedCount}개 항목에 고객 정보를 반영했습니다.`
-            : '고객 데이터 매핑이 설정된 텍스트 필드가 없습니다.',
+            ? `매핑된 ${mappedCount}개 항목에 고객 기본 정보를 반영했습니다.${carHint}`
+            : sortedCars.length > 0
+              ? `고객 데이터 매핑 필드는 없습니다.${carHint}`
+              : '고객 데이터 매핑이 설정된 텍스트 필드가 없습니다.',
         )
       } catch (e) {
         setCustomerLoadHint(
@@ -492,15 +429,53 @@ export default function PdfDocumentDetailPage() {
         setLoadingCustomerData(false)
       }
     },
-    [
-      token,
-      state,
-      cachedCustomer,
-      overwriteCustomerOnLoad,
-      selectedPdfCarId,
-      customerRecordToSearchSummary,
-    ],
+    [token, state, cachedCustomer, overwriteCustomerOnLoad, customerRecordToSearchSummary],
   )
+
+  const handleSelectCarCandidate = useCallback((carId: number) => {
+    setSelectedCustomerCarCandidate(carId)
+    setCarApplyHint(null)
+  }, [])
+
+  const handleApplySelectedCar = useCallback(() => {
+    if (state.status !== 'ready' || cachedCustomer == null) {
+      return
+    }
+    const carId = selectedCustomerCarCandidate
+    if (carId == null) {
+      setCarApplyHint('적용할 차량을 먼저 「이 차량 선택」으로 고르세요.')
+      return
+    }
+    const car = customerCars.find((c) => c.id === carId)
+    if (!car) {
+      setCarApplyHint('선택한 차량 정보를 찾을 수 없습니다.')
+      return
+    }
+    const fields = state.fields
+    if (!hasCarMappedFields(fields)) {
+      setCarApplyHint('적용 가능한 자동차 필드가 없습니다.')
+      return
+    }
+    const merged = customerWithSelectedCar(cachedCustomer, car)
+    setApplicantValues((prev) =>
+      overwriteCarMappedPdfValuesFromCustomer(fields, prev, merged, {
+        overwriteMode: overwriteCustomerOnLoad,
+      }),
+    )
+    setAppliedCustomerCar(carId)
+    const carFieldCount = countCarMappedPdfInputFields(fields)
+    setCarApplyHint(
+      carFieldCount > 0
+        ? `선택한 차량 정보를 ${carFieldCount}개 자동차 항목에 반영했습니다.`
+        : '적용 가능한 자동차 필드가 없습니다.',
+    )
+  }, [
+    state,
+    cachedCustomer,
+    selectedCustomerCarCandidate,
+    customerCars,
+    overwriteCustomerOnLoad,
+  ])
 
   const handleCustomerSearchSubmit = useCallback(async () => {
     if (!token?.trim()) return
@@ -612,6 +587,10 @@ export default function PdfDocumentDetailPage() {
       hasAttemptedAutoMatchRef.current = true
       setSelectedCustomerCandidate(customer)
       setCachedCustomer(null)
+      setCustomerCars([])
+      setSelectedCustomerCarCandidate(null)
+      setAppliedCustomerCar(null)
+      setCarApplyHint(null)
       setShowCustomerSearch(false)
       setCustomerSearchError(null)
       setCustomerLoadHint('「선택 고객 데이터 불러오기」를 눌러 신청서에 반영하세요.')
@@ -624,6 +603,10 @@ export default function PdfDocumentDetailPage() {
     setSelectedCustomerCandidate(null)
     setAppliedCustomer(null)
     setCachedCustomer(null)
+    setCustomerCars([])
+    setSelectedCustomerCarCandidate(null)
+    setAppliedCustomerCar(null)
+    setCarApplyHint(null)
     setCustomerLoadHint(null)
   }, [])
 
@@ -756,13 +739,21 @@ export default function PdfDocumentDetailPage() {
       onFocusedFieldChange: setFocusedFieldKey,
       onSubmitApplicant: handleSubmitApplicant,
       pdfCarPicker:
-        hasCarPdfMapping ?
-          {
-            cars: pdfCustomerCars,
-            selectedCarId: selectedPdfCarId,
-            onSelectCarId: setSelectedPdfCarId,
-          }
-        : null,
+        appliedCustomer != null
+          ? {
+              cars: customerCars,
+              selectedCarCandidateId: selectedCustomerCarCandidate,
+              appliedCarId: appliedCustomerCar,
+              hasCarMappedFields: hasCarPdfMapping,
+              carLoadHint:
+                customerCars.length > 0
+                  ? '등록된 차량 정보가 있습니다. 이 신청서에 사용할 차량을 선택해 주세요.'
+                  : null,
+              carApplyHint,
+              onSelectCarCandidate: handleSelectCarCandidate,
+              onApplySelectedCar: handleApplySelectedCar,
+            }
+          : null,
     }
   }, [
     state,
@@ -791,9 +782,14 @@ export default function PdfDocumentDetailPage() {
     handleCustomerSearchSubmit,
     handleSelectSearchedCustomer,
     handleClearSelectedCustomer,
+    appliedCustomer,
     hasCarPdfMapping,
-    pdfCustomerCars,
-    selectedPdfCarId,
+    customerCars,
+    selectedCustomerCarCandidate,
+    appliedCustomerCar,
+    carApplyHint,
+    handleSelectCarCandidate,
+    handleApplySelectedCar,
   ])
 
   if (state.status === 'loading') {

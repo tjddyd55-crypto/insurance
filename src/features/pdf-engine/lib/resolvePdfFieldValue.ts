@@ -83,11 +83,21 @@ export function applyCustomerDataToPdfValues(
   fields: PdfFieldSpec[],
   values: Record<string, string>,
   customer: CustomerRecord | null,
-  opts?: { overwriteMode?: boolean },
+  opts?: { overwriteMode?: boolean; skipCarMappedFields?: boolean },
 ): Record<string, string> {
   const overwriteMode = opts?.overwriteMode === true
+  const skipCarMappedFields = opts?.skipCarMappedFields === true
   const out = { ...values }
   for (const field of fields) {
+    const m = normalizePdfFieldDataMapping(field.dataMapping)
+    if (
+      skipCarMappedFields &&
+      m.dataSourceType === 'customer' &&
+      m.customerFieldKey &&
+      isCustomerPdfCarFieldKey(m.customerFieldKey)
+    ) {
+      continue
+    }
     const key = field.fieldKey
     const manual = (out[key] ?? '').trim()
     const next = resolvePdfFieldValue({
@@ -103,12 +113,14 @@ export function applyCustomerDataToPdfValues(
   return out
 }
 
-/** 차량 선택 변경 시 — 차량 매핑 필드만 덮어쓴다(수동 매핑·일반 고객 필드는 유지). */
+/** 차량 적용 시 — 차량 매핑 필드만 갱신한다(수동 매핑·일반 고객 필드는 유지). */
 export function overwriteCarMappedPdfValuesFromCustomer(
   fields: PdfFieldSpec[],
   values: Record<string, string>,
   mergedCustomerWithCarOverlay: CustomerRecord,
+  opts?: { overwriteMode?: boolean },
 ): Record<string, string> {
+  const overwriteMode = opts?.overwriteMode === true
   const out = { ...values }
   for (const field of fields) {
     const m = normalizePdfFieldDataMapping(field.dataMapping)
@@ -117,8 +129,12 @@ export function overwriteCarMappedPdfValuesFromCustomer(
     }
     if (field.fieldType !== 'text' && field.fieldType !== 'textarea') continue
     const fk = field.fieldKey
+    const manual = (out[fk] ?? '').trim()
     const fromCust = pickCustomerPdfFieldValue(mergedCustomerWithCarOverlay, m.customerFieldKey)
-    out[fk] = fromCust || m.fallbackText || ''
+    const next = fromCust || m.fallbackText || ''
+    if (overwriteMode || !manual) {
+      out[fk] = next
+    }
   }
   return out
 }
