@@ -150,3 +150,23 @@ export function logCustomerCarPickerDebug(payload: {
   }
   console.debug('customer car picker debug', payload)
 }
+
+export function logCustomerCarSourceDebug(payload: {
+  customerId: number
+  listCustomerCarsCount: number
+  customerKeysWithCarWords: string[]
+  customerRawCarFields: Record<string, string>
+  resolvedCars: Array<{
+    id: number
+    carNumber: string
+    carModel: string
+    carYear: string
+    renewalDate: string | null
+    carType: string
+  }>
+}): void {
+  if (!import.meta.env.DEV) {
+    return
+  }
+  console.debug('customer car source debug', payload)
+}
