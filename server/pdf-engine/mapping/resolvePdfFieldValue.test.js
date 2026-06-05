@@ -16,6 +16,12 @@ test('parseFieldDataMapping: legacy name string', () => {
   assert.equal(m.customerFieldKey, 'name')
 })
 
+test('parseFieldDataMapping: legacy carNumber string', () => {
+  const m = parseFieldDataMapping('carNumber')
+  assert.equal(m.dataSourceType, 'customer')
+  assert.equal(m.customerFieldKey, 'carNumber')
+})
+
 test('resolvePdfFieldValue: manual value wins when not overwrite', () => {
   const field = {
     dataMapping: {

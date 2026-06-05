@@ -9,9 +9,38 @@ import type { PdfFieldDataMapping, PdfFieldSpec } from '../types'
 import { DEFAULT_PDF_FIELD_DATA_MAPPING } from '../types'
 
 export function normalizePdfFieldDataMapping(
-  raw: Partial<PdfFieldDataMapping> | null | undefined,
+  raw: Partial<PdfFieldDataMapping> | string | null | undefined,
 ): PdfFieldDataMapping {
-  if (!raw || typeof raw !== 'object') {
+  if (raw == null || raw === '') {
+    return { ...DEFAULT_PDF_FIELD_DATA_MAPPING }
+  }
+  if (typeof raw === 'string') {
+    const str = raw.trim()
+    if (!str) {
+      return { ...DEFAULT_PDF_FIELD_DATA_MAPPING }
+    }
+    if (str.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(str) as Partial<PdfFieldDataMapping>
+        if (parsed && typeof parsed === 'object') {
+          return normalizePdfFieldDataMapping(parsed)
+        }
+      } catch {
+        return { ...DEFAULT_PDF_FIELD_DATA_MAPPING }
+      }
+    }
+    if (isCustomerPdfFieldKey(str)) {
+      return {
+        dataSourceType: 'customer',
+        customerFieldKey: str,
+        customerFieldLabel: labelForCustomerPdfFieldKey(str),
+        fallbackText: null,
+        transformType: null,
+      }
+    }
+    return { ...DEFAULT_PDF_FIELD_DATA_MAPPING }
+  }
+  if (typeof raw !== 'object') {
     return { ...DEFAULT_PDF_FIELD_DATA_MAPPING }
   }
   const typeRaw = raw.dataSourceType === 'customer' ? 'customer' : 'manual'
