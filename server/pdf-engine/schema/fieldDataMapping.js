@@ -83,6 +83,16 @@ export function parseFieldDataMapping(raw) {
     }
   }
 
+  if (isAllowedCustomerPdfFieldKey(str)) {
+    return {
+      dataSourceType: 'customer',
+      customerFieldKey: str,
+      customerFieldLabel: null,
+      fallbackText: null,
+      transformType: null,
+    }
+  }
+
   return defaultFieldDataMapping()
 }
 

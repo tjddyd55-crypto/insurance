@@ -34,8 +34,12 @@ import {
   overwriteCarMappedPdfValuesFromCustomer,
 } from '../lib/resolvePdfFieldValue'
 import { isCustomerPdfCarFieldKey } from '../config/customerPdfFieldOptions'
-import { countCarMappedPdfInputFields, hasCarMappedFields } from '../lib/hasCarMappedFields'
-import { customerWithSelectedCar, sortCustomerCarsForPicker } from '../lib/customerPdfCarOverlay'
+import {
+  countCarMappedPdfInputFields,
+  hasCarMappedFields,
+  listCarMappedPdfFieldKeys,
+} from '../lib/hasCarMappedFields'
+import { customerWithSelectedCar, resolveCustomerCarsForPicker } from '../lib/customerPdfCarOverlay'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
 import { DEFAULT_PDF_FIELD_DATA_MAPPING } from '../types'
 import { usePdfDocumentsWorkspacePaths } from '../utils/pdfCustomerWorkspacePaths'
@@ -47,6 +51,7 @@ import {
   logManualCustomerCandidateSelected,
   logManualCustomerSearchDebug,
   logManualCustomerSearchResultsRendered,
+  logCustomerCarPickerDebug,
   logSelectedCustomerDataLoaded,
   resolveApplicationCustomerAutoMatch,
 } from '../lib/pdfApplicationCustomerAutoMatch'
@@ -64,7 +69,11 @@ function coercePdfFieldSpecForForm(f: PdfFieldSpec & { id?: number }): PdfFieldS
   return {
     ...rest,
     inputRole,
-    dataMapping: normalizePdfFieldDataMapping(rest.dataMapping ?? DEFAULT_PDF_FIELD_DATA_MAPPING),
+    dataMapping: normalizePdfFieldDataMapping(
+      rest.dataMapping ??
+        (rest as PdfFieldSpec & { customerMapping?: unknown }).customerMapping ??
+        DEFAULT_PDF_FIELD_DATA_MAPPING,
+    ),
   }
 }
 
@@ -187,6 +196,7 @@ export default function PdfDocumentDetailPage() {
   /** “선택 차량 적용”으로 실제 반영된 차량 id */
   const [appliedCustomerCar, setAppliedCustomerCar] = useState<number | null>(null)
   const [carApplyHint, setCarApplyHint] = useState<string | null>(null)
+  const [customerCarsFetchComplete, setCustomerCarsFetchComplete] = useState(false)
   const hasAttemptedAutoMatchRef = useRef(false)
   const hasManualCustomerInteractionRef = useRef(false)
 
@@ -375,6 +385,8 @@ export default function PdfDocumentDetailPage() {
       }
       setLoadingCustomerData(true)
       setCustomerLoadHint(null)
+      setCustomerCarsFetchComplete(false)
+      let didApplyCustomer = false
       try {
         const customer =
           cachedCustomer?.id === customerId
@@ -388,15 +400,32 @@ export default function PdfDocumentDetailPage() {
         const summary =
           appliedSummary ?? customerRecordToSearchSummary(customer)
         setAppliedCustomer(summary)
+        didApplyCustomer = true
         logSelectedCustomerDataLoaded(customerId)
         const fields = state.fields
 
-        const rawCars = await listCustomerCars(token, customerId)
-        const sortedCars = sortCustomerCarsForPicker(rawCars)
+        let rawCars: CustomerCarRecord[] = []
+        try {
+          rawCars = await listCustomerCars(token, customerId)
+        } catch {
+          rawCars = []
+        }
+        const sortedCars = resolveCustomerCarsForPicker(rawCars, customer)
         setCustomerCars(sortedCars)
         setSelectedCustomerCarCandidate(null)
         setAppliedCustomerCar(null)
         setCarApplyHint(null)
+
+        const carFieldKeys = listCarMappedPdfFieldKeys(fields)
+        const hasCarFields = hasCarMappedFields(fields)
+        logCustomerCarPickerDebug({
+          appliedCustomerId: summary.id,
+          hasCarMappedFields: hasCarFields,
+          carFieldKeys,
+          carsCount: sortedCars.length,
+          pdfCarPickerPassed: hasCarFields,
+          customerCarsFetchComplete: true,
+        })
 
         setApplicantValues((prev) =>
           applyCustomerDataToPdfValues(fields, prev, customer, {
@@ -427,6 +456,7 @@ export default function PdfDocumentDetailPage() {
         )
       } finally {
         setLoadingCustomerData(false)
+        setCustomerCarsFetchComplete(didApplyCustomer)
       }
     },
     [token, state, cachedCustomer, overwriteCustomerOnLoad, customerRecordToSearchSummary],
@@ -591,6 +621,7 @@ export default function PdfDocumentDetailPage() {
       setSelectedCustomerCarCandidate(null)
       setAppliedCustomerCar(null)
       setCarApplyHint(null)
+      setCustomerCarsFetchComplete(false)
       setShowCustomerSearch(false)
       setCustomerSearchError(null)
       setCustomerLoadHint('「선택 고객 데이터 불러오기」를 눌러 신청서에 반영하세요.')
@@ -607,6 +638,7 @@ export default function PdfDocumentDetailPage() {
     setSelectedCustomerCarCandidate(null)
     setAppliedCustomerCar(null)
     setCarApplyHint(null)
+    setCustomerCarsFetchComplete(false)
     setCustomerLoadHint(null)
   }, [])
 
@@ -739,7 +771,7 @@ export default function PdfDocumentDetailPage() {
       onFocusedFieldChange: setFocusedFieldKey,
       onSubmitApplicant: handleSubmitApplicant,
       pdfCarPicker:
-        appliedCustomer != null
+        appliedCustomer != null && customerCarsFetchComplete && hasCarPdfMapping
           ? {
               cars: customerCars,
               selectedCarCandidateId: selectedCustomerCarCandidate,
@@ -788,6 +820,7 @@ export default function PdfDocumentDetailPage() {
     selectedCustomerCarCandidate,
     appliedCustomerCar,
     carApplyHint,
+    customerCarsFetchComplete,
     handleSelectCarCandidate,
     handleApplySelectedCar,
   ])

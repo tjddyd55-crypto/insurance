@@ -136,3 +136,17 @@ export function logSelectedCustomerDataLoaded(customerId: number): void {
   }
   console.debug(`selected customer data loaded: customerId=${customerId}`)
 }
+
+export function logCustomerCarPickerDebug(payload: {
+  appliedCustomerId: number | null
+  hasCarMappedFields: boolean
+  carFieldKeys: string[]
+  carsCount: number
+  pdfCarPickerPassed: boolean
+  customerCarsFetchComplete: boolean
+}): void {
+  if (!import.meta.env.DEV) {
+    return
+  }
+  console.debug('customer car picker debug', payload)
+}
