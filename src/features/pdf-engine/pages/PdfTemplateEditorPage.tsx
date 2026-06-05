@@ -28,9 +28,11 @@ import {
 import { PdfCoordinateEditor } from '../components/PdfCoordinateEditor'
 import { validatePdfTemplateFieldsForSave, dedupeRadioPlacementsInFields } from '../validatePdfTemplateFieldsForSave'
 import { normalizePdfFieldKeys } from '../pdfFieldKey'
-import { normalizePdfFieldDataMapping } from '../lib/resolvePdfFieldValue'
+import {
+  pdfFieldSpecsForSavePayload,
+  readPdfFieldDataMappingFromField,
+} from '../lib/resolvePdfFieldValue'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
-import { DEFAULT_PDF_FIELD_DATA_MAPPING } from '../types'
 import '../pdf-engine.css'
 
 function radioPlacementsChangedByDedupe(before: PdfFieldSpec[], after: PdfFieldSpec[]): boolean {
@@ -184,8 +186,8 @@ function CreateTemplateFlow({
 // 편집 플로우: 서버에서 템플릿·필드·원본 PDF 로드 → 좌표 에디터 → 저장
 // ────────────────────────────────────────────────────────────────────────
 
-function coercePdfFieldSpecForEditor(f: PdfFieldSpec & { id?: number }): PdfFieldSpec {
-  const rest = { ...f } as PdfFieldSpec & { id?: number }
+function coercePdfFieldSpecForEditor(f: PdfFieldSpec & { id?: number; customerMapping?: unknown }): PdfFieldSpec {
+  const rest = { ...f } as PdfFieldSpec & { id?: number; customerMapping?: unknown }
   delete rest.id
   const inputRole: PdfInputRole =
     rest.fieldType === 'signature'
@@ -196,8 +198,20 @@ function coercePdfFieldSpecForEditor(f: PdfFieldSpec & { id?: number }): PdfFiel
   return {
     ...rest,
     inputRole,
-    dataMapping: normalizePdfFieldDataMapping(rest.dataMapping ?? DEFAULT_PDF_FIELD_DATA_MAPPING),
+    dataMapping: readPdfFieldDataMappingFromField(rest),
   }
+}
+
+function logPdfTemplateFieldMappingDebug(payload: {
+  fieldKey: string
+  beforeMapping: PdfFieldSpec['dataMapping']
+  savePayloadMapping: PdfFieldSpec['dataMapping']
+  responseMapping?: PdfFieldSpec['dataMapping']
+}): void {
+  if (!import.meta.env.DEV) {
+    return
+  }
+  console.debug('pdf template field mapping debug', payload)
 }
 
 type LoadState =
@@ -280,8 +294,27 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
           setToast(validationError)
           return false
         }
-        const saved = await saveAdminPdfTemplateFields(token, templateId, dedupedFields)
-        setFields(saved.fields.map(coercePdfFieldSpecForEditor))
+        const payloadFields = pdfFieldSpecsForSavePayload(dedupedFields)
+        if (import.meta.env.DEV && payloadFields[0]) {
+          const before = dedupedFields.find((f) => f.fieldKey === payloadFields[0].fieldKey)
+          logPdfTemplateFieldMappingDebug({
+            fieldKey: payloadFields[0].fieldKey,
+            beforeMapping: before?.dataMapping ?? payloadFields[0].dataMapping,
+            savePayloadMapping: payloadFields[0].dataMapping,
+          })
+        }
+        const saved = await saveAdminPdfTemplateFields(token, templateId, payloadFields)
+        const coerced = saved.fields.map(coercePdfFieldSpecForEditor)
+        if (import.meta.env.DEV && coerced[0]) {
+          logPdfTemplateFieldMappingDebug({
+            fieldKey: coerced[0].fieldKey,
+            beforeMapping: payloadFields.find((f) => f.fieldKey === coerced[0].fieldKey)?.dataMapping ?? coerced[0].dataMapping,
+            savePayloadMapping:
+              payloadFields.find((f) => f.fieldKey === coerced[0].fieldKey)?.dataMapping ?? coerced[0].dataMapping,
+            responseMapping: coerced[0].dataMapping,
+          })
+        }
+        setFields(coerced)
         setFieldsDirty(false)
         if (!options?.silent) {
           setToast(

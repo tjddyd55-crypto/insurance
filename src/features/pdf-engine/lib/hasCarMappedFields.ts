@@ -1,15 +1,14 @@
 import { isCustomerPdfCarFieldKey } from '../config/customerPdfFieldOptions'
-import { normalizePdfFieldDataMapping } from './resolvePdfFieldValue'
+import { readPdfFieldDataMappingFromField } from './resolvePdfFieldValue'
 import type { PdfFieldSpec } from '../types'
 
 /** API/DB 레거시 customerMapping 문자열까지 포함해 매핑 원본을 읽는다. */
-export function resolvePdfFieldMappingRaw(field: PdfFieldSpec): unknown {
-  const ext = field as PdfFieldSpec & { customerMapping?: unknown }
-  return field.dataMapping ?? ext.customerMapping ?? null
+export function resolvePdfFieldMappingRaw(field: PdfFieldSpec): ReturnType<typeof readPdfFieldDataMappingFromField> {
+  return readPdfFieldDataMappingFromField(field as PdfFieldSpec & { customerMapping?: unknown })
 }
 
 function isCarMappedInputField(f: PdfFieldSpec): boolean {
-  const dm = normalizePdfFieldDataMapping(resolvePdfFieldMappingRaw(f))
+  const dm = resolvePdfFieldMappingRaw(f)
   return (
     dm.dataSourceType === 'customer' &&
     !!dm.customerFieldKey &&
@@ -33,7 +32,7 @@ export function listCarMappedPdfFieldKeys(fields: PdfFieldSpec[]): string[] {
   const out: string[] = []
   for (const f of fields) {
     if (!isCarMappedInputField(f)) continue
-    const dm = normalizePdfFieldDataMapping(resolvePdfFieldMappingRaw(f))
+    const dm = resolvePdfFieldMappingRaw(f)
     out.push(`${f.fieldKey}:${dm.customerFieldKey ?? '?'}`)
   }
   return out
