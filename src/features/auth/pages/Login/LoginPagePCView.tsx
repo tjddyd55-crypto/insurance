@@ -36,20 +36,21 @@ export default function LoginPagePCView() {
       </aside>
 
       <section className="auth-login-content">
-        <LoginForm
-          username={controller.username}
-          password={controller.password}
-          errorMessage={controller.errorMessage}
-          isSubmitting={controller.isSubmitting}
-          flash={controller.flash}
-          setUsername={controller.setUsername}
-          setPassword={controller.setPassword}
-          handleSubmit={controller.handleSubmit}
-        />
+        <div className="auth-login-content__stack">
+          <LoginForm
+            username={controller.username}
+            password={controller.password}
+            errorMessage={controller.errorMessage}
+            isSubmitting={controller.isSubmitting}
+            flash={controller.flash}
+            setUsername={controller.setUsername}
+            setPassword={controller.setPassword}
+            handleSubmit={controller.handleSubmit}
+          />
+          <LoginAppDownloadFooter />
+          <LoginPageVersionFooter version={controller.version} />
+        </div>
       </section>
-
-      <LoginAppDownloadFooter />
-      <LoginPageVersionFooter version={controller.version} />
     </main>
   )
 }
