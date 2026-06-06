@@ -1582,14 +1582,27 @@
 
 /* ─── 모바일 폭 정리 (보험 CRM — feature root scoped) ─────────────── */
 @media (max-width: 767px) {
-  .mobile-root .pdf-engine-page,
-  .insurance-dark-forms.pdf-document-detail-page.pdf-engine-page,
-  .pdf-document-detail-page--mobile {
+  /*
+   * 문서 신청 작성/수정 — 좌우 거터 16px 단일화.
+   * index.css · mobile-ui-foundation 의 .page padding 과 pdf-engine-page 기본 padding 이
+   * 겹치면 40px+ 로 본문이 과하게 안쪽으로 들어간다.
+   */
+  main.insurance-dark-forms.pdf-engine-page.pdf-document-detail-page--mobile.page,
+  .mobile-root .pdf-engine-page.pdf-document-detail-page--mobile {
     width: 100%;
-    max-width: none;
+    max-width: none !important;
     margin-inline: 0;
-    padding-inline: 16px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px));
+    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)) !important;
     box-sizing: border-box;
+  }
+
+  .workspace-mobile-outlet-modal__body > main.insurance-dark-forms.pdf-engine-page.pdf-document-detail-page--mobile.page,
+  .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
+    > main.insurance-dark-forms.pdf-engine-page.pdf-document-detail-page--mobile.page {
+    padding-top: 12px;
+    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)) !important;
   }
 
   .mobile-root .pdf-engine-page .pdf-engine-form,
@@ -1603,5 +1616,16 @@
     min-width: 0;
     margin-inline: 0;
     box-sizing: border-box;
+  }
+
+  .pdf-document-detail-page--mobile .pdf-applicant-form-panel.pdf-engine-form {
+    max-width: none;
+    margin-inline: 0;
+    padding-inline: 0;
+    padding-block: 0 16px;
+  }
+
+  .pdf-document-detail-page__mobile-preview-dock {
+    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
   }
 }

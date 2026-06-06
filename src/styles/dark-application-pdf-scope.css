@@ -629,9 +629,30 @@ main.insurance-dark-forms .pdf-engine-preview__frame {
 
 /* 단독 신청서·전자서명 — app shell padding 으로 생기는 틈 제거 */
 .app-main-content:has(> main.insurance-dark-forms.contract-signature-console),
-.app-main-content:has(> main.insurance-dark-forms.pdf-engine-page) {
+.app-main-content:has(> main.insurance-dark-forms.pdf-engine-page),
+.app-main-content:has(> main.insurance-dark-forms.application-form-page) {
   padding: 0;
   background-color: #0b111a;
+}
+
+/* ─── 레거시 신청서 작성/수정 — 모바일 좌우 거터 (문서 신청과 동일 16px) ─── */
+@media (max-width: 767px) {
+  main.insurance-dark-forms.application-form-page.page {
+    width: 100%;
+    max-width: none !important;
+    margin-inline: 0;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)) !important;
+    box-sizing: border-box;
+  }
+
+  .workspace-mobile-outlet-modal__body > main.insurance-dark-forms.application-form-page.page,
+  .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
+    > main.insurance-dark-forms.application-form-page.page {
+    padding-top: 12px;
+    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)) !important;
+  }
 }
 
 .mobile-workspace-content:has(> main.insurance-dark-forms) {
