@@ -1,5 +1,6 @@
 import { useLoginController } from '../../hooks/useLoginController'
 import LoginForm from './LoginForm'
+import LoginAppDownloadFooter from './LoginAppDownloadFooter'
 import LoginPageVersionFooter from './LoginPageVersionFooter'
 
 /**
@@ -37,6 +38,7 @@ export default function LoginPageMobileView() {
         />
       </section>
 
+      <LoginAppDownloadFooter />
       <LoginPageVersionFooter version={controller.version} />
     </main>
   )

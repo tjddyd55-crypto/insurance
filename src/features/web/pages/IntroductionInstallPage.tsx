@@ -137,9 +137,15 @@ export function IntroductionInstallPage() {
           <p>PC 버전 또는 모바일 APK를 설치하고</p>
           <p>연락처 엑셀 파일을 작성해 업로드하세요</p>
           <div className="intro-install-hero__actions">
-            <a href={DOWNLOAD_LINKS.pc} target="_blank" rel="noreferrer">PC 다운로드</a>
-            <a href={DOWNLOAD_LINKS.fcMobile} target="_blank" rel="noreferrer">FC 모바일</a>
-            <a className="is-customer" href={DOWNLOAD_LINKS.customerApp} target="_blank" rel="noreferrer">고객앱</a>
+            <a href={DOWNLOAD_LINKS.pc} download>
+              PC 다운로드
+            </a>
+            <a href={DOWNLOAD_LINKS.fcMobile} download>
+              FC 모바일
+            </a>
+            <a className="is-customer" href={DOWNLOAD_LINKS.customerApp} target="_blank" rel="noreferrer">
+              고객앱
+            </a>
           </div>
         </div>
       </section>
@@ -166,7 +172,10 @@ export function IntroductionInstallPage() {
                   </div>
                 </div>
                 <p>{card.description}</p>
-                <a href={card.href} target="_blank" rel="noreferrer">
+                <a
+                  href={card.href}
+                  {...(card.customer ? { target: '_blank', rel: 'noreferrer' } : { download: true })}
+                >
                   <span className="intro-install-download-card__btn-icon" aria-hidden="true">↓</span>
                   {card.buttonLabel}
                 </a>

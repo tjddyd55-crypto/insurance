@@ -2153,6 +2153,76 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   z-index: 20;
 }
 
+.auth-login-download-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 44px;
+  z-index: 21;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+.app-download-actions {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.app-download-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.app-download-actions--stack .app-download-actions__buttons {
+  flex-direction: column;
+  width: min(100%, 360px);
+}
+
+.app-download-actions__link,
+.app-download-actions__item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.app-download-actions__link {
+  color: #e5e7eb;
+  background: #111827;
+  border: 1px solid #334155;
+}
+
+.app-download-actions__link:hover {
+  background: #1f2937;
+  border-color: #475569;
+}
+
+.app-download-actions__item--disabled,
+.app-download-actions__item--loading {
+  color: #94a3b8;
+  background: #111827;
+  border: 1px solid #1e293b;
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.app-download-actions__hint {
+  margin: 0;
+  font-size: 12px;
+  color: #94a3b8;
+  text-align: center;
+}
+
 .app-root .auth-card,
 .pc-auth-card,
 .mobile-auth-card {

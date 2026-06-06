@@ -12,36 +12,24 @@ const DEFAULT_DOWNLOAD_LINKS: DownloadLinkMap = Object.freeze({
   sampleExcel: '',
 })
 
+/** 백엔드 redirect endpoint — 프론트는 실제 CDN URL을 하드코딩하지 않는다 */
+export const APP_DOWNLOAD_ENDPOINTS = Object.freeze({
+  desktop: '/backend/downloads/desktop/latest',
+  mobile: '/backend/downloads/mobile/latest',
+  status: '/backend/downloads/status',
+})
+
 function normalizeLink(value: unknown, fallback: string): string {
   const text = String(value ?? '').trim()
   return text || fallback
 }
 
-function firstNonEmptyLink(...candidates: unknown[]): string {
-  for (const c of candidates) {
-    const text = String(c ?? '').trim()
-    if (text) {
-      return text
-    }
-  }
-  return ''
-}
-
-/** 가입 화면용 PC·모바일 다운로드 URL (env 별칭 지원) */
-export const SIGNUP_APP_DOWNLOAD_LINKS = Object.freeze({
-  desktop: firstNonEmptyLink(
-    import.meta.env.VITE_DESKTOP_APP_DOWNLOAD_URL,
-    import.meta.env.VITE_DOWNLOAD_PC_URL,
-  ),
-  mobile: firstNonEmptyLink(
-    import.meta.env.VITE_MOBILE_APP_DOWNLOAD_URL,
-    import.meta.env.VITE_DOWNLOAD_FC_MOBILE_URL,
-  ),
-})
-
 export const DOWNLOAD_LINKS: DownloadLinkMap = Object.freeze({
-  pc: normalizeLink(import.meta.env.VITE_DOWNLOAD_PC_URL, DEFAULT_DOWNLOAD_LINKS.pc),
-  fcMobile: normalizeLink(import.meta.env.VITE_DOWNLOAD_FC_MOBILE_URL, DEFAULT_DOWNLOAD_LINKS.fcMobile),
-  customerApp: normalizeLink(import.meta.env.VITE_DOWNLOAD_CUSTOMER_APP_URL, DEFAULT_DOWNLOAD_LINKS.customerApp),
+  pc: APP_DOWNLOAD_ENDPOINTS.desktop,
+  fcMobile: APP_DOWNLOAD_ENDPOINTS.mobile,
+  customerApp: normalizeLink(
+    import.meta.env.VITE_DOWNLOAD_CUSTOMER_APP_URL,
+    DEFAULT_DOWNLOAD_LINKS.customerApp,
+  ),
   sampleExcel: normalizeLink(import.meta.env.VITE_DOWNLOAD_SAMPLE_EXCEL_URL, DEFAULT_DOWNLOAD_LINKS.sampleExcel),
 })

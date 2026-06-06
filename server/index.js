@@ -93,6 +93,7 @@ import { registerInsurerNewsApi } from './registerInsurerNewsApi.js'
 import { registerSignatureApi } from './registerSignatureApi.js'
 import { registerClientLogRoutes } from './routes/client-log.js'
 import { registerVersionRoutes } from './routes/version.js'
+import { registerDownloadRoutes } from './routes/downloads.js'
 import { seedInsuranceCompanyDirectory } from './seedInsuranceData.js'
 import { registerSubscriptionAdminApi } from './registerSubscriptionAdminApi.js'
 import { registerPdfTemplateApi } from './registerPdfTemplateApi.js'
@@ -1362,6 +1363,7 @@ app.use(express.json({ limit: '12mb' }))
 const apiRouter = express.Router()
 
 registerVersionRoutes(apiRouter)
+registerDownloadRoutes(apiRouter)
 registerClientLogRoutes(apiRouter)
 
 registerConsentApi(apiRouter, {
