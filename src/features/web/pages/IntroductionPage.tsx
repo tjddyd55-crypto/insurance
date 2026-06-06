@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { AppDownloadActions } from '../components/AppDownloadActions'
 import { BusinessInfoFooter } from '../components/BusinessInfoFooter'
 
 export function IntroductionPage() {
@@ -43,9 +44,12 @@ export function IntroductionPage() {
             <span>올인원 시스템</span>
             <span>자동화 플랫폼</span>
           </div>
-          <Link className="intro-v2-btn intro-v2-btn--primary" to="/introduction/install">
-            다운로드
-          </Link>
+          <div className="intro-v2-hero__download-actions">
+            <AppDownloadActions className="intro-v2-download-actions" layout="row" />
+            <Link className="intro-v2-btn intro-v2-btn--primary" to="/introduction/install">
+              설치 안내 보기
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -136,8 +140,9 @@ export function IntroductionPage() {
             보험 영업의 모든 업무가 해결됩니다.
           </h2>
           <p>이제 관리가 아니라 고객에 집중하세요.</p>
+          <AppDownloadActions className="intro-v2-download-actions intro-v2-download-actions--cta" layout="row" />
           <Link className="intro-v2-btn intro-v2-btn--white" to="/introduction/install">
-            다운로드
+            설치 안내 보기
           </Link>
         </div>
       </section>

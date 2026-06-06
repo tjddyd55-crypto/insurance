@@ -15,7 +15,6 @@ import {
 import { FormButton, FormInput } from '../../../components/form'
 import { useAuth } from '../AuthProvider'
 import { validateReferralCodeForSignup } from '../../referrals/referralApi'
-import { SignupAppDownloadSection } from '../components/SignupAppDownloadSection'
 import {
   getSignupUsernameValidationError,
   SIGNUP_USERNAME_RULE_MESSAGE,
@@ -766,8 +765,6 @@ export function RegisterPage({ signupIndustry = 'insurance' }: { signupIndustry?
             {isSubmitting ? '가입 중…' : '가입'}
           </FormButton>
         </form>
-
-        <SignupAppDownloadSection />
 
         <div className="switch-text">
           이미 계정이 있나요?

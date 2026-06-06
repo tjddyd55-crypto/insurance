@@ -140,6 +140,37 @@
   transform: translateY(-1px);
 }
 
+.intro-v2-hero__download-actions {
+  margin-top: 44px;
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+}
+
+.intro-v2-hero__download-actions .intro-v2-btn--primary {
+  margin-top: 0;
+}
+
+.intro-v2-download-actions--cta {
+  margin-bottom: 16px;
+}
+
+.intro-v2-download-actions .app-download-actions__link {
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.42);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.intro-v2-download-actions .app-download-actions__link:hover {
+  background: rgba(30, 41, 59, 0.72);
+}
+
+.intro-v2-cta .intro-v2-download-actions .app-download-actions__link {
+  color: #0f172a;
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
 .intro-v2-btn--primary {
   margin-top: 44px;
   color: #efeffe;
