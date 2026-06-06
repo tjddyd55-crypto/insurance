@@ -149,6 +149,7 @@ export function buildGaTenantDashboardMenu(
 
     { type: 'section', label: '고객관리' },
     { type: 'link', label: '고객리스트', path: '/customers' },
+    { type: 'link', label: '고객 지도', path: '/customers/map' },
     {
       type: 'link',
       label: '고객소식지',

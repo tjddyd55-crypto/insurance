@@ -37,6 +37,8 @@ export type CustomerWorkspaceLayoutPCProps = {
   onClickClaims: () => void
   onClickPersonalMessage: () => void
   onClickSignatures: () => void
+  showBackToCustomerMap?: boolean
+  onBackToCustomerMap?: () => void
   /** 좌측 `CustomersPage` 가 `handleOpenRelatedCustomer` 를 등록한다. 최근 등록 고객 패널 등에서 재사용. */
   openRelatedCustomerRef: MutableRefObject<
     ((customerId: number, customerName?: string) => void) | null
@@ -102,6 +104,8 @@ export default function CustomerWorkspaceLayoutPC({
   onClickClaims,
   onClickPersonalMessage,
   onClickSignatures,
+  showBackToCustomerMap,
+  onBackToCustomerMap,
   openRelatedCustomerRef,
 }: CustomerWorkspaceLayoutPCProps) {
   const genderLabel =
@@ -143,6 +147,11 @@ export default function CustomerWorkspaceLayoutPC({
           </p>
         </div>
         <div className="customer-workspace-layout__actions">
+          {showBackToCustomerMap && onBackToCustomerMap ? (
+            <FormButton htmlType="button" variant="secondary" onClick={onBackToCustomerMap}>
+              지도 돌아가기
+            </FormButton>
+          ) : null}
           <FormButton
             htmlType="button"
             variant="action"

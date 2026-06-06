@@ -1,0 +1,195 @@
+.customers-map-page--pc,
+.customers-map-page--mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: calc(100vh - 64px);
+  padding: 16px;
+  background: #0b111a;
+  color: #e5e7eb;
+}
+
+.customers-map-page__title {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #f8fafc;
+}
+
+.customers-map-page__stats {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+
+.customers-map-page__toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.customers-map-page__toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.customers-map-page__radius-label {
+  color: #cbd5e1;
+  font-size: 0.875rem;
+  margin-right: 4px;
+}
+
+.customers-map-page__favorite-only {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #cbd5e1;
+  font-size: 0.875rem;
+}
+
+.customers-map-page__keyword {
+  flex: 1;
+  min-width: 160px;
+}
+
+.customers-map-page__error {
+  margin: 0;
+  color: #f87171;
+}
+
+.customers-map-page__loading {
+  margin: 0;
+  color: #94a3b8;
+}
+
+.customers-map-page__map-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 360px;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #111827;
+}
+
+.customers-map-page--mobile .customers-map-page__map-wrap {
+  min-height: 52vh;
+}
+
+.customer-map-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 360px;
+}
+
+.customer-map-marker {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #2563eb;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.customer-map-marker--selected {
+  background: #60a5fa;
+  transform: scale(1.15);
+}
+
+.customer-map-marker-card {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 5;
+  padding: 14px;
+  border-radius: 12px;
+  background: #111827;
+  border: 1px solid #334155;
+  color: #e5e7eb;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.customers-map-page--pc .customer-map-marker-card {
+  left: auto;
+  right: 16px;
+  bottom: 16px;
+  width: min(360px, calc(100% - 32px));
+}
+
+.customer-map-marker-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.customer-map-marker-card__name {
+  margin: 0;
+  font-size: 1rem;
+  color: #f8fafc;
+}
+
+.customer-map-marker-card__close {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.customer-map-marker-card__fields {
+  margin: 10px 0 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.customer-map-marker-card__fields dt {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.customer-map-marker-card__fields dd {
+  margin: 2px 0 0;
+  font-size: 0.875rem;
+  color: #e5e7eb;
+}
+
+.customer-map-marker-card__detail-btn {
+  width: 100%;
+}
+
+.customer-map-setup-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 280px;
+  padding: 24px;
+  text-align: center;
+  background: #111827;
+  border: 1px dashed #334155;
+  border-radius: 12px;
+  color: #e5e7eb;
+}
+
+.customer-map-setup-notice--inline {
+  min-height: 100%;
+  border: none;
+  border-radius: 0;
+}
+
+.customer-map-setup-notice__title {
+  margin: 0;
+  font-size: 1rem;
+  color: #f8fafc;
+}
+
+.customer-map-setup-notice__body {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #94a3b8;
+}

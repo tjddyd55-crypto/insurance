@@ -35,6 +35,7 @@ import CustomerConsultationsPage from './features/customers/pages/CustomerConsul
 import CustomerFilesPage from './features/customers/pages/CustomerFilesPage'
 import CustomerGaExcelPage from './features/customers/pages/CustomerGaExcelPage'
 import CustomerMemosPage from './features/customers/pages/CustomerMemosPage'
+import CustomerMapPage from './features/customers/pages/CustomerMapPage'
 import CustomerWorkspaceLayout from './features/customers/pages/CustomerWorkspaceLayout'
 import CustomerWorkspaceHomePage from './features/customers/pages/CustomerWorkspaceHomePage'
 import CustomerAutoFormPage from './features/customers/pages/CustomerAutoFormPage'
@@ -319,6 +320,7 @@ export const appRouter = createBrowserRouter([
               { path: 'application/documents', element: <PdfDocumentListPage /> },
               { path: 'application/documents/history', element: <PdfIssuanceHistoryPage /> },
               { path: 'application/documents/:id', element: <PdfDocumentDetailPage /> },
+              { path: 'customers/map', element: <CustomerMapPage /> },
               {
                 path: 'customers',
                 element: <CustomerWorkspaceLayout />,

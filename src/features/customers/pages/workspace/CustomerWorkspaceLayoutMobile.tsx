@@ -176,7 +176,13 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
         panelClassName="workspace-mobile-outlet-modal"
       >
         <div className="workspace-mobile-outlet-modal__header">
-          <span className="workspace-mobile-outlet-modal__spacer" aria-hidden />
+          {props.showBackToCustomerMap && props.onBackToCustomerMap ? (
+            <FormButton htmlType="button" variant="secondary" onClick={props.onBackToCustomerMap}>
+              지도
+            </FormButton>
+          ) : (
+            <span className="workspace-mobile-outlet-modal__spacer" aria-hidden />
+          )}
           <h2 className="workspace-mobile-outlet-modal__title">{title}</h2>
           <CustomerWorkspaceCloseButton onClick={handleClose} />
         </div>
