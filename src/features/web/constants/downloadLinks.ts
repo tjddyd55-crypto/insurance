@@ -1,3 +1,5 @@
+import { DESKTOP_DOWNLOAD_URL, MOBILE_DOWNLOAD_URL } from '../components/AppDownloadActions'
+
 export type DownloadLinkMap = {
   pc: string
   fcMobile: string
@@ -6,17 +8,10 @@ export type DownloadLinkMap = {
 }
 
 const DEFAULT_DOWNLOAD_LINKS: DownloadLinkMap = Object.freeze({
-  pc: 'https://cdn.platform-assets.com/insurer/download/InsuranceApp%20Setup%201.0.7.exe',
-  fcMobile: 'https://cdn.platform-assets.com/insurer/download/FC-app-release.apk',
+  pc: DESKTOP_DOWNLOAD_URL,
+  fcMobile: MOBILE_DOWNLOAD_URL,
   customerApp: 'https://cdn.platform-assets.com/insurer/download/customer-app-release.apk',
   sampleExcel: '',
-})
-
-/** 백엔드 redirect endpoint — 프론트는 실제 CDN URL을 하드코딩하지 않는다 */
-export const APP_DOWNLOAD_ENDPOINTS = Object.freeze({
-  desktop: '/backend/downloads/desktop/latest',
-  mobile: '/backend/downloads/mobile/latest',
-  status: '/backend/downloads/status',
 })
 
 function normalizeLink(value: unknown, fallback: string): string {
@@ -25,8 +20,8 @@ function normalizeLink(value: unknown, fallback: string): string {
 }
 
 export const DOWNLOAD_LINKS: DownloadLinkMap = Object.freeze({
-  pc: APP_DOWNLOAD_ENDPOINTS.desktop,
-  fcMobile: APP_DOWNLOAD_ENDPOINTS.mobile,
+  pc: DESKTOP_DOWNLOAD_URL,
+  fcMobile: MOBILE_DOWNLOAD_URL,
   customerApp: normalizeLink(
     import.meta.env.VITE_DOWNLOAD_CUSTOMER_APP_URL,
     DEFAULT_DOWNLOAD_LINKS.customerApp,
