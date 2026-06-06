@@ -1353,12 +1353,14 @@
 .pdf-applicant-form__customer-load {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 8px;
   margin-bottom: 12px;
   padding: 10px 12px;
   border: 1px solid #334155;
   border-radius: 10px;
   background: #111827;
+  box-sizing: border-box;
 }
 
 .pdf-applicant-form__load-customer-btn {
@@ -1508,19 +1510,47 @@
 .pdf-applicant-form__customer-search {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 8px;
+  width: 100%;
   padding-top: 4px;
+  box-sizing: border-box;
 }
 
-.pdf-applicant-form__customer-search-row {
+/* 진입 경로(상단 메뉴 / 고객 작업영역)와 현재 고객 유무와 무관하게 동일 row 레이아웃 */
+.pdf-applicant-form-panel .pdf-applicant-form__customer-search-row {
   display: flex;
+  width: 100%;
   gap: 8px;
-  align-items: center;
+  align-items: stretch;
+  box-sizing: border-box;
 }
 
-.pdf-applicant-form__customer-search-input {
-  flex: 1;
+.pdf-applicant-form-panel .pdf-applicant-form__customer-search-row .pdf-applicant-form__customer-search-input {
+  flex: 1 1 0;
   min-width: 0;
+  width: auto;
+  max-width: none;
+  min-height: 42px;
+  height: 42px;
+  margin: 0;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+
+.pdf-applicant-form-panel .pdf-applicant-form__customer-search-row .pdf-applicant-form__customer-search-submit {
+  flex: 0 0 72px;
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
+  min-height: 42px;
+  height: 42px;
+  margin: 0;
+  padding: 0 10px;
+  font-size: 14px;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .pdf-applicant-form__customer-search-error {
@@ -1627,5 +1657,26 @@
 
   .pdf-document-detail-page__mobile-preview-dock {
     padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
+  }
+
+  /* 워크스페이스 모달 전역 input/button 규칙과 단독 라우트 .button(48px) 차이를 신청서 검색 row 에서 통일 */
+  .workspace-mobile-outlet-modal__body .pdf-applicant-form-panel .pdf-applicant-form__customer-search-row .pdf-applicant-form__customer-search-input,
+  .pdf-document-detail-page--mobile .pdf-applicant-form-panel .pdf-applicant-form__customer-search-row .pdf-applicant-form__customer-search-input {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    width: auto !important;
+    max-width: none !important;
+    min-height: 42px !important;
+    height: 42px !important;
+  }
+
+  .workspace-mobile-outlet-modal__body .pdf-applicant-form-panel .pdf-applicant-form__customer-search-row .pdf-applicant-form__customer-search-submit,
+  .pdf-document-detail-page--mobile .pdf-applicant-form-panel .pdf-applicant-form__customer-search-row .pdf-applicant-form__customer-search-submit {
+    flex: 0 0 72px !important;
+    width: 72px !important;
+    min-width: 72px !important;
+    max-width: 72px !important;
+    min-height: 42px !important;
+    height: 42px !important;
   }
 }

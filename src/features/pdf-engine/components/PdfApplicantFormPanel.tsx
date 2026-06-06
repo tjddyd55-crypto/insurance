@@ -487,6 +487,7 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
               <FormButton
                 htmlType="button"
                 variant="secondary"
+                className="pdf-applicant-form__customer-search-submit"
                 disabled={submitting || customerSearchBusy || !customerSearchQuery.trim()}
                 onClick={() => onCustomerSearchSubmit?.()}
               >
