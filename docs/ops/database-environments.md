@@ -211,7 +211,7 @@ count가 크게 다르면 **DATABASE_URL 전환하지 않음**.
 ### 4-8. 지도 feature 검증 (clone 전환 **후에만**)
 
 1. `feat/customer-location-map-mvp` 를 development `app` 에 **임시** 배포 (별도 승인)
-2. development env: `NAVER_MAPS_CLIENT_ID` / `NAVER_MAPS_CLIENT_SECRET` / `MAP_PROVIDER=naver` / `MAP_RENDER_MODE=static`
+2. development env: `NAVER_MAPS_CLIENT_ID` / `NAVER_MAPS_CLIENT_SECRET` / `MAP_PROVIDER=naver` / `MAP_RENDER_MODE=dynamic` / `VITE_NAVER_MAP_CLIENT_ID`(프론트 Dynamic Map)
 3. `node server/scripts/naver-maps-smoke-test.mjs --railway-development`
 4. `customer-geocode-backfill.mjs --dry-run`
 5. `--execute --limit 5` (**clone DB만** — `dbEnvironmentGuard` 가 production execute 차단)
@@ -252,9 +252,10 @@ count가 크게 다르면 **DATABASE_URL 전환하지 않음**.
 **운영 방침**
 
 - **평소 development 테스트는 clone DB 기준**으로 진행한다 (`DATABASE_URL` → `Postgres-goU7`).
-- clone DB는 **테스트 종료 시점에만** 별도 승인 후 rollback 한다 (development `app` → 원본 `Postgres` reference 복원).
+- 지도·신청서·전자서명·PDF 템플릿 테스트는 **clone DB 데이터 기준**으로 진행한다.
+- **rollback은 별도 승인 전까지 수행하지 않는다** (development `app` → 원본 `Postgres` reference 복원).
 - rollback 전까지 clone 서비스 **삭제 금지** (원인 분석·재검증용 보관).
-- production DB / production app Variables / `main` 반영은 **별도 승인** 없이는 금지.
+- production DB 직접 연결·쓰기 및 production app Variables / `main` 반영은 **별도 승인** 없이는 금지.
 
 ---
 
