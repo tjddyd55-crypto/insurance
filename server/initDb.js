@@ -8,6 +8,11 @@ import {
 import { resolveInsuranceCategoryForApi } from './lib/insuranceCompanyCategoryResolve.js'
 import { INSURER_SITES_SEED, insurerSiteBundledLogoPath } from './insurerSitesSeedData.js'
 import { ensureGeneralGaCompany } from './lib/generalGa.js'
+import {
+  assertSafeForMutatingScript,
+  isProductionDbTarget,
+  logMaskedDbFingerprint,
+} from './lib/dbEnvironmentGuard.js'
 
 /**
  * ⚠️ 디버그 전용: insurance_forms 등 user_id FK는 ON DELETE CASCADE 로 함께 정리됨.
@@ -17,6 +22,8 @@ async function maybeDebugResetAllUsers() {
   if (process.env.INSURANCE_DEBUG_RESET_ALL_USERS !== 'true') {
     return
   }
+
+  logMaskedDbFingerprint('[initDb] reset-all-users target', process.env.DATABASE_URL)
 
   const onRailway = Boolean(
     process.env.RAILWAY_ENVIRONMENT ||
@@ -30,13 +37,26 @@ async function maybeDebugResetAllUsers() {
     return
   }
 
-  const confirm = String(process.env.INSURANCE_ALLOW_DESTRUCTIVE_RESET ?? '').trim()
-  if (confirm !== 'I_UNDERSTAND_DELETE_USERS') {
+  if (isProductionDbTarget(process.env.DATABASE_URL)) {
     console.error(
-      '[initDb] users 삭제를 막았습니다. 로컬에서만 INSURANCE_ALLOW_DESTRUCTIVE_RESET=I_UNDERSTAND_DELETE_USERS 와 함께 사용하세요.',
+      '[initDb] production Postgres 대상 users 삭제를 차단합니다. development clone DB에서만 검토하세요.',
     )
     return
   }
+
+  const confirm = String(process.env.INSURANCE_ALLOW_DESTRUCTIVE_RESET ?? '').trim()
+  if (confirm !== 'I_UNDERSTAND_DELETE_USERS') {
+    console.error(
+      '[initDb] users 삭제를 막았습니다. 로컬 development DB에서만 INSURANCE_ALLOW_DESTRUCTIVE_RESET=I_UNDERSTAND_DELETE_USERS 와 함께 사용하세요.',
+    )
+    return
+  }
+
+  assertSafeForMutatingScript({
+    connectionString: process.env.DATABASE_URL,
+    execute: true,
+    scriptName: 'initDb.reset-all-users',
+  })
 
   console.warn(
     '[initDb] INSURANCE_DEBUG_RESET_ALL_USERS=true → 모든 users 삭제(CASCADE). 조치 후 변수를 꺼 주세요.',

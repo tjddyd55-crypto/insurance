@@ -38,8 +38,12 @@
 
 | 환경 | URL | 관찰해야 할 브랜치 | 역할 |
 |---|---|---|---|
-| **dev** | `insurance-dev-production.up.railway.app` | **`develop`** | develop 반영 즉시 검증용. 운영 영향 없음 |
-| **prod** | `insurance-production-7bd8.up.railway.app` | **`main`** | 실제 사용자 서비스 |
+| **dev** | `https://insurance-dev.up.railway.app` | **`develop`** | develop 반영 즉시 검증용. 운영 영향 없음 |
+| **prod** | `https://insurance-production-7bd8.up.railway.app` | **`main`** | 실제 사용자 서비스 |
+
+> **레거시 URL 주의:** `insurance-dev-production.up.railway.app` 은 과거 `insurance-dev` 서비스 도메인으로 **현재 404**다. dev 검증은 **`insurance-dev.up.railway.app`** 만 사용한다.
+>
+> **DB mismatch 주의:** dev URL 은 **development Postgres**, 로컬 `server/.env` 가 production public proxy 를 쓰면 count 가 어긋난다. 구분은 `docs/ops/database-environments.md`.
 
 > **중요**: dev 서비스의 source branch가 `main`으로 되어 있으면 develop 검증 자체가 불가능해진다 (develop에 아무리 푸시해도 dev URL이 반응하지 않거나, main 머지 후에야 바뀐다). Railway Dashboard → 해당 서비스 → Settings → Source → Connect Branch가 **반드시 `develop`** 이어야 한다. 이 설정을 바꾸는 사람은 이 문서를 같이 수정한다.
 
