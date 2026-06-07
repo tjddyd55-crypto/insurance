@@ -66,51 +66,183 @@ INSURANCE_DB_ENVIRONMENT=development
 
 ---
 
-## 4. dev 테스트 DB 준비 (clone 복구 runbook)
+## 4. dev 테스트 DB 준비 — prod clone runbook (승인 전 실행 금지)
 
-**아직 실행하지 않음 — 승인 후 Dashboard/CLI 로만 진행.**
+> **상태:** 2026-06-08 조사·runbook 작성 완료. **clone / restore / DATABASE_URL 변경은 사용자 “실행 승인” 전까지 금지.**
 
-목표: 지도·신청서·전자서명 UI 검증을 **development app** 에서 하려면,
-development Postgres 에 **production 과 유사한 데이터** 가 필요하다.
+### 4-1. 목표
 
-### 절대 금지
+production Postgres **원본은 유지**하고, 그 데이터를 **복사본(clone)** 으로 development `app` 이 사용하게 한다.
 
-- production Postgres 를 development `app` 의 `DATABASE_URL` 에 **직접** 연결
-- production DB 에 geocoding backfill / 테스트 write
-- 현재 development DB 에 **백업 없이** in-place restore
-- restore 전 현재 dev DB snapshot 없이 덮어쓰기
+| 금지 | 이유 |
+|------|------|
+| production DB → development `app` **직접** `DATABASE_URL` 연결 | dev 테스트 쓰기가 prod에 반영됨 |
+| production DB에 backfill / 고객등록 / 신청서 테스트 | 운영 데이터 오염 |
+| 현재 development Postgres에 **백업 없이** in-place restore | 빈 dev DB·신규 계정 소실 |
+| production Postgres 서비스에서 Backup **Restore → Deploy** (동일 서비스 볼륨 교체) | **운영 DB 볼륨이 바뀌는 staged 변경** — clone 목적에 부적합 |
 
-### 권장 절차
+### 4-2. 현재 fingerprint 스냅샷 (read-only, 2026-06-08)
 
-1. **Railway Dashboard** → production / `Postgres` → **Backups / Snapshots** 존재·시점 확인
-2. snapshot 을 **새 Postgres 서비스** 또는 **clone volume** 으로 restore (이름 예: `Postgres-dev-clone`)
-3. clone 에서 read-only count 확인  
-   `users`, `customers`, `contract_templates`, `contract_send_sessions`, `pdf_templates`, `pdf_template_fields`
-4. count 정상일 때 **development / `app`** 의 `DATABASE_URL` reference 를 clone Postgres 로 변경
-5. development `app` 재배포 (source branch: `develop`)
-6. `https://insurance-dev.up.railway.app/backend/health` → 200
-7. dev admin UI 에 기존 규모 데이터 표시 확인
-8. **그 다음에만** 지도 backfill: `--limit 5` → `--limit 20` → 전체
+| 대상 | Railway env | public proxy (마스킹) | `server_addr` | PG | users | customers | contract_templates | pdf_templates |
+|------|-------------|------------------------|---------------|-----|------:|----------:|-------------------:|----------------:|
+| **production** `Postgres` | production | `shor***.net:17109` | `10.142.132.120` | 17.7 | 11 | 724 | 8 | 3 |
+| **development** `Postgres` | development | `tram***.net:44319` | `10.145.29.186` | 17.9 | 2 | 0 | 0 | 0 |
+| **local** `server/.env` | (로컬) | `shor***.net` (= **production**) | `10.142.132.120` | 17.7 | 11 | 724 | 8 | 3 |
 
-### 복구 대안
+production 상세 count (동일 시점): `insurance_forms` 3 · `contract_send_sessions` 40 · `pdf_template_fields` 49 · `tenants` 2 · orphan customers 0 · `admin`/`tjddyd55` 존재.
 
-| 방식 | 장점 | 주의 |
-|------|------|------|
-| prod snapshot → **새 dev clone** | prod 무손상, dev 와 prod 분리 유지 | clone 후 reference 전환만 dev 에 적용 |
-| prod snapshot → dev Postgres **in-place** | 서비스 수 적음 | **현재 dev DB 백업 필수**, 실수 시 dev 전용 데이터 소실 |
+development: `consent_templates` 6 (initDb 시드만), 도메인 데이터 없음.
 
-Railway CLI 로 snapshot 목록 API 가 계정/플랜에 따라 제한될 수 있다. **Dashboard 확인이 1차.**
+### 4-3. Railway backup / snapshot (Dashboard 1차 — CLI 미실행)
+
+Railway CLI `volume list`는 **현재 link된 environment** 기준만 보여 줄 수 있다. backup 목록·시각은 **Dashboard → CRM-Platform → production → `Postgres` → Backups** 에서 확인한다.
+
+| 확인 항목 | Railway 문서 기준 | 이번 조사 |
+|-----------|-------------------|-----------|
+| Volume backup (Daily/Weekly/Monthly) | 서비스 Backups 탭에서 수동·스케줄 가능 | **Dashboard에서 미클릭 확인 필요** (CLI로 snapshot 시각 미조회) |
+| Backup Restore | **동일 project + 동일 environment** 의 **동일 Postgres 서비스**에 staged volume 교체 | prod 서비스 in-place — **clone 용도로 사용 금지** |
+| PITR (Point-in-Time Recovery) | 활성화 시 타임스탬프 복원 → **새 sibling Postgres 서비스** 생성, **원본 미변경** | **Dashboard에서 PITR 활성 여부 미확인** — 활성화돼 있으면 prod env 내 fork 후 pg_dump 경로 가능 |
+| cross-environment restore | Volume backup은 **다른 environment로 직접 restore 불가** | dev env clone은 **pg_dump/pg_restore** 또는 prod env fork → dump 권장 |
+
+**승인 전 Dashboard 체크리스트 (실행 없음):**
+
+1. production / `Postgres` / **Backups** — 스케줄(Daily/Weekly/Monthly)·수동 backup 존재 여부
+2. 각 backup **타임스탬프** (가장 최근)
+3. **PITR** 탭 — 활성화 여부·복원 가능 window
+4. development / `Postgres` / Backups — 현재 빈 DB **rollback용** snapshot 생성 여부 (전환 **전**)
+
+### 4-4. 추천 clone 방식 (우선순위)
+
+#### 방식 A — **권장:** `pg_dump` → development 신규 Postgres (원본 무손상)
+
+1. development environment에 Postgres 서비스 **신규 추가** (이름 예: `Postgres-dev-clone` 또는 `insurance-dev-clone-from-prod-YYYYMMDD`)
+2. **read-only** `pg_dump` from production `DATABASE_PUBLIC_URL` (마스킹 host `shor***.net`)  
+   - `--no-owner --no-acl` · custom 또는 directory format  
+   - **production에 쓰기 없음**
+3. `pg_restore` → 신규 development Postgres `DATABASE_PUBLIC_URL` (`tram***` 계열 **새 인스턴스**)
+4. §4-5 count 검증 — production과 **동일 order of magnitude** 확인
+5. 승인 후 §4-6 development `app` `DATABASE_URL` reference만 신규 clone으로 변경
+
+#### 방식 B — PITR fork (PITR 활성화된 경우만)
+
+1. Dashboard PITR → 원하는 시각 → **새 sibling Postgres** (`…-restored-…`) in **production environment**
+2. fork에서 read-only count 검증 (production 원본 untouched)
+3. fork `DATABASE_PUBLIC_URL` 로 `pg_dump` → development 신규 Postgres `pg_restore` (cross-env)
+4. development `app` 은 **development env clone만** 참조 — production env fork에 직접 연결하지 않음
+
+#### 방식 C — **비권장:** production Backup Restore (in-place)
+
+동일 `Postgres` 서비스 volume staged 교체 → **운영 cutover 위험**. dev clone 목적에 **사용하지 않음**.
+
+### 4-5. clone DB 생성 후 검증 (SQL, read-only)
+
+clone `DATABASE_PUBLIC_URL` 로만 접속. **development `app` DATABASE_URL 변경 전**에 실행.
+
+```sql
+-- fingerprint
+SELECT current_database(), current_user, inet_server_addr(), inet_server_port(), left(version(), 80);
+
+-- core counts
+SELECT
+  (SELECT COUNT(*) FROM users) AS users,
+  (SELECT COUNT(*) FROM customers) AS customers,
+  (SELECT COUNT(*) FROM tenants) AS tenants,
+  (SELECT COUNT(*) FROM insurance_forms) AS insurance_forms,
+  (SELECT COUNT(*) FROM contract_templates) AS contract_templates,
+  (SELECT COUNT(*) FROM contract_send_sessions) AS contract_send_sessions,
+  (SELECT COUNT(*) FROM pdf_templates) AS pdf_templates,
+  (SELECT COUNT(*) FROM pdf_template_fields) AS pdf_template_fields,
+  (SELECT COUNT(*) FROM consent_templates) AS consent_templates;
+
+-- orphan customers
+SELECT COUNT(*) AS orphan_customers
+FROM customers c
+LEFT JOIN users u ON c.user_id = u.id
+WHERE c.user_id IS NOT NULL AND u.id IS NULL;
+
+-- key accounts (username only)
+SELECT username, role, is_deleted FROM users WHERE username IN ('admin', 'tjddyd55');
+```
+
+**합격 기준 (production 대비):**
+
+| metric | production (2026-06-08) | clone 허용 편차 |
+|--------|-------------------------|-----------------|
+| users | 11 | ±0 (또는 설명 가능한 diff) |
+| customers | 724 | ±0 |
+| contract_templates | 8 | ±0 |
+| contract_send_sessions | 40 | ±0 |
+| pdf_templates | 3 | ±0 |
+| pdf_template_fields | 49 | ±0 |
+| orphan_customers | 0 | 0 |
+
+count가 크게 다르면 **DATABASE_URL 전환하지 않음**.
+
+### 4-6. development `app` DATABASE_URL 전환 (승인 후만)
+
+**변경 대상:** CRM-Platform / **development** / **`app`** 의 `DATABASE_URL` reference **만**.  
+**절대 변경 금지:** production / `app` · production / `Postgres` · production `DATABASE_URL` 원문.
+
+| 단계 | 작업 |
+|------|------|
+| 0 | development / `Postgres` (현재 빈 DB) **Backups** — rollback용 snapshot/메모 |
+| 1 | 현재 development `app` → `Postgres` reference **기록** (Railway Variables UI / Variable History — **값 원문 외부 유출 금지**) |
+| 2 | 현재 dev DB fingerprint 기록 (`10.145.29.186`, users 2) |
+| 3 | clone Postgres 서비스 `DATABASE_URL` / internal reference 확인 |
+| 4 | development `app` `DATABASE_URL` → **clone Postgres** reference 로 변경 |
+| 5 | development `app` 재배포 (source branch: `develop`) |
+| 6 | `https://insurance-dev.up.railway.app/backend/health` → 200 |
+| 7 | `https://insurance-dev.up.railway.app/version.json` — 배포 commit 확인 |
+| 8 | masked fingerprint — `server_addr` 가 clone과 일치하는지 (앱 로그 `[db] connection]` 또는 read-only SQL) |
+| 9 | admin 로그인 → 유저·고객·신청서·전자서명·PDF 템플릿 UI spot check |
+
+### 4-7. Rollback (승인 후 전환 시 필수 준비)
+
+| 단계 | 작업 |
+|------|------|
+| 1 | 전환 전 development `app` `DATABASE_URL` reference **안전 기록** (Variable History) |
+| 2 | 문제 발생 시 reference를 **기존 development `Postgres`** (`tram***.net`, `10.145.29.186`) 로 복원 |
+| 3 | development `app` 재배포 |
+| 4 | `/backend/health` 200 |
+| 5 | fingerprint — users ≈ 2, customers 0 으로 복귀 확인 |
+
+**DATABASE_URL 원문은 보고·문서·git에 넣지 않는다.**
+
+### 4-8. 지도 feature 검증 (clone 전환 **후에만**)
+
+1. `feat/customer-location-map-mvp` 를 development `app` 에 **임시** 배포 (별도 승인)
+2. development env: `NAVER_MAPS_CLIENT_ID` / `NAVER_MAPS_CLIENT_SECRET` / `MAP_PROVIDER=naver` / `MAP_RENDER_MODE=static`
+3. `node server/scripts/naver-maps-smoke-test.mjs --railway-development`
+4. `customer-geocode-backfill.mjs --dry-run`
+5. `--execute --limit 5` (**clone DB만** — `dbEnvironmentGuard` 가 production execute 차단)
+6. `/customers/map` UI · 상세 이동 · 지도 돌아가기 · mapState 복원
+7. `--limit 20` → 필요 시 전체 (순차)
+
+### 4-9. 위험 요소
+
+| 위험 | 완화 |
+|------|------|
+| production Backup Restore in-place | **사용 금지** — 방식 A/B만 |
+| dev `app`이 prod DB reference | 전환 체크리스트 · `dbEnvironmentGuard` |
+| local `server/.env` prod proxy 착시 | `server/.env.example` · startup 경고 |
+| clone count 불일치 | 전환 전 SQL gate |
+| rollback reference 분실 | Variable History + 전환 전 메모 |
+| PITR 미활성 | 방식 A (`pg_dump`) 단독 |
+
+### 4-10. 승인 전 실행 금지 목록
+
+- production / development Postgres **Restore / Deploy** 클릭
+- 신규 Postgres **clone 서비스 생성**
+- `pg_restore` / backfill **`--execute`**
+- development / production **`DATABASE_URL` Variables 변경**
+- production DB **쓰기** (INSERT/UPDATE/DELETE/TRUNCATE)
+- 현재 development Postgres **in-place 덮어쓰기**
 
 ---
 
 ## 5. 지도 feature dev 검증 순서 (데이터 준비 후)
 
-1. dev DB clone 데이터 준비 (§4)
-2. `feat/customer-location-map-mvp` 를 development `app` 에 **임시** 배포 (승인 시)
-3. development env NAVER 변수 확인 · `naver-maps-smoke-test.mjs --railway-development`
-4. backfill **dry-run**
-5. `--execute --limit 5` (dev DB만)
-6. `/customers/map` UI · 상세 이동 · 지도 복귀
+§4-8 과 동일. clone DB + dev URL 전환 **승인 후** 진행.
 
 ---
 
