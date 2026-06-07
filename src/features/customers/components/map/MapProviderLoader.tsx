@@ -5,7 +5,7 @@ import {
   resolveMapProvider,
   type MapProviderName,
 } from '../../config/customerMap.config'
-import { loadMapProviderSdk } from './mapSdkLoader'
+import { getNaverMapSdkLoadDiagnostics, loadMapProviderSdk } from './mapSdkLoader'
 import { mapSdkErrorMessage, toMapSdkError, type MapSdkErrorCode } from './mapSdkErrors'
 
 type MapProviderLoaderProps = {
@@ -49,7 +49,7 @@ export default function MapProviderLoader({ children }: MapProviderLoaderProps) 
           return
         }
         const mapped = toMapSdkError(caught)
-        console.error('[customer-map] map sdk load failed:', mapped.code)
+        console.error('[customer-map] map sdk load failed:', mapped.code, getNaverMapSdkLoadDiagnostics(clientKey))
         setReady(false)
         setErrorCode(mapped.code)
         setError(mapSdkErrorMessage(mapped.code))

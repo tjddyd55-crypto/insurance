@@ -166,9 +166,11 @@ export default function CustomerMapShell({
 
             if (useStaticFallback) {
               const fallbackMessage =
-                mapInitFailed || errorCode === 'map_init_failed'
-                  ? mapSdkErrorMessage('map_init_failed')
-                  : sdkError ?? mapSdkErrorMessage('script_load_failed')
+                errorCode === 'naver_auth_failure'
+                  ? mapSdkErrorMessage('naver_auth_failure')
+                  : mapInitFailed || errorCode === 'map_init_failed'
+                    ? mapSdkErrorMessage('map_init_failed')
+                    : sdkError ?? mapSdkErrorMessage('script_load_failed')
               return (
                 <>
                   <p className="customers-map-page__fallback-note" role="status">

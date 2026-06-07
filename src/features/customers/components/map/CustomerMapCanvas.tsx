@@ -5,6 +5,7 @@ import { MapSdkError } from './mapSdkErrors'
 import {
   kakaoLevelFromZoom,
   loadMapProviderSdk,
+  onNaverMapAuthFailure,
   zoomFromKakaoLevel,
 } from './mapSdkLoader'
 
@@ -153,6 +154,15 @@ export default function CustomerMapCanvas({
   useEffect(() => {
     fittedRef.current = false
   }, [customers])
+
+  useEffect(() => {
+    if (provider !== 'naver') {
+      return undefined
+    }
+    return onNaverMapAuthFailure(() => {
+      onMapInitFailedRef.current?.()
+    })
+  }, [provider])
 
   useEffect(() => {
     if (provider === 'none' || !clientKey || !containerRef.current) {

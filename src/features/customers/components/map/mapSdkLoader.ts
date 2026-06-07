@@ -1,4 +1,9 @@
 import type { MapProviderName } from '../../config/customerMap.config'
+import {
+  installNaverMapAuthFailureHandler,
+  onNaverMapAuthFailure,
+  wasNaverMapAuthFailure,
+} from './naverMapAuthFailure'
 import { MapSdkError } from './mapSdkErrors'
 
 declare global {
@@ -59,11 +64,62 @@ declare global {
   }
 }
 
+const NAVER_MAPS_JS_ORIGIN = 'https://oapi.map.naver.com/openapi/v3/maps.js'
 const SCRIPT_ATTR = 'data-customer-map-provider'
 const NAVER_CALLBACK_PREFIX = '__insuranceCustomerMapNaverReady_'
 const SDK_READY_TIMEOUT_MS = 15000
 
 const loadPromises = new Map<MapProviderName, Promise<void>>()
+
+export function buildNaverMapScriptUrl(clientKey: string, callbackName: string): string {
+  const url = new URL(NAVER_MAPS_JS_ORIGIN)
+  url.searchParams.set('ncpKeyId', clientKey)
+  url.searchParams.set('callback', callbackName)
+  return url.toString()
+}
+
+function maskClientKey(clientKey: string): string {
+  if (!clientKey) {
+    return '(empty)'
+  }
+  const prefix = clientKey.slice(0, 3)
+  return `${prefix}…(len ${clientKey.length})`
+}
+
+export function getNaverMapSdkLoadDiagnostics(clientKey: string) {
+  const script = document.querySelector(`script[${SCRIPT_ATTR}="naver"]`) as HTMLScriptElement | null
+  const src = script?.src ?? ''
+  let queryKey = 'unknown'
+  let hasCallback = false
+  if (src) {
+    try {
+      const parsed = new URL(src)
+      if (parsed.searchParams.has('ncpKeyId')) {
+        queryKey = 'ncpKeyId'
+      } else if (parsed.searchParams.has('ncpClientId')) {
+        queryKey = 'ncpClientId'
+      } else if (parsed.searchParams.has('govClientId')) {
+        queryKey = 'govClientId'
+      } else if (parsed.searchParams.has('finClientId')) {
+        queryKey = 'finClientId'
+      }
+      hasCallback = parsed.searchParams.has('callback')
+    } catch {
+      queryKey = 'invalid_url'
+    }
+  }
+
+  return {
+    queryKey,
+    hasCallback,
+    clientIdMasked: maskClientKey(clientKey),
+    scriptPresent: Boolean(script),
+    naverMaps: Boolean(window.naver?.maps),
+    authFailureCalled: wasNaverMapAuthFailure(),
+    origin: window.location.origin,
+    referrer: document.referrer || null,
+  }
+}
 
 function waitForGlobal(
   check: () => boolean,
@@ -76,6 +132,10 @@ function waitForGlobal(
   return new Promise((resolve, reject) => {
     const startedAt = Date.now()
     const tick = () => {
+      if (wasNaverMapAuthFailure()) {
+        reject(new MapSdkError('naver_auth_failure'))
+        return
+      }
       if (check()) {
         resolve()
         return
@@ -103,18 +163,62 @@ function appendScript(src: string, attrValue: string): Promise<void> {
   })
 }
 
+function isLegacyNaverScriptSrc(src: string): boolean {
+  return (
+    src.includes('ncpClientId=') ||
+    src.includes('govClientId=') ||
+    src.includes('finClientId=') ||
+    !src.includes('ncpKeyId=')
+  )
+}
+
+function removeNaverScriptIfPresent(): void {
+  const existing = document.querySelector(`script[${SCRIPT_ATTR}="naver"]`)
+  existing?.remove()
+}
+
+function assertNaverSdkReady(): void {
+  if (wasNaverMapAuthFailure()) {
+    throw new MapSdkError('naver_auth_failure')
+  }
+  if (!window.naver?.maps) {
+    throw new MapSdkError('sdk_global_missing')
+  }
+}
+
 function loadNaverSdk(clientKey: string): Promise<void> {
+  installNaverMapAuthFailureHandler(clientKey.length)
+
+  if (wasNaverMapAuthFailure()) {
+    return Promise.reject(new MapSdkError('naver_auth_failure'))
+  }
+
   if (window.naver?.maps) {
     return Promise.resolve()
   }
 
-  const existing = document.querySelector(`script[${SCRIPT_ATTR}="naver"]`)
-  if (existing) {
-    return waitForGlobal(() => Boolean(window.naver?.maps), SDK_READY_TIMEOUT_MS, 'sdk_global_missing')
+  const existing = document.querySelector(`script[${SCRIPT_ATTR}="naver"]`) as HTMLScriptElement | null
+  if (existing?.src) {
+    if (isLegacyNaverScriptSrc(existing.src)) {
+      removeNaverScriptIfPresent()
+    } else {
+      return waitForGlobal(() => Boolean(window.naver?.maps), SDK_READY_TIMEOUT_MS, 'sdk_global_missing').then(
+        () => {
+          assertNaverSdkReady()
+        },
+      )
+    }
   }
 
   const callbackName = `${NAVER_CALLBACK_PREFIX}${Date.now()}`
-  const src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(clientKey)}&callback=${callbackName}`
+  const src = buildNaverMapScriptUrl(clientKey, callbackName)
+
+  console.info('[customer-map] loading naver maps sdk', {
+    queryKey: 'ncpKeyId',
+    hasCallback: true,
+    clientIdMasked: maskClientKey(clientKey),
+    origin: window.location.origin,
+  })
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
@@ -124,6 +228,7 @@ function loadNaverSdk(clientKey: string): Promise<void> {
       }
       settled = true
       window.clearTimeout(timeoutId)
+      authUnsubscribe()
       try {
         delete window[callbackName]
       } catch {
@@ -132,17 +237,39 @@ function loadNaverSdk(clientKey: string): Promise<void> {
       fn()
     }
 
+    const authUnsubscribe = onNaverMapAuthFailure(() => {
+      finish(() => reject(new MapSdkError('naver_auth_failure')))
+    })
+
     window[callbackName] = () => {
+      if (wasNaverMapAuthFailure()) {
+        finish(() => reject(new MapSdkError('naver_auth_failure')))
+        return
+      }
       if (window.naver?.maps) {
-        finish(resolve)
+        finish(() => {
+          try {
+            assertNaverSdkReady()
+            resolve()
+          } catch (error) {
+            reject(error)
+          }
+        })
         return
       }
       void waitForGlobal(() => Boolean(window.naver?.maps), 2000, 'sdk_global_missing')
-        .then(() => finish(resolve))
+        .then(() => {
+          assertNaverSdkReady()
+          finish(resolve)
+        })
         .catch((error) => finish(() => reject(error)))
     }
 
     const timeoutId = window.setTimeout(() => {
+      if (wasNaverMapAuthFailure()) {
+        finish(() => reject(new MapSdkError('naver_auth_failure')))
+        return
+      }
       finish(() => reject(new MapSdkError('sdk_global_missing')))
     }, SDK_READY_TIMEOUT_MS)
 
@@ -201,9 +328,7 @@ export async function loadMapProviderSdk(
   const promise = (async () => {
     if (provider === 'naver') {
       await loadNaverSdk(clientKey)
-      if (!window.naver?.maps) {
-        throw new MapSdkError('sdk_global_missing')
-      }
+      assertNaverSdkReady()
       return
     }
     if (provider === 'kakao') {
@@ -222,6 +347,8 @@ export async function loadMapProviderSdk(
     throw error
   }
 }
+
+export { onNaverMapAuthFailure, wasNaverMapAuthFailure }
 
 /** 카카오 level(1=확대) ↔ 네이버 zoom(숫자 클수록 확대) 근사 변환 */
 export function kakaoLevelFromZoom(zoom: number): number {
