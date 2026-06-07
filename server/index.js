@@ -188,7 +188,7 @@ async function isUsernameTakenGlobally(executor, username, options = {}) {
   const excludeInsurerManagerId = String(options.excludeInsurerManagerId ?? '').trim()
   const excludeLossAdjusterId = String(options.excludeLossAdjusterId ?? '').trim()
   const uParams = [normalized]
-  let uSql = `SELECT 1 FROM users WHERE username = $1 AND is_deleted = false`
+  let uSql = `SELECT 1 FROM users WHERE LOWER(TRIM(username)) = LOWER(TRIM($1)) AND is_deleted = false`
   if (excludeUserId) {
     uSql += ` AND id <> $2`
     uParams.push(excludeUserId)
@@ -199,7 +199,7 @@ async function isUsernameTakenGlobally(executor, username, options = {}) {
     return true
   }
   const imParams = [normalized]
-  let imSql = `SELECT 1 FROM insurer_managers WHERE username = $1 AND is_deleted = false`
+  let imSql = `SELECT 1 FROM insurer_managers WHERE LOWER(TRIM(username)) = LOWER(TRIM($1)) AND is_deleted = false`
   if (excludeInsurerManagerId) {
     imSql += ` AND id <> $2`
     imParams.push(excludeInsurerManagerId)
@@ -210,7 +210,7 @@ async function isUsernameTakenGlobally(executor, username, options = {}) {
     return true
   }
   const laParams = [normalized]
-  let laSql = `SELECT 1 FROM loss_adjusters WHERE username = $1 AND is_deleted = false`
+  let laSql = `SELECT 1 FROM loss_adjusters WHERE LOWER(TRIM(username)) = LOWER(TRIM($1)) AND is_deleted = false`
   if (excludeLossAdjusterId) {
     laSql += ` AND id <> $2`
     laParams.push(excludeLossAdjusterId)
