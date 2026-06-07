@@ -85,6 +85,7 @@ import {
   FEATURE_REQUEST_COMMENT_INSERT_SQL,
   FEATURE_REQUEST_COMMENT_SELECT_SQL,
 } from './lib/featureRequestCommentsSql.js'
+import { resolveTenantByAuthenticatedLegacyGaId } from './lib/resolveTenantByAuthenticatedLegacyGaId.js'
 import { isGeneralGaCompanyCode, resolveSignupGaCompany } from './lib/generalGa.js'
 import {
   isDevSignupPhoneBypassEnabled,
@@ -6066,15 +6067,15 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
 
     let custTenantId = Number(req.user?.customerTenantDbId)
     if (!Number.isSafeInteger(custTenantId) || custTenantId < 1) {
-      const tr = await safeQuery(
-        pool,
-        `SELECT id FROM tenants WHERE legacy_ga_id = $1 ORDER BY id ASC LIMIT 1`,
-        [gaId],
-      )
-      custTenantId = Number(tr.rows[0]?.id ?? 0)
-      if (!(Number.isSafeInteger(custTenantId) && custTenantId > 0)) {
-        custTenantId = null
+      const tenantResolved = await resolveTenantByAuthenticatedLegacyGaId(pool, {
+        legacyGaId: gaId,
+        authUser: req.user,
+      })
+      if (!tenantResolved.ok) {
+        res.status(tenantResolved.status).json({ message: tenantResolved.message })
+        return
       }
+      custTenantId = tenantResolved.tenantId
     }
 
     const data = req.body ?? {}
