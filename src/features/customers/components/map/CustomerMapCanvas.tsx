@@ -1,6 +1,5 @@
-/** 2차 Dynamic Map SDK용 — 1차 MVP(Static Map)에서는 사용하지 않는다. */
 import { useEffect, useRef } from 'react'
-import type { CustomerMapMarker } from '../../api/customerMapApi'
+import type { CustomerMapListItem } from '../../api/customerMapApi'
 import type { MapProviderName } from '../../config/customerMap.config'
 import {
   kakaoLevelFromZoom,
@@ -11,20 +10,74 @@ import {
 type CustomerMapCanvasProps = {
   provider: MapProviderName
   clientKey: string
-  customers: CustomerMapMarker[]
+  customers: CustomerMapListItem[]
   centerLat: number
   centerLng: number
   zoom: number
   selectedCustomerId: number | null
-  onCenterChange: (centerLat: number, centerLng: number, zoom: number) => void
-  onSelectCustomer: (customer: CustomerMapMarker | null) => void
+  onViewportChange: (centerLat: number, centerLng: number, zoom: number) => void
+  onSelectCustomer: (customerId: number | null) => void
 }
 
-function markerHtml(selected: boolean): string {
+function markerHtml(markerNo: number, selected: boolean): string {
   const cls = selected
     ? 'customer-map-marker customer-map-marker--selected'
     : 'customer-map-marker'
-  return `<div class="${cls}" aria-hidden="true"></div>`
+  return `<div class="${cls}"><span class="customer-map-marker__no">${markerNo}</span></div>`
+}
+
+function fitMapToCustomers(
+  provider: MapProviderName,
+  map: unknown,
+  customers: CustomerMapListItem[],
+  fallbackCenterLat: number,
+  fallbackCenterLng: number,
+  fallbackZoom: number,
+) {
+  if (customers.length === 0) {
+    return
+  }
+  if (provider === 'naver' && window.naver?.maps) {
+    const { maps } = window.naver
+    if (customers.length === 1) {
+      const c = customers[0]
+      ;(map as { setCenter: (v: unknown) => void; setZoom: (z: number) => void }).setCenter(
+        new maps.LatLng(c.latitude, c.longitude),
+      )
+      ;(map as { setZoom: (z: number) => void }).setZoom(Math.max(fallbackZoom, 14))
+      return
+    }
+    const bounds = new maps.LatLngBounds(
+      new maps.LatLng(customers[0].latitude, customers[0].longitude),
+      new maps.LatLng(customers[0].latitude, customers[0].longitude),
+    )
+    for (const customer of customers.slice(1)) {
+      bounds.extend(new maps.LatLng(customer.latitude, customer.longitude))
+    }
+    ;(map as { fitBounds: (b: unknown, opts?: unknown) => void }).fitBounds(bounds, {
+      top: 48,
+      right: 48,
+      bottom: 48,
+      left: 48,
+    })
+    return
+  }
+  if (provider === 'kakao' && window.kakao?.maps) {
+    const { maps } = window.kakao
+    if (customers.length === 1) {
+      const c = customers[0]
+      ;(map as { setCenter: (v: unknown) => void; setLevel: (l: number) => void }).setCenter(
+        new maps.LatLng(c.latitude, c.longitude),
+      )
+      ;(map as { setLevel: (l: number) => void }).setLevel(kakaoLevelFromZoom(Math.max(fallbackZoom, 14)))
+      return
+    }
+    const bounds = new maps.LatLngBounds()
+    for (const customer of customers) {
+      bounds.extend(new maps.LatLng(customer.latitude, customer.longitude))
+    }
+    ;(map as { setBounds: (b: unknown) => void }).setBounds(bounds)
+  }
 }
 
 export default function CustomerMapCanvas({
@@ -35,18 +88,23 @@ export default function CustomerMapCanvas({
   centerLng,
   zoom,
   selectedCustomerId,
-  onCenterChange,
+  onViewportChange,
   onSelectCustomer,
 }: CustomerMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<unknown>(null)
   const markersRef = useRef<unknown[]>([])
   const skipCenterSyncRef = useRef(false)
-  const onCenterChangeRef = useRef(onCenterChange)
+  const onViewportChangeRef = useRef(onViewportChange)
   const onSelectCustomerRef = useRef(onSelectCustomer)
+  const fittedRef = useRef(false)
 
-  onCenterChangeRef.current = onCenterChange
+  onViewportChangeRef.current = onViewportChange
   onSelectCustomerRef.current = onSelectCustomer
+
+  useEffect(() => {
+    fittedRef.current = false
+  }, [customers])
 
   useEffect(() => {
     if (provider === 'none' || !clientKey || !containerRef.current) {
@@ -66,14 +124,23 @@ export default function CustomerMapCanvas({
         const map = new maps.Map(containerRef.current, {
           center: new maps.LatLng(centerLat, centerLng),
           zoom,
+          zoomControl: true,
+          zoomControlOptions: {
+            position: maps.Position.TOP_RIGHT,
+          },
+          mapDataControl: false,
         })
         mapRef.current = map
+        if (customers.length > 0 && !fittedRef.current) {
+          fitMapToCustomers(provider, map, customers, centerLat, centerLng, zoom)
+          fittedRef.current = true
+        }
         maps.Event.addListener(map, 'idle', () => {
           if (skipCenterSyncRef.current) {
             return
           }
           const c = map.getCenter()
-          onCenterChangeRef.current(c.lat(), c.lng(), map.getZoom())
+          onViewportChangeRef.current(c.lat(), c.lng(), map.getZoom())
         })
         return
       }
@@ -85,16 +152,20 @@ export default function CustomerMapCanvas({
           level: kakaoLevelFromZoom(zoom),
         })
         mapRef.current = map
+        if (customers.length > 0 && !fittedRef.current) {
+          fitMapToCustomers(provider, map, customers, centerLat, centerLng, zoom)
+          fittedRef.current = true
+        }
         maps.event.addListener(map, 'idle', () => {
           if (skipCenterSyncRef.current) {
             return
           }
           const c = map.getCenter()
-          onCenterChangeRef.current(c.getLat(), c.getLng(), zoomFromKakaoLevel(map.getLevel()))
+          onViewportChangeRef.current(c.getLat(), c.getLng(), zoomFromKakaoLevel(map.getLevel()))
         })
       }
     })().catch(() => {
-      // 상위 MapProviderLoader 가 안내 표시
+      // Shell fallback
     })
 
     return () => {
@@ -152,12 +223,12 @@ export default function CustomerMapCanvas({
           position: new maps.LatLng(customer.latitude, customer.longitude),
           map,
           icon: {
-            content: markerHtml(selected),
-            anchor: new maps.Point(10, 10),
+            content: markerHtml(customer.markerNo, selected),
+            anchor: new maps.Point(14, 14),
           },
         })
         maps.Event.addListener(marker, 'click', () => {
-          onSelectCustomerRef.current(customer)
+          onSelectCustomerRef.current(customer.id)
         })
         markersRef.current.push(marker)
       }
@@ -167,19 +238,13 @@ export default function CustomerMapCanvas({
     if (provider === 'kakao' && window.kakao?.maps) {
       const { maps } = window.kakao
       for (const customer of customers) {
-        const selected = customer.id === selectedCustomerId
         const marker = new maps.Marker({
           position: new maps.LatLng(customer.latitude, customer.longitude),
           map,
           clickable: true,
         })
-        const el = marker as unknown as { setImage?: (img: unknown) => void }
-        if (typeof el.setImage === 'function') {
-          // 기본 마커 유지 — 선택은 카드로 표시
-          void selected
-        }
         maps.event.addListener(marker, 'click', () => {
-          onSelectCustomerRef.current(customer)
+          onSelectCustomerRef.current(customer.id)
         })
         markersRef.current.push(marker)
       }

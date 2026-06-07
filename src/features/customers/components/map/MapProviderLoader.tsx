@@ -1,4 +1,4 @@
-/** 2차 Dynamic Map SDK용 — 1차 MVP(Static Map)에서는 사용하지 않는다. */
+/** Dynamic Map SDK 로더 — SDK 실패 시 Shell 이 Static Map fallback 을 렌더한다. */
 import { useEffect, useState, type ReactNode } from 'react'
 import {
   getMapProviderClientKey,
@@ -8,22 +8,29 @@ import {
 import { loadMapProviderSdk } from './mapSdkLoader'
 
 type MapProviderLoaderProps = {
-  children: (ctx: { provider: MapProviderName; clientKey: string; ready: boolean }) => ReactNode
+  children: (ctx: {
+    provider: MapProviderName
+    clientKey: string
+    ready: boolean
+    error: string | null
+  }) => ReactNode
 }
 
 export default function MapProviderLoader({ children }: MapProviderLoaderProps) {
   const provider = resolveMapProvider()
   const clientKey = getMapProviderClientKey(provider)
-  const [ready, setReady] = useState(provider === 'none')
+  const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (provider === 'none' || !clientKey) {
       setReady(false)
-      setError('지도 설정이 필요합니다. 관리자에게 지도 API 키 설정을 요청해 주세요.')
+      setError('지도 설정이 필요합니다. VITE_NAVER_MAP_CLIENT_ID를 확인해 주세요.')
       return
     }
     let cancelled = false
+    setReady(false)
+    setError(null)
     void loadMapProviderSdk(provider, clientKey)
       .then(() => {
         if (!cancelled) {
@@ -34,7 +41,7 @@ export default function MapProviderLoader({ children }: MapProviderLoaderProps) 
       .catch(() => {
         if (!cancelled) {
           setReady(false)
-          setError('지도를 불러오지 못했습니다. API 키와 도메인 등록을 확인해 주세요.')
+          setError('Dynamic Map SDK를 불러오지 못했습니다. Static Map으로 대체합니다.')
         }
       })
     return () => {
@@ -42,14 +49,5 @@ export default function MapProviderLoader({ children }: MapProviderLoaderProps) 
     }
   }, [provider, clientKey])
 
-  if (error) {
-    return (
-      <div className="customer-map-setup-notice" role="status">
-        <p className="customer-map-setup-notice__title">지도 설정이 필요합니다</p>
-        <p className="customer-map-setup-notice__body">{error}</p>
-      </div>
-    )
-  }
-
-  return <>{children({ provider, clientKey, ready })}</>
+  return <>{children({ provider, clientKey, ready, error })}</>
 }

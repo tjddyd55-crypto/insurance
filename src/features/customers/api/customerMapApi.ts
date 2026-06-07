@@ -22,6 +22,15 @@ export type CustomerMapListItem = {
   lastConsultDate: string | null
 }
 
+export type CustomerMapDynamicMapMeta = {
+  renderMode: 'static' | 'dynamic'
+  provider: string
+  centerLat: number
+  centerLng: number
+  zoom: number
+  markerCount: number
+}
+
 export type CustomerMapStaticMapMeta = {
   imageUrl: string | null
   imageEndpoint: string
@@ -46,6 +55,7 @@ export type CustomerMapStats = {
 export type CustomerMapResponse = {
   customers: CustomerMapMarker[]
   mapCustomers: CustomerMapListItem[]
+  map: CustomerMapDynamicMapMeta
   staticMap: CustomerMapStaticMapMeta
   stats: CustomerMapStats
 }

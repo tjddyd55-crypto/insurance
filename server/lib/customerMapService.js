@@ -1,5 +1,5 @@
 import { getNaverMapsCredentials } from './naverMapsCredentials.js'
-import { CUSTOMER_MAP_MAX_MARKERS, resolveMapRenderMode } from './customerMapRenderConfig.js'
+import { CUSTOMER_MAP_MAX_MARKERS, resolveMapRenderMode, resolveMapProvider } from './customerMapRenderConfig.js'
 import { formatLastConsultDate } from './customerMapQuery.js'
 import { buildStaticMapViewport, radiusKmToMapLevel } from './customerStaticMapBuilder.js'
 
@@ -81,18 +81,29 @@ export function buildCustomerMapResponse(customers, options = {}) {
   const statsRow = options.statsRow ?? {}
   const naverConfigured = getNaverMapsCredentials().configured
 
+  const renderMode = resolveMapRenderMode()
+  const mapLevel = viewport.useExplicitCenter ? viewport.level : radiusKmToMapLevel(options.radiusKm)
+
   return {
     customers,
     mapCustomers,
+    map: {
+      renderMode,
+      provider: resolveMapProvider(),
+      centerLat: viewport.centerLat,
+      centerLng: viewport.centerLng,
+      zoom: mapLevel,
+      markerCount: mapCustomers.length,
+    },
     staticMap: {
       imageUrl: null,
       imageEndpoint: '/api/customers/map/static-image',
       centerLat: viewport.centerLat,
       centerLng: viewport.centerLng,
-      level: viewport.useExplicitCenter ? viewport.level : radiusKmToMapLevel(options.radiusKm),
+      level: mapLevel,
       markerCount: mapCustomers.length,
       maxMarkerCount: CUSTOMER_MAP_MAX_MARKERS,
-      renderMode: resolveMapRenderMode(),
+      renderMode,
       configured: naverConfigured,
     },
     stats: {

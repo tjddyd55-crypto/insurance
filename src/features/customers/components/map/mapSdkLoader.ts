@@ -13,13 +13,18 @@ declare global {
           getCenter: () => { lat: () => number; lng: () => number }
           getZoom: () => number
           panTo: (latlng: unknown) => void
+          fitBounds: (bounds: unknown, margin?: unknown) => void
           destroy?: () => void
         }
         LatLng: new (lat: number, lng: number) => unknown
+        LatLngBounds: new (sw: unknown, ne: unknown) => {
+          extend: (latlng: unknown) => void
+        }
         Marker: new (options: Record<string, unknown>) => {
           setMap: (map: unknown | null) => void
         }
         Point: new (x: number, y: number) => unknown
+        Position: { TOP_RIGHT: unknown }
         Event: {
           addListener: (target: unknown, event: string, handler: () => void) => void
         }
@@ -37,7 +42,9 @@ declare global {
           getCenter: () => { getLat: () => number; getLng: () => number }
           getLevel: () => number
           panTo: (latlng: unknown) => void
+          setBounds: (bounds: unknown) => void
         }
+        LatLngBounds: new () => { extend: (latlng: unknown) => void }
         LatLng: new (lat: number, lng: number) => unknown
         Marker: new (options: Record<string, unknown>) => {
           setMap: (map: unknown | null) => void

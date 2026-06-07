@@ -1,5 +1,5 @@
-/** 1차 MVP 기본 렌더 모드 — Dynamic Map SDK는 2차용으로 보존 */
-export const CUSTOMER_MAP_RENDER_MODE = 'static' as const
+/** 고객 지도 기본 렌더 모드 */
+export const CUSTOMER_MAP_RENDER_MODE = 'dynamic' as const
 
 export const CUSTOMER_MAP_RADIUS_OPTIONS_KM = [1, 3, 5, 10] as const
 
@@ -18,6 +18,7 @@ export type CustomerMapPersistedState = {
   filters: CustomerMapFilters
   renderMode: typeof CUSTOMER_MAP_RENDER_MODE
   useExplicitCenter: boolean
+  zoom?: number
 }
 
 export const CUSTOMER_MAP_DEFAULT_CENTER = {

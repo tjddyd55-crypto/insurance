@@ -1,8 +1,8 @@
 import { FormButton } from '../../../../components/form'
-import type { CustomerMapMarker } from '../../api/customerMapApi'
+import type { CustomerMapListItem } from '../../api/customerMapApi'
 
 type CustomerMapMarkerCardProps = {
-  customer: CustomerMapMarker
+  customer: CustomerMapListItem
   onClose: () => void
   onOpenDetail: (customerId: number) => void
 }
@@ -27,7 +27,10 @@ export default function CustomerMapMarkerCard({
   return (
     <aside className="customer-map-marker-card" aria-label="고객 요약">
       <div className="customer-map-marker-card__header">
-        <h2 className="customer-map-marker-card__name">{customer.name || '이름 없음'}</h2>
+        <div className="customer-map-marker-card__title-row">
+          <span className="customer-map-marker-card__marker-no">{customer.markerNo}</span>
+          <h2 className="customer-map-marker-card__name">{customer.name || '이름 없음'}</h2>
+        </div>
         <button type="button" className="customer-map-marker-card__close" onClick={onClose}>
           닫기
         </button>

@@ -1,7 +1,10 @@
 import { useAuth } from '../../../auth/AuthProvider'
 import { FormButton, FormInput } from '../../../../components/form'
+import CustomerMapCanvas from '../../components/map/CustomerMapCanvas'
 import CustomerMapCustomerList from '../../components/map/CustomerMapCustomerList'
+import CustomerMapMarkerCard from '../../components/map/CustomerMapMarkerCard'
 import CustomerStaticMapImage from '../../components/map/CustomerStaticMapImage'
+import MapProviderLoader from '../../components/map/MapProviderLoader'
 import { CUSTOMER_MAP_RADIUS_OPTIONS_KM } from '../../config/customerMap.config'
 import type { CustomerMapViewProps } from '../../hooks/useCustomerMapState'
 import './customer-map-page.css'
@@ -21,15 +24,23 @@ export default function CustomerMapShell({
   radiusKm,
   favoriteOnly,
   keyword,
+  viewportCenterLat,
+  viewportCenterLng,
+  viewportZoom,
+  selectedCustomerId,
+  selectedCustomer,
   onRadiusChange,
   onShowAllCustomers,
   onCurrentLocation,
   onOpenCustomerDetail,
   onFavoriteOnlyChange,
   onKeywordChange,
+  onSelectCustomer,
+  onViewportChange,
 }: CustomerMapShellProps) {
   const { token } = useAuth()
   const modifier = variant === 'pc' ? 'customers-map-page--pc' : 'customers-map-page--mobile'
+  const hasMarkers = mapCustomers.length > 0
 
   return (
     <main className={`page customers-map-page ${modifier} page--with-back`}>
@@ -105,15 +116,77 @@ export default function CustomerMapShell({
       {loading ? <p className="customers-map-page__loading">고객 위치를 불러오는 중…</p> : null}
 
       <div className="customers-map-page__map-wrap">
-        <CustomerStaticMapImage
-          token={token}
-          query={mapQuery}
-          configured={staticMap?.configured ?? false}
-          hasMarkers={mapCustomers.length > 0}
-        />
+        <MapProviderLoader>
+          {({ provider, clientKey, ready, error: sdkError }) => {
+            if (ready && provider !== 'none' && clientKey) {
+              return (
+                <>
+                  <CustomerMapCanvas
+                    provider={provider}
+                    clientKey={clientKey}
+                    customers={mapCustomers}
+                    centerLat={viewportCenterLat}
+                    centerLng={viewportCenterLng}
+                    zoom={viewportZoom}
+                    selectedCustomerId={selectedCustomerId}
+                    onViewportChange={onViewportChange}
+                    onSelectCustomer={onSelectCustomer}
+                  />
+                  {selectedCustomer ? (
+                    <CustomerMapMarkerCard
+                      customer={selectedCustomer}
+                      onClose={() => onSelectCustomer(null)}
+                      onOpenDetail={onOpenCustomerDetail}
+                    />
+                  ) : null}
+                </>
+              )
+            }
+
+            if (!hasMarkers) {
+              return (
+                <div className="customer-map-setup-notice customer-map-setup-notice--inline" role="status">
+                  <p className="customer-map-setup-notice__body">
+                    표시할 고객 좌표가 없습니다. 주소 backfill 후 다시 확인해 주세요.
+                  </p>
+                </div>
+              )
+            }
+
+            if (sdkError && staticMap?.configured) {
+              return (
+                <>
+                  <p className="customers-map-page__fallback-note" role="status">
+                    {sdkError}
+                  </p>
+                  <CustomerStaticMapImage
+                    token={token}
+                    query={mapQuery}
+                    configured={staticMap.configured}
+                    hasMarkers={hasMarkers}
+                  />
+                </>
+              )
+            }
+
+            return (
+              <div className="customer-map-setup-notice customer-map-setup-notice--inline" role="status">
+                <p className="customer-map-setup-notice__title">지도 설정이 필요합니다</p>
+                <p className="customer-map-setup-notice__body">
+                  VITE_NAVER_MAP_CLIENT_ID와 서버 NAVER_MAPS 설정을 확인해 주세요.
+                </p>
+              </div>
+            )
+          }}
+        </MapProviderLoader>
       </div>
 
-      <CustomerMapCustomerList customers={mapCustomers} onOpenDetail={onOpenCustomerDetail} />
+      <CustomerMapCustomerList
+        customers={mapCustomers}
+        selectedCustomerId={selectedCustomerId}
+        onOpenDetail={onOpenCustomerDetail}
+        onSelectCustomer={onSelectCustomer}
+      />
     </main>
   )
 }
