@@ -36,6 +36,7 @@ import CustomerFilesPage from './features/customers/pages/CustomerFilesPage'
 import CustomerGaExcelPage from './features/customers/pages/CustomerGaExcelPage'
 import CustomerMemosPage from './features/customers/pages/CustomerMemosPage'
 import CustomerMapPage from './features/customers/pages/CustomerMapPage'
+import NaverMapSmokePage from './features/customers/pages/NaverMapSmokePage'
 import CustomerWorkspaceLayout from './features/customers/pages/CustomerWorkspaceLayout'
 import CustomerWorkspaceHomePage from './features/customers/pages/CustomerWorkspaceHomePage'
 import CustomerAutoFormPage from './features/customers/pages/CustomerAutoFormPage'
@@ -189,6 +190,7 @@ export const appRouter = createBrowserRouter([
       { path: 'privacy-policy', element: <Navigate to="/privacy" replace /> },
       { path: 'introduction', element: <IntroductionPage /> },
       { path: 'introduction/install', element: <IntroductionInstallPage /> },
+      { path: 'naver-map-smoke', element: <NaverMapSmokePage /> },
       /* 외부 고객 입력(소개 링크) — 비로그인 유지. API는 /api/customer/external-create + ref·ga 검증 */
       { path: 'customer/input', element: <CustomerInputPage /> },
       { path: 'customer/register', element: <CustomerRegisterPage /> },

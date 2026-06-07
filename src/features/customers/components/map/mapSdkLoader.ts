@@ -4,6 +4,7 @@ import {
   onNaverMapAuthFailure,
   wasNaverMapAuthFailure,
 } from './naverMapAuthFailure'
+import { logNaverMapAuthDiagnostics, maskClientKey } from './naverMapAuthDiagnostics'
 import { MapSdkError } from './mapSdkErrors'
 
 declare global {
@@ -116,14 +117,6 @@ export function buildNaverMapScriptUrl(clientKey: string, callbackName: string):
   url.searchParams.set('ncpKeyId', clientKey.trim())
   url.searchParams.set('callback', callbackName)
   return url.toString()
-}
-
-function maskClientKey(clientKey: string): string {
-  if (!clientKey) {
-    return '(empty)'
-  }
-  const prefix = clientKey.slice(0, 3)
-  return `${prefix}…(len ${clientKey.length})`
 }
 
 export function getNaverMapSdkLoadDiagnostics(clientKey: string) {
@@ -267,11 +260,10 @@ function loadNaverSdk(clientKey: string, allowStaleRetry = true): Promise<void> 
   const callbackName = `${NAVER_CALLBACK_PREFIX}${Date.now()}`
   const src = buildNaverMapScriptUrl(clientKey, callbackName)
 
-  console.info('[customer-map] loading naver maps sdk', {
+  logNaverMapAuthDiagnostics('customer-map', clientKey, wasNaverMapAuthFailure(), {
+    phase: 'sdkScriptAppend',
     queryKey: 'ncpKeyId',
     hasCallback: true,
-    clientIdMasked: maskClientKey(clientKey),
-    origin: window.location.origin,
   })
 
   return new Promise<void>((resolve, reject) => {

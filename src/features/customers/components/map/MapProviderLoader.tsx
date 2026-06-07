@@ -5,6 +5,11 @@ import {
   resolveMapProvider,
   type MapProviderName,
 } from '../../config/customerMap.config'
+import {
+  installNaverMapAuthRequestObserver,
+  logNaverMapAuthDiagnostics,
+} from './naverMapAuthDiagnostics'
+import { wasNaverMapAuthFailure } from './naverMapAuthFailure'
 import { getNaverMapSdkLoadDiagnostics, loadMapProviderSdk } from './mapSdkLoader'
 import { mapSdkErrorMessage, toMapSdkError, type MapSdkErrorCode } from './mapSdkErrors'
 
@@ -24,6 +29,17 @@ export default function MapProviderLoader({ children }: MapProviderLoaderProps) 
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorCode, setErrorCode] = useState<MapSdkErrorCode | null>(null)
+
+  useEffect(() => {
+    const stopObserver = installNaverMapAuthRequestObserver('customer-map')
+    logNaverMapAuthDiagnostics('customer-map', clientKey, wasNaverMapAuthFailure(), {
+      phase: 'MapProviderLoader.mount',
+      provider,
+    })
+    return () => {
+      stopObserver()
+    }
+  }, [provider, clientKey])
 
   useEffect(() => {
     if (provider === 'none' || !clientKey) {

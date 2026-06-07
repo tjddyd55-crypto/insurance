@@ -1,3 +1,5 @@
+import { logNaverMapAuthDiagnostics } from './naverMapAuthDiagnostics'
+
 type NaverAuthFailureListener = () => void
 
 let naverAuthFailed = false
@@ -22,10 +24,10 @@ function notifyNaverMapAuthFailure(clientKeyLength: number): void {
     return
   }
   naverAuthFailed = true
-  console.error('[customer-map] navermap_authFailure', {
-    clientIdLength: clientKeyLength,
-    origin: window.location.origin,
-    referrer: document.referrer || '(empty)',
+  console.error('[customer-map] navermap_authFailure')
+  logNaverMapAuthDiagnostics('customer-map', '', true, {
+    phase: 'navermap_authFailure',
+    clientIdMasked: clientKeyLength > 0 ? `…(len ${clientKeyLength})` : '(empty)',
   })
   for (const listener of listeners) {
     listener()

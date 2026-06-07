@@ -331,3 +331,70 @@
   font-size: 0.875rem;
   color: #94a3b8;
 }
+
+.naver-map-smoke-page {
+  min-height: 100vh;
+  padding: 24px;
+  background: #0b111a;
+  color: #e5e7eb;
+}
+
+.naver-map-smoke-page__header h1 {
+  margin: 0 0 8px;
+  color: #f8fafc;
+  font-size: 1.25rem;
+}
+
+.naver-map-smoke-page__muted {
+  margin: 0 0 16px;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.naver-map-smoke-page__status {
+  margin: 0 0 12px;
+  font-size: 0.9375rem;
+  color: #cbd5e1;
+}
+
+.naver-map-smoke-page__status--ok {
+  color: #86efac;
+  font-weight: 600;
+}
+
+.naver-map-smoke-page__status--fail {
+  color: #fca5a5;
+}
+
+.naver-map-smoke-page__canvas {
+  width: 100%;
+  min-height: 360px;
+  height: 52vh;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #111827;
+}
+
+.naver-map-smoke-page__diagnostics {
+  margin: 16px 0 0;
+  display: grid;
+  gap: 8px;
+  font-size: 0.8125rem;
+}
+
+.naver-map-smoke-page__diagnostics div {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px;
+}
+
+.naver-map-smoke-page__diagnostics dt {
+  margin: 0;
+  color: #94a3b8;
+}
+
+.naver-map-smoke-page__diagnostics dd {
+  margin: 0;
+  color: #e5e7eb;
+  word-break: break-all;
+}
