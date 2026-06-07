@@ -3,9 +3,13 @@ import type { CustomerMapListItem } from '../../api/customerMapApi'
 import type { MapProviderName } from '../../config/customerMap.config'
 import { MapSdkError } from './mapSdkErrors'
 import {
+  waitForUsableMapContainerSize,
+} from './naverMapContainer'
+import {
   kakaoLevelFromZoom,
   loadMapProviderSdk,
   onNaverMapAuthFailure,
+  wasNaverSdkCallbackCompleted,
   zoomFromKakaoLevel,
 } from './mapSdkLoader'
 
@@ -83,48 +87,6 @@ function fitMapToCustomers(
   }
 }
 
-function hasContainerSize(element: HTMLElement): boolean {
-  const rect = element.getBoundingClientRect()
-  return rect.width > 0 && rect.height > 0
-}
-
-function waitForContainerSize(element: HTMLElement, timeoutMs = 5000): Promise<void> {
-  if (hasContainerSize(element)) {
-    return Promise.resolve()
-  }
-  return new Promise((resolve, reject) => {
-    const startedAt = Date.now()
-    const observer = new ResizeObserver(() => {
-      if (hasContainerSize(element)) {
-        observer.disconnect()
-        resolve()
-      }
-    })
-    observer.observe(element)
-    const timeoutId = window.setTimeout(() => {
-      observer.disconnect()
-      if (hasContainerSize(element)) {
-        resolve()
-        return
-      }
-      reject(new MapSdkError('map_init_failed'))
-    }, timeoutMs)
-    const poll = () => {
-      if (hasContainerSize(element)) {
-        window.clearTimeout(timeoutId)
-        observer.disconnect()
-        resolve()
-        return
-      }
-      if (Date.now() - startedAt >= timeoutMs) {
-        return
-      }
-      window.requestAnimationFrame(poll)
-    }
-    poll()
-  })
-}
-
 export default function CustomerMapCanvas({
   provider,
   clientKey,
@@ -173,10 +135,19 @@ export default function CustomerMapCanvas({
     const container = containerRef.current
 
     void (async () => {
-      await loadMapProviderSdk(provider, clientKey)
-      await waitForContainerSize(container)
+      // 1) 컨테이너 크기 확보 → 2) SDK callback 완료 → 3) Map 생성 (문서 순서)
+      const containerSize = await waitForUsableMapContainerSize(container)
       if (cancelled || !containerRef.current) {
         return
+      }
+
+      await loadMapProviderSdk(provider, clientKey)
+      if (cancelled || !containerRef.current) {
+        return
+      }
+
+      if (provider === 'naver' && !wasNaverSdkCallbackCompleted()) {
+        throw new MapSdkError('sdk_global_missing')
       }
 
       try {
@@ -185,6 +156,7 @@ export default function CustomerMapCanvas({
           const map = new maps.Map(containerRef.current, {
             center: new maps.LatLng(centerLat, centerLng),
             zoom,
+            size: new maps.Size(containerSize.width, containerSize.height),
             zoomControl: true,
             zoomControlOptions: {
               position: maps.Position.TOP_RIGHT,
@@ -203,6 +175,7 @@ export default function CustomerMapCanvas({
             const c = map.getCenter()
             onViewportChangeRef.current(c.lat(), c.lng(), map.getZoom())
           })
+          maps.Event.trigger(map, 'resize')
           setMapReady(true)
           return
         }

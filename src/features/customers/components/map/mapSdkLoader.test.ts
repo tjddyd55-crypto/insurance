@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildNaverMapScriptUrl } from './mapSdkLoader'
+import { buildNaverMapScriptUrl, isLegacyNaverScriptUrl } from './mapSdkLoader'
 
 describe('buildNaverMapScriptUrl', () => {
   it('uses ncpKeyId and callback per NAVER Maps JS v3 docs', () => {
@@ -12,5 +12,20 @@ describe('buildNaverMapScriptUrl', () => {
     expect(parsed.searchParams.has('ncpClientId')).toBe(false)
     expect(parsed.searchParams.has('govClientId')).toBe(false)
     expect(parsed.searchParams.has('finClientId')).toBe(false)
+  })
+})
+
+describe('isLegacyNaverScriptUrl', () => {
+  it('flags legacy client id query keys', () => {
+    expect(isLegacyNaverScriptUrl('https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=abc')).toBe(true)
+    expect(isLegacyNaverScriptUrl('https://oapi.map.naver.com/openapi/v3/maps.js?govClientId=abc')).toBe(true)
+    expect(isLegacyNaverScriptUrl('https://oapi.map.naver.com/openapi/v3/maps.js?finClientId=abc')).toBe(true)
+  })
+
+  it('requires ncpKeyId and callback', () => {
+    expect(
+      isLegacyNaverScriptUrl('https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=abc&callback=init'),
+    ).toBe(false)
+    expect(isLegacyNaverScriptUrl('https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=abc')).toBe(true)
   })
 })

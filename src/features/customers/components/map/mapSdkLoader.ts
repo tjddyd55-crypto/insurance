@@ -30,6 +30,7 @@ declare global {
           setMap: (map: unknown | null) => void
         }
         Point: new (x: number, y: number) => unknown
+        Size: new (width: number, height: number) => unknown
         Position: { TOP_RIGHT: unknown }
         Event: {
           addListener: (target: unknown, event: string, handler: () => void) => void
@@ -71,9 +72,48 @@ const SDK_READY_TIMEOUT_MS = 15000
 
 const loadPromises = new Map<MapProviderName, Promise<void>>()
 
+/** NAVER callback 실행 완료 — script.onload 와 분리 (Map 생성은 callback 이후만) */
+let naverSdkCallbackCompleted = false
+
+export function wasNaverSdkCallbackCompleted(): boolean {
+  return naverSdkCallbackCompleted
+}
+
+export function isLegacyNaverScriptUrl(src: string): boolean {
+  try {
+    const parsed = new URL(src)
+    if (
+      parsed.searchParams.has('ncpClientId') ||
+      parsed.searchParams.has('govClientId') ||
+      parsed.searchParams.has('finClientId')
+    ) {
+      return true
+    }
+    if (!parsed.searchParams.has('ncpKeyId')) {
+      return true
+    }
+    // 비동기 로드 contract: callback 없으면 재삽입
+    if (!parsed.searchParams.has('callback')) {
+      return true
+    }
+    return false
+  } catch {
+    return true
+  }
+}
+
 export function buildNaverMapScriptUrl(clientKey: string, callbackName: string): string {
+  if (!clientKey.trim()) {
+    throw new MapSdkError('missing_client_id')
+  }
+  if (!callbackName.trim()) {
+    throw new MapSdkError('sdk_global_missing')
+  }
   const url = new URL(NAVER_MAPS_JS_ORIGIN)
-  url.searchParams.set('ncpKeyId', clientKey)
+  url.searchParams.delete('ncpClientId')
+  url.searchParams.delete('govClientId')
+  url.searchParams.delete('finClientId')
+  url.searchParams.set('ncpKeyId', clientKey.trim())
   url.searchParams.set('callback', callbackName)
   return url.toString()
 }
@@ -116,6 +156,7 @@ export function getNaverMapSdkLoadDiagnostics(clientKey: string) {
     scriptPresent: Boolean(script),
     naverMaps: Boolean(window.naver?.maps),
     authFailureCalled: wasNaverMapAuthFailure(),
+    callbackCompleted: wasNaverSdkCallbackCompleted(),
     origin: window.location.origin,
     referrer: document.referrer || null,
   }
@@ -150,6 +191,7 @@ function waitForGlobal(
   })
 }
 
+/** script 태그 삽입만 담당 — NAVER SDK 준비는 callback 에서만 판정한다. */
 function appendScript(src: string, attrValue: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const script = document.createElement('script')
@@ -163,50 +205,62 @@ function appendScript(src: string, attrValue: string): Promise<void> {
   })
 }
 
-function isLegacyNaverScriptSrc(src: string): boolean {
-  return (
-    src.includes('ncpClientId=') ||
-    src.includes('govClientId=') ||
-    src.includes('finClientId=') ||
-    !src.includes('ncpKeyId=')
-  )
-}
-
 function removeNaverScriptIfPresent(): void {
   const existing = document.querySelector(`script[${SCRIPT_ATTR}="naver"]`)
   existing?.remove()
+}
+
+function markNaverSdkCallbackCompleted(): void {
+  naverSdkCallbackCompleted = true
 }
 
 function assertNaverSdkReady(): void {
   if (wasNaverMapAuthFailure()) {
     throw new MapSdkError('naver_auth_failure')
   }
+  if (!naverSdkCallbackCompleted) {
+    throw new MapSdkError('sdk_global_missing')
+  }
   if (!window.naver?.maps) {
     throw new MapSdkError('sdk_global_missing')
   }
 }
 
-function loadNaverSdk(clientKey: string): Promise<void> {
+function loadNaverSdk(clientKey: string, allowStaleRetry = true): Promise<void> {
   installNaverMapAuthFailureHandler(clientKey.length)
 
   if (wasNaverMapAuthFailure()) {
     return Promise.reject(new MapSdkError('naver_auth_failure'))
   }
 
-  if (window.naver?.maps) {
+  if (naverSdkCallbackCompleted && window.naver?.maps) {
     return Promise.resolve()
   }
 
   const existing = document.querySelector(`script[${SCRIPT_ATTR}="naver"]`) as HTMLScriptElement | null
   if (existing?.src) {
-    if (isLegacyNaverScriptSrc(existing.src)) {
+    if (isLegacyNaverScriptUrl(existing.src)) {
       removeNaverScriptIfPresent()
+    } else if (window.naver?.maps) {
+      markNaverSdkCallbackCompleted()
+      return Promise.resolve()
     } else {
-      return waitForGlobal(() => Boolean(window.naver?.maps), SDK_READY_TIMEOUT_MS, 'sdk_global_missing').then(
-        () => {
-          assertNaverSdkReady()
-        },
+      return waitForGlobal(
+        () => naverSdkCallbackCompleted && Boolean(window.naver?.maps),
+        SDK_READY_TIMEOUT_MS,
+        'sdk_global_missing',
       )
+        .then(() => {
+          assertNaverSdkReady()
+        })
+        .catch(async (error) => {
+          if (!allowStaleRetry) {
+            throw error
+          }
+          removeNaverScriptIfPresent()
+          naverSdkCallbackCompleted = false
+          await loadNaverSdk(clientKey, false)
+        })
     }
   }
 
@@ -242,6 +296,7 @@ function loadNaverSdk(clientKey: string): Promise<void> {
     })
 
     window[callbackName] = () => {
+      markNaverSdkCallbackCompleted()
       if (wasNaverMapAuthFailure()) {
         finish(() => reject(new MapSdkError('naver_auth_failure')))
         return
@@ -257,7 +312,11 @@ function loadNaverSdk(clientKey: string): Promise<void> {
         })
         return
       }
-      void waitForGlobal(() => Boolean(window.naver?.maps), 2000, 'sdk_global_missing')
+      void waitForGlobal(
+        () => naverSdkCallbackCompleted && Boolean(window.naver?.maps),
+        2000,
+        'sdk_global_missing',
+      )
         .then(() => {
           assertNaverSdkReady()
           finish(resolve)

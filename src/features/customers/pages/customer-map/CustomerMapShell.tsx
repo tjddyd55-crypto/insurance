@@ -7,6 +7,7 @@ import CustomerMapMarkerCard from '../../components/map/CustomerMapMarkerCard'
 import CustomerStaticMapImage from '../../components/map/CustomerStaticMapImage'
 import MapProviderLoader from '../../components/map/MapProviderLoader'
 import { mapSdkErrorMessage } from '../../components/map/mapSdkErrors'
+import { wasNaverMapAuthFailure } from '../../components/map/mapSdkLoader'
 import { CUSTOMER_MAP_RADIUS_OPTIONS_KM } from '../../config/customerMap.config'
 import type { CustomerMapViewProps } from '../../hooks/useCustomerMapState'
 import './customer-map-page.css'
@@ -166,7 +167,7 @@ export default function CustomerMapShell({
 
             if (useStaticFallback) {
               const fallbackMessage =
-                errorCode === 'naver_auth_failure'
+                errorCode === 'naver_auth_failure' || wasNaverMapAuthFailure()
                   ? mapSdkErrorMessage('naver_auth_failure')
                   : mapInitFailed || errorCode === 'map_init_failed'
                     ? mapSdkErrorMessage('map_init_failed')

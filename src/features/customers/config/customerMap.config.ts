@@ -26,7 +26,11 @@ export const CUSTOMER_MAP_DEFAULT_CENTER = {
   lng: 126.978,
 }
 
-/** 2차 Dynamic Map SDK 전용 — 1차 Static Map MVP에서는 사용하지 않음 */
+/**
+ * Dynamic Map SDK 전용.
+ * VITE_NAVER_MAP_CLIENT_ID 는 Naver Cloud Console Application 의 Client ID(ncpKeyId)와
+ * 동일해야 하며, 해당 Application 에 Dynamic Map 상품이 선택되어 있어야 한다.
+ */
 export type MapProviderName = 'naver' | 'kakao' | 'none'
 
 export function resolveMapProvider(): MapProviderName {
