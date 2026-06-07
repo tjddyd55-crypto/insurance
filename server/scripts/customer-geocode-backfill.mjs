@@ -12,6 +12,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import pool from '../db.js'
+import { assertSafeForMutatingScript } from '../lib/dbEnvironmentGuard.js'
 import { runCustomerGeocodeBackfill } from '../services/customerGeocodeBackfill.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -85,6 +86,12 @@ async function main() {
   loadEnvFileIfPresent(path.join(projectRoot, 'server'), '.env.local')
 
   const args = parseArgs(process.argv)
+  assertSafeForMutatingScript({
+    connectionString: process.env.DATABASE_URL,
+    execute: args.execute,
+    scriptName: 'customer-geocode-backfill',
+  })
+
   console.log('[customer-geocode-backfill] options:', {
     mode: args.execute ? 'execute' : 'dry-run',
     userId: args.userId,
