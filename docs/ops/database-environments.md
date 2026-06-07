@@ -238,6 +238,24 @@ count가 크게 다르면 **DATABASE_URL 전환하지 않음**.
 - production DB **쓰기** (INSERT/UPDATE/DELETE/TRUNCATE)
 - 현재 development Postgres **in-place 덮어쓰기**
 
+### 4-11. 활성 dev clone DB (2026-06-07~, 지도·신청서·전자서명 테스트)
+
+2026-06-07 승인 runbook 실행 후, development / `app` 은 **prod 복사본 clone** 을 바라본다.
+
+| 항목 | 값 |
+|------|-----|
+| clone 서비스 | `Postgres-goU7` (Railway 자동 생성명) |
+| 용도 | 지도 MVP · 신청서 · 전자서명 · PDF 템플릿 **dev 통합 테스트** |
+| 원본 dev `Postgres` | **유지** (rollback 대상, in-place 덮어쓰기 금지) |
+| production | **미변경** |
+
+**운영 방침**
+
+- **평소 development 테스트는 clone DB 기준**으로 진행한다 (`DATABASE_URL` → `Postgres-goU7`).
+- clone DB는 **테스트 종료 시점에만** 별도 승인 후 rollback 한다 (development `app` → 원본 `Postgres` reference 복원).
+- rollback 전까지 clone 서비스 **삭제 금지** (원인 분석·재검증용 보관).
+- production DB / production app Variables / `main` 반영은 **별도 승인** 없이는 금지.
+
 ---
 
 ## 5. 지도 feature dev 검증 순서 (데이터 준비 후)
