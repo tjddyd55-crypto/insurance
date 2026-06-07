@@ -49,7 +49,7 @@ test('geocodeCustomerAddress prefers NAVER_MAPS_CLIENT_ID credentials', async ()
     delete process.env.KAKAO_REST_API_KEY
 
     const fetchImpl = async (url) => {
-      assert.match(String(url), /naveropenapi\.apigw\.ntruss\.com/)
+      assert.match(String(url), /maps\.apigw\.ntruss\.com/)
       return {
         ok: true,
         async json() {

@@ -1,6 +1,7 @@
 import { getNaverMapsCredentials } from './naverMapsCredentials.js'
+import { NAVER_MAPS_GEOCODE_URL } from './naverMapsEndpoints.js'
 
-const GEOCODE_URL = 'https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode'
+const GEOCODE_URL = NAVER_MAPS_GEOCODE_URL
 
 /**
  * @returns {{ configured: boolean; clientId: string; clientSecret: string }}

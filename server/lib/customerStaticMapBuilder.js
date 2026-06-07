@@ -1,11 +1,12 @@
 import { getNaverMapsCredentials } from './naverMapsCredentials.js'
+import { NAVER_MAPS_STATIC_RASTER_URL } from './naverMapsEndpoints.js'
 import {
   CUSTOMER_MAP_MAX_MARKERS,
   CUSTOMER_STATIC_MAP_HEIGHT,
   CUSTOMER_STATIC_MAP_WIDTH,
 } from './customerMapRenderConfig.js'
 
-const STATIC_MAP_URL = 'https://naveropenapi.apigw.ntruss.com/map-static/v2/raster'
+const STATIC_MAP_URL = NAVER_MAPS_STATIC_RASTER_URL
 
 /**
  * @param {number} markerNo
