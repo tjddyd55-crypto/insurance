@@ -6,6 +6,7 @@ import {
   type MapProviderName,
 } from '../../config/customerMap.config'
 import { loadMapProviderSdk } from './mapSdkLoader'
+import { mapSdkErrorMessage, toMapSdkError, type MapSdkErrorCode } from './mapSdkErrors'
 
 type MapProviderLoaderProps = {
   children: (ctx: {
@@ -13,6 +14,7 @@ type MapProviderLoaderProps = {
     clientKey: string
     ready: boolean
     error: string | null
+    errorCode: MapSdkErrorCode | null
   }) => ReactNode
 }
 
@@ -21,33 +23,41 @@ export default function MapProviderLoader({ children }: MapProviderLoaderProps) 
   const clientKey = getMapProviderClientKey(provider)
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<MapSdkErrorCode | null>(null)
 
   useEffect(() => {
     if (provider === 'none' || !clientKey) {
       setReady(false)
-      setError('지도 설정이 필요합니다. VITE_NAVER_MAP_CLIENT_ID를 확인해 주세요.')
+      setErrorCode('missing_client_id')
+      setError(mapSdkErrorMessage('missing_client_id'))
       return
     }
     let cancelled = false
     setReady(false)
     setError(null)
+    setErrorCode(null)
     void loadMapProviderSdk(provider, clientKey)
       .then(() => {
         if (!cancelled) {
           setReady(true)
           setError(null)
+          setErrorCode(null)
         }
       })
-      .catch(() => {
-        if (!cancelled) {
-          setReady(false)
-          setError('Dynamic Map SDK를 불러오지 못했습니다. Static Map으로 대체합니다.')
+      .catch((caught) => {
+        if (cancelled) {
+          return
         }
+        const mapped = toMapSdkError(caught)
+        console.error('[customer-map] map sdk load failed:', mapped.code)
+        setReady(false)
+        setErrorCode(mapped.code)
+        setError(mapSdkErrorMessage(mapped.code))
       })
     return () => {
       cancelled = true
     }
   }, [provider, clientKey])
 
-  return <>{children({ provider, clientKey, ready, error })}</>
+  return <>{children({ provider, clientKey, ready, error, errorCode })}</>
 }

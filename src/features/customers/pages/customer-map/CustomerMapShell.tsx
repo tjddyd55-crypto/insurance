@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react'
 import { useAuth } from '../../../auth/AuthProvider'
 import { FormButton, FormInput } from '../../../../components/form'
 import CustomerMapCanvas from '../../components/map/CustomerMapCanvas'
@@ -5,6 +6,7 @@ import CustomerMapCustomerList from '../../components/map/CustomerMapCustomerLis
 import CustomerMapMarkerCard from '../../components/map/CustomerMapMarkerCard'
 import CustomerStaticMapImage from '../../components/map/CustomerStaticMapImage'
 import MapProviderLoader from '../../components/map/MapProviderLoader'
+import { mapSdkErrorMessage } from '../../components/map/mapSdkErrors'
 import { CUSTOMER_MAP_RADIUS_OPTIONS_KM } from '../../config/customerMap.config'
 import type { CustomerMapViewProps } from '../../hooks/useCustomerMapState'
 import './customer-map-page.css'
@@ -41,6 +43,10 @@ export default function CustomerMapShell({
   const { token } = useAuth()
   const modifier = variant === 'pc' ? 'customers-map-page--pc' : 'customers-map-page--mobile'
   const hasMarkers = mapCustomers.length > 0
+  const [mapInitFailed, setMapInitFailed] = useState(false)
+  const handleMapInitFailed = useCallback(() => {
+    setMapInitFailed(true)
+  }, [])
 
   return (
     <main className={`page customers-map-page ${modifier} page--with-back`}>
@@ -117,8 +123,12 @@ export default function CustomerMapShell({
 
       <div className="customers-map-page__map-wrap">
         <MapProviderLoader>
-          {({ provider, clientKey, ready, error: sdkError }) => {
-            if (ready && provider !== 'none' && clientKey) {
+          {({ provider, clientKey, ready, error: sdkError, errorCode }) => {
+            const useStaticFallback =
+              mapInitFailed ||
+              Boolean(sdkError && errorCode !== 'missing_client_id' && staticMap?.configured)
+
+            if (ready && provider !== 'none' && clientKey && !useStaticFallback) {
               return (
                 <>
                   <CustomerMapCanvas
@@ -131,6 +141,7 @@ export default function CustomerMapShell({
                     selectedCustomerId={selectedCustomerId}
                     onViewportChange={onViewportChange}
                     onSelectCustomer={onSelectCustomer}
+                    onMapInitFailed={handleMapInitFailed}
                   />
                   {selectedCustomer ? (
                     <CustomerMapMarkerCard
@@ -153,29 +164,41 @@ export default function CustomerMapShell({
               )
             }
 
-            if (sdkError && staticMap?.configured) {
+            if (useStaticFallback) {
+              const fallbackMessage =
+                mapInitFailed || errorCode === 'map_init_failed'
+                  ? mapSdkErrorMessage('map_init_failed')
+                  : sdkError ?? mapSdkErrorMessage('script_load_failed')
               return (
                 <>
                   <p className="customers-map-page__fallback-note" role="status">
-                    {sdkError}
+                    {fallbackMessage}
                   </p>
                   <CustomerStaticMapImage
                     token={token}
                     query={mapQuery}
-                    configured={staticMap.configured}
+                    configured={staticMap?.configured ?? false}
                     hasMarkers={hasMarkers}
                   />
                 </>
               )
             }
 
+            if (errorCode === 'missing_client_id' || sdkError) {
+              return (
+                <div className="customer-map-setup-notice customer-map-setup-notice--inline" role="status">
+                  <p className="customer-map-setup-notice__title">지도 설정이 필요합니다</p>
+                  <p className="customer-map-setup-notice__body">
+                    {sdkError ?? mapSdkErrorMessage('missing_client_id')}
+                  </p>
+                </div>
+              )
+            }
+
             return (
-              <div className="customer-map-setup-notice customer-map-setup-notice--inline" role="status">
-                <p className="customer-map-setup-notice__title">지도 설정이 필요합니다</p>
-                <p className="customer-map-setup-notice__body">
-                  VITE_NAVER_MAP_CLIENT_ID와 서버 NAVER_MAPS 설정을 확인해 주세요.
-                </p>
-              </div>
+              <p className="customers-map-page__loading" role="status">
+                지도를 불러오는 중…
+              </p>
             )
           }}
         </MapProviderLoader>

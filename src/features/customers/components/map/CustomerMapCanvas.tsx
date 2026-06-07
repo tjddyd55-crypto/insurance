@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CustomerMapListItem } from '../../api/customerMapApi'
 import type { MapProviderName } from '../../config/customerMap.config'
+import { MapSdkError } from './mapSdkErrors'
 import {
   kakaoLevelFromZoom,
   loadMapProviderSdk,
@@ -17,6 +18,7 @@ type CustomerMapCanvasProps = {
   selectedCustomerId: number | null
   onViewportChange: (centerLat: number, centerLng: number, zoom: number) => void
   onSelectCustomer: (customerId: number | null) => void
+  onMapInitFailed?: () => void
 }
 
 function markerHtml(markerNo: number, selected: boolean): string {
@@ -80,6 +82,48 @@ function fitMapToCustomers(
   }
 }
 
+function hasContainerSize(element: HTMLElement): boolean {
+  const rect = element.getBoundingClientRect()
+  return rect.width > 0 && rect.height > 0
+}
+
+function waitForContainerSize(element: HTMLElement, timeoutMs = 5000): Promise<void> {
+  if (hasContainerSize(element)) {
+    return Promise.resolve()
+  }
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now()
+    const observer = new ResizeObserver(() => {
+      if (hasContainerSize(element)) {
+        observer.disconnect()
+        resolve()
+      }
+    })
+    observer.observe(element)
+    const timeoutId = window.setTimeout(() => {
+      observer.disconnect()
+      if (hasContainerSize(element)) {
+        resolve()
+        return
+      }
+      reject(new MapSdkError('map_init_failed'))
+    }, timeoutMs)
+    const poll = () => {
+      if (hasContainerSize(element)) {
+        window.clearTimeout(timeoutId)
+        observer.disconnect()
+        resolve()
+        return
+      }
+      if (Date.now() - startedAt >= timeoutMs) {
+        return
+      }
+      window.requestAnimationFrame(poll)
+    }
+    poll()
+  })
+}
+
 export default function CustomerMapCanvas({
   provider,
   clientKey,
@@ -90,6 +134,7 @@ export default function CustomerMapCanvas({
   selectedCustomerId,
   onViewportChange,
   onSelectCustomer,
+  onMapInitFailed,
 }: CustomerMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<unknown>(null)
@@ -97,10 +142,13 @@ export default function CustomerMapCanvas({
   const skipCenterSyncRef = useRef(false)
   const onViewportChangeRef = useRef(onViewportChange)
   const onSelectCustomerRef = useRef(onSelectCustomer)
+  const onMapInitFailedRef = useRef(onMapInitFailed)
   const fittedRef = useRef(false)
+  const [mapReady, setMapReady] = useState(false)
 
   onViewportChangeRef.current = onViewportChange
   onSelectCustomerRef.current = onSelectCustomer
+  onMapInitFailedRef.current = onMapInitFailed
 
   useEffect(() => {
     fittedRef.current = false
@@ -112,69 +160,104 @@ export default function CustomerMapCanvas({
     }
 
     let cancelled = false
+    const container = containerRef.current
 
     void (async () => {
       await loadMapProviderSdk(provider, clientKey)
+      await waitForContainerSize(container)
       if (cancelled || !containerRef.current) {
         return
       }
 
-      if (provider === 'naver' && window.naver?.maps) {
-        const { maps } = window.naver
-        const map = new maps.Map(containerRef.current, {
-          center: new maps.LatLng(centerLat, centerLng),
-          zoom,
-          zoomControl: true,
-          zoomControlOptions: {
-            position: maps.Position.TOP_RIGHT,
-          },
-          mapDataControl: false,
-        })
-        mapRef.current = map
-        if (customers.length > 0 && !fittedRef.current) {
-          fitMapToCustomers(provider, map, customers, centerLat, centerLng, zoom)
-          fittedRef.current = true
-        }
-        maps.Event.addListener(map, 'idle', () => {
-          if (skipCenterSyncRef.current) {
-            return
+      try {
+        if (provider === 'naver' && window.naver?.maps) {
+          const { maps } = window.naver
+          const map = new maps.Map(containerRef.current, {
+            center: new maps.LatLng(centerLat, centerLng),
+            zoom,
+            zoomControl: true,
+            zoomControlOptions: {
+              position: maps.Position.TOP_RIGHT,
+            },
+            mapDataControl: false,
+          })
+          mapRef.current = map
+          if (customers.length > 0 && !fittedRef.current) {
+            fitMapToCustomers(provider, map, customers, centerLat, centerLng, zoom)
+            fittedRef.current = true
           }
-          const c = map.getCenter()
-          onViewportChangeRef.current(c.lat(), c.lng(), map.getZoom())
-        })
-        return
-      }
+          maps.Event.addListener(map, 'idle', () => {
+            if (skipCenterSyncRef.current) {
+              return
+            }
+            const c = map.getCenter()
+            onViewportChangeRef.current(c.lat(), c.lng(), map.getZoom())
+          })
+          setMapReady(true)
+          return
+        }
 
-      if (provider === 'kakao' && window.kakao?.maps) {
-        const { maps } = window.kakao
-        const map = new maps.Map(containerRef.current, {
-          center: new maps.LatLng(centerLat, centerLng),
-          level: kakaoLevelFromZoom(zoom),
-        })
-        mapRef.current = map
-        if (customers.length > 0 && !fittedRef.current) {
-          fitMapToCustomers(provider, map, customers, centerLat, centerLng, zoom)
-          fittedRef.current = true
-        }
-        maps.event.addListener(map, 'idle', () => {
-          if (skipCenterSyncRef.current) {
-            return
+        if (provider === 'kakao' && window.kakao?.maps) {
+          const { maps } = window.kakao
+          const map = new maps.Map(containerRef.current, {
+            center: new maps.LatLng(centerLat, centerLng),
+            level: kakaoLevelFromZoom(zoom),
+          })
+          mapRef.current = map
+          if (customers.length > 0 && !fittedRef.current) {
+            fitMapToCustomers(provider, map, customers, centerLat, centerLng, zoom)
+            fittedRef.current = true
           }
-          const c = map.getCenter()
-          onViewportChangeRef.current(c.getLat(), c.getLng(), zoomFromKakaoLevel(map.getLevel()))
-        })
+          maps.event.addListener(map, 'idle', () => {
+            if (skipCenterSyncRef.current) {
+              return
+            }
+            const c = map.getCenter()
+            onViewportChangeRef.current(c.getLat(), c.getLng(), zoomFromKakaoLevel(map.getLevel()))
+          })
+          setMapReady(true)
+        }
+      } catch (error) {
+        console.error('[customer-map] map init failed:', error instanceof MapSdkError ? error.code : 'map_init_failed')
+        onMapInitFailedRef.current?.()
       }
-    })().catch(() => {
-      // Shell fallback
+    })().catch((error) => {
+      console.error('[customer-map] map init failed:', error instanceof MapSdkError ? error.code : 'map_init_failed')
+      onMapInitFailedRef.current?.()
     })
 
     return () => {
       cancelled = true
       mapRef.current = null
       markersRef.current = []
+      setMapReady(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- map instance 1회 생성
   }, [provider, clientKey])
+
+  useEffect(() => {
+    const container = containerRef.current
+    const map = mapRef.current
+    if (!container || !map || !mapReady) {
+      return undefined
+    }
+
+    const triggerResize = () => {
+      if (provider === 'naver' && window.naver?.maps) {
+        window.naver.maps.Event.trigger(map, 'resize')
+      }
+    }
+
+    const observer = new ResizeObserver(() => {
+      triggerResize()
+    })
+    observer.observe(container)
+    triggerResize()
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [provider, mapReady])
 
   useEffect(() => {
     const map = mapRef.current
