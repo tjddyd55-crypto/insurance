@@ -10,6 +10,31 @@ const DEFAULT_BATCH_LIMIT = 50
 const DEFAULT_DELAY_MS = 120
 
 /**
+ * env 미설정 등 일시적 실패만 --retry-failed 대상으로 허용한다.
+ * @param {string | null | undefined} errorMessage
+ */
+export function isRetryableNotConfiguredFailed(errorMessage) {
+  return String(errorMessage ?? '').includes('not_configured')
+}
+
+/**
+ * @param {{
+ *   prevStatus: string
+ *   prevErrorMessage: string | null | undefined
+ *   retryFailed: boolean
+ * }} row
+ */
+export function shouldSkipFailedCustomerLocation(row) {
+  if (row.prevStatus !== 'failed') {
+    return false
+  }
+  if (!row.retryFailed) {
+    return true
+  }
+  return !isRetryableNotConfiguredFailed(row.prevErrorMessage)
+}
+
+/**
  * @param {number} ms
  */
 function sleep(ms) {
@@ -23,6 +48,7 @@ function sleep(ms) {
  *   userId?: string | null
  *   limit?: number
  *   delayMs?: number
+ *   retryFailed?: boolean
  *   fetchImpl?: typeof fetch
  * }} options
  */
@@ -30,6 +56,7 @@ export async function runCustomerGeocodeBackfill(pool, options = {}) {
   const dryRun = options.execute !== true
   const limit = Math.min(Math.max(Number(options.limit) || DEFAULT_BATCH_LIMIT, 1), 5000)
   const delayMs = Math.max(Number(options.delayMs) || DEFAULT_DELAY_MS, 0)
+  const retryFailed = options.retryFailed === true
   const userIdFilter = options.userId ? String(options.userId).trim() : null
 
   const params = []
@@ -48,7 +75,8 @@ export async function runCustomerGeocodeBackfill(pool, options = {}) {
       c.ga_id,
       c.address,
       cl.status AS location_status,
-      cl.address_snapshot
+      cl.address_snapshot,
+      cl.error_message
     FROM customers c
     LEFT JOIN customer_locations cl ON cl.customer_id = c.id
     WHERE ${where}
@@ -66,7 +94,9 @@ export async function runCustomerGeocodeBackfill(pool, options = {}) {
    *   skippedNoAddress: number
    *   alreadyHave: number
    *   stale: number
+   *   skippedFailed: number
    *   pendingWouldRun: number
+   *   retryFailed: boolean
    * }} */
   const summary = {
     dryRun,
@@ -76,7 +106,9 @@ export async function runCustomerGeocodeBackfill(pool, options = {}) {
     skippedNoAddress: 0,
     alreadyHave: 0,
     stale: 0,
+    skippedFailed: 0,
     pendingWouldRun: 0,
+    retryFailed,
   }
 
   for (const row of result.rows) {
@@ -95,11 +127,23 @@ export async function runCustomerGeocodeBackfill(pool, options = {}) {
 
     const prevStatus = String(row.location_status ?? '').trim()
     const prevSnapshot = String(row.address_snapshot ?? '').trim()
+    const prevErrorMessage = row.error_message ?? null
     if (
       prevStatus === 'success' &&
       prevSnapshot === parsed.displayAddress
     ) {
       summary.alreadyHave += 1
+      continue
+    }
+
+    if (
+      shouldSkipFailedCustomerLocation({
+        prevStatus,
+        prevErrorMessage,
+        retryFailed,
+      })
+    ) {
+      summary.skippedFailed += 1
       continue
     }
 
