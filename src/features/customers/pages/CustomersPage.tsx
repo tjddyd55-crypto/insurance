@@ -648,7 +648,21 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
    * `?customerId=` 는 우측 패널(CustomerFiles/Memos 등) 이 유지할 수 있으므로
    * 쿼리 변화에 반응해 펼침을 강제하지 않는다 (routing-ssot.mdc §11).
    * 펼침 후 스크롤 보정은 `useCustomerExpandedCardScroll` (scrollRequestKey 연동).
+   *
+   * 예외: 고객 지도 → 상세 이동은 기존 리스트 클릭과 동일하게 카드를 펼친다.
    */
+  useEffect(() => {
+    const st = location.state as { from?: string; expandCustomerId?: number } | null
+    if (st?.from !== 'customer-map') {
+      return
+    }
+    const id = Number(st.expandCustomerId)
+    if (!Number.isInteger(id) || id <= 0) {
+      return
+    }
+    setExpandedId(id)
+    setScrollRequestKey((prev) => prev + 1)
+  }, [location.state, setExpandedId])
 
   useEffect(() => {
     if (expandedId == null) {
