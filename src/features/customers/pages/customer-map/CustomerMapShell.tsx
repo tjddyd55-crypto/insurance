@@ -1,7 +1,7 @@
+import { useAuth } from '../../../auth/AuthProvider'
 import { FormButton, FormInput } from '../../../../components/form'
-import CustomerMapCanvas from '../../components/map/CustomerMapCanvas'
-import CustomerMapMarkerCard from '../../components/map/CustomerMapMarkerCard'
-import MapProviderLoader from '../../components/map/MapProviderLoader'
+import CustomerMapCustomerList from '../../components/map/CustomerMapCustomerList'
+import CustomerStaticMapImage from '../../components/map/CustomerStaticMapImage'
 import { CUSTOMER_MAP_RADIUS_OPTIONS_KM } from '../../config/customerMap.config'
 import type { CustomerMapViewProps } from '../../hooks/useCustomerMapState'
 import './customer-map-page.css'
@@ -14,34 +14,40 @@ export default function CustomerMapShell({
   variant,
   loading,
   error,
-  customers,
+  mapCustomers,
+  staticMap,
   stats,
-  centerLat,
-  centerLng,
-  zoom,
+  mapQuery,
   radiusKm,
-  selectedCustomer,
   favoriteOnly,
   keyword,
   onRadiusChange,
   onShowAllCustomers,
   onCurrentLocation,
-  onSelectCustomer,
-  onMapCenterChange,
   onOpenCustomerDetail,
   onFavoriteOnlyChange,
   onKeywordChange,
 }: CustomerMapShellProps) {
+  const { token } = useAuth()
   const modifier = variant === 'pc' ? 'customers-map-page--pc' : 'customers-map-page--mobile'
 
   return (
     <main className={`page customers-map-page ${modifier} page--with-back`}>
       <header className="customers-map-page__header">
         <h1 className="customers-map-page__title">고객 지도</h1>
+        <p className="customers-map-page__notice">
+          주소가 좌표로 변환된 고객만 지도에 표시됩니다.
+        </p>
         {stats ? (
           <p className="customers-map-page__stats">
-            좌표 있음 {stats.withLocation}명 · 주소 없음 {stats.missingAddress}명 · 변환 실패{' '}
-            {stats.geocodeFailed}명
+            지도 표시 {stats.displayedOnMap}명 / 좌표 있음 {stats.withLocation}명 · 주소 없음{' '}
+            {stats.missingAddress}명 · 변환 실패 {stats.geocodeFailed}명
+          </p>
+        ) : null}
+        {stats && stats.hiddenByLimit > 0 ? (
+          <p className="customers-map-page__limit-notice" role="status">
+            좌표가 있는 고객이 많아 지도에는 최대 {staticMap?.maxMarkerCount ?? 20}명만 번호
+            마커로 표시됩니다. ({stats.hiddenByLimit}명은 목록에서 제외)
           </p>
         ) : null}
       </header>
@@ -49,7 +55,7 @@ export default function CustomerMapShell({
       <div className="customers-map-page__toolbar">
         <div className="customers-map-page__toolbar-row">
           <FormButton htmlType="button" variant="secondary" onClick={onCurrentLocation}>
-            현재 위치
+            내 위치 기준 보기
           </FormButton>
           <FormButton htmlType="button" variant="secondary" onClick={onShowAllCustomers}>
             전체 고객 보기
@@ -99,36 +105,15 @@ export default function CustomerMapShell({
       {loading ? <p className="customers-map-page__loading">고객 위치를 불러오는 중…</p> : null}
 
       <div className="customers-map-page__map-wrap">
-        <MapProviderLoader>
-          {({ provider, clientKey, ready }) =>
-            ready ? (
-              <CustomerMapCanvas
-                provider={provider}
-                clientKey={clientKey}
-                customers={customers}
-                centerLat={centerLat}
-                centerLng={centerLng}
-                zoom={zoom}
-                selectedCustomerId={selectedCustomer?.id ?? null}
-                onCenterChange={onMapCenterChange}
-                onSelectCustomer={onSelectCustomer}
-              />
-            ) : (
-              <div className="customer-map-setup-notice customer-map-setup-notice--inline">
-                지도를 준비하는 중…
-              </div>
-            )
-          }
-        </MapProviderLoader>
-
-        {selectedCustomer ? (
-          <CustomerMapMarkerCard
-            customer={selectedCustomer}
-            onClose={() => onSelectCustomer(null)}
-            onOpenDetail={onOpenCustomerDetail}
-          />
-        ) : null}
+        <CustomerStaticMapImage
+          token={token}
+          query={mapQuery}
+          configured={staticMap?.configured ?? false}
+          hasMarkers={mapCustomers.length > 0}
+        />
       </div>
+
+      <CustomerMapCustomerList customers={mapCustomers} onOpenDetail={onOpenCustomerDetail} />
     </main>
   )
 }

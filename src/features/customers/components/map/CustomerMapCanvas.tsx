@@ -1,3 +1,4 @@
+/** 2차 Dynamic Map SDK용 — 1차 MVP(Static Map)에서는 사용하지 않는다. */
 import { useEffect, useRef } from 'react'
 import type { CustomerMapMarker } from '../../api/customerMapApi'
 import type { MapProviderName } from '../../config/customerMap.config'

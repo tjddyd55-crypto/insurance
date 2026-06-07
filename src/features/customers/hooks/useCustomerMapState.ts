@@ -3,12 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import {
   fetchCustomerMap,
+  type CustomerMapListItem,
   type CustomerMapMarker,
+  type CustomerMapStaticMapMeta,
   type CustomerMapStats,
+  type FetchCustomerMapParams,
 } from '../api/customerMapApi'
 import {
   CUSTOMER_MAP_DEFAULT_CENTER,
-  CUSTOMER_MAP_DEFAULT_ZOOM,
+  CUSTOMER_MAP_RENDER_MODE,
   type CustomerMapPersistedState,
 } from '../config/customerMap.config'
 
@@ -16,19 +19,16 @@ export type CustomerMapViewProps = {
   loading: boolean
   error: string | null
   customers: CustomerMapMarker[]
+  mapCustomers: CustomerMapListItem[]
+  staticMap: CustomerMapStaticMapMeta | null
   stats: CustomerMapStats | null
-  centerLat: number
-  centerLng: number
-  zoom: number
+  mapQuery: FetchCustomerMapParams
   radiusKm: number | null
-  selectedCustomer: CustomerMapMarker | null
   favoriteOnly: boolean
   keyword: string
   onRadiusChange: (radiusKm: number | null) => void
   onShowAllCustomers: () => void
   onCurrentLocation: () => void
-  onSelectCustomer: (customer: CustomerMapMarker | null) => void
-  onMapCenterChange: (centerLat: number, centerLng: number, zoom: number) => void
   onOpenCustomerDetail: (customerId: number) => void
   onFavoriteOnlyChange: (value: boolean) => void
   onKeywordChange: (value: string) => void
@@ -46,14 +46,12 @@ function parseRestoredState(locationState: unknown): CustomerMapPersistedState |
   const s = raw as Partial<CustomerMapPersistedState>
   const centerLat = Number(s.centerLat)
   const centerLng = Number(s.centerLng)
-  const zoom = Number(s.zoom)
-  if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng) || !Number.isFinite(zoom)) {
+  if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng)) {
     return null
   }
   return {
     centerLat,
     centerLng,
-    zoom,
     radiusKm: s.radiusKm == null ? null : Number(s.radiusKm),
     selectedCustomerId:
       s.selectedCustomerId == null ? null : Number(s.selectedCustomerId),
@@ -61,6 +59,8 @@ function parseRestoredState(locationState: unknown): CustomerMapPersistedState |
       favoriteOnly: Boolean(s.filters?.favoriteOnly),
       keyword: String(s.filters?.keyword ?? ''),
     },
+    renderMode: CUSTOMER_MAP_RENDER_MODE,
+    useExplicitCenter: Boolean(s.useExplicitCenter),
   }
 }
 
@@ -73,6 +73,8 @@ export function useCustomerMapState(): CustomerMapViewProps {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [customers, setCustomers] = useState<CustomerMapMarker[]>([])
+  const [mapCustomers, setMapCustomers] = useState<CustomerMapListItem[]>([])
+  const [staticMap, setStaticMap] = useState<CustomerMapStaticMapMeta | null>(null)
   const [stats, setStats] = useState<CustomerMapStats | null>(null)
   const [centerLat, setCenterLat] = useState(
     restored?.centerLat ?? CUSTOMER_MAP_DEFAULT_CENTER.lat,
@@ -80,23 +82,29 @@ export function useCustomerMapState(): CustomerMapViewProps {
   const [centerLng, setCenterLng] = useState(
     restored?.centerLng ?? CUSTOMER_MAP_DEFAULT_CENTER.lng,
   )
-  const [zoom, setZoom] = useState(restored?.zoom ?? CUSTOMER_MAP_DEFAULT_ZOOM)
   const [radiusKm, setRadiusKm] = useState<number | null>(restored?.radiusKm ?? null)
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
-    restored?.selectedCustomerId ?? null,
-  )
+  const [useExplicitCenter, setUseExplicitCenter] = useState(restored?.useExplicitCenter ?? false)
   const [favoriteOnly, setFavoriteOnly] = useState(restored?.filters.favoriteOnly ?? false)
   const [keyword, setKeyword] = useState(restored?.filters.keyword ?? '')
   const loadSeq = useRef(0)
 
-  const selectedCustomer = useMemo(
-    () => customers.find((c) => c.id === selectedCustomerId) ?? null,
-    [customers, selectedCustomerId],
+  const mapQuery = useMemo<FetchCustomerMapParams>(
+    () => ({
+      centerLat: useExplicitCenter ? centerLat : undefined,
+      centerLng: useExplicitCenter ? centerLng : undefined,
+      radiusKm: useExplicitCenter ? radiusKm : null,
+      useExplicitCenter,
+      favoriteOnly,
+      keyword,
+    }),
+    [centerLat, centerLng, radiusKm, useExplicitCenter, favoriteOnly, keyword],
   )
 
   const loadCustomers = useCallback(async () => {
     if (!token?.trim()) {
       setCustomers([])
+      setMapCustomers([])
+      setStaticMap(null)
       setStats(null)
       setLoading(false)
       return
@@ -106,24 +114,14 @@ export function useCustomerMapState(): CustomerMapViewProps {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetchCustomerMap(token, {
-        centerLat: radiusKm != null ? centerLat : undefined,
-        centerLng: radiusKm != null ? centerLng : undefined,
-        radiusKm,
-        favoriteOnly,
-        keyword,
-      })
+      const res = await fetchCustomerMap(token, mapQuery)
       if (loadSeq.current !== seq) {
         return
       }
       setCustomers(res.customers)
+      setMapCustomers(res.mapCustomers)
+      setStaticMap(res.staticMap)
       setStats(res.stats)
-      if (
-        selectedCustomerId != null &&
-        !res.customers.some((c) => c.id === selectedCustomerId)
-      ) {
-        setSelectedCustomerId(null)
-      }
     } catch (err) {
       if (loadSeq.current !== seq) {
         return
@@ -134,7 +132,7 @@ export function useCustomerMapState(): CustomerMapViewProps {
         setLoading(false)
       }
     }
-  }, [token, centerLat, centerLng, radiusKm, favoriteOnly, keyword, selectedCustomerId])
+  }, [token, mapQuery])
 
   useEffect(() => {
     void loadCustomers()
@@ -144,19 +142,14 @@ export function useCustomerMapState(): CustomerMapViewProps {
     (): CustomerMapPersistedState => ({
       centerLat,
       centerLng,
-      zoom,
       radiusKm,
-      selectedCustomerId,
+      selectedCustomerId: null,
       filters: { favoriteOnly, keyword },
+      renderMode: CUSTOMER_MAP_RENDER_MODE,
+      useExplicitCenter,
     }),
-    [centerLat, centerLng, zoom, radiusKm, selectedCustomerId, favoriteOnly, keyword],
+    [centerLat, centerLng, radiusKm, favoriteOnly, keyword, useExplicitCenter],
   )
-
-  const onMapCenterChange = useCallback((lat: number, lng: number, nextZoom: number) => {
-    setCenterLat(lat)
-    setCenterLng(lng)
-    setZoom(nextZoom)
-  }, [])
 
   const onCurrentLocation = useCallback(() => {
     if (!navigator.geolocation) {
@@ -167,33 +160,36 @@ export function useCustomerMapState(): CustomerMapViewProps {
       (pos) => {
         setCenterLat(pos.coords.latitude)
         setCenterLng(pos.coords.longitude)
-        setZoom(14)
+        setUseExplicitCenter(true)
+        if (radiusKm == null) {
+          setRadiusKm(3)
+        }
         setError(null)
       },
       () => {
         setError('현재 위치 권한이 거부되었습니다. 전체 고객 기준으로 표시합니다.')
+        setUseExplicitCenter(false)
+        setRadiusKm(null)
       },
       { enableHighAccuracy: true, timeout: 10000 },
     )
-  }, [])
+  }, [radiusKm])
 
   const onShowAllCustomers = useCallback(() => {
+    setUseExplicitCenter(false)
     setRadiusKm(null)
-    if (customers.length > 0) {
-      const lats = customers.map((c) => c.latitude)
-      const lngs = customers.map((c) => c.longitude)
-      setCenterLat((Math.min(...lats) + Math.max(...lats)) / 2)
-      setCenterLng((Math.min(...lngs) + Math.max(...lngs)) / 2)
-      setZoom(11)
-    }
-  }, [customers])
+    setError(null)
+  }, [])
 
   const onOpenCustomerDetail = useCallback(
     (customerId: number) => {
       navigate(`/customers/${customerId}/consultations`, {
         state: {
           from: 'customer-map',
-          mapState: buildMapState(),
+          mapState: {
+            ...buildMapState(),
+            selectedCustomerId: customerId,
+          },
         },
       })
     },
@@ -204,19 +200,21 @@ export function useCustomerMapState(): CustomerMapViewProps {
     loading,
     error,
     customers,
+    mapCustomers,
+    staticMap,
     stats,
-    centerLat,
-    centerLng,
-    zoom,
+    mapQuery,
     radiusKm,
-    selectedCustomer,
     favoriteOnly,
     keyword,
-    onRadiusChange: setRadiusKm,
+    onRadiusChange: (nextRadius) => {
+      setRadiusKm(nextRadius)
+      if (nextRadius != null && nextRadius > 0) {
+        setUseExplicitCenter(true)
+      }
+    },
     onShowAllCustomers,
     onCurrentLocation,
-    onSelectCustomer: (customer) => setSelectedCustomerId(customer?.id ?? null),
-    onMapCenterChange,
     onOpenCustomerDetail,
     onFavoriteOnlyChange: setFavoriteOnly,
     onKeywordChange: setKeyword,

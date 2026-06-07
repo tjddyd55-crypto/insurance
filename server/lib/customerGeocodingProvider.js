@@ -8,7 +8,10 @@ import { geocodeWithNaver, getNaverGeocodingCredentials } from './customerGeocod
  */
 export function resolvePreferredGeocodingProvider() {
   const raw = String(
-    process.env.MAP_GEOCODING_PROVIDER ?? process.env.VITE_MAP_PROVIDER ?? 'naver',
+    process.env.MAP_GEOCODING_PROVIDER ??
+      process.env.MAP_PROVIDER ??
+      process.env.VITE_MAP_PROVIDER ??
+      'naver',
   )
     .trim()
     .toLowerCase()

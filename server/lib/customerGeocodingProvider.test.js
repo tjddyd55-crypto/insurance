@@ -4,7 +4,10 @@ import { geocodeCustomerAddress, resolvePreferredGeocodingProvider } from './cus
 
 const ENV_KEYS = [
   'MAP_GEOCODING_PROVIDER',
+  'MAP_PROVIDER',
   'VITE_MAP_PROVIDER',
+  'NAVER_MAPS_CLIENT_ID',
+  'NAVER_MAPS_CLIENT_SECRET',
   'NAVER_GEOCODING_CLIENT_ID',
   'NAVER_GEOCODING_CLIENT_SECRET',
   'KAKAO_REST_API_KEY',
@@ -38,9 +41,38 @@ test('resolvePreferredGeocodingProvider defaults to naver', () => {
   }
 })
 
+test('geocodeCustomerAddress prefers NAVER_MAPS_CLIENT_ID credentials', async () => {
+  const prev = snapshotEnv()
+  try {
+    process.env.NAVER_MAPS_CLIENT_ID = 'maps-id'
+    process.env.NAVER_MAPS_CLIENT_SECRET = 'maps-secret'
+    delete process.env.KAKAO_REST_API_KEY
+
+    const fetchImpl = async (url) => {
+      assert.match(String(url), /naveropenapi\.apigw\.ntruss\.com/)
+      return {
+        ok: true,
+        async json() {
+          return { addresses: [{ y: '37.5', x: '127.0' }] }
+        },
+      }
+    }
+
+    const result = await geocodeCustomerAddress('서울시 중구', { fetchImpl })
+    assert.equal(result.ok, true)
+    if (result.ok) {
+      assert.equal(result.provider, 'naver')
+    }
+  } finally {
+    restoreEnv(prev)
+  }
+})
+
 test('geocodeCustomerAddress falls back from naver to kakao', async () => {
   const prev = snapshotEnv()
   try {
+    delete process.env.NAVER_MAPS_CLIENT_ID
+    delete process.env.NAVER_MAPS_CLIENT_SECRET
     delete process.env.NAVER_GEOCODING_CLIENT_ID
     delete process.env.NAVER_GEOCODING_CLIENT_SECRET
     process.env.KAKAO_REST_API_KEY = 'test-key'

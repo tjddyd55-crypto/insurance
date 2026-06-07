@@ -1,16 +1,12 @@
+import { getNaverMapsCredentials } from './naverMapsCredentials.js'
+
 const GEOCODE_URL = 'https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode'
 
 /**
  * @returns {{ configured: boolean; clientId: string; clientSecret: string }}
  */
 export function getNaverGeocodingCredentials() {
-  const clientId = String(process.env.NAVER_GEOCODING_CLIENT_ID ?? '').trim()
-  const clientSecret = String(process.env.NAVER_GEOCODING_CLIENT_SECRET ?? '').trim()
-  return {
-    configured: Boolean(clientId && clientSecret),
-    clientId,
-    clientSecret,
-  }
+  return getNaverMapsCredentials()
 }
 
 /**
@@ -19,7 +15,7 @@ export function getNaverGeocodingCredentials() {
  * @returns {Promise<{ ok: true; latitude: number; longitude: number } | { ok: false; error: string }>}
  */
 export async function geocodeWithNaver(query, options = {}) {
-  const { configured, clientId, clientSecret } = getNaverGeocodingCredentials()
+  const { configured, clientId, clientSecret } = getNaverMapsCredentials()
   if (!configured) {
     return { ok: false, error: 'naver_geocoding_not_configured' }
   }

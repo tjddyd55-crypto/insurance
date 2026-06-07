@@ -22,4 +22,5 @@ test('registerCustomerMapApi registers GET /customers/map', () => {
     requireInsuranceFormUserId: () => 'u',
   })
   assert.ok(routes.some((r) => r.path === '/customers/map'))
+  assert.ok(routes.some((r) => r.path === '/customers/map/static-image'))
 })

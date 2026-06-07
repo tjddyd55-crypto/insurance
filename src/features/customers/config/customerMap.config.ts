@@ -1,4 +1,5 @@
-export type MapProviderName = 'naver' | 'kakao' | 'none'
+/** 1차 MVP 기본 렌더 모드 — Dynamic Map SDK는 2차용으로 보존 */
+export const CUSTOMER_MAP_RENDER_MODE = 'static' as const
 
 export const CUSTOMER_MAP_RADIUS_OPTIONS_KM = [1, 3, 5, 10] as const
 
@@ -12,10 +13,11 @@ export type CustomerMapFilters = {
 export type CustomerMapPersistedState = {
   centerLat: number
   centerLng: number
-  zoom: number
   radiusKm: number | null
   selectedCustomerId: number | null
   filters: CustomerMapFilters
+  renderMode: typeof CUSTOMER_MAP_RENDER_MODE
+  useExplicitCenter: boolean
 }
 
 export const CUSTOMER_MAP_DEFAULT_CENTER = {
@@ -23,7 +25,8 @@ export const CUSTOMER_MAP_DEFAULT_CENTER = {
   lng: 126.978,
 }
 
-export const CUSTOMER_MAP_DEFAULT_ZOOM = 12
+/** 2차 Dynamic Map SDK 전용 — 1차 Static Map MVP에서는 사용하지 않음 */
+export type MapProviderName = 'naver' | 'kakao' | 'none'
 
 export function resolveMapProvider(): MapProviderName {
   const preferred = String(import.meta.env.VITE_MAP_PROVIDER ?? 'naver').trim().toLowerCase()
