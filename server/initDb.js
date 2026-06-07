@@ -11,10 +11,30 @@ import { ensureGeneralGaCompany } from './lib/generalGa.js'
 
 /**
  * ⚠️ 디버그 전용: insurance_forms 등 user_id FK는 ON DELETE CASCADE 로 함께 정리됨.
- * Railway 등에서 1회 사용 후 반드시 환경변수 제거.
+ * Railway/원격 DB에서는 실행되지 않으며, 로컬에서도 확인 문구 env가 필요하다.
  */
 async function maybeDebugResetAllUsers() {
   if (process.env.INSURANCE_DEBUG_RESET_ALL_USERS !== 'true') {
+    return
+  }
+
+  const onRailway = Boolean(
+    process.env.RAILWAY_ENVIRONMENT ||
+      process.env.RAILWAY_PROJECT_ID ||
+      process.env.RAILWAY_SERVICE_ID,
+  )
+  if (onRailway) {
+    console.error(
+      '[initDb] INSURANCE_DEBUG_RESET_ALL_USERS=true 이지만 Railway 환경에서는 users 삭제를 차단합니다.',
+    )
+    return
+  }
+
+  const confirm = String(process.env.INSURANCE_ALLOW_DESTRUCTIVE_RESET ?? '').trim()
+  if (confirm !== 'I_UNDERSTAND_DELETE_USERS') {
+    console.error(
+      '[initDb] users 삭제를 막았습니다. 로컬에서만 INSURANCE_ALLOW_DESTRUCTIVE_RESET=I_UNDERSTAND_DELETE_USERS 와 함께 사용하세요.',
+    )
     return
   }
 
