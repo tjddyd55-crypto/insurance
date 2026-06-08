@@ -192,26 +192,51 @@
 
 .customer-map-marker {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
+  gap: 2px;
+  max-width: 112px;
+  transform: translate(-50%, -100%);
+  pointer-events: auto;
+}
+
+.customer-map-marker__label {
+  display: block;
+  max-width: 112px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #111827;
+  border: 1px solid #334155;
+  color: #f8fafc;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.customer-map-marker__pin {
+  display: block;
+  width: 12px;
+  height: 12px;
   border-radius: 999px;
   background: #2563eb;
   border: 2px solid #ffffff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
 }
 
-.customer-map-marker__no {
+.customer-map-marker--selected .customer-map-marker__label {
+  background: #1e3a8a;
+  border-color: #60a5fa;
   color: #ffffff;
-  font-size: 0.75rem;
-  font-weight: 700;
-  line-height: 1;
 }
 
-.customer-map-marker--selected {
+.customer-map-marker--selected .customer-map-marker__pin {
   background: #60a5fa;
-  transform: scale(1.08);
+  transform: scale(1.12);
 }
 
 .customer-map-marker-card {

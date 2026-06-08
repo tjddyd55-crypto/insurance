@@ -5,6 +5,7 @@ import { MapSdkError } from './mapSdkErrors'
 import {
   waitForUsableMapContainerSize,
 } from './naverMapContainer'
+import { buildCustomerMapMarkerHtml } from './customerMapMarkerHtml'
 import {
   kakaoLevelFromZoom,
   loadMapProviderSdk,
@@ -24,13 +25,6 @@ type CustomerMapCanvasProps = {
   onViewportChange: (centerLat: number, centerLng: number, zoom: number) => void
   onSelectCustomer: (customerId: number | null) => void
   onMapInitFailed?: () => void
-}
-
-function markerHtml(markerNo: number, selected: boolean): string {
-  const cls = selected
-    ? 'customer-map-marker customer-map-marker--selected'
-    : 'customer-map-marker'
-  return `<div class="${cls}"><span class="customer-map-marker__no">${markerNo}</span></div>`
 }
 
 function fitMapToCustomers(
@@ -288,9 +282,10 @@ export default function CustomerMapCanvas({
         const marker = new maps.Marker({
           position: new maps.LatLng(customer.latitude, customer.longitude),
           map,
+          zIndex: selected ? 200 : 100,
           icon: {
-            content: markerHtml(customer.markerNo, selected),
-            anchor: new maps.Point(14, 14),
+            content: buildCustomerMapMarkerHtml(customer.name, selected),
+            anchor: new maps.Point(56, 44),
           },
         })
         maps.Event.addListener(marker, 'click', () => {
