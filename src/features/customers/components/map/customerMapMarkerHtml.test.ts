@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildCustomerMapMarkerHtml,
+  CUSTOMER_MAP_NAME_MARKER_SIZE,
   truncateMarkerLabel,
 } from './customerMapMarkerHtml'
+
+describe('CUSTOMER_MAP_NAME_MARKER_SIZE', () => {
+  it('keeps anchor at horizontal center and fixed pin area', () => {
+    expect(CUSTOMER_MAP_NAME_MARKER_SIZE.anchorX).toBe(CUSTOMER_MAP_NAME_MARKER_SIZE.width / 2)
+    expect(CUSTOMER_MAP_NAME_MARKER_SIZE.anchorY).toBeLessThan(CUSTOMER_MAP_NAME_MARKER_SIZE.height)
+  })
+})
 
 describe('truncateMarkerLabel', () => {
   it('truncates long names with ellipsis', () => {
@@ -15,10 +23,11 @@ describe('truncateMarkerLabel', () => {
 })
 
 describe('buildCustomerMapMarkerHtml', () => {
-  it('renders name label chip and selected modifier', () => {
+  it('renders fixed-size name marker wrapper and selected modifier', () => {
     const html = buildCustomerMapMarkerHtml('박성용', true)
-    expect(html).toContain('customer-map-marker--selected')
-    expect(html).toContain('customer-map-marker__label')
+    expect(html).toContain('customer-map-name-marker--selected')
+    expect(html).toContain('customer-map-name-marker__label')
+    expect(html).toContain('customer-map-name-marker__pin')
     expect(html).toContain('박성용')
     expect(html).not.toContain('customer-map-marker__no')
   })

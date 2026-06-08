@@ -5,7 +5,10 @@ import { MapSdkError } from './mapSdkErrors'
 import {
   waitForUsableMapContainerSize,
 } from './naverMapContainer'
-import { buildCustomerMapMarkerHtml } from './customerMapMarkerHtml'
+import {
+  buildCustomerMapMarkerHtml,
+  CUSTOMER_MAP_NAME_MARKER_SIZE,
+} from './customerMapMarkerHtml'
 import {
   kakaoLevelFromZoom,
   loadMapProviderSdk,
@@ -285,7 +288,14 @@ export default function CustomerMapCanvas({
           zIndex: selected ? 200 : 100,
           icon: {
             content: buildCustomerMapMarkerHtml(customer.name, selected),
-            anchor: new maps.Point(56, 44),
+            size: new maps.Size(
+              CUSTOMER_MAP_NAME_MARKER_SIZE.width,
+              CUSTOMER_MAP_NAME_MARKER_SIZE.height,
+            ),
+            anchor: new maps.Point(
+              CUSTOMER_MAP_NAME_MARKER_SIZE.anchorX,
+              CUSTOMER_MAP_NAME_MARKER_SIZE.anchorY,
+            ),
           },
         })
         maps.Event.addListener(marker, 'click', () => {
