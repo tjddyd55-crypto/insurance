@@ -2,10 +2,15 @@ import { buildCustomerConsultationSummaryJoin } from './customerConsultationList
 
 const EARTH_RADIUS_KM = 6371
 
+/** customers.address 에 geocoding 가능한 문자열이 있는지 (SQL) */
+const HAS_ADDRESS_SQL = `COALESCE(TRIM(c.address), '') <> ''`
+
 /**
- * 지도 API는 1차 MVP에서 **본인 소유 고객만** 반환한다 (tenant/SUPER_ADMIN 예외 없음).
+ * 지도 API는 고객 목록 GET /customers 와 동일한 customerAccess 가시성 절을 사용한다.
  *
  * @param {{
+ *   visibilityClause: string
+ *   visibilityParams: unknown[]
  *   userId: string
  *   gaId: number
  *   boundsNorth?: number | null
@@ -20,12 +25,12 @@ const EARTH_RADIUS_KM = 6371
  * }} input
  */
 export function buildCustomerMapListQuery(input) {
-  const params = [input.gaId, input.userId]
-  let i = 3
+  const visParams = [...(input.visibilityParams ?? [])]
+  const visClause = input.visibilityClause ?? '(FALSE)'
+  let i = visParams.length + 1
+  const params = [...visParams]
   const where = [
-    'c.ga_id = $1',
-    'c.deleted_at IS NULL',
-    `COALESCE(c.owner_user_id, c.user_id) = $2`,
+    `(${visClause})`,
     `cl.status = 'success'`,
     'cl.latitude IS NOT NULL',
     'cl.longitude IS NOT NULL',
@@ -84,8 +89,12 @@ export function buildCustomerMapListQuery(input) {
     `)
   }
 
-  const userPh = '$2'
-  const gaPh = '$1'
+  const userPh = `$${i}`
+  params.push(input.userId)
+  i += 1
+  const gaPh = `$${i}`
+  params.push(input.gaId)
+
   const summaryJoin = buildCustomerConsultationSummaryJoin(userPh, gaPh)
 
   const sql = `
@@ -109,26 +118,35 @@ export function buildCustomerMapListQuery(input) {
 }
 
 /**
- * @param {{ userId: string; gaId: number }} input
+ * @param {{
+ *   visibilityClause: string
+ *   visibilityParams: unknown[]
+ * }} input
  */
 export function buildCustomerMapStatsQuery(input) {
-  const params = [input.gaId, input.userId]
+  const visParams = [...(input.visibilityParams ?? [])]
+  const visClause = input.visibilityClause ?? '(FALSE)'
   const sql = `
     SELECT
-      COUNT(*)::integer AS total,
-      COUNT(*) FILTER (WHERE cl.status = 'success')::integer AS with_location,
+      COUNT(*)::integer AS total_customers,
+      COUNT(*) FILTER (WHERE ${HAS_ADDRESS_SQL})::integer AS with_address,
       COUNT(*) FILTER (
-        WHERE cl.status = 'skipped_no_address'
-          OR (cl.id IS NULL AND COALESCE(TRIM(c.address), '') = '')
-      )::integer AS missing_address,
+        WHERE NOT (${HAS_ADDRESS_SQL}) OR cl.status = 'skipped_no_address'
+      )::integer AS without_address,
+      COUNT(*) FILTER (WHERE cl.status = 'success')::integer AS geocoded_success,
+      COUNT(*) FILTER (
+        WHERE ${HAS_ADDRESS_SQL}
+          AND cl.status IS DISTINCT FROM 'success'
+          AND cl.status IS DISTINCT FROM 'failed'
+          AND cl.status IS DISTINCT FROM 'skipped_no_address'
+          AND (cl.id IS NULL OR cl.status IN ('pending', 'stale'))
+      )::integer AS geocode_pending,
       COUNT(*) FILTER (WHERE cl.status = 'failed')::integer AS geocode_failed
     FROM customers c
     LEFT JOIN customer_locations cl ON cl.customer_id = c.id
-    WHERE c.ga_id = $1
-      AND c.deleted_at IS NULL
-      AND COALESCE(c.owner_user_id, c.user_id) = $2
+    WHERE (${visClause})
   `
-  return { sql, params }
+  return { sql, params: visParams }
 }
 
 /**

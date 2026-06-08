@@ -9,6 +9,7 @@ import {
   mapCustomerMapRow,
   parseCustomerMapFilters,
 } from '../lib/customerMapService.js'
+import { resolveCustomerVisibilitySqlForSelect } from '../lib/customerRowVisibilitySql.js'
 import { fetchNaverStaticMapImage } from '../lib/customerStaticMapBuilder.js'
 
 /**
@@ -23,6 +24,27 @@ import { fetchNaverStaticMapImage } from '../lib/customerStaticMapBuilder.js'
 export function registerCustomerMapApi(apiRouter, ctx) {
   const { pool, requireAuth, handleDbError, requireInsuranceFormUserId } = ctx
 
+  /**
+   * @param {import('express').Request} req
+   * @param {import('express').Response} res
+   */
+  function resolveMapVisibility(req, res, userId, gaId) {
+    const accessEarly = req.user?.customerAccess ?? 'own'
+    if (accessEarly === 'none') {
+      return { blocked: true, empty: true }
+    }
+    const vis = resolveCustomerVisibilitySqlForSelect(req, userId, gaId)
+    if (vis.blocked) {
+      return { blocked: true, empty: true }
+    }
+    return {
+      blocked: false,
+      empty: false,
+      visibilityClause: vis.clause,
+      visibilityParams: vis.params,
+    }
+  }
+
   async function loadCustomerMapData(req, res) {
     const userId = requireInsuranceFormUserId(req, res)
     if (!userId) {
@@ -34,8 +56,18 @@ export function registerCustomerMapApi(apiRouter, ctx) {
       return null
     }
 
+    const visibility = resolveMapVisibility(req, res, userId, gaId)
+    if (visibility.blocked) {
+      return {
+        filters: parseCustomerMapFilters(req.query),
+        payload: buildCustomerMapResponse([], { statsRow: {} }),
+      }
+    }
+
     const filters = parseCustomerMapFilters(req.query)
     const listBuilt = buildCustomerMapListQuery({
+      visibilityClause: visibility.visibilityClause,
+      visibilityParams: visibility.visibilityParams,
       userId,
       gaId,
       boundsNorth: filters.boundsNorth,
@@ -49,7 +81,10 @@ export function registerCustomerMapApi(apiRouter, ctx) {
       keyword: filters.keyword,
     })
 
-    const statsBuilt = buildCustomerMapStatsQuery({ userId, gaId })
+    const statsBuilt = buildCustomerMapStatsQuery({
+      visibilityClause: visibility.visibilityClause,
+      visibilityParams: visibility.visibilityParams,
+    })
     const [listResult, statsResult] = await Promise.all([
       safeQuery(pool, listBuilt.sql, listBuilt.params),
       safeQuery(pool, statsBuilt.sql, statsBuilt.params),

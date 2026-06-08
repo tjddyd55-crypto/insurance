@@ -44,12 +44,20 @@ export type CustomerMapStaticMapMeta = {
 }
 
 export type CustomerMapStats = {
-  total: number
-  withLocation: number
+  totalCustomers: number
+  withAddress: number
+  withoutAddress: number
+  geocodedSuccess: number
+  geocodePending: number
+  geocodeFailed: number
   displayedOnMap: number
   hiddenByLimit: number
-  missingAddress: number
-  geocodeFailed: number
+  /** @deprecated use totalCustomers */
+  total?: number
+  /** @deprecated use geocodedSuccess */
+  withLocation?: number
+  /** @deprecated use withoutAddress */
+  missingAddress?: number
 }
 
 export type CustomerMapResponse = {

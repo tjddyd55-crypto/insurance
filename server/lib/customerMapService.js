@@ -49,6 +49,34 @@ export function mapCustomerMapRow(row) {
 }
 
 /**
+ * @param {Record<string, unknown>} statsRow
+ */
+export function mapCustomerMapStatsRow(statsRow = {}) {
+  const totalCustomers = Number(statsRow.total_customers ?? statsRow.total ?? 0) || 0
+  const withAddress = Number(statsRow.with_address ?? 0) || 0
+  const withoutAddress = Number(statsRow.without_address ?? statsRow.missing_address ?? 0) || 0
+  const geocodedSuccess = Number(statsRow.geocoded_success ?? statsRow.with_location ?? 0) || 0
+  const geocodePending = Number(statsRow.geocode_pending ?? 0) || 0
+  const geocodeFailed = Number(statsRow.geocode_failed ?? 0) || 0
+
+  return {
+    totalCustomers,
+    withAddress,
+    withoutAddress,
+    geocodedSuccess,
+    geocodePending,
+    geocodeFailed,
+    /** @deprecated use totalCustomers */
+    total: totalCustomers,
+    /** @deprecated use geocodedSuccess */
+    withLocation: geocodedSuccess,
+    /** @deprecated use withoutAddress */
+    missingAddress: withoutAddress,
+    geocodeFailed,
+  }
+}
+
+/**
  * @param {Array<ReturnType<typeof mapCustomerMapRow>>} customers
  * @param {{
  *   centerLat?: number | null
@@ -78,7 +106,7 @@ export function buildCustomerMapResponse(customers, options = {}) {
     useExplicitCenter: options.useExplicitCenter,
   })
 
-  const statsRow = options.statsRow ?? {}
+  const baseStats = mapCustomerMapStatsRow(options.statsRow ?? {})
   const naverConfigured = getNaverMapsCredentials().configured
 
   const renderMode = resolveMapRenderMode()
@@ -107,12 +135,9 @@ export function buildCustomerMapResponse(customers, options = {}) {
       configured: naverConfigured,
     },
     stats: {
-      total: Number(statsRow.total ?? 0) || 0,
-      withLocation: Number(statsRow.with_location ?? 0) || 0,
+      ...baseStats,
       displayedOnMap: mapCustomers.length,
       hiddenByLimit,
-      missingAddress: Number(statsRow.missing_address ?? 0) || 0,
-      geocodeFailed: Number(statsRow.geocode_failed ?? 0) || 0,
     },
   }
 }
