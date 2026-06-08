@@ -560,7 +560,15 @@ export function PdfApplicantFormPanel(props: PdfApplicantFormPanelProps) {
                 </p>
               ) : null}
             </div>
-            {pdfCarPicker.cars.length === 0 ? (
+            {pdfCarPicker.carsLoading ? (
+              <p className="pdf-applicant-form__car-picker-empty" role="status">
+                차량 정보를 불러오는 중입니다…
+              </p>
+            ) : pdfCarPicker.carsFetchError ? (
+              <p className="pdf-applicant-form__car-picker-empty pdf-applicant-form__car-picker-error" role="alert">
+                {pdfCarPicker.carsFetchError}
+              </p>
+            ) : pdfCarPicker.cars.length === 0 ? (
               <p className="pdf-applicant-form__car-picker-empty" role="status">
                 등록된 차량 정보가 없습니다.
               </p>

@@ -14,6 +14,8 @@ export type PdfApplicantCarPickerUi = {
   selectedCarCandidateId: number | null
   appliedCarId: number | null
   hasCarMappedFields: boolean
+  carsLoading: boolean
+  carsFetchError: string | null
   carLoadHint: string | null
   carApplyHint: string | null
   onSelectCarCandidate: (carId: number) => void
