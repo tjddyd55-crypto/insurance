@@ -36,7 +36,6 @@ export type CustomerMapViewProps = {
   selectedCustomerId: number | null
   selectedCustomer: CustomerMapListItem | null
   onRadiusChange: (radiusKm: number | null) => void
-  onShowAllCustomers: () => void
   onCurrentLocation: () => void
   onOpenCustomerDetail: (customerId: number) => void
   onFavoriteOnlyChange: (value: boolean) => void
@@ -221,19 +220,11 @@ export function useCustomerMapState(): CustomerMapViewProps {
         setError(null)
       },
       () => {
-        setError('현재 위치 권한이 거부되었습니다. 전체 고객 기준으로 표시합니다.')
-        setUseExplicitCenter(false)
-        setRadiusKm(null)
+        setError('현재 위치 권한이 거부되었습니다.')
       },
       { enableHighAccuracy: true, timeout: 10000 },
     )
   }, [radiusKm])
-
-  const onShowAllCustomers = useCallback(() => {
-    setUseExplicitCenter(false)
-    setRadiusKm(null)
-    setError(null)
-  }, [])
 
   const onOpenCustomerDetail = useCallback(
     (customerId: number) => {
@@ -275,9 +266,10 @@ export function useCustomerMapState(): CustomerMapViewProps {
       setRadiusKm(nextRadius)
       if (nextRadius != null && nextRadius > 0) {
         setUseExplicitCenter(true)
+      } else {
+        setUseExplicitCenter(false)
       }
     },
-    onShowAllCustomers,
     onCurrentLocation,
     onOpenCustomerDetail,
     onFavoriteOnlyChange: setFavoriteOnly,
