@@ -15,10 +15,13 @@ export const CUSTOMER_NEWS_MESSAGE_ALLOWED_MIME = new Set([
   'image/webp',
   'image/gif',
   'application/pdf',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-excel',
+  'text/csv',
 ])
 
-export const CUSTOMER_NEWS_MESSAGE_MAX_IMAGE_BYTES = 10 * 1024 * 1024
-export const CUSTOMER_NEWS_MESSAGE_MAX_PDF_BYTES = 10 * 1024 * 1024
+/** 고객 파일 업로드 정책과 동일 (파일당 25MB) */
+export const CUSTOMER_NEWS_MESSAGE_MAX_BYTES = 25 * 1024 * 1024
 
 /**
  * @param {string} userId
@@ -33,10 +36,8 @@ function sanitizeAgentObjectKeySegment(userId) {
 /**
  * @param {string} contentType
  */
-export function maxBytesForCustomerNewsMessageMime(contentType) {
-  return contentType === 'application/pdf'
-    ? CUSTOMER_NEWS_MESSAGE_MAX_PDF_BYTES
-    : CUSTOMER_NEWS_MESSAGE_MAX_IMAGE_BYTES
+export function maxBytesForCustomerNewsMessageMime(_contentType) {
+  return CUSTOMER_NEWS_MESSAGE_MAX_BYTES
 }
 
 /**
@@ -46,11 +47,11 @@ export function maxBytesForCustomerNewsMessageMime(contentType) {
 export function validateCustomerNewsMessageUpload(contentType, sizeBytes) {
   const mime = String(contentType ?? '').trim().split(';')[0].trim()
   if (!CUSTOMER_NEWS_MESSAGE_ALLOWED_MIME.has(mime)) {
-    return { ok: false, message: 'JPG, PNG, WEBP, GIF 이미지 또는 PDF만 첨부할 수 있습니다.' }
+    return { ok: false, message: 'JPG, PNG, PDF, XLS, XLSX, CSV 파일만 첨부할 수 있습니다.' }
   }
   const maxB = maxBytesForCustomerNewsMessageMime(mime)
   if (!Number.isFinite(sizeBytes) || sizeBytes < 1 || sizeBytes > maxB) {
-    return { ok: false, message: '첨부파일은 10MB 이하만 업로드할 수 있습니다.' }
+    return { ok: false, message: '첨부파일은 25MB 이하만 업로드할 수 있습니다.' }
   }
   return { ok: true, mime }
 }
@@ -292,7 +293,11 @@ export function assertCustomerNewsAttachmentReadable(objectKey, agentId, gaPath)
  * @returns {'image' | 'file'}
  */
 export function customerNewsAttachmentKindFromMime(raw) {
-  return String(raw ?? '').trim() === 'application/pdf' ? 'file' : 'image'
+  const mime = String(raw ?? '').trim().split(';')[0].trim().toLowerCase()
+  if (mime.startsWith('image/')) {
+    return 'image'
+  }
+  return 'file'
 }
 
 /**

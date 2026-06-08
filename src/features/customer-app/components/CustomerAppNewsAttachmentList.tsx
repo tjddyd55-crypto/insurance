@@ -83,7 +83,7 @@ export default function CustomerAppNewsAttachmentList({ attachments, appToken }:
 
   const sorted = [...attachments].sort((a, b) => a.sortOrder - b.sortOrder)
   const images = sorted.filter(isImageAttachment)
-  const files = sorted.filter((row) => row.kind === 'file' || String(row.mimeType ?? '').includes('pdf'))
+  const files = sorted.filter((row) => !isImageAttachment(row))
 
   if (images.length === 0 && files.length === 0) {
     return null

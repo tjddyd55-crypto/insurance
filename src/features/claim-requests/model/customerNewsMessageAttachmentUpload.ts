@@ -1,5 +1,5 @@
 import { ApiError, apiRequest, resolveApiUrl } from '../../../lib/apiClient'
-import { validateInsurerNewsFile } from '../../insurer-news/utils/validateInsurerNewsFile'
+import { validateCustomerNewsMessageFile } from '../utils/validateCustomerNewsMessageFile'
 
 export type CustomerNewsMessageAttachmentDraft = {
   localId: string
@@ -13,13 +13,13 @@ export type CustomerNewsMessageAttachmentDraft = {
   sizeBytes?: number
 }
 
-export function validateCustomerNewsMessageFile(file: File): string | null {
-  const validated = validateInsurerNewsFile(file)
+export function validateCustomerNewsMessageFileForUpload(file: File): string | null {
+  const validated = validateCustomerNewsMessageFile(file)
   return validated.ok ? null : validated.message
 }
 
 export function createCustomerNewsMessageAttachmentDraft(file: File): CustomerNewsMessageAttachmentDraft {
-  const validated = validateInsurerNewsFile(file)
+  const validated = validateCustomerNewsMessageFile(file)
   const kind = validated.ok ? validated.kind : 'file'
   return {
     localId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -40,11 +40,13 @@ export async function uploadCustomerNewsMessageAttachment(
   if (!token?.trim()) {
     throw new ApiError('로그인이 필요합니다.', 401)
   }
-  const validated = validateInsurerNewsFile(item.file)
+  const validated = validateCustomerNewsMessageFile(item.file)
   if (!validated.ok) {
     return { ...item, status: 'failed', errorMessage: validated.message }
   }
-  const contentType = item.file.type || (validated.kind === 'file' ? 'application/pdf' : 'image/jpeg')
+  const contentType =
+    item.file.type ||
+    (validated.kind === 'file' ? 'application/octet-stream' : 'image/jpeg')
   const presign = await apiRequest<{
     uploadUrl: string
     objectKey: string

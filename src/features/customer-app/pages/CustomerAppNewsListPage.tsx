@@ -11,6 +11,7 @@ import {
   type CustomerAppNewsListItem,
 } from '../api/customerAppApi'
 import CustomerAppNewsCard from '../components/CustomerAppNewsCard'
+import CustomerAppNewsAttachmentList from '../components/CustomerAppNewsAttachmentList'
 import CustomerAppNewsImageGallery from '../components/CustomerAppNewsImageGallery'
 import { buildCustomerNewsGalleryUrls } from '../model/buildCustomerNewsGalleryUrls'
 import { useCustomerAppSession } from '../session/useCustomerAppSession'
@@ -193,6 +194,12 @@ export default function CustomerAppNewsListPage() {
                       className="news-text rich-text-content"
                       emptyText="본문이 없습니다."
                     />
+                    {selectedDetail?.attachments?.length && session ? (
+                      <CustomerAppNewsAttachmentList
+                        attachments={selectedDetail.attachments}
+                        appToken={session.appToken}
+                      />
+                    ) : null}
                   </div>
                 </div>
               ) : null}

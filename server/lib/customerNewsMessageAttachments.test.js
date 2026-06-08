@@ -15,6 +15,7 @@ import {
   resolveCustomerNewsDisplayTitle,
   validateCustomerNewsMessageCreateInput,
   validateCustomerNewsMessageUpload,
+  customerNewsAttachmentKindFromMime,
 } from './customerNewsMessageAttachments.js'
 
 test('validateCustomerNewsMessageUpload: image ok', () => {
@@ -25,6 +26,24 @@ test('validateCustomerNewsMessageUpload: image ok', () => {
 test('validateCustomerNewsMessageUpload: pdf ok', () => {
   const r = validateCustomerNewsMessageUpload('application/pdf', 1024)
   assert.equal(r.ok, true)
+})
+
+test('validateCustomerNewsMessageUpload: xlsx ok', () => {
+  const r = validateCustomerNewsMessageUpload(
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    1024,
+  )
+  assert.equal(r.ok, true)
+})
+
+test('validateCustomerNewsMessageUpload: csv ok', () => {
+  const r = validateCustomerNewsMessageUpload('text/csv', 1024)
+  assert.equal(r.ok, true)
+})
+
+test('validateCustomerNewsMessageUpload: rejects oversize', () => {
+  const r = validateCustomerNewsMessageUpload('application/pdf', 26 * 1024 * 1024)
+  assert.equal(r.ok, false)
 })
 
 test('validateCustomerNewsMessageUpload: rejects doc', () => {
@@ -261,4 +280,13 @@ test('assertCustomerNewsAttachmentReadable: strips CRM R2 root prefix', () => {
 
 test('assertCustomerNewsAttachmentReadable: rejects unrelated key', () => {
   assert.equal(assertCustomerNewsAttachmentReadable('other/agent-1/secret.pdf', 'agent-1', 'ga1'), false)
+})
+
+test('customerNewsAttachmentKindFromMime: spreadsheet is file', () => {
+  assert.equal(
+    customerNewsAttachmentKindFromMime('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+    'file',
+  )
+  assert.equal(customerNewsAttachmentKindFromMime('text/csv'), 'file')
+  assert.equal(customerNewsAttachmentKindFromMime('image/jpeg'), 'image')
 })

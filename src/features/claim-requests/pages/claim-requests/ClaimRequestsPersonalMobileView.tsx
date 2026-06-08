@@ -1,3 +1,5 @@
+import FileUploader from '../../../../components/common/FileUploader'
+import type { CustomerNewsMessageAttachmentDraft } from '../../model/customerNewsMessageAttachmentUpload'
 import type { AgentCustomerNewsItem, LinkedCustomerItem } from '../../api/claimRequestsApi'
 
 type ClaimRequestsPersonalMobileViewProps = {
@@ -6,14 +8,21 @@ type ClaimRequestsPersonalMobileViewProps = {
   targetCustomer?: LinkedCustomerItem | null
   targetCustomerId?: number | null
   message: string
+  draftAttachments?: CustomerNewsMessageAttachmentDraft[]
+  uploadBusyText?: string | null
   history: AgentCustomerNewsItem[]
   loading?: boolean
   actionBusy?: boolean
+  hasUploadingAttachment?: boolean
   deletingId?: string | null
   editingId?: string | null
   resultMessage?: string
   errorMessage?: string
   onMessageChange: (value: string) => void
+  onAddAttachments: (files: File[]) => void
+  onRemoveAttachment: (localId: string) => void
+  validateFile: (file: File) => string | null
+  onInvalidFiles: (message: string) => void
   onSend: () => void
   onStartEdit: (item: AgentCustomerNewsItem) => void
   onCancelEdit: () => void
@@ -21,19 +30,37 @@ type ClaimRequestsPersonalMobileViewProps = {
   formatDateTime: (iso: string | null) => string
 }
 
+function formatFileSize(bytes: number | undefined): string {
+  const n = Number(bytes ?? 0)
+  if (!Number.isFinite(n) || n < 1) {
+    return ''
+  }
+  if (n < 1024 * 1024) {
+    return `${(n / 1024).toFixed(1)}KB`
+  }
+  return `${(n / (1024 * 1024)).toFixed(1)}MB`
+}
+
 export default function ClaimRequestsPersonalMobileView({
   targetHeading,
   targetCustomer,
   targetCustomerId,
   message,
+  draftAttachments = [],
+  uploadBusyText = null,
   history,
   loading = false,
   actionBusy = false,
+  hasUploadingAttachment = false,
   deletingId = null,
   editingId = null,
   resultMessage = '',
   errorMessage = '',
   onMessageChange,
+  onAddAttachments,
+  onRemoveAttachment,
+  validateFile,
+  onInvalidFiles,
   onSend,
   onStartEdit,
   onCancelEdit,
@@ -46,13 +73,15 @@ export default function ClaimRequestsPersonalMobileView({
       ? '이름 불명'
       : '미선택'
 
+  const isEditing = Boolean(editingId)
+  const canSendContent = Boolean(message.trim()) || draftAttachments.length > 0
   const sendDisabled =
     !targetCustomerId ||
-    !message.trim() ||
+    (!isEditing && !canSendContent) ||
+    (isEditing && !message.trim()) ||
     actionBusy ||
+    hasUploadingAttachment ||
     (deletingId != null && deletingId !== '')
-
-  const isEditing = Boolean(editingId)
 
   return (
     <main className="page claim-requests-page claim-requests-page--mobile claim-requests-personal-mobile page--with-back content-wrapper">
@@ -120,6 +149,44 @@ export default function ClaimRequestsPersonalMobileView({
           maxLength={2000}
           rows={5}
         />
+        {!isEditing ? (
+          <div className="claim-requests-personal-mobile__attachments-compose">
+            <FileUploader
+              accept="image/jpeg,image/png,.pdf,.xls,.xlsx,.csv"
+              validateFile={validateFile}
+              onFiles={onAddAttachments}
+              onInvalidBatch={(failures) => onInvalidFiles(failures[0]?.message ?? '첨부할 수 없는 파일이 있습니다.')}
+              multiple
+              compact
+              disabled={actionBusy}
+              statusText={uploadBusyText ?? undefined}
+              primaryHint="파일 첨부"
+              hintLines={['JPG, PNG, PDF, XLS, XLSX, CSV (25MB)']}
+            />
+            {draftAttachments.length > 0 ? (
+              <ul className="claim-requests-personal-mobile__draft-files">
+                {draftAttachments.map((attachment) => (
+                  <li key={attachment.localId} className="claim-requests-personal-mobile__draft-file">
+                    <span className="claim-requests-personal-mobile__draft-file-name">{attachment.file.name}</span>
+                    <span className="claim-requests-personal-mobile__draft-file-meta">
+                      {formatFileSize(attachment.sizeBytes ?? attachment.file.size)}
+                      {attachment.status === 'failed' ? ' · 업로드 실패' : null}
+                      {attachment.status === 'uploading' ? ' · 업로드 중…' : null}
+                    </span>
+                    <button
+                      type="button"
+                      className="claim-requests-personal-mobile__draft-file-remove"
+                      onClick={() => onRemoveAttachment(attachment.localId)}
+                      disabled={actionBusy}
+                    >
+                      제거
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       <section className="claim-requests-page__card claim-requests-personal-mobile__history-card">
@@ -139,7 +206,7 @@ export default function ClaimRequestsPersonalMobileView({
           <div className="claim-requests-personal-mobile__history-list">
             {history.map((item) => {
               const isDeleting = deletingId === item.id
-              const hasAttachments = (item.attachments?.length ?? 0) > 0
+              const attachments = item.attachments ?? []
               return (
                 <article key={item.id} className="claim-requests-personal-mobile__history-item">
                   <div className="claim-requests-personal-mobile__history-header">
@@ -167,11 +234,25 @@ export default function ClaimRequestsPersonalMobileView({
                       </button>
                     </div>
                   </div>
-                  <div className="claim-requests-personal-mobile__history-content">{item.content}</div>
-                  {hasAttachments ? (
-                    <div className="claim-requests-personal-mobile__attachments muted">
-                      첨부 {item.attachments?.length}개 · 수정 시 첨부는 유지되고 본문만 바뀝니다.
-                    </div>
+                  <div className="claim-requests-personal-mobile__history-content">
+                    {item.content || (attachments.length > 0 ? '첨부파일 메시지' : '')}
+                  </div>
+                  {attachments.length > 0 ? (
+                    <ul className="claim-requests-personal-mobile__history-attachments">
+                      {attachments.map((file) => (
+                        <li key={file.id}>
+                          <a
+                            className="claim-requests-personal-mobile__history-attachment-link"
+                            href={file.url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {file.fileName || '첨부파일'}
+                            {file.size ? ` (${formatFileSize(file.size)})` : ''}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
                   ) : null}
                 </article>
               )
