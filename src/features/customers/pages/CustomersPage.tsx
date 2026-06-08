@@ -20,7 +20,7 @@ import { copyTextToClipboard } from '../../../lib/clipboard'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
-import { deleteCustomer, listCustomers, updateCustomer } from '../api/customersApi'
+import { deleteCustomer, getCustomerById, listCustomers, updateCustomer } from '../api/customersApi'
 import { listCustomerCars } from '../api/customerCarsApi'
 import type { CustomerRecord } from '../domain/types'
 import {
@@ -99,6 +99,7 @@ import {
   buildCustomerWorkspacePath,
   buildCustomerListPath,
 } from '../utils/customerRoutePaths'
+import type { CustomerMapDetailNavigationState } from '../utils/customerMapDetailNavigation'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
 
@@ -169,6 +170,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const observerRef = useRef<ResizeObserver | null>(null)
   const scrollCountRef = useRef(0)
   const expandedIdRef = useRef<number | null>(null)
+  const pendingMapExpandIdRef = useRef<number | null>(null)
   const editingIdRef = useRef<number | null>(null)
   const editFormRef = useRef<CustomerEditFormState | null>(null)
   expandedIdRef.current = expandedId
@@ -649,10 +651,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
    * 쿼리 변화에 반응해 펼침을 강제하지 않는다 (routing-ssot.mdc §11).
    * 펼침 후 스크롤 보정은 `useCustomerExpandedCardScroll` (scrollRequestKey 연동).
    *
-   * 예외: 고객 지도 → 상세 이동은 기존 리스트 클릭과 동일하게 카드를 펼친다.
+   * 예외: 고객 지도 → 상세 이동은 `handleOpenRelatedCustomer` 와 동일하게
+   * 필터를 초기화하고 카드를 펼친다.
    */
   useEffect(() => {
-    const st = location.state as { from?: string; expandCustomerId?: number } | null
+    const st = location.state as CustomerMapDetailNavigationState | null
     if (st?.from !== 'customer-map') {
       return
     }
@@ -660,12 +663,68 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     if (!Number.isInteger(id) || id <= 0) {
       return
     }
+
+    pendingMapExpandIdRef.current = id
+    setSearchInput('')
+    setDeepSearch(false)
+    setFavoriteOnly(false)
+    setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })
+    setAdvSearchHits(null)
     setExpandedId(id)
     setScrollRequestKey((prev) => prev + 1)
   }, [location.state, setExpandedId])
 
   useEffect(() => {
+    const pendingId = pendingMapExpandIdRef.current
+    if (pendingId == null || !token || user?.role !== 'USER') {
+      return
+    }
+
+    const inMainList = customers.some((c) => c.id === pendingId)
+    const inAdvHits = advSearchHits?.some((c) => c.id === pendingId) ?? false
+    if (inMainList || inAdvHits) {
+      pendingMapExpandIdRef.current = null
+      return
+    }
+
+    let cancelled = false
+    void getCustomerById(token, pendingId)
+      .then((row) => {
+        if (cancelled) {
+          return
+        }
+        if (!row) {
+          pendingMapExpandIdRef.current = null
+          if (expandedIdRef.current === pendingId) {
+            setExpandedId(null)
+          }
+          return
+        }
+        setCustomers((prev) => {
+          if (prev.some((c) => c.id === row.id)) {
+            return prev
+          }
+          return [row, ...prev]
+        })
+        pendingMapExpandIdRef.current = null
+        setScrollRequestKey((prev) => prev + 1)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          pendingMapExpandIdRef.current = null
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [customers, advSearchHits, token, user?.role, setExpandedId])
+
+  useEffect(() => {
     if (expandedId == null) {
+      return
+    }
+    if (pendingMapExpandIdRef.current === expandedId) {
       return
     }
     const inMainList = customers.some((c) => c.id === expandedId)

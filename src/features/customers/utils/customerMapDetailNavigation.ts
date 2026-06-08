@@ -5,6 +5,7 @@ import { buildCustomerListPath, buildCustomerWorkspacePath } from './customerRou
 export type CustomerMapDetailNavigationState = {
   from: 'customer-map'
   expandCustomerId: number
+  selectedCustomerId: number
   mapState: CustomerMapPersistedState
   customerName?: string
 }
@@ -18,11 +19,13 @@ export function openCustomerDetailFromMap(params: {
 }): void {
   const { customerId, customerName, isMobile, mapState, navigate } = params
   const next = new URLSearchParams()
+  next.delete('mode')
   next.set('customerId', String(customerId))
 
   const state: CustomerMapDetailNavigationState = {
     from: 'customer-map',
     expandCustomerId: customerId,
+    selectedCustomerId: customerId,
     mapState: {
       ...mapState,
       selectedCustomerId: customerId,
@@ -31,12 +34,19 @@ export function openCustomerDetailFromMap(params: {
   }
 
   if (isMobile) {
-    navigate(buildCustomerListPath(next), { replace: true, state })
+    navigate(buildCustomerListPath(next), {
+      replace: true,
+      state: customerName?.trim() ? { ...state, customerName: customerName.trim() } : state,
+    })
     return
   }
 
+  const safeTab = 'consultations'
   navigate(
-    buildCustomerWorkspacePath({ customerId, tab: 'consultations', query: next }),
-    { replace: true, state },
+    buildCustomerWorkspacePath({ customerId, tab: safeTab, query: next }),
+    {
+      replace: true,
+      state: customerName?.trim() ? { ...state, customerName: customerName.trim() } : state,
+    },
   )
 }
