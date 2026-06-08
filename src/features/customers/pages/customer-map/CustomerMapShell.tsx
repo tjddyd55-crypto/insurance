@@ -1,19 +1,33 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../../../auth/AuthProvider'
 import { FormButton, FormInput } from '../../../../components/form'
 import CustomerMapCanvas from '../../components/map/CustomerMapCanvas'
-import CustomerMapCustomerList from '../../components/map/CustomerMapCustomerList'
 import CustomerMapMarkerCard from '../../components/map/CustomerMapMarkerCard'
 import CustomerStaticMapImage from '../../components/map/CustomerStaticMapImage'
 import MapProviderLoader from '../../components/map/MapProviderLoader'
 import { mapSdkErrorMessage } from '../../components/map/mapSdkErrors'
 import { wasNaverMapAuthFailure } from '../../components/map/mapSdkLoader'
-import { CUSTOMER_MAP_RADIUS_OPTIONS_KM } from '../../config/customerMap.config'
+import {
+  CUSTOMER_MAP_MAX_RADIUS_KM,
+  CUSTOMER_MAP_RADIUS_OPTIONS_KM,
+} from '../../config/customerMap.config'
+import type { CustomerMapStats } from '../../api/customerMapApi'
 import type { CustomerMapViewProps } from '../../hooks/useCustomerMapState'
 import './customer-map-page.css'
 
 type CustomerMapShellProps = CustomerMapViewProps & {
   variant: 'pc' | 'mobile'
+}
+
+function formatCustomerMapStats(stats: CustomerMapStats): string {
+  return [
+    `지도 표시 ${stats.displayedOnMap}명`,
+    `전체 ${stats.totalCustomers}명`,
+    `주소 있음 ${stats.withAddress}명`,
+    `변환 대기 ${stats.geocodePending}명`,
+    `주소 없음 ${stats.withoutAddress}명`,
+    `실패 ${stats.geocodeFailed}명`,
+  ].join(' · ')
 }
 
 export default function CustomerMapShell({
@@ -33,7 +47,6 @@ export default function CustomerMapShell({
   selectedCustomerId,
   selectedCustomer,
   onRadiusChange,
-  onShowAllCustomers,
   onCurrentLocation,
   onOpenCustomerDetail,
   onFavoriteOnlyChange,
@@ -45,62 +58,104 @@ export default function CustomerMapShell({
   const modifier = variant === 'pc' ? 'customers-map-page--pc' : 'customers-map-page--mobile'
   const hasMarkers = mapCustomers.length > 0
   const [mapInitFailed, setMapInitFailed] = useState(false)
+  const [radiusInput, setRadiusInput] = useState(radiusKm == null ? '' : String(radiusKm))
+
+  useEffect(() => {
+    setRadiusInput(radiusKm == null ? '' : String(radiusKm))
+  }, [radiusKm])
+
   const handleMapInitFailed = useCallback(() => {
     setMapInitFailed(true)
   }, [])
+
+  const applyRadiusInput = useCallback(() => {
+    const trimmed = radiusInput.trim()
+    if (!trimmed) {
+      onRadiusChange(null)
+      return
+    }
+    const parsed = Number(trimmed)
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setRadiusInput(radiusKm == null ? '' : String(radiusKm))
+      return
+    }
+    const capped = Math.min(parsed, CUSTOMER_MAP_MAX_RADIUS_KM)
+    onRadiusChange(capped)
+    if (capped !== parsed) {
+      setRadiusInput(String(capped))
+    }
+  }, [radiusInput, radiusKm, onRadiusChange])
+
+  const handleRadiusInputKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        applyRadiusInput()
+      }
+    },
+    [applyRadiusInput],
+  )
 
   return (
     <main className={`page customers-map-page ${modifier} page--with-back`}>
       <header className="customers-map-page__header">
         <h1 className="customers-map-page__title">고객 지도</h1>
         <p className="customers-map-page__notice">
-          주소가 좌표로 변환된 고객만 지도에 표시됩니다.
+          좌표 변환이 완료된 고객만 지도에 표시됩니다.
         </p>
         {stats ? (
-          <p className="customers-map-page__stats">
-            지도 표시 {stats.displayedOnMap}명 / 좌표 있음 {stats.withLocation}명 · 주소 없음{' '}
-            {stats.missingAddress}명 · 변환 실패 {stats.geocodeFailed}명
-          </p>
+          <p className="customers-map-page__stats">{formatCustomerMapStats(stats)}</p>
         ) : null}
         {stats && stats.hiddenByLimit > 0 ? (
           <p className="customers-map-page__limit-notice" role="status">
-            좌표가 있는 고객이 많아 지도에는 최대 {staticMap?.maxMarkerCount ?? 20}명만 번호
-            마커로 표시됩니다. ({stats.hiddenByLimit}명은 목록에서 제외)
+            조건에 맞는 좌표 고객이 많아 지도에는 최대 {staticMap?.maxMarkerCount ?? 20}명만
+            표시됩니다. ({stats.hiddenByLimit}명은 마커에서 제외)
           </p>
         ) : null}
       </header>
 
       <div className="customers-map-page__toolbar">
-        <div className="customers-map-page__toolbar-row">
+        <div className="customers-map-page__toolbar-row customers-map-page__toolbar-row--primary">
           <FormButton htmlType="button" variant="secondary" onClick={onCurrentLocation}>
             내 위치 기준 보기
           </FormButton>
-          <FormButton htmlType="button" variant="secondary" onClick={onShowAllCustomers}>
-            전체 고객 보기
-          </FormButton>
-        </div>
-        <div className="customers-map-page__toolbar-row customers-map-page__radius">
-          <span className="customers-map-page__radius-label">반경</span>
-          {CUSTOMER_MAP_RADIUS_OPTIONS_KM.map((km) => (
+          <div className="customers-map-page__radius-group">
+            <span className="customers-map-page__radius-label">반경</span>
+            <FormInput
+              type="number"
+              min={1}
+              max={CUSTOMER_MAP_MAX_RADIUS_KM}
+              step={1}
+              inputMode="decimal"
+              value={radiusInput}
+              onChange={(e) => setRadiusInput(e.target.value)}
+              onBlur={applyRadiusInput}
+              onKeyDown={handleRadiusInputKeyDown}
+              className="customers-map-page__radius-input"
+              aria-label="반경 km"
+            />
+            <span className="customers-map-page__radius-unit">km</span>
+            {CUSTOMER_MAP_RADIUS_OPTIONS_KM.map((km) => (
+              <FormButton
+                key={km}
+                htmlType="button"
+                variant={radiusKm === km ? 'primary' : 'secondary'}
+                className={
+                  radiusKm === km ? 'customers-map-page__radius-btn--active' : undefined
+                }
+                onClick={() => onRadiusChange(km)}
+              >
+                {km}
+              </FormButton>
+            ))}
             <FormButton
-              key={km}
               htmlType="button"
-              variant={radiusKm === km ? 'primary' : 'secondary'}
-              className={radiusKm === km ? 'customers-map-page__radius-btn--active' : undefined}
-              onClick={() => onRadiusChange(km)}
+              variant={radiusKm == null ? 'primary' : 'secondary'}
+              onClick={() => onRadiusChange(null)}
             >
-              {km}km
+              제한 없음
             </FormButton>
-          ))}
-          <FormButton
-            htmlType="button"
-            variant={radiusKm == null ? 'primary' : 'secondary'}
-            onClick={() => onRadiusChange(null)}
-          >
-            제한 없음
-          </FormButton>
-        </div>
-        <div className="customers-map-page__toolbar-row">
+          </div>
           <label className="customers-map-page__favorite-only">
             <input
               type="checkbox"
@@ -206,13 +261,6 @@ export default function CustomerMapShell({
           }}
         </MapProviderLoader>
       </div>
-
-      <CustomerMapCustomerList
-        customers={mapCustomers}
-        selectedCustomerId={selectedCustomerId}
-        onOpenDetail={onOpenCustomerDetail}
-        onSelectCustomer={onSelectCustomer}
-      />
     </main>
   )
 }
