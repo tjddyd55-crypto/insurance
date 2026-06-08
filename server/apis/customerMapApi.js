@@ -10,6 +10,7 @@ import {
   parseCustomerMapFilters,
 } from '../lib/customerMapService.js'
 import { resolveCustomerVisibilitySqlForSelect } from '../lib/customerRowVisibilitySql.js'
+import { CUSTOMER_MAP_MAX_MARKERS } from '../lib/customerMapRenderConfig.js'
 import { fetchNaverStaticMapImage } from '../lib/customerStaticMapBuilder.js'
 
 /**
@@ -77,6 +78,10 @@ export function registerCustomerMapApi(apiRouter, ctx) {
       centerLat: filters.useExplicitCenter ? filters.centerLat : undefined,
       centerLng: filters.useExplicitCenter ? filters.centerLng : undefined,
       radiusKm: filters.useExplicitCenter ? filters.radiusKm : undefined,
+      sortByDistance:
+        filters.useExplicitCenter &&
+        filters.centerLat != null &&
+        filters.centerLng != null,
       favoriteOnly: filters.favoriteOnly,
       keyword: filters.keyword,
     })
@@ -98,6 +103,7 @@ export function registerCustomerMapApi(apiRouter, ctx) {
         centerLng: filters.centerLng,
         radiusKm: filters.radiusKm,
         useExplicitCenter: filters.useExplicitCenter,
+        boundsApplied: filters.boundsApplied,
         statsRow: statsResult.rows[0] ?? {},
       }),
     }
@@ -132,7 +138,8 @@ export function registerCustomerMapApi(apiRouter, ctx) {
         return
       }
 
-      const image = await fetchNaverStaticMapImage(mapCustomers, {
+      const staticMarkers = mapCustomers.slice(0, CUSTOMER_MAP_MAX_MARKERS)
+      const image = await fetchNaverStaticMapImage(staticMarkers, {
         centerLat: loaded.filters.centerLat,
         centerLng: loaded.filters.centerLng,
         radiusKm: loaded.filters.radiusKm,

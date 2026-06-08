@@ -104,6 +104,12 @@
   color: #94a3b8;
 }
 
+.customers-map-page__bounds-loading {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+}
+
 .customers-map-page__map-wrap {
   position: relative;
   flex: 1 1 auto;

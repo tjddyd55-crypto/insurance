@@ -1,5 +1,10 @@
 import { getNaverMapsCredentials } from './naverMapsCredentials.js'
-import { CUSTOMER_MAP_MAX_MARKERS, resolveMapRenderMode, resolveMapProvider } from './customerMapRenderConfig.js'
+import {
+  CUSTOMER_MAP_MAX_MARKERS,
+  resolveMapRenderMode,
+  resolveMapProvider,
+  resolveMaxMarkersForRenderMode,
+} from './customerMapRenderConfig.js'
 import { formatLastConsultDate } from './customerMapQuery.js'
 import { buildStaticMapViewport, radiusKmToMapLevel } from './customerStaticMapBuilder.js'
 
@@ -18,11 +23,24 @@ export function parseCustomerMapFilters(query) {
     query.useExplicitCenter === '1' ||
     (centerLat != null && centerLng != null && radiusKm != null && radiusKm > 0)
 
+  const boundsNorth = numOrNull(query.north ?? query.boundsNorth)
+  const boundsSouth = numOrNull(query.south ?? query.boundsSouth)
+  const boundsEast = numOrNull(query.east ?? query.boundsEast)
+  const boundsWest = numOrNull(query.west ?? query.boundsWest)
+  const zoom = numOrNull(query.zoom)
+  const boundsApplied =
+    boundsNorth != null &&
+    boundsSouth != null &&
+    boundsEast != null &&
+    boundsWest != null
+
   return {
-    boundsNorth: query.boundsNorth,
-    boundsSouth: query.boundsSouth,
-    boundsEast: query.boundsEast,
-    boundsWest: query.boundsWest,
+    boundsNorth,
+    boundsSouth,
+    boundsEast,
+    boundsWest,
+    zoom,
+    boundsApplied,
     centerLat,
     centerLng,
     radiusKm,
@@ -83,11 +101,15 @@ export function mapCustomerMapStatsRow(statsRow = {}) {
  *   centerLng?: number | null
  *   radiusKm?: number | null
  *   useExplicitCenter?: boolean
+ *   boundsApplied?: boolean
  *   statsRow?: Record<string, unknown>
  * }} [options]
  */
 export function buildCustomerMapResponse(customers, options = {}) {
-  const mapCustomers = customers.slice(0, CUSTOMER_MAP_MAX_MARKERS).map((customer, index) => ({
+  const renderMode = resolveMapRenderMode()
+  const maxMarkers = resolveMaxMarkersForRenderMode(renderMode)
+  const visibleInBounds = customers.length
+  const mapCustomers = customers.slice(0, maxMarkers).map((customer, index) => ({
     id: customer.id,
     markerNo: index + 1,
     name: customer.name,
@@ -98,8 +120,9 @@ export function buildCustomerMapResponse(customers, options = {}) {
     lastConsultDate: customer.lastConsultDate,
   }))
 
-  const hiddenByLimit = Math.max(0, customers.length - CUSTOMER_MAP_MAX_MARKERS)
-  const viewport = buildStaticMapViewport(mapCustomers, {
+  const hiddenByLimit = Math.max(0, visibleInBounds - maxMarkers)
+  const staticMapCustomers = customers.slice(0, CUSTOMER_MAP_MAX_MARKERS)
+  const viewport = buildStaticMapViewport(staticMapCustomers, {
     centerLat: options.centerLat,
     centerLng: options.centerLng,
     radiusKm: options.radiusKm,
@@ -109,7 +132,6 @@ export function buildCustomerMapResponse(customers, options = {}) {
   const baseStats = mapCustomerMapStatsRow(options.statsRow ?? {})
   const naverConfigured = getNaverMapsCredentials().configured
 
-  const renderMode = resolveMapRenderMode()
   const mapLevel = viewport.useExplicitCenter ? viewport.level : radiusKmToMapLevel(options.radiusKm)
 
   return {
@@ -122,6 +144,8 @@ export function buildCustomerMapResponse(customers, options = {}) {
       centerLng: viewport.centerLng,
       zoom: mapLevel,
       markerCount: mapCustomers.length,
+      boundsApplied: options.boundsApplied === true,
+      maxMarkers,
     },
     staticMap: {
       imageUrl: null,
@@ -129,13 +153,14 @@ export function buildCustomerMapResponse(customers, options = {}) {
       centerLat: viewport.centerLat,
       centerLng: viewport.centerLng,
       level: mapLevel,
-      markerCount: mapCustomers.length,
+      markerCount: staticMapCustomers.length,
       maxMarkerCount: CUSTOMER_MAP_MAX_MARKERS,
       renderMode,
       configured: naverConfigured,
     },
     stats: {
       ...baseStats,
+      visibleInBounds,
       displayedOnMap: mapCustomers.length,
       hiddenByLimit,
     },

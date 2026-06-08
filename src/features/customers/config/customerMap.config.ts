@@ -3,6 +3,9 @@ export const CUSTOMER_MAP_RENDER_MODE = 'dynamic' as const
 
 export const CUSTOMER_MAP_RADIUS_OPTIONS_KM = [1, 3, 5, 10] as const
 
+/** Dynamic Map viewport 마커 상한 (서버 CUSTOMER_MAP_DYNAMIC_MAX_MARKERS 와 동일) */
+export const CUSTOMER_MAP_DYNAMIC_MAX_MARKERS = 100
+
 /** 반경 직접 입력 상한 (km). 초과 시 이 값으로 적용 */
 export const CUSTOMER_MAP_MAX_RADIUS_KM = 100
 

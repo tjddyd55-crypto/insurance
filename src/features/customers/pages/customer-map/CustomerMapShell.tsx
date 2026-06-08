@@ -20,24 +20,30 @@ type CustomerMapShellProps = CustomerMapViewProps & {
 }
 
 function formatCustomerMapStats(stats: CustomerMapStats): string {
-  return [
-    `지도 표시 ${stats.displayedOnMap}명`,
+  const visible = stats.visibleInBounds ?? stats.displayedOnMap
+  const parts = [
     `전체 ${stats.totalCustomers}명`,
-    `주소 있음 ${stats.withAddress}명`,
-    `변환 대기 ${stats.geocodePending}명`,
+    `좌표 완료 ${stats.geocodedSuccess}명`,
+    `현재 화면 ${visible}명 중 ${stats.displayedOnMap}명 표시`,
     `주소 없음 ${stats.withoutAddress}명`,
     `실패 ${stats.geocodeFailed}명`,
-  ].join(' · ')
+  ]
+  if (stats.geocodePending > 0) {
+    parts.splice(3, 0, `변환 대기 ${stats.geocodePending}명`)
+  }
+  return parts.join(' · ')
 }
 
 export default function CustomerMapShell({
   variant,
   loading,
+  boundsLoading,
   error,
   mapCustomers,
   staticMap,
   stats,
   mapQuery,
+  mapAutoFitKey,
   radiusKm,
   favoriteOnly,
   keyword,
@@ -53,6 +59,7 @@ export default function CustomerMapShell({
   onKeywordChange,
   onSelectCustomer,
   onViewportChange,
+  onBoundsIdle,
 }: CustomerMapShellProps) {
   const { token } = useAuth()
   const modifier = variant === 'pc' ? 'customers-map-page--pc' : 'customers-map-page--mobile'
@@ -108,8 +115,8 @@ export default function CustomerMapShell({
         ) : null}
         {stats && stats.hiddenByLimit > 0 ? (
           <p className="customers-map-page__limit-notice" role="status">
-            조건에 맞는 좌표 고객이 많아 지도에는 최대 {staticMap?.maxMarkerCount ?? 20}명만
-            표시됩니다. ({stats.hiddenByLimit}명은 마커에서 제외)
+            현재 화면에 고객이 많아 {stats.displayedOnMap}명만 표시 중입니다. (
+            {stats.hiddenByLimit}명 숨김) 지도를 확대해 주세요.
           </p>
         ) : null}
       </header>
@@ -176,6 +183,11 @@ export default function CustomerMapShell({
 
       {error ? <p className="customers-map-page__error">{error}</p> : null}
       {loading ? <p className="customers-map-page__loading">고객 위치를 불러오는 중…</p> : null}
+      {!loading && boundsLoading ? (
+        <p className="customers-map-page__loading customers-map-page__bounds-loading" role="status">
+          현재 화면 고객을 불러오는 중…
+        </p>
+      ) : null}
 
       <div className="customers-map-page__map-wrap">
         <MapProviderLoader>
@@ -195,7 +207,9 @@ export default function CustomerMapShell({
                     centerLng={viewportCenterLng}
                     zoom={viewportZoom}
                     selectedCustomerId={selectedCustomerId}
+                    autoFitKey={mapAutoFitKey}
                     onViewportChange={onViewportChange}
+                    onBoundsIdle={onBoundsIdle}
                     onSelectCustomer={onSelectCustomer}
                     onMapInitFailed={handleMapInitFailed}
                   />

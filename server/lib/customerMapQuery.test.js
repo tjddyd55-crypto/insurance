@@ -28,11 +28,31 @@ test('buildCustomerMapListQuery adds radius filter', () => {
     centerLat: 37.5,
     centerLng: 127.0,
     radiusKm: 3,
+    sortByDistance: true,
   })
   assert.match(sql, /acos\(/)
+  assert.match(sql, /ORDER BY/)
   assert.equal(params[2], 37.5)
   assert.equal(params[3], 127)
   assert.equal(params[4], 3)
+})
+
+test('buildCustomerMapListQuery adds viewport bounds filter', () => {
+  const { sql, params } = buildCustomerMapListQuery({
+    ...VISIBILITY,
+    userId: 'u',
+    gaId: 1,
+    boundsNorth: 37.7,
+    boundsSouth: 37.4,
+    boundsEast: 127.2,
+    boundsWest: 126.8,
+  })
+  assert.match(sql, /cl\.latitude BETWEEN/)
+  assert.match(sql, /cl\.longitude BETWEEN/)
+  assert.equal(params[2], 37.4)
+  assert.equal(params[3], 37.7)
+  assert.equal(params[4], 126.8)
+  assert.equal(params[5], 127.2)
 })
 
 test('buildCustomerMapStatsQuery counts address and geocode buckets', () => {

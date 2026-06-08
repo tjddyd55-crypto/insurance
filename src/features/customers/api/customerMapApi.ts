@@ -29,6 +29,16 @@ export type CustomerMapDynamicMapMeta = {
   centerLng: number
   zoom: number
   markerCount: number
+  boundsApplied?: boolean
+  maxMarkers?: number
+}
+
+export type CustomerMapViewportBounds = {
+  north: number
+  south: number
+  east: number
+  west: number
+  zoom: number
 }
 
 export type CustomerMapStaticMapMeta = {
@@ -50,6 +60,7 @@ export type CustomerMapStats = {
   geocodedSuccess: number
   geocodePending: number
   geocodeFailed: number
+  visibleInBounds: number
   displayedOnMap: number
   hiddenByLimit: number
   /** @deprecated use totalCustomers */
@@ -75,6 +86,11 @@ export type FetchCustomerMapParams = {
   useExplicitCenter?: boolean
   favoriteOnly?: boolean
   keyword?: string
+  north?: number
+  south?: number
+  east?: number
+  west?: number
+  zoom?: number
 }
 
 function buildCustomerMapQuery(params: FetchCustomerMapParams = {}): string {
@@ -85,6 +101,11 @@ function buildCustomerMapQuery(params: FetchCustomerMapParams = {}): string {
   if (params.useExplicitCenter) qs.set('useExplicitCenter', 'true')
   if (params.favoriteOnly) qs.set('favoriteOnly', 'true')
   if (params.keyword?.trim()) qs.set('keyword', params.keyword.trim())
+  if (params.north != null) qs.set('north', String(params.north))
+  if (params.south != null) qs.set('south', String(params.south))
+  if (params.east != null) qs.set('east', String(params.east))
+  if (params.west != null) qs.set('west', String(params.west))
+  if (params.zoom != null) qs.set('zoom', String(params.zoom))
   return qs.toString()
 }
 

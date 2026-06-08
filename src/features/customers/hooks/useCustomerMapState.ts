@@ -9,6 +9,7 @@ import {
   type CustomerMapDynamicMapMeta,
   type CustomerMapStaticMapMeta,
   type CustomerMapStats,
+  type CustomerMapViewportBounds,
   type FetchCustomerMapParams,
 } from '../api/customerMapApi'
 import {
@@ -18,8 +19,12 @@ import {
 } from '../config/customerMap.config'
 import { openCustomerDetailFromMap } from '../utils/customerMapDetailNavigation'
 
+const BOUNDS_DEBOUNCE_MS = 400
+const BOUNDS_KEY_PRECISION = 4
+
 export type CustomerMapViewProps = {
   loading: boolean
+  boundsLoading: boolean
   error: string | null
   customers: CustomerMapMarker[]
   mapCustomers: CustomerMapListItem[]
@@ -27,6 +32,7 @@ export type CustomerMapViewProps = {
   staticMap: CustomerMapStaticMapMeta | null
   stats: CustomerMapStats | null
   mapQuery: FetchCustomerMapParams
+  mapAutoFitKey: string
   radiusKm: number | null
   favoriteOnly: boolean
   keyword: string
@@ -42,6 +48,7 @@ export type CustomerMapViewProps = {
   onKeywordChange: (value: string) => void
   onSelectCustomer: (customerId: number | null) => void
   onViewportChange: (centerLat: number, centerLng: number, zoom: number) => void
+  onBoundsIdle: (bounds: CustomerMapViewportBounds) => void
 }
 
 function parseRestoredState(locationState: unknown): CustomerMapPersistedState | null {
@@ -75,6 +82,18 @@ function parseRestoredState(locationState: unknown): CustomerMapPersistedState |
   }
 }
 
+function boundsToKey(bounds: CustomerMapViewportBounds): string {
+  return [
+    bounds.north,
+    bounds.south,
+    bounds.east,
+    bounds.west,
+    bounds.zoom,
+  ]
+    .map((value) => value.toFixed(BOUNDS_KEY_PRECISION))
+    .join(',')
+}
+
 export function useCustomerMapState(): CustomerMapViewProps {
   const { token } = useAuth()
   const navigate = useNavigate()
@@ -83,6 +102,7 @@ export function useCustomerMapState(): CustomerMapViewProps {
   const restored = useMemo(() => parseRestoredState(location.state), [location.state])
 
   const [loading, setLoading] = useState(true)
+  const [boundsLoading, setBoundsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [customers, setCustomers] = useState<CustomerMapMarker[]>([])
   const [mapCustomers, setMapCustomers] = useState<CustomerMapListItem[]>([])
@@ -109,7 +129,23 @@ export function useCustomerMapState(): CustomerMapViewProps {
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
     restored?.selectedCustomerId ?? null,
   )
+  const [mapBounds, setMapBounds] = useState<CustomerMapViewportBounds | null>(null)
   const loadSeq = useRef(0)
+  const boundsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastBoundsKeyRef = useRef<string | null>(null)
+
+  const mapAutoFitKey = useMemo(
+    () =>
+      [
+        favoriteOnly ? '1' : '0',
+        keyword.trim(),
+        radiusKm == null ? 'none' : String(radiusKm),
+        useExplicitCenter ? '1' : '0',
+        centerLat.toFixed(5),
+        centerLng.toFixed(5),
+      ].join('|'),
+    [favoriteOnly, keyword, radiusKm, useExplicitCenter, centerLat, centerLng],
+  )
 
   const mapQuery = useMemo<FetchCustomerMapParams>(
     () => ({
@@ -119,9 +155,31 @@ export function useCustomerMapState(): CustomerMapViewProps {
       useExplicitCenter,
       favoriteOnly,
       keyword,
+      ...(mapBounds
+        ? {
+            north: mapBounds.north,
+            south: mapBounds.south,
+            east: mapBounds.east,
+            west: mapBounds.west,
+            zoom: mapBounds.zoom,
+          }
+        : {}),
     }),
-    [centerLat, centerLng, radiusKm, useExplicitCenter, favoriteOnly, keyword],
+    [centerLat, centerLng, radiusKm, useExplicitCenter, favoriteOnly, keyword, mapBounds],
   )
+
+  useEffect(() => {
+    lastBoundsKeyRef.current = null
+    setMapBounds(null)
+  }, [favoriteOnly, keyword, radiusKm, useExplicitCenter, centerLat, centerLng])
+
+  useEffect(() => {
+    return () => {
+      if (boundsDebounceRef.current) {
+        clearTimeout(boundsDebounceRef.current)
+      }
+    }
+  }, [])
 
   const loadCustomers = useCallback(async () => {
     if (!token?.trim()) {
@@ -131,11 +189,17 @@ export function useCustomerMapState(): CustomerMapViewProps {
       setStaticMap(null)
       setStats(null)
       setLoading(false)
+      setBoundsLoading(false)
       return
     }
     const seq = loadSeq.current + 1
     loadSeq.current = seq
-    setLoading(true)
+    const isBoundsFetch = mapBounds != null
+    if (isBoundsFetch) {
+      setBoundsLoading(true)
+    } else {
+      setLoading(true)
+    }
     setError(null)
     try {
       const res = await fetchCustomerMap(token, mapQuery)
@@ -147,11 +211,6 @@ export function useCustomerMapState(): CustomerMapViewProps {
       setMapMeta(res.map)
       setStaticMap(res.staticMap)
       setStats(res.stats)
-      if (res.map) {
-        setViewportCenterLat(res.map.centerLat)
-        setViewportCenterLng(res.map.centerLng)
-        setViewportZoom(res.map.zoom)
-      }
     } catch (err) {
       if (loadSeq.current !== seq) {
         return
@@ -159,10 +218,14 @@ export function useCustomerMapState(): CustomerMapViewProps {
       setError(err instanceof Error ? err.message : '고객 지도를 불러오지 못했습니다.')
     } finally {
       if (loadSeq.current === seq) {
-        setLoading(false)
+        if (isBoundsFetch) {
+          setBoundsLoading(false)
+        } else {
+          setLoading(false)
+        }
       }
     }
-  }, [token, mapQuery])
+  }, [token, mapQuery, mapBounds])
 
   useEffect(() => {
     void loadCustomers()
@@ -240,6 +303,20 @@ export function useCustomerMapState(): CustomerMapViewProps {
     [mapCustomers, isMobile, buildMapState, navigate],
   )
 
+  const onBoundsIdle = useCallback((bounds: CustomerMapViewportBounds) => {
+    const key = boundsToKey(bounds)
+    if (key === lastBoundsKeyRef.current) {
+      return
+    }
+    lastBoundsKeyRef.current = key
+    if (boundsDebounceRef.current) {
+      clearTimeout(boundsDebounceRef.current)
+    }
+    boundsDebounceRef.current = setTimeout(() => {
+      setMapBounds(bounds)
+    }, BOUNDS_DEBOUNCE_MS)
+  }, [])
+
   const selectedCustomer = useMemo(
     () => mapCustomers.find((row) => row.id === selectedCustomerId) ?? null,
     [mapCustomers, selectedCustomerId],
@@ -247,6 +324,7 @@ export function useCustomerMapState(): CustomerMapViewProps {
 
   return {
     loading,
+    boundsLoading,
     error,
     customers,
     mapCustomers,
@@ -254,6 +332,7 @@ export function useCustomerMapState(): CustomerMapViewProps {
     staticMap,
     stats,
     mapQuery,
+    mapAutoFitKey,
     radiusKm,
     favoriteOnly,
     keyword,
@@ -280,5 +359,6 @@ export function useCustomerMapState(): CustomerMapViewProps {
       setViewportCenterLng(lng)
       setViewportZoom(zoom)
     },
+    onBoundsIdle,
   }
 }

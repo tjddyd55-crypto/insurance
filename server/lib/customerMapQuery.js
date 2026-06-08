@@ -6,6 +6,36 @@ const EARTH_RADIUS_KM = 6371
 const HAS_ADDRESS_SQL = `COALESCE(TRIM(c.address), '') <> ''`
 
 /**
+ * @param {unknown} raw
+ * @returns {number | null}
+ */
+function numOrNull(raw) {
+  if (raw == null || raw === '') {
+    return null
+  }
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : null
+}
+
+/**
+ * @param {{
+ *   centerLat: number
+ *   centerLng: number
+ *   latParam: string
+ *   lngParam: string
+ * }} p
+ */
+function buildDistanceSql(p) {
+  return `(${EARTH_RADIUS_KM} * acos(
+    LEAST(1, GREATEST(-1,
+      cos(radians(${p.latParam})) * cos(radians(cl.latitude))
+      * cos(radians(cl.longitude) - radians(${p.lngParam}))
+      + sin(radians(${p.latParam})) * sin(radians(cl.latitude))
+    ))
+  ))`
+}
+
+/**
  * 지도 API는 고객 목록 GET /customers 와 동일한 customerAccess 가시성 절을 사용한다.
  *
  * @param {{
@@ -20,6 +50,7 @@ const HAS_ADDRESS_SQL = `COALESCE(TRIM(c.address), '') <> ''`
  *   centerLat?: number | null
  *   centerLng?: number | null
  *   radiusKm?: number | null
+ *   sortByDistance?: boolean
  *   favoriteOnly?: boolean
  *   keyword?: string | null
  * }} input
@@ -68,25 +99,26 @@ export function buildCustomerMapListQuery(input) {
   const centerLat = numOrNull(input.centerLat)
   const centerLng = numOrNull(input.centerLng)
   const radiusKm = numOrNull(input.radiusKm)
-  if (centerLat != null && centerLng != null && radiusKm != null && radiusKm > 0) {
-    const latParam = `$${i}`
+  let distanceLatParam = null
+  let distanceLngParam = null
+  if (centerLat != null && centerLng != null) {
+    distanceLatParam = `$${i}`
     params.push(centerLat)
     i += 1
-    const lngParam = `$${i}`
+    distanceLngParam = `$${i}`
     params.push(centerLng)
     i += 1
+  }
+  if (centerLat != null && centerLng != null && radiusKm != null && radiusKm > 0) {
     const radiusParam = `$${i}`
     params.push(radiusKm)
     i += 1
-    where.push(`
-      (${EARTH_RADIUS_KM} * acos(
-        LEAST(1, GREATEST(-1,
-          cos(radians(${latParam})) * cos(radians(cl.latitude))
-          * cos(radians(cl.longitude) - radians(${lngParam}))
-          + sin(radians(${latParam})) * sin(radians(cl.latitude))
-        ))
-      )) <= ${radiusParam}
-    `)
+    where.push(`${buildDistanceSql({
+      centerLat,
+      centerLng,
+      latParam: distanceLatParam,
+      lngParam: distanceLngParam,
+    })} <= ${radiusParam}`)
   }
 
   const userPh = `$${i}`
@@ -96,6 +128,16 @@ export function buildCustomerMapListQuery(input) {
   params.push(input.gaId)
 
   const summaryJoin = buildCustomerConsultationSummaryJoin(userPh, gaPh)
+
+  let orderBy = 'lc.last_consult_date DESC NULLS LAST, c.name ASC, c.id ASC'
+  if (input.sortByDistance && distanceLatParam && distanceLngParam) {
+    orderBy = `${buildDistanceSql({
+      centerLat: centerLat ?? 0,
+      centerLng: centerLng ?? 0,
+      latParam: distanceLatParam,
+      lngParam: distanceLngParam,
+    })} ASC NULLS LAST, c.name ASC, c.id ASC`
+  }
 
   const sql = `
     SELECT
@@ -111,7 +153,7 @@ export function buildCustomerMapListQuery(input) {
     INNER JOIN customer_locations cl ON cl.customer_id = c.id
     ${summaryJoin}
     WHERE ${where.join(' AND ')}
-    ORDER BY c.name ASC, c.id ASC
+    ORDER BY ${orderBy}
   `
 
   return { sql, params }
@@ -147,18 +189,6 @@ export function buildCustomerMapStatsQuery(input) {
     WHERE (${visClause})
   `
   return { sql, params: visParams }
-}
-
-/**
- * @param {unknown} raw
- * @returns {number | null}
- */
-function numOrNull(raw) {
-  if (raw == null || raw === '') {
-    return null
-  }
-  const n = Number(raw)
-  return Number.isFinite(n) ? n : null
 }
 
 /**

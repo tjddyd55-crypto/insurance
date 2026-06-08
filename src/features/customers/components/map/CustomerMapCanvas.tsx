@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { CustomerMapListItem } from '../../api/customerMapApi'
+import type { CustomerMapListItem, CustomerMapViewportBounds } from '../../api/customerMapApi'
 import type { MapProviderName } from '../../config/customerMap.config'
 import { MapSdkError } from './mapSdkErrors'
 import {
@@ -25,7 +25,9 @@ type CustomerMapCanvasProps = {
   centerLng: number
   zoom: number
   selectedCustomerId: number | null
+  autoFitKey: string
   onViewportChange: (centerLat: number, centerLng: number, zoom: number) => void
+  onBoundsIdle: (bounds: CustomerMapViewportBounds) => void
   onSelectCustomer: (customerId: number | null) => void
   onMapInitFailed?: () => void
 }
@@ -84,6 +86,52 @@ function fitMapToCustomers(
   }
 }
 
+function readMapViewportBounds(
+  provider: MapProviderName,
+  map: unknown,
+  zoom: number,
+): CustomerMapViewportBounds | null {
+  if (provider === 'naver' && window.naver?.maps) {
+    const bounds = (
+      map as {
+        getBounds: () => {
+          getNE: () => { lat: () => number; lng: () => number }
+          getSW: () => { lat: () => number; lng: () => number }
+        }
+      }
+    ).getBounds()
+    const ne = bounds.getNE()
+    const sw = bounds.getSW()
+    return {
+      north: ne.lat(),
+      south: sw.lat(),
+      east: ne.lng(),
+      west: sw.lng(),
+      zoom,
+    }
+  }
+  if (provider === 'kakao' && window.kakao?.maps) {
+    const bounds = (
+      map as {
+        getBounds: () => {
+          getNorthEast: () => { getLat: () => number; getLng: () => number }
+          getSouthWest: () => { getLat: () => number; getLng: () => number }
+        }
+      }
+    ).getBounds()
+    const ne = bounds.getNorthEast()
+    const sw = bounds.getSouthWest()
+    return {
+      north: ne.getLat(),
+      south: sw.getLat(),
+      east: ne.getLng(),
+      west: sw.getLng(),
+      zoom,
+    }
+  }
+  return null
+}
+
 export default function CustomerMapCanvas({
   provider,
   clientKey,
@@ -92,7 +140,9 @@ export default function CustomerMapCanvas({
   centerLng,
   zoom,
   selectedCustomerId,
+  autoFitKey,
   onViewportChange,
+  onBoundsIdle,
   onSelectCustomer,
   onMapInitFailed,
 }: CustomerMapCanvasProps) {
@@ -101,18 +151,16 @@ export default function CustomerMapCanvas({
   const markersRef = useRef<unknown[]>([])
   const skipCenterSyncRef = useRef(false)
   const onViewportChangeRef = useRef(onViewportChange)
+  const onBoundsIdleRef = useRef(onBoundsIdle)
   const onSelectCustomerRef = useRef(onSelectCustomer)
   const onMapInitFailedRef = useRef(onMapInitFailed)
-  const fittedRef = useRef(false)
+  const lastAutoFitKeyRef = useRef<string | null>(null)
   const [mapReady, setMapReady] = useState(false)
 
   onViewportChangeRef.current = onViewportChange
+  onBoundsIdleRef.current = onBoundsIdle
   onSelectCustomerRef.current = onSelectCustomer
   onMapInitFailedRef.current = onMapInitFailed
-
-  useEffect(() => {
-    fittedRef.current = false
-  }, [customers])
 
   useEffect(() => {
     if (provider !== 'naver') {
@@ -132,7 +180,6 @@ export default function CustomerMapCanvas({
     const container = containerRef.current
 
     void (async () => {
-      // 1) 컨테이너 크기 확보 → 2) SDK callback 완료 → 3) Map 생성 (문서 순서)
       const containerSize = await waitForUsableMapContainerSize(container)
       if (cancelled || !containerRef.current) {
         return
@@ -161,16 +208,17 @@ export default function CustomerMapCanvas({
             mapDataControl: false,
           })
           mapRef.current = map
-          if (customers.length > 0 && !fittedRef.current) {
-            fitMapToCustomers(provider, map, customers, centerLat, centerLng, zoom)
-            fittedRef.current = true
-          }
           maps.Event.addListener(map, 'idle', () => {
             if (skipCenterSyncRef.current) {
               return
             }
             const c = map.getCenter()
-            onViewportChangeRef.current(c.lat(), c.lng(), map.getZoom())
+            const currentZoom = map.getZoom()
+            onViewportChangeRef.current(c.lat(), c.lng(), currentZoom)
+            const bounds = readMapViewportBounds(provider, map, currentZoom)
+            if (bounds) {
+              onBoundsIdleRef.current(bounds)
+            }
           })
           maps.Event.trigger(map, 'resize')
           setMapReady(true)
@@ -184,16 +232,17 @@ export default function CustomerMapCanvas({
             level: kakaoLevelFromZoom(zoom),
           })
           mapRef.current = map
-          if (customers.length > 0 && !fittedRef.current) {
-            fitMapToCustomers(provider, map, customers, centerLat, centerLng, zoom)
-            fittedRef.current = true
-          }
           maps.event.addListener(map, 'idle', () => {
             if (skipCenterSyncRef.current) {
               return
             }
             const c = map.getCenter()
-            onViewportChangeRef.current(c.getLat(), c.getLng(), zoomFromKakaoLevel(map.getLevel()))
+            const currentZoom = zoomFromKakaoLevel(map.getLevel())
+            onViewportChangeRef.current(c.getLat(), c.getLng(), currentZoom)
+            const bounds = readMapViewportBounds(provider, map, currentZoom)
+            if (bounds) {
+              onBoundsIdleRef.current(bounds)
+            }
           })
           setMapReady(true)
         }
@@ -211,9 +260,26 @@ export default function CustomerMapCanvas({
       mapRef.current = null
       markersRef.current = []
       setMapReady(false)
+      lastAutoFitKeyRef.current = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- map instance 1회 생성
   }, [provider, clientKey])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady || customers.length === 0) {
+      return
+    }
+    if (lastAutoFitKeyRef.current === autoFitKey) {
+      return
+    }
+    skipCenterSyncRef.current = true
+    fitMapToCustomers(provider, map, customers, centerLat, centerLng, zoom)
+    lastAutoFitKeyRef.current = autoFitKey
+    window.setTimeout(() => {
+      skipCenterSyncRef.current = false
+    }, 150)
+  }, [autoFitKey, customers, mapReady, provider, centerLat, centerLng, zoom])
 
   useEffect(() => {
     const container = containerRef.current
