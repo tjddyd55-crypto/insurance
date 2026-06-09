@@ -126,9 +126,13 @@ export function useCustomerMapState(): CustomerMapViewProps {
   const [useExplicitCenter, setUseExplicitCenter] = useState(restored?.useExplicitCenter ?? false)
   const [favoriteOnly, setFavoriteOnly] = useState(restored?.filters.favoriteOnly ?? false)
   const [keyword, setKeyword] = useState(restored?.filters.keyword ?? '')
-  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(
-    restored?.selectedCustomerId ?? null,
-  )
+  const restoredSelectedId =
+    restored?.selectedCustomerId != null && Number.isFinite(restored.selectedCustomerId)
+      ? restored.selectedCustomerId
+      : null
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(restoredSelectedId)
+  /** 지도 복귀 시 mapCustomers 로드 전 selectedCustomerId 가 null 로 지워지지 않도록 보관 */
+  const pendingSelectedCustomerIdRef = useRef<number | null>(restoredSelectedId)
   const [mapBounds, setMapBounds] = useState<CustomerMapViewportBounds | null>(null)
   const loadSeq = useRef(0)
   const boundsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -232,13 +236,44 @@ export function useCustomerMapState(): CustomerMapViewProps {
   }, [loadCustomers])
 
   useEffect(() => {
+    const pending = pendingSelectedCustomerIdRef.current
+    if (pending == null) {
+      return
+    }
+    if (loading || boundsLoading) {
+      return
+    }
+    if (mapBounds == null) {
+      return
+    }
+    if (mapCustomers.some((c) => c.id === pending)) {
+      setSelectedCustomerId(pending)
+      pendingSelectedCustomerIdRef.current = null
+      return
+    }
+    pendingSelectedCustomerIdRef.current = null
+    setSelectedCustomerId(null)
+  }, [mapCustomers, loading, boundsLoading, mapBounds])
+
+  useEffect(() => {
     if (selectedCustomerId == null) {
+      return
+    }
+    if (pendingSelectedCustomerIdRef.current != null) {
+      return
+    }
+    if (loading || boundsLoading) {
       return
     }
     if (!mapCustomers.some((c) => c.id === selectedCustomerId)) {
       setSelectedCustomerId(null)
     }
-  }, [mapCustomers, selectedCustomerId])
+  }, [mapCustomers, selectedCustomerId, loading, boundsLoading])
+
+  const onSelectCustomer = useCallback((customerId: number | null) => {
+    pendingSelectedCustomerIdRef.current = null
+    setSelectedCustomerId(customerId)
+  }, [])
 
   const buildMapState = useCallback(
     (): CustomerMapPersistedState => ({
@@ -353,7 +388,7 @@ export function useCustomerMapState(): CustomerMapViewProps {
     onOpenCustomerDetail,
     onFavoriteOnlyChange: setFavoriteOnly,
     onKeywordChange: setKeyword,
-    onSelectCustomer: setSelectedCustomerId,
+    onSelectCustomer,
     onViewportChange: (lat, lng, zoom) => {
       setViewportCenterLat(lat)
       setViewportCenterLng(lng)

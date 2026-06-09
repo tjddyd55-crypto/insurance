@@ -242,10 +242,11 @@
 }
 
 .customers-map-page--pc .customer-map-marker-card {
-  left: auto;
-  right: 16px;
+  left: 16px;
+  right: auto;
   bottom: 16px;
   width: min(360px, calc(100% - 32px));
+  z-index: 10;
 }
 
 .customer-map-marker-card__header {
