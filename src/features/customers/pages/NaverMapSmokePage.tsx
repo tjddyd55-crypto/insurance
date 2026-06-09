@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { getMapProviderClientKey } from '../config/customerMap.config'
+import { formatNaverMapAuthFailureMessage, NAVER_MAP_WEB_SERVICE_URLS } from '../config/naverMapSetupGuide'
 import {
   buildNaverMapAuthDiagnosticSnapshot,
   installNaverMapAuthRequestObserver,
@@ -141,6 +141,20 @@ export default function NaverMapSmokePage() {
         <div className="naver-map-smoke-page__status naver-map-smoke-page__status--fail" role="alert">
           <p>Dynamic Map FAIL</p>
           <p>error: {errorCode ?? 'unknown'}</p>
+          {errorCode === 'naver_auth_failure' || errorCode === 'missing_client_id' ? (
+            <p className="naver-map-smoke-page__muted">
+              {errorCode === 'naver_auth_failure'
+                ? formatNaverMapAuthFailureMessage(diagnostics?.origin ?? window.location.origin)
+                : 'Railway development env에 VITE_NAVER_MAP_CLIENT_ID를 설정한 뒤 재배포해 주세요.'}
+            </p>
+          ) : null}
+          {errorCode === 'naver_auth_failure' ? (
+            <ul className="naver-map-smoke-page__url-list">
+              {NAVER_MAP_WEB_SERVICE_URLS.map((url) => (
+                <li key={url}>{url}</li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       ) : null}
 

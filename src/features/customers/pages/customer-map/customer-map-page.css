@@ -380,6 +380,14 @@
   color: #fca5a5;
 }
 
+.naver-map-smoke-page__url-list {
+  margin: 10px 0 0;
+  padding-left: 1.2rem;
+  color: #cbd5e1;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
 .naver-map-smoke-page__canvas {
   width: 100%;
   min-height: 360px;

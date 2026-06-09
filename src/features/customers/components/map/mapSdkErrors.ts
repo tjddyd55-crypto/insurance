@@ -1,3 +1,5 @@
+import { formatNaverMapAuthFailureMessage } from '../../config/naverMapSetupGuide'
+
 export type MapSdkErrorCode =
   | 'missing_client_id'
   | 'script_load_failed'
@@ -21,7 +23,9 @@ export function mapSdkErrorMessage(code: MapSdkErrorCode): string {
     case 'missing_client_id':
       return '지도 설정이 필요합니다. 프론트 지도 Client ID를 확인해 주세요.'
     case 'naver_auth_failure':
-      return '네이버 지도 인증에 실패했습니다. Web Service URL 또는 Dynamic Map 설정을 확인해 주세요.'
+      return formatNaverMapAuthFailureMessage(
+        typeof window !== 'undefined' ? window.location.origin : '',
+      )
     case 'script_load_failed':
       return '지도를 불러오지 못했습니다. Static Map으로 대체합니다.'
     case 'sdk_global_missing':
