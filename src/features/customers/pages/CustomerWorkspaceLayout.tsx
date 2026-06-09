@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import type { CustomerMapPersistedState } from '../config/customerMap.config'
 import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
 import { parseWorkspaceCustomerIdFromPath } from '../utils/customerWorkspaceNavigation'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
@@ -270,21 +269,6 @@ export default function CustomerWorkspaceLayout() {
     moveTo(`/customers/${selectedCustomerId}/signatures`)
   }
 
-  const customerMapReturnState = useMemo((): CustomerMapPersistedState | null => {
-    const st = location.state as { from?: string; mapState?: CustomerMapPersistedState } | null
-    if (st?.from !== 'customer-map' || !st.mapState) {
-      return null
-    }
-    return st.mapState
-  }, [location.state])
-
-  const handleBackToCustomerMap = useCallback(() => {
-    if (!customerMapReturnState) {
-      return
-    }
-    navigate('/customers/map', { state: { mapState: customerMapReturnState } })
-  }, [navigate, customerMapReturnState])
-
   const handleClickViewOnMap = useCallback(() => {
     if (!selectedCustomerId) {
       return
@@ -313,8 +297,6 @@ export default function CustomerWorkspaceLayout() {
     onClickClaims: handleClickClaims,
     onClickPersonalMessage: handleClickPersonalMessage,
     onClickSignatures: handleClickSignatures,
-    showBackToCustomerMap: customerMapReturnState != null,
-    onBackToCustomerMap: handleBackToCustomerMap,
     onClickViewOnMap: handleClickViewOnMap,
     openRelatedCustomerRef,
   }

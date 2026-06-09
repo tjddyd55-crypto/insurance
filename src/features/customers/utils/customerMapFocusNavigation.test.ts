@@ -34,7 +34,7 @@ describe('parseFocusZoom', () => {
 
 describe('buildCustomerMapFocusPath', () => {
   it('builds focusCustomerId query path', () => {
-    expect(buildCustomerMapFocusPath(191)).toBe('/customers/map?focusCustomerId=191&zoom=15')
+    expect(buildCustomerMapFocusPath(191)).toBe('/customers/map?focusCustomerId=191&zoom=17')
     expect(buildCustomerMapFocusPath(42, { zoom: 12 })).toBe(
       '/customers/map?focusCustomerId=42&zoom=12',
     )

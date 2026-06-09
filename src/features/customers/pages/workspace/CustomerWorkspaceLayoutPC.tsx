@@ -37,8 +37,6 @@ export type CustomerWorkspaceLayoutPCProps = {
   onClickClaims: () => void
   onClickPersonalMessage: () => void
   onClickSignatures: () => void
-  showBackToCustomerMap?: boolean
-  onBackToCustomerMap?: () => void
   onClickViewOnMap: () => void
   /** 좌측 `CustomersPage` 가 `handleOpenRelatedCustomer` 를 등록한다. 최근 등록 고객 패널 등에서 재사용. */
   openRelatedCustomerRef: MutableRefObject<
@@ -105,8 +103,6 @@ export default function CustomerWorkspaceLayoutPC({
   onClickClaims,
   onClickPersonalMessage,
   onClickSignatures,
-  showBackToCustomerMap,
-  onBackToCustomerMap,
   onClickViewOnMap,
   openRelatedCustomerRef,
 }: CustomerWorkspaceLayoutPCProps) {
@@ -149,11 +145,6 @@ export default function CustomerWorkspaceLayoutPC({
           </p>
         </div>
         <div className="customer-workspace-layout__actions">
-          {showBackToCustomerMap && onBackToCustomerMap ? (
-            <FormButton htmlType="button" variant="secondary" onClick={onBackToCustomerMap}>
-              지도 돌아가기
-            </FormButton>
-          ) : null}
           <FormButton
             htmlType="button"
             variant="secondary"

@@ -32,8 +32,8 @@ export const CUSTOMER_MAP_DEFAULT_CENTER = {
   lng: 126.978,
 }
 
-/** 고객 카드·상세에서 "지도에서 보기" 진입 시 기본 줌 */
-export const CUSTOMER_MAP_FOCUS_ZOOM = 15
+/** 고객 카드·상세에서 "지도에서 보기" focusCustomerId 진입 시 줌 (기본 /customers/map 진입과 별도) */
+export const CUSTOMER_MAP_FOCUS_ZOOM = 17
 
 /**
  * Dynamic Map SDK 전용.
