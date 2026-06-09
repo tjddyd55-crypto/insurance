@@ -55,7 +55,11 @@ export function useWebAppUpdate(): WebAppUpdateState {
   }, [])
 
   useEffect(() => {
-    if (isElectronApp()) {
+    /*
+     * Electron file:// 내장 번들은 DesktopUpdateDialog 가 담당한다.
+     * https 원격 셸(패키지 앱이 Railway 웹 SPA 로드)은 웹과 같이 /version.json 폴링으로 갱신한다.
+     */
+    if (isElectronApp() && typeof window !== 'undefined' && window.location.protocol === 'file:') {
       return
     }
     const currentBuildId = currentBuildIdRef.current

@@ -42,3 +42,5 @@ jobs:
           # 정책: AGENTS.md §3-5 "환경변수 주입 원칙".
           VITE_API_URL: https://insurance-production-7bd8.up.railway.app
           VITE_BASE_URL: https://insurance-production-7bd8.up.railway.app
+          # 패키지된 Electron 이 file:// 내장 번들 대신 prod 웹 SPA 를 로드해 PC 브라우저와 메뉴·UI 를 동기화한다.
+          ELECTRON_WEB_ORIGIN: https://insurance-production-7bd8.up.railway.app

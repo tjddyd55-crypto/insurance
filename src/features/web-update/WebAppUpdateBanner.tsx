@@ -16,7 +16,9 @@ import './web-app-update-banner.css'
 export function WebAppUpdateBanner() {
   const { updateReady, reload } = useWebAppUpdate()
 
-  if (isElectronApp() || !updateReady) {
+  const electronFileShell =
+    isElectronApp() && typeof window !== 'undefined' && window.location.protocol === 'file:'
+  if (electronFileShell || !updateReady) {
     return null
   }
 

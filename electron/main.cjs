@@ -1,8 +1,26 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron')
 const axios = require('axios')
+const fs = require('fs')
 const path = require('path')
 const semver = require('semver')
 const { autoUpdater } = require('electron-updater')
+
+/** @type {string | null} */
+let packagedWebOrigin = null
+try {
+  const originPath = path.join(__dirname, 'packaged-web-origin.json')
+  if (fs.existsSync(originPath)) {
+    const parsed = JSON.parse(fs.readFileSync(originPath, 'utf8'))
+    if (typeof parsed?.origin === 'string' && parsed.origin.trim()) {
+      const candidate = new URL(parsed.origin.trim())
+      if (candidate.protocol === 'https:') {
+        packagedWebOrigin = candidate.origin
+      }
+    }
+  }
+} catch (e) {
+  console.warn('[InsuranceApp] packaged-web-origin.json ignored', e instanceof Error ? e.message : e)
+}
 
 const DEFAULT_VERSION_CHECK_URL =
   'https://insurance-production-7bd8.up.railway.app/api/version'
@@ -335,7 +353,17 @@ function createWindow() {
   })
 
   if (app.isPackaged) {
-    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+    /*
+     * 패키지 UI 로드 정책:
+     *   - packaged-web-origin.json 에 https origin 이 있으면 Railway 웹 SPA 를 직접 로드한다.
+     *     (PC 브라우저와 동일 번들 · 메뉴 SSOT 동기화. file:// 내장 dist 는 오프라인 fallback)
+     *   - origin 이 없으면 기존처럼 dist/index.html(file://) 을 사용한다.
+     */
+    if (packagedWebOrigin) {
+      mainWindow.loadURL(packagedWebOrigin)
+    } else {
+      mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+    }
   } else {
     mainWindow.loadURL('http://localhost:3000')
   }

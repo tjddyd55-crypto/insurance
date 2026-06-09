@@ -14,7 +14,7 @@
     "dev:desktop": "concurrently \"npm run dev\" \"npm run electron\"",
     "build": "vite build",
     "build:web": "vite build",
-    "build:desktop": "npm run build:web -- --base ./ && electron-builder",
+    "build:desktop": "node scripts/write-electron-packaged-origin.mjs && npm run build:web -- --base ./ && electron-builder",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "eslint src --fix",
     "lint:lock": "node scripts/check-ui-lock.mjs",

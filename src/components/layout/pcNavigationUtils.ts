@@ -17,8 +17,18 @@ export function isActivePcNavigationPath(pathname: string, itemPath: string): bo
   if (itemPath === '/insurance/company-registry') {
     return pathname === '/insurance/company-registry' || pathname.startsWith('/insurance/company-registry/')
   }
-  if (itemPath.startsWith('/customers')) {
-    return pathname === '/customers' || pathname.startsWith('/customers/') || pathname.startsWith('/customer/')
+  if (itemPath === '/customers/map') {
+    return pathname === '/customers/map' || pathname.startsWith('/customers/map/')
+  }
+  if (itemPath === '/customers') {
+    if (pathname === '/customers/map' || pathname.startsWith('/customers/map/')) {
+      return false
+    }
+    return (
+      pathname === '/customers' ||
+      pathname.startsWith('/customers/') ||
+      pathname.startsWith('/customer/')
+    )
   }
   if (itemPath === '/application') {
     return pathname === '/application' || pathname.startsWith('/application/')
