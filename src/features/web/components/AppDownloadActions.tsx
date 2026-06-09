@@ -1,5 +1,5 @@
 export const DESKTOP_DOWNLOAD_URL =
-  'https://cdn.platform-assets.com/insurance/download/InsuranceApp-Setup-1.0.234.exe'
+  'https://cdn.platform-assets.com/insurance/download/InsuranceApp%20Setup%201.0.242.exe'
 export const MOBILE_DOWNLOAD_URL =
   'https://cdn.platform-assets.com/insurance/download/insurance-mobile-1.0.2-build3-252b6273.apk'
 
