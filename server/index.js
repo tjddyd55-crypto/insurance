@@ -667,12 +667,35 @@ function formatInsCompanyCode(id) {
   return `INS${String(Number(id)).padStart(6, '0')}`
 }
 
-async function ensureMasterCompanyCode(client, masterId) {
-  const code = formatInsCompanyCode(masterId)
-  await safeQuery(client,
-    `UPDATE insurance_company_master SET company_code = $1 WHERE id = $2`,
-    [code, masterId],
+async function ensureMasterCompanyCode(client, masterId, gaId) {
+  const tenantGa = parseGaId(gaId)
+  if (tenantGa == null) {
+    const err = new Error('GA 컨텍스트가 없습니다.')
+    err.httpStatus = 400
+    throw err
+  }
+  const masterIdNum = Number(masterId)
+  if (!Number.isInteger(masterIdNum) || masterIdNum < 1) {
+    const err = new Error('유효하지 않은 보험사 id입니다.')
+    err.httpStatus = 400
+    throw err
+  }
+  const code = formatInsCompanyCode(masterIdNum)
+  const updated = await safeQuery(client,
+    `
+    UPDATE insurance_company_master
+    SET company_code = $1
+    WHERE id = $2 AND ga_id = $3
+    RETURNING *
+    `,
+    [code, masterIdNum, tenantGa],
   )
+  if (updated.rowCount === 0) {
+    const err = new Error('보험사 코드를 갱신할 수 없습니다.')
+    err.httpStatus = 404
+    throw err
+  }
+  return updated.rows[0]
 }
 
 function mapInsuranceCompanyMaster(row) {
@@ -4861,7 +4884,7 @@ apiRouter.post('/company/full-save', requireAuth, requireGaTenantAdmin, async (r
           throw err
         }
         cid = existingId
-        await ensureMasterCompanyCode(client, cid)
+        await ensureMasterCompanyCode(client, cid, tenantGa)
         await safeQuery(
           client,
           `
@@ -4934,7 +4957,7 @@ apiRouter.post('/company/full-save', requireAuth, requireGaTenantAdmin, async (r
             throw e
           }
           cid = existingId
-          await ensureMasterCompanyCode(client, cid)
+          await ensureMasterCompanyCode(client, cid, tenantGa)
           await safeQuery(
             client,
             `
@@ -4948,7 +4971,7 @@ apiRouter.post('/company/full-save', requireAuth, requireGaTenantAdmin, async (r
         }
         if (inserted) {
           cid = inserted.rows[0].id
-          await ensureMasterCompanyCode(client, cid)
+          await ensureMasterCompanyCode(client, cid, tenantGa)
         }
       }
 
