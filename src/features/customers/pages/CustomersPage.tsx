@@ -99,6 +99,7 @@ import {
   buildCustomerWorkspacePath,
   buildCustomerListPath,
 } from '../utils/customerRoutePaths'
+import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
 import type { CustomerMapDetailNavigationState } from '../utils/customerMapDetailNavigation'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
@@ -1152,6 +1153,13 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     [isMobile, navigate, openMobileModal, searchParams],
   )
 
+  const handleOpenOnMap = useCallback(
+    (customerId: number) => {
+      navigateToCustomerOnMap(navigate, customerId)
+    },
+    [navigate],
+  )
+
   const handleCustomerConsultationCreated = useCallback(
     (customerId: number, row: Pick<CustomerConsultationRow, 'consultationDate' | 'createdAt'>) => {
       const dateFromRow = normalizeYmd(row.consultationDate)
@@ -1517,6 +1525,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               onOpenPersonalMessage={handleOpenPersonalMessage}
               onOpenClaims={handleOpenClaims}
               onOpenMemos={handleOpenMemos}
+              onOpenOnMap={handleOpenOnMap}
               mobileCopyFeedback={mobileCopyFeedback}
               onOpenRelatedCustomer={handleOpenRelatedCustomer}
               token={token}

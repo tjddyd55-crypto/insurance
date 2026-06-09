@@ -26,6 +26,7 @@ type CustomerMapCanvasProps = {
   zoom: number
   selectedCustomerId: number | null
   autoFitKey: string
+  skipAutoFit?: boolean
   onViewportChange: (centerLat: number, centerLng: number, zoom: number) => void
   onBoundsIdle: (bounds: CustomerMapViewportBounds) => void
   onSelectCustomer: (customerId: number | null) => void
@@ -141,6 +142,7 @@ export default function CustomerMapCanvas({
   zoom,
   selectedCustomerId,
   autoFitKey,
+  skipAutoFit = false,
   onViewportChange,
   onBoundsIdle,
   onSelectCustomer,
@@ -267,7 +269,7 @@ export default function CustomerMapCanvas({
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map || !mapReady || customers.length === 0) {
+    if (!map || !mapReady || customers.length === 0 || skipAutoFit) {
       return
     }
     if (lastAutoFitKeyRef.current === autoFitKey) {
@@ -279,7 +281,7 @@ export default function CustomerMapCanvas({
     window.setTimeout(() => {
       skipCenterSyncRef.current = false
     }, 150)
-  }, [autoFitKey, customers, mapReady, provider, centerLat, centerLng, zoom])
+  }, [autoFitKey, customers, mapReady, provider, centerLat, centerLng, zoom, skipAutoFit])
 
   useEffect(() => {
     const container = containerRef.current

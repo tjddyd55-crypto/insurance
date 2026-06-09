@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import type { CustomerMapPersistedState } from '../config/customerMap.config'
+import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useAuth } from '../../auth/AuthProvider'
 import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '../api/gaCustomerExcelApi'
@@ -296,6 +297,13 @@ export default function CustomerWorkspaceLayout() {
     navigate('/customers/map', { state: { mapState: customerMapReturnState } })
   }, [navigate, customerMapReturnState])
 
+  const handleClickViewOnMap = useCallback(() => {
+    if (!selectedCustomerId) {
+      return
+    }
+    navigateToCustomerOnMap(navigate, selectedCustomerId)
+  }, [navigate, selectedCustomerId])
+
   const rightPanelProps: CustomerWorkspaceLayoutPCProps = {
     pathname: location.pathname,
     selectedCustomerId,
@@ -319,6 +327,7 @@ export default function CustomerWorkspaceLayout() {
     onClickSignatures: handleClickSignatures,
     showBackToCustomerMap: customerMapReturnState != null,
     onBackToCustomerMap: handleBackToCustomerMap,
+    onClickViewOnMap: handleClickViewOnMap,
     openRelatedCustomerRef,
   }
 

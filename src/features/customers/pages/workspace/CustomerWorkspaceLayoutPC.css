@@ -169,6 +169,27 @@
   background: var(--bg-main, #0b111a);
 }
 
+.workspace-mobile-outlet-modal__header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+  min-width: 0;
+  max-width: 42vw;
+}
+
+.workspace-mobile-outlet-modal__header-actions .button {
+  font-size: 0.6875rem;
+  padding: 4px 8px;
+  min-height: 28px;
+  white-space: nowrap;
+}
+
+.mobile-root .workspace-mobile-outlet-modal__header:has(.workspace-mobile-outlet-modal__header-actions),
+.customers-page--mobile .workspace-mobile-outlet-modal__header:has(.workspace-mobile-outlet-modal__header-actions) {
+  grid-template-columns: minmax(72px, auto) minmax(0, 1fr) 48px;
+}
+
 @media (max-width: 1280px) {
   .customer-workspace-layout__claim-copy-result {
     display: none;

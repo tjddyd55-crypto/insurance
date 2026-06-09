@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import useIsMobile from '../../../hooks/useIsMobile'
 import { useAuth } from '../../auth/AuthProvider'
 import {
@@ -14,10 +14,18 @@ import {
 } from '../api/customerMapApi'
 import {
   CUSTOMER_MAP_DEFAULT_CENTER,
+  CUSTOMER_MAP_FOCUS_ZOOM,
   CUSTOMER_MAP_RENDER_MODE,
   type CustomerMapPersistedState,
 } from '../config/customerMap.config'
 import { openCustomerDetailFromMap } from '../utils/customerMapDetailNavigation'
+import {
+  CUSTOMER_MAP_FOCUS_UNAVAILABLE_MESSAGE,
+  FOCUS_CUSTOMER_ID_QUERY_KEY,
+  FOCUS_ZOOM_QUERY_KEY,
+  parseFocusCustomerId,
+  parseFocusZoom,
+} from '../utils/customerMapFocusNavigation'
 
 const BOUNDS_DEBOUNCE_MS = 400
 const BOUNDS_KEY_PRECISION = 4
@@ -41,6 +49,8 @@ export type CustomerMapViewProps = {
   viewportZoom: number
   selectedCustomerId: number | null
   selectedCustomer: CustomerMapListItem | null
+  focusNotice: string | null
+  skipAutoFit: boolean
   onRadiusChange: (radiusKm: number | null) => void
   onCurrentLocation: () => void
   onOpenCustomerDetail: (customerId: number) => void
@@ -98,8 +108,16 @@ export function useCustomerMapState(): CustomerMapViewProps {
   const { token } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
   const isMobile = useIsMobile()
   const restored = useMemo(() => parseRestoredState(location.state), [location.state])
+  const pendingFocusCustomerIdRef = useRef<number | null>(
+    restored ? null : parseFocusCustomerId(searchParams.get(FOCUS_CUSTOMER_ID_QUERY_KEY)),
+  )
+  const pendingFocusZoomRef = useRef<number | null>(
+    parseFocusZoom(searchParams.get(FOCUS_ZOOM_QUERY_KEY)),
+  )
+  const focusHandledRef = useRef(false)
 
   const [loading, setLoading] = useState(true)
   const [boundsLoading, setBoundsLoading] = useState(false)
@@ -234,6 +252,59 @@ export function useCustomerMapState(): CustomerMapViewProps {
   useEffect(() => {
     void loadCustomers()
   }, [loadCustomers])
+
+  const clearFocusQuery = useCallback(() => {
+    const next = new URLSearchParams(searchParams)
+    if (!next.has(FOCUS_CUSTOMER_ID_QUERY_KEY) && !next.has(FOCUS_ZOOM_QUERY_KEY)) {
+      return
+    }
+    next.delete(FOCUS_CUSTOMER_ID_QUERY_KEY)
+    next.delete(FOCUS_ZOOM_QUERY_KEY)
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  useEffect(() => {
+    const focusId = pendingFocusCustomerIdRef.current
+    if (focusId == null || focusHandledRef.current || restored) {
+      return
+    }
+    if (loading) {
+      return
+    }
+
+    const customer = mapCustomers.find((row) => row.id === focusId)
+    if (!customer) {
+      if (mapCustomers.length === 0 && stats == null) {
+        return
+      }
+      focusHandledRef.current = true
+      pendingFocusCustomerIdRef.current = null
+      setFocusNotice(CUSTOMER_MAP_FOCUS_UNAVAILABLE_MESSAGE)
+      clearFocusQuery()
+      return
+    }
+
+    const zoom = pendingFocusZoomRef.current ?? CUSTOMER_MAP_FOCUS_ZOOM
+    focusHandledRef.current = true
+    pendingFocusCustomerIdRef.current = null
+    pendingFocusZoomRef.current = null
+    pendingSelectedCustomerIdRef.current = null
+    setFocusNotice(null)
+    setSkipAutoFit(true)
+    setUseExplicitCenter(false)
+    setRadiusKm(null)
+    setCenterLat(customer.latitude)
+    setCenterLng(customer.longitude)
+    setViewportCenterLat(customer.latitude)
+    setViewportCenterLng(customer.longitude)
+    setViewportZoom(zoom)
+    setSelectedCustomerId(customer.id)
+    clearFocusQuery()
+  }, [loading, mapCustomers, stats, restored, clearFocusQuery])
+
+  useEffect(() => {
+    setSkipAutoFit(false)
+  }, [favoriteOnly, keyword, radiusKm])
 
   useEffect(() => {
     const pending = pendingSelectedCustomerIdRef.current
@@ -376,6 +447,8 @@ export function useCustomerMapState(): CustomerMapViewProps {
     viewportZoom,
     selectedCustomerId,
     selectedCustomer,
+    focusNotice,
+    skipAutoFit,
     onRadiusChange: (nextRadius) => {
       setRadiusKm(nextRadius)
       if (nextRadius != null && nextRadius > 0) {

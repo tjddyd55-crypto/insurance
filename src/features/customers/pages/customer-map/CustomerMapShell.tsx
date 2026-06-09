@@ -52,6 +52,8 @@ export default function CustomerMapShell({
   viewportZoom,
   selectedCustomerId,
   selectedCustomer,
+  focusNotice,
+  skipAutoFit,
   onRadiusChange,
   onCurrentLocation,
   onOpenCustomerDetail,
@@ -181,6 +183,11 @@ export default function CustomerMapShell({
         </div>
       </div>
 
+      {focusNotice ? (
+        <p className="customers-map-page__focus-notice" role="status">
+          {focusNotice}
+        </p>
+      ) : null}
       {error ? <p className="customers-map-page__error">{error}</p> : null}
       {loading ? <p className="customers-map-page__loading">고객 위치를 불러오는 중…</p> : null}
       {!loading && boundsLoading ? (
@@ -208,6 +215,7 @@ export default function CustomerMapShell({
                     zoom={viewportZoom}
                     selectedCustomerId={selectedCustomerId}
                     autoFitKey={mapAutoFitKey}
+                    skipAutoFit={skipAutoFit}
                     onViewportChange={onViewportChange}
                     onBoundsIdle={onBoundsIdle}
                     onSelectCustomer={onSelectCustomer}
