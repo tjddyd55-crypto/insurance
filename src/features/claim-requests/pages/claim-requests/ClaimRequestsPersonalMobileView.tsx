@@ -2,6 +2,7 @@ import FileUploader from '../../../../components/common/FileUploader'
 import { resolveAbsoluteApiUrl } from '../../../../lib/apiClient'
 import type { LocalAttachmentDraft } from '../../../insurer-news/types'
 import type { AgentCustomerNewsItem, LinkedCustomerItem } from '../../api/claimRequestsApi'
+import { isPersonalMessageSendDisabled } from '../../utils/personalMessageSendState'
 
 type ClaimRequestsPersonalMobileViewProps = {
   /** 고객 호칭 라벨(예: "김동훈 고객님께") — 고객번호 미포함 */
@@ -82,20 +83,14 @@ export default function ClaimRequestsPersonalMobileView({
       : '미선택'
 
   const isEditing = Boolean(editingId)
-  const hasPendingUpload = attachmentDrafts.some(
-    (row) => row.status === 'pending' || row.status === 'uploading',
-  )
-  const hasFailedUpload = attachmentDrafts.some((row) => row.status === 'failed')
-
-  const sendDisabled =
-    !targetCustomerId ||
-    actionBusy ||
-    hasPendingUpload ||
-    (deletingId != null && deletingId !== '') ||
-    (isEditing
-      ? !message.trim()
-      : !message.trim() && attachmentDrafts.length === 0) ||
-    (!isEditing && hasFailedUpload)
+  const sendDisabled = isPersonalMessageSendDisabled({
+    targetCustomerId,
+    message,
+    attachmentCount: attachmentDrafts.length,
+    isEditing,
+    actionBusy,
+    deletingId,
+  })
 
   return (
     <main className="page claim-requests-page claim-requests-page--mobile claim-requests-personal-mobile page--with-back content-wrapper">
