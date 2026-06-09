@@ -4,6 +4,7 @@ export const WORKSPACE_SIDE_DETAIL_TABS = [
   'ga-excel',
   'memos',
   'auto-form',
+  'application-documents',
   'signatures',
   'claim-requests',
 ] as const
@@ -21,6 +22,18 @@ const WORKSPACE_SIDE_DETAIL_PATH_RE = new RegExp(
  */
 export function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
   return WORKSPACE_SIDE_DETAIL_PATH_RE.test(pathname)
+}
+
+/** `/customers/:id/<tab>` 우측 작업영역 path 에서 고객 id 추출 */
+export function parseWorkspaceCustomerIdFromPath(pathname: string): number | null {
+  if (!isCustomerWorkspaceSideDetailPath(pathname)) {
+    return null
+  }
+  const match = pathname.match(/^\/customers\/(\d+)\//)
+  if (!match?.[1]) {
+    return null
+  }
+  return parseSelectedCustomerId(match[1])
 }
 
 /**
