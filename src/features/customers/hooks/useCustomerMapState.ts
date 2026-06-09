@@ -149,6 +149,8 @@ export function useCustomerMapState(): CustomerMapViewProps {
       ? restored.selectedCustomerId
       : null
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(restoredSelectedId)
+  const [focusNotice, setFocusNotice] = useState<string | null>(null)
+  const [skipAutoFit, setSkipAutoFit] = useState(false)
   /** 지도 복귀 시 mapCustomers 로드 전 selectedCustomerId 가 null 로 지워지지 않도록 보관 */
   const pendingSelectedCustomerIdRef = useRef<number | null>(restoredSelectedId)
   const [mapBounds, setMapBounds] = useState<CustomerMapViewportBounds | null>(null)
