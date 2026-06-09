@@ -1,5 +1,6 @@
 import FileUploader from '../../../../components/common/FileUploader'
-import type { CustomerNewsMessageAttachmentDraft } from '../../model/customerNewsMessageAttachmentUpload'
+import { resolveAbsoluteApiUrl } from '../../../../lib/apiClient'
+import type { LocalAttachmentDraft } from '../../../insurer-news/types'
 import type { AgentCustomerNewsItem, LinkedCustomerItem } from '../../api/claimRequestsApi'
 
 type ClaimRequestsPersonalMobileViewProps = {
@@ -8,12 +9,12 @@ type ClaimRequestsPersonalMobileViewProps = {
   targetCustomer?: LinkedCustomerItem | null
   targetCustomerId?: number | null
   message: string
-  draftAttachments?: CustomerNewsMessageAttachmentDraft[]
+  attachmentDrafts: LocalAttachmentDraft[]
   uploadBusyText?: string | null
+  editingHasAttachments?: boolean
   history: AgentCustomerNewsItem[]
   loading?: boolean
   actionBusy?: boolean
-  hasUploadingAttachment?: boolean
   deletingId?: string | null
   editingId?: string | null
   resultMessage?: string
@@ -21,8 +22,8 @@ type ClaimRequestsPersonalMobileViewProps = {
   onMessageChange: (value: string) => void
   onAddAttachments: (files: File[]) => void
   onRemoveAttachment: (localId: string) => void
-  validateFile: (file: File) => string | null
-  onInvalidFiles: (message: string) => void
+  onInvalidAttachment: (message: string) => void
+  validateAttachmentFile: (file: File) => string | null
   onSend: () => void
   onStartEdit: (item: AgentCustomerNewsItem) => void
   onCancelEdit: () => void
@@ -30,10 +31,13 @@ type ClaimRequestsPersonalMobileViewProps = {
   formatDateTime: (iso: string | null) => string
 }
 
-function formatFileSize(bytes: number | undefined): string {
+function formatFileSize(bytes: number | null | undefined): string {
   const n = Number(bytes ?? 0)
   if (!Number.isFinite(n) || n < 1) {
     return ''
+  }
+  if (n < 1024) {
+    return `${n}B`
   }
   if (n < 1024 * 1024) {
     return `${(n / 1024).toFixed(1)}KB`
@@ -41,17 +45,21 @@ function formatFileSize(bytes: number | undefined): string {
   return `${(n / (1024 * 1024)).toFixed(1)}MB`
 }
 
+function attachmentActionLabel(kind: 'image' | 'file'): string {
+  return kind === 'image' ? '열기' : '다운로드'
+}
+
 export default function ClaimRequestsPersonalMobileView({
   targetHeading,
   targetCustomer,
   targetCustomerId,
   message,
-  draftAttachments = [],
+  attachmentDrafts,
   uploadBusyText = null,
+  editingHasAttachments = false,
   history,
   loading = false,
   actionBusy = false,
-  hasUploadingAttachment = false,
   deletingId = null,
   editingId = null,
   resultMessage = '',
@@ -59,8 +67,8 @@ export default function ClaimRequestsPersonalMobileView({
   onMessageChange,
   onAddAttachments,
   onRemoveAttachment,
-  validateFile,
-  onInvalidFiles,
+  onInvalidAttachment,
+  validateAttachmentFile,
   onSend,
   onStartEdit,
   onCancelEdit,
@@ -74,14 +82,20 @@ export default function ClaimRequestsPersonalMobileView({
       : '미선택'
 
   const isEditing = Boolean(editingId)
-  const canSendContent = Boolean(message.trim()) || draftAttachments.length > 0
+  const hasPendingUpload = attachmentDrafts.some(
+    (row) => row.status === 'pending' || row.status === 'uploading',
+  )
+  const hasFailedUpload = attachmentDrafts.some((row) => row.status === 'failed')
+
   const sendDisabled =
     !targetCustomerId ||
-    (!isEditing && !canSendContent) ||
-    (isEditing && !message.trim()) ||
     actionBusy ||
-    hasUploadingAttachment ||
-    (deletingId != null && deletingId !== '')
+    hasPendingUpload ||
+    (deletingId != null && deletingId !== '') ||
+    (isEditing
+      ? !message.trim()
+      : !message.trim() && attachmentDrafts.length === 0) ||
+    (!isEditing && hasFailedUpload)
 
   return (
     <main className="page claim-requests-page claim-requests-page--mobile claim-requests-personal-mobile page--with-back content-wrapper">
@@ -141,6 +155,11 @@ export default function ClaimRequestsPersonalMobileView({
             </button>
           </div>
         </div>
+        {isEditing && editingHasAttachments ? (
+          <p className="claim-requests-personal-mobile__edit-attachment-note">
+            첨부가 있는 메시지는 본문만 수정할 수 있습니다.
+          </p>
+        ) : null}
         <textarea
           className="claim-requests-personal-mobile__textarea"
           value={message}
@@ -148,44 +167,58 @@ export default function ClaimRequestsPersonalMobileView({
           placeholder="고객에게 전달할 개인메시지를 입력해 주세요."
           maxLength={2000}
           rows={5}
+          disabled={actionBusy}
         />
         {!isEditing ? (
-          <div className="claim-requests-personal-mobile__attachments-compose">
+          <>
             <FileUploader
-              accept="image/jpeg,image/png,.pdf,.xls,.xlsx,.csv"
-              validateFile={validateFile}
+              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.hwp,.hwpx"
+              validateFile={validateAttachmentFile}
               onFiles={onAddAttachments}
-              onInvalidBatch={(failures) => onInvalidFiles(failures[0]?.message ?? '첨부할 수 없는 파일이 있습니다.')}
+              onInvalidBatch={(failures) =>
+                onInvalidAttachment(failures[0]?.message ?? '첨부할 수 없는 파일이 있습니다.')
+              }
               multiple
               compact
               disabled={actionBusy}
               statusText={uploadBusyText ?? undefined}
               primaryHint="파일 첨부"
-              hintLines={['JPG, PNG, PDF, XLS, XLSX, CSV (25MB)']}
+              hintLines={['사진, PDF, 문서 파일을 첨부할 수 있습니다.']}
             />
-            {draftAttachments.length > 0 ? (
-              <ul className="claim-requests-personal-mobile__draft-files">
-                {draftAttachments.map((attachment) => (
-                  <li key={attachment.localId} className="claim-requests-personal-mobile__draft-file">
-                    <span className="claim-requests-personal-mobile__draft-file-name">{attachment.file.name}</span>
-                    <span className="claim-requests-personal-mobile__draft-file-meta">
-                      {formatFileSize(attachment.sizeBytes ?? attachment.file.size)}
-                      {attachment.status === 'failed' ? ' · 업로드 실패' : null}
-                      {attachment.status === 'uploading' ? ' · 업로드 중…' : null}
-                    </span>
-                    <button
-                      type="button"
-                      className="claim-requests-personal-mobile__draft-file-remove"
-                      onClick={() => onRemoveAttachment(attachment.localId)}
-                      disabled={actionBusy}
-                    >
-                      제거
-                    </button>
-                  </li>
-                ))}
+            {attachmentDrafts.length > 0 ? (
+              <ul className="claim-requests-personal-mobile__draft-files" aria-label="선택한 첨부파일">
+                {attachmentDrafts.map((attachment) => {
+                  const sizeLabel = formatFileSize(attachment.sizeBytes ?? attachment.file.size)
+                  return (
+                    <li key={attachment.localId} className="claim-requests-personal-mobile__draft-file">
+                      <div className="claim-requests-personal-mobile__draft-file-main">
+                        <span className="claim-requests-personal-mobile__draft-file-name">{attachment.file.name}</span>
+                        {sizeLabel ? (
+                          <span className="claim-requests-personal-mobile__draft-file-size">{sizeLabel}</span>
+                        ) : null}
+                      </div>
+                      {attachment.status === 'uploading' ? (
+                        <span className="claim-requests-personal-mobile__draft-file-status">업로드 중…</span>
+                      ) : null}
+                      {attachment.status === 'failed' ? (
+                        <span className="claim-requests-personal-mobile__draft-file-status claim-requests-personal-mobile__draft-file-status--err">
+                          {attachment.errorMessage ?? '업로드 실패'}
+                        </span>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="claim-requests-personal-mobile__draft-file-remove"
+                        onClick={() => onRemoveAttachment(attachment.localId)}
+                        disabled={actionBusy}
+                      >
+                        제거
+                      </button>
+                    </li>
+                  )
+                })}
               </ul>
             ) : null}
-          </div>
+          </>
         ) : null}
       </section>
 
@@ -207,6 +240,8 @@ export default function ClaimRequestsPersonalMobileView({
             {history.map((item) => {
               const isDeleting = deletingId === item.id
               const attachments = item.attachments ?? []
+              const hasAttachments = attachments.length > 0
+              const isEditingThis = editingId === item.id
               return (
                 <article key={item.id} className="claim-requests-personal-mobile__history-item">
                   <div className="claim-requests-personal-mobile__history-header">
@@ -235,24 +270,43 @@ export default function ClaimRequestsPersonalMobileView({
                     </div>
                   </div>
                   <div className="claim-requests-personal-mobile__history-content">
-                    {item.content || (attachments.length > 0 ? '첨부파일 메시지' : '')}
+                    {item.content?.trim() ? item.content : '내용 없이 첨부파일만 보낸 메시지입니다.'}
                   </div>
-                  {attachments.length > 0 ? (
-                    <ul className="claim-requests-personal-mobile__history-attachments">
-                      {attachments.map((file) => (
-                        <li key={file.id}>
-                          <a
-                            className="claim-requests-personal-mobile__history-attachment-link"
-                            href={file.url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {file.fileName || '첨부파일'}
-                            {file.size ? ` (${formatFileSize(file.size)})` : ''}
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
+                  {hasAttachments ? (
+                    <div className="claim-requests-personal-mobile__attachments">
+                      <div className="claim-requests-personal-mobile__attachments-summary">
+                        첨부 {attachments.length}개
+                        {isEditingThis ? ' · 수정 시 첨부는 유지되고 본문만 바뀝니다.' : null}
+                      </div>
+                      <ul className="claim-requests-personal-mobile__attachment-list">
+                        {attachments.map((file) => {
+                          const href = resolveAbsoluteApiUrl(String(file.url ?? '').trim())
+                          const sizeLabel = formatFileSize(file.size)
+                          return (
+                            <li key={file.id} className="claim-requests-personal-mobile__attachment-item">
+                              <div className="claim-requests-personal-mobile__attachment-meta">
+                                <span className="claim-requests-personal-mobile__attachment-name">
+                                  {file.fileName || '첨부파일'}
+                                </span>
+                                {sizeLabel ? (
+                                  <span className="claim-requests-personal-mobile__attachment-size">{sizeLabel}</span>
+                                ) : null}
+                              </div>
+                              {href ? (
+                                <a
+                                  className="claim-requests-personal-mobile__attachment-action"
+                                  href={href}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                >
+                                  {attachmentActionLabel(file.kind)}
+                                </a>
+                              ) : null}
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
                   ) : null}
                 </article>
               )

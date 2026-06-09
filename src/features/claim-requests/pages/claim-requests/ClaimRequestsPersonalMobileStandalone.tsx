@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
-import FileUploader from '../../../../components/common/FileUploader'
 import { useConfirmDialog } from '../../../../components/dialog'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useInsurerNewsForm } from '../../../insurer-news/hooks/useInsurerNewsForm'
+import { validateInsurerNewsFile } from '../../../insurer-news/utils/validateInsurerNewsFile'
 import {
   createCustomerNews,
   deleteCustomerNews,
@@ -15,7 +15,6 @@ import {
 } from '../../api/claimRequestsApi'
 import {
   uploadCustomerNewsMessageAttachments,
-  validateCustomerNewsMessageFileForUpload,
   type CustomerNewsMessageAttachmentDraft,
 } from '../../model/customerNewsMessageAttachmentUpload'
 import { salutationHonorific } from '../../utils/personalMessageLabels'
@@ -50,6 +49,8 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     return parsePositiveInt(customerIdParam ?? null)
   }, [customerIdParam, searchParams])
 
+  const form = useInsurerNewsForm(null)
+
   const [linkedCustomers, setLinkedCustomers] = useState<LinkedCustomerItem[]>([])
   const [resolvedCustomerName, setResolvedCustomerName] = useState('')
   const [history, setHistory] = useState<AgentCustomerNewsItem[]>([])
@@ -60,7 +61,6 @@ export default function ClaimRequestsPersonalMobileStandalone() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [result, setResult] = useState('')
-  const form = useInsurerNewsForm(null)
 
   const targetCustomer = useMemo(
     () => linkedCustomers.find((item) => item.customerId === activeCustomerId) ?? null,
@@ -71,6 +71,16 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     () => salutationHonorific(resolvedCustomerName || targetCustomer?.customerName),
     [resolvedCustomerName, targetCustomer],
   )
+
+  const editingMessage = useMemo(
+    () => history.find((item) => item.id === editingId) ?? null,
+    [editingId, history],
+  )
+
+  const validateNewsletterFile = useCallback((file: File): string | null => {
+    const validated = validateInsurerNewsFile(file)
+    return validated.ok ? null : validated.message
+  }, [])
 
   const loadLinkedCustomers = useCallback(async () => {
     if (!token) {
@@ -123,7 +133,8 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     setError('')
     setDeletingId(null)
     setEditingId(null)
-  }, [activeCustomerId, form.replaceAttachments, form.setBodyText])
+    setUploadBusyText(null)
+  }, [activeCustomerId])
 
   useEffect(() => {
     const fromLink = targetCustomer?.customerName?.trim()
@@ -131,10 +142,6 @@ export default function ClaimRequestsPersonalMobileStandalone() {
       setResolvedCustomerName(fromLink)
     }
   }, [targetCustomer])
-
-  const validateFile = useCallback((file: File): string | null => {
-    return validateCustomerNewsMessageFileForUpload(file)
-  }, [])
 
   const handleSendOrSave = async () => {
     if (!token) {
@@ -163,9 +170,10 @@ export default function ClaimRequestsPersonalMobileStandalone() {
         setResult('개인메시지를 저장했습니다.')
         setEditingId(null)
         form.setBodyText('')
+        form.replaceAttachments([])
         await loadHistory()
-      } catch (sendError) {
-        setError(sendError instanceof Error ? sendError.message : '처리에 실패했습니다.')
+      } catch (saveError) {
+        setError(saveError instanceof Error ? saveError.message : '처리에 실패했습니다.')
       } finally {
         setActionBusy(false)
       }
@@ -173,14 +181,14 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     }
 
     if (!form.bodyText.trim() && form.attachments.length === 0) {
-      setError('개인메시지 내용 또는 첨부파일을 추가해 주세요.')
+      setError('메시지 내용 또는 첨부파일을 추가해 주세요.')
       return
     }
 
     setActionBusy(true)
     setError('')
     setResult('')
-    setUploadBusyText(form.attachments.length > 0 ? '파일 업로드 중…' : null)
+    setUploadBusyText(form.attachments.length > 0 ? '파일 업로드 중...' : null)
     try {
       const uploaded = await uploadCustomerNewsMessageAttachments(
         token,
@@ -205,7 +213,7 @@ export default function ClaimRequestsPersonalMobileStandalone() {
           size: row.sizeBytes ?? row.file.size,
           sortOrder: index,
         }))
-      setUploadBusyText('개인메시지 발송 중…')
+      setUploadBusyText('개인메시지 발송 중...')
       await createCustomerNews(token, {
         title: honorific,
         content: form.bodyText.trim(),
@@ -274,23 +282,25 @@ export default function ClaimRequestsPersonalMobileStandalone() {
     }
   }
 
-  const hasUploadingAttachment = form.attachments.some(
-    (row) => 'status' in row && row.status === 'uploading',
-  )
+  const handleInvalidAttachment = useCallback((message: string) => {
+    setError(message || '첨부할 수 없는 파일이 있습니다.')
+  }, [])
+
+  const targetHeading = honorific
 
   return (
     <>
       <ClaimRequestsPersonalMobileView
-        targetHeading={honorific}
+        targetHeading={targetHeading}
         targetCustomer={targetCustomer}
         targetCustomerId={activeCustomerId}
         message={form.bodyText}
-        draftAttachments={form.attachments as CustomerNewsMessageAttachmentDraft[]}
+        attachmentDrafts={form.attachments}
         uploadBusyText={uploadBusyText}
+        editingHasAttachments={(editingMessage?.attachments?.length ?? 0) > 0}
         history={history}
         loading={loading}
         actionBusy={actionBusy}
-        hasUploadingAttachment={hasUploadingAttachment}
         deletingId={deletingId}
         editingId={editingId}
         resultMessage={result}
@@ -298,8 +308,8 @@ export default function ClaimRequestsPersonalMobileStandalone() {
         onMessageChange={form.setBodyText}
         onAddAttachments={form.addAttachments}
         onRemoveAttachment={form.removeAttachment}
-        validateFile={validateFile}
-        onInvalidFiles={(message) => setError(message)}
+        onInvalidAttachment={handleInvalidAttachment}
+        validateAttachmentFile={validateNewsletterFile}
         onSend={() => void handleSendOrSave()}
         onStartEdit={(item) => handleStartEdit(item)}
         onCancelEdit={handleCancelEdit}

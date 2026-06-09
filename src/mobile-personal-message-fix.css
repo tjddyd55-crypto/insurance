@@ -75,8 +75,7 @@
   }
 
   .claim-requests-personal-mobile__target-meta,
-  .claim-requests-personal-mobile__history-date,
-  .claim-requests-personal-mobile__attachments {
+  .claim-requests-personal-mobile__history-date {
     margin-top: 4px !important;
     font-size: 0.78rem !important;
     line-height: 1.35 !important;
@@ -169,7 +168,14 @@
     overflow-wrap: anywhere !important;
   }
 
-  .claim-requests-personal-mobile__attachments-compose {
+  .claim-requests-personal-mobile__edit-attachment-note {
+    margin: 0 0 8px !important;
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+    color: #94a3b8 !important;
+  }
+
+  .claim-requests-personal-mobile__compose-card .file-uploader {
     margin-top: 10px !important;
   }
 
@@ -193,19 +199,33 @@
     border: 1px solid #334155 !important;
   }
 
-  .claim-requests-personal-mobile__draft-file-name {
+  .claim-requests-personal-mobile__draft-file-main {
     flex: 1 1 auto !important;
     min-width: 0 !important;
-    font-size: 0.82rem !important;
-    color: #e5e7eb !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
   }
 
-  .claim-requests-personal-mobile__draft-file-meta {
+  .claim-requests-personal-mobile__draft-file-name {
+    font-size: 0.82rem !important;
+    color: #f8fafc !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .claim-requests-personal-mobile__draft-file-size,
+  .claim-requests-personal-mobile__attachment-size {
     font-size: 0.75rem !important;
     color: #94a3b8 !important;
+  }
+
+  .claim-requests-personal-mobile__draft-file-status {
+    font-size: 0.75rem !important;
+    color: #94a3b8 !important;
+  }
+
+  .claim-requests-personal-mobile__draft-file-status--err {
+    color: #f87171 !important;
   }
 
   .claim-requests-personal-mobile__draft-file-remove {
@@ -217,19 +237,64 @@
     color: #e5e7eb !important;
   }
 
-  .claim-requests-personal-mobile__history-attachments {
+  .claim-requests-personal-mobile__attachments {
+    margin-top: 6px !important;
+  }
+
+  .claim-requests-personal-mobile__attachments-summary {
+    font-size: 0.78rem !important;
+    line-height: 1.35 !important;
+    color: #94a3b8 !important;
+  }
+
+  .claim-requests-personal-mobile__attachment-list {
     list-style: none !important;
-    margin: 8px 0 0 !important;
+    margin: 6px 0 0 !important;
     padding: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    gap: 4px !important;
+    gap: 6px !important;
   }
 
-  .claim-requests-personal-mobile__history-attachment-link {
-    font-size: 0.78rem !important;
-    color: #60a5fa !important;
-    text-decoration: none !important;
+  .claim-requests-personal-mobile__attachment-item {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    padding: 8px 10px !important;
+    border-radius: 8px !important;
+    border: 1px solid #334155 !important;
+    background: #0f172a !important;
+  }
+
+  .claim-requests-personal-mobile__attachment-meta {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+  }
+
+  .claim-requests-personal-mobile__attachment-name {
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+    color: #e5e7eb !important;
     overflow-wrap: anywhere !important;
+  }
+
+  .claim-requests-personal-mobile__attachment-action {
+    flex: 0 0 auto !important;
+    min-height: 32px !important;
+    padding: 0 10px !important;
+    border-radius: 8px !important;
+    border: 1px solid #2563eb !important;
+    background: #2563eb !important;
+    color: #ffffff !important;
+    font-size: 0.76rem !important;
+    font-weight: 800 !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 }
