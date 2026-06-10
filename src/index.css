@@ -3409,6 +3409,13 @@ button.filter-button:focus-visible {
   color: var(--text-primary);
 }
 
+.customers-page__result-limit-notice {
+  margin: -4px 0 12px;
+  font-size: 0.8125rem;
+  color: #fbbf24;
+  line-height: 1.45;
+}
+
 .customers-today-targets {
   margin-bottom: 12px;
   padding: 12px 14px;

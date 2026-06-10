@@ -111,6 +111,9 @@ export type CustomersPageProps = {
   >
 }
 
+/** GET /api/customers 서버 허용 상한(2000)과 동일. 고객 수가 이를 넘으면 pagination/서버 검색으로 전환 예정. */
+const CUSTOMER_LIST_FETCH_LIMIT = 2000
+
 export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageProps = {}) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -514,7 +517,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     }
     setIsLoading(true)
     try {
-      const listOpts: Parameters<typeof listCustomers>[1] = {}
+      const listOpts: Parameters<typeof listCustomers>[1] = { limit: CUSTOMER_LIST_FETCH_LIMIT }
       if (appliedConsultationFilter === 'none' || appliedConsultationFilter === 'has') {
         listOpts.consultationStatus = appliedConsultationFilter
       } else if (appliedConsultationFilter === 'no_since') {
@@ -1490,6 +1493,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     </header>
   )
 
+  const listLoadTruncated = !isLoading && customersTotalCount > customers.length
+
   const listBodyNode = (
     <section className="list-section" style={{ marginTop: 0 }}>
       {showFilters ? (
@@ -1525,12 +1530,19 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       ) : null}
 
       {!isLoading && customers.length > 0 ? (
-        <p className="customers-filter-result customers-page__result-count" role="status" aria-live="polite">
-          검색·필터 결과:{' '}
-          <span className="customers-page__result-count-strong">
-            <strong>{listIsNarrowed ? sortedCustomers.length : customersTotalCount}</strong>명
-          </span>
-        </p>
+        <>
+          <p className="customers-filter-result customers-page__result-count" role="status" aria-live="polite">
+            검색·필터 결과:{' '}
+            <span className="customers-page__result-count-strong">
+              <strong>{listIsNarrowed ? sortedCustomers.length : customersTotalCount}</strong>명
+            </span>
+          </p>
+          {listLoadTruncated ? (
+            <p className="customers-page__result-limit-notice" role="status">
+              전체 {customersTotalCount}명 중 {customers.length}명 표시 중입니다. 검색어를 입력해 좁혀 주세요.
+            </p>
+          ) : null}
+        </>
       ) : null}
 
       {isLoading ? (
