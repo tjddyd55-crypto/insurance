@@ -15,22 +15,18 @@
   color: #f8fafc;
 }
 
-.customers-map-page__notice {
-  margin: 4px 0 0;
-  font-size: 0.8125rem;
+.customers-map-page__header-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.customers-map-page__summary {
+  margin: 0;
+  font-size: 0.875rem;
   color: #cbd5e1;
-}
-
-.customers-map-page__limit-notice {
-  margin: 4px 0 0;
-  font-size: 0.8125rem;
-  color: #fbbf24;
-}
-
-.customers-map-page__stats {
-  margin: 4px 0 0;
-  font-size: 0.8125rem;
-  color: #94a3b8;
   line-height: 1.45;
 }
 
@@ -133,6 +129,14 @@
 
 .customers-map-page--pc .customers-map-page__map-wrap {
   min-height: calc(100vh - 220px);
+}
+
+.customers-map-page--pc.customers-map-page--unmapped-open .customers-map-page__map-wrap {
+  min-height: 360px;
+}
+
+.customers-map-page--mobile.customers-map-page--unmapped-open .customers-map-page__map-wrap {
+  min-height: 280px;
 }
 
 .customer-map-canvas {
@@ -409,30 +413,37 @@
   gap: 6px;
 }
 
-.customers-map-page__unmapped-toggle {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.customers-map-page__unmapped-summary {
-  font-size: 0.8125rem;
-  color: #cbd5e1;
-}
-
 .customers-map-page__unmapped-panel {
+  flex: 0 0 auto;
   padding: 12px;
   border: 1px solid #1e293b;
   border-radius: 12px;
   background: #111827;
 }
 
+.customers-map-page__unmapped-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
 .customers-map-page__unmapped-title {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 0.9375rem;
   color: #f8fafc;
+}
+
+.customers-map-page__unmapped-desc {
+  margin: 4px 0 0;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+.customers-map-page__unmapped-close {
+  flex-shrink: 0;
 }
 
 .customer-map-unmapped-list__empty {
@@ -484,6 +495,14 @@
   font-size: 0.8125rem;
   color: #cbd5e1;
   line-height: 1.45;
+  word-break: break-word;
+}
+
+.customer-map-unmapped-list__address {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .customer-map-unmapped-list__detail-btn {

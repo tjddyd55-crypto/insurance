@@ -12,27 +12,11 @@ import {
   CUSTOMER_MAP_MAX_RADIUS_KM,
   CUSTOMER_MAP_RADIUS_OPTIONS_KM,
 } from '../../config/customerMap.config'
-import type { CustomerMapStats } from '../../api/customerMapApi'
 import type { CustomerMapViewProps } from '../../hooks/useCustomerMapState'
 import './customer-map-page.css'
 
 type CustomerMapShellProps = CustomerMapViewProps & {
   variant: 'pc' | 'mobile'
-}
-
-function formatCustomerMapStats(stats: CustomerMapStats): string {
-  const visible = stats.visibleInBounds ?? stats.displayedOnMap
-  const parts = [
-    `전체 ${stats.totalCustomers}명`,
-    `좌표 완료 ${stats.geocodedSuccess}명`,
-    `현재 화면 ${visible}명 중 ${stats.displayedOnMap}명 표시`,
-    `주소 없음 ${stats.withoutAddress}명`,
-    `실패 ${stats.geocodeFailed}명`,
-  ]
-  if (stats.geocodePending > 0) {
-    parts.splice(3, 0, `변환 대기 ${stats.geocodePending}명`)
-  }
-  return parts.join(' · ')
 }
 
 export default function CustomerMapShell({
@@ -73,7 +57,17 @@ export default function CustomerMapShell({
   const { token } = useAuth()
   const modifier = variant === 'pc' ? 'customers-map-page--pc' : 'customers-map-page--mobile'
   const hasMarkers = mapCustomers.length > 0
+  const mappedCount = stats?.mappedCount ?? stats?.geocodedSuccess ?? 0
   const unmappedCount = stats?.unmappedCount ?? unmappedCustomers.length
+  const pageClassName = [
+    'page',
+    'customers-map-page',
+    modifier,
+    'page--with-back',
+    showUnmappedList ? 'customers-map-page--unmapped-open' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
   const [mapInitFailed, setMapInitFailed] = useState(false)
   const [radiusInput, setRadiusInput] = useState(radiusKm == null ? '' : String(radiusKm))
 
@@ -114,29 +108,17 @@ export default function CustomerMapShell({
   )
 
   return (
-    <main className={`page customers-map-page ${modifier} page--with-back`}>
+    <main className={pageClassName}>
       <header className="customers-map-page__header">
         <h1 className="customers-map-page__title">고객 지도</h1>
-        <p className="customers-map-page__notice">
-          좌표 변환이 완료된 고객만 지도에 표시됩니다.
-        </p>
         {stats ? (
-          <p className="customers-map-page__stats">{formatCustomerMapStats(stats)}</p>
-        ) : null}
-        {stats && stats.hiddenByLimit > 0 ? (
-          <p className="customers-map-page__limit-notice" role="status">
-            현재 화면에 고객이 많아 {stats.displayedOnMap}명만 표시 중입니다. (
-            {stats.hiddenByLimit}명 숨김) 지도를 확대해 주세요.
-          </p>
-        ) : null}
-        {unmappedCount > 0 ? (
-          <div className="customers-map-page__unmapped-toggle">
-            <span className="customers-map-page__unmapped-summary">
-              지도 표시 고객 {stats?.mappedCount ?? stats?.geocodedSuccess ?? 0}명 · 지도 미표시{' '}
-              {unmappedCount}명
-            </span>
+          <div className="customers-map-page__header-summary">
+            <p className="customers-map-page__summary">
+              지도 표시 고객 {mappedCount}명 · 지도 미표시 {unmappedCount}명
+            </p>
             <FormButton
               htmlType="button"
+              type="button"
               variant={showUnmappedList ? 'primary' : 'secondary'}
               onClick={onToggleUnmappedList}
             >
@@ -217,6 +199,32 @@ export default function CustomerMapShell({
         <p className="customers-map-page__loading customers-map-page__bounds-loading" role="status">
           현재 화면 고객을 불러오는 중…
         </p>
+      ) : null}
+
+      {showUnmappedList ? (
+        <section className="customers-map-page__unmapped-panel" aria-label="지도 미표시 고객">
+          <div className="customers-map-page__unmapped-panel-head">
+            <div>
+              <h2 className="customers-map-page__unmapped-title">지도 미표시 고객</h2>
+              <p className="customers-map-page__unmapped-desc">
+                주소가 없거나 좌표 변환이 완료되지 않아 지도에 표시되지 않는 고객입니다.
+              </p>
+            </div>
+            <FormButton
+              htmlType="button"
+              type="button"
+              variant="secondary"
+              className="customers-map-page__unmapped-close"
+              onClick={onToggleUnmappedList}
+            >
+              닫기
+            </FormButton>
+          </div>
+          <CustomerMapUnmappedList
+            customers={unmappedCustomers}
+            onOpenDetail={onOpenCustomerDetail}
+          />
+        </section>
       ) : null}
 
       <div className="customers-map-page__map-wrap">
@@ -308,18 +316,6 @@ export default function CustomerMapShell({
           }}
         </MapProviderLoader>
       </div>
-
-      {showUnmappedList ? (
-        <section className="customers-map-page__unmapped-panel" aria-label="지도 미표시 고객">
-          <h2 className="customers-map-page__unmapped-title">
-            지도 미표시 고객 {unmappedCustomers.length}명
-          </h2>
-          <CustomerMapUnmappedList
-            customers={unmappedCustomers}
-            onOpenDetail={onOpenCustomerDetail}
-          />
-        </section>
-      ) : null}
     </main>
   )
 }

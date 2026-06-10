@@ -19,7 +19,7 @@ export default function CustomerMapUnmappedList({
   if (customers.length === 0) {
     return (
       <p className="customer-map-unmapped-list__empty" role="status">
-        지도에 표시되지 않는 고객이 없습니다.
+        지도 미표시 고객이 없습니다.
       </p>
     )
   }
