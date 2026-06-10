@@ -86,10 +86,14 @@ async function main() {
   loadEnvFileIfPresent(path.join(projectRoot, 'server'), '.env.local')
 
   const args = parseArgs(process.argv)
+  const allowProductionExecute =
+    process.env.INSURANCE_ALLOW_PRODUCTION_GEOCODE_BACKFILL === 'I_UNDERSTAND'
+
   assertSafeForMutatingScript({
     connectionString: process.env.DATABASE_URL,
     execute: args.execute,
     scriptName: 'customer-geocode-backfill',
+    allowProductionExecute,
   })
 
   console.log('[customer-geocode-backfill] options:', {
