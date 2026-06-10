@@ -126,6 +126,7 @@ export type CustomerListCardProps = {
   onOpenPersonalMessage: (customerId: number) => void
   onOpenClaims: (customerId: number) => void
   onOpenMemos: (customerId: number) => void
+  onOpenOnMap: (customerId: number) => void
   /** 모바일 카드 상단 복사 피드백(부모 `CustomersPage` 상태) */
   mobileCopyFeedback: { customerId: number; message: string } | null
   onOpenRelatedCustomer: (customerId: number, customerName?: string) => void
@@ -174,6 +175,7 @@ const CustomerListCard = memo(function CustomerListCard({
   onOpenPersonalMessage,
   onOpenClaims,
   onOpenMemos,
+  onOpenOnMap,
   mobileCopyFeedback,
   onOpenRelatedCustomer,
   token,
@@ -435,6 +437,7 @@ const CustomerListCard = memo(function CustomerListCard({
                   onOpenPersonalMessage={onOpenPersonalMessage}
                   onOpenClaims={onOpenClaims}
                   onOpenMemos={onOpenMemos}
+                  onOpenOnMap={onOpenOnMap}
                   onCopyCustomerInfo={() => void onCopyCustomer(c)}
                 />
                 {mobileCopyFeedback?.customerId === c.id ? (
@@ -513,6 +516,17 @@ const CustomerListCard = memo(function CustomerListCard({
                       </>
                     ) : !isMobile ? (
                       <>
+                        <FormButton
+                          htmlType="button"
+                          variant="secondary"
+                          size="sm"
+                          className="customer-detail-action-button"
+                          title="고객 위치를 지도에서 보기"
+                          aria-label="지도에서 보기"
+                          onClick={() => onOpenOnMap(c.id)}
+                        >
+                          지도에서 보기
+                        </FormButton>
                         <FormButton
                           htmlType="button"
                           variant="secondary"

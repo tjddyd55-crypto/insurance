@@ -20,7 +20,7 @@ import { copyTextToClipboard } from '../../../lib/clipboard'
 import { useAuth } from '../../auth/AuthProvider'
 import { isCarInsuranceFeatureEnabledForGa } from '../../dashboard/gaTenantMenu'
 import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
-import { deleteCustomer, listCustomers, updateCustomer } from '../api/customersApi'
+import { deleteCustomer, getCustomerById, listCustomers, updateCustomer } from '../api/customersApi'
 import { listCustomerCars } from '../api/customerCarsApi'
 import type { CustomerRecord } from '../domain/types'
 import {
@@ -87,6 +87,7 @@ import {
 } from '../utils/customerCarsSaveUtils'
 import {
   isCustomerWorkspaceSideDetailPath,
+  parseWorkspaceCustomerIdFromPath,
   resolveCustomerWorkspaceTab,
   parseSelectedCustomerId,
 } from '../utils/customerWorkspaceNavigation'
@@ -101,6 +102,8 @@ import {
   buildCustomerWorkspacePath,
   buildCustomerListPath,
 } from '../utils/customerRoutePaths'
+import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
+import type { CustomerMapDetailNavigationState } from '../utils/customerMapDetailNavigation'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
 
@@ -151,6 +154,20 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     [searchParams],
   )
   /**
+   * 좌측 리스트가 따라가야 하는 고객 id.
+   * 우측 작업영역 path(`/customers/:id/<tab>`) 우선, 목록 전용 path 에서는 query fallback.
+   */
+  const activeListCustomerId = useMemo(() => {
+    const fromPath = parseWorkspaceCustomerIdFromPath(location.pathname)
+    if (fromPath != null) {
+      return fromPath
+    }
+    if (location.pathname === CUSTOMER_LIST_PATH || location.pathname === `${CUSTOMER_LIST_PATH}/`) {
+      return selectedCustomerIdFromQuery
+    }
+    return null
+  }, [location.pathname, selectedCustomerIdFromQuery])
+  /**
    * `CustomersPage` 는 좌측 목록(카드 펼침)과 `?customerId=` 쿼리만 관리한다.
    * 선택된 고객 id 의 단일 진실 원천은 URL path 이며, 그 값의 소비는
    * `CustomerWorkspaceLayout` 이 path → query 순서로 파생한다
@@ -174,6 +191,9 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const observerRef = useRef<ResizeObserver | null>(null)
   const scrollCountRef = useRef(0)
   const expandedIdRef = useRef<number | null>(null)
+  const pendingMapExpandIdRef = useRef<number | null>(null)
+  const pinnedListCustomerIdRef = useRef<number | null>(null)
+  const [pinnedWorkspaceCustomer, setPinnedWorkspaceCustomer] = useState<CustomerRecord | null>(null)
   const editingIdRef = useRef<number | null>(null)
   const editFormRef = useRef<CustomerEditFormState | null>(null)
   expandedIdRef.current = expandedId
@@ -438,10 +458,25 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     return copy
   }, [filteredCustomers, sortType, appliedListSort])
 
-  const listCustomersToRender = useMemo(
-    () => dedupeCustomersById(sortedCustomers),
-    [sortedCustomers],
-  )
+  /** 상세 화면 고객이 검색·필터에 걸려 숨겨지지 않도록 목록 상단에 고정 */
+  const listCustomersToRender = useMemo(() => {
+    const base = dedupeCustomersById(sortedCustomers)
+    const pinId = activeListCustomerId
+    if (pinId == null) {
+      return base
+    }
+    if (base.some((c) => c.id === pinId)) {
+      return base
+    }
+    const pinned =
+      pinnedWorkspaceCustomer?.id === pinId
+        ? pinnedWorkspaceCustomer
+        : customers.find((c) => c.id === pinId)
+    if (!pinned) {
+      return base
+    }
+    return dedupeCustomersById([pinned, ...base])
+  }, [activeListCustomerId, sortedCustomers, pinnedWorkspaceCustomer, customers])
 
   const visibleListCount = useMemo(
     () => listCustomersToRender.length,
@@ -663,23 +698,121 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     return () => window.removeEventListener(CUSTOMERS_LIST_REFRESH_EVENT, handler)
   }, [loadCustomers])
 
-  /**
-   * 카드 펼침(expandedId) 은 요약 클릭 이벤트로만 바꾼다.
-   * `?customerId=` 는 우측 패널(CustomerFiles/Memos 등) 이 유지할 수 있으므로
-   * 쿼리 변화에 반응해 펼침을 강제하지 않는다 (routing-ssot.mdc §11).
-   * 펼침 후 스크롤 보정은 `useCustomerExpandedCardScroll` (scrollRequestKey 연동).
-   */
+  /** 고객 지도 → 상세: 필터 초기화만. 펼침은 activeListCustomerId 동기화 effect 가 담당한다. */
+  useEffect(() => {
+    const st = location.state as CustomerMapDetailNavigationState | null
+    if (st?.from !== 'customer-map') {
+      return
+    }
+    const id = Number(st.expandCustomerId)
+    if (!Number.isInteger(id) || id <= 0) {
+      return
+    }
+    setSearchInput('')
+    setDeepSearch(false)
+    setFavoriteOnly(false)
+    setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })
+    setAdvSearchHits(null)
+  }, [location.state])
+
+  /** URL path/query 의 고객 id → 좌측 리스트 expandedId 동기화 */
+  useEffect(() => {
+    if (activeListCustomerId == null) {
+      pinnedListCustomerIdRef.current = null
+      setPinnedWorkspaceCustomer(null)
+      return
+    }
+
+    pinnedListCustomerIdRef.current = activeListCustomerId
+    pendingMapExpandIdRef.current = activeListCustomerId
+
+    if (expandedIdRef.current !== activeListCustomerId) {
+      rawSetExpandedId(activeListCustomerId)
+      setScrollRequestKey((prev) => prev + 1)
+    }
+  }, [activeListCustomerId])
+
+  useEffect(() => {
+    const pendingId = pendingMapExpandIdRef.current ?? activeListCustomerId
+    if (pendingId == null || !token || user?.role !== 'USER') {
+      return
+    }
+
+    const inMainList = customers.some((c) => c.id === pendingId)
+    const inAdvHits = advSearchHits?.some((c) => c.id === pendingId) ?? false
+    if (inMainList) {
+      pendingMapExpandIdRef.current = null
+      const row = customers.find((c) => c.id === pendingId)
+      if (row) {
+        setPinnedWorkspaceCustomer(row)
+      }
+      return
+    }
+    if (inAdvHits) {
+      pendingMapExpandIdRef.current = null
+      const row = advSearchHits?.find((c) => c.id === pendingId)
+      if (row) {
+        setPinnedWorkspaceCustomer(row)
+      }
+      return
+    }
+
+    let cancelled = false
+    void getCustomerById(token, pendingId)
+      .then((row) => {
+        if (cancelled) {
+          return
+        }
+        if (!row) {
+          pendingMapExpandIdRef.current = null
+          if (
+            expandedIdRef.current === pendingId &&
+            pinnedListCustomerIdRef.current !== pendingId
+          ) {
+            rawSetExpandedId(null)
+          }
+          return
+        }
+        setPinnedWorkspaceCustomer(row)
+        setCustomers((prev) => {
+          if (prev.some((c) => c.id === row.id)) {
+            return prev
+          }
+          return [row, ...prev]
+        })
+        pendingMapExpandIdRef.current = null
+        setScrollRequestKey((prev) => prev + 1)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          pendingMapExpandIdRef.current = null
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [customers, advSearchHits, activeListCustomerId, token, user?.role])
 
   useEffect(() => {
     if (expandedId == null) {
       return
     }
+    if (pendingMapExpandIdRef.current === expandedId) {
+      return
+    }
+    if (pinnedListCustomerIdRef.current === expandedId) {
+      return
+    }
+    if (activeListCustomerId === expandedId) {
+      return
+    }
     const inMainList = customers.some((c) => c.id === expandedId)
     const inAdvHits = advSearchHits?.some((c) => c.id === expandedId) ?? false
     if (!inMainList && !inAdvHits) {
-      setExpandedId(null)
+      rawSetExpandedId(null)
     }
-  }, [customers, advSearchHits, expandedId, setExpandedId])
+  }, [customers, advSearchHits, expandedId, activeListCustomerId])
 
   useEffect(() => {
     const valid = new Set(customers.map((c) => String(c.id)))
@@ -1096,6 +1229,13 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     [isMobile, navigate, openMobileModal, searchParams],
   )
 
+  const handleOpenOnMap = useCallback(
+    (customerId: number) => {
+      navigateToCustomerOnMap(navigate, customerId)
+    },
+    [navigate],
+  )
+
   const handleCustomerConsultationCreated = useCallback(
     (customerId: number, row: Pick<CustomerConsultationRow, 'consultationDate' | 'createdAt'>) => {
       const dateFromRow = normalizeYmd(row.consultationDate)
@@ -1427,7 +1567,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         </div>
       ) : customers.length === 0 ? (
         <p className="empty-state">등록된 고객이 없습니다.</p>
-      ) : sortedCustomers.length === 0 ? (
+      ) : listCustomersToRender.length === 0 ? (
         <p className="empty-state">
           {keyword.trim() ||
           advancedFiltersActive ||
@@ -1474,6 +1614,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
               onOpenPersonalMessage={handleOpenPersonalMessage}
               onOpenClaims={handleOpenClaims}
               onOpenMemos={handleOpenMemos}
+              onOpenOnMap={handleOpenOnMap}
               mobileCopyFeedback={mobileCopyFeedback}
               onOpenRelatedCustomer={handleOpenRelatedCustomer}
               token={token}

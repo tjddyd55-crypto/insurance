@@ -176,7 +176,20 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
         panelClassName="workspace-mobile-outlet-modal"
       >
         <div className="workspace-mobile-outlet-modal__header">
-          <span className="workspace-mobile-outlet-modal__spacer" aria-hidden />
+          <div className="workspace-mobile-outlet-modal__header-actions">
+            {props.selectedCustomerId ? (
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                size="sm"
+                onClick={props.onClickViewOnMap}
+              >
+                지도에서 보기
+              </FormButton>
+            ) : (
+              <span className="workspace-mobile-outlet-modal__spacer" aria-hidden />
+            )}
+          </div>
           <h2 className="workspace-mobile-outlet-modal__title">{title}</h2>
           <CustomerWorkspaceCloseButton onClick={handleClose} />
         </div>

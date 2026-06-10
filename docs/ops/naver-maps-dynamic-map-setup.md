@@ -1,4 +1,4 @@
-﻿# NAVER Dynamic Map 설정 (고객 지도)
+# NAVER Dynamic Map 설정 (고객 지도)
 
 고객 지도 Dynamic Map에서 **「인증이 만료되었거나 유효하지 않습니다.」** 가 지도 위에 뜨면,
 UI/CSS 문제가 아니라 **Naver Cloud Application 인증(키·도메인)** 문제일 가능성이 높습니다.
@@ -27,7 +27,7 @@ VITE_NAVER_MAP_CLIENT_ID=...   # Dynamic Map Client ID (ncpKeyId) — 프론트 
 VITE_MAP_PROVIDER=naver        # 선택, 미설정 시 naver 기본
 ```
 
-- `VITE_NAVER_MAP_CLIENT_ID` 가 비어 있고 `NAVER_MAPS_CLIENT_ID` 만 있으면, Vite 빌드가 서버 키를 번들에 복사합니다(`server/lib/resolveViteNaverMapClientId.js`). **권장은 두 env 모두 동일 값으로 명시**하는 것입니다.
+- `VITE_NAVER_MAP_CLIENT_ID` 가 비어 있으면 Dynamic Map 인증 오류가 날 수 있다. Phase B(`2a06ed1` env bridge) 또는 위 env 명시가 필요하다.
 - env 추가·변경 후 **반드시 재배포**해야 Vite 번들에 반영됩니다.
 
 ## 3. Web 서비스 URL 등록 (가장 흔한 원인)

@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
+import { parseWorkspaceCustomerIdFromPath } from '../utils/customerWorkspaceNavigation'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useAuth } from '../../auth/AuthProvider'
 import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '../api/gaCustomerExcelApi'
@@ -15,19 +17,6 @@ import type { CustomerRecord } from '../domain/types'
 function parseSelectedCustomerId(raw: string | null): number | null {
   const n = Number(raw)
   return Number.isInteger(n) && n > 0 ? n : null
-}
-
-/** Path-based customer (files/consultations/ga-excel) wins over ?customerId= so list expand does not override the workspace header. */
-function parseWorkspaceCustomerIdFromPath(pathname: string): number | null {
-  const tab = resolveWorkspacePathTab(pathname)
-  if (!tab) {
-    return null
-  }
-  const m = pathname.match(/^\/customers\/(\d+)(?:\/|$)/)
-  if (!m?.[1]) {
-    return null
-  }
-  return parseSelectedCustomerId(m[1])
 }
 
 export type CustomerWorkspaceTab =
@@ -280,6 +269,13 @@ export default function CustomerWorkspaceLayout() {
     moveTo(`/customers/${selectedCustomerId}/signatures`)
   }
 
+  const handleClickViewOnMap = useCallback(() => {
+    if (!selectedCustomerId) {
+      return
+    }
+    navigateToCustomerOnMap(navigate, selectedCustomerId)
+  }, [navigate, selectedCustomerId])
+
   const rightPanelProps: CustomerWorkspaceLayoutPCProps = {
     pathname: location.pathname,
     selectedCustomerId,
@@ -301,6 +297,7 @@ export default function CustomerWorkspaceLayout() {
     onClickClaims: handleClickClaims,
     onClickPersonalMessage: handleClickPersonalMessage,
     onClickSignatures: handleClickSignatures,
+    onClickViewOnMap: handleClickViewOnMap,
     openRelatedCustomerRef,
   }
 
