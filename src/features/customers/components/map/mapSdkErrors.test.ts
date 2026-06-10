@@ -7,7 +7,7 @@ import {
 
 describe('mapSdkErrors', () => {
   it('returns user-friendly copy per code', () => {
-    expect(mapSdkErrorMessage('missing_client_id')).toMatch(/Client ID/)
+    expect(mapSdkErrorMessage('missing_client_id')).toMatch(/VITE_NAVER_MAP_CLIENT_ID/)
     expect(mapSdkErrorMessage('naver_auth_failure')).toMatch(/Web Service URL/)
     expect(mapSdkErrorMessage('script_load_failed')).toMatch(/Static Map/)
     expect(mapSdkErrorMessage('sdk_global_missing')).toMatch(/SDK 초기화/)

@@ -21,7 +21,7 @@ export class MapSdkError extends Error {
 export function mapSdkErrorMessage(code: MapSdkErrorCode): string {
   switch (code) {
     case 'missing_client_id':
-      return '지도 설정이 필요합니다. 프론트 지도 Client ID를 확인해 주세요.'
+      return '지도 설정이 필요합니다. Railway env에 VITE_NAVER_MAP_CLIENT_ID를 설정한 뒤 재배포해 주세요.'
     case 'naver_auth_failure':
       return formatNaverMapAuthFailureMessage(
         typeof window !== 'undefined' ? window.location.origin : '',

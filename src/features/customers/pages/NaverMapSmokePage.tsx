@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { getMapProviderClientKey } from '../config/customerMap.config'
 import { formatNaverMapAuthFailureMessage, NAVER_MAP_WEB_SERVICE_URLS } from '../config/naverMapSetupGuide'
 import {
   buildNaverMapAuthDiagnosticSnapshot,
