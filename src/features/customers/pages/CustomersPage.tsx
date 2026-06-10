@@ -94,6 +94,7 @@ import {
   INVITE_COPY_POINTER_DEBOUNCE_MS,
 } from '../utils/customerInviteClipboard'
 import { coerceCustomersStatePayload } from '../utils/customerStateGuards'
+import { dedupeCustomersById } from '../utils/customerSearchDedupe'
 import {
   CUSTOMER_LIST_PATH,
   CUSTOMER_CREATE_MODE_QUERY,
@@ -325,13 +326,15 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   const keywordFilteredCustomers = useMemo(() => {
     if (advSearchHits != null) {
-      return advSearchHits
+      return dedupeCustomersById(advSearchHits)
     }
     const q = keyword.trim()
     if (!q) {
-      return customers
+      return dedupeCustomersById(customers)
     }
-    return customers.filter((c) => c.name.includes(q) || (c.phone ?? '').includes(q))
+    return dedupeCustomersById(
+      customers.filter((c) => c.name.includes(q) || (c.phone ?? '').includes(q)),
+    )
   }, [customers, keyword, advSearchHits])
 
   const filteredCustomers = useMemo(() => {
@@ -456,22 +459,28 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   /** 상세 화면 고객이 검색·필터에 걸려 숨겨지지 않도록 목록 상단에 고정 */
   const listCustomersToRender = useMemo(() => {
+    const base = dedupeCustomersById(sortedCustomers)
     const pinId = activeListCustomerId
     if (pinId == null) {
-      return sortedCustomers
+      return base
     }
-    if (sortedCustomers.some((c) => c.id === pinId)) {
-      return sortedCustomers
+    if (base.some((c) => c.id === pinId)) {
+      return base
     }
     const pinned =
       pinnedWorkspaceCustomer?.id === pinId
         ? pinnedWorkspaceCustomer
         : customers.find((c) => c.id === pinId)
     if (!pinned) {
-      return sortedCustomers
+      return base
     }
-    return [pinned, ...sortedCustomers]
+    return dedupeCustomersById([pinned, ...base])
   }, [activeListCustomerId, sortedCustomers, pinnedWorkspaceCustomer, customers])
+
+  const visibleListCount = useMemo(
+    () => (listIsNarrowed ? listCustomersToRender.length : customersTotalCount),
+    [listIsNarrowed, listCustomersToRender.length, customersTotalCount],
+  )
 
   const allVisibleIds = useMemo(
     () => listCustomersToRender.map((c) => String(c.id)),
@@ -1534,7 +1543,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           <p className="customers-filter-result customers-page__result-count" role="status" aria-live="polite">
             검색·필터 결과:{' '}
             <span className="customers-page__result-count-strong">
-              <strong>{listIsNarrowed ? sortedCustomers.length : customersTotalCount}</strong>명
+              <strong>{visibleListCount}</strong>명
             </span>
           </p>
           {listLoadTruncated ? (

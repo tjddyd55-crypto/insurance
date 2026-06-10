@@ -3,6 +3,7 @@ import { buildCustomerRowVisibilityWhere } from '../lib/customerAccessScope.js'
 import { assertCustomerRowAccessibleByVisibility } from '../lib/customerRowVisibilitySql.js'
 import { parseGaId } from '../lib/parseGaId.js'
 import { mapCustomerRow } from '../lib/customerRowMap.js'
+import { dedupeCustomersById } from '../lib/customerSearchDedupe.js'
 import { recordAnalyticsEvent } from '../lib/analyticsEvents.js'
 import { isGaTenantAdminRole } from '../lib/rbacScope.js'
 import {
@@ -808,7 +809,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
           `,
           [...vw.params, limit],
         )
-        res.json(result.rows.map(mapCustomerRow))
+        res.json(dedupeCustomersById(result.rows.map(mapCustomerRow)))
         return
       }
 
@@ -825,7 +826,7 @@ export function registerCustomerExtraApi(apiRouter, ctx) {
         `,
         [...vw.params, pattern, limit],
       )
-      res.json(result.rows.map(mapCustomerRow))
+      res.json(dedupeCustomersById(result.rows.map(mapCustomerRow)))
     } catch (error) {
       handleDbError(error, req, res)
     }
