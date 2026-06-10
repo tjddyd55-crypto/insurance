@@ -56,7 +56,7 @@ import {
 import { isValidSignupUsername, validateSignupUsername } from './lib/signupUsername.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import { mapCustomerRow } from './lib/customerRowMap.js'
-import { dedupeCustomersForSearch } from './lib/customerSearchDedupe.js'
+import { dedupeCustomersById, dedupeCustomersForSearch } from './lib/customerSearchDedupe.js'
 import {
   buildCustomerConsultationSummaryJoin,
   buildCustomerFollowUpSummaryJoin,
@@ -6849,7 +6849,7 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
       safeQuery(
         pool,
         `
-        SELECT COUNT(*) AS c
+        SELECT COUNT(DISTINCT c.id) AS c
         FROM customers c
         ${summaryJoin}
         WHERE (${vis.clause}) AND c.deleted_at IS NULL${filterClause}
@@ -6858,9 +6858,17 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
       ),
     ])
 
+    const mapped = result.rows.map(mapCustomerRow)
+    const data = dedupeCustomersById(mapped)
+    if (process.env.NODE_ENV !== 'production' && mapped.length !== data.length) {
+      console.info('[customers/list] deduped duplicate customer ids', {
+        before: mapped.length,
+        after: data.length,
+      })
+    }
     const total = Number(countResult.rows[0]?.c ?? 0) || 0
     res.json({
-      data: result.rows.map(mapCustomerRow),
+      data,
       total,
     })
   } catch (error) {

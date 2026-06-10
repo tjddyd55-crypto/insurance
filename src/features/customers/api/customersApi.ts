@@ -216,12 +216,22 @@ export async function listCustomers(
         })
         .filter((c): c is CustomerRecord => c != null)
 
+  const deduped = dedupeCustomersById(customers)
+  if (deduped.length !== customers.length) {
+    logCustomerSearchDedupeDebug({
+      beforeCount: customers.length,
+      afterCount: deduped.length,
+      idDeduped: true,
+      identityDeduped: false,
+    })
+  }
+
   const total =
     totalFromBody != null && Number.isFinite(totalFromBody)
       ? totalFromBody
-      : customers.length
+      : deduped.length
 
-  return { customers, total }
+  return { customers: deduped, total }
 }
 
 export async function listCustomerForms(
