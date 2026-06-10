@@ -6860,7 +6860,7 @@ apiRouter.get('/customers', requireAuth, async (req, res) => {
 
     const mapped = result.rows.map(mapCustomerRow)
     const data = dedupeCustomersById(mapped)
-    if (process.env.NODE_ENV !== 'production' && mapped.length !== data.length) {
+    if (mapped.length !== data.length) {
       console.info('[customers/list] deduped duplicate customer ids', {
         before: mapped.length,
         after: data.length,

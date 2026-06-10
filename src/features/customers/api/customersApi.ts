@@ -44,8 +44,12 @@ export function assertCustomerDataRecord(
       500,
     )
   }
-  const id = (c as { id?: unknown }).id
-  if (typeof id !== 'number' || !Number.isFinite(id)) {
+  const idRaw = (c as { id?: unknown }).id
+  const id =
+    typeof idRaw === 'number' && Number.isFinite(idRaw)
+      ? idRaw
+      : Number(idRaw)
+  if (!Number.isInteger(id) || id < 1) {
     console.error('[customersApi] ❌ customer missing id:', label, c)
     throw new ApiError(
       listIndex != null && listIndex >= 0
@@ -55,7 +59,7 @@ export function assertCustomerDataRecord(
     )
   }
   const row = c as Record<string, unknown>
-  const withFlag = c as CustomerRecord & { isFavorite?: unknown }
+  const withFlag = { ...(c as CustomerRecord & { isFavorite?: unknown }), id }
   const phoneFromPrimary = typeof withFlag.phone === 'string' ? withFlag.phone.trim() : ''
   const phoneFromSnake = typeof row.phone_number === 'string' ? row.phone_number.trim() : ''
   const phoneFromCamel = typeof row.phoneNumber === 'string' ? row.phoneNumber.trim() : ''

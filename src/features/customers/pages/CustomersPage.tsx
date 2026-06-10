@@ -291,7 +291,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
 
   const ssnDupHighlightByCustomerIdPrevRef = useRef<Map<number, CustomerSsnDupHighlight>>(new Map())
   const ssnDupHighlightByCustomerId = useMemo(() => {
-    const built = buildSsnDuplicateHighlightByCustomerId(customers)
+    const built = buildSsnDuplicateHighlightByCustomerId(dedupeCustomersById(customers))
     const prev = ssnDupHighlightByCustomerIdPrevRef.current
     const next = new Map<number, CustomerSsnDupHighlight>()
     for (const [id, hi] of built) {
@@ -443,8 +443,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   )
 
   const visibleListCount = useMemo(
-    () => (listIsNarrowed ? listCustomersToRender.length : customersTotalCount),
-    [listIsNarrowed, listCustomersToRender.length, customersTotalCount],
+    () => listCustomersToRender.length,
+    [listCustomersToRender.length],
   )
 
   const allVisibleIds = useMemo(
@@ -1362,7 +1362,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     </header>
   )
 
-  const listLoadTruncated = !isLoading && customersTotalCount > customers.length
+  const loadedUniqueCustomerCount = useMemo(
+    () => dedupeCustomersById(customers).length,
+    [customers],
+  )
+  const listLoadTruncated = !isLoading && customersTotalCount > loadedUniqueCustomerCount
 
   const listBodyNode = (
     <section className="list-section" style={{ marginTop: 0 }}>
@@ -1408,7 +1412,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
           </p>
           {listLoadTruncated ? (
             <p className="customers-page__result-limit-notice" role="status">
-              전체 {customersTotalCount}명 중 {customers.length}명 표시 중입니다. 검색어를 입력해 좁혀 주세요.
+              전체 {customersTotalCount}명 중 {loadedUniqueCustomerCount}명 표시 중입니다. 검색어를 입력해 좁혀 주세요.
             </p>
           ) : null}
         </>
@@ -1441,7 +1445,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
         <ul className="record-list customer-expand-list customer-list customers-page__customer-list">
           {listCustomersToRender.map((c) => (
             <CustomerListCard
-              key={c.id}
+              key={String(c.id)}
               customer={c}
               ssnDupHighlight={ssnDupHighlightByCustomerId.get(c.id)}
               isSelectMode={isSelectMode}

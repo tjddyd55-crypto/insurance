@@ -81,6 +81,22 @@ export function compareCustomerSearchPreference(a, b) {
 }
 
 /**
+ * @param {{ id?: unknown; customerId?: unknown } | null | undefined} customer
+ * @returns {string | null}
+ */
+export function normalizeCustomerId(customer) {
+  const raw = customer?.id ?? customer?.customerId
+  if (raw === null || raw === undefined || raw === '') {
+    return null
+  }
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isInteger(n) || n < 1) {
+    return null
+  }
+  return String(n)
+}
+
+/**
  * @template T extends { id?: unknown }
  * @param {T[]} rows
  */
@@ -89,14 +105,14 @@ export function dedupeCustomersById(rows) {
   /** @type {T[]} */
   const out = []
   for (const row of rows) {
-    const id = Number(row.id)
-    if (!Number.isInteger(id) || id < 1) {
+    const idKey = normalizeCustomerId(row)
+    if (idKey == null) {
       continue
     }
-    if (seen.has(id)) {
+    if (seen.has(idKey)) {
       continue
     }
-    seen.add(id)
+    seen.add(idKey)
     out.push(row)
   }
   return out

@@ -1,8 +1,10 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  dedupeCustomersById,
   dedupeCustomersForSearch,
   getCustomerSearchIdentityKey,
+  normalizeCustomerId,
   normalizePhoneForCustomerDedupe,
 } from './customerSearchDedupe.js'
 
@@ -47,6 +49,22 @@ describe('customerSearchDedupe', () => {
     const row = { id: 519, name: '김도훈', phone: '01032968607', ssn: '7701011', createdAt: '2026-04-05T10:00:37.988Z' }
     const { customers } = dedupeCustomersForSearch([row, { ...row }])
     assert.equal(customers.length, 1)
+  })
+
+  it('normalizeCustomerId coerces number and numeric string', () => {
+    assert.equal(normalizeCustomerId({ id: 28 }), '28')
+    assert.equal(normalizeCustomerId({ id: '28' }), '28')
+    assert.equal(normalizeCustomerId({ customerId: 8 }), '8')
+    assert.equal(normalizeCustomerId({ id: 0 }), null)
+    assert.equal(normalizeCustomerId({ id: 'x' }), null)
+  })
+
+  it('dedupeCustomersById merges number and string forms of the same id', () => {
+    const first = { id: 28, name: '곽소현', phone: '01000000000' }
+    const second = { id: '28', name: '곽소현', phone: '01000000000' }
+    const out = dedupeCustomersById([first, second])
+    assert.equal(out.length, 1)
+    assert.equal(out[0].id, 28)
   })
 
   it('does not merge different phones', () => {
