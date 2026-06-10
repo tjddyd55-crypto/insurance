@@ -128,6 +128,7 @@ export function assertSafeForMutatingScript({
   execute = false,
   scriptName = 'script',
   env = process.env,
+  allowProductionExecute = false,
 } = {}) {
   if (!connectionString?.trim()) {
     console.error(`[db-guard] ${scriptName}: DATABASE_URL 없음`)
@@ -140,10 +141,16 @@ export function assertSafeForMutatingScript({
     return
   }
 
-  if (isProductionDbTarget(connectionString, env)) {
+  if (isProductionDbTarget(connectionString, env) && !allowProductionExecute) {
     console.error(`[db-guard] ${scriptName}: production DB 대상 execute 차단`)
     console.error('[db-guard] development clone DB 준비 후 INSURANCE_DB_ENVIRONMENT=development 으로 재시도')
     console.error('[db-guard] docs/ops/database-environments.md § dev clone 복구')
     process.exit(1)
+  }
+
+  if (isProductionDbTarget(connectionString, env) && allowProductionExecute) {
+    console.warn(
+      `[db-guard] ${scriptName}: production DB execute 허용 플래그 활성 — 신중히 진행합니다.`,
+    )
   }
 }

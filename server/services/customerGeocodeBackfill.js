@@ -65,6 +65,15 @@ export async function runCustomerGeocodeBackfill(pool, options = {}) {
     params.push(userIdFilter)
     where += ` AND COALESCE(c.owner_user_id, c.user_id) = $${params.length}`
   }
+  where += `
+    AND NOT (
+      cl.status = 'success'
+      AND cl.latitude IS NOT NULL
+      AND cl.longitude IS NOT NULL
+    )`
+  if (!retryFailed) {
+    where += ` AND cl.status IS DISTINCT FROM 'failed'`
+  }
   params.push(limit)
 
   const result = await pool.query(
