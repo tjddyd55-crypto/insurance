@@ -57,6 +57,7 @@ import CustomerExcelSelectToolbar from '../components/CustomerExcelSelectToolbar
 import CustomerListCard, { type CustomerSsnDupHighlight } from '../components/CustomerListCard'
 import type { CustomerEditFormState } from '../types/customerEditForm'
 import { useCustomerExpandedCardScroll } from '../hooks/useCustomerExpandedCardScroll'
+import { useCustomerMobileExpandedCardBack } from '../hooks/useCustomerMobileExpandedCardBack'
 import { useCustomerCrmIndustryContext } from '../hooks/useCustomerCrmIndustryContext'
 import { useCustomerExcelSelection } from '../hooks/useCustomerExcelSelection'
 import { getCustomerListMetrics } from '../utils/customerListMetrics'
@@ -1112,6 +1113,11 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     [isMobile],
   )
 
+  const clearMobileModal = useCallback(() => {
+    setActiveMobileModal(null)
+    setActiveMobileCustomerId(null)
+  }, [])
+
   const closeMobileModal = useCallback(() => {
     if (!isMobile || activeMobileModal == null) {
       return
@@ -1120,25 +1126,17 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       window.history.back()
       return
     }
-    setActiveMobileModal(null)
-    setActiveMobileCustomerId(null)
-  }, [activeMobileModal, isMobile])
+    clearMobileModal()
+  }, [activeMobileModal, clearMobileModal, isMobile])
 
-  useEffect(() => {
-    if (!isMobile) {
-      return
-    }
-    const handlePopState = () => {
-      if (activeMobileModal != null) {
-        setActiveMobileModal(null)
-        setActiveMobileCustomerId(null)
-      }
-    }
-    window.addEventListener('popstate', handlePopState)
-    return () => {
-      window.removeEventListener('popstate', handlePopState)
-    }
-  }, [activeMobileModal, isMobile])
+  useCustomerMobileExpandedCardBack({
+    isMobile,
+    pathname: location.pathname,
+    expandedId,
+    activeMobileModal,
+    setExpandedId,
+    clearMobileModal,
+  })
 
   const handleOpenFilesModal = useCallback(
     (customerId: number) => {
