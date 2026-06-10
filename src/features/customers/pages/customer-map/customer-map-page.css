@@ -136,8 +136,10 @@
 }
 
 .customers-map-page--mobile.customers-map-page--unmapped-open .customers-map-page__map-wrap {
-  min-height: calc(100dvh - 132px);
-  min-height: calc(100vh - 132px);
+  min-height: max(70dvh, calc(100dvh - 108px));
+  min-height: max(70vh, calc(100vh - 108px));
+  height: calc(100dvh - 108px);
+  height: calc(100vh - 108px);
 }
 
 .customer-map-canvas {
@@ -161,77 +163,57 @@
   font-size: 0.8125rem;
 }
 
-/* ── Mobile: map-first compact toolbar ── */
+/* ── Mobile: single-row toolbar + map-first layout ── */
 
 .customers-map-page--mobile {
   gap: 6px;
-  padding: 8px 12px 10px;
+  padding: 6px 10px 8px;
   min-height: 100dvh;
   min-height: 100vh;
 }
 
 .customer-map-mobile-toolbar {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.customer-map-mobile-summary-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.customer-map-mobile-missing-count {
-  font-size: 0.875rem;
-  color: #cbd5e1;
-  line-height: 1.35;
-  white-space: nowrap;
-}
-
-.customer-map-mobile-summary-actions {
-  display: inline-flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
   flex-shrink: 0;
 }
 
-.customer-map-mobile-action-btn {
-  min-height: 32px;
-  padding: 4px 10px;
-  font-size: 0.8125rem;
-}
-
-.customer-map-mobile-search-row {
+.customer-map-mobile-toolbar-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.customer-map-mobile-location-btn {
-  flex-shrink: 0;
-  min-height: 36px;
-  padding: 6px 12px;
-  font-size: 0.8125rem;
+  justify-content: center;
+  min-height: 40px;
+  height: 40px;
+  padding: 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 10px;
   white-space: nowrap;
 }
 
-.customer-map-mobile-keyword {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.customer-map-mobile-filter-panel {
+.customer-map-mobile-filter-panel,
+.customer-map-mobile-search-panel {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid #334155;
   border-radius: 10px;
   background: #111827;
   flex-shrink: 0;
+}
+
+.customer-map-mobile-search-panel {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.customer-map-mobile-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .customer-map-mobile-filter-panel .customers-map-page__radius-group {
@@ -242,24 +224,43 @@
   margin-top: 2px;
 }
 
-.customer-map-mobile-filter-close {
+.customer-map-mobile-panel-close {
+  flex-shrink: 0;
+  min-height: 36px;
   align-self: flex-end;
-  min-height: 32px;
+}
+
+.customer-map-mobile-search-panel .customer-map-mobile-panel-close {
+  align-self: center;
+}
+
+.customers-map-page--mobile .customers-map-page__focus-notice,
+.customers-map-page--mobile .customers-map-page__error,
+.customers-map-page--mobile .customers-map-page__loading {
+  margin: 0;
+  font-size: 0.8125rem;
 }
 
 .customers-map-page--mobile .customers-map-page__map-wrap {
   flex: 1 1 auto;
-  min-height: calc(100dvh - 132px);
-  min-height: calc(100vh - 132px);
-  height: calc(100dvh - 132px);
-  height: calc(100vh - 132px);
+  min-height: max(70dvh, calc(100dvh - 108px));
+  min-height: max(70vh, calc(100vh - 108px));
+  height: calc(100dvh - 108px);
+  height: calc(100vh - 108px);
 }
 
 .customers-map-page--mobile.customers-map-page--filter-open .customers-map-page__map-wrap {
-  min-height: calc(100dvh - 228px);
-  min-height: calc(100vh - 228px);
-  height: calc(100dvh - 228px);
-  height: calc(100vh - 228px);
+  min-height: max(65dvh, calc(100dvh - 196px));
+  min-height: max(65vh, calc(100vh - 196px));
+  height: calc(100dvh - 196px);
+  height: calc(100vh - 196px);
+}
+
+.customers-map-page--mobile.customers-map-page--search-open .customers-map-page__map-wrap {
+  min-height: max(68dvh, calc(100dvh - 156px));
+  min-height: max(68vh, calc(100vh - 156px));
+  height: calc(100dvh - 156px);
+  height: calc(100vh - 156px);
 }
 
 .customers-map-page--mobile .customers-map-page__unmapped-panel {

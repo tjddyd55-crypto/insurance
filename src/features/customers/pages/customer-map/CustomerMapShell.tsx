@@ -8,6 +8,7 @@ import CustomerStaticMapImage from '../../components/map/CustomerStaticMapImage'
 import MapProviderLoader from '../../components/map/MapProviderLoader'
 import { mapSdkErrorMessage } from '../../components/map/mapSdkErrors'
 import { wasNaverMapAuthFailure } from '../../components/map/mapSdkLoader'
+import { CUSTOMER_MAP_MAX_RADIUS_KM } from '../../config/customerMap.config'
 import type { CustomerMapViewProps } from '../../hooks/useCustomerMapState'
 import CustomerMapRadiusFilterControls from './CustomerMapRadiusFilterControls'
 import './customer-map-page.css'
@@ -57,6 +58,7 @@ export default function CustomerMapShell({
   const mappedCount = stats?.mappedCount ?? stats?.geocodedSuccess ?? 0
   const unmappedCount = stats?.unmappedCount ?? unmappedCustomers.length
   const [showFilterPanel, setShowFilterPanel] = useState(false)
+  const [showSearchPanel, setShowSearchPanel] = useState(false)
   const pageClassName = [
     'page',
     'customers-map-page',
@@ -64,6 +66,7 @@ export default function CustomerMapShell({
     'page--with-back',
     showUnmappedList ? 'customers-map-page--unmapped-open' : '',
     showFilterPanel ? 'customers-map-page--filter-open' : '',
+    showSearchPanel ? 'customers-map-page--search-open' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -120,11 +123,35 @@ export default function CustomerMapShell({
     />
   )
 
+  const toggleFilterPanel = useCallback(() => {
+    setShowFilterPanel((open) => {
+      const next = !open
+      if (next) {
+        setShowSearchPanel(false)
+      }
+      return next
+    })
+  }, [])
+
+  const toggleSearchPanel = useCallback(() => {
+    setShowSearchPanel((open) => {
+      const next = !open
+      if (next) {
+        setShowFilterPanel(false)
+      }
+      return next
+    })
+  }, [])
+
+  const unmappedPanelTitle = isMobile
+    ? `지도 미표시 고객 ${unmappedCount}명`
+    : '지도 미표시 고객'
+
   const unmappedPanel = showUnmappedList ? (
     <section className="customers-map-page__unmapped-panel" aria-label="지도 미표시 고객">
       <div className="customers-map-page__unmapped-panel-head">
         <div>
-          <h2 className="customers-map-page__unmapped-title">지도 미표시 고객</h2>
+          <h2 className="customers-map-page__unmapped-title">{unmappedPanelTitle}</h2>
           <p className="customers-map-page__unmapped-desc">
             주소가 없거나 좌표 변환이 완료되지 않아 지도에 표시되지 않는 고객입니다.
           </p>
@@ -146,52 +173,46 @@ export default function CustomerMapShell({
   return (
     <main className={pageClassName}>
       {isMobile ? (
-        <div className="customer-map-mobile-toolbar">
-          <div className="customer-map-mobile-summary-row">
-            {stats ? (
-              <span className="customer-map-mobile-missing-count">지도 미표시 {unmappedCount}명</span>
-            ) : (
-              <span className="customer-map-mobile-missing-count" aria-hidden />
-            )}
-            <div className="customer-map-mobile-summary-actions">
-              <FormButton
-                htmlType="button"
-                type="button"
-                variant={showUnmappedList ? 'primary' : 'secondary'}
-                className="customer-map-mobile-action-btn"
-                onClick={onToggleUnmappedList}
-              >
-                {showUnmappedList ? '닫기' : '미표시 고객'}
-              </FormButton>
-              <FormButton
-                htmlType="button"
-                type="button"
-                variant={showFilterPanel ? 'primary' : 'secondary'}
-                className="customer-map-mobile-action-btn"
-                aria-expanded={showFilterPanel}
-                onClick={() => setShowFilterPanel((open) => !open)}
-              >
-                필터
-              </FormButton>
-            </div>
-          </div>
-          <div className="customer-map-mobile-search-row">
-            <FormButton
-              htmlType="button"
-              variant="secondary"
-              className="customer-map-mobile-location-btn"
-              onClick={onCurrentLocation}
-            >
-              내 위치
-            </FormButton>
-            <FormInput
-              type="search"
-              value={keyword}
-              onChange={(e) => onKeywordChange(e.target.value)}
-              placeholder="이름 · 연락처 · 주소 검색"
-              className="customer-map-mobile-keyword"
-            />
-          </div>
+        <div className="customer-map-mobile-toolbar" role="toolbar" aria-label="고객 지도 도구">
+          <FormButton
+            htmlType="button"
+            type="button"
+            variant="secondary"
+            className="customer-map-mobile-toolbar-btn"
+            onClick={onCurrentLocation}
+          >
+            내 위치
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            type="button"
+            variant={showUnmappedList ? 'primary' : 'secondary'}
+            className="customer-map-mobile-toolbar-btn"
+            aria-expanded={showUnmappedList}
+            onClick={onToggleUnmappedList}
+          >
+            미표시
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            type="button"
+            variant={showFilterPanel ? 'primary' : 'secondary'}
+            className="customer-map-mobile-toolbar-btn"
+            aria-expanded={showFilterPanel}
+            onClick={toggleFilterPanel}
+          >
+            필터
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            type="button"
+            variant={showSearchPanel ? 'primary' : 'secondary'}
+            className="customer-map-mobile-toolbar-btn"
+            aria-expanded={showSearchPanel}
+            onClick={toggleSearchPanel}
+          >
+            검색
+          </FormButton>
         </div>
       ) : (
         <>
@@ -239,8 +260,30 @@ export default function CustomerMapShell({
             htmlType="button"
             type="button"
             variant="secondary"
-            className="customer-map-mobile-filter-close"
+            className="customer-map-mobile-panel-close"
             onClick={() => setShowFilterPanel(false)}
+          >
+            닫기
+          </FormButton>
+        </div>
+      ) : null}
+
+      {isMobile && showSearchPanel ? (
+        <div className="customer-map-mobile-search-panel" role="search" aria-label="고객 검색">
+          <FormInput
+            type="search"
+            value={keyword}
+            onChange={(e) => onKeywordChange(e.target.value)}
+            placeholder="이름 · 연락처 · 주소 검색"
+            className="customer-map-mobile-search-input"
+            autoFocus
+          />
+          <FormButton
+            htmlType="button"
+            type="button"
+            variant="secondary"
+            className="customer-map-mobile-panel-close"
+            onClick={() => setShowSearchPanel(false)}
           >
             닫기
           </FormButton>
