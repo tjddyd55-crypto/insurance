@@ -5,7 +5,27 @@ import {
   mapCustomerMapStatsRow,
   parseCustomerMapFilters,
 } from './customerMapService.js'
-import { CUSTOMER_MAP_DYNAMIC_MAX_MARKERS } from './customerMapRenderConfig.js'
+import {
+  CUSTOMER_MAP_DYNAMIC_MAX_MARKERS,
+  CUSTOMER_MAP_MAX_MARKERS,
+} from './customerMapRenderConfig.js'
+
+/**
+ * 로컬/CI 셸에 MAP_RENDER_MODE=static 이 있으면 dynamic 기본값 테스트가 깨진다.
+ * @param {'static' | 'dynamic'} mode
+ * @param {import('node:test').TestContext} t
+ */
+function pinMapRenderMode(mode, t) {
+  const prev = process.env.MAP_RENDER_MODE
+  process.env.MAP_RENDER_MODE = mode
+  t.after(() => {
+    if (prev === undefined) {
+      delete process.env.MAP_RENDER_MODE
+    } else {
+      process.env.MAP_RENDER_MODE = prev
+    }
+  })
+}
 
 function makeCustomer(id) {
   return {
@@ -22,7 +42,8 @@ function makeCustomer(id) {
   }
 }
 
-test('buildCustomerMapResponse limits dynamic mapCustomers to 100 and reports viewport stats', () => {
+test('buildCustomerMapResponse limits dynamic mapCustomers to 100 and reports viewport stats', (t) => {
+  pinMapRenderMode('dynamic', t)
   const customers = Array.from({ length: 120 }, (_, i) => makeCustomer(i + 1))
 
   const payload = buildCustomerMapResponse(customers, {
@@ -50,6 +71,16 @@ test('buildCustomerMapResponse keeps static map slice at 20', () => {
   const customers = Array.from({ length: 30 }, (_, i) => makeCustomer(i + 1))
   const payload = buildCustomerMapResponse(customers, { statsRow: {} })
   assert.equal(payload.staticMap.markerCount, 20)
+})
+
+test('buildCustomerMapResponse limits static render mode mapCustomers to 20', (t) => {
+  pinMapRenderMode('static', t)
+  const customers = Array.from({ length: 30 }, (_, i) => makeCustomer(i + 1))
+  const payload = buildCustomerMapResponse(customers, { statsRow: {} })
+  assert.equal(payload.map.renderMode, 'static')
+  assert.equal(payload.mapCustomers.length, CUSTOMER_MAP_MAX_MARKERS)
+  assert.equal(payload.map.maxMarkers, CUSTOMER_MAP_MAX_MARKERS)
+  assert.equal(payload.stats.hiddenByLimit, 10)
 })
 
 test('parseCustomerMapFilters reads north/south/east/west bounds', () => {
