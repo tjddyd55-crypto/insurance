@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+﻿import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../../../auth/AuthProvider'
 import { FormButton, FormInput } from '../../../../components/form'
 import CustomerMapCanvas from '../../components/map/CustomerMapCanvas'
@@ -8,11 +8,9 @@ import CustomerStaticMapImage from '../../components/map/CustomerStaticMapImage'
 import MapProviderLoader from '../../components/map/MapProviderLoader'
 import { mapSdkErrorMessage } from '../../components/map/mapSdkErrors'
 import { wasNaverMapAuthFailure } from '../../components/map/mapSdkLoader'
-import {
-  CUSTOMER_MAP_MAX_RADIUS_KM,
-  CUSTOMER_MAP_RADIUS_OPTIONS_KM,
-} from '../../config/customerMap.config'
+import { CUSTOMER_MAP_MAX_RADIUS_KM } from '../../config/customerMap.config'
 import type { CustomerMapViewProps } from '../../hooks/useCustomerMapState'
+import CustomerMapRadiusFilterControls from './CustomerMapRadiusFilterControls'
 import './customer-map-page.css'
 
 type CustomerMapShellProps = CustomerMapViewProps & {
@@ -55,19 +53,24 @@ export default function CustomerMapShell({
   onBoundsIdle,
 }: CustomerMapShellProps) {
   const { token } = useAuth()
-  const modifier = variant === 'pc' ? 'customers-map-page--pc' : 'customers-map-page--mobile'
-  const hasMarkers = mapCustomers.length > 0
+  const isMobile = variant === 'mobile'
+  const modifier = isMobile ? 'customers-map-page--mobile' : 'customers-map-page--pc'
   const mappedCount = stats?.mappedCount ?? stats?.geocodedSuccess ?? 0
   const unmappedCount = stats?.unmappedCount ?? unmappedCustomers.length
+  const [showFilterPanel, setShowFilterPanel] = useState(false)
+  const [showSearchPanel, setShowSearchPanel] = useState(false)
   const pageClassName = [
     'page',
     'customers-map-page',
     modifier,
     'page--with-back',
     showUnmappedList ? 'customers-map-page--unmapped-open' : '',
+    showFilterPanel ? 'customers-map-page--filter-open' : '',
+    showSearchPanel ? 'customers-map-page--search-open' : '',
   ]
     .filter(Boolean)
     .join(' ')
+  const hasMarkers = mapCustomers.length > 0
   const [mapInitFailed, setMapInitFailed] = useState(false)
   const [radiusInput, setRadiusInput] = useState(radiusKm == null ? '' : String(radiusKm))
 
@@ -107,86 +110,185 @@ export default function CustomerMapShell({
     [applyRadiusInput],
   )
 
+  const radiusFilterControls = (
+    <CustomerMapRadiusFilterControls
+      radiusInput={radiusInput}
+      radiusKm={radiusKm}
+      favoriteOnly={favoriteOnly}
+      onRadiusInputChange={setRadiusInput}
+      onRadiusInputBlur={applyRadiusInput}
+      onRadiusInputKeyDown={handleRadiusInputKeyDown}
+      onRadiusChange={onRadiusChange}
+      onFavoriteOnlyChange={onFavoriteOnlyChange}
+    />
+  )
+
+  const toggleFilterPanel = useCallback(() => {
+    setShowFilterPanel((open) => {
+      const next = !open
+      if (next) {
+        setShowSearchPanel(false)
+      }
+      return next
+    })
+  }, [])
+
+  const toggleSearchPanel = useCallback(() => {
+    setShowSearchPanel((open) => {
+      const next = !open
+      if (next) {
+        setShowFilterPanel(false)
+      }
+      return next
+    })
+  }, [])
+
+  const unmappedPanelTitle = isMobile
+    ? `지도 미표시 고객 ${unmappedCount}명`
+    : '지도 미표시 고객'
+
+  const unmappedPanel = showUnmappedList ? (
+    <section className="customers-map-page__unmapped-panel" aria-label="지도 미표시 고객">
+      <div className="customers-map-page__unmapped-panel-head">
+        <div>
+          <h2 className="customers-map-page__unmapped-title">{unmappedPanelTitle}</h2>
+          <p className="customers-map-page__unmapped-desc">
+            주소가 없거나 좌표 변환이 완료되지 않아 지도에 표시되지 않는 고객입니다.
+          </p>
+        </div>
+        <FormButton
+          htmlType="button"
+          type="button"
+          variant="secondary"
+          className="customers-map-page__unmapped-close"
+          onClick={onToggleUnmappedList}
+        >
+          닫기
+        </FormButton>
+      </div>
+      <CustomerMapUnmappedList customers={unmappedCustomers} onOpenDetail={onOpenCustomerDetail} />
+    </section>
+  ) : null
+
   return (
     <main className={pageClassName}>
-      <header className="customers-map-page__header">
-        <h1 className="customers-map-page__title">고객 지도</h1>
-        {stats ? (
-          <div className="customers-map-page__header-summary">
-            <p className="customers-map-page__summary">
-              지도 표시 고객 {mappedCount}명 · 지도 미표시 {unmappedCount}명
-            </p>
-            <FormButton
-              htmlType="button"
-              type="button"
-              variant={showUnmappedList ? 'primary' : 'secondary'}
-              onClick={onToggleUnmappedList}
-            >
-              {showUnmappedList ? '지도 미표시 고객 닫기' : '지도 미표시 고객 보기'}
-            </FormButton>
-          </div>
-        ) : null}
-      </header>
-
-      <div className="customers-map-page__toolbar">
-        <div className="customers-map-page__toolbar-row customers-map-page__toolbar-row--primary">
-          <FormButton htmlType="button" variant="secondary" onClick={onCurrentLocation}>
-            내 위치 기준 보기
+      {isMobile ? (
+        <div className="customer-map-mobile-toolbar" role="toolbar" aria-label="고객 지도 도구">
+          <FormButton
+            htmlType="button"
+            type="button"
+            variant="secondary"
+            className="customer-map-mobile-toolbar-btn"
+            onClick={onCurrentLocation}
+          >
+            내 위치
           </FormButton>
-          <div className="customers-map-page__radius-group">
-            <span className="customers-map-page__radius-label">반경</span>
-            <FormInput
-              type="number"
-              min={1}
-              max={CUSTOMER_MAP_MAX_RADIUS_KM}
-              step={1}
-              inputMode="decimal"
-              value={radiusInput}
-              onChange={(e) => setRadiusInput(e.target.value)}
-              onBlur={applyRadiusInput}
-              onKeyDown={handleRadiusInputKeyDown}
-              className="customers-map-page__radius-input"
-              aria-label="반경 km"
-            />
-            <span className="customers-map-page__radius-unit">km</span>
-            {CUSTOMER_MAP_RADIUS_OPTIONS_KM.map((km) => (
-              <FormButton
-                key={km}
-                htmlType="button"
-                variant={radiusKm === km ? 'primary' : 'secondary'}
-                className={
-                  radiusKm === km ? 'customers-map-page__radius-btn--active' : undefined
-                }
-                onClick={() => onRadiusChange(km)}
-              >
-                {km}
+          <FormButton
+            htmlType="button"
+            type="button"
+            variant={showUnmappedList ? 'primary' : 'secondary'}
+            className="customer-map-mobile-toolbar-btn"
+            aria-expanded={showUnmappedList}
+            onClick={onToggleUnmappedList}
+          >
+            미표시
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            type="button"
+            variant={showFilterPanel ? 'primary' : 'secondary'}
+            className="customer-map-mobile-toolbar-btn"
+            aria-expanded={showFilterPanel}
+            onClick={toggleFilterPanel}
+          >
+            필터
+          </FormButton>
+          <FormButton
+            htmlType="button"
+            type="button"
+            variant={showSearchPanel ? 'primary' : 'secondary'}
+            className="customer-map-mobile-toolbar-btn"
+            aria-expanded={showSearchPanel}
+            onClick={toggleSearchPanel}
+          >
+            검색
+          </FormButton>
+        </div>
+      ) : (
+        <>
+          <header className="customers-map-page__header">
+            <h1 className="customers-map-page__title">고객 지도</h1>
+            {stats ? (
+              <div className="customers-map-page__header-summary">
+                <p className="customers-map-page__summary">
+                  지도 표시 고객 {mappedCount}명 · 지도 미표시 {unmappedCount}명
+                </p>
+                <FormButton
+                  htmlType="button"
+                  type="button"
+                  variant={showUnmappedList ? 'primary' : 'secondary'}
+                  onClick={onToggleUnmappedList}
+                >
+                  {showUnmappedList ? '지도 미표시 고객 닫기' : '지도 미표시 고객 보기'}
+                </FormButton>
+              </div>
+            ) : null}
+          </header>
+
+          <div className="customers-map-page__toolbar">
+            <div className="customers-map-page__toolbar-row customers-map-page__toolbar-row--primary">
+              <FormButton htmlType="button" variant="secondary" onClick={onCurrentLocation}>
+                내 위치 기준 보기
               </FormButton>
-            ))}
-            <FormButton
-              htmlType="button"
-              variant={radiusKm == null ? 'primary' : 'secondary'}
-              onClick={() => onRadiusChange(null)}
-            >
-              제한 없음
-            </FormButton>
+              {radiusFilterControls}
+              <FormInput
+                type="search"
+                value={keyword}
+                onChange={(e) => onKeywordChange(e.target.value)}
+                placeholder="이름·연락처·주소 검색"
+                className="customers-map-page__keyword"
+              />
+            </div>
           </div>
-          <label className="customers-map-page__favorite-only">
-            <input
-              type="checkbox"
-              checked={favoriteOnly}
-              onChange={(e) => onFavoriteOnlyChange(e.target.checked)}
-            />
-            즐겨찾기만
-          </label>
+        </>
+      )}
+
+      {isMobile && showFilterPanel ? (
+        <div className="customer-map-mobile-filter-panel" role="region" aria-label="지도 필터">
+          {radiusFilterControls}
+          <FormButton
+            htmlType="button"
+            type="button"
+            variant="secondary"
+            className="customer-map-mobile-panel-close"
+            onClick={() => setShowFilterPanel(false)}
+          >
+            닫기
+          </FormButton>
+        </div>
+      ) : null}
+
+      {isMobile && showSearchPanel ? (
+        <div className="customer-map-mobile-search-panel" role="search" aria-label="고객 검색">
           <FormInput
             type="search"
             value={keyword}
             onChange={(e) => onKeywordChange(e.target.value)}
-            placeholder="이름·연락처·주소 검색"
-            className="customers-map-page__keyword"
+            placeholder="이름 · 연락처 · 주소 검색"
+            className="customer-map-mobile-search-input"
+            autoFocus
           />
+          <FormButton
+            htmlType="button"
+            type="button"
+            variant="secondary"
+            className="customer-map-mobile-panel-close"
+            onClick={() => setShowSearchPanel(false)}
+          >
+            닫기
+          </FormButton>
         </div>
-      </div>
+      ) : null}
 
       {focusNotice ? (
         <p className="customers-map-page__focus-notice" role="status">
@@ -201,33 +303,10 @@ export default function CustomerMapShell({
         </p>
       ) : null}
 
-      {showUnmappedList ? (
-        <section className="customers-map-page__unmapped-panel" aria-label="지도 미표시 고객">
-          <div className="customers-map-page__unmapped-panel-head">
-            <div>
-              <h2 className="customers-map-page__unmapped-title">지도 미표시 고객</h2>
-              <p className="customers-map-page__unmapped-desc">
-                주소가 없거나 좌표 변환이 완료되지 않아 지도에 표시되지 않는 고객입니다.
-              </p>
-            </div>
-            <FormButton
-              htmlType="button"
-              type="button"
-              variant="secondary"
-              className="customers-map-page__unmapped-close"
-              onClick={onToggleUnmappedList}
-            >
-              닫기
-            </FormButton>
-          </div>
-          <CustomerMapUnmappedList
-            customers={unmappedCustomers}
-            onOpenDetail={onOpenCustomerDetail}
-          />
-        </section>
-      ) : null}
+      {!isMobile ? unmappedPanel : null}
 
       <div className="customers-map-page__map-wrap">
+        {isMobile ? unmappedPanel : null}
         <MapProviderLoader>
           {({ provider, clientKey, ready, error: sdkError, errorCode }) => {
             const useStaticFallback =
