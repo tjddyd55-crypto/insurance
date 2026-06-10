@@ -5,6 +5,8 @@ export type CustomerMapMarker = {
   name: string
   phone: string
   address: string
+  birthDateYmd: string
+  genderLabel: string
   latitude: number
   longitude: number
   lastConsultDate: string | null
@@ -17,9 +19,29 @@ export type CustomerMapListItem = {
   name: string
   phone: string
   address: string
+  birthDateYmd: string
+  genderLabel: string
   latitude: number
   longitude: number
   lastConsultDate: string | null
+}
+
+export type CustomerMapUnmappedStatus =
+  | 'no_address'
+  | 'geocode_failed'
+  | 'geocode_pending'
+  | 'no_coordinates'
+
+export type CustomerMapUnmappedItem = {
+  id: number
+  name: string
+  phone: string
+  address: string
+  birthDateYmd: string
+  genderLabel: string
+  lastConsultDate: string | null
+  mapStatus: CustomerMapUnmappedStatus
+  mapStatusLabel: string
 }
 
 export type CustomerMapDynamicMapMeta = {
@@ -60,6 +82,9 @@ export type CustomerMapStats = {
   geocodedSuccess: number
   geocodePending: number
   geocodeFailed: number
+  mappedCount: number
+  unmappedCount: number
+  noAddressCount: number
   visibleInBounds: number
   displayedOnMap: number
   hiddenByLimit: number
@@ -74,6 +99,7 @@ export type CustomerMapStats = {
 export type CustomerMapResponse = {
   customers: CustomerMapMarker[]
   mapCustomers: CustomerMapListItem[]
+  unmappedCustomers: CustomerMapUnmappedItem[]
   map: CustomerMapDynamicMapMeta
   staticMap: CustomerMapStaticMapMeta
   stats: CustomerMapStats

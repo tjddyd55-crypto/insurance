@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildCustomerMapGroupMarkerHtml,
   buildCustomerMapMarkerHtml,
   CUSTOMER_MAP_NAME_MARKER_SIZE,
   truncateMarkerLabel,
@@ -36,5 +37,19 @@ describe('buildCustomerMapMarkerHtml', () => {
     const html = buildCustomerMapMarkerHtml('<script>', false)
     expect(html).toContain('&lt;script&gt;')
     expect(html).not.toContain('<script>')
+  })
+})
+
+describe('buildCustomerMapGroupMarkerHtml', () => {
+  it('renders count badge for multi-customer groups', () => {
+    const html = buildCustomerMapGroupMarkerHtml('3명', 3, true)
+    expect(html).toContain('customer-map-name-marker--group')
+    expect(html).toContain('customer-map-name-marker__count')
+    expect(html).toContain('>3<')
+  })
+
+  it('omits count badge for single-customer groups', () => {
+    const html = buildCustomerMapGroupMarkerHtml('김도훈', 1, false)
+    expect(html).not.toContain('customer-map-name-marker__count')
   })
 })

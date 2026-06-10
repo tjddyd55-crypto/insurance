@@ -1,12 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CustomerMapListItem, CustomerMapViewportBounds } from '../../api/customerMapApi'
 import type { MapProviderName } from '../../config/customerMap.config'
+import {
+  buildGroupMarkerLabel,
+  groupMapCustomersByCoordinate,
+  type CustomerMapMarkerGroup,
+} from '../../utils/customerMapMarkerGroups'
 import { MapSdkError } from './mapSdkErrors'
 import {
   waitForUsableMapContainerSize,
 } from './naverMapContainer'
 import {
-  buildCustomerMapMarkerHtml,
+  buildCustomerMapGroupMarkerHtml,
   CUSTOMER_MAP_NAME_MARKER_SIZE,
 } from './customerMapMarkerHtml'
 import {
@@ -24,12 +29,12 @@ type CustomerMapCanvasProps = {
   centerLat: number
   centerLng: number
   zoom: number
-  selectedCustomerId: number | null
+  selectedGroupKey: string | null
   autoFitKey: string
   skipAutoFit?: boolean
   onViewportChange: (centerLat: number, centerLng: number, zoom: number) => void
   onBoundsIdle: (bounds: CustomerMapViewportBounds) => void
-  onSelectCustomer: (customerId: number | null) => void
+  onSelectMarkerGroup: (groupKey: string, customerId?: number | null) => void
   onMapInitFailed?: () => void
 }
 
@@ -140,12 +145,12 @@ export default function CustomerMapCanvas({
   centerLat,
   centerLng,
   zoom,
-  selectedCustomerId,
+  selectedGroupKey,
   autoFitKey,
   skipAutoFit = false,
   onViewportChange,
   onBoundsIdle,
-  onSelectCustomer,
+  onSelectMarkerGroup,
   onMapInitFailed,
 }: CustomerMapCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -154,14 +159,15 @@ export default function CustomerMapCanvas({
   const skipCenterSyncRef = useRef(false)
   const onViewportChangeRef = useRef(onViewportChange)
   const onBoundsIdleRef = useRef(onBoundsIdle)
-  const onSelectCustomerRef = useRef(onSelectCustomer)
+  const onSelectMarkerGroupRef = useRef(onSelectMarkerGroup)
+  const markerGroups = useMemo(() => groupMapCustomersByCoordinate(customers), [customers])
   const onMapInitFailedRef = useRef(onMapInitFailed)
   const lastAutoFitKeyRef = useRef<string | null>(null)
   const [mapReady, setMapReady] = useState(false)
 
   onViewportChangeRef.current = onViewportChange
   onBoundsIdleRef.current = onBoundsIdle
-  onSelectCustomerRef.current = onSelectCustomer
+  onSelectMarkerGroupRef.current = onSelectMarkerGroup
   onMapInitFailedRef.current = onMapInitFailed
 
   useEffect(() => {
@@ -346,16 +352,19 @@ export default function CustomerMapCanvas({
     }
     markersRef.current = []
 
-    if (provider === 'naver' && window.naver?.maps) {
-      const { maps } = window.naver
-      for (const customer of customers) {
-        const selected = customer.id === selectedCustomerId
+    const renderGroupMarker = (group: CustomerMapMarkerGroup) => {
+      const selected = group.groupKey === selectedGroupKey
+      const label = buildGroupMarkerLabel(group.customers)
+      const defaultCustomerId = group.customers[0]?.id ?? null
+
+      if (provider === 'naver' && window.naver?.maps) {
+        const { maps } = window.naver
         const marker = new maps.Marker({
-          position: new maps.LatLng(customer.latitude, customer.longitude),
+          position: new maps.LatLng(group.lat, group.lng),
           map,
           zIndex: selected ? 200 : 100,
           icon: {
-            content: buildCustomerMapMarkerHtml(customer.name, selected),
+            content: buildCustomerMapGroupMarkerHtml(label, group.count, selected),
             size: new maps.Size(
               CUSTOMER_MAP_NAME_MARKER_SIZE.width,
               CUSTOMER_MAP_NAME_MARKER_SIZE.height,
@@ -367,28 +376,30 @@ export default function CustomerMapCanvas({
           },
         })
         maps.Event.addListener(marker, 'click', () => {
-          onSelectCustomerRef.current(customer.id)
+          onSelectMarkerGroupRef.current(group.groupKey, defaultCustomerId)
         })
         markersRef.current.push(marker)
+        return
       }
-      return
-    }
 
-    if (provider === 'kakao' && window.kakao?.maps) {
-      const { maps } = window.kakao
-      for (const customer of customers) {
+      if (provider === 'kakao' && window.kakao?.maps) {
+        const { maps } = window.kakao
         const marker = new maps.Marker({
-          position: new maps.LatLng(customer.latitude, customer.longitude),
+          position: new maps.LatLng(group.lat, group.lng),
           map,
           clickable: true,
         })
         maps.event.addListener(marker, 'click', () => {
-          onSelectCustomerRef.current(customer.id)
+          onSelectMarkerGroupRef.current(group.groupKey, defaultCustomerId)
         })
         markersRef.current.push(marker)
       }
     }
-  }, [customers, selectedCustomerId, provider])
+
+    for (const group of markerGroups) {
+      renderGroupMarker(group)
+    }
+  }, [markerGroups, selectedGroupKey, provider])
 
   return <div ref={containerRef} className="customer-map-canvas" role="presentation" />
 }

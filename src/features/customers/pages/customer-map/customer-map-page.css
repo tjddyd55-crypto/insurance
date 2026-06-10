@@ -324,6 +324,182 @@
   width: 100%;
 }
 
+.customer-map-name-marker--group .customer-map-name-marker__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.customer-map-name-marker__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.625rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.customer-map-marker-card--group {
+  max-height: min(70vh, 520px);
+  display: flex;
+  flex-direction: column;
+}
+
+.customer-map-marker-card__title-row--stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.customer-map-marker-card__address {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+.customer-map-marker-card__group-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 2px;
+}
+
+.customer-map-marker-card__row {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #1f2937;
+  cursor: pointer;
+}
+
+.customer-map-marker-card__row--highlighted {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.35);
+}
+
+.customer-map-marker-card__row-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.customer-map-marker-card__row-name {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #f8fafc;
+}
+
+.customer-map-marker-card__row-meta {
+  font-size: 0.8125rem;
+  color: #cbd5e1;
+}
+
+.customer-map-marker-card__row-fields {
+  margin: 8px 0 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.customers-map-page__unmapped-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.customers-map-page__unmapped-summary {
+  font-size: 0.8125rem;
+  color: #cbd5e1;
+}
+
+.customers-map-page__unmapped-panel {
+  padding: 12px;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  background: #111827;
+}
+
+.customers-map-page__unmapped-title {
+  margin: 0 0 10px;
+  font-size: 0.9375rem;
+  color: #f8fafc;
+}
+
+.customer-map-unmapped-list__empty {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+.customer-map-unmapped-list__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.customer-map-unmapped-list__item {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #1f2937;
+}
+
+.customer-map-unmapped-list__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.customer-map-unmapped-list__name {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #f8fafc;
+}
+
+.customer-map-unmapped-list__status {
+  font-size: 0.75rem;
+  color: #fbbf24;
+}
+
+.customer-map-unmapped-list__meta,
+.customer-map-unmapped-list__address {
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+  color: #cbd5e1;
+  line-height: 1.45;
+}
+
+.customer-map-unmapped-list__detail-btn {
+  margin-top: 10px;
+}
+
+.customers-map-page--mobile .customer-map-marker-card--group {
+  left: 12px;
+  right: 12px;
+  width: auto;
+}
+
+.customers-map-page--mobile .customer-map-unmapped-list__items {
+  max-height: 280px;
+}
+
 .customer-map-setup-notice {
   display: flex;
   flex-direction: column;

@@ -29,3 +29,18 @@ export function buildCustomerMapMarkerHtml(customerName: string, selected: boole
   const label = escapeMarkerLabelHtml(truncateMarkerLabel(customerName))
   return `<div class="customer-map-name-marker${modifier}"><div class="customer-map-name-marker__label">${label}</div><div class="customer-map-name-marker__pin" aria-hidden="true"></div></div>`
 }
+
+export function buildCustomerMapGroupMarkerHtml(
+  label: string,
+  count: number,
+  selected: boolean,
+): string {
+  const modifier = selected ? ' customer-map-name-marker--selected' : ''
+  const groupModifier = count > 1 ? ' customer-map-name-marker--group' : ''
+  const escapedLabel = escapeMarkerLabelHtml(truncateMarkerLabel(label))
+  const countBadge =
+    count > 1
+      ? `<span class="customer-map-name-marker__count">${escapeMarkerLabelHtml(String(count))}</span>`
+      : ''
+  return `<div class="customer-map-name-marker${modifier}${groupModifier}"><div class="customer-map-name-marker__label">${escapedLabel}${countBadge}</div><div class="customer-map-name-marker__pin" aria-hidden="true"></div></div>`
+}

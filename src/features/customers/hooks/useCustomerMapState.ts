@@ -9,9 +9,16 @@ import {
   type CustomerMapDynamicMapMeta,
   type CustomerMapStaticMapMeta,
   type CustomerMapStats,
+  type CustomerMapUnmappedItem,
   type CustomerMapViewportBounds,
   type FetchCustomerMapParams,
 } from '../api/customerMapApi'
+import {
+  buildCoordinateGroupKey,
+  findMarkerGroupByCustomerId,
+  groupMapCustomersByCoordinate,
+  type CustomerMapMarkerGroup,
+} from '../utils/customerMapMarkerGroups'
 import {
   CUSTOMER_MAP_DEFAULT_CENTER,
   CUSTOMER_MAP_FOCUS_ZOOM,
@@ -36,6 +43,8 @@ export type CustomerMapViewProps = {
   error: string | null
   customers: CustomerMapMarker[]
   mapCustomers: CustomerMapListItem[]
+  markerGroups: CustomerMapMarkerGroup[]
+  unmappedCustomers: CustomerMapUnmappedItem[]
   mapMeta: CustomerMapDynamicMapMeta | null
   staticMap: CustomerMapStaticMapMeta | null
   stats: CustomerMapStats | null
@@ -48,7 +57,9 @@ export type CustomerMapViewProps = {
   viewportCenterLng: number
   viewportZoom: number
   selectedCustomerId: number | null
-  selectedCustomer: CustomerMapListItem | null
+  selectedGroupKey: string | null
+  selectedMarkerGroup: CustomerMapMarkerGroup | null
+  showUnmappedList: boolean
   focusNotice: string | null
   skipAutoFit: boolean
   onRadiusChange: (radiusKm: number | null) => void
@@ -56,7 +67,10 @@ export type CustomerMapViewProps = {
   onOpenCustomerDetail: (customerId: number) => void
   onFavoriteOnlyChange: (value: boolean) => void
   onKeywordChange: (value: string) => void
-  onSelectCustomer: (customerId: number | null) => void
+  onSelectMarkerGroup: (groupKey: string, customerId?: number | null) => void
+  onHighlightCustomer: (customerId: number) => void
+  onCloseMarkerCard: () => void
+  onToggleUnmappedList: () => void
   onViewportChange: (centerLat: number, centerLng: number, zoom: number) => void
   onBoundsIdle: (bounds: CustomerMapViewportBounds) => void
 }
@@ -124,6 +138,7 @@ export function useCustomerMapState(): CustomerMapViewProps {
   const [error, setError] = useState<string | null>(null)
   const [customers, setCustomers] = useState<CustomerMapMarker[]>([])
   const [mapCustomers, setMapCustomers] = useState<CustomerMapListItem[]>([])
+  const [unmappedCustomers, setUnmappedCustomers] = useState<CustomerMapUnmappedItem[]>([])
   const [mapMeta, setMapMeta] = useState<CustomerMapDynamicMapMeta | null>(null)
   const [staticMap, setStaticMap] = useState<CustomerMapStaticMapMeta | null>(null)
   const [stats, setStats] = useState<CustomerMapStats | null>(null)
@@ -149,6 +164,8 @@ export function useCustomerMapState(): CustomerMapViewProps {
       ? restored.selectedCustomerId
       : null
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(restoredSelectedId)
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null)
+  const [showUnmappedList, setShowUnmappedList] = useState(false)
   const [focusNotice, setFocusNotice] = useState<string | null>(null)
   const [skipAutoFit, setSkipAutoFit] = useState(false)
   /** 지도 복귀 시 mapCustomers 로드 전 selectedCustomerId 가 null 로 지워지지 않도록 보관 */
@@ -157,6 +174,11 @@ export function useCustomerMapState(): CustomerMapViewProps {
   const loadSeq = useRef(0)
   const boundsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastBoundsKeyRef = useRef<string | null>(null)
+
+  const markerGroups = useMemo(
+    () => groupMapCustomersByCoordinate(mapCustomers),
+    [mapCustomers],
+  )
 
   const mapAutoFitKey = useMemo(
     () =>
@@ -209,6 +231,7 @@ export function useCustomerMapState(): CustomerMapViewProps {
     if (!token?.trim()) {
       setCustomers([])
       setMapCustomers([])
+      setUnmappedCustomers([])
       setMapMeta(null)
       setStaticMap(null)
       setStats(null)
@@ -232,6 +255,7 @@ export function useCustomerMapState(): CustomerMapViewProps {
       }
       setCustomers(res.customers)
       setMapCustomers(res.mapCustomers)
+      setUnmappedCustomers(res.unmappedCustomers ?? [])
       setMapMeta(res.map)
       setStaticMap(res.staticMap)
       setStats(res.stats)
@@ -295,14 +319,20 @@ export function useCustomerMapState(): CustomerMapViewProps {
     setSkipAutoFit(true)
     setUseExplicitCenter(false)
     setRadiusKm(null)
-    setCenterLat(customer.latitude)
-    setCenterLng(customer.longitude)
-    setViewportCenterLat(customer.latitude)
-    setViewportCenterLng(customer.longitude)
+    const group = findMarkerGroupByCustomerId(markerGroups, customer.id)
+    const centerLat = group?.lat ?? customer.latitude
+    const centerLng = group?.lng ?? customer.longitude
+    setCenterLat(centerLat)
+    setCenterLng(centerLng)
+    setViewportCenterLat(centerLat)
+    setViewportCenterLng(centerLng)
     setViewportZoom(zoom)
+    setSelectedGroupKey(
+      group?.groupKey ?? buildCoordinateGroupKey(customer.latitude, customer.longitude),
+    )
     setSelectedCustomerId(customer.id)
     clearFocusQuery()
-  }, [loading, mapCustomers, stats, restored, clearFocusQuery])
+  }, [loading, mapCustomers, markerGroups, stats, restored, clearFocusQuery])
 
   useEffect(() => {
     setSkipAutoFit(false)
@@ -320,13 +350,20 @@ export function useCustomerMapState(): CustomerMapViewProps {
       return
     }
     if (mapCustomers.some((c) => c.id === pending)) {
+      const group = findMarkerGroupByCustomerId(markerGroups, pending)
+      const row = mapCustomers.find((c) => c.id === pending)
       setSelectedCustomerId(pending)
+      setSelectedGroupKey(
+        group?.groupKey ??
+          (row ? buildCoordinateGroupKey(row.latitude, row.longitude) : null),
+      )
       pendingSelectedCustomerIdRef.current = null
       return
     }
     pendingSelectedCustomerIdRef.current = null
     setSelectedCustomerId(null)
-  }, [mapCustomers, loading, boundsLoading, mapBounds])
+    setSelectedGroupKey(null)
+  }, [mapCustomers, markerGroups, loading, boundsLoading, mapBounds])
 
   useEffect(() => {
     if (selectedCustomerId == null) {
@@ -340,12 +377,35 @@ export function useCustomerMapState(): CustomerMapViewProps {
     }
     if (!mapCustomers.some((c) => c.id === selectedCustomerId)) {
       setSelectedCustomerId(null)
+      setSelectedGroupKey(null)
     }
   }, [mapCustomers, selectedCustomerId, loading, boundsLoading])
 
-  const onSelectCustomer = useCallback((customerId: number | null) => {
-    pendingSelectedCustomerIdRef.current = null
+  const onSelectMarkerGroup = useCallback(
+    (groupKey: string, customerId?: number | null) => {
+      const group = markerGroups.find((row) => row.groupKey === groupKey)
+      if (!group) {
+        return
+      }
+      pendingSelectedCustomerIdRef.current = null
+      setSelectedGroupKey(groupKey)
+      setSelectedCustomerId(customerId ?? group.customers[0]?.id ?? null)
+    },
+    [markerGroups],
+  )
+
+  const onHighlightCustomer = useCallback((customerId: number) => {
     setSelectedCustomerId(customerId)
+  }, [])
+
+  const onCloseMarkerCard = useCallback(() => {
+    pendingSelectedCustomerIdRef.current = null
+    setSelectedCustomerId(null)
+    setSelectedGroupKey(null)
+  }, [])
+
+  const onToggleUnmappedList = useCallback(() => {
+    setShowUnmappedList((prev) => !prev)
   }, [])
 
   const buildMapState = useCallback(
@@ -399,7 +459,9 @@ export function useCustomerMapState(): CustomerMapViewProps {
 
   const onOpenCustomerDetail = useCallback(
     (customerId: number) => {
-      const customer = mapCustomers.find((row) => row.id === customerId)
+      const customer =
+        mapCustomers.find((row) => row.id === customerId) ??
+        unmappedCustomers.find((row) => row.id === customerId)
       openCustomerDetailFromMap({
         customerId,
         customerName: customer?.name,
@@ -408,7 +470,7 @@ export function useCustomerMapState(): CustomerMapViewProps {
         navigate,
       })
     },
-    [mapCustomers, isMobile, buildMapState, navigate],
+    [mapCustomers, unmappedCustomers, isMobile, buildMapState, navigate],
   )
 
   const onBoundsIdle = useCallback((bounds: CustomerMapViewportBounds) => {
@@ -425,10 +487,15 @@ export function useCustomerMapState(): CustomerMapViewProps {
     }, BOUNDS_DEBOUNCE_MS)
   }, [])
 
-  const selectedCustomer = useMemo(
-    () => mapCustomers.find((row) => row.id === selectedCustomerId) ?? null,
-    [mapCustomers, selectedCustomerId],
-  )
+  const selectedMarkerGroup = useMemo(() => {
+    if (selectedGroupKey) {
+      return markerGroups.find((group) => group.groupKey === selectedGroupKey) ?? null
+    }
+    if (selectedCustomerId != null) {
+      return findMarkerGroupByCustomerId(markerGroups, selectedCustomerId)
+    }
+    return null
+  }, [markerGroups, selectedGroupKey, selectedCustomerId])
 
   return {
     loading,
@@ -436,6 +503,8 @@ export function useCustomerMapState(): CustomerMapViewProps {
     error,
     customers,
     mapCustomers,
+    markerGroups,
+    unmappedCustomers,
     mapMeta,
     staticMap,
     stats,
@@ -448,7 +517,9 @@ export function useCustomerMapState(): CustomerMapViewProps {
     viewportCenterLng,
     viewportZoom,
     selectedCustomerId,
-    selectedCustomer,
+    selectedGroupKey,
+    selectedMarkerGroup,
+    showUnmappedList,
     focusNotice,
     skipAutoFit,
     onRadiusChange: (nextRadius) => {
@@ -463,7 +534,10 @@ export function useCustomerMapState(): CustomerMapViewProps {
     onOpenCustomerDetail,
     onFavoriteOnlyChange: setFavoriteOnly,
     onKeywordChange: setKeyword,
-    onSelectCustomer,
+    onSelectMarkerGroup,
+    onHighlightCustomer,
+    onCloseMarkerCard,
+    onToggleUnmappedList,
     onViewportChange: (lat, lng, zoom) => {
       setViewportCenterLat(lat)
       setViewportCenterLng(lng)

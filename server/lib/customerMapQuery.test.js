@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildCustomerMapListQuery, buildCustomerMapStatsQuery } from './customerMapQuery.js'
+import { buildCustomerMapListQuery, buildCustomerMapStatsQuery, buildCustomerMapUnmappedQuery } from './customerMapQuery.js'
 
 const VISIBILITY = {
   visibilityClause: 'c.ga_id = $1 AND c.deleted_at IS NULL AND COALESCE(c.owner_user_id, c.user_id) = $2',
@@ -64,4 +64,18 @@ test('buildCustomerMapStatsQuery counts address and geocode buckets', () => {
   assert.match(sql, /geocode_pending/)
   assert.match(sql, /geocode_failed/)
   assert.doesNotMatch(sql, /missing_address/)
+})
+
+test('buildCustomerMapUnmappedQuery excludes successful coordinates', () => {
+  const { sql, params } = buildCustomerMapUnmappedQuery({
+    ...VISIBILITY,
+    userId: 'user-1',
+    gaId: 3,
+    keyword: '김',
+  })
+  assert.match(sql, /NOT \(/)
+  assert.match(sql, /cl\.status = 'success'/)
+  assert.match(sql, /map_status/)
+  assert.match(sql, /c\.name ILIKE/)
+  assert.equal(params[2], '%김%')
 })

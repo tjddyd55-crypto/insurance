@@ -3,10 +3,12 @@ import { parseGaId } from '../lib/parseGaId.js'
 import {
   buildCustomerMapListQuery,
   buildCustomerMapStatsQuery,
+  buildCustomerMapUnmappedQuery,
 } from '../lib/customerMapQuery.js'
 import {
   buildCustomerMapResponse,
   mapCustomerMapRow,
+  mapCustomerMapUnmappedRow,
   parseCustomerMapFilters,
 } from '../lib/customerMapService.js'
 import { resolveCustomerVisibilitySqlForSelect } from '../lib/customerRowVisibilitySql.js'
@@ -90,12 +92,22 @@ export function registerCustomerMapApi(apiRouter, ctx) {
       visibilityClause: visibility.visibilityClause,
       visibilityParams: visibility.visibilityParams,
     })
-    const [listResult, statsResult] = await Promise.all([
+    const unmappedBuilt = buildCustomerMapUnmappedQuery({
+      visibilityClause: visibility.visibilityClause,
+      visibilityParams: visibility.visibilityParams,
+      userId,
+      gaId,
+      favoriteOnly: filters.favoriteOnly,
+      keyword: filters.keyword,
+    })
+    const [listResult, statsResult, unmappedResult] = await Promise.all([
       safeQuery(pool, listBuilt.sql, listBuilt.params),
       safeQuery(pool, statsBuilt.sql, statsBuilt.params),
+      safeQuery(pool, unmappedBuilt.sql, unmappedBuilt.params),
     ])
 
     const customers = listResult.rows.map(mapCustomerMapRow)
+    const unmappedCustomers = unmappedResult.rows.map(mapCustomerMapUnmappedRow)
     return {
       filters,
       payload: buildCustomerMapResponse(customers, {
@@ -105,6 +117,7 @@ export function registerCustomerMapApi(apiRouter, ctx) {
         useExplicitCenter: filters.useExplicitCenter,
         boundsApplied: filters.boundsApplied,
         statsRow: statsResult.rows[0] ?? {},
+        unmappedCustomers,
       }),
     }
   }

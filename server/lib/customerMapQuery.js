@@ -145,6 +145,9 @@ export function buildCustomerMapListQuery(input) {
       c.name,
       c.phone,
       c.address,
+      c.birth_date,
+      c.gender,
+      c.ssn,
       c.is_favorite,
       cl.latitude,
       cl.longitude,
@@ -189,6 +192,77 @@ export function buildCustomerMapStatsQuery(input) {
     WHERE (${visClause})
   `
   return { sql, params: visParams }
+}
+
+/**
+ * 지도에 표시되지 않는 고객 (주소 없음·좌표 미변환·변환 실패 등).
+ *
+ * @param {{
+ *   visibilityClause: string
+ *   visibilityParams: unknown[]
+ *   userId: string
+ *   gaId: number
+ *   favoriteOnly?: boolean
+ *   keyword?: string | null
+ * }} input
+ */
+export function buildCustomerMapUnmappedQuery(input) {
+  const visParams = [...(input.visibilityParams ?? [])]
+  const visClause = input.visibilityClause ?? '(FALSE)'
+  let i = visParams.length + 1
+  const params = [...visParams]
+  const where = [
+    `(${visClause})`,
+    `NOT (
+      cl.status = 'success'
+      AND cl.latitude IS NOT NULL
+      AND cl.longitude IS NOT NULL
+    )`,
+  ]
+
+  if (input.favoriteOnly) {
+    where.push('c.is_favorite = true')
+  }
+
+  const keyword = String(input.keyword ?? '').trim()
+  if (keyword) {
+    where.push(`(c.name ILIKE $${i} OR c.phone ILIKE $${i} OR c.address ILIKE $${i})`)
+    params.push(`%${keyword}%`)
+    i += 1
+  }
+
+  const userPh = `$${i}`
+  params.push(input.userId)
+  i += 1
+  const gaPh = `$${i}`
+  params.push(input.gaId)
+
+  const summaryJoin = buildCustomerConsultationSummaryJoin(userPh, gaPh)
+
+  const sql = `
+    SELECT
+      c.id,
+      c.name,
+      c.phone,
+      c.address,
+      c.birth_date,
+      c.gender,
+      c.ssn,
+      lc.last_consult_date,
+      CASE
+        WHEN NOT (${HAS_ADDRESS_SQL}) OR cl.status = 'skipped_no_address' THEN 'no_address'
+        WHEN cl.status = 'failed' THEN 'geocode_failed'
+        WHEN cl.status IN ('pending', 'stale') OR cl.id IS NULL THEN 'geocode_pending'
+        ELSE 'no_coordinates'
+      END AS map_status
+    FROM customers c
+    LEFT JOIN customer_locations cl ON cl.customer_id = c.id
+    ${summaryJoin}
+    WHERE ${where.join(' AND ')}
+    ORDER BY c.name ASC, c.id ASC
+  `
+
+  return { sql, params }
 }
 
 /**

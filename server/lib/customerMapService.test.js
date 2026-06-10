@@ -13,6 +13,8 @@ function makeCustomer(id) {
     name: `고객${id}`,
     phone: '010',
     address: '서울',
+    birthDateYmd: '1990-01-02',
+    genderLabel: '남',
     latitude: 37.5 + id * 0.001,
     longitude: 127 + id * 0.001,
     lastConsultDate: null,
@@ -77,4 +79,26 @@ test('mapCustomerMapStatsRow maps legacy fields', () => {
   assert.equal(stats.geocodedSuccess, 3)
   assert.equal(stats.withoutAddress, 5)
   assert.equal(stats.geocodeFailed, 2)
+  assert.equal(stats.unmappedCount, 7)
+})
+
+test('buildCustomerMapResponse includes unmappedCustomers', () => {
+  const payload = buildCustomerMapResponse([makeCustomer(1)], {
+    statsRow: { total_customers: 2, geocoded_success: 1 },
+    unmappedCustomers: [
+      {
+        id: 2,
+        name: '미표시',
+        phone: '010',
+        address: '',
+        birthDateYmd: '',
+        genderLabel: '-',
+        lastConsultDate: null,
+        mapStatus: 'no_address',
+        mapStatusLabel: '주소 없음',
+      },
+    ],
+  })
+  assert.equal(payload.unmappedCustomers.length, 1)
+  assert.equal(payload.mapCustomers[0].birthDateYmd, '1990-01-02')
 })
