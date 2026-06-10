@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { canMutateInsuranceDirectory, isInsuranceOpsRole } from '../../auth/roleGuards'
+import { companyDirectoryRowMatchesSearchAlias } from '../domain/insuranceSearchAliases'
 import { listCompanyDirectory } from '../api/companyRegistryApi'
 import { resolveTabCategory } from '../domain/categoryUtils'
 import {
@@ -84,6 +85,9 @@ export default function InsuranceCompanyContactsViewPage() {
     }
     return byTab.filter((c) => {
       if (c.name.toLowerCase().includes(q)) {
+        return true
+      }
+      if (companyDirectoryRowMatchesSearchAlias(c.name, q)) {
         return true
       }
       if (
