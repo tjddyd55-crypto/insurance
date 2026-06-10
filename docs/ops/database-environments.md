@@ -210,8 +210,11 @@ count가 크게 다르면 **DATABASE_URL 전환하지 않음**.
 
 ### 4-8. 지도 feature 검증 (clone 전환 **후에만**)
 
-1. `feat/customer-location-map-mvp` 를 development `app` 에 **임시** 배포 (별도 승인)
-2. development env: `NAVER_MAPS_CLIENT_ID` / `NAVER_MAPS_CLIENT_SECRET` / `MAP_PROVIDER=naver` / `MAP_RENDER_MODE=static`
+Railway development Source Branch는 **`develop`** (`docs/ops/railway-deployment.md`).  
+feature 브랜치를 Railway에 직접 연결하지 않는다.
+
+1. 지도 관련 커밋을 **승인 후 `develop`에 cherry-pick/merge** → `develop` push → development 재배포
+2. development env: `NAVER_MAPS_CLIENT_ID` / `NAVER_MAPS_CLIENT_SECRET` / `MAP_PROVIDER=naver` / `MAP_RENDER_MODE=dynamic` / `VITE_NAVER_MAP_CLIENT_ID`(프론트 Dynamic Map) — **Web 서비스 URL 등록**: `docs/ops/naver-maps-dynamic-map-setup.md`
 3. `node server/scripts/naver-maps-smoke-test.mjs --railway-development`
 4. `customer-geocode-backfill.mjs --dry-run`
 5. `--execute --limit 5` (**clone DB만** — `dbEnvironmentGuard` 가 production execute 차단)
