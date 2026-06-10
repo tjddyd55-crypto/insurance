@@ -15,6 +15,7 @@ type WorkspaceActiveTab =
   | 'memos'
   | 'claims'
   | 'personal-message'
+  | 'signatures'
   | null
 
 export type CustomerWorkspaceLayoutPCProps = {
@@ -24,6 +25,7 @@ export type CustomerWorkspaceLayoutPCProps = {
   selectedCustomer: CustomerRecord | null
   activeTab: WorkspaceActiveTab
   showCarInsuranceInWorkspace: boolean
+  showContractSignaturesInWorkspace: boolean
   showGaExcelEntry: boolean
   /** 설정 미완료 등 안내용(버튼은 항상 활성 — 고객 선택 시) */
   gaExcelMenuTitleHint: string | undefined
@@ -34,6 +36,8 @@ export type CustomerWorkspaceLayoutPCProps = {
   onClickMemos: () => void
   onClickClaims: () => void
   onClickPersonalMessage: () => void
+  onClickSignatures: () => void
+  onClickViewOnMap: () => void
   /** 좌측 `CustomersPage` 가 `handleOpenRelatedCustomer` 를 등록한다. 최근 등록 고객 패널 등에서 재사용. */
   openRelatedCustomerRef: MutableRefObject<
     ((customerId: number, customerName?: string) => void) | null
@@ -51,6 +55,9 @@ function rightTitle(pathname: string): string {
   }
   if (pathname.includes('/application-documents')) {
     return '신청서 작성'
+  }
+  if (pathname.includes('/signatures')) {
+    return '전자서명'
   }
   if (pathname.includes('/files')) {
     return '고객 파일 작업'
@@ -85,6 +92,7 @@ export default function CustomerWorkspaceLayoutPC({
   selectedCustomer,
   activeTab,
   showCarInsuranceInWorkspace,
+  showContractSignaturesInWorkspace,
   showGaExcelEntry,
   gaExcelMenuTitleHint,
   onClickFiles,
@@ -94,6 +102,8 @@ export default function CustomerWorkspaceLayoutPC({
   onClickMemos,
   onClickClaims,
   onClickPersonalMessage,
+  onClickSignatures,
+  onClickViewOnMap,
   openRelatedCustomerRef,
 }: CustomerWorkspaceLayoutPCProps) {
   const genderLabel =
@@ -137,6 +147,14 @@ export default function CustomerWorkspaceLayoutPC({
         <div className="customer-workspace-layout__actions">
           <FormButton
             htmlType="button"
+            variant="secondary"
+            disabled={!selectedCustomerId}
+            onClick={onClickViewOnMap}
+          >
+            지도에서 보기
+          </FormButton>
+          <FormButton
+            htmlType="button"
             variant="action"
             className={`filter-button${activeTab === 'personal-message' ? ' filter-button--workspace-active' : ''}`}
             disabled={!selectedCustomerId}
@@ -171,6 +189,18 @@ export default function CustomerWorkspaceLayoutPC({
               onClick={onClickCarForm}
             >
               신청서
+            </FormButton>
+          ) : null}
+          {showContractSignaturesInWorkspace ? (
+            <FormButton
+              htmlType="button"
+              variant="action"
+              className={`filter-button${activeTab === 'signatures' ? ' filter-button--workspace-active' : ''}`}
+              disabled={!selectedCustomerId}
+              title={!selectedCustomerId ? '고객을 선택해 주세요.' : undefined}
+              onClick={onClickSignatures}
+            >
+              전자서명
             </FormButton>
           ) : null}
           {showGaExcelEntry ? (

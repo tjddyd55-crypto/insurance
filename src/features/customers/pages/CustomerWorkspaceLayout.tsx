@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
+import { parseWorkspaceCustomerIdFromPath } from '../utils/customerWorkspaceNavigation'
 import ResponsiveLayout from '../../../components/ResponsiveLayout'
 import { useAuth } from '../../auth/AuthProvider'
 import { fetchGaCustomerExcelCapability, type GaCustomerExcelCapability } from '../api/gaCustomerExcelApi'
 import { getCustomerById } from '../api/customersApi'
 import { isGaCarInsuranceHubEnabled } from '../../dashboard/gaTenantMenu'
 import useIsMobile from '../../../hooks/useIsMobile'
+import { canAccessContractSignatureUserSend } from '../../contracts/testConsole/contractSignatureTestConsoleFlags'
 import CustomersPageContainer from './customers/CustomersPageContainer'
 import CustomerWorkspaceLayoutPC, { type CustomerWorkspaceLayoutPCProps } from './workspace/CustomerWorkspaceLayoutPC'
 import CustomerWorkspaceLayoutMobile from './workspace/CustomerWorkspaceLayoutMobile'
@@ -14,19 +17,6 @@ import type { CustomerRecord } from '../domain/types'
 function parseSelectedCustomerId(raw: string | null): number | null {
   const n = Number(raw)
   return Number.isInteger(n) && n > 0 ? n : null
-}
-
-/** Path-based customer (files/consultations/ga-excel) wins over ?customerId= so list expand does not override the workspace header. */
-function parseWorkspaceCustomerIdFromPath(pathname: string): number | null {
-  const tab = resolveWorkspacePathTab(pathname)
-  if (!tab) {
-    return null
-  }
-  const m = pathname.match(/^\/customers\/(\d+)(?:\/|$)/)
-  if (!m?.[1]) {
-    return null
-  }
-  return parseSelectedCustomerId(m[1])
 }
 
 export type CustomerWorkspaceTab =
@@ -53,6 +43,9 @@ function resolveWorkspacePathTab(pathname: string): CustomerWorkspaceTab | null 
   }
   if (pathname.includes('/application-documents')) {
     return 'pdf-documents'
+  }
+  if (pathname.includes('/signatures')) {
+    return 'signatures'
   }
   if (pathname.includes('/consultations')) {
     return 'consultations'
@@ -195,6 +188,7 @@ export default function CustomerWorkspaceLayout() {
   const showGaExcelEntry = true
 
   const showCarInsuranceInWorkspace = isGaCarInsuranceHubEnabled(user?.gaCode, user?.gaName)
+  const showContractSignaturesInWorkspace = canAccessContractSignatureUserSend(user?.role)
 
   const moveTo = (path: string) => {
     const href = buildCustomerWorkspaceHref(path, searchParams, selectedCustomerId)
@@ -268,6 +262,20 @@ export default function CustomerWorkspaceLayout() {
     navigate(`/customers/${selectedCustomerId}/claim-requests?customerId=${selectedCustomerId}&claimTab=news-personal`)
   }
 
+  const handleClickSignatures = () => {
+    if (!selectedCustomerId) {
+      return
+    }
+    moveTo(`/customers/${selectedCustomerId}/signatures`)
+  }
+
+  const handleClickViewOnMap = useCallback(() => {
+    if (!selectedCustomerId) {
+      return
+    }
+    navigateToCustomerOnMap(navigate, selectedCustomerId)
+  }, [navigate, selectedCustomerId])
+
   const rightPanelProps: CustomerWorkspaceLayoutPCProps = {
     pathname: location.pathname,
     selectedCustomerId,
@@ -275,6 +283,7 @@ export default function CustomerWorkspaceLayout() {
     selectedCustomer,
     activeTab,
     showCarInsuranceInWorkspace,
+    showContractSignaturesInWorkspace,
     showGaExcelEntry,
     gaExcelMenuTitleHint:
       selectedCustomerId && excelCap != null && !excelCap.showDesignerUi
@@ -287,6 +296,8 @@ export default function CustomerWorkspaceLayout() {
     onClickMemos: handleClickMemos,
     onClickClaims: handleClickClaims,
     onClickPersonalMessage: handleClickPersonalMessage,
+    onClickSignatures: handleClickSignatures,
+    onClickViewOnMap: handleClickViewOnMap,
     openRelatedCustomerRef,
   }
 

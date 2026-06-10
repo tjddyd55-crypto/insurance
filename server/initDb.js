@@ -304,6 +304,51 @@ async function ensureLossAdjusterCompanyFkOnDeleteSetNull(executor) {
 }
 
 /**
+ * 고객 지도 — geocoding 결과 좌표 저장
+ */
+async function ensureCustomerLocationsSchema(executor) {
+  await executor.query(`
+    CREATE TABLE IF NOT EXISTS customer_locations (
+      id BIGSERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      ga_id INTEGER NOT NULL REFERENCES ga_companies(id) ON DELETE CASCADE,
+      address_snapshot TEXT NOT NULL DEFAULT '',
+      latitude DOUBLE PRECISION,
+      longitude DOUBLE PRECISION,
+      provider VARCHAR(20),
+      status VARCHAR(32) NOT NULL DEFAULT 'pending',
+      error_message TEXT,
+      geocoded_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+  await executor.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_customer_locations_customer_id
+    ON customer_locations(customer_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_locations_user_id
+    ON customer_locations(user_id)
+  `)
+  await executor.query(`
+    CREATE INDEX IF NOT EXISTS idx_customer_locations_lat_lng_success
+    ON customer_locations(latitude, longitude)
+    WHERE status = 'success' AND latitude IS NOT NULL AND longitude IS NOT NULL
+  `)
+  await executor.query(`
+    ALTER TABLE customer_locations
+    DROP CONSTRAINT IF EXISTS customer_locations_status_check
+  `)
+  await executor.query(`
+    ALTER TABLE customer_locations
+    ADD CONSTRAINT customer_locations_status_check
+    CHECK (status IN ('pending', 'success', 'failed', 'skipped_no_address', 'stale'))
+  `)
+}
+
+/**
  * 고객 청구 요청 앱(STEP 1) 스키마:
  * - 링크/디바이스 연결
  * - 요청/요청 첨부
@@ -3201,6 +3246,7 @@ export async function initDb() {
   `)
 
   await ensureCustomerClaimAppSchema(pool)
+  await ensureCustomerLocationsSchema(pool)
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS customer_claim_requests (

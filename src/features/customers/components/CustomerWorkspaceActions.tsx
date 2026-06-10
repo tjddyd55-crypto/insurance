@@ -18,6 +18,7 @@ export type CustomerWorkspaceActionsProps = {
   onOpenClaims: (customerId: number) => void
   /** 고객별 메모 작업영역(`/customers/:id/memos`) — 모바일 상단 그리드 전용 */
   onOpenMemos: (customerId: number) => void
+  onOpenOnMap: (customerId: number) => void
   /** 모바일 상단 그리드: 현재 카드 고객정보 복사 */
   onCopyCustomerInfo: () => void
 }
@@ -40,6 +41,7 @@ export function CustomerWorkspaceActions({
   onOpenPersonalMessage,
   onOpenClaims,
   onOpenMemos,
+  onOpenOnMap,
   onCopyCustomerInfo,
 }: CustomerWorkspaceActionsProps) {
   if (variant === 'mobile') {
@@ -49,6 +51,17 @@ export function CustomerWorkspaceActions({
           <CustomerHeaderAppLinkCompact key={customerId} customerId={customerId} />
         </div>
         <div className="customer-detail-feature-actions customer-detail-feature-actions--mobile-priority customer-detail-feature-actions--mobile-grid-8">
+          <FormButton
+            htmlType="button"
+            variant="secondary"
+            className="button button--secondary customer-mobile-action-btn customer-mobile-action-btn--map"
+            onClick={() => onOpenOnMap(customerId)}
+          >
+            <span className="customer-mobile-action-btn__icon" aria-hidden>
+              🗺️
+            </span>
+            <MobileActionText>지도에서 보기</MobileActionText>
+          </FormButton>
           <FormButton
             htmlType="button"
             variant="secondary"

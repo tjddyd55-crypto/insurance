@@ -29,6 +29,9 @@ function resolveMobileSheetTitle(pathname: string, search: string): string {
   if (pathname.includes('/application-documents')) {
     return '신청서'
   }
+  if (pathname.includes('/signatures')) {
+    return '전자서명'
+  }
   if (pathname.includes('/memos')) {
     return '메모'
   }
@@ -111,7 +114,7 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
 
   const isMobileDetailRoute = useMemo(
     () =>
-      /^\/customers\/\d+\/(?:files|consultations|ga-excel|memos|auto-form|application-documents|claim-requests)(?:\/|$)/.test(
+      /^\/customers\/\d+\/(?:files|consultations|ga-excel|memos|auto-form|application-documents|signatures|claim-requests)(?:\/|$)/.test(
         location.pathname,
       ),
     [location.pathname],
@@ -173,7 +176,20 @@ export default function CustomerWorkspaceLayoutMobile(props: CustomerWorkspaceLa
         panelClassName="workspace-mobile-outlet-modal"
       >
         <div className="workspace-mobile-outlet-modal__header">
-          <span className="workspace-mobile-outlet-modal__spacer" aria-hidden />
+          <div className="workspace-mobile-outlet-modal__header-actions">
+            {props.selectedCustomerId ? (
+              <FormButton
+                htmlType="button"
+                variant="secondary"
+                size="sm"
+                onClick={props.onClickViewOnMap}
+              >
+                지도에서 보기
+              </FormButton>
+            ) : (
+              <span className="workspace-mobile-outlet-modal__spacer" aria-hidden />
+            )}
+          </div>
           <h2 className="workspace-mobile-outlet-modal__title">{title}</h2>
           <CustomerWorkspaceCloseButton onClick={handleClose} />
         </div>

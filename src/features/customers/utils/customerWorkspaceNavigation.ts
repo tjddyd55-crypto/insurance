@@ -4,6 +4,8 @@ export const WORKSPACE_SIDE_DETAIL_TABS = [
   'ga-excel',
   'memos',
   'auto-form',
+  'application-documents',
+  'signatures',
   'claim-requests',
 ] as const
 
@@ -22,6 +24,18 @@ export function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
   return WORKSPACE_SIDE_DETAIL_PATH_RE.test(pathname)
 }
 
+/** `/customers/:id/<tab>` 우측 작업영역 path 에서 고객 id 추출 */
+export function parseWorkspaceCustomerIdFromPath(pathname: string): number | null {
+  if (!isCustomerWorkspaceSideDetailPath(pathname)) {
+    return null
+  }
+  const match = pathname.match(/^\/customers\/(\d+)\//)
+  if (!match?.[1]) {
+    return null
+  }
+  return parseSelectedCustomerId(match[1])
+}
+
 /**
  * 고객 전환 시 현재 보고 있던 우측 작업 탭을 유지하기 위해 pathname에서 탭을 식별한다.
  *
@@ -33,6 +47,9 @@ export function isCustomerWorkspaceSideDetailPath(pathname: string): boolean {
 export function resolveCustomerWorkspaceTab(pathname: string): CustomerWorkspaceTab {
   if (pathname.includes('/claim-requests')) {
     return 'claim-requests'
+  }
+  if (pathname.includes('/signatures')) {
+    return 'signatures'
   }
   if (pathname.includes('/consultations')) {
     return 'consultations'

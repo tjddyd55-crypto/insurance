@@ -28,6 +28,7 @@ import { registerGaCustomerExcelApi } from './apis/gaCustomerExcelApi.js'
 import { registerGaCustomerMatchAliasesApi } from './apis/gaCustomerMatchAliasesApi.js'
 import { registerCustomerClaimAppApi } from './apis/customerClaimAppApi.js'
 import { registerCustomerCarsApi } from './apis/customerCarsApi.js'
+import { registerCustomerMapApi } from './apis/customerMapApi.js'
 import { recordAnalyticsEvent } from './lib/analyticsEvents.js'
 import { ensureYesterdayAnalyticsAggregated } from './lib/analyticsAggregation.js'
 import { tickAnalyticsAggregationScheduler } from './lib/analyticsScheduler.js'
@@ -1527,6 +1528,7 @@ registerCrmCustomerTemplateAdminApi(apiRouter, { pool, requireAuth, requireSuper
 registerSubscriptionEndpoints(apiRouter, { requireAuth })
 
 registerCustomerCarsApi(apiRouter, { pool, requireAuth, handleDbError })
+registerCustomerMapApi(apiRouter, { pool, requireAuth, handleDbError, requireInsuranceFormUserId })
 
 registerCustomerClaimAppApi(apiRouter, {
   pool,
