@@ -1,5 +1,6 @@
 import type { NavigateFunction } from 'react-router-dom'
 import type { CustomerMapPersistedState } from '../config/customerMap.config'
+import { parseSelectedCustomerId } from './customerWorkspaceNavigation'
 import { buildCustomerListPath, buildCustomerWorkspacePath } from './customerRoutePaths'
 
 export type CustomerMapDetailNavigationState = {
@@ -8,6 +9,15 @@ export type CustomerMapDetailNavigationState = {
   selectedCustomerId: number
   mapState: CustomerMapPersistedState
   customerName?: string
+}
+
+/** 지도 상세 이동 시 location.state 에서 펼칠 고객 id 를 읽는다. */
+export function parseMapEntryExpandCustomerId(state: unknown): number | null {
+  const st = state as CustomerMapDetailNavigationState | null
+  if (st?.from !== 'customer-map') {
+    return null
+  }
+  return parseSelectedCustomerId(String(st.expandCustomerId ?? st.selectedCustomerId ?? ''))
 }
 
 export function openCustomerDetailFromMap(params: {
