@@ -155,6 +155,21 @@ export const SEED_DATA = [
     contacts: [{ name: '김남호', position: '지점장', phone: '010-8001-0531' }],
     general: {},
   },
+
+  // ================= 처브생명 =================
+  {
+    company: {
+      companyCode: 'INS_SEED_010',
+      category: 'LIFE',
+      name: '처브생명',
+      customer_center: '',
+      system_phone: '',
+      incall_number: '',
+      visit_info: '',
+    },
+    contacts: [],
+    general: {},
+  },
 ]
 
 /**
