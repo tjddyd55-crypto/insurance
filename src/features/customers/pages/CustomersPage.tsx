@@ -103,7 +103,7 @@ import {
   buildCustomerListPath,
 } from '../utils/customerRoutePaths'
 import { navigateToCustomerOnMap } from '../utils/customerMapFocusNavigation'
-import type { CustomerMapDetailNavigationState } from '../utils/customerMapDetailNavigation'
+import { parseMapEntryExpandCustomerId } from '../utils/customerMapDetailNavigation'
 import CustomersPageMobileView from './customers/CustomersPageMobileView'
 import CustomersPagePCView from './customers/CustomersPagePCView'
 
@@ -177,7 +177,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     if (selectedCustomerIdFromQuery != null) {
       return selectedCustomerIdFromQuery
     }
-    return null
+    return parseWorkspaceCustomerIdFromPath(location.pathname)
   })
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState<CustomerEditFormState | null>(null)
@@ -192,6 +192,7 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
   const scrollCountRef = useRef(0)
   const expandedIdRef = useRef<number | null>(null)
   const pendingMapExpandIdRef = useRef<number | null>(null)
+  const mapEntryExpandPendingRef = useRef<number | null>(null)
   const pinnedListCustomerIdRef = useRef<number | null>(null)
   const [pinnedWorkspaceCustomer, setPinnedWorkspaceCustomer] = useState<CustomerRecord | null>(null)
   const editingIdRef = useRef<number | null>(null)
@@ -205,6 +206,21 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     isMobile,
     scrollRequestKey,
   })
+
+  const applyListCustomerExpand = useCallback((customerId: number, requestScroll = true) => {
+    const id = parseSelectedCustomerId(String(customerId))
+    if (id == null) {
+      return
+    }
+    pinnedListCustomerIdRef.current = id
+    pendingMapExpandIdRef.current = id
+    if (expandedIdRef.current !== id) {
+      rawSetExpandedId(id)
+    }
+    if (requestScroll) {
+      setScrollRequestKey((prev) => prev + 1)
+    }
+  }, [])
 
   /**
    * expandedId state 와 `?customerId=` 쿼리를 같은 호출에서 원자적으로 갱신하는 래퍼.
@@ -698,22 +714,44 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
     return () => window.removeEventListener(CUSTOMERS_LIST_REFRESH_EVENT, handler)
   }, [loadCustomers])
 
-  /** 고객 지도 → 상세: 필터 초기화만. 펼침은 activeListCustomerId 동기화 effect 가 담당한다. */
+  /** 고객 지도 → 상세: 필터 초기화 + 리스트 카드 펼침(목록 로딩 후 재시도 포함). */
   useEffect(() => {
-    const st = location.state as CustomerMapDetailNavigationState | null
-    if (st?.from !== 'customer-map') {
+    const mapExpandId = parseMapEntryExpandCustomerId(location.state)
+    if (mapExpandId == null) {
+      mapEntryExpandPendingRef.current = null
       return
     }
-    const id = Number(st.expandCustomerId)
-    if (!Number.isInteger(id) || id <= 0) {
-      return
-    }
+    mapEntryExpandPendingRef.current = mapExpandId
     setSearchInput('')
     setDeepSearch(false)
     setFavoriteOnly(false)
     setAdvancedFilters({ ...EMPTY_ADVANCED_FILTERS })
     setAdvSearchHits(null)
-  }, [location.state])
+    applyListCustomerExpand(mapExpandId)
+  }, [applyListCustomerExpand, location.key, location.state])
+
+  /** 지도 진입 후 목록이 비동기로 도착하면 펼침·스크롤을 한 번 더 보장한다. */
+  useEffect(() => {
+    const pendingId = mapEntryExpandPendingRef.current
+    if (pendingId == null || isLoading) {
+      return
+    }
+    const inMainList = customers.some((c) => c.id === pendingId)
+    const inAdvHits = advSearchHits?.some((c) => c.id === pendingId) ?? false
+    const pinnedReady = pinnedWorkspaceCustomer?.id === pendingId
+    if (!inMainList && !inAdvHits && !pinnedReady && customers.length === 0) {
+      return
+    }
+    applyListCustomerExpand(pendingId)
+    mapEntryExpandPendingRef.current = null
+  }, [
+    advSearchHits,
+    applyListCustomerExpand,
+    customers,
+    isLoading,
+    location.key,
+    pinnedWorkspaceCustomer,
+  ])
 
   /** URL path/query 의 고객 id → 좌측 리스트 expandedId 동기화 */
   useEffect(() => {
@@ -723,14 +761,8 @@ export default function CustomersPage({ openRelatedCustomerRef }: CustomersPageP
       return
     }
 
-    pinnedListCustomerIdRef.current = activeListCustomerId
-    pendingMapExpandIdRef.current = activeListCustomerId
-
-    if (expandedIdRef.current !== activeListCustomerId) {
-      rawSetExpandedId(activeListCustomerId)
-      setScrollRequestKey((prev) => prev + 1)
-    }
-  }, [activeListCustomerId])
+    applyListCustomerExpand(activeListCustomerId)
+  }, [activeListCustomerId, applyListCustomerExpand, location.key])
 
   useEffect(() => {
     const pendingId = pendingMapExpandIdRef.current ?? activeListCustomerId
