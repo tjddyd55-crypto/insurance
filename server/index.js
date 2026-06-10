@@ -57,6 +57,7 @@ import {
 import { isValidSignupUsername, validateSignupUsername } from './lib/signupUsername.js'
 import { selectCrmBootstrapExtendedForLegacyGa } from './crm/resolveLegacyGaCrmBootstrap.js'
 import { mapCustomerRow } from './lib/customerRowMap.js'
+import { tryGeocodeCustomerOnSave } from './lib/customerGeocodePersist.js'
 import { dedupeCustomersById, dedupeCustomersForSearch } from './lib/customerSearchDedupe.js'
 import {
   buildCustomerConsultationSummaryJoin,
@@ -5908,6 +5909,12 @@ apiRouter.post('/customers', requireAuth, async (req, res) => {
     )
 
     void recordAnalyticsEvent(pool, { userId, gaId, eventType: 'customer_created' })
+    void tryGeocodeCustomerOnSave(pool, {
+      customerId: inserted.rows[0].id,
+      userId,
+      gaId,
+      address: inserted.rows[0].address,
+    })
     res.status(201).json({ success: true, data: mapCustomerRow(inserted.rows[0]) })
   } catch (error) {
     handleDbError(error, req, res)
@@ -6180,6 +6187,12 @@ apiRouter.post('/customer/external-create', async (req, res) => {
     )
 
     void recordAnalyticsEvent(pool, { userId: refUserId, gaId: refGaId, eventType: 'customer_created' })
+    void tryGeocodeCustomerOnSave(pool, {
+      customerId: inserted.rows[0].id,
+      userId: refUserId,
+      gaId: refGaId,
+      address: inserted.rows[0].address,
+    })
 
     let inviteSessionMeta = null
     if (inviteRegistration) {
@@ -6347,6 +6360,13 @@ apiRouter.patch('/customer/external-invite-registration', async (req, res) => {
     const refAgentId = String(sid.ref_user_id)
     const refGaPk = Number(sid.ga_id)
 
+    const prevAddrRow = await safeQuery(
+      pool,
+      `SELECT address FROM customers WHERE id = $1 AND deleted_at IS NULL LIMIT 1`,
+      [customerId],
+    )
+    const previousInviteAddress = prevAddrRow.rows[0]?.address
+
     const updated = await safeQuery(
       pool,
       `
@@ -6414,6 +6434,14 @@ apiRouter.patch('/customer/external-invite-registration', async (req, res) => {
       res.status(404).json({ message: '고객 정보를 수정할 수 없습니다.' })
       return
     }
+
+    void tryGeocodeCustomerOnSave(pool, {
+      customerId: updated.rows[0].id,
+      userId: refAgentId,
+      gaId: refGaPk,
+      address: updated.rows[0].address,
+      previousAddress: previousInviteAddress,
+    })
 
     res.json({
       success: true,
@@ -6598,6 +6626,23 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
 
     const fieldParamCount = n - 1
     const visWhere = offsetSqlPlaceholders(visCtx.clause, fieldParamCount)
+
+    let previousAddress
+    if (hasKey('address')) {
+      const preVals = [...visCtx.params, customerId]
+      const preIdPh = `$${preVals.length}`
+      const preWhere = offsetSqlPlaceholders(visCtx.clause, 0)
+      const prevRes = await safeQuery(
+        pool,
+        `
+        SELECT address FROM customers
+        WHERE id = ${preIdPh}::integer AND (${preWhere}) AND deleted_at IS NULL
+        `,
+        preVals,
+      )
+      previousAddress = prevRes.rows[0]?.address
+    }
+
     vals.push(...visCtx.params, customerId)
     const idPh = `$${vals.length}`
     const updated = await safeQuery(pool,
@@ -6619,6 +6664,16 @@ apiRouter.put('/customers/:id', requireAuth, async (req, res) => {
     if (updated.rowCount === 0) {
       res.status(404).json({ message: '고객을 찾을 수 없습니다.' })
       return
+    }
+
+    if (hasKey('address')) {
+      void tryGeocodeCustomerOnSave(pool, {
+        customerId: updated.rows[0].id,
+        userId,
+        gaId,
+        address: updated.rows[0].address,
+        previousAddress,
+      })
     }
 
     res.json({ success: true, data: mapCustomerRow(updated.rows[0]) })
