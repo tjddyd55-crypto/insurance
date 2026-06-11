@@ -8637,6 +8637,51 @@ a.contacts-public-auth__link {
   flex: 1;
 }
 
+.memo-route-page .workspace-root--memo-routed-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.memo-route-page .workspace-memo-routed-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.memo-route-page .workspace-memo-routed-body .memo-panel-main {
+  flex: 1;
+  min-height: 0;
+}
+
+.memo-routed-page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #1e293b;
+  background: #111827;
+}
+
+.memo-routed-page-toolbar__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+.memo-routed-page-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* PC 전역: AppWorkspaceLayout — 좌측 메뉴 + 우측 콘텐츠 */
 .workspace-root.workspace-root--app-pc {
   --workspace-sidebar-width: 280px;

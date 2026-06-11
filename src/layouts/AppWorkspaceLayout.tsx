@@ -1,14 +1,6 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-} from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { FormButton } from '../components/form'
-import { Button, Modal } from '../components/ui'
 import ResponsiveLayout from '../components/ResponsiveLayout'
 import PCHeader from '../components/layout/PCHeader'
 import { useAuth } from '../features/auth/AuthProvider'
@@ -16,17 +8,9 @@ import { formatGaBannerLabel, shouldShowGaTenantChrome } from '../navigation/gaT
 import { buildAppMenuForSession } from '../features/dashboard/gaTenantMenu'
 import { ExpiredBanner } from '../features/subscription/components/ExpiredBanner'
 import PlatformModeSwitcher from '../features/platform/components/PlatformModeSwitcher'
-import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import { fetchTeamMembers } from '../features/team/api/teamApi'
-import MemoPanel from './MemoPanel'
-import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
-import { MemoMobileFab } from '../features/memo/components/MemoMobileFab'
 import useIsMobile from '../hooks/useIsMobile'
 import { useBackButtonClose } from '../hooks/useBackButtonClose'
-
-const MEMO_DEFAULT_WIDTH = 420
-const MEMO_MIN_WIDTH = 320
-const MEMO_MAX_WIDTH_FALLBACK = 1920
 
 function isActivePath(pathname: string, itemPath: string): boolean {
   if (itemPath === '/contacts') {
@@ -138,6 +122,9 @@ function isActivePath(pathname: string, itemPath: string): boolean {
   if (itemPath.startsWith('/team/')) {
     return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
   }
+  if (itemPath === '/memo') {
+    return pathname === '/memo' || pathname.startsWith('/memo/')
+  }
   return pathname === itemPath
 }
 
@@ -160,11 +147,7 @@ function extractCustomerIdFromPath(path: string): string | null {
 }
 
 export function PCLayout() {
-  return (
-    <MemoWorkspaceProvider>
-      <AppWorkspaceLayoutPCShell />
-    </MemoWorkspaceProvider>
-  )
+  return <AppWorkspaceLayoutPCShell />
 }
 
 export function MobileLayout() {
@@ -205,7 +188,7 @@ function AppWorkspaceLayoutMobileShell() {
    * divider 는 드로어에서 시각적으로 의미가 약해 렌더 측에서 무시한다(아래 `if (item.type === 'divider') return null`).
    * 빌더 단계에서는 제거하지 않는다 — 대시보드와 동일한 엔트리 배열을 유지해 호출처 간 일관성을 보장한다.
    *
-   * 메모 진입은 전용 FAB(`MemoMobileFab`) 로 분리되어 더 이상 드로어에 포함하지 않는다.
+   * 메모는 `buildAppMenuForSession` 의 `/memo` 링크로 진입한다 (플로팅 FAB 없음).
    */
   const sidebarItems = useMemo(() => {
     return buildAppMenuForSession(user?.role, user?.gaCode, user?.gaName, {
@@ -415,12 +398,6 @@ function AppWorkspaceLayoutMobileShell() {
         <ExpiredBanner />
         <Outlet />
       </main>
-
-      {/*
-       * 메모 진입 FAB — 모바일 전용, 화면 우측 하단 1/3 지점에 고정.
-       * `/memo` 경로에서는 내부에서 자기 자신을 숨긴다. (MemoMobileFab 참조)
-       */}
-      <MemoMobileFab />
     </div>
   )
 }
@@ -429,114 +406,7 @@ function AppWorkspaceLayoutPCShell() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout, isAuthenticated, token } = useAuth()
-  const { isMinimized, setIsMinimized } = useMemoWorkspace()
   const workspaceChromeHeaderRef = useRef<HTMLElement>(null)
-
-  const [isMemoOpen, setIsMemoOpen] = useState(true)
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const [isListOpen, setIsListOpen] = useState(true)
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
-  const [preparingNoticeOpen, setPreparingNoticeOpen] = useState(false)
-  const [memoWidth, setMemoWidth] = useState(MEMO_DEFAULT_WIDTH)
-  const [resizeSession, setResizeSession] = useState<{ startX: number; startWidth: number } | null>(null)
-
-  const onSelectNoteFromList = useCallback((id: string) => {
-    setSelectedNoteId(id)
-  }, [])
-
-  const onToggleFullscreen = useCallback(() => {
-    setIsFullscreen((v) => {
-      const next = !v
-      if (next) {
-        setIsMemoOpen(true)
-      }
-      return next
-    })
-  }, [])
-
-  const onToggleMinimize = useCallback(() => {
-    setIsMemoOpen(true)
-    setIsMinimized((prev) => {
-      const next = !prev
-      if (next) {
-        setIsFullscreen(false)
-      }
-      return next
-    })
-  }, [setIsMinimized])
-
-  useEffect(() => {
-    if (isFullscreen) {
-      setIsMinimized(false)
-    }
-  }, [isFullscreen, setIsMinimized])
-
-  const clampMemoWidth = useCallback((nextWidth: number) => {
-    const viewportMax =
-      typeof window !== 'undefined'
-        ? Math.max(MEMO_MIN_WIDTH, document.documentElement?.clientWidth || MEMO_MAX_WIDTH_FALLBACK)
-        : MEMO_MAX_WIDTH_FALLBACK
-    if (nextWidth < MEMO_MIN_WIDTH) {
-      return MEMO_MIN_WIDTH
-    }
-    if (nextWidth > viewportMax) {
-      return viewportMax
-    }
-    return nextWidth
-  }, [])
-
-  useEffect(() => {
-    if (isFullscreen) {
-      return
-    }
-    const onResize = () => {
-      setMemoWidth((prev) => clampMemoWidth(prev))
-    }
-    window.addEventListener('resize', onResize)
-    return () => {
-      window.removeEventListener('resize', onResize)
-    }
-  }, [clampMemoWidth, isFullscreen])
-
-  const onMemoResizeStart = useCallback(
-    (event: ReactMouseEvent<HTMLDivElement>) => {
-      if (isFullscreen) {
-        return
-      }
-      event.preventDefault()
-      setResizeSession({ startX: event.clientX, startWidth: memoWidth })
-    },
-    [isFullscreen, memoWidth],
-  )
-
-  useEffect(() => {
-    if (!resizeSession || isFullscreen) {
-      return
-    }
-    const onMouseMove = (event: MouseEvent) => {
-      const delta = resizeSession.startX - event.clientX
-      setMemoWidth(clampMemoWidth(resizeSession.startWidth + delta))
-    }
-    const onMouseUp = () => {
-      setResizeSession(null)
-    }
-
-    document.body.style.cursor = 'ew-resize'
-    document.body.style.userSelect = 'none'
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
-    window.addEventListener('mouseleave', onMouseUp)
-
-    return () => {
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
-      window.removeEventListener('mouseleave', onMouseUp)
-    }
-  }, [clampMemoWidth, isFullscreen, resizeSession])
-
-  const showMemoPanel = isMemoOpen && !isMinimized
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
   const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
@@ -571,58 +441,6 @@ function AppWorkspaceLayoutPCShell() {
           </div>
         </div>
       </div>
-
-      {!isMemoOpen ? (
-        <FormButton
-          htmlType="button"
-          variant="action"
-          className="workspace-memo-reopen"
-          onClick={() => setIsMemoOpen(true)}
-        >
-          메모 패널 열기
-        </FormButton>
-      ) : null}
-
-      {showMemoPanel ? (
-        <div
-          className={`workspace-memo-overlay${isFullscreen ? ' workspace-memo-overlay--fullscreen' : ''}`}
-          role="complementary"
-          aria-label="메모 도구"
-          style={isFullscreen ? undefined : { width: `${memoWidth}px` }}
-        >
-          {!isFullscreen ? (
-            <div
-              className="workspace-memo-resizer"
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="메모 너비 조절"
-              onMouseDown={onMemoResizeStart}
-            />
-          ) : null}
-          <MemoPanel
-            isFullscreen={isFullscreen}
-            isListOpen={isListOpen}
-            onToggleList={() => setIsListOpen((v) => !v)}
-            selectedNoteId={selectedNoteId}
-            onSelectNoteFromList={onSelectNoteFromList}
-          />
-        </div>
-      ) : null}
-
-      <MemoElectronFabDock
-        isMobile={false}
-        onToggleMinimize={onToggleMinimize}
-        onToggleFullscreen={onToggleFullscreen}
-      />
-
-      <Modal open={preparingNoticeOpen} onClose={() => setPreparingNoticeOpen(false)} ariaLabel="안내">
-        <div className="text-center text-base font-medium text-[var(--text-primary)] px-2 py-2">준비중입니다.</div>
-        <div className="mt-4 flex justify-center">
-          <Button type="button" variant="primary" className="min-w-[88px]" onClick={() => setPreparingNoticeOpen(false)}>
-            확인
-          </Button>
-        </div>
-      </Modal>
     </div>
   )
 }

@@ -95,5 +95,8 @@ export function isActivePcNavigationPath(pathname: string, itemPath: string): bo
   if (itemPath.startsWith('/team/')) {
     return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
   }
+  if (itemPath === '/memo') {
+    return pathname === '/memo' || pathname.startsWith('/memo/')
+  }
   return pathname === itemPath
 }

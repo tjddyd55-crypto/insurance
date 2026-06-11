@@ -9,6 +9,12 @@ import { canAccessContractSignatureAdminConsole } from '../contracts/testConsole
 
 export type GaTenantMenuItem = { label: string; path: string }
 
+/** 전역 스티키 메모 — `/memo` 정식 메뉴 (플로팅 FAB 아님) */
+export const MEMO_MENU_ITEM: GaTenantMenuItem = Object.freeze({
+  label: '메모',
+  path: '/memo',
+})
+
 /**
  * 대시보드·사이드바·드로어 공용 메뉴 엔트리.
  *
@@ -45,6 +51,7 @@ export const GA_TENANT_ESSENTIAL_MENU: GaTenantMenuItem[] = [
 
 /** 원수사 담당자 — 본인 회사 소식지 */
 export const INSURER_MANAGER_MENU: GaTenantMenuItem[] = [
+  MEMO_MENU_ITEM,
   { label: '원수사 소식지 조회', path: '/insurer/news' },
   { label: '원수사 소식지 업로드', path: '/insurer/news/upload' },
   { label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
@@ -52,6 +59,7 @@ export const INSURER_MANAGER_MENU: GaTenantMenuItem[] = [
 
 /** 손해사정사 담당자 — 본인 회사 뉴스 */
 export const LOSS_ADJUSTER_MENU: GaTenantMenuItem[] = [
+  MEMO_MENU_ITEM,
   { label: '손해사정사 뉴스 조회', path: '/adjuster/news' },
   { label: '손해사정사 뉴스 업로드', path: '/adjuster/news/upload' },
   { label: '보험사 설계사이트', path: '/insurance/insurer-sites' },
@@ -59,6 +67,7 @@ export const LOSS_ADJUSTER_MENU: GaTenantMenuItem[] = [
 
 /** GA_STAFF 전용 — 원수사 관리만(다른 GA 메뉴와 merge 금지) */
 export const GA_STAFF_MENU: GaTenantMenuItem[] = [
+  MEMO_MENU_ITEM,
   { label: '원수사 연락처 관리', path: '/insurance/company-registry' },
   { label: '원수사 담당자 관리', path: '/insurer-managers' },
   { label: '손해사정사 계정 관리', path: '/loss-adjusters' },
@@ -176,6 +185,9 @@ export function buildGaTenantDashboardMenu(
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
     { type: 'link', label: '설계사이트', path: '/insurance/insurer-sites' },
 
+    { type: 'section', label: MEMO_MENU_ITEM.label },
+    { type: 'link', label: MEMO_MENU_ITEM.label, path: MEMO_MENU_ITEM.path },
+
     { type: 'section', label: '내정보' },
     { type: 'link', label: '내 저장공간', path: '/storage' },
     { type: 'link', label: '내정보관리', path: '/profile' },
@@ -206,15 +218,11 @@ export function buildGaTenantDashboardMenu(
  *      - `true` 면 `/team/files` 바로 다음에 "팀 관리" 를 주입.
  *      - 자리를 고정해 사이드바·대시보드·드로어 모두 같은 위치에 나타나게 한다.
  *
- * ## 메모 진입 정책 (2026-04 변경)
+ * ## 메모 진입 정책 (2026-06)
  *
- * "메모" 는 **더 이상 메뉴에 포함되지 않는다**. 진입 경로는 디바이스별 전용 UI 로
- * 이원화되어 있어서 공통 메뉴에서 다루면 오히려 사용자 혼선이 커진다:
- *   - PC    : 우측 상시 메모 패널(`MemoPanel`)
- *   - 모바일: 화면 우측 하단 고정 FAB(`MemoMobileFab`)
- *
- * 따라서 과거의 `includeMemo` 옵션은 제거했다. 메뉴 빌더 공용 인터페이스에서 메모
- * 개념이 사라져 호출처가 디바이스별 분기 없이 단일 빌더를 호출할 수 있다.
+ * 전역 스티키 메모는 **정식 메뉴 `/memo`** 로만 진입한다 (PC 상단·모바일 드로어 공통).
+ * 플로팅 FAB·우측 오버레이 패널은 사용하지 않는다. 고객별 메모(`/customers/:id/memos`)와
+ * 별개이다.
  *
  * ## 반환 타입
  *
@@ -259,6 +267,7 @@ function contractSignatureAdminMenuIfEnabled(role: string | undefined): GaTenant
 }
 
 const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
+  MEMO_MENU_ITEM,
   { label: '플랫폼 관리', path: '/admin/platform' },
   { label: 'GA 관리', path: '/admin/ga' },
   { label: '담당자 관리', path: '/admin/delegates' },
