@@ -32,6 +32,12 @@ import {
   pdfFieldSpecsForSavePayload,
   readPdfFieldDataMappingFromField,
 } from '../lib/resolvePdfFieldValue'
+import {
+  handleSaveCompleteToast,
+  persistFieldsSavedToast,
+  persistFieldsSkippedToast,
+  type PersistFieldsResult,
+} from '../lib/pdfTemplateEditorPersistPolicy'
 import type { PdfFieldSpec, PdfInputRole, PdfTemplateSummary } from '../types'
 import '../pdf-engine.css'
 
@@ -267,13 +273,13 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
   }, [load])
 
   const persistFields = useCallback(
-    async (options?: { silent?: boolean }): Promise<boolean> => {
-      if (!token || state.status !== 'ready') return false
+    async (options?: { silent?: boolean }): Promise<PersistFieldsResult> => {
+      if (!token || state.status !== 'ready') return 'failed'
       if (!fieldsDirty) {
         if (!options?.silent) {
-          setToast('변경된 좌표가 없습니다.')
+          setToast(persistFieldsSkippedToast())
         }
-        return true
+        return 'skipped'
       }
       setSavingFields(true)
       if (!options?.silent) {
@@ -292,7 +298,7 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
         const validationError = validatePdfTemplateFieldsForSave(dedupedFields)
         if (validationError) {
           setToast(validationError)
-          return false
+          return 'failed'
         }
         const payloadFields = pdfFieldSpecsForSavePayload(dedupedFields)
         if (import.meta.env.DEV && payloadFields[0]) {
@@ -317,16 +323,12 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
         setFields(coerced)
         setFieldsDirty(false)
         if (!options?.silent) {
-          setToast(
-            keysNormalized
-              ? '필드 식별자를 보정한 뒤 좌표가 저장되었습니다.'
-              : '좌표가 저장되었습니다.',
-          )
+          setToast(persistFieldsSavedToast(keysNormalized))
         }
-        return true
+        return 'saved'
       } catch (e) {
         setToast(e instanceof ApiError ? `좌표 저장 실패: ${e.message}` : '좌표 저장 실패')
-        return false
+        return 'failed'
       } finally {
         setSavingFields(false)
       }
@@ -346,9 +348,10 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
         description: description.trim(),
         isActive,
       })
-      const coordsSaved = await persistFields({ silent: true })
-      if (coordsSaved) {
-        setToast('저장되었습니다.')
+      const fieldsResult = await persistFields({ silent: true })
+      const completeToast = handleSaveCompleteToast(fieldsResult)
+      if (completeToast) {
+        setToast(completeToast)
       }
     } catch (e) {
       setToast(e instanceof ApiError ? `저장 실패: ${e.message}` : '저장 실패')
