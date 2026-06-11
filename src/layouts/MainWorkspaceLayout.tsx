@@ -8,7 +8,7 @@ import MemoList from '../features/memo/components/MemoList'
 import useIsMobile from '../hooks/useIsMobile'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { MIN_LEFT_WIDTH, MIN_MEMO_WIDTH } from './memoWorkspaceLayoutConstants'
-import { MemoElectronFabDock } from '../features/memo/components/MemoElectronFabDock'
+import { MemoRoutedPageToolbar } from '../features/memo/components/MemoRoutedPageToolbar'
 
 function MemoFab() {
   const { addNote, token } = useMemoWorkspace()
@@ -151,10 +151,17 @@ function MemoPcListSection({
 }
 
 type MainWorkspaceLayoutProps = {
-  children: ReactNode
+  children?: ReactNode
+  /** `/memo` 정식 페이지: 분할·플로팅 FAB 없이 메모만 전체 영역 */
+  routedMemoPage?: boolean
+  pageTitle?: string
 }
 
-function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
+function MainWorkspaceLayoutInner({
+  children,
+  routedMemoPage = false,
+  pageTitle = '메모',
+}: MainWorkspaceLayoutProps) {
   const { isMinimized, setIsMinimized } = useMemoWorkspace()
   const { user } = useAuth()
   const persistenceUserId = String(user?.id ?? '')
@@ -212,7 +219,7 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
       }
     })
     workspaceHydratedRef.current = true
-  }, [persistenceUserId, isMobile, setIsMinimized])
+  }, [persistenceUserId, isMobile, routedMemoPage, setIsMinimized])
 
   useEffect(() => {
     if (!persistenceUserId || !workspaceHydratedRef.current) {
@@ -341,6 +348,29 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
     setSelectedNoteId(id)
   }, [])
 
+  if (routedMemoPage) {
+    const listVisible = isListOpen
+    return (
+      <div className="workspace-root workspace-root--memo-routed-page" ref={rootRef}>
+        <MemoRoutedPageToolbar
+          pageTitle={pageTitle}
+          showList={listVisible}
+          onToggleList={() => setIsListOpen((v) => !v)}
+        />
+        <div className="workspace-memo-routed-body">
+          <MemoPanelBody
+            showList={listVisible}
+            isMobile={isMobile}
+            selectedNoteId={selectedNoteId}
+            onSelectNoteFromList={onSelectNoteFromList}
+            onToggleList={() => setIsListOpen((v) => !v)}
+            omitFab
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="workspace-root" ref={rootRef}>
       {isNarrow && leftDrawerOpen ? (
@@ -401,19 +431,20 @@ function MainWorkspaceLayoutInner({ children }: MainWorkspaceLayoutProps) {
           />
         </div>
       ) : null}
-      <MemoElectronFabDock
-        isMobile={isMobile}
-        onToggleMinimize={onToggleMinimize}
-        onToggleFullscreen={onToggleFullscreen}
-      />
     </div>
   )
 }
 
-export default function MainWorkspaceLayout({ children }: MainWorkspaceLayoutProps) {
+export default function MainWorkspaceLayout({
+  children,
+  routedMemoPage = false,
+  pageTitle = '메모',
+}: MainWorkspaceLayoutProps) {
   return (
     <MemoWorkspaceProvider>
-      <MainWorkspaceLayoutInner>{children}</MainWorkspaceLayoutInner>
+      <MainWorkspaceLayoutInner routedMemoPage={routedMemoPage} pageTitle={pageTitle}>
+        {children}
+      </MainWorkspaceLayoutInner>
     </MemoWorkspaceProvider>
   )
 }

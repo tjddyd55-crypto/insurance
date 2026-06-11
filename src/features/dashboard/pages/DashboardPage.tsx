@@ -203,8 +203,7 @@ export function DashboardPage() {
    *
    * divider 는 대시보드 카드 UI 에서는 유지해 섹션 구분선 역할을 한다.
    *
-   * 메모 항목은 더 이상 이 메뉴에 포함되지 않는다 — 모바일은 우측 하단 FAB,
-   * PC 는 우측 상시 메모 패널로 각각 진입한다(gaTenantMenu.ts 주석 참조).
+   * 메모는 `buildAppMenuForSession` 의 `/memo` 정식 메뉴로 진입한다 (gaTenantMenu.ts 참조).
    */
   const menuItems = useMemo<MenuEntry[]>(() => {
     return buildAppMenuForSession(role, user?.gaCode, user?.gaName, {
