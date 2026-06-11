@@ -77,7 +77,7 @@ export default function MemoWorkspacePage() {
               <div className="memo-workspace__empty">
                 <p className="memo-workspace__empty-title">메모가 아직 없습니다</p>
                 <p className="memo-workspace__empty-hint">
-                  우측 하단 + 버튼으로 첫 메모를 만들어보세요
+                  {"상단의 '메모 추가' 버튼으로 첫 메모를 작성해 보세요."}
                 </p>
               </div>
             ) : visibleNotes.length === 0 ? (
