@@ -63,7 +63,7 @@ export function useMemoWorkspace() {
 
 type MemoWorkspaceProviderProps = {
   children: ReactNode
-  /** `/memo` 라우트 전용 상세 패널 모드 */
+  /** `/memo` 라우트 — 정식 페이지 컨텍스트(숨김 복원·목록 연동) */
   routedPage?: boolean
 }
 
@@ -244,6 +244,20 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     setPendingDeleteId(id)
   }, [])
 
+  const scrollCanvasToNote = useCallback(
+    (id: string) => {
+      const note = notes.find((n) => n.id === id)
+      const y = note ? note.y : 0
+      requestAnimationFrame(() => {
+        workspaceRef.current?.scrollTo({
+          top: Math.max(0, y - 40),
+          behavior: 'smooth',
+        })
+      })
+    },
+    [notes],
+  )
+
   const handleSidebarSelectNote = useCallback(
     (id: string) => {
       setIsMinimized(false)
@@ -254,18 +268,10 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       setActiveNoteId(id)
       if (routedPage) {
         setEditingNoteId(id)
-        return
       }
-      const note = notes.find((n) => n.id === id)
-      const y = note ? note.y : 0
-      requestAnimationFrame(() => {
-        workspaceRef.current?.scrollTo({
-          top: Math.max(0, y - 40),
-          behavior: 'smooth',
-        })
-      })
+      scrollCanvasToNote(id)
     },
-    [bringToFront, notes, restoreNote, routedPage, setIsMinimized],
+    [bringToFront, restoreNote, routedPage, scrollCanvasToNote, setIsMinimized],
   )
 
   const addAndSelectNote = useCallback(async () => {
@@ -278,14 +284,41 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     activeNoteIdRef.current = created.id
     setActiveNoteId(created.id)
     setEditingNoteId(created.id)
-  }, [addNote, bringToFront, restoreNote])
 
-  /** 라우트 페이지: 로드 후 선택 메모가 없으면 최신 메모를 자동 선택 */
+    if (routedPage) {
+      requestAnimationFrame(() => {
+        const { width, height } = getWorkspaceBounds()
+        if (width <= 0) {
+          scrollCanvasToNote(created.id)
+          return
+        }
+        const noteWidth = Math.max(200, Number(created.width) || 200)
+        const noteHeight = Math.max(150, Number(created.height) || 160)
+        const x = Math.max(20, Math.round((width - noteWidth) / 2))
+        const y = Math.max(20, Math.round((height - noteHeight) / 2))
+        updatePosition(created.id, x, y)
+        scrollCanvasToNote(created.id)
+      })
+    }
+  }, [
+    addNote,
+    bringToFront,
+    getWorkspaceBounds,
+    restoreNote,
+    routedPage,
+    scrollCanvasToNote,
+    updatePosition,
+  ])
+
+  /** 라우트 페이지: 선택 메모가 없으면 최신 메모 자동 선택·숨김이면 복원 */
   useEffect(() => {
     if (!routedPage || notes.length === 0) {
       return
     }
     if (activeNoteId && notes.some((n) => n.id === activeNoteId)) {
+      if (hiddenNotes[activeNoteId]) {
+        restoreNote(activeNoteId)
+      }
       return
     }
     const sorted = [...notes].sort(
@@ -299,7 +332,30 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     bringToFront(top.id)
     activeNoteIdRef.current = top.id
     setActiveNoteId(top.id)
-  }, [activeNoteId, bringToFront, notes, restoreNote, routedPage])
+  }, [activeNoteId, bringToFront, hiddenNotes, notes, restoreNote, routedPage])
+
+  /** 라우트 페이지: 캔버스에 보이는 쪽지가 없으면 active 또는 최신 메모 복원 */
+  useEffect(() => {
+    if (!routedPage || notes.length === 0) {
+      return
+    }
+    if (notes.some((n) => !hiddenNotes[n.id])) {
+      return
+    }
+    const sorted = [...notes].sort(
+      (a, b) => (Number(b.zIndex) || 0) - (Number(a.zIndex) || 0),
+    )
+    const pick =
+      activeNoteId && notes.some((n) => n.id === activeNoteId) ? activeNoteId : sorted[0]?.id
+    if (!pick) {
+      return
+    }
+    restoreNote(pick)
+    if (activeNoteId !== pick) {
+      activeNoteIdRef.current = pick
+      setActiveNoteId(pick)
+    }
+  }, [activeNoteId, hiddenNotes, notes, restoreNote, routedPage])
 
   const handleCanvasClick = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
