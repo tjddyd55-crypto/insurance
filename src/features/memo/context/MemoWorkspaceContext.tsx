@@ -46,6 +46,9 @@ type MemoWorkspaceContextValue = ReturnType<typeof useNotes> & {
   hiddenNotes: Record<string, boolean>
   minimizeNote: (id: string) => void
   restoreNote: (id: string) => void
+  /** `/memo` 정식 페이지 — 캔버스 대신 목록+상세 패널 레이아웃 */
+  routedPage: boolean
+  addAndSelectNote: () => Promise<void>
 }
 
 const MemoWorkspaceContext = createContext<MemoWorkspaceContextValue | null>(null)
@@ -58,11 +61,17 @@ export function useMemoWorkspace() {
   return v
 }
 
-export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
+type MemoWorkspaceProviderProps = {
+  children: ReactNode
+  /** `/memo` 라우트 전용 상세 패널 모드 */
+  routedPage?: boolean
+}
+
+export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWorkspaceProviderProps) {
   const { token, user } = useAuth()
   const persistenceUserId = String(user?.id ?? '')
   const notesApi = useNotes()
-  const { notes, updatePosition, deleteNote, bringToFront } = notesApi
+  const { notes, updatePosition, deleteNote, bringToFront, addNote } = notesApi
 
   const workspaceRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -238,10 +247,15 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
   const handleSidebarSelectNote = useCallback(
     (id: string) => {
       setIsMinimized(false)
+      restoreNote(id)
       // 리스트에서 선택해도 캔버스 클릭과 동일하게 최상단으로 승격한다.
       bringToFront(id)
       activeNoteIdRef.current = id
       setActiveNoteId(id)
+      if (routedPage) {
+        setEditingNoteId(id)
+        return
+      }
       const note = notes.find((n) => n.id === id)
       const y = note ? note.y : 0
       requestAnimationFrame(() => {
@@ -251,8 +265,41 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
         })
       })
     },
-    [bringToFront, notes, setIsMinimized],
+    [bringToFront, notes, restoreNote, routedPage, setIsMinimized],
   )
+
+  const addAndSelectNote = useCallback(async () => {
+    const created = await addNote()
+    if (!created) {
+      return
+    }
+    restoreNote(created.id)
+    bringToFront(created.id)
+    activeNoteIdRef.current = created.id
+    setActiveNoteId(created.id)
+    setEditingNoteId(created.id)
+  }, [addNote, bringToFront, restoreNote])
+
+  /** 라우트 페이지: 로드 후 선택 메모가 없으면 최신 메모를 자동 선택 */
+  useEffect(() => {
+    if (!routedPage || notes.length === 0) {
+      return
+    }
+    if (activeNoteId && notes.some((n) => n.id === activeNoteId)) {
+      return
+    }
+    const sorted = [...notes].sort(
+      (a, b) => (Number(b.zIndex) || 0) - (Number(a.zIndex) || 0),
+    )
+    const top = sorted[0]
+    if (!top) {
+      return
+    }
+    restoreNote(top.id)
+    bringToFront(top.id)
+    activeNoteIdRef.current = top.id
+    setActiveNoteId(top.id)
+  }, [activeNoteId, bringToFront, notes, restoreNote, routedPage])
 
   const handleCanvasClick = useCallback((e: ReactMouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
@@ -360,6 +407,8 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
       hiddenNotes,
       minimizeNote,
       restoreNote,
+      routedPage,
+      addAndSelectNote,
     }),
     [
       notesApi,
@@ -388,6 +437,8 @@ export function MemoWorkspaceProvider({ children }: { children: ReactNode }) {
       hiddenNotes,
       minimizeNote,
       restoreNote,
+      routedPage,
+      addAndSelectNote,
     ],
   )
 

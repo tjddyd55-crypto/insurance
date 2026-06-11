@@ -81,17 +81,19 @@ export function useNotes() {
     }
   }, [token])
 
-  const addNote = useCallback(async () => {
+  const addNote = useCallback(async (): Promise<Note | null> => {
     const auth = token?.trim()
     if (!auth) {
-      return
+      return null
     }
     try {
       const z = Date.now()
       const newNote = await memoApi.create({ content: '', x: 100, y: 100, zIndex: z }, auth)
-      setNotes((prev) => [...prev, { ...newNote, zIndex: newNote.zIndex ?? z }])
+      const row = { ...newNote, zIndex: newNote.zIndex ?? z }
+      setNotes((prev) => [...prev, row])
+      return row
     } catch {
-      // 실패 시 목록은 그대로
+      return null
     }
   }, [token])
 
