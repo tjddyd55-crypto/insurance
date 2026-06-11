@@ -4,6 +4,7 @@ import { useAuth } from '../features/auth/AuthProvider'
 import { loadMemoUiSnapshot, patchMemoUiWorkspace } from '../features/memo/memoUiStorage'
 import { MemoWorkspaceProvider, useMemoWorkspace } from '../features/memo/context/MemoWorkspaceContext'
 import MemoWorkspacePage from '../features/memo/pages/MemoWorkspacePage'
+import { MemoRoutedDetailPanel } from '../features/memo/components/MemoRoutedDetailPanel'
 import MemoList from '../features/memo/components/MemoList'
 import useIsMobile from '../hooks/useIsMobile'
 import { useMediaQuery } from '../hooks/useMediaQuery'
@@ -29,6 +30,7 @@ function MemoPanelBody({
   onSelectNoteFromList,
   onToggleList,
   omitFab = false,
+  routedDetailMode = false,
 }: {
   showList: boolean
   isMobile: boolean
@@ -36,14 +38,19 @@ function MemoPanelBody({
   onSelectNoteFromList: (id: string) => void
   onToggleList: () => void
   omitFab?: boolean
+  routedDetailMode?: boolean
 }) {
+  const mainClassName = routedDetailMode
+    ? `memo-body memo-body--routed-detail ${isMobile ? 'memo-body--mobile mobile-container' : 'memo-body--list-row'}`
+    : `memo-body ${isMobile ? 'memo-body--mobile mobile-container' : 'memo-body--list-row'}`
+
   return (
     <div className="memo-panel-main">
-      <div
-        className={`memo-body ${isMobile ? 'memo-body--mobile mobile-container' : 'memo-body--list-row'}`}
-      >
-        <div className={`memo-canvas-area p-2 min-h-0 ${isMobile ? 'mobile-memo-view' : ''}`}>
-          <MemoWorkspacePage />
+      <div className={mainClassName}>
+        <div
+          className={`memo-canvas-area min-h-0 ${routedDetailMode ? 'memo-canvas-area--routed-detail' : 'p-2'} ${isMobile ? 'mobile-memo-view' : ''}`}
+        >
+          {routedDetailMode ? <MemoRoutedDetailPanel /> : <MemoWorkspacePage />}
         </div>
         {isMobile ? (
           <MemoMobileListSection
@@ -365,6 +372,7 @@ function MainWorkspaceLayoutInner({
             onSelectNoteFromList={onSelectNoteFromList}
             onToggleList={() => setIsListOpen((v) => !v)}
             omitFab
+            routedDetailMode
           />
         </div>
       </div>
@@ -441,7 +449,7 @@ export default function MainWorkspaceLayout({
   pageTitle = '메모',
 }: MainWorkspaceLayoutProps) {
   return (
-    <MemoWorkspaceProvider>
+    <MemoWorkspaceProvider routedPage={routedMemoPage}>
       <MainWorkspaceLayoutInner routedMemoPage={routedMemoPage} pageTitle={pageTitle}>
         {children}
       </MainWorkspaceLayoutInner>

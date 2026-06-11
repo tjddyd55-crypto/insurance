@@ -21,6 +21,8 @@ type Props = {
    * PC 우측 패널 / 기타 호출처는 기본값을 그대로 사용한다 (회귀 방지).
    */
   hideHeader?: boolean
+  /** 현재 선택(활성) 메모 id — 라우트 페이지 목록 강조 */
+  selectedNoteId?: string | null
 }
 export default function MemoSidebar({
   notes,
@@ -31,6 +33,7 @@ export default function MemoSidebar({
   onAutoArrange,
   showToggle = true,
   hideHeader = false,
+  selectedNoteId = null,
 }: Props) {
   return (
     <div className="memo-sidebar__inner">
@@ -52,14 +55,23 @@ export default function MemoSidebar({
         </div>
       ) : null}
 
-      <div className="memo-sidebar__list">
+      <div className="memo-sidebar__list" role="listbox" aria-label="메모 목록">
         {notes.map((note) => {
           const preview = note.content?.trim().slice(0, 20) || '내용 없음'
           const isExpandedOnCanvas = !hiddenNotes[note.id]
+          const isActive = selectedNoteId === note.id
           return (
             <div
               key={note.id}
-              className={`memo-list-item${isExpandedOnCanvas ? ' memo-list-item--expanded' : ''}`.trim()}
+              role="option"
+              aria-selected={isActive}
+              className={[
+                'memo-list-item',
+                isExpandedOnCanvas ? 'memo-list-item--expanded' : '',
+                isActive ? 'memo-list-item--active' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
               onClick={(e) => {
                 e.stopPropagation()
                 onSelectNote(note.id)

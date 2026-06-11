@@ -20,6 +20,7 @@ export default function MemoList({ onAfterSelectNote, hideHeader = false }: Prop
     token,
     notes,
     hiddenNotes,
+    activeNoteId,
     handleSidebarSelectNote,
     handleAutoArrange,
     setIsMinimized,
@@ -47,6 +48,7 @@ export default function MemoList({ onAfterSelectNote, hideHeader = false }: Prop
       onAutoArrange={handleAutoArrange}
       showToggle={false}
       hideHeader={hideHeader}
+      selectedNoteId={activeNoteId}
     />
   )
 }
