@@ -4,12 +4,25 @@ const path = require('path')
 const semver = require('semver')
 const { autoUpdater } = require('electron-updater')
 
-const DEFAULT_VERSION_CHECK_URL =
-  'https://insurance-production-7bd8.up.railway.app/api/version'
+const DEFAULT_PRODUCTION_APP_URL = 'https://insurance-production-7bd8.up.railway.app'
+const DEFAULT_VERSION_CHECK_URL = `${DEFAULT_PRODUCTION_APP_URL}/api/version`
 const VERSION_CHECK_URL = process.env.VERSION_CHECK_URL?.trim() || DEFAULT_VERSION_CHECK_URL
 const CLIENT_LOG_URL =
   process.env.CLIENT_LOG_URL?.trim() ||
   VERSION_CHECK_URL.replace(/\/version\/?$/i, '/client-log')
+
+/** 패키지 앱이 로드하는 웹 origin — Naver Dynamic Map 등 Web URL 등록 origin 과 일치해야 한다. */
+function resolvePackagedAppUrl() {
+  const fromEnv =
+    process.env.DESKTOP_APP_URL?.trim() || process.env.PRODUCTION_APP_URL?.trim()
+  if (fromEnv) {
+    return fromEnv.replace(/\/$/, '')
+  }
+  return DEFAULT_PRODUCTION_APP_URL
+}
+
+const PACKAGED_APP_URL = resolvePackagedAppUrl()
+const DEV_APP_URL = process.env.DEV_APP_URL?.trim() || 'http://localhost:3000'
 
 function sendClientLog(payload) {
   const body = { ...payload, timestamp: Date.now(), platform: 'electron' }
@@ -268,7 +281,7 @@ function isTrustedHttpOrHttpsUrl(raw) {
 
 /**
  * 메인 창이 통째로 외부 origin 으로 이동하면 안 된다는 전제.
- * - 패키지(file://): http(s) 어디로든 외부 브라우저
+ * - 패키지(production origin): 등록된 앱 origin 외 http(s) 는 외부 브라우저
  * - 개발(localhost:3000): 동일 origin 풀페이지 로드만 인앱
  */
 function isTopLevelExternalHttpNavigation(currentUrl, navigatedUrl) {
@@ -335,9 +348,10 @@ function createWindow() {
   })
 
   if (app.isPackaged) {
-    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+    /* file:// 내장 번들은 Naver Dynamic Map Web origin 인증에 사용할 수 없다. */
+    mainWindow.loadURL(PACKAGED_APP_URL)
   } else {
-    mainWindow.loadURL('http://localhost:3000')
+    mainWindow.loadURL(DEV_APP_URL)
   }
 }
 
