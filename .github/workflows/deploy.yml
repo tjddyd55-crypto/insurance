@@ -42,3 +42,5 @@ jobs:
           # 정책: AGENTS.md §3-5 "환경변수 주입 원칙".
           VITE_API_URL: https://insurance-production-7bd8.up.railway.app
           VITE_BASE_URL: https://insurance-production-7bd8.up.railway.app
+          # Dynamic Map Client ID — Railway web 빌드와 동일 env 이름. repository secret 필수.
+          VITE_NAVER_MAP_CLIENT_ID: ${{ secrets.VITE_NAVER_MAP_CLIENT_ID }}
