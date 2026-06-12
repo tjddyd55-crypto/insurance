@@ -1,0 +1,182 @@
+/**
+ * 유저 워크스페이스 전용 UI SSOT.
+ * `.user-app-shell` 아래에서만 적용 — 관리자·전역 selector 오염 금지.
+ */
+
+.user-app-shell {
+  background: var(--bg-main);
+  color: var(--text-main);
+  min-height: 0;
+}
+
+.user-app-shell .app-main-content {
+  background: var(--bg-main);
+}
+
+/* ── 페이지 래퍼 ── */
+.user-app-shell .user-page {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 0;
+  color: var(--text-main);
+}
+
+.user-app-shell .user-page:not(.user-page--full-bleed) {
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: 16px 20px 24px;
+}
+
+.user-app-shell .user-page--full-bleed {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+@media (max-width: 767px) {
+  .user-app-shell .user-page:not(.user-page--full-bleed) {
+    padding: 12px 12px 20px;
+  }
+}
+
+/* main.page 가 user-page 를 겹쳐 쓸 때 이중 패딩 완화 */
+.user-app-shell main.page.user-page {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.user-app-shell main.page.user-page--full-bleed {
+  padding: 0;
+}
+
+/* ── 헤더 ── */
+.user-app-shell .user-page__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.user-app-shell .user-page__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text-primary);
+}
+
+.user-app-shell .user-page__subtitle {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.user-app-shell .user-page__header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.user-app-shell .user-page__content {
+  min-width: 0;
+}
+
+/* ── 패널/카드 ── */
+.user-app-shell .user-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+.user-app-shell .user-panel--padded {
+  padding: 16px;
+}
+
+@media (max-width: 767px) {
+  .user-app-shell .user-panel--padded {
+    padding: 12px;
+  }
+}
+
+/* ── 폼 컨트롤 (유저 shell 내부 보조 — 전역 input 대체 아님) ── */
+.user-app-shell .user-form-control {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.user-app-shell .user-form-control::placeholder {
+  color: var(--placeholder);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .user-app-shell .user-form-control:hover:not(:disabled):not([readonly]) {
+    border-color: var(--border-strong);
+  }
+}
+
+.user-app-shell .user-form-control:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+
+.user-app-shell .user-form-control:disabled,
+.user-app-shell .user-form-control[readonly] {
+  background: var(--disabled-bg);
+  color: var(--disabled-text);
+}
+
+/* ── empty / status ── */
+.user-app-shell .user-empty-state {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--bg-soft);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-lg, 12px);
+}
+
+/* 신청서 PDF 스코프(insurance-dark-forms)는 자식에서 다크 유지 */
+.user-app-shell main.insurance-dark-forms.user-page {
+  border-radius: var(--radius-lg, 12px);
+  max-width: 1200px;
+  margin-inline: auto;
+}
+
+/* 저장공간 — page-shell 과 user-page 패딩 정렬 */
+.user-app-shell .user-page.storage-workspace.page-shell {
+  max-width: none;
+  margin-inline: 0;
+  padding: 16px 20px 24px;
+}
+
+@media (max-width: 767px) {
+  .user-app-shell .user-page.storage-workspace.page-shell {
+    padding: 12px 12px 20px;
+  }
+}
+
+/* 소식지 — 기존 page 헤더와 user-page 패딩 중복 완화 */
+.user-app-shell .insurer-news-page.user-page.page {
+  padding-top: 12px;
+}
+
+/* 업무편의 연락처 검색 */
+.user-app-shell .insurance-contacts-search__input.user-form-control,
+.user-app-shell .storage-workspace__search.user-form-control,
+.user-app-shell .customers-page__search-input.user-form-control {
+  min-height: 44px;
+}

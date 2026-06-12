@@ -8,7 +8,7 @@ import MainWorkspaceLayout from '../../../../layouts/MainWorkspaceLayout'
  */
 export default function MemoRouteMobileView() {
   return (
-    <div className="memo-route-page">
+    <div className="memo-route-page user-page user-page--full-bleed">
       <MainWorkspaceLayout routedMemoPage pageTitle="메모" />
     </div>
   )

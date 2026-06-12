@@ -116,7 +116,7 @@ export default function InsuranceCompanyContactsViewPage() {
   }
 
   return (
-    <main className="page page--with-back company-registry-page insurance-contacts-view company-directory-read-ui">
+    <main className="page page--with-back company-registry-page insurance-contacts-view company-directory-read-ui user-page">
       <nav className="contacts-public-auth contacts-public-auth--compact" aria-label="이동">
         {isStaff ? (
           <Link
@@ -168,7 +168,7 @@ export default function InsuranceCompanyContactsViewPage() {
       <label className="insurance-contacts-search">
         <span className="visually-hidden">검색</span>
         <FormInput
-          className="insurance-contacts-search__input"
+          className="insurance-contacts-search__input user-form-control"
           type="search"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}

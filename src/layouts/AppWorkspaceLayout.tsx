@@ -11,6 +11,7 @@ import PlatformModeSwitcher from '../features/platform/components/PlatformModeSw
 import { fetchTeamMembers } from '../features/team/api/teamApi'
 import useIsMobile from '../hooks/useIsMobile'
 import { useBackButtonClose } from '../hooks/useBackButtonClose'
+import { isUserWorkspacePath } from '../features/user-ui/isUserWorkspacePath'
 
 function isActivePath(pathname: string, itemPath: string): boolean {
   if (itemPath === '/contacts') {
@@ -242,6 +243,7 @@ function AppWorkspaceLayoutMobileShell() {
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
   const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
+  const userShellActive = isUserWorkspacePath(location.pathname)
   const workspaceHeaderTitle = tenantChrome && !isNewsManager
     ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')
     : '업무 메뉴'
@@ -391,7 +393,14 @@ function AppWorkspaceLayoutMobileShell() {
       ) : null}
 
       <main
-        className="mobile-workspace-content content-wrapper content-wrapper--mobile"
+        className={[
+          'mobile-workspace-content',
+          'content-wrapper',
+          'content-wrapper--mobile',
+          userShellActive ? 'user-app-shell' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         data-selected-customer={mobileSelectedCustomer ?? ''}
         data-page-stack-depth={String(mobilePageStack.length)}
       >
@@ -410,6 +419,7 @@ function AppWorkspaceLayoutPCShell() {
 
   const tenantChrome = shouldShowGaTenantChrome(isAuthenticated, user?.gaId, location.pathname)
   const isNewsManager = user?.role === 'INSURER_MANAGER' || user?.role === 'LOSS_ADJUSTER'
+  const userShellActive = isUserWorkspacePath(location.pathname)
   const showGaUserActions = tenantChrome && !isNewsManager
   const workspaceHeaderTitle = tenantChrome
     ? formatGaBannerLabel(user?.gaName ?? '', user?.gaCode ?? '')
@@ -435,7 +445,15 @@ function AppWorkspaceLayoutPCShell() {
 
       <div className="workspace-root workspace-root--app-pc">
         <div className="workspace-main workspace-main--app">
-          <div className="app-main-content app-main-content--workspace-outlet-host">
+          <div
+            className={[
+              'app-main-content',
+              'app-main-content--workspace-outlet-host',
+              userShellActive ? 'user-app-shell' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
             <ExpiredBanner />
             <Outlet />
           </div>

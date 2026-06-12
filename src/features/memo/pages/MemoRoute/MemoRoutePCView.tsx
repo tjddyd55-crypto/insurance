@@ -6,7 +6,7 @@ import MainWorkspaceLayout from '../../../../layouts/MainWorkspaceLayout'
  */
 export default function MemoRoutePCView() {
   return (
-    <main className="page memo-route-page memo-route-page--pc">
+    <main className="page memo-route-page memo-route-page--pc user-page user-page--full-bleed">
       <MainWorkspaceLayout routedMemoPage pageTitle="메모" />
     </main>
   )
