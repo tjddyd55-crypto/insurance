@@ -30,7 +30,7 @@ export default function InsurerManagerNewsListMobileView({
     useNewsletterDelete(channel)
 
   return (
-    <main className="page page--with-back insurer-news-page insurer-news-page--mobile">
+    <main className="page page--with-back insurer-news-page insurer-news-page--mobile user-page">
       <header className="page-header page-header--has-inline-back" style={{ marginBottom: 16 }}>
         <div className="page-header__title-row">
           <h1>{title}</h1>

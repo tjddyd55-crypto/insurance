@@ -16,7 +16,7 @@ import { Link } from 'react-router-dom'
  */
 export default function MemoRoutePCView() {
   return (
-    <main className="page memo-route-page memo-route-page--pc">
+    <main className="page memo-route-page memo-route-page--pc user-page user-page--full-bleed">
       <div className="p-4 space-y-3">
         <h1 className="text-lg font-bold">업무 영역</h1>
         <p className="text-sm text-[var(--text-muted)]">

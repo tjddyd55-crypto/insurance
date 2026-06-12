@@ -5,6 +5,7 @@
 @import './styles/tokens.css';
 @import './styles/typography.css';
 @import './features/admin/admin-ui.css';
+@import './features/user-ui/user-ui.css';
 @import './features/insurer-news/insurer-news.css';
 @import './features/web/web.css';
 @import './styles/dark-application-pdf-scope.css';

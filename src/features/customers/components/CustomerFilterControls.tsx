@@ -74,7 +74,7 @@ export function CustomerFilterControls(props: CustomerFilterControlsProps) {
       <div className="customers-page__search-row customer-filter-bar">
         <FormInput
           ref={searchInputRef}
-          className="search-input customers-page__search-input"
+          className="search-input customers-page__search-input user-form-control"
           type="search"
           placeholder="이름 / 전화번호 검색"
           value={searchInput}

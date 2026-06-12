@@ -302,7 +302,7 @@ export default function CustomerWorkspaceLayout() {
   }
 
   return (
-    <div className="customer-workspace-layout">
+    <div className="customer-workspace-layout user-page user-page--full-bleed">
       <aside className="customer-workspace-layout__left" aria-label="고객 작업공간">
         <CustomersPageContainer openRelatedCustomerRef={openRelatedCustomerRef} />
       </aside>

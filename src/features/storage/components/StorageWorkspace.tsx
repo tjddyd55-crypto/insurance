@@ -627,7 +627,7 @@ export default function StorageWorkspace({
   }, [quota])
 
   return (
-    <div className="storage-workspace page-shell">
+    <div className="storage-workspace page-shell user-page">
       {headerSlot}
       <div className="storage-workspace__header">
         {title?.trim() ? <h1 className="storage-workspace__title">{title}</h1> : null}
@@ -681,7 +681,7 @@ export default function StorageWorkspace({
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
           placeholder="파일명 검색"
-          className="storage-workspace__search"
+          className="storage-workspace__search user-form-control"
         />
         <select
           value={kindFilter}

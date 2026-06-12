@@ -138,7 +138,7 @@ export default function InsurerManagerNewsListPCView({
   }
 
   return (
-    <main className="page page--with-back insurer-news-page insurer-news-page--pc">
+    <main className="page page--with-back insurer-news-page insurer-news-page--pc user-page">
       <header className="page-header page-header--has-inline-back" style={{ marginBottom: 16 }}>
         <div className="page-header__title-row">
           <h1>{title}</h1>
