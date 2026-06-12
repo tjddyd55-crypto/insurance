@@ -362,20 +362,20 @@ export function TodoEditorDialog({
               />
             </label>
             {mode === 'create' && lockRelated ? (
-              <div className="rounded-lg border border-[#334155] bg-[#111827] p-3 text-sm">
+              <div className="rounded-lg border border-border bg-soft p-3 text-sm">
                 <div className="dark-label font-semibold mb-1">연결 대상</div>
                 {relatedEntityType === 'customer' && relatedEntityId ? (
-                  <div className="text-[#e5e7eb]">
+                  <div className="text-primary">
                     고객{lockedCustomerSummary ? ` (${lockedCustomerSummary})` : ''} · ID {relatedEntityId}
                   </div>
                 ) : (
-                  <div className="text-[#94a3b8]">연결 없음</div>
+                  <div className="text-muted">연결 없음</div>
                 )}
               </div>
             ) : mode === 'edit' && editingTodo?.relatedEntityType === 'customer' && editingTodo.relatedEntityId ? (
-              <div className="rounded-lg border border-[#334155] bg-[#111827] p-3 text-sm">
+              <div className="rounded-lg border border-border bg-soft p-3 text-sm">
                 <div className="dark-label font-semibold mb-1">연결 고객</div>
-                <div className="text-[#e5e7eb]">
+                <div className="text-primary">
                   {editingTodo.customerName ? editingTodo.customerName : '고객'} · ID {editingTodo.relatedEntityId}
                 </div>
               </div>
@@ -393,13 +393,13 @@ export function TodoEditorDialog({
                 />
                 {searchBusy ? <p className="text-xs dark-muted m-0">검색 중…</p> : null}
                 {searchHits.length > 0 ? (
-                  <ul className="m-0 p-0 list-none space-y-1 max-h-40 overflow-y-auto rounded border border-[#334155] bg-[#020617]">
+                  <ul className="m-0 p-0 list-none space-y-1 max-h-40 overflow-y-auto rounded border border-border bg-card">
                     {searchHits.map((c) => (
                       <li key={c.id}>
                         <button
                           type="button"
                           disabled={busy}
-                          className="w-full text-left px-2 py-1.5 text-sm text-[#e5e7eb] hover:bg-[#1f2937] bg-transparent border-none cursor-pointer"
+                          className="w-full text-left px-2 py-1.5 text-sm text-primary hover:bg-soft bg-transparent border-none cursor-pointer"
                           onClick={() => {
                             touchedRef.current = true
                             setRelatedEntityType('customer')

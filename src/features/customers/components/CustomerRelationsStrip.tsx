@@ -239,8 +239,8 @@ export function CustomerRelationsStrip({
                 className="related-customer-tag customer-relations-strip__chip-cell"
                 style={{
                   ...chipWrap,
-                  border: isFocused ? '2px solid #2563eb' : '1px solid rgba(0,0,0,0.18)',
-                  boxShadow: isFocused ? '0 0 0 1px rgba(37,99,235,0.2)' : undefined,
+                  border: isFocused ? '2px solid var(--primary)' : '1px solid var(--border-default)',
+                  boxShadow: isFocused ? '0 0 0 1px color-mix(in srgb, var(--primary) 20%, transparent)' : undefined,
                   justifySelf: 'start',
                 }}
               >

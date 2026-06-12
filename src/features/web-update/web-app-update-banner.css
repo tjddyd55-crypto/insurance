@@ -1,4 +1,4 @@
-/*
+﻿/*
  * 웹 새 버전 배너. 다크 테마 토큰(dark-theme-colors 규칙) 기준.
  * z-index 는 확인 다이얼로그(10000) 보다 살짝 아래(9990) 로 두어,
  * 모달 위 확인창이 배너에 가리지 않게 한다. 평상시엔 최상단에 보인다.
@@ -14,11 +14,11 @@
   gap: 12px;
   max-width: calc(100vw - 24px);
   padding: 10px 12px 10px 16px;
-  background: #111827;
-  border: 1px solid #334155;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
-  color: #e5e7eb;
+  color: var(--text-main);
 }
 
 .web-app-update-banner__text {

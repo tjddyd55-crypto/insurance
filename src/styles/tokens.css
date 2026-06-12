@@ -5,29 +5,37 @@
  */
 
 :root {
-  /* 디자인 시스템 토큰 (global) */
+  /* 디자인 시스템 토큰 (global) — White + Emerald Green (light 기본) */
   --bg-base: #f8fafc;
   --bg-surface: #ffffff;
   --bg-card: #ffffff;
   --bg-elevated: #f1f5f9;
+  --bg-soft: #f1f5f9;
 
-  --border-subtle: #d7dee8;
-  --border-strong: #bcc7d6;
+  --border-subtle: #e5e7eb;
+  --border-strong: #d1d5db;
+  --border-default: #e5e7eb;
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --text-disabled: #9ca3af;
 
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --primary-soft: rgb(37 99 235 / 0.14);
+  --primary: #16a34a;
+  --primary-hover: #15803d;
+  --primary-active: #166534;
+  --primary-soft: #dcfce7;
+  --primary-border: #bbf7d0;
+  --text-on-primary: #ffffff;
 
-  --accent: #f59e0b;
-  --accent-hover: #d97706;
-  --accent-soft: rgb(245 158 11 / 0.14);
+  --accent: #ffbb00;
+  --accent-hover: #e6a800;
+  --accent-soft: #fff7d6;
+  --warning-text: #92400e;
 
   --danger: #dc2626;
   --success: #16a34a;
+  --info: #2563eb;
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -42,9 +50,9 @@
 
   /* legacy alias */
   --bg-main: var(--bg-base);
-  --border-default: var(--border-subtle);
   --brand-primary: var(--primary);
   --brand-secondary: var(--primary-hover);
+  --brand-soft: var(--primary-soft);
   --brand: var(--primary);
   --text-main: var(--text-primary);
   --text-sub: var(--text-secondary);
@@ -56,30 +64,38 @@
   --bg-surface: #161d27;
   --bg-card: #1e2633;
   --bg-elevated: #232d3a;
+  --bg-soft: #2a313c;
 
   --border-subtle: #2b3544;
   --border-strong: #3a4658;
+  --border-default: #2b3544;
 
   --text-primary: #e6ecf2;
   --text-secondary: #9aa5b1;
   --text-muted: #6b7785;
+  --text-disabled: #6b7785;
 
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --primary-soft: rgb(59 130 246 / 0.16);
+  --primary: #22c55e;
+  --primary-hover: #16a34a;
+  --primary-active: #15803d;
+  --primary-soft: rgb(34 197 94 / 0.16);
+  --primary-border: rgb(34 197 94 / 0.35);
+  --text-on-primary: #0f141b;
 
-  --accent: #f59e0b;
-  --accent-hover: #d97706;
-  --accent-soft: rgb(245 158 11 / 0.14);
+  --accent: #ffbb00;
+  --accent-hover: #e6a800;
+  --accent-soft: rgb(255 187 0 / 0.14);
+  --warning-text: #fde68a;
 
   --danger: #ef4444;
-  --success: #10b981;
+  --success: #22c55e;
+  --info: #3b82f6;
 
   /* legacy alias */
   --bg-main: var(--bg-base);
-  --border-default: var(--border-subtle);
   --brand-primary: var(--primary);
   --brand-secondary: var(--primary-hover);
+  --brand-soft: var(--primary-soft);
   --brand: var(--primary);
   --text-main: var(--text-primary);
   --text-sub: var(--text-secondary);

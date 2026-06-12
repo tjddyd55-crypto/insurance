@@ -1,4 +1,4 @@
-/*
+﻿/*
  * =============================================================================
  * PC 고객관리 좌측 목록 패널 — 검색행·필터 칩·카드 인라인 액션 (SSOT)
  * =============================================================================
@@ -136,9 +136,9 @@
   justify-content: center;
   padding: 0 13px;
   border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--border-default, #334155) 82%, transparent);
-  background: color-mix(in srgb, var(--bg-card, #1e293b) 90%, #000 10%);
-  color: color-mix(in srgb, var(--text-primary, #f8fafc) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-default) 82%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 90%, #000 10%);
+  color: color-mix(in srgb, var(--text-primary) 94%, transparent);
   font-size: 0.82rem;
   line-height: 1;
   font-weight: 850;
@@ -147,7 +147,7 @@
 
 .customers-page--pc .customer-workspace-action-button:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--brand-primary, #60a5fa) 50%, transparent);
-  background: color-mix(in srgb, var(--brand-primary, #60a5fa) 15%, var(--bg-card, #1e293b) 85%);
+  background: color-mix(in srgb, var(--brand-primary, #60a5fa) 15%, var(--bg-card) 85%);
   color: var(--text-primary, #fff);
 }
 

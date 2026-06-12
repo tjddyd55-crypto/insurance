@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Final mobile UI stabilization layer.
  * This file intentionally overrides only the recent polish rules that caused
  * duplicated icons, oversized action buttons, and centered workspace modals.
@@ -51,7 +51,7 @@
     line-height: var(--customer-mobile-line-button, 1.22) !important;
     letter-spacing: var(--customer-mobile-letter-button, 0.012em) !important;
     color: #fff !important;
-    background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%) !important;
+    background: linear-gradient(180deg, var(--primary) 0%, var(--primary-hover) 100%) !important;
     border: 1px solid color-mix(in srgb, #60a5fa 22%, transparent) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
     white-space: normal !important;
@@ -268,7 +268,7 @@
   .workspace-mobile-outlet-modal__close:focus-visible {
     color: var(--m-text, var(--text-primary, #fff)) !important;
     background: color-mix(in srgb, var(--m-text, #e6ecf2) 8%, transparent) !important;
-    outline: 2px solid var(--border-focus, #3b82f6) !important;
+    outline: 2px solid var(--primary) !important;
     outline-offset: 2px !important;
   }
 

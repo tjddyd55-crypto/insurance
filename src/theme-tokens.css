@@ -4,15 +4,17 @@
  */
 
 :root {
-  --bg-main: #ffffff;
-  --bg-card: #f5f6f8;
+  --bg-main: #f8fafc;
+  --bg-card: #ffffff;
   --bg-soft: #f1f5f9;
 
-  --text-main: #111111;
-  --text-sub: #555555;
+  --text-main: #111827;
+  --text-sub: #6b7280;
   --text-secondary: var(--text-sub);
 
-  --primary: #2563eb;
+  --primary: #16a34a;
+  --primary-hover: #15803d;
+  --primary-active: #166534;
   --brand: var(--primary);
   --success: #16a34a;
   --danger: #dc2626;
@@ -26,7 +28,6 @@
   --shadow-card: rgb(0 0 0 / 0.08);
   --shadow-modal: var(--shadow-dark);
 
-  --primary-hover: #1d4ed8;
   --text-on-primary: #ffffff;
   --link: var(--primary);
 
@@ -38,49 +39,50 @@
   --text: var(--text-main);
   --subtext: var(--text-sub);
   --text-primary: var(--text-main);
-  --bg-elevated: var(--bg-card);
-  --input-bg: var(--bg-main);
-  --placeholder: var(--text-sub);
+  --bg-elevated: var(--bg-soft);
+  --input-bg: #ffffff;
+  --placeholder: #9ca3af;
 
   --tab-inactive-bg: var(--bg-soft);
   --tab-inactive-text: var(--text-sub);
 
-  --btn-surface: var(--bg-card);
-  --btn-border: var(--border);
+  --btn-surface: #ffffff;
+  --btn-border: #e5e7eb;
   --btn-text: var(--text-main);
   --btn-hover-bg: var(--bg-soft);
-  --btn-hover-border: var(--text-sub);
+  --btn-hover-border: #d1d5db;
 
-  --btn-secondary-surface: var(--bg-soft);
+  --btn-secondary-surface: #ffffff;
   --btn-secondary-text: var(--text-main);
 
-  --hint-bg: rgb(34 197 94 / 0.12);
-  --hint-border: rgb(34 197 94 / 0.35);
+  --hint-bg: #dcfce7;
+  --hint-border: #bbf7d0;
   --hint-text: #166534;
 
   --edit-banner-bg: var(--primary);
   --edit-banner-text: var(--text-on-primary);
 
-  --status-warn: #d97706;
+  --status-warn: #ffbb00;
   --status-error: var(--danger);
 
-  --secondary-bg: rgb(251 191 36 / 0.18);
-  --secondary-border: #d97706;
-  --secondary-text: #b45309;
-  --secondary-hover-bg: rgb(251 191 36 / 0.26);
+  /* 경고·배지용 yellow (secondary 버튼과 분리) */
+  --secondary-bg: #fff7d6;
+  --secondary-border: #ffbb00;
+  --secondary-text: #92400e;
+  --secondary-hover-bg: #fff0b3;
 
   --danger-bg: rgb(239 68 68 / 0.1);
   --danger-border: var(--danger);
   --danger-text: #b91c1c;
   --danger-hover-bg: rgb(239 68 68 / 0.18);
 
-  --disabled-bg: var(--bg-soft);
-  --disabled-text: var(--text-sub);
+  --disabled-bg: #f3f4f6;
+  --disabled-text: #9ca3af;
 
   --checkbox-bg: var(--bg-soft);
 
   --sticky-bar-bg: rgb(248 250 252 / 0.97);
-  --sticky-actions-edge-border: #ccd5e2;
+  --sticky-actions-edge-border: #e5e7eb;
 
   --focus-ring: var(--primary);
 
@@ -122,8 +124,12 @@
   /* 폼·관리 화면 공통 의미 토큰 (별칭) */
   --bg-input: var(--input-bg);
   --brand-primary: var(--primary);
-  --brand-soft: rgb(37 99 235 / 0.14);
+  --brand-soft: #dcfce7;
   --text-default: var(--text-main);
+  --accent: #ffbb00;
+  --accent-hover: #e6a800;
+  --accent-soft: #fff7d6;
+  --warning-text: #92400e;
 
   /* 인쇄·결과 양식(종이 느낌 유지 — 변수로만 참조) */
   --result-paper-bg: #ffffff;
