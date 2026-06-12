@@ -1,4 +1,4 @@
-/** 테마 저장·토글 유틸. 앱 부팅 시 `initColorScheme()`은 다크 고정으로 `data-theme`을 적용한다. */
+/** 테마 저장·토글 유틸. 앱 부팅 시 `initColorScheme()`이 저장값 또는 light 기본을 적용한다. */
 
 const STORAGE_KEY = 'theme'
 const LEGACY_STORAGE_KEY = 'insurance-theme'
@@ -27,9 +27,10 @@ export function isDarkPreferredBySystem(): boolean {
   return window.matchMedia('(prefers-color-scheme: dark)').matches
 }
 
-/** 앱 UI는 다크 테마 고정 (시스템·저장값과 무관). */
+/** 저장된 선호가 있으면 따르고, 없으면 light 기본. */
 export function initColorScheme(): void {
-  applyThemeToDocument('dark')
+  const stored = getStoredTheme()
+  applyThemeToDocument(stored ?? 'light')
 }
 
 /** 저장된 선호가 없을 때만 시스템 테마 변경을 반영 */

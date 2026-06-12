@@ -1,5 +1,5 @@
-.intro-v2 {
-  --intro-btn-blue: #2563eb;
+﻿.intro-v2 {
+  --intro-btn-blue: var(--primary);
   --intro-btn-blue-hover: #1d4ed8;
   --intro-btn-blue-disabled-bg: #93c5fd;
   --intro-btn-blue-disabled-text: #ffffff;
@@ -85,7 +85,7 @@
 .intro-v2-logo {
   font-size: 42px;
   font-weight: 800;
-  color: #2563eb;
+  color: var(--primary);
   letter-spacing: -0.03em;
 }
 
@@ -219,7 +219,7 @@
 }
 
 .intro-v2-structure-card.is-accent {
-  border-color: #2563eb;
+  border-color: var(--primary);
   box-shadow: 0 16px 28px rgba(37, 99, 235, 0.25);
 }
 
@@ -254,12 +254,12 @@
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: #2563eb;
+  background: var(--primary);
 }
 
 .intro-v2-arrow {
   font-size: 24px;
-  color: #2563eb;
+  color: var(--primary);
 }
 
 .intro-v2-flow-grid {
@@ -339,7 +339,7 @@
 
 .intro-v2-cta {
   padding: 128px 0;
-  background: linear-gradient(156deg, #2563eb 0%, #1e3a8a 100%);
+  background: linear-gradient(156deg, var(--primary) 0%, var(--primary-active) 100%);
 }
 
 .intro-v2-cta__inner {
@@ -539,7 +539,7 @@
   width: 56px;
   height: 56px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -742,7 +742,7 @@
 
 .intro-install-cta {
   padding: 72px 0;
-  background: linear-gradient(156deg, #2563eb 0%, #1e3a8a 100%);
+  background: linear-gradient(156deg, var(--primary) 0%, var(--primary-active) 100%);
   color: #fff;
   text-align: center;
 }

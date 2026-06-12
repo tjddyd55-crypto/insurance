@@ -68,9 +68,9 @@ export default function GovernmentWorkspacePage() {
     >
       <header className="government-workspace__header">
         <div>
-          <strong style={{ color: '#f8fafc' }}>정부지원 CRM</strong>
+          <strong style={{ color: 'var(--text-primary)' }}>정부지원 CRM</strong>
           {summary?.isGovernmentIndustryAdmin ? (
-            <Link to="/government/admin" style={{ marginLeft: '0.75rem', color: '#60a5fa' }}>
+            <Link to="/government/admin" style={{ marginLeft: '0.75rem', color: 'var(--primary)' }}>
               관리
             </Link>
           ) : null}
@@ -86,7 +86,7 @@ export default function GovernmentWorkspacePage() {
       </header>
 
       {ws.error ? <p style={{ color: '#ef4444', padding: '0.75rem 1rem' }}>{ws.error}</p> : null}
-      {ws.feedback ? <p style={{ color: '#60a5fa', padding: '0 1rem' }}>{ws.feedback}</p> : null}
+      {ws.feedback ? <p style={{ color: 'var(--primary)', padding: '0 1rem' }}>{ws.feedback}</p> : null}
 
       <div className="government-workspace__body">
         {showList ? (
@@ -207,7 +207,7 @@ export default function GovernmentWorkspacePage() {
                 </FormButton>
                 <ul style={{ marginTop: '1rem', padding: 0, listStyle: 'none' }}>
                   {ws.priorLoans.map((loan) => (
-                    <li key={loan.id} style={{ border: '1px solid #334155', borderRadius: 8, padding: '0.75rem', marginBottom: '0.5rem' }}>
+                    <li key={loan.id} style={{ border: '1px solid var(--border-default)', borderRadius: 8, padding: '0.75rem', marginBottom: '0.5rem' }}>
                       <Field
                         label="대출 상호"
                         value={loan.lenderName}
@@ -243,7 +243,7 @@ export default function GovernmentWorkspacePage() {
                   + 신청/청약 건
                 </FormButton>
                 {ws.cases.map((c) => (
-                  <div key={c.id} style={{ marginTop: '0.75rem', padding: '0.75rem', border: '1px solid #334155', borderRadius: 8 }}>
+                  <div key={c.id} style={{ marginTop: '0.75rem', padding: '0.75rem', border: '1px solid var(--border-default)', borderRadius: 8 }}>
                     <Field
                       label="접수상품명"
                       value={c.productName}
@@ -252,7 +252,7 @@ export default function GovernmentWorkspacePage() {
                     <select
                       value={c.progressStatus}
                       onChange={(e) => void ws.updateCaseStatus(c.id, e.target.value)}
-                      style={{ background: '#020617', color: '#f8fafc', border: '1px solid #334155', borderRadius: 8, padding: '0.35rem' }}
+                      style={{ background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, padding: '0.35rem' }}
                     >
                       {GOVERNMENT_APPLICATION_STATUSES.map((s) => (
                         <option key={s} value={s}>

@@ -1,11 +1,11 @@
-@media (max-width: 767px) {
+﻿@media (max-width: 767px) {
   :root {
     --m-bg: var(--app-bg, var(--bg-main, #0b0f14));
     --m-surface: var(--bg-card, #1e2633);
-    --m-surface-raised: color-mix(in srgb, var(--bg-card, #1e2633) 88%, #334155 12%);
+    --m-surface-raised: color-mix(in srgb, var(--bg-card, #1e2633) 88%, var(--border-strong) 12%);
     --m-border: color-mix(in srgb, var(--border, #2b3544) 82%, #64748b 18%);
     --m-border-soft: color-mix(in srgb, var(--border, #2b3544) 76%, transparent);
-    --m-primary: var(--brand-primary, #2563eb);
+    --m-primary: var(--brand-primary);
     --m-primary-strong: #1d4ed8;
     --m-danger: #ef4444;
     --m-danger-strong: #dc2626;
@@ -120,7 +120,7 @@
   .workspace-mobile-outlet-modal__close:focus-visible {
     color: var(--m-text) !important;
     background: color-mix(in srgb, var(--m-text) 8%, transparent) !important;
-    outline: 2px solid var(--border-focus, #3b82f6) !important;
+    outline: 2px solid var(--primary) !important;
     outline-offset: 2px !important;
   }
 

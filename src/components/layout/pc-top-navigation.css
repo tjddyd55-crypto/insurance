@@ -1,4 +1,4 @@
-.pc-top-navigation {
+﻿.pc-top-navigation {
   display: none;
 }
 
@@ -103,7 +103,7 @@
     padding: 10px 12px;
     border-top: 1px solid color-mix(in srgb, var(--border-default, #2a2a2a) 72%, transparent);
     border-bottom: 1px solid color-mix(in srgb, var(--border-default, #2a2a2a) 82%, transparent);
-    background: color-mix(in srgb, var(--bg-card, #111827) 94%, #000 6%);
+    background: color-mix(in srgb, var(--bg-card) 94%, #000 6%);
     box-shadow: 0 16px 28px rgba(0, 0, 0, 0.28);
     z-index: 80;
   }

@@ -1,6 +1,6 @@
-.government-page {
-  background: #0b111a;
-  color: #e5e7eb;
+﻿.government-page {
+  background: var(--bg-main);
+  color: var(--text-main);
   min-height: 100vh;
 }
 
@@ -11,14 +11,14 @@
 }
 
 .government-page__title {
-  color: #f8fafc;
+  color: var(--text-primary);
   font-size: 1.25rem;
   font-weight: 700;
   margin: 0 0 0.5rem;
 }
 
 .government-page__muted {
-  color: #94a3b8;
+  color: var(--text-muted);
   margin: 0;
 }
 
@@ -34,8 +34,8 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #1e293b;
-  background: #111827;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-card);
 }
 
 .government-workspace__body {
@@ -49,7 +49,7 @@
   max-width: 40vw;
   border-right: 1px solid #1e293b;
   overflow-y: auto;
-  background: #111827;
+  background: var(--bg-card);
 }
 
 .government-workspace__detail {
@@ -64,9 +64,9 @@
   text-align: left;
   padding: 0.75rem 1rem;
   border: none;
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid var(--border-default);
   background: transparent;
-  color: #e5e7eb;
+  color: var(--text-main);
   cursor: pointer;
 }
 
@@ -76,12 +76,12 @@
 
 .government-list-item__title {
   font-weight: 600;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 
 .government-list-item__meta {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--text-muted);
   margin-top: 0.25rem;
 }
 
@@ -95,15 +95,15 @@
 .government-tabs__btn {
   padding: 0.35rem 0.65rem;
   border-radius: 8px;
-  border: 1px solid #334155;
-  background: #111827;
-  color: #e5e7eb;
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
+  color: var(--text-main);
   font-size: 0.8rem;
   cursor: pointer;
 }
 
 .government-tabs__btn--active {
-  border-color: #2563eb;
+  border-color: var(--primary);
   background: #1e3a5f;
   color: #fff;
 }
@@ -119,16 +119,16 @@
   flex-direction: column;
   gap: 0.35rem;
   font-size: 0.8rem;
-  color: #cbd5e1;
+  color: var(--text-secondary);
 }
 
 .government-form-grid input,
 .government-form-grid select,
 .government-form-grid textarea {
-  background: #020617;
-  border: 1px solid #334155;
+  background: var(--input-bg);
+  border: 1px solid var(--border-default);
   border-radius: 8px;
-  color: #f8fafc;
+  color: var(--text-primary);
   padding: 0.45rem 0.6rem;
 }
 
@@ -141,7 +141,7 @@
   max-width: none;
   max-height: 40vh;
   border-right: none;
-  border-bottom: 1px solid #1e293b;
+  border-bottom: 1px solid var(--border-default);
 }
 
 @media (max-width: 768px) {

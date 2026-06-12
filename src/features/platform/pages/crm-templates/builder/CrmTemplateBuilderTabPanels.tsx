@@ -1284,7 +1284,7 @@ function DetailTabFieldsEditor({
         <span className="platform-admin-field__label">포함 필드 선택 ({labelToIdRef})</span>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2 mb-4">
           {formFieldPickList.map((pf) => (
-            <label key={pf.key} className="flex gap-2 items-start rounded-md border border-[#334155] bg-[#111827]/80 px-3 py-2">
+            <label key={pf.key} className="flex gap-2 items-start rounded-md border border-border bg-card/80 px-3 py-2">
               <input
                 type="checkbox"
                 checked={tab.fieldKeys.includes(pf.key)}

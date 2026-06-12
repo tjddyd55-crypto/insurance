@@ -1,4 +1,4 @@
-/* 전역 업데이트 다이얼로그 전용 스타일.
+﻿/* 전역 업데이트 다이얼로그 전용 스타일.
    네임스페이스: desktop-update-dialog- 로 고정해 다른 모달/레이아웃과 충돌 없음. */
 
 .desktop-update-dialog {
@@ -24,7 +24,7 @@
   width: 100%;
   max-width: 440px;
   background: #ffffff;
-  color: #0f172a;
+  color: var(--text-primary);
   border-radius: 12px;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.3);
   padding: 24px 24px 20px;
@@ -65,7 +65,7 @@
   padding: 10px 12px;
   border-radius: 8px;
   font-size: 13px;
-  color: #334155;
+  color: var(--text-secondary);
 }
 
 .desktop-update-dialog__notes pre {
@@ -87,7 +87,7 @@
 
 .desktop-update-dialog__progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #2563eb, #3b82f6);
+  background: linear-gradient(90deg, var(--primary), var(--primary-hover));
   transition: width 180ms ease-out;
 }
 
@@ -110,19 +110,19 @@
 
 @media (prefers-color-scheme: dark) {
   .desktop-update-dialog__panel {
-    background: #0f172a;
+    background: var(--bg-soft);
     color: #e2e8f0;
   }
   .desktop-update-dialog__body {
-    color: #cbd5e1;
+    color: var(--text-secondary);
   }
   .desktop-update-dialog__subtitle,
   .desktop-update-dialog__hint {
-    color: #94a3b8;
+    color: var(--text-muted);
   }
   .desktop-update-dialog__notes {
     background: #1e293b;
-    color: #cbd5e1;
+    color: var(--text-secondary);
   }
   .desktop-update-dialog__progress {
     background: #1e293b;

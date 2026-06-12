@@ -1,18 +1,18 @@
-.customers-map-page--pc,
+﻿.customers-map-page--pc,
 .customers-map-page--mobile {
   display: flex;
   flex-direction: column;
   gap: 10px;
   min-height: calc(100vh - 64px);
   padding: 12px 16px 16px;
-  background: #0b111a;
-  color: #e5e7eb;
+  background: var(--bg-main);
+  color: var(--text-main);
 }
 
 .customers-map-page__title {
   margin: 0;
   font-size: 1.125rem;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 
 .customers-map-page__header-summary {
@@ -26,7 +26,7 @@
 .customers-map-page__summary {
   margin: 0;
   font-size: 0.875rem;
-  color: #cbd5e1;
+  color: var(--text-secondary);
   line-height: 1.45;
 }
 
@@ -55,7 +55,7 @@
 }
 
 .customers-map-page__radius-label {
-  color: #cbd5e1;
+  color: var(--text-secondary);
   font-size: 0.8125rem;
 }
 
@@ -66,7 +66,7 @@
 }
 
 .customers-map-page__radius-unit {
-  color: #94a3b8;
+  color: var(--text-muted);
   font-size: 0.8125rem;
   margin-right: 2px;
 }
@@ -75,7 +75,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #cbd5e1;
+  color: var(--text-secondary);
   font-size: 0.8125rem;
   white-space: nowrap;
 }
@@ -94,9 +94,9 @@
   margin: 0;
   padding: 8px 12px;
   border-radius: 10px;
-  border: 1px solid #334155;
-  background: #111827;
-  color: #cbd5e1;
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
+  color: var(--text-secondary);
   font-size: 0.875rem;
   line-height: 1.45;
 }
@@ -108,23 +108,23 @@
 
 .customers-map-page__loading {
   margin: 0;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .customers-map-page__bounds-loading {
   margin: 0;
   font-size: 0.8125rem;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .customers-map-page__map-wrap {
   position: relative;
   flex: 1 1 auto;
   min-height: 520px;
-  border: 1px solid #1e293b;
+  border: 1px solid var(--border-default);
   border-radius: 12px;
   overflow: hidden;
-  background: #111827;
+  background: var(--bg-card);
 }
 
 .customers-map-page--pc .customers-map-page__map-wrap {
@@ -158,8 +158,8 @@
   padding: 8px 12px;
   border-radius: 8px;
   background: rgba(17, 24, 39, 0.92);
-  border: 1px solid #334155;
-  color: #cbd5e1;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
   font-size: 0.8125rem;
 }
 
@@ -199,9 +199,9 @@
   flex-direction: column;
   gap: 8px;
   padding: 8px 10px;
-  border: 1px solid #334155;
+  border: 1px solid var(--border-default);
   border-radius: 10px;
-  background: #111827;
+  background: var(--bg-card);
   flex-shrink: 0;
 }
 
@@ -295,7 +295,7 @@
   height: 100%;
   min-height: inherit;
   object-fit: cover;
-  background: #111827;
+  background: var(--bg-card);
 }
 
 .customer-map-name-marker {
@@ -315,9 +315,9 @@
   max-width: 112px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: #111827;
-  border: 1px solid #334155;
-  color: #f8fafc;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
   font-size: 0.6875rem;
   font-weight: 600;
   line-height: 1.25;
@@ -336,7 +336,7 @@
   width: 12px;
   height: 12px;
   border-radius: 999px;
-  background: #2563eb;
+  background: var(--primary);
   border: 2px solid #ffffff;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   box-sizing: border-box;
@@ -361,9 +361,9 @@
   z-index: 5;
   padding: 14px;
   border-radius: 12px;
-  background: #111827;
-  border: 1px solid #334155;
-  color: #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  color: var(--text-main);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
@@ -396,7 +396,7 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: #2563eb;
+  background: var(--primary);
   color: #ffffff;
   font-size: 0.875rem;
   font-weight: 700;
@@ -406,13 +406,13 @@
 .customer-map-marker-card__name {
   margin: 0;
   font-size: 1rem;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 
 .customer-map-marker-card__close {
   border: none;
   background: transparent;
-  color: #94a3b8;
+  color: var(--text-muted);
   cursor: pointer;
   font-size: 0.875rem;
 }
@@ -426,13 +426,13 @@
 .customer-map-marker-card__fields dt {
   margin: 0;
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .customer-map-marker-card__fields dd {
   margin: 2px 0 0;
   font-size: 0.875rem;
-  color: #e5e7eb;
+  color: var(--text-main);
 }
 
 .customer-map-marker-card__detail-btn {
@@ -453,7 +453,7 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 999px;
-  background: #2563eb;
+  background: var(--primary);
   color: #ffffff;
   font-size: 0.625rem;
   font-weight: 700;
@@ -475,7 +475,7 @@
 .customer-map-marker-card__address {
   margin: 0;
   font-size: 0.8125rem;
-  color: #94a3b8;
+  color: var(--text-muted);
   line-height: 1.4;
 }
 
@@ -490,7 +490,7 @@
 .customer-map-marker-card__row {
   padding: 10px;
   border-radius: 10px;
-  border: 1px solid #334155;
+  border: 1px solid var(--border-default);
   background: #1f2937;
   cursor: pointer;
 }
@@ -510,12 +510,12 @@
 .customer-map-marker-card__row-name {
   margin: 0;
   font-size: 0.9375rem;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 
 .customer-map-marker-card__row-meta {
   font-size: 0.8125rem;
-  color: #cbd5e1;
+  color: var(--text-secondary);
 }
 
 .customer-map-marker-card__row-fields {
@@ -527,9 +527,9 @@
 .customers-map-page__unmapped-panel {
   flex: 0 0 auto;
   padding: 12px;
-  border: 1px solid #1e293b;
+  border: 1px solid var(--border-default);
   border-radius: 12px;
-  background: #111827;
+  background: var(--bg-card);
 }
 
 .customers-map-page__unmapped-panel-head {
@@ -543,13 +543,13 @@
 .customers-map-page__unmapped-title {
   margin: 0;
   font-size: 0.9375rem;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 
 .customers-map-page__unmapped-desc {
   margin: 4px 0 0;
   font-size: 0.8125rem;
-  color: #94a3b8;
+  color: var(--text-muted);
   line-height: 1.45;
 }
 
@@ -559,7 +559,7 @@
 
 .customer-map-unmapped-list__empty {
   margin: 0;
-  color: #94a3b8;
+  color: var(--text-muted);
   font-size: 0.875rem;
 }
 
@@ -577,7 +577,7 @@
 .customer-map-unmapped-list__item {
   padding: 12px;
   border-radius: 10px;
-  border: 1px solid #334155;
+  border: 1px solid var(--border-default);
   background: #1f2937;
 }
 
@@ -592,7 +592,7 @@
 .customer-map-unmapped-list__name {
   margin: 0;
   font-size: 0.9375rem;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 
 .customer-map-unmapped-list__status {
@@ -604,7 +604,7 @@
 .customer-map-unmapped-list__address {
   margin: 6px 0 0;
   font-size: 0.8125rem;
-  color: #cbd5e1;
+  color: var(--text-secondary);
   line-height: 1.45;
   word-break: break-word;
 }
@@ -639,10 +639,10 @@
   min-height: 280px;
   padding: 24px;
   text-align: center;
-  background: #111827;
-  border: 1px dashed #334155;
+  background: var(--bg-card);
+  border: 1px dashed var(--border-default);
   border-radius: 12px;
-  color: #e5e7eb;
+  color: var(--text-main);
 }
 
 .customer-map-setup-notice--inline {
@@ -654,38 +654,38 @@
 .customer-map-setup-notice__title {
   margin: 0;
   font-size: 1rem;
-  color: #f8fafc;
+  color: var(--text-primary);
 }
 
 .customer-map-setup-notice__body {
   margin: 0;
   font-size: 0.875rem;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .naver-map-smoke-page {
   min-height: 100vh;
   padding: 24px;
-  background: #0b111a;
-  color: #e5e7eb;
+  background: var(--bg-main);
+  color: var(--text-main);
 }
 
 .naver-map-smoke-page__header h1 {
   margin: 0 0 8px;
-  color: #f8fafc;
+  color: var(--text-primary);
   font-size: 1.25rem;
 }
 
 .naver-map-smoke-page__muted {
   margin: 0 0 16px;
-  color: #94a3b8;
+  color: var(--text-muted);
   font-size: 0.875rem;
 }
 
 .naver-map-smoke-page__status {
   margin: 0 0 12px;
   font-size: 0.9375rem;
-  color: #cbd5e1;
+  color: var(--text-secondary);
 }
 
 .naver-map-smoke-page__status--ok {
@@ -700,7 +700,7 @@
 .naver-map-smoke-page__url-list {
   margin: 10px 0 0;
   padding-left: 1.2rem;
-  color: #cbd5e1;
+  color: var(--text-secondary);
   font-size: 0.8125rem;
   line-height: 1.45;
 }
@@ -709,9 +709,9 @@
   width: 100%;
   min-height: 360px;
   height: 52vh;
-  border: 1px solid #334155;
+  border: 1px solid var(--border-default);
   border-radius: 12px;
-  background: #111827;
+  background: var(--bg-card);
 }
 
 .naver-map-smoke-page__diagnostics {
@@ -729,11 +729,11 @@
 
 .naver-map-smoke-page__diagnostics dt {
   margin: 0;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .naver-map-smoke-page__diagnostics dd {
   margin: 0;
-  color: #e5e7eb;
+  color: var(--text-main);
   word-break: break-all;
 }

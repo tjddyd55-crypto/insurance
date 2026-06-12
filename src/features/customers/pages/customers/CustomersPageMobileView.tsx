@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+﻿import type { ReactNode } from 'react'
 
 type CustomersPageMobileViewProps = {
   isSelectMode: boolean
@@ -36,7 +36,7 @@ export default function CustomersPageMobileView({
           padding: 0 14px;
           border-radius: 12px;
           border: none;
-          background: #2563eb;
+          background: var(--primary);
           color: #fff;
           font-weight: 500;
           font-size: 14px;
@@ -52,8 +52,8 @@ export default function CustomersPageMobileView({
           min-height: 44px;
           border-radius: 12px;
           background: transparent;
-          border: 1px solid #374151;
-          color: #e5e7eb;
+          border: 1px solid var(--border-default);
+          color: var(--text-main);
         }
         .customers-page--mobile .mobile-customer-action-bar button,
         .customers-page--mobile .customer-detail-feature-actions--mobile button {
@@ -62,7 +62,7 @@ export default function CustomersPageMobileView({
           padding: 0 14px;
           border-radius: 12px;
           border: none;
-          background: #2563eb;
+          background: var(--primary);
           color: #fff;
           font-weight: 500;
           font-size: 14px;

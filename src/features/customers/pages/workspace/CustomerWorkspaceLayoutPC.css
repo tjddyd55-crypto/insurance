@@ -67,8 +67,8 @@
 .customer-workspace-layout__tab-row {
   flex-shrink: 0;
   padding: 8px 12px 10px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
-  background: var(--bg-main, #0b111a);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-main);
 }
 
 .customer-workspace-layout__tab-row .customer-workspace-layout__actions {
@@ -78,8 +78,8 @@
 
 .customer-workspace-layout__app-link-strip {
   padding: 8px 12px 10px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
-  background: var(--bg-main, #0b111a);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-main);
 }
 
 .customer-workspace-app-link-bar {
@@ -165,8 +165,8 @@
 .workspace-mobile-outlet-modal__app-link {
   flex-shrink: 0;
   padding: 8px 12px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
-  background: var(--bg-main, #0b111a);
+  border-bottom: 1px solid var(--border-default);
+  background: var(--bg-main);
 }
 
 .workspace-mobile-outlet-modal__header-actions {
