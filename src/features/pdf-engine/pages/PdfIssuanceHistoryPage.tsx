@@ -119,7 +119,7 @@ export default function PdfIssuanceHistoryPage() {
   )
 
   return (
-    <main className="insurance-dark-forms pdf-engine-page user-page">
+    <main className="pdf-engine-page user-page">
       <h1 className="pdf-engine-page__title">과거 작성한 신청서</h1>
       <p className="pdf-engine-page__hint">
         {workspaceCustomerId != null

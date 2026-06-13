@@ -1024,14 +1024,14 @@ export default function PdfDocumentDetailPage() {
 
   if (state.status === 'loading') {
     return (
-      <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--pc page--with-back">
+      <main className="pdf-engine-page pdf-document-detail-page pdf-document-detail-page--pc page--with-back user-page">
         <p className="pdf-engine-page__hint">문서를 불러오는 중…</p>
       </main>
     )
   }
   if (state.status === 'error') {
     return (
-      <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--pc page--with-back">
+      <main className="pdf-engine-page pdf-document-detail-page pdf-document-detail-page--pc page--with-back user-page">
         <div className="pdf-engine-page__error">{state.message}</div>
         <div className="pdf-engine-page__toolbar">
           <Link to={listPath} className="pdf-engine-editor__btn">
@@ -1056,7 +1056,7 @@ export default function PdfDocumentDetailPage() {
     sourcePrefill.kind === 'loading'
   ) {
     return (
-      <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--mobile page--with-back">
+      <main className="pdf-engine-page pdf-document-detail-page pdf-document-detail-page--mobile page--with-back user-page">
         <div className="pdf-engine-page__toolbar">
           <Link to={listPath} className="pdf-engine-editor__btn">
             ← 문서 목록
@@ -1073,7 +1073,7 @@ export default function PdfDocumentDetailPage() {
     sourcePrefill.kind === 'error'
   ) {
     return (
-      <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--mobile page--with-back">
+      <main className="pdf-engine-page pdf-document-detail-page pdf-document-detail-page--mobile page--with-back user-page">
         <div className="pdf-engine-page__toolbar">
           <Link to={listPath} className="pdf-engine-editor__btn">
             ← 문서 목록
@@ -1119,7 +1119,7 @@ export default function PdfDocumentDetailPage() {
         ariaLabel={`PDF 결과 미리보기 · ${resultPdfFilename}`}
         panelClassName="pdf-engine-preview-modal"
       >
-        <div className="pdf-engine-preview">
+        <div className="insurance-dark-forms pdf-engine-preview">
           <header className="pdf-engine-preview__header">
             <h3>결과 미리보기</h3>
             <div

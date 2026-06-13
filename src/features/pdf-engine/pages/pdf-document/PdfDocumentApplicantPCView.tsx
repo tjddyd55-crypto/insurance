@@ -81,7 +81,7 @@ export default function PdfDocumentApplicantPCView(props: PdfDocumentApplicantVi
   const atMax = sidePreviewScale.mode === 'manual' && sidePreviewScale.multiplier >= 2
 
   return (
-    <main className="insurance-dark-forms pdf-engine-page pdf-document-detail-page pdf-document-detail-page--pc page--with-back">
+    <main className="pdf-engine-page pdf-document-detail-page pdf-document-detail-page--pc page--with-back user-page">
       <div className="pdf-engine-page__toolbar">
         <Link to={documentsListPath} className="pdf-engine-editor__btn">
           ← 문서 목록

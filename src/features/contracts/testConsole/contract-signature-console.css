@@ -1,9 +1,9 @@
 /**
- * 전자서명 관리 테스트 콘솔 — main.insurance-dark-forms.contract-signature-console 전용.
+ * 전자서명 관리 테스트 콘솔 — main.contract-signature-console 전용.
  * 표면색은 항상 var(--*) 다크 스코프 토큰만 사용한다.
  */
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__container {
+main.contract-signature-console .contract-signature-console__container {
   width: min(1520px, calc(100vw - 32px));
   max-width: 1520px;
   margin-inline: auto;
@@ -12,20 +12,20 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   box-sizing: border-box;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__title {
+main.contract-signature-console .contract-signature-console__title {
   margin: 0 0 0.25rem;
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--text-main);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__lead {
+main.contract-signature-console .contract-signature-console__lead {
   margin: 0 0 0.75rem;
   font-size: 0.875rem;
   color: var(--text-sub);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__notice {
+main.contract-signature-console .contract-signature-console__notice {
   font-size: 0.875rem;
   padding: 0.75rem;
   margin: 0 0 1rem;
@@ -35,12 +35,12 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   color: var(--text-sub);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__notice ul {
+main.contract-signature-console .contract-signature-console__notice ul {
   margin: 0;
   padding-left: 1rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__alert--danger {
+main.contract-signature-console .contract-signature-console__alert--danger {
   padding: 0.75rem;
   margin-bottom: 1rem;
   border-radius: 0.375rem;
@@ -49,7 +49,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__section {
+main.contract-signature-console .contract-signature-console__section {
   margin-bottom: 1rem;
   padding: 0.75rem;
   border: 1px solid var(--border);
@@ -58,36 +58,36 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   color: var(--text-main);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__section-title {
+main.contract-signature-console .contract-signature-console__section-title {
   margin: 0 0 0.5rem;
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-main);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__scroll-x {
+main.contract-signature-console .contract-signature-console__scroll-x {
   overflow-x: auto;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__table--compact.pdf-engine-table {
+main.contract-signature-console .contract-signature-console__table--compact.pdf-engine-table {
   font-size: 0.8125rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__table--compact.pdf-engine-table th,
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__table--compact.pdf-engine-table td {
+main.contract-signature-console .contract-signature-console__table--compact.pdf-engine-table th,
+main.contract-signature-console .contract-signature-console__table--compact.pdf-engine-table td {
   padding: 0.5rem 0.5rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__table--striped tbody tr:nth-child(even) td {
+main.contract-signature-console .contract-signature-console__table--striped tbody tr:nth-child(even) td {
   background: var(--bg-soft);
 }
 
 /* 라디오 선택 행 — 줄무늬(zebra) 미사용 테이블 전용, 선택·호버만 강조 */
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pick-table tbody tr.contract-pick-row td {
+main.contract-signature-console .contract-signature-console__pick-table tbody tr.contract-pick-row td {
   background: var(--bg-card);
 }
 
-main.insurance-dark-forms.contract-signature-console
+main.contract-signature-console
   .contract-signature-console__pick-table
   tbody
   tr.contract-pick-row--selected
@@ -97,7 +97,7 @@ main.insurance-dark-forms.contract-signature-console
 }
 
 @media (hover: hover) {
-  main.insurance-dark-forms.contract-signature-console
+  main.contract-signature-console
     .contract-signature-console__pick-table
     tbody
     tr.contract-pick-row:hover:not(.contract-pick-row--selected)
@@ -106,51 +106,51 @@ main.insurance-dark-forms.contract-signature-console
   }
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pick-table tbody tr.contract-pick-row--inactive td {
+main.contract-signature-console .contract-signature-console__pick-table tbody tr.contract-pick-row--inactive td {
   opacity: 0.75;
 }
 
 /* 행 전체 클릭으로 라디오와 동일하게 선택 */
-main.insurance-dark-forms.contract-signature-console
+main.contract-signature-console
   .contract-signature-console__pick-table
   tbody
   tr.contract-pick-row--interactive {
   cursor: pointer;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__inline-error {
+main.contract-signature-console .contract-signature-console__inline-error {
   margin-bottom: 0.5rem;
   font-size: 0.8125rem;
   color: var(--danger-text);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__hint {
+main.contract-signature-console .contract-signature-console__hint {
   margin: 0.5rem 0 0;
   font-size: 0.75rem;
   color: var(--text-sub);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__hint--flush {
+main.contract-signature-console .contract-signature-console__hint--flush {
   margin-top: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__muted {
+main.contract-signature-console .contract-signature-console__muted {
   color: var(--text-sub);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__hint--warning {
+main.contract-signature-console .contract-signature-console__hint--warning {
   margin: 0;
   font-size: 0.75rem;
   color: var(--warning-text);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__inline-warning {
+main.contract-signature-console .contract-signature-console__inline-warning {
   margin-top: 0.375rem;
   font-size: 0.75rem;
   color: var(--warning-text);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__session-summary {
+main.contract-signature-console .contract-signature-console__session-summary {
   margin-top: 0.75rem;
   padding: 0.75rem;
   border: 1px solid var(--border);
@@ -160,14 +160,14 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   color: var(--text-main);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__btn-row {
+main.contract-signature-console .contract-signature-console__btn-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__search-row {
+main.contract-signature-console .contract-signature-console__search-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -175,7 +175,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   margin-bottom: 0.5rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__selected-card {
+main.contract-signature-console .contract-signature-console__selected-card {
   font-size: 0.8125rem;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
@@ -184,7 +184,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   color: var(--text-main);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__hit-list {
+main.contract-signature-console .contract-signature-console__hit-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -195,7 +195,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   background: var(--bg-card);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__hit-item {
+main.contract-signature-console .contract-signature-console__hit-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -205,55 +205,55 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   color: var(--text-main);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__hit-item:last-child {
+main.contract-signature-console .contract-signature-console__hit-item:last-child {
   border-bottom: none;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__toolbar {
+main.contract-signature-console .contract-signature-console__toolbar {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__subsection-title {
+main.contract-signature-console .contract-signature-console__subsection-title {
   margin: 0.75rem 0 0.5rem;
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-main);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__body-text {
+main.contract-signature-console .contract-signature-console__body-text {
   font-size: 0.8125rem;
   color: var(--text-main);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__ordered-list {
+main.contract-signature-console .contract-signature-console__ordered-list {
   margin: 0;
   padding-left: 1.25rem;
   font-size: 0.8125rem;
   color: var(--text-main);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__unordered-list {
+main.contract-signature-console .contract-signature-console__unordered-list {
   margin: 0;
   padding-left: 1.25rem;
   color: var(--text-main);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__footnote {
+main.contract-signature-console .contract-signature-console__footnote {
   margin: 0.5rem 0 0;
   font-size: 0.75rem;
   color: var(--text-sub);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__empty-state-text {
+main.contract-signature-console .contract-signature-console__empty-state-text {
   margin: 0;
   font-size: 0.8125rem;
   color: var(--text-sub);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__status-badge {
+main.contract-signature-console .contract-signature-console__status-badge {
   display: inline-block;
   padding: 0.125rem 0.5rem;
   border-radius: 999px;
@@ -264,7 +264,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   color: var(--text-main);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__filter-row {
+main.contract-signature-console .contract-signature-console__filter-row {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -272,7 +272,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   margin-bottom: 0.75rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__filter-btn {
+main.contract-signature-console .contract-signature-console__filter-btn {
   padding: 0.35rem 0.65rem;
   border-radius: 0.375rem;
   border: 1px solid var(--border);
@@ -282,13 +282,13 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   cursor: pointer;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__filter-btn--active {
+main.contract-signature-console .contract-signature-console__filter-btn--active {
   border-color: var(--focus-ring);
   color: var(--text-main);
   background: color-mix(in srgb, var(--primary-soft) 35%, var(--bg-card));
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__detail-backdrop {
+main.contract-signature-console .contract-signature-console__detail-backdrop {
   position: fixed;
   inset: 0;
   z-index: 100050;
@@ -300,12 +300,12 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
 }
 
 @media (min-width: 640px) {
-  main.insurance-dark-forms.contract-signature-console .contract-signature-console__detail-backdrop {
+  main.contract-signature-console .contract-signature-console__detail-backdrop {
     align-items: center;
   }
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__detail-dialog {
+main.contract-signature-console .contract-signature-console__detail-dialog {
   max-height: 90dvh;
   width: min(760px, calc(100vw - 32px));
   max-width: 760px;
@@ -318,21 +318,21 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   box-shadow: var(--shadow-modal, 0 8px 24px rgba(0, 0, 0, 0.35));
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__detail-actions {
+main.contract-signature-console .contract-signature-console__detail-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__btn-row > * {
+main.contract-signature-console .contract-signature-console__btn-row > * {
   margin-right: 0.25rem;
   margin-bottom: 0.25rem;
 }
 
 /* ─── 발송 내역·상세 모달 표 (PC/태블릿 고정 컬럼) ─────────────────── */
 
-main.insurance-dark-forms.contract-signature-console .contract-history-table {
+main.contract-signature-console .contract-history-table {
   width: 100%;
   min-width: 0;
   table-layout: fixed;
@@ -340,26 +340,26 @@ main.insurance-dark-forms.contract-signature-console .contract-history-table {
   font-size: 13px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-history-table th,
-main.insurance-dark-forms.contract-signature-console .contract-history-table td {
+main.contract-signature-console .contract-history-table th,
+main.contract-signature-console .contract-history-table td {
   padding: 12px 10px;
   vertical-align: middle;
   border-bottom: 1px solid var(--border);
   box-sizing: border-box;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-history-table th {
+main.contract-signature-console .contract-history-table th {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-sub);
   background: var(--bg-soft);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-history-table td {
+main.contract-signature-console .contract-history-table td {
   color: var(--text-main);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-session-doc-table {
+main.contract-signature-console .contract-session-doc-table {
   width: 100%;
   min-width: 680px;
   table-layout: fixed;
@@ -367,22 +367,22 @@ main.insurance-dark-forms.contract-signature-console .contract-session-doc-table
   font-size: 13px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-session-doc-table th,
-main.insurance-dark-forms.contract-signature-console .contract-session-doc-table td {
+main.contract-signature-console .contract-session-doc-table th,
+main.contract-signature-console .contract-session-doc-table td {
   padding: 10px 8px;
   vertical-align: middle;
   border-bottom: 1px solid var(--border);
   box-sizing: border-box;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-session-doc-table th {
+main.contract-signature-console .contract-session-doc-table th {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-sub);
   background: var(--bg-soft);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__session-doc-table-wrap {
+main.contract-signature-console .contract-signature-console__session-doc-table-wrap {
   overflow-x: auto;
   margin-top: 0.5rem;
   border: 1px solid var(--border);
@@ -390,15 +390,15 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   background: var(--bg-card);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-table-cell-center {
+main.contract-signature-console .contract-table-cell-center {
   text-align: center;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-table-cell-left {
+main.contract-signature-console .contract-table-cell-left {
   text-align: left;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-table-date {
+main.contract-signature-console .contract-table-date {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
@@ -407,12 +407,12 @@ main.insurance-dark-forms.contract-signature-console .contract-table-date {
   white-space: nowrap;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-table-empty {
+main.contract-signature-console .contract-table-empty {
   color: var(--text-sub);
   font-size: 13px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-table-hash {
+main.contract-signature-console .contract-table-hash {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 12px;
   white-space: nowrap;
@@ -421,7 +421,7 @@ main.insurance-dark-forms.contract-signature-console .contract-table-hash {
   max-width: 100%;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-table-document {
+main.contract-signature-console .contract-table-document {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -430,7 +430,7 @@ main.insurance-dark-forms.contract-signature-console .contract-table-document {
   word-break: keep-all;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-table-customer {
+main.contract-signature-console .contract-table-customer {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -439,23 +439,23 @@ main.insurance-dark-forms.contract-signature-console .contract-table-customer {
   word-break: keep-all;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-table-phone {
+main.contract-signature-console .contract-table-phone {
   line-height: 1.35;
   white-space: normal;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-table-cell-stack {
+main.contract-signature-console .contract-table-cell-stack {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-table-cell-stack--center {
+main.contract-signature-console .contract-table-cell-stack--center {
   align-items: center;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-table-progress {
+main.contract-signature-console .contract-table-progress {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
@@ -464,7 +464,7 @@ main.insurance-dark-forms.contract-signature-console .contract-table-progress {
   font-size: 12px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-status-badge.contract-signature-console__status-badge {
+main.contract-signature-console .contract-status-badge.contract-signature-console__status-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -478,23 +478,23 @@ main.insurance-dark-forms.contract-signature-console .contract-status-badge.cont
   box-sizing: border-box;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-status-badge--doc {
+main.contract-signature-console .contract-status-badge--doc {
   min-width: 58px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-status='completed'],
-main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-doc-status='completed'] {
+main.contract-signature-console .contract-status-badge[data-status='completed'],
+main.contract-signature-console .contract-status-badge[data-doc-status='completed'] {
   border-color: color-mix(in srgb, var(--success) 45%, var(--border));
   color: var(--success);
   background: color-mix(in srgb, var(--success) 14%, var(--bg-soft));
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-status='cancelled'],
-main.insurance-dark-forms.contract-signature-console .contract-status-badge[data-doc-status='pending'] {
+main.contract-signature-console .contract-status-badge[data-status='cancelled'],
+main.contract-signature-console .contract-status-badge[data-doc-status='pending'] {
   color: var(--text-sub);
 }
 
-main.insurance-dark-forms.contract-signature-console .history-actions {
+main.contract-signature-console .history-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -503,19 +503,19 @@ main.insurance-dark-forms.contract-signature-console .history-actions {
   width: 100%;
 }
 
-main.insurance-dark-forms.contract-signature-console .history-actions__cancel {
+main.contract-signature-console .history-actions__cancel {
   flex: 1 1 100%;
   display: flex;
   justify-content: flex-end;
 }
 
-main.insurance-dark-forms.contract-signature-console .history-actions__cancel button {
+main.contract-signature-console .history-actions__cancel button {
   flex: 0 1 auto;
   width: auto;
   min-width: 72px;
 }
 
-main.insurance-dark-forms.contract-signature-console .history-actions button {
+main.contract-signature-console .history-actions button {
   min-width: 72px;
   flex: 0 1 auto;
   height: 32px;
@@ -525,7 +525,7 @@ main.insurance-dark-forms.contract-signature-console .history-actions button {
   white-space: nowrap;
 }
 
-main.insurance-dark-forms.contract-signature-console .session-modal-actions {
+main.contract-signature-console .session-modal-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -534,22 +534,22 @@ main.insurance-dark-forms.contract-signature-console .session-modal-actions {
   margin-top: 0.75rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .session-modal-actions__left,
-main.insurance-dark-forms.contract-signature-console .session-modal-actions__right {
+main.contract-signature-console .session-modal-actions__left,
+main.contract-signature-console .session-modal-actions__right {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-session-doc-dl-wrap {
+main.contract-signature-console .contract-session-doc-dl-wrap {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 32px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-session-doc-dl-wrap button {
+main.contract-signature-console .contract-session-doc-dl-wrap button {
   height: 32px;
   min-width: 72px;
   padding: 0 8px;
@@ -558,26 +558,26 @@ main.insurance-dark-forms.contract-signature-console .contract-session-doc-dl-wr
 }
 
 /* 발송 상세 — 완료·증빙 PDF (터치·가독) */
-main.insurance-dark-forms.contract-signature-console .contract-session-pdf-dl-btn {
+main.contract-signature-console .contract-session-pdf-dl-btn {
   min-height: 40px;
   padding: 8px 12px;
   font-size: 13px;
   line-height: 1.2;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-session-pdf-dl-stack {
+main.contract-signature-console .contract-session-pdf-dl-stack {
   display: flex;
   flex-direction: column;
   gap: 10px;
   align-items: stretch;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-session-pdf-dl-btn--wide {
+main.contract-signature-console .contract-session-pdf-dl-btn--wide {
   width: 100%;
   min-height: 44px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-session-detail-evidence-cell {
+main.contract-signature-console .contract-session-detail-evidence-cell {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -585,14 +585,14 @@ main.insurance-dark-forms.contract-signature-console .contract-session-detail-ev
   min-width: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-session-detail-mobile-docs {
+main.contract-signature-console .contract-session-detail-mobile-docs {
   display: flex;
   flex-direction: column;
   gap: 12px;
   margin-top: 8px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-session-detail-doc-card {
+main.contract-signature-console .contract-session-detail-doc-card {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -600,14 +600,14 @@ main.insurance-dark-forms.contract-signature-console .contract-session-detail-do
   box-sizing: border-box;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-session-detail-doc-card__title {
+main.contract-signature-console .contract-session-detail-doc-card__title {
   font-weight: 600;
   font-size: 0.875rem;
   margin-bottom: 6px;
   word-break: break-word;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-session-doc-pending {
+main.contract-signature-console .contract-session-doc-pending {
   margin: 0;
   font-size: 12px;
   white-space: nowrap;
@@ -615,14 +615,14 @@ main.insurance-dark-forms.contract-signature-console .contract-session-doc-pendi
 
 /* 전자서명 템플릿 관리 표 (2번 영역) */
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-table-wrap {
+main.contract-signature-console .contract-signature-console__template-table-wrap {
   overflow-x: visible;
   margin-bottom: 0.5rem;
   width: 100%;
   min-width: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-table {
+main.contract-signature-console .contract-signature-console__template-table {
   width: 100%;
   min-width: 0;
   table-layout: fixed;
@@ -630,52 +630,52 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   font-size: 0.8125rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-table th,
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-table td {
+main.contract-signature-console .contract-signature-console__template-table th,
+main.contract-signature-console .contract-signature-console__template-table td {
   padding: 0.5rem 0.45rem;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
   box-sizing: border-box;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-table th {
+main.contract-signature-console .contract-signature-console__template-table th {
   background: var(--bg-soft);
   color: var(--text-sub);
   font-weight: 600;
   text-align: left;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__col-title {
+main.contract-signature-console .contract-signature-console__col-title {
   width: 260px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__col-status {
+main.contract-signature-console .contract-signature-console__col-status {
   width: 110px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__col-pdf {
+main.contract-signature-console .contract-signature-console__col-pdf {
   width: 160px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__col-id {
+main.contract-signature-console .contract-signature-console__col-id {
   width: 220px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__col-date {
+main.contract-signature-console .contract-signature-console__col-date {
   width: 150px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__col-actions {
+main.contract-signature-console .contract-signature-console__col-actions {
   width: 340px;
 }
 
 @media (hover: hover) {
-  main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-row:hover td {
+  main.contract-signature-console .contract-signature-console__template-row:hover td {
     background: color-mix(in srgb, var(--primary-soft) 14%, transparent);
   }
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-actions {
+main.contract-signature-console .contract-signature-console__template-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -685,7 +685,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   min-width: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-actions > button {
+main.contract-signature-console .contract-signature-console__template-actions > button {
   flex: 0 1 auto;
   min-width: 64px;
   padding-left: 0.45rem;
@@ -694,13 +694,13 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   white-space: nowrap;
 }
 
-main.insurance-dark-forms.contract-signature-console.contract-signature-console--admin-mobile {
+main.contract-signature-console.contract-signature-console--admin-mobile {
   overflow-x: hidden;
   max-width: 100vw;
   box-sizing: border-box;
 }
 
-main.insurance-dark-forms.contract-signature-console.contract-signature-console--admin-mobile
+main.contract-signature-console.contract-signature-console--admin-mobile
   .contract-signature-console__container {
   width: 100%;
   max-width: 100%;
@@ -709,17 +709,17 @@ main.insurance-dark-forms.contract-signature-console.contract-signature-console-
   box-sizing: border-box;
 }
 
-main.insurance-dark-forms.contract-signature-console.contract-signature-console--admin-mobile .contract-signature-console__toolbar {
+main.contract-signature-console.contract-signature-console--admin-mobile .contract-signature-console__toolbar {
   flex-direction: column;
   align-items: stretch;
 }
 
-main.insurance-dark-forms.contract-signature-console.contract-signature-console--admin-mobile .contract-signature-console__toolbar > * {
+main.contract-signature-console.contract-signature-console--admin-mobile .contract-signature-console__toolbar > * {
   width: 100%;
   min-height: 44px;
 }
 
-main.insurance-dark-forms.contract-signature-console.contract-signature-console--admin-mobile .contract-signature-console__template-legend {
+main.contract-signature-console.contract-signature-console--admin-mobile .contract-signature-console__template-legend {
   margin: 0 0 12px;
   padding: 12px 14px;
   border: 1px solid var(--border);
@@ -730,15 +730,15 @@ main.insurance-dark-forms.contract-signature-console.contract-signature-console-
   line-height: 1.5;
 }
 
-main.insurance-dark-forms.contract-signature-console.contract-signature-console--admin-mobile .contract-signature-console__template-legend li {
+main.contract-signature-console.contract-signature-console--admin-mobile .contract-signature-console__template-legend li {
   margin-bottom: 4px;
 }
 
-main.insurance-dark-forms.contract-signature-console.contract-signature-console--admin-mobile .contract-signature-console__template-legend li:last-child {
+main.contract-signature-console.contract-signature-console--admin-mobile .contract-signature-console__template-legend li:last-child {
   margin-bottom: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pdf-pick-cards {
+main.contract-signature-console .contract-signature-console__pdf-pick-cards {
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -747,7 +747,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   box-sizing: border-box;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pdf-pick-card {
+main.contract-signature-console .contract-signature-console__pdf-pick-card {
   display: block;
   margin: 0;
   padding: 14px 16px;
@@ -760,13 +760,13 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   max-width: 100%;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pdf-pick-card--selected {
+main.contract-signature-console .contract-signature-console__pdf-pick-card--selected {
   border-color: rgba(96, 165, 250, 0.75);
   background: color-mix(in srgb, rgba(59, 130, 246, 0.12) 40%, var(--bg-card));
   box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pdf-pick-card-head {
+main.contract-signature-console .contract-signature-console__pdf-pick-card-head {
   display: flex;
   flex-wrap: nowrap;
   align-items: flex-start;
@@ -774,7 +774,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   margin-bottom: 10px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pdf-pick-card-title {
+main.contract-signature-console .contract-signature-console__pdf-pick-card-title {
   font-size: 0.9375rem;
   font-weight: 600;
   line-height: 1.35;
@@ -783,14 +783,14 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   min-width: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pdf-pick-badges {
+main.contract-signature-console .contract-signature-console__pdf-pick-badges {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 10px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pdf-pick-badge {
+main.contract-signature-console .contract-signature-console__pdf-pick-badge {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 999px;
@@ -801,12 +801,12 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   color: var(--text-sub);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pdf-pick-badge--warn {
+main.contract-signature-console .contract-signature-console__pdf-pick-badge--warn {
   color: var(--warning-text);
   border-color: color-mix(in srgb, var(--warning-text) 35%, var(--border));
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pdf-pick-kv {
+main.contract-signature-console .contract-signature-console__pdf-pick-kv {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px 12px;
@@ -814,25 +814,25 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   font-size: 0.8125rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pdf-pick-kv dt {
+main.contract-signature-console .contract-signature-console__pdf-pick-kv dt {
   margin: 0;
   color: var(--text-sub);
   font-weight: 600;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pdf-pick-kv dd {
+main.contract-signature-console .contract-signature-console__pdf-pick-kv dd {
   margin: 0;
   word-break: break-word;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pdf-pick-card-warn {
+main.contract-signature-console .contract-signature-console__pdf-pick-card-warn {
   margin: 10px 0 0;
   font-size: 0.75rem;
   color: var(--warning-text);
   line-height: 1.45;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__pdf-pick-card-action {
+main.contract-signature-console .contract-signature-console__pdf-pick-card-action {
   display: block;
   margin-top: 12px;
   width: 100%;
@@ -848,7 +848,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   text-decoration: none;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-cards {
+main.contract-signature-console .contract-signature-console__template-cards {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -858,7 +858,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   box-sizing: border-box;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-card {
+main.contract-signature-console .contract-signature-console__template-card {
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -868,7 +868,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   max-width: 100%;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-card-title {
+main.contract-signature-console .contract-signature-console__template-card-title {
   margin: 0 0 12px;
   font-size: 0.9375rem;
   font-weight: 600;
@@ -876,7 +876,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   word-break: keep-all;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-card-meta {
+main.contract-signature-console .contract-signature-console__template-card-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
@@ -886,49 +886,49 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   line-height: 1.45;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-card-label {
+main.contract-signature-console .contract-signature-console__template-card-label {
   flex: 0 0 auto;
   min-width: 2.75rem;
   color: var(--text-sub);
   font-weight: 600;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-card-value {
+main.contract-signature-console .contract-signature-console__template-card-value {
   flex: 1 1 auto;
   min-width: 0;
   word-break: break-word;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-card-code {
+main.contract-signature-console .contract-signature-console__template-card-code {
   font-size: 0.75rem;
   word-break: break-all;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-card-actions {
+main.contract-signature-console .contract-signature-console__template-card-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 14px;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-card-btn {
+main.contract-signature-console .contract-signature-console__template-card-btn {
   width: 100%;
   min-height: 44px;
   box-sizing: border-box;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-card-btn--span2 {
+main.contract-signature-console .contract-signature-console__template-card-btn--span2 {
   grid-column: 1 / -1;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__template-card-delete-hint {
+main.contract-signature-console .contract-signature-console__template-card-delete-hint {
   margin: 10px 0 0;
   font-size: 0.75rem;
   color: var(--warning-text);
   line-height: 1.45;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__detail-dl {
+main.contract-signature-console .contract-signature-console__detail-dl {
   display: grid;
   grid-template-columns: 140px 1fr;
   gap: 0.35rem 0.75rem;
@@ -936,18 +936,18 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   margin: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__detail-dl dt {
+main.contract-signature-console .contract-signature-console__detail-dl dt {
   color: var(--text-sub);
   margin: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__detail-dl dd {
+main.contract-signature-console .contract-signature-console__detail-dl dd {
   margin: 0;
   word-break: break-word;
 }
 
 /* 발송 화면 · 첨부 file input (display:none 대신 스크린리더 전용 숨김 — 모바일 onChange 안정화) */
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-attach-file-input {
+main.contract-signature-console .contract-signature-send-attach-file-input {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -960,12 +960,12 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-send-at
 }
 
 /* 발송 화면 · 첨부자료 행(PC) */
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-attach--disabled {
+main.contract-signature-console .contract-signature-send-attach--disabled {
   margin: 0;
   opacity: 0.9;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-attach-row {
+main.contract-signature-console .contract-signature-send-attach-row {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
@@ -975,92 +975,92 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-send-at
   border-bottom: 1px solid var(--border);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-attach-row:last-child {
+main.contract-signature-console .contract-signature-send-attach-row:last-child {
   border-bottom: none;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-attach-row__main {
+main.contract-signature-console .contract-signature-send-attach-row__main {
   flex: 1 1 200px;
   min-width: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-attach-row__name {
+main.contract-signature-console .contract-signature-send-attach-row__name {
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--text-main);
   word-break: break-word;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-attach-row__meta {
+main.contract-signature-console .contract-signature-send-attach-row__meta {
   margin-top: 0.25rem;
   font-size: 0.8125rem;
   color: var(--text-sub);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-attach-row__status {
+main.contract-signature-console .contract-signature-send-attach-row__status {
   margin-top: 0.35rem;
   font-size: 0.8125rem;
   color: var(--text-sub);
 }
 
 /* --- Contract template: confirmation_only field editor (mobile-friendly) --- */
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-fields {
+main.contract-signature-console .contract-signature-console__conf-fields {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-fields-header {
+main.contract-signature-console .contract-signature-console__conf-fields-header {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
 @media (min-width: 640px) {
-  main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-fields-header {
+  main.contract-signature-console .contract-signature-console__conf-fields-header {
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
   }
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-stack {
+main.contract-signature-console .contract-signature-console__conf-stack {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-label {
+main.contract-signature-console .contract-signature-console__conf-label {
   font-size: 0.75rem;
   color: var(--text-sub);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-list {
+main.contract-signature-console .contract-signature-console__conf-item-list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-card {
+main.contract-signature-console .contract-signature-console__conf-card {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.85rem 0.75rem;
   background: var(--panel);
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-card-actions {
+main.contract-signature-console .contract-signature-console__conf-card-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-card-actions button {
+main.contract-signature-console .contract-signature-console__conf-card-actions button {
   min-height: 40px;
   padding: 0.45rem 0.85rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-meta {
+main.contract-signature-console .contract-signature-console__conf-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem 0.65rem;
@@ -1070,31 +1070,31 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   word-break: break-word;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-help {
+main.contract-signature-console .contract-signature-console__conf-help {
   margin: 0.25rem 0;
   font-size: 0.8125rem;
   color: var(--text-sub);
   word-break: break-word;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-new {
+main.contract-signature-console .contract-signature-console__conf-new {
   margin-top: 0.25rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-card-title {
+main.contract-signature-console .contract-signature-console__conf-card-title {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-main);
   margin-bottom: 0.65rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-label--checkbox {
+main.contract-signature-console .contract-signature-console__conf-label--checkbox {
   flex-direction: row;
   align-items: center;
   gap: 0.5rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item {
+main.contract-signature-console .contract-signature-console__conf-item {
   list-style: none;
   margin: 0;
   padding: 0.85rem 0.75rem;
@@ -1104,31 +1104,31 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   min-width: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-summary {
+main.contract-signature-console .contract-signature-console__conf-item-summary {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   min-width: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-label {
+main.contract-signature-console .contract-signature-console__conf-item-label {
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--text-main);
   word-break: break-word;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-meta {
+main.contract-signature-console .contract-signature-console__conf-item-meta {
   font-size: 0.8125rem;
   color: var(--text-sub);
   word-break: break-word;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-meta code {
+main.contract-signature-console .contract-signature-console__conf-item-meta code {
   font-size: 0.78em;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-role-help {
+main.contract-signature-console .contract-signature-console__conf-role-help {
   display: block;
   margin-top: 0.3rem;
   font-size: 0.75rem;
@@ -1137,7 +1137,7 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   word-break: break-word;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-role-chip {
+main.contract-signature-console .contract-signature-console__conf-role-chip {
   display: inline-flex;
   align-items: center;
   padding: 0.1rem 0.42rem;
@@ -1149,20 +1149,20 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-console
   line-height: 1.3;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-actions {
+main.contract-signature-console .contract-signature-console__conf-item-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.75rem;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-console__conf-item-actions button {
+main.contract-signature-console .contract-signature-console__conf-item-actions button {
   min-height: 40px;
   padding: 0.45rem 0.85rem;
 }
 
 /* --- Send page: confirmation_only field values (발송 화면) --- */
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-conf-only__stack {
+main.contract-signature-console .contract-signature-send-conf-only__stack {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -1170,30 +1170,30 @@ main.insurance-dark-forms.contract-signature-console .contract-signature-send-co
   min-width: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-conf-only__field {
+main.contract-signature-console .contract-signature-send-conf-only__field {
   min-width: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-conf-only__label {
+main.contract-signature-console .contract-signature-send-conf-only__label {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   min-width: 0;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-conf-only__label-text {
+main.contract-signature-console .contract-signature-send-conf-only__label-text {
   font-size: 0.8125rem;
   color: var(--text-main);
   word-break: break-word;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-conf-only__help {
+main.contract-signature-console .contract-signature-send-conf-only__help {
   font-size: 0.75rem;
   color: var(--text-sub);
   word-break: break-word;
 }
 
-main.insurance-dark-forms.contract-signature-console .contract-signature-send-conf-only__control {
+main.contract-signature-console .contract-signature-send-conf-only__control {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
