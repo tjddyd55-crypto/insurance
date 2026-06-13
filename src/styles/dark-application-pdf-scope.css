@@ -566,51 +566,7 @@ main.insurance-dark-forms .pdf-engine-preview__frame {
   background: #fff;
 }
 
-/* ─── 고객 작업영역 — insurance-dark-forms 와 동일 surface 토큰 ───────── */
-
-.customer-workspace-layout,
-.customer-workspace-mobile-scope,
-.workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope {
-  --bg-main: #0b111a;
-  --bg-base: #0b111a;
-  --bg-card: #111827;
-  --bg-soft: #1f2937;
-  --bg-elevated: #1f2937;
-  --bg-surface: #111827;
-  --border-subtle: rgba(148, 163, 184, 0.22);
-  --border-default: #1e293b;
-  --border: #1e293b;
-  --text-primary: #e5e7eb;
-  --text-secondary: #94a3b8;
-  --text-main: #e5e7eb;
-  --text-sub: #94a3b8;
-}
-
-.customer-workspace-layout {
-  background-color: #0b111a;
-  color: #e5e7eb;
-}
-
-.customer-workspace-layout__right,
-.customer-workspace-layout__right-header,
-.customer-workspace-layout__right-body {
-  background-color: #0b111a;
-}
-
-.customer-workspace-layout__right-header,
-.customer-workspace-layout__tab-row,
-.customer-workspace-layout__app-link-strip,
-.workspace-mobile-outlet-modal__app-link {
-  border-color: rgba(148, 163, 184, 0.22);
-}
-
-.customer-workspace-layout__tab-row,
-.customer-workspace-layout__app-link-strip,
-.workspace-mobile-outlet-modal__app-link {
-  background-color: #0b111a;
-}
-
-/* 작업영역에 nested main — 이중 캔버스(투톤) 방지 */
+/* 작업영역에 nested main — 이중 캔버스(투톤) 방지 (insurance-dark-forms 내부만) */
 .customer-workspace-layout__right-body > main.insurance-dark-forms,
 .customer-workspace-mobile-scope > main.insurance-dark-forms,
 .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope > main.insurance-dark-forms {

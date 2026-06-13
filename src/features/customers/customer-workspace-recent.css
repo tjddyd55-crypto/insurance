@@ -7,7 +7,7 @@
 
 .customer-workspace-home__intro,
 .customer-workspace-recent {
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  border: 1px solid var(--border-default);
   background: var(--bg-card);
   color: var(--text-main);
   border-radius: 18px;
@@ -28,7 +28,7 @@
 .customer-workspace-home__desc,
 .customer-workspace-home__selected {
   margin: 6px 0 0;
-  color: #aeb8c5;
+  color: var(--text-secondary);
   font-size: 0.88rem;
   line-height: 1.5;
 }
@@ -59,7 +59,7 @@
 
 .customer-workspace-recent__header p {
   margin: 4px 0 0;
-  color: #aeb8c5;
+  color: var(--text-secondary);
   font-size: 0.82rem;
   line-height: 1.45;
 }
@@ -69,17 +69,17 @@
   margin: 0;
   padding: 14px;
   border-radius: 14px;
-  border: 1px dashed rgba(148, 163, 184, 0.22);
-  background: #1f2937;
+  border: 1px dashed var(--border-default);
+  background: var(--bg-soft);
   color: var(--text-muted);
   text-align: center;
   font-size: 0.86rem;
 }
 
 .customer-workspace-recent__error {
-  border-color: rgba(248, 113, 113, 0.34);
-  background: rgba(127, 29, 29, 0.22);
-  color: #fecaca;
+  border-color: color-mix(in srgb, var(--danger) 34%, transparent);
+  background: var(--danger-bg);
+  color: var(--danger-text);
 }
 
 .customer-workspace-recent__list {
@@ -96,8 +96,8 @@
   gap: 10px;
   padding: 10px;
   border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(15, 23, 42, 0.22);
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
   color: inherit;
   text-align: left;
   font: inherit;
@@ -106,8 +106,8 @@
 
 .customer-workspace-recent__item:hover,
 .customer-workspace-recent__item:focus-visible {
-  border-color: rgba(96, 165, 250, 0.48);
-  background: rgba(30, 64, 175, 0.22);
+  border-color: var(--primary-border);
+  background: var(--primary-soft);
   outline: none;
 }
 
@@ -118,9 +118,9 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: rgba(96, 165, 250, 0.14);
-  border: 1px solid rgba(96, 165, 250, 0.28);
-  color: #bfdbfe;
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-border);
+  color: var(--primary-active);
   font-size: 0.78rem;
   font-weight: 900;
 }
@@ -141,7 +141,7 @@
 .customer-workspace-recent__main small {
   display: block;
   margin-top: 3px;
-  color: #aeb8c5;
+  color: var(--text-secondary);
   font-size: 0.76rem;
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -154,9 +154,9 @@
   min-height: 30px;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(30, 41, 59, 0.84);
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  color: #e6ecf2;
+  background: var(--btn-secondary-surface);
+  border: 1px solid var(--btn-secondary-border);
+  color: var(--btn-secondary-text);
   font-size: 0.72rem;
   line-height: 1;
   font-weight: 900;
@@ -171,12 +171,12 @@
   min-height: 44px;
   padding: 0 14px;
   border-radius: 999px;
-  border: 1px solid rgba(96, 165, 250, 0.42);
+  border: 1px solid var(--primary-border);
   background: var(--primary);
-  color: #ffffff;
+  color: var(--text-on-primary);
   font-size: 0.88rem;
   font-weight: 900;
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.42);
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--text-primary) 18%, transparent);
   cursor: pointer;
 }
 
@@ -197,7 +197,7 @@
   justify-content: space-between;
   gap: 12px;
   padding: 16px 16px 10px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .customer-recent-mobile-modal__header h2 {
@@ -209,7 +209,7 @@
 
 .customer-recent-mobile-modal__header p {
   margin: 4px 0 0;
-  color: #aeb8c5;
+  color: var(--text-secondary);
   font-size: 0.8rem;
   line-height: 1.45;
 }
@@ -228,17 +228,17 @@
   margin: 0 16px 12px;
   padding: 14px;
   border-radius: 14px;
-  border: 1px dashed rgba(148, 163, 184, 0.22);
-  background: #1f2937;
+  border: 1px dashed var(--border-default);
+  background: var(--bg-soft);
   color: var(--text-muted);
   text-align: center;
   font-size: 0.86rem;
 }
 
 .customer-recent-mobile-modal__error {
-  border-color: rgba(248, 113, 113, 0.34);
-  background: rgba(127, 29, 29, 0.22);
-  color: #fecaca;
+  border-color: color-mix(in srgb, var(--danger) 34%, transparent);
+  background: var(--danger-bg);
+  color: var(--danger-text);
 }
 
 .customer-recent-mobile-modal__list {
@@ -257,8 +257,8 @@
   gap: 10px;
   padding: 10px;
   border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(15, 23, 42, 0.24);
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
   color: inherit;
   text-align: left;
   font: inherit;
@@ -276,9 +276,9 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: rgba(96, 165, 250, 0.14);
-  border: 1px solid rgba(96, 165, 250, 0.28);
-  color: #bfdbfe;
+  background: var(--primary-soft);
+  border: 1px solid var(--primary-border);
+  color: var(--primary-active);
   font-size: 0.78rem;
   font-weight: 900;
 }
@@ -299,7 +299,7 @@
 .customer-recent-mobile-modal__main small {
   display: block;
   margin-top: 3px;
-  color: #aeb8c5;
+  color: var(--text-secondary);
   font-size: 0.76rem;
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -312,9 +312,9 @@
   min-height: 30px;
   padding: 0 10px;
   border-radius: 999px;
-  background: rgba(30, 41, 59, 0.84);
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  color: #e6ecf2;
+  background: var(--btn-secondary-surface);
+  border: 1px solid var(--btn-secondary-border);
+  color: var(--btn-secondary-text);
   font-size: 0.72rem;
   line-height: 1;
   font-weight: 900;
@@ -366,9 +366,9 @@
 
   .customer-workspace-home.customer-workspace-home--landing .customer-workspace-home__intro,
   .customer-workspace-home.customer-workspace-home--landing .customer-workspace-recent {
-    border: 1px solid var(--border-subtle, #1e293b);
-    background: var(--bg-elevated, #1f2937);
-    color: var(--text-primary, #e5e7eb);
+    border: 1px solid var(--border-default);
+    background: var(--bg-card);
+    color: var(--text-primary);
     border-radius: 12px;
     box-shadow: none;
   }
@@ -379,7 +379,7 @@
 
   .customer-workspace-home.customer-workspace-home--landing .customer-workspace-home__desc,
   .customer-workspace-home.customer-workspace-home--landing .customer-workspace-home__selected {
-    color: var(--text-secondary, #94a3b8);
+    color: var(--text-secondary);
   }
 
   .customer-workspace-home.customer-workspace-home--landing .customer-workspace-recent__header h4 {
@@ -387,7 +387,7 @@
   }
 
   .customer-workspace-home.customer-workspace-home--landing .customer-workspace-recent__header p {
-    color: var(--text-secondary, #94a3b8);
+    color: var(--text-secondary);
   }
 }
 
