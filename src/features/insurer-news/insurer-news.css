@@ -414,10 +414,12 @@
 }
 
 .insurer-news-search input:focus,
-.insurer-news-search input:focus-visible {
+.insurer-news-search input:focus-visible,
+.insurer-news-search input:focus:hover,
+.insurer-news-search input:focus-visible:hover {
   outline: none;
   border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 1px var(--input-focus-ring);
+  box-shadow: none;
 }
 
 .insurer-news-filter-chip {

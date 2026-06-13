@@ -127,10 +127,13 @@
   }
 }
 
-.user-app-shell .user-form-control:focus-visible:not(:disabled):not([readonly]) {
+.user-app-shell .user-form-control:focus:not(:disabled):not([readonly]),
+.user-app-shell .user-form-control:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell .user-form-control:focus:hover:not(:disabled):not([readonly]),
+.user-app-shell .user-form-control:focus-visible:hover:not(:disabled):not([readonly]) {
   outline: none;
   border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 1px var(--input-focus-ring);
+  box-shadow: none;
 }
 
 .user-app-shell .user-form-control:disabled,
@@ -229,7 +232,7 @@
 
   .user-app-shell .user-action-button--danger:hover:not(:disabled) {
     background: var(--danger-hover-bg);
-    border-color: var(--danger-border);
+    border-color: var(--danger-hover-border);
   }
 }
 
@@ -316,7 +319,7 @@
   .user-app-shell .storage-file-list .storage-file-list__action-button--delete.button:hover:not(:disabled),
   .user-app-shell .storage-file-list button.storage-file-list__action-button--delete:hover:not(:disabled) {
     background: var(--danger-hover-bg);
-    border-color: var(--danger-border);
+    border-color: var(--danger-hover-border);
   }
 }
 
@@ -435,17 +438,44 @@
   color: var(--text-primary);
 }
 
-/* ── 입력 포커스 SSOT 3.4 — 고객카드 focal(0 0 0 2px green)과 같은 실선 언어 ── */
+/* ── 입력 포커스 SSOT 3.4.1 — 초록 실선 하나, ring 없음; focus+hover green 유지 ── */
+.user-app-shell .form-input.field--editable:focus:not(:disabled):not([readonly]),
 .user-app-shell .form-input.field--editable:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell .form-select.field--editable:focus:not(:disabled):not([readonly]),
 .user-app-shell .form-select.field--editable:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell .form-textarea.field--editable:focus:not(:disabled):not([readonly]),
 .user-app-shell .form-textarea.field--editable:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell .field__control.field--editable:focus:not(:disabled):not([readonly]),
 .user-app-shell .field__control.field--editable:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell .field__control:focus:not(:disabled):not([readonly]),
 .user-app-shell .field__control:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell .search-input:focus:not(:disabled):not([readonly]),
 .user-app-shell .search-input:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell input[type='search']:focus:not(:disabled):not([readonly]),
 .user-app-shell input[type='search']:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell textarea:focus:not(:disabled):not([readonly]),
 .user-app-shell textarea:focus-visible:not(:disabled):not([readonly]),
-.user-app-shell select:focus-visible:not(:disabled):not([readonly]) {
+.user-app-shell select:focus:not(:disabled),
+.user-app-shell select:focus-visible:not(:disabled),
+.user-app-shell .form-input.field--editable:focus:hover:not(:disabled):not([readonly]),
+.user-app-shell .form-input.field--editable:focus-visible:hover:not(:disabled):not([readonly]),
+.user-app-shell .form-select.field--editable:focus:hover:not(:disabled):not([readonly]),
+.user-app-shell .form-select.field--editable:focus-visible:hover:not(:disabled):not([readonly]),
+.user-app-shell .form-textarea.field--editable:focus:hover:not(:disabled):not([readonly]),
+.user-app-shell .form-textarea.field--editable:focus-visible:hover:not(:disabled):not([readonly]),
+.user-app-shell .field__control.field--editable:focus:hover:not(:disabled):not([readonly]),
+.user-app-shell .field__control.field--editable:focus-visible:hover:not(:disabled):not([readonly]),
+.user-app-shell .field__control:focus:hover:not(:disabled):not([readonly]),
+.user-app-shell .field__control:focus-visible:hover:not(:disabled):not([readonly]),
+.user-app-shell .search-input:focus:hover:not(:disabled):not([readonly]),
+.user-app-shell .search-input:focus-visible:hover:not(:disabled):not([readonly]),
+.user-app-shell input[type='search']:focus:hover:not(:disabled):not([readonly]),
+.user-app-shell input[type='search']:focus-visible:hover:not(:disabled):not([readonly]),
+.user-app-shell textarea:focus:hover:not(:disabled):not([readonly]),
+.user-app-shell textarea:focus-visible:hover:not(:disabled):not([readonly]),
+.user-app-shell select:focus:hover:not(:disabled),
+.user-app-shell select:focus-visible:hover:not(:disabled) {
   outline: none;
   border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 1px var(--input-focus-ring);
+  box-shadow: none;
 }

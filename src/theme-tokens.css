@@ -44,10 +44,13 @@
   --secondary-text: #92400e;
   --secondary-hover-bg: #fff0b3;
 
-  --danger-bg: rgb(239 68 68 / 0.1);
-  --danger-border: var(--danger);
-  --danger-text: #b91c1c;
-  --danger-hover-bg: rgb(239 68 68 / 0.18);
+  /* danger button: src/styles/tokens.css (--btn-danger-*) 가 최종값 */
+  --danger-bg: var(--btn-danger-surface, #ffffff);
+  --danger-border: var(--btn-danger-border, #fecaca);
+  --danger-text: var(--btn-danger-text, #b91c1c);
+  --danger-hover-bg: var(--btn-danger-hover-bg, #fef2f2);
+  --danger-hover-border: var(--btn-danger-hover-border, #fca5a5);
+  --danger-active-bg: var(--btn-danger-active-bg, #fee2e2);
 
   --disabled-bg: #f3f4f6;
   --disabled-text: #9ca3af;
@@ -205,10 +208,12 @@
   --secondary-text: #fde68a;
   --secondary-hover-bg: rgb(251 191 36 / 0.2);
 
-  --danger-bg: rgb(248 113 113 / 0.12);
-  --danger-border: var(--danger);
-  --danger-text: #fecaca;
-  --danger-hover-bg: rgb(248 113 113 / 0.22);
+  --danger-bg: var(--btn-danger-surface, var(--btn-secondary-surface));
+  --danger-border: var(--btn-danger-border, rgb(248 113 113 / 0.32));
+  --danger-text: var(--btn-danger-text, #fca5a5);
+  --danger-hover-bg: var(--btn-danger-hover-bg, rgb(248 113 113 / 0.14));
+  --danger-hover-border: var(--btn-danger-hover-border, rgb(248 113 113 / 0.45));
+  --danger-active-bg: var(--btn-danger-active-bg, rgb(248 113 113 / 0.22));
 
   --disabled-bg: var(--bg-soft);
   --disabled-text: var(--text-sub);

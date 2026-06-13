@@ -183,7 +183,7 @@
 
   .customer-workspace-mobile-scope button.customer-workspace-action-button--danger:hover:not(:disabled) {
     background: var(--danger-hover-bg);
-    border-color: var(--danger-border);
+    border-color: var(--danger-hover-border);
     color: var(--danger-text);
   }
 
@@ -396,7 +396,7 @@
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--danger:hover:not(:disabled) {
     background: var(--danger-hover-bg);
-    border-color: var(--danger-border);
+    border-color: var(--danger-hover-border);
     color: var(--danger-text);
   }
 
@@ -900,7 +900,7 @@
 .customer-inline-notes--workspace-pc button.customer-workspace-action-button--danger:hover:not(:disabled),
 .customer-workspace-layout__right-body button.customer-workspace-action-button--danger:hover:not(:disabled) {
   background: var(--danger-hover-bg);
-  border-color: var(--danger-border);
+  border-color: var(--danger-hover-border);
   color: var(--danger-text);
 }
 

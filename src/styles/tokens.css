@@ -58,7 +58,7 @@
   --input-border: #e5e7eb;
   --input-hover-border: #d1d5db;
   --input-focus-border: #16a34a;
-  --input-focus-ring: rgba(22, 163, 74, 0.12);
+  --input-focus-ring: transparent;
   --placeholder: #9ca3af;
   --disabled-bg: #f3f4f6;
   --disabled-text: #9ca3af;
@@ -84,6 +84,21 @@
   --btn-disabled-bg: #f3f4f6;
   --btn-disabled-text: #9ca3af;
   --btn-disabled-border: #e5e7eb;
+
+  /* ── Danger button (secondary skeleton + soft red accent, SSOT 3.5) ── */
+  --btn-danger-surface: #ffffff;
+  --btn-danger-text: #b91c1c;
+  --btn-danger-border: #fecaca;
+  --btn-danger-hover-bg: #fef2f2;
+  --btn-danger-hover-border: #fca5a5;
+  --btn-danger-active-bg: #fee2e2;
+
+  --danger-bg: var(--btn-danger-surface);
+  --danger-border: var(--btn-danger-border);
+  --danger-text: var(--btn-danger-text);
+  --danger-hover-bg: var(--btn-danger-hover-bg);
+  --danger-hover-border: var(--btn-danger-hover-border);
+  --danger-active-bg: var(--btn-danger-active-bg);
 
   /* ── Layout tokens ── */
   --radius-sm: 6px;
@@ -146,7 +161,7 @@
   --input-border: var(--border-default);
   --input-hover-border: var(--border-strong);
   --input-focus-border: var(--primary);
-  --input-focus-ring: color-mix(in srgb, var(--primary) 28%, transparent);
+  --input-focus-ring: transparent;
   --placeholder: var(--text-sub);
   --disabled-bg: var(--bg-soft);
   --disabled-text: var(--text-sub);
@@ -171,4 +186,18 @@
   --btn-disabled-bg: var(--bg-soft);
   --btn-disabled-text: var(--text-sub);
   --btn-disabled-border: var(--border-default);
+
+  --btn-danger-surface: var(--btn-secondary-surface);
+  --btn-danger-text: #fca5a5;
+  --btn-danger-border: rgb(248 113 113 / 0.32);
+  --btn-danger-hover-bg: rgb(248 113 113 / 0.14);
+  --btn-danger-hover-border: rgb(248 113 113 / 0.45);
+  --btn-danger-active-bg: rgb(248 113 113 / 0.22);
+
+  --danger-bg: var(--btn-danger-surface);
+  --danger-border: var(--btn-danger-border);
+  --danger-text: var(--btn-danger-text);
+  --danger-hover-bg: var(--btn-danger-hover-bg);
+  --danger-hover-border: var(--btn-danger-hover-border);
+  --danger-active-bg: var(--btn-danger-active-bg);
 }

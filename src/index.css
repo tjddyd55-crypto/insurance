@@ -503,12 +503,33 @@ select:disabled {
 /* FINAL UX — 폼·버튼 포커스 (키보드 탭·스크린리더 대비) */
 input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not(
     [type='button']
+  ):not([type='reset']):not([type='image']):not([type='color']):focus:not(:disabled):not([readonly]),
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not(
+    [type='button']
   ):not([type='reset']):not([type='image']):not([type='color']):focus-visible:not(:disabled),
+select:focus:not(:disabled),
 select:focus-visible:not(:disabled),
+textarea:focus:not(:disabled):not([readonly]),
 textarea:focus-visible:not(:disabled) {
   outline: none;
   border: 1px solid var(--input-focus-border);
-  box-shadow: 0 0 0 3px var(--input-focus-ring);
+  box-shadow: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not(
+      [type='button']
+    ):not([type='reset']):not([type='image']):not([type='color']):focus:hover:not(:disabled):not([readonly]),
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='submit']):not(
+      [type='button']
+    ):not([type='reset']):not([type='image']):not([type='color']):focus-visible:hover:not(:disabled),
+  select:focus:hover:not(:disabled),
+  select:focus-visible:hover:not(:disabled),
+  textarea:focus:hover:not(:disabled):not([readonly]),
+  textarea:focus-visible:hover:not(:disabled) {
+    border-color: var(--input-focus-border);
+    box-shadow: none;
+  }
 }
 
 .field--error,
@@ -3227,10 +3248,13 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   color: var(--text-main);
 }
 
-.customers-page .search-input:focus-visible:not(:disabled):not([readonly]) {
+.customers-page .search-input:focus:not(:disabled):not([readonly]),
+.customers-page .search-input:focus-visible:not(:disabled):not([readonly]),
+.customers-page .search-input:focus:hover:not(:disabled):not([readonly]),
+.customers-page .search-input:focus-visible:hover:not(:disabled):not([readonly]) {
   outline: none;
   border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 1px var(--input-focus-ring);
+  box-shadow: none;
 }
 
 .customers-advanced-filters {
@@ -5995,10 +6019,13 @@ div.cta-button.customers-page__action-btn[role='button'] {
   }
 }
 
-.field__control.field--editable:focus-visible:not(:disabled):not([readonly]) {
+.field__control.field--editable:focus:not(:disabled):not([readonly]),
+.field__control.field--editable:focus-visible:not(:disabled):not([readonly]),
+.field__control.field--editable:focus:hover:not(:disabled):not([readonly]),
+.field__control.field--editable:focus-visible:hover:not(:disabled):not([readonly]) {
   outline: none;
   border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 1px var(--input-focus-ring);
+  box-shadow: none;
 }
 
 .form-input,
@@ -6182,8 +6209,13 @@ div.cta-button.customers-page__action-btn[role='button'] {
 @media (hover: hover) and (pointer: fine) {
   .button--danger:hover:not(:disabled):not(:active) {
     background-color: var(--danger-hover-bg);
-    border-color: var(--danger-border);
+    border-color: var(--danger-hover-border);
   }
+}
+
+.button--danger:active:not(:disabled) {
+  background-color: var(--danger-active-bg);
+  border-color: var(--danger-hover-border);
 }
 
 .button--full {
@@ -10366,9 +10398,9 @@ textarea.memo-sticky-note__textarea::placeholder {
   height: 32px;
   padding: 0 10px;
   border-radius: 8px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-elevated, #141821);
-  color: var(--text-primary, #e5e7eb);
+  border: 1px solid var(--btn-secondary-border, var(--border-subtle));
+  background: var(--btn-secondary-surface, var(--bg-card));
+  color: var(--btn-secondary-text, var(--text-primary));
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
@@ -10391,21 +10423,33 @@ textarea.memo-sticky-note__textarea::placeholder {
 
 .storage-file-list .storage-file-list__action-button--rename.button,
 .storage-file-list button.storage-file-list__action-button--rename {
-  background: color-mix(in srgb, var(--bg-card) 92%, var(--bg-elevated, #141821));
-  color: var(--text-secondary);
+  background: var(--btn-secondary-surface, var(--bg-card));
+  color: var(--btn-secondary-text, var(--text-secondary));
   font-weight: 600;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .storage-file-list .storage-file-list__action-button.button:hover:not(:disabled),
+  .storage-file-list button.storage-file-list__action-button:hover:not(:disabled),
+  .storage-file-list a.storage-file-list__action-button:hover:not(:disabled) {
+    background: var(--btn-secondary-hover-bg, var(--bg-soft));
+    border-color: var(--btn-secondary-hover-border, var(--border-strong));
+  }
 }
 
 .storage-file-list .storage-file-list__action-button--delete.button,
 .storage-file-list button.storage-file-list__action-button--delete {
-  border-color: color-mix(in srgb, var(--danger, #ef4444) 35%, var(--border-subtle));
-  background: color-mix(in srgb, var(--danger, #ef4444) 14%, var(--bg-elevated, #141821));
-  color: var(--danger, #ef4444);
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
 }
 
-.storage-file-list .storage-file-list__action-button--delete.button:hover,
-.storage-file-list button.storage-file-list__action-button--delete:hover {
-  background: color-mix(in srgb, var(--danger, #ef4444) 22%, var(--bg-elevated, #141821));
+@media (hover: hover) and (pointer: fine) {
+  .storage-file-list .storage-file-list__action-button--delete.button:hover:not(:disabled),
+  .storage-file-list button.storage-file-list__action-button--delete:hover:not(:disabled) {
+    background: var(--danger-hover-bg);
+    border-color: var(--danger-hover-border);
+  }
 }
 
 @media (max-width: 767px) {
@@ -10929,10 +10973,12 @@ textarea.memo-sticky-note__textarea::placeholder {
   --secondary-border: var(--border-subtle);
   --secondary-text: var(--text-primary);
   --secondary-hover-bg: var(--bg-elevated);
-  --danger-bg: color-mix(in srgb, var(--danger) 14%, transparent);
-  --danger-border: color-mix(in srgb, var(--danger) 70%, transparent);
-  --danger-text: #fecaca;
-  --danger-hover-bg: color-mix(in srgb, var(--danger) 22%, transparent);
+  --danger-bg: var(--btn-danger-surface, var(--btn-secondary-surface));
+  --danger-border: var(--btn-danger-border, rgb(248 113 113 / 0.32));
+  --danger-text: var(--btn-danger-text, #fca5a5);
+  --danger-hover-bg: var(--btn-danger-hover-bg, rgb(248 113 113 / 0.14));
+  --danger-hover-border: var(--btn-danger-hover-border, rgb(248 113 113 / 0.45));
+  --danger-active-bg: var(--btn-danger-active-bg, rgb(248 113 113 / 0.22));
 }
 
 /* Header (PC) */
@@ -11073,9 +11119,17 @@ textarea.memo-sticky-note__textarea::placeholder {
 .pc-root .form-textarea:focus:not(:disabled):not([readonly]),
 .pc-root .form-textarea:focus-visible:not(:disabled):not([readonly]),
 .pc-root .field__control:focus:not(:disabled):not([readonly]),
-.pc-root .field__control:focus-visible:not(:disabled):not([readonly]) {
+.pc-root .field__control:focus-visible:not(:disabled):not([readonly]),
+.pc-root .form-input:focus:hover:not(:disabled):not([readonly]),
+.pc-root .form-input:focus-visible:hover:not(:disabled):not([readonly]),
+.pc-root .form-select:focus:hover:not(:disabled):not([readonly]),
+.pc-root .form-select:focus-visible:hover:not(:disabled):not([readonly]),
+.pc-root .form-textarea:focus:hover:not(:disabled):not([readonly]),
+.pc-root .form-textarea:focus-visible:hover:not(:disabled):not([readonly]),
+.pc-root .field__control:focus:hover:not(:disabled):not([readonly]),
+.pc-root .field__control:focus-visible:hover:not(:disabled):not([readonly]) {
   border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 1px var(--input-focus-ring);
+  box-shadow: none;
   outline: none;
 }
 
