@@ -8090,6 +8090,13 @@ a.contacts-public-auth__link {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 34%, transparent);
 }
 
+button.filter-button.filter-button--workspace-active:hover:not(:disabled),
+button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled) {
+  border-color: var(--primary-hover);
+  background: var(--primary-hover);
+  color: #fff;
+}
+
 .customer-workspace-home {
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 12px;
