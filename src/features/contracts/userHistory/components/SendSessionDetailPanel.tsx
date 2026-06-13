@@ -232,13 +232,6 @@ export function SendSessionDetailPanel({
             ) : (
               <div className="contract-signature-console__session-doc-table-wrap">
                 <table className="contract-session-doc-table">
-                  <colgroup>
-                    <col style={{ width: '170px' }} />
-                    <col style={{ width: '86px' }} />
-                    <col style={{ width: '110px' }} />
-                    <col style={{ width: '148px' }} />
-                    <col style={{ width: '148px' }} />
-                  </colgroup>
                   <thead>
                     <tr>
                       <th className="contract-table-cell-left">문서명</th>

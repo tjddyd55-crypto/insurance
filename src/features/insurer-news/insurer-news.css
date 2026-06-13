@@ -413,10 +413,11 @@
   box-sizing: border-box;
 }
 
-.insurer-news-search input:focus {
+.insurer-news-search input:focus,
+.insurer-news-search input:focus-visible {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 22%, transparent);
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 1px var(--input-focus-ring);
 }
 
 .insurer-news-filter-chip {
