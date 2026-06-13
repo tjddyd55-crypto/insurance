@@ -44,8 +44,8 @@
   padding: 10px;
   border-radius: 12px;
   border: 1px solid var(--danger-border, #fecaca);
-  background: var(--danger-bg, #fef2f2);
-  color: var(--danger-text, #dc2626);
+  background: var(--danger-hover-bg, #fef2f2);
+  color: var(--danger-text, #b91c1c);
   font-size: 0.84rem;
 }
 
@@ -277,13 +277,13 @@
 
 .storage-usage-manager__item-actions .storage-usage-manager__danger {
   border-color: var(--danger-border, #fecaca);
-  background: var(--danger-bg, #fef2f2);
-  color: var(--danger-text, #dc2626);
+  background: var(--danger-bg, #ffffff);
+  color: var(--danger-text, #b91c1c);
 }
 
 .storage-usage-manager__item-actions .storage-usage-manager__danger:hover:not(:disabled) {
-  background: var(--danger-hover-bg, #fee2e2);
-  border-color: var(--danger-border, #fecaca);
+  background: var(--danger-hover-bg, #fef2f2);
+  border-color: var(--danger-hover-border, #fca5a5);
 }
 
 @media (max-width: 767px) {
