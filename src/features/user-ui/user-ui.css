@@ -152,8 +152,8 @@
   border-radius: var(--radius-lg, 12px);
 }
 
-/* 신청서 PDF 스코프(insurance-dark-forms)는 자식에서 다크 유지 */
-.user-app-shell main.insurance-dark-forms.user-page {
+/* 레거시 신청서·PDF nested main — user-page 정렬 */
+.user-app-shell main.user-page.application-form-page {
   border-radius: var(--radius-lg, 12px);
   max-width: 1200px;
   margin-inline: auto;

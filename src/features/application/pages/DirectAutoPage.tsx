@@ -43,7 +43,7 @@ export function DirectAutoPage() {
   }
 
   return (
-    <main className="insurance-dark-forms page page--with-back">
+    <main className="page page--with-back user-page">
       <header className="page-header">
         <h1>설계요청</h1>
         <p className="text-sm mt-2 leading-relaxed">

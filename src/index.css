@@ -3117,16 +3117,17 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
 .profile-page__account-reset {
   margin-top: 16px;
   display: block;
-  border: 1px solid var(--danger) !important;
-  color: var(--danger) !important;
-  background: transparent !important;
+  border: 1px solid var(--btn-danger-border);
+  color: var(--btn-danger-text);
+  background: var(--btn-danger-surface);
   text-align: center;
   text-decoration: none;
   box-sizing: border-box;
 }
 
 .profile-page__account-reset:hover {
-  background: color-mix(in srgb, var(--danger) 10%, transparent) !important;
+  background: var(--btn-danger-hover-bg);
+  border-color: var(--btn-danger-hover-border);
 }
 
 .profile-page__submit {
@@ -10004,6 +10005,32 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   box-sizing: border-box;
 }
 
+.memo-sticky-note__delete {
+  color: var(--btn-danger-text, #b91c1c);
+  background: var(--btn-danger-surface, #ffffff);
+  border: 1px solid var(--btn-danger-border, #fecaca);
+  min-width: 24px;
+  width: 24px;
+}
+
+.memo-sticky-note__delete:hover {
+  background: var(--btn-danger-hover-bg, #fef2f2);
+  border-color: var(--btn-danger-hover-border, #fca5a5);
+  color: var(--btn-danger-text, #b91c1c);
+}
+
+.team-post-comment__delete {
+  color: var(--btn-danger-text, #b91c1c);
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.team-post-comment__delete:hover:not(:disabled) {
+  color: var(--btn-danger-text, #b91c1c);
+  background: var(--btn-danger-hover-bg, #fef2f2);
+}
+
 .memo-sticky-note__content {
   position: relative;
   height: calc(100% - 32px);
@@ -12131,8 +12158,9 @@ textarea.memo-sticky-note__textarea::placeholder {
 }
 
 .platform-admin-page--pc .platform-admin-field__control:focus {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+  border-color: var(--input-focus-border, var(--primary));
+  box-shadow: none;
+  outline: none;
 }
 
 .platform-admin-page--pc .platform-admin-field__control::placeholder {

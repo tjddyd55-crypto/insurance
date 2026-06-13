@@ -3,13 +3,13 @@
  */
 
 :root {
-  --ui-polish-card: color-mix(in srgb, var(--bg-card, #1e2633) 88%, #243044 12%);
-  --ui-polish-card-strong: color-mix(in srgb, var(--bg-card, #1e2633) 78%, #2c3850 22%);
-  --ui-polish-border: color-mix(in srgb, var(--border, #2b3544) 78%, #5f789d 22%);
-  --ui-polish-border-soft: color-mix(in srgb, var(--border, #2b3544) 84%, transparent);
-  --ui-polish-primary: var(--brand-primary);
-  --ui-polish-primary-soft: color-mix(in srgb, var(--brand-primary) 18%, transparent);
-  --ui-polish-text-muted: color-mix(in srgb, var(--text-secondary, #9aa5b1) 86%, transparent);
+  --ui-polish-card: var(--bg-card, #ffffff);
+  --ui-polish-card-strong: var(--bg-soft, #f1f5f9);
+  --ui-polish-border: var(--border-default, #e5e7eb);
+  --ui-polish-border-soft: var(--border-subtle, #e5e7eb);
+  --ui-polish-primary: var(--brand-primary, #16a34a);
+  --ui-polish-primary-soft: var(--primary-soft, #dcfce7);
+  --ui-polish-text-muted: var(--text-secondary, #6b7280);
 }
 
 @media (max-width: 767px) {
@@ -150,7 +150,7 @@
     width: 28px;
     min-width: 28px;
     text-align: center;
-    color: color-mix(in srgb, var(--text-primary, #e6ecf2) 85%, var(--ui-polish-primary) 15%);
+    color: color-mix(in srgb, var(--text-primary, #111827) 85%, var(--ui-polish-primary) 15%);
     font-size: var(--customer-mobile-font-subtitle, 15px);
     letter-spacing: var(--customer-mobile-letter-base, 0.005em);
   }
@@ -170,8 +170,8 @@
     border-radius: 0;
     background: transparent;
     border: 0;
-    border-top: 1px solid color-mix(in srgb, var(--border, #2b3544) 78%, transparent);
-    border-bottom: 1px solid color-mix(in srgb, var(--border, #2b3544) 78%, transparent);
+    border-top: 1px solid color-mix(in srgb, var(--border, #e5e7eb) 78%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--border, #e5e7eb) 78%, transparent);
   }
 
   .customers-page--mobile .customer-detail-feature-actions--mobile-priority .button,
@@ -214,8 +214,8 @@
     border-radius: 999px;
     font-weight: 800;
     justify-content: center;
-    color: var(--text-primary, #e6ecf2);
-    background: color-mix(in srgb, var(--bg-card, #1e2633) 90%, var(--ui-polish-primary) 10%);
+    color: var(--text-primary, #111827);
+    background: color-mix(in srgb, var(--bg-card, #ffffff) 90%, var(--ui-polish-primary) 10%);
     border: 1px solid color-mix(in srgb, var(--ui-polish-primary) 46%, var(--ui-polish-border) 54%);
   }
 }
@@ -245,7 +245,7 @@
   display: flex;
   flex-direction: column;
   border-radius: 18px 18px 0 0;
-  background: var(--bg-main, #0f141b);
+  background: var(--bg-main, #f8fafc);
   border: 1px solid var(--ui-polish-border);
   border-bottom: 0;
   overflow: hidden;
@@ -273,7 +273,7 @@
   margin: 0;
   font-size: 1.06rem;
   font-weight: 900;
-  color: var(--text-primary, #e6ecf2);
+  color: var(--text-primary, #111827);
 }
 
 .customer-workspace-mobile-modal__close {
@@ -412,7 +412,7 @@
     padding: 4px;
     border: 1px solid var(--ui-polish-border-soft);
     border-radius: 12px;
-    background: color-mix(in srgb, var(--bg-card, #1e2633) 82%, transparent);
+    background: color-mix(in srgb, var(--bg-card, #ffffff) 82%, transparent);
   }
 
   .claim-requests-page--mobile .claim-requests-page__tabs button,
@@ -478,7 +478,7 @@
     align-items: center;
     padding: 9px 10px;
     border-radius: 10px;
-    background: color-mix(in srgb, var(--bg-main, #0f141b) 54%, var(--ui-polish-card) 46%);
+    background: color-mix(in srgb, var(--bg-main, #f8fafc) 54%, var(--ui-polish-card) 46%);
     border: 1px solid var(--ui-polish-border-soft);
   }
 

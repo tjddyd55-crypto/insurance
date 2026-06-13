@@ -44,7 +44,7 @@ export function ApplicationResultPage() {
 
   if (!record) {
     return (
-      <main className="insurance-dark-forms page page--with-back">
+      <main className="page page--with-back user-page">
         <header className="page-header">
           <h1>결과문을 찾을 수 없습니다.</h1>
           <p>저장된 신청서에서 다시 불러와 주세요.</p>
@@ -106,7 +106,7 @@ export function ApplicationResultPage() {
   const fileTitle = buildDownloadFileNameBase(record)
 
   return (
-    <main className="insurance-dark-forms page page--result page--with-back">
+    <main className="page page--result page--with-back user-page">
       <header className="page-header">
         <h1>신청서 결과문</h1>
         <p>{statusText || '양식 미리보기에서 JPG/PDF 다운로드를 실행할 수 있습니다.'}</p>

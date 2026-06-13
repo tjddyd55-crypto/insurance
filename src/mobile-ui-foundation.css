@@ -1,17 +1,17 @@
 ﻿@media (max-width: 767px) {
   :root {
-    --m-bg: var(--app-bg, var(--bg-main, #0b0f14));
-    --m-surface: var(--bg-card, #1e2633);
-    --m-surface-raised: color-mix(in srgb, var(--bg-card, #1e2633) 88%, var(--border-strong) 12%);
-    --m-border: color-mix(in srgb, var(--border, #2b3544) 82%, #64748b 18%);
-    --m-border-soft: color-mix(in srgb, var(--border, #2b3544) 76%, transparent);
-    --m-primary: var(--brand-primary);
-    --m-primary-strong: #1d4ed8;
-    --m-danger: #ef4444;
-    --m-danger-strong: #dc2626;
-    --m-text: var(--text-primary, #e6ecf2);
-    --m-text-sub: var(--text-secondary, #aeb8c5);
-    --m-text-muted: color-mix(in srgb, var(--text-secondary, #9aa5b1) 75%, transparent);
+    --m-bg: var(--app-bg, var(--bg-main, #f8fafc));
+    --m-surface: var(--bg-card, #ffffff);
+    --m-surface-raised: var(--bg-soft, #f1f5f9);
+    --m-border: var(--border-default, #e5e7eb);
+    --m-border-soft: var(--border-subtle, #e5e7eb);
+    --m-primary: var(--brand-primary, #16a34a);
+    --m-primary-strong: var(--primary-hover, #15803d);
+    --m-danger: var(--danger-text, #b91c1c);
+    --m-danger-strong: #991b1b;
+    --m-text: var(--text-primary, #111827);
+    --m-text-sub: var(--text-secondary, #6b7280);
+    --m-text-muted: var(--text-muted, #9ca3af);
     --m-radius-sm: 8px;
     --m-radius-md: 10px;
     --m-radius-lg: 14px;

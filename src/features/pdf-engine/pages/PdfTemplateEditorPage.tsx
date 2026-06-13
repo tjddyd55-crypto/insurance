@@ -129,7 +129,7 @@ function CreateTemplateFlow({
   }
 
   return (
-    <main className="insurance-dark-forms pdf-engine-page pdf-engine-page--editor">
+    <main className="user-page pdf-engine-page pdf-engine-page--editor">
       <h1 className="pdf-engine-page__title">새 PDF 템플릿</h1>
       <div className="pdf-engine-page__toolbar">
         <Link to="/admin/pdf-templates" className="pdf-engine-editor__btn">
@@ -374,14 +374,14 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
 
   if (state.status === 'loading') {
     return (
-      <main className="insurance-dark-forms pdf-engine-page">
+      <main className="user-page pdf-engine-page">
         <p className="pdf-engine-page__hint">템플릿을 불러오는 중…</p>
       </main>
     )
   }
   if (state.status === 'error') {
     return (
-      <main className="insurance-dark-forms pdf-engine-page">
+      <main className="user-page pdf-engine-page">
         <div className="pdf-engine-page__error">{state.message}</div>
         <div className="pdf-engine-page__toolbar">
           <Link to="/admin/pdf-templates" className="pdf-engine-editor__btn">
@@ -396,7 +396,7 @@ function EditTemplateFlow({ token, templateId }: { token: string; templateId: nu
   }
 
   return (
-    <main className="insurance-dark-forms pdf-engine-page pdf-engine-page--editor">
+    <main className="user-page pdf-engine-page pdf-engine-page--editor">
       <div className="pdf-engine-page__header">
         <h1 className="pdf-engine-page__title">PDF 템플릿 편집</h1>
         {headerMeta}

@@ -1,5 +1,5 @@
 /**
- * 고객 공개 전자서명 플로우 — 앱 다크 테마 토큰(var(--*)) 기준 시각 통일
+ * 고객 공개 전자서명 플로우 — white theme SSOT 토큰(var(--*)) 기준 시각 통일
  * PDF/캔버스에 그려지는 원문 페이지 배경은 변경하지 않는다(UI만).
  */
 
@@ -385,8 +385,8 @@
 .contract-public-sign-page .form-select:focus:not(:disabled),
 .contract-public-sign-page .form-textarea:focus:not(:disabled) {
   outline: none;
-  border-color: var(--focus-ring);
-  box-shadow: 0 0 0 2px var(--primary-soft);
+  border-color: var(--input-focus-border, var(--brand-primary));
+  box-shadow: none;
 }
 
 .contract-public-sign-page .form-input[type='checkbox'] {
@@ -822,8 +822,8 @@
 .contract-public-link-page .form-input:focus:not(:disabled),
 .contract-public-link-page .form-select:focus:not(:disabled) {
   outline: none;
-  border-color: var(--focus-ring);
-  box-shadow: 0 0 0 2px var(--primary-soft);
+  border-color: var(--input-focus-border, var(--brand-primary));
+  box-shadow: none;
 }
 
 .contract-public-link-page .status {

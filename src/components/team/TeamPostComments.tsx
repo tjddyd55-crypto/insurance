@@ -200,7 +200,7 @@ export function TeamPostComments({
                       <FormButton
                         htmlType="button"
                         variant="action"
-                        className="text-xs text-red-400 hover:text-red-300 underline disabled:opacity-50"
+                        className="team-post-comment__delete text-xs underline disabled:opacity-50"
                         disabled={deletingId === c.id}
                         onClick={() => void handleDelete(c.id)}
                       >
