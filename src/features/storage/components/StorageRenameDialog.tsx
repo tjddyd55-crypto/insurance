@@ -30,7 +30,7 @@ export default function StorageRenameDialog({
   const saveDisabled = !value.trim()
 
   const storageFooter = (
-    <div className="flex justify-end gap-2 mt-4">
+    <div className="user-modal-actions">
       <FormButton htmlType="button" variant="secondary" onClick={onClose} disabled={loading}>
         취소
       </FormButton>

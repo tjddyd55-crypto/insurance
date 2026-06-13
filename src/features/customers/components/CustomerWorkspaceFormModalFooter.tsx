@@ -42,7 +42,7 @@ export function CustomerWorkspaceFormModalFooter({
     confirmTone === 'danger' ? CustomerWorkspaceDangerActionButton : CustomerWorkspacePrimaryActionButton
 
   return (
-    <div className={CUSTOMER_WORKSPACE_MODAL_ACTIONS_CLASS}>
+    <div className={`${CUSTOMER_WORKSPACE_MODAL_ACTIONS_CLASS} user-modal-actions`}>
       <CustomerWorkspaceSecondaryActionButton disabled={busy} onClick={onCancel}>
         {cancelLabel}
       </CustomerWorkspaceSecondaryActionButton>

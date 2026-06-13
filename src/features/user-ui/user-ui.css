@@ -180,3 +180,164 @@
 .user-app-shell .customers-page__search-input.user-form-control {
   min-height: 44px;
 }
+
+/* ── 유저 범용 액션 버튼 (저장공간·모달 footer 등) ── */
+.user-app-shell .user-action-button {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--btn-secondary-border);
+  background: var(--btn-secondary-surface);
+  color: var(--btn-secondary-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+}
+
+.user-app-shell .user-action-button--primary {
+  border-color: var(--btn-primary-bg);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+}
+
+.user-app-shell .user-action-button--danger {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .user-app-shell .user-action-button:hover:not(:disabled) {
+    background: var(--btn-secondary-hover-bg);
+    border-color: var(--btn-secondary-hover-border);
+  }
+
+  .user-app-shell .user-action-button--primary:hover:not(:disabled) {
+    background: var(--btn-primary-hover-bg);
+    border-color: var(--btn-primary-hover-bg);
+  }
+
+  .user-app-shell .user-action-button--danger:hover:not(:disabled) {
+    background: var(--danger-hover-bg);
+    border-color: var(--danger-border);
+  }
+}
+
+.user-app-shell .user-action-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--input-focus-ring);
+}
+
+.user-app-shell .user-action-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+@media (max-width: 767px) {
+  .user-app-shell .user-action-button {
+    min-height: 44px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-weight: 700;
+  }
+}
+
+/* ── 모달 footer (저장공간·공통 confirm) ── */
+.user-app-shell .user-modal-actions,
+.user-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* customer-workspace-modal-actions 와 동일 레이아웃 alias */
+.user-app-shell .customer-workspace-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* ── 리스트 item card (저장공간·연락처 보조) ── */
+.user-app-shell .user-item-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.user-app-shell .storage-file-list__item {
+  border-radius: 12px;
+}
+
+.user-app-shell .storage-file-list .storage-file-list__action-button.button,
+.user-app-shell .storage-file-list button.storage-file-list__action-button,
+.user-app-shell .storage-file-list a.storage-file-list__action-button {
+  min-height: 36px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--btn-secondary-border);
+  background: var(--btn-secondary-surface);
+  color: var(--btn-secondary-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.user-app-shell .storage-file-list .storage-file-list__action-button--delete.button,
+.user-app-shell .storage-file-list button.storage-file-list__action-button--delete {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .user-app-shell .storage-file-list .storage-file-list__action-button.button:hover:not(:disabled),
+  .user-app-shell .storage-file-list button.storage-file-list__action-button:hover:not(:disabled),
+  .user-app-shell .storage-file-list a.storage-file-list__action-button:hover:not(:disabled) {
+    background: var(--btn-secondary-hover-bg);
+    border-color: var(--btn-secondary-hover-border);
+  }
+
+  .user-app-shell .storage-file-list .storage-file-list__action-button--delete.button:hover:not(:disabled),
+  .user-app-shell .storage-file-list button.storage-file-list__action-button--delete:hover:not(:disabled) {
+    background: var(--danger-hover-bg);
+    border-color: var(--danger-border);
+  }
+}
+
+/* PC 고객 작업영역 — 상담 FormButton(filter-button) 톤 정렬 */
+.user-app-shell .customer-workspace-layout__right-body .filter-button.button {
+  min-height: 36px;
+  height: auto;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.user-app-shell .customer-workspace-layout__right-body .filter-button.button--secondary,
+.user-app-shell .customer-workspace-layout__right-body .filter-button.button--action {
+  border-color: var(--btn-secondary-border);
+  background: var(--btn-secondary-surface);
+  color: var(--btn-secondary-text);
+}
+
+.user-app-shell .customer-workspace-layout__right-body .filter-button.button--action {
+  border-color: var(--btn-primary-bg);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+}
