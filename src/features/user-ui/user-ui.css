@@ -320,6 +320,7 @@
 }
 
 /* PC 고객 작업영역 — 상담 FormButton(filter-button) 톤 정렬 */
+.user-app-shell .customer-workspace-layout__tab-row .filter-button.button,
 .user-app-shell .customer-workspace-layout__right-body .filter-button.button {
   min-height: 36px;
   height: auto;
@@ -379,6 +380,14 @@
 }
 
 /* 고객 작업영역 — PC 개인메시지 3열 panel (embedded workspace) */
+.user-app-shell .customer-workspace-layout__right-body .personal-message-detail__head .customer-workspace-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
 .user-app-shell .customer-workspace-layout__right-body .personal-message-panel {
   background: var(--bg-card);
   border-color: var(--border-default);

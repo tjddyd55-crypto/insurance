@@ -147,7 +147,8 @@ export default function CustomerWorkspaceLayoutPC({
         <div className="customer-workspace-layout__actions">
           <FormButton
             htmlType="button"
-            variant="secondary"
+            variant="action"
+            className="filter-button"
             disabled={!selectedCustomerId}
             onClick={onClickViewOnMap}
           >

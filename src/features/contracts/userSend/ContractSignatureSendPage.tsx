@@ -906,7 +906,7 @@ export default function ContractSignatureSendPage() {
   }
 
   const mainClass =
-    'insurance-dark-forms contract-signature-console' +
+    'contract-signature-console user-page' +
     (isMobileFlow ? ' contract-signature-flow--mobile' : '')
 
   const senderFields = selectedTpl?.senderFieldsForSend ?? []

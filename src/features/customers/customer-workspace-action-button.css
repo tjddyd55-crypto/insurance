@@ -666,17 +666,17 @@
   .customers-page--mobile
     .workspace-mobile-outlet-modal
     .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope.customer-signatures-mobile-shell
-    main.insurance-dark-forms.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
+    main.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
     input.contract-history-mobile-toolbar__search-input,
   .customers-page--mobile
     .workspace-mobile-outlet-modal
     .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope.customer-signatures-mobile-shell
-    main.insurance-dark-forms.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
+    main.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
     select.contract-history-mobile-toolbar__sort-select,
   .customers-page--mobile
     .workspace-mobile-outlet-modal
     .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope.customer-signatures-mobile-shell
-    main.insurance-dark-forms.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
+    main.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
     select.form-select.contract-history-mobile-toolbar__sort-select {
     min-height: 44px !important;
     padding: 10px 12px !important;
@@ -691,23 +691,23 @@
   .customers-page--mobile
     .workspace-mobile-outlet-modal
     .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope.customer-signatures-mobile-shell
-    main.insurance-dark-forms.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
+    main.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
     button.button.contract-history-mobile-toolbar__refresh,
   .customers-page--mobile
     .workspace-mobile-outlet-modal
     .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope.customer-signatures-mobile-shell
-    main.insurance-dark-forms.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
+    main.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
     button.button.contract-history-mobile-toolbar__send-wide,
   .customers-page--mobile
     .workspace-mobile-outlet-modal
     .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope.customer-signatures-mobile-shell
-    main.insurance-dark-forms.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
+    main.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
     .contract-history-mobile-toolbar__status-filters
     button.button.contract-signature-console__filter-btn,
   .customers-page--mobile
     .workspace-mobile-outlet-modal
     .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope.customer-signatures-mobile-shell
-    main.insurance-dark-forms.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
+    main.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
     .contract-history-mobile-card__actions
     button.button {
     min-height: 44px !important;
@@ -724,7 +724,7 @@
   .customers-page--mobile
     .workspace-mobile-outlet-modal
     .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope.customer-signatures-mobile-shell
-    main.insurance-dark-forms.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
+    main.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
     button.button.contract-history-mobile-toolbar__refresh {
     padding: 10px 14px !important;
     background: rgba(30, 41, 59, 0.96) !important;
@@ -735,7 +735,7 @@
   .customers-page--mobile
     .workspace-mobile-outlet-modal
     .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope.customer-signatures-mobile-shell
-    main.insurance-dark-forms.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
+    main.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
     button.button.contract-history-mobile-toolbar__send-wide {
     background: rgba(37, 99, 235, 0.32) !important;
     border-color: rgba(96, 165, 250, 0.65) !important;
@@ -745,7 +745,7 @@
   .customers-page--mobile
     .workspace-mobile-outlet-modal
     .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope.customer-signatures-mobile-shell
-    main.insurance-dark-forms.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
+    main.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
     .contract-history-mobile-toolbar__status-filters
     button.button.contract-signature-console__filter-btn {
     min-height: 42px !important;
@@ -758,7 +758,7 @@
   .customers-page--mobile
     .workspace-mobile-outlet-modal
     .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope.customer-signatures-mobile-shell
-    main.insurance-dark-forms.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
+    main.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
     .contract-history-mobile-toolbar__status-filters
     button.button.contract-signature-console__filter-btn--active {
     background: rgba(37, 99, 235, 0.32) !important;
@@ -769,7 +769,7 @@
   .customers-page--mobile
     .workspace-mobile-outlet-modal
     .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope.customer-signatures-mobile-shell
-    main.insurance-dark-forms.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
+    main.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
     .contract-history-mobile-card__actions
     button.button.button--secondary {
     background: rgba(30, 41, 59, 0.96) !important;
@@ -780,7 +780,7 @@
   .customers-page--mobile
     .workspace-mobile-outlet-modal
     .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope.customer-signatures-mobile-shell
-    main.insurance-dark-forms.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
+    main.contract-signature-console.contract-signature-history-page.contract-signature-flow--mobile
     .contract-history-mobile-card__actions
     button.button.button--primary {
     background: rgba(37, 99, 235, 0.32) !important;

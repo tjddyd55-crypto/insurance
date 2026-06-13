@@ -58,7 +58,7 @@ export default function PdfTemplateListPage() {
   }
 
   return (
-    <main className="insurance-dark-forms pdf-engine-page">
+    <main className="pdf-engine-page">
       <h1 className="pdf-engine-page__title">PDF 문서 템플릿</h1>
       <div className="pdf-engine-page__toolbar">
         <Link to="/admin/pdf-templates/new" className="pdf-engine-editor__btn pdf-engine-editor__btn--primary">
