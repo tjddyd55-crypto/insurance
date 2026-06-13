@@ -446,84 +446,100 @@
   background: var(--bg-soft);
 }
 
-.pc-root .news-modal {
+.pc-root .news-modal,
+.insurer-news-page .news-modal {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(15, 23, 42, 0.45);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 9999;
 }
 
-.pc-root .news-modal-content {
+.pc-root .news-modal-content,
+.insurer-news-page .news-modal-content {
   width: 90%;
   max-width: 1000px;
   max-height: 90vh;
-  background: #111;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 12px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
 }
 
-.pc-root .news-modal .modal-header {
+.pc-root .news-modal .modal-header,
+.insurer-news-page .news-modal .modal-header {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 10px;
-  background: #1a1f2a;
+  padding: 10px 12px;
+  background: var(--bg-card, #ffffff);
+  border-bottom: 1px solid var(--border-default, #e5e7eb);
 }
 
-.pc-root .news-modal .modal-body {
+.pc-root .news-modal .modal-body,
+.insurer-news-page .news-modal .modal-body {
   overflow: auto;
   padding: 0;
   text-align: left;
+  background: var(--bg-main, #f8fafc);
 }
 
-.pc-root .news-modal .modal-body img {
+.pc-root .news-modal .modal-body img,
+.insurer-news-page .news-modal .modal-body img {
   max-width: 100%;
   height: auto;
   transition: transform 0.2s ease;
   transform-origin: top center;
 }
 
-.pc-root .news-modal .modal-text {
+.pc-root .news-modal .modal-text,
+.insurer-news-page .news-modal .modal-text {
   margin: 0;
   padding: 16px 20px;
-  color: #ddd;
+  color: var(--text-primary, #111827);
   text-align: left;
   white-space: pre-wrap;
 }
 
-.pc-root .news-modal .news-detail-scroll {
+.pc-root .news-modal .news-detail-scroll,
+.insurer-news-page .news-modal .news-detail-scroll {
   max-height: 85vh;
   overflow-y: auto;
   padding: 20px;
+  background: var(--bg-main, #f8fafc);
 }
 
-.pc-root .news-modal .news-detail-zoom-scope {
+.pc-root .news-modal .news-detail-zoom-scope,
+.insurer-news-page .news-modal .news-detail-zoom-scope {
   transform-origin: top center;
 }
 
-.pc-root .news-modal .news-text {
-  color: #ddd;
+.pc-root .news-modal .news-text,
+.insurer-news-page .news-modal .news-text {
+  color: var(--text-primary, #111827);
   white-space: pre-wrap;
   line-height: 1.6;
 }
 
-.pc-root .news-modal .news-detail-scroll img {
+.pc-root .news-modal .news-detail-scroll img,
+.insurer-news-page .news-modal .news-detail-scroll img {
   width: 100%;
   height: auto;
   margin-top: 12px;
   border-radius: 8px;
 }
 
-.pc-root .news-modal .close-btn {
-  color: #fff;
+.pc-root .news-modal .close-btn,
+.insurer-news-page .news-modal .close-btn {
+  color: var(--text-primary, #111827);
   font-size: 18px;
   cursor: pointer;
 }
@@ -531,7 +547,7 @@
 .customer-news-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.88);
+  background: rgba(15, 23, 42, 0.45);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -541,30 +557,34 @@
 .customer-news-modal-content {
   width: min(100vw, 1000px);
   height: min(100vh, 100%);
-  background: #111;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-default, #e5e7eb);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
 }
 
 .customer-news-modal .modal-header {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 10px;
-  background: #1a1f2a;
+  padding: 10px 12px;
+  background: var(--bg-card, #ffffff);
+  border-bottom: 1px solid var(--border-default, #e5e7eb);
 }
 
 .customer-news-modal .modal-body {
   overflow: auto;
   padding: 0;
   text-align: left;
+  background: var(--bg-main, #f8fafc);
 }
 
 .customer-news-modal .modal-text {
   margin: 0;
   padding: 16px 20px;
-  color: #ddd;
+  color: var(--text-primary, #111827);
   text-align: left;
   white-space: pre-wrap;
 }
@@ -573,6 +593,7 @@
   max-height: 100%;
   overflow-y: auto;
   padding: 20px;
+  background: var(--bg-main, #f8fafc);
 }
 
 .customer-news-modal .news-detail-zoom-scope {
@@ -580,7 +601,7 @@
 }
 
 .customer-news-modal .news-text {
-  color: #ddd;
+  color: var(--text-primary, #111827);
   white-space: pre-wrap;
   line-height: 1.6;
 }

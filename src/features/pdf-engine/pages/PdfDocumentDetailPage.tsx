@@ -939,7 +939,7 @@ export default function PdfDocumentDetailPage() {
         ariaLabel={`PDF 결과 미리보기 · ${resultPdfFilename}`}
         panelClassName="pdf-engine-preview-modal"
       >
-        <div className="insurance-dark-forms pdf-engine-preview">
+        <div className="pdf-engine-preview">
           <header className="pdf-engine-preview__header">
             <h3>결과 미리보기</h3>
             <div
