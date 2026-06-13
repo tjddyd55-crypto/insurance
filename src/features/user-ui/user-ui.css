@@ -341,3 +341,56 @@
   background: var(--btn-primary-bg);
   color: var(--btn-primary-text);
 }
+
+.user-app-shell .customer-workspace-layout__right-body .filter-button.button--danger {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+/* Portal confirm (user-app-shell 밖) — footer 버튼 톤·크기 정렬 */
+.user-modal-actions .button {
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .user-modal-actions .button {
+    min-height: 44px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-weight: 700;
+  }
+}
+
+/* 고객 작업영역 — 개인메시지 모바일 card light token (mobile-ui-foundation dark fallback 상쇄) */
+.user-app-shell .claim-requests-personal-mobile.claim-requests-page--mobile {
+  background: var(--bg-main);
+  color: var(--text-primary);
+}
+
+.user-app-shell .claim-requests-personal-mobile.claim-requests-page--mobile .claim-requests-page__card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+}
+
+/* 고객 작업영역 — PC 개인메시지 3열 panel (embedded workspace) */
+.user-app-shell .customer-workspace-layout__right-body .personal-message-panel {
+  background: var(--bg-card);
+  border-color: var(--border-default);
+}
+
+.user-app-shell .customer-workspace-layout__right-body .personal-message-list__item,
+.user-app-shell .customer-workspace-layout__right-body .personal-message-detail__content,
+.user-app-shell .customer-workspace-layout__right-body .personal-message-attachments__item,
+.user-app-shell .customer-workspace-layout__right-body .personal-message-draft-files__item,
+.user-app-shell .customer-workspace-layout__right-body .personal-message-empty,
+.user-app-shell .customer-workspace-layout__right-body .personal-message-notice {
+  background: var(--bg-soft);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}

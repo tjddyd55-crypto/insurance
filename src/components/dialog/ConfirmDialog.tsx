@@ -49,7 +49,7 @@ export function ConfirmDialog({
     >
       <h3 className="text-lg font-semibold text-[var(--text-main)]">{title}</h3>
       <div className="mt-3 text-sm text-[var(--text-secondary)] whitespace-pre-wrap break-words">{message}</div>
-      <DialogActions>
+      <DialogActions className="user-modal-actions">
         <Button type="button" variant="secondary" onClick={onCancel} disabled={busy}>
           {cancelLabel}
         </Button>

@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import FileUploader from '../../../../components/common/FileUploader'
 import { useConfirmDialog } from '../../../../components/dialog'
-import { FormButton, FormTextarea } from '../../../../components/form'
+import { FormTextarea } from '../../../../components/form'
+import {
+  CustomerWorkspaceDangerActionButton,
+  CustomerWorkspaceItemActions,
+  CustomerWorkspacePrimaryActionButton,
+  CustomerWorkspaceSecondaryActionButton,
+} from '../../../customers/components/CustomerWorkspaceActionButtons'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useInsurerNewsForm } from '../../../insurer-news/hooks/useInsurerNewsForm'
 import { validateCustomerNewsMessageFileForUpload } from '../../model/customerNewsMessageAttachmentUpload'
@@ -279,9 +285,9 @@ export default function ClaimRequestsPersonalPCStandalone() {
             </h3>
             <p>현재 고객에게 보낸 메시지만 표시합니다.</p>
           </div>
-          <FormButton htmlType="button" variant="secondary" size="sm" onClick={() => void loadMessages()} loading={loading}>
-            새로고침
-          </FormButton>
+          <CustomerWorkspaceSecondaryActionButton onClick={() => void loadMessages()} disabled={loading}>
+            {loading ? '불러오는 중…' : '새로고침'}
+          </CustomerWorkspaceSecondaryActionButton>
         </header>
         <div className="personal-message-panel__body personal-message-panel__body--list">
           {loading ? <div className="personal-message-empty">불러오는 중…</div> : null}
@@ -325,14 +331,17 @@ export default function ClaimRequestsPersonalPCStandalone() {
               <div className="personal-message-detail__head">
                 <h4>{honorific}</h4>
                 <p>발송/수정 {formatDateTime(selectedMessage.updatedAt)}</p>
-                <div className="personal-message-detail__actions">
-                  <FormButton htmlType="button" variant="secondary" size="sm" onClick={beginEdit} disabled={busy || isEditing}>
+                <CustomerWorkspaceItemActions>
+                  <CustomerWorkspaceSecondaryActionButton onClick={beginEdit} disabled={busy || isEditing}>
                     수정
-                  </FormButton>
-                  <FormButton htmlType="button" variant="danger" size="sm" onClick={() => void handleDeleteSelected()} disabled={busy}>
+                  </CustomerWorkspaceSecondaryActionButton>
+                  <CustomerWorkspaceDangerActionButton
+                    onClick={() => void handleDeleteSelected()}
+                    disabled={busy}
+                  >
                     삭제
-                  </FormButton>
-                </div>
+                  </CustomerWorkspaceDangerActionButton>
+                </CustomerWorkspaceItemActions>
               </div>
               <section className="personal-message-detail__section">
                 <h5>메시지 내용</h5>
@@ -408,15 +417,12 @@ export default function ClaimRequestsPersonalPCStandalone() {
                           업로드 실패
                         </span>
                       ) : null}
-                      <FormButton
-                        htmlType="button"
-                        variant="secondary"
-                        size="sm"
+                      <CustomerWorkspaceSecondaryActionButton
                         onClick={() => form.removeAttachment(attachment.localId)}
                         disabled={busy}
                       >
                         삭제
-                      </FormButton>
+                      </CustomerWorkspaceSecondaryActionButton>
                     </div>
                   ))}
                 </div>
@@ -428,13 +434,13 @@ export default function ClaimRequestsPersonalPCStandalone() {
             {error ? <div className="personal-message-notice personal-message-notice--error">{error}</div> : null}
             <div className="personal-message-compose__footer-buttons">
               {isEditing ? (
-                <FormButton htmlType="button" variant="secondary" onClick={cancelEdit} disabled={busy}>
+                <CustomerWorkspaceSecondaryActionButton onClick={cancelEdit} disabled={busy}>
                   취소
-                </FormButton>
+                </CustomerWorkspaceSecondaryActionButton>
               ) : null}
-              <FormButton htmlType="button" variant="primary" onClick={() => void handleSendOrSave()} loading={busy} disabled={busy}>
-                {isEditing ? '저장' : '개인메시지 발송'}
-              </FormButton>
+              <CustomerWorkspacePrimaryActionButton onClick={() => void handleSendOrSave()} disabled={busy}>
+                {busy ? '처리 중…' : isEditing ? '저장' : '개인메시지 발송'}
+              </CustomerWorkspacePrimaryActionButton>
             </div>
           </div>
         </div>

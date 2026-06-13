@@ -1,4 +1,11 @@
 import FileUploader from '../../../../components/common/FileUploader'
+import {
+  CUSTOMER_WORKSPACE_MOBILE_SCOPE_CLASS,
+  CustomerWorkspaceDangerActionButton,
+  CustomerWorkspaceItemActions,
+  CustomerWorkspacePrimaryActionButton,
+  CustomerWorkspaceSecondaryActionButton,
+} from '../../../customers/components/CustomerWorkspaceActionButtons'
 import { resolveAbsoluteApiUrl } from '../../../../lib/apiClient'
 import type { LocalAttachmentDraft } from '../../../insurer-news/types'
 import type { AgentCustomerNewsItem, LinkedCustomerItem } from '../../api/claimRequestsApi'
@@ -93,7 +100,9 @@ export default function ClaimRequestsPersonalMobileView({
   })
 
   return (
-    <main className="page claim-requests-page claim-requests-page--mobile claim-requests-personal-mobile page--with-back content-wrapper">
+    <main
+      className={`page claim-requests-page claim-requests-page--mobile claim-requests-personal-mobile page--with-back content-wrapper ${CUSTOMER_WORKSPACE_MOBILE_SCOPE_CLASS}`}
+    >
       {errorMessage ? (
         <p className="status status--error" role="alert">
           {errorMessage}
@@ -131,23 +140,13 @@ export default function ClaimRequestsPersonalMobileView({
           </div>
           <div className="claim-requests-personal-mobile__compose-actions">
             {isEditing ? (
-              <button
-                type="button"
-                className="form-button button button--secondary claim-requests-personal-mobile__secondary-button"
-                onClick={onCancelEdit}
-                disabled={actionBusy}
-              >
+              <CustomerWorkspaceSecondaryActionButton onClick={onCancelEdit} disabled={actionBusy}>
                 취소
-              </button>
+              </CustomerWorkspaceSecondaryActionButton>
             ) : null}
-            <button
-              type="button"
-              className="form-button button button--primary claim-requests-personal-mobile__send-button"
-              onClick={onSend}
-              disabled={sendDisabled}
-            >
+            <CustomerWorkspacePrimaryActionButton onClick={onSend} disabled={sendDisabled}>
               {actionBusy ? '처리 중…' : isEditing ? '저장' : '발송'}
-            </button>
+            </CustomerWorkspacePrimaryActionButton>
           </div>
         </div>
         {isEditing && editingHasAttachments ? (
@@ -245,23 +244,21 @@ export default function ClaimRequestsPersonalMobileView({
                       <div className="claim-requests-personal-mobile__history-date">{formatDateTime(item.updatedAt)}</div>
                     </div>
                     <div className="claim-requests-personal-mobile__history-actions">
-                      <button
-                        type="button"
-                        className="claim-requests-personal-mobile__edit-button"
-                        onClick={() => onStartEdit(item)}
-                        disabled={isDeleting || actionBusy}
-                      >
-                        수정
-                      </button>
-                      <button
-                        type="button"
-                        className="claim-requests-personal-mobile__delete-button"
-                        onClick={() => onDeleteMessage(item)}
-                        disabled={isDeleting || actionBusy}
-                        aria-label="개인메시지 삭제"
-                      >
-                        {isDeleting ? '삭제 중…' : '삭제'}
-                      </button>
+                      <CustomerWorkspaceItemActions>
+                        <CustomerWorkspaceSecondaryActionButton
+                          onClick={() => onStartEdit(item)}
+                          disabled={isDeleting || actionBusy}
+                        >
+                          수정
+                        </CustomerWorkspaceSecondaryActionButton>
+                        <CustomerWorkspaceDangerActionButton
+                          onClick={() => onDeleteMessage(item)}
+                          disabled={isDeleting || actionBusy}
+                          aria-label="개인메시지 삭제"
+                        >
+                          {isDeleting ? '삭제 중…' : '삭제'}
+                        </CustomerWorkspaceDangerActionButton>
+                      </CustomerWorkspaceItemActions>
                     </div>
                   </div>
                   <div className="claim-requests-personal-mobile__history-content">
