@@ -108,9 +108,7 @@
     word-break: break-word;
   }
 
-  /* ── 액션 버튼 (SSOT) ──
-   * 다운로드는 네이티브 다운로드 시맨틱을 위해 <a> 로 렌더되므로 a.* 도 함께 매칭한다.
-   * 전역 `button:not(.__close)` 규칙은 <a> 를 건드리지 않으므로 a 쪽은 동점 경쟁이 없다. */
+  /* ── 액션 버튼 (SSOT — light user token) ── */
   .customer-workspace-mobile-scope button.customer-workspace-action-button,
   .customer-workspace-mobile-scope a.customer-workspace-action-button {
     appearance: none;
@@ -127,9 +125,9 @@
     padding: 10px 16px;
     border-radius: 12px;
     gap: 6px;
-    border: 1px solid rgba(148, 163, 184, 0.26);
-    background: rgba(15, 23, 42, 0.88);
-    color: var(--text-main);
+    border: 1px solid var(--btn-secondary-border);
+    background: var(--btn-secondary-surface);
+    color: var(--btn-secondary-text);
     font-size: 15px;
     font-weight: 700;
     line-height: 1.2;
@@ -152,41 +150,41 @@
   }
 
   .customer-workspace-mobile-scope button.customer-workspace-action-button--primary {
-    background: rgba(37, 99, 235, 0.18);
-    border-color: rgba(96, 165, 250, 0.48);
-    color: #dbeafe;
+    background: var(--btn-primary-bg);
+    border-color: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
   }
 
   .customer-workspace-mobile-scope button.customer-workspace-action-button--secondary,
   .customer-workspace-mobile-scope a.customer-workspace-action-button--secondary {
-    background: rgba(15, 23, 42, 0.92);
-    border-color: rgba(148, 163, 184, 0.32);
-    color: var(--text-main);
+    background: var(--btn-secondary-surface);
+    border-color: var(--btn-secondary-border);
+    color: var(--btn-secondary-text);
   }
 
   .customer-workspace-mobile-scope button.customer-workspace-action-button--danger {
-    background: rgba(127, 29, 29, 0.18);
-    border-color: rgba(248, 113, 113, 0.34);
-    color: #fecaca;
+    background: var(--danger-bg);
+    border-color: var(--danger-border);
+    color: var(--danger-text);
   }
 
   .customer-workspace-mobile-scope button.customer-workspace-action-button--primary:hover:not(:disabled) {
-    background: rgba(37, 99, 235, 0.28);
-    border-color: rgba(96, 165, 250, 0.62);
-    color: #eff6ff;
+    background: var(--btn-primary-hover-bg);
+    border-color: var(--btn-primary-hover-bg);
+    color: var(--btn-primary-text);
   }
 
   .customer-workspace-mobile-scope button.customer-workspace-action-button--secondary:hover:not(:disabled),
   .customer-workspace-mobile-scope a.customer-workspace-action-button--secondary:hover {
-    background: rgba(30, 41, 59, 0.96);
-    border-color: rgba(148, 163, 184, 0.45);
-    color: var(--text-primary);
+    background: var(--btn-secondary-hover-bg);
+    border-color: var(--btn-secondary-hover-border);
+    color: var(--btn-secondary-text);
   }
 
   .customer-workspace-mobile-scope button.customer-workspace-action-button--danger:hover:not(:disabled) {
-    background: rgba(127, 29, 29, 0.36);
-    border-color: rgba(248, 113, 113, 0.55);
-    color: #fee2e2;
+    background: var(--danger-hover-bg);
+    border-color: var(--danger-border);
+    color: var(--danger-text);
   }
 
   .customer-workspace-mobile-scope button.customer-workspace-action-button:active:not(:disabled),
@@ -198,7 +196,7 @@
   .customer-workspace-mobile-scope button.customer-workspace-action-button:focus-visible,
   .customer-workspace-mobile-scope a.customer-workspace-action-button:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px var(--primary-soft);
+    box-shadow: 0 0 0 2px var(--input-focus-ring);
   }
 
   .customer-workspace-mobile-scope button.customer-workspace-action-button:disabled {
@@ -214,18 +212,18 @@
     min-height: 42px;
     padding: 0;
     border-radius: 10px;
-    border: 1px solid rgba(148, 163, 184, 0.24);
-    background: rgba(15, 23, 42, 0.72);
-    color: var(--text-main);
+    border: 1px solid var(--btn-secondary-border);
+    background: var(--btn-secondary-surface);
+    color: var(--btn-secondary-text);
     font-size: 1.35rem;
     line-height: 1;
-    opacity: 0.85;
+    opacity: 1;
   }
 
   .customer-workspace-mobile-scope button.customer-workspace-action-icon-button:hover:not(:disabled) {
-    opacity: 1;
-    background: rgba(30, 41, 59, 0.92);
-    border-color: rgba(148, 163, 184, 0.38);
+    background: var(--btn-secondary-hover-bg);
+    border-color: var(--btn-secondary-hover-border);
+    color: var(--btn-secondary-text);
   }
 
   /* ── 작성/수정 모달 (portal · 메모/상담 공통) ──
@@ -272,8 +270,8 @@
   .customer-workspace-mobile-scope textarea.customer-workspace-form-textarea:focus,
   textarea.customer-workspace-form-textarea:focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-soft);
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 3px var(--input-focus-ring);
   }
 
   .customer-ui-modal-panel.customer-workspace-form-modal
@@ -306,9 +304,9 @@
     padding: 10px 16px;
     border-radius: 12px;
     gap: 6px;
-    border: 1px solid rgba(148, 163, 184, 0.38);
-    background: rgba(30, 41, 59, 0.92);
-    color: var(--text-main);
+    border: 1px solid var(--btn-secondary-border);
+    background: var(--btn-secondary-surface);
+    color: var(--btn-secondary-text);
     font-size: 15px;
     font-weight: 700;
     line-height: 1.2;
@@ -337,9 +335,9 @@
   .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--primary {
-    background: rgba(37, 99, 235, 0.32);
-    border-color: rgba(96, 165, 250, 0.65);
-    color: #eff6ff;
+    background: var(--btn-primary-bg);
+    border-color: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
   }
 
   .customer-ui-modal-panel.customer-workspace-form-modal
@@ -349,9 +347,9 @@
   .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--secondary {
-    background: rgba(30, 41, 59, 0.96);
-    border-color: rgba(148, 163, 184, 0.45);
-    color: #f1f5f9;
+    background: var(--btn-secondary-surface);
+    border-color: var(--btn-secondary-border);
+    color: var(--btn-secondary-text);
   }
 
   .customer-ui-modal-panel.customer-workspace-form-modal
@@ -361,9 +359,9 @@
   .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--primary:hover:not(:disabled) {
-    background: rgba(37, 99, 235, 0.42);
-    border-color: rgba(96, 165, 250, 0.78);
-    color: #ffffff;
+    background: var(--btn-primary-hover-bg);
+    border-color: var(--btn-primary-hover-bg);
+    color: var(--btn-primary-text);
   }
 
   .customer-ui-modal-panel.customer-workspace-form-modal
@@ -373,9 +371,9 @@
   .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--secondary:hover:not(:disabled) {
-    background: rgba(51, 65, 85, 0.98);
-    border-color: rgba(148, 163, 184, 0.55);
-    color: var(--text-primary);
+    background: var(--btn-secondary-hover-bg);
+    border-color: var(--btn-secondary-hover-border);
+    color: var(--btn-secondary-text);
   }
 
   .customer-ui-modal-panel.customer-workspace-form-modal
@@ -385,9 +383,9 @@
   .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--danger {
-    background: rgba(127, 29, 29, 0.42);
-    border-color: rgba(248, 113, 113, 0.55);
-    color: #fee2e2;
+    background: var(--danger-bg);
+    border-color: var(--danger-border);
+    color: var(--danger-text);
   }
 
   .customer-ui-modal-panel.customer-workspace-form-modal
@@ -397,9 +395,9 @@
   .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--danger:hover:not(:disabled) {
-    background: rgba(153, 27, 27, 0.52);
-    border-color: rgba(248, 113, 113, 0.68);
-    color: #ffffff;
+    background: var(--danger-hover-bg);
+    border-color: var(--danger-border);
+    color: var(--danger-text);
   }
 
   .customer-ui-modal-panel.customer-workspace-form-modal
@@ -421,7 +419,7 @@
     .customer-workspace-modal-actions
     button.customer-workspace-action-button:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px var(--primary-soft);
+    box-shadow: 0 0 0 2px var(--input-focus-ring);
   }
 
   .customer-ui-modal-panel.customer-workspace-form-modal
@@ -491,8 +489,8 @@
     border-radius: 12px;
     font-weight: 700;
     line-height: 1.2;
-    background: rgba(31, 41, 55, 0.96);
-    border-color: rgba(148, 163, 184, 0.38);
+    background: var(--btn-secondary-surface);
+    border-color: var(--btn-secondary-border);
   }
 
   .customer-files-mobile-shell.customer-workspace-mobile-scope
@@ -570,9 +568,9 @@
     border-radius: 12px;
     font-size: 15px;
     font-weight: 700;
-    border: 1px solid rgba(148, 163, 184, 0.38);
-    background: rgba(30, 41, 59, 0.92);
-    color: var(--text-main);
+    border: 1px solid var(--btn-secondary-border);
+    background: var(--btn-secondary-surface);
+    color: var(--btn-secondary-text);
     box-sizing: border-box;
     display: inline-flex;
     align-items: center;
@@ -590,9 +588,9 @@
     .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--secondary {
-    background: rgba(30, 41, 59, 0.96);
-    border-color: rgba(148, 163, 184, 0.45);
-    color: #f1f5f9;
+    background: var(--btn-secondary-surface);
+    border-color: var(--btn-secondary-border);
+    color: var(--btn-secondary-text);
   }
 
   .customer-files-mobile-shell.customer-workspace-mobile-scope
@@ -606,9 +604,9 @@
     .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--danger {
-    background: rgba(127, 29, 29, 0.42);
-    border-color: rgba(248, 113, 113, 0.55);
-    color: #fee2e2;
+    background: var(--danger-bg);
+    border-color: var(--danger-border);
+    color: var(--danger-text);
   }
 
   /*
@@ -626,9 +624,9 @@
     border-radius: 12px;
     font-size: 15px;
     font-weight: 700;
-    border: 1px solid rgba(148, 163, 184, 0.38);
-    background: rgba(30, 41, 59, 0.92);
-    color: var(--text-main);
+    border: 1px solid var(--btn-secondary-border);
+    background: var(--btn-secondary-surface);
+    color: var(--btn-secondary-text);
     box-sizing: border-box;
     display: inline-flex;
     align-items: center;
@@ -639,27 +637,27 @@
     .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--primary {
-    background: rgba(37, 99, 235, 0.32);
-    border-color: rgba(96, 165, 250, 0.65);
-    color: #eff6ff;
+    background: var(--btn-primary-bg);
+    border-color: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
   }
 
   .customer-ui-modal-backdrop > .customer-ui-modal-panel.customer-workspace-form-modal
     .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--secondary {
-    background: rgba(30, 41, 59, 0.96);
-    border-color: rgba(148, 163, 184, 0.45);
-    color: #f1f5f9;
+    background: var(--btn-secondary-surface);
+    border-color: var(--btn-secondary-border);
+    color: var(--btn-secondary-text);
   }
 
   .customer-ui-modal-backdrop > .customer-ui-modal-panel.customer-workspace-form-modal
     .customer-workspace-mobile-scope
     .customer-workspace-modal-actions
     button.customer-workspace-action-button--danger {
-    background: rgba(127, 29, 29, 0.42);
-    border-color: rgba(248, 113, 113, 0.55);
-    color: #fee2e2;
+    background: var(--danger-bg);
+    border-color: var(--danger-border);
+    color: var(--danger-text);
   }
 
   /* ── 전자서명 outlet 모바일 — customers-page button reset 상쇄 (FormButton .button) ──
@@ -792,8 +790,8 @@
 }
 
 /**
- * PC 고객 메모 작업영역 — 모바일 SSOT 버튼 톤을 PC 카드에 맞게 적용 (pointer: fine).
- * 범위: customer-inline-notes--workspace-pc (CustomerMemosPage PC 뷰)
+ * PC 고객 작업영역 — 파일·메모·상담(list) 공통 액션 버튼 (pointer: fine).
+ * 범위: customer-inline-notes--workspace-pc, customer-workspace-layout__right-body
  */
 .customer-inline-notes--workspace-pc .customer-inline-memo-row--workspace-pc {
   display: flex;
@@ -801,7 +799,7 @@
   align-items: stretch;
   gap: 0;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border-default, #1e293b);
+  border-bottom: 1px solid var(--border-default);
 }
 
 .customer-inline-notes--workspace-pc .customer-inline-memo-row--workspace-pc:last-child {
@@ -820,7 +818,7 @@
   min-width: 0;
   white-space: pre-wrap;
   word-break: break-word;
-  color: var(--text-primary, #e5e7eb);
+  color: var(--text-primary);
   line-height: 1.45;
 }
 
@@ -834,20 +832,22 @@
 }
 
 .customer-inline-notes--workspace-pc button.customer-workspace-action-button,
-.customer-inline-notes--workspace-pc a.customer-workspace-action-button {
+.customer-inline-notes--workspace-pc a.customer-workspace-action-button,
+.customer-workspace-layout__right-body button.customer-workspace-action-button,
+.customer-workspace-layout__right-body a.customer-workspace-action-button {
   appearance: none;
   -webkit-appearance: none;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 32px;
+  min-height: 36px;
   height: auto;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border-default);
-  background: var(--bg-card);
-  color: var(--text-main);
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--btn-secondary-border);
+  background: var(--btn-secondary-surface);
+  color: var(--btn-secondary-text);
   font-size: 13px;
   font-weight: 600;
   line-height: 1.2;
@@ -855,50 +855,64 @@
   cursor: pointer;
   font-family: inherit;
   flex-shrink: 0;
+  text-decoration: none;
 }
 
-.customer-inline-notes--workspace-pc button.customer-workspace-action-button--primary {
-  background: rgba(37, 99, 235, 0.18);
-  border-color: rgba(96, 165, 250, 0.48);
-  color: #dbeafe;
+.customer-inline-notes--workspace-pc button.customer-workspace-action-button--primary,
+.customer-workspace-layout__right-body button.customer-workspace-action-button--primary {
+  background: var(--btn-primary-bg);
+  border-color: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
 }
 
-.customer-inline-notes--workspace-pc button.customer-workspace-action-button--secondary {
-  background: var(--bg-card);
-  border-color: var(--border-default);
-  color: var(--text-main);
+.customer-inline-notes--workspace-pc button.customer-workspace-action-button--secondary,
+.customer-inline-notes--workspace-pc a.customer-workspace-action-button--secondary,
+.customer-workspace-layout__right-body button.customer-workspace-action-button--secondary,
+.customer-workspace-layout__right-body a.customer-workspace-action-button--secondary {
+  background: var(--btn-secondary-surface);
+  border-color: var(--btn-secondary-border);
+  color: var(--btn-secondary-text);
 }
 
-.customer-inline-notes--workspace-pc button.customer-workspace-action-button--danger {
-  background: rgba(127, 29, 29, 0.18);
-  border-color: rgba(248, 113, 113, 0.34);
-  color: #fecaca;
+.customer-inline-notes--workspace-pc button.customer-workspace-action-button--danger,
+.customer-workspace-layout__right-body button.customer-workspace-action-button--danger {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
 }
 
-.customer-inline-notes--workspace-pc button.customer-workspace-action-button--primary:hover:not(:disabled) {
-  background: rgba(37, 99, 235, 0.28);
-  border-color: rgba(96, 165, 250, 0.62);
-  color: #eff6ff;
+.customer-inline-notes--workspace-pc button.customer-workspace-action-button--primary:hover:not(:disabled),
+.customer-workspace-layout__right-body button.customer-workspace-action-button--primary:hover:not(:disabled) {
+  background: var(--btn-primary-hover-bg);
+  border-color: var(--btn-primary-hover-bg);
+  color: var(--btn-primary-text);
 }
 
-.customer-inline-notes--workspace-pc button.customer-workspace-action-button--secondary:hover:not(:disabled) {
-  background: #1f2937;
-  border-color: #475569;
-  color: var(--text-primary);
+.customer-inline-notes--workspace-pc button.customer-workspace-action-button--secondary:hover:not(:disabled),
+.customer-inline-notes--workspace-pc a.customer-workspace-action-button--secondary:hover:not(:disabled),
+.customer-workspace-layout__right-body button.customer-workspace-action-button--secondary:hover:not(:disabled),
+.customer-workspace-layout__right-body a.customer-workspace-action-button--secondary:hover:not(:disabled) {
+  background: var(--btn-secondary-hover-bg);
+  border-color: var(--btn-secondary-hover-border);
+  color: var(--btn-secondary-text);
 }
 
-.customer-inline-notes--workspace-pc button.customer-workspace-action-button--danger:hover:not(:disabled) {
-  background: rgba(127, 29, 29, 0.36);
-  border-color: rgba(248, 113, 113, 0.55);
-  color: #fee2e2;
+.customer-inline-notes--workspace-pc button.customer-workspace-action-button--danger:hover:not(:disabled),
+.customer-workspace-layout__right-body button.customer-workspace-action-button--danger:hover:not(:disabled) {
+  background: var(--danger-hover-bg);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
 }
 
-.customer-inline-notes--workspace-pc button.customer-workspace-action-button:focus-visible {
+.customer-inline-notes--workspace-pc button.customer-workspace-action-button:focus-visible,
+.customer-workspace-layout__right-body button.customer-workspace-action-button:focus-visible,
+.customer-workspace-layout__right-body a.customer-workspace-action-button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--primary-soft);
+  box-shadow: 0 0 0 3px var(--input-focus-ring);
 }
 
-.customer-inline-notes--workspace-pc button.customer-workspace-action-button:disabled {
+.customer-inline-notes--workspace-pc button.customer-workspace-action-button:disabled,
+.customer-workspace-layout__right-body button.customer-workspace-action-button:disabled {
   opacity: 0.5;
   cursor: default;
 }

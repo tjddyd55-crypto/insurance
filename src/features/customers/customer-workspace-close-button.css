@@ -27,9 +27,9 @@
     font-weight: 600 !important;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
-    border: 1px solid var(--secondary-border) !important;
+    border: 1px solid var(--btn-secondary-border) !important;
     background-color: var(--btn-secondary-surface, var(--bg-card)) !important;
-    color: var(--secondary-text, #e5e7eb) !important;
+    color: var(--btn-secondary-text, var(--text-main)) !important;
     box-shadow: none !important;
     cursor: pointer;
     font-family: inherit;
@@ -37,16 +37,16 @@
 
   .workspace-mobile-outlet-modal__header .customer-workspace-close-button.button:hover:not(:disabled):not(:active),
   .mobile-modal-header .customer-workspace-close-button.button:hover:not(:disabled):not(:active) {
-    background-color: var(--secondary-hover-bg, #1f2937) !important;
-    border-color: var(--secondary-border) !important;
-    color: var(--secondary-text, #e5e7eb) !important;
+    background-color: var(--btn-secondary-hover-bg) !important;
+    border-color: var(--btn-secondary-hover-border) !important;
+    color: var(--btn-secondary-text) !important;
   }
 
   .workspace-mobile-outlet-modal__header .customer-workspace-close-button.button:active:not(:disabled),
   .mobile-modal-header .customer-workspace-close-button.button:active:not(:disabled) {
-    background-color: var(--secondary-hover-bg, #1f2937) !important;
-    border-color: var(--secondary-border) !important;
-    color: var(--secondary-text, #e5e7eb) !important;
+    background-color: var(--btn-secondary-hover-bg) !important;
+    border-color: var(--btn-secondary-hover-border) !important;
+    color: var(--btn-secondary-text) !important;
   }
 
   .workspace-mobile-outlet-modal__header .customer-workspace-close-button.button:focus-visible,

@@ -27,12 +27,12 @@ export default function StorageDeleteDialog({
   const useWorkspaceFooter = footerVariant === 'workspace'
 
   const storageFooter = (
-    <div className="flex justify-end gap-2 mt-4">
+    <div className="user-modal-actions">
       <FormButton htmlType="button" variant="secondary" onClick={onClose} disabled={loading}>
         취소
       </FormButton>
-      <FormButton htmlType="button" variant="primary" onClick={onConfirm} disabled={loading}>
-        {loading ? '처리 중…' : '확인'}
+      <FormButton htmlType="button" variant="danger" onClick={onConfirm} disabled={loading}>
+        {loading ? '처리 중…' : '삭제'}
       </FormButton>
     </div>
   )
