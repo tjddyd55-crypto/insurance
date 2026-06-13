@@ -314,26 +314,32 @@ export function CustomerRelationsStrip({
             aria-modal="true"
             aria-label="연계 고객 검색"
             onClick={(e) => e.stopPropagation()}
-            style={{ width: '100%' }}
           >
-            <h3 style={{ marginTop: 0 }}>고객 검색 후 연결</h3>
-            <form
-              onSubmit={(e: FormEvent) => {
-                e.preventDefault()
-              }}
-            >
-              <FormInput
-                type="search"
-                className="search-input customer-relations-modal__search"
-                placeholder="이름 또는 전화번호 검색"
-                value={searchQ}
-                onChange={(e) => setSearchQ(e.target.value)}
-                autoFocus
-                autoComplete="off"
-                style={{ width: '100%', boxSizing: 'border-box' }}
-              />
-            </form>
-            {searchBusy ? <p style={{ fontSize: '0.9rem' }}>검색 중…</p> : null}
+            <div className="customer-relations-modal__header">
+              <h3 className="customer-relations-modal__title">고객 검색 후 연결</h3>
+            </div>
+            <div className="customer-relations-modal__search">
+              <form
+                className="customer-relations-modal__search-form"
+                onSubmit={(e: FormEvent) => {
+                  e.preventDefault()
+                }}
+              >
+                <FormInput
+                  type="search"
+                  className="search-input customer-relations-modal__search-input"
+                  placeholder="이름 또는 전화번호 검색"
+                  value={searchQ}
+                  onChange={(e) => setSearchQ(e.target.value)}
+                  autoFocus
+                  autoComplete="off"
+                />
+              </form>
+              {searchBusy ? (
+                <p className="customer-relations-modal__search-status">검색 중…</p>
+              ) : null}
+            </div>
+            <div className="customer-relations-modal__results">
             {/* 모바일 리스트: '이름 / 생년월일 / 연락처' 3필드 고정.
                 한 행 안에서 정보 위계를 둘 레이아웃(이름=주요, 생년/연락처=보조)으로 두어
                 좁은 화면에서도 식별이 쉽도록 했다. 연결됨 상태는 상단 우측 배지. */}
@@ -434,7 +440,8 @@ export function CustomerRelationsStrip({
                 ) : null}
               </ul>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+            </div>
+            <div className="customer-relations-modal__footer">
               <FormButton
                 htmlType="button"
                 variant="action"

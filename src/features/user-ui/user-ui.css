@@ -127,10 +127,10 @@
   }
 }
 
-.user-app-shell .user-form-control:focus-visible {
+.user-app-shell .user-form-control:focus-visible:not(:disabled):not([readonly]) {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-soft);
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 1px var(--input-focus-ring);
 }
 
 .user-app-shell .user-form-control:disabled,
@@ -235,7 +235,8 @@
 
 .user-app-shell .user-action-button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--input-focus-ring);
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 1px var(--input-focus-ring);
 }
 
 .user-app-shell .user-action-button:disabled {
@@ -432,4 +433,19 @@
   background: var(--bg-soft);
   border-color: var(--border-default);
   color: var(--text-primary);
+}
+
+/* ── 입력 포커스 SSOT 3.4 — 고객카드 focal(0 0 0 2px green)과 같은 실선 언어 ── */
+.user-app-shell .form-input.field--editable:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell .form-select.field--editable:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell .form-textarea.field--editable:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell .field__control.field--editable:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell .field__control:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell .search-input:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell input[type='search']:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell textarea:focus-visible:not(:disabled):not([readonly]),
+.user-app-shell select:focus-visible:not(:disabled):not([readonly]) {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 1px var(--input-focus-ring);
 }

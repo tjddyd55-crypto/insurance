@@ -3227,6 +3227,12 @@ body.electron-only .memo-fullscreen-exit-electron:hover {
   color: var(--text-main);
 }
 
+.customers-page .search-input:focus-visible:not(:disabled):not([readonly]) {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 1px var(--input-focus-ring);
+}
+
 .customers-advanced-filters {
   margin-bottom: 12px;
   padding: 12px;
@@ -4334,13 +4340,76 @@ div.cta-button.customers-page__action-btn[role='button'] {
  *             모바일에서는 safe area를 포함한 좁은 화면 제약을 유지.
  * ====================================================================== */
 .customer-relations-strip .customer-relations-modal {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%;
   max-width: min(640px, calc(100vw - 32px));
+  max-height: min(86vh, 640px);
+  overflow: hidden;
   text-align: left;
+}
+
+.customer-relations-modal__header {
+  flex: 0 0 auto;
+}
+
+.customer-relations-modal__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.customer-relations-modal__search {
+  flex: 0 0 auto;
+  margin-top: 12px;
+}
+
+.customer-relations-modal__search-form {
+  margin: 0;
+}
+
+.customer-relations-modal__search-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.customer-relations-modal__search-status {
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.customer-relations-modal__results {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  max-height: 320px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.customer-relations-modal__footer {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-default);
 }
 
 @media (max-width: 480px) {
   .customer-relations-strip .customer-relations-modal {
     max-width: calc(100vw - 24px);
+    max-height: min(88vh, 640px);
+  }
+
+  .customer-relations-modal__results {
+    min-height: 240px;
+    max-height: 280px;
   }
 }
 
@@ -4452,6 +4521,21 @@ div.cta-button.customers-page__action-btn[role='button'] {
   overflow-y: auto;
 }
 
+.customer-relations-modal__results .related-list--pc {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.customer-relations-modal__results .related-list--pc .related-list__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow-y: auto;
+}
+
 .customers-page--pc .customer-relations-strip .related-list__empty {
   padding: 14px 12px;
   color: var(--text-sub);
@@ -4459,6 +4543,18 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 /* 연계 고객 검색 모달 — 모바일 리스트 (이름 / 생년월일 / 연락처 3필드) */
+.customer-relations-modal__results .related-list-mobile {
+  list-style: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+}
+
 .related-list-mobile {
   list-style: none;
   margin: 8px 0 0;
@@ -5373,39 +5469,46 @@ div.cta-button.customers-page__action-btn[role='button'] {
 /* 연계 고객: 제목 행에 +추가, 칩은 최대 4열 후 줄바꿈(가로 스크롤 없음) */
 .customer-relations-strip--in-detail .customer-relations-strip__title-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
+  justify-content: space-between;
   gap: 10px 12px;
 }
 
 .customer-relations-strip--in-detail .customer-relations-strip__title-row .customer-detail-read__section-title {
   flex: 1 1 auto;
   min-width: 0;
+  margin: 0;
 }
 
 .customer-relations-strip--in-detail .customer-relations-strip__inline-add {
   flex: 0 0 auto;
-  padding: 4px 11px;
-  min-height: 0;
+  align-self: center;
+  padding: 6px 12px;
+  min-height: 32px;
   border-radius: 8px;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
+  line-height: 1.2;
   border: 1px solid var(--border-default);
   background: var(--bg-card);
   color: var(--text-main);
 }
 
-.customer-relations-strip--in-detail .customer-relations-strip__inline-add:hover {
-  background: #1f2937;
+@media (hover: hover) and (pointer: fine) {
+  .customer-relations-strip--in-detail .customer-relations-strip__inline-add:hover:not(:disabled) {
+    background: var(--bg-soft);
+    border-color: var(--border-strong);
+  }
 }
 
 .customer-relations-strip--in-detail .customer-relations-strip__chip-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, auto));
-  gap: 8px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   width: 100%;
   overflow-x: visible;
-  align-content: start;
+  align-content: flex-start;
 }
 
 .customer-relations-strip--in-detail .customer-relations-strip__chip-cell {
@@ -5413,15 +5516,27 @@ div.cta-button.customers-page__action-btn[role='button'] {
   max-width: 100%;
 }
 
-@media (max-width: 768px) {
-  .customer-relations-strip--in-detail .customer-relations-strip__chip-grid {
-    grid-template-columns: repeat(2, minmax(0, auto));
-  }
+.customer-relations-strip--in-detail .related-customer-tag__name {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 0.875rem;
 }
 
-@media (max-width: 400px) {
+.customer-relations-strip--in-detail .related-customer-tag__remove {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 4px 8px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+@media (max-width: 768px) {
+  .customer-relations-strip--in-detail {
+    padding: 0.5rem 0 0.75rem;
+  }
+
   .customer-relations-strip--in-detail .customer-relations-strip__chip-grid {
-    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
   }
 }
 
@@ -5951,10 +6066,10 @@ div.cta-button.customers-page__action-btn[role='button'] {
   }
 }
 
-.field__control.field--editable:focus-visible:not(:disabled) {
+.field__control.field--editable:focus-visible:not(:disabled):not([readonly]) {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-soft);
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 1px var(--input-focus-ring);
 }
 
 .form-input,
@@ -11022,12 +11137,17 @@ textarea.memo-sticky-note__textarea::placeholder {
   color: var(--text-muted);
 }
 
-.pc-root .form-input:focus:not(:disabled),
-.pc-root .form-select:focus:not(:disabled),
-.pc-root .form-textarea:focus:not(:disabled),
-.pc-root .field__control:focus:not(:disabled) {
+.pc-root .form-input:focus:not(:disabled):not([readonly]),
+.pc-root .form-input:focus-visible:not(:disabled):not([readonly]),
+.pc-root .form-select:focus:not(:disabled):not([readonly]),
+.pc-root .form-select:focus-visible:not(:disabled):not([readonly]),
+.pc-root .form-textarea:focus:not(:disabled):not([readonly]),
+.pc-root .form-textarea:focus-visible:not(:disabled):not([readonly]),
+.pc-root .field__control:focus:not(:disabled):not([readonly]),
+.pc-root .field__control:focus-visible:not(:disabled):not([readonly]) {
   border-color: var(--input-focus-border);
-  box-shadow: 0 0 0 2px var(--input-focus-ring);
+  box-shadow: 0 0 0 1px var(--input-focus-ring);
+  outline: none;
 }
 
 .pc-root .field--readonly,

@@ -58,7 +58,7 @@
   --input-border: #e5e7eb;
   --input-hover-border: #d1d5db;
   --input-focus-border: #16a34a;
-  --input-focus-ring: color-mix(in srgb, #16a34a 24%, transparent);
+  --input-focus-ring: rgba(22, 163, 74, 0.12);
   --placeholder: #9ca3af;
   --disabled-bg: #f3f4f6;
   --disabled-text: #9ca3af;
