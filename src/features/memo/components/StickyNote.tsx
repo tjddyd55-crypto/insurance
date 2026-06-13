@@ -291,7 +291,7 @@ export default function StickyNote({
         <FormButton
           htmlType="button"
           variant="action"
-          className="memo-sticky-note__delete inline-flex shrink-0 items-center justify-center rounded text-red-500 hover:text-red-700 touch-manipulation"
+          className="memo-sticky-note__delete inline-flex shrink-0 items-center justify-center rounded touch-manipulation"
           aria-label="메모 삭제"
           onTouchStart={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}

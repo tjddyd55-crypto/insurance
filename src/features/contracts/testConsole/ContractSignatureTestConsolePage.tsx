@@ -154,7 +154,7 @@ export default function ContractSignatureTestConsolePage() {
   return (
     <main
       className={
-        'insurance-dark-forms contract-signature-console' +
+        'user-page contract-signature-console' +
         (isAdminMobile ? ' contract-signature-console--admin-mobile' : '')
       }
     >

@@ -137,9 +137,9 @@
 .admin-ga-management .admin-modal-panel select:focus,
 .admin-ga-management .admin-toolbar select:focus,
 .admin-user-management .admin-modal-panel select:focus {
-  border-color: var(--brand-primary);
+  border-color: var(--input-focus-border, var(--brand-primary));
   outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand-primary) 25%, transparent);
+  box-shadow: none;
 }
 
 .admin-form-input:disabled,

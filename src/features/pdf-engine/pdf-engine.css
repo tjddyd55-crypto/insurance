@@ -231,69 +231,7 @@
   line-height: 1.35;
 }
 
-/* 다크 테마 PDF 템플릿 편집 — 등록 필드 카드·패널 가독성 */
-.insurance-dark-forms.pdf-engine-page--editor {
-  color: #e5e7eb;
-}
-
-.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-page__title {
-  color: #f8fafc;
-}
-
-.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-page__hint {
-  color: #94a3b8;
-}
-
-.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__panel {
-  background: #111827;
-  border-color: #1e293b;
-  color: #e5e7eb;
-}
-
-.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__panel-title {
-  color: #f8fafc;
-}
-
-.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__label {
-  color: #cbd5e1;
-}
-
-.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card {
-  background: #111827;
-  border-color: rgba(148, 163, 184, 0.25);
-  color: #e5e7eb;
-}
-
-.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card:hover {
-  border-color: rgba(148, 163, 184, 0.45);
-  background: #172033;
-}
-
-.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card:focus {
-  outline-color: #60a5fa;
-}
-
-.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card--active {
-  background: rgba(37, 99, 235, 0.16);
-  border-color: rgba(96, 165, 250, 0.85);
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
-}
-
-.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card-title {
-  color: #f8fafc;
-}
-
-.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card-meta {
-  color: #cbd5e1;
-}
-
-.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card--active .pdf-engine-editor__field-card-title {
-  color: #f8fafc;
-}
-
-.insurance-dark-forms.pdf-engine-page--editor .pdf-engine-editor__field-card--active .pdf-engine-editor__field-card-meta {
-  color: #e5e7eb;
-}
+/* 다크 테마 PDF 템플릿 편집 — SSOT 4단계: shell 은 user-page light, 오버레이만 dark-application-pdf-scope */
 
 .pdf-engine-editor__field-card-delete {
   flex-shrink: 0;
@@ -689,7 +627,7 @@
   flex-direction: column;
   gap: 2px;
   margin-top: 12px;
-  border: 1px solid #1e293b;
+  border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -876,18 +814,18 @@
 }
 
 .pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-doc-list__item {
-  border: 1px solid var(--border-default, #334155);
+  border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 10px;
-  background: var(--bg-card, #111827);
+  background: var(--bg-card, #ffffff);
 }
 
 .pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-doc-list__item:hover {
-  border-color: color-mix(in srgb, var(--primary, #3b82f6) 50%, var(--border-default, #334155));
-  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.35);
+  border-color: var(--input-focus-border, #16a34a);
+  box-shadow: none;
 }
 
 .pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-doc-list__link {
-  color: var(--text-primary, #f8fafc);
+  color: var(--text-primary, #111827);
 }
 
 .pdf-engine-page.pdf-engine-page--workspace-embedded .pdf-engine-editor__field-meta {
@@ -981,20 +919,11 @@
 
 /* ─── 사용자 문서 신청(PC/모바일) ───────────────────────────────── */
 
-.insurance-dark-forms.pdf-document-detail-page {
-  background: #0b111a;
-  color: #e5e7eb;
-}
-
-.insurance-dark-forms.pdf-document-detail-page .pdf-engine-page__hint {
-  color: #94a3b8;
-}
-
-.insurance-dark-forms.pdf-document-detail-page.pdf-engine-page {
+.user-page.pdf-document-detail-page.pdf-engine-page {
   margin: 0 auto;
 }
 
-.insurance-dark-forms.pdf-document-detail-page.pdf-document-detail-page--pc.insurance-dark-forms.pdf-engine-page {
+.user-page.pdf-document-detail-page.pdf-document-detail-page--pc.pdf-engine-page {
   max-width: none;
   width: 100%;
   box-sizing: border-box;
@@ -1112,7 +1041,7 @@
 
 /* 데스크톱 — 좌측 폼만 스크롤, 우측 미리보기는 뷰포트 안에 sticky + 높이 고정 */
 @media (min-width: 1024px) {
-  .insurance-dark-forms.pdf-document-detail-page.pdf-document-detail-page--pc.pdf-engine-page {
+  .user-page.pdf-document-detail-page.pdf-document-detail-page--pc.pdf-engine-page {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -1211,11 +1140,6 @@
   background: var(--bg-card, #ffffff);
   border: 1px solid var(--border-default, #e5e7eb);
 }
-
-.insurance-dark-forms .pdf-document-detail-page__live-preview-modal {
-  border-color: var(--border-default, #e5e7eb);
-}
-
 .pdf-applicant-preview-stack .pdf-engine-editor__overlay {
   box-shadow: none;
   border: none;
@@ -1322,13 +1246,13 @@
 
 .pdf-applicant-inline-hint {
   font-size: 13px;
-  color: #94a3b8;
+  color: var(--text-secondary, #6b7280);
   margin: 0;
 }
 
 .pdf-engine-editor__mapping-table {
   margin: 0 0 12px;
-  border: 1px solid #1e293b;
+  border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 8px;
   overflow: hidden;
   font-size: 12px;
@@ -1344,15 +1268,15 @@
 }
 
 .pdf-engine-editor__mapping-table-head {
-  background: #111827;
-  color: #94a3b8;
+  background: var(--bg-soft, #f1f5f9);
+  color: var(--text-secondary, #6b7280);
   font-weight: 600;
 }
 
 .pdf-engine-editor__mapping-table-row {
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid var(--border-default, #e5e7eb);
   cursor: pointer;
-  color: #e5e7eb;
+  color: var(--text-primary, #111827);
 }
 
 .pdf-engine-editor__mapping-table-row--active {
@@ -1421,7 +1345,7 @@
   gap: 10px;
   margin-top: 8px;
   padding-top: 10px;
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid var(--border-default, #e5e7eb);
 }
 
 .pdf-applicant-form__car-picker-head {
@@ -1433,7 +1357,7 @@
 .pdf-applicant-form__car-picker-label {
   font-size: 12px;
   font-weight: 600;
-  color: #cbd5e1;
+  color: var(--text-primary, #111827);
 }
 
 .pdf-applicant-form__car-picker-intro,
@@ -1442,15 +1366,15 @@
 .pdf-applicant-form__car-picker-note {
   margin: 0;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-secondary, #6b7280);
 }
 
 .pdf-applicant-form__car-picker-intro {
-  color: #e5e7eb;
+  color: var(--text-primary, #111827);
 }
 
 .pdf-applicant-form__car-picker-hint {
-  color: #60a5fa;
+  color: var(--brand-primary, #16a34a);
 }
 
 .pdf-applicant-form__car-picker-list {
@@ -1469,18 +1393,18 @@
   justify-content: space-between;
   gap: 10px;
   padding: 10px 12px;
-  border: 1px solid #334155;
+  border: 1px solid var(--border-default, #e5e7eb);
   border-radius: 10px;
-  background: #111827;
+  background: var(--bg-card, #ffffff);
 }
 
 .pdf-applicant-form__car-picker-item--selected {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.28);
+  border-color: var(--input-focus-border, #16a34a);
+  box-shadow: none;
 }
 
 .pdf-applicant-form__car-picker-item--applied {
-  background: #1f2937;
+  background: var(--primary-soft, #dcfce7);
 }
 
 .pdf-applicant-form__car-picker-item-body {
@@ -1494,13 +1418,13 @@
 .pdf-applicant-form__car-picker-item-title {
   font-size: 13px;
   font-weight: 700;
-  color: #f8fafc;
+  color: var(--text-primary, #111827);
 }
 
 .pdf-applicant-form__car-picker-item-meta,
 .pdf-applicant-form__car-picker-item-detail {
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--text-secondary, #6b7280);
   line-height: 1.4;
 }
 
@@ -1651,7 +1575,7 @@
    * index.css · mobile-ui-foundation 의 .page padding 과 pdf-engine-page 기본 padding 이
    * 겹치면 40px+ 로 본문이 과하게 안쪽으로 들어간다.
    */
-  main.insurance-dark-forms.pdf-engine-page.pdf-document-detail-page--mobile.page,
+  main.user-page.pdf-engine-page.pdf-document-detail-page--mobile.page,
   .mobile-root .pdf-engine-page.pdf-document-detail-page--mobile {
     width: 100%;
     max-width: none !important;
@@ -1662,9 +1586,9 @@
     box-sizing: border-box;
   }
 
-  .workspace-mobile-outlet-modal__body > main.insurance-dark-forms.pdf-engine-page.pdf-document-detail-page--mobile.page,
+  .workspace-mobile-outlet-modal__body > main.user-page.pdf-engine-page.pdf-document-detail-page--mobile.page,
   .workspace-mobile-outlet-modal__body.customer-workspace-mobile-scope
-    > main.insurance-dark-forms.pdf-engine-page.pdf-document-detail-page--mobile.page {
+    > main.user-page.pdf-engine-page.pdf-document-detail-page--mobile.page {
     padding-top: 12px;
     padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)) !important;
   }
