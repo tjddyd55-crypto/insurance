@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { BaseDialog } from '../../../components/dialog'
+import { DialogActions } from '../../../components/dialog/DialogActions'
 import { Button } from '../../../components/ui/Button'
 
 export type DeleteConfirmModalProps = {
@@ -52,25 +53,13 @@ export function MemoDeleteConfirmFooter({
   confirmLabel?: string
 }) {
   return (
-    <div className="mt-6 flex flex-wrap justify-end gap-2">
-      <Button
-        type="button"
-        variant="secondary"
-        className="memo-delete-modal__btn min-h-8 min-w-[88px] px-3 py-1.5 text-sm"
-        onClick={onCancel}
-        disabled={submitting}
-      >
+    <DialogActions className="user-modal-actions">
+      <Button type="button" variant="secondary" onClick={onCancel} disabled={submitting}>
         취소
       </Button>
-      <Button
-        type="button"
-        variant="primary"
-        className="memo-delete-modal__btn min-h-8 min-w-[88px] !border-red-700 !bg-red-600 !text-white px-3 py-1.5 text-sm hover:!bg-red-700"
-        onClick={onConfirm}
-        disabled={submitting}
-      >
-        {submitting ? '삭제 중…' : confirmLabel}
+      <Button type="button" variant="danger" onClick={onConfirm} disabled={submitting} loading={submitting}>
+        {confirmLabel}
       </Button>
-    </div>
+    </DialogActions>
   )
 }

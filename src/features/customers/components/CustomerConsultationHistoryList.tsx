@@ -1,4 +1,10 @@
-import { FormButton, FormInput, FormTextarea } from '../../../components/form'
+import { FormInput, FormTextarea } from '../../../components/form'
+import {
+  CustomerWorkspaceDangerActionButton,
+  CustomerWorkspaceItemActions,
+  CustomerWorkspacePrimaryActionButton,
+  CustomerWorkspaceSecondaryActionButton,
+} from './CustomerWorkspaceActionButtons'
 import CustomerConsultationContactResultField from './CustomerConsultationContactResultField'
 import { formatContactResultMetaLabel } from '../config/customerConsultationFollowUp.config'
 import { parseConsultationStoredBody } from '../utils/consultationBodyFormat'
@@ -77,19 +83,14 @@ export default function CustomerConsultationHistoryList({
                   onContactResultChange={onSetEditContactResult}
                   disabled={busy}
                 />
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  <FormButton
-                    htmlType="button"
-                    variant="action"
-                    disabled={busy}
-                    onClick={() => void onSaveEdit(r.id)}
-                  >
+                <CustomerWorkspaceItemActions>
+                  <CustomerWorkspacePrimaryActionButton disabled={busy} onClick={() => void onSaveEdit(r.id)}>
                     {busy ? '저장 중…' : '저장'}
-                  </FormButton>
-                  <FormButton htmlType="button" variant="secondary" disabled={busy} onClick={onCancelEdit}>
+                  </CustomerWorkspacePrimaryActionButton>
+                  <CustomerWorkspaceSecondaryActionButton disabled={busy} onClick={onCancelEdit}>
                     취소
-                  </FormButton>
-                </div>
+                  </CustomerWorkspaceSecondaryActionButton>
+                </CustomerWorkspaceItemActions>
               </div>
             ) : (
               <>
@@ -104,37 +105,22 @@ export default function CustomerConsultationHistoryList({
                   }}
                 >
                   <div style={{ fontWeight: 600 }}>{dateLabel}</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    <FormButton
-                      htmlType="button"
-                      variant="secondary"
-                      className="filter-button"
-                      disabled={busy}
-                      onClick={() => onStartEdit(r)}
-                    >
+                  <CustomerWorkspaceItemActions>
+                    <CustomerWorkspaceSecondaryActionButton disabled={busy} onClick={() => onStartEdit(r)}>
                       수정
-                    </FormButton>
-                    <FormButton
-                      htmlType="button"
-                      variant="action"
-                      className="filter-button"
-                      disabled={busy}
-                      onClick={() => void onDelete(r.id)}
-                    >
+                    </CustomerWorkspaceSecondaryActionButton>
+                    <CustomerWorkspaceDangerActionButton disabled={busy} onClick={() => void onDelete(r.id)}>
                       삭제
-                    </FormButton>
+                    </CustomerWorkspaceDangerActionButton>
                     {onAddTodoFromConsultation ? (
-                      <FormButton
-                        htmlType="button"
-                        variant="secondary"
-                        className="filter-button"
+                      <CustomerWorkspaceSecondaryActionButton
                         disabled={busy}
                         onClick={() => onAddTodoFromConsultation(r.id, text)}
                       >
                         +할일
-                      </FormButton>
+                      </CustomerWorkspaceSecondaryActionButton>
                     ) : null}
-                  </div>
+                  </CustomerWorkspaceItemActions>
                 </div>
                 <div style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{text || '—'}</div>
                 {contactMeta ? (
