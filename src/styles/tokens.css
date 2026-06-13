@@ -1,26 +1,34 @@
 /**
- * Phase 3 — Figma·코드 공통 SSOT (핵심 토큰)
+ * Phase 3 — Figma·코드 공통 SSOT (semantic color · form · button)
  * 다크 모드: document.documentElement[data-theme='dark']
- * 상세·레거시 토큰은 theme-tokens.css → 이 파일에서 동일 이름 덮어씀
+ * 레거시·확장 alias는 theme-tokens.css — 동명 변수는 이 파일이 최종값.
  */
 
 :root {
-  /* 디자인 시스템 토큰 (global) — White + Emerald Green (light 기본) */
+  /* ── Surface ── */
   --bg-base: #f8fafc;
+  --bg-main: #f8fafc;
   --bg-surface: #ffffff;
   --bg-card: #ffffff;
-  --bg-elevated: #f1f5f9;
+  --bg-elevated: #ffffff;
   --bg-soft: #f1f5f9;
 
+  /* ── Border ── */
   --border-subtle: #e5e7eb;
   --border-strong: #d1d5db;
   --border-default: #e5e7eb;
+  --border: var(--border-default);
 
+  /* ── Text ── */
   --text-primary: #111827;
+  --text-main: #111827;
+  --text-default: #111827;
   --text-secondary: #6b7280;
+  --text-sub: #6b7280;
   --text-muted: #9ca3af;
   --text-disabled: #9ca3af;
 
+  /* ── Brand / primary ── */
   --primary: #16a34a;
   --primary-hover: #15803d;
   --primary-active: #166534;
@@ -28,15 +36,56 @@
   --primary-border: #bbf7d0;
   --text-on-primary: #ffffff;
 
+  --brand: var(--primary);
+  --brand-primary: var(--primary);
+  --brand-secondary: var(--primary-hover);
+  --brand-soft: var(--primary-soft);
+
+  /* ── Accent / status ── */
   --accent: #ffbb00;
   --accent-hover: #e6a800;
   --accent-soft: #fff7d6;
-  --warning-text: #92400e;
+  --accent-text: #92400e;
+  --warning-text: var(--accent-text);
 
   --danger: #dc2626;
   --success: #16a34a;
   --info: #2563eb;
 
+  /* ── Form ── */
+  --input-bg: #ffffff;
+  --bg-input: var(--input-bg);
+  --input-border: #e5e7eb;
+  --input-hover-border: #d1d5db;
+  --input-focus-border: #16a34a;
+  --input-focus-ring: color-mix(in srgb, #16a34a 24%, transparent);
+  --placeholder: #9ca3af;
+  --disabled-bg: #f3f4f6;
+  --disabled-text: #9ca3af;
+
+  /* ── Button ── */
+  --btn-primary-bg: var(--brand-primary);
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover-bg: var(--primary-hover);
+  --btn-primary-active-bg: var(--primary-active);
+
+  --btn-secondary-surface: #ffffff;
+  --btn-secondary-text: #111827;
+  --btn-secondary-border: #e5e7eb;
+  --btn-secondary-hover-bg: #f1f5f9;
+  --btn-secondary-hover-border: #d1d5db;
+
+  --btn-surface: var(--btn-secondary-surface);
+  --btn-border: var(--btn-secondary-border);
+  --btn-text: var(--btn-secondary-text);
+  --btn-hover-bg: var(--btn-secondary-hover-bg);
+  --btn-hover-border: var(--btn-secondary-hover-border);
+
+  --btn-disabled-bg: #f3f4f6;
+  --btn-disabled-text: #9ca3af;
+  --btn-disabled-border: #e5e7eb;
+
+  /* ── Layout tokens ── */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
@@ -47,20 +96,11 @@
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
-
-  /* legacy alias */
-  --bg-main: var(--bg-base);
-  --brand-primary: var(--primary);
-  --brand-secondary: var(--primary-hover);
-  --brand-soft: var(--primary-soft);
-  --brand: var(--primary);
-  --text-main: var(--text-primary);
-  --text-sub: var(--text-secondary);
-  --border: var(--border-default);
 }
 
 :root[data-theme='dark'] {
   --bg-base: #0f141b;
+  --bg-main: #0f141b;
   --bg-surface: #161d27;
   --bg-card: #1e2633;
   --bg-elevated: #232d3a;
@@ -69,9 +109,13 @@
   --border-subtle: #2b3544;
   --border-strong: #3a4658;
   --border-default: #2b3544;
+  --border: var(--border-default);
 
   --text-primary: #e6ecf2;
+  --text-main: #e6ecf2;
+  --text-default: #e6ecf2;
   --text-secondary: #9aa5b1;
+  --text-sub: #9aa5b1;
   --text-muted: #6b7785;
   --text-disabled: #6b7785;
 
@@ -82,22 +126,49 @@
   --primary-border: rgb(34 197 94 / 0.35);
   --text-on-primary: #0f141b;
 
+  --brand: var(--primary);
+  --brand-primary: var(--primary);
+  --brand-secondary: var(--primary-hover);
+  --brand-soft: var(--primary-soft);
+
   --accent: #ffbb00;
   --accent-hover: #e6a800;
   --accent-soft: rgb(255 187 0 / 0.14);
-  --warning-text: #fde68a;
+  --accent-text: #fde68a;
+  --warning-text: var(--accent-text);
 
   --danger: #ef4444;
   --success: #22c55e;
   --info: #3b82f6;
 
-  /* legacy alias */
-  --bg-main: var(--bg-base);
-  --brand-primary: var(--primary);
-  --brand-secondary: var(--primary-hover);
-  --brand-soft: var(--primary-soft);
-  --brand: var(--primary);
-  --text-main: var(--text-primary);
-  --text-sub: var(--text-secondary);
-  --border: var(--border-default);
+  --input-bg: var(--bg-card);
+  --bg-input: var(--input-bg);
+  --input-border: var(--border-default);
+  --input-hover-border: var(--border-strong);
+  --input-focus-border: var(--primary);
+  --input-focus-ring: color-mix(in srgb, var(--primary) 28%, transparent);
+  --placeholder: var(--text-sub);
+  --disabled-bg: var(--bg-soft);
+  --disabled-text: var(--text-sub);
+
+  --btn-primary-bg: var(--brand-primary);
+  --btn-primary-text: var(--text-on-primary);
+  --btn-primary-hover-bg: var(--primary-hover);
+  --btn-primary-active-bg: var(--primary-active);
+
+  --btn-secondary-surface: var(--bg-soft);
+  --btn-secondary-text: var(--text-main);
+  --btn-secondary-border: var(--border-default);
+  --btn-secondary-hover-bg: rgb(51 65 85 / 0.85);
+  --btn-secondary-hover-border: var(--text-sub);
+
+  --btn-surface: var(--btn-secondary-surface);
+  --btn-border: var(--btn-secondary-border);
+  --btn-text: var(--btn-secondary-text);
+  --btn-hover-bg: var(--btn-secondary-hover-bg);
+  --btn-hover-border: var(--btn-secondary-hover-border);
+
+  --btn-disabled-bg: var(--bg-soft);
+  --btn-disabled-text: var(--text-sub);
+  --btn-disabled-border: var(--border-default);
 }

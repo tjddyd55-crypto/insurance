@@ -4,23 +4,8 @@
  */
 
 :root {
-  --bg-main: #f8fafc;
-  --bg-card: #ffffff;
-  --bg-soft: #f1f5f9;
-
-  --text-main: #111827;
-  --text-sub: #6b7280;
-  --text-secondary: var(--text-sub);
-
-  --primary: #16a34a;
-  --primary-hover: #15803d;
-  --primary-active: #166534;
-  --brand: var(--primary);
-  --success: #16a34a;
-  --danger: #dc2626;
-
-  --border: #e5e7eb;
-  --border-default: var(--border);
+  /* semantic color·form·button SSOT: src/styles/tokens.css (import 직후 덮어씀) */
+  /* 아래는 shadow·hint·dashboard·print 등 확장 토큰 + 호환 alias */
 
   --shadow: 0 2px 8px rgb(0 0 0 / 0.08);
   --shadow-dark: 0 2px 8px rgb(0 0 0 / 0.4);
@@ -33,27 +18,15 @@
 
   --overlay-backdrop: rgb(15 23 42 / 0.55);
 
-  /* 하위호환 별칭 */
+  /* 하위호환 별칭 (semantic 값은 tokens.css) */
   --bg: var(--bg-main);
   --card: var(--bg-card);
   --text: var(--text-main);
   --subtext: var(--text-sub);
   --text-primary: var(--text-main);
-  --bg-elevated: var(--bg-soft);
-  --input-bg: #ffffff;
-  --placeholder: #9ca3af;
 
   --tab-inactive-bg: var(--bg-soft);
   --tab-inactive-text: var(--text-sub);
-
-  --btn-surface: #ffffff;
-  --btn-border: #e5e7eb;
-  --btn-text: var(--text-main);
-  --btn-hover-bg: var(--bg-soft);
-  --btn-hover-border: #d1d5db;
-
-  --btn-secondary-surface: #ffffff;
-  --btn-secondary-text: var(--text-main);
 
   --hint-bg: #dcfce7;
   --hint-border: #bbf7d0;
@@ -123,13 +96,13 @@
 
   /* 폼·관리 화면 공통 의미 토큰 (별칭) */
   --bg-input: var(--input-bg);
-  --brand-primary: var(--primary);
-  --brand-soft: #dcfce7;
-  --text-default: var(--text-main);
-  --accent: #ffbb00;
-  --accent-hover: #e6a800;
-  --accent-soft: #fff7d6;
-  --warning-text: #92400e;
+  --brand-primary: var(--brand-primary);
+  --brand-soft: var(--brand-soft);
+  --text-default: var(--text-default);
+  --accent: var(--accent);
+  --accent-hover: var(--accent-hover);
+  --accent-soft: var(--accent-soft);
+  --warning-text: var(--warning-text);
 
   /* 인쇄·결과 양식(종이 느낌 유지 — 변수로만 참조) */
   --result-paper-bg: #ffffff;
