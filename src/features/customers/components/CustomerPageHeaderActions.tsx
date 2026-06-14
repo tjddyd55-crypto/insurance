@@ -32,8 +32,8 @@ function CustomerPageHeaderActions({
     <div className="customers-page__action-row">
       <FormButton
         htmlType="button"
-        variant="action"
-        className="cta-button customers-page__action-btn"
+        variant="primary"
+        className="customers-page__action-btn customers-page__action-btn--primary"
         onClick={onCreateCustomer}
       >
         고객 등록
@@ -41,7 +41,7 @@ function CustomerPageHeaderActions({
       <div
         role="button"
         tabIndex={0}
-        className="cta-button customers-page__action-btn customers-page__invite-copy-btn"
+        className="customers-page__action-btn customers-page__action-btn--outline customers-page__invite-copy-btn"
         style={{ touchAction: 'manipulation' }}
         aria-label="고객 등록 링크 복사"
         onTouchStart={onCustomerRegisterInviteCopyTouchStart}
@@ -53,8 +53,8 @@ function CustomerPageHeaderActions({
       </div>
       <FormButton
         htmlType="button"
-        variant="action"
-        className="cta-button customers-page__action-btn"
+        variant="secondary"
+        className="customers-page__action-btn customers-page__action-btn--secondary"
         onClick={() => {
           if (isMobile) {
             const msg = 'PC 버전에서 가능합니다.'

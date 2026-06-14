@@ -77,8 +77,8 @@
 }
 
 /*
- * 우측 헤더 액션 탭(filter-button) — 모바일 지도 카드「상세 이동」(.button.button--primary)과
- * 동일 filled primary skeleton. 활성만 초록 primary, 비활성은 secondary 유지.
+ * 우측 헤더 액션 탭(filter-button) — SSOT 4.3: 활성 탭은 soft green(selected),
+ * primary solid는 목록 상단 CTA(고객 등록) 전용. 비활성은 secondary white.
  */
 .customer-workspace-layout__actions .filter-button.button {
   box-sizing: border-box;
@@ -118,23 +118,24 @@
 }
 
 .customer-workspace-layout__actions .filter-button.filter-button--workspace-active {
-  border-color: var(--btn-primary-bg);
-  background-color: var(--btn-primary-bg);
-  color: var(--btn-primary-text);
+  border-color: var(--primary-border);
+  background-color: var(--primary-soft);
+  color: var(--primary-active);
   box-shadow: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .customer-workspace-layout__actions .filter-button.filter-button--workspace-active:hover:not(:disabled):not(:active) {
-    background-color: var(--btn-primary-hover-bg);
-    border-color: var(--btn-primary-hover-bg);
-    color: var(--btn-primary-text);
+    background-color: var(--primary-soft);
+    border-color: var(--primary-border);
+    color: var(--primary-active);
   }
 }
 
 .customer-workspace-layout__actions .filter-button.filter-button--workspace-active:active:not(:disabled) {
-  background-color: var(--btn-primary-active-bg);
-  border-color: var(--btn-primary-active-bg);
+  background-color: var(--primary-soft);
+  border-color: var(--primary-border);
+  color: var(--primary-active);
   transform: scale(0.96);
   opacity: 0.88;
 }
