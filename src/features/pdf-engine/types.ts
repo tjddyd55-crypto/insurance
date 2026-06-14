@@ -84,6 +84,12 @@ export interface PdfFieldSpec {
   /** 좌표 필드 ↔ 고객 데이터 매핑 (템플릿 저장용) */
   dataMapping: PdfFieldDataMapping
   /**
+   * PUT /admin/pdf-templates/:id/fields 저장 시에만 전송.
+   * true 이면 사용자가 입력 방식을 "직접 입력"으로 명시 해제한 것이다.
+   * DB에는 저장되지 않는다.
+   */
+  dataMappingClearIntent?: boolean
+  /**
    * checkbox/radio 타입의 선택지(사용자에게 보이는 세부 라벨).
    * 다른 타입은 null.
    * UI 에서 옵션을 추가/삭제/재정렬할 수 있다.

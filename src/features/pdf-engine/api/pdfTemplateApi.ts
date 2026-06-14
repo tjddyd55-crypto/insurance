@@ -8,6 +8,7 @@
 import { ApiError, apiRequest, resolveApiUrl } from '../../../lib/apiClient'
 import { logger } from '../../../lib/logger'
 import type {
+  PdfFieldSavePayload,
   PdfFieldSpec,
   PdfTemplateDetail,
   PdfTemplateSummary,
@@ -202,7 +203,7 @@ export function patchAdminPdfTemplate(
 export function saveAdminPdfTemplateFields(
   token: string,
   id: number,
-  fields: PdfFieldSpec[],
+  fields: PdfFieldSavePayload[],
 ): Promise<{ fields: (PdfFieldSpec & { id: number })[] }> {
   return apiRequest(`/api/admin/pdf-templates/${id}/fields`, {
     method: 'PUT',

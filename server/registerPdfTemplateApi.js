@@ -36,10 +36,12 @@ import {
 } from './pdf-engine/schema/fieldSpec.js'
 import { inputRoleFromPdfFieldRow } from './pdf-engine/schema/inputRole.js'
 import { createTemplateWithAutoCode } from './pdf-engine/code/templateCode.js'
+import { mergePdfFieldCustomerMappings } from './pdf-engine/schema/fieldDataMapping.js'
 import {
   createTemplate,
   deleteTemplate,
   getTemplateById,
+  listFieldCustomerMappings,
   listFields,
   listTemplates,
   replaceTemplateFields,
@@ -435,7 +437,8 @@ export function registerPdfTemplateApi(apiRouter, deps) {
       return
     }
     try {
-      const fields = normalizeFieldSpecList(req.body?.fields)
+      const rawFields = req.body?.fields
+      const fields = normalizeFieldSpecList(rawFields)
       for (const f of fields) {
         if (f.fieldType !== 'signature') {
           f.inputRole = 'customer'
@@ -457,7 +460,13 @@ export function registerPdfTemplateApi(apiRouter, deps) {
           }
         }
       }
-      await replaceTemplateFields(pool, id, fields)
+      const existingRows = await listFieldCustomerMappings(pool, id)
+      const { mergedFields } = mergePdfFieldCustomerMappings({
+        existingRows,
+        rawFields,
+        normalizedFields: fields,
+      })
+      await replaceTemplateFields(pool, id, mergedFields)
       await reconcileContractFieldSettingsAfterPdfSave(pool, id)
       const rows = await listFields(pool, id)
       res.json({ fields: rows.map(fieldRowToDto) })

@@ -5,7 +5,7 @@ import type { PdfFieldDataMapping, PdfFieldDataSourceType } from '../types'
 type Props = {
   mapping: PdfFieldDataMapping
   compact?: boolean
-  onChange: (next: PdfFieldDataMapping) => void
+  onChange: (next: PdfFieldDataMapping, options?: { clearIntent?: boolean }) => void
 }
 
 export function formatPdfFieldMappingSummary(mapping: PdfFieldDataMapping): string {
@@ -25,32 +25,40 @@ export function PdfFieldDataMappingControls({ mapping, compact = false, onChange
 
   const setSource = (dataSourceType: PdfFieldDataSourceType) => {
     if (dataSourceType === 'manual') {
-      onChange({
-        ...m,
-        dataSourceType: 'manual',
-        customerFieldKey: null,
-        customerFieldLabel: null,
-      })
+      onChange(
+        {
+          ...m,
+          dataSourceType: 'manual',
+          customerFieldKey: null,
+          customerFieldLabel: null,
+        },
+        { clearIntent: true },
+      )
       return
     }
     const first = CUSTOMER_PDF_FIELD_OPTIONS[0]
-    onChange({
-      ...m,
-      dataSourceType: 'customer',
-      customerFieldKey: m.customerFieldKey ?? first?.key ?? null,
-      customerFieldLabel:
-        m.customerFieldLabel ?? (first ? first.label : null),
-    })
+    onChange(
+      {
+        ...m,
+        dataSourceType: 'customer',
+        customerFieldKey: m.customerFieldKey ?? first?.key ?? null,
+        customerFieldLabel: m.customerFieldLabel ?? (first ? first.label : null),
+      },
+      { clearIntent: false },
+    )
   }
 
   const setCustomerKey = (customerFieldKey: string) => {
     const opt = CUSTOMER_PDF_FIELD_OPTIONS.find((o) => o.key === customerFieldKey)
-    onChange({
-      ...m,
-      dataSourceType: 'customer',
-      customerFieldKey: opt?.key ?? null,
-      customerFieldLabel: opt?.label ?? null,
-    })
+    onChange(
+      {
+        ...m,
+        dataSourceType: 'customer',
+        customerFieldKey: opt?.key ?? null,
+        customerFieldLabel: opt?.label ?? null,
+      },
+      { clearIntent: false },
+    )
   }
 
   return (

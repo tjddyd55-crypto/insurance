@@ -165,6 +165,22 @@ export async function listFields(pool, templateId) {
 }
 
 /**
+ * 필드 replace 저장 전 customer_mapping 보존 병합용 — field_key 와 mapping 만 조회한다.
+ *
+ * @param {import('pg').Pool} pool
+ * @param {number} templateId
+ */
+export async function listFieldCustomerMappings(pool, templateId) {
+  const { rows } = await pool.query(
+    `SELECT field_key, customer_mapping
+       FROM pdf_template_fields
+       WHERE template_id = $1`,
+    [templateId],
+  )
+  return rows
+}
+
+/**
  * 필드 전체를 교체(replace-all). 기존 필드 삭제 → 새 필드 삽입을 한 트랜잭션으로.
  *
  * @param {import('pg').Pool} pool

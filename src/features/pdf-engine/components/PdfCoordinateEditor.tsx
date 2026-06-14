@@ -785,8 +785,11 @@ export function PdfCoordinateEditor({
                   </h4>
                   <PdfFieldDataMappingControls
                     mapping={selectedField.dataMapping}
-                    onChange={(dataMapping) =>
-                      handlePatchField(selectedField.fieldKey, { dataMapping })
+                    onChange={(dataMapping, options) =>
+                      handlePatchField(selectedField.fieldKey, {
+                        dataMapping,
+                        dataMappingClearIntent: options?.clearIntent === true,
+                      })
                     }
                   />
                   <label className="pdf-engine-editor__label" style={{ marginTop: 8 }}>

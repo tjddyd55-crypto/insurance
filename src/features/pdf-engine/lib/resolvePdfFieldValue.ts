@@ -58,12 +58,23 @@ export function readPdfFieldDataMappingFromField(
   return fromDataMapping
 }
 
+/** PUT 저장 payload — dataMappingClearIntent 는 DB에 저장되지 않는다. */
+export type PdfFieldSavePayload = PdfFieldSpec & {
+  dataMappingClearIntent?: boolean
+}
+
 /** PUT 저장 직전 — 모든 필드에 명시적 dataMapping 을 보장한다. */
-export function pdfFieldSpecsForSavePayload(fields: PdfFieldSpec[]): PdfFieldSpec[] {
-  return fields.map((field) => ({
-    ...field,
-    dataMapping: readPdfFieldDataMappingFromField(field),
-  }))
+export function pdfFieldSpecsForSavePayload(fields: PdfFieldSpec[]): PdfFieldSavePayload[] {
+  return fields.map((field) => {
+    const payload: PdfFieldSavePayload = {
+      ...field,
+      dataMapping: readPdfFieldDataMappingFromField(field),
+    }
+    if (field.dataMappingClearIntent !== true) {
+      delete payload.dataMappingClearIntent
+    }
+    return payload
+  })
 }
 
 export function normalizePdfFieldDataMapping(
