@@ -7284,12 +7284,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .mobile-root .insurance-contacts-view .company-card .info-row .label {
   width: auto;
-  max-width: 88px;
   color: var(--text-sub, #6b7280);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  word-break: normal;
 }
 
 .mobile-root .insurance-contacts-view .company-card .info-row .value {
@@ -7397,7 +7392,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .pc-root .insurance-contacts-view .company-card .info-row {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) 60px;
+  grid-template-columns: 80px minmax(0, 1fr) 60px;
   align-items: center;
   gap: 8px;
   padding: 6px 0;
@@ -7413,10 +7408,6 @@ div.cta-button.customers-page__action-btn[role='button'] {
   width: 96px;
   flex-shrink: 0;
   color: var(--text-sub, #6b7280);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  word-break: normal;
 }
 
 .pc-root .insurance-contacts-view .company-card .info-row .value {
@@ -7436,7 +7427,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .pc-root .insurance-contacts-view .company-card .contact-row {
   display: grid;
-  grid-template-columns: 104px minmax(84px, 1fr) minmax(100px, 1fr) 60px;
+  grid-template-columns: 80px minmax(0, 1fr) minmax(108px, 1fr) 60px;
   align-items: center;
   gap: 8px;
   padding: 6px 0;
