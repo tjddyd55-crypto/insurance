@@ -65,13 +65,13 @@
 
   .pc-top-navigation__group:hover,
   .pc-top-navigation__group--open {
-    background: color-mix(in srgb, var(--brand-primary, #60a5fa) 14%, transparent);
-    color: var(--text-primary, #fff);
+    background: var(--bg-soft, #f1f5f9);
+    color: var(--text-primary, #111827);
   }
 
   .pc-top-navigation__group--active {
-    background: color-mix(in srgb, var(--brand-primary, #60a5fa) 20%, transparent);
-    color: var(--text-primary, #fff);
+    background: var(--primary-soft, #dcfce7);
+    color: var(--primary-active, #166534);
   }
 
   .pc-top-navigation__group:focus-visible {
@@ -147,8 +147,9 @@
 
   .pc-top-navigation__item[aria-current='page'],
   .pc-top-navigation__item--active {
-    background: color-mix(in srgb, var(--brand-primary, #60a5fa) 24%, transparent);
-    color: var(--text-primary, #fff);
+    border-color: var(--primary-border, #bbf7d0);
+    background: var(--primary-soft, #dcfce7);
+    color: var(--primary-active, #166534);
   }
 
   .pc-top-navigation__item:disabled {

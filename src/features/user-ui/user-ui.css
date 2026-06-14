@@ -349,18 +349,18 @@
 
 .user-app-shell .customer-workspace-layout__tab-row .filter-button.filter-button--workspace-active,
 .user-app-shell .customer-workspace-layout__tab-row .filter-button.button--action.filter-button--workspace-active {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--text-on-primary);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 34%, transparent);
+  border-color: var(--primary-border);
+  background: var(--primary-soft);
+  color: var(--primary-active);
+  box-shadow: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .user-app-shell .customer-workspace-layout__tab-row .filter-button.filter-button--workspace-active:hover:not(:disabled),
   .user-app-shell .customer-workspace-layout__tab-row .filter-button.button--action.filter-button--workspace-active:hover:not(:disabled) {
-    border-color: var(--primary-hover);
-    background: var(--primary-hover);
-    color: var(--text-on-primary);
+    border-color: var(--primary-border);
+    background: var(--primary-soft);
+    color: var(--primary-active);
   }
 }
 
@@ -478,4 +478,24 @@
   outline: none;
   border-color: var(--input-focus-border);
   box-shadow: none;
+}
+
+/* SSOT 4.3 — 햄버거/메뉴 토글은 secondary neutral (active nav·CTA와 구분) */
+.user-app-shell .menu-btn.button.button--secondary,
+.user-app-shell .mobile-workspace-header__menu-btn.button.button--secondary,
+.user-app-shell .mobile-topbar .menu-btn.button.button--secondary,
+.user-app-shell .app-workspace-chrome-header__menu-btn.button.button--secondary {
+  border-color: var(--btn-secondary-border);
+  background: var(--btn-secondary-surface);
+  color: var(--btn-secondary-text);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .user-app-shell .menu-btn.button.button--secondary:hover:not(:disabled),
+  .user-app-shell .mobile-workspace-header__menu-btn.button.button--secondary:hover:not(:disabled),
+  .user-app-shell .mobile-topbar .menu-btn.button.button--secondary:hover:not(:disabled),
+  .user-app-shell .app-workspace-chrome-header__menu-btn.button.button--secondary:hover:not(:disabled) {
+    background: var(--btn-secondary-hover-bg);
+    border-color: var(--btn-secondary-hover-border);
+  }
 }

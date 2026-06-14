@@ -96,8 +96,8 @@
   }
 
   /* 목록 상단 CTA·검색행 보조 */
-  .customers-page--mobile button.cta-button.customers-page__action-btn,
-  .customers-page--mobile div.cta-button.customers-page__action-btn[role='button'] {
+  .customers-page--mobile button.customers-page__action-btn,
+  .customers-page--mobile div.customers-page__action-btn[role='button'] {
     font-size: var(--customer-mobile-font-button);
     line-height: var(--customer-mobile-line-button);
     letter-spacing: var(--customer-mobile-letter-button);
