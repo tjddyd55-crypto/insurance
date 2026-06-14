@@ -95,6 +95,20 @@
     letter-spacing: var(--customer-mobile-letter-readable);
   }
 
+  .customers-page--mobile .customer-card-expanded-header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .customers-page--mobile .customer-card-expanded-header__name {
+    flex: 1 1 100%;
+  }
+
+  .customers-page--mobile .customer-card-expanded-header .customer-detail-action-bar {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
   /* 목록 상단 CTA·검색행 보조 */
   .customers-page--mobile button.customers-page__action-btn,
   .customers-page--mobile div.customers-page__action-btn[role='button'] {

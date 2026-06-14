@@ -3848,8 +3848,10 @@ div.cta-button.customers-page__action-btn[role='button'] {
   box-sizing: border-box;
 }
 
-/* SSOT 4.3 — 고객 목록 상단 액션 계층 (primary / outline / secondary) */
-.customers-page .customers-page__action-row .customers-page__action-btn {
+/* 고객 목록 상단 액션 — neutral secondary (기본 CTA 색상 계층 제거) */
+.customers-page .customers-page__action-row .customers-page__action-btn,
+.customers-page .customers-page__action-row .customers-page__action-btn--neutral[role='button'],
+.customers-page .customers-page__action-row button.customers-page__action-btn--neutral {
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -3865,29 +3867,28 @@ div.cta-button.customers-page__action-btn[role='button'] {
   border-radius: 8px;
   font-family: inherit;
   cursor: pointer;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
     color 0.2s ease;
 }
 
-.customers-page .customers-page__action-row .customers-page__action-btn--outline[role='button'] {
-  border: 1px solid var(--primary-border);
-  background: var(--bg-surface, #ffffff);
-  color: var(--primary-active);
-}
-
 @media (hover: hover) and (pointer: fine) {
-  .customers-page .customers-page__action-row .customers-page__action-btn--outline[role='button']:hover {
-    background: #f0fdf4;
-    border-color: var(--primary-border);
-    color: var(--primary-active);
+  .customers-page .customers-page__action-row .customers-page__action-btn--neutral:hover:not(:disabled),
+  .customers-page .customers-page__action-row .customers-page__action-btn--neutral[role='button']:hover {
+    background: #f8fafc;
+    border-color: #e5e7eb;
+    color: #111827;
   }
 }
 
-.customers-page .customers-page__action-row .customers-page__action-btn--outline[role='button']:focus-visible {
+.customers-page .customers-page__action-row .customers-page__action-btn--neutral:focus-visible,
+.customers-page .customers-page__action-row .customers-page__action-btn--neutral[role='button']:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--primary-soft);
+  box-shadow: 0 0 0 2px #e5e7eb;
 }
 
 /* 고객 초대 링크 복사 버튼 — 탭/선택 동작만 억제 (<a>로 감싸지 않을 것) */
@@ -8206,10 +8207,10 @@ a.contacts-public-auth__link {
 
 .customer-workspace-layout__right-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 12px 14px 0;
   border-bottom: 1px solid var(--border-default);
   background: var(--bg-main);
 }
@@ -8251,6 +8252,10 @@ a.contacts-public-auth__link {
   overflow: auto;
   padding: 12px;
   position: relative;
+}
+
+.customer-workspace-layout__body > .customer-workspace-layout__main > .customer-workspace-layout__right-body {
+  padding: 0;
 }
 
 .customer-workspace-layout__embedded-car {
@@ -11307,12 +11312,13 @@ textarea.memo-sticky-note__textarea::placeholder {
 
 /* Workspace panel */
 .customer-workspace-layout__right-header {
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3);
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
   background: var(--bg-main);
   border-bottom: 1px solid rgba(148, 163, 184, 0.22);
-  padding: 14px 16px;
+  padding: 14px 16px 0;
 }
 
 .customer-workspace-layout__actions {
