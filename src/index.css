@@ -8938,6 +8938,14 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   min-height: 0;
 }
 
+.memo-route-page .workspace-memo-routed-body .memo-sticky-note__root {
+  left: 20px !important;
+  top: 20px !important;
+  width: min(680px, calc(100% - 40px)) !important;
+  height: min(360px, calc(100% - 40px)) !important;
+  z-index: 2 !important;
+}
+
 .memo-list-item--active {
   background: var(--primary-soft);
   border-left: 3px solid var(--primary);
@@ -9798,6 +9806,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   font-size: 13px;
   cursor: pointer;
   border-bottom: 1px solid var(--border-default);
+  background: var(--bg-card);
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;

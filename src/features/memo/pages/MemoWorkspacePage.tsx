@@ -34,6 +34,7 @@ export default function MemoWorkspacePage() {
     confirmDelete,
     hiddenNotes,
     minimizeNote,
+    routedPage,
   } = useMemoWorkspace()
 
   if (!token?.trim()) {
@@ -45,7 +46,17 @@ export default function MemoWorkspacePage() {
     )
   }
 
-  const visibleNotes = notes.filter((n) => !hiddenNotes[n.id])
+  const visibleNotes = routedPage
+    ? (() => {
+        const selected =
+          activeNoteId && notes.some((n) => n.id === activeNoteId)
+            ? notes.find((n) => n.id === activeNoteId)
+            : [...notes].sort(
+                (a, b) => (Number(b.zIndex) || 0) - (Number(a.zIndex) || 0),
+              )[0]
+        return selected ? [selected] : []
+      })()
+    : notes.filter((n) => !hiddenNotes[n.id])
 
   return (
     <>
