@@ -85,6 +85,7 @@ main.contract-signature-console .contract-signature-console__table--striped tbod
 /* 라디오 선택 행 — 줄무늬(zebra) 미사용 테이블 전용, 선택·호버만 강조 */
 main.contract-signature-console .contract-signature-console__pick-table tbody tr.contract-pick-row td {
   background: var(--bg-card);
+  border-color: var(--border, #e5e7eb);
 }
 
 main.contract-signature-console
@@ -92,8 +93,17 @@ main.contract-signature-console
   tbody
   tr.contract-pick-row--selected
   td {
-  background: color-mix(in srgb, rgba(59, 130, 246, 0.16) 50%, var(--bg-card));
-  box-shadow: inset 0 0 0 2px rgba(96, 165, 250, 0.65);
+  background: #f0fdf4;
+  box-shadow: none;
+  border-color: var(--border, #e5e7eb);
+}
+
+main.contract-signature-console
+  .contract-signature-console__pick-table
+  tbody
+  tr.contract-pick-row--selected
+  td:first-child {
+  box-shadow: inset 3px 0 0 #16a34a;
 }
 
 @media (hover: hover) {
@@ -821,9 +831,9 @@ main.contract-signature-console .contract-signature-console__pdf-pick-card {
 }
 
 main.contract-signature-console .contract-signature-console__pdf-pick-card--selected {
-  border-color: rgba(96, 165, 250, 0.75);
-  background: color-mix(in srgb, rgba(59, 130, 246, 0.12) 40%, var(--bg-card));
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  box-shadow: inset 3px 0 0 #16a34a;
 }
 
 main.contract-signature-console .contract-signature-console__pdf-pick-card-head {

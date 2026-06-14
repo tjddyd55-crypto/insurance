@@ -253,8 +253,8 @@ export default function UserManagementPage() {
             </FormButton>
             <FormButton
               htmlType="button"
-              variant="secondary"
-              className="button button--secondary"
+              variant="danger"
+              className="button button--danger"
               onClick={() => void confirmDeleteUser(r)}
               disabled={isLoading}
             >
@@ -306,7 +306,7 @@ export default function UserManagementPage() {
           <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => openEdit(r)} disabled={isLoading}>
             수정
           </FormButton>
-          <FormButton htmlType="button" variant="secondary" className="button button--secondary" onClick={() => void confirmDeleteUser(r)} disabled={isLoading}>
+          <FormButton htmlType="button" variant="danger" className="button button--danger" onClick={() => void confirmDeleteUser(r)} disabled={isLoading}>
             삭제
           </FormButton>
         </div>
