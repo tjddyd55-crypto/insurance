@@ -605,8 +605,14 @@
 .customer-map-unmapped-list__item {
   padding: 12px;
   border-radius: 10px;
-  border: 1px solid var(--border-default);
-  background: #1f2937;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #111827;
+  box-shadow: none;
+}
+
+.customer-map-unmapped-list__item:hover {
+  background: #f8fafc;
 }
 
 .customer-map-unmapped-list__head {
@@ -620,19 +626,27 @@
 .customer-map-unmapped-list__name {
   margin: 0;
   font-size: 0.9375rem;
-  color: var(--text-primary);
+  font-weight: 600;
+  color: #111827;
 }
 
 .customer-map-unmapped-list__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
   font-size: 0.75rem;
-  color: #fbbf24;
+  font-weight: 500;
+  line-height: 1.4;
+  background: #fff7d6;
+  color: #92400e;
 }
 
 .customer-map-unmapped-list__meta,
 .customer-map-unmapped-list__address {
   margin: 6px 0 0;
   font-size: 0.8125rem;
-  color: var(--text-secondary);
+  color: #6b7280;
   line-height: 1.45;
   word-break: break-word;
 }
