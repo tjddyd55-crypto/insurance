@@ -83,7 +83,7 @@ export const BASE_GA_MENU: GaTenantMenuItem[] = []
  *
  * ## 구조 — 카테고리 섹션 (USER/GA_ADMIN 공통)
  *
- *   1. 할일 및 알림 · 할일 · 알림
+ *   1. 할일 및 알림 · 할일 · 알림 · 메모
  *   2. 고객관리 · 고객리스트 · 고객소식지 · 청구관리
  *   3. 소식지 · 원수사소식지 · 손해사정사 소식지 · 세무사 소식지(개발중 플레이스홀더, 요구 목록에 없어서도 기존 연결 유지)
  *   4. 신청서 · 신청서 작성 · 신청서 작성내역 · 렌트(사고대차)(개발중)
@@ -155,6 +155,7 @@ export function buildGaTenantDashboardMenu(
     { type: 'section', label: '할일 및 알림' },
     { type: 'link', label: '할일', path: '/todos' },
     { type: 'link', label: '알림', path: '/notifications' },
+    { type: 'link', label: MEMO_MENU_ITEM.label, path: MEMO_MENU_ITEM.path },
 
     { type: 'section', label: '고객관리' },
     { type: 'link', label: '고객리스트', path: '/customers' },
@@ -184,9 +185,6 @@ export function buildGaTenantDashboardMenu(
     { type: 'section', label: '업무편의' },
     { type: 'link', label: '원수사 연락처', path: '/insurance/contacts' },
     { type: 'link', label: '설계사이트', path: '/insurance/insurer-sites' },
-
-    { type: 'section', label: MEMO_MENU_ITEM.label },
-    { type: 'link', label: MEMO_MENU_ITEM.label, path: MEMO_MENU_ITEM.path },
 
     { type: 'section', label: '내정보' },
     { type: 'link', label: '내 저장공간', path: '/storage' },

@@ -207,7 +207,7 @@ export default function StickyNote({
   }
 
   const rootClass =
-    `memo-sticky-note__root bg-yellow-100 flex flex-col overflow-hidden ${isActive ? 'memo-sticky-note__root--active' : ''}` +
+    `memo-sticky-note__root flex flex-col overflow-hidden ${isActive ? 'memo-sticky-note__root--active' : ''}` +
     (isDragging ? ' opacity-95' : '')
 
   return (
@@ -229,11 +229,11 @@ export default function StickyNote({
         touchAction: 'manipulation',
       }}
     >
-      <div className="memo-sticky-note__header shrink-0 flex flex-nowrap items-center justify-between gap-1 overflow-x-auto bg-yellow-200/90 border-b border-amber-300/80">
+      <div className="memo-sticky-note__header shrink-0 flex flex-nowrap items-center justify-between gap-1 overflow-x-auto">
         <FormButton
           htmlType="button"
           variant="action"
-          className="memo-sticky-note__drag flex min-w-0 flex-1 items-center gap-1 rounded px-1 text-left text-amber-900/80 cursor-grab select-none active:cursor-grabbing touch-manipulation"
+          className="memo-sticky-note__drag flex min-w-0 flex-1 items-center gap-1 rounded px-1 text-left cursor-grab select-none active:cursor-grabbing touch-manipulation"
           aria-label="메모 위치 이동"
           onClick={(e) => e.stopPropagation()}
           onMouseDown={handleDragHandleMouseDown}
@@ -247,7 +247,7 @@ export default function StickyNote({
             <FormButton
               htmlType="button"
               variant="action"
-              className="memo-sticky-note__minimize-btn inline-flex min-w-[28px] items-center justify-center rounded border border-amber-400/80 bg-yellow-50/90 font-semibold text-amber-900 touch-manipulation"
+              className="memo-sticky-note__header-button memo-sticky-note__minimize-btn inline-flex min-w-[28px] items-center justify-center rounded font-semibold touch-manipulation"
               aria-label="메모 숨기기"
               onTouchStart={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
@@ -262,7 +262,7 @@ export default function StickyNote({
           <FormButton
             htmlType="button"
             variant="action"
-            className="memo-sticky-note__font-btn inline-flex min-w-[28px] items-center justify-center rounded border border-amber-400/80 bg-yellow-50/90 font-semibold text-amber-900 touch-manipulation"
+            className="memo-sticky-note__header-button memo-sticky-note__font-btn inline-flex min-w-[28px] items-center justify-center rounded font-semibold touch-manipulation"
             aria-label="글자 크기 줄이기"
             onTouchStart={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -276,7 +276,7 @@ export default function StickyNote({
           <FormButton
             htmlType="button"
             variant="action"
-            className="memo-sticky-note__font-btn inline-flex min-w-[28px] items-center justify-center rounded border border-amber-400/80 bg-yellow-50/90 font-semibold text-amber-900 touch-manipulation"
+            className="memo-sticky-note__header-button memo-sticky-note__font-btn inline-flex min-w-[28px] items-center justify-center rounded font-semibold touch-manipulation"
             aria-label="글자 크기 키우기"
             onTouchStart={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -339,7 +339,7 @@ export default function StickyNote({
         onTouchStart={(e) => e.stopPropagation()}
       >
         <span
-          className="pointer-events-none inline-block h-3 w-3 border-b-2 border-r-2 border-amber-700/70"
+          className="memo-sticky-note__resize-mark pointer-events-none inline-block h-3 w-3 border-b-2 border-r-2"
           aria-hidden
         />
       </div>
