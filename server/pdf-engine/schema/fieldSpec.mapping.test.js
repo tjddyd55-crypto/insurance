@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { normalizeFieldSpec } from './fieldSpec.js'
+import { fieldSpecWithDbMapping, normalizeFieldSpec } from './fieldSpec.js'
 import { parseFieldDataMapping, serializeFieldDataMapping } from './fieldDataMapping.js'
 
 test('normalizeFieldSpec: preserves customer dataMapping on save payload', () => {
@@ -44,4 +44,36 @@ test('serializeFieldDataMapping roundtrip keeps customer mapping', () => {
   const parsed = parseFieldDataMapping(serialized)
   assert.equal(parsed.dataSourceType, 'customer')
   assert.equal(parsed.customerFieldKey, 'carNumber')
+})
+
+test('fieldSpecWithDbMapping: restores customer mapping from DB row value', () => {
+  const base = normalizeFieldSpec(
+    {
+      fieldKey: 'employee_name',
+      label: '사원명',
+      fieldType: 'text',
+      required: false,
+      dataMapping: {
+        dataSourceType: 'manual',
+        customerFieldKey: null,
+        customerFieldLabel: null,
+        fallbackText: null,
+        transformType: null,
+      },
+      placements: [],
+    },
+    0,
+  )
+  const restored = fieldSpecWithDbMapping(
+    base,
+    JSON.stringify({
+      dataSourceType: 'customer',
+      customerFieldKey: 'job',
+      customerFieldLabel: '직업',
+      fallbackText: null,
+      transformType: null,
+    }),
+  )
+  assert.equal(restored.dataMapping.dataSourceType, 'customer')
+  assert.equal(restored.dataMapping.customerFieldKey, 'job')
 })
