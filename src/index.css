@@ -8941,12 +8941,12 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
 .memo-route-page .workspace-memo-routed-body .memo-canvas,
 .memo-route-page .workspace-memo-routed-body .memo-workspace {
   height: 100%;
-  min-height: min(680px, calc(100vh - 230px));
+  min-height: 2400px;
 }
 
 .memo-route-page .workspace-memo-routed-body .memo-workspace > div {
   position: relative;
-  min-height: min(680px, calc(100vh - 230px));
+  min-height: 2400px;
 }
 
 .memo-list-item--active {
@@ -9985,6 +9985,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   align-items: center;
   gap: 4px;
   padding: 0 6px;
+  overflow: hidden;
   box-sizing: border-box;
   background: var(--primary-soft);
   color: var(--text-primary);
@@ -9996,7 +9997,7 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   min-height: 24px;
   max-height: 24px;
   font-size: 12px;
-  padding: 0 6px;
+  padding: 0 5px;
   box-sizing: border-box;
 }
 
@@ -10005,6 +10006,20 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border-default));
   background: var(--bg-card);
   color: var(--text-primary);
+}
+
+.memo-sticky-note__drag {
+  flex: 1 1 0;
+  min-width: 36px;
+}
+
+.memo-sticky-note__actions {
+  max-width: calc(100% - 42px);
+}
+
+.memo-sticky-note__font-btn,
+.memo-sticky-note__minimize-btn {
+  min-width: 28px;
 }
 
 .memo-sticky-note__header-button:hover,
@@ -10018,6 +10033,8 @@ button.filter-button.filter-button--workspace-active:focus-visible:not(:disabled
   border: 1px solid var(--btn-danger-border, #fecaca);
   min-width: 24px;
   width: 24px;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .memo-sticky-note__delete:hover {

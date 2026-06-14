@@ -16,6 +16,8 @@ import { useAuth } from '../../auth/AuthProvider'
 import { useNotes } from '../hooks/useNotes'
 import { loadMemoUiSnapshot, patchMemoUiCanvas } from '../memoUiStorage'
 
+const ROUTED_MEMO_CANVAS_MIN_HEIGHT = 2400
+
 type MemoWorkspaceContextValue = ReturnType<typeof useNotes> & {
   token: string | undefined
   workspaceRef: React.RefObject<HTMLDivElement | null>
@@ -150,9 +152,13 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     }
     return {
       width: el.clientWidth,
-      height: Math.max(el.scrollHeight, el.clientHeight),
+      height: Math.max(
+        el.scrollHeight,
+        el.clientHeight,
+        routedPage ? ROUTED_MEMO_CANVAS_MIN_HEIGHT : 0,
+      ),
     }
-  }, [])
+  }, [routedPage])
 
   useEffect(() => {
     const el = workspaceRef.current
@@ -176,8 +182,8 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       return n.y + h
     })
     const maxY = Math.max(...bottoms)
-    return maxY + 100
-  }, [notes, hiddenNotes])
+    return Math.max(maxY + 100, routedPage ? ROUTED_MEMO_CANVAS_MIN_HEIGHT : 0)
+  }, [notes, hiddenNotes, routedPage])
 
   useEffect(() => {
     if (notes.length === 0 || draggingNoteId != null) {
@@ -385,10 +391,9 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
       return
     }
     if (activeNoteId && notes.some((n) => n.id === activeNoteId)) {
-      if (hiddenNotes[activeNoteId]) {
-        restoreNote(activeNoteId)
+      if (!hiddenNotes[activeNoteId]) {
+        ensureRoutedNoteVisible(activeNoteId)
       }
-      ensureRoutedNoteVisible(activeNoteId)
       return
     }
     const sorted = [...notes].sort(
@@ -414,27 +419,23 @@ export function MemoWorkspaceProvider({ children, routedPage = false }: MemoWork
     workspaceSizeTick,
   ])
 
-  /** 라우트 페이지: 캔버스에 보이는 쪽지가 없으면 active 또는 최신 메모 복원 */
+  /** 라우트 페이지: 최초 진입 시 선택만 보정한다. 숨김 메모는 리스트 클릭 전까지 유지한다. */
   useEffect(() => {
     if (!routedPage || notes.length === 0) {
       return
     }
-    if (notes.some((n) => !hiddenNotes[n.id])) {
+    if (activeNoteId && notes.some((n) => n.id === activeNoteId)) {
       return
     }
     const sorted = [...notes].sort(
       (a, b) => (Number(b.zIndex) || 0) - (Number(a.zIndex) || 0),
     )
-    const pick =
-      activeNoteId && notes.some((n) => n.id === activeNoteId) ? activeNoteId : sorted[0]?.id
+    const pick = sorted.find((note) => !hiddenNotes[note.id])?.id
     if (!pick) {
       return
     }
-    restoreNote(pick)
-    if (activeNoteId !== pick) {
-      activeNoteIdRef.current = pick
-      setActiveNoteId(pick)
-    }
+    activeNoteIdRef.current = pick
+    setActiveNoteId(pick)
     ensureRoutedNoteVisible(pick)
   }, [
     activeNoteId,
