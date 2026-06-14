@@ -206,3 +206,129 @@
   flex-wrap: wrap;
   margin-top: 4px;
 }
+
+/* admin 테이블·카드 액션 — 수정/삭제 skeleton 동일, 삭제는 soft danger token */
+.admin-data-table .admin-table-actions .button,
+.admin-user-card__actions .button,
+.admin-ga-card__actions .button {
+  min-height: 48px;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.admin-data-table .admin-table-actions .button--danger,
+.admin-user-card__actions .button--danger,
+.admin-ga-card__actions .button--danger {
+  background: var(--btn-danger-surface, #ffffff);
+  border: 1px solid var(--btn-danger-border, #fecaca);
+  color: var(--btn-danger-text, #b91c1c);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .admin-data-table .admin-table-actions .button--danger:hover:not(:disabled):not(:active),
+  .admin-user-card__actions .button--danger:hover:not(:disabled):not(:active),
+  .admin-ga-card__actions .button--danger:hover:not(:disabled):not(:active) {
+    background: var(--btn-danger-hover-bg, #fef2f2);
+    border-color: var(--btn-danger-hover-border, #fca5a5);
+  }
+}
+
+.admin-data-table .admin-table-actions .button--danger:active:not(:disabled),
+.admin-user-card__actions .button--danger:active:not(:disabled),
+.admin-ga-card__actions .button--danger:active:not(:disabled) {
+  background: var(--btn-danger-active-bg, #fee2e2);
+  border-color: var(--btn-danger-hover-border, #fca5a5);
+}
+
+/* 결제·구독 관리 — 카드/폼 row 정렬 */
+.billing-admin-page .billing-page__card {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.billing-admin-page .billing-page__invoice-list {
+  width: 100%;
+}
+
+.billing-admin-page .billing-page__invoice-item {
+  padding: 16px;
+  background: var(--bg-elevated, #ffffff);
+}
+
+.billing-admin-page .billing-page__invoice-head {
+  align-items: center;
+  gap: 12px;
+}
+
+.billing-admin-page .billing-page__invoice-head strong {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 0;
+  word-break: break-word;
+}
+
+.billing-admin-page .billing-page__invoice-head > span {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-sub);
+}
+
+.billing-admin-page .billing-page__invoice-sub {
+  margin: 4px 0 0;
+  line-height: 1.45;
+}
+
+.billing-admin-page .billing-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 12px;
+  margin-top: 12px;
+  width: 100%;
+}
+
+.billing-admin-page .billing-page__actions .field {
+  flex: 1 1 240px;
+  min-width: min(100%, 240px);
+  margin: 0;
+  gap: 4px;
+}
+
+.billing-admin-page .billing-page__actions .field__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-sub);
+}
+
+.billing-admin-page .billing-page__actions .form-select {
+  width: 100%;
+  min-height: 48px;
+  height: 48px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-input, #ffffff);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.billing-admin-page .billing-page__actions > .button {
+  flex: 0 0 auto;
+  min-height: 48px;
+  align-self: flex-end;
+}
+
+@media (max-width: 480px) {
+  .billing-admin-page .billing-page__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .billing-admin-page .billing-page__actions > .button {
+    width: 100%;
+    align-self: stretch;
+  }
+}
