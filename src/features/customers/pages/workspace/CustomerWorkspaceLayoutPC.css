@@ -161,6 +161,36 @@
   padding: 8px 12px 10px;
 }
 
+/*
+ * workspace embed: user-page 기본 max-width/margin-inline:auto 가 좁은 패널 안에서
+ * 컨텐츠를 가운데로 밀어 오른쪽 정렬처럼 보이는 문제를 막는다.
+ */
+.customer-workspace-layout__right > .customer-workspace-layout__right-body > main.user-page {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.customer-workspace-layout__right > .customer-workspace-layout__right-body > main.pdf-engine-page.pdf-engine-page--workspace-embedded {
+  padding: 0 0 24px;
+}
+
+.customer-workspace-layout__right > .customer-workspace-layout__right-body > main.contract-signature-console .contract-signature-console__container {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: 0;
+  padding-block: 0;
+  box-sizing: border-box;
+}
+
+.customer-workspace-layout__right > .customer-workspace-layout__right-body > main.contract-signature-console .contract-signature-console__scroll-x,
+.customer-workspace-layout__right > .customer-workspace-layout__right-body > main.contract-signature-console .contract-signature-console__filter-row {
+  max-width: 100%;
+}
+
 .customers-page .customer-card-expanded-header {
   display: flex;
   justify-content: space-between;

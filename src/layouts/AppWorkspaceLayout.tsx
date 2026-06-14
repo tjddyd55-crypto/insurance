@@ -49,12 +49,21 @@ function isActivePath(pathname: string, itemPath: string): boolean {
   if (itemPath === '/insurance/company-registry') {
     return pathname === '/insurance/company-registry' || pathname.startsWith('/insurance/company-registry/')
   }
-  if (itemPath.startsWith('/customers')) {
+  if (itemPath === '/customers/map') {
+    return pathname === '/customers/map' || pathname.startsWith('/customers/map/')
+  }
+  if (itemPath === '/customers') {
+    if (pathname === '/customers/map' || pathname.startsWith('/customers/map/')) {
+      return false
+    }
     return (
       pathname === '/customers' ||
       pathname.startsWith('/customers/') ||
       pathname.startsWith('/customer/')
     )
+  }
+  if (itemPath.startsWith('/customers/')) {
+    return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
   }
   if (itemPath === '/application') {
     return pathname === '/application' || pathname.startsWith('/application/')
