@@ -21,7 +21,6 @@ export default function MemoList({ onAfterSelectNote, hideHeader = false }: Prop
     notes,
     hiddenNotes,
     activeNoteId,
-    routedPage,
     handleSidebarSelectNote,
     handleAutoArrange,
     setIsMinimized,
@@ -50,7 +49,6 @@ export default function MemoList({ onAfterSelectNote, hideHeader = false }: Prop
       showToggle={false}
       hideHeader={hideHeader}
       selectedNoteId={activeNoteId}
-      singleCanvasMode={routedPage}
     />
   )
 }
