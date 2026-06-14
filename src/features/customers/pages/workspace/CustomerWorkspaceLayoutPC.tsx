@@ -127,7 +127,7 @@ export default function CustomerWorkspaceLayoutPC({
       <header className="customer-workspace-layout__right-header">
         <div className="customer-workspace-layout__summary-row">
           {selectedCustomerId ? (
-            <>
+            <div className="customer-workspace-layout__summary-inner">
               <p className="customer-workspace-layout__summary-line">
                 <span className="customer-workspace-layout__summary-name">
                   {selectedCustomerLabel || '선택 고객'}
@@ -146,7 +146,7 @@ export default function CustomerWorkspaceLayoutPC({
                 ) : null}
               </p>
               <CustomerHeaderAppLinkCompact key={selectedCustomerId} customerId={selectedCustomerId} />
-            </>
+            </div>
           ) : (
             <p className="customer-workspace-layout__summary-line customer-workspace-layout__summary-line--empty">
               {isCustomerIndexPath ? '고객을 선택해 주세요.' : rightTitle(pathname)}
@@ -154,12 +154,12 @@ export default function CustomerWorkspaceLayoutPC({
           )}
         </div>
 
-        <div className="customer-workspace-layout__tab-row">
-          <div className="customer-workspace-layout__actions" role="toolbar" aria-label="고객 작업 메뉴">
+        <nav className="customer-workspace-layout__tab-row" aria-label="고객 작업 메뉴">
+          <div className="customer-workspace-layout__tab-bar" role="tablist">
             <FormButton
               htmlType="button"
               variant="action"
-              className="filter-button"
+              className="customer-workspace-layout__tab"
               disabled={!selectedCustomerId}
               onClick={onClickViewOnMap}
             >
@@ -168,7 +168,9 @@ export default function CustomerWorkspaceLayoutPC({
             <FormButton
               htmlType="button"
               variant="action"
-              className={`filter-button${activeTab === 'personal-message' ? ' filter-button--workspace-active' : ''}`}
+              className={`customer-workspace-layout__tab${
+                activeTab === 'personal-message' ? ' customer-workspace-layout__tab--active' : ''
+              }`}
               disabled={!selectedCustomerId}
               onClick={onClickPersonalMessage}
             >
@@ -177,7 +179,9 @@ export default function CustomerWorkspaceLayoutPC({
             <FormButton
               htmlType="button"
               variant="action"
-              className={`filter-button${activeTab === 'files' ? ' filter-button--workspace-active' : ''}`}
+              className={`customer-workspace-layout__tab${
+                activeTab === 'files' ? ' customer-workspace-layout__tab--active' : ''
+              }`}
               disabled={!selectedCustomerId}
               onClick={onClickFiles}
             >
@@ -186,7 +190,9 @@ export default function CustomerWorkspaceLayoutPC({
             <FormButton
               htmlType="button"
               variant="action"
-              className={`filter-button${activeTab === 'consultations' ? ' filter-button--workspace-active' : ''}`}
+              className={`customer-workspace-layout__tab${
+                activeTab === 'consultations' ? ' customer-workspace-layout__tab--active' : ''
+              }`}
               disabled={!selectedCustomerId}
               onClick={onClickConsultations}
             >
@@ -196,7 +202,9 @@ export default function CustomerWorkspaceLayoutPC({
               <FormButton
                 htmlType="button"
                 variant="action"
-                className={`filter-button${activeTab === 'pdf-documents' ? ' filter-button--workspace-active' : ''}`}
+                className={`customer-workspace-layout__tab${
+                  activeTab === 'pdf-documents' ? ' customer-workspace-layout__tab--active' : ''
+                }`}
                 disabled={!selectedCustomerId}
                 onClick={onClickCarForm}
               >
@@ -207,7 +215,9 @@ export default function CustomerWorkspaceLayoutPC({
               <FormButton
                 htmlType="button"
                 variant="action"
-                className={`filter-button${activeTab === 'signatures' ? ' filter-button--workspace-active' : ''}`}
+                className={`customer-workspace-layout__tab${
+                  activeTab === 'signatures' ? ' customer-workspace-layout__tab--active' : ''
+                }`}
                 disabled={!selectedCustomerId}
                 title={!selectedCustomerId ? '고객을 선택해 주세요.' : undefined}
                 onClick={onClickSignatures}
@@ -219,7 +229,9 @@ export default function CustomerWorkspaceLayoutPC({
               <FormButton
                 htmlType="button"
                 variant="action"
-                className={`filter-button${activeTab === 'ga-excel' ? ' filter-button--workspace-active' : ''}`}
+                className={`customer-workspace-layout__tab${
+                  activeTab === 'ga-excel' ? ' customer-workspace-layout__tab--active' : ''
+                }`}
                 disabled={!selectedCustomerId}
                 title={gaExcelMenuTitleHint}
                 onClick={onClickGaExcel}
@@ -230,7 +242,9 @@ export default function CustomerWorkspaceLayoutPC({
             <FormButton
               htmlType="button"
               variant="action"
-              className={`filter-button${activeTab === 'memos' ? ' filter-button--workspace-active' : ''}`}
+              className={`customer-workspace-layout__tab${
+                activeTab === 'memos' ? ' customer-workspace-layout__tab--active' : ''
+              }`}
               disabled={!selectedCustomerId}
               onClick={onClickMemos}
             >
@@ -239,14 +253,16 @@ export default function CustomerWorkspaceLayoutPC({
             <FormButton
               htmlType="button"
               variant="action"
-              className={`filter-button${activeTab === 'claims' ? ' filter-button--workspace-active' : ''}`}
+              className={`customer-workspace-layout__tab${
+                activeTab === 'claims' ? ' customer-workspace-layout__tab--active' : ''
+              }`}
               disabled={!selectedCustomerId}
               onClick={onClickClaims}
             >
               청구관리
             </FormButton>
           </div>
-        </div>
+        </nav>
       </header>
 
       <div className="customer-workspace-layout__body">
