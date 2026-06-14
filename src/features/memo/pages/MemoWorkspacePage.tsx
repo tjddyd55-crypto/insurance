@@ -3,6 +3,7 @@ import DeleteConfirmModal, {
   MemoDeleteConfirmFooter,
 } from '../components/DeleteConfirmModal'
 import { useMemoWorkspace } from '../context/MemoWorkspaceContext'
+import { FormButton, FormTextarea } from '../../../components/form'
 
 export default function MemoWorkspacePage() {
   const {
@@ -90,6 +91,38 @@ export default function MemoWorkspacePage() {
                 <p className="memo-workspace__empty-hint">
                   {"상단의 '메모 추가' 버튼으로 첫 메모를 작성해 보세요."}
                 </p>
+              </div>
+            ) : routedPage && visibleNotes[0] ? (
+              <div className="memo-routed-note-detail">
+                <div className="memo-routed-note-detail__header">
+                  <span className="memo-routed-note-detail__title">메모</span>
+                  <FormButton
+                    htmlType="button"
+                    variant="action"
+                    className="memo-sticky-note__delete"
+                    aria-label="메모 삭제"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleRequestDelete(visibleNotes[0].id)
+                    }}
+                  >
+                    ✕
+                  </FormButton>
+                </div>
+                <FormTextarea
+                  className="memo-routed-note-detail__textarea"
+                  value={visibleNotes[0].content}
+                  onChange={(e) => updateNote(visibleNotes[0].id, e.target.value)}
+                  onFocus={() => handleTextareaFocus(visibleNotes[0].id)}
+                  onBlur={() => handleTextareaBlur()}
+                  placeholder="메모를 입력하세요"
+                  aria-label="메모 내용"
+                  inputMode="text"
+                  spellCheck={false}
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  autoComplete="off"
+                />
               </div>
             ) : visibleNotes.length === 0 ? (
               <div className="memo-workspace__empty">
