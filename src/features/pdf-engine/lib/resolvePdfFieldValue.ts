@@ -33,10 +33,29 @@ function legacyCustomerMappingFromString(str: string): PdfFieldDataMapping | nul
 
 /** API/DB 응답 필드에서 매핑 원본(dataMapping · customerMapping)을 읽는다. */
 export function readPdfFieldDataMappingFromField(
-  field: PdfFieldSpec & { customerMapping?: unknown },
+  field: PdfFieldSpec & { customerMapping?: unknown; customer_mapping?: unknown },
 ): PdfFieldDataMapping {
-  const raw = field.dataMapping ?? field.customerMapping ?? null
-  return normalizePdfFieldDataMapping(raw as Partial<PdfFieldDataMapping> | string | null | undefined)
+  const fromDataMapping = normalizePdfFieldDataMapping(
+    field.dataMapping as Partial<PdfFieldDataMapping> | string | null | undefined,
+  )
+  const legacyRaw = field.customerMapping ?? field.customer_mapping ?? null
+  const fromLegacy = normalizePdfFieldDataMapping(
+    legacyRaw as Partial<PdfFieldDataMapping> | string | null | undefined,
+  )
+
+  if (fromDataMapping.dataSourceType === 'customer' && fromDataMapping.customerFieldKey) {
+    return fromDataMapping
+  }
+  if (fromLegacy.dataSourceType === 'customer' && fromLegacy.customerFieldKey) {
+    return fromLegacy
+  }
+  if (fromDataMapping.fallbackText || fromDataMapping.transformType) {
+    return fromDataMapping
+  }
+  if (fromLegacy.fallbackText || fromLegacy.transformType) {
+    return fromLegacy
+  }
+  return fromDataMapping
 }
 
 /** PUT 저장 직전 — 모든 필드에 명시적 dataMapping 을 보장한다. */
