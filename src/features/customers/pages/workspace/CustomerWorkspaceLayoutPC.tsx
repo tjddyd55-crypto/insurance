@@ -2,7 +2,9 @@ import type { MutableRefObject } from 'react'
 import { Outlet } from 'react-router-dom'
 import { EmptyState } from '../../../../components/feedback'
 import { FormButton } from '../../../../components/form'
+import { useAuth } from '../../../auth/AuthProvider'
 import type { CustomerRecord } from '../../domain/types'
+import CustomerFilesPagePC from '../detail/CustomerFilesPagePC'
 import CustomerHeaderAppLinkCompact from './CustomerHeaderAppLinkCompact'
 import './CustomerWorkspaceLayoutPC.css'
 
@@ -106,6 +108,7 @@ export default function CustomerWorkspaceLayoutPC({
   onClickViewOnMap,
   openRelatedCustomerRef,
 }: CustomerWorkspaceLayoutPCProps) {
+  const { token } = useAuth()
   const genderLabel =
     selectedCustomer?.gender === 'male'
       ? '남'
@@ -117,142 +120,165 @@ export default function CustomerWorkspaceLayoutPC({
       ? `보험나이 ${selectedCustomer.insuranceAge}세`
       : null
   const isCustomerIndexPath = pathname === '/customers' || pathname === '/customers/'
+  const authToken = token?.trim() ?? ''
 
   return (
     <section className="customer-workspace-layout__right" aria-label="고객 연동 작업영역">
       <header className="customer-workspace-layout__right-header">
-        <div className="customer-workspace-layout__customer-meta">
-          <div className="customer-workspace-layout__title-row">
-            <h2 className="customer-workspace-layout__title">
-              {selectedCustomerId ? selectedCustomerLabel || '선택 고객' : rightTitle(pathname)}
-              {selectedCustomerId ? (
-                <span className="customer-workspace-layout__title-sub">
-                  {genderLabel}
-                  {insuranceAgeLabel ? ` · ${insuranceAgeLabel}` : ''}
+        <div className="customer-workspace-layout__summary-row">
+          {selectedCustomerId ? (
+            <>
+              <p className="customer-workspace-layout__summary-line">
+                <span className="customer-workspace-layout__summary-name">
+                  {selectedCustomerLabel || '선택 고객'}
                 </span>
-              ) : null}
-            </h2>
-            {selectedCustomerId ? (
+                <span className="customer-workspace-layout__summary-sep" aria-hidden>
+                  ·
+                </span>
+                <span>{genderLabel}</span>
+                {insuranceAgeLabel ? (
+                  <>
+                    <span className="customer-workspace-layout__summary-sep" aria-hidden>
+                      ·
+                    </span>
+                    <span>{insuranceAgeLabel}</span>
+                  </>
+                ) : null}
+              </p>
               <CustomerHeaderAppLinkCompact key={selectedCustomerId} customerId={selectedCustomerId} />
-            ) : null}
-          </div>
-          <p className="customer-workspace-layout__subtitle">
-            {selectedCustomerId
-              ? `생년월일 ${selectedCustomer?.ssn || '-'} · 상담일 ${selectedCustomer?.lastConsultDate || '-'} · 연락처 ${
-                  selectedCustomer?.phone || '-'
-                }`
-              : '고객을 선택해 주세요.'}
-          </p>
+            </>
+          ) : (
+            <p className="customer-workspace-layout__summary-line customer-workspace-layout__summary-line--empty">
+              {isCustomerIndexPath ? '고객을 선택해 주세요.' : rightTitle(pathname)}
+            </p>
+          )}
         </div>
-        <div className="customer-workspace-layout__actions">
-          <FormButton
-            htmlType="button"
-            variant="action"
-            className="filter-button"
-            disabled={!selectedCustomerId}
-            onClick={onClickViewOnMap}
-          >
-            지도에서 보기
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            variant="action"
-            className={`filter-button${activeTab === 'personal-message' ? ' filter-button--workspace-active' : ''}`}
-            disabled={!selectedCustomerId}
-            onClick={onClickPersonalMessage}
-          >
-            개인메시지
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            variant="action"
-            className={`filter-button${activeTab === 'files' ? ' filter-button--workspace-active' : ''}`}
-            disabled={!selectedCustomerId}
-            onClick={onClickFiles}
-          >
-            고객 파일
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            variant="action"
-            className={`filter-button${activeTab === 'consultations' ? ' filter-button--workspace-active' : ''}`}
-            disabled={!selectedCustomerId}
-            onClick={onClickConsultations}
-          >
-            상담 이력
-          </FormButton>
-          {showCarInsuranceInWorkspace ? (
+
+        <div className="customer-workspace-layout__tab-row">
+          <div className="customer-workspace-layout__actions" role="toolbar" aria-label="고객 작업 메뉴">
             <FormButton
               htmlType="button"
               variant="action"
-              className={`filter-button${activeTab === 'pdf-documents' ? ' filter-button--workspace-active' : ''}`}
+              className="filter-button"
               disabled={!selectedCustomerId}
-              onClick={onClickCarForm}
+              onClick={onClickViewOnMap}
             >
-              신청서
+              지도에서 보기
             </FormButton>
-          ) : null}
-          {showContractSignaturesInWorkspace ? (
             <FormButton
               htmlType="button"
               variant="action"
-              className={`filter-button${activeTab === 'signatures' ? ' filter-button--workspace-active' : ''}`}
+              className={`filter-button${activeTab === 'personal-message' ? ' filter-button--workspace-active' : ''}`}
               disabled={!selectedCustomerId}
-              title={!selectedCustomerId ? '고객을 선택해 주세요.' : undefined}
-              onClick={onClickSignatures}
+              onClick={onClickPersonalMessage}
             >
-              전자서명
+              개인메시지
             </FormButton>
-          ) : null}
-          {showGaExcelEntry ? (
             <FormButton
               htmlType="button"
               variant="action"
-              className={`filter-button${activeTab === 'ga-excel' ? ' filter-button--workspace-active' : ''}`}
+              className={`filter-button${activeTab === 'files' ? ' filter-button--workspace-active' : ''}`}
               disabled={!selectedCustomerId}
-              title={gaExcelMenuTitleHint}
-              onClick={onClickGaExcel}
+              onClick={onClickFiles}
             >
-              GA 고객 데이터 보기
+              고객 파일
             </FormButton>
-          ) : null}
-          <FormButton
-            htmlType="button"
-            variant="action"
-            className={`filter-button${activeTab === 'memos' ? ' filter-button--workspace-active' : ''}`}
-            disabled={!selectedCustomerId}
-            onClick={onClickMemos}
-          >
-            메모 보기
-          </FormButton>
-          <FormButton
-            htmlType="button"
-            variant="action"
-            className={`filter-button${activeTab === 'claims' ? ' filter-button--workspace-active' : ''}`}
-            disabled={!selectedCustomerId}
-            onClick={onClickClaims}
-          >
-            청구관리
-          </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="action"
+              className={`filter-button${activeTab === 'consultations' ? ' filter-button--workspace-active' : ''}`}
+              disabled={!selectedCustomerId}
+              onClick={onClickConsultations}
+            >
+              상담 이력
+            </FormButton>
+            {showCarInsuranceInWorkspace ? (
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className={`filter-button${activeTab === 'pdf-documents' ? ' filter-button--workspace-active' : ''}`}
+                disabled={!selectedCustomerId}
+                onClick={onClickCarForm}
+              >
+                신청서
+              </FormButton>
+            ) : null}
+            {showContractSignaturesInWorkspace ? (
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className={`filter-button${activeTab === 'signatures' ? ' filter-button--workspace-active' : ''}`}
+                disabled={!selectedCustomerId}
+                title={!selectedCustomerId ? '고객을 선택해 주세요.' : undefined}
+                onClick={onClickSignatures}
+              >
+                전자서명
+              </FormButton>
+            ) : null}
+            {showGaExcelEntry ? (
+              <FormButton
+                htmlType="button"
+                variant="action"
+                className={`filter-button${activeTab === 'ga-excel' ? ' filter-button--workspace-active' : ''}`}
+                disabled={!selectedCustomerId}
+                title={gaExcelMenuTitleHint}
+                onClick={onClickGaExcel}
+              >
+                GA 고객 데이터 보기
+              </FormButton>
+            ) : null}
+            <FormButton
+              htmlType="button"
+              variant="action"
+              className={`filter-button${activeTab === 'memos' ? ' filter-button--workspace-active' : ''}`}
+              disabled={!selectedCustomerId}
+              onClick={onClickMemos}
+            >
+              메모 보기
+            </FormButton>
+            <FormButton
+              htmlType="button"
+              variant="action"
+              className={`filter-button${activeTab === 'claims' ? ' filter-button--workspace-active' : ''}`}
+              disabled={!selectedCustomerId}
+              onClick={onClickClaims}
+            >
+              청구관리
+            </FormButton>
+          </div>
         </div>
       </header>
 
-      <div className="customer-workspace-layout__right-body">
-        {selectedCustomerId || isCustomerIndexPath ? (
-          /**
-           * 고객 id 를 자식 서브트리 `key` 로 선언(routing-ssot.mdc 7).
-           * 다중 래퍼 아래에서 `useEffect` deps 누락이 있어도 "전 고객 데이터 잔존" 회귀를
-           * 막기 위한 방어 레이어. 같은 고객 내부의 탭 전환은 key 값이 동일하므로 자연 교체된다.
-           *
-           * 고객 미선택 index(`/customers`) 에서는 Outlet 을 렌더해 최근 등록 고객 패널을 보여준다.
-           */
-          <Outlet
-            key={selectedCustomerId ?? 'customer-index'}
-            context={{ selectedCustomerId, openRelatedCustomerRef }}
-          />
-        ) : (
-          <EmptyState message="고객을 선택해 주세요." />
-        )}
+      <div className="customer-workspace-layout__body">
+        <div
+          className={`customer-workspace-layout__main${
+            activeTab === 'files' ? ' customer-workspace-layout__main--files-route' : ''
+          }`}
+        >
+          <div className="customer-workspace-layout__right-body">
+            {selectedCustomerId || isCustomerIndexPath ? (
+              /**
+               * 고객 id 를 자식 서브트리 `key` 로 선언(routing-ssot.mdc 7).
+               * 다중 래퍼 아래에서 `useEffect` deps 누락이 있어도 "전 고객 데이터 잔존" 회귀를
+               * 막기 위한 방어 레이어. 같은 고객 내부의 탭 전환은 key 값이 동일하므로 자연 교체된다.
+               *
+               * 고객 미선택 index(`/customers`) 에서는 Outlet 을 렌더해 최근 등록 고객 패널을 보여준다.
+               */
+              <Outlet
+                key={selectedCustomerId ?? 'customer-index'}
+                context={{ selectedCustomerId, openRelatedCustomerRef }}
+              />
+            ) : (
+              <EmptyState message="고객을 선택해 주세요." />
+            )}
+          </div>
+        </div>
+
+        {selectedCustomerId && authToken ? (
+          <aside className="customer-workspace-layout__file-panel" aria-label="고객 파일">
+            <CustomerFilesPagePC token={authToken} customerId={selectedCustomerId} variant="pc" />
+          </aside>
+        ) : null}
       </div>
     </section>
   )

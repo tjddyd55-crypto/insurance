@@ -464,15 +464,12 @@ const CustomerListCard = memo(function CustomerListCard({
             {!isMobile || mobileInfoExpanded ? (
               <>
                 <div
-                  className={`customer-detail-toolbar${isMobile ? ' customer-detail-toolbar--mobile-actions' : ''}`}
+                  className={`customer-detail-toolbar customer-card-expanded-header${
+                    isMobile ? ' customer-detail-toolbar--mobile-actions' : ''
+                  }`}
                 >
-                  <div className="customer-detail-toolbar__title">
-                    <span className="customer-info-label">
-                      <span className="customer-info-label__icon" aria-hidden>
-                        👤
-                      </span>
-                      {c.name}
-                    </span>
+                  <div className="customer-detail-toolbar__title customer-card-expanded-header__name">
+                    {c.name}
                   </div>
                   <div
                     className={`customer-detail-action-bar${
@@ -516,17 +513,6 @@ const CustomerListCard = memo(function CustomerListCard({
                       </>
                     ) : !isMobile ? (
                       <>
-                        <FormButton
-                          htmlType="button"
-                          variant="secondary"
-                          size="sm"
-                          className="customer-detail-action-button"
-                          title="고객 위치를 지도에서 보기"
-                          aria-label="지도에서 보기"
-                          onClick={() => onOpenOnMap(c.id)}
-                        >
-                          지도에서 보기
-                        </FormButton>
                         <FormButton
                           htmlType="button"
                           variant="secondary"

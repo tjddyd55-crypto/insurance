@@ -158,7 +158,7 @@ export function buildGaTenantDashboardMenu(
 
     { type: 'section', label: '고객관리' },
     { type: 'link', label: '고객리스트', path: '/customers' },
-    { type: 'link', label: '고객 지도(개발중)', path: '/customers/map', badge: DEV_BADGE },
+    { type: 'link', label: '고객 지도', path: '/customers/map' },
     {
       type: 'link',
       label: '고객소식지',
@@ -274,7 +274,7 @@ const SUPER_ADMIN_BASE: GaTenantMenuItem[] = [
   { label: '유저 관리', path: '/admin/users' },
   { label: '결제·구독 관리', path: '/admin/billing/manage' },
   { label: '운영 통계', path: '/admin/analytics' },
-  { label: '고객 지도(개발중)', path: '/customers/map' },
+  { label: '고객 지도', path: '/customers/map' },
   { label: '기능 요청 관리', path: '/internal/admin/feature-requests' },
   { label: '보험사 설계사이트 관리', path: '/admin/insurer-sites' },
   { label: 'PDF 문서 템플릿', path: '/admin/pdf-templates' },
