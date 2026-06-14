@@ -361,10 +361,10 @@
   z-index: 5;
   padding: 14px;
   border-radius: 12px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   color: var(--text-main);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
 }
 
 .customers-map-page--pc .customer-map-marker-card {
@@ -412,9 +412,19 @@
 .customer-map-marker-card__close {
   border: none;
   background: transparent;
-  color: var(--text-muted);
+  color: #6b7280;
   cursor: pointer;
   font-size: 0.875rem;
+}
+
+.customer-map-marker-card__close:hover {
+  color: #111827;
+}
+
+.customer-map-marker-card__close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 28%, transparent);
+  border-radius: 4px;
 }
 
 .customer-map-marker-card__fields {
@@ -464,6 +474,7 @@
   max-height: min(70vh, 520px);
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .customer-map-marker-card__title-row--stacked {
@@ -475,7 +486,7 @@
 .customer-map-marker-card__address {
   margin: 0;
   font-size: 0.8125rem;
-  color: var(--text-muted);
+  color: #6b7280;
   line-height: 1.4;
 }
 
@@ -485,19 +496,23 @@
   flex-direction: column;
   gap: 10px;
   padding-right: 2px;
+  flex: 1;
+  min-height: 0;
 }
 
 .customer-map-marker-card__row {
-  padding: 10px;
+  padding: 12px;
   border-radius: 10px;
-  border: 1px solid var(--border-default);
-  background: #1f2937;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
   cursor: pointer;
+  box-shadow: none;
 }
 
 .customer-map-marker-card__row--highlighted {
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.35);
+  border-color: var(--primary-border, #bbf7d0);
+  background: #ffffff;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent);
 }
 
 .customer-map-marker-card__row-head {
@@ -510,18 +525,31 @@
 .customer-map-marker-card__row-name {
   margin: 0;
   font-size: 0.9375rem;
-  color: var(--text-primary);
+  font-weight: 600;
+  color: #111827;
 }
 
 .customer-map-marker-card__row-meta {
   font-size: 0.8125rem;
-  color: var(--text-secondary);
+  color: #6b7280;
 }
 
 .customer-map-marker-card__row-fields {
   margin: 8px 0 10px;
   display: grid;
   gap: 6px;
+}
+
+.customer-map-marker-card__row-fields dt {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.customer-map-marker-card__row-fields dd {
+  margin: 2px 0 0;
+  font-size: 0.875rem;
+  color: #111827;
 }
 
 .customers-map-page__unmapped-panel {
