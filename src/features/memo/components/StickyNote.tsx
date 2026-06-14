@@ -242,7 +242,7 @@ export default function StickyNote({
           <span aria-hidden>⋮⋮</span>
           <span className="truncate">이동</span>
         </FormButton>
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="memo-sticky-note__actions flex shrink-0 items-center gap-1">
           {onMinimize ? (
             <FormButton
               htmlType="button"
@@ -287,21 +287,21 @@ export default function StickyNote({
           >
             A+
           </FormButton>
+          <FormButton
+            htmlType="button"
+            variant="action"
+            className="memo-sticky-note__delete inline-flex shrink-0 items-center justify-center rounded touch-manipulation"
+            aria-label="메모 삭제"
+            onTouchStart={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              onDeleteRequest(note.id)
+            }}
+          >
+            ✕
+          </FormButton>
         </div>
-        <FormButton
-          htmlType="button"
-          variant="action"
-          className="memo-sticky-note__delete inline-flex shrink-0 items-center justify-center rounded touch-manipulation"
-          aria-label="메모 삭제"
-          onTouchStart={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation()
-            onDeleteRequest(note.id)
-          }}
-        >
-          ✕
-        </FormButton>
       </div>
       <div className="memo-sticky-note__content">
         <FormTextarea
