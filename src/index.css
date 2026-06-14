@@ -6828,6 +6828,12 @@ div.cta-button.customers-page__action-btn[role='button'] {
   padding-bottom: 24px;
 }
 
+.pc-root .insurance-contacts-view.insurance-contacts-view,
+.pc-root main.company-registry-page.insurance-contacts-view {
+  max-width: none;
+  width: 100%;
+}
+
 .contact-header__row {
   display: flex;
   flex-wrap: wrap;
@@ -6842,22 +6848,25 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .update-btn {
   flex-shrink: 0;
-  background: var(--bg-soft);
-  color: var(--text-main);
-  border: 1px solid var(--border);
-  padding: 6px 12px;
-  border-radius: 8px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--btn-secondary-border, #e5e7eb);
+  background: var(--btn-secondary-surface, #ffffff);
+  color: var(--btn-secondary-text, #111827);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition:
     background 0.15s ease,
     border-color 0.15s ease;
 }
 
-.update-btn:hover {
-  background: var(--bg-card);
-  border-color: var(--primary);
+@media (hover: hover) and (pointer: fine) {
+  .update-btn:hover:not(:disabled) {
+    background: var(--btn-secondary-hover-bg, #f8fafc);
+    border-color: var(--btn-secondary-hover-border, #d1d5db);
+  }
 }
 
 .insurance-contacts-header h1 {
@@ -6865,7 +6874,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: var(--text-main);
+  color: var(--text-primary, #111827);
 }
 
 .contact-header.contact-header .insurance-contacts-header h1,
@@ -6882,33 +6891,46 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .insurance-contacts-view .tabs {
   display: flex;
   gap: 8px;
-  padding: 10px 0;
+  padding: 0 0 12px;
+  align-items: stretch;
 }
 
 .insurance-contacts-view .tabs button {
   flex: 1;
   padding: 12px 8px;
   min-height: 48px;
-  border: none;
+  border: 1px solid var(--btn-secondary-border, #e5e7eb);
   border-radius: 10px;
-  background: var(--bg-soft);
+  background: var(--btn-secondary-surface, #ffffff);
   font-size: 1.05rem;
   font-weight: 600;
-  color: var(--text-sub);
+  color: var(--text-sub, #6b7280);
   cursor: pointer;
-  box-shadow: var(--shadow-elevated);
+  box-shadow: none;
   -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .insurance-contacts-view .tabs button:hover:not(.active):not(:disabled) {
+    background: var(--btn-secondary-hover-bg, #f8fafc);
+    border-color: var(--btn-secondary-hover-border, #d1d5db);
+  }
 }
 
 .insurance-contacts-view .tabs button.active {
-  background: var(--primary);
-  color: var(--text-on-primary);
-  box-shadow: var(--shadow-elevated);
+  background: var(--primary-soft, #dcfce7);
+  border-color: var(--primary-border, #bbf7d0);
+  color: var(--primary-active, #166534);
+  box-shadow: none;
 }
 
 .insurance-contacts-search {
   display: block;
-  margin: 0 0 10px;
+  margin: 0 0 12px;
 }
 
 .insurance-contacts-search__input {
@@ -6917,10 +6939,10 @@ div.cta-button.customers-page__action-btn[role='button'] {
   padding: 14px 16px;
   min-height: 48px;
   font-size: 1.05rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--input-border, #e5e7eb);
   border-radius: 12px;
-  background: var(--input-bg);
-  color: var(--text-main);
+  background: var(--input-bg, #ffffff);
+  color: var(--text-main, #111827);
 }
 
 .insurance-contacts-search__input::placeholder {
@@ -6947,21 +6969,21 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .insurance-contacts-view .company-card {
-  background: var(--bg-card);
-  border-radius: 14px;
+  background: #ffffff;
+  border-radius: 12px;
   padding: 14px 16px;
   margin-bottom: 2px;
-  border: 1px solid var(--border);
-  box-shadow: 0 1px 3px var(--shadow-card);
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
   transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 @media (hover: hover) {
   .insurance-contacts-view .company-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px var(--shadow-card);
+    border-color: #d1d5db;
+    box-shadow: 0 2px 8px rgb(15 23 42 / 0.06);
   }
 }
 
@@ -7040,7 +7062,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 
 .company-card .info-row .phone {
   white-space: nowrap;
-  color: #4da3ff;
+  color: var(--primary, #16a34a);
 }
 
 .company-card .info-row-actions {
@@ -7048,13 +7070,13 @@ div.cta-button.customers-page__action-btn[role='button'] {
   justify-content: flex-end;
   align-items: center;
   gap: 4px;
-  min-width: 0;
+  min-width: 60px;
 }
 
 .insurance-contacts-view .company-contacts-block {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid #e5e7eb;
 }
 
 .company-card .contact-row {
@@ -7127,10 +7149,10 @@ div.cta-button.customers-page__action-btn[role='button'] {
   height: 28px;
   padding: 0;
   margin: 0;
-  border-radius: 6px;
-  background: var(--bg-soft);
-  color: var(--text-main);
-  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text-main, #111827);
+  border: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7140,6 +7162,17 @@ div.cta-button.customers-page__action-btn[role='button'] {
   cursor: pointer;
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .company-card .actions-mini button:hover:not(:disabled),
+  .company-card .actions-mini a:hover {
+    background: #f8fafc;
+    border-color: #d1d5db;
+  }
 }
 
 .company-card .actions-mini button:disabled {
@@ -7150,10 +7183,10 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .insurance-contacts-view .contact-card--empty {
   margin-top: 10px;
   padding: 12px;
-  background: var(--bg-soft);
-  color: var(--text-sub);
+  background: #f8fafc;
+  color: var(--text-sub, #6b7280);
   border-radius: 10px;
-  border: 1px solid var(--border);
+  border: 1px solid #e5e7eb;
 }
 
 .insurance-contacts-view .contact-card--empty .empty-box {
@@ -7244,12 +7277,12 @@ div.cta-button.customers-page__action-btn[role='button'] {
 }
 
 .mobile-root .insurance-contacts-view .company-card .info-row + .info-row {
-  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-top: 1px solid #e5e7eb;
 }
 
 .mobile-root .insurance-contacts-view .company-card .info-row .label {
   width: auto;
-  color: #aaa;
+  color: var(--text-sub, #6b7280);
 }
 
 .mobile-root .insurance-contacts-view .company-card .info-row .value {
@@ -7294,7 +7327,7 @@ div.cta-button.customers-page__action-btn[role='button'] {
 .mobile-root .insurance-contacts-view .company-card .contact-row .phone {
   line-height: 1.3;
   white-space: nowrap;
-  color: #4da3ff;
+  color: var(--primary, #16a34a);
 }
 
 .mobile-root .insurance-contacts-view .company-card .actions-mini button,
@@ -7337,35 +7370,36 @@ div.cta-button.customers-page__action-btn[role='button'] {
   width: 100%;
   padding: 16px;
   border-radius: 12px;
-  background: #1a1f2a;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
   min-height: 220px;
   margin: 0;
 }
 
 .pc-root .insurance-contacts-view .company-card .info-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) 60px;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   padding: 6px 0;
   margin-top: 0;
-  min-height: 0;
+  min-height: 36px;
 }
 
 .pc-root .insurance-contacts-view .company-card .info-row + .info-row {
-  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-top: 1px solid #e5e7eb;
 }
 
 .pc-root .insurance-contacts-view .company-card .info-row .label {
   width: 80px;
   flex-shrink: 0;
-  color: #aaa;
+  color: var(--text-sub, #6b7280);
 }
 
 .pc-root .insurance-contacts-view .company-card .info-row .value {
-  flex: 1;
   min-width: 0;
-  word-break: break-all;
+  word-break: break-word;
 }
 
 .pc-root .insurance-contacts-view .company-card .info-row-actions,
@@ -7375,25 +7409,25 @@ div.cta-button.customers-page__action-btn[role='button'] {
   flex-shrink: 0;
   justify-content: flex-end;
   align-items: center;
+  min-width: 60px;
 }
 
 .pc-root .insurance-contacts-view .company-card .contact-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr) minmax(108px, 1fr) 60px;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
   padding: 6px 0;
   min-height: 36px;
 }
 
 .pc-root .insurance-contacts-view .company-card .contact-row .position {
-  width: 80px;
+  width: auto;
   flex-shrink: 0;
 }
 
 .pc-root .insurance-contacts-view .company-card .contact-row .name,
 .pc-root .insurance-contacts-view .company-card .contact-row .phone {
-  flex: 1;
   min-width: 0;
 }
 
@@ -7402,6 +7436,9 @@ div.cta-button.customers-page__action-btn[role='button'] {
   width: 28px;
   height: 28px;
   padding: 0;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
 }
 
 @media (min-width: 1024px) and (max-width: 1200px) {
@@ -11117,17 +11154,6 @@ textarea.memo-sticky-note__textarea::placeholder {
 .pc-root .insurance-contacts-view .actions-mini svg {
   width: 14px !important;
   height: 14px !important;
-}
-
-.pc-root .insurance-contacts-view .info-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.pc-root .insurance-contacts-view .info-row-actions {
-  display: flex;
-  gap: 6px;
 }
 
 /* 부모 영역 풀기 */
