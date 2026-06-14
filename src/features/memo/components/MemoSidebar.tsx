@@ -23,6 +23,8 @@ type Props = {
   hideHeader?: boolean
   /** 현재 선택(활성) 메모 id — 라우트 페이지 목록 강조 */
   selectedNoteId?: string | null
+  /** 정식 `/memo` 화면처럼 선택된 한 장만 캔버스에 표시하는 목록 모드 */
+  singleCanvasMode?: boolean
 }
 export default function MemoSidebar({
   notes,
@@ -34,6 +36,7 @@ export default function MemoSidebar({
   showToggle = true,
   hideHeader = false,
   selectedNoteId = null,
+  singleCanvasMode = false,
 }: Props) {
   return (
     <div className="memo-sidebar__inner">
@@ -58,8 +61,8 @@ export default function MemoSidebar({
       <div className="memo-sidebar__list" role="listbox" aria-label="메모 목록">
         {notes.map((note) => {
           const preview = note.content?.trim().slice(0, 20) || '내용 없음'
-          const isExpandedOnCanvas = !hiddenNotes[note.id]
           const isActive = selectedNoteId === note.id
+          const isExpandedOnCanvas = singleCanvasMode ? isActive : !hiddenNotes[note.id]
           return (
             <div
               key={note.id}
