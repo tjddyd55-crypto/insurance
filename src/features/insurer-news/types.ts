@@ -12,6 +12,9 @@ export interface NewsletterBoard {
   id: string
   slug: string
   label: string
+  /** global = 전체 공용 게시글, ga = GA별 분리 게시글 */
+  contentScope: 'global' | 'ga'
+  /** @deprecated contentScope 사용 */
   isPublic: boolean
   gaId: number | null
   gaCode: string | null

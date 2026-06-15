@@ -57,12 +57,16 @@ export async function listAdminNewsletterBoards(token: string): Promise<Newslett
 
 export async function createNewsletterBoard(
   token: string,
-  input: { label: string; isPublic: boolean },
+  input: { label: string; isPublic?: boolean; contentScope?: 'global' | 'ga' },
 ): Promise<NewsletterBoard> {
+  const body =
+    input.contentScope != null
+      ? { label: input.label, contentScope: input.contentScope }
+      : { label: input.label, isPublic: Boolean(input.isPublic) }
   return apiRequest<NewsletterBoard>('/api/admin/newsletter-boards', {
     method: 'POST',
     token,
-    body: JSON.stringify(input),
+    body: JSON.stringify(body),
   })
 }
 

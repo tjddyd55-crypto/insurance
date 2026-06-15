@@ -1,0 +1,44 @@
+.public-board-writer-card {
+  max-width: 480px;
+  margin: 24px auto;
+  padding: 24px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  display: grid;
+  gap: 14px;
+}
+
+.public-board-writer-card h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #111827;
+}
+
+.public-board-writer-card p {
+  margin: 0;
+  color: #6b7280;
+  line-height: 1.55;
+  font-size: 0.9375rem;
+}
+
+.public-board-writer-workspace {
+  max-width: 720px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+
+.public-board-writer-board-item {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  display: grid;
+  gap: 10px;
+}
+
+.public-board-writer-board-item h3 {
+  margin: 0;
+  color: #111827;
+}

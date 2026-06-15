@@ -1,5 +1,6 @@
 import { NewsletterBoardAdminView } from './NewsletterBoardAdminView'
 import type { NewsletterBoardAdminViewProps } from './newsletterBoardAdminViewProps'
+import './newsletter-board-admin.css'
 
 export default function NewsletterBoardAdminPCView(props: NewsletterBoardAdminViewProps) {
   return (
